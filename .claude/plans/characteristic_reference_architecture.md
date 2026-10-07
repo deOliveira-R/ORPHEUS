@@ -1029,6 +1029,13 @@ The slab now matches its closed forms to rounding at 8 points from τ = 2.3e-6 t
 2. The rung-3 sections from "the premises re-measured" on: the rulings, the refutations and the measurements.
 3. `docs/theory/references/characteristic.rst`: the line rule, the assembly, the white walls' coupling.
 4. Issue #586, and `orpheus/derivations/continuous/characteristic/assembly.py` (`LineRule.of`, `_impact_rule`, `_grazing_ends`).
+5. The cost probes, `scratch/characteristic_architecture/p1_step_b3/cost/`. Run each with `.venv/bin/python -O` from the repository root:
+   - `mr3cyl.py <points>`: the three-region cylinder's line count, time and conservation; the 723 s baseline at 8 points;
+   - `cylext.py <budget>`: the time and peak memory for a budget;
+   - `cyl30.py`: the line and piece counts at τ = 30;
+   - `cylmem.py <budget>`: memory against the budget;
+   - `thick.py`, `c9.py`: the closed-form checks (escape, transmission), with the references in mpmath at 60 digits;
+   - `cons.py`, `band.py`: closed-body conservation, and the near-void sweep.
 
 **The next step: #586** (the user's ruling of 2026-10-07: before rung 4). The cylinder's rule is the tensor product of the impact rule (240 nodes) and the polar rule (160), each graded for the whole body. A three-region cylinder of radius 2 takes 723 s per group block at 8 points (38 400 lines) and conserves to 5.4e-13. Candidates, none measured:
 - a non-product (b, θ) rule, grading θ per impact panel by that panel's own optical scale;
