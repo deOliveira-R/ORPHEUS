@@ -1,12 +1,13 @@
 r"""The boundary closure along each line: the period of the unfolded path and its least solution.
 
 The boundary resolvent :math:`P = P_0 + E\,(I - T)^{-1} X` is realised in two
-parts. This module holds the line part, :class:`LinePeriod`: on every wall
-whose return is specular (a mirror, a partial mirror, vacuum as amplitude 0)
-or a periodic wrap, the returned path is a line again, congruent to the one
-that left, so :math:`T` is diagonal over lines and its block on one line is
-a cycle of at most two traversals. The diffuse walls couple every line to
-every other and are the second part, a finite-rank update over the walls.
+parts, and this module holds both. The line part is :class:`LinePeriod`: on
+every wall whose return is specular (a mirror, a partial mirror, vacuum as
+amplitude 0) or a periodic wrap, the returned path is a line again,
+congruent to the one that left, so :math:`T` is diagonal over lines and its
+block on one line is a cycle of at most two traversals. The diffuse walls
+couple every line to every other and are the second part, a finite-rank
+update over the walls, :class:`WallCoupling`.
 
 **The period.** Unfold the line through its walls. A *traversal* is one of
 the line's transits (:attr:`~orpheus.geometry.chord.Chord.transits`) read

@@ -76,7 +76,13 @@ Submodules
        (:mod:`~orpheus.derivations.continuous.characteristic.basis`), and
        the transport along each line on that basis: the traversal
        integrals, the vacuum Volterra block and the angular flux
-       (:mod:`~orpheus.derivations.continuous.characteristic.transport`);
+       (:mod:`~orpheus.derivations.continuous.characteristic.transport`),
+       one group's transport block, assembled by Galerkin over the lines of
+       the chart's line domain with the white walls' coupling
+       (:mod:`~orpheus.derivations.continuous.characteristic.assembly`), and
+       the geometric, exponential and hp gradings every rule of the package
+       places its piece ends by
+       (:mod:`~orpheus.derivations.continuous.characteristic.grading`);
        the theory is :ref:`theory-characteristic-reference`.
    * - :mod:`~orpheus.derivations.common.quadrature_recipes`
      - Geometry-aware quadrature recipes:
@@ -207,8 +213,9 @@ The characteristic reference
 ----------------------------
 
 The package, built rung by rung beside the trajectory-resolvent family;
-the theory is :ref:`theory-characteristic-reference`. Its four modules
-are documented below; the package re-exports their public names.
+the theory is :ref:`theory-characteristic-reference`. Its six modules
+are documented below; the package re-exports the public names of the
+first five (the gradings are imported by module).
 
 .. automodule:: orpheus.derivations.continuous.characteristic
 
@@ -222,6 +229,12 @@ are documented below; the package re-exports their public names.
    :members:
 
 .. automodule:: orpheus.derivations.continuous.characteristic.transport
+   :members:
+
+.. automodule:: orpheus.derivations.continuous.characteristic.assembly
+   :members:
+
+.. automodule:: orpheus.derivations.continuous.characteristic.grading
    :members:
 
 Kernels

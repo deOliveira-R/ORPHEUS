@@ -36,10 +36,15 @@ the slab, and the cylinder's through Bickley's Ki_3 (Struve closed form of
 int K_0 and the recurrence), the balance of one re-emission chain for the white
 law, the per-line integral for the specular sphere.
 
-Levels. Every row lands ``foundation`` until the archivist mints
-``characteristic-galerkin-assembly`` and ``characteristic-boundary-resolvent``
-(the spec's levels: AS1, AS1b, AS5, LR1, WC1-WC4, WC7, OP1-OP3 ``l1``; EB4,
-LA1-LA4 ``l2``, CONV); a row's planned level is in its docstring. Rows on the
+Levels (the labels minted 2026-10-07, ``docs/theory/references/characteristic.rst``):
+the rows whose docstring names a planned level carry it, with
+``verifies("characteristic-boundary-resolvent")`` on the wall-coupling rows
+(WC1-WC4, WC7, AS6) and ``verifies("characteristic-galerkin-assembly")`` on the
+rest; EB4 and LA1-LA4 are ``l2`` (CONV). The others are ``foundation``.
+``catches`` markers (ERR-101 fixed resolutions over lines, ERR-102 I - T alpha
+by subtraction, ERR-103 the normal direction ungraded) sit only on rows that
+redden when their defect is re-dropped under -O (the battery,
+``scratch/characteristic_architecture/p1_step_b3/gates/battery/``). Rows on the
 cylinder cost 30 s or more (`[M]` 2026-10-06, the orchestrator: a two-region
 cylinder block at 8 points, about 60 s at the piece budget 1024; at tau = 30, 1117 s, #586) and are ``slow``.
 
@@ -165,6 +170,7 @@ def test_the_mass_and_the_wall_area_read_the_one_density(monkeypatch: pytest.Mon
 
 
 @pytest.mark.foundation
+@pytest.mark.catches("ERR-101")
 @pytest.mark.rests_on(_LINES + "test_the_density_is_the_beam_density_times_the_folded_directions")
 def test_the_cylinders_direction_rule_is_gauss_in_the_polar_angle() -> None:
     """[LR1, structure leg] The cylinder's lines sit at the Gauss points of [0, pi/2] in theta (not in mu_z), and each
@@ -230,7 +236,8 @@ def _closed_params(rows, marks=(), groups=("g0", "g1", "hom")):
     return [pytest.param(*r[1:], g, id=f"{r[0]}-{g}", marks=marks) for r in rows for g in groups]
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.parametrize(("chart", "breakpoints", "laws", "points", "group"),
                          _closed_params(_CLOSED) + _closed_params(_CLOSED_SLOW, marks=pytest.mark.slow, groups=("g0",)))
 @pytest.mark.rests_on(_TRANS + "test_the_volterra_triangle_is_the_double_integral_along_the_line",
@@ -258,7 +265,8 @@ def test_a_closed_body_conserves_its_emission(chart, breakpoints, laws, points, 
     assert err <= tol, f"{err:.2e} > {tol:.0e}"
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
 def test_the_closed_sphere_conserves_to_rounding_at_high_resolution() -> None:
     """[AS1b; planned l1] At 24 impact points per piece the white sphere conserves to 1e-14: the even panel's witness
@@ -272,7 +280,8 @@ def test_the_closed_sphere_conserves_to_rounding_at_high_resolution() -> None:
     assert err <= 1e-14, f"{err:.2e}"
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
 def test_each_group_is_coupled_through_its_own_cross_section() -> None:
     """[AS5; planned l1] Each group's rule from its own Sigma_t (``LineRule.of(..., sigma_t, ...)``, one rule per
@@ -424,6 +433,12 @@ _ESCAPE = [("sphere", 0.5, 16, 1e-13), ("sphere", 2.0, 16, 1e-13), ("sphere", 8.
            ("sphere", 100.0, 16, 1e-11), ("sphere", 1000.0, 16, 1e-9), ("sphere", 0.01, 16, 1e-12),
            ("slab", 0.5, 8, 1e-12), ("slab", 2.0, 8, 1e-12), ("slab", 8.0, 8, 1e-11), ("slab", 30.0, 8, 1e-11),
            ("slab", 0.01, 8, 1e-11)]
+#: The rows that catch a catalogued defect, each re-dropped under -O (2026-10-07): ERR-101 at the sphere's thick rim
+#: (arms A16, the rim grading removed, and A20, the old ``chord_quadrature`` rule); ERR-103 at the thick slab (arm A22,
+#: the normal-direction ends dropped).
+_ESCAPE_CATCHES = {("sphere", 100.0): pytest.mark.catches("ERR-101"), ("sphere", 1000.0): pytest.mark.catches("ERR-101"),
+                   ("slab", 30.0): pytest.mark.catches("ERR-103")}
+
 #: At 8 points (the slow tier's budget, the user's ruling of 2026-10-07) every leg meets its band except the
 #: transmission at tau = 2 and 8 (`[M]` 2026-10-07: T_w 9.3e-10 and 2.3e-8 at 8 points), which stay at 16 points.
 _ESCAPE_SLOW = [("cylinder", 0.5, 8, 1e-11), ("cylinder", 2.0, 16, 1e-11), ("cylinder", 0.01, 8, 1e-11),
@@ -432,9 +447,11 @@ _ESCAPE_SLOW = [("cylinder", 0.5, 8, 1e-11), ("cylinder", 2.0, 16, 1e-11), ("cyl
 #: pieces and took 1117 s at 8 points (the orchestrator, 2026-10-06, #586); 16 points would exceed the slow set's budget.
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-boundary-resolvent")
 @pytest.mark.parametrize(("chart", "tau", "points", "tol"),
-                         [pytest.param(*r, id=f"{r[0]}-tau{r[1]}") for r in _ESCAPE]
+                         [pytest.param(*r, id=f"{r[0]}-tau{r[1]}", marks=_ESCAPE_CATCHES.get((r[0], r[1]), ()))
+                          for r in _ESCAPE]
                          + [pytest.param(*r, id=f"{r[0]}-tau{r[1]}", marks=pytest.mark.slow) for r in _ESCAPE_SLOW])
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
 def test_the_escape_and_transmission_probabilities_are_the_closed_forms(chart, tau, points, tol) -> None:
@@ -482,7 +499,8 @@ def test_a_void_body_transmits_its_geometric_fractions(chart) -> None:
 _RECIPROCAL = [("sphere", _MR3H, "g0", 16), ("sphere", _MR3H, "void", 16), ("slab", _SLB3, "g0", 8), ("slab", _SLB3, "void", 8)]
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-boundary-resolvent")
 @pytest.mark.parametrize(("chart", "breakpoints", "group", "points"), _RECIPROCAL,
                          ids=[f"{r[0]}-{r[2]}" for r in _RECIPROCAL])
 @pytest.mark.rests_on(_HERE + "test_a_void_body_transmits_its_geometric_fractions")
@@ -501,7 +519,8 @@ def test_the_transmission_is_reciprocal_in_the_wall_areas(chart, breakpoints, gr
     assert abs(S[0, 1] - S[1, 0]) <= 8 * _EPS * np.max(np.abs(S)), (S[0, 1] - S[1, 0]) / np.max(np.abs(S)) / _EPS
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-boundary-resolvent")
 @pytest.mark.parametrize(("chart", "breakpoints", "laws", "points"), [
     ("sphere", _MR3, (_WHITE,), 16),
     ("sphere", _MR3H, (_WHITE, (0.0, 0.5)), 16),
@@ -530,7 +549,8 @@ def test_the_walls_response_is_the_escape_over_the_quarter_area(chart, breakpoin
 # ── WC4: the white and the specular laws (B8's operator half) ────────────
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-boundary-resolvent")
 @pytest.mark.parametrize("alpha", [0.0, 0.5, 1.0])
 @pytest.mark.rests_on(_HERE + "test_the_escape_and_transmission_probabilities_are_the_closed_forms")
 def test_the_white_and_specular_laws_are_their_closed_forms_and_differ(alpha) -> None:
@@ -571,6 +591,7 @@ def test_the_white_and_specular_laws_are_their_closed_forms_and_differ(alpha) ->
 
 
 @pytest.mark.foundation
+@pytest.mark.catches("ERR-102")
 @pytest.mark.rests_on(_HERE + "test_the_escape_and_transmission_probabilities_are_the_closed_forms",
                       _CLOSURE + "test_the_least_solution_on_a_lossless_trapped_line")
 def test_a_source_behind_walls_that_return_everything_in_a_lossless_body_is_refused() -> None:
@@ -600,6 +621,7 @@ def test_a_source_behind_walls_that_return_everything_in_a_lossless_body_is_refu
 
 
 @pytest.mark.foundation
+@pytest.mark.catches("ERR-102")
 @pytest.mark.rests_on(_HERE + "test_a_source_behind_walls_that_return_everything_in_a_lossless_body_is_refused")
 def test_a_lossless_body_with_no_source_has_an_empty_block() -> None:
     """[WC5b] With no source (an empty emission support: no region emits) the trapped walls carry nothing, and the
@@ -654,8 +676,10 @@ def test_each_injected_current_is_transmitted_or_lost(chart, breakpoints, laws, 
 
 #: The near-void sweep (the user's ruling of 2026-10-06 to fix the conditioning): Sigma_t from 1 to 1e-12 on
 #: regions (0 or 0.3, 0.6, 1.0). `[M]` the orchestrator's ``band.py`` on the built code: sphere white 5.4e-13 flat;
-#: hollow sphere white/white and mirror/white 1.8e-14 flat; slab white/white 1.5e-14 flat. Before the fix the two-wall
-#: bodies reached 7.7e-6 and 2.2e-5 at 1e-12; with the loss-formed diagonal but no balance row 6.4e-9 and 2.0e-8 at 1e-9.
+#: hollow sphere white/white and mirror/white 1.8e-14 flat; slab white/white 1.5e-14 flat. Before the fix, with the
+#: diagonal formed by subtraction (1 - alpha T_ww) and no balance row, the hollow sphere reached 1.3e-4 at 1e-12 (`[M]`
+#: the archivist's re-run, 2026-10-07); with the loss-formed diagonal but no balance row, 7.7e-6 (hollow sphere) and
+#: 2.2e-5 (slab) at 1e-12, and 6.4e-9 and 2.0e-8 at 1e-9.
 _NEAR_VOID = [
     ("sphere_white", "sphere", (0.0, 0.6, 1.0), (_WHITE,), 16, 5e-12),
     ("hsphere_white_white", "sphere", (0.3, 0.6, 1.0), (_WHITE, _WHITE), 16, 2e-13),
@@ -664,7 +688,9 @@ _NEAR_VOID = [
 ]
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-boundary-resolvent")
+@pytest.mark.catches("ERR-102")
 @pytest.mark.parametrize("sigma", [1.0, 1e-3, 1e-6, 1e-9, 1e-12])
 @pytest.mark.parametrize(("chart", "breakpoints", "laws", "points", "tol"), [r[1:] for r in _NEAR_VOID],
                          ids=[r[0] for r in _NEAR_VOID])
@@ -677,9 +703,12 @@ def test_a_nearly_void_closed_body_conserves_its_emission(chart, breakpoints, la
     Near void the walls exchange almost every neutron, I - T alpha is nearly
     singular, and its total-current mode is fixed only by what is lost. The
     coupling forms the diagonal from the loss and replaces the last row by the
-    balance (1 - alpha) + alpha loss. First reds: (a) the diagonal formed as
-    1 - alpha T_ww (the cancellation the fix removed; the elegance probe's
-    1.3e-4); (b) the balance row removed (`[M]` 7.7e-6 on the hollow sphere at 1e-12).
+    balance (1 - alpha) + alpha loss. First reds: the balance row removed
+    (battery arm N2: 6 rows, the two-wall bodies at Sigma_t <= 1e-6), and the
+    balance row removed together with the diagonal formed as 1 - alpha T_ww
+    (arm N12: 12 rows, every body at Sigma_t <= 1e-6). DECLARED: the diagonal
+    alone (arm N1) is masked by the balance row, which fixes the total-current
+    mode the subtraction would spoil; N1 reds nothing.
     """
     err = _conservation(chart, breakpoints, laws, (sigma, sigma), points)
     assert err <= tol, f"{err:.2e} > {tol:.0e}"
@@ -718,7 +747,8 @@ def _region_transfer(chart, breakpoints, laws, sigma, points=16) -> np.ndarray:
     return Q.T @ g.block @ Q[g.support]
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.parametrize("split", [(0.9,), (0.8, 1.2), (0.7, 0.9, 1.1, 1.3)], ids=["2", "3", "5"])
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
 def test_an_interface_between_equal_materials_is_invisible(split) -> None:
@@ -745,7 +775,8 @@ def test_an_interface_between_equal_materials_is_invisible(split) -> None:
 _CAV = (0.0, 0.4, 0.5, 1.5, 2.0)
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.parametrize("a_out", [0.6, 0.0, 1.0])
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
 def test_a_transparent_cavity_is_an_inner_mirror(a_out) -> None:
@@ -775,7 +806,8 @@ def test_a_transparent_cavity_is_an_inner_mirror(a_out) -> None:
 _VOIDOUT = (0.0, 0.5, 1.5, 2.0, 2.6)
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.parametrize("alpha", [0.6, 1.0])
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
 def test_a_void_outer_layer_is_invisible_on_the_emission_support(alpha) -> None:
@@ -827,7 +859,8 @@ def _strictly_converging(errors, floor: float, ratio: float = 10.0) -> None:
             assert a / b > ratio, f"a step falls by {a / b:.1f}: {errors}"
 
 
-@pytest.mark.foundation
+@pytest.mark.l2
+@pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.rests_on(_BASIS + "test_the_even_panel_spans_the_polynomials_in_c_squared")
 def test_the_centre_impact_piece_converges_geometrically() -> None:
     """[EB4; planned l2, CONV] The closed sphere's K 1 from the impact piece [0, r_1/2], at n Gauss points against 128:
@@ -857,7 +890,8 @@ def test_the_centre_impact_piece_converges_geometrically() -> None:
     _strictly_converging(errors, floor=1e-14)
 
 
-@pytest.mark.foundation
+@pytest.mark.l2
+@pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
 def test_conservation_converges_in_the_impact_rule_below_the_working_point() -> None:
     """[LA1; planned l2, CONV] The white sphere's conservation at 4, 6, 8, 12, 16 impact points per piece: monotone,
@@ -872,7 +906,8 @@ def test_conservation_converges_in_the_impact_rule_below_the_working_point() -> 
     _strictly_converging(errors, floor=1e-13)
 
 
-@pytest.mark.foundation
+@pytest.mark.l2
+@pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
 def test_conservation_converges_in_the_arc_length_rules_below_the_working_point() -> None:
     """[LA2; planned l2, CONV] Outer points 4, 6, 8 (inner 12) and inner points 4, 6, 8 (outer 12): monotone, each step
@@ -907,7 +942,9 @@ def _slab_rule_with_fixed_halvings(breakpoints, laws, sigma, points: int, halvin
                     512, 1024)
 
 
-@pytest.mark.foundation
+@pytest.mark.l2
+@pytest.mark.verifies("characteristic-galerkin-assembly")
+@pytest.mark.catches("ERR-101")
 @pytest.mark.rests_on(_HERE + "test_the_escape_and_transmission_probabilities_are_the_closed_forms")
 def test_the_slabs_derived_grading_converges_and_beats_twelve_fixed_halvings() -> None:
     """[LA3; planned l2, CONV] The slab's cosine rule, graded from the thinnest panel's optical width: (i) the escape
@@ -945,8 +982,10 @@ def test_the_slabs_derived_grading_converges_and_beats_twelve_fixed_halvings() -
 _NEAR_VOID_SLAB = [1e-4, 1e-6, 1e-9, 1e-12]
 
 
-@pytest.mark.foundation
-@pytest.mark.parametrize("sigma", _NEAR_VOID_SLAB)
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-galerkin-assembly")
+@pytest.mark.parametrize("sigma", [pytest.param(v, marks=pytest.mark.catches("ERR-101")) if v <= 1e-6 else v
+                                   for v in _NEAR_VOID_SLAB])  # 1e-4 is green under the defect (arm A18)
 @pytest.mark.rests_on(_HERE + "test_the_slabs_derived_grading_converges_and_beats_twelve_fixed_halvings")
 def test_a_near_void_slab_with_open_walls_meets_its_closed_forms(sigma) -> None:
     """[QA1; planned l1] A slab (0, 0.9, 2.3) of Sigma from 1e-4 to 1e-12, its walls NOT both returning everything:
@@ -973,7 +1012,8 @@ def test_a_near_void_slab_with_open_walls_meets_its_closed_forms(sigma) -> None:
 
 
 @pytest.mark.slow
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.parametrize("sigma", [1.0, 1e-2])
 @pytest.mark.rests_on(_HERE + "test_the_slabs_derived_grading_converges_and_beats_twelve_fixed_halvings")
 def test_thin_graded_panels_set_the_slabs_grazing_depth(sigma) -> None:
@@ -997,7 +1037,8 @@ def test_thin_graded_panels_set_the_slabs_grazing_depth(sigma) -> None:
 
 
 @pytest.mark.slow
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.rests_on(_HERE + "test_thin_graded_panels_set_the_slabs_grazing_depth")
 def test_every_block_entry_of_a_thin_panel_slab_is_resolved_at_eight_points() -> None:
     """[QA3; planned l1] A slab basis graded 6 layers deep at Sigma = 0.01: every diagonal entry of the block at
@@ -1027,7 +1068,8 @@ def test_every_block_entry_of_a_thin_panel_slab_is_resolved_at_eight_points() ->
     assert worst <= 1e-11, f"worst diagonal entry {worst:.1e}"
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
 def test_a_small_first_region_conserves_at_eight_points() -> None:
     """[QA5; planned l1] A sphere whose first region has radius 1e-3, (0, 1e-3, 0.4, 1.0), white outer wall, at 8
@@ -1050,7 +1092,9 @@ def test_a_small_first_region_conserves_at_eight_points() -> None:
     assert err <= 1e-9, f"{err:.2e}"
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-galerkin-assembly")
+@pytest.mark.catches("ERR-101")
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
 def test_a_wide_panel_before_a_thin_one_conserves_at_eight_points() -> None:
     """[QA6; planned l1] A hollow sphere (0.2, 0.3, 1.0) on a basis graded 10 layers deep (ratio 0.4), inner mirror,
@@ -1074,7 +1118,9 @@ def test_a_wide_panel_before_a_thin_one_conserves_at_eight_points() -> None:
     assert err <= 1e-11, f"{err:.2e}"
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-galerkin-assembly")
+@pytest.mark.catches("ERR-101")
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
 def test_a_tiny_cavity_assembles_and_conserves() -> None:
     """[QA4; planned l1] A hollow sphere with a cavity of radius 1e-12 (mirror inside and out) assembles and conserves
@@ -1090,7 +1136,8 @@ def test_a_tiny_cavity_assembles_and_conserves() -> None:
 
 
 @pytest.mark.slow
-@pytest.mark.foundation
+@pytest.mark.l2
+@pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.rests_on(_HERE + "test_the_cylinders_direction_rule_is_gauss_in_the_polar_angle")
 def test_the_cylinders_escape_converges_in_the_polar_angle() -> None:
     """[LA4; planned l2, CONV] The cylinder's escape at tau = 0.5 with 4, 6, 8 points in theta (and in b): monotone,

@@ -28,7 +28,7 @@ verified term-by-term in ``tests/gates/derivations/test_kernels.py`` (L0).
 .. note::
 
    The legacy :class:`BickleyTables` tabulation (20 000-point
-   :math:`\mathrm{Ki}_3` lookup with ~:math:`10^{-3}` absolute
+   :math:`\mathrm{Ki}_3` lookup with about :math:`10^{-3}` absolute
    accuracy and a naming discrepancy under the A&S convention —
    Issue #94) was retired in Phase B.4. Every former consumer now
    uses the mpmath-built Chebyshev interpolant in

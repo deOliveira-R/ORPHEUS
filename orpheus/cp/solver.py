@@ -244,8 +244,8 @@ class CPMesh:
         Shares the Chebyshev interpolant of ``exp(τ)·Ki_3(τ)`` built
         in :mod:`orpheus.derivations.continuous.flat_source_cp.geometry` so the solver's
         ``keff`` and the derivation's ``k_inf`` reference use
-        bit-identical kernel evaluations. Accuracy ~:math:`10^{-6}`
-        absolute (cf legacy cumulative-sum tabulation at ~:math:`10^{-3}`)."""
+        bit-identical kernel evaluations. Accuracy about :math:`10^{-6}`
+        absolute (cf legacy cumulative-sum tabulation at about :math:`10^{-3}`)."""
         self._setup_radial_quadrature()
         n_y = len(self._y_pts)
         self._kernel = _ki3_kernel

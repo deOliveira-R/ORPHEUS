@@ -9,7 +9,8 @@ numerics kernel (:mod:`orpheus.derivations.common.dense_pencil`):
   boundary point with what its law returns, read from the law's factors;
 - :mod:`~orpheus.derivations.continuous.characteristic.closure` — the
   period of each line's unfolded path and the least solution of its cycle,
-  the line part of the boundary resolvent;
+  the line part of the boundary resolvent, and the white walls' coupling,
+  its diffuse part;
 - :mod:`~orpheus.derivations.continuous.characteristic.basis` — the panel
   basis the emission density and the flux are represented in;
 - :mod:`~orpheus.derivations.continuous.characteristic.transport` — the
@@ -17,7 +18,11 @@ numerics kernel (:mod:`orpheus.derivations.common.dense_pencil`):
   integrals, the Volterra block and the angular flux;
 - :mod:`~orpheus.derivations.continuous.characteristic.assembly` — the
   Galerkin assembly over lines: one group's transport block, its line part
-  and its diffuse walls' coupling.
+  and its diffuse walls' coupling, on a line rule graded from the group's
+  optical scale;
+- :mod:`~orpheus.derivations.continuous.characteristic.grading` — the
+  geometric, exponential and hp gradings every rule of the package places
+  its piece ends by.
 """
 
 from .assembly import GroupTransport, LineRule

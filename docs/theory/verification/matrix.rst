@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **16682**
+Total tests collected: **16950**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1725, 10.3%
-   L1, 2290, 13.7%
-   L2, 71, 0.4%
+   L0, 1740, 10.3%
+   L1, 2400, 14.2%
+   L2, 76, 0.4%
    L3, 0, 0.0%
-   foundation, 12562, 75.3%
+   foundation, 12700, 74.9%
    unmarked, 34, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 16569
+   explicit, 16837
    class-name, 46
    func-name, 0
    case, 33
@@ -177,9 +177,10 @@ Module × level grid
    derivations/test_case_method_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_case_method_x_function, 2, 3, 0, 0, 0, 0
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
-   derivations/test_characteristic_basis, 0, 0, 0, 0, 225, 0
-   derivations/test_characteristic_closure, 120, 0, 0, 0, 5, 0
-   derivations/test_characteristic_transport, 50, 0, 0, 0, 53, 0
+   derivations/test_characteristic_assembly, 0, 105, 5, 0, 64, 0
+   derivations/test_characteristic_basis, 0, 0, 0, 0, 271, 0
+   derivations/test_characteristic_closure, 125, 0, 0, 0, 9, 0
+   derivations/test_characteristic_transport, 51, 0, 0, 0, 53, 0
    derivations/test_characteristic_walls, 19, 0, 0, 0, 31, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
@@ -326,7 +327,9 @@ Module × level grid
    geometry/test_kernel_corroboration, 0, 0, 0, 0, 0, 7
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
    geometry/test_line, 0, 0, 0, 0, 9, 0
+   geometry/test_line_domain, 3, 5, 0, 0, 22, 0
    geometry/test_line_measure, 0, 12, 0, 0, 0, 0
+   geometry/test_measure_density, 6, 0, 0, 0, 0, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_named_face_constructors, 0, 0, 0, 0, 62, 0
    geometry/test_paired_deck, 0, 0, 0, 0, 63, 0
@@ -645,7 +648,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 475, 0
+   test_layer_imports, 0, 0, 0, 0, 477, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -706,14 +709,16 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``removal-matrix``, 76
    ``mm-weights``, 75
    ``flux-moments``, 70
+   ``characteristic-galerkin-assembly``, 64
    ``peierls-rank-n-bc-closure``, 64
    ``transport-cartesian``, 64
    ``e3-def``, 61
    ``geometry-directions-at``, 61
    ``ki3-def``, 61
-   ``characteristic-traversal-integrals``, 58
+   ``characteristic-traversal-integrals``, 59
    ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55
+   ``characteristic-closure``, 54
    ``hebert-3-432``, 54
    ``self-cyl``, 54
    ``balance-general``, 53
@@ -721,12 +726,12 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``chord-length``, 51
    ``quadrature-ordinate-permutation``, 50
    ``quadrature-product-weights``, 50
-   ``characteristic-closure``, 49
    ``wigner-seitz``, 49
    ``attenuation``, 48
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
    ``pn-scatter``, 47
+   ``characteristic-boundary-resolvent``, 46
    ``azimuthal-angles``, 44
    ``sn-curvilinear-homogeneous-kinf-recovery``, 38
    ``cp-kernel-differential-identities``, 36
@@ -796,6 +801,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``coupled-block-system-restriction-laws``, 16
    ``discrete-measure-integrate``, 16
    ``transport-cartesian-2d``, 16
+   ``geometry-measure-on-lines``, 15
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
    ``absorption-xs``, 14
@@ -809,7 +815,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
    ``geometry-line-crossing-law``, 12
-   ``geometry-measure-on-lines``, 12
    ``kinf-1g``, 12
    ``ld-cartesian-2d``, 12
    ``periodic-bc``, 12
@@ -867,6 +872,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``boyd-eq-45``, 6
    ``characteristic-ode``, 6
    ``dd-cartesian-2d``, 6
+   ``geometry-measure-density``, 6
    ``kin-kernel-special-values``, 6
    ``ld-ubld-d1-reduction``, 6
    ``manifold-fibre-constancy``, 6
@@ -876,6 +882,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``cp-outer-integral-antiderivative``, 5
    ``en-kernel-special-values``, 5
    ``geometry-crossing-order``, 5
+   ``geometry-line-domain``, 5
    ``peierls-cyl-Gbc-3d-final``, 5
    ``peierls-greens-cylinder-T``, 5
    ``peierls-greens-cylinder-mr-homogeneous-reduction``, 5

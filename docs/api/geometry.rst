@@ -298,7 +298,15 @@ point, :meth:`~orpheus.geometry.chart.Chart.directions_at`: a
 :class:`~orpheus.geometry.chart.DirectionDomain`, the box of
 :math:`S^2/\mathrm{Stab}(x)` in measure-uniform coordinates with its
 density, representatives, impact parameters and tangencies, its shape a
-:class:`~orpheus.geometry.chart.DirectionShape`. :class:`~orpheus.geometry.line.Line` is a batch of
+:class:`~orpheus.geometry.chart.DirectionShape`; and the oriented lines
+modulo :math:`G_c`, :meth:`~orpheus.geometry.chart.Chart.line_domain`: a
+:class:`~orpheus.geometry.chart.LineDomain`, the box of the line orbits
+with the invariant density, its shape a
+:class:`~orpheus.geometry.chart.LineShape`. The density of the measure,
+:meth:`~orpheus.geometry.chart.Chart.measure_density`, delegates to
+:meth:`CoordSystem.measure_density <orpheus.geometry.coord.CoordSystem.measure_density>`,
+the derivative of the one measure and the area of a level set.
+:class:`~orpheus.geometry.line.Line` is a batch of
 oriented lines in Plücker coordinates.
 :class:`~orpheus.geometry.chord.ConcentricPartition` is the level sets
 :math:`c = r_0 < \dots < r_n` posed in space by a rigid motion, built
@@ -319,7 +327,7 @@ the theory page resolve to links.
 .. automodule:: orpheus.geometry.chart
    :members:
    :show-inheritance:
-   :exclude-members: DirectionDomain
+   :exclude-members: DirectionDomain, LineDomain
 
 .. ``DirectionDomain.shape`` is excluded for the reason ``Line.shape`` is
    below: indexed, it collides with ``Axis.shape`` for every unqualified
@@ -329,6 +337,17 @@ the theory page resolve to links.
    chart's pair and whether the point is on the singular stratum.
 
 .. autoclass:: orpheus.geometry.chart.DirectionDomain
+   :members:
+   :show-inheritance:
+   :exclude-members: shape
+
+.. ``LineDomain.shape`` is excluded for the same reason (`[M]` 2026-10-07,
+   25 ``more than one target found`` warnings naming it beside
+   ``Axis.shape`` on the build of ``71a207fa``). The shape is a
+   :class:`~orpheus.geometry.chart.LineShape`, decided from the chart's
+   pair alone.
+
+.. autoclass:: orpheus.geometry.chart.LineDomain
    :members:
    :show-inheritance:
    :exclude-members: shape

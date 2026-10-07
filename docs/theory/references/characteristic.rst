@@ -17,9 +17,9 @@ The characteristic reference — transport along the lines of a concentric body
    .. code-block:: yaml
 
       module: derivations
-      concept: characteristic reference, boundary resolvent, walls, line period, line closure, panel basis, traversal integrals, Volterra block, hp grading
-      role: "the closed reference that integrates transport along the lines of a 1-D concentric body (slab, cylinder, sphere, solid or hollow); this page holds its walls (each boundary point with what its law returns, read from the law's factors), the line part of its boundary resolvent (the period of each line's unfolded path and the least solution of its cycle), its panel basis and the transport along one line on that basis (the traversal integrals, the vacuum Volterra block and the angular flux)"
-      code: [orpheus.derivations.continuous.characteristic.walls, orpheus.derivations.continuous.characteristic.closure, orpheus.derivations.continuous.characteristic.basis, orpheus.derivations.continuous.characteristic.transport]
+      concept: characteristic reference, boundary resolvent, walls, line period, line closure, panel basis, even basis at a singular stratum, traversal integrals, Volterra block, hp grading, Galerkin assembly over lines, line rule, white-wall coupling
+      role: "the closed reference that integrates transport along the lines of a 1-D concentric body (slab, cylinder, sphere, solid or hollow); this page holds its walls (each boundary point with what its law returns, read from the law's factors), the line part of its boundary resolvent (the period of each line's unfolded path and the least solution of its cycle, with an arriving flux), its panel basis (even at a singular stratum) and the transport along one line on that basis (the traversal integrals, the vacuum Volterra block and the angular flux), and one group's transport block: the Galerkin assembly over the lines of the chart's line domain, the white walls' coupling, and the line rule graded from the group's optical scale"
+      code: [orpheus.derivations.continuous.characteristic.walls, orpheus.derivations.continuous.characteristic.closure, orpheus.derivations.continuous.characteristic.basis, orpheus.derivations.continuous.characteristic.transport, orpheus.derivations.continuous.characteristic.assembly, orpheus.derivations.continuous.characteristic.grading]
       depends_on: [chart_and_chord, boundary_conditions, reference_solutions]
       related: [trajectory_resolvent, layering]
 
@@ -32,33 +32,40 @@ Key facts
   the body's lines: :mod:`orpheus.derivations.continuous.characteristic`.
   It is built rung by rung beside the trajectory-resolvent family
   (:ref:`theory-trajectory-resolvent`), the family it is built to
-  replace. Two rungs exist. The first is the **walls**
+  replace. Three rungs exist. The first is the **walls**
   (:mod:`~orpheus.derivations.continuous.characteristic.walls`) and the
   **line part of the boundary closure**
   (:mod:`~orpheus.derivations.continuous.characteristic.closure`); the
   second is the **panel basis**
   (:mod:`~orpheus.derivations.continuous.characteristic.basis`) and the
   **transport along a line** on it
-  (:mod:`~orpheus.derivations.continuous.characteristic.transport`).
-  Nothing in the package integrates over the measure on lines: there is
-  no assembly, no diffuse part of the resolvent, no question and no
-  reading at a point, so the package answers no eigenvalue and no flux
+  (:mod:`~orpheus.derivations.continuous.characteristic.transport`); the
+  third is **one group's transport block**, assembled over the lines
+  (:mod:`~orpheus.derivations.continuous.characteristic.assembly`, with
+  its gradings in
+  :mod:`~orpheus.derivations.continuous.characteristic.grading`). The
+  package answers no eigenvalue and no flux yet: there are no emission
+  matrices, no pencil, no question and no reading at a point
   (:ref:`characteristic-what-is-not-built`).
-- **The boundary resolvent has two parts.** The closure of a reflecting
-  boundary is :math:`P = P_0 + E\,(I - T)^{-1} X` on the boundary trace
-  space. On every wall whose return is specular (a mirror, a partial
-  mirror, vacuum as amplitude 0) or a periodic wrap, the returned path is
-  a line congruent to the one that left, so :math:`T` is diagonal over
-  lines: that is :class:`~orpheus.derivations.continuous.characteristic.closure.LinePeriod`.
-  A diffuse wall couples every line to every other and is the second
-  part, a finite-rank update over the walls, which is not built
+- **The boundary resolvent has two parts, and both are built.** The
+  closure of a reflecting boundary is :math:`P = P_0 + E\,(I - T)^{-1} X`
+  on the boundary trace space. On every wall whose return is specular (a
+  mirror, a partial mirror, vacuum as amplitude 0) or a periodic wrap,
+  the returned path is a line congruent to the one that left, so
+  :math:`T` is diagonal over lines: that is
+  :class:`~orpheus.derivations.continuous.characteristic.closure.LinePeriod`.
+  A diffuse wall couples every line to every other: the second part is a
+  finite-rank update over the diffuse walls,
+  :class:`~orpheus.derivations.continuous.characteristic.closure.WallCoupling`
   (:ref:`characteristic-resolvent`).
 - **A wall is read from its law's two factors**, the deck
   (``geometry_map``) and the response (``response_kernel``), by one table
   (:ref:`characteristic-walls-factors`). It is keyed by its breakpoint
   index (:math:`0` or :math:`n`), never by a position, and carries a
   specular amplitude, a diffuse amplitude and a partner (the breakpoint
-  at which the returned path re-enters).
+  at which the returned path re-enters). A wall is specular or diffuse,
+  never both, and never returns more than it receives
+  (:ref:`characteristic-walls`).
 - **The reference parses tags with its own registry**,
   :data:`~orpheus.derivations.continuous.characteristic.walls.TAG_REGISTRY`,
   never with production's parse (the user's ruling of 2026-10-06, the
@@ -78,17 +85,24 @@ Key facts
 - **The line closure is the least solution of a cycle**
   (:eq:`characteristic-closure`): the inflow to traversal :math:`k + 1`
   is the specular amplitude of the wall traversal :math:`k` exits at,
-  times what traversal :math:`k` carries to its exit. One rolled
-  expression serves every rank; :math:`1 - \Pi` is formed by ``expm1``;
-  a lossless trapped line (:math:`\Pi = 1`) carries exactly 0 when it has
-  no source and is refused when it has one (:ref:`characteristic-closure-section`).
+  times what traversal :math:`k` carries to its exit, plus any flux
+  arriving there from outside the line part (a diffuse wall's re-entry).
+  One rolled expression serves every rank; :math:`1 - \Pi` is formed by
+  ``expm1``; a lossless trapped line (:math:`\Pi = 1`) carries exactly 0
+  when nothing enters it and is refused when something does
+  (:ref:`characteristic-closure-section`).
 - **The panel basis** is discontinuous: nodal Lagrange polynomials of
   degree :math:`p` through each panel's Gauss–Legendre points, so a
   coefficient is a value. The panels are graded geometrically (panel ends
   at the depths :math:`w\rho^{j}`) toward every wall and interface and
-  never toward a singular stratum, and the mass matrix is exact in the
-  chart's volume measure, whose density :math:`\kappa\,d\,r^{d-1}` is
-  derived from the measure's one definition (:ref:`characteristic-panel-basis`).
+  never toward a singular stratum. On the panel touching the centre or
+  the axis the functions are polynomials in :math:`c^2`, because a smooth
+  invariant flux is a smooth function of :math:`c^2` there (Schwarz's
+  theorem) and an odd mode adds a :math:`b^{2m+2}\log b` term to every
+  line integral (:ref:`characteristic-even-basis`). The mass matrix is
+  exact in the chart's volume measure, whose density is the kernel's
+  :meth:`Chart.measure_density <orpheus.geometry.chart.Chart.measure_density>`
+  (:ref:`characteristic-panel-basis`).
 - **The transport along a line is one value**,
   :class:`~orpheus.derivations.continuous.characteristic.transport.TraversalRule`,
   built from the lines, the basis and the walls. The kernel's chord through
@@ -100,17 +114,50 @@ Key facts
 - **The pieces are graded twice.** Exponentially toward both ends of each
   slot, at 1 to 64 mean free paths; and on a cylinder or a sphere by
   halving toward the complex branch points of the orbit coordinate, which
-  lie :math:`c/|P\Omega|` from a point of orbit coordinate :math:`c`, so
-  that every piece converges at a rate independent of the impact parameter
+  lie :math:`c/|P\Omega|` from a point of orbit coordinate :math:`c`, until
+  each piece is no wider than its distance to them, so that every piece
+  converges at a rate independent of the impact parameter
   (:ref:`characteristic-branch-grading`).
-- **Evidence** `[M]` 2026-10-06: for the walls and the closure, 175 gate
-  rows in two files, 127 of them claims on this page's first two labels at
-  L0, and a 34-arm mutation battery with a positive control reddening 80
-  rows; for the basis and the transport, 328 rows in two more files, all
-  ``foundation`` until their markers move under
-  :eq:`characteristic-traversal-integrals`, and a battery in which every
-  arm meant to redden reddens its target row. All 503 rows pass under
-  ``python -O -m pytest`` (:ref:`characteristic-evidence`).
+- **One group's transport block is a Galerkin assembly over lines**
+  (:eq:`characteristic-galerkin-assembly`):
+  :math:`K = \sum_L w_L \bigl(V_L + \sum_k A_k \otimes \mathrm{in}_k\bigr)`
+  over each line's forward traversals, with the line weight :math:`w_L`
+  the quadrature weight times the line domain's density over
+  :math:`4\pi` (:eq:`geometry-line-domain`), so that :math:`K` is the
+  scalar-flux operator of an isotropic emission and a closed homogeneous
+  body satisfies :math:`K\Sigma_t\mathbf 1 = W\mathbf 1`. Its rows cover
+  every panel and its columns the **emission support**, the regions that
+  emit (:ref:`characteristic-galerkin-assembly-section`).
+- **The white walls couple through**
+  :math:`R\,\alpha\,(I - T\alpha)^{-1}U^{\mathsf T}`
+  (:eq:`characteristic-boundary-resolvent`), with reciprocity
+  :math:`R = U D^{-1}`, :math:`D = \mathrm{diag}(A_w/4)` and :math:`A_w` the
+  wall's area read from the kernel's one density. :math:`I - T\alpha` is
+  formed from each injected current's **loss**, with one row replaced by
+  the balance, never by the subtraction :math:`1 - T_{ww}`: conservation
+  then holds to rounding from :math:`\Sigma_t = 1` down to
+  :math:`10^{-12}`, where the subtraction missed by :math:`10^{-4}`, and a
+  body that loses nothing is refused exactly (ERR-102,
+  :ref:`characteristic-wall-coupling`).
+- **Every grading of the line rule is derived from the group's optical
+  scale** (the user's ruling of 2026-10-06): the impact parameter in the
+  chord half-length, hp toward the next radius's branch point and toward
+  :math:`b = 0` and exponential at the rim; the grazing direction halved
+  to :math:`\tau_{\min}/64`; the normal direction at :math:`2^k` over the
+  body's normal optical depth. A fixed resolution passed every closed-body
+  gate and missed the closed forms by up to :math:`5 \times 10^{-1}` near
+  void and :math:`7.3 \times 10^{-1}` at :math:`\tau = 1000` (ERR-101,
+  ERR-103, :ref:`characteristic-line-rule`). The cylinder's tensor rule
+  is slow on a thick body, about :math:`10^6` pieces at :math:`\tau = 30`
+  (#586, the next step).
+- **Evidence** `[M]` 2026-10-06 and 2026-10-07: for the walls and the
+  closure, 175 gate rows in two files and a 34-arm mutation battery; for
+  the basis and the transport, 328 rows in two more files, the traversal
+  integrals' rows at L0; for the third rung, 46 new test functions (223
+  cases) in three files, 37 earlier rows re-posed, and a 54-arm battery in
+  which 52 arms redden their target rows and 2 are declared blind. The
+  battery's honest run over the seven files without the ``slow`` rows:
+  754 passed (:ref:`characteristic-evidence`).
 
 
 .. _characteristic-place:
@@ -180,14 +227,20 @@ traversals. That block and its least solution are
 A **diffuse** wall returns its outflow isotropically, so every line
 leaving it feeds every line entering it. On the walls :math:`W` with a
 diffuse amplitude the resolvent is a finite-rank update of the
-line-diagonal block, ruled on 2026-10-06 ("One resolvent, two parts"):
-:math:`K = K_{\rm line} + U\,(I - T_w)^{-1} A\,U^{\mathsf T}`, with
+line-diagonal block, ruled on 2026-10-06 ("One resolvent, two parts").
+The ruling spelled it :math:`K_{\rm line} + U\,(I - T_w)^{-1} A\,U^{\mathsf T}`;
+that spelling omits the wall areas. The built form is
+:eq:`characteristic-boundary-resolvent`,
+:math:`K = K_{\rm line} + R\,\alpha\,(I - T\alpha)^{-1}U^{\mathsf T}`, with
 :math:`U` the escape functional from emission to the outgoing partial
-current at each diffuse wall, :math:`T_w` the wall-to-wall transmission
-with every diffuse wall treated as absorbing in the line part, and
-:math:`A` the diffuse amplitudes. The walls already carry the diffuse
-amplitude (:ref:`characteristic-walls`); the update is not built
-(:ref:`characteristic-what-is-not-built`).
+current at each diffuse wall, :math:`T` the wall-to-wall transmission of
+the line part, :math:`\alpha` the diffuse amplitudes and :math:`R` the
+flux of a unit current entering at each wall, which reciprocity makes
+:math:`U D^{-1}` with :math:`D = \mathrm{diag}(A_w/4)`
+(:class:`~orpheus.derivations.continuous.characteristic.closure.WallCoupling`,
+:ref:`characteristic-wall-coupling`). Dropping :math:`D` is not a
+rounding: it misses closed-body conservation by 6.6, relative, on a
+white sphere (`[M]` 2026-10-06, the test-architect's verification spec).
 
 
 .. _characteristic-walls:
@@ -226,12 +279,21 @@ indexes the walls directly.
 
 Two amplitude fields are kept, rather than one amplitude and a tag naming
 its kind, because a wall that returns part of its outflow specularly and
-part diffusely is physically legitimate and the resolvent serves it
-without change: the line part reads ``specular``, the diffuse part reads
-``diffuse``. No shipped law declares such a mixture (a geometry admits a
-``BC`` tag or a ``BoundaryTraceLaw`` per
-boundary point, and the law sums are not laws), so it cannot be declared
-today; it is not illegal.
+part diffusely is physically legitimate: the line part would read
+``specular`` and the diffuse part ``diffuse``. The reference refuses it
+all the same. ``Wall`` refuses a wall with both a specular and a diffuse
+amplitude (``NotImplementedError``, *a wall is specular or diffuse*),
+under a ``SCOPE-BOUNDARY[guard]`` tag, by the user's ruling of 2026-10-06
+on the third rung's sketch: the S\ :sub:`N` realizer refuses a
+``LawSum`` of two laws too, so production cannot pose such a wall and the
+reference, which conforms to production, has no consumer for it. The
+refusal is the reader's choice, not the formula's limit: the
+test-architect's prototype served a wall of specular 0.4 and diffuse 0.6
+through the unchanged coupling and it conserved to
+:math:`1.2 \times 10^{-12}` (`[M]` 2026-10-06). Serving it later is one
+arm of the reader, its gates, and one term in the white walls' balance,
+which today assumes a diffuse wall returns nothing specularly
+(:ref:`characteristic-wall-coupling`).
 
 :class:`~orpheus.derivations.continuous.characteristic.walls.Walls` holds
 the walls of one body, inner first, with the body's region count and its
@@ -249,7 +311,11 @@ traversal.
 Both values check their own invariants, so a directly constructed value
 cannot hold a state :meth:`Walls.of
 <orpheus.derivations.continuous.characteristic.walls.Walls.of>` refuses:
-a ``Wall`` refuses an amplitude outside :math:`[0, 1]`; a ``Walls``
+a ``Wall`` refuses an amplitude outside :math:`[0, 1]`, a specular and a
+diffuse amplitude summing above 1 (a wall returning more than it
+receives; `[M]` the main agent, 2026-10-06: ``Wall(1, 1.0, 1.0, 1)``
+assembled a block whose smallest entry was :math:`-0.0118` before the
+guard) and a wall that is both; a ``Walls``
 refuses walls that are not at distinct breakpoints among
 :math:`\{0, n\}` (``ValueError``), a wrap on a radial chart and a wrap
 whose partner does not wrap back (the refusals below).
@@ -499,9 +565,20 @@ built, not a defect.
      - :ref:`characteristic-walls-registry`, strict parameters
    * - an amplitude outside :math:`[0, 1]`
        (``AlbedoBoundary(1.5, SpecularReturn)``, a white wall of albedo
-       :math:`-0.2`)
+       :math:`-0.2`), or a ``Wall`` built directly with a specular and a
+       diffuse amplitude summing above 1
      - *not a physical wall*
      - a wall returns a fraction of what reaches it
+   * - a ``Wall`` built directly with both a specular and a diffuse
+       amplitude
+     - *a wall is specular or diffuse*
+     - a ``SCOPE-BOUNDARY``: production poses no such wall
+       (:ref:`characteristic-walls`)
+
+The two refusals a ``Wall`` makes of its own amplitudes (the sum above 1
+and the mixed wall) are gated beside the coupling that reads them,
+``tests/gates/derivations/test_characteristic_assembly.py::test_a_wall_returning_both_ways_or_more_than_it_receives_is_refused``,
+each by its own fragment.
 
 A line lying in an interface is refused by the reference (ruled
 2026-10-06); that refusal is not a wall's, and it belongs to the
@@ -910,6 +987,64 @@ Two exact edges follow, and the gates assert them bitwise:
   is the edge where the pairing shows bitwise: the swapped pairing puts
   the mirror's 1 on the cut.
 
+.. _characteristic-arriving-flux:
+
+The arriving flux in the cycle
+------------------------------
+
+A diffuse wall returns its outflow isotropically, so what it returns
+along a line is not that line's own outflow times an amplitude: it is a
+flux that arrives at the traversal's entry from outside the line part,
+computed by the white walls' coupling (:ref:`characteristic-wall-coupling`).
+:meth:`LinePeriod.inflow
+<orpheus.derivations.continuous.characteristic.closure.LinePeriod.inflow>`
+takes it as the optional argument ``arriving``, :math:`s_k` per traversal,
+with the shape of the outflow. It enters the cycle where the return of the
+previous traversal enters, and it is **not** multiplied by the wall's
+amplitude: the specular amplitude :math:`a` is what the wall returns along
+the line, and a wall that returns diffusely has :math:`a = 0`.
+
+With it, the flux entering traversal :math:`k` from outside the cycle's own
+carry is
+
+.. math::
+
+   e_k \;=\; a_{k-1} B_{k-1} + s_k \;=\; r_{k-1} + s_k ,
+
+and the fixed point of the cycle is :math:`\psi^{\rm in} = G\,\psi^{\rm in} + e`
+with the same weighted cyclic shift :math:`G` as before. Its least
+non-negative solution is the Neumann series grouped by whole periods,
+exactly as in the closed form above with :math:`e` in place of the shifted
+returns:
+
+.. math::
+
+   \psi^{\rm in}_k \;=\; \frac{e_k + \gamma_{k-1}\,e_{k-1}}{1 - \Pi}
+   \quad (k \bmod 2),
+
+the flux entering :math:`k` plus the flux that entered :math:`k - 1`,
+carried once through it. With :math:`s = 0` it is the second form of
+:eq:`characteristic-closure` term for term, so the labelled equation is the
+special case and keeps its markers. In the code the change is small: the
+returns are rolled once into the entering flux, the arriving flux is added
+on the present traversals, and the once-around term rolls the entering
+flux, not the returns rolled twice. ``arriving=None`` is the old
+expression; a zero ``arriving`` is bitwise equal to it
+(``test_a_zero_arriving_flux_is_no_arriving_flux_bitwise``), and the rank-1
+and rank-2 closed forms with an arriving flux are
+``test_an_arriving_flux_enters_the_cycle_at_its_traversal``, in
+``tests/gates/derivations/test_characteristic_closure.py``.
+
+On a lossless trapped line the refusal reads the entering flux, not the
+outflow: a flux arriving on a line that never meets material and never
+loses anything at a wall has no finite answer either, and
+:class:`~orpheus.derivations.continuous.characteristic.closure.TrappedSource`
+is raised (``test_an_arriving_flux_on_a_lossless_trapped_line_is_refused``).
+The assembly passes the emission's outflows and the unit currents
+injected at each diffuse wall as one stacked batch, the emission columns
+first, so one call of ``inflow`` gives the line part, the escape, the
+response and the transmission of every wall (:ref:`characteristic-galerkin-assembly-section`).
+
 The least solution, and the trapped line
 ----------------------------------------
 
@@ -931,8 +1066,11 @@ the line and nothing enters it. With a source (:math:`s \ne 0`) the
 terms recur with period :math:`m` (:math:`G^m = I`) and the series
 diverges: there is no finite answer, and ``inflow`` raises
 :class:`~orpheus.derivations.continuous.characteristic.closure.TrappedSource`.
-That is the closure's only refusal; it is a ``ValueError``, raised on
-the outflow the caller supplied, and it names the trapped line.
+That is the line closure's only refusal; it is a ``ValueError``, raised
+on the flux entering the line (the outflow the caller supplied, plus any
+arriving flux), and it names the trapped line. The white walls' coupling
+has its own, for a body that loses nothing behind walls that return
+everything (:ref:`characteristic-wall-coupling`).
 
 The ruling that chose this form (the plan's ledger, "the user, second
 batch", 2026-10-06) settled the question of whether a less specialised
@@ -1017,10 +1155,11 @@ could be wrong:
 
 The gates compare the depths with closed-form segment lengths computed
 in mpmath (9 radial lines, a void shell among them, and the slab's
-widths over the cosine), to 8 ulp relative. The depth is not a labelled
-equation of this page and its rows remain software-invariant rows; it
-is part of what ``optical_depth`` implements under
-:eq:`characteristic-closure`.
+widths over the cosine), to 8 ulp relative. The depth is :math:`\tau_k`
+of :eq:`characteristic-traversal-integrals`, and since the second rung
+(``ff979520``) the three depth functions' 12 rows carry
+``verifies("characteristic-traversal-integrals")`` at L0; it is also
+what ``optical_depth`` implements under :eq:`characteristic-closure`.
 
 
 .. _characteristic-panel-basis:
@@ -1059,7 +1198,10 @@ at the depths
 
 from each graded end: at :math:`r_k + w\rho^j` toward :math:`r_k` and at
 :math:`r_{k+1} - w\rho^j` toward :math:`r_{k+1}`. With :math:`L = 0` a
-region is one panel. The private function ``_graded_ends`` computes them;
+region is one panel.
+:func:`~orpheus.derivations.continuous.characteristic.grading.graded_ends`
+computes them (the third rung moved it from the basis to the package's
+module of gradings, which the slab's grazing rule also calls);
 the gate ``test_panels_grade_toward_walls_and_interfaces_and_not_toward_a_singular_stratum``
 writes the same law by hand in mpmath and compares at 4 ulp of the outer
 radius, for :math:`L \in \{0, 1, 2, 4\}` and :math:`\rho \in \{0.3, 0.5\}`.
@@ -1103,7 +1245,8 @@ panel reaching such an end converges slowly; geometric panels toward the
 end confine the singular behaviour to panels that shrink with it. At a
 singular stratum nothing jumps: the chart's symmetry group fixes the
 centre, the flux is an even and smooth function of :math:`c` there, and
-grading would add panels and nothing else. The gate's arms B1 (the centre
+grading would add panels and nothing else. What the centre needs instead
+is a basis that is even in :math:`c` (:ref:`characteristic-even-basis`). The gate's arms B1 (the centre
 graded) and B2 (the inner wall not graded) redden 12 and 14 rows.
 
 **The panel ends are a partition.** They are a
@@ -1161,6 +1304,129 @@ properties follow.
   function; one of degree :math:`p + 1` is not reproduced, the gate's
   loading control (``test_the_interpolant_reproduces_every_per_region_polynomial_of_degree_p``).
 
+.. _characteristic-even-basis:
+
+The even basis at a singular stratum
+------------------------------------
+
+On the panel whose lower end is a singular stratum of the chart, the
+centre of a solid sphere or the axis of a solid cylinder, the functions
+are polynomials in :math:`c^2`, not in :math:`c`
+(:attr:`PanelBasis.even
+<orpheus.derivations.continuous.characteristic.basis.PanelBasis.even>`,
+true on that panel and on no other; ruled by the user on 2026-10-06, the
+plan's ledger, "on P1 step (b)'s third rung", Q1). The nodes are the same
+Gauss–Legendre points :math:`c_m` of the panel :math:`[0, h]`, and the
+functions are the Lagrange polynomials in :math:`s = (c/h)^2` through the
+squared nodes :math:`s_m = (c_m/h)^2`:
+
+.. math::
+
+   u_{0,m}(c) \;=\; \prod_{l \ne m} \frac{s - s_l}{s_m - s_l},
+   \qquad s = (c/h)^{2},
+
+so they span :math:`1, c^{2}, \dots, c^{2p}`, every function of
+:math:`c^{2}` of degree :math:`p` in :math:`c^2` and no odd power of
+:math:`c`. A coefficient is still a value at a node, the product form is
+the same one evaluated in the panel's own coordinate, and nothing
+downstream of :meth:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis.values`
+changed.
+
+**Why the physics allows it.** The flux is invariant under the isotropy
+of the stratum, :math:`O(3)` at the sphere's centre and the
+:math:`O(2)` of rotations and reflections about the cylinder's axis
+acting on the plane normal to it. A smooth function invariant under
+:math:`O(d)` is a smooth function of :math:`|x|^2`: Schwarz's theorem
+:cite:`Schwarz1975` for a compact group acting orthogonally, every smooth
+invariant function is a smooth function of the generators of the
+invariant polynomials, here :math:`|x|^2`. Restricted to a line through
+the stratum it is an even function of :math:`c`, and a smooth even
+function is a smooth function of :math:`c^2` (Whitney's theorem
+:cite:`Whitney1943`). The flux near the stratum is therefore a smooth
+function of :math:`c^2`, and the odd powers of :math:`c` a basis in
+:math:`c` holds are modes the physics never excites.
+
+**Why the numerics needs it.** The odd modes are not harmless: they make
+every line integral through the centre panel non-smooth in the impact
+parameter. Along a line of impact parameter :math:`b`, with
+:math:`c(s)^2 = b^2 + s^2`, the integral of a power :math:`c^{n}` over the
+panel is the Abel transform
+
+.. math::
+
+   \int c^{n}\,\mathrm{d}s \;=\; \int_{b}^{h} \frac{c^{n}\,c}{\sqrt{c^{2} - b^{2}}}\,\mathrm{d}c .
+
+For even :math:`n = 2m` the integrand along the line is
+:math:`(b^2 + s^2)^m`, a polynomial in :math:`s` and :math:`b^2`, and the
+integral is a polynomial in :math:`b^2` times the chord's square root
+:math:`\sqrt{h^2 - b^2}`, which the impact rule's substitution absorbs.
+For odd :math:`n = 2m + 1` it carries a term in :math:`b^{2m+2}\log b`:
+`[M]` 2026-10-07, SymPy's series of the integral at :math:`b \to 0` gives
+:math:`-\tfrac12 b^2\log b` for :math:`n = 1` and
+:math:`-\tfrac38 b^4\log b` for :math:`n = 3`. A logarithm at the end of
+the impact interval holds Gauss–Legendre in :math:`b` to algebraic
+convergence. `[M]` 2026-10-07, the archivist's probe on the built code
+(the closed mirror sphere :math:`(0, 0.5, 1)`, :math:`p = 3`, one panel per
+region, :math:`\Sigma_t = 0.7`: :math:`K\mathbf 1` from the impact piece
+:math:`[0, 0.25]` at :math:`n` points against 128 points, the maximum
+over the panels):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 17 17 17 19
+
+   * - Centre panel
+     - :math:`n = 4`
+     - 6
+     - 8
+     - 16
+   * - even (polynomials in :math:`c^2`)
+     - :math:`1.9 \times 10^{-6}`
+     - :math:`1.4 \times 10^{-10}`
+     - :math:`4.6 \times 10^{-14}`
+     - :math:`4.4 \times 10^{-16}`
+   * - odd (Lagrange in :math:`c`, the second rung's basis)
+     - :math:`8.1 \times 10^{-6}`
+     - :math:`3.3 \times 10^{-7}`
+     - :math:`3.5 \times 10^{-8}`
+     - :math:`1.6 \times 10^{-10}`
+
+The odd basis was measured by switching ``even`` off on every panel in
+process. At the operator level the same probe gives closed-body
+conservation of the white sphere at 24 impact points per piece of
+:math:`1.3 \times 10^{-15}` with the even panel and
+:math:`2.6 \times 10^{-13}` with the odd one.
+
+**Why not grade the impact rule toward** :math:`b = 0` **instead.** The
+premises of the third rung measured that alternative: grading the
+:math:`b` rule geometrically toward 0 took the closed sphere from
+:math:`5.3 \times 10^{-8}` to :math:`4.4 \times 10^{-11}` at 16 points
+(`[M]` 2026-10-06, the main agent's
+``scratch/characteristic_architecture/p1_step_b3/ladder3.py``). It treats
+the symptom: the logarithm is still in every integrand and is chased
+with points. The even basis removes it at its cause, the basis spanning
+functions the physics excludes, and leaves the centre piece smooth in
+:math:`b^2` (the impact rule then takes plain Gauss–Legendre on the lower
+half of that piece, :ref:`characteristic-line-rule`).
+
+**What follows from it.** The even panel's polynomials have degree
+:math:`2p` in :math:`c`, so the mass rule takes :math:`2p + 2` points on
+every panel (below). On the even panel a line's integrand is a polynomial
+in arc length, so the orbit coordinate's branch points do not affect it
+(:ref:`characteristic-branch-grading`): the gates of the turning grading
+therefore sit on a hollow body with a cavity of radius :math:`10^{-5}`,
+where the line turns in an ordinary panel, and the small-radius rows of
+ERR-099 read an even source on the even panel. The gates are ``test_the_even_panel_is_the_one_touching_a_singular_stratum``
+(the panel by hand from the body, not from ``singular_strata``),
+``test_the_even_panel_spans_the_polynomials_in_c_squared`` (an even
+polynomial of degree :math:`2p` reproduced to 64 ulp, :math:`c^{2p+1}`
+missed by more than :math:`10^{-3}`), and
+``test_the_even_panels_mass_is_the_volume_integral_of_its_even_products``,
+in ``tests/gates/derivations/test_characteristic_basis.py``; at the
+operator level, ``test_the_centre_impact_piece_converges_geometrically``
+and ``test_the_closed_sphere_conserves_to_rounding_at_high_resolution`` in
+``test_characteristic_assembly.py``.
+
 The mass matrix and the volume density
 --------------------------------------
 
@@ -1187,28 +1453,42 @@ density in the orbit coordinate is the derivative of that one definition,
    \frac{\mathrm{d}V}{\mathrm{d}r} \;=\; \kappa\,d\,r^{d-1}
    \;\in\; \{\,1,\; 2\pi r,\; 4\pi r^{2}\,\},
 
-(:meth:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis.volume_density`),
-so :math:`W_{ij} = \int u_i(r)\,u_j(r)\,\kappa\,d\,r^{d-1}\,\mathrm{d}r`. On
-a panel the integrand is a polynomial of degree :math:`2p + d - 1 \le
-2p + 2`, and Gauss–Legendre with :math:`p + 2` points is exact to degree
-:math:`2p + 3`, so each entry is integrated exactly up to rounding.
-:math:`W` is block-diagonal, one :math:`(p + 1) \times (p + 1)` block per
-panel, because the supports are disjoint.
+which the kernel computes,
+:meth:`Chart.measure_density <orpheus.geometry.chart.Chart.measure_density>`
+(:eq:`geometry-measure-density`), so
+:math:`W_{ij} = \int u_i(r)\,u_j(r)\,\kappa\,d\,r^{d-1}\,\mathrm{d}r`. On
+the even panel the integrand is a polynomial of degree at most
+:math:`4p + d - 1` in :math:`r` (on every other panel :math:`2p + d - 1`),
+and Gauss–Legendre with :math:`2p + 2` points, one rule on every panel, is
+exact to degree :math:`4p + 3`, so each entry is integrated exactly up to
+rounding. :math:`W` is block-diagonal, one :math:`(p + 1) \times (p + 1)`
+block per panel, because the supports are disjoint. The second rung's rule
+of :math:`p + 2` points was exact only for the odd basis; on the even
+panel it reddens the even mass gate on the sphere at :math:`p = 1, 3, 5`
+and on the cylinder at :math:`p = 3, 5`, and is blind on the cylinder at
+:math:`p = 1`, where degree 5 is exact at 3 points (declared in the gate).
 
-**Why the density is derived inside the basis.** The kernel exposes the
-cell measures and no density. The user ruled on 2026-10-06 (the plan's
-ledger, "on P1 step (b)'s second rung", Q4) that the basis derives the
-density from ``measure_constant`` and ``measure_coordinate`` rather than
-adding a verb ``Chart.volume_density`` to the stable kernel. The density
-is then the derivative of the measure's one definition, never a second
-spelling of it: the gate ``test_each_panels_mass_is_its_chart_measure``
+**Why the density is the kernel's.** On the second rung the user ruled
+(the plan's ledger, "on P1 step (b)'s second rung", Q4) that the basis
+derive the density itself from ``measure_constant`` and
+``measure_coordinate`` rather than add a verb to the stable kernel. The
+third rung brought a second consumer, the white wall's area
+(:ref:`characteristic-wall-coupling`), and the user ruled on 2026-10-06
+(Q4 of the third rung) that the density move to the kernel as the
+derivative of the measure. The basis's own ``PanelBasis.volume_density``
+retired onto it, and the route is gated:
+``test_characteristic_assembly.py::test_the_mass_and_the_wall_area_read_the_one_density``
+doubles ``MeasureCoordinate.derivative`` in process and requires the mass
+to double and the wall's response to halve bit for bit, so no second
+spelling survives on either side. ``test_each_panels_mass_is_its_chart_measure``
 sums each panel's block, which with a partition of unity is the panel's
 volume, against :meth:`Chart.measure <orpheus.geometry.chart.Chart.measure>`
 and against the closed-form volume in mpmath. The first leg shares the
 upstream constant :math:`\kappa` with the code and is not independent; the
 second leg, and ``test_the_volume_density_is_the_charts_by_hand`` (the
-three densities written by hand), are. Arm B7 (the factor :math:`d`
-dropped) reddens 44 rows.
+three densities written by hand, read now through the basis's chart),
+are. Arm B7 of the second rung's battery (the factor :math:`d` dropped)
+reddened 44 rows.
 
 The walls on the panel partition
 --------------------------------
@@ -1381,7 +1661,9 @@ and it belongs to exactly one transit. Each member slot is cut at its
 midpoint, and each half is graded toward its own end of the slot: piece
 ends at the distances :math:`2^{k}/\Sigma`, :math:`k = 0, \dots, 6`
 (1, 2, 4, …, 64 mean free paths), clipped to the half, when the half's
-optical width exceeds 2 (the module constant ``_THIN``). A half of optical
+optical width exceeds 2 (the constant ``_THIN``; both are
+:func:`~orpheus.derivations.continuous.characteristic.grading.exponential_ends`
+since the third rung moved the gradings into one module). A half of optical
 width at most 2 is one piece. So a slot of optical width at most 4 is two
 pieces, its halves, and the rest of a thick half beyond 64 mean free paths
 is one **middle piece**.
@@ -1451,10 +1733,14 @@ branch points is
 
    \operatorname{dist}\bigl(t,\ \text{branch points}\bigr) \;=\; \frac{c(t)}{|P\Omega|} .
 
-A basis function is a general polynomial in :math:`c`, odd powers
+On every panel but the even one (:ref:`characteristic-even-basis`) a
+basis function is a general polynomial in :math:`c`, odd powers
 included, so the integrands are analytic in :math:`t` everywhere except at
 the branch points (the even powers of :math:`c` are polynomials in
-:math:`t`). On a slot :math:`c` is monotone, because the closest approach
+:math:`t`). On the even panel every function is a polynomial in
+:math:`c^2`, hence in :math:`t`, and the branch points do not touch it;
+the grading below still runs on its slots, which costs pieces and changes
+no value. On a slot :math:`c` is monotone, because the closest approach
 is a slot end, so the point of the slot nearest the branch points is the
 end with the smaller orbit coordinate, the slot's **near end**, at the
 distance
@@ -1478,13 +1764,17 @@ length :math:`\ell \gg D` sees the branch points almost at its end,
 :math:`\rho_E \to 1`, and converges slowly.
 
 So the pieces **halve toward the near end**: piece ends at the depths
-:math:`\ell\,2^{-k}`, :math:`k = 1, \dots, 52`, from the near end, kept while
-the depth exceeds :math:`D` (``TraversalRule._branch_edges``; 52 is
+:math:`\ell\,2^{-k}`, :math:`k = 1, \dots, K`, from the near end, with
+:math:`K = \lceil \log_2(\ell/D) \rceil` the number of halvings after
+which a piece is no wider than its distance to the branch points
+(``TraversalRule._branch_edges``, through
+:func:`~orpheus.derivations.continuous.characteristic.grading.halvings`,
+the hp law every grading of the package shares; :math:`K` is at most 52,
 ``np.finfo(float).nmant``, below which a depth is under one ulp of the
 slot). A piece :math:`[\delta/2, \delta]` (depths from the near end) has
 the width :math:`\delta/2` and lies at least :math:`\delta/2` from the
 branch points, whatever :math:`b`; the innermost piece
-:math:`[0, \delta_{\min}]` has :math:`D < \delta_{\min} \le 2D`. The ellipse parameter of every piece
+:math:`[0, \delta_{\min}]` has :math:`D/2 < \delta_{\min} \le D`. The ellipse parameter of every piece
 is therefore bounded below independently of :math:`b`, each piece
 converges at a fixed geometric rate in its point count, and the number of
 pieces grows only like :math:`\log_2(\ell/D)`. This is **hp grading**:
@@ -1504,19 +1794,33 @@ evaluation of :math:`\rho_E = |z \pm \sqrt{z^2 - 1}|`, the larger root):
      - :math:`\rho_E^{-14}`, graded / innermost
    * - halving (the code)
      - :math:`3 + 2\sqrt2 \approx 5.83`
-     - 2.89
-     - :math:`1.9 \times 10^{-11}` / :math:`3.5 \times 10^{-7}`
+     - 4.61
+     - :math:`1.9 \times 10^{-11}` / :math:`5.1 \times 10^{-10}`
    * - quartering
      - 3.00
-     - 2.08
-     - :math:`2.1 \times 10^{-7}` / :math:`3.5 \times 10^{-5}`
+     - 4.61
+     - :math:`2.1 \times 10^{-7}` / :math:`5.1 \times 10^{-10}`
 
 The last column is the bound's decay factor at 7 points, before its
 constant: halving gains about four orders of magnitude on
-every graded piece. The bound's constant :math:`M` is small on the
-innermost piece, where :math:`c` itself is of the order of
-:math:`c_{\rm near}`, which is why the measured errors below sit far
-under the factor.
+every graded piece. `[M]` 2026-10-07, the archivist's re-evaluation of the
+innermost column under the law as it now stands: the worst position of
+the branch points in the closed half-plane beyond the near end, for
+:math:`\delta_{\min}/D` over :math:`(1/2, 1]`, gives 4.61 for either ratio.
+
+.. dropdown:: First got wrong: the halving one short of the law
+   :color: muted
+
+   Until the third rung's last review the halving kept a depth only while
+   it exceeded :math:`D`, so the innermost piece reached :math:`2D` and its
+   ellipse parameter fell to 2.89 (2.08 quartering). The elegance re-review
+   of 2026-10-07 found the hp law spelled three ways in the package and
+   this one a halving short, and every spelling became
+   ``grading.halvings``.
+
+The bound's constant :math:`M` is small on the innermost piece, where
+:math:`c` itself is of the order of :math:`c_{\rm near}`, which is why
+the measured errors below sit far under the factor.
 
 Through the centre (:math:`b = 0`) the two slots that touch the closest
 approach have :math:`c_{\rm near} = 0`, so :math:`D = 0` and they are not
@@ -1560,7 +1864,13 @@ at :math:`b = 10^{-4}` both stay below :math:`2 \times 10^{-15}` even at 7
 points. The ratio is visible only at a small point count, which is why
 ``test_the_turning_grading_halves_toward_the_closest_approach_at_seven_points``
 runs at 7, with the two :math:`b = 10^{-4}` lines as its declared
-controls. Each line keeps its live pieces in chord order (slot by slot,
+controls. The table was measured on the second rung's code, on solid
+bodies whose lines turn in the centre panel. On the third rung that panel
+became even and the integrand there a polynomial in arc length, so the
+gate's rows moved to a hollow body with a cavity of radius
+:math:`10^{-5}`, where the line turns in an ordinary panel; which of
+them the ratio-1/4 arm reddens there is in the third rung's battery
+(``scratch/characteristic_architecture/p1_step_b3/gates/battery/``). Each line keeps its live pieces in chord order (slot by slot,
 then along the slot), padded with dead pieces to the batch's largest
 count.
 
@@ -1734,7 +2044,7 @@ that holds it weights on its own. The inflow part of a line's Galerkin
 block, :math:`\sum_k A_k \otimes \psi^{\rm in}_k` with :math:`\psi^{\rm in}`
 from :eq:`characteristic-closure` applied to the :math:`B_k`, is not in
 :math:`V`; composing the two over the measure on lines is the assembly
-(:ref:`characteristic-what-is-not-built`).
+(:ref:`characteristic-galerkin-assembly-section`).
 
 **Reciprocity, and where it hides a transposition.** The block of the
 reversed line is the transpose, :math:`V(-\Omega) = V(\Omega)^{\mathsf T}`
@@ -1801,6 +2111,1000 @@ wall that the closure's own gate uses
 every amplitude 0 the inflow is exactly 0 and :math:`\psi` equals the
 no-inflow flux bitwise (``test_vacuum_walls_add_nothing_on_a_line``).
 
+.. _characteristic-galerkin-assembly-section:
+
+The Galerkin assembly over lines
+================================
+
+The third rung assembles one group's **transport block**: the operator
+that takes an isotropic emission density on the basis to the scalar flux
+it produces through the body and its walls, tested against the basis.
+:meth:`LineRule.transport
+<orpheus.derivations.continuous.characteristic.assembly.LineRule.transport>`
+returns it as a
+:class:`~orpheus.derivations.continuous.characteristic.assembly.GroupTransport`,
+whose :attr:`~orpheus.derivations.continuous.characteristic.assembly.GroupTransport.block`
+is the line part plus the white walls' update. The design is the plan's
+"P1 step (b), third rung: API sketch" (items 5 and 6), ruled 2026-10-06;
+the assembly by Galerkin over lines, rather than collocation at points
+and directions, was ruled the same day after its measurement
+(``scratch/characteristic_architecture/p1_assembly/report.md``: a
+:math:`k` error 28 to 175 times smaller at equal :math:`n`, an observed
+order of about 5.5 against 3.6).
+
+The bilinear form, derived
+--------------------------
+
+Let :math:`q` be an isotropic emission density, so that a volume element
+emits :math:`q/4\pi` per steradian, and let :math:`\phi[q]` be the scalar
+flux it produces. The transport block is
+
+.. math::
+
+   K_{ij} \;=\; \int u_i(x)\,\phi[u_j](x)\,\mathrm{d}V
+   \;=\; \int_{S^2}\!\mathrm{d}\Omega \int u_i(x)\,\psi_j(x, \Omega)\,\mathrm{d}V .
+
+For one direction :math:`\Omega`, write a point as the foot :math:`p` of
+the line through it in the plane normal to :math:`\Omega` plus an arc
+length along the line, so that :math:`\mathrm{d}V = \mathrm{d}A_\perp\,\mathrm{d}s`.
+The double integral over directions and positions is then an integral
+over oriented lines against the invariant measure
+:math:`\mathrm{d}L = \mathrm{d}A_\perp\,\mathrm{d}\Omega`
+(:eq:`geometry-measure-on-lines`) of an integral along each line:
+
+.. math::
+
+   K_{ij} \;=\; \int \mathrm{d}L \int_{L} u_i\bigl(c(s)\bigr)\,\psi_j(s)\,\mathrm{d}s .
+
+Along the line, :math:`\psi_j` is :math:`1/4\pi` times what the traversal
+rule computes from the unit source :math:`u_j`, which carries no
+:math:`1/4\pi` (:ref:`characteristic-transport`): the vacuum part, the
+Volterra block :math:`V_L` of the line's forward transits
+(:ref:`characteristic-volterra`), plus, on each forward traversal
+:math:`k`, the inflow :math:`\mathrm{in}_k` the closure returns from the
+outflows :math:`B` (:eq:`characteristic-closure`), attenuated from the
+entry and paired with :math:`u_i`, which is the entry response
+:math:`A_k` (:eq:`characteristic-traversal-integrals`). The integrand is
+invariant under the chart's group, because every basis function is a
+function of the orbit coordinate, so by :eq:`geometry-line-domain` the
+integral over lines is an integral over the line domain's box with the
+density :math:`\varrho`, and a quadrature with nodes :math:`q_L` and
+weights :math:`W_L` on the box gives:
+
+.. math::
+   :label: characteristic-galerkin-assembly
+
+   K \;=\; \underbrace{\sum_{L} w_L \Bigl(V_L + \sum_{k\ \text{forward}} A_k \otimes \mathrm{in}_k\Bigr)}_{K_{\rm line}}
+   \;+\; K_{\rm wall},
+   \qquad
+   w_L \;=\; \frac{W_L\,\varrho(q_L)}{4\pi},
+
+with :math:`K_{\rm wall}` the white walls' update of
+:eq:`characteristic-boundary-resolvent` (zero with no diffuse wall). The
+rows of :math:`K` run over every basis function and its columns over the
+emission support (below).
+
+.. implements:: characteristic-galerkin-assembly
+   :by: orpheus.derivations.continuous.characteristic.assembly.LineRule.transport
+
+   **Implemented by** ``LineRule.transport``, which accumulates
+   :math:`K_{\rm line}` chunk by chunk from each chunk's
+   ``TraversalRule``; ``LineRule.of`` places the lines on the line domain
+   and forms :math:`w_L`; ``GroupTransport.block`` adds the walls' update.
+
+.. implements:: characteristic-galerkin-assembly
+   :by: orpheus.derivations.continuous.characteristic.assembly.LineRule.of
+
+.. implements:: characteristic-galerkin-assembly
+   :by: orpheus.derivations.continuous.characteristic.assembly.GroupTransport.block
+
+**Only the forward traversals.** A point of the line domain is an orbit of
+oriented lines, and the integrand is evaluated on its representative
+read in its own direction: its transits read forward, and the inflows of
+the traversals that read them forward. The reversed traversals of the
+period carry the line's cycle and belong to the opposite line. On the
+slab the opposite line is another point of the box (:math:`-\mu`), which
+the rule holds on its own; on the sphere and the cylinder it is in the
+same orbit, and the density :math:`\varrho` already counts it. The battery
+arm that sums the reversed traversals too (A5) reddens 26 rows.
+
+**The normalisation, and what it makes checkable.** With
+:math:`w_L = W_L\varrho/4\pi`, :math:`K` is the scalar-flux operator of an
+isotropic emission. On a closed homogeneous body (every wall a mirror, or
+white with :math:`\alpha = 1`, or a periodic wrap), :math:`\psi = 1` solves
+the transport problem with the emission :math:`\Sigma_t`, so
+:math:`\phi = 1` and
+
+.. math::
+
+   K\,\Sigma_t\mathbf 1 \;=\; W\mathbf 1 ,
+
+the block applied to the nodal :math:`\Sigma_t` (piecewise constant, so in
+the basis exactly) equals the volume of each basis function, the mass
+matrix applied to ones. The right side reads only the volume measure, the
+left side the lines, the closure and the coupling, so the identity is the
+assembly's **closed-body conservation** row. `[M]` 2026-10-07, the
+archivist's probe on the built code, homogeneous bodies of radius or width
+1.3 at :math:`\Sigma_t = 0.7` behind mirrors: :math:`4.0 \times 10^{-15}`
+on the sphere at 16 points per piece, :math:`9.8 \times 10^{-16}` on the
+slab at 8. On the three-region data of the gates
+(:math:`\Sigma_t = (0.6, 1.3, 0.45)`, breakpoints :math:`(0, 0.5, 1.5, 2)`):
+the sphere behind a mirror :math:`1.6 \times 10^{-15}` and behind a white
+wall :math:`1.5 \times 10^{-15}` at 16 points (:math:`7.9 \times 10^{-13}`
+at 8); the hollow sphere :math:`(0.4, 0.5, 1.5, 2)` white inside and out
+:math:`1.7 \times 10^{-15}`, mirror inside and white out
+:math:`1.8 \times 10^{-15}`; the slab between two white walls
+:math:`1.9 \times 10^{-15}` at 4 points.
+
+**What conservation cannot see.** A mirror returns each line's outflow
+into the same line and a periodic wrap carries it into a congruent one,
+so on a closed body the identity holds **line by line**: every line
+conserves on its own, whatever weight the rule gives it. Conservation
+therefore cannot see the rule over lines at all, only the transport along
+each line and the coupling of the white walls. The test-architect measured
+it twice: the slab's cosine rule passed 33 of 33 conservation runs to
+:math:`2.5 \times 10^{-15}`, plain 4-point rules included; and the
+cylinder's axial-cosine rule read the same under a mirror at 8 points as
+at 16 (:ref:`chart-and-chord-line-domain`). The rule over lines is gated
+by the closed forms of the walls instead (the escape probability and the
+wall transmission, :ref:`characteristic-wall-coupling`), which read every
+line with its weight. That every line-measure defect of ERR-101 passed
+the conservation rows is this blindness.
+
+**Symmetry is a foundation row, declared blind.** By reciprocity the
+block is symmetric where its rows and columns coincide, and the third
+rung's sketch proposed the symmetry defect as the alarm for an
+under-integrated rule (the first spec's C11). It cannot be one: each
+line's quadrature is symmetric under reversing the line (the inbound and
+outbound halves of a radial chord mirror each other, and the slab's
+cosine rule is symmetric in sign), so each line's block is symmetric
+whatever the rule's accuracy. `[M]` 2026-10-06, the main agent: the block
+symmetric to :math:`2.5 \times 10^{-16}` at every resolution tried,
+including the sphere at 8 impact points, where conservation missed by
+:math:`5.2 \times 10^{-5}`, and the slab with a plain cosine rule, which
+missed by :math:`1.6 \times 10^{-3}`. Its only teeth are a mismatch
+between the outer and the inner arc-length rules
+(:math:`1.5 \times 10^{-6}` at 4 outer points against 12 inner), which
+``test_the_symmetry_row_sees_the_arc_length_rules`` keeps. The user ruled
+(Q3 of the third rung) that conservation is the alarm and symmetry a
+declared-blind foundation row.
+
+The emission support
+--------------------
+
+The columns of :math:`K` are the basis functions of the regions that
+emit, by default those with :math:`\Sigma_t > 0`, or the regions of a
+mask the caller passes (``transport(..., support=...)``);
+``GroupTransport.support`` holds their indices. The rows run over every panel, so the flux is read
+everywhere, and the block is rectangular, :math:`N \times M`.
+
+**Why the columns stop at the emission.** A basis function on a void
+panel is a source in a region that never emits. Under a mirror it is
+worse than useless: a line that stays in an outer void shell behind a
+mirror is a lossless trapped line, and a source on it has no finite flux
+(:ref:`characteristic-closure-section`), so the full block of such a body
+does not exist, and ``inflow`` refuses it. `[M]` 2026-10-06, the
+test-architect: on a sphere with a void layer :math:`(2.0, 2.6)` under a
+mirror of amplitude 1 the full block raises
+:class:`~orpheus.derivations.continuous.characteristic.closure.TrappedSource`
+(``test_the_full_block_of_a_void_layer_under_a_full_mirror_is_refused``),
+while the block on the emission support equals the block of the body
+without the layer to :math:`5.4 \times 10^{-17}`
+(``test_a_void_outer_layer_is_invisible_on_the_emission_support``). The
+main agent took this decision while building (not a user ruling), bringing
+forward the P1 sketch's item 6, under which a void region never gets an
+emission column. The rows stay full because the white walls' response
+:math:`R` must be read on every panel; its reciprocal partner :math:`U`
+lives on the support only, which is why :math:`R` is computed directly and
+the reciprocity :math:`R = U D^{-1}` is gated rather than assumed (the
+elegance review withdrew its objection to the two tallies on that
+ground).
+
+**Open for the fourth rung.** Each group's default support is its own
+:math:`\Sigma_t > 0`, so two groups can have different column sets; the
+pencil of the fourth rung needs one shared emission support (the union
+over the groups, or the regions with any scattering, fission or source).
+
+The tallies, in one pass
+------------------------
+
+:meth:`~orpheus.derivations.continuous.characteristic.assembly.LineRule.transport`
+walks the rule's chunks of lines once. For each chunk it builds the
+chunk's ``TraversalRule`` and calls
+:meth:`LinePeriod.inflow
+<orpheus.derivations.continuous.characteristic.closure.LinePeriod.inflow>`
+once on a stacked batch of sources: the outflows of the :math:`M` emission
+functions, then, for each of the :math:`W` diffuse walls, a unit current
+entering at that wall as an arriving flux of :math:`1/D_w` on every
+traversal that enters there (:ref:`characteristic-arriving-flux`). From
+that one inflow it accumulates, with the line weights,
+
+- the line part, the Volterra block on the support columns plus
+  :math:`\sum_k A_k \otimes \mathrm{in}_k` over the forward traversals,
+  for the emission columns;
+- the walls' response :math:`R`, the same sum for the wall columns;
+- the escape :math:`U`, what leaves each forward traversal at a diffuse
+  wall, :math:`e^{-\tau_k}\mathrm{in}_k + B_k`, for the emission columns;
+- for the wall columns, over **every** traversal of the period (where the
+  balance closes line by line): the current injected, the current
+  absorbed (:math:`\mathrm{in}\,(1 - e^{-\tau})`, formed by ``expm1``),
+  the current leaked at a wall that does not return it, and the current
+  reaching each diffuse wall.
+
+The transmission :math:`T` and the loss :math:`\ell` are the last two
+divided by the first: ratios of one tally, so the slab's double count of
+each orbit over every traversal (its cosine rule is symmetric in sign)
+cancels, and so does the rule's quadrature error in the injected current.
+
+Chunk invariance is not bitwise: the chunks re-order the sum over lines.
+`[M]` 2026-10-06, the test-architect: the slab's block moves by
+:math:`2.9 \times 10^{-15}`, 12.9 ulp of its largest entry, between chunk
+sizes, so ``test_the_block_does_not_depend_on_the_piece_budget`` holds the
+block to 64 ulp across the default budget, a quarter of it, a budget of
+one line per chunk and an unbounded one, and checks that every line lands
+in exactly one chunk (the first spec's 1e-15 was refuted).
+
+
+.. _characteristic-wall-coupling:
+
+The white walls' coupling
+=========================
+
+A diffuse wall of amplitude :math:`\alpha_w` re-emits isotropically the
+fraction :math:`\alpha_w` of the current that reaches it, so what it
+returns depends on every line that reaches it and feeds every line that
+leaves it. That couples all the lines through a few numbers, the
+currents at the diffuse walls, and the second part of the boundary
+resolvent is a finite-rank update over them,
+:class:`~orpheus.derivations.continuous.characteristic.closure.WallCoupling`.
+
+The four quantities
+-------------------
+
+- The **escape** :math:`U`, :math:`M \times W`: the partial current that
+  leaves through wall :math:`w` when the emission is the basis function
+  :math:`u_i`. The outgoing current through a surface element
+  :math:`\mathrm{d}A` with normal :math:`n` is
+  :math:`\int_{\Omega\cdot n > 0} (\Omega\cdot n)\,\psi\,\mathrm{d}\Omega\,\mathrm{d}A`,
+  and the lines through :math:`\mathrm{d}A` in the direction :math:`\Omega`
+  fill, in the plane normal to :math:`\Omega`, the area
+  :math:`\mathrm{d}A_\perp = |\Omega\cdot n|\,\mathrm{d}A`. So the current
+  leaving a wall is the invariant measure on lines integrated over the
+  lines that exit there, with the intensity they carry out, and the line
+  weights of the assembly serve unchanged:
+
+  .. math::
+
+     U_{iw} \;=\; \sum_{L} w_L \sum_{k\ \text{forward, exiting at } w}
+     \bigl(e^{-\tau_k}\,\mathrm{in}_k + B_k\bigr)_i .
+
+- The **injection** :math:`1/D_w`. A current :math:`J` entering a wall of
+  area :math:`A_w` isotropically has the intensity :math:`\psi` constant
+  over the inward hemisphere, and
+  :math:`J = A_w\,\psi\int_{\Omega\cdot n < 0}|\Omega\cdot n|\,\mathrm{d}\Omega = \pi A_w\,\psi`,
+  so :math:`\psi = J/(\pi A_w)`. The lines carry :math:`4\pi` times an
+  intensity (their weights hold the :math:`1/4\pi`), so a unit current
+  enters each line as :math:`4\pi/(\pi A_w) = 1/D_w` with
+
+  .. math::
+
+     D_w \;=\; \frac{A_w}{4},
+
+  and :math:`A_w` is the area of the level set at the wall, the kernel's
+  :meth:`Chart.measure_density <orpheus.geometry.chart.Chart.measure_density>`
+  (:eq:`geometry-measure-density`): :math:`4\pi R^2` on a sphere,
+  :math:`2\pi R` per unit height on a cylinder, 1 per unit area on a slab.
+  It is read at that one place.
+- The **response** :math:`R`, :math:`N \times W`: the flux moments
+  :math:`\int u_i\,\phi\,\mathrm{d}V` of a unit current entering at
+  :math:`w`, the line part's sum :math:`\sum_k A_k \otimes \mathrm{in}_k`
+  for the injection.
+- The **transmission** :math:`T`, :math:`W \times W`: the fraction of a
+  current entering at :math:`w` that leaves at :math:`w'` through the line
+  part (specular returns on the way included), and the **loss**
+  :math:`\ell_w`, the fraction absorbed or leaked through a wall that
+  returns nothing. Every entering current goes one of the three ways:
+
+  .. math::
+
+     \sum_{w'} T_{w'w} + \ell_w \;=\; 1,
+
+  per line in exact arithmetic, and to 8 ulp in the gate
+  ``test_each_injected_current_is_transmitted_or_lost``.
+
+The update, derived
+-------------------
+
+Let :math:`j_w` be the current wall :math:`w` returns. What reaches wall
+:math:`w` is what the emission sends there, :math:`(U^{\mathsf T} q)_w`,
+plus what the returned currents send there through the line part,
+:math:`(Tj)_w`, and the wall returns the fraction :math:`\alpha_w` of it:
+
+.. math::
+
+   j \;=\; \alpha\,\bigl(U^{\mathsf T} q + T j\bigr)
+   \quad\Longrightarrow\quad
+   (I - \alpha T)\,j \;=\; \alpha\,U^{\mathsf T} q
+   \quad\Longrightarrow\quad
+   j \;=\; \alpha\,(I - T\alpha)^{-1}U^{\mathsf T} q ,
+
+the last step by the push-through identity
+:math:`(I - \alpha T)^{-1}\alpha = \alpha\,(I - T\alpha)^{-1}`, which
+needs no inverse of :math:`\alpha` (a wall of amplitude 0 is admitted).
+The returned currents produce the flux moments :math:`Rj`, so the walls
+add to the block
+
+.. math::
+   :label: characteristic-boundary-resolvent
+
+   K_{\rm wall} \;=\; R\,\alpha\,(I - T\alpha)^{-1}\,U^{\mathsf T},
+   \qquad
+   R\big|_{\rm support} \;=\; U\,D^{-1},
+   \qquad
+   D \;=\; \mathrm{diag}\bigl(A_w/4\bigr),
+
+the diffuse part of :math:`P = P_0 + E\,(I - T)^{-1}X`
+(:ref:`characteristic-resolvent`), :math:`E` and :math:`X` restricted to
+the diffuse walls' currents being :math:`R` and :math:`U^{\mathsf T}`.
+
+.. implements:: characteristic-boundary-resolvent
+   :by: orpheus.derivations.continuous.characteristic.closure.WallCoupling.update
+
+   **Implemented by** ``WallCoupling.update``, the solve, with
+   ``WallCoupling.returning`` forming :math:`I - T\alpha` from the loss;
+   ``LineRule.transport`` tallies :math:`U`, :math:`R`, :math:`T` and
+   :math:`\ell` and reads :math:`D` from the chart's density.
+
+.. implements:: characteristic-boundary-resolvent
+   :by: orpheus.derivations.continuous.characteristic.closure.WallCoupling.returning
+
+.. implements:: characteristic-boundary-resolvent
+   :by: orpheus.derivations.continuous.characteristic.assembly.LineRule.transport
+
+**Reciprocity.** The flux at :math:`u_i` from a unit isotropic current
+entering at :math:`w` and the current leaving at :math:`w` from the source
+:math:`u_i` are the forward and the adjoint readings of one set of lines,
+so :math:`R_{iw} = U_{iw}/D_w` on the emission support; and the
+wall-to-wall transmission satisfies the surface reciprocity
+:math:`A_w T_{w'w} = A_{w'} T_{ww'}`, that is :math:`D^{-1}T` symmetric.
+`[M]` 2026-10-07, the archivist's probe: :math:`R = UD^{-1}` on the white
+sphere's support to :math:`1.1 \times 10^{-16}` relative, and
+:math:`D = \pi R^2` for a sphere of radius 2 exactly. The gates
+``test_the_walls_response_is_the_escape_over_the_quarter_area`` (64 ulp)
+and ``test_the_transmission_is_reciprocal_in_the_wall_areas`` (8 ulp)
+hold both, and the void bodies of
+``test_a_void_body_transmits_its_geometric_fractions`` pin the scale that
+a reciprocity row cannot see: a hollow void sphere of radii 0.4 and 2
+transmits :math:`(0.4/2)^2` of the outer wall's current to the cavity and
+the rest back to itself, a void slab everything face to face.
+
+**The correction to the ruled spelling.** The ruling of 2026-10-06 ("One
+resolvent, two parts") wrote the update
+:math:`U\,(I - T_w)^{-1} A\,U^{\mathsf T}`. With :math:`R = UD^{-1}` the
+built form is :math:`U D^{-1}\alpha\,(I - T\alpha)^{-1}U^{\mathsf T}`: the
+ruled form omits :math:`D`, an error of the factor :math:`4/A_w`, which is
+not 1 on any body (the premises' measurement found it before the sketch;
+dropping it misses conservation by 6.6, relative, on a white sphere, the
+test-architect's arm, and battery arm A1 reddens 58 rows).
+
+**Why** :math:`R` **stays per nominal unit current.** The line rule
+integrates the injected current with a quadrature error, so the current
+it actually injects misses 1 slightly: `[M]` 2026-10-06, the elegance
+review, :math:`2.7 \times 10^{-14}` on the cylinder at 8 points and
+:math:`1.1 \times 10^{-7}` at 4. :math:`T` and :math:`\ell` are fractions
+of the injected tally and are unaffected. :math:`R` is the response to
+the nominal injection :math:`1/D_w`, so the wall's area enters the block
+there and nowhere else. Dividing :math:`R` by its own injected tally
+instead was tried in the last review round and reverted: the area then
+cancels out of the block entirely, and the route gate on the one density
+(``test_the_mass_and_the_wall_area_read_the_one_density``) reddened. The
+two normalisations differ by the rule's quadrature error, which is what
+the stated asymmetry costs.
+
+The loss, not the difference
+----------------------------
+
+Near void the walls exchange almost every neutron: :math:`T_{ww}` is
+within the absorption of 1, and :math:`I - T\alpha` is nearly singular in
+its total-current mode, whose eigenvalue is about what the body loses.
+Formed by subtraction, its diagonal :math:`1 - \alpha_w T_{ww}` keeps only
+the digits of :math:`T_{ww}` that differ from 1, and the rounding of the
+tally is amplified by the inverse of the absorption. ``WallCoupling``
+never subtracts:
+
+- **the diagonal is formed from the loss**: by the balance,
+  :math:`1 - \alpha_w T_{ww} = (1 - \alpha_w) + \alpha_w\bigl(\ell_w + \sum_{w' \ne w} T_{w'w}\bigr)`,
+  a sum of non-negative terms, with :math:`\ell_w` itself a sum of
+  absorbed fractions formed by ``expm1`` and leaked fractions
+  (:attr:`~orpheus.derivations.continuous.characteristic.closure.WallCoupling.returning`);
+- **one row is replaced by the balance**: the column sums of
+  :math:`I - T\alpha` are :math:`1 - \alpha_w\sum_{w'}T_{w'w} = (1 - \alpha_w) + \alpha_w\ell_w`,
+  known without cancellation, so the solve replaces the last row of the
+  system by the sum of all its rows (and the last row of the right side by
+  the sum of its rows). That is an exact row operation, so the solution is
+  the same in exact arithmetic; in floating point the total current, the
+  nearly singular mode, is read from the balance and not from rounded
+  entries.
+
+The diagonal alone was not enough: with it but no balance row, the two
+bodies with two white walls still missed conservation by
+:math:`7.7 \times 10^{-6}` and :math:`2.2 \times 10^{-5}` at
+:math:`\Sigma_t = 10^{-12}` through the rounded off-diagonal entries
+(`[M]` 2026-10-06, the main agent). `[M]` 2026-10-07, the archivist's
+probe on the built code, closed-body conservation at 16 points per piece
+with :math:`\Sigma_t` equal in both regions, the built coupling against
+the same tallies solved through the subtraction
+:math:`I - T\alpha` (its stored diagonal kept):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 16 16 16 18
+
+   * - Body, :math:`\Sigma_t`
+     - 1
+     - :math:`10^{-6}`
+     - :math:`10^{-9}`
+     - :math:`10^{-12}`
+   * - white sphere :math:`(0, 0.6, 1)`, built
+     - :math:`1.0 \times 10^{-15}`
+     - :math:`9.9 \times 10^{-16}`
+     - :math:`1.0 \times 10^{-15}`
+     - :math:`9.9 \times 10^{-16}`
+   * - the same, by subtraction
+     - :math:`1.0 \times 10^{-15}`
+     - :math:`1.1 \times 10^{-11}`
+     - :math:`2.5 \times 10^{-7}`
+     - :math:`1.3 \times 10^{-4}`
+   * - hollow sphere :math:`(0.3, 0.6, 1)`, white and white, built
+     - :math:`9.7 \times 10^{-16}`
+     - :math:`9.9 \times 10^{-16}`
+     - :math:`9.7 \times 10^{-16}`
+     - :math:`9.9 \times 10^{-16}`
+   * - the same, by subtraction
+     - :math:`9.7 \times 10^{-16}`
+     - :math:`1.2 \times 10^{-11}`
+     - :math:`1.8 \times 10^{-7}`
+     - :math:`1.3 \times 10^{-4}`
+   * - slab :math:`(0, 0.6, 1)`, white and white, built
+     - :math:`1.1 \times 10^{-15}`
+     - :math:`1.2 \times 10^{-15}`
+     - :math:`1.0 \times 10^{-15}`
+     - :math:`1.0 \times 10^{-15}`
+   * - the same, by subtraction
+     - :math:`1.1 \times 10^{-15}`
+     - :math:`3.1 \times 10^{-10}`
+     - :math:`1.3 \times 10^{-7}`
+     - :math:`1.9 \times 10^{-4}`
+
+The subtraction's error grows as the inverse of the absorption, three
+decades of :math:`\Sigma_t` for three decades of error; the built
+coupling is flat. The gate is
+``test_a_nearly_void_closed_body_conserves_its_emission`` (four bodies,
+:math:`\Sigma_t` from 1 to :math:`10^{-12}`, ERR-102).
+
+The lossless body is refused exactly
+------------------------------------
+
+When every diffuse wall returns everything (:math:`\alpha = 1`) and every
+loss is exactly 0, the body loses nothing: :math:`I - T\alpha` is exactly
+singular (its column sums are the balance, all 0), and a source that
+reaches the walls has no finite flux. The loss is exactly 0 only when no
+traversal attenuates and nothing leaks, because the absorbed fraction is
+formed by ``expm1`` and is positive for any :math:`\Sigma_t > 0`.
+``WallCoupling.update`` tests that predicate, not a computed
+determinant, and raises
+:class:`~orpheus.derivations.continuous.characteristic.closure.TrappedSource`
+(*a source in a body that absorbs nothing, behind walls that return
+everything, has no finite flux*), the white analogue of the line part's
+trapped line. With no source reaching the walls (a zero or an empty
+escape) it returns the zero update instead: the test-architect found on
+the first run of ``test_a_lossless_body_with_no_source_has_an_empty_block``
+that the solve was attempted for zero columns and raised ``LinAlgError``,
+and the main agent added the zero branch (2026-10-06).
+
+Formed by subtraction, the same body is not refused: the computed
+transmission misses 1 by a rounding, and the solve divides by it. `[M]`
+2026-10-07, the archivist's probe: a void sphere :math:`(0, 0.5, 1.5, 2)`
+behind a white wall of amplitude 1, every region in the support, at 8
+points: loss exactly 0, :math:`1 - T = 1.1 \times 10^{-16}`, and the
+subtraction's block reaches :math:`1.1 \times 10^{16}` for a source that
+has no finite flux; the built coupling raises. The refusal lives in
+``update``, beside the balance row that makes the singularity it guards
+exact, and not as a predicate on the input (the user's ruling of
+2026-10-06 to fix the near-void conditioning in the rung). Gates: ``test_a_source_behind_walls_that_return_everything_in_a_lossless_body_is_refused``,
+with one leg per condition dropped (:math:`\alpha = 0.99`, one region
+absorbing) building finite blocks, and a void body behind a mirror refused
+by the line part's own fragment and not this one.
+
+A wall both specular and diffuse would break the balance as tallied
+(it counts a diffuse wall's specular return as zero), and ``Wall`` refuses
+it (:ref:`characteristic-walls`).
+
+The white walls' gates
+----------------------
+
+Against closed forms written in mpmath in
+``tests/gates/derivations/_characteristic_mp.py``, which imports nothing
+from ``orpheus``:
+
+- **The escape probability two ways and the wall transmission**
+  (``test_the_escape_and_transmission_probabilities_are_the_closed_forms``):
+  a homogeneous body behind white walls, :math:`P_{\rm esc}` as
+  :math:`1 - \Sigma\,\mathbf 1^{\mathsf T}K_{\rm line}\mathbf 1/V` and as
+  :math:`\mathbf 1^{\mathsf T}U/V`, against Hébert's sphere, the slab's
+  :math:`(1 - 2E_3(\tau))/(2\tau)` and the cylinder's
+  :math:`(1 - P_{ss})/(2\tau)` through Bickley's :math:`\mathrm{Ki}_3`; the
+  wall transmission against :math:`P_{ss}` (sphere, cylinder) or
+  :math:`2E_3(\tau)` face to face (slab). These read every line with its
+  weight, so they are where the rule over lines is gated.
+- **The white and the specular laws**
+  (``test_the_white_and_specular_laws_are_their_closed_forms_and_differ``):
+  :math:`\mathbf 1^{\mathsf T}K\mathbf 1` against the balance of one
+  re-emission chain,
+  :math:`(V/\Sigma)\,[(1 - P_{\rm esc}) + \alpha P_{\rm esc}(1 - T)/(1 - \alpha T)]`,
+  and the specular sphere against its per-line integral, to
+  :math:`10^{-13}`; at :math:`\alpha = 0.5` the white and the specular
+  spheres differ by more than 100 times the conservation band, the
+  discriminator a specular-only code cannot pass.
+- the reciprocity rows, the balance row, the void rows, the near-void
+  sweep and the refusals above.
+
+`[M]` 2026-10-07, the archivist's probe, homogeneous bodies of radius or
+width 1.3 behind white walls (relative errors; :math:`P_{\rm esc}` from the
+line part, from :math:`U`, then :math:`T_w`):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 10 21 21 22
+
+   * - Body, :math:`\tau`
+     - points
+     - :math:`P_{\rm esc}` (line)
+     - :math:`P_{\rm esc}` (:math:`U`)
+     - :math:`T_w`
+   * - sphere, 0.5
+     - 16
+     - :math:`-1.1 \times 10^{-16}`
+     - :math:`2.2 \times 10^{-16}`
+     - :math:`-2.2 \times 10^{-16}`
+   * - sphere, 2
+     - 16
+     - :math:`-5.6 \times 10^{-16}`
+     - :math:`2.2 \times 10^{-16}`
+     - :math:`-2.2 \times 10^{-16}`
+   * - sphere, 100
+     - 16
+     - :math:`-8.8 \times 10^{-14}`
+     - :math:`4.4 \times 10^{-16}`
+     - :math:`-9.2 \times 10^{-13}`
+   * - sphere, 1000
+     - 16
+     - :math:`-1.3 \times 10^{-12}`
+     - :math:`1.1 \times 10^{-15}`
+     - :math:`6.1 \times 10^{-11}`
+   * - slab, 0.01
+     - 8
+     - :math:`9.8 \times 10^{-15}`
+     - :math:`9.8 \times 10^{-15}`
+     - :math:`-1.1 \times 10^{-16}`
+   * - slab, 0.5
+     - 8
+     - :math:`-1.1 \times 10^{-14}`
+     - :math:`-1.1 \times 10^{-14}`
+     - :math:`1.3 \times 10^{-14}`
+   * - slab, 8
+     - 8
+     - :math:`8.9 \times 10^{-16}`
+     - :math:`-1.1 \times 10^{-16}`
+     - :math:`4.4 \times 10^{-16}`
+   * - slab, 30
+     - 8
+     - :math:`-1.1 \times 10^{-14}`
+     - :math:`-2.2 \times 10^{-16}`
+     - :math:`2.2 \times 10^{-15}`
+
+The cylinder's rows are ``slow`` (:ref:`characteristic-line-rule`, the
+cost); the main agent measured them on the built code: against Bickley at
+:math:`\tau = 0.5`, :math:`1.4 \times 10^{-12}` and
+:math:`1.9 \times 10^{-15}` at 8 and 16 points, and
+:math:`2.9 \times 10^{-14}` at :math:`\tau = 0.01` at 8 points.
+
+
+.. _characteristic-line-rule:
+
+The line rule, every grading derived from the optical scale
+===========================================================
+
+:class:`~orpheus.derivations.continuous.characteristic.assembly.LineRule`
+is the quadrature over the line domain, for one group:
+``LineRule.of(basis, walls, sigma_t, points, chunk=512, budget=1024)``
+places its nodes on the chart's
+:class:`~orpheus.geometry.chart.LineDomain`, ``points`` Gauss–Legendre
+points per piece of each coordinate, and gives each line the weight
+:math:`w_L = W_L\varrho/4\pi`. It is built per group because its gradings
+read the group's total cross sections: the user ruled on 2026-10-06, after
+qa found the fixed rules blind, that **every grading is derived from the
+group's optical scale**, by the law the traversal rule already follows
+along a line, a piece no wider than the feature it must resolve; the
+alternative, refusing the regimes the fixed rules could not reach, was
+declined. ``LineRule.transport(points, inner_points, support)`` then
+assembles the block (:ref:`characteristic-galerkin-assembly-section`).
+
+The three gradings
+------------------
+
+Every piece end the package places comes from one of three laws, each
+spelled once in
+:mod:`~orpheus.derivations.continuous.characteristic.grading` and imported
+by every caller:
+
+- **geometric**,
+  :func:`~orpheus.derivations.continuous.characteristic.grading.graded_ends`:
+  ``layers`` ends at the depths :math:`w\rho^j` toward an end. The panels
+  toward walls and interfaces use it (:ref:`characteristic-panel-basis`),
+  and so do the grazing halvings below, at :math:`\rho = 1/2`.
+- **exponential**,
+  :func:`~orpheus.derivations.continuous.characteristic.grading.exponential_ends`:
+  ends at :math:`2^k` mean free paths, :math:`k = 0, \dots, 6`, toward where
+  an attenuation concentrates, until it vanishes:
+  ``VANISHING_DEPTH`` :math:`= 2^6 = 64`, past which :math:`e^{-64}` is
+  below double precision; an interval of optical width at most 2 is not
+  cut. The traversal rule's pieces (:ref:`characteristic-pieces`) and the
+  rim and normal-direction gradings below use it.
+- **hp**,
+  :func:`~orpheus.derivations.continuous.characteristic.grading.halvings`:
+  :math:`\lceil\log_2(w/d)\rceil` halvings of a piece of width :math:`w`
+  until it is no wider than its distance :math:`d` to a singularity off the
+  interval, at most ``np.finfo(float).nmant``; a positive width at a
+  distance of zero or less (a singularity on the interval) is refused.
+  Gauss–Legendre then converges geometrically on every piece
+  (:ref:`characteristic-branch-grading`). The orbit coordinate's branch
+  points (the traversal rule), the next radius and :math:`b = 0` (the
+  impact rule) and the grazing direction (the direction rules) use it.
+
+The module exists because the elegance re-review of 2026-10-07 found the
+hp law spelled three ways, in the traversal rule, the impact rule and the
+direction rules, and the traversal rule's spelling one halving short of
+the stated law (:ref:`characteristic-branch-grading`).
+
+The impact rule, in the chord half-length
+-----------------------------------------
+
+On the sphere and the cylinder the impact parameter :math:`b` runs over
+:math:`[0, r_n]`, cut at every panel end of the basis (a hollow body adds
+a void impact panel :math:`[0, r_0]` for the lines through the cavity,
+which cross no panel there). On an impact panel :math:`[r_k, r_{k+1}]` the
+integration variable is the half-length of the chord through the circle
+:math:`r_{k+1}`,
+
+.. math::
+
+   y \;=\; \sqrt{r_{k+1}^{2} - b^{2}} \;\in\; [0,\ y_{\max}],
+   \qquad y_{\max} = \sqrt{(r_{k+1} - r_k)(r_{k+1} + r_k)},
+   \qquad \mathrm{d}b \;=\; \frac{y}{b}\,\mathrm{d}y ,
+
+the visibility-cone substitution, which absorbs the square-root end at
+:math:`b = r_{k+1}` that every chord through that circle carries
+(``chord_quadrature``'s, applied here per panel and in the variable the
+gradings are stated in). The integrand still has two singularities off
+the interval and one concentration on it, and :math:`y` is graded toward
+each (``_impact_rule`` in ``assembly.py``):
+
+- **The next radius's branch point**, hp toward :math:`y = 0`. A line at
+  :math:`b` just inside :math:`r_{k+1}` also meets the next radius
+  :math:`r_{k+2}`, whose chord
+  :math:`\sqrt{r_{k+2}^2 - b^2} = \sqrt{(r_{k+2}^2 - r_{k+1}^2) + y^2}`
+  has branch points at :math:`y = \pm i\sqrt{r_{k+2}^2 - r_{k+1}^2}`. In
+  :math:`b` that singularity sits a real distance
+  :math:`r_{k+2} - r_{k+1}` past the panel's end; in :math:`y` it is
+  :math:`\sqrt{(r_{k+2} - r_{k+1})(r_{k+2} + r_{k+1})} \approx \sqrt{2r\,\delta}`
+  away, much farther, which is why the substitution absorbs most of it and
+  the hp grading is needed only where a wide panel sits just inside a
+  thin one.
+- **The point** :math:`b = 0`, hp toward :math:`y = y_{\max}` (that is,
+  :math:`b = r_k`): it lies at :math:`y = r_{k+1}`, a distance
+  :math:`r_{k+1} - y_{\max} = r_k^2/(r_{k+1} + y_{\max})` beyond the
+  interval, written so that a tiny :math:`r_k` does not cancel. There the
+  substitution's Jacobian :math:`y/b` is singular, and so is the Abel
+  transform of the turning panel's odd modes, :math:`b^{2m+2}\log b`
+  (:ref:`characteristic-even-basis`).
+- **The rim**, exponentially toward :math:`y = 0`, at :math:`2^j` mean
+  free paths of the thickest panel the line crosses (those from
+  :math:`r_k` outward). The length the line travels inside the circle
+  :math:`r_{k+1}` is :math:`2y`, so its optical length there grows from 0
+  like :math:`\Sigma y`, and on an optically thick panel the integrand
+  changes on the scale of one mean free path in :math:`y` near
+  :math:`y = 0`, the rim of that circle.
+
+The panel touching :math:`b = 0` is smooth in :math:`b^2`, because the
+panel the line turns in is the even one or a cavity, so its lower half is
+plain Gauss–Legendre in :math:`b` and only its upper half is graded as
+above. :math:`b` is recovered as
+:math:`\sqrt{r_k^2 + (y_{\max} - y)(y_{\max} + y)}`, which tends to
+:math:`r_k` without the cancellation of :math:`r_{k+1}^2 - y^2`.
+
+.. dropdown:: First got wrong: the small first radius read as the centre's singularity
+   :color: muted
+
+   qa measured closed-body conservation off by :math:`1.1 \times 10^{-8}` at 16 points on a sphere
+   whose first region has radius :math:`10^{-3}`, under the impact rule of
+   the time, ``chord_quadrature`` in :math:`b`. It read as the
+   :math:`b = 0` singularity. The main agent's measurement placed it
+   elsewhere: the wide middle impact panels saw the **next** radius's branch
+   point just past their upper end, at a real distance of 0.07; Gauss in
+   :math:`b` on the panel :math:`[0.52, 0.88]` left :math:`10^{-6}` at 8
+   points, with the neighbours at 0.952 and 1.0. The grading toward the next
+   radius is the fix of that, and the hp grading toward :math:`b = 0` the fix
+   of the other.
+
+**A19, wide then thin.** The row written as the next-radius grading's
+witness, ``test_a_small_first_region_conserves_at_eight_points``, is not
+one on the final code: the substitution to :math:`y` absorbs most of that
+branch point, and `[M]` 2026-10-07 (the test-architect, ``gates/a19_probe.py``)
+the row reads :math:`3.5 \times 10^{-12}` at 8 points with the grading and
+:math:`8.1 \times 10^{-12}` without, a margin no tolerance can stand on;
+the row is declared blind to that arm and stays as the region's value
+witness. The grading matters where a wide panel sits just inside a thin
+one, which the basis's own interface grading produces: on a hollow sphere
+:math:`(0.2, 0.3, 1.0)` graded 10 layers deep at ratio 0.4, inner mirror,
+outer white, 8 points, conservation reads :math:`1.0 \times 10^{-12}` with
+the grading and :math:`2.0 \times 10^{-9}` without (the test-architect,
+``gates/a19_wide.py``; the main agent's own fixture of that shape,
+:math:`9.2 \times 10^{-11}` and :math:`1.7 \times 10^{-3}`).
+``test_a_wide_panel_before_a_thin_one_conserves_at_eight_points`` is the
+witness, at :math:`10^{-11}`.
+
+The direction rules: grazing and normal
+---------------------------------------
+
+On the slab the direction coordinate is the cosine :math:`\mu` on each
+sign, on the cylinder the polar angle :math:`\theta`; both run from the
+**grazing** direction, projected speed :math:`v = |P\Omega| = 0`, to the
+**normal** one, :math:`v = 1` (``_grazing_ends`` in ``assembly.py``, with
+:math:`\mu = v` and :math:`\theta = \arcsin v`). A line crossing a panel of
+optical width :math:`\tau_P` normally crosses :math:`\tau_P/v` along
+itself, and its attenuation :math:`e^{-\tau_P/v}` has two features:
+
+- **Toward grazing**, the attenuation of a panel changes until
+  :math:`\tau_P/v` reaches the depth where it vanishes, 64. So the
+  coordinate is halved toward :math:`v = 0` down to
+  :math:`v = \tau_{\min}/64`, with :math:`\tau_{\min}` the thinnest
+  absorbing panel's optical width: ``halvings(1, tau_min / VANISHING_DEPTH)``
+  geometric layers at ratio 1/2. The thinnest **panel**, not the body,
+  sets it: a line grazing a thin panel is optically thick in it at
+  :math:`v \sim \tau_P`. With no absorbing panel the coordinate is not
+  graded.
+- **Toward the normal**, :math:`e^{-\tau s}` with :math:`s = 1/v \in [1, \infty)`
+  is an exponential layer of width :math:`1/\tau` in :math:`s` on a thick
+  body. So :math:`s` is graded at :math:`2^k` over the body's normal
+  optical depth, the exponential ends on :math:`[1, \infty)`, mapped back
+  to :math:`v = 1/s`. The depth is the sum of the panels' optical widths,
+  once across the slab and twice (a diameter) on the cylinder.
+
+Gauss–Legendre on each resulting piece of :math:`\mu` or :math:`\theta`,
+``points`` per piece.
+
+The regimes that test a rule over lines
+---------------------------------------
+
+A rule over lines is right only for the inputs whose scales it resolves, and
+closed-body conservation cannot tell (it holds line by line). The regimes
+that read the gradings are the walls' closed forms near void, at a thick
+rim, beside a small radius and on a thick slab, and single block entries
+rather than totals; each is a row of the gates (ERR-101, ERR-103).
+
+.. dropdown:: First got wrong: fixed resolutions over lines, and what fixed each
+   :color: muted
+
+   The first build of the rule had fixed resolutions: 12 halvings toward the
+   slab's grazing cosine, plain Gauss in the cylinder's polar angle, and
+   ``chord_quadrature`` in :math:`b` with no grading toward the rim. Every
+   closed-body gate passed, because conservation holds line by line, and the
+   closed-form gates covered :math:`\tau` from 0.5 to 8 only, where a fixed
+   rule is fine. qa's review moved the inputs out of that box (its findings
+   F1 to F3b, in the plan's order: the slab's grazing cosine, the cylinder's
+   polar angle, and the impact parameter at a thick rim and at a small first
+   radius; probes under
+   ``scratch/characteristic_architecture/p1_step_b3/qa/``), the re-review
+   after the fix found three more, and each is a missing input region, not a
+   weak tolerance. Before and after, `[M]` 2026-10-06 and 2026-10-07 (qa, the
+   test-architect and the main agent, on their probes; references in mpmath
+   at 60 digits with the subtractions done there):
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 30 20 25 25
+
+      * - Rule and input
+        - Found by
+        - Before
+        - After
+      * - slab grazing, 12 fixed halvings; slab :math:`(0, 0.9, 2.3)` near
+          void, :math:`\Sigma` from :math:`10^{-4}` to :math:`10^{-12}`
+        - qa (``p12``, ``p13``)
+        - collision probability off by :math:`4 \times 10^{-2}` to
+          :math:`5 \times 10^{-1}`
+        - at most :math:`7.5 \times 10^{-13}` (vacuum walls),
+          :math:`5.5 \times 10^{-13}` (white walls), 8 points
+      * - slab grazing, 12 fixed halvings; a basis graded 10 layers deep
+        - qa (``p14``)
+        - a block entry off by 21 %
+        - collision probability :math:`1.3 \times 10^{-15}` at
+          :math:`\Sigma = 1`, :math:`2.6 \times 10^{-13}` at :math:`10^{-2}`
+      * - slab grazing halved to :math:`\tau_{\min}`, not
+          :math:`\tau_{\min}/64`; a basis graded 6 layers,
+          :math:`\Sigma = 0.01`
+        - qa, re-review (N1, ``q3``)
+        - a block entry off by :math:`2.0 \times 10^{-6}` at 8 points, every
+          total exact to :math:`5 \times 10^{-16}`
+        - :math:`2.6 \times 10^{-10}` with 2 more halvings,
+          :math:`9.1 \times 10^{-13}` with 6; the rule now reaches
+          :math:`\tau_{\min}/64`
+      * - cylinder polar angle, plain Gauss; :math:`\tau = 0.01`
+        - qa
+        - escape probability off by :math:`3.2 \times 10^{-4}`
+        - :math:`2.9 \times 10^{-14}` at 8 points
+      * - impact parameter, ungraded rim; sphere :math:`\tau = 100, 1000`
+        - qa
+        - :math:`P_{ss}` off by :math:`4.6 \times 10^{-3}` and
+          :math:`7.3 \times 10^{-1}`
+        - :math:`2.1 \times 10^{-13}` and :math:`6.4 \times 10^{-11}` at 16
+          points (the main agent)
+      * - impact parameter, ``chord_quadrature`` in :math:`b`; first region
+          of radius :math:`10^{-3}`
+        - qa
+        - conservation off by :math:`1.1 \times 10^{-8}` at 16 points
+        - :math:`8.8 \times 10^{-11}` at 8 points, :math:`2.9 \times 10^{-13}`
+          at 16 (a :math:`10^{-3}` cavity)
+      * - normal direction ungraded; slab transmission at
+          :math:`\tau = 8, 30`
+        - the test-architect, re-review (``gates/slab_tw.py``)
+        - :math:`2E_3(\tau)` missed by :math:`4.1 \times 10^{-11}` and
+          :math:`1.8 \times 10^{-4}` at 8 points
+        - :math:`1.2 \times 10^{-15}` and :math:`2.2 \times 10^{-15}`
+      * - the distance to :math:`b = 0` formed as :math:`r_{k+1} - y_{\max}`;
+          a cavity of radius :math:`10^{-12}`
+        - qa, re-review (N2)
+        - refused: the distance cancelled to 0, and the hp law refuses a
+          singularity at distance 0
+        - assembles and conserves; the distance is
+          :math:`r_k^2/(r_{k+1} + y_{\max})` and :math:`b` is formed from
+          :math:`(y_{\max} - y)(y_{\max} + y)`
+
+   The archivist's own probe of 2026-10-07 (the table of
+   :ref:`characteristic-wall-coupling`) reads the same regimes on the final
+   code: the sphere's :math:`T_w` at :math:`\tau = 100` and 1000 to
+   :math:`9.2 \times 10^{-13}` and :math:`6.1 \times 10^{-11}` at 16 points,
+   the slab's at :math:`\tau = 30` to :math:`2.2 \times 10^{-15}` at 8.
+   ERR-101 catalogues the fixed resolutions as one defect class and ERR-103
+   the ungraded normal direction.
+
+   **Why the margin study missed two of them.** Before the grazing depth
+   was settled the main agent swept the margin, 0 to 20 extra halvings past
+   :math:`\tau_{\min}`, and the totals moved by nothing, to
+   :math:`5 \times 10^{-16}`, from :math:`\tau = 0.5` down to
+   :math:`2.3 \times 10^{-12}`
+   (``scratch/characteristic_architecture/p1_step_b3/margin/study.py``); no
+   margin was adopted. Totals are integrals over every entry, and the entry
+   qa found off by :math:`2.0 \times 10^{-6}` (N1) is invisible in them; and
+   the sweep's thickest body was :math:`\tau = 2.3`, so the normal-direction
+   layer of a thick slab (:math:`1.8 \times 10^{-4}` at :math:`\tau = 30`) was
+   outside it. A study of totals over thin bodies certifies totals over thin
+   bodies.
+
+**A reference subtracted in floating point reports defects the code does
+not have.** The near-void collision probability is :math:`1 - P_{\rm esc}`
+with :math:`P_{\rm esc}` near 1. Evaluated in mpmath and subtracted in
+double precision, it reported a defect of :math:`7.6 \times 10^{-7}`;
+evaluated at 15 digits, a defect of 100 %. The subtraction belongs in
+mpmath, and every near-void reference in the gates forms it there.
+
+**Two limits that are not rule defects.** At
+:math:`\Sigma_t = 10^{-315}` the block overflows (qa's F4), because the
+flux, about :math:`1/\Sigma_t`, exceeds double precision: that is the
+answer. A slab placed at
+:math:`x \approx 10^{6}` loses digits to absolute positions (conservation
+:math:`5.6 \times 10^{-10}`), filed as
+`#585 <https://github.com/deOliveira-R/ORPHEUS/issues/585>`_.
+
+The order of the lines, the chunks and the piece budget
+-------------------------------------------------------
+
+The traversal rule pads every line of a chunk to the chunk's largest
+piece count, and a line's pieces grow as it nears grazing (the
+exponential and hp gradings along it multiply). So ``LineRule.of`` orders
+the lines by projected speed, and lines of like cost share a chunk.
+``LineRule`` takes the lines ``chunk`` at a time (default 512), and a
+chunk whose traversal rule holds more than ``budget`` piece slots
+(:attr:`TraversalRule.extent
+<orpheus.derivations.continuous.characteristic.transport.TraversalRule.extent>`,
+default 1024) is halved until it fits or holds one line. A slot costs up
+to about 0.5 MB at 12 points per piece, in the Volterra block's inner
+rule, so the budget bounds a chunk's memory where a line count does not.
+
+`[M]` 2026-10-06, the main agent and the test-architect:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 50 16 16 18
+
+   * - Rule
+     - Budget
+     - Time
+     - Peak memory
+   * - 224 cylinder lines at :math:`\mu_z = 0.999`, chunked by count
+     - none
+     - --
+     - 8.2 GB
+   * - one slab rule of 66 560 slots
+     - none
+     - --
+     - 36 GB
+   * - the same, chunks under 5000 slots
+     - 4096
+     - --
+     - 2.25 GB
+   * - two-region white cylinder, 8 points, 8512 lines
+     - 4096
+     - 126 s
+     - 7.9 GB
+   * - the same
+     - 256
+     - 32 s
+     - 0.6 GB
+   * - one-region white cylinder at :math:`\tau = 0.01`, 8 points, 15 360
+       lines graded to :math:`\theta = 3 \times 10^{-7}`
+     - 256
+     - over 25 min
+     - --
+   * - the same
+     - 1024
+     - 57 s
+     - 1.3 GB
+   * - the same
+     - 4096
+     - 72 s
+     - 3.5 GB
+
+Smaller is faster while the arrays stay in cache, until the chunks shrink
+to a few lines and the per-rule overhead dominates: the grazing grading's
+lines, each with many pieces, split a budget of 256 into single-line
+rules. The default of 1024 is the measured compromise. The geometry of a
+chunk (its chord and period) is rebuilt per group, as the sketch ruled;
+a cache would follow only if the geometry were a measured fraction of the
+time. On the sphere the cost is small: `[M]` 2026-10-07, the archivist's
+probe, the three-region sphere at 16 points holds 480 lines and its white
+block took 0.8 s.
+
+The cylinder's cost on a thick body (#586)
+------------------------------------------
+
+The cylinder's rule is the tensor product of the impact rule and the
+polar-angle rule, and both grow with the optical scale: the impact rule
+with the rim's exponential ends, the polar rule with the grazing and
+normal gradings. `[M]` 2026-10-07, the archivist's probe: the three-region
+cylinder :math:`(0, 0.5, 1.5, 2)` at 8 points holds 38 400 lines, 240
+impact nodes times 160 polar nodes. The main agent measured its white
+block at 723 s, conserving to :math:`5.4 \times 10^{-13}`, and more than
+15 minutes at 16 points; a homogeneous cylinder at :math:`\tau = 30` holds
+18 432 lines of 14 to 106 pieces each, about :math:`10^6` pieces, and took
+1117 s under load. `[R]` Most of those lines are wasted: in a tensor
+product the polar grading that only the lines near grazing need is
+applied at every impact parameter, and the rim grading at every polar
+angle.
+
+The user ruled on 2026-10-07 that the third rung lands with the slow
+cylinder rows cut to one fixture per law at 8 points (the escape rows
+at :math:`\tau = 2` and 8 stay at 16 points, where the 8-point
+transmission misses by :math:`9.3 \times 10^{-10}` and
+:math:`2.3 \times 10^{-8}`; the thick legs moved from :math:`\tau = 30` and
+100 to :math:`\tau = 8`), and that a non-tensor :math:`(b, \theta)` rule,
+`#586 <https://github.com/deOliveira-R/ORPHEUS/issues/586>`_, is the next
+step, before the fourth rung. Its consumer is waiting: the re-pointing
+step of the migration needs two-group cylinder references, about 25
+minutes each at today's cost.
+
+
 .. _characteristic-what-is-not-built:
 
 What the package does not compute
@@ -1809,32 +3113,43 @@ What the package does not compute
 The package answers, for any batch of lines, each line's period and
 closure, the traversal integrals of every basis function, the vacuum
 Volterra block with the caller's line weights and the angular flux at
-points on the lines (:ref:`characteristic-transport`). It does not
-integrate over lines. The measure on lines
-(:eq:`geometry-measure-on-lines`,
-:meth:`Chart.beam_density <orpheus.geometry.chart.Chart.beam_density>`)
-is read by nothing in the package, and three things need it:
+points on the lines (:ref:`characteristic-transport`); and, for one group,
+the transport block over the emission support, its line part and its
+white walls' coupling, on a line rule graded from the group's optical
+scale (:ref:`characteristic-galerkin-assembly-section`). It does not yet
+answer a question. What is missing, by the rung that owns it (the plan
+``.claude/plans/characteristic_reference_architecture.md``, "P1 step (b),
+third rung: API sketch", and the P1 sketch's items 5 to 9; the campaign's
+issue is #405):
 
-- the **assembly**, the Galerkin operator of the line part: each line's
-  block :math:`V + \sum_k A_k \otimes \psi^{\rm in}_k`
-  (:ref:`characteristic-volterra`) integrated over the lines;
-- the **diffuse part of the resolvent**,
-  :math:`U\,(I - T_w)^{-1} A\,U^{\mathsf T}` (:ref:`characteristic-resolvent`),
-  whose escape functional :math:`U` and wall-to-wall transmission
-  :math:`T_w` are integrals over the same measure.
-  :class:`~orpheus.derivations.continuous.characteristic.walls.Walls`
-  reads the diffuse amplitude and nothing consumes it;
-- the **questions** on the dense pencil
-  (:ref:`verification-reference-kernel`) and the **reading** at a point,
-  whose first leg runs from the point to its first wall and is integrated
-  over directions.
-
-The user's ruling on the second rung's sketch (2026-10-06, Q1) put the
-line rule, the assembly and the diffuse part (``WallCoupling``) in one
-rung, the next, because all three are integrals over that measure. The
-plan is ``.claude/plans/characteristic_reference_architecture.md`` ("P1
-step (b), second rung: API sketch", item 0, and "P1 API sketch", items 3
-to 7); the campaign's issue is #405.
+- **the emission and fission matrices** :math:`S` and :math:`F`, the
+  scattering (with the :math:`(n,2n)` emission) and the fission
+  production per region, moved to the fourth rung with the pencil by the
+  user's ruling of 2026-10-06 (Q4 of the third rung): the block carries
+  :math:`\Sigma_t`, so the pencil needs the emission on its own, not read
+  back out of the 0-D loss matrix by subtracting :math:`\Sigma_t`;
+- **the pencil and its questions** on the dense pencil of the reference
+  kernel (:ref:`verification-reference-kernel`): the fundamental mode, the
+  higher modes and the adjoint, the fixed-source solve, and the 1-group
+  Rayleigh–Ritz lower bound that the Galerkin form makes a theorem row
+  (the verification spec's D11); fourth rung;
+- **one emission support for every group**: each group's default support
+  is its own :math:`\Sigma_t > 0`, and the pencil needs one shared set of
+  columns (:ref:`characteristic-galerkin-assembly-section`); fourth rung;
+- **the reading at a point**, the per-point transport of the converged
+  emission over :meth:`Chart.directions_at
+  <orpheus.geometry.chart.Chart.directions_at>`, whose first leg runs from
+  the point to its first wall, and the flux and reciprocity rows that read
+  it (the spec's C6 and C8); fifth rung. At the operator level C8's
+  reciprocity is the symmetry row, which is blind
+  (:ref:`characteristic-galerkin-assembly-section`);
+- **a fast cylinder**: the tensor rule over :math:`(b, \theta)` costs about
+  :math:`10^6` pieces on an optically thick cylinder (#586, the next step,
+  :ref:`characteristic-line-rule`);
+- **a wall both specular and diffuse**, refused as a scope boundary
+  because production poses none (:ref:`characteristic-walls`);
+- **a body far from the origin**: a slab at :math:`x \approx 10^{6}` loses
+  digits to absolute positions (#585).
 
 The trajectory-resolvent family (:ref:`theory-trajectory-resolvent`)
 is the reference every consumer reads today.
@@ -1904,10 +3219,13 @@ structural reason it fails, so that no later design re-derives it.
        (:ref:`characteristic-walls-factors`).
    * - Deciding at build whether a wall summing a specular and a diffuse
        law (``LawSum``) is served
-     - Dissolved: a geometry admits a ``BC`` tag or a
+     - Dissolved on the first rung: a geometry admits a ``BC`` tag or a
        ``BoundaryTraceLaw`` per boundary point, and ``LawSum`` and
        ``LawScaled`` are content nodes, not laws, so no such wall can be
-       declared. A ``Wall``'s two amplitude fields can hold such a wall.
+       declared. On the third rung the user ruled the refusal at the type
+       (2026-10-06): ``Wall`` refuses a wall that is both, as the
+       S\ :sub:`N` realizer refuses a ``LawSum``
+       (:ref:`characteristic-walls`).
    * - Preferring the reversed candidate over the forward one
      - Not wrong in value (both candidates trace one orbit-space path),
        but it doubles the period on the radial charts, so the rank is no
@@ -1950,6 +3268,60 @@ structural reason it fails, so that no later design re-derives it.
        the basis's. ``of(lines, basis, walls, sigma_t, ...)`` chords
        through the basis's own partition (the elegance review's finding
        C2; :ref:`characteristic-transport`).
+   * - The symmetry of the block as the alarm for an under-integrated
+       rule over lines (the first verification spec's C11)
+     - Designed green: each line's quadrature is symmetric under reversing
+       the line, so each line's block is symmetric whatever the rule's
+       accuracy (:math:`2.5 \times 10^{-16}` where conservation missed by
+       :math:`1.6 \times 10^{-3}`). Closed-body conservation is the alarm
+       for the transport along a line and the coupling, and the closed
+       forms of the walls are the alarm for the rule over lines
+       (:ref:`characteristic-galerkin-assembly-section`).
+   * - Gauss–Legendre in the cylinder's axial cosine :math:`\mu_z`, with
+       "no grading needed" (the third rung's premises)
+     - Measured under a mirror, where every line conserves on its own and
+       no rule over lines can show. Under a white wall the square-root end
+       of :math:`|P\Omega| = \sqrt{1 - \mu_z^2}` at :math:`\mu_z = 1` costs the
+       escape :math:`5.4 \times 10^{-4}` at 8 points; the polar angle is
+       analytic (:ref:`chart-and-chord-line-domain`).
+   * - Grading the impact rule toward :math:`b = 0` to absorb the centre's
+       :math:`b^{2m+2}\log b`
+     - Chases a term the physics excludes: an odd mode at a singular
+       stratum is not in the flux (Schwarz). The even basis removes it at
+       its cause (:ref:`characteristic-even-basis`).
+   * - A fixed resolution for the rule over lines (12 halvings toward the
+       slab's grazing cosine; plain Gauss in the polar angle;
+       ``chord_quadrature`` in :math:`b`)
+     - Every feature of the integrand over lines sits at a scale the
+       optical widths set: grazing at :math:`\tau_{\min}`, the rim at a
+       mean free path, the normal direction at :math:`1/\tau`. A fixed
+       rule is right only in the band it was measured in, and conservation
+       cannot see it leave that band (ERR-101,
+       :ref:`characteristic-line-rule`).
+   * - The grazing halving stopped at :math:`\tau_{\min}`
+     - A panel's attenuation :math:`e^{-\tau_P s}` changes until
+       :math:`\tau_P s` reaches 64; stopping at :math:`\tau_{\min}` left
+       one block entry off by :math:`2.0 \times 10^{-6}` while every total
+       was exact (:ref:`characteristic-line-rule`).
+   * - Chunks of lines bounded by a line count
+     - A line's pieces grow without bound near grazing: 224 cylinder lines
+       at :math:`\mu_z = 0.999` took 8.2 GB. The chunk is bounded by its
+       piece slots (:ref:`characteristic-line-rule`).
+   * - :math:`I - T\alpha` formed by subtraction (the ruled sketch's
+       :math:`I - T_w`)
+     - Rounding amplified by the inverse of the absorption
+       (:math:`1.3 \times 10^{-4}` at :math:`\Sigma_t = 10^{-12}`), and a
+       lossless body returned :math:`10^{16}` instead of a refusal
+       (ERR-102, :ref:`characteristic-wall-coupling`).
+   * - The update :math:`U\,(I - T_w)^{-1}A\,U^{\mathsf T}` (the ruling's
+       spelling)
+     - Omits :math:`D = \mathrm{diag}(A_w/4)`, the injection of a unit
+       isotropic current; conservation misses by 6.6 on a white sphere
+       (:ref:`characteristic-wall-coupling`).
+   * - :math:`R` divided by its own injected tally
+     - Cancels the wall's area out of the block; the route gate on the one
+       density reddened. :math:`R` is per nominal unit current
+       (:ref:`characteristic-wall-coupling`).
    * - The flux at a wall located by the slot's start plus its length
      - The sum rounds an ulp apart from the closing crossing's parameter,
        which is how the kernel spells the wall, and refused 64 of 119
@@ -2132,7 +3504,12 @@ over the package's four gate files on the branch
 verification specification
 (``scratch/characteristic_architecture/p1_step_b2/spec.md``) assigns the
 rows marked † to ``l0`` under it and the row marked ‡ to ``l0`` under
-:eq:`characteristic-closure`, once their markers move.
+:eq:`characteristic-closure`, once their markers move. They moved in the
+second rung's own commit (``ff979520``): the six † functions carry
+``verifies("characteristic-traversal-integrals")`` and the ‡ function
+``verifies("characteristic-closure")``, at ``l0``, as do the closure
+file's three optical-depth functions (`[M]` 2026-10-07, ``git grep`` of
+the markers in the two files).
 
 .. list-table::
    :header-rows: 1
@@ -2350,6 +3727,152 @@ identity :math:`A_{\rm fwd} = B_{\rm rev}`, the reciprocity row, the void
 row's warning guards, the amplitude-0 row and the signature row.
 
 
+The gates of the line rule, the assembly and the walls' coupling
+-----------------------------------------------------------------
+
+`[M]` 2026-10-07, ``pytest --collect-only`` on branch
+``feature/characteristic-rung3`` at ``71a207fa``: the third rung's three
+files hold 210 rows in 41 functions,
+``tests/gates/derivations/test_characteristic_assembly.py`` 174 (34
+functions, 14 rows ``slow``), ``tests/gates/geometry/test_line_domain.py``
+30 (5) and ``tests/gates/geometry/test_measure_density.py`` 6 (2); the
+seven files of the package and its kernel verbs hold 769 rows, 755 of them
+outside ``slow``. The commit counts its additions as 46 new test functions
+(223 cases), the third rung's own and the even basis's and the arriving
+flux's rows in the earlier files, and 37 earlier rows re-posed for the
+even basis and the retired density. Every new row is ``foundation`` except
+``test_the_density_is_the_beam_density_times_the_folded_directions``, at
+``l0`` under :eq:`geometry-measure-on-lines`; each row's planned level is
+in its docstring, waiting on this page's labels: closed-body conservation,
+the escape and the walls' closed forms, the reciprocity rows and the
+operator rows ``l1`` under :eq:`characteristic-galerkin-assembly` or
+:eq:`characteristic-boundary-resolvent`; the self-convergence ladders
+(the centre piece, the impact and arc-length rules, the slab's cosine,
+the cylinder's polar angle) ``l2``; the measure density's two rows and
+Cauchy's formula ``l0`` under :eq:`geometry-measure-density` and
+:eq:`geometry-line-domain`. The markers are the test-architect's to move.
+
+The rows by what they gate, with the reference each compares against:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Rows
+     - Reference
+   * - closed-body conservation on twelve sphere and slab bodies at three
+       cross-section columns and three cylinder bodies at one (``slow``,
+       8 points), the
+       white sphere at 24 points to :math:`10^{-14}`, each group through
+       its own cross section, and the near-void sweep from
+       :math:`\Sigma_t = 1` to :math:`10^{-12}`
+     - the mass matrix applied to ones, :math:`W\mathbf 1`
+   * - the escape probability two ways and the wall transmission, sphere
+       and slab at :math:`\tau` from 0.01 to 1000, the cylinder ``slow``
+     - Hébert, :math:`(1 - 2E_3)/(2\tau)`, Bickley's :math:`P_{ss}`, in
+       mpmath
+   * - the white and the specular laws, the void transmissions, the
+       balance of each injected current, reciprocity two ways
+     - one re-emission chain's balance; the per-line specular integral;
+       the solid angle :math:`(r_0/R)^2`; the identity
+       :math:`\sum T + \ell = 1`; :math:`R = UD^{-1}` and
+       :math:`A_w T_{w'w} = A_{w'}T_{ww'}`
+   * - an interface between equal materials, a transparent cavity, a void
+       outer layer on the emission support, the full block of a void layer
+       refused
+     - the same body without the interface, with an inner mirror, without
+       the layer; the refusal
+   * - the slab's derived grazing against 12 fixed halvings, the near-void
+       slab with open walls, thin graded panels and one block entry (both
+       ``slow``), a small first region, a wide panel before a thin one, a
+       tiny cavity
+     - closed forms in mpmath; a block with 30 more halvings at 16 points;
+       conservation
+   * - the self-convergence ladders below the working point
+     - the rule at 128 points, or the ladder's own monotone ratio
+   * - the route of the one density, the cylinder's polar rule by
+       structure, the budget as a partition, no diffuse wall adding
+       nothing, symmetry declared blind with its arc-length teeth, the
+       refusals
+     - bitwise identities and refusal fragments
+
+The battery: `[M]` 2026-10-07, the test-architect's
+``scratch/characteristic_architecture/p1_step_b3/gates/battery/`` (plugin
+``battery_plugin.py``, table ``battery_table.md``, each arm an in-process
+textual mutant run over the files that can redden, ``-O``, ``slow``
+deselected): the honest run 754 passed; 54 arms, 52 redden their target
+rows, and 2 are declared blind. The arms, by what they break (reds in
+their scope):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 58 12 30
+
+   * - Arm
+     - Reds
+     - Where
+   * - A2 the first group's coupling reused for every group; K1 the
+       measure's derivative one power too many
+     - 158; 157
+     - every coupled block; every density reader
+   * - A6 a chunk over the budget dropping a line; A16 the rim grading
+       removed; K2 the density's constant dropped
+     - 112; 106; 100
+     - the assembly; every thick or rim-reading row; the mass and the walls
+   * - I2 the arriving flux scaled; P2 the white wall read as specular;
+       L5 the representative's foot along :math:`\hat e_x`
+     - 87; 80; 69
+     - the closure and the coupling; the lines
+   * - A10 plain Gauss in :math:`b`; A12 the impact rule quartered; A14 the
+       carried attenuation restarted at a region change
+     - 59 each
+     - conservation and the closed forms
+   * - A1 :math:`D` dropped; L2 the sphere's fold :math:`2\pi`
+     - 58; 57
+     - every white wall; the sphere's density
+   * - I1 the arriving flux on the wrong traversal; E2 the even panel off;
+       L4 the slab's density without :math:`|\mu|`
+     - 50; 37; 37
+     - the closure; the even rows; the slab
+   * - A3 a mirror read as diffuse; A5 the reversed traversals summed; E1
+       the even panel keyed on any zero; P1 the pairing at the entry wall
+     - 26; 26; 23; 21 (and 1 collection error)
+     - the walls' rows; the even rows; the closure
+   * - A11 the slab's grazing grading removed; L6 the box guard deleted;
+       T3a the branch grading removed; A8 the quarter area of the other
+       wall; N12 the subtraction's diagonal and no balance row
+     - 15; 13; 13; 12; 12
+     - the slab's closed forms; the refusals; the turning rows; the hollow
+       white bodies; the near-void sweep
+   * - E3 the mass rule at :math:`p + 2`; A20 the old ``chord_quadrature``
+       rule in :math:`b`; A17 the hp toward :math:`b = 0` removed; A13 a
+       void attenuating; N2 the balance row removed
+     - 9; 9; 7; 6; 6
+     - the even mass; the small radii and the thick sphere; the near-void
+       sweep
+   * - A18 12 fixed grazing halvings; I3, I4, L7, T17 (ERR-099's defect),
+       L1, L3 the cylinder's polar bound :math:`\pi` or one
+       :math:`\sin\theta`, K3, K4, T3b, A7
+     - 5 to 2
+     - their target rows
+   * - A4 the lossless refusal deleted; A15 the zero update falling
+       through; A21 plain Gauss in :math:`\theta`; A22 the normal ends
+       dropped; A24, A25 the two cancellations; W1, W2 the wall guards
+     - 1 each
+     - their target rows
+   * - A19 the hp toward the next radius removed; A23 the grazing halving
+       stopped at :math:`\tau_{\min}`
+     - 0 in scope; 1 each on their witnesses
+     - A19 on the wide-then-thin row (:math:`1.0 \times 10^{-12}` against
+       :math:`2.0 \times 10^{-9}`), A23 on the ``slow`` block-entry row
+   * - N1 the diagonal formed as :math:`1 - \alpha T_{ww}` alone; T2 the
+       inner exponential grading removed
+     - 0, declared blind
+     - N1 is masked by the balance row (with it removed too, N12 reds 12);
+       T2's catcher is the second rung's thousand-mean-free-path row,
+       outside the arm's scope
+
+
 .. _characteristic-gotchas:
 
 Gotchas
@@ -2377,9 +3900,40 @@ Gotchas
   through production's parse or the reverse; the two differ on purpose
   (``albedo`` is a production kind and a refused one here; production
   drops the white albedo, #583).
-- **Diffuse amplitudes are read and not consumed.** Until the diffuse
-  part of the resolvent exists, a white wall's return is absent from
-  every line closure; the line part alone treats it as absorbing.
+- **A white wall's return is not in the line closure.** The line part
+  treats a diffuse wall as absorbing (its specular amplitude is 0), and
+  what it returns enters through the white walls' coupling, as an
+  arriving flux on the lines that leave it
+  (:ref:`characteristic-wall-coupling`). Reading
+  ``GroupTransport.line`` as the block of a white-walled body drops the
+  walls; read ``block``.
+- **The block is rectangular.** Its columns are the emission support
+  (``GroupTransport.support``), its rows every panel; apply it to the
+  coefficients on the support, ``block @ x[support]``.
+- **The rule is per group.** ``LineRule.of`` takes one group's
+  :math:`\Sigma_t`, because every grading reads it; a rule built for one
+  group is under-resolved for a thicker or a near-void one.
+- **The lines are ordered by projected speed, not by coordinate.** A
+  caller that wants the :math:`(b, \theta)` grid back sorts
+  ``LineRule.coordinates`` itself (the polar-rule gate does).
+- **Conservation cannot see the rule over lines.** It holds line by line
+  on a closed body; gate a change to a line rule against the walls'
+  closed forms, not against conservation (ERR-101).
+- **Totals cannot see one entry.** A grading that is exact on every
+  total can leave one block entry off by :math:`10^{-6}` (qa's N1); a gate
+  of a rule over lines compares entries.
+- :math:`R` **is per nominal unit current.** It is the response to the
+  injection :math:`1/D`, not to the current the rule actually injects; do
+  not renormalise it by the injected tally, which cancels the wall's area
+  out of the block.
+- **A wall is specular or diffuse.** ``Wall`` refuses both at once, and
+  one returning more than it receives.
+- **Subtract in mpmath.** A near-void reference such as
+  :math:`1 - P_{\rm esc}` evaluated in mpmath and subtracted in double
+  precision reports a defect the code does not have.
+- **The cylinder is slow.** A cylinder block at 8 points on the gates'
+  three-region body takes about 12 minutes; size a cylinder fixture
+  before adding it (#586).
 - **Read the flux at a wall at the kernel's crossing parameter.**
   ``angular_flux`` locates a point by its slot's closing crossing. A
   parameter formed as the slot's start plus its length can round an ulp
@@ -2446,3 +4000,25 @@ History
        the assembly and the diffuse part move to the next rung.
      - ``ff979520``
      - #405
+   * - 2026-10-07
+     - The third rung: one group's transport block. The panel basis became
+       even at a singular stratum (Schwarz; the user's ruling over grading
+       the impact rule toward the centre), its density moved to the
+       kernel's ``measure_density``, and the line closure took an arriving
+       flux. ``LineRule`` assembles the block by Galerkin over the lines of
+       the kernel's new line domain (the cylinder's coordinate the polar
+       angle, by ruling), on the emission support, and ``WallCoupling``
+       adds the white walls through
+       :math:`R\,\alpha\,(I - T\alpha)^{-1}U^{\mathsf T}`, with the area
+       factor :math:`D` the ruled spelling had omitted, and with
+       :math:`I - T\alpha` formed from the loss and a balance row after
+       the elegance review measured the subtraction's
+       :math:`10^{-4}` near void (ERR-102). Conservation was re-posed as
+       the alarm and symmetry declared blind. qa found the line rule's
+       fixed resolutions blind on regimes the gates did not reach, and
+       the user ruled every grading derived from the optical scale
+       (ERR-101; the normal direction, ERR-103); the gradings moved into
+       one module. The thick cylinder's cost was ruled the next step
+       (#586).
+     - ``71a207fa``
+     - #405, #584, #585, #586

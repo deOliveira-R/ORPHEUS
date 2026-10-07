@@ -38,9 +38,9 @@ The per-geometry kernel choices are:
   :func:`~._kernels.ki_n_mp` at 30 dps on 64 Chebyshev-Gauss nodes
   over :math:`[0, 50]`. Scaling by :math:`e^{\tau}` converts the
   exponentially-decaying tail into a slowly-varying function —
-  reached by a degree-63 polynomial to ~:math:`10^{-6}` relative
+  reached by a degree-63 polynomial to about :math:`10^{-6}` relative
   accuracy (compared with the legacy :class:`BickleyTables` at
-  ~:math:`10^{-3}`). The :class:`BickleyTables` class is retired
+  about :math:`10^{-3}`). The :class:`BickleyTables` class is retired
   as of this commit (:issue:`94`).
 - ``sphere-1d`` — :math:`e^{-\tau}` via ``np.exp(-tau)``
   (double-precision, machine-accurate).
@@ -105,7 +105,7 @@ def _ki3_scaled_cheb() -> "np.polynomial.Chebyshev":
 
     Scaling by :math:`e^{\tau}` converts the exponentially-decaying
     tail of :math:`\mathrm{Ki}_3` into a slowly-varying function that
-    a degree-63 polynomial fits to ~:math:`10^{-6}` relative accuracy.
+    a degree-63 polynomial fits to about :math:`10^{-6}` relative accuracy.
     Built once at first access via :func:`lru_cache`; uses
     :func:`~._kernels.ki_n_mp` at 30 dps. Build time: ~0.3 s.
     """

@@ -24,9 +24,9 @@ integral. Stabiliser, declared: on the cylinder the chord carries 1/|P Omega|
 (the kernel's obliquity) and the density |P Omega|, so their product is blind to
 a common error in both; LD2 pins the density pointwise.
 
-Levels: LD2 ``l0`` with ``verifies("geometry-measure-on-lines")``; LD3 waits on
-``geometry-line-domain`` (minted at the docs step) and is ``foundation`` until
-then; the others are ``foundation``.
+Levels: LD2 ``l0`` with ``verifies("geometry-measure-on-lines")``; LD3 ``l1``
+with ``verifies("geometry-line-domain")`` (minted 2026-10-07); the others are
+``foundation``.
 """
 from __future__ import annotations
 
@@ -165,7 +165,8 @@ _BODIES = [
 ]
 
 
-@pytest.mark.foundation
+@pytest.mark.l1
+@pytest.mark.verifies("geometry-line-domain")
 @pytest.mark.parametrize(("chart", "breakpoints"), [b[1:] for b in _BODIES], ids=[b[0] for b in _BODIES])
 @pytest.mark.rests_on(_HERE + "test_the_density_is_the_beam_density_times_the_folded_directions",
                       _CHORD + "test_every_slot_length_matches_the_closed_form",

@@ -23,8 +23,8 @@ measure ``c (b^p - a^p)`` cancels on a narrow interval far from 0 (`[M]`
 2026-10-06, the spec's P-5: 2568 ulp raw on the cylinder over 2000 random
 intervals, 0.9 ulp over ``1 + kappa``).
 
-Levels: ``foundation`` until the archivist mints ``geometry-measure-density``
-(the spec's MD1 and MD2 are then ``l0``).
+Levels: MD1 and MD2 are ``l0`` with ``verifies("geometry-measure-density")``
+(the label minted 2026-10-07, ``docs/theory/foundations/chart_and_chord.rst``).
 """
 from __future__ import annotations
 
@@ -51,7 +51,8 @@ _IDS = ["slab", "cylinder", "sphere"]
 _R = np.array([0.0, 0.37, 1.1, 1.9, 2.6e3])
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-measure-density")
 @pytest.mark.parametrize(("coord", "by_hand", "_c", "p"), _CHARTS, ids=_IDS)
 @pytest.mark.rests_on(_ONE_MEASURE)
 def test_the_measure_density_is_each_charts_level_set_area(coord, by_hand, _c, p) -> None:
@@ -69,7 +70,8 @@ def test_the_measure_density_is_each_charts_level_set_area(coord, by_hand, _c, p
     assert got.shape == _R.shape
 
 
-@pytest.mark.foundation
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-measure-density")
 @pytest.mark.parametrize(("coord", "_by_hand", "c", "p"), _CHARTS, ids=_IDS)
 @pytest.mark.rests_on(_HERE + "test_the_measure_density_is_each_charts_level_set_area", _ONE_MEASURE)
 def test_the_density_integrates_to_the_one_measure(coord, _by_hand, c, p) -> None:

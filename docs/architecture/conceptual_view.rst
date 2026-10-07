@@ -419,7 +419,7 @@ The concept table
      - :class:`~orpheus.numerics.measure.DiscreteMeasure`, :class:`~orpheus.numerics.manifold.Manifold`, :class:`~orpheus.numerics.quadrature.directional.Quadrature`
      - :eq:`discrete-measure-definition`
    * - Basis
-     - :class:`~orpheus.numerics.basis.base.Basis`, :class:`~orpheus.numerics.basis.base.GramStructure`. On the reference side of the branch line, which imports none of these (:ref:`architecture-reference-insulation`): :class:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis`, discontinuous nodal Lagrange panels over a body's orbit coordinate, graded toward walls and interfaces, with its Gram matrix in the chart's volume measure, the density derived from :meth:`CoordSystem.measure <orpheus.geometry.coord.CoordSystem.measure>`'s one definition. No production basis is nodal Lagrange, so it has no twin.
+     - :class:`~orpheus.numerics.basis.base.Basis`, :class:`~orpheus.numerics.basis.base.GramStructure`. On the reference side of the branch line, which imports none of these (:ref:`architecture-reference-insulation`): :class:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis`, discontinuous nodal Lagrange panels over a body's orbit coordinate, graded toward walls and interfaces and even (polynomials in :math:`c^2`) on the panel touching a singular stratum, with its Gram matrix in the chart's volume measure, whose density is the kernel's :meth:`Chart.measure_density <orpheus.geometry.chart.Chart.measure_density>`, the derivative of :meth:`CoordSystem.measure <orpheus.geometry.coord.CoordSystem.measure>`'s one definition. No production basis is nodal Lagrange, so it has no twin.
      - :ref:`spaces-basis`, :ref:`manifold-three-levels`; :ref:`characteristic-panel-basis`
    * - Cone
      - :meth:`~orpheus.numerics.field.Field.cone_violations`
@@ -466,15 +466,15 @@ The concept table
    * - Orbit space; quotient; descent
      - :class:`~orpheus.numerics.manifold.Quotient`, :class:`~orpheus.numerics.basis.descent.Descent`
      - :ref:`manifold-orbit-space`, :ref:`manifold-orbit-space-stabiliser`, :ref:`manifold-quotient-map`, :ref:`manifold-reynolds-projector-section`, :ref:`manifold-descent`
-   * - Chart (a coordinate system's orbit map and symmetry group); singular stratum
-     - :class:`~orpheus.geometry.chart.Chart` (derived from its kept columns and its linear group), :class:`~orpheus.geometry.chart.SingularStratum`; a line's image :class:`~orpheus.geometry.chart.RadialImage`, :class:`~orpheus.geometry.chart.AxialImage`
-     - :ref:`chart-and-chord-chart`, :eq:`geometry-radial-coordinate`, :ref:`chart-and-chord-isotropy`, :ref:`chart-and-chord-strata`
+   * - Chart (a coordinate system's orbit map and symmetry group); singular stratum; the measure's density (the area of a level set)
+     - :class:`~orpheus.geometry.chart.Chart` (derived from its kept columns and its linear group), :class:`~orpheus.geometry.chart.SingularStratum`; a line's image :class:`~orpheus.geometry.chart.RadialImage`, :class:`~orpheus.geometry.chart.AxialImage`; :meth:`CoordSystem.measure_density <orpheus.geometry.coord.CoordSystem.measure_density>` (read through :meth:`Chart.measure_density <orpheus.geometry.chart.Chart.measure_density>`)
+     - :ref:`chart-and-chord-chart`, :eq:`geometry-radial-coordinate`, :ref:`chart-and-chord-isotropy`, :ref:`chart-and-chord-strata`, :eq:`geometry-measure-density`
    * - Line (Plücker coordinates); ray as a line with a start
      - :class:`~orpheus.geometry.line.Line`
      - :ref:`chart-and-chord-lines`
-   * - Concentric partition; chord; crossings; measure on lines
-     - :class:`~orpheus.geometry.chord.ConcentricPartition`, :class:`~orpheus.geometry.chord.Chord`, :class:`~orpheus.geometry.chord.Crossings`; :meth:`~orpheus.geometry.chart.Chart.beam_density`
-     - :ref:`chart-and-chord-chord`, :eq:`geometry-line-crossing-law`, :eq:`geometry-crossing-order`, :eq:`geometry-chord-segment-lengths`, :eq:`geometry-cylinder-axial-factor`, :ref:`chart-and-chord-location`, :eq:`geometry-measure-on-lines`, :eq:`geometry-cauchy-mean-chord`
+   * - Concentric partition; chord; crossings; measure on lines; the orbit space of oriented lines (the line domain)
+     - :class:`~orpheus.geometry.chord.ConcentricPartition`, :class:`~orpheus.geometry.chord.Chord`, :class:`~orpheus.geometry.chord.Crossings`; :meth:`~orpheus.geometry.chart.Chart.beam_density`; :class:`~orpheus.geometry.chart.LineDomain` (:meth:`Chart.line_domain <orpheus.geometry.chart.Chart.line_domain>`)
+     - :ref:`chart-and-chord-chord`, :eq:`geometry-line-crossing-law`, :eq:`geometry-crossing-order`, :eq:`geometry-chord-segment-lengths`, :eq:`geometry-cylinder-axial-factor`, :ref:`chart-and-chord-location`, :eq:`geometry-measure-on-lines`, :eq:`geometry-cauchy-mean-chord`, :eq:`geometry-line-domain`
    * - Mesh-free function; angular chart
      - :class:`~orpheus.numerics.mesh_free_function.RegionwiseConstant`, :class:`~orpheus.numerics.mesh_free_function.Symbolic`; :class:`~orpheus.geometry.coord.AngularChart` (:attr:`CoordSystem.angular_chart <orpheus.geometry.coord.CoordSystem.angular_chart>`)
      - :ref:`structured-geometry-mesh-free-functions`, :ref:`structured-geometry-angular-chart`, :ref:`structured-geometry-two-lifts-branch-1`
@@ -585,6 +585,14 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   which chords its lines through a body's partition and through the
   panel partition refining it, and is built to replace the trajectory
   resolvents that hold those spellings (#405).
+- **The measure's density is spelled twice in the input layer**:
+  :meth:`CoordSystem.measure_density <orpheus.geometry.coord.CoordSystem.measure_density>`,
+  the derivative of the one measure, and production's
+  ``compute_areas_1d``, the face areas of a 1-D mesh, which are the same
+  level-set areas. Retiring the second onto the first moves bits on the
+  sphere in S\ :sub:`N`, so it is its own step, `#584
+  <https://github.com/deOliveira-R/ORPHEUS/issues/584>`_
+  (:ref:`chart-and-chord-measure-density`).
 - **Exit-report members still listed as not yet built** (the outcome
   module's ``NotYet``):
   the carrying eigen exit's balance (#354, open) and the daggered eigen

@@ -9805,3 +9805,260 @@ older entries classify against.
    grade it toward the point it is attenuated to, in one body, and gate
    the reading that weights it most, not the one that attenuates it
    away.**
+
+.. error-entry:: ERR-101
+   :title: The characteristic reference's rule over lines used fixed resolutions that did not follow the group's optical scale (12 halvings toward the slab's grazing cosine, plain Gauss in the cylinder's polar angle, an impact rule ungraded at a thick rim and beside a small radius, a grazing halving stopped at the thinnest panel's width), so a near-void slab's collision probability was off by up to 0.5 and a thick sphere's surface-to-surface probability by 0.73 while every closed-body gate passed
+
+   **Status:** ✅ **FIXED 2026-10-06** in review, before the third rung of
+   the characteristic reference was first committed (branch
+   ``feature/characteristic-rung3``; ``71a207fa`` carries the fix and no
+   commit carries the defect). Found by the qa review (its findings F1 to
+   F3b, probes under ``scratch/characteristic_architecture/p1_step_b3/qa/``)
+   and, after the fix, by its re-review (N1, ``q3``).
+
+   **Module:** ``orpheus/derivations/continuous/characteristic/assembly.py``
+   (:class:`~orpheus.derivations.continuous.characteristic.assembly.LineRule`:
+   ``LineRule.of`` and its private ``_impact_rule`` and ``_grazing_ends``)
+   and the gradings they call,
+   :mod:`orpheus.derivations.continuous.characteristic.grading`. Theory:
+   :ref:`characteristic-line-rule`.
+
+   **Failure mode:** none of the six AI modes: a numerical-method defect in
+   a **reference**, a quadrature resolution chosen once, at the working
+   point, for features whose scale the input sets. The integrand over lines
+   has a feature at every optical scale of the body: a line grazing a panel
+   of optical width :math:`\tau_P` is optically thick in it once its
+   projected speed falls to about :math:`\tau_P`, a line grazing the rim of
+   an optically thick body carries its attenuation in the last few mean
+   free paths of its chord half-length, and a line through a small radius
+   meets that radius's branch point (and the next radius's) at a distance
+   set by the radii. A rule fixed in the number of halvings or points
+   resolves these only for the bodies it was tuned on.
+
+   **What it did.** Before and after, `[M]` 2026-10-06 (qa's probes, the
+   main agent's re-measurement; references in mpmath at 60 digits with the
+   subtractions done there):
+
+   - the slab's grazing cosine at 12 fixed halvings, on a slab
+     :math:`(0, 0.9, 2.3)` of :math:`\Sigma` from :math:`10^{-4}` to
+     :math:`10^{-12}`: the collision probability off by
+     :math:`4 \times 10^{-2}` to :math:`5 \times 10^{-1}` (qa's ``p12``,
+     ``p13``); on a basis graded 10 layers deep, a block entry off by 21 %
+     (qa's ``p14``); after, at most :math:`7.5 \times 10^{-13}` at 8 points;
+   - the cylinder's polar angle in plain Gauss: the escape probability off by
+     :math:`3.2 \times 10^{-4}` at :math:`\tau = 0.01`; after,
+     :math:`2.9 \times 10^{-14}` at 8 points;
+   - the impact parameter in ``chord_quadrature`` with no grading toward
+     the rim: the sphere's :math:`P_{ss}` off by :math:`4.6 \times 10^{-3}`
+     at :math:`\tau = 100` and :math:`7.3 \times 10^{-1}` at
+     :math:`\tau = 1000`; after, :math:`2.1 \times 10^{-13}` and
+     :math:`6.4 \times 10^{-11}` at 16 points;
+   - the impact parameter beside a small first region (radius
+     :math:`10^{-3}`): conservation off by :math:`1.1 \times 10^{-8}` at 16
+     points, from the next radius's branch point (Gauss in :math:`b` on the
+     panel :math:`[0.52, 0.88]` left :math:`10^{-6}` at 8 points); after,
+     :math:`8.8 \times 10^{-11}` at 8 points and :math:`2.9 \times 10^{-13}`
+     at 16;
+   - the grazing halving stopped at the thinnest absorbing panel's width
+     :math:`\tau_{\min}` rather than :math:`\tau_{\min}/64` (the re-review's
+     N1, a basis graded 6 layers at :math:`\Sigma = 0.01`): a block entry off
+     by :math:`2.0 \times 10^{-6}` at 8 points while every total was exact
+     to :math:`5 \times 10^{-16}`; 2 more halvings gave
+     :math:`2.6 \times 10^{-10}`, 6 gave :math:`9.1 \times 10^{-13}`.
+
+   **How it hid.** (a) Closed-body conservation, the assembly's alarm,
+   holds line by line: under a mirror or a white wall of amplitude 1 every
+   line conserves whatever weight the rule gives it, so it cannot see any
+   rule over lines (the test-architect had measured it: 33 of 33 slab
+   runs to :math:`2.5 \times 10^{-15}` under plain 4-point cosine rules).
+   (b) The closed-form gates of the walls, which do read the rule, ran at
+   :math:`\tau` from 0.5 to 8, the band in which the fixed rules had been
+   tuned. (c) The margin study that set the grazing depth read totals only,
+   over bodies up to :math:`\tau = 2.3`; a total integrates every entry and
+   could not show the one entry of N1. (d) The small-radius miss read as
+   the :math:`b = 0` singularity; its cause was a different radius's.
+
+   **Fix.** The user's ruling of 2026-10-06: every grading is derived from
+   the group's optical scale, by the law the traversal rule follows along a
+   line, and ``LineRule`` is built per group. The slab's cosine and the
+   cylinder's polar angle are halved toward grazing to
+   :math:`\tau_{\min}/64`, with 64 the vanishing depth; the impact
+   parameter is integrated in the chord half-length, hp-graded toward the
+   next radius's branch point and toward :math:`b = 0` and exponentially
+   at the rim. The three laws live once, in ``grading.py``
+   (:ref:`characteristic-line-rule`).
+
+   **Caught by:** no ``catches`` marker yet: the test-architect places it
+   after re-dropping each arm under ``python -O -m pytest``. The candidate
+   catchers, by the battery arm that re-drops each rule
+   (``scratch/characteristic_architecture/p1_step_b3/gates/battery/``),
+   all in ``tests/gates/derivations/test_characteristic_assembly.py``:
+   ``test_the_slabs_derived_grading_converges_and_beats_twelve_fixed_halvings``
+   and ``test_a_near_void_slab_with_open_walls_meets_its_closed_forms``
+   (arm A18, 12 fixed halvings);
+   ``test_the_escape_and_transmission_probabilities_are_the_closed_forms``
+   at sphere :math:`\tau = 100` and 1000 (arm A16, the rim ungraded, and arm
+   A20, the old ``chord_quadrature`` rule in :math:`b`);
+   ``test_a_tiny_cavity_assembles_and_conserves`` and the small-radius rows
+   of ``test_a_closed_body_conserves_its_emission`` (arms A17 and A20);
+   ``test_a_wide_panel_before_a_thin_one_conserves_at_eight_points`` (arm
+   A19); ``test_the_cylinders_direction_rule_is_gauss_in_the_polar_angle``
+   (arm A21, the only red outside ``slow``); and
+   ``test_every_block_entry_of_a_thin_panel_slab_is_resolved_at_eight_points``
+   (arms A18 and A23, ``slow``: N1's grazing depth has no catcher outside
+   ``slow``).
+
+   **Lesson.** ⭐ **A quadrature whose integrand has features at the
+   input's own scales is graded from those scales, never fixed at a
+   working point; and its gate is an observable that reads the rule (here
+   the walls' closed forms, entry by entry), on inputs outside the band the
+   rule was tuned in, because an identity that holds line by line is
+   blind to every rule over lines.**
+
+.. error-entry:: ERR-102
+   :title: The characteristic reference formed the white walls' I − Tα by subtraction, so the rounding of a transmission near 1 was amplified by the inverse of the absorption: closed-body conservation of a white-walled body was off by 1.3e-4 at Σ_t = 1e-12, and a body that absorbs nothing returned a flux of order 1e16 instead of a refusal
+
+   **Status:** ✅ **FIXED 2026-10-06** in review, before the third rung of
+   the characteristic reference was first committed (branch
+   ``feature/characteristic-rung3``; ``71a207fa`` carries the fix and no
+   commit carries the defect). Found by the elegance review; the user
+   ruled the fix into the rung.
+
+   **Module:** ``orpheus/derivations/continuous/characteristic/closure.py``
+   (:class:`~orpheus.derivations.continuous.characteristic.closure.WallCoupling`:
+   ``returning`` and ``update``) and the loss tally of
+   ``LineRule.transport`` in ``assembly.py``. Theory:
+   :ref:`characteristic-wall-coupling`.
+
+   **Failure mode:** none of the six AI modes: a numerical-method defect in
+   a **reference**, an algebraically exact expression evaluated as a
+   difference of nearly equal numbers. Near void the walls exchange almost
+   every neutron, the transmission :math:`T_{ww}` is within the absorption
+   of 1, and :math:`1 - \alpha_w T_{ww}` keeps only the digits of
+   :math:`T_{ww}` that differ from 1. The total-current mode of
+   :math:`I - T\alpha`, whose eigenvalue is about what the body loses, is
+   then fixed by rounding. On a body that loses nothing the matrix is
+   exactly singular, and the subtraction moves the singularity by a
+   rounding, so the solve returns a number.
+
+   **What it did.** `[M]` 2026-10-06, the elegance review, a closed white
+   sphere: conservation off by :math:`1.7 \times 10^{-7}` at
+   :math:`\Sigma_t = 10^{-9}` and :math:`1.3 \times 10^{-4}` at
+   :math:`10^{-12}`; a body absorbing nothing, the computed transmission
+   missing 1 by :math:`1.1 \times 10^{-16}` and a block of
+   :math:`2 \times 10^{16}`. `[M]` 2026-10-07, the archivist, the defect re-formed on the
+   built tallies (the subtraction with the stored diagonal, 16 points):
+   :math:`2.5 \times 10^{-7}` and :math:`1.3 \times 10^{-4}` at
+   :math:`\Sigma_t = 10^{-9}` and :math:`10^{-12}` on the white sphere
+   :math:`(0, 0.6, 1)`, :math:`1.8 \times 10^{-7}` and
+   :math:`1.3 \times 10^{-4}` on the hollow sphere white inside and out,
+   :math:`1.3 \times 10^{-7}` and :math:`1.9 \times 10^{-4}` on the slab
+   between white walls, against :math:`10^{-15}` flat for the built
+   coupling; and on a void sphere behind a white wall of amplitude 1 a
+   block reaching :math:`1.1 \times 10^{16}`. With the diagonal formed from
+   the loss but no balance row, the two bodies with two white walls still
+   missed by :math:`7.7 \times 10^{-6}` and :math:`2.2 \times 10^{-5}` at
+   :math:`10^{-12}` (the main agent).
+
+   **How it hid.** (a) The gates' cross sections were of order 1, where
+   the subtraction loses nothing: at :math:`\Sigma_t = 1` the subtraction
+   and the built coupling agree to :math:`10^{-15}`. (b) The error grows
+   only as the absorption falls, three decades of error for three decades
+   of :math:`\Sigma_t`, so nothing near the gates' data hinted at it. (c)
+   The lossless case's refusal was first an input predicate in
+   ``LineRule.transport``, a second spelling of a condition the coupling
+   itself determines, which the ruling moved into ``update`` with the
+   balance row.
+
+   **Fix.** The diagonal of :math:`I - T\alpha` is formed from the loss,
+   :math:`(1 - \alpha_w) + \alpha_w(\ell_w + \sum_{w' \ne w}T_{w'w})`, every term
+   a sum of non-negative parts with the absorbed fraction by ``expm1``; the
+   last row of the system is replaced by the sum of all rows, the balance
+   :math:`(1 - \alpha) + \alpha\ell`, so the nearly singular total-current
+   mode is read from what the body loses; and a body with every
+   :math:`\alpha = 1` and every :math:`\ell = 0` is refused exactly
+   (``TrappedSource``) when a source reaches its walls, and gives the zero
+   update when none does.
+
+   **Caught by:** no ``catches`` marker yet: the test-architect places it
+   after re-dropping the defect under ``python -O -m pytest``. The candidate
+   catchers, by battery arm, in
+   ``tests/gates/derivations/test_characteristic_assembly.py``:
+   ``test_a_nearly_void_closed_body_conserves_its_emission`` at
+   :math:`\Sigma_t = 10^{-6}`, :math:`10^{-9}` and :math:`10^{-12}`, the twelve
+   rows arm N12 reddens (the subtraction's diagonal and no balance row, the
+   defect as it stood; arm N2, the balance row alone removed, reddens the
+   six rows of the two bodies with two white walls; arm N1, the diagonal
+   alone, is blind, masked by the balance row);
+   ``test_a_source_behind_walls_that_return_everything_in_a_lossless_body_is_refused``
+   (arm A4, the refusal deleted); and
+   ``test_a_lossless_body_with_no_source_has_an_empty_block`` (arm A15).
+
+   **Lesson.** ⭐ **When a matrix is nearly singular in a mode whose
+   eigenvalue is a physical quantity (here the fraction lost), form it from
+   that quantity, tallied without cancellation, and fix the mode from the
+   balance it satisfies; and refuse its exact singularity by the predicate
+   that makes it exact, never by a determinant that rounding has already
+   moved.**
+
+.. error-entry:: ERR-103
+   :title: The characteristic reference's direction rules were graded toward grazing and not toward the normal direction, where a thick body's attenuation e^{-τ/μ} is a layer of width 1/τ in 1/μ, so the slab's face-to-face transmission at τ = 30 missed 2E_3(τ) by 1.8e-4 at 8 points
+
+   **Status:** ✅ **FIXED 2026-10-06** in review, before the third rung of
+   the characteristic reference was first committed (branch
+   ``feature/characteristic-rung3``; ``71a207fa`` carries the fix and no
+   commit carries the defect). Found by the test-architect's re-review of
+   the optical-scale fix (``scratch/characteristic_architecture/p1_step_b3/gates/slab_tw.py``).
+
+   **Module:** ``orpheus/derivations/continuous/characteristic/assembly.py``
+   (the private ``_grazing_ends`` of
+   :class:`~orpheus.derivations.continuous.characteristic.assembly.LineRule`).
+   Theory: :ref:`characteristic-line-rule`.
+
+   **Failure mode:** none of the six AI modes: a numerical-method defect in
+   a **reference**, a quadrature graded toward one end of its interval
+   where the integrand has a feature at both. The direction rules run from
+   the grazing direction to the normal one; the fix of ERR-101 graded them
+   toward grazing. At the normal end the integrand is smooth in the
+   cosine, but a line's attenuation through a body of normal optical depth
+   :math:`\tau` is :math:`e^{-\tau s}` with :math:`s = 1/\mu \in [1, \infty)`,
+   an exponential layer of width :math:`1/\tau` in :math:`s`, which on a
+   thick body is narrower than one Gauss panel.
+
+   **What it did.** `[M]` 2026-10-06, the test-architect: the slab's wall
+   transmission against :math:`2E_3(\tau)` at 8 points missed by
+   :math:`4.1 \times 10^{-11}` at :math:`\tau = 8` and
+   :math:`1.8 \times 10^{-4}` at :math:`\tau = 30`. With the exponential ends
+   on :math:`s \in [1, 2]` only, :math:`3.8 \times 10^{-11}` remained at
+   :math:`\tau = 8`, from the layer's tail below :math:`\mu = 1/2`. After the
+   fix, :math:`1.2 \times 10^{-15}` and :math:`2.2 \times 10^{-15}` (the main
+   agent); `[M]` 2026-10-07, the archivist's probe on the built code,
+   :math:`4.4 \times 10^{-16}` and :math:`2.2 \times 10^{-15}`.
+
+   **How it hid.** (a) The normal end was taken for the easy end: the
+   integrand is smooth there in the cosine, and the layer exists only in
+   the variable :math:`1/\mu` that the attenuation is exponential in. (b)
+   The margin study read bodies up to :math:`\tau = 2.3`, where the layer is
+   wider than the interval. (c) The slab's closed-form rows reached
+   :math:`\tau = 8`, where the miss was :math:`4 \times 10^{-11}`, four decades
+   below the :math:`\tau = 30` value; a gate reads a feature of width
+   :math:`1/\tau` only at a :math:`\tau` large enough for it to be narrow.
+
+   **Fix.** The direction coordinate is graded toward the normal direction
+   too: the exponential ends of the traversal rule at :math:`2^k` over the
+   body's normal optical depth, placed on :math:`s \in [1, \infty)` and mapped
+   back to :math:`\mu = 1/s` (the cylinder's polar angle alike, with the
+   diameter's depth) (:ref:`characteristic-line-rule`).
+
+   **Caught by:** no ``catches`` marker yet: the test-architect places it
+   after re-dropping the defect under ``python -O -m pytest``. The candidate
+   catcher, by battery arm A22 (the normal ends dropped), is the one row it
+   reddens in ``tests/gates/derivations/test_characteristic_assembly.py``:
+   ``test_the_escape_and_transmission_probabilities_are_the_closed_forms``
+   at the slab's :math:`\tau = 30`.
+
+   **Lesson.** ⭐ **Grade a quadrature toward every end where the integrand
+   concentrates, in the variable it concentrates in (an attenuation
+   exponential in the optical depth over the cosine is a layer in the
+   reciprocal of the cosine, not in the cosine), and gate it at an input
+   thick enough for the layer to be narrower than a panel.**

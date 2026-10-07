@@ -17,9 +17,9 @@ Charts, lines and chords — the geometric kernel of a 1-D geometry
    .. code-block:: yaml
 
       module: geometry
-      concept: chart, line, chord
-      role: "the spatial geometry a 1-D problem keeps: the coordinate map c of a coordinate system as the quotient by its symmetry group G_c, oriented lines in Plücker coordinates, the chord of a line through the level sets of c solved once in the orbit space, point location, and the invariant measure on lines pushed to each chart"
-      code: [orpheus.geometry.chart, orpheus.geometry.line, orpheus.geometry.chord]
+      concept: chart, line, chord, measure density, line domain
+      role: "the spatial geometry a 1-D problem keeps: the coordinate map c of a coordinate system as the quotient by its symmetry group G_c, the density of its one measure (the area of a level set), oriented lines in Plücker coordinates, the chord of a line through the level sets of c solved once in the orbit space, point location, the invariant measure on lines pushed to each chart, the directions at a point and the orbit space of oriented lines with its density"
+      code: [orpheus.geometry.chart, orpheus.geometry.line, orpheus.geometry.chord, orpheus.geometry.coord]
       depends_on: [structured_geometry, manifolds]
       related: [collision_probability, boundary_conditions]
 
@@ -43,6 +43,15 @@ Key facts
   has no kept component. The measure is :meth:`CoordSystem.measure
   <orpheus.geometry.coord.CoordSystem.measure>` (one definition)
   (:ref:`chart-and-chord-chart`).
+- **The measure has one density, and it is the area of a level set.**
+  :meth:`Chart.measure_density <orpheus.geometry.chart.Chart.measure_density>`
+  is the derivative of the one definition, :math:`c_d\,d\,r^{d-1}`
+  (:eq:`geometry-measure-density`): :math:`1`, :math:`2\pi r` and
+  :math:`4\pi r^2`. Because the orbit coordinate has unit gradient, the
+  coarea formula makes the same number the area of the level set
+  :math:`c = r`, per unit transverse area on the slab and per unit height
+  on the cylinder. A basis's mass matrix and a white wall's area both read
+  it (:ref:`chart-and-chord-measure-density`).
 - **A line is held in Plücker coordinates** (direction :math:`\Omega`,
   moment :math:`m = p \times \Omega`), so the base point it was built from
   is not part of it; its own parameter :math:`t` is measured from its
@@ -97,11 +106,26 @@ Key facts
   include the grazing value at the point's own level; within about
   :math:`\sqrt\epsilon` of grazing there no double-precision :math:`b`
   resolves the side (:ref:`chart-and-chord-directions`).
-- ⛔ **Capability, not a fix.** The three modules are a seed with no
-  consumer yet: `[M]` 2026-10-06, ``git grep`` over ``orpheus/`` finds no
-  import of ``orpheus.geometry.chart``, ``.line`` or ``.chord`` outside the
-  three modules themselves. Every chord, locator and measure on lines the
-  tree computes is still its own spelling, counted in
+- **The oriented lines modulo the group are a box too**
+  (:eq:`geometry-line-domain`): the impact parameter :math:`b` on the
+  sphere, :math:`b` and the polar angle :math:`\theta \in [0, \pi/2]` on
+  the cylinder, the cosine :math:`\mu \in [-1, 1]` on the slab, with the
+  densities :math:`8\pi^2 b`, :math:`8\pi\sin^2\theta` and
+  :math:`2\pi|\mu|`, each the beam density times the directions the
+  quotient folds. The cylinder's second coordinate is the polar angle, not
+  its cosine, because in :math:`\mu_z` every integrand carries a
+  square-root end at :math:`\mu_z = 1` (the user's ruling of 2026-10-06).
+  Cauchy's formula ties the density to the chord with no shared formula
+  (:ref:`chart-and-chord-line-domain`).
+- **One consumer, a reference.** `[M]` 2026-10-07, ``git grep`` over
+  ``orpheus/``: the only modules outside the kernel that import
+  ``orpheus.geometry.chart``, ``.line`` or ``.chord`` are five modules of
+  the characteristic reference
+  (:ref:`theory-characteristic-reference`): ``walls``, ``basis``,
+  ``closure``, ``transport`` and ``assembly`` under
+  ``orpheus/derivations/continuous/characteristic/``. No production
+  module imports the kernel: every chord, locator and measure on lines
+  production computes is still its own spelling, counted in
   :ref:`chart-and-chord-deferred`.
 - **Designs that do not work** (a squared crossing law for all three
   charts, the planar measure on lines, "grazing is derived on every
@@ -131,9 +155,13 @@ Carlo (:ref:`chart-and-chord-deferred` has the census).
   group), :class:`~orpheus.geometry.chart.SingularStratum`, and the two
   images of a line in the orbit space,
   :class:`~orpheus.geometry.chart.RadialImage` and
-  :class:`~orpheus.geometry.chart.AxialImage`, and the directions at a
+  :class:`~orpheus.geometry.chart.AxialImage`, the directions at a
   point, :class:`~orpheus.geometry.chart.DirectionDomain` with its
-  :class:`~orpheus.geometry.chart.DirectionShape`.
+  :class:`~orpheus.geometry.chart.DirectionShape`, and the oriented lines
+  modulo the group, :class:`~orpheus.geometry.chart.LineDomain` with its
+  :class:`~orpheus.geometry.chart.LineShape`. The density of the measure is
+  :meth:`CoordSystem.measure_density <orpheus.geometry.coord.CoordSystem.measure_density>`
+  in :mod:`orpheus.geometry.coord`, beside the measure it differentiates.
 - :mod:`orpheus.geometry.line` holds :class:`~orpheus.geometry.line.Line`.
 - :mod:`orpheus.geometry.chord` holds
   :class:`~orpheus.geometry.chord.ConcentricPartition` (the level sets
@@ -419,6 +447,94 @@ delegated and never re-derived:
 :math:`(c_d, d) = (1, 1), (\pi, 2), (\tfrac43\pi, 3)`, a slab's length per
 unit transverse area, a cylinder's area per unit height, a sphere's volume
 (:ref:`structured-geometry-one-measure`).
+
+.. _chart-and-chord-measure-density:
+
+The measure density
+-------------------
+
+The measure is defined once, by the measure of a cell. With the measure
+coordinate :math:`T(r) = r^{d}`
+(:class:`~orpheus.geometry.coord.MeasureCoordinate`, its exponent the
+number :math:`d` of kept columns) and the constant :math:`c_d`
+(``measure_constant``), :math:`m([a, b]) = c_d\,(T(b) - T(a))`. Its density
+in the orbit coordinate is the derivative of that one definition, and it
+is also the area of the level set at :math:`r`:
+
+.. math::
+   :label: geometry-measure-density
+
+   \frac{\mathrm{d}m}{\mathrm{d}r} \;=\; c_d\,T'(r) \;=\; c_d\,d\,r^{d-1}
+   \;=\; \bigl|\{x : c(x) = r\}\bigr|
+   \;=\;
+   \begin{cases}
+     1 & \text{slab, per unit transverse area,} \\
+     2\pi r & \text{cylinder, per unit height,} \\
+     4\pi r^{2} & \text{sphere.}
+   \end{cases}
+
+.. implements:: geometry-measure-density
+   :by: orpheus.geometry.coord.CoordSystem.measure_density
+
+   **Implemented by** ``CoordSystem.measure_density``, which returns
+   :math:`c_d\,T'(r)` with :math:`T'` from
+   ``MeasureCoordinate.derivative``; ``Chart.measure_density`` delegates
+   to it, as ``Chart.measure`` delegates to ``CoordSystem.measure``.
+
+.. implements:: geometry-measure-density
+   :by: orpheus.geometry.coord.MeasureCoordinate.derivative
+
+.. implements:: geometry-measure-density
+   :by: orpheus.geometry.chart.Chart.measure_density
+
+**The two readings are one number.** The first equality is calculus:
+:math:`m([r, r + \mathrm{d}r]) = c_d\,T'(r)\,\mathrm{d}r`. The second is
+the coarea formula, :math:`\mathrm{d}V = |\nabla c|^{-1}\,\mathrm{d}A\,\mathrm{d}c`
+on each level set, with :math:`|\nabla c| = 1` on all three charts away
+from the singular stratum (:math:`\nabla c = \hat e_x` on the slab,
+:math:`Px/|Px|` on the cylinder, :math:`x/|x|` on the sphere). So the
+volume between two neighbouring level sets is the area of either times
+their distance, and the density is that area: the sphere's surface
+:math:`4\pi r^2`, the circumference :math:`2\pi r` of a cylinder per unit
+height, and 1 for a plane per unit area. `[M]` 2026-10-07, the kernel at
+:math:`r = 1.5`: 28.2743338823081 (:math:`9\pi`), 9.42477796076938
+(:math:`3\pi`) and 1.
+
+**Why the density is a kernel verb.** Two consumers read it, and before
+the verb each spelled it: the characteristic reference's panel basis
+derived :math:`c_d\,d\,r^{d-1}` inside itself for its mass matrix, by the
+user's ruling of the second rung (2026-10-06), and the reference's white
+walls need the area :math:`A_w` of each wall (the factor
+:math:`D = A_w/4` of :ref:`characteristic-wall-coupling`). Two spellings of
+one number agree only by construction, so the third rung's ruling of the
+same day (the plan's ledger, "on P1 step (b)'s third rung", Q4) moved the
+density to the kernel, as the derivative of the measure and not as a
+second formula, and retired the basis's own ``PanelBasis.volume_density``
+onto it. A third spelling stands in production:
+``orpheus.geometry.coord.compute_areas_1d``, the face areas of a 1-D
+mesh. Retiring it onto this verb moves bits on the sphere in production
+S\ :sub:`N`, so it is filed separately, `#584
+<https://github.com/deOliveira-R/ORPHEUS/issues/584>`_.
+
+**The gates.** ``tests/gates/geometry/test_measure_density.py``:
+``test_the_measure_density_is_each_charts_level_set_area`` compares the
+density with :math:`1`, :math:`2\pi r` and :math:`4\pi r^2` typed per
+chart (never from ``measure_constant``) to 4 ulp, and checks that the
+chart's verb is the coordinate system's bit for bit;
+``test_the_density_integrates_to_the_one_measure`` integrates the density
+with two-point Gauss–Legendre (exact for its degree, at most 2) over 2000
+seeded intervals and compares with the measure in mpmath at 40 digits.
+That comparison needs the conditioning factor
+:math:`1 + \max(|a|, |b|)/(b - a)`: the measure :math:`c_d(b^d - a^d)`
+cancels on a narrow interval far from 0, so a raw ulp count is not a
+statement about the density (`[M]` 2026-10-06, the test-architect's
+prototype: 2568 ulp raw on the cylinder, 0.9 ulp over the factor). The
+route is gated where the consumers live,
+``tests/gates/derivations/test_characteristic_assembly.py::test_the_mass_and_the_wall_area_read_the_one_density``:
+with ``MeasureCoordinate.derivative`` doubled in process, the basis's
+mass doubles and the white wall's response halves bit for bit, so no
+second spelling of the density survives on either side. The rows are
+``foundation`` until their ``verifies`` markers name this label.
 
 The invariant-theory reading
 ----------------------------
@@ -1858,14 +1974,279 @@ The gates check the table against :math:`D_{1h}` elements built
 independently in the test file.
 
 
+.. _chart-and-chord-line-domain:
+
+The line domain
+===============
+
+The directions at a point are the orbit space a reading at a point
+integrates over (:ref:`chart-and-chord-directions`). An operator assembled
+over every line of a body, such as the Galerkin block of a characteristic
+method (:ref:`characteristic-galerkin-assembly-section`), integrates over
+the oriented lines of space instead, against the invariant measure
+:math:`\mathrm{d}A_\perp\,\mathrm{d}\Omega` of :eq:`geometry-measure-on-lines`.
+The problem's symmetry makes most of that space redundant too: a motion of
+:math:`G_c` carries a line to a line with the same chord, so every
+integrand built from the chord is invariant under :math:`G_c`, and the
+integral over lines is an integral over the orbit space of oriented lines
+under :math:`G_c`. :meth:`Chart.line_domain
+<orpheus.geometry.chart.Chart.line_domain>` returns that orbit space as a
+:class:`~orpheus.geometry.chart.LineDomain`: the lines' counterpart of
+:meth:`Chart.directions_at <orpheus.geometry.chart.Chart.directions_at>`,
+ruled a kernel verb on ``Chart`` on 2026-10-06 (the plan's ledger, "on P1
+step (b)'s third rung", Q2).
+
+The definition
+--------------
+
+The domain is a box :math:`B` in at most two coordinates :math:`q`, with a
+map :math:`\lambda(q)` to a representative oriented line, such that every
+orbit of :math:`G_c` on the oriented lines meets :math:`\lambda(B)` once
+(the box's boundary aside) and the invariant measure pushes forward to a
+density :math:`\varrho(q)` on the box:
+
+.. math::
+   :label: geometry-line-domain
+
+   \int f(L)\,\mathrm{d}A_\perp\,\mathrm{d}\Omega
+   \;=\; \int_{B} f\bigl(\lambda(q)\bigr)\,\varrho(q)\,\mathrm{d}q,
+   \qquad
+   \varrho(q) \;=\; w\bigl(b(q), \Omega(q)\bigr)\cdot\Omega_{\rm fold}(q),
+   \qquad
+   \text{for every } f \text{ with } f \circ g = f
+   \ \text{for all } g \in G_c,
+
+per unit measure of the discarded columns (per unit height on the
+cylinder, per unit transverse area on the slab). Here :math:`w` is the
+beam density of :eq:`geometry-measure-on-lines`
+(:meth:`Chart.beam_density <orpheus.geometry.chart.Chart.beam_density>`)
+evaluated on the representative line, and :math:`\Omega_{\rm fold}` is the
+measure of the directions that the quotient folds into one point of the
+box.
+
+.. implements:: geometry-line-domain
+   :by: orpheus.geometry.chart.LineDomain.density
+
+   **Implemented by** ``LineDomain.density``, which multiplies
+   ``Chart.beam_density`` of the domain's own representative lines by the
+   folded direction measure; ``LineDomain.lines`` is the representative
+   map :math:`\lambda` and ``Chart.line_domain`` builds the domain.
+
+.. implements:: geometry-line-domain
+   :by: orpheus.geometry.chart.LineDomain.lines
+
+.. implements:: geometry-line-domain
+   :by: orpheus.geometry.chart.Chart.line_domain
+
+Unlike the directions at a point, the density is not constant. It is the
+invariant measure itself, not divided by :math:`4\pi`, and a consumer that
+wants the scalar-flux normalisation divides by :math:`4\pi` itself (the characteristic reference's line weight is the
+quadrature weight times :math:`\varrho/4\pi`). The box is unbounded in
+:math:`b`: which lines meet a body is the body's question, so a consumer
+truncates at its outer radius. The quadrature rule over the box stays the
+consumer's, for the reason the beam density's does
+(:ref:`chart-and-chord-measure`, "Why the quadrature rule is the
+consumer's").
+
+The three shapes
+----------------
+
+:class:`~orpheus.geometry.chart.LineShape` names them, decided from the
+chart's pair alone (no point is involved): ``COSINE`` where the group fixes
+the kept space, otherwise ``IMPACT`` with three kept columns and
+``IMPACT_POLAR`` with two.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 13 22 25 24 16
+
+   * - Chart (shape)
+     - Coordinates, box
+     - Representative :math:`\lambda(q)`, through, along
+     - :math:`w \cdot \Omega_{\rm fold}`
+     - :math:`\varrho(q)`
+   * - sphere (``IMPACT``)
+     - ``impact`` :math:`b \in [0, \infty)`
+     - :math:`b\,\hat e_y`, :math:`\hat e_x`
+     - :math:`2\pi b \cdot 4\pi`
+     - :math:`8\pi^2 b`
+   * - cylinder (``IMPACT_POLAR``)
+     - ``impact`` :math:`b \in [0, \infty)`, ``polar_angle``
+       :math:`\theta \in [0, \pi/2]`
+     - :math:`b\,\hat e_y`, :math:`(\sin\theta, 0, \cos\theta)`
+     - :math:`2\sin\theta \cdot 4\pi\sin\theta`
+     - :math:`8\pi\sin^2\theta`
+   * - slab (``COSINE``)
+     - ``cosine`` :math:`\mu = \Omega_x \in [-1, 1]`
+     - the origin, :math:`(\mu, \sqrt{(1-\mu)(1+\mu)}, 0)`
+     - :math:`|\mu| \cdot 2\pi`
+     - :math:`2\pi|\mu|`
+
+`[M]` 2026-10-07, the kernel: ``density`` at :math:`b = 0.3` on the sphere
+reads 23.6870505626145 (:math:`8\pi^2 \cdot 0.3 = 23.687050562614\ldots`), at
+:math:`(b, \theta) = (0.3, 0.7)` on the cylinder 10.430500504411
+(:math:`8\pi\sin^2 0.7`), and at :math:`\mu = -0.3` on the slab
+1.88495559215388 (:math:`2\pi \cdot 0.3`).
+
+**The sphere: O(3).** An oriented line is a direction :math:`\Omega` and a
+foot :math:`p` in the plane normal to :math:`\Omega`. :math:`O(3)` is
+transitive on directions, and the stabiliser of a direction is the
+:math:`O(2)` of rotations and reflections of the normal plane, whose orbits
+there are the circles :math:`|p| = b`. So the complete invariant is
+:math:`b`, every direction is folded into one point (:math:`4\pi`), and the
+beam density of one direction is :math:`2\pi b`. A line and its reverse are
+one orbit: the reflection through the plane normal to :math:`\Omega`
+containing the centre reverses :math:`\Omega` and keeps :math:`b`.
+
+**The cylinder: D**\ :sub:`∞h` **with the axial translations.** Write
+:math:`\theta` for the angle between the line and the axis and
+:math:`\varphi` for the azimuth of :math:`P\Omega`. The rotations about the
+axis fold :math:`\varphi` (:math:`2\pi`), the mirror normal to the axis folds
+:math:`\theta` and :math:`\pi - \theta` (a factor 2, which also identifies a
+line with its reverse, since reversing sends :math:`\theta` to
+:math:`\pi - \theta`), the axial translations fold the line's height, and
+what is left is :math:`b` and :math:`\theta \in [0, \pi/2]`. With
+:math:`\mathrm{d}\Omega = \sin\theta\,\mathrm{d}\theta\,\mathrm{d}\varphi`, the
+folded direction measure is :math:`2\pi \cdot 2\sin\theta`, and the beam
+density per unit height is :math:`2|P\Omega| = 2\sin\theta`
+(:ref:`chart-and-chord-measure`): :math:`\varrho = 8\pi\sin^2\theta`.
+
+**The slab: O(2)**\ :sub:`x` **with the transverse translations.** The
+group fixes :math:`\hat e_x`, so the cosine :math:`\mu = \Omega_x` is
+invariant and its sign too: a slab line and its reverse are two orbits,
+:math:`\mu` and :math:`-\mu`, and the box is :math:`[-1, 1]`. The rotations
+about :math:`\hat e_x` fold the azimuth (:math:`2\pi`), the transverse
+translations fold the foot, and the beam density per unit area of a plane
+is :math:`|\mu|`: :math:`\varrho = 2\pi|\mu|`.
+
+**The representative lines carry their coordinates.** Under
+:meth:`Chart.image <orpheus.geometry.chart.Chart.image>`, the
+representative's impact parameter is :math:`b` to an ulp, not bit for bit:
+a :class:`~orpheus.geometry.line.Line` stores its moment
+:math:`p \times \Omega` and returns its foot as :math:`\Omega \times m`,
+which rounds (`[M]` 2026-10-06, the test-architect: 1 ulp at :math:`b = 0.3`,
+:math:`\theta = 0.2`; exact at :math:`\theta \in \{0, \pi/2\}`). The
+cylinder representative's axial cosine is :math:`\cos\theta` and the slab
+representative's :math:`\Omega_x` is :math:`\mu`, both bit for bit. A
+coordinate outside its bound, a non-finite one (an infinite :math:`b`
+included) or a batch of the wrong width is refused with ``ValueError``.
+``DirectionDomain`` and ``LineDomain`` share one table of axis bounds and
+one validator in ``orpheus/geometry/chart.py``, so the two boxes cannot
+disagree on an axis they share.
+
+Why the cylinder's coordinate is the polar angle
+-------------------------------------------------
+
+The obvious second coordinate on the cylinder is the axial cosine
+:math:`\mu_z = \cos\theta`, the one :meth:`Chart.directions_at
+<orpheus.geometry.chart.Chart.directions_at>` uses. In it,
+:math:`\mathrm{d}\Omega = \mathrm{d}\mu_z\,\mathrm{d}\varphi`, the folded
+measure is the constant :math:`4\pi`, and the density is the beam density
+alone, :math:`8\pi\sqrt{1 - \mu_z^2}`: a square-root endpoint at
+:math:`\mu_z = 1` (the line parallel to the axis, where the beam's
+projected speed vanishes) in every integrand over the domain. Gauss–Legendre
+in :math:`\mu_z` then converges algebraically. In :math:`\theta` the
+substitution :math:`\mu_z = \cos\theta` absorbs the root:
+:math:`\sqrt{1 - \mu_z^2}\,\mathrm{d}\mu_z = \sin^2\theta\,\mathrm{d}\theta`,
+an entire function of :math:`\theta`, and Gauss–Legendre converges
+geometrically.
+
+The measurement that decided it (`[M]` 2026-10-06, the main agent's
+``scratch/characteristic_architecture/p1_step_b3/ta/m12_theta.py``): the
+escape probability of a homogeneous white-walled cylinder at
+:math:`\tau = 0.5`, against Bickley's closed form, missed by
+:math:`5.4 \times 10^{-4}` with 8 Gauss points in :math:`\mu_z`, and by
+:math:`2.0 \times 10^{-6}`, :math:`2.3 \times 10^{-9}` and
+:math:`1.7 \times 10^{-12}` with 8, 16 and 32 points in :math:`\theta`, in 2
+to 5 s; grading :math:`\mu_z` toward 1 instead reached
+:math:`7 \times 10^{-11}` at 433 s per block. The test-architect measured the
+:math:`\mu_z` rule's algebraic rate on the same escape:
+:math:`4.3 \times 10^{-3}`, :math:`5.4 \times 10^{-4}` and
+:math:`7.0 \times 10^{-5}` at 4, 8 and 16 points, a ratio of 8 per
+doubling. The user ruled the polar angle on 2026-10-06 ("the cylinder's
+line coordinate", the plan's ledger). ``directions_at`` keeps
+:math:`\mu_z`: at a point the direction measure carries no beam density,
+:math:`\mathrm{d}\Omega = \mathrm{d}w\,\mathrm{d}\alpha` is uniform in
+:math:`w = |\Omega_z|`, and there is no endpoint to absorb.
+
+.. dropdown:: First got wrong: "the cylinder's axial cosine needs no grading"
+   :color: muted
+
+   The third rung's premises were measured on a closed cylinder with a
+   mirror wall (``scratch/characteristic_architecture/p1_step_b3/cyl.py``):
+   plain Gauss at 8 points in :math:`\mu_z` gave the same conservation,
+   :math:`2.6 \times 10^{-10}`, as 16 points or 12 graded layers, and the
+   premise read "no grading is needed". Under a mirror each line conserves
+   on its own, so the conservation identity is satisfied line by line and
+   cannot see the rule over lines at all. The test-architect's verification
+   spec moved the question to a white wall, where the escape probability
+   reads the rule, and the square-root end showed at once
+   (:math:`5.4 \times 10^{-4}` at 8 points). The same blindness of
+   conservation to every rule over lines is the hiding mechanism of
+   ERR-101.
+
+Cauchy's formula, the independent gate
+--------------------------------------
+
+Integrating the chord length through a body over the domain gives
+:math:`4\pi` times the body's measure: by :eq:`geometry-measure-on-lines`,
+for each direction the lengths of the parallel lines through the body sum
+to its measure, and the directions contribute :math:`4\pi`. On the box,
+
+.. math::
+
+   \int_{B} \ell\bigl(\lambda(q)\bigr)\,\varrho(q)\,\mathrm{d}q
+   \;=\; 4\pi\,m(\text{body}),
+
+per unit height on the cylinder and per unit area on the slab, with
+:math:`\ell` the 3-D chord length inside the body (a hollow body's cavity
+is outside it). The gate
+``tests/gates/geometry/test_line_domain.py::test_cauchys_formula_on_the_line_domain``
+integrates the kernel's own chord lengths with a rule written in the test
+(per piece of :math:`b`, the substitution :math:`b = r_j\sin\phi`, which
+absorbs each chord's square-root end; Gauss–Legendre in :math:`\theta` and
+in :math:`\mu` on each sign; never the reference's line rule) and compares
+with :math:`4\pi` times :meth:`Chart.measure
+<orpheus.geometry.chart.Chart.measure>` on solid and hollow spheres and
+cylinders and on a slab. It shares no formula with the density: the chord
+is gated against closed forms in ``test_chord.py`` and the measure is the
+one definition, so a wrong fold or a wrong beam factor shows as an O(1)
+miss (`[M]` the test-architect's arms: the sphere's fold :math:`2\pi`,
+:math:`-0.50`; the cylinder's fold :math:`2\pi`, :math:`-0.50`; the
+cylinder's density without :math:`|P\Omega|`, :math:`+0.53`; the slab's
+without :math:`|\mu|`, :math:`+13`). Its stabiliser is declared: on the
+cylinder the chord carries the obliquity :math:`1/|P\Omega|` and the density
+:math:`|P\Omega|`, so their product is blind to a common error in both, and
+``test_the_density_is_the_beam_density_times_the_folded_directions`` pins
+the density pointwise against the closed forms typed in the test, at L0
+under :eq:`geometry-measure-on-lines`. The other rows of the file (the shape
+table by hand, the representative lines, the refusals) are ``foundation``;
+the Cauchy row waits on this label to move to L0.
+
+The shape table is a scope boundary
+-----------------------------------
+
+The table of shapes and folds is written by hand in ``LineDomain.shape``
+and ``LineDomain.density`` under a ``SCOPE-BOUNDARY[guard]`` tag, as the
+directions' table is: the machinery that would derive it is the orbit
+computation of oriented lines under a subgroup of :math:`E(3)`, which does
+not exist. When it does, the table and the folds retire onto it.
+
+
 Verification
 ============
 
-The eight labels on this page are what the kernel's gates under
-``tests/gates/geometry/`` name in their ``verifies(...)`` markers; the
-design, with every fixture and the mutation each row must redden, is
-``scratch/characteristic_architecture/seed_verification_spec.md``. Which
-test carries which label is the generated matrix's to say
+Nine of the eleven labels on this page are what the kernel's gates under
+``tests/gates/geometry/`` name in their ``verifies(...)`` markers (`[M]`
+2026-10-07, ``git grep`` of each label's ``verifies`` spelling under
+``tests/``); the two minted with the third rung of the characteristic
+reference, :eq:`geometry-measure-density` and :eq:`geometry-line-domain`,
+are named by none yet, and their rows stay ``foundation`` until the
+markers move. The design of the first seven, with every fixture and the
+mutation each row must redden, is
+``scratch/characteristic_architecture/seed_verification_spec.md``; the
+third rung's is ``scratch/characteristic_architecture/p1_step_b3/spec.md``.
+Which test carries which label is the generated matrix's to say
 (:doc:`/theory/verification/matrix`), so it is not copied here. By file:
 
 - ``test_chart.py``: :eq:`geometry-radial-coordinate`,
@@ -1904,6 +2285,15 @@ test carries which label is the generated matrix's to say
   crossing set changes. The refusals, the conditioning of the
   representative's sine and the scale-free tangencies are foundation
   gates;
+- ``test_measure_density.py``: :eq:`geometry-measure-density`, the closed
+  forms typed per chart and the density integrated back to the one
+  measure under the conditioning factor (:ref:`chart-and-chord-measure-density`),
+  ``foundation`` until their markers move;
+- ``test_line_domain.py``: :eq:`geometry-line-domain`, the shape table by
+  hand, the density against the beam density times the fold at L0 under
+  :eq:`geometry-measure-on-lines`, Cauchy's formula on the domain with the
+  test's own rule, the representative lines and the refusals
+  (:ref:`chart-and-chord-line-domain`);
 - ``test_kernel_corroboration.py``: the kernel against today's
   independent spellings, code-to-code agreement, L4, with no correctness
   content. Its value is that a migration which changes an answer shows
@@ -1994,8 +2384,11 @@ tangencies). 168 rows: 89 for the transits, 79 for the directions.
 What the kernel does not do, and what still computes the same thing
 ===================================================================
 
-**No consumer.** No module outside the three calls the kernel (Key
-facts). The reference family's characteristic oracles, the
+**One consumer, a reference.** The characteristic reference
+(:ref:`theory-characteristic-reference`) is the only module outside the
+three that calls the kernel (Key facts); it is built to replace the
+trajectory-resolvent family and is consumed by no production code yet.
+The reference family's characteristic oracles, the
 collision-probability chords, the method of characteristics and Monte
 Carlo each compute chords, crossings, regions and line measures their own
 way. `[M]` 2026-10-05, the geometry census over the 385 tracked
@@ -2035,7 +2428,18 @@ with the kernel is the kernel compared with itself through a facade
 - the directions at a point derived from the group: the shape table of
   :class:`~orpheus.geometry.chart.DirectionDomain` is written by hand, a
   declared scope boundary that retires onto the orbit catalogue's
-  :math:`S^2/D_{1h}` entry (#581, :ref:`chart-and-chord-directions`).
+  :math:`S^2/D_{1h}` entry (#581, :ref:`chart-and-chord-directions`);
+- the line domain derived from the group: the shape table and the folds
+  of :class:`~orpheus.geometry.chart.LineDomain` are written by hand too,
+  a declared scope boundary that retires onto an orbit computation of
+  oriented lines under a subgroup of :math:`E(3)`
+  (:ref:`chart-and-chord-line-domain`);
+- a third spelling of the measure density in production,
+  ``compute_areas_1d``, whose retirement onto
+  :meth:`CoordSystem.measure_density <orpheus.geometry.coord.CoordSystem.measure_density>`
+  moves bits on the sphere in S\ :sub:`N`
+  (`#584 <https://github.com/deOliveira-R/ORPHEUS/issues/584>`_,
+  :ref:`chart-and-chord-measure-density`).
 
 **A limit at extreme radii (#582).** The chord's half-chord
 :math:`\sqrt{(r_k - b)(r_k + b)}` is formed unscaled, so its product
@@ -2269,6 +2673,22 @@ Gotchas
   :class:`~orpheus.geometry.chord.ConcentricPartition` moves the line by
   its pose's inverse first, so its :math:`b` differs by a few ulp even
   under the identity pose.
+- **The line domain's density is not divided by** :math:`4\pi`. It is
+  the invariant measure :math:`\mathrm{d}A_\perp\,\mathrm{d}\Omega` itself;
+  a consumer computing a scalar flux divides by :math:`4\pi`
+  (:ref:`chart-and-chord-line-domain`).
+- **The cylinder's line coordinate is the polar angle, its directions'
+  coordinate the axial cosine.** ``line_domain`` uses :math:`\theta`,
+  where the density :math:`8\pi\sin^2\theta` is analytic;
+  ``directions_at`` uses :math:`w = |\Omega_z|`, where the direction
+  measure is uniform. A rule built for one is not a rule for the other.
+- **A representative line's** :math:`b` **is its coordinate to an ulp,
+  not bit for bit.** The kernel's line returns its foot from its moment,
+  which rounds; compare impact parameters with a tolerance.
+- **The measure density is a density, and its integral over a narrow
+  cell far from 0 is ill-conditioned.** Compare a density integrated over
+  :math:`[a, b]` with the measure at a tolerance carrying
+  :math:`1 + \max(|a|, |b|)/(b - a)`, never at a bare ulp count.
 
 
 Development history
@@ -2326,3 +2746,19 @@ Development history
        (#581); the chord's own scale limit is #582.
      - ``2b2d7703``
      - #405, #581, #582
+   * - 2026-10-07
+     - Two verbs for the characteristic reference's third rung, each by
+       ruling ("Q2: the line domain is a kernel verb on Chart"; "Q4: the
+       volume density moves to the kernel"):
+       :meth:`CoordSystem.measure_density <orpheus.geometry.coord.CoordSystem.measure_density>`,
+       the derivative of the one measure and the area of a level set, onto
+       which the reference's ``PanelBasis.volume_density`` retired; and
+       :meth:`Chart.line_domain <orpheus.geometry.chart.Chart.line_domain>`,
+       the oriented lines modulo :math:`G_c` with their invariant density,
+       gated by Cauchy's formula. The cylinder's second coordinate is the
+       polar angle (the user's ruling of 2026-10-06, after the axial
+       cosine's square-root end cost the escape probability
+       :math:`5.4 \times 10^{-4}` at 8 points). The production twin
+       ``compute_areas_1d`` is #584.
+     - ``71a207fa``
+     - #405, #584
