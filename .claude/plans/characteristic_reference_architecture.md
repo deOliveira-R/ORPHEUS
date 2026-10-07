@@ -262,6 +262,10 @@ Reports: `scratch/characteristic_architecture/w5_elegance.md` (elegance-enforcer
 - **2026-10-06, the user, on P1 step (b)'s second rung:** all four recommendations accepted. Q1: the ladder is re-cut; rung 2 is the panel basis and the transport along one line (B, A, the Volterra triangle, psi on a line), and rung 3 is the line rule, the assembly and `WallCoupling`, all integrals over the measure on lines. Q2: the pieces come from the kernel's chord through the panel ends posed as a refined `ConcentricPartition`, with `Walls.on(partition)` re-keying the walls. Q3: B_k lives on a new `TraversalRule` in `transport.py`. Q4: the basis is discontinuous nodal panels graded toward walls and interfaces (not a singular stratum), and its volume density is derived inside the basis from `measure_constant` and `measure_coordinate`, gated against `Chart.measure`.
 - **2026-10-06, the user, on P1 step (b)'s third rung (after the re-measurement):** all four as recommended. Q1: an even basis at a singular stratum (Lagrange in c² on the panel touching the centre or axis; Schwarz's theorem), not a graded b rule. Q2: the line domain is a kernel verb on `Chart` (the orbit space of lines with its density, the lines' analogue of `directions_at`). Q3: C11 is re-posed as closed-body conservation K·1 = W·1/Σ_t, symmetry kept only as a declared-blind foundation row. Q4: the volume density moves to the kernel, the white block carries D = diag(A_w/4), and S and F move to rung 4.
 - **2026-10-06, the user, on P1 step (b)'s third rung API sketch:** both as recommended. `LineRule.transport` is per group (each chunk's geometry rebuilt per group; a cache only if measured worthwhile). A wall with both a specular and a diffuse part stays refused, as the SN realizer refuses it.
+- **2026-10-06, the user, on the cylinder's line coordinate (after the rung-3 spec):** the polar angle θ = arccos μ_z, in the kernel's `LineDomain`, where the density is analytic; `directions_at` keeps μ_z.
+- **2026-10-06, the user, after rung 3's elegance review:** `compute_areas_1d` (the twin of `measure_density`) retires separately, #584; the white block's near-void conditioning is fixed in rung 3 (the loss-formed I − αT with a balance row).
+- **2026-10-06, the user, after rung 3's qa:** every line-measure grading is derived from the group's optical scale (grazing to the thinnest absorbing panel; impact in the chord half-length, hp toward both singularities and exponential at the rim); `LineRule` becomes per group. The regimes are not refused.
+- **2026-10-07, the user, on the cylinder's cost:** rung 3 lands with the slow cylinder rows cut to one fixture per law at 8 points; #586 (a non-tensor (b, θ) rule) is the next step, before rung 4.
 - **2026-10-05, the user, on sequencing:** design first, then rebuild; `a336bde4` stays unmerged on its branch as a measured speed target.
 
 ## The widened question (2026-10-05)
@@ -875,3 +879,168 @@ Every item is a proposal until ruled. It spells what the fifth compaction point 
 **Ruled 2026-10-06** (see the ledger), both as recommended: `transport` runs per group, rebuilding each chunk's geometry, with a cache only if the geometry is a measured fraction of the time; the `LawSum` refusal stands. The sketch stands as written otherwise.
 
 **Next:** the test-architect re-specifies the rung's gates (item 7) onto these names, each with its first red; then the main agent writes the code in the order kernel verbs (items 1, 2), the even basis (3), `inflow` (4), `LineRule` and `WallCoupling` (5, 6).
+
+## P1 step (b), third rung: the verification spec and what it refuted (2026-10-06)
+
+The test-architect wrote `scratch/characteristic_architecture/p1_step_b3/spec.md`: 35 new rows (13 foundation, 6 l0, 11 l1, 5 l2) and 8 re-posed functions. The code did not exist yet, so it measured every row on a prototype of the sketch's arithmetic (`p1_step_b3/ta/proto.py`); every number is re-measured on the built code.
+
+**Premises refuted (`[M]` the test-architect's probes `ta/m1`-`m11`, and `ta/m12_theta.py`):**
+- **The cylinder's μ_z needs no grading: refuted.** The premise was measured on a closed mirror cylinder, where each line conserves on its own, so no direction rule can show there. On a white wall the escape probability C9 misses Bickley's closed form by 5.4e-4 with plain Gauss in μ_z at 8 points (τ = 0.5). The cause is |PΩ| = √(1 − μ_z²), a square-root endpoint at μ_z = 1. Gauss in the polar angle θ = arccos μ_z, with no grading, gives 2.0e-6, 2.3e-9 and 1.7e-12 at 8, 16 and 32 points in 2 to 5 s; grading toward μ_z = 1 reached 7e-11 at 433 s per block.
+- **Conservation cannot see the slab's μ rule** under any law: 33 of 33 runs held to 2.5e-15, plain 4-point rules included. The slab's μ rule is gated by C9 and the wall transmission instead.
+- **The symmetry row is blind to the line-measure rules (b, μ, μ_z), not to everything.** It sees a mismatch between the outer and the inner arc-length rules: 1.5e-6 at 4 points.
+- **Chunk invariance to 1e-15: refuted.** The slab moves by 2.9e-15, 12.9 eps; the row uses 64 eps.
+- **Gauss of the density equals `measure` to a few ulp** holds only with the conditioning factor: 2568 ulp raw on the cylinder, at most 1.1 ulp scaled by 1/(1 + κ).
+- **B5a at α = 1 cannot be reached on the full block.** The void layer's basis functions are sources on lossless trapped lines, so `inflow` refuses them.
+- **A chunk sized by line count does not bound memory.** 224 cylinder lines at μ_z = 0.999 took 8.2 GB.
+
+**Confirmed:**
+- dropping D from the white update reds conservation by 6.6;
+- diag(A)⁻¹ T_w is symmetric to 1.6 eps;
+- a wall carrying both a specular and a diffuse part conserves through the unchanged formula. It stays refused by ruling.
+
+**The even basis's blast radius:** 29 of today's 503 characteristic rows go red under it. Nine are the turning-grading witnesses on solid bodies. They lose their subject: on the even panel the integrand is polynomial in arc length, so no branch point is left to grade toward. One of the nine is the ERR-099 catcher.
+
+**Decisions:**
+- **The user (2026-10-06):** the line domain's cylinder coordinates are (b, θ), with θ ∈ [0, π/2] the polar angle. In those coordinates the density 2 sin²θ · 2π is analytic. `directions_at` keeps μ_z, because a point's direction measure is uniform in μ_z and has no endpoint singularity.
+- **The main agent (not a user ruling), on B5a at α = 1:** the block is assembled on the emission support only. Its columns cover the regions with Σ_t > 0, and `transport` takes the support as a region mask. This is the P1 sketch's item 6 (a void region never gets an emission column), brought forward. The full block on a void layer under a mirror stays a refusal row.
+- **The main agent, on the turning-grading witnesses:** they move to hollow bodies with a small cavity, where a slot still starts at a small radius. ERR-099 is re-dropped after the move.
+- **The main agent, on chunking:** a chunk is bounded by an estimate of its pieces (slots times the arc-length grading the optical length implies), not by its line count. The polar-angle rule removes the extreme lines the 8.2 GB run used, and the budget is measured at build.
+
+## P1 step (b), third rung: built, the elegance review, and two more rulings (2026-10-06)
+
+The production code is written on branch `feature/characteristic-rung3` (main agent): the kernel's `measure_density` and `LineDomain`, the even basis, `inflow(..., arriving=)`, `LineRule` with `GroupTransport`, and `WallCoupling`. `[M]` on the built code (`.venv/bin/python -O`, 16 points, 12/12 inner points):
+- **closed-body conservation:** sphere 4.1e-13 (mirror and white), hollow sphere 1.7e-13, cylinder 3.2e-11, slab 8.9e-15 (white and periodic);
+- **escape probability C9, wall transmission against P_ss, and reciprocity R = U D⁻¹ (white walls):** sphere and slab ≤ 1.1e-15 at τ 0.5 and 2; cylinder 2.3e-9 and 2.3e-13 at 16 and 32 points; reciprocity ≤ 6.6e-16.
+
+**Decisions taken by the main agent (not user rulings):**
+- **The block's columns are the emission support** (regions with Σ_t > 0 by default). Its rows are every panel, so R is computed directly and reciprocity is gated, not assumed (the elegance review withdrew its objection: U over every row would need void sources on trapped lines).
+- **The piece budget is 4096 slots per traversal rule.** A slot costs up to about 0.5 MB in the Volterra block's inner rule: a single slab rule of 66 560 slots peaked at 36 GB, its chunks under 5000 at 2.25 GB.
+- **From the elegance review, applied inline:**
+  - `Wall` refuses specular + diffuse > 1, and a wall that is both (the user's LawSum ruling, now at the type);
+  - the slab's grazing rule calls the basis's `graded_ends`;
+  - `DirectionDomain` and `LineDomain` share one bounds table and one validator;
+  - one stacked `inflow` call (emission columns, then a unit current at each diffuse wall) gives K_line, R, U and T, with D named where it is used;
+  - `LineDomain`'s fold table carries a SCOPE-BOUNDARY tag;
+  - `GroupTransport` checks its shapes.
+
+**Rulings by the user, 2026-10-06:**
+- **`compute_areas_1d` is a twin of `measure_density`:** filed as #584 and retired separately, because it moves bits on the sphere in production SN.
+- **The near-void conditioning of the white block is fixed in rung 3.** I − αT was formed by subtraction, so rounding grew as 1/absorption: conservation off by 1.7e-7 at Σ_t = 1e-9 and 1.3e-4 at 1e-12; on a body absorbing nothing the computed T missed 1 by 1.1e-16 and the block came out at 2e16 rather than refusing. The fix:
+  - `WallCoupling` carries the loss ℓ, the absorbed and leaked fractions of each injected current (by `expm1`, no subtraction);
+  - the diagonal of I − αT is (1 − α) + α(ℓ + the off-diagonal column sum), and the last row is replaced by the balance row (1 − α) + αℓ;
+  - the lossless case is exactly singular and refused in `update`; the input predicate first placed in `LineRule.transport` retired.
+
+  Measured: conservation is flat from Σ_t = 1 to 1e-12 (white sphere 5.4e-13; hollow sphere white/white and mirror/white 1.8e-14; slab white/white 1.5e-14). With the loss-formed diagonal alone the two-wall cases still reached 7.7e-6 and 2.2e-5 at 1e-12.
+
+**Open for rung 4 (the elegance review's question):** each group's default support is Σ_t > 0, so groups can have different column sets; the pencil needs one shared emission support (the union over groups, or the regions with any scattering, fission or source).
+
+## P1 step (b), third rung: qa's line-measure defects, and the rules derived from the optical scale (2026-10-06)
+
+**qa found three defects no gate saw** (`scratch/characteristic_architecture/p1_step_b3/qa/`). Each was a line-measure rule with a fixed resolution that did not follow the optical scale:
+- **The slab's grazing cosine.** It used a fixed 12 halvings. Near void the collision probability was off by 4e-2 to 5e-1; on thin graded panels a block entry was off by 21%.
+- **The cylinder's polar angle.** Plain Gauss: 3.2e-4 at τ = 0.01.
+- **The impact parameter** (`chord_quadrature`). It was ungraded toward a thick rim: the sphere's P_ss was off by 4.6e-3 at τ = 100 and 7.3e-1 at τ = 1000. A small first radius left conservation off by 1.1e-8 at 16 points.
+
+Closed-body conservation could not see any of them, because it holds line by line. The closed-form gates covered τ from 0.5 to 8 only.
+
+**Ruled by the user:** derive every grading from the group's optical scale, by the law the traversal rule follows along a line. The alternative, refusing the regimes, was declined. `LineRule` is now per group: `LineRule.of(basis, walls, sigma_t, points, chunk=512, budget=256)` and `.transport(points, inner_points, support)`. `grazing_layers` is gone.
+
+**As built (main agent):**
+- **Grazing (the slab's μ on both signs, the cylinder's θ).** The coordinate is halved toward 0 down to the thinnest absorbing panel's optical width. Margins of 0 to 20 extra halvings changed nothing, to 5e-16 at τ from 0.5 to 2.3e-12, so there is no margin (`margin/study.py`).
+- **Impact.** Each panel [r_k, r_{k+1}] is integrated in the chord half-length y = √(r_{k+1}² − b²), with three gradings:
+  - hp toward y = 0, down to the next radius's branch point, at imaginary distance √(r_{k+2}² − r_{k+1}²);
+  - hp toward the lower end, down to the image of b = 0;
+  - the exponential ends of the traversal rule (2^j mean free paths of the thickest panel from here outward).
+
+  The panel touching b = 0 takes plain Gauss on its lower half (smooth in b²). A hollow body gets a void impact panel [0, r_0].
+- **What qa's small-radius defect actually was.** The cause was not b = 0. The wide middle panels saw the next radius's branch point just past their upper end, at a real distance of 0.07 but much farther in y. Gauss in b on [0.52, 0.88] left 1e-6 at 8 points.
+- **The piece budget is 256 slots.** It is both faster and smaller: a two-region white cylinder at 8 points (8512 lines) took 126 s and 7.9 GB at 4096, and 32 s and 0.6 GB at 256.
+
+**Measured after** (`-O`, references in mpmath at 60 digits with the subtractions done there):
+- the sphere's P_ss: 2.1e-13 at τ = 100 and 6.4e-11 at τ = 1000 (16 points);
+- a 1e-3 cavity: conservation 8.8e-11 at 8 points and 2.9e-13 at 16;
+- the cylinder against Bickley: 1.4e-12 and 1.9e-15 at τ = 0.5 (8 and 16 points), 2.9e-14 at τ = 0.01 (8 points);
+- the near-void slab: ≤ 5e-16 at Σ_t down to 1e-12;
+- conservation at 8 points: sphere 5.6e-11, cylinder 2.1e-10, slab 7.3e-15; the near-void sweep is flat.
+
+**A lesson from the measurement itself.** A reference evaluated in mpmath and subtracted in floating point (1 − P_esc near void) reported a defect of 7.6e-7 that the code did not have. Evaluated at the default 15 digits, it reported 100%. The subtraction belongs in mpmath.
+
+**Not fixed, and recorded:**
+- qa's F4: at Σ_t = 1e-315 the block overflows. That is the flux itself, about 1/Σ_t, exceeding double precision, not a rule defect.
+- A slab placed at x ≈ 1e6 loses digits to absolute positions: conservation 5.6e-10.
+
+**Re-review after the fix** (2026-10-06):
+- **qa confirmed F1 to F3b fixed on its own probes.**
+- **A thick slab's transmission was under-resolved (the test-architect).** At 8 points it was off by 4.1e-11 at τ = 8 and 1.8e-4 at τ = 30. In s = 1/v the attenuation e^{−τs} is a layer at the normal direction. The margin study read only τ ≤ 2.3, so it was blind to this.
+- **qa's N1:** stopping the grazing halving at τ_min left a block entry off by 2.0e-6.
+- **qa's N2:** a cancellation in hi − span refused a cavity of 1e-12.
+
+**Main agent's fixes:**
+- **The direction rules grade toward the normal direction too.** They use the exponential ends at 2^k over the body's normal optical depth, on s ∈ [1, ∞).
+- **The grazing halving reaches τ_min / 64,** with 64 = `transport.VANISHING_DEPTH`, where e^{−64} vanishes in double precision. It is the traversal rule's own constant.
+- **The two cancellations are removed:** the distance is lo²/(hi + span), and b = √(lo² + (span − y)(span + y)).
+
+The slab now matches its closed forms to rounding at 8 points from τ = 2.3e-6 to 100: τ = 8 is 1.2e-15 and τ = 30 is 2.2e-15.
+
+**Cost:**
+- **The deeper grazing grading makes chunking matter.** The lines are ordered by projected speed and the budget is 1024. At budget 256 the τ = 0.01 cylinder split into single-line rules and did not finish in 25 minutes; now it takes 57 s and 1.3 GB.
+- **A thick cylinder (τ = 30) costs about 1e6 pieces,** 1117 s under load. Its 18 432 lines are the tensor product of the b and θ rules. Filed as #586 (performance). The thick-cylinder rows run at 16 points.
+
+**The last review round and the cost ruling** (2026-10-07):
+- **The elegance re-review.** The hp law ("halve until each piece is no wider than its distance to the singularity") was spelled three ways, and the traversal rule's branch grading stopped one halving short. All three gradings (geometric, exponential, hp) moved into `characteristic/grading.py`, which every caller imports. The along-line grading now meets the stated law.
+- **R per measured current, reverted.** Dividing R by its own injection tally made the wall area cancel out of the block; the gate on the one density caught it. R stays per nominal unit current (D = A_w/4), and the asymmetry is stated.
+- **The slow tier could not run as written.** The three-region test cylinder (radius 2) takes 723 s per block at 8 points, for 38 400 lines (240 × 160). It conserves to 5.4e-13. At 16 points it took over 15 minutes. The slow tier's 18 cylinder rows would have cost hours.
+
+  **Ruled by the user:** rung 3 lands with the slow cylinder rows cut to one fixture per law at 8 points; #586 is the next step, before rung 4. The re-pointing step (d) will need 2-group cylinder references, about 25 minutes each at today's cost.
+- **A19, the hp toward the next radius, was not blind.** The test-architect's fixture did not reach it. A hollow sphere (0.2, 0.3, 1.0) graded 10 layers conserves to 9.2e-11 with the grading and 1.7e-3 without, because a wide panel precedes a thin one. A row was added at that input.
+
+## P1 step (b), third rung landed (2026-10-07)
+
+**Commits:** `71a207fa` (code and gates) and `4c996ca1` (theory, labels, ERR-101 to ERR-103, markers). Read the merge status from git, not from this line.
+
+**What exists:**
+- **Kernel:**
+  - `MeasureCoordinate.derivative`;
+  - `CoordSystem` / `Chart.measure_density`;
+  - `Chart.line_domain()` returning a `LineDomain` (`LineShape`: IMPACT, IMPACT_POLAR, COSINE), sharing `_AXIS_BOUNDS` and `_in_box` with `DirectionDomain`.
+- **Package `orpheus/derivations/continuous/characteristic/`:**
+  - `PanelBasis.even`;
+  - `LinePeriod.inflow(..., arriving=)`;
+  - `WallCoupling(response, escape, transmission, loss, diffuse)` with `returning` and `update`;
+  - `LineRule.of(basis, walls, sigma_t, points, chunk=512, budget=1024)` and `.transport(points, inner_points, support)`, which returns a `GroupTransport(line, coupling, support)` with `.block`;
+  - `grading.py` (`graded_ends`, `exponential_ends`, `halvings`, `VANISHING_DEPTH`);
+  - `Wall` refuses returning more than it receives, and a wall that is both specular and diffuse.
+
+**Evidence** (`[M]` 2026-10-07):
+- **Routine gates:** the seven characteristic and geometry gate files pass, 755 of 755 non-slow, in 7.5 minutes.
+- **Slow tier:** about 62 minutes.
+- **CI gate set:** 1422 passed locally. The catalogue reconciliation and the V&V audit pass.
+- **Battery:** 54 arms; 52 redden; 2 are declared blind (N1, masked by the balance row; T2, whose catcher is in rung 2). The table is `scratch/characteristic_architecture/p1_step_b3/gates/battery/battery_table.md`.
+- **Build and graph:** Sphinx `-E -W` is clean; `dead_references` reads 0 of 66 (a planted control read 1 of 67); pyright reports 0 errors.
+
+**Filed:** #584 (`compute_areas_1d`, the area twin), #585 (a slab far from the origin), #586 (the cylinder's tensor-product cost).
+
+## ⏸ COMPACTION POINT — 2026-10-07, rung 3 merged, #586 next
+
+**State.** Rungs 1 to 3 of P1 step (b) are merged; read the state from git.
+
+**Read in order:**
+1. "third rung landed" (above): what exists and its names.
+2. The rung-3 sections from "the premises re-measured" on: the rulings, the refutations and the measurements.
+3. `docs/theory/references/characteristic.rst`: the line rule, the assembly, the white walls' coupling.
+4. Issue #586, and `orpheus/derivations/continuous/characteristic/assembly.py` (`LineRule.of`, `_impact_rule`, `_grazing_ends`).
+
+**The next step: #586** (the user's ruling of 2026-10-07: before rung 4). The cylinder's rule is the tensor product of the impact rule (240 nodes) and the polar rule (160), each graded for the whole body. A three-region cylinder of radius 2 takes 723 s per group block at 8 points (38 400 lines) and conserves to 5.4e-13. Candidates, none measured:
+- a non-product (b, θ) rule, grading θ per impact panel by that panel's own optical scale;
+- fewer points on the deeply graded pieces;
+- vectorising the traversal rule over pieces of like cost.
+
+The acceptance in #586: a τ = 30 two-group block in under a minute at the gates' resolution, with the closed-form rows unchanged. Then rung 4: S and F, the pencil (one shared emission support across groups is an open question), the questions.
+
+**Lessons from this stretch:**
+- **A conservation identity that holds line by line cannot see the line measure.** Every line-rule defect qa found was invisible to K·1 = W·1/Σ_t; closed forms at the extreme optical scales saw them.
+- **A study that reads totals cannot rule on entries.** The margin study read collision probabilities, and missed both a 2e-6 entry error and the thick-slab layer at the normal direction.
+- **A reference subtracted in floating point after the mpmath call reports defects the code does not have.** Subtract in mpmath.
+- **A fixed piece budget meets a cost distribution that the grading changes.** Order the lines by cost and re-measure the budget whenever a grading changes.
+- **A battery restarted by every production change multiplies its runtime.** Freeze production before the battery, and scope each arm to the rows it can redden.
+

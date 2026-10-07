@@ -11671,3 +11671,21 @@ preconditioner by a power of two leaves every GMRES iterate bit-identical, so th
 `array_equal` across s = 1/16, 1, 16; the raw `‖M r‖/‖b‖` reading scales with s. The battery
 (`scratch/reference_architecture/p3/gates200b/`) also exhibited two ERR-053 markers on rows that guard the
 OPPOSITE direction (the exact-breakdown carve-out against over-warning), green under the defect.
+
+## L108 — Characteristic P1 step (b) rung 3 spec (W3, prototype before code): a designed-green premise and a re-baseline run (2026-10-06)
+
+The rung's premises (the main agent's) said the cylinder's axial-cosine rule needs no grading, measured as
+closed-body conservation under a MIRROR: 2.6e-10 at every rule. Under a mirror each line conserves on its own
+(psi = 1 per line), so that reading cannot see any direction rule. A prototype of the sketch
+(`scratch/characteristic_architecture/p1_step_b3/ta/proto.py`) put the same rule under a WHITE wall (lines
+coupled through the escape U and the transmission T_w) and against Bickley's escape probability: 1.4e-4 and
+5.4e-4 at 8 points, algebraic, from the essential singularity of e^{-tau/|P Omega|} at mu_z = 1. The slab is
+worse: its conservation is blind to the mu rule under EVERY law (33 of 33 runs <= 2.5e-15, plain 4 points
+included), because the white law's normalisation only needs the rule to integrate 1 and |mu| exactly. The
+slab's mu rule is gated by C9 / 2E_3 instead. Also measured: the "declared-blind" symmetry row is blind to the
+line-measure rules but NOT to the arc-length rules (1.5e-6 at 4 outer points). Second mechanism: a pytest
+plugin rebinding `PanelBasis.values`/`mass` to the sketched even basis ran the four existing files pre-build:
+29 of 503 red, and 9 of the 29 (the turning-grading witnesses on solid bodies) do not merely move, they lose
+their subject (on an even panel the integrand is polynomial in arc length, no branch point). Third: `pkill -f
+<script>` also killed the waiting shell whose until-loop named the script, silently dropping the chained
+census.

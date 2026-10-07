@@ -221,6 +221,10 @@ only the ORPHEUS mechanisms they do not name.
   two hand lists). → `L102`
 - **⛔ `pytest -k <word>` matches the MODULE PATH too** — a word in the file name selects every row, so a battery
   scoped by it runs the rows it meant to exclude. Select by the test-name prefix and print the collected count. → `L106`
+- **⛔ Before re-specifying gates onto a sketched change, RUN the existing files under a `-p` plugin that rebinds
+  the sketch's spelling: the red set is the re-baseline list — and read each red for whether the row loses its
+  SUBJECT (the change removes the mechanism it witnesses), not only its tolerance. And `pkill -f <script>` kills
+  any waiting shell whose command line names the script, dropping what was chained after it. → `L108`
 - **⛔ Copy a pristine file aside PRESERVING ITS PATH, into a directory of your own** — two
   production files named `solver.py` collapse into one in a flat copy, silently, and the session
   scratchpad is shared with other agents. → `L97`
@@ -337,6 +341,10 @@ shelf life — check it against a concrete row before trusting a green.
 - **⛔ "Re-point the space" is not plumbing when today's space has NO metric** —
   a `Field.l2` moved 41 %, not ULP. Check `space.inner_product_weights is None`
   before believing any re-point is neutral. → `L62c`
+- **The characteristic reference's closed-body conservation is designed-green for direction rules**: under a
+  mirror each line conserves alone (blind to mu_z, b-rule only), and on the slab the white law needs the mu rule
+  to integrate only 1 and |mu| (blind under every law, 33 of 33). Gate each line-measure axis under a COUPLED
+  law or against an escape/transmission closed form. → `L108`
 - **⭐ Subcritical SN slabs are cheap and the anchors already own one** — 2g
   fuel|moderator GL-8 4+4: `L=2.0` refl|vac → `k = 0.435195214`; `L=4.0` →
   `0.907457573` (`1/(1−k) = 10.8`, the strong discriminator); `L=8.0` refl|refl

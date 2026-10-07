@@ -205,7 +205,17 @@ a gate's population excludes every future member; and a rename can mint a summar
 line whose arithmetic is exact and whose LABEL names a population the tool cannot
 see (`always-on ≈20341` omitted 7479 hand-maintained tokens, 27 %). → L-087
 
+**B17. A quadrature whose resolution is a caller's COUNT (grading layers, points
+per piece) is attacked at the optical scale of the extreme PIECE — the thinnest
+panel (Sigma h -> 0) and the thickest region (Sigma r >> 100) — under a law whose
+functional reads that rule (vacuum, alpha < 1), never only under closed-body
+conservation, which each line satisfies on its own.** check: one mpmath closed
+form (P_esc, P_ss, white chain) at tau 1e-6 and 1e2 beside the gates' range.
+→ L-098
+
 ---
+
+
 
 ## C. Reference contamination & structural independence
 

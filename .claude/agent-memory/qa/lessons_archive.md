@@ -6068,3 +6068,16 @@ red. Not covered by `vv-principles` "a catcher DECAYS when its fixture, toleranc
 nothing in the TEST drifted; the SUT got faster. Second fact from the same review: scipy's `pr_norm` callback
 is `‖M r‖/‖b‖`, not relative, so a record judged on it mis-reports once `M ≠ I` (thin slab: false
 "hit max_inner" warning while the true residual met tol).
+
+## L-098 — a line-measure rule whose resolution is a caller's COUNT is wrong at the optical scale of the extreme PIECE, and closed-body conservation cannot see it (2026-10-06, W3 characteristic rung 3 QA, `9be600bd` + uncommitted)
+
+Rung 3's gates swept tau in [0.5, 8] and the near-void sweep only at alpha = 1. Outside: the slab's
+cosine rule (`grazing_layers` halvings, 12) missed the log(1/tau) grazing region — the slab's collision
+probability 1 - P_esc off 4e-2 / 3.4e-1 / 5e-1 at Sigma L = 2.3e-6 / 2.3e-9 / 2.3e-12, and thin graded
+panels (basis layers 10, Sigma = 0.01) put a diagonal entry off 21 %; the cylinder's plain Gauss in theta
+gave P_c off 3.2e-4 at tau = 0.01 (graded theta: 2.4e-12); the impact rule, ungraded toward a thick
+region's rim, gave P_ss off 4.6e-3 (tau 100) and 73 % (tau 1000), P_esc 2e-7. Every one was invisible to
+closed-body conservation (each line conserves, or the white tally is consistent) and visible to a vacuum or
+alpha < 1 functional against mpmath. Not covered by `vv-principles` AP24(e) (regime of a metric that
+adjudicates) or mode 12 (stabiliser): the attack is "sweep the optical thickness of the thinnest panel and
+the thickest region, under a law whose functional reads the rule". Probes: `scratch/characteristic_architecture/p1_step_b3/qa/p13`, `p14`, `p17`-`p19`.
