@@ -75,6 +75,60 @@ from .grading import exponential_ends, halvings
 from .closure import LinePeriod
 from .walls import Walls
 
+
+@dataclass(frozen=True, eq=False)
+class _Packing:
+    r"""Each line's live entries packed first, in order: the restriction of a per-entry field to them, and back.
+
+    The entries are ``(L, O, K)``: per line, :math:`O` owners of :math:`K`
+    entries each (a slot's pieces, an integral's intervals). The packing
+    holds :math:`M` per line, the most live entries on one line (at least
+    1), so an array gathered through it is padded only to the costliest
+    line of the batch, not to the batch's costliest owner. The lines of a
+    batch are ordered by projected speed, a proxy for their cost
+    (:meth:`~.assembly.LineRule.of`), which keeps the remaining padding
+    small.
+
+    Attributes
+    ----------
+    order:
+        The flat index of each packed entry among its line's :math:`O K`, ``(L, M)``.
+    owner:
+        The owner of each packed entry, ``(L, M)``; 0 on the padding.
+    live:
+        Whether the packed entry is live, ``(L, M)``.
+    owners:
+        :math:`O`.
+    """
+
+    order: np.ndarray
+    owner: np.ndarray
+    live: np.ndarray
+    owners: int
+
+    @classmethod
+    def of(cls, live: np.ndarray) -> "_Packing":
+        """The packing of ``live`` ``(L, O, K)``, kept in each line's flat (owner-major) order."""
+        flat = live.reshape(live.shape[0], -1)
+        count = max(int(flat.sum(axis=-1).max(initial=0)), 1)
+        order = np.argsort(~flat, axis=-1, kind="stable")[:, :count]
+        packed = np.take_along_axis(flat, order, axis=-1)
+        return cls(order, np.where(packed, order // live.shape[-1], 0), packed, live.shape[1])
+
+    def gather(self, per_entry: np.ndarray, fill: float | int) -> np.ndarray:
+        """A per-entry field ``(L, O, K)`` on the packed entries, ``fill`` on the padding, ``(L, M)``."""
+        taken = np.take_along_axis(per_entry.reshape(per_entry.shape[0], -1), self.order, axis=-1)
+        return np.where(self.live, taken, fill)
+
+    def scatter(self, per_packed: np.ndarray) -> np.ndarray:
+        """Packed values ``(L, M, ...)`` summed onto their owners, ``(L, O, ...)``: the transpose of :meth:`gather`."""
+        n_lines = per_packed.shape[0]
+        out = np.zeros((n_lines, self.owners, *per_packed.shape[2:]))
+        live = self.live.reshape(self.live.shape + (1,) * (per_packed.ndim - 2))
+        np.add.at(out, (np.arange(n_lines)[:, None], self.owner), np.where(live, per_packed, 0.0))
+        return out
+
+
 @dataclass(frozen=True, eq=False)
 class _Slots:
     r"""Each slot of each line, flattened over the line batch, ``(L, S)``; 0 on a slot no transit traverses.
@@ -284,26 +338,16 @@ class TraversalRule:
         )
         lower, upper = ends[..., :-1], ends[..., 1:]                                       # (L, S, M)
         live = (upper > lower) & s.member[..., None]
-        slot = np.broadcast_to(np.arange(lower.shape[-2])[:, None], lower.shape)
-
-        def flat(a: np.ndarray) -> np.ndarray:
-            return a.reshape(a.shape[0], -1)
-
         # the live pieces first, each line's in chord order (slot-major, then along the slot)
-        count = max(int(flat(live).sum(axis=-1).max(initial=0)), 1)
-        order = np.argsort(~flat(live), axis=-1, kind="stable")[:, :count]
-
-        def take(a: np.ndarray) -> np.ndarray:
-            return np.take_along_axis(flat(a), order, axis=-1)
-
-        live_j, slot_j = take(live), take(slot)
+        packing = _Packing.of(live)
+        slot = packing.owner
         return _Pieces(
-            slot=np.where(live_j, slot_j, 0),
-            lower=np.where(live_j, take(lower), 0.0),
-            upper=np.where(live_j, take(upper), 0.0),
-            panel=np.where(live_j, np.take_along_axis(s.panel, slot_j, axis=-1), 0),
-            transit=np.where(live_j, np.take_along_axis(s.transit, slot_j, axis=-1), 0),
-            live=live_j,
+            slot=slot,
+            lower=packing.gather(lower, 0.0),
+            upper=packing.gather(upper, 0.0),
+            panel=np.where(packing.live, self._of_slot(s.panel, slot), 0),
+            transit=np.where(packing.live, self._of_slot(s.transit, slot), 0),
+            live=packing.live,
         )
 
     @property
@@ -360,18 +404,28 @@ class TraversalRule:
         interval between the two, on a rule graded exponentially toward
         ``stop``. ``slot`` broadcasts against ``start`` and ``stop``,
         ``(L, ...)``. Returns ``(L, ..., p + 1)``.
+
+        Only the live intervals of the graded rule are evaluated, each line's
+        packed first (:class:`_Packing`): an integral over a thin stretch has
+        one interval and one over a thick stretch up to eight, and padding
+        every integral to the batch's thickest evaluated 4 to 6 times the
+        live nodes (`[M]` 2026-10-07, #586: three-region and tau = 30 white
+        cylinders, 8 points, a sixteenth of the lines).
         """
-        slot = np.broadcast_to(slot, start.shape)
-        panel = np.take_along_axis(self._slots.panel, slot.reshape(slot.shape[0], -1), axis=-1).reshape(slot.shape)
+        shape = np.broadcast_shapes(np.shape(slot), start.shape, stop.shape)
+        n_lines = shape[0]
+        slot, start, stop = (np.broadcast_to(a, shape).reshape(n_lines, -1) for a in (slot, start, stop))
+        panel = self._of_slot(self._slots.panel, slot)                                    # (L, O)
         sigma = self.sigma[panel]
-        ends = exponential_ends(stop, start, sigma)
-        lower, upper = ends[..., :-1], ends[..., 1:]
-        used = (upper > lower).reshape(-1, upper.shape[-1]).any(axis=0)
-        lower, upper = lower[..., used], upper[..., used]
-        distance, orbit, weight = self._nodes(slot[..., None], lower, upper, self.inner_points)
-        values = self.basis.values(orbit, np.broadcast_to(panel[..., None, None], orbit.shape))
-        factor = weight * np.exp(-sigma[..., None, None] * np.abs(stop[..., None, None] - distance))
-        return np.einsum("...kq,...kqi->...i", factor, values)
+        ends = exponential_ends(stop, start, sigma)                                         # (L, O, K + 2)
+        intervals = _Packing.of(ends[..., 1:] > ends[..., :-1])
+        owner = intervals.owner
+        lower, upper = intervals.gather(ends[..., :-1], 0.0), intervals.gather(ends[..., 1:], 0.0)   # (L, M)
+        distance, orbit, weight = self._nodes(self._of_slot(slot, owner), lower, upper, self.inner_points)
+        values = self.basis.values(orbit, np.broadcast_to(self._of_slot(panel, owner)[..., None], orbit.shape))
+        attenuation = np.exp(-self._of_slot(sigma, owner)[..., None] * np.abs(self._of_slot(stop, owner)[..., None] - distance))
+        per_interval = np.einsum("lmq,lmqi->lmi", weight * attenuation, values)
+        return intervals.scatter(per_interval).reshape(*shape, self.basis.per_panel)
 
     @cached_property
     def _to_end(self) -> np.ndarray:

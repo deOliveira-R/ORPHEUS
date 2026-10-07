@@ -233,12 +233,15 @@ class LineRule:
         The most lines one traversal rule takes.
     budget:
         The most piece slots (:attr:`TraversalRule.extent`) one traversal rule holds; a chunk over it is halved.
-        A slot costs up to about 0.5 MB at 12 points per piece, in the Volterra block's inner rule.
         Smaller is faster, the arrays staying in cache, until the chunks shrink to a few lines and the per-rule
         overhead dominates (measured 2026-10-06, white cylinders at 8 points: two regions, 8512 lines, budget
         4096 took 126 s and 7.9 GB, 256 took 32 s and 0.6 GB; one region at tau = 0.01, 15 360 lines graded to
         theta = 3e-7, budget 256 did not finish in 25 minutes, 1024 took 57 s and 1.3 GB, 4096 took 72 s and 3.5 GB,
-        the lines ordered by projected speed).
+        the lines ordered by projected speed). Re-measured 2026-10-07 after the attenuated integral stopped
+        padding to the batch's thickest stretch (#586), one-region white cylinders at 8 points, 12 along each
+        line: at tau = 30, 18 432 lines, budget 512 took 29.4 s and 0.7 GB, 1024 took 27.8 s and 0.8 GB, 4096
+        took 31.4 s and 2.0 GB, 16 384 took 37.2 s and 6.0 GB; at tau = 0.01, 512 took 17.5 s and 0.5 GB, 1024
+        took 15.6 s and 0.7 GB.
     """
 
     basis: PanelBasis

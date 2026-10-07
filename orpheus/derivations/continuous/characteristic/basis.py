@@ -40,6 +40,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
+from typing import NamedTuple
 
 import numpy as np
 from scipy.linalg import block_diag
@@ -53,6 +54,32 @@ from .grading import graded_ends
 def _on_stratum(regions: ConcentricPartition, orbit_coordinate: np.ndarray) -> np.ndarray:
     """Whether each orbit coordinate is a singular stratum of the body's chart (a solid body's centre or axis)."""
     return np.isin(orbit_coordinate, [s.orbit_value for s in regions.chart.singular_strata])
+
+
+def _even_coordinate(reference: np.ndarray) -> np.ndarray:
+    r"""An even panel's coordinate :math:`(c/h)^2` from the reference :math:`x = 2c/h - 1`: :math:`((x + 1)/2)^2`.
+
+    The one map for the points and the nodes, so the basis interpolates at its own nodes.
+    """
+    return ((reference + 1.0) / 2.0) ** 2
+
+
+class _LagrangeTables(NamedTuple):
+    r"""The two panel coordinates' Lagrange tables, indexed by the coordinate: 0 the reference, 1 the even one.
+
+    Attributes
+    ----------
+    nodes:
+        The nodes :math:`\xi_k`, ``(2, p + 1)``.
+    others:
+        For each function :math:`i`, the indices :math:`k \ne i`, ``(p + 1, p)``.
+    spread:
+        :math:`\xi_i - \xi_k` over those :math:`k`, ``(2, p + 1, p)``.
+    """
+
+    nodes: np.ndarray
+    others: np.ndarray
+    spread: np.ndarray
 
 
 @dataclass(frozen=True, eq=False)
@@ -173,12 +200,24 @@ class PanelBasis:
         a, b = ends[panel], ends[panel + 1]
         x = (2.0 * np.asarray(orbit_coordinate, dtype=float) - (a + b)) / (b - a)
         even = self.even[panel]
-        x = np.where(even, ((x + 1.0) / 2.0) ** 2, x)
-        xi = np.where(even[..., None], ((self._reference_nodes + 1.0) / 2.0) ** 2, self._reference_nodes)
-        others = ~np.eye(self.per_panel, dtype=bool)
-        spread = np.where(others, xi[..., :, None] - xi[..., None, :], 1.0)
-        factors = np.where(others, (x[..., None, None] - xi[..., None, :]) / spread, 1.0)
+        x = np.where(even, _even_coordinate(x), x)
+        nodes, others, spread = self._lagrange
+        kind = even.astype(int)
+        factors = (x[..., None] - nodes[kind])[..., others] / spread[kind]                 # (..., p + 1, p)
         return factors.prod(axis=-1)
+
+    @cached_property
+    def _lagrange(self) -> _LagrangeTables:
+        r"""The Lagrange tables of the reference and the :attr:`even` coordinate. Built once, they leave :meth:`values` one product per point, which had been
+        2.4 times slower rebuilding them at every point (`[M]` 2026-10-07,
+        #586: 4e5 points of a three-region cylinder's basis).
+        """
+        reference = self._reference_nodes
+        nodes = np.stack([reference, _even_coordinate(reference)])
+        n = self.per_panel
+        others = np.array([[k for k in range(n) if k != i] for i in range(n)], dtype=int).reshape(n, n - 1)
+        spread = nodes[:, :, None] - nodes[:, others]
+        return _LagrangeTables(nodes, others, spread)
 
     def columns(self, panel: np.ndarray) -> np.ndarray:
         """The basis indices of the functions of ``panel``, ``(..., p + 1)``."""
