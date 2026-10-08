@@ -1360,6 +1360,16 @@ Gates owed:
 5. `characteristic/closure.py` and `transport.py`.
 6. The hoist's performance target in spec §8.
 
+**Costs to plan with** `[M]` 2026-10-08: the door's gate file runs in about 60 s, outside slow (95 rows; one slow cylinder row of 27 s). The touched trees, outside slow, take 29 min serially, and the CI set about 1 min.
+
+**Rung 5a's working files,** under `scratch/characteristic_architecture/p1_step_b5/`. Run each probe with `PYTHONPATH=. .venv/bin/python -O` from the repository root:
+- `surface.md`: the explorer's map of the interface surface (the specification, the observables, `Derivation`, the traced memo, the mesh-free functions, the pieces of the point reading in §6, the insulation gate);
+- `spec.md`: the rung's verification spec, with its measured bands and the battery verdicts (including the gauge-ruling section);
+- `qa.md` with `qa/p1`–`p8`, and `elegance.md` with `elegance_probe*.py`: the reviews;
+- `main/smoke3.py`: the door on the final API (the closed-body gauge, `Nearest`, reciprocity with its 4π, the symbolic detector, the resolution refusals);
+- `ta/battery/` (39 arms) and `ta/battery_gauge/` (9 arms): each has a `run.sh` and its verdicts; `ta/probe_n4.py` is the higher-mode gauge measurement;
+- `main/touched.sh`: the pre-merge run (the CI set plus the touched trees).
+
 **Lessons from this stretch:**
 - **Measure a ruling's premise before relaying it.** "Production's gauge is 100" named the homogeneous solver's density. "SN's gauge" counts the (n,2n) emission. Each was corrected only by a reviewer reading the code.
 - **A gauge functional can vanish on a mode the question can return.** Evaluate it on every mode the question can return, not on the fundamental alone. Three agents found this independently.
