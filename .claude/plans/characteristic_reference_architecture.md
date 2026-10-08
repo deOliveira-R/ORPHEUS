@@ -1082,10 +1082,36 @@ The acceptance in #586: a τ = 30 two-group block in under a minute at the gates
 
 **Lesson:** profile before choosing among an issue's candidates. All three of #586's candidates assumed that the line count was the cost; one cProfile run read the cost directly.
 
-## ⏸ STOP POINT — 2026-10-07, #586 merged, rung 4 next
+## ⏸ COMPACTION POINT — 2026-10-07 (second), #586 merged, rung 4 next
 
-**State:** read it from git. Rungs 1 to 3 and #586 are merged.
+**State.** Rungs 1 to 3 of P1 step (b) and #586 are merged; read the state from git (`main` at the plan commit after `a1066516`; CI passed on `a1066516`).
 
-**Next: rung 4.** The emission S and the fission F, the pencil, and the questions on it. The open question from the rung-3 sketch: one shared emission support across groups. Read the rung-3 API sketch and the "what the package does not compute" list on the theory page first. Cost to plan with: a three-region, two-group cylinder block at 8 points takes about 6 minutes.
+**Next: rung 4.** S and F, the pencil, and the questions. Nothing about it is designed yet. It is a W3 surgical carve: an API sketch goes to the user (`AskUserQuestion`) before any code.
+
+**Read in order:**
+1. "P1 API sketch" (the P1 sketch's items 5 to 9): what the pencil and the questions are for.
+2. "P1 step (b), third rung: the premises re-measured": its bullet "S and F, an emission-matrix helper split out of `_infinite_medium_matrices`, move to rung 4 with the pencil".
+3. "P1 step (b), third rung: built, the elegance review, and two more rulings": the open question "**Open for rung 4**". Each group's default emission support is Σ_t > 0, so groups can have different column sets. The pencil needs one shared support: the union over groups, or the regions with any scattering, fission or source. This is the first question for the user.
+4. The rulings ledger: Q4 of the third rung (S and F move to rung 4; the block carries Σ_t, so the pencil needs the emission on its own, not read back out of the 0-D loss matrix).
+5. "P1 step (b), third rung: the verification spec and what it refuted": D11 (the 1-group Rayleigh–Ritz lower bound) needs the pencil and lands in rung 4.
+6. `docs/theory/references/characteristic.rst`, the section "What the package does not compute", for the rung-4 items, and the section on the reference kernel, `verification-reference-kernel`: the dense pencil, `EigenPosing` and `SourcePosing`.
+7. Code: `orpheus/derivations/continuous/characteristic/assembly.py` (`LineRule`, `GroupTransport`), and `_infinite_medium_matrices` (`orpheus/derivations/common/eigenvalue.py:41`).
+
+**Cost to plan with** `[M]` (8 points, budget 1024):
+- the three-region cylinder takes 175 s per group, so a two-group block takes about 6 minutes;
+- the one-region cylinder at τ = 30 takes 27.8 s per group;
+- a sphere takes under 1 s.
+
+The characteristic slow tier is 20 rows in 36 min 27 s, and the non-slow selection 722 rows in 5 min. Run gates serially.
+
+**#586's probes** are in `scratch/characteristic_architecture/p586/cost/`; run each with `.venv/bin/python -O` from the repository root:
+- `prof586*.py`: cProfile on a sixteenth of the lines;
+- `base586.py <out.npz>` with `cmp586.py <a.npz> <b.npz>`: blocks on five fixtures, for a before/after bit-identity check;
+- `budget586p.py <tau|mr3> <budget> <points>`: full-rule time and peak memory;
+- `pad586.py`: the inner rule's padding.
+
+qa's and the elegance review's notes for #586 are in `scratch/characteristic_architecture/p586/`.
 
 **Open issues:** #584 (the twin of `compute_areas_1d`), #585 (a slab far from the origin), #587 (the non-tensor rule).
+
+**Lesson from #586:** profile before choosing among an issue's candidates. The issue's three candidates all presumed one cost, and the measurement named another.
