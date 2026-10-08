@@ -17,8 +17,8 @@ Charts, lines and chords — the geometric kernel of a 1-D geometry
    .. code-block:: yaml
 
       module: geometry
-      concept: chart, line, chord, measure density, line domain
-      role: "the spatial geometry a 1-D problem keeps: the coordinate map c of a coordinate system as the quotient by its symmetry group G_c, the density of its one measure (the area of a level set), oriented lines in Plücker coordinates, the chord of a line through the level sets of c solved once in the orbit space, point location, the invariant measure on lines pushed to each chart, the directions at a point and the orbit space of oriented lines with its density"
+      concept: chart, line, chord, exact level of a line's image, measure density, line domain
+      role: "the spatial geometry a 1-D problem keeps: the coordinate map c of a coordinate system as the quotient by its symmetry group G_c, the density of its one measure (the area of a level set), oriented lines in Plücker coordinates, the chord of a line through the level sets of c solved once in the orbit space, every half-chord formed from the image's exact level, point location, the invariant measure on lines pushed to each chart, the directions at a point and the orbit space of oriented lines with its density"
       code: [orpheus.geometry.chart, orpheus.geometry.line, orpheus.geometry.chord, orpheus.geometry.coord]
       depends_on: [structured_geometry, manifolds]
       related: [collision_probability, boundary_conditions]
@@ -61,12 +61,23 @@ Key facts
   :math:`c(t)^2 = b^2 + \bigl(|P\Omega|(t - t^*)\bigr)^2` on the cylinder
   and the sphere (:eq:`geometry-line-crossing-law`), so every crossing is
   :math:`t^* \pm h_k/|P\Omega|` with the half-chord
-  :math:`h_k = \sqrt{(r_k - b)(r_k + b)}`. Every 3-D length is an
+  :math:`h_k = \sqrt{r_k^2 - b^2}`. Every 3-D length is an
   orbit-space length times the **obliquity** :math:`1/|P\Omega|`: one
   factor for the three charts, :math:`1`, :math:`1/\sin\theta` and
   :math:`1/|\mu|` (:eq:`geometry-cylinder-axial-factor`). Segment lengths
   are computed without cancellation (:eq:`geometry-chord-segment-lengths`)
   (:ref:`chart-and-chord-chord`).
+- **Every half-chord is formed from the image's level.** A line stores
+  :math:`b` through its moment, to an ulp, and near a tangency an ulp of
+  :math:`b` is the whole half-chord. So
+  :class:`~orpheus.geometry.chart.RadialImage` carries a level, a radius
+  :math:`r_*` and the line's exact half-chord :math:`y_*` there, and every
+  half-chord is :math:`\sqrt{(r - r_*)(r + r_*) + y_*^2}`. The default level
+  :math:`(b, 0)` is the plain chord bit for bit; a caller that knows the
+  pair passes it to :meth:`ConcentricPartition.chord
+  <orpheus.geometry.chord.ConcentricPartition.chord>`, held to agree with
+  :math:`b` to 64 ulp of :math:`r_*^2` (#590,
+  :ref:`chart-and-chord-level`).
 - **No point on a chord is ever located.** A segment carries its region
   from the crossing order: an inward crossing of :math:`c = r_k` enters
   region :math:`k-1`, an outward one region :math:`k`
@@ -105,7 +116,8 @@ Key facts
   tangencies, the break set of a direction rule, are scale-free and
   include the grazing value at the point's own level; within about
   :math:`\sqrt\epsilon` of grazing there no double-precision :math:`b`
-  resolves the side (:ref:`chart-and-chord-directions`).
+  resolves the side, and a line read there carries its level
+  :math:`(c, c|\Omega_x|/|P\Omega|)` instead (:ref:`chart-and-chord-directions`).
 - **The oriented lines modulo the group are a box too**
   (:eq:`geometry-line-domain`): the impact parameter :math:`b` on the
   sphere, :math:`b` and the polar angle :math:`\theta \in [0, \pi/2]` on
@@ -117,12 +129,14 @@ Key facts
   square-root end at :math:`\mu_z = 1` (the user's ruling of 2026-10-06).
   Cauchy's formula ties the density to the chord with no shared formula
   (:ref:`chart-and-chord-line-domain`).
-- **One consumer, a reference.** `[M]` 2026-10-07, ``git grep`` over
-  ``orpheus/``: the only modules outside the kernel that import
-  ``orpheus.geometry.chart``, ``.line`` or ``.chord`` are five modules of
+- **One consumer, a reference.** `[M]` 2026-10-08, an AST pass over the
+  401 ``.py`` files of ``orpheus/`` (absolute ``import`` and ``from``
+  statements): the only modules outside the kernel that import
+  ``orpheus.geometry.chart``, ``.line`` or ``.chord`` are eight modules of
   the characteristic reference
   (:ref:`theory-characteristic-reference`): ``walls``, ``basis``,
-  ``closure``, ``transport`` and ``assembly`` under
+  ``closure``, ``transport``, ``assembly``, ``lines``, ``reading`` and
+  ``reference`` under
   ``orpheus/derivations/continuous/characteristic/``. No production
   module imports the kernel: every chord, locator and measure on lines
   production computes is still its own spelling, counted in
@@ -728,7 +742,9 @@ constant.
 push-forward once and returns it as a value of one of two types, so the
 question "which kind of chart" is asked at one site:
 :class:`~orpheus.geometry.chart.RadialImage` ``(impact_parameter,
-origin_position, speed, parameter_origin)`` where :math:`L` acts, and
+origin_position, speed, parameter_origin, level, level_half_chord)`` where
+:math:`L` acts (the last two are the exact level every half-chord is
+formed from, :ref:`chart-and-chord-level`), and
 :class:`~orpheus.geometry.chart.AxialImage` ``(foot_coordinate, rate)``
 (with ``rate`` :math:`= \Omega_x`, signed) where it does not. The radial
 image is held in orbit-space units: with :math:`s` the signed position
@@ -861,9 +877,11 @@ crossings, are :math:`t^* - h_{j+1}/|P\Omega|` inbound,
 :math:`t^* + h_j/|P\Omega|` outbound (:math:`t^*` for the region of
 closest approach). The lengths are stored, never recovered as
 differences of starts (:ref:`chart-and-chord-conditioning`). The
-half-chords themselves are not stored: a consumer that needs them
-computes :math:`\sqrt{(r_k - b)(r_k + b)}` from the image's impact
-parameter.
+half-chords themselves are not stored: a consumer that needs them reads
+:meth:`RadialImage.half_chord_at
+<orpheus.geometry.chart.RadialImage.half_chord_at>`, which forms them from
+the image's level, by default :math:`\sqrt{(r_k - b)(r_k + b)}` itself
+(:ref:`chart-and-chord-level`).
 
 `[M]` 2026-10-05, the kernel on the spec's fixtures (sphere with
 breakpoints :math:`(0, 0.3, 1.1, 2.0)`, line through :math:`(0, -0.5, 0)`
@@ -1125,7 +1143,182 @@ Near tangency the problem itself is ill-conditioned
 (:math:`\mathrm{d}h/\mathrm{d}b = -b/h \to \infty`), so no algorithm makes
 :math:`h` accurate when :math:`b` carries rounding; the first row uses the
 exact :math:`b` the draw constructed, and it measures the algorithm, not
-the problem.
+the problem. A line's own :math:`b` is not exact: it is formed from the
+line's moment and carries an ulp of rounding, which is why the image can
+carry an exact half-chord beside it (:ref:`chart-and-chord-level`).
+
+.. _chart-and-chord-level:
+
+The exact level: a half-chord carried beside the impact parameter
+-----------------------------------------------------------------
+
+**Why** :math:`b` **is not enough.** A line is held by its direction and its
+moment (:ref:`chart-and-chord-lines`), and its impact parameter is computed
+from them, :math:`b = |Pf + t^*P\Omega|`, to about an ulp. Near a tangency
+the half-chord is ill-conditioned in :math:`b`:
+:math:`h = \sqrt{r^2 - b^2}` has :math:`\mathrm dh/\mathrm db = -b/h`, so an
+error :math:`\delta b \approx \epsilon b` moves :math:`h` by about
+:math:`\epsilon b^2/h`, relative :math:`\epsilon b^2/h^2`. Once
+:math:`r - b` is below an ulp of :math:`r`, that is once
+:math:`h \lesssim \sqrt{2r\,\epsilon(r)}` (:math:`\epsilon(r)` the spacing of
+the floats at :math:`r`), :math:`b` rounds to :math:`r` and the line makes no
+crossing at all. This is the problem's conditioning in the variable
+:math:`b`, and no formula in :math:`b` repairs it
+(:ref:`chart-and-chord-conditioning`). A caller can know the half-chord
+better than the line does: a quadrature over lines that places its nodes in
+:math:`y = \sqrt{r_{k+1}^2 - b^2}` holds :math:`y` exactly and derives
+:math:`b` from it, and a line built through a point in a given direction
+knows its half-chord at the point's own level from the direction (below).
+
+**What it does to a consumer** (#590). The characteristic reference reads
+the flux on a sphere's wall under a partial mirror of amplitude :math:`a`
+through the closure :math:`1/(1 - \Pi)`, :math:`\Pi = a\,e^{-2\Sigma y/s}`
+for a line turning just inside the wall (:ref:`characteristic-line-rule`).
+Its logarithmic derivative,
+
+.. math::
+
+   \frac{\mathrm d}{\mathrm dy}\ln\frac{1}{1 - \Pi}
+   \;=\; -\frac{2\Sigma}{s}\,\frac{\Pi}{1 - \Pi}
+   \;\xrightarrow[\;y \to 0\;]{}\; -\frac{2\Sigma}{s}\,\frac{a}{1 - a},
+
+amplifies an error in the half-chord a line realises by :math:`1/(1 - a)`.
+`[M]` 2026-10-08, qa's F3 (``scratch/characteristic_architecture/p1_step_b5b/qa/``,
+``p4_near_one.log`` and ``p8_b_rounding.log``), a homogeneous sphere of
+radius 2 (:math:`\Sigma` 2.4 and 0.8), the wall reading against the mpmath
+route at 8 to 64 line points, with the lines chorded from :math:`b`: off by
+:math:`2.8 \times 10^{-12}` to :math:`6.6 \times 10^{-12}` at
+:math:`a = 0.999`, :math:`1.2 \times 10^{-10}` to :math:`2.8 \times 10^{-10}`
+at :math:`0.99999`, and :math:`1.3 \times 10^{-8}` to
+:math:`4.2 \times 10^{-9}` at :math:`0.999999`, about
+:math:`3 \times 10^{-15}/(1 - a)` and not converging in the line points. The
+per-line fluxes were exact to :math:`10^{-15}`; the rule's own sum of the
+exact integrand at the rule's own :math:`y` read
+:math:`2.2 \times 10^{-16}` at :math:`a = 0.999`, and the same sum at the
+:math:`y' = \sqrt{(R - b)(R + b)}` the lines realised read
+:math:`6.6 \times 10^{-12}`, equal to the code's error to two digits at
+every :math:`a` and count; :math:`y'/y - 1` reached
+:math:`1.4 \times 10^{-2}` on the finest nodes. At the extreme of the same
+defect :math:`b` rounds onto :math:`R`: on a cylinder whose rule grades
+:math:`y` toward its slowest polar speed (about :math:`10^{-7}`), 4 of 32 640
+lines through the wall point were tangent (the test-architect's
+measurement; the block dropped them silently and the reading refused them).
+
+**The level.** :class:`~orpheus.geometry.chart.RadialImage` carries a
+radius :math:`r_*` and the line's exact half-chord there,
+:math:`y_* = \sqrt{r_*^2 - b^2}` (``level`` and ``level_half_chord``, each
+``(...,)``). Since :math:`r^2 - b^2 = (r^2 - r_*^2) + (r_*^2 - b^2)`, every
+half-chord is
+
+.. math::
+
+   h(r) \;=\; \sqrt{(r - r_*)(r + r_*) + y_*^2},
+
+the kernel's one spelling of a half-chord,
+:func:`~orpheus.geometry.chart.half_chord`, read by
+:meth:`RadialImage.half_chord_at
+<orpheus.geometry.chart.RadialImage.half_chord_at>`; a radius is crossed
+where the square is positive and the line is not parallel. At
+:math:`r = r_*` it returns :math:`y_*` exactly (the correctly rounded
+square and root of a float whose square neither underflows nor
+overflows). At every radius above the level both terms are non-negative,
+so no digits cancel however close the line passes to :math:`r_*`. Below
+the level the form subtracts, and is conditioned as :math:`(r - b)(r + b)`
+is.
+
+**The default is the plain chord, bit for bit.**
+:meth:`Chart.image <orpheus.geometry.chart.Chart.image>` sets
+:math:`r_* = b` and :math:`y_* = 0`, so :math:`h(r) = \sqrt{(r - b)(r + b)}`,
+the expression the chord used before the level, and every caller that
+passes no level is unchanged. The gate
+``test_the_default_level_is_heads_arithmetic_bit_for_bit`` holds it against
+that expression copied into the test, bitwise on seeded lines, on lines
+with :math:`b` on every breakpoint and an ulp below it, and on axial lines.
+
+**A caller passes the pair.**
+:meth:`ConcentricPartition.chord
+<orpheus.geometry.chord.ConcentricPartition.chord>`, given
+``level=(radius, half_chord)`` (each ``(...,)``), attaches the level to
+the canonical image after the move by the pose's inverse: :math:`r_*` and
+:math:`y_*` are orbit quantities, unchanged by a rigid motion. On a chart
+whose group fixes the kept space (the slab) a level is refused (*a level
+is a radius and a half-chord; a slab's lines have neither*): an
+:class:`~orpheus.geometry.chart.AxialImage` has no half-chord. The level is
+the image's and not the line's (the user's ruling of 2026-10-08): a line
+is a point of the space of oriented lines, and the level is a datum of its
+image in the orbit space.
+
+**The pair is held to agree with** :math:`b`.
+:meth:`RadialImage.at_level <orpheus.geometry.chart.RadialImage.at_level>`
+refuses a pair that describes another line:
+:math:`|r_*^2 - y_*^2 - b^2|` at most 64 ulp of :math:`r_*^2` (*a line's
+level disagrees with its impact parameter*). The squares are compared, not
+:math:`b` with :math:`\sqrt{(r_* - y_*)(r_* + y_*)}`: the rounding of
+:math:`y_*` moves :math:`r_*^2 - y_*^2` by a few ulp of :math:`r_*^2`
+whatever :math:`b` is, and taking the root divides that by :math:`2b`,
+which amplifies it by :math:`r_*/b` relative to :math:`b`'s own ulp. `[M]`
+2026-10-08, the archivist's probe
+(``scratch/characteristic_architecture/p1_step_b5b/archivist_level_tol.py``,
+the main agent's ``main/level_tolerance.py`` on the final API): over
+1 192 112 lines of 16 line sets (each fixture's line rule and its point
+rules at the first interface, at 1.1 and on the wall; a three-region
+sphere under :math:`a = 0.99`, the same cylinder under vacuum, a hollow
+sphere under two partial mirrors, a homogeneous cylinder under
+:math:`a = 0.9`; 8 line points) the largest disagreement is 8 ulp of
+:math:`r_*^2` (2 on every sphere set, 4 to 8 on the cylinders'), so the
+band of 64 is 8 times it. The gate
+``test_a_level_that_disagrees_with_the_impact_parameter_is_refused``
+accepts the consistent pairs from :math:`y = 0.3` down to
+:math:`10^{-15}` and refuses a half-chord moved by :math:`10^{-12}`
+relative and a level moved to the next radius.
+
+**One spelling of a parameter at a level.**
+``RadialImage.parameters_at(r, side)`` is the parameter at which the line
+reaches the radius :math:`r` on the side :math:`\pm 1` of its closest
+approach (0 at the approach itself),
+``parameter_at(side * half_chord_at(r))``, and
+``AxialImage.parameters_at(c)`` is :math:`(c - c_{\rm foot})/\dot c` (one
+crossing per level, so the side is not read). The radial chord forms its
+crossings through the same ``half_chord_at`` and ``parameter_at``, and the
+axial chord through ``parameters_at`` itself, so a consumer that reads a
+line at the radius of a point (the characteristic reference's reading at a
+point) gets the chord's own crossing parameter bit for bit
+(``test_the_parameters_at_a_level_are_the_chords_crossings``,
+``test_the_axial_images_parameters_at_its_levels_are_its_chords_crossings``)
+and is never refused as off the transit by an ulp.
+
+**The evidence.** ``tests/gates/geometry/test_chord_level.py`` (7 test
+functions, 12 rows, all ``foundation``): the half-chord at the level is
+:math:`y_*` exactly for :math:`y_*` from :math:`10^{-150}` to 1, through
+``chord``; the default is the plain chord bit for bit; a line whose
+rounded :math:`b` loses its half-chord, or equals :math:`R`, crosses
+:math:`R` at :math:`\pm y/|P\Omega|` from its closest approach once its
+level is passed; the two ``parameters_at`` rows; the slab's refusal; the
+agreement check. `[M]` 2026-10-08, qa's second round
+(``qa/r2/q1_levels.log``): on 12 fixtures (spheres and cylinders, a region
+of :math:`10^{-6}`, a hollow sphere of :math:`r_0 = 10^{-4}`, a panel at
+:math:`0.999999`) the chord's half-chord at every crossed radius, formed
+from the level, agrees with mpmath at 40 digits to
+:math:`2.0 \times 10^{-16}`, and the crossed set is the plain chord's on
+every line. On the reference the wall readings of qa's F3 at
+:math:`a = 0.999` and :math:`0.99999` read :math:`1.1 \times 10^{-15}` and
+:math:`4.4 \times 10^{-16}`.
+
+**What it retired.** Two guards stood where the level was missing, both in
+the characteristic reference: a floor on every grading distance in
+:math:`y` of :math:`\sqrt{2r\,\epsilon(r)}` times a margin over the first
+Gauss node's fraction (``_B_MARGIN``), so that no node rounded onto a
+panel top; and a clamp :math:`\max(c - b, 0)` in the point's parameters
+(``point_parameters``), for a line through a point whose :math:`b`
+rounded above :math:`c`. Both went with the level. What the level does not
+touch: the product :math:`(r - r_*)(r + r_*)` is still formed unscaled, so
+it underflows and overflows at extreme radii (#582,
+:ref:`chart-and-chord-deferred`); and the slab, whose image has no
+half-chord and whose crossings are differences of absolute positions, still
+refuses a direction within :math:`\sqrt\epsilon` of grazing in the
+reference's angular flux, under #585, the slab's absolute-position
+limit.
+
 
 .. _chart-and-chord-pose:
 
@@ -1931,9 +2124,28 @@ conditioning of :math:`h` near tangency (:ref:`chart-and-chord-conditioning`),
 :math:`10^{-8}`, and within 1 % at :math:`10^{-7}`. The qa review's probe
 found the same band: the correctly rounded :math:`b` equals :math:`c`
 for :math:`|\delta| \le 10^{-8}` on both charts. This is the
-problem's conditioning, not an algorithm's: the cost is a lost chord of
-length about :math:`2c\delta/|P\Omega|` on a band of directions of width
-about :math:`\sqrt\epsilon`.
+problem's conditioning in the variable :math:`b`, not an algorithm's: the
+cost is a lost chord of length about :math:`2c\delta/|P\Omega|` on a band
+of directions of width about :math:`\sqrt\epsilon`.
+
+**A line read at the point carries its level instead.** The measurement
+above is the default image, whose half-chords are formed from :math:`b`.
+A caller that builds the line through :math:`x = c\,\hat e_x` in the
+direction :math:`\Omega` knows its half-chord at the point's own level
+exactly: in the orbit space the point sits at the signed distance
+:math:`s = Px\cdot P\Omega/|P\Omega| = c\,\Omega_x/|P\Omega|` from the
+closest approach, so the level is :math:`(c,\ c|\Omega_x|/|P\Omega|)`, the
+point lies on the side :math:`\operatorname{sign}\Omega_x` of the
+approach, and the chord formed from that level crosses the surface at the
+point however close to grazing the direction is
+(:ref:`chart-and-chord-level`). The characteristic reference's angular
+flux passes it: `[M]` 2026-10-08, the test-architect
+(``scratch/characteristic_architecture/p1_step_b5b/ta/measure_widened.log``),
+on the wall of a three-region sphere at :math:`\mu = \pm 2^{-40}`, both
+branches equal the mpmath backward path to :math:`4.4 \times 10^{-16}`
+(partial mirror 0.6) and :math:`7.8 \times 10^{-16}` (mirror)
+(``test_a_direction_grazing_the_wall_is_read_through_its_level``), where
+the default image reads a tangent line and the reading is refused.
 
 The representative and its refusals
 -----------------------------------
@@ -2294,6 +2506,12 @@ Which test carries which label is the generated matrix's to say
   :eq:`geometry-measure-on-lines`, Cauchy's formula on the domain with the
   test's own rule, the representative lines and the refusals
   (:ref:`chart-and-chord-line-domain`);
+- ``test_chord_level.py``: the image's exact level
+  (:ref:`chart-and-chord-level`), seven ``foundation`` functions (12
+  rows): the half-chord at the level exact, the default bit for bit the
+  plain chord, a line whose rounded :math:`b` loses its half-chord crossing
+  at its level, the parameters at a level equal to the chord's crossings
+  on both image classes, the slab's refusal and the agreement check;
 - ``test_kernel_corroboration.py``: the kernel against today's
   independent spellings, code-to-code agreement, L4, with no correctness
   content. Its value is that a migration which changes an answer shows
@@ -2465,9 +2683,10 @@ cross-domain attacker and the elegance enforcer,
 ``scratch/characteristic_architecture/w5_cross_domain.md`` and
 ``w5_elegance.md``); the last four were in the first built kernel and
 were removed by the review of the code (qa, ``seed_qa.md``; the elegance
-enforcer, ``seed_elegance.md``); the last three belong to the transits
-and the directions at a point (2026-10-06). They are kept so that no
-later design re-derives them.
+enforcer, ``seed_elegance.md``); the next three belong to the transits
+and the directions at a point (2026-10-06), and the last to the exact
+level (2026-10-08). They are kept so that no later design re-derives
+them.
 
 .. list-table::
    :header-rows: 1
@@ -2588,6 +2807,16 @@ later design re-derives them.
        :math:`(\Omega_x, 0, 0)` forgets :math:`\Omega_z^2` and does not
        identify the orbit (#581). The kernel's box is the section the
        catalogue lacks.
+   * - The exact half-chord stored on the line, a field of
+       :class:`~orpheus.geometry.line.Line`
+     - A line is a point of the space of oriented lines, and its
+       Plücker coordinates are pose-covariant; a level is a radius of one
+       partition and the half-chord there, an orbit quantity that a rigid
+       motion leaves unchanged and that means nothing without the
+       partition's radii. It belongs to the line's image in the orbit
+       space, where the half-chords are formed, and is passed with the
+       chord request (the user's ruling of 2026-10-08,
+       :ref:`chart-and-chord-level`).
 
 Frames the cross-domain review found and refuted for the kernel (each
 refuted for the question "does the kernel need it?", not as
@@ -2616,8 +2845,10 @@ Gotchas
   cavity and outside) rather than masking.
 - **There is no** ``impact_parameter`` **on the chord.** It is
   ``chord.image.impact_parameter``, present only when the image is a
-  :class:`~orpheus.geometry.chart.RadialImage`; the half-chords are
-  computed from it, not stored.
+  :class:`~orpheus.geometry.chart.RadialImage`; the half-chords are not
+  stored, and are read by ``chord.image.half_chord_at(r)``, formed from the
+  image's level (by default :math:`b` itself), never as
+  :math:`\sqrt{(r - b)(r + b)}` by the consumer.
 - **The region of closest approach occupies two slots** on the cylinder
   and the sphere (inbound and outbound, split at :math:`t^*`), so a
   consumer that counts segments by slot sees it twice; the verification
@@ -2664,10 +2895,22 @@ Gotchas
   not :math:`c\sin\alpha`: the line is parallel to the axis. A rule
   with a node at :math:`w = 1` sees the parallel line.
 - **Grazing at a point on a surface is unresolvable below about**
-  :math:`10^{-8}` **rad.** Within that band of the grazing direction the
-  chord reads a tangency and reports no length inside the surface
-  (:ref:`chart-and-chord-directions`); a direction rule should not put
-  nodes there.
+  :math:`10^{-8}` **rad from** :math:`b` **alone.** Within that band of
+  the grazing direction the default chord reads a tangency and reports no
+  length inside the surface (:ref:`chart-and-chord-directions`). Pass the
+  line's level :math:`(c, c|\Omega_x|/|P\Omega|)` to ``chord`` and the
+  direction is read; without it a direction rule should not put nodes
+  there.
+- **A level must describe the line it is passed with.** ``at_level``
+  refuses a pair whose :math:`r_*^2 - y_*^2` misses :math:`b^2` by more
+  than 64 ulp of :math:`r_*^2`; a level from another line (the next
+  radius, a half-chord from another node) is a different line, and
+  reading its half-chords would be silently wrong.
+- **A level is exact at and above its radius.** Below :math:`r_*` the
+  form :math:`(r - r_*)(r + r_*) + y_*^2` subtracts, and is no better than
+  :math:`(r - b)(r + b)`. Pass the lowest radius the line is read at; the
+  characteristic reference's line rule passes each node's panel top,
+  which is at or below every radius its line crosses.
 - **The reading's** :math:`b` **equals** ``Chart.image`` **bit for bit, not
   a posed partition's chord.** A
   :class:`~orpheus.geometry.chord.ConcentricPartition` moves the line by
@@ -2762,3 +3005,21 @@ Development history
        ``compute_areas_1d`` is #584.
      - ``71a207fa``
      - #405, #584
+   * - 2026-10-08
+     - The image of a line carries an exact level (#590): a
+       line stores :math:`b` to an ulp, and near a tangency that loses the
+       half-chord (qa's F3 on the characteristic reference: a wall reading
+       off by about :math:`3 \times 10^{-15}/(1 - a)` at every
+       resolution). :class:`~orpheus.geometry.chart.RadialImage` gained
+       ``level`` and ``level_half_chord``, every half-chord is formed by
+       :func:`~orpheus.geometry.chart.half_chord` from them, the default
+       :math:`(b, 0)` is the plain chord bit for bit, and
+       ``ConcentricPartition.chord`` takes a caller's pair, held to agree
+       with :math:`b` to 64 ulp of :math:`r_*^2`. ``parameters_at`` on
+       both images is the one spelling of a parameter at a level, read by
+       the chord and by the reference's reading at a point;
+       ``DirectionDomain.on_stratum`` names the stratum predicate. The
+       level is the image's, not a field of ``Line`` (the user's ruling of
+       2026-10-08).
+     - ``b76b9a9d``
+     - #405, #590

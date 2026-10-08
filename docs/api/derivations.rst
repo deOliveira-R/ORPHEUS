@@ -80,6 +80,11 @@ Submodules
        one group's transport block, assembled by Galerkin over the lines of
        the chart's line domain with the white walls' coupling
        (:mod:`~orpheus.derivations.continuous.characteristic.assembly`),
+       the weighted sets of lines both the block and the reading at a point
+       integrate over, their one-dimensional rules (the impact rule with
+       the grading law at every impact-panel top, the polar and cosine
+       rules) and the stacked sources a line carries
+       (:mod:`~orpheus.derivations.continuous.characteristic.lines`),
        each region's total cross section and emission matrices with the
        regions each group emits in
        (:mod:`~orpheus.derivations.continuous.characteristic.cross_sections`),
@@ -90,9 +95,12 @@ Submodules
        places its piece ends by
        (:mod:`~orpheus.derivations.continuous.characteristic.grading`), and
        the door, which poses that system from a specification and a
-       resolution and answers the eigenvalue and the flux integrals of its
-       question
-       (:mod:`~orpheus.derivations.continuous.characteristic.reference`);
+       resolution and answers the eigenvalue, the flux integrals and the
+       point values of its question
+       (:mod:`~orpheus.derivations.continuous.characteristic.reference`),
+       and the reading at a point, the transported emission integrated
+       over the lines through the point, and the angular flux there
+       (:mod:`~orpheus.derivations.continuous.characteristic.reading`);
        the theory is :ref:`theory-characteristic-reference`.
    * - :mod:`~orpheus.derivations.common.quadrature_recipes`
      - Geometry-aware quadrature recipes:
@@ -223,9 +231,10 @@ The characteristic reference
 ----------------------------
 
 The package, built rung by rung beside the trajectory-resolvent family;
-the theory is :ref:`theory-characteristic-reference`. Its nine modules
+the theory is :ref:`theory-characteristic-reference`. Its eleven modules
 are documented below; the package re-exports the public names of every
-module but the gradings, which are imported by module.
+module but the gradings, the line sets and the reading, which are
+imported by module.
 
 .. automodule:: orpheus.derivations.continuous.characteristic
 
@@ -242,6 +251,12 @@ module but the gradings, which are imported by module.
    :members:
 
 .. automodule:: orpheus.derivations.continuous.characteristic.assembly
+   :members:
+
+.. automodule:: orpheus.derivations.continuous.characteristic.lines
+   :members:
+
+.. automodule:: orpheus.derivations.continuous.characteristic.reading
    :members:
 
 .. automodule:: orpheus.derivations.continuous.characteristic.cross_sections

@@ -648,6 +648,7 @@ _Q_REF = "tests/gates/derivations/test_characteristic_reading.py::test_the_readi
 @pytest.mark.parametrize(("fixture", "x"), [(_VOID_OUTER, 1.0), (_VOID_OUTER, 2.0), (_THIN_OUTER, 1.99), (_THIN_OUTER, 2.0)],
                          ids=["void-outer-interface", "void-outer-wall", "thin-outer-interface", "thin-outer-wall"])
 @pytest.mark.rests_on(_Q_REF)
+@pytest.mark.catches("ERR-104")
 def test_a_void_or_thin_outer_shell_under_a_near_one_mirror_is_read_to_the_bar(fixture, x: float) -> None:
     """[Q1 = qa F1; l1, REFERENCE] Under a = 0.99 with a void outer shell (Sigma = 0, q = 0) or an optically thin one
     (Sigma 0.01-0.02), the closure's pole moves to the interior tangency below it, a distance
@@ -667,6 +668,7 @@ def test_a_void_or_thin_outer_shell_under_a_near_one_mirror_is_read_to_the_bar(f
 @pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.parametrize("fixture", [_VOID_OUTER, _THIN_OUTER], ids=["void-outer", "thin-outer"])
 @pytest.mark.rests_on(_ESCAPE)
+@pytest.mark.catches("ERR-104")
 def test_the_blocks_total_under_a_void_or_thin_outer_shell_is_the_closed_form(fixture) -> None:
     """[Q1, the block; l1, REFERENCE] 1^T K 1 (group 0) of the layered sphere under a = 0.99 equals the per-line
     closed form integrated over b in the half-chord variable (``specular_sphere_layered_total``: the chord's vacuum
@@ -699,6 +701,7 @@ def test_a_cylinders_interface_point_is_read_to_the_bar() -> None:
 @pytest.mark.l1
 @pytest.mark.parametrize("albedo", [0.999, 0.99999])
 @pytest.mark.rests_on(_Q_REF)
+@pytest.mark.catches("ERR-106")
 def test_the_wall_reading_as_the_mirror_tends_to_one_holds_the_bar(albedo: float) -> None:
     """[Q3 = qa F3; l1, REFERENCE] A homogeneous sphere (Sigma 2.4 and 0.8, q 0.7 and 1.3, R 2) read ON its wall under
     a = 0.999 and 0.99999 equals the route to 1e-12: each line through the point carries its exact half-chord (the
@@ -712,6 +715,7 @@ def test_the_wall_reading_as_the_mirror_tends_to_one_holds_the_bar(albedo: float
 @pytest.mark.l1
 @pytest.mark.parametrize("x", [pytest.param(1.0, marks=pytest.mark.slow), 0.5], ids=["wall", "interface"])
 @pytest.mark.rests_on(_M1)
+@pytest.mark.catches("ERR-105")
 def test_a_small_cylinders_layer_is_graded_outside_slow(x: float) -> None:
     """[Q4 = qa F4; l1, REFERENCE] A small cylinder (radii 0.5, 1; Sigma (0.6, 2.4) and (1.7, 0.8); q (1, 0.7) and
     (0.4, 1.3); vacuum) read at its wall and at its interface, degree 2, layers 0, 8 line points, equals the Ki_2
@@ -903,6 +907,7 @@ def test_the_grazing_limit_on_the_wall(albedo: float) -> None:
 @pytest.mark.l1
 @pytest.mark.parametrize("albedo", [0.6, 1.0])
 @pytest.mark.rests_on(_HERE + "test_the_angular_flux_is_the_backward_paths_integral")
+@pytest.mark.catches("ERR-106")
 def test_a_direction_grazing_the_wall_is_read_through_its_level(albedo: float) -> None:
     """[F5, inverted at the widened rung; l1, REFERENCE] On the sphere's wall, the directions mu = +-2^-40: the first
     build refused them (b rounds onto R, a tangent line); each line through the point now carries its exact level

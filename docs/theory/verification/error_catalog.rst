@@ -9818,8 +9818,9 @@ older entries classify against.
 
    **Module:** ``orpheus/derivations/continuous/characteristic/assembly.py``
    (:class:`~orpheus.derivations.continuous.characteristic.assembly.LineRule`:
-   ``LineRule.of`` and its private ``_impact_rule`` and ``_grazing_ends``)
-   and the gradings they call,
+   ``LineRule.of`` and its private ``_impact_rule`` and ``_grazing_ends``;
+   since rung 5b the impact rule and the direction gradings live in
+   ``characteristic/lines.py``) and the gradings they call,
    :mod:`orpheus.derivations.continuous.characteristic.grading`. Theory:
    :ref:`characteristic-line-rule`.
 
@@ -10012,7 +10013,8 @@ older entries classify against.
 
    **Module:** ``orpheus/derivations/continuous/characteristic/assembly.py``
    (the private ``_grazing_ends`` of
-   :class:`~orpheus.derivations.continuous.characteristic.assembly.LineRule`).
+   :class:`~orpheus.derivations.continuous.characteristic.assembly.LineRule`;
+   since rung 5b in ``characteristic/lines.py``).
    Theory: :ref:`characteristic-line-rule`.
 
    **Failure mode:** none of the six AI modes: a numerical-method defect in
@@ -10062,3 +10064,258 @@ older entries classify against.
    exponential in the optical depth over the cosine is a layer in the
    reciprocal of the cosine, not in the cosine), and gate it at an input
    thick enough for the layer to be narrower than a panel.**
+
+.. error-entry:: ERR-104
+   :title: The characteristic reference's line rule did not grade the impact parameter toward the partial mirror's closure pole, which sits a distance (s(−ln a) + τ_out)/(2Σ_k) beyond every impact-panel top, so a sphere's wall reading under a = 0.99 was off by 2.8e-4 and, under a void outer shell, an interface reading by 5.1e-4 and the block's total by 2.6e-6, at 8 line points
+
+   **Status:** ✅ **FIXED 2026-10-08** in ``b76b9a9d`` (branch
+   ``feature/characteristic-point-reading``, P1 step (b) rung 5b). The
+   defect was committed in the third rung's line rule (``71a207fa``) and
+   found by the fifth rung's reading at a point: by the test-architect on a
+   partial mirror's wall, then, after a first fix graded the outermost
+   panel only, by qa's review at interior tangencies (its F1,
+   ``scratch/characteristic_architecture/p1_step_b5b/qa/p1_hidden_pole.py``,
+   ``p2_block_and_cyl.py``).
+
+   **Module:** ``orpheus/derivations/continuous/characteristic/lines.py``
+   (:func:`~orpheus.derivations.continuous.characteristic.lines.tangency_distances`,
+   read by
+   :func:`~orpheus.derivations.continuous.characteristic.lines.impact_rule`;
+   at the defect, the private ``_impact_rule`` of ``assembly.py``). Theory:
+   :ref:`characteristic-grading-law`.
+
+   **Failure mode:** none of the six AI modes: a numerical-method defect in
+   a **reference**, a quadrature graded toward one feature of its integrand
+   (the next radius's branch point) and not toward another that the input
+   moves next to the interval. A line turning just inside the impact-panel
+   top :math:`r_{k+1}` at the half-chord :math:`y \to 0` carries the cycle
+   product :math:`\Pi = a\,e^{-(\tau_{\rm out} + 2\Sigma_k y)/s}` of its
+   period, and the closure :math:`1/(1 - \Pi)` has a pole at
+   :math:`y = -(s(-\ln a) + \tau_{\rm out})/(2\Sigma_k)`. On the outermost
+   panel (:math:`\tau_{\rm out} = 0`) it is :math:`-\ln a/(2\Sigma)` from
+   the rim, 0.002 at :math:`a = 0.99` and :math:`\Sigma = 2.4`; below a void
+   or optically thin outer shell it is as close to an interior tangency.
+
+   **What it did.** `[M]` 2026-10-08, the test-architect
+   (``ta/measure_wall.log``, ``ta/measure_rim_block.log``), a sphere of
+   radius 2 behind a partial mirror, the reading on the wall at 8 line
+   points against the mpmath route: :math:`1.3 \times 10^{-8}`
+   (:math:`a = 0.6`), :math:`1.6 \times 10^{-5}` (0.9),
+   :math:`2.8 \times 10^{-4}` (0.99), converging algebraically
+   (:math:`3.1 \times 10^{-6}` at 24); the block's
+   :math:`\mathbf 1^{\mathsf T}K\mathbf 1` at :math:`a = 0.99`
+   :math:`1.6 \times 10^{-9}` at 8 line points and
+   :math:`2.1 \times 10^{-12}` at 32. After a first fix that graded the
+   outermost panel only (a rim law), qa (``qa/p1_hidden_pole.log``,
+   ``p2_block.log``): a void outer region under :math:`a = 0.99` off by
+   :math:`5.1 \times 10^{-4}`, :math:`2.6 \times 10^{-5}` and
+   :math:`5.8 \times 10^{-8}` at the interface at 8, 16 and 32 line points,
+   :math:`3.0 \times 10^{-6}` on the wall, and the block's total by
+   :math:`2.6 \times 10^{-6}` at 8; an optically thin outer region
+   :math:`1.0 \times 10^{-6}` at its interface.
+
+   **How it hid.** (a) The third rung's closed-form row for a specular
+   wall, ``test_the_white_and_specular_laws_are_their_closed_forms_and_differ``,
+   read the total :math:`\mathbf 1^{\mathsf T}K\mathbf 1` at amplitudes 0,
+   0.5 and 1 and 16 line points (`[M]` ``git show a5492017``), where the
+   pole is at least :math:`\ln 2/(2\Sigma)` from the rim or absent; the
+   fix moved the gates' blocks by :math:`10^{-16}`, except at
+   :math:`a = 0.6`, where the total moved by :math:`1.0 \times 10^{-10}`
+   (qa's ``p12``). (b) Closed-body conservation holds line by line, so it
+   cannot see a rule over lines (the lesson of ERR-101). (c) The wall
+   reading is the first observable that weights the rim's lines most: the
+   reading at a point's measure on the wall is :math:`\mathrm dy` at
+   :math:`y \to 0`. (d) The first fix carried the pole's distance for one
+   panel, the outermost, and declared a void outer panel inert ("a void
+   outer panel changes nothing"), which is true of the rim and false of
+   the tangency below it.
+
+   **Fix.** The grading law at every impact-panel top
+   (:ref:`characteristic-grading-law`): toward :math:`y = 0` on panel
+   :math:`k`, the distance to the nearest of the next radius's branch
+   point, the turning slot's layer and the closure's pole, with
+   :math:`\tau_{\rm out}` read from the kernel's chord of the tangent line.
+   `[M]` qa's second round: the void outer region
+   :math:`7.1 \times 10^{-15}` at the interface and
+   :math:`\le 4.4 \times 10^{-16}` on the wall at 8 line points; the block's
+   total :math:`\le 3.3 \times 10^{-16}`.
+
+   **Caught by:** the rows reddened by the pole term's removal under
+   ``python -O -m pytest``, every row of each function:
+   ``tests/gates/derivations/test_characteristic_reading.py::test_a_void_or_thin_outer_shell_under_a_near_one_mirror_is_read_to_the_bar``
+   (the void and thin outer shells, interface and wall) and
+   ``tests/gates/derivations/test_characteristic_reading.py::test_the_blocks_total_under_a_void_or_thin_outer_shell_is_the_closed_form``.
+   `[M]` 2026-10-08: the test-architect's arm grading the outermost panel
+   top only reddens their 6 rows (``ta/battery/verdicts.md``); the
+   archivist's arm removing the pole term reddens the same 6 and 12 more,
+   the partial mirror's wall rows at 0.6, 0.9 and 0.99 and its blocks at
+   0.9 and 0.99 among them, whose functions also hold rows the arm leaves
+   green and so carry no marker.
+
+   **Lesson.** ⭐ **A quadrature over lines is graded toward every
+   singularity of the line's transport, and the closure's pole is one:
+   derive its distance at every place a line can turn, not at the one
+   place the first failure was seen.**
+
+.. error-entry:: ERR-105
+   :title: The characteristic reference's cylinder rule did not grade the impact parameter toward the turning slot's exponential layer e^{−2Σy/sinθ}, which at the slowest polar angle the rule samples (sinθ ≈ 1e-7) is far narrower than a piece, so a three-region cylinder read at an interface was off by 1.0e-6 and on its vacuum wall by 7.9e-8, at 8 line points
+
+   **Status:** ✅ **FIXED 2026-10-08** in ``b76b9a9d`` (branch
+   ``feature/characteristic-point-reading``, P1 step (b) rung 5b). The
+   defect was committed in the third rung's line rule (``71a207fa``) and
+   found by the fifth rung's reading at a point: on the cylinder's wall by
+   the test-architect (the verification spec's finding 6), at an interface
+   by qa (its F2, ``scratch/characteristic_architecture/p1_step_b5b/qa/p2_block_and_cyl.py``).
+
+   **Module:** ``orpheus/derivations/continuous/characteristic/lines.py``
+   (:func:`~orpheus.derivations.continuous.characteristic.lines.tangency_distances`,
+   the layer term; at the defect, the private ``_impact_rule`` of
+   ``assembly.py``). Theory: :ref:`characteristic-grading-law`.
+
+   **Failure mode:** none of the six AI modes: a numerical-method defect in
+   a **reference**, a feature whose width is set by another coordinate of
+   a tensor rule. A line turning just inside :math:`r_{k+1}` crosses the
+   turning slot, in-plane length :math:`2y`, with transmission
+   :math:`e^{-2\Sigma_k y/s}`, an exponential layer of width
+   :math:`s/(2\Sigma_k)` in :math:`y`. On the sphere :math:`s = 1` and the
+   exponential rim grading resolves it; on the cylinder :math:`s = \sin\theta`
+   and the tensor rule applies the impact rule at every polar angle,
+   down to :math:`\sin\theta_{\min} \approx 10^{-7}`, so the layer is graded
+   at the slowest speed or not at all.
+
+   **What it did.** `[M]` 2026-10-08, the three-region vacuum cylinder at
+   8 line points against Bickley's :math:`\mathrm{Ki}_2` route: on the wall
+   :math:`7.9 \times 10^{-8}` with basis layers 0 (:math:`1.4 \times 10^{-9}`
+   at 16; the test-architect, ``ta/measure_cyl_vac_wall.log``); at the
+   interface :math:`x = 1.5`, :math:`1.0 \times 10^{-6}` and
+   :math:`1.8 \times 10^{-8}` at 8 and 16 (qa, ``qa/p2_cyl.log``).
+
+   **How it hid.** (a) The sphere has :math:`s = 1`, and its exponential
+   rim grading covers the layer; the third rung's cylinder rows are
+   ``slow`` and read totals. (b) Before the reading no gate read a point,
+   and the reading's first cylinder rows sat at :math:`x = 1.1` and on the
+   wall, none on an interior radius, where a point's measure is
+   :math:`\mathrm dy` at the tangency (qa's F2). (c) A first fix graded the layer at
+   the wall only, and a floor placed on every grading distance at the same
+   time (so that no impact node rounded onto a panel top, ERR-106) set the
+   cylinder's grading whatever the layer term said: the elegance review's
+   probe found the rule with the computed rim identical to the rule with
+   rim 0 on 2 of 2 cylinder fixtures, so the wall's improvement was the
+   floor's and the layer term went unexercised.
+
+   **Fix.** The grading law's layer term at every impact-panel top, at the
+   slowest projected speed the rule samples
+   (:ref:`characteristic-grading-law`). `[M]` qa's second round: the
+   interface :math:`1.4 \times 10^{-15}` and :math:`2.2 \times 10^{-16}` at 8
+   and 16 line points; the cost of the reading there 2.3 and 2.6 times the
+   ungraded rule's, accepted until a non-tensor rule grades per polar
+   angle (#587).
+
+   **Caught by:**
+   ``tests/gates/derivations/test_characteristic_reading.py::test_a_small_cylinders_layer_is_graded_outside_slow``,
+   both rows (the interface outside ``slow``, the wall ``slow``). `[M]`
+   2026-10-08: the test-architect's arm removing the layer term reddens the
+   interface row, the one row outside ``slow`` it reddens
+   (``ta/battery/verdicts.md``); the archivist's re-drop of the same arm
+   on the function alone reddens both rows (37 s). The three-region
+   cylinder's interface row, ``test_a_cylinders_interface_point_is_read_to_the_bar``
+   (``slow``), was written as a catcher and has not been re-dropped.
+
+   **Lesson.** ⭐ **In a tensor rule a feature's width can be set by the
+   other coordinate: grade each coordinate at the extreme value the other
+   samples, or make the rule non-tensor; and gate the feature where the
+   point's measure weights it, at every radius, not only the wall.**
+
+.. error-entry:: ERR-106
+   :title: The characteristic reference chorded each line from its stored impact parameter b, known to an ulp, which near a tangency loses the half-chord: a sphere's wall reading under a partial mirror drifted as about 3e-15/(1 − a) at every resolution (6.6e-12 at a = 0.999), and nodes graded below b's resolution made tangent lines the block dropped silently
+
+   **Status:** ✅ **FIXED 2026-10-08** in ``b76b9a9d`` (branch
+   ``feature/characteristic-point-reading``, P1 step (b) rung 5b; #590).
+   The defect was committed in the third rung's line rule (``71a207fa``)
+   and found by the fifth rung: tangent lines on a cylinder by the
+   test-architect, the drift by qa (its F3,
+   ``scratch/characteristic_architecture/p1_step_b5b/qa/p4_near_one.py``,
+   ``p8_b_rounding.py``).
+
+   **Module:** ``orpheus/geometry/chart.py``
+   (:class:`~orpheus.geometry.chart.RadialImage`, its level and
+   :func:`~orpheus.geometry.chart.half_chord`),
+   ``orpheus/geometry/chord.py``
+   (:meth:`ConcentricPartition.chord
+   <orpheus.geometry.chord.ConcentricPartition.chord>`'s ``level``) and
+   ``orpheus/derivations/continuous/characteristic/lines.py``
+   (:class:`~orpheus.derivations.continuous.characteristic.lines.Lines`,
+   which carries each line's level). Theory: :ref:`chart-and-chord-level`.
+
+   **Failure mode:** none of the six AI modes: a representation defect,
+   a quantity known exactly at one stage and rebuilt from a rounded proxy
+   at the next. The impact rule places its nodes in the half-chord
+   :math:`y = \sqrt{r_{k+1}^2 - b^2}` and knows :math:`y` exactly; it
+   derived :math:`b` from :math:`y`, built a line from :math:`b`, and the
+   chord re-formed :math:`\sqrt{(r - b)(r + b)}` from the line's :math:`b`,
+   rounded through the line's moment. Near the tangency
+   :math:`\mathrm dh/\mathrm db = -b/h`, so an ulp of :math:`b` moves the
+   half-chord by about :math:`\epsilon b^2/h`; below
+   :math:`h \approx \sqrt{2r\,\epsilon(r)}`, :math:`b` rounds onto :math:`r`
+   and the line makes no crossing at all.
+
+   **What it did.** `[M]` 2026-10-08, qa (``qa/p4_near_one.log``,
+   ``p8_b_rounding.log``), a homogeneous sphere of radius 2 read on its
+   wall at 8 to 64 line points: :math:`2.8 \times 10^{-12}` to
+   :math:`6.6 \times 10^{-12}` at :math:`a = 0.999`,
+   :math:`1.2 \times 10^{-10}` to :math:`2.8 \times 10^{-10}` at 0.99999,
+   :math:`1.3 \times 10^{-8}` to :math:`4.2 \times 10^{-9}` at 0.999999,
+   not converging in the line points; the rule's own sum of the exact
+   integrand at the exact :math:`y` read :math:`2.2 \times 10^{-16}`, and at
+   the realised :math:`y'` the code's error to two digits;
+   :math:`y'/y - 1` reached :math:`1.4 \times 10^{-2}`. The closure
+   amplifies the half-chord's error by :math:`1/(1 - a)` near the
+   tangency. At the extreme, the test-architect
+   (``ta/measure_cylinder_rim_floor0.log``): on a cylinder under
+   :math:`a = 0.9` and 0.99 graded toward its slowest polar speed, 4 and
+   52 impact nodes rounded onto the wall; their lines were tangent, the
+   block dropped them silently, and the reading refused them.
+
+   **How it hid.** (a) At the gates' albedos the drift is below every band
+   (:math:`3 \times 10^{-15}/(1 - a)` is :math:`7.5 \times 10^{-15}` at
+   0.6). (b) The verification spec attributed the growth with :math:`a`
+   to the closure's rounding amplified by :math:`1/(1 - a)`
+   (`[REFUTED 2026-10-08]` by qa's ``p6`` and ``p8``: :math:`1 - \Pi` by
+   ``expm1`` is exact; the drift is the coordinate). (c) The extreme case
+   was patched first: a floor on every grading distance at
+   :math:`\sqrt{2r\,\epsilon(r)}` times a margin over the first Gauss
+   node's fraction (``_B_MARGIN``) kept nodes off the panel top, and a
+   clamp :math:`\max(c - b, 0)` kept a point's parameters finite. The floor
+   coarsened as the points grew and left the drift (qa's ``p7``: removing
+   it left the drift unchanged).
+
+   **Fix.** A radial line's image carries an exact level, a radius and
+   the half-chord there, and every half-chord is
+   :math:`\sqrt{(r - r_*)(r + r_*) + y_*^2}` (:ref:`chart-and-chord-level`);
+   each node of the impact rule passes its panel top and its own
+   :math:`y`, and a line through a point in a given direction passes
+   :math:`(c, c|\Omega_x|/|P\Omega|)`. The floor, its margin and the clamp
+   are retired. `[M]` 2026-10-08 (``ta/measure_widened.log``): the wall at
+   :math:`a = 0.999` and 0.99999 :math:`1.1 \times 10^{-15}` and
+   :math:`4.4 \times 10^{-16}`; the grazing directions
+   :math:`\mu = \pm 2^{-40}` on the wall, refused before, read to
+   :math:`7.8 \times 10^{-16}`.
+
+   **Caught by:** the rows reddened by the level's removal from the chord
+   (``ta/battery/verdicts.md``, arm ``level-dropped``, every row of each
+   function):
+   ``tests/gates/derivations/test_characteristic_reading.py::test_the_wall_reading_as_the_mirror_tends_to_one_holds_the_bar``,
+   ``tests/gates/derivations/test_characteristic_reading.py::test_a_direction_grazing_the_wall_is_read_through_its_level``,
+   ``tests/gates/geometry/test_chord_level.py::test_a_line_whose_rounded_b_is_the_level_still_crosses_it``
+   and
+   ``tests/gates/geometry/test_chord_level.py::test_the_half_chord_at_the_level_is_the_level_half_chord_exactly``.
+   The same arm reddens the wall row of
+   ``test_the_angular_flux_integrated_over_the_box_is_the_reading``, whose
+   other rows it leaves green, so that function carries no marker.
+
+   **Lesson.** ⭐ **Never rebuild an exact quantity from a rounded proxy
+   of it: when a rule knows a coordinate exactly, carry that coordinate
+   to the consumer, because near a singularity of the map back one ulp of
+   the proxy is the whole quantity.** Here the map back is the half-chord
+   of :math:`b`, with :math:`\mathrm dh/\mathrm db \to \infty` at the
+   tangency.

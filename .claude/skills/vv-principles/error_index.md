@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**103 entries · 355 catching tests · 1 uncaught · 5 dormant.**
+**106 entries · 363 catching tests · 1 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-104` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-104")`.
+Append a `.. error-entry:: ERR-107` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-107")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -137,7 +137,7 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-087 | 1 |  | A per-material cell index spelled ``(Ellipsis, *idx)`` let ``Ellipsis`` absorb the leading axes… |
 | ERR-088 | 1 |  | The first face-transmission algebra of record built its step "control" with diamond's weights,… |
 | ERR-089 | 1 |  | ALPHA_MAP read the pencil's eigenvalue with the power iteration's convention: it returned α = −… |
-| ERR-090 | 3 |  | The multi-region trajectory-resolvent references fitted ONE cubic spline to the emission densit… |
+| ERR-090 | 4 |  | The multi-region trajectory-resolvent references fitted ONE cubic spline to the emission densit… |
 | ERR-091 | 1 |  | Billiard's multi-region-sphere fixed-source arm reported one group and returned group 0 as the… |
 | ERR-092 | 1 |  | V_fn2.1 certified a typo in Sood's Eq 28 (2003 Eq (A.11)) by comparing the derivation with a mi… |
 | ERR-093 | 1 |  | solve_moc's default mesh was the Wigner–Seitz pin cell, whose outer law is white, and MoC links… |
@@ -151,3 +151,6 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-101 | 4 |  | The characteristic reference's rule over lines used fixed resolutions that did not follow the g… |
 | ERR-102 | 3 |  | The characteristic reference formed the white walls' I − Tα by subtraction, so the rounding of… |
 | ERR-103 | 0 |  | The characteristic reference's direction rules were graded toward grazing and not toward the no… |
+| ERR-104 | 2 |  | The characteristic reference's line rule did not grade the impact parameter toward the partial… |
+| ERR-105 | 1 |  | The characteristic reference's cylinder rule did not grade the impact parameter toward the turn… |
+| ERR-106 | 4 |  | The characteristic reference chorded each line from its stored impact parameter b, known to an… |

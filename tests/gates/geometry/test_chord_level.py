@@ -87,6 +87,7 @@ def test_the_default_level_is_heads_arithmetic_bit_for_bit(coord) -> None:
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("coord", [CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL], ids=["sphere", "cylinder"])
+@pytest.mark.catches("ERR-106")
 def test_the_half_chord_at_the_level_is_the_level_half_chord_exactly(coord) -> None:
     """[K1; foundation] ``half_chord_at(level) == level_half_chord`` exactly, for levels at every breakpoint and
     half-chords from 1e-300 to 1: sqrt(fl(y^2)) is y for every y whose square neither underflows nor overflows (a
@@ -108,6 +109,7 @@ def test_the_half_chord_at_the_level_is_the_level_half_chord_exactly(coord) -> N
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("coord", [CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL], ids=["sphere", "cylinder"])
+@pytest.mark.catches("ERR-106")
 def test_a_line_whose_rounded_b_is_the_level_still_crosses_it(coord) -> None:
     """[K3; foundation] A line grazing the wall with half-chord y in {1e-9, 1e-12, 1e-15}: its stored b loses y (the
     default image's half-chord at R is off by orders of magnitude, or absent where b rounds onto R: the premise,

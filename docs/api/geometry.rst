@@ -292,7 +292,9 @@ from its kept columns and its linear group: the orbit coordinate, the
 membership of a rigid motion in :math:`G_c`, the singular strata, the
 measure, the projected speed :math:`|P\Omega|`, the density of the
 measure on lines, the image of a line in the orbit space
-(:class:`~orpheus.geometry.chart.RadialImage` or
+(:class:`~orpheus.geometry.chart.RadialImage`, which forms every
+half-chord from its exact level by
+:func:`~orpheus.geometry.chart.half_chord`, or
 :class:`~orpheus.geometry.chart.AxialImage`), and the directions at a
 point, :meth:`~orpheus.geometry.chart.Chart.directions_at`: a
 :class:`~orpheus.geometry.chart.DirectionDomain`, the box of
@@ -313,7 +315,8 @@ oriented lines in Plücker coordinates.
 from a :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
 by :meth:`~orpheus.geometry.chord.ConcentricPartition.of`; its
 :meth:`~orpheus.geometry.chord.ConcentricPartition.chord` returns a
-:class:`~orpheus.geometry.chord.Chord` (slots, lengths, crossings, and
+:class:`~orpheus.geometry.chord.Chord` of each line, given each line's
+exact level where the caller knows it (slots, lengths, crossings, and
 :attr:`~orpheus.geometry.chord.Chord.transits`, the
 :class:`~orpheus.geometry.chord.Transits` of each line, its maximal runs
 inside the domain with their walls) and its
