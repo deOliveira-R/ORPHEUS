@@ -1051,3 +1051,41 @@ The acceptance in #586: a τ = 30 two-group block in under a minute at the gates
 - **A fixed piece budget meets a cost distribution that the grading changes.** Order the lines by cost and re-measure the budget whenever a grading changes.
 - **A battery restarted by every production change multiplies its runtime.** Freeze production before the battery, and scope each arm to the rows it can redden.
 
+
+## #586 landed — the cylinder's cost (2026-10-07)
+
+**The premise was refuted** for the question "what makes the cylinder slow". `[M]` A profile at 8 points, on a sixteenth of the lines, put 78-82 % of the time in `PanelBasis.values`. Of those calls, 98 % came from the Volterra triangle's inner rule (`TraversalRule._attenuated`). That rule was padded to the batch's thickest stretch: 4.2× the live evaluations on the three-region cylinder and 6.1× at τ = 30. The fact this establishes: the line count of the tensor (b, θ) rule was never the leading cost.
+
+**The user's ruling** (2026-10-07): fix the evaluation first and re-measure. The line rule was to be touched only if the τ = 30 two-group block was still over a minute. It was not.
+
+**What landed** (`refactor/characteristic-line-cost`):
+- `95d1a511`:
+  - `_Packing` packs each line's live entries; `_pieces` and `_attenuated` share it.
+  - `_LagrangeTables` are built once.
+  - The rule is unchanged: the blocks are bit-identical, or differ by ≤ 2.7e-17 relative from summation order (qa).
+- `1d94790e`:
+  - The slow tier is restored per the user's ruling: the thick cylinder legs at τ = 30 and 100 at 16 points, which catch ERR-101, and the three-region cylinder's second group at 8 points. The tier is now 20 rows in 36 min 27 s.
+  - Fixed `_flat`, which failed on empty reads.
+- `3a852eb0`: the theory page, section `characteristic-cylinder-cost`.
+
+**Times `[M]`** (one process per run, budget 1024, which is still the fastest):
+
+| cylinder | before | after |
+|---|---|---|
+| τ = 30, per group, 8 points | about 215 s on an idle machine | 27.8 s |
+| τ = 30, per group, 16 points | — | 102 s |
+| τ = 0.01 | 57 s | 15.6 s |
+| three regions, 8 points | 723 s | 175 s |
+| three regions, 16 points | — | 792 s |
+
+**Filed:** #587, the non-tensor rule. It is now only the lever for the three-region cylinder at 16 points.
+
+**Lesson:** profile before choosing among an issue's candidates. All three of #586's candidates assumed that the line count was the cost; one cProfile run read the cost directly.
+
+## ⏸ STOP POINT — 2026-10-07, #586 merged, rung 4 next
+
+**State:** read it from git. Rungs 1 to 3 and #586 are merged.
+
+**Next: rung 4.** The emission S and the fission F, the pencil, and the questions on it. The open question from the rung-3 sketch: one shared emission support across groups. Read the rung-3 API sketch and the "what the package does not compute" list on the theory page first. Cost to plan with: a three-region, two-group cylinder block at 8 points takes about 6 minutes.
+
+**Open issues:** #584 (the twin of `compute_areas_1d`), #585 (a slab far from the origin), #587 (the non-tensor rule).
