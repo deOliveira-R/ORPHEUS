@@ -1228,7 +1228,9 @@ The closed-form infinite-medium eigenvalue is
 :math:`A = \mathrm{diag}(\Sigma_t) - (\Sigma_{s0} + 2\Sigma_{2n})^{\mathsf T}`
 and :math:`F = \chi \otimes \nu\Sigma_f`
 (:func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`,
-``orpheus/derivations/common/eigenvalue.py:59-63`` — a
+whose emission matrices :math:`(\Sigma_{s0} + 2\Sigma_{2n})^{\mathsf T}` and
+:math:`\chi \otimes \nu\Sigma_f` are assembled by
+:func:`~orpheus.derivations.common.eigenvalue.group_emission` — a
 structurally-independent reference: it is assembled from the tabulated
 cross sections, not from any solver's operators).  ``[M]``:
 

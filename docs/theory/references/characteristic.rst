@@ -17,9 +17,9 @@ The characteristic reference — transport along the lines of a concentric body
    .. code-block:: yaml
 
       module: derivations
-      concept: characteristic reference, boundary resolvent, walls, line period, line closure, panel basis, even basis at a singular stratum, traversal integrals, Volterra block, hp grading, Galerkin assembly over lines, line rule, white-wall coupling
-      role: "the closed reference that integrates transport along the lines of a 1-D concentric body (slab, cylinder, sphere, solid or hollow); this page holds its walls (each boundary point with what its law returns, read from the law's factors), the line part of its boundary resolvent (the period of each line's unfolded path and the least solution of its cycle, with an arriving flux), its panel basis (even at a singular stratum) and the transport along one line on that basis (the traversal integrals, the vacuum Volterra block and the angular flux), and one group's transport block: the Galerkin assembly over the lines of the chart's line domain, the white walls' coupling, and the line rule graded from the group's optical scale"
-      code: [orpheus.derivations.continuous.characteristic.walls, orpheus.derivations.continuous.characteristic.closure, orpheus.derivations.continuous.characteristic.basis, orpheus.derivations.continuous.characteristic.transport, orpheus.derivations.continuous.characteristic.assembly, orpheus.derivations.continuous.characteristic.grading]
+      concept: characteristic reference, boundary resolvent, walls, line period, line closure, panel basis, even basis at a singular stratum, traversal integrals, Volterra block, hp grading, Galerkin assembly over lines, line rule, white-wall coupling, region cross sections, emission support, multigroup Galerkin system, emission space, k pencil, source pencil, adjoint flux, one-group Rayleigh-Ritz bound
+      role: "the closed reference that integrates transport along the lines of a 1-D concentric body (slab, cylinder, sphere, solid or hollow); this page holds its walls (each boundary point with what its law returns, read from the law's factors), the line part of its boundary resolvent (the period of each line's unfolded path and the least solution of its cycle, with an arriving flux), its panel basis (even at a singular stratum) and the transport along one line on that basis (the traversal integrals, the vacuum Volterra block and the angular flux), and one group's transport block: the Galerkin assembly over the lines of the chart's line domain, the white walls' coupling, and the line rule graded from the group's optical scale; and the multigroup Galerkin system on the emission density (the cross sections per region, each group's exact emission support, the k pencil and the source pencil, the adjoint flux by transposition, the one-group Rayleigh-Ritz bound)"
+      code: [orpheus.derivations.continuous.characteristic.walls, orpheus.derivations.continuous.characteristic.closure, orpheus.derivations.continuous.characteristic.basis, orpheus.derivations.continuous.characteristic.transport, orpheus.derivations.continuous.characteristic.assembly, orpheus.derivations.continuous.characteristic.grading, orpheus.derivations.continuous.characteristic.cross_sections, orpheus.derivations.continuous.characteristic.system, orpheus.derivations.common.eigenvalue]
       depends_on: [chart_and_chord, boundary_conditions, reference_solutions]
       related: [trajectory_resolvent, layering]
 
@@ -32,7 +32,7 @@ Key facts
   the body's lines: :mod:`orpheus.derivations.continuous.characteristic`.
   It is built rung by rung beside the trajectory-resolvent family
   (:ref:`theory-trajectory-resolvent`), the family it is built to
-  replace. Three rungs exist. The first is the **walls**
+  replace. Four rungs exist. The first is the **walls**
   (:mod:`~orpheus.derivations.continuous.characteristic.walls`) and the
   **line part of the boundary closure**
   (:mod:`~orpheus.derivations.continuous.characteristic.closure`); the
@@ -43,9 +43,13 @@ Key facts
   third is **one group's transport block**, assembled over the lines
   (:mod:`~orpheus.derivations.continuous.characteristic.assembly`, with
   its gradings in
-  :mod:`~orpheus.derivations.continuous.characteristic.grading`). The
-  package answers no eigenvalue and no flux yet: there are no emission
-  matrices, no pencil, no question and no reading at a point
+  :mod:`~orpheus.derivations.continuous.characteristic.grading`); the
+  fourth is the **multigroup Galerkin system**
+  (:mod:`~orpheus.derivations.continuous.characteristic.cross_sections`
+  and :mod:`~orpheus.derivations.continuous.characteristic.system`),
+  which answers the eigen and source questions in nodal coefficients.
+  There is no reading at a point, no question value of the interface
+  vocabulary and no projection of a mesh-free source yet
   (:ref:`characteristic-what-is-not-built`).
 - **The boundary resolvent has two parts, and both are built.** The
   closure of a reflecting boundary is :math:`P = P_0 + E\,(I - T)^{-1} X`
@@ -126,8 +130,8 @@ Key facts
   :math:`4\pi` (:eq:`geometry-line-domain`), so that :math:`K` is the
   scalar-flux operator of an isotropic emission and a closed homogeneous
   body satisfies :math:`K\Sigma_t\mathbf 1 = W\mathbf 1`. Its rows cover
-  every panel and its columns the **emission support**, the regions that
-  emit (:ref:`characteristic-galerkin-assembly-section`).
+  every panel and its columns the group's **emission support**
+  (:ref:`characteristic-galerkin-assembly-section`).
 - **The white walls couple through**
   :math:`R\,\alpha\,(I - T\alpha)^{-1}U^{\mathsf T}`
   (:eq:`characteristic-boundary-resolvent`), with reciprocity
@@ -152,6 +156,34 @@ Key facts
   the inner rule's padding, not that count: packing each line's live
   intervals brought the white block to 27.8 s per group, from about
   215 s (`[M]` 2026-10-07, #586, :ref:`characteristic-cylinder-cost`).
+- **The multigroup system's unknown is the emission density** on each
+  group's support, not the flux
+  (:eq:`characteristic-pencil`): :math:`W_s q = (S + F/k)Kq + W_s q^{\rm ext}`,
+  with the flux read as :math:`W_G\phi = Kq`. :math:`S` and :math:`F` act
+  node by node, exactly, because the cross sections are constant on a
+  region and no panel crosses one. The emission form is chosen for its
+  adjoint: the transpose of the flux form :math:`\phi = \mathcal KE\phi`
+  is the adjoint collision density :math:`E^\ast\phi^\dagger`, while the
+  transpose of :math:`q = E\mathcal Kq` is the adjoint flux
+  :math:`\phi^\dagger = \mathcal KE^\ast\phi^\dagger` itself
+  (:eq:`characteristic-adjoint`; measured group ratios 2.147 against
+  1.073, the user's ruling of 2026-10-07,
+  :ref:`characteristic-galerkin-system`).
+- **Each group's emission support is exact**: the regions where a
+  scattering, an (n,2n) transfer or a fission enters the group, widened by
+  the posed source regions. :math:`\Sigma_t > 0` drops a transparent
+  region's emission (a balance off by :math:`2 \times 10^{-1}`), and the
+  union over groups puts a source on lossless trapped lines behind a
+  mirror (refused although well posed).
+- **One operator, two splittings.** The k pencil
+  :math:`(W_s - SK, FK)` answers the eigen questions and their adjoints;
+  the source pencil :math:`(W_s, (S + F)K)` answers the fixed source and
+  the detector (:eq:`characteristic-fixed-source`), so that its
+  subcriticality check sees every secondary emission and refuses a body
+  supercritical by its (n,2n) emission alone, which the k pencil would
+  solve into a negative flux. In one group the Galerkin :math:`k` is a
+  Rayleigh–Ritz lower bound, increasing on nested spaces
+  (:eq:`characteristic-one-group-bound`).
 - **Evidence** `[M]` 2026-10-06 and 2026-10-07: for the walls and the
   closure, 175 gate rows in two files and a 34-arm mutation battery; for
   the basis and the transport, 328 rows in two more files, the traversal
@@ -159,7 +191,8 @@ Key facts
   cases) in three files, 37 earlier rows re-posed, and a 54-arm battery in
   which 52 arms redden their target rows and 2 are declared blind. The
   battery's honest run over the seven files without the ``slow`` rows:
-  754 passed (:ref:`characteristic-evidence`).
+  754 passed; for the fourth rung, 80 rows in 22 functions, 78 outside
+  ``slow`` passed (:ref:`characteristic-evidence`).
 
 
 .. _characteristic-place:
@@ -2275,13 +2308,17 @@ The emission support
 --------------------
 
 The columns of :math:`K` are the basis functions of the regions that
-emit, by default those with :math:`\Sigma_t > 0`, or the regions of a
-mask the caller passes (``transport(..., support=...)``);
+emit in the group: the regions of a mask the caller passes
+(``transport(..., support=...)``), which the multigroup system sets to the
+group's exact emission support (:ref:`characteristic-galerkin-system`),
+and by default, for a block assembled on its own, those with
+:math:`\Sigma_t > 0`;
 ``GroupTransport.support`` holds their indices. The rows run over every panel, so the flux is read
 everywhere, and the block is rectangular, :math:`N \times M`.
 
-**Why the columns stop at the emission.** A basis function on a void
-panel is a source in a region that never emits. Under a mirror it is
+**Why the columns stop at the emission.** A basis function on a panel
+where nothing is emitted into the group is a source in a region that never
+emits in it. Under a mirror it is
 worse than useless: a line that stays in an outer void shell behind a
 mirror is a lossless trapped line, and a source on it has no finite flux
 (:ref:`characteristic-closure-section`), so the full block of such a body
@@ -2293,19 +2330,20 @@ mirror of amplitude 1 the full block raises
 while the block on the emission support equals the block of the body
 without the layer to :math:`5.4 \times 10^{-17}`
 (``test_a_void_outer_layer_is_invisible_on_the_emission_support``). The
-main agent took this decision while building (not a user ruling), bringing
-forward the P1 sketch's item 6, under which a void region never gets an
-emission column. The rows stay full because the white walls' response
+main agent took this decision while building the third rung (not a user
+ruling); the fourth rung's ruling made the support exact per group. The rows stay full because the white walls' response
 :math:`R` must be read on every panel; its reciprocal partner :math:`U`
 lives on the support only, which is why :math:`R` is computed directly and
 the reciprocity :math:`R = U D^{-1}` is gated rather than assumed (the
 elegance review withdrew its objection to the two tallies on that
 ground).
 
-**Open for the fourth rung.** Each group's default support is its own
-:math:`\Sigma_t > 0`, so two groups can have different column sets; the
-pencil of the fourth rung needs one shared emission support (the union
-over the groups, or the regions with any scattering, fission or source).
+A region void in the group that does receive emission into it (another
+group scatters or fissions into it there) gets a column; behind a mirror
+the lines trapped in it then carry a source, and the block is refused,
+because that flux is infinite. Why the support is neither each group's
+:math:`\Sigma_t > 0` nor one set shared by every group is in
+:ref:`characteristic-galerkin-system`.
 
 The tallies, in one pass
 ------------------------
@@ -3258,9 +3296,633 @@ restoration. The two thick legs miss the transmission :math:`T_w` by
 :math:`2.6 \times 10^{-11}` at 16 points (band :math:`3 \times 10^{-10}`),
 and both redden when the rim grading is removed, so they catch ERR-101.
 
-The fourth rung's re-pointing step needs two-group cylinder references;
+The migration's re-pointing step needs two-group cylinder references;
 `[R]` from the table, a three-region two-group block at 8 points costs
 about 6 minutes.
+
+
+.. _characteristic-galerkin-system:
+
+The multigroup Galerkin system
+==============================
+
+The fourth rung turns the per-group transport blocks of the third rung
+into the multigroup problem and answers its questions in nodal
+coefficients:
+:class:`~orpheus.derivations.continuous.characteristic.system.GalerkinSystem`
+(:mod:`~orpheus.derivations.continuous.characteristic.system`) on the
+cross sections of
+:class:`~orpheus.derivations.continuous.characteristic.cross_sections.RegionCrossSections`
+(:mod:`~orpheus.derivations.continuous.characteristic.cross_sections`),
+whose emission matrices come from
+``group_emission`` (in ``orpheus.derivations.common.eigenvalue``). It gives
+the fundamental mode and the higher modes of the k eigenproblem, their
+adjoints, the flux of a fixed source and the adjoint flux of a detector.
+The design is the plan's "P1 step (b), fourth rung: API sketch", ruled by
+the user on 2026-10-07 (four questions, all as recommended), with the
+unknown changed the same day from the flux to the emission density after
+a measurement ("the flux-form adjoint refuted", below). The sources, the
+detectors and the questions are nodal coefficients on the panel basis;
+the question values of the interface vocabulary and the projection of a
+mesh-free source onto the basis belong to the fifth rung
+(:ref:`characteristic-what-is-not-built`).
+
+The cross sections and the emission matrices
+--------------------------------------------
+
+Per region :math:`r` and for :math:`G` groups, the system reads three
+arrays, each indexed ``[region, to, from]`` where it is a matrix:
+
+.. math::
+
+   \Sigma_t(r) \in \mathbb R^{G}, \qquad
+   S(r) = \bigl(\Sigma_s(r) + 2\Sigma_2(r)\bigr)^{\mathsf T}, \qquad
+   F(r) = \chi(r) \otimes \nu\Sigma_f(r),
+
+with :math:`\Sigma_s` and :math:`\Sigma_2` the isotropic (Legendre order
+0) scattering and (n,2n) transfer tables of the mixture, stored
+``[from, to]``, so that the transpose puts them ``[to, from]``; the
+factor 2 is the two neutrons an (n,2n) reaction emits. The two emission
+matrices have one assembly site,
+``group_emission``, which
+returns them as a ``GroupEmission(scattering, fission)``. The
+infinite-medium pair of :ref:`theory-homogeneous` reads the same
+site, :math:`A = \mathrm{diag}(\Sigma_t) - S` and :math:`F`, so the
+characteristic reference and the 0-D reference cannot disagree on the
+emission; the re-expression of ``_infinite_medium_matrices`` keeps its
+three floating-point operations in their order (one add, one transpose,
+one subtraction from the diagonal), so the 0-D values are bitwise
+unchanged. The (n,2n) multiplicity literal moved with the emission, and
+the census of that literal
+(``tests/gates/transport/test_n2n_multiplicity_census.py``,
+``_REFERENCE_LITERALS``) names ``group_emission`` as the reference site.
+
+**Why the emission is read on its own.** The transport block of a group
+already carries :math:`\Sigma_t` (:ref:`characteristic-galerkin-assembly-section`),
+so the system needs the emission alone. Reading it back out of the 0-D
+loss matrix by subtracting the diagonal would form :math:`\Sigma_t -
+(\Sigma_t - \Sigma_{s,gg})`, a cancellation, and would tie the system to
+the loss matrix's spelling; the user ruled on 2026-10-06 (Q4 of the third
+rung) that the emission is split out instead.
+
+**The door is the mixtures.**
+:meth:`RegionCrossSections.of
+<orpheus.derivations.continuous.characteristic.cross_sections.RegionCrossSections.of>`
+reads one :class:`~orpheus.data.macro_xs.mixture.Mixture` per region
+(``SigT``, ``SigS[0]``, ``Sig2[0]``, ``SigP`` for :math:`\nu\Sigma_f`,
+``chi``) through ``group_emission``. The mixture is the input boundary
+that checks the data's physics (the balance, the fission spectrum); the
+direct constructor checks shapes, finiteness and signs only, and stores
+read-only arrays. ``of`` refuses a mixture whose ``SigS`` or ``Sig2``
+has a non-zero block at a Legendre order :math:`\ge 1`, naming the region
+and the order (``NotImplementedError``): anisotropic emission needs an
+angular basis on each line, which the reference does not have. The
+refusal is a declared scope boundary read at the mixtures, the one door
+(the user's ruling of 2026-10-07, Q2 of the fourth rung); a stack
+carrying an all-zero higher block is admitted.
+
+The emission support, per group and exact
+-----------------------------------------
+
+The emission density of group :math:`g` can be non-zero only where
+something is emitted into :math:`g`. The **emission support** of group
+:math:`g` is the set of regions
+
+.. math::
+
+   \mathrm{supp}_g \;=\; \bigl\{\, r : S(r)_{g,\cdot} \ne 0
+   \ \text{or}\ F(r)_{g,\cdot} \ne 0 \,\bigr\}
+   \;\cup\; \{\, r : \text{a source of group } g \text{ is posed in } r \,\},
+
+read by
+:meth:`RegionCrossSections.emission_support
+<orpheus.derivations.continuous.characteristic.cross_sections.RegionCrossSections.emission_support>`
+(a region-major ``(n, G)`` mask: a non-zero row ``scattering[r, g, :]``
+or ``fission[r, g, :]``) and widened by the system's ``source_regions``,
+a mask of the same orientation. The columns of group :math:`g`'s block are
+the basis functions of :math:`\mathrm{supp}_g`, and the column sets differ
+by group. A fissile region whose :math:`\chi` is zero in a group emits in
+that group only by scattering: the fission row is zero there, and the
+support is read from the scattering. This is the user's ruling of
+2026-10-07 (Q1 of the fourth rung), over two alternatives that both fail
+on a body the gates pose:
+
+- **Each group's** :math:`\Sigma_t > 0` (the third rung's default) drops a
+  region transparent in :math:`g` that receives emission into :math:`g`:
+  the region has no column, and its emission is lost without a message.
+  `[M]` 2026-10-07, the test-architect (``ta/m4_support.py``): an inner
+  region transparent in group 1 that scatters from group 0 into it,
+  inside an absorbing, scattering shell, with a group-0 source; the
+  absorption balances the source to :math:`-2.2 \times 10^{-2}` on the
+  mirror sphere and :math:`-2.0 \times 10^{-1}` on the slab between
+  mirrors under the :math:`\Sigma_t > 0` support, and to
+  :math:`4.9 \times 10^{-15}`, :math:`2.2 \times 10^{-16}` and
+  :math:`5.1 \times 10^{-15}` (the mirror sphere, the slab, the white
+  sphere) under the exact one.
+- **The union over groups** assembles columns whose emission is
+  identically zero, and on a region void in :math:`g` behind a mirror such
+  a column is a source on lossless trapped lines
+  (:ref:`characteristic-closure-section`): the block is refused with
+  :class:`~orpheus.derivations.continuous.characteristic.closure.TrappedSource`
+  although the problem is well posed. `[M]` 2026-10-07, the archivist's
+  probe (``archivist_rung4_numbers.py``, the session scratchpad), the same
+  sphere with an outer layer void in group 1 that emits in group 0 only,
+  under a mirror: the exact support (``[[1, 1], [1, 1], [1, 0]]``, 52 and
+  32 coefficients) is answered, and the union support is refused with
+  "a source on a lossless trapped line". Only the mirror sphere
+  discriminates: the lines whose impact parameter exceeds the material's
+  radius stay in the layer, lossless in group 1; on the slab and on the
+  white sphere a column there is not refused (the test-architect's
+  ``m4_support``).
+
+The default of :meth:`LineRule.transport
+<orpheus.derivations.continuous.characteristic.assembly.LineRule.transport>`,
+:math:`\Sigma_t > 0`, serves a block assembled on its own, where no
+emission is known; the system always passes each group's exact support.
+
+**A field off the support is refused.** The emission space has no
+coefficient there, so a source with a non-zero coefficient outside its
+group's support would be dropped:
+:meth:`EmissionSpace.restrict
+<orpheus.derivations.continuous.characteristic.system.EmissionSpace.restrict>`
+refuses it, naming the regions by group, and the caller poses the system
+with those regions in ``source_regions``. The mask is region-major,
+as the cross sections; a group-major mask is refused by its shape when
+:math:`n \ne G`, and with :math:`n = G` no shape can see a transposed
+mask, which is why the orientation is one convention for every
+``(n, G)`` array of the package (the elegance review's finding C1, which
+measured the transposed mask posing the wrong regions with
+:math:`n = G = 2`).
+
+The weak form on the emission density, derived
+----------------------------------------------
+
+Write :math:`\mathcal K_g` for the scalar-flux operator of an isotropic
+emission in group :math:`g`, the operator whose Galerkin matrix is the
+transport block (:eq:`characteristic-galerkin-assembly`), and
+:math:`E(k) = S + F/k` for the emission per unit flux, acting point by
+point with the region's matrices. The multigroup eigenproblem with an
+external source :math:`q^{\rm ext}` is
+
+.. math::
+
+   \phi_g = \mathcal K_g q_g, \qquad
+   q_g = \sum_{g'} S_{g \leftarrow g'}\,\phi_{g'}
+   + \frac{1}{k}\sum_{g'} F_{g \leftarrow g'}\,\phi_{g'} + q^{\rm ext}_g ,
+
+and eliminating the flux leaves an equation for the emission density
+alone,
+
+.. math::
+
+   q \;=\; E(k)\,\mathcal K q \;+\; q^{\rm ext}.
+
+**The trial space.** The emission of group :math:`g` vanishes off
+:math:`\mathrm{supp}_g`, so it is expanded in the basis functions there,
+:math:`q_g = \sum_{j \in \mathrm{supp}_g} q_{g,j}\,u_j` (``M_g`` of them;
+:math:`M = \sum_g M_g` in all). The flux is expanded on every basis
+function, :math:`\phi_g = \sum_i \phi_{g,i}\,u_i`, and fixed by testing
+:math:`\phi_g = \mathcal K_g q_g` against every :math:`u_i`:
+
+.. math::
+
+   \sum_{i'} W_{i i'}\,\phi_{g,i'} \;=\; \sum_{j \in \mathrm{supp}_g} K_g[i, j]\, q_{g,j},
+   \qquad\text{that is}\qquad W_G\,\phi = K q ,
+
+with :math:`W` the mass matrix of the basis, :math:`W_G = I_G \otimes W`,
+and :math:`K = \mathrm{blockdiag}(K_g)` of shape :math:`GN \times M`
+(:meth:`GalerkinSystem.flux
+<orpheus.derivations.continuous.characteristic.system.GalerkinSystem.flux>`).
+
+**Testing the emission equation.** Test
+:math:`q = E\mathcal K q + q^{\rm ext}` against :math:`u_i` for
+:math:`i \in \mathrm{supp}_g`. The left side gives
+:math:`\sum_{j} W_{ij}\,q_{g,j}`, the mass matrix restricted to the
+support. On the right, :math:`u_i` lives on one panel, no panel crosses a
+region, and the cross sections are constant on a region, so
+:math:`E_{g g'}` is a constant on the support of :math:`u_i` and leaves the
+integral:
+
+.. math::
+
+   \bigl\langle u_i, (E\,\mathcal K q)_g \bigr\rangle
+   \;=\; \sum_{g'} E_{g g'}\bigl(r(i)\bigr)\,\bigl\langle u_i, \mathcal K_{g'} q_{g'} \bigr\rangle
+   \;=\; \sum_{g'} E_{g g'}\bigl(r(i)\bigr) \sum_{j \in \mathrm{supp}_{g'}} K_{g'}[i, j]\, q_{g', j},
+
+with :math:`r(i)` the region of node :math:`i`. The step is exact: the
+emission acts node by node and adds no projection error. The row
+:math:`i` of :math:`K_{g'}` is read whether or not :math:`i` lies in
+:math:`\mathrm{supp}_{g'}`, which is why the blocks' rows span every
+panel. Collecting the rows gives the Galerkin system of the emission:
+
+.. math::
+   :label: characteristic-pencil
+
+   W_s\, q \;=\; \Bigl(S + \frac{1}{k}F\Bigr) K q \;+\; W_s\, q^{\rm ext},
+   \qquad
+   W_G\,\phi \;=\; K q ,
+   \qquad
+   W_s = R\,W_G\,R^{\mathsf T},
+   \quad
+   S = R\,E_{\rm node}(\Sigma_s + 2\Sigma_2),
+   \quad
+   F = R\,E_{\rm node}(\chi \otimes \nu\Sigma_f),
+
+where :math:`R` (:math:`M \times GN`, a 0/1 selection) restricts a field to
+the emission space, group-major, and :math:`E_{\rm node}(e)` is the
+:math:`GN \times GN` matrix whose block :math:`(g, g')` is
+:math:`\mathrm{diag}_i\, e[r(i), g, g']`: the per-region table placed at
+every node. :math:`S` and :math:`F` are :math:`M \times GN`. The k
+eigenproblem is the pencil :math:`(W_s - SK,\; FK)` of the source-free
+equation, :math:`F K q = k\,(W_s - S K)\,q`
+(:attr:`GalerkinSystem.pencil
+<orpheus.derivations.continuous.characteristic.system.GalerkinSystem.pencil>`,
+on :class:`~orpheus.derivations.common.dense_pencil.DensePencil`): its
+fundamental mode, its higher modes (``pencil.spectrum()``) and, by
+transposition, their adjoints.
+
+.. implements:: characteristic-pencil
+   :by: orpheus.derivations.continuous.characteristic.system.GalerkinSystem.pencil
+
+   **Implemented by** the system's matrices: ``emission_mass``
+   (:math:`W_s`), ``transport`` (:math:`K`), ``scattering`` and
+   ``fission`` (:math:`S`, :math:`F`, through ``_per_node``), ``flux``
+   (:math:`W_G\phi = Kq`), the restriction
+   ``EmissionSpace.restriction`` (:math:`R`), and the per-region tables of
+   ``RegionCrossSections.of`` through ``group_emission``.
+
+.. implements:: characteristic-pencil
+   :by: orpheus.derivations.continuous.characteristic.system.GalerkinSystem.emission_mass
+
+.. implements:: characteristic-pencil
+   :by: orpheus.derivations.continuous.characteristic.system.GalerkinSystem.transport
+
+.. implements:: characteristic-pencil
+   :by: orpheus.derivations.continuous.characteristic.system.GalerkinSystem.scattering
+
+.. implements:: characteristic-pencil
+   :by: orpheus.derivations.continuous.characteristic.system.GalerkinSystem.fission
+
+.. implements:: characteristic-pencil
+   :by: orpheus.derivations.continuous.characteristic.system.GalerkinSystem.flux
+
+.. implements:: characteristic-pencil
+   :by: orpheus.derivations.continuous.characteristic.system.EmissionSpace.restriction
+
+.. implements:: characteristic-pencil
+   :by: orpheus.derivations.continuous.characteristic.cross_sections.RegionCrossSections.of
+
+.. implements:: characteristic-pencil
+   :by: orpheus.derivations.common.eigenvalue.group_emission
+
+**The flux form has the same eigenvalues and the same flux.** Writing the
+unknown as the flux instead, :math:`W_G\phi = K(S + F/k)\phi + K q^{\rm ext}`,
+the pencil :math:`(W_G - KS,\; KF)` of size :math:`GN`, is the same
+problem: put :math:`q = (S + F/k)\phi` and use that :math:`E_{\rm node}`
+commutes with :math:`W` panel by panel (both act within a panel, and
+:math:`E` is constant there), so :math:`W_s (S + F/k)\phi = (S + F/k) W_G
+\phi`. `[M]` 2026-10-07, the main agent's ``main/qform.py``, re-run by the
+archivist on the built code (a two-group, two-region mirror sphere with
+upscatter, :math:`\Sigma_t = (1, 2)`, degree 3, 8 line points, 12 along
+each line): the two forms' :math:`k` agree to :math:`4.4 \times 10^{-16}`
+and the flux the emission form gives, :math:`W_G^{-1} K q`, equals the
+flux form's mode to :math:`3.2 \times 10^{-15}`. The emission form is
+smaller (:math:`M \le GN`; equal on a closed body where every group emits
+everywhere). Where the two differ is the adjoint.
+
+Why the unknown is the emission: the adjoint
+--------------------------------------------
+
+:meth:`DensePencil.adjoint
+<orpheus.derivations.common.dense_pencil.DensePencil.adjoint>` returns the
+transposed pair, which is the Galerkin matrix of the adjoint of whatever
+operator equation the pencil poses (:ref:`verification-reference-kernel`).
+So the question is which equation is posed. The transport operator of an
+isotropic emission is self-adjoint by reciprocity, :math:`\mathcal K^\ast =
+\mathcal K` in :math:`L^2`, and the emission's adjoint is its transpose
+per point, :math:`E^\ast = S^{\mathsf T} + F^{\mathsf T}/k`.
+
+- **The flux form** poses :math:`\phi = \mathcal K E\,\phi`. Its adjoint is
+  :math:`\psi = E^\ast \mathcal K\,\psi`, and that is not the adjoint flux.
+  The adjoint flux :math:`\phi^\dagger` (the importance) solves
+  :math:`\phi^\dagger = \mathcal K E^\ast \phi^\dagger`; applying
+  :math:`E^\ast` gives :math:`E^\ast\phi^\dagger = E^\ast \mathcal K
+  (E^\ast\phi^\dagger)`, so the flux form's adjoint eigenvector is
+  :math:`\psi = E^\ast\phi^\dagger`, the adjoint collision density. In an
+  infinite medium :math:`A^{\mathsf T}\phi^\dagger = F^{\mathsf
+  T}\phi^\dagger/k` with :math:`A = \mathrm{diag}(\Sigma_t) - S`, so
+  :math:`E^\ast\phi^\dagger = \Sigma_t\,\phi^\dagger`: the transpose reads
+  the importance multiplied group by group by :math:`\Sigma_t`.
+- **The emission form** poses :math:`q = E\,\mathcal K q`. Its adjoint is
+  :math:`\phi^\dagger = \mathcal K^\ast E^\ast \phi^\dagger = \mathcal K
+  E^\ast \phi^\dagger`: the adjoint flux itself.
+
+.. math::
+   :label: characteristic-adjoint
+
+   \phi^\dagger = \mathcal K E^\ast \phi^\dagger
+   \quad\Longrightarrow\quad
+   W_s\,\phi^\dagger \;=\; K^{\mathsf T}\Bigl(S + \frac{1}{k}F\Bigr)^{\mathsf T}\phi^\dagger ,
+
+the transposed pencil :math:`\bigl((W_s - SK)^{\mathsf T}, (FK)^{\mathsf
+T}\bigr)` = ``pencil.adjoint()``, its unknown the coefficients of
+:math:`\phi^\dagger` on the emission space.
+
+.. implements:: characteristic-adjoint
+   :by: orpheus.derivations.continuous.characteristic.system.GalerkinSystem.pencil
+
+   **Implemented by** ``GalerkinSystem.pencil`` read through the kernel's
+   ``DensePencil.adjoint``, and by ``GalerkinSystem.response``, the
+   adjoint of the source pencil.
+
+.. implements:: characteristic-adjoint
+   :by: orpheus.derivations.common.dense_pencil.DensePencil.adjoint
+
+.. implements:: characteristic-adjoint
+   :by: orpheus.derivations.continuous.characteristic.system.GalerkinSystem.response
+
+**Why the transposed matrix is that Galerkin form.** Transpose the right
+side of :eq:`characteristic-pencil`:
+:math:`\bigl((S + F/k) K\bigr)^{\mathsf T} = K^{\mathsf T} (S + F/k)^{\mathsf T}`.
+
+1. :math:`(S + F/k)^{\mathsf T}` takes coefficients on the emission
+   space to a field on every node: at node :math:`i` of group :math:`g'`
+   it is :math:`\sum_g E_{g g'}(r(i))\,\phi^\dagger_{g,i}`, the adjoint
+   emission :math:`E^\ast\phi^\dagger` node by node (zero where no group
+   has a coefficient).
+2. :math:`K^{\mathsf T}` takes a field :math:`y` on every node to
+   :math:`\sum_i K_{g'}[i, b]\,y_{g',i}` at the support node :math:`b` of
+   group :math:`g'`. By reciprocity :math:`K_{g'}[i, b] = \langle u_i,
+   \mathcal K u_b\rangle = \langle u_b, \mathcal K u_i\rangle`, so this is
+   :math:`\langle u_b, \mathcal K_{g'} y_{g'}\rangle`, the Galerkin test of
+   :math:`\mathcal K y` against the support's functions. For a node
+   :math:`i` off :math:`\mathrm{supp}_{g'}` the entry
+   :math:`\langle u_b, \mathcal K u_i\rangle` is a column the support never
+   assembles, and its value is the row entry :math:`K_{g'}[i, b]`, which
+   the full rows do assemble.
+
+So the transpose is the Galerkin matrix of :math:`\mathcal K E^\ast` on
+the same basis, tested and expanded on the supports, and
+:math:`W_s` is symmetric: no metric enters. The adjoint flux is defined
+exactly on the supports, which is where a source can be posed (Q1), so it
+is the importance of every source the system admits.
+
+`[M]` 2026-10-07, the evidence that ruled the form (the main agent's
+``main/smoke.py`` and ``qform.py``, re-run by the archivist on the built
+code, the mirror sphere above, :math:`\chi = (1, 0)`): the flux form's
+transposed eigenvector is flat with the group ratio 2.146567717996, the
+emission form's 1.07328385899813, and the infinite medium's adjoint
+:math:`A^{-\mathsf T}\nu\Sigma_f` 1.07328385899814; the factor between
+the first two is :math:`\Sigma_{t,2}/\Sigma_{t,1} = 2`. qa's independent
+route (``qa/p1_adjoint_independent.py`` and
+``qa/p1b_adjoint_disjoint_support.py``, re-run by the archivist): the
+adjoint problem of an isotropic multigroup problem is the forward problem
+with each region's transfer matrices transposed (same :math:`\Sigma_t`,
+same blocks), so ``response(r)`` was compared with the forward fixed
+source ``r`` of the group-transposed problem posed on every region, on a
+three-region two-group sphere with up- and downscatter, (n,2n) and
+:math:`\chi = (0.7, 0.3)`, behind vacuum and behind a white wall of
+amplitude 0.6, two support patterns: 12 of 12 trials agree to
+:math:`3.4 \times 10^{-15}` to :math:`8.3 \times 10^{-15}`, relative; the
+adjoint's fundamental eigenvalue equals the transposed problem's
+:math:`k` to the last digits and its mode equals that problem's flux to
+:math:`5.4 \times 10^{-15}`.
+
+Two splittings of one operator
+------------------------------
+
+The source-free operator of :eq:`characteristic-pencil` is
+:math:`W_s - (S + F/k) K`, and the system splits it two ways:
+
+- **the k pencil** :math:`(W_s - SK,\; FK)`, the fission alone scaled by
+  :math:`1/k`: the eigen questions, ``pencil.fundamental()``,
+  ``pencil.spectrum()`` and ``pencil.adjoint()``;
+- **the source pencil** :math:`(W_s,\; (S + F)K)`, at :math:`k = 1` with
+  every secondary emission in the gain
+  (:attr:`GalerkinSystem.source_pencil
+  <orpheus.derivations.continuous.characteristic.system.GalerkinSystem.source_pencil>`):
+  the source questions.
+
+.. math::
+   :label: characteristic-fixed-source
+
+   \begin{aligned}
+   W_s\, q &= (S + F)\,K q + W_s\, q^{\rm ext}, \qquad W_G\,\phi = K q,\\
+   W_s\, \phi^\dagger &= K^{\mathsf T} (S + F)^{\mathsf T} \phi^\dagger + K^{\mathsf T} r,
+   \qquad
+   \langle r, \phi(q^{\rm ext}) \rangle = r^{\mathsf T} W_G\,\phi
+   = \phi^{\dagger\mathsf T} W_s\, q^{\rm ext}.
+   \end{aligned}
+
+:meth:`GalerkinSystem.fixed_source
+<orpheus.derivations.continuous.characteristic.system.GalerkinSystem.fixed_source>`
+restricts the source's nodal coefficients ``(G, N)`` to the emission
+space (refusing a coefficient off the support), solves the first line by
+the source pencil's least solution and returns the flux ``(G, N)``.
+:meth:`GalerkinSystem.response
+<orpheus.derivations.continuous.characteristic.system.GalerkinSystem.response>`
+takes a detector's nodal coefficients :math:`r` and returns the adjoint
+flux on the emission space, the least solution of the second line with
+the load :math:`K^{\mathsf T} r`, which is :math:`\langle u_b, \mathcal K
+r\rangle` by the reciprocity argument above (the load is not
+:math:`K^{\mathsf T} W_G r`: the detector's coefficients are paired with
+the flux through :math:`W_G` once, in the reading). The reading follows
+from the first line: with :math:`B = W_s - (S + F)K`,
+:math:`r^{\mathsf T} W_G \phi = r^{\mathsf T} K q = r^{\mathsf T} K B^{-1}
+W_s q^{\rm ext} = (B^{-\mathsf T} K^{\mathsf T} r)^{\mathsf T} W_s
+q^{\rm ext}`, and :math:`B^{-\mathsf T} K^{\mathsf T} r` is
+:math:`\phi^\dagger`.
+
+.. implements:: characteristic-fixed-source
+   :by: orpheus.derivations.continuous.characteristic.system.GalerkinSystem.source_pencil
+
+   **Implemented by** ``source_pencil``, ``fixed_source``, ``response`` and
+   the emission space's ``restrict``.
+
+.. implements:: characteristic-fixed-source
+   :by: orpheus.derivations.continuous.characteristic.system.GalerkinSystem.fixed_source
+
+.. implements:: characteristic-fixed-source
+   :by: orpheus.derivations.continuous.characteristic.system.GalerkinSystem.response
+
+.. implements:: characteristic-fixed-source
+   :by: orpheus.derivations.continuous.characteristic.system.EmissionSpace.restrict
+
+**Why the source questions use the source pencil.**
+:meth:`DensePencil.least_solution
+<orpheus.derivations.common.dense_pencil.DensePencil.least_solution>` sums
+the Neumann series over collisions and refuses a gain whose spectral
+radius on the reached unknowns is not below 1
+(:class:`~orpheus.derivations.common.dense_pencil.NoLeastSolution`). That
+check guards the physics only if every secondary emission is in the
+gain. On the k pencil the gain is the fission alone, so a closed body made
+supercritical by its (n,2n) emission with no fission has a zero gain
+there, and the k pencil's solve answers it directly, with a finite and
+negative flux. On the source pencil the same body is refused. `[M]`
+2026-10-07, the archivist's probe on the gates' fixture (no fission;
+:math:`\Sigma_t = (1, 1.5)`, an (n,2n) transfer of 0.35 and 0.4 within
+each group; the infinite medium's collision gain has spectral radius
+1.155), the three-region mirror sphere: ``fixed_source`` raises
+``NoLeastSolution`` with the radius 1.15485837704 on the 104 unknowns the
+source reaches, while the direct solve of the k pencil's loss on the same
+load returns coefficients down to :math:`-30.0`.
+
+**The two pencils read one system.** On a subcritical body, the source
+:math:`q^{\rm ext} = (1/k - 1)\,F\phi_k` returns the fundamental flux
+:math:`\phi_k`: the source pencil's emission is then :math:`(S + F)\phi_k
++ (1/k - 1)F\phi_k = (S + F/k)\phi_k`, the mode's own (it needs
+:math:`k < 1`, for the source to be non-negative and the source pencil
+subcritical). `[M]` 2026-10-07, the test-architect (``ta/m9_source``): to
+:math:`3.4 \times 10^{-14}` of the flux's maximum on a vacuum sphere
+(:math:`k = 0.0753`) and :math:`3.0 \times 10^{-15}` on a slab
+(:math:`k = 0.187`). The parent verification spec's "the source
+:math:`F\phi_k/k` returns :math:`\phi_k`" held for a source pencil without
+the fission in its gain; with it, the source is the fission deficit.
+
+The one-group Rayleigh–Ritz bound
+---------------------------------
+
+In one group the Galerkin :math:`k` is a lower bound on the exact
+:math:`k` and increases on nested trial spaces. The derivation:
+
+1. In one group :math:`E = M(k) = \sigma_s + \nu\sigma_f/k`, constant on
+   each region, and positive exactly on the emission support (it is the
+   support's definition). Write :math:`M` also for the diagonal of its
+   values at the support nodes. :eq:`characteristic-pencil` reads
+   :math:`W_s q = M K_{ss} q` with :math:`K_{ss}` the block's rows on the
+   support (the restriction :math:`R` picks them).
+2. :math:`W_s` is block diagonal by panel (the basis is discontinuous) and
+   :math:`M` is constant on each panel, so they commute, and
+   :math:`W_s M^{-1} q = K_{ss} q`: a symmetric generalised
+   eigenproblem, :math:`K_{ss}` symmetric by reciprocity and
+   :math:`W_s M^{-1}` symmetric positive definite.
+3. This is the Rayleigh–Ritz (Galerkin) form, on the trial space of the
+   support's basis functions, of the continuous problem
+   :math:`\mathcal K q = \lambda\,M^{-1} q` for the self-adjoint positive
+   operator :math:`\mathcal K` in the weight :math:`M^{-1}`:
+
+   .. math::
+      :label: characteristic-one-group-bound
+
+      \lambda_h(k) \;=\; \max_{q \in V_h} \frac{\langle q, \mathcal K q\rangle}{\langle q, M(k)^{-1} q\rangle}
+      \;\le\; \max_{q} \frac{\langle q, \mathcal K q\rangle}{\langle q, M(k)^{-1} q\rangle} \;=\; \lambda(k),
+      \qquad
+      V_h \subset V_{h'} \;\Rightarrow\; \lambda_h(k) \le \lambda_{h'}(k).
+
+4. The critical condition is :math:`\lambda(k) = 1`. :math:`M(k)` decreases
+   as :math:`k` grows wherever :math:`\nu\sigma_f > 0`, so
+   :math:`\lambda(k)` decreases. Then :math:`\lambda(k_h) \ge
+   \lambda_h(k_h) = 1 = \lambda(k)` gives :math:`k_h \le k`, and nesting
+   gives :math:`k_h \le k_{h'}`.
+5. The flux off the support is read from the emission
+   (:math:`W_G\phi = Kq`) and does not enter the eigenproblem, so it does
+   not enter the bound.
+
+The bound is a property of the Galerkin form with exact integrals. Two
+errors compete with its margin: the line rule's integration error, which
+can raise :math:`k`, and, against a published truth, the resolution of
+that truth's printed digits. It holds in one group only: with two groups
+the emission couples the groups through a non-symmetric matrix and no
+weight makes the form symmetric. The 1-group degeneracy of
+``vv-principles`` applies in full: in one group :math:`k` cannot detect an
+error in the scattering's group structure, so these rows are theorem rows
+on the Galerkin form, and the multigroup claims rest on the two-group
+rows (the closed bodies and Sood's critical sizes, below).
+
+**Nested spaces.** On fixed panels, the degrees :math:`p = 1, 2, 3, 4, 6`
+nest (the even panel too: polynomials in :math:`c^2` of degree :math:`p`
+lie in those of degree :math:`p + 1`). `[M]` 2026-10-07, the
+test-architect (``ta/m5_rr_real``, ``ta/m6_floor``), a heterogeneous
+one-group body (two fissile regions round a scatterer) as a vacuum
+sphere, a mirror–vacuum slab and a vacuum hollow sphere at 2 grading
+layers: the smallest increment of :math:`k` is :math:`2.8 \times 10^{-8}`,
+and the line rule's own floor, :math:`k` at 8 line points and 12 along
+each line against 16 and 16, is at most :math:`1.7 \times 10^{-13}`. An
+under-integrated rule (4 line points, 8 along each line) moves :math:`k`
+at :math:`p = 4` by :math:`+1.2 \times 10^{-5}` and :math:`+1.4 \times
+10^{-5}` on the spheres and breaks the order.
+
+**Against an independent truth.** Sood's one-group bare critical sizes
+:cite:`SoodForsterParsons2003` (Ua-1-0-SP, a sphere of 2.4248249802 mean
+free paths; Ua-1-0-SL, a half slab of 0.93772556 behind a central
+mirror) are bodies whose exact :math:`k` is 1. The truth resolves
+:math:`k` to :math:`|\mathrm d k/\mathrm d(\mathrm{mfp})|` times half a
+unit of its last printed digit: :math:`1.7 \times 10^{-11}` for the sphere
+and :math:`3.6 \times 10^{-9}` for the slab (:math:`\mathrm d k/\mathrm
+d(\mathrm{mfp}) = 0.726`). `[M]` 2026-10-07, the archivist's probe, 8 line
+points and 12 along each line, :math:`k - 1` at degrees 1 to 4:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 16 16 16 18
+
+   * - Body, panels
+     - :math:`p = 1`
+     - :math:`p = 2`
+     - :math:`p = 3`
+     - :math:`p = 4`
+   * - Ua-1-0-SP, one panel
+     - :math:`-9.889 \times 10^{-4}`
+     - :math:`-4.204 \times 10^{-5}`
+     - :math:`-6.706 \times 10^{-6}`
+     - :math:`-2.385 \times 10^{-6}`
+   * - Ua-1-0-SL, one panel
+     - :math:`-4.408 \times 10^{-3}`
+     - :math:`-2.380 \times 10^{-5}`
+     - :math:`-1.095 \times 10^{-5}`
+     - :math:`-3.836 \times 10^{-6}`
+   * - Ua-1-0-SP, 2 layers, ratio 0.4
+     - :math:`-2.520 \times 10^{-5}`
+     - :math:`-2.142 \times 10^{-6}`
+     - :math:`-4.942 \times 10^{-7}`
+     - :math:`-1.407 \times 10^{-7}`
+   * - Ua-1-0-SL, 2 layers, ratio 0.4
+     - :math:`-3.411 \times 10^{-4}`
+     - :math:`-8.791 \times 10^{-8}`
+     - :math:`-1.681 \times 10^{-8}`
+     - :math:`+4.275 \times 10^{-10}`
+
+On the ungraded panel every margin is at least :math:`2.4 \times 10^{-6}`,
+a thousand times the truth's resolution, and the sequences increase. On
+the graded panels the slab's degree 4 reads :math:`+4.3 \times 10^{-10}`:
+the graded basis has converged below the slab truth's resolution of
+:math:`3.6 \times 10^{-9}`, so the reading is inside the truth's
+uncertainty, not a violation, and it has no margin to show. The gate is
+posed on the ungraded panel for that reason.
+
+The emission space and the posing
+---------------------------------
+
+:class:`~orpheus.derivations.continuous.characteristic.system.EmissionSpace`
+is the emission space as an object: each group's support (the basis
+indices of its nodes, increasing) and each node's region. Its restriction
+:math:`R` is the one spelling of the group-major ragged layout, and the
+system's matrices are compositions with it: :math:`W_s = R W_G
+R^{\mathsf T}`, :math:`S = R\,E_{\rm node}(\cdot)`, :math:`F = R\,E_{\rm
+node}(\cdot)`. ``restrict`` is the parse of a field into it (refusing a
+coefficient off the support) and ``split`` cuts a vector on it into one
+array per group. A pencil's eigenvector and ``response`` live on this
+space; read the flux with ``flux`` and a group's coefficients with
+``split``.
+
+**The system is posed, never handed its blocks.** Its fields are the
+problem and the resolution: the basis, the walls, the cross sections, the
+transport resolution
+(:class:`~orpheus.derivations.continuous.characteristic.assembly.TransportResolution`:
+the line rule's points per piece and the two rules along each line) and
+the source regions. The transport blocks are derived from them
+(``GalerkinSystem.groups``, one ``LineRule.of`` and one ``transport`` per
+group, each group's rule graded by its own :math:`\Sigma_t`, as the third
+rung ruled), so a block assembled for another group or another cross
+section cannot be put in.
+
+**Cost.** The dense problem has :math:`M` unknowns, a few hundred at the
+gates' resolution, and its eigen and least solves take under 0.03 s
+(`[M]` 2026-10-07, the test-architect's specification §4). The blocks
+cost what the third rung measured, per group
+(:ref:`characteristic-cylinder-cost`): a sphere system of two or three
+groups builds in 0.07 to 0.9 s, a slab in 0.7 to 4.1 s, the one-region
+cylinder in 26 s for two groups at 8 points.
 
 
 .. _characteristic-what-is-not-built:
@@ -3271,29 +3933,26 @@ What the package does not compute
 The package answers, for any batch of lines, each line's period and
 closure, the traversal integrals of every basis function, the vacuum
 Volterra block with the caller's line weights and the angular flux at
-points on the lines (:ref:`characteristic-transport`); and, for one group,
-the transport block over the emission support, its line part and its
-white walls' coupling, on a line rule graded from the group's optical
-scale (:ref:`characteristic-galerkin-assembly-section`). It does not yet
-answer a question. What is missing, by the rung that owns it (the plan
-``.claude/plans/characteristic_reference_architecture.md``, "P1 step (b),
-third rung: API sketch", and the P1 sketch's items 5 to 9; the campaign's
-issue is #405):
+points on the lines (:ref:`characteristic-transport`); for one group, the
+transport block over the emission support, its line part and its white
+walls' coupling, on a line rule graded from the group's optical scale
+(:ref:`characteristic-galerkin-assembly-section`); and, for the multigroup
+problem, the emission matrices per region, each group's exact emission
+support, the k pencil and the source pencil on the emission space, the
+fundamental and higher modes and their adjoints, the flux of a fixed
+source and the adjoint flux of a detector, all in nodal coefficients
+(:ref:`characteristic-galerkin-system`). What is missing (the plan
+``.claude/plans/characteristic_reference_architecture.md``, the P1
+sketch's items 7 to 9 and the fourth rung's Q3; the campaign's issue is
+#405):
 
-- **the emission and fission matrices** :math:`S` and :math:`F`, the
-  scattering (with the :math:`(n,2n)` emission) and the fission
-  production per region, moved to the fourth rung with the pencil by the
-  user's ruling of 2026-10-06 (Q4 of the third rung): the block carries
-  :math:`\Sigma_t`, so the pencil needs the emission on its own, not read
-  back out of the 0-D loss matrix by subtracting :math:`\Sigma_t`;
-- **the pencil and its questions** on the dense pencil of the reference
-  kernel (:ref:`verification-reference-kernel`): the fundamental mode, the
-  higher modes and the adjoint, the fixed-source solve, and the 1-group
-  Rayleigh–Ritz lower bound that the Galerkin form makes a theorem row
-  (the verification spec's D11); fourth rung;
-- **one emission support for every group**: each group's default support
-  is its own :math:`\Sigma_t > 0`, and the pencil needs one shared set of
-  columns (:ref:`characteristic-galerkin-assembly-section`); fourth rung;
+- **the door**: the reference value posed from the specification, which
+  maps the interface vocabulary's questions (an eigenvalue, a fixed
+  source, a response) onto the system, refuses what the reference does
+  not serve, and holds the resolution; fifth rung;
+- **the projection of a mesh-free source** onto the panel basis, so that
+  a source or a detector is posed as a function rather than as nodal
+  coefficients; fifth rung;
 - **the reading at a point**, the per-point transport of the converged
   emission over :meth:`Chart.directions_at
   <orpheus.geometry.chart.Chart.directions_at>`, whose first leg runs from
@@ -3487,6 +4146,47 @@ structural reason it fails, so that no later design re-derives it.
        reads at an exit wall (qa, 2026-10-06). The exit test reads the
        crossing parameter (:ref:`characteristic-angular-flux`).
 
+   * - The flux as the pencil's unknown, :math:`(W_G - KS, KF)` (the P1
+       sketch's item 6, ruled 2026-10-06)
+     - Right for :math:`k` and the flux, wrong for the adjoint: its
+       transpose poses :math:`\psi = E^\ast\mathcal K\psi`, whose
+       eigenvector is the adjoint collision density
+       :math:`E^\ast\phi^\dagger`, not the importance; the group ratio read
+       2.147 against 1.073. The emission form's transpose is the adjoint
+       flux (:ref:`characteristic-galerkin-system`).
+   * - Each group's emission support read from :math:`\Sigma_t > 0` (the
+       third rung's default)
+     - A region transparent in a group that receives emission into it
+       has no column, and the emission is dropped without a message: the
+       absorption balance missed the source by
+       :math:`2.2 \times 10^{-2}` (sphere) and
+       :math:`2.0 \times 10^{-1}` (slab).
+   * - One emission support shared by every group, the union
+     - Columns whose emission is identically zero; behind a mirror a
+       column in a region void in the group is a source on lossless
+       trapped lines, refused with ``TrappedSource`` although the problem
+       is well posed.
+   * - The transport blocks handed to the system as a stored field, with a
+       check of their supports
+     - A block carries neither its group nor its :math:`\Sigma_t`, so two
+       illegal states were admitted and answered silently wrong (the
+       elegance review's V1, `[M]` 2026-10-07, a two-region two-group
+       vacuum sphere at degree 2): blocks assembled on another mixture's
+       :math:`\Sigma_t` gave :math:`k = 0.108657` against 0.107926, and
+       the blocks in reversed group order 0.168. The system derives its
+       blocks from its posing (:ref:`characteristic-galerkin-system`).
+   * - The source questions answered on the k pencil,
+       :math:`(W_s - SK)^{-1}` applied to the source
+     - Its gain is the fission alone, so the least solution's
+       subcriticality check cannot see a body made supercritical by its
+       (n,2n) emission: the solve returns a finite, negative flux
+       (:math:`-30` on the gates' mirror sphere). The source pencil puts
+       every secondary emission in the gain and refuses it.
+   * - The source-region mask group-major, ``(G, n)``
+     - Every other ``(n, G)`` array of the package is region-major; with
+       :math:`n = G` a transposed mask has the right shape and poses the
+       wrong regions silently. The mask is region-major and a
+       group-major one is refused by its shape when :math:`n \ne G`.
 
 .. _characteristic-evidence:
 
@@ -4032,6 +4732,117 @@ their scope):
        outside the arm's scope
 
 
+
+The gates of the Galerkin system
+--------------------------------
+
+`[M]` 2026-10-07, ``.venv/bin/python -O -m pytest -p no:cacheprovider``
+on branch ``feature/characteristic-rung4`` (uncommitted):
+``tests/gates/derivations/test_characteristic_system.py`` holds 80 rows in
+22 test functions, 2 of them ``slow`` (the one-region cylinder, mirror and
+white); the 78 others passed in 78 s. Each row rests on the third rung's
+block rows (``rests_on``: closed-body conservation and each group's own
+cross section). The closed forms are written in the test from the
+``Mixture`` arrays, never through ``group_emission`` or the 0-D helpers
+(``instrument-doctrine`` X4). The bands are the test-architect's
+measurements (``scratch/characteristic_architecture/p1_step_b4/ta/``):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 40 26
+
+   * - Rows
+     - Claim and reference
+     - Measured
+   * - ``test_the_cross_sections_are_the_mixtures_tables``,
+       ``test_the_emission_acts_node_by_node``
+     - the per-region tables and their per-node layout, bitwise, against
+       tables built in the test (an (n,2n) transfer, asymmetric
+       :math:`\chi\otimes\nu\Sigma_f`, supports differing by group)
+     - ``array_equal``
+   * - ``test_the_emission_support_is_where_something_is_emitted_into_the_group``
+     - the support against a hand table, one region per edge (transparent
+       but receiving; emitting in one group only; scattering out of a
+       group with nothing in; :math:`\chi = (1, 0)`)
+     - ``array_equal``
+   * - ``test_an_anisotropic_emission_is_refused_naming_the_region_and_the_order``,
+       ``test_a_field_off_the_support_is_refused_and_answered_once_the_support_is_widened``,
+       ``test_a_source_region_mask_in_group_major_orientation_is_refused``
+     - the refusals, each with a positive leg
+     - message fragments
+   * - ``test_the_fundamental_mode_satisfies_its_pencil``
+     - the pencil residual of the fundamental mode
+     - :math:`\le 1.4 \times 10^{-14}`, band :math:`10^{-12}`
+   * - ``test_a_closed_body_reads_k_inf_with_a_flat_flux_in_the_infinite_mediums_group_ratio``
+     - seven closed bodies (mirror, white, periodic, hollow) times three
+       mixtures (downscatter with :math:`\chi` in both groups; upscatter
+       with :math:`\chi = (1, 0)`; three groups), and the cylinder
+       (``slow``): :math:`k = \rho(A^{-1}F)`, a flat flux with the infinite
+       medium's group ratio
+     - :math:`k` within :math:`4.4 \times 10^{-14}`, flat within
+       :math:`8.8 \times 10^{-12}`, ratio within :math:`1.9 \times
+       10^{-14}`; bands :math:`10^{-12}`, :math:`10^{-10}`,
+       :math:`10^{-12}`
+   * - ``test_a_closed_sphere_reads_soods_k_inf_with_upscatter``
+     - URRb-2-0-IN and URRc-2-0-IN, Sood's printed :math:`k_\infty`
+       1.365821 and 1.633380 :cite:`SoodForsterParsons2003`
+     - :math:`4.1 \times 10^{-7}`, :math:`6.6 \times 10^{-8}`; band
+       :math:`5 \times 10^{-7}`
+   * - ``test_a_closed_body_with_a_uniform_source_reads_the_infinite_medium_flux``
+     - :math:`\phi = (\mathrm{diag}\,\Sigma_t - S - F)^{-1} q` with
+       upscatter, (n,2n) and subcritical fission
+     - :math:`3.5 \times 10^{-12}`, :math:`1.7 \times 10^{-14}`,
+       :math:`8.4 \times 10^{-12}`; band :math:`10^{-10}`
+   * - ``test_a_region_transparent_in_a_group_keeps_its_emission_into_it``,
+       ``test_a_layer_void_in_a_group_under_a_mirror_is_answered``
+     - the support's two edges, by the absorption balance
+     - :math:`\le 5.1 \times 10^{-15}`; band :math:`10^{-12}`
+   * - ``test_one_group_k_increases_on_nested_spaces``,
+       ``test_one_group_k_is_below_one_at_soods_critical_size``
+     - :eq:`characteristic-one-group-bound`, on nested degrees and against
+       Ua-1-0-SP and Ua-1-0-SL
+     - smallest step :math:`2.8 \times 10^{-8}`; smallest margin
+       :math:`2.4 \times 10^{-6}`
+   * - ``test_k_is_one_at_soods_two_group_critical_sizes``
+     - PU-2-0, U-2-0 and URRa-2-0, slab and sphere: :math:`k = 1` within
+       :math:`|\mathrm dk/\mathrm d(\mathrm{mfp})|` times half a unit of
+       the printed critical size, the slope measured in the test
+     - URRa-2-0-SL is the tightest, :math:`6.4 \times 10^{-7}` of
+       :math:`7.2 \times 10^{-7}`
+   * - ``test_the_source_question_returns_the_mode_from_its_own_fission_deficit``,
+       ``test_a_source_in_a_body_supercritical_by_its_n2n_emission_is_refused``
+     - the two pencils on one system; the (n,2n) refusal with the k
+       pencil's negative direct solve as its control
+     - :math:`3.4 \times 10^{-14}`; refusal
+   * - ``test_the_closed_body_adjoint_is_the_infinite_medium_importance``,
+       ``test_the_one_group_adjoint_is_the_forward_flux``,
+       ``test_the_forward_and_adjoint_modes_are_biorthogonal``,
+       ``test_a_detectors_reading_of_a_source_is_its_response_paired_with_the_source``
+     - :eq:`characteristic-adjoint`: the closed-body importance by hand;
+       the one-group adjoint equal to the forward flux (self-adjoint);
+       biorthogonality of four modes in the production form; the reading
+       :math:`\langle r, \phi(q)\rangle = \phi^{\dagger\mathsf T} W_s q`
+       on 20 seeded pairs
+     - bands :math:`10^{-12}`, :math:`10^{-10}`, :math:`10^{-10}`,
+       :math:`10^{-12}`
+
+**Sood's UAL-2-0 sizes are excluded.** At UAL-2-0-SL and UAL-2-0-SP the
+reference converges to :math:`k - 1 = +7.364 \times 10^{-6}` and
+:math:`+9.402 \times 10^{-6}`, stable to :math:`10^{-9}` over five
+resolutions up to degree 6, six layers and 24 points: 2.9 and 7.5
+half-units of the printed digit. Production S\ :sub:`N` (diamond
+difference, Gauss–Legendre, 400 to 1600 cells and S\ :sub:`32` to
+S\ :sub:`128`) converges at second order on the slab to the Richardson
+limit :math:`+7.4 \times 10^{-6}`, beside the reference, so the printed
+slab size is the likely error; the sphere has no second method yet. The
+rows wait on #588 (`[M]` 2026-10-07, the test-architect, ``ta/m2b_ladder``
+and ``ta/m8_sn_ual``). No tolerance was widened.
+
+**The two-sided reading row has one-sided partners.** The reciprocity of
+the source and the detector questions is blind to an error both share
+(``vv-principles`` anti-pattern 37); the closed-body source row (a closed
+form) and the closed-body adjoint row are its one-sided partners.
+
 .. _characteristic-gotchas:
 
 Gotchas
@@ -4127,6 +4938,28 @@ Gotchas
   midpoint, and each half is graded only when its optical width exceeds
   2: a slot of optical width up to 4 is two pieces.
 
+- **The pencil's vector is the emission, not the flux.** An eigenvector of
+  ``GalerkinSystem.pencil`` lives on the emission space, one coefficient
+  per support node of each group; read the flux with ``flux(vector)`` and
+  one group's coefficients with ``emission.split(vector)``. The adjoint's
+  vector and ``response`` are the adjoint flux on the same space.
+- **Source questions go to the source pencil.** A fixed source solved on
+  the k pencil's loss is not refused when (n,2n) alone makes the body
+  supercritical; it returns a negative flux. Use ``fixed_source``.
+- **A source must sit on its group's support.** ``fixed_source`` refuses a
+  coefficient outside it; pose the system with those regions in
+  ``source_regions``. The mask is region-major, ``(n, G)``, as the cross
+  sections; with as many regions as groups a transposed mask cannot be
+  detected by its shape.
+- **The detector is paired with the flux once.** ``response`` takes the
+  detector's nodal coefficients :math:`r` with the load
+  :math:`K^{\mathsf T}r`, and the reading is
+  :math:`r^{\mathsf T}W_G\phi = \phi^{\dagger\mathsf T}W_s q`; a load
+  :math:`K^{\mathsf T}W_G r` applies the metric twice.
+- **The one-group bound has no margin on a graded basis at a printed
+  critical size.** The graded basis converges below the truth's digits
+  (the half slab reads :math:`+4.3 \times 10^{-10}` against a resolution
+  of :math:`3.6 \times 10^{-9}`); test the bound on ungraded panels.
 
 .. _characteristic-history:
 
@@ -4199,3 +5032,19 @@ History
        closed-body rows to the slow tier.
      - ``95d1a511``
      - closes #586
+   * - 2026-10-07
+     - The fourth rung: the multigroup Galerkin system. The emission
+       matrices were split out of the 0-D pair into one assembly site,
+       ``group_emission``; ``RegionCrossSections`` reads them from one
+       mixture per region and refuses anisotropy there; each group's
+       emission support is exact (the user's ruling over each group's
+       :math:`\Sigma_t > 0` and over one shared support).
+       ``GalerkinSystem`` derives its blocks from its posing (the elegance
+       review measured blocks handed in answering silently wrong) and
+       carries the k pencil and the source pencil on the emission space.
+       The unknown was first the flux; the main agent measured its
+       transpose to be the adjoint collision density, and the user ruled
+       the emission density the unknown the same day. Sood's UAL-2-0
+       critical sizes were found off beyond their digits (#588).
+     - ``42222c47``
+     - #405, #588

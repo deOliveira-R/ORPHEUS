@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **16956**
+Total tests collected: **17038**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1740, 10.3%
-   L1, 2405, 14.2%
+   L0, 1742, 10.2%
+   L1, 2472, 14.5%
    L2, 76, 0.4%
    L3, 0, 0.0%
-   foundation, 12701, 74.9%
+   foundation, 12714, 74.6%
    unmarked, 34, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 16843
+   explicit, 16925
    class-name, 46
    func-name, 0
    case, 33
@@ -180,6 +180,7 @@ Module × level grid
    derivations/test_characteristic_assembly, 0, 110, 5, 0, 65, 0
    derivations/test_characteristic_basis, 0, 0, 0, 0, 271, 0
    derivations/test_characteristic_closure, 125, 0, 0, 0, 9, 0
+   derivations/test_characteristic_system, 2, 67, 0, 0, 11, 0
    derivations/test_characteristic_transport, 51, 0, 0, 0, 53, 0
    derivations/test_characteristic_walls, 19, 0, 0, 0, 31, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
@@ -648,7 +649,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 477, 0
+   test_layer_imports, 0, 0, 0, 0, 479, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -757,6 +758,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``dd-face-transmission-spectrum``, 33
    ``dd-slab``, 33
    ``free-flight``, 32
+   ``characteristic-pencil``, 31
    ``angular-cell-partition``, 30
    ``chi-sampling``, 29
    ``decompose``, 29
@@ -784,6 +786,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``pitch-recovery``, 22
    ``ray-circle``, 22
    ``region-areas-pin-cell``, 22
+   ``characteristic-adjoint``, 21
    ``n2n-source``, 21
    ``singular-eigenfunction-eq46``, 21
    ``dd-null-counting-law``, 20
@@ -870,6 +873,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-loss-kernel-gauge-projection``, 7
    ``bar-psi``, 6
    ``boyd-eq-45``, 6
+   ``characteristic-fixed-source``, 6
    ``characteristic-ode``, 6
    ``dd-cartesian-2d``, 6
    ``geometry-measure-density``, 6
@@ -879,6 +883,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-slab-T``, 6
    ``singular-eigenfunction-eq54``, 6
    ``sn-space-angle-separability``, 6
+   ``characteristic-one-group-bound``, 5
    ``cp-outer-integral-antiderivative``, 5
    ``en-kernel-special-values``, 5
    ``geometry-crossing-order``, 5

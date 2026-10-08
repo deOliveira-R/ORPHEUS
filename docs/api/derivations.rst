@@ -79,7 +79,13 @@ Submodules
        (:mod:`~orpheus.derivations.continuous.characteristic.transport`),
        one group's transport block, assembled by Galerkin over the lines of
        the chart's line domain with the white walls' coupling
-       (:mod:`~orpheus.derivations.continuous.characteristic.assembly`), and
+       (:mod:`~orpheus.derivations.continuous.characteristic.assembly`),
+       each region's total cross section and emission matrices with the
+       regions each group emits in
+       (:mod:`~orpheus.derivations.continuous.characteristic.cross_sections`),
+       the multigroup Galerkin system on the emission space, with its k
+       pencil, its source pencil and their adjoints
+       (:mod:`~orpheus.derivations.continuous.characteristic.system`), and
        the geometric, exponential and hp gradings every rule of the package
        places its piece ends by
        (:mod:`~orpheus.derivations.continuous.characteristic.grading`);
@@ -213,9 +219,9 @@ The characteristic reference
 ----------------------------
 
 The package, built rung by rung beside the trajectory-resolvent family;
-the theory is :ref:`theory-characteristic-reference`. Its six modules
-are documented below; the package re-exports the public names of the
-first five (the gradings are imported by module).
+the theory is :ref:`theory-characteristic-reference`. Its eight modules
+are documented below; the package re-exports the public names of every
+module but the gradings, which are imported by module.
 
 .. automodule:: orpheus.derivations.continuous.characteristic
 
@@ -232,6 +238,12 @@ first five (the gradings are imported by module).
    :members:
 
 .. automodule:: orpheus.derivations.continuous.characteristic.assembly
+   :members:
+
+.. automodule:: orpheus.derivations.continuous.characteristic.cross_sections
+   :members:
+
+.. automodule:: orpheus.derivations.continuous.characteristic.system
    :members:
 
 .. automodule:: orpheus.derivations.continuous.characteristic.grading

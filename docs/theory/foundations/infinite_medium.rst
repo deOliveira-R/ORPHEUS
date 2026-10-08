@@ -438,6 +438,9 @@ every :math:`\ell \ge 1`, the angular flux is isotropic,
    :by: orpheus.derivations.common.eigenvalue._infinite_medium_matrices
 
 .. implements:: inf-hom-balance
+   :by: orpheus.derivations.common.eigenvalue.group_emission
+
+.. implements:: inf-hom-balance
    :by: orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous
 
 .. implements:: inf-hom-balance
@@ -921,6 +924,9 @@ gives the **multi-group neutron balance** for group :math:`g`:
 
 .. implements:: mg-balance
    :by: orpheus.derivations.common.eigenvalue._infinite_medium_matrices
+
+.. implements:: mg-balance
+   :by: orpheus.derivations.common.eigenvalue.group_emission
 
 .. implements:: mg-balance
    :by: orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous
