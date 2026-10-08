@@ -219,6 +219,14 @@ null-space mode of a rank-deficient production — never only the fundamental; a
 `== 0.0` refusal is blind to the rounding zero.** check: |n(ψ)| against
 ε·n(|ψ|) on mode 2 of a closed body. → L-099
 
+**B19. A grading law added at the site where a defect was measured (the rim) is
+attacked at every site its MECHANISM reaches (each interior tangency, each point
+on a radius, each region below a thinner one), and a non-converging plateau
+labelled "[R] rounding" is split before it is believed.** check: one probe per
+site of the mechanism; and the rule's sum of the exact integrand at its exact
+nodes against the same sum at the nodes the object REALISES from its stored
+coordinate. → L-100
+
 ---
 
 

@@ -6090,3 +6090,15 @@ Nearest served fluxes of 3e17. A rank-deficient F K (χ zero in a group, a non-f
 cluster of noise eigenvalues (38 of 80 complex) that Nearest(0) serves at 1e18. Not covered by
 `vv-principles` mode 12 or AP24 (the instrument is a section of a quotient, not a metric): the attack is
 "pick a state the functional annihilates analytically". Probes: `scratch/characteristic_architecture/p1_step_b5/qa/p1`, `p7`.
+
+## L-100 — a grading law fixed at the site that was measured is owed at every site the same mechanism reaches; a plateau labelled "[R] rounding" is decided at the rule's exact nodes (2026-10-08, W3 characteristic rung 5b QA, `a5492017` + uncommitted)
+
+Rung 5b fixed the closure's pole and the cylinder's polar-speed layer at the OUTER RIM, where the test-architect's
+reading found them. The same pole sits at every interior tangency whose outer region absorbs less per length
+(void outer region, a = 0.99: the interface reading off 5.1e-4 at 8 line points, the block's 1^T K 1 2.6e-6), and
+the same layer at every cylinder interface point (1.0e-6 at 8). The C2b drift as a -> 1 (3e-15/(1-a), not
+converging) was labelled "[R] rounding amplified by 1/(1-a)"; evaluating the rule's own sum of the exact integrand
+at the rule's exact distance (2.2e-16) against the line's realised distance from its rounded coordinate b (6.6e-12,
+= the code) showed the line coordinate losing the half-chord. Not covered by `vv-principles` mode 12 or AP24 or
+B17 (B17 sweeps optical scale; this sweeps SITES of one mechanism and splits rule error from realisation error).
+Probes: `scratch/characteristic_architecture/p1_step_b5b/qa/p1`, `p2`, `p4`-`p8`.

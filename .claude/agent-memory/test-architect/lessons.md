@@ -457,6 +457,12 @@ shelf life — check it against a concrete row before trusting a green.
   reference by a power-of-two scaling of the operand it normalises (iterates bit-identical, trajectory
   `array_equal`). → `L107`
 
+- **⛔ Put a value row EXACTLY on each boundary, not only beside it, and sweep the boundary law's parameter toward its
+  degenerate end (an albedo to 0.99, not 0.6).** A probe point beside a wall becomes a panel end and grades the rule by
+  accident; the exact point does not. And when a grading reaches below the resolution of the coordinate the nodes are
+  formed in (y below sqrt(2 R ulp R) for b), it manufactures degenerate lines: gate the node set's degeneracy count
+  with a floor-0 positive control. → `L111`
+
 ## 5. Tolerance is a claim — choose it per law, from measurement
 
 - **State the law in the direction that IS a float theorem, and normalise a

@@ -11720,3 +11720,15 @@ reaches an exact zero). Found by writing the Nearest anchor (the mirror slab's c
 and then asking what its flux reading would be. Ruled the same day: a Nearest answer reads Eigenvalue only.
 Also measured: the pairing (W c_w)^T phi_h is int w phi_h dV EXACTLY whatever w is (the sketch claimed it
 carries the weight's projection error); the error is the Galerkin flux's, not the weight's.
+
+## L111 — Characteristic P1 rung 5b (the reading at a point): the exact boundary point and the coordinate's representability (2026-10-08)
+
+The point reading was green to 1e-14 at every interior point and a millionth of the radius inside the wall, and
+missed by 2.8e-4 ON a partial-mirror wall (a = 0.99, 8 line points). The closure 1/(1 - a e^{-2 Sigma y}) has a
+pole at y* = -ln a / (2 Sigma) from the rim; the point just inside inserts its own c as a panel end, whose
+"next radius out" grading resolved the pole by accident. The same pole reached the landed block (1^T K 1: 1.6e-9),
+which no gate had seen because every partial-mirror fixture used a = 0.6 (1e-10 there). The fix (a rim grading
+law) then graded the cylinder's y below sqrt(2 R ulp(R)): b rounded onto R, tangent lines with no crossing, a raise
+in the reading and a silent drop in the block (positive control: the floor at 0 brings back 4 / 52 such lines).
+Then a box rule graded to |mu| = 2^-40 found NaN in point_parameters (b > c by an ulp) and, on the wall, a
+direction no line represents (ruled: refused). Probes: scratch/characteristic_architecture/p1_step_b5b/ta/.

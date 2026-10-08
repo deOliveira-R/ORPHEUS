@@ -270,6 +270,8 @@ Reports: `scratch/characteristic_architecture/w5_elegance.md` (elegance-enforcer
 - **2026-10-07, the user, on P1 step (b)'s fifth rung API sketch:** all four as recommended. Q1: split, 5a (the resolution, the projection, the door, `Eigenvalue` and `FluxIntegral`; `PointValue` refused naming 5b) then 5b (the reading at a point). Q2: a `Response` is answered as the group-transposed forward problem with the detector as its source. Q3: the eigen flux in the gauge ⟨νΣ_f, φ⟩ = 100. Q4: `Nearest(tau)` served, tau read in the k chart, #529 named as the owner of parameter charts.
 - **2026-10-07, the user, after rung 5a's reviews (three rulings):** (1) a `Nearest` answer reads `Eigenvalue` only; the flux of a higher mode is refused as a SCOPE-BOUNDARY, since its net fission production can vanish (on a closed homogeneous body every higher mode is biorthogonal to the flat adjoint). (2) The Q3 gauge is corrected: its premise was wrong (100 is the homogeneous solver's production DENSITY); the eigen flux of a finite body has total fission production 1 over the body, the SN solver's `ScaleGauge(production rate, 1.0)` and the trajectory resolvent's. (3) A `Response` answer is the adjoint scalar flux Rψ† (the vocabulary's E^{-†}R), so the transposed problem's source is the retraction of the detector's lift: R R†Σ_d = 4πΣ_d for a table, R f for a symbolic function, the 4π derived from `angular_measure`.
 - **2026-10-08, the user, on the gauge (after the archivist found that SN's production counts the (n,2n) emission):** "In principle, both should know what 'production' means (because we need to declare it) so that we can have n2n or not and be consistent." Ruled from the two options that followed: the gauge is DECLARED on the eigen question, `Eigen(parameter, ..., gauge=<CellCoefficient>)`, the same key type as its parameter, resolved by the specification; `None` takes the declared default `EIGEN_GAUGE = CellCoefficient.every(FISSION_EMISSION, N2N_EMISSION)` (production: what fission and (n,2n) emit, SN's functional). What each channel emits per unit flux is defined once, `Channel.emission` (ν per fission, 2 per (n,2n) reaction). The references read it in this rung; SN and the homogeneous solver move onto it in #517.
+- **2026-10-08, the user, on rung 5b's API sketch:** all four as recommended. `PointValue` reads the transported emission 𝒦q at the point (iterated Galerkin), not the basis value; the point's directions are the line rule's own lines read at the point's parameters, from the same constructors with the point's c as one more end, and no new `Resolution` field; ψ(x, Ω) lands in 5b, exposed for gates with no observable; `FluxIntegral` keeps the pairing.
+- **2026-10-08, the user, after rung 5b's reviews (four rulings):** the general grading law at every impact-panel top lands in 5b; the half-chord is carried in 5b (#590 done in this rung); its kernel shape is an image that carries an exact level (`RadialImage.level`, `level_half_chord`, default today's arithmetic, passed by `ConcentricPartition.chord(line, level=...)`), not a field on `Line`; the cylinder's extra cost is accepted until #587 grades per polar angle.
 - **2026-10-05, the user, on sequencing:** design first, then rebuild; `a336bde4` stays unmerged on its branch as a measured speed target.
 
 ## The widened question (2026-10-05)
@@ -1374,3 +1376,183 @@ Gates owed:
 - **Measure a ruling's premise before relaying it.** "Production's gauge is 100" named the homogeneous solver's density. "SN's gauge" counts the (n,2n) emission. Each was corrected only by a reviewer reading the code.
 - **A gauge functional can vanish on a mode the question can return.** Evaluate it on every mode the question can return, not on the fundamental alone. Three agents found this independently.
 - **A shared definition between a reference and production is an X4 exposure.** Share the declaration (which channels count). Keep each channel's physics on each side, as the (n,2n) census requires.
+
+## P1 step (b), rung 5b: API sketch (the main agent, 2026-10-08; checkpoint with the user before code)
+
+Every item is a proposal until ruled. The facts it rests on, read at `a5492017`:
+- **The pieces exist and nothing composes them.** `TraversalRule.angular_flux(t, inflow)` (`transport.py:557`) already takes several parameters per line, `(..., q)`, and `LinePeriod.inflow(depth, outflow, arriving)` (`closure.py:201`) already takes an injected flux per traversal entry. The diffuse walls' injection (a unit current entering wall w is carried as `1/D_w`, with `D_w = A_w/4`) and the returned currents `j = α(I − Tα)⁻¹Uᵀq` are computed only inside `LineRule.transport` and `WallCoupling.update`, never exposed. `Chart.directions_at` has 0 production consumers.
+- **The gates owed are more than the compaction point listed.** The spec's per-point rows C1 (the singular points), C2 (general points), C2b (near a wall) and C4 (convergence of the reading) have no test yet (`[M]` grep of `tests/gates/derivations/test_characteristic_*.py`: the C-numbered rows there are the door's own content rows, not the spec's). The P1 sketch's migration step (b) puts "reading and door (C1-C2, F)" in this rung. So 5b owes C1, C2, C2b, C4, C6, C7's reading leg, C8, E1 and E4.
+- **The Galerkin flux is the L2 projection of the transported flux.** `W φ_h = K q` says `(W φ_h)_i = ∫ u_i 𝒦q`, so `φ_h = P(𝒦q)`. Two consequences: the point value of `φ_h` carries the basis's projection error, and the flux integral of a weight `w` by the pairing errs by `∫(w − Pw)(𝒦q − P𝒦q)`, a product of two projection errors.
+
+**1. What `PointValue` reads: the transported emission (iterated Galerkin).** `φ_g(x) = (𝒦_g q_g)(x)`, with `q` the converged emission the pencil or the source pencil returns (the source included, the gauge's scale applied). Recommended: it is the "one transport, two test measures" of the P1 sketch (item 7, ruled), it is what C1 and C2's 1e-12 bars measure, and C6 then gates `∫ u_i φ(x) dV = (K q)_i`. Alternative: the Galerkin flux `φ_h(x)` read from the basis, which costs nothing but carries the projection error, so C1 and C2 could not be met at the 1e-12 bar without a basis that resolves the flux to that bar.
+
+**2. The direction rule at a point: the line rule's own lines, read at the point (one constructor, two test measures).** A line through the point `x` at orbit coordinate `c` with impact parameter `b ≤ c` is congruent to the line domain's canonical line of the same coordinates; `x` lies on it at the two signed positions `±√(c² − b²)` from the closest approach (`RadialImage.parameter_at`). So:
+- **The lines are the line rule's.** The point rule's coordinates come from the same constructors as `LineRule.of` (`_impact_rule` for `b`, `_grazing_ends` for the slab's cosine and the cylinder's polar angle), on the partition with the point's `c` inserted as one more end, keeping `b ≤ c`. The grading the point needs is then the grading the line rule already does: the tangencies `b = r_k` are panel ends under the visibility substitution; the grazing direction at the point is the top panel's end `b = c`, where the substitution variable `y = √(c² − b²)` is `c·|μ|` exactly; and a point near a wall is the impact rule's existing grading toward `y = 0` at the next radius out (C2b's boundary layer, regime 3, needs no new law). On the slab the point splits its panel, so the thinnest optical width that grades the cosine toward 0 includes the point's distance to each face.
+- **The weights are the point's measure, `dΩ/4π`, in line coordinates:** the sphere `½|dμ|` per branch with `|dμ| = b db / (c√(c² − b²))`; the cylinder `dα dw/π` per branch with `dα = db/√(c² − b²)` and `dw = sin θ dθ`; the slab `½ dμ`. They differ from the line rule's weights, which is the point of "two test measures".
+- **The stratum is the one branch.** At the sphere's centre and the cylinder's axis (`DirectionDomain.shape` WHOLE and AXIAL_COSINE) every direction has `b = 0`: the rule is the line `b = 0` read at its closest approach, a `match` on the closed shape enum as `LineRule.of` matches the line shape.
+- **One count.** The point rule uses the transport resolution's `line_points`; `Resolution` gains no field.
+Recommended over the alternative the P1 sketch named: a separate rule over `DirectionDomain`'s box coordinates, split at `DirectionDomain.tangencies` and substituted there, with its own `direction_points`. That rule would re-derive the tangency, grazing and near-wall gradings in a second variable, which is the two-angular-rules hazard (regime 10, #516) moved one level down.
+
+**3. The point's measure on the emission, and the diffuse walls exposed.** In `reading.py`:
+- `PointRule(rule: LineRule, parameter: (L, q))`, built by `PointRule.of(basis, walls, sigma_t, c, points)`: the lines, their weights `dΩ/4π`, and the point's parameters on each line (`q = 2` on the radial charts, 1 on the slab).
+- `PointRule.row(transport: GroupTransport) -> (M,)`: the point's linear functional on the group's emission coefficients (design D3's "discrete measure per evaluation point"), so `φ_g(x) = row · q_g`. Per chunk: `TraversalRule.of(lines)`, the specular inflow `period.inflow(depth, outflow, arriving)` with `arriving` the diffuse walls' injection, then `angular_flux(parameter, inflow)` weighted and summed. The diffuse part enters as the returned currents: `row = row_line + r(x) · α(I − Tα)⁻¹Uᵀ`, with `r(x)` the point's reading of a unit current entering each diffuse wall.
+- Refactor in the same commit, so that the block and the reading share one definition (X4, Pattern 2): `WallCoupling` gains the walls' breakpoints and their injection `1/D_w`, and a property `currents = α(I − Tα)⁻¹Uᵀ` `(W, M)`, the balance-row solve moved there; `update` becomes `response @ currents`, bitwise or within the solve's rounding (to be measured; a re-baseline is reported, never silent).
+- `GalerkinSystem.point_flux(position, emission) -> (G,)`, each group's row applied to its emission coefficients.
+
+**4. The angular flux at a point (public, ruled 2026-10-06).** `GalerkinSystem.angular_flux(position, directions, emission) -> (..., G)`, for directions on `Chart.directions_at(position)`'s box: the line through the point in each direction (`Line.through`), one `TraversalRule`, read at parameter 0. It is the one consumer of `DirectionDomain` here, and its gate is the point reading against a plain fine rule over the box of `angular_flux` (two line constructions, one transport). The derivation exposes it for its gates and mints no observable (the same footing as the adjoint eigenpair; an angular observable is a vocabulary change owed to #529).
+
+**5. The door.** The answers carry the emission beside the flux, scaled together: `_FundamentalAnswer(k, flux, emission)`, `_SourceAnswer(flux, emission)`. `evaluate(PointValue(position, group))` returns `Uncertified(system.point_flux(position, emission)[group])`; on a `_ModeAnswer` it refuses as the flux integral does (`_refuse_mode_flux`). `_refuse_point_reading` retires. A `Ratio` of point values composes as today. `admit_observable` already confines the position to `[r_0, r_n]` and the group to the problem's.
+
+**6. The flux integral stays the pairing.** Its error for a weight outside the basis space is the product of two projection errors (above), so a volume rule over point readings would buy nothing measurable at the cost of a point loop. The alternative is recorded: the integral read as a volume rule over readings, exact up to that rule.
+
+**Risks, named before the build:**
+- **A point on a wall.** `angular_flux` refuses a parameter outside its transit by a comparison with the chord's crossing parameter (`transport.py:577-581`). A point exactly on the outer wall, read inward, sits at the transit's entry, computed by a different formula (regime 1; the old family missed by 6.4e-8 to 9.6e-7 there). The build measures whether the comparison needs the crossing's own parameter in place of `parameter_at`'s.
+- **Performance** `[R]`: the reading builds no Volterra block (the assembly's dominant cost) but transports per basis function, `L × J × N` per chunk, chunked by the line rule's budget. The spec §8 target is 0.073 s per point (the hoisted brute call, not a min-of-repeats figure). If the protocol misses it, the lever is to contract the emission before the scan (one function transported, not `N`), at the strategy nearest the hot loop (algebra eager, performance lazy).
+
+**Gates** (the test-architect's spec, from the P1 spec §5 rows): C1, C2, C2b, C4, C6 (with its second clause now structural: one constructor), C7's reading leg, C8, E1 (Garcia Case 1 per point, today's tolerances), E4 (a pure absorber against C1's closed forms), plus the angular-flux row of item 4 and the `currents` refactor's row (the block unchanged). Each with its first red.
+
+**Ruled 2026-10-08** (see the ledger): the sketch as written, the four recommendations.
+
+## P1 step (b), rung 5b: built, and two grading defects of rung 3's line rule found by the reading (2026-10-08)
+
+**Built on `feature/characteristic-point-reading`** (uncommitted until the gates and reviews land):
+- `reading.py`: `PointRule` (the line domain's lines through the point, weights dΩ/4π, read at `point_parameters`), `stacked_flux`, `on_emission`, `angular_flux`.
+- `GalerkinSystem.point_flux`, `angular_flux`, `source_emission`. The door reads `PointValue` from the answer's emission; `CharacteristicDerivation.angular_flux`; `_refuse_point_reading` retired.
+- **Shared with the block, one definition each:**
+  - `closure.DiffuseWalls`, the diffuse walls' keying and their injection 1/D;
+  - `WallCoupling.currents`, with `update = response @ currents`;
+  - `assembly.StackedSources`, the stacked emission and wall sources;
+  - `traversal_rules`, the chunking;
+  - `OpticalScale`, `impact_panels`, `polar_rule` and `cosine_rule`, the line rule's coordinate rules;
+  - `TraversalRule.at`, a `LineReading` whose inflow term pairs with any source set.
+
+**Measured** `[M]` 2026-10-08:
+- **Smoke** (`p1_step_b5b/main/smoke.py`, `smoke_door.py`):
+  - The point measure sums to 1 within 5e-14 on every chart, at the strata and on walls and interfaces.
+  - Closed homogeneous bodies (mirror and white) read the infinite-medium flux within 5e-14 at every point.
+  - The vacuum absorber sphere matches its closed form within 5e-14 from the centre to the wall.
+  - The door's eigen point readings on a closed body match the infinite medium within 1e-13.
+- **The refactor** changed no pinned result: 476 passed (assembly, closure, transport, system, outside slow).
+
+**Defect 1: the rim of a partial mirror.** Found by the test-architect from the reading on the wall; it reaches the block too. On a line grazing the outer wall, the closure 1/(1 − a e^{−2Σy/|PΩ|}) has a pole a distance −|PΩ| ln a/(2Σ) from y = 0. The outermost impact panel had no grading toward it.
+- Fix: `rim_distance`, which plays the role of the outermost panel's next radius out.
+- Sphere wall reading at 12 line points: a = 0.99 went from 9.3e-5 to 1.2e-13. Block 1ᵀK1 at a = 0.99 went from 5.3e-10 to 3.8e-16.
+- A hollow body's inner wall has no such pole (the test-architect, measured with the law removed): a line grazing r₀ from outside misses the cavity.
+
+**Defect 2: grading below the impact parameter's resolution.** Found by the test-architect on the cylinder, where the rim law is scaled by the smallest polar speed (about 1e-7). Nodes landed 3 ulp below R; b rounded to R, so the lines made no crossing. 4 of 32 640 lines through the wall point were affected. The block silently dropped them; the reading refused them.
+- Fix: every y-grading distance is floored at 2√(2 r ε(r)) over the first Gauss node's fraction.
+
+**Performance:** a point on a cylinder takes 1.5 to 8 s (one and three regions, 8 line points), against the spec §8 target of 0.073 s. Raising the chunk budget gave 1.6 to 1.8x. The remaining lever is to contract the emission before the scan. Not yet measured by the §8 protocol.
+
+**Gate cost:** the 7 characteristic files, outside slow, pass 891 of 892 in 7 min 17 s. The red is the 5a row pinning the point refusal, which the test-architect re-poses.
+
+## P1 step (b), rung 5b: the reviews, two rulings, and the sketch of the widened rung (2026-10-08)
+
+**Correction to the section above.** The rim law did not fix the cylinder's vacuum wall. The smallest polar speed sampled, about 1e-7, drives the law's distance below the resolution floor, so the floor grades the cylinder whatever the law says (the elegance review's probe 3: the rule with the computed rim equals the rule with rim = 0 on 2 of 2 cylinder fixtures). The pole law acts on the sphere: a = 0.99 went from 9.3e-5 to 1.2e-13.
+
+**qa's findings** (`p1_step_b5b/qa.md`), with the point measure itself clean term by term:
+- **F1.** The partial mirror's pole sits at every interior tangency whose outer shells are thin or void. A void outer region at a = 0.99 misses by 5.1e-4 at the interface and by 2.6e-6 in the block's 1ᵀK1, at 8 line points.
+- **F2.** The cylinder's polar-speed layer exists at interior radii too: an interface point misses by 1.0e-6 at 8 line points.
+- **F3.** A line stored by its rounded impact parameter b loses the half-chord y near grazing. The wall error grows as about 3e-15/(1 − a), whatever the resolution: 6.6e-12 at a = 0.999. The floor patches only the extreme case, b rounding onto R.
+- **F4.** No catcher outside slow for the layer law.
+- **F5.** Inconsistent refusals: outside the body; the slab's grazing ψ returns 0 silently at |μ| ≤ 1e-100 and is off by 1.6e-3 at 1e-15; `c = 1e-160` gives a NaN weight.
+
+**The elegance review's findings** (`p1_step_b5b/elegance.md`):
+- **V1.** `PointRule` duplicates `LineRule`, and the guard has already drifted.
+- **V2.** `point_parameters` re-spells the chord's crossing expression.
+- **C1.** The walls' fold is written twice.
+- **C2.** The shared line rules sit in the wrong module: a private import; `_FULL_SOLID_ANGLE` twice.
+- **C4.** The floor and the clamp owe debt tags; filed as #590, since #582 is a different defect.
+- **C5.** Bare int tuples are passed where `TransportResolution` exists.
+- **Nits:** the `diffuse` alias, `DiffuseWalls.of`.
+
+**Rulings, the user, 2026-10-08:**
+1. The general grading law lands in 5b.
+2. The half-chord is carried in 5b: #590 is done in this rung, not separately.
+
+### The sketch (for the user's ruling of its shape; nothing built)
+
+**K. The kernel: an image carries an exact level** (P0 kernel, `orpheus/geometry/chart.py` and `chord.py`).
+- `RadialImage` gains `level` (a radius r*) and `level_half_chord` (y* = √(r*² − b²), exact), both `(...,)`. `Chart.image` sets r* = b and y* = 0, which is today's arithmetic bit for bit.
+- One method forms every half-chord: `RadialImage.half_chord_at(r) = √((r − r*)(r + r*) + y*²)`. A radius is crossed where that square is positive.
+- One method forms every parameter at a level, on both image classes: `parameters_at(r, side)`, which is ±`half_chord_at` through `parameter_at` on the radial image, and (r − c_foot)/ċ on the axial one.
+- `_radial_chord` and `_axial_chord` read these methods, and so does the reading (this is V2: one definition).
+- A caller that knows the exact pair passes it: `ConcentricPartition.chord(line, level=None)` with `level = (r*, y*)` per line, attached to the image after the canonical move. Orbit quantities are pose-invariant.
+- `Chart.image` is unchanged for every other caller. Retired: the y-floor and `_B_MARGIN` in `_impact_rule`, and the clamp in `point_parameters`.
+- The line rule passes each node's (top, half_chord) from `ImpactRule`. A line through a point in a given direction passes (c, c|Ω_x|/|PΩ|), exact from the direction.
+
+**G. The grading law at every impact-panel top** (replaces `rim_distance`). In panel k, toward y = 0, the distance is
+
+d_k = min(s, s·(−ln a) + τ_out(r_{k+1})) / (2Σ_k),
+
+where:
+- s is the slowest projected speed the rule samples (1 on the sphere);
+- τ_out is the in-plane optical depth of the shells above r_{k+1}, at b = r_{k+1};
+- a is the outer wall's specular amplitude. The −ln a term is present for 0 < a < 1 and absent otherwise: no specular return has no pole, and at a = 1 the closure is regular.
+- A void panel (Σ_k = 0) has d = ∞.
+
+The outermost panel (τ_out = 0) is today's rim law, and the next radius out still bounds d. `[R]` cost: on the cylinder every panel top is graded to s ≈ 1e-7 times its own mean free path, about 25 more pieces per panel. The cylinder gets slower until #587 (the non-tensor (b, θ) rule) grades per polar angle.
+
+**R. The review fixes, in the same pass:**
+- **V1.** One value for a weighted set of lines: `LineSet(basis, walls, sigma_t, coordinates, levels, weights)`. It holds the guard, the sort and `chunks(resolution)`. Its two constructors are the line domain's measure (`LineSet.through_body`) and a point's (`LineSet.through_point(c)`, which keeps c and derives the side). The block and the point reading are two functionals on it. `cosine_rule` returns the mirrored rule, and one function builds the impact-by-polar product.
+- **C1.** `WallCoupling.on_emission` is the one fold; `StackedSources` owns the (M + W) layout.
+- **C2.** A module `lines.py`, beneath `assembly.py` and `reading.py`, holds the coordinate rules, `LineSet`, `StackedSources` and the one `_FULL_SOLID_ANGLE`.
+- **C5.** `TransportResolution` is passed, not tuples.
+- **Nits:** the alias retires; `DiffuseWalls.of`.
+- **F5.** One refusal message for a point outside the body. The slab's grazing ψ below its parameter's resolution is refused as the sphere's is (#590's family). `c` below the smallest normal float is refused.
+
+**Gates owed** (the test-architect, resumed by name):
+- F1's void and thin outer regions, reading and block;
+- F2's cylinder interface point;
+- F3's wall at a = 0.999 and 0.99999, now inside the 1e-12 bar;
+- a fast catcher for the layer;
+- the kernel's level rows: `half_chord_at` exact at the level; `Chart.image`'s default bit for bit today's; the crossings at a level equal to the reading's parameters.
+
+**Ruled 2026-10-08:** K as "the image carries a level"; G with the cylinder's cost accepted until #587; R as written.
+
+## P1 step (b), rung 5b landed (2026-10-08)
+
+**Landed:** code `b76b9a9d` (CI red on its own, see the lessons), then docs `bb84bed7` (CI green; the archivist's sections; ERR-104 to ERR-106 with their `catches` markers). Closes #590. Filed #591, the reading's cost. #585 now owns the slab's grazing refusal.
+
+**What landed:**
+- `PointValue` reads 𝒦q at the point, and ψ(x, Ω) is exposed.
+- `Lines` is the one weighted set of lines. `LineRule` (the block) and `PointRule` (the reading) are its two roles.
+- The grading law at every impact-panel top (`lines.tangency_distances`): the next radius, the layer, and the pole.
+- The kernel's exact level (`RadialImage.level`, `chart.half_chord`, `parameters_at`, `chord(line, level)`). `at_level`'s agreement check is measured at worst 8 ulp of r*² over 1 192 112 lines (the archivist), with 64 allowed.
+- `WallCoupling.currents` and `on_emission` are the one fold of the walls; `update` is retired.
+
+**Evidence** `[M]` 2026-10-08:
+- **Gates:** the reading file and `test_chord_level.py` hold 187 rows; outside slow they pass with the door row (173), and slow 15 of 15. The battery has 26 arms, each reddening its targets.
+- **Reviews:** qa, two rounds; elegance, three rounds.
+- **Pre-merge:** the CI set passes 1427; the touched trees outside slow pass 9978 (251 skipped, 2 xfailed). Sphinx `-W` clean. `dead_references` 0 of 66.
+
+**Cost, the open item (#591).** On the final tree a cylinder point takes 4.9 s (one region, 19 584 lines) and 42.8 s (three regions, vacuum, 44 992 lines), on a loaded host. That is 68 to 590 times the spec §8 target. The grading law at the tensor rule's slowest polar speed multiplied the line count. #587, the non-tensor (b, θ) rule, is the larger lever; contracting the emission before the scan is the second.
+
+**Lessons from this rung:**
+- **The reading found four defects in rung 3's line rule:** the rim pole, the interior pole, the layer, and the lost half-chord. Every one was invisible to the block's own gates at the working resolution, or sat inside their bands. A second test measure over the same transport is a strong instrument.
+- **A fix whose law is clamped by a floor can be inert.** On the cylinder the rim law did nothing; the floor did the work. Ablate the law by replacing it with 0 and with ∞ before crediting it (the elegance review's probe 3; its lesson L-041).
+- **A floor that patches a representation's resolution is a symptom.** The fix was to carry the exact datum, the half-chord, which retired the floor, its margin and a clamp together.
+- **Re-measure a cost after every law that changes the rule's size.** The figure quoted in the issue was stale within the rung (the archivist caught it).
+- **A code commit that retires a docs target reds CI on its own.** `b76b9a9d` retired `WallCoupling.update` while an `implements` declaration still named it, and the docs commit re-pointed it. CI was red at `b76b9a9d` (the one Sphinx warning) and green at `bb84bed7`. check: before pushing a code commit that retires or renames a symbol, build Sphinx on that commit's own tree, or move the re-pointing docs line into the code commit.
+
+## ⏸ COMPACTION POINT — 2026-10-08, rung 5b merged; P1 step (b) complete
+
+**State.** P1 step (b), rungs 1 to 5b, is merged; read it from git. The reference reads every observable of its three questions.
+
+**Next, per the P1 sketch's migration order (item 9):**
+- step (c): the corroboration file (spec §7, G), the old family against the new on the SN fixtures, temporary L4 rows;
+- then (d), the SN rows re-pointed and the record keys re-baselined;
+- (e), the old family retired with its dependency-audit table;
+- (f), the theory page.
+
+Before (c), weigh #591 and #587: the SN fixtures include cylinders, and the corroboration reads points.
+
+**Open issues from this campaign:** #584, #585, #587, #588, #589, #591.
+
+**Working files:** `scratch/characteristic_architecture/p1_step_b5b/`. It holds:
+- `spec.md` and the gates' design;
+- `qa.md` with `qa/` and `qa/r2/`;
+- `elegance.md` with its probes;
+- `ta/battery/` (`run.sh <arm>`, `verdicts.md`);
+- the measurement probes under `main/`: `smoke*.py`, `kernel_bitwise.py`, `level_tolerance.py`, `budget_sweep.py`, `touched.sh`;
+- `archivist_point_cost*.py`.
