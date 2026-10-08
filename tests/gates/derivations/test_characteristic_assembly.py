@@ -45,8 +45,10 @@ rest; EB4 and LA1-LA4 are ``l2`` (CONV). The others are ``foundation``.
 by subtraction, ERR-103 the normal direction ungraded) sit only on rows that
 redden when their defect is re-dropped under -O (the battery,
 ``scratch/characteristic_architecture/p1_step_b3/gates/battery/``). Rows on the
-cylinder cost 30 s or more (`[M]` 2026-10-06, the orchestrator: a two-region
-cylinder block at 8 points, about 60 s at the piece budget 1024; at tau = 30, 1117 s, #586) and are ``slow``.
+cylinder cost 30 s or more and are ``slow`` (`[M]` 2026-10-07, the orchestrator, one process per run at the piece
+budget 1024, after the line rule evaluated only live intervals: a one-region white cylinder 27.8 s per group at
+tau = 30 and 8 points, 102 s at 16; at tau = 100, 38 s and 145 s; the three-region cylinder 175 s at 8 points,
+792 s at 16, #586).
 
 The line rule's gradings are derived from the group's optical scale (the user's
 ruling of 2026-10-06, after qa found the fixed rules blind): the grazing
@@ -219,9 +221,9 @@ _CLOSED = [
     ("slab_mirror_white", "slab", _SLB3, (_MIRROR, _WHITE), 4),
     ("slab_periodic", "slab", _SLB3, ("P", "P"), 4),
 ]
-#: The cylinder at ONE group and 8 points (the user's ruling of 2026-10-07): one MR3 cylinder block holds 38 400 lines
-#: (240 b x 160 theta) and takes 723 s at 8 points, over 15 minutes at 16 (the orchestrator; conservation 5.4e-13 at 8).
-#: The non-tensor (b, theta) rule of #586 is the step that restores the groups and the resolution.
+#: The cylinder at both groups and 8 points (the user's ruling of 2026-10-07): one MR3 cylinder block takes 175 s at
+#: 8 points and 792 s at 16 (`[M]` the orchestrator, one process, budget 1024), so the three-region rows stay at 8.
+#: `[M]` 2026-10-07 at 8 points: conservation 5.4e-13 (g0), 1.7e-13 (g1, each of the three rows); AS2's symmetry 2.2e-16 (g1).
 _CLOSED_SLOW = [
     ("cylinder_mirror", "cylinder", _MR3, (_MIRROR,), 8),
     ("cylinder_white", "cylinder", _MR3, (_WHITE,), 8),
@@ -239,7 +241,7 @@ def _closed_params(rows, marks=(), groups=("g0", "g1", "hom")):
 @pytest.mark.l1
 @pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.parametrize(("chart", "breakpoints", "laws", "points", "group"),
-                         _closed_params(_CLOSED) + _closed_params(_CLOSED_SLOW, marks=pytest.mark.slow, groups=("g0",)))
+                         _closed_params(_CLOSED) + _closed_params(_CLOSED_SLOW, marks=pytest.mark.slow, groups=("g0", "g1")))
 @pytest.mark.rests_on(_TRANS + "test_the_volterra_triangle_is_the_double_integral_along_the_line",
                       _CLOSURE + "test_an_arriving_flux_enters_the_cycle_at_its_traversal",
                       _LINES + "test_cauchys_formula_on_the_line_domain")
@@ -313,7 +315,7 @@ def test_each_group_is_coupled_through_its_own_cross_section() -> None:
 @pytest.mark.parametrize(("chart", "breakpoints", "laws", "points", "group"),
                          _closed_params(_CLOSED)
                          + _closed_params([r for r in _CLOSED_SLOW if r[0] == "cylinder_white"], marks=pytest.mark.slow,
-                                          groups=("g0",)))
+                                          groups=("g0", "g1")))
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
 def test_the_block_is_symmetric_and_blind_to_the_line_measure(chart, breakpoints, laws, points, group) -> None:
     """[AS2] K_g = K_g^T to 1e-14 of max|K| (reciprocity of the line Green's function summed over a line's two orientations).
@@ -435,24 +437,32 @@ _ESCAPE = [("sphere", 0.5, 16, 1e-13), ("sphere", 2.0, 16, 1e-13), ("sphere", 8.
            ("slab", 0.01, 8, 1e-11)]
 #: The rows that catch a catalogued defect, each re-dropped under -O (2026-10-07): ERR-101 at the sphere's thick rim
 #: (arms A16, the rim grading removed, and A20, the old ``chord_quadrature`` rule); ERR-103 at the thick slab (arm A22,
-#: the normal-direction ends dropped).
+#: the normal-direction ends dropped); ERR-101 at the thick cylinder too (arm A16 at 16 points, `[M]` 2026-10-07: T_w
+#: 9.4e-7 at tau = 30, 4.2e-4 at tau = 100; arm A22 moves them by 1e-14 and stays green; arm A20's anchor is the
+#: sphere's impact rule and does not reach the cylinder).
 _ESCAPE_CATCHES = {("sphere", 100.0): pytest.mark.catches("ERR-101"), ("sphere", 1000.0): pytest.mark.catches("ERR-101"),
-                   ("slab", 30.0): pytest.mark.catches("ERR-103")}
+                   ("slab", 30.0): pytest.mark.catches("ERR-103"),
+                   ("cylinder", 30.0): pytest.mark.catches("ERR-101"), ("cylinder", 100.0): pytest.mark.catches("ERR-101")}
 
 #: At 8 points (the slow tier's budget, the user's ruling of 2026-10-07) every leg meets its band except the
 #: transmission at tau = 2 and 8 (`[M]` 2026-10-07: T_w 9.3e-10 and 2.3e-8 at 8 points), which stay at 16 points.
 _ESCAPE_SLOW = [("cylinder", 0.5, 8, 1e-11), ("cylinder", 2.0, 16, 1e-11), ("cylinder", 0.01, 8, 1e-11),
-                ("cylinder", 1e-4, 8, 1e-11), ("cylinder", 8.0, 16, 1e-9)]
-#: The thick cylinder legs (tau = 30 and 100) moved to tau = 8: at tau = 30 one block carries 18 432 lines of 14 to 106
-#: pieces and took 1117 s at 8 points (the orchestrator, 2026-10-06, #586); 16 points would exceed the slow set's budget.
+                ("cylinder", 1e-4, 8, 1e-11), ("cylinder", 8.0, 16, 1e-9),
+                ("cylinder", 30.0, 16, 3e-10), ("cylinder", 100.0, 16, 3e-10)]
+#: The thick cylinder legs run at 16 points (the user's ruling of 2026-10-07, restoring tau = 30 and 100 after the line
+#: rule evaluated only live intervals, #586): one block takes 102 s (tau = 30) and 145 s (tau = 100) at 16 points
+#: (`[M]` the orchestrator, one process, budget 1024). Their bands are 10 x `[M]` 2026-10-07 at 16 points: T_w
+#: 2.6e-11 at both (P_esc 1.1e-15 and 5.0e-15 at tau = 30; 1.1e-13 and 1.3e-15 at tau = 100).
 
 
 @pytest.mark.l1
 @pytest.mark.verifies("characteristic-boundary-resolvent")
 @pytest.mark.parametrize(("chart", "tau", "points", "tol"),
-                         [pytest.param(*r, id=f"{r[0]}-tau{r[1]}", marks=_ESCAPE_CATCHES.get((r[0], r[1]), ()))
+                         [pytest.param(*r, id=f"{r[0]}-tau{r[1]}", marks=_ESCAPE_CATCHES.get((r[0], r[1]), []))
                           for r in _ESCAPE]
-                         + [pytest.param(*r, id=f"{r[0]}-tau{r[1]}", marks=pytest.mark.slow) for r in _ESCAPE_SLOW])
+                         + [pytest.param(*r, id=f"{r[0]}-tau{r[1]}",
+                                         marks=[pytest.mark.slow, *([_ESCAPE_CATCHES[r[:2]]] if r[:2] in _ESCAPE_CATCHES else [])])
+                            for r in _ESCAPE_SLOW])
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
 def test_the_escape_and_transmission_probabilities_are_the_closed_forms(chart, tau, points, tol) -> None:
     """[WC1, the re-posed C9; WC2; planned l1, ``characteristic-boundary-resolvent``] A homogeneous body behind white
@@ -1141,7 +1151,7 @@ def test_a_tiny_cavity_assembles_and_conserves() -> None:
 @pytest.mark.rests_on(_HERE + "test_the_cylinders_direction_rule_is_gauss_in_the_polar_angle")
 def test_the_cylinders_escape_converges_in_the_polar_angle() -> None:
     """[LA4; planned l2, CONV] The cylinder's escape at tau = 0.5 with 4, 6, 8 points in theta (and in b): monotone,
-    each step down by more than 10 (8 is the slow tier's working point; 16 is out of its budget, #586).
+    each step down by more than 10 (the ladder up to 8, the working point of WC1's tau = 0.5 cylinder row).
 
     `[M]` the orchestrator on the built code: 1.5e-6, 2.3e-9 at 8, 16 (32: 2.3e-13).
     First red: Gauss in mu_z (`[M]` 4.3e-3, 5.4e-4, 7.0e-5 at 4, 8, 16: a ratio

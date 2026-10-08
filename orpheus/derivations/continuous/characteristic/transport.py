@@ -261,8 +261,8 @@ class TraversalRule:
         return self.period.present.shape[:-1]
 
     def _flat(self, per_line: np.ndarray) -> np.ndarray:
-        """``(*batch, ...)`` to ``(L, ...)``."""
-        return per_line.reshape(-1, *per_line.shape[len(self._batch):])
+        """``(*batch, ...)`` to ``(L, ...)``; the line count is spelled, so a field with no entry per line flattens too."""
+        return per_line.reshape(int(np.prod(self._batch)), *per_line.shape[len(self._batch):])
 
     def _unflat(self, per_line: np.ndarray) -> np.ndarray:
         """``(L, ...)`` to ``(*batch, ...)``."""

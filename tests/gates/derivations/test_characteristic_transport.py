@@ -776,6 +776,8 @@ def test_the_vacuum_angular_flux_is_the_source_integral_since_the_entry(body, po
     outside = float(case.mp.transits()[-1][1]) + 0.1
     with pytest.raises(ValueError, match="lies on a transit of its line"):
         case.rule.angular_flux(np.array([outside]), zero)
+    # no point is a read of nothing, not an ambiguous reshape (qa, #586, 2026-10-07)
+    assert case.rule.angular_flux(np.zeros(0), zero).shape == (0, case.basis.size)
 
 
 _EXIT_READS = [r for r in _LINES if r[0] in ("sphere_solid_b0.7", "sphere_hollow_b0.2_cavity", "cylinder_solid_b0.7_wz0.8",
