@@ -148,8 +148,10 @@ Key facts
   gate and missed the closed forms by up to :math:`5 \times 10^{-1}` near
   void and :math:`7.3 \times 10^{-1}` at :math:`\tau = 1000` (ERR-101,
   ERR-103, :ref:`characteristic-line-rule`). The cylinder's tensor rule
-  is slow on a thick body, about :math:`10^6` pieces at :math:`\tau = 30`
-  (#586, the next step).
+  holds about :math:`10^6` pieces at :math:`\tau = 30`, and its cost was
+  the inner rule's padding, not that count: packing each line's live
+  intervals brought the white block to 27.8 s per group, from about
+  215 s (`[M]` 2026-10-07, #586, :ref:`characteristic-cylinder-cost`).
 - **Evidence** `[M]` 2026-10-06 and 2026-10-07: for the walls and the
   closure, 175 gate rows in two files and a 34-arm mutation battery; for
   the basis and the transport, 328 rows in two more files, the traversal
@@ -3018,11 +3020,16 @@ the lines by projected speed, and lines of like cost share a chunk.
 chunk whose traversal rule holds more than ``budget`` piece slots
 (:attr:`TraversalRule.extent
 <orpheus.derivations.continuous.characteristic.transport.TraversalRule.extent>`,
-default 1024) is halved until it fits or holds one line. A slot costs up
-to about 0.5 MB at 12 points per piece, in the Volterra block's inner
-rule, so the budget bounds a chunk's memory where a line count does not.
+default 1024) is halved until it fits or holds one line. The budget
+bounds a chunk's memory where a line count does not, because a line's
+memory follows its pieces. Each line's live pieces are packed first, so
+the pieces pad only to the chunk's costliest line; since 2026-10-07 the
+Volterra block's inner rule is packed the same way, interval by
+interval, instead of padding every attenuated integral to the batch's
+thickest stretch (:ref:`characteristic-cylinder-cost`).
 
-`[M]` 2026-10-06, the main agent and the test-architect:
+`[M]` 2026-10-06, the main agent and the test-architect, before the inner
+rule was packed:
 
 .. list-table::
    :header-rows: 1
@@ -3069,12 +3076,52 @@ rule, so the budget bounds a chunk's memory where a line count does not.
 Smaller is faster while the arrays stay in cache, until the chunks shrink
 to a few lines and the per-rule overhead dominates: the grazing grading's
 lines, each with many pieces, split a budget of 256 into single-line
-rules. The default of 1024 is the measured compromise. The geometry of a
+rules. The default of 1024 is the measured compromise, and it stayed the
+fastest after the inner rule was packed. `[M]` 2026-10-07, the main
+agent, one process per run, one-region white cylinders at 8 points per
+piece and 12 inner points per interval, per group:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 50 16 16 18
+
+   * - Rule
+     - Budget
+     - Time
+     - Peak memory
+   * - :math:`\tau = 30`, 18 432 lines
+     - 512
+     - 29.4 s
+     - 0.7 GB
+   * - the same
+     - 1024
+     - 27.8 s
+     - 0.8 GB
+   * - the same
+     - 4096
+     - 31.4 s
+     - 2.0 GB
+   * - the same
+     - 16 384
+     - 37.2 s
+     - 6.0 GB
+   * - :math:`\tau = 0.01`, 15 360 lines
+     - 512
+     - 17.5 s
+     - 0.5 GB
+   * - the same
+     - 1024
+     - 15.6 s
+     - 0.7 GB
+
+The geometry of a
 chunk (its chord and period) is rebuilt per group, as the sketch ruled;
 a cache would follow only if the geometry were a measured fraction of the
 time. On the sphere the cost is small: `[M]` 2026-10-07, the archivist's
 probe, the three-region sphere at 16 points holds 480 lines and its white
 block took 0.8 s.
+
+.. _characteristic-cylinder-cost:
 
 The cylinder's cost on a thick body (#586)
 ------------------------------------------
@@ -3084,25 +3131,136 @@ polar-angle rule, and both grow with the optical scale: the impact rule
 with the rim's exponential ends, the polar rule with the grazing and
 normal gradings. `[M]` 2026-10-07, the archivist's probe: the three-region
 cylinder :math:`(0, 0.5, 1.5, 2)` at 8 points holds 38 400 lines, 240
-impact nodes times 160 polar nodes. The main agent measured its white
-block at 723 s, conserving to :math:`5.4 \times 10^{-13}`, and more than
-15 minutes at 16 points; a homogeneous cylinder at :math:`\tau = 30` holds
-18 432 lines of 14 to 106 pieces each, about :math:`10^6` pieces, and took
-1117 s under load. `[R]` Most of those lines are wasted: in a tensor
-product the polar grading that only the lines near grazing need is
-applied at every impact parameter, and the rim grading at every polar
-angle.
+impact nodes times 160 polar nodes; a homogeneous cylinder at
+:math:`\tau = 30` holds 18 432 lines, 192 impact nodes times 96 polar
+nodes, of 14 to 106 pieces each, about :math:`10^6` pieces.
 
-The user ruled on 2026-10-07 that the third rung lands with the slow
-cylinder rows cut to one fixture per law at 8 points (the escape rows
-at :math:`\tau = 2` and 8 stay at 16 points, where the 8-point
-transmission misses by :math:`9.3 \times 10^{-10}` and
-:math:`2.3 \times 10^{-8}`; the thick legs moved from :math:`\tau = 30` and
-100 to :math:`\tau = 8`), and that a non-tensor :math:`(b, \theta)` rule,
-`#586 <https://github.com/deOliveira-R/ORPHEUS/issues/586>`_, is the next
-step, before the fourth rung. Its consumer is waiting: the re-pointing
-step of the migration needs two-group cylinder references, about 25
-minutes each at today's cost.
+**The premise that was refuted.** Issue
+`#586 <https://github.com/deOliveira-R/ORPHEUS/issues/586>`_ measured the
+:math:`\tau = 30` white block at 1117 s, on a machine at a load average of
+about 6, and the three-region block at 723 s, conserving to
+:math:`5.4 \times 10^{-13}`. It attributed the cost to the line count: in
+a tensor product the polar grading that only the lines near grazing need
+is applied at every impact parameter, and the rim grading at every polar
+angle. It proposed a rule over :math:`(b, \theta)` that is not a tensor
+product. A profile refuted that premise FOR the question "what makes the
+cylinder slow". `[M]` 2026-10-07, the main agent, the white cylinders at
+8 points over a sixteenth of their lines: 78 to 82 % of the time was spent
+evaluating the panel basis
+(:meth:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis.values`),
+and 98 % of those calls came from the Volterra triangle's inner rule, the
+attenuated integral of :ref:`characteristic-attenuated-integral`. The fact
+it establishes is that the cost of each line was inflated, not that there
+were too many lines.
+
+The inner rule grades the stretch between an integral's start and its
+stop exponentially toward the stop, so an integral over a thin stretch
+has one live interval and one over a thick stretch up to eight. The rule
+kept an interval if any integral of the batch used it, so every integral
+was evaluated on the batch's thickest stretch, the thin ones on intervals
+of zero width. The evaluations were 4.2 times (the three-region cylinder)
+to 6.1 times (:math:`\tau = 30`) the live ones.
+
+**The two fixes.** The user ruled on 2026-10-07 to fix the evaluation
+first, re-measure, and change the line rule only if a block still took
+more than a minute. Neither fix changes the rule.
+
+1. **Packing.** Each line's live entries are packed first, in their
+   order along the line; a per-entry field is gathered onto the packed
+   entries, and the packed values are scattered back, summed onto their
+   owners, by the transpose of the gather. The pieces and the inner
+   rule's intervals share this one object (``_Packing`` in the transport
+   module), so the owner of a packed entry is computed in one place. An
+   array is padded to the chunk's costliest line, not to the batch's
+   costliest integral, and the lines of a chunk are ordered by projected
+   speed, a proxy for their cost, so the remaining padding is small.
+2. **Lagrange tables.** The basis evaluation reads its Lagrange tables
+   (the nodes and their differences, for the reference and the even
+   panel coordinates), built once per basis, instead of rebuilding the node differences at
+   every point. Each factor is the same arithmetic, so the values are
+   bit-identical.
+
+`[M]` 2026-10-07, the main agent and qa: on five fixtures (the
+three-region and hollow spheres, a slab, the three-region and
+:math:`\tau = 30` cylinders) the blocks are bit-identical to the code
+before the fix except two, which differ by at most
+:math:`2.7 \times 10^{-17}` relative. qa reproduced the old inner rule and showed that the difference
+is the order of one summation: 192 of 192 calls are bit-identical once
+that order is matched. The basis values are bit-identical on 140 140
+entries, degrees 0 to 12. A mutation that shifts the packed owner by one
+entry reddens the transport gates.
+
+**The cost now.** `[M]` 2026-10-07, the main agent, one process per run,
+budget 1024, white blocks per group:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 46 14 20 20
+
+   * - Body
+     - Points
+     - Before
+     - After
+   * - one region, :math:`\tau = 30`
+     - 8
+     - about 215 s on an idle machine (1117 s under load)
+     - 27.8 s
+   * - one region, :math:`\tau = 0.01`
+     - 8
+     - 57 s
+     - 15.6 s
+   * - three regions :math:`(0, 0.5, 1.5, 2)`
+     - 8
+     - 723 s
+     - 175 s
+   * - one region, :math:`\tau = 100`
+     - 8
+     - --
+     - 38 s
+   * - one region, :math:`\tau = 30`
+     - 16
+     - --
+     - 102 s
+   * - one region, :math:`\tau = 100`
+     - 16
+     - --
+     - 145 s
+   * - three regions
+     - 16
+     - more than 15 min
+     - 792 s
+
+The characteristic gates' slow tier as it stood took 15 min 40 s for 14
+rows, from about 62 minutes; the 722 rows outside it took 5 minutes.
+#586's acceptance, a :math:`\tau = 30` two-group block in under a minute
+at the gates' resolution, is met: two groups at 27.8 s each are 55.6 s.
+
+**What the non-tensor rule would still buy.** `[R]` Fewer lines: a rule
+that grades the polar angle on each impact panel by that panel's own
+optical scale would skip the grazing grading where a short rim chord does
+not need it. Its saving multiplies the packed cost; it does not repeat
+the packing's. It is not needed now. It becomes the lever if a
+three-region cylinder at 16 points, 792 s a group, enters a routine path
+(`#587 <https://github.com/deOliveira-R/ORPHEUS/issues/587>`_).
+
+**The slow tier, re-ruled.** The third rung had cut the slow cylinder
+rows to one fixture per law at 8 points, keeping the escape rows at
+:math:`\tau = 2` and 8 at 16 points (where the 8-point transmission misses
+by :math:`9.3 \times 10^{-10}` and :math:`2.3 \times 10^{-8}`) and moving
+the thick legs from :math:`\tau = 30` and 100 to :math:`\tau = 8`. With the
+packed rule the user ruled on 2026-10-07 to restore the cylinder's escape
+and transmission legs at :math:`\tau = 30` and 100 at 16 points, and the
+three-region cylinder's closed-body rows for both groups at 8 points.
+
+`[M]` 2026-10-07, the test-architect: the characteristic slow tier holds
+20 rows and runs in 36 min 27 s, against 14 rows in 15 min 40 s before the
+restoration. The two thick legs miss the transmission :math:`T_w` by
+:math:`2.6 \times 10^{-11}` at 16 points (band :math:`3 \times 10^{-10}`),
+and both redden when the rim grading is removed, so they catch ERR-101.
+
+The fourth rung's re-pointing step needs two-group cylinder references;
+`[R]` from the table, a three-region two-group block at 8 points costs
+about 6 minutes.
 
 
 .. _characteristic-what-is-not-built:
@@ -3143,9 +3301,10 @@ issue is #405):
   it (the spec's C6 and C8); fifth rung. At the operator level C8's
   reciprocity is the symmetry row, which is blind
   (:ref:`characteristic-galerkin-assembly-section`);
-- **a fast cylinder**: the tensor rule over :math:`(b, \theta)` costs about
-  :math:`10^6` pieces on an optically thick cylinder (#586, the next step,
-  :ref:`characteristic-line-rule`);
+- **a cylinder rule over** :math:`(b, \theta)` **that is not a tensor
+  product**, which would cut the cylinder's line count; the packed inner
+  rule made it unnecessary for the gates
+  (:ref:`characteristic-cylinder-cost`);
 - **a wall both specular and diffuse**, refused as a scope boundary
   because production poses none (:ref:`characteristic-walls`);
 - **a body far from the origin**: a slab at :math:`x \approx 10^{6}` loses
@@ -3931,9 +4090,14 @@ Gotchas
 - **Subtract in mpmath.** A near-void reference such as
   :math:`1 - P_{\rm esc}` evaluated in mpmath and subtracted in double
   precision reports a defect the code does not have.
-- **The cylinder is slow.** A cylinder block at 8 points on the gates'
-  three-region body takes about 12 minutes; size a cylinder fixture
-  before adding it (#586).
+- **Size a cylinder fixture before adding it.** A white cylinder block
+  costs, per group at 8 points, 15.6 s at :math:`\tau = 0.01`, 27.8 s at
+  :math:`\tau = 30` and 175 s on the gates' three-region body; at 16 points,
+  102 s at :math:`\tau = 30` and 792 s on the three-region body (`[M]`
+  2026-10-07). Most of it is the inner rule's basis evaluations. A change
+  that pads an integral to the batch's thickest stretch again multiplies
+  that part 4 to 6 times and reddens no correctness gate, because the
+  values do not change (:ref:`characteristic-cylinder-cost`).
 - **Read the flux at a wall at the kernel's crossing parameter.**
   ``angular_flux`` locates a point by its slot's closing crossing. A
   parameter formed as the slot's start plus its length can round an ulp
@@ -4022,3 +4186,16 @@ History
        (#586).
      - ``71a207fa``
      - #405, #584, #585, #586
+   * - 2026-10-07
+     - The cylinder's cost (#586) was the Volterra triangle's inner rule,
+       not the line count of the tensor rule: every attenuated integral
+       was padded to the batch's thickest stretch, 4.2 to 6.1 times the
+       live evaluations. Each line's live entries are now packed first
+       (one packing shared by the pieces and the inner rule), and the
+       basis reads Lagrange tables built once. The rule is unchanged; the
+       :math:`\tau = 30` white block went from about 215 s to 27.8 s per
+       group. The non-tensor rule the issue proposed was not needed, and
+       the user restored the thick cylinder legs and the three-region
+       closed-body rows to the slow tier.
+     - ``95d1a511``
+     - closes #586
