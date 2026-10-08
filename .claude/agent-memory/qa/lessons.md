@@ -213,6 +213,12 @@ conservation, which each line satisfies on its own.** check: one mpmath closed
 form (P_esc, P_ss, white chain) at tau 1e-6 and 1e2 beside the gates' range.
 → L-098
 
+**B18. A normalisation (a gauge, a ScaleGauge section) is attacked with a state its
+functional annihilates ANALYTICALLY — a higher mode of a closed homogeneous body, a
+null-space mode of a rank-deficient production — never only the fundamental; an
+`== 0.0` refusal is blind to the rounding zero.** check: |n(ψ)| against
+ε·n(|ψ|) on mode 2 of a closed body. → L-099
+
 ---
 
 

@@ -31,6 +31,7 @@ it (`process-discipline`).
 
 | review | lesson → digest rule |
 |---|---|
+| W3 characteristic rung 5a door (2026-10-07) | L-099 → B18 |
 | W3 characteristic rung 3 assembly (2026-10-06) | L-098 → B17 |
 | W3 #200 Krylov sweep preconditioner (2026-10-04) | L-097 → E20 |
 | W3 #405 P3 traced memo, second review (2026-10-04) | L-096 → H (reaper reach) |

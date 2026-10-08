@@ -353,6 +353,9 @@ shelf life — check it against a concrete row before trusting a green.
 
 ## 4. Reference, claim layer, and the proactive refutation
 
+- **⛔ A normalisation (gauge) functional is a claim about EVERY mode the question can return: evaluate it on a
+  higher mode before gating the scaled reading.** A functional the adjoint makes vanish on that mode (net production of a
+  closed homogeneous body's higher modes) divides by a rounding residue, and an `== 0.0` guard never fires. → `L110`
 - **⛔⛔ A brief saying a relocated computation uses "plain / flat / simple"
   arithmetic has named TWO conventions — enumerate the candidate spellings and
   MEASURE the spread before writing the pin; the spread IS the pin's

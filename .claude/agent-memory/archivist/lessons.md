@@ -237,6 +237,8 @@ grep inventory with a per-hit KEEP/FIX adjudication.**
   moving the test count. Algebra-of-record SymPy-identity labels are verifies-COVERED, not
   documented. Orphan adjudication: WIRE / SENTINEL (three shapes) / GAP — never manufacture a gap.
   → L-004, L-035, L-036, L-039, L-065, L-077, L-063, L-049, L-037, L-027, L-030
+- **A new `:label:` under frozen tests is an ORPHAN, not a red** — the matrix lists it and nothing
+  forces the marker; hand the `verifies` lines per test function in `NEEDS:`, never `documented`. → L-121
 - **Declaring `.. implements::` switches token-inference OFF for the WHOLE equation, so an
   incomplete declaration UNDER-covers** — ask *what else computes this?* before the first directive
   (7 of 14 needed 2–4). Writing the explanation MINTS new guesses, so never publish a live guess

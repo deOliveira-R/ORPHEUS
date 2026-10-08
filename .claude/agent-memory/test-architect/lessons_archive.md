@@ -11709,3 +11709,14 @@ blind to a defect that biases every rung the same way. Its honest first red is a
 which breaks the form the theorem needs. Also: qa showed a "reciprocity" row <r, phi(q)> = phi^dagger^T W_s q holds
 for ANY K (pure transposition algebra); the physics needs an independent route (the forward solve of the
 group-transposed problem).
+
+## L110 — Characteristic P1 rung 5a (the door): a gauge functional that vanishes on the mode it scales (2026-10-07)
+
+The eigen flux is scaled to <nu Sigma_f, phi> = 100. The door served `Nearest(tau)` and read its flux in the
+same gauge. On a closed homogeneous body every higher mode is biorthogonal to the flat adjoint, so
+<chi-weighted adjoint, F phi_n> = 0 forces int nu Sigma_f phi_n dV = 0: the gauge divided a rounding residue
+(-1.3e-16), and a left-half integral read -8.4e16. The guard `production == 0.0` could not fire (rounding never
+reaches an exact zero). Found by writing the Nearest anchor (the mirror slab's cos(pi x / a), k(B) closed form)
+and then asking what its flux reading would be. Ruled the same day: a Nearest answer reads Eigenvalue only.
+Also measured: the pairing (W c_w)^T phi_h is int w phi_h dV EXACTLY whatever w is (the sketch claimed it
+carries the weight's projection error); the error is the Galerkin flux's, not the weight's.

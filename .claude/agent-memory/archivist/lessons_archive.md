@@ -14103,3 +14103,14 @@ And napoleon's `Attributes` entries are NOT Python-domain targets in this corpus
 `Chord.line` in the built api page), so `:attr:` to a dataclass field documented only there renders
 plain text; my import probe also read it DEAD (a field with no class default has no class attribute,
 L-093), so use a literal.
+
+## L-121 — a docs pass under frozen tests mints ORPHAN labels; ship the verifies markers ready to paste
+
+Clause not covered: the definition's §5 covers an `.. error-entry::` without its `catches` (it
+reddens), not a new equation `:label:` without its `verifies`. The latter does NOT redden: the audit
+reports it in `matrix.rst`'s orphan list (`[M]` 2026-10-08, rung 5a of the characteristic
+reference: six new labels moved the orphan count 2 → 8, `-W` clean, exit 0). So nothing forces the
+markers to land, and a later reader sees six tested claims listed as untested. Do: map each new
+label to the existing test functions that assert it, and hand the marker lines to the orchestrator
+in `NEEDS:`, one `@pytest.mark.verifies("<label>")` per function. Never mark them `documented` to
+keep the count flat: they are tested claims.

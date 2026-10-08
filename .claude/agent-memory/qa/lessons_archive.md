@@ -6081,3 +6081,12 @@ closed-body conservation (each line conserves, or the white tally is consistent)
 alpha < 1 functional against mpmath. Not covered by `vv-principles` AP24(e) (regime of a metric that
 adjudicates) or mode 12 (stabiliser): the attack is "sweep the optical thickness of the thinnest panel and
 the thickest region, under a law whose functional reads the rule". Probes: `scratch/characteristic_architecture/p1_step_b3/qa/p13`, `p14`, `p17`-`p19`.
+
+## L-099 — a gauge refused only at an exact zero serves a rounding-noise representative ×1e17 (2026-10-07, W3 characteristic rung 5a QA, `4e375fe6` + uncommitted)
+
+The door scaled an eigen flux by 100/⟨νΣ_f,φ⟩ and refused `== 0.0`. A closed homogeneous body's higher
+modes have ⟨νΣ_f,φ_n⟩ = 0 in exact arithmetic (orthogonal to the flat adjoint); in floats 1e-16, so
+Nearest served fluxes of 3e17. A rank-deficient F K (χ zero in a group, a non-fissile region) adds a k ≈ 0
+cluster of noise eigenvalues (38 of 80 complex) that Nearest(0) serves at 1e18. Not covered by
+`vv-principles` mode 12 or AP24 (the instrument is a section of a quotient, not a metric): the attack is
+"pick a state the functional annihilates analytically". Probes: `scratch/characteristic_architecture/p1_step_b5/qa/p1`, `p7`.

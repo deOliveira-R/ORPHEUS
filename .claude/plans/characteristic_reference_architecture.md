@@ -267,6 +267,9 @@ Reports: `scratch/characteristic_architecture/w5_elegance.md` (elegance-enforcer
 - **2026-10-06, the user, after rung 3's elegance review:** `compute_areas_1d` (the twin of `measure_density`) retires separately, #584; the white block's near-void conditioning is fixed in rung 3 (the loss-formed I − αT with a balance row).
 - **2026-10-06, the user, after rung 3's qa:** every line-measure grading is derived from the group's optical scale (grazing to the thinnest absorbing panel; impact in the chord half-length, hp toward both singularities and exponential at the rim); `LineRule` becomes per group. The regimes are not refused.
 - **2026-10-07, the user, on the cylinder's cost:** rung 3 lands with the slow cylinder rows cut to one fixture per law at 8 points; #586 (a non-tensor (b, θ) rule) is the next step, before rung 4.
+- **2026-10-07, the user, on P1 step (b)'s fifth rung API sketch:** all four as recommended. Q1: split, 5a (the resolution, the projection, the door, `Eigenvalue` and `FluxIntegral`; `PointValue` refused naming 5b) then 5b (the reading at a point). Q2: a `Response` is answered as the group-transposed forward problem with the detector as its source. Q3: the eigen flux in the gauge ⟨νΣ_f, φ⟩ = 100. Q4: `Nearest(tau)` served, tau read in the k chart, #529 named as the owner of parameter charts.
+- **2026-10-07, the user, after rung 5a's reviews (three rulings):** (1) a `Nearest` answer reads `Eigenvalue` only; the flux of a higher mode is refused as a SCOPE-BOUNDARY, since its net fission production can vanish (on a closed homogeneous body every higher mode is biorthogonal to the flat adjoint). (2) The Q3 gauge is corrected: its premise was wrong (100 is the homogeneous solver's production DENSITY); the eigen flux of a finite body has total fission production 1 over the body, the SN solver's `ScaleGauge(production rate, 1.0)` and the trajectory resolvent's. (3) A `Response` answer is the adjoint scalar flux Rψ† (the vocabulary's E^{-†}R), so the transposed problem's source is the retraction of the detector's lift: R R†Σ_d = 4πΣ_d for a table, R f for a symbolic function, the 4π derived from `angular_measure`.
+- **2026-10-08, the user, on the gauge (after the archivist found that SN's production counts the (n,2n) emission):** "In principle, both should know what 'production' means (because we need to declare it) so that we can have n2n or not and be consistent." Ruled from the two options that followed: the gauge is DECLARED on the eigen question, `Eigen(parameter, ..., gauge=<CellCoefficient>)`, the same key type as its parameter, resolved by the specification; `None` takes the declared default `EIGEN_GAUGE = CellCoefficient.every(FISSION_EMISSION, N2N_EMISSION)` (production: what fission and (n,2n) emit, SN's functional). What each channel emits per unit flux is defined once, `Channel.emission` (ν per fission, 2 per (n,2n) reaction). The references read it in this rung; SN and the homogeneous solver move onto it in #517.
 - **2026-10-05, the user, on sequencing:** design first, then rebuild; `a336bde4` stays unmerged on its branch as a measured speed target.
 
 ## The widened question (2026-10-05)
@@ -1241,3 +1244,123 @@ This reverses the P1 sketch's item 6 (ruled 2026-10-06: "the unknown is the FLUX
 - **A stored derived field is a door for an inconsistent value.** Blocks handed to the system as a field gave a wrong k in silence. Derive what the posing determines.
 - **A reciprocity identity of the form ⟨r, L⁻¹q⟩ = ⟨L⁻ᵀr, q⟩ is true for any L.** The non-tautological check of an adjoint is an independently posed forward problem: the group-transposed one.
 - **Do not refactor production while reviewers and a battery are reading it.** The elegance fixes landed under qa and the battery, and both had to re-run. Collect the reviews first, then change the code once.
+
+## P1 step (b), fifth rung: API sketch (the main agent, 2026-10-07; checkpoint with the user before code)
+
+Every item is a proposal until ruled. The surface it plugs into was mapped by the explorer at `4e375fe6`: `scratch/characteristic_architecture/p1_step_b5/surface.md`, every claim with its `file:line`. The facts the sketch rests on:
+- **The specification holds ONE question.** `GeometrySpecification(materials, geometry, question)` (`orpheus/specification/specification.py:126`) keeps only the materials the geometry uses and canonicalises the question's keys.
+- **A derivation answers that question for every observable.** `Derivation` is a Protocol with one method, `evaluate(observable) -> Evaluation` (`orpheus/reference/solution.py:63`). `evaluate` receives `Eigenvalue`, `FluxIntegral(weight)` or `PointValue(position, group)`; `ReferenceSolution` splits a `Ratio` before `evaluate` sees it, and `admit_observable` has already checked the observable against the problem.
+- **The two existing derivations** (`ExactInfiniteMediumDerivation`, `TrajectoryResolventDerivation`) check the question at construction, dispatch on the observable alone, and serve one question only: `Eigen(CellCoefficient.every(Channel.FISSION_EMISSION).resolve(materials))` at the physical point with the fundamental mode. No reference yet serves `Nearest`, an offset point, `FixedSource` or `Response` (`[M]` the explorer: 0 hits outside the specification).
+- **The traced memo** rebuilds the receiver from its constructor fields in a fresh interpreter, so the receiver and every field are `ContentIdentity`. No characteristic class is one today.
+- **A source and a detector are mesh-free functions:** a `RegionwiseConstant` table `(regions, groups)` on the angle-integrated space, or a `Symbolic` expression per group in `(r, mu, phi)`, a density over dΩ. A source enters phase space through the angular section (its rate kept); a detector through the retraction's adjoint (`orpheus/numerics/mesh_free_function.py:13-30`).
+- **Nothing projects a mesh-free function onto a `PanelBasis`,** and nothing reads the transported flux at a point: `TraversalRule.angular_flux`, `LinePeriod.inflow` and `Chart.directions_at` exist, and only tests call them; the diffuse walls' return is assembled only inside `LineRule.transport`.
+- **The eigen gauge differs between the two existing references.** The exact homogeneous one fixes ⟨νΣ_f, φ⟩ = 100 (production's gauge, `exact_homogeneous.py:53`); the trajectory resolvent divides by its last fission rate.
+- **The chart of a parameter is not minted** (`specification.py:51`, owed to #529). Both existing references return k for `Eigenvalue()`, so k is the chart every consumer reads today.
+
+**1. The resolution (`characteristic/resolution.py`, or in `reference.py`).** `Resolution(degree, layers, ratio, transport: TransportResolution)`, a frozen `ContentIdentity`; `TransportResolution` becomes one too. One value for the solve and, in the reading's sub-rung, the direction rule at a point (a field added then, which changes the schema tag as it should). It dissolves #516's two answers: one resolution, one transport.
+
+**2. The projection (`basis.py`).** `PanelBasis.project(table) -> (G, N)`: the L2 projection c = W⁻¹⟨u_i, f_g⟩ of a function given by its values on each panel's Gauss points, panel by panel (W is block-diagonal by panel). Exact for any per-region polynomial of degree ≤ p, so exact for a `RegionwiseConstant`. The mesh-free function is read into that table at the door, where its role is known:
+- **a source** keeps its rate: a `RegionwiseConstant` as given; an isotropic `Symbolic` q(r) is a density over dΩ, so its rate is ∫ q dΩ = 4π q `[R]` (the module docstring's section; the 4π is the angular measure, not a convention). A `Symbolic` source depending on μ or φ is refused: an anisotropic source needs its own first-flight transport (SCOPE-BOUNDARY, the same machinery as the anisotropic emission);
+- **a weight or a detector** is the scalar flux's weight, as given.
+
+Because W is block-diagonal by region and every support is a union of regions, restricting the projection to the support and applying W_s equals restricting the load ⟨u_i, f⟩: the system's coefficient API (rung 4) stays unchanged. The source's regions (the support widening, rung 4's Q1) are the regions where a group's projected coefficients are non-zero.
+
+**3. The door (`characteristic/reference.py`).** `CharacteristicDerivation(specification, resolution)`, a frozen `ContentIdentity`. Construction is the one door, each refusal a SCOPE-BOUNDARY or a ValueError naming what it refused:
+- an infinite medium (no geometry);
+- a mixture with anisotropic scattering or (n,2n) emission, through `RegionCrossSections.of` (rung 4: one door for that refusal);
+- `PrescribedInflow` and a wall both specular and diffuse, through `Walls.of` (rung 1);
+- an `Eigen` along a parameter other than the fission emission, or at an offset point;
+- an anisotropic `Symbolic` source.
+The cross sections are `RegionCrossSections.of([materials[m] for m in geometry.mat_ids])`, one region per interval, as `ConcentricPartition.of(geometry)` reads them. The basis is `PanelBasis.of(partition, degree, layers, ratio)`.
+
+The question is resolved once, at construction, into its answer (a `cached_property`, solved on the first `evaluate`); `evaluate` then dispatches on the observable alone, as the two existing derivations do:
+- **`Eigen`:** the system with no source regions; `Fundamental` reads `pencil.fundamental()`; `Nearest(tau)` the eigenvalue of `pencil.spectrum()` nearest tau in the k chart (Q4). The flux is `system.flux(q)` in the gauge of Q3.
+- **`FixedSource(source)`:** the system posed with the source's regions; the emission is `source_pencil.least_solution(...)` (`fixed_source`), which refuses a supercritical body (E6).
+- **`Response(detector)`:** Q2.
+
+The observables, on every answer:
+- `Eigenvalue()`: k (eigen answers only; `admit_observable` already refuses it elsewhere);
+- `FluxIntegral(w)`: ⟨w, φ⟩ = ⟨P w, φ_h⟩, with P the projection of item 2 and φ_h the Galerkin flux coefficients, read as the pairing `(W c_w)ᵀ φ_h`, no point loop. Since W φ_h = K q, φ_h reproduces every moment of the transported flux 𝒦q against the basis, so the reading is exact for a weight in the basis space (every `RegionwiseConstant`) and carries the weight's projection error otherwise, which falls with the degree `[R]`. The alternative, a volume rule over point readings, waits for the reading;
+- `PointValue(position, group)`: the reading at a point (Q1).
+
+`characteristic_reference(specification, resolution) -> ReferenceSolution`, uncertified (`Uncertified`, the certificate waits for P4, #566), the same consumer surface as `trajectory_resolvent_reference`. The `evaluate` is a `@traced_memo`.
+
+**4. The reading at a point** (P1 sketch item 7, ruled 2026-10-06). The scalar flux at x is the transport of the converged emission over `Chart.directions_at(x)`: per direction, the line through x, its chord and period, the attenuated emission up to x (`TraversalRule.angular_flux`), the specular return through `LinePeriod.inflow`, and the diffuse walls' re-emission, which no point reading assembles yet (the white walls' partial currents from `WallCoupling`, transported from the wall to x). The direction rule at x is split where the line's crossing set changes (the tangencies to every interface) and graded near grazing. Gates: C6 (one transport, two test measures: the volume integral of the reading against u_i equals the Galerkin entry), C8 (reciprocity through readings), C7's reading leg, E1 (Garcia Case 1 per point), E4.
+
+**Questions for the user:**
+- **Q1, the scope of this rung.** (a) Recommended: split it. 5a is the resolution, the projection, the door and the observables that need no point (`Eigenvalue`, `FluxIntegral`), with `PointValue` refused as a SCOPE-BOUNDARY naming 5b; 5b is the reading at a point, with C6, C8 and E1. The reading is the largest new machinery of P1 (the diffuse return at a point has no assembly today) and earns its own sketch and review. (b) One rung, all of it.
+- **Q2, the response's answer.** (a) Recommended: the group-transposed forward problem. For isotropic emission the transport 𝒦 is self-adjoint (reciprocity, the property C11 gates), so the adjoint flux of (Σ_t, S, F) with detector r is the forward flux of (Σ_t, Sᵀ, Fᵀ) with source r: `RegionCrossSections.transposed()` (the adjoint cross sections, `[to, from]` swapped), and the detector posed as that problem's source. Every observable then reads the importance with the forward machinery unchanged: the flux integral everywhere, and in 5b the point reading. Its supports are the adjoint emission supports (where something scatters or fissions out of a group), which is where the importance has an emission. D13(iv), which the test-architect built as this route against `system.response`, then compares the door with the transposition: still two independent routes. (b) `system.response` on the forward system (rung 4's transposition): φ† is known only on the forward emission supports, so a flux integral or a point reading of the importance outside them needs a further transport of the adjoint emission r + (S + F)ᵀφ†, whose support is not the forward one.
+- **Q3, the gauge of an eigen flux** (a `FluxIntegral` or a `PointValue` of an eigen answer; a `Ratio` does not depend on it). (a) Recommended: ⟨νΣ_f, φ⟩ = 100 over the body, production's gauge, which the exact homogeneous reference already uses: a closed homogeneous body then reads that reference's flux, a gate across references. (b) Unit total fission production. (c) The trajectory resolvent's (its last fission rate), which no other reference shares. The trajectory resolvent's gauge would remain different until it retires.
+- **Q4, `Nearest(tau)`.** (a) Recommended: served, with tau read in the k chart, the chart `Eigenvalue()` is read in by both existing references; the chart is stated once in the door, with #529 named as the owner of parameter charts. (b) Refused as a SCOPE-BOUNDARY until #529 mints the chart of a parameter.
+
+**Not in this rung:** the eigen adjoint as an observable (no observable reads it; a contract change owed to #529); the migration of the SN consumers (P1 step (c) onwards).
+
+**Ruled 2026-10-07** (see the ledger), all four as recommended. Next: 5a on `feature/characteristic-rung5a`; the test-architect specifies its gates while the main agent writes items 1 to 3.
+
+## P1 step (b), rung 5a: the reviews and the fixes (2026-10-07)
+
+**Reviews** (`scratch/characteristic_architecture/p1_step_b5/`): `elegance.md` (three violations, four concerns), `qa.md` (two high, two medium, three low; probes `qa/p1`-`p8`). Both found the higher-mode gauge independently, and so did the test-architect (`ta/probe_n4.py`): a production gauge divides by rounding on a mode whose net production is zero.
+
+**Fixed in one pass, after every review had returned:**
+- `RegionCrossSections` stores `spectrum` (χ) and `production` (νΣ_f) and derives `fission`; `transposed()` exchanges them, so the adjoint's production is the forward spectrum (elegance V3, qa F7: `production` had been recovered from the outer product and was wrong on the transposed set).
+- A `RegionwiseConstant` is read onto the nodes exactly (`PanelBasis.on_nodes`); `Resolution` refuses `source_points < 2(p + 1)` and a non-integer count (elegance V2, qa F4, F5). `panel_mass` and `project` share one panel rule (elegance C7).
+- The answer is typed per question (`_FundamentalAnswer`, `_ModeAnswer`, `_SourceAnswer`); `evaluate` matches on the observable and the answer (elegance C4). The role is an arrow (`_section`, `_pullback`, or none for a weight), not a flag (elegance C5).
+- `Nearest` excludes the null-fission cluster: a mode is kept when ‖F K v‖ exceeds the rank tolerance of F K (qa F1: `Nearest(0)` had served a rounding eigenvalue of 1e-20).
+- `PRODUCTION_GAUGE` withdrawn with the gauge correction.
+
+**Measured after the fixes** `[M]` (`main/smoke3.py`, `-O`): a closed A sphere's mean flux equals the exact flux /(100 V) to 5e-15; reciprocity ⟨Σ_d, φ(Q)⟩ = ⟨Q, Rψ†⟩/4π to 2e-16; a symbolic detector equals its table to 2e-16; `Nearest(0)` on the vacuum A|B sphere answers 2.3e-4.
+
+**Not fixed here:**
+- `GalerkinSystem.source_pencil` spelled beside `pencil` rather than as two splittings of one operator: filed as #589.
+- The symbolic evaluator duplicated with the trajectory resolvent's `_radial_weight`: not filed, because the twin retires with that family in P1 step (e).
+- Production's `ScaleGauge` refuses only an exactly zero functional (qa F1, the same defect class): not filed. Production gauges only fundamental modes, whose production is positive (Perron–Frobenius), so no realizable state reaches it today (X1); it becomes a defect when production gauges a higher mode.
+
+## P1 step (b), rung 5a landed (2026-10-08)
+
+**Commits:** `fe977a90` (code and gates) and `af286805` (theory). Read the merge status from git, not from this line.
+
+**What exists:**
+- `CharacteristicDerivation(specification, resolution)` and `characteristic_reference` (`characteristic/reference.py`). The door refuses at construction. Its answers are typed per question: `_FundamentalAnswer`, `_ModeAnswer` (eigenvalue only) and `_SourceAnswer`. `evaluate` is a traced memo that answers `Eigenvalue` and `FluxIntegral`; `PointValue` is refused, naming 5b.
+- `Resolution(degree, layers, ratio, transport, source_points)`, with `source_points ≥ 2(p + 1)`.
+- `PanelBasis.on_nodes`, `PanelBasis.project` and `_panel_rule` (shared with `panel_mass`).
+- `RegionCrossSections(total, scattering, spectrum, production)`, with `fission` derived and `transposed()` exchanging the spectrum and the production.
+- **The declared gauge.** `Eigen.gauge` is resolved by `_canonical_gauge` (`orpheus/specification/specification.py`). The default is `EIGEN_GAUGE = every(FISSION_EMISSION, N2N_EMISSION)`; a problem that produces nothing keeps None. `production_emission` (`derivations/common/eigenvalue.py`) is the references' channel emission, with its own (n,2n) literal registered in the census. The exact infinite medium reads its flux at the declared production density 100; the trajectory resolvent accepts the fission key only.
+
+**Evidence** `[M]` 2026-10-08:
+- **Gates:** `test_characteristic_reference.py` has 95 rows. The two batteries (39 arms and 9 gauge arms, `p1_step_b5/ta/battery*`) redden every arm.
+- **Test runs:** the CI set passes 1425. The touched trees (derivations, numerics, specification, reference, homogeneous, data, and the SN question rows), excluding slow, give 8303 passed, 246 skipped, 2 xfailed.
+- **Build and graph:** Sphinx `-W` is clean, and `dead_references` reads 0 of 66.
+
+**Open, filed:** #589 (the two splittings of one operator). SN and the homogeneous solver read the declared gauge in #517: until then a test judging the homogeneous solver declares the fission gauge.
+
+## ⏸ COMPACTION POINT — 2026-10-08, rung 5a merged, 5b (the reading at a point) next
+
+**State.** Rungs 1 to 4 and 5a of P1 step (b) are merged; read the state from git.
+
+**Next: rung 5b, the reading at a point,** P1 sketch item 7 (ruled 2026-10-06). It is a W3 carve: an API sketch goes to the user before any code. What it must compose, per the explorer's map (`p1_step_b5/surface.md` §6):
+- `Chart.directions_at(x)`, whose result has a density and the methods `direction()` and `impact_parameter()`;
+- the line through x, with its chord and its `LinePeriod`;
+- `TraversalRule.angular_flux(t, inflow)`, the emission attenuated up to x, with `LinePeriod.inflow` for the specular return;
+- the diffuse walls' re-emission at x, which nothing assembles today: the white walls' partial currents (`WallCoupling`) transported from each wall to x.
+
+The direction rule at x is split at the tangencies to every interface and graded near grazing. `PointValue` then replaces `_refuse_point_reading`, and the `FluxIntegral` of a symbolic weight could alternatively be read by a volume rule over readings.
+
+Gates owed:
+- C6: one transport, two test measures. The volume integral of the reading against u_i equals the Galerkin entry, and one constructor builds both direction rules.
+- C8: reciprocity through readings.
+- C7's reading leg.
+- E1: Garcia Case 1 per point.
+- E4: a pure absorber against C1's closed forms.
+
+**Read in order:**
+1. The P1 sketch, item 7.
+2. This rung's sketch, its reviews, and "landed".
+3. `characteristic.rst`, sections `characteristic-angular-flux`, `characteristic-wall-coupling` and `characteristic-door`.
+4. `orpheus/geometry/chart.py`, `directions_at`.
+5. `characteristic/closure.py` and `transport.py`.
+6. The hoist's performance target in spec §8.
+
+**Lessons from this stretch:**
+- **Measure a ruling's premise before relaying it.** "Production's gauge is 100" named the homogeneous solver's density. "SN's gauge" counts the (n,2n) emission. Each was corrected only by a reviewer reading the code.
+- **A gauge functional can vanish on a mode the question can return.** Evaluate it on every mode the question can return, not on the fundamental alone. Three agents found this independently.
+- **A shared definition between a reference and production is an X4 exposure.** Share the declaration (which channels count). Keep each channel's physics on each side, as the (n,2n) census requires.
