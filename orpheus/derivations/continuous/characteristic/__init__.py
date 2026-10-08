@@ -20,22 +20,35 @@ numerics kernel (:mod:`orpheus.derivations.common.dense_pencil`):
   Galerkin assembly over lines: one group's transport block, its line part
   and its diffuse walls' coupling, on a line rule graded from the group's
   optical scale;
+- :mod:`~orpheus.derivations.continuous.characteristic.cross_sections` —
+  each region's total cross section and emission matrices, and the
+  regions each group emits in;
+- :mod:`~orpheus.derivations.continuous.characteristic.system` — the
+  multigroup Galerkin system on every group's block, its k pencil and its
+  source pencil on the emission space: the fundamental and higher modes, the adjoint, the fixed
+  source and the detector's adjoint flux;
 - :mod:`~orpheus.derivations.continuous.characteristic.grading` — the
   geometric, exponential and hp gradings every rule of the package places
   its piece ends by.
 """
 
-from .assembly import GroupTransport, LineRule
+from .assembly import GroupTransport, LineRule, TransportResolution
 from .basis import PanelBasis
 from .closure import LinePeriod, TrappedSource, WallCoupling
+from .cross_sections import RegionCrossSections
+from .system import EmissionSpace, GalerkinSystem
 from .transport import TraversalRule
 from .walls import Wall, Walls
 
 __all__ = [
+    "EmissionSpace",
+    "GalerkinSystem",
     "GroupTransport",
     "LinePeriod",
     "LineRule",
     "PanelBasis",
+    "RegionCrossSections",
+    "TransportResolution",
     "TrappedSource",
     "TraversalRule",
     "Wall",

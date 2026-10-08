@@ -45,7 +45,7 @@ _EXCLUDED_BY_FUNCTION = {("orpheus/mc/solver.py", "_random_walk", "pi")}
 #: cannot silently widen (#428 F-5: until 2026-09-04 these two escaped the
 #: net entirely because ``sig_2`` was not a spelling it knew).
 _REFERENCE_LITERALS = {
-    ("orpheus/derivations/common/eigenvalue.py", "_infinite_medium_matrices"),
+    ("orpheus/derivations/common/eigenvalue.py", "group_emission"),
     ("orpheus/derivations/common/eigenvalue.py", "kinf_from_cp"),
     # The exact rational k∞ reference (2026-10-01): assembles A = diag Σt −
     # Σs0ᵀ − 2Σ2ᵀ in Fractions; it is the derived-bound anchor of

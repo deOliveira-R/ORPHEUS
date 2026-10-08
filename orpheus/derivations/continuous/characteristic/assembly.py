@@ -27,9 +27,16 @@ inflow the specular part of the walls returns
 (:class:`~.closure.WallCoupling`).
 
 **The emission support.** The columns of :math:`K` span the panels of the
-regions that emit; a void region never emits, and a basis function there
-would be a source on the lossless lines a mirror traps in the void, which
-has no finite flux. The rows span every panel: the flux is read everywhere.
+regions that emit in the group. A region that emits nothing in it needs no
+column, and must not get one when it is void in the group: a basis function
+there would be a source on the lossless lines a mirror traps in the void,
+which has no finite flux. A region void in the group that does emit in it
+(another group scatters or fissions into it there) does get a column, and
+under a mirror the trapped source is refused, because its flux is infinite.
+Without the emission, :meth:`LineRule.transport` takes the regions with
+:math:`\Sigma_t > 0`; the multigroup system passes each group's emission
+support (:class:`~.system.GalerkinSystem`). The rows span every panel: the
+flux is read everywhere.
 
 **The rule over lines** (:class:`LineRule`) is graded from the group's
 optical scale, by the law the traversal rule follows along a line: a piece
@@ -174,6 +181,29 @@ def _impact_rule(ends: np.ndarray, sigma: np.ndarray, points: int) -> tuple[np.n
         pts.append(b)
         wts.append(y.wts * y.pts / b)
     return np.concatenate(pts), np.concatenate(wts)
+
+
+@dataclass(frozen=True)
+class TransportResolution:
+    r"""The resolution of a transport block: the line rule's points per piece, and the traversal rule's along each line.
+
+    Attributes
+    ----------
+    line_points:
+        The points per piece of every coordinate of the line rule (:meth:`LineRule.of`).
+    points:
+        The points per arc-length piece of the traversals' integrals (:meth:`LineRule.transport`).
+    inner_points:
+        The points per piece of the Volterra triangle's inner rule (:meth:`LineRule.transport`).
+    """
+
+    line_points: int
+    points: int
+    inner_points: int
+
+    def __post_init__(self) -> None:
+        if min(self.line_points, self.points, self.inner_points) < 1:
+            raise ValueError(f"every rule takes at least one point per piece; got {self}")
 
 
 @dataclass(frozen=True, eq=False)
@@ -388,4 +418,4 @@ class LineRule:
         return GroupTransport(line, coupling, columns)
 
 
-__all__ = ["GroupTransport", "LineRule"]
+__all__ = ["GroupTransport", "LineRule", "TransportResolution"]

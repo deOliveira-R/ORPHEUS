@@ -14,6 +14,8 @@ All support an optional ``sig_2`` / ``sig_2_mats`` parameter for
 
 from __future__ import annotations
 
+from typing import NamedTuple
+
 import numpy as np
 
 from orpheus.derivations.common.dense_pencil import DensePencil
@@ -38,6 +40,41 @@ def _dense_transfer_matrix(m) -> np.ndarray:
     return np.asarray(m, dtype=float)
 
 
+class GroupEmission(NamedTuple):
+    r"""The isotropic emission into each group per unit flux in each group, ``(ng, ng)`` each, indexed ``[to, from]``.
+
+    Attributes
+    ----------
+    scattering:
+        :math:`(\Sigma_s + 2\Sigma_2)^T`: the scattering and the (n,2n) emission, two neutrons per reaction.
+    fission:
+        :math:`\chi \otimes \nu\Sigma_f`: the fission production.
+    """
+
+    scattering: np.ndarray
+    fission: np.ndarray
+
+
+def group_emission(
+    sig_s: np.ndarray,
+    nu_sig_f: np.ndarray,
+    chi: np.ndarray,
+    sig_2: np.ndarray | None = None,
+) -> GroupEmission:
+    r"""The emission matrices of a mixture, from its ``[from, to]`` transfer tables.
+
+    The one assembly site of the emission for every reference that reads
+    it: the 0-D pair (:func:`_infinite_medium_matrices`) subtracts the
+    scattering from :math:`\text{diag}(\Sigma_t)`, and the characteristic
+    reference's Galerkin system applies it per node beside a transport
+    block that already carries :math:`\Sigma_t`.
+    """
+    scattering = _dense_transfer_matrix(sig_s)
+    if sig_2 is not None:
+        scattering = scattering + 2.0 * _dense_transfer_matrix(sig_2)
+    return GroupEmission(scattering.T, np.outer(chi, nu_sig_f))
+
+
 def _infinite_medium_matrices(
     sig_t: np.ndarray,
     sig_s: np.ndarray,
@@ -57,13 +94,10 @@ def _infinite_medium_matrices(
     (:func:`kinf_and_spectrum_homogeneous`) and the adjoint spectrum
     (:func:`kinf_and_adjoint_spectrum_homogeneous`) — the two references
     MUST agree on the operator pair or their k's would not be comparable.
+    The emission is :func:`group_emission`'s.
     """
-    sig_s_eff = _dense_transfer_matrix(sig_s)
-    if sig_2 is not None:
-        sig_s_eff = sig_s_eff + 2.0 * _dense_transfer_matrix(sig_2)
-    A = np.diag(np.asarray(sig_t, dtype=float)) - sig_s_eff.T
-    F = np.outer(chi, nu_sig_f)
-    return A, F
+    emission = group_emission(sig_s, nu_sig_f, chi, sig_2)
+    return np.diag(np.asarray(sig_t, dtype=float)) - emission.scattering, emission.fission
 
 
 def _infinite_medium_pencil(
