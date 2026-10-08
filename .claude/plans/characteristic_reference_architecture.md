@@ -1224,3 +1224,20 @@ This reverses the P1 sketch's item 6 (ruled 2026-10-06: "the unknown is the FLUX
 5. `orpheus/derivations/continuous/characteristic/system.py`.
 
 **Cost to plan with** `[M]` (8 points): a sphere system takes seconds; a two-group three-region cylinder takes about 6 minutes.
+
+**Open issues from this campaign:** #584, #585, #587 and #588. #588 is Sood's UAL-2-0 truths; the D2' rows return when it is settled.
+
+**Probes from rung 4,** under `scratch/characteristic_architecture/p1_step_b4/`. Run each with `.venv/bin/python -O` from the repository root:
+- `main/smoke2.py`: the 1G bound ladder, the closed 2G k, flux and adjoint, E2, and reciprocity, on the final API;
+- `main/qform.py`: the flux form against the emission form. It uses the pre-refactor API and is kept as the record of the measurement;
+- `spec.md`: the rung's verification spec;
+- `ta/`: the test-architect's probes;
+- `battery/`: the battery plugin and `run.sh`, with `verdicts.md`;
+- `qa/`: qa's probes, including the transposed-problem adjoint route;
+- `elegance.md`: the elegance review.
+
+**Lessons from this stretch:**
+- **Transpose the equation whose adjoint you want.** The weak-form transpose of φ = 𝒦Eφ is E*φ†, not φ†. Smoke-test the adjoint against the 0-D importance A⁻ᵀνΣ_f before building on it.
+- **A stored derived field is a door for an inconsistent value.** Blocks handed to the system as a field gave a wrong k in silence. Derive what the posing determines.
+- **A reciprocity identity of the form ⟨r, L⁻¹q⟩ = ⟨L⁻ᵀr, q⟩ is true for any L.** The non-tautological check of an adjoint is an independently posed forward problem: the group-transposed one.
+- **Do not refactor production while reviewers and a battery are reading it.** The elegance fixes landed under qa and the battery, and both had to re-run. Collect the reviews first, then change the code once.
