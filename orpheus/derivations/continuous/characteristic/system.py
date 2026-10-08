@@ -81,6 +81,7 @@ from orpheus.derivations.common.dense_pencil import DensePencil
 from .assembly import GroupTransport, LineRule, TransportResolution
 from .basis import PanelBasis
 from .cross_sections import RegionCrossSections
+from .reading import PointRule, angular_flux
 from .walls import Walls
 
 
@@ -264,14 +265,47 @@ class GalerkinSystem:
         r"""The flux of coefficients on the emission space, ``(G, N)``: :math:`W_G \phi = K q`."""
         return np.linalg.solve(self.mass, self.transport @ emission).reshape(self.n_groups, self.basis.size)
 
-    def fixed_source(self, source: np.ndarray) -> np.ndarray:
-        r"""The flux of a source's nodal coefficients ``(G, N)``, ``(G, N)``.
+    def source_emission(self, source: np.ndarray) -> np.ndarray:
+        r"""The emission of a source's nodal coefficients ``(G, N)``, on the emission space ``(sum M_g,)``.
 
-        The emission is the least solution of
-        :math:`W_s q = (S + F) K q + W_s q^{\mathrm{ext}}`, the source and
-        every collision's emission; the flux is :meth:`flux` of it.
+        The least solution of :math:`W_s q = (S + F) K q + W_s q^{\mathrm{ext}}`:
+        the source and every collision's emission.
         """
-        return self.flux(self.source_pencil.least_solution(self.emission_mass @ self.emission.restrict(source)))
+        return self.source_pencil.least_solution(self.emission_mass @ self.emission.restrict(source))
+
+    def fixed_source(self, source: np.ndarray) -> np.ndarray:
+        r"""The flux of a source's nodal coefficients ``(G, N)``, ``(G, N)``: :meth:`flux` of its :meth:`source_emission`."""
+        return self.flux(self.source_emission(source))
+
+    # ── the readings at a point ──────────────────────────────────────────
+
+    def point_flux(self, position: float, emission: np.ndarray) -> np.ndarray:
+        r"""The scalar flux at the point of orbit coordinate ``position``, ``(G,)``: :math:`(\mathcal K_g q_g)(x)`.
+
+        ``emission`` is on the emission space; each group's emission is
+        transported to the point once more (:class:`~.reading.PointRule`),
+        on that group's own lines and with its walls' currents.
+        """
+        r = self.resolution
+        return np.array(
+            [
+                PointRule.of(self.basis, self.walls, self.cross_sections.total[:, g], position, r.line_points).row(group, r) @ q
+                for g, (group, q) in enumerate(zip(self.groups, self.emission.split(emission), strict=True))
+            ]
+        )
+
+    def angular_flux(self, position: float, directions: np.ndarray, emission: np.ndarray) -> np.ndarray:
+        r"""The angular flux per steradian at the point, ``(..., G)``, in the directions at box coordinates ``directions``.
+
+        ``directions`` are coordinates of :meth:`~orpheus.geometry.chart.Chart.directions_at`'s box at the point,
+        ``(..., k)`` (:func:`~.reading.angular_flux`); ``emission`` is on the emission space.
+        """
+        r = self.resolution
+        per_group = [
+            angular_flux(self.basis, self.walls, self.cross_sections.total[:, g], group, position, directions, r) @ q
+            for g, (group, q) in enumerate(zip(self.groups, self.emission.split(emission), strict=True))
+        ]
+        return np.stack(per_group, axis=-1)
 
     def response(self, detector: np.ndarray) -> np.ndarray:
         r"""The adjoint flux of a detector's nodal coefficients ``(G, N)``, on the emission space ``(sum M_g,)``.

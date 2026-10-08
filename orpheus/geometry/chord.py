@@ -160,21 +160,33 @@ class ConcentricPartition:
         canonical = self.pose.inverse().on_points(points)
         return self.region_containing(self.chart.orbit_coordinate(canonical))
 
-    def chord(self, line: Line) -> "Chord":
+    def chord(self, line: Line, level: tuple[np.ndarray, np.ndarray] | None = None) -> "Chord":
         r"""The chord of each line through the partition (see the module docstring).
 
         Solved in the canonical frame; every parameter is then the caller's:
         a rigid motion preserves length along a line, so the canonical and
         the caller's parameters differ by the caller's parameter of the
         canonical foot's image.
+
+        ``level`` is a radius and each line's exact half-chord there, both
+        ``(...,)``, for a caller that knows them better than the line's
+        stored impact parameter does (:meth:`RadialImage.at_level`; #590).
+        They are orbit quantities, unchanged by the pose. Refused on a chart
+        whose group fixes the kept space: an axial image's parameters are
+        formed without a half-chord.
         """
         canonical = line.moved_by(self.pose.inverse())
         image = self.chart.image(canonical)
-        match image:
-            case RadialImage():
+        match image, level:
+            case RadialImage(), None:
                 crossings, slot_length = _radial_chord(image, self._r)
-            case AxialImage():
+            case RadialImage(), (radius, half_chord):
+                image = image.at_level(radius, half_chord)
+                crossings, slot_length = _radial_chord(image, self._r)
+            case AxialImage(), None:
                 crossings, slot_length = _axial_chord(image, self._r)
+            case AxialImage(), _:
+                raise ValueError("a level is a radius and a half-chord; a slab's lines have neither")
         shift = line.parameter_of(self.pose.on_points(canonical.foot))
         return Chord(
             partition=self,
@@ -417,8 +429,8 @@ def _radial_chord(image: RadialImage, r: np.ndarray) -> tuple[Crossings, np.ndar
     n = len(r) - 1
     b = image.impact_parameter
     parallel = image.parallel
-    crossed = (b[..., None] < r) & ~parallel[..., None]    # r_0 = 0 is never crossed: b >= 0
-    h = np.sqrt(np.where(crossed, (r - b[..., None]) * (r + b[..., None]), 0.0))
+    h = image.half_chord_at(r)                            # from the image's level: exact there (#590)
+    crossed = h > 0.0                                     # r_0 = 0 is never crossed: b >= 0
     with np.errstate(over="ignore"):                      # a subnormal |P Omega|: the obliquity is truly inf
         inv = 1.0 / np.where(parallel, 1.0, image.speed)
 
@@ -448,10 +460,9 @@ def _axial_chord(image: AxialImage, r: np.ndarray) -> tuple[Crossings, np.ndarra
     n = len(r) - 1
     parallel = image.parallel
     rising = image.rate > 0.0
-    rate = np.where(parallel, 1.0, image.rate)
     order = np.where(rising[..., None], np.arange(n + 1), np.arange(n, -1, -1))
     crossings = Crossings(
-        parameter=(r[order] - image.foot_coordinate[..., None]) / rate[..., None],
+        parameter=image.parameters_at(r[order]),
         breakpoint=order,
         sense=np.where(rising[..., None], 1, -1) * np.ones_like(order),
         present=np.broadcast_to(~parallel[..., None], order.shape).copy(),

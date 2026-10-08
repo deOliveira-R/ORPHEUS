@@ -64,7 +64,17 @@ q\rangle` exactly for a weight in the basis space (every region-wise
 constant); otherwise it differs from it by :math:`\langle w - P w,
 \mathcal K q\rangle`, the weight's projection error against the
 transported flux, which is the flux's projection error against the
-weight. The flux at a point is the fifth rung's second half (5b).
+weight.
+
+**The flux at a point is transported, not interpolated.** Since
+:math:`\phi_h` is the projection :math:`P\mathcal K q`, its value at a point
+carries the basis's projection error; a
+:class:`~orpheus.numerics.observable.PointValue` reads instead the answer's
+emission transported once more to the point,
+:math:`(\mathcal K q)(x)` (:mod:`~orpheus.derivations.continuous.characteristic.reading`, the user's ruling of 2026-10-08),
+on the answer's scale. The angular flux at a point
+(:meth:`CharacteristicDerivation.angular_flux`) is the same transport in one
+direction; it mints no observable.
 """
 
 from __future__ import annotations
@@ -169,10 +179,11 @@ class Resolution(ContentIdentity):
 
 @dataclass(frozen=True)
 class _FundamentalAnswer:
-    r"""The fundamental mode: :math:`k` and the flux coefficients ``(G, N)``, total production 1."""
+    r"""The fundamental mode: :math:`k`, the flux coefficients ``(G, N)`` and the emission ``(sum M_g,)``, total production 1."""
 
     k: float
     flux: np.ndarray
+    emission: np.ndarray
 
 
 @dataclass(frozen=True)
@@ -184,9 +195,10 @@ class _ModeAnswer:
 
 @dataclass(frozen=True)
 class _SourceAnswer:
-    """A fixed source's flux, or a detector's adjoint scalar flux, ``(G, N)``."""
+    """A fixed source's flux, or a detector's adjoint scalar flux, ``(G, N)``, and the emission it is read from ``(sum M_g,)``."""
 
     flux: np.ndarray
+    emission: np.ndarray
 
 
 _Answer = _FundamentalAnswer | _ModeAnswer | _SourceAnswer
@@ -203,16 +215,6 @@ def _refuse_direction(function: MeshFreeFunction, role: str) -> None:
         raise NotImplementedError(
             f"the characteristic reference serves an isotropic {role} only: the {role} depends on the direction"
         )
-
-
-def _refuse_point_reading() -> NoReturn:
-    r"""Refuse the flux at a point.
-
-    SCOPE-BOUNDARY[guard] machinery: the reading at a point, the transport of the converged emission over :meth:`~orpheus.geometry.chart.Chart.directions_at`.
-    ruling: the user, 2026-10-07, P1 step (b) fifth rung, Q1: the rung splits, and the reading is 5b.
-    revisit: P1 step (b), rung 5b.
-    """
-    raise NotImplementedError("the characteristic reference does not read the flux at a point yet (P1 step (b), rung 5b)")
 
 
 def _refuse_mode_flux(k: float) -> NoReturn:
@@ -243,7 +245,8 @@ class CharacteristicDerivation(ContentIdentity):
     refused at the first evaluation: a body supercritical for its fixed
     source, a nearest eigenvalue that is complex, a pencil with no
     fundamental mode. An observable the question does not answer (an
-    eigenvalue of a source question, a point) is refused before any solve.
+    eigenvalue of a source question) is refused before any solve; the flux
+    of a mode nearest :math:`\tau`, integrated or at a point, after it.
 
     Its content is its two fields; the system, the basis and the cross
     sections are derived from them, so :meth:`evaluate` is a traced memo
@@ -348,12 +351,14 @@ class CharacteristicDerivation(ContentIdentity):
                 mode = system.pencil.fundamental()
                 flux = system.flux(mode.vector)
                 materials, mat_ids = self.specification.materials, self.specification.geometry.mat_ids
-                emission = np.stack([production_emission(gauge, m, materials[m]) for m in mat_ids])  # (n, G): the declared production
-                return _FundamentalAnswer(mode.k, flux / self._pairing(self.basis.on_nodes(emission).T, flux))
+                production = np.stack([production_emission(gauge, m, materials[m]) for m in mat_ids])  # (n, G): the declared production
+                scale = 1.0 / self._pairing(self.basis.on_nodes(production).T, flux)
+                return _FundamentalAnswer(mode.k, scale * flux, scale * mode.vector)
             case Eigen(mode=Nearest(tau=tau)):
                 return _ModeAnswer(self._nearest(tau))
             case FixedSource() | Response():
-                return _SourceAnswer(system.fixed_source(self.source))
+                emission = system.source_emission(self.source)
+                return _SourceAnswer(system.flux(emission), emission)
             case unreachable:
                 assert_never(unreachable)
 
@@ -382,16 +387,31 @@ class CharacteristicDerivation(ContentIdentity):
         match observable, self.specification.question:
             case Eigenvalue(), FixedSource() | Response():
                 raise ValueError("an eigenvalue is read from an eigen question's answer")
-            case PointValue(), _:
-                _refuse_point_reading()
         match observable, self.answer:                                   # what remains needs the solve
             case Eigenvalue(), _FundamentalAnswer(k=k) | _ModeAnswer(k=k):
                 return Uncertified(k)
             case FluxIntegral(weight=weight), _FundamentalAnswer(flux=flux) | _SourceAnswer(flux=flux):
                 return Uncertified(self._pairing(self._coefficients(weight, None), flux))
-            case FluxIntegral(), _ModeAnswer(k=k):
+            case PointValue(position=position, group=group), _FundamentalAnswer(emission=q) | _SourceAnswer(emission=q):
+                return Uncertified(float(self.system.point_flux(position, q)[group]))
+            case FluxIntegral() | PointValue(), _ModeAnswer(k=k):
                 _refuse_mode_flux(k)
         raise AssertionError(f"unreachable: {observable!r} on {type(self.answer).__name__}")
+
+    def angular_flux(self, position: float, directions: np.ndarray) -> np.ndarray:
+        r"""The answer's angular flux per steradian at the point, ``(..., G)``, at coordinates ``directions`` of its direction box.
+
+        The directions are :meth:`~orpheus.geometry.chart.Chart.directions_at`'s
+        at ``position``; the flux is on the answer's scale (the declared
+        production 1, or the source's). It mints no observable: an angular
+        observable is a change to the interface vocabulary, owed to the
+        posing sequence (#529).
+        """
+        match self.answer:
+            case _FundamentalAnswer(emission=q) | _SourceAnswer(emission=q):
+                return self.system.angular_flux(position, directions, q)
+            case _ModeAnswer(k=k):
+                _refuse_mode_flux(k)
 
 
 def _unit() -> "sympy.Expr":

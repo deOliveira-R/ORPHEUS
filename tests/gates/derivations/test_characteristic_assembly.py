@@ -68,6 +68,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.characteristic import LineRule, PanelBasis, TrappedSource, Wall, Walls
+from orpheus.derivations.continuous.characteristic.lines import Lines
 from orpheus.derivations.common.quadrature import composite_gauss_legendre, gauss_legendre
 from orpheus.derivations.continuous.characteristic.grading import graded_ends
 from orpheus.geometry.chart import Chart
@@ -185,20 +186,20 @@ def test_the_cylinders_direction_rule_is_gauss_in_the_polar_angle() -> None:
     """
     # a void cylinder: no absorbing panel, so the polar angle is not graded (plain Gauss on [0, pi/2])
     rule = _rule("cylinder", (0.0, 1.3), (_WHITE,), (0.0,), 8)
-    theta = np.unique(rule.coordinates[:, 1])
+    theta = np.unique(rule.lines.coordinates[:, 1])
     plain = gauss_legendre(0.0, math.pi / 2, 8)
     np.testing.assert_allclose(theta, plain.pts, rtol=2 * _EPS, atol=0.0)
     domain = Chart(CoordSystem.CYLINDRICAL).line_domain()
     w_theta = dict(zip(plain.pts, plain.wts))
     # the rule orders its lines by projected speed (2026-10-06): put them back on the (b, theta) grid first
-    grid = np.lexsort((rule.coordinates[:, 1], rule.coordinates[:, 0]))
-    coordinates, weights = rule.coordinates[grid], rule.weights[grid]
+    grid = np.lexsort((rule.lines.coordinates[:, 1], rule.lines.coordinates[:, 0]))
+    coordinates, weights = rule.lines.coordinates[grid], rule.lines.weights[grid]
     per_impact = weights / (domain.density(coordinates) / (4.0 * math.pi))
     by_theta = per_impact / np.array([w_theta[min(w_theta, key=lambda t: abs(t - x))] for x in coordinates[:, 1]])
     impact = by_theta.reshape(-1, 8)
     np.testing.assert_allclose(impact, impact[:, :1] * np.ones((1, 8)), rtol=8 * _EPS, atol=0.0)
     # an absorbing cylinder: the polar angle is graded toward 0 (the grazing direction), never in mu_z
-    graded = np.unique(_rule("cylinder", (0.0, 1.3), (_WHITE,), (1.0,), 8).coordinates[:, 1])
+    graded = np.unique(_rule("cylinder", (0.0, 1.3), (_WHITE,), (1.0,), 8).lines.coordinates[:, 1])
     assert graded.min() < plain.pts.min() / 4, "the polar angle is not graded toward the grazing direction"
 
 
@@ -367,8 +368,8 @@ def test_the_block_does_not_depend_on_the_piece_budget(chart, breakpoints, laws,
     blocks = []
     for budget, chunk in ((1024, 512), (256, 512), (1, 512), (10 ** 12, 10 ** 9)):
         rule = LineRule.of(basis, walls, sigma, points, chunk=chunk, budget=budget)
-        counted = sum(len(w) for _rule_, w in rule._rules(_INNER, _INNER))
-        assert counted == len(rule.weights), f"budget {budget}: {counted} lines in the chunks of {len(rule.weights)}"
+        counted = sum(len(rule.lines.weights[lines]) for _rule_, lines in rule.lines.chunks(_INNER, _INNER))
+        assert counted == len(rule.lines.weights), f"budget {budget}: {counted} lines in the chunks of {len(rule.lines.weights)}"
         blocks.append(rule.transport(_INNER, _INNER).block)
     scale = np.max(np.abs(blocks[0]))
     for k, other in enumerate(blocks[1:], 1):
@@ -393,8 +394,8 @@ def test_with_no_diffuse_wall_the_block_is_its_line_part(chart, breakpoints, law
     (a mirror then carries a full white update).
     """
     g = _transport(chart, breakpoints, laws, _SIGMA["g0"], points)
-    assert g.coupling.diffuse.shape == (0,)
-    np.testing.assert_array_equal(g.coupling.update, 0.0)
+    assert g.coupling.walls.amplitude.shape == (0,)
+    assert g.coupling.currents.shape == (0, g.support.size)
     np.testing.assert_array_equal(g.block, g.line)
 
 
@@ -605,11 +606,11 @@ def test_the_white_and_specular_laws_are_their_closed_forms_and_differ(alpha) ->
 @pytest.mark.rests_on(_HERE + "test_the_escape_and_transmission_probabilities_are_the_closed_forms",
                       _CLOSURE + "test_the_least_solution_on_a_lossless_trapped_line")
 def test_a_source_behind_walls_that_return_everything_in_a_lossless_body_is_refused() -> None:
-    """[WC5] ``WallCoupling.update`` refuses a source reaching walls that all return everything (alpha = 1) around a
+    """[WC5] ``WallCoupling.currents`` refuses a source reaching walls that all return everything (alpha = 1) around a
     body that loses nothing (every loss 0): ``TrappedSource`` with its own fragment. Each condition dropped once builds.
 
     The refusal is the coupling's own (the user's ruling of 2026-10-06 moved it
-    from an input predicate in ``LineRule.transport`` into ``update``, beside the
+    from an input predicate in ``LineRule.transport`` into the coupling (now ``currents``), beside the
     balance row that makes I - T alpha exactly singular there). The legs:
     alpha = 0.99 builds, finite; Sigma_t > 0 in one region builds; a void body behind a MIRROR (no diffuse wall)
     is refused by the line part's own fragment, not this one (disjoint). First
@@ -622,7 +623,7 @@ def test_a_source_behind_walls_that_return_everything_in_a_lossless_body_is_refu
     trapped = _rule("sphere", bps, (_WHITE,), void, 8).transport(8, 8, support)
     assert np.all(trapped.coupling.loss == 0.0) and np.any(trapped.coupling.escape != 0.0)
     with pytest.raises(TrappedSource, match="absorbs nothing, behind walls that return everything"):
-        trapped.coupling.update
+        trapped.coupling.currents
     assert np.all(np.isfinite(_rule("sphere", bps, ((0.0, 0.99),), void, 8).transport(8, 8, support).block))
     assert np.all(np.isfinite(_rule("sphere", bps, (_WHITE,), (0.0, 0.3, 0.0), 8).transport(8, 8, support).block))
     with pytest.raises(TrappedSource, match="lossless trapped line") as caught:
@@ -890,8 +891,9 @@ def test_the_centre_impact_piece_converges_geometrically() -> None:
     def k_one(n: int) -> np.ndarray:
         q = gauss_legendre(0.0, 0.25, n)
         coordinates = q.pts[:, None]
-        rule = LineRule(basis, walls, np.asarray((0.7, 0.7)), coordinates, q.wts * domain.density(coordinates) / (4.0 * math.pi),
-                        512, 10 ** 9)
+        # each line chorded from its own b (the level (b, 0))
+        rule = LineRule(Lines(basis, walls, np.asarray((0.7, 0.7)), coordinates, q.wts * domain.density(coordinates) / (4.0 * math.pi),
+                              (q.pts, np.zeros_like(q.pts)), 512, 10 ** 9))
         return rule.transport(12, 12).block @ ones
 
     reference = k_one(128)
@@ -928,7 +930,7 @@ def test_conservation_converges_in_the_arc_length_rules_below_the_working_point(
     grading removed.
     """
     rule = _rule("sphere", _MR3, (_WHITE,), _SIGMA["g0"], 16)
-    basis = rule.basis
+    basis = rule.lines.basis
     rhs = basis.mass @ np.ones(basis.size)
     sigma = np.asarray(_SIGMA["g0"])
 
@@ -948,8 +950,8 @@ def _slab_rule_with_fixed_halvings(breakpoints, laws, sigma, points: int, halvin
     mu = np.concatenate([-half.pts[::-1], half.pts])[:, None]
     w = np.concatenate([half.wts[::-1], half.wts])
     domain = Chart(CoordSystem.CARTESIAN).line_domain()
-    return LineRule(basis, _walls("slab", breakpoints, laws), np.asarray(sigma), mu, w * domain.density(mu) / (4.0 * math.pi),
-                    512, 1024)
+    return LineRule(Lines(basis, _walls("slab", breakpoints, laws), np.asarray(sigma), mu, w * domain.density(mu) / (4.0 * math.pi),
+                          None, 512, 1024))
 
 
 @pytest.mark.l2
@@ -978,7 +980,7 @@ def test_the_slabs_derived_grading_converges_and_beats_twelve_fixed_halvings() -
 
     def collision(rule: LineRule) -> float:
         g = rule.transport(_INNER, _INNER)
-        ones = np.ones(rule.basis.size)
+        ones = np.ones(rule.lines.basis.size)
         return sigma * float(ones @ g.line @ ones[g.support]) / L / p_c - 1.0
 
     derived = collision(_rule("slab", bps, laws, (sigma, sigma), 8))
@@ -1072,8 +1074,8 @@ def test_every_block_entry_of_a_thin_panel_slab_is_resolved_at_eight_points() ->
     mu = np.concatenate([-half.pts[::-1], half.pts])[:, None]
     w = np.concatenate([half.wts[::-1], half.wts])
     domain = Chart(CoordSystem.CARTESIAN).line_domain()
-    reference = LineRule(basis, walls, np.asarray((sigma, sigma)), mu, w * domain.density(mu) / (4.0 * math.pi),
-                         512, 1024).transport(_INNER, _INNER).block
+    reference = LineRule(Lines(basis, walls, np.asarray((sigma, sigma)), mu, w * domain.density(mu) / (4.0 * math.pi),
+                               None, 512, 1024)).transport(_INNER, _INNER).block
     worst = float(np.max(np.abs(np.diag(honest) - np.diag(reference)) / np.abs(np.diag(reference))))
     assert worst <= 1e-11, f"worst diagonal entry {worst:.1e}"
 

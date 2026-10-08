@@ -16,6 +16,10 @@ numerics kernel (:mod:`orpheus.derivations.common.dense_pencil`):
 - :mod:`~orpheus.derivations.continuous.characteristic.transport` — the
   transport along each line on that basis: the traversals' source
   integrals, the Volterra block and the angular flux;
+- :mod:`~orpheus.derivations.continuous.characteristic.lines` — the
+  weighted sets of lines both test measures are built from: the impact,
+  polar and cosine rules, their grading toward every tangency, each line's
+  exact level, and the sources a line carries;
 - :mod:`~orpheus.derivations.continuous.characteristic.assembly` — the
   Galerkin assembly over lines: one group's transport block, its line part
   and its diffuse walls' coupling, on a line rule graded from the group's
@@ -27,6 +31,10 @@ numerics kernel (:mod:`orpheus.derivations.common.dense_pencil`):
   multigroup Galerkin system on every group's block, its k pencil and its
   source pencil on the emission space: the fundamental and higher modes, the adjoint, the fixed
   source and the detector's adjoint flux;
+- :mod:`~orpheus.derivations.continuous.characteristic.reading` — the
+  reading at a point: the transported emission's scalar flux there, over
+  the directions at the point as the line rule's own lines, and its angular
+  flux;
 - :mod:`~orpheus.derivations.continuous.characteristic.reference` — the
   door: the system posed from a specification and a resolution, the
   question it answers and the observables it reads;

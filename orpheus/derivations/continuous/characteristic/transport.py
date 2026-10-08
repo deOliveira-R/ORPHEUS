@@ -248,10 +248,21 @@ class TraversalRule:
 
     @classmethod
     def of(
-        cls, lines: Line, basis: PanelBasis, walls: Walls, sigma_t: np.ndarray, points: int, inner_points: int
+        cls,
+        lines: Line,
+        basis: PanelBasis,
+        walls: Walls,
+        sigma_t: np.ndarray,
+        points: int,
+        inner_points: int,
+        level: tuple[np.ndarray, np.ndarray] | None = None,
     ) -> "TraversalRule":
-        r"""The rule along ``lines`` through ``basis`` and ``walls``, with ``sigma_t`` the total cross section of each REGION, ``(n,)``."""
-        period = LinePeriod.of(basis.partition.chord(lines), walls.on(basis.partition))
+        r"""The rule along ``lines`` through ``basis`` and ``walls``, with ``sigma_t`` the total cross section of each REGION, ``(n,)``.
+
+        ``level`` is each line's exact level, a radius and its half-chord
+        there (:meth:`~orpheus.geometry.chord.ConcentricPartition.chord`).
+        """
+        period = LinePeriod.of(basis.partition.chord(lines, level), walls.on(basis.partition))
         return cls(period, basis, basis.on_panels(sigma_t), points, inner_points)
 
     # ── the line batch, flattened ────────────────────────────────────────
@@ -563,7 +574,15 @@ class TraversalRule:
         its line: inside the body, never in a cavity or beyond a wall. The
         flux is the inflow attenuated from the transit's entry, plus what the
         transit's earlier pieces carry in, plus the piece's own integral up to
-        the point.
+        the point (:meth:`at`).
+        """
+        return self.at(t).flux(inflow)
+
+    def at(self, t: np.ndarray) -> "LineReading":
+        r"""The transport to parameters ``t`` ``(..., q)`` on the lines, read forward (:class:`LineReading`).
+
+        Each point lies on a transit of its line: inside the body, never in a
+        cavity or beyond a wall.
         """
         p = self._pieces
         t = self._flat(np.asarray(t, dtype=float))                                          # (L, q)
@@ -580,15 +599,47 @@ class TraversalRule:
         if not np.all(found & at(p.live, piece) & (t <= self._of_slot(self._slots.end, slot))):
             raise ValueError("a point at which the angular flux is read lies on a transit of its line")
         distance = np.minimum(t - self._slot_start(slot), self._of_slot(self._slots.length, slot))
-        traversal = self._flat(self.period.forward_traversal(self._unflat(at(p.transit, piece))))
-        entering = np.take_along_axis(self._flat(np.asarray(inflow, dtype=float)), traversal[..., None], axis=-2)
+        traversal = self.period.forward_traversal(self._unflat(at(p.transit, piece)))
         within = at(self._piece_sigma, piece) * (distance - low)
         upstream = at(self._transit_depth(upstream=True), piece)
         carried = np.take_along_axis(self._carried, piece[..., None], axis=1)
         own = np.zeros(t.shape + (self.basis.size,))
         np.put_along_axis(own, self.basis.columns(at(p.panel, piece)), self._attenuated(slot, low, distance), axis=-1)
-        psi = np.exp(-(upstream + within))[..., None] * entering + np.exp(-within)[..., None] * carried + own
-        return self._unflat(psi)
+        vacuum = np.exp(-within)[..., None] * carried + own
+        return LineReading(traversal, self._unflat(np.exp(-(upstream + within))), self._unflat(vacuum))
 
 
-__all__ = ["TraversalRule"]
+@dataclass(frozen=True, eq=False)
+class LineReading:
+    r"""The transport to points on lines, read forward: :math:`\psi = e^{-\tau_{\rm in}}\,\psi^{\rm in}_k + \psi^{\rm vac}`.
+
+    The inflow term is a functional of the period's inflow, the vacuum term
+    of the basis functions, so a caller can pair the inflow with any set of
+    sources (the emission's basis functions, a current injected at a wall)
+    while the vacuum term stays on the basis (:meth:`TraversalRule.at`).
+
+    Attributes
+    ----------
+    traversal:
+        The traversal of the period each point lies on, read forward, ``(..., q)``.
+    transmission:
+        :math:`e^{-\tau_{\rm in}}`, the attenuation from that traversal's entry to the point, ``(..., q)``.
+    vacuum:
+        :math:`\psi^{\rm vac}`, the flux each basis function produces at the point along its own transit, ``(..., q, N)``.
+    """
+
+    traversal: np.ndarray
+    transmission: np.ndarray
+    vacuum: np.ndarray
+
+    def inflow_term(self, inflow: np.ndarray) -> np.ndarray:
+        r""":math:`e^{-\tau_{\rm in}}\,\psi^{\rm in}_k` per source, ``(..., q, S)``, for an inflow per traversal and source ``(..., 2, S)``."""
+        entering = np.take_along_axis(np.asarray(inflow, dtype=float), self.traversal[..., None], axis=-2)
+        return self.transmission[..., None] * entering
+
+    def flux(self, inflow: np.ndarray) -> np.ndarray:
+        r"""The angular flux from each basis function, ``(..., q, N)``, for its inflow ``(..., 2, N)``."""
+        return self.inflow_term(inflow) + self.vacuum
+
+
+__all__ = ["LineReading", "TraversalRule"]

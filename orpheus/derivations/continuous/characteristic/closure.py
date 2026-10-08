@@ -43,12 +43,18 @@ traversal :math:`k + 1`: it is the wall at which the backward path from
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import pi
 
 import numpy as np
 
-from orpheus.geometry.chord import Chord
+from orpheus.geometry.chord import Chord, ConcentricPartition
 
 from .walls import Walls
+
+#: The full solid angle. A line's quadrature weight carries its inverse, so the lines carry every flux as
+#: 4 pi times a flux per steradian: one convention, read by the block (:mod:`.assembly`), the walls' injection
+#: (:class:`DiffuseWalls`) and the reading (:mod:`~orpheus.derivations.continuous.characteristic.reading`).
+FULL_SOLID_ANGLE = 4.0 * pi
 
 #: A slab line has one transit, read in both directions; a radial line's
 #: successor is always one of its own (at most two) transits read forward. So a
@@ -246,6 +252,54 @@ class LinePeriod:
 
 
 @dataclass(frozen=True, eq=False)
+class DiffuseWalls:
+    r"""The walls that re-emit isotropically, keyed on a panel partition, and the flux a unit current entering each injects.
+
+    Attributes
+    ----------
+    breakpoint:
+        The breakpoint of each diffuse wall, ``(W,)``.
+    amplitude:
+        :math:`\alpha`, the diffuse amplitude of each wall, ``(W,)``.
+    quarter_area:
+        :math:`D_w = A_w/4`, each wall's area over four, ``(W,)``.
+    """
+
+    breakpoint: np.ndarray
+    amplitude: np.ndarray
+    quarter_area: np.ndarray
+
+    def __post_init__(self) -> None:
+        w = self.breakpoint.shape
+        if len(w) != 1 or self.amplitude.shape != w or self.quarter_area.shape != w:
+            raise ValueError(
+                f"one breakpoint, amplitude and quarter area per wall; got {self.breakpoint.shape}, "
+                f"{self.amplitude.shape}, {self.quarter_area.shape}"
+            )
+
+    @classmethod
+    def of(cls, walls: Walls, partition: ConcentricPartition) -> "DiffuseWalls":
+        r"""The diffuse walls of ``walls``, keyed on ``partition`` (a refinement of the body's), with :math:`D = \pi A / 4\pi`.
+
+        A unit isotropic current entering a wall of area :math:`A` is
+        :math:`1/(\pi A)` per steradian, which the lines carry as
+        :data:`FULL_SOLID_ANGLE` times that: :math:`1/D`.
+        """
+        diffuse = [w for w in walls.on(partition).walls if w.diffuse > 0.0]
+        at = np.array([w.breakpoint for w in diffuse], dtype=int)
+        area = partition.chart.measure_density(np.asarray(partition.breakpoints)[at])
+        return cls(at, np.array([w.diffuse for w in diffuse], dtype=float), pi * area / FULL_SOLID_ANGLE)
+
+    def injected(self, period: LinePeriod) -> np.ndarray:
+        r"""A unit current entering each wall, as the flux it injects at each traversal's entry, ``(..., 2, W)``.
+
+        The injection :math:`1/D` of :meth:`of`.
+        """
+        entering = period.present[..., None] & (period.entry_wall[..., None] == self.breakpoint)
+        return entering / self.quarter_area
+
+
+@dataclass(frozen=True, eq=False)
 class WallCoupling:
     r"""The diffuse part of the boundary resolvent: the walls that re-emit isotropically, coupled through the line part.
 
@@ -299,18 +353,18 @@ class WallCoupling:
         T_{w'w}`, and the diagonal is formed from that, without the subtraction; it is kept for the gates.
     loss:
         :math:`\ell`, ``(W,)``, the fraction of a current entering at each wall that is absorbed or leaks.
-    diffuse:
-        :math:`\alpha`, the diffuse amplitude of each wall, ``(W,)``.
+    walls:
+        The diffuse walls: their breakpoints, their amplitudes :math:`\alpha` and their injection.
     """
 
     response: np.ndarray
     escape: np.ndarray
     transmission: np.ndarray
     loss: np.ndarray
-    diffuse: np.ndarray
+    walls: DiffuseWalls
 
     def __post_init__(self) -> None:
-        w = self.diffuse.shape[0]
+        w = self.walls.amplitude.shape[0]
         if (
             self.response.shape[1:] != (w,)
             or self.escape.shape[1:] != (w,)
@@ -326,29 +380,29 @@ class WallCoupling:
     @property
     def returning(self) -> np.ndarray:
         r""":math:`I - T\alpha`, ``(W, W)``, its diagonal formed from the loss."""
-        alpha = self.diffuse
+        alpha = self.walls.amplitude
         passed_on = self.transmission - np.diag(np.diag(self.transmission))
         kept = (1.0 - alpha) + alpha * (self.loss + passed_on.sum(axis=0))
         return np.diag(kept) - passed_on * alpha[None, :]
 
     @property
-    def update(self) -> np.ndarray:
-        r"""The block's diffuse update :math:`R\,\alpha\,(I - T\alpha)^{-1}U^{\mathsf T}`, ``(N, M)``; zero with no diffuse wall.
+    def currents(self) -> np.ndarray:
+        r"""The currents the diffuse walls return per emission function, :math:`\alpha(I - T\alpha)^{-1}U^{\mathsf T}`, ``(W, M)``.
 
         Where every :math:`\alpha = 1` and every :math:`\ell = 0` the body
         loses nothing and :math:`I - T\alpha` is exactly singular: a source
         reaching the walls raises :class:`TrappedSource` (no finite flux
-        exists), and no source (an escape that is zero or empty) gives the
-        zero update.
+        exists), and no source (an escape that is zero or empty) returns no
+        current.
         """
-        alpha = self.diffuse
+        alpha = self.walls.amplitude
         if alpha.size and np.all(alpha == 1.0) and np.all(self.loss == 0.0):
             # I - T alpha is exactly singular: a source reaching the walls has no finite flux, and no source has none
             if np.any(self.escape != 0.0):
                 raise TrappedSource(
                     "a source in a body that absorbs nothing, behind walls that return everything, has no finite flux"
                 )
-            return np.zeros((self.response.shape[0], self.escape.shape[0]))
+            return np.zeros((alpha.size, self.escape.shape[0]))
         # The balance row: the column sums of I - T alpha are (1 - alpha) + alpha loss, known without
         # cancellation; the sum of the rows replaces the last, so the total current, the mode that is
         # nearly singular when little is lost, is solved from the balance and not from rounded entries.
@@ -356,6 +410,18 @@ class WallCoupling:
         if alpha.size:
             balanced[-1] = (1.0 - alpha) + alpha * self.loss
             sources[-1] = self.escape.T.sum(axis=0)
-        return self.response @ (alpha[:, None] * np.linalg.solve(balanced, sources))
+        return alpha[:, None] * np.linalg.solve(balanced, sources)
 
-__all__ = ["LinePeriod", "TrappedSource", "WallCoupling"]
+    def on_emission(self, emission: np.ndarray, walls: np.ndarray) -> np.ndarray:
+        r"""A functional of the stacked sources, read on the emission alone: ``emission`` ``(..., M)`` plus ``walls`` ``(..., W)`` through :attr:`currents`, ``(..., M)``.
+
+        A unit current entering wall :math:`w` contributes ``walls[..., w]``,
+        and the emission returns :attr:`currents` of it: the one fold of the
+        walls onto the emission, for the block (its diffuse update
+        :math:`R\,\alpha\,(I - T\alpha)^{-1}U^{\mathsf T}` is
+        ``on_emission(line, response) - line``) and the reading alike.
+        """
+        return emission + walls @ self.currents
+
+
+__all__ = ["FULL_SOLID_ANGLE", "DiffuseWalls", "LinePeriod", "TrappedSource", "WallCoupling"]

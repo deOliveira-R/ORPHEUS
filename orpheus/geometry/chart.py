@@ -48,7 +48,7 @@ derived from (kept columns, group), not matched on the coordinate system.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from functools import cached_property
 from math import gamma, pi
@@ -70,6 +70,7 @@ __all__ = [
     "DirectionShape",
     "LineDomain",
     "LineShape",
+    "half_chord",
     "RadialImage",
     "SingularStratum",
 ]
@@ -264,11 +265,14 @@ class Chart:
         unit = kept_direction / np.where(parallel, 1.0, speed)[..., None]
         along = np.where(parallel, 0.0, np.sum(kept_foot * unit, axis=-1))
         closest = kept_foot - along[..., None] * unit
+        b = _norm(closest)
         return RadialImage(
-            impact_parameter=_norm(closest),
+            impact_parameter=b,
             origin_position=along,
             speed=speed,
             parameter_origin=np.zeros_like(speed),
+            level=b,
+            level_half_chord=np.zeros_like(b),
         )
 
 
@@ -343,14 +347,18 @@ class DirectionDomain:
         r"""The representative point :math:`c\,\hat e_x`, ``(3,)``."""
         return np.array([self.orbit_coordinate, 0.0, 0.0])
 
+    @property
+    def on_stratum(self) -> bool:
+        """Whether the point is on a singular stratum of the chart (the sphere's centre, the cylinder's axis)."""
+        return any(s.orbit_value == self.orbit_coordinate for s in self.chart.singular_strata)
+
     @cached_property
     def shape(self) -> DirectionShape:
         """The domain's shape, from the chart's pair and whether the point is on the singular stratum."""
         chart = self.chart
-        on_stratum = any(s.orbit_value == self.orbit_coordinate for s in chart.singular_strata)
         if not chart.acts_on_kept_space or chart.kept_columns == 3:
-            return DirectionShape.WHOLE if on_stratum else DirectionShape.COSINE
-        return DirectionShape.AXIAL_COSINE if on_stratum else DirectionShape.ANGLE_AXIAL
+            return DirectionShape.WHOLE if self.on_stratum else DirectionShape.COSINE
+        return DirectionShape.AXIAL_COSINE if self.on_stratum else DirectionShape.ANGLE_AXIAL
 
     @property
     def stabiliser(self) -> SubgroupOfO3:
@@ -587,6 +595,24 @@ def _sine(cosine: np.ndarray) -> np.ndarray:
     return np.sqrt(np.clip((1.0 - cosine) * (1.0 + cosine), 0.0, None))
 
 
+#: How far, in ulp of :math:`r_*^2`, a line's level may sit from its impact parameter (:meth:`RadialImage.at_level`).
+_LEVEL_AGREEMENT = 64.0
+
+
+def half_chord(radius: np.ndarray, level: np.ndarray, level_half_chord: np.ndarray) -> np.ndarray:
+    r"""The half-chord :math:`\sqrt{r^2 - b^2}` of a line at radius ``radius``, from its level: :math:`\sqrt{(r - r_*)(r + r_*) + y_*^2}`.
+
+    Exact at :math:`r = r_*`, and free of the cancellation :math:`r - b` at
+    every radius at or above it; 0 where the square is not positive (the
+    line does not cross). Broadcast over the three arguments. The one
+    spelling of a half-chord: the chord's crossings
+    (:meth:`RadialImage.half_chord_at`) and the characteristic reading's
+    point weights read it.
+    """
+    square = (radius - level) * (radius + level) + level_half_chord * level_half_chord
+    return np.sqrt(np.where(square > 0.0, square, 0.0))
+
+
 @dataclass(frozen=True, eq=False)
 class RadialImage:
     r"""A line's image where the chart's group acts as :math:`O(d)` on the kept space.
@@ -616,12 +642,62 @@ class RadialImage:
         :math:`|P\Omega|`, ``(...,)``.
     parameter_origin:
         :math:`t_0`, ``(...,)``.
+    level, level_half_chord:
+        A radius :math:`r_*` and the line's exact half-chord there,
+        :math:`y_* = \sqrt{r_*^2 - b^2}`, ``(...,)``: every half-chord is
+        formed from them (:func:`half_chord`). :meth:`Chart.image` sets
+        :math:`r_* = b` and :math:`y_* = 0`, the half-chord formed from
+        :math:`b` itself. A line's :math:`b` is known to an ulp (the line
+        stores its moment), so near a tangency, where :math:`y` is below
+        :math:`\sqrt{2r\,\epsilon(r)}`, it rounds the half-chord away; a
+        caller that knows the exact pair passes it (:meth:`at_level`, through
+        :meth:`~orpheus.geometry.chord.ConcentricPartition.chord`), and the
+        chord is formed without the cancellation :math:`r - b` (#590).
     """
 
     impact_parameter: np.ndarray
     origin_position: np.ndarray
     speed: np.ndarray
     parameter_origin: np.ndarray
+    level: np.ndarray
+    level_half_chord: np.ndarray
+
+    def at_level(self, radius: np.ndarray, half_chord: np.ndarray) -> "RadialImage":
+        r"""The same image with its half-chords formed from the exact pair :math:`(r_*, y_*)`, each ``(...,)``.
+
+        The pair and the line's own :math:`b` describe one line, so they are
+        held to agree: :math:`|r_*^2 - y_*^2 - b^2|` at most
+        :data:`_LEVEL_AGREEMENT` ulp of :math:`r_*^2`, the squares compared
+        because recomputing :math:`b` from the pair amplifies its rounding by
+        :math:`r_*/b`. `[M]` 2026-10-08: at most 8 ulp over about 400 000
+        lines of the characteristic reference's line and point rules (spheres
+        and cylinders, solid and hollow; ``scratch/characteristic_architecture/p1_step_b5b/main/level_tolerance.py``).
+        """
+        radius, half_chord = np.asarray(radius, dtype=float), np.asarray(half_chord, dtype=float)
+        if not (np.all(np.isfinite(half_chord)) and np.all(half_chord >= 0.0) and np.all(radius >= 0.0)):
+            raise ValueError("a level is a non-negative radius with a non-negative, finite half-chord there")
+        radius = np.broadcast_to(radius, self.impact_parameter.shape).copy()
+        half_chord = np.broadcast_to(half_chord, self.impact_parameter.shape).copy()
+        b = self.impact_parameter
+        if np.any(np.abs((radius - half_chord) * (radius + half_chord) - b * b) > _LEVEL_AGREEMENT * np.spacing(radius * radius)):
+            raise ValueError("a line's level disagrees with its impact parameter: r*^2 - y*^2 is not b^2")
+        return replace(self, level=radius, level_half_chord=half_chord)
+
+    def half_chord_at(self, radius: np.ndarray) -> np.ndarray:
+        r"""The half-chord :math:`h = \sqrt{r^2 - b^2}` at radii ``radius`` ``(m,)`` or ``(..., m)``, ``(..., m)``; 0 where uncrossed.
+
+        Formed as :math:`\sqrt{(r - r_*)(r + r_*) + y_*^2}` from the
+        :attr:`level`: exact at :math:`r_*`, and free of the cancellation
+        :math:`r - b` at every radius the line crosses at or above it. A
+        radius is crossed where the square is positive and the line is not
+        parallel.
+        """
+        h = half_chord(np.asarray(radius, dtype=float), self.level[..., None], self.level_half_chord[..., None])
+        return np.where(~self.parallel[..., None], h, 0.0)
+
+    def parameters_at(self, radius: np.ndarray, side: np.ndarray) -> np.ndarray:
+        r"""The parameters at which the lines reach the radii ``radius``, on the ``side`` (:math:`\pm 1`, 0 at the closest approach) of the closest approach, ``(..., m)``."""
+        return self.parameter_at(np.asarray(side, dtype=float) * self.half_chord_at(radius))
 
     @property
     def parallel(self) -> np.ndarray:
@@ -654,7 +730,7 @@ class RadialImage:
 
     def shifted(self, shift: np.ndarray) -> "RadialImage":
         """The same image with every parameter increased by ``shift`` ``(...,)``."""
-        return RadialImage(self.impact_parameter, self.origin_position, self.speed, self.parameter_origin + shift)
+        return replace(self, parameter_origin=self.parameter_origin + shift)
 
 
 @dataclass(frozen=True, eq=False)
@@ -690,6 +766,16 @@ class AxialImage:
     def orbit_coordinate_at(self, t: np.ndarray) -> np.ndarray:
         r"""The orbit coordinate at parameters ``t`` ``(..., q)``, ``(..., q)``."""
         return self.foot_coordinate[..., None] + self.rate[..., None] * np.asarray(t, dtype=float)
+
+    def parameters_at(self, coordinate: np.ndarray, side: np.ndarray | None = None) -> np.ndarray:
+        r"""The parameters at which the lines reach the orbit coordinates ``coordinate`` ``(m,)`` or ``(..., m)``: :math:`(c - c_{\rm foot})/\dot c`.
+
+        A line meets each level once, so ``side`` is not read; a parallel
+        line is given the rate 1 (it meets no level, and its crossings are
+        absent).
+        """
+        rate = np.where(self.parallel, 1.0, self.rate)
+        return (np.asarray(coordinate, dtype=float) - self.foot_coordinate[..., None]) / rate[..., None]
 
     def shifted(self, shift: np.ndarray) -> "AxialImage":
         """The same image with every parameter increased by ``shift`` ``(...,)``."""

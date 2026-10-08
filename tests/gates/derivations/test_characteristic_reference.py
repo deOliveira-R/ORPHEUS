@@ -465,11 +465,16 @@ def test_a_malformed_resolution_is_refused(fields: dict, error: type, fragment: 
 
 
 @pytest.mark.foundation
-def test_a_point_value_is_refused_naming_rung_5b_before_any_solve(monkeypatch: pytest.MonkeyPatch) -> None:
-    """[D10] ``PointValue`` raises NotImplementedError naming rung 5b, and solves nothing (a spy on the k
-    pencil's fundamental counts 0); an ``Eigenvalue`` read afterwards solves once (the activation leg).
+def test_a_point_value_is_read_from_the_solved_emission_and_refused_on_a_mode_after_the_solve(monkeypatch: pytest.MonkeyPatch) -> None:
+    """[D10, re-posed at rung 5b] Until 5b this row pinned ``PointValue``'s refusal naming rung 5b before any solve;
+    the refusal retired with ``_refuse_point_reading`` (``test_characteristic_reading.py`` carries the reading's
+    values). What survives of the door's claim: a ``PointValue`` of the fundamental is the system's reading of the
+    answer's emission, bit for bit, solved once (a spy on the k pencil's fundamental counts the solve); a
+    ``PointValue`` of a ``Nearest`` answer is refused naming the missing flux scale, AFTER its solve (the mode must
+    be found before it is known to be a higher one).
 
-    First red: the point refusal placed after the answer is solved.
+    First reds: the reading taken from the Galerkin flux coefficients in place of the emission (the value leg);
+    the refusal placed before the solve (the spy leg).
     """
     calls = []
     original = reference_module.GalerkinSystem.pencil
@@ -481,11 +486,16 @@ def test_a_point_value_is_refused_naming_rung_5b_before_any_solve(monkeypatch: p
     monkeypatch.setattr(reference_module.GalerkinSystem, "pencil", property(counting))
     derivation = CharacteristicDerivation(_hetero_sphere(Eigen(_K)), _TINY)
     with bypass():
-        with pytest.raises(NotImplementedError, match="rung 5b"):
-            derivation.evaluate(PointValue(1.0, 0))
-        assert calls == []
-        derivation.evaluate(Eigenvalue())
-    assert calls, "the activation leg: the eigenvalue solved nothing"
+        value = derivation.evaluate(PointValue(1.0, 0)).value
+    answer = derivation.answer
+    assert isinstance(answer, reference_module._FundamentalAnswer)
+    assert value == float(derivation.system.point_flux(1.0, answer.emission)[0])
+    assert calls, "the activation leg: the point value solved nothing"
+    calls.clear()
+    nearest = CharacteristicDerivation(_hetero_sphere(Eigen(_K, mode=Nearest(0.5))), _TINY)
+    with bypass(), pytest.raises(NotImplementedError, match="has no flux scale"):
+        nearest.evaluate(PointValue(1.0, 0))
+    assert calls, "the refusal came before the mode was solved"
 
 
 @pytest.mark.foundation
