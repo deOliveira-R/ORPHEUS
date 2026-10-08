@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **16950**
+Total tests collected: **16956**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1740, 10.3%
-   L1, 2400, 14.2%
+   L1, 2405, 14.2%
    L2, 76, 0.4%
    L3, 0, 0.0%
-   foundation, 12700, 74.9%
+   foundation, 12701, 74.9%
    unmarked, 34, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 16837
+   explicit, 16843
    class-name, 46
    func-name, 0
    case, 33
@@ -177,7 +177,7 @@ Module × level grid
    derivations/test_case_method_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_case_method_x_function, 2, 3, 0, 0, 0, 0
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
-   derivations/test_characteristic_assembly, 0, 105, 5, 0, 64, 0
+   derivations/test_characteristic_assembly, 0, 110, 5, 0, 65, 0
    derivations/test_characteristic_basis, 0, 0, 0, 0, 271, 0
    derivations/test_characteristic_closure, 125, 0, 0, 0, 9, 0
    derivations/test_characteristic_transport, 51, 0, 0, 0, 53, 0
@@ -709,7 +709,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``removal-matrix``, 76
    ``mm-weights``, 75
    ``flux-moments``, 70
-   ``characteristic-galerkin-assembly``, 64
+   ``characteristic-galerkin-assembly``, 67
    ``peierls-rank-n-bc-closure``, 64
    ``transport-cartesian``, 64
    ``e3-def``, 61
@@ -728,10 +728,10 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``quadrature-product-weights``, 50
    ``wigner-seitz``, 49
    ``attenuation``, 48
+   ``characteristic-boundary-resolvent``, 48
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
    ``pn-scatter``, 47
-   ``characteristic-boundary-resolvent``, 46
    ``azimuthal-angles``, 44
    ``sn-curvilinear-homogeneous-kinf-recovery``, 38
    ``cp-kernel-differential-identities``, 36
