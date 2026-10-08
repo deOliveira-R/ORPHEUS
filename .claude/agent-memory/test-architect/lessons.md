@@ -438,6 +438,15 @@ shelf life — check it against a concrete row before trusting a green.
   row and the loose independent-reference row together, with the arm that separates them (a
   shared-operator mutant reds only the second). → `L97`
 
+- **⛔ A bound or equality row against a PUBLISHED truth owes the truth's resolution (|dk/dparam| x half a unit of its
+  last printed digit) beside the solver's bands; a margin below it decides nothing. And a converged reference that
+  disagrees with printed digits is adjudicated by an independent ladder (Richardson on a production method) before
+  the row is posed, never loosened. → `L109`
+
+- **⛔ A monotone/bound row (Rayleigh-Ritz, nesting) is blind to a defect that biases every rung the same way; its
+  first red is a mutation that breaks the STRUCTURE the theorem needs (symmetry of the form), not a size error —
+  confirm by battery before naming it. → `L109`
+
 - **⛔ A defect that only COSTS iterations under the default budget is a VALUE defect under the budget the honest
   contract promises suffices** — a restart clamp converges anyway with 1308 cycles; at `max_inner = 1` (one
   full-restart cycle spans the Krylov space) it misses the closed form by 1.3e-3. Gate the value at that budget, plus

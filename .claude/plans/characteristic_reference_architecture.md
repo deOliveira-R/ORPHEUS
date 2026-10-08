@@ -261,6 +261,7 @@ Reports: `scratch/characteristic_architecture/w5_elegance.md` (elegance-enforcer
 - **2026-10-06, the user, on P1 step (b)'s first rung:** Q1, the tag arm: the user refused hoisting production's tag parse ("mixing tags from reference with production would cause reference churn during production development. but we do need a coherent way to parse tags for reference"); ruled "the registry is accepted": the reference keeps its OWN tag registry (vacuum, reflective, partial, white, periodic) mapping each kind, with the wall's context (axis x, outward sign -1 at breakpoint 0 and +1 at n), to a typed law, and `Walls.of` reads every wall, tag or law, through the factor table only; the registry and production's `_law_from_tag` are a declared cross-branch duplicate (conceptual view); a gate pins Walls(tag) == Walls(its law) per kind. Q2 "By its factors": `PrescribedInflow` with `NoSource` is a vacuum wall, a non-zero source refused. Q3 "Accept as sketched": the period chained through the walls' partners, rank derived; `inflow` on optical depths, the least solution.
 - **2026-10-06, the user, on P1 step (b)'s second rung:** all four recommendations accepted. Q1: the ladder is re-cut; rung 2 is the panel basis and the transport along one line (B, A, the Volterra triangle, psi on a line), and rung 3 is the line rule, the assembly and `WallCoupling`, all integrals over the measure on lines. Q2: the pieces come from the kernel's chord through the panel ends posed as a refined `ConcentricPartition`, with `Walls.on(partition)` re-keying the walls. Q3: B_k lives on a new `TraversalRule` in `transport.py`. Q4: the basis is discontinuous nodal panels graded toward walls and interfaces (not a singular stratum), and its volume density is derived inside the basis from `measure_constant` and `measure_coordinate`, gated against `Chart.measure`.
 - **2026-10-06, the user, on P1 step (b)'s third rung (after the re-measurement):** all four as recommended. Q1: an even basis at a singular stratum (Lagrange in c² on the panel touching the centre or axis; Schwarz's theorem), not a graded b rule. Q2: the line domain is a kernel verb on `Chart` (the orbit space of lines with its density, the lines' analogue of `directions_at`). Q3: C11 is re-posed as closed-body conservation K·1 = W·1/Σ_t, symmetry kept only as a declared-blind foundation row. Q4: the volume density moves to the kernel, the white block carries D = diag(A_w/4), and S and F move to rung 4.
+- **2026-10-07, the user, on P1 step (b)'s fourth rung:** all four as recommended. Q1: the emission support is per group and exact, the regions where that group's emission can be non-zero (a scattering or (n,2n) transfer into it, or fission with chi > 0), widened by the posed source; column sets differ by group. Q2: the cross sections are a frozen `RegionCrossSections` read from one `Mixture` per region through `group_emission`, split out of `_infinite_medium_matrices`, refusing anisotropy there. Q3: rung 4 answers in nodal coefficients; the question values and the projection of a mesh-free source go to rung 5. Q4: the system is `GalerkinSystem`. Later the same day, after the flux-form adjoint was refuted (measured): the pencil's unknown is the emission density q on the supports, not the flux (reverses the P1 sketch's item 6).
 - **2026-10-06, the user, on P1 step (b)'s third rung API sketch:** both as recommended. `LineRule.transport` is per group (each chunk's geometry rebuilt per group; a cache only if measured worthwhile). A wall with both a specular and a diffuse part stays refused, as the SN realizer refuses it.
 - **2026-10-06, the user, on the cylinder's line coordinate (after the rung-3 spec):** the polar angle θ = arccos μ_z, in the kernel's `LineDomain`, where the density is analytic; `directions_at` keeps μ_z.
 - **2026-10-06, the user, after rung 3's elegance review:** `compute_areas_1d` (the twin of `measure_density`) retires separately, #584; the white block's near-void conditioning is fixed in rung 3 (the loss-formed I − αT with a balance row).
@@ -1115,3 +1116,111 @@ qa's and the elegance review's notes for #586 are in `scratch/characteristic_arc
 **Open issues:** #584 (the twin of `compute_areas_1d`), #585 (a slab far from the origin), #587 (the non-tensor rule).
 
 **Lesson from #586:** profile before choosing among an issue's candidates. The issue's three candidates all presumed one cost, and the measurement named another.
+
+## P1 step (b), fourth rung: API sketch (the main agent, 2026-10-07; checkpoint with the user before code)
+
+Every item is a proposal until ruled. Rung 4 turns the per-group transport blocks of rung 3 into the multigroup Galerkin system and answers its questions in coefficient form. It builds nothing that reads a point (rung 5) and does not map the interface vocabulary's question values onto the system (the door, P1 sketch item 8), unless Q3 rules otherwise.
+
+**The weak form.** With the flux φ = Σ_j φ_j u_j on every panel and every group, and the emission density q_g = Σ_g' S_g←g' φ_g' + (1/k) Σ_g' F_g←g' φ_g' + q_ext,g, the Galerkin equation per group is W φ_g = K_g q_g, with W the mass matrix and K_g the rung-3 block (rows on every panel, columns on group g's emission support). The cross sections are constant on a region and no panel crosses a region, so the emission of a basis function is a basis function times a constant: S and F act per node, exactly. Stacked group-major (the unknown is φ of shape (G, N), flattened):
+- the mass W_G = I_G ⊗ W, (GN, GN);
+- the transport K = blockdiag(K_g), (GN, ΣM_g);
+- the scattering S and fission F per node, (ΣM_g, GN): row (g, i) for i in group g's support reads S[r(i), g, :] and F[r(i), g, :] at node i of every group.
+
+**Why the 1-group bound (D11) holds on this form** `[R]` (the derivation goes to the theory page). In 1 group put M = σ_s + νσ_f/k, constant per region. On the emission support (M > 0) the equation W φ = K M φ, written for q = M φ, is W M⁻¹ q = K_ss q, because M commutes with W there (both are constant per panel). That is the Rayleigh–Ritz Galerkin form of the self-adjoint positive operator K_op in the weight M⁻¹, so the Galerkin λ(k) is below the true λ(k) for every k, and the Galerkin k is below the true k (λ decreases as k grows). Rows off the support are slaved (φ_v = W_vv⁻¹ K_vs q) and do not enter the bound. A column whose emission row is identically zero is multiplied by zero in K S, so it does not change the pencil.
+
+**1. The emission and fission matrices (`derivations/common/eigenvalue.py`).** `group_emission(sig_s, nu_sig_f, chi, sig_2=None) -> GroupEmission(scattering, fission)`, split out of `_infinite_medium_matrices`: scattering = (Σ_s + 2Σ_2)ᵀ (to ← from), fission = χ ⊗ νΣ_f. `_infinite_medium_matrices` becomes (diag Σ_t − scattering, fission), bitwise. The (n,2n) multiplicity literal moves with it, so `tests/gates/transport/test_n2n_multiplicity_census.py`'s `_REFERENCE_LITERALS` row re-points from `_infinite_medium_matrices` to `group_emission`.
+
+**2. The cross sections per region (`characteristic/cross_sections.py`).** `RegionCrossSections(total (n, G), scattering (n, G, G), fission (n, G, G))`, frozen, read-only arrays, shapes checked. `of(mixtures)` reads one `Mixture` per region: `SigT`, `SigS[0]`, `Sig2[0]`, `SigP` (νΣ_f), `chi`, through `group_emission`; it refuses a mixture with a non-zero higher Legendre order of `SigS` or `Sig2`, naming the region and the order (anisotropic scattering is out of P1's scope, SCOPE-BOUNDARY). `emission_support() -> (G, n) bool`: region r emits in group g iff scattering[r, g, :] or fission[r, g, :] is non-zero (Q1).
+
+**3. The system (`characteristic/system.py`).** `GalerkinSystem(basis, cross_sections, groups: tuple[GroupTransport, ...])`, built by `of(basis, walls, cross_sections, points, inner_points, support=None)`: one `LineRule.of(..., sigma_t=total[:, g], points)` and one `.transport(points, inner_points, support[g])` per group (each group graded by its own optical scale, as ruled in rung 3). Its matrices `mass`, `transport`, `scattering`, `fission` (above), and two pencils, both on `DensePencil`:
+- `pencil`: `DensePencil(W_G − K S, K F)`, the k question: `.fundamental()`, `.spectrum()` (the higher modes; the mode nearest τ is read from it), `.adjoint()` (the transposed forms; W and each K_g restricted to the support are symmetric by reciprocity, so the transpose is the weak-form adjoint);
+- `emission_pencil`: `DensePencil(W_G, K (S + F))`, the source questions: `fixed_source(q) = emission_pencil.least_solution(K q)` and `response(r) = emission_pencil.adjoint().least_solution(W_G r)`, with q and r nodal coefficients of shape (G, N). Every secondary emission is in the gain, so `least_solution`'s subcriticality check covers a closed body made supercritical by (n,2n) with no fission. The k pencil's own `least_solution` would not: its gain is the fission alone, so it would solve that case directly and return a negative flux (the attacker's F5 trap).
+- A source with a non-zero coefficient outside the emission support is refused, naming the group and the regions; the caller widens the support (`support=` at `of`).
+
+**4. Cost** `[M]` (#586's table, 8 points): a two-group three-region cylinder is two blocks of 175 s; a sphere is under a second per group. The dense eigenproblem is (GN)², a few hundred unknowns at the gates' resolution, negligible beside the blocks.
+
+**5. The gates (the test-architect re-specifies them onto these names, each with its first red):** D0 (S and F per region against the `Mixture` tables by hand), D11 (the 1-group bound, on a nested degree ladder p = 1 to 4 on fixed panels, which nests the spaces including the even panel), D5 and D5b (a closed body reads k_inf and a flat eigenvector with the 0-D group ratio), D2' (Sood's 2-group critical sizes), D13 (the adjoint), D14 (biorthogonality and response reciprocity), D7 (the pencil residual), E2 (a closed body with a uniform source), E3 (the fixed source F φ_k / k returns φ_k), E6 (the supercritical refusal), and the support rows of Q1.
+
+**Questions for the user:**
+- **Q1, the emission support** (the open question of rung 3). (a) Recommended: per group, the regions where that group's emission can be non-zero (a scattering or (n,2n) transfer into g, or fission with χ_g > 0), from `emission_support()`, widened by the posed source; the column sets differ by group. (b) One shared set, the union of (a) over groups. (c) Keep each group's Σ_t > 0. Against (c) `[R]`: a region transparent in group g that scatters or fissions into g has no column, so its emission is silently dropped. Against (b): it assembles columns whose emission is identically zero, and on a region void in g under a mirror such a column is a source on a lossless trapped line, refused by `TrappedSource` although the problem is well posed. The block-level default `support=None` (Σ_t > 0) stays for rung 3's block gates, where no emission exists; the system always passes its support.
+- **Q2, the cross-section value.** (a) Recommended: `RegionCrossSections` as item 2, read from mixtures with the anisotropy refusal at that boundary. (b) The system takes the per-region `Mixture`s directly and reads them where it needs them.
+- **Q3, the scope.** (a) Recommended: rung 4 answers in coefficients (a source and a detector are nodal coefficients); projecting a mesh-free source onto the basis and mapping `Eigen`, `FixedSource` and `Response` onto the system belong to rung 5 with the door and the point reading. (b) Rung 4 also maps the question values, with the Galerkin projection of a mesh-free source.
+- **Q4, the name of the system.** (a) `GalerkinSystem`; (b) `TransportSystem`; (c) `MultigroupSystem`.
+
+**Ruled 2026-10-07** (see the ledger), all four as recommended: Q1 the exact per-group emission support, widened by the posed source; Q2 `RegionCrossSections`; Q3 coefficients only, the question values and the projection of a mesh-free source go to rung 5; Q4 the name `GalerkinSystem`. Next: the test-architect re-specifies the rung's gates (item 5) onto these names, each with its first red, while the main agent writes the code on `feature/characteristic-rung4` in the order items 1, 2, 3.
+
+## P1 step (b), fourth rung: the flux-form adjoint refuted (2026-10-07)
+
+**What was measured** `[M]` (`scratch/characteristic_architecture/p1_step_b4/main/smoke.py`, `qform.py`, `-O`; a 2-group, two-region mirror sphere with upscatter, degree 3, 8 line points, 12/12 along each line):
+- **The forward k pencil on the flux, `(W_G − K S, K F)`, is right.** Its k equals k_inf to 1.0e-14, its eigenvector is flat to 2.2e-10 with the 0-D group ratio, and the 1-group bound holds on a vacuum Sood sphere (Ua-1-0-SP at its critical radius): k − 1 = −2.5e-5, −2.1e-6, −4.9e-7, −1.4e-7 at degree 1 to 4, negative and increasing.
+- **Its transpose is not the adjoint flux. Refuted:** item 3's claim that "the transposed pencil's eigenvectors are the adjoint flux's coefficients". The transposed eigenvector is flat, but its group ratio is 2.1466, against 1.0733 for the adjoint flux A^(−T) νΣ_f: a factor Σ_t,2/Σ_t,1 = 2.
+- **The reason.** The flux-form equation is φ = 𝒦 E φ, with 𝒦 the transport operator and E the emission. Its adjoint is ψ = E* 𝒦 ψ. That ψ is not the adjoint flux φ†; it is E* φ† (in an infinite medium, Σ_t φ†). The adjoint flux is the adjoint of the emission-form equation q = E 𝒦 q, which is φ† = 𝒦 E* φ†.
+- **The emission form gives φ† by transposition.** The unknown is the emission density q on the supports. The Galerkin form is W_s q = (S + F/k) K q, with W_s = blockdiag(W restricted to each group's support). Measured on the same sphere:
+  - its k equals the flux form's to 4.4e-16;
+  - the flux it gives, φ = W_G⁻¹ K q, equals the flux form's mode to 3.2e-15;
+  - its transposed eigenvector is flat with the ratio 1.07328385899813, against A^(−T) νΣ_f = 1.07328385899814.
+- **The emission form serves the other questions too.**
+  - **Source:** W_s q = (S + F) K q + W_s q_ext, then φ = W_G⁻¹ K q.
+  - **Detector:** the transpose with K^T r gives φ†, the importance of a source, and the reading is ⟨r, φ(q_ext)⟩ = φ†^T W_s q_ext.
+  - **Where each answer lives:** φ† is defined exactly on the supports, which is where a source can be posed (the ruled Q1). The flux is defined everywhere.
+  - **Size:** the pencil is ΣM_g, not GN.
+
+This reverses the P1 sketch's item 6 (ruled 2026-10-06: "the unknown is the FLUX coefficients phi"), which had corrected the spec's original "emission coefficients c". The user rules it.
+
+**Ruled 2026-10-07 by the user:** the unknown is the emission density q on each group's support (the emission form). The flux is read as W_G⁻¹ K q; the transposed pencil gives the adjoint flux φ† on the supports. This supersedes the P1 sketch's item 6 on the unknown.
+
+## P1 step (b), fourth rung landed (2026-10-07)
+
+**Commits:** `42222c47` (code and gates) and `d2950bde` (theory). CI `gates` passed on `d2950bde`. Read the merge status from git, not from this line.
+
+**What exists:**
+- `group_emission` and `GroupEmission` in `derivations/common/eigenvalue.py`. `_infinite_medium_matrices` reads them and is bitwise unchanged.
+- `RegionCrossSections` (`characteristic/cross_sections.py`): `of(mixtures)`, which refuses anisotropy, and `emission_support()`, returning `(n, G)`.
+- `TransportResolution(line_points, points, inner_points)` in `assembly.py`.
+- `EmissionSpace(supports, region)`, with `restriction`, `restrict` and `split`.
+- `GalerkinSystem(basis, walls, cross_sections, resolution, source_regions)`, in `characteristic/system.py`:
+  - its blocks (`groups`) are derived from its fields;
+  - its matrices: `mass`, `emission_mass`, `transport`, `scattering`, `fission`;
+  - its two pencils: `pencil`, `source_pencil`;
+  - its questions: `flux`, `fixed_source`, `response`.
+
+**Decisions taken in the build (not user rulings):**
+- **From the elegance review:**
+  - The blocks are derived, not stored. Measured: blocks handed in from another mixture gave k = 0.108657 against 0.107926, with no error.
+  - The emission layout is one object, `EmissionSpace`.
+  - The masks are region-major.
+  - `emission_pencil` is renamed `source_pencil`.
+- **From qa:** the refusal names the regions again, and `extend` was removed because nothing used it.
+- **From the test-architect:**
+  - Detector reciprocity (D14(ii)) holds for any transport matrix, so it is documented as a transposition check only. D13(iv), the adjoint against the forward solve of the group-transposed problem, carries the adjoint's physics.
+  - An under-integrated line rule cannot redden D11, because it moves k without breaking the bound. D11 reds on a non-reciprocal transport matrix instead.
+  - D11b runs on ungraded panels. On graded panels the bound's margin falls inside the truth's resolution.
+
+**Evidence** `[M]` 2026-10-07:
+- **Gates:** `test_characteristic_system.py` has 80 rows: 78 routine (about 78 s) and 2 slow cylinder rows.
+- **Battery:** 23 arms plus controls (`scratch/characteristic_architecture/p1_step_b4/battery/verdicts.md`). The no-arm control reds 0 of 78; the positive control reds 51 of 78. Every row reds under at least one arm.
+- **Touched trees:** 3157 passed. The CI set passed locally (627) and on CI.
+- **Build and graph:** Sphinx `-W` is clean, and `dead_references` reads 0 of 66.
+
+**Filed:** #588, Sood's UAL-2-0 critical sizes, which are off beyond their printed digits. The D2' rows exclude those two cases.
+
+## ⏸ COMPACTION POINT — 2026-10-07 (third), rung 4 merged, rung 5 next
+
+**State.** Rungs 1 to 4 of P1 step (b) are merged; read the state from git.
+
+**Next: rung 5,** a W3 surgical carve: an API sketch goes to the user before any code. It covers three things:
+- **The door:** P1 sketch item 8, `CharacteristicDerivation` posed from a `GeometrySpecification` with a frozen `Resolution`. That `Resolution` now contains the basis's degree and grading, plus a `TransportResolution`. The anisotropy refusal stays at `RegionCrossSections.of`, which the door calls, so there is one door.
+- **The mapping of the question values onto `GalerkinSystem`:**
+  - `Eigen` with `Fundamental` or `Nearest`;
+  - `FixedSource`, with a Galerkin projection of the mesh-free source and its source regions;
+  - `Response`.
+- **The reading at a point:** P1 sketch item 7, with the spec's C6 and C8.
+
+**Read in order:**
+1. The P1 sketch, items 7 and 8.
+2. The fourth rung's sections above: its sketch, the refuted flux-form adjoint, and "landed".
+3. `docs/theory/references/characteristic.rst`, sections `characteristic-galerkin-system` and "What the package does not compute".
+4. `orpheus/numerics/question.py`, the question values.
+5. `orpheus/derivations/continuous/characteristic/system.py`.
+
+**Cost to plan with** `[M]` (8 points): a sphere system takes seconds; a two-group three-region cylinder takes about 6 minutes.

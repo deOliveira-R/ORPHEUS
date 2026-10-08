@@ -11689,3 +11689,23 @@ plugin rebinding `PanelBasis.values`/`mass` to the sketched even basis ran the f
 their subject (on an even panel the integrand is polynomial in arc length, no branch point). Third: `pkill -f
 <script>` also killed the waiting shell whose until-loop named the script, silently dropping the chained
 census.
+
+## L109 — Characteristic P1 step (b) rung 4 spec (W3): a variational bound's margin against the truth's digits, and a published digit refuted (2026-10-07)
+
+First: D11 (the 1G Rayleigh-Ritz bound k_p < 1 at Sood's critical sizes) was proposed with a margin of "10 x the
+eigen band". On the working (graded) basis the slab's p = 4 read k - 1 = +4.3e-10 while the truth 0.93772556 mfp
+resolves k only to dk/dmfp x half a unit = 3.6e-9: the bound row has no margin at all, and the comparison that
+decides it is the truth's printed precision, not LAPACK. Posed on ungraded panels the margin is 2.4e-6, 1000 x the
+resolution; the nesting leg (k_p increasing) needs no truth and carries the heterogeneous fixtures. Second: two
+Sood 2G critical sizes (UAL-2-0-SL/SP) disagreed with a reference converged to 1e-9 by 3 and 7 half-units of the
+last printed digit. A production S_N DD ladder (400/S32, 800/S64, 1600/S128, second order, Richardson +7.4e-6)
+landed on the reference's +7.36e-6, so the printed digit is the suspect; the row was held for a ruling rather
+than loosened or dropped silently.
+
+Rung-4 gates, later the same day: a predicted first red was BLIND. The spec named "the line rule under-integrated"
+as the first red of the Rayleigh-Ritz rows (D11), from a measured k shift of +1.2e-5. The battery showed the shift
+grows with the degree, so the nested ladder stays monotone and k stays below the truth: a variational row is
+blind to a defect that biases every rung the same way. Its honest first red is a non-symmetric (non-reciprocal) K,
+which breaks the form the theorem needs. Also: qa showed a "reciprocity" row <r, phi(q)> = phi^dagger^T W_s q holds
+for ANY K (pure transposition algebra); the physics needs an independent route (the forward solve of the
+group-transposed problem).
