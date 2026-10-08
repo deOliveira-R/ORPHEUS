@@ -88,7 +88,11 @@ Submodules
        (:mod:`~orpheus.derivations.continuous.characteristic.system`), and
        the geometric, exponential and hp gradings every rule of the package
        places its piece ends by
-       (:mod:`~orpheus.derivations.continuous.characteristic.grading`);
+       (:mod:`~orpheus.derivations.continuous.characteristic.grading`), and
+       the door, which poses that system from a specification and a
+       resolution and answers the eigenvalue and the flux integrals of its
+       question
+       (:mod:`~orpheus.derivations.continuous.characteristic.reference`);
        the theory is :ref:`theory-characteristic-reference`.
    * - :mod:`~orpheus.derivations.common.quadrature_recipes`
      - Geometry-aware quadrature recipes:
@@ -219,7 +223,7 @@ The characteristic reference
 ----------------------------
 
 The package, built rung by rung beside the trajectory-resolvent family;
-the theory is :ref:`theory-characteristic-reference`. Its eight modules
+the theory is :ref:`theory-characteristic-reference`. Its nine modules
 are documented below; the package re-exports the public names of every
 module but the gradings, which are imported by module.
 
@@ -247,6 +251,9 @@ module but the gradings, which are imported by module.
    :members:
 
 .. automodule:: orpheus.derivations.continuous.characteristic.grading
+   :members:
+
+.. automodule:: orpheus.derivations.continuous.characteristic.reference
    :members:
 
 Kernels

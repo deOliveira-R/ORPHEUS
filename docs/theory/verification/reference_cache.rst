@@ -1082,8 +1082,11 @@ that its ``evaluate`` is a plain method, starts no interpreter and writes
 no entry. The certificate is unaffected either way, by the previous
 section. One consequence: the specification's Q8 (the exact derivation
 should hold the mixture so that its content can key a memo) does not
-arise, and ``ExactInfiniteMediumDerivation`` keeps its one field,
-``medium`` (`[M]` the live class).
+arise, and ``ExactInfiniteMediumDerivation`` kept its one field,
+``medium``. Since 2026-10-08 it carries a second, ``gauge``, the
+production per unit flux of each group that the question declares
+(:ref:`structured-geometry-question-values-gauge`); its content is still
+derived from the specification, and the rule above does not change.
 
 The rule this ruling sets for later clients: **a reading cheaper than one
 interpreter start plus one validation is not memoised.**

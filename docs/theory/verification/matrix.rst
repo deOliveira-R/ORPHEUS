@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **17038**
+Total tests collected: **17146**
 
 V&V level distribution
 ----------------------
@@ -18,12 +18,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1742, 10.2%
-   L1, 2472, 14.5%
+   L0, 1754, 10.2%
+   L1, 2510, 14.6%
    L2, 76, 0.4%
    L3, 0, 0.0%
-   foundation, 12714, 74.6%
-   unmarked, 34, 0.2%
+   foundation, 12771, 74.5%
+   unmarked, 35, 0.2%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 16925
+   explicit, 17032
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 34
+   unmarked, 35
 
 Module × level grid
 -------------------
@@ -180,6 +180,7 @@ Module × level grid
    derivations/test_characteristic_assembly, 0, 110, 5, 0, 65, 0
    derivations/test_characteristic_basis, 0, 0, 0, 0, 271, 0
    derivations/test_characteristic_closure, 125, 0, 0, 0, 9, 0
+   derivations/test_characteristic_reference, 12, 38, 0, 0, 45, 1
    derivations/test_characteristic_system, 2, 67, 0, 0, 11, 0
    derivations/test_characteristic_transport, 51, 0, 0, 0, 53, 0
    derivations/test_characteristic_walls, 19, 0, 0, 0, 31, 0
@@ -411,7 +412,7 @@ Module × level grid
    numerics/test_content_identity_axis, 0, 0, 0, 0, 40, 0
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
    numerics/test_content_identity_observable, 0, 0, 0, 0, 26, 0
-   numerics/test_content_identity_question, 0, 0, 0, 0, 50, 0
+   numerics/test_content_identity_question, 0, 0, 0, 0, 52, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 91, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_dense_metric, 0, 0, 0, 0, 14, 0
@@ -580,7 +581,7 @@ Module × level grid
    reference/test_published, 0, 0, 0, 0, 47, 0
    reference/test_readings, 0, 0, 0, 0, 98, 0
    reference/test_reference_certificate, 0, 0, 0, 0, 91, 0
-   reference/test_reference_solution, 0, 0, 0, 0, 55, 0
+   reference/test_reference_solution, 0, 0, 0, 0, 56, 0
    reference/test_verification, 0, 0, 0, 0, 95, 0
    regression/test_dd_regression, 0, 0, 0, 0, 14, 0
    regression/test_walk_matvec_baselines, 0, 0, 0, 0, 5, 0
@@ -635,7 +636,7 @@ Module × level grid
    spatial/test_no_angular_closure_twin, 0, 0, 0, 0, 1, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    specification/test_content_identity_specification, 0, 0, 0, 0, 47, 0
-   specification/test_specification, 0, 0, 0, 0, 90, 0
+   specification/test_specification, 0, 0, 0, 0, 98, 0
    specification/test_specification_assembly, 0, 3, 0, 0, 0, 0
    specification/test_specification_layer, 0, 0, 0, 0, 2, 0
    sweep/test_angular_cell_partition, 0, 0, 0, 0, 56, 0
@@ -649,7 +650,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 479, 0
+   test_layer_imports, 0, 0, 0, 0, 480, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -733,6 +734,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
    ``pn-scatter``, 47
+   ``characteristic-pencil``, 46
    ``azimuthal-angles``, 44
    ``sn-curvilinear-homogeneous-kinf-recovery``, 38
    ``cp-kernel-differential-identities``, 36
@@ -758,12 +760,12 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``dd-face-transmission-spectrum``, 33
    ``dd-slab``, 33
    ``free-flight``, 32
-   ``characteristic-pencil``, 31
    ``angular-cell-partition``, 30
    ``chi-sampling``, 29
    ``decompose``, 29
    ``scattering-cdf``, 29
    ``transport-cylindrical``, 29
+   ``characteristic-adjoint``, 27
    ``cp-flat-source-derivation``, 27
    ``cp-flat-source-double-integral``, 27
    ``cp-unified-outer-integration``, 27
@@ -786,7 +788,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``pitch-recovery``, 22
    ``ray-circle``, 22
    ``region-areas-pin-cell``, 22
-   ``characteristic-adjoint``, 21
    ``n2n-source``, 21
    ``singular-eigenfunction-eq46``, 21
    ``dd-null-counting-law``, 20
@@ -808,6 +809,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
    ``absorption-xs``, 14
+   ``characteristic-door-gauge``, 14
    ``fission-source``, 14
    ``fixed-source-solve``, 14
    ``keff-update``, 14
@@ -826,10 +828,12 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-homogenization-adjoint-weighted``, 12
    ``sn-leakage-functional``, 12
    ``ws-pitch``, 12
+   ``characteristic-projection``, 11
    ``loss-rep-scanmarch``, 11
    ``loss-rep-scanmarch-apply``, 11
    ``loss-rep-scanmarch-solve``, 11
    ``sn-homogenization-bilinear``, 11
+   ``characteristic-fixed-source``, 10
    ``geometry-cylinder-axial-factor``, 10
    ``kll-1974-slab-flux``, 10
    ``kll-1974-sphere-flux``, 10
@@ -873,7 +877,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-loss-kernel-gauge-projection``, 7
    ``bar-psi``, 6
    ``boyd-eq-45``, 6
-   ``characteristic-fixed-source``, 6
    ``characteristic-ode``, 6
    ``dd-cartesian-2d``, 6
    ``geometry-measure-density``, 6
@@ -918,6 +921,9 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
    ``sn-mms-nonvacuum-qext``, 4
+   ``characteristic-door-pairing``, 3
+   ``characteristic-door-reciprocity``, 3
+   ``characteristic-door-response``, 3
    ``cp-escape-from-p-cell``, 3
    ``dd-mm-closure-constants``, 3
    ``delta-psi``, 3
@@ -986,6 +992,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``spaces-adjoint-riesz-composition``, 2
    ``addition-theorem``, 1
    ``branching``, 1
+   ``characteristic-door-lifts``, 1
    ``collision-estimator``, 1
    ``dd-cylindrical-degenerate``, 1
    ``dd-recurrence-coefficients``, 1
@@ -1754,7 +1761,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**34 tests** have no V&V level marker.
+**35 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1773,5 +1780,6 @@ taxonomy.
    ``tests/gates/numerics/test_iteration_record.py``, 4
    ``tests/gates/numerics/test_symmetry.py``, 2
    ``tests/gates/sn/sweep/core/test_cache.py``, 2
+   ``tests/gates/derivations/test_characteristic_reference.py``, 1
    ``tests/gates/sn/angular/test_redistribution.py``, 1
 

@@ -610,7 +610,7 @@ chart the direction is read in is
    :members: of, from_srepr, expressions, n_groups, depends_on, is_isotropic
 
 Question values — :mod:`orpheus.numerics.question`, what is asked of a
-system with no physics in it: ``Eigen(parameter, point, mode)``,
+system with no physics in it: ``Eigen(parameter, point, mode, gauge)``,
 ``FixedSource(source, point)``, ``Response(detector, point)`` and the
 modes ``Fundamental`` and ``Nearest``. The parameter and the point's keys
 are opaque keys a specification resolves; the question's type is its

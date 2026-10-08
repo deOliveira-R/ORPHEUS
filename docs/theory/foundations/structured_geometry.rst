@@ -65,7 +65,7 @@ Key facts
   read in, and the sphere declares no azimuth reference
   (:ref:`structured-geometry-mesh-free-functions`).
 * **What is asked is a value with no physics in it.**
-  :class:`~orpheus.numerics.question.Eigen` ``(parameter, point, mode)``
+  :class:`~orpheus.numerics.question.Eigen` ``(parameter, point, mode, gauge)``
   asks where, along one direction of the system's parameter space, the
   system is singular; :class:`~orpheus.numerics.question.FixedSource`
   ``(source, point)`` asks for the flux a source drives and
@@ -73,7 +73,10 @@ Key facts
   detector's importance. The parameter and the point's keys are opaque
   keys a specification (later a system) resolves; the point is a frozen
   mapping of offsets from the physical value, empty by default; the mode
-  is ``Fundamental()`` or ``Nearest(tau)``. No value carries an adjoint
+  is ``Fundamental()`` or ``Nearest(tau)``; the gauge is the production an
+  eigen flux is scaled by, a key the specification resolves, by default
+  what fission and the (n,2n) reaction emit
+  (:ref:`structured-geometry-question-values-gauge`). No value carries an adjoint
   flag: the question's type is its role, and the eigen adjoint belongs to
   the answer. Nothing behind the values (the pencil a parameter derives,
   the mode law, the system) exists yet: #529
@@ -3329,8 +3332,9 @@ mode values, and it landed as step 7 of the campaign's first phase on
 2026-10-02, with its prerequisite, one definition of a real number at L1
 (#559, :ref:`structured-geometry-one-real-parser`):
 
-- :class:`~orpheus.numerics.question.Eigen` ``(parameter, point, mode)``,
-  where the system is singular along one direction;
+- :class:`~orpheus.numerics.question.Eigen` ``(parameter, point, mode, gauge)``,
+  where the system is singular along one direction, with the production
+  its flux is scaled by (the gauge, added 2026-10-08);
 - :class:`~orpheus.numerics.question.FixedSource` ``(source, point)``,
   the flux a given source drives;
 - :class:`~orpheus.numerics.question.Response` ``(detector, point)``,
@@ -3426,10 +3430,10 @@ because the detector's reading of the flux a source drives is
      - Asks for
      - Datum
      - Answer
-   * - ``Eigen(parameter, point, mode)``
+   * - ``Eigen(parameter, point, mode, gauge)``
      - the pole :math:`\sigma` of :math:`E(p_0 + \sigma e_d)^{-1}` that
-       ``mode`` selects
-     - none: the direction is a key
+       ``mode`` selects, its mode scaled by the ``gauge``
+     - none: the direction and the gauge are keys
      - the pole and its mode :math:`\psi`; the adjoint mode
        :math:`\psi^\dagger` belongs to this answer, not to the question
    * - ``FixedSource(source, point)``
@@ -3636,6 +3640,72 @@ or ``Pseudospectrum``, so adding one is an edit of the gate on purpose.
      - its answer is a function of the generator applied to an initial
        state; nothing in P1 asks it
      - the transient question
+
+.. _structured-geometry-question-values-gauge:
+
+The gauge: the production an eigen flux is scaled by
+----------------------------------------------------
+
+An eigenvector has no scale of its own, so every reading of an eigen
+flux other than a ratio depends on the functional that fixed it. Until
+2026-10-08 each reader chose its own: the S\ :sub:`N` eigenvalue entries
+scale to a production rate of 1 that counts fission and the (n,2n)
+emission (``SNSolver.compute_production_rate``); the homogeneous solver
+and the exact infinite medium to a fission production density of 100;
+the trajectory resolvent by its solve's last fission rate; and the
+characteristic reference's first build to a fission production of 1,
+which its docstring called S\ :sub:`N`'s. On a body with (n,2n) emission
+the last two differ by the ratio of the two productions, a convention no
+side named (:ref:`characteristic-door`). A gauge is a choice of
+functional, not physics, so the user ruled it part of the question
+(2026-10-08): ``Eigen(parameter, point, mode, gauge=None)``.
+
+**The key and its resolution.** ``gauge`` is an opaque key, as the
+parameter is, admitted by numerics as a hashable and resolved by the
+specification (``_canonical_gauge`` in
+:mod:`orpheus.specification.specification`):
+
+- a declared gauge is a :class:`~orpheus.data.cells.CellCoefficient`, the
+  set of emission cells whose emission counts as production, and it must
+  resolve on the specification's materials (a key of another kind is a
+  ``TypeError``);
+- no gauge resolves to the declared default,
+  ``orpheus.specification.specification.EIGEN_GAUGE`` ``=
+  CellCoefficient.every(FISSION_EMISSION, N2N_EMISSION)``, the neutrons
+  fission and the (n,2n) reaction emit, which is the functional the
+  S\ :sub:`N` solver scales by;
+- when no material carries either channel (the c-eigenvalue of a pure
+  scatterer), the default stays ``None``: there is no production to scale
+  by, and a reference reads no flux of such an answer.
+
+The canonical question stores the resolved gauge, so two spellings of one
+production are one specification and one digest
+(:ref:`structured-geometry-specification-canonical`).
+
+**The declaration is shared; each channel's physics is each side's own.**
+Which channels count is the question's, one value for every reader. What
+one channel emits per unit flux is the reader's: on the reference side it
+is ``orpheus.derivations.common.eigenvalue.production_emission``
+(fission :math:`\nu\Sigma_f`; scattering
+:math:`\sum_{g'}\Sigma_{s0,g\to g'}`; the (n,2n) reaction
+:math:`2\sum_{g'}\Sigma_{2,g\to g'}`, with the references' own literal 2,
+so that no reference moves with production's ``N2N_MULTIPLICITY``, the
+separation the (n,2n) multiplicity census keeps). The readers as built:
+the characteristic reference scales its fundamental flux so that the
+declared production over the body is 1 (:eq:`characteristic-door-gauge`);
+the exact infinite medium reads its flux at a declared production
+density of 100 per unit volume; the trajectory resolvent accepts the
+fission gauge only, since its domain has no (n,2n) emission. The
+S\ :sub:`N` and homogeneous solvers do not read the declaration yet
+(#517); until they do, a test that judges the homogeneous solver
+declares the fission gauge,
+``Eigen(k, gauge=CellCoefficient.every(Channel.FISSION_EMISSION))``.
+
+`[M]` 2026-10-08, the archivist's probe, a closed sphere of a two-group
+mixture with (n,2n) emission (the characteristic gates' ``_UP2N``): the
+default gauge counts (0.15, 0.2) per unit flux against fission's
+(0.05, 0.2), and the characteristic reference's group-0 integral is
+3.5294 under the default and 5.4545 under the declared fission gauge.
 
 .. _structured-geometry-question-values-role:
 
@@ -4154,6 +4224,11 @@ not its spelling.
   row ``test_s8_10_a_zero_cell_in_a_point_key_is_dropped`` now pins it).
   Two point keys that resolve to one coordinate are refused, naming both
   (S8.1 (h5)).
+- **The eigen gauge is resolved or defaulted.** A declared gauge must
+  resolve, as the parameter must; an ``Eigen`` with no gauge receives
+  the default ``EIGEN_GAUGE`` (fission and (n,2n) emission) resolved on
+  the kept materials, or keeps ``None`` when nothing produces
+  (:ref:`structured-geometry-question-values-gauge`).
 - **The question is required.** A specification derives no default
   question: a physics default ("k") would be an optimistic default, and
   on a problem with no fissile material it would be refused anyway.
@@ -5789,6 +5864,17 @@ trust ``git`` over this table for merge status.
      - Milestone
      - Issue
      - Where
+   * - 2026-10-08
+     - **The eigen gauge is declared on the question.** ``Eigen`` gained
+       ``gauge``, the production an eigen flux is scaled by; the
+       specification resolves it, defaulting to ``EIGEN_GAUGE`` (fission
+       and (n,2n) emission, S\ :sub:`N`'s functional) and to ``None``
+       where nothing produces. The references read it; the production
+       solvers follow in #517. Ruling: the user, 2026-10-08, after the
+       characteristic reference's fission-only gauge was found to differ
+       from S\ :sub:`N`'s (:ref:`structured-geometry-question-values-gauge`).
+     - #405, #517
+     - ``fe977a90``
    * - 2026-10-02
      - **The reference specification: a question with its materials,
        keyed, and the layer it is posed at is its type.**

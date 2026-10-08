@@ -17,9 +17,9 @@ The characteristic reference — transport along the lines of a concentric body
    .. code-block:: yaml
 
       module: derivations
-      concept: characteristic reference, boundary resolvent, walls, line period, line closure, panel basis, even basis at a singular stratum, traversal integrals, Volterra block, hp grading, Galerkin assembly over lines, line rule, white-wall coupling, region cross sections, emission support, multigroup Galerkin system, emission space, k pencil, source pencil, adjoint flux, one-group Rayleigh-Ritz bound
-      role: "the closed reference that integrates transport along the lines of a 1-D concentric body (slab, cylinder, sphere, solid or hollow); this page holds its walls (each boundary point with what its law returns, read from the law's factors), the line part of its boundary resolvent (the period of each line's unfolded path and the least solution of its cycle, with an arriving flux), its panel basis (even at a singular stratum) and the transport along one line on that basis (the traversal integrals, the vacuum Volterra block and the angular flux), and one group's transport block: the Galerkin assembly over the lines of the chart's line domain, the white walls' coupling, and the line rule graded from the group's optical scale; and the multigroup Galerkin system on the emission density (the cross sections per region, each group's exact emission support, the k pencil and the source pencil, the adjoint flux by transposition, the one-group Rayleigh-Ritz bound)"
-      code: [orpheus.derivations.continuous.characteristic.walls, orpheus.derivations.continuous.characteristic.closure, orpheus.derivations.continuous.characteristic.basis, orpheus.derivations.continuous.characteristic.transport, orpheus.derivations.continuous.characteristic.assembly, orpheus.derivations.continuous.characteristic.grading, orpheus.derivations.continuous.characteristic.cross_sections, orpheus.derivations.continuous.characteristic.system, orpheus.derivations.common.eigenvalue]
+      concept: characteristic reference, boundary resolvent, walls, line period, line closure, panel basis, even basis at a singular stratum, traversal integrals, Volterra block, hp grading, Galerkin assembly over lines, line rule, white-wall coupling, region cross sections, emission support, multigroup Galerkin system, emission space, k pencil, source pencil, adjoint flux, one-group Rayleigh-Ritz bound, the door, resolution, projection onto the panel basis, role arrows, response as the transposed problem, eigen gauge, flux integral by pairing
+      role: "the closed reference that integrates transport along the lines of a 1-D concentric body (slab, cylinder, sphere, solid or hollow); this page holds its walls (each boundary point with what its law returns, read from the law's factors), the line part of its boundary resolvent (the period of each line's unfolded path and the least solution of its cycle, with an arriving flux), its panel basis (even at a singular stratum) and the transport along one line on that basis (the traversal integrals, the vacuum Volterra block and the angular flux), and one group's transport block: the Galerkin assembly over the lines of the chart's line domain, the white walls' coupling, and the line rule graded from the group's optical scale; and the multigroup Galerkin system on the emission density (the cross sections per region, each group's exact emission support, the k pencil and the source pencil, the adjoint flux by transposition, the one-group Rayleigh-Ritz bound); and the door, the reference posed from a specification and a resolution (the projection of a mesh-free function onto the panel basis, the role arrows a source and a detector enter by, the response as the forward problem on the transposed cross sections, the eigen gauge, the flux integral as a pairing)"
+      code: [orpheus.derivations.continuous.characteristic.walls, orpheus.derivations.continuous.characteristic.closure, orpheus.derivations.continuous.characteristic.basis, orpheus.derivations.continuous.characteristic.transport, orpheus.derivations.continuous.characteristic.assembly, orpheus.derivations.continuous.characteristic.grading, orpheus.derivations.continuous.characteristic.cross_sections, orpheus.derivations.continuous.characteristic.system, orpheus.derivations.continuous.characteristic.reference, orpheus.derivations.common.eigenvalue, orpheus.derivations.common.angular_measure]
       depends_on: [chart_and_chord, boundary_conditions, reference_solutions]
       related: [trajectory_resolvent, layering]
 
@@ -32,7 +32,8 @@ Key facts
   the body's lines: :mod:`orpheus.derivations.continuous.characteristic`.
   It is built rung by rung beside the trajectory-resolvent family
   (:ref:`theory-trajectory-resolvent`), the family it is built to
-  replace. Four rungs exist. The first is the **walls**
+  replace. Four rungs and the first half of the fifth exist. The first
+  is the **walls**
   (:mod:`~orpheus.derivations.continuous.characteristic.walls`) and the
   **line part of the boundary closure**
   (:mod:`~orpheus.derivations.continuous.characteristic.closure`); the
@@ -47,9 +48,12 @@ Key facts
   fourth is the **multigroup Galerkin system**
   (:mod:`~orpheus.derivations.continuous.characteristic.cross_sections`
   and :mod:`~orpheus.derivations.continuous.characteristic.system`),
-  which answers the eigen and source questions in nodal coefficients.
-  There is no reading at a point, no question value of the interface
-  vocabulary and no projection of a mesh-free source yet
+  which answers the eigen and source questions in nodal coefficients;
+  the first half of the fifth, 5a, is **the door**
+  (:mod:`~orpheus.derivations.continuous.characteristic.reference`), which
+  poses that system from a specification and answers the eigenvalue and
+  the flux integrals of its question. There is no reading at a point yet;
+  it is the fifth rung's second half, 5b
   (:ref:`characteristic-what-is-not-built`).
 - **The boundary resolvent has two parts, and both are built.** The
   closure of a reflecting boundary is :math:`P = P_0 + E\,(I - T)^{-1} X`
@@ -184,6 +188,26 @@ Key facts
   solve into a negative flux. In one group the Galerkin :math:`k` is a
   Rayleigh–Ritz lower bound, increasing on nested spaces
   (:eq:`characteristic-one-group-bound`).
+- **The door** (:ref:`characteristic-door`).
+  ``CharacteristicDerivation(specification, resolution)`` refuses at
+  construction what the reference does not serve and solves on the first
+  evaluation. A source enters by the section and a detector by the
+  pullback, so a detector table's rate is :math:`RR^\dagger\Sigma_d =
+  4\pi\Sigma_d`, the :math:`4\pi` derived from the angular measure
+  (:eq:`characteristic-door-lifts`); a ``Response`` is answered as the
+  forward flux of the group-transposed cross sections, which is the
+  adjoint scalar flux :math:`R\psi^\dagger` (:eq:`characteristic-door-response`),
+  and reciprocity reads
+  :math:`\langle\Sigma_d, \phi(Q)\rangle = \langle Q, R\psi^\dagger\rangle/4\pi`.
+  The fundamental flux is gauged so that the production the question
+  declares (``Eigen.gauge``; by default what fission and the (n,2n)
+  reaction emit, S\ :sub:`N`'s functional) is 1 over the body
+  (:eq:`characteristic-door-gauge`); a ``Nearest`` answer reads its
+  eigenvalue only, because a
+  higher mode's net production can vanish (exactly, on a closed
+  homogeneous body). A flux integral is the pairing
+  :math:`(Wc_w)^{\mathsf T}\phi_h = \int w\,\phi_h\,\mathrm dV`, with no
+  point (:eq:`characteristic-door-pairing`).
 - **Evidence** `[M]` 2026-10-06 and 2026-10-07: for the walls and the
   closure, 175 gate rows in two files and a 34-arm mutation battery; for
   the basis and the transport, 328 rows in two more files, the traversal
@@ -192,7 +216,9 @@ Key facts
   which 52 arms redden their target rows and 2 are declared blind. The
   battery's honest run over the seven files without the ``slow`` rows:
   754 passed; for the fourth rung, 80 rows in 22 functions, 78 outside
-  ``slow`` passed (:ref:`characteristic-evidence`).
+  ``slow`` passed; for the door, 95 rows in 36 functions, 94 outside
+  ``slow`` passed (`[M]` 2026-10-08), and a 39-arm battery in which every
+  arm reddens at least one row (:ref:`characteristic-evidence`).
 
 
 .. _characteristic-place:
@@ -3324,8 +3350,8 @@ unknown changed the same day from the flux to the emission density after
 a measurement ("the flux-form adjoint refuted", below). The sources, the
 detectors and the questions are nodal coefficients on the panel basis;
 the question values of the interface vocabulary and the projection of a
-mesh-free source onto the basis belong to the fifth rung
-(:ref:`characteristic-what-is-not-built`).
+mesh-free source onto the basis are the fifth rung's door
+(:ref:`characteristic-door`).
 
 The cross sections and the emission matrices
 --------------------------------------------
@@ -3925,6 +3951,694 @@ groups builds in 0.07 to 0.9 s, a slab in 0.7 to 4.1 s, the one-region
 cylinder in 26 s for two groups at 8 points.
 
 
+.. _characteristic-door:
+
+The door: the reference posed from a specification
+==================================================
+
+The first half of the fifth rung (5a) poses the Galerkin system of the
+fourth rung from the interface vocabulary and answers the observables
+of its question:
+:class:`~orpheus.derivations.continuous.characteristic.reference.CharacteristicDerivation`
+(:mod:`~orpheus.derivations.continuous.characteristic.reference`), built
+from a
+:class:`~orpheus.specification.specification.GeometrySpecification` (the
+materials, a finite concentric geometry and one question) and a
+:class:`~orpheus.derivations.continuous.characteristic.reference.Resolution`.
+The factory
+:func:`~orpheus.derivations.continuous.characteristic.reference.characteristic_reference`
+wraps it in a
+:class:`~orpheus.reference.solution.ReferenceSolution` with no
+certificate, the consumer surface the trajectory-resolvent family exposes
+(:ref:`theory-trajectory-resolvent`). Every reading is
+:class:`~orpheus.reference.reading.Uncertified`: the family derives no
+error bound yet (#566).
+
+The design is the plan's "P1 step (b), fifth rung: API sketch"
+(``.claude/plans/characteristic_reference_architecture.md``), ruled by the
+user on 2026-10-07 in four questions, all as recommended: the rung splits
+into 5a (the resolution, the projection, the door and the two
+observables that need no point, ``Eigenvalue`` and ``FluxIntegral``) and
+5b (the reading at a point); a ``Response`` is answered as the
+group-transposed forward problem; the eigen flux is gauged by its
+production; ``Nearest(tau)`` is served with :math:`\tau` read in the
+:math:`k` chart. After the reviews (qa, the elegance review and the
+test-architect's measurements, ``scratch/characteristic_architecture/p1_step_b5/``)
+the user ruled three corrections the same day: a ``Nearest`` answer reads
+its eigenvalue only; the gauge is a total production of 1 over the body,
+not the production density 100 the sketch had named; and a ``Response``
+answers the adjoint scalar flux :math:`R\psi^\dagger`, so the detector's
+role arrow carries a :math:`4\pi`. On 2026-10-08 the user ruled which
+production: the one the question declares
+(``Eigen.gauge``), by default
+what fission and the (n,2n) reaction emit, the functional the
+S\ :sub:`N` solver scales by. Each is derived below.
+
+The objects and their roles
+---------------------------
+
+**The resolution is one value.**
+:class:`~orpheus.derivations.continuous.characteristic.reference.Resolution`
+holds the panel basis's degree :math:`p`, its grading (``layers`` and
+``ratio``, read by :meth:`PanelBasis.of
+<orpheus.derivations.continuous.characteristic.basis.PanelBasis.of>`),
+the transport blocks' rules (a
+:class:`~orpheus.derivations.continuous.characteristic.assembly.TransportResolution`)
+and ``source_points``, the Gauss points per piece that project a
+symbolic function onto the basis. It refuses a non-integer count and
+``source_points`` below :math:`2(p + 1)`, the count at which the
+projection integrates a function of the panel space as exactly as the
+mass matrix does (the projection, below). The solve and every reading use
+this one value, so a reading cannot be taken at a resolution other than
+the solve's; in 5b the direction rule at a point joins it as a field.
+``Resolution`` and ``TransportResolution`` are
+:class:`~orpheus.numerics.content.ContentIdentity` values, as the
+derivation is: its content is its two fields, and the cross sections,
+the basis and the system are derived from them.
+
+**The door is construction.** ``CharacteristicDerivation.__post_init__``
+is the one place the posing is decided, and it refuses, before anything
+is assembled:
+
+- an infinite medium, which has no geometry and so no lines
+  (``TypeError``);
+- a question at a point other than the physical one (``ValueError``);
+- an ``Eigen`` question along any parameter but the fission emission,
+  ``CellCoefficient.every(Channel.FISSION_EMISSION)`` resolved on the
+  materials (``ValueError``);
+- a ``Symbolic`` source or detector that depends on the direction
+  :math:`\mu` or :math:`\varphi` (``NotImplementedError``, a declared
+  scope boundary: an anisotropic source needs its own first-flight
+  transport along each line, the machinery an anisotropic emission
+  needs too);
+- through the objects it builds, a mixture with anisotropic emission
+  (:meth:`RegionCrossSections.of
+  <orpheus.derivations.continuous.characteristic.cross_sections.RegionCrossSections.of>`),
+  a wall law the reference does not read (:meth:`Walls.of
+  <orpheus.derivations.continuous.characteristic.walls.Walls.of>`) and a
+  grading the basis refuses.
+
+The cross sections are read with one mixture per interval, in the
+geometry's interval order (``geometry.mat_ids``), and the basis on
+``ConcentricPartition.of(geometry)``. Construction assembles no
+transport block: the system's blocks are derived on first use, and the
+gate ``test_a_served_question_constructs_and_assembles_nothing`` counts
+zero calls of ``LineRule.of`` for every served question.
+
+**The answer is solved once, typed per question.** The ``answer``
+property resolves the question on its first use into one of three
+values: the fundamental mode (its :math:`k` and its gauged flux
+coefficients, ``(G, N)``), a mode nearest :math:`\tau` (its eigenvalue
+alone) or a source answer (a flux, ``(G, N)``). ``evaluate`` then matches
+on the observable and the answer:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 26 26 26
+
+   * - Observable
+     - ``Eigen``, ``Fundamental``
+     - ``Eigen``, ``Nearest(tau)``
+     - ``FixedSource``, ``Response``
+   * - ``Eigenvalue()``
+     - :math:`k`
+     - the eigenvalue nearest :math:`\tau`
+     - refused before any solve (``ValueError``)
+   * - ``FluxIntegral(w)``
+     - the pairing of :math:`w` with the gauged flux
+     - refused after the solve, naming the :math:`k` found
+       (``NotImplementedError``)
+     - the pairing of :math:`w` with the flux (for ``Response``, the
+       adjoint scalar flux)
+   * - ``PointValue(x, g)``
+     - refused before any solve, naming rung 5b
+       (``NotImplementedError``)
+     - the same
+     - the same
+
+What only the solve decides is refused at the first evaluation: a body
+supercritical for its fixed source or its detector
+(:class:`~orpheus.derivations.common.dense_pencil.NoLeastSolution`, the
+fourth rung's source pencil), a complex nearest eigenvalue, and a pencil
+with no fundamental mode. ``evaluate`` is a traced memo
+(:mod:`orpheus.numerics.traced_memo`, #405 P3) keyed on the derivation
+and the observable, so an equal derivation built afresh reads a stored
+value without solving. `[M]` 2026-10-07, qa's probe: 3.64 s cold and
+0.013 s warm on one body.
+
+How a function enters: the role arrows
+--------------------------------------
+
+The system's unknown is an angle-integrated emission rate per unit
+volume (:eq:`characteristic-pencil`), and the interface vocabulary hands
+the door mesh-free functions
+(:mod:`orpheus.numerics.mesh_free_function`): a ``RegionwiseConstant``
+table ``(regions, groups)`` on the angle-integrated space, or a
+``Symbolic`` expression per group in :math:`(r, \mu, \varphi)`, which is
+a density over :math:`\mathrm d\Omega`. A function's ROLE decides how it
+enters phase space (the user's ruling of 2026-10-02,
+:ref:`spaces-collapse-pair-two-lifts`), and the rate the transport reads
+is the retraction of that lift. The arrows are those of Branch 1's
+angular measure, :mod:`orpheus.derivations.common.angular_measure`: the
+retraction :math:`Rq = \int_{S^2} q\,\mathrm d\Omega`, its section
+:math:`EQ = Q/m` and its adjoint, the pullback :math:`R^\dagger\Sigma =
+\Sigma`, with :math:`m = R1 = 4\pi` derived there by integrating 1 over
+the sphere, never typed. They satisfy
+
+.. math::
+   :label: characteristic-door-lifts
+
+   R \circ E = \mathrm{id}, \qquad R \circ R^\dagger = m = 4\pi ,
+
+and the door reads each role through them
+(``_coefficients(function, lift)``, with the lift ``_section``,
+``_pullback`` or none):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 36 40
+
+   * - Role and form
+     - Lift into phase space
+     - Rate the transport reads
+   * - a source, table :math:`Q`
+     - the section, :math:`EQ`
+     - :math:`R E Q = Q`
+   * - a detector, table :math:`\Sigma_d`
+     - the pullback, :math:`R^\dagger\Sigma_d`
+     - :math:`R R^\dagger \Sigma_d = 4\pi\Sigma_d`
+   * - a source or a detector, ``Symbolic`` :math:`f`
+     - none: :math:`f` is already a density over the directions
+     - :math:`R f = \int f\,\mathrm d\Omega`, which is :math:`4\pi f` for
+       an isotropic :math:`f`
+   * - a weight :math:`w` of ``FluxIntegral``
+     - none: it pairs with the scalar flux
+     - :math:`w` as given
+
+For a table the door computes the scale as the retraction of the lift of
+the unit rate, ``retraction(lift(1))``, so the :math:`4\pi` comes from
+the angular measure at every call. A symbolic source and a symbolic
+detector are both retracted, since both are densities over the
+directions; for a table, the source and the detector differ by
+:math:`4\pi`.
+
+.. implements:: characteristic-door-lifts
+   :by: orpheus.derivations.continuous.characteristic.reference.CharacteristicDerivation
+
+   **Implemented by** the door's ``_coefficients``, with the lifts
+   ``_section`` and ``_pullback`` and the retraction ``_retraction``, each
+   a call into :mod:`orpheus.derivations.common.angular_measure`
+   (``section``, ``pullback``, ``retraction``).
+
+.. implements:: characteristic-door-lifts
+   :by: orpheus.derivations.common.angular_measure.retraction
+
+.. implements:: characteristic-door-lifts
+   :by: orpheus.derivations.common.angular_measure.section
+
+.. implements:: characteristic-door-lifts
+   :by: orpheus.derivations.common.angular_measure.pullback
+
+**Reciprocity follows from the arrows.** Write the forward transport with
+its boundary laws as :math:`\mathcal L\psi = E(S + F)R\psi + EQ`
+(:math:`\mathcal L = \Omega\cdot\nabla + \Sigma_t`, the walls' laws in
+its domain), so the angular flux of the source :math:`Q` is
+:math:`\psi = \mathcal T^{-1}EQ` with :math:`\mathcal T = \mathcal L -
+E(S + F)R`. A detector reads the scalar flux,
+:math:`\langle\Sigma_d, \phi(Q)\rangle = \langle\Sigma_d, R\psi\rangle`.
+The importance of the detector is
+:math:`\psi^\dagger = \mathcal T^{-\dagger}R^\dagger\Sigma_d`, the
+vocabulary's ``Response`` (:math:`E(p_0)^{-\dagger}R` in
+:class:`~orpheus.numerics.question.Response`), and its scalar flux is
+:math:`\phi^\dagger = R\psi^\dagger`. Then
+
+.. math::
+
+   \langle\Sigma_d, R\psi\rangle
+   = \langle R^\dagger\Sigma_d, \mathcal T^{-1}EQ\rangle
+   = \langle \mathcal T^{-\dagger}R^\dagger\Sigma_d, EQ\rangle
+   = \langle E^\dagger\psi^\dagger, Q\rangle
+   = \frac{\langle R\psi^\dagger, Q\rangle}{m},
+
+since :math:`E^\dagger = R/m`. For two tables this is
+
+.. math::
+   :label: characteristic-door-reciprocity
+
+   \bigl\langle \Sigma_d,\ \phi(Q) \bigr\rangle
+   \;=\; \frac{1}{4\pi}\,\bigl\langle Q,\ R\psi^\dagger(\Sigma_d) \bigr\rangle ,
+
+the reading of ``FixedSource(Q)`` by ``FluxIntegral(Σ_d)`` against the
+reading of ``Response(Σ_d)`` by ``FluxIntegral(Q)``. The :math:`4\pi` is
+:math:`R\circ R^\dagger`, the difference between the two roles of one
+table.
+
+.. implements:: characteristic-door-reciprocity
+   :by: orpheus.derivations.continuous.characteristic.reference.CharacteristicDerivation
+
+The response as the transposed forward problem
+----------------------------------------------
+
+The fourth rung already answers the adjoint, by transposing the source
+pencil (:eq:`characteristic-fixed-source`,
+``GalerkinSystem.response``). The door answers a ``Response`` by a
+second route, the user's ruling of 2026-10-07 (Q2): the forward problem
+on the adjoint cross sections, with the detector's rate as its source.
+
+**The derivation.** The adjoint of the transport operator reverses the
+direction: :math:`\mathcal L^\dagger = \mathcal P\,\mathcal L\,\mathcal P`,
+with :math:`\mathcal P\psi(x, \Omega) = \psi(x, -\Omega)` the parity, for
+every wall law the reference serves: a specular return of any amplitude
+(vacuum is amplitude 0), the periodic wrap and a diffuse return of any
+amplitude each map an outgoing direction to an incoming one by a kernel
+symmetric under the reversal of both, so each is its own adjoint up to
+:math:`\mathcal P` `[R]`. qa measured it on the built code: the
+reciprocity :math:`\langle r, \phi(q)\rangle = \langle q,
+\phi^\dagger(r)\rangle` holds in 7 of 7 configurations to between 0 and
+:math:`1.1 \times 10^{-15}` (four slabs, between a vacuum and a white
+wall, periodic, between a partial and a mirror wall, and between a white
+wall of amplitude 0.5 and vacuum; a white sphere; a partially reflecting
+cylinder; a hollow sphere; two groups with upscatter, asymmetric
+transfers and several regions), and with the
+transposition neutered the two sides differ by 0.95 to 1.77 relative in
+all seven (`[M]` 2026-10-07, qa's ``p3`` and its control ``p3b``). The retraction does not see the direction, so
+:math:`R\mathcal P = R` and :math:`\mathcal P R^\dagger = R^\dagger`. The
+adjoint problem reads
+
+.. math::
+
+   \mathcal L^\dagger\psi^\dagger
+   = R^\dagger (S + F)^{\mathsf T} E^\dagger \psi^\dagger + R^\dagger\Sigma_d
+   = E\,(S + F)^{\mathsf T} R\,\psi^\dagger + E\,(R R^\dagger\Sigma_d),
+
+using :math:`R^\dagger = mE` on an isotropic function and
+:math:`E^\dagger = R/m`. Put :math:`\psi^\dagger = \mathcal P\tilde\psi`
+and apply :math:`\mathcal P`: :math:`\tilde\psi` solves the FORWARD
+problem :math:`\mathcal L\tilde\psi = E(S^{\mathsf T} +
+F^{\mathsf T})R\tilde\psi + E(RR^\dagger\Sigma_d)`, with the same
+:math:`\Sigma_t`, the transfer matrices transposed and the source rate
+:math:`RR^\dagger\Sigma_d`. Its scalar flux is the adjoint scalar flux,
+:math:`R\tilde\psi = R\psi^\dagger`:
+
+.. math::
+   :label: characteristic-door-response
+
+   R\psi^\dagger(\Sigma_d) \;=\; \phi\bigl[\Sigma_t,\ S^{\mathsf T},\ F^{\mathsf T};\ RR^\dagger\Sigma_d\bigr],
+   \qquad
+   F^{\mathsf T} = (\chi\otimes\nu\Sigma_f)^{\mathsf T} = \nu\Sigma_f\otimes\chi ,
+
+with :math:`\phi[\cdot\,;\,\cdot]` the forward scalar flux of the cross
+sections and the source rate named. This is the self-adjointness of the
+isotropic transport (the reciprocity that makes the transport block
+symmetric, :ref:`characteristic-galerkin-assembly-section`) written as a
+recipe: the importance is computed with the forward machinery unchanged.
+
+.. implements:: characteristic-door-response
+   :by: orpheus.derivations.continuous.characteristic.cross_sections.RegionCrossSections.transposed
+
+   **Implemented by** :meth:`RegionCrossSections.transposed
+   <orpheus.derivations.continuous.characteristic.cross_sections.RegionCrossSections.transposed>`
+   (the same ``total``, ``scattering`` with ``[to, from]`` swapped,
+   ``spectrum`` and ``production`` exchanged) and the door's ``Response``
+   branch, which poses the system on those cross sections with the
+   detector's pullback as its source.
+
+.. implements:: characteristic-door-response
+   :by: orpheus.derivations.continuous.characteristic.reference.CharacteristicDerivation
+
+**The adjoint cross sections exchange the fission's two factors.** The
+fission matrix is the outer product :math:`\chi\otimes\nu\Sigma_f`, so
+its transpose is :math:`\nu\Sigma_f\otimes\chi`: in the adjoint problem
+the spectrum the fission emits into is the forward production, and the
+production that drives it is the forward spectrum.
+:class:`~orpheus.derivations.continuous.characteristic.cross_sections.RegionCrossSections`
+therefore stores the two factors, ``spectrum`` (:math:`\chi`) and
+``production`` (:math:`\nu\Sigma_f`), and derives ``fission`` as their
+product, and ``transposed()`` exchanges them, so each field keeps its
+meaning on the adjoint set. The adjoint problem's emission support
+(:meth:`RegionCrossSections.emission_support
+<orpheus.derivations.continuous.characteristic.cross_sections.RegionCrossSections.emission_support>`
+on the transposed set) is where something is emitted OUT of a group in
+the forward problem, which is where the importance has an emission.
+
+**Why this route and not the forward system's adjoint.** The alternative,
+Q2 (b) of the sketch, is ``system.response`` on the forward system. Its
+unknown is the adjoint flux on the FORWARD emission supports
+(:eq:`characteristic-adjoint`), so a flux integral of the importance
+over a region outside them, and in 5b a reading at a point there, would
+need a further transport of the adjoint emission
+:math:`r + (S + F)^{\mathsf T}\phi^\dagger`, whose support is not the
+forward one. The transposed problem's flux is read on every node
+(:math:`W_G\phi = Kq` has a row for every basis function), and every
+observable reads it as it reads a forward flux. The two routes share the
+transport blocks :math:`K_g` and nothing above them, so they remain two
+independent checks of each other
+(``test_the_doors_response_is_the_forward_systems_adjoint_on_the_same_posing``,
+below): one solves :math:`(W_s' - (S' + F')K')q' = W_s'(4\pi r)` on the
+transposed supports, the other :math:`(W_s - K^{\mathsf T}(S +
+F)^{\mathsf T})\phi^\dagger = K^{\mathsf T}r` on the forward ones, and
+the door's reading is :math:`4\pi` times the second's paired with
+:math:`W_s q`. ``system.response`` is the importance per unit emission
+RATE, the door's answer the adjoint SCALAR flux.
+
+**Why the answer is** :math:`R\psi^\dagger` **and not the per-rate
+importance.** The first build read the detector table as a rate and
+returned :math:`E^\dagger\psi^\dagger = R\psi^\dagger/4\pi`. That value is
+self-consistent (it is the importance per unit source rate), but nothing
+in the vocabulary names it: ``Response`` is :math:`\psi^\dagger`, and
+:class:`~orpheus.numerics.observable.FluxIntegral` pairs a weight with
+the scalar flux, which for :math:`\psi^\dagger` is :math:`R\psi^\dagger`.
+Production's S\ :sub:`N` importance is that same scalar flux
+(:math:`\sum_n w_n\psi^\dagger_n`). qa's review measured the
+inconsistency (`[M]` 2026-10-07, ``qa/p2.py``, a two-group vacuum sphere
+with symmetric scattering, where reciprocity makes the ratio a pure
+convention): ``Response(f)`` over ``FixedSource(f)`` read
+:math:`1/4\pi = 0.0795774715` for a symbolic :math:`f` and exactly 1 for
+a table, where :math:`R\psi^\dagger` makes them 1 and :math:`4\pi`. The
+first consumer to compare the reference with production would have
+differed by :math:`4\pi`, the class of ERR-004. The user ruled
+:math:`R\psi^\dagger` (2026-10-07), and the detector's table now enters
+by the pullback, its rate :math:`4\pi\Sigma_d`.
+
+The eigen gauge and the modes
+-----------------------------
+
+An eigenvector is defined up to a scale, and a flux integral of an
+eigen answer reads that scale; a ``Ratio`` of two flux integrals does
+not (the gate ``test_the_factory_returns_an_uncertified_reference_that_reads_a_ratio_as_a_quotient``
+reads an eigen ratio equal to the unscaled flux's to
+:math:`10^{-13}`). The scale is therefore part of the question: an
+``Eigen`` carries a ``gauge``, the production its flux is scaled by
+(:ref:`structured-geometry-question-values-gauge`). The specification
+resolves it: a declared gauge is a
+:class:`~orpheus.data.cells.CellCoefficient` (a set of emission cells,
+the same kind of key as the parameter) and must resolve on the
+materials; no gauge means the default
+``EIGEN_GAUGE = CellCoefficient.every(FISSION_EMISSION, N2N_EMISSION)``
+(``orpheus.specification.specification.EIGEN_GAUGE``), resolved, or
+no gauge at all when no material carries either channel (a pure
+scatterer has no production to scale by). The door fixes the scale of
+the fundamental mode so that the declared production over the body is 1:
+
+.. math::
+   :label: characteristic-door-gauge
+
+   \sum_g \int_V p_g\,\phi_g\,\mathrm dV
+   \;=\; \sum_g \bigl(W\,p_g\bigr)^{\mathsf T}\phi_{h,g} \;=\; 1 ,
+   \qquad
+   p_g(r) = \sum_{\text{channels of the gauge in } r} e_g ,
+
+the pairing below with the weight :math:`p`, read onto the nodes exactly.
+:math:`e_g` is what one channel emits per unit flux of group :math:`g`:
+:math:`\nu\Sigma_{f,g}` for fission,
+:math:`2\sum_{g'}\Sigma_{2,g\to g'}` for the (n,2n) reaction and
+:math:`\sum_{g'}\Sigma_{s0,g\to g'}` for scattering
+(``orpheus.derivations.common.eigenvalue.production_emission``). The
+default is therefore :math:`p = \nu\Sigma_f + 2\sum_{g'}\Sigma_{2,g\to
+g'}`, the functional ``SNSolver.compute_production_rate`` integrates. The
+flux of ``pencil.fundamental()`` is divided by its declared production.
+
+**The declaration is shared, the physics of each channel is not.** Which
+channels count is the question's, one value every reader resolves the
+same way. What a channel emits is each side's own:
+``production_emission`` sits on the reference side and writes the
+(n,2n) multiplicity as the references' own literal 2, beside
+``group_emission``'s, so that no reference moves with production's
+``N2N_MULTIPLICITY`` (the reason the (n,2n) multiplicity census keeps the
+two apart, ``tests/gates/transport/test_n2n_multiplicity_census.py``).
+The readers of the declaration, as built (2026-10-08): the door scales
+its fundamental flux to a declared production of 1 over the body; the
+exact infinite medium reads its flux at a declared production density of
+100 per unit volume; the trajectory resolvent accepts the fission gauge
+only, since its domain has no (n,2n) emission. The S\ :sub:`N` and
+homogeneous solvers do not read the declaration yet (#517): S\ :sub:`N`
+scales to the default's functional, the homogeneous solver to a fission
+production density of 100, so a test that judges the homogeneous solver
+declares the fission gauge.
+
+.. implements:: characteristic-door-gauge
+   :by: orpheus.derivations.continuous.characteristic.reference.CharacteristicDerivation.answer
+
+   **Implemented by** the door's ``answer`` (the fundamental's flux divided
+   by its declared production) and
+   ``orpheus.derivations.common.eigenvalue.production_emission`` (what each
+   channel emits per unit flux).
+
+.. implements:: characteristic-door-gauge
+   :by: orpheus.derivations.common.eigenvalue.production_emission
+
+**Why a total of 1 and not a density of 100.** The sketch's Q3 named the
+gauge :math:`\langle\nu\Sigma_f, \phi\rangle = 100` "production's gauge,
+which the exact homogeneous reference already uses", so that a closed
+homogeneous body would read that reference's flux. The premise was
+wrong. The 100 of
+``orpheus.derivations.common.exact_homogeneous`` and of the homogeneous
+solver (``ScaleGauge(production_rate.evaluate, 100.0)``) is a production
+DENSITY of an infinite medium, per unit volume, since the medium has no
+volume to integrate over; a finite body's gauge is a TOTAL. Gauging the
+body's total by 100 equates a total with a density, and the agreement
+the sketch wanted holds only by that pairing: on a closed homogeneous
+sphere the body's group integral equalled the medium's density reading,
+444.44, while the mean flux was :math:`444.44/V = 13.263`, and at a fixed
+physical state the mean flux of such a gauge scales as :math:`1/V` (qa's
+F3, `[M]` 2026-10-07, ``main/smoke.py``, a sphere of volume 33.51). The
+user ruled the total production 1 (2026-10-07), the target the
+S\ :sub:`N` eigenvalue entries give their ``ScaleGauge``
+(``orpheus/sn/solver.py``, ``ScaleGauge(..., 1.0)``).
+
+**Why the production is declared and not fixed in the reference.** The
+5a build fixed the gauge at the fission production
+:math:`\langle\nu\Sigma_f, \phi\rangle`, and its docstring called that
+"the gauge the S\ :sub:`N` solver fixes". It was not:
+``SNSolver.compute_production_rate`` adds the (n,2n) emission,
+:math:`2\int\sum\Sigma_{2}\phi\,\mathrm dV`, so on a body with (n,2n)
+the two fluxes differ by the ratio of the two productions, a convention
+neither side names (the archivist's finding, 2026-10-08). A gauge is a
+choice of functional, not physics, so the user ruled it part of the
+question (2026-10-08): declared once, resolved by the specification, read
+by every reference and, after #517, by every solver. `[M]` 2026-10-08,
+the archivist's probe (``archivist_gauge2.py``, the session scratchpad),
+a mirror sphere of radius 1 of ``_UP2N`` (the gates' mixture with (n,2n)
+emission) at the working resolution: the default gauge's production per
+unit flux is (0.15, 0.2) against fission's (0.05, 0.2); under the
+default the declared production reads 1 and the fission production
+0.647; the group-0 integral is 3.5294 under the default and 5.4545 with
+the fission gauge declared, a ratio of 1.5455, the inverse of 0.647.
+
+With the total gauge a closed homogeneous body of volume :math:`V` reads
+the medium's flux divided by :math:`100V`, so 100 times its group
+integral equals the medium's reading. `[M]` 2026-10-08, the archivist's
+probe (``archivist_rung5a_numbers.py``, the session scratchpad;
+``PYTHONPATH`` set to the tree, run with ``.venv/bin/python -O`` from
+outside the repository), a mirror sphere of radius 1 of the gates' PU2
+mixture at the gates' working resolution: the group integrals are
+1.5130723862 and 2.2408273111, 100 times them are the medium's 151.307 and
+224.083 to :math:`2.2 \times 10^{-16}` and :math:`8.9 \times 10^{-16}`,
+and the total production reads 1.
+
+**A higher mode has no production gauge.** Let :math:`\phi_n` be a mode
+of :math:`(\mathcal L - S)\phi = F\phi/k` with :math:`k_n \ne k_0`, and
+:math:`\phi^\dagger_0` the fundamental adjoint. Pairing the forward
+equation with :math:`\phi^\dagger_0` and the adjoint equation with
+:math:`\phi_n` and subtracting gives the biorthogonality
+:math:`(1/k_n - 1/k_0)\,\langle\phi^\dagger_0, F\phi_n\rangle = 0`, so
+:math:`\langle\phi^\dagger_0, F\phi_n\rangle = 0`. The fission is rank one
+at each point, :math:`F = \chi\otimes\nu\Sigma_f`, so
+
+.. math::
+
+   \langle\phi^\dagger_0, F\phi_n\rangle
+   = \int_V \bigl(\chi\cdot\phi^\dagger_0(x)\bigr)\,\bigl(\nu\Sigma_f\cdot\phi_n(x)\bigr)\,\mathrm dV = 0 .
+
+On a closed homogeneous body the fundamental adjoint is flat in space,
+the infinite medium's importance :math:`\phi^\dagger_\infty`, and
+:math:`\chi\cdot\phi^\dagger_\infty > 0`, so the factor leaves the
+integral and the net production :math:`\int\nu\Sigma_f\cdot\phi_n\,\mathrm
+dV` of every higher mode is exactly zero. On a heterogeneous body it is
+not forced to zero, but nothing keeps it away from zero either: the
+production of a higher mode can take either sign and vanish. A gauge
+that divides by it divides by rounding. The default gauge adds the
+(n,2n) production, which the biorthogonality does not constrain, so on a
+body with (n,2n) the gauge of a higher mode is not forced to zero but is
+still not kept away from it. `[M]` 2026-10-08, the same probe,
+the gates' mirror slab (width 2 cm, PU2, the working resolution), the
+mode nearest the closed form :math:`k(\pi/a) = 0.2862762486` (read
+0.2862762300): net production :math:`-1.28 \times 10^{-16}` against an
+absolute production :math:`\sum_g\int|\nu\Sigma_{f,g}\phi_g|\,\mathrm dV
+= 0.1124`, a ratio of :math:`-1.1 \times 10^{-15}`, and the left-half
+group-0 integral divided by it reads :math:`-8.5 \times 10^{14}`, the
+:math:`-8.4 \times 10^{16}` the test-architect measured under the
+withdrawn gauge 100 (``ta/probe_n4.py``). The fundamental's ratio of
+net to absolute production is 1. qa and the elegance review found the
+same independently: modes 2 to 6 of a closed two-group sphere served
+maximum coefficients :math:`3.8 \times 10^{16}` to :math:`3.1 \times
+10^{17}` (qa's F1), and a symmetric two-region slab's odd mode served a
+flux integral of :math:`-1.4 \times 10^{17}` (the elegance review's V1).
+
+The user ruled (2026-10-07) that a ``Nearest`` answer reads its
+eigenvalue only and that a flux integral of it is refused, naming the
+:math:`k` found, as a declared scope boundary: a higher mode's flux needs
+a scale that cannot vanish on it (a norm of its emission, for instance),
+which belongs to the eigen answer's contract (#529). The refusal is keyed
+on the question's mode, not on the value found: ``Nearest`` at
+:math:`\tau` near the fundamental is refused too
+(``test_a_nearest_answer_reads_its_eigenvalue_and_refuses_a_flux_integral``).
+
+**The chart of** :math:`\tau`. ``Nearest(tau)`` picks the eigenvalue of
+the :math:`k` pencil nearest :math:`\tau` in :math:`k`, the chart in which
+every reference reads ``Eigenvalue()``; the chart of a parameter is owed
+to #529. Between the harmonic and the arithmetic mean of two eigenvalues
+the :math:`k` and :math:`1/k` charts pick different modes, and the gate
+``test_tau_is_read_in_the_k_chart`` sits there.
+
+**The null-fission cluster.** The production matrix :math:`FK` of the
+pencil has rank below its size whenever a group receives no fission
+emission (:math:`\chi_g = 0`) or a region produces none, and the pencil
+then has a cluster of eigenvalues at :math:`k = 0`, each a vector
+:math:`FK` annihilates. Rounding scatters them around zero, some complex.
+They are not modes of the fission problem, and the first build's
+``Nearest(0)`` served one: `[M]` 2026-10-07, qa's F1 (``qa/p6``,
+``qa/p7``), the two-group slab, ``Nearest(0)``, ``Nearest(-1)`` and
+``Nearest(1e-12)`` read :math:`k = 7.7 \times 10^{-23}` and
+:math:`6.8 \times 10^{-18}`, and 38 of the 80 cluster eigenvalues were
+complex, so the same :math:`\tau` was refused when its nearest happened
+to be complex. A mode is now kept when :math:`\lVert FKv\rVert` exceeds
+the rank tolerance of :math:`FK`, its larger dimension times the machine
+epsilon times its 2-norm (``_nearest``). `[M]` 2026-10-08, the probe, the
+mirror slab of PU2 (:math:`\chi \otimes \nu\Sigma_f` of rank one per
+node): of the 40 eigenvalues 20 are filtered (10 of them complex, the
+largest :math:`|k| = 1.4 \times 10^{-16}`, the tolerance
+:math:`2.2 \times 10^{-15}`), the smallest kept is :math:`k = 4.27
+\times 10^{-3}`, and ``Nearest(0)`` reads it, where the unfiltered
+nearest is :math:`2.8 \times 10^{-18}`.
+
+The projection onto the panel basis
+-----------------------------------
+
+A source, a detector or a weight given as a ``Symbolic`` expression is
+projected onto the panel basis in the chart's volume measure,
+
+.. math::
+   :label: characteristic-projection
+
+   c = W^{-1}\,\bigl(\langle u_i, f\rangle\bigr)_i,
+   \qquad
+   \langle u_i, f\rangle = \int u_i\,f\,\mathrm dV ,
+
+panel by panel, since :math:`W` is block diagonal by panel
+(:meth:`PanelBasis.project
+<orpheus.derivations.continuous.characteristic.basis.PanelBasis.project>`).
+The function is evaluated at ``Symbolic.r`` after
+``Symbolic.without(mu, phi)`` (the door has already refused one that
+depends on the direction). The load is integrated by Gauss–Legendre with
+``source_points`` per piece on the panel ends and on the function's own
+``steps`` (the points where a ``Piecewise`` expression jumps), in the
+measure the mass matrix is built on: ``project`` and the mass matrix's
+panel blocks (``panel_mass``) read one rule, ``_panel_rule``, so the
+load and the mass share one measure, which is what makes a projection
+return a function of the space to itself (the elegance review's C7).
+
+**What is exact.** The mass matrix integrates with :math:`2(p + 1)`
+points per panel. With ``source_points`` at least that, the load
+integrates the product of a basis function with any function of the
+panel space as exactly as the mass matrix does, so such a function is
+returned to rounding: every per-region polynomial of degree :math:`p`,
+except on an even panel (:ref:`characteristic-even-basis`), whose space
+is the polynomials in :math:`c^2`, where the function :math:`c` is not
+returned (the gate reads it off by more than :math:`10^{-4}`).
+``Resolution`` refuses fewer points. A step inside a panel is integrated
+exactly only once named in ``steps``; unnamed, the gate's step at
+:math:`r = 1.06` moved the projection by 0.22, named it agrees to
+:math:`4.0 \times 10^{-15}` (`[M]` 2026-10-07, the test-architect).
+
+**A table is read, not projected.** A ``RegionwiseConstant`` is read onto
+the nodes (:meth:`PanelBasis.on_nodes
+<orpheus.derivations.continuous.characteristic.basis.PanelBasis.on_nodes>`,
+``per_region[region of each node]``): the basis is nodal Lagrange, so a
+constant's coefficients are its value at every node, exactly, on every
+panel including an even one. Projecting it instead made exactness
+depend on ``source_points``, which ``Resolution`` then admitted down to 1:
+`[M]` 2026-10-07, a region-wise flux integral against the exact 444.444
+was off by :math:`1.4 \times 10^{-2}` at 1 point, :math:`2.0 \times
+10^{-13}` at 2 and about :math:`5 \times 10^{-15}` from 3 (qa's F4), and
+a projected constant was off by 5.74 at 1 point (the elegance review's
+V2); at any count it was exact to rounding and never bitwise. Read onto
+the nodes, the readings at 8 and 10 points are equal bit for bit
+(``test_a_regionwise_source_is_read_onto_the_nodes_whatever_the_projection_points``).
+
+**The source's regions.** A posed source widens its group's emission
+support (the fourth rung's Q1). The door reads the regions from the
+coefficients: a region and a group are posed where any coefficient is
+non-zero (``_regions_of``). The projection solves panel by panel, so a
+zero load stays exactly zero and a zero row of a table poses no region.
+
+.. implements:: characteristic-projection
+   :by: orpheus.derivations.continuous.characteristic.basis.PanelBasis.project
+
+   **Implemented by** ``PanelBasis.project`` on the rule ``_panel_rule``
+   shared with ``panel_mass``, and ``PanelBasis.on_nodes`` for a table.
+
+.. implements:: characteristic-projection
+   :by: orpheus.derivations.continuous.characteristic.basis.PanelBasis.on_nodes
+
+A flux integral needs no point
+------------------------------
+
+``FluxIntegral(w)`` is the pairing of the weight's coefficients with the
+flux coefficients through the mass matrix:
+
+.. math::
+   :label: characteristic-door-pairing
+
+   \bigl\langle w, \phi \bigr\rangle_h \;=\; \sum_g \bigl(W c_{w,g}\bigr)^{\mathsf T}\phi_{h,g}
+   \;=\; \sum_g \int_V w_g\,\phi_{h,g}\,\mathrm dV ,
+
+with :math:`c_w = Pw` the projection (or the nodal reading of a table)
+and :math:`\phi_h` the Galerkin flux, :math:`W_G\phi_h = Kq`. The
+equality holds for any :math:`w`, not only one in the basis space:
+:math:`(Wc_w)^{\mathsf T}\phi_h = \langle Pw, \phi_h\rangle`, and since
+:math:`\phi_h` lies in the basis space and :math:`P` is the orthogonal
+projection onto it, :math:`\langle Pw, \phi_h\rangle = \langle w,
+\phi_h\rangle`. No point loop and no volume rule are needed.
+
+.. implements:: characteristic-door-pairing
+   :by: orpheus.derivations.continuous.characteristic.reference.CharacteristicDerivation.evaluate
+
+**What the reading carries.** The Galerkin flux is the projection of the
+transported emission: :math:`W\phi_h = Kq` with
+:math:`K_{ij} = \langle u_i, \mathcal K u_j\rangle` says
+:math:`\phi_h = P\,\mathcal Kq`. So the reading reproduces every moment
+of the transported flux :math:`\mathcal Kq` against the basis, and
+
+.. math::
+
+   \langle w, \mathcal K q\rangle - \langle w, \phi_h\rangle
+   = \langle w, (I - P)\mathcal Kq\rangle
+   = \bigl\langle (I - P)w,\ (I - P)\mathcal Kq \bigr\rangle ,
+
+zero for a weight in the basis space (every ``RegionwiseConstant``) and
+otherwise the product of the weight's projection error and the
+transported flux's, second order. `[M]` 2026-10-07, qa's ``p8``, a step
+inside a panel in the weight, against a reading on a body split at the
+step: :math:`1.7 \times 10^{-7}`, :math:`3.6 \times 10^{-10}`,
+:math:`3.3 \times 10^{-12}` and :math:`7 \times 10^{-14}` at
+:math:`p = 2` to 5. The emission :math:`q` is itself the Galerkin
+solution, so the reading carries its error too, which no weight removes.
+
+**A correction to the sketch.** The sketch said the reading "carries the
+weight's projection error". As the volume integral of :math:`w` against
+:math:`\phi_h` it carries none: the test-architect's gate
+``test_a_flux_integral_is_the_volume_integral_of_the_galerkin_flux``
+integrates the reconstructed Galerkin flux against :math:`w` by an
+independent rule (numpy Gauss–Legendre, 24 points per panel, split at
+the weight's step) and reads the pairing equal to
+:math:`2.2 \times 10^{-16}`, :math:`1.1 \times 10^{-16}` and
+:math:`1.1 \times 10^{-16}` for a region-wise, a smooth and a stepped
+symbolic weight. What the sketch named is the second form above, the
+reading against the transported flux, where the weight's projection
+error enters only multiplied by the flux's.
+
+
 .. _characteristic-what-is-not-built:
 
 What the package does not compute
@@ -3936,30 +4650,37 @@ Volterra block with the caller's line weights and the angular flux at
 points on the lines (:ref:`characteristic-transport`); for one group, the
 transport block over the emission support, its line part and its white
 walls' coupling, on a line rule graded from the group's optical scale
-(:ref:`characteristic-galerkin-assembly-section`); and, for the multigroup
+(:ref:`characteristic-galerkin-assembly-section`); for the multigroup
 problem, the emission matrices per region, each group's exact emission
 support, the k pencil and the source pencil on the emission space, the
 fundamental and higher modes and their adjoints, the flux of a fixed
 source and the adjoint flux of a detector, all in nodal coefficients
-(:ref:`characteristic-galerkin-system`). What is missing (the plan
+(:ref:`characteristic-galerkin-system`); and, through the door, the
+eigenvalue and the flux integrals of an ``Eigen``, a ``FixedSource`` or a
+``Response`` question posed from a specification, with a mesh-free
+source, detector or weight projected onto the basis
+(:ref:`characteristic-door`). What is missing (the plan
 ``.claude/plans/characteristic_reference_architecture.md``, the P1
-sketch's items 7 to 9 and the fourth rung's Q3; the campaign's issue is
+sketch's item 7 and the fifth rung's sketch; the campaign's issue is
 #405):
 
-- **the door**: the reference value posed from the specification, which
-  maps the interface vocabulary's questions (an eigenvalue, a fixed
-  source, a response) onto the system, refuses what the reference does
-  not serve, and holds the resolution; fifth rung;
-- **the projection of a mesh-free source** onto the panel basis, so that
-  a source or a detector is posed as a function rather than as nodal
-  coefficients; fifth rung;
-- **the reading at a point**, the per-point transport of the converged
-  emission over :meth:`Chart.directions_at
-  <orpheus.geometry.chart.Chart.directions_at>`, whose first leg runs from
-  the point to its first wall, and the flux and reciprocity rows that read
-  it (the spec's C6 and C8); fifth rung. At the operator level C8's
-  reciprocity is the symmetry row, which is blind
-  (:ref:`characteristic-galerkin-assembly-section`);
+- **the reading at a point**, the fifth rung's second half (5b): the
+  per-point transport of the converged emission over
+  :meth:`Chart.directions_at <orpheus.geometry.chart.Chart.directions_at>`,
+  whose first leg runs from the point to its first wall, with the
+  diffuse walls' return transported to the point, which no reading
+  assembles yet; and the flux and reciprocity rows that read it (the
+  P1 spec's C6 and C8). The door refuses a ``PointValue`` naming 5b. At
+  the operator level C8's reciprocity is the symmetry row, which is
+  blind (:ref:`characteristic-galerkin-assembly-section`);
+- **the flux of a higher mode**: a ``Nearest`` answer reads its
+  eigenvalue only, because the production gauge can vanish on it; a
+  scale that cannot vanish (a norm of the mode's emission) belongs to the
+  eigen answer's contract, #529 (:ref:`characteristic-door`);
+- **an anisotropic source or detector**: a ``Symbolic`` function that
+  depends on the direction is refused, as an anisotropic emission is;
+  both need an angular basis on each line;
+- **an error bound**: every reading is ``Uncertified`` (#566);
 - **a cylinder rule over** :math:`(b, \theta)` **that is not a tensor
   product**, which would cut the cylinder's line count; the packed inner
   rule made it unnecessary for the gates
@@ -4187,6 +4908,69 @@ structural reason it fails, so that no later design re-derives it.
        :math:`n = G` a transposed mask has the right shape and poses the
        wrong regions silently. The mask is region-major and a
        group-major one is refused by its shape when :math:`n \ne G`.
+   * - The eigen flux of every eigen answer gauged by its fission
+       production, ``Nearest`` included (the fifth rung's sketch, item 3)
+     - A higher mode's net production is forced to zero on a closed
+       homogeneous body (biorthogonality to the flat fundamental adjoint,
+       with the fission rank one per point) and is not kept away from zero
+       anywhere, so the gauge divides by rounding: the mirror slab's first
+       spatial mode has a net production of
+       :math:`-1.3 \times 10^{-16}`, and its left-half integral read
+       :math:`-8.4 \times 10^{16}` under the gauge 100. A ``Nearest``
+       answer reads its eigenvalue only (:ref:`characteristic-door`).
+   * - The gauge :math:`\langle\nu\Sigma_f, \phi\rangle = 100` over the
+       body (the sketch's Q3, "production's gauge")
+     - The 100 is an infinite medium's production density, per unit
+       volume; a finite body's gauge is a total. Gauging the total by 100
+       made a closed body's integral equal the medium's density reading,
+       and the mean flux of a body at a fixed physical state scale as
+       :math:`1/V`. The gauge is the total production 1.
+   * - The eigen gauge fixed inside the reference as the fission
+       production (the 5a build)
+     - It differed from S\ :sub:`N`'s production rate, which adds the
+       (n,2n) emission, by a ratio nobody named; on the gates' ``_UP2N``
+       sphere the two fluxes differ by 1.5455. A gauge is a choice of
+       functional, so it is declared on the question
+       (``Eigen.gauge``) and every reader resolves the same declaration.
+   * - The fission's production recovered from the fission matrix
+       :math:`\chi\otimes\nu\Sigma_f` by summing over the emitted group
+     - Correct on the forward set only when :math:`\sum\chi = 1`, and
+       wrong on the transposed set, whose fission matrix is
+       :math:`\nu\Sigma_f\otimes\chi`: the sum returns
+       :math:`\chi\sum\nu\Sigma_f` under the name :math:`\nu\Sigma_f`.
+       `[M]` 2026-10-08, qa's adjoint fuel: forward production
+       (0.125, 0.24) and spectrum (0.7, 0.3); the transposed set's
+       production is the spectrum (0.7, 0.3), and the sum read
+       (0.2555, 0.1095). The cross sections store the two factors and
+       ``transposed()`` exchanges them.
+   * - The detector table read as a rate, the response's answer the
+       per-rate importance :math:`E^\dagger\psi^\dagger`
+     - Self-consistent but named by nothing: ``Response`` is
+       :math:`\psi^\dagger` and a flux integral reads the scalar flux,
+       :math:`R\psi^\dagger = 4\pi E^\dagger\psi^\dagger`. A symbolic
+       detector and a table then disagreed by :math:`4\pi`, and the first
+       comparison with production's importance would have too (the class
+       of ERR-004).
+   * - A region-wise table projected by the quadrature rather than read
+       at the nodes
+     - Exact only to rounding and only from enough points: a projected
+       constant was off by 5.74 at 1 point, which the resolution admitted.
+       A nodal basis reads a constant's coefficients exactly
+       (``PanelBasis.on_nodes``).
+   * - ``Nearest(tau)`` searched over the whole spectrum of the
+       :math:`k` pencil
+     - The pencil carries a cluster of eigenvalues at :math:`k = 0` that
+       the fission does not see whenever its production matrix is rank
+       deficient; ``Nearest(0)`` served
+       :math:`k = 7.7 \times 10^{-23}` with a flux of order
+       :math:`10^{18}`, and the same :math:`\tau` was refused when the
+       nearest residue happened to be complex. A mode is kept when its
+       production exceeds the production matrix's rank tolerance.
+   * - The role of a function as a boolean ``rate`` flag
+     - The flag selected an arrow, the table branch ignored it, and the
+       detector's arrow pointed the wrong way. The role is the arrow
+       itself, the section, the pullback or none (the elegance review's
+       C5).
 
 .. _characteristic-evidence:
 
@@ -4843,6 +5627,180 @@ the source and the detector questions is blind to an error both share
 (``vv-principles`` anti-pattern 37); the closed-body source row (a closed
 form) and the closed-body adjoint row are its one-sided partners.
 
+The gates of the door
+---------------------
+
+`[M]` 2026-10-08, the archivist's run, ``.venv/bin/python -O -m pytest
+-p no:cacheprovider -m "not slow"`` on branch
+``feature/characteristic-rung5a`` (uncommitted):
+``tests/gates/derivations/test_characteristic_reference.py`` holds 95
+rows in 36 test functions, 1 of them ``slow`` (the closed cylinder's
+fixed source); the 94 others passed in 63 s. The rows are the
+test-architect's specification
+(``scratch/characteristic_architecture/p1_step_b5/spec.md``), each with
+its ``rests_on`` into the fourth rung's rows and its own lower rows, and
+the bands are the test-architect's measurements on the tree after the
+review fixes (``ta/measure_5.log``, ``ta/measure_7.log``). Every closed
+form is written in the test from the ``Mixture`` arrays or the
+geometry's numbers, never through the door's objects; the reading row
+says that it reads the door's own flux coefficients, since its claim is
+the reading.
+
+**After the declared gauge** (2026-10-08, the same day, production
+changed under the frozen tests): the archivist's re-run of this file with
+``test_question.py`` and ``test_content_identity_question.py`` reads 211
+passed and 1 failed, ``test_a_heterogeneous_eigen_flux_produces_one_neutron``.
+That row asserts the FISSION production reads 1 on a sphere one of whose
+materials carries (n,2n) emission (``_UP2N``); under the default gauge
+the declared production (fission plus (n,2n)) is 1 and the fission
+production reads 0.99143, as :eq:`characteristic-door-gauge` requires.
+The row is owed a re-posing (the default production, or the fission gauge
+declared), not a tolerance.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 40 26
+
+   * - Rows
+     - Claim and reference
+     - Measured
+   * - ``test_the_cross_sections_carry_chi_and_production_and_transpose_by_swapping_them``
+     - ``production`` is ``SigP`` bitwise; ``transposed()`` keeps the
+       total, transposes the scattering, exchanges the spectrum and the
+       production and transposes the fission
+     - ``array_equal``
+   * - ``test_a_per_region_constant_projects_to_its_value_at_every_node``,
+       ``test_a_function_of_the_panel_space_projects_to_its_coefficients``,
+       ``test_the_projection_of_a_smooth_function_converges_with_the_degree``,
+       ``test_a_step_inside_a_panel_is_integrated_once_it_is_named``
+     - :eq:`characteristic-projection` on a sphere, a slab, a hollow
+       sphere and a cylinder: a constant returns its value; a random
+       element of the panel space returns its coefficients (the function
+       :math:`c` is not returned on the even panel); a smooth function's
+       error falls by more than 3 per degree to below :math:`10^{-6}` at
+       :math:`p = 6`; a step inside a panel is integrated once named
+     - :math:`3.3 \times 10^{-15}`; :math:`1.9 \times 10^{-15}` (the even
+       panel :math:`2.8 \times 10^{-2}`); from
+       :math:`2.3 \times 10^{-2}` to :math:`2.9 \times 10^{-7}`, steps
+       :math:`\ge 5.0`; :math:`4.0 \times 10^{-15}` named, 0.22 not
+   * - ``test_the_door_refuses_at_construction_naming_what_it_refused``,
+       ``test_the_refusal_fragments_are_disjoint``,
+       ``test_a_served_question_constructs_and_assembles_nothing``,
+       ``test_a_malformed_resolution_is_refused``,
+       ``test_a_point_value_is_refused_naming_rung_5b_before_any_solve``,
+       ``test_an_eigenvalue_of_a_source_answer_is_refused_before_any_solve``
+     - the eleven refusals at construction, each by its type and its
+       shortest message fragment, the fragments pairwise disjoint; every
+       served question constructs with zero ``LineRule.of`` calls; the
+       resolution's refusals in six rows (an untyped transport, fewer
+       projection points than the mass rule, none, a real degree, layer
+       count or point count); the point and the source eigenvalue refused
+       before any block is assembled
+     - message fragments and call counts
+   * - ``test_a_flux_integral_is_the_volume_integral_of_the_galerkin_flux``
+     - :eq:`characteristic-door-pairing` against the reconstructed
+       Galerkin flux integrated by numpy Gauss–Legendre, 24 points per
+       panel, for a region-wise, a smooth and a stepped symbolic weight
+     - :math:`2.2 \times 10^{-16}`, :math:`1.1 \times 10^{-16}`,
+       :math:`1.1 \times 10^{-16}`; band :math:`10^{-13}`
+   * - ``test_the_doors_k_is_the_fundamental_of_the_system_written_by_hand``
+     - the door's :math:`k` equals the :math:`k` of a ``GalerkinSystem``
+       posed by hand (mixtures in interval order, ids ``(1, 0, 2)``,
+       walls as ``Wall`` tuples) on a slab and a sphere
+     - bitwise
+   * - ``test_a_closed_homogeneous_body_reads_the_exact_infinite_mediums_k_and_flux``,
+       ``test_a_heterogeneous_eigen_flux_produces_one_neutron``
+     - :eq:`characteristic-door-gauge`: four closed bodies times three
+       mixtures against the exact infinite medium (rational arithmetic),
+       :math:`k` and 100 times each group's integral; a heterogeneous
+       vacuum sphere's production reads 1
+     - :math:`k` within :math:`4.6 \times 10^{-14}`, flux within
+       :math:`3.4 \times 10^{-14}`; production 0 off (red under the
+       declared gauge, below, until re-posed); band
+       :math:`10^{-12}`, :math:`10^{-13}`
+   * - ``test_the_door_reads_k_one_at_soods_critical_sphere``
+     - Sood's PU-2-0-SP at its printed critical radius
+       :cite:`SoodForsterParsons2003`, posed through a ``BC.vacuum`` tag
+     - :math:`|k - 1| = 7.0 \times 10^{-7}`; band
+       :math:`3.6 \times 10^{-6}`
+   * - ``test_the_mode_nearest_tau_is_the_mirror_slabs_first_spatial_mode``,
+       ``test_tau_is_read_in_the_k_chart``,
+       ``test_tau_near_the_fundamental_reads_the_fundamentals_k``,
+       ``test_tau_zero_reads_a_genuine_mode_not_the_null_fission_cluster``,
+       ``test_a_nearest_answer_reads_its_eigenvalue_and_refuses_a_flux_integral``
+     - the mirror slab's first spatial mode against the closed form
+       :math:`k(B)`, the dominant eigenvalue of
+       :math:`(\mathrm{diag}(\Sigma_t/L(B)) - S)^{-1}F` with
+       :math:`L(B) = \arctan(B/\Sigma_t)/(B/\Sigma_t)` (the transport
+       kernel's Fourier transform) at :math:`B = \pi/a`; the :math:`k`
+       chart; the fundamental; the null-fission cluster excluded; the
+       flux of a ``Nearest`` answer refused
+     - :math:`6.5 \times 10^{-8}` (PU2), :math:`5.0 \times 10^{-7}`
+       (URRb), band :math:`10^{-6}`; ``Nearest(0)`` reads
+       :math:`4.3 \times 10^{-3}`; refusal
+   * - ``test_a_closed_body_with_a_uniform_source_reads_the_infinite_medium_flux_through_the_door``,
+       ``test_a_source_where_its_group_emits_nothing_widens_the_support_and_balances``,
+       ``test_a_source_question_on_a_body_supercritical_by_n2n_is_refused_through_the_door``
+     - the fourth rung's closed-body source row through the door
+       (region integral over the volume against
+       :math:`(\mathrm{diag}\,\Sigma_t - S - F)^{-1}q`, the cylinder
+       ``slow``); a source widening the support balances its absorption;
+       the (n,2n)-supercritical body refused for a source and a detector
+     - :math:`\le 5.8 \times 10^{-15}` (cylinder
+       :math:`2.2 \times 10^{-14}`, 36 s); :math:`1.1 \times 10^{-15}`;
+       ``NoLeastSolution``
+   * - ``test_a_symbolic_source_is_a_density_over_directions_and_a_symbolic_weight_or_detector_is_not``,
+       ``test_a_regionwise_source_is_read_onto_the_nodes_whatever_the_projection_points``
+     - :eq:`characteristic-door-lifts`: a constant symbolic source reads
+       as the table :math:`4\pi q`, a symbolic weight as the table
+       :math:`w`, a symbolic detector as the table :math:`d`; a table is
+       read onto the nodes, bitwise at 8 and 10 projection points
+     - :math:`2.2 \times 10^{-16}`, 0, :math:`2.2 \times 10^{-16}`;
+       bitwise
+   * - ``test_a_detectors_reading_of_a_source_is_the_sources_reading_of_the_detectors_importance``,
+       ``test_a_closed_bodys_importance_is_the_infinite_mediums_adjoint_solve``,
+       ``test_the_doors_response_is_the_forward_systems_adjoint_on_the_same_posing``
+     - :eq:`characteristic-door-reciprocity` on three bodies, two seeded
+       pairs each; :eq:`characteristic-door-response` on closed bodies
+       against :math:`4\pi(\mathrm{diag}\,\Sigma_t - S - F)^{-\mathsf T}r`
+       (the untransposed solve 1.5 off); the door's route against the
+       fourth rung's adjoint pencil on the forward system
+     - :math:`\le 7.8 \times 10^{-16}`; :math:`\le 6.2 \times 10^{-15}`;
+       0; band :math:`10^{-13}`
+   * - ``test_the_factory_returns_an_uncertified_reference_that_reads_a_ratio_as_a_quotient``,
+       ``test_c1_*`` to ``test_c4_*``
+     - the factory; a ``Ratio`` the quotient of its two readings, bitwise;
+       content identity of the two resolutions and the derivation; the
+       traced memo (an equal derivation reads with no spawn, another
+       resolution is absent; a refusal crosses the memo with its type)
+     - bitwise; counts
+
+`[M]` 2026-10-08, the archivist's probe re-read the headline numbers on
+the built code (``archivist_rung5a_numbers.py``): reciprocity
+``Response(r)`` over ``FixedSource(q)`` is
+:math:`4\pi = 12.566370614359174` to :math:`2.2 \times 10^{-16}` on the
+first two seeded pairs of the vacuum sphere; the gauge and the
+null-fission cluster as quoted in :ref:`characteristic-door`.
+
+**The battery.** `[M]` 2026-10-08, the test-architect
+(``ta/battery/run.sh``, ``ta/battery/battery_table.md``): 39 arms, each
+installed in the pytest process by a plugin that rebinds one function to
+a transformed source, over the file under ``-O -m "not slow"``; the
+baseline is clean and 39 of 39 arms redden at least one row. The control
+(the pairing scaled by 1.1) reddens 10 rows; the widest arms (the
+pairing's groups reversed; the projection without :math:`W^{-1}`)
+redden 26. Production files were ``diff -q`` identical to their pristine
+copies after the run. Declared blind: ``test_tau_near_the_fundamental_reads_the_fundamentals_k``
+cannot see the chart (``test_tau_is_read_in_the_k_chart`` does); the
+reciprocity rows share the transport blocks, so an error in :math:`K`
+symmetric under :math:`i \leftrightarrow j` is invisible to them (the
+third rung's rows carry :math:`K`); a uniform scale of the pairing is
+inside a ratio's stabiliser; a projection row on the slab cannot see the
+measure density, which is 1 there. The memo rows redden under every arm
+that rewrites ``evaluate``, because the traced memo pins the function's
+source and a rewritten function has none: they are not catchers of
+those arms (``vv-principles`` anti-pattern 17 (h)).
+
 .. _characteristic-gotchas:
 
 Gotchas
@@ -4960,6 +5918,37 @@ Gotchas
   critical size.** The graded basis converges below the truth's digits
   (the half slab reads :math:`+4.3 \times 10^{-10}` against a resolution
   of :math:`3.6 \times 10^{-9}`); test the bound on ungraded panels.
+- **A table and a symbolic function of one role enter differently.** A
+  ``RegionwiseConstant`` is a value on the angle-integrated space and is
+  lifted by its role's arrow; a ``Symbolic`` source or detector is a
+  density over the directions and is retracted, so a constant symbolic
+  source :math:`q` is the table :math:`4\pi q`, while a symbolic weight
+  is the table :math:`w` as given.
+- **A response reads the adjoint scalar flux.** ``Response(r)`` read by
+  ``FluxIntegral(q)`` is :math:`4\pi` times ``FixedSource(q)`` read by
+  ``FluxIntegral(r)`` for two tables, and :math:`4\pi` times the fourth
+  rung's ``system.response(r)`` paired with :math:`W_s q`, which is the
+  importance per unit emission rate.
+- **The door's cross sections are the adjoint ones for a response.**
+  ``CharacteristicDerivation.cross_sections`` is
+  ``RegionCrossSections.of(...).transposed()`` when the question is a
+  ``Response``: its ``production`` is the forward :math:`\chi`.
+- **The gauge is the question's.** The eigen flux is scaled so that the
+  declared production is 1; with no gauge declared that production
+  counts the (n,2n) emission as well as fission. To compare with a reader
+  that scales by fission alone (today the homogeneous solver, until
+  #517), declare ``Eigen(..., gauge=CellCoefficient.every(Channel.FISSION_EMISSION))``;
+  on a body with (n,2n) the two fluxes differ by the ratio of the two
+  productions.
+- **A** ``Nearest`` **answer has no flux.** Read its ``Eigenvalue``; a
+  flux integral of it is refused even when :math:`\tau` lands on the
+  fundamental.
+- **A jump inside a panel is split where** ``Symbolic.steps`` **finds
+  it.** ``project`` cuts the load's rule at those points (the sign
+  changes of a ``Piecewise`` condition, a ``Heaviside``, an ``Abs``, a
+  ``sign``, a ``Max`` or a ``Min``), and ``steps`` refuses any other
+  non-smooth head by name; a jump at a transcendental root is outside its
+  scope.
 
 .. _characteristic-history:
 
@@ -5048,3 +6037,33 @@ History
        critical sizes were found off beyond their digits (#588).
      - ``42222c47``
      - #405, #588
+   * - 2026-10-07
+     - The fifth rung's first half (5a): the door. ``Resolution`` holds
+       the solve's and every reading's resolution; ``PanelBasis.project``
+       projects a symbolic function on the mass matrix's own rule and
+       ``on_nodes`` reads a table exactly; ``CharacteristicDerivation``
+       refuses at construction and answers ``Eigenvalue`` and
+       ``FluxIntegral`` by pairing, with ``PointValue`` refused for 5b (the
+       user's ruling on the split). A ``Response`` is the forward problem
+       on the transposed cross sections, which now store :math:`\chi` and
+       :math:`\nu\Sigma_f` as two factors. The reviews found that a
+       production gauge divides by rounding on a higher mode; the user
+       ruled a ``Nearest`` answer eigenvalue-only, corrected the sketch's
+       gauge (a density of 100) to the total production 1, and ruled the
+       response's answer the adjoint scalar flux :math:`R\psi^\dagger`,
+       its :math:`4\pi` the detector's role arrow. ``Nearest`` excludes the
+       null-fission cluster.
+     - ``fe977a90``
+     - #405, #529, #566
+   * - 2026-10-08
+     - The eigen gauge became part of the question. The 5a door had fixed
+       it at the fission production and called that S\ :sub:`N`'s, whose
+       production rate adds the (n,2n) emission. The user ruled the gauge
+       declared: ``Eigen.gauge``, resolved by the specification, with the
+       default ``EIGEN_GAUGE`` (fission and (n,2n)) and no gauge where
+       nothing produces; ``production_emission`` gives what each channel
+       emits on the reference side, in the references' own (n,2n) literal.
+       The door, the exact infinite medium and the trajectory resolvent
+       read it; the production solvers follow in #517.
+     - ``fe977a90``
+     - #405, #517

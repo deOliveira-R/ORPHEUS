@@ -1171,8 +1171,11 @@ The fission operator :math:`F = \chi(\nu\Sigma_f)^{\top}` has rank one, so
 :math:`A^{-1}\chi` (:ref:`homogeneous-rank-one-route`), solved in exact
 rational arithmetic on the float inputs and certified against the defining
 equations (:math:`AA^{-1} = I`, :math:`F\varphi = kA\varphi` with zero
-residual). Every rational reading (k, a flux integral of a tabulated
-weight) is ``Exact``; a symbolic weight whose value SymPy cannot certify
+residual). Its flux is read at a production density of 100 per unit
+volume, the production being the one the question declares
+(``Eigen.gauge``: by default fission and (n,2n) emission, since
+2026-10-08; :ref:`structured-geometry-question-values-gauge`). Every
+rational reading (k, a flux integral of a tabulated weight) is ``Exact``; a symbolic weight whose value SymPy cannot certify
 reads ``Uncertified``. Its certificate claims k and each group's flux at a
 target of :math:`10^{-12}` relative (the rationals' only error is their
 rounding to a double) and is ``Valid``.
