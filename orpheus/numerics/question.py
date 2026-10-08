@@ -100,14 +100,23 @@ Mode: TypeAlias = Fundamental | Nearest
 
 @dataclass(frozen=True, eq=False)
 class Eigen(ContentIdentity):
-    """Where, on the line through ``point`` along ``parameter``, is the family singular?"""
+    """Where, on the line through ``point`` along ``parameter``, is the family singular?
+
+    ``gauge`` declares the functional an eigen flux is scaled by (an
+    eigenvector has no scale of its own): an opaque key, as the parameter is,
+    which the specification resolves. ``None`` asks for the specification's
+    declared default, which its canonical question writes in.
+    """
 
     parameter: Hashable
     point: Mapping[Any, float] = field(default_factory=FrozenMapping)
     mode: Mode = field(default_factory=Fundamental)
+    gauge: Hashable | None = None
 
     def __post_init__(self) -> None:
         _admit_key(self.parameter, "Eigen.parameter")
+        if self.gauge is not None:
+            _admit_key(self.gauge, "Eigen.gauge")
         object.__setattr__(self, "point", _admit_point(self.point))
         parse_member(self.mode, get_args(Mode), "Eigen", "the mode", "a mode")
         content_digest(self)

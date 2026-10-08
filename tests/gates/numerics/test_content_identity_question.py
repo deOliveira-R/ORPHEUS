@@ -97,7 +97,7 @@ def _response(**kw) -> Response:
 
 
 _EIGEN = Entry(
-    cls=Eigen, base=_eigen, parts=("parameter", "point", "mode"),
+    cls=Eigen, base=_eigen, parts=("parameter", "point", "mode", "gauge"),
     perturb={
         "parameter": (
             leg("another key", lambda: _eigen(parameter="boron")),
@@ -107,6 +107,10 @@ _EIGEN = Entry(
         "mode": (
             leg("fundamental", lambda: _eigen(mode=Fundamental())),
             leg("tau by one ULP", lambda: _eigen(mode=Nearest(float(np.nextafter(0.5, 1.0))))),
+        ),
+        "gauge": (
+            leg("a declared gauge", lambda: _eigen(gauge="fission-production")),
+            leg("another declared gauge", lambda: _eigen(gauge=("cell", 2))),
         ),
     },
     pairs=(
@@ -264,8 +268,11 @@ def test_s7_11_digests_and_hashes_are_seed_stable() -> None:
 
 _PIN_AFTER_LANDING = "pin after landing"
 _PINNED: dict[str, str] = {
-    "eigen at the physical point": "fd81fd3c2a705a94de9aec7372aed78cdefa090681e073755d5d37785dcbbbd8",
-    "eigen offset nearest": "44f0ee840797ce961c39a43cd66c2a7b7b57eb7bc7d27629cb71e4392d33552e",
+    # Re-pinned 2026-10-08: Eigen gained its declared gauge (the user's ruling), so both eigen digests moved;
+    # the fixed-source and response pins did not (the schema change is the eigen question's alone).
+    "eigen at the physical point": "9210f0d67975327b242a16108c22f99c1eb03e37aa819f7e7e314e46d7c0369b",
+    "eigen offset nearest": "ba789fbf9c571e006d0905742a1cdc7f5ece4032c2dd66125bf4348a5f9ed47b",
+    "eigen with a declared gauge": "25b80062841d48b96f1f5c9c377d1375d672f15f430510f0c3cb1df79e297b0d",
     "fixed source table": "5278ab77706178e70dfe4afb0d329df10dc1916eb7b6e29b3ce381e344e40fae",
     "response table": "18e27725dbf70e77ae723d64b3fd4f42c766e591bd74e81afcfcdd0099ede33b",
 }
@@ -276,6 +283,7 @@ def _fingerprint_values() -> dict[str, object]:
     return {
         "eigen at the physical point": Eigen("fission-emission"),
         "eigen offset nearest": Eigen(("cell", 3), {"boron": 0.125, "fission-emission": -1.0}, Nearest(0.5)),
+        "eigen with a declared gauge": Eigen("fission-emission", gauge="fission-production"),
         "fixed source table": FixedSource(t, {"fission-emission": -1.0}),
         "response table": Response(t),
     }

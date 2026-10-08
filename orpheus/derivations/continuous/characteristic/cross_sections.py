@@ -3,9 +3,12 @@ r"""The cross sections of each region, as the Galerkin system reads them.
 The transport block of a group (:class:`~.assembly.GroupTransport`) carries
 the group's total cross section; the system multiplies it by the emission,
 which is a matrix per region, indexed ``[to, from]``: the scattering with
-the (n,2n) emission, and the fission production. Both come from the one
-assembly site of the emission, :func:`~orpheus.derivations.common.eigenvalue.group_emission`,
-which the infinite-medium reference reads too.
+the (n,2n) emission, and the fission production. The scattering comes from
+the one assembly site of the emission,
+:func:`~orpheus.derivations.common.eigenvalue.group_emission`, which the
+infinite-medium reference reads too; the fission is kept as its two factors,
+:math:`\chi` and :math:`\nu\Sigma_f`, and formed as that function forms it,
+so that the adjoint cross sections exchange them.
 
 **The emission support.** Group :math:`g` emits in region :math:`r` iff
 some group scatters or fissions into it there: a non-zero row
@@ -21,6 +24,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from functools import cached_property
 
 import numpy as np
 
@@ -46,7 +50,7 @@ def _refuse_anisotropy(mixture: Mixture, region: int) -> None:
 
 @dataclass(frozen=True, eq=False)
 class RegionCrossSections:
-    r"""The total cross section and the emission matrices of each region, for :math:`G` groups.
+    r"""The total cross section and the emission of each region, for :math:`G` groups.
 
     Built from one mixture per region by :meth:`of`, the way in: the
     :class:`~orpheus.data.macro_xs.mixture.Mixture` is the input boundary
@@ -54,29 +58,37 @@ class RegionCrossSections:
     constructor checks shapes, finiteness and signs only. The arrays are
     read-only.
 
+    The fission emission is stored as its two factors, the spectrum it
+    emits into and the production it is driven by, so that the adjoint
+    cross sections (:meth:`transposed`) swap them and each keeps its
+    meaning: the adjoint's production is the forward spectrum.
+
     Attributes
     ----------
     total:
         :math:`\Sigma_t`, ``(n, G)``.
     scattering:
         :math:`(\Sigma_s + 2\Sigma_2)^T`, ``(n, G, G)``, indexed ``[region, to, from]``.
-    fission:
-        :math:`\chi \otimes \nu\Sigma_f`, ``(n, G, G)``, indexed ``[region, to, from]``.
+    spectrum:
+        :math:`\chi`, ``(n, G)``: the groups fission emits into, zero in a region that does not produce.
+    production:
+        :math:`\nu\Sigma_f`, ``(n, G)``: the neutrons fission emits per unit flux of each group.
     """
 
     total: np.ndarray
     scattering: np.ndarray
-    fission: np.ndarray
+    spectrum: np.ndarray
+    production: np.ndarray
 
     def __post_init__(self) -> None:
         n, groups = np.shape(self.total)
-        for name in ("scattering", "fission"):
-            if np.shape(getattr(self, name)) != (n, groups, groups):
+        shapes = {"scattering": (n, groups, groups), "spectrum": (n, groups), "production": (n, groups)}
+        for name, shape in shapes.items():
+            if np.shape(getattr(self, name)) != shape:
                 raise ValueError(
-                    f"the {name} of {n} regions in {groups} groups has shape ({n}, {groups}, {groups}); "
-                    f"got {np.shape(getattr(self, name))}"
+                    f"the {name} of {n} regions in {groups} groups has shape {shape}; got {np.shape(getattr(self, name))}"
                 )
-        for name in ("total", "scattering", "fission"):
+        for name in ("total", *shapes):
             array = np.array(getattr(self, name), dtype=float)
             if not np.all(np.isfinite(array)) or array.min(initial=0.0) < 0.0:
                 raise ValueError(f"the {name} is finite and non-negative")
@@ -92,13 +104,31 @@ class RegionCrossSections:
         return cls(
             np.stack([m.SigT for m in mixtures]),
             np.stack([e.scattering for e in emission]),
-            np.stack([e.fission for e in emission]),
+            np.stack([m.chi for m in mixtures]),
+            np.stack([m.SigP for m in mixtures]),
         )
 
     @property
     def n_groups(self) -> int:
         """The number :math:`G` of groups."""
         return self.total.shape[1]
+
+    @cached_property
+    def fission(self) -> np.ndarray:
+        r""":math:`\chi \otimes \nu\Sigma_f`, ``(n, G, G)``, indexed ``[region, to, from]``: the product :func:`~orpheus.derivations.common.eigenvalue.group_emission` forms, per region."""
+        fission = self.spectrum[:, :, None] * self.production[:, None, :]
+        fission.flags.writeable = False
+        return fission
+
+    def transposed(self) -> "RegionCrossSections":
+        r"""The adjoint cross sections: the same total, the scattering with ``[to, from]`` swapped, the spectrum and the production exchanged.
+
+        For isotropic emission the transport is self-adjoint (reciprocity),
+        so the adjoint flux of a problem is the flux of the problem posed on
+        these cross sections, and its emission support is where something
+        is emitted OUT of a group.
+        """
+        return RegionCrossSections(self.total, self.scattering.swapaxes(1, 2), self.production, self.spectrum)
 
     def emission_support(self) -> np.ndarray:
         r"""Whether group :math:`g` emits in region :math:`r`, ``(n, G)``: a non-zero transfer into :math:`g` there."""

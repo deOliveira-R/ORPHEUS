@@ -81,6 +81,7 @@ import numpy as np
 
 from orpheus.derivations.common.quadrature import composite_gauss_legendre, gauss_legendre
 from orpheus.geometry.chart import LineShape
+from orpheus.numerics.content import ContentIdentity
 
 from .basis import PanelBasis
 from .grading import VANISHING_DEPTH, exponential_ends, graded_ends, halvings
@@ -183,8 +184,8 @@ def _impact_rule(ends: np.ndarray, sigma: np.ndarray, points: int) -> tuple[np.n
     return np.concatenate(pts), np.concatenate(wts)
 
 
-@dataclass(frozen=True)
-class TransportResolution:
+@dataclass(frozen=True, eq=False)
+class TransportResolution(ContentIdentity):
     r"""The resolution of a transport block: the line rule's points per piece, and the traversal rule's along each line.
 
     Attributes

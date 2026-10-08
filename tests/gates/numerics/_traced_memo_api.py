@@ -143,13 +143,14 @@ def verdict_kind(verdict: Any) -> str:
 # ── the P3 clients (step 4): where each memo is bound ────────────────────────────
 
 #: (module, dotted attribute) of each memoised client: the two multi-region solvers (the solve children) and the
-#: trajectory reading (the derivation's ``evaluate``, a memoised method keyed on the derivation's content). The
+#: trajectory and the characteristic readings (each derivation's ``evaluate``, a memoised method keyed on the derivation's content). The
 #: exact infinite medium is NOT a client: its reading costs less than an interpreter start (the user's ruling of
 #: 2026-10-04, ``reference_cache.md`` "P3 specification ruled", Q5).
 CLIENTS = {
     "solve_sphere": ("orpheus.derivations.continuous.trajectory_resolvent.greens_function", "solve_greens_function_sphere_mr"),
     "solve_cylinder": ("orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder", "solve_greens_function_cylinder_mr"),
     "trajectory_reading": ("orpheus.derivations.continuous.trajectory_resolvent.reference", "TrajectoryResolventDerivation.evaluate"),
+    "characteristic_reading": ("orpheus.derivations.continuous.characteristic.reference", "CharacteristicDerivation.evaluate"),
 }
 
 

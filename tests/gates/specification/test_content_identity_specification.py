@@ -329,7 +329,9 @@ _PIN_AFTER_LANDING = "pin after landing"
 # infinite medium is the point in phase space") and ``CellCoefficient`` gained
 # ``channels_in_every_material``; both schema tags moved, so both pins moved.
 _PINNED: dict[str, str] = {
-    "k infinite medium": "29a1f541857fccfd5189e2cd4d504605821eb71c6628431bc7a59a66601c4e77",
+    # Re-pinned 2026-10-08: Eigen gained its declared gauge (the user's ruling), which the specification's
+    # canonical question writes in (the default production, resolved); the fixed-source pin did not move.
+    "k infinite medium": "6eb99bfc997eca9114e9b62a3d59124067d28374eefd88ba7ed1bf4349528007",
     "fixed source slab": "737d57afd4df1d4f9a63d0bcf963acbe7404bb8102fbbf70fab6f00d3bdd6366",
 }
 

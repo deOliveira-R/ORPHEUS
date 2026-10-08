@@ -27,6 +27,9 @@ numerics kernel (:mod:`orpheus.derivations.common.dense_pencil`):
   multigroup Galerkin system on every group's block, its k pencil and its
   source pencil on the emission space: the fundamental and higher modes, the adjoint, the fixed
   source and the detector's adjoint flux;
+- :mod:`~orpheus.derivations.continuous.characteristic.reference` — the
+  door: the system posed from a specification and a resolution, the
+  question it answers and the observables it reads;
 - :mod:`~orpheus.derivations.continuous.characteristic.grading` — the
   geometric, exponential and hp gradings every rule of the package places
   its piece ends by.
@@ -35,12 +38,14 @@ numerics kernel (:mod:`orpheus.derivations.common.dense_pencil`):
 from .assembly import GroupTransport, LineRule, TransportResolution
 from .basis import PanelBasis
 from .closure import LinePeriod, TrappedSource, WallCoupling
+from .reference import CharacteristicDerivation, Resolution, characteristic_reference
 from .cross_sections import RegionCrossSections
 from .system import EmissionSpace, GalerkinSystem
 from .transport import TraversalRule
 from .walls import Wall, Walls
 
 __all__ = [
+    "CharacteristicDerivation",
     "EmissionSpace",
     "GalerkinSystem",
     "GroupTransport",
@@ -48,10 +53,12 @@ __all__ = [
     "LineRule",
     "PanelBasis",
     "RegionCrossSections",
+    "Resolution",
     "TransportResolution",
     "TrappedSource",
     "TraversalRule",
     "Wall",
     "WallCoupling",
     "Walls",
+    "characteristic_reference",
 ]

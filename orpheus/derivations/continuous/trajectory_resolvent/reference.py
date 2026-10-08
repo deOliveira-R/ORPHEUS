@@ -288,10 +288,11 @@ class TrajectoryResolventDerivation(ContentIdentity):
                 f"trajectory_resolvent_reference answers a GeometrySpecification (rays need a finite geometry), "
                 f"got a {type(specification).__name__}: an infinite medium has no geometry"
             )
-        k_question = Eigen(CellCoefficient.every(Channel.FISSION_EMISSION).resolve(specification.materials))
-        if specification.question != k_question:
+        fission = CellCoefficient.every(Channel.FISSION_EMISSION).resolve(specification.materials)
+        if specification.question != Eigen(fission, gauge=fission):                 # its flux is gauged by its fission rate
             raise ValueError(
-                f"trajectory_resolvent_reference answers the fundamental k-eigenvalue question at the physical "
+                f"trajectory_resolvent_reference answers the fundamental k-eigenvalue question at the physical point, its flux "
+                f"gauged by the fission rate, at the physical "
                 f"point, got {specification.question!r}"
             )
         object.__setattr__(self, "solver_quadrature", FrozenMapping(self.solver_quadrature.items()))

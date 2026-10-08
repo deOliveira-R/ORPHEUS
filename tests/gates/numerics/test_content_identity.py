@@ -62,12 +62,13 @@ from tests.gates.reference.test_published import ROSTER as PUBLISHED_ROSTER
 from tests.gates.reference.test_reference_certificate import ROSTER as CERTIFICATE_ROSTER
 from tests.gates.specification.test_content_identity_specification import ROSTER as SPECIFICATION_ROSTER
 from tests.gates.derivations.test_trajectory_resolvent_reference import ROSTER as DERIVATION_ROSTER
+from tests.gates.derivations.test_characteristic_reference import ROSTER as CHARACTERISTIC_ROSTER
 
 pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/numerics/test_content_identity.py"
 _ROOT = Path(__file__).resolve().parents[3]
-ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER + QUESTION_ROSTER + SPECIFICATION_ROSTER + ENCLOSURE_ROSTER + READING_ROSTER + OBSERVABLE_ROSTER + PUBLISHED_ROSTER + CERTIFICATE_ROSTER + DERIVATION_ROSTER
+ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER + QUESTION_ROSTER + SPECIFICATION_ROSTER + ENCLOSURE_ROSTER + READING_ROSTER + OBSERVABLE_ROSTER + PUBLISHED_ROSTER + CERTIFICATE_ROSTER + DERIVATION_ROSTER + CHARACTERISTIC_ROSTER
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -373,8 +374,10 @@ class TestS58Schema:
 #: the user's ruling); they still take ``__hash__`` from the mixin.
 _DECLARED_EQ_OVERRIDES = frozenset({"VacuumInflow", "ReflectiveBoundary"})
 
-#: The packages whose classes S5.9 walks.
-_PACKAGES = ("orpheus.data", "orpheus.geometry", "orpheus.mesh", "orpheus.numerics", "orpheus.specification", "orpheus.reference", "orpheus.transport")
+#: The packages whose classes S5.9 walks. Of ``orpheus.derivations``, the two packages whose derivations are reference
+#: solutions (their receivers are traced-memo keys); the rest of ``orpheus.derivations`` is NOT walked.
+_PACKAGES = ("orpheus.data", "orpheus.geometry", "orpheus.mesh", "orpheus.numerics", "orpheus.specification", "orpheus.reference", "orpheus.transport",
+             "orpheus.derivations.continuous.trajectory_resolvent", "orpheus.derivations.continuous.characteristic")
 
 
 def _content_classes() -> list[type]:

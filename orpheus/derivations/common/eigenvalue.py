@@ -18,6 +18,7 @@ from typing import NamedTuple
 
 import numpy as np
 
+from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.derivations.common.dense_pencil import DensePencil
 
 
@@ -73,6 +74,31 @@ def group_emission(
     if sig_2 is not None:
         scattering = scattering + 2.0 * _dense_transfer_matrix(sig_2)
     return GroupEmission(scattering.T, np.outer(chi, nu_sig_f))
+
+
+def production_emission(gauge: CellCoefficient, material: int, mixture) -> np.ndarray:
+    r"""The neutrons the declared production counts per unit flux of each group, in one material, ``(G,)``.
+
+    ``gauge`` is a resolved :class:`~orpheus.data.cells.CellCoefficient`, an
+    eigen question's declared gauge (:attr:`~orpheus.numerics.question.Eigen.gauge`):
+    the sum over its cells of ``material`` of what each channel emits.
+    Fission emits :math:`\nu\Sigma_f`; scattering its isotropic transfer
+    summed over the groups it emits into, :math:`\sum_{g'} \Sigma_{s0,g \to g'}`;
+    the (n,2n) reaction two neutrons per reaction,
+    :math:`2 \sum_{g'} \Sigma_{2,g \to g'}`, written here as the references'
+    own literal (as :func:`group_emission` writes it), so that a reference
+    does not move with production's multiplicity.
+    """
+    emission = np.zeros(len(mixture.SigT))
+    for channel in (c for m, c in gauge.cells if m == material):
+        match channel:
+            case Channel.FISSION_EMISSION:
+                emission = emission + np.asarray(mixture.SigP, dtype=float)
+            case Channel.SCATTERING_EMISSION:
+                emission = emission + _dense_transfer_matrix(mixture.SigS[0]).sum(axis=1)
+            case Channel.N2N_EMISSION:
+                emission = emission + 2.0 * _dense_transfer_matrix(mixture.Sig2[0]).sum(axis=1)
+    return emission
 
 
 def _infinite_medium_matrices(

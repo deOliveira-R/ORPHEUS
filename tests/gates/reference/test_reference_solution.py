@@ -412,7 +412,10 @@ def _medium(mixture: Any) -> Any:
     from orpheus.numerics.question import Eigen
     from orpheus.specification import InfiniteMediumSpecification
 
-    return InfiniteMediumSpecification(0, mixture, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
+    # The fission gauge is DECLARED (the user's ruling of 2026-10-08: the default production counts the (n,2n)
+    # emission too): these rows judge the exact flux of ``ExactInfiniteMedium``, whose own gauge is fission alone at the density 100.
+    fission = CellCoefficient.every(Channel.FISSION_EMISSION)
+    return InfiniteMediumSpecification(0, mixture, Eigen(fission, gauge=fission))
 
 
 @pytest.mark.parametrize("make", [m for _, m in _MIXTURES], ids=[n for n, _ in _MIXTURES])
@@ -521,6 +524,40 @@ def test_r6_6_the_factory_answers_only_the_fundamental_at_the_physical_point(var
                 else Eigen(k, point={CellCoefficient.every(Channel.SCATTERING_EMISSION): 0.5}))
     with pytest.raises(ValueError, match="k-eigenvalue"):
         s6.exact_medium_reference(InfiniteMediumSpecification(0, sf.fuel(), question))
+
+
+def _default_medium(mixture: Any) -> Any:
+    """The infinite medium's k question with NO declared gauge: the specification writes in the default production."""
+    from orpheus.data.cells import CellCoefficient, Channel
+    from orpheus.numerics.question import Eigen
+    from orpheus.specification import InfiniteMediumSpecification
+
+    return InfiniteMediumSpecification(0, mixture, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
+
+
+@pytest.mark.rests_on(f"{_HERE}::test_r6_6_the_exact_infinite_medium_reads_the_exact_answer")
+def test_r6_6_the_default_gauge_counts_the_n2n_emission() -> None:
+    """The user's ruling of 2026-10-08: an undeclared gauge is the default production, what fission and the
+    (n,2n) reaction emit. On the fuel (fission, upscatter and a non-zero (n,2n) transfer), the reference
+    with no declared gauge reads the weight nu Sigma_f + 2 sum_g' Sigma_2,g->g' (written here from the
+    mixture's arrays, the literal 2 the multiplicity) at the density 100, exactly (the reading contains 100);
+    the declared fission gauge reads nu Sigma_f at 100 and the production weight above 100 (the (n,2n)
+    emission is not zero, the activation). First reds: the reference reading its flux in the fission gauge
+    whatever the question declares; the (n,2n) emission counted once per reaction."""
+    from orpheus.numerics.mesh_free_function import RegionwiseConstant
+    from orpheus.numerics.observable import FluxIntegral
+
+    mixture = sf.fuel()
+    nu_sigma_f = np.asarray(mixture.SigP, dtype=float)
+    n2n = 2.0 * mixture.Sig2[0].toarray().sum(axis=1)
+    production = FluxIntegral(RegionwiseConstant((nu_sigma_f + n2n)[None, :]))
+    fission = FluxIntegral(RegionwiseConstant(nu_sigma_f[None, :]))
+    require(n2n.min() >= 0.0 and n2n.max() > 0.0, f"activation: the (n,2n) emission {n2n}")
+    default = s6.exact_medium_reference(_default_medium(mixture))
+    declared = s6.exact_medium_reference(_medium(mixture))
+    require(_contains(default.read(production), Fraction(100)), f"default gauge: {default.read(production)!r}")
+    require(_contains(declared.read(fission), Fraction(100)), f"fission gauge: {declared.read(fission)!r}")
+    require(declared.read(production).value > 100.0 + 1e-6, f"activation: {declared.read(production)!r}")
 
 
 def test_r6_6_a_non_dyadic_weight_reads_exactly() -> None:

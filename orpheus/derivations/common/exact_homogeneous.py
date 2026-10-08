@@ -71,6 +71,7 @@ from fractions import Fraction
 from typing import TYPE_CHECKING, Any, assert_never
 
 from orpheus.data.cells import CellCoefficient, Channel
+from orpheus.derivations.common.eigenvalue import production_emission
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, values_without_position
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Linear, PointValue
 from orpheus.numerics.question import Eigen
@@ -265,6 +266,10 @@ __all__ = [
 # ── the reference solution (#405 P2 step 6) ────────────────────────────────
 
 
+_GAUGE_DENSITY = 100
+"""The production per unit volume an infinite medium's flux is read at: the homogeneous solver's convention."""
+
+
 def _rational(value: Fraction) -> sympy.Rational:
     import sympy
 
@@ -281,8 +286,11 @@ class ExactInfiniteMediumDerivation:
     the fission emission; other charts are #529's). A flux integral
     :math:`\langle w, \varphi\rangle = \sum_g w_g \varphi_g` is read under the
     infinite medium's measure, per unit volume (stated once, on
-    :mod:`orpheus.numerics.observable`), in the production gauge
-    :math:`\langle\nu\Sigma_f,\varphi\rangle = 100`. Its weight is the one
+    :mod:`orpheus.numerics.observable`), in the question's declared gauge
+    (:attr:`~orpheus.numerics.question.Eigen.gauge`): ``gauge`` is its
+    production per unit flux of each group, and the flux is read with that
+    production at the density 100, :math:`\langle g,\varphi\rangle = 100`,
+    production's homogeneous convention. Its weight is the one
     region's group values: a regionwise-constant table read exactly (every
     double is a dyadic rational), or a symbolic weight read on the medium,
     which has no coordinate (:meth:`~orpheus.numerics.mesh_free_function.Symbolic.without`,
@@ -294,6 +302,7 @@ class ExactInfiniteMediumDerivation:
     """
 
     medium: ExactInfiniteMedium
+    gauge: Vector
 
     def evaluate(self, observable: Eigenvalue | Linear) -> Exact | Uncertified:
         """The observable's exact value, or its float value uncertified where the exact one cannot be certified."""
@@ -308,7 +317,8 @@ class ExactInfiniteMediumDerivation:
     def _exact_value(self, observable: Eigenvalue | Linear) -> sympy.Expr:
         import sympy
 
-        flux = [_rational(f) for f in self.medium.flux]
+        gauged = [f * _GAUGE_DENSITY / _dot(self.gauge, self.medium.flux) for f in self.medium.flux]
+        flux = [_rational(f) for f in gauged]
         match observable:
             case Eigenvalue():
                 value = _rational(self.medium.k_inf)
@@ -338,13 +348,16 @@ def exact_infinite_medium_reference(specification: InfiniteMediumSpecification) 
     """
     if not isinstance(specification, InfiniteMediumSpecification):
         raise TypeError(f"the exact infinite medium answers an InfiniteMediumSpecification, got a {type(specification).__name__}")
-    k_question = Eigen(CellCoefficient.every(Channel.FISSION_EMISSION).resolve(specification.materials))
-    if specification.question != k_question:
+    question = specification.question
+    gauge = question.gauge if isinstance(question, Eigen) else None
+    if question != Eigen(CellCoefficient.every(Channel.FISSION_EMISSION).resolve(specification.materials), gauge=gauge):
         raise ValueError(
             f"the exact infinite medium answers the fundamental k-eigenvalue question at the physical point, "
-            f"got {specification.question!r}"
+            f"got {question!r}"
         )
-    derivation = ExactInfiniteMediumDerivation(exact_infinite_medium_of(specification.mixture))
+    assert isinstance(gauge, CellCoefficient)                                        # a canonical eigen question's gauge is resolved
+    production = _as_exact_vector(production_emission(gauge, specification.material_id, specification.mixture))
+    derivation = ExactInfiniteMediumDerivation(exact_infinite_medium_of(specification.mixture), production)
     groups = specification.n_groups
     observables: list[Eigenvalue | Linear] = [Eigenvalue()]
     observables += [FluxIntegral(RegionwiseConstant(np.eye(groups)[g][None, :])) for g in range(groups)]

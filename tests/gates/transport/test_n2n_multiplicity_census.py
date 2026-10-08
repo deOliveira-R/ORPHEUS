@@ -47,6 +47,10 @@ _EXCLUDED_BY_FUNCTION = {("orpheus/mc/solver.py", "_random_walk", "pi")}
 _REFERENCE_LITERALS = {
     ("orpheus/derivations/common/eigenvalue.py", "group_emission"),
     ("orpheus/derivations/common/eigenvalue.py", "kinf_from_cp"),
+    # The declared production an eigen flux is gauged by, read by the references
+    # (2026-10-08, the characteristic reference's rung 5a): what each channel
+    # emits, the (n,2n) reaction two neutrons, in the references' own literal.
+    ("orpheus/derivations/common/eigenvalue.py", "production_emission"),
     # The exact rational k∞ reference (2026-10-01): assembles A = diag Σt −
     # Σs0ᵀ − 2Σ2ᵀ in Fractions; it is the derived-bound anchor of
     # ``test_kinf_exact_reference``, so it must not read production's constant.

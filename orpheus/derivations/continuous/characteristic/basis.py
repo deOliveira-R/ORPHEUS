@@ -38,6 +38,7 @@ integrates every entry exactly.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import cached_property
 from typing import NamedTuple
@@ -184,6 +185,10 @@ class PanelBasis:
             )
         return per_region[self.region_of_panel]
 
+    def on_nodes(self, per_region: np.ndarray) -> np.ndarray:
+        """A per-region table ``(n, ...)`` read at each node, ``(N, ...)``: the coefficients of a per-region constant, exactly (the basis is nodal)."""
+        return self.on_panels(per_region)[self.panel]
+
     # ── the functions ────────────────────────────────────────────────────
 
     def values(self, orbit_coordinate: np.ndarray, panel: np.ndarray) -> np.ndarray:
@@ -228,13 +233,47 @@ class PanelBasis:
     @cached_property
     def mass(self) -> np.ndarray:
         r"""The Gram matrix :math:`W_{ij} = \int u_i u_j\,\mathrm{d}V`, ``(N, N)``, block-diagonal by panel."""
+        return block_diag(*self.panel_mass)
+
+    @cached_property
+    def panel_mass(self) -> np.ndarray:
+        r"""The diagonal blocks of :attr:`mass`, one per panel, ``(P, p + 1, p + 1)``."""
         points = 2 * self.per_panel
-        rule = composite_gauss_legendre(self.partition.breakpoints, points)
-        panel = np.repeat(np.arange(self.n_panels), points)
+        coordinate, panel, weight = self._panel_rule(points)
         shape = (self.n_panels, points)
-        u = self.values(rule.pts, panel).reshape(*shape, self.per_panel)
-        weight = (rule.wts * self.regions.chart.measure_density(rule.pts)).reshape(shape)
-        return block_diag(*np.einsum("Pqi,Pq,Pqj->Pij", u, weight, u))
+        u = self.values(coordinate, panel).reshape(*shape, self.per_panel)
+        return np.einsum("Pqi,Pq,Pqj->Pij", u, weight.reshape(shape), u)
+
+    def _panel_rule(self, points: int, steps: Sequence[float] = ()) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        r"""Gauss-Legendre with ``points`` per piece on the panel ends and ``steps``, in the chart's measure: each point, its panel and its weight."""
+        ends = np.asarray(self.partition.breakpoints)
+        inside = [step for step in steps if ends[0] < step < ends[-1]]
+        rule = composite_gauss_legendre(np.union1d(ends, inside), points)
+        panel = np.searchsorted(ends, rule.pts, side="right") - 1
+        return rule.pts, panel, rule.wts * self.regions.chart.measure_density(rule.pts)
+
+    def project(
+        self, function: Callable[[np.ndarray], np.ndarray], points: int, steps: Sequence[float] = ()
+    ) -> np.ndarray:
+        r"""The L2 projection :math:`W^{-1} \langle u_i, f \rangle` of a function of the orbit coordinate, ``(..., N)``.
+
+        ``function`` maps the coordinates ``(q,)`` to its values ``(..., q)``;
+        the load is integrated by Gauss-Legendre with ``points`` per piece, on
+        the panel ends and the function's ``steps`` (where it jumps), in the
+        chart's measure, the rule :attr:`mass` is built on. A function of the
+        panel space is returned to rounding when ``points`` is at least
+        :math:`2(p + 1)`, the rule then integrating its products with the
+        basis as exactly as :attr:`mass` does: every per-region polynomial
+        of degree :math:`p`, except on an :attr:`even` panel, whose space is
+        the polynomials in :math:`c^2`. A per-region constant is read
+        exactly by :meth:`on_nodes`.
+        """
+        coordinate, panel, weight = self._panel_rule(points, steps)
+        tests = np.zeros((self.size, coordinate.size))                                # u_i(c_q) w_q, the load's functionals
+        tests[self.columns(panel), np.arange(coordinate.size)[:, None]] = self.values(coordinate, panel) * weight[:, None]
+        load = np.asarray(function(coordinate), dtype=float) @ tests.T
+        per_panel = load.reshape(*load.shape[:-1], self.n_panels, self.per_panel, 1)
+        return np.linalg.solve(self.panel_mass, per_panel).reshape(load.shape)       # panel by panel: a zero load stays exactly zero
 
 
 __all__ = ["PanelBasis"]

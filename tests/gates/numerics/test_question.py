@@ -152,7 +152,7 @@ def test_s7_2_the_struck_and_deferred_names_are_absent() -> None:
 #: at collection (a rebinding or a reload would otherwise leave it reading a
 #: stale class: ``[M]`` 2026-10-02, battery arm A1 left a class-keyed row green).
 _FIELDS = {
-    "Eigen": ("parameter", "point", "mode"),
+    "Eigen": ("parameter", "point", "mode", "gauge"),
     "FixedSource": ("source", "point"),
     "Response": ("detector", "point"),
     "Fundamental": (),
@@ -200,11 +200,13 @@ def test_s7_3_a_role_spelled_in_the_wrong_value_does_not_construct(build, fragme
 
 
 def test_s7_3_the_signatures() -> None:
-    """``Response`` takes exactly one detector (and the point); the point and
-    the mode have defaults, the datum and the parameter have none."""
+    """``Response`` takes exactly one detector (and the point); the point, the
+    mode and the gauge (``None``: the specification's declared default, the
+    user's ruling of 2026-10-08) have defaults, the datum and the parameter
+    have none."""
     empty = inspect.Parameter.empty
     for cls, required, defaulted in (
-        (Eigen, ("parameter",), ("point", "mode")),
+        (Eigen, ("parameter",), ("point", "mode", "gauge")),
         (FixedSource, ("source",), ("point",)),
         (Response, ("detector",), ("point",)),
     ):
@@ -212,7 +214,7 @@ def test_s7_3_the_signatures() -> None:
         require(tuple(params) == required + defaulted, f"{cls.__qualname__}{tuple(params)}")
         require(all(params[p].default is empty for p in required), f"{cls.__qualname__}: a datum has a default")
         # a default_factory field shows the ``<factory>`` sentinel, which is not ``empty``
-        require(all(params[p].default is not empty for p in defaulted), f"{cls.__qualname__}: point/mode lack a default")
+        require(all(params[p].default is not empty for p in defaulted), f"{cls.__qualname__}: point/mode/gauge lack a default")
     with pytest.raises(TypeError, match="detector is a mesh-free function"):
         Response((_table(), _table()))  # type: ignore[arg-type]
 

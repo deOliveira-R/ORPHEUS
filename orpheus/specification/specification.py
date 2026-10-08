@@ -62,7 +62,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, assert_never, get_args
 
-from orpheus.data.cells import CellCoefficient
+from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.materials import Materials
 from orpheus.geometry.extent import GeometryExtent
@@ -162,6 +162,18 @@ Specification: TypeAlias = InfiniteMediumSpecification | GeometrySpecification
 """A reference specification: the layer it is posed at is its type."""
 
 
+EIGEN_GAUGE = CellCoefficient.every(Channel.FISSION_EMISSION, Channel.N2N_EMISSION)
+"""The declared default gauge of an eigen flux: the neutrons fission and the (n,2n) reaction emit (production).
+
+An :class:`~orpheus.numerics.question.Eigen` with no gauge is scaled by
+this production rate, to 1 over a finite body. It is the functional the
+SN solver scales by today (``compute_production_rate``); the production
+solvers read the declaration in #517. A question declares another (fission
+alone, ``CellCoefficient.every(Channel.FISSION_EMISSION)``) to be read in
+that one.
+"""
+
+
 def _resolve(key: Any, where: str, spec: Specification) -> Coordinate:
     """The canonical form of one key: a coordinate of this problem, resolved."""
     match key:
@@ -255,12 +267,30 @@ def _canonical_point(point: Any, spec: Specification) -> FrozenMapping[Coordinat
     return FrozenMapping((coordinate, offset) for coordinate, (_, offset) in resolved.items())
 
 
+def _canonical_gauge(gauge: Any, spec: Specification) -> CellCoefficient | None:
+    """An eigen question's gauge, resolved: the declared one, or :data:`EIGEN_GAUGE` where it produces.
+
+    A problem in which no material carries the default's channels (a
+    c-eigenvalue of a pure scatterer) has no production to scale its flux
+    by, so its default gauge stays ``None`` and a reference reads no flux
+    of it; a gauge the question declares must resolve.
+    """
+    where = f"{type(spec).__name__}: the gauge"
+    if gauge is None:
+        produces = any(c.is_carried_by(m) for c in EIGEN_GAUGE.channels_in_every_material for m in spec.materials.values())
+        return EIGEN_GAUGE.resolve(spec.materials) if produces else None
+    if not isinstance(gauge, CellCoefficient):
+        raise TypeError(f"{where} is a production by channel, a CellCoefficient; got a {type(gauge).__name__}")
+    return gauge.resolve(spec.materials)
+
+
 def _canonical_question(question: Any, spec: Specification) -> Question:
     """The question with its datum admitted and every key resolved."""
     match question:
         case Eigen():
             parameter = _resolve(question.parameter, f"{type(spec).__name__}: the parameter", spec)
-            return dataclasses.replace(question, parameter=parameter, point=_canonical_point(question.point, spec))
+            gauge = _canonical_gauge(question.gauge, spec)
+            return dataclasses.replace(question, parameter=parameter, point=_canonical_point(question.point, spec), gauge=gauge)
         case FixedSource():
             _admit_datum(question.source, "source", spec)
             return dataclasses.replace(question, point=_canonical_point(question.point, spec))

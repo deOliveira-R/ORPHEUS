@@ -409,7 +409,10 @@ def _medium(mixture: Any) -> Any:
     from orpheus.numerics.question import Eigen
     from orpheus.specification import InfiniteMediumSpecification
 
-    return InfiniteMediumSpecification(0, mixture, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
+    # The fission gauge is DECLARED (the user's ruling of 2026-10-08: the default production counts the (n,2n)
+    # emission too): these rows judge the homogeneous solver, fission-gauged at the density 100 until #517 moves it onto the declaration.
+    fission = CellCoefficient.every(Channel.FISSION_EMISSION)
+    return InfiniteMediumSpecification(0, mixture, Eigen(fission, gauge=fission))
 
 
 @pytest.mark.parametrize("make", [m for _, m in _MIXTURES], ids=[n for n, _ in _MIXTURES])

@@ -403,6 +403,52 @@ def test_s8_1_a_direction_resolves_iff_some_material_carries_it(asked: Channel, 
             build()
 
 
+def _gauge(spec: Specification) -> Any:
+    """The stored gauge of an eigen question (narrowed for the type checker)."""
+    require(isinstance(spec.question, Eigen), f"the question is a {type(spec.question).__name__}")
+    return getattr(spec.question, "gauge")
+
+
+_GAUGES = [
+    ("default-on-fuel-and-moderator", lambda: _gs(Eigen(_k())), CellCoefficient({(0, F), (0, N2)})),
+    ("default-without-n2n", lambda: _im(Eigen(CellCoefficient.every(F)), mixture=fission_only()), CellCoefficient({(0, F)})),
+    ("default-on-an-n2n-only-material", lambda: _im(Eigen(CellCoefficient.every(N2)), mixture=n2n_only()),
+     CellCoefficient({(0, N2)})),
+    ("declared-fission", lambda: _gs(Eigen(_k(), gauge=CellCoefficient.every(F))), CellCoefficient({(0, F)})),
+    ("a-scatterers-c-question", lambda: _im(Eigen(CellCoefficient.every(S)), mixture=moderator()), None),
+]
+
+
+@pytest.mark.rests_on(f"{_HERE}::test_s8_1_a_direction_resolves_iff_some_material_carries_it")
+@pytest.mark.parametrize(("build", "expected"), [g[1:] for g in _GAUGES], ids=[g[0] for g in _GAUGES])
+def test_s8_11_the_eigen_gauge_is_canonicalised(build, expected) -> None:
+    """The user's ruling of 2026-10-08: the eigen question DECLARES its gauge. ``None`` canonicalises to the
+    default production, ``every(FISSION, N2N)`` resolved (the (n,2n) cell dropped where no material carries
+    it, the fission cell where none produces); a declared gauge is resolved; a problem whose materials carry
+    neither default channel (a pure scatterer's c-question) keeps ``None``. First reds: the default left
+    unresolved (the first row stores the quantifier); the default spelled fission alone (the first row
+    loses (0, N2)); the declared gauge overwritten by the default (the fourth row)."""
+    gauge = _gauge(build())
+    require(gauge == expected, f"gauge {gauge!r}, expected {expected!r}")
+    if gauge is not None:
+        require(gauge.channels_in_every_material == frozenset(), f"the quantifier survived in {gauge!r}")
+
+
+@pytest.mark.parametrize(("build", "error", "fragment"), [
+    pytest.param(lambda: _gs(Eigen(_k(), gauge=GeometryExtent(0))), TypeError, "a production by channel", id="an-extent"),
+    pytest.param(lambda: _gs(Eigen(_k(), gauge="fission")), TypeError, "a production by channel", id="a-string"),
+    pytest.param(lambda: _gs(Eigen(_k(), gauge=CellCoefficient.every(N2)), materials=Materials({0: fission_only(), 1: moderator()})),
+                 ValueError, "zero direction", id="a-declared-gauge-nothing-carries"),
+])
+def test_s8_11_a_gauge_that_is_not_a_production_is_refused(build, error: type, fragment: str) -> None:
+    """A declared gauge is a production by channel (a ``CellCoefficient``) that resolves: a geometry extent or
+    another key is refused (TypeError), and a gauge no material carries is a zero direction (ValueError).
+    First reds: the type check removed (the extent reaches ``resolve`` and fails with another message); the
+    declared gauge left unresolved (the zero direction constructs)."""
+    with pytest.raises(error, match=fragment):
+        build()
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # S8.10 — the stored question is the canonical question
 # ═════════════════════════════════════════════════════════════════════════════
