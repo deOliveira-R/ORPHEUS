@@ -160,9 +160,16 @@ Key facts
   body's normal optical depth. A fixed resolution passed every closed-body
   gate and missed the closed forms by up to :math:`5 \times 10^{-1}` near
   void and :math:`7.3 \times 10^{-1}` at :math:`\tau = 1000` (ERR-101,
-  ERR-103, :ref:`characteristic-line-rule`). The cylinder's tensor rule
-  holds about :math:`10^6` pieces at :math:`\tau = 30`, and its cost was
-  the inner rule's padding, not that count: packing each line's live
+  ERR-103, :ref:`characteristic-line-rule`). The cylinder's rule over
+  :math:`(b, \theta)` is iterated: each polar angle carries its own impact
+  rule, graded at its own projected speed :math:`\sin\theta`, which on the
+  ``ABA`` cylinder holds 102 320 lines per block against the tensor rule's
+  308 480 at the slowest speed, for the same k to
+  :math:`8.3 \times 10^{-15}` (`[M]` 2026-10-08, #587,
+  :ref:`characteristic-iterated-cylinder-rule`). The cylinder's rule held
+  about :math:`10^6` pieces at :math:`\tau = 30` when its cost was
+  measured, and that cost was the inner rule's padding, not the count:
+  packing each line's live
   intervals brought the white block to 27.8 s per group, from about
   215 s (`[M]` 2026-10-07, #586, :ref:`characteristic-cylinder-cost`). Each
   radial line carries its node's exact level, the panel top and the
@@ -2993,8 +3000,8 @@ The grading law at every impact-panel top
 The hp grading toward :math:`y = 0` on the impact panel
 :math:`[r_k, r_{k+1}]` stops at a distance :math:`d_k`, the distance in
 :math:`y` from the tangency :math:`b = r_{k+1}` to the nearest feature of a
-line's transport there (:func:`tangency_distances
-<orpheus.derivations.continuous.characteristic.lines.tangency_distances>`,
+line's transport there (:meth:`ImpactPanels.distances
+<orpheus.derivations.continuous.characteristic.lines.ImpactPanels.distances>`,
 the grading law G). A line just below :math:`r_{k+1}`, at
 :math:`y = \sqrt{r_{k+1}^2 - b^2} \to 0`, turns in panel :math:`k` across a
 slot of in-plane length :math:`2y`, crosses the shells above, and reaches
@@ -3032,10 +3039,12 @@ The law takes the nearest:
 
 with:
 
-- :math:`s` the slowest projected speed the rule samples: 1 on the sphere,
-  :math:`\sin\theta_{\min}` of the polar rule on the cylinder (about
-  :math:`10^{-7}` on the gates' bodies). Both the layer's and the pole's
-  distances grow with :math:`s`, so the slowest line sets the bound;
+- :math:`s` the projected speed of the lines the impact rule is built for:
+  1 on the sphere, and on the cylinder each polar node's own
+  :math:`\sin\theta_j`, one impact rule per polar node (the iterated rule,
+  :ref:`characteristic-iterated-cylinder-rule`). The layer's and the
+  pole's distances are affine in :math:`s`, so each line is graded to the
+  features it carries and to no slower line's;
 - the :math:`-\ln a` term present only for :math:`0 < a < 1`: a wall with
   no specular return has no pole, and at :math:`a = 1` the closure is
   regular (its source integral vanishes with :math:`1 - \Pi`);
@@ -3046,6 +3055,18 @@ with:
   kernel's chord of the tangent lines :math:`b = r_{k+1}` through the
   impact panels, at unit speed (``traversed_length`` and
   ``half_chord_at``), so no chord length is spelled a second time.
+
+The data that do not depend on the speed (the impact panels, their cross
+sections, the next radius's half-chord, :math:`\tau_{\rm out}` and
+:math:`-\ln a`) are read once per group by :meth:`ImpactPanels.of
+<orpheus.derivations.continuous.characteristic.lines.ImpactPanels.of>`;
+:meth:`~orpheus.derivations.continuous.characteristic.lines.ImpactPanels.distances`
+evaluates :math:`d_k` at one speed, and
+:meth:`~orpheus.derivations.continuous.characteristic.lines.ImpactPanels.rule`
+builds the impact rule
+(:func:`~orpheus.derivations.continuous.characteristic.lines.impact_rule`)
+graded by it, over every panel for the line rule or over the panels below
+a point's orbit coordinate for the point rule (its ``below``).
 
 The outermost panel (:math:`\tau_{\rm out} = 0`) is the rim of the body,
 where :math:`d = \min(s, s(-\ln a))/(2\Sigma_{n-1})` is the rule's first
@@ -3086,12 +3107,14 @@ reddens 21 of the 172 rows of the reading's and the level's files outside
 both rows of the small cylinder (the archivist's re-drop, 2026-10-08,
 ``-O``).
 
-**The cylinder's cost.** On the cylinder every panel top is graded to
-:math:`s \approx 10^{-7}` times its own mean free path, about 25 more
-pieces of :math:`y` per panel (`[R]`, the sketch), because the tensor rule
-grades every polar angle at the slowest one. The user accepted that cost
-until #587 grades the impact rule per polar angle; the measured cost is
-under :ref:`characteristic-reading`, "Performance".
+**The cylinder's cost.** The law's cost on the cylinder is set by its
+slowest lines: a polar node at :math:`\sin\theta_j` grades each panel top
+to :math:`\sin\theta_j/(2\Sigma_k)`, so the impact rule of a near-grazing
+polar node holds several times the nodes of a fast one (240 to 1928
+impact nodes per polar node on the ``ABA`` cylinder's first group). Each
+polar node pays only for its own speed
+(:ref:`characteristic-iterated-cylinder-rule`, the measured line counts
+and times).
 
 .. dropdown:: First got wrong: the rim law alone, and what the floor hid
    :color: muted
@@ -3127,7 +3150,7 @@ under :ref:`characteristic-reading`, "Performance".
    **A correction the elegance review measured.** The first build was
    credited with fixing the cylinder's vacuum wall (:math:`7.9 \times
    10^{-8}` at 8 line points before it). It had not: the rim law's
-   distance on the cylinder is scaled by the slowest polar speed, about
+   distance on the cylinder was scaled by the slowest polar speed, about
    :math:`10^{-7}`, which drove it below a floor the same build had placed
    on every grading distance in :math:`y`, :math:`\sqrt{2r\,\epsilon(r)}`
    times a margin over the first Gauss node's fraction (``_B_MARGIN``),
@@ -3148,6 +3171,218 @@ under :ref:`characteristic-reading`, "Performance".
    replaced the rim law (the user's ruling of 2026-10-08, "the general
    grading law lands in 5b"), and its catalogue entries are ERR-104 (the
    pole) and ERR-105 (the layer).
+
+.. _characteristic-iterated-cylinder-rule:
+
+Each polar angle at its own speed: the cylinder's iterated rule (#587)
+----------------------------------------------------------------------
+
+The cylinder's lines are the box :math:`(b, \theta) \in [0, R] \times
+[0, \pi/2]` of the line domain (:eq:`geometry-line-domain`), with the
+density :math:`8\pi\sin^2\theta` of
+:meth:`LineDomain.density <orpheus.geometry.chart.LineDomain.density>`.
+Both roles integrate a functional of the line over it: the line rule's
+block and the point rule's row. The rule over the box is **iterated**,
+not a tensor product:
+
+.. math::
+
+   \int_0^{\pi/2}\!\mathrm d\theta \int_0^R\!\mathrm db\; f(b, \theta)
+   \;\approx\; \sum_{j} w^\theta_j \sum_{i} w^b_{ij}\, f(b_{ij}, \theta_j),
+
+where :math:`(\theta_j, w^\theta_j)` is the polar rule
+(:func:`~orpheus.derivations.continuous.characteristic.lines.polar_rule`,
+graded toward grazing and toward the normal over the whole body,
+:ref:`characteristic-line-rule`) and :math:`(b_{ij}, w^b_{ij})` is the
+impact rule built for the lines of polar angle :math:`\theta_j` alone,
+graded by the grading law at that line's own projected speed
+:math:`s_j = \sin\theta_j`.
+:func:`~orpheus.derivations.continuous.characteristic.lines.impact_per_polar`
+builds it from a function of the speed (``ImpactPanels.rule`` at the
+group's panels) and the polar rule, and returns the plain
+:math:`\mathrm db\,\mathrm d\theta` weights :math:`w^\theta_j w^b_{ij}`;
+each role multiplies its own density afterwards, the line rule
+:math:`8\pi\sin^2\theta/4\pi`
+(:class:`~orpheus.derivations.continuous.characteristic.assembly.LineRule`)
+and the point rule its direction measure through the point
+(:class:`~orpheus.derivations.continuous.characteristic.reading.PointRule`).
+A tensor product is the special case :math:`b_{ij} = b_i` for every
+:math:`j`.
+
+**Why each line's own speed is the grading speed.** A line at polar angle
+:math:`\theta` from the axis advances :math:`\sin\theta` in the plane per
+unit of its own length, so an in-plane length :math:`\ell` in a region of
+cross section :math:`\Sigma` is an optical depth
+:math:`\Sigma\ell/\sin\theta` along it. The two features of the grading
+law that depend on the line are therefore those of that line's speed
+:math:`s = \sin\theta`:
+
+- the turning slot, of in-plane length :math:`2y`, transmits
+  :math:`e^{-2\Sigma_k y/s}`, a layer of width :math:`s/(2\Sigma_k)` in
+  :math:`y`;
+- the cycle product :math:`\Pi = a\,e^{-(\tau_{\rm out} + 2\Sigma_k y)/s}`
+  makes the closure's pole a distance
+  :math:`(s(-\ln a) + \tau_{\rm out})/(2\Sigma_k)` from the interval
+  (:ref:`characteristic-grading-law`).
+
+Both distances are affine in :math:`s` with a non-negative slope, and the
+third feature, the next radius's branch point, does not depend on
+:math:`s`. At a fixed :math:`\theta_j` the integrand
+:math:`b \mapsto f(b, \theta_j)` carries the features of the speed
+:math:`s_j` only, so the impact rule graded at :math:`s_j` resolves it
+exactly as the law requires. A rule graded at a slower speed
+:math:`s_{\min} < s_j` subdivides the stretch nearer the tangency than
+:math:`d_k(s_j)` at scales finer than this line's integrand varies on, and
+buys no accuracy; a rule graded at a faster one misses the line's layer and
+pole. The hp grading adds a piece per halving of the distance, so the
+slower speed costs about :math:`\log_2(s_j/s_{\min})` pieces per graded
+panel top (`[R]`; measured: 30 pieces at :math:`s = 1` and 241 at the
+slowest polar node, :math:`\sin\theta = 4.85 \times 10^{-6}`, on the
+first group of the ``ABA`` cylinder below, 240 and 1928 impact nodes of
+8 points per piece).
+
+A tensor product cannot follow the speed: its impact nodes are shared by
+every polar node, so they must resolve the narrowest layer and the
+nearest pole of any polar node it holds, those of the slowest. The
+iterated rule is the quadrature of the iterated integral
+:math:`\int\mathrm d\theta\,\int\mathrm db` (Fubini: the integrand is integrable on the box),
+the one whose inner rule may depend on the outer node. Its error is the
+polar rule's error on :math:`g(\theta) = \int_0^R f(b, \theta)\,\mathrm db`
+plus :math:`\sum_j w^\theta_j E_j`, with :math:`E_j` the impact rule's
+error at :math:`\theta_j`, and each :math:`E_j` is controlled by the
+grading law at :math:`s_j`. The sphere (:math:`s = 1` for every line) and
+the slab (no impact parameter) are unchanged.
+
+**The evidence.** `[M]` 2026-10-08, the main agent
+(``scratch/characteristic_architecture/p1_step_c/aba_cyl_cost.py``,
+``cost_5a.log``, ``cost_head.log``, ``iterated.log``): the ``ABA``
+cylinder (``aba_specification(CYLINDRICAL)``) at resolution
+``Resolution(3, 2, 0.4, TransportResolution(8, 12, 12), 8)``, the k solve,
+one run each (no repeat protocol), lines per block of the first group:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 16 14 30
+
+   * - Line rule
+     - Lines per block
+     - Wall time
+     - k
+   * - the fifth rung's first half, no grading law at the panel tops
+       (``fe977a90``)
+     - 38 400
+     - 384 s
+     - 1.231729452890078
+   * - the tensor rule, every polar angle at the slowest speed
+       (``11b263a5``)
+     - 308 480
+     - 2296 s
+     - 1.231729452890264
+   * - the iterated rule, each polar angle at its own speed
+     - 102 320
+     - 1275 s
+     - 1.231729452890254
+
+The iterated rule's k is the tensor rule's to :math:`8.3 \times 10^{-15}`
+relative, and the line count is a third of it (the second group: 106 784
+against 297 920). Its 1275 s was taken by an in-memory probe of the same
+rule (``iterated_probe.py``). `[M]` 2026-10-09, the archivist's re-count
+through the shipped ``ImpactPanels``
+(``p1_step_c/archivist_587_counts.py`` and its log, no solve): 102 320 and 106 784 lines, 160
+and 152 polar nodes, 240 impact nodes per polar node at :math:`s = 1` to
+1928 at the slowest; the tensor rule's count is :math:`1928 \times 160 =
+308\,480` and :math:`1960 \times 152 = 297\,920`. The k of the first row
+differs from the other two by :math:`1.5` and :math:`1.4 \times 10^{-13}`
+relative: it lacks the grading law, not the iteration.
+
+`[M]` 2026-10-08, qa (``p1_step_c/qa.md``): no accuracy is lost.
+The three-region vacuum cylinder read at :math:`x = 1.5`, the small
+cylinder :math:`(0, 0.5, 1)` at its interface and its wall, the white
+cylinder's :math:`T_w` and :math:`P_{\rm esc}` at :math:`\tau = 0.5`,
+0.01 and :math:`10^{-4}`, and the hollow cylinder's conservation agree
+with the tensor rule's within :math:`2 \times 10^{-15}` on every row.
+The measure is exact: the weights
+over the density sum to :math:`R\pi/2`, and each polar node's impact
+weights to :math:`R`, within :math:`3.3 \times 10^{-15}` on 16 cylinder
+block rules. With every angle forced to the slowest speed, the iterated
+assembler reproduces the tensor rule's readings to all 17 printed digits.
+Under in-process mutations of the speed, against Bickley's
+:math:`\mathrm{Ki}_2` route:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 46 27 27
+
+   * - Mutation
+     - three-region cylinder, :math:`x = 1.5`
+     - small cylinder, interface
+   * - the layer term removed (ERR-105's arm)
+     - :math:`1.01 \times 10^{-6}`
+     - :math:`7.97 \times 10^{-8}`
+   * - every angle graded at speed 1
+     - :math:`1.27 \times 10^{-7}`
+     - :math:`7.97 \times 10^{-8}`
+   * - :math:`\cos\theta` in place of :math:`\sin\theta`
+     - :math:`1.27 \times 10^{-7}`
+     - :math:`7.97 \times 10^{-8}`
+   * - every angle graded at the slowest speed
+     - unchanged
+     - unchanged
+
+Each angle's own speed is load-bearing: grading faster than it misses the
+layer, and grading slower costs lines and changes no value. The sphere's
+and the slab's rules are bit-identical to the tensor rule's tree, 86 of 86
+rules (the test-architect, ``p1_step_c/ta/bitid.log``: 10 sphere and 4 slab
+line rules, 56 sphere and 16 slab point rules), and 176 of 176 arrays in
+qa's own comparison.
+
+**The gates.**
+``test_each_polar_angle_carries_the_impact_rule_graded_at_its_own_speed``
+(``tests/gates/derivations/test_characteristic_assembly.py``, vacuum and
+:math:`a = 0.9`) and
+``test_each_polar_angle_through_a_point_carries_the_impact_rule_graded_at_its_own_speed``
+(``tests/gates/derivations/test_characteristic_reading.py``, the wall, the
+interface and the wall under :math:`a = 0.9`) assert, ``array_equal``,
+that the lines at each polar node are the impact rule graded by the
+grading law written by hand in the test at that node's
+:math:`\sin\theta`, with their levels. `[M]` 2026-10-08, the
+test-architect (``p1_step_c/ta/README.md``): on ``11b263a5`` 127 of 128
+polar nodes differ from their own-speed rule on all five rows, and 0 of
+128 on the iterated rule. Of the 16 rows of its battery, the arm that
+grades every angle at the slowest speed reddens these five and no value
+row, so they are its only catchers: a slower grading is invisible to a
+value gate by design (the paragraph above).
+
+**Where the remaining lines are.** `[M]` 2026-10-09, the archivist's
+re-count: on the first group 51 of 160 polar nodes have
+:math:`\sin\theta < 0.01` and carry 57 536 of the 102 320 lines (the
+second group: 43 of 152 nodes, 52 872 of 106 784 lines). They are there
+because the polar rule grades toward grazing down to
+:math:`\tau_{\min}/64` of the whole body (:ref:`characteristic-line-rule`,
+the direction rules), at every impact parameter, whereas a line of short
+chord near the rim would not need it. Grading :math:`\theta` per impact
+panel is the other half of #587; it is not built and its saving is not
+measured (:ref:`characteristic-what-is-not-built`).
+
+.. dropdown:: First got wrong: every polar angle graded at the slowest
+   :color: muted
+
+   When the grading law landed with the fifth rung's second half
+   (``b76b9a9d``), the cylinder's rule was the tensor product of one
+   impact rule and the polar rule (the retired ``impact_by_polar``), and
+   the law graded that one impact rule at the slowest projected speed the
+   polar rule sampled, :math:`\sin\theta_{\min}` (the retired
+   ``tangency_distances``, through its ``slowest`` argument). That was
+   correct, since the slowest line carries the narrowest layer and the
+   nearest pole, and wasteful: every other polar node carried the
+   slowest one's impact nodes. On the ``ABA`` cylinder the block grew from
+   38 400 lines to 308 480, 8.0 times the ungraded rule's, and the k solve
+   from 384 s to 2296 s; the point rule's line counts on the cylinder grew
+   3.6 and 5.3 times (one and three regions). The user accepted the cost until #587, which split the
+   law's speed-free data (``ImpactPanels``) from its evaluation at a
+   speed and made the rule iterated (``200b4233``): 102 320 lines and
+   1275 s, the same k
+   to :math:`8.3 \times 10^{-15}`.
 
 The direction rules: grazing and normal
 ---------------------------------------
@@ -3421,10 +3656,12 @@ block took 0.8 s.
 The cylinder's cost on a thick body (#586)
 ------------------------------------------
 
-The cylinder's rule is the tensor product of the impact rule and the
-polar-angle rule, and both grow with the optical scale: the impact rule
-with the rim's exponential ends, the polar rule with the grazing and
-normal gradings. `[M]` 2026-10-07, the archivist's probe: the three-region
+The cylinder's rule is built from the impact rule and the polar-angle
+rule (iterated since #587, :ref:`characteristic-iterated-cylinder-rule`),
+and both grow with the optical scale: the impact rule with the rim's
+exponential ends, the polar rule with the grazing and normal gradings.
+The measurements of this section were taken before the grading law, when
+the rule was the two rules' tensor product. `[M]` 2026-10-07, the archivist's probe: the three-region
 cylinder :math:`(0, 0.5, 1.5, 2)` at 8 points holds 38 400 lines, 240
 impact nodes times 160 polar nodes; a homogeneous cylinder at
 :math:`\tau = 30` holds 18 432 lines, 192 impact nodes times 96 polar
@@ -3530,12 +3767,18 @@ rows, from about 62 minutes; the 722 rows outside it took 5 minutes.
 #586's acceptance, a :math:`\tau = 30` two-group block in under a minute
 at the gates' resolution, is met: two groups at 27.8 s each are 55.6 s.
 
-**What the non-tensor rule would still buy.** `[R]` Fewer lines: a rule
-that grades the polar angle on each impact panel by that panel's own
-optical scale would skip the grazing grading where a short rim chord does
-not need it. Its saving multiplies the packed cost; it does not repeat
-the packing's. It is not needed now. It becomes the lever if a
-three-region cylinder at 16 points, 792 s a group, enters a routine path
+**What a rule graded per impact panel would still buy.** The rule over
+:math:`(b, \theta)` is iterated in one direction: each polar angle
+carries its own impact rule (:ref:`characteristic-iterated-cylinder-rule`).
+The other direction is not built: the polar rule is graded toward grazing
+over the whole body's optical scale at every impact parameter. `[R]` A
+polar rule graded on each impact panel by that panel's own optical scale
+would skip the grazing grading where a short rim chord does not need it;
+on the ``ABA`` cylinder the polar nodes below :math:`\sin\theta = 0.01`
+carry 57 536 of the 102 320 lines (`[M]` 2026-10-09). Its saving
+multiplies the packed cost; it does not repeat the packing's. It is the
+lever if a three-region cylinder at 16 points, 792 s a group before the
+grading law, enters a routine path
 (`#587 <https://github.com/deOliveira-R/ORPHEUS/issues/587>`_).
 
 **The slow tier, re-ruled.** The third rung had cut the slow cylinder
@@ -5144,14 +5387,16 @@ one, each with its own measure:
 Both are built by the one-dimensional rules of
 :mod:`~orpheus.derivations.continuous.characteristic.lines`:
 :func:`~orpheus.derivations.continuous.characteristic.lines.impact_rule`
-with the per-panel distances of
-:func:`~orpheus.derivations.continuous.characteristic.lines.tangency_distances`,
+graded at a projected speed by
+:class:`~orpheus.derivations.continuous.characteristic.lines.ImpactPanels`
+(the grading law's speed-free data per impact panel, and its ``rule`` at
+one speed),
 :func:`~orpheus.derivations.continuous.characteristic.lines.polar_rule`,
 :func:`~orpheus.derivations.continuous.characteristic.lines.cosine_rule`
 (the mirrored rule over both signs) and
-:func:`~orpheus.derivations.continuous.characteristic.lines.impact_by_polar`
-(the cylinder's tensor product), so a grading is written once and both
-measures read it. Holding the roles apart keeps a block from being
+:func:`~orpheus.derivations.continuous.characteristic.lines.impact_per_polar`
+(the cylinder's iterated rule, each polar angle's impact rule built at
+its own speed), so a grading is written once and both measures read it. Holding the roles apart keeps a block from being
 computed on a point's measure, which was spellable when the point's lines
 were a ``LineRule`` (the elegance review's second round: a "block" with
 :math:`\mathbf 1^{\mathsf T}K\mathbf 1 = 1.49` and no meaning).
@@ -5335,62 +5580,76 @@ regions, 8512 lines, 15.0 s, 8.1 s and 8.3 s. The point rule takes 4096 and
 pieces hold no Volterra arrays and the per-chunk overhead dominates
 sooner.
 
-`[M]` 2026-10-08, the archivist's re-measure on the final tree, after the
-grading law (``scratch/characteristic_architecture/p1_step_b5b/archivist_point_cost.py``
-and ``archivist_point_cost2.py``; ``PointRule.of`` and ``row`` at
-:math:`c = 0.37`, 8 line points, 12 along each line, chunk 4096 and budget
-32 768, the minimum of 3 calls in one process, the host at a load average
-of about 3.5 on 10 cores):
+`[M]` 2026-10-09, the archivist's re-measure on the iterated rule
+(``scratch/characteristic_architecture/p1_step_c/archivist_587_point_cost.py``
+and ``archivist_587_point_cost2.py``, with their logs; ``PointRule.of`` and
+``row`` at :math:`c = 0.37`, 8 line points, 12 along each line, chunk 4096
+and budget 32 768, the minimum of 3 calls in one process, the host at a
+load average of about 6 to 10 on 10 cores), beside the same probe on the
+tensor rule at the slowest polar speed (`[M]` 2026-10-08, the archivist,
+``p1_step_b5b/archivist_point_cost.py``, a load average of about 3.5):
 
 .. list-table::
    :header-rows: 1
-   :widths: 46 18 18 18
+   :widths: 34 13 13 13 13 14
 
    * - Body
+     - Lines, tensor rule
      - Lines
+     - Time, tensor rule
      - Time
      - Peak memory
    * - three-region sphere :math:`(0, 0.5, 1.5, 2)`, white
      - 56
+     - 56
+     - 0.02 s
      - 0.02 s
      - 0.2 GB
    * - one-region cylinder of radius 1, white
      - 19 584
+     - 8544
      - 4.94 s
+     - 3.08 s
      - 1.2 GB
    * - the same, vacuum
      - 19 584
+     - 8544
      - 5.13 s
+     - 3.08 s
      - 1.2 GB
    * - three-region cylinder :math:`(0, 0.5, 1.5, 2)`, vacuum
      - 44 992
+     - 15 704
      - 42.8 s
+     - 23.4 s
      - 1.4 GB
 
-The cylinder's line counts grew 3.6 times (one region) under the grading
-law, which grades every impact-panel top to the slowest polar speed the
-tensor rule samples, and the times with them; the white walls add a few
-stacked sources and no measurable time. The cylinder's cost is therefore
-the line count that the law at the slowest polar speed produces, and the
-larger lever is the non-tensor rule that grades each polar angle at its
-own speed (#587); contracting the emission before the scan (#591) divides
-the cost per line.
+The peak memory is the process's, measured on the iterated rule (the
+white three-region cylinder's process, which also assembled its blocks,
+peaked at 2.3 GB and is not in the table). Before the grading law the
+same points held 5440 and 8512 lines (above). The cylinder's point cost
+is the line count the grading law produces at each polar node's own speed
+(:ref:`characteristic-iterated-cylinder-rule`); the white walls add a few
+stacked sources and no measurable time. Contracting the emission before
+the scan (#591) divides the cost per line, and grading the polar angle
+per impact panel (#587's other half, not built) would cut the near-grazing
+lines.
 
 **This is not yet measured against the target.** The verification spec's
 §8 target is the hoisted trajectory-resolvent's one transport at a point,
 0.073 s per call (``scratch/characteristic_architecture/p1_verification_spec.md``
 §8), a figure that was not taken by a repeat protocol; §8's protocol (the
 same question at matched accuracy, alternating subprocesses, the minimum
-of at least 15) has not been run. A cylinder point at 4.9 to 43 s is 68
-to 590 times that figure, so the target is not met on any reading of it. The
+of at least 15) has not been run. A cylinder point at 3.1 to 23 s is 42
+to 320 times that figure, so the target is not met on any reading of it. The
 lever named is to contract the emission before the scan, so that one
 function is transported along each line instead of :math:`N` (#591).
-On the cylinder the reading is slower still since the grading law grades
-every panel top to the slowest polar speed: `[M]` 2026-10-08, qa's second
-round, the three-region vacuum cylinder read at its interface took 136 s
-and 560 s at 8 and 16 line points, against 59 s and 216 s before the law
-(the test with its route; 2.3 and 2.6 times), accepted until #587 grades
-per polar angle (:ref:`characteristic-grading-law`).
+The grading law's cost on a reading at an interface was measured on the
+tensor rule only: `[M]` 2026-10-08, qa's second round, the three-region
+vacuum cylinder read at its interface took 136 s and 560 s at 8 and 16
+line points, against 59 s and 216 s before the law (the test with its
+route; 2.3 and 2.6 times); it has not been re-timed on the iterated rule
+(:ref:`characteristic-grading-law`).
 
 
 .. _characteristic-what-is-not-built:
@@ -5430,12 +5689,16 @@ issue is #405):
   depends on the direction is refused, as an anisotropic emission is;
   both need an angular basis on each line;
 - **an error bound**: every reading is ``Uncertified`` (#566);
-- **a cylinder rule over** :math:`(b, \theta)` **that is not a tensor
-  product**, which would cut the cylinder's line count and let the
-  grading law follow each polar angle instead of the slowest; the packed
-  inner rule made it unnecessary for the gates' blocks, and the point
-  reading's cost on the cylinder is accepted until it lands (#587,
-  :ref:`characteristic-cylinder-cost`, :ref:`characteristic-grading-law`);
+- **a cylinder polar rule graded per impact panel**: the rule over
+  :math:`(b, \theta)` is iterated in :math:`b`, each polar angle carrying
+  an impact rule graded at its own speed
+  (:ref:`characteristic-iterated-cylinder-rule`), but the polar rule is
+  the same at every impact parameter, graded toward grazing over the whole
+  body, and on the ``ABA`` cylinder the polar nodes below
+  :math:`\sin\theta = 0.01` carry 57 536 of its 102 320 lines per block.
+  Grading :math:`\theta` per impact panel would cut them; it is not built
+  and its saving is not measured (#587,
+  :ref:`characteristic-cylinder-cost`);
 - **a point extremely near the sphere's centre or the cylinder's axis**:
   a point closer than :math:`1.5 \times 10^{-154}` is refused, its squares
   underflowing (#582, :ref:`characteristic-reading`);
@@ -7147,3 +7410,17 @@ History
        the point's cost against the spec's target is #591.
      - ``b76b9a9d``
      - #405, #585, #587, #590, #591
+   * - 2026-10-08
+     - The cylinder's rule over :math:`(b, \theta)` became iterated
+       (#587, its first half): the grading law's speed-free data per
+       impact panel became one value, ``ImpactPanels`` (its ``of``,
+       ``distances`` and ``rule``), and ``impact_per_polar`` builds each
+       polar angle's impact rule at its own projected speed, so the
+       ``slowest`` argument, ``tangency_distances`` and ``impact_by_polar``
+       retired. On the ``ABA`` cylinder the block went from 308 480 lines
+       and 2296 s to 102 320 lines and 1275 s, the same k to
+       :math:`8.3 \times 10^{-15}`; the sphere and the slab are
+       bit-identical. Grading the polar angle per impact panel, #587's
+       other half, was left open.
+     - ``200b4233``
+     - #405, #587

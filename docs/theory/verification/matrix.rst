@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **17335**
+Total tests collected: **17340**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2645, 15.3%
    L2, 79, 0.5%
    L3, 0, 0.0%
-   foundation, 12822, 74.0%
+   foundation, 12827, 74.0%
    unmarked, 35, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 17221
+   explicit, 17226
    class-name, 46
    func-name, 0
    case, 33
@@ -177,10 +177,10 @@ Module × level grid
    derivations/test_case_method_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_case_method_x_function, 2, 3, 0, 0, 0, 0
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
-   derivations/test_characteristic_assembly, 0, 110, 5, 0, 65, 0
+   derivations/test_characteristic_assembly, 0, 110, 5, 0, 67, 0
    derivations/test_characteristic_basis, 0, 0, 0, 0, 271, 0
    derivations/test_characteristic_closure, 125, 0, 0, 0, 9, 0
-   derivations/test_characteristic_reading, 0, 135, 3, 0, 37, 0
+   derivations/test_characteristic_reading, 0, 135, 3, 0, 40, 0
    derivations/test_characteristic_reference, 12, 38, 0, 0, 45, 1
    derivations/test_characteristic_system, 2, 67, 0, 0, 11, 0
    derivations/test_characteristic_transport, 51, 0, 0, 0, 53, 0

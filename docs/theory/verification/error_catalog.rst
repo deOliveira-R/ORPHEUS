@@ -10078,11 +10078,12 @@ older entries classify against.
    ``p2_block_and_cyl.py``).
 
    **Module:** ``orpheus/derivations/continuous/characteristic/lines.py``
-   (:func:`~orpheus.derivations.continuous.characteristic.lines.tangency_distances`,
-   read by
+   (:class:`~orpheus.derivations.continuous.characteristic.lines.ImpactPanels`,
+   whose ``distances`` carries the pole term and is read by
    :func:`~orpheus.derivations.continuous.characteristic.lines.impact_rule`;
-   at the defect, the private ``_impact_rule`` of ``assembly.py``). Theory:
-   :ref:`characteristic-grading-law`.
+   at the defect, the private ``_impact_rule`` of ``assembly.py``; at the
+   fix, ``tangency_distances``, which #587 split into ``ImpactPanels``).
+   Theory: :ref:`characteristic-grading-law`.
 
    **Failure mode:** none of the six AI modes: a numerical-method defect in
    a **reference**, a quadrature graded toward one feature of its integrand
@@ -10168,20 +10169,27 @@ older entries classify against.
    by qa (its F2, ``scratch/characteristic_architecture/p1_step_b5b/qa/p2_block_and_cyl.py``).
 
    **Module:** ``orpheus/derivations/continuous/characteristic/lines.py``
-   (:func:`~orpheus.derivations.continuous.characteristic.lines.tangency_distances`,
-   the layer term; at the defect, the private ``_impact_rule`` of
-   ``assembly.py``). Theory: :ref:`characteristic-grading-law`.
+   (:meth:`ImpactPanels.distances
+   <orpheus.derivations.continuous.characteristic.lines.ImpactPanels.distances>`,
+   the layer term, and
+   :func:`~orpheus.derivations.continuous.characteristic.lines.impact_per_polar`,
+   which grades each polar angle at its own speed; at the defect, the
+   private ``_impact_rule`` of ``assembly.py``; at the fix,
+   ``tangency_distances``, retired in #587). Theory:
+   :ref:`characteristic-grading-law`,
+   :ref:`characteristic-iterated-cylinder-rule`.
 
    **Failure mode:** none of the six AI modes: a numerical-method defect in
-   a **reference**, a feature whose width is set by another coordinate of
-   a tensor rule. A line turning just inside :math:`r_{k+1}` crosses the
-   turning slot, in-plane length :math:`2y`, with transmission
+   a **reference**, a feature in one coordinate whose width is set by
+   another coordinate. A line turning just inside :math:`r_{k+1}` crosses
+   the turning slot, in-plane length :math:`2y`, with transmission
    :math:`e^{-2\Sigma_k y/s}`, an exponential layer of width
    :math:`s/(2\Sigma_k)` in :math:`y`. On the sphere :math:`s = 1` and the
-   exponential rim grading resolves it; on the cylinder :math:`s = \sin\theta`
-   and the tensor rule applies the impact rule at every polar angle,
-   down to :math:`\sin\theta_{\min} \approx 10^{-7}`, so the layer is graded
-   at the slowest speed or not at all.
+   exponential rim grading resolves it; on the cylinder
+   :math:`s = \sin\theta`, down to :math:`\sin\theta_{\min} \approx
+   10^{-7}` on the gates' bodies. The rule was then a tensor product,
+   which applied one impact rule at every polar angle, so the layer could
+   be graded at the slowest speed or not at all.
 
    **What it did.** `[M]` 2026-10-08, the three-region vacuum cylinder at
    8 line points against Bickley's :math:`\mathrm{Ki}_2` route: on the wall
@@ -10203,13 +10211,17 @@ older entries classify against.
    rim 0 on 2 of 2 cylinder fixtures, so the wall's improvement was the
    floor's and the layer term went unexercised.
 
-   **Fix.** The grading law's layer term at every impact-panel top, at the
-   slowest projected speed the rule samples
-   (:ref:`characteristic-grading-law`). `[M]` qa's second round: the
-   interface :math:`1.4 \times 10^{-15}` and :math:`2.2 \times 10^{-16}` at 8
-   and 16 line points; the cost of the reading there 2.3 and 2.6 times the
-   ungraded rule's, accepted until a non-tensor rule grades per polar
-   angle (#587).
+   **Fix.** The grading law's layer term at every impact-panel top
+   (:ref:`characteristic-grading-law`), first in ``b76b9a9d`` at the
+   slowest projected speed the tensor rule sampled. `[M]` qa's second
+   round: the interface :math:`1.4 \times 10^{-15}` and
+   :math:`2.2 \times 10^{-16}` at 8 and 16 line points, at 2.3 and 2.6 times
+   the ungraded rule's cost of the reading there. #587 made the rule
+   iterated (``200b4233``): each polar angle's impact rule is graded at its own
+   :math:`\sin\theta` (:ref:`characteristic-iterated-cylinder-rule`).
+   `[M]` 2026-10-08: the ``ABA`` cylinder's block went from 308 480 lines to
+   102 320 for the same k to :math:`8.3 \times 10^{-15}`, and qa measured
+   the readings above unchanged within :math:`2 \times 10^{-15}`.
 
    **Caught by:**
    ``tests/gates/derivations/test_characteristic_reading.py::test_a_small_cylinders_layer_is_graded_outside_slow``,
@@ -10221,10 +10233,13 @@ older entries classify against.
    cylinder's interface row, ``test_a_cylinders_interface_point_is_read_to_the_bar``
    (``slow``), was written as a catcher and has not been re-dropped.
 
-   **Lesson.** ⭐ **In a tensor rule a feature's width can be set by the
-   other coordinate: grade each coordinate at the extreme value the other
-   samples, or make the rule non-tensor; and gate the feature where the
-   point's measure weights it, at every radius, not only the wall.**
+   **Lesson.** ⭐ **When a feature's width in one coordinate is set by
+   another coordinate, integrate iteratively and grade the inner rule at
+   each outer node's own value (a tensor rule must grade at the extreme
+   value the other coordinate samples, and pays for it at every other
+   node: 3.0 times the lines on the ABA cylinder); and gate the feature
+   where the point's measure weights it, at every radius, not only the
+   wall.**
 
 .. error-entry:: ERR-106
    :title: The characteristic reference chorded each line from its stored impact parameter b, known to an ulp, which near a tangency loses the half-chord: a sphere's wall reading under a partial mirror drifted as about 3e-15/(1 − a) at every resolution (6.6e-12 at a = 0.999), and nodes graded below b's resolution made tangent lines the block dropped silently
