@@ -1545,7 +1545,31 @@ The outermost panel (τ_out = 0) is today's rim law, and the next radius out sti
 - (e), the old family retired with its dependency-audit table;
 - (f), the theory page.
 
-Before (c), weigh #591 and #587: the SN fixtures include cylinders, and the corroboration reads points.
+**Before (c), measure where the cost lands.** Spec §7's corroboration rows read:
+- G1 and G3, the `ABA` sphere and cylinder k: eigenvalues;
+- G2, a shape metric: cell averages through the flux-integral pairing, which reads no point;
+- G4, the partial reflectors on a slab and a sphere;
+- G5, Garcia Case 1: points, on a sphere (cheap: 56 lines a point).
+
+So #591's point cost reaches (c) only through G5, on a sphere. What can reach it is the cylinder's BLOCK: the grading law (`lines.tangency_distances`) grades every impact-panel top at the tensor rule's slowest polar speed in the line rule too, so the block's line count grew with the reading's. That growth was 3.6 to 5.3 times on the point rule (the archivist); on the block it is not yet measured `[R]`.
+
+The first measurement of the next session:
+- the `ABA` cylinder solve (the G3 fixture, `scratch/reference_architecture/p3/oracle_hoist/bitexact.py`'s geometry) on the final tree, wall time and line count, against rung 4's cylinder solve;
+- then a ruling on whether #587, the non-tensor (b, θ) rule, precedes (c).
+
+**Read in order, for step (c):**
+1. The P1 sketch, item 9 (the migration order).
+2. `scratch/characteristic_architecture/p1_verification_spec.md` §7 (the 13 SN rows, the corroboration file's G rows, the AST and spy preconditions, the positive controls) and §9 (X4: the new reference's independence from the SN solver it judges).
+3. `characteristic.rst`, sections `characteristic-grading-law`, `characteristic-reading` and `characteristic-door`.
+4. P0's L4 corroboration pattern, the model for the file's delete-this-row rows (`retirement-audit` D.14).
+5. #587 and #591.
+
+**Costs to plan with** `[M]` 2026-10-08:
+- **Gate files:** `test_characteristic_reading.py` with `test_chord_level.py` and the door row, outside slow: 173 rows in about 155 s. Their 15 slow rows take about 26 min.
+- **Characteristic and geometry together**, outside slow: 2562 rows in about 10 min.
+- **Pre-merge:** the touched trees outside slow (derivations, geometry, numerics, specification, reference, homogeneous, data, and the SN question rows) take 30 min, beyond the 30-minute default background limit, so run them with the 2-hour limit. The CI set takes about 1 min.
+- **Sphinx `-W`:** about 30 min.
+- **One cylinder point:** 5 to 43 s (#591).
 
 **Open issues from this campaign:** #584, #585, #587, #588, #589, #591.
 
@@ -1556,3 +1580,7 @@ Before (c), weigh #591 and #587: the SN fixtures include cylinders, and the corr
 - `ta/battery/` (`run.sh <arm>`, `verdicts.md`);
 - the measurement probes under `main/`: `smoke*.py`, `kernel_bitwise.py`, `level_tolerance.py`, `budget_sweep.py`, `touched.sh`;
 - `archivist_point_cost*.py`.
+
+**Two process checks this rung paid for:**
+- **Build Sphinx on a code commit's own tree before pushing it,** when it retires a docs target (`b76b9a9d` was red on its own).
+- **Strip `catches` markers from a code commit whose ERR entries land in the docs commit.** Copy the files aside, remove the marker lines, commit, restore, and check with `diff -q`. Markers and entries then land together, and the reconciliation test stays green at each commit.
