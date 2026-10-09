@@ -14,10 +14,16 @@ foundation only).
 that the old spelling's module does not import the kernel, and, at run time,
 that evaluating the old spelling makes 0 calls into the kernel's entry points
 (``ConcentricPartition.chord``, ``ConcentricPartition.region_containing``,
-``Chart.image``, ``Chart.orbit_coordinate``). The AST leg reads direct imports in 6 of 6 shapes and misses
-indirect ones in 4 of 4 (qa ``p5.py``: a helper module, attribute access through
-``orpheus.geometry``, ``from orpheus import geometry``, ``importlib`` by string);
-the runtime leg sees every route that reaches the kernel. When a spelling
+``Chart.image``, ``Chart.orbit_coordinate``). Both legs live in
+``tests/gates/_corroboration.py``, shared with the characteristic reference's
+corroboration file. When this file landed the AST leg read direct imports in 6
+of 6 shapes and missed indirect ones in 4 of 4 (qa ``p5.py``: a helper module,
+attribute access through ``orpheus.geometry``, ``from orpheus import geometry``,
+``importlib`` by string); the shared leg now also reads attribute chains on an
+imported name (and its literal ``getattr`` spelling) and module names in strings, and the helper module's shape is
+the transitive leg's (``assert_closure_independent``), which this file does
+not call. The runtime leg counts every code object of the kernel modules that runs
+(``sys.monitoring``), so it sees every in-process route into the kernel. When a spelling
 migrates, its row turns RED (the comparison would be the kernel compared with
 itself through a facade: ``retirement-audit`` D.14, D.16), and the migration
 commit deletes that row. The file is gone when its last row is.
@@ -28,10 +34,7 @@ mu in [-1, 1]), where the three old spellings agreed to 7e-14 relative.
 """
 from __future__ import annotations
 
-import ast
-import importlib
-import importlib.util
-import inspect
+from collections.abc import Iterator
 
 import numpy as np
 import pytest
@@ -40,9 +43,20 @@ from orpheus.geometry.chart import Chart, RadialImage
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.line import Line
+from tests.gates import _corroboration as corroboration
 
 _EPS = np.finfo(float).eps
-_KERNEL = ("orpheus.geometry.chord", "orpheus.geometry.line", "orpheus.geometry.chart")
+#: The kernel, and the entry points the runtime leg counts (``tests/gates/_corroboration.py`` holds both legs).
+KERNEL = corroboration.NewSide(
+    modules=("orpheus.geometry.chord", "orpheus.geometry.line", "orpheus.geometry.chart"),
+    entry_points=(
+        "ConcentricPartition.chord",
+        "ConcentricPartition.region_containing",
+        "Chart.image",
+        "Chart.orbit_coordinate",
+    ),
+    label="the kernel",
+)
 # [M] 2026-10-05, seed 20261005: the largest ratio of |kernel - old| to
 # eps R (r + R)/h over the 1000 draws was 1.59 for each old spelling, 1.80 on the
 # restructured kernel (scaled |P Omega|). The constant was set at 16 (10x the
@@ -53,27 +67,7 @@ _JOIN_C = 16.0
 
 def _assert_independent(module_name: str) -> None:
     """The precondition: ``module_name`` imports no kernel module (else this row is a tautology; delete it)."""
-    module = importlib.import_module(module_name)
-    tree = ast.parse(inspect.getsource(module))
-    found = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.level > 0:          # a relative import, resolved
-            base = importlib.util.resolve_name("." * node.level + (node.module or ""), module.__package__)
-            node = ast.ImportFrom(module=base, names=node.names, level=0)
-        if isinstance(node, ast.ImportFrom) and node.module:
-            names = [node.module] + [f"{node.module}.{a.name}" for a in node.names]
-        elif isinstance(node, ast.Import):
-            names = [a.name for a in node.names]
-        else:
-            continue
-        found += [n for n in names if any(n == k or n.startswith(k + ".") for k in _KERNEL)]
-        if isinstance(node, ast.ImportFrom) and node.module == "orpheus.geometry":
-            found += [a.name for a in node.names if a.name in {"Chart", "Line", "ConcentricPartition", "Chord", "Crossings"}]
-    if found:
-        raise AssertionError(
-            f"{module_name} now imports the kernel ({found}): this corroboration row compares the kernel "
-            f"with itself; delete it in the migration commit (retirement-audit D.14)"
-        )
+    corroboration.assert_independent([module_name], KERNEL)
 
 
 def test_the_independence_precondition_sees_a_kernel_import() -> None:
@@ -81,56 +75,26 @@ def test_the_independence_precondition_sees_a_kernel_import() -> None:
 
     ``orpheus.geometry.chord`` imports the line and the chart absolutely; a
     module written with ``from .chord import ...`` is the relative shape,
-    checked on a synthetic source.
+    checked on a synthetic source through the same leg.
     """
     with pytest.raises(AssertionError, match="this corroboration row compares the kernel"):
         _assert_independent("orpheus.geometry.chord")
-    node = ast.parse("from .chord import ConcentricPartition").body[0]
-    assert isinstance(node, ast.ImportFrom)
-    assert importlib.util.resolve_name("." * node.level + (node.module or ""), "orpheus.geometry") == "orpheus.geometry.chord"
-
-
-_ENTRY_POINTS = (
-    ("ConcentricPartition", "chord"),
-    ("ConcentricPartition", "region_containing"),
-    ("Chart", "image"),
-    ("Chart", "orbit_coordinate"),
-)
+    with pytest.raises(AssertionError, match=r"now imports the kernel \(\{'import': \['orpheus\.geometry\.chord'"):
+        corroboration.assert_source_independent(
+            "a module of orpheus.geometry", "from .chord import ConcentricPartition", "orpheus.geometry", KERNEL,
+        )
 
 
 @pytest.fixture
-def kernel_calls(monkeypatch: pytest.MonkeyPatch) -> dict[str, int]:
-    """A counting spy on the kernel's entry points; the dict maps ``Class.method`` to its call count."""
-    import orpheus.geometry.chart as chart_module
-    import orpheus.geometry.chord as chord_module
-
-    owners = {"ConcentricPartition": chord_module.ConcentricPartition, "Chart": chart_module.Chart}
-    counts: dict[str, int] = {}
-    for owner, name in _ENTRY_POINTS:
-        cls = owners[owner]
-        original = getattr(cls, name)
-        key = f"{owner}.{name}"
-        counts[key] = 0
-
-        def counted(*args, _original=original, _key=key, **kwargs):
-            counts[_key] += 1
-            return _original(*args, **kwargs)
-
-        monkeypatch.setattr(cls, name, counted)
-    return counts
+def kernel_calls(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, int]]:
+    """A counting spy on the kernel's entry points and code; the dict maps ``Class.method`` (or a function) to its call count."""
+    with corroboration.spy(monkeypatch, KERNEL) as counts:
+        yield counts
 
 
 def _without_kernel(counts: dict[str, int], old, *args):
     """Evaluate the old spelling and require that it reached no kernel entry point (the runtime independence leg)."""
-    before = dict(counts)
-    value = old(*args)
-    reached = {k: counts[k] - before[k] for k in counts if counts[k] != before[k]}
-    if reached:
-        raise AssertionError(
-            f"the old spelling called the kernel ({reached}): this corroboration row compares the kernel "
-            f"with itself; delete it in the migration commit (retirement-audit D.14)"
-        )
-    return value
+    return corroboration.without(counts, KERNEL, old, *args)
 
 
 def test_the_runtime_independence_leg_sees_a_kernel_call(kernel_calls: dict[str, int]) -> None:

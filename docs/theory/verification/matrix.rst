@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **17340**
+Total tests collected: **17350**
 
 V&V level distribution
 ----------------------
@@ -19,11 +19,11 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1754, 10.1%
-   L1, 2645, 15.3%
+   L1, 2645, 15.2%
    L2, 79, 0.5%
    L3, 0, 0.0%
-   foundation, 12827, 74.0%
-   unmarked, 35, 0.2%
+   foundation, 12827, 73.9%
+   unmarked, 45, 0.3%
 
 Tagging source
 --------------
@@ -38,7 +38,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 35
+   unmarked, 45
 
 Module × level grid
 -------------------
@@ -182,6 +182,7 @@ Module × level grid
    derivations/test_characteristic_closure, 125, 0, 0, 0, 9, 0
    derivations/test_characteristic_reading, 0, 135, 3, 0, 40, 0
    derivations/test_characteristic_reference, 12, 38, 0, 0, 45, 1
+   derivations/test_characteristic_reference_corroboration, 0, 0, 0, 0, 0, 10
    derivations/test_characteristic_system, 2, 67, 0, 0, 11, 0
    derivations/test_characteristic_transport, 51, 0, 0, 0, 53, 0
    derivations/test_characteristic_walls, 19, 0, 0, 0, 31, 0
@@ -1764,7 +1765,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**35 tests** have no V&V level marker.
+**45 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1776,6 +1777,7 @@ taxonomy.
    :header: File, Unmarked tests
    :widths: 60, 10
 
+   ``tests/gates/derivations/test_characteristic_reference_corroboration.py``, 10
    ``tests/gates/numerics/test_riesz_legs.py``, 8
    ``tests/gates/geometry/test_kernel_corroboration.py``, 7
    ``tests/gates/numerics/test_frame.py``, 5
