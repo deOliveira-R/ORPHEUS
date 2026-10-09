@@ -1584,3 +1584,76 @@ The first measurement of the next session:
 **Two process checks this rung paid for:**
 - **Build Sphinx on a code commit's own tree before pushing it,** when it retires a docs target (`b76b9a9d` was red on its own).
 - **Strip `catches` markers from a code commit whose ERR entries land in the docs commit.** Copy the files aside, remove the marker lines, commit, restore, and check with `diff -q`. Markers and entries then land together, and the reconciliation test stays green at each commit.
+
+## #587 before step (c): the measurement and the ruling (2026-10-08)
+
+**The measurement** `[M]` 2026-10-08, `scratch/characteristic_architecture/p1_step_c/aba_cyl_cost.py` (logs `cost_5a.log`, `cost_head.log`). The `ABA` fixture (`aba_specification`, two groups, reflective) at resolution (3, 2, 0.4, (8, 12, 12), 8), the k eigenvalue through `CharacteristicDerivation`, one process each, the traced memo bypassed. "Rung 5a" is the tree at `fe977a90`, before the grading law; "current" is `11b263a5`.
+
+| body | rung 5a | current |
+|---|---|---|
+| sphere | 0.7 s; 240 and 256 lines per group block | 0.7 s; 240 and 280 lines |
+| cylinder | 384 s; 38 400 and 38 912 lines; k = 1.231729452890078 | 2296 s; 308 480 and 297 920 lines; k = 1.231729452890264 |
+
+The cylinder's lines grew 8.0 times and its time 6.0 times, and k moved by 1.5e-13 relative. On this reflective body (amplitude 1, so no pole) the extra lines come from the layer term s/(2Σ_k), graded at the tensor rule's slowest polar speed at every polar angle. Rung 5a's k lies 5.7e-4 relative from the old family's 1.231036749830859, inside G3's 1.9e-3.
+
+**The ruling** (the user, 2026-10-08): #587 precedes step (c). It is a W3 carve, with an API sketch before any code.
+
+**The probe of the per-angle rule** `[M]` 2026-10-08 (`p1_step_c/iterated_probe.py`, `iterated.log`; `per_theta_counts.py`). The probe patches `LineRule.of` in memory so that each polar node θ_j gets its own impact rule, graded at sin θ_j. On the same fixture it gives:
+- 102 320 and 106 784 lines;
+- 1275 s;
+- k = 1.231729452890254, 8e-15 from today.
+
+The cost by polar angle, for group 0's 160 polar nodes: 51 sit at sin θ < 0.01 and carry 57 536 of the 102 320 lines. The polar rule's own grazing grading, down to τ_min/64 of the whole body, puts them there. That is #587's other half (grade θ per impact panel), which is not measured.
+
+**The sketch, ruled 2026-10-08 ("Approve per-angle").**
+1. `tangency_distances` splits in two:
+   - `Tangencies.of(chart, ends, sigma, amplitude)` holds, per panel top, the next radius's half-chord, τ_out and the pole's −ln a, from one chord of the tangent lines;
+   - `Tangencies.distances(speed)` gives the distance per panel at that speed.
+2. `impact_by_polar` retires. `impact_per_polar(impact_at, polar, impact_weights, polar_weights)` builds the iterated rule.
+3. `LineRule.of` and `PointRule.of` (with `_impact_below`) take it, and `slowest` retires. The sphere and the slab are unchanged bit for bit.
+4. Docs:
+   - in `characteristic.rst` (the grading law, the cost sections, the list of what is not built) and in ERR-105, the law's s becomes each line's own speed;
+   - the test-architect writes the gates (the structural per-angle gate, red on the tensor rule);
+   - C9, T_w, conservation and the ERR-104/105 catchers stay unchanged.
+
+After it lands, the polar half is measured by a probe and comes back as its own question.
+
+Branch `refactor/cylinder-iterated-rule`.
+
+## #587's first half landed (2026-10-09)
+
+`[LANDED 200b4233]` (code) and `1004a666` (docs). CI `gates` is red on `200b4233` alone and green on `1004a666`. The cylinder's line rule is iterated: each polar node's impact rule is graded at its own sin θ. The rule has two parts:
+- `lines.ImpactPanels`, with its methods `of`, `distances(speed)` and `rule(points, speed, below)`;
+- `lines.impact_per_polar(impact_at, polar)`, which returns plain db·dθ weights; each role then applies its own density.
+
+The ABA cylinder holds 102 320 and 106 784 lines per block, against 308 480 under the tensor rule, for the same k to 8e-15. The sphere and the slab are bit-identical, 86 of 86 rules.
+
+**Evidence:**
+- qa: no reading moved by more than 1e-15. Grading at speed 1 moves the interface reading by 1.3e-7. (`p1_step_c/qa.md`)
+- The test-architect's battery (`p1_step_c/ta/battery/`, ported to the final names): the five per-angle gate rows are the only catchers of the "slowest" mutation. The ERR-104 and ERR-105 arms redden their catchers.
+- Characteristic and geometry outside slow: 2572 passed.
+- The CI set plus the traced memo: 1540 passed.
+- Sphinx `-W` clean; `dead_references` 0 of 66.
+
+The archivist re-measured the point reading on a loaded host (load 6 to 10):
+
+| cylinder | lines before | lines now | time before | time now |
+|---|---|---|---|---|
+| one region | 19 584 | 8544 | 4.94 s | 3.08 s |
+| three regions | 44 992 | 15 704 | 42.8 s | 23.4 s |
+
+**Found in review and fixed before the commit:**
+- The slab's `LineRule.of` raised, because the impact panels were built before the match on the chart (the test-architect).
+- The elegance review's three concerns:
+  - the panels are now held with their features, so the builder is not twinned;
+  - the role's measure is applied after the iterated rule, so it is no longer welded into it;
+  - the `zip` now has `strict=True`.
+- qa's F2: a speed of 0 gave NaN; it now gives 0.
+
+**A process check this carve paid for:** when a code commit adds or removes gate rows, the regenerated `docs/theory/verification/matrix.rst` belongs in the code commit, not the docs commit. Otherwise CI's "the build changed no tracked file" step reddens the code commit on its own. This is the second rung in a row with a red code commit. Both times the red was a generated or derived docs artefact riding in the docs commit.
+
+**Open in #587:**
+- the polar rule graded per impact panel. 51 of the 160 polar nodes sit at sin θ < 0.01 and carry 57 536 of the 102 320 lines. Not measured.
+- #587's done-when, the three-region cylinder block at 16 points under about 3 minutes, is not measured.
+
+**Next:** measure the polar half with a probe and bring it back as its own question (the ruling of 2026-10-08). Then P1 step (c). The ABA cylinder k solve now costs about 21 minutes, from the single probe run.
