@@ -1657,3 +1657,107 @@ The archivist re-measured the point reading on a loaded host (load 6 to 10):
 - #587's done-when, the three-region cylinder block at 16 points under about 3 minutes, is not measured.
 
 **Next:** measure the polar half with a probe and bring it back as its own question (the ruling of 2026-10-08). Then P1 step (c). The ABA cylinder k solve now costs about 21 minutes, from the single probe run.
+
+## The polar half refuted; step (c) next (2026-10-09)
+
+The polar half of #587 (grade the polar angle per impact panel) is refuted for the question "does it cut the ABA cylinder's lines". `[M]` 2026-10-09, `p1_step_c/polar_half_scales.py`:
+- The panel basis's thinnest panel is the outer-wall panel [1.96, 2.0], 0.02 and 0.04 optical in groups 0 and 1.
+- Every line crosses it, so each impact panel's polar rule keeps the body's 160 or 152 nodes.
+- The fact it establishes: the polar grazing grading is set by the outer wall's panel.
+
+The remaining idea, a polar weight absorbing sin²θ, is unmeasured and stays in #587.
+
+**Ruled (the user, 2026-10-09):** proceed to P1 step (c). Accept about 21 minutes per ABA cylinder solve, from the single probe run of 1275 s.
+
+## Step (c): the context and four rulings (2026-10-09)
+
+**Context.** The explorer's map is `p1_step_c/explorer_c.md`, with its probes in `p1_step_c/explorer/`.
+
+P0's pattern is `tests/gates/geometry/test_kernel_corroboration.py`. It has three parts:
+- an AST precondition, `_assert_independent`;
+- a runtime spy, the `kernel_calls` fixture with `_without_kernel`;
+- two positive controls.
+
+It carries no markers.
+
+Independence today: 0 of 20 old modules import the new package, and 0 of 12 new modules import the old.
+
+The old door serves G1–G3 only, through `aba_specification`. G4 and G5 call the old array solvers directly.
+
+Preliminary readings, not gates:
+
+| row | measured | spec tolerance | status |
+|---|---|---|---|
+| G1 | 8.33e-5 | 3.22e-4 | within |
+| G2 | 4.05e-5 of M | 1.37e-3 | within |
+| G3 | 5.63e-4 | 1.9e-3 | within |
+| G4 slab | 3.28e-5 | 2.5e-5 | red |
+| G4 sphere | 4.13e-5 | 1e-4 | within |
+| G5 interior | ≤ 1.07e-3 | 1.43e-3 | within |
+| G5 at r = R | 2.26e-2 | 1.65e-2 | red |
+
+Both reds are the old reference's error:
+- The slab ladder converges at second order. Its limit matches the new value to 4e-7, and its finest rung errs by about 3.2e-5 by Richardson.
+- At the surface the old value is 2.3e-2 from Garcia, while the new is 1.2e-5 from Garcia.
+
+**Rulings (the user, 2026-10-09):**
+1. **G4 slab and G5 surface:** bounded by the old reference's MEASURED error, rounded up to one significant figure (`ceil_one_significant_figure`).
+   - The slab bound is Richardson on its ladder: 3.2e-5, giving 4e-5.
+   - The surface bound is the old value's distance from Garcia: 2.3e-2, giving 3e-2.
+   - Step (d) must re-point the SN Garcia rows, whose tolerance rests on the understated step.
+2. **G4 posed with `isotropic_mixture("A")`,** its arrays asserted `array_equal` to the old solver's inputs. Step (d) checks that the SN partial-reflector rows run at scattering order 0.
+3. **`slow` marks:** G1–G4 are slow; G5 runs in the default tier.
+4. **The file's shape, approved:**
+   - no level marker;
+   - an AST precondition over the old family's 20 modules;
+   - a runtime spy on the new entry points;
+   - the old side under `traced_memo.bypass()`;
+   - two positive controls, one of them a memoised stand-in that calls the new entry point;
+   - P0's `_assert_independent` and spy moved to a shared `tests/gates/_corroboration.py`, used by both files;
+   - rows named as declarative sentences.
+
+**Noted for later steps:**
+- Spec §9's claim that the reference reads albedos through `specular_albedos` is stale.
+- G2's tolerance input (`_trajectory_resolvent_ladders.py:46-49`) was measured on the retired nodal reading.
+- Step (e)'s blast radius includes P0's corroboration rows that import `chord_oracle` (their lines 188, 221, 253).
+
+## Step (c) landed (2026-10-09)
+
+`[LANDED 17708ac8]`. CI `gates` is green on the commit by itself: the regenerated `matrix.rst` rode in it, as the process check of #587's landing requires.
+
+**What landed:**
+- `tests/gates/derivations/test_characteristic_reference_corroboration.py`: 10 rows, with no level marker. G1–G4 are slow; G5 and the controls run in the default tier.
+- The shared `tests/gates/_corroboration.py`. P0's `test_kernel_corroboration.py` now uses it.
+
+**The readings** `[M]` 2026-10-09, the whole file plus P0's: 17 passed in 2667 s.
+
+| row | reading | tolerance |
+|---|---|---|
+| G1, ABA sphere k | 8.3e-5 | 3.2e-4 |
+| G2, ABA sphere shape | 4.0e-5 | 1.4e-3 |
+| G3, ABA cylinder k | 5.6e-4 | 1.9e-3 |
+| G4 slab | 3.28e-5 | 4e-5 (Richardson at the observed order 1.9465 gives 3.35e-5) |
+| G4 sphere | 4.1e-5 | 1e-4 |
+| G5 interior | ≤ 1.07e-3 | 1.43e-3 |
+| G5 at r = R | 2.26e-2 | 3e-2 (the old value's distance from Garcia) |
+
+So statement (i) of spec §7 holds: the new reference sits inside the old one's own error at every G row. Statement (ii), D9's error estimate of the new reference at each SN row's fixture against the old estimate, belongs to step (d).
+
+**Independence:**
+- Static legs: the old family's 20 modules, its three test helpers, and every member of their import closure (153 first-party modules) name nothing of the new package.
+- Runtime leg: the old side executes no code object of the new package. The leg counts through `sys.monitoring` under `traced_memo.bypass()`.
+- The legs' declared blind spots are in the helper's docstring.
+
+**Review:**
+- qa (`p1_step_c/qa_c/`): no old-side code runs outside `bypass()`, and the ceilings redden. Four findings, all fixed before the commit.
+- The test-architect's reds: `p1_step_c/ta_c/`.
+
+**Next: step (d).** Re-point the 13 SN rows. Re-baseline `CYLINDER_3REG_RECORD`'s `k_ref` and `phase_c_k_gap`; its three SN keys must not move. Check statement (ii) per row.
+
+Carried into (d):
+- The SN Garcia rows' tolerance rests on the understated step (1.65e-2 at the surface, against a measured old error of 2.3e-2).
+- Check that the SN partial-reflector rows run at scattering order 0.
+- Spec §9's `specular_albedos` claim is stale.
+- G2's tolerance input was measured on the retired nodal reading.
+
+Into (e): P0's corroboration rows that import `chord_oracle` are in the blast radius.
