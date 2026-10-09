@@ -9,7 +9,7 @@ resolve the transport are written once:
 * the **impact parameter** :math:`b` on the radial charts, panel by panel
   under the visibility-cone substitution :math:`y = \sqrt{r_{k+1}^2 - b^2}`
   (:func:`impact_rule`), graded toward every singularity of the line's
-  transport in :math:`y` (:func:`tangency_distances`);
+  transport in :math:`y` (:class:`ImpactPanels`);
 * the cylinder's **polar angle** and the slab's **cosine**, graded toward
   grazing and toward the normal (:func:`polar_rule`, :func:`cosine_rule`).
 
@@ -114,7 +114,7 @@ def impact_rule(ends: np.ndarray, sigma: np.ndarray, points: int, toward_tangenc
     the thickest panel from :math:`[r_k, r_{k+1}]` outward:
 
     * toward :math:`y = 0`, the nearest feature of the transport at the
-      tangency (:func:`tangency_distances`): the next radius out, just past
+      tangency (:class:`ImpactPanels`): the next radius out, just past
       the panel in :math:`b` but :math:`\sqrt{2 r\,\delta}` away in :math:`y`
       (measured 2026-10-06: on a sphere with a 1e-3 first region, Gauss in
       :math:`b` on the wide middle panel [0.52, 0.88] left 1e-6 at 8 points,
@@ -161,8 +161,9 @@ def impact_rule(ends: np.ndarray, sigma: np.ndarray, points: int, toward_tangenc
     return ImpactRule(*(np.concatenate(x) for x in (pts, wts, tops, chords)))
 
 
-def tangency_distances(chart: Chart, ends: np.ndarray, sigma: np.ndarray, amplitude: float, slowest: float) -> np.ndarray:
-    r"""Per impact panel, the distance in :math:`y` from the tangency :math:`b = r_{k+1}` to the nearest feature of a line's transport, ``(P,)``.
+@dataclass(frozen=True, eq=False)
+class ImpactPanels:
+    r"""The impact parameter's panels, and per panel the features of a line's transport near its tangency :math:`b = r_{k+1}`.
 
     A line of impact parameter just below :math:`r_{k+1}`, at
     :math:`y = \sqrt{r_{k+1}^2 - b^2} \to 0`, turns in panel :math:`k` across
@@ -181,16 +182,19 @@ def tangency_distances(chart: Chart, ends: np.ndarray, sigma: np.ndarray, amplit
       closure :math:`1/(1 - \Pi)` (:class:`~.closure.LinePeriod`) that nears
       the tangency where the shells above are thin or void and :math:`a \to 1`.
 
-    The distance is the nearest of the three, the last two at the slowest
-    speed the rule samples, ``slowest`` (1 on the sphere): both grow with
-    the speed. The pole is absent where the outer wall returns nothing
-    specularly and where it returns everything (``amplitude`` 1: the closure
-    is regular, the source integral vanishing with :math:`1 - \Pi`); a void
-    panel's transport does not change with :math:`y`. ``ends`` and ``sigma``
-    are the impact panels (:func:`impact_panels`), and :math:`\tau_{\rm out}`
-    and the next radius's half-chord are read from the kernel's chord of the
-    tangent lines :math:`b = r_{k+1}` through them, at unit speed, so no
-    chord length is spelled twice.
+    Their distances from the tangency are, in order, the next radius's
+    half-chord, :math:`s/(2\Sigma_k)` and
+    :math:`(s\,(-\ln a) + \tau_{\rm out})/(2\Sigma_k)`: the first is the
+    body's, the last two depend on the line's own speed :math:`s`. So the
+    speed-free data are held here per panel, read once, and graded per
+    speed by :meth:`distances`; :meth:`rule` builds the impact rule at a
+    speed. On the cylinder each polar angle's impact rule is graded at its
+    own :math:`\sin\theta` (#587, :func:`impact_per_polar`), and on the
+    sphere at 1.
+    The pole is absent where the outer wall returns nothing specularly and
+    where it returns everything (amplitude 1: the closure is regular, the
+    source integral vanishing with :math:`1 - \Pi`); a void panel's
+    transport does not change with :math:`y`.
 
     `[M]` 2026-10-08, rung 5b (qa and the test-architect), each at 8 line
     points before the layer and the pole were graded: a sphere's reading on
@@ -198,26 +202,76 @@ def tangency_distances(chart: Chart, ends: np.ndarray, sigma: np.ndarray, amplit
     :math:`1^{\mathsf T}K1` by 5.3e-10; a void outer region under
     :math:`a = 0.99` off by 5.1e-4 at the interface and 2.6e-6 in the block;
     a three-region cylinder off by 7.9e-8 on its vacuum wall and 1.0e-6 at
-    an interface.
+    an interface. Grading every polar angle at the slowest one instead of
+    its own cost the ``ABA`` cylinder 308 480 lines per block against
+    102 320, for the same k to 8e-15 (2026-10-08,
+    ``scratch/characteristic_architecture/p1_step_c/``).
+
+    Attributes
+    ----------
+    ends:
+        The impact panels' ends (:func:`impact_panels`), ``(P + 1,)``.
+    sigma:
+        Each panel's total cross section, ``(P,)``.
+    to_next_radius:
+        The half-chord of the next radius out at each panel top, ``(P,)``; infinite at the outermost.
+    outside:
+        :math:`\tau_{\rm out}`, the in-plane optical depth above each panel top along its tangent line, ``(P,)``.
+    pole:
+        :math:`-\ln a` of the outer wall, infinite where the closure has no pole.
     """
-    ends, sigma = np.asarray(ends, dtype=float), np.asarray(sigma, dtype=float)
-    tops = ends[1:]
-    unit_speed = np.zeros((tops.size, len(chart.line_domain().axes)))
-    unit_speed[:, 0] = tops
-    if unit_speed.shape[1] == 2:
-        unit_speed[:, 1] = np.pi / 2.0                                       # the cylinder's line normal to the axis
-    chord = ConcentricPartition(chart, tuple(ends)).chord(chart.line_domain().lines(unit_speed))
-    region = np.minimum(chord.slot_region, sigma.size - 1)
-    outside = np.sum(np.where(chord.slot_region < sigma.size, sigma[region] * chord.traversed_length, 0.0), axis=-1)
-    next_radius = np.append(chord.image.half_chord_at(ends)[np.arange(tops.size - 1), np.arange(2, ends.size)], np.inf)
-    pole = -np.log(amplitude) if 0.0 < amplitude < 1.0 else np.inf
-    with np.errstate(divide="ignore"):
-        transport = np.where(sigma > 0.0, np.minimum(slowest, slowest * pole + outside) / (2.0 * sigma), np.inf)
-    return np.minimum(next_radius, transport)
+
+    ends: np.ndarray
+    sigma: np.ndarray
+    to_next_radius: np.ndarray
+    outside: np.ndarray
+    pole: float
+
+    @classmethod
+    def of(cls, chart: Chart, ends: np.ndarray, sigma: np.ndarray, amplitude: float) -> "ImpactPanels":
+        r"""The impact panels of the panel partition ``ends`` of cross sections ``sigma`` (:func:`impact_panels`), under an outer
+        wall of specular amplitude ``amplitude``.
+
+        :math:`\tau_{\rm out}` and the next radius's half-chord are read from
+        the kernel's chord of the tangent lines :math:`b = r_{k+1}` through the
+        panels, at unit speed, so no chord length is spelled twice.
+        """
+        ends, sigma = impact_panels(np.asarray(ends, dtype=float), np.asarray(sigma, dtype=float))
+        tops = ends[1:]
+        unit_speed = np.zeros((tops.size, len(chart.line_domain().axes)))
+        unit_speed[:, 0] = tops
+        if unit_speed.shape[1] == 2:
+            unit_speed[:, 1] = np.pi / 2.0                                       # the cylinder's line normal to the axis
+        chord = ConcentricPartition(chart, tuple(ends)).chord(chart.line_domain().lines(unit_speed))
+        region = np.minimum(chord.slot_region, sigma.size - 1)
+        outside = np.sum(np.where(chord.slot_region < sigma.size, sigma[region] * chord.traversed_length, 0.0), axis=-1)
+        next_radius = np.append(chord.image.half_chord_at(ends)[np.arange(tops.size - 1), np.arange(2, ends.size)], np.inf)
+        pole = -np.log(amplitude) if 0.0 < amplitude < 1.0 else np.inf
+        return cls(ends, sigma, next_radius, outside, float(pole))
+
+    def distances(self, speed: float) -> np.ndarray:
+        r"""Per panel, the distance in :math:`y` from the tangency to the nearest feature of a line of projected speed ``speed``, ``(P,)``.
+
+        The layer's reach is the speed itself; the pole's, where the closure
+        has one, is :math:`s(-\ln a) + \tau_{\rm out}`.
+        """
+        reach = speed if np.isinf(self.pole) else np.minimum(speed, speed * self.pole + self.outside)
+        with np.errstate(divide="ignore"):
+            transport = np.where(self.sigma > 0.0, reach / (2.0 * self.sigma), np.inf)
+        return np.minimum(self.to_next_radius, transport)
+
+    def rule(self, points: int, speed: float, below: float | None = None) -> ImpactRule:
+        r"""The impact rule (:func:`impact_rule`) graded at the projected speed ``speed``, ``points`` per piece.
+
+        With ``below``, only the panels below that orbit coordinate carry
+        nodes (a point's rule, which has the point among its ends).
+        """
+        panels = None if below is None else int(np.searchsorted(self.ends, below))
+        return impact_rule(self.ends, self.sigma, points, self.distances(speed), panels)
 
 
 def outer_amplitude(walls: Walls, partition: ConcentricPartition) -> float:
-    r"""The specular amplitude of the body's outer wall, :math:`a` of :func:`tangency_distances`."""
+    r"""The specular amplitude of the body's outer wall, :math:`a` of :class:`ImpactPanels`."""
     return float(walls.on(partition).specular_at(np.array([partition.n_regions]))[0])
 
 
@@ -253,17 +307,25 @@ def cosine_rule(scale: OpticalScale, points: int) -> tuple[np.ndarray, np.ndarra
     return np.concatenate([-half.pts[::-1], half.pts]), np.concatenate([half.wts[::-1], half.wts])
 
 
-def impact_by_polar(impact: ImpactRule, polar: Quadrature1D, impact_weights: np.ndarray, polar_weights: np.ndarray):
-    r"""The cylinder's tensor product of an impact rule and a polar rule: coordinates ``(L, 2)``, weights ``(L,)``, levels.
+def impact_per_polar(impact_at: Callable[[float], ImpactRule], polar: Quadrature1D):
+    r"""The cylinder's iterated rule over :math:`(b, \theta)` for :math:`\mathrm db\,\mathrm d\theta`: coordinates ``(L, 2)``,
+    weights ``(L,)``, levels.
 
-    ``impact_weights`` and ``polar_weights`` are the factors of each line's
-    weight, per impact node and per polar node.
+    For each polar node :math:`\theta_j` the impact rule ``impact_at`` builds
+    at that line's own projected speed :math:`\sin\theta_j`, so each polar
+    angle is graded toward its own features (:meth:`ImpactPanels.distances`)
+    and never at a slower one's (#587). A role's own density over the lines
+    multiplies the weights after (:class:`~.assembly.LineRule`,
+    :class:`~.reading.PointRule`).
     """
-    b_grid, theta = np.meshgrid(impact.b, polar.pts, indexing="ij")
-    coordinates = np.stack([b_grid.ravel(), theta.ravel()], axis=-1)
-    weights = np.outer(impact_weights, polar_weights).ravel()
-    levels = tuple(np.repeat(x, polar.pts.size) for x in (impact.top, impact.half_chord))
-    return coordinates, weights, levels
+    coordinates, weights, tops, half_chords = [], [], [], []
+    for theta, polar_weight in zip(polar.pts, polar.wts, strict=True):
+        impact = impact_at(float(np.sin(theta)))
+        coordinates.append(np.stack([impact.b, np.full(impact.b.shape, theta)], axis=-1))
+        weights.append(impact.weights * polar_weight)
+        tops.append(impact.top)
+        half_chords.append(impact.half_chord)
+    return np.concatenate(coordinates), np.concatenate(weights), (np.concatenate(tops), np.concatenate(half_chords))
 
 
 @dataclass(frozen=True, eq=False)
@@ -397,6 +459,6 @@ class StackedSources:
 
 
 __all__ = [
-    "ImpactRule", "Lines", "OpticalScale", "StackedSources", "cosine_rule", "impact_by_polar", "impact_panels", "impact_rule",
-    "outer_amplitude", "polar_rule", "tangency_distances",
+    "ImpactRule", "Lines", "OpticalScale", "StackedSources", "ImpactPanels", "cosine_rule", "impact_panels", "impact_per_polar", "impact_rule",
+    "outer_amplitude", "polar_rule",
 ]

@@ -53,6 +53,7 @@ from orpheus.reference.reading import Uncertified
 from orpheus.specification.specification import GeometrySpecification
 from tests.gates.derivations import _characteristic_point_mp as mpref
 from tests.gates.derivations._characteristic_mp import specular_sphere_total
+from tests.gates.derivations.test_characteristic_assembly import assert_each_polar_angle_is_graded_at_its_own_speed
 from tests.gates.derivations.test_characteristic_system import (
     _ABS, _MIRROR, _PU2, _UP2N, _VACUUM, _WHITE, _basis, _mixture, _walls, _zero_d,
 )
@@ -408,9 +409,10 @@ def test_on_a_cylinders_partial_mirror_the_block_and_the_wall_reading_are_the_cl
     1^T K 1 equals the mpmath integral over lines (b, theta) to 1e-14, and its reading ON the wall equals the
     two-dimensional route to 1e-12, at the working resolution.
 
-    On the cylinder the rim's pole sits at -ln(a) sin(theta) / (2 Sigma), so the grading reaches the slowest polar
-    angle the rule samples, and below sqrt(2 R ulp(R)) in y the impact parameter rounds onto R (a tangent line with
-    no crossing). `[M]` 2026-10-08 (``ta/measure_cylinder_rim.log``): 1^T K 1 1.6e-15 at both albedos; the wall
+    On the cylinder the rim's pole sits at -ln(a) sin(theta) / (2 Sigma), so each polar angle's impact rule is graded
+    toward it at its own sin(theta) (#587), and below sqrt(2 R ulp(R)) in y the impact parameter rounds onto R (a
+    tangent line with no crossing). `[M]` 2026-10-08, before #587, when every angle was graded at the slowest
+    (``ta/measure_cylinder_rim.log``): 1^T K 1 1.6e-15 at both albedos; the wall
     4.3e-14 (0.9) and 3.4e-13 (0.99); 0 tangent lines among the point rule's. Positive control (the grading's floor
     at 0, ``measure_cylinder_rim_floor0.log``): 4 (0.9) and 52 (0.99) tangent lines, and the wall reading raises
     "lies on a transit". [The floor retires with the level (K, #590); this row's first red becomes the level
@@ -720,11 +722,35 @@ def test_a_small_cylinders_layer_is_graded_outside_slow(x: float) -> None:
     """[Q4 = qa F4; l1, REFERENCE] A small cylinder (radii 0.5, 1; Sigma (0.6, 2.4) and (1.7, 0.8); q (1, 0.7) and
     (0.4, 1.3); vacuum) read at its wall and at its interface, degree 2, layers 0, 8 line points, equals the Ki_2
     route to 1e-12: the fast catcher of G's layer term (on the sphere the layer is s = 1, graded by the exponential
-    ends; only the cylinder's slowest polar speed makes it thin). `[M]` 2026-10-08 (``ta/measure_widened.log``):
+    ends; only the cylinder's slow polar angles make it thin, each graded at its own sin(theta) since #587). `[M]`
+    2026-10-08, before #587 (``ta/measure_widened.log``):
     interface 4.5e-14 (5 s, the route 10 s), wall 4.8e-15 (37 s, slow); at degree 1 and 6 points 5.5e-11 and 4.6e-12, so
     the resolution is the row's. First red: G's layer term removed (the pole term only)."""
     _check_route("cylinder", (0.0, 0.5, 1.0), (_VACUUM,), x, resolution=(2, 0, 8, 8),
                  sigma=((0.6, 2.4), (1.7, 0.8)), q=((1.0, 0.7), (0.4, 1.3)))
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("x", "albedo"), [(1.0, 0.0), (0.5, 0.0), (1.0, 0.9)], ids=["wall", "interface", "wall-mirror"])
+@pytest.mark.rests_on(_ASSEMBLY + "test_each_polar_angle_carries_the_impact_rule_graded_at_its_own_speed")
+def test_each_polar_angle_through_a_point_carries_the_impact_rule_graded_at_its_own_speed(x: float, albedo: float) -> None:
+    """[Q4b, #587; foundation, THEOREM of the rule's construction] The cylinder's point rule is the line rule's
+    ITERATED rule below the point: at each polar node theta its lines are exactly ``impact_rule`` over the panels below
+    c, graded at the line's own projected speed sin theta by the hand-written law (``grading_distances`` of the
+    assembly file), with their exact levels, ``array_equal``. The weights carry the point's measure and are pinned by
+    the route rows (Q2, Q4, C2).
+
+    Activation: the small cylinder of Q4 under vacuum (the layer) and a = 0.9 (the pole); at the interface only the
+    inner panel carries nodes and its layer binds below the next radius out. `[M]` 2026-10-08
+    (``p1_step_c/ta/probe_small.log``): 13, 12 and 21 distinct per-angle counts; the row asserts more than one. First
+    reds as the line rule's row (``p1_step_c/ta/``): the tensor rule of ``11b263a5`` (127 of 128 polar nodes
+    differ), and the arms ``slowest``, ``no_layer``, ``no_pole``."""
+    breakpoints, sigma = (0.0, 0.5, 1.0), (0.6, 2.4)
+    basis = _basis("cylinder", breakpoints, 2, 0, 0.4)
+    lines = PointRule.of(basis, _walls("cylinder", breakpoints, ((albedo, 0.0),)), np.asarray(sigma), x, 8).lines
+    below = breakpoints.index(x)          # the point is a panel end, so the panels below it are the first ``below``
+    counts = assert_each_polar_angle_is_graded_at_its_own_speed(lines, breakpoints, sigma, albedo, 8, panels=below)
+    assert len(set(counts)) > 1, f"the fixture does not distinguish the polar speeds: {counts}"
 
 
 @pytest.mark.foundation

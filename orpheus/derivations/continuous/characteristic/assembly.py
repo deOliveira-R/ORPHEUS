@@ -84,8 +84,7 @@ from orpheus.numerics.content import ContentIdentity
 from .basis import PanelBasis
 from .closure import FULL_SOLID_ANGLE, DiffuseWalls, WallCoupling
 from .lines import (
-    Lines, OpticalScale, StackedSources, cosine_rule, impact_by_polar, impact_panels, impact_rule, outer_amplitude, polar_rule,
-    tangency_distances,
+    ImpactPanels, Lines, OpticalScale, StackedSources, cosine_rule, impact_per_polar, outer_amplitude, polar_rule,
 )
 from .transport import TraversalRule
 from .walls import Walls
@@ -179,18 +178,14 @@ class LineRule:
         ends = np.asarray(basis.partition.breakpoints)
         sigma = basis.on_panels(sigma_t)
         scale = OpticalScale.of(ends, sigma)
-        b_ends, b_sigma = impact_panels(ends, sigma)
-        amplitude = outer_amplitude(walls, basis.partition)
         levels = None
         match domain.shape:
             case LineShape.IMPACT:
-                impact = impact_rule(b_ends, b_sigma, points, tangency_distances(basis.regions.chart, b_ends, b_sigma, amplitude, 1.0))
+                impact = ImpactPanels.of(basis.regions.chart, ends, sigma, outer_amplitude(walls, basis.partition)).rule(points, 1.0)
                 coordinates, weights, levels = impact.b[:, None], impact.weights, (impact.top, impact.half_chord)
             case LineShape.IMPACT_POLAR:
-                polar = polar_rule(scale, points)
-                slowest = float(np.sin(polar.pts.min()))
-                impact = impact_rule(b_ends, b_sigma, points, tangency_distances(basis.regions.chart, b_ends, b_sigma, amplitude, slowest))
-                coordinates, weights, levels = impact_by_polar(impact, polar, impact.weights, polar.wts)
+                panels = ImpactPanels.of(basis.regions.chart, ends, sigma, outer_amplitude(walls, basis.partition))
+                coordinates, weights, levels = impact_per_polar(lambda speed: panels.rule(points, speed), polar_rule(scale, points))
             case LineShape.COSINE:
                 mu, weights = cosine_rule(scale, points)
                 coordinates = mu[:, None]

@@ -68,7 +68,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.characteristic import LineRule, PanelBasis, TrappedSource, Wall, Walls
-from orpheus.derivations.continuous.characteristic.lines import Lines
+from orpheus.derivations.continuous.characteristic.lines import Lines, impact_rule
 from orpheus.derivations.common.quadrature import composite_gauss_legendre, gauss_legendre
 from orpheus.derivations.continuous.characteristic.grading import graded_ends
 from orpheus.geometry.chart import Chart
@@ -201,6 +201,78 @@ def test_the_cylinders_direction_rule_is_gauss_in_the_polar_angle() -> None:
     # an absorbing cylinder: the polar angle is graded toward 0 (the grazing direction), never in mu_z
     graded = np.unique(_rule("cylinder", (0.0, 1.3), (_WHITE,), (1.0,), 8).lines.coordinates[:, 1])
     assert graded.min() < plain.pts.min() / 4, "the polar angle is not graded toward the grazing direction"
+
+
+#: The small two-region cylinder of the reading's ERR-105 row: Sigma (0.6, 2.4), degree 2, no layers (its panels are
+#: its regions).
+_SMALL_CYL = (0.0, 0.5, 1.0)
+
+
+def grading_distances(ends, sigma, albedo: float, speed: float) -> np.ndarray:
+    """The grading law by hand: per impact panel k of a radial body (``ends`` from 0, ``sigma`` per panel), the distance
+    in y = sqrt(r_{k+1}^2 - b^2) from the tangency to the nearest feature of a line of projected speed ``speed``.
+
+    The next radius out, sqrt(r_{k+2}^2 - r_{k+1}^2); the turning panel's layer, speed / (2 Sigma_k); the closure's
+    pole, (speed (-ln a) + tau_out) / (2 Sigma_k), tau_out the optical depth of the tangent line b = r_{k+1} above
+    the panel (two crossings of each shell), absent at a = 0 and a = 1; a void panel is not graded. Written from the
+    grading law's statement (``docs/theory/references/characteristic.rst``, the grading law), not from the code:
+    `[M]` 2026-10-08 it equals the production law to 2.7e-15 relative over 2 charts x 5 bodies x 5 albedos x
+    4 speeds (``scratch/characteristic_architecture/p1_step_c/ta/hand_law_probe.log``)."""
+    pole = -math.log(albedo) if 0.0 < albedo < 1.0 else math.inf
+    distances = []
+    for k, sigma_k in enumerate(sigma):
+        r = ends[k + 1]
+        next_radius = math.sqrt(ends[k + 2] ** 2 - r * r) if k + 2 < len(ends) else math.inf
+        tau_out = sum(sigma[j] * 2.0 * (math.sqrt(ends[j + 1] ** 2 - r * r) - math.sqrt(ends[j] ** 2 - r * r))
+                      for j in range(k + 1, len(sigma)))
+        transport = min(speed, speed * pole + tau_out) / (2.0 * sigma_k) if sigma_k > 0.0 else math.inf
+        distances.append(min(next_radius, transport))
+    return np.array(distances)
+
+
+def assert_each_polar_angle_is_graded_at_its_own_speed(lines: Lines, ends, sigma, albedo: float, points: int,
+                                                       panels: int | None = None) -> list[int]:
+    """Per polar node theta of ``lines``, the impact nodes and their levels equal ``impact_rule`` graded by
+    :func:`grading_distances` at sin theta, ``array_equal``; returns the per-angle node counts. The rule orders its
+    lines by projected speed, so each group is put back in b order first."""
+    if lines.levels is None:
+        raise AssertionError("a radial chart's lines carry their levels")
+    theta = lines.coordinates[:, 1]
+    counts = []
+    for node in np.unique(theta):
+        where = np.flatnonzero(theta == node)
+        order = where[np.argsort(lines.coordinates[where, 0], kind="stable")]
+        own = impact_rule(np.asarray(ends), np.asarray(sigma), points,
+                          grading_distances(ends, sigma, albedo, float(np.sin(node))), panels=panels)
+        by_b = np.argsort(own.b, kind="stable")
+        np.testing.assert_array_equal(lines.coordinates[order, 0], own.b[by_b], err_msg=f"theta {node!r}")
+        np.testing.assert_array_equal(lines.levels[0][order], own.top[by_b], err_msg=f"theta {node!r}")
+        np.testing.assert_array_equal(lines.levels[1][order], own.half_chord[by_b], err_msg=f"theta {node!r}")
+        counts.append(order.size)
+    return counts
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("albedo", [0.0, 0.9], ids=["vacuum-layer", "mirror-pole"])
+@pytest.mark.rests_on(_HERE + "test_the_cylinders_direction_rule_is_gauss_in_the_polar_angle")
+def test_each_polar_angle_carries_the_impact_rule_graded_at_its_own_speed(albedo: float) -> None:
+    """[LR2, #587; foundation, THEOREM of the rule's construction] The cylinder's rule over (b, theta) is ITERATED:
+    the lines at each polar node theta are exactly ``impact_rule`` graded at that line's own projected speed
+    sin theta by the grading law written by hand (:func:`grading_distances`), with their exact levels,
+    ``array_equal``. The weights are pinned by the value rows (WC1's cylinder escape, C2b, the reading's Q2/Q4).
+
+    Behaviour only: the row reads ``LineRule.lines`` and ``impact_rule``, never how the rule composes them. Activation:
+    on this small cylinder the layer (vacuum) and the closure's pole (a = 0.9) both scale with the speed, so the
+    per-angle node count takes several values (`[M]` 2026-10-08, ``p1_step_c/ta/probe_small.log``: 13 and 21
+    distinct counts over 128 polar nodes); the row asserts more than one. First reds (``p1_step_c/ta/``): the tensor
+    rule of ``11b263a5``, every angle graded at the slowest speed (127 of 128 polar nodes differ, a worktree; the
+    in-process arm ``slowest``); the grading law's layer term or pole term dropped (arms ``no_layer``,
+    ``no_pole``)."""
+    sigma = (0.6, 2.4)
+    basis = _basis("cylinder", _SMALL_CYL, (2, 0, 0.4))
+    lines = LineRule.of(basis, _walls("cylinder", _SMALL_CYL, ((albedo, 0.0),)), np.asarray(sigma), 8).lines
+    counts = assert_each_polar_angle_is_graded_at_its_own_speed(lines, _SMALL_CYL, sigma, albedo, 8)
+    assert len(set(counts)) > 1, f"the fixture does not distinguish the polar speeds: {counts}"
 
 
 # ── AS1: closed-body conservation (the re-posed C11) ─────────────────────

@@ -42,7 +42,7 @@ the ones the line rule already makes:
   :math:`y = \sqrt{c^2 - b^2}` is :math:`c|\mu|` exactly;
 * a point **near a wall** or an interface is the impact rule's grading
   toward :math:`y = 0`, at the next radius out and at the tangency's own
-  scales (:func:`~.lines.tangency_distances`; the boundary layer, the
+  scales (:class:`~.lines.ImpactPanels`; the boundary layer, the
   spec's regime 3); on the slab the point splits its panel, so the thinnest
   optical width that grades the cosine toward 0 includes the point's
   distance to each face.
@@ -99,8 +99,7 @@ from .assembly import GroupTransport, TransportResolution
 from .basis import PanelBasis
 from .closure import FULL_SOLID_ANGLE
 from .lines import (
-    ImpactRule, Lines, OpticalScale, StackedSources, cosine_rule, impact_by_polar, impact_panels, impact_rule, outer_amplitude,
-    polar_rule, tangency_distances,
+    ImpactPanels, Lines, OpticalScale, StackedSources, cosine_rule, impact_per_polar, outer_amplitude, polar_rule,
 )
 from .transport import TraversalRule
 from .walls import Walls
@@ -190,10 +189,11 @@ class PointRule:
         5440 lines, chunk 512 and budget 1024 took 2.37 s, 4096 and 32 768
         took 1.49 s at 1.25 GB, 8192 and 131 072 took 1.76 s at 2.8 GB; three
         regions, 8512 lines, 15.0 s, 8.1 s and 8.3 s). Those line counts predate
-        the grading law at every panel top (:func:`~.lines.tangency_distances`),
+        the grading law at every panel top (:class:`~.lines.ImpactPanels`),
         which raised them to 19 584 and 44 992 lines and the readings to about
         5 s and 43 s on a loaded host (the archivist, 2026-10-08): the cost is
-        #591's.
+        #591's. The cylinder's impact rule has since been graded at each polar
+        angle's own speed rather than the slowest (#587).
         """
         sigma_t = np.asarray(sigma_t, dtype=float)
         c = refuse_outside(basis, orbit_coordinate)
@@ -217,15 +217,15 @@ class PointRule:
                 weights = per_steradian * np.sin(polar.pts) * polar.wts
                 levels = (np.zeros_like(polar.pts), np.zeros_like(polar.pts))
             case LineShape.IMPACT, DirectionShape.COSINE:
-                impact = _impact_below(chart, split, sigma, c, amplitude, 1.0, points)
+                impact = ImpactPanels.of(chart, split, sigma, amplitude).rule(points, 1.0, below=c)
                 coordinates, levels = impact.b[:, None], (impact.top, impact.half_chord)
-                weights = per_steradian * impact.b * impact.weights / (c * _distance_to_point(impact, c))
+                weights = per_steradian * impact.b * impact.weights / (c * _distance_to_point(levels, c))
             case LineShape.IMPACT_POLAR, DirectionShape.ANGLE_AXIAL:
-                polar = polar_rule(scale, points)
-                impact = _impact_below(chart, split, sigma, c, amplitude, float(np.sin(polar.pts.min())), points)
-                coordinates, weights, levels = impact_by_polar(
-                    impact, polar, per_steradian * impact.weights / _distance_to_point(impact, c), np.sin(polar.pts) * polar.wts
+                panels = ImpactPanels.of(chart, split, sigma, amplitude)
+                coordinates, weights, levels = impact_per_polar(
+                    lambda speed: panels.rule(points, speed, below=c), polar_rule(scale, points)
                 )
+                weights = per_steradian * weights * np.sin(coordinates[:, 1]) / _distance_to_point(levels, c)
             case LineShape.COSINE, DirectionShape.COSINE:
                 mu, mu_weights = cosine_rule(scale, points)
                 coordinates, weights = mu[:, None], per_steradian * mu_weights
@@ -247,18 +247,9 @@ class PointRule:
         return _on_emission(stacked, transport)
 
 
-def _impact_below(
-    chart: Chart, ends: np.ndarray, sigma: np.ndarray, c: float, amplitude: float, slowest: float, points: int
-) -> ImpactRule:
-    r"""The impact rule over the panels below :math:`c` of the partition ``ends`` with :math:`c` among its ends."""
-    b_ends, b_sigma = impact_panels(ends, sigma)
-    toward = tangency_distances(chart, b_ends, b_sigma, amplitude, slowest)
-    return impact_rule(b_ends, b_sigma, points, toward, panels=int(np.searchsorted(b_ends, c)))
-
-
-def _distance_to_point(impact: ImpactRule, c: float) -> np.ndarray:
-    r""":math:`\sqrt{c^2 - b^2}` at each node, from its level (:func:`~orpheus.geometry.chart.half_chord`, :class:`~.lines.ImpactRule`)."""
-    return half_chord(np.asarray(c, dtype=float), impact.top, impact.half_chord)
+def _distance_to_point(levels: tuple[np.ndarray, np.ndarray], c: float) -> np.ndarray:
+    r""":math:`\sqrt{c^2 - b^2}` on each line, from its exact level (:func:`~orpheus.geometry.chart.half_chord`, :class:`~.lines.ImpactRule`)."""
+    return half_chord(np.asarray(c, dtype=float), *levels)
 
 
 def angular_flux(
