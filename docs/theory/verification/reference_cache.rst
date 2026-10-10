@@ -436,8 +436,35 @@ decides more than the leaves:
 * **a subclass of** ``int`` **or** ``float`` **is its type and its state
   beside its value**, the value taken through ``int(value)`` or the float's
   bits, never through ``__str__``, which a subclass can override;
-* **a set keeps its iteration order**: two equal sets can iterate
-  differently, and a function that iterates one can tell them apart;
+* **a set is ordered by its elements' encodings**, as content identity
+  orders it, and not by its iteration order (#592). A set's iteration
+  order follows the process's hash seed: ``frozenset({1, 9})`` iterates
+  ``[1, 9]`` and ``frozenset({9, 1})`` iterates ``[9, 1]`` in one process,
+  and a frozenset of strings iterates differently under different
+  ``PYTHONHASHSEED`` values. A key that kept iteration order therefore
+  keyed one call differently in two processes. Every generation runs
+  under ``PYTHONHASHSEED=0`` (:ref:`verification-reference-cache-boundary`),
+  while the calling process (pytest, a user's session) runs under a
+  random seed, so a parent and the generations it starts disagreed on the
+  key of one call. `[M]` 2026-10-10, qa's #592 review: the solve key of
+  one characteristic derivation, an eigen question on a body with an
+  (n,2n) material, whose gauge ``CellCoefficient`` holds a fission cell
+  and an (n,2n) cell in a frozenset, took two values over five unseeded
+  processes (three and two); under a non-zero parent seed the parent's
+  ``answer`` missed the solve entry its readings had written and wrote a
+  second one. The earlier argument for keeping the order, that a function
+  iterating a set can tell two equal sets apart, does not hold across the
+  process boundary: the generation never receives the caller's order, it
+  rebuilds its arguments under seed 0. Iteration order is therefore no
+  input of a memoised function, and the generator contract says so
+  (:ref:`verification-reference-cache-contract`). The gates are
+  ``test_s1_one_call_is_one_key_under_every_hash_seed``, which keys a
+  64-string frozenset and that derivation's solve in fresh interpreters
+  under seven hash seeds and requires one key each (its positive control:
+  the 64 strings iterate in at least two orders over the seeds), and its
+  witness ``test_s1_the_iteration_order_arm_splits_the_keys``, which
+  restores the iteration-order spelling in each child and requires the
+  keys to split (``tests/gates/numerics/test_traced_memo_findings.py``);
 * **a sparse matrix is keyed by its class as well as its format** (a
   ``csr_matrix`` is not a ``csr_array``), and one that stores no arrays (a
   ``dok_matrix``) is refused;
@@ -1128,6 +1155,20 @@ it. Within one process the derivation still holds its solve
 in a ``cached_property``; across processes, the reading and the solve are
 memo entries (:ref:`trajectory-resolvent-reference-reading`).
 
+**The characteristic reading and its solve.**
+:class:`~orpheus.derivations.continuous.characteristic.reference.CharacteristicDerivation`
+has content identity (its two fields, the specification and the
+resolution), and two of its methods are traced memos: ``evaluate``,
+keyed on the derivation and the observable, and ``solve``, keyed on the
+derivation alone. A reading's generation reads ``answer``, which calls
+``solve``, so the solve is a child entry of every reading and all the
+observables of one derivation share it: ruling 2 again, realised on a
+method pair rather than on a module-level solver. Within one process the
+``answer`` property holds the solve's decoded value. `[M]` 2026-10-10,
+the elegance review's probe: three observables of one cold fundamental
+wrote 3 reading entries and 1 solve entry. The page of record is
+:ref:`characteristic-door`.
+
 **A solve that does not converge.** The solver's result is a value
 whatever its convergence, so an exhausted solve is a cached value; the
 reading of it is a refusal, and a refusal is an exception, which writes no
@@ -1160,10 +1201,19 @@ recorder does not try to see. The contract, as it stands in
   ``lookup``;
 * takes arguments with a constructor form: no ``InitVar``, no mapping
   beside ``dict`` and ``FrozenMapping``, no sparse matrix without stored
-  arrays (each refused when keyed).
+  arrays (each refused when keyed);
+* does not depend on a set's iteration order, which follows the hash
+  seed: the key orders a set by its elements, and the generation iterates
+  under ``PYTHONHASHSEED=0``, not the caller's seed (added with #592,
+  2026-10-10; :ref:`verification-reference-cache-key`).
 
 The fourth clause is enforced: each excluded argument is refused when the
-key is taken. The first three are a contract, not a gate. The contract is
+key is taken. The other four are a contract, not a gate. The fifth is the
+reason the key may sort a set: a function that obeys it computes the
+same value whichever order its sets iterate in, so two calls whose sets
+differ only in order are one call. A function that broke it would be
+served the value computed under seed 0, which an in-process call under
+another seed need not reproduce. The contract is
 a declared scope boundary (``SCOPE-BOUNDARY`` in the module docstring):
 the machinery that would replace it is a recorder below Python, such as a
 system-call tracer. Its witness is phase P5's cold rebuild, which
@@ -1806,7 +1856,9 @@ declared.
        class beside its format; a sparse matrix with no stored arrays; a
        ``defaultdict``'s factory; an ``int`` subclass whose ``__str__``
        lies; ``__slots__`` state; an ``InitVar``
-     - Fixed: set order kept; sparse class keyed and a ``dok_matrix``
+     - Fixed: set order kept (replaced on 2026-10-10, #592, by the
+       order of the elements' encodings: the kept order followed the hash
+       seed); sparse class keyed and a ``dok_matrix``
        refused; mappings other than ``dict`` and ``FrozenMapping``
        refused; ``int`` and ``float`` subclasses keyed by type and state,
        the value never through ``__str__``; ``__slots__`` in subclass
@@ -1834,7 +1886,8 @@ Development history
 
 Reverse-chronological changelog of phase P3 of #405, the plan
 ``.claude/plans/reference_cache.md`` and its gate specification
-``.claude/plans/reference_p3_spec.md``. Every row below sits on the branch
+``.claude/plans/reference_p3_spec.md``, and of what later work changed in
+the memo. The 2026-10-04 rows sat on the branch
 ``refactor/p3-ambient-state`` at the time of writing;
 ``git merge-base --is-ancestor <hash> main`` outranks this column.
 
@@ -1846,6 +1899,15 @@ Reverse-chronological changelog of phase P3 of #405, the plan
      - Milestone
      - Issue
      - Where
+   * - 2026-10-10
+     - **A set is keyed by its elements' order, not its iteration order**,
+       and the generator contract gains the clause that a memoised
+       function does not depend on a set's iteration order (qa's #592
+       review: one solve keyed two ways across hash seeds). The
+       characteristic derivation's solve becomes a memo of its own, a
+       child entry of every reading. Two gates (S1 and its witness).
+     - #592
+     - ``45405f86``, ``23e7711e``
    * - 2026-10-04
      - **P3 closed by the generator contract** (the user: "Contract +
        cold-rebuild control"), a scope boundary whose witness is P5's cold

@@ -4541,13 +4541,15 @@ transport block: the system's blocks are derived on first use, and the
 gate ``test_a_served_question_constructs_and_assembles_nothing`` counts
 zero calls of ``LineRule.of`` for every served question.
 
-**The answer is solved once, typed per question.** The ``answer``
-property resolves the question on its first use into one of three
-values: the fundamental mode (its :math:`k`, its gauged flux
+**The answer is solved once, typed per question.** ``solve`` resolves
+the question into one of three values: the fundamental mode (its :math:`k`, its gauged flux
 coefficients ``(G, N)`` and its emission on the emission space, scaled by
 the same gauge), a mode nearest :math:`\tau` (its eigenvalue alone) or a
 source answer (a flux, ``(G, N)``, and the emission it was formed from).
-``evaluate`` then matches on the observable and the answer:
+``solve`` is a traced memo keyed on the derivation alone (#592), and the
+``answer`` property holds its decoded value for the instance's life, so
+``angular_flux``, which is not memoised, reads it without re-reading the
+store. ``evaluate`` then matches on the observable and the answer:
 
 .. list-table::
    :header-rows: 1
@@ -4579,11 +4581,59 @@ What only the solve decides is refused at the first evaluation: a body
 supercritical for its fixed source or its detector
 (:class:`~orpheus.derivations.common.dense_pencil.NoLeastSolution`, the
 fourth rung's source pencil), a complex nearest eigenvalue, and a pencil
-with no fundamental mode. ``evaluate`` is a traced memo
-(:mod:`orpheus.numerics.traced_memo`, #405 P3) keyed on the derivation
-and the observable, so an equal derivation built afresh reads a stored
-value without solving. `[M]` 2026-10-07, qa's probe: 3.64 s cold and
-0.013 s warm on one body.
+with no fundamental mode.
+
+**A reading is an entry; the solve it reads is a child entry.** Two
+methods are traced memos (:mod:`orpheus.numerics.traced_memo`, #405 P3):
+``evaluate``, keyed on the derivation and the observable, and ``solve``,
+keyed on the derivation alone. The generation of a reading runs in a fresh
+process, rebuilds the derivation from its content and reads ``answer``,
+which calls ``solve``; that call is a memo lookup inside the generation,
+so the reading's manifest records the solve as one
+:class:`~orpheus.numerics.traced_memo.ChildPin`, and every observable of
+one derivation reads the same solve entry. This is the unit of caching
+the user ruled for P3 (ruling 2 of ``.claude/plans/reference_cache.md``:
+the solve is a child entry shared by every observable of that solve), and
+the one the trajectory-resolvent family realised through its solver
+functions (:ref:`verification-reference-cache-clients`). Until #592 the
+solve was a plain ``cached_property`` inside the reading's process, so
+each observable re-solved the body in its own generation. `[M]`
+2026-10-10, the elegance review's probe on the two-region test sphere at
+the tiny resolution (``_hetero_sphere``, ``_TINY``): three observables of
+one cold fundamental (its ``Eigenvalue``, one ``FluxIntegral`` of an
+indicator and one ``PointValue``) wrote 3 ``evaluate`` entries and 1
+``solve`` entry, each ``evaluate`` manifest holding exactly one
+``ChildPin``; the first reading took 6.2 s (it includes the solve), each
+later one 2.7 s. An equal derivation built afresh reads a stored value
+without solving: `[M]` 2026-10-07, qa's probe, 3.64 s cold and 0.013 s
+warm on one body. A refusal decided before the solve (an ``Eigenvalue``
+of a source question) writes no solve entry; a refusal decided by the
+solve (a flux of a ``Nearest`` mode) leaves the solve entry behind,
+since the solve itself succeeded. The gates are
+``test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve``,
+``test_m4_11_two_observables_of_one_cold_derivation_share_one_solve``,
+``test_m4_12_a_served_solve_is_read_only_and_its_readings_are_the_in_process_ones``
+and ``test_m4_13_a_refusal_before_the_solve_writes_no_solve_entry``
+(``tests/gates/numerics/test_traced_memo_clients.py``).
+
+**Gotcha: the two routes hand out arrays of different mutability.** A
+solve served from the store decodes fresh, read-only arrays; under
+``bypass()`` (the in-process route the value gates use) ``answer`` holds
+the generator's own writeable arrays. `[M]` 2026-10-10, qa and the
+elegance review: no consumer writes into an answer today (7 of 7
+``.answer`` reads in tracked ``.py`` only read), but a consumer that did
+would pass every bypass row and raise against the store. Never write into
+``answer``'s arrays.
+
+**Gotcha: the solve key needs a set's order fixed.** The gauge of an
+eigen question with an (n,2n) material is a ``CellCoefficient`` whose
+``cells`` frozenset holds a fission and an (n,2n) cell, and a frozenset's
+iteration order follows the process's hash seed. While the exact key kept
+iteration order, the test process and a generation (which runs under
+``PYTHONHASHSEED=0``) keyed one solve differently, so the parent's
+``answer`` missed the solve its readings had written and wrote a second.
+The exact key now orders a set by its elements' encodings
+(:ref:`verification-reference-cache-key`).
 
 How a function enters: the role arrows
 --------------------------------------
@@ -4876,10 +4926,10 @@ production density of 100, so a test that judges the homogeneous solver
 declares the fission gauge.
 
 .. implements:: characteristic-door-gauge
-   :by: orpheus.derivations.continuous.characteristic.reference.CharacteristicDerivation.answer
+   :by: orpheus.derivations.continuous.characteristic.reference.CharacteristicDerivation.solve
 
-   **Implemented by** the door's ``answer`` (the fundamental's flux divided
-   by its declared production) and
+   **Implemented by** the door's ``solve`` (the fundamental's flux divided
+   by its declared production; ``answer`` reads its memo entry) and
    ``orpheus.derivations.common.eigenvalue.production_emission`` (what each
    channel emits per unit flux).
 
@@ -7897,3 +7947,15 @@ History
        this reference and kept its name.
      - ``d9425977``
      - #405, #566
+   * - 2026-10-10
+     - #592: the solve became a traced memo of its own, ``solve``, keyed on
+       the derivation alone, and ``answer`` the per-instance hold of its
+       value, so every reading records the solve as one child entry and
+       the observables of one derivation share one solve
+       (:ref:`characteristic-door`). The exact key began to order a set by
+       its elements, after qa measured one eigen gauge's solve keyed two
+       ways across hash seeds (:ref:`verification-reference-cache-key`).
+       The ``implements`` edge of :eq:`characteristic-door-gauge` moved
+       from ``answer`` to ``solve``.
+     - ``45405f86``, ``23e7711e``
+     - #405, #592
