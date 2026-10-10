@@ -151,7 +151,16 @@ CLIENTS = {
     "solve_cylinder": ("orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder", "solve_greens_function_cylinder_mr"),
     "trajectory_reading": ("orpheus.derivations.continuous.trajectory_resolvent.reference", "TrajectoryResolventDerivation.evaluate"),
     "characteristic_reading": ("orpheus.derivations.continuous.characteristic.reference", "CharacteristicDerivation.evaluate"),
+    "characteristic_solve": ("orpheus.derivations.continuous.characteristic.reference", "CharacteristicDerivation.solve"),
 }
+
+
+def spelled_function_id(name_: str) -> str:
+    """The function id a client WOULD have (``module:qualname``, ``TracedMemo.function_id``'s spelling), read off
+    :data:`CLIENTS` without importing the attribute: a gate can then name a client the tree does not yet bind and
+    red on its claim, not on an ``AttributeError``. ``test_m4_1`` checks it equals each bound client's own id."""
+    module_name, dotted = CLIENTS[name_]
+    return f"{module_name}:{dotted}"
 
 
 def client(name_: str) -> Any:

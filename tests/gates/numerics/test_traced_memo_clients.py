@@ -73,6 +73,7 @@ def test_m4_1_the_clients_are_traced_memos():
     memo_type = api.name("TracedMemo")
     for client in api.CLIENTS:
         assert isinstance(api.client(client), memo_type), f"{client} is not a traced memo"
+        assert api.function_id(client) == api.spelled_function_id(client), client
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never', 'tests/gates/numerics/test_traced_memo_clients.py::test_m4_1_the_clients_are_traced_memos')
@@ -326,7 +327,8 @@ def test_m4_10_the_default_store_is_gitignored():
 #
 # P1 step (e1b) of the characteristic-reference campaign: step (e) deletes the trajectory-resolvent family, and with
 # it the three old clients these rows were posed on. ``CharacteristicDerivation.evaluate`` is the one memo client
-# that survives, at ONE level: it solves inside the reading process, so its entry pins no child (``ChildPin`` empty).
+# that survives; since #592 its solve is a second memo, ``CharacteristicDerivation.solve``, a child entry of every
+# reading of the derivation (``ChildPin``: one, the solve), so every observable of one derivation shares one solve.
 # The successors, row by row (``scratch/characteristic_architecture/p1_step_e/ta_e1b/README_consumers.md``):
 #
 # * M4.1b (the route, the activation leg): ``tests/gates/derivations/test_characteristic_reference.py::
@@ -373,15 +375,32 @@ def _characteristic_entries(root: Path) -> list[Path]:
     return [f for f in api.entry_files(root) if api.entry_function(f) == api.function_id("characteristic_reading")]
 
 
+def _solve_entries(root: Path) -> list[Path]:
+    return [f for f in api.entry_files(root) if api.entry_function(f) == api.spelled_function_id("characteristic_solve")]
+
+
+#: What the solve runs and the reading, since #592, does not: the closure's least solution and the pencil's mode.
+_SOLVE_ONLY = {"LinePeriod.inflow", "DensePencil.fundamental"}
+#: What every reading of a derivation runs in its own process: the derivation's construction.
+_CONSTRUCTION = {"CharacteristicDerivation.__post_init__", "Walls.of", "PanelBasis.of", "RegionCrossSections.of",
+                 "GalerkinSystem.__post_init__"}
+
+
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_9_arguments_cross_through_their_constructor',
+                      'tests/gates/numerics/test_traced_memo_process.py::test_m3_12a_a_parent_entry_pins_its_child_by_reference',
                       'tests/gates/derivations/test_characteristic_reference.py::test_c3_an_equal_derivation_reads_from_the_memo_and_a_new_resolution_does_not')
-def test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_no_child(tmp_path):
-    """M4.3, re-posed on the characteristic reading: the entry's manifest holds the derivation's construction
-    (``CharacteristicDerivation.__post_init__``, ``Walls.of``, ``PanelBasis.of``, ``RegionCrossSections.of``,
-    ``GalerkinSystem.__post_init__``) and the solve that ran in the reading process (``LinePeriod.inflow``,
-    ``DensePencil.fundamental``), none of which a pickled derivation would show; the cylinder's polar rule, which a
-    sphere never runs, is NOT in it; and it pins no child (the reference has one memo level). First red: the
-    derivation crossing to the child pickled (its construction then runs in the parent and the DefPins lose it)."""
+def test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve(tmp_path):
+    """M4.3, re-posed on the characteristic reading, and #592's first done-when: the reading entry's manifest holds
+    the derivation's construction (``CharacteristicDerivation.__post_init__``, ``Walls.of``, ``PanelBasis.of``,
+    ``RegionCrossSections.of``, ``GalerkinSystem.__post_init__``), which a pickled derivation would hide, and NOT the
+    solve (``LinePeriod.inflow``, ``DensePencil.fundamental``: they ran in the solve's child); it carries exactly ONE
+    ``ChildPin``, whose function id is ``CharacteristicDerivation.solve`` and whose key names the solve entry in the
+    store; the solve entry's own manifest holds the solve and pins no child. The cylinder's polar rule, which a
+    sphere never runs, is in neither.
+
+    Until #592 this row asserted the reading pinned no child (one memo level). First red (``[M]`` 2026-10-10, the
+    tree at ``2f56e69b``, ``scratch/characteristic_architecture/p1_step_e/ta_592/``): ``ChildPin`` is ``[]`` and the
+    solve's functions are in the reading's manifest."""
     from orpheus.numerics.observable import Eigenvalue
 
     with api.cache_root(tmp_path):
@@ -389,11 +408,113 @@ def test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_no
     (entry_file,) = _characteristic_entries(tmp_path)
     entry = api.read_entry(entry_file)
     functions = {q for _, q, *_ in api.manifest_rows(entry, "DefPin")}
-    construction = {"CharacteristicDerivation.__post_init__", "Walls.of", "PanelBasis.of", "RegionCrossSections.of",
-                    "GalerkinSystem.__post_init__", "LinePeriod.inflow", "DensePencil.fundamental"}
-    assert construction <= functions, sorted(construction - functions)
+    assert _CONSTRUCTION <= functions, sorted(_CONSTRUCTION - functions)
+    assert not (_SOLVE_ONLY & functions), sorted(_SOLVE_ONLY & functions)
     assert "polar_rule" not in functions and "impact_per_polar" not in functions
-    assert api.manifest_rows(entry, "ChildPin") == []
+    children = api.manifest_rows(entry, "ChildPin")
+    assert [c[0] for c in children] == [api.spelled_function_id("characteristic_solve")], children
+    (solve_file,) = _solve_entries(tmp_path)
+    assert solve_file.stem == children[0][1], (solve_file.stem, children[0][1])
+    solve = api.read_entry(solve_file)
+    solve_functions = {q for _, q, *_ in api.manifest_rows(solve, "DefPin")}
+    assert _SOLVE_ONLY <= solve_functions, sorted(_SOLVE_ONLY - solve_functions)
+    assert "polar_rule" not in solve_functions
+    assert api.manifest_rows(solve, "ChildPin") == []
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_clients.py::test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve')
+def test_m4_11_two_observables_of_one_cold_derivation_share_one_solve(tmp_path):
+    """#592's second done-when, read from the store: on a cold root, an eigenvalue and then a point value of one
+    derivation write two reading entries whose ``ChildPin`` rows name the SAME solve key, the store holds exactly
+    one solve entry, and that entry's file is not rewritten by the second reading (its inode and modification time,
+    read after each reading, are unchanged: the store writes an entry by an atomic rename, so a regenerated solve
+    is a new file).
+
+    What is counted: solve entries in the store (1), distinct child keys over the reading entries (1), rewrites of
+    the solve entry across the second reading (0). Not a spy: a monkeypatch reaches only this process, and the
+    solve runs in the readings' generating interpreters. First reds (``[M]`` 2026-10-10,
+    ``scratch/characteristic_architecture/p1_step_e/ta_592/``): on ``2f56e69b`` no solve entry and no child key
+    (every reading solved in its own process); on a copied tree whose ``answer`` calls the solve with a fresh salt
+    (mutant ``solve-salted``) the two readings name two child keys. The inode leg has no witness of its own: a
+    regenerated solve under one key is not spellable without a store mutation, and the key leg reds first."""
+    from orpheus.numerics.observable import Eigenvalue, PointValue
+
+    with api.cache_root(tmp_path):
+        _tiny_characteristic_sphere().evaluate(Eigenvalue())
+        solves = _solve_entries(tmp_path)
+        assert len(solves) == 1, solves
+        first = solves[0].stat()
+        _tiny_characteristic_sphere().evaluate(PointValue(position=0.4, group=1))
+    readings = _characteristic_entries(tmp_path)
+    assert len(readings) == 2, readings
+    keys = {c[1] for f in readings for c in api.manifest_rows(api.read_entry(f), "ChildPin")}
+    assert keys == {solves[0].stem}, keys
+    assert _solve_entries(tmp_path) == solves
+    again = solves[0].stat()
+    assert (again.st_ino, again.st_mtime_ns) == (first.st_ino, first.st_mtime_ns), "the second reading regenerated the solve"
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_clients.py::test_m4_11_two_observables_of_one_cold_derivation_share_one_solve',
+                      'tests/gates/numerics/test_traced_memo_process.py::test_m3_14_a_served_payload_is_fresh_read_only_and_bit_identical')
+def test_m4_12_a_served_solve_is_read_only_and_its_readings_are_the_in_process_ones(tmp_path):
+    """#592's third done-when: after a reading has written the solve entry, a fresh derivation's ``solve()`` in this
+    process is a ``Hit``; its arrays (the flux and the emission) are read-only, and a write into one raises; they
+    are the in-process (``bypass``) solve's bit for bit; and readings taken off the warm solve through the memo (a
+    point value of group 1, a flux integral of the fission production, each a new reading entry whose generation
+    hits the solve) equal the in-process readings bit for bit (``float.hex``). First reds (``[M]`` 2026-10-10,
+    ``scratch/characteristic_architecture/p1_step_e/ta_592/``): on ``2f56e69b`` there is no ``solve`` (``KeyError``);
+    mutant ``served-writeable`` (the store's decode leaving arrays writeable): the read-only leg; mutant
+    ``solve-salted``: the ``Hit`` leg (the salted key is ``Absent``). The bit-identity legs carry no separate
+    mutant here (``test_m4_5c`` is the readings' served-equals-fresh row)."""
+    from orpheus.numerics.mesh_free_function import RegionwiseConstant
+    from orpheus.numerics.observable import Eigenvalue, FluxIntegral, PointValue
+
+    production = _tiny_characteristic_sphere().specification.materials[0]
+    observables = (PointValue(position=0.4, group=1), FluxIntegral(RegionwiseConstant(np.asarray(production.SigP)[None, :])))
+    with api.cache_root(tmp_path):
+        _tiny_characteristic_sphere().evaluate(Eigenvalue())
+        derivation = _tiny_characteristic_sphere()
+        assert api.verdict_kind(type(derivation).__dict__["solve"].lookup(derivation)) == "Hit"
+        served = derivation.solve()
+        warm = [_tiny_characteristic_sphere().evaluate(o).value.hex() for o in observables]
+    with api.bypass():
+        fresh_answer = _tiny_characteristic_sphere().solve()
+        fresh = [_tiny_characteristic_sphere().evaluate(o).value.hex() for o in observables]
+    for field in ("flux", "emission"):
+        array = getattr(served, field)
+        assert not array.flags.writeable, field
+        assert array.tobytes() == getattr(fresh_answer, field).tobytes(), field
+    with pytest.raises(ValueError, match="read-only"):
+        served.flux[0, 0] = 0.0
+    assert served.k.hex() == fresh_answer.k.hex()
+    assert warm == fresh, (warm, fresh)
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_clients.py::test_m4_11_two_observables_of_one_cold_derivation_share_one_solve',
+                      'tests/gates/derivations/test_characteristic_reference.py::test_an_eigenvalue_of_a_source_answer_is_refused_before_any_solve')
+def test_m4_13_a_refusal_before_the_solve_writes_no_solve_entry(tmp_path):
+    """#592's fourth done-when: an eigenvalue of a source question, read through the memo, is refused with its
+    message ("an eigenvalue is read from an eigen question") and the store holds no entry at all, a solve's or a
+    reading's; the activation leg: the same derivation's flux integral then writes one solve entry and one reading
+    entry, so the store can record a solve here. First red (``[M]`` 2026-10-10, ``2f56e69b``): the activation leg
+    (no solve entry exists to be written). The main leg's own first red is the refusal placed after the solve
+    (``self.answer`` read before the match), measured on a copied tree (the generating interpreter imports the
+    tree, so no in-process mutation reaches it): mutant ``refusal-after-solve``, the solve entry is written before
+    the refusal and the row reds on the empty-store leg."""
+    from dataclasses import replace
+
+    from orpheus.numerics.mesh_free_function import RegionwiseConstant
+    from orpheus.numerics.observable import Eigenvalue, FluxIntegral
+    from orpheus.numerics.question import FixedSource
+
+    base = _tiny_characteristic_sphere()
+    source = replace(base.specification, question=FixedSource(RegionwiseConstant(np.ones((1, 2)))))
+    with api.cache_root(tmp_path):
+        with pytest.raises(ValueError, match="an eigenvalue is read from an eigen question"):
+            type(base)(source, base.resolution).evaluate(Eigenvalue())
+        assert api.entry_files(tmp_path) == [], api.entry_files(tmp_path)
+        type(base)(source, base.resolution).evaluate(FluxIntegral(RegionwiseConstant(np.ones((1, 2)))))
+    assert len(_solve_entries(tmp_path)) == 1 and len(_characteristic_entries(tmp_path)) == 1, api.entry_files(tmp_path)
 
 
 _CHARACTERISTIC_DRIVER = textwrap.dedent('''
@@ -433,7 +554,7 @@ def _drive_characteristic(copy: Path, cache: Path, action: str) -> str:
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_2_an_edit_to_what_ran_regenerates_and_nothing_else_does',
-                      'tests/gates/numerics/test_traced_memo_clients.py::test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_no_child')
+                      'tests/gates/numerics/test_traced_memo_clients.py::test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve')
 @pytest.mark.parametrize("row,file,anchor,method,reading", CHARACTERISTIC_TREE_WITNESSES,
                          ids=[w[0] for w in CHARACTERISTIC_TREE_WITNESSES])
 def test_m4_4c_an_edit_to_the_copied_tree_misses_exactly_where_the_characteristic_reading_ran(tmp_path, row, file, anchor,
@@ -503,3 +624,85 @@ def test_m4_8c_a_characteristic_refusal_is_never_cached(tmp_path, monkeypatch):
         derivation.evaluate(Eigenvalue())
     assert refused_again >= 1, f"the second refusal started {refused_again} interpreters: it was served from an entry"
     assert len(_characteristic_entries(tmp_path)) == 1
+
+
+# ── #592 review: the (n,2n) gauge, whose key a hash seed could split ─────────────────────────────
+
+_GAUGE_DRIVER = textwrap.dedent('''
+    import os, sys
+    repo, cache = sys.argv[1:3]
+    sys.path.insert(0, repo)
+    from orpheus.numerics import content
+    if os.environ.get("ARM") == "iteration-order":
+        content._Exactly.elements = lambda self, encoded: encoded     # the pre-fix spelling, in the parent only
+    from tests.gates.derivations.test_characteristic_reference import _K, _TINY, _hetero_sphere
+    from orpheus.derivations.continuous.characteristic import CharacteristicDerivation
+    from orpheus.numerics.observable import Eigenvalue, PointValue
+    from orpheus.numerics.question import Eigen
+    from orpheus.numerics.traced_memo import cache_root
+    make = lambda: CharacteristicDerivation(_hetero_sphere(Eigen(_K)), _TINY)
+    print("ORDER", repr([c for c in make().specification.question.gauge.cells]))
+    if sys.argv[3] == "run":
+        with cache_root(cache):
+            make().evaluate(Eigenvalue())
+            make().evaluate(PointValue(position=0.4, group=1))
+            d = make()
+            print("LOOKUP", type(type(d).__dict__["solve"].lookup(d)).__name__)
+            print("PARENT_KEY", type(d).__dict__["solve"].key(d))
+            d.answer
+''')
+
+
+def _gauge_driver(tmp_path: Path, seed: str, action: str, arm: str = "none") -> dict[str, str]:
+    script = tmp_path / "gauge_driver.py"
+    script.write_text(_GAUGE_DRIVER)
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"} | {"PYTHONHASHSEED": seed, "ARM": arm}
+    run = subprocess.run([sys.executable, "-O", str(script), str(REPO), str(tmp_path / f"cache-{seed}-{arm}"), action],
+                         capture_output=True, text=True, env=env, cwd=str(tmp_path), timeout=600)
+    rows = dict(line.split(" ", 1) for line in run.stdout.splitlines() if " " in line)
+    if "ORDER" not in rows or (action == "run" and "PARENT_KEY" not in rows):
+        raise AssertionError(f"the driver failed under PYTHONHASHSEED={seed}:\n{run.stderr[-3000:]}")
+    return rows
+
+
+def _parent_seed_that_reorders_the_gauge(tmp_path: Path) -> str:
+    """A hash seed under which the (n,2n) gauge's two cells iterate in another order than under seed 0, where the
+    generations run: the precondition for the split to be observable (the instrument's positive control)."""
+    generation = _gauge_driver(tmp_path, "0", "order")["ORDER"]
+    for seed in ("1", "2", "3", "4", "5", "6", "7", "8"):
+        if _gauge_driver(tmp_path, seed, "order")["ORDER"] != generation:
+            return seed
+    raise AssertionError("no seed in 1..8 reorders the gauge's cells: the leg would be blind")
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_clients.py::test_m4_12_a_served_solve_is_read_only_and_its_readings_are_the_in_process_ones',
+                      'tests/gates/numerics/test_traced_memo_findings.py::test_s1_one_call_is_one_key_under_every_hash_seed')
+def test_m4_11b_m4_12b_a_parent_at_another_hash_seed_shares_the_readings_solve(tmp_path):
+    """The (n,2n)-gauge leg of M4.11 and M4.12 (qa, #592 review): ``_tiny_characteristic_sphere``'s gauge holds ONE
+    cell, so no hash seed can reorder it (a space-side stabiliser); ``_hetero_sphere(Eigen(_K))`` (an (n,2n)
+    material) holds two. The parent runs at a hash seed under which those two cells iterate differently than under
+    seed 0, where every generation runs (found and asserted first, the positive control). Two readings write one
+    solve entry; the parent's ``solve.lookup`` of the same derivation is a ``Hit``; its key is the one the readings
+    pin; and the parent's ``.answer`` adds no second solve entry. First red (``[M]`` 2026-10-10): the parent's
+    ``_Exactly.elements`` rebound to the identity (env ``ARM=iteration-order``): ``Absent``, two keys, two
+    entries; qa measured the same split on the pre-fix tree (``probe5.py``)."""
+    seed = _parent_seed_that_reorders_the_gauge(tmp_path)
+    rows = _gauge_driver(tmp_path, seed, "run")
+    root = tmp_path / f"cache-{seed}-none"
+    solves = _solve_entries(root)
+    readings = _characteristic_entries(root)
+    assert rows["LOOKUP"] == "Hit", (seed, rows["LOOKUP"])
+    assert len(solves) == 1, solves
+    assert solves[0].stem == rows["PARENT_KEY"]
+    keys = {c[1] for f in readings for c in api.manifest_rows(api.read_entry(f), "ChildPin")}
+    assert keys == {rows["PARENT_KEY"]}, keys
+
+
+def test_m4_11b_the_iteration_order_arm_splits_the_parent_from_the_readings(tmp_path):
+    """The witness of the row above, kept as a row (``vv`` #17): with the parent's ``_Exactly.elements`` rebound to
+    the identity, at the reordering seed the parent's lookup is ``Absent`` and its ``.answer`` writes a second solve
+    entry. Green here means the row above can red."""
+    seed = _parent_seed_that_reorders_the_gauge(tmp_path)
+    rows = _gauge_driver(tmp_path, seed, "run", arm="iteration-order")
+    assert rows["LOOKUP"] == "Absent", rows["LOOKUP"]
+    assert len(_solve_entries(tmp_path / f"cache-{seed}-iteration-order")) == 2

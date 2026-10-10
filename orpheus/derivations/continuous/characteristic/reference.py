@@ -249,8 +249,11 @@ class CharacteristicDerivation(ContentIdentity):
     of a mode nearest :math:`\tau`, integrated or at a point, after it.
 
     Its content is its two fields; the system, the basis and the cross
-    sections are derived from them, so :meth:`evaluate` is a traced memo
-    keyed on the derivation and the observable (#405 P3).
+    sections are derived from them. Two traced memos read it (#405 P3):
+    :meth:`solve`, keyed on the derivation alone, and :meth:`evaluate`,
+    keyed on the derivation and the observable, whose generation reads the
+    solve as a child entry, so every observable of one derivation shares
+    one solve (#592).
     """
 
     specification: GeometrySpecification
@@ -342,9 +345,9 @@ class CharacteristicDerivation(ContentIdentity):
 
     # ── the answer ───────────────────────────────────────────────────────
 
-    @cached_property
-    def answer(self) -> _Answer:
-        """The question's answer, solved once."""
+    @traced_memo
+    def solve(self) -> _Answer:
+        """The question's answer: one memo entry, a child of every reading of the derivation (#405 P3's unit of caching)."""
         system = self.system
         match self.specification.question:
             case Eigen(mode=Fundamental(), gauge=CellCoefficient() as gauge):
@@ -361,6 +364,11 @@ class CharacteristicDerivation(ContentIdentity):
                 return _SourceAnswer(system.flux(emission), emission)
             case unreachable:
                 assert_never(unreachable)
+
+    @cached_property
+    def answer(self) -> _Answer:
+        """The solve, read once per instance (two equal derivations each read the memo once)."""
+        return self.solve()
 
     def _nearest(self, tau: float) -> float:
         r"""The eigenvalue of the k pencil nearest :math:`\tau`, among the modes that emit fission neutrons.

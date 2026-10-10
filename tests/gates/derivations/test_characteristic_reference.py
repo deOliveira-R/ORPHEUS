@@ -487,7 +487,8 @@ def test_a_point_value_is_read_from_the_solved_emission_and_refused_on_a_mode_af
     derivation = CharacteristicDerivation(_hetero_sphere(Eigen(_K)), _TINY)
     with bypass():
         value = derivation.evaluate(PointValue(1.0, 0)).value
-    answer = derivation.answer
+    with bypass():                                   # the answer is a memo's child since #592: solve it here
+        answer = derivation.answer
     assert isinstance(answer, reference_module._FundamentalAnswer)
     assert value == float(derivation.system.point_flux(1.0, answer.emission)[0])
     assert calls, "the activation leg: the point value solved nothing"
@@ -575,7 +576,8 @@ def test_a_flux_integral_is_the_volume_integral_of_the_galerkin_flux(case: int) 
     name, weight, by_hand, cut = _weights()[case]
     derivation = _derivation(_SUBCRITICAL_SPHERE)
     reading = _read(_SUBCRITICAL_SPHERE, FluxIntegral(weight))
-    answer = derivation.answer
+    with bypass():                                   # the answer is a memo's child since #592: solve it here
+        answer = derivation.answer
     assert isinstance(answer, reference_module._SourceAnswer)
     expected = _volume_integral(derivation.basis, answer.flux, by_hand, cut)
     assert abs(reading / expected - 1.0) < 1e-13, (name, reading, expected)
@@ -933,7 +935,8 @@ def test_a_multigroup_source_answers_every_group() -> None:
     the flux integral reduced to its group-0 term (arm ``err091-pairing``).
     """
     both = _spec(_E7_SPHERE, _E7_MATERIALS, FixedSource(_rwc([[1.0, 0.5], [0.0, 0.0]])))
-    answer = _derivation(both).answer
+    with bypass():                                   # the answer is a memo's child since #592: solve it here
+        answer = _derivation(both).answer
     assert isinstance(answer, reference_module._SourceAnswer)
     flux = answer.flux
     assert flux.shape == (2, _derivation(both).basis.size), flux.shape
@@ -1484,7 +1487,8 @@ def test_a_flux_integral_is_additive_over_a_split_of_its_weight() -> None:
     parts = _read(spec, _box(0.6, 0.65, 1)) + _read(spec, _box(0.65, 0.7, 1))
     assert abs(parts / whole - 1.0) < 1e-12, (whole, parts)
     derivation = _derivation(spec)
-    answer = derivation.answer
+    with bypass():                                   # the answer is a memo's child since #592: solve it here
+        answer = derivation.answer
     assert isinstance(answer, reference_module._FundamentalAnswer)
     flux = answer.flux
     basis = derivation.basis
