@@ -1,11 +1,14 @@
-r"""The trajectory-resolvent cross-check's harness: its tolerance rule, its ladder estimates, its RECORD, its xfail mark.
+r"""The reference cross-check's harness: its tolerance rules, its ladder estimates, its RECORD, its xfail mark.
 
 :mod:`tests.gates.sn.verification.analytical._aba_reference` owns the A|B|A
 problem, the reference, the RECORD table and the strict-xfail mark;
-:mod:`tests.gates.derivations._trajectory_resolvent_ladders` derives every
-tolerance from measured ladders. Both are consulted by slow rows whose
-failures would read as physics; these rows pin the harness itself, fast, one
-per branch (``foundation``).
+:mod:`tests.gates.derivations._ladder_rules` holds the rules and
+:mod:`tests.gates.derivations._characteristic_ladders` the measured ladders
+every tolerance is derived from (the characteristic reference's since P1 step
+(d); the trajectory resolvent's before, whose tables remain in
+``_trajectory_resolvent_ladders`` for the corroboration rows). All are
+consulted by slow rows whose failures would read as physics; these rows pin
+the harness itself, fast, one per branch (``foundation``).
 
 Until #405 P2 step 7b.2.3 this file was ``test_certified_agreement.py`` and
 also pinned the four branches of the test-side ``AgreementCertificate``; that
@@ -22,10 +25,13 @@ from fractions import Fraction
 import pytest
 
 from orpheus.reference.verification import ReferenceNotValid
-from tests.gates.derivations._trajectory_resolvent_ladders import (
+from tests.gates.derivations import _characteristic_ladders as ladders
+from tests.gates.derivations._ladder_rules import (
     alternating_error,
     ceil_one_significant_figure,
+    geometric_error,
     richardson_error,
+    summed_tolerance,
     tolerance_for,
 )
 from tests.gates.sn.verification.analytical._aba_reference import (
@@ -51,10 +57,45 @@ def test_tolerance_rule() -> None:
 
 @pytest.mark.foundation
 def test_ladder_error_estimates() -> None:
-    """Second order at refinement 2 inflates a step by 4/3; an alternating sequence's error is within its last step."""
+    """Second order at refinement 2 inflates a step by 4/3; an alternating sequence's error is within its last step; a
+    geometric one's is its step over one minus the contraction, refused when the steps do not contract; the summed
+    band is the two errors' sum rounded up, with no floor."""
     assert richardson_error(-3e-4, 2.0, 2) == pytest.approx(4e-4)
     assert richardson_error(3e-4, 2.0, 1) == pytest.approx(6e-4)
     assert alternating_error(-1.3e-4) == pytest.approx(1.3e-4)
+    assert geometric_error(-1e-6, 1e-5) == pytest.approx(1e-6 / 0.9)
+    with pytest.raises(ValueError, match="the steps do not contract"):
+        geometric_error(1e-6, 1e-6)
+    assert summed_tolerance(6.0e-4, 6.05e-8) == pytest.approx(7e-4)
+    assert summed_tolerance(3.0e-4, 1.1e-9) == pytest.approx(4e-4)
+
+
+@pytest.mark.foundation
+def test_each_reference_estimate_covers_the_finest_measured_rung() -> None:
+    """Each estimate of the characteristic reference's error at a p = 5 working point is at least its distance to the
+    finest rung measured (p = 8), and within a factor 2 of it: the estimator's model (geometric steps; for the A|B|A
+    sphere's shape, pairs of degrees) checked against the ladder's own tail.
+
+    The data are ``_characteristic_ladders``' ``[M]`` tables, so this row reads no reference. Declared: p = 8 is not
+    the limit, so "covers" holds to the p = 8 rung's own error: ``[M]`` that error is at least 1.3 orders below each
+p = 5 estimate (the A|B|A sphere's shape, its least, p = 7 -> 8 being 4.7e-7 against 9.4e-6). The row reds on
+    a stride-1 shape estimate (3.6e-4 against 9.0e-6: the factor-2 leg) and on a stride-2 k estimate of the A|B|A
+    sphere (2.77e-11 against 2.80e-11: the cover leg).
+    """
+    finest = 8
+    pairs = {
+        "aba_sphere": (ladders.reference_error("aba_sphere"), ladders.ABA_SPHERE_K),
+        "partial_reflector_slab": (ladders.reference_error("partial_reflector_slab"), ladders.PARTIAL_REFLECTOR_K["slab"]),
+        "partial_reflector_sphere": (ladders.reference_error("partial_reflector_sphere"), ladders.PARTIAL_REFLECTOR_K["sphere"]),
+    }
+    assert len(pairs) == 3
+    for fixture, (estimate, k) in pairs.items():
+        p = ladders.WORKING_DEGREE[fixture]
+        distance = abs(k[p] - k[finest]) / abs(k[finest])
+        assert distance <= estimate <= 2.0 * distance, (fixture, estimate, distance)
+    shape = ladders.aba_sphere_shape_error()
+    distance = ladders.ABA_SPHERE_SHAPE_STEP[(ladders.WORKING_DEGREE["aba_sphere"], finest)]
+    assert distance <= shape <= 2.0 * distance, (shape, distance)
 
 
 @pytest.mark.foundation

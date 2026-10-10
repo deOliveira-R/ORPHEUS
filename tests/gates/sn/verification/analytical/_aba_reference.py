@@ -2,15 +2,19 @@ r"""The A|B|A cross-check problem and its harness, defined once (#405 P2 step 7b
 
 Fuel A | moderator B | fuel A at outer radii 0.5, 1.5, 2.0 cm, 2 groups,
 reflective at r = R, on a sphere and on a cylinder: the problem of the
-trajectory-resolvent cross-check rows. It is posed as a
+reference cross-check rows. It is posed as a
 :class:`~orpheus.specification.specification.GeometrySpecification` from
-ISOTROPIC (P0) mixtures: the trajectory resolvent solves isotropic scattering
-only, and the SN rows run at ``scattering_order=0``, while the xs_library's
-``get_mixture("B", "2g")`` carries a P1 moment (mean cosine 0.6). A
-specification built from those would pose a problem neither side solves.
+ISOTROPIC (P0) mixtures: the reference solves isotropic scattering only (the
+characteristic reference refuses an anisotropic emission; the trajectory
+resolvent before it read P0 alone), and the SN rows run at
+``scattering_order=0``, while the xs_library's ``get_mixture("B", "2g")``
+carries a P1 moment (mean cosine 0.6). A specification built from those would
+pose a problem neither side solves.
 
 The harness of the rows that compare against the reference lives here too:
-the reference at its fixture resolution, the shape observables, the one
+the reference at its working point (the characteristic reference since P1
+step (d); its error estimates are
+:mod:`tests.gates.derivations._characteristic_ladders`), the shape observables, the one
 spelling of a tolerance scaled by a production reading, the cylinder's
 verification and RECORD calls, and the strict-xfail mark.
 """
@@ -20,7 +24,7 @@ import functools
 import math
 from collections.abc import Mapping
 from decimal import ROUND_DOWN, Decimal
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 import pytest
@@ -40,15 +44,18 @@ from orpheus.reference.solution import ReferenceSolution
 from orpheus.reference.verification import ReferenceNotValid, verify_agreement
 from orpheus.specification.specification import GeometrySpecification
 
+if TYPE_CHECKING:
+    from orpheus.derivations.continuous.characteristic import Resolution
+
 #: The outer radius of each region, cm.
 ABA_RADII = (0.5, 1.5, 2.0)
 #: The material of each region: fuel A (id 0), moderator B (id 1), fuel A.
 ABA_MATERIAL_IDS = (0, 1, 0)
 
 
-def isotropic_mixture(key: str) -> Mixture:
-    """The xs_library's 2-group mixture ``key`` with its P0 scattering only (no ``sig_s1``)."""
-    xs = get_xs(key, "2g")
+def isotropic_mixture(key: str, groups: str = "2g") -> Mixture:
+    """The xs_library's mixture ``key`` at ``groups`` with its P0 scattering only (no ``sig_s1``)."""
+    xs = get_xs(key, groups)
     return make_mixture(sig_t=xs["sig_t"], sig_c=xs["sig_c"], sig_f=xs["sig_f"], nu=xs["nu"], chi=xs["chi"], sig_s=xs["sig_s"])
 
 
@@ -103,29 +110,28 @@ def aba_xs_2g() -> AbaCrossSections:
 
 # ── the reference ──────────────────────────────────────────────────────────
 
-#: The reference's resolution on each body (the fixtures of the 2026-09-26 ladders,
-#: :mod:`tests.gates.derivations._trajectory_resolvent_ladders`).
-ABA_REFERENCE_QUADRATURE = {
-    CoordSystem.SPHERICAL: {"n_r": 36, "n_mu": 96, "n_traj_quad": 64},
-    CoordSystem.CYLINDRICAL: {"n_r": 24, "n_mu_axial": 16, "n_phi_az": 32, "n_traj_quad": 64},
-}
-_INITIAL_K = {CoordSystem.SPHERICAL: 1.38, CoordSystem.CYLINDRICAL: 1.23}
 
+def aba_reference_at(coord: CoordSystem, resolution: Resolution) -> ReferenceSolution:
+    """The characteristic reference on the A|B|A body at ``resolution``: lazy, uncertified (#566).
 
-def aba_reference_at(coord: CoordSystem, quadrature: Mapping[str, int]) -> ReferenceSolution:
-    """The trajectory-resolvent reference on the A|B|A body at ``quadrature``: lazy, uncertified (#566; the cylinder
-    also #516). The one spelling of its power iteration's settings, for the rows and the ladders alike."""
-    from orpheus.derivations.continuous.trajectory_resolvent.reference import trajectory_resolvent_reference
+    Since P1 step (d) of ``.claude/plans/characteristic_reference_architecture.md`` (until then the trajectory
+    resolvent, whose spelling the corroboration rows keep in ``tests/gates/derivations/_trajectory_resolvent_aba.py``).
+    """
+    from orpheus.derivations.continuous.characteristic import characteristic_reference
 
-    return trajectory_resolvent_reference(
-        aba_specification(coord), quadrature, max_iter=2000, tol=1e-9, initial_k=_INITIAL_K[coord],
-    )
+    return characteristic_reference(aba_specification(coord), resolution)
 
 
 @functools.cache
 def aba_reference(coord: CoordSystem) -> ReferenceSolution:
-    """The reference at its fixture resolution, once per session."""
-    return aba_reference_at(coord, ABA_REFERENCE_QUADRATURE[coord])
+    """The reference at its working point (``_characteristic_ladders.WORKING_DEGREE``), once per session."""
+    from tests.gates.derivations._characteristic_ladders import WORKING_DEGREE, rung
+
+    return aba_reference_at(coord, rung(WORKING_DEGREE[_ABA_FIXTURE[coord]]))
+
+
+#: Each body's fixture name in :mod:`tests.gates.derivations._characteristic_ladders`.
+_ABA_FIXTURE = {CoordSystem.SPHERICAL: "aba_sphere", CoordSystem.CYLINDRICAL: "aba_cylinder"}
 
 
 # ── the observables ────────────────────────────────────────────────────────
@@ -197,13 +203,16 @@ def verify_cylinder_k(solution, relative: float) -> None:
 # ── the RECORD ─────────────────────────────────────────────────────────────
 
 #: RECORD values of the cylinder comparisons, k keys only (the user's cost ruling of 2026-10-03: the 80-ratio
-#: shape set through the reference's extension costs about 38 min). ``[M]`` 2026-09-26 with
-#: ``python -O -m tests.gates.derivations._trajectory_resolvent_ladders records``; unchanged by the 7b.2.3
-#: migration (k is a datum of the eigen answer, read bit-identically through the new factory, R7b2.4).
+#: shape set through the reference's extension costs about 38 min). ``[M]`` with
+#: ``python -O -m tests.gates.derivations._characteristic_ladders records``: the SN keys 2026-09-26, unchanged since
+#: (re-measured 2026-10-10: ``phase_c_k_sn`` within 1 ulp, ``unified_k`` 1.5e-10, ``standoff_sweep_k_nx40`` 0, all
+#: inside the band); ``k_ref`` and ``phase_c_k_gap`` re-baselined 2026-10-10 at P1 step (d), when the reference
+#: became the characteristic reference at the door default (until then the trajectory resolvent at (24, 16, 32):
+#: ``k_ref`` 1.231036749830859, gap 5.97e-4; ``p1_step_d/ta_d/records.log``).
 CYLINDER_3REG_RECORD: dict[str, float] = {
-    "k_ref": 1.231036749830859,
+    "k_ref": 1.2317294528902538,
     "phase_c_k_sn": 1.2317720792844793,
-    "phase_c_k_gap": 0.000596968762311497,
+    "phase_c_k_gap": 3.460574804554325e-05,
     "unified_k": 1.2310184196907399,
     "standoff_sweep_k_nx40": 1.23101841974857,
 }
@@ -225,8 +234,8 @@ def assert_record(readings: Mapping[str, float], recorded: Mapping[str, float], 
         if not abs(readings[name] - value) <= band * scale:
             raise AssertionError(
                 f"record {name!r} moved: {readings[name]!r} against the recorded {value!r}. If the reference "
-                f"was repaired (#516, #566), re-measure the records (python -O -m "
-                f"tests.gates.derivations._trajectory_resolvent_ladders records) and, once its family is certified, "
+                f"changed (its working point, or the reference itself, #566), re-measure the records (python -O -m "
+                f"tests.gates.derivations._characteristic_ladders records) and, once it is certified, "
                 f"lift the xfails; otherwise an SN change moved the solve"
             )
 
@@ -246,7 +255,7 @@ awaits_cylinder_bound = pytest.mark.xfail(
     strict=True,
     raises=ReferenceNotValid,
     reason=(
-        "#566/#516: the cylinder trajectory-resolvent family derives no bound, so its reference has no "
+        "#566 (#516 before P1 step (d)): the characteristic reference derives no bound, so it has no "
         "certificate and cannot anchor a verification; the verbs' refusal is the expected failure"
     ),
 )

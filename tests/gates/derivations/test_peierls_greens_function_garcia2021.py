@@ -48,7 +48,7 @@ MOC) and Picca-Furfaro-Ganapol 2012 (S_N) to 3-4 sig figs at every
 r-point — three structurally-independent methods agreeing.
 
 Tolerances, derived 2026-09-26 (ERR-090) by
-:func:`tests.gates.derivations._trajectory_resolvent_ladders.tolerance_for`
+:func:`tests.gates.derivations._ladder_rules.tolerance_for`
 from two measured quantities, neither of them this comparison's reading:
 
 * Garcia's own error: the table carries five significant figures, so each
@@ -85,10 +85,8 @@ from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
 from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
     solve_greens_function_sphere_mr_fixed_source,
 )
-from tests.gates.derivations._trajectory_resolvent_ladders import (
-    GARCIA_CASE1_RESOLVENT_STEP,
-    tolerance_for,
-)
+from tests.gates.derivations._ladder_rules import tolerance_for
+from tests.gates.derivations._trajectory_resolvent_ladders import GARCIA_CASE1_RESOLVENT_STEP
 
 
 # Garcia 2021 Table 5 (Case 1 converged ppP_N; rightmost column).

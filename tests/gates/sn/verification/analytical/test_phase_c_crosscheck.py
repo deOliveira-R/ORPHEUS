@@ -3,31 +3,38 @@ r"""Issue #168 Phase C/D/E — Gate Set 4: the curvilinear discrete-ordinates so
 * Gate 4.1 — homogeneous-reflective :math:`k_\infty` recovery by the SN
   eigenvalue solver, against the closed form :math:`k_\infty =
   \nu\Sigma_f/\Sigma_a`.
-* Gate 4.2 — the SN eigenvalue (Phase D) and flux shape (Phase E) against the
-  trajectory-resolvent Variant α Green's-function solvers, called bare (the
-  Billiard facade routes the multi-region variants since P1 step 2b, #190,
-  but these rows predate it and keep their direct calls).
+* Gate 4.2 — the SN eigenvalue (Phase D) and flux shape (Phase E) against a
+  semi-analytical reference: the characteristic reference
+  (:func:`~orpheus.derivations.continuous.characteristic.characteristic_reference`)
+  since P1 step (d) of ``.claude/plans/characteristic_reference_architecture.md``
+  (2026-10-09), the trajectory-resolvent Variant α Green's-function solvers
+  before it. The row names keep the old reference's name: the
+  ``#516`` census (``test_crosscheck_harness.py``) keys on them.
 
 The rows, with the claim each makes:
 
 - ``sphere_2g_homogeneous_dd_n20`` and the two ``cyl_1g_homogeneous`` rows:
   on a uniform reflective medium both methods return :math:`k_\infty` exactly
-  (the V_α1 / V_α1_cyl identities), so :math:`k` agrees to ``1e-9``. These are
+  (the reference because a flat emission lies in its panel space and a closed
+  body returns everything, ``test_characteristic_reference.py``'s closed
+  homogeneous row), so :math:`k` agrees to each SN snapshot's own distance
+  from :math:`k_\infty`, by ``tolerance_for``. These are
   the edge rows the heterogeneous rows rest on. They are blind to the angular
   closure: a homogeneous medium's angular flux is near-flat, which nulls the
   redistribution the closure feeds (``[M]`` the cylinder rows' flux moves
   1.1e-10 under a deliberate ``tau := 0.7`` mutation, against 8.8e-2 for the
   2-group 3-region cylinder; ``vv-principles`` anti-pattern #3).
 - ``sphere_2g_3reg``: a live SN solve at Gauss-Legendre 32, 40 cells,
-  against the reference at :math:`(n_r, n_\mu) = (36, 96)`, eigenvalue and
-  flux shape, at tolerances derived from both methods' measured ladders.
-  Since #405 P2 step 7b.2.3 these are ``compare_uncertified`` comparisons,
-  not verification: the reference's family derives no bound (#566).
+  against the reference at its working point (p = 5,
+  ``_characteristic_ladders``), eigenvalue and flux shape, at tolerances
+  derived from both methods' measured ladders. These are
+  ``compare_uncertified`` comparisons, not verification: the reference derives
+  no bound (#566).
 - ``cyl_2g_3reg``: a LIVE SN solve at folded 16x32, 40 cells, against the
-  reference at :math:`(n_r, n_{\mu,\rm axial}, n_\varphi) = (24, 16, 32)`. The
-  eigenvalue and shape rows are strict ``xfail`` on the verification verbs'
-  refusal of an uncertified reference (#566, #516). A RECORD row pins today's
-  k readings.
+  reference at its working point (the door default, p = 3). The eigenvalue
+  and shape rows are strict ``xfail`` on the verification verbs' refusal of
+  an uncertified reference (#566; the old family's azimuthal ladder was also
+  non-monotone, #516). A RECORD row pins today's k readings.
 
 What changed on 2026-09-26 (ERR-090, and two defects of this file):
 
@@ -54,10 +61,18 @@ total fission production, one gauge for both groups, so the group ratio is
 part of the claim; the metric is the largest cell-average difference relative
 to the largest reference cell average.
 
-trajectory_resolvent is the **semi-analytical pillar** (``vv-principles``,
-the three pillars): chords integrated with scipy/numpy quadrature along
-characteristics, sharing no project primitive with the SN sweep above the
-trusted-library line. ORPHEUS SN is the production discretisation under test.
+The characteristic reference is the **semi-analytical pillar**
+(``vv-principles``, the three pillars): the transport equation integrated
+along the body's lines, Galerkin over them, solved by a dense pencil, sharing
+no project primitive with the SN sweep above the trusted-library line (spec
+§9 of ``scratch/characteristic_architecture/p1_verification_spec.md`` walks
+the axes). What both sides read from one object is the posed problem: the
+cross sections, the geometry and the boundary law, whose response factor
+(``SpecularReturn.kernel``) both read through ``law.response_kernel``. A
+defect there moves both sides together (``[M]`` 2026-10-10, qa: alpha :=
+alpha / 2 left the ERR-094 slab row green), so it is pinned outside this
+file, by ``tests/gates/derivations/test_characteristic_walls.py`` (red 3
+times under that mutation). ORPHEUS SN is the production discretisation under test.
 """
 from __future__ import annotations
 
@@ -66,27 +81,24 @@ import functools
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_xs
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
-from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
-    solve_greens_function_sphere_mg,
-    solve_greens_function_sphere_mr,
-)
-from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder import (
-    solve_greens_function_cylinder,
-)
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.observable import Eigenvalue
 from orpheus.reference.verification import compare_uncertified, verify_agreement
 from tests.gates.sn._test_helpers import mixture_from_transport_data
-from tests.gates.derivations._trajectory_resolvent_ladders import (
+from tests.gates.derivations._characteristic_ladders import (
     CYLINDER_3REG_SN_STEPS,
+    EDGE_SN_RESIDUAL,
     SPHERE_3REG_SN_STEPS,
-    sn_residual,
-    sphere_3reg_reference_ladder_estimate,
-    tolerance_for,
+    WORKING_DEGREE,
+    aba_cylinder_shape_error,
+    aba_sphere_shape_error,
+    edge_specification,
+    reference_error,
+    rung,
 )
+from tests.gates.derivations._ladder_rules import sn_residual, tolerance_for
 from tests.gates.sn.verification.analytical._aba_reference import (
     NO_ESTIMATOR,
     aba_reference,
@@ -160,13 +172,16 @@ def test_sn_spherical_homogeneous_kinf_recovery_2g():
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Gate 4.2 — trajectory_resolvent cross-check (BARE function calls)
+# Gate 4.2 — the reference cross-check (the characteristic reference since P1 step (d))
 # ═══════════════════════════════════════════════════════════════════════
 
 _THIS = "tests/gates/sn/verification/analytical/test_phase_c_crosscheck.py"
+#: The reference's line integral of a per-region source that jumps at both interfaces, against mpmath (until step
+#: (d) the retired resolvent's ``test_trajectory_resolvent_regionwise_source.py::
+#: test_mr_oracle_first_leg_matches_the_line_integral``).
 _REGIONWISE = (
-    "tests/gates/derivations/test_trajectory_resolvent_regionwise_source.py"
-    "::test_mr_oracle_first_leg_matches_the_line_integral"
+    "tests/gates/derivations/test_characteristic_transport.py"
+    "::test_the_outflow_of_a_per_region_polynomial_is_its_line_integral_attenuated_to_the_exit"
 )
 
 
@@ -184,59 +199,54 @@ def _snapshot(snapshot_id: str):
     return np.load(path)
 
 
+def _edge_reference_k(body: str) -> float:
+    """The characteristic reference's k on the edge body (``_characteristic_ladders.edge_specification``) at its
+    working point."""
+    from orpheus.derivations.continuous.characteristic import characteristic_reference
+
+    resolution = rung(WORKING_DEGREE[f"edge_{body}"])
+    return float(characteristic_reference(edge_specification(body), resolution).read(Eigenvalue()).value)
+
+
 def _run_sphere_2g_homogeneous_closed() -> float:
-    """Bare ``solve_greens_function_sphere_mg``, uniform A, R = 2 cm."""
-    A2 = get_xs("A", "2g")
-    res = solve_greens_function_sphere_mg(
-        R=2.0,
-        sigma_t=A2["sig_t"],
-        sigma_s=A2["sig_s"],
-        nu_sigma_f=A2["nu"] * A2["sig_f"],
-        chi=A2["chi"],
-        alpha=1.0,                                    # closed sphere
-        n_r=16, n_mu=16, n_traj_quad=32,              # V_α1 exact at α=1
-        max_iter=20, tol=1e-10,
-    )
-    return float(res.k_eff)
+    """The reference on the uniform A sphere, R = 2 cm, two groups, reflective."""
+    return _edge_reference_k("sphere_2g")
 
 
 def _run_cyl_1g_homogeneous_closed() -> float:
-    """Bare ``solve_greens_function_cylinder``, uniform A, R = 2 cm."""
-    A1 = get_xs("A", "1g")
-    res = solve_greens_function_cylinder(
-        R=2.0,
-        sigma_t=float(A1["sig_t"][0]),
-        sigma_s=float(A1["sig_s"][0, 0]),
-        nu_sigma_f=float(A1["nu"][0] * A1["sig_f"][0]),
-        alpha=1.0,                                    # closed cylinder
-        n_r=16, n_mu_axial=12, n_phi_az=24, n_traj_quad=32,
-        max_iter=20, tol=1e-10,
-    )
-    return float(res.k_eff)
+    """The reference on the uniform A cylinder, R = 2 cm, one group, reflective."""
+    return _edge_reference_k("cylinder_1g")
+
+
+def _edge_tolerance(snapshot_id: str, body: str) -> float:
+    """``tolerance_for`` of the snapshot's own distance from k_inf and the reference's error on the body."""
+    return tolerance_for(EDGE_SN_RESIDUAL[snapshot_id], reference_error(f"edge_{body}"))
 
 
 # (snapshot_id, runner, rtol, rationale): the homogeneous edge rows. On a
-# uniform reflective medium k = k_inf = νΣ_f/Σ_a exactly for both methods
-# (V_α1 / V_α1_cyl, derive_T00_equals_P_ss_sphere in the SymPy origins), so
-# rtol 1e-9 is the two iterations' floor with headroom.
+# uniform reflective medium k = k_inf = νΣ_f/Σ_a exactly for both methods, so
+# each side's error is its distance from the closed form: the snapshot's, frozen
+# with it ([M] ``_characteristic_ladders.EDGE_SN_RESIDUAL``), and the reference's
+# at its working point. Until step (d) the rtol was a typed 1e-9 ("the two
+# iterations' floor with headroom").
 _GATE_4_2_CASES: tuple[tuple[str, object, float, str], ...] = (
     (
         "sphere_2g_homogeneous_dd_n20",
         _run_sphere_2g_homogeneous_closed,
-        1e-9,
-        "V_α1 algebraic identity — k=k_∞ exact",
+        _edge_tolerance("sphere_2g_homogeneous_dd_n20", "sphere_2g"),
+        "closed homogeneous body — k=k_∞ exact",
     ),
     (
         "cyl_1g_homogeneous_folded_4x8_dd_n20",
         _run_cyl_1g_homogeneous_closed,
-        1e-9,
-        "V_α1_cyl algebraic identity — k=k_∞ exact",
+        _edge_tolerance("cyl_1g_homogeneous_folded_4x8_dd_n20", "cylinder_1g"),
+        "closed homogeneous body — k=k_∞ exact",
     ),
     (
         "cyl_1g_homogeneous_folded_2x4_dd_n20",
         _run_cyl_1g_homogeneous_closed,
-        1e-9,
-        "V_α1_cyl algebraic identity — k=k_∞ exact (folded 2x4 split)",
+        _edge_tolerance("cyl_1g_homogeneous_folded_2x4_dd_n20", "cylinder_1g"),
+        "closed homogeneous body — k=k_∞ exact (folded 2x4 split)",
     ),
 )
 
@@ -252,12 +262,14 @@ _GATE_4_2_CASES: tuple[tuple[str, object, float, str], ...] = (
 def test_phase_d_trajectory_resolvent_crosscheck(
     snapshot_id, runner, rtol, rationale,
 ) -> None:
-    r"""Gate 4.2, the edge rows: SN snapshot k against the trajectory resolvent on a homogeneous medium.
+    r"""Gate 4.2, the edge rows: SN snapshot k against the characteristic reference on a homogeneous medium.
 
     Both sides must return :math:`k_\infty` of the uniform medium; the
-    reference does so by the V_α1 / V_α1_cyl identities
-    (:mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function`).
-    These rows are 1-group or homogeneous and so blind to every spatial and
+    reference does so because a flat emission lies in its panel space and the
+    closed body returns everything it emits
+    (``test_characteristic_reference.py::test_a_closed_homogeneous_body_reads_the_exact_infinite_mediums_k_and_flux``).
+    The tolerance and the reading per row are in the ``_GATE_4_2_CASES``
+    comment's source, ``_characteristic_ladders``. These rows are 1-group or homogeneous and so blind to every spatial and
     angular operator (``vv-principles`` anti-pattern #3); they are the
     foundation the heterogeneous rows below rest on, not evidence about them.
     """
@@ -266,13 +278,13 @@ def test_phase_d_trajectory_resolvent_crosscheck(
     rel = abs(k_ref - expected_keff) / expected_keff
     print(
         f"{snapshot_id}: k_sn={expected_keff:.10f}  "
-        f"k_trajres={k_ref:.10f}  rel={rel:.2e}  target={rtol:.0e}  "
+        f"k_ref={k_ref:.16f}  rel={rel:.2e}  target={rtol:.0e}  "
         f"({rationale})"
     )
     assert rel < rtol, (
         f"Gate 4.2 cross-check for {snapshot_id!r} exceeded tolerance: "
         f"k_sn_snapshot={expected_keff:.8f}, "
-        f"k_trajectory_resolvent={k_ref:.8f}, rel={rel:.2e}, "
+        f"k_reference={k_ref:.16f}, rel={rel:.2e}, "
         f"target rtol={rtol:.0e}. Rationale: {rationale}"
     )
 
@@ -283,11 +295,11 @@ def test_phase_d_trajectory_resolvent_crosscheck(
 #
 # Since step 7b.2.3 both sides are read through the reading verb: production's
 # ``Solution.read`` (cell averages paired with mesh-free weights) and the
-# trajectory-resolvent ``ReferenceSolution`` (its emission density's transport
-# integral, the user's ruling 1 of 2026-10-03). The reference's family derives
-# no bound (#566; the cylinder also #516), so it reads ``Uncertified``: the
+# reference's ``ReferenceSolution`` (since P1 step (d) the characteristic
+# reference, its Galerkin flux paired with the weights). The reference derives
+# no bound (#566), so it reads ``Uncertified``: the
 # sphere rows are explicit ``compare_uncertified`` comparisons at their
-# 2026-09-26 tolerances, a weaker claim than verification and spelled as such,
+# ladder-derived tolerances, a weaker claim than verification and spelled as such,
 # and carry no ``verifies`` marker; the cylinder rows are strict xfails on the
 # verbs' own refusal (``ReferenceNotValid``), XPASSing only when P4 gives the
 # family a certificate.
@@ -356,23 +368,30 @@ def _largest_cell_average(solution, observables) -> float:
 # ── the sphere: an uncertified comparison ────────────────────────────────
 #
 # Tolerances are COMPUTED from the ladders in
-# tests/gates/derivations/_trajectory_resolvent_ladders.py: tolerance_for(SN
+# tests/gates/derivations/_characteristic_ladders.py: tolerance_for(SN
 # residual, the reference's ladder ESTIMATE). Since the step-5 ruling (no ladder
 # certifies) the estimate is the tolerance's documented provenance, not a bound.
-# [M] 2026-09-26: estimate 3.2e-4 (k) and 1.4e-3 (shape); SN residual 1.5e-5 (k)
-# and 7.3e-3 (shape); tolerances 4e-3 and 2e-2 (relative).
-_SPHERE_LADDER_ESTIMATE = sphere_3reg_reference_ladder_estimate()
+# [M] 2026-10-09: SN residual 1.5e-5 (k) and 7.3e-3 (shape); tolerances 4e-5
+# and 2e-2 (relative), the reference's estimates at p = 5 three orders and more
+# below the SN residual. Until step (d) the estimate was the trajectory
+# resolvent's, 3.2e-4 (k) and 1.4e-3 (shape), and the k tolerance its 10 b
+# floor, 4e-3.
+_SPHERE_LADDER_ESTIMATE = {"k": reference_error("aba_sphere"), "shape": aba_sphere_shape_error()}
 _SPHERE_TOLERANCE = {
     observable: tolerance_for(sn_residual(SPHERE_3REG_SN_STEPS[observable]), _SPHERE_LADDER_ESTIMATE[observable])
     for observable in ("k", "shape")
 }
 
+#: Until step (d): the retired resolvent's ``test_peierls_greens_function_mr.py::test_mr_sphere_k_converges_in_n_r``
+#: (now the Rayleigh-Ritz nesting row) and ``test_trajectory_resolvent_reference.py::
+#: test_r7b2_2_1_the_sphere_reading_against_an_unsplit_fine_angular_rule`` (now the flux integral of a step weight,
+#: the shape observables' shape).
 _SPHERE_SUPPORTS = (
-    f"{_REGIONWISE}[sphere]",
-    "tests/gates/derivations/test_peierls_greens_function_mr.py::test_mr_sphere_k_converges_in_n_r",
+    f"{_REGIONWISE}[sphere_solid_b0.3-1]",
+    "tests/gates/derivations/test_characteristic_system.py::test_one_group_k_increases_on_nested_spaces[sphere]",
     f"{_THIS}::test_phase_d_trajectory_resolvent_crosscheck[sphere_2g_homogeneous_dd_n20]",
     f"{_THIS}::test_sn_spherical_homogeneous_kinf_recovery_2g",
-    "tests/gates/derivations/test_trajectory_resolvent_reference.py::test_r7b2_2_1_the_sphere_reading_against_an_unsplit_fine_angular_rule",
+    "tests/gates/derivations/test_characteristic_reference.py::test_a_flux_integral_is_the_volume_integral_of_the_galerkin_flux[step-symbolic]",
     "tests/gates/sn/test_solution_read.py::test_r7b2_9_2_the_cells_sum_to_the_whole_domain",
 )
 
@@ -381,19 +400,26 @@ _SPHERE_SUPPORTS = (
 @pytest.mark.slow
 @pytest.mark.rests_on(*_SPHERE_SUPPORTS)
 def test_sphere_3reg_k_against_trajectory_resolvent() -> None:
-    r"""The heterogeneous closed sphere's eigenvalue: SN at GL32 against the UNCERTIFIED reference at (36, 96).
+    r"""The heterogeneous closed sphere's eigenvalue: SN at GL32 against the UNCERTIFIED characteristic reference at p = 5.
 
     Fuel A | moderator B | fuel A at 0.5, 1.5, 2.0 cm, 2 groups, reflective
-    at r = R. Held to 4e-3 relative (derived above), as the absolute
-    4e-3 × truncated(k_SN). ``[M]`` reading 6.5e-5 relative; the one-spline
-    reference (ERR-090) read 7.9e-3. Not verification: the reference has no
-    bound (#566), so this is ``compare_uncertified``.
+    at r = R. Held to 4e-5 relative (derived above: 2 e governs, the SN
+    residual 1.5e-5; the reference's estimate 3.9e-11), as the absolute
+    4e-5 × truncated(k_SN). ``[M]`` 2026-10-09 reading 1.8e-5 relative, a
+    margin of 2.2. Not verification: the reference has no bound (#566), so
+    this is ``compare_uncertified``.
 
-    Blind to the SN angular-closure defect class: ``tau := 0.7`` reads 8.7e-4
-    here, inside the tolerance; that defect's catcher is
-    ``tests/gates/sn/regression/test_dd_regression.py``. The SN-defect
-    witness of this row is a wrong boundary law (the reflective face realised
-    as vacuum reads 2.6e1).
+    Until P1 step (d) the reference was the trajectory resolvent at
+    (36, 96), its ladder estimate 3.2e-4 set the tolerance at 4e-3 (its 10 b
+    floor), and the row read 6.5e-5; the one-spline resolvent (ERR-090) read
+    7.9e-3. At that tolerance the row was blind to the SN angular-closure
+    defect class (``tau := 0.7`` read 8.7e-4, 2026-09-26). At 4e-5 the same
+    reading would be 22 times the tolerance, so the row is PROMOTED to a
+    catcher of it ``[R]``, not re-measured at step (d); the class's catcher
+    of record stays ``tests/gates/sn/regression/test_dd_regression.py``. The
+    SN-defect witness of this row is a wrong boundary law (the reflective face
+    realised as vacuum reads 2.6e1) and, at step (d), SN's k scaled by
+    1 + 2 × 4e-5 (red, ``p1_step_d/ta_d/battery``).
 
     Until 2026-09-26 this row compared the reference at (24, 24) with a
     hand-typed k four months stale (1.3578153, against the snapshot's
@@ -411,8 +437,8 @@ def test_sphere_3reg_k_against_trajectory_resolvent() -> None:
 @pytest.mark.slow
 @pytest.mark.rests_on(
     *_SPHERE_SUPPORTS,
-    "tests/gates/derivations/test_trajectory_resolvent_reference.py"
-    "::test_r7b2_2_2_the_emission_density_is_the_solves_fixed_point[spherical]",
+    "tests/gates/derivations/test_characteristic_system.py"
+    "::test_the_fundamental_mode_satisfies_its_pencil[closed-sphere]",
 )
 def test_sphere_3reg_flux_shape_against_trajectory_resolvent() -> None:
     r"""The heterogeneous closed sphere's flux shape: 80 fission-gauged cell averages over the SN cells.
@@ -420,7 +446,15 @@ def test_sphere_3reg_flux_shape_against_trajectory_resolvent() -> None:
     Activates the spatial and angular redistribution in both groups and the
     group ratio (one gauge for both groups); the material interfaces are
     inside the comparison. Each of the 80 ratios against the uncertified
-    reference at the absolute 2e-2 × M, M the largest gauged cell average.
+    reference at the absolute 2e-2 × M, M the largest gauged cell average:
+    the SN residual (7.3e-3) governs, the characteristic reference's estimate
+    at p = 5 being 9.4e-6 (1.4e-3 for the trajectory resolvent it replaced at
+    P1 step (d), which gave the same 2e-2).
+
+    The readings below were taken on the trajectory resolvent; at step (d)
+    the row reads the characteristic reference (``[M]`` 2026-10-09:
+    ``p1_step_d/ta_d/``, the step-(d) runs), and its SN-side witness is SN's
+    every ratio scaled by 1 + 2 × 2e-2 (red, ``p1_step_d/ta_d/battery``).
 
     ``[M]`` 2026-10-03, the RE-BASELINE of the reading (not of the tolerance):
     until step 7b.2.3 the reference was read as its NODAL φ through a
@@ -452,23 +486,30 @@ def test_sphere_3reg_flux_shape_against_trajectory_resolvent() -> None:
     print(f"sphere 3-region shape: worst |m - v| = {worst:.3e} against {tolerance:.3e}")
 
 
-# ── the cylinder: not yet certifiable (#516, #566) ───────────────────────
+# ── the cylinder: not yet certifiable (#566) ─────────────────────────────
 #
 # The tolerances the cylinder rows are held to once the reference is
-# certified: tolerance_for(SN residual, None), the reference assumed at the
-# floor. [M] SN residual at folded 16x32, 40 cells: 3.0e-5 (k), 5.0e-3
-# (shape); tolerances 8e-5 and 2e-2. The verbs refuse the uncertified
-# reference before reading it: the expected failure.
+# certified: tolerance_for(SN residual, the characteristic reference's estimate
+# at the door default). [M] SN residual at folded 16x32, 40 cells: 3.0e-5 (k),
+# 5.0e-3 (shape); the reference's estimates 3.5e-8 (k) and 2.5e-4 (shape,
+# _characteristic_ladders, 2026-10-10); tolerances 6e-5 and 2e-2. Until step
+# (d) the trajectory resolvent had no estimate on the cylinder (#516), the
+# reference was assumed at the floor, and the k tolerance was 8e-5. The verbs
+# refuse the uncertified reference before reading it: the expected failure.
 _CYLINDER_TOLERANCE = {
-    observable: tolerance_for(sn_residual(CYLINDER_3REG_SN_STEPS[observable]), None)
-    for observable in ("k", "shape")
+    "k": tolerance_for(sn_residual(CYLINDER_3REG_SN_STEPS["k"]), reference_error("aba_cylinder")),
+    "shape": tolerance_for(sn_residual(CYLINDER_3REG_SN_STEPS["shape"]), aba_cylinder_shape_error()),
 }
 
+#: Until step (d): the retired resolvent's ``test_peierls_greens_function_cylinder_mr.py::
+#: test_mr_K3_uniform_reduces_to_mg_2g`` (now: an interface between equal materials is invisible) and
+#: ``test_peierls_greens_function_cylinder_mr_xverif.py::test_mr_single_region_vacuum_matches_wm72`` (now: the
+#: cylinder's escape and transmission probabilities against their closed forms).
 _CYLINDER_SUPPORTS = (
-    f"{_REGIONWISE}[cylinder]",
+    f"{_REGIONWISE}[cylinder_solid_b0.7_wz0.8-1]",
     f"{_THIS}::test_phase_d_trajectory_resolvent_crosscheck[cyl_1g_homogeneous_folded_4x8_dd_n20]",
-    "tests/gates/derivations/test_peierls_greens_function_cylinder_mr.py::test_mr_K3_uniform_reduces_to_mg_2g",
-    "tests/gates/derivations/test_peierls_greens_function_cylinder_mr_xverif.py::test_mr_single_region_vacuum_matches_wm72",
+    "tests/gates/derivations/test_characteristic_assembly.py::test_an_interface_between_equal_materials_is_invisible[3]",
+    "tests/gates/derivations/test_characteristic_assembly.py::test_the_escape_and_transmission_probabilities_are_the_closed_forms[cylinder-tau2.0]",
 )
 
 @pytest.mark.l1
@@ -476,13 +517,13 @@ _CYLINDER_SUPPORTS = (
 @pytest.mark.rests_on(*_CYLINDER_SUPPORTS)
 @awaits_cylinder_bound
 def test_cylinder_3reg_k_against_trajectory_resolvent() -> None:
-    r"""The heterogeneous closed cylinder's eigenvalue: live SN at folded 16x32 against the reference at (24, 16, 32).
+    r"""The heterogeneous closed cylinder's eigenvalue: live SN at folded 16x32 against the reference at the door default.
 
-    Held to 8e-5 (derived above). The reference has no certificate (#566;
-    its azimuthal ladder is not monotone, #516), so ``verify_agreement``
-    refuses it before reading: the expected failure. The row XPASSes when
-    the family's factory returns a ``Valid`` certificate (P4); the RECORD
-    row below keeps the reading live meanwhile.
+    Held to 6e-5 (derived above). The reference has no certificate (#566),
+    so ``verify_agreement`` refuses it before reading: the expected failure.
+    The row XPASSes when the reference returns a ``Valid`` certificate (P4);
+    the RECORD row below keeps the reading live meanwhile (``[M]``
+    2026-10-10: the gap it records is 3.5e-5, inside 6e-5).
     """
     verify_cylinder_k(_cylinder_3reg_sn_16x32()[0], _CYLINDER_TOLERANCE["k"])
 
@@ -497,8 +538,9 @@ def test_cylinder_3reg_flux_shape_against_trajectory_resolvent() -> None:
     Re-posed on 2026-09-26 from the 4x8 snapshot onto a live 16x32 solve: at
     4x8 SN's own angular error in this metric is 6.1e-2, which no comparison
     can separate from a defect; the snapshot keeps its job in
-    ``test_dd_regression``. Held to 2e-2 × M (derived above); the expected
-    failure is the verbs' refusal, raised at the first ratio.
+    ``test_dd_regression``. Held to 2e-2 × M (derived above, unchanged by
+    step (d): the SN residual governs); the expected failure is the verbs'
+    refusal, raised at the first ratio.
     """
     solution, mesh = _cylinder_3reg_sn_16x32()
     reference = aba_reference(CoordSystem.CYLINDRICAL)
@@ -523,7 +565,10 @@ def _cylinder_readings() -> dict[str, float]:
 def test_cylinder_3reg_crosscheck_record() -> None:
     r"""RECORD: today's cylinder k readings, green until either side moves.
 
-    Not verification. Red under ``tau := 0.7`` (the SN k moves 7.8e-4), the
+    Not verification. Since P1 step (d) ``k_ref`` is the characteristic
+    reference's at the door default (re-baselined 2026-10-10, the three SN
+    keys unmoved). Its SN-side witness at step (d): SN's k scaled by
+    1 + 2 × 2e-5 (red, ``p1_step_d/ta_d/battery``). Earlier: red under ``tau := 0.7`` (the SN k moves 7.8e-4), the
     vacuum-for-reflective law, the one-spline reference and a 1 % reference
     perturbation (measured 2026-09-26 with the shape keys; the k keys alone
     are re-measured by the step-7b.2.3 battery). The shape keys were dropped

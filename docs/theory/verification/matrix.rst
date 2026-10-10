@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **17350**
+Total tests collected: **17351**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2645, 15.2%
    L2, 79, 0.5%
    L3, 0, 0.0%
-   foundation, 12827, 73.9%
+   foundation, 12828, 73.9%
    unmarked, 45, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 17226
+   explicit, 17227
    class-name, 46
    func-name, 0
    case, 33
@@ -54,7 +54,7 @@ Module × level grid
    analytical/test_angular_diffusion_limit_consistency, 0, 3, 0, 0, 0, 0
    analytical/test_be_reflected_n2n_anisotropy, 0, 0, 5, 0, 0, 0
    analytical/test_cp_standoff_curvilinear, 0, 2, 1, 0, 0, 0
-   analytical/test_crosscheck_harness, 0, 0, 0, 0, 5, 0
+   analytical/test_crosscheck_harness, 0, 0, 0, 0, 6, 0
    analytical/test_kinf_homogeneous, 0, 43, 0, 0, 0, 0
    analytical/test_kinf_homogeneous_tolerance, 0, 8, 0, 0, 0, 0
    analytical/test_l1_standoff_slab_cylinder, 0, 15, 0, 0, 0, 0

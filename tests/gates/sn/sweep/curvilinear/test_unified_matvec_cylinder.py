@@ -26,12 +26,13 @@ correctness is a 4-way standoff):
 * **L1** — heterogeneous 3-region 2G closed cylinder eigenvalue.  The
   GMRES inner solve routes through :class:`StreamingCollisionOperator`
   (= ``L + C``) consuming the unified matvec; the resulting ``k_eff``
-  is cross-checked against the trajectory_resolvent reference
-  (Variant α at α=1). The row is a strict ``xfail`` on the verbs' refusal
-  (the cylinder reference's family derives no bound, #566 and #516, so it has
-  no certificate) with a RECORD companion; the
-  3 % it used to carry was "Variant α's quadrature error budget", which was
-  the reference's one-spline emission density (ERR-090).
+  is cross-checked against the characteristic reference (since P1 step (d)
+  of ``.claude/plans/characteristic_reference_architecture.md``; the
+  trajectory resolvent, Variant α at α=1, before it). The row is a strict
+  ``xfail`` on the verbs' refusal (the reference derives no bound, #566, so it
+  has no certificate) with a RECORD companion; the 3 % it used to carry was
+  "Variant α's quadrature error budget", which was the old reference's
+  one-spline emission density (ERR-090).
 
 The since-retired legacy ``transport_operator_matvec_cylindrical`` had a
 per-ordinate routing bug (ERR-049 — ascending-global ``ks`` indices vs
@@ -58,10 +59,8 @@ from tests.gates.sn._test_helpers import (
     legacy_proxy_matvec,
     placeholder_materials,
 )
-from tests.gates.derivations._trajectory_resolvent_ladders import (
-    CYLINDER_3REG_SN_4X8_K_STEP,
-    tolerance_for,
-)
+from tests.gates.derivations._characteristic_ladders import CYLINDER_3REG_SN_4X8_K_STEP, reference_error
+from tests.gates.derivations._ladder_rules import tolerance_for
 from orpheus.numerics.observable import Eigenvalue
 from tests.gates.sn._test_helpers import mixture_from_transport_data
 from tests.gates.sn.verification.analytical._aba_reference import (
@@ -348,13 +347,13 @@ def test_unified_cylinder_constant_psi_gives_sigma_t() -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# L1 — Heterogeneous trajectory_resolvent cross-check via Krylov
+# L1 — Heterogeneous reference cross-check via Krylov (the characteristic reference since P1 step (d))
 # ═══════════════════════════════════════════════════════════════════════
 #
 # The L0 battery proves the per-cell algebra. The L1 test proves the
 # *converged eigenvalue* of a heterogeneous cylinder problem agrees with
-# the structurally-independent trajectory_resolvent reference (Variant α
-# at α=1, see ``orpheus.derivations.continuous.trajectory_resolvent``).
+# the structurally-independent characteristic reference
+# (``orpheus.derivations.continuous.characteristic``).
 #
 # Why heterogeneous: L2 in lessons.md — homogeneous k = νΣ_f/Σ_a is
 # flux-shape independent (the matvec's redistribution & angular closure
@@ -371,13 +370,14 @@ def test_unified_cylinder_constant_psi_gives_sigma_t() -> None:
 
 
 #: The k tolerance this comparison is held to once the reference is certified:
-#: ``tolerance_for(e, None)`` of ``tests/gates/derivations/_trajectory_resolvent_ladders.py``,
-#: the reference assumed at the floor, for this folded-4x8 solve's own k error
-#: e = 5.9e-4 ([M] 2026-09-26: the 4x8 SN k against its 32x64 limit), giving
-#: 2e-3. It was 3e-2, justified as "the reference's quadrature budget"; that
-#: budget was the reference's one-spline emission density (ERR-090), and the
-#: reference still has no certificate (#566, #516).
-_UNIFIED_CYL_K_TOLERANCE = tolerance_for(CYLINDER_3REG_SN_4X8_K_STEP, None)
+#: ``tolerance_for(e, b)`` of ``tests/gates/derivations/_ladder_rules.py``, for
+#: this folded-4x8 solve's own k error e = 5.9e-4 ([M] 2026-09-26: the 4x8 SN k
+#: against its 32x64 limit) and the characteristic reference's estimate b at its
+#: working point (``_characteristic_ladders``), giving 2e-3 (2 e governs; until
+#: step (d) b was assumed at the floor, the same 2e-3). It was 3e-2 before
+#: 2026-09-26, the old reference's one-spline budget (ERR-090). The reference
+#: has no certificate (#566).
+_UNIFIED_CYL_K_TOLERANCE = tolerance_for(CYLINDER_3REG_SN_4X8_K_STEP, reference_error("aba_cylinder"))
 
 
 @functools.cache
@@ -397,8 +397,8 @@ def _unified_cylinder_solution():
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.rests_on(
-    "tests/gates/derivations/test_trajectory_resolvent_regionwise_source.py"
-    "::test_mr_oracle_first_leg_matches_the_line_integral[cylinder]",
+    "tests/gates/derivations/test_characteristic_transport.py"
+    "::test_the_outflow_of_a_per_region_polynomial_is_its_line_integral_attenuated_to_the_exit[cylinder_solid_b0.7_wz0.8-1]",
 )
 @awaits_cylinder_bound
 def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
@@ -408,11 +408,10 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
     matvec routes through :class:`StreamingCollisionOperator` (= ``L + C``)
     via :func:`_transport_operator_matvec_unified`. The converged
     eigenvalue is to be verified against the structurally-independent
-    trajectory-resolvent reference (Variant α at α=1) at
-    :data:`_UNIFIED_CYL_K_TOLERANCE`.
+    characteristic reference at :data:`_UNIFIED_CYL_K_TOLERANCE`.
 
-    Strict ``xfail`` on the verbs' refusal: the reference's family derives no
-    bound (#566, #516), so it has no certificate; the comparison stays live
+    Strict ``xfail`` on the verbs' refusal: the reference derives no
+    bound (#566), so it has no certificate; the comparison stays live
     through ``test_unified_cylinder_l1_mr_2g_trajectory_resolvent_record``.
 
     Per ``.claude/lessons.md`` L14 — solver correctness is a 4-way
@@ -431,9 +430,9 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent_record() -> None:
     r"""RECORD: the unified-matvec solve's k and the reference's, as they read today, through ``read``.
 
     Not verification: it keeps the comparison live while the row above is a
-    strict xfail, and reddens when either side moves (an SN change, or the
-    reference's #516/#566 repair, after which the family is certified and the
-    xfail lifted). The recorded values and their band are
+    strict xfail, and reddens when either side moves (an SN change, or a change
+    of the reference's working point or of the reference itself, #566
+    certifying it and lifting the xfail). The recorded values and their band are
     ``_aba_reference.CYLINDER_3REG_RECORD``.
     """
     assert_cylinder_record({

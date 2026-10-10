@@ -20,7 +20,7 @@ foundation only, and an L4 row carries none of them (P0's
 
 **Independence, asserted before every comparison** (``tests/gates/_corroboration.py``):
 
-- statically, the old family's 20 modules and its three test helpers name nothing of the new package, by
+- statically, the old family's 20 modules and its two test helpers name nothing of the new package, by
   import, attribute chain or module-name string, and nothing their imports
   reach transitively is a new module;
 - at run time, evaluating the old side executes no code object of the new
@@ -60,7 +60,6 @@ from orpheus.data.materials import Materials
 from orpheus.derivations.continuous.characteristic.grading import graded_ends
 from orpheus.derivations.continuous.characteristic import (
     Resolution,
-    TransportResolution,
     Walls,
     characteristic_reference,
 )
@@ -72,12 +71,13 @@ from orpheus.numerics.traced_memo import bypass, cache_root, traced_memo
 from orpheus.reference.solution import ReferenceSolution
 from orpheus.specification.specification import GeometrySpecification
 from tests.gates import _corroboration as corroboration
+from tests.gates.derivations import _trajectory_resolvent_aba as old_aba
+from tests.gates.derivations._characteristic_ladders import rung
+from tests.gates.derivations._ladder_rules import ceil_one_significant_figure, richardson_error
 from tests.gates.derivations._trajectory_resolvent_ladders import (
     CYLINDER_3REG_REFERENCE_K,
     GARCIA_CASE1_RESOLVENT_STEP,
     SPHERE_3REG_REFERENCE_K,
-    ceil_one_significant_figure,
-    richardson_error,
     sphere_3reg_reference_ladder_estimate,
 )
 from tests.gates.derivations.test_characteristic_reading import _GARCIA, _GARCIA_RES
@@ -90,7 +90,6 @@ from tests.gates.derivations.test_peierls_greens_function_garcia2021 import (
 )
 from tests.gates.sn.regression import _generate_snapshots as snapshots
 from tests.gates.sn.verification.analytical import _aba_reference as aba
-from tests.gates.sn.verification.analytical.test_partial_reflector_resolvent import _cross_sections
 
 #: Each comparison logs its reading against its tolerance (``-o log_cli=true --log-cli-level=INFO`` prints them).
 _LOG = logging.getLogger(__name__)
@@ -121,13 +120,14 @@ NEW = corroboration.NewSide(
 #: The new reference's resolutions (``p1_step_c/explorer_c.md`` §7): p = 5, the finest rung the explorer probed, where
 #: k moved 4e-9 (slab) and 1.5e-8 (sphere, from p = 3) between rungs; and the door default for the cylinder, whose
 #: p = 3 solve already costs about 21 min ``[M]`` (the plan's #587 entry).
-_P5 = Resolution(5, 4, 0.4, TransportResolution(16, 20, 20), 12)
-_DOOR_DEFAULT = Resolution(3, 2, 0.4, TransportResolution(8, 12, 12), 8)
+#: Since step (d) read off the SN rows' ladder (``_characteristic_ladders.rung``), one definition of each rung.
+_P5 = rung(5)
+_DOOR_DEFAULT = rung(3)
 
 _FISSION = Eigen(CellCoefficient.every(Channel.FISSION_EMISSION))
-#: The old power iteration's tolerance on the A|B|A bodies (``_aba_reference.aba_reference_at``); the old value read
-#: here is the tabulated rung when it is within ten times it.
-_ABA_SOLVE_TOL = 1e-9
+#: The old power iteration's tolerance on the A|B|A bodies (``_trajectory_resolvent_aba.aba_reference_at``); the old
+#: value read here is the tabulated rung when it is within ten times it.
+_ABA_SOLVE_TOL = old_aba.ABA_SOLVE_TOL
 
 
 @pytest.fixture
@@ -137,12 +137,13 @@ def new_calls(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, int]]:
         yield counts
 
 
-#: The old side: the family, and the test helpers the rows reach it through (qa 2, 2026-10-09): the A|B|A harness,
-#: the Garcia solve and spline reading, and the ERR-094 rows' cross sections.
+#: The old side: the family, and the test helpers the rows reach it through (qa 2, 2026-10-09): the old A|B|A and
+#: ERR-094 spelling, and the Garcia solve and spline reading. Until step (d) the first was ``_aba_reference`` and
+#: ``test_partial_reflector_resolvent``; both reach the new reference since, so the old spelling moved to
+#: ``_trajectory_resolvent_aba``, which takes the A|B|A specification (the shared problem) as an argument.
 _OLD_HELPERS = (
-    "tests.gates.sn.verification.analytical._aba_reference",
+    "tests.gates.derivations._trajectory_resolvent_aba",
     "tests.gates.derivations.test_peierls_greens_function_garcia2021",
-    "tests.gates.sn.verification.analytical.test_partial_reflector_resolvent",
 )
 
 
@@ -158,7 +159,7 @@ def _assert_the_old_side_is_independent() -> None:
 
 
 def test_the_old_family_names_nothing_of_the_new_reference() -> None:
-    """The static precondition over the old side: the family's 20 modules, the 3 test helpers the rows read it through,
+    """The static precondition over the old side: the family's 20 modules, the 2 test helpers the rows read it through,
     and every first-party module they import, each read by the per-module leg.
 
     ``[M]`` 2026-10-09: the family's closure is 153 first-party modules, 0 refused (qa ``closure_full_probe.py``). The
@@ -275,15 +276,20 @@ def _read_new(specification: GeometrySpecification, resolution: Resolution, obse
         return float(_new(specification, resolution).read(observable).value)
 
 
+def _old_aba_reference(coord: CoordSystem) -> ReferenceSolution:
+    """A FRESH old reference on the A|B|A body at its fixture (``_trajectory_resolvent_aba.aba_reference_at``)."""
+    return old_aba.aba_reference_at(aba.aba_specification(coord), old_aba.ABA_REFERENCE_QUADRATURE[coord], coord)
+
+
 def _old_aba(coord: CoordSystem, observable: Observable) -> float:
-    """The old reference's reading on the A|B|A body at its fixture, from a FRESH reference (``aba_reference_at``).
+    """The old reference's reading on the A|B|A body at its fixture, from a FRESH reference.
 
     Not the session-cached ``aba_reference``: the old side carries no in-process state from one row to the next, so
     each row's runtime leg sees every call its old reading makes. A value cached by an earlier row whose window was
     refused would pass this row's leg vacuously (``[M]`` 2026-10-09, battery arm R: with the Garcia solve cached, the
     surface row stayed green behind the interior row's refusal).
     """
-    return float(aba.aba_reference_at(coord, aba.ABA_REFERENCE_QUADRATURE[coord]).read(observable).value)
+    return float(_old_aba_reference(coord).read(observable).value)
 
 
 @pytest.mark.slow
@@ -321,7 +327,7 @@ def test_the_aba_sphere_shape_agrees_with_the_old_reference_within_its_ladder_es
     assert len(observables) == 80
 
     def old_shape() -> np.ndarray:
-        reference = aba.aba_reference_at(CoordSystem.SPHERICAL, aba.ABA_REFERENCE_QUADRATURE[CoordSystem.SPHERICAL])
+        reference = _old_aba_reference(CoordSystem.SPHERICAL)
         return np.array([float(reference.read(ratio).value) for _, _, ratio in observables])
 
     old = corroboration.without(new_calls, NEW, old_shape)
@@ -362,8 +368,9 @@ def _partial_reflector(geometry: StructuredGeometry) -> GeometrySpecification:
 
 
 def _assert_the_old_inputs_are_the_posed_mixture() -> tuple[np.ndarray, ...]:
-    """The old solver's arrays (the SN rows' ``_cross_sections``) are, bit for bit, the posed mixture's: one problem."""
-    sigma_t, sigma_s, nu_sigma_f, chi = _cross_sections()
+    """The old solver's arrays (``_trajectory_resolvent_aba.partial_reflector_cross_sections``, the SN rows' until step
+    (d)) are, bit for bit, the posed mixture's: one problem."""
+    sigma_t, sigma_s, nu_sigma_f, chi = old_aba.partial_reflector_cross_sections()
     mixture = aba.isotropic_mixture("A")
     assert np.array_equal(np.asarray(mixture.SigT, dtype=float), sigma_t)
     assert len(mixture.SigS) == 1 and np.array_equal(mixture.SigS[0].toarray(), sigma_s)

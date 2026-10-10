@@ -28,12 +28,14 @@ References (semi-analytical pillar per ``vv-principles``):
   reference is mesh-independent and mathematically self-contained;
   ``solve_sn`` at the matching quadrature order must converge to it
   as h → 0.
-- **Cylinder** — the trajectory-resolvent Variant α Green's-function
-  reference ``solve_greens_function_cylinder_mr``.  3-region 2G
-  reflective ABA layout.  Uses ray-traced chord integration in 3-D
-  space; structurally independent of every discrete primitive in the
-  SN code (no shared FP path, no shared redist closure, no shared
-  boundary recurrence).
+- **Cylinder** — the characteristic reference
+  (:func:`~orpheus.derivations.continuous.characteristic.characteristic_reference`,
+  since P1 step (d) of ``.claude/plans/characteristic_reference_architecture.md``;
+  the trajectory-resolvent Variant α reference before it).  3-region 2G
+  reflective ABA layout.  The transport equation integrated along the
+  body's lines, Galerkin over them; structurally independent of every
+  discrete primitive in the SN code (no shared FP path, no shared redist
+  closure, no shared boundary recurrence).
 
 Sweep route (``inner_solver="source_iteration"``) routes through the
 ``(L+C)`` strategy sweep / ``DiscretizationScheme.update``, which uses WDD
@@ -50,10 +52,8 @@ import pytest
 
 from orpheus.sn import solve_sn
 from orpheus.numerics.quadrature import Quadrature
-from tests.gates.derivations._trajectory_resolvent_ladders import (
-    CYLINDER_3REG_SN_4X8_K_STEP,
-    tolerance_for,
-)
+from tests.gates.derivations._characteristic_ladders import CYLINDER_3REG_SN_4X8_K_STEP, reference_error
+from tests.gates.derivations._ladder_rules import tolerance_for
 from orpheus.geometry import CoordSystem
 from orpheus.numerics.observable import Eigenvalue
 from tests.gates.sn.verification.analytical._case_slab_reference import case_slab_k_ref, case_slab_mesh
@@ -121,21 +121,24 @@ def _solve_cyl_via_sweep(nx: int):
 # ═══════════════════════════════════════════════════════════════════════
 # Cylinder L1 standoff
 # ═══════════════════════════════════════════════════════════════════════
-# Reference tolerance, once the reference is certified: ``tolerance_for(e, None)``
-# of ``tests/gates/derivations/_trajectory_resolvent_ladders.py``, the
-# reference assumed at the floor, for the folded-4x8 solve's own k error
-# e = 5.9e-4 ([M] 2026-09-26), giving 2e-3. It was 3e-2, justified as
-# "trajectory_resolvent's quadrature error budget at n_r=24"; that budget was
-# the reference's one-spline emission density (ERR-090), and the reference
-# still carries no certificate (#566, #516), so the reference legs are strict
+# Reference tolerance, once the reference is certified: ``tolerance_for(e, b)``
+# of ``tests/gates/derivations/_ladder_rules.py``, for the folded-4x8 solve's
+# own k error e = 5.9e-4 ([M] 2026-09-26) and the characteristic reference's
+# estimate b at its working point (``_characteristic_ladders``), giving 2e-3
+# (2 e governs). Until step (d) b was assumed at the floor (the trajectory
+# resolvent had no estimate on the cylinder), which gave the same 2e-3. It was
+# 3e-2 before 2026-09-26, the old reference's one-spline budget (ERR-090). The
+# reference carries no certificate (#566), so the reference legs are strict
 # xfails on the verbs' refusal, with a RECORD companion.
 # Twin-path tolerance: 1e-5 rel (both algorithms converge to the same
 # discrete fixed point at the matched solver tolerances).
-_CYL_REF_RTOL = tolerance_for(CYLINDER_3REG_SN_4X8_K_STEP, None)
+_CYL_REF_RTOL = tolerance_for(CYLINDER_3REG_SN_4X8_K_STEP, reference_error("aba_cylinder"))
 _CYL_TWIN_RTOL = 1.0e-5
+#: The reference's line integral of a per-region source on an oblique cylinder line (until step (d) the retired
+#: resolvent's ``test_trajectory_resolvent_regionwise_source.py::test_mr_oracle_first_leg_matches_the_line_integral[cylinder]``).
 _CYL_SUPPORTS = (
-    "tests/gates/derivations/test_trajectory_resolvent_regionwise_source.py"
-    "::test_mr_oracle_first_leg_matches_the_line_integral[cylinder]",
+    "tests/gates/derivations/test_characteristic_transport.py"
+    "::test_the_outflow_of_a_per_region_polynomial_is_its_line_integral_attenuated_to_the_exit[cylinder_solid_b0.7_wz0.8-1]",
 )
 
 
@@ -144,14 +147,14 @@ _CYL_SUPPORTS = (
 @pytest.mark.rests_on(*_CYL_SUPPORTS)
 @awaits_cylinder_bound
 def test_cylinder_l1_sweep_vs_trajectory_resolvent() -> None:
-    r"""**Cylinder Leg 2** — sweep ≡ trajectory_resolvent reference.
+    r"""**Cylinder Leg 2** — sweep ≡ the characteristic reference.
 
     Production source-iteration path (the ``(L+C)`` strategy sweep /
     ``DiscretizationScheme.update``) on the 3-region 2G ABA cylinder. No shim:
     the sweep already uses the WDD-correct per-cell algebra that the
     unified matvec also wraps. Strict ``xfail`` on the verbs' refusal: the
-    reference's family derives no bound (#566, #516), so it has no
-    certificate; ``test_cylinder_l1_reference_record`` keeps the reading live.
+    reference derives no bound (#566), so it has no certificate;
+    ``test_cylinder_l1_reference_record`` keeps the reading live.
     """
     verify_cylinder_k(_solve_cyl_via_sweep(nx=40), _CYL_REF_RTOL)
 
@@ -233,9 +236,9 @@ def test_cylinder_l1_refinement_against_reference(nx: int) -> None:
     r"""**Cylinder Leg 4, reference half** — both paths against the reference at each refinement.
 
     "Right rate to right limit": at nx ∈ {20, 40, 80} both algorithms must
-    agree with the trajectory_resolvent reference to :data:`_CYL_REF_RTOL`.
+    agree with the characteristic reference to :data:`_CYL_REF_RTOL`.
     Strict ``xfail`` on the verbs' refusal: the reference has no certificate
-    (#566, #516).
+    (#566).
 
     Each path is solved when its comparison is reached, not before: while the
     reference is uncertified the first comparison refuses, so the Krylov solve
@@ -253,9 +256,9 @@ def test_cylinder_l1_reference_record() -> None:
     r"""RECORD: the reference's k and the sweep's k (nx = 40), as they read today.
 
     Not verification: it keeps the cylinder reference legs live while they
-    are strict xfails, and reddens when either side moves (an SN change, or
-    the reference's #516/#566 repair, after which the family is certified and
-    the xfails lifted).
+    are strict xfails, and reddens when either side moves (an SN change, or a
+    change of the reference's working point or of the reference itself, #566
+    certifying it and lifting the xfails).
     """
     assert_cylinder_record({"k_ref": _cylinder_k_ref(), "standoff_sweep_k_nx40": _k(_solve_cyl_via_sweep(nx=40))})
 
