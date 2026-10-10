@@ -1761,3 +1761,72 @@ Carried into (d):
 - G2's tolerance input was measured on the retired nodal reading.
 
 Into (e): P0's corroboration rows that import `chord_oracle` are in the blast radius.
+
+## Step (d): the context and three rulings (2026-10-09)
+
+**Context** (`p1_step_d/explorer_d.md`):
+- **13 SN consumers** of the old reference family, 17 test ids. 11 of them go through `_aba_reference.aba_reference` / `verify_cylinder_k` (the late import at `_aba_reference.py:118`). The two partial-reflector rows and the parametrized edge row call the old solvers directly.
+- **A census** over 1132 tracked files found no 14th SN consumer.
+- **No SN Garcia rows exist.** The step (c) carry-over about them is void.
+- **Scattering order 0 confirmed.** A spy on the partial-reflector rows' own calls saw `scattering_order=0`.
+- **D9 was never built,** and no function returns the new reference's error.
+- **The record:** `assert_record` uses a 2e-5 band and has no fingerprint. Under the new reference, `k_ref` moves 5.6e-4, and `phase_c_k_gap` goes from 5.97e-4 to 3.46e-5.
+
+**Hazards:**
+- `test_crosscheck_harness.py:103` checks the awaiting rows by name and by "#516" in their reason.
+- 8 `rests_on` ids point at old-family tests.
+- The labelled equation `sn-curvilinear-trajectory-resolvent-crosscheck` names the old reference and τ_k = 4e-3 in its body.
+- The ABA sphere k row tightens from 4e-3 to 4e-5 and reads 1.8e-5.
+
+**Rulings (the user, 2026-10-09):**
+1. **Statement (ii)'s error comes from a ladder module,** `tests/gates/derivations/_characteristic_ladders.py`. Per SN fixture it holds the new reference's step to a rung above its working point, as `[M]` literals with a re-measure CLI, consumed by `tolerance_for`. The cylinder's rung above the door default is measured once, offline.
+2. **The partial-reflector rows keep their own sum rule,** recomputed from the new reference's error. It is tighter and never looser: the sphere row's band becomes 7e-4 against a reading of 6.54e-4, and its docstring records the margin.
+3. **Step (d)'s shape, approved:**
+   - `aba_reference` and `verify_cylinder_k` move to `characteristic_reference`: the sphere and slab at p = 5, the cylinder at the door default;
+   - the partial-reflector and edge rows move to the new door;
+   - `k_ref` and `phase_c_k_gap` are re-baselined, and the three SN keys must not move;
+   - the 7 cylinder xfails stay strict (#566);
+   - no row is renamed and the #516 reason is not reworded;
+   - the 8 `rests_on` ids are re-pointed to the new reference's gates;
+   - the docs commit rewrites the labelled equation;
+   - the regenerated matrix goes in the code commit.
+
+## Step (d) landed (2026-10-10)
+
+`[LANDED d9425977]` (code; CI green on its own) and `94bfbf51` (docs; CI green).
+
+**The re-point.** The 13 SN reference rows (17 ids) read the characteristic reference. The sphere and slab run at p = 5, the cylinder at `Resolution(3, 2, 0.4, TransportResolution(8, 12, 12), 8)`.
+
+**The new estimates** live in `tests/gates/derivations/_characteristic_ladders.py`, `[M]` tables with an argparse CLI:
+- on geometric ladders, the step divided by (1 − r), with r the largest ratio measured on any ladder (0.2957);
+- stride 2 for the ABA sphere shape;
+- the cylinder's rung (4, 3) with the transport rule held (3399 s), plus the transport step.
+
+**Statement (ii) holds on every row,** and every tolerance tightened or held. The largest tightening: the ABA sphere k, 4e-3 → 4e-5.
+
+**The record:** `k_ref` = 1.2317294528902538, `phase_c_k_gap` = 3.4606e-5. The three SN keys did not move.
+
+**The restructure:**
+- `_ladder_rules.py` holds the pure tolerance rules.
+- `_trajectory_resolvent_aba.py` holds the old A|B|A spelling and the ERR-094 old arrays, so step (c)'s rows keep comparing the same old spellings.
+- `_trajectory_resolvent_ladders.py` now holds only the old reference's tables, so step (e) deletes it whole.
+
+**qa (`p1_step_d/qa_d/`):**
+- F1: both sides read the boundary law's response factor, `SpecularReturn.kernel`. It is part of the posed problem, and its external pin is `test_characteristic_walls.py`. Spec §9 is corrected.
+- F2: ERR-094's corner moves SN's k toward the reference at this fixture, so the band cannot see it. The leakage re-drop reddens both rows.
+
+**Still `[R]`:**
+- the claim that the ABA sphere k row is now a catcher of `tau := 0.7`;
+- the cylinder shape estimate's transport term, the k step standing in for a shape step nobody measured.
+
+**Next: step (e).** Retire the old family in one commit, with its dependency-audit table (`retirement-audit` G.24). Its blast radius includes:
+- the old family's 20 modules and its own tests (the 77 RETIRE rows of the spec's roster);
+- step (c)'s corroboration file, which is deleted;
+- the `chord_oracle` imports in `test_kernel_corroboration.py` (lines 156, 193 and 233);
+- the Garcia tables imported by `test_characteristic_reading.py:60`;
+- the traced-memo client tests;
+- the import inside a subprocess string at `test_ambient_state.py:141`;
+- the `cross_method` tests;
+- `_trajectory_resolvent_ladders.py` and `_trajectory_resolvent_aba.py`.
+
+The explorer's census is in `p1_step_d/explorer_d.md` §2 and in its memory file `characteristic_reference_sn_consumers.md`.

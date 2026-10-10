@@ -63,3 +63,4 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Ray/characteristic machinery map](ray_characteristic_machinery_map.md) — six chord bodies agree; chord_half_lengths straddles branches untested.
 - [Traced-memo client census](traced_memo_client_census.md) — unpickle skips __post_init__ (untraced); MR result all-data; key needs bind.
 - [Geometric computation census](geometric_computation_census.md) — RigidMotion typed, values absent; one quadratic; mesh metrics degenerate.
+- [Characteristic ref: SN consumers](characteristic_reference_sn_consumers.md) — 13 rows, one seam; D9 label collision; #516 name pin.
