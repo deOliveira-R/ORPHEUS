@@ -5,7 +5,7 @@ closure, independent :math:`\alpha_{\rm in}, \alpha_{\rm out} \in
 [0, 1]`).
 
 Math-origin pattern: the SymPy derivation in
-:mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_hollow_sphere`
+:mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_hollow_sphere`
 is the source of truth for the operator-level identities of hollow-
 sphere Variant α. Mirrors the Phase-3B asymmetric-slab symbolic test
 gates with the curvilinear 2-surface generalisation (impact-parameter
@@ -63,7 +63,7 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.derivations.continuous.trajectory_resolvent.origins.specular import (
+from orpheus.derivations.continuous.characteristic.origins.specular import (
     derive_alpha_zero_kernel_reduction_hollow_sphere,
     derive_operator_constant_trial_closed_hollow_sphere,
     derive_rank2_resolvent_hollow_sphere,

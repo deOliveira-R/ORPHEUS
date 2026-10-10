@@ -144,7 +144,7 @@ References
 - Sanchez, R. (1986). *Transp. Theor. Stat. Phys.* 14.
 - :file:`/.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase
   3C-2 annulus plan.
-- :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_annulus`
+- :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_annulus`
   — V_α1_annulus / V_α2_annulus / V_α2_annulus.aux / V_α3_annulus
   SymPy verifications.
 - :mod:`.greens_function_hollow_sphere` — Phase-3C-1 hollow sphere

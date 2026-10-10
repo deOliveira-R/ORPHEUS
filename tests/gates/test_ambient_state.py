@@ -141,7 +141,7 @@ def test_m5_3_the_two_origins_derivations_leave_the_precision_as_they_found_it()
     script = textwrap.dedent('''
         import mpmath
         from orpheus.derivations.continuous.singular_eigenfunction.origins.cylinder_derivations import derive_bessel_wronskian_identity
-        from orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab import derive_T00_equals_P_ss_slab
+        from orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab import derive_T00_equals_P_ss_slab
         for f in (derive_bessel_wronskian_identity, derive_T00_equals_P_ss_slab):
             mpmath.mp.dps = 17
             result = f()

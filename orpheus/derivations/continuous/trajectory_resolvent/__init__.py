@@ -24,9 +24,9 @@ Sub-modules:
 - :mod:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder` —
   cylinder production solver (mirror of the sphere driver, mounted on
   the same Variant α core).
-- :mod:`~orpheus.derivations.continuous.trajectory_resolvent.origins` —
-  symbolic *origins* (SymPy V_α1..V_α3 operator-level identities) for
-  sphere and cylinder.
+- The symbolic *origins* (SymPy V_α1..V_α3 operator-level identities)
+  moved to :mod:`~orpheus.derivations.continuous.characteristic.origins`
+  in P1 step (e1a), ahead of this family's retirement.
 - :mod:`~orpheus.derivations.continuous.trajectory_resolvent.billiard` —
   the :class:`Billiard` class (R2 hindsight refactor) — a math-rich
   facade over every Variant α geometry that returns the SHARED

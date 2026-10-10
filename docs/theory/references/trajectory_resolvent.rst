@@ -778,7 +778,7 @@ This is the no-leakage k_inf of the closed sphere, derivable
 without any spatial transport machinery — but it must hold for the
 Variant α implementation if the operator action is wired correctly.
 The symbolic proof of :eq:`peierls-greens-V-alpha-1` lives in
-:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function.derive_operator_constant_trial_closed_sphere`
+:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function.derive_operator_constant_trial_closed_sphere`
 (SymPy verification, paired numerical gate in
 :file:`tests/gates/derivations/test_trajectory_resolvent_symbolic.py`).
 The argument has three steps.
@@ -910,7 +910,7 @@ while the Hébert chord-self-collision probability (Hébert 2009
 
 This makes the rank-1 algebraic equivalence airtight, *independent
 of any quadrature implementation*. The symbolic proof lives in
-:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function.derive_T00_equals_P_ss_sphere`.
+:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function.derive_T00_equals_P_ss_sphere`.
 
 Operator-level interpretation. At rank-1 the Phase 4 closure
 :math:`(I - T R)^{-1}` reduces to :math:`1/(1 - T_{00}) =
@@ -963,7 +963,7 @@ only setting the prefactor to zero in
 :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function._apply_operator`'s
 bounce-sum branch — V_α3 guarantees this is mathematically correct
 without re-deriving anything. The symbolic proof is in
-:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function.derive_alpha_zero_kernel_reduction`.
+:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function.derive_alpha_zero_kernel_reduction`.
 
 Practical note. The closed sphere with vacuum BC is *not* the same
 problem as the closed sphere with specular BC. For specular BC the
@@ -2171,7 +2171,7 @@ This is the cylinder analogue of the sphere :math:`L_p = 2 R
 \mu_{\rm surf}`, with TWO conserved quantities (impact parameter
 AND axial cosine) controlling its value rather than one
 (:math:`\mu_{\rm surf}`). The symbolic gate
-:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_bounce_period_chord_cylinder`
+:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder.derive_bounce_period_chord_cylinder`
 verifies this identity by deriving :math:`L_{\rm period}` two ways
 (impact-parameter form and surface-tangent form) and proving they
 agree algebraically — V_α1_cyl.geometry, the foundation gate that
@@ -2277,13 +2277,13 @@ Operator-level identities (V_α1_cyl / V_α2_cyl / V_α3_cyl)
 -----------------------------------------------------------
 
 Mirroring the sphere proofs, the cylinder Branch-1 SymPy module
-:mod:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder`
+:mod:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder`
 verifies three identities. The proofs are algebraically nearly
 isomorphic to sphere V_α1/V_α2/V_α3, with the chord formula being
 the only geometric variation.
 
 **V_α1_cyl** — closed-cylinder bounce-sum self-consistency
-(:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_operator_constant_trial_closed_cylinder`).
+(:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder.derive_operator_constant_trial_closed_cylinder`).
 For homogeneous cylinder with isotropic constant trial
 :math:`\psi_{\rm trial}(r, \mu_{\rm axial}, \varphi_{\rm az}) = 1`
 and constant scattering source :math:`q = \Sigma_s` (:math:`k =
@@ -2302,7 +2302,7 @@ to sphere V_α1 — **the chord formula is the only geometric
 variation**, and it cancels via the same algebra-of-record pattern.
 
 **V_α1_cyl.geometry** — bounce-period chord identity
-(:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_bounce_period_chord_cylinder`).
+(:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder.derive_bounce_period_chord_cylinder`).
 Foundation gate for V_α1_cyl: :math:`L_{\rm period}(b, \mu_{\rm
 axial}) = 2\sqrt{R^2 - b^2} / \sqrt{1 - \mu_{\rm axial}^2}` derived
 two ways (impact-parameter form vs surface-tangent form) agree
@@ -2312,7 +2312,7 @@ through the closure.
 
 **V_α2_cyl** — rank-1 cylinder Variant α ≡ cylinder Hébert white-BC
 closure
-(:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_T00_equals_P_ss_cylinder`).
+(:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder.derive_T00_equals_P_ss_cylinder`).
 Unlike sphere, **the cylinder integrand has no elementary closed
 form**: the :math:`\mathrm{Ki}_3` Bickley-Naylor function appears
 naturally in cylinder transport and is itself defined by an integral.
@@ -2351,7 +2351,7 @@ numerical equality at five :math:`\tau_R` values is the
 structurally-independent cross-check that ERR-032 would have caught.
 
 **V_α3_cyl** — vacuum reduction at α=0
-(:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_alpha_zero_kernel_reduction_cylinder`).
+(:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder.derive_alpha_zero_kernel_reduction_cylinder`).
 The surface fixed-point closure (:eq:`peierls-greens-cylinder-T`)
 carries leading factor :math:`\alpha`, so :math:`\psi_{\rm surf}
 \to 0` at :math:`\alpha = 0`. Vacuum BC is the trivial limit; no
@@ -2471,7 +2471,7 @@ Source code, tests, and provenance
 ----------------------------------
 
 - **Branch-1 SymPy**:
-  :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder`
+  :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder`
   (~395 LoC).
   :func:`derive_operator_constant_trial_closed_cylinder` (V_α1_cyl);
   :func:`derive_bounce_period_chord_cylinder` (V_α1_cyl.geometry);
@@ -2784,7 +2784,7 @@ segment index :math:`k`, so it factors out of the sum:
 
 This factoring is the **V_α1_cyl_mr.b** SymPy identity, proved
 symbolically in
-:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_piecewise_3d_optical_depth_cylinder_mr`
+:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder.derive_piecewise_3d_optical_depth_cylinder_mr`
 and pinned by foundation test
 :func:`tests.gates.derivations.test_peierls_greens_function_cylinder_symbolic.test_v_alpha1_cyl_mr_piecewise_3d_optical_depth`.
 
@@ -2913,7 +2913,7 @@ only — :math:`\pm\pi/2` is never sampled exactly) and by checking
 **Algebraic ancestor for the MR closure (V_α1_cyl_mr.q).** The
 two-region constant-source surface flux is the strongest symbolic
 L1 check. With :math:`q` spatially constant, the SymPy module's
-:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_two_region_constant_source_consistency_cylinder_mr`
+:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder.derive_two_region_constant_source_consistency_cylinder_mr`
 computes :math:`B` as an exact piecewise integral
 
 .. math::
@@ -2974,7 +2974,7 @@ attribution, per-region tensor broadcast), not the underlying
 Green's-function physics.
 
 **Algebraic ancestor (V_α1_cyl_mr).** The SymPy identity
-:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_homogeneous_limit_reducibility_cylinder_mr`
+:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder.derive_homogeneous_limit_reducibility_cylinder_mr`
 proves both pieces symbolically:
 
 1. **Piecewise τ-sum collapse**: with three symbolic segment
@@ -3486,13 +3486,13 @@ Phase 1b ship list
 -------------------
 
 - **Branch-1 SymPy** (extension):
-  :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder`
+  :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder`
   — three new ``derive_*_cylinder_mr*`` identities:
-  :func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_homogeneous_limit_reducibility_cylinder_mr`
+  :func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder.derive_homogeneous_limit_reducibility_cylinder_mr`
   (V_α1_cyl_mr),
-  :func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_piecewise_3d_optical_depth_cylinder_mr`
+  :func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder.derive_piecewise_3d_optical_depth_cylinder_mr`
   (V_α1_cyl_mr.b),
-  :func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder.derive_two_region_constant_source_consistency_cylinder_mr`
+  :func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder.derive_two_region_constant_source_consistency_cylinder_mr`
   (V_α1_cyl_mr.q).
 - **Branch-2 production**:
   :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder_mr`
@@ -4839,12 +4839,12 @@ Operator-level identities (V_α1_slab / V_α2_slab / V_α3_slab)
 --------------------------------------------------------------
 
 The slab Branch-1 SymPy module
-:mod:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab`
+:mod:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab`
 verifies three identities, each a slab-specialisation of a sphere
 analogue.
 
 **V_α1_slab** — closed-slab bounce-sum self-consistency
-(:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab.derive_operator_constant_trial_closed_slab`).
+(:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab.derive_operator_constant_trial_closed_slab`).
 For homogeneous slab with constant volumetric source :math:`q`,
 operator action on isotropic constant trial gives :math:`(K \cdot 1)
 = \omega_0` everywhere, hence :math:`k_{\rm eff} = k_\infty` for
@@ -4859,7 +4859,7 @@ B integral and the first-leg attenuation algebraically removes the
 
 **V_α2_slab** — :math:`T_{00}^{\rm slab} = P_{\rm ss}^{\rm slab}`
 algebraic identity
-(:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab.derive_T00_equals_P_ss_slab`).
+(:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab.derive_T00_equals_P_ss_slab`).
 The closed form is
 
 .. math::
@@ -4890,7 +4890,7 @@ values to absolute tolerance 1e-12. See
 narrative on why the hybrid path is structurally sufficient.
 
 **V_α3_slab** — vacuum reduction at α=0
-(:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab.derive_alpha_zero_kernel_reduction_slab`).
+(:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab.derive_alpha_zero_kernel_reduction_slab`).
 Surface fixed-point closure (:eq:`peierls-greens-slab-T`) carries
 leading factor :math:`\alpha`; :math:`\psi_{\rm surf} \to 0` at
 :math:`\alpha = 0`. Vacuum BC is the trivial limit; no special-case
@@ -4979,7 +4979,7 @@ Source code, tests, and provenance
 ----------------------------------
 
 - **Branch-1 SymPy**:
-  :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab`
+  :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab`
   (~431 LoC).
   :func:`derive_operator_constant_trial_closed_slab` (V_α1_slab);
   :func:`derive_T00_equals_P_ss_slab` (V_α2_slab);
@@ -5251,13 +5251,13 @@ Variant α architecture for asymmetric slab (operator-level identities)
 -----------------------------------------------------------------------
 
 The slab-asymmetric Branch-1 SymPy module
-:mod:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab_asymmetric`
+:mod:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab_asymmetric`
 verifies three identities (mirroring V_α1/V_α2/V_α3 from sphere but
 on the rank-2 form):
 
 - **V_α1_slab_asym** — closed-asymmetric-slab bounce-sum
   self-consistency at :math:`\alpha_L = \alpha_R = 1`
-  (:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab_asymmetric.derive_operator_constant_trial_closed_slab_asymmetric`).
+  (:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab_asymmetric.derive_operator_constant_trial_closed_slab_asymmetric`).
   For homogeneous slab with constant source :math:`q`,
   :math:`\psi(x, \mu) = q/\Sigma_t` everywhere via the rank-2
   closure. The proof uses the matrix algebra
@@ -5267,7 +5267,7 @@ on the rank-2 form):
   :math:`q/\Sigma_t` for both surface entries.
 
 - **V_α2_slab_asym** — rank-2 resolvent identity
-  (:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab_asymmetric.derive_rank2_resolvent_slab_asymmetric`).
+  (:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab_asymmetric.derive_rank2_resolvent_slab_asymmetric`).
   Verifies :math:`(I - S) \cdot T = I` algebraically, with explicit
   symbolic substitution :math:`S = \mathrm{antidiag}(\alpha_L\,
   e^{-\tau}, \alpha_R\,e^{-\tau})`. The proof uses
@@ -5276,7 +5276,7 @@ on the rank-2 form):
 
 - **V_α3_slab_asym** — vacuum reduction at :math:`\alpha_L =
   \alpha_R = 0`
-  (:func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab_asymmetric.derive_alpha_zero_kernel_reduction_slab_asymmetric`).
+  (:func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab_asymmetric.derive_alpha_zero_kernel_reduction_slab_asymmetric`).
   At :math:`\alpha_L = \alpha_R = 0`, :math:`S = 0`, :math:`T = I`;
   the closure reduces to the bare first-leg integral
   :math:`\psi = F(x, \mu)` with no surface contribution. Vacuum-
@@ -5457,7 +5457,7 @@ Source code, tests, and provenance
 ----------------------------------
 
 - **Branch-1 SymPy**:
-  :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab_asymmetric`
+  :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab_asymmetric`
   (~362 LoC).
   :func:`derive_operator_constant_trial_closed_slab_asymmetric` (V_α1_slab_asym);
   :func:`derive_rank2_resolvent_slab_asymmetric` (V_α2_slab_asym);
@@ -5693,7 +5693,7 @@ Operator-level identities (V_α1_hollow_sph / V_α2_hollow_sph / V_α3_hollow_sp
 -------------------------------------------------------------------------------
 
 The hollow-sphere Branch-1 SymPy module
-:mod:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_hollow_sphere`
+:mod:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function_hollow_sphere`
 verifies three identities. The structurally novel piece (relative to
 sphere/cylinder/slab/slab-asym) is the **independent** verification
 of V_α1 on **both branches** of the impact-parameter partition.
@@ -5838,7 +5838,7 @@ Source code, tests, and provenance
 ----------------------------------
 
 - **Branch-1 SymPy**:
-  :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_hollow_sphere`.
+  :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_hollow_sphere`.
   :func:`derive_operator_constant_trial_closed_hollow_sphere` (V_α1_hollow_sph);
   :func:`derive_rank2_resolvent_hollow_sphere` (V_α2_hollow_sph);
   :func:`derive_alpha_zero_kernel_reduction_hollow_sphere` (V_α3_hollow_sph).
@@ -6222,7 +6222,7 @@ Source code, tests, and provenance
 ----------------------------------
 
 - **Branch-1 SymPy**:
-  :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_annulus`.
+  :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_annulus`.
   :func:`derive_operator_constant_trial_closed_annulus` (V_α1_annulus);
   :func:`derive_rank2_resolvent_annulus` (V_α2_annulus);
   :func:`derive_alpha_zero_kernel_reduction_annulus` (V_α3_annulus);
@@ -6319,16 +6319,16 @@ Code provenance
 
 The Variant α implementation spans three files:
 
-- :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function`
+- :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function`
   — SymPy derivations V_α1, V_α2, V_α3 (operator-level identities).
   About 270 lines.
 
-  - :func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function.derive_operator_constant_trial_closed_sphere`
+  - :func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function.derive_operator_constant_trial_closed_sphere`
     — V_α1 closed-sphere bounce-sum self-consistency.
-  - :func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function.derive_T00_equals_P_ss_sphere`
+  - :func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function.derive_T00_equals_P_ss_sphere`
     — V_α2 algebraic identity :math:`T_{00}^{\rm sphere} =
     P_{ss}^{\rm sphere}`.
-  - :func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function.derive_alpha_zero_kernel_reduction`
+  - :func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function.derive_alpha_zero_kernel_reduction`
     — V_α3 vacuum-BC kernel reduction.
 
 - :mod:`orpheus.derivations.continuous.trajectory_resolvent.greens_function` —

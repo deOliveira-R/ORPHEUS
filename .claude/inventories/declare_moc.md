@@ -79,7 +79,7 @@ NOT derived from `.claude/inventories/implements_declaration_inventory.md`
   flat-source term**". That is FALSE. `[M]`
   `grep -rn "/ Sigma_t) \* (1 - sp.exp" orpheus/ --include="*.py"` returns **12
   sites** under
-  `orpheus/derivations/continuous/trajectory_resolvent/origins/specular/greens_function*.py`
+  `orpheus/derivations/continuous/characteristic/origins/specular/greens_function*.py`
   (slab, slab-asymmetric, cylinder, annulus, hollow sphere — e.g.
   `greens_function_annulus.py:244`, `greens_function_slab.py:220`) that spell
   exactly `(q/Σ_t)(1 - e^{-τ})`, the flat-source half of this equation. They are

@@ -2877,7 +2877,7 @@ Codebase pointers:
   ``_mg``, ``_mr``, ``_mr_fixed_source``).
 - :mod:`orpheus.derivations.continuous.peierls_nystrom.ps1982_reference` —
   PS-1982 reference solver (vacuum sphere only).
-- :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function`
+- :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function`
   — SymPy derivations V_α1, V_α2, V_α3 for the Green's function
   family.
 - :file:`docs/theory/_peierls_nystrom_capability_matrix.inc.rst` —

@@ -3,7 +3,7 @@ slab Variant α Green's function reference (rank-2 boundary-to-boundary
 scattering resolvent, independent :math:`\alpha_L, \alpha_R \in [0, 1]`).
 
 Math-origin pattern: the SymPy derivation in
-:mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab_asymmetric`
+:mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab_asymmetric`
 is the source of truth for the operator-level identities of asymmetric
 slab Variant α. Mirrors the Phase-3A symmetric-slab symbolic test gates
 with the rank-2 generalisation.
@@ -51,7 +51,7 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.derivations.continuous.trajectory_resolvent.origins.specular import (
+from orpheus.derivations.continuous.characteristic.origins.specular import (
     derive_alpha_zero_kernel_reduction_slab_asymmetric,
     derive_operator_constant_trial_closed_slab_asymmetric,
     derive_rank2_resolvent_slab_asymmetric,

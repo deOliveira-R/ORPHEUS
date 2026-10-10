@@ -4,7 +4,7 @@ Each module here carries the symbolic / mathematical pre-history of
 a piece of the Peierls Variant α Green's-function form — the algebraic
 identity it relies on, the boundary-condition formalism it uses —
 without itself being a continuous reference. Re-exported from
-:mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular`
+:mod:`orpheus.derivations.continuous.characteristic.origins.specular`
 for the specular-BC family.
 """
 

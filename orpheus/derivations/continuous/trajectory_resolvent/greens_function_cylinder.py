@@ -108,7 +108,7 @@ References
 ----------
 
 - Sanchez, R. (1986). *Transp. Theor. Stat. Phys.* 14.
-- :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder`
+- :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder`
   — V_α1_cyl/V_α2_cyl/V_α3_cyl SymPy verifications.
 - :file:`/.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 1
   cylinder Variant α plan.
@@ -744,7 +744,7 @@ def solve_greens_function_cylinder_mr(
     **k_∞ recovery at single-region α=1 (Gate 3, L1 closed-form).**
     For ``radii=[R]`` and ``alpha=1.0``, the closed-cylinder V_α1_cyl
     algebraic identity (the SymPy module
-    :func:`~orpheus.derivations.continuous.trajectory_resolvent.origins.
+    :func:`~orpheus.derivations.continuous.characteristic.origins.
     specular.greens_function_cylinder.derive_operator_constant_trial_
     closed_cylinder`) ensures :math:`k_{\rm eff} = k_\infty =
     \nu\Sigma_f/\Sigma_a` exactly — V_α1_cyl invariance under chord-

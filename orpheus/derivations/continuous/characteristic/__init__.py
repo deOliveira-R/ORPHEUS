@@ -31,6 +31,12 @@ numerics kernel (:mod:`orpheus.derivations.common.dense_pencil`):
   multigroup Galerkin system on every group's block, its k pencil and its
   source pencil on the emission space: the fundamental and higher modes, the adjoint, the fixed
   source and the detector's adjoint flux;
+- :mod:`~orpheus.derivations.continuous.characteristic.origins` — the
+  algebra of record: the SymPy identities of the specular closure
+  (V_α1..V_α3 and their slab, cylinder, annulus and hollow-sphere forms),
+  the Branch-1 derivations this reference's closed-form gates descend
+  from (moved here in P1 step (e1a) from the trajectory-resolvent family,
+  which step (e) retires);
 - :mod:`~orpheus.derivations.continuous.characteristic.reading` — the
   reading at a point: the transported emission's scalar flux there, over
   the directions at the point as the line rule's own lines, and its angular

@@ -127,9 +127,9 @@ References
   forms and rank-1 white-BC closure.
 - :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 3A
   slab Variant α plan.
-- :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function`
+- :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function`
   — sphere V_α1/V_α2/V_α3 reference (this module mirrors structure).
-- :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_cylinder`
+- :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_cylinder`
   — cylinder V_α1_cyl/V_α2_cyl/V_α3_cyl reference.
 - :func:`orpheus.derivations.continuous.peierls_nystrom.geometry.compute_T_specular_slab`
   — production primitive whose [0, 0] entry equals

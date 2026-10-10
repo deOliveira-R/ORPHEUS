@@ -98,7 +98,7 @@ References
 - Sanchez, R. (1986). *Transp. Theor. Stat. Phys.* 14.
 - :file:`/.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase
   3C-1 hollow sphere plan.
-- :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_hollow_sphere`
+- :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_hollow_sphere`
   — V_α1_hollow_sph/V_α2_hollow_sph/V_α3_hollow_sph SymPy verifications.
 - :mod:`.greens_function_slab_asymmetric` — Phase-3B asymmetric slab
   reference solver (the rank-2 template lifted here to curvilinear

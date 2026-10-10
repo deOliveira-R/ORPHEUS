@@ -119,7 +119,7 @@ References
 - Sanchez, R. (1986). *Transp. Theor. Stat. Phys.* 14.
 - Hébert, A. (2009). *Applied Reactor Physics* §3.8.5 — slab :math:`E_n`
   forms and rank-1 white-BC closure.
-- :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab_asymmetric`
+- :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab_asymmetric`
   — V_α1_slab_asym/V_α2_slab_asym/V_α3_slab_asym SymPy verifications.
 - :file:`/.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 3B
   asymmetric slab plan.

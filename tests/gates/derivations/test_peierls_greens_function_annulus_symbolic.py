@@ -5,7 +5,7 @@ outer-only closure, independent :math:`\alpha_{\rm in}, \alpha_{\rm out}
 \in [0, 1]`, cylinder 3D angular phase-space).
 
 Math-origin pattern: the SymPy derivation in
-:mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_annulus`
+:mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_annulus`
 is the source of truth for the operator-level identities of annulus
 Variant α. Mirrors the Phase-3C-1 hollow sphere symbolic test gates with
 the cylinder 3D angular-correction lift (the
@@ -54,7 +54,7 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.derivations.continuous.trajectory_resolvent.origins.specular import (
+from orpheus.derivations.continuous.characteristic.origins.specular import (
     derive_3d_chord_scaling_annulus,
     derive_alpha_zero_kernel_reduction_annulus,
     derive_operator_constant_trial_closed_annulus,

@@ -87,7 +87,7 @@ References
 
 - Sanchez, R. (1986). *Transp. Theor. Stat. Phys.* 14.
   DOI: 10.1080/00411458608210456.
-- :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function`
+- :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function`
   (V_α1, V_α2, V_α3 SymPy verifications).
 - :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular.continuous_mu`
   (V1-V4 kernel-form identities, predecessor).

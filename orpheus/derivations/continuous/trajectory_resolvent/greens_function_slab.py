@@ -120,7 +120,7 @@ References
 - Sanchez, R. (1986). *Transp. Theor. Stat. Phys.* 14.
 - Hébert, A. (2009). *Applied Reactor Physics* §3.8.5 — slab :math:`E_n`
   forms.
-- :mod:`orpheus.derivations.continuous.trajectory_resolvent.origins.specular.greens_function_slab`
+- :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function_slab`
   — V_α1_slab/V_α2_slab/V_α3_slab SymPy verifications.
 - :file:`/.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 3A
   slab Variant α plan.

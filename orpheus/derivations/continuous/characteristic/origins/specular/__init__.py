@@ -5,7 +5,7 @@ Sub-package shell for the SymPy math-origin functions that produce the
 operator-level identities (V_α1..V_α3) for the angle-resolved Green's
 function reference. Public symbols are re-exported here so call sites
 can import directly from
-``orpheus.derivations.continuous.trajectory_resolvent.origins.specular``.
+``orpheus.derivations.continuous.characteristic.origins.specular``.
 
 Modules
 -------
