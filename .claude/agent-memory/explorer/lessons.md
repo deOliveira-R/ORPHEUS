@@ -165,3 +165,11 @@ today: the 2026-09-21 candidates landed).
   pitfalls: patch the CALLER module's binding (`solver.py` holds its own
   import; the definer's binding read 0), key the spy on BUILDS not lookups
   (207 vs 1), assert the exact count. → M-4, M-5.
+- **L-046** A coverage map built while a peer writes the successor gates
+  goes stale DURING the session: line numbers shifted ~40 lines in one file
+  and a new untracked gate file (B4c successor) appeared after the census.
+  Take `git status --short tests/` at open AND at close, re-derive every cited
+  `file:line` from its anchor last (a script over (file, anchor) pairs), and
+  mark each successor HEAD vs working tree. Not carried by the definition's
+  "close by re-running the empty searches": those re-runs see content, not a
+  NEW file. → M-3.

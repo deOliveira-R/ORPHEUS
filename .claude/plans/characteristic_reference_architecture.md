@@ -1830,3 +1830,91 @@ Into (e): P0's corroboration rows that import `chord_oracle` are in the blast ra
 - `_trajectory_resolvent_ladders.py` and `_trajectory_resolvent_aba.py`.
 
 The explorer's census is in `p1_step_d/explorer_d.md` §2 and in its memory file `characteristic_reference_sn_consumers.md`.
+
+## Step (e): the audit and four rulings (2026-10-10)
+
+**The audit table** is `.claude/plans/characteristic_reference_architecture_dependency_audit.md` (the explorer; probes in `p1_step_e/explorer/`).
+
+**Its main finding:** step (e) cannot be one deletion commit.
+- **Free to go:** 12 numeric modules (8 054 lines), with 0 production callers outside the family. No docs directive turns red on its own.
+- **Coverage that would be lost:**
+  - 123 of the spec's KEEP or RE-POSE rows sit in the 22 test files deleted whole. Their successors (D8, D9, C9, C12, C6b, and the moved `verifies` markers) were never built.
+  - ERR-034, ERR-035 and ERR-091 would lose their only catchers.
+  - 11 `peierls-greens-*` labels would lose their verifier.
+- **What must survive:** the SymPy `origins/` (8 modules). 18 of its 23 `derive_*` functions are kept. 5 retire with the 26 duplicate rows; no KEEP row reaches them.
+
+**Rulings (the user, 2026-10-10):**
+1. **Migrate, then delete.**
+   - (e1): the successors built on the new reference while the old family still exists, each shown to pass beside its predecessor. The KEEP rows are re-pointed; D8, D9, C9, C12 and C6b are built; the three ERR entries get catchers; the `verifies` markers move.
+   - (e2): the deletion commit, driven by the audit table.
+2. **`origins/` moves to `characteristic/origins/`.**
+3. **Both outside consumers are re-pointed:**
+   - `cross_method`'s adapters move to the characteristic reference;
+   - the traced-memo rows M4.1b–M4.8 are re-posed on the new reference's memoised `evaluate`.
+4. **The small losses:**
+   - the backward-segments check is replaced, before the delete, by a hand-computed multi-region segment table (closed-form chord lengths);
+   - uncalled helpers (`import_closure`, `assert_closure_independent`) are deleted in (e2);
+   - the `_ladder_rules` functions stay while `_characteristic_ladders` uses them.
+
+**Order:**
+- (e1a) the `origins/` move: main agent, a production move.
+- (e1b) the successors: the test-architect.
+- (e2) the delete.
+
+## Step (e1b) landed; #592 ruled before (e2) (2026-10-10)
+
+**(e1b) [LANDED 44303919]**, with the error-index regeneration [LANDED 2f56e69b]. CI was red on 44303919 alone, because the generated `.claude/skills/vv-principles/error_index.md` drifted when the new `catches` markers raised four entries' catcher counts. The lesson: a code commit that changes gate rows carries every file a Sphinx build regenerates, the matrix AND the error index. Run the build before the commit and read `git status`.
+- Every one of the 123 rows has a successor. The record, with per-row outcomes and the qa round, is `scratch/characteristic_architecture/p1_step_e/ta_e1b/README.md`; §9 covers the qa round.
+- The default tier keeps cylinder eigenvalue coverage. The closed cylinder and the closed annulus read k_inf at rung 2, and Ua-1-0-CY reads k = 1 within 3e-5. Both rows go red by value under a line speed scaled by 1.0001.
+- The old default-tier rows whose successors are slow only are listed in §9, each with its reason: 3, 13–15, 22, 27, 65, 113.
+
+**Ruling (the user, 2026-10-10): #592 lands before (e2).** The characteristic solve becomes a traced-memo child entry, so the child-entry feature never has 0 production clients, and the reference meets the reference-cache plan's unit of caching before the family that met it is deleted.
+
+**The API (the user approved it over a module-level `_solve(specification, resolution)`):**
+- `@traced_memo def solve(self) -> _Answer` on `CharacteristicDerivation`; it carries the old `answer` body.
+- `answer` stays a cached_property, `return self.solve()`.
+- `evaluate` and `angular_flux` are unchanged.
+- The key is the derivation's content.
+
+**Smoke [M] 2026-10-10** (the tiny sphere, isolated cache root):
+- one ChildPin in the reading's manifest;
+- read-only arrays;
+- the bypass reading is bit-equal.
+
+The gates come from the test-architect (`p1_step_e/ta_592/`). The reviews are qa (`qa_592/`) and the elegance-enforcer (`ee_592/`).
+
+**The reviews of #592 (2026-10-10):**
+- **The elegance-enforcer:** no violation.
+  - The `solve`/`answer` pair is two concerns, not a weld.
+  - Its nit ("once per instance") is applied.
+  - Its concern, the theory page crediting `answer` (an `implements` target), went to the archivist.
+- **qa:**
+  - The payload is exact for all 4 question kinds.
+  - The keys are sound, and the refusal order holds.
+  - The `answer`-skips-`solve` mutant is blind to the tracked gates (8 of 8 green) and caught by the new M4.3c, M4.11, M4.12 and M4.13 (4 of 4 red).
+  - 4 reads of `.answer` in `test_characteristic_reference.py` now reach the real store; they are wrapped in `bypass()`.
+- **Both reviews:** a bypassed answer's arrays are writable, while a served one's are read-only. This is filed as #593 (a fix at the definition site, `bypass()` round-tripping the payload).
+
+**A pre-existing defect, fixed first (the user's ruling, 2026-10-10: sort).**
+- The traced memo's exact key wrote a frozenset in iteration order. That order follows the caller's hash seed, while generations run under `PYTHONHASHSEED=0`.
+- So one call keyed differently across processes `[M]` (qa: 5 unseeded processes split 3 and 2 on an eigen gauge with an (n,2n) material).
+- `_Exactly.elements` now sorts by encoding, and the generator contract gains the clause.
+- It lands as its own fix commit before #592. Its gate (keys under several seeds) is the test-architect's (`ta_592/README.md` §2).
+
+## #592 landed; (e2) next (2026-10-10)
+
+**Landed:**
+- The set-key fix: [LANDED 45405f86].
+- #592: [LANDED 23e7711e] (`Closes #592`).
+- The docs: [LANDED 875e1054].
+
+CI was green on the code push (run 38085759201). The seed gate's real-case leg reads the reading key (`evaluate`), not `solve`'s, so the fix commit is green without #592. The solve's parent-against-reading split is gated by M4.11b, in the #592 commit.
+
+**Open, filed:** #593. A bypassed answer's arrays are writable, while a served answer's are read-only; the fix is at the definition site.
+
+**Next: (e2), the deletion,** in the order of the audit table (`characteristic_reference_architecture_dependency_audit.md`): leaves first, one commit (`retirement-audit` G.24). It also carries:
+- the archivist's catalogue text for ERR-034, ERR-035, ERR-090 and ERR-091, and a possible ERR entry for the old method-of-images k defect (5.3e-4, which both sides shared);
+- `dead_references` after the delete;
+- the uncalled helpers (`import_closure`, `assert_closure_independent`).
+
+The child-memo feature keeps a production client: the characteristic solve.

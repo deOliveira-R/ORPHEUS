@@ -64,3 +64,5 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Traced-memo client census](traced_memo_client_census.md) — unpickle skips __post_init__ (untraced); MR result all-data; key needs bind.
 - [Geometric computation census](geometric_computation_census.md) — RigidMotion typed, values absent; one quadratic; mesh metrics degenerate.
 - [Characteristic ref: SN consumers](characteristic_reference_sn_consumers.md) — 13 rows, one seam; D9 label collision; #516 name pin.
+- [Characteristic successor map, rows 1-60](characteristic_successor_map_rows_1_60.md) — D5 the only broad successor; no D8/D9/D10/WM-72.
+- [Trajectory-resolvent retirement audit](trajectory_resolvent_retirement_audit.md) — origins stay; placement/catalogue/roster gates string-pin deleted files.
