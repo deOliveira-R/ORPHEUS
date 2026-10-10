@@ -75,7 +75,7 @@ def aba_geometry(coord: CoordSystem) -> StructuredGeometry:
 
 @functools.cache
 def aba_specification(coord: CoordSystem) -> GeometrySpecification:
-    """The k question on the A|B|A body: the specification the trajectory-resolvent reference answers."""
+    """The k question on the A|B|A body: the specification the characteristic reference answers (P1 step (d))."""
     return GeometrySpecification(aba_materials(), aba_geometry(coord), Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
 
 

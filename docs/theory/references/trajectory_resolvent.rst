@@ -11,8 +11,17 @@ Trajectory-Resolvent Family — angle-resolved Green's function references
 .. note::
 
    This family is being replaced by :ref:`theory-characteristic-reference`,
-   built beside it rung by rung; until that reference answers its
-   questions, this page and its code are the reference every consumer reads.
+   built beside it rung by rung. Since P1 step (d) of that campaign
+   (``d9425977``, 2026-10-10) it is no longer the reference of the
+   S\ :sub:`N` rows: the 13 S\ :sub:`N` cross-check rows (the A|B|A
+   sphere and cylinder, the homogeneous edge rows, the ERR-094 partial
+   reflectors) read the characteristic reference
+   (:ref:`characteristic-sn-rows`). Outside its own gates, its last
+   consumers are the corroboration rows of step (c)
+   (``tests/gates/derivations/test_characteristic_reference_corroboration.py``),
+   which compare the two references until step (e) deletes this family.
+   Where this page describes S\ :sub:`N` rows reading it, it records them
+   as they were.
 
 
 Key Facts
@@ -65,7 +74,10 @@ Key Facts
   own chord oracle, and every reading is ``Uncertified``: the family
   derives no bound on its own error (#566; the cylinder also #516), so a
   test compares against it explicitly and never verifies against it
-  (:ref:`trajectory-resolvent-reference-reading`).
+  (:ref:`trajectory-resolvent-reference-reading`). Since P1 step (d) of the
+  characteristic reference campaign no S\ :sub:`N` row reads it; its
+  readers outside its own gates are the step (c) corroboration rows (the
+  note at the top of the page).
 
 
 .. _theory-trajectory-resolvent-name:
@@ -1885,7 +1897,9 @@ fixture, taken from its OWN ladder (the largest change to the finer rungs
 (48, 48), (96, 48), (96, 96): 1.43e-3 inside, 1.65e-2 at the surface). The
 rule is the smallest one-significant-figure :math:`T` with :math:`T \ge 10
 b` and :math:`T \ge 2(e + b)`
-(:func:`tests.gates.derivations._trajectory_resolvent_ladders.tolerance_for`).
+(:func:`tests.gates.derivations._ladder_rules.tolerance_for`, the rule both
+reference families' ladders share since P1 step (d) of the characteristic
+reference campaign).
 Re-measure with ``python -O -m
 tests.gates.derivations._trajectory_resolvent_ladders garcia``. The one-spline
 emission density reads 1.1e-2 at r = 5.0 cm and 3.3e-3 at 5.5 cm, the
@@ -4217,6 +4231,29 @@ derives no bound on its distance to the exact answer (#566; the cylinder
 also #516). The architecture it plugs into, and why an uncertified
 reading is compared and never verified against, is
 :ref:`verification-reference-architecture`.
+
+.. note::
+
+   **Its consumers.** From #405 P2 step 7b.2.3 (``a21b6f8e``) to P1 step
+   (d) of the characteristic reference campaign (``d9425977``,
+   2026-10-10) this reference was what the A|B|A S\ :sub:`N` rows read,
+   through ``tests/gates/sn/verification/analytical/_aba_reference.py``;
+   the measurements below that name S\ :sub:`N` rows (the shape gap, the
+   costs of the migrated rows) are of that period. Since step (d) those
+   rows read the characteristic reference (:ref:`characteristic-sn-rows`),
+   and this reference's spelling on their problems lives on the old side
+   of the corroboration rows, in
+   ``tests/gates/derivations/_trajectory_resolvent_aba.py``: the A|B|A
+   resolution ``ABA_REFERENCE_QUADRATURE`` (sphere
+   :math:`(n_r, n_\mu) = (36, 96)`, cylinder
+   :math:`(n_r, n_{\mu}, n_\varphi) = (24, 16, 32)`, 64 trajectory
+   nodes) and the power iteration's settings. Its ladder tables stay in
+   ``tests/gates/derivations/_trajectory_resolvent_ladders.py`` (the
+   ``garcia`` and ``gate4`` re-measures); the A|B|A rungs are re-measured
+   by ``python -O -m tests.gates.derivations._characteristic_ladders
+   old-sphere-reference`` (``old-cylinder-reference``), because building
+   the A|B|A specification reaches the new reference and the old side's
+   independence leg refuses a module that does.
 
 The state is the emission density
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

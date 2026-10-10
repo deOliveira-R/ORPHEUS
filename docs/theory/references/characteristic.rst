@@ -252,6 +252,17 @@ Key facts
   functions (15 ``slow``) and the level's 12 rows in 7, under a battery
   whose arms each redden their target rows
   (:ref:`characteristic-evidence`).
+- **The S\ :sub:`N` rows read it** (:ref:`characteristic-sn-rows`).
+  Since P1 step (d) the 13 S\ :sub:`N` cross-check rows that read the
+  trajectory resolvent read this reference, the sphere and slab bodies at
+  polynomial degree :math:`p = 5` and the cylinders at the door default
+  :math:`p = 3`. Its error at each row is a ladder ESTIMATE (geometric,
+  :math:`s/(1 - r)`), never a bound, and at every row it is at most the old
+  family's and at least three orders below the S\ :sub:`N` residual, so
+  every tolerance tightened or held (the A|B|A sphere's :math:`k` from
+  :math:`4\times10^{-3}` to :math:`4\times10^{-5}`). Both sides read one
+  datum from the posed problem, a partial wall's response factor; its pin
+  is ``test_characteristic_walls.py``.
 
 
 .. _characteristic-place:
@@ -3361,8 +3372,10 @@ because the polar rule grades toward grazing down to
 :math:`\tau_{\min}/64` of the whole body (:ref:`characteristic-line-rule`,
 the direction rules), at every impact parameter, whereas a line of short
 chord near the rim would not need it. Grading :math:`\theta` per impact
-panel is the other half of #587; it is not built and its saving is not
-measured (:ref:`characteristic-what-is-not-built`).
+panel was the other half of #587; it is not built, and on this body it
+would not cut them, because every line crosses the thin outer-wall panel
+that sets the grazing grading (`[M]` 2026-10-09,
+:ref:`characteristic-what-is-not-built`).
 
 .. dropdown:: First got wrong: every polar angle graded at the slowest
    :color: muted
@@ -3779,7 +3792,13 @@ carry 57 536 of the 102 320 lines (`[M]` 2026-10-09). Its saving
 multiplies the packed cost; it does not repeat the packing's. It is the
 lever if a three-region cylinder at 16 points, 792 s a group before the
 grading law, enters a routine path
-(`#587 <https://github.com/deOliveira-R/ORPHEUS/issues/587>`_).
+(`#587 <https://github.com/deOliveira-R/ORPHEUS/issues/587>`_). `[M]`
+2026-10-09 (``scratch/characteristic_architecture/p1_step_c/polar_half_scales.py``)
+refuted that lever on the ``ABA`` cylinder: the thinnest panel is the
+outer-wall panel :math:`[1.96, 2.0]`, 0.02 and 0.04 optical in groups 0
+and 1, every line crosses it, and so each impact panel's polar rule keeps
+the body's 160 or 152 nodes. What stays open in #587 is a polar weight
+absorbing :math:`\sin^2\theta`, unmeasured.
 
 **The slow tier, re-ruled.** The third rung had cut the slow cylinder
 rows to one fixture per law at 8 points, keeping the escape rows at
@@ -5631,9 +5650,9 @@ same points held 5440 and 8512 lines (above). The cylinder's point cost
 is the line count the grading law produces at each polar node's own speed
 (:ref:`characteristic-iterated-cylinder-rule`); the white walls add a few
 stacked sources and no measurable time. Contracting the emission before
-the scan (#591) divides the cost per line, and grading the polar angle
-per impact panel (#587's other half, not built) would cut the near-grazing
-lines.
+the scan (#591) divides the cost per line; grading the polar angle per
+impact panel (#587's other half, not built) was measured not to cut the
+``ABA`` cylinder's near-grazing lines (:ref:`characteristic-what-is-not-built`).
 
 **This is not yet measured against the target.** The verification spec's
 §8 target is the hoisted trajectory-resolvent's one transport at a point,
@@ -5650,6 +5669,421 @@ vacuum cylinder read at its interface took 136 s and 560 s at 8 and 16
 line points, against 59 s and 216 s before the law (the test with its
 route; 2.3 and 2.6 times); it has not been re-timed on the iterated rule
 (:ref:`characteristic-grading-law`).
+
+
+.. _characteristic-sn-rows:
+
+The S\ :sub:`N` rows that read it, and their error estimates
+============================================================
+
+Since P1 step (d) of the campaign (``d9425977``, 2026-10-10) the
+characteristic reference is the reference of every S\ :sub:`N` row that
+compared against the trajectory-resolvent family: 13 rows, 17 test ids.
+This section is what they read, at which resolution, how the reference's
+error at each row is estimated, and what the step changed. The design is
+the plan's "Step (d): the context and three rulings"
+(``.claude/plans/characteristic_reference_architecture.md``, the user's
+rulings of 2026-10-09); the measurements are the test-architect's
+(``scratch/characteristic_architecture/p1_step_d/ta_d/``) and qa's
+(``…/p1_step_d/qa_d/``).
+
+The rows and their working points
+---------------------------------
+
+.. list-table:: The S\ :sub:`N` rows on the characteristic reference
+   :header-rows: 1
+   :widths: 30 34 18 18
+
+   * - Rows (``tests/gates/sn/…``)
+     - Problem
+     - Route to the reference
+     - Working point
+   * - ``verification/analytical/test_phase_c_crosscheck.py``: the
+       A|B|A sphere's k and shape
+     - fuel A | moderator B | fuel A at 0.5, 1.5, 2.0 cm, two groups,
+       reflective, scattering order 0
+     - ``_aba_reference.aba_reference``
+     - :math:`p = 5`
+   * - the same file: the A|B|A cylinder's k and shape (strict xfails),
+       its RECORD; ``test_l1_standoff_slab_cylinder.py`` and
+       ``sweep/curvilinear/test_unified_matvec_cylinder.py`` (strict
+       xfails and RECORDs)
+     - the same body as a cylinder
+     - ``aba_reference``, ``verify_cylinder_k``
+     - :math:`p = 3`, the door default
+   * - ``test_phase_c_crosscheck.py``: the three homogeneous edge rows
+     - mixture A, :math:`R = 2` cm, reflective; the sphere at two groups,
+       the cylinder at one
+     - the door, ``edge_specification``
+     - :math:`p = 3`
+   * - ``verification/analytical/test_partial_reflector_resolvent.py``
+       (ERR-094)
+     - mixture A at P0, two groups: a slab of 4 cm between albedos 0.3 and
+       0.7, a sphere of radius 4 cm under albedo 0.7, both specular
+     - the door, ``partial_reflector_specification``
+     - :math:`p = 5`
+
+A working point is a rung of one joint ladder,
+``tests/gates/derivations/_characteristic_ladders.py``'s ``rung(p)``,
+which moves every axis that enters an eigenvalue together:
+
+.. list-table:: The joint ladder, ``rung(p)`` (grading ratio 0.4 on every rung)
+   :header-rows: 1
+
+   * - degree :math:`p`
+     - grading layers
+     - transport rule (line, traversal, inner points)
+     - source points
+   * - 2
+     - 1
+     - (4, 8, 8)
+     - 6
+   * - 3 (the door default, the door gates' resolution)
+     - 2
+     - (8, 12, 12)
+     - 8
+   * - 4
+     - 3
+     - (12, 16, 16)
+     - 10
+   * - 5
+     - 4
+     - (16, 20, 20)
+     - 12
+   * - 6, 7, 8
+     - 5, 6, 7
+     - (20, 24, 24), (24, 28, 28), (28, 32, 32)
+     - 14, 16, 18
+
+The source points project a symbolic source, detector or weight onto the
+panel basis and do not enter :math:`k`. The sphere and slab bodies run at
+:math:`p = 5` because a solve there takes seconds; the A|B|A cylinder
+stays at the door default because one solve there takes about 21 minutes
+(`[M]` 1259 s, 2026-10-09). No row is renamed: the rows keep the old
+reference's names (``…_against_trajectory_resolvent``,
+``test_phase_d_trajectory_resolvent_crosscheck``), because the ``#516``
+census of ``test_crosscheck_harness.py`` keys on them and the user ruled
+the names unchanged.
+
+How the reference's error is estimated
+--------------------------------------
+
+The module ``tests.gates.derivations._characteristic_ladders`` holds, for
+each S\ :sub:`N` fixture, the reference's :math:`k` (and, on the A|B|A
+bodies, its 80-ratio shape) at the working point and at rungs around it,
+as `[M]` tables, with a command that re-measures each,
+
+.. code-block:: text
+
+   python -O -m tests.gates.derivations._characteristic_ladders <ladder>
+
+with ``<ladder>`` one of ``aba-sphere``, ``aba-cylinder [degree ...]``,
+``partial-reflector``, ``edge``, ``sphere-sn``, ``cylinder-sn``,
+``records``, ``old-sphere-reference``, ``old-cylinder-reference``, run from
+the repository root, serially. ``reference_error(fixture)`` and the two
+shape functions turn the tables into the reference's relative error
+estimate at the working point. A ladder **estimates**: it can refute a
+reference and never certifies one (the user's step-5 ruling of
+2026-10-03, #405 P2), so every reading stays ``Uncertified`` (#566) and the
+estimate is the documented provenance of a tolerance, never a bound.
+
+**Geometric convergence.** The hp ladder converges exponentially, so the
+steps between consecutive rungs shrink geometrically: with
+:math:`s_n = \lvert k_{n+1} - k_n\rvert / \lvert k_{n+1}\rvert` and
+:math:`s_{n+j} = s_n\, r^j`, the working point's error is the sum of every
+step above it,
+
+.. math::
+
+   e_n = \sum_{j \ge 0} s_n\, r^j = \frac{s_n}{1 - r},
+   \qquad r = \frac{s_n}{s_{n-1}},
+
+with :math:`r` read off the two measured steps around the working point
+(``_ladder_rules.geometric_error``, which refuses :math:`r \ge 1`). The
+last step alone would understate the error by the factor
+:math:`1/(1 - r)`. `[M]` 2026-10-09 (``ladders_p5.log``,
+``probe_joint_high.log``), the steps up from :math:`p = 3` to 7:
+
+.. list-table:: Relative steps in :math:`k` up the joint ladder
+   :header-rows: 1
+
+   * - body
+     - 3→4
+     - 4→5
+     - 5→6
+     - 6→7
+     - 7→8
+     - :math:`r` at :math:`p = 5`
+   * - A|B|A sphere
+     - 1.48e-8
+     - 9.30e-11
+     - 2.75e-11
+     - 1.59e-13
+     - 3.17e-13
+     - 0.296
+   * - partial-reflector slab
+     - 2.48e-7
+     - 4.31e-9
+     - 8.81e-10
+     - 3.26e-12
+     - 4.06e-12
+     - 0.204
+   * - partial-reflector sphere
+     - 1.55e-5
+     - 1.02e-6
+     - 5.72e-8
+     - 2.61e-9
+     - 1.28e-10
+     - 0.056
+
+The last two A|B|A sphere and slab steps sit at the solve's rounding. On
+these three bodies the ladder runs to :math:`p = 8`, so the model can be
+checked against the ladder's own tail: each :math:`p = 5` estimate lies
+between its distance to the :math:`p = 8` rung and twice that distance
+(A|B|A sphere :math:`3.90\times10^{-11}` against :math:`2.80\times10^{-11}`;
+slab :math:`1.11\times10^{-9}` against :math:`8.88\times10^{-10}`;
+sphere :math:`6.05\times10^{-8}` against :math:`5.99\times10^{-8}`), and
+``test_crosscheck_harness.py::test_each_reference_estimate_covers_the_finest_measured_rung``
+asserts it from the tables. Its declared limit: :math:`p = 8` is not the
+limit, so "covers" holds to the :math:`p = 8` rung's own error, at least
+1.3 orders below each estimate.
+
+**The A|B|A sphere's shape converges in pairs of degrees.** Its 80-ratio
+shape steps up from :math:`p = 3` are :math:`2.31\times10^{-4}`,
+:math:`9.30\times10^{-6}`, :math:`9.07\times10^{-6}`,
+:math:`4.41\times10^{-7}` and :math:`4.72\times10^{-7}`: a step of one rung
+does not contract from :math:`p = 4` to 5 (ratio 0.975), and its geometric
+estimate would read :math:`3.6\times10^{-4}`. Steps of two rungs do
+(3→5 :math:`2.21\times10^{-4}`, 5→7 :math:`9.00\times10^{-6}`, ratio
+0.041), so the shape estimate is :math:`9.4\times10^{-6}`. `[M]`
+(``probe_shape_axes.log``, ``probe_shape_sp.log``) the pairing is on the
+degree axis alone: at :math:`p = 5` raising the grading layers moves the
+shape :math:`4.9\times10^{-11}`, the line and traversal points less than
+:math:`2\times10^{-14}`, the degree :math:`9.07\times10^{-6}`, and the
+reading's source points 12 → 48 move it :math:`1.3\times10^{-15}`.
+
+**The A|B|A cylinder climbs a panel ladder.** The joint ladder's rung above
+the door default would cost about 2.7 hours: on the homogeneous edge
+cylinder the joint step 3→4 multiplies the cost by 7.6 (29 s to 220 s).
+So the cylinder's ladder moves the panel axes only, ``cylinder_panel_rung(p)``
+= ``Resolution(p, p - 1, 0.4, TransportResolution(8, 12, 12), 2(p + 1))``,
+with the transport rule held at the door default's, and the transport
+axis enters through its own measured step. `[M]` 2026-10-09/10, one solve
+each, serially (``ladder_cylinder.log``): :math:`p = 2` 1.2317299451673347
+in 375 s, :math:`p = 3` 1.2317294528902538 in 1259 s, :math:`p = 4`
+1.231729422811464 in 3399 s; steps :math:`4.00\times10^{-7}` and
+:math:`2.44\times10^{-8}`. The cylinder's own ratio, 0.061, is not used:
+its step 2→3 moves the grading layers from 1 to 2 and is dominated by
+them, so it says little about the steps above (qa's finding F3). The
+estimate divides the step 3→4 by :math:`1 - r` with :math:`r` = 0.2957,
+the largest contraction ratio measured on any :math:`p = 5` ladder (the
+A|B|A sphere's :math:`k`), and adds the transport rule's step one rung
+below the default, :math:`(6, 9, 9) \to (8, 12, 12)`,
+:math:`6.9\times10^{-11}` (an over-estimate of the default's own
+transport error): :math:`3.5\times10^{-8}` in :math:`k`. The shape is
+estimated the same way from its panel steps (:math:`8.55\times10^{-4}`,
+:math:`1.79\times10^{-4}`): :math:`2.5\times10^{-4}`, with the
+:math:`k` transport step standing in for a shape step nobody measured
+(`[R]`; it is six orders below the panel term).
+
+**The homogeneous edge bodies have a closed form.** Their :math:`k` is the
+medium's :math:`k_\infty` (``kinf_homogeneous`` on the library's arrays),
+so the reference's error is its distance from it; the estimate is the
+larger of that distance and the step up, :math:`7.2\times10^{-15}` on the
+two-group sphere and :math:`3.1\times10^{-15}` on the one-group cylinder.
+The S\ :sub:`N` side's residual on each edge row is its frozen snapshot's
+own distance from :math:`k_\infty` (:math:`4.46\times10^{-12}`,
+:math:`1.48\times10^{-16}`, :math:`2.96\times10^{-16}`).
+
+The tolerance rules (``tolerance_for``, ``summed_tolerance``,
+``geometric_error``, ``richardson_error``) moved at step (d) into
+``tests/gates/derivations/_ladder_rules.py``, which reads no reference, so
+that both families' ladders can use them: the corroboration rows'
+independence leg refuses an old-side module whose imports reach the new
+reference, and the old family's ladders import the rules.
+
+Statement (ii): the new estimate is at most the old one
+-------------------------------------------------------
+
+The verification specification's statement (ii)
+(``scratch/characteristic_architecture/p1_verification_spec.md`` §7) is
+that, at every row's fixture, the characteristic reference's error
+estimate is at most the trajectory resolvent's, so that no tolerance
+recomputed on the new reference loosens. It holds on every row, and every
+tolerance tightened or held:
+
+.. list-table:: Statement (ii), and the tolerances before and after step (d)
+   :header-rows: 1
+   :widths: 28 16 22 16 18
+
+   * - Row
+     - new estimate
+     - old estimate
+     - S\ :sub:`N` residual
+     - tolerance, old → new
+   * - A|B|A sphere, :math:`k`
+     - 3.9e-11
+     - 3.2e-4
+     - 1.5e-5
+     - 4e-3 → 4e-5
+   * - A|B|A sphere, shape
+     - 9.4e-6
+     - 1.4e-3
+     - 7.3e-3
+     - 2e-2 → 2e-2
+   * - A|B|A cylinder, :math:`k` (strict xfail)
+     - 3.5e-8
+     - 1.9e-3
+     - 3.0e-5
+     - 8e-5 → 6e-5
+   * - A|B|A cylinder, shape (strict xfail)
+     - 2.5e-4
+     - none (#516)
+     - 5.0e-3
+     - 2e-2 → 2e-2
+   * - A|B|A cylinder at folded 4×8 (standoff, unified; strict xfails)
+     - 3.5e-8
+     - none (#516)
+     - 5.9e-4
+     - 2e-3 → 2e-3
+   * - partial-reflector slab
+     - 1.1e-9
+     - 4.6e-4
+     - 3.0e-4
+     - 1e-3 → 4e-4
+   * - partial-reflector sphere
+     - 6.1e-8
+     - 0.9e-4
+     - 6.0e-4
+     - 1e-3 → 7e-4
+   * - edge, sphere (two groups)
+     - 7.2e-15
+     - 1e-10, declared
+     - 4.5e-12
+     - 1e-9 → 9e-12
+   * - edge, cylinder (one group, 2 ids)
+     - 3.1e-15
+     - 1e-10, declared
+     - 1.5e-16, 3.0e-16
+     - 1e-9 → 4e-14
+
+Every tolerance is ``tolerance_for(e, b)``, the smallest
+one-significant-figure :math:`T` with :math:`T \ge 10\,b` and
+:math:`T \ge 2(e + b)` for the S\ :sub:`N` residual :math:`e` and the
+reference's estimate :math:`b` (with no estimate, :math:`b` is assumed at
+the floor and :math:`T \ge 2.5\,e`: the old cylinder rows), except the
+partial-reflector rows, which keep their own sum rule,
+``summed_tolerance(e, b)`` = :math:`e + b` rounded up (the user's ruling 2
+of 2026-10-09), each error there being a measured distance to a limit.
+On every row the reference's estimate is now at least three orders below
+the S\ :sub:`N` residual, so the S\ :sub:`N` side governs every tolerance;
+the A|B|A sphere's :math:`k` row lost the old family's :math:`10\,b` floor
+and tightened a hundredfold. `[M]` 2026-10-09 it reads
+:math:`1.8\times10^{-5}`, a margin of 2.2, and the partial-reflector
+sphere reads :math:`6.54\times10^{-4}` against :math:`7\times10^{-4}`, a
+margin of 1.07, which the row's docstring records.
+
+Statement (i), the step before (step (c), ``17708ac8``), is the mirror
+condition checked by code-to-code rows that are deleted with the old
+family in step (e)
+(``tests/gates/derivations/test_characteristic_reference_corroboration.py``,
+L4, no level marker): the new reference sits inside the old one's own
+error estimate at each row's problem. `[M]` 2026-10-09 (the plan's "Step
+(c) landed"), new against old, against the old estimate: A|B|A sphere
+:math:`k` 8.3e-5 against 3.2e-4, its shape 4.0e-5 against 1.4e-3, the
+A|B|A cylinder :math:`k` 5.6e-4 against 1.9e-3, the partial-reflector
+slab 3.28e-5 against 4e-5 and sphere 4.1e-5 against 1e-4. Those rows also
+assert, statically and at run time, that the old side executes nothing of
+this package (``tests/gates/_corroboration.py``).
+
+The cylinder RECORD's re-baseline
+---------------------------------
+
+The cylinder rows cannot verify (the reference has no certificate,
+#566), so their strict xfails expect the verification verbs' refusal,
+``ReferenceNotValid``, and a RECORD pins what both sides read today:
+``_aba_reference.CYLINDER_3REG_RECORD``, held within
+:math:`2\times10^{-5}` (relative for the eigenvalues, absolute for the
+gap). Step (d) re-baselined its two reference keys through the
+``records`` re-measure, and its three S\ :sub:`N` keys did not move:
+
+.. list-table:: ``CYLINDER_3REG_RECORD`` across step (d) (`[M]` 2026-10-10, ``records.log``)
+   :header-rows: 1
+
+   * - key
+     - before (the trajectory resolvent at (24, 16, 32))
+     - after (the characteristic reference at the door default)
+   * - ``k_ref``
+     - 1.231036749830859
+     - 1.2317294528902538
+   * - ``phase_c_k_gap``
+     - 5.97e-4
+     - 3.4606e-5
+   * - ``phase_c_k_sn``
+     - 1.2317720792844793
+     - unchanged (re-read within 1 ulp)
+   * - ``unified_k``
+     - 1.2310184196907399
+     - unchanged (re-read within 1.5e-10)
+   * - ``standoff_sweep_k_nx40``
+     - 1.23101841974857
+     - unchanged (re-read identical)
+
+The new ``k_ref`` agrees with step (c)'s reading of the same resolution
+(1.231729452890254) to one ulp. The gap between the folded 16×32 S\ :sub:`N`
+solve and the reference fell from :math:`5.97\times10^{-4}` to
+:math:`3.46\times10^{-5}`, inside the row's :math:`6\times10^{-5}`. The 7
+cylinder xfails stay strict, with ``raises=ReferenceNotValid``; their
+reason names #566 and keeps the ``#516`` token the harness checks.
+
+What both sides read from one object
+------------------------------------
+
+The reference shares no project primitive with the S\ :sub:`N` sweep
+above the trusted-library line: transport along lines, Galerkin over
+them and a dense pencil against discrete ordinates, a spatial scheme and
+a sweep. What both sides read from one object is the posed problem: the
+cross sections, the geometry and the boundary law. For the partial
+reflectors that includes the law's response factor, ``SpecularReturn.kernel``,
+which S\ :sub:`N` reads through its leakage predicate and its
+curvilinear corner, and this reference through ``law.response_kernel``
+in its walls (:ref:`characteristic-walls-factors`). A defect there moves
+both sides together (X4: one input, so their agreement cannot see it).
+`[M]` 2026-10-10 (qa, ``p1_step_d/qa_d/half_alpha_plugin.py``):
+:math:`\alpha \to \alpha/2` in that factor left the partial-reflector slab
+row green. Its pin is external to the comparison,
+``tests/gates/derivations/test_characteristic_walls.py``, red three times
+under the same mutation, which compares each wall with a wall written by
+hand from the law's physics. The partial-reflector and phase C docstrings
+stopped claiming full independence at step (d) and now say this.
+
+The re-pointed supports and what step (e) owes
+----------------------------------------------
+
+The 8 ``rests_on`` ids that named old-family tests now name this
+reference's gates that carry the same dependency: the line integral of a
+per-region source that jumps at both interfaces, on the sphere and on the
+cylinder (``test_characteristic_transport.py``, in place of the old
+``test_mr_oracle_first_leg_matches_the_line_integral``); the Rayleigh–Ritz
+nesting of the one-group :math:`k` and the flux integral of a step weight
+(in place of the old sphere's radial-convergence row and its fine-rule
+reading); the fundamental mode satisfying its pencil (in place of the old
+reading's fixed-point identity, R7b2.2.2, under the sphere's shape row); an interface between equal materials being invisible and the
+cylinder's escape and transmission probabilities against their closed
+forms (in place of the old cylinder's MR↔MG reduction and its WM-72
+vacuum row); and the unfolded wall-by-wall sum of a partial mirror's cycle
+(``test_characteristic_closure.py``, in place of the old slab's method of
+images). `[M]` 2026-10-09/10 (the commit's record): a counting spy saw 17
+of 17 ids reach this reference and 0 calls of the old family; scaling the
+S\ :sub:`N` reading by :math:`1 + 2\,\mathrm{tol}` reddens 10 of the 10
+ids that are not xfails.
+
+The old family's spelling on these problems moved to the old side of the
+corroboration rows (``tests/gates/derivations/_trajectory_resolvent_aba.py``),
+and its ladder tables stay in ``_trajectory_resolvent_ladders.py`` for those
+rows and the Garcia 2021 rows (:ref:`theory-trajectory-resolvent`). Step
+(e) deletes the family with them; P0's corroboration rows that import its
+chord oracle are in that blast radius.
 
 
 .. _characteristic-what-is-not-built:
@@ -5696,9 +6130,15 @@ issue is #405):
   the same at every impact parameter, graded toward grazing over the whole
   body, and on the ``ABA`` cylinder the polar nodes below
   :math:`\sin\theta = 0.01` carry 57 536 of its 102 320 lines per block.
-  Grading :math:`\theta` per impact panel would cut them; it is not built
-  and its saving is not measured (#587,
-  :ref:`characteristic-cylinder-cost`);
+  Grading :math:`\theta` per impact panel is not built, and it would not
+  cut them on that body: `[M]` 2026-10-09
+  (``scratch/characteristic_architecture/p1_step_c/polar_half_scales.py``)
+  every line crosses the thinnest panel, the outer-wall panel
+  :math:`[1.96, 2.0]` (0.02 and 0.04 optical in groups 0 and 1), which
+  sets the polar grazing grading, so each impact panel's polar rule keeps
+  the body's 160 or 152 nodes. A polar weight absorbing
+  :math:`\sin^2\theta` is unmeasured and stays in #587
+  (:ref:`characteristic-cylinder-cost`);
 - **a point extremely near the sphere's centre or the cylinder's axis**:
   a point closer than :math:`1.5 \times 10^{-154}` is refused, its squares
   underflowing (#582, :ref:`characteristic-reading`);
@@ -5709,8 +6149,11 @@ issue is #405):
   within :math:`\sqrt\epsilon` of grazing is refused by the angular flux
   at a point (#585).
 
-The trajectory-resolvent family (:ref:`theory-trajectory-resolvent`)
-is the reference every consumer reads today.
+Since P1 step (d) (``d9425977``) this reference is the one the
+S\ :sub:`N` cross-check rows read (:ref:`characteristic-sn-rows`); the
+trajectory-resolvent family (:ref:`theory-trajectory-resolvent`) is read,
+outside its own gates, only by the step (c) corroboration rows that compare
+the two, until step (e) deletes it.
 
 
 .. _characteristic-refuted:
@@ -7424,3 +7867,33 @@ History
        other half, was left open.
      - ``200b4233``
      - #405, #587
+   * - 2026-10-09
+     - P1 step (c), the corroboration: code-to-code rows (L4, no level
+       marker, deleted with the old family in step (e)) showing the new
+       reference inside the trajectory resolvent's own error estimate on
+       every S\ :sub:`N` row's problem and on Garcia 2021, with static and
+       run-time legs asserting that the old side executes nothing of this
+       package (``tests/gates/_corroboration.py``, shared with P0's kernel
+       rows). Just before it, grading the cylinder's polar angle per impact
+       panel (#587's second half) was refuted for cutting the ``ABA``
+       cylinder's lines.
+     - ``17708ac8``
+     - #405
+   * - 2026-10-10
+     - P1 step (d): the 13 S\ :sub:`N` rows (17 ids) re-pointed onto this
+       reference (:ref:`characteristic-sn-rows`). Its error estimates live in
+       ``tests/gates/derivations/_characteristic_ladders.py`` (geometric over
+       the joint ladder; the A|B|A sphere's shape over pairs of degrees; the
+       cylinder over a panel ladder plus the transport step, with the
+       largest ratio any ladder showed, qa's F3), the tolerance rules in
+       ``_ladder_rules.py``. Statement (ii) held on every row and every
+       tolerance tightened or held; the cylinder RECORD's reference keys
+       were re-baselined and its S\ :sub:`N` keys did not move. The rows'
+       docstrings stopped claiming full independence: both sides read the
+       partial wall's ``SpecularReturn.kernel`` (qa's F1), pinned outside
+       the comparison. ERR-094's corner was measured invisible to its band at
+       the sphere fixture (qa's F2). The labelled equation
+       :eq:`sn-curvilinear-trajectory-resolvent-crosscheck` was rewritten for
+       this reference and kept its name.
+     - ``d9425977``
+     - #405, #566

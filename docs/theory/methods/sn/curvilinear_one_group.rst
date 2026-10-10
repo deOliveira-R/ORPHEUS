@@ -1483,7 +1483,7 @@ already established by the earlier carve steps:
    Reading :math:`\tau` from the closure therefore yields exactly the
    same ``float64`` bits the former ``st.tau_mm`` read carried.
 
-#. **The per-level :math:`\to (N,)` gather is a pure permutation.** No
+#. **The gather** from per-level arrays to the global order :math:`(N,)` **is a pure permutation.** No
    arithmetic happens between the closure's per-level :math:`\tau` and
    the global-ordinate :math:`(N,)` view the accessor returns — only a
    reindex.  So every derived quantity (:math:`c_{\rm in}`,
@@ -5266,34 +5266,69 @@ independent flux-shape evidence from Phase D.
 
 .. _sn-curvilinear-trajectory-resolvent-crosscheck-section:
 
-Trajectory-resolvent cross-check
---------------------------------
+Gate 4.2: the cross-check against a semi-analytical reference
+-------------------------------------------------------------
 
-Gate 4.2 is the **flux-shape cross-check** against the
-structurally-independent trajectory_resolvent Green's-function
-reference (the Peierls Variant α State 1B semi-analytical pillar
-in the ``algebra-of-record`` taxonomy).  The cross-check's claim is
-that the S\ :sub:`N` answer and the reference's answer agree in the
-eigenvalue and in the flux shape on the S\ :sub:`N` solve's own cells:
+Gate 4.2 is the **flux-shape cross-check** against a
+structurally-independent semi-analytical reference (the State 1B
+pillar in the ``algebra-of-record`` taxonomy).  Since P1 step (d) of the
+characteristic reference campaign (``d9425977``, 2026-10-10) that
+reference is the characteristic reference
+(:func:`~orpheus.derivations.continuous.characteristic.reference.characteristic_reference`,
+:ref:`theory-characteristic-reference`): transport integrated along the
+body's lines, Galerkin over them, solved as a dense pencil.  The
+cross-check's claim is that the S\ :sub:`N` answer and the reference's
+answer agree in the eigenvalue and in the flux shape on the
+S\ :sub:`N` solve's own cells:
 
 .. math::
    :label: sn-curvilinear-trajectory-resolvent-crosscheck
 
-   \frac{\lvert k^{\,\text{SN}}_h - k^{\,\text{traj.res.}}\rvert}{k} \le \tau_k,
+   \frac{\lvert k^{\,\text{SN}}_h - k^{\,\text{ref}}\rvert}{k} \le \tau_k,
    \qquad
    \max_{g,\,i}\,\bigl\lvert \hat s^{\,\text{SN}}_{g,i}
-        - \hat s^{\,\text{traj.res.}}_{g,i}\bigr\rvert \le \tau_s\,M,
+        - \hat s^{\,\text{ref}}_{g,i}\bigr\rvert \le \tau_s\,M,
 
-with :math:`\hat s_{g,i}` the cell average of group :math:`g` over the
-S\ :sub:`N` cell :math:`i`, gauged to unit total fission production (a
-ratio of two flux integrals, so neither side's normalisation enters),
-:math:`M` the largest such average, and the tolerances
-:math:`\tau_k = 4\times10^{-3}`, :math:`\tau_s = 2\times10^{-2}` on the
-heterogeneous A|B|A sphere, set from the two methods' measured refinement
-ladders.  On a homogeneous member both eigenvalues equal
-:math:`k_\infty` (the V_α1 and V_α1_cyl identities), so the claim
-reduces to :math:`k^{\,\text{SN}} = k^{\,\text{traj.res.}} = k_\infty`,
-asserted at :math:`10^{-9}` relative.
+with :math:`k^{\,\text{ref}}` and :math:`\hat s^{\,\text{ref}}` read from
+the characteristic reference at its working point, :math:`\hat s_{g,i}`
+the cell average of group :math:`g` over the S\ :sub:`N` cell :math:`i`,
+gauged to unit total fission production (a ratio of two flux integrals,
+so neither side's normalisation enters), and :math:`M` the largest such
+average.  On the heterogeneous A|B|A sphere (fuel A | moderator B | fuel
+A at 0.5, 1.5, 2.0 cm, two groups, reflective) the tolerances are
+:math:`\tau_k = 4\times10^{-5}` and :math:`\tau_s = 2\times10^{-2}`.
+Neither is typed: each is ``tolerance_for(e, b)`` of
+``tests/gates/derivations/_ladder_rules.py``, the smallest
+one-significant-figure :math:`T` with :math:`T \ge 10\,b` and
+:math:`T \ge 2(e + b)`, from the S\ :sub:`N` residual :math:`e` at the
+fixture (Gauss–Legendre 32, 40 cells: :math:`1.5\times10^{-5}` in k,
+:math:`7.3\times10^{-3}` in the shape) and the reference's ladder
+estimate :math:`b` at polynomial degree :math:`p = 5`
+(:math:`3.9\times10^{-11}` in k, :math:`9.4\times10^{-6}` in the shape),
+so the S\ :sub:`N` residual governs both.  The estimates and how they are
+made are :ref:`characteristic-sn-rows`.
+
+On a homogeneous member both eigenvalues equal :math:`k_\infty` of the
+medium (the reference because a flat emission lies in its panel space and
+a closed body returns everything it emits; S\ :sub:`N` because the
+homogeneous reflective eigenvalue is shape-independent,
+:eq:`sn-curvilinear-homogeneous-kinf-recovery`), so the claim reduces to
+:math:`k^{\,\text{SN}} = k^{\,\text{ref}} = k_\infty`.  Each edge row is
+held to ``tolerance_for`` of its frozen snapshot's own distance from
+:math:`k_\infty` and the reference's distance from it at :math:`p = 3`:
+:math:`9\times10^{-12}` on the two-group sphere, :math:`4\times10^{-14}`
+on the two one-group cylinders.
+
+Until step (d) the reference was the trajectory-resolvent family
+(:ref:`theory-trajectory-resolvent`, the Peierls Variant α
+Green's-function solvers), the equation read :math:`k^{\,\text{traj.res.}}`,
+and the tolerances were :math:`\tau_k = 4\times10^{-3}` (that family's
+:math:`10\,b` floor on its ladder estimate :math:`3.2\times10^{-4}`),
+:math:`\tau_s = 2\times10^{-2}` and a typed :math:`10^{-9}` on the edge
+rows.  The label keeps the old family's name, as the rows keep theirs:
+the label is the target of the edge rows' ``verifies`` marker, and the
+``#516`` census of ``test_crosscheck_harness.py`` keys on the row names
+(the user's ruling of 2026-10-09: no row is renamed).
 
 .. note::
 
@@ -5308,20 +5343,22 @@ asserted at :math:`10^{-9}` relative.
    cylinder, `[M]` the test module's docstring), and two of the three are
    1-group (``vv-principles``
    anti-pattern #3).  The heterogeneous rows carry no ``verifies`` marker:
-   the trajectory-resolvent family derives no bound on its own error, so
-   the sphere's k and shape rows are explicit uncertified comparisons
+   the characteristic reference derives no bound on its own error (its
+   ladder estimate refutes and never certifies), so the sphere's k and
+   shape rows are explicit uncertified comparisons
    (``compare_uncertified``) at :math:`\tau_k` and :math:`\tau_s`, and
    the cylinder's rows strict xfails on the verification verbs' refusal of
    a reference with no certificate
    (:ref:`verification-reference-architecture`).  The label's spatial and
-   angular content is **unverified** until phase P4 certifies the family
-   (#566; the cylinder also #516).  The equation that stood here until
+   angular content is **unverified** until phase P4 gives the reference a
+   certificate (#566).  The equation that stood here until
    2026-10-03, a :math:`5\times10^{-4}` sup-norm bound on the flux over the
    five P0 snapshots, was asserted by no row.
 
-The bare
-function entry points cover the 5 P0 deleted curvilinear regression
-snapshots:
+When Gate 4.2 was planned (Phase C) the reference was read through the
+old family's bare function entry points, one per deleted P0
+curvilinear regression snapshot; the table records that coverage, which
+no row reads since P1 step (d):
 
 .. list-table:: trajectory_resolvent reference coverage
    :header-rows: 1
@@ -5352,10 +5389,10 @@ shape-independent for a homogeneous reflective problem.
 
 The cross-check placeholder landed as the Phase D test
 :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_d_trajectory_resolvent_crosscheck`
-(after the pole-face spatial-closure refinement). It is
-**structurally important**: it pins
-the names of the bare entry points so the reader knows
-exactly where the reference comes from. The structurally-
+(after the pole-face spatial-closure refinement). When it landed it
+pinned the names of the bare entry points so the reader knew exactly
+where the reference came from; since P1 step (d) it names the
+characteristic reference's door instead. The structurally-
 independent cross-check is the load-bearing flux-shape evidence
 for ERR-026 → CLOSED — without it the closure narrative would rest
 on :math:`k_\infty` agreement alone, which is degenerate
@@ -5364,7 +5401,8 @@ multi-group: any discretisation that preserves balance gets
 :math:`k_\infty` right, so :math:`k_\infty` alone is not flux-shape
 evidence). Since #405 P2 step 7b.2.3 that flux-shape evidence is an
 uncertified comparison (the note above), so it is consistency evidence
-against a structurally-independent method and not yet a verification.
+against a structurally-independent method and not yet a verification;
+since P1 step (d) the method is the characteristic reference.
 
 Phase B's ``pole-mm-recurrence`` label (:eq:`pole-mm-recurrence`)
 **gains a tests edge transitively** through the Phase D fix: once
@@ -5436,7 +5474,7 @@ the pole-face WDD initial condition (the Carlson seed
 \psi^{\text{cell}}[0]`) and the canonical Hébert §3.9.4 angular
 recurrence's half-angle face flux at the pole:
 
-* **Cylindrical case** has **per-level :math:`\alpha`-dome
+* **Cylindrical case** has per-level :math:`\alpha`-**dome
   telescoping**. Each :math:`\mu`-level has its own
   :math:`\alpha_{n+1/2}` recurrence with its own pair of
   starting-direction face fluxes (:math:`\mu_x = -1` inward zero

@@ -1314,11 +1314,15 @@ Phase F Carlson seed sweep-path backport (Issue #168 Phase F)
      :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`.
      Since #405 P2 step 7b.2.3 (``a21b6f8e``) that row is an
      **uncertified comparison** (``compare_uncertified``), not a
-     verification: the trajectory-resolvent reference derives no bound on
-     its own error (#566), so it carries no certificate.  The cylinder half
+     verification: the reference derives no bound on its own error
+     (#566), so it carries no certificate.  Since P1 step (d) of the
+     characteristic reference campaign (``d9425977``) that reference is the
+     characteristic reference (:ref:`theory-characteristic-reference`),
+     the trajectory resolvent before it.  The cylinder half
      is a strict ``xfail`` on the verification verbs' refusal of a
-     reference with no certificate (``ReferenceNotValid``; #566, #516,
-     ERR-090); see :ref:`verification-reference-architecture`.
+     reference with no certificate (``ReferenceNotValid``; #566, and #516
+     and ERR-090 for the old reference); see
+     :ref:`verification-reference-architecture`.
 
 The twin-path bug Phase D left open
 ------------------------------------
@@ -1880,9 +1884,10 @@ Files touched by Phase F
   the expectation a future tightening would self-enforce removal.
   **The xfail was removed by ERR-058 (#195)** (see
   :ref:`sn-issue-196-eigenvalue-equivalence`).  Since #405 P2 step
-  7b.2.3 the sphere row is an uncertified comparison with the Variant-α
-  reference, which derives no bound (#566), and not a verification
-  (:ref:`verification-reference-architecture`).
+  7b.2.3 the sphere row is an uncertified comparison, not a verification
+  (:ref:`verification-reference-architecture`): with the Variant-α
+  reference until P1 step (d) (``d9425977``), with the characteristic
+  reference since; neither derives a bound (#566).
 
 **Snapshot regeneration**
 
@@ -1970,8 +1975,9 @@ That row now reads **CLOSED by ERR-058 (#195), verified + pinned by
 ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck``) **no longer
 xfails**; its sphere half is now
 :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`,
-an uncertified comparison with the structurally-independent Variant-α
-reference since #405 P2 step 7b.2.3 (the family derives no bound, #566;
+an uncertified comparison with a structurally-independent reference since
+#405 P2 step 7b.2.3 (the Variant-α reference until P1 step (d),
+``d9425977``, the characteristic reference since; neither derives a bound, #566;
 see :ref:`sn-issue-196-eigenvalue-equivalence` for the equivalence it
 accompanies), and its cylinder half a strict ``xfail`` on the
 verification verbs' refusal of a reference with no certificate (#566,
@@ -3178,26 +3184,30 @@ different weights:
   (closed-form) eigenvalue the SN snapshots must reproduce.  This is a
   correctness claim, and a flux-shape-blind one: a homogeneous
   :math:`k_\infty` is independent of the spatial and angular operators.
-* The **Variant-α Green's-function comparison**
+* The **semi-analytical reference comparison**
   (:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`
   and its eigenvalue sibling), which compares a live SN solve of the
-  heterogeneous closed sphere with the trajectory-resolvent reference:
+  heterogeneous closed sphere with the characteristic reference
+  (:ref:`theory-characteristic-reference`; the trajectory-resolvent
+  Variant-α reference until P1 step (d), ``d9425977``):
   fission-gauged cell averages over the SN's own cells within 2e-2, and
-  k within 4e-3, both tolerances set from the two methods' measured
-  refinement ladders.  The reference is a semi-analytical method
-  structurally independent of the SN sweep, but it derives **no bound**
-  on its own error (#566), and a ladder estimate is not a bound (the
-  user's ruling of 2026-10-03, :ref:`verification-reference-architecture`).
+  k within 4e-5 (4e-3 against the old reference), both tolerances
+  computed from the two methods' measured refinement ladders
+  (:ref:`characteristic-sn-rows`).  The reference is a semi-analytical
+  method structurally independent of the SN sweep, but it derives **no
+  bound** on its own error (#566), and a ladder estimate is not a bound
+  (the user's ruling of 2026-10-03,
+  :ref:`verification-reference-architecture`).
   So since #405 P2 step 7b.2.3 these rows are explicit
   ``compare_uncertified`` comparisons: they would catch a gross defect
   in the converged-to value (`[M]` a vacuum law realised for the
   reflective one reddens both sphere rows, the step-7b.2.3 battery), and
   they do not verify it.  They become
   verifications, and the heterogeneous fixed point a verified correctness
-  claim, when phase P4 certifies the family.  The cylinder rows are strict
+  claim, when phase P4 certifies the reference.  The cylinder rows are strict
   ``xfail`` on the verification verbs' refusal of a reference with no
-  certificate (``ReferenceNotValid``; #566, and #516: the cylinder
-  reference's azimuthal rule meets the tangency kinks of the interior
+  certificate (``ReferenceNotValid``; #566, and for the old reference
+  #516: its azimuthal rule met the tangency kinks of the interior
   interfaces).  ERR-090 records how both rows read 2 % of reference error
   as agreement until 2026-09-26.
 

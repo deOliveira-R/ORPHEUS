@@ -8734,6 +8734,14 @@ older entries classify against.
    row stays green (2.38e-3 against its 4.98e-3), as recorded on
    2026-09-26.
 
+   **Since P1 step (d)** of the characteristic reference campaign
+   (``d9425977``, 2026-10-10) the phase C, standoff and unified rows
+   compare against the characteristic reference
+   (:ref:`characteristic-sn-rows`), so a re-installed one-spline
+   interpolant no longer reaches them; the three catchers above are gates
+   of the trajectory-resolvent family itself and catch it there until step
+   (e) deletes the family.
+
 
 .. error-entry:: ERR-091
    :title: Billiard's multi-region-sphere fixed-source arm reported one group and returned group 0 as the scalar flux, on every multi-group source
@@ -9080,6 +9088,22 @@ older entries classify against.
    with the fix and 0.341797 with the unscaled corner (:math:`3.7\times
    10^{-3}` relative).
 
+   The L1 row's own fixture shows the same thing at a band the corner's
+   size. `[M]` 2026-10-10 (qa, ``scratch/characteristic_architecture/p1_step_d/qa_d/``,
+   ``corner_reading.py``, re-run by the archivist the same day): on the
+   sphere row of ``test_partial_reflector_resolvent.py`` (two groups,
+   mixture A at P0, radius 4 cm, the specular wall of amplitude 0.7, 40
+   cells, Gauss–Legendre :math:`S_{16}`), S\ :sub:`N` with the fix reads
+   :math:`k` = 0.8825984, :math:`6.54\times10^{-4}` above the
+   characteristic reference's 0.8820217 at :math:`p = 5`. Re-dropping the
+   unscaled corner (``alpha = 1.0`` in ``_reflect_corner``, 1465
+   activations counted in the row's run) moves :math:`k` by
+   :math:`9.4\times10^{-4}` to 0.8817692, :math:`2.86\times10^{-4}`
+   below the reference: TOWARD it, inside the row's
+   :math:`7\times10^{-4}` band. The band cannot see the corner at this
+   fixture; the corner's catchers are the operator-level gate and the
+   :math:`\alpha = 0` edge named under *Caught by*.
+
    The DSA half, `[M]` the same date, a one-group scatterer
    (:math:`c = 0.99`, :math:`\Sigma_t = 1`), a slab of 40 cells of unit
    optical thickness, :math:`S_8`, a uniform source, vacuum on the right,
@@ -9182,13 +9206,35 @@ older entries classify against.
      (the ordering :math:`k(0) < k(0.3) < k(0.7) < k(1)`; its slab rows
      red under the defect, its sphere rows are measured blind to it).
      These rows share the realized boundary operator with the solver;
-     the eigenvalue against the trajectory resolvent, which shares
-     nothing with S\ :sub:`N` above the trusted-library line, is
+     the eigenvalue against a semi-analytical reference whose solve
+     shares nothing with S\ :sub:`N` above the trusted-library line is
      ``tests/gates/sn/verification/analytical/test_partial_reflector_resolvent.py::test_slab_with_two_partial_reflectors``
      and
      ``tests/gates/sn/verification/analytical/test_partial_reflector_resolvent.py::test_sphere_with_a_partial_reflector``
-     (L1, two groups, a band of :math:`10^{-3}` built from both methods'
-     refinement ladders; the defect reads +118 % and +107 %).
+     (L1, two groups). Since P1 step (d) of the characteristic reference
+     campaign (``d9425977``, 2026-10-10) the reference is the
+     characteristic reference at :math:`p = 5`
+     (:ref:`characteristic-sn-rows`); until then it was the trajectory
+     resolvent, and the band was :math:`10^{-3}` on both rows. Each band
+     is the sum of S\ :sub:`N`'s error at its fixture
+     (:math:`3.0\times10^{-4}` on the slab, :math:`6.0\times10^{-4}` on
+     the sphere, measured against the joint limit of both methods'
+     ladders) and the reference's ladder estimate
+     (:math:`1.1\times10^{-9}` and :math:`6.1\times10^{-8}`), rounded up:
+     :math:`4\times10^{-4}` and :math:`7\times10^{-4}`. `[M]` 2026-10-09
+     the rows read :math:`3.2\times10^{-4}` and
+     :math:`6.5\times10^{-4}` (the sphere's margin is 1.07). With the
+     leakage predicate re-dropped both rows red, at +118 % and +107 %
+     (`[M]` 2026-10-10, qa, ``p1_step_d/qa_d/err094_mutant.log``: S\ :sub:`N`
+     reads 1.82 on both bodies). One datum is shared, not independent:
+     both sides read the wall's response factor from one object, the
+     law's ``SpecularReturn.kernel`` (S\ :sub:`N` through its leakage
+     predicate and its corner, the reference through
+     ``law.response_kernel`` in its walls). It is part of the posed
+     problem; halving it moves both sides' :math:`k` together and the slab
+     row stays green (`[M]` 2026-10-10, qa), so its pin is external,
+     ``tests/gates/derivations/test_characteristic_walls.py``, red three
+     times under that mutation.
    * The corner:
      ``tests/gates/sn/operators/test_psi_half_coupling.py::TestB_b_RayBoundary::test_partial_specular_corner_is_alpha_times_the_mirror``
      (6 rows, the specular wall's: the corner block of amplitude

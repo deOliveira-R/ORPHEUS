@@ -885,8 +885,10 @@ declares no targets) is compared, because no verb could otherwise read it.
 
    **The forbidden sentence**: "the sphere rows verify the S\ :sub:`N`
    solve against the trajectory resolvent". Since #405 P2 step 7b.2.3
-   (``a21b6f8e``) the A|B|A sphere rows are ``compare_uncertified`` at
-   their 2026-09-26 tolerances, and an uncertified comparison is never a
+   (``a21b6f8e``) the A|B|A sphere rows are ``compare_uncertified``
+   (since P1 step (d) of the characteristic reference campaign,
+   ``d9425977``, against the characteristic reference, at tolerances
+   computed from its ladders), and an uncertified comparison is never a
    verification claim: two methods agreeing to a tolerance, with no bound
    on one of them, is consistency evidence, not correctness evidence
    (``vv-principles`` anti-pattern #1 is the limiting case). The correct
@@ -895,8 +897,7 @@ declares no targets) is compared, because no verb could otherwise read it.
    methods' measured ladders; they would catch a gross defect (a vacuum
    law realised for the reflective one reddens both rows), and they cannot
    verify either side". The sphere and cylinder rows return as verifications when
-   phase P4 gives the family a derived bound (#566, and #516 for the
-   cylinder).
+   phase P4 gives the reference a derived bound (#566).
 
 
 An ontology of approximations and errors for verification
@@ -1253,6 +1254,20 @@ label ``sn-curvilinear-trajectory-resolvent-crosscheck`` is verified by 3
 rows (`[M]` the regenerated matrix, 2026-10-03), which verify its
 homogeneous reduction only
 (:ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section`).
+
+**Since P1 step (d)** of the characteristic reference campaign
+(``d9425977``, 2026-10-10) none of the rows in the table above reads the
+trajectory resolvent: the sphere's k and shape rows compare against the
+characteristic reference at :math:`p = 5`, at :math:`4\times10^{-5}`
+(tightened from :math:`4\times10^{-3}`) and :math:`2\times10^{-2}`; the
+cylinder rows' strict xfails refuse the characteristic reference at the
+door default (#566); and the RECORD's ``k_ref`` was re-baselined to
+1.2317294528902538 while its three S\ :sub:`N` keys did not move. The
+table records the rows as step 7b.2.3 left them. Outside the family's own
+gates (the Garcia 2021 rows among them), the trajectory resolvent's last
+readers are the corroboration rows of step (c), until step (e) deletes
+the family. The estimates,
+the tolerances and the re-baseline: :ref:`characteristic-sn-rows`.
 
 The production readings
 -----------------------
