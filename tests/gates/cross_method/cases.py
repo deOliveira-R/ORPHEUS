@@ -671,6 +671,99 @@ GRANDJEAN_SIEWERT_SLAB_PARAMETRIC: list[CrossMethodCase] = [
 
 
 # ═══════════════════════════════════════════════════════════════════
+# The characteristic reference: its k ladder and its tolerances
+# ═══════════════════════════════════════════════════════════════════
+#
+# The characteristic adapters (``adapters.CharacteristicAdapter``) succeed the three trajectory-resolvent adapters
+# (P1 step (e1b) of ``.claude/plans/characteristic_reference_architecture.md``). Their tolerances are COMPUTED, never
+# typed, by the rules of ``tests/gates/derivations/_ladder_rules.py`` from two measured tables:
+#
+# * :data:`CHARACTERISTIC_K`: the reference's k on each case at the joint ladder's rungs 3, 4 and 5
+#   (``_characteristic_ladders.rung``), the working rung 4 in the middle;
+# * :data:`CHARACTERISTIC_TRUTH_SLOPE`: dk/dx of the reference at the published critical dimension x (mfp), so that
+#   the truth's resolution in k is |dk/dx| times half a unit in the last digit of x (lessons L109: a comparison with a
+#   published truth owes the truth's resolution).
+#
+# Re-measure both with ``scratch/characteristic_architecture/p1_step_e/ta_e1b/consumers/probe_cross_method.py 3 4 5``
+# and ``.../probe_truth_resolution.py`` (``.venv/bin/python -O``, from the repository root, ``PYTHONPATH=.``).
+#
+# Finding (``[M]`` 2026-10-10): on PUa-1-0-SL (a_c = 0.605055 mfp, Kornreich-Ganapol 1997 via Sood Table 3) the
+# reference converges to k = 0.99999828 (rungs 4 and 5 agree to 8e-10), 1.72e-6 below 1, three times the truth's
+# resolution 5.7e-7: the reference puts a_c at 0.6050565. F_N's own ladder climbs toward it (N = 12, 14, 16, 18:
+# 0.6050537, 0.6050548, 0.6050552, 0.6050556) without converging. The rule's 10 b floor (6e-6) covers it.
+
+#: ``[M]`` 2026-10-10 (``probe_cross_method.log``): case -> rung -> k, in process under ``bypass()``.
+CHARACTERISTIC_K: dict[str, dict[int, float]] = {
+    "UD2O-1-0-SL-c1.02": {3: 0.9999934316804165, 4: 0.9999999903894912, 5: 0.9999999990958953},
+    "Ua-1-0-SL-c1.30": {3: 0.9999998856333125, 4: 1.0000000021263136, 5: 1.0000000035699013},
+    "PUb-1-0-SL-c1.40": {3: 0.999999937449735, 4: 0.9999999977333853, 5: 0.9999999987304552},
+    "PUa-1-0-SL-c1.50": {3: 0.9999982301984679, 4: 0.9999982778718326, 5: 0.9999982786858428},
+    "UD2O-1-0-SP-c1.02": {3: 0.9999988860926367, 4: 0.9999999645733363, 5: 0.9999999990741355},
+    "Ua-1-0-SP-c1.30": {3: 0.9999995058192311, 4: 0.9999999892931816, 5: 0.9999999997589755},
+    "PUb-1-0-SP-c1.40": {3: 0.999999614492992, 4: 0.9999999917768418, 5: 0.9999999997795946},
+    "closed-sphere-1G-fuelA-tauR2.5": {3: 0.20833333333333404, 4: 0.2083333333333341, 5: 0.20833333333333198},
+}
+#: ``[M]`` 2026-10-10 (``probe_truth_resolution.log``): dk/dx per mfp at rung 5, a central difference over x(1 +- 1e-4).
+CHARACTERISTIC_TRUTH_SLOPE: dict[str, float] = {
+    "UD2O-1-0-SL-c1.02": 3.6565e-02,
+    "Ua-1-0-SL-c1.30": 7.2603e-01,
+    "PUb-1-0-SL-c1.40": 8.8649e-01,
+    "PUa-1-0-SL-c1.50": 1.1328e00,
+    "UD2O-1-0-SP-c1.02": 1.8244e-02,
+    "Ua-1-0-SP-c1.30": 3.3644e-01,
+    "PUb-1-0-SP-c1.40": 3.9991e-01,
+}
+
+
+def _half_unit_in_last_digit(x: float) -> float:
+    """Half a unit in the last decimal of ``x`` as Python prints it (a trailing printed zero is lost, so the
+    resolution is then ten times too coarse: a cautious tolerance, never a tight one)."""
+    from decimal import Decimal
+
+    exponent = Decimal(repr(x)).as_tuple().exponent
+    if not isinstance(exponent, int):
+        raise ValueError(f"a published truth is a finite number, got {x!r}")
+    return 0.5 * 10.0 ** exponent
+
+
+def characteristic_tolerance(case: CrossMethodCase) -> float:
+    r"""The characteristic adapter's tolerance on ``case``, from :data:`CHARACTERISTIC_K` by the ladder rules.
+
+    The reference's error at the working rung p is the geometric estimate from its step up and the step below
+    (:func:`~tests.gates.derivations._ladder_rules.geometric_error`). A bare-critical case compares k with 1 at a
+    published dimension, so the truth's error is its resolution in k
+    (:data:`CHARACTERISTIC_TRUTH_SLOPE` times half a unit in its last digit) and the tolerance is
+    :func:`~tests.gates.derivations._ladder_rules.tolerance_for`. The closed body's truth is the medium's
+    :math:`k_\infty` in closed form (no error): its estimate is the larger of the distance to it and the step up
+    (the edge bodies' rule of ``_characteristic_ladders.reference_error``), which on a body converged at every rung
+    is rounding, not a contraction, and the tolerance is twice that, rounded up.
+    """
+    from tests.gates.derivations._ladder_rules import ceil_one_significant_figure, geometric_error, tolerance_for
+
+    from .adapters import CHARACTERISTIC_WORKING_DEGREE as p
+
+    k = CHARACTERISTIC_K[case.case_id]
+    step = abs(k[p + 1] - k[p])
+    if case.truth_tag == "k_inf":
+        return ceil_one_significant_figure(2.0 * max(abs(k[p] - case.truth_value), step))
+    error = geometric_error(step, abs(k[p] - k[p - 1]))
+    truth = abs(CHARACTERISTIC_TRUTH_SLOPE[case.case_id]) * _half_unit_in_last_digit(case.truth_value)
+    return tolerance_for(error, truth)
+
+
+def _with_characteristic(case_set: list[CrossMethodCase], adapter_name: str) -> list[CrossMethodCase]:
+    """Each case with the characteristic adapter ``adapter_name`` opted in at its computed tolerance."""
+    from dataclasses import replace
+
+    return [replace(c, tolerances={**c.tolerances, adapter_name: characteristic_tolerance(c)}) for c in case_set]
+
+
+BARE_CRITICAL_SLAB_CASES = _with_characteristic(BARE_CRITICAL_SLAB_CASES, "characteristic_slab")
+BARE_CRITICAL_SPHERE_CASES = _with_characteristic(BARE_CRITICAL_SPHERE_CASES, "characteristic_sphere")
+CLOSED_SPHERE_KINF_CASES = _with_characteristic(CLOSED_SPHERE_KINF_CASES, "characteristic_sphere_closed")
+
+
+# ═══════════════════════════════════════════════════════════════════
 # All cases — for full-suite enumeration / agreement-matrix renderer
 # ═══════════════════════════════════════════════════════════════════
 

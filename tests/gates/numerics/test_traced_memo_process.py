@@ -254,6 +254,25 @@ def test_m3_12d_two_calls_of_one_child_in_one_generation_are_one_entry(package, 
     assert len(api.manifest_rows(outer, "ChildPin")) == 1
 
 
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_12a_a_parent_entry_pins_its_child_by_reference')
+def test_m3_12e_a_child_generated_by_its_parent_serves_a_direct_caller(package, tmp_path):
+    """M3.12 (e): after ``outer`` generated ``inner`` as its child, a DIRECT call of ``inner`` with the same
+    argument is a ``Hit``, starts no generation, and returns the parent's child value bit for bit: one child entry,
+    two consumers. The synthetic successor of ``test_traced_memo_clients.py::test_m4_2_one_solve_entry_serves_
+    billiard_and_a_direct_caller``, whose real client (the trajectory resolvent's solve child) step (e) of the
+    characteristic-reference campaign deletes; the child-memo feature then has no production client (the user is
+    asked whether it stays), and this row keeps its contract pinned. First red: the child generated in the
+    parent's generation written under a key a direct call does not form (``inner.lookup`` reads ``Absent``)."""
+    beta = package.module("beta")
+    beta.outer(2.0)
+    assert package.generations("inner") == 1, "the activation leg: the parent did not generate its child"
+    assert api.verdict_kind(beta.inner.lookup(2.0)) == "Hit"
+    direct = beta.inner(2.0)
+    assert package.generations("inner") == 1, "the direct call generated the child again"
+    assert direct.hex() == beta.inner.__wrapped__(2.0).hex()
+    assert len([f for f in _entry_files(tmp_path) if api.entry_function(f).endswith(":inner")]) == 1
+
+
 #: (row, the corruption)
 CORRUPTIONS = [
     ("byte-flipped", lambda f: _flip(f, f.read_bytes().index(b'"payload_digest"') + 3)),

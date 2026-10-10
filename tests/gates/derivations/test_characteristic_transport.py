@@ -101,6 +101,8 @@ def _geometry(body: str, *, a_in: float = _A_IN, a_out: float = _A_OUT, breakpoi
             return StructuredGeometry.cylinder(breakpoints or _MR3H, (0, 1, 2), inner=_spec(a_in), outer=_spec(a_out))
         case "slab":
             return StructuredGeometry.slab(breakpoints or _SLB3, (0, 1, 2), left=_spec(a_in), right=_spec(a_out))
+        case "slab_half":                  # B6 (ERR-035): equal intermediate albedos, the symmetric partial slab
+            return StructuredGeometry.slab(breakpoints or _SLB3, (0, 1, 2), left=_spec(0.5), right=_spec(0.5))
         case "slab_periodic":
             return StructuredGeometry.slab(breakpoints or _SLB3, (0, 1, 2), left=PeriodicBoundary(axis="x"),
                                            right=PeriodicBoundary(axis="x"))
@@ -205,7 +207,8 @@ _T1_TOL = 1e-13
 
 
 @pytest.mark.l0
-@pytest.mark.verifies("characteristic-traversal-integrals")
+@pytest.mark.verifies("characteristic-traversal-integrals", "peierls-greens-mr-regionwise-source")
+@pytest.mark.catches("ERR-090")
 @pytest.mark.parametrize("group", [0, 1])
 @pytest.mark.parametrize(("body", "point", "direction", "expected"), _LINE_ARGS, ids=_LINE_IDS)
 @pytest.mark.rests_on(_HERE + "test_the_panel_chord_unfolds_into_the_hand_counted_period",
@@ -233,6 +236,19 @@ def test_the_outflow_of_a_per_region_polynomial_is_its_line_integral_attenuated_
     Re-posed 2026-10-06 (rung 3, the spec's RB4): on a solid body region 0's
     cubic is even ({1, c^2}, ``_Q_SOLID``), the family the even panel at the
     centre shares with the region's other panels.
+
+    Step (e1b) made it the successor of the old family's
+    ``test_mr_oracle_first_leg_matches_the_line_integral`` (the spec's C3):
+    each segment reads its own region's piece of the emission
+    (``peierls-greens-mr-regionwise-source``). ERR-090's class (one piece
+    across an interface) is unspellable on the panel basis: re-dropped as
+    interfaces that are not panel ends (arm ``interfaces-not-panel-ends``),
+    every row reds by the basis's refusal "the panel ends refine the body's
+    breakpoints" (``[M]`` 2026-10-10, 24 of 24). Its value form keeps the
+    panel ends and reads the first panel of each region with its
+    neighbour's piece (arm ``err090-panel-region-shifted``): 22 of 24 red by
+    value; the 2 green rows are the sphere line at b = 1.7, which never
+    reaches the first panel of the outer region (declared).
     """
     case = _Case(body, point, direction, sigma_t=_SIGMA[group])
     x = case.coefficients(_q(body))
@@ -839,11 +855,20 @@ _CLOSED = [
      [(0, False, "first"), (0, True, "last")], (_A_IN, _A_OUT)),
     ("sphere_hollow_cavity", "sphere_hollow", *_in_plane(0.2), [(0, False, "first"), (1, False, "last")], (_A_IN, _A_OUT)),
     ("sphere_solid_partial", "sphere_solid", *_in_plane(0.7), [(0, False, "last")], (_A_OUT,)),
+    # B6, ERR-035's regime: the symmetric slab at an intermediate albedo, under the non-symmetric _Q (spec §5 B6).
+    ("slab_symmetric_half", "slab_half", *_slab_dir(0.6), [(0, False, "last"), (0, True, "first")], (0.5, 0.5)),
+    # The cylinder's rank-1 partial mirror on an oblique line (``peierls-greens-cylinder-T``), step (e1b).
+    ("cylinder_solid_partial", "cylinder_solid", *_in_plane(0.7, 0.8), [(0, False, "last")], (_A_OUT,)),
+    # The annulus's rank-2 ray through the cavity (``peierls-greens-annulus-through-rank2``), step (e1b).
+    ("cylinder_hollow_cavity", "cylinder_hollow", *_in_plane(0.2, 0.8), [(0, False, "first"), (1, False, "last")],
+     (_A_IN, _A_OUT)),
 ]
 
 
 @pytest.mark.l0
-@pytest.mark.verifies("characteristic-closure")
+@pytest.mark.verifies("characteristic-closure", "peierls-greens-cylinder-T", "peierls-greens-annulus-through-rank2",
+                      "peierls-greens-hollow-sph-through-rank2")
+@pytest.mark.catches("ERR-035")
 @pytest.mark.parametrize(("body", "point", "direction", "period_by_hand", "amplitudes"), [r[1:] for r in _CLOSED],
                          ids=[r[0] for r in _CLOSED])
 @pytest.mark.rests_on(_HERE + "test_the_vacuum_angular_flux_is_the_source_integral_since_the_entry",
@@ -860,6 +885,26 @@ def test_the_closed_angular_flux_is_the_unfolded_backward_path(body, point, dire
     the entry (the prototype's ``closure_wrong_end`` control); the inflow
     column of the reversed traversal read for the forward one (slab);
     B_k read from the entry response.
+
+    ``slab_symmetric_half`` is the spec's B6, ERR-035's regime: the symmetric
+    slab at albedo 0.5 on both walls under the non-symmetric ``_Q``. ERR-035's
+    heuristic (the out-and-back integral with no amplitude at the inner
+    reflection, over the same denominator) agrees with the honest cycle only at
+    albedo 0 and 1, so this row and every rank-2 row red when it is re-dropped
+    (``[M]`` 2026-10-10, arm ``err035`` of
+    ``scratch/characteristic_architecture/p1_step_e/ta_e1b/battery``). It
+    succeeds the old family's
+    ``test_rank1_path_now_agrees_with_rank2_via_delegation_after_ERR035_fix``.
+
+    Step (e1b) also added the cylinder's rank-1 partial mirror on an oblique
+    line and the annulus's rank-2 ray through the cavity, so the row carries
+    the old page's closure labels the deleted rows verified: the cylinder's
+    rank-1 T (``peierls-greens-cylinder-T``) and the rank-2 resolvent of the
+    hollow sphere and the annulus (``peierls-greens-hollow-sph-through-rank2``,
+    ``peierls-greens-annulus-through-rank2``, whose 2 x 2 T is the cycle's
+    least solution written in closed form). First reds of the two new rows
+    (``[M]`` 2026-10-10): the cylinder's obliquity dropped (arm
+    ``cylinder-no-obliquity``, both cylinder rows); ERR-035's arm (the annulus row).
     """
     case = _Case(body, point, direction, sigma_t=_SIGMA[0])
     x = case.coefficients(_Q)

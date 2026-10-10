@@ -20,6 +20,7 @@ hollow, the cylinders alike, ``SLB`` (-0.7, 0.3, 1.1, 2.0) asymmetric about 0.
 """
 from __future__ import annotations
 
+import math
 import warnings
 
 import mpmath as mp
@@ -466,11 +467,127 @@ def test_a_posed_half_line_reads_its_start_on_the_callers_line(coord: CoordSyste
         np.testing.assert_allclose(got[finite], expected[finite], rtol=0, atol=16 * _EPS * (np.linalg.norm(p) + 4.0))
 
 
+# ── the multi-region segment table, by hand ──────────────────────────────
+
+#: The body of the table: a solid sphere or cylinder with breakpoints (0, 0.5, 1.5, 2.0), regions 0, 1, 2.
+_MR_BP = (0.0, 0.5, 1.5, 2.0)
+
+
+def _half_chord(r: float, b: float) -> float:
+    """The half-chord of the circle of radius ``r`` at impact parameter ``b``, ``sqrt((r - b)(r + b))``."""
+    return math.sqrt((r - b) * (r + b))
+
+
+def _outbound_by_hand(b: float) -> tuple[float, float, float]:
+    """The OUTBOUND orbit-space length of each region (0, 1, 2) of a line at impact parameter ``b`` through ``_MR_BP``.
+
+    Written from the half-chords, case by case: the region of closest approach holds its half-chord, every region
+    outside it the difference of its two half-chords, and a region inside it 0. At ``b = 0.5`` and ``b = 1.5`` the
+    line is tangent to an interface: a tangency is not a crossing, so the region inside is 0.
+    """
+    if b < 0.5:
+        return (_half_chord(0.5, b), _half_chord(1.5, b) - _half_chord(0.5, b), _half_chord(2.0, b) - _half_chord(1.5, b))
+    if b < 1.5:
+        return (0.0, _half_chord(1.5, b), _half_chord(2.0, b) - _half_chord(1.5, b))
+    return (0.0, 0.0, _half_chord(2.0, b))
+
+
+#: The impact parameters: the centre, one per region, and the two interfaces exactly (tangent lines).
+_MR_B = [("b0", 0.0), ("b0.3", 0.3), ("b0.5_tangent_r1", 0.5), ("b1.1", 1.1), ("b1.5_tangent_r2", 1.5), ("b1.9", 1.9)]
+#: (id, coordinate system, direction, in-plane speed |P Omega|): the cylinder's 3-D lengths are the table's over it.
+_MR_LINES = [
+    ("sphere", CoordSystem.SPHERICAL, (0.0, 1.0, 0.0), 1.0),
+    ("cylinder_wz0", CoordSystem.CYLINDRICAL, (0.0, 1.0, 0.0), 1.0),
+    ("cylinder_wz0.8", CoordSystem.CYLINDRICAL, (0.0, 0.6, 0.8), 0.6),
+]
+#: The band of each slot: ``_MR_NULP`` ulp of the slot, plus the slot's sensitivity to the impact parameter times
+#: ``_MR_B_ULP`` ulp of ``b``. The line normalises its direction, so on the oblique cylinder the chord's impact
+#: parameter is 2 ulp from the ``b`` the table was written at (``[M]`` 2026-10-10: 1.9000000000000004), and near a
+#: tangency a slot amplifies that by ``b^2 / h^2`` (9.3 at ``b = 1.9``: 10 ulp in the slot). ``[M]`` 2026-10-10
+#: (``scratch/characteristic_architecture/p1_step_e/ta_e1b/consumers/segment_table_ulps.py``): with the
+#: sensitivity term the largest full-chord gap is 0.41 of the band over the 18 lines (10 ulp raw).
+_MR_NULP, _MR_B_ULP = 4.0, 4.0
+
+
+def _slot_band(b: float, speed: float, slot: int) -> float:
+    """The band of outbound slot ``slot`` at ``b``: ulp of the slot plus its central-difference slope in ``b`` times ulp of ``b``."""
+    w = _outbound_by_hand(b)[slot] / speed
+    if b == 0.0:
+        return _MR_NULP * float(np.spacing(w))
+    step = 1e-7 * b
+    slope = (_outbound_by_hand(b + step)[slot] - _outbound_by_hand(b - step)[slot]) / (2.0 * step * speed)
+    return _MR_NULP * float(np.spacing(w)) + abs(slope) * _MR_B_ULP * float(np.spacing(b))
+
+
+@pytest.mark.l0
+@pytest.mark.verifies("geometry-chord-segment-lengths", "peierls-greens-cylinder-mr-trajectory-segments",
+                      "peierls-greens-cylinder-trajectory")
+@pytest.mark.rests_on(_HERE + "test_every_slot_length_matches_the_closed_form",
+                      _HERE + "test_a_cylinder_slot_is_the_in_plane_length_times_the_obliquity",
+                      _HERE + "test_the_crossings_carry_the_region_they_enter",
+                      _HERE + "test_a_half_line_keeps_the_slots_beyond_its_start")
+@pytest.mark.parametrize("b", [b for _, b in _MR_B], ids=[i for i, _ in _MR_B])
+@pytest.mark.parametrize(("coord", "omega", "speed"), [r[1:] for r in _MR_LINES], ids=[r[0] for r in _MR_LINES])
+def test_the_multi_region_segments_are_the_hand_written_table(coord: CoordSystem, omega, speed: float, b: float) -> None:
+    """The kernel's segments through a three-region body against a hand-written table of closed-form chord lengths.
+
+    The successor of ``test_kernel_corroboration.py::test_the_backward_segments_agree_with_variant_alpha``
+    (P1 step (e), ruling 4 of 2026-10-10): the old trajectory-resolvent oracle was the only other multi-region
+    segment spelling, so the corroboration is replaced by a REFERENCE written in this test
+    (:func:`_outbound_by_hand`). Three legs per line:
+
+    1. the full chord: the slot regions ``(2, 1, 0, cavity, 0, 1, 2)`` and each slot's length, inbound the mirror of
+       outbound, divided by the in-plane speed on the cylinder;
+    2. the backward first leg from the foot of the perpendicular, ``lengths_beyond(0)``: the inbound slots 0 and the
+       outbound slots whole (the half-line's orientation, which a full chord's palindrome hides);
+    3. on the lines through region 1 (b < 1.5), the half-line from the point 0.8 back in the plane (radius
+       ``sqrt(b^2 + 0.64)``, in region 1): region 1's inbound slot cut at the point, every later slot whole.
+
+    The reference is the difference of float half-chords, a spelling the kernel does not use (it forms
+    ``(r_{k+1}^2 - r_k^2) / (h_{k+1} + h_k)``); the band is :func:`_slot_band`. An untraversed slot is 0 exactly.
+    First reds (``consumers/segment_battery.py``): the region of closest approach given ``2 h`` per side; the
+    cylinder's obliquity dropped; the outbound slots written in the inbound order.
+
+    ``peierls-greens-cylinder-mr-trajectory-segments`` (the in-plane conic ``r(s)^2 = r_0^2 - 2 r_0 cos(phi) s + s^2``)
+    is verified at its roots: each slot end is where the conic meets a breakpoint, on legs 2 and 3 from two starting
+    radii. ``peierls-greens-cylinder-trajectory`` (``L_2D = r cos(phi) + sqrt(R^2 - r^2 sin^2(phi))``, ``L_3D = L_2D /
+    |P Omega|``) is leg 3's slots summed: from the start ``r cos(phi) = 0.8`` and ``r sin(phi) = b``, they telescope to
+    ``(0.8 + sqrt(R^2 - b^2)) / |P Omega|``, each slot asserted on its own, the obliquity on the Omega_z = 0.8 rows.
+    """
+    part = _partition(coord, _MR_BP)
+    lengths = np.array(_outbound_by_hand(b)) / speed
+    bands = np.array([_slot_band(b, speed, slot) for slot in range(3)])
+    p = np.array([b, 0.0, 0.0])
+    line = Line.through(p, np.array(omega))
+    ch = part.chord(line)
+    np.testing.assert_array_equal(ch.slot_region, [2, 1, 0, I3, 0, 1, 2])
+
+    def assert_lengths(got: np.ndarray, want: np.ndarray, band: np.ndarray, what: str) -> None:
+        for slot, (g, w, tol) in enumerate(zip(got, want, band, strict=True)):
+            if w == 0.0:
+                assert g == 0.0, f"{what}, slot {slot}: the line does not traverse it, got {g!r}"
+            else:
+                assert abs(g - w) <= tol, f"{what}, slot {slot}: kernel {g!r}, hand {w!r}, gap {abs(g - w) / tol:.2f} of the band"
+
+    zero = np.zeros(1)
+    assert_lengths(ch.slot_length, np.concatenate([lengths[::-1], zero, lengths]),
+                   np.concatenate([bands[::-1], zero, bands]), "full chord")
+    assert_lengths(ch.lengths_beyond(line.parameter_of(p)), np.concatenate([np.zeros(4), lengths]),
+                   np.concatenate([np.zeros(4), bands]), "from the foot")
+    if b < 1.5:
+        start = p - 0.8 / speed * np.array(omega)
+        h1 = lengths[0]                                          # 0 where the line misses region 0 (b >= 0.5)
+        want = np.array([0.0, 0.8 / speed - h1, h1, 0.0, *lengths])
+        cut_band = _MR_NULP * float(np.spacing(want[1])) + bands[0]
+        assert_lengths(ch.lengths_beyond(line.parameter_of(start)), want,
+                       np.array([0.0, cut_band, bands[0], 0.0, *bands]), "from 0.8 back")
+
+
 # ── C7: the slab ───────────────────────────────────────────────────────────
 
 
 @pytest.mark.l0
-@pytest.mark.verifies("geometry-chord-segment-lengths", "geometry-cylinder-axial-factor")
+@pytest.mark.verifies("geometry-chord-segment-lengths", "geometry-cylinder-axial-factor", "peierls-greens-slab-trajectory")
 @pytest.mark.rests_on(_CHART + "test_the_projected_speed_is_summed_from_components")
 def test_the_slab_chord_in_both_orientations() -> None:
     """C7: the slab's crossings ``t_k = (r_k - x_foot)/Omega_x`` and lengths ``(r_{k+1} - r_k)/|Omega_x|``.
@@ -482,6 +599,8 @@ def test_the_slab_chord_in_both_orientations() -> None:
     2, 1, 0, the inner exterior.
     First reds: ``|Omega_x|`` replaced by ``Omega_x`` (negative lengths on the
     reversed line); breakpoints assumed non-negative.
+    ``peierls-greens-slab-trajectory`` (``L_first = (x - x_0)/mu`` for mu > 0, ``(x_n - x)/|mu|`` for mu < 0) is the
+    crossing parameter of the wall behind the point x = 0 on each orientation (``-r_0/0.6`` and ``r_3/0.6``).
     """
     r = np.array(_SLB_BP)
     for omega, order, entered in (

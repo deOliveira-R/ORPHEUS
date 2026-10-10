@@ -1,4 +1,4 @@
-# The 294 test node ids withdrawn under #506 (the Peierls Nystrom withdrawal),
+# The 297 test node ids withdrawn under #506 (the Peierls Nystrom withdrawal),
 # measured by dynamic attribution (.claude/plans/reference_p0_spec.md section 1.2).
 # Read by tests/gates/test_withdrawal.py (M4, M5). A marker added or removed
 # under #506 anywhere in tests/ must update this list in the same change.
@@ -23,6 +23,9 @@ tests/gates/cp/test_peierls_sphere_flux.py::TestCPvsPeierlsSphereAtThickR::test_
 tests/gates/cp/test_peierls_sphere_flux.py::TestCPvsPeierlsSphereAtThickR::test_k_eff_agrees_at_thick_R
 tests/gates/cp/test_peierls_sphere_flux.py::TestPeierlsSphereSelfConvergence::test_flux_cauchy_convergence_at_thick_R
 tests/gates/cp/test_peierls_sphere_flux.py::TestPeierlsSphereSelfConvergence::test_k_eff_cauchy_convergence_at_thick_R
+tests/gates/derivations/test_characteristic_nystrom_withdrawn.py::test_the_nystrom_rank_one_specular_closure_is_the_white_hebert_closure
+tests/gates/derivations/test_characteristic_nystrom_withdrawn.py::test_the_nystrom_specular_closure_converges_in_its_rank_toward_the_characteristic_closed_sphere
+tests/gates/derivations/test_characteristic_nystrom_withdrawn.py::test_the_vacuum_slabs_k_is_the_nystrom_slabs
 tests/gates/derivations/test_continuous_registry_lazy.py::test_builder_keys_match_built_names
 tests/gates/derivations/test_continuous_registry_lazy.py::test_lazy_peierls_fetch_builds_requested_ref
 tests/gates/derivations/test_peierls_closure_operator.py::test_T_shape_validation

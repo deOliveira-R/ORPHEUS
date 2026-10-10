@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **17351**
+Total tests collected: **17494**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1754, 10.1%
-   L1, 2645, 15.2%
-   L2, 79, 0.5%
+   L0, 1777, 10.2%
+   L1, 2731, 15.6%
+   L2, 85, 0.5%
    L3, 0, 0.0%
-   foundation, 12828, 73.9%
+   foundation, 12856, 73.5%
    unmarked, 45, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 17227
+   explicit, 17370
    class-name, 46
    func-name, 0
    case, 33
@@ -119,7 +119,7 @@ Module × level grid
    cp/test_verification, 4, 25, 5, 0, 0, 0
    cp/test_white_boundary_infinite_medium, 0, 103, 0, 0, 3, 0
    cross_method/test_convergence, 0, 0, 1, 0, 0, 0
-   cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
+   cross_method/test_eigenvalue, 0, 46, 0, 0, 53, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 5, 0
    curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
    curvilinear/test_alpha_closed_form, 0, 20, 0, 0, 15, 0
@@ -177,14 +177,18 @@ Module × level grid
    derivations/test_case_method_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_case_method_x_function, 2, 3, 0, 0, 0, 0
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
-   derivations/test_characteristic_assembly, 0, 110, 5, 0, 67, 0
+   derivations/test_characteristic_albedos, 0, 30, 0, 0, 0, 0
+   derivations/test_characteristic_assembly, 0, 111, 5, 0, 67, 0
    derivations/test_characteristic_basis, 0, 0, 0, 0, 271, 0
-   derivations/test_characteristic_closure, 125, 0, 0, 0, 9, 0
+   derivations/test_characteristic_closure, 127, 0, 0, 0, 9, 0
+   derivations/test_characteristic_convergence, 0, 0, 6, 0, 0, 0
+   derivations/test_characteristic_independent_references, 0, 9, 0, 0, 0, 0
+   derivations/test_characteristic_nystrom_withdrawn, 0, 1, 0, 0, 2, 0
    derivations/test_characteristic_reading, 0, 135, 3, 0, 40, 0
-   derivations/test_characteristic_reference, 12, 38, 0, 0, 45, 1
+   derivations/test_characteristic_reference, 12, 40, 0, 0, 58, 1
    derivations/test_characteristic_reference_corroboration, 0, 0, 0, 0, 0, 10
-   derivations/test_characteristic_system, 2, 67, 0, 0, 11, 0
-   derivations/test_characteristic_transport, 51, 0, 0, 0, 53, 0
+   derivations/test_characteristic_system, 2, 95, 0, 0, 12, 0
+   derivations/test_characteristic_transport, 54, 0, 0, 0, 53, 0
    derivations/test_characteristic_walls, 19, 0, 0, 0, 31, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
@@ -322,7 +326,7 @@ Module × level grid
    geometry/test_boundary_trace_law, 0, 0, 0, 0, 14, 0
    geometry/test_chart, 4, 0, 0, 0, 18, 0
    geometry/test_chart_directions, 61, 0, 0, 0, 18, 0
-   geometry/test_chord, 35, 0, 0, 0, 30, 0
+   geometry/test_chord, 53, 0, 0, 0, 30, 0
    geometry/test_chord_level, 0, 0, 0, 0, 12, 0
    geometry/test_chord_transits, 88, 0, 0, 0, 1, 0
    geometry/test_content_identity_geometry, 0, 0, 0, 0, 101, 0
@@ -490,17 +494,18 @@ Module × level grid
    numerics/test_spatial_moment_tail_is_the_schemes_axis, 0, 0, 0, 0, 12, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 7, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
+   numerics/test_symbolic_steps, 0, 0, 0, 0, 5, 0
    numerics/test_symbolic_without_values, 0, 0, 0, 0, 2, 0
    numerics/test_symmetry, 0, 0, 0, 0, 215, 2
    numerics/test_symmetry_exactness, 0, 0, 0, 0, 30, 0
    numerics/test_tensor_product_metric_is_factored, 0, 0, 0, 0, 10, 0
    numerics/test_tensor_product_operator, 35, 0, 0, 0, 0, 0
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 16, 0
-   numerics/test_traced_memo_clients, 0, 0, 0, 0, 13, 0
+   numerics/test_traced_memo_clients, 0, 0, 0, 0, 19, 0
    numerics/test_traced_memo_data, 0, 0, 0, 0, 1, 0
    numerics/test_traced_memo_findings, 0, 0, 0, 0, 33, 0
    numerics/test_traced_memo_manifest, 0, 0, 0, 0, 22, 0
-   numerics/test_traced_memo_process, 0, 0, 0, 0, 27, 0
+   numerics/test_traced_memo_process, 0, 0, 0, 0, 28, 0
    numerics/test_traced_memo_validation, 0, 0, 0, 0, 18, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 9, 0
@@ -710,10 +715,13 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``characteristic-transit-rank``, 82
    ``multigroup``, 82
    ``peierls-unified``, 80
-   ``characteristic-galerkin-assembly``, 77
+   ``characteristic-galerkin-assembly``, 78
    ``fission-matrix``, 76
    ``removal-matrix``, 76
    ``mm-weights``, 75
+   ``characteristic-pencil``, 74
+   ``peierls-greens-annulus-impact-parameter-partition``, 74
+   ``peierls-greens-hollow-sph-impact-parameter-partition``, 74
    ``flux-moments``, 70
    ``characteristic-quadrature``, 65
    ``peierls-rank-n-bc-closure``, 64
@@ -721,13 +729,14 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``e3-def``, 61
    ``geometry-directions-at``, 61
    ``ki3-def``, 61
+   ``characteristic-closure``, 59
    ``characteristic-traversal-integrals``, 59
    ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55
-   ``characteristic-closure``, 54
    ``hebert-3-432``, 54
    ``self-cyl``, 54
    ``balance-general``, 53
+   ``peierls-greens-cylinder-mr-kinf``, 53
    ``self-sph``, 52
    ``chord-length``, 51
    ``quadrature-ordinate-permutation``, 50
@@ -738,8 +747,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
    ``pn-scatter``, 47
-   ``characteristic-pencil``, 46
    ``azimuthal-angles``, 44
+   ``geometry-chord-segment-lengths``, 42
    ``sn-curvilinear-homogeneous-kinf-recovery``, 38
    ``cp-kernel-differential-identities``, 36
    ``cp-keff-update``, 34
@@ -773,10 +782,10 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``cp-flat-source-derivation``, 27
    ``cp-flat-source-double-integral``, 27
    ``cp-unified-outer-integration``, 27
+   ``peierls-greens-mr-regionwise-source``, 27
    ``loss-rep-resolution-a``, 25
    ``peierls-white-bc-slab``, 25
    ``dc-slab``, 24
-   ``geometry-chord-segment-lengths``, 24
    ``peierls-specular-bc-defn``, 24
    ``second-diff-cyl``, 24
    ``second-diff-sph``, 24
@@ -799,6 +808,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``kin-kernel-derivative``, 20
    ``dd-cartesian-1d``, 19
    ``dd-curvilinear-scalar``, 19
+   ``peierls-greens-cylinder-mr-trajectory-segments``, 19
+   ``peierls-greens-cylinder-trajectory``, 19
    ``peierls-escape-probability``, 18
    ``direction-sampling``, 17
    ``energy-condensation-rate-preservation``, 17
@@ -821,11 +832,13 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-annulus-architecture``, 14
    ``two-group-charpoly``, 14
    ``two-group-roots``, 14
+   ``peierls-greens-cylinder-architecture``, 13
    ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
    ``geometry-line-crossing-law``, 12
    ``kinf-1g``, 12
    ``ld-cartesian-2d``, 12
+   ``peierls-greens-cylinder-T``, 12
    ``periodic-bc``, 12
    ``reciprocity``, 12
    ``reciprocity-lower-triangle``, 12
@@ -841,13 +854,13 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``geometry-cylinder-axial-factor``, 10
    ``kll-1974-slab-flux``, 10
    ``kll-1974-sphere-flux``, 10
-   ``peierls-greens-cylinder-architecture``, 10
    ``singular-eigenfunction-eq42``, 10
    ``sn-direct-seed-r12a-predicate``, 10
    ``dd-recurrence``, 9
    ``dd-solve``, 9
    ``energy-condensation-scattering-collapse``, 9
    ``p-transpose-flux-balance``, 9
+   ``peierls-greens-cylinder-mr-quadrature-convergence``, 9
    ``peierls-greens-slab-architecture``, 9
    ``pole-mm-recurrence``, 9
    ``reference-kernel-fundamental-contract``, 9
@@ -856,6 +869,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``cp-inner-integral-antiderivative``, 8
    ``diffusion-coefficient``, 8
    ``hilbert-adjoint-equals-metric-times-S0``, 8
+   ``peierls-greens-annulus-through-rank2``, 8
+   ``peierls-greens-hollow-sph-through-rank2``, 8
    ``peierls-rank-n-stability``, 8
    ``sn-adjoint-eigenproblem``, 8
    ``bare-slab-buckling``, 7
@@ -888,6 +903,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``ld-ubld-d1-reduction``, 6
    ``manifold-fibre-constancy``, 6
    ``peierls-greens-slab-T``, 6
+   ``peierls-greens-slab-asym-method-of-images``, 6
    ``singular-eigenfunction-eq54``, 6
    ``sn-space-angle-separability``, 6
    ``characteristic-one-group-bound``, 5
@@ -896,7 +912,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``geometry-crossing-order``, 5
    ``geometry-line-domain``, 5
    ``peierls-cyl-Gbc-3d-final``, 5
-   ``peierls-greens-cylinder-T``, 5
    ``peierls-greens-cylinder-mr-homogeneous-reduction``, 5
    ``real-sh-discrete-orthogonality``, 5
    ``singular-eigenfunction-eq40``, 5
@@ -942,8 +957,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``moc-mms-qext``, 3
    ``moc-wigner-seitz``, 3
    ``number-density``, 3
-   ``peierls-greens-cylinder-mr-quadrature-convergence``, 3
-   ``peierls-greens-mr-regionwise-source``, 3
+   ``peierls-greens-cylinder-mr-interface-continuity``, 3
+   ``peierls-greens-cylinder-mr-wm72-vacuum``, 3
    ``peierls-greens-slab-V-alpha-2``, 3
    ``sigma-zero``, 3
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 3
@@ -962,9 +977,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``loss-rep-affine-kernel-maps``, 2
    ``loss-rep-sweep-global-conjugation``, 2
    ``ordinate-partition-inflow-outflow``, 2
-   ``peierls-greens-cylinder-mr-kinf``, 2
    ``peierls-greens-cylinder-mr-piecewise-tau``, 2
-   ``peierls-greens-slab-asym-method-of-images``, 2
+   ``peierls-greens-slab-trajectory``, 2
    ``peierls-slab-Gbc-mode``, 2
    ``peierls-slab-Pesc-mode``, 2
    ``roulette-restore``, 2
@@ -1026,22 +1040,13 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-T00-integrand``, 1
    ``peierls-greens-V-alpha-3``, 1
    ``peierls-greens-annulus-3d-chord-scaling``, 1
-   ``peierls-greens-annulus-impact-parameter-partition``, 1
-   ``peierls-greens-annulus-through-rank2``, 1
    ``peierls-greens-cylinder-bounce-period``, 1
    ``peierls-greens-cylinder-impact-parameter``, 1
    ``peierls-greens-cylinder-in-plane-speed``, 1
    ``peierls-greens-cylinder-mr-bounce-sum-piecewise``, 1
-   ``peierls-greens-cylinder-mr-interface-continuity``, 1
-   ``peierls-greens-cylinder-mr-trajectory-segments``, 1
-   ``peierls-greens-cylinder-mr-wm72-vacuum``, 1
-   ``peierls-greens-cylinder-trajectory``, 1
    ``peierls-greens-function-architecture``, 1
-   ``peierls-greens-hollow-sph-impact-parameter-partition``, 1
-   ``peierls-greens-hollow-sph-through-rank2``, 1
    ``peierls-greens-slab-asym-closure``, 1
    ``peierls-greens-slab-asym-resolvent``, 1
-   ``peierls-greens-slab-trajectory``, 1
    ``peierls-greens-surface-fixed-point``, 1
    ``pi-r-equals-4pi-i``, 1
    ``real-spherical-harmonics``, 1

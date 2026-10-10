@@ -331,13 +331,17 @@ _RESIDUAL_CASES = [
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("case", _RESIDUAL_CASES, ids=["closed-sphere", "slab", "sphere"])
+@pytest.mark.parametrize("case", _RESIDUAL_CASES + [pytest.param(
+    ("cylinder", (0.0, 0.6, 1.0), (_VACUUM,), (_UP2N, _PU2)), marks=pytest.mark.slow)],
+    ids=["closed-sphere", "slab", "sphere", "cylinder"])
 @pytest.mark.rests_on(_CONSERVES)
 def test_the_fundamental_mode_satisfies_its_pencil(case) -> None:
     """[D7] ``||L q - P q / k|| / ||P q / k||`` below 1e-12 for the k pencil's fundamental on the emission space.
 
     `[M]` <= 1.4e-14 over 28 closed bodies. First red: the mode's vector
-    returned in another group order.
+    returned in another group order. The vacuum cylinder (slow) was added in
+    step (e1b), the successor of the old family's cylinder leg of
+    ``test_r7b2_2_2_the_emission_density_is_the_solves_fixed_point``.
     """
     pencil = _system(*case).pencil
     mode = pencil.fundamental()
@@ -357,11 +361,30 @@ def _closed_params(bodies, ids, mixtures, marks=()):
 _CLOSED_SLOW = [("cylinder", (0.0, 1.0), (_MIRROR,)), ("cylinder", (0.0, 1.0), (_WHITE,))]
 
 
+def _library_mixture(groups: str) -> Mixture:
+    """The library's fuel A at ``groups`` with its P0 scattering only (``_aba_reference.isotropic_mixture``)."""
+    from tests.gates.sn.verification.analytical._aba_reference import isotropic_mixture
+
+    return isotropic_mixture("A", groups)
+
+
+#: The step (e1b) widening of D5 (the old family's closed-body rows it succeeds were 1G, 4G, two thicknesses, and
+#: the annulus): fuel A at one and four groups; a thin sphere and a thin slab beside the thick bodies; the annulus
+#: (slow, as every cylinder row).
+_D5_MIXTURES = {**_CLOSED_MIXTURES, "A1": _library_mixture("1g"), "A4": _library_mixture("4g")}
+_CLOSED_THIN = [("sphere", (0.0, 0.2), (_MIRROR,)), ("slab", (0.0, 0.25), (_MIRROR, _MIRROR))]
+_CLOSED_ANNULUS = [("cylinder", (0.4, 1.4), (_MIRROR, _MIRROR)), ("cylinder", (0.0, 0.6, 1.0), (_MIRROR,))]
+
+
 @pytest.mark.l1
-@pytest.mark.verifies("characteristic-pencil")
+@pytest.mark.verifies("characteristic-pencil", "peierls-greens-cylinder-mr-kinf")
 @pytest.mark.parametrize(("chart", "breakpoints", "laws", "name"),
                          _closed_params(_CLOSED, _CLOSED_IDS, _CLOSED_MIXTURES)
                          + _closed_params(_CLOSED_SLOW, ["cylinder-mirror", "cylinder-white"], ["URRb"],
+                                          marks=pytest.mark.slow)
+                         + _closed_params(_CLOSED, _CLOSED_IDS, ["A1", "A4"])
+                         + _closed_params(_CLOSED_THIN, ["sphere-thin-mirror", "slab-thin-mirrors"], list(_D5_MIXTURES))
+                         + _closed_params(_CLOSED_ANNULUS, ["annulus-mirrors", "cylinder2-mirror"], ["URRb", "A1"],
                                           marks=pytest.mark.slow))
 @pytest.mark.rests_on(_CONSERVES, _OWN_GROUP, _HERE + "test_the_emission_acts_node_by_node",
                       _HERE + "test_the_fundamental_mode_satisfies_its_pencil")
@@ -379,8 +402,16 @@ def test_a_closed_body_reads_k_inf_with_a_flat_flux_in_the_infinite_mediums_grou
     has downscatter and chi in both groups, URRb upscatter and chi = (1, 0),
     URR3 three groups. First reds: the scattering transposed (k and the ratio
     move O(1)); the group blocks paired with another group's emission.
+
+    Step (e1b) widened the floor to the old family's closed-body rows it
+    succeeds (``scratch/characteristic_architecture/p1_step_e/ta_e1b/README.md``):
+    fuel A at one group (``A1``, the 1G rows) and four groups (``A4``), a thin
+    sphere (R = 0.2) and a thin slab (0.25) beside the thick bodies (the
+    two-thickness rows), the annulus (0.4, 1.4) under two mirrors and a
+    cylinder split at 0.6 into two regions of one mixture (the old
+    equal-material cylinder rows; both slow).
     """
-    mixture = _CLOSED_MIXTURES[name] if name in _CLOSED_MIXTURES else _URRB
+    mixture = _D5_MIXTURES[name]
     system = _system(chart, breakpoints, laws, (mixture,) * (len(breakpoints) - 1))
     loss, production = _zero_d(mixture)
     k_inf, ratio = _dominant(np.linalg.solve(loss, production))

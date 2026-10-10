@@ -57,7 +57,7 @@ from tests.gates.derivations.test_characteristic_assembly import assert_each_pol
 from tests.gates.derivations.test_characteristic_system import (
     _ABS, _MIRROR, _PU2, _UP2N, _VACUUM, _WHITE, _basis, _mixture, _walls, _zero_d,
 )
-from tests.gates.derivations.test_peierls_greens_function_garcia2021 import (
+from tests.gates.derivations._garcia2021 import (
     GARCIA_2021_CASE1_PHI, GARCIA_2021_CASE1_R, GARCIA_2021_CASE1_ROUNDING,
 )
 
@@ -332,7 +332,7 @@ def test_the_reading_at_a_general_point_is_the_mpmath_route(chart, breakpoints, 
 
 @pytest.mark.l1
 @pytest.mark.slow
-@pytest.mark.verifies("characteristic-quadrature")
+@pytest.mark.verifies("characteristic-quadrature", "peierls-greens-cylinder-architecture")
 @pytest.mark.parametrize(("albedo", "x", "line_points"), [(0.0, 1.1, 8), (0.0, 2.0, 16), (0.6, 1.1, 8)],
                          ids=["vacuum-1.1", "vacuum-wall", "partial-1.1"])
 @pytest.mark.rests_on(_M1)
@@ -346,7 +346,11 @@ def test_the_reading_at_a_general_point_of_a_cylinder_is_the_mpmath_route(albedo
     width sin(theta) / (2 Sigma_out) in y, graded by the grading law at every impact-panel top (G) for every law. `[M]` 2026-10-08 (the main
     agent's re-run of ``ta/measure_cyl_vac_wall.py``): before that law 7.9e-8 (8 points) and 1.4e-9 (16); after it
     4.9e-13 (8 points, only 2x inside the band, so not the row's point) and 2.4e-15 (16). First red: the layer graded
-    only for 0 < a < 1 (battery arm ``layer-only-for-a``)."""
+    only for 0 < a < 1 (battery arm ``layer-only-for-a``).
+
+    ``peierls-greens-cylinder-architecture`` (psi = F + e^{-Sigma_t L} psi_surf, phi its angular reduction): the
+    partial-mirror row is its witness (the vacuum rows null psi_surf), and the row is ``slow``, so the label has no
+    default-tier verifier here."""
     _check_route("cylinder", _MR3, ((albedo, 0.0),), x, resolution=(3, 0, line_points, 12))
 
 
@@ -1046,8 +1050,8 @@ def test_garcias_case_1_per_point(r: float, phi: float, rounding: float) -> None
 
     `[M]` 2026-10-08 (``ta/measure_garcia.log``): at (4, 3, 12, 16) every point within that band; at the finest
     rung (5, 4, 16, 20) every point is inside the rounding alone (worst r = 3.0 cm, 3.0e-5 of 3.5e-5); the working
-    point (3, 2, 8, 12) misses r = 6.0 cm by 1.6e-4, its own step. Today's family's bands were 3e-3 inside and
-    4e-2 at the surface; this row is 30 to 600 x tighter. ``catches("ERR-090")``: a one-spline emission across the
+    point (3, 2, 8, 12) misses r = 6.0 cm by 1.6e-4, its own step. The trajectory-resolvent family's bands were
+    3e-3 inside and 4e-2 at the surface; this row was 30 to 600 x tighter. ``catches("ERR-090")``: a one-spline emission across the
     interfaces is unspellable here (the emission is per panel), so the marker records the row's coverage of the
     defect class and is re-dropped by the battery's interface arm. First reds: the scattering's emission omitted
     from the point (the source alone transported: O(1)); the reading's sides weighted unequally.

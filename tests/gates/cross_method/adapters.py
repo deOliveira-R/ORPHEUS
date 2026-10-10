@@ -31,7 +31,7 @@ import numpy as np
 from orpheus.derivations.common.reference_body import HomogeneousBody, reference_body
 from orpheus.geometry import CoordSystem
 
-from .protocol import CrossMethodCase, ScalarResult
+from .protocol import CrossMethodCase, ScalarResult, ScalarTag
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -382,6 +382,63 @@ class TrajectoryResolventSphereClosedAdapter:
 
 
 # ═══════════════════════════════════════════════════════════════════
+# Characteristic reference adapters (characteristic package)
+# ═══════════════════════════════════════════════════════════════════
+
+
+#: The working rung of the characteristic adapters: the joint ladder's panel degree
+#: (:func:`tests.gates.derivations._characteristic_ladders.rung`). Every case's k at the rungs below and above it is
+#: tabled in :mod:`.cases` (``CHARACTERISTIC_K``), where each case's tolerance is computed.
+CHARACTERISTIC_WORKING_DEGREE = 4
+
+
+@dataclass(frozen=True)
+class CharacteristicAdapter:
+    r"""Adapter for :func:`~orpheus.derivations.continuous.characteristic.characteristic_reference`: k of the case's
+    own geometry and materials, posed as a specification.
+
+    The successor of the three trajectory-resolvent adapters (P1 step (e1b) of
+    ``.claude/plans/characteristic_reference_architecture.md``, the user's ruling 3 of 2026-10-10). One class serves
+    every geometry: the reference reads the chart and the walls off the case's :class:`StructuredGeometry`, so the
+    slab, the sphere and the closed sphere differ only in the name the cases key their tolerances on and in the
+    tag (``k_inf`` for the closed body, whose k is the medium's). No convention is converted here: the geometry is
+    in centimetres and the published critical dimension is read off it by the cases.
+    """
+
+    name: str
+    geometry: str
+    tag: ScalarTag
+    method: str = "characteristic"
+    degree: int = CHARACTERISTIC_WORKING_DEGREE
+
+    def solve(self, case: CrossMethodCase) -> ScalarResult:
+        from orpheus.data.cells import CellCoefficient, Channel
+        from orpheus.data.materials import Materials
+        from orpheus.derivations.continuous.characteristic import characteristic_reference
+        from orpheus.numerics.observable import Eigenvalue
+        from orpheus.numerics.question import Eigen
+        from orpheus.specification.specification import GeometrySpecification
+        from tests.gates.derivations._characteristic_ladders import rung
+
+        if case.materials is not None:
+            materials = case.materials
+        elif case.registry_case is not None:
+            materials = case.registry_case.materials
+        else:
+            raise ValueError(f"CrossMethodCase {case.case_id!r} carries neither inline materials nor a registry case")
+        specification = GeometrySpecification(
+            Materials(dict(materials)), _structured_geometry_for(case), Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)),
+        )
+        k = characteristic_reference(specification, rung(self.degree)).read(Eigenvalue()).value
+        return ScalarResult(tag=self.tag, value=float(k), solver_name=self.name, metadata={"degree": self.degree})
+
+
+CHARACTERISTIC_SLAB = CharacteristicAdapter("characteristic_slab", "slab", "k_eff")
+CHARACTERISTIC_SPHERE = CharacteristicAdapter("characteristic_sphere", "sphere-1d", "k_eff")
+CHARACTERISTIC_SPHERE_CLOSED = CharacteristicAdapter("characteristic_sphere_closed", "closed-sphere-1d", "k_inf")
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Helpers — XS / parameter extraction from CrossMethodCase
 # ═══════════════════════════════════════════════════════════════════
 
@@ -526,6 +583,9 @@ ADAPTERS_BY_NAME: dict[str, object] = {
     "trajectory_resolvent_slab": TrajectoryResolventSlabAdapter(),
     "trajectory_resolvent_sphere": TrajectoryResolventSphereAdapter(),
     "trajectory_resolvent_sphere_closed": TrajectoryResolventSphereClosedAdapter(),
+    "characteristic_slab": CHARACTERISTIC_SLAB,
+    "characteristic_sphere": CHARACTERISTIC_SPHERE,
+    "characteristic_sphere_closed": CHARACTERISTIC_SPHERE_CLOSED,
 }
 """All registered adapters. New adapters MUST register here so the
 agreement-matrix renderer (and future cross-method audit tools)

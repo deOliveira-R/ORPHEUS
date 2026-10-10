@@ -154,7 +154,8 @@ _TABLE = _table()
 
 
 @pytest.mark.l0
-@pytest.mark.verifies("characteristic-transit-rank")
+@pytest.mark.verifies("characteristic-transit-rank", "peierls-greens-hollow-sph-impact-parameter-partition",
+                      "peierls-greens-annulus-impact-parameter-partition")
 @pytest.mark.parametrize(("geometry", "point", "direction", "expected"), [r[1:] for r in _TABLE],
                          ids=[r[0] for r in _TABLE])
 @pytest.mark.rests_on(_TRANSITS + "test_the_transits_match_the_hand_counted_walls",
@@ -484,11 +485,13 @@ def _period_with(amplitudes, m: int, batch: int) -> LinePeriod:
     return period
 
 
-_AMPLITUDES = [(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (0.3, 0.6), (0.6, 0.3), (1.0, 0.85), (0.47, 1.0), (0.99, 0.12)]
+_AMPLITUDES = [(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (0.3, 0.6), (0.6, 0.3), (1.0, 0.85), (0.47, 1.0), (0.99, 0.12),
+               (0.5, 0.5)]
 
 
 @pytest.mark.l0
 @pytest.mark.verifies("characteristic-closure")
+@pytest.mark.catches("ERR-035")
 @pytest.mark.parametrize("m", [1, 2])
 @pytest.mark.parametrize("amplitudes", _AMPLITUDES, ids=[f"a{a0}_{a1}" for a0, a1 in _AMPLITUDES])
 @pytest.mark.rests_on(_HERE + "test_the_period_matches_the_hand_counted_table")
@@ -502,6 +505,13 @@ def test_the_inflow_is_the_unfolded_wall_by_wall_sum(amplitudes, m: int) -> None
     visible. First reds: (a) the ERR-035 denominator (a_0^2 e^{-2 tau_0} for
     the cycle product); (b) the once-around cross term dropped; (c) the
     pairing swapped (the inflow to k scaled by a_k).
+
+    ERR-035 itself (the symmetric slab's closure by analogy with the sphere:
+    the out-and-back integral with no amplitude at the inner reflection) reds
+    8 of the 9 rank-2 rows, every pair but the vacuum (0, 0); the equal pair
+    (0.5, 0.5) is its own regime (``[M]`` 2026-10-10, arm ``err035`` of
+    ``scratch/characteristic_architecture/p1_step_e/ta_e1b/battery``). The
+    rank-1 rows stay green under it: the old rank-1 closure was honest.
     """
     rng = np.random.default_rng(20261006 + 7 * m + int(100 * amplitudes[0]) + int(1000 * amplitudes[1]))
     draws = 40

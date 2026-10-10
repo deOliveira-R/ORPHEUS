@@ -832,26 +832,65 @@ def _region_transfer(chart, breakpoints, laws, sigma, points=16) -> np.ndarray:
 
 @pytest.mark.l1
 @pytest.mark.verifies("characteristic-galerkin-assembly")
-@pytest.mark.parametrize("split", [(0.9,), (0.8, 1.2), (0.7, 0.9, 1.1, 1.3)], ids=["2", "3", "5"])
+@pytest.mark.parametrize(("chart", "split"), [("sphere", (0.9,)), ("sphere", (0.8, 1.2)), ("sphere", (0.7, 0.9, 1.1, 1.3))],
+                         ids=["2", "3", "5"])
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
-def test_an_interface_between_equal_materials_is_invisible(split) -> None:
+def test_an_interface_between_equal_materials_is_invisible(chart: str, split) -> None:
     """[OP1, C7's operator half; planned l1] Region 1 of MR3 split into 2, 3, 5 equal-material regions: the merged
     region-to-region transfer is unchanged, 1e-13 (`[M]` the spec's prototype: <= 3.7e-16).
 
     In this architecture an interface is a panel end with a region code, so most
     interface defects are panel-end defects AS1 also reds. First red (owed at
     build, the original spec's named defect): the carried attenuation restarted
-    where the region code changes.
+    where the region code changes. The cylinder's leg is
+    ``test_an_interface_between_equal_materials_is_invisible_on_a_cylinder``.
     """
     laws = ((0.6, 0.0),)
-    base = _region_transfer("sphere", _MR3, laws, _SIGMA["g0"])
+    base = _region_transfer(chart, _MR3, laws, _SIGMA["g0"])
     bps = tuple(sorted(_MR3 + split))
     sigma = tuple(0.6 if r < 0.5 else (1.3 if r < 1.5 else 0.45) for r in bps[:-1])
-    Tn = _region_transfer("sphere", bps, laws, sigma)
+    Tn = _region_transfer(chart, bps, laws, sigma)
     groups = [0] + [1] * (len(split) + 1) + [2]
     merge = np.zeros((len(groups), 3))
     merge[np.arange(len(groups)), groups] = 1.0
     merged = merge.T @ Tn @ merge
+    assert np.max(np.abs(merged - base)) <= 1e-13 * np.max(np.abs(base)), np.max(np.abs(merged - base)) / np.max(np.abs(base))
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("characteristic-galerkin-assembly")
+@pytest.mark.rests_on(_HERE + "test_an_interface_between_equal_materials_is_invisible")
+def test_an_interface_between_equal_materials_is_invisible_on_a_cylinder() -> None:
+    """[OP1 on the cylinder] A two-region cylinder (0, 0.5, 1), Sigma_t 0.6 | 1.3, under a 0.6 partial mirror, with
+    its outer region split at 0.75 into two equal-material regions: the merged region transfer is unchanged, 1e-13
+    (``[M]`` 2026-10-10: 3.1e-15; ``probes/probe_c7cyl.py``).
+
+    Step (e1b), the successor of the old family's ``test_mr_K3_uniform_reduces_to_mg_*``
+    and ``test_mr_K5_uniform_reduces_to_mg_1g``. Resized from the sphere row's
+    body (``_MR3``, three regions, split 2, 3 and 5 ways, degree 3, 16 points):
+    on the cylinder that fixture ran past 10 min a leg (``[M]`` 2026-10-10).
+    What the resizing gives up: the third region and its interface, the 3-
+    and 5-way splits (``[M]`` the 4-way split of this body costs 405 s and reads
+    2.1e-15), degree 3 (here degree 2, one grading layer) and 16 points per
+    piece (here 8). It keeps the contract: an equal-material interface inside a
+    region whose neighbour differs, on the cylinder's oblique lines. About
+    140 s. First red: the attenuation restarted at a region change (arm
+    ``attenuation-restarted-at-region``, measured on the sphere legs).
+    """
+    resolution, points = (2, 1, 0.4), 8
+
+    def transfer(bps, sigma):
+        basis = PanelBasis.of(ConcentricPartition(Chart(_COORD["cylinder"]), bps), *resolution)
+        g = LineRule.of(basis, _walls("cylinder", bps, ((0.6, 0.0),)), np.asarray(sigma), points).transport(points, points)
+        Q = np.stack([(basis.region == k).astype(float) for k in range(basis.regions.n_regions)], axis=-1)
+        return Q.T @ g.block @ Q[g.support]
+
+    base = transfer((0.0, 0.5, 1.0), (0.6, 1.3))
+    split = transfer((0.0, 0.5, 0.75, 1.0), (0.6, 1.3, 1.3))
+    merge = np.zeros((3, 2))
+    merge[np.arange(3), [0, 1, 1]] = 1.0
+    merged = merge.T @ split @ merge
     assert np.max(np.abs(merged - base)) <= 1e-13 * np.max(np.abs(base)), np.max(np.abs(merged - base)) / np.max(np.abs(base))
 
 

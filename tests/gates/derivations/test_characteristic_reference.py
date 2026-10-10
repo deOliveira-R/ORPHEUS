@@ -904,6 +904,51 @@ def test_a_closed_body_with_a_uniform_source_reads_the_infinite_medium_flux_thro
             assert abs(reading / expected[g] - 1.0) < 1e-13, (region, g, reading, expected[g])
 
 
+#: E7's body (the old ``test_billiard_sphere_mr_fixed_source_reports_every_group``'s): a two-region vacuum sphere of
+#: radii (1, 2), downscatter only in both regions (``_ABS`` | ``_ADJ_REFLECTOR``), so a source in group 1 alone
+#: leaves group 0 empty.
+_E7_SPHERE = _sphere((0.0, 1.0, 2.0), (0, 1), BC.vacuum)
+_E7_MATERIALS = {0: _ABS, 1: _ADJ_REFLECTOR}
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-091")
+@pytest.mark.rests_on(_HERE + "test_a_closed_body_with_a_uniform_source_reads_the_infinite_medium_flux_through_the_door")
+def test_a_multigroup_source_answers_every_group() -> None:
+    """[E7, ERR-091] A two-group fixed source on a two-region sphere answers both groups, and each group's readings
+    are its own.
+
+    Three legs, each exact: (a) the answer's flux holds one row per group;
+    (b) with a source in both groups (the old row's ``[[1.0, 0.5], [0, 0]]``)
+    the flux integral of a weight in both groups is the sum of the two
+    groups' integrals (relative 1e-14, a reordered sum), and the two groups
+    differ (the premise that the sum has two terms); (c) with a source in
+    group 1 alone, on a body without upscatter, group 0 reads exactly 0 at
+    points and integrated, and group 1 reads positive. It succeeds the old
+    family's ``test_billiard_sphere_mr_fixed_source_reports_every_group``
+    (ERR-091: the multi-region sphere's source arm reported one group and
+    returned group 0 as the answer). First reds (``[M]`` 2026-10-10, battery
+    ``scratch/characteristic_architecture/p1_step_e/ta_e1b/battery``): the
+    point reading of group 0 returned for every group (arm ``err091-point``);
+    the flux integral reduced to its group-0 term (arm ``err091-pairing``).
+    """
+    both = _spec(_E7_SPHERE, _E7_MATERIALS, FixedSource(_rwc([[1.0, 0.5], [0.0, 0.0]])))
+    answer = _derivation(both).answer
+    assert isinstance(answer, reference_module._SourceAnswer)
+    flux = answer.flux
+    assert flux.shape == (2, _derivation(both).basis.size), flux.shape
+    groups = [_read(both, FluxIntegral(_rwc(np.eye(2)[[g, g]]))) for g in range(2)]
+    total = _read(both, FluxIntegral(_rwc(np.ones((2, 2)))))
+    assert min(groups) > 0.0 and abs(groups[1] / groups[0] - 1.0) > 0.1, groups
+    assert abs(sum(groups) / total - 1.0) < 1e-14, (groups, total)
+    slow_only = _spec(_E7_SPHERE, _E7_MATERIALS, FixedSource(_rwc([[0.0, 1.0], [0.0, 0.0]])))
+    assert _read(slow_only, FluxIntegral(_rwc(np.eye(2)[[0, 0]]))) == 0.0
+    assert _read(slow_only, FluxIntegral(_rwc(np.eye(2)[[1, 1]]))) > 0.0
+    for x in (0.5, 1.5):
+        assert _read(slow_only, PointValue(x, 0)) == 0.0, x
+        assert _read(slow_only, PointValue(x, 1)) > 0.0, x
+
+
 @pytest.mark.l1
 @pytest.mark.rests_on(_SU2, _HERE + "test_a_flux_integral_is_the_volume_integral_of_the_galerkin_flux")
 def test_a_source_where_its_group_emits_nothing_widens_the_support_and_balances() -> None:
@@ -1239,3 +1284,260 @@ def test_c4_a_refusal_crosses_the_memo_with_its_type(tmp_path) -> None:
     spec = _spec(_sphere((0.0, 1.0), (0,), BC.reflective), {0: _N2N}, FixedSource(_rwc(np.ones((1, 2)))))
     with memo_api.cache_root(tmp_path), pytest.raises(NoLeastSolution, match="spectral radius of the gain"):
         CharacteristicDerivation(spec, _TINY).evaluate(_indicator(1, 0, 0))
+
+
+# ── step (e1b): the old family's door, laziness and reading rows, on the characteristic reference ──
+#
+# The successors of ``test_trajectory_resolvent_reference.py`` and ``test_trajectory_resolvent_billiard.py`` rows that
+# no row above asserts in full (``scratch/characteristic_architecture/p1_step_e/ta_e1b/README.md``, rows 94-100 and
+# 105-108 of its map). Each runs at ``_TINY`` where it reads no value.
+
+
+def _layered_on(coord: CoordSystem, question: Any) -> GeometrySpecification:
+    """The three-region heterogeneous body of ``_hetero_sphere`` on any chart (vacuum walls)."""
+    geometry = StructuredGeometry(coord=coord, breakpoints=_MR3, mat_ids=(1, 0, 1),
+                                  boundaries=(BC.vacuum,) if coord is not CoordSystem.CARTESIAN else (BC.vacuum, BC.vacuum))
+    return _spec(geometry, {0: _ABS, 1: _UP2N}, question)
+
+
+_CHARTS = [pytest.param(CoordSystem.SPHERICAL, id="sphere"), pytest.param(CoordSystem.CYLINDRICAL, id="cylinder"),
+           pytest.param(CoordSystem.CARTESIAN, id="slab")]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("coord", _CHARTS)
+@pytest.mark.rests_on(_HERE + "test_the_factory_returns_an_uncertified_reference_that_reads_a_ratio_as_a_quotient")
+def test_the_factory_poses_a_lazy_uncertified_reference_on_every_chart(coord: CoordSystem, monkeypatch: pytest.MonkeyPatch) -> None:
+    """[F5, R7b2.2] On every chart, ``characteristic_reference`` returns a ``ReferenceSolution`` whose specification
+    is the one given, with no certificate, around the derivation of that specification and resolution, and its
+    construction assembles no transport block. Succeeds ``test_r7b2_2_the_factory_returns_an_uncertified_reference``
+    and the construction leg of ``test_r7b2_2_construction_solves_nothing_and_the_solve_is_cached``.
+    First red (``[M]`` 2026-10-10): the system's blocks assembled at construction (arm ``eager-blocks``)."""
+    calls = _count_line_rules(monkeypatch)
+    spec = _layered_on(coord, Eigen(_K))
+    solution = characteristic_reference(spec, _TINY)
+    assert type(solution) is ReferenceSolution and solution.certificate is None
+    assert solution.specification == spec
+    assert solution.derivation == CharacteristicDerivation(spec, _TINY)
+    assert calls == []
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(_HERE + "test_the_factory_poses_a_lazy_uncertified_reference_on_every_chart")
+def test_the_solve_is_cached_on_the_derivation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """[F5, R7b2.2] The first reading solves the k pencil once; later readings of the same derivation (the
+    eigenvalue again, a flux integral, a point value) solve nothing more. A spy on ``GalerkinSystem.pencil``
+    counts. Succeeds the caching leg of ``test_r7b2_2_construction_solves_nothing_and_the_solve_is_cached``.
+    First red (``[M]`` 2026-10-10): the answer recomputed per reading (arm ``answer-uncached``)."""
+    calls: list[int] = []
+    original = reference_module.GalerkinSystem.pencil
+
+    def counting(self):
+        calls.append(1)
+        return original.func(self)
+
+    monkeypatch.setattr(reference_module.GalerkinSystem, "pencil", property(counting))
+    derivation = CharacteristicDerivation(_hetero_sphere(Eigen(_K)), _TINY)
+    with bypass():
+        derivation.evaluate(Eigenvalue())
+        first = len(calls)
+        derivation.evaluate(Eigenvalue())
+        derivation.evaluate(_indicator(3, 0, 0))
+        derivation.evaluate(PointValue(1.2, 0))
+    assert first >= 1, "the activation leg: the first reading solved nothing"
+    assert len(calls) == first, f"later readings solved again: {len(calls) - first} more"
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("coord", _CHARTS)
+@pytest.mark.rests_on(_HERE + "test_the_factory_poses_a_lazy_uncertified_reference_on_every_chart")
+def test_every_reading_through_the_solution_is_uncertified(coord: CoordSystem) -> None:
+    """[F5, R7b2.3] Through ``ReferenceSolution.read``, on every chart: the eigenvalue, a group total, a region
+    indicator, a point value and a ratio each read an ``Uncertified``, finite and non-zero; the eigenvalue reads
+    k, not 1/k (the heterogeneous body's k is below 1 at every resolution). Succeeds
+    ``test_r7b2_3_every_reading_is_uncertified``. First red (``[M]`` 2026-10-10): the eigenvalue read in the
+    1/k chart (arm ``k-inverted``)."""
+    solution = characteristic_reference(_layered_on(coord, Eigen(_K)), _TINY)
+    observables = (Eigenvalue(), FluxIntegral(_rwc(np.tile([1.0, 0.0], (3, 1)))), _indicator(3, 2, 1), PointValue(0.8, 1),
+                   Ratio(_indicator(3, 0, 0), _indicator(3, 2, 1)))
+    with bypass():
+        readings = [solution.read(o) for o in observables]
+    for observable, reading in zip(observables, readings, strict=True):
+        assert type(reading) is Uncertified, (observable, reading)
+        assert np.isfinite(reading.value) and reading.value != 0.0, (observable, reading)
+    assert 0.0 < readings[0].value < 1.0, readings[0]
+
+
+class _MeasuredAnswer:
+    """An answer whose every reading is ``Measured(1.25)``: the other side of a verb."""
+
+    def read(self, observable: Any) -> Any:
+        from orpheus.numerics.outcome import Measured
+
+        return Measured(1.25)
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(_HERE + "test_the_solve_is_cached_on_the_derivation")
+def test_the_certifying_verbs_refuse_before_any_solve_and_the_uncertified_comparison_reads(monkeypatch: pytest.MonkeyPatch) -> None:
+    """[F5, R7b2.3] ``verify_agreement`` and ``verify_order`` refuse the uncertified reference ("no certificate")
+    before it solves (0 pencils); ``compare_uncertified`` reads it, and its reading is the reference's own.
+    Succeeds ``test_r7b2_3_the_verbs_refuse_before_any_solve``. First red: the reference handed a certificate
+    (a ``ReferenceSolution`` built with one; the row's spy reads 0 either way, so the refusal is the leg)."""
+    from orpheus.numerics.outcome import NotYet
+    from orpheus.reference.verification import ReferenceNotValid, compare_uncertified, verify_agreement, verify_order
+
+    calls: list[int] = []
+    original = reference_module.GalerkinSystem.pencil
+    monkeypatch.setattr(reference_module.GalerkinSystem, "pencil", property(lambda self: calls.append(1) or original.func(self)))
+    solution = characteristic_reference(_hetero_sphere(Eigen(_K)), _TINY)
+    with bypass():
+        with pytest.raises(ReferenceNotValid, match="no certificate"):
+            verify_agreement(_MeasuredAnswer(), Eigenvalue(), solution, 1e-3, NotYet(564, "no estimator"))
+        with pytest.raises(ReferenceNotValid, match="no certificate"):
+            verify_order([(1.0, _MeasuredAnswer()), (0.5, _MeasuredAnswer())], Eigenvalue(), solution, 1e-3,
+                         [NotYet(564, "x")] * 2, 2.0, 0.1)
+        assert calls == []
+        comparison = compare_uncertified(_MeasuredAnswer(), Eigenvalue(), solution, 1.0)
+        assert comparison.reference_reading == solution.read(Eigenvalue())
+    assert calls, "the activation leg: the comparison read nothing"
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(_HERE + "test_the_door_refuses_at_construction_naming_what_it_refused")
+def test_a_material_the_body_does_not_hold_is_never_read() -> None:
+    """[F1, R7b2.3.2] A spectator material (an id the geometry does not use) carrying a P1 scattering moment does
+    not trip the anisotropy refusal, and the derivation answers. On the new reference the leak principle is
+    structural one layer down: the specification restricts its materials to those the geometry assigns
+    (``Materials.restrict``), so no door can read a spectator; the row asserts that restriction and the answer.
+    Succeeds ``test_r7b2_3_2_a_material_the_body_does_not_hold_is_never_read``. First red (``[M]`` 2026-10-10):
+    the restriction removed (arm ``spec-unrestricted``). Declared green, measured: the door reading every
+    material it is handed (arm ``every-material-read``), since it is handed none but the body's."""
+    anisotropic = get_mixture("B", "2g")
+    assert len(anisotropic.SigS) == 2 and anisotropic.SigS[1].count_nonzero() > 0     # the activation
+    spec = _spec(_sphere(_MR3, (1, 0, 1), BC.vacuum), {0: _ABS, 1: _UP2N, 7: anisotropic}, Eigen(_K))
+    assert set(spec.materials.keys()) == {0, 1}
+    with bypass():
+        k = CharacteristicDerivation(spec, _TINY).evaluate(Eigenvalue()).value
+    assert np.isfinite(k) and k > 0.0
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(_HERE + "test_the_door_refuses_at_construction_naming_what_it_refused")
+def test_the_law_door_keeps_its_message_on_an_anisotropic_body() -> None:
+    """[F1, R7b2.3.3] An unadmitted wall tag on a body whose materials are anisotropic is refused with the WALL's
+    message, not the anisotropy's: the walls are read before the cross sections, so a door's message does not
+    depend on which other defect the input has. Succeeds ``test_r7b2_3_3_the_law_door_keeps_its_message``.
+    First red (``[M]`` 2026-10-10): the cross sections read before the walls (arm ``doors-reordered``)."""
+    anisotropic = get_mixture("A", "2g")                      # fissile, with a P1 moment
+    assert anisotropic.SigS[1].count_nonzero() > 0            # the activation: the anisotropy door would refuse it
+    spec = _spec(_sphere(_MR3, (1, 0, 1), BC("marshak")), {0: anisotropic, 1: anisotropic}, Eigen(_K))
+    with pytest.raises(NotImplementedError, match="the reference admits the tag kinds") as caught:
+        CharacteristicDerivation(spec, _RES)
+    assert "Legendre order" not in str(caught.value)
+
+
+def _box(a: float, b: float, group: int) -> FluxIntegral:
+    """The indicator of a < r < b in one group, the decimals as written (0.6 is 3/5)."""
+    low, high = (sympy.Rational(str(x)) for x in (a, b))
+    step = sympy.Piecewise((1, (Symbolic.r >= low) & (Symbolic.r < high)), (0, True))
+    return FluxIntegral(Symbolic.of(*(step if g == group else 0 for g in range(2))))
+
+
+@pytest.mark.l1
+@pytest.mark.rests_on(_HERE + "test_a_flux_integral_is_the_volume_integral_of_the_galerkin_flux",
+                      _HERE + "test_a_closed_homogeneous_body_reads_the_exact_infinite_mediums_k_and_flux")
+def test_an_indicator_on_a_flat_body_reads_its_measure_fraction() -> None:
+    """[R7b2.6] On a closed layered body of one mixture (fuel A under two material ids, regions [0, 1] and [1, 2]
+    cm, mirror at 2), whose flux is flat, the indicator of 0.6 < r < 0.7 (inside region 0, off every panel end)
+    over the group's total reads the measure fraction (0.7^3 - 0.6^3) / 2^3, to 1e-12.
+
+    The Galerkin flux is flat and the constants are in the basis, so the
+    pairing is exact once the projection splits at the weight's steps; a
+    projection that ignores the steps errs at first order in its panel width.
+    Succeeds ``test_r7b2_6_an_indicator_reads_its_measure_fraction``. First red
+    (``[M]`` 2026-10-10): ``Symbolic.steps`` returning no step (arm ``steps-empty``)."""
+    from tests.gates.sn.verification.analytical._aba_reference import isotropic_mixture
+
+    fuel = isotropic_mixture("A")
+    spec = _spec(_sphere((0.0, 1.0, 2.0), (0, 1), BC.reflective), {0: fuel, 1: fuel}, Eigen(_K))
+    total = FluxIntegral(Symbolic.of(1, 0))
+    fraction = _read(spec, _box(0.6, 0.7, 0)) / _read(spec, total)
+    assert abs(fraction / ((0.7**3 - 0.6**3) / 2.0**3) - 1.0) < 1e-12, fraction
+
+
+@pytest.mark.l1
+@pytest.mark.rests_on(_HERE + "test_an_indicator_on_a_flat_body_reads_its_measure_fraction")
+def test_a_flux_integral_is_additive_over_a_split_of_its_weight() -> None:
+    """[R7b2.6] On the heterogeneous vacuum sphere, the indicator of 0.6 < r < 0.7 in group 1 reads the sum of
+    those of (0.6, 0.65) and (0.65, 0.7), to 1e-12, and the whole reads the volume integral of the Galerkin flux
+    over the box, by a 24-point Gauss rule per panel split at 0.6 and 0.7 written here, to 1e-12.
+
+    Additivity alone is a law of any linear pairing, so it is blind to a
+    projection that ignores the weight's steps (each part is mis-integrated
+    the same linear way, ``[M]`` 2026-10-10: green under ``steps-empty``); the
+    value leg carries that. Succeeds ``test_r7b2_6_the_reading_is_additive_over_a_split``.
+    First red (``[M]`` 2026-10-10): ``Symbolic.steps`` returning no step (arm
+    ``steps-empty``, the value leg)."""
+    spec = _hetero_sphere(Eigen(_K))
+    whole = _read(spec, _box(0.6, 0.7, 1))
+    parts = _read(spec, _box(0.6, 0.65, 1)) + _read(spec, _box(0.65, 0.7, 1))
+    assert abs(parts / whole - 1.0) < 1e-12, (whole, parts)
+    derivation = _derivation(spec)
+    answer = derivation.answer
+    assert isinstance(answer, reference_module._FundamentalAnswer)
+    flux = answer.flux
+    basis = derivation.basis
+    ends = sorted(set(np.asarray(basis.partition.breakpoints)) | {0.6, 0.7})
+    nodes, weights = np.polynomial.legendre.leggauss(24)
+    by_hand = 0.0
+    for a, b in zip(ends[:-1], ends[1:]):
+        if a < 0.6 or b > 0.7:
+            continue
+        c = 0.5 * (b - a) * nodes + 0.5 * (a + b)
+        by_hand += float(np.sum(_reconstruct(basis, flux, c)[1] * 0.5 * (b - a) * weights * 4.0 * np.pi * c**2))
+    assert abs(whole / by_hand - 1.0) < 1e-12, (whole, by_hand)
+
+
+@pytest.mark.foundation
+def test_the_door_finds_a_weights_steps_through_symbolic_steps(monkeypatch: pytest.MonkeyPatch) -> None:
+    """[R7b2.6, ROUTE] The derivation finds a symbolic weight's steps through ``Symbolic.steps``, the one definition
+    (``tests/gates/numerics/test_symbolic_steps.py``): a spy on it counts at least one call while a step weight is
+    read. Succeeds ``test_r7b2_6_the_reading_consults_symbolic_steps``. First red: a second step-finder in the
+    door (the spy then counts 0); the value rows (R1's step leg) stay green on it."""
+    derivation = CharacteristicDerivation(_hetero_sphere(Eigen(_K)), _TINY)
+    with bypass():
+        derivation.evaluate(Eigenvalue())
+    calls: list[tuple] = []
+    original = Symbolic.steps
+
+    def counting(self, *args, **kwargs):
+        calls.append(args)
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Symbolic, "steps", counting)
+    with bypass():
+        derivation.evaluate(_box(0.6, 0.7, 0))
+    assert calls, "the reading never consulted Symbolic.steps"
+
+
+@pytest.mark.foundation
+def test_the_reference_module_imports_the_reference_package_and_no_higher_layer() -> None:
+    """[R7b2.7] The door's module reads ``orpheus.reference`` (the positive control: the AST walk saw its imports)
+    and nothing at L2, L3 or L4. ``tests/gates/test_layer_imports.py`` enforces the layers tree-wide; this row
+    keeps the old row's positive control and its ``orpheus.plotting`` arm, which the generic gate does not forbid
+    to ``derivations`` (the map's row 108). Succeeds ``test_r7b2_7_the_reference_module_imports_no_higher_layer``."""
+    import ast
+    import pathlib
+
+    forbidden = ("orpheus.transport", "orpheus.sn", "orpheus.diffusion", "orpheus.homogeneous", "orpheus.cp",
+                 "orpheus.moc", "orpheus.mc", "orpheus.kinetics", "orpheus.fuel", "orpheus.thermal_hydraulics",
+                 "orpheus.plotting")
+    names: set[str] = set()
+    for node in ast.walk(ast.parse(pathlib.Path(reference_module.__file__).read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Import):
+            names |= {a.name for a in node.names}
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            names.add(node.module)
+    assert any(n.startswith("orpheus.reference") for n in names), names
+    assert not [n for n in names if n.startswith(forbidden)], names

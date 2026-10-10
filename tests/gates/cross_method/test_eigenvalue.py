@@ -88,6 +88,10 @@ from orpheus.geometry import CoordSystem
 
 from .adapters import (
     ADAPTERS_BY_NAME,
+    CHARACTERISTIC_SLAB,
+    CHARACTERISTIC_SPHERE,
+    CHARACTERISTIC_SPHERE_CLOSED,
+    CharacteristicAdapter,
     FNReflectedSlabAdapter,
     FNSlabAdapter,
     FNSphereAdapter,
@@ -571,6 +575,100 @@ def test_fn_sphere_vs_trajectory_resolvent_sphere(case: CrossMethodCase):
         f"max({case.tolerance_for(fn):.1e}, "
         f"{case.tolerance_for(tr):.1e}) = {tol:.1e}. "
         f"Both methods backed by {case.truth_source}."
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════
+# The characteristic reference: the successors of the trajectory-resolvent rows
+# ═══════════════════════════════════════════════════════════════════
+#
+# P1 step (e1b) of ``.claude/plans/characteristic_reference_architecture.md`` (the user's ruling 3 of 2026-10-10):
+# each trajectory-resolvent truth and agreement row above has its successor here, on the characteristic adapters,
+# with the tolerance ``cases.characteristic_tolerance`` computes from the reference's own ladder and the truth's
+# resolution. Step (e) deletes the predecessors; until then both run. None is slow: a slab case at the working rung
+# takes about 1.5 s.
+
+_CHARACTERISTIC_SLAB = CHARACTERISTIC_SLAB
+_CHARACTERISTIC_SPHERE = CHARACTERISTIC_SPHERE
+_CHARACTERISTIC_SPHERE_CLOSED = CHARACTERISTIC_SPHERE_CLOSED
+
+
+def _characteristic_k_against_one(adapter: CharacteristicAdapter, case: CrossMethodCase, at: str) -> None:
+    res = adapter.solve(case)
+    tol = case.tolerance_for(adapter.name)
+    assert abs(res.value - 1.0) < tol, (
+        f"{case.case_id}: {adapter.name} k_eff={res.value!r} {at}, |k-1|={abs(res.value - 1.0):.3e} > tol={tol:.1e}. "
+        f"Truth source: {case.truth_source}"
+    )
+
+
+@pytest.mark.l1
+@pytest.mark.parametrize("case", BARE_CRITICAL_SLAB_CASES, ids=lambda c: c.case_id)
+def test_characteristic_slab_matches_truth_keff_one(case: CrossMethodCase):
+    """The characteristic reference's vacuum slab at the case's published critical half-thickness reads k = 1.
+
+    Successor of ``test_trajectory_resolvent_slab_matches_truth_keff_one``. Truth: Sood / Kaper-Lindeman-Leaf
+    (F_N), a structurally independent method. First red: the slab's cosine rule integrating one hemisphere only
+    (``consumers/cross_method_battery.py``).
+    """
+    _characteristic_k_against_one(_CHARACTERISTIC_SLAB, case, f"at the truth half-thickness {case.truth_value} mfp")
+
+
+@pytest.mark.l1
+@pytest.mark.parametrize("case", BARE_CRITICAL_SPHERE_CASES, ids=lambda c: c.case_id)
+def test_characteristic_sphere_matches_truth_keff_one(case: CrossMethodCase):
+    """The characteristic reference's vacuum sphere at the case's published critical radius reads k = 1.
+
+    Successor of ``test_trajectory_resolvent_sphere_matches_truth_keff_one``.
+    """
+    _characteristic_k_against_one(_CHARACTERISTIC_SPHERE, case, f"at the truth radius {case.truth_value} mfp")
+
+
+@pytest.mark.l1
+@pytest.mark.parametrize("case", CLOSED_SPHERE_KINF_CASES, ids=lambda c: c.case_id)
+def test_characteristic_sphere_closed_matches_kinf(case: CrossMethodCase):
+    r"""The characteristic reference's closed sphere (a mirror at r = R) reads :math:`k_\infty = \nu\Sigma_f/\Sigma_a`.
+
+    Successor of ``test_trajectory_resolvent_sphere_closed_matches_kinf`` and the cross-method protocol's only
+    TR-keyed case, ``closed-sphere-1G-fuelA-tauR2.5``, which would otherwise have no tolerance after step (e).
+    """
+    res = _CHARACTERISTIC_SPHERE_CLOSED.solve(case)
+    tol = case.tolerance_for(_CHARACTERISTIC_SPHERE_CLOSED.name)
+    assert res.tag == "k_inf"
+    assert abs(res.value - case.truth_value) < tol, (
+        f"{case.case_id}: characteristic_sphere_closed k_inf={res.value!r} vs {case.truth_value!r}, "
+        f"diff={abs(res.value - case.truth_value):.3e} > tol={tol:.1e}"
+    )
+
+
+@pytest.mark.l1
+@pytest.mark.parametrize("case", BARE_CRITICAL_SLAB_CASES, ids=lambda c: c.case_id)
+def test_fn_slab_vs_characteristic_slab(case: CrossMethodCase):
+    """F_N's predicted critical half-thickness, read by the characteristic slab, gives k = 1 within the pairwise
+    tolerance. Successor of ``test_fn_slab_vs_trajectory_resolvent_slab``: two methods sharing nothing above the
+    trusted-library line (Case eigenfunctions and collocation against lines, panels and a dense pencil)."""
+    fn = FNSlabAdapter()
+    res_fn = fn.solve(case)
+    res = _CHARACTERISTIC_SLAB.solve(_shadow_with_thickness_mfp(case, a_critical_mfp=float(res_fn.value)))
+    tol = agreement_tolerance(case, fn.name, _CHARACTERISTIC_SLAB.name)
+    assert abs(res.value - 1.0) < tol, (
+        f"{case.case_id}: F_N a_c={res_fn.value:.10f} mfp; the characteristic slab there reads k={res.value!r}, "
+        f"|k-1|={abs(res.value - 1.0):.3e} > {tol:.1e}"
+    )
+
+
+@pytest.mark.l1
+@pytest.mark.parametrize("case", BARE_CRITICAL_SPHERE_CASES, ids=lambda c: c.case_id)
+def test_fn_sphere_vs_characteristic_sphere(case: CrossMethodCase):
+    """F_N's predicted critical radius, read by the characteristic sphere, gives k = 1 within the pairwise tolerance.
+    Successor of ``test_fn_sphere_vs_trajectory_resolvent_sphere``."""
+    fn = FNSphereAdapter()
+    res_fn = fn.solve(case)
+    res = _CHARACTERISTIC_SPHERE.solve(_shadow_with_thickness_mfp(case, R_critical_mfp=float(res_fn.value)))
+    tol = agreement_tolerance(case, fn.name, _CHARACTERISTIC_SPHERE.name)
+    assert abs(res.value - 1.0) < tol, (
+        f"{case.case_id}: F_N R_c={res_fn.value:.10f} mfp; the characteristic sphere there reads k={res.value!r}, "
+        f"|k-1|={abs(res.value - 1.0):.3e} > {tol:.1e}"
     )
 
 

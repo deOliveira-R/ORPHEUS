@@ -320,3 +320,186 @@ def test_m4_10_the_default_store_is_gitignored():
     probe = subprocess.run(["git", "check-ignore", "-q", str(root / "x" / "key.npz")], cwd=REPO)
     control = subprocess.run(["git", "check-ignore", "-q", str(REPO / "orpheus" / "__init__.py")], cwd=REPO)
     assert probe.returncode == 0 and control.returncode == 1
+
+
+# ── the characteristic reading: the successors of M4.1b-M4.8 ─────────────────────
+#
+# P1 step (e1b) of the characteristic-reference campaign: step (e) deletes the trajectory-resolvent family, and with
+# it the three old clients these rows were posed on. ``CharacteristicDerivation.evaluate`` is the one memo client
+# that survives, at ONE level: it solves inside the reading process, so its entry pins no child (``ChildPin`` empty).
+# The successors, row by row (``scratch/characteristic_architecture/p1_step_e/ta_e1b/README_consumers.md``):
+#
+# * M4.1b (the route, the activation leg): ``tests/gates/derivations/test_characteristic_reference.py::
+#   test_c3_an_equal_derivation_reads_from_the_memo_and_a_new_resolution_does_not`` (a cold read starts an
+#   interpreter, an equal derivation's read starts none and reads the same bits);
+# * M4.2 (one child entry, two consumers) and M4.4's ``the-solver`` witness: the child-memo contract, on a synthetic
+#   client: ``test_traced_memo_process.py::test_m3_12e_a_child_generated_by_its_parent_serves_a_direct_caller`` and
+#   ``::test_m3_12b_a_mutation_only_a_child_traced_makes_the_parent_stale``;
+# * M4.7 (served arrays read-only): ``test_traced_memo_process.py::test_m3_14_a_served_payload_is_fresh_read_only_
+#   and_bit_identical`` (a characteristic reading serves a float, no array);
+# * M4.3, M4.4's other three witnesses, M4.5 and M4.8: the rows below.
+
+_CHARACTERISTIC_DRIVER_SETUP = '''
+from orpheus.data.cells import CellCoefficient, Channel
+from orpheus.data.materials import Materials
+from orpheus.derivations.common.xs_library import get_xs, make_mixture
+from orpheus.derivations.continuous.characteristic import CharacteristicDerivation, Resolution, TransportResolution
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.numerics.question import Eigen
+from orpheus.specification.specification import GeometrySpecification
+
+
+def tiny_sphere(radius=1.0):
+    """A one-region sphere of mixture A (two groups, P0 scattering) under vacuum, at the smallest resolution."""
+    xs = get_xs("A", "2g")
+    mixture = make_mixture(sig_t=xs["sig_t"], sig_c=xs["sig_c"], sig_f=xs["sig_f"], nu=xs["nu"], chi=xs["chi"],
+                           sig_s=xs["sig_s"])
+    geometry = StructuredGeometry.sphere((0.0, radius), (0,), outer=BC.vacuum)
+    question = Eigen(CellCoefficient.every(Channel.FISSION_EMISSION))
+    specification = GeometrySpecification(Materials({0: mixture}), geometry, question)
+    return CharacteristicDerivation(specification, Resolution(1, 0, 0.4, TransportResolution(4, 4, 4), 4))
+'''
+
+_tiny_namespace: dict[str, Any] = {}
+exec(_CHARACTERISTIC_DRIVER_SETUP, _tiny_namespace)
+
+
+def _tiny_characteristic_sphere(radius: float = 1.0) -> Any:
+    """The characteristic sphere the rows below read (the same text the copied-tree driver execs)."""
+    return _tiny_namespace["tiny_sphere"](radius)
+
+
+def _characteristic_entries(root: Path) -> list[Path]:
+    return [f for f in api.entry_files(root) if api.entry_function(f) == api.function_id("characteristic_reading")]
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_9_arguments_cross_through_their_constructor',
+                      'tests/gates/derivations/test_characteristic_reference.py::test_c3_an_equal_derivation_reads_from_the_memo_and_a_new_resolution_does_not')
+def test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_no_child(tmp_path):
+    """M4.3, re-posed on the characteristic reading: the entry's manifest holds the derivation's construction
+    (``CharacteristicDerivation.__post_init__``, ``Walls.of``, ``PanelBasis.of``, ``RegionCrossSections.of``,
+    ``GalerkinSystem.__post_init__``) and the solve that ran in the reading process (``LinePeriod.inflow``,
+    ``DensePencil.fundamental``), none of which a pickled derivation would show; the cylinder's polar rule, which a
+    sphere never runs, is NOT in it; and it pins no child (the reference has one memo level). First red: the
+    derivation crossing to the child pickled (its construction then runs in the parent and the DefPins lose it)."""
+    from orpheus.numerics.observable import Eigenvalue
+
+    with api.cache_root(tmp_path):
+        _tiny_characteristic_sphere().evaluate(Eigenvalue())
+    (entry_file,) = _characteristic_entries(tmp_path)
+    entry = api.read_entry(entry_file)
+    functions = {q for _, q, *_ in api.manifest_rows(entry, "DefPin")}
+    construction = {"CharacteristicDerivation.__post_init__", "Walls.of", "PanelBasis.of", "RegionCrossSections.of",
+                    "GalerkinSystem.__post_init__", "LinePeriod.inflow", "DensePencil.fundamental"}
+    assert construction <= functions, sorted(construction - functions)
+    assert "polar_rule" not in functions and "impact_per_polar" not in functions
+    assert api.manifest_rows(entry, "ChildPin") == []
+
+
+_CHARACTERISTIC_DRIVER = textwrap.dedent('''
+    import sys
+    copy, cache, action = sys.argv[1:4]
+    sys.path[:0] = [copy]
+    import orpheus
+    assert orpheus.__file__.startswith(copy), orpheus.__file__
+''') + _CHARACTERISTIC_DRIVER_SETUP + textwrap.dedent('''
+    from orpheus.numerics.observable import Eigenvalue
+    from orpheus.numerics.traced_memo import cache_root
+    with cache_root(cache):
+        d = tiny_sphere()
+        if action == "generate":
+            print("K", d.evaluate(Eigenvalue()).value.hex())
+        print("VERDICT", type(type(d).evaluate.lookup(d, Eigenvalue())).__name__)
+''')
+
+#: (row, file under orpheus/, the def or statement to find, the edit, the reading's verdict after it)
+CHARACTERISTIC_TREE_WITNESSES = [
+    ("construction-helper", "derivations/continuous/characteristic/walls.py", "def _wall_of(", None, "Stale"),
+    ("rule-of-another-chart", "derivations/continuous/characteristic/lines.py", "def polar_rule(", None, "Hit"),
+    ("reading-module-constant", "derivations/continuous/characteristic/reference.py",
+     'Lift = Callable[["sympy.Expr"], "sympy.Expr"]', "constant-before", "Stale"),
+]
+
+
+def _drive_characteristic(copy: Path, cache: Path, action: str) -> str:
+    run = subprocess.run(
+        [sys.executable, "-O", "-c", _CHARACTERISTIC_DRIVER, str(copy), str(cache), action],
+        capture_output=True, text=True, cwd=str(copy.parent), env={k: v for k, v in os.environ.items() if k != "PYTHONPATH"},
+    )
+    lines = [line for line in run.stdout.splitlines() if line.startswith("VERDICT ")]
+    if not lines:
+        raise AssertionError(f"the driver failed:\n{run.stderr[-3000:]}")
+    return lines[-1][len("VERDICT "):]
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_2_an_edit_to_what_ran_regenerates_and_nothing_else_does',
+                      'tests/gates/numerics/test_traced_memo_clients.py::test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_no_child')
+@pytest.mark.parametrize("row,file,anchor,method,reading", CHARACTERISTIC_TREE_WITNESSES,
+                         ids=[w[0] for w in CHARACTERISTIC_TREE_WITNESSES])
+def test_m4_4c_an_edit_to_the_copied_tree_misses_exactly_where_the_characteristic_reading_ran(tmp_path, row, file, anchor,
+                                                                                            method, reading):
+    """M4.4, re-posed on the characteristic reading, on a copy of ``orpheus/``: a neutral edit to a construction
+    helper the reading ran (``_wall_of``) makes the reading stale; an edit to the cylinder's polar rule, which a
+    sphere reading never runs, leaves it a hit; a new constant in the reading module's skeleton makes it stale.
+    The copy's own driver reports ``Hit`` before the edit (the activation leg)."""
+    copy = _copy_tree(tmp_path)
+    cache = tmp_path / "cache"
+    assert _drive_characteristic(copy, cache, "generate") == "Hit"
+    path = copy / "orpheus" / file
+    if method == "constant-before":
+        text = path.read_text()
+        if text.count(anchor) != 1:
+            raise AssertionError(f"{anchor!r} occurs {text.count(anchor)} times in {path}")
+        path.write_text(text.replace(anchor, "_NEUTRAL_CONSTANT = None\n" + anchor))
+    else:
+        _neutral_edit(path, anchor, method)
+    assert _drive_characteristic(copy, cache, "lookup") == reading, row
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_6_floats_cross_the_payload_bit_for_bit',
+                      'tests/gates/derivations/test_characteristic_reference.py::test_c3_an_equal_derivation_reads_from_the_memo_and_a_new_resolution_does_not')
+def test_m4_5c_a_served_characteristic_reading_is_the_fresh_reading_bit_for_bit(tmp_path):
+    """M4.5, re-posed: the memo's characteristic readings equal the in-process readings under ``bypass()`` bit for
+    bit: k, a point value of group 1 and a flux integral of the fission production (``float.hex``). The second
+    pass through the memo reads each from an entry (three entries written)."""
+    from orpheus.numerics.mesh_free_function import RegionwiseConstant
+    from orpheus.numerics.observable import Eigenvalue, FluxIntegral, PointValue
+
+    production = _tiny_characteristic_sphere().specification.materials[0]
+    weight = FluxIntegral(RegionwiseConstant(np.asarray(production.SigP)[None, :]))
+    observables = (Eigenvalue(), PointValue(position=0.4, group=1), weight)
+    with api.cache_root(tmp_path):
+        generated = [_tiny_characteristic_sphere().evaluate(o).value.hex() for o in observables]
+        served = [_tiny_characteristic_sphere().evaluate(o).value.hex() for o in observables]
+    assert len(_characteristic_entries(tmp_path)) == 3
+    with api.bypass():
+        fresh = [_tiny_characteristic_sphere().evaluate(o).value.hex() for o in observables]
+    assert served == generated == fresh
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_11_a_raising_generator_writes_nothing_and_raises_its_own_error',
+                      'tests/gates/derivations/test_characteristic_reference.py::test_c4_a_refusal_crosses_the_memo_with_its_type')
+def test_m4_8c_a_characteristic_refusal_is_never_cached(tmp_path, monkeypatch):
+    """M4.8, re-posed: the characteristic reference is a direct solve (no iteration to leave unconverged), so its
+    refusal after the solve is the one M4.8's contract applies to: the flux of a mode nearest tau. Read through the
+    memo it crosses back as ``NotImplementedError`` with its message and writes nothing, so a second reading starts
+    an interpreter again; the mode's eigenvalue, read beside it, is cached. First red: a refusal cached as a value
+    (the second read starts no interpreter)."""
+    from dataclasses import replace
+
+    from orpheus.numerics.observable import Eigenvalue, PointValue
+    from orpheus.numerics.question import Nearest
+
+    base = _tiny_characteristic_sphere()
+    question = replace(base.specification.question, mode=Nearest(tau=0.05))
+    derivation = type(base)(replace(base.specification, question=question), base.resolution)
+    with api.cache_root(tmp_path):
+        with pytest.raises(NotImplementedError, match="a higher mode has no flux scale"):
+            derivation.evaluate(PointValue(position=0.4, group=0))
+        spawns = api.SpawnCounter(monkeypatch)
+        with pytest.raises(NotImplementedError, match="a higher mode has no flux scale"):
+            type(base)(derivation.specification, base.resolution).evaluate(PointValue(position=0.4, group=0))
+        refused_again = spawns.count
+        derivation.evaluate(Eigenvalue())
+    assert refused_again >= 1, f"the second refusal started {refused_again} interpreters: it was served from an entry"
+    assert len(_characteristic_entries(tmp_path)) == 1
