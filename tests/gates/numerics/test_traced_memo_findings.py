@@ -710,9 +710,18 @@ def test_a_parent_does_not_pin_its_childs_sources_as_data(make, tmp_path):
 
 
 def test_k_the_exact_key_cases_of_the_third_review():
-    """Third review, finding 3 (K1-K9): set iteration order, a sparse matrix's class beside its format, a
-    sparse matrix with no stored arrays, a ``defaultdict``'s factory, an ``int`` subclass, and an ``InitVar``
-    each shared a key or rebuilt wrongly. Each is now keyed apart or refused."""
+    """Third review, finding 3 (K1-K9): a sparse matrix's class beside its format, a sparse matrix with no stored
+    arrays, a ``defaultdict``'s factory, an ``int`` subclass, and an ``InitVar`` each shared a key or rebuilt
+    wrongly; each is now keyed apart or refused.
+
+    Set iteration order is the one case whose law was REVERSED: the third review keyed two equal sets that
+    iterate differently apart; qa's #592 review (2026-10-10) measured that this made one call key differently in
+    the parent and in a generation (iteration order follows the hash seed; generations run at
+    ``PYTHONHASHSEED=0``), and the user ruled the same day that a set is keyed in the sorted order of its elements'
+    encodings. So two equal sets that iterate differently now share ONE key (the across-process form is
+    ``test_s1_one_call_is_one_key_under_every_hash_seed``). The activation leg asserts the two sets do iterate
+    differently in this process, so the equality is not vacuous. First red: the pre-fix ``elements`` (iteration
+    order), on the tree before the fix."""
     import collections
     import dataclasses
 
@@ -724,8 +733,8 @@ def test_k_the_exact_key_cases_of_the_third_review():
         return encode_exact(value)
 
     one, two = frozenset({1, 9}), frozenset({9, 1})
-    if list(one) != list(two):  # equal sets that iterate differently (CPython's hash layout)
-        assert key(one) != key(two)
+    assert list(one) != list(two), "the activation: these equal sets must iterate differently (CPython's hash layout)"
+    assert key(one) == key(two)
     matrix = sp.csr_matrix(np.array([[1.0, 2.0], [3.0, 4.0]]))
     assert key(matrix) != key(sp.csr_array(matrix))
     with pytest.raises(ContentlessError, match="stores no arrays"):
@@ -799,3 +808,67 @@ def test_u_a_program_named_uname_is_not_admitted_by_its_name(make, tmp_path, mon
     monkeypatch.setenv("PATH", str(fake.parent) + os.pathsep + os.environ.get("PATH", ""))
     with pytest.raises(api.name("Unpinnable"), match="may start only"):
         package.module().gen(1.0)
+
+
+# ── the #592 review: one call is one key in every process ─────────────────────────
+
+_SEED_PROBE = textwrap.dedent('''
+    import hashlib, os, sys
+    sys.path.insert(0, sys.argv[1])
+    from orpheus.numerics import content
+    if os.environ.get("ARM") == "iteration-order":
+        content._Exactly.elements = lambda self, encoded: encoded     # the pre-fix spelling, in this process
+    strings = frozenset(f"cell-{i}" for i in range(64))
+    print("ORDER", hashlib.sha256("|".join(strings).encode()).hexdigest())
+    print("SYNTHETIC", hashlib.sha256(content.encode_exact(strings)).hexdigest())
+    from tests.gates.derivations.test_characteristic_reference import _K, _TINY, _hetero_sphere
+    from orpheus.derivations.continuous.characteristic import CharacteristicDerivation
+    from orpheus.numerics.observable import Eigenvalue
+    from orpheus.numerics.question import Eigen
+    derivation = CharacteristicDerivation(_hetero_sphere(Eigen(_K)), _TINY)
+    print("CELLS", len(derivation.specification.question.gauge.cells))
+    print("READING", type(derivation).__dict__["evaluate"].key(derivation, Eigenvalue()))
+''')
+_SEEDS = ("0", "1", "2", "3", "5", "8", "13")
+
+
+def _keys_by_seed(tmp_path: Path, arm: str) -> dict[str, dict[str, str]]:
+    script = tmp_path / "seed_probe.py"
+    script.write_text(_SEED_PROBE)
+    repo = Path(__file__).resolve().parents[3]
+    out: dict[str, dict[str, str]] = {}
+    for seed in _SEEDS:
+        env = {**os.environ, "PYTHONHASHSEED": seed, "ARM": arm}
+        env.pop("PYTHONPATH", None)
+        run = subprocess.run([sys.executable, "-O", str(script), str(repo)], capture_output=True, text=True, env=env,
+                             cwd=str(tmp_path), timeout=300)
+        rows = dict(line.split(" ", 1) for line in run.stdout.splitlines() if " " in line)
+        if "READING" not in rows:
+            raise AssertionError(f"the probe failed under PYTHONHASHSEED={seed}:\n{run.stderr[-3000:]}")
+        out[seed] = rows
+    return out
+
+
+def test_s1_one_call_is_one_key_under_every_hash_seed(tmp_path):
+    """#592 review (qa, 2026-10-10): a frozenset was keyed in its ITERATION order, which follows the process's hash
+    seed, while every generation runs under ``PYTHONHASHSEED=0``, so one call keyed differently in the parent and in
+    a generation (qa: 5 unseeded processes split 3/2 on an eigen gauge with an (n,2n) material). The user ruled:
+    sort. In fresh interpreters under seven hash seeds: (a) the positive control, a frozenset of 64 strings iterates
+    in at least two orders, so the seeds do move iteration order; (b) its exact encoding is one digest; (c) the real
+    case, ``CharacteristicDerivation.evaluate``'s key for the eigenvalue of an eigen question whose gauge holds two cells (fission and
+    (n,2n), asserted), is one key. First red (``[M]`` 2026-10-10): ``_Exactly.elements`` rebound to the identity
+    inside each child (env ``ARM=iteration-order``, the probe's in-process rebind): (b) and (c) split."""
+    rows = _keys_by_seed(tmp_path, "none")
+    assert len({r["ORDER"] for r in rows.values()}) >= 2, "the instrument: no two seeds iterated differently"
+    assert {r["CELLS"] for r in rows.values()} == {"2"}, "the real case: the gauge must hold two cells"
+    assert len({r["SYNTHETIC"] for r in rows.values()}) == 1, rows
+    assert len({r["READING"] for r in rows.values()}) == 1, {s: r["READING"][:12] for s, r in rows.items()}
+
+
+def test_s1_the_iteration_order_arm_splits_the_keys(tmp_path):
+    """The witness of :func:`test_s1_one_call_is_one_key_under_every_hash_seed`, kept as a row (``vv`` #17: the
+    instrument's control): with ``_Exactly.elements`` rebound to the identity in each child, the synthetic set and
+    the real reading key take at least two values over the seven seeds. Green here means the gate above can red."""
+    rows = _keys_by_seed(tmp_path, "iteration-order")
+    assert len({r["SYNTHETIC"] for r in rows.values()}) >= 2
+    assert len({r["READING"] for r in rows.values()}) >= 2

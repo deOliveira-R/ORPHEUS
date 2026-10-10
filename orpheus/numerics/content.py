@@ -195,7 +195,7 @@ class _Exactly:
     generating process through its constructor, so this is exactly what the generation receives), so a
     ``compare=False`` field that the constructor takes is in it; a container carries its concrete type (a
     ``NamedTuple`` is not its plain tuple); a mapping keeps its order (``FrozenMapping`` declares order
-    behaviour); a sparse matrix is its format and its stored arrays (explicit zeros included); a subclass of
+    behaviour), while a set is ordered by its elements' encodings (its iteration order follows the hash seed); a sparse matrix is its format and its stored arrays (explicit zeros included); a subclass of
     ``str``, ``bytes`` or ``ndarray`` is its type and its own instance state beside its bytes (a masked
     array's mask is state; a state with no content identity, such as the type a masked array keeps, is
     refused with its path)."""
@@ -230,8 +230,14 @@ class _Exactly:
         return _chunk(tag, _chunk(b"y", f"{kind.__module__}.{kind.__qualname__}".encode()) + state + body)
 
     def elements(self, encoded: list[bytes]) -> list[bytes]:
-        """A set's elements in ITERATION order: two equal sets can iterate differently, and a function sees it."""
-        return encoded
+        """A set's elements, ordered by their encodings, as content identity orders them.
+
+        A set's iteration order follows the process's hash seed, so a key that kept it would differ between
+        processes for one call (qa, #592 review, 2026-10-10: five unseeded processes split three and two over
+        an eigen gauge's two cells). The generation never sees the caller's order either: it rebuilds its
+        arguments under ``PYTHONHASHSEED=0``. Iteration order is therefore no input of a memoised function,
+        and the generator contract says so (:mod:`~orpheus.numerics.traced_memo`)."""
+        return sorted(encoded)
 
     def items(self, encoded: list[bytes]) -> list[bytes]:
         return encoded

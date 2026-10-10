@@ -43,6 +43,8 @@ adversarial generator could hide a dependency). A memoised function:
   branches on no other memo's ``lookup``;
 * takes arguments with a constructor form: no ``InitVar``, no mapping beside ``dict`` and ``FrozenMapping``,
   no sparse matrix without stored arrays (each refused when keyed).
+* does not depend on a set's iteration order, which follows the hash seed: the key orders a set by its
+  elements, and the generation iterates under ``PYTHONHASHSEED=0``, not the caller's seed.
 
 SCOPE-BOUNDARY[guard] machinery: a recorder below Python (a system-call tracer) for what the contract
 excludes. ruling: the user, 2026-10-04 (``.claude/plans/reference_cache.md``, "P3 closed by contract").
