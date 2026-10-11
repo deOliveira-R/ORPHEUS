@@ -1918,3 +1918,31 @@ CI was green on the code push (run 38085759201). The seed gate's real-case leg r
 - the uncalled helpers (`import_closure`, `assert_closure_independent`).
 
 The child-memo feature keeps a production client: the characteristic solve.
+
+## Step (e2) landed: the trajectory-resolvent family is retired (2026-10-10)
+
+**[LANDED 5aa8cb88]**, pushed with CI watched; `Closes #572`.
+
+**What went:**
+- the package, 12 modules;
+- the 5 duplicate `derive_*` (18 kept);
+- 25 test files.
+
+**What changed beside the deletion:**
+- 41 test files edited.
+- The three `peierls_nystrom` primitive rows were MOVED to `test_peierls_specular_primitives.py`. Their successor map had re-posed them onto characteristic rows that test another object (retirement-audit C.12).
+- 7 SN ids and the label `sn-curvilinear-characteristic-reference-crosscheck` were renamed.
+- `[M]` `-m "not slow"`: 16 613 passed, 0 failed. `-W` is clean.
+
+**Findings:**
+- `test_docstring_xrefs` reds on dead `:mod:` roles even on a page awaiting its rewrite. The 14 roles on `trajectory_resolvent.rst` became literals in this commit.
+- qa found two present-tense citations of deleted rows on `readings_and_certificates.rst`; both are fixed.
+- qa's design finding, `HollowBody` and `LayeredBody` left with no production reader, is filed as #594: it may be a second classification beside `ConcentricPartition`.
+- `dead_references` finds 55 sites, all on `trajectory_resolvent.rst`.
+
+**Next: step (f), the theory page.** The archivist rewrites `docs/theory/references/trajectory_resolvent.rst`, 6 438 lines:
+- its 55 dead references;
+- the labels that the moved rows still verify (`peierls-greens-slab-T`, `peierls-greens-cylinder-T`);
+- what becomes history, against what moves into `characteristic.rst`.
+
+That is P1's last step.
