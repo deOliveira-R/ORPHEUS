@@ -719,15 +719,15 @@ a conservation or reciprocity defect in :math:`P^{\text{cell}}`; the
 eigenvalue alone is invariant under such a defect, and a one-group
 eigenvalue is independent of the flux shape altogether.
 
-.. warning::
-
-   The sphere does not realise this identity at large optical radius
-   (#509, open): a homogeneous white-boundary sphere is measurably not flat
-   once the group optical radius exceeds about 4, the deviation grows under
-   mesh refinement, and the 2- and 4-group :math:`k` is off by 5 to 7 % at
-   10 mean free paths (measured 2026-09-25). The slab and the cylinder realise
-   it to about :math:`10^{-13}`. The failing sphere rows are strict
-   expected failures citing #509.
+All three geometries realise this identity: the gates above run every
+sphere cell, including the ones at 10 mean free paths, with no expected
+failure. The sphere realises it because its first-collision probabilities
+are read with the true measure on lines, :math:`2\pi y\,\mathrm dy`
+(:ref:`the sphere's measure on lines <cp-sphere-measure-on-lines>`). Until #578 the sphere's density was
+spelled :math:`2y`, so :math:`P^{\text{cell}}` was :math:`1/\pi` of the
+truth, the white closure clamped, and the white sphere was not flat at
+large optical radius (#509, #283; ERR-107 in
+:doc:`/theory/verification/error_catalog`).
 
 .. warning::
 
@@ -952,14 +952,13 @@ the full account of what this replaced.
 
 **Sphere (3D):** Full spherical symmetry absorbs all angular variables
 into the :math:`y`-quadrature weight.  The kernel is simply
-:math:`F(\tau) = e^{-\tau}` --- no special functions needed.  The extra
-factor of :math:`y` in the quadrature weight comes from the spherical area
-element :math:`2\pi y\,dy` (ring of sources) versus the cylindrical
-:math:`2\,dy` (line of sources).  In
-:meth:`CPMesh._setup_spherical`::
-
-    # Spherical weight: extra factor of y in the quadrature
-    self._y_wts = self._y_wts * self._y_pts
+:math:`F(\tau) = e^{-\tau}` --- no special functions needed.  The
+quadrature weight is the density of the measure on lines over the impact
+parameter, :math:`2\pi y\,\mathrm dy` on the sphere (the lines of one
+direction through a ring of radius :math:`y`) against :math:`2\,\mathrm dy`
+on the cylinder (the two lines at :math:`\pm y`), read from
+:meth:`Chart.beam_density <orpheus.geometry.chart.Chart.beam_density>`
+(:ref:`the sphere's measure on lines <cp-sphere-measure-on-lines>`).
 
 
 .. _second-diff-derivation:
@@ -1386,7 +1385,11 @@ but with canonical :math:`\mathrm{Ki}_3^{\text{A\&S}}` or
     self_same = 2.0 * chords[i, :] - (2.0 / sti) * (
         kernel_zero - kernel(tau_i)
     )
-    rcp[i, i] += 2.0 * sti * np.dot(y_wts, self_same)
+    rcp[i, i] += sti * np.dot(y_wts, self_same)
+
+Here ``y_wts`` already carries the density of the measure on lines (2 on
+the cylinder, :math:`2\pi y` on the sphere), and the factor 2 in
+``self_same`` turns the half chord into the full chord.
 
 The term ``kernel_zero - kernel(tau_i)`` is :math:`F(0) - F(\tau_i)`,
 the escape fraction.  The same pattern is expressed once in the
@@ -1799,9 +1802,15 @@ differences over all chord heights:
            - \text{Ki}_4(g + \tau_j) + \text{Ki}_4(g + \tau_i + \tau_j)\bigr] \, dy
 
 where :math:`g` is the optical gap between regions :math:`i` and
-:math:`j` along the chord.  The factor 2 accounts for the two halves
-of the chord (by symmetry of the annular geometry, contributions from
-the left and right halves are equal).
+:math:`j` along the chord.  The factor 2 is the density of the measure on
+lines over the impact parameter :math:`y \ge 0` in the plane,
+:math:`S_0 = 2`: the two lines at :math:`\pm y`
+(:meth:`Chart.beam_density <orpheus.geometry.chart.Chart.beam_density>`,
+:ref:`chart-and-chord-measure`). The two halves of one chord are already
+inside the bracket, as its same-side and through-centre paths below. In
+the thick limit the self term then reads
+:math:`\Sigma_t\int_0^R 2\sqrt{R^2 - y^2}\cdot 2\,\mathrm dy = \Sigma_t\,\pi R^2`,
+the cell's collision rate per unit source density, as it must.
 
 Two path types contribute (same as the slab):
 
@@ -1881,16 +1890,48 @@ Volumes: :math:`V_i = \frac{4}{3}\pi(R_i^3 - R_{i-1}^3)`.  Surface:
 :math:`F(\tau) = e^{-\tau}` --- full 3-D symmetry absorbs all angular
 variables.
 
-Chord geometry is identical to cylindrical (:eq:`chord-length`), but
-the quadrature weight includes :math:`y`.  For a cylinder (2-D), each
-chord at height :math:`y` represents a **line of sources**, giving a
-weight proportional to :math:`dy`.  For a sphere (3-D), each chord
-represents a **ring of sources** with circumference :math:`2\pi y`,
-giving a weight proportional to :math:`y\,dy`.
-In :meth:`CPMesh._setup_spherical`::
+.. _cp-sphere-measure-on-lines:
 
-    # Spherical weight: extra factor of y in the quadrature
-    self._y_wts = self._y_wts * self._y_pts
+Chord geometry is identical to cylindrical (:eq:`chord-length`); the
+weight is the measure on lines. The lines of one direction are counted by
+the area :math:`\mathrm dA_\perp` of the plane normal to it
+(:eq:`geometry-measure-on-lines`). On the cylinder the lines at impact
+parameter :math:`y` in that plane, per unit height, are the two lines at
+:math:`\pm y`: density :math:`2\,\mathrm dy`. On the sphere they are the
+ring of radius :math:`y` about the centre: density
+:math:`2\pi y\,\mathrm dy`, the circumference :math:`2\pi y` and not
+:math:`y`. Both are :math:`S_{d-2}\,y^{d-2}` with :math:`S_0 = 2` and
+:math:`S_1 = 2\pi`, the in-plane value of
+:meth:`Chart.beam_density <orpheus.geometry.chart.Chart.beam_density>`.
+In :meth:`CPMesh._setup_spherical` (one line for both curved charts)::
+
+    in_plane = np.array([0.0, 1.0, 0.0])
+    self._y_wts = q.wts * Chart(self.mesh.coord).beam_density(q.pts, in_plane)
+
+The reference
+:func:`~orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix`
+reads the same density through
+:meth:`~orpheus.derivations.continuous.flat_source_cp.geometry.FlatSourceCPGeometry.outer_y_weight`.
+The check is the thick limit: the self term tends to
+:math:`\Sigma_t\int_0^R 2\sqrt{R^2 - y^2}\,2\pi y\,\mathrm dy = \Sigma_t\,\tfrac43\pi R^3 = \Sigma_t V`;
+with the density :math:`2y` it tends to :math:`\Sigma_t V/\pi`.
+
+`[M]` 2026-10-10 (the numerics investigator's memo,
+``scratch/characteristic_architecture/p2/cp_pi_investigation/memo.md``,
+probes A and B): the sphere's first-collision probability
+:math:`P_c` against two grounds that share no chord and no impact
+parameter, the closed form
+:math:`1 - \tfrac{3}{8\tau^3}\bigl(2\tau^2 - 1 + (1 + 2\tau)e^{-2\tau}\bigr)`
+and a point-based 3-D escape integral, which agree with each other to
+:math:`4 \times 10^{-14}`. With the density :math:`2y`, production and the
+reference read 0.02265129, 0.15048030 and 0.27151786 at
+:math:`\tau = 0.1, 1, 5` against 0.07116111, 0.47274781 and 0.85299850,
+a ratio of 3.141593 at each; with :math:`2\pi y`, within
+:math:`1.1 \times 10^{-10}`. The gate is
+``tests/gates/cp/test_cp_first_collision.py``
+(``test_the_first_collision_probability_is_the_closed_form``, every
+geometry, both routes). The cylinder's :math:`2\,\mathrm dy` agreed with
+its own point integral to :math:`10^{-4}` before and after.
 
 Mesh built by a :class:`~orpheus.mesh.mesher.Mesher` from a spherical
 geometry (``coord = CoordSystem.SPHERICAL``).
@@ -1899,23 +1940,31 @@ Second-Difference Formula (Spherical)
 -------------------------------------
 
 The reduced collision probability has the same structure as cylindrical,
-but with :math:`F = \exp(-\cdot)` and :math:`y`-weighted quadrature:
+but with :math:`F = \exp(-\cdot)` and the sphere's measure on lines,
+:math:`2\pi y\,\mathrm dy` (:ref:`the sphere's measure on lines <cp-sphere-measure-on-lines>`):
 
 .. math::
    :label: second-diff-sph
 
-   r_{ij} = 2 \int_0^{R_{\text{cell}}}
+   r_{ij} = \int_0^{R_{\text{cell}}}
      \left[e^{-g} - e^{-(g + \tau_i)}
-           - e^{-(g + \tau_j)} + e^{-(g + \tau_i + \tau_j)}\right] y \, dy
+           - e^{-(g + \tau_j)} + e^{-(g + \tau_i + \tau_j)}\right] 2\pi y \, dy
 
 The self-collision term follows the same pattern:
 
 .. math::
    :label: self-sph
 
-   r_{ii} = 2\Sigt{i} \int_0^{R_{\text{cell}}}
+   r_{ii} = \Sigt{i} \int_0^{R_{\text{cell}}}
      \left[2\ell_i(y) - \frac{2}{\Sigt{i}}
-       \left(1 - e^{-\tau_i(y)}\right)\right] y \, dy
+       \left(1 - e^{-\tau_i(y)}\right)\right] 2\pi y \, dy
+
+.. note::
+
+   Until #578 both equations carried :math:`2\,y\,dy`, the cylinder's
+   :math:`S_0 = 2` beside the sphere's :math:`y`, and production and the
+   reference implemented them as written; that density is
+   :math:`1/\pi` of the measure (ERR-107).
 
 The **same code path** :meth:`CPMesh._compute_radial_rcp` handles both
 cylindrical and spherical, parameterised by kernel and weights.
@@ -1949,10 +1998,10 @@ Geometry Comparison
        :math:`\approx 0.4244` until 2026-08-10; that value matches
        neither Bickley index convention.)
      - :math:`1`
-   * - Quadrature weight
+   * - Quadrature weight (the measure on lines)
      - none (scalar)
-     - :math:`w_i`
-     - :math:`w_i \cdot y_i`
+     - :math:`2\,w_i`
+     - :math:`2\pi y_i\,w_i`
    * - Volume :math:`V_i`
      - :math:`t_i`
      - :math:`\pi(R_i^2 - R_{i-1}^2)`

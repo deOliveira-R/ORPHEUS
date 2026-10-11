@@ -1247,8 +1247,12 @@ computes it from the total cross section of each region:
 over the slots of the traversal's transit, with :math:`\rho_i` and
 :math:`\ell_i` the chord's slot region and slot length
 (:ref:`chart-and-chord-slots`). A transit and its reverse cross the same
-slots, so they have the same depth. Three details make it exact where it
-could be wrong:
+slots, so they have the same depth. The sum is the kernel's line integral
+of a per-region field over slot lengths, :meth:`Chord.line_integral
+<orpheus.geometry.chord.Chord.line_integral>` (:ref:`chart-and-chord-rays`),
+which :class:`~orpheus.derivations.continuous.characteristic.lines.ImpactPanels`
+reads too for the depth outside each panel. Three details make it exact
+where it could be wrong:
 
 - **The exteriors are void.** The codes :math:`n` and :math:`n + 1` read
   :math:`\Sigma_t = 0`. A transit's traversed slots are interior by
@@ -1268,8 +1272,10 @@ could be wrong:
   :math:`a_{k-1} B_{k-1}`, finite; with every region void the depth is 0
   and the line is a trapped one.
 - **The cross sections are one per region.** A ``sigma_t`` of any other
-  length is refused (``ValueError``, *one total cross section per
-  region*), never broadcast or truncated.
+  length is refused by the kernel (``ValueError``, *a per-region field
+  holds one value per region*), never broadcast or truncated: one value
+  too many would fill the cavity, one too few would empty the outermost
+  region.
 
 The gates compare the depths with closed-form segment lengths computed
 in mpmath (9 radial lines, a void shell among them, and the slab's
@@ -2972,7 +2978,23 @@ panel the line turns in is the even one or a cavity, so its lower half is
 plain Gauss–Legendre in :math:`b` and only its upper half is graded as
 above. :math:`b` is recovered as
 :math:`\sqrt{r_k^2 + (y_{\max} - y)(y_{\max} + y)}`, which tends to
-:math:`r_k` without the cancellation of :math:`r_{k+1}^2 - y^2`. Each node
+:math:`r_k` without the cancellation of :math:`r_{k+1}^2 - y^2`. Since
+:math:`b` and :math:`y` are the two legs over the hypotenuse
+:math:`r_{k+1}`, this is the kernel's one spelling of a half-chord,
+:func:`~orpheus.geometry.chart.half_chord` read at the radius
+:math:`y_{\max}` from the level of radius :math:`y` and half-chord
+:math:`r_k` (the roles of radius and half-chord exchanged);
+:math:`y_{\max}` itself and the chords of the panel touching
+:math:`b = 0` are the same function at a plain level, radius
+:math:`r_k` or :math:`b` and half-chord 0. `[M]` 2026-10-10 (the explorer, 56 112 nodes over 7 radii
+and 8 ratios :math:`r_k/r_{k+1}`): each is 0 ulp from the hand-written
+form it replaced. The other assignment of the roles,
+:math:`\sqrt{(r_k - y)(r_k + y) + y_{\max}^2}`, the radius :math:`r_k`
+read from the level of radius :math:`y` and half-chord :math:`y_{\max}`,
+subtracts below its level and
+loses up to 13 % relative at :math:`r_k/r_{k+1} = 10^{-12}` near
+:math:`y \to y_{\max}` (``test_the_impact_rules_inverse_map_keeps_its_digits_at_a_tiny_inner_radius``
+holds the map against mpmath). Each node
 keeps its panel's top :math:`r_{k+1}` and its own :math:`y`
 (:class:`~orpheus.derivations.continuous.characteristic.lines.ImpactRule`),
 and its line is chorded from that pair, its exact level, never from
@@ -8156,5 +8178,5 @@ History
        for ERR-034, ERR-035 and ERR-091 and the eleven labels' verifiers;
        step (e2) deleted its 12 numeric modules and 22 test files in one
        commit (:ref:`characteristic-successors`).
-     - ``f66c1c45``, ``44303919``; (e2) *(in development)*
+     - ``f66c1c45``, ``44303919``; (e2) ``5aa8cb88``
      - #405

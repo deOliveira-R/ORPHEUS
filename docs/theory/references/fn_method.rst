@@ -1821,6 +1821,7 @@ Chord length from :math:`(r, \mu)` back to the surface is
 The characteristic-integration formula is then
 
 .. math::
+   :label: fn-sphere-psi-characteristic
 
    \psi(r, \mu) = \frac{c}{2}
                   \int_0^{s_{\rm in}}
@@ -1829,9 +1830,50 @@ The characteristic-integration formula is then
 
 The radial argument
 :math:`\sqrt{r^2 - 2 r s' \mu + s'^2}` is the position at distance
-:math:`s'` along the inward-pointing characteristic from
-:math:`(r, \mu)`. SymPy verifies the radial argument's geometric
-construction and the BTE satisfaction.
+:math:`s'` along the characteristic traced back from :math:`(r, \mu)`,
+against the direction of flight (:math:`\mu` is the cosine to the outward
+radius, so going back the radius changes at rate :math:`-\mu`). SymPy
+verifies the radial argument's geometric construction and the BTE
+satisfaction. At :math:`r = R` with :math:`\mu < 0` the particle is
+entering through the vacuum surface, :math:`s_{\rm in} = 0` and
+:math:`\psi = 0`: the vacuum inflow condition, which the equation carries
+with no branch.
+
+**The code.**
+:func:`~orpheus.derivations.continuous.fn_method.sphere.flux_reconstruction.sphere_angular_flux_from_scalar`
+evaluates the integral by Gauss–Legendre on :math:`[0, s_{\rm in}]` for
+every :math:`(r, \mu)` pair at once. It does not spell
+:math:`s_{\rm in}` or the radial argument: it reads both from the
+geometric kernel's rays from the point along the backward direction
+:math:`-\Omega` (:meth:`ConcentricPartition.rays_from
+<orpheus.geometry.chord.ConcentricPartition.rays_from>` on the sphere
+:math:`[0, R]`). :math:`s_{\rm in}` is the run to the first wall,
+``to_wall``, and the radial argument is ``orbit_coordinate_at`` at the
+distances :math:`s'`, formed from the point's own orbit-space position
+(:ref:`chart-and-chord-rays`). Both are exact at the point: on the
+surface the run back is 0 for every entering direction, and the radial
+argument at :math:`s' = 0` is :math:`r`, so it never exceeds :math:`R`.
+`[M]` 2026-10-11, the archivist's probe at :math:`r = R`, 20 001 cosines
+evenly spaced on :math:`[-1, 1]`: the line built through the point
+(``Line.through`` and ``parameter_of``) reads a nonzero run back on 4171 of
+the 10 000 entering directions (up to :math:`4.0 \times 10^{-12}`), and
+``rays_from`` on 0; its radial argument at the point is :math:`R` exactly
+on all 20 001, where :math:`\sqrt{b^2 + s^2}` with the line's rounded
+:math:`b` exceeds :math:`R` on about 2100 of them.
+
+The gates (``tests/gates/derivations/test_fn_sood2003_sphere_flux.py``):
+``test_l1_sphere_angular_flux_is_the_characteristic_integral`` holds
+:math:`\psi` at four :math:`(r, \mu)` pairs, outgoing and incoming,
+against this equation evaluated in mpmath (:math:`s_{\rm in}` and the
+radial argument at 30 digits, the integral by adaptive quadrature, with
+:math:`\phi` the KLL scalar flux, the function's input);
+``test_l1_sphere_has_no_angular_flux_entering_through_the_vacuum_surface``
+holds the vacuum inflow. The closure row
+(:math:`\int\psi\,\mathrm d\mu = \phi`) cannot see a reversed
+direction: a symmetric rule in :math:`\mu` integrates :math:`\psi(r,\mu)`
+and :math:`\psi(r,-\mu)` alike (the test-architect, `[M]` 2026-10-10: the
+closure residual 4.36e-9 with the forward run in place of the backward
+one, as with the right one; the value row reads 1.19 relative).
 
 .. _fn-method-flux-recon-V_fn-flux-shared-1:
 
@@ -2663,3 +2705,10 @@ History
   against the published 0.675229 (`[M]` 2026-09-29, registry cross
   sections at :math:`k_\infty = 2.683767`). The SymPy module and
   V_fn2.3 always used the printed form — #405.
+* 2026-10-11 — The sphere's angular-flux reconstruction reads its
+  backward run and its radial argument from the geometric kernel's rays
+  from the point (:ref:`chart-and-chord-rays`), batched over the
+  :math:`(r, \mu)` pairs; the characteristic integral gets the label
+  :eq:`fn-sphere-psi-characteristic` and a value gate against mpmath, which
+  the closure row, blind to a reversed direction, had lacked —
+  ``124edf67`` — #578.

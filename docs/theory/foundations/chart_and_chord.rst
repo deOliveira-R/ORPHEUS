@@ -129,18 +129,28 @@ Key facts
   square-root end at :math:`\mu_z = 1` (the user's ruling of 2026-10-06).
   Cauchy's formula ties the density to the chord with no shared formula
   (:ref:`chart-and-chord-line-domain`).
-- **One consumer, a reference.** `[M]` 2026-10-08, an AST pass over the
-  401 ``.py`` files of ``orpheus/`` (absolute ``import`` and ``from``
-  statements): the only modules outside the kernel that import
-  ``orpheus.geometry.chart``, ``.line`` or ``.chord`` are eight modules of
-  the characteristic reference
-  (:ref:`theory-characteristic-reference`): ``walls``, ``basis``,
-  ``closure``, ``transport``, ``assembly``, ``lines``, ``reading`` and
-  ``reference`` under
-  ``orpheus/derivations/continuous/characteristic/``. No production
-  module imports the kernel: every chord, locator and measure on lines
-  production computes is still its own spelling, counted in
-  :ref:`chart-and-chord-deferred`.
+- **Rays are read from the point.** :meth:`ConcentricPartition.rays_from
+  <orpheus.geometry.chord.ConcentricPartition.rays_from>` forms the chord of
+  the lines through points of orbit coordinate :math:`c` from each line's
+  exact level at the point, :math:`(c, c|\Omega_x|/|P\Omega|)`, and the
+  point's parameter from the same level, so a point on a wall sits exactly
+  on its crossing. Its :class:`~orpheus.geometry.chord.Rays` read the run
+  ahead, the run to a distance, the run to the first wall and that wall,
+  and the orbit coordinate along the ray from the point's own position
+  (exactly :math:`c` at the point). The chord adds the lengths between two
+  parameters, the line integral of a per-region field (exteriors void, the
+  shape refused) and the cosine at a surface; the orbit space adds the
+  region lengths of an impact parameter (:ref:`chart-and-chord-rays`).
+- **Thirteen consumers, one of them production.** `[M]` 2026-10-11, an AST
+  pass over the 389 ``.py`` files of ``orpheus/`` (absolute ``import`` and
+  ``from`` statements): the modules outside the kernel that import
+  ``orpheus.geometry.chart``, ``.line`` or ``.chord`` are the eight modules
+  of the characteristic reference, the Peierls reference's geometry, the
+  F\ :sub:`N` sphere reconstruction, ``orpheus.derivations.common.kernels``,
+  the flat-source collision-probability reference, and production
+  ``orpheus.cp.solver``, which reads the measure's density alone. Every
+  other chord, locator and measure on lines production computes is still
+  its own spelling, counted in :ref:`chart-and-chord-deferred`.
 - **Designs that do not work** (a squared crossing law for all three
   charts, the planar measure on lines, "grazing is derived on every
   chart", a directional point locator, re-solving each 3-D line's
@@ -159,10 +169,11 @@ The three modules live in :mod:`orpheus.geometry`, beside
 transport vocabulary, no cross sections, no neutrons. They answer the
 geometric questions every characteristic method asks of a 1-D body (where
 a straight line enters and leaves each region, how long it stays, which
-region a point is in, and how lines are counted), which today are
-answered separately by the Variant-α and Peierls references, the
-collision-probability chords, the method of characteristics and Monte
-Carlo (:ref:`chart-and-chord-deferred` has the census).
+region a point is in, and how lines are counted). The reference code asks
+them of the kernel; production collision probability reads its measure on
+lines here and still forms its own chords, and the method of
+characteristics and Monte Carlo answer them separately
+(:ref:`chart-and-chord-deferred` has the census).
 
 - :mod:`orpheus.geometry.chart` holds
   :class:`~orpheus.geometry.chart.Chart` (the coordinate map and its
@@ -181,8 +192,11 @@ Carlo (:ref:`chart-and-chord-deferred` has the census).
   :class:`~orpheus.geometry.chord.ConcentricPartition` (the level sets
   :math:`c = r_0 < \dots < r_n` posed in space),
   :class:`~orpheus.geometry.chord.Chord` (the answer for a batch of lines),
-  :class:`~orpheus.geometry.chord.Crossings` and
-  :class:`~orpheus.geometry.chord.Transits`.
+  :class:`~orpheus.geometry.chord.Crossings`,
+  :class:`~orpheus.geometry.chord.Transits`,
+  :class:`~orpheus.geometry.chord.Rays` (the chord read from points) and
+  :func:`~orpheus.geometry.chord.region_half_lengths` (the orbit-space
+  lengths of an impact parameter).
 
 **Relation to the shape of a 1-D problem.** A
 :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
@@ -1048,14 +1062,14 @@ Half-lines and the coordinate along the chord
 
 :meth:`Chord.lengths_beyond <orpheus.geometry.chord.Chord.lengths_beyond>`
 returns, per slot, the length beyond a start parameter: a backward
-characteristic's first leg, or a forward one. A slot wholly beyond the
+characteristic's first leg, or a forward one. It is
+:meth:`Chord.lengths_between <orpheus.geometry.chord.Chord.lengths_between>`
+to :math:`+\infty` (:ref:`chart-and-chord-rays`): a slot wholly beyond the
 start keeps its cancellation-free length; only the slot containing the
-start is cut, as the difference of its end and the start, which is the
-one subtraction in the kernel and an unavoidable one. A parallel line is
-returned unchanged, being unbounded both ways, and its infinite slot
-never enters an arithmetic expression, so a batch that mixes parallel and
-crossing lines raises no floating-point warning (`[M]` 2026-10-05, under
-warnings as errors).
+start is cut, as the difference of its end and the start, the one
+subtraction a cut needs. On a parallel line the home slot is infinite and
+every other 0, and a batch that mixes parallel and crossing lines raises
+no floating-point warning (`[M]` 2026-10-05, under warnings as errors).
 `[M]` 2026-10-05: from :math:`(0, 0.7, 0)` in region 1 of the sphere
 :math:`(0, 0.3, 1.1, 2.0)` along :math:`-\hat e_y`, the half-line meets
 regions 1, 0, 1, 2 with lengths 0.4, 0.6 (two slots of 0.3), 0.8, 0.9.
@@ -1063,9 +1077,11 @@ regions 1, 0, 1, 2 with lengths 0.4, 0.6 (two slots of 0.3), 0.8, 0.9.
 :meth:`Chord.orbit_coordinate_at <orpheus.geometry.chord.Chord.orbit_coordinate_at>`
 delegates to the chord's image, which is already on the caller's
 parameters (``shifted`` by the pose's parameter shift):
-:math:`\sqrt{b^2 + (|P\Omega|(t - t^*))^2}` (a ``hypot``, with no
-cancellation near the closest approach) where :math:`L` acts,
-:math:`c_{\text{foot}} + \Omega_x t` where it does not.
+:math:`\sqrt{b^2 + s^2}` with :math:`s = |P\Omega|(t - t^*)` where
+:math:`L` acts, formed from the image's level as
+:math:`\sqrt{r_*^2 + (s - y_*)(s + y_*)}`, so it is :math:`r_*` exactly
+where the line is at its level (:ref:`chart-and-chord-rays`);
+:math:`c_{\text{foot}} + \Omega_x t` where :math:`L` does not act.
 
 .. _chart-and-chord-conditioning:
 
@@ -1567,6 +1583,338 @@ do with such a line is the consumer's decision (for the characteristic
 references the plan's ruling of 2026-10-06 is to refuse it).
 
 
+.. _chart-and-chord-rays:
+
+Rays from a point, and the readings along them
+==============================================
+
+A pointwise reference asks its questions from a point: from an observer
+at orbit coordinate :math:`c`, along each direction of an angular rule,
+how far is the first wall, does the ray meet a hollow body's cavity, what
+is the optical depth to the wall or to a distance :math:`\ell`, what is
+the orbit coordinate :math:`\ell` ahead, at what angle does the ray meet
+a surface. Every answer is a reading of the chord of the line through the
+point. The kernel forms that chord once per point and batch of
+directions, and reads every answer from the point's own exact level, so
+that a point on a wall is on its crossing, not an ulp off it.
+
+The verbs
+---------
+
+:meth:`ConcentricPartition.rays_from
+<orpheus.geometry.chord.ConcentricPartition.rays_from>` takes the orbit
+coordinate :math:`c` of each point, ``(...,)``, and unit directions
+``(..., 3)`` of the canonical frame, broadcast together; the points are
+:math:`c\,\hat e_x` and the pose carries both to space. It returns
+:class:`~orpheus.geometry.chord.Rays`, which holds the chord of the lines,
+each point's parameter on its line (``start``) and the side of its line's
+closest approach the point is on (``side``, :math:`\operatorname{sign}\Omega_x`:
+past it, :math:`+1`; before it, :math:`-1`; at it, 0). Its readings:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 38 36
+
+   * - Reading
+     - Definition
+     - What it is formed from
+   * - ``ahead``
+     - the length of each slot ahead of the point, ``(..., S)``: the run to
+       the outer surface, through a cavity it crosses
+     - :meth:`Chord.lengths_beyond <orpheus.geometry.chord.Chord.lengths_beyond>`
+       at ``start``
+   * - ``lengths_to(d)``
+     - the length of each slot between the point and the distance
+       :math:`d` ahead of it
+     - :meth:`Chord.lengths_between <orpheus.geometry.chord.Chord.lengths_between>`
+       from ``start`` to ``start + d``
+   * - ``to_wall``
+     - the length of each slot from the point to the first wall ahead of
+       it; 0 where the point leaves the domain at once
+     - ``ahead`` restricted to the transit the point is in
+   * - ``wall``
+     - the breakpoint index of that first wall: :math:`n` the outer
+       surface, 0 a hollow body's cavity or the slab's lower face,
+       :attr:`~orpheus.geometry.chord.ConcentricPartition.no_interface`
+       where there is none
+     - the exit wall of the same transit (:ref:`chart-and-chord-transits`)
+   * - ``orbit_coordinate_at(ell)``
+     - the orbit coordinate at the distances :math:`\ell` ahead of each
+       point, ``(..., q)``
+     - the point's own orbit-space position, never the parameter
+
+Three verbs of :class:`~orpheus.geometry.chord.Chord` serve these and any
+other chord consumer: :meth:`~orpheus.geometry.chord.Chord.lengths_between`,
+:meth:`~orpheus.geometry.chord.Chord.line_integral` and
+:meth:`~orpheus.geometry.chord.Chord.cosine_at`; and one function of the
+orbit space, :func:`~orpheus.geometry.chord.region_half_lengths`
+(:ref:`chart-and-chord-region-half-lengths`).
+
+The point's level, and why the point sits on its crossing
+---------------------------------------------------------
+
+On the cylinder and the sphere the line through :math:`x = c\,\hat e_x`
+along :math:`\Omega` has impact parameter
+:math:`b^2 = c^2 - (x\cdot P\Omega)^2/|P\Omega|^2`, because the closest
+approach is the foot of the perpendicular from the axis or the centre in
+the kept space. The half-chord at the point's own level :math:`r_* = c` is
+therefore
+
+.. math::
+
+   y_* \;=\; \sqrt{c^2 - b^2} \;=\; \frac{|x\cdot P\Omega|}{|P\Omega|}
+       \;=\; \frac{c\,|\Omega_x|}{|P\Omega|},
+
+a product and a quotient of the data, with no difference of squares:
+:math:`c\,|\Omega_x|` on the sphere (:math:`|P\Omega| = 1`) and
+:math:`c\,|\Omega_x|/\sqrt{\Omega_x^2 + \Omega_y^2}` on the cylinder. The
+chord is formed at this level (:ref:`chart-and-chord-level`, #590), and
+the point's parameter is the level's own parameter at radius :math:`c` on
+the side :math:`\operatorname{sign}\Omega_x`, ``parameters_at(c, side)``,
+which is how the chord forms its crossing of :math:`c = r_k`. So a point
+on a breakpoint has the crossing's parameter bit for bit: it is on the
+wall, and a ray from a wall facing out of the domain has length 0, never
+an ulp. On a line with :math:`|P\Omega| = 0` (the cylinder's axial
+direction) the level is :math:`(c, 0)` and the line is parallel. On the
+slab, whose image has no level, the parameter is formed as the
+crossings' are, :math:`(c - c_{\rm foot})/\Omega_x`.
+
+`[M]` 2026-10-11, the archivist's probe on the working tree, a sphere of
+radius 1 read on its surface (:math:`c = R`), the backward direction
+:math:`-\Omega` for 20 001 cosines :math:`\mu` evenly spaced on
+:math:`[-1, 1]`, of which 10 000 have :math:`\mu < 0`, so that the run back
+to the wall is exactly 0. The plain route, the line through the point
+(:meth:`Line.through <orpheus.geometry.line.Line.through>`), its own
+:math:`b` and the point's parameter by
+:meth:`Line.parameter_of <orpheus.geometry.line.Line.parameter_of>`, reads
+a nonzero run on 4171 of the 10 000 (up to :math:`4.0 \times 10^{-12}`).
+``rays_from``'s ``to_wall`` reads a nonzero run on 0 of them.
+
+The run to the first wall
+-------------------------
+
+A point is in the transit whose closing crossing is at or ahead of its
+parameter: the first transit of its line that it has not left. ``to_wall``
+keeps ``ahead`` on that transit's slots and 0 elsewhere, and ``wall`` is
+that transit's exit wall. Three cases are decided by the definition and
+need no branch:
+
+- a point inside a solid body: its one transit ends at the outer
+  surface, wall :math:`n`;
+- a point in a hollow body looking across the cavity: the first transit
+  ends at the cavity's wall, wall 0, and ``ahead`` still holds the run
+  through the cavity to the outer surface, so a consumer that wants the
+  outer surface regardless of the cavity reads ``ahead`` and one that
+  wants the first wall reads ``to_wall``;
+- a point on a wall facing out of the domain: the transit that ends at
+  the point, of length 0, so it leaves through that wall at once.
+
+The Peierls ray layer reads the cavity's presence as ``wall == 0`` on a
+hollow curvilinear body, and outward escape as ``wall == n``
+(:ref:`peierls-ray-layer`).
+
+The orbit coordinate along the ray
+----------------------------------
+
+The orbit coordinate at the distance :math:`\ell` ahead of the point is
+:math:`c(\ell)^2 = b^2 + s^2` with :math:`s = \pm y_* + |P\Omega|\,\ell` the
+orbit-space position from the closest approach (the sign is ``side``).
+Writing :math:`b^2 = c^2 - y_*^2`,
+
+.. math::
+
+   c(\ell) \;=\; \sqrt{c^2 + (s - y_*)(s + y_*)},
+
+which is :func:`~orpheus.geometry.chart.half_chord` with the roles of
+radius and position exchanged: :math:`b` and :math:`s` are the legs and
+:math:`c(\ell)` the hypotenuse. At :math:`\ell = 0`,
+:math:`s - y_* = 0` or :math:`s + y_* = 0` exactly, so the reading is
+:math:`c` exactly: a point on the outer surface never reads above it.
+:meth:`RadialImage.orbit_coordinate_at
+<orpheus.geometry.chart.RadialImage.orbit_coordinate_at>`, the chord's own
+reading at a parameter, is formed the same way from the image's level.
+The alternative, :math:`\sqrt{b^2 + s^2}` with the rounded :math:`b`, rises
+above :math:`c` at the point. `[M]` 2026-10-11, the same probe: on the
+20 001 directions through the surface point, ``hypot`` of the line's own
+:math:`b` and its position read above :math:`R` on 2126 (position from the
+level) to 2165 (position from the parameter) directions, and 2455 on the
+plain route's line; ``Rays.orbit_coordinate_at(0)`` read exactly
+:math:`R` on all 20 001. A consumer of the rounded form needs a clamp
+:math:`\min(r', R)` before it evaluates a field defined on
+:math:`[0, R]`; this one needs none.
+
+The lengths between two parameters
+----------------------------------
+
+:meth:`Chord.lengths_between <orpheus.geometry.chord.Chord.lengths_between>`
+returns, per slot, the length inside :math:`[t_0, t_1]`:
+
+.. math::
+
+   \ell_{\rm slot}[t_0, t_1] \;=\;
+   \begin{cases}
+     \ell_{\rm slot} & t_0 \le t_{\rm begin},\ t_{\rm end} \le t_1, \\
+     \min\!\bigl(\ell_{\rm slot},\ \max(0,\ \min(t_{\rm end}, t_1) - \max(t_{\rm begin}, t_0))\bigr)
+       & \text{otherwise},
+   \end{cases}
+
+so a slot wholly inside keeps its stored, cancellation-free length
+(:eq:`geometry-chord-segment-lengths`), only a slot containing an end is
+cut, by the one subtraction the cut needs, and an empty interval
+(:math:`t_1 \le t_0`) has every slot 0. On a parallel line the home slot
+(the one of infinite length) holds :math:`\max(0, t_1 - t_0)`, infinite to
+:math:`t_1 = +\infty`, and every other slot 0.
+:meth:`~orpheus.geometry.chord.Chord.lengths_beyond` is the special case
+:math:`t_1 = +\infty`, bit for bit. ``start`` and ``stop`` broadcast against
+the lines' batch, so several stops per line are one call on lines of
+shape ``(n, 1)`` and stops of shape ``(n, q)``.
+
+Why not ``lengths_beyond(t0) - lengths_beyond(t1)``: the difference of two
+half-lines subtracts the cut slot's length from itself, cancelling, and on
+a parallel line it is :math:`\infty - \infty`. The clip at the slot's
+own length is not inert: when an end lies an ulp past a crossing, the
+cut can exceed the stored length by an ulp. `[M]` 2026-10-11, the elegance
+review: with ends one ulp inside a slot's crossings, the clip binds on 54 000
+of 1 179 480 slots, by at most :math:`1.6 \times 10^{-15}` relative;
+uniformly drawn ends never reach it.
+
+The line integral of a per-region field
+---------------------------------------
+
+The optical depth of a run is
+:math:`\tau = \sum_{\rm slot} \Sigma_{t,\,\rm region(slot)}\,\ell_{\rm slot}`,
+and :meth:`Chord.line_integral <orpheus.geometry.chord.Chord.line_integral>`
+forms it for any per-region field :math:`f` over any slot lengths of the
+chord, ``(..., S)`` or ``(..., k, S)`` for :math:`k` runs per line
+(``slot_length``, ``lengths_between``, a transit of them, ``to_wall``):
+
+- **The field has one value per region, refused otherwise**
+  (``ValueError``, *a per-region field holds one value per region*). The
+  shape is checked because the two natural mistakes are silent: an extra
+  value would be read as the cavity's (the inner exterior is code
+  :math:`n`), and a missing one would make the outermost region void.
+  `[M]` 2026-10-11, the elegance review, on a draft of the Peierls ray
+  layer that indexed the field by slot region with no shape check: one
+  value short read 2.856 for 5.914, and one value too many gave the cavity
+  :math:`\Sigma = 4`, 10.72 for 7.10.
+- **The exteriors are void**: codes :math:`n` and :math:`n + 1` read 0
+  (:ref:`chart-and-chord-crossing-order`).
+- **A slot where the field is 0 adds exactly 0**, even at infinite length:
+  the product is formed only where the field is nonzero, so a void cavity
+  crossed by a parallel line adds 0 rather than :math:`0 \times \infty`.
+
+It is the one spelling of an optical depth on a chord. Its consumers:
+the characteristic reference's period
+(:meth:`LinePeriod.optical_depth
+<orpheus.derivations.continuous.characteristic.closure.LinePeriod.optical_depth>`)
+and its impact panels' depth outside each panel
+(:class:`~orpheus.derivations.continuous.characteristic.lines.ImpactPanels`),
+and every optical depth of the Peierls ray layer.
+
+The cosine at a surface
+-----------------------
+
+Where a line crosses :math:`c = r` the outward normal of the surface is
+:math:`Px/r` on the cylinder and the sphere (the kept-space position over
+its norm), and at the crossing the kept-space position is the foot plus
+:math:`\pm h(r)` along :math:`P\Omega/|P\Omega|`, the foot being normal to
+:math:`P\Omega`. So
+
+.. math::
+
+   |\Omega\cdot\hat n| \;=\; \frac{|P\Omega\cdot Px|}{r}
+     \;=\; \frac{|P\Omega|\,h(r)}{r},
+
+with :math:`h(r)` the half-chord, formed from the image's level; on the
+slab it is :math:`|\Omega_x|`.
+:meth:`Chord.cosine_at <orpheus.geometry.chord.Chord.cosine_at>` returns
+it, 0 where the line does not cross :math:`r`. On the sphere it is
+:math:`h(r)/r`, the Peierls exit cosine :math:`\mu_{\rm exit}`; on the
+cylinder it is the cosine in 3-D, and the in-plane cosine :math:`h/r` of
+the Knyazev expansions is the same number only on a line normal to the
+axis (:math:`|P\Omega| = 1`), which every Peierls ray is.
+
+.. _chart-and-chord-region-half-lengths:
+
+The orbit-space lengths of an impact parameter
+----------------------------------------------
+
+:func:`~orpheus.geometry.chord.region_half_lengths` is the orbit-space
+part of :eq:`geometry-chord-segment-lengths`, before the obliquity: from
+the half-chords :math:`h_k` at the breakpoints, ``(..., n + 1)``, 0 where
+the line does not cross, the length of each region on one side of the
+closest approach, ``(..., n)``. The radial chord reads its inbound and
+outbound slots from it, and a consumer that holds an impact parameter and
+no line reads it directly:
+:func:`~orpheus.derivations.common.kernels.chord_half_lengths`, the
+per-region half-chords of collision probability and of the Peierls
+:math:`P_{ss}` and specular transmissions, is
+``region_half_lengths(breakpoints, half_chord(breakpoints, y, 0))``, the
+same for the cylinder and the sphere. `[M]` 2026-10-11, the archivist's
+probe against mpmath at 50 digits on the three fixtures of
+``tests/gates/derivations/test_chord_half_lengths.py`` (2000 uniform
+impact parameters, near-tangent ones down to :math:`10^{-15}` relative,
+every radius and 0): the hand-written difference of roots it replaced
+lost up to :math:`7.6 \times 10^{-3}` relative near a tangency on the
+three-region partition :math:`(0.3, 1.1, 2.0)`, :math:`5.0 \times 10^{-7}`
+and :math:`2.0 \times 10^{-6}` on the thin shells; the kernel form is
+within :math:`4.4 \times 10^{-16}` on all three, and keeps every exact 0.
+The values of collision probability moved with it, toward the
+cancellation-free value; no pin moved (the test-architect's red set,
+``scratch/characteristic_architecture/p2/gate_spec.md`` §C: 583 passed and
+0 failed over the 18 consuming targets, not-slow).
+
+The consumers
+-------------
+
+`[M]` 2026-10-11, an AST pass over the 389 ``.py`` files under
+``orpheus/`` (tracked and untracked; absolute ``import`` and ``from``
+statements; a known importer, the characteristic reference's ``lines``,
+as the positive control): 13 modules outside the kernel import
+``orpheus.geometry.chart``, ``.line`` or ``.chord``, of which 12 are
+reference code and 1 is production.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 66
+
+   * - Module
+     - What it reads
+   * - the characteristic reference, eight modules (``walls``,
+       ``basis``, ``closure``, ``transport``, ``assembly``, ``lines``,
+       ``reading``, ``reference``)
+     - the chord, transits, levels and directions throughout
+       (:ref:`theory-characteristic-reference`); ``line_integral`` for the
+       period's depth and the impact panels' outside depth;
+       ``half_chord`` for the impact rule's chords, its span and the
+       inverse map :math:`y \mapsto b`, each 0 ulp from the form it
+       replaced
+   * - the Peierls reference
+       (``orpheus.derivations.continuous.peierls_nystrom.geometry``)
+     - ``rays_from`` once per observer for every ray reading, the
+       ``line_integral`` depths and ``cosine_at`` (:ref:`peierls-ray-layer`);
+       ``half_chord`` for the specular sphere's exit cosine
+   * - the F\ :sub:`N` sphere reconstruction
+       (``orpheus.derivations.continuous.fn_method.sphere.flux_reconstruction``)
+     - ``rays_from`` along the backward directions, ``to_wall`` for the
+       distance back to the surface and ``orbit_coordinate_at`` for the
+       radius along it (:ref:`fn-method-flux-recon-V_fn-flux-sphere-2`)
+   * - ``orpheus.derivations.common.kernels``
+     - ``half_chord`` and ``region_half_lengths`` for
+       ``chord_half_lengths``
+   * - the flat-source collision-probability reference
+       (``orpheus.derivations.continuous.flat_source_cp.geometry``)
+     - ``Chart.beam_density`` as its weight over the impact parameter
+   * - ``orpheus.cp.solver`` (production)
+     - ``Chart.beam_density`` as its weight over the impact parameter
+       (:ref:`chart-and-chord-measure`), and ``chord_half_lengths``
+       through ``kernels``
+
+Collision probability is the only production consumer, and it reads the
+density alone: its chords, its regions and its rule stay its own
+(:ref:`chart-and-chord-deferred`).
+
+
 .. _chart-and-chord-location:
 
 Point location — three questions, three answers
@@ -1597,9 +1945,8 @@ quadrature node). For a field continuous across the interface every
 owner gives the same value; for a discontinuous one (cross sections, an
 emission density) the value at :math:`r_k` is genuinely two-valued. The
 preferred answer is that the producer which places a point records its
-region (the multi-region trajectory-resolvent references return
-``region_at_node`` beside their nodes), so a consumer never re-locates
-it. Where a bare
+region (the characteristic reference's panel basis carries each node's
+panel), so a consumer never re-locates it. Where a bare
 locator is still needed,
 :meth:`ConcentricPartition.region_containing
 <orpheus.geometry.chord.ConcentricPartition.region_containing>` is
@@ -1637,11 +1984,13 @@ the call is refused. Hollow sphere :math:`(0.4, 1.1, 2.0)`: at
 :math:`-0.7^-` the inner exterior (code 3), at 0.3 region 0, at 2.0
 region 2.
 
-The tree spells point location eight times with two boundary
-conventions (`[M]` 2026-10-05, the geometry census at ``a336bde4``, probe
-F3: at :math:`r = r_k` exactly, the Peierls ``which_annulus`` answers
-:math:`k + 1` and five others :math:`k`); none of them calls this
-locator.
+The reference code locates through this locator: the Peierls
+reference's ``region_of`` is ``region_containing`` on its partition, and
+its outer-biased ``which_annulus`` (at :math:`r = r_k` exactly it
+answered :math:`k + 1`) was retired in #578. Production still spells
+point location its own way, with both conventions in Monte Carlo (#596)
+and a :math:`10^{-12}` band in the method of characteristics (#595);
+:ref:`chart-and-chord-deferred` has the census.
 
 
 .. _chart-and-chord-measure:
@@ -1838,6 +2187,20 @@ lives in :mod:`orpheus.derivations`, which imports
 that edge (the layering: :ref:`architecture-layering`). So
 :meth:`Chart.beam_density <orpheus.geometry.chart.Chart.beam_density>`
 gives the density and stops there.
+
+**Collision probability reads the density here.** Production
+:class:`~orpheus.cp.solver.CPMesh` and the flat-source reference
+(:meth:`FlatSourceCPGeometry.outer_y_weight
+<orpheus.derivations.continuous.flat_source_cp.geometry.FlatSourceCPGeometry.outer_y_weight>`)
+weight their rule over the impact parameter :math:`y` by the in-plane
+density (:math:`|P\Omega| = 1`): 2 on the cylinder and :math:`2\pi y` on
+the sphere. Each had spelled the cylinder's :math:`S_0 = 2` as a literal
+factor and the sphere's weight as :math:`y`, so the sphere lost
+:math:`S_1/S_0 = \pi` and its first-collision probabilities were
+:math:`1/\pi` of the truth in production and reference alike, which
+agreed with each other because they shared the spelling (ERR-107,
+:ref:`the sphere's measure on lines <cp-sphere-measure-on-lines>`). The
+rule stays theirs: plain Gauss–Legendre on the region edges.
 
 
 .. _chart-and-chord-directions:
@@ -2512,6 +2875,18 @@ Which test carries which label is the generated matrix's to say
   plain chord, a line whose rounded :math:`b` loses its half-chord crossing
   at its level, the parameters at a level equal to the chord's crossings
   on both image classes, the slab's refusal and the agreement check;
+- ``test_rays.py`` and ``test_chord_lengths_between.py``: the verbs of
+  :ref:`chart-and-chord-rays` against mpmath oracles built from the
+  ray's own quadratic, each piece's region read at its midpoint (the run
+  to the first wall and the wall on every chart, solid and hollow; a
+  point on a wall sitting on its crossing; the orbit coordinate at the
+  point exactly :math:`c`; the line integral, its refusal of a wrong shape
+  and a void slot of infinite length; the cosine at a surface; the region
+  lengths; the lengths between two parameters per slot, at
+  :math:`+\infty` bit for bit the half-line, on a parallel line, empty,
+  additive, and broadcast over several stops), at L0 under
+  :eq:`geometry-chord-segment-lengths` where they carry a label and
+  ``foundation`` otherwise;
 - ``test_kernel_corroboration.py``: the kernel against today's
   independent spellings, code-to-code agreement, L4, with no correctness
   content. Its value is that a migration which changes an answer shows
@@ -2602,35 +2977,53 @@ tangencies). 168 rows: 89 for the transits, 79 for the directions.
 What the kernel does not do, and what still computes the same thing
 ===================================================================
 
-**One consumer, a reference.** The characteristic reference
-(:ref:`theory-characteristic-reference`) is the only module outside the
-three that calls the kernel (Key facts); it replaced the
-trajectory-resolvent family on 2026-10-10 and is consumed by no
-production code yet.
-The reference family's characteristic oracles, the
-collision-probability chords, the method of characteristics and Monte
-Carlo each compute chords, crossings, regions and line measures their own
-way. `[M]` 2026-10-05, the geometry census over the 385 tracked
-``orpheus/**/*.py`` files at ``a336bde4``
-(``scratch/characteristic_architecture/geometry_census.md``):
+**The reference code is on the kernel; production is not.** #578 moved
+every reference-live chord, locator and density onto the kernel
+(:ref:`chart-and-chord-rays` lists the consumers). `[M]` 2026-10-10, the
+explorer's census at ``a7aeebb5``
+(``scratch/characteristic_architecture/p2/census.md``, AST and text
+filters with seven positive controls), outside the kernel and the SymPy
+origins: 28 chord sites (22 reference-live, 2 with only withdrawn
+consumers, 1 dead, 3 production, all in the method of characteristics),
+14 point locators (6 production, 7 reference-live, 1 withdrawn) and 11
+line-measure sites (5 density spellings, 6 quadrature rules). What still
+computes the same thing, each with its reason:
 
-- 13 square-root-of-a-difference-of-squares chord sites and 14 geometric
-  discriminants outside the SymPy origins, almost all in reference code
-  (production holds two, both in MoC). The census's probe F1 found the
-  Variant-α, Peierls and MoC distance-to-surface spellings agreeing to
-  :math:`7 \times 10^{-14}` relative over 1000 draws with no shared
-  import: independent agreement on one quadratic;
-- 8 point-location spellings with two boundary conventions
-  (:ref:`chart-and-chord-location`);
-- 3 realisations of the measure on lines (``chord_quadrature``, the
-  collision-probability :math:`y`-quadrature, MoC's track spacing and
-  weights).
+- **production**, by the user's ruling of 2026-10-10 that each method's
+  production moves in its own campaign: the method of characteristics'
+  chords, its locator and its line density (#595, which also carries the
+  :math:`10^{-12}` band that misassigns whole segments); Monte Carlo's
+  three locators with two conventions (#596); collision probability's
+  chords and its rule over the impact parameter (plain Gauss–Legendre on
+  the edges, not the visibility-cone substitution), though its density is
+  the kernel's;
+- **the mpmath integrands**: the chord functions inside the Peierls
+  hollow transmissions and the analytical integrands of
+  ``peierls_nystrom.reference``, scalar callbacks of an adaptive
+  ``mpmath.quad`` evaluated beyond double precision, where a batched
+  float64 chord has no place;
+- **the quadrature rules** (``chord_quadrature`` and its visibility cone,
+  the observer and surface-centred rules, the impact rule's grading):
+  each is a change of variable that places nodes, and the kernel owns the
+  density, not the rule (:ref:`chart-and-chord-measure`);
+- **the Peierls sphere's surface weights** in ``compute_P_ss_sphere``
+  and ``compute_T_specular_sphere``, the :math:`h`-weights: the cosine-weighted surface measure
+  :math:`(2/R^2)\,h\,\mathrm dh = 2\mu\,\mathrm d\mu`, not the beam
+  density;
+- **the characteristic reference's point reading**
+  (``reading.angular_flux``) still forms the level of its point and
+  direction itself, :math:`(c, c|\Omega_x|/|P\Omega|)`, the same level
+  ``rays_from`` forms;
+- **the test oracles** (35 chord bodies and 16 locator sites in
+  ``tests/``): re-pointing an oracle at the kernel would compare the
+  kernel with itself (`retirement-audit` D.14).
 
-Moving the reference family onto the kernel is tracked under #405 (the
-slow reference tier, whose chord oracles opened this design); the Monte
-Carlo distance to boundary is #534. A comparison of a migrated spelling
-with the kernel is the kernel compared with itself through a facade
-(`retirement-audit` D.14), so it is deleted when its spelling migrates.
+The L4 corroboration harness
+(``tests/gates/geometry/test_kernel_corroboration.py``) keeps one row per
+production spelling not yet migrated, the MoC exit distance and the bare
+locator against MoC and Monte Carlo, each asserting by AST that its old
+spelling does not import the kernel, so a migrated row turns red and is
+deleted. The Monte Carlo distance to boundary is #534.
 
 **Not supported, each a named next member of the kernel:**
 
@@ -2819,6 +3212,36 @@ them.
        chord request (the user's ruling of 2026-10-08,
        :ref:`chart-and-chord-level`).
 
+Three more belong to the rays from a point (#578, 2026-10-11):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - The design
+     - Why it fails
+   * - The lengths between two parameters as
+       ``lengths_beyond(t0) - lengths_beyond(t1)``
+     - It subtracts every slot beyond :math:`t_1` from itself, so a cut
+       slot's length cancels, and on a parallel line it forms
+       :math:`\infty - \infty`. The verb cuts only the slots containing an
+       end.
+   * - The point's parameter from a line built through it
+       (``Line.through``, then ``parameter_of``)
+     - The line's :math:`b` is rounded through its moment, so a point on
+       the surface is read an ulp off its crossing: a nonzero run back to
+       the wall on 4171 of 10 000 incoming directions (`[M]`, the probe of
+       :ref:`chart-and-chord-rays`). The point knows its level from the
+       direction; the parameter is read at that level.
+   * - The orbit coordinate along a ray as
+       :math:`\sqrt{b^2 + s^2}` (``hypot``)
+     - With :math:`b` rounded, it reads above the outer radius at a point
+       on the surface (2126 to 2165 of 20 001 directions, `[M]` the same
+       probe), and a consumer then needs a clamp before it evaluates a
+       field on :math:`[0, R]`. Formed from the level as
+       :math:`\sqrt{c^2 + (s - y_*)(s + y_*)}` it is :math:`c` exactly at
+       the point.
+
 Frames the cross-domain review found and refuted for the kernel (each
 refuted for the question "does the kernel need it?", not as
 mathematics):
@@ -2929,6 +3352,17 @@ Gotchas
 - **A representative line's** :math:`b` **is its coordinate to an ulp,
   not bit for bit.** The kernel's line returns its foot from its moment,
   which rounds; compare impact parameters with a tolerance.
+- **Read a ray from its point, never from a line built through it.**
+  ``Line.through`` and ``parameter_of`` give the point's parameter from
+  the line's rounded :math:`b`, so a point on a wall reads a run of an ulp
+  outward and an orbit coordinate an ulp above the wall;
+  ``rays_from`` reads both from the point's level, exactly.
+- **The run ahead is not the run to the wall on a hollow body.** ``ahead`` runs
+  through the cavity to the outer surface; ``to_wall`` stops at the first
+  wall. A response that ends at the first wall reads ``to_wall``.
+- **The cosine at a surface is the cosine in 3-D.** On the cylinder ``cosine_at`` is
+  :math:`|P\Omega|\,h/r`, which equals the in-plane cosine :math:`h/r` only
+  for a line normal to the axis.
 - **The measure density is a density, and its integral over a narrow
   cell far from 0 is ill-conditioned.** Compare a density integrated over
   :math:`[a, b]` with the measure at a tolerance carrying
@@ -3024,3 +3458,26 @@ Development history
        2026-10-08).
      - ``b76b9a9d``
      - #405, #590
+   * - 2026-10-11
+     - P2 of the characteristic-reference campaign: the reference code's
+       chords, locators and line densities onto the kernel. New verbs:
+       ``ConcentricPartition.rays_from`` and
+       :class:`~orpheus.geometry.chord.Rays` (the chord read from points
+       on their exact level), ``Chord.lengths_between`` (with
+       ``lengths_beyond`` its case :math:`t_1 = +\infty`),
+       ``Chord.line_integral``, ``Chord.cosine_at`` and
+       :func:`~orpheus.geometry.chord.region_half_lengths`;
+       ``RadialImage.orbit_coordinate_at`` formed from the level. Moved
+       onto them: the characteristic ``impact_rule`` (0 ulp), the
+       F\ :sub:`N` sphere reconstruction, ``chord_half_lengths``, the
+       Peierls ray layer (``rho_max``, ``rho_inner_intersections``,
+       ``optical_depth_along_ray``, ``which_annulus`` and
+       ``source_position`` retired), and the characteristic period's and
+       impact panels' depths. Collision probability's density read from
+       ``Chart.beam_density``, which fixed the sphere's missing
+       :math:`\pi` (ERR-107, #283, #509). The move found the Peierls
+       cylinder-3D pairing (ERR-108) and the hollow single-region shortcut
+       (ERR-109). Production's chords and locators are #595 and #596, by
+       the user's ruling.
+     - ``124edf67``
+     - #578, #419

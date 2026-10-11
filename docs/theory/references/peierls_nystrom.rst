@@ -174,21 +174,40 @@ see :ref:`peierls-rank-n-per-face-closeout` and
   :math:`\theta` fold into the :math:`\mathrm{Ki}_3` Bickley
   function: :math:`W_{\rm oo} = (4/\pi)\!\int_{\alpha_c}^{\pi/2}
   \!\cos\alpha\,\mathrm{Ki}_3(2\Sigma_t R\cos\alpha)\,\mathrm d\alpha`
-  (grazing past cavity),
+  (grazing past cavity; the code clips :math:`\cos\alpha` at 0, since at
+  the quadrature's nodes next to :math:`\pi/2` it rounds to about
+  :math:`-3 \times 10^{-26}`, where :math:`\mathrm{Ki}_3` of a negative
+  argument is infinite, ERR-113),
   :math:`W_{\rm io} = (4/\pi)\!\int_0^{\alpha_c}\!\cos\alpha\,
   \mathrm{Ki}_3(\Sigma_t\ell_{\rm annulus}(\alpha))\,\mathrm d\alpha`
   (hitting inner shell), reciprocity
   :math:`W_{\rm oi} = (R/r_0)\,W_{\rm io}`, and convex-cavity
-  constraint :math:`W_{\rm ii} = 0`. **The rank-1-per-face
-  (scalar) closure does NOT close the Wigner-Seitz identity
-  exactly on curved hollow surfaces** — unlike slab, where every
-  position on a face maps to the same angular geometry, the
-  cylinder's inward J⁻ at :math:`r_0` carries non-trivial
-  angular moments that the scalar mode omits. For
-  :math:`r_0 = 0.1 R` the rank-2 residual is 1.4 % (vs rank-1
-  Mark's 25 %); for :math:`r_0 = 0.3 R` it is 13 %. The numerical
-  residual does **not** vanish under plain Legendre rank-N
-  refinement — see :ref:`Phase F.5 close-out
+  constraint :math:`W_{\rm ii} = 0`. **The scalar rank-2 per-face
+  closure is exact on the fixed-source closure identity** (#578,
+  2026-10-11): a pure absorber with a uniform source, a white outer
+  face and a void cavity has :math:`\varphi \equiv Q/\Sigma_t` and an
+  isotropic current at every face, and the closure built from the
+  per-face primitives reproduces it to the radial quadrature's error.
+  `[M]` (the W2 memo,
+  ``scratch/characteristic_architecture/p2/hollow_investigation/memo.md``,
+  24 radial nodes, :math:`\max|\varphi\Sigma_t/Q - 1|`): sphere
+  :math:`4.0 \times 10^{-5}` (:math:`r_0 = 0.25`) and
+  :math:`9.7 \times 10^{-6}` (:math:`r_0 = 1.0`), cylinder
+  :math:`2.0 \times 10^{-5}` (:math:`r_0 = 0.3`) and
+  :math:`5.5 \times 10^{-6}` (:math:`r_0 = 1.0`); the control with
+  :math:`W := 0` misses by :math:`7.6 \times 10^{-2}` to 0.20. That the
+  eigenvalue identity :math:`k_{\rm eff} = k_\infty` closes with it is
+  reasoned from the same exactness and has **not** been measured
+  (`[R]`). Until #578 the closure did not reproduce the identity, and
+  this bullet said the scalar mode cannot close on curved hollow
+  surfaces because the inward :math:`J^-` at :math:`r_0` carries angular
+  moments it omits, quoting rank-2 residuals of 1.4 %
+  (:math:`r_0 = 0.1 R`) and 13 % (:math:`0.3 R`) on the cylinder. Those
+  residuals were measured with defective per-face responses
+  (ERR-111, ERR-112) and a :math:`W_{\rm oo}` that was :math:`-\infty`
+  for every :math:`\Sigma_t > 0` (ERR-113); the claim is refuted for the
+  fixed-source identity. Whether rank-N refinement adds anything once the
+  primitives are right has not been re-measured — see :ref:`Phase F.5 close-out
   <peierls-rank-n-per-face-closeout>` for the five-reference
   synthesis, the :math:`c_{\rm in}` structural obstruction, the
   falsification of a novel per-mode Villarino-Stamm'ler extension,
@@ -198,11 +217,10 @@ see :ref:`peierls-rank-n-per-face-closeout` and
   (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_hollow_sph_transmission`)
   with the bare :math:`e^{-\tau}` kernel (no Bickley fold) and
   reciprocity :math:`W_{\rm oi} = (R/r_0)^2\,W_{\rm io}` on
-  spherical surface areas. The sphere's higher symmetry yields
-  smaller scalar-mode residuals than cylinder:
-  :math:`r_0 = 0.1 R` → 0.4 % (70× over rank-1 Mark),
-  :math:`r_0 = 0.2 R` → 1.2 % (24×),
-  :math:`r_0 = 0.3 R` → 3.3 % (10×).
+  spherical surface areas. The scalar-mode residuals quoted for it
+  before #578 (:math:`r_0 = 0.1 R` → 0.4 %, :math:`0.2 R` → 1.2 %,
+  :math:`0.3 R` → 3.3 %) were measured with the outer response of
+  ERR-111 and are not current.
 - **Why polar form, not chord coordinates.** Standard references
   (:cite:`Sanchez1982`, :cite:`Hebert2020`, :cite:`Stamm1983`, :cite:`BellGlasstone1970`,
   :cite:`CaseZweifel1967`) present each geometry in **chord coordinates**
@@ -638,9 +656,11 @@ This is **the same form** that
 :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g` solves
 for cylinder-1d and sphere-1d. The only per-geometry differences are
 already factored behind the :class:`CurvilinearGeometry` primitives
-(``ray_direction_cosine``, ``rho_max``, ``source_position``,
+(``ray_direction_cosine``, the ray layer ``rays_from``,
 ``volume_kernel_mp``, ``angular_weight``). Slab inherits the
-*architecture* for free.
+*architecture* for free; on the ray layer the slab is the geometric
+kernel's axial chart, with no branch of its own
+(:ref:`peierls-ray-layer`).
 
 
 Subsection — Why the outer :math:`\mu`-integral is stiff at :math:`\mu = 0`
@@ -994,11 +1014,13 @@ critical) concluded that:
 
 1. The parameter renames (``n_angular`` → ``n_beta`` / ``n_theta``
    and ``n_surf_quad`` → ``n_phi``) are a *docstring concern*, not
-   an *API* concern. The lower-level
-   :meth:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.optical_depth_along_ray`
-   already chose the geometry-agnostic ``cos_omega`` over per-shape
-   ``cos_beta`` / ``cos_theta``; the façade wrappers were an
-   inconsistent island above that abstraction layer.
+   an *API* concern. The lower-level ``optical_depth_along_ray``
+   (since #578 the ray layer
+   :meth:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.rays_from`,
+   :ref:`peierls-ray-layer`) had already chosen the geometry-agnostic
+   ``cos_omega`` over per-shape ``cos_beta`` / ``cos_theta``; the
+   façade wrappers were an inconsistent island above that abstraction
+   layer.
 
 2. The shape-specific dataclasses
    (``PeierlsCylinderSolution``, ``PeierlsSphereSolution``) were
@@ -2116,10 +2138,12 @@ Inspect the :math:`r'(\rho,\Omega,r)` column: the cylinder and
 sphere rows have *identical* formulae, differing only in whether
 the inplane angle is called :math:`\beta` or :math:`\theta`. Same
 for :math:`\rho_{\max}`. This is the architectural lever for code
-reuse: the cylinder's ``_rho_max`` and ``r_prime`` routines port
+reuse: the cylinder's ``_rho_max`` and ``r_prime`` routines ported
 to the sphere with zero algebraic modification — only the surrounding
-angular quadrature and kernel call change. A future
-``peierls_sphere.py`` module can share ``_optical_depth_along_ray``,
+angular quadrature and kernel call change. (Since #578 neither routine
+exists: both readings are one chord of the geometric kernel per
+observer, :ref:`peierls-ray-layer`.) A sphere module could then share
+``_optical_depth_along_ray``,
 ``_rho_max`` (via rename), ``composite_gl_r``,
 ``_lagrange_basis_on_panels`` with
 :mod:`orpheus.derivations.continuous.peierls_nystrom.cylinder` essentially verbatim;
@@ -2286,16 +2310,17 @@ Abstract operations
 3. **Source position** :math:`r'_{ikm} = r'(\rho_m,\Omega_k,r_i)`.
    One line of closed-form algebra per geometry (Section 4 table).
 
-4. **Optical-depth walker**
+4. **Optical depth along the ray**
    :math:`\tau(r_i,\Omega_k,\rho_m) = \int_{0}^{\rho_m}
-   \Sigma_t(r'(s,\Omega_k,r_i))\,\mathrm ds`. Walks annular boundary
-   crossings by solving a quadratic (curvilinear) or a linear
-   equation (slab) for each :math:`r_k`, sorts the crossings in
-   :math:`(0, \rho_m)`, accumulates :math:`\Sigma_{t,k}\,\Delta s`.
-   This walker is **geometry-independent in structure** — all three
-   geometries see the same sort-and-accumulate pattern — though the
-   algebra for finding crossings differs (linear for the slab,
-   quadratic for both curvilinear cases).
+   \Sigma_t(r'(s,\Omega_k,r_i))\,\mathrm ds`. The ray's chord through
+   the concentric partition, solved once in the orbit space by the
+   geometric kernel, holds the length of each slot; the depth is
+   :math:`\sum_{\rm slot}\Sigma_{t,\rm region}\,\ell_{\rm slot}` over
+   the slots between the observer and :math:`\rho_m`, a cavity void
+   (:ref:`peierls-ray-layer`). This is **geometry-independent in
+   structure and in code**: the slab is the kernel's axial chart and
+   the cylinder and sphere its radial one, with no branch on the kind
+   in the ray layer.
 
 5. **Source interpolation**
    :math:`q(r'_{ikm}) = \sum_j L_j(r'_{ikm})\,q_j`. Lagrange basis
@@ -2334,6 +2359,195 @@ Abstract operations
    geometry (:math:`1` for slab, :math:`r_j` for cylinder,
    :math:`r_j^{2}` for sphere). See Section 8 for the derivation
    and the approximation-level caveat.
+
+.. _peierls-ray-layer:
+
+The ray layer on the geometric kernel
+-------------------------------------
+
+Every ray reading the module makes (the distance to a wall, whether a
+ray meets a hollow body's cavity, the optical depth to a wall or to an
+interior distance, the radius :math:`r'` along the ray, the cosine at a
+surface) is read from one object: the chord of the rays from an observer
+through the concentric partition, on the geometric kernel of
+:doc:`/theory/foundations/chart_and_chord`. Three methods of
+:class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry`
+pose it:
+
+- :attr:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.chart`,
+  the kernel's :class:`~orpheus.geometry.chart.Chart` of the kind's
+  coordinate system (Cartesian for ``slab-polar``, cylindrical, spherical).
+  It is the one place the ray layer reads the kind;
+- :meth:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.partition`,
+  the :class:`~orpheus.geometry.chord.ConcentricPartition` with breakpoints
+  :math:`(r_0, r_1, \dots, r_n)`, :math:`r_0` the ``inner_radius``, so that
+  ``sig_t[k]`` is region :math:`k` and a hollow body's cavity is the
+  partition's inner exterior;
+- :meth:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.rays_from`,
+  the :class:`~orpheus.geometry.chord.Rays` from the observer at
+  :math:`r_{\rm obs}` along the direction
+  :math:`(\mu, \sqrt{1 - \mu^2}, 0)` for every cosine :math:`\mu` of the
+  angular rule at once: the slab's :math:`\mu`, the cylinder's in-plane
+  :math:`\cos\beta`, the sphere's :math:`\cos\theta`, each the cosine to
+  the outward normal at the observer.
+
+Each consumer's integrand receives the whole angular rule of one
+observer and makes **one** call of ``rays_from``, so one chord is formed
+per observer (the user's ruling of 2026-10-10). The readings, and the
+scalar primitives each replaced:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 36 34
+
+   * - Quantity along the ray
+     - Read as
+     - Replaced
+   * - distance to the outer surface, :math:`\rho_{\max}`
+     - ``rays.ahead.sum(-1)`` (the slots ahead of the observer), or
+       ``rays.to_wall.sum(-1)`` to the first wall
+     - ``rho_max``
+   * - whether the ray meets the cavity first, and the distance to it
+     - ``rays.wall == 0`` on a hollow curvilinear body; ``rays.to_wall``
+     - ``rho_inner_intersections``
+   * - optical depth to the exit, to the cavity, to an interior
+       :math:`\rho`
+     - :meth:`Chord.line_integral <orpheus.geometry.chord.Chord.line_integral>`
+       of ``sig_t`` over ``rays.ahead``, ``rays.to_wall`` or
+       ``rays.lengths_to(rho)``; the cavity is void
+     - ``optical_depth_along_ray``, with its loops over shells and
+       segments and its inline locator
+   * - the radius :math:`r'` at a distance along the ray
+     - ``rays.orbit_coordinate_at(rho)``
+     - ``source_position``
+   * - the cosine to the normal of the surface :math:`r` where the ray
+       crosses it
+     - :meth:`Chord.cosine_at <orpheus.geometry.chord.Chord.cosine_at>`
+     - four hand-written ``mu_exit`` forms
+   * - the region of a point
+     - :meth:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.region_of`,
+       inner-owns: a point on an interface is in the region below it
+     - ``which_annulus``, outer-biased: it answered the region above
+
+The verbs are derived on :ref:`chart-and-chord-rays`. Because the slab
+is the kernel's axial chart and the cylinder and the sphere its radial
+one, the slab-versus-curvilinear branches these methods carried
+dissolved into the chart; this is the ray-layer slice of #419, whose
+other kind discriminations (prefactors, kernels, angular weights)
+remain. The withdrawn volume kernels
+(:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.build_volume_kernel`,
+:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.K_vol_element_adaptive`,
+withdrawn under #506) read the same rays with one direction each, so the
+module keeps one definition of every ray reading.
+
+**Why one batch per observer.** `[M]` 2026-10-10 (the explorer,
+``scratch/characteristic_architecture/p2/caller_shapes.md``, ``timeit``
+minimum of 5): one kernel chord over one line costs 229 µs, of which
+minting the partition is 28 µs; over a batch of 32, 256 and 10 000 lines
+it costs 6.1, 1.0 and 0.33 µs per line; the retired scalar
+``rho_max`` cost 0.30 µs and ``optical_depth_along_ray`` 3.8 µs. The
+live tests made 50 924 scalar primitive calls; replaced call for call
+they would have cost about 11.7 s more, and batched per observer
+(about 630 batches) about 0.16 s (`[R]`, the products of the measured
+unit costs). The mpmath kernels evaluated per node dominate either way.
+The batching is a structural contract, gated by counting rather than by
+a clock: ``test_each_consumer_reads_one_batch_of_rays_per_observer``
+(``tests/gates/derivations/test_peierls_ray.py``) asserts that
+``ConcentricPartition.chord`` is called exactly once per observer by
+every consumer it lists, and that the retired primitives are absent.
+
+**What the move changed, measured.**
+
+- **The cylinder-3D pairing** (ERR-108). The surface-to-volume response
+  :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc_cylinder_3d`
+  and the Knyazev mode integrand paired the exit distance of the ray
+  along :math:`+\cos\omega` with the optical depth of the ray along
+  :math:`-\cos\omega`. Each now reads the distance, the depth and the
+  exit cosine on one ray.
+- **A hollow single-region body** (ERR-109). The consumers' shortcut
+  :math:`\tau = \Sigma_t\rho` for one region ignored ``inner_radius``, so
+  a cavity the ray crossed was counted as material. There is no
+  single-region branch now: the cavity is the partition's inner exterior
+  and is void in every case.
+- **The hollow per-face responses** (ERR-111, ERR-112). The volume
+  kernel stops each ray at its first wall, so the closure carries every
+  crossing of the cavity, and each face's response must count exactly the
+  rays its escape counts. Each response is now four times its face's
+  escape probability, one integrand per face: ``compute_G_bc_outer``
+  had counted the rays that meet the cavity first, and the cylinder's
+  ``compute_G_bc_inner`` had integrated the surface-centred
+  :math:`\mathrm{Ki}_1/d` form over both sides of the cavity.
+- **The hollow rules subdivide at the cavity wall.** The observer rule
+  receives every positive breakpoint, :math:`r_0` included, and a
+  breakpoint at the observer itself (tangent :math:`\pi/2`); without them
+  the hollow consumers converged at 8 % at :math:`n = 16` (the cylinder's
+  mode-1 response) and an observer on an interior wall as
+  :math:`O(n^{-2})`.
+- **An observer exactly on the cavity wall** (qa's F10, 2026-10-11). The
+  observer's parameter is formed from its exact level, so an observer at
+  :math:`r = r_0` sits on the crossing: looking inward it meets the cavity
+  at distance 0 (``compute_P_esc_inner`` reads 0.5 there where the scalar
+  primitives read 0, and ``compute_P_esc_outer`` halves accordingly).
+  This is the physically right answer on a set of measure zero.
+- **A wrong-shaped cross-section vector is refused.**
+  ``Chord.line_integral`` accepts exactly one value per region; the
+  retired walker raised ``IndexError`` on a short vector, and a draft of
+  this layer accepted it silently (the elegance review, `[M]`: one value
+  short read the outermost region as void, 2.856 against 5.914).
+- **Every other consumer** moved by rounding only: `[M]` 2026-10-11, qa,
+  at most :math:`10^{-13}` relative against the scalar primitives on
+  three-region bodies, and :math:`6.2 \times 10^{-16}` on the withdrawn
+  volume kernel.
+
+**What still computes a chord by hand, and why.**
+
+- the mpmath integrands, the chord functions inside
+  :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_hollow_cyl_transmission`
+  and
+  :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_hollow_sph_transmission`
+  and the analytical integrands of
+  :mod:`~orpheus.derivations.continuous.peierls_nystrom.reference`: each is
+  a scalar callback of an adaptive ``mpmath.quad`` evaluated beyond
+  double precision, where a batched float64 chord has no place;
+- the angular rules (``observer_angular_quadrature``, the
+  surface-centred rule, ``chord_quadrature`` and its visibility cone):
+  each is a change of variable that places nodes, and the kernel owns
+  the density on lines, not the rule (:ref:`chart-and-chord-measure`);
+- the :math:`h`-weights of
+  :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_ss_sphere`
+  and
+  :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_T_specular_sphere`:
+  they are the cosine-weighted surface transmission measure,
+  :math:`(2/R^2)\,h\,\mathrm dh = 2\mu\,\mathrm d\mu` with
+  :math:`\mu = h/R`, not the beam density over the impact parameter
+  (the W2 memo, ``scratch/characteristic_architecture/p2/cp_pi_investigation/memo.md``);
+  their exit cosine is :func:`~orpheus.geometry.chart.half_chord` at
+  :math:`R` over :math:`R`;
+- ``omega_tangent_angles``, whose only consumers are withdrawn (#506).
+
+**The gates.** ``tests/gates/derivations/test_peierls_ray.py``, at
+three levels. The rays: the optical depth of every ray against an mpmath
+oracle built from the line–circle roots
+:math:`-r\mu \pm \sqrt{r_k^2 - r^2(1 - \mu^2)}` with each piece's region
+read at its midpoint (three regions with non-monotone
+:math:`\Sigma_t = (0.7, 3.1, 0.2)`, solid and hollow, sphere and cylinder;
+observers on every breakpoint; the exact tangents and :math:`10^{-9}`
+either side), the first wall being the cavity exactly when the oracle
+says so, an observer on the cavity wall, a batch equal to its rays one by
+one, and the inner-owns region. The consumers: laws that tie two of them
+together (in a void hollow body every neutron leaves through exactly one
+surface, :math:`P_{\rm esc,outer} + P_{\rm esc,inner} = 1`; each response
+is four times its escape probability, surface by surface and mode by
+mode), each consumer against its integral written independently in mpmath
+on three regions, and the same on a hollow single-region body with the
+cavity void (ERR-109); the two cylinder-3D responses against their
+characteristic integrals (ERR-108); and the batching count. A row that ran
+each consumer on the kernel's rays and again on the oracle's was retired:
+the consumer's own integrand sat on both sides, so it could not see which
+reading a consumer chose (qa's F1, 2026-10-11: six such mutations moved
+their consumer by :math:`2 \times 10^{-2}` to 1.8 relative and reddened
+none of 776 not-slow tests). The verbs themselves are gated in
+``tests/gates/geometry/test_rays.py`` (:ref:`chart-and-chord-rays`).
 
 Which operations are geometry-specific?
 ---------------------------------------
@@ -2381,11 +2595,11 @@ geometry-specific; all other operations are *verbatim* portable.
      - law of cosines
      - law of cosines
      - cyl/sphere share
-   * - Optical-depth walker
-     - sort crossings
-     - sort crossings
-     - sort crossings
-     - yes (structure)
+   * - Optical depth along the ray
+     - kernel chord
+     - kernel chord
+     - kernel chord
+     - yes (one code path)
    * - Power iteration
      - same
      - same
@@ -2488,6 +2702,14 @@ particular API shape.
    common scaffolding is real, and the cost of adding a third
    geometry is limited to the four primitives named above plus
    a couple of glue lines.
+
+.. note::
+
+   The sketch's ``rho_max`` and ``source_position`` were realised and then
+   retired: since #578 the module asks one question of the geometry for
+   every ray reading, the chord of the rays from an observer on the
+   geometric kernel (:ref:`peierls-ray-layer`), which answers the exit
+   distance, the cavity, the optical depth and :math:`r'` together.
 
 
 Section 7 — Row-sum identities, geometry-by-geometry
@@ -2922,13 +3144,18 @@ support landed with these fixes:
    :meth:`CurvilinearGeometry.rank1_surface_divisor` returns ``2``
    (two unit-area faces).
 
-4. Rank-N :math:`(n > 0)` modes in
+4. The rank-N mode functions
    :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc_mode`
    and :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc_mode`
-   raise :class:`NotImplementedError` for slab: rank-N slab requires
-   per-face mode decomposition (:math:`A = \mathbb{R}^{2N}` rather
-   than :math:`\mathbb{R}^N`), which is a scope extension tracked
-   separately.
+   raise :class:`NotImplementedError` for slab at every mode
+   :math:`n`, mode 0 included: their curvilinear surface-to-observer
+   Jacobian and their single-surface mode space :math:`A = \mathbb{R}^N`
+   mean nothing on the slab, whose mode 0 is
+   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc` and
+   whose rank-N closure requires per-face mode decomposition
+   (:math:`A = \mathbb{R}^{2N}`), a scope extension tracked separately.
+   (Until #578 mode 0 fell through to the curvilinear arithmetic on the
+   slab; no consumer called it there.)
 
 **References.** :cite:`Davison1957` Ch. 5 (half-range isotropic re-entry
 partial-current balance); :cite:`CaseZweifel1967` Ch. 6 (albedo-1 BC
@@ -4488,9 +4715,11 @@ extension mirrors the sphere chord-piecewise integration with the
 
 **Issue #112 Phase C — corrected 3-D G_bc for cylinder**
 
-The cylinder rank-1 Mark closure historically used a surface-centric
+The cylinder rank-1 Mark closure used a surface-centric
 ``Ki_1(τ)/d`` form lacking the Lambertian projection factor
-:math:`(R - r\cos\phi)/d`. Row-sum probe quantified the bias:
+:math:`(R - r\cos\phi)/d` until #578, when :func:`compute_G_bc` became
+:math:`4\,P_{\rm esc}` and so equal to :func:`compute_G_bc_cylinder_3d`
+bit for bit (ERR-114). Row-sum probe quantified the bias:
 
 .. list-table::
    :header-rows: 1
@@ -4529,7 +4758,9 @@ analytical integration over the polar angle from the cylinder axis
 
 Shipped as :func:`compute_G_bc_cylinder_3d` and wired into
 ``boundary="white_hebert"`` for cylinder (the
-``NotImplementedError`` is now lifted). Cylinder Class B convergence
+``NotImplementedError`` is now lifted). The rank-1 :func:`compute_G_bc`
+reads the same integral since #578, as four times
+:func:`compute_P_esc`. Cylinder Class B convergence
 results at BASE quadrature:
 
 .. list-table::
@@ -5329,10 +5560,6 @@ the rank-1 reduction.
 
    T_{mn}^{\rm sph} \;=\; 2\!\int_0^1\!\mu\,\tilde P_m(\mu)\,\tilde P_n(\mu)\,
                   e^{-\tau(\mu)}\,\mathrm d\mu,
-
-.. (vv-status rationale) derivation: Intermediate step in a derivation chain whose capstone identity is tested elsewhere. Sphere T_mn integral form — derivation step; the rank-1 specialisation T_00 is the V_α2 identity verified in test_peierls_greens_function_symbolic.
-.. vv-status: peierls-specular-T-matrix documented
-
 
 with :math:`\tau(\mu)` the multi-region optical depth along the
 antipodal chord (chord :math:`= 2R\mu`; impact parameter :math:`h
@@ -6323,8 +6550,8 @@ Concretely:
                         + \Delta^{2}[\mathrm{Ki}_3]_{\rm TC}\bigr]\,\mathrm dy
         & d = 2 \text{ (cylinder)}, \\[6pt]
      \displaystyle
-     \int_{0}^{R}\! 2\,\bigl[\Delta^{2}[e^{-\tau}]_{\rm SS}
-                        + \Delta^{2}[e^{-\tau}]_{\rm TC}\bigr]\,y\,\mathrm dy
+     \int_{0}^{R}\! \bigl[\Delta^{2}[e^{-\tau}]_{\rm SS}
+                        + \Delta^{2}[e^{-\tau}]_{\rm TC}\bigr]\,2\pi y\,\mathrm dy
         & d = 3 \text{ (sphere)},
    \end{cases}
 
@@ -6353,11 +6580,15 @@ chord branches documented at :eq:`tau-m`, :eq:`tau-p`,
        factor of 2 accounts for the two sides of the symmetry axis.
    * - Sphere
      - :math:`y \in [0, R]`
-     - :math:`2y\,\mathrm dy`
-     - Spherical ring area :math:`2\pi y\,\mathrm dy` divided by the
-       :math:`\pi` the kernel already absorbs; see
-       :mod:`~orpheus.derivations.continuous.flat_source_cp.sphere` line
-       ``y_wts = y_wts * y_pts``.
+     - :math:`2\pi y\,\mathrm dy`
+     - The lines of one direction through the ring of radius :math:`y`
+       about the centre: :meth:`Chart.beam_density
+       <orpheus.geometry.chart.Chart.beam_density>`, :math:`S_1 y` with
+       :math:`S_1 = 2\pi` (:ref:`chart-and-chord-measure`). No kernel
+       absorbs a :math:`\pi`: until #578 this row read
+       :math:`2y\,\mathrm dy` and the code with it, so every sphere
+       first-collision probability was :math:`1/\pi` of the truth
+       (ERR-107).
 
 Same-side and through-centre branches
 -------------------------------------
@@ -6477,7 +6708,7 @@ position). The Level-3 abstraction follows the same pattern:
 
        # --- outer-integration measure ---------------------------
        def outer_y_weight(self, y: np.ndarray) -> np.ndarray:
-           """1 (slab / cyl) vs y (sph) weighting for the y-quadrature."""
+           """The measure on lines over y: 2 (cyl), 2πy (sph); Chart.beam_density."""
            ...
 
        has_through_centre: bool   # False for slab, True otherwise
@@ -6602,8 +6833,9 @@ y-quadrature, and the white-BC closure are reused unchanged.
 
    **Why not collapse the pointwise and flat-source modules into a
    single class after all?** Because the four primitives that
-   distinguish pointwise Peierls geometries (``rho_max``, ``r_prime``,
-   angular measure, Level-1 kernel) have **no flat-source analogue**
+   distinguish pointwise Peierls geometries (the ray from an observer,
+   ``rays_from``, which carries the exit distance and :math:`r'`;
+   angular measure; Level-1 kernel) have **no flat-source analogue**
    — flat-source CP integrates over a region's chord family, which is
    a *simpler* geometric structure than a general observer-centred
    polar parametrisation. Conversely, the flat-source primitives
@@ -7411,10 +7643,14 @@ Phase-G unified framework then uses:
 
 - ``kind = "slab"``;
 - ``angular_range = (-1, 1)`` with ``angular_quadrature = "exp-stretched"``;
-- ``rho_max(x, mu) = (L - x)/mu`` for :math:`\mu > 0`,
+- the exit distance :math:`(L - x)/\mu` for :math:`\mu > 0`,
   :math:`x/|\mu|` for :math:`\mu < 0`;
-- ``source_position(x, rho, mu) = x + rho * mu``;
+- the source position :math:`x + \rho\mu`;
 - ``volume_kernel = exp(-tau)`` — identical to the sphere.
+
+(This was written as the proposed methods ``rho_max`` and
+``source_position``; since #578 both readings are the slab's axial chord
+on the geometric kernel, :ref:`peierls-ray-layer`.)
 
 (The observation that *slab and sphere share the same Level-1 polar
 kernel* :math:`e^{-\tau}` — modulo the prefactor :math:`1/2` vs
@@ -7984,7 +8220,12 @@ pattern appears in the legacy cylinder boundary-closure
 observer's ray direction. The two are related by a change of
 variables but the kink structure is **not** the same — the
 observer-centred form has tangent angles
-:math:`\arcsin(r_{k}/r_{\rm obs})`, while the surface-centred form
+:math:`\arcsin(r_{k}/r_{\rm obs})` for every breakpoint
+:math:`r_k \le r_{\rm obs}` (a breakpoint at the observer included: its
+tangent is :math:`\pi/2`, the direction along the wall, where the
+integrand's :math:`|\cos|` kinks; #578 measured an observer on an
+interior wall converging only as :math:`O(n^{-2})` without it,
+:math:`-1.0 \times 10^{-2}` at :math:`n = 16`), while the surface-centred form
 has tangent angles given by the **chord-quadratic in**
 :math:`\cos\phi`. This subsection derives the chord-quadratic
 explicitly, identifies the regimes where tangent angles exist, and
@@ -8124,11 +8365,18 @@ panel endpoints (which is the kink to begin with — the subdivision
 isolates each kink as a panel boundary, recovering spectral
 convergence on the interior of every sub-panel).
 
-The four legacy cylinder :math:`G_{\rm bc}` branches in
-:mod:`~orpheus.derivations.continuous.peierls_nystrom.geometry`
-(:func:`compute_G_bc`, :func:`compute_G_bc_outer`,
-:func:`compute_G_bc_inner`, :func:`compute_G_bc_mode`) consume the
-recipe through the standard ``_per_obs(r_i)`` template:
+One cylinder :math:`G_{\rm bc}` branch in
+:mod:`~orpheus.derivations.continuous.peierls_nystrom.geometry` consumes
+the recipe through the standard ``_per_obs(r_i)`` template: the
+rank-:math:`N` modes :math:`n \ge 1` of :func:`compute_G_bc_mode` (the
+open half of #112). The rank-1 response :func:`compute_G_bc` and the
+hollow per-face responses :func:`compute_G_bc_outer` and
+:func:`compute_G_bc_inner` consumed it until #578 and no longer do: each
+is four times its escape probability, one observer-centred integrand
+(ERR-114, ERR-111, ERR-112); on the cylinder :func:`compute_G_bc` is
+:func:`compute_G_bc_cylinder_3d` bit for bit.
+
+
 
 .. code-block:: python
 
@@ -8146,16 +8394,22 @@ recipe through the standard ``_per_obs(r_i)`` template:
 where ``per_node_kernel`` evaluates the legacy
 :math:`\mathrm{Ki}_{1}(\tau)/d` integrand (and the rank-:math:`n`
 :math:`\tilde P_{n}(|\mu_{s}|)` weight in the mode primitive). The
-homogeneous (single-region) case has no shells with
-:math:`r_{k} < r_{\rm obs}`, so the recipe degenerates to plain
-Gauss-Legendre on :math:`[0, \pi]` — bit-equivalent to the legacy
-:func:`gl_float` call. The inner-surface case
-(:func:`compute_G_bc_inner`, :math:`r_{\rm surf} = r_{0} <
-r_{\rm obs}`) typically has every shell satisfying
-:math:`r_{k} \ge r_{\rm surf}`, so the same plain-GL degeneracy
-holds — the recipe is a no-op there but routes the call uniformly
-through the :class:`Quadrature1D` contract for consistency with the
-other three branches.
+homogeneous solid (single-region) case has no interior shell, so the
+recipe degenerates to plain Gauss-Legendre on :math:`[0, \pi]` —
+bit-equivalent to the legacy :func:`gl_float` call. The breakpoints it
+receives are the partition's positive ones, a hollow body's cavity wall
+:math:`r_0` included (#578).
+
+The surface-centred :math:`\mathrm{Ki}_1/d` kernel is not the
+uncollided response of an isotropic current on the cylinder, on a solid
+body either. `[M]` 2026-10-11 (the W2 memo, a 3-D surface-point
+reference with no Bickley function): the legacy solid-cylinder
+:math:`G` is 0.586, 0.624 and 1.340 times the reference at three
+observers, where the observer-centred
+:func:`compute_G_bc_cylinder_3d` equals :math:`4P` to :math:`10^{-10}`.
+The rank-1 :func:`compute_G_bc` used it until #578 (ERR-114); the
+rank-:math:`N` modes :math:`n \ge 1` of :func:`compute_G_bc_mode` still do,
+the open half of #112.
 
 Why a separate recipe instead of unifying with
 :func:`observer_angular_quadrature`? The observer-centred form is the
@@ -8178,16 +8432,16 @@ The corrected, observer-centred 3-D cylinder
 (:func:`compute_G_bc_cylinder_3d`, Issue #112 Phase C) and on
 ``compute_G_bc_cylinder_3d_mode`` for the rank-:math:`N` follow-up.
 Those production paths are observer-centred and therefore route
-through :func:`observer_angular_quadrature` (Q3 migration). The
-surface-centred :math:`\mathrm{Ki}_{1}/d` form is preserved for
-backward compatibility with the rank-1 Mark closure tests
-(``test_specular_*_cylinder_*`` in
-``tests/gates/derivations/test_peierls_specular_bc.py``); migrating those
-four sites to the new recipe was the L3 work that landed this
-section. The recipe **does not** unify the surface- and
-observer-centred forms (they have different kink math) and **does
-not** retire the legacy paths (they remain the rank-1 reference for
-the Mark closure tests).
+through :func:`observer_angular_quadrature` (Q3 migration). Migrating
+what were then four surface-centred sites to the new recipe was the L3
+work that landed this section. Three of them left it in #578, when the
+rank-1 and per-face responses became four times their escape
+probabilities (ERR-114, ERR-111, ERR-112): the corrected form shipped
+under #112 had never been wired into :func:`compute_G_bc`, which kept the
+surface-centred :math:`\mathrm{Ki}_{1}/d` form for regression until then.
+The recipe **does not** unify the surface- and observer-centred forms
+(they have different kink math); its one remaining consumer is the
+rank-:math:`N` cylinder branch of :func:`compute_G_bc_mode`.
 
 
 22.9 Quadrature architecture rollout — outcome and audit

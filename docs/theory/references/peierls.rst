@@ -1171,8 +1171,8 @@ with
 
 The kernel matrix is assembled by ``build_volume_kernel`` in
 :mod:`orpheus.derivations.continuous.peierls_nystrom.cylinder`. The per-sample optical
-depth :math:`\tau_{ikm}` is computed by ``_optical_depth_along_ray``,
-which walks annular boundary crossings as described next.
+depth :math:`\tau_{ikm}` is read on the ray from :math:`r_i` through the
+annular partition, as described next.
 
 Ray optical-depth walker
 ------------------------
@@ -1198,35 +1198,46 @@ is piecewise-constant in the integrand. The boundary crossings
 
 whose roots :math:`s = -r_i \cos\beta \pm
 \sqrt{r_i^{2}\cos^{2}\beta + r_k^{2} - r_i^{2}}` are the entry and
-exit points for the ray crossing annulus :math:`k`. The walker
-sorts all such roots in :math:`(0, \rho)`, evaluates
-:math:`r_{\rm mid}` on each segment, and accumulates
-:math:`\Sigma_{t,k}\cdot\Delta s`. The homogeneous case
-(:math:`N_{\rm reg} = 1`) short-circuits to
-:math:`\tau = \Sigma_t\,\rho` for speed.
+exit points for the ray crossing annulus :math:`k`. The code does not
+solve this quadratic per ray: the rays of one observer over the whole
+angular rule are one chord of the geometric kernel
+(:meth:`CurvilinearGeometry.rays_from
+<orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.rays_from>`),
+whose crossings are solved once in the orbit space and whose slot
+lengths carry no cancellation (:ref:`chart-and-chord-chord`). The depth
+is the sum over the slots between the observer and :math:`\rho` of
+:math:`\Sigma_{t,k}` times the slot length
+(:meth:`Chord.line_integral <orpheus.geometry.chord.Chord.line_integral>`
+over :meth:`Rays.lengths_to <orpheus.geometry.chord.Rays.lengths_to>`),
+the region of each slot read from the order of the crossings, never
+located at a midpoint. A homogeneous cylinder takes the same path: the
+single-region shortcut :math:`\tau = \Sigma_t\,\rho` was retired in #578,
+because on a hollow cylinder it counted the cavity as material
+(ERR-109). The module's ray layer as a whole is
+:ref:`peierls-ray-layer`.
 
-The walker is L0-verified against closed-form traversals in
-``tests/gates/derivations/test_peierls_cylinder_multi_region.py``:
-``TestOpticalDepthAlongRay`` covers the homogeneous short-circuit,
-a ray staying in the outer annulus, a ray crossing one inner
-boundary, a ray through the axis traversing three annular
-segments, and a tangent ray that grazes the inner annulus.
+The depths are L0-verified against closed-form traversals in
+``tests/gates/derivations/test_peierls_cylinder_multi_region.py`` (a
+homogeneous ray, a ray staying in the outer annulus, a ray crossing one
+inner boundary, a ray through the axis traversing three annular
+segments, and a tangent ray that grazes the inner annulus) and against
+an mpmath oracle of the line–circle roots on three-region bodies in
+``tests/gates/derivations/test_peierls_ray.py``.
 
 Relationship to the :math:`\tau^{\pm}` chord walker
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The module historically exposed a separate walker
-``optical_depths_pm`` that computed the same-side (:math:`\tau^{+}`)
-and through-centre (:math:`\tau^{-}`) branches of the chord form for
-reference / verification purposes. It was retired in favour of the
-unified :meth:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.optical_depth_along_ray`,
-which now carries the piecewise chord-integration for both branches.
-The chord form is not used by ``build_volume_kernel`` (which operates
-in polar coordinates) but is the primitive that would be needed for
-any future Schur-complemented white-BC boundary closure (see
-:ref:`peierls-cylinder-white-bc` below), where the relevant
-variable is the chord impact parameter :math:`y`, not the
-observer-centred :math:`\rho`. Its L0 tests live in
+The module once exposed a separate walker ``optical_depths_pm`` that
+computed the same-side (:math:`\tau^{+}`) and through-centre
+(:math:`\tau^{-}`) branches of the chord form for reference /
+verification purposes. It was retired in favour of a unified
+``optical_depth_along_ray``, itself retired in #578: both branches are
+now slots of one chord of the geometric kernel, the through-centre
+branch being the slots past the closest approach
+(:ref:`chart-and-chord-chord`). The chord in the impact parameter
+:math:`y`, the variable of a Schur-complemented white-BC boundary
+closure (see :ref:`peierls-cylinder-white-bc` below), is the same chord
+read from :math:`y` rather than from the observer. Its L0 tests live in
 ``tests/gates/derivations/test_peierls_cylinder_geometry.py``.
 
 .. _peierls-cylinder-row-sum:
@@ -1492,10 +1503,10 @@ power iteration is a further :math:`O(N^{3})` LU per iteration,
 typically converging in 20--30 iterations to
 :math:`10^{-10}` eigenvalue tolerance.
 
-Short-circuit: the homogeneous single-region branch of
-``_optical_depth_along_ray`` returns :math:`\Sigma_t \rho` without
-sorting crossings, making the bare-cylinder case
-:math:`\sim\!2\times` faster than the multi-region path.
+There is no homogeneous short-circuit: a bare cylinder's depths are
+read on the same chord as a multi-region one, at no measurable cost
+beside the mpmath kernels, since one chord serves an observer's whole
+angular rule (:ref:`peierls-ray-layer`).
 
 .. seealso::
 
