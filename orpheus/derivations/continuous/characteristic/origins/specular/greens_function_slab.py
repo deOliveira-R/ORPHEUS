@@ -2,8 +2,8 @@ r"""SymPy derivation — operator-level identities for the **slab**
 Variant α Green's function reference (1D Cartesian, symmetric specular
 BC, :math:`\alpha_{\rm left} = \alpha_{\rm right} = \alpha`).
 
-Phase-3A standalone implementation (per
-:file:`/.claude/plans/peierls-greens-cylinder-and-2bc.md`). Mirrors the
+Written as the Phase-3A derivations of the retired Variant α family (per
+:file:`/.claude/plans/archive/peierls-greens-cylinder-and-2bc.md`). Mirrors the
 sphere derivations in :mod:`.greens_function` and the cylinder
 derivations in :mod:`.greens_function_cylinder` (V_α1, V_α2, V_α3) using
 the slab phase-space :math:`(x, \mu)` and the **two-bounce-per-period**
@@ -38,13 +38,25 @@ reflection product is** :math:`\alpha^2`, NOT :math:`\alpha` (sphere
 and cylinder are 1-bounce-per-period; their per-period reflection
 product coincides with the BC reflectivity).
 
-The leading-:math:`\alpha` factor in the surface fixed-point closure
-:math:`\psi_{\rm surf} = \alpha\,B\,T` remains :math:`\alpha^1` (a
-single reflection at the FIRST surface arrival). The per-period
-reflection product :math:`\alpha^2` enters only inside the geometric
-resolvent :math:`T(\alpha^2, \tau_{\rm period})`. The retired
-``apply_variant_alpha_closure`` (``variant_alpha_core``) carried this
-closure numerically; :mod:`~orpheus.derivations.continuous.characteristic.closure` is its successor.
+The surface fixed-point closure is the two-wall cycle of
+:mod:`.greens_function_slab_asymmetric` (the rank-2 resolvent); the
+per-period reflection product :math:`\alpha^2` enters it as the cycle's
+determinant :math:`1 - \alpha^2 e^{-2\tau}`, with :math:`\tau = \Sigma_t
+L/|\mu|` one transit. For equal albedos AND a source symmetric about the
+slab's mid-plane (the two one-transit outflows equal) the determinant
+factors and the closure reduces to
+
+.. math::
+
+   \psi_{\rm surf} = \frac{\alpha\,B}{1 - \alpha\,e^{-\tau}},
+
+with :math:`B` the outflow of ONE transit. Writing it instead as
+:math:`\alpha\,B_{\rm period}/(1 - \alpha^2 e^{-2\tau})`, the per-period
+outflow under the per-period product, was ERR-035's heuristic, exact only
+at :math:`\alpha \in \{0, 1\}`. The retired ``apply_variant_alpha_closure``
+(``variant_alpha_core``) carried the closure numerically;
+:mod:`~orpheus.derivations.continuous.characteristic.closure` is its
+successor, which solves each line's cycle for any source.
 
 **First-leg backward chord**:
 
@@ -125,7 +137,7 @@ References
   *Transport Theory & Statistical Physics*, vol. 14.
 - Hébert, A. (2009). *Applied Reactor Physics* §3.8.5 — slab :math:`E_n`
   forms and rank-1 white-BC closure.
-- :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 3A
+- :file:`.claude/plans/archive/peierls-greens-cylinder-and-2bc.md` — Phase 3A
   slab Variant α plan.
 - :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function`
   — sphere V_α1/V_α2/V_α3 reference (this module mirrors structure).
@@ -404,22 +416,30 @@ def derive_alpha_zero_kernel_reduction_slab() -> dict:
     r"""V_α3_slab — at :math:`\alpha = 0`, the bounce-sum closure
     contribution vanishes, recovering the bare vacuum slab kernel.
 
-    The Variant α surface fixed-point closure for slab is
+    The surface fixed-point closure of the symmetric slab (both walls
+    of albedo :math:`\alpha`, and a source symmetric about the
+    mid-plane, so the two one-transit outflows are equal) is the rank-2
+    closure at :math:`\alpha_L = \alpha_R = \alpha`,
 
     .. math::
 
        \psi_{\rm surf} \;=\;
             \frac{\alpha\,B(x, \mu)}
-                 {1 - \alpha^2\,e^{-\Sigma_t L_{\rm period}}}.
+                 {1 - \alpha\,e^{-\Sigma_t L_{\rm transit}}},
+
+    with :math:`B` the source integrated over ONE transit of the slab
+    and :math:`L_{\rm transit} = L/\lvert\mu\rvert`: each wall hit
+    costs one reflection and each transit one attenuation. (The
+    per-period form :math:`\alpha B_{\rm period}/(1 - \alpha^2
+    e^{-\Sigma_t L_{\rm period}})` that this derivation once wrote is
+    ERR-035's refuted heuristic; it coincides with the correct closure
+    only at :math:`\alpha \in \{0, 1\}`.)
 
     The leading factor :math:`\alpha` makes the entire surface-flux
-    contribution proportional to :math:`\alpha`, so :math:`\psi_{\rm
-    surf} \to 0` as :math:`\alpha \to 0`. The :math:`\alpha^2` inside
-    the geometric resolvent (the **2-bounce-per-period reflection
-    product**) makes the closure scale as :math:`\alpha / (1 - 0) =
-    \alpha` near :math:`\alpha = 0`, so the limit is unaffected by the
-    :math:`\alpha^2` denominator term — both the leading :math:`\alpha`
-    AND the :math:`\alpha^2` denominator vanish smoothly.
+    contribution proportional to :math:`\alpha`, and the resolvent
+    :math:`1/(1 - \alpha e^{-\tau})` is analytic at :math:`\alpha = 0`
+    with value 1, so :math:`\psi_{\rm surf} \to 0` as
+    :math:`\alpha \to 0`.
 
     The total angular flux reduces to just the first-leg integral
 
@@ -429,29 +449,25 @@ def derive_alpha_zero_kernel_reduction_slab() -> dict:
 
     which is the bare vacuum slab kernel.
 
-    Operator interpretation: the slab Variant α implementation
+    Operator interpretation: the slab closure
     collapses to vacuum BC at :math:`\alpha = 0` with no special-case
     branch needed; the BC absorption is fully encoded in the surface
-    fixed-point closure. **The 2-bounce-per-period structure does NOT
-    introduce any new behaviour at the** :math:`\alpha = 0` **limit**
-    — the leading :math:`\alpha` factor still drives the surface
-    contribution to zero.
+    fixed-point closure.
 
     Returns dict with the SymPy expressions and PASS flag.
     """
-    alpha, Sigma_t, L_period, B = sp.symbols(
-        "alpha Sigma_t L_period B", positive=True, real=True,
+    alpha, Sigma_t, L_transit, B = sp.symbols(
+        "alpha Sigma_t L_transit B", positive=True, real=True,
     )
 
-    # Surface fixed-point closure with α as parameter and α² in the
-    # geometric resolvent (the slab 2-bounces-per-period structure).
+    # The symmetric slab's surface fixed-point closure: one reflection per
+    # wall hit, one attenuation per transit (ERR-035's correct form).
     psi_surf_closure = (
-        alpha * B / (1 - alpha ** 2 * sp.exp(-Sigma_t * L_period))
+        alpha * B / (1 - alpha * sp.exp(-Sigma_t * L_transit))
     )
 
-    # Take α → 0: leading α drives everything to 0; the α² in the
-    # denominator only affects higher-order corrections and is
-    # irrelevant for the limit.
+    # Take α → 0: the leading α drives everything to 0; the resolvent is
+    # analytic at α = 0.
     psi_surf_at_alpha_zero = sp.simplify(psi_surf_closure.subs(alpha, 0))
     pass_v_alpha3 = psi_surf_at_alpha_zero == 0
 

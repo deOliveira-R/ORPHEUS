@@ -866,8 +866,8 @@ _CLOSED = [
 
 
 @pytest.mark.l0
-@pytest.mark.verifies("characteristic-closure", "peierls-greens-cylinder-T", "peierls-greens-annulus-through-rank2",
-                      "peierls-greens-hollow-sph-through-rank2")
+@pytest.mark.verifies("characteristic-closure", "peierls-greens-cylinder-T",
+                      "peierls-greens-annulus-through-rank2", "peierls-greens-hollow-sph-through-rank2")
 @pytest.mark.catches("ERR-035")
 @pytest.mark.parametrize(("body", "point", "direction", "period_by_hand", "amplitudes"), [r[1:] for r in _CLOSED],
                          ids=[r[0] for r in _CLOSED])
@@ -919,6 +919,59 @@ def test_the_closed_angular_flux_is_the_unfolded_backward_path(body, point, dire
         for i, tm in enumerate(ts):
             _close(float(psi[i]), _unfolded_psi(case, period_by_hand, amplitudes, f, _SIGMA[0], k0, tm), _T1_TOL,
                    f"psi(t_{i}) on traversal {k0}")
+
+
+#: ``peierls-greens-slab-T``'s hypotheses: a homogeneous slab [0, L] (Sigma_t 0.7, L = 2.3) with ONE albedo on both
+#: faces and a source symmetric about its mid-plane.
+_SLAB_T_L, _SLAB_T_SIGMA, _SLAB_T_ALBEDOS = 2.3, 0.7, (0.3, 0.5, 0.9)
+#: q(x) = 1 + 0.8 (x - L/2)^2, as monomial coefficients in x (degree 2: inside the cubic panels' exactness family).
+_SLAB_T_Q = [[1.0 + 0.8 * (_SLAB_T_L / 2) ** 2, -0.8 * _SLAB_T_L, 0.8]]
+
+
+def _slab_t_closed_form(albedo: float, mu: float, q) -> float:
+    r"""``peierls-greens-slab-T``: psi_surf = alpha B / (1 - alpha e^{-tau}), tau = Sigma_t L / mu, B the one-transit
+    source integral attenuated to the exit, by mpmath quadrature along the transit written here (no reference
+    object, no cycle): x(s) = mu s, B = int_0^{L/mu} q(x(s)) e^{-Sigma_t (L/mu - s)} ds."""
+    with mp.workdps(40):
+        length = mp.mpf(_SLAB_T_L) / mp.mpf(mu)
+        poly = lambda x: mp.polyval([mp.mpf(c) for c in reversed(q[0])], x)                 # noqa: E731
+        b = mp.quad(lambda s: poly(mp.mpf(mu) * s) * mp.exp(-mp.mpf(_SLAB_T_SIGMA) * (length - s)), [0, length])
+        tau = mp.mpf(_SLAB_T_SIGMA) * length
+        return float(mp.mpf(albedo) * b / (1 - mp.mpf(albedo) * mp.exp(-tau)))
+
+
+@pytest.mark.l0
+@pytest.mark.verifies("peierls-greens-slab-T")
+@pytest.mark.parametrize("albedo", _SLAB_T_ALBEDOS)
+@pytest.mark.rests_on(_HERE + "test_the_outflow_of_a_per_region_polynomial_is_its_line_integral_attenuated_to_the_exit",
+                      _CLOSURE + "test_the_inflow_is_the_unfolded_wall_by_wall_sum")
+def test_a_symmetric_slabs_surface_inflow_is_the_one_transit_closed_form(albedo: float) -> None:
+    r"""[``peierls-greens-slab-T``] On a homogeneous slab with one albedo alpha on both faces and a source symmetric
+    about its mid-plane, the inflow at each traversal's entry is alpha B / (1 - alpha e^{-tau}), B the one-transit
+    outflow, to 1e-13 relative, at alpha in {0.3, 0.5, 0.9}.
+
+    The closed form holds only under these hypotheses (qa, step (f) F1: the
+    difference from the honest cycle is E alpha^2 (B_LR - B_RL) / ((E alpha - 1)
+    (E alpha + 1)), zero exactly when the two directed transits' outflows are
+    equal), so the row poses them; the honest cycle for any source is
+    ``test_the_closed_angular_flux_is_the_unfolded_backward_path``. The right side
+    is written here (mpmath along the transit), never the reference's cycle
+    (X4). First reds (``[M]`` 2026-10-10,
+    ``scratch/characteristic_architecture/p1_step_f/ta/``): (a) the source made
+    non-symmetric (``_SLAB_T_Q`` with a linear term, arm ``slab-t-asymmetric``):
+    red, the hypothesis is load-bearing; (b) ERR-035's heuristic
+    alpha B_period / (1 - alpha^2 e^{-2 tau}) put in place of the closed form
+    (arm ``slab-t-heuristic``): red at every intermediate alpha; and the
+    production ERR-035 arm (``err035``) reds it too.
+    """
+    mu = 0.6
+    geometry = StructuredGeometry.slab((0.0, _SLAB_T_L), (0,), left=_spec(albedo), right=_spec(albedo))
+    case = _Case("slab", *_slab_dir(mu), sigma_t=[_SLAB_T_SIGMA], geometry=geometry)
+    rule = case.rule
+    inflow = case.period.inflow(rule.optical_depth, rule.outflow()) @ case.coefficients(_SLAB_T_Q)
+    want = _slab_t_closed_form(albedo, mu, _SLAB_T_Q)
+    for k in range(2):
+        assert abs(float(inflow[k]) / want - 1.0) < _T1_TOL, (k, float(inflow[k]), want)
 
 
 @pytest.mark.foundation

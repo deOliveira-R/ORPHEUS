@@ -59,9 +59,9 @@ Key Facts
     iterations.
 - **Cross-references**: :ref:`theory-fn-method` is the structurally-
   independent collocation cross-check; :ref:`theory-galerkin-spectral`
-  is the matrix-Galerkin cross-check; :ref:`theory-trajectory-resolvent`
-  realises the same physics on the same Sood family via bouncing
-  characteristics. :ref:`theory-sood-registry` is the truth-value
+  is the matrix-Galerkin cross-check; :ref:`theory-characteristic-reference`
+  realises the same physics on the same Sood family by integrating along
+  the body's lines. :ref:`theory-sood-registry` is the truth-value
   catalogue.
 
 
@@ -2124,5 +2124,5 @@ Internal references:
   the Wiener-Hopf X-function below the trusted-library line.
 * :doc:`/theory/references/characteristic` — the characteristic reference on the
   same Sood ``Ua-1-0-CY`` truth value (cylinder cross-check);
-  :doc:`/theory/references/trajectory_resolvent` — the Variant α family it replaced.
+  :doc:`/theory/references/characteristic_origins` — its algebra of record, and the history of the Variant α family it replaced.
 * :doc:`/theory/references/sood_registry` — Sood + Atalay case catalogue.

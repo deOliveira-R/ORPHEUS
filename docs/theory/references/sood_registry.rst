@@ -65,8 +65,11 @@ Key Facts
   solvers for Atalay's problems (:ref:`theory-singular-eigenfunction`),
   which check against Atalay's printed tables and do not read the
   catalogue (:ref:`sood-registry-atalay-cases`);
-  :ref:`theory-trajectory-resolvent` cross-checks Variant α against
-  ``Ua-1-0-CY`` / ``Ua-1-0-SP``. All consumers read cross sections
+  :ref:`theory-characteristic-reference` reads ``Ua-1-0-CY``
+  (``tests/gates/derivations/test_characteristic_independent_references.py``)
+  and the bare-critical sphere cases, ``Ua-1-0-SP`` among them
+  (``tests/gates/cross_method/test_eigenvalue.py``), as the Variant α
+  family did until 2026-10-10. All consumers read cross sections
   directly off the shared :class:`Mixture` below the trusted-library
   line.
 
@@ -1150,7 +1153,7 @@ Internal references:
   catalogue + cylinder Sood truth values.
 * :doc:`/theory/references/characteristic` — the characteristic reference's
   cross-checks on shared Sood truth values (Variant α's,
-  :doc:`/theory/references/trajectory_resolvent`, until 2026-10-10).
+  :ref:`characteristic-origins-history-family`, until 2026-10-10).
 
 .. _sood-registry-history:
 

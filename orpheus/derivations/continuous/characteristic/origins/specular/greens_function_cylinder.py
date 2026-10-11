@@ -1,8 +1,8 @@
 r"""SymPy derivation — operator-level identities for the **cylinder**
 Variant α Green's function reference (1-surface compact, specular BC).
 
-Phase-1 standalone implementation (per
-:file:`/.claude/plans/peierls-greens-cylinder-and-2bc.md`). Mirrors the
+Written as the Phase-1 derivations of the retired Variant α family (per
+:file:`/.claude/plans/archive/peierls-greens-cylinder-and-2bc.md`). Mirrors the
 sphere derivations in :mod:`.greens_function` (V_α1, V_α2, V_α3) using
 the cylinder phase-space :math:`(r, \mu_{\rm axial}, \varphi_{\rm az})`
 and bouncing-characteristic geometry.
@@ -93,7 +93,7 @@ References
   *Transport Theory & Statistical Physics*, vol. 14.
 - Knyazev, V. & Selivanov, E. (2014). Bickley-Naylor :math:`\mathrm{Ki}_n`
   shifted-Legendre identities for cylinder transport.
-- :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 1
+- :file:`.claude/plans/archive/peierls-greens-cylinder-and-2bc.md` — Phase 1
   cylinder Variant α plan.
 - :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function`
   — sphere V_α1/V_α2/V_α3 reference (this module mirrors structure).
@@ -379,7 +379,7 @@ def derive_alpha_zero_kernel_reduction_cylinder() -> dict:
     a single-pass evaluation of the cylinder Bickley-Naylor kernel for
     a non-reflecting outer surface.
 
-    Operator interpretation: the cylinder Variant α implementation
+    Operator interpretation: the cylinder closure
     collapses to vacuum BC at :math:`\alpha = 0` with no special-case
     branch needed; the BC absorption is fully encoded in the surface
     fixed-point closure.

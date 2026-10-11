@@ -1,5 +1,6 @@
-"""Specular boundary-condition derivations for the Peierls Variant α
-Green's-function family.
+"""Specular boundary-condition derivations of the characteristic reference's
+algebra of record (:ref:`theory-characteristic-origins`), first written for the
+retired Peierls Variant α Green's-function family.
 
 Sub-package shell for the SymPy math-origin functions that produce the
 operator-level identities (V_α1..V_α3) for the angle-resolved Green's
@@ -37,7 +38,8 @@ Modules
   phase-space :math:`(r, \\mu_{\\rm axial}, \\varphi_{\\rm az})` and
   axial-cosine corrected chord algebra (Issue #129 angle-resolved
   discipline). Last two-surface orbit-space class instance in the
-  Variant α plan (see Sphinx §\\ ``orbit-space-m-g-classification``).
+  Variant α plan (see Sphinx §\\ ``orbit-space-m-g-classification``, and
+  :ref:`theory-characteristic-origins` for the derivations' page).
 """
 
 from .greens_function import (

@@ -24,8 +24,9 @@ harmonic polynomials. It is the historical alternative to the
 Within the ORPHEUS verification stack, P_N is the **natural
 structurally-independent cross-check** for multi-region sphere
 results from the characteristic reference
-(:ref:`theory-characteristic-reference`, which replaced
-:ref:`theory-trajectory-resolvent` on 2026-10-10). ORPHEUS already
+(:ref:`theory-characteristic-reference`, which replaced the
+trajectory-resolvent family, :ref:`characteristic-origins-history`, on
+2026-10-10). ORPHEUS already
 cross-checks against Garcia 2021 multi-region sphere truth values
 (``test_garcias_case_1_per_point`` in
 ``tests/gates/derivations/test_characteristic_reading.py``);
@@ -67,6 +68,7 @@ Cross-references
 ================
 
 - :ref:`reference-solvers-three-meanings` — taxonomy positioning.
-- :ref:`theory-trajectory-resolvent` — current cross-check target.
+- :ref:`theory-characteristic-reference` — current cross-check target
+  (the trajectory-resolvent family until 2026-10-10).
 - ``orpheus.derivations.continuous.pn_method`` — Python package
   (currently empty; implementation pending).

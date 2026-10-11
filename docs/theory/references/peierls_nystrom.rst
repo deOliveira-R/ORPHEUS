@@ -43,8 +43,10 @@ For the **method-agnostic foundations** (integral form of the
 transport equation, geometry reductions, BC parametrisation,
 common verification chain), see :ref:`theory-peierls`. That page is
 the index for the two ORPHEUS Peierls implementation families and
-contains the comparison table that decides when to use this Nyström
-path vs the Green's function path at :ref:`theory-trajectory-resolvent`.
+contains the comparison table of this Nyström path with the Green's
+function path, the Variant α family retired on 2026-10-10
+(:ref:`characteristic-origins-history-family`) and succeeded by the
+characteristic reference (:ref:`theory-characteristic-reference`).
 
 For "what references do we ship for problem X?" see
 :ref:`theory-peierls-capabilities` (the capability matrix is the
@@ -1288,7 +1290,7 @@ is written as one product at a single argument :math:`r`.
    re-introduce the sink index.
 
 **Independent structural witness.** The sibling Variant-α
-:doc:`trajectory-resolvent / Green's-function </theory/references/trajectory_resolvent>`
+:ref:`trajectory-resolvent / Green's-function <characteristic-origins-history-family>`
 solver family (deleted on 2026-10-10) source-indexed χ correctly: its
 per-node spectrum :math:`\chi` multiplied the *local* fission rate at
 each node before the trajectory kernel was applied. Its successor, the
@@ -5618,9 +5620,10 @@ shipped a parallel research-grade reference that uses the
 Sanchez Eq. (A1) split with BC absorbed via Eq. (A5), bounce sum
 closed in :math:`T(\mu_{\rm surf}) = 1/(1 - e^{-\Sigt{}\,L_p})` —
 giving exact :math:`k_{\rm eff} = \kinf` for the closed homogeneous
-sphere. See :doc:`/theory/references/trajectory_resolvent` for the architecture, V_α1 / V_α2
-/ V_α3 algebraic identities, and the cross-verification matrix
-showing Phase 4 N=3 differs from Variant α by 0.12 % on a fuel-A-like
+sphere. See :ref:`characteristic-origins-sphere` for the V_α1 / V_α2
+/ V_α3 algebraic identities, and :ref:`characteristic-origins-history-family`
+for the architecture and the comparison showing Phase 4 N=3 differs from
+:math:`k_\infty`, which Variant α reproduced, by 0.12 % on a fuel-A-like
 sphere. **Variant α was a parallel reference, not a production
 replacement** for ``boundary="specular_multibounce"`` (it was deleted on
 2026-10-10, and the characteristic reference,

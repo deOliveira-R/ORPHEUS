@@ -13,9 +13,9 @@ other cylinder witness, ``test_peierls_specular_bc.py::test_specular_multibounce
 is withdrawn under #506). The bodies are unchanged; at ``196f5215`` none of the
 three carried a withdrawal mark, and none carries one here.
 
-The ``verifies`` labels (``peierls-greens-cylinder-T``, ``peierls-greens-slab-T``)
-live on ``docs/theory/references/trajectory_resolvent.rst``, which step (f)
-rewrites: the archivist keeps or re-homes them.
+The ``verifies`` labels (``peierls-greens-V-alpha-2``, ``peierls-greens-slab-V-alpha-2``,
+``peierls-greens-cylinder-V-alpha-2``: each row's T_00 identity) live on ``docs/theory/references/characteristic_origins.rst`` (its cylinder and
+slab sections), the page step (f) made of the old trajectory-resolvent page.
 """
 from __future__ import annotations
 
@@ -38,6 +38,7 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     [0.5, 1.0, 2.5, 5.0, 10.0],
     ids=["tauR_0.5", "tauR_1.0", "tauR_2.5", "tauR_5.0", "tauR_10.0"],
 )
+@pytest.mark.verifies("peierls-greens-V-alpha-2")
 def test_v_alpha2_sphere_T00_equals_Pss_via_production_primitives(tau_R):
     r"""V_α2 — **structurally-independent L1 cross-check**:
     :math:`T_{00}^{\rm sphere} = P_{ss}^{\rm sphere}` at the
@@ -84,7 +85,7 @@ def test_v_alpha2_sphere_T00_equals_Pss_via_production_primitives(tau_R):
     [0.5, 1.0, 2.5, 5.0, 10.0],
     ids=["tauL_0.5", "tauL_1.0", "tauL_2.5", "tauL_5.0", "tauL_10.0"],
 )
-@pytest.mark.verifies("peierls-greens-slab-T")
+@pytest.mark.verifies("peierls-greens-slab-V-alpha-2")
 def test_v_alpha2_slab_T00_equals_2E3_via_production_primitive(tau_L):
     r"""V_α2_slab — **structurally-independent L1 cross-check**:
     :math:`T_{\rm slab}[0, n_modes] = 2 E_3(\Sigma_t L)` via the
@@ -146,7 +147,7 @@ def test_v_alpha2_slab_T00_equals_2E3_via_production_primitive(tau_L):
     [0.5, 1.0, 2.5, 5.0, 10.0],
     ids=["tauR_0.5", "tauR_1.0", "tauR_2.5", "tauR_5.0", "tauR_10.0"],
 )
-@pytest.mark.verifies("peierls-greens-cylinder-T")
+@pytest.mark.verifies("peierls-greens-cylinder-V-alpha-2")
 def test_v_alpha2_cyl_T00_equals_Pss_via_production_primitives(tau_R):
     r"""V_α2_cyl — **structurally-independent L1 cross-check**:
     :math:`T_{00}^{\rm cyl} = P_{ss}^{\rm cyl}` at the production-

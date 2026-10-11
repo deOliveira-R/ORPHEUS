@@ -2604,8 +2604,9 @@ What the kernel does not do, and what still computes the same thing
 
 **One consumer, a reference.** The characteristic reference
 (:ref:`theory-characteristic-reference`) is the only module outside the
-three that calls the kernel (Key facts); it is built to replace the
-trajectory-resolvent family and is consumed by no production code yet.
+three that calls the kernel (Key facts); it replaced the
+trajectory-resolvent family on 2026-10-10 and is consumed by no
+production code yet.
 The reference family's characteristic oracles, the
 collision-probability chords, the method of characteristics and Monte
 Carlo each compute chords, crossings, regions and line measures their own

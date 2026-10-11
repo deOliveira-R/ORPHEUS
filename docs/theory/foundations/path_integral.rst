@@ -1166,8 +1166,8 @@ this corpus stand statements that *sound* like its negation — the
 reference-solver pages assert, of the Peierls–Nyström and
 trajectory-resolvent architectures, that "the two architectures are
 **not** different discretisations of the same operator"
-(:doc:`/theory/references/peierls`,
-:doc:`/theory/references/trajectory_resolvent`), and the
+(:doc:`/theory/references/peierls`; the trajectory-resolvent family,
+retired on 2026-10-10, :ref:`characteristic-origins-history-family`), and the
 :ref:`three-meanings taxonomy <reference-solvers-three-meanings>` insists
 that three different objects all called "the Green's function" must
 never be conflated. **Those statements are exact, and this page changes

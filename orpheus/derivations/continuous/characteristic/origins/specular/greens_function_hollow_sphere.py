@@ -5,7 +5,7 @@ surface :math:`r = R_{\rm in}` and :math:`\alpha_{\rm out} \in [0, 1]`
 on the outer surface :math:`r = R_{\rm out}`).
 
 Phase-3C-1 extension of the slab-asymmetric Variant α (per
-:file:`/.claude/plans/peierls-greens-cylinder-and-2bc.md`). Mirrors the
+:file:`/.claude/plans/archive/peierls-greens-cylinder-and-2bc.md`). Mirrors the
 Phase-3B asymmetric-slab proofs in
 :mod:`.greens_function_slab_asymmetric` with the **rank-2 boundary-to-
 boundary scattering resolvent** specialised to a CURVILINEAR 2-surface
@@ -148,7 +148,7 @@ References
 ----------
 
 - Sanchez, R. (1986). *Transp. Theor. Stat. Phys.* 14.
-- :file:`/.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 3C-1
+- :file:`/.claude/plans/archive/peierls-greens-cylinder-and-2bc.md` — Phase 3C-1
   hollow sphere plan (interpretation (A) for the inner-surface BC).
 - :mod:`.greens_function_slab_asymmetric` — Phase-3B asymmetric slab
   V_α derivations (the slab template lifted here to the curvilinear

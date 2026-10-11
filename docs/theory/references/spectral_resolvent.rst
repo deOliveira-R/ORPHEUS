@@ -27,7 +27,7 @@ This is **Meaning (β)** in the
 :ref:`reference-solvers-three-meanings` taxonomy: it constructs the
 **same scalar Green's kernel** as the characteristic reference
 (:ref:`theory-characteristic-reference`; Variant α,
-:ref:`theory-trajectory-resolvent`, until 2026-10-10), but via a
+:ref:`characteristic-origins-history-family`, until 2026-10-10), but via a
 **structurally independent integrand**:
 
 - The characteristic reference (``characteristic/``): integrates
@@ -99,7 +99,7 @@ Cross-references
 ================
 
 - :ref:`reference-solvers-three-meanings` — taxonomy positioning.
-- :ref:`theory-trajectory-resolvent` — sister method (α).
+- :ref:`theory-characteristic-reference` — sister method (α).
 - :ref:`theory-singular-eigenfunction` — independent anchor (γ).
 - ``orpheus.derivations.continuous.spectral_resolvent`` — Python
   package (currently empty; implementation pending).

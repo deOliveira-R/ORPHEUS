@@ -1487,7 +1487,7 @@ Three continuous reference generators take a geometry directly:
 ``MomentSpace`` (F\ :sub:`N`, :doc:`/theory/references/fn_method`)
 and ``BasisSpace`` (Galerkin spectral, :doc:`/theory/references/galerkin_spectral`).
 A fourth, ``Billiard`` (the trajectory resolvent,
-:doc:`/theory/references/trajectory_resolvent`), read the same
+:ref:`characteristic-origins-history-family`), read the same
 classification until P1 step (e2) of the characteristic reference
 campaign (2026-10-10) deleted it with its family; its successor, the
 characteristic reference (:doc:`/theory/references/characteristic`),

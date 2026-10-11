@@ -15,8 +15,8 @@ Readings, claims and certificates: the reference-solution architecture
    vocabulary and operator-form contract (reference_solutions.rst), the
    doctrine and the ladder (principles.rst), the API reference
    (docs/api/reference.rst), the trajectory resolvent's reading
-   (references/trajectory_resolvent.rst,
-   trajectory-resolvent-reference-reading). Plan of record:
+   (references/characteristic_origins.rst,
+   characteristic-origins-history-reading). Plan of record:
    .claude/plans/reference_cache.md; specification of the gates:
    .claude/plans/reference_p2_spec.md. Written at P2's close,
    2026-10-03, against branch feature/reference-uncertified-reading at
@@ -80,11 +80,13 @@ Key facts
   tolerance (recorded under an agreement verdict, required under an order
   verdict).
 * **Honest scope.** P2 ships exactly one certified reference family, the
-  exact infinite medium; the trajectory-resolvent sphere and cylinder are
-  reference solutions with no certificate, so every row that reads them is
-  an explicit uncertified comparison or a strict xfail on the verbs' own
-  refusal, and none is a verification claim. Deriving each family's bound
-  is phase P4's work (#566 for the trajectory resolvent). Every other
+  exact infinite medium; the trajectory-resolvent sphere and cylinder
+  were reference solutions with no certificate, so every row that read
+  them was an explicit uncertified comparison or a strict xfail on the
+  verbs' own refusal, and none was a verification claim. Since P1 step (e2)
+  of #405 (2026-10-10) the family is deleted and its successor, the
+  characteristic reference, is uncertified in the same way. Deriving each
+  family's bound is phase P4's work (#566). Every other
   reference in the tree is still a
   :class:`~orpheus.derivations.ContinuousReferenceSolution` (`[M]` 19
   construction sites under ``orpheus/``, 2026-10-03, against 2 of
@@ -1205,12 +1207,13 @@ so it is blind to a group reversal, which the 2-group rows catch.
 The trajectory resolvent, uncertified
 -------------------------------------
 
-The multi-region trajectory-resolvent sphere and cylinder are reference
-solutions with no certificate since step 7b.2.2 (``311c6148``), every
-reading ``Uncertified``, read as the transport integral of their emission
+The multi-region trajectory-resolvent sphere and cylinder were reference
+solutions with no certificate from step 7b.2.2 (``311c6148``) until the
+family's deletion in P1 step (e2) of #405 (2026-10-10), every reading
+``Uncertified``, read as the transport integral of their emission
 density. Their reading, its one transport, its splits, its measured
-quadrature errors and its costs are documented with the method:
-:ref:`trajectory-resolvent-reference-reading`.
+quadrature errors and its costs are recorded with the family's history:
+:ref:`characteristic-origins-history-reading`.
 
 The migration of step 7b.2.3 (``a21b6f8e``) re-posed every row that called
 the retired test-side helper ``certify_agreement``:
@@ -1337,13 +1340,16 @@ Declared limits and their issues
      - The limit
      - Phase
    * - #566
-     - the trajectory resolvent's analytic per-region emission density and a
-       derived solver bound; until then the family has no certificate
+     - a derived error bound for the characteristic reference (the
+       trajectory resolvent's, until its deletion on 2026-10-10); until
+       then its readings are uncertified
      - P4
    * - #516
-     - the cylinder trajectory-resolvent reference is not converged in
-       :math:`n_r` at the cross-check's resolution; its angular rules meet
-       the interfaces' tangency kinks
+     - the cylinder trajectory-resolvent reference was not converged in
+       :math:`n_r` at the cross-check's resolution, its angular rules
+       meeting the interfaces' tangency kinks; the family was deleted on
+       2026-10-10, and the characteristic reference's line rule is graded
+       toward every tangency
      - P4
    * - #563
      - the governing equation belongs to the specification

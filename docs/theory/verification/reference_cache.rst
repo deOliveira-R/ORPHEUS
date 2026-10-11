@@ -19,8 +19,8 @@ The reference cache: a traced memo keyed on what ran
    (readings_and_certificates.rst, verification-reference-architecture);
    the content encoder's canonical forms
    (structured-geometry-content-identity); the trajectory resolvent's
-   reading (references/trajectory_resolvent.rst,
-   trajectory-resolvent-reference-reading); the slab routing's physics
+   reading (references/characteristic_origins.rst,
+   characteristic-origins-history-reading); the slab routing's physics
    (references/peierls_nystrom.rst, theory-peierls-slab-polar-g5-routing).
    Plan of record: .claude/plans/reference_cache.md, from "P3 opened
    (2026-10-04)" to its end, and discussion 2; specification of the
@@ -1168,7 +1168,7 @@ not on a module-level reading function beside it, which would be a
 second spelling of ``evaluate`` free to drift from it; the characteristic
 reading keeps that choice. Within one process the derivation held its
 solve in a ``cached_property``; across processes, the reading and the
-solve were memo entries (:ref:`trajectory-resolvent-reference-reading`).
+solve were memo entries (:ref:`characteristic-origins-history-reading`).
 
 **The characteristic reading and its solve.**
 :class:`~orpheus.derivations.continuous.characteristic.reference.CharacteristicDerivation`
@@ -1530,9 +1530,11 @@ Declared limits
 Each limit is a phase of #405 in the plan of record
 (``.claude/plans/reference_cache.md``):
 
-* **Three clients only.** No reference family besides the multi-region
-  trajectory resolvent is memoised; the families migrate in phase P4, and
-  a certification run becomes a client there. No gate yet refuses a
+* **Two clients only.** No reference family besides the characteristic
+  reference is memoised: its reading and, since #592 (``23e7711e``), its
+  solve as a child entry (the multi-region trajectory resolvent was the
+  client until its deletion on 2026-10-10); the other families migrate in
+  phase P4, and a certification run becomes a client there. No gate yet refuses a
   traced memo on a withdrawn generator (the generating process refuses it,
   since its declared environment holds no ``ORPHEUS_*`` switch).
 * **No cache on continuous integration.** The cache lives under

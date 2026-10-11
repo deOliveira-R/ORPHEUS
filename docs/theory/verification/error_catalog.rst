@@ -2681,7 +2681,11 @@ older entries classify against.
    derivation is documented in the Phase-3B closeout memo: starting
    from ``ψ_L^+ = α_L · ψ(0, -μ̂)`` and tracing the trajectory
    explicitly through both walls yields the correct rank-2 closure,
-   which under symmetric BC reduces to ``α · B / (1 - α · e^{-τ})``.
+   which under symmetric BC reduces to ``α · B / (1 - α · e^{-τ})``
+   when the two one-transit outflows are equal (B_LR = B_RL, a source
+   symmetric about the mid-plane); otherwise the symmetric slab's inflow
+   is the general rank-2 cycle (``peierls-greens-slab-asym-closure``,
+   :doc:`/theory/references/characteristic_origins`).
 
    **Impact:** For 0 < α < 1 (partial-reflection BCs that are common
    in real reactor problems), Phase-3A k_eff is off by ~1.3e-4 relative
@@ -8718,7 +8722,7 @@ older entries classify against.
    1.16994, 1.16987, 1.16944, 1.16966.  At the resolutions the
    cross-checks used, the cylinder's eigenvalue moved from 1.20693 to
    1.23104 (the discrete-ordinates solve converges to 1.23175) and the
-   sphere's from 1.35808 to 1.38374 (discrete ordinates: 1.38106).  Against
+   sphere's from 1.35808 to 1.38374 (discrete ordinates: 1.38108, the recorded 1.381079639…).  Against
    the published Garcia 2021 Table 5 fixed-source sphere the largest
    interior error fell from 6.9e-3 to 1.05e-3.
 
@@ -8807,7 +8811,7 @@ older entries classify against.
    #516).  The phase C sphere k and shape rows are explicit
    ``compare_uncertified`` comparisons at their 2026-09-26 tolerances, the
    shape row reading the reference's natural extension
-   (:ref:`trajectory-resolvent-reference-reading`) instead of the nodal
+   (:ref:`characteristic-origins-history-reading`) instead of the nodal
    spline; the cylinder rows are strict xfails on the verification verbs'
    refusal (``ReferenceNotValid``).  None is a verification claim.  The
    lesson's ladder is re-scoped by the user's ruling of 2026-10-03 that no
@@ -9092,7 +9096,7 @@ older entries classify against.
    sphere radius 2, 80 equal cells, Gauss–Legendre :math:`S_{16}`, the
    same law on every face; before = the tree at ``5a5ffa7b`` in a
    detached worktree, after = the working tree; the reference is the
-   trajectory resolvent (:doc:`/theory/references/trajectory_resolvent`,
+   trajectory resolvent (:ref:`characteristic-origins-history-family`,
    ``solve_greens_function_slab`` / ``solve_greens_function_sphere`` at
    their defaults; the family was retired at P1 step (e2) of the
    characteristic reference campaign, 2026-10-10, and the characteristic

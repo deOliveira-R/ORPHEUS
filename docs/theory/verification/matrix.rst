@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **17190**
+Total tests collected: **17193**
 
 V&V level distribution
 ----------------------
@@ -18,7 +18,7 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1775, 10.3%
+   L0, 1778, 10.3%
    L1, 2648, 15.4%
    L2, 85, 0.5%
    L3, 0, 0.0%
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 17078
+   explicit, 17081
    class-name, 46
    func-name, 0
    case, 33
@@ -187,7 +187,7 @@ Module × level grid
    derivations/test_characteristic_reading, 0, 135, 3, 0, 40, 0
    derivations/test_characteristic_reference, 12, 40, 0, 0, 58, 1
    derivations/test_characteristic_system, 2, 95, 0, 0, 12, 0
-   derivations/test_characteristic_transport, 54, 0, 0, 0, 53, 0
+   derivations/test_characteristic_transport, 57, 0, 0, 0, 53, 0
    derivations/test_characteristic_walls, 19, 0, 0, 0, 31, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
@@ -813,7 +813,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``geometry-line-crossing-law``, 12
    ``kinf-1g``, 12
    ``ld-cartesian-2d``, 12
-   ``peierls-greens-cylinder-T``, 12
    ``periodic-bc``, 12
    ``reciprocity``, 12
    ``reciprocity-lower-triangle``, 12
@@ -835,6 +834,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``dd-solve``, 9
    ``energy-condensation-scattering-collapse``, 9
    ``p-transpose-flux-balance``, 9
+   ``peierls-greens-V-alpha-2``, 9
+   ``peierls-greens-slab-V-alpha-2``, 9
    ``pole-mm-recurrence``, 9
    ``reference-kernel-fundamental-contract``, 9
    ``tau-m``, 9
@@ -864,6 +865,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``gauss-legendre-visibility-cone``, 7
    ``inverse-as-operator``, 7
    ``peierls-greens-annulus-through-rank2``, 7
+   ``peierls-greens-cylinder-T``, 7
    ``peierls-greens-hollow-sph-through-rank2``, 7
    ``sn-keff-update``, 7
    ``sn-loss-kernel-gauge-projection``, 7
@@ -876,7 +878,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``ld-ubld-d1-reduction``, 6
    ``manifold-fibre-constancy``, 6
    ``peierls-greens-cylinder-mr-quadrature-convergence``, 6
-   ``peierls-greens-slab-T``, 6
    ``singular-eigenfunction-eq54``, 6
    ``sn-space-angle-separability``, 6
    ``characteristic-one-group-bound``, 5
@@ -885,6 +886,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``geometry-crossing-order``, 5
    ``geometry-line-domain``, 5
    ``peierls-cyl-Gbc-3d-final``, 5
+   ``peierls-greens-cylinder-V-alpha-2``, 5
    ``real-sh-discrete-orthogonality``, 5
    ``singular-eigenfunction-eq40``, 5
    ``sn-direct-seed-augmented-composite``, 5
@@ -904,7 +906,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``morel-montry-folded-arc``, 4
    ``peierls-equation``, 4
    ``peierls-greens-V-alpha-1``, 4
-   ``peierls-greens-V-alpha-2``, 4
    ``peierls-greens-slab-asym-method-of-images``, 4
    ``phase-f-carlson-seed-source-driven``, 4
    ``phase-f-q-bar-twin-forms``, 4
@@ -931,7 +932,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``moc-wigner-seitz``, 3
    ``number-density``, 3
    ``peierls-greens-cylinder-architecture``, 3
-   ``peierls-greens-slab-V-alpha-2``, 3
+   ``peierls-greens-slab-T``, 3
    ``sigma-zero``, 3
    ``sn-curvilinear-characteristic-reference-crosscheck``, 3
    ``sn-dsa-consistent-low-order``, 3
@@ -1072,7 +1073,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **625** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **591** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1112,12 +1113,6 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``bc-trace-restriction-pair``
 - ``bessel-wronskian``
 - ``bickley-integral``
-- ``billiard-rank2-S``
-- ``billiard-rank2-T``
-- ``billiard-reflection-law``
-- ``billiard-resolvent-neumann``
-- ``billiard-transfer-operator``
-- ``billiard-variant-alpha-rank1``
 - ``boltzmann``
 - ``bundle-measure-disintegration``
 - ``burst-criterion``
@@ -1422,32 +1417,6 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-exp-stretched-mu``
 - ``peierls-factored-kernel``
 - ``peierls-finite-cell-deficit``
-- ``peierls-greens-A1-split``
-- ``peierls-greens-A5-specular``
-- ``peierls-greens-L0``
-- ``peierls-greens-Lp``
-- ``peierls-greens-T-alpha``
-- ``peierls-greens-T-mu-surf``
-- ``peierls-greens-bounce-period-integral``
-- ``peierls-greens-bounce-sum-alpha``
-- ``peierls-greens-cylinder-mr-bounce-sum-piecewise``
-- ``peierls-greens-cylinder-mr-trajectory-segments``
-- ``peierls-greens-defining-bvp``
-- ``peierls-greens-fixed-source-iteration``
-- ``peierls-greens-garcia-convention``
-- ``peierls-greens-hollow-sph-outer-only-resolvent``
-- ``peierls-greens-k-inf``
-- ``peierls-greens-mg-kinf-balance``
-- ``peierls-greens-mg-source``
-- ``peierls-greens-mr-piecewise-tau``
-- ``peierls-greens-mr-regionwise-source``
-- ``peierls-greens-mr-trajectory-segments``
-- ``peierls-greens-mu-surf``
-- ``peierls-greens-sanchez-A6``
-- ``peierls-greens-slab-asym-monodromy``
-- ``peierls-greens-slab-bounce-period``
-- ``peierls-greens-trajectory-integral``
-- ``peierls-greens-unification-resolvent``
 - ``peierls-half-range-inner-products``
 - ``peierls-integral-form``
 - ``peierls-kernel-decomposition``
@@ -1675,8 +1644,6 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``tensor-product-inverse``
 - ``tensor-product-space-agreement``
 - ``trace-half-decomposition``
-- ``trajectory-resolvent-reading-emission-density``
-- ``trajectory-resolvent-reading-extension``
 - ``transport-equation``
 - ``two-moment-angular``
 - ``two-moment-carrier-space``

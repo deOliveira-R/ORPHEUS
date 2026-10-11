@@ -23,7 +23,7 @@ Key Facts
 - **Position in the V&V stack**: structurally-independent cross-check
   for :ref:`theory-singular-eigenfunction` and for the characteristic
   reference (:ref:`theory-characteristic-reference`, which succeeded the
-  trajectory resolvent, :ref:`theory-trajectory-resolvent`, on
+  trajectory resolvent, :ref:`characteristic-origins-history`, on
   2026-10-10) on the Sood 2003 truth set.
   The F_N method works in the Case ν-spectrum representation and never
   reduces to an integral equation in :math:`r` — genuinely
@@ -49,8 +49,8 @@ Key Facts
   :ref:`fn-method-atkinson-product-nystrom`.
 - **Cross-references**: :ref:`theory-singular-eigenfunction` is the
   Atalay-anchored linearly-anisotropic family; :ref:`theory-sood-registry`
-  is the truth-value catalogue; :ref:`theory-trajectory-resolvent`
-  realises the same physics in :math:`(r, \mu)` phase space.
+  is the truth-value catalogue; :ref:`theory-characteristic-reference`
+  realises the same physics by integrating along the body's lines.
 
 
 Capabilities at a glance — what references this module ships
@@ -74,7 +74,7 @@ The characteristic reference (:doc:`/theory/references/characteristic`)
 is ORPHEUS's primary continuous-:math:`\mu` reference for the
 angle-resolved transport eigenvalue and flux-shape problems on a 1-D
 concentric body; it succeeded the Variant α Green's-function family
-(:doc:`/theory/references/trajectory_resolvent`), deleted on 2026-10-10,
+(:ref:`characteristic-origins-history-family`), deleted on 2026-10-10,
 which held this role when this section was written. It cross-checks
 against external benchmarks: at the Sood/Forster/Parsons ``Ua-1-0-CY``
 cylinder critical radius it reads :math:`k = 1` within :math:`3\times
@@ -582,7 +582,7 @@ boundary-value problem on the same physical configuration**. They are
 structurally independent reference solvers above the trusted-library
 line, and their cross-method gates anchor the verification chain for
 the Sood 2003 truth set. Until 2026-10-10 this role was the trajectory
-resolvent's (``Billiard``, :doc:`/theory/references/trajectory_resolvent`),
+resolvent's (``Billiard``, :ref:`characteristic-origins-history-family`),
 which the characteristic reference replaced; the section was written
 against it, and its argument carries over because both integrate along
 characteristics.
@@ -2640,7 +2640,7 @@ Internal references:
 * Method-implementer closeout:
   ``.claude/agent-memory/method-implementer/fn_method_kinf_first_slice.md``.
 * :doc:`/theory/references/characteristic` — the characteristic reference, the companion line-integration reference;
-  :doc:`/theory/references/trajectory_resolvent` — the Variant α family it succeeded.
+  :doc:`/theory/references/characteristic_origins` — its algebra of record, and the history of the Variant α family it succeeded.
 * :doc:`/theory/references/singular_eigenfunction` — Atalay 1997 + WM-72 reflected /
   cylinder family.
 * :doc:`/theory/references/peierls_nystrom` — direct Peierls-integral reference solver

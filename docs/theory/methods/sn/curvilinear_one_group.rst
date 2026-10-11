@@ -5320,7 +5320,7 @@ held to ``tolerance_for`` of its frozen snapshot's own distance from
 on the two one-group cylinders.
 
 Until step (d) the reference was the trajectory-resolvent family
-(:ref:`theory-trajectory-resolvent`, the Peierls Variant α
+(:ref:`characteristic-origins-history-family`, the Peierls Variant α
 Green's-function solvers), the equation read :math:`k^{\,\text{traj.res.}}`,
 and the tolerances were :math:`\tau_k = 4\times10^{-3}` (that family's
 :math:`10\,b` floor on its ladder estimate :math:`3.2\times10^{-4}`),

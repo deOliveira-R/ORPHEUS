@@ -4,7 +4,7 @@ specular reflectivities :math:`\alpha_L \in [0, 1]` on the left wall
 and :math:`\alpha_R \in [0, 1]` on the right wall).
 
 Phase-3B extension of the symmetric slab Variant α (per
-:file:`/.claude/plans/peierls-greens-cylinder-and-2bc.md`). Mirrors the
+:file:`/.claude/plans/archive/peierls-greens-cylinder-and-2bc.md`). Mirrors the
 Phase-3A symmetric-slab proofs in :mod:`.greens_function_slab` with the
 **rank-2 boundary-to-boundary scattering resolvent** that handles
 independent per-wall reflectivities.
@@ -125,7 +125,7 @@ References
 - Sanchez, R. (1986). *Transp. Theor. Stat. Phys.* 14.
 - Hébert, A. (2009). *Applied Reactor Physics* §3.8.5 — slab
   :math:`E_n` forms and rank-1 white-BC closure.
-- :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 3B
+- :file:`.claude/plans/archive/peierls-greens-cylinder-and-2bc.md` — Phase 3B
   asymmetric slab plan.
 - :mod:`.greens_function_slab` — Phase-3A symmetric-slab V_α
   derivations (this module is the rank-2 generalisation).

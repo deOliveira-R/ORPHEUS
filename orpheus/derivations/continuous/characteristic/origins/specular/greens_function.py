@@ -90,9 +90,9 @@ V_α3. **Vacuum reduction at :math:`\alpha = 0`**. Sanchez Eq. (A6) has
    a leading factor :math:`2\alpha`; at :math:`\alpha = 0` (no specular
    reflection) the BC contribution :math:`g_h \to 0` and the kernel
    reduces to the bare vacuum kernel :math:`\bar g_2` from Sanchez
-   Eq. (5). Operator interpretation: the Variant α implementation
-   collapses to the existing ORPHEUS vacuum sphere reference at
-   :math:`\alpha = 0`, with no special-case branch needed.
+   Eq. (5). Operator interpretation: the closure collapses to the vacuum
+   sphere kernel at :math:`\alpha = 0`, with no special-case branch
+   needed (the characteristic reference's vacuum wall is this limit).
 
 References
 ----------
@@ -365,9 +365,8 @@ def derive_alpha_zero_kernel_reduction() -> dict:
     :math:`g_\alpha = \bar g_2 + g_h` then reduces to the bare vacuum
     kernel :math:`\bar g_2` from Sanchez Eq. (5).
 
-    Variant α implementation interpretation: setting :math:`\alpha = 0`
-    in the Variant α prototype recovers the existing ORPHEUS vacuum
-    sphere reference solver. No special-case branch is needed; the
+    Operator interpretation: setting :math:`\alpha = 0` recovers the
+    vacuum sphere kernel. No special-case branch is needed; the
     BC absorption is fully encoded in the leading :math:`2\alpha`
     prefactor of the bounce-sum :math:`g_h`.
 

@@ -764,7 +764,11 @@ cross-checks.
 
 - Stub at `docs/theory/references/trajectory_resolvent.rst` (extended
   into rich narrative by archivist after each phase; the page was named
-  `peierls_greens.rst` at the time of this campaign).
+  `peierls_greens.rst` at the time of this campaign). That page was
+  deleted with the family on 2026-10-10: its live derivations and the
+  family's history are now `docs/theory/references/characteristic_origins.rst`
+  (the algebra of record; the history is its section
+  `characteristic-origins-history`).
 
 **Discipline deviation that would have been caught**:
 

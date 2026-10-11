@@ -26,13 +26,16 @@ two forward links:
   matrix :math:`K_{ij} = w_j\,g_d(r_j\to r_i)`; closes the BC via
   the tensor network :math:`K_{\rm bc} = G\cdot R\cdot P` with rank
   :math:`N` Marshak / F.4 / specular closures.
-- :ref:`theory-trajectory-resolvent` — the research-grade **Green's
-  function (Variant α)** architecture (sphere homogeneous +
-  multi-region, parametrised by reflectivity :math:`\alpha\in[0,1]`).
-  Iterates the **angle-resolved** Green's function
-  :math:`\tilde t(r'\to r,\mu)` along bouncing characteristics; the
-  angle-integrated kernel is **never assembled**; the BC is absorbed
-  into the kernel via Sanchez 1986 Eq. (A1).
+- The research-grade **Green's function (Variant α)** architecture
+  (sphere homogeneous + multi-region, parametrised by reflectivity
+  :math:`\alpha\in[0,1]`), retired on 2026-10-10
+  (:ref:`characteristic-origins-history-family`). It iterated the
+  **angle-resolved** Green's function :math:`\tilde t(r'\to r,\mu)`
+  along bouncing characteristics, never assembled the angle-integrated
+  kernel, and absorbed the BC into the kernel via Sanchez 1986 Eq. (A1).
+  Its successor is the characteristic reference
+  (:ref:`theory-characteristic-reference`), which closes each line of the
+  body before it integrates over lines.
 
 The two architectures are *not* different discretisations of the
 same operator. They target different operators that share the same
@@ -66,9 +69,10 @@ rather than by a quadrature trick.
 For the canonical question "what reference do we ship for problem X?"
 see the capability matrix at :ref:`theory-peierls-capabilities`
 (inside :ref:`theory-peierls-nystrom`). The Nyström family is the
-production reference for nearly all configurations; Variant α is the
+production reference for nearly all configurations; Variant α was the
 research-grade reference for closed-sphere specular and multi-region
-sphere where the Phase 4 rank-:math:`N` Marshak closure has
+sphere until its deletion on 2026-10-10, and the characteristic reference
+(:ref:`theory-characteristic-reference`) is now, where the Phase 4 rank-:math:`N` Marshak closure has
 documented failure modes (Issue #132 — see
 :ref:`peierls-rank-n-class-b-mr-mg-falsification`).
 
@@ -306,8 +310,8 @@ derivations agreeing rules out reference contamination.
 The polar form for sphere with bare :math:`e^{-\Sigt{}\,R}` 3-D
 point kernel, used by both ORPHEUS implementations, is documented in
 detail at :ref:`theory-peierls-nystrom` Section 3 (the unified polar
-form) and at :ref:`theory-trajectory-resolvent` (Variant α trajectory
-geometry).
+form) and at :ref:`characteristic-origins-sphere` (the line geometry of
+the sphere's closure).
 
 
 .. _peierls-bc-foundations:
@@ -402,9 +406,9 @@ The ORPHEUS references implement subsets of this parametrisation:
   separate ``boundary=`` strings. The :math:`(\alpha,\beta)`
   parametrisation is *not* exposed at the public API — instead each
   closure is hard-coded as a discrete kernel-builder.
-- **Green's function (Variant α)** (:ref:`theory-trajectory-resolvent`,
+- **Green's function (Variant α)** (:ref:`characteristic-origins-history-family`,
   deleted on 2026-10-10): vacuum and specular as the **two endpoints of
-  a single :math:`\alpha`-parametrised solver**; partial-albedo
+  a single** :math:`\alpha`-parametrised **solver**; partial-albedo
   :math:`\alpha\in(0,1)` was reachable without a separate code path.
   This was the load-bearing structural advantage of the Green's
   function reformulation: the BC is encoded in the kernel via Sanchez
@@ -2607,7 +2611,7 @@ assembles a Galerkin pencil over lines instead of iterating on
 
    * - Property
      - :ref:`theory-peierls-nystrom` (Nyström)
-     - :ref:`theory-trajectory-resolvent` (Green's function)
+     - Green's function (Variant α, :ref:`characteristic-origins-history-family`)
    * - Operator discretised
      - Angle-integrated kernel
        :math:`g_d(\rho'\to\rho)` — assembled as matrix
@@ -2772,8 +2776,8 @@ F.4 closure (§3.8.4). :cite:`Stamm1983` Chapter 4 gives the same closure
 in a different notation (Stamm'ler Eq. 34 = Hébert 3.323). Variant α's
 V_α2 algebraic identity :math:`T_{00}^{\rm sphere} =
 P_{ss}^{\rm sphere}` (Eq. :math:numref:`peierls-greens-V-alpha-2` in
-:ref:`theory-trajectory-resolvent`) explains *why* Variant α at rank-1
-agrees bit-for-bit with the existing Phase 4
+:ref:`characteristic-origins-sphere`) explains *why* a specular closure at
+rank 1 agrees bit-for-bit with the Phase 4
 ``boundary="specular_multibounce"`` at :math:`N=1` and with
 ``boundary="white_hebert"`` rank-1: all three reduce to the same
 closed-form geometric series.
@@ -2798,8 +2802,11 @@ reference in the published literature for sphere homogeneous +
 multi-region transport with reflective BC. Garcia 2021 specifically
 covers the multi-region sphere with internal sources and provides
 4-significant-figure converged scalar-flux profiles — the L1
-flux-shape reference for Variant α multi-region (Plan-(b) Option 1;
-documented at :ref:`theory-trajectory-resolvent`). Garcia 2021 is
+flux-shape reference for the multi-region sphere: the Variant α
+family's (Plan-(b) Option 1, :ref:`characteristic-origins-history-family`)
+until 2026-10-10, the characteristic reference's since
+(``test_garcias_case_1_per_point`` in
+``tests/gates/derivations/test_characteristic_reading.py``). Garcia 2021 is
 *subcritical-only*: criticality is explicitly out of scope of the
 2021 paper (§III.A); for k-eigenvalue cross-checks the chain extends
 through :func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`

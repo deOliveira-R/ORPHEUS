@@ -146,7 +146,7 @@ References
 ----------
 
 - Sanchez, R. (1986). *Transp. Theor. Stat. Phys.* 14.
-- :file:`/.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 3C-2
+- :file:`/.claude/plans/archive/peierls-greens-cylinder-and-2bc.md` — Phase 3C-2
   annulus plan.
 - :mod:`.greens_function_hollow_sphere` — Phase-3C-1 hollow sphere V_α
   derivations (the rank-2 + impact-parameter template lifted here to

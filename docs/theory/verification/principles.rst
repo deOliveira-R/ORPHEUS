@@ -724,7 +724,8 @@ three structurally-independent constructions of the Green's function
 (Meanings α / β / γ). The verification matrix exploits this:
 
 - (α) **Trajectory resolvent** — slab / cylinder / sphere / annulus /
-  hollow sphere via :ref:`theory-trajectory-resolvent`.
+  hollow sphere via :ref:`theory-characteristic-reference` (the
+  trajectory-resolvent family until 2026-10-10).
 - (β) **Spectral resolvent** — sphere reserved (gap; PS-1982 Eq. 21
   direct evaluator pending).
 - (γ) **Singular-eigenfunction angular Green's** — slab / sphere /

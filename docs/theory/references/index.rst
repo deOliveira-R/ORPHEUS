@@ -52,8 +52,10 @@ Orbit-space M/G classification — the structural signature
 ==========================================================
 
 Several reference-solver families partition by **topology, not by
-shape** — most prominently :ref:`theory-trajectory-resolvent` and
-:ref:`theory-peierls-nystrom`. The precise mathematical signature
+shape**, as the trajectory-resolvent family did
+(:ref:`characteristic-origins-history`) and :ref:`theory-peierls-nystrom`
+does; the characteristic reference derives the same partition line by
+line (:ref:`characteristic-period`). The precise mathematical signature
 that organises this partition is the **orbit-space M/G
 classification**.
 
@@ -179,8 +181,9 @@ the V&V chain.
        via the resolvent :math:`T = (I - S)^{-1}`. Sanchez 2002 family
        — Variant α specialisation in ORPHEUS until 2026-10-10.
      - :ref:`theory-characteristic-reference` (``characteristic/``),
-       which replaced :ref:`theory-trajectory-resolvent`
-       (``trajectory_resolvent/``, deleted 2026-10-10)
+       which replaced the trajectory-resolvent family
+       (``trajectory_resolvent/``, deleted 2026-10-10;
+       :ref:`characteristic-origins-history`)
    * - **(β) Spectral resolvent**
      - Same scalar Green's kernel
        :math:`G(\rho \to \rho')`.
@@ -249,7 +252,8 @@ table is the canonical assignment.
      - SymPy-derived kernel + Atkinson product Nyström quadrature
        (ERR-036). Tanh substitution for log-singular kernel
        (ERR-037).
-   * - :ref:`theory-trajectory-resolvent` (Variant α MoC; retired)
+   * - The trajectory-resolvent family (Variant α MoC; retired,
+       :ref:`characteristic-origins-history`)
      - Semi-analytical
      - Integral (Peierls form via trajectory tracking)
      - Bouncing characteristics + multi-bounce resolvent
@@ -327,7 +331,7 @@ Production reference solvers
 
    peierls
    peierls_nystrom
-   trajectory_resolvent
+   characteristic_origins
    characteristic
    fn_method
    singular_eigenfunction

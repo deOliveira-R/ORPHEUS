@@ -25,7 +25,12 @@ This is the load-bearing structural difference from sphere/cylinder
 (both 1-bounce-per-period). The per-period reflection product is
 :math:`\alpha^2`, while the leading factor in the surface fixed-point
 closure remains :math:`\alpha^1` (single reflection at the FIRST
-surface arrival).
+surface arrival). The per-period product enters the closure only as the
+two-wall cycle's determinant :math:`1 - \alpha^2 e^{-2\tau}`; for a source
+symmetric about the mid-plane the closure is the one-transit form
+:math:`\alpha B/(1 - \alpha e^{-\tau})` (ERR-035: the per-period form
+:math:`\alpha B_{\rm period}/(1 - \alpha^2 e^{-2\tau})` is wrong at
+intermediate :math:`\alpha`).
 
 Three operator-level verifications
 -----------------------------------
@@ -88,7 +93,7 @@ from orpheus.derivations.continuous.characteristic.origins.specular import (
 
 
 @pytest.mark.foundation
-@pytest.mark.verifies("peierls-greens-slab-T")
+@pytest.mark.verifies("peierls-greens-slab-V-alpha-2")
 def test_v_alpha2_slab_substitution_algebra_holds():
     r"""V_α2_slab.a — the SymPy substitution :math:`u = 1/\mu` on the
     Path A integrand reduces to :math:`2 u^{-3} e^{-\tau u}`, which is
@@ -191,14 +196,14 @@ def test_v_alpha3_slab_psi_surf_vanishes_at_alpha_zero():
     r"""V_α3_slab — surface fixed-point closure :math:`\psi_{\rm surf}
     \to 0` at :math:`\alpha = 0`.
 
-    Leading factor :math:`\alpha` in :math:`\psi_{\rm surf} = \alpha
-    B / (1 - \alpha^2 e^{-\Sigma_t L_{\rm period}})` ensures the
-    surface-flux contribution vanishes identically at zero specular
-    reflection, recovering the vacuum slab kernel via the first-leg
-    integral alone. The 2-bounce-per-period :math:`\alpha^2` in the
-    denominator does NOT obstruct the limit — both numerator and
-    denominator vanish smoothly. The slab Variant α prototype handles
-    vacuum BC with no special-case branch.
+    The leading factor :math:`\alpha` in :math:`\psi_{\rm surf} = \alpha
+    B / (1 - \alpha e^{-\Sigma_t L_{\rm transit}})` (the symmetric-source
+    closure, ERR-035's correct form) makes the surface-flux contribution
+    vanish at zero specular reflection, recovering the vacuum slab kernel
+    from the first-leg integral alone. The denominator tends to 1, so it
+    does not obstruct the limit. The same limit holds for ERR-035's
+    heuristic closure, so this row cannot tell the two apart; the
+    closed form is pinned by the ``peierls-greens-slab-T`` row.
     """
     result = derive_alpha_zero_kernel_reduction_slab()
     assert result["pass"], (

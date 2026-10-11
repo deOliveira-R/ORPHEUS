@@ -21,7 +21,7 @@ The characteristic reference — transport along the lines of a concentric body
       role: "the closed reference that integrates transport along the lines of a 1-D concentric body (slab, cylinder, sphere, solid or hollow); this page holds its walls (each boundary point with what its law returns, read from the law's factors), the line part of its boundary resolvent (the period of each line's unfolded path and the least solution of its cycle, with an arriving flux), its panel basis (even at a singular stratum) and the transport along one line on that basis (the traversal integrals, the vacuum Volterra block and the angular flux), and one group's transport block: the Galerkin assembly over the lines of the chart's line domain, the white walls' coupling, and the line rule graded from the group's optical scale; and the multigroup Galerkin system on the emission density (the cross sections per region, each group's exact emission support, the k pencil and the source pencil, the adjoint flux by transposition, the one-group Rayleigh-Ritz bound); and the door, the reference posed from a specification and a resolution (the projection of a mesh-free function onto the panel basis, the role arrows a source and a detector enter by, the response as the forward problem on the transposed cross sections, the eigen gauge, the flux integral as a pairing); and the reading at a point, the transported emission integrated over the line domain's lines through the point under the point's measure, with the diffuse walls folded in through their currents, and the angular flux at a point"
       code: [orpheus.derivations.continuous.characteristic.walls, orpheus.derivations.continuous.characteristic.closure, orpheus.derivations.continuous.characteristic.basis, orpheus.derivations.continuous.characteristic.transport, orpheus.derivations.continuous.characteristic.assembly, orpheus.derivations.continuous.characteristic.lines, orpheus.derivations.continuous.characteristic.reading, orpheus.derivations.continuous.characteristic.grading, orpheus.derivations.continuous.characteristic.cross_sections, orpheus.derivations.continuous.characteristic.system, orpheus.derivations.continuous.characteristic.reference, orpheus.derivations.common.eigenvalue, orpheus.derivations.common.angular_measure]
       depends_on: [chart_and_chord, boundary_conditions, reference_solutions]
-      related: [trajectory_resolvent, layering]
+      related: [characteristic_origins, layering]
 
 
 Key facts
@@ -31,9 +31,12 @@ Key facts
   that solves transport on a 1-D concentric body by integrating along
   the body's lines: :mod:`orpheus.derivations.continuous.characteristic`.
   It was built rung by rung beside the trajectory-resolvent family
-  (:ref:`theory-trajectory-resolvent`), and replaced it: P1 step (e2)
+  (:ref:`characteristic-origins-history`), and replaced it: P1 step (e2)
   (2026-10-10) deleted that family, after its tests were re-posed here
-  (:ref:`characteristic-successors`). Its five rungs exist. The first
+  (:ref:`characteristic-successors`). Its algebra of record, the SymPy
+  identities and the line laws its tests verify, each with its
+  verifier, is :ref:`theory-characteristic-origins`. Its five rungs
+  exist. The first
   is the **walls**
   (:mod:`~orpheus.derivations.continuous.characteristic.walls`) and the
   **line part of the boundary closure**
@@ -271,7 +274,7 @@ Key facts
 Where this reference sits
 =========================
 
-The trajectory-resolvent family (:ref:`theory-trajectory-resolvent`) was
+The trajectory-resolvent family (:ref:`characteristic-origins-history`) was
 seven oracle classes and fifteen solver entry points (the plan's
 inventory, counted by ``git grep`` before the deletion), one per geometry
 and boundary shape, each with its own chord oracle and its own closure;
@@ -1066,10 +1069,11 @@ the inflow it reaches. Grouping the terms by whole periods,
 
 For :math:`m = 1` the inner sum is :math:`s_0 = r_0`, so
 :math:`\psi^{\rm in}_0 = a_0 B_0 / (1 - a_0 e^{-\tau_0})`, the rank-1
-resolvent :math:`(1 - \alpha e^{-\tau})^{-1}` of the trajectory-resolvent
-family, which that family's page identifies with Sanchez 1986 Appendix
-Eq. (A4) :cite:`SanchezTTSP1986` and Pomraning–Siewert 1982 Eq. (14)
-:cite:`PomraningSiewert1982`. For :math:`m = 2` it is
+resolvent :math:`(1 - \alpha e^{-\tau})^{-1}`, which the algebra of
+record proves on the sphere (:eq:`peierls-greens-surface-fixed-point`,
+:ref:`characteristic-origins-sphere`) and identifies with Sanchez 1986
+Appendix Eq. (A4) :cite:`SanchezTTSP1986` and Pomraning–Siewert 1982
+Eq. (14) :cite:`PomraningSiewert1982`. For :math:`m = 2` it is
 :math:`s_k + \gamma_{k-1} s_{k-1}`:
 
 .. math::
@@ -4468,7 +4472,7 @@ The factory
 wraps it in a
 :class:`~orpheus.reference.solution.ReferenceSolution` with no
 certificate, the consumer surface the trajectory-resolvent family exposed
-until its deletion (:ref:`theory-trajectory-resolvent`). Every reading is
+until its deletion (:ref:`characteristic-origins-history-reading`). Every reading is
 :class:`~orpheus.reference.reading.Uncertified`: the family derives no
 error bound yet (#566).
 
@@ -6189,10 +6193,10 @@ each basis function, so the closed slabs of the :math:`k_\infty` floor
 red under it; and ERR-090's class, one emission piece across an
 interface, is refused by the panel basis.
 
-**The labels that moved.** Eleven ``peierls-greens-*`` labels of
-:ref:`theory-trajectory-resolvent` lost their only verifier with the
-deleted files. Each was read on that page and placed on a row that
-asserts its equation:
+**The labels that moved.** Eleven ``peierls-greens-*`` labels, now on
+:ref:`theory-characteristic-origins`, lost their only verifier with the
+deleted files. Each was read on the family's page and placed on a row
+that asserts its equation:
 
 .. list-table::
    :header-rows: 1
@@ -6255,6 +6259,17 @@ angular-flux row above (cases ``cylinder_hollow_cavity`` and
 row, and ``slab-trajectory`` to
 ``tests/gates/geometry/test_chord.py::test_the_slab_chord_in_both_orientations``.
 ``annulus-architecture`` keeps its kept SymPy verifier.
+
+Step (f) moved the three V_α2 rows of the Peierls Nyström primitives and
+the slab's substitution row off the closure labels they named while
+asserting the :math:`T_{00}` identity: they now verify
+``V-alpha-2``, ``slab-V-alpha-2`` and the new ``cylinder-V-alpha-2``
+(:ref:`characteristic-origins-census`). ``cylinder-T`` keeps the
+angular-flux row above. ``slab-T`` holds only for a source symmetric
+about the slab's mid-plane, so it has a row of its own,
+``test_characteristic_transport.py::test_a_symmetric_slabs_surface_inflow_is_the_one_transit_closed_form``,
+and the angular-flux row's ``slab_symmetric_half`` case, whose source is
+not symmetric, verifies the general cycle only.
 
 **What the migration measured.** Four findings, each `[M]` 2026-10-10
 in the record's section 5:
@@ -6374,7 +6389,7 @@ issue is #405):
 
 Since P1 step (d) (``d9425977``) this reference is the one the
 S\ :sub:`N` cross-check rows read (:ref:`characteristic-sn-rows`); the
-trajectory-resolvent family (:ref:`theory-trajectory-resolvent`) was read,
+trajectory-resolvent family (:ref:`characteristic-origins-history`) was read,
 outside its own gates, only by the step (c) corroboration rows that
 compared the two, until step (e2) deleted it (2026-10-10).
 
