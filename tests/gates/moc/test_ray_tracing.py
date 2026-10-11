@@ -359,3 +359,43 @@ def test_track_total_length_equals_cell_diagonal_or_less():
     for track in moc.tracks:
         total = sum(s.length for s in track.segments)
         assert total <= max_len
+
+
+# ── The 1e-12 band of the region locator (a defect left in place; #578 P2) ─
+
+_MOC_BAND_REASON = (
+    "#595: _identify_region assigns r_k < r <= r_k + 1e-12 to region k (r <= radii[k] + 1e-12), so a track "
+    "whose impact parameter lies in that band has its whole segment beyond r_k assigned to the region inside it; "
+    "production MoC is out of #578's scope (the MoC campaign moves it onto the kernel's region_containing)"
+)
+_MOC_BAND_PARAMS = [pytest.param(d, id=f"b-r0={d:g}", marks=pytest.mark.xfail(strict=True, reason=_MOC_BAND_REASON))
+                    for d in (1e-13, 5e-13, 1e-12)]
+
+
+@pytest.mark.parametrize("delta", _MOC_BAND_PARAMS)
+def test_a_track_just_outside_a_circle_keeps_its_segment_in_the_outer_region(delta: float) -> None:
+    """A horizontal track at impact parameter ``b = r_0 + delta`` (radii (0.4, 0.7), pitch 2, centre (1, 1)) never
+    enters the circle r_0, so its middle segment, 1.149 cm between the two crossings of r_1, lies in region 1.
+
+    Strict xfail: `[M]` 2026-10-10 at delta = 1e-13, 5e-13 and 1e-12 MoC assigns that segment to region 0, at 2e-12 to
+    region 1 (the control row below). When the band is retired the rows XPASS and strictness reds them.
+    """
+    segments, *_ = _trace_single_ray(0.0, 1.0 + 0.4 + delta, 1.0, 0.0, 2.0, 1.0, 1.0, np.array([0.4, 0.7]), 3)
+    middle = max(segments, key=lambda s: s.length)
+    assert middle.length == pytest.approx(2.0 * np.sqrt(0.7**2 - (0.4 + delta) ** 2), rel=1e-12)
+    assert middle.region_id == 1, f"the segment beyond r_0 is assigned to region {middle.region_id}"
+
+
+def test_a_track_past_the_band_keeps_its_segment_in_the_outer_region() -> None:
+    """The control of the band rows: at ``b = r_0 + 2e-12``, past the band, the middle segment is in region 1 today."""
+    segments, *_ = _trace_single_ray(0.0, 1.0 + 0.4 + 2e-12, 1.0, 0.0, 2.0, 1.0, 1.0, np.array([0.4, 0.7]), 3)
+    assert max(segments, key=lambda s: s.length).region_id == 1
+
+
+def test_the_band_rows_are_strict_xfails() -> None:
+    """Each band row carries one ``xfail(strict=True)`` naming the band: a mark that lost ``strict`` would let the repair
+    pass silently."""
+    assert len(_MOC_BAND_PARAMS) == 3
+    for param in _MOC_BAND_PARAMS:
+        (mark,) = [m for m in param.marks if m.name == "xfail"]
+        assert mark.kwargs.get("strict") is True and "1e-12" in mark.kwargs.get("reason", "")

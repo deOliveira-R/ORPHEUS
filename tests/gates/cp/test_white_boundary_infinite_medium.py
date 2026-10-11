@@ -33,7 +33,7 @@ The rows, per configuration:
 
 The three rows partition the defects, measured 2026-09-25 with four
 in-process arms over this module (``python -O``; per-arm counts are over
-the 33 non-#509 configurations, 27 for C2):
+the 33 configurations green at the time (the three #509 sphere cells excluded), 27 for C2):
 
 ========================================  ======  ======  ======
 arm                                       C1      C2      C3
@@ -66,16 +66,15 @@ graded mesh (11 cells, refined toward the OUTER boundary) at R = 0.5 and
 R = 4, and a ONE-cell mesh at R = 2. A one-cell mesh is flat by
 construction, so it carries C1 and C3 and not C2.
 
-#509. The CP sphere with a white boundary is not flat at large optical
-radius, and at two or more groups its k and spectrum are wrong. Measured
-2026-09-25 (``python -O``, ``keff_tol = flux_tol = 1e-12``): green at the
-largest group optical radius ``max_g Σ_t R`` = 4.0 (2G, graded, R = 4);
-red at 4.2 (4G, graded, R = 4: ``k/k∞ − 1 = 4.4e-3``, flatness 2.9e-3)
-and at 10 and 10.5 (R = 10: ``k/k∞ − 1 = 4.7e-2`` at 2G, ``6.9e-2`` at
-4G). Those sphere cells are strict xfails citing #509;
-:func:`test_the_509_cells_are_strict_xfails` asserts the strictness by
-introspection, and :func:`test_sphere_R10_flatness_defect_is_present`
-records the defect's magnitude so that only a full fix turns it red.
+#509, closed by #578 (2026-10-10). Until then the CP sphere's line density
+over the impact parameter was spelled ``y`` with a literal 2 where the
+measure is ``2 pi y`` (``Chart.beam_density``), so its first-collision
+probabilities read ``1/pi`` of the closed form and the white cell was not
+flat at large optical radius (``k/k_inf - 1 = 4.7e-2`` at R = 10, 2G;
+flatness deviation 4.8e-2 at 1G). The three sphere cells that were strict
+xfails citing #509 (R = 10 at 2G and 4G, graded R = 4 at 4G) pass since the
+density is read from the chart; :func:`test_the_1g_sphere_at_ten_mean_free_paths_is_flat`
+is the row that recorded the defect, re-posed as the law it now meets.
 """
 from __future__ import annotations
 
@@ -109,11 +108,6 @@ _PARAMS = CPParams(keff_tol=1e-12, flux_tol=1e-12, max_outer=2000)
 #: The weakest signal it must see is 3.4e-5 (arm C, a 1e-3 row-sum defect
 #: on one row of P_cell, weakest over the same 27 configurations).
 _FLATNESS_BAND = 1e-12
-
-_509_REASON = (
-    "#509: CP sphere white boundary not flat at group optical radius "
-    "max_g Sigma_t R >= about 4.2 (measured 2026-09-25)"
-)
 
 _FOUNDATION = "tests/gates/cp/test_verification.py::TestMultiGroupProperties"
 _PENCIL_ROWS = (
@@ -178,26 +172,18 @@ def _grid() -> list[WhiteCell]:
     return cells
 
 
-#: The sphere cells measured red on today's tree (#509), by id. The group
-#: optical radius max_g Σ_t R is 10, 10.5 and 4.2 for these; the largest
-#: sphere cell measured green is 4.0 (SPH-R4-graded11-2g).
-_509_CELLS = frozenset({
-    "SPH-R10-uniform20-2g",
-    "SPH-R10-uniform20-4g",
-    "SPH-R4-graded11-4g",
-})
-
-
-def _is_509(cell: WhiteCell) -> bool:
-    return cell.id in _509_CELLS
+#: The sphere cells the CP sphere's lost pi (ERR-107, until #578 the xfails of #509) reddens, by id: the large group
+#: optical radius ones. `[M]` 2026-10-11, the density divided by pi again (``ta/battery`` arm CP_pi_back): exactly these
+#: three cells red in C1, C2 and C3; every other cell stays green.
+_ERR_107_CELLS = frozenset({"SPH-R10-uniform20-2g", "SPH-R10-uniform20-4g", "SPH-R4-graded11-4g"})
 
 
 def _params(cells: list[WhiteCell]) -> list:
     out = []
     for cell in cells:
         marks = [pytest.mark.rests_on(*cell.foundation_rungs(), *_PENCIL_ROWS)]
-        if _is_509(cell):
-            marks.append(pytest.mark.xfail(strict=True, reason=_509_REASON))
+        if cell.id in _ERR_107_CELLS:
+            marks.append(pytest.mark.catches("ERR-107"))
         out.append(pytest.param(cell, id=cell.id, marks=marks))
     return out
 
@@ -320,41 +306,18 @@ def test_group_spectrum_is_the_infinite_medium_eigenvector(cell: WhiteCell) -> N
     )
 
 
-@pytest.mark.foundation
-def test_the_509_cells_are_strict_xfails() -> None:
-    """The #509 sphere cells carry ``xfail(strict=True)`` citing #509 in
-    every parametrised row, and no other cell carries an xfail. A marker
-    inside ``pytest.param(marks=…)`` that loses ``strict`` would turn a fix
-    into a silent XPASS; this row makes that red. The #509 set is 3 cells
-    (sphere R = 10 at 2G and 4G, sphere graded R = 4 at 4G)."""
-    n_509 = 0
-    for params in (_ALL_PARAMS, _SPATIAL_PARAMS):
-        for param in params:
-            (cell,) = param.values
-            xfails = [m for m in param.marks if m.name == "xfail"]
-            if _is_509(cell):
-                n_509 += 1
-                assert len(xfails) == 1, f"{cell.id}: expected one xfail, got {xfails}"
-                assert xfails[0].kwargs.get("strict") is True, f"{cell.id}: xfail is not strict"
-                assert "#509" in xfails[0].kwargs.get("reason", ""), f"{cell.id}: reason"
-            else:
-                assert not xfails, f"{cell.id}: unexpected xfail {xfails}"
-    assert n_509 == 6, f"expected the 3 #509 cells in both lists (6 params), got {n_509}"
-
-
 @pytest.mark.l1
-def test_sphere_R10_flatness_defect_is_present() -> None:
-    """RECORD (green today, red at the fix of #509): the 1G sphere,
-    R = 10 cm, 10 uniform cells, with a white boundary is NOT flat; its
-    flatness deviation is above 1e-3 (measured 4.8e-2 on 2026-09-25). At
-    one group ``k = k∞`` exactly, so only the shape shows the defect. A
-    partial fix that halves the deviation leaves this row green and the
-    strict xfails failing; only a full fix turns this row red and the
-    xfails into passes."""
+@pytest.mark.catches("ERR-107")
+@pytest.mark.verifies("cp-white-cell-infinite-medium")
+def test_the_1g_sphere_at_ten_mean_free_paths_is_flat() -> None:
+    """The 1G sphere, R = 10 cm, 10 uniform cells, white boundary, is flat to ``_FLATNESS_BAND``. At one group
+    ``k = k_inf`` whatever the shape, so only the shape can see a wrong line density.
+
+    Until #578 this row was the RECORD of #509 (green while the deviation stayed above 1e-3; measured 4.8e-2 on
+    2026-09-25). `[M]` 2026-10-10 after the density was read from ``Chart.beam_density``: 5.6e-16. First red: the
+    sphere's y-weights divided by pi (the spelling before #578), deviation 4.8e-2.
+    """
     cell = WhiteCell(CoordSystem.SPHERICAL, 10.0, "uniform", 10, "1g")
     result, _ = _solve(cell)
     deviation = float(np.max(np.abs(result.flux / _group_averages(cell, result) - 1.0)))
-    assert deviation > 1e-3, (
-        f"#509 fixed: delete this row and the xfail marks (flatness deviation "
-        f"now {deviation:.2e})"
-    )
+    assert deviation <= _FLATNESS_BAND, f"1G sphere R = 10: flatness deviation {deviation:.2e}"

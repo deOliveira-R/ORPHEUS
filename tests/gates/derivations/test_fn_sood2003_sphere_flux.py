@@ -229,3 +229,70 @@ def test_l1_sphere_surface_angular_flux_polynomial_form() -> None:
         psi_direct += a_alpha * mu_test ** alpha
 
     np.testing.assert_allclose(psi_polyval, psi_direct, atol=1e-12, rtol=1e-12)
+
+
+# ────────────────────────────────────────────────────────────────────
+# L1 — the angular flux along each characteristic (#578, P2 group F)
+# ────────────────────────────────────────────────────────────────────
+
+_R_C_130 = 2.4248249802
+_CLOSURE = "tests/gates/derivations/test_fn_sood2003_sphere_flux.py::test_l1_sphere_angular_flux_closure"
+
+
+def _characteristic_integral_mp(res, r: float, mu: float) -> float:
+    r"""``(c/2) int_0^{s_in} phi(r'(s)) e^{-s} ds`` with ``s_in = r mu + sqrt(R^2 - r^2 (1 - mu^2))`` and ``r'(s) =
+    sqrt(r^2 - 2 r s mu + s^2)`` in mpmath (30 digits), the integral adaptive; ``phi`` is the KLL scalar flux, the
+    reconstruction's INPUT."""
+    import mpmath
+
+    R, c = res.R, res.c
+    with mpmath.workdps(30):
+        rr, mm = mpmath.mpf(r), mpmath.mpf(mu)
+        s_in = rr * mm + mpmath.sqrt(R * R - rr * rr * (1 - mm * mm))
+
+        def f(s):
+            radius = float(min(mpmath.sqrt(rr * rr - 2 * rr * s * mm + s * s), R))
+            return float(sphere_scalar_flux_kll(res, radius)) * mpmath.exp(-s)
+
+        return float(c / 2 * mpmath.quad(f, [0, s_in]))
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("fn-sphere-psi-characteristic")
+@pytest.mark.rests_on("tests/gates/derivations/test_fn_sood2003_sphere_flux.py::test_l1_sphere_flux_ratios_kll_table_VII_at_c_1p30",
+                      "tests/gates/geometry/test_chord.py::test_a_half_line_keeps_the_slots_beyond_its_start")
+def test_l1_sphere_angular_flux_is_the_characteristic_integral() -> None:
+    r"""F1: psi(r, mu) at four (r, mu), two inward and two outward, equals the characteristic integral evaluated
+    independently in mpmath (closed-form backward exit distance and radius along the line, adaptive quadrature),
+    within 2e-8 relative at ``n_quad = 64``.
+
+    The closure row integrates over a symmetric mu rule and is blind to a reversed characteristic (mu -> -mu leaves
+    the integral unchanged; `[M]` 4.36e-9 honest and reversed); this row is not. `[M]` 2026-10-10: 1.7e-9 honest.
+    First reds, on the rebuilt reconstruction (``ta/battery`` arms F_forward, F_foot, F_march, 2026-10-11): the forward
+    exit instead of the backward one (by value; 1.19 relative on the first spelling); the exit measured from the line's
+    foot (by value, and by the scalar flux's radius refusal); the radius marched the wrong way (the scalar flux refuses a
+    radius above R). It verifies ``fn-sphere-psi-characteristic``, the equation it asserts; ``kll-1974-sphere-flux`` is
+    the scalar flux, this row's input, so it is not claimed here (qa F5).
+    """
+    res = solve_kll_sphere_continuum_coefficient(_R_C_130, 1.30, n_nodes=64)
+    R = res.R
+    for r, mu in ((0.3 * R, 0.7), (0.6 * R, -0.4), (0.9 * R, 0.2), (0.5 * R, -0.95)):
+        got = float(sphere_angular_flux_from_scalar(res, r, mu))
+        ref = _characteristic_integral_mp(res, r, mu)
+        assert abs(got - ref) <= 2e-8 * abs(ref), f"psi({r / R:.2f} R, {mu}) = {got!r}, characteristic integral {ref!r}"
+
+
+@pytest.mark.l1
+@pytest.mark.rests_on(_CLOSURE)
+def test_l1_sphere_has_no_angular_flux_entering_through_the_vacuum_surface() -> None:
+    r"""F2: at r = R the incoming directions (mu < 0) carry no flux (vacuum), within 1e-14 of the outgoing maximum,
+    while every outgoing direction carries some. The surface point is admitted (HEAD refused r = R by one ulp).
+    `[M]` 2026-10-10: 4.2e-16 of the maximum. First reds: the forward exit instead of the backward one (0.62); the exit
+    measured from the line's foot (0.198). Not claimed against ``kll-1974-sphere-flux`` (qa F5).
+    """
+    res = solve_kll_sphere_continuum_coefficient(_R_C_130, 1.30, n_nodes=64)
+    mu = np.array([-0.9, -0.5, -0.1, 0.1, 0.5, 0.9])
+    psi = np.asarray(sphere_angular_flux_from_scalar(res, res.R, mu))
+    outgoing = psi[mu > 0]
+    assert np.all(outgoing > 0.0), outgoing
+    assert np.max(np.abs(psi[mu < 0])) <= 1e-14 * np.max(outgoing), psi

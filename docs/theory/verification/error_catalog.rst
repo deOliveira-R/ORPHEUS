@@ -10490,3 +10490,545 @@ older entries classify against.
    the proxy is the whole quantity.** Here the map back is the half-chord
    of :math:`b`, with :math:`\mathrm dh/\mathrm db \to \infty` at the
    tangency.
+
+.. error-entry:: ERR-107
+   :title: Collision probability weighted the sphere's rule over the impact parameter by y with the cylinder's literal 2, where the measure on lines is 2πy dy, so every sphere first-collision probability was 1/π of the truth, in production CPMesh and in the flat_source_cp reference alike; the root of #283 and #509
+
+   **Status:** ✅ **FIXED 2026-10-11** on branch
+   ``refactor/kernel-p2-reference`` (#578, P2 group D: the density is read
+   from the geometric kernel). Found 2026-10-10 by the test-architect,
+   whose first-collision gate (D1) read a ratio of 3.1416 on the tree it
+   was written against; diagnosed by the numerics investigator
+   (``scratch/characteristic_architecture/p2/cp_pi_investigation/memo.md``,
+   probes A to I). Its symptoms were filed as #283 (the sphere's row sums
+   saturating at :math:`1/\pi`, amplified by the white closure) and #509
+   (the white sphere not flat at large optical radius).
+
+   **Module:** ``orpheus/cp/solver.py``
+   (:class:`~orpheus.cp.solver.CPMesh`, ``_setup_spherical`` and
+   ``_compute_radial_rcp``) and
+   ``orpheus/derivations/continuous/flat_source_cp/geometry.py``
+   (:meth:`FlatSourceCPGeometry.outer_y_weight
+   <orpheus.derivations.continuous.flat_source_cp.geometry.FlatSourceCPGeometry.outer_y_weight>`
+   and :func:`~orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix`).
+   Theory: :ref:`the sphere's measure on lines <cp-sphere-measure-on-lines>`,
+   :ref:`chart-and-chord-measure`.
+
+   **Failure mode:** #3 Missing factor, by #6 Convention drift. The
+   density of the measure on lines over the impact parameter is
+   :math:`S_{d-2}\,y^{d-2}`: :math:`S_0 = 2` on the cylinder (the two lines
+   at :math:`\pm y`) and :math:`S_1 y = 2\pi y` on the sphere (the ring of
+   radius :math:`y`). Both codes wrote the cylinder's 2 as a literal
+   factor of every collision rate, ``2.0 * np.dot(y_wts, ...)``, and gave
+   the sphere the extra weight :math:`y`, so the sphere's density was
+   :math:`2y`. The weight's docstring explained the missing :math:`2\pi` as
+   "absorbed into ``surface_area``", which is false: the surface area enters
+   only the white closure, and the volumes are the true
+   :math:`\tfrac43\pi(R_i^3 - R_{i-1}^3)`. In the thick limit the self term
+   tended to :math:`\Sigma_t V/\pi` instead of :math:`\Sigma_t V`.
+
+   **What it did.** `[M]` 2026-10-10 (the memo, probes A and B): the
+   sphere's :math:`P_c` read 0.02265129, 0.15048030 and 0.27151786 at
+   :math:`\tau = 0.1, 1, 5` against 0.07116111, 0.47274781 and 0.85299850
+   (the closed form and a point-based 3-D escape integral, which share no
+   chord and agree with each other to :math:`4 \times 10^{-14}`): a ratio of
+   3.141593 at each, in production and in the reference; with the weights
+   times :math:`\pi`, within :math:`1.1 \times 10^{-10}`. The cylinder agreed
+   with its own point integral to :math:`10^{-4}`. Under a white boundary
+   the closure renormalised most of it away: on a two-group A|B sphere
+   (0.5 cm, 1.0 cm; 10 + 10 cells) :math:`k` moved from 0.41401712 to
+   0.41408140 (:math:`\Delta k = 6.4 \times 10^{-5}`) and the
+   max-normalised flux by up to 13.6 %. At large optical radius the white
+   closure clamped (:math:`\sum P_{\rm in} = 1.21 > 1` at
+   :math:`\Sigma R = 5`, three regions; the test-architect), and the
+   homogeneous white sphere was not flat: :math:`k/k_\infty - 1 = 4.7 \times 10^{-2}`
+   at :math:`R = 10` with two groups (#509, measured 2026-09-25).
+
+   **How it hid.** (a) A homogeneous one-region cell under a white
+   boundary has :math:`P^\infty = 1` whatever :math:`P^{\rm cell}` is, so
+   every white homogeneous gate read :math:`k = k_\infty` exactly. (b)
+   Production and the reference were compared with each other, and they
+   shared the spelling (X4). (c) The heterogeneous S\ :sub:`N`-against-CP
+   rows carried a tolerance of 0.10 against a :math:`\Delta k` of
+   :math:`6.4 \times 10^{-5}`. (d) Under vacuum the :math:`\pi` is a uniform
+   scale of the transport operator, which lies in the stabiliser of the
+   :math:`k` that ``solve_cp`` reports (ERR-110): the vacuum probe read the
+   same :math:`k` with and without the fix. (e) The docstring's "absorbed"
+   gave the missing factor a reason, and nobody measured an absolute
+   :math:`P^{\rm cell}` against an independent ground. #509 recorded the
+   symptom as strict expected failures for two weeks.
+
+   **Fix.** Both codes weight their rule by the in-plane density of
+   :meth:`Chart.beam_density <orpheus.geometry.chart.Chart.beam_density>`
+   (2 on the cylinder, :math:`2\pi y` on the sphere), and the literal
+   ``2.0 *`` is gone from both collision-rate lines; the factor 2 that
+   turns a half chord into a full chord stays. The reference's slab weight
+   became 0.5 to keep the slab unchanged. The labelled equations
+   :eq:`second-diff-sph`, :eq:`self-sph` and
+   :eq:`cp-unified-outer-integration` carry :math:`2\pi y\,dy`. The three
+   white sphere cells that were strict xfails citing #509 pass.
+
+   **Caught by:**
+   ``tests/gates/cp/test_cp_first_collision.py::test_the_first_collision_probability_is_the_closed_form``
+   (the sphere rows of both routes; it reads :math:`P^{\rm cell}` with no
+   closure, against the closed forms of
+   ``tests/gates/derivations/_characteristic_mp.py``), and the sphere cells
+   of ``tests/gates/cp/test_white_boundary_infinite_medium.py`` at large
+   optical radius (qa, 2026-10-11: removing the :math:`\pi` reddens 18
+   rows).
+
+   **Lesson.** ⭐ **A density spelled as "the cylinder's constant times the
+   sphere's extra factor" is an analogy, not a derivation: read the measure
+   from the one place that derives it per chart, and gate an absolute
+   probability against a closed form, because a closure renormalisation, a
+   shared-spelling comparison and a scale-invariant eigenvalue are all
+   blind to a uniform factor.**
+
+.. error-entry:: ERR-108
+   :title: The Peierls cylinder-3D surface response (compute_G_bc_cylinder_3d, and compute_G_bc_cylinder_3d_mode through the Knyazev helper with direction_sign = -1) paired the exit distance of the ray along +cos ω with the optical depth of the ray along -cos ω, which agree only on a homogeneous cylinder: 1.2 % to 11 % off on a three-region cylinder
+
+   **Status:** ✅ **FIXED 2026-10-11** on branch
+   ``refactor/kernel-p2-reference`` (#578, P2 group P: the Peierls ray
+   layer on the geometric kernel). Found by the main agent while moving the
+   consumers onto one ray per observer
+   (``scratch/characteristic_architecture/p2/p_baseline/cyl3d_oracle.py``),
+   confirmed by qa against an independent 3-D ray trace
+   (``scratch/characteristic_architecture/p2/qa/q1_cyl3d_oracle.py``).
+
+   **Module:** ``orpheus/derivations/continuous/peierls_nystrom/geometry.py``
+   (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc_cylinder_3d`
+   and the Knyazev mode integrand that
+   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc_cylinder_3d_mode`
+   reads). Theory: :ref:`peierls-ray-layer`.
+
+   **Failure mode:** #1 Sign flip. The in-plane distance to the outer
+   surface, :math:`d_{2D} = -r\cos\omega + \sqrt{R^2 - r^2\sin^2\omega}`,
+   is the distance along the direction of cosine :math:`+\cos\omega`; the
+   optical depth over it was read along :math:`-\cos\omega`
+   (``optical_depth_along_ray(r, direction_sign * c, d, ...)`` with
+   ``direction_sign = -1`` for the response, and ``-cos_psi`` in
+   ``compute_G_bc_cylinder_3d``). The escape consumer
+   (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc_cylinder_3d_mode`,
+   ``direction_sign = +1``) was consistent. The exit cosine
+   :math:`\mu_{2D} = (r\cos\omega + d_{2D})/R` was formed along
+   :math:`+\cos\omega` too.
+
+   **What it did.** `[M]` 2026-10-11, the archivist's re-run of qa's oracle
+   (the uncollided scalar flux at :math:`(r, 0, 0)` from an isotropic
+   incident flux on the outer cylinder,
+   :math:`G(r) = \tfrac1\pi\int_{4\pi} e^{-\tau_{3D}(\Omega)}\,\mathrm d\Omega`
+   by a 3-D ray trace in ``scipy``, with no Bickley function and no
+   reduction), radii :math:`(0.5, 1.1, 2.0)`, :math:`\Sigma_t = (0.7, 3.1, 0.2)`,
+   observers at :math:`r = 0.3, 0.8, 1.5, 1.95`: the old pairing off by
+   1.19 %, 0.92 %, 10.9 % and 10.3 % at ``n_surf_quad = 8`` (1.19 %, 1.06 %,
+   11.0 %, 10.3 % at 16); the one-ray reading within
+   :math:`5.0 \times 10^{-12}` to :math:`2.3 \times 10^{-5}` at 16, the
+   remainder the angular rule's. On a homogeneous cylinder the two agree
+   to :math:`3.6 \times 10^{-15}`.
+
+   **How it hid.** (a) On one region the depth over a distance is
+   :math:`\Sigma_t d` whatever the direction, and the module short-circuited
+   one region to exactly that, so the direction argument was never read.
+   (b) Every gate of these responses was single-region: `[M]` 2026-10-10
+   (the test-architect's spy), 0 of the 16 936 calls the not-slow suite made
+   into the depth walker were multi-region. (c) The symbolic gates verify
+   the one-region origin of the expansion
+   (``tests/gates/derivations/test_peierls_cylinder_g_bc_3d_symbolic.py``),
+   where the pairing cannot matter. (d) The distance and the depth came from
+   two calls, each with its own direction argument, so nothing tied them to
+   one ray.
+
+   **Fix.** One ray carries the distance, the depth and the exit cosine:
+   :meth:`CurvilinearGeometry.rays_from
+   <orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.rays_from>`
+   along the cosine :math:`\cos\omega`, the depth
+   ``rays.chord.line_integral(sig_t, rays.ahead)`` and the cosine
+   ``rays.chord.cosine_at(R)``. ``direction_sign`` is gone.
+
+   **Caught by:**
+   ``tests/gates/derivations/test_peierls_ray.py::test_the_cylinder_3d_responses_are_their_characteristic_integrals``
+   (both rows: the response at four observers on the three-region cylinder
+   against its characteristic integral evaluated entirely in mpmath, one
+   ray per direction, Bickley's function by quadrature; first red, the old
+   pairing restored).
+
+   **Lesson.** ⭐ **Read every quantity of one ray from one ray object: a
+   distance and a depth computed by two calls, each with a direction
+   argument, can disagree in direction, and a homogeneous fixture makes the
+   disagreement exact.**
+
+.. error-entry:: ERR-109
+   :title: The Peierls consumers short-circuited one region to τ = Σ_t ρ without reading inner_radius, so on a hollow single-region body a ray that crossed the cavity counted it as material: 1.4 % to 22 % on 13 (function, geometry, mode) rows over 7 response functions
+
+   **Status:** ✅ **FIXED 2026-10-11** on branch
+   ``refactor/kernel-p2-reference`` (#578, P2 group P), by the move of the
+   ray layer onto the geometric kernel, which has no single-region branch.
+   The change in value was found by qa's review of the move (its F2,
+   ``scratch/characteristic_architecture/p2/qa/q7_hollow_single.py`` and
+   ``q8_hollow_single_oracle.py``); the main agent's own old-against-new
+   probe had covered three-region bodies only.
+
+   **Module:** ``orpheus/derivations/continuous/peierls_nystrom/geometry.py``
+   (the ``if len(radii) == 1: tau = sig_t[0] * rho`` branches of the
+   response and escape integrands; 14 such sites at ``HEAD`` of the branch,
+   2 of which also tested ``inner_radius == 0``). Theory:
+   :ref:`peierls-ray-layer`.
+
+   **Failure mode:** #6 Convention drift. The shortcut's premise, "one
+   region, so the ray's depth is :math:`\Sigma_t` times its length", holds
+   where it was written, on a solid body. A hollow body
+   (``inner_radius > 0``) with one region has two segments on a ray that
+   crosses the cavity, the material and the void, and the count of
+   ``radii`` does not see the cavity.
+
+   **What it did.** `[M]` 2026-10-11, the archivist's re-run of qa's ``q7``
+   (hollow, :math:`r_0 = 0.3`, :math:`R = 2`, :math:`\Sigma_t = 0.8`, observers
+   at 0.4, 0.9, 1.5, 1.95, 8 angular points, 15 digits),
+   :math:`\max|{\rm new} - {\rm old}|/\max|{\rm old}|`: ``compute_G_bc``
+   :math:`1.9 \times 10^{-2}` (sphere) and :math:`1.4 \times 10^{-2}`
+   (cylinder); ``compute_G_bc_mode`` :math:`1.9 \times 10^{-2}` and
+   :math:`5.2 \times 10^{-2}` (sphere, modes 0 and 1), :math:`1.4 \times 10^{-2}`
+   and :math:`5.9 \times 10^{-2}` (cylinder); ``compute_G_bc_inner`` and
+   ``compute_G_bc_inner_mode`` (mode 0) 0.218 (cylinder);
+   ``compute_G_bc_cylinder_3d`` and both cylinder-3D mode functions at mode
+   0 :math:`2.9 \times 10^{-2}`, at mode 1 :math:`8.7 \times 10^{-2}`. The
+   other consumers the probe ran agreed to :math:`10^{-12}`. qa's ``q8`` read the new values
+   against the consumers run on an independent oracle of the rays with a
+   void cavity: within :math:`4.4 \times 10^{-16}`, where the old ones were
+   off by :math:`1.4 \times 10^{-2}` to 0.18 (`[M]` qa, 2026-10-11).
+   These are measured against the consumers' own definitions as they then
+   stood; the cylinder's ``compute_G_bc_inner`` and ``compute_G_bc_outer``
+   were themselves wrong in definition (ERR-111, ERR-112) and have since
+   changed form, so their rows here record the cavity defect only.
+
+   **How it hid.** (a) The single-region consumer rows were solid, where
+   the shortcut is exact, and the multi-region ones never entered it; no
+   row ran a hollow body with one region.
+   (b) The theory page advertised the shortcut as a speed-up ("about
+   :math:`2\times` faster than the multi-region path"), so it read as an
+   optimisation of a correct form. (c) Fixing it changed no gate: the
+   difference was a value nothing pinned.
+
+   **Fix.** There is no single-region branch: every depth is the kernel's
+   line integral over the ray's slots, the cavity is the partition's inner
+   exterior, and the exteriors are void
+   (:meth:`Chord.line_integral <orpheus.geometry.chord.Chord.line_integral>`).
+
+   **Caught by:**
+   ``tests/gates/derivations/test_peierls_ray.py::test_a_hollow_single_region_body_has_a_void_cavity_in_each_consumer``
+   (each consumer the shortcut got wrong, on the hollow single-region body
+   above, against its integral written in mpmath with the cavity void; first
+   red, the cavity filled with the region's :math:`\Sigma_t`).
+
+   **Lesson.** ⭐ **A fast path keyed on a count inherits the premise of the
+   object it was written for; when the object gains a field the count does
+   not see (here the inner radius), the fast path is wrong on exactly the
+   new cases. A fast path whose general path costs nothing measurable is
+   deleted, not guarded.**
+
+.. error-entry:: ERR-110
+   :title: CPSolver.compute_keff divides production by net removal with no leakage term, a premise ("L structurally zero") true only under a white boundary, so solve_cp's k under a vacuum outer law is not the eigenvalue of the CP pencil it iterates, off by factors of 2.4 to 32 in every geometry
+
+   **Status:** ⛔ **OPEN**, #546 (the user's ruling of 2026-10-10: CP's
+   operator pencil is a later campaign). Found by the numerics
+   investigator while diagnosing ERR-107
+   (``scratch/characteristic_architecture/p2/cp_pi_investigation/memo.md``,
+   §2, probes C, E, G and H). The CP twin of ERR-064.
+
+   **Module:** ``orpheus/cp/solver.py``
+   (:meth:`CPSolver.compute_keff <orpheus.cp.solver.CPSolver.compute_keff>`).
+   Theory: :doc:`/theory/methods/collision_probability`.
+
+   **Failure mode:** #3 Missing factor and #6 Convention drift. The
+   functional is :math:`k = \langle V, \chi\nu\Sigma_f\phi\rangle /
+   \langle V, (\Sigma_t - \Sigma_s - 2\Sigma_{2n})\phi\rangle`, the balance
+   with the leakage term omitted (#3); its docstring states the premise,
+   "the leakage :math:`L` structurally zero (:math:`P^\infty` is the
+   infinite-lattice ...)", which holds where :math:`P^\infty` closes the
+   cell (white) and is never checked at a vacuum law, where it is false (#6).
+
+   **What it does.** `[M]` 2026-10-10, the memo's table: ``solve_cp``'s
+   :math:`k` against the dominant eigenvalue of
+   :math:`(I - TS)^{-1}TF` built densely from the same :math:`P^\infty`
+   matrices, and an S\ :sub:`N` reference:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 34 22 22 22
+
+      * - Case
+        - ``solve_cp`` :math:`k`
+        - CP pencil eigenvalue
+        - S\ :sub:`N` reference
+      * - slab, 4 + 4 cells, vacuum on the right
+        - 1.230176
+        - 0.501609
+        - 0.519760 (GL-32)
+      * - slab, 32 + 32 cells
+        - 1.231759
+        - 0.519709
+        - 0.520037 (GL-32)
+      * - cylinder, Jacobi / Gauss–Seidel
+        - 0.938053 / 0.807750
+        - 0.041542
+        - 0.041847
+      * - sphere, density :math:`2\pi y` (ERR-107 fixed)
+        - 0.591297
+        - 0.018380 to 0.018456 (10 to 40 cells)
+        - 0.018470 (GL-32, 40 + 40 cells)
+
+   The Jacobi and Gauss–Seidel modes disagree with each other by 14 % on
+   the cylinder.
+
+   **How it hides.** (a) Every CP eigenvalue gate runs a white boundary,
+   where the premise holds. (b) Under vacuum the iteration
+   :math:`\phi \leftarrow T(S\phi + F\phi/k)/\max` is invariant under a
+   uniform scale of :math:`T`, and the functional reads only the flux
+   shape, so a scale defect of :math:`T` (ERR-107) lies in its stabiliser
+   (Mode 12) and the vacuum probe of ERR-107 was inconclusive. (c) A
+   docstring recorded the wrong value as the expected one
+   (``tests/gates/mesh/test_dropped_laws_are_refused.py``, ``test_the_slab_kernel_drops_the_left_law``,
+   1.2301755431553738, where the eigenvalue is 0.5016); the row asserts
+   equality between two left laws, so it stays green.
+
+   **Repair, validated and not landed.** The balance with the escape term,
+   :math:`r_{ig} = \sum_j P^\infty_{ij,g}` the row sum:
+
+   .. math::
+
+      k \;=\; \frac{\langle V r,\ \chi\,\nu\Sigma_f\,\phi\rangle}
+                  {\langle V,\ (\Sigma_t - \Sigma_s - 2\Sigma_{2n})\phi\rangle
+                   + \langle V(1 - r),\ (S + 2N_{2n})\phi\rangle},
+
+   which reduces to today's functional at :math:`r \equiv 1` (white).
+   Monkeypatched into ``compute_keff`` (probe H): the slab under vacuum on
+   the right 0.50160852, the pencil eigenvalue to :math:`1.4 \times 10^{-10}`
+   (Jacobi) and :math:`3.5 \times 10^{-10}` (Gauss–Seidel); the cylinder
+   under vacuum 0.04154242, equal to it; the cylinder under white
+   unchanged, 0.73927625.
+
+   **Caught by:** no ``catches`` marker. The defect is documented by the
+   strict xfail rows of
+   ``tests/gates/cp/test_cp_first_collision.py::test_the_vacuum_k_is_the_eigenvalue_of_the_cp_pencil``
+   (slab, cylinder and sphere; the reason names #546). Under the defect
+   those rows are green (expected failures), so they do not catch it in
+   the catalogue's sense: a catcher reddens when the defect is re-dropped.
+   The catcher lands with #546's fix, when the xfail mark is deleted and
+   the rows become plain gates.
+
+   **Lesson.** ⭐ **An eigenvalue functional is a balance: write every term
+   of it, and check a premise that removes a term ("L structurally zero")
+   against every boundary law the solver accepts, not the one its gates
+   run.**
+
+.. error-entry:: ERR-111
+   :title: The hollow outer-face response compute_G_bc_outer counted the rays that meet the cavity first while its escape compute_P_esc_outer skips them, so the response was 5.20 times the escape at the inner observer where reciprocity requires 4, and the per-face closure missed the flat-flux identity by 6.4e-2 and 1.28e-1 on the sphere
+
+   **Status:** ✅ **FIXED 2026-10-11** on branch
+   ``refactor/kernel-p2-reference`` (#578, P2). Found by the
+   test-architect's reciprocity rows, which had to exclude this pair;
+   diagnosed by the numerics investigator
+   (``scratch/characteristic_architecture/p2/hollow_investigation/memo.md``,
+   probes A and B).
+
+   **Module:** ``orpheus/derivations/continuous/peierls_nystrom/geometry.py``
+   (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc_outer`;
+   the sphere's integrand and the cylinder's surface-centred branch).
+   Theory: :ref:`peierls-ray-layer`.
+
+   **Failure mode:** #6 Convention drift. Two definitions of "the rays of
+   the outer face" existed for one face. The volume kernel stops each ray
+   at its first wall, so a neutron crosses the cavity only through the
+   closure (annulus, inner face, cavity, inner face), and every per-face
+   primitive must count a ray for the face it meets first. The escape did
+   (``_escapes_outward``); the response counted every ray that reaches
+   the outer surface, through the cavity or not (the sphere masked with
+   ``rays.ahead.sum(-1) > 0``; the cylinder's surface-centred form had no
+   visibility rule). The cavity-crossing particles were counted twice.
+
+   **What it did.** `[M]` 2026-10-11, the memo. Reciprocity, the response
+   to a unit isotropic current equal to 4 times the escape over the same
+   directions, holds to :math:`10^{-15}` in each definition separately on
+   an independent 3-D reference; production's mixture gave
+   :math:`G/P = 5.20` at the inner observer. On three regions
+   (:math:`r_0 = 0.25`, radii :math:`(0.6, 1.3, 2.0)`) the response matched
+   the through-the-cavity reference to :math:`4 \times 10^{-7}` and the
+   escape the first-wall reference to :math:`10^{-16}`. The closure
+   identity (a pure absorber with a uniform source, a white outer face and
+   a void cavity, exact solution :math:`\varphi \equiv Q/\Sigma_t`, where
+   the per-face closure is exact) missed by :math:`6.4 \times 10^{-2}`
+   (:math:`r_0 = 0.25`) and :math:`1.28 \times 10^{-1}` (:math:`r_0 = 1.0`)
+   on the sphere.
+
+   **How it hid.** (a) On a solid body there is no cavity and the two
+   definitions coincide. (b) The hollow closure's gates are withdrawn
+   under #506 or compare rank-2 with rank-1 Mark at a ceiling, which a
+   wrong response can meet; the page explained the residual as the scalar
+   closure's limit on curved surfaces. (c) The rank-N branch already
+   skipped the rays (mode :math:`n \ge 1`), so the two branches disagreed
+   at mode 0 only.
+
+   **Fix.** ``compute_G_bc_outer`` is :math:`4\,P_{\rm esc,outer}` on a
+   hollow curvilinear body: one integrand per face, its first-wall rule
+   the escape's.
+
+   **Caught by:** the rows the test-architect adds in
+   ``tests/gates/derivations/test_peierls_ray.py`` (reciprocity of the
+   outer pair on a hollow body, the 3-D reference and the closure
+   identity); the exact names are reconciled at commit.
+
+   **Lesson.** ⭐ **A response and its escape are one integral read twice:
+   spell the response as the escape times its constant, so the two cannot
+   disagree about which rays a face owns.**
+
+.. error-entry:: ERR-112
+   :title: The hollow cylinder's compute_G_bc_inner integrated the surface-centred Ki_1/d form over φ ∈ [0, π], which counts the cavity's far side (49 % to 50 % of the value) and uses a kernel that is off on its own (0.59 to 1.34 of the reference on a solid cylinder), so the cylinder's per-face closure missed the flat-flux identity by 1.08 and 1.48
+
+   **Status:** ✅ **FIXED 2026-10-11** on branch
+   ``refactor/kernel-p2-reference`` (#578, P2), with ERR-111. Diagnosed by
+   the numerics investigator (the same memo, probes C and D). qa's ERR-109
+   row had encoded the old form as its expected value for this function;
+   that oracle moves with the fix.
+
+   **Module:** ``orpheus/derivations/continuous/peierls_nystrom/geometry.py``
+   (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc_inner`,
+   the cylinder branch, and through it ``compute_G_bc_inner_mode`` at mode
+   0). Theory: :ref:`peierls-ray-layer`.
+
+   **Failure mode:** #6 Convention drift. The response integrated over
+   every point of the inner circle, :math:`\phi \in [0, \pi]`, with weight
+   1. A point on the cavity's far side is reached only through the cavity,
+   which is the closure's to carry; in the 3-D reference the far side's
+   contribution equals the near side's (the void cavity makes the two
+   crossing points of each line equivalent), so the form doubled the count
+   of every direction pointing at the cavity. On top of that the
+   :math:`\mathrm{Ki}_1(\tau)/d` kernel lacks the Lambertian projection the
+   observer-centred :math:`\mathrm{Ki}_2` form carries (the #112 defect).
+
+   **What it did.** `[M]` 2026-10-11, the memo (:math:`r_0 = 0.3`,
+   :math:`R = 2`, :math:`\Sigma_t = 0.8`): the far side held 0.504, 0.490 and
+   0.499 of the integral at :math:`r = 0.4, 0.9, 1.95`; the near side alone
+   was still 1.15, 0.99 and 0.89 times the reference. On a solid cylinder
+   the legacy kernel gives 0.586, 0.624 and 1.340 times the reference. The
+   cylinder's closure identity missed by 1.08 (:math:`r_0 = 0.3`) and 1.48
+   (:math:`r_0 = 1.0`); with the fix, :math:`2.0 \times 10^{-5}` and
+   :math:`5.5 \times 10^{-6}`.
+
+   **How it hid.** (a) The surface-centred form is the corpus's documented
+   rank-1 Mark form, kept for regression, so it read as an accepted
+   approximation, not a defect. (b) The closure's residual on the cylinder
+   (13 % at :math:`r_0 = 0.3 R`) was attributed to the scalar closure's
+   omitted angular moments and recorded as a structural limit. (c) Every
+   live gate of the function compared it with itself or with a sibling of
+   the same form.
+
+   **Fix.** ``compute_G_bc_inner`` is :math:`4\,P_{\rm esc,inner}` on a
+   hollow curvilinear body: the observer-centred integrand over the rays
+   whose first wall is the cavity, the near side of the convex inner
+   surface.
+
+   **Caught by:** the rows the test-architect adds in
+   ``tests/gates/derivations/test_peierls_ray.py`` (reciprocity, the 3-D
+   reference and the closure identity); the exact names are reconciled at
+   commit.
+
+   **Lesson.** ⭐ **A surface integral over a face of a convex cavity owns
+   only the near side: the far side is reached through the cavity, and a
+   closure that also carries the cavity counts it twice.**
+
+.. error-entry:: ERR-113
+   :title: compute_hollow_cyl_transmission returned W_oo = −inf for every Σ_t > 0, because the argument 2Σ_t R cos α of Ki_3 rounds to about −3e-26 at the quadrature nodes next to α = π/2 and ki_n_mp of a negative argument is infinite; its only gate ran at Σ_t = 0, where the argument is −0.0
+
+   **Status:** ✅ **FIXED 2026-10-11** on branch
+   ``refactor/kernel-p2-reference`` (#578, P2). Found by the numerics
+   investigator while building the cylinder's closure identity (the same
+   memo, probe D: production's :math:`W` gave NaN). The function body is
+   unchanged by the branch before the fix: the defect predates P2.
+
+   **Module:** ``orpheus/derivations/continuous/peierls_nystrom/geometry.py``
+   (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_hollow_cyl_transmission`,
+   its :math:`W_{\rm oo}` integrand under ``mpmath.quad``).
+
+   **Failure mode:** #1 Sign flip, of the rounding kind. At
+   :math:`\alpha \to \pi/2` the exact argument tends to :math:`0^+`; the
+   tanh-sinh nodes next to ``mpmath.pi/2`` give :math:`\cos\alpha` a
+   negative rounding, and :math:`\mathrm{Ki}_3` of a negative argument is
+   :math:`+\infty` in ``ki_n_mp`` (where ``ki_n_float`` refuses it).
+
+   **What it did.** `[M]` 2026-10-11, the memo: :math:`W_{\rm oo} = -\infty`
+   on 6 of 6 fixtures (:math:`\Sigma_t \in \{0.5, 0.8, 1, 2\}`), so every
+   hollow-cylinder rank-2 closure with absorption read NaN.
+
+   **How it hid.** Its only gate,
+   ``test_hollow_cyl_transmission_zero_absorption_conservation``, runs at
+   :math:`\Sigma_t = 0`, where the argument is :math:`-0.0` and
+   :math:`\mathrm{Ki}_3(-0.0)` is finite: the defect lies in that gate's
+   stabiliser (Mode 12). The hollow-cylinder closure's consumers are
+   withdrawn under #506.
+
+   **Fix.** :math:`\cos\alpha` is clipped at 0 inside the integrand.
+
+   **Caught by:** the :math:`W_{\rm oo}` row the test-architect adds (a
+   transmission with :math:`\Sigma_t > 0` against an independent value);
+   the exact name is reconciled at commit.
+
+   **Lesson.** ⭐ **A conservation gate at zero absorption cannot see an
+   attenuation kernel: run a transmission gate where the kernel's argument
+   is nonzero, and clip an argument whose exact value is non-negative
+   before a function that is singular for negative ones.**
+
+.. error-entry:: ERR-114
+   :title: The rank-1 Peierls compute_G_bc on the cylinder used the surface-centred Ki_1/d form, which reads 0.59 to 1.34 of an independent 3-D reference on a solid cylinder and, once ERR-111 and ERR-112 were fixed, disagreed with compute_G_bc_outer on the same body by a factor of 0.78 to 1.72; the corrected form built under #112 had never been wired in
+
+   **Status:** ✅ **FIXED 2026-10-11** on branch
+   ``refactor/kernel-p2-reference`` (#578, P2). The rank-:math:`N` half of
+   #112 stays open: the cylinder branch of ``compute_G_bc_mode`` at
+   :math:`n \ge 1` still reads the surface-centred form. Found by the
+   disagreement with ``compute_G_bc_outer`` after ERR-111 and ERR-112; the
+   reference is the hollow memo's ``ref3d.py``
+   (``scratch/characteristic_architecture/p2/hollow_investigation/``).
+
+   **Module:** ``orpheus/derivations/continuous/peierls_nystrom/geometry.py``
+   (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc`,
+   the cylinder branch). Theory: :ref:`peierls-ray-layer`.
+
+   **Failure mode:** #6 Convention drift. One quantity, the uncollided
+   flux at :math:`r` from a unit isotropic current on the outer surface,
+   had two definitions in the module: the corrected observer-centred
+   :math:`(4/\pi)\int\mathrm{Ki}_2(\tau)\,\mathrm d\psi`
+   (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc_cylinder_3d`,
+   equal to :math:`4P_{\rm esc}` by reciprocity) and the legacy
+   surface-centred :math:`\mathrm{Ki}_1(\tau)/d`, which lacks the
+   Lambertian projection :math:`(R - r\cos\phi)/d`. The rank-1 path kept
+   the second.
+
+   **What it did.** `[M]` 2026-10-11, the hollow memo: on a solid cylinder
+   the legacy :math:`G` is 0.586, 0.624 and 1.340 times the 3-D reference
+   at three observers, where ``compute_G_bc_cylinder_3d`` equals
+   :math:`4P` to :math:`10^{-10}`. After ERR-111 and ERR-112 the solid
+   body's ``compute_G_bc`` and ``compute_G_bc_outer`` differed by a factor
+   of 0.78 to 1.72 (the main agent). The sphere's ``compute_G_bc`` was
+   already :math:`4P` (unchanged by the fix to :math:`2.8 \times 10^{-17}`).
+
+   **How it hid.** (a) #112 recorded in April 2026 that the cylinder's
+   response missed the :math:`G = 4P` identity (row sum 0.89 against
+   0.9996), and ``compute_G_bc_cylinder_3d`` was built as its fix and wired
+   into the ``white_hebert`` path only; the rank-1 Mark path was kept
+   "for backward compatibility", so the defect was documented as a legacy
+   form, not as a wrong answer. (b) The rank-1 Mark tests pinned the
+   legacy values (regression, not reference). (c) Until ERR-111 and
+   ERR-112 the per-face responses shared the same wrong form, so no two
+   responses on one body disagreed.
+
+   **Fix.** ``compute_G_bc`` is :math:`4\,P_{\rm esc}` on the cylinder and
+   the sphere, one integrand; on the cylinder it now equals
+   ``compute_G_bc_cylinder_3d`` bit for bit.
+
+   **Caught by:** the rows the test-architect adds in
+   ``tests/gates/derivations/test_peierls_ray.py`` (reciprocity of the
+   rank-1 pair on the cylinder and the 3-D reference); the exact names are
+   reconciled at commit.
+
+   **Lesson.** ⭐ **A correction built beside a wrong form is not a fix
+   until every path reads it: retire the old form at the moment the new
+   one is verified, or the corpus records the wrong answer as "legacy".**

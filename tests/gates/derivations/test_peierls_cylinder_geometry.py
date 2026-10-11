@@ -4,15 +4,16 @@ These tests land with the Phase-4.2 C2 scaffolding commit and were
 retained after the 2026-04-21 ``peierls_cylinder`` shim cleanup (when
 the ``optical_depths_pm`` :math:`\\tau^{\\pm}` chord walker and the
 ``composite_gl_y`` alias were deleted — the strictly-more-general
-directed ray walker :meth:`CurvilinearGeometry.optical_depth_along_ray`
-subsumes the chord form). Coverage:
+directed ray walker, then ``optical_depth_along_ray``, subsumed the chord form; since
+#578 the optical depth along a ray is the kernel's ``Chord.line_integral`` over ``Rays.lengths_to``, read from
+:meth:`CurvilinearGeometry.rays_from` on the geometric kernel). Coverage:
 
 1. :func:`composite_gl_r` — composite Gauss–Legendre quadrature on
    :math:`[0, R]` with breakpoints at each annular radius. Tested
    against closed-form integrals on single-region and multi-annulus
    configurations.
 
-2. :meth:`CurvilinearGeometry.optical_depth_along_ray` (cylinder-1d) —
+2. the optical depth along a ray (cylinder-1d), the kernel's ``Chord.line_integral`` over ``Rays.lengths_to`` —
    integrates :math:`\\Sigma_t(\\cdot)` along a directed ray starting
    at radial coordinate :math:`r_{\\rm obs}` in direction
    :math:`\\mu = \\cos\\omega`. Tested against closed-form optical
@@ -32,6 +33,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.peierls_nystrom.geometry import CYLINDER_1D, composite_gl_r
+from tests.gates.derivations import _peierls_rays as rays
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -95,7 +97,7 @@ class TestCylinderCompositeRadialGL:
 @pytest.mark.l0
 @pytest.mark.verifies("chord-length")
 class TestCylinderOpticalDepthAlongRay:
-    """Closed-form verification of :meth:`CurvilinearGeometry.optical_depth_along_ray`
+    """Closed-form verification of the optical depth along a ray (the kernel's ``Chord.line_integral`` over ``Rays.lengths_to``)
     for the cylinder-1d geometry."""
 
     def test_homogeneous_equals_sigma_times_rho(self):
@@ -111,7 +113,7 @@ class TestCylinderOpticalDepthAlongRay:
             (0.3, 0.5, 0.4),    # generic interior
             (0.8, -0.9, 0.1),   # grazing inward
         ]:
-            tau = CYLINDER_1D.optical_depth_along_ray(
+            tau = rays.depth(CYLINDER_1D,
                 r_obs, cos_omega, rho, radii, sig_t,
             )
             assert np.isclose(tau, sig_t[0] * rho, rtol=1e-14, atol=1e-14), (
@@ -126,10 +128,10 @@ class TestCylinderOpticalDepthAlongRay:
         sig_t = np.array([0.9, 2.1])
         r_obs, cos_omega, rho = 0.7, -0.6, 1.3
 
-        tau1 = CYLINDER_1D.optical_depth_along_ray(
+        tau1 = rays.depth(CYLINDER_1D,
             r_obs, cos_omega, rho, radii, sig_t,
         )
-        tau2 = CYLINDER_1D.optical_depth_along_ray(
+        tau2 = rays.depth(CYLINDER_1D,
             r_obs, cos_omega, rho, radii, 2 * sig_t,
         )
         assert np.isclose(tau2, 2 * tau1, rtol=1e-14, atol=1e-14)
@@ -150,7 +152,7 @@ class TestCylinderOpticalDepthAlongRay:
         radii = np.array([r1, R])
         sig_t = np.array([0.9, 2.1])
 
-        tau = CYLINDER_1D.optical_depth_along_ray(
+        tau = rays.depth(CYLINDER_1D,
             r_obs=R, cos_omega=-1.0, rho=2 * R,
             radii=radii, sig_t=sig_t,
         )
@@ -184,7 +186,7 @@ class TestCylinderOpticalDepthAlongRay:
         cos_omega = -chord_half / R  # direction cosine w.r.t. +x̂
         rho = 2 * chord_half
 
-        tau = CYLINDER_1D.optical_depth_along_ray(
+        tau = rays.depth(CYLINDER_1D,
             r_obs=R, cos_omega=cos_omega, rho=rho,
             radii=radii, sig_t=sig_t,
         )
@@ -214,10 +216,10 @@ class TestCylinderOpticalDepthAlongRay:
         r_B = np.sqrt(r_A ** 2 + 2 * r_A * rho * mu + rho ** 2)
         mu_prime_back = -(r_A * mu + rho) / r_B
 
-        tau_fwd = CYLINDER_1D.optical_depth_along_ray(
+        tau_fwd = rays.depth(CYLINDER_1D,
             r_A, mu, rho, radii, sig_t,
         )
-        tau_bwd = CYLINDER_1D.optical_depth_along_ray(
+        tau_bwd = rays.depth(CYLINDER_1D,
             r_B, mu_prime_back, rho, radii, sig_t,
         )
         assert np.isclose(tau_fwd, tau_bwd, rtol=1e-13, atol=1e-14), (
@@ -242,7 +244,7 @@ class TestCylinderOpticalDepthAlongRay:
         delta = 0.15
         rho = (R - r1) + delta
 
-        tau = CYLINDER_1D.optical_depth_along_ray(
+        tau = rays.depth(CYLINDER_1D,
             r_obs=R, cos_omega=-1.0, rho=rho,
             radii=radii, sig_t=sig_t,
         )

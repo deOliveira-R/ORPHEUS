@@ -93,7 +93,6 @@ from dataclasses import dataclass
 import numpy as np
 
 from orpheus.geometry.chart import Chart, DirectionShape, LineShape, half_chord
-from orpheus.geometry.line import Line
 
 from .assembly import GroupTransport, TransportResolution
 from .basis import PanelBasis
@@ -264,27 +263,21 @@ def angular_flux(
     r"""The angular flux per steradian at the point, in the directions at ``coordinates`` of its direction box, per emission function, ``(..., M)``.
 
     The directions are :meth:`~orpheus.geometry.chart.Chart.directions_at`'s;
-    each is read on the line through the point
-    (:meth:`~orpheus.geometry.line.Line.through`), chorded at the level
-    :math:`(c, c|\Omega_x|/|P\Omega|)`, exact from the direction, on the
-    side of its closest approach the direction faces.
+    each is read on its ray from the point
+    (:meth:`~orpheus.geometry.chord.ConcentricPartition.rays_from`), chorded
+    at the exact level :math:`(c, c|\Omega_x|/|P\Omega|)` from the
+    direction, the point on the side of its closest approach the direction
+    faces.
     """
     c = refuse_outside(basis, orbit_coordinate)
     chart = basis.regions.chart
-    directions = chart.directions_at(c)
-    omega = directions.direction(coordinates).reshape(-1, 3)
+    omega = chart.directions_at(c).direction(coordinates).reshape(-1, 3)
     batch = np.shape(coordinates)[:-1]
-    lines = Line.through(np.broadcast_to(directions.point, omega.shape), omega)
-    if chart.acts_on_kept_space:
-        speed = chart.projected_speed(omega)
-        level = (np.full(speed.shape, c), c * np.abs(omega[:, 0]) / np.where(speed > 0.0, speed, 1.0))
-    else:
+    if not chart.acts_on_kept_space:
         _refuse_slab_grazing(omega[:, 0])
-        level = None
-    traversals = TraversalRule.of(lines, basis, walls, sigma_t, resolution.points, resolution.inner_points, level)
-    # past the closest approach where the direction leaves the axis (Omega_x > 0), before it otherwise
-    side = np.sign(omega[:, :1])
-    t = traversals.period.chord.image.parameters_at(np.array([c]), side)
+    rays = basis.partition.rays_from(c, omega)
+    traversals = TraversalRule.on_chord(rays.chord, basis, walls, sigma_t, resolution.points, resolution.inner_points)
+    t = rays.start[:, None]
     psi = _on_emission(_stacked_flux(traversals, t, transport)[:, 0], transport) / FULL_SOLID_ANGLE
     return psi.reshape(*batch, -1)
 

@@ -34,6 +34,10 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.integrate import quad
 
+from orpheus.geometry.chart import Chart
+from orpheus.geometry.chord import ConcentricPartition
+from orpheus.geometry.coord import CoordSystem
+
 from ..core.dispersion import case_nu0
 from ..slab.flux_reconstruction import (
     _gamma_kll,
@@ -432,51 +436,22 @@ def sphere_angular_flux_from_scalar(
         raise ValueError(f"r must be in [0, R={R}], got max {np.max(r_arr)}")
 
     r_b, mu_b = np.broadcast_arrays(r_arr, mu_arr)
-    out = np.empty_like(r_b, dtype=float)
-
     nodes_unit, weights_unit = np.polynomial.legendre.leggauss(n_quad)
 
-    flat_r = r_b.ravel()
-    flat_mu = mu_b.ravel()
-    flat_out = out.ravel()
+    # The characteristic back along -Omega from each (r, mu): the rays of the
+    # sphere [0, R] from the point, read on its exact level (#578).
+    backward = -np.stack([mu_b, np.sqrt((1.0 - mu_b) * (1.0 + mu_b)), np.zeros_like(mu_b)], axis=-1)
+    rays = ConcentricPartition(Chart(CoordSystem.SPHERICAL), (0.0, R)).rays_from(r_b, backward)
+    s_in = rays.to_wall.sum(axis=-1)                           # the distance back to the surface (vacuum inflow)
 
-    for i, (ri, mui) in enumerate(zip(flat_r, flat_mu, strict=True)):
-        # Chord length back to surface.
-        # s_in(r, μ) = r μ + sqrt(R² - r²(1 - μ²)) per characteristic
-        # geometry. For r = R, μ = -1: s_in = -R + R = 0 (vacuum
-        # incoming). For r = 0: s_in = R (radius).
-        discriminant = R * R - ri * ri * (1.0 - mui * mui)
-        if discriminant < 0:
-            # Should not happen for r ∈ [0, R].
-            flat_out[i] = 0.0
-            continue
-        s_in = ri * mui + math.sqrt(discriminant)
-        if s_in <= 0.0:
-            # Particle just left the boundary with no path inside.
-            flat_out[i] = 0.0
-            continue
-
-        # Map [-1, 1] → [0, s_in].
-        mid = 0.5 * s_in
-        half = 0.5 * s_in
-        s_prime = mid + half * nodes_unit
-        # Position along chord: r(s') = sqrt(r² - 2 r s' μ + s'²).
-        # When the chord starts at the inner point at s'=0 and goes
-        # back, the distance from origin is sqrt(r² - 2 r s' cos(θ_in) +
-        # s'²) where cos(θ_in) is the angle to the inner-pointing
-        # direction. Since μ is outward-pointing, the inward s'
-        # corresponds to going opposite to μ, hence the (-μ) sign:
-        r_prime = np.sqrt(np.maximum(
-            ri * ri - 2.0 * ri * s_prime * mui + s_prime * s_prime,
-            0.0,
-        ))
-        phi_at_r_prime = sphere_scalar_flux_kll(kll_result, r_prime)
-        integrand = phi_at_r_prime * np.exp(-s_prime)
-        integral = half * np.sum(integrand * weights_unit)
-        flat_out[i] = (c / 2.0) * integral
+    half = 0.5 * s_in
+    s_prime = half[..., None] * (1.0 + nodes_unit)             # Gauss on [0, s_in]
+    r_prime = rays.orbit_coordinate_at(s_prime)
+    phi_at_r_prime = sphere_scalar_flux_kll(kll_result, r_prime.ravel()).reshape(r_prime.shape)
+    out = (c / 2.0) * half * np.sum(phi_at_r_prime * np.exp(-s_prime) * weights_unit, axis=-1)
 
     if r_b.ndim == 0 and mu_b.ndim == 0:
-        return float(flat_out[0])
+        return float(out)
     return out
 
 

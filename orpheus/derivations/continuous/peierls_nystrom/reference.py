@@ -29,9 +29,9 @@ operator in two mathematically-different ways**:
 
 Identical agreement of ``K[i, j]`` element-by-element
 is a **complete verification** of: the unified polar-form integrand
-formula, the geometry primitives (``rho_max``, ``source_position``,
-``angular_weight``, ``volume_kernel_mp``), the optical-depth walker
-handling of multi-region Σ_t, and the Lagrange basis evaluation.
+formula, the geometry primitives (the ray layer ``rays_from`` on the
+geometric kernel, ``angular_weight``, ``volume_kernel_mp``), the
+optical depth of multi-region Σ_t, and the Lagrange basis evaluation.
 
 Disagreement localises the bug to exactly one of those components.
 

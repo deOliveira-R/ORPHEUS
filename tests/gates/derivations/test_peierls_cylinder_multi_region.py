@@ -2,8 +2,8 @@
 
 C4 of the Phase-4.2 campaign. The volume kernel builder from C3 already
 handles multi-region via
-:meth:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.optical_depth_along_ray`
-(ray annular-boundary walking) and
+the ray layer (:meth:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.rays_from`,
+the geometric kernel's chord; the annular walker ``optical_depth_along_ray`` until #578) and
 :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.lagrange_basis_on_panels`
 (piecewise-Lagrange source interpolation across panels). This test
 file adds the direct unit-tests on those two helpers and verifies
@@ -31,11 +31,12 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     composite_gl_r,
     lagrange_basis_on_panels,
 )
+from tests.gates.derivations import _peierls_rays as rays
 from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# CurvilinearGeometry.optical_depth_along_ray — multi-region annular walker
+# The optical depth along a ray (Chord.line_integral over Rays.lengths_to) — multi-region
 # ═══════════════════════════════════════════════════════════════════════
 
 @pytest.mark.l0
@@ -46,7 +47,7 @@ class TestOpticalDepthAlongRay:
     def test_homogeneous_short_circuit(self):
         """For a single annulus, :math:`\\tau = \\Sigma_t \\cdot \\rho`
         exactly."""
-        tau = GEOMETRY.optical_depth_along_ray(
+        tau = rays.depth(GEOMETRY,
             r_obs=0.5, cos_omega=1.0,
             rho=0.3, radii=np.array([1.0]), sig_t=np.array([2.5]),
         )
@@ -58,7 +59,7 @@ class TestOpticalDepthAlongRay:
         (:math:`r > r_1 = 0.5`) for all :math:`\rho \le 0.2`."""
         radii = np.array([0.5, 1.0])
         sig_t = np.array([1.0, 3.0])
-        tau = GEOMETRY.optical_depth_along_ray(
+        tau = rays.depth(GEOMETRY,
             r_obs=0.8, cos_omega=1.0,
             rho=0.2, radii=radii, sig_t=sig_t,
         )
@@ -77,7 +78,7 @@ class TestOpticalDepthAlongRay:
         rho = 0.5  # > r_1 - r_obs = 0.2
         radii = np.array([r_1, 1.0])
         sig_t = np.array([1.0, 3.0])
-        tau = GEOMETRY.optical_depth_along_ray(
+        tau = rays.depth(GEOMETRY,
             r_obs=r_obs, cos_omega=1.0,
             rho=rho, radii=radii, sig_t=sig_t,
         )
@@ -98,7 +99,7 @@ class TestOpticalDepthAlongRay:
         rho = R + r_obs
         radii = np.array([r_1, R])
         sig_t = np.array([1.0, 3.0])
-        tau = GEOMETRY.optical_depth_along_ray(
+        tau = rays.depth(GEOMETRY,
             r_obs=r_obs, cos_omega=-1.0,
             rho=rho, radii=radii, sig_t=sig_t,
         )
@@ -120,7 +121,7 @@ class TestOpticalDepthAlongRay:
         sig_t = np.array([1.0, 3.0])
         # β = π/2: ray is tangent to the observer's radial direction, so
         # the line has impact parameter y = r_obs · |sin β| = 0.8 > r_1
-        tau = GEOMETRY.optical_depth_along_ray(
+        tau = rays.depth(GEOMETRY,
             r_obs=r_obs, cos_omega=0.0,
             rho=0.4, radii=radii, sig_t=sig_t,
         )

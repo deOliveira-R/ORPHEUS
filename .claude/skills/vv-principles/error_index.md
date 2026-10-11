@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**106 entries · 363 catching tests · 1 uncaught · 5 dormant.**
+**114 entries · 373 catching tests · 2 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-107` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-107")`.
+Append a `.. error-entry:: ERR-115` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-115")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -30,6 +30,7 @@ A marker naming an id with no entry warns and resolves to nothing; a
 A catalogued defect nothing pins is an unguarded regression.
 
 - **ERR-103** — The characteristic reference's direction rules were graded toward grazing and not toward the no…
+- **ERR-110** — CPSolver.compute_keff divides production by net removal with no leakage term, a premise ("L str…
 
 ## Dormant — every catcher is withdrawn
 
@@ -154,3 +155,11 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-104 | 2 |  | The characteristic reference's line rule did not grade the impact parameter toward the partial… |
 | ERR-105 | 1 |  | The characteristic reference's cylinder rule did not grade the impact parameter toward the turn… |
 | ERR-106 | 4 |  | The characteristic reference chorded each line from its stored impact parameter b, known to an… |
+| ERR-107 | 1 |  | Collision probability weighted the sphere's rule over the impact parameter by y with the cylind… |
+| ERR-108 | 1 |  | The Peierls cylinder-3D surface response (compute_G_bc_cylinder_3d, and compute_G_bc_cylinder_3… |
+| ERR-109 | 1 |  | The Peierls consumers short-circuited one region to τ = Σ_t ρ without reading inner_radius, so… |
+| ERR-110 | 0 |  | CPSolver.compute_keff divides production by net removal with no leakage term, a premise ("L str… |
+| ERR-111 | 2 |  | The hollow outer-face response compute_G_bc_outer counted the rays that meet the cavity first w… |
+| ERR-112 | 3 |  | The hollow cylinder's compute_G_bc_inner integrated the surface-centred Ki_1/d form over φ ∈ [0… |
+| ERR-113 | 1 |  | compute_hollow_cyl_transmission returned W_oo = −inf for every Σ_t > 0, because the argument 2Σ… |
+| ERR-114 | 1 |  | The rank-1 Peierls compute_G_bc on the cylinder used the surface-centred Ki_1/d form, which rea… |

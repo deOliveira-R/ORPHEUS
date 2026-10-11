@@ -1272,3 +1272,33 @@ def test_the_cylinders_escape_converges_in_the_polar_angle() -> None:
     """
     errors = [abs(_escape_errors("cylinder", 0.5, n)[0]) for n in (4, 6, 8)]
     _strictly_converging(errors, floor=1e-12)
+
+
+@pytest.mark.l0
+@pytest.mark.rests_on("tests/gates/geometry/test_chord_level.py::test_the_half_chord_at_the_level_is_the_level_half_chord_exactly",
+                      _HERE + "test_each_polar_angle_carries_the_impact_rule_graded_at_its_own_speed")
+@pytest.mark.parametrize("ratio", [0.5, 1e-3, 1e-6, 1e-12])
+def test_the_impact_rules_inverse_map_keeps_its_digits_at_a_tiny_inner_radius(ratio: float) -> None:
+    """KN1 (#578, P2 group K; spec ``scratch/characteristic_architecture/p2/gate_spec.md`` §K): on the panel
+    ``[r_k, r_{k+1}] = [ratio, 1]`` the rule's nodes ``b`` are the inverse map of its variable ``y``,
+    ``b = sqrt(r_k^2 + (span - y)(span + y))`` with ``span`` the rule's own float half-chord of the line tangent to
+    ``r_k`` (the map is defined on it; the exact span would import its rounding, amplified by span/b near b -> r_k),
+    within 4 eps relative of the 50-digit value.
+
+    `[M]` 2026-10-10 (``ta/k/kn1.py``): at most 1.0 eps at every ratio. First red: the inverse map spelled as the
+    half-chord at ``r_k`` of the level ``(y, span)``, ``half_chord(lo, y, span)``, algebraically equal and rejected for
+    its cancellation: 2.5e5 eps at 1e-3, 0.134 relative at 1e-12 (`[M]`); no other row sees it by value.
+    """
+    from orpheus.geometry.chart import half_chord
+
+    rule = impact_rule(np.array([0.0, ratio, 1.0]), np.array([1.0, 1.0]), 8, np.array([1.0, 1.0]))
+    span = float(half_chord(1.0, ratio, 0.0))
+    panel = rule.b >= ratio * (1.0 - 1e-9)               # the outer panel's nodes; the lower panel's lie below r_k
+    assert np.count_nonzero(panel) >= 16
+    mp.mp.dps = 50
+    lo, s = mp.mpf(ratio), mp.mpf(span)
+    worst = 0.0
+    for b, y in zip(rule.b[panel], rule.half_chord[panel]):
+        ref = mp.sqrt(lo * lo + (s - mp.mpf(float(y))) * (s + mp.mpf(float(y))))
+        worst = max(worst, float(abs(mp.mpf(float(b)) - ref) / ref))
+    assert worst <= 4 * _EPS, f"inverse map: worst relative error {worst:.2e} at r_k / r_(k+1) = {ratio}"

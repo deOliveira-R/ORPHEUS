@@ -32,7 +32,7 @@ from dataclasses import dataclass, replace
 import numpy as np
 
 from orpheus.derivations.common.quadrature import Quadrature1D, composite_gauss_legendre, gauss_legendre
-from orpheus.geometry.chart import Chart
+from orpheus.geometry.chart import Chart, half_chord
 from orpheus.geometry.chord import ConcentricPartition
 
 from .basis import PanelBasis
@@ -142,9 +142,9 @@ def impact_rule(ends: np.ndarray, sigma: np.ndarray, points: int, toward_tangenc
             pts.append(half.pts)
             wts.append(half.wts)
             tops.append(np.full(points, hi))
-            chords.append(np.sqrt((hi - half.pts) * (hi + half.pts)))
+            chords.append(half_chord(hi, half.pts, 0.0))
             lo = hi / 2.0
-        span = float(np.sqrt((hi - lo) * (hi + lo)))
+        span = float(half_chord(hi, lo, 0.0))                   # the half-chord at r_{k+1} of the line tangent to r_k
         to_centre = lo * lo / (hi + span)                         # r_{k+1} - span, without cancellation
         y_ends = [
             *graded_ends(0.0, span, True, False, halvings(span, float(toward_tangency[k])), 0.5),
@@ -152,8 +152,9 @@ def impact_rule(ends: np.ndarray, sigma: np.ndarray, points: int, toward_tangenc
             *exponential_ends(np.array(0.0), np.array(span), np.array(float(np.max(sigma[k:])))),
         ]
         y = composite_gauss_legendre(np.unique(np.clip(y_ends, 0.0, span)), points)
-        # b^2 = r_k^2 + (span^2 - y^2): near the lower end b -> r_k without the cancellation of hi^2 - y^2
-        b = np.sqrt(lo * lo + (span - y.pts) * (span + y.pts))
+        # the inverse map y -> b: b and y are the legs over r_{k+1}, so b is the half-chord at span of the level (y, r_k),
+        # b^2 = r_k^2 + (span^2 - y^2), near the lower end b -> r_k without the cancellation of hi^2 - y^2
+        b = half_chord(span, y.pts, lo)
         pts.append(b)
         wts.append(y.wts * y.pts / b)
         tops.append(np.full(b.shape, hi))
@@ -243,8 +244,7 @@ class ImpactPanels:
         if unit_speed.shape[1] == 2:
             unit_speed[:, 1] = np.pi / 2.0                                       # the cylinder's line normal to the axis
         chord = ConcentricPartition(chart, tuple(ends)).chord(chart.line_domain().lines(unit_speed))
-        region = np.minimum(chord.slot_region, sigma.size - 1)
-        outside = np.sum(np.where(chord.slot_region < sigma.size, sigma[region] * chord.traversed_length, 0.0), axis=-1)
+        outside = chord.line_integral(sigma, chord.traversed_length)
         next_radius = np.append(chord.image.half_chord_at(ends)[np.arange(tops.size - 1), np.arange(2, ends.size)], np.inf)
         pole = -np.log(amplitude) if 0.0 < amplitude < 1.0 else np.inf
         return cls(ends, sigma, next_radius, outside, float(pole))

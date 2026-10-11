@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **17193**
+Total tests collected: **17371**
 
 V&V level distribution
 ----------------------
@@ -18,12 +18,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1778, 10.3%
-   L1, 2648, 15.4%
+   L0, 1825, 10.5%
+   L1, 2725, 15.7%
    L2, 85, 0.5%
    L3, 0, 0.0%
-   foundation, 12649, 73.6%
-   unmarked, 33, 0.2%
+   foundation, 12704, 73.1%
+   unmarked, 32, 0.2%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 17081
+   explicit, 17260
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 33
+   unmarked, 32
 
 Module × level grid
 -------------------
@@ -105,6 +105,7 @@ Module × level grid
    core/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 3, 0
    core/test_unified_sweep_dispatch, 0, 0, 0, 0, 28, 0
    core/test_wavefront_cumprod_equivalence, 0, 0, 0, 0, 3, 0
+   cp/test_cp_first_collision, 0, 24, 0, 0, 1, 0
    cp/test_cylinder, 0, 9, 0, 0, 0, 0
    cp/test_cylinder_pss, 0, 0, 0, 0, 16, 0
    cp/test_diagnostics, 8, 28, 0, 0, 0, 0
@@ -116,8 +117,9 @@ Module × level grid
    cp/test_slab, 0, 9, 0, 0, 0, 0
    cp/test_sphere, 0, 9, 0, 0, 0, 0
    cp/test_sphere_pss, 22, 0, 0, 0, 0, 0
+   cp/test_sphere_specular_transmission, 3, 0, 0, 0, 0, 0
    cp/test_verification, 4, 25, 5, 0, 0, 0
-   cp/test_white_boundary_infinite_medium, 0, 103, 0, 0, 3, 0
+   cp/test_white_boundary_infinite_medium, 0, 103, 0, 0, 2, 0
    cross_method/test_convergence, 0, 0, 1, 0, 0, 0
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 2, 0
@@ -178,7 +180,7 @@ Module × level grid
    derivations/test_case_method_x_function, 2, 3, 0, 0, 0, 0
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
    derivations/test_characteristic_albedos, 0, 30, 0, 0, 0, 0
-   derivations/test_characteristic_assembly, 0, 111, 5, 0, 67, 0
+   derivations/test_characteristic_assembly, 4, 111, 5, 0, 67, 0
    derivations/test_characteristic_basis, 0, 0, 0, 0, 271, 0
    derivations/test_characteristic_closure, 127, 0, 0, 0, 9, 0
    derivations/test_characteristic_convergence, 0, 0, 6, 0, 0, 0
@@ -189,6 +191,7 @@ Module × level grid
    derivations/test_characteristic_system, 2, 95, 0, 0, 12, 0
    derivations/test_characteristic_transport, 57, 0, 0, 0, 53, 0
    derivations/test_characteristic_walls, 19, 0, 0, 0, 31, 0
+   derivations/test_chord_half_lengths, 3, 0, 0, 0, 0, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
    derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 12, 0
@@ -204,7 +207,7 @@ Module × level grid
    derivations/test_fn_sood2003_slab_reflected, 0, 18, 0, 0, 5, 0
    derivations/test_fn_sood2003_slab_xverif, 0, 2, 0, 0, 0, 0
    derivations/test_fn_sood2003_sphere, 0, 0, 0, 0, 11, 0
-   derivations/test_fn_sood2003_sphere_flux, 0, 10, 0, 0, 0, 0
+   derivations/test_fn_sood2003_sphere_flux, 0, 12, 0, 0, 0, 0
    derivations/test_fn_sood2003_sphere_xverif, 0, 3, 0, 0, 0, 0
    derivations/test_galerkin_spectral_basis_space, 0, 0, 0, 0, 18, 0
    derivations/test_homogenization_rules, 0, 0, 0, 0, 8, 0
@@ -229,6 +232,7 @@ Module × level grid
    derivations/test_peierls_greens_function_slab_asymmetric_symbolic, 0, 0, 0, 0, 16, 0
    derivations/test_peierls_greens_function_slab_symbolic, 0, 0, 0, 0, 6, 0
    derivations/test_peierls_greens_function_symbolic, 0, 0, 0, 0, 9, 0
+   derivations/test_peierls_hollow_faces, 0, 22, 0, 0, 0, 0
    derivations/test_peierls_multigroup, 9, 10, 0, 0, 8, 0
    derivations/test_peierls_nystrom_verification, 0, 4, 0, 0, 0, 0
    derivations/test_peierls_rank2_bc, 9, 25, 0, 0, 4, 0
@@ -236,7 +240,8 @@ Module × level grid
    derivations/test_peierls_rank_n_class_b_mr_mg, 0, 31, 0, 0, 0, 0
    derivations/test_peierls_rank_n_conservation, 0, 0, 0, 0, 4, 0
    derivations/test_peierls_rank_n_primitives, 19, 0, 0, 0, 0, 0
-   derivations/test_peierls_reference, 55, 45, 0, 0, 16, 0
+   derivations/test_peierls_ray, 9, 29, 0, 0, 36, 0
+   derivations/test_peierls_reference, 57, 45, 0, 0, 16, 0
    derivations/test_peierls_reference_naming, 0, 0, 0, 0, 23, 0
    derivations/test_peierls_slab_legacy_aggregate, 0, 0, 0, 0, 4, 0
    derivations/test_peierls_specular_bc, 0, 0, 0, 0, 27, 0
@@ -249,7 +254,7 @@ Module × level grid
    derivations/test_peierls_sphere_prefactor, 6, 0, 0, 0, 0, 0
    derivations/test_peierls_sphere_white_bc, 0, 4, 0, 0, 0, 0
    derivations/test_peierls_white_slab_symbolic, 0, 0, 0, 0, 2, 0
-   derivations/test_quadrature, 7, 0, 0, 0, 44, 0
+   derivations/test_quadrature, 7, 0, 0, 0, 45, 0
    derivations/test_reference_body, 0, 0, 0, 0, 47, 0
    derivations/test_reference_kernel, 0, 0, 0, 0, 33, 0
    derivations/test_registry_citations_resolve, 0, 0, 0, 0, 326, 0
@@ -306,13 +311,14 @@ Module × level grid
    geometry/test_chart, 4, 0, 0, 0, 18, 0
    geometry/test_chart_directions, 61, 0, 0, 0, 18, 0
    geometry/test_chord, 53, 0, 0, 0, 30, 0
+   geometry/test_chord_lengths_between, 5, 0, 0, 0, 10, 0
    geometry/test_chord_level, 0, 0, 0, 0, 12, 0
    geometry/test_chord_transits, 88, 0, 0, 0, 1, 0
    geometry/test_content_identity_geometry, 0, 0, 0, 0, 101, 0
    geometry/test_deck_laws_do_not_compose, 0, 0, 0, 0, 217, 0
    geometry/test_geometry, 0, 0, 0, 0, 50, 0
    geometry/test_geometry_extent, 0, 0, 0, 0, 8, 0
-   geometry/test_kernel_corroboration, 0, 0, 0, 0, 0, 5
+   geometry/test_kernel_corroboration, 0, 0, 0, 0, 0, 4
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
    geometry/test_line, 0, 0, 0, 0, 9, 0
    geometry/test_line_domain, 3, 5, 0, 0, 22, 0
@@ -321,6 +327,7 @@ Module × level grid
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_named_face_constructors, 0, 0, 0, 0, 62, 0
    geometry/test_paired_deck, 0, 0, 0, 0, 63, 0
+   geometry/test_rays, 16, 0, 0, 0, 7, 0
    geometry/test_reemission_closure, 0, 0, 0, 0, 184, 0
    geometry/test_reflective_is_a_mirror, 0, 0, 0, 0, 36, 0
    geometry/test_self_paired_deck, 0, 0, 0, 0, 23, 0
@@ -382,7 +389,7 @@ Module × level grid
    moc/test_moc, 0, 3, 0, 0, 0, 0
    moc/test_properties, 4, 0, 0, 0, 0, 0
    moc/test_quadrature, 44, 0, 0, 0, 0, 0
-   moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
+   moc/test_ray_tracing, 27, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_advertised_degree_is_measured, 0, 0, 0, 0, 41, 0
    numerics/test_angular_face_trace_space, 0, 0, 0, 0, 131, 0
@@ -635,7 +642,7 @@ Module × level grid
    test_dependencies_declared, 0, 0, 0, 0, 1, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
-   test_error_catalogue_reconciles, 0, 0, 0, 0, 7, 0
+   test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
    test_layer_imports, 0, 0, 0, 0, 470, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
@@ -685,15 +692,15 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``one-group-kinf``, 130
    ``alpha-recursion``, 115
    ``cp-infinite-lattice-sum``, 114
+   ``cp-white-cell-infinite-medium``, 103
    ``wdd-closure``, 103
    ``wdd-face``, 103
-   ``cp-white-cell-infinite-medium``, 102
    ``alpha-cylindrical``, 95
    ``collision-rate``, 91
    ``geometry-transits``, 88
    ``characteristic-transit-rank``, 82
    ``multigroup``, 82
-   ``peierls-unified``, 80
+   ``peierls-unified``, 82
    ``characteristic-galerkin-assembly``, 78
    ``fission-matrix``, 76
    ``removal-matrix``, 76
@@ -706,17 +713,18 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-rank-n-bc-closure``, 64
    ``transport-cartesian``, 64
    ``e3-def``, 61
+   ``geometry-chord-segment-lengths``, 61
    ``geometry-directions-at``, 61
    ``ki3-def``, 61
    ``characteristic-closure``, 59
    ``characteristic-traversal-integrals``, 59
    ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55
+   ``chord-length``, 54
    ``hebert-3-432``, 54
    ``self-cyl``, 54
    ``balance-general``, 53
    ``self-sph``, 52
-   ``chord-length``, 51
    ``peierls-greens-cylinder-mr-kinf``, 51
    ``quadrature-ordinate-permutation``, 50
    ``quadrature-product-weights``, 50
@@ -727,7 +735,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``scalar-flux-integral``, 48
    ``pn-scatter``, 47
    ``azimuthal-angles``, 44
-   ``geometry-chord-segment-lengths``, 42
    ``sn-curvilinear-homogeneous-kinf-recovery``, 38
    ``cp-kernel-differential-identities``, 36
    ``cp-keff-update``, 34
@@ -761,6 +768,10 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``cp-flat-source-derivation``, 27
    ``cp-flat-source-double-integral``, 27
    ``cp-unified-outer-integration``, 27
+   ``effective-spacing``, 27
+   ``pitch-recovery``, 27
+   ``ray-circle``, 27
+   ``region-areas-pin-cell``, 27
    ``loss-rep-resolution-a``, 25
    ``peierls-white-bc-slab``, 25
    ``dc-slab``, 24
@@ -774,12 +785,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``two-group-Ainv``, 23
    ``two-group-F``, 23
    ``two-group-M``, 23
-   ``effective-spacing``, 22
    ``peierls-cyl-3d-mode-formula``, 22
    ``peierls-sphere-Pss-homogeneous``, 22
-   ``pitch-recovery``, 22
-   ``ray-circle``, 22
-   ``region-areas-pin-cell``, 22
    ``n2n-source``, 21
    ``singular-eigenfunction-eq46``, 21
    ``dd-null-counting-law``, 20
@@ -933,6 +940,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``number-density``, 3
    ``peierls-greens-cylinder-architecture``, 3
    ``peierls-greens-slab-T``, 3
+   ``peierls-specular-T-matrix``, 3
    ``sigma-zero``, 3
    ``sn-curvilinear-characteristic-reference-crosscheck``, 3
    ``sn-dsa-consistent-low-order``, 3
@@ -994,6 +1002,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``energy-condensation-balance-preservation``, 1
    ``energy-condensation-chi-simplex-preservation``, 1
    ``energy-condensation-fractional-collapse``, 1
+   ``fn-sphere-psi-characteristic``, 1
    ``gendf-mf6-yield``, 1
    ``geometry-cauchy-mean-chord``, 1
    ``geometry-radial-coordinate``, 1
@@ -1073,7 +1082,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **591** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **590** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1438,7 +1447,6 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-slab-row-sum-identity``
 - ``peierls-specular-M-tridiagonal``
 - ``peierls-specular-R-formula``
-- ``peierls-specular-T-matrix``
 - ``peierls-specular-T-matrix-cylinder``
 - ``peierls-specular-T-matrix-slab``
 - ``peierls-specular-multibounce-formula``
@@ -1716,7 +1724,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**33 tests** have no V&V level marker.
+**32 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1729,9 +1737,9 @@ taxonomy.
    :widths: 60, 10
 
    ``tests/gates/numerics/test_riesz_legs.py``, 8
-   ``tests/gates/geometry/test_kernel_corroboration.py``, 5
    ``tests/gates/numerics/test_frame.py``, 5
    ``tests/gates/sn/operators/test_sn_boundary_realizer.py``, 5
+   ``tests/gates/geometry/test_kernel_corroboration.py``, 4
    ``tests/gates/numerics/test_iteration_record.py``, 4
    ``tests/gates/numerics/test_symmetry.py``, 2
    ``tests/gates/sn/sweep/core/test_cache.py``, 2

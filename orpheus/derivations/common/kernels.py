@@ -44,6 +44,9 @@ import mpmath
 import numpy as np
 from scipy.special import expn
 
+from orpheus.geometry.chart import half_chord
+from orpheus.geometry.chord import region_half_lengths
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Chord geometry — concentric annular / spherical regions
@@ -66,6 +69,14 @@ def chord_half_lengths(radii: np.ndarray, y_pts: np.ndarray) -> np.ndarray:
             \sqrt{r_k^{2}-y^{2}}-\sqrt{r_{k-1}^{2}-y^{2}}, & y < r_{k-1}.
         \end{cases}
 
+    Read from the geometric kernel's orbit space
+    (:func:`~orpheus.geometry.chord.region_half_lengths` of the half-chords
+    :func:`~orpheus.geometry.chart.half_chord` at the breakpoints): a
+    region's length is formed without cancellation, as
+    :math:`(r_k^2 - r_{k-1}^2)/(h_k + h_{k-1})` (#578), the same function
+    the chord's radial slots are. It is a function of the impact parameter
+    alone, the same for the cylinder and the sphere, so no line is minted.
+
     This is the primitive consumed by the CP cylinder / sphere
     derivations (:mod:`~orpheus.derivations.continuous.flat_source_cp.cylinder`,
     :mod:`~orpheus.derivations.continuous.flat_source_cp.sphere`) and by the Phase-4 Peierls
@@ -84,23 +95,9 @@ def chord_half_lengths(radii: np.ndarray, y_pts: np.ndarray) -> np.ndarray:
     np.ndarray, shape (N, n_y)
         ``chords[k, m] = ℓ_k(y_pts[m])``.
     """
-    N = len(radii)
-    chords = np.zeros((N, len(y_pts)))
-    r_inner = np.zeros(N)
-    r_inner[1:] = radii[:-1]
-    y2 = y_pts ** 2
-
-    for k in range(N):
-        r_out, r_in = radii[k], r_inner[k]
-        outer = np.sqrt(np.maximum(r_out ** 2 - y2, 0.0))
-        if r_in > 0:
-            inner = np.sqrt(np.maximum(r_in ** 2 - y2, 0.0))
-            mask = y_pts < r_in
-            chords[k, mask] = outer[mask] - inner[mask]
-        mask_p = (y_pts >= r_in) & (y_pts < r_out)
-        chords[k, mask_p] = outer[mask_p]
-
-    return chords
+    breakpoints = np.concatenate([[0.0], np.asarray(radii, dtype=float)])
+    y = np.asarray(y_pts, dtype=float)
+    return region_half_lengths(breakpoints, half_chord(breakpoints, y[:, None], 0.0)).T
 
 
 # ═══════════════════════════════════════════════════════════════════════

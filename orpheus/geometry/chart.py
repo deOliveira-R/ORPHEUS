@@ -599,15 +599,17 @@ def _sine(cosine: np.ndarray) -> np.ndarray:
 _LEVEL_AGREEMENT = 64.0
 
 
-def half_chord(radius: np.ndarray, level: np.ndarray, level_half_chord: np.ndarray) -> np.ndarray:
+def half_chord(
+    radius: np.ndarray | float, level: np.ndarray | float, level_half_chord: np.ndarray | float
+) -> np.ndarray:
     r"""The half-chord :math:`\sqrt{r^2 - b^2}` of a line at radius ``radius``, from its level: :math:`\sqrt{(r - r_*)(r + r_*) + y_*^2}`.
 
     Exact at :math:`r = r_*`, and free of the cancellation :math:`r - b` at
     every radius at or above it; 0 where the square is not positive (the
-    line does not cross). Broadcast over the three arguments. The one
-    spelling of a half-chord: the chord's crossings
-    (:meth:`RadialImage.half_chord_at`) and the characteristic reading's
-    point weights read it.
+    line does not cross). Broadcast over the three arguments, scalars
+    included. The one spelling of a half-chord: the chord's crossings
+    (:meth:`RadialImage.half_chord_at`) read it, and so does every reference
+    that forms a half-chord without minting a line.
     """
     square = (radius - level) * (radius + level) + level_half_chord * level_half_chord
     return np.sqrt(np.where(square > 0.0, square, 0.0))
@@ -722,11 +724,21 @@ class RadialImage:
         return self.parameter_origin[..., None] + np.where(self.parallel[..., None], 0.0, offset)
 
     def orbit_coordinate_at(self, t: np.ndarray) -> np.ndarray:
-        r"""The orbit coordinate at parameters ``t`` ``(..., q)``: :math:`\sqrt{b^2 + s(t)^2}`, ``(..., q)``."""
+        r"""The orbit coordinate at parameters ``t`` ``(..., q)``: :math:`\sqrt{b^2 + s(t)^2}`, ``(..., q)``.
+
+        Formed from the :attr:`level` as :math:`\sqrt{r_*^2 + (s - y_*)(s + y_*)}`
+        (:func:`half_chord` with the roles of radius and position exchanged:
+        :math:`b` and :math:`s` are the legs over :math:`c`), so it is exactly
+        :math:`r_*` where the line is at its level, :math:`s = \pm y_*`, and
+        a point read back on its own line stays on its own surface (#578:
+        :math:`\sqrt{b^2 + s^2}` with :math:`b` rounded rose above the outer
+        radius at the point in about one direction in ten, 2123 to 2165 of
+        20 001 by how the position was formed).
+        """
         position = self.origin_position[..., None] + self.speed[..., None] * (
             np.asarray(t, dtype=float) - self.parameter_origin[..., None]
         )
-        return np.hypot(self.impact_parameter[..., None], position)
+        return half_chord(position, self.level_half_chord[..., None], self.level[..., None])
 
     def shifted(self, shift: np.ndarray) -> "RadialImage":
         """The same image with every parameter increased by ``shift`` ``(...,)``."""
@@ -735,18 +747,26 @@ class RadialImage:
 
 @dataclass(frozen=True, eq=False)
 class AxialImage:
-    r"""A line's image where the chart's group fixes the kept space: :math:`c(t) = c_{\rm foot} + \dot c\,t`.
+    r"""A line's image where the chart's group fixes the kept space: :math:`c(t) = c_0 + \dot c\,(t - t_0)`.
 
     Attributes
     ----------
     foot_coordinate:
-        :math:`c` at the parameter origin, ``(...,)``.
+        :math:`c_0`, the coordinate at the parameter origin, ``(...,)``.
     rate:
         :math:`\dot c = \Omega_x`, signed, ``(...,)``.
+    parameter_origin:
+        :math:`t_0`, 0 on the canonical line, ``(...,)``. A shift moves it and
+        never the coordinate, as on :class:`RadialImage`, so a parameter read
+        on the shifted image is the canonical one plus the shift, rounded in
+        the same order as the chord's crossings (#578: shifting the coordinate
+        instead put a point on a face one rounding off its crossing in 1306
+        of 8000 directions).
     """
 
     foot_coordinate: np.ndarray
     rate: np.ndarray
+    parameter_origin: np.ndarray | float = 0.0
 
     @property
     def speed(self) -> np.ndarray:
@@ -760,26 +780,28 @@ class AxialImage:
 
     @property
     def coordinate_of_parallel(self) -> np.ndarray:
-        r"""The orbit coordinate a parallel line keeps, :math:`c_{\rm foot}`, ``(...,)``."""
+        r"""The orbit coordinate a parallel line keeps, :math:`c_0`, ``(...,)``."""
         return self.foot_coordinate
 
     def orbit_coordinate_at(self, t: np.ndarray) -> np.ndarray:
         r"""The orbit coordinate at parameters ``t`` ``(..., q)``, ``(..., q)``."""
-        return self.foot_coordinate[..., None] + self.rate[..., None] * np.asarray(t, dtype=float)
+        origin = np.asarray(self.parameter_origin, dtype=float)
+        return self.foot_coordinate[..., None] + self.rate[..., None] * (np.asarray(t, dtype=float) - origin[..., None])
 
     def parameters_at(self, coordinate: np.ndarray, side: np.ndarray | None = None) -> np.ndarray:
-        r"""The parameters at which the lines reach the orbit coordinates ``coordinate`` ``(m,)`` or ``(..., m)``: :math:`(c - c_{\rm foot})/\dot c`.
+        r"""The parameters at which the lines reach the orbit coordinates ``coordinate`` ``(m,)`` or ``(..., m)``: :math:`t_0 + (c - c_0)/\dot c`.
 
         A line meets each level once, so ``side`` is not read; a parallel
         line is given the rate 1 (it meets no level, and its crossings are
         absent).
         """
         rate = np.where(self.parallel, 1.0, self.rate)
-        return (np.asarray(coordinate, dtype=float) - self.foot_coordinate[..., None]) / rate[..., None]
+        origin = np.asarray(self.parameter_origin, dtype=float)
+        return origin[..., None] + (np.asarray(coordinate, dtype=float) - self.foot_coordinate[..., None]) / rate[..., None]
 
     def shifted(self, shift: np.ndarray) -> "AxialImage":
         """The same image with every parameter increased by ``shift`` ``(...,)``."""
-        return AxialImage(self.foot_coordinate - self.rate * shift, self.rate)
+        return replace(self, parameter_origin=np.asarray(self.parameter_origin, dtype=float) + shift)
 
 
 def _norm(vectors: np.ndarray) -> np.ndarray:

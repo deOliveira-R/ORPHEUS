@@ -175,16 +175,16 @@ def test_sphere_G_bc_at_origin_equals_four_exp_neg_tau(Sigma_t_R):
 
 
 @pytest.mark.l0
-def test_cylinder_G_bc_not_proportional_to_P_esc():
-    """Cylinder: G_bc and P_esc do NOT share a constant ratio.
+def test_cylinder_G_bc_is_four_times_P_esc():
+    """Cylinder: G_bc = 4 P_esc observer by observer (reciprocity: the uncollided flux from a unit isotropic current
+    on the surface is 4 times the escape probability through it, over the same directions).
 
-    Unlike the sphere, the cylinder's G_bc uses the surface-centred
-    ``Ki_1(τ)/d`` integrand (from the 2-D Bickley-Naylor reduction)
-    while P_esc uses the observer-centred ``Ki_2(τ)`` integrand.  These
-    are NOT proportional — the ratio is a non-trivial function of r.
-
-    This negative test guards against accidentally unifying the two
-    cylinder primitives under a wrong identity.
+    INVERTED and re-posed 2026-10-11 (#578, ERR-114, #112's rank-1 half). Until then this row asserted the opposite,
+    that the two did NOT share a constant ratio (spread [2.1, 5.6]), and so pinned the defect as the contract: the
+    cylinder's G_bc was the surface-centred ``Ki_1(tau)/d`` form, which the numerics-investigator measured at 0.586 to
+    1.340 times a 3-D surface-point reference on the solid cylinder. Since the ruling ``compute_G_bc`` IS ``4 *
+    compute_P_esc`` (one integrand), so this row is the witness of that single source; the independent pin of the
+    value is ``test_peierls_hollow_faces.py::test_the_solid_cylinder_response_is_the_3d_surface_integral``.
     """
     R = 2.0
     radii = np.array([R])
@@ -194,12 +194,4 @@ def test_cylinder_G_bc_not_proportional_to_P_esc():
                      n_surf_quad=32, dps=25)
     P = compute_P_esc(CYLINDER_1D, r_nodes, radii, _SIG_T,
                       n_angular=32, dps=25)
-
-    ratio = G / P
-    # The ratio varies substantially across r (we've seen [2.1, 5.6]).
-    # Require that the relative spread is bigger than 10 %.
-    assert (ratio.max() - ratio.min()) / ratio.mean() > 0.1, (
-        "Cylinder G_bc/P_esc unexpectedly uniform — has the geometry "
-        "definition changed?  Spread: "
-        f"[{ratio.min():.3f}, {ratio.max():.3f}]"
-    )
+    np.testing.assert_allclose(G, 4.0 * P, rtol=1e-14, atol=0.0)

@@ -62,6 +62,8 @@ import numpy as np
 
 from ...common.kernels import chord_half_lengths, e3_vec, ki_n_mp
 from ...common.quadrature_recipes import chord_quadrature
+from orpheus.geometry.chart import Chart
+from orpheus.geometry.coord import CoordSystem
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -183,19 +185,31 @@ class FlatSourceCPGeometry:
     # ── Outer-integration weight W(y) ────────────────────────────────
 
     def outer_y_weight(self, y_pts: np.ndarray) -> np.ndarray:
-        r"""Weight in the :math:`\mathrm d y` outer integral.
+        r"""The density over the impact parameter :math:`y` of the measure on lines, in the plane (:math:`|P\Omega| = 1`).
 
-        - Slab: n/a (trivial 1-point "y-quadrature" at :math:`y=0`;
-          this method returns 1 to pass through unchanged).
-        - Cylinder: 1 (weight is purely :math:`\mathrm d y`).
-        - Sphere: :math:`y` (spherical area element
-          :math:`2\pi y\,\mathrm d y` minus the :math:`2\pi` absorbed
-          into :meth:`surface_area`).
+        :meth:`~orpheus.geometry.chart.Chart.beam_density` of the
+        coordinate system: 2 on the cylinder (the two lines at
+        :math:`\pm y`), :math:`2\pi y` on the sphere. The slab has no
+        :math:`y`-quadrature (:attr:`has_y_quadrature`) and refuses.
+
+        Until #578 this was 1 and :math:`y`, with the factor 2 spelled as a
+        literal in the collision-rate lines; the sphere's :math:`2\pi y`
+        therefore lost its :math:`\pi`, and its first-collision
+        probabilities read :math:`1/\pi` of the closed form (production
+        CP shared the spelling).
         """
-        y_pts = np.asarray(y_pts, dtype=float)
-        if self.kind == "sphere-1d":
-            return y_pts
-        return np.ones_like(y_pts)
+        if self.kind == "slab":
+            raise ValueError("the slab has no y-quadrature; its line measure is not a density over an impact parameter")
+        return self.chart.beam_density(np.asarray(y_pts, dtype=float), np.array([0.0, 1.0, 0.0]))
+
+    @property
+    def chart(self) -> Chart:
+        """The geometric kernel's chart of the kind's coordinate system."""
+        return Chart({
+            "slab": CoordSystem.CARTESIAN,
+            "cylinder-1d": CoordSystem.CYLINDRICAL,
+            "sphere-1d": CoordSystem.SPHERICAL,
+        }[self.kind])
 
     # ── Cell surface area (white-BC closure normalisation) ───────────
 
@@ -294,11 +308,11 @@ def build_cp_matrix(
         y_wts = q.wts * geom.outer_y_weight(q.pts)
         chords = chord_half_lengths(radii_or_thicknesses, y_pts)
     else:
-        # Slab: trivial 1-point rule at y=0 with weight 0.25 so that
-        # the shared ``2 * <y_wts, dd + dc>`` reduces to the legacy
+        # Slab: trivial 1-point rule at y=0 with weight 0.5 so that
+        # the shared ``<y_wts, dd + dc>`` reduces to the legacy
         # ``0.5 * (dd + dc)``. Chords are the thicknesses (constant).
         y_pts = np.zeros(1)
-        y_wts = np.array([0.25])
+        y_wts = np.array([0.5])
         chords = radii_or_thicknesses[:, None].copy()  # (N_reg, 1)
 
     n_y = len(y_pts)
@@ -326,7 +340,7 @@ def build_cp_matrix(
             self_same = 2.0 * chords[i, :] - (2.0 / sti) * (
                 kernel_zero - geom.kernel_F3(tau_i)
             )
-            rcp[i, i] += 2.0 * sti * np.dot(y_wts, self_same)
+            rcp[i, i] += sti * np.dot(y_wts, self_same)
 
             for j in range(N_reg):
                 tau_j = tau[j, :]
@@ -353,7 +367,7 @@ def build_cp_matrix(
                     geom.kernel_F3, gap_c, tau_i, tau_j,
                 )
 
-                rcp[i, j] += 2.0 * np.dot(y_wts, dd + dc)
+                rcp[i, j] += np.dot(y_wts, dd + dc)
 
         # Normalise to P_cell = rcp / (Σ_t · V)
         P_cell = np.zeros((N_reg, N_reg))

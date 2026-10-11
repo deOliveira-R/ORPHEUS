@@ -67,7 +67,7 @@ from functools import cached_property
 import numpy as np
 
 from orpheus.derivations.common.quadrature import gauss_legendre
-from orpheus.geometry.chord import RadialImage
+from orpheus.geometry.chord import Chord, RadialImage
 from orpheus.geometry.line import Line
 
 from .basis import PanelBasis
@@ -262,7 +262,22 @@ class TraversalRule:
         ``level`` is each line's exact level, a radius and its half-chord
         there (:meth:`~orpheus.geometry.chord.ConcentricPartition.chord`).
         """
-        period = LinePeriod.of(basis.partition.chord(lines, level), walls.on(basis.partition))
+        return cls.on_chord(basis.partition.chord(lines, level), basis, walls, sigma_t, points, inner_points)
+
+    @classmethod
+    def on_chord(
+        cls,
+        chord: Chord,
+        basis: PanelBasis,
+        walls: Walls,
+        sigma_t: np.ndarray,
+        points: int,
+        inner_points: int,
+    ) -> "TraversalRule":
+        r"""The rule along the lines of ``chord``, a chord of ``basis``'s panel partition (:meth:`of`, for a chord already formed, such as :meth:`~orpheus.geometry.chord.ConcentricPartition.rays_from`'s)."""
+        if chord.partition is not basis.partition:
+            raise ValueError("the chord is a chord of the basis's panel partition")
+        period = LinePeriod.of(chord, walls.on(basis.partition))
         return cls(period, basis, basis.on_panels(sigma_t), points, inner_points)
 
     # ── the line batch, flattened ────────────────────────────────────────

@@ -411,7 +411,8 @@ def transmission_probability(chart: str, tau) -> Mpf:
         case "sphere":
             return (1 - (1 + 2 * tau) * mp.exp(-2 * tau)) / (2 * tau ** 2)
         case "cylinder":
-            return 4 / mp.pi * mp.quad(lambda f: mp.cos(f) * bickley_ki3(2 * tau * mp.cos(f)), [0, mp.pi / 2])
+            # cos f >= 0 on [0, pi/2]; next to pi/2 it rounds below 0 at high precision, where Ki_3 is complex (ERR-113's edge)
+            return 4 / mp.pi * mp.quad(lambda f: mp.cos(f) * bickley_ki3(2 * tau * max(mp.cos(f), 0)), [0, mp.pi / 2])
         case "slab":
             return 2 * mp.expint(3, tau)
     raise AssertionError(chart)

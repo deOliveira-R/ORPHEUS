@@ -47,6 +47,7 @@ from orpheus.derivations.common.kernels import chord_half_lengths
 from orpheus.derivations.common.quadrature import composite_gauss_legendre
 from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel
 from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry.chart import Chart
 from orpheus.geometry.boundary import ReflectiveBoundary
 from orpheus.mesh import Mesh1D
 from orpheus.numerics.outcome import NotYet
@@ -235,7 +236,12 @@ class CPMesh:
         # 1-D float ndarray is accepted at runtime; ``.tolist()`` supplies the
         # declared Sequence type with no numerical change.
         q = composite_gauss_legendre(self.mesh.edges.tolist(), p.n_quad_y)
-        self._y_pts, self._y_wts = q.pts, q.wts
+        # The measure on lines over the impact parameter y, in the plane
+        # (|PΩ| = 1): 2 on the cylinder (the two lines at ±y), 2πy on the
+        # sphere (Chart.beam_density, #578).
+        in_plane = np.array([0.0, 1.0, 0.0])
+        self._y_pts = q.pts
+        self._y_wts = q.wts * Chart(self.mesh.coord).beam_density(q.pts, in_plane)
         self._chords = chord_half_lengths(radii, self._y_pts)
 
     def _setup_cylindrical(self) -> None:
@@ -257,8 +263,6 @@ class CPMesh:
         # Kernel F(τ) = exp(-τ)
         self._kernel = lambda tau: np.exp(-tau)
         self._kernel_zero = np.ones(len(self._y_pts))
-        # Spherical weight: extra factor of y in the quadrature
-        self._y_wts = self._y_wts * self._y_pts
 
     # ── Boundary condition resolution ────────────────────────────────
 
@@ -398,7 +402,7 @@ class CPMesh:
             self_same = 2.0 * chords[i, :] - (2.0 / sti) * (
                 kernel_zero - kernel(tau_i)
             )
-            rcp[i, i] += 2.0 * sti * np.dot(y_wts, self_same)
+            rcp[i, i] += sti * np.dot(y_wts, self_same)
 
             for j in range(N):
                 tau_j = tau[j, :]
@@ -425,7 +429,7 @@ class CPMesh:
                       - kernel(gap_c + tau_j)
                       + kernel(gap_c + tau_i + tau_j))
 
-                rcp[i, j] += 2.0 * np.dot(y_wts, dd + dc)
+                rcp[i, j] += np.dot(y_wts, dd + dc)
 
         return rcp
 

@@ -187,22 +187,13 @@ class LinePeriod:
         its reverse cross the same slots.
         """
         chord = self.chord
-        n = chord.partition.n_regions
-        sigma_t = np.asarray(sigma_t, dtype=float)
-        if sigma_t.shape != (n,):
-            raise ValueError(f"sigma_t holds one total cross section per region, shape ({n},); got {sigma_t.shape}")
         transits = chord.transits
         first = np.take_along_axis(transits.first_slot, self.transit, axis=-1)
         stop = np.take_along_axis(transits.stop_slot, self.transit, axis=-1)
         slot = np.arange(chord.slot_region.shape[-1])
         crossed = self.present[..., None] & (slot >= first[..., None]) & (slot < stop[..., None])
-        # an exterior slot inside a transit is untraversed; a void slot adds 0 even at infinite length
-        region = chord.slot_region
-        sigma = np.where(region < n, sigma_t[np.minimum(region, n - 1)], 0.0)[..., None, :]
-        attenuating = crossed & (sigma > 0.0)
-        length = np.broadcast_to(chord.slot_length[..., None, :], attenuating.shape)
-        depth = np.multiply(length, sigma, out=np.zeros(attenuating.shape), where=attenuating)
-        return depth.sum(axis=-1)
+        length = np.where(crossed, chord.slot_length[..., None, :], 0.0)
+        return chord.line_integral(sigma_t, length)
 
     def inflow(self, optical_depth: np.ndarray, outflow: np.ndarray, arriving: np.ndarray | None = None) -> np.ndarray:
         r"""The inflow at each traversal's entry, the least solution of the period's cycle.

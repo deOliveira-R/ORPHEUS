@@ -137,31 +137,22 @@ def _kernel_exit_distance(R: float, r: float, mu: float) -> tuple[float, float]:
     return float(np.sum(ch.lengths_beyond(line.parameter_of(p)))), float(np.sqrt((R - b) * (R + b)))
 
 
-@pytest.mark.parametrize(
-    "spelling",
-    ["peierls_rho_max", "moc_root"],
-)
-def test_the_exit_distance_agrees_with_each_old_spelling(spelling: str, kernel_calls: dict[str, int]) -> None:
-    """F1 joined: the kernel's exit distance against Peierls ``rho_max`` and the MoC root.
+def test_the_exit_distance_agrees_with_the_moc_root(kernel_calls: dict[str, int]) -> None:
+    """F1 joined: the kernel's exit distance against the MoC root.
 
     The Variant-alpha ``L_back`` arm was deleted with the trajectory-resolvent
-    family in step (e2) of the characteristic-reference campaign.
+    family in step (e2) of the characteristic-reference campaign; the Peierls
+    ``rho_max`` arm with #578, when the Peierls ray layer moved onto the kernel
+    (``CurvilinearGeometry.rays_from``).
 
     Per-draw band ``16 eps R (r + R)/h`` (the problem's conditioning at
     tangency, spec §8).
     """
-    if spelling == "peierls_rho_max":
-        _assert_independent("orpheus.derivations.continuous.peierls_nystrom.geometry")
-        from orpheus.derivations.continuous.peierls_nystrom.geometry import SPHERE_1D
+    _assert_independent("orpheus.moc.geometry")
+    from orpheus.moc.geometry import _ray_circle_intersections
 
-        def old(R, r, mu):
-            return SPHERE_1D.rho_max(r, -mu, R)
-    else:
-        _assert_independent("orpheus.moc.geometry")
-        from orpheus.moc.geometry import _ray_circle_intersections
-
-        def old(R, r, mu):
-            return max(_ray_circle_intersections(r, 0.0, -mu, np.sqrt(1 - mu * mu), 0.0, 0.0, R))
+    def old(R, r, mu):
+        return max(_ray_circle_intersections(r, 0.0, -mu, np.sqrt(1 - mu * mu), 0.0, 0.0, R))
 
     worst = 0.0
     for R, r, mu in _draws():
@@ -170,19 +161,25 @@ def test_the_exit_distance_agrees_with_each_old_spelling(spelling: str, kernel_c
     assert worst <= _JOIN_C, worst
 
 
-def test_the_bare_locator_agrees_with_the_inner_owns_spellings_and_not_with_peierls(kernel_calls: dict[str, int]) -> None:
-    """F3 joined: at every breakpoint the kernel answers as the three inner-owns spellings, and unlike Peierls ``which_annulus``.
+#: The MoC 1e-12 band (``orpheus/moc/geometry.py`` ``_identify_region``: ``r <= radii[k] + 1e-12``): MoC assigns
+#: ``r_k < r <= r_k + 1e-12`` to region k, where the kernel (and MC) answer k + 1. A production defect, measured at the
+#: segment level in ``tests/gates/moc/test_ray_tracing.py`` (#595); asserted here as a disagreement so that
+#: MoC's migration onto the kernel shows up as a changed answer. 2e-12 is the control, past the band.
+_MOC_BAND = (1e-13, 5e-13, 1e-12)
+
+
+def test_the_bare_locator_agrees_with_the_inner_owns_spellings(kernel_calls: dict[str, int]) -> None:
+    """F3 joined: at every breakpoint the kernel answers as MoC and MC (inner-owns), and just above a breakpoint MoC's
+    1e-12 band answers one region low.
 
     Until step (e2) two more inner-owns spellings, the trajectory resolvent's
     ``_region_at_radius_oracle`` and ``_region_at_radius_cyl``, were compared
-    here; they were deleted with their family.
-
-    Peierls is outer-biased by its own docstring; the disagreement is asserted
-    so that its migration onto the kernel shows up here as a changed answer.
+    here; they were deleted with their family. The Peierls ``which_annulus`` arm
+    (outer-biased, asserted k + 1 at a breakpoint) was deleted with #578, when
+    the Peierls ray layer moved onto the kernel's ``region_containing``.
     """
-    for name in ("orpheus.moc.geometry", "orpheus.mc.solver", "orpheus.derivations.continuous.peierls_nystrom.geometry"):
+    for name in ("orpheus.moc.geometry", "orpheus.mc.solver"):
         _assert_independent(name)
-    from orpheus.derivations.continuous.peierls_nystrom.geometry import SPHERE_1D
     from orpheus.mc.solver import ConcentricPinCell
     from orpheus.moc.geometry import _identify_region
 
@@ -191,10 +188,21 @@ def test_the_bare_locator_agrees_with_the_inner_owns_spellings_and_not_with_peie
     pin = ConcentricPinCell(radii=list(radii), mat_ids=[0, 1, 2], pitch=10.0)
     for r in (0.3, 1.1, 0.7, 0.05, 1.9):
         def old_spellings(r=r):
-            return (_identify_region(r, 0.0, 0.0, 0.0, radii, 3), pin.material_id_at(5.0 + r, 5.0),
-                    SPHERE_1D.which_annulus(r, radii))
-        moc, mc, peierls = _without_kernel(kernel_calls, old_spellings)
-        kernel = int(part.region_containing(np.array(r)))
-        assert kernel == moc == mc
-        on_breakpoint = r in (0.3, 1.1)
-        assert peierls == (kernel + 1 if on_breakpoint else kernel)
+            return _identify_region(r, 0.0, 0.0, 0.0, radii, 3), pin.material_id_at(5.0 + r, 5.0)
+        moc, mc = _without_kernel(kernel_calls, old_spellings)
+        assert int(part.region_containing(np.array(r))) == moc == mc
+    for r_k in (0.3, 1.1):
+        for delta in (*_MOC_BAND, 2e-12):
+            r = r_k + delta
+            def band(r=r):
+                return _identify_region(r, 0.0, 0.0, 0.0, radii, 3), pin.material_id_at(5.0 + r, 5.0)
+            moc, mc = _without_kernel(kernel_calls, band)
+            kernel = int(part.region_containing(np.array(r)))
+            assert kernel == mc, (r, kernel, mc)
+            if delta in _MOC_BAND:
+                assert moc == kernel - 1, (
+                    f"r = r_k + {delta:g}: MoC's 1e-12 band answers {moc}, the kernel {kernel}; if MoC moved onto the "
+                    "kernel, delete these draws (#595)"
+                )
+            else:
+                assert moc == kernel, (r, moc, kernel)

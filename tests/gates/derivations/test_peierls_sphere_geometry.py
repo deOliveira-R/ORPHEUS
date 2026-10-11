@@ -6,9 +6,11 @@ same ray-walker machinery in :class:`CurvilinearGeometry`, but
 verified separately so a regression in the sphere branch cannot hide
 behind passing cylinder tests.
 
-The walker verified here is
-:meth:`~peierls_geometry.CurvilinearGeometry.optical_depth_along_ray`
-parameterised by observer-centred polar angle :math:`\\theta`
+The ray reading verified here is the optical depth along a ray,
+:meth:`~orpheus.geometry.chord.Chord.line_integral` over
+:meth:`~orpheus.geometry.chord.Rays.lengths_to`, read from
+:meth:`~orpheus.derivations.continuous.peierls_nystrom.geometry.CurvilinearGeometry.rays_from`
+(``optical_depth_along_ray`` until #578), parameterised by observer-centred polar angle :math:`\\theta`
 (:math:`\\cos\\theta` argument), as used by the sphere solver. The
 ray-exit distance :math:`\\rho_{\\max}(r_i, \\theta)` is the same
 closed form as the cylinder case (the 1-D radial chord algebra is
@@ -21,6 +23,7 @@ import pytest
 
 from orpheus.derivations.continuous.peierls_nystrom.geometry import composite_gl_r
 from orpheus.derivations.continuous.peierls_nystrom.sphere import GEOMETRY
+from tests.gates.derivations import _peierls_rays as rays
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -85,28 +88,28 @@ class TestSphereRhoMax:
         """θ = 0 (pure outward radial): ρ_max = R − r_i."""
         R = 2.5
         for r_i in (0.0, 0.5, 1.0, 2.0, 2.4):
-            rho = GEOMETRY.rho_max(r_i, cos_omega=1.0, R=R)
+            rho = rays.exit_distance(GEOMETRY, r_i, cos_omega=1.0, R=R)
             assert rho == pytest.approx(R - r_i, rel=1e-14, abs=1e-14)
 
     def test_radial_inward_ray_crosses_diameter(self):
         """θ = π (through centre): ρ_max = R + r_i (exits opposite side)."""
         R = 2.5
         for r_i in (0.1, 0.5, 1.0, 2.0):
-            rho = GEOMETRY.rho_max(r_i, cos_omega=-1.0, R=R)
+            rho = rays.exit_distance(GEOMETRY, r_i, cos_omega=-1.0, R=R)
             assert rho == pytest.approx(R + r_i, rel=1e-14)
 
     def test_tangential_ray_from_center_equals_R(self):
         """r_i = 0, any θ: every ray traverses exactly R to reach the surface."""
         R = 4.0
         for theta in (0.0, np.pi / 4, np.pi / 3, np.pi / 2, 2 * np.pi / 3, np.pi):
-            rho = GEOMETRY.rho_max(0.0, cos_omega=np.cos(theta), R=R)
+            rho = rays.exit_distance(GEOMETRY, 0.0, cos_omega=np.cos(theta), R=R)
             assert rho == pytest.approx(R, rel=1e-14)
 
     def test_observer_on_surface_outward_ray_zero(self):
         """r_i = R, θ < π/2: ρ_max = 0 (ray leaves immediately)."""
         R = 1.5
         for theta in (0.0, np.pi / 4, np.pi / 3):
-            rho = GEOMETRY.rho_max(R, cos_omega=np.cos(theta), R=R)
+            rho = rays.exit_distance(GEOMETRY, R, cos_omega=np.cos(theta), R=R)
             assert rho == pytest.approx(0.0, abs=1e-14)
 
 
@@ -122,19 +125,19 @@ class TestSphereSourcePosition:
     def test_radial_outward_traversal(self):
         """θ = 0: r' = r_i + ρ."""
         for r_i, rho in ((0.0, 1.0), (0.5, 1.5), (1.0, 0.25)):
-            rp = GEOMETRY.source_position(r_i, rho, cos_omega=1.0)
+            rp = rays.position(GEOMETRY, r_i, rho, cos_omega=1.0)
             assert rp == pytest.approx(r_i + rho, rel=1e-14)
 
     def test_radial_inward_through_centre(self):
         """θ = π: r' = |r_i − ρ|."""
         for r_i, rho in ((1.0, 0.3), (1.0, 1.5), (2.0, 0.5)):
-            rp = GEOMETRY.source_position(r_i, rho, cos_omega=-1.0)
+            rp = rays.position(GEOMETRY, r_i, rho, cos_omega=-1.0)
             assert rp == pytest.approx(abs(r_i - rho), rel=1e-14)
 
     def test_perpendicular_ray_from_interior(self):
         """θ = π/2: r' = √(r_i² + ρ²) (perpendicular chord)."""
         r_i, rho = 1.2, 0.7
-        rp = GEOMETRY.source_position(r_i, rho, cos_omega=0.0)
+        rp = rays.position(GEOMETRY, r_i, rho, cos_omega=0.0)
         assert rp == pytest.approx(np.hypot(r_i, rho), rel=1e-14)
 
 
@@ -153,7 +156,7 @@ class TestSphereOpticalDepthAlongRay:
         sig_t = np.array([0.7])
         for r_i, ct in ((0.0, 1.0), (1.0, 0.0), (2.0, -0.5), (3.0, 0.3)):
             for rho in (0.5, 1.0, 2.5):
-                tau = GEOMETRY.optical_depth_along_ray(
+                tau = rays.depth(GEOMETRY,
                     r_i, cos_omega=ct, rho=rho, radii=radii, sig_t=sig_t,
                 )
                 assert tau == pytest.approx(sig_t[0] * rho, rel=1e-12, abs=1e-14)
@@ -165,8 +168,8 @@ class TestSphereOpticalDepthAlongRay:
         sig_t_b = 2.5 * sig_t_a
         r_i, ct, rho = 0.2, 0.3, 0.9
 
-        tau_a = GEOMETRY.optical_depth_along_ray(r_i, ct, rho, radii, sig_t_a)
-        tau_b = GEOMETRY.optical_depth_along_ray(r_i, ct, rho, radii, sig_t_b)
+        tau_a = rays.depth(GEOMETRY, r_i, ct, rho, radii, sig_t_a)
+        tau_b = rays.depth(GEOMETRY, r_i, ct, rho, radii, sig_t_b)
         assert tau_b == pytest.approx(2.5 * tau_a, rel=1e-12)
 
     def test_two_annulus_radial_transit(self):
@@ -175,7 +178,7 @@ class TestSphereOpticalDepthAlongRay:
         r1, R = 0.4, 1.0
         radii = np.array([r1, R])
         sig_t = np.array([0.9, 2.1])
-        tau = GEOMETRY.optical_depth_along_ray(
+        tau = rays.depth(GEOMETRY,
             r_obs=0.0, cos_omega=1.0, rho=R, radii=radii, sig_t=sig_t,
         )
         expected = sig_t[0] * r1 + sig_t[1] * (R - r1)
@@ -188,7 +191,7 @@ class TestSphereOpticalDepthAlongRay:
         r1, R = 0.4, 1.0
         radii = np.array([r1, R])
         sig_t = np.array([0.9, 2.1])
-        tau = GEOMETRY.optical_depth_along_ray(
+        tau = rays.depth(GEOMETRY,
             r_obs=R, cos_omega=-1.0, rho=2 * R, radii=radii, sig_t=sig_t,
         )
         expected = sig_t[0] * (2 * r1) + sig_t[1] * 2 * (R - r1)

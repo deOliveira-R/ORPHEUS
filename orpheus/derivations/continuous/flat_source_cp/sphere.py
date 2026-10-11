@@ -14,11 +14,11 @@ Spherical CP kernel
 For concentric spherical shells, the transmission kernel along a
 chord at impact parameter :math:`y` is simply :math:`e^{-\tau}` —
 full 3-D symmetry removes any residual angular integration (unlike
-slab :math:`E_3` or cylinder :math:`\mathrm{Ki}_3`). The spherical
-area element :math:`2\pi y\,\mathrm d y` gives a
-:attr:`~.cp_geometry.FlatSourceCPGeometry.outer_y_weight` of
-:math:`y` (the :math:`2\pi` is absorbed into the white-BC surface
-area :math:`4\pi R^{2}`).
+slab :math:`E_3` or cylinder :math:`\mathrm{Ki}_3`). The measure on
+lines over the impact parameter is :math:`2\pi y\,\mathrm d y`, the
+:meth:`~.geometry.FlatSourceCPGeometry.outer_y_weight` read from
+:meth:`~orpheus.geometry.chart.Chart.beam_density` (#578; until then the
+weight was :math:`y`, and the :math:`\pi` was lost, not absorbed).
 """
 
 from __future__ import annotations

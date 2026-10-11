@@ -239,9 +239,10 @@ def observer_angular_quadrature(
     omega_low, omega_high : float
         Integration interval. Must satisfy ``omega_low < omega_high``.
     radii : np.ndarray, shape ``(N,)``
-        Shell outer radii. Tangent angles are computed only for those
-        :math:`r_{k} < r_{\rm obs}` (shells "behind" the observer along
-        the ray); shells with :math:`r_{k} \ge r_{\rm obs}` are crossed
+        Shell outer radii. Tangent angles are computed for those
+        :math:`r_{k} \le r_{\rm obs}` (shells "behind" the observer along
+        the ray, and a shell at the observer, whose tangent is
+        :math:`\pi/2`); shells with :math:`r_{k} > r_{\rm obs}` are crossed
         smoothly without tangency.
     n_per_panel : int
         Plain Gauss-Legendre nodes per sub-panel.
@@ -284,10 +285,13 @@ def observer_angular_quadrature(
         # empty array but emits a numpy warning on some builds).
         candidates = np.array([], dtype=float)
     else:
-        interior = radii[radii < r_obs]
+        # A shell AT the observer is included: its tangent is the direction
+        # pi/2 along the wall, where |cos| kinks (#578: an observer on an
+        # interior wall otherwise converged only as O(n^-2), -1.0e-2 at n = 16).
+        interior = radii[radii <= r_obs]
         forward = np.arcsin(np.clip(interior / r_obs, 0.0, 1.0))
         backward = np.pi - forward
-        candidates = np.concatenate([forward, backward])
+        candidates = np.unique(np.concatenate([forward, backward]))
 
     inside = (candidates > omega_low) & (candidates < omega_high)
     tangents = np.sort(candidates[inside])

@@ -675,12 +675,20 @@ def test_chord_quadrature_split_disable_keeps_first_panel():
 
 @pytest.mark.foundation
 def test_observer_angular_quadrature_no_interior_shells_is_plain_gl():
-    """When no shells are interior to the observer (or none have
-    tangent angles in [omega_low, omega_high]), the rule degenerates
-    to plain GL on the full interval — i.e. one panel."""
+    """When no shell is inside or at the observer (or none has a tangent
+    angle in [omega_low, omega_high]), the rule degenerates to plain GL
+    on the full interval: one panel. An observer at r = 1 inside the
+    outer surface r = 5 has no tangency.
+
+    Until #578 (2026-10-11) this row placed the observer ON the outer
+    surface (r_obs = radii = 5) and asserted one panel: the rule then
+    filtered shells strictly inside the observer. A shell at the observer
+    now contributes its tangent pi/2 (the |cos| kink along the wall),
+    which :func:`test_an_observer_on_a_shell_breaks_the_rule_at_pi_over_2`
+    pins."""
     q = observer_angular_quadrature(
-        r_obs=5.0, omega_low=0.0, omega_high=np.pi,
-        radii=np.array([5.0]),  # only the outer surface; no interior shells
+        r_obs=1.0, omega_low=0.0, omega_high=np.pi,
+        radii=np.array([5.0]),  # only the outer surface, outside the observer
         n_per_panel=16,
     )
     assert q.n_panels == 1
@@ -688,22 +696,41 @@ def test_observer_angular_quadrature_no_interior_shells_is_plain_gl():
 
 
 @pytest.mark.foundation
+def test_an_observer_on_a_shell_breaks_the_rule_at_pi_over_2():
+    """A shell at the observer (r_obs = r_k) has its tangent at pi/2, the
+    direction along the wall, where the integrand's |cos| kinks: the rule
+    breaks there once (#578, 2026-10-11; before, an observer on an interior
+    wall converged only as O(n^-2), -1.0e-2 at n = 16). First red: the
+    shells filtered strictly inside the observer (``radii < r_obs``)."""
+    q = observer_angular_quadrature(
+        r_obs=5.0, omega_low=0.0, omega_high=np.pi,
+        radii=np.array([5.0]),
+        n_per_panel=16,
+    )
+    assert q.n_panels == 2
+    np.testing.assert_allclose([pb[1] for pb in q.panel_bounds[:-1]], [np.pi / 2], atol=1e-15)
+
+
+@pytest.mark.foundation
 def test_observer_angular_quadrature_inserts_tangent_breakpoints():
     """For ``r_obs = 3``, ``radii = [1, 2, 3, 5]``, the tangent angles
     are ``arcsin(1/3)`` and ``arcsin(2/3)`` (forward) plus their
-    backward mirrors — four interior breakpoints, five panels on
-    :math:`[0, \\pi]`. Shell ``r=3`` itself is the observer's shell
-    (strict :math:`<` filter), and ``r=5`` is the outer surface
+    backward mirrors, and the observer's own shell ``r = 3`` at pi/2
+    (since #578, 2026-10-11: a shell at the observer is included, its tangent
+    the direction along the wall; until then the filter was strict and this
+    row read five panels) — five interior breakpoints, six panels on
+    :math:`[0, \\pi]`. ``r=5`` is the outer surface
     (:math:`r_k \\ge r_{\\rm obs}`, smooth crossing, no tangency)."""
     q = observer_angular_quadrature(
         r_obs=3.0, omega_low=0.0, omega_high=np.pi,
         radii=np.array([1.0, 2.0, 3.0, 5.0]),
         n_per_panel=8,
     )
-    assert q.n_panels == 5
+    assert q.n_panels == 6
     expected_inner = sorted([
         np.arcsin(1.0 / 3.0),
         np.arcsin(2.0 / 3.0),
+        np.pi / 2,
         np.pi - np.arcsin(2.0 / 3.0),
         np.pi - np.arcsin(1.0 / 3.0),
     ])

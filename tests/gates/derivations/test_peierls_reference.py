@@ -622,8 +622,7 @@ class TestCylinderKernelRowSum:
     the bug to one of:
 
     * the analytical reference (the new closed-form integral),
-    * the unified primitive's geometry primitives (:meth:`CurvilinearGeometry.rho_max`,
-      :meth:`~.source_position`, :meth:`~.optical_depth_along_ray`,
+    * the unified primitive's geometry primitives (the ray layer :meth:`CurvilinearGeometry.rays_from`,
       :meth:`~.volume_kernel_mp`).
 
     The parametrisation sweeps one-MFP, thin-larger-radius, and
@@ -1253,35 +1252,41 @@ class TestSlabWhiteBCPartialCurrentBalance:
 @pytest.mark.l0
 @pytest.mark.verifies("peierls-unified")
 class TestSlabRankNNotImplementedGuard:
-    r"""Rank-N :math:`(n > 0)` BC for slab-polar requires per-face mode
-    decomposition (two faces → :math:`A = \mathbb{R}^{2N}` rather than
-    :math:`\mathbb{R}^{N}`). The unified
-    :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc_mode`
+    r"""Rank-N BC for slab-polar requires per-face mode decomposition (two
+    faces → :math:`A = \mathbb{R}^{2N}` rather than :math:`\mathbb{R}^{N}`). The
+    unified :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_P_esc_mode`
     and :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.compute_G_bc_mode`
-    explicitly raise :class:`NotImplementedError` for slab at
-    :math:`n_{\rm mode} > 0`; the rank-1 (:math:`n_{\rm bc\_modes} = 1`,
-    mode-0-only) path is the supported configuration.
+    raise :class:`NotImplementedError` for slab at every :math:`n_{\rm mode}`,
+    0 included (since #578: their curvilinear surface-to-observer Jacobian
+    and surface-centred forms mean nothing on the slab at any mode; until
+    then mode 0 ran and returned a number). The slab's rank-1 quantities are
+    :func:`compute_P_esc` and :func:`compute_G_bc`.
+
+    First red: the refusal limited to :math:`n_{\rm mode} > 0` again (the
+    ``n_mode = 0`` rows).
     """
 
-    def test_P_esc_mode_raises_for_slab_polar_at_mode_n(self):
+    @pytest.mark.parametrize("n_mode", [0, 1])
+    def test_P_esc_mode_raises_for_slab_polar(self, n_mode):
         from orpheus.derivations.continuous.peierls_nystrom.geometry import compute_P_esc_mode
         radii = np.array([1.0])
         sig_t = np.array([1.0])
         r_nodes, _, _ = composite_gl_r(radii, 1, 2, dps=20)
         with pytest.raises(NotImplementedError, match="slab-polar"):
             compute_P_esc_mode(
-                SLAB_POLAR_1D, r_nodes, radii, sig_t, n_mode=1,
+                SLAB_POLAR_1D, r_nodes, radii, sig_t, n_mode=n_mode,
                 n_angular=16, dps=20,
             )
 
-    def test_G_bc_mode_raises_for_slab_polar_at_mode_n(self):
+    @pytest.mark.parametrize("n_mode", [0, 1])
+    def test_G_bc_mode_raises_for_slab_polar(self, n_mode):
         from orpheus.derivations.continuous.peierls_nystrom.geometry import compute_G_bc_mode
         radii = np.array([1.0])
         sig_t = np.array([1.0])
         r_nodes, _, _ = composite_gl_r(radii, 1, 2, dps=20)
         with pytest.raises(NotImplementedError, match="slab-polar"):
             compute_G_bc_mode(
-                SLAB_POLAR_1D, r_nodes, radii, sig_t, n_mode=1,
+                SLAB_POLAR_1D, r_nodes, radii, sig_t, n_mode=n_mode,
                 n_surf_quad=16, dps=20,
             )
 
@@ -1495,12 +1500,20 @@ class TestSolidCylSphInnerZeroSentinel:
         (2.0, 0.5),
     ])
     def test_G_bc_outer_matches_legacy_bit_exact(self, geometry, R, sig_t):
+        """On a solid body the outer response is the body's only response: ``compute_G_bc_outer`` equals
+        ``compute_G_bc`` bit for bit, both 4 times one escape integrand since the rulings of 2026-10-11 (ERR-111,
+        ERR-114). Until then the cylinder's ``compute_G_bc`` was the legacy surface-centred ``Ki_1/d`` form, 0.586 to
+        1.340 times a 3-D reference (#112's rank-1 half); on the cylinder both now equal
+        ``compute_G_bc_cylinder_3d`` bit for bit, asserted beside.
+        """
         radii = np.array([R])
         sig_t_arr = np.array([sig_t])
         r_nodes, _, _ = composite_gl_r(radii, 2, 4, dps=25)
-        G_tot = compute_G_bc(geometry, r_nodes, radii, sig_t_arr)
         G_out = compute_G_bc_outer(geometry, r_nodes, radii, sig_t_arr)
-        assert np.array_equal(G_out, G_tot)
+        assert np.array_equal(G_out, compute_G_bc(geometry, r_nodes, radii, sig_t_arr))
+        if geometry.kind == "cylinder-1d":
+            from orpheus.derivations.continuous.peierls_nystrom.geometry import compute_G_bc_cylinder_3d
+            assert np.array_equal(G_out, compute_G_bc_cylinder_3d(geometry, r_nodes, radii, sig_t_arr))
 
 
 @pytest.mark.l0

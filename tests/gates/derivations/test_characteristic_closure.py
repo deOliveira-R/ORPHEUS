@@ -672,10 +672,18 @@ def test_a_nearly_lossless_line_keeps_its_digits(amplitudes, tau) -> None:
 @pytest.mark.foundation
 @pytest.mark.parametrize("length", [2, 4], ids=["n_minus_1", "n_plus_1"])
 def test_a_sigma_t_of_the_wrong_length_is_refused(length: int) -> None:
-    """``optical_depth`` takes one total cross section per region; a wrong length never broadcasts or truncates."""
+    """``optical_depth`` takes one total cross section per region; a wrong length never broadcasts or truncates.
+
+    Since #578 the refusal is the kernel's (``Chord.line_integral``, "one value per region"), reached through the
+    traversals' ``optical_depth`` (``retirement-audit`` E.21: the raise's owner moved one frame out, so the row asserts
+    both frames: the kernel raised, and it was the closure's call that reached it).
+    """
     period = _period(_body("slab", left=BC.reflective, right=BC.reflective), (0.5, 0.0, 0.0), (0.6, 0.8, 0.0))
-    with pytest.raises(ValueError, match="one total cross section per region"):
+    with pytest.raises(ValueError, match="one value per region") as refusal:
         period.optical_depth(np.linspace(0.3, 1.2, length))
+    frames = [(str(entry.path), entry.name) for entry in refusal.traceback]
+    assert any(f.endswith("orpheus/geometry/chord.py") and n == "line_integral" for f, n in frames), frames
+    assert any(f.endswith("characteristic/closure.py") and n == "optical_depth" for f, n in frames), frames
 
 
 @pytest.mark.foundation

@@ -54,6 +54,10 @@ import math
 import mpmath
 import numpy as np
 
+from orpheus.geometry.chart import Chart, half_chord
+from orpheus.geometry.chord import ConcentricPartition, Rays
+from orpheus.geometry.coord import CoordSystem
+
 from ...common.kernels import (  # noqa: F401
     _shifted_legendre_eval,
     chord_half_lengths,
@@ -243,6 +247,17 @@ def lagrange_basis_on_panels(
 # ═══════════════════════════════════════════════════════════════════════
 # Curvilinear geometry abstraction
 # ═══════════════════════════════════════════════════════════════════════
+
+def _hits_cavity(rays: Rays) -> np.ndarray:
+    """Whether the first wall ahead of each observer is a hollow body's cavity wall, ``(...,)``."""
+    partition = rays.chord.partition
+    return (rays.wall == 0) & partition.chart.acts_on_kept_space & (partition.breakpoints[0] > 0.0)
+
+
+def _escapes_outward(rays: Rays) -> np.ndarray:
+    """Whether each ray leaves through the outer surface before meeting a hollow body's cavity, ``(...,)``."""
+    return rays.wall == rays.chord.partition.n_regions
+
 
 @dataclass(frozen=True)
 class CurvilinearGeometry:
@@ -438,10 +453,10 @@ class CurvilinearGeometry:
         Slab: identity (the angular variable IS :math:`\mu`).
         Cylinder / sphere: :math:`\mu = \cos(\omega)`.
 
-        ``build_volume_kernel`` uses this so every downstream
-        ray-geometry primitive (rho_max, source_position, optical
-        depth, crossings) sees the same :math:`\mu` regardless of
-        geometry kind.
+        Every consumer passes this :math:`\mu` to :meth:`rays_from`, so
+        each ray reading (the exit, the optical depth, the position along
+        the ray, the crossings) sees the same :math:`\mu` whatever the
+        kind.
         """
         if self.kind == "slab-polar":
             return np.asarray(angular_var, dtype=float)
@@ -461,208 +476,49 @@ class CurvilinearGeometry:
             return np.sin(omega_pts)
         return np.ones_like(omega_pts)
 
-    # ── ray geometry ──────────────────────────────────────────────────
+    # ── the ray layer, on the geometric kernel (#578) ──────────────────
 
-    def rho_max(self, r_obs: float, cos_omega: float, R: float) -> float:
-        r"""Ray-exit distance along direction :math:`\mu = \cos\Omega`.
+    @property
+    def chart(self) -> Chart:
+        r"""The geometric kernel's chart of the coordinate system the kind reduces.
 
-        Slab: :math:`(R - x)/\mu` for :math:`\mu > 0`,
-        :math:`-x/\mu` for :math:`\mu < 0`. At :math:`\mu = 0` the ray
-        is parallel to the slab faces and would have infinite
-        :math:`\rho_{\max}` — the caller must avoid sampling exactly
-        :math:`\mu = 0` (GL interior nodes naturally skip endpoints).
-
-        Cylinder / sphere: positive root of
-        :math:`(r_{\rm obs} + \rho\cos\Omega)^2 + (\rho\sin\Omega)^2 = R^2`.
+        The ray layer reads the kind here only: every ray reading is a chord
+        of :meth:`partition` on this chart, linear on the slab (an axial
+        image) and curvilinear on the cylinder and the sphere (a radial
+        image), and branches on no kind of its own. The rest of the module
+        still discriminates on the kind (#419).
         """
-        if self.kind == "slab-polar":
-            if cos_omega > 0.0:
-                return (R - r_obs) / cos_omega
-            if cos_omega < 0.0:
-                return -r_obs / cos_omega  # = r_obs / |cos_omega|
-            return float("inf")
-        disc = r_obs * r_obs * cos_omega * cos_omega + R * R - r_obs * r_obs
-        return -r_obs * cos_omega + np.sqrt(max(disc, 0.0))
+        return Chart({
+            "slab-polar": CoordSystem.CARTESIAN,
+            "cylinder-1d": CoordSystem.CYLINDRICAL,
+            "sphere-1d": CoordSystem.SPHERICAL,
+        }[self.kind])
 
-    def rho_inner_intersections(
-        self, r_obs: float, cos_omega: float,
-    ) -> tuple[float | None, float | None]:
-        r"""Forward-distances at which a ray hits the **inner** shell
-        :math:`r = r_0` (``self.inner_radius``).
+    def partition(self, radii: np.ndarray) -> ConcentricPartition:
+        r"""The regions :math:`[r_0, r_1], (r_1, r_2], \dots` of the outer edges ``radii``, from :math:`r_0` = :attr:`inner_radius`.
 
-        Solves
-        :math:`(r_{\rm obs} + \rho\cos\Omega)^2 + (\rho\sin\Omega)^2 = r_0^2`
-        for :math:`\rho`, returning the two roots
-        :math:`(\rho^-, \rho^+)` with :math:`\rho^- \le \rho^+` if both are
-        positive, otherwise ``None`` in the slot of any non-positive root.
-
-        Returns ``(None, None)`` when:
-
-        - :math:`r_0 = 0` (solid geometry — no cavity shell);
-        - ``kind == "slab-polar"`` (slab carries its two faces explicitly,
-          not via an inner radius);
-        - the ray misses the inner shell (negative discriminant) or both
-          intersections are behind the observer (:math:`\rho \le 0`).
-
-        Tangent rays to the inner shell produce a double root; both
-        slots return the same positive value.
+        ``sig_t[k]`` is the cross section of region :math:`k`; a hollow
+        body's cavity is the partition's inner exterior.
         """
-        if self.inner_radius == 0.0 or self.kind == "slab-polar":
-            return (None, None)
-        r0 = float(self.inner_radius)
-        r_obs_sq = r_obs * r_obs
-        disc = r_obs_sq * cos_omega * cos_omega - (r_obs_sq - r0 * r0)
-        if disc < 0.0:
-            return (None, None)
-        sqrt_disc = float(np.sqrt(disc))
-        rho_minus = -r_obs * cos_omega - sqrt_disc
-        rho_plus = -r_obs * cos_omega + sqrt_disc
-        return (
-            rho_minus if rho_minus > 0.0 else None,
-            rho_plus if rho_plus > 0.0 else None,
-        )
+        return ConcentricPartition(self.chart, (self.inner_radius, *np.asarray(radii, dtype=float)))
 
-    def source_position(
-        self, r_obs: float, rho: float, cos_omega: float,
-    ) -> float:
-        r"""Source position along the ray at distance :math:`\rho`.
+    def region_of(self, r: np.ndarray, radii: np.ndarray) -> np.ndarray:
+        r"""The region of each position, inner-owns: at :math:`r = r_k` it is :math:`k - 1`, the region below (:meth:`ConcentricPartition.region_containing`)."""
+        return self.partition(radii).region_containing(np.asarray(r, dtype=float))
 
-        Slab: linear, :math:`x' = x + \rho\,\mu`.
-        Cylinder / sphere: curvilinear,
-        :math:`r' = \sqrt{r_{\rm obs}^2 + 2 r_{\rm obs}\rho\cos\Omega + \rho^2}`.
-        The 1-D radial symmetry hides the 3-D direction-of-ray-in-azimuth
-        dependence, so only :math:`\cos\Omega` matters.
+    def rays_from(self, r_obs: float, cos_omega: np.ndarray, radii: np.ndarray) -> Rays:
+        r"""The rays from the observer at ``r_obs`` along the directions of cosine ``cos_omega`` (:meth:`ConcentricPartition.rays_from`).
+
+        In every kind the direction is :math:`(\mu, \sqrt{1 - \mu^2}, 0)`
+        with :math:`\mu` the cosine to the outward normal at the observer:
+        the slab's :math:`\mu`, the cylinder's in-plane :math:`\cos\beta`,
+        the sphere's :math:`\cos\theta`. The kernel forms the chord from the
+        observer's exact level (#590), and the observer's parameter from the
+        same level, so an observer on a wall sits exactly on its crossing.
         """
-        if self.kind == "slab-polar":
-            return r_obs + rho * cos_omega
-        return np.sqrt(
-            r_obs * r_obs + 2.0 * r_obs * rho * cos_omega + rho * rho
-        )
-
-    # ── ray-integrated optical depth ──────────────────────────────────
-
-    def optical_depth_along_ray(
-        self,
-        r_obs: float,
-        cos_omega: float,
-        rho: float,
-        radii: np.ndarray,
-        sig_t: np.ndarray,
-    ) -> float:
-        r"""Integrate :math:`\Sigma_t(\cdot)` along the ray from
-        :math:`r_{\rm obs}` in direction :math:`\mu = \cos\Omega` for
-        distance :math:`\rho`.
-
-        Slab: linear path :math:`x'(s) = x + s\mu` crossing slab
-        boundaries at :math:`s_b = (r_b - x)/\mu`. ``radii`` is
-        interpreted as :math:`[0, r_1, \dots, r_{N-1} = L]`, i.e. the
-        cumulative region boundaries including both endpoints.
-
-        Cylinder / sphere: walks curvilinear crossings of the annular
-        shells via :math:`(r_{\rm obs}+\rho\cos\Omega)^2 +
-        (\rho\sin\Omega)^2 = r_k^2`.
-        """
-        radii = np.asarray(radii, dtype=float)
-        sig_t = np.asarray(sig_t, dtype=float)
-        N = len(radii)
-
-        # Homogeneous solid cell fast path (single annulus, no cavity).
-        # Hollow cells must fall through to the crossing walker so the
-        # cavity segment can be skipped.
-        if N == 1 and self.inner_radius == 0.0:
-            return float(sig_t[0]) * rho
-
-        if self.kind == "slab-polar":
-            # Linear ray x'(s) = r_obs + s*cos_omega on s ∈ [0, rho].
-            # ``radii`` follows the curvilinear convention:
-            # ``[r_1, r_2, ..., r_N = L]`` are outer edges of N slabs
-            # with implicit r_0 = 0; ``sig_t[k]`` is the XS in
-            # :math:`[r_{k-1}, r_k]` (r_{-1} = 0). Walk linear interior
-            # crossings.
-            crossings = [0.0]
-            if cos_omega != 0.0:
-                for r_k in radii[:-1]:
-                    s = (r_k - r_obs) / cos_omega
-                    if 0.0 < s < rho:
-                        crossings.append(s)
-            crossings.append(rho)
-            crossings.sort()
-
-            tau = 0.0
-            for i_seg in range(len(crossings) - 1):
-                s_lo, s_hi = crossings[i_seg], crossings[i_seg + 1]
-                x_mid = r_obs + 0.5 * (s_lo + s_hi) * cos_omega
-                k = self.which_annulus(x_mid, radii)
-                tau += float(sig_t[k]) * (s_hi - s_lo)
-            return tau
-
-        # Curvilinear (cylinder/sphere): ring crossings.
-        crossings = [0.0]
-        for r_k in radii[:-1]:
-            disc = (
-                r_obs * r_obs * cos_omega * cos_omega
-                - (r_obs * r_obs - r_k * r_k)
-            )
-            if disc < 0.0:
-                continue
-            sqrt_disc = np.sqrt(disc)
-            s_a = -r_obs * cos_omega - sqrt_disc
-            s_b = -r_obs * cos_omega + sqrt_disc
-            for s in (s_a, s_b):
-                if 0.0 < s < rho:
-                    crossings.append(s)
-
-        # Hollow-core cavity: interior to r_0 the medium is void
-        # (:math:`\Sigma_t = 0`). Insert the cavity entry/exit ρ as
-        # crossings and skip τ accumulation for segments whose midpoint
-        # falls inside the cavity (r_mid < r_0).
-        r0 = float(self.inner_radius)
-        if r0 > 0.0:
-            rho_in_minus, rho_in_plus = self.rho_inner_intersections(
-                r_obs, cos_omega,
-            )
-            for s in (rho_in_minus, rho_in_plus):
-                if s is not None and 0.0 < s < rho:
-                    crossings.append(s)
-
-        crossings.append(rho)
-        crossings.sort()
-
-        tau = 0.0
-        for i_seg in range(len(crossings) - 1):
-            s_lo, s_hi = crossings[i_seg], crossings[i_seg + 1]
-            s_mid = 0.5 * (s_lo + s_hi)
-            r_mid_sq = (
-                r_obs * r_obs + 2.0 * r_obs * s_mid * cos_omega + s_mid * s_mid
-            )
-            r_mid = np.sqrt(max(r_mid_sq, 0.0))
-            # Cavity segment (void): zero-Σ_t, skip contribution.
-            if r0 > 0.0 and r_mid < r0:
-                continue
-            # Outermost annulus is the default (handles floating-point
-            # noise at the cylinder boundary).
-            k = N - 1
-            for kk in range(N):
-                if r_mid < radii[kk]:
-                    k = kk
-                    break
-            tau += sig_t[k] * (s_hi - s_lo)
-        return tau
-
-    def which_annulus(self, r: float, radii: np.ndarray) -> int:
-        """Index of the region containing ``r`` (outer-biased at boundary).
-
-        Shared convention for slab and curvilinear: ``radii`` holds
-        outer edges :math:`[r_1, \\ldots, r_N = R]` with implicit
-        :math:`r_0 = 0`; ``sig_t[k]`` is the XS in the region
-        :math:`[r_{k-1}, r_k]`. ``k`` is the smallest index with
-        :math:`r < r_k`, clamped at ``N-1``.
-        """
-        k = len(radii) - 1
-        for kk, r_k in enumerate(radii):
-            if r < r_k:
-                return kk
-        return k
+        mu = np.asarray(cos_omega, dtype=float)
+        directions = np.stack([mu, np.sqrt((1.0 - mu) * (1.0 + mu)), np.zeros_like(mu)], axis=-1)
+        return self.partition(radii).rays_from(float(r_obs), directions)
 
     # ── ray / panel-boundary crossings ────────────────────────────────
 
@@ -734,36 +590,21 @@ class CurvilinearGeometry:
         such kinks — the quadrature on :math:`\rho` must subdivide at
         every crossing to restore spectral convergence. See :issue:`114`.
 
-        Identical formula for cylinder and sphere; both share
-        :meth:`source_position`.
+        Read from the chord of the panel boundaries (:meth:`rays_from`,
+        the kernel's crossings read from the observer), one spelling for every kind.
 
         **Slab**: :math:`x'(\rho) = x + \rho\mu` is linear, so each
         panel boundary :math:`r_b` gives at most one crossing at
         :math:`\rho = (r_b - x)/\mu`. Same kink-in-:math:`L_j` mechanism
         as curvilinear, same subdivision requirement.
         """
-        crossings: set[float] = set()
-        if self.kind == "slab-polar":
-            if cos_omega == 0.0:
-                return []
-            for r_b in panel_boundaries_r:
-                rho = (r_b - r_obs) / cos_omega
-                if tol < rho < rho_max_val - tol:
-                    crossings.add(rho)
-            return sorted(crossings)
-
-        r_obs_sq = r_obs * r_obs
-        disc_base = r_obs_sq * cos_omega * cos_omega - r_obs_sq
-        for r_b in panel_boundaries_r:
-            disc = disc_base + r_b * r_b
-            if disc < 0.0:
-                continue
-            sqrt_disc = float(np.sqrt(disc))
-            for sign in (+1.0, -1.0):
-                rho = -r_obs * cos_omega + sign * sqrt_disc
-                if tol < rho < rho_max_val - tol:
-                    crossings.add(rho)
-        return sorted(crossings)
+        bounds = np.unique([r_b for r_b in np.asarray(panel_boundaries_r, dtype=float) if r_b > self.inner_radius])
+        if bounds.size == 0:
+            return []
+        rays = self.rays_from(r_obs, np.array([cos_omega]), bounds)
+        ahead = rays.chord.crossings.parameter - rays.start[..., None]
+        rho = np.where(rays.chord.crossings.present & (ahead > 0.0), ahead, np.inf)[0]
+        return sorted({float(x) for x in rho if tol < x < rho_max_val - tol})
 
     # ── volume kernel :math:`\kappa_d(\tau)` ──────────────────────────
 
@@ -1011,9 +852,9 @@ def K_vol_element_adaptive(
       along the ray.
 
     Achieves machine precision uniformly across geometries; the only
-    geometry-specific code is the four primitives (``ray_direction_cosine``,
-    ``rho_max``, ``source_position``, ``optical_depth_along_ray``,
-    ``volume_kernel_mp``) on :class:`CurvilinearGeometry`. Performance
+    geometry-specific code is ``ray_direction_cosine``, the ray layer
+    (:meth:`CurvilinearGeometry.rays_from`, on the geometric kernel) and
+    ``volume_kernel_mp`` on :class:`CurvilinearGeometry`. Performance
     is intentionally not optimized — this is the verification reference,
     cached by callers as needed.
 
@@ -1043,7 +884,7 @@ def K_vol_element_adaptive(
     R = float(radii_arr[-1])
 
     r_i = float(r_nodes_arr[i])
-    ki = geometry.which_annulus(r_i, radii_arr)
+    ki = int(geometry.region_of(r_i, radii_arr))
     sig_t_i = float(sig_t_arr[ki])
 
     panel_boundaries_r = sorted(
@@ -1058,17 +899,15 @@ def K_vol_element_adaptive(
     omega_low, omega_high = geometry.angular_range
     pref = mpmath.mpf(geometry.prefactor)
 
-    def integrand_rho(rho_mp, cos_om: float):
+    def integrand_rho(rho_mp, rays: Rays):
         rho_f = float(rho_mp)
-        rho_max_val = float(geometry.rho_max(r_i, cos_om, R))
+        rho_max_val = float(rays.ahead.sum(axis=-1)[0])
         if rho_f >= rho_max_val or rho_f <= 0:
             return mpmath.mpf(0)
-        r_prime = float(geometry.source_position(r_i, rho_f, cos_om))
+        r_prime = float(rays.orbit_coordinate_at(np.array([[rho_f]]))[0, 0])
         if r_prime < 0.0 or r_prime > R:
             return mpmath.mpf(0)
-        tau = float(geometry.optical_depth_along_ray(
-            r_i, cos_om, rho_f, radii_arr, sig_t_arr,
-        ))
+        tau = float(rays.chord.line_integral(sig_t_arr, rays.lengths_to(np.array([rho_f])))[0])
         kappa = geometry.volume_kernel_mp(tau, dps)
         L_vals = lagrange_basis_on_panels(
             r_nodes_arr, panel_bounds_f, r_prime,
@@ -1079,7 +918,8 @@ def K_vol_element_adaptive(
         cos_om = float(geometry.ray_direction_cosine(
             np.array([float(angular_mp)]),
         )[0])
-        rho_max_val = float(geometry.rho_max(r_i, cos_om, R))
+        rays = geometry.rays_from(r_i, np.array([cos_om]), radii_arr)
+        rho_max_val = float(rays.ahead.sum(axis=-1)[0])
         if rho_max_val <= 0.0:
             return mpmath.mpf(0)
         # Q6.L2: route the inner ρ integral through `adaptive_mpmath`.
@@ -1098,7 +938,7 @@ def K_vol_element_adaptive(
             0.0, rho_max_val, breakpoints=crossings_in, dps=dps,
         )
         inner = mpmath.mpf(q_rho.integrate(
-            lambda rho: integrand_rho(rho, cos_om),
+            lambda rho: integrand_rho(rho, rays),
         ))
         ang_factor = float(geometry.angular_weight(
             np.array([float(angular_mp)]),
@@ -1268,7 +1108,7 @@ def build_volume_kernel(
 
     for i in range(N):
         r_i = r_nodes[i]
-        ki = geometry.which_annulus(r_i, radii)
+        ki = int(geometry.region_of(r_i, radii))
         sig_t_i = sig_t[ki]
 
         # Issue #135: outer ω-sweep with kink-aware subdivision via
@@ -1291,24 +1131,14 @@ def build_volume_kernel(
 
         for k in range(len(q_omega)):
             cos_om = cos_omegas[k]
-            rho_max_val = geometry.rho_max(r_i, cos_om, R)
+            # Phase F.4: for a hollow cell, the ray's first-flight
+            # stop is the inner shell r = r_0 if it meets it before
+            # the outer boundary; any contribution beyond that is
+            # "after the ray escapes" and is not counted.
+            rays = geometry.rays_from(r_i, np.array([cos_om]), radii)
+            rho_max_val = float(rays.to_wall.sum(axis=-1)[0])
             if rho_max_val <= 0.0:
                 continue
-
-            # Phase F.4: for a hollow cell, the ray's first-flight
-            # stop is the inner shell r = r_0 if it intersects before
-            # the outer boundary. Cap ρ accordingly — any contribution
-            # beyond that is "after the ray escapes" and must not be
-            # counted in the volumetric integral.
-            if geometry.inner_radius > 0.0:
-                rho_in_minus, _ = geometry.rho_inner_intersections(
-                    r_i, cos_om,
-                )
-                if (
-                    rho_in_minus is not None
-                    and rho_in_minus < rho_max_val
-                ):
-                    rho_max_val = rho_in_minus
 
             # Issue #135: inner ρ-sweep via `composite_gauss_legendre`
             # over the panel-crossing breakpoints + dyadic τ-cap insertion.
@@ -1337,7 +1167,7 @@ def build_volume_kernel(
             )
             for m in range(len(q_rho)):
                 rho = float(q_rho.pts[m])
-                r_prime = geometry.source_position(r_i, rho, cos_om)
+                r_prime = float(rays.orbit_coordinate_at(np.array([[rho]]))[0, 0])
                 # Skip source contributions from inside the
                 # cavity of a hollow cell (Phase F.4): the cavity
                 # is void and carries no source; the Lagrange
@@ -1348,9 +1178,7 @@ def build_volume_kernel(
                     and float(r_prime) < geometry.inner_radius
                 ):
                     continue
-                tau = geometry.optical_depth_along_ray(
-                    r_i, cos_om, rho, radii, sig_t,
-                )
+                tau = float(rays.chord.line_integral(sig_t, rays.lengths_to(np.array([rho])))[0])
                 kappa = geometry.volume_kernel_mp(tau, dps)
                 L_vals = lagrange_basis_on_panels(
                     r_nodes, panel_bounds, float(r_prime),
@@ -1395,9 +1223,46 @@ def build_volume_kernel(
 # A consumer's per-node callable receives ``(r_i, cos_om, ang_factor,
 # q)`` and returns a 1-D ndarray of length ``len(q)`` — the integrand
 # values to be summed against ``q.wts``. This signature lets the
-# callable do its own per-node loop (for kernels that don't vectorise
-# over ``cos_om`` because they call `geometry.optical_depth_along_ray`
-# or `mpmath` per node) while still sharing the surrounding structure.
+# callable read the rays of the whole angular rule at once
+# (`geometry.rays_from`) and loop only over the `mpmath` kernels per node,
+# while still sharing the surrounding structure.
+
+def _escape_kernel_where(
+    geometry: "CurvilinearGeometry", tau: np.ndarray, present: np.ndarray, dps: int,
+) -> np.ndarray:
+    """The escape kernel of each optical depth where the ray is present, 0 elsewhere, ``(len(tau),)``."""
+    return np.fromiter(
+        (float(geometry.escape_kernel_mp(float(t), dps)) if p else 0.0 for t, p in zip(tau, present)),
+        dtype=float, count=len(tau),
+    )
+
+
+def _to_surface_point(
+    geometry: "CurvilinearGeometry",
+    r_i: float,
+    cos_phi: np.ndarray,
+    r_surface: float,
+    radii: np.ndarray,
+    sig_t: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""The distance :math:`d` from the observer at ``r_i`` to the points of the circle :math:`r_{\rm surface}` at angles :math:`\phi` (``cos_phi``), and the optical depth along it, each ``(len(cos_phi),)``.
+
+    :math:`d` is the surface-centred integration variable, the length of
+    the in-plane vector from the observer to the point; the optical depth
+    is the run of the ray along that vector to the distance :math:`d`
+    (:meth:`~orpheus.geometry.chord.Rays.lengths_to`), a cavity it crosses on
+    the way void. Where the point is the observer (:math:`d = 0`) the depth
+    is 0.
+    """
+    sin_phi = np.sqrt((1.0 - cos_phi) * (1.0 + cos_phi))
+    to_point = np.stack([r_surface * cos_phi - r_i, r_surface * sin_phi, np.zeros_like(cos_phi)], axis=-1)
+    d = np.hypot(to_point[..., 0], to_point[..., 1])
+    reached = d > 0.0
+    directions = np.where(reached[..., None], to_point / np.where(reached, d, 1.0)[..., None], np.array([1.0, 0.0, 0.0]))
+    rays = geometry.partition(radii).rays_from(r_i, directions)
+    tau = np.where(reached, rays.chord.line_integral(sig_t, rays.lengths_to(d)), 0.0)
+    return d, tau
+
 
 def per_observer_angular_assembly(
     geometry: "CurvilinearGeometry",
@@ -1469,10 +1334,15 @@ def per_observer_angular_assembly(
     else:
         omega_low, omega_high = angular_range
 
+    # The integrand kinks at the tangent to every breakpoint behind the
+    # observer, a hollow body's cavity wall r_0 included (#578: without it
+    # the hollow consumers converged at 8 % at n = 16, cylinder G_bc mode 1).
+    breakpoints = np.array([r for r in geometry.partition(radii).breakpoints if r > 0.0])
+
     def _per_obs(r_i: float) -> float:
         q = observer_angular_quadrature(
             r_obs=r_i, omega_low=omega_low, omega_high=omega_high,
-            radii=radii, n_per_panel=n_per_panel, dps=dps,
+            radii=breakpoints, n_per_panel=n_per_panel, dps=dps,
         )
         cos_om = geometry.ray_direction_cosine(q.pts)
         ang_factor = geometry.angular_weight(q.pts)
@@ -1526,10 +1396,12 @@ def per_surface_centred_angular_assembly(
     phi_low, phi_high
         Integration interval for :math:`\phi`. Default :math:`[0, \pi]`.
     """
+    breakpoints = np.array([r for r in geometry.partition(radii).breakpoints if r > 0.0])
+
     def _per_obs(r_i: float) -> float:
         q = surface_centred_angular_quadrature(
             r_obs=r_i, r_surface=r_surface,
-            radii=radii, n_per_panel=n_per_panel,
+            radii=breakpoints, n_per_panel=n_per_panel,
             phi_low=phi_low, phi_high=phi_high, dps=dps,
         )
         cos_phi = np.cos(q.pts)
@@ -1598,18 +1470,11 @@ def compute_P_esc(
     # angles ω_k = arcsin(r_k/r_obs); the recipe subdivides at the {ω_k}
     # (per observer) for spectral convergence on each smooth sub-panel.
     def _integrand(r_i, cos_om, ang_factor, q):
-        rho_max_arr = np.fromiter(
-            (float(geometry.rho_max(r_i, c, R)) for c in cos_om),
-            dtype=float, count=len(q),
-        )
+        rays = geometry.rays_from(r_i, cos_om, radii)
         K_esc_arr = np.fromiter(
             (
-                float(geometry.escape_kernel_mp(
-                    float(geometry.optical_depth_along_ray(
-                        r_i, c, rho, radii, sig_t,
-                    )), dps,
-                )) if rho > 0.0 else 0.0
-                for c, rho in zip(cos_om, rho_max_arr)
+                float(geometry.escape_kernel_mp(float(tau), dps)) if rho > 0.0 else 0.0
+                for tau, rho in zip(rays.chord.line_integral(sig_t, rays.ahead), rays.ahead.sum(axis=-1))
             ),
             dtype=float, count=len(q),
         )
@@ -1635,10 +1500,15 @@ def compute_G_bc(
 
     Geometry-specific integral:
 
-    - **Cylinder:** :math:`G_{\rm bc}(r_i) = (2R/\pi)\!\int_0^\pi
-      \mathrm{Ki}_1(\tau_{\rm surf}(r_i,\phi))/d(r_i,R,\phi)\,
-      \mathrm d\phi` where :math:`d = \sqrt{r_i^2 + R^2 - 2 r_i R
-      \cos\phi}`.
+    - **Cylinder:** :math:`G_{\rm bc}(r_i) = (4/\pi)\!\int_0^\pi
+      \mathrm{Ki}_2(\tau(r_i,\beta))\,\mathrm d\beta`, the in-plane
+      angle :math:`\beta` with the polar angle integrated into
+      :math:`\mathrm{Ki}_2` (:func:`compute_G_bc_cylinder_3d`). Until #578
+      it was the surface-centred :math:`\mathrm{Ki}_1/d` form, which
+      ERR-114 and #112 record wrong by 0.59 to 1.34.
+
+    Both curvilinear kinds are :math:`4\,P_{\rm esc}` (:func:`compute_P_esc`),
+    one integrand.
 
     - **Sphere:**  :math:`G_{\rm bc}(r_i) = 2\!\int_0^\pi \sin\theta\,
       e^{-\tau(r_i,\rho_{\max}(r_i,\theta))}\,\mathrm d\theta`.
@@ -1686,62 +1556,13 @@ def compute_G_bc(
             G_bc[i] = 2.0 * (_slab_E2(tau_inner) + _slab_E2(tau_outer))
         return G_bc
 
-    if geometry.kind == "sphere-1d":
-        # Q3/refactor #1: observer-centred ω-sweep, driver-routed.
-        def _tau_at(r_i: float, cos_th: float) -> float:
-            rho = float(geometry.rho_max(r_i, cos_th, R))
-            if rho <= 0.0:
-                return np.inf  # exp(-∞) = 0 — masks no-ray case
-            if len(radii) == 1:
-                return float(sig_t[0]) * rho
-            return float(geometry.optical_depth_along_ray(
-                r_i, cos_th, rho, radii, sig_t,
-            ))
-
-        def _sphere_integrand(r_i, cos_om, ang_factor, q):
-            tau_arr = np.fromiter(
-                (_tau_at(r_i, float(c)) for c in cos_om),
-                dtype=float, count=len(q),
-            )
-            return ang_factor * np.exp(-tau_arr)
-
-        return per_observer_angular_assembly(
-            geometry, r_nodes, radii, n_surf_quad,
-            integrand_at_node=_sphere_integrand,
-            prefactor=2.0, dps=dps,
-        )
-
-    # Cylinder: surface-centred Ki_1/d kernel via the
-    # `per_surface_centred_angular_assembly` driver. Q-L3 already routed
-    # this through the recipe; refactor #1 collapses the `_per_obs`
-    # boilerplate.
-    def _per_node_kernel(r_i: float, cf: float) -> float:
-        d_sq = r_i * r_i + R * R - 2.0 * r_i * R * cf
-        d = float(np.sqrt(max(d_sq, 0.0)))
-        if d <= 0.0:
-            return 0.0
-        if len(radii) == 1:
-            tau = float(sig_t[0]) * d
-        else:
-            cb = (R * cf - r_i) / d
-            tau = float(geometry.optical_depth_along_ray(
-                r_i, cb, d, radii, sig_t,
-            ))
-        ki1 = float(ki_n_mp(1, tau, dps))
-        return ki1 / d
-
-    def _cyl_integrand(r_i, cos_phi, q):
-        return np.fromiter(
-            (_per_node_kernel(r_i, float(c)) for c in cos_phi),
-            dtype=float, count=len(q),
-        )
-
-    return per_surface_centred_angular_assembly(
-        geometry, r_nodes, radii, r_surface=R, n_per_panel=n_surf_quad,
-        integrand_at_node=_cyl_integrand,
-        prefactor=2.0 * R / np.pi, dps=dps,
+    # Cylinder and sphere: the response is 4 times the escape, one integrand
+    # (#578, ERR-114, #112). The sphere's G = 4P held already; the cylinder's
+    # surface-centred Ki_1/d form read 0.59 to 1.34 of an independent 3-D
+    # reference, and disagreed with compute_G_bc_outer once that became 4P.
+    return 4.0 * compute_P_esc(
+        geometry, r_nodes, radii, sig_t, n_angular=n_surf_quad, dps=dps,
     )
-
 
 def compute_G_bc_cylinder_3d(
     geometry: CurvilinearGeometry,
@@ -1772,19 +1593,17 @@ def compute_G_bc_cylinder_3d(
     :math:`\sin^2\theta_p` Jacobian — Knyazev 1993 :math:`\mathrm{Ki}_{2+k}`
     expansion at :math:`k = 0`).
 
-    Compare to the EXISTING ``compute_G_bc`` cylinder branch which uses a
-    surface-centric ``Ki_1(τ)/d`` form lacking the Lambertian projection
-    factor :math:`(R - r\cos\phi)/d`. The current form **under-estimates by
-    25-50 %** at thin cells (verified by row-sum probe :math:`K\cdot 1/\Sigma_t`
-    going from 0.89 to 0.9996 when this corrected form replaces the
-    current). Used by ``boundary="white_hebert"`` for cylinder; the legacy
-    ``compute_G_bc`` is preserved for backward compatibility with the
-    existing rank-1 Mark closure tests.
+    Since #578 (ERR-114) :func:`compute_G_bc` on the cylinder is this form,
+    bit for bit, as :math:`4\,P_{\rm esc}`. Its former surface-centred
+    ``Ki_1(τ)/d`` branch lacked the Lambertian projection factor
+    :math:`(R - r\cos\phi)/d` and under-estimated by 25-50 % at thin cells
+    (the row-sum probe :math:`K\cdot 1/\Sigma_t` went from 0.89 to 0.9996
+    when this form replaced it); it survives only in
+    :func:`compute_G_bc_mode`'s cylinder branch at :math:`n \ge 1` (#112).
 
-    Multi-region: the in-plane chord :math:`d_{\rm 2D}` is integrated
-    piecewise via :meth:`CurvilinearGeometry.optical_depth_along_ray`
-    (which already handles the ψ-direction multi-region τ accumulation
-    for the in-plane chord traversal across annular boundaries).
+    Multi-region: the in-plane chord :math:`d_{\rm 2D}` and its optical
+    depth are read on one ray (:meth:`CurvilinearGeometry.rays_from`), slot
+    by slot across the annular boundaries.
 
     Reference: derived in
     :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.cylinder_g_bc_3d`; the math-origin
@@ -1805,28 +1624,18 @@ def compute_G_bc_cylinder_3d(
     # Q3/refactor #1: observer-centred ψ-sweep — driver-routed.
     # The chord d_2D has impact parameter |r_obs sin ψ|, so the kink
     # structure matches `observer_angular_quadrature` exactly.
-    def _tau_2d_at(r_i: float, cos_psi: float, d_2d: float) -> float:
-        if len(radii) == 1:
-            return float(sig_t[0]) * d_2d
-        return float(geometry.optical_depth_along_ray(
-            r_i, -cos_psi, d_2d, radii, sig_t,
-        ))
-
     def _integrand(r_i, cos_om, ang_factor, q):
         # NOTE: cos_om = cos(ψ); ang_factor = sin ψ from
         # geometry.angular_weight, but the cylinder-3D form does NOT
         # include the ang_factor (the analytical Ki_2 expansion
         # already absorbed the polar Jacobian — the `dψ` integration
-        # is unweighted).
-        cp = cos_om
-        sp = np.sin(q.pts)
-        disc = np.maximum(R * R - r_i * r_i * sp * sp, 0.0)
-        d_2d = -r_i * cp + np.sqrt(disc)
+        # is unweighted). The in-plane chord d_2D and its optical depth
+        # are read on one ray, along the direction of cosine cos ψ.
+        rays = geometry.rays_from(r_i, cos_om, radii)
         return np.fromiter(
             (
-                float(ki_n_mp(2, _tau_2d_at(r_i, float(c), float(d)), dps))
-                if d > 0.0 else 0.0
-                for c, d in zip(cp, d_2d)
+                float(ki_n_mp(2, float(tau), dps)) if d > 0.0 else 0.0
+                for tau, d in zip(rays.chord.line_integral(sig_t, rays.ahead), rays.ahead.sum(axis=-1))
             ),
             dtype=float, count=len(q),
         )
@@ -1843,42 +1652,38 @@ def _knyazev_integrand_at_node(
     cos_om: np.ndarray,
     q: "Quadrature1D",
     *,
-    R: float,
     radii: np.ndarray,
     sig_t: np.ndarray,
     coefs: tuple[float, ...],
     dps: int,
     geometry: "CurvilinearGeometry",
-    direction_sign: int,
 ) -> np.ndarray:
     r"""Knyazev cylinder-3D mode per-node integrand
     :math:`\sum_k c_k\,\mu_{2D}^{k}\,\mathrm{Ki}_{k+2}(\tau_{2D})`.
 
-    Used by :func:`compute_P_esc_cylinder_3d_mode` (``direction_sign=+1``,
-    outward) and :func:`compute_G_bc_cylinder_3d_mode`
-    (``direction_sign=-1``, backward) via the
-    :func:`per_observer_angular_assembly` driver — the only thing that
-    differs between the two consumers is the direction sign and the
-    consumer-side prefactor.
+    Used by :func:`compute_P_esc_cylinder_3d_mode` and
+    :func:`compute_G_bc_cylinder_3d_mode` via the
+    :func:`per_observer_angular_assembly` driver; the two differ only in
+    the consumer-side prefactor. :math:`d_{2D}`, :math:`\tau_{2D}` and
+    :math:`\mu_{2D}` are read on one ray. Until #578 the response
+    consumer (then ``direction_sign=-1``) paired the exit distance of the
+    ray along :math:`+\cos\omega` with the optical depth of the ray
+    along :math:`-\cos\omega`, which agree only on a homogeneous
+    cylinder; :func:`compute_G_bc_cylinder_3d` did the same.
     """
-    sp = np.sin(q.pts)
-    disc = np.maximum(R * R - r_i * r_i * sp * sp, 0.0)
-    d_2d = -r_i * cos_om + np.sqrt(disc)
-    valid = d_2d > 0.0
+    # One ray carries d_2D, its optical depth and its exit cosine: the
+    # in-plane chord from the observer along the direction of cosine
+    # cos ω, read on the geometric kernel (#578).
+    rays = geometry.rays_from(r_i, cos_om, radii)
+    d_2d = rays.ahead.sum(axis=-1)
+    tau_2d = rays.chord.line_integral(sig_t, rays.ahead)
+    mu_2d = rays.chord.cosine_at(rays.chord.partition.breakpoints[-1])
 
     def _kernel(k: int) -> float:
-        if not valid[k]:
+        if not d_2d[k] > 0.0:
             return 0.0
-        c, d = float(cos_om[k]), float(d_2d[k])
-        if len(radii) == 1:
-            tau = float(sig_t[0]) * d
-        else:
-            tau = float(geometry.optical_depth_along_ray(
-                r_i, direction_sign * c, d, radii, sig_t,
-            ))
-        mu_2d = (r_i * c + d) / R
         return sum(
-            c_k * (mu_2d ** k_p) * float(ki_n_mp(k_p + 2, tau, dps))
+            c_k * (mu_2d[k] ** k_p) * float(ki_n_mp(k_p + 2, float(tau_2d[k]), dps))
             for k_p, c_k in enumerate(coefs) if c_k != 0.0
         )
 
@@ -1930,20 +1735,10 @@ def _p_esc_sphere_solid_mode(
     cos_om = geometry.ray_direction_cosine(q.pts)
     ang_factor = geometry.angular_weight(q.pts)
 
-    def _eval(c: float) -> tuple[float, float]:
-        rho_max = float(geometry.rho_max(r_i, c, R))
-        if rho_max <= 0.0:
-            return 0.0, 0.0
-        tau = float(geometry.optical_depth_along_ray(
-            r_i, c, rho_max, radii, sig_t,
-        ))
-        mu_exit = (rho_max + r_i * c) / R
-        return float(geometry.escape_kernel_mp(tau, dps)), mu_exit
-
-    ev = [_eval(float(c)) for c in cos_om]
-    K_esc = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
-    mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
-    p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
+    rays = geometry.rays_from(r_i, cos_om, radii)
+    present = rays.ahead.sum(axis=-1) > 0.0
+    K_esc = _escape_kernel_where(geometry, rays.chord.line_integral(sig_t, rays.ahead), present, dps)
+    p_tilde = _shifted_legendre_eval(n_mode, np.where(present, rays.chord.cosine_at(R), 0.0))
     return q.integrate_array(ang_factor * p_tilde * K_esc)
 
 
@@ -2009,8 +1804,8 @@ def compute_P_esc_cylinder_3d_mode(
     def _integrand(r_i, cos_om, ang_factor, q):
         return _knyazev_integrand_at_node(
             r_i, cos_om, q,
-            R=R, radii=radii, sig_t=sig_t, coefs=coefs, dps=dps,
-            geometry=geometry, direction_sign=+1,
+            radii=radii, sig_t=sig_t, coefs=coefs, dps=dps,
+            geometry=geometry,
         )
 
     return per_observer_angular_assembly(
@@ -2069,8 +1864,8 @@ def compute_G_bc_cylinder_3d_mode(
     def _integrand(r_i, cos_om, ang_factor, q):
         return _knyazev_integrand_at_node(
             r_i, cos_om, q,
-            R=R, radii=radii, sig_t=sig_t, coefs=coefs, dps=dps,
-            geometry=geometry, direction_sign=-1,
+            radii=radii, sig_t=sig_t, coefs=coefs, dps=dps,
+            geometry=geometry,
         )
 
     return per_observer_angular_assembly(
@@ -2373,7 +2168,7 @@ def compute_T_specular_sphere(
     q = chord_quadrature(radii, n_quad)
     chords = 2.0 * chord_half_lengths(radii, q.pts)  # full antipodal chord
     tau = sig_t @ chords
-    mu = np.sqrt(np.maximum(1.0 - (q.pts / R) ** 2, 0.0))
+    mu = half_chord(R, q.pts, 0.0) / R  # the exit cosine: the half-chord at R over R
     weighted = q.wts * q.pts * np.exp(-tau)  # h-space measure
     P_eval = np.stack(
         [_shifted_legendre_eval(m, mu) for m in range(n_modes)], axis=0,
@@ -2607,54 +2402,6 @@ def compute_T_specular_cylinder_3d(
     return T
 
 
-def _chord_tau_mu_sphere(
-    radii: np.ndarray, sig_t: np.ndarray, mu: float | np.ndarray,
-) -> np.ndarray:
-    r"""Multi-region antipodal-chord optical depth :math:`\tau(\mu)` for a
-    sphere of radii ``radii`` (annular outer boundaries; ``radii[-1] = R``).
-
-    Returns :math:`\tau(\mu) = \sum_k \Sigma_{t,k}\,\ell_k(\mu)` where
-    :math:`\ell_k` is the chord length in annulus :math:`k` along the
-    antipodal chord with impact parameter :math:`h = R\sqrt{1 - \mu^2}`.
-    Same chord-shell intersection geometry as
-    :func:`compute_P_ss_sphere` and :func:`compute_T_specular_sphere`.
-
-    Used by Phase 5 ``closure="specular_continuous_mu"`` (sphere) for the
-    multi-bounce factor :math:`T(\mu) = 1/(1 - e^{-\tau(\mu)})` (Sanchez
-    1986 Eq. (A4) with :math:`\alpha = 1`, multi-region :math:`\tau`).
-    Extracted from the inlined logic in :func:`compute_T_specular_sphere`
-    (Phase 4) to keep the two paths bit-equivalent.
-    """
-    radii = np.asarray(radii, dtype=float)
-    sig_t = np.asarray(sig_t, dtype=float)
-    R = float(radii[-1])
-    radii_inner = np.concatenate([[0.0], radii[:-1]])
-    radii_outer = radii
-
-    mu_arr = np.atleast_1d(np.asarray(mu, dtype=float))
-    tau_out = np.zeros_like(mu_arr)
-    for q, mu_val in enumerate(mu_arr):
-        h = R * float(np.sqrt(max(0.0, 1.0 - mu_val * mu_val)))
-        tau = 0.0
-        for n_reg in range(len(radii)):
-            r_in = float(radii_inner[n_reg])
-            r_out = float(radii_outer[n_reg])
-            if h >= r_out:
-                continue
-            seg_outer = float(np.sqrt(max(r_out * r_out - h * h, 0.0)))
-            seg_inner = (
-                float(np.sqrt(max(r_in * r_in - h * h, 0.0)))
-                if h < r_in else 0.0
-            )
-            chord_in_annulus = 2.0 * (seg_outer - seg_inner)
-            tau += float(sig_t[n_reg]) * chord_in_annulus
-        tau_out[q] = tau
-
-    if np.isscalar(mu):
-        return float(tau_out[0])
-    return tau_out
-
-
 def compute_K_bc_specular_continuous_mu_sphere(
     r_nodes: np.ndarray,
     radii: np.ndarray,
@@ -2798,8 +2545,9 @@ def compute_K_bc_specular_continuous_mu_sphere(
         rho = float(rho_opt[i])  # receiver
         # µ_- (cosine at surface for receiver-side trajectory) depends
         # only on rho (receiver) and µ:
-        a_mu_minus_sq = a * a - rho * rho * (1.0 - mu_pts * mu_pts)
-        a_mu_minus = np.sqrt(np.maximum(a_mu_minus_sq, 0.0))
+        # the half-chord at a of the line through ρ with cosine µ, from its
+        # exact level (ρ, ρµ) (:func:`~orpheus.geometry.chart.half_chord`)
+        a_mu_minus = half_chord(a, rho, rho * mu_pts)
         mu_minus = a_mu_minus / a
         # T(µ_-) with full chord τ(µ_-) = 2a·µ_-. NB: this carries the
         # Σ-dependence via a = σR.
@@ -2813,25 +2561,16 @@ def compute_K_bc_specular_continuous_mu_sphere(
             # Visibility cone: µ_*² > 0 requires either ρ' > ρ (always
             # visible) or µ > µ_0 = √[1 − (ρ'/ρ)²] (when ρ' < ρ).
             #
-            # Numerically stable form. The naive identity
-            #   ρ'² − ρ²(1 − µ²) = (ρ'² − ρ²) + ρ²·µ²
-            # is equivalent algebraically but the RHS avoids
-            # catastrophic cancellation when ρ ≈ ρ' (e.g., near the
-            # diagonal in adaptive quadrature where µ may approach
-            # zero). The naive LHS suffers `1 − µ²` cancellation at
-            # small µ; the rewritten form uses ρ²·µ² directly.
-            # Phase 5+ Front B (numerics-investigator,
-            # `phase5_front_b_singularity_subtraction.md`) flagged
-            # this as a latent landmine for the (research-prototype)
-            # Phase 5 closure if production-wired with adaptive
-            # quadrature.
-            rho_p_mu_star_sq = (
-                (rho_p * rho_p - rho * rho) + rho * rho * mu_pts * mu_pts
-            )
-            valid = rho_p_mu_star_sq > 0.0
+            # ρ'µ_* is the half-chord at ρ' of the same line, from its
+            # exact level (ρ, ρµ): (ρ' − ρ)(ρ' + ρ) + (ρµ)², free of the
+            # `1 − µ²` cancellation at small µ and of ρ'² − ρ² near the
+            # diagonal (Phase 5+ Front B, numerics-investigator,
+            # `phase5_front_b_singularity_subtraction.md`, flagged the naive
+            # form as a latent landmine for adaptive quadrature).
+            rho_p_mu_star = half_chord(rho_p, rho, rho * mu_pts)
+            valid = rho_p_mu_star > 0.0
             if not np.any(valid):
                 continue
-            rho_p_mu_star = np.sqrt(np.maximum(rho_p_mu_star_sq, 0.0))
             # mu_star = (ρ' µ_*) / ρ' — but we work with ρ'·µ_* directly
             # because that's what enters cosh(ρ'·µ_*). The 1/µ_* factor
             # becomes ρ' / (ρ'·µ_*) = ρ' / rho_p_mu_star.
@@ -2863,7 +2602,8 @@ def compute_K_bc_specular_continuous_mu_sphere(
 # "outer" surface is face ``x = L`` and "inner" is face ``x = 0`` (the
 # faces are positional, not parametrised by inner_radius). For hollow
 # cyl/sph (``inner_radius > 0``) the cavity segment contributes zero
-# to τ (handled by :meth:`CurvilinearGeometry.optical_depth_along_ray`).
+# to τ (the cavity is the partition's inner exterior, void in
+# :meth:`~orpheus.geometry.chord.Chord.line_integral`).
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -2950,8 +2690,7 @@ def compute_P_esc_outer(
     :math:`K_{\rm esc}` over all directions from the observer, with
     τ taken along the full path to :math:`\rho_{\max}(r_i, \Omega, R)`.
     If the ray traverses the cavity (hollow case), the cavity segment
-    contributes zero to τ (via
-    :meth:`CurvilinearGeometry.optical_depth_along_ray`).
+    contributes zero to τ (:meth:`~orpheus.geometry.chord.Chord.line_integral`).
     """
     r_nodes = np.asarray(r_nodes, dtype=float)
     radii = np.asarray(radii, dtype=float)
@@ -2986,26 +2725,8 @@ def compute_P_esc_outer(
     is_hollow = geometry.inner_radius > 0.0
 
     def _integrand(r_i, cos_om, ang_factor, q):
-        def _kernel(c: float) -> float:
-            rho_out = float(geometry.rho_max(r_i, c, R))
-            if rho_out <= 0.0:
-                return 0.0
-            if is_hollow:
-                # Phase F.4 hollow rule: rays that strike the inner
-                # shell first are counted by compute_P_esc_inner.
-                rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
-                if rho_in_minus is not None and rho_in_minus < rho_out:
-                    return 0.0
-            tau = float(geometry.optical_depth_along_ray(
-                r_i, c, rho_out, radii, sig_t,
-            ))
-            return float(geometry.escape_kernel_mp(tau, dps))
-
-        K_esc_arr = np.fromiter(
-            (_kernel(float(c)) for c in cos_om),
-            dtype=float, count=len(q),
-        )
-        return ang_factor * K_esc_arr
+        rays = geometry.rays_from(r_i, cos_om, radii)
+        return ang_factor * _escape_kernel_where(geometry, rays.chord.line_integral(sig_t, rays.ahead), _escapes_outward(rays), dps)
 
     return per_observer_angular_assembly(
         geometry, r_nodes, radii, n_angular,
@@ -3063,20 +2784,8 @@ def compute_P_esc_inner(
     # directions that hit the inner shell. Driver-routed via
     # `per_observer_angular_assembly`.
     def _integrand(r_i, cos_om, ang_factor, q):
-        def _kernel(c: float) -> float:
-            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
-            if rho_in_minus is None:
-                return 0.0
-            tau = float(geometry.optical_depth_along_ray(
-                r_i, c, rho_in_minus, radii, sig_t,
-            ))
-            return float(geometry.escape_kernel_mp(tau, dps))
-
-        K_esc_arr = np.fromiter(
-            (_kernel(float(c)) for c in cos_om),
-            dtype=float, count=len(q),
-        )
-        return ang_factor * K_esc_arr
+        rays = geometry.rays_from(r_i, cos_om, radii)
+        return ang_factor * _escape_kernel_where(geometry, rays.chord.line_integral(sig_t, rays.to_wall), _hits_cavity(rays), dps)
 
     return per_observer_angular_assembly(
         geometry, r_nodes, radii, n_angular,
@@ -3140,28 +2849,12 @@ def compute_P_esc_outer_mode(
     # driver. Hollow-sphere only (Model A: rays hitting inner shell
     # first counted by compute_P_esc_inner_mode).
     def _integrand(r_i, cos_om, ang_factor, q):
-        def _kernel_at(c: float) -> tuple[float, float]:
-            rho_out = float(geometry.rho_max(r_i, c, R))
-            if rho_out <= 0.0:
-                return 0.0, 0.0
-            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
-            if rho_in_minus is not None and rho_in_minus < rho_out:
-                return 0.0, 0.0
-            tau = float(geometry.optical_depth_along_ray(
-                r_i, c, rho_out, radii, sig_t,
-            ))
-            mu_exit = (rho_out + r_i * c) / R
-            return float(geometry.escape_kernel_mp(tau, dps)), mu_exit
-
-        kernel_vals = [_kernel_at(float(c)) for c in cos_om]
-        K_esc_arr = np.fromiter(
-            (kv[0] for kv in kernel_vals), dtype=float, count=len(q),
-        )
-        mu_exit_arr = np.fromiter(
-            (kv[1] for kv in kernel_vals), dtype=float, count=len(q),
-        )
-        p_tilde_arr = _shifted_legendre_eval(n_mode, mu_exit_arr)
-        return ang_factor * p_tilde_arr * K_esc_arr
+        rays = geometry.rays_from(r_i, cos_om, radii)
+        present = _escapes_outward(rays)
+        tau = rays.chord.line_integral(sig_t, rays.ahead)
+        mu = np.where(present, rays.chord.cosine_at(R), 0.0)
+        p_tilde = _shifted_legendre_eval(n_mode, mu)
+        return ang_factor * p_tilde * _escape_kernel_where(geometry, tau, present, dps)
 
     return per_observer_angular_assembly(
         geometry, r_nodes, radii, n_angular,
@@ -3216,26 +2909,12 @@ def compute_P_esc_inner_mode(
     # Q3: hollow sphere — observer-centred ω-sweep restricted to
     # rays hitting the inner shell, kink-aware subdivision via driver.
     def _integrand(r_i, cos_om, ang_factor, q):
-        def _kernel_at(c: float) -> tuple[float, float]:
-            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
-            if rho_in_minus is None:
-                return 0.0, 0.0
-            tau = float(geometry.optical_depth_along_ray(
-                r_i, c, rho_in_minus, radii, sig_t,
-            ))
-            sin_sq = max(0.0, 1.0 - c * c)
-            mu_exit_sq = max(0.0, (r_0 * r_0 - r_i * r_i * sin_sq) / (r_0 * r_0))
-            return float(geometry.escape_kernel_mp(tau, dps)), float(np.sqrt(mu_exit_sq))
-
-        kernel_vals = [_kernel_at(float(c)) for c in cos_om]
-        K_esc_arr = np.fromiter(
-            (kv[0] for kv in kernel_vals), dtype=float, count=len(q),
-        )
-        mu_exit_arr = np.fromiter(
-            (kv[1] for kv in kernel_vals), dtype=float, count=len(q),
-        )
-        p_tilde_arr = _shifted_legendre_eval(n_mode, mu_exit_arr)
-        return ang_factor * p_tilde_arr * K_esc_arr
+        rays = geometry.rays_from(r_i, cos_om, radii)
+        present = _hits_cavity(rays)
+        tau = rays.chord.line_integral(sig_t, rays.to_wall)
+        mu = np.where(present, rays.chord.cosine_at(r_0), 0.0)
+        p_tilde = _shifted_legendre_eval(n_mode, mu)
+        return ang_factor * p_tilde * _escape_kernel_where(geometry, tau, present, dps)
 
     return per_observer_angular_assembly(
         geometry, r_nodes, radii, n_angular,
@@ -3258,9 +2937,13 @@ def compute_G_bc_outer(
     For slab, this is the face at :math:`x = L`:
     :math:`G_{\rm bc,L}(x_i) = 2\,E_2(\Sigma_t(L - x_i))`.
 
-    For cylinder/sphere, the legacy observer-centred / surface-centred
-    integrals apply, with τ including cavity-segment zero-attenuation
-    for hollow cells.
+    For cylinder/sphere it is :math:`4\,P_{\rm esc,outer}`
+    (:func:`compute_P_esc_outer`): one integrand per face, over the rays
+    whose first wall is the outer surface. A ray that meets a hollow body's
+    cavity first belongs to the inner face and the closure loop, because the
+    volume kernel stops each ray at its first wall (#578, ERR-111; the
+    flat-flux closure identity holds to 4e-5 with this pairing and misses by
+    6e-2 to 1.5 without it, `scratch/characteristic_architecture/p2/hollow_investigation/memo.md`).
     """
     r_nodes = np.asarray(r_nodes, dtype=float)
     radii = np.asarray(radii, dtype=float)
@@ -3286,67 +2969,15 @@ def compute_G_bc_outer(
             G[i] = 2.0 * _slab_E2(tau)
         return G
 
-    if geometry.kind == "sphere-1d":
-        # Q3: observer-centred sphere ω-sweep — driver-routed.
-        def _sphere_tau(r_i: float, c: float, rho: float) -> float:
-            if len(radii) == 1 and geometry.inner_radius == 0.0:
-                return float(sig_t[0]) * rho
-            return float(geometry.optical_depth_along_ray(
-                r_i, c, rho, radii, sig_t,
-            ))
-
-        def _integrand(r_i, cos_om, ang_factor, q):
-            def _kernel(c: float) -> float:
-                rho = float(geometry.rho_max(r_i, c, R))
-                if rho <= 0.0:
-                    return 0.0
-                return float(np.exp(-_sphere_tau(r_i, c, rho)))
-
-            decay = np.fromiter(
-                (_kernel(float(c)) for c in cos_om),
-                dtype=float, count=len(q),
-            )
-            return ang_factor * decay
-
-        return per_observer_angular_assembly(
-            geometry, r_nodes, radii, n_surf_quad,
-            integrand_at_node=_integrand,
-            prefactor=2.0, dps=dps,
-        )
-
-    # Cylinder outer — surface-centred, Ki_1/d kernel via the
-    # `per_surface_centred_angular_assembly` driver. The L3 migration
-    # routed this through the recipe; #1-arch consolidates the
-    # `_per_obs` skeleton through the driver.
-    is_solid_homogeneous = len(radii) == 1 and geometry.inner_radius == 0.0
-
-    def _per_node_kernel(r_i: float, cf: float) -> float:
-        d_sq = r_i * r_i + R * R - 2.0 * r_i * R * cf
-        d = float(np.sqrt(max(d_sq, 0.0)))
-        if d <= 0.0:
-            return 0.0
-        if is_solid_homogeneous:
-            tau = float(sig_t[0]) * d
-        else:
-            cb = (R * cf - r_i) / d
-            tau = float(geometry.optical_depth_along_ray(
-                r_i, cb, d, radii, sig_t,
-            ))
-        ki1 = float(ki_n_mp(1, tau, dps))
-        return ki1 / d
-
-    def _integrand(r_i, cos_phi, q):
-        return np.fromiter(
-            (_per_node_kernel(r_i, float(c)) for c in cos_phi),
-            dtype=float, count=len(q),
-        )
-
-    return per_surface_centred_angular_assembly(
-        geometry, r_nodes, radii, r_surface=R, n_per_panel=n_surf_quad,
-        integrand_at_node=_integrand,
-        prefactor=2.0 * R / np.pi, dps=dps,
+    # Curvilinear: the response of the outer face is 4 times its escape,
+    # one integrand per face (#578, ERR-111): the rays whose FIRST wall is the
+    # outer surface, as the volume kernel stops each ray at its first wall
+    # and the cavity crossing belongs to the closure loop. Until #578 the
+    # sphere counted the rays through the cavity (G/P = 5.2 at the inner
+    # observer) and the cylinder used the surface-centred Ki_1/d form.
+    return 4.0 * compute_P_esc_outer(
+        geometry, r_nodes, radii, sig_t, n_angular=n_surf_quad, dps=dps,
     )
-
 
 def compute_G_bc_inner(
     geometry: CurvilinearGeometry,
@@ -3364,11 +2995,11 @@ def compute_G_bc_inner(
     For slab, this is the face at :math:`x = 0`:
     :math:`G_{\rm bc,0}(x_i) = 2\,E_2(\Sigma_t x_i)`.
 
-    For hollow sphere, observer-centred integration restricted to those
-    directions where the sightline to :math:`r_0` exists (ray hits the
-    inner shell). For hollow cylinder, surface-centred form from
-    :math:`r_0`, analogous to the outer ``Ki_1/d`` formula but with the
-    chord length and bearing from the inner surface.
+    For a hollow cylinder or sphere it is :math:`4\,P_{\rm esc,inner}`
+    (:func:`compute_P_esc_inner`): one integrand per face, over the rays
+    whose first wall is the cavity, the near side of the convex inner
+    surface (#578, ERR-112; the cylinder's former surface-centred
+    ``Ki_1/d`` form also counted the far side, doubling it).
     """
     r_nodes = np.asarray(r_nodes, dtype=float)
     radii = np.asarray(radii, dtype=float)
@@ -3391,71 +3022,14 @@ def compute_G_bc_inner(
             G[i] = 2.0 * _slab_E2(tau)
         return G
 
-    r0 = float(geometry.inner_radius)
-
-    if geometry.kind == "sphere-1d":
-        # Q3: hollow sphere — observer-centred ω-sweep, driver-routed.
-        def _tau(r_i: float, c: float, rho: float) -> float:
-            if len(radii) == 1:
-                return float(sig_t[0]) * rho
-            return float(geometry.optical_depth_along_ray(
-                r_i, c, rho, radii, sig_t,
-            ))
-
-        def _integrand(r_i, cos_om, ang_factor, q):
-            def _kernel(c: float) -> float:
-                rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
-                if rho_in_minus is None:
-                    return 0.0
-                return float(np.exp(-_tau(r_i, c, float(rho_in_minus))))
-
-            decay = np.fromiter(
-                (_kernel(float(c)) for c in cos_om),
-                dtype=float, count=len(q),
-            )
-            return ang_factor * decay
-
-        return per_observer_angular_assembly(
-            geometry, r_nodes, radii, n_surf_quad,
-            integrand_at_node=_integrand,
-            prefactor=2.0, dps=dps,
-        )
-
-    # Cylinder inner — surface-centred on r=r_0, Ki_1/d_inner kernel
-    # via the `per_surface_centred_angular_assembly` driver. The shell
-    # layout for a hollow cylinder has r_k >= r_0 for every shell, so
-    # min(r_obs, r_surface) = r_0 and no shell qualifies as "interior
-    # to both" — the recipe degenerates to plain GL on [0, π].
-    def _per_node_kernel(r_i: float, cf: float) -> float:
-        d_sq = r_i * r_i + r0 * r0 - 2.0 * r_i * r0 * cf
-        d = float(np.sqrt(max(d_sq, 0.0)))
-        if d <= 0.0:
-            return 0.0
-        if len(radii) == 1:
-            tau = float(sig_t[0]) * d
-        else:
-            # Direction cosine from observer at r_i to a surface point
-            # on r=r_0. Mirror of the outer-surface formula with the
-            # inner radius substituted.
-            cb = (r0 * cf - r_i) / d
-            tau = float(geometry.optical_depth_along_ray(
-                r_i, cb, d, radii, sig_t,
-            ))
-        ki1 = float(ki_n_mp(1, tau, dps))
-        return ki1 / d
-
-    def _integrand(r_i, cos_phi, q):
-        return np.fromiter(
-            (_per_node_kernel(r_i, float(c)) for c in cos_phi),
-            dtype=float, count=len(q),
-        )
-
-    return per_surface_centred_angular_assembly(
-        geometry, r_nodes, radii, r_surface=r0, n_per_panel=n_surf_quad,
-        integrand_at_node=_integrand,
-        prefactor=2.0 * r0 / np.pi, dps=dps,
+    # Hollow curvilinear: the response of the inner face is 4 times its
+    # escape, one integrand per face (#578, ERR-112): the rays whose first
+    # wall is the cavity, the near side of the convex inner surface. Until
+    # #578 the cylinder integrated the surface-centred Ki_1/d form over both
+    # sides of the cavity, its far side doubling the near side's count.
+    return 4.0 * compute_P_esc_inner(
+        geometry, r_nodes, radii, sig_t, n_angular=n_surf_quad, dps=dps,
     )
-
 
 def compute_G_bc_outer_mode(
     geometry: CurvilinearGeometry,
@@ -3498,27 +3072,12 @@ def compute_G_bc_outer_mode(
     # Q3: hollow sphere outer-face mode response — driver-routed,
     # Model A skip on rays blocked by the inner shell.
     def _integrand(r_i, cos_om, ang_factor, q):
-        def _eval(c: float) -> tuple[float, float]:
-            rho_out = float(geometry.rho_max(r_i, c, R))
-            if rho_out <= 0.0:
-                return 0.0, 0.0
-            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
-            if rho_in_minus is not None and rho_in_minus < rho_out:
-                return 0.0, 0.0
-            if len(radii) == 1:
-                tau = float(sig_t[0]) * rho_out
-            else:
-                tau = float(geometry.optical_depth_along_ray(
-                    r_i, c, rho_out, radii, sig_t,
-                ))
-            mu_s = (rho_out + r_i * c) / R
-            return float(np.exp(-tau)), mu_s
-
-        ev = [_eval(float(c)) for c in cos_om]
-        decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
-        mu_s = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
-        p_tilde = _shifted_legendre_eval(n_mode, mu_s)
-        return ang_factor * p_tilde * decay
+        rays = geometry.rays_from(r_i, cos_om, radii)
+        present = _escapes_outward(rays)
+        tau = rays.chord.line_integral(sig_t, rays.ahead)
+        mu = np.where(present, rays.chord.cosine_at(R), 0.0)
+        p_tilde = _shifted_legendre_eval(n_mode, mu)
+        return ang_factor * p_tilde * np.where(present, np.exp(-tau), 0.0)
 
     return per_observer_angular_assembly(
         geometry, r_nodes, radii, n_surf_quad,
@@ -3570,25 +3129,12 @@ def compute_G_bc_inner_mode(
     # Q3: hollow sphere inner-face mode response — driver-routed,
     # restricted to rays hitting the inner shell.
     def _integrand(r_i, cos_om, ang_factor, q):
-        def _eval(c: float) -> tuple[float, float]:
-            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
-            if rho_in_minus is None:
-                return 0.0, 0.0
-            if len(radii) == 1:
-                tau = float(sig_t[0]) * float(rho_in_minus)
-            else:
-                tau = float(geometry.optical_depth_along_ray(
-                    r_i, c, rho_in_minus, radii, sig_t,
-                ))
-            sin_sq = max(0.0, 1.0 - c * c)
-            mu_s_sq = max(0.0, (r_0 * r_0 - r_i * r_i * sin_sq) / (r_0 * r_0))
-            return float(np.exp(-tau)), float(np.sqrt(mu_s_sq))
-
-        ev = [_eval(float(c)) for c in cos_om]
-        decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
-        mu_s = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
-        p_tilde = _shifted_legendre_eval(n_mode, mu_s)
-        return ang_factor * p_tilde * decay
+        rays = geometry.rays_from(r_i, cos_om, radii)
+        present = _hits_cavity(rays)
+        tau = rays.chord.line_integral(sig_t, rays.to_wall)
+        mu = np.where(present, rays.chord.cosine_at(r_0), 0.0)
+        p_tilde = _shifted_legendre_eval(n_mode, mu)
+        return ang_factor * p_tilde * np.where(present, np.exp(-tau), 0.0)
 
     return per_observer_angular_assembly(
         geometry, r_nodes, radii, n_surf_quad,
@@ -3674,24 +3220,12 @@ def compute_P_esc_outer_mode_marshak(
 
     # Q3 Marshak partial-current variant — outer face, hollow sphere.
     def _integrand(r_i, cos_om, ang_factor, q):
-        def _eval(c: float) -> tuple[float, float]:
-            rho_out = float(geometry.rho_max(r_i, c, R))
-            if rho_out <= 0.0:
-                return 0.0, 0.0
-            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
-            if rho_in_minus is not None and rho_in_minus < rho_out:
-                return 0.0, 0.0
-            tau = float(geometry.optical_depth_along_ray(
-                r_i, c, rho_out, radii, sig_t,
-            ))
-            mu_exit = (rho_out + r_i * c) / R
-            return float(geometry.escape_kernel_mp(tau, dps)), mu_exit
-
-        ev = [_eval(float(c)) for c in cos_om]
-        K_esc = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
-        mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
-        p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
-        return ang_factor * mu_exit * p_tilde * K_esc
+        rays = geometry.rays_from(r_i, cos_om, radii)
+        present = _escapes_outward(rays)
+        tau = rays.chord.line_integral(sig_t, rays.ahead)
+        mu = np.where(present, rays.chord.cosine_at(R), 0.0)
+        p_tilde = _shifted_legendre_eval(n_mode, mu)
+        return ang_factor * mu * p_tilde * _escape_kernel_where(geometry, tau, present, dps)
 
     return per_observer_angular_assembly(
         geometry, r_nodes, radii, n_angular,
@@ -3741,22 +3275,12 @@ def compute_P_esc_inner_mode_marshak(
 
     # Q3 Marshak partial-current variant — inner face, hollow sphere.
     def _integrand(r_i, cos_om, ang_factor, q):
-        def _eval(c: float) -> tuple[float, float]:
-            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
-            if rho_in_minus is None:
-                return 0.0, 0.0
-            tau = float(geometry.optical_depth_along_ray(
-                r_i, c, rho_in_minus, radii, sig_t,
-            ))
-            sin_sq = max(0.0, 1.0 - c * c)
-            mu_exit_sq = max(0.0, (r_0 * r_0 - r_i * r_i * sin_sq) / (r_0 * r_0))
-            return float(geometry.escape_kernel_mp(tau, dps)), float(np.sqrt(mu_exit_sq))
-
-        ev = [_eval(float(c)) for c in cos_om]
-        K_esc = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
-        mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
-        p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
-        return ang_factor * mu_exit * p_tilde * K_esc
+        rays = geometry.rays_from(r_i, cos_om, radii)
+        present = _hits_cavity(rays)
+        tau = rays.chord.line_integral(sig_t, rays.to_wall)
+        mu = np.where(present, rays.chord.cosine_at(r_0), 0.0)
+        p_tilde = _shifted_legendre_eval(n_mode, mu)
+        return ang_factor * mu * p_tilde * _escape_kernel_where(geometry, tau, present, dps)
 
     return per_observer_angular_assembly(
         geometry, r_nodes, radii, n_angular,
@@ -3806,27 +3330,12 @@ def compute_G_bc_outer_mode_marshak(
 
     # Q3 Marshak — outer-face partial-current response, hollow sphere.
     def _integrand(r_i, cos_om, ang_factor, q):
-        def _eval(c: float) -> tuple[float, float]:
-            rho_out = float(geometry.rho_max(r_i, c, R))
-            if rho_out <= 0.0:
-                return 0.0, 0.0
-            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
-            if rho_in_minus is not None and rho_in_minus < rho_out:
-                return 0.0, 0.0
-            if len(radii) == 1:
-                tau = float(sig_t[0]) * rho_out
-            else:
-                tau = float(geometry.optical_depth_along_ray(
-                    r_i, c, rho_out, radii, sig_t,
-                ))
-            mu_s = (rho_out + r_i * c) / R
-            return float(np.exp(-tau)), mu_s
-
-        ev = [_eval(float(c)) for c in cos_om]
-        decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
-        mu_s = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
-        p_tilde = _shifted_legendre_eval(n_mode, mu_s)
-        return ang_factor * mu_s * p_tilde * decay
+        rays = geometry.rays_from(r_i, cos_om, radii)
+        present = _escapes_outward(rays)
+        tau = rays.chord.line_integral(sig_t, rays.ahead)
+        mu = np.where(present, rays.chord.cosine_at(R), 0.0)
+        p_tilde = _shifted_legendre_eval(n_mode, mu)
+        return ang_factor * mu * p_tilde * np.where(present, np.exp(-tau), 0.0)
 
     return per_observer_angular_assembly(
         geometry, r_nodes, radii, n_surf_quad,
@@ -3869,25 +3378,12 @@ def compute_G_bc_inner_mode_marshak(
 
     # Q3 Marshak — inner-face partial-current response, hollow sphere.
     def _integrand(r_i, cos_om, ang_factor, q):
-        def _eval(c: float) -> tuple[float, float]:
-            rho_in_minus, _ = geometry.rho_inner_intersections(r_i, c)
-            if rho_in_minus is None:
-                return 0.0, 0.0
-            if len(radii) == 1:
-                tau = float(sig_t[0]) * float(rho_in_minus)
-            else:
-                tau = float(geometry.optical_depth_along_ray(
-                    r_i, c, rho_in_minus, radii, sig_t,
-                ))
-            sin_sq = max(0.0, 1.0 - c * c)
-            mu_s_sq = max(0.0, (r_0 * r_0 - r_i * r_i * sin_sq) / (r_0 * r_0))
-            return float(np.exp(-tau)), float(np.sqrt(mu_s_sq))
-
-        ev = [_eval(float(c)) for c in cos_om]
-        decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
-        mu_s = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
-        p_tilde = _shifted_legendre_eval(n_mode, mu_s)
-        return ang_factor * mu_s * p_tilde * decay
+        rays = geometry.rays_from(r_i, cos_om, radii)
+        present = _hits_cavity(rays)
+        tau = rays.chord.line_integral(sig_t, rays.to_wall)
+        mu = np.where(present, rays.chord.cosine_at(r_0), 0.0)
+        p_tilde = _shifted_legendre_eval(n_mode, mu)
+        return ang_factor * mu * p_tilde * np.where(present, np.exp(-tau), 0.0)
 
     return per_observer_angular_assembly(
         geometry, r_nodes, radii, n_surf_quad,
@@ -3932,7 +3428,7 @@ def build_white_bc_correction(
 
     sig_t_n = np.empty(N)
     for i, ri in enumerate(r_nodes):
-        sig_t_n[i] = sig_t[geometry.which_annulus(ri, radii)]
+        sig_t_n[i] = sig_t[geometry.region_of(ri, radii)]
 
     P_esc = compute_P_esc(
         geometry, r_nodes, radii, sig_t,
@@ -4011,15 +3507,15 @@ def compute_P_esc_mode(
     moment for :math:`n \ge 1`; calling it at :math:`n = 0` returns
     the Jacobian-weighted moment, not :math:`P_{\rm esc}`.
     """
-    if geometry.kind == "slab-polar" and n_mode > 0:
-        # The current mode-n ≥ 1 formulation uses the curvilinear
-        # (ρ_max/R)² surface-to-observer Jacobian and a single-surface
-        # mode space A = R^N. For slab this requires per-face mode
-        # decomposition (A = R^(2·N)) because the two faces at x = 0
-        # and x = L carry independent Legendre moments. Not in scope
-        # for Issue #118; tracked separately.
+    if geometry.kind == "slab-polar":
+        # The formulation uses the curvilinear (ρ_max/R)² surface-to-
+        # observer Jacobian and a single-surface mode space A = R^N, which
+        # mean nothing on the slab at any n (its mode 0 is compute_P_esc).
+        # Rank-N slab requires per-face mode decomposition (A = R^(2·N))
+        # because the two faces at x = 0 and x = L carry independent
+        # Legendre moments. Not in scope for Issue #118; tracked separately.
         raise NotImplementedError(
-            "Rank-N (n_mode > 0) BC closure for slab-polar requires "
+            "The rank-N BC closure moments are not defined for slab-polar: it requires "
             "per-face mode decomposition; use n_bc_modes = 1 (rank-1 "
             "Mark closure) for slab. See Issue #118 follow-up."
         )
@@ -4032,23 +3528,12 @@ def compute_P_esc_mode(
 
     # Q3: rank-N DP_N moment with (ρ_max/R)² Jacobian — driver-routed.
     def _integrand(r_i, cos_om, ang_factor, q):
-        def _eval(c: float) -> tuple[float, float, float]:
-            rho = float(geometry.rho_max(r_i, c, R))
-            if rho <= 0.0:
-                return 0.0, 0.0, 0.0
-            tau = float(geometry.optical_depth_along_ray(
-                r_i, c, rho, radii, sig_t,
-            ))
-            mu_exit = (rho + r_i * c) / R
-            return float(geometry.escape_kernel_mp(tau, dps)), mu_exit, rho
-
-        ev = [_eval(float(c)) for c in cos_om]
-        K_esc = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
-        mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
-        rho = np.fromiter((e[2] for e in ev), dtype=float, count=len(q))
+        rays = geometry.rays_from(r_i, cos_om, radii)
+        present = rays.ahead.sum(axis=-1) > 0.0
+        mu_exit = np.where(present, rays.chord.cosine_at(R), 0.0)
         p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
-        jacobian = rho * rho * inv_R2
-        return ang_factor * jacobian * p_tilde * K_esc
+        jacobian = rays.ahead.sum(axis=-1) * rays.ahead.sum(axis=-1) * inv_R2
+        return ang_factor * jacobian * p_tilde * _escape_kernel_where(geometry, rays.chord.line_integral(sig_t, rays.ahead), present, dps)
 
     return per_observer_angular_assembly(
         geometry, r_nodes, radii, n_angular,
@@ -4093,11 +3578,13 @@ def compute_G_bc_mode(
     For :math:`n = 0`, :math:`\tilde P_0 \equiv 1` and this reduces to
     :func:`compute_G_bc`.
     """
-    if geometry.kind == "slab-polar" and n_mode > 0:
+    if geometry.kind == "slab-polar":
         # Same scope limit as compute_P_esc_mode: rank-N slab needs
-        # per-face modes. Issue #118 follow-up.
+        # per-face modes, and the surface-centred cylinder form below has
+        # no slab meaning at any n (its mode 0 is compute_G_bc). Issue #118
+        # follow-up.
         raise NotImplementedError(
-            "Rank-N (n_mode > 0) G_bc for slab-polar requires per-face "
+            "The rank-N G_bc moments are not defined for slab-polar: it requires per-face "
             "mode decomposition; use n_bc_modes = 1 (rank-1 Mark closure) "
             "for slab. See Issue #118 follow-up."
         )
@@ -4113,23 +3600,10 @@ def compute_G_bc_mode(
     if geometry.kind == "sphere-1d":
         # Q3: observer-centred ω-sweep, driver-routed.
         def _sphere_integrand(r_i, cos_om, ang_factor, q):
-            def _eval(c: float) -> tuple[float, float]:
-                rho = float(geometry.rho_max(r_i, c, R))
-                if rho <= 0.0:
-                    return 0.0, 0.0
-                if len(radii) == 1:
-                    tau = float(sig_t[0]) * rho
-                else:
-                    tau = float(geometry.optical_depth_along_ray(
-                        r_i, c, rho, radii, sig_t,
-                    ))
-                return float(np.exp(-tau)), (rho + r_i * c) / R
-
-            ev = [_eval(float(c)) for c in cos_om]
-            decay = np.fromiter((e[0] for e in ev), dtype=float, count=len(q))
-            mu_exit = np.fromiter((e[1] for e in ev), dtype=float, count=len(q))
-            p_tilde = _shifted_legendre_eval(n_mode, mu_exit)
-            return ang_factor * p_tilde * decay
+            rays = geometry.rays_from(r_i, cos_om, radii)
+            present = rays.ahead.sum(axis=-1) > 0.0
+            p_tilde = _shifted_legendre_eval(n_mode, np.where(present, rays.chord.cosine_at(R), 0.0))
+            return ang_factor * p_tilde * np.where(present, np.exp(-rays.chord.line_integral(sig_t, rays.ahead)), 0.0)
 
         return per_observer_angular_assembly(
             geometry, r_nodes, radii, n_surf_quad,
@@ -4139,26 +3613,13 @@ def compute_G_bc_mode(
 
     # Cylinder: surface-centred Ki_1/d kernel, weighted by P̃_n(|μ_s_2D|).
     # Q-L3: route through `per_surface_centred_angular_assembly` driver.
-    def _per_node(r_i: float, cf: float) -> float:
-        d_sq = r_i * r_i + R * R - 2.0 * r_i * R * cf
-        d = float(np.sqrt(max(d_sq, 0.0)))
-        if d <= 0.0:
-            return 0.0
-        if len(radii) == 1:
-            tau = float(sig_t[0]) * d
-        else:
-            cb = (R * cf - r_i) / d
-            tau = float(geometry.optical_depth_along_ray(
-                r_i, cb, d, radii, sig_t,
-            ))
-        mu_s = (R - r_i * cf) / d
-        p_tilde = float(_shifted_legendre_eval(n_mode, np.array([mu_s]))[0])
-        ki1 = float(ki_n_mp(1, tau, dps))
-        return p_tilde * ki1 / d
-
     def _cyl_integrand(r_i, cos_phi, q):
+        d, tau = _to_surface_point(geometry, r_i, cos_phi, R, radii, sig_t)
+        reached = d > 0.0
+        mu_s = np.where(reached, (R - r_i * cos_phi) / np.where(reached, d, 1.0), 0.0)
+        p_tilde = _shifted_legendre_eval(n_mode, mu_s)
         return np.fromiter(
-            (_per_node(r_i, float(c)) for c in cos_phi),
+            (p * float(ki_n_mp(1, t, dps)) / dd if dd > 0.0 else 0.0 for p, dd, t in zip(p_tilde, d, tau)),
             dtype=float, count=len(q),
         )
 
@@ -4595,9 +4056,8 @@ def compute_hollow_cyl_transmission(
     For multi-region annuli the integral replaces :math:`\Sigma_t\cdot
     \text{chord}` by the piecewise optical depth
     :math:`\int_{\rm annulus} \Sigma_t(r(s))\,\mathrm ds`; this function
-    handles the homogeneous single-region case directly and defers
-    multi-region to the general
-    :meth:`CurvilinearGeometry.optical_depth_along_ray` walker.
+    handles the homogeneous single-region case only, and refuses a
+    multi-region annulus (:class:`NotImplementedError`).
 
     Parameters
     ----------
@@ -4639,20 +4099,25 @@ def compute_hollow_cyl_transmission(
 
     with mpmath.workdps(dps):
         # W_outer_outer: grazing-cavity rays hit outer again.
+        # cos a >= 0 on [alpha_c, pi/2]; at nodes next to pi/2 it rounds
+        # to about -3e-26, where Ki_3 of a negative argument is inf (#578,
+        # ERR-113: W_oo read -inf for every Sigma_t > 0).
         W_oo = float(mpmath.quad(
             lambda a: mpmath.cos(a) * _Ki3(
-                2.0 * sig_t_val * R * float(mpmath.cos(a))
+                2.0 * sig_t_val * R * max(float(mpmath.cos(a)), 0.0)
             ),
             [mpmath.mpf(alpha_c), mpmath.pi / 2],
         ))
         W_oo *= 4.0 / float(mpmath.pi)
 
         # W_outer_inner: rays hitting inner shell before opposite
-        # outer face. Chord from R to the first inner intersection.
+        # outer face. Chord from R to the first inner intersection; at the
+        # tangent node r_0^2 - h^2 can round below 0, where mpmath.sqrt is
+        # complex (#578: the W_oo gate read mpc after a test changed mp.dps).
         def _chord_out_to_in(a):
             h_sq = R * R * float(mpmath.sin(a)) ** 2
             return R * float(mpmath.cos(a)) - float(
-                mpmath.sqrt(mpmath.mpf(r_0 * r_0 - h_sq))
+                mpmath.sqrt(mpmath.mpf(max(r_0 * r_0 - h_sq, 0.0)))
             )
 
         W_io = float(mpmath.quad(
@@ -4747,7 +4212,7 @@ def compute_hollow_sph_transmission(
         def _chord(t):
             h_sq = R * R * float(mpmath.sin(t)) ** 2
             return R * float(mpmath.cos(t)) - float(
-                mpmath.sqrt(mpmath.mpf(r_0 * r_0 - h_sq))
+                mpmath.sqrt(mpmath.mpf(max(r_0 * r_0 - h_sq, 0.0)))
             )
 
         W_io = 2.0 * float(mpmath.quad(
@@ -4857,7 +4322,7 @@ def compute_hollow_sph_transmission_rank_n(
         def _chord(t):
             h_sq = R * R * float(mpmath.sin(t)) ** 2
             return R * float(mpmath.cos(t)) - float(
-                mpmath.sqrt(mpmath.mpf(r_0 * r_0 - h_sq))
+                mpmath.sqrt(mpmath.mpf(max(r_0 * r_0 - h_sq, 0.0)))
             )
 
         for m in range(N):
@@ -4995,7 +4460,7 @@ def build_closure_operator(
 
     sig_t_n = np.empty(N_r)
     for i, ri in enumerate(r_nodes):
-        sig_t_n[i] = sig_t[geometry.which_annulus(ri, radii)]
+        sig_t_n[i] = sig_t[geometry.region_of(ri, radii)]
     rv = np.array([geometry.radial_volume_weight(rj) for rj in r_nodes])
 
     # ── Rank-2 per-face layout (Phase F.3, reflection="white") ──────
@@ -5550,7 +5015,7 @@ def _specular_assembly_setup(
     branch: returns ``(R_cell, sig_t_n, rv, divisor)``.
 
     ``sig_t_n`` is the per-node Σ_t_g looked up via
-    :meth:`CurvilinearGeometry.which_annulus`. ``rv`` is the radial
+    :meth:`CurvilinearGeometry.region_of`. ``rv`` is the radial
     volume weight per node. ``divisor`` is the rank-1 surface-area
     divisor (``R²`` for sphere, ``R`` for cylinder, ``2`` for slab —
     the latter is overridden to ``1`` per face by the slab-specific
@@ -5558,7 +5023,7 @@ def _specular_assembly_setup(
     """
     R_cell = float(radii[-1])
     sig_t_n = np.array([
-        sig_t_g[geometry.which_annulus(float(r_nodes[i]), radii)]
+        sig_t_g[geometry.region_of(float(r_nodes[i]), radii)]
         for i in range(len(r_nodes))
     ])
     rv = np.array([
@@ -6410,7 +5875,7 @@ def solve_peierls_mg(
 
     # Per-node XS (look up the annulus-region index per radial node).
     k_annulus = np.array(
-        [geometry.which_annulus(float(r_nodes[i]), radii) for i in range(N)],
+        [int(geometry.region_of(float(r_nodes[i]), radii)) for i in range(N)],
         dtype=int,
     )
     sig_t_n = sig_t[k_annulus, :]          # (N, ng)

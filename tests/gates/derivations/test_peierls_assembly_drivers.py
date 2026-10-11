@@ -154,27 +154,16 @@ def test_per_observer_matches_hand_coded_skeleton_bit_equally():
         )
         cos_om = SPHERE_1D.ray_direction_cosine(q.pts)
         sin_om = SPHERE_1D.angular_weight(q.pts)
-        # Synthetic integrand: cos_om² · K_esc(τ) for the longest chord.
-        K = np.fromiter(
-            (
-                float(np.exp(-sig_t[-1] * float(SPHERE_1D.rho_max(r_i, c, R))))
-                for c in cos_om
-            ),
-            dtype=float, count=len(q),
-        )
+        # Synthetic integrand: cos_om² · exp(−Σ_t,outer · exit distance), the exit read as the live
+        # consumers read it since #578 (one batch of rays per observer).
+        K = np.exp(-sig_t[-1] * SPHERE_1D.rays_from(r_i, cos_om, np.array([R])).ahead.sum(axis=-1))
         return 2.0 * q.integrate_array(sin_om * cos_om ** 2 * K)
 
     expected = np.array([_hand_coded(float(r_i)) for r_i in r_nodes])
 
     # Driver call with the same integrand.
     def _integrand(r_i, cos_om, ang_factor, q):
-        K = np.fromiter(
-            (
-                float(np.exp(-sig_t[-1] * float(SPHERE_1D.rho_max(r_i, c, R))))
-                for c in cos_om
-            ),
-            dtype=float, count=len(q),
-        )
+        K = np.exp(-sig_t[-1] * SPHERE_1D.rays_from(r_i, cos_om, np.array([R])).ahead.sum(axis=-1))
         return ang_factor * cos_om ** 2 * K
 
     actual = per_observer_angular_assembly(

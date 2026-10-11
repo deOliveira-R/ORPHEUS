@@ -55,18 +55,19 @@ The design and its rulings: ``.claude/plans/characteristic_reference_architectur
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING
+from functools import cached_property
+from typing import TYPE_CHECKING, assert_never
 
 import numpy as np
 
-from orpheus.geometry.chart import AxialImage, Chart, RadialImage
+from orpheus.geometry.chart import AxialImage, Chart, RadialImage, half_chord
 from orpheus.geometry.line import Line
 from orpheus.geometry.transformation import RigidMotion
 
 if TYPE_CHECKING:
     from orpheus.geometry.structured_geometry import StructuredGeometry
 
-__all__ = ["Chord", "ConcentricPartition", "Crossings", "Transits"]
+__all__ = ["Chord", "ConcentricPartition", "Crossings", "Rays", "Transits", "region_half_lengths"]
 
 
 @dataclass(frozen=True, eq=False)
@@ -159,6 +160,32 @@ class ConcentricPartition:
         r"""The region of points ``(..., 3)`` in space (moved into the canonical frame by the pose's inverse)."""
         canonical = self.pose.inverse().on_points(points)
         return self.region_containing(self.chart.orbit_coordinate(canonical))
+
+    def rays_from(self, orbit_coordinate: np.ndarray, directions: np.ndarray) -> "Rays":
+        r"""The lines through the points :math:`c\,\hat e_x` of the canonical frame along ``directions``, read from the points (:class:`Rays`).
+
+        ``orbit_coordinate`` is :math:`c`, ``(...,)``, broadcast against the
+        unit ``directions`` ``(..., 3)`` of the canonical frame; the pose
+        carries both to space. Where the chart's group acts on the kept space
+        the chord is formed from each line's exact level at the point,
+        :math:`(c, c|\Omega_x|/|P\Omega|)` (#590), and the point's parameter
+        from the same level, on the side of the closest approach its
+        direction faces (past it where :math:`\Omega_x > 0`): a point on a
+        breakpoint sits exactly on that crossing. On the slab the point's
+        parameter is formed as the crossings' are, :math:`(c - c_{\rm foot})/\Omega_x`.
+        """
+        omega = np.asarray(directions, dtype=float)
+        c = np.broadcast_to(np.asarray(orbit_coordinate, dtype=float), omega.shape[:-1])
+        canonical = np.stack([c, np.zeros_like(c), np.zeros_like(c)], axis=-1)
+        lines = Line.through(self.pose.on_points(canonical), self.pose.on_directions(omega))
+        side = np.sign(omega[..., 0])
+        if not self.chart.acts_on_kept_space:
+            chord = self.chord(lines)
+            return Rays(chord=chord, start=chord.image.parameters_at(c[..., None], side[..., None])[..., 0], side=side, orbit_coordinate=c)
+        speed = self.chart.projected_speed(omega)
+        level = (c, c * np.abs(omega[..., 0]) / np.where(speed > 0.0, speed, 1.0))
+        chord = self.chord(lines, level)
+        return Rays(chord=chord, start=chord.image.parameters_at(c[..., None], side[..., None])[..., 0], side=side, orbit_coordinate=c)
 
     def chord(self, line: Line, level: tuple[np.ndarray, np.ndarray] | None = None) -> "Chord":
         r"""The chord of each line through the partition (see the module docstring).
@@ -333,22 +360,73 @@ class Chord:
         return np.where(self.parallel[..., None], np.where(infinite, np.inf, 0.0), self.traversed_length)
 
     def lengths_beyond(self, start: np.ndarray) -> np.ndarray:
-        r"""The length of each slot beyond the parameter ``start`` (a half-line), ``(..., S)``.
+        r"""The length of each slot beyond the parameter ``start`` (a half-line), ``(..., S)``: :meth:`lengths_between` to :math:`+\infty`."""
+        return self.lengths_between(start, np.inf)
 
-        A slot wholly beyond ``start`` keeps its cancellation-free length;
-        only the slot containing ``start`` is cut, as the difference of its
-        end and ``start``. A parallel line is unbounded both ways.
+    def lengths_between(self, start: np.ndarray | float, stop: np.ndarray | float) -> np.ndarray:
+        r"""The length of each slot between the parameters ``start`` and ``stop``, each ``(...,)``, ``(..., S)``.
+
+        A slot wholly inside :math:`[t_0, t_1]` keeps its cancellation-free
+        length; only a slot containing an end is cut, as
+        :math:`\min(t_{\rm end}, t_1) - \max(t_{\rm begin}, t_0)`, never above its
+        own length; an empty interval (:math:`t_1 \le t_0`) has every slot 0.
+        A parallel line keeps one orbit coordinate, so its home slot holds
+        :math:`t_1 - t_0` (infinite to :math:`t_1 = +\infty`) and every other 0.
         """
         t0 = np.asarray(start, dtype=float)[..., None]
+        t1 = np.asarray(stop, dtype=float)[..., None]
         begin = self.crossings.parameter[..., :-1]
         end = self.crossings.parameter[..., 1:]
-        cut = np.clip(end - t0, 0.0, None)
-        beyond = np.where(begin >= t0, self.traversed_length, np.minimum(cut, self.traversed_length))
-        return np.where(self.parallel[..., None], self.slot_length, beyond)
+        with np.errstate(invalid="ignore"):                  # inf - inf on an unbounded interval of a slot never reached
+            cut = np.clip(np.minimum(end, t1) - np.maximum(begin, t0), 0.0, None)
+        whole = (begin >= t0) & (end <= t1)
+        between = np.where(whole, self.traversed_length, np.minimum(np.nan_to_num(cut, nan=0.0), self.traversed_length))
+        home = np.isinf(self.slot_length)
+        parallel = np.where(home, np.clip(t1 - t0, 0.0, None), 0.0)
+        return np.where(self.parallel[..., None], parallel, between)
 
     def orbit_coordinate_at(self, t: np.ndarray) -> np.ndarray:
         r"""The orbit coordinate at the caller's parameters ``t`` ``(..., q)``, ``(..., q)``."""
         return self.image.orbit_coordinate_at(t)
+
+    def line_integral(self, per_region: np.ndarray, lengths: np.ndarray) -> np.ndarray:
+        r"""The integral :math:`\sum_{\rm slot} f_{\rm region}\,\ell_{\rm slot}` of a per-region field over slot lengths, ``lengths.shape[:-1]``.
+
+        ``per_region`` holds one value per region, ``(n,)``, refused at any
+        other shape (an extra value would fill the cavity, a missing one
+        empty the outermost region). The exteriors are void, and a slot where
+        the field is 0 adds 0 even at infinite length. ``lengths`` are slot
+        lengths of this chord, ``(..., S)`` or ``(..., k, S)`` with ``k``
+        runs per line (:attr:`slot_length`, :meth:`lengths_between`, a
+        transit of them).
+        """
+        f = np.asarray(per_region, dtype=float)
+        n = self.partition.n_regions
+        if f.shape != (n,):
+            raise ValueError(f"a per-region field holds one value per region, shape ({n},); got {f.shape}")
+        region = self.slot_region
+        value = np.where(region < n, f[np.minimum(region, n - 1)], 0.0)       # (..., S)
+        length = np.asarray(lengths, dtype=float)
+        runs = length.ndim - value.ndim
+        value = np.expand_dims(value, axis=tuple(range(-1 - runs, -1))) if runs > 0 else value
+        value, length = np.broadcast_arrays(value, length)
+        return np.multiply(length, value, out=np.zeros(length.shape), where=value != 0.0).sum(axis=-1)
+
+    def cosine_at(self, radius: float) -> np.ndarray:
+        r"""The cosine between each line and the normal of the surface :math:`c` = ``radius`` where it crosses it, ``(...,)``.
+
+        On the cylinder and the sphere :math:`|P\Omega|\,h/r`, with
+        :math:`h` the half-chord there (0 where the line does not cross); on
+        the slab :math:`|\Omega_x|`.
+        """
+        match self.image:
+            case RadialImage() as image:
+                h = image.half_chord_at(np.array([float(radius)]))[..., 0]
+                return image.speed * h / float(radius)
+            case AxialImage() as image:
+                return image.speed
+            case unreachable:
+                assert_never(unreachable)
 
     @property
     def transits(self) -> "Transits":
@@ -434,15 +512,7 @@ def _radial_chord(image: RadialImage, r: np.ndarray) -> tuple[Crossings, np.ndar
     with np.errstate(over="ignore"):                      # a subnormal |P Omega|: the obliquity is truly inf
         inv = 1.0 / np.where(parallel, 1.0, image.speed)
 
-    # Orbit-space length of region j on one side: cancellation-free; the
-    # region of closest approach gets its half-chord; untraversed regions 0.
-    denom = h[..., 1:] + h[..., :-1]
-    shell = np.where(
-        crossed[..., :-1],
-        (r[1:] - r[:-1]) * (r[1:] + r[:-1]) / np.where(denom > 0.0, denom, 1.0),
-        h[..., 1:],
-    )
-    shell = np.where(crossed[..., 1:], shell, 0.0)
+    shell = region_half_lengths(r, h)
     length = _lifted(np.concatenate([shell[..., ::-1], (2.0 * h[..., 0])[..., None], shell], axis=-1), inv)
 
     shape = (*b.shape, 2 * (n + 1))
@@ -454,6 +524,29 @@ def _radial_chord(image: RadialImage, r: np.ndarray) -> tuple[Crossings, np.ndar
         n_regions=n,
     )
     return crossings, length
+
+
+def region_half_lengths(breakpoints: np.ndarray, half_chords: np.ndarray) -> np.ndarray:
+    r"""The orbit-space length of each region on one side of a line's closest approach, ``(..., n)``.
+
+    From the half-chords :math:`h_k` at the breakpoints :math:`r_k`,
+    ``(..., n + 1)``, 0 where the line does not cross: region :math:`k` is
+    :math:`(r_{k+1} - r_k)(r_{k+1} + r_k)/(h_{k+1} + h_k)`, never a
+    difference of half-chords; the region of closest approach holds its
+    outer half-chord :math:`h_{k+1}`; a region the line does not reach, 0.
+    The chord's radial slots are these, inbound and outbound; a caller with
+    the half-chords of an impact parameter and no line reads them directly.
+    """
+    r = np.asarray(breakpoints, dtype=float)
+    h = np.asarray(half_chords, dtype=float)
+    crossed = h > 0.0
+    denom = h[..., 1:] + h[..., :-1]
+    shell = np.where(
+        crossed[..., :-1],
+        (r[1:] - r[:-1]) * (r[1:] + r[:-1]) / np.where(denom > 0.0, denom, 1.0),
+        h[..., 1:],
+    )
+    return np.where(crossed[..., 1:], shell, 0.0)
 
 
 def _axial_chord(image: AxialImage, r: np.ndarray) -> tuple[Crossings, np.ndarray]:
@@ -483,3 +576,87 @@ def _lifted(orbit_length: np.ndarray, obliquity: np.ndarray) -> np.ndarray:
     """
     with np.errstate(over="ignore", invalid="ignore"):
         return np.where(orbit_length > 0.0, orbit_length * obliquity[..., None], 0.0)
+
+
+@dataclass(frozen=True, eq=False)
+class Rays:
+    r"""The chord of the lines through points, read from the points (:meth:`ConcentricPartition.rays_from`).
+
+    Attributes
+    ----------
+    chord:
+        The chord of the lines.
+    start:
+        Each point's parameter on its line, ``(...,)``.
+    side:
+        The side of its line's closest approach each point is on, ``(...,)``:
+        :math:`\operatorname{sign}\Omega_x`, past it (+1), before it (-1),
+        at it (0).
+    orbit_coordinate:
+        Each point's orbit coordinate :math:`c`, ``(...,)``.
+    """
+
+    chord: Chord
+    start: np.ndarray
+    side: np.ndarray
+    orbit_coordinate: np.ndarray
+
+    @cached_property
+    def ahead(self) -> np.ndarray:
+        """The length of each slot ahead of the point, ``(..., S)``: the run to the outer surface, a cavity crossed."""
+        return self.chord.lengths_beyond(self.start)
+
+    def lengths_to(self, distance: np.ndarray) -> np.ndarray:
+        """The length of each slot between the point and the distance ``distance`` ahead of it, ``(..., S)``."""
+        return self.chord.lengths_between(self.start, self.start + np.asarray(distance, dtype=float))
+
+    @cached_property
+    def _transit(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """The transit each point is in: (index, present, its slots ``(..., S)``).
+
+        The first transit the line has not left at the point, its closing
+        crossing at or ahead of the point's parameter. A point on a wall
+        facing out of the domain is in the transit that ends there, at
+        length 0: it leaves through that wall at once.
+        """
+        transits = self.chord.transits
+        slot = np.arange(self.chord.slot_region.shape[-1])
+        closing = np.take_along_axis(self.chord.crossings.parameter, transits.stop_slot, axis=-1)   # (..., 2)
+        current = transits.present & (closing >= self.start[..., None])
+        index = np.asarray(np.argmax(current, axis=-1))
+        present = np.asarray(current.any(axis=-1))
+        first = np.take_along_axis(transits.first_slot, index[..., None], axis=-1)
+        stop = np.take_along_axis(transits.stop_slot, index[..., None], axis=-1)
+        slots = (slot >= first) & (slot < stop) & present[..., None]
+        return index, present, slots
+
+    @cached_property
+    def to_wall(self) -> np.ndarray:
+        """The length of each slot from the point to the first wall ahead of it, ``(..., S)``; 0 where it leaves the domain at once."""
+        return np.where(self._transit[2], self.ahead, 0.0)
+
+    @cached_property
+    def wall(self) -> np.ndarray:
+        r"""The breakpoint index of the first wall ahead of each point, ``(...,)``: :math:`n` the outer surface, 0 a hollow body's cavity (or the slab's lower face); :attr:`ConcentricPartition.no_interface` where none."""
+        index, present, _ = self._transit
+        exit_wall = np.take_along_axis(self.chord.transits.exit_wall, index[..., None], axis=-1)[..., 0]
+        return np.where(present, exit_wall, self.chord.partition.no_interface)
+
+    def orbit_coordinate_at(self, distance: np.ndarray) -> np.ndarray:
+        r"""The orbit coordinate at the distances ``distance`` ``(..., q)`` ahead of each point, ``(..., q)``.
+
+        Formed from the point, never through the parameter, whose round trip
+        rounds: on the cylinder and the sphere from its orbit-space position,
+        :math:`s = \pm y_* + |P\Omega|\,\ell`; on the slab as
+        :math:`c + \Omega_x \ell`. So it is exactly the point's coordinate at
+        :math:`\ell = 0`, and a point on the outer surface never reads above it.
+        """
+        ell = np.asarray(distance, dtype=float)
+        match self.chord.image:
+            case RadialImage() as image:
+                position = (self.side * image.level_half_chord)[..., None] + image.speed[..., None] * ell
+                return half_chord(position, image.level_half_chord[..., None], image.level[..., None])
+            case AxialImage() as image:
+                return self.orbit_coordinate[..., None] + image.rate[..., None] * ell
+            case unreachable:
+                assert_never(unreachable)

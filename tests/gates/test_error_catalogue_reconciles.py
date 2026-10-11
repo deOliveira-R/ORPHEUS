@@ -60,6 +60,25 @@ def _catalogue_ids() -> set[str]:
     )
 
 
+def _open_ids() -> set[str]:
+    """Ids of entries whose defect is still OPEN: the entry's ``**Status:**`` line reads OPEN and names its issue.
+
+    An open defect has no catcher, by the meaning of one: a test that reddens
+    under the defect would hold the suite red until it is fixed. Such an
+    entry says so in its status, with the issue that tracks the fix, and is
+    exempt from arm 2 until its status changes (ERR-110, #546).
+    """
+    text = CATALOG.read_text(encoding="utf-8")
+    blocks = re.split(r"^\.\. error-entry:: ", text, flags=re.M)[1:]
+    found = set()
+    for block in blocks:
+        entry = block.split("\n", 1)[0].strip()
+        status = re.search(r"\*\*Status:\*\*(.*?)(?:\n\s*\n)", block, re.S)
+        if status and "OPEN" in status.group(1) and re.search(r"#\d+", status.group(1)):
+            found.add(entry)
+    return found
+
+
 def _marker_ids() -> set[str]:
     """Ids named by a ``catches(...)`` CALL — a decorator, a ``pytestmark``
     entry, a ``pytest.param(marks=...)`` — read by an AST pass.
@@ -114,7 +133,7 @@ def test_every_declared_entry_has_a_catching_test():
     the absence of one is the honest signal that the claim was never
     made.
     """
-    uncaught = _catalogue_ids() - _marker_ids()
+    uncaught = _catalogue_ids() - _marker_ids() - _open_ids()
     assert not uncaught, (
         f"{len(uncaught)} catalogued defect(s) have no `@pytest.mark.catches`: "
         f"{sorted(uncaught)}. Either add the gate, or say in the entry why no "
@@ -365,3 +384,20 @@ def test_a_dormant_entry_says_so_and_only_a_dormant_one():
         f"{len(violations)} catalogue entr(y/ies) disagree with their catchers' "
         "withdrawal state:\n  " + "\n  ".join(violations)
     )
+
+
+
+@pytest.mark.foundation
+def test_an_open_entry_names_its_issue_and_has_no_catcher_yet():
+    """Arm 2's exemption reads the status line, and only an OPEN one with an issue.
+
+    Its positive control is ERR-110 (#546, CP's vacuum k), open since
+    2026-10-10 and documented by strict xfails. An open entry that has a
+    catcher is no longer open: its status is stale, and arm 2 needs no
+    exemption for it.
+    """
+    opened = _open_ids()
+    assert "ERR-110" in opened, f"the status-line parse misses ERR-110 (OPEN, #546); it found {sorted(opened)}"
+    stale = opened & _marker_ids()
+    assert not stale, f"entries marked OPEN carry a `catches` marker, so their status is stale: {sorted(stale)}"
+
