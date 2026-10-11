@@ -1946,3 +1946,42 @@ The child-memo feature keeps a production client: the characteristic solve.
 - what becomes history, against what moves into `characteristic.rst`.
 
 That is P1's last step.
+
+## P1 complete: step (f) landed (2026-10-10)
+
+**[LANDED 54f6c6e7].** `references/characteristic_origins.rst` replaces `trajectory_resolvent.rst`, by the user's ruling: split.
+- The page holds 37 live labels:
+  - 17 proved symbolically, in `characteristic/origins/`;
+  - 17 verified numerically, by the characteristic tests;
+  - 3 both.
+
+  An AST census of the markers equals the page's label set.
+- The history section records the retired family and its lessons.
+- The 31 unverified labels are dropped.
+- 43 inbound references are re-pointed.
+- `dead_references`: 55 → 0.
+
+**qa's claim check found:**
+- **The `peierls-greens-slab-T` hypothesis** (a source symmetric about the mid-plane). It was missing from the label, and its moved marker sat on a row with a non-symmetric source. The fix:
+  - the hypothesis is stated;
+  - a closed-form row, `test_a_symmetric_slabs_surface_inflow_is_the_one_transit_closed_form`, goes red under an asymmetric source and under ERR-035's heuristic.
+- **The T₀₀ rows credited the closure labels.** They now verify their own identity labels, with a new `peierls-greens-cylinder-V-alpha-2`.
+- **`derive_alpha_zero_kernel_reduction_slab` wrote ERR-035's refuted closure.** It now writes the one-transit form, and its limit holds either way.
+
+**P1, the record:** steps (a) to (f) are all landed, the last being `54f6c6e7`. The characteristic reference is the one reference. The old family is deleted (`5aa8cb88`), and its solve is a memoised child entry (`23e7711e`).
+
+**Open issues from P1, in GitHub:**
+- #585: a slab far from the origin loses digits;
+- #587: the non-tensor line rule; its first half landed and its polar half was refuted;
+- #589: the k pencil and the source pencil as two splittings;
+- #591: the point reading's cost;
+- #593: bypass versus served arrays;
+- #594: `reference_body` against `ConcentricPartition`.
+
+## ⏸ COMPACTION POINT — 2026-10-10, P1 complete
+
+**Next, by the plan's phases (a `[HYPOTHESIS]` until the user rules):**
+- **P2 (#578):** the other spellings onto the geometric kernel: 13 chord square roots, 14 discriminants, 8 point locators, 3 line measures; reference code first.
+- **P3:** #405 resumes: the slow reference files, re-timed, through `.claude/plans/reference_cache.md`'s P4.
+
+The user picks the order. Read this point first on resume.
