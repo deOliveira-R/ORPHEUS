@@ -1984,4 +1984,60 @@ That is P1's last step.
 - **P2 (#578):** the other spellings onto the geometric kernel: 13 chord square roots, 14 discriminants, 8 point locators, 3 line measures; reference code first.
 - **P3:** #405 resumes: the slow reference files, re-timed, through `.claude/plans/reference_cache.md`'s P4.
 
-The user picks the order. Read this point first on resume.
+**The user chose P2 (2026-10-10).**
+
+### P2 resume brief (for the session after compaction)
+
+**State.**
+- `main` is `6ac11067`; CI is green on `54f6c6e7`.
+- P1 is complete.
+- No P2 work has started: there is no branch and no uncommitted change.
+
+**What P2 is.** Issue #578 (read it first: `gh issue view 578`). The hand-written chord, point-location and line-measure spellings migrate onto the geometric kernel in `orpheus/geometry/`:
+- `Chart`, `Line` and `ConcentricPartition.chord`;
+- `region_containing`, the inner-owns locator;
+- `Chart.beam_density`.
+
+The kernel's theory page is `docs/theory/foundations/chart_and_chord.rst`. Each migration:
+- deletes its row in `tests/gates/geometry/test_kernel_corroboration.py`;
+- adopts the inner-owns convention;
+- runs `retirement-audit`.
+
+**What #578's census no longer says right.**
+- The census was taken at `a336bde4` (2026-10-05): 13 chord square roots, 14 discriminants, 8 locators and 3 line measures. P1 deleted the trajectory-resolvent family, and with it the 7 chord-oracle classes and their spellings, so the counts are stale.
+- `[M]` 2026-10-10, the corroboration harness today:
+  - one exit-distance row parametrised over `peierls_rho_max` (`peierls_nystrom.geometry.SPHERE_1D`) and `moc_root` (`moc.geometry._ray_circle_intersections`);
+  - one locator row over Peierls `SPHERE_1D`, `mc.solver.ConcentricPinCell` and `moc.geometry._identify_region`.
+- So what remains sits mostly in:
+  - Peierls Nyström (`derivations/continuous/peierls_nystrom/`), WITHDRAWN under #506; its `CurvilinearGeometry.kind` carve is #419;
+  - production CP, MoC and MC.
+
+**The open scope question, the FIRST thing to settle with the user, before any plan.**
+- The sharpening order (CLAUDE.md, "The direction of development") defers CP, MoC and MC to their own campaigns, and admits only "a harmonisation onto shared machinery".
+- #578 says reference code goes first, and that Peierls follows the scope ruling on #506 and #419.
+- So P2 needs a ruling on which spellings are in scope now:
+  - (a) reference code only (Peierls, withdrawn but still in the tree; and any `derivations/` site outside Peierls);
+  - (b) also the production CP, MoC and MC sites, as a harmonisation onto shared machinery;
+  - (c) reference code now, and production through issues filed per method campaign.
+
+**The first concrete step,** before asking: a fresh census by the explorer, against `main` `6ac11067`. It needs:
+- #578's predicates: a chord square root `sqrt((R*R|R**2) - b...)`, and a geometric discriminant outside `orpheus/geometry/` and the SymPy origins;
+- point locators, by their boundary convention;
+- measures on lines;
+- an AST census with positive controls, each site tagged by package and by status (reference or production; withdrawn or live; which method);
+- counts of the form `k of N`.
+
+Then put the scope question to the user with the counts, then plan mode (the ontology is known: the kernel exists, and P2 re-spells sites onto it).
+
+**Standing constraints** (unchanged from P1; this session's practice):
+- W3 surgical carve: the main agent writes production; the test-architect handles gates; qa and the elegance-enforcer review; the archivist writes docs.
+- Stage by path, never `git add -A`. Create the branch in its own command (the git-guard refuses otherwise).
+- Merge with `--ff-only`, then delete the branch.
+- Commit messages through `-F -` with a quoted heredoc.
+- A code commit that changes gate rows also carries every file the Sphinx build regenerates: `docs/theory/verification/matrix.rst`, and `.claude/skills/vv-principles/error_index.md`, whose omission turned CI red once this session. Run the build and read `git status` before committing.
+- Before committing a deletion, run `tests/gates/test_docstring_xrefs.py`: it rejects dead `:mod:` roles that Sphinx does not see.
+- Run tests serially, with `.venv/bin/python -O -m pytest -p no:cacheprovider`. The full non-slow suite takes about 50 minutes `[M]` (16 613 passed at `5aa8cb88`): run it in the background without `-x`.
+- `git grep`'s basic regex has no `\|`: use `-E` or Python for a census, with a positive control (it bit this session).
+- `rm -rf` is refused by the permission settings: ask the user to run it.
+
+Read this point first on resume.
