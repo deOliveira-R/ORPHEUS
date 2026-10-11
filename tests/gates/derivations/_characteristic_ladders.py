@@ -58,8 +58,8 @@ Re-measure with::
     python -O -m tests.gates.derivations._characteristic_ladders <ladder>
 
 with ``<ladder>`` one of ``aba-sphere``, ``aba-cylinder [degree ...]``,
-``partial-reflector``, ``edge``, ``sphere-sn``, ``cylinder-sn``, ``records``,
-``old-sphere-reference``, ``old-cylinder-reference``. Run from the repository
+``partial-reflector``, ``edge``, ``sphere-sn``, ``cylinder-sn``, ``records`` (the old family's two ladders,
+``old-sphere-reference`` and ``old-cylinder-reference``, were deleted with it in step (e2)). Run from the repository
 root, serially (the host is shared). The reference rungs are read in process
 (``traced_memo.bypass()``); the ``records`` command goes through the memo, as
 the rows do, and leaves the entry they read.
@@ -478,41 +478,6 @@ def _records() -> None:
     print("standoff sweep k (nx=40):", repr(standoff._solve_cyl_via_sweep(nx=40).read(Eigenvalue()).value), flush=True)
 
 
-def _old_reference(coord_name: str) -> None:
-    """The OLD family's A|B|A rungs (``_trajectory_resolvent_ladders``' ``SPHERE_3REG_REFERENCE_K`` and
-    ``CYLINDER_3REG_REFERENCE_K``), through the old side's own spelling.
-
-    Homed here, not beside the tables, until step (e) deletes them with the family: they build the A|B|A
-    specification from ``_aba_reference``, which reaches the new reference since step (d), and the corroboration
-    rows refuse an old-side module whose imports reach it (``tests/gates/_corroboration.py``).
-    """
-    from orpheus.geometry import CoordSystem
-    from orpheus.numerics.observable import Eigenvalue
-    from tests.gates.derivations import _trajectory_resolvent_aba as old
-    from tests.gates.derivations import _trajectory_resolvent_ladders as old_ladders
-    from tests.gates.sn.regression import _generate_snapshots as snapshots
-    from tests.gates.sn.verification.analytical import _aba_reference as aba
-
-    coord = CoordSystem[coord_name]
-    specification = aba.aba_specification(coord)
-    if coord is CoordSystem.SPHERICAL:
-        observables = aba.shape_observables(snapshots._sphere_3region("2g", 40)["mesh"])
-        shapes = {}
-        for n_r, n_mu in old_ladders.SPHERE_3REG_REFERENCE_K:
-            ref = old.aba_reference_at(specification, {"n_r": n_r, "n_mu": n_mu, "n_traj_quad": 64}, coord)
-            print(f"({n_r}, {n_mu}): k = {ref.read(Eigenvalue()).value!r}", flush=True)
-            if (n_r, n_mu) in ((36, 96), (72, 96), (36, 192)):
-                shapes[(n_r, n_mu)] = {(i, g): ref.read(ratio).value for i, g, ratio in observables}
-        fixture = shapes[(36, 96)]
-        for other in ((72, 96), (36, 192)):
-            scale = max(abs(v) for v in shapes[other].values())
-            print(f"shape step (36, 96) -> {other}: {max(abs(fixture[key] - shapes[other][key]) for key in fixture) / scale:.3e}")
-    else:
-        for n_r, n_mu, n_phi in old_ladders.CYLINDER_3REG_REFERENCE_K:
-            quadrature = {"n_r": n_r, "n_mu_axial": n_mu, "n_phi_az": n_phi, "n_traj_quad": 64}
-            print(f"({n_r}, {n_mu}, {n_phi}): k = {old.aba_reference_at(specification, quadrature, coord).read(Eigenvalue()).value!r}", flush=True)
-
-
 _LADDERS = {
     "aba-sphere": lambda *_: _aba_sphere(),
     "aba-cylinder": lambda *degrees: _aba_cylinder(tuple(int(d) for d in degrees) or (2, 3, 4)),
@@ -521,8 +486,6 @@ _LADDERS = {
     "sphere-sn": lambda *_: _sn("sphere"),
     "cylinder-sn": lambda *_: _sn("cylinder"),
     "records": lambda *_: _records(),
-    "old-sphere-reference": lambda *_: _old_reference("SPHERICAL"),
-    "old-cylinder-reference": lambda *_: _old_reference("CYLINDRICAL"),
 }
 
 if __name__ == "__main__":

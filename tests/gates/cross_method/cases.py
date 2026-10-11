@@ -11,16 +11,16 @@ Case-set inventory
 
 * :data:`BARE_CRITICAL_SLAB_CASES` — 1G isotropic bare-critical slab,
   c-sweep covering the four published Sood/KLL truths. fn_method +
-  trajectory_resolvent both supported.
+  the characteristic reference both supported.
 * :data:`BARE_CRITICAL_SPHERE_CASES` — 1G isotropic bare-critical
   sphere, c-sweep covering the three published Sood/KLL truths.
-  fn_method + trajectory_resolvent both supported.
+  fn_method + the characteristic reference both supported.
 * :data:`REFLECTED_SLAB_CASES` — Neshat-Maiorino 1980 / Sood Table
   10 reflected-slab criticality. fn_method only (no
-  trajectory_resolvent counterpart yet).
+  characteristic-reference counterpart yet).
 * :data:`CLOSED_SPHERE_KINF_CASES` — closed-sphere α=1 cases where
-  ``k_eff = k_inf`` exactly. trajectory_resolvent native; fn_method
-  via ``compute_kinf_*`` direct evaluation. The 2G/4G coverage
+  ``k_eff = k_inf`` exactly. The characteristic reference's closed
+  body; fn_method via ``compute_kinf_*`` direct evaluation. The 2G/4G coverage
   this provides is the ONLY multi-group cross-method gate
   shippable today.
 * :data:`GRANDJEAN_SIEWERT_SLAB_PARAMETRIC` — extra slab c-values
@@ -66,12 +66,8 @@ from .protocol import CrossMethodCase
 #
 # fn_method/slab/one_group reaches ~5e-6 absolute on a_c at N=10 vs
 # Sood truth (already tested in test_fn_sood2003_slab.py). The
-# trajectory_resolvent slab vacuum-BC quadrature floor is ~5e-5 on
-# k_eff at default (n_x=48, n_mu=128, n_traj_quad=96) due to the
-# slab μ=0 cusp.
-#
-# The agreement tolerance for the cross-check is the larger of the
-# two, i.e. 5e-5. Tighter than that is reference contamination.
+# characteristic reference's tolerances are computed at the end of
+# this module (``characteristic_tolerance``).
 
 
 # F_N slab at N=10 across c ∈ {1.02 .. 1.50} reaches err ≤ 1e-5 absolute
@@ -79,7 +75,6 @@ from .protocol import CrossMethodCase
 # canonical pin (it uses 1e-5 for the c=1.30 case). We adopt the same
 # floor for the cross-method protocol.
 _FN_SLAB_TOL_DEFAULT = 1e-5
-_TR_SLAB_TOL_DEFAULT = 5e-5
 
 
 BARE_CRITICAL_SLAB_CASES: list[CrossMethodCase] = [
@@ -106,15 +101,10 @@ BARE_CRITICAL_SLAB_CASES: list[CrossMethodCase] = [
             # N=10) since c=1.02 is closest to a Case-eigenfunction
             # purely-real regime; keep the default 1e-5.
             "fn_slab": _FN_SLAB_TOL_DEFAULT,
-            # trajectory_resolvent at default parameters needs the
-            # looser floor at low c (large slab → many bounce
-            # decays).
-            "trajectory_resolvent_slab": 1e-4,
         },
         notes=(
             "Lowest c in bare 1G slab. F_N at N≥14 fails (bracket "
-            "loss); use N=12. trajectory_resolvent k_eff floor is "
-            "looser at low c due to long-tau bounce-period quadrature."
+            "loss); use N=12."
         ),
     ),
     # c = 1.30 — Sood Ua-1-0-SL, the canonical KLL-table reference.
@@ -136,7 +126,6 @@ BARE_CRITICAL_SLAB_CASES: list[CrossMethodCase] = [
         claim_layer="eigenvalue",
         tolerances={
             "fn_slab": _FN_SLAB_TOL_DEFAULT,
-            "trajectory_resolvent_slab": _TR_SLAB_TOL_DEFAULT,
         },
         notes="Canonical KLL Table I bare-critical slab benchmark.",
     ),
@@ -159,7 +148,6 @@ BARE_CRITICAL_SLAB_CASES: list[CrossMethodCase] = [
         claim_layer="eigenvalue",
         tolerances={
             "fn_slab": _FN_SLAB_TOL_DEFAULT,
-            "trajectory_resolvent_slab": _TR_SLAB_TOL_DEFAULT,
         },
     ),
     # c = 1.50 — PUa slab (highest c in the bare 1G slab family).
@@ -181,7 +169,6 @@ BARE_CRITICAL_SLAB_CASES: list[CrossMethodCase] = [
         claim_layer="eigenvalue",
         tolerances={
             "fn_slab": _FN_SLAB_TOL_DEFAULT,
-            "trajectory_resolvent_slab": _TR_SLAB_TOL_DEFAULT,
         },
         notes=(
             "Highest c in bare 1G slab family. Thin slab, steep "
@@ -196,11 +183,9 @@ BARE_CRITICAL_SLAB_CASES: list[CrossMethodCase] = [
 # ═══════════════════════════════════════════════════════════════════
 #
 # fn_method/sphere/one_group at N=10 reaches ~5e-8 absolute on R_c —
-# exquisitely tight. trajectory_resolvent sphere vacuum-BC at
-# (n_r=32, n_mu=32, n_traj_quad=64) reaches ~1e-5 on k_eff.
+# exquisitely tight.
 
 _FN_SPHERE_TOL_DEFAULT = 1e-7
-_TR_SPHERE_TOL_DEFAULT = 1e-5
 
 
 BARE_CRITICAL_SPHERE_CASES: list[CrossMethodCase] = [
@@ -223,15 +208,8 @@ BARE_CRITICAL_SPHERE_CASES: list[CrossMethodCase] = [
         claim_layer="eigenvalue",
         tolerances={
             "fn_sphere": _FN_SPHERE_TOL_DEFAULT,
-            # Large sphere → long bounce-period chord → looser
-            # trajectory_resolvent floor.
-            "trajectory_resolvent_sphere": 1e-4,
         },
-        notes=(
-            "Lowest c, largest sphere. trajectory_resolvent at "
-            "default n_traj_quad=64 has a looser k_eff floor at "
-            "long τ_R."
-        ),
+        notes="Lowest c, largest sphere.",
     ),
     # c = 1.30 — Sood Ua-1-0-SP.
     CrossMethodCase(
@@ -253,7 +231,6 @@ BARE_CRITICAL_SPHERE_CASES: list[CrossMethodCase] = [
         claim_layer="eigenvalue",
         tolerances={
             "fn_sphere": _FN_SPHERE_TOL_DEFAULT,
-            "trajectory_resolvent_sphere": _TR_SPHERE_TOL_DEFAULT,
         },
         notes="Canonical KLL Table V bare-critical sphere benchmark.",
     ),
@@ -276,14 +253,13 @@ BARE_CRITICAL_SPHERE_CASES: list[CrossMethodCase] = [
         claim_layer="eigenvalue",
         tolerances={
             "fn_sphere": _FN_SPHERE_TOL_DEFAULT,
-            "trajectory_resolvent_sphere": _TR_SPHERE_TOL_DEFAULT,
         },
     ),
 ]
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Reflected-slab cases — fn_method only (no trajectory_resolvent
+# Reflected-slab cases — fn_method only (no characteristic-reference
 # counterpart for reflected/multi-region slab).
 # ═══════════════════════════════════════════════════════════════════
 #
@@ -521,15 +497,14 @@ REFLECTED_SLAB_CASES: list[CrossMethodCase] = [
 # Closed-sphere k_inf cases — α=1, the eigenvalue ≡ k_inf identity
 # ═══════════════════════════════════════════════════════════════════
 #
-# When trajectory_resolvent solves a closed (α=1) homogeneous sphere
-# the rank-1 isotropic eigenmode gives k_eff = k_inf exactly (V_α1).
+# A closed (α=1) homogeneous sphere has a flat fundamental mode, so
+# k_eff = k_inf exactly (V_α1; the characteristic reference's D5).
 # The fn_method computes k_inf directly via Sood Eqs (A.2)/(A.12)/(A.59) closed
 # form. Comparing the two for 1G/2G/multi-group cases gives the
 # multi-group cross-method coverage that bare-critical does not
 # provide.
 
 _KINF_TOL_FN = 1e-12
-_KINF_TOL_TRAJECTORY = 1e-10
 
 
 # 1G — fuel-A-like (canonical V_α1 fixture).
@@ -562,9 +537,7 @@ CLOSED_SPHERE_KINF_CASES: list[CrossMethodCase] = [
         materials={0: _FUEL_A_LIKE_MIX},
         # Closed sphere: BC.reflective on the OUTER surface
         # (centreline reflective is implicit for SPH geometry).
-        # The trajectory_resolvent solver translates BC.reflective
-        # to its α=1 albedo. R_cm = 5.0 (τ_R = σ_t · R_cm = 0.5 · 5.0
-        # = 2.5).
+        # R_cm = 5.0 (τ_R = σ_t · R_cm = 0.5 · 5.0 = 2.5).
         structured_geometry=StructuredGeometry(
             coord=CoordSystem.SPHERICAL,
             breakpoints=(0.0, 5.0),
@@ -576,21 +549,15 @@ CLOSED_SPHERE_KINF_CASES: list[CrossMethodCase] = [
         truth_value=0.025 / 0.12,  # 0.20833...
         truth_source=(
             "Closed-form k_inf = νΣ_f/Σ_a; V_α1 algebraic identity "
-            "(see test_peierls_greens_function_xverif.py)"
+            "(test_peierls_greens_function_symbolic.py)"
         ),
         pillar="closed-form",
         claim_layer="eigenvalue",
-        tolerances={
-            # Closed-sphere α=1 gives k_eff = k_inf to machine
-            # precision (no quadrature error since the eigenmode
-            # is rank-1 isotropic). Tight tolerance documents the
-            # V_α1 algebraic identity at the production-code level.
-            "trajectory_resolvent_sphere_closed": 1e-10,
-        },
+        # The characteristic adapter's tolerance is added below (``_with_characteristic``).
+        tolerances={},
         notes=(
-            "Used by closed-sphere k_inf adapter; "
-            "trajectory_resolvent must converge to k_inf to "
-            "machine precision via V_α1."
+            "Used by the closed-sphere k_inf adapter; the reference "
+            "converges to k_inf to machine precision via V_α1."
         ),
     ),
 ]
@@ -633,10 +600,8 @@ def _grandjean_siewert_unit_case(c: float, a_truth: float) -> CrossMethodCase:
     materials are constructed inline (no XS-set entry in the Sood
     registry corresponds to ``c, σ_t=1, σ_s=0``).
 
-    The trajectory_resolvent slab adapter cannot consume these
-    today (its XS extractor requires a registry case). They are
-    populated here for fn_method coverage and for documenting the
-    extension point.
+    They are populated here for fn_method coverage and for
+    documenting the extension point.
     """
     return CrossMethodCase(
         case_id=f"GS-Table-XI-slab-c{c:.2f}",
@@ -657,9 +622,7 @@ def _grandjean_siewert_unit_case(c: float, a_truth: float) -> CrossMethodCase:
         },
         notes=(
             f"c={c:.2f} unit XS; covers slab c-sweep gap not in "
-            f"Sood family. trajectory_resolvent adapter requires a "
-            f"registry case so this case is fn_method-only at the "
-            f"protocol level."
+            f"Sood family; fn_method-only at the protocol level."
         ),
     )
 
@@ -674,7 +637,7 @@ GRANDJEAN_SIEWERT_SLAB_PARAMETRIC: list[CrossMethodCase] = [
 # The characteristic reference: its k ladder and its tolerances
 # ═══════════════════════════════════════════════════════════════════
 #
-# The characteristic adapters (``adapters.CharacteristicAdapter``) succeed the three trajectory-resolvent adapters
+# The characteristic adapters (``adapters.CharacteristicAdapter``) succeeded the three trajectory-resolvent adapters
 # (P1 step (e1b) of ``.claude/plans/characteristic_reference_architecture.md``). Their tolerances are COMPUTED, never
 # typed, by the rules of ``tests/gates/derivations/_ladder_rules.py`` from two measured tables:
 #

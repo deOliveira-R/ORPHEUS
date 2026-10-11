@@ -30,9 +30,10 @@ Key facts
 - **What this is.** The characteristic reference is the closed reference
   that solves transport on a 1-D concentric body by integrating along
   the body's lines: :mod:`orpheus.derivations.continuous.characteristic`.
-  It is built rung by rung beside the trajectory-resolvent family
-  (:ref:`theory-trajectory-resolvent`), the family it is built to
-  replace. Its five rungs exist. The first
+  It was built rung by rung beside the trajectory-resolvent family
+  (:ref:`theory-trajectory-resolvent`), and replaced it: P1 step (e2)
+  (2026-10-10) deleted that family, after its tests were re-posed here
+  (:ref:`characteristic-successors`). Its five rungs exist. The first
   is the **walls**
   (:mod:`~orpheus.derivations.continuous.characteristic.walls`) and the
   **line part of the boundary closure**
@@ -270,11 +271,11 @@ Key facts
 Where this reference sits
 =========================
 
-The trajectory-resolvent family (:ref:`theory-trajectory-resolvent`) is
+The trajectory-resolvent family (:ref:`theory-trajectory-resolvent`) was
 seven oracle classes and fifteen solver entry points (the plan's
-inventory; ``git grep`` counts the fifteen), one per geometry and
-boundary shape, each with its own chord oracle and its own closure;
-the user ruled on 2026-10-05 that it is re-architected before it is
+inventory, counted by ``git grep`` before the deletion), one per geometry
+and boundary shape, each with its own chord oracle and its own closure;
+the user ruled on 2026-10-05 that it be re-architected before it was
 patched further (the plan
 ``.claude/plans/characteristic_reference_architecture.md``, "The ruling
 that opened this plan"). The characteristic reference is the result: one
@@ -288,9 +289,12 @@ numpy, scipy, the geometric kernel, the boundary-law declarations of
 production machinery.
 
 The name says what the method integrates along, the characteristic
-lines. During the migration the two packages coexist under different
-names, ``characteristic/`` and ``trajectory_resolvent/``, so neither is
-a homonym of the other.
+lines. During the migration the two packages coexisted under different
+names, ``characteristic/`` and ``trajectory_resolvent/``, so neither was
+a homonym of the other. P1 step (e2) (2026-10-10) deleted
+``trajectory_resolvent/``; the SymPy derivations that grounded it moved
+first, at step (e1a), to
+:mod:`orpheus.derivations.continuous.characteristic.origins`.
 
 
 .. _characteristic-resolvent:
@@ -4463,8 +4467,8 @@ The factory
 :func:`~orpheus.derivations.continuous.characteristic.reference.characteristic_reference`
 wraps it in a
 :class:`~orpheus.reference.solution.ReferenceSolution` with no
-certificate, the consumer surface the trajectory-resolvent family exposes
-(:ref:`theory-trajectory-resolvent`). Every reading is
+certificate, the consumer surface the trajectory-resolvent family exposed
+until its deletion (:ref:`theory-trajectory-resolvent`). Every reading is
 :class:`~orpheus.reference.reading.Uncertified`: the family derives no
 error bound yet (#566).
 
@@ -5809,11 +5813,16 @@ The source points project a symbolic source, detector or weight onto the
 panel basis and do not enter :math:`k`. The sphere and slab bodies run at
 :math:`p = 5` because a solve there takes seconds; the A|B|A cylinder
 stays at the door default because one solve there takes about 21 minutes
-(`[M]` 1259 s, 2026-10-09). No row is renamed: the rows keep the old
-reference's names (``…_against_trajectory_resolvent``,
-``test_phase_d_trajectory_resolvent_crosscheck``), because the ``#516``
-census of ``test_crosscheck_harness.py`` keys on them and the user ruled
-the names unchanged.
+(`[M]` 1259 s, 2026-10-09). Step (d) renamed no row: the rows kept the
+old reference's names, because the ``#516`` census of
+``test_crosscheck_harness.py`` keys on them and the user ruled the names
+unchanged for that step. Step (e2), which deleted the old family,
+renamed ``trajectory_resolvent`` to ``characteristic_reference`` in the
+seven ids (``…_against_characteristic_reference``,
+``test_phase_d_characteristic_reference_crosscheck``,
+``test_cylinder_l1_sweep_vs_characteristic_reference``,
+``test_unified_cylinder_l1_mr_2g_characteristic_reference`` and its
+``_record`` row) and re-keyed the census with them.
 
 How the reference's error is estimated
 --------------------------------------
@@ -5948,9 +5957,11 @@ own distance from :math:`k_\infty` (:math:`4.46\times10^{-12}`,
 The tolerance rules (``tolerance_for``, ``summed_tolerance``,
 ``geometric_error``, ``richardson_error``) moved at step (d) into
 ``tests/gates/derivations/_ladder_rules.py``, which reads no reference, so
-that both families' ladders can use them: the corroboration rows'
-independence leg refuses an old-side module whose imports reach the new
-reference, and the old family's ladders import the rules.
+that both families' ladders could use them: the corroboration rows'
+independence leg refused an old-side module whose imports reached the new
+reference, and the old family's ladders imported the rules. Step (e2)
+deleted the old ladders and the corroboration rows; the rules stay, read
+by ``_characteristic_ladders.py``.
 
 Statement (ii): the new estimate is at most the old one
 -------------------------------------------------------
@@ -6034,17 +6045,18 @@ sphere reads :math:`6.54\times10^{-4}` against :math:`7\times10^{-4}`, a
 margin of 1.07, which the row's docstring records.
 
 Statement (i), the step before (step (c), ``17708ac8``), is the mirror
-condition checked by code-to-code rows that are deleted with the old
-family in step (e)
-(``tests/gates/derivations/test_characteristic_reference_corroboration.py``,
-L4, no level marker): the new reference sits inside the old one's own
-error estimate at each row's problem. `[M]` 2026-10-09 (the plan's "Step
+condition, checked by code-to-code rows deleted with the old family at
+step (e2) (the ``test_characteristic_reference_corroboration`` module,
+then under ``tests/gates/derivations/``, L4, no level marker): the new
+reference sat inside the old one's own error estimate at each row's
+problem. `[M]` 2026-10-09 (the plan's "Step
 (c) landed"), new against old, against the old estimate: A|B|A sphere
 :math:`k` 8.3e-5 against 3.2e-4, its shape 4.0e-5 against 1.4e-3, the
 A|B|A cylinder :math:`k` 5.6e-4 against 1.9e-3, the partial-reflector
 slab 3.28e-5 against 4e-5 and sphere 4.1e-5 against 1e-4. Those rows also
-assert, statically and at run time, that the old side executes nothing of
-this package (``tests/gates/_corroboration.py``).
+asserted, statically and at run time, that the old side executed nothing
+of this package (``tests/gates/_corroboration.py``, which P0's kernel rows
+still use).
 
 The cylinder RECORD's re-baseline
 ---------------------------------
@@ -6107,8 +6119,8 @@ under the same mutation, which compares each wall with a wall written by
 hand from the law's physics. The partial-reflector and phase C docstrings
 stopped claiming full independence at step (d) and now say this.
 
-The re-pointed supports and what step (e) owes
-----------------------------------------------
+The re-pointed supports, and what step (e) owed
+-----------------------------------------------
 
 The 8 ``rests_on`` ids that named old-family tests now name this
 reference's gates that carry the same dependency: the line integral of a
@@ -6128,12 +6140,173 @@ of 17 ids reach this reference and 0 calls of the old family; scaling the
 S\ :sub:`N` reading by :math:`1 + 2\,\mathrm{tol}` reddens 10 of the 10
 ids that are not xfails.
 
-The old family's spelling on these problems moved to the old side of the
-corroboration rows (``tests/gates/derivations/_trajectory_resolvent_aba.py``),
-and its ladder tables stay in ``_trajectory_resolvent_ladders.py`` for those
-rows and the Garcia 2021 rows (:ref:`theory-trajectory-resolvent`). Step
-(e) deletes the family with them; P0's corroboration rows that import its
-chord oracle are in that blast radius.
+The old family's spelling on these problems moved at step (d) to the old
+side of the corroboration rows (``_trajectory_resolvent_aba.py``), and its
+ladder tables to ``_trajectory_resolvent_ladders.py``, both then under
+``tests/gates/derivations/``. Step (e2) deleted the family with them, and
+re-posed P0's corroboration rows that imported its chord oracle
+(:ref:`characteristic-successors`).
+
+
+.. _characteristic-successors:
+
+The old family's tests, re-posed on this reference
+==================================================
+
+P1 step (e) retired the trajectory-resolvent family in two commits, by
+the user's ruling of 2026-10-10 ("migrate, then delete"; the plan's
+"Step (e): the audit and four rulings"). Step (e1b) (``44303919``) built
+the successors on this reference while the old family still existed;
+step (e2) deleted the family's 12 numeric modules and 22 test files in
+one commit, in the order of the dependency audit
+(``.claude/plans/characteristic_reference_architecture_dependency_audit.md``).
+The record of (e1b), with a row per old test, its battery and its runs,
+is ``scratch/characteristic_architecture/p1_step_e/ta_e1b/README.md``.
+
+**What moved.** Of the 22 deleted files' rows, 123 were to be kept or
+re-posed. Every one has a successor `[M]` (the record's section 1): 65
+are new rows, 10 existing gates widened by a parameter, 29 existing
+gates that already asserted the contract, 12 existing gates that
+asserted it and were also widened, 2 an existing gate plus a new row,
+and 5 re-homed unchanged because they never read the old family. The new
+files are ``test_characteristic_albedos.py`` (the method of images, the
+ordering of :math:`k` in each wall's albedo, the vacuum mode, interface
+continuity, the closing cavity), ``test_characteristic_convergence.py``
+(self-convergence on every resolution axis, five bodies),
+``test_characteristic_independent_references.py`` (PS-1982 and the
+one-group cylinder of Sood and of Westfall–Metcalf),
+``test_characteristic_nystrom_withdrawn.py`` (the three Peierls–Nyström
+rows withdrawn under #506), all under ``tests/gates/derivations/``, and
+``tests/gates/numerics/test_symbolic_steps.py``.
+
+**The catalogued defects.** ERR-034, ERR-035, ERR-090 and ERR-091 lived
+in the old family's code; each now has a catcher on this reference, each
+measured by re-dropping the defect into this reference
+(:doc:`/theory/verification/error_catalog`, each entry's "caught by").
+ERR-034 and ERR-090 are no longer quiet here: the old collocation hid
+ERR-034 under a flat emission, while the Galerkin assembly transports
+each basis function, so the closed slabs of the :math:`k_\infty` floor
+red under it; and ERR-090's class, one emission piece across an
+interface, is refused by the panel basis.
+
+**The labels that moved.** Eleven ``peierls-greens-*`` labels of
+:ref:`theory-trajectory-resolvent` lost their only verifier with the
+deleted files. Each was read on that page and placed on a row that
+asserts its equation:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 36 30
+
+   * - Label (``peierls-greens-`` plus)
+     - The equation, in short
+     - Its verifier now
+   * - ``annulus-impact-parameter-partition``,
+       ``hollow-sph-impact-parameter-partition``
+     - the line through a shell meets the cavity iff its impact
+       parameter is below the inner radius
+     - ``test_characteristic_closure.py::test_the_period_matches_the_hand_counted_table``
+       (its hollow rows, at, below and just below the inner radius)
+   * - ``cylinder-T``
+     - the cylinder's rank-1 specular closure
+     - ``test_characteristic_transport.py::test_the_closed_angular_flux_is_the_unfolded_backward_path``
+       (case ``cylinder_solid_partial``)
+   * - ``cylinder-architecture``
+     - :math:`\psi = F + e^{-\Sigma L}\psi_{\rm surf}` on the cylinder,
+       :math:`\phi` its angular reduction
+     - ``test_characteristic_reading.py::test_the_reading_at_a_general_point_of_a_cylinder_is_the_mpmath_route``
+       (slow)
+   * - ``cylinder-mr-interface-continuity``
+     - :math:`\phi` continuous across an interface
+     - ``test_characteristic_albedos.py::test_the_modes_scalar_flux_is_continuous_across_a_material_interface``
+   * - ``cylinder-mr-kinf``
+     - :math:`k_\infty = \rho(A^{-1}F)`, :math:`A = \mathrm{diag}(\Sigma_t) - \Sigma_s^{\rm T}`,
+       :math:`F = \chi\otimes\nu\Sigma_f`
+     - ``test_characteristic_system.py::test_a_closed_body_reads_k_inf_with_a_flat_flux_in_the_infinite_mediums_group_ratio``
+       (its cylinder rows, slow)
+   * - ``cylinder-mr-quadrature-convergence``
+     - each resolution axis contracts under refinement
+     - ``test_characteristic_convergence.py::test_k_contracts_on_every_resolution_axis_and_the_working_point_is_within_the_old_floor``
+       (its cylinder row, slow)
+   * - ``cylinder-mr-trajectory-segments``
+     - the in-plane conic :math:`r(s)^2` of a cylinder line
+     - ``tests/gates/geometry/test_chord.py::test_the_multi_region_segments_are_the_hand_written_table``
+   * - ``cylinder-mr-wm72-vacuum``
+     - :math:`k = 1` at Westfall–Metcalf's critical radius, to
+       :math:`10^{-5}`
+     - ``test_characteristic_independent_references.py::test_k_is_one_at_the_one_group_cylinders_published_critical_radius``
+       (slow)
+   * - ``mr-regionwise-source``
+     - each segment reads its own region's piece of the emission
+     - ``test_characteristic_transport.py::test_the_outflow_of_a_per_region_polynomial_is_its_line_integral_attenuated_to_the_exit``
+   * - ``slab-asym-method-of-images``
+     - :math:`k` of the slab :math:`[0, L]` with a mirror at 0 equals
+       :math:`k` of the vacuum slab :math:`[0, 2L]`
+     - ``test_characteristic_albedos.py::test_a_mirror_is_the_symmetry_plane_of_the_doubled_vacuum_slab``
+       and ``::test_the_mirrored_slabs_flux_is_twice_the_doubled_slabs_right_half``
+
+Paths are under ``tests/gates/derivations/`` unless given. Five more
+labels were verified by 26 SymPy rows that called five ``derive_*``
+functions duplicating the kept ones; step (e2) deleted the rows and the
+functions, and the four labels with no other verifier moved:
+``annulus-through-rank2`` and ``hollow-sph-through-rank2`` to the
+angular-flux row above (cases ``cylinder_hollow_cavity`` and
+``sphere_hollow_cavity``), ``cylinder-trajectory`` to the segment-table
+row, and ``slab-trajectory`` to
+``tests/gates/geometry/test_chord.py::test_the_slab_chord_in_both_orientations``.
+``annulus-architecture`` keeps its kept SymPy verifier.
+
+**What the migration measured.** Four findings, each `[M]` 2026-10-10
+in the record's section 5:
+
+- *The old family's slab method-of-images value was 5.3e-4 off.* Its
+  one-group mirror-vacuum slab :math:`[0, 1]` read k = 0.0584228 at its
+  row's resolution; this reference reads 0.0584537 at rung 4, and
+  0.0584536527 at rungs 5 and 6, where its two posings agree to
+  1.6e-14. The Peierls–Nyström slab :math:`[0, 2]`, an E\ :sub:`1`
+  kernel with no lines, converges onto this reference's value (0.05845381
+  at 8 panels of order 6, 0.05845368 at 12 of order 8). The old row's
+  1e-7 equality of the two posings was an agreement of two readings that
+  share the reference's error (``vv-principles`` anti-pattern #7); the
+  successor pair compares two posings too, so it carries the same
+  blindness: it catches ERR-034 through what the defect does to the
+  identity between the two posings, not through a value against an
+  independent reference.
+- *A vacuum cavity's effect is second order in its radius on a sphere,
+  first order on a cylinder.* A cavity absorbs the lines through it, a
+  fraction :math:`(R_{\rm in}/R)^2` on the sphere: :math:`k`'s distance
+  to the solid sphere's is 1.9e-2, 2.2e-4 and 1.8e-6 at
+  :math:`R_{\rm in}/R = 10^{-1}, 10^{-2}, 10^{-3}`, and the cylinder's
+  9.4e-2, 1.1e-2 and 1.2e-3. The old row's 1e-7 band at
+  :math:`R_{\rm in} = 10^{-3}R` was below the physics; the successor
+  asserts the order, two-sided, and :math:`k_{\rm hollow} < k_{\rm solid}`.
+- *PS-1982 does not converge at an optical radius of 25* (200 power
+  iterations at 30 and 40 nodes), so the old thick-sphere row's 2e-3
+  agreement measured PS-1982's iteration. The successor bands the thick
+  sphere against :math:`k_\infty` only, and compares with PS-1982 at
+  optical radii 2.5 and 5 (:math:`k` to 1e-5, the shape to 1e-4).
+- *A monotone law is a weak instrument.* The ordering of :math:`k` as a
+  slab thickens stays green under a vacuum wall returning half, the
+  scattering matrix transposed and :math:`\Sigma_t` larger by 1e-9, each
+  of which keeps the approach monotone; only a vacuum wall read as a
+  mirror reddens it. Self-convergence's contraction leg alone is blind
+  to the tangency substitution dropped (an algebraic convergence still
+  contracts); the rate leg (each angular step at most 1e-2 of the last:
+  1.4e-3 to 2.8e-4 honest, 0.26 to 0.57 under the mutation) catches it.
+
+**What the default tier kept, and what it did not.** The cylinder's
+eigenvalue stays in the tier that runs without ``slow``: the closed
+cylinder and the closed annulus read :math:`k_\infty` at rung 2 to 1e-6,
+and Ua-1-0-CY reads :math:`k = 1` within 3e-5 at rung 2 (its measured
+error 8.4e-6). Both red by value under a line speed scaled by 1.0001.
+Eight old rows that ran in the default tier have successors only in the
+slow tier, each for a measured cost: the annulus's closing cavity (four
+annulus solves, about 75 s), four rows of equal-material interfaces on
+the cylinder (the smallest cylinder leg that keeps the contract costs
+140 s), the cylinder's :math:`P_{ss}` against Bickley, the asymmetric
+slab's convergence at intermediate albedos (about 200 s) and the
+cylinder's pencil residual; the sphere and slab legs of each are in the
+default tier.
 
 
 .. _characteristic-what-is-not-built:
@@ -6201,9 +6374,9 @@ issue is #405):
 
 Since P1 step (d) (``d9425977``) this reference is the one the
 S\ :sub:`N` cross-check rows read (:ref:`characteristic-sn-rows`); the
-trajectory-resolvent family (:ref:`theory-trajectory-resolvent`) is read,
-outside its own gates, only by the step (c) corroboration rows that compare
-the two, until step (e) deletes it.
+trajectory-resolvent family (:ref:`theory-trajectory-resolvent`) was read,
+outside its own gates, only by the step (c) corroboration rows that
+compared the two, until step (e2) deleted it (2026-10-10).
 
 
 .. _characteristic-refuted:
@@ -7919,7 +8092,7 @@ History
      - #405, #587
    * - 2026-10-09
      - P1 step (c), the corroboration: code-to-code rows (L4, no level
-       marker, deleted with the old family in step (e)) showing the new
+       marker, deleted with the old family at step (e2)) showing the new
        reference inside the trajectory resolvent's own error estimate on
        every S\ :sub:`N` row's problem and on Garcia 2021, with static and
        run-time legs asserting that the old side executes nothing of this
@@ -7943,8 +8116,9 @@ History
        partial wall's ``SpecularReturn.kernel`` (qa's F1), pinned outside
        the comparison. ERR-094's corner was measured invisible to its band at
        the sphere fixture (qa's F2). The labelled equation
-       :eq:`sn-curvilinear-trajectory-resolvent-crosscheck` was rewritten for
-       this reference and kept its name.
+       :eq:`sn-curvilinear-characteristic-reference-crosscheck` was rewritten for
+       this reference (it kept its old name, naming the retired family,
+       until step (e2) renamed it).
      - ``d9425977``
      - #405, #566
    * - 2026-10-10
@@ -7959,3 +8133,13 @@ History
        from ``answer`` to ``solve``.
      - ``45405f86``, ``23e7711e``
      - #405, #592
+   * - 2026-10-10
+     - P1 step (e): the trajectory-resolvent family retired. Step (e1a)
+       moved its SymPy derivations to
+       :mod:`orpheus.derivations.continuous.characteristic.origins`; step
+       (e1b) re-posed its 123 kept rows on this reference, with catchers
+       for ERR-034, ERR-035 and ERR-091 and the eleven labels' verifiers;
+       step (e2) deleted its 12 numeric modules and 22 test files in one
+       commit (:ref:`characteristic-successors`).
+     - ``f66c1c45``, ``44303919``; (e2) *(in development)*
+     - #405

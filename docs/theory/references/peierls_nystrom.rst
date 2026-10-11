@@ -1289,11 +1289,13 @@ is written as one product at a single argument :math:`r`.
 
 **Independent structural witness.** The sibling Variant-α
 :doc:`trajectory-resolvent / Green's-function </theory/references/trajectory_resolvent>`
-solver family already source-indexes χ correctly (the per-node spectrum
-:math:`\chi` multiplies the *local* fission rate at each node before
-the trajectory kernel is applied). That a structurally distinct kernel
-— bouncing characteristics rather than a Nyström matrix — arrives at
-the same source-indexed product is independent confirmation that
+solver family (deleted on 2026-10-10) source-indexed χ correctly: its
+per-node spectrum :math:`\chi` multiplied the *local* fission rate at
+each node before the trajectory kernel was applied. Its successor, the
+characteristic reference, does the same per region
+(:mod:`orpheus.derivations.continuous.characteristic.cross_sections`).
+That a structurally distinct kernel — bouncing characteristics rather
+than a Nyström matrix — arrived at the same source-indexed product is independent confirmation that
 source-indexing is the correct convention, not an artefact of the
 Nyström assembly.
 
@@ -5619,9 +5621,11 @@ giving exact :math:`k_{\rm eff} = \kinf` for the closed homogeneous
 sphere. See :doc:`/theory/references/trajectory_resolvent` for the architecture, V_α1 / V_α2
 / V_α3 algebraic identities, and the cross-verification matrix
 showing Phase 4 N=3 differs from Variant α by 0.12 % on a fuel-A-like
-sphere. **Variant α is a parallel reference, not a production
-replacement** for ``boundary="specular_multibounce"`` — the validation
-envelope is narrower (homogeneous sphere only; isotropic scattering
+sphere. **Variant α was a parallel reference, not a production
+replacement** for ``boundary="specular_multibounce"`` (it was deleted on
+2026-10-10, and the characteristic reference,
+:doc:`/theory/references/characteristic`, replaced it) — its validation
+envelope was narrower (homogeneous sphere only; isotropic scattering
 only; perfect specular BC only).
 
 The full Phase 5a → Round 1 → Round 2 → Round 3 investigation

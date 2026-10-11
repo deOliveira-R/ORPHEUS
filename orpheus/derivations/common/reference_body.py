@@ -1,8 +1,8 @@
 r"""The body a continuous reference generator solves on, read once from a geometry.
 
-The continuous reference generators of the singular-eigenfunction, F_N,
-Galerkin-spectral and trajectory-resolvent families (``Spectrum``,
-``MomentSpace``, ``BasisSpace``, ``Billiard``) solve a handful of body
+The continuous reference generators of the singular-eigenfunction, F_N
+and Galerkin-spectral families (``Spectrum``, ``MomentSpace``,
+``BasisSpace``) solve a handful of body
 shapes, the ones the reference literature (Sood, Forster & Parsons 2003,
 and the papers it collects) states its benchmarks on. A
 :class:`~orpheus.geometry.StructuredGeometry` can say more than any one

@@ -4,7 +4,7 @@ P1 step (e1b) of the characteristic-reference campaign
 (``.claude/plans/characteristic_reference_architecture.md``, "Step (e): the audit
 and four rulings"): the successors of the old trajectory-resolvent family's
 convergence rows (its quadrature-floor, grazing-ray and off-diagonal-albedo rows,
-19 CONV and 3 Q rows of the spec's roster), which step (e2) deletes with the
+19 CONV and 3 Q rows of the spec's roster), which step (e2) deleted with the
 family. Verification spec ``scratch/characteristic_architecture/p1_verification_spec.md``,
 row D9; the row-by-row map is ``scratch/characteristic_architecture/p1_step_e/ta_e1b/README.md``.
 

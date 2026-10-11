@@ -21,14 +21,16 @@ production research-grade reference modules:
   expansion (closed-form analytic continuation).
 * `orpheus.derivations.continuous.singular_eigenfunction` — Case
   singular-eigenfunction expansion for slab.
-* `orpheus.derivations.continuous.trajectory_resolvent` — Sanchez
-  2002 closed-form MoC (research-grade accuracy for heterogeneous /
-  curvilinear).
+* `orpheus.derivations.continuous.characteristic` — transport
+  integrated along lines with a Galerkin pencil on graded panels
+  (heterogeneous and curvilinear bodies; it replaced the trajectory
+  resolvent, deleted in step (e2) of the characteristic-reference
+  campaign).
 
 The references are computed by structurally-orthogonal mathematics
 (linear algebra of cross-section matrices for homogeneous; spectral
 expansion for F_N; singular-integral methods for Case;
-trajectory-domain closed-form for `trajectory_resolvent`). A passing
+transport along lines for the characteristic reference). A passing
 test cross-checks the SN discretisation chain end-to-end against a
 mathematically-independent ground.
 

@@ -36,7 +36,7 @@ built around.  Both gates assert ONLY at the equation-bearing slots
 values the reflective BC determines).
 
 The matvec's structurally-independent L0 reference — and its L1
-``k_∞`` / trajectory-resolvent anchors — live in
+``k_∞`` / characteristic-reference anchors — live in
 ``test_unified_matvec_cylinder.py``; the slab L1 ``k_∞`` anchor is in
 ``test_unified_matvec_slab.py``.
 """
@@ -140,7 +140,7 @@ class TestUnifiedMatvecSphere:
     correctness now relies on the constant-flux and zero-input
     sanity gates here plus the broader L0/L1 anchors elsewhere
     (the unified matvec's L1 reference for cylinder is the
-    trajectory_resolvent test in ``test_unified_matvec_cylinder.py``).
+    characteristic-reference test in ``test_unified_matvec_cylinder.py``).
     """
 
     def test_unified_constant_psi_gives_sigma_t(self) -> None:

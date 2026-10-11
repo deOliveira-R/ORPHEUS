@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**106 entries · 369 catching tests · 1 uncaught · 5 dormant.**
+**106 entries · 363 catching tests · 1 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -81,8 +81,8 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-031 | 1 |  | Test calls compute_P_ss_cylinder with radii/sig_t arguments swapped |
 | ERR-032 | 2 |  | Slab white-BC analytical reference: wrong ∫E₂ antiderivative (factor-of-two algebra bug) |
 | ERR-033 | 2 |  | Peierls slab single-surface aggregate: finite-N GL fall-through where ½·E₂(τ) closed form appli… |
-| ERR-034 | 3 |  | Slab Variant α first-leg trajectory: missing µ factor in x_traj parametrisation |
-| ERR-035 | 3 |  | Slab Variant α symmetric closure: heuristic α·B_period/(1-α²·e^{-2τ}) is wrong at intermediate α |
+| ERR-034 | 2 |  | Slab Variant α first-leg trajectory: missing µ factor in x_traj parametrisation |
+| ERR-035 | 2 |  | Slab Variant α symmetric closure: heuristic α·B_period/(1-α²·e^{-2τ}) is wrong at intermediate α |
 | ERR-036 | 6 |  | Slab Peierls Path A.i: log-singular kernel diagonal truncation in plain GL |
 | ERR-037 | 2 |  | Atalay Eq 42 z_0 quadrature endpoint at μ=1: bracket pole 1/(1-μ²) cancels algebraically but sl… |
 | ERR-038 | 2 |  | Atalay 1997 Tables 2-5 first-order Fredholm precision floor at small slab thicknesses |
@@ -137,8 +137,8 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-087 | 1 |  | A per-material cell index spelled ``(Ellipsis, *idx)`` let ``Ellipsis`` absorb the leading axes… |
 | ERR-088 | 1 |  | The first face-transmission algebra of record built its step "control" with diamond's weights,… |
 | ERR-089 | 1 |  | ALPHA_MAP read the pencil's eigenvalue with the power iteration's convention: it returned α = −… |
-| ERR-090 | 5 |  | The multi-region trajectory-resolvent references fitted ONE cubic spline to the emission densit… |
-| ERR-091 | 2 |  | Billiard's multi-region-sphere fixed-source arm reported one group and returned group 0 as the… |
+| ERR-090 | 2 |  | The multi-region trajectory-resolvent references fitted ONE cubic spline to the emission densit… |
+| ERR-091 | 1 |  | Billiard's multi-region-sphere fixed-source arm reported one group and returned group 0 as the… |
 | ERR-092 | 1 |  | V_fn2.1 certified a typo in Sood's Eq 28 (2003 Eq (A.11)) by comparing the derivation with a mi… |
 | ERR-093 | 1 |  | solve_moc's default mesh was the Wigner–Seitz pin cell, whose outer law is white, and MoC links… |
 | ERR-094 | 9 |  | A partially reflecting boundary law reached SN as a typed law and was read as a perfect mirror… |

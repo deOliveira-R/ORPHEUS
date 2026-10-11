@@ -34,9 +34,9 @@ V_α3_slab_asym. **Vacuum reduction at α_L=α_R=0**. The rank-2 closure
 Predecessor / sibling tests
 ---------------------------
 
-- :mod:`.test_trajectory_resolvent_slab_symbolic` — Phase-3A
+- :mod:`.test_peierls_greens_function_slab_symbolic` — Phase-3A
   symmetric slab V_α1_slab/V_α2_slab/V_α3_slab.
-- :mod:`.test_trajectory_resolvent_symbolic` — sphere V_α1/V_α2/V_α3.
+- :mod:`.test_peierls_greens_function_symbolic` — sphere V_α1/V_α2/V_α3.
 
 References
 ----------
@@ -220,9 +220,10 @@ def test_v_alpha2_slab_asym_symmetric_reduction():
     e^{-2\tau})`; the bridge is the structural identity
     :math:`B_{\rm period} = (1 + e^{-\tau})\,B_{\rm single\,transit}`
     on a constant source. SymPy verifies the rank-2 simplification
-    here; the numerical reduce-to-symmetric consistency check is
-    deferred to the solver-level test in
-    ``test_trajectory_resolvent_slab_asymmetric_solver.py``.
+    here; the numerical check is the characteristic reference's symmetric
+    partial slab, ``test_characteristic_transport.py::test_the_closed_angular_flux_is_the_unfolded_backward_path[slab_symmetric_half]``
+    (ERR-035's catcher; the trajectory resolvent's solver-level row was
+    deleted with its family in step (e2)).
     """
     result = derive_rank2_resolvent_slab_asymmetric()
     assert result["pass_symmetric_simplification"], (

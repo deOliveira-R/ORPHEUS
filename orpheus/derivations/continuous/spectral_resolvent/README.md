@@ -11,9 +11,10 @@ rather than reconstructing it numerically by ray tracing + multi-bounce
 closure.
 
 This folder is the **structurally-independent sister** to
-[`trajectory_resolvent/`](../trajectory_resolvent/), which builds the
-same scalar Green's kernel by the trajectory route (characteristics +
-resolvent T = (I − S)⁻¹). Both folders produce the same physical Green's
+[`characteristic/`](../characteristic/), which builds the same scalar
+Green's kernel by the trajectory route (characteristics + the least
+solution of each line's cycle, T = (I − S)⁻¹); it superseded the
+trajectory-resolvent family, retired in P1 step (e2) of #405. Both folders produce the same physical Green's
 function under specialisation to the homogeneous medium, and the
 two-path agreement is treated as an L1 cross-check anchor.
 

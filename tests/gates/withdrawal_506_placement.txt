@@ -1,4 +1,4 @@
-# The 297 test node ids withdrawn under #506 (the Peierls Nystrom withdrawal),
+# The 294 test node ids withdrawn under #506 (the Peierls Nystrom withdrawal),
 # measured by dynamic attribution (.claude/plans/reference_p0_spec.md section 1.2).
 # Read by tests/gates/test_withdrawal.py (M4, M5). A marker added or removed
 # under #506 anywhere in tests/ must update this list in the same change.
@@ -95,9 +95,6 @@ tests/gates/derivations/test_peierls_cylinder_white_bc.py::TestWhiteBCEigenvalue
 tests/gates/derivations/test_peierls_fission_source_indexing.py::test_fissile_region_chi_genuinely_affects_keff
 tests/gates/derivations/test_peierls_fission_source_indexing.py::test_nonfissile_region_chi_does_not_affect_keff[cylinder-1d]
 tests/gates/derivations/test_peierls_fission_source_indexing.py::test_nonfissile_region_chi_does_not_affect_keff[sphere-1d]
-tests/gates/derivations/test_peierls_greens_function_slab_solver.py::test_alpha_zero_vacuum_agrees_with_nystrom_slab
-tests/gates/derivations/test_peierls_greens_function_xverif.py::test_b5_phase4_converges_toward_variant_alpha
-tests/gates/derivations/test_peierls_greens_function_xverif.py::test_b5_phase4_rank1_equals_white_hebert
 tests/gates/derivations/test_peierls_multigroup.py::TestMG2GHollowRegistration::test_hollow_cyl_2g_builds[0.1]
 tests/gates/derivations/test_peierls_multigroup.py::TestMG2GHollowRegistration::test_hollow_cyl_2g_builds[0.2]
 tests/gates/derivations/test_peierls_multigroup.py::TestMG2GHollowRegistration::test_hollow_cyl_2g_builds[0.3]

@@ -401,7 +401,7 @@ def _unified_cylinder_solution():
     "::test_the_outflow_of_a_per_region_polynomial_is_its_line_integral_attenuated_to_the_exit[cylinder_solid_b0.7_wz0.8-1]",
 )
 @awaits_cylinder_bound
-def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
+def test_unified_cylinder_l1_mr_2g_characteristic_reference() -> None:
     r"""L1 — heterogeneous 3-region 2G closed cylinder via unified matvec.
 
     Drives :func:`solve_sn` with ``inner_solver="krylov"`` — the
@@ -412,7 +412,7 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
 
     Strict ``xfail`` on the verbs' refusal: the reference derives no
     bound (#566), so it has no certificate; the comparison stays live
-    through ``test_unified_cylinder_l1_mr_2g_trajectory_resolvent_record``.
+    through ``test_unified_cylinder_l1_mr_2g_characteristic_reference_record``.
 
     Per ``.claude/lessons.md`` L14 — solver correctness is a 4-way
     standoff. The L0 hand-reference battery in this file proves the
@@ -426,7 +426,7 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
 
 @pytest.mark.l1
 @pytest.mark.slow
-def test_unified_cylinder_l1_mr_2g_trajectory_resolvent_record() -> None:
+def test_unified_cylinder_l1_mr_2g_characteristic_reference_record() -> None:
     r"""RECORD: the unified-matvec solve's k and the reference's, as they read today, through ``read``.
 
     Not verification: it keeps the comparison live while the row above is a

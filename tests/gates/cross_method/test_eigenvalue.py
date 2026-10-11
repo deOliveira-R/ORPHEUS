@@ -8,14 +8,13 @@ Relationship to direct math-heart-class construction (Phase D)
 --------------------------------------------------------------
 
 The math-heart classes
-(:class:`~orpheus.derivations.continuous.trajectory_resolvent.Billiard`,
-:class:`~orpheus.derivations.continuous.fn_method.moment_space.MomentSpace`)
+(:class:`~orpheus.derivations.continuous.fn_method.moment_space.MomentSpace`)
 are constructed directly with a :class:`StructuredGeometry` plus
 ``materials: dict[int, Mixture]``. **The tests in this file
 deliberately keep their names + per-method bodies** — pytest
 collection IDs are preserved (CI / pytest-xdist contract) and the
 per-method adapter classes (``FNSlabAdapter``,
-``TrajectoryResolventSphereAdapter``, ...) stay as the
+``CharacteristicAdapter``, ...) stay as the
 unit-conversion layer. The agreement between the adapter route and
 the direct-construction route is exercised by
 :mod:`tests.gates.cross_method.test_polymorphism` (foundation-tier
@@ -61,10 +60,8 @@ V&V tagging
 Slow tests
 ----------
 
-The trajectory_resolvent slab vacuum-BC adapter at default
-quadrature (``n_x=48, n_mu=128, n_traj_quad=96``) takes ~30 s per
-solve. These tests carry ``@pytest.mark.slow``. Use ``pytest -m
-"l1 and not slow"`` for the fast subset.
+None today: the characteristic adapters' 15 rows take about 14 s in
+all. Use ``pytest -m "l1 and not slow"`` for the fast subset.
 """
 from __future__ import annotations
 
@@ -95,9 +92,6 @@ from .adapters import (
     FNReflectedSlabAdapter,
     FNSlabAdapter,
     FNSphereAdapter,
-    TrajectoryResolventSlabAdapter,
-    TrajectoryResolventSphereAdapter,
-    TrajectoryResolventSphereClosedAdapter,
     _extract_1g_xs,
 )
 from .cases import (
@@ -255,8 +249,7 @@ def test_fn_slab_grandjean_siewert_table_xi(case: CrossMethodCase):
 
     These cases extend the slab c-sweep beyond the Sood family
     (c=1.10, 1.70, 1.90 not in Sood). They are fn_method-only — no
-    trajectory_resolvent counterpart since the unit-XS path doesn't
-    flow through the registry.
+    characteristic-reference counterpart is registered for them.
     """
     # GS Table XI cases use the c parameter directly, not registry XS.
     # The FN slab solver takes c as input; we route via a special path.
@@ -305,84 +298,6 @@ def test_fn_sphere_matches_truth(case: CrossMethodCase):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Truth gates — bare-critical slab (trajectory_resolvent)
-# ═══════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.l1
-@pytest.mark.slow
-@pytest.mark.parametrize(
-    "case", BARE_CRITICAL_SLAB_CASES, ids=lambda c: c.case_id,
-)
-def test_trajectory_resolvent_slab_matches_truth_keff_one(
-    case: CrossMethodCase,
-):
-    """trajectory_resolvent slab vacuum-BC at the case's truth half-
-    thickness reproduces ``k_eff = 1.0``.
-
-    The truth comes from F_N (or KLL via Sood). Agreement at
-    ``k_eff = 1.0`` is the structural-independence pillar — the
-    bouncing-trajectory operator agrees with the Case singular-
-    eigenfunction representation that produced the truth.
-    """
-    adapter = TrajectoryResolventSlabAdapter()
-    if adapter.name not in case.tolerances:
-        pytest.skip(
-            f"trajectory_resolvent_slab not opted in for {case.case_id!r}"
-        )
-    res = adapter.solve(case)
-    tol = case.tolerance_for(adapter)
-    assert res.metadata["converged"], (
-        f"{case.case_id}: trajectory_resolvent_slab did not converge "
-        f"in {res.metadata['iterations']} iter (n_x={res.metadata['n_x']}, "
-        f"n_mu={res.metadata['n_mu']}, n_traj_quad="
-        f"{res.metadata['n_traj_quad']})"
-    )
-    assert abs(res.value - 1.0) < tol, (
-        f"{case.case_id}: trajectory_resolvent_slab k_eff="
-        f"{res.value:.8f} at truth half-thickness "
-        f"{case.truth_value} mfp, |k-1|={abs(res.value-1.0):.3e} > "
-        f"tol={tol:.1e}. Truth source: {case.truth_source}"
-    )
-
-
-# ═══════════════════════════════════════════════════════════════════
-# Truth gates — bare-critical sphere (trajectory_resolvent)
-# ═══════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.l1
-@pytest.mark.parametrize(
-    "case", BARE_CRITICAL_SPHERE_CASES, ids=lambda c: c.case_id,
-)
-def test_trajectory_resolvent_sphere_matches_truth_keff_one(
-    case: CrossMethodCase,
-):
-    """trajectory_resolvent sphere vacuum-BC at the case's truth radius
-    reproduces ``k_eff = 1.0``.
-
-    Sphere is NOT slow (no μ=0 cusp); fast quadrature suffices.
-    """
-    adapter = TrajectoryResolventSphereAdapter()
-    if adapter.name not in case.tolerances:
-        pytest.skip(
-            f"trajectory_resolvent_sphere not opted in for "
-            f"{case.case_id!r}"
-        )
-    res = adapter.solve(case)
-    tol = case.tolerance_for(adapter)
-    assert res.metadata["converged"], (
-        f"{case.case_id}: trajectory_resolvent_sphere did not converge"
-    )
-    assert abs(res.value - 1.0) < tol, (
-        f"{case.case_id}: trajectory_resolvent_sphere k_eff="
-        f"{res.value:.8f} at truth R_c "
-        f"{case.truth_value} mfp, |k-1|={abs(res.value-1.0):.3e} > "
-        f"tol={tol:.1e}. Truth source: {case.truth_source}"
-    )
-
-
-# ═══════════════════════════════════════════════════════════════════
 # Truth gates — reflected slab (fn_method only; one-sided coverage)
 # ═══════════════════════════════════════════════════════════════════
 
@@ -395,12 +310,11 @@ def test_fn_reflected_slab_matches_truth(case: CrossMethodCase):
     """F_N reflected slab reproduces the case's truth ``tau_critical_mfp``.
 
     Backed by Sood 2003 Table 7 (problem 4) + NM 1980 Table 2 + Burkart
-    1976 'Exact'. **No trajectory_resolvent counterpart** — this is
-    one-sided coverage. The trajectory_resolvent slab has an
-    asymmetric variant
-    (``solve_greens_function_slab_asymmetric``) that COULD be
-    extended to host a reflector via partial-α boundary conditions,
-    but that work is not in this task's scope.
+    1976 'Exact'. **No characteristic-reference counterpart is
+    registered** — this is one-sided coverage. The characteristic
+    reference poses a reflected slab (two regions, any walls), so a
+    counterpart is a case-set and adapter addition, not in this task's
+    scope.
     """
     adapter = FNReflectedSlabAdapter()
     if adapter.name not in case.tolerances:
@@ -421,171 +335,13 @@ def test_fn_reflected_slab_matches_truth(case: CrossMethodCase):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Truth gate — closed-sphere k_inf (trajectory_resolvent V_α1)
-# ═══════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.l1
-@pytest.mark.parametrize(
-    "case", CLOSED_SPHERE_KINF_CASES, ids=lambda c: c.case_id,
-)
-def test_trajectory_resolvent_sphere_closed_matches_kinf(
-    case: CrossMethodCase,
-):
-    r"""Closed-sphere (α=1) trajectory_resolvent gives ``k_eff = k_inf``
-    to machine precision.
-
-    V_α1 algebraic identity: at α=1 (perfect specular BC) the
-    closed sphere has rank-1 isotropic eigenmode and ``k_eff =
-    νΣ_f / Σ_a`` independent of R. This is the **multi-group
-    cross-method gate** scaffolding — extending to 2G+ with this
-    adapter is the natural next step (closed-sphere α=1 has
-    ``k_eff = k_inf`` for any group structure).
-    """
-    adapter = TrajectoryResolventSphereClosedAdapter()
-    if adapter.name not in case.tolerances:
-        pytest.skip(
-            f"trajectory_resolvent_sphere_closed not opted in for "
-            f"{case.case_id!r}"
-        )
-    res = adapter.solve(case)
-    tol = case.tolerance_for(adapter)
-    assert res.metadata["converged"], (
-        f"{case.case_id}: closed-sphere trajectory_resolvent did not converge"
-    )
-    assert abs(res.value - case.truth_value) < tol, (
-        f"{case.case_id}: trajectory_resolvent_sphere_closed k_inf="
-        f"{res.value:.16e} vs analytic k_inf={case.truth_value:.16e}, "
-        f"diff={abs(res.value-case.truth_value):.3e} > tol={tol:.1e}"
-    )
-
-
-# ═══════════════════════════════════════════════════════════════════
-# Cross-method agreement gates — L4 with L1 backing
-# ═══════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.l1
-@pytest.mark.slow
-@pytest.mark.parametrize(
-    "case", BARE_CRITICAL_SLAB_CASES, ids=lambda c: c.case_id,
-)
-def test_fn_slab_vs_trajectory_resolvent_slab(case: CrossMethodCase):
-    r"""**Cross-method (L4) agreement gate**: F_N slab and
-    trajectory_resolvent slab agree on the bare-critical configuration.
-
-    Both methods are independently L1-verified against the same
-    Sood/KLL truth (see the truth-gate tests above). This test
-    pins their **mutual agreement** to within the larger of their
-    two truth tolerances. The agreement is the
-    structural-independence cross-check between two methods that
-    share only ``numpy``/``scipy`` above the trusted-library line:
-
-    * **F_N**: Case singular-eigenfunction representation, Wiener-
-      Hopf factorisation, collocation system on µ-moments.
-    * **trajectory_resolvent**: bouncing-trajectory angle-resolved
-      Green's function, fixed-point iteration on surface inflow.
-
-    These representations agree on the same physics by genuinely
-    disjoint mathematical paths — their agreement is L1-strength
-    evidence for either method, NOT L4 cross-implementation. The
-    L4 tag here is the bookkeeping convention from
-    :doc:`/skills/vv-principles` §"V&V level taxonomy" — every
-    code-to-code comparison wears L4 even when the underlying
-    methods are L1-grade independent.
-    """
-    fn = FNSlabAdapter()
-    tr = TrajectoryResolventSlabAdapter()
-    if not (
-        fn.name in case.tolerances and tr.name in case.tolerances
-    ):
-        pytest.skip(
-            f"Both fn_slab and trajectory_resolvent_slab must be "
-            f"opted in for cross-check; case={case.case_id!r} "
-            f"opts in: {list(case.tolerances)}"
-        )
-
-    # F_N predicts the critical half-thickness; trajectory_resolvent
-    # at that half-thickness predicts k_eff = 1.0. The agreement is
-    # the trajectory_resolvent k_eff vs 1.0, with tolerance set by
-    # the larger of the two truth tolerances (= the
-    # trajectory_resolvent floor).
-    res_fn = fn.solve(case)
-    # Build a trajectory_resolvent solve at F_N's predicted thickness
-    # (NOT at the case's published truth, to test agreement of the
-    # methods themselves rather than a triple agreement with truth).
-    # The trajectory_resolvent slab adapter reads its width off
-    # structured_geometry.domain_extent_cm; we shadow the registry
-    # case with an inline structured_geometry whose extent reflects
-    # F_N's prediction (full slab = 2 × half-thickness).
-    case_at_fn_thickness = _shadow_with_thickness_mfp(
-        case, a_critical_mfp=float(res_fn.value)
-    )
-    res_tr = tr.solve(case_at_fn_thickness)
-
-    tol = agreement_tolerance(case, fn, tr)
-    diff = abs(res_tr.value - 1.0)
-    assert diff < tol, (
-        f"{case.case_id}: F_N predicts a_c={res_fn.value:.10f} mfp; "
-        f"trajectory_resolvent at that half-thickness gives k_eff="
-        f"{res_tr.value:.8f}, |k-1|={diff:.3e} > pairwise tol "
-        f"max({case.tolerance_for(fn):.1e}, "
-        f"{case.tolerance_for(tr):.1e}) = {tol:.1e}. "
-        f"Both methods backed by {case.truth_source}."
-    )
-
-
-@pytest.mark.l1
-@pytest.mark.parametrize(
-    "case", BARE_CRITICAL_SPHERE_CASES, ids=lambda c: c.case_id,
-)
-def test_fn_sphere_vs_trajectory_resolvent_sphere(case: CrossMethodCase):
-    r"""**Cross-method (L4) agreement gate**: F_N sphere (Siewert-Thomas
-    1986 Wiener-Hopf via Case eigenfunctions) vs trajectory_resolvent
-    sphere (Sanchez 1986 bouncing-trajectory operator).
-
-    Both methods are independently L1-verified against Sood/KLL
-    truth. This test pins their pairwise agreement.
-    """
-    fn = FNSphereAdapter()
-    tr = TrajectoryResolventSphereAdapter()
-    if not (
-        fn.name in case.tolerances and tr.name in case.tolerances
-    ):
-        pytest.skip(
-            f"Both adapters must be opted in for cross-check; "
-            f"case={case.case_id!r} opts in: {list(case.tolerances)}"
-        )
-
-    res_fn = fn.solve(case)
-    # The trajectory_resolvent sphere adapter reads its radius off
-    # structured_geometry.domain_extent_cm; shadow with an inline
-    # geometry at F_N's predicted radius.
-    case_at_fn_radius = _shadow_with_thickness_mfp(
-        case, R_critical_mfp=float(res_fn.value)
-    )
-    res_tr = tr.solve(case_at_fn_radius)
-
-    tol = agreement_tolerance(case, fn, tr)
-    diff = abs(res_tr.value - 1.0)
-    assert diff < tol, (
-        f"{case.case_id}: F_N predicts R_c={res_fn.value:.10f} mfp; "
-        f"trajectory_resolvent at that radius gives k_eff="
-        f"{res_tr.value:.8f}, |k-1|={diff:.3e} > pairwise tol "
-        f"max({case.tolerance_for(fn):.1e}, "
-        f"{case.tolerance_for(tr):.1e}) = {tol:.1e}. "
-        f"Both methods backed by {case.truth_source}."
-    )
-
-
-# ═══════════════════════════════════════════════════════════════════
-# The characteristic reference: the successors of the trajectory-resolvent rows
+# The characteristic reference: the successors of the (deleted) trajectory-resolvent rows
 # ═══════════════════════════════════════════════════════════════════
 #
 # P1 step (e1b) of ``.claude/plans/characteristic_reference_architecture.md`` (the user's ruling 3 of 2026-10-10):
-# each trajectory-resolvent truth and agreement row above has its successor here, on the characteristic adapters,
+# each trajectory-resolvent truth and agreement row had its successor here, on the characteristic adapters,
 # with the tolerance ``cases.characteristic_tolerance`` computes from the reference's own ladder and the truth's
-# resolution. Step (e) deletes the predecessors; until then both run. None is slow: a slab case at the working rung
+# resolution. Step (e2) deleted the predecessors. None is slow: a slab case at the working rung
 # takes about 1.5 s.
 
 _CHARACTERISTIC_SLAB = CHARACTERISTIC_SLAB

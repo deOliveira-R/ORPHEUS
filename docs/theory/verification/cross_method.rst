@@ -15,9 +15,12 @@ frames:
 * :mod:`orpheus.derivations.continuous.fn_method` — Case
   singular-eigenfunction representation; collocation system on
   μ-moments; Wiener-Hopf factorisation.
-* :mod:`orpheus.derivations.continuous.trajectory_resolvent` —
-  bouncing-trajectory angle-resolved Green's function; fixed-point
-  iteration on surface inflow.
+* :mod:`orpheus.derivations.continuous.characteristic` — transport
+  integrated along the body's lines; a Galerkin pencil over lines on
+  graded panels (:doc:`/theory/references/characteristic`). It replaced
+  the trajectory resolvent (bouncing-trajectory angle-resolved Green's
+  function; fixed-point iteration on surface inflow), deleted on
+  2026-10-10.
 * :mod:`orpheus.derivations.continuous.peierls_nystrom` — Peierls
   integral-equation kernel; Nyström quadrature with singularity
   subtraction.
@@ -27,7 +30,8 @@ frames:
   taxonomy in ``.claude/scratch/folder_naming_taxonomy.md``.
 
 When a method is being **architecturally refactored** (e.g. the
-trajectory_resolvent overhaul that motivated this protocol), we need
+trajectory_resolvent overhaul that motivated this protocol, which
+ended in its replacement by the characteristic reference), we need
 a regression net that lights up if the refactor breaks numerical
 agreement with **structurally-independent** references. The
 existing per-method test files already pin each method against its
@@ -76,8 +80,8 @@ them as **L1** because:
 * the cross-method comparison is a *consumer* of those L1
   references — not a new claim;
 * when both methods are L1-grade and structurally independent (e.g.
-  F_N's Case-eigenfunction representation vs trajectory_resolvent's
-  bouncing-characteristic representation), their pairwise agreement
+  F_N's Case-eigenfunction representation vs the characteristic
+  reference's integration along lines), their pairwise agreement
   is **L1-strength regression evidence** for either — a drift in
   either method off its own L1-pinned truth reddens the pair gate —
   not just L4 "implementations agree". The *primary* L1 evidence
@@ -86,7 +90,7 @@ them as **L1** because:
 
 The cross-method gates inherit L1 from this convention. The
 ``test_*_matches_truth`` gates carry L1 as the truth match. The
-``test_fn_*_vs_trajectory_resolvent_*`` gates also carry L1 — the
+``test_fn_*_vs_characteristic_*`` gates also carry L1 — the
 agreement is L1-strength when both methods' L1 backing exists.
 
 Foundation gates — schema invariants on the protocol metadata —
@@ -254,8 +258,8 @@ Multi-group cross-method coverage gap (acknowledged)
 ----------------------------------------------------
 
 Bare-critical slab/sphere is **inherently 1G** — neither fn_method
-nor trajectory_resolvent natively ships the multi-group critical-
-dimension solve. Per the ``vv-principles`` skill §"1-group
+nor the characteristic reference (nor the trajectory resolvent before
+it) ships the multi-group critical-dimension solve. Per the ``vv-principles`` skill §"1-group
 degeneracy" 1G eigenvalue tests are degenerate (k = νΣ_f/Σ_a
 shape-independent). The cross-method protocol acknowledges this gap
 honestly:
@@ -277,11 +281,13 @@ gap requires:
 
 * (longer-term) extending fn_method to multi-group critical-
   dimension via Sood Eq (A.59) generalisation, OR
-* extending the cross-method protocol to consume
-  ``trajectory_resolvent.solve_greens_function_sphere_mg`` against
-  the closed-sphere α=1 / kinf identity at 2G+ — which only needs
-  a new ``CrossMethodCase`` row + parameter-set extension to the
-  closed-sphere adapter.
+* extending the cross-method protocol to consume the characteristic
+  reference's multigroup closed sphere against the closed-sphere α=1 /
+  kinf identity at 2G+ — which only needs a new ``CrossMethodCase``
+  row with a 2G material on the existing ``characteristic_sphere_closed``
+  adapter (the characteristic reference is multigroup; the retired
+  ``solve_greens_function_sphere_mg`` was the route this sentence
+  first named).
 
 References
 ----------

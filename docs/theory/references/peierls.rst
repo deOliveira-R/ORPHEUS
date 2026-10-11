@@ -380,9 +380,10 @@ Five canonical BC choices fall out of :math:numref:`peierls-bc-general`:
      - β∈[0,1−α]
      - any
      - Convex combination of vacuum / specular / diffuse. The
-       :math:`\alpha`-parameter in
-       :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere`
-       interpolates the full :math:`\alpha\in[0,1]` range.
+       :math:`\alpha`-parameter of the retired
+       ``solve_greens_function_sphere`` interpolated the full
+       :math:`\alpha\in[0,1]` range; the characteristic reference reads
+       it from an ``AlbedoBoundary`` with a specular return.
    * - Periodic
      - n/a
      - n/a
@@ -390,10 +391,10 @@ Five canonical BC choices fall out of :math:numref:`peierls-bc-general`:
      - Lattice geometries; Sanchez 2002
        :math:`\psi = \psi_q(L)/(1-\psi_{bd}(L))\cdot\psi_{bd} + \psi_q`
        (Eq. 15) closure. Not shipped in either ORPHEUS Peierls
-       family.
+       family; the characteristic reference wraps a slab periodically
+       (not a cylinder or a sphere, :ref:`characteristic-walls-refusals`).
 
-Both ORPHEUS Peierls families implement subsets of this
-parametrisation:
+The ORPHEUS references implement subsets of this parametrisation:
 
 - **Nyström / matrix-Galerkin** (:ref:`theory-peierls-nystrom`):
   vacuum, white (rank-1 Mark, F.4 rank-2 per-face), specular
@@ -401,24 +402,31 @@ parametrisation:
   separate ``boundary=`` strings. The :math:`(\alpha,\beta)`
   parametrisation is *not* exposed at the public API — instead each
   closure is hard-coded as a discrete kernel-builder.
-- **Green's function (Variant α)** (:ref:`theory-trajectory-resolvent`):
-  vacuum and specular as the **two endpoints of a single
-  :math:`\alpha`-parametrised solver**; partial-albedo
-  :math:`\alpha\in(0,1)` is reachable without a separate code path.
-  This is the load-bearing structural advantage of the Green's
+- **Green's function (Variant α)** (:ref:`theory-trajectory-resolvent`,
+  deleted on 2026-10-10): vacuum and specular as the **two endpoints of
+  a single :math:`\alpha`-parametrised solver**; partial-albedo
+  :math:`\alpha\in(0,1)` was reachable without a separate code path.
+  This was the load-bearing structural advantage of the Green's
   function reformulation: the BC is encoded in the kernel via Sanchez
   Eq. (A1) :math:`t = \bar t + t_h`, so the closure question
   *dissolves* — there is no separate ``K_bc`` matrix, no rank-:math:`N`
   gating, no :math:`(1-P_{ss})^{-1}` scalar factor at the operator
   level.
+- **The characteristic reference** (:ref:`theory-characteristic-reference`),
+  which replaced Variant α, keeps that advantage on the specular part
+  (each line's walls closed by the least solution of its cycle,
+  :math:`\alpha \in [0, 1]` per wall) and adds the diffuse part as a
+  finite-rank update over the diffuse walls; a wall is specular or
+  diffuse, never both (:ref:`characteristic-walls`), so one wall
+  carries :math:`\alpha` or :math:`\beta`, not both.
 
-The :math:`\beta`-branch (diffuse re-emission) is **not** shipped
-in either family. Sanchez 1986 Eq. (A6) carries the full
+The :math:`\beta`-branch (diffuse re-emission) is **not** shipped in
+either Peierls family. Sanchez 1986 Eq. (A6) carries the full
 :math:`(\alpha,\beta)` kernel, but the prototype Green's function
-solver in
-:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere`
-is restricted to :math:`\beta = 0`. Adding :math:`\beta`-support is
-flagged as future work in :ref:`theory-trajectory-resolvent`.
+solver ``solve_greens_function_sphere`` was restricted to
+:math:`\beta = 0` until its deletion. The characteristic reference
+serves a diffuse (white) wall of any albedo
+(:ref:`characteristic-wall-coupling`).
 
 
 Peierls integral equation reference
@@ -2584,9 +2592,14 @@ the multi-annulus walker and computes :math:`\tau_{\rm surf} =
 Two architectural choices for the discretisation
 =================================================
 
-The two implementations partition cleanly along the operator they
-discretise. Use this comparison table to decide which forward-link
-to follow:
+The two implementations partitioned cleanly along the operator they
+discretise. The Green's function column records the Variant α family
+as it stood before its deletion on 2026-10-10; its successor, the
+characteristic reference (:ref:`theory-characteristic-reference`),
+covers slab, cylinder and sphere, solid or hollow, of any number of
+regions, under specular, partial, white and (slab) periodic walls, and
+assembles a Galerkin pencil over lines instead of iterating on
+:math:`\psi(r,\mu)`:
 
 .. list-table:: Nyström / matrix-Galerkin vs Green's function (Variant α)
    :header-rows: 1
@@ -2633,8 +2646,7 @@ to follow:
        :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_mg`
        (Issue #104); shipped registry rows for slab + hollow
        cyl/sph 2G
-     - Production via
-       :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere_mg`
+     - Production via ``solve_greens_function_sphere_mg`` (retired)
        (closed sphere reduces to
        :func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
        transfer-matrix dominant eigenvalue)
@@ -2667,18 +2679,20 @@ to follow:
        discontinuous :math:`\sigma_s` at multi-region interfaces
        — accounts for ~12 % near-interface error vs Garcia 2021.
 
-The two families are **complementary**, not competing. The
+The two families were **complementary**, not competing. The
 Nyström family is the production reference for nearly all
-verification chains in ORPHEUS; Variant α is the parallel
-research-grade reference that closes the cases Phase 4 cannot
+verification chains in ORPHEUS; Variant α was the parallel
+research-grade reference that closed the cases Phase 4 cannot
 handle correctly (closed-sphere specular exact; multi-region sphere
-without the mode-mixing pathology).
+without the mode-mixing pathology), a role the characteristic
+reference holds since 2026-10-10.
 
 For the verification matrix that maps each shipped configuration to
 its production reference family, see
 :ref:`theory-peierls-capabilities`. Cardinal Rule 1 (correctness is
-critical): never use Variant α as a reference for a case it does not
-cover (cylinder, anisotropic scattering); never trust the rank-N
+critical): never use a reference for a case it does not cover (the
+characteristic reference, like Variant α before it, has no anisotropic
+scattering); never trust the rank-N
 Marshak closure for Class B multi-region (Issue #132 documents the
 +57 % catastrophe).
 
@@ -2769,9 +2783,10 @@ closed-form geometric series.
 cross-group + fission source. The same form is implemented in
 both ORPHEUS families
 (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_mg`
-for the Nyström family;
-:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere_mg`
-for the Green's function family).
+for the Nyström family; ``solve_greens_function_sphere_mg`` for the
+Green's function family until its deletion on 2026-10-10, and the
+multigroup Galerkin system of the characteristic reference,
+:ref:`characteristic-galerkin-system`, since).
 
 The Garcia 2018 / 2020 / 2021 stable :math:`P_N` family
 --------------------------------------------------------
@@ -2871,10 +2886,10 @@ Codebase pointers:
   family unified solver
   (:func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`,
   :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_mg`).
-- :mod:`orpheus.derivations.continuous.trajectory_resolvent.greens_function` —
-  Green's function family
-  (:func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere`,
-  ``_mg``, ``_mr``, ``_mr_fixed_source``).
+- :mod:`orpheus.derivations.continuous.characteristic` — the
+  characteristic reference, which replaced the Green's function family
+  (``trajectory_resolvent.greens_function``: ``solve_greens_function_sphere``,
+  ``_mg``, ``_mr``, ``_mr_fixed_source``; deleted on 2026-10-10).
 - :mod:`orpheus.derivations.continuous.peierls_nystrom.ps1982_reference` —
   PS-1982 reference solver (vacuum sphere only).
 - :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function`

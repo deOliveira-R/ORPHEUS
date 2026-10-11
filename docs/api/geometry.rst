@@ -233,7 +233,7 @@ declared: two on a slab, the outer surface alone on a solid cylinder or
 sphere (whose centre is an interior point and carries no law), inner
 and outer on a hollow one. It carries **no** cell counts. The reasons
 for each of these choices are on
-:doc:`/theory/foundations/structured_geometry`. Reference solution generators (``Billiard``, ``MomentSpace``,
+:doc:`/theory/foundations/structured_geometry`. Reference solution generators (``CharacteristicDerivation``, ``MomentSpace``,
 ``Spectrum``, ``BasisSpace``) consume it directly, because they need no
 mesh; the discrete production solvers consume the
 :class:`~orpheus.mesh.structured.Mesh1D` that a

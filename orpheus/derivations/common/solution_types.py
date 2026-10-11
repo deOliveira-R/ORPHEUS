@@ -1,22 +1,27 @@
 r"""Shared cross-method solution types.
 
 This module defines the **first cross-method shared vocabulary** for
-continuous reference solvers. Two very different mathematical attacks
+continuous reference solvers. Very different mathematical attacks
 on the one-speed neutron transport equation —
 
 * the F_N method (Galerkin half-range moment projection of the
   angular flux, realised in
-  :mod:`orpheus.derivations.continuous.fn_method`), and
-* trajectory_resolvent (the Variant α Green's function carried along
-  bouncing characteristics, realised in
-  :mod:`orpheus.derivations.continuous.trajectory_resolvent`)
+  :mod:`orpheus.derivations.continuous.fn_method`),
+* the Galerkin spectral method
+  (:mod:`orpheus.derivations.continuous.galerkin_spectral`), and
+* the singular-eigenfunction expansion
+  (:mod:`orpheus.derivations.continuous.singular_eigenfunction`)
 
 — produce solutions to the same boundary-value problem and therefore
 should produce **structurally comparable result containers**. The
-math-heart classes that own each method (``MomentSpace`` for F_N,
-``Billiard`` for trajectory_resolvent) deliberately return the same
-result types so a downstream consumer can hold a ``CriticalSolution``
-without knowing which pillar produced it.
+math-heart classes that own each method (``MomentSpace``,
+``BasisSpace``, ``Spectrum``) deliberately return the same result
+types so a downstream consumer can hold a ``CriticalSolution``
+without knowing which pillar produced it. (The trajectory-resolvent
+``Billiard`` was the first instance, with ``MomentSpace`` the second, when this module was written; it
+was retired with its family in P1 step (e2) of #405, superseded by the
+characteristic reference, which answers through
+:class:`~orpheus.reference.solution.ReferenceSolution` instead.)
 
 The two result types correspond to the two canonical questions one
 asks of a transport reference solver:
@@ -25,8 +30,8 @@ asks of a transport reference solver:
   Carries the eigenvalue (``k_eff`` or ``k_inf``) plus the
   configuration parameter the eigenvalue is associated with (the
   critical half-thickness for slab F_N; the critical radius for
-  sphere F_N; the eigenvalue at a given ``L`` for trajectory_resolvent
-  power iteration). The ``parameter_kind`` field disambiguates which.
+  sphere F_N; the eigenvalue at a given configuration for a
+  root-free solver). The ``parameter_kind`` field disambiguates which.
 * :class:`FluxSolution` — *"Given a configuration, what is the flux
   shape?"* Carries the scalar flux (and optionally the angular flux),
   spatial / angular grids, and the eigenvalue at which the flux
@@ -53,9 +58,10 @@ Why this is **not** a Protocol
 Per the project's "unify after two instances" memory
 (``feedback_unify_after_two_instances.md``), the unifying Protocol
 across math-heart classes can be designed only AFTER ≥2 working
-instances exist. ``MomentSpace`` (F_N) and ``Billiard``
-(trajectory_resolvent) ARE the first two instances. Their solution
-types — defined here — are the first concrete unification: a
+instances exist. ``MomentSpace`` (F_N) and the since-retired
+trajectory-resolvent ``Billiard`` were the first two; ``BasisSpace``
+and ``Spectrum`` followed, so three live instances return these
+types today. The solution types defined here are the first concrete unification: a
 *structural* contract on what every math-heart returns, before any
 behavioural Protocol is posited.
 
@@ -91,7 +97,7 @@ References
   this module's "Branch-1 + Branch-2 share the same return type"
   pattern slots into. Both branches return the same shape because
   they should be substitutable at the call site (``MomentSpace`` can
-  be backed by either; ``Billiard`` can be backed by either).
+  be backed by either).
 * :doc:`/skills/vv-principles` § "The three pillars of verification"
   — these dataclasses are the *interface* across pillars. A
   closed-form analytical reference, a semi-analytical solver, and an
@@ -170,10 +176,6 @@ class CriticalSolution:
         * ``"n_modes"`` (F_N method) — F_N order :math:`N`.
         * ``"determinant_residual"`` (F_N) — :math:`\det M` at the
           converged configuration.
-        * ``"iterations"`` (trajectory_resolvent) — power-iteration
-          step count.
-        * ``"n_traj_quad"`` (trajectory_resolvent) — trajectory
-          quadrature density.
 
     Notes
     -----
@@ -183,8 +185,8 @@ class CriticalSolution:
     protocol consumes both as scalars. Users who want the rich
     method-specific result type (e.g., ``SlabFNResult`` with its
     F_N expansion coefficients) should call the underlying solver
-    directly; ``MomentSpace.solve_critical()`` and
-    ``Billiard.solve_critical()`` populate this dataclass for
+    directly; ``MomentSpace.solve_critical()`` (and its siblings in
+    ``BasisSpace`` and ``Spectrum``) populate this dataclass for
     cross-method comparability and stash the rich result in
     ``metadata["raw_result"]`` for callers that want both.
     """

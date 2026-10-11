@@ -42,9 +42,9 @@ The leading-:math:`\alpha` factor in the surface fixed-point closure
 :math:`\psi_{\rm surf} = \alpha\,B\,T` remains :math:`\alpha^1` (a
 single reflection at the FIRST surface arrival). The per-period
 reflection product :math:`\alpha^2` enters only inside the geometric
-resolvent :math:`T(\alpha^2, \tau_{\rm period})`. See
-:func:`apply_variant_alpha_closure` in
-:mod:`.variant_alpha_core` for the back-compatible API.
+resolvent :math:`T(\alpha^2, \tau_{\rm period})`. The retired
+``apply_variant_alpha_closure`` (``variant_alpha_core``) carried this
+closure numerically; :mod:`~orpheus.derivations.continuous.characteristic.closure` is its successor.
 
 **First-leg backward chord**:
 
@@ -138,135 +138,6 @@ References
 from __future__ import annotations
 
 import sympy as sp
-
-
-def derive_operator_constant_trial_closed_slab() -> dict:
-    r"""V_α1_slab — closed-slab bounce-sum self-consistency.
-
-    For a homogeneous infinite slab of width :math:`L` with symmetric
-    specular BC (:math:`\alpha_{\rm left} = \alpha_{\rm right} = 1`)
-    and constant volumetric source :math:`q`, the bouncing-trajectory
-    integral form of the angular flux at any interior point
-    :math:`(x, \mu)` is
-
-    .. math::
-
-       \psi(x, \mu) \;=\;
-            \int_0^{L_{\rm first}} q\,e^{-\Sigma_t s}\,\mathrm d s
-            \;+\; e^{-\Sigma_t L_{\rm first}}\,\psi_{\rm surf}
-
-    where :math:`L_{\rm first}` is the backward distance from
-    :math:`(x, \mu)` to the first surface arrival
-    (:math:`x/\mu` for :math:`\mu > 0`, :math:`(L-x)/|\mu|` for
-    :math:`\mu < 0`), and :math:`\psi_{\rm surf}` is the angular flux
-    at the surface entry point in the trajectory direction.
-
-    Specular reflection on a symmetric slab preserves :math:`|\mu|`.
-    The trajectory alternates between the two walls; one full period
-    consists of TWO surface reflections and traverses optical depth
-
-    .. math::
-
-       \tau_{\rm period}^{\rm slab} =
-            \Sigma_t \cdot \frac{2L}{|\mu|}
-
-    (full transit out + reverse transit back). By translation symmetry
-    of the homogeneous closed slab, the surface flux is independent of
-    which wall is the first surface arrival. The fixed-point self-
-    consistency equation is
-
-    .. math::
-
-       \psi_{\rm surf} \;=\;
-            \int_0^{L_{\rm period}} q\,e^{-\Sigma_t s}\,\mathrm d s
-            \;+\; e^{-\Sigma_t L_{\rm period}}\,\psi_{\rm surf}
-
-    with :math:`L_{\rm period} = 2L/|\mu|`. Solving:
-
-    .. math::
-
-       \psi_{\rm surf} \;=\;
-            \frac{q\,(1 - e^{-\Sigma_t L_{\rm period}})}
-                 {\Sigma_t\,(1 - e^{-\Sigma_t L_{\rm period}})}
-            \;=\; \frac{q}{\Sigma_t}.
-
-    The :math:`L_{\rm period}` dependence cancels exactly. Plugging
-    back into the first-leg expression gives :math:`\psi(x, \mu) =
-    q/\Sigma_t` everywhere, independent of :math:`L_{\rm first}`. For
-    trial :math:`\psi_{\rm trial} = 1` and isotropic-scattering source
-    :math:`q = \Sigma_s\,\psi_{\rm trial} = \Sigma_s`, the operator
-    action is :math:`(K \cdot 1)(x, \mu) = \Sigma_s/\Sigma_t = \omega_0`,
-    yielding :math:`k_{\rm eff} = k_\infty = \nu\Sigma_f/\Sigma_a`.
-
-    The proof is **algebraically identical to V_α1 sphere/cylinder** —
-    the surface fixed-point equation is the same algebraic structure
-    (period-chord-length-independent solution :math:`q/\Sigma_t`).
-    Only the chord formula :math:`L_{\rm period}` differs across
-    geometries. **The crucial difference for slab is that
-    :math:`L_{\rm period}` carries TWO transits, encoding the
-    two-bounce-per-period structure into the period optical depth.**
-
-    Returns dict with the SymPy expressions and PASS flags.
-    """
-    Sigma_t, Sigma_s, q = sp.symbols(
-        "Sigma_t Sigma_s q", positive=True, real=True,
-    )
-    L_first, L_period = sp.symbols(
-        "L_first L_period", positive=True, real=True,
-    )
-
-    # First-leg trajectory integral with constant source q.
-    # ∫_0^{L_first} q · e^{-Σ_t s} ds = (q/Σ_t)(1 - e^{-Σ_t L_first})
-    psi_first = (q / Sigma_t) * (1 - sp.exp(-Sigma_t * L_first))
-
-    # Bounce-sum self-consistency.
-    # ψ_surf = ∫_0^{L_period} q e^{-Σ_t s} ds + e^{-Σ_t L_period} ψ_surf
-    psi_surf_var = sp.symbols("psi_surf", positive=True, real=True)
-    fixed_point_eq = sp.Eq(
-        psi_surf_var,
-        (q / Sigma_t) * (1 - sp.exp(-Sigma_t * L_period))
-        + sp.exp(-Sigma_t * L_period) * psi_surf_var,
-    )
-    psi_surf_solution = sp.solve(fixed_point_eq, psi_surf_var)
-    pass_surf_consistency = (
-        len(psi_surf_solution) == 1
-        and sp.simplify(psi_surf_solution[0] - q / Sigma_t) == 0
-    )
-    psi_surf = psi_surf_solution[0]
-
-    # Total ψ at (x, µ) — first-leg + attenuated surface.
-    psi_total = psi_first + sp.exp(-Sigma_t * L_first) * psi_surf
-    psi_total_simplified = sp.simplify(psi_total)
-
-    # Should equal q/Σ_t identically — both L_first and L_period drop
-    # out (the load-bearing slab algebra: independence of trajectory
-    # phase position AND of bounce-period length).
-    pass_total_constant = (
-        sp.simplify(psi_total_simplified - q / Sigma_t) == 0
-    )
-
-    # Operator action on isotropic trial ψ_trial = 1.
-    # Source for isotropic scattering: q = Σ_s · ψ_trial = Σ_s.
-    omega_0 = Sigma_s / Sigma_t
-    K_on_one = psi_total_simplified.subs(q, Sigma_s)
-    pass_eigenvalue = sp.simplify(K_on_one - omega_0) == 0
-
-    return {
-        "name": "V_α1_slab: closed-slab bounce-sum constant trial = ω₀",
-        "psi_first_leg": psi_first,
-        "psi_surf_solution": psi_surf,
-        "psi_total_simplified": psi_total_simplified,
-        "K_on_constant_trial": K_on_one,
-        "omega_0": omega_0,
-        "pass_surf_consistency": pass_surf_consistency,
-        "pass_total_constant": pass_total_constant,
-        "pass_eigenvalue": pass_eigenvalue,
-        "pass": (
-            pass_surf_consistency
-            and pass_total_constant
-            and pass_eigenvalue
-        ),
-    }
 
 
 def derive_T00_equals_P_ss_slab() -> dict:

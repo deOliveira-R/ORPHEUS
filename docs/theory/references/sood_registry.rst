@@ -1062,7 +1062,9 @@ likely to extend in future Waves to:
   expansion.
 * **Garcia 2021** — multi-region fixed-source benchmarks (Table 5
   ppP_N); already consumed by
-  :mod:`tests.gates.derivations.test_peierls_greens_function_garcia2021`.
+  :func:`tests.gates.derivations.test_characteristic_reading.test_garcias_case_1_per_point`
+  (until 2026-10-10 by the trajectory resolvent's
+  ``test_peierls_greens_function_garcia2021`` module).
 
 The Wave 3 architectural plan
 (``.claude/plans/wave3/architecture.md``) discusses promoting these
@@ -1146,8 +1148,9 @@ Internal references:
   (k_inf cases + slab/sphere bare-critical + reflected slab).
 * :doc:`/theory/references/singular_eigenfunction` — primary consumer of the Atalay
   catalogue + cylinder Sood truth values.
-* :doc:`/theory/references/trajectory_resolvent` — Variant α cross-checks on shared
-  Sood truth values.
+* :doc:`/theory/references/characteristic` — the characteristic reference's
+  cross-checks on shared Sood truth values (Variant α's,
+  :doc:`/theory/references/trajectory_resolvent`, until 2026-10-10).
 
 .. _sood-registry-history:
 

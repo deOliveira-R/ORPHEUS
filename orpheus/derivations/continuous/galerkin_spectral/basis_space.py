@@ -3,8 +3,10 @@ r"""The Galerkin spectral basis space — math-heart class for galerkin_spectral
 This module is the **4th concrete instance of the math-heart pattern**
 across the project, sibling to:
 
-* :class:`~orpheus.derivations.continuous.trajectory_resolvent.Billiard`
-  — the bouncing-trajectory transfer-operator resolvent (1st instance).
+* ``Billiard`` — the bouncing-trajectory transfer-operator resolvent
+  (1st instance; retired with the trajectory-resolvent family in P1 step
+  (e2) of #405, superseded by
+  :mod:`~orpheus.derivations.continuous.characteristic`).
 * :class:`~orpheus.derivations.continuous.fn_method.moment_space.MomentSpace`
   — the F_N Galerkin half-range projection (2nd instance).
 * The forthcoming ``Spectrum`` (Case singular eigenfunction expansion,
@@ -51,9 +53,10 @@ Architectural role and the math-heart pattern
 =============================================
 
 ``BasisSpace`` is to ``galerkin_spectral`` what ``MomentSpace`` is to
-``fn_method`` and what ``Billiard`` is to ``trajectory_resolvent``: a
+``fn_method`` (and what the retired ``Billiard`` was to the
+trajectory-resolvent family): a
 **method-specific computational space** mounted on a method-agnostic
-:class:`StructuredGeometry`. All three classes answer the same question
+:class:`StructuredGeometry`. These classes answer the same question
 *"What is the critical configuration?"* by populating a
 :class:`CriticalSolution` carrying the eigenvalue + the parameter
 that locates criticality, but each commits to a different
@@ -64,10 +67,12 @@ that locates criticality, but each commits to a different
   projected onto a half-range moment basis, and criticality falls
   out of a small dense determinant condition on the collocation
   matrix.
-* trajectory_resolvent (:class:`Billiard`) works in **phase space**
-  — the angular flux is carried along bouncing characteristics and
-  the eigenvalue is extracted from power iteration on the
-  discretised Birkhoff transfer operator's resolvent.
+* The retired trajectory resolvent (``Billiard``) worked in **phase
+  space**: the angular flux was carried along bouncing characteristics
+  and the eigenvalue extracted by power iteration on the discretised
+  Birkhoff transfer operator's resolvent. Its successor, the
+  characteristic reference, carries the flux along the same lines and
+  solves a Galerkin pencil over the emission.
 * Galerkin spectral (:class:`BasisSpace`) works in the **full-range
   Legendre orthogonal-polynomial basis** — the spatial scalar flux
   is expanded on Legendre polynomials, the angular variable is
@@ -460,10 +465,12 @@ class BasisSpace:
       half-range realisation** of the resolvent — eigenfunction
       expansion in the Case spectrum, projected onto half-range
       Legendre moments and collocated.
-    * Trajectory_resolvent (:class:`Billiard`) is the
+    * The retired trajectory resolvent (``Billiard``) was the
       **path-integral (time-domain) realisation** — sum over
       bouncing characteristics weighted by the streaming
-      attenuation :math:`\sum_n \alpha^n e^{-n\tau}`.
+      attenuation :math:`\sum_n \alpha^n e^{-n\tau}`; the
+      characteristic reference sums the same series in closed form
+      per line (the least solution of each line's cycle).
     * Galerkin spectral (:class:`BasisSpace`) is the **full-range
       polynomial-basis realisation** — the resolvent is
       represented in a finite-dimensional Legendre basis on the
@@ -675,7 +682,7 @@ class BasisSpace:
 
         Galerkin spectral reports :math:`c_{\rm critical}`, not
         :math:`k_{\rm eff}`. The other math-heart classes
-        (:class:`MomentSpace`, :class:`Billiard`) report
+        (:class:`MomentSpace`, :class:`~orpheus.derivations.continuous.singular_eigenfunction.spectrum.Spectrum`) report
         :math:`k_{\rm eff}` or :math:`k_\infty`. The
         :attr:`CriticalSolution.eigenvalue_kind` field disambiguates;
         cross-method comparators that need :math:`k_{\rm eff}` from
@@ -840,9 +847,9 @@ class BasisSpace:
         This is the **distinguishing feature** of the Galerkin
         spectral pillar relative to the other math-heart classes:
         :class:`MomentSpace` (F_N) returns only the dominant
-        :math:`(c, a)` root, and :class:`Billiard`
-        (trajectory_resolvent) returns only the power-iteration
-        fundamental :math:`k_{\rm eff}`. ``BasisSpace`` returns
+        :math:`(c, a)` root (the retired trajectory-resolvent
+        ``Billiard`` returned only the power-iteration fundamental
+        :math:`k_{\rm eff}`). ``BasisSpace`` returns
         all :math:`2N` eigenvalues — the fundamental real
         :math:`c_{\rm crit}`, the higher real eigenvalues
         corresponding to higher Legendre modes, and the

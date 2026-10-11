@@ -257,7 +257,7 @@ class TestConstructor:
 
 # ``(L + C).apply``'s correctness is gated by
 # ``test_unified_matvec_{slab,sphere,cylinder}.py`` against
-# structurally-independent references (L1 trajectory-resolvent,
+# structurally-independent references (L1 characteristic reference,
 # hand-derived k_∞, the unified WDD body).
 
 
@@ -922,7 +922,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
     capture builders; the cyl / slab / cart2d keys stayed frozen).
     Correctness of the current sphere matvec was verified vs L0 streaming-
     equilibrium (per-ordinate), L1 isotropic + anisotropic MMS, and the
-    L1 trajectory-resolvent before re-capture — never green-by-fiat
+    L1 trajectory-resolvent (since replaced by the characteristic reference) before re-capture — never green-by-fiat
     (``vv-principles`` L11/L14/L27).
     """
 

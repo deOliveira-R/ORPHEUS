@@ -59,7 +59,7 @@ def _mesh(region_ids=(0, 1, 2), region_materials=(0, 1, 0), edges=(0.0, 0.5, 1.5
 
 
 def _aba(coord: CoordSystem, cells_per_region: tuple[int, int, int] = (2, 4, 2)) -> tuple[StructuredGeometry, Mesh1D]:
-    """The A|B|A body of the trajectory-resolvent cross-check: 0.5, 1.5, 2.0 cm, materials (0, 1, 0)."""
+    """The A|B|A body of the SN reference cross-check (the characteristic reference's since step (d)): 0.5, 1.5, 2.0 cm, materials (0, 1, 0)."""
     g = StructuredGeometry.from_thicknesses(
         coord=coord, thicknesses=(0.5, 1.0, 0.5), mat_ids=(0, 1, 0),
         boundaries=(BC.vacuum,) if coord is not _SLAB else (BC.reflective, BC.vacuum),

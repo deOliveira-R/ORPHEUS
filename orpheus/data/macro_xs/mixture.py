@@ -353,8 +353,7 @@ class Mixture(ContentIdentity):
         It is NOT enforced in ``__post_init__``: manufactured / synthetic
         cross sections legitimately carry non-physical totals — the Atalay
         1997 criticality encoding (``νΣ_f = (c-1)Σ_t`` with ``Σ_f = 0`` for
-        ``c > 1``), structural test scaffolds, and the billiard ``SigP``
-        carrier all build imbalanced ``Mixture`` instances on purpose. The
+        ``c > 1``), and structural test scaffolds build imbalanced ``Mixture`` instances on purpose. The
         law is invoked by PHYSICAL builders only (e.g. :func:`compute_macro_xs`,
         which derives ``SigT`` via the identity and therefore always balances —
         the call there is a free regression guard against a future derivation

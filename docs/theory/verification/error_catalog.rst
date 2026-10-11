@@ -2533,7 +2533,11 @@ older entries classify against.
    **Solver:** Slab Variant α Green's function reference, both
    Phase-3A symmetric (``greens_function_slab.py::_apply_operator_slab``)
    and the inherited Phase-3B asymmetric-slab module
-   (``greens_function_slab_asymmetric.py::_apply_operator_slab_asymmetric``).
+   (``greens_function_slab_asymmetric.py::_apply_operator_slab_asymmetric``),
+   both under ``orpheus/derivations/continuous/trajectory_resolvent/``.
+   The family was retired at P1 step (e2) of the characteristic reference
+   campaign (#405, 2026-10-10); its successor is the characteristic
+   reference (:doc:`/theory/references/characteristic`).
 
    **Bug:** The first-leg backward chord parametrisation per the
    transport equation's formal solution along characteristics is
@@ -2571,13 +2575,50 @@ older entries classify against.
      faster (the slow floor was the bug's spatial bias being slowly
      resolved as the Spline interpolation got finer).
 
-   **L0 test that catches it:** Method-of-images symmetry test
-   (``test_method_of_images_reflective_vacuum_equals_double_vacuum``)
-   in ``tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_solver.py``
-   (tagged ``@pytest.mark.catches("ERR-034")`` if added). The asymmetric
-   [0,1] reflective-vacuum eigenvalue must equal the symmetric [0,2]
-   vacuum-vacuum eigenvalue to ≤ 1e-7; the buggy version differed by
-   ~5% relative.
+   **Which test catches it.** The defect's code is retired, so the
+   catchers are the characteristic reference's method-of-images pair (the
+   step (e1b) successors of the old row):
+   ``tests/gates/derivations/test_characteristic_albedos.py::test_a_mirror_is_the_symmetry_plane_of_the_doubled_vacuum_slab``
+   (k of the slab [0, 1] under a mirror at 0 and vacuum at 1 equals k of
+   the vacuum slab [0, 2], to 1e-8) and
+   ``tests/gates/derivations/test_characteristic_albedos.py::test_the_mirrored_slabs_flux_is_twice_the_doubled_slabs_right_half``
+   (:math:`\phi_{\rm half}(x) = 2\,\phi_{\rm doubled}(1 + x)` at four
+   points, every group, to 1e-4), both tagged
+   ``@pytest.mark.catches("ERR-034")``. The defect re-dropped into the
+   characteristic reference's slab line (``[M]`` 2026-10-10, the step
+   (e1b) battery, ``scratch/characteristic_architecture/p1_step_e/ta_e1b/``)
+   reddens them three ways. As catalogued (:math:`x - s`), positions leave
+   the body and every row reds through a singular loss form, a red for a
+   structural reason. In class (:math:`x - \mu|\mu|s`), 2 of 4 rows red by
+   value (the two-group rows: k 4.68 against 13.96) and 2 of 4 by
+   ``NoFundamentalMode`` (the one-group rows). With the position advanced
+   by :math:`0.999\,\mu s`, the value witness, 4 of 4 red by value (the
+   two-group k 0.66648 against 0.66662). Unlike the old family's
+   collocation, the characteristic reference's Galerkin assembly transports
+   each basis function, so a flat emission no longer hides the defect: the
+   closed slabs of the :math:`k_\infty` floor red under the in-class arm
+   too (6 of 6).
+
+   The original catcher was
+   ``test_method_of_images_reflective_vacuum_equals_double_vacuum`` in the
+   ``test_peierls_greens_function_slab_asymmetric_solver`` module, then
+   under ``tests/gates/derivations/``, retired with the family. It required
+   the asymmetric [0,1] reflective-vacuum eigenvalue to equal the symmetric
+   [0,2] vacuum-vacuum eigenvalue to ≤ 1e-7; the buggy version differed by
+   ~5 % relative. That identity compares two posings of one reference, so
+   it is blind to any error the two posings share: ``[M]`` 2026-10-10
+   (``probes/probe_pred_succ.log`` of the same record), the old family's
+   one-group mirror-vacuum slab at its row's resolution
+   (:math:`n_x = 32`, :math:`n_\mu = 32`, 64 trajectory points) read
+   k = 0.0584228 against the characteristic reference's 0.0584537, a
+   5.3e-4 relative difference, while the identity held to 1e-7. The
+   Peierls–Nyström slab [0, 2], an E\ :sub:`1` kernel with no lines,
+   converges onto the characteristic value (0.05845381 at 8 panels of
+   order 6, 0.05845368 at 12 of order 8), a probe and not a gate. The
+   successor pair carries the same blindness by construction. No gate pins
+   this fixture's value; the nearest value gate is the withdrawn (#506)
+   Nyström row on the one-group vacuum slab [0, 10],
+   ``tests/gates/derivations/test_characteristic_nystrom_withdrawn.py::test_the_vacuum_slabs_k_is_the_nystrom_slabs``.
 
    **Fix:** Replace ``x_traj = x - s_pts_first`` with ``x_traj = x - mu *
    s_pts_first`` for μ > 0, and ``x_traj = x + abs_mu * s_pts_first``
@@ -2617,7 +2658,12 @@ older entries classify against.
    **Solver:** Slab Variant α Green's function reference, Phase-3A
    symmetric (``greens_function_slab.py::_apply_operator_slab`` calling
    ``apply_variant_alpha_closure(... alpha_per_period=α²)`` with the
-   full out-and-back bounce-period B integral).
+   full out-and-back bounce-period B integral), under
+   ``orpheus/derivations/continuous/trajectory_resolvent/``. The family was
+   retired at P1 step (e2) of the characteristic reference campaign (#405,
+   2026-10-10); its successor is the characteristic reference, whose
+   closure is derived once for every wall pair
+   (:doc:`/theory/references/characteristic`).
 
    **Bug:** The Phase-3A heuristic closure
 
@@ -2657,14 +2703,34 @@ older entries classify against.
      construction — none of them stress the closure formula at
      intermediate α with a spatially non-uniform eigenmode.
 
-   **L1 test that captures it (post-fix regression gate):**
+   **Which test catches it.** The defect's code is retired, so the
+   catchers are two rows of the characteristic reference, tagged
+   ``@pytest.mark.catches("ERR-035")``:
+   ``tests/gates/derivations/test_characteristic_closure.py::test_the_inflow_is_the_unfolded_wall_by_wall_sum``
+   (the closed cycle of a line's walls equals the backward path unfolded
+   wall by wall, on seeded abstract optical depths and source integrals,
+   nine amplitude pairs including the equal pair (0.5, 0.5)) and
+   ``tests/gates/derivations/test_characteristic_transport.py::test_the_closed_angular_flux_is_the_unfolded_backward_path``
+   (the angular flux on a closed line against an mpmath march through each
+   wall; its ``slab_symmetric_half`` case is this entry's regime, the
+   symmetric slab at albedo 0.5 on both walls under a non-symmetric
+   source). The defect re-dropped (``[M]`` 2026-10-10, arm ``err035`` of
+   the step (e1b) battery, ``scratch/characteristic_architecture/p1_step_e/ta_e1b/``:
+   the once-around term of a rank-2 line read without the inner wall's
+   amplitude, over the same denominator) reddens 8 of the first test's 9
+   rank-2 rows (every amplitude pair but the vacuum pair) and none of its
+   9 rank-1 rows, and every rank-2 case of the second (5 of its 7 cases
+   after step (e1b) added the cylinder's two). The rank-1 rows stay green
+   because the old rank-1 closure was honest.
+
+   The original catcher was
    ``test_rank1_path_now_agrees_with_rank2_via_delegation_after_ERR035_fix``
-   in ``tests/gates/derivations/test_peierls_greens_function_slab_asymmetric_solver.py``,
-   tagged ``@pytest.mark.catches("ERR-035")``. The test was originally
-   ``test_rank2_vs_rank1_at_intermediate_alpha_documented_discrepancy``
-   with a ``[5e-5, 5e-4]`` disagreement gate; post-fix it asserts ≤
-   1e-12 rtol bit-equal agreement at α=0.5, catching any
-   re-introduction of a heuristic Phase-3A closure.
+   in the ``test_peierls_greens_function_slab_asymmetric_solver`` module,
+   then under ``tests/gates/derivations/``, retired with the family. It was
+   originally ``test_rank2_vs_rank1_at_intermediate_alpha_documented_discrepancy``
+   with a ``[5e-5, 5e-4]`` disagreement gate; after the fix it asserted
+   ≤ 1e-12 relative agreement at α = 0.5 between the symmetric and the
+   asymmetric slab paths.
 
    **Fix (applied 2026-05-02):** Refactored
    ``solve_greens_function_slab`` and ``solve_greens_function_slab_mg``
@@ -8635,10 +8701,9 @@ older entries classify against.
    contamination).  The isotropic emission density of a
    piecewise-homogeneous medium jumps at every material interface, because
    the cross sections do.
-   :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.MultiRegionSphereChordOracle`
-   and
-   :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.MultiRegionCylinderChordOracle`
-   reconstructed it along each chord with one ``CubicSpline`` through every
+   ``MultiRegionSphereChordOracle`` and ``MultiRegionCylinderChordOracle``
+   (in ``trajectory_resolvent/chord_oracle.py``, retired at P1 step (e2) of
+   the characteristic reference campaign) reconstructed it along each chord with one ``CubicSpline`` through every
    radial node.  A smooth cubic fitted across a jump overshoots on both
    sides; refining the grid narrows the overshoot and leaves its amplitude,
    so the chord integrals converge only as the width.
@@ -8687,22 +8752,42 @@ older entries classify against.
    solve's 4 by 8 angular error doubled under the ω partition) and was not
    re-run because it is ``slow``.
 
-   **Module:** ``orpheus/derivations/continuous/trajectory_resolvent/chord_oracle.py``:
-   :func:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle._regionwise_cubic_spline`,
-   one spline per region, called by both multi-region oracles, each chord
-   segment reading its own region's piece.
+   **Module:** ``orpheus/derivations/continuous/trajectory_resolvent/chord_oracle.py``
+   (retired with its family at P1 step (e2), 2026-10-10). The fix was
+   ``_regionwise_cubic_spline``, one spline per region, called by both
+   multi-region oracles, each chord segment reading its own region's
+   piece.
 
-   **Caught by:**
-   ``tests/gates/derivations/test_trajectory_resolvent_regionwise_source.py::test_mr_oracle_first_leg_matches_the_line_integral``
-   (both geometries: the oracle at zero reflectivity against an
-   independent ``scipy.integrate.quad`` line integral of a piecewise-cubic
-   density; honest 3.0e-10 / 8.0e-10, one spline 5.3e-2 / 6.7e-2);
-   ``tests/gates/derivations/test_peierls_greens_function_mr.py::test_mr_sphere_k_converges_in_n_r``
-   (the increment ratio on :math:`n_r = 24, 36, 48`: 0.34 per region, 5.4
-   with one spline, against the first-order 0.5); and
-   ``tests/gates/derivations/test_peierls_greens_function_garcia2021.py::test_garcia_case1_phi_matches_at_point``
-   (at r = 5.0 and 5.5 cm under the re-derived 3e-3).  Each re-installation
-   of the one-spline interpolant in process reddens them.
+   **Caught by**, since the family's retirement:
+   ``tests/gates/derivations/test_characteristic_transport.py::test_the_outflow_of_a_per_region_polynomial_is_its_line_integral_attenuated_to_the_exit``
+   (T1: a line's outflow against an mpmath line integral of a per-region
+   cubic that jumps at both interfaces, 1e-13 relative) and
+   ``tests/gates/derivations/test_characteristic_reading.py::test_garcias_case_1_per_point``
+   (Garcia 2021 Case 1 per point of Table 5, within the table's rounding
+   plus ten times the reference's own ladder step). On the characteristic
+   reference the defect class is unspellable: the emission is a
+   per-panel polynomial and ``PanelBasis`` refuses panel ends that do not
+   refine the body's breakpoints. ``[M]`` 2026-10-10 (the step (e1b)
+   battery, ``scratch/characteristic_architecture/p1_step_e/ta_e1b/``): with
+   the interior interfaces not made panel ends, 24 of 24 T1 rows red by
+   that refusal; with the panels' region assignment shifted so that one
+   piece straddles an interface (arm ``err090-panel-region-shifted``), 22
+   of 24 red by value, the two green rows the declared b = 1.7 sphere
+   lines.
+
+   The catchers before the retirement were
+   ``test_mr_oracle_first_leg_matches_the_line_integral`` (the
+   ``test_trajectory_resolvent_regionwise_source`` module; the oracle at
+   zero reflectivity against an independent ``scipy.integrate.quad`` line
+   integral of a piecewise-cubic density: honest 3.0e-10 / 8.0e-10, one
+   spline 5.3e-2 / 6.7e-2), ``test_mr_sphere_k_converges_in_n_r`` (the
+   ``test_peierls_greens_function_mr`` module; the increment ratio on
+   :math:`n_r = 24, 36, 48`: 0.34 per region, 5.4 with one spline, against
+   the first-order 0.5) and ``test_garcia_case1_phi_matches_at_point``
+   (the ``test_peierls_greens_function_garcia2021`` module; at r = 5.0 and
+   5.5 cm under the re-derived 3e-3), all then under
+   ``tests/gates/derivations/`` and retired with the family. Each
+   re-installation of the one-spline interpolant in process reddened them.
 
    **Lesson.**  A reference is a discretisation with its own convergence,
    and a "known limitation" recorded without its measured effect on the
@@ -8738,9 +8823,9 @@ older entries classify against.
    (``d9425977``, 2026-10-10) the phase C, standoff and unified rows
    compare against the characteristic reference
    (:ref:`characteristic-sn-rows`), so a re-installed one-spline
-   interpolant no longer reaches them; the three catchers above are gates
-   of the trajectory-resolvent family itself and catch it there until step
-   (e) deletes the family.
+   interpolant no longer reaches them. Step (e2) (2026-10-10) deleted the
+   trajectory-resolvent family and the three gates that caught the defect
+   in it; the characteristic reference's catchers are named above.
 
 
 .. error-entry:: ERR-091
@@ -8751,7 +8836,9 @@ older entries classify against.
    of that step.
 
    **Module:** ``orpheus/derivations/continuous/trajectory_resolvent/billiard.py``
-   (``_dispatch_fixed_source``, the ``sphere_mr`` arm).
+   (``_dispatch_fixed_source``, the ``sphere_mr`` arm), retired with its
+   family at P1 step (e2) of the characteristic reference campaign (#405,
+   2026-10-10).
 
    **Failure mode:** **#3 (missing factor)**, in its reduction form: a sum
    over the group axis replaced by one of its terms.
@@ -8778,11 +8865,28 @@ older entries classify against.
    and the total is the named quantity it can carry; the per-group fluxes
    stay in the metadata (``phi_g``).
 
-   **Caught by:**
-   ``tests/gates/derivations/test_reference_body.py::test_billiard_sphere_mr_fixed_source_reports_every_group``
-   (a two-group fuel / moderator sphere). Mutation witness: restoring
-   ``phi_g[0]`` as the scalar flux reddens it (P1 step 2b's battery,
-   ``scratch/reference_architecture/p1step2b/mut/mut_laws.py``, arm ``err087``).
+   **Caught by**, since the family's retirement:
+   ``tests/gates/derivations/test_characteristic_reference.py::test_a_multigroup_source_answers_every_group``
+   (the old row's two-region sphere and two-group source, posed on the
+   characteristic reference). Three exact legs: the answer's flux holds one
+   row per group; the flux integral of a weight in both groups is the sum
+   of the two groups' integrals, and the two differ; a source in group 1
+   alone, on a body without upscatter, leaves group 0 exactly 0 at points
+   and integrated. ``[M]`` 2026-10-10 (the step (e1b) battery,
+   ``scratch/characteristic_architecture/p1_step_e/ta_e1b/``): group 0's
+   point reading returned for every group reddens it (1 of the 5 rows in
+   the run, this row alone); the flux integral reduced to its
+   group-0 term reddens it and the four rows of the reference's source door
+   (5 of 5).
+
+   The catcher before the retirement was
+   ``test_billiard_sphere_mr_fixed_source_reports_every_group`` (the
+   ``test_reference_body`` module under ``tests/gates/derivations/``; a
+   two-group fuel / moderator sphere), deleted with ``Billiard``. Its
+   mutation witness: restoring ``phi_g[0]`` as the scalar flux reddened it
+   (P1 step 2b's battery,
+   ``scratch/reference_architecture/p1step2b/mut/mut_laws.py``, arm
+   ``err087``).
 
    **Lesson.**  ⭐ **An arm no constructor can reach is untested code,
    whatever it looks like: making it reachable is the moment its first
@@ -8990,8 +9094,10 @@ older entries classify against.
    detached worktree, after = the working tree; the reference is the
    trajectory resolvent (:doc:`/theory/references/trajectory_resolvent`,
    ``solve_greens_function_slab`` / ``solve_greens_function_sphere`` at
-   their defaults), a continuous solution structurally independent of
-   S\ :sub:`N`:
+   their defaults; the family was retired at P1 step (e2) of the
+   characteristic reference campaign, 2026-10-10, and the characteristic
+   reference succeeds it), a continuous solution structurally independent
+   of S\ :sub:`N`:
 
    .. list-table:: The reported eigenvalue on a partially reflecting body
       :header-rows: 1

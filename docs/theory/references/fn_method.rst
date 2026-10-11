@@ -21,12 +21,14 @@ Key Facts
   (mathematics is symbolic; final root-find on
   :math:`\det M(R) = 0` is numerical).
 - **Position in the V&V stack**: structurally-independent cross-check
-  for :ref:`theory-singular-eigenfunction` and
-  :ref:`theory-trajectory-resolvent` on the Sood 2003 truth set.
+  for :ref:`theory-singular-eigenfunction` and for the characteristic
+  reference (:ref:`theory-characteristic-reference`, which succeeded the
+  trajectory resolvent, :ref:`theory-trajectory-resolvent`, on
+  2026-10-10) on the Sood 2003 truth set.
   The F_N method works in the Case ν-spectrum representation and never
   reduces to an integral equation in :math:`r` — genuinely
-  structurally-independent of Variant α (which works on bouncing
-  characteristics) above the trusted-library line. The
+  structurally-independent of the characteristic reference (which
+  integrates transport along lines) above the trusted-library line. The
   boundary-collocated sister method (B_N) is reserved at
   :ref:`theory-bn-method`.
 - **Coverage**: slab + sphere via unified assembler (parametrised by
@@ -68,13 +70,18 @@ registry function
 Why F_N at all?
 ================
 
-The Variant α Green's-function family (:doc:`/theory/references/trajectory_resolvent`) is
-ORPHEUS's primary continuous-:math:`\mu` reference for the
-angle-resolved transport eigenvalue and flux-shape problems in compact
-and 2-surface geometries. It already cross-checks against external
-benchmarks: Sood/Forster/Parsons ``Ua-1-0-CY`` cylinder critical
-radius at 8.5e-6 (see
-:func:`tests.gates.derivations.test_peierls_greens_function_cylinder_xverif_sood2003.test_a2_variant_alpha_agrees_with_sood2003_cylinder`).
+The characteristic reference (:doc:`/theory/references/characteristic`)
+is ORPHEUS's primary continuous-:math:`\mu` reference for the
+angle-resolved transport eigenvalue and flux-shape problems on a 1-D
+concentric body; it succeeded the Variant α Green's-function family
+(:doc:`/theory/references/trajectory_resolvent`), deleted on 2026-10-10,
+which held this role when this section was written. It cross-checks
+against external benchmarks: at the Sood/Forster/Parsons ``Ua-1-0-CY``
+cylinder critical radius it reads :math:`k = 1` within :math:`3\times
+10^{-5}` at rung 2 (`[M]` 2026-10-10: the error is 8.4e-6), the row
+``tests/gates/derivations/test_characteristic_independent_references.py``,
+``test_k_is_one_at_the_one_group_cylinders_published_critical_radius_in_the_fast_tier``
+(the old family's row read 8.5e-6).
 
 That cross-check, however, leans on a single published value. The
 F_N method gives a **second, structurally-independent reference
@@ -94,20 +101,22 @@ genuinely disjoint:
   homogeneous determinantal equation :math:`\det M(R) = 0` gives the
   critical dimension. There is no integral equation in :math:`r`;
   the radial profile is *output*, not *input*.
-* **Variant α** integrates the Boltzmann equation along bouncing
-  characteristics in :math:`(r, \mu, \phi)` phase space, with
-  analytical bounce-period summation closing the operator at the
-  surface. The discrete eigenvalue problem is in the surface
-  amplitude space; the radial profile is reconstructed *afterwards*
-  by :term:`quadrature` along characteristics.
+* **The characteristic reference** integrates the transport equation
+  along the body's lines, closes each line's walls by the least
+  solution of its cycle, and assembles a Galerkin pencil over the lines
+  on a graded panel basis; its dominant eigenpair is solved densely, and
+  the flux at a point is read by transporting the converged emission
+  along the lines through the point. (Variant α, which it succeeded,
+  summed bounce periods analytically on bouncing characteristics and
+  iterated on the surface amplitude.)
 
 When both methods agree at 5+ digits across the Sood 2003 catalogue,
 the verification chain is structurally far stronger than any single
 reference can provide. This is the same role the PS-1982 Nyström
-reference plays for Variant α at vacuum BC: an independent
-published-method anchor that exposes any structural bug Variant α
-might be hiding behind its own algebra (see
-:doc:`/theory/references/peierls_nystrom`).
+reference plays for the characteristic reference at vacuum BC (as it
+did for Variant α): an independent published-method anchor that
+exposes any structural bug the reference might be hiding behind its own
+algebra (see :doc:`/theory/references/peierls_nystrom`).
 
 .. _fn-method-moment-space:
 
@@ -564,14 +573,19 @@ moment floor. They do, to better than :math:`10^{-7}` absolute on
 the KLL Table VII flux ratios. See
 :func:`...sphere.flux_reconstruction.solve_kll_sphere_continuum_coefficient`.
 
-Relationship to ``Billiard`` (trajectory_resolvent)
-----------------------------------------------------
+Relationship to the characteristic reference
+--------------------------------------------
 
-The F_N method (``MomentSpace``) and the trajectory_resolvent method
-(``Billiard``) solve the **same boundary-value problem on the same
-physical configuration**. They are structurally independent reference
-solvers above the trusted-library line, and their cross-method gates
-anchor the verification chain for the Sood 2003 truth set.
+The F_N method (``MomentSpace``) and the characteristic reference
+(:doc:`/theory/references/characteristic`) solve the **same
+boundary-value problem on the same physical configuration**. They are
+structurally independent reference solvers above the trusted-library
+line, and their cross-method gates anchor the verification chain for
+the Sood 2003 truth set. Until 2026-10-10 this role was the trajectory
+resolvent's (``Billiard``, :doc:`/theory/references/trajectory_resolvent`),
+which the characteristic reference replaced; the section was written
+against it, and its argument carries over because both integrate along
+characteristics.
 
 But they attack different *mathematical structures*:
 
@@ -586,22 +600,24 @@ But they attack different *mathematical structures*:
   F_N method "sees" the angular flux through the lens of its
   spectral decomposition.
 
-* **Trajectory_resolvent (``Billiard``) works in phase space.** The
-  angular flux is carried along bouncing characteristics — discrete
-  trajectories in the :math:`(r, \mu)` plane that reflect at the
-  boundary — and the eigenvalue is extracted from power iteration
-  on the discretised resolvent operator. The natural variables are
-  :math:`(r, \mu)` directly. The trajectory_resolvent method "sees"
-  the angular flux as a phase-space density evolving by streaming
-  + collision along the bouncing rays.
+* **The characteristic reference works in phase space.** The
+  angular flux is carried along the body's lines, each closed at its
+  walls by the least solution of its cycle, and the eigenvalue is the
+  dominant eigenvalue of a Galerkin pencil assembled over the lines
+  (the retired trajectory resolvent extracted it by power iteration on
+  bouncing characteristics). The natural variables are the line and the
+  position along it. The method "sees" the angular flux as a
+  phase-space density evolving by streaming + collision along the
+  lines.
 
 The Sanchez–Chandrasekhar **three meanings of the Green's function**
 taxonomy (see :doc:`/theory/references/index`) locates both methods within
 the same Green's-function landscape. The F_N method is the
 **spectral** realisation of the resolvent: an eigenfunction
 expansion in the Case spectrum that converges to the Green's
-function as :math:`N \to \infty`. Trajectory_resolvent is the
-**path-integral** realisation: a sum over bouncing characteristics
+function as :math:`N \to \infty`. The characteristic reference, like
+the trajectory resolvent before it, is the **path-integral**
+realisation: a sum over bouncing characteristics
 weighted by attenuation that converges to the same Green's
 function as the trajectory quadrature is refined. The two
 realisations agree on every shared observable to machine precision
@@ -611,17 +627,17 @@ Why does the cross-check matter? **Structural independence above
 the trusted-library line.** Both methods consume ``numpy`` and
 ``scipy`` (trusted upstream); neither shares any in-house primitive
 above that line. A bug in the F_N method's moment integrals
-(``B_α``, ``A_α``) would NOT be reflected in the trajectory_resolvent
-power-iteration's bouncing-trajectory integral. A bug in the
-trajectory_resolvent's bounce-period accumulator would NOT be
-reflected in the F_N method's collocation matrix. The two methods
+(``B_α``, ``A_α``) would NOT be reflected in the characteristic
+reference's traversal integrals. A bug in the characteristic
+reference's line closure would NOT be reflected in the F_N method's
+collocation matrix. The two methods
 agreeing to :math:`10^{-5}` absolute on the Sood ``Ua-1-0-SP``
 critical radius — with one route through Case eigenfunctions and
 one through phase-space rays — is **structural** evidence the
 common physical answer is correct.
 
-This is the precise sense in which ``MomentSpace`` and ``Billiard``
-are **the same method twice over**: they answer the same question
+This is the precise sense in which ``MomentSpace`` and the
+characteristic reference are **the same method twice over**: they answer the same question
 through different mathematics, and only the joint agreement
 provides correctness evidence at the L1 verification level (see
 ``.claude/skills/vv-principles/SKILL.md`` § "The three pillars of
@@ -647,7 +663,8 @@ etc.). What the class adds:
    :class:`~orpheus.derivations.common.solution_types.CriticalSolution`,
    :meth:`MomentSpace.reconstruct_flux` returns
    :class:`~orpheus.derivations.common.solution_types.FluxSolution`,
-   and ``Billiard`` populates the same types. Cross-method
+   and the other math-heart generators populate the same types
+   (``Billiard`` did, until its deletion on 2026-10-10). Cross-method
    consumers (e.g., :mod:`tests.gates.cross_method.adapters`) can hold a
    ``CriticalSolution`` without knowing which pillar produced it.
 3. **Math-rich documentation locality**. The class docstring +
@@ -663,10 +680,11 @@ etc.). What the class adds:
    ``float.hex()`` exact-bit comparison. No accuracy drift from
    the wrapper layer.
 
-The class is the 2nd concrete instance of the math-heart pattern
-across the project. The 1st (``Billiard``) lands in parallel.
+The class was the 2nd concrete instance of the math-heart pattern
+across the project; the 1st, ``Billiard``, landed in parallel and was
+deleted with the trajectory-resolvent family on 2026-10-10.
 The unifying Protocol over the math-heart classes themselves —
-``MomentSpace``, ``Billiard``, the upcoming ``Spectrum`` for
+``MomentSpace``, ``Billiard`` (then), ``Spectrum`` for
 singular_eigenfunction, ``LegendreBlock`` for carlvik_galerkin,
 ``CPMesh`` for production CP — is **deferred until both instances
 are working and patterns of variation are empirically observed**
@@ -1115,7 +1133,8 @@ other. Foundation-test gate:
 When the F_N slab/sphere/cylinder solvers are added, the cross-check
 extends to:
 
-   F_N reference solver and Variant α reference solver agree on the
+   F_N reference solver and the Variant α reference solver (since
+   2026-10-10, the characteristic reference) agree on the
    same physics to ≥ 5 digits for every overlapping Sood case
    (sphere primary, cylinder via :ref:`theory-singular-eigenfunction`,
    slab via :func:`~orpheus.derivations.continuous.fn_method.slab.one_group.solve_fn_slab_bare_critical`).
@@ -1600,33 +1619,37 @@ Cross-check claim — second slice
 
 The second slice's load-bearing cross-check claims:
 
-* **Slab Ua-1-0-SL**: F_N slab solver and Variant α slab solver
-  agree on :math:`k_{\rm eff} = 1` at the Sood truth :math:`a_c =
-  0.93772556` mfp to ≤ 5e-5. F_N at :math:`N = 10` reaches ~5e-6;
-  Variant α slab at :math:`(n_x, n_\mu) = (48, 128)` reaches ~1e-5.
-  Cross-check tolerance 5e-5 is the safe envelope. Foundation-test
-  gate:
-  :func:`tests.gates.derivations.test_fn_sood2003_slab_xverif.test_fn_slab_vs_variant_alpha_at_sood_ua_1_0_sl`.
+* **Slab Ua-1-0-SL**: the F_N slab solver and the characteristic
+  reference agree on :math:`k_{\rm eff} = 1` at the Sood truth
+  :math:`a_c = 0.93772556` mfp to ≤ 5e-5. F_N at :math:`N = 10` reaches
+  ~5e-6; the characteristic reference at rung 4 reads
+  :math:`k = 1 - 3.5\times 10^{-6}` at F_N's thickness, converged
+  (rungs 3 and 4 agree to 1.2e-8; `[M]` 2026-10-10, the test's
+  docstring), so the residual is F_N's own. Cross-check tolerance 5e-5
+  is the envelope kept from the Variant α era (Variant α's slab at
+  :math:`(n_x, n_\mu) = (48, 128)` reached ~1e-5). Gate:
+  :func:`tests.gates.derivations.test_fn_sood2003_slab_xverif.test_fn_slab_vs_the_characteristic_slab_at_sood_ua_1_0_sl`.
 
 * **Sphere Ua-1-0-SP**: F_N sphere (Siewert-Thomas 1986) returns
   :math:`R_c = 2.4248249802` mfp to ≤ 1e-5 (achieved 3.6e-8 at
-  :math:`N = 10`); Variant α sphere at the F_N predicted radius
-  gives :math:`k_{\rm eff} = 1` to ≤ 1e-5 (achieved 4.2e-6).
-  Foundation-test gate:
-  :func:`tests.gates.derivations.test_fn_sood2003_sphere_xverif.test_fn_sphere_vs_variant_alpha_sphere_at_sood_ua_1_0_sp`.
+  :math:`N = 10`); the characteristic sphere at the F_N predicted
+  radius gives :math:`k_{\rm eff} = 1` to ≤ 1e-5, met by 2.3e-8 at
+  rung 4, and at the truth radius to ≤ 5e-5, met by 1.1e-8 (`[M]`
+  2026-10-10, the module docstring; Variant α achieved 4.2e-6). Gate:
+  :func:`tests.gates.derivations.test_fn_sood2003_sphere_xverif.test_fn_sphere_vs_the_characteristic_sphere_at_sood_ua_1_0_sp`.
 
 Together these establish the **structural-independence pillar** for
-the Variant α slab + sphere prototypes against published-method
-references that produced the Sood/KLL truth values. The two methods
-are mathematically disjoint: F_N method uses Case singular
-eigenfunctions + Wiener-Hopf factorisation; Variant α uses
-bouncing-trajectory operator with rank-2 closure. Their agreement at
-the same physics is the strongest L1 evidence currently available in
-ORPHEUS for either method.
+the characteristic reference's slab and sphere (Variant α's until
+2026-10-10) against published-method references that produced the
+Sood/KLL truth values. The two methods are mathematically disjoint:
+the F_N method uses Case singular eigenfunctions + Wiener-Hopf
+factorisation; the characteristic reference integrates along lines
+with each line's cycle closed at its walls. Their agreement at the same
+physics is L1 evidence for both.
 
 The sphere upgrade from PS-1982 wrapper (previous slice) to true F_N
 (Siewert-Thomas 1986) makes the cross-check **structurally stronger**:
-PS-1982 and Variant α both reduce the Peierls integral equation by
+PS-1982 and Variant α both reduced the Peierls integral equation by
 different algebraic paths (procedurally independent only), whereas
 F_N method works in the Case singular-eigenfunction representation
 and never reduces to an integral equation in :math:`r` (genuinely
@@ -2616,7 +2639,8 @@ Internal references:
   ``.claude/agent-memory/numerics-investigator/atkinson_path_ai_log_kernel.md``.
 * Method-implementer closeout:
   ``.claude/agent-memory/method-implementer/fn_method_kinf_first_slice.md``.
-* :doc:`/theory/references/trajectory_resolvent` — companion Variant α reference family.
+* :doc:`/theory/references/characteristic` — the characteristic reference, the companion line-integration reference;
+  :doc:`/theory/references/trajectory_resolvent` — the Variant α family it succeeded.
 * :doc:`/theory/references/singular_eigenfunction` — Atalay 1997 + WM-72 reflected /
   cylinder family.
 * :doc:`/theory/references/peierls_nystrom` — direct Peierls-integral reference solver

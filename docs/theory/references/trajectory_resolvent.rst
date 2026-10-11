@@ -28,7 +28,7 @@ Key Facts
 =========
 
 **Read this before modifying any solver in**
-:mod:`orpheus.derivations.continuous.trajectory_resolvent`.
+``orpheus.derivations.continuous.trajectory_resolvent``.
 
 - **What this is**: a 6-geometry × 2-orbit-space-class family of
   angle-resolved Green's-function reference solvers, all mounted on
@@ -152,7 +152,7 @@ admitting that the OUTPUT is mathematically a Green's function.
    2-orbit-space-class family** of angle-resolved Green's-function
    reference solvers, all mounted on a single shared resolvent +
    closure primitive
-   (:mod:`orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core`).
+   (``orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core``).
    The two orbit-space classes are one-surface-compact and
    two-surface — see :ref:`orbit-space-m-g-classification` for the
    M/G signature that determines closure rank.
@@ -2478,7 +2478,7 @@ Source code, tests, and provenance
   :func:`derive_T00_equals_P_ss_cylinder` (V_α2_cyl);
   :func:`derive_alpha_zero_kernel_reduction_cylinder` (V_α3_cyl).
 - **Branch-2 production**:
-  :mod:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder`
+  ``orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder``
   (~554 LoC).
   :func:`solve_greens_function_cylinder` (1G);
   :func:`solve_greens_function_cylinder_mg` (MG); plus internal
@@ -3528,7 +3528,7 @@ hand-written Python (``denom = 1 - alpha * np.exp(-tau_period);
 psi_surf = alpha * B / denom; psi_new = F + np.exp(-tau_first) *
 psi_surf``). Phase 2 (commits ``efbae9c`` / ``92d4f10`` / ``166b9ae``)
 extracted this common closure into a shared module
-:mod:`~orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core`
+``orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core``
 with two pure functions:
 
 - :func:`~orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core.compute_resolvent_T`
@@ -3682,7 +3682,7 @@ read should reinforce one more piece of that web.
 
 The :class:`~orpheus.derivations.continuous.trajectory_resolvent.billiard.Billiard`
 class in
-:mod:`~orpheus.derivations.continuous.trajectory_resolvent.billiard`
+``orpheus.derivations.continuous.trajectory_resolvent.billiard``
 is the code-side embodiment of this section. Its docstring
 compresses the load-bearing intuition; this section derives it.
 
@@ -3979,7 +3979,7 @@ advantages:
    slab-asymmetric. Only the *chord algebra* (computing :math:`L_{\rm
    period}` from :math:`b` and the geometry parameters) is
    geometry-specific. This is why
-   :mod:`~orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core`
+   ``orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core``
    is byte-equal-shared across all six geometries.
 
 3. **Ergodic-limit predictions.** The ergodic limit :math:`\alpha
@@ -4142,7 +4142,7 @@ The chord oracle — base atlas of the fiber bundle
 Each billiard's *base atlas* — the geometry-specific chord arithmetic
 that maps the abstract orbit space :math:`M/G` into ray-traversal data
 on the original manifold :math:`M` — is exposed as a first-class
-object in :mod:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle`.
+object in ``orpheus.derivations.continuous.trajectory_resolvent.chord_oracle``.
 
 A :class:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle.ChordOracle`
 is a Protocol with a single method :meth:`apply_operator(source_profile,
@@ -4184,7 +4184,7 @@ R2 unified the 12 result dataclasses behind the
 :class:`~orpheus.derivations.continuous.trajectory_resolvent.billiard.Billiard`
 math-rich facade; R3 extracts the chord-arithmetic primitives. The
 oracle still lives inside the Variant-α package, at
-:mod:`~orpheus.derivations.continuous.trajectory_resolvent.chord_oracle`;
+``orpheus.derivations.continuous.trajectory_resolvent.chord_oracle``;
 the R4 step that would promote it to a shared
 ``orpheus.derivations.common.chord_oracle`` — so that
 :mod:`~orpheus.derivations.continuous.peierls_nystrom` and a future
@@ -4215,7 +4215,7 @@ The reference's reading: the natural extension of the emission density
 The multi-region sphere and cylinder are reference solutions:
 ``trajectory_resolvent_reference(specification, quadrature, *, max_iter,
 tol, initial_k)`` in
-:mod:`orpheus.derivations.continuous.trajectory_resolvent.reference`
+``orpheus.derivations.continuous.trajectory_resolvent.reference``
 returns a :class:`~orpheus.reference.solution.ReferenceSolution` whose
 derivation is
 :class:`~orpheus.derivations.continuous.trajectory_resolvent.reference.TrajectoryResolventDerivation`
@@ -4985,7 +4985,7 @@ Source code, tests, and provenance
   :func:`derive_T00_equals_P_ss_slab` (V_α2_slab);
   :func:`derive_alpha_zero_kernel_reduction_slab` (V_α3_slab).
 - **Branch-2 production**:
-  :mod:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab`
+  ``orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab``
   (~250 LoC, **post-ERR-035 thin wrapper**) —
   :func:`solve_greens_function_slab` and
   :func:`solve_greens_function_slab_mg` are wrappers that delegate
@@ -5463,7 +5463,7 @@ Source code, tests, and provenance
   :func:`derive_rank2_resolvent_slab_asymmetric` (V_α2_slab_asym);
   :func:`derive_alpha_zero_kernel_reduction_slab_asymmetric` (V_α3_slab_asym).
 - **Branch-2 production**:
-  :mod:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab_asymmetric`
+  ``orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab_asymmetric``
   (~452 LoC).
   :func:`solve_greens_function_slab_asymmetric` (1G);
   :func:`solve_greens_function_slab_asymmetric_mg` (MG); plus
@@ -5843,7 +5843,7 @@ Source code, tests, and provenance
   :func:`derive_rank2_resolvent_hollow_sphere` (V_α2_hollow_sph);
   :func:`derive_alpha_zero_kernel_reduction_hollow_sphere` (V_α3_hollow_sph).
 - **Branch-2 production**:
-  :mod:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_hollow_sphere`.
+  ``orpheus.derivations.continuous.trajectory_resolvent.greens_function_hollow_sphere``.
   :func:`solve_greens_function_hollow_sphere` (1G);
   :func:`solve_greens_function_hollow_sphere_mg` (MG).
 - **Symbolic foundation tests**:
@@ -6229,7 +6229,7 @@ Source code, tests, and provenance
   :func:`derive_3d_chord_scaling_annulus` (V_α2_annulus.aux —
   axial-correction structural identity).
 - **Branch-2 production**:
-  :mod:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_annulus`.
+  ``orpheus.derivations.continuous.trajectory_resolvent.greens_function_annulus``.
   :func:`solve_greens_function_annulus` (1G);
   :func:`solve_greens_function_annulus_mg` (MG).
 - **Symbolic foundation tests**:
@@ -6331,7 +6331,7 @@ The Variant α implementation spans three files:
   - :func:`~orpheus.derivations.continuous.characteristic.origins.specular.greens_function.derive_alpha_zero_kernel_reduction`
     — V_α3 vacuum-BC kernel reduction.
 
-- :mod:`orpheus.derivations.continuous.trajectory_resolvent.greens_function` —
+- ``orpheus.derivations.continuous.trajectory_resolvent.greens_function`` —
   production solver suite. About 1300 lines.
 
   - :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function._apply_operator_with_source_profile`

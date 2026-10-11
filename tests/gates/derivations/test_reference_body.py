@@ -8,8 +8,9 @@ total and knows no solver. Each generator matches on the shape and refuses
 the ones it does not serve through the one door,
 :func:`~orpheus.derivations.common.reference_body.refuse_unserved`. Before
 step 2b one shared refusal blocked every multi-material body, including the
-ones a solver under the generator already solves: Billiard's multi-region
-sphere and cylinder, its hollow sphere and annulus (#190, #421), and
+ones a solver under the generator already solves: the trajectory resolvent's
+(``Billiard``, deleted in step (e2) of the characteristic-reference campaign)
+multi-region sphere and cylinder, its hollow sphere and annulus (#190, #421), and
 MomentSpace's reflected slab (Neshat and Maiorino 1980, Sood's problem 4,
 which only a test adapter reached). The user's rulings of 2026-09-29 are in
 ``.claude/plans/reference_cache.md``, "P1 step 2b".
@@ -26,11 +27,10 @@ from orpheus.derivations.common.reference_body import (
     ReflectedSlab,
     reference_body,
 )
-from orpheus.derivations.common.xs_library import get_mixture, get_xs, make_mixture
+from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.derivations.continuous.fn_method.moment_space import MomentSpace
 from orpheus.derivations.continuous.galerkin_spectral.basis_space import BasisSpace
 from orpheus.derivations.continuous.singular_eigenfunction.spectrum import Spectrum
-from orpheus.derivations.continuous.trajectory_resolvent.billiard import Billiard
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 
 pytestmark = pytest.mark.foundation
@@ -144,15 +144,6 @@ class TestTheClassification:
 _ONE_GROUP = {0: get_mixture("A", "1g"), 1: get_mixture("B", "1g")}
 
 
-def _isotropic(key: str, groups: str = "1g"):
-    """The library mixture with its P0 scattering only: ``Billiard`` refuses a higher moment (#405 P2 step 7b.2.3)."""
-    xs = get_xs(key, groups)
-    return make_mixture(sig_t=xs["sig_t"], sig_c=xs["sig_c"], sig_f=xs["sig_f"], nu=xs["nu"], chi=xs["chi"], sig_s=xs["sig_s"])
-
-
-#: The 1-group materials for ``Billiard``, which solves isotropic scattering only.
-_ONE_GROUP_ISOTROPIC = {0: _isotropic("A"), 1: _isotropic("B")}
-
 _SHAPES = {
     "hollow-sphere": lambda: _geometry(_SPH, (0.5, 2.0), (0,), (BC.reflective, BC.vacuum)),
     "layered-sphere": lambda: _geometry(_SPH, (0.0, 1.0, 2.0), (0, 1)),
@@ -175,8 +166,6 @@ _REFUSALS = [
      ["hollow-sphere", "layered-sphere", "layered-slab", "reflected-slab", "hollow-layered-sphere"]),
     ("MomentSpace", lambda g: MomentSpace(geometry=g, materials=_ONE_GROUP),
      ["hollow-sphere", "layered-sphere", "layered-slab", "hollow-layered-sphere"]),
-    ("Billiard", lambda g: Billiard(geometry=g, materials=_ONE_GROUP_ISOTROPIC),
-     ["layered-slab", "reflected-slab", "hollow-layered-sphere"]),
 ]
 
 
@@ -239,88 +228,6 @@ def test_moment_space_routes_a_reflected_slab():
     )
     assert solution.parameter_value == bare.tau_critical_mfp
     assert solution.parameter_kind == "core_half_thickness_mfp"
-
-
-_SMALL_SPHERE = {"n_r": 8, "n_mu": 8, "n_traj_quad": 16}
-_SMALL_CYLINDER = {"n_r": 6, "n_mu_axial": 4, "n_phi_az": 8, "n_traj_quad": 16}
-
-
-#: A two-group fuel | moderator layering written out as arrays ([from, to]
-#: scattering, the solvers' and ``make_mixture``'s one orientation). The
-#: mixtures are built from these arrays, and the bare solver is handed the
-#: SAME arrays directly, so the gate does not share production's stacking.
-_FUEL = dict(sig_t=[0.5, 1.2], sig_s=[[0.30, 0.15], [0.0, 0.90]],
-             sig_f=[0.01, 0.20], nu=[2.5, 2.5], chi=[1.0, 0.0])
-_MODERATOR = dict(sig_t=[0.6, 1.5], sig_s=[[0.40, 0.18], [0.0, 1.45]],
-                  sig_f=[0.0, 0.0], nu=[0.0, 0.0], chi=[0.0, 0.0])
-
-
-def _mixture_of(xs):
-    sig_t, sig_s, sig_f = (np.array(xs[k], dtype=float) for k in ("sig_t", "sig_s", "sig_f"))
-    return make_mixture(
-        sig_t=sig_t, sig_c=sig_t - sig_f - sig_s.sum(axis=1), sig_f=sig_f,
-        nu=np.array(xs["nu"], dtype=float), chi=np.array(xs["chi"], dtype=float),
-        sig_s=sig_s,
-    )
-
-
-@pytest.mark.parametrize(
-    "coord, quadrature, solver_name",
-    [
-        (_SPH, _SMALL_SPHERE, "sphere_mr"),
-        (_CYL, _SMALL_CYLINDER, "cylinder_mr"),
-    ],
-    ids=["layered-sphere", "layered-cylinder"],
-)
-def test_billiard_routes_a_layered_solid_body(coord, quadrature, solver_name):
-    """#190's done-when: the facade's k is the bare multi-region solver's,
-    bit for bit, on a two-group fuel / moderator body."""
-    from orpheus.derivations.continuous.trajectory_resolvent import (
-        greens_function as gf_sphere,
-        greens_function_cylinder as gf_cyl,
-    )
-
-    materials = {0: _mixture_of(_FUEL), 1: _mixture_of(_MODERATOR)}
-    g = _geometry(coord, (0.0, 1.0, 2.0), (0, 1), (BC.reflective,))
-    b = Billiard(geometry=g, materials=materials, quadrature=dict(quadrature))
-    assert b.geometry_kind == solver_name
-    k_facade = b.solve_critical().eigenvalue
-    bare = gf_sphere.solve_greens_function_sphere_mr if coord is _SPH else gf_cyl.solve_greens_function_cylinder_mr
-    k_bare = bare(
-        radii=np.array([1.0, 2.0]),
-        sigma_t=np.array([_FUEL["sig_t"], _MODERATOR["sig_t"]]),
-        sigma_s=np.array([_FUEL["sig_s"], _MODERATOR["sig_s"]]),
-        nu_sigma_f=np.array(_FUEL["sig_f"]) * np.array(_FUEL["nu"])[None, :] * np.array([[1.0], [0.0]]),
-        chi=np.array([_FUEL["chi"], _MODERATOR["chi"]]),
-        alpha=1.0, **quadrature,
-    ).k_eff
-    assert k_facade == k_bare
-
-
-@pytest.mark.parametrize(
-    "coord, kind", [(_SPH, "hollow_sphere"), (_CYL, "annulus")], ids=["hollow-sphere", "annulus"],
-)
-def test_billiard_routes_a_hollow_body(coord, kind):
-    """#421: the hollow arms are reachable from the constructor."""
-    g = _geometry(coord, (0.5, 2.0), (0,), (BC.reflective, BC.vacuum))
-    b = Billiard(geometry=g, materials={0: _isotropic("A")})
-    assert b.geometry_kind == kind
-    assert b.geometry_payload == {"R_in": 0.5, "R_out": 2.0}
-
-
-def test_billiard_reads_the_body_material():
-    """Billiard takes its cross sections from the body's material id, not
-    from key 0 (qa, 2026-09-29: with mat_ids (3,) and materials {0: A, 3: C}
-    it returned A's k_inf)."""
-    def sphere(mat_id: int) -> StructuredGeometry:
-        return _geometry(_SPH, (0.0, 2.0), (mat_id,), (BC.reflective,))
-
-    decoy, body = _isotropic("A"), _isotropic("B")
-    read = Billiard(geometry=sphere(3), materials={0: decoy, 3: body})
-    reference = Billiard(geometry=sphere(0), materials={0: body})
-    assert read.xs_payload == reference.xs_payload
-    with pytest.raises(ValueError, match="the body's material id 3"):
-        Billiard(geometry=sphere(3), materials={0: body})
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -397,26 +304,10 @@ class TestTheLawsAreServed:
         with pytest.raises(NotImplementedError, match="reflected cylinder"):
             Spectrum(geometry=g, materials=_ONE_GROUP)
 
-    def test_billiard_reads_a_slab_with_different_faces_as_two_surface(self):
-        g = _geometry(_SLAB, (0.0, 2.0), (0,), (BC("partial", {"albedo": 0.7}), BC.reflective))
-        b = Billiard(geometry=g, materials=_ONE_GROUP_ISOTROPIC)
-        assert b.geometry_kind == "slab_asymmetric"
-        assert b.alpha_payload == {"alpha_left": 0.7, "alpha_right": 1.0}
-        assert b.closure_rank == 2
-
-    def test_billiard_reads_a_hollow_body_s_two_laws(self):
-        """qa's 2026-09-29 row: a declared (reflective, vacuum) hollow sphere
-        is solved with those albedos, never with a separate parameter."""
-        g = _geometry(_SPH, (0.5, 2.0), (0,), (BC.reflective, BC.vacuum))
-        assert Billiard(geometry=g, materials=_ONE_GROUP_ISOTROPIC).alpha_payload == {
-            "alpha_in": 1.0, "alpha_out": 0.0,
-        }
-
     @pytest.mark.parametrize(
         "build",
-        [lambda g: Spectrum(geometry=g, materials=_ONE_GROUP),
-         lambda g: Billiard(geometry=g, materials=_ONE_GROUP_ISOTROPIC)],
-        ids=["Spectrum", "Billiard"],
+        [lambda g: Spectrum(geometry=g, materials=_ONE_GROUP)],
+        ids=["Spectrum"],
     )
     def test_a_white_law_is_refused(self, build):
         with pytest.raises(NotImplementedError, match="another angular shape"):
@@ -456,17 +347,3 @@ class TestReflectedSlabRoute:
         assert doubled.parameter_value == unit.parameter_value
 
 
-@pytest.mark.catches("ERR-091")
-def test_billiard_sphere_mr_fixed_source_reports_every_group():
-    """ERR-091: the multi-region sphere's fixed-source arm read the group
-    count as ``reshape(-1, 1).shape[1]`` (always 1) and returned group 0 as
-    the scalar flux. On a two-group source the count is 2 and the scalar
-    flux is the total, the sum over groups."""
-    materials = {0: _mixture_of(_FUEL), 1: _mixture_of(_MODERATOR)}
-    g = _geometry(_SPH, (0.0, 1.0, 2.0), (0, 1), (BC.vacuum,))
-    b = Billiard(geometry=g, materials=materials, quadrature=dict(_SMALL_SPHERE))
-    flux = b.solve_fixed_source(external_source=np.array([[1.0, 0.5], [0.0, 0.0]]))
-    phi_g = flux.metadata["phi_g"]
-    assert flux.metadata["n_groups"] == 2
-    assert phi_g.shape[0] == 2
-    np.testing.assert_array_equal(flux.scalar_flux, phi_g.sum(axis=0))

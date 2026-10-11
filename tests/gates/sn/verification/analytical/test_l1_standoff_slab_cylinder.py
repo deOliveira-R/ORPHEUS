@@ -146,7 +146,7 @@ _CYL_SUPPORTS = (
 @pytest.mark.slow
 @pytest.mark.rests_on(*_CYL_SUPPORTS)
 @awaits_cylinder_bound
-def test_cylinder_l1_sweep_vs_trajectory_resolvent() -> None:
+def test_cylinder_l1_sweep_vs_characteristic_reference() -> None:
     r"""**Cylinder Leg 2** — sweep ≡ the characteristic reference.
 
     Production source-iteration path (the ``(L+C)`` strategy sweep /

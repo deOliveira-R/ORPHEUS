@@ -19,10 +19,12 @@ Sub-packages:
   integral form via high-precision Nyström quadrature; the active
   reference for heterogeneous CP verification (scalar-flux integral
   equation).
-- :mod:`~orpheus.derivations.continuous.trajectory_resolvent` —
-  Peierls Variant α angle-resolved Green's-function references
-  (rank-1 resolvent shared between sphere and cylinder kernels;
-  α ∈ [0, 1] interpolates vacuum and specular BC).
+- :mod:`~orpheus.derivations.continuous.characteristic` — the
+  characteristic reference: transport integrated along the lines of a
+  concentric body (slab, cylinder, sphere, hollow bodies), closed by the
+  boundary laws and solved as a Galerkin pencil; the reference of the
+  SN rows. It superseded the trajectory-resolvent family (Variant α),
+  retired in P1 step (e2) of #405.
 - :mod:`~orpheus.derivations.continuous.mms` — Method of Manufactured
   Solutions for S\\ :sub:`N` and MOC.
 - :mod:`~orpheus.derivations.continuous.cases` — per-method case

@@ -9,8 +9,8 @@ Key facts
 
 * **Two roles, one input axis.** ORPHEUS solvers split into
   *discrete production* (CP, SN, MOC, MC, ``solve_homogeneous_infinite``)
-  and *continuous reference* (Billiard, MomentSpace, Spectrum,
-  BasisSpace). Both consume the **same geometry layer** —
+  and *continuous reference* (the characteristic reference, MomentSpace,
+  Spectrum, BasisSpace). Both consume the **same geometry layer** —
   :class:`~orpheus.geometry.structured_geometry.StructuredGeometry` +
   ``materials: dict[int, Mixture]`` — but diverge on whether they
   want a discrete mesh.
@@ -103,11 +103,13 @@ Key facts
   coordinate system, the cells, a region label per cell with the region →
   material map, and a law per boundary face, and no geometry; the geometry owns the measure, which
   has one definition (:ref:`structured-geometry-mesh`).
-* Reference solvers (``Billiard``, ``MomentSpace``, ``Spectrum``,
-  ``BasisSpace``) take ``(geometry: StructuredGeometry, materials,
-  **method_kwargs)`` directly via ``__init__``. They never see a
-  mesh. They never see ``n_cells``. All four read the body they were
-  handed through one function,
+* Reference solvers (``MomentSpace``, ``Spectrum``, ``BasisSpace``)
+  take ``(geometry: StructuredGeometry, materials,
+  **method_kwargs)`` directly via ``__init__``; the characteristic
+  reference takes the geometry inside a
+  :class:`~orpheus.specification.specification.GeometrySpecification`.
+  None of them sees a mesh or ``n_cells``. The three generators read
+  the body they were handed through one function,
   :func:`~orpheus.derivations.common.reference_body.reference_body`,
   which classifies every geometry as exactly one of four shapes (a
   homogeneous body, a hollow body of one material, a symmetric
@@ -119,7 +121,11 @@ Key facts
   one door,
   :func:`~orpheus.derivations.common.reference_body.refuse_unserved`
   (the table of which generator serves which shape under which laws:
-  :ref:`structured-geometry-reference-body`).
+  :ref:`structured-geometry-reference-body`). The characteristic
+  reference reads no body shape: it reads each boundary point's law
+  from the law's two factors, the deck and the response
+  (:ref:`characteristic-walls`), and poses every concentric body, solid
+  or hollow, of any number of regions.
 * Discrete production solvers take ``(materials, mesh, params)``
   where ``mesh`` is built by a ``Mesher``.
 * Slab convention: :attr:`StructuredGeometry.domain_extent_cm` is
@@ -1476,12 +1482,17 @@ cylinder refused).
 Reference generators read one of four body shapes, and its laws
 ================================================================
 
-Four continuous reference generators take a geometry directly:
+Three continuous reference generators take a geometry directly:
 ``Spectrum`` (singular eigenfunctions, :doc:`/theory/references/singular_eigenfunction`),
-``MomentSpace`` (F\ :sub:`N`, :doc:`/theory/references/fn_method`),
-``BasisSpace`` (Galerkin spectral, :doc:`/theory/references/galerkin_spectral`)
-and ``Billiard`` (trajectory resolvent,
-:doc:`/theory/references/trajectory_resolvent`). Each wraps a set of
+``MomentSpace`` (F\ :sub:`N`, :doc:`/theory/references/fn_method`)
+and ``BasisSpace`` (Galerkin spectral, :doc:`/theory/references/galerkin_spectral`).
+A fourth, ``Billiard`` (the trajectory resolvent,
+:doc:`/theory/references/trajectory_resolvent`), read the same
+classification until P1 step (e2) of the characteristic reference
+campaign (2026-10-10) deleted it with its family; its successor, the
+characteristic reference (:doc:`/theory/references/characteristic`),
+does not read this classification (the paragraph after the list of
+shapes below). Each of the three wraps a set of
 solver functions, and each solver function solves a few body shapes:
 the shapes the reference literature states its benchmarks on. A
 :class:`~orpheus.geometry.structured_geometry.StructuredGeometry` can
@@ -1512,8 +1523,9 @@ over that population:
 
 * a **homogeneous body**, which every family solves;
 * a **hollow body of one material**, which the trajectory resolvent
-  solves (``solve_greens_function_hollow_sphere`` and
-  ``solve_greens_function_annulus``);
+  solved (``solve_greens_function_hollow_sphere`` and
+  ``solve_greens_function_annulus``, retired) and none of the three
+  generators solves;
 * a **symmetric reflected slab**, which the F\ :sub:`N` reflected-slab
   solver of Neshat and Maiorino (1980) solves in one group
   (:func:`~orpheus.derivations.continuous.fn_method.slab.reflected.solve_fn_slab_reflected_critical`,
@@ -1521,8 +1533,17 @@ over that population:
   Sood's problems 4, 25 and 26 have this shape;
 * a **layered body**, everything else: the reflected cylinders and
   spheres, which the trajectory resolvent's multi-region solvers
-  solve when the body is solid, and the one-sided and four-region
-  slabs (problems 3 and 30), which no solver in the tree solves.
+  solved when the body was solid, and the one-sided and four-region
+  slabs (problems 3 and 30), which no generator under this
+  classification solves.
+
+The characteristic reference, which replaced the trajectory resolvent,
+poses all four shapes and the layered slabs without reading the
+classification: a body is its breakpoints and region map, and a wall is
+read from its law (:ref:`characteristic-walls`), with its own refusals
+(:ref:`characteristic-walls-refusals`). The classification therefore
+describes what the three generators above solve, not what the tree
+solves.
 
 The reflected slab is a shape of its own, rather than a layered slab
 with a predicate beside it, because it is the one layered slab a
@@ -1598,7 +1619,8 @@ solvers. Kept apart, a solver that lands changes one owner's match,
 never the classification, and the breakpoints and materials are read
 in one place, so "hollow", "layered" and "symmetric" cannot be derived
 four slightly different ways. The alternative the ruling rejected was
-a reader per generator with no shared type: each of the four would
+a reader per generator with no shared type: each of the four generators
+of the time would
 re-derive those three predicates from breakpoints and material ids,
 which is the twin the shared reading exists to prevent.
 
@@ -1607,12 +1629,12 @@ The boundary laws: one specular albedo per boundary point
 
 The body shape is half of what a generator is handed; the other half is
 the law at each boundary point of the geometry. Every solver under these
-four generators parametrises a boundary the same way, by one **specular
+three generators parametrises a boundary the same way, by one **specular
 albedo** :math:`\alpha \in [0, 1]`: the fraction of the arriving
 angular flux returned into the mirror direction, :math:`\alpha = 0` for
 vacuum and :math:`\alpha = 1` for a perfect mirror. The singular
-eigenfunction solvers call it :math:`R` (Atalay 1997), the trajectory
-resolvent :math:`\alpha`. A law is read as that albedo in one place,
+eigenfunction solvers call it :math:`R` (Atalay 1997); the retired
+trajectory resolvent called it :math:`\alpha`. A law is read as that albedo in one place,
 :func:`~orpheus.derivations.common.reference_body.specular_albedo`
 (and :func:`~orpheus.derivations.common.reference_body.specular_albedos`
 for every boundary point of a geometry, inner first):
@@ -1677,80 +1699,62 @@ unequal faces):
 
 .. list-table::
    :header-rows: 1
-   :widths: 18 20 14 20 28
+   :widths: 22 28 20 30
 
    * - Shape
      - ``Spectrum``
      - ``BasisSpace``
      - ``MomentSpace``
-     - ``Billiard``
    * - homogeneous slab
      - served with one albedo :math:`R` on both faces; unequal faces
        refused
      - vacuum faces only
      - vacuum faces only
-     - any albedos: equal faces are ``slab``, unequal faces
-       ``slab_asymmetric`` (the two-surface billiard)
    * - homogeneous solid sphere
      - served with the outer albedo :math:`R`
      - vacuum only
      - vacuum only
-     - any albedo (``sphere``)
    * - homogeneous solid cylinder
      - vacuum only (bare); a reflected cylinder refused
      - refused (out of pillar)
      - refused (out of pillar)
-     - any albedo (``cylinder``)
    * - hollow sphere, annulus
      - refused
      - refused
      - refused
-     - ``hollow_sphere``, ``annulus``, with
-       :math:`(\alpha_{\rm in}, \alpha_{\rm out})` from the two laws
    * - symmetric reflected slab
      - refused
      - refused
      - vacuum outer faces only; one group with one :math:`\Sigma_t`;
        critical core half-thickness only
-     - refused
-   * - layered solid sphere, cylinder
-     - refused
-     - refused
-     - refused
-     - any outer albedo (``sphere_mr``, ``cylinder_mr``)
-   * - layered slab, hollow layered body
-     - refused
+   * - layered body: a solid or hollow sphere or cylinder, a slab
      - refused
      - refused
      - refused
 
 In every column a law with no specular albedo (white, periodic, an
-isotropic return) is refused. The names in parentheses are
-``Billiard.geometry_kind``, the key of its dispatch onto the
-``solve_greens_function_*`` functions.
+isotropic return) is refused.
 
-**Billiard.** The albedos are the geometry's laws and nothing else:
-``Billiard`` has no albedo parameter, and its derived
-``alpha_payload`` is built from
-:func:`~orpheus.derivations.common.reference_body.specular_albedos`.
-The shape and the albedos are read in one match. A homogeneous slab
-whose two faces declare one albedo is the one-surface billiard
-(``{"alpha"}``), and one whose faces differ is the two-surface billiard
-(``{"alpha_left", "alpha_right"}``, closure rank 2); a solid sphere or
-cylinder reads its one outer albedo; a hollow body reads
-``{"alpha_in", "alpha_out"}`` from its inner and outer laws. A solid
-layered sphere routes to ``solve_greens_function_sphere_mr`` and a
-solid layered cylinder to ``solve_greens_function_cylinder_mr``; the
-cylinder arm is new with this change, the solver it reaches is not
-(:ref:`peierls-greens-cylinder-mr`). A layered body's cross sections are
-stacked one mixture per run, ``sigma_t`` and ``nu_sigma_f`` of shape
-``(n_runs, G)`` and ``sigma_s`` of shape ``(n_runs, G, G)``, and its
-geometry payload is the outer radius of each run. A hollow layered body
-and every layered or reflected slab are refused: no trajectory-resolvent
-solver takes them. ``solve_fixed_source`` is built for ``sphere_mr``
-only; it returns the total scalar flux (the sum over groups) and the
-per-group fluxes in its metadata (ERR-091 records the arm's earlier
-defect, :doc:`/theory/verification/error_catalog`).
+**Billiard, retired.** The table measured on 2026-09-29 had a fourth
+column, ``Billiard``, the trajectory resolvent's generator, deleted with
+its family at P1 step (e2) of the characteristic reference campaign
+(2026-10-10). It served any albedos on a homogeneous slab (equal faces
+the one-surface billiard, unequal faces the two-surface billiard of
+closure rank 2), any outer albedo on a homogeneous solid sphere or
+cylinder and on a layered solid sphere or cylinder, and the two laws of a
+hollow sphere or annulus; it refused a symmetric reflected slab, every
+layered slab and every hollow layered body. Its albedos were the
+geometry's laws and nothing else, read through
+:func:`~orpheus.derivations.common.reference_body.specular_albedos`, and
+its dispatch key, ``Billiard.geometry_kind``, chose one of the
+``solve_greens_function_*`` functions. Its multi-region sphere's
+fixed-source arm reported one group on a multi-group source until P1
+step 2b of the reference-solution campaign (ERR-091,
+:doc:`/theory/verification/error_catalog`). Every shape and law it
+served is posed by the characteristic reference
+(:doc:`/theory/references/characteristic`), which also serves the
+hollow layered bodies, the layered slabs and the white walls that
+``Billiard`` refused.
 
 **MomentSpace.** Its bare slab and sphere solvers and the reflected-slab
 solver all have vacuum outer faces, so every law must read as albedo 0
@@ -1807,17 +1811,14 @@ Every refusal of a shape or a law goes through
 worded *"<owner> does not solve a <what>: <missing> (#536)."* ``what``
 describes the refused configuration: a body shape
 (:func:`~orpheus.derivations.common.reference_body.describe`), a
-boundary law, or a precondition (for instance *"Billiard does not solve
-a layered cartesian body of 2 material runs (0, 1): a
-trajectory-resolvent solver for a layered or reflected slab or a hollow
-layered body (#536)."*, or *"MomentSpace does not solve a body with
-reflecting boundaries (specular albedos (1.0, 1.0)): …"*). The
+boundary law, or a precondition (for instance *"MomentSpace does not
+solve a body with reflecting boundaries (specular albedos (1.0, 1.0)):
+…"*). The
 ``MomentSpace`` and ``BasisSpace`` cylinder refusals, the reflected
 slab's preconditions (one group, one :math:`\Sigma_t`) and its flux
 reconstruction go through the door as well. Refusals of a material
 property (a multi-group mixture where a solver is one-group, an
-anisotropy order out of pillar) and the solve-time scope of an arm
-(``solve_fixed_source`` outside ``sphere_mr``) stay their own
+anisotropy order out of pillar) stay their own
 ``NotImplementedError``, raised where that property is read.
 
 One door gives the refusals one spelling and one entry in the guard
@@ -1833,8 +1834,11 @@ well formed and the scope is the generator's.
 Gates and evidence
 ------------------
 
-``tests/gates/derivations/test_reference_body.py`` (59 rows, all
-``foundation``; `[M]` 2026-09-29, ``python -O -m pytest``, 59 passed):
+``tests/gates/derivations/test_reference_body.py`` (47 rows, all
+``foundation``; `[M]` 2026-10-10, ``pytest --collect-only``, 47 collected;
+the file held 59 rows, 59 passed under ``python -O -m pytest`` on
+2026-09-29, until P1 step (e2) of the characteristic reference campaign
+deleted ``Billiard``'s 12):
 
 * **The classification** (13 rows): the three homogeneous solids; the
   merge of intervals of one material; the two hollow bodies; the
@@ -1843,20 +1847,17 @@ Gates and evidence
   different reflector materials, one-sided as in problem 3, four runs
   as in problem 30); a layered solid sphere; a layered hollow
   cylinder.
-* **The shape refusals** (17 rows): every owner on every shape it does
+* **The shape refusals** (14 rows): every owner on every shape it does
   not serve, each asserting the refusal starts with the owner's name
   and cites #536.
 * **The law reader** (8 rows): the six specular spellings read as their
   albedo; white and an ``AlbedoBoundary`` with no stated re-emission
   refused.
-* **The served laws** (9 rows): ``MomentSpace`` refuses a reflected
+* **The served laws** (6 rows): ``MomentSpace`` refuses a reflected
   slab with mirror faces (the witness of the silent vacuum answer
   above); ``MomentSpace`` and ``BasisSpace`` refuse a partially
-  reflecting sphere; ``Spectrum`` refuses a slab with unequal faces and
-  a reflected cylinder; ``Billiard`` reads a slab with unequal faces as
-  the two-surface billiard and a hollow sphere's two laws as
-  :math:`(\alpha_{\rm in}, \alpha_{\rm out})`; ``Spectrum`` and
-  ``Billiard`` refuse a white law.
+  reflecting sphere; ``Spectrum`` refuses a slab with unequal faces, a
+  reflected cylinder and a white law.
 * **The reflected slab's preconditions and route** (5 rows): unequal
   :math:`\Sigma_t`, two groups and flux reconstruction, each refused;
   the symmetry tolerance on the thicknesses ``(0.3, 1.1, 0.3)``, whose
@@ -1864,20 +1865,22 @@ Gates and evidence
   asymmetry as the control; and the cm-to-mean-free-path conversion,
   where :math:`\Sigma_t = 2` with a 0.25 cm reflector gives the
   :math:`\Sigma_t = 1`, 0.5 cm answer bit for bit.
-* **The routes** (5 rows): ``MomentSpace`` on a reflected slab returns
-  the bare solver's :math:`\tau_c` bit for bit; ``Billiard`` on a
-  two-group layered solid sphere and cylinder returns the bare
-  multi-region solver's :math:`k` bit for bit (the done-when of #190);
-  ``Billiard`` on a hollow sphere and an annulus picks the hollow arm
-  and its payload (#421).
-* **The body's material** (1 row): ``Billiard`` takes its cross
-  sections from the body's material id, not from key 0 of the
-  materials dict.
-* **ERR-091** (1 row): the multi-region sphere's fixed-source arm
-  reports two groups on a two-group source and returns their sum as the
-  scalar flux.
+* **The route** (1 row): ``MomentSpace`` on a reflected slab returns
+  the bare solver's :math:`\tau_c` bit for bit.
 
-The route rows are routing claims: they establish that the facade
+The 12 rows deleted with ``Billiard`` were its shape refusals (3), its
+served laws (3: a slab with unequal faces read as the two-surface
+billiard, a hollow sphere's two laws read as
+:math:`(\alpha_{\rm in}, \alpha_{\rm out})`, a white law refused), its
+routes (4: a two-group layered solid sphere and cylinder returning the
+bare multi-region solver's :math:`k` bit for bit, the done-when of #190;
+a hollow sphere and an annulus picking the hollow arm, #421), the body's
+material (1: cross sections from the body's material id, not key 0 of
+the materials dict) and ERR-091's catcher (1). ERR-091's successor
+catcher is on the characteristic reference
+(:doc:`/theory/verification/error_catalog`).
+
+The route row is a routing claim: it establishes that the facade
 reaches the solver unchanged, not that the solver is right. Each
 solver's own verification is on its family's page. The published
 values for the reflected slab pass through the facade:
@@ -1892,13 +1895,17 @@ edition's 0.43014; the gate that can is on the F\ :sub:`N` page
 The gates were mutation-tested (`[M]` 2026-09-29, the implementation
 session's battery, before the laws joined the served pattern): the
 positive control, the old shared refusal of every multi-material or
-hollow geometry put back, reddened all 5 route rows and 34 rows in all,
-and each of the battery's five other arms reddened the row it was aimed
-at.
+hollow geometry put back, reddened all 5 route rows (4 of them
+``Billiard``'s, deleted since) and 34 rows in all, and each of the
+battery's five other arms reddened the row it was aimed at.
 
 **What stays out of scope**: transcribing the 20 multi-media problems
 into the registry (#536); the F\ :sub:`N` cylinder (#170); a solver
-for problems 3, 30, 58 to 61 and 63 to 66, which no family has.
+for problems 3, 30, 58 to 61 and 63 to 66 among the three generators
+above. Their geometries (layered slabs between vacuum, mirror or
+periodic walls) are within the characteristic reference's walls
+(:ref:`characteristic-walls`), which does not read this classification;
+none is posed against it yet, because none is in the registry.
 
 
 .. _structured-geometry-content-identity:
@@ -5864,6 +5871,17 @@ trust ``git`` over this table for merge status.
      - Milestone
      - Issue
      - Where
+   * - 2026-10-10
+     - **Three generators read the body classification.** ``Billiard``,
+       the trajectory resolvent's generator, was deleted with its family
+       at P1 step (e2) of the characteristic reference campaign, with 12
+       of the 59 rows of the reference-body gates. Its successor, the
+       characteristic reference, reads a body as breakpoints and a
+       region map and a wall from its law's factors, so it serves the
+       hollow and layered bodies and the white walls without the
+       classification.
+     - #405
+     - *(in development)*
    * - 2026-10-08
      - **The eigen gauge is declared on the question.** ``Eigen`` gained
        ``gauge``, the production an eigen flux is scaled by; the

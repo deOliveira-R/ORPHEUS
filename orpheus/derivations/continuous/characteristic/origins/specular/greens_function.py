@@ -105,7 +105,7 @@ References
   BC closure).
 - :file:`.claude/agent-memory/numerics-investigator/peierls_greens_variant_alpha_decision.md`
   — Plan 2 B2 architectural decision.
-- :file:`.claude/agent-memory/literature-researcher/trajectory_resolvent_lit.md`
+- :file:`.claude/agent-memory/literature-researcher/peierls_greens_function_lit.md`
   — Plan 2 B1 literature pull.
 """
 from __future__ import annotations

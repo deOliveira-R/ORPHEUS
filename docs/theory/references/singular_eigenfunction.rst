@@ -610,19 +610,21 @@ boundary-value problem.
 The other two meanings, on the same physical configuration,
 are:
 
-* **(α): trajectory resolvent** — :class:`Billiard` in
-  :mod:`...trajectory_resolvent`. Trace bouncing characteristics
-  through phase space, sum the multi-bounce series
-  :math:`T = (I - S)^{-1}` (Birkhoff transfer-operator
-  resolvent on the billiard table). The Green's function is the
-  *path-integral* sum.
+* **(α): trajectory resolvent** — the characteristic reference
+  (:doc:`/theory/references/characteristic`), which replaced
+  ``Billiard`` (the trajectory resolvent, deleted on 2026-10-10).
+  Integrate transport along the body's lines and close each line's
+  multi-bounce series at its walls (``Billiard`` summed
+  :math:`T = (I - S)^{-1}`, the Birkhoff transfer-operator resolvent
+  on the billiard table). The Green's function is the *path-integral*
+  sum.
 
 * **(β): spectral resolvent** — closed-form spectral
   μ-integration of the within-medium angular Green's function
   (Sanchez 1986 Eq. A1 / PS-1982 Eq. 21). Currently a stub in
-  ORPHEUS (``spectral_resolvent/`` reserved); the closed-form
-  spectral kernel is currently obtained indirectly through
-  :class:`Billiard` rather than via the direct PS-1982 evaluator.
+  ORPHEUS (``spectral_resolvent/`` reserved); no direct PS-1982
+  evaluator of the closed-form spectral kernel exists (``Billiard``
+  obtained it indirectly until its deletion).
 
 When all three constructions exist for the same problem,
 agreement at all three points is L1-grade evidence per the
@@ -654,14 +656,14 @@ exactness combined with MomentSpace's spectral-convergence
 :math:`O(N^{-p})` agreement is a constructive proof that both
 pillars are correctly identifying the same critical configuration.
 
-The Sanchez-Chandrasekhar taxonomy is what tells us that
-:class:`Billiard` agreement (a different pillar) is *structurally*
-stronger than :class:`MomentSpace` agreement — Billiard exercises
-a different integrand (ray-traced phase space) than Spectrum's
-ν-spectrum integrand. In the verification matrix, the
-``Spectrum`` ↔ ``Billiard`` cross-check is the strongest L1
-gate; the ``Spectrum`` ↔ ``MomentSpace`` cross-check is L1 but
-*sibling* (same pillar).
+The Sanchez-Chandrasekhar taxonomy is what tells us that agreement
+with the characteristic reference (a different pillar; ``Billiard``'s
+until 2026-10-10) is *structurally* stronger than :class:`MomentSpace`
+agreement — it exercises a different integrand (phase space along
+lines) than Spectrum's ν-spectrum integrand. In the verification
+matrix, the ``Spectrum`` ↔ characteristic-reference cross-check is the
+strongest L1 gate; the ``Spectrum`` ↔ ``MomentSpace`` cross-check is L1
+but *sibling* (same pillar).
 
 The Spectrum class as math-heart
 --------------------------------------------------------------------------------
@@ -670,13 +672,13 @@ The :class:`Spectrum` class
 (:class:`orpheus.derivations.continuous.singular_eigenfunction.Spectrum`)
 encapsulates the geometry, the materials, the BC, and the
 quadrature size for a single instance of the singular-eigenfunction
-attack. It is the **3rd concrete instance of the math-heart pattern**
-in the project, alongside :class:`Billiard` (trajectory_resolvent;
-Birkhoff transfer-operator resolvent on a billiard) and
-:class:`MomentSpace` (fn_method; Galerkin half-range Legendre
-projection).
+attack. It was the **3rd concrete instance of the math-heart
+pattern** in the project, alongside ``Billiard`` (trajectory_resolvent;
+Birkhoff transfer-operator resolvent on a billiard; deleted with its
+family on 2026-10-10) and :class:`MomentSpace` (fn_method; Galerkin
+half-range Legendre projection).
 
-All three classes:
+All three classes (``Billiard`` while it existed):
 
 1. Are **frozen dataclasses** that take a
    :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
@@ -780,14 +782,14 @@ foundation tests pin **bit-equality** between the class API and
 the function API (verified via ``float.hex`` exact-bit comparison)
 so calling through the class introduces zero numerical drift.
 
-Above the trusted-library line, Spectrum and Billiard are
-**structurally independent** — they share only ``numpy`` /
-``scipy.special`` / ``mpmath``, and the dispersion-root primitive
-:func:`...fn_method.core.dispersion.case_nu0` (a medium property,
-not method machinery). The cross-check between
-``Spectrum.solve_critical()`` and ``Billiard.solve_critical()`` on
-the same Sood case is therefore L1-grade structurally-independent
-evidence per the project's ``vv-principles`` skill § "structural
+Above the trusted-library line, Spectrum and the characteristic
+reference are **structurally independent** — they share only ``numpy``
+/ ``scipy``, as Spectrum and ``Billiard`` shared only ``numpy`` /
+``scipy.special`` / ``mpmath`` and the dispersion-root primitive
+:func:`...fn_method.core.dispersion.case_nu0` (a medium property, not
+method machinery). The cross-check between ``Spectrum.solve_critical()``
+and the characteristic reference's eigenvalue on the same Sood case is
+therefore L1-grade structurally-independent evidence per the project's ``vv-principles`` skill § "structural
 independence applies above the trusted-library line" rule.
 
 Cylinder — Westfall–Metcalf 1973, bare radially-reflected, isotropic
@@ -1221,14 +1223,24 @@ near-spectral convergence rate.
 Cross-check vs Variant α at Sood ``Ua-1-0-CY``
 --------------------------------------------------------------------------------
 
-The hardened WM-72 solver agrees with the Variant α cylinder solver
-at the Sood ``Ua-1-0-CY`` configuration to ≤ 1e-5 relative. Both
-solvers reproduce the published Sood :math:`r_c = 1.72500292` mfp:
+The hardened WM-72 solver agrees with the characteristic reference's
+cylinder at the Sood ``Ua-1-0-CY`` configuration to ≤ 1e-5 relative
+(`[M]` 2026-10-10: :math:`k - 1 = -1.7\times 10^{-8}` at rung 3 at
+WM-72's radius;
+``tests/gates/derivations/test_singular_eigenfunction_cylinder_xverif.py``,
+``test_wm72_vs_the_characteristic_cylinder_at_sood_ua_1_0_cy``). Both
+reproduce the published Sood :math:`r_c = 1.72500292` mfp:
 
-* **Variant α** at 8.5e-6 (already shipped at
-  :func:`tests.gates.derivations.test_peierls_greens_function_cylinder_xverif_sood2003`,
-  via bouncing-characteristic integration with analytical
-  bounce-period summation).
+* **The characteristic reference** at Sood's radius reads
+  :math:`k - 1 = -8.4\times 10^{-6}` at rung 2 and
+  :math:`-2.7\times 10^{-7}` at rung 3 (`[M]` 2026-10-10;
+  ``tests/gates/derivations/test_characteristic_independent_references.py``,
+  a default-tier row at rung 2 within 3e-5 and a slow row at rung 3
+  within the printed truth's resolution plus the reference's error
+  estimate).
+  Until 2026-10-10 this side was Variant α, at 8.5e-6, via
+  bouncing-characteristic integration with analytical bounce-period
+  summation.
 * **WM-72** at ≤ 3e-7 (this module, via singular-eigenfunction
   Fredholm coupling with Mitsis-Zweifel subtraction).
 
@@ -2110,6 +2122,7 @@ Internal references:
   (X-function divergent integrand).
 * :doc:`/theory/references/fn_method` — companion F_N collocation reference, sharing
   the Wiener-Hopf X-function below the trusted-library line.
-* :doc:`/theory/references/trajectory_resolvent` — Variant α reference family on the
-  same Sood ``Ua-1-0-CY`` truth value (cylinder cross-check).
+* :doc:`/theory/references/characteristic` — the characteristic reference on the
+  same Sood ``Ua-1-0-CY`` truth value (cylinder cross-check);
+  :doc:`/theory/references/trajectory_resolvent` — the Variant α family it replaced.
 * :doc:`/theory/references/sood_registry` — Sood + Atalay case catalogue.

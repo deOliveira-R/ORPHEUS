@@ -241,7 +241,7 @@ Phase D Carlson coupled-pole sweep (Issue #168 Phase D)
      (:func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
      in ``orpheus/sn/angular/closure.py``), **NOT**
      in the WDD spatial pole-face initial condition the
-     :ref:`Phase C plan <sn-curvilinear-trajectory-resolvent-crosscheck-section>`
+     :ref:`Phase C plan <sn-curvilinear-characteristic-reference-crosscheck-section>`
      proposed.  The diagnostic memo at
      ``.claude/agent-memory/numerics-investigator/phase_d_gate_1_1_sphere_mms_diagnosis.md``
      empirically falsified intervention ``[A]`` (WDD pole-face
@@ -577,7 +577,7 @@ the inward-sweep result :math:`\bar\phi_i` into the **WDD
 spatial pole-face initial condition** at the then-production
 ``transport_operator_matvec_spherical`` matvec's (since deleted)
 ``psi_face_in`` initialisation — the very same site the
-:ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section` discussion
+:ref:`sn-curvilinear-characteristic-reference-crosscheck-section` discussion
 identified as the Phase C Carlson seed location.
 
 The numerics-investigator diagnostic
@@ -1311,7 +1311,7 @@ Phase F Carlson seed sweep-path backport (Issue #168 Phase F)
      :ref:`sn-issue-196-eigenvalue-equivalence`).  The Phase E
      flux-shape sentinel (then ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck``)
      **no longer xfails**.  Since 2026-09-26 its sphere half is
-     :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`.
+     :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_characteristic_reference`.
      Since #405 P2 step 7b.2.3 (``a21b6f8e``) that row is an
      **uncertified comparison** (``compare_uncertified``), not a
      verification: the reference derives no bound on its own error
@@ -1876,7 +1876,7 @@ Files touched by Phase F
 **Updated tests**
 
 * ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck`` (split on 2026-09-26 into
-  :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`
+  :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_characteristic_reference`
   and its cylinder sibling) — *(Phase-F action, since superseded.)* Phase F updated the
   ``xfail-strict`` reason string from *"UNRESOLVED structural
   discrepancy with hypothesised pole issue"* to *"Phase F closed
@@ -1974,7 +1974,7 @@ That row now reads **CLOSED by ERR-058 (#195), verified + pinned by
 #196**.  The Phase E flux-shape sentinel (then
 ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck``) **no longer
 xfails**; its sphere half is now
-:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`,
+:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_characteristic_reference`,
 an uncertified comparison with a structurally-independent reference since
 #405 P2 step 7b.2.3 (the Variant-α reference until P1 step (d),
 ``d9425977``, the characteristic reference since; neither derives a bound, #566;
@@ -3185,7 +3185,7 @@ different weights:
   correctness claim, and a flux-shape-blind one: a homogeneous
   :math:`k_\infty` is independent of the spatial and angular operators.
 * The **semi-analytical reference comparison**
-  (:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_trajectory_resolvent`
+  (:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_sphere_3reg_flux_shape_against_characteristic_reference`
   and its eigenvalue sibling), which compares a live SN solve of the
   heterogeneous closed sphere with the characteristic reference
   (:ref:`theory-characteristic-reference`; the trajectory-resolvent

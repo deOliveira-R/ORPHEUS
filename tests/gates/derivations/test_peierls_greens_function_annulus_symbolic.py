@@ -43,12 +43,22 @@ References
 
 - :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 3C-2
   annulus plan.
-- :mod:`.test_trajectory_resolvent_hollow_sphere_symbolic` —
+- :mod:`.test_peierls_greens_function_hollow_sphere_symbolic` —
   Phase-3C-1 hollow sphere V_α (the rank-2 + impact-parameter template
   the annulus closure inherits at the operator-symbol level).
-- :mod:`.test_trajectory_resolvent_cylinder_symbolic` — Phase-1
+- :mod:`.test_peierls_greens_function_cylinder_symbolic` — Phase-1
   cylinder V_α (the cylinder 3D angular framework + outer-only rank-1
   template).
+
+**Retired in step (e2) of the characteristic-reference campaign** (2026-10-10,
+the user's ruling: the 26 SymPy rows that duplicated another geometry's
+identity): the V_α2_annulus rows (the rank-2 resolvent, 7 rows, the hollow
+sphere's and the asymmetric slab's 2 x 2 algebra re-stated) and the
+V_α3_annulus rows (4 rows, the slab's vacuum reduction re-stated), with their
+``derive_*`` functions. The rank-2 closure is verified on the characteristic
+reference, ``test_characteristic_transport.py::test_the_closed_angular_flux_is_the_unfolded_backward_path``
+(``peierls-greens-annulus-through-rank2``); ``peierls-greens-annulus-architecture``
+keeps its verifier here (V_α1_annulus).
 """
 from __future__ import annotations
 
@@ -56,9 +66,7 @@ import pytest
 
 from orpheus.derivations.continuous.characteristic.origins.specular import (
     derive_3d_chord_scaling_annulus,
-    derive_alpha_zero_kernel_reduction_annulus,
     derive_operator_constant_trial_closed_annulus,
-    derive_rank2_resolvent_annulus,
 )
 
 
@@ -188,124 +196,6 @@ def test_v_alpha1_annulus_overall_pass():
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.foundation
-@pytest.mark.verifies("peierls-greens-annulus-through-rank2")
-def test_v_alpha2_annulus_determinant_canonical_form():
-    r"""V_α2_annulus.a — :math:`\det(I - S) = 1 - \alpha_{\rm in}\,
-    \alpha_{\rm out}\,e^{-2\tau_{\rm step}}` via SymPy direct matrix
-    determinant.
-
-    Same algebraic structure as the hollow-sphere / slab-asymmetric
-    determinant; only the meaning of :math:`\tau_{\rm step}` changes
-    (cylinder 3D-lifted shell chord vs spherical shell chord vs slab
-    chord). The singular locus :math:`\alpha_{\rm in}\,\alpha_{\rm out}\,
-    e^{-2\tau_{\rm step}} = 1` is reachable only at :math:`\alpha_{\rm
-    in} = \alpha_{\rm out} = 1` and :math:`\tau_{\rm step} = 0`
-    (tangent rays at :math:`b = R_{\rm in}` ∩ axial-grazing
-    :math:`\mu_{\rm axial} \to \pm 1` would ALSO drive :math:`\tau_{\rm
-    step} \to \infty` via the divergent :math:`1/s_{\rm ip}` factor —
-    the OPPOSITE corner from the singular locus, so the singular
-    locus on the annulus is the same isolated point as the hollow
-    sphere).
-    """
-    result = derive_rank2_resolvent_annulus()
-    assert result["pass_det"], (
-        f"V_α2_annulus determinant failed: got {result['det_M']}, "
-        f"expected {result['det_canonical']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha2_annulus_canonical_T_form():
-    r"""V_α2_annulus.b — the rank-2 resolvent matches the canonical
-    closed form
-    :math:`T = (1/\det)\,\bigl[[1, \alpha_{\rm in} e^{-\tau_{\rm step}}],
-    [\alpha_{\rm out} e^{-\tau_{\rm step}}, 1]\bigr]`.
-
-    SymPy's ``Matrix.inv()`` produces the inverse, and each entry is
-    matched against the canonical form via ``sp.simplify``.
-    """
-    result = derive_rank2_resolvent_annulus()
-    assert result["pass_T_form"], (
-        f"V_α2_annulus canonical T form failed: "
-        f"T = {result['T_resolvent']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha2_annulus_symmetric_reduction():
-    r"""V_α2_annulus.c — at :math:`\alpha_{\rm in} = \alpha_{\rm out}
-    = \alpha`, :math:`T_{11} + T_{12} = 1/(1 - \alpha\,e^{-\tau_{
-    \rm step}})`.
-
-    The rank-2 → rank-1 collapse on a constant source with symmetric
-    BC. Same algebraic identity as V_α2_hollow_sph.c.
-    """
-    result = derive_rank2_resolvent_annulus()
-    assert result["pass_symmetric_simplification"], (
-        f"V_α2_annulus symmetric reduction failed."
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha2_annulus_alpha_in_zero_reduction():
-    r"""V_α2_annulus.d — at :math:`\alpha_{\rm in} = 0` (cavity
-    absorber), the determinant is 1 and only :math:`T_{21} = \alpha_{
-    \rm out}\,e^{-\tau_{\rm step}}` is nonzero off-diagonal.
-
-    Physical meaning: with the inner surface absorbing perfectly,
-    through-rays that reach the inner cavity are lost. This is the
-    annulus analog of the hollow-sphere cavity-absorber case.
-    """
-    result = derive_rank2_resolvent_annulus()
-    assert result["pass_alpha_in_zero"], (
-        f"V_α2_annulus α_in=0 reduction failed: "
-        f"T = {result['T_inner_vac']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha2_annulus_alpha_out_zero_reduction():
-    r"""V_α2_annulus.e — at :math:`\alpha_{\rm out} = 0` (vacuum
-    outer), the determinant is 1 and only :math:`T_{12} = \alpha_{
-    \rm in}\,e^{-\tau_{\rm step}}` is nonzero off-diagonal.
-
-    Physical meaning: with the outer surface in vacuum, through-rays
-    that reach the outer surface escape. The reflective inner can
-    re-launch them once but they leak at the next outer arrival.
-    Outer-only rays escape at outer too.
-    """
-    result = derive_rank2_resolvent_annulus()
-    assert result["pass_alpha_out_zero"], (
-        f"V_α2_annulus α_out=0 reduction failed: "
-        f"T = {result['T_outer_vac']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha2_annulus_vacuum_vacuum_identity_reduction():
-    r"""V_α2_annulus.f — at :math:`\alpha_{\rm in} = \alpha_{\rm out}
-    = 0`, :math:`T = I`.
-
-    Vacuum-vacuum BC removes the bouncing geometric series entirely;
-    the closure reduces to :math:`\psi_{\rm surf} = T \cdot \alpha\,B
-    = I \cdot 0 = 0`. The interior reconstruction is the bare
-    first-leg integral.
-    """
-    result = derive_rank2_resolvent_annulus()
-    assert result["pass_vacuum_identity"], (
-        f"V_α2_annulus α_in=α_out=0 → T=I reduction failed: "
-        f"T = {result['T_vac_vac']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha2_annulus_overall_pass():
-    """V_α2_annulus — composite gate."""
-    result = derive_rank2_resolvent_annulus()
-    assert result["pass"], f"V_α2_annulus composite failed: {result}"
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # V_α2_annulus.aux — 3D chord scaling identity
 # ═══════════════════════════════════════════════════════════════════════
@@ -379,65 +269,3 @@ def test_v_alpha2_annulus_aux_overall_pass():
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.foundation
-@pytest.mark.verifies("peierls-greens-annulus-architecture")
-def test_v_alpha3_annulus_psi_surf_vanishes_at_vacuum_vacuum():
-    r"""V_α3_annulus — surface fluxes
-    :math:`\psi_{\rm in}^{\rm out} = \psi_{\rm out}^{\rm in} = 0`
-    at :math:`\alpha_{\rm in} = \alpha_{\rm out} = 0`.
-
-    Both leading factors zero the entire closure components. The
-    annulus prototype handles vacuum-vacuum BC with no special-case
-    branch.
-    """
-    result = derive_alpha_zero_kernel_reduction_annulus()
-    assert result["pass_substitution"] and result["pass_limit"], (
-        f"V_α3_annulus vacuum-vacuum reduction failed: "
-        f"ψ_in^out at zero = {result['psi_in_out_at_zero']}, "
-        f"ψ_out^in at zero = {result['psi_out_in_at_zero']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha3_annulus_cavity_absorber_reduction():
-    r"""V_α3_annulus — at :math:`\alpha_{\rm in} = 0` with
-    :math:`\alpha_{\rm out} \in (0, 1]` (cavity absorber),
-    :math:`\psi_{\rm in}^{\rm out} = 0` and
-    :math:`\psi_{\rm out}^{\rm in} = \alpha_{\rm out}\,B_{\rm out}`.
-
-    Through-rays that reach the inner cavity are lost; the bouncing
-    chain breaks. The outer-surface outgoing flux receives only the
-    direct one-transit contribution, without geometric-series
-    amplification. det → 1.
-    """
-    result = derive_alpha_zero_kernel_reduction_annulus()
-    assert result["pass_cavity_absorber"], (
-        f"V_α3_annulus cavity-absorber reduction failed: "
-        f"ψ_in^out = {result['psi_in_at_inner_vac']}, "
-        f"ψ_out^in = {result['psi_out_at_inner_vac']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha3_annulus_reflective_cavity_reduction():
-    r"""V_α3_annulus — at :math:`\alpha_{\rm in} = 1, \alpha_{\rm out}
-    = 0` (reflective cavity / vacuum outer),
-    :math:`\psi_{\rm in}^{\rm out} = \alpha_{\rm in}\,B_{\rm in}`
-    and :math:`\psi_{\rm out}^{\rm in} = 0`.
-
-    Through-rays escape at the outer surface; the inner reflective
-    surface provides only one launch per particle. det → 1.
-    """
-    result = derive_alpha_zero_kernel_reduction_annulus()
-    assert result["pass_reflective_cavity"], (
-        f"V_α3_annulus reflective-cavity reduction failed: "
-        f"ψ_in^out = {result['psi_in_at_outer_vac']}, "
-        f"ψ_out^in = {result['psi_out_at_outer_vac']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha3_annulus_overall_pass():
-    """V_α3_annulus — composite gate."""
-    result = derive_alpha_zero_kernel_reduction_annulus()
-    assert result["pass"], f"V_α3_annulus composite failed: {result}"

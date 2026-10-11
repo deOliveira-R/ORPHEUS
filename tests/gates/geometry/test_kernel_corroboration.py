@@ -15,14 +15,13 @@ that the old spelling's module does not import the kernel, and, at run time,
 that evaluating the old spelling makes 0 calls into the kernel's entry points
 (``ConcentricPartition.chord``, ``ConcentricPartition.region_containing``,
 ``Chart.image``, ``Chart.orbit_coordinate``). Both legs live in
-``tests/gates/_corroboration.py``, shared with the characteristic reference's
-corroboration file. When this file landed the AST leg read direct imports in 6
+``tests/gates/_corroboration.py``, shared, until step (e2), with the characteristic reference's
+corroboration file (deleted with the old family). When this file landed the AST leg read direct imports in 6
 of 6 shapes and missed indirect ones in 4 of 4 (qa ``p5.py``: a helper module,
 attribute access through ``orpheus.geometry``, ``from orpheus import geometry``,
 ``importlib`` by string); the shared leg now also reads attribute chains on an
-imported name (and its literal ``getattr`` spelling) and module names in strings, and the helper module's shape is
-the transitive leg's (``assert_closure_independent``), which this file does
-not call. The runtime leg counts every code object of the kernel modules that runs
+imported name (and its literal ``getattr`` spelling) and module names in strings; the helper module's shape
+belonged to a transitive leg this file never called (deleted in step (e2)). The runtime leg counts every code object of the kernel modules that runs
 (``sys.monitoring``), so it sees every in-process route into the kernel. When a spelling
 migrates, its row turns RED (the comparison would be the kernel compared with
 itself through a facade: ``retirement-audit`` D.14, D.16), and the migration
@@ -140,21 +139,18 @@ def _kernel_exit_distance(R: float, r: float, mu: float) -> tuple[float, float]:
 
 @pytest.mark.parametrize(
     "spelling",
-    ["variant_alpha", "peierls_rho_max", "moc_root"],
+    ["peierls_rho_max", "moc_root"],
 )
 def test_the_exit_distance_agrees_with_each_old_spelling(spelling: str, kernel_calls: dict[str, int]) -> None:
-    """F1 joined: the kernel's exit distance against Variant-alpha ``L_back``, Peierls ``rho_max``, the MoC root.
+    """F1 joined: the kernel's exit distance against Peierls ``rho_max`` and the MoC root.
+
+    The Variant-alpha ``L_back`` arm was deleted with the trajectory-resolvent
+    family in step (e2) of the characteristic-reference campaign.
 
     Per-draw band ``16 eps R (r + R)/h`` (the problem's conditioning at
     tangency, spec §8).
     """
-    if spelling == "variant_alpha":
-        _assert_independent("orpheus.derivations.continuous.trajectory_resolvent.chord_oracle")
-        from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import _trajectory_segments_oracle
-
-        def old(R, r, mu):
-            return _trajectory_segments_oracle(r, mu, R, np.array([R]))[1]
-    elif spelling == "peierls_rho_max":
+    if spelling == "peierls_rho_max":
         _assert_independent("orpheus.derivations.continuous.peierls_nystrom.geometry")
         from orpheus.derivations.continuous.peierls_nystrom.geometry import SPHERE_1D
 
@@ -174,54 +170,19 @@ def test_the_exit_distance_agrees_with_each_old_spelling(spelling: str, kernel_c
     assert worst <= _JOIN_C, worst
 
 
-def test_the_backward_segments_agree_with_variant_alpha(kernel_calls: dict[str, int]) -> None:
-    """The multi-region backward first leg: region sequence equal, lengths within 1e-13, over 1000 draws.
-
-    ``_trajectory_segments_oracle`` locates each segment's midpoint; the kernel
-    takes regions from the crossing order and splits the region of closest
-    approach into two slots, merged here. ``[M]`` 2026-10-05: 0 of 1000
-    sequences differ, largest length difference 5.1e-15.
-    """
-    _assert_independent("orpheus.derivations.continuous.trajectory_resolvent.chord_oracle")
-    from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import _trajectory_segments_oracle
-
-    radii = np.array([0.3, 1.1, 2.0])
-    part = ConcentricPartition(Chart(CoordSystem.SPHERICAL), (0.0, *radii))
-    rng = np.random.default_rng(20261005)
-    for _ in range(1000):
-        r, mu = rng.uniform(0, 2.0), rng.uniform(-1, 1)
-        segments, _ = _without_kernel(kernel_calls, _trajectory_segments_oracle, r, mu, 2.0, radii)
-        p = np.array([r, 0.0, 0.0])
-        line = Line.through(p, np.array([-mu, np.sqrt(1.0 - mu * mu), 0.0]))
-        ch = part.chord(line)
-        beyond = ch.lengths_beyond(line.parameter_of(p))
-        regions, lengths = [], []
-        for region, length in zip(ch.slot_region, beyond):
-            if length <= 1e-12:
-                continue
-            if regions and regions[-1] == region:
-                lengths[-1] += length
-            else:
-                regions.append(int(region))
-                lengths.append(float(length))
-        assert regions == [s[2] for s in segments]
-        np.testing.assert_allclose(lengths, [s[1] - s[0] for s in segments], rtol=0, atol=1e-13)
-
-
 def test_the_bare_locator_agrees_with_the_inner_owns_spellings_and_not_with_peierls(kernel_calls: dict[str, int]) -> None:
-    """F3 joined: at every breakpoint the kernel answers as the five inner-owns spellings, and unlike Peierls ``which_annulus``.
+    """F3 joined: at every breakpoint the kernel answers as the three inner-owns spellings, and unlike Peierls ``which_annulus``.
+
+    Until step (e2) two more inner-owns spellings, the trajectory resolvent's
+    ``_region_at_radius_oracle`` and ``_region_at_radius_cyl``, were compared
+    here; they were deleted with their family.
 
     Peierls is outer-biased by its own docstring; the disagreement is asserted
     so that its migration onto the kernel shows up here as a changed answer.
     """
-    for name in ("orpheus.derivations.continuous.trajectory_resolvent.chord_oracle", "orpheus.moc.geometry",
-                 "orpheus.mc.solver", "orpheus.derivations.continuous.peierls_nystrom.geometry"):
+    for name in ("orpheus.moc.geometry", "orpheus.mc.solver", "orpheus.derivations.continuous.peierls_nystrom.geometry"):
         _assert_independent(name)
     from orpheus.derivations.continuous.peierls_nystrom.geometry import SPHERE_1D
-    from orpheus.derivations.continuous.trajectory_resolvent.chord_oracle import (
-        _region_at_radius_cyl,
-        _region_at_radius_oracle,
-    )
     from orpheus.mc.solver import ConcentricPinCell
     from orpheus.moc.geometry import _identify_region
 
@@ -230,11 +191,10 @@ def test_the_bare_locator_agrees_with_the_inner_owns_spellings_and_not_with_peie
     pin = ConcentricPinCell(radii=list(radii), mat_ids=[0, 1, 2], pitch=10.0)
     for r in (0.3, 1.1, 0.7, 0.05, 1.9):
         def old_spellings(r=r):
-            return (_region_at_radius_oracle(r, radii), _region_at_radius_cyl(r, radii),
-                    _identify_region(r, 0.0, 0.0, 0.0, radii, 3), pin.material_id_at(5.0 + r, 5.0),
+            return (_identify_region(r, 0.0, 0.0, 0.0, radii, 3), pin.material_id_at(5.0 + r, 5.0),
                     SPHERE_1D.which_annulus(r, radii))
-        va, va_cyl, moc, mc, peierls = _without_kernel(kernel_calls, old_spellings)
+        moc, mc, peierls = _without_kernel(kernel_calls, old_spellings)
         kernel = int(part.region_containing(np.array(r)))
-        assert kernel == va == va_cyl == moc == mc
+        assert kernel == moc == mc
         on_breakpoint = r in (0.3, 1.1)
         assert peierls == (kernel + 1 if on_breakpoint else kernel)

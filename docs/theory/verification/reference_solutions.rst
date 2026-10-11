@@ -127,8 +127,11 @@ detail at :ref:`reference-solvers-three-meanings`. In V&V terms:
   Green's kernel :math:`G(\rho \to \rho')` by tracing characteristic
   rays and closing multi-bounce trajectories with the resolvent
   :math:`T = (I - S)^{-1}`. Realised in
-  :mod:`orpheus.derivations.continuous.trajectory_resolvent`. Pillar:
-  semi-analytical (ray-traced quadratures + geometric series).
+  :mod:`orpheus.derivations.continuous.characteristic`, which closes
+  each line's multi-bounce series at its walls
+  (:doc:`/theory/references/characteristic`); the trajectory resolvent
+  realised it until its deletion on 2026-10-10. Pillar:
+  semi-analytical (quadratures along lines + geometric series).
 
 * **Meaning (β) — spectral resolvent.** Constructs the *same* scalar
   kernel via closed-form spectral μ-integration of the within-medium

@@ -11,8 +11,8 @@ The package contains:
   :class:`SolverAdapter` Protocol, :class:`ScalarResult`, and the
   ``agree`` tolerance helper.
 * :mod:`tests.gates.cross_method.adapters` — concrete adapters for each
-  shipped continuous reference solver (fn_method, trajectory_resolvent,
-  ...). New solvers register here.
+  shipped continuous reference solver (fn_method, the characteristic
+  reference, ...). New solvers register here.
 * :mod:`tests.gates.cross_method.cases` — populated case sets keyed by
   geometry (bare-critical slab / sphere; reflected slab; multi-region
   fixed-source). Each case carries truth + per-solver tolerances +

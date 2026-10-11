@@ -5,8 +5,8 @@ problem, the reference, the RECORD table and the strict-xfail mark;
 :mod:`tests.gates.derivations._ladder_rules` holds the rules and
 :mod:`tests.gates.derivations._characteristic_ladders` the measured ladders
 every tolerance is derived from (the characteristic reference's since P1 step
-(d); the trajectory resolvent's before, whose tables remain in
-``_trajectory_resolvent_ladders`` for the corroboration rows). All are
+(d); the trajectory resolvent's before, whose tables were deleted with the
+family in step (e2)). All are
 consulted by slow rows whose failures would read as physics; these rows pin
 the harness itself, fast, one per branch (``foundation``).
 
@@ -127,14 +127,14 @@ def test_record_moves_red() -> None:
 #: Every row whose comparison needs the cylinder reference's certificate, by module.
 _AWAITING_ROWS = {
     "tests.gates.sn.verification.analytical.test_phase_c_crosscheck": (
-        "test_cylinder_3reg_k_against_trajectory_resolvent",
-        "test_cylinder_3reg_flux_shape_against_trajectory_resolvent",
+        "test_cylinder_3reg_k_against_characteristic_reference",
+        "test_cylinder_3reg_flux_shape_against_characteristic_reference",
     ),
     "tests.gates.sn.sweep.curvilinear.test_unified_matvec_cylinder": (
-        "test_unified_cylinder_l1_mr_2g_trajectory_resolvent",
+        "test_unified_cylinder_l1_mr_2g_characteristic_reference",
     ),
     "tests.gates.sn.verification.analytical.test_l1_standoff_slab_cylinder": (
-        "test_cylinder_l1_sweep_vs_trajectory_resolvent",
+        "test_cylinder_l1_sweep_vs_characteristic_reference",
         "test_cylinder_l1_refinement_against_reference",
     ),
 }

@@ -1,14 +1,13 @@
 r"""The rules a cross-check's tolerance is computed by, from a reference's error and the system under test's.
 
 The ladders hold measured rungs; these functions turn them into errors and
-tolerances. They read no reference, so both reference families' ladders use
-them: :mod:`tests.gates.derivations._characteristic_ladders` (the SN rows'
-reference since P1 step (d) of ``.claude/plans/characteristic_reference_architecture.md``)
-and :mod:`tests.gates.derivations._trajectory_resolvent_ladders` (the old
-family, kept for its corroboration rows until step (e)). They live apart from
-both because the corroboration rows' independence legs
-(``tests/gates/_corroboration.py``) refuse an old-side module whose imports
-reach the new reference, and the old ladders import these.
+tolerances. They read no reference, so any reference's ladder uses them:
+:mod:`tests.gates.derivations._characteristic_ladders` (the SN rows' reference
+since P1 step (d) of ``.claude/plans/characteristic_reference_architecture.md``)
+and the cross-method tolerances (``tests/gates/cross_method/cases.py``). They
+lived apart from the ladders while the old trajectory-resolvent family's
+ladders used them too (deleted with the family in step (e2)); the user's
+ruling of 2026-10-10 keeps them here while the characteristic ladders use them.
 
 Pinned by ``tests/gates/sn/verification/analytical/test_crosscheck_harness.py``.
 """

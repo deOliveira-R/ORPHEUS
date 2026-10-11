@@ -52,7 +52,7 @@ the positions, paired one to one with
 Architectural role
 ------------------
 
-* **Reference solution generators** (``Billiard``, ``MomentSpace``,
+* **Reference solution generators** (``MomentSpace``,
   ``Spectrum``, ``BasisSpace``) consume a :class:`StructuredGeometry`
   directly: no mesh, no cell counts.
 * **Discrete production solvers** (``solve_cp``, ``solve_sn``,

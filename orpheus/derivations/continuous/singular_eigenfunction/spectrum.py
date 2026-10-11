@@ -1,9 +1,10 @@
 r"""The transport operator's singular eigenfunction spectrum (Case 1960).
 
 This module is the **3rd concrete instance of the math-heart pattern**
-across the project. The 1st is ``Billiard`` in
-:mod:`orpheus.derivations.continuous.trajectory_resolvent` (the
-Birkhoff transfer-operator resolvent on a billiard); the 2nd is
+across the project. The 1st was ``Billiard``, of the trajectory-resolvent
+family (the Birkhoff transfer-operator resolvent on a billiard), retired in
+P1 step (e2) of #405 and superseded by the characteristic reference
+(:mod:`~orpheus.derivations.continuous.characteristic`); the 2nd is
 ``MomentSpace`` in
 :mod:`orpheus.derivations.continuous.fn_method` (Galerkin half-range
 projection on Legendre moments). With ``Spectrum`` landing the third
@@ -76,12 +77,10 @@ Architectural role
 
 ``Spectrum`` is to ``singular_eigenfunction`` what:
 
-- ``Billiard`` (Birkhoff transfer-operator resolvent on a
-  bouncing-ray phase space) is to ``trajectory_resolvent``;
 - ``MomentSpace`` (Galerkin half-range Legendre projection) is to
   ``fn_method``.
 
-All three are method-specific computational specialisations of the
+Both are method-specific computational specialisations of the
 method-agnostic :class:`StructuredGeometry`. They answer the same
 triplet of questions:
 
@@ -99,7 +98,7 @@ triplet of questions:
 
 The shared :class:`CriticalSolution` / :class:`FluxSolution` types
 are the load-bearing piece of the unification — they make Spectrum,
-MomentSpace, Billiard substitutable at the cross-method comparison
+MomentSpace and BasisSpace substitutable at the cross-method comparison
 boundary (``tests/gates/cross_method/adapters.py``). A *behavioural*
 Protocol over the math-heart classes was
 tried and retired: the Phase-D ``TransportSolver`` (in
@@ -141,7 +140,8 @@ References
   is the rich-narrative companion to this module's docstring.
 * :doc:`/theory/references/index` § :ref:`reference-solvers-three-meanings`
   — locates Spectrum (γ: singular-eigenfunction angular Green's),
-  Billiard (α: trajectory resolvent), and MomentSpace (γ: F_N is also
+  the characteristic reference (α: trajectory resolvent; the retired
+  ``Billiard`` before it), and MomentSpace (γ: F_N is also
   in the singular-eigenfunction pillar but uses a *different*
   collocation projection) within the same Green's-function landscape.
 """
@@ -438,7 +438,7 @@ class Spectrum:
        linearly-anisotropic cylinder is research-grade and not in
        the package.
 
-    7. **Connection to Billiard, MomentSpace, and the
+    7. **Connection to the characteristic reference, MomentSpace, and the
        three-meanings taxonomy.**  Three separate ways to compute
        the same Green's function on the same physical problem,
        differing in *which mathematical object* you decompose:
@@ -450,11 +450,14 @@ class Spectrum:
          eigenfunctions :math:`\phi_\nu(\mu)` are *operator
          eigenfunctions*; the Green's function is the resolvent
          :math:`(L - \nu I)^{-1}` evaluated at boundary data.
-       * ``Billiard`` (:mod:`...trajectory_resolvent`): trace **rays
-         through phase space**. Each bouncing trajectory contributes
-         :math:`\alpha^n e^{-n\tau}` (Birkhoff transfer-operator
-         resolvent on the billiard table). The Green's function is
-         the *path-integral* sum :math:`\sum_n S^n = (I - S)^{-1}`.
+       * The characteristic reference (:mod:`~orpheus.derivations.continuous.characteristic`): trace **lines
+         through phase space**. Each bounce along a line contributes
+         :math:`\alpha^n e^{-n\tau}` (the transfer-operator resolvent
+         on the billiard table); the Green's function is the
+         *path-integral* sum :math:`\sum_n S^n = (I - S)^{-1}`,
+         summed in closed form per line as the least solution of its
+         cycle. (The retired trajectory-resolvent ``Billiard`` summed
+         the same series by power iteration.)
        * ``MomentSpace`` (:mod:`...fn_method`): project the
          **boundary angular flux** onto a finite Legendre moment
          basis, collocate. The Green's function is implicit in the
@@ -466,8 +469,8 @@ class Spectrum:
        locates ``Spectrum`` under meaning **(γ): singular-eigenfunction
        angular Green's function** — directly construct
        :math:`G(\tau, \tau'; \mu, \mu')` as a sum over ν-spectrum
-       eigenfunctions weighted by X-function residues. ``Billiard``
-       is meaning **(α): trajectory resolvent**. ``MomentSpace``
+       eigenfunctions weighted by X-function residues. The characteristic
+       reference is meaning **(α): trajectory resolvent**. ``MomentSpace``
        is also under (γ) but uses a different (Galerkin-projection)
        *closure*. Cross-checks between the three pillars are L1
        evidence per ``vv-principles`` § "structural independence"

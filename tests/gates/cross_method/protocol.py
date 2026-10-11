@@ -129,11 +129,11 @@ class SolverAdapter(Protocol):
     name : str
         Stable identifier for tolerance lookups in
         :attr:`CrossMethodCase.tolerances`. Convention: lowercase
-        snake_case, e.g. ``"fn_slab"``, ``"trajectory_resolvent_slab"``,
+        snake_case, e.g. ``"fn_slab"``, ``"characteristic_slab"``,
         ``"fn_reflected_slab"``.
     method : str
         The continuous method family (``"fn_method"``,
-        ``"trajectory_resolvent"``, ``"singular_eigenfunction"``,
+        ``"characteristic"``, ``"singular_eigenfunction"``,
         ...). Used by the agreement-matrix renderer to group adapters.
     geometry : str
         Geometry the adapter handles (``"slab"``, ``"sphere-1d"``,
@@ -152,7 +152,7 @@ class SolverAdapter(Protocol):
           ``case.registry_case.materials`` (or the inline
           ``case.materials`` if no registry case);
         - selecting the right solver parameters (n_modes for fn_method,
-          n_r/n_mu/n_traj for trajectory_resolvent) for the
+          the resolution rung for the characteristic reference) for the
           requested ``case.tolerances`` floor;
         - performing any unit conversions (mfp ↔ cm, half-thickness
           ↔ full slab, etc.);

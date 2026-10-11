@@ -259,9 +259,9 @@ def test_m3_12e_a_child_generated_by_its_parent_serves_a_direct_caller(package, 
     """M3.12 (e): after ``outer`` generated ``inner`` as its child, a DIRECT call of ``inner`` with the same
     argument is a ``Hit``, starts no generation, and returns the parent's child value bit for bit: one child entry,
     two consumers. The synthetic successor of ``test_traced_memo_clients.py::test_m4_2_one_solve_entry_serves_
-    billiard_and_a_direct_caller``, whose real client (the trajectory resolvent's solve child) step (e) of the
-    characteristic-reference campaign deletes; the child-memo feature then has no production client (the user is
-    asked whether it stays), and this row keeps its contract pinned. First red: the child generated in the
+    billiard_and_a_direct_caller``, whose real client (the trajectory resolvent's solve child) step (e2) of the
+    characteristic-reference campaign deleted; since #592 the characteristic reference's solve is the feature's
+    production client again, and this row keeps the contract pinned on a synthetic client. First red: the child generated in the
     parent's generation written under a key a direct call does not form (``inner.lookup`` reads ``Absent``)."""
     beta = package.module("beta")
     beta.outer(2.0)

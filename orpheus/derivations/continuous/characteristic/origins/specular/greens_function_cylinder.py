@@ -103,130 +103,6 @@ from __future__ import annotations
 import sympy as sp
 
 
-def derive_operator_constant_trial_closed_cylinder() -> dict:
-    r"""V_α1_cyl — closed-cylinder bounce-sum self-consistency.
-
-    For a homogeneous infinite cylinder with specular BC and constant
-    volumetric source :math:`q`, the bouncing-trajectory integral form
-    of the angular flux at any interior point :math:`(r, \mu_{\rm axial},
-    \varphi_{\rm az})` is
-
-    .. math::
-
-       \psi(r, \mu_{\rm axial}, \varphi_{\rm az}) \;=\;
-            \int_0^{L_0} q\,e^{-\Sigma_t s}\,\mathrm d s
-            \;+\; e^{-\Sigma_t L_0}\,\psi_{\rm surf}
-
-    where :math:`L_0` is the 3D first-leg distance from :math:`r` to
-    the surface in direction :math:`-\Omega`, and :math:`\psi_{\rm surf}`
-    is the angular flux at the surface entry point in the trajectory
-    direction.
-
-    Specular reflection on the cylinder preserves both :math:`\mu_{\rm
-    axial}` and the impact parameter :math:`b = r\,|\sin\varphi_{\rm
-    az}|`. Every bounce traverses the same periodic 3D chord
-    :math:`L_{\rm period} = 2\sqrt{R^2 - b^2}/\sqrt{1 - \mu_{\rm
-    axial}^2}`, so by self-consistency
-
-    .. math::
-
-       \psi_{\rm surf} \;=\; \int_0^{L_{\rm period}} q\,e^{-\Sigma_t s}\,
-            \mathrm d s + e^{-\Sigma_t L_{\rm period}}\,\psi_{\rm surf}.
-
-    Solving the fixed-point:
-
-    .. math::
-
-       \psi_{\rm surf} \;=\;
-          \frac{q\,(1 - e^{-\Sigma_t L_{\rm period}})}
-               {\Sigma_t\,(1 - e^{-\Sigma_t L_{\rm period}})}
-          \;=\; \frac{q}{\Sigma_t}.
-
-    The dependence on :math:`L_{\rm period}` (and hence on both
-    :math:`b` and :math:`\mu_{\rm axial}`) cancels exactly. Plugging back
-    into the first-leg expression:
-
-    .. math::
-
-       \psi(r, \mu_{\rm axial}, \varphi_{\rm az}) \;=\;
-            \frac{q}{\Sigma_t}\,(1 - e^{-\Sigma_t L_0})
-            + e^{-\Sigma_t L_0}\,\frac{q}{\Sigma_t}
-            \;=\; \frac{q}{\Sigma_t}.
-
-    Both :math:`L_0` and :math:`L_{\rm period}` cancel identically,
-    leaving :math:`\psi = q/\Sigma_t` everywhere. For trial
-    :math:`\psi_{\rm trial} = 1` and isotropic scattering source
-    :math:`q = \Sigma_s\,\psi_{\rm trial} = \Sigma_s`, the operator
-    action is :math:`(K \cdot 1) = \Sigma_s/\Sigma_t = \omega_0`,
-    yielding :math:`k_{\rm eff} = k_\infty = \nu\Sigma_f/\Sigma_a`.
-
-    The proof is **algebraically identical to the sphere V_α1** — both
-    cases reduce to :math:`q/\Sigma_t` independent of the geometric
-    chord-length dependence. Only the chord formulas
-    (:math:`L_{\rm period}` for cylinder vs sphere) differ; the algebra
-    is the same.
-
-    Returns dict with the SymPy expressions and PASS flags.
-    """
-    Sigma_t, Sigma_s, q = sp.symbols(
-        "Sigma_t Sigma_s q", positive=True, real=True,
-    )
-    L_0, L_period = sp.symbols(
-        "L_0 L_period", positive=True, real=True,
-    )
-
-    # First-leg trajectory integral with constant source q.
-    # ∫_0^{L_0} q · e^{-Σ_t s} ds = (q/Σ_t)(1 - e^{-Σ_t L_0})
-    psi_first = (q / Sigma_t) * (1 - sp.exp(-Sigma_t * L_0))
-
-    # Bounce-sum self-consistency.
-    # ψ_surf = ∫_0^{L_period} q e^{-Σ_t s} ds + e^{-Σ_t L_period} ψ_surf
-    psi_surf_var = sp.symbols("psi_surf", positive=True, real=True)
-    fixed_point_eq = sp.Eq(
-        psi_surf_var,
-        (q / Sigma_t) * (1 - sp.exp(-Sigma_t * L_period))
-        + sp.exp(-Sigma_t * L_period) * psi_surf_var,
-    )
-    psi_surf_solution = sp.solve(fixed_point_eq, psi_surf_var)
-    pass_surf_consistency = (
-        len(psi_surf_solution) == 1
-        and sp.simplify(psi_surf_solution[0] - q / Sigma_t) == 0
-    )
-    psi_surf = psi_surf_solution[0]
-
-    # Total ψ at (r, µ_axial, φ_az) — first-leg + attenuated surface.
-    psi_total = psi_first + sp.exp(-Sigma_t * L_0) * psi_surf
-    psi_total_simplified = sp.simplify(psi_total)
-
-    # Should equal q/Σ_t identically — both L_0 and L_period drop out.
-    pass_total_constant = (
-        sp.simplify(psi_total_simplified - q / Sigma_t) == 0
-    )
-
-    # Operator action on isotropic trial ψ_trial = 1.
-    # Source for isotropic scattering: q = Σ_s · ψ_trial = Σ_s.
-    omega_0 = Sigma_s / Sigma_t
-    K_on_one = psi_total_simplified.subs(q, Sigma_s)
-    pass_eigenvalue = sp.simplify(K_on_one - omega_0) == 0
-
-    return {
-        "name": "V_α1_cyl: closed-cylinder bounce-sum constant trial = ω₀",
-        "psi_first_leg": psi_first,
-        "psi_surf_solution": psi_surf,
-        "psi_total_simplified": psi_total_simplified,
-        "K_on_constant_trial": K_on_one,
-        "omega_0": omega_0,
-        "pass_surf_consistency": pass_surf_consistency,
-        "pass_total_constant": pass_total_constant,
-        "pass_eigenvalue": pass_eigenvalue,
-        "pass": (
-            pass_surf_consistency
-            and pass_total_constant
-            and pass_eigenvalue
-        ),
-    }
-
-
 def derive_bounce_period_chord_cylinder() -> dict:
     r"""V_α1_cyl.geometry — verify the cylinder bounce-period chord
     formula.
@@ -381,7 +257,7 @@ def derive_T00_equals_P_ss_cylinder() -> dict:
     closed-form match (as sphere V_α2 does via the Hébert form). The
     rigorous V&V evidence comes from the numerical-primitive cross-
     check in
-    :mod:`tests.gates.derivations.test_peierls_greens_function_cylinder_solver`
+    :mod:`tests.gates.derivations.test_peierls_specular_primitives`
     (``test_v_alpha2_cyl_T00_equals_Pss_via_production_primitives``):
     the production functions :func:`compute_T_specular_cylinder_3d`
     and :func:`compute_P_ss_cylinder` are completely separate code

@@ -3,7 +3,7 @@
 P1 step (e1b) of the characteristic-reference campaign
 (``.claude/plans/characteristic_reference_architecture.md``, "Step (e): the audit
 and four rulings"): the successors, on the characteristic reference, of the old
-trajectory-resolvent family's albedo rows, which step (e2) deletes with the
+trajectory-resolvent family's albedo rows, which step (e2) deleted with the
 family. Verification spec ``scratch/characteristic_architecture/p1_verification_spec.md``,
 rows B4c (the method of images) and D8 (the ordering theorem). The row-by-row
 map from the old rows is ``scratch/characteristic_architecture/p1_step_e/ta_e1b/README.md``.

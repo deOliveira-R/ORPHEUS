@@ -130,7 +130,7 @@ Submodules
      - The one reading of a
        :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
        as the body a continuous reference generator (``Spectrum``,
-       ``MomentSpace``, ``BasisSpace``, ``Billiard``) solves on.
+       ``MomentSpace``, ``BasisSpace``) solves on.
        :func:`~orpheus.derivations.common.reference_body.reference_body`
        is total and knows no solver: after merging adjacent intervals
        of one material into runs, it returns exactly one of

@@ -82,7 +82,7 @@ cross-reference:
      heterogeneous-2G SI :math:`\equiv` Krylov equivalence gate
      (:ref:`#196 <sn-issue-196-eigenvalue-equivalence>`); beside it, the
      multi-region flux-shape comparisons against a semi-analytical
-     reference (:ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section`;
+     reference (:ref:`sn-curvilinear-characteristic-reference-crosscheck-section`;
      the characteristic reference since P1 step (d), ``d9425977``, the
      trajectory resolvent before it), which are uncertified comparisons and
      not verifications since #405 P2 step 7b.2.3 (the reference derives no
@@ -460,7 +460,7 @@ heterogeneous by design.
   a homogeneous :math:`\kinf` is flux-shape *independent*, necessary
   but never sufficient.
 * **Flux shape, multigroup.**  The Gate 4.2 cross-check
-  (:ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section`)
+  (:ref:`sn-curvilinear-characteristic-reference-crosscheck-section`)
   carries the multigroup rows: the 2-group three-region sphere and the
   2-group three-region cylinder against the characteristic reference
   (:ref:`theory-characteristic-reference`; since P1 step (d),

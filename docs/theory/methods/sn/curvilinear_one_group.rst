@@ -4248,7 +4248,7 @@ resumed:
 1. The trajectory_resolvent (Peierls Variant α Green's-function)
    campaign shipped cylinder MR Phase 1b (commits ``37e3e29``,
    ``cf662a6``, ``604f380``, ``e10c33c``), explicitly built to close
-   the cylinder-2G ERR-026 gap. trajectory_resolvent now covers
+   the cylinder-2G ERR-026 gap. trajectory_resolvent then covered
    5 of the 6 deleted curvilinear regression snapshots at
    machine-precision-class precision; the 6th (P1 anisotropic)
    routes to a shape-independent :math:`k_\infty` closed form.
@@ -5145,7 +5145,7 @@ when the angular closure default does not flip to the canonical
 M–M form. Gate 3.1 is therefore marked
 ``@pytest.mark.xfail(strict=False)`` pending Phase D's pole-face
 spatial-closure refinement (see
-:ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section` for the
+:ref:`sn-curvilinear-characteristic-reference-crosscheck-section` for the
 Phase D scope summary).
 
 The xfail is intentionally **not strict** at this gate (in
@@ -5258,13 +5258,13 @@ redistribution term integrates to zero against the volume weights
 across an :math:`\mathcal{R}^4` cell). The shape-dependent ERR-026
 flux-shape bug therefore drops out of the eigenvalue but persists
 in the **flux shape** — exactly what
-:ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section` will
+:ref:`sn-curvilinear-characteristic-reference-crosscheck-section` will
 measure in Phase D. Gate 4.1 is therefore the **necessary** but
 **not sufficient** evidence chain (per ``vv-principles`` 1-group
 degeneracy rule); the sufficient chain requires structurally-
 independent flux-shape evidence from Phase D.
 
-.. _sn-curvilinear-trajectory-resolvent-crosscheck-section:
+.. _sn-curvilinear-characteristic-reference-crosscheck-section:
 
 Gate 4.2: the cross-check against a semi-analytical reference
 -------------------------------------------------------------
@@ -5282,7 +5282,7 @@ answer agree in the eigenvalue and in the flux shape on the
 S\ :sub:`N` solve's own cells:
 
 .. math::
-   :label: sn-curvilinear-trajectory-resolvent-crosscheck
+   :label: sn-curvilinear-characteristic-reference-crosscheck
 
    \frac{\lvert k^{\,\text{SN}}_h - k^{\,\text{ref}}\rvert}{k} \le \tau_k,
    \qquad
@@ -5325,16 +5325,18 @@ Green's-function solvers), the equation read :math:`k^{\,\text{traj.res.}}`,
 and the tolerances were :math:`\tau_k = 4\times10^{-3}` (that family's
 :math:`10\,b` floor on its ladder estimate :math:`3.2\times10^{-4}`),
 :math:`\tau_s = 2\times10^{-2}` and a typed :math:`10^{-9}` on the edge
-rows.  The label keeps the old family's name, as the rows keep theirs:
-the label is the target of the edge rows' ``verifies`` marker, and the
-``#516`` census of ``test_crosscheck_harness.py`` keys on the row names
-(the user's ruling of 2026-10-09: no row is renamed).
+rows.  The label keeps the old family's name: it is the target of the
+edge rows' ``verifies`` marker.  The rows kept theirs too through step
+(d) (the user's ruling of 2026-10-09), and step (e2), which deleted the
+family, renamed them, ``trajectory_resolvent`` to
+``characteristic_reference`` in seven test ids, with the ``#516`` census
+of ``test_crosscheck_harness.py`` re-keyed in the same commit.
 
 .. note::
 
    **What verifies this label today.**  Its verifying rows are the 3
    homogeneous edge rows of
-   :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_d_trajectory_resolvent_crosscheck`
+   :func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_d_characteristic_reference_crosscheck`
    (`[M]` 9 rows until #405 P2 step 7b.2.3, 3 after, in the regenerated
    matrix of 2026-10-03), and they verify the **homogeneous reduction
    only**: a uniform medium's flux is flat, which nulls every spatial and
@@ -5358,7 +5360,8 @@ the label is the target of the edge rows' ``verifies`` marker, and the
 When Gate 4.2 was planned (Phase C) the reference was read through the
 old family's bare function entry points, one per deleted P0
 curvilinear regression snapshot; the table records that coverage, which
-no row reads since P1 step (d):
+no row reads since P1 step (d); the entry points were deleted with the
+family at P1 step (e2) (2026-10-10):
 
 .. list-table:: trajectory_resolvent reference coverage
    :header-rows: 1
@@ -5368,19 +5371,19 @@ no row reads since P1 step (d):
      - Bare entry point
      - Precision
    * - ``sphere_2g_homogeneous_dd_n20``
-     - :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere_mg`
+     - ``solve_greens_function_sphere_mg``
      - :math:`k_\infty` exact via V_α1 identity
    * - ``sphere_2g_3reg_dd_n40``
-     - :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function.solve_greens_function_sphere_mr`
+     - ``solve_greens_function_sphere_mr``
      - MR↔MG reduction ``rtol=1e-9``
    * - ``cyl_1g_homogeneous_LS4_dd_n20``
-     - :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder`
+     - ``solve_greens_function_cylinder``
      - V_α1_cyl exact; Sood Ua-1-O-CY vacuum ``8.5e-6``
    * - ``cyl_1g_homogeneous_product_dd_n20``
      - same as above (different SN quadrature)
      - same
    * - ``cyl_2g_3reg_LS4_dd_n40``
-     - :func:`~orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder_mr`
+     - ``solve_greens_function_cylinder_mr``
      - MR↔MG K=3 2G ``rtol=1e-9``
 
 The 6th snapshot (``sphere_2g_p1_aniso_dd_n20``) routes to Gate 4.1
@@ -5388,7 +5391,7 @@ because :math:`P_1` anisotropic eigenvalue is still
 shape-independent for a homogeneous reflective problem.
 
 The cross-check placeholder landed as the Phase D test
-:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_d_trajectory_resolvent_crosscheck`
+:func:`tests.gates.sn.verification.analytical.test_phase_c_crosscheck.test_phase_d_characteristic_reference_crosscheck`
 (after the pole-face spatial-closure refinement). When it landed it
 pinned the names of the bare entry points so the reader knew exactly
 where the reference came from; since P1 step (d) it names the

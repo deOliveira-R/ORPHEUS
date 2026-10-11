@@ -1,5 +1,5 @@
-r"""L1 cross-check: sphere F_N method (Siewert-Thomas 1986) vs Variant α
-sphere bouncing-trajectory operator at Sood ``Ua-1-0-SP``.
+r"""L1 cross-check: sphere F_N method (Siewert-Thomas 1986) vs the characteristic
+reference's sphere at Sood ``Ua-1-0-SP``.
 
 Structural-independence pillar
 ------------------------------
@@ -15,11 +15,15 @@ disjoint mathematical paths above the trusted-library line:
   :math:`\det M(R_c) = 0`. Works in the **Case singular-eigenfunction
   representation** of the angular flux.
 
-* **Variant α sphere (this branch's system-under-test)**: angle-
-  resolved Green's function with bouncing-trajectory closure
-  (rank-1 boundary-to-boundary scattering operator). Reduces to a
-  fixed-point iteration on the surface inflow. Works in the
-  **bouncing-characteristic representation** of the angular flux.
+* **The characteristic reference (the system under test)**: transport
+  integrated along lines, a Galerkin pencil on graded panels, its
+  dominant eigenpair solved densely. Works in the **characteristic
+  representation** of the angular flux. Until step (e2) of the
+  characteristic-reference campaign this side was the trajectory-resolvent
+  sphere (Variant α), deleted with its family; the re-pointed rows keep its
+  bands (1e-5 at F_N's radius, 5e-5 at the truth radius), and the
+  reference meets them by 2.3e-8 and 1.1e-8 at rung 4 (``[M]`` 2026-10-10,
+  ``scratch/characteristic_architecture/p1_step_e/ta_e2/probe_xrows.py``).
 
 These representations agree on the same physics (the 1G isotropic-
 scattering bare-critical sphere) but use no shared in-house code —
@@ -28,7 +32,7 @@ trusted-library level. This makes their agreement at :math:`R_c` a
 genuine **L1 cross-check**, NOT cross-implementation agreement (L4).
 
 The previous test in this file compared PS-1982 wrapper (Peierls
-integral equation) vs Variant α (bouncing-trajectory). Those two
+integral equation) vs Variant α (bouncing-trajectory, since deleted). Those two
 methods are NOT genuinely structurally independent — both reduce
 the same Peierls integral equation by different algebraic paths.
 The F_N method is genuinely independent because it works in the
@@ -61,24 +65,39 @@ from orpheus.derivations.continuous.sood_registry import UA_1_0_SP_STUB
 from orpheus.derivations.continuous.fn_method.sphere import (
     solve_fn_sphere_bare_critical,
 )
-from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
-    solve_greens_function_sphere,
-)
+from orpheus.geometry import BC, StructuredGeometry
+
+
+def _characteristic_k(geometry, mixture, degree: int) -> float:
+    """The characteristic reference's k for one mixture on ``geometry``, at rung ``degree`` of the joint ladder, in
+    this process (:func:`~orpheus.numerics.traced_memo.bypass`)."""
+    from orpheus.data.cells import CellCoefficient, Channel
+    from orpheus.data.materials import Materials
+    from orpheus.derivations.continuous.characteristic import CharacteristicDerivation
+    from orpheus.numerics.observable import Eigenvalue
+    from orpheus.numerics.question import Eigen
+    from orpheus.numerics.traced_memo import bypass
+    from orpheus.specification.specification import GeometrySpecification
+    from tests.gates.derivations._characteristic_ladders import rung
+
+    spec = GeometrySpecification(Materials({0: mixture}), geometry, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
+    with bypass():
+        return float(CharacteristicDerivation(spec, rung(degree)).evaluate(Eigenvalue()).value)
 
 
 @pytest.mark.l1
-def test_fn_sphere_vs_variant_alpha_sphere_at_sood_ua_1_0_sp():
-    r"""L1: F_N sphere (Wiener-Hopf via Case eigenfunctions) and Variant
-    α sphere (bouncing-trajectory operator) agree on the bare-critical
+def test_fn_sphere_vs_the_characteristic_sphere_at_sood_ua_1_0_sp():
+    r"""L1: F_N sphere (Wiener-Hopf via Case eigenfunctions) and the
+    characteristic sphere (Galerkin pencil over lines) agree on the bare-critical
     radius at Sood ``Ua-1-0-SP`` (c=1.30) to ≤ 1e-5 absolute.
 
     The two methods are structurally independent above the trusted-
     library line: F_N works in the Case singular-eigenfunction
-    representation; Variant α works in the bouncing-characteristic
+    representation; the characteristic reference works in the characteristic
     representation. Their agreement is genuine L1 evidence for the
     correctness of both — neither is L4 cross-implementation.
 
-    Direct comparison: F_N predicts :math:`R_c^{\rm FN}`; Variant α
+    Direct comparison: F_N predicts :math:`R_c^{\rm FN}`; the reference
     at :math:`R = R_c^{\rm FN}` should give :math:`k_{\rm eff} = 1`.
     Equivalently: solve both for c = 1.30 critical radius
     independently, compare.
@@ -88,31 +107,18 @@ def test_fn_sphere_vs_variant_alpha_sphere_at_sood_ua_1_0_sp():
     res_fn = solve_fn_sphere_bare_critical(c=1.30, n_modes=10)
     R_c_fn = res_fn.R_critical_mfp
 
-    # Variant α sphere at the F_N predicted radius. We expect k_eff = 1
+    # The characteristic sphere at the F_N predicted radius. We expect k_eff = 1
     # to within 1e-5 (the structural-independence cross-check pillar).
     case = UA_1_0_SP_STUB
     sigma_t = float(case.materials[0].SigT[0])
-    sigma_s = float(case.materials[0].SigS[0][0, 0])
-    nu_sigma_f = float(case.materials[0].SigP[0])
     # Convert F_N R_c (mfp) to cm using the case's σ_t.
     R_c_cm = R_c_fn / sigma_t
 
-    res_va = solve_greens_function_sphere(
-        R=R_c_cm,
-        sigma_t=sigma_t,
-        sigma_s=sigma_s,
-        nu_sigma_f=nu_sigma_f,
-        alpha=0.0,
-        n_r=32,
-        n_mu=32,
-        n_traj_quad=64,
-        max_iter=400,
-        tol=1e-10,
-    )
-    err = abs(res_va.k_eff - 1.0)
+    k_eff = _characteristic_k(StructuredGeometry.sphere((0.0, R_c_cm), (0,), outer=BC.vacuum), case.materials[0], 4)
+    err = abs(k_eff - 1.0)
     assert err < 1e-5, (
         f"F_N sphere R_c = {R_c_fn:.10f} mfp = {R_c_cm:.6f} cm; "
-        f"Variant α at this R gives k_eff = {res_va.k_eff:.8f}, "
+        f"the characteristic reference at this R gives k_eff = {k_eff:.8f}, "
         f"|k - 1| = {err:.3e} (target 1e-5). "
         f"F_N vs Sood Ua-1-0-SP truth ({case.truth.critical_dimension_mfp}): "
         f"err = {abs(R_c_fn - case.truth.critical_dimension_mfp):.3e}"
@@ -138,37 +144,24 @@ def test_fn_sphere_matches_sood_ua_1_0_sp_directly():
 
 
 @pytest.mark.l1
-def test_variant_alpha_sphere_at_sood_truth_radius():
-    r"""L1: Variant α sphere at the Sood Ua-1-0-SP TRUTH radius
+def test_the_characteristic_sphere_at_sood_truth_radius():
+    r"""L1: the characteristic sphere at the Sood Ua-1-0-SP TRUTH radius
     :math:`R = 7.428998` cm gives :math:`k_{\rm eff} = 1` to ≤ 5e-5.
 
     Held over from the previous (PS-1982 wrapper) cross-check — the
-    Variant α prediction at the truth radius is the SAME claim as
-    before (Variant α has not changed). The structural-independence
+    prediction at the truth radius is the SAME claim as before, now on
+    the characteristic reference (step (e2)). The structural-independence
     upgrade applies to the reference, not the system-under-test.
     """
     case = UA_1_0_SP_STUB
     sigma_t = float(case.materials[0].SigT[0])
-    sigma_s = float(case.materials[0].SigS[0][0, 0])
-    nu_sigma_f = float(case.materials[0].SigP[0])
     # Sphere truth radius in cm: R_cm = critical_dimension_mfp / Σ_t.
     # For Ua-1-0-SP: 2.4248249802 / 0.32640 ≈ 7.428998.
     R_truth_cm = float(case.truth.critical_dimension_mfp) / sigma_t
 
-    res_va = solve_greens_function_sphere(
-        R=R_truth_cm,
-        sigma_t=sigma_t,
-        sigma_s=sigma_s,
-        nu_sigma_f=nu_sigma_f,
-        alpha=0.0,
-        n_r=32,
-        n_mu=32,
-        n_traj_quad=64,
-        max_iter=400,
-        tol=1e-10,
-    )
-    err = abs(res_va.k_eff - 1.0)
+    k_eff = _characteristic_k(StructuredGeometry.sphere((0.0, R_truth_cm), (0,), outer=BC.vacuum), case.materials[0], 4)
+    err = abs(k_eff - 1.0)
     assert err < 5e-5, (
-        f"Variant α sphere at Sood truth R={R_truth_cm} cm: "
-        f"k_eff={res_va.k_eff:.8f}, err={err:.3e}"
+        f"the characteristic sphere at Sood truth R={R_truth_cm} cm: "
+        f"k_eff={k_eff:.8f}, err={err:.3e}"
     )

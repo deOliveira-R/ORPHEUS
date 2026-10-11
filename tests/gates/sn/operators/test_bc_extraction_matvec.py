@@ -283,7 +283,7 @@ class TestVacuumMatvecBitIdentity:
     (drift ~1e15 ULP).  Before re-capturing, the CURRENT SPH matvec was
     verified correct vs structurally-independent references (L0 streaming-
     equilibrium per-ordinate, L1 isotropic + anisotropic MMS to O(h²),
-    L1 trajectory-resolvent) — never green-by-fiat (``vv-principles``
+    L1 trajectory-resolvent, since replaced by the characteristic reference) — never green-by-fiat (``vv-principles``
     L11/L14/L27).
     """
 

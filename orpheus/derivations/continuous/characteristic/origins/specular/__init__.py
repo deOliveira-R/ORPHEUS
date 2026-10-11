@@ -47,28 +47,23 @@ from .greens_function import (
 )
 from .greens_function_annulus import (
     derive_3d_chord_scaling_annulus,
-    derive_alpha_zero_kernel_reduction_annulus,
     derive_operator_constant_trial_closed_annulus,
-    derive_rank2_resolvent_annulus,
 )
 from .greens_function_cylinder import (
     derive_T00_equals_P_ss_cylinder,
     derive_alpha_zero_kernel_reduction_cylinder,
     derive_bounce_period_chord_cylinder,
     derive_homogeneous_limit_reducibility_cylinder_mr,
-    derive_operator_constant_trial_closed_cylinder,
     derive_piecewise_3d_optical_depth_cylinder_mr,
     derive_two_region_constant_source_consistency_cylinder_mr,
 )
 from .greens_function_hollow_sphere import (
     derive_alpha_zero_kernel_reduction_hollow_sphere,
     derive_operator_constant_trial_closed_hollow_sphere,
-    derive_rank2_resolvent_hollow_sphere,
 )
 from .greens_function_slab import (
     derive_T00_equals_P_ss_slab,
     derive_alpha_zero_kernel_reduction_slab,
-    derive_operator_constant_trial_closed_slab,
 )
 from .greens_function_slab_asymmetric import (
     derive_alpha_zero_kernel_reduction_slab_asymmetric,
@@ -85,7 +80,6 @@ __all__ = [
     "derive_T00_equals_P_ss_cylinder",
     "derive_alpha_zero_kernel_reduction_cylinder",
     "derive_bounce_period_chord_cylinder",
-    "derive_operator_constant_trial_closed_cylinder",
     # Phase 1b MR extensions
     "derive_homogeneous_limit_reducibility_cylinder_mr",
     "derive_piecewise_3d_optical_depth_cylinder_mr",
@@ -93,7 +87,6 @@ __all__ = [
     # greens_function_slab
     "derive_T00_equals_P_ss_slab",
     "derive_alpha_zero_kernel_reduction_slab",
-    "derive_operator_constant_trial_closed_slab",
     # greens_function_slab_asymmetric (rank-2)
     "derive_alpha_zero_kernel_reduction_slab_asymmetric",
     "derive_operator_constant_trial_closed_slab_asymmetric",
@@ -101,11 +94,8 @@ __all__ = [
     # greens_function_hollow_sphere (rank-2 + impact-parameter partition)
     "derive_alpha_zero_kernel_reduction_hollow_sphere",
     "derive_operator_constant_trial_closed_hollow_sphere",
-    "derive_rank2_resolvent_hollow_sphere",
     # greens_function_annulus (rank-2 + impact-parameter partition,
     # cylinder 3D angular phase-space)
     "derive_3d_chord_scaling_annulus",
-    "derive_alpha_zero_kernel_reduction_annulus",
     "derive_operator_constant_trial_closed_annulus",
-    "derive_rank2_resolvent_annulus",
 ]

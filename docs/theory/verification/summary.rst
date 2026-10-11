@@ -112,8 +112,10 @@ Cross-method coverage
 The cross-method regression net pairs the continuous-reference
 families that solve the same benchmark problems through
 structurally-independent mathematics — ``fn_method`` (Case
-singular-eigenfunction collocation) and ``trajectory_resolvent``
-(bouncing-trajectory Green's function) — on shared registry cases
+singular-eigenfunction collocation) and the characteristic
+reference (transport integrated along lines, which replaced the
+``trajectory_resolvent`` bouncing-trajectory Green's function on
+2026-10-10) — on shared registry cases
 with per-solver tolerances. :doc:`cross_method` owns the protocol:
 the adapter contract, the agreement-tolerance discipline (never
 tighter than the looser truth tolerance), the L4 ruling, and the
@@ -164,16 +166,19 @@ The two one-sided asymmetries are deliberate, not gaps in waiting:
 the closed-sphere :math:`k_\infty` identity is covered on the
 F\ :sub:`N` side separately (its ``compute_kinf_*`` closed forms are
 gated against ``kinf_homogeneous`` in the per-method file), and the
-GS parametric set has no ``trajectory_resolvent`` registry case. The
+GS parametric set has no characteristic-reference registry case. The
 known multi-group coverage gap is acknowledged and scoped at
 :doc:`cross_method`.
 
 Beyond the eigenvalue gates, a foundation-level **polymorphism net**
 (``tests/gates/cross_method/test_polymorphism.py``) pins direct
-construction of each family's math-heart class (``MomentSpace``,
-``Billiard``) against its adapter dispatch — the agreement contract
-that survived the Phase-D retirement of the ``TransportSolver``
-Protocol.
+construction of ``MomentSpace`` against its adapter dispatch — the
+agreement contract that survived the Phase-D retirement of the
+``TransportSolver`` Protocol. Its ``Billiard`` rows were deleted with
+the trajectory resolvent on 2026-10-10: they were tautological (the
+adapter called the solver ``Billiard`` dispatched to), and the
+characteristic reference has one construction route, its door, so
+there is no second route to compare.
 
 
 Structural property tests

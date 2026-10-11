@@ -98,8 +98,9 @@ class BC(ContentIdentity):
         r"""Map this BC tag to a continuous specular albedo
         :math:`\alpha \in [0, 1]`.
 
-        The trajectory_resolvent / Birkhoff–Sinai billiard family
-        parametrises specular boundary conditions on a continuous
+        The continuous references (the F_N, Galerkin-spectral and
+        singular-eigenfunction families) parametrise specular boundary
+        conditions on a continuous
         albedo: :math:`\alpha = 0` is vacuum (no return), :math:`\alpha
         = 1` is perfect specular reflection, :math:`\alpha \in (0, 1)`
         is partial reflection. This method translates the production

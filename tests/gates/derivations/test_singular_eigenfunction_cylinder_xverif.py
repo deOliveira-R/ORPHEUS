@@ -1,4 +1,4 @@
-r"""L1 cross-check: WM-72 cylinder vs Variant α cylinder at Sood
+r"""L1 cross-check: WM-72 cylinder vs the characteristic reference's cylinder at Sood
 ``Ua-1-0-CY`` configuration.
 
 This test pins the **structurally-independent** agreement between the
@@ -10,11 +10,13 @@ two cylinder critical-radius solvers in ORPHEUS:
   equation (modified Bessel kernel
   :math:`K_0(\max/\mu)\,I_0(\min/\mu)/\mu^2`).
 
-* :func:`orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder.solve_greens_function_cylinder`
-  — angle-resolved Variant α Green's function integrated along
-  bouncing characteristics (no Bickley-Naylor / :math:`\mathrm{Ki}_n`
+* :class:`orpheus.derivations.continuous.characteristic.CharacteristicDerivation`
+  — transport integrated along lines through the cylinder, a Galerkin
+  pencil on graded panels (no Bickley-Naylor / :math:`\mathrm{Ki}_n`
   integrals; structurally distinct from the modified-Bessel kernel of
-  WM-72).
+  WM-72). Until step (e2) of the characteristic-reference campaign this
+  side was the trajectory-resolvent cylinder (Variant α), deleted with
+  its family.
 
 These two methods share **only** the dispersion-root primitive
 (:func:`orpheus.derivations.continuous.fn_method.core.dispersion.case_nu0`,
@@ -25,8 +27,8 @@ Above the trusted-library line, the methods are entirely disjoint:
 
 * WM-72: integral transport equation in `(r, t)` space with modified
   Bessel kernel.
-* Variant α: angle-resolved scalar transport with bouncing
-  characteristics and analytical bounce-period summation.
+* The characteristic reference: transport along lines, the closure as
+  the boundary resolvent, a dense Galerkin pencil.
 
 Per ``algebra-of-record`` § "Structural independence applies above
 the trusted-library line", agreement at Sood ``Ua-1-0-CY`` is a true
@@ -45,10 +47,13 @@ the published WM-72 Table II values. The cross-check now uses a
 
 V&V triangle for Sood ``Ua-1-0-CY``:
 
-* Variant α via bouncing characteristics: 8.5e-6 (already shipped at
-  :mod:`tests.gates.derivations.test_peierls_greens_function_cylinder_xverif_sood2003`).
+* The characteristic reference at Sood's printed radius:
+  ``tests/gates/derivations/test_characteristic_independent_references.py``
+  (``test_k_is_one_at_the_one_group_cylinders_published_critical_radius``).
 * WM-72 via singular-eigenfunction Fredholm: ≤ 3e-7 (this module).
-* Cross-check WM-72 ↔ Variant α: ≤ 1e-5 (this test).
+* Cross-check WM-72 ↔ the characteristic reference: ≤ 1e-5 (this test;
+  ``[M]`` 2026-10-10, k − 1 = −1.7e-8 at rung 3,
+  ``scratch/characteristic_architecture/p1_step_e/ta_e2/probe_xrows.py``).
 
 Two structurally-independent paths, both anchored at the published
 Sood truth value to ≤ 1e-5. A third leg via ``peierls_nystrom``
@@ -57,12 +62,9 @@ expansion.
 """
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinder import (
-    solve_greens_function_cylinder,
-)
+from orpheus.geometry import BC, StructuredGeometry
 from orpheus.derivations.continuous.singular_eigenfunction import (
     solve_singular_eigenfunction_cylinder_bare_critical,
 )
@@ -77,10 +79,27 @@ pytestmark = [
 ]
 
 
+def _characteristic_k(geometry, mixture, degree: int) -> float:
+    """The characteristic reference's k for one mixture on ``geometry``, at rung ``degree`` of the joint ladder, in
+    this process (:func:`~orpheus.numerics.traced_memo.bypass`)."""
+    from orpheus.data.cells import CellCoefficient, Channel
+    from orpheus.data.materials import Materials
+    from orpheus.derivations.continuous.characteristic import CharacteristicDerivation
+    from orpheus.numerics.observable import Eigenvalue
+    from orpheus.numerics.question import Eigen
+    from orpheus.numerics.traced_memo import bypass
+    from orpheus.specification.specification import GeometrySpecification
+    from tests.gates.derivations._characteristic_ladders import rung
+
+    spec = GeometrySpecification(Materials({0: mixture}), geometry, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
+    with bypass():
+        return float(CharacteristicDerivation(spec, rung(degree)).evaluate(Eigenvalue()).value)
+
+
 @pytest.mark.l1
 @pytest.mark.slow
-def test_wm72_vs_variant_alpha_at_sood_ua_1_0_cy():
-    r"""L1 cross-check — WM-72 r_c agrees with Variant α r_c at the
+def test_wm72_vs_the_characteristic_cylinder_at_sood_ua_1_0_cy():
+    r"""L1 cross-check — WM-72 r_c agrees with the characteristic reference's r_c at the
     Sood ``Ua-1-0-CY`` benchmark configuration to ≤ 1e-5 relative.
 
     Both solvers reproduce the published :math:`r_c = 1.72500292` mfp
@@ -93,11 +112,10 @@ def test_wm72_vs_variant_alpha_at_sood_ua_1_0_cy():
     1. Run the WM-72 hardened Fredholm solver to compute
        :math:`r_c^{\rm WM}` mfp at :math:`n_{\rm grid} = 24`.
     2. Convert to cm via :math:`R = r_c^{\rm WM} / \Sigma_t`.
-    3. Run Variant α at the WM-72-converted radius with vacuum BC
-       (:math:`\alpha = 0`); the eigenvalue must be ≈ 1 to within
-       :math:`10^{-3}` (the cylinder's eigenvalue sensitivity to
-       radius perturbations is approximately proportional, so a
-       1e-5 radius offset gives a 1e-5 to 1e-4 k_eff offset).
+    3. Run the characteristic reference at the WM-72-converted radius
+       with vacuum walls (rung 3); the eigenvalue must be ≈ 1 to within
+       :math:`10^{-5}` (the old row's 1e-3 was the trajectory resolvent's
+       margin; this reference reads 1.7e-8 there).
     4. Assert WM-72 R_c agrees with Sood truth to ≤ 1e-5 (not 2%).
     """
     case = SOOD2003_CASES["Ua-1-0-CY"]
@@ -114,35 +132,11 @@ def test_wm72_vs_variant_alpha_at_sood_ua_1_0_cy():
         f"R_c = {res_wm.r_c_mfp:.9f} mfp, truth = {truth_mfp}."
     )
 
-    # Variant α at WM-72's R (in cm).
-    R_cm = res_wm.r_c_cm
-    sigma_s = float(case.materials[0].SigS[0][0, 0])  # 0.248064
-    nu_sigma_f = float(case.materials[0].SigP[0])  # 0.176256
-
-    # Run Variant α with the WM-72-derived radius. Since WM-72's R agrees
-    # with Sood truth to ≤ 1e-5, and Sood truth is also Variant α's
-    # convergence anchor (per test_trajectory_resolvent_cylinder_xverif_sood2003
-    # at 8.5e-6), Variant α at WM-72's R should give k ≈ 1 to within
-    # the combined uncertainty floor.
-    res_va = solve_greens_function_cylinder(
-        R=R_cm,
-        sigma_t=sigma_t,
-        sigma_s=sigma_s,
-        nu_sigma_f=nu_sigma_f,
-        alpha=0.0,
-        n_r=24, n_mu_axial=20, n_phi_az=64, n_traj_quad=96,
-        max_iter=400, tol=1e-11,
-    )
-    assert res_va.converged, (
-        f"Variant α did not converge at R = {R_cm} cm (WM-72-derived); "
-        f"k_eff = {res_va.k_eff}, iter = {res_va.iterations}"
-    )
-    # At WM-72's R (≤ 1e-5 off Sood truth) and Variant α anchored at
-    # 8.5e-6 against the same truth, k_eff should be ≈ 1 to within
-    # ~1e-4 combined floor. Use 1e-3 for generous platform margin.
-    err_va = abs(res_va.k_eff - 1.0)
-    assert err_va < 1.0e-3, (
-        f"Variant α k_eff = {res_va.k_eff:.8f} at WM-72's R = {R_cm:.6f} "
-        f"cm; expected k ≈ 1 to ≤ 1e-3 given both methods anchor at "
-        f"the same Sood truth value to ≤ 1e-5. Got |k - 1| = {err_va:.3e}."
+    # The characteristic reference at WM-72's R (in cm), rung 3 (about 30 s).
+    assert res_wm.r_c_cm is not None
+    k_eff = _characteristic_k(StructuredGeometry.cylinder((0.0, res_wm.r_c_cm), (0,), outer=BC.vacuum), case.materials[0], 3)
+    err_va = abs(k_eff - 1.0)
+    assert err_va < 1.0e-5, (
+        f"characteristic k_eff = {k_eff:.8f} at WM-72's R = {res_wm.r_c_cm:.6f} cm; "
+        f"expected k ≈ 1 to ≤ 1e-5. Got |k - 1| = {err_va:.3e}."
     )

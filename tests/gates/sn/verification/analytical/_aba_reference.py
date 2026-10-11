@@ -115,7 +115,7 @@ def aba_reference_at(coord: CoordSystem, resolution: Resolution) -> ReferenceSol
     """The characteristic reference on the A|B|A body at ``resolution``: lazy, uncertified (#566).
 
     Since P1 step (d) of ``.claude/plans/characteristic_reference_architecture.md`` (until then the trajectory
-    resolvent, whose spelling the corroboration rows keep in ``tests/gates/derivations/_trajectory_resolvent_aba.py``).
+    resolvent, deleted with its corroboration rows in step (e2)).
     """
     from orpheus.derivations.continuous.characteristic import characteristic_reference
 

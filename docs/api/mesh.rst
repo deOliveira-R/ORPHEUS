@@ -181,7 +181,7 @@ mesher calls, and what a relabelling
 axis adapter calls; a test or a script builds its mesh through the
 mesher.
 
-This split is what lets **reference** solution generators (``Billiard``,
+This split is what lets **reference** solution generators (``CharacteristicDerivation``,
 ``MomentSpace``, ``Spectrum``, ``BasisSpace``) consume the
 :class:`StructuredGeometry` directly — they need no mesh — while
 **discrete production** solvers (``solve_sn`` / ``solve_cp`` /

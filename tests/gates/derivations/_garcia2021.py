@@ -8,7 +8,7 @@ per-steradian source, so a reference posed with the source as a rate reads half 
 against Williams 1991 (integral-equation MoC) and Picca, Furfaro and Ganapol 2012 (S_N) to 3-4 significant figures
 at every point.
 
-Moved here in P1 step (e1b) from ``test_peierls_greens_function_garcia2021.py``, which step (e) deletes with the
+Moved here in P1 step (e1b) from ``test_peierls_greens_function_garcia2021.py``, which step (e2) deleted with the
 trajectory-resolvent family; the consumer is
 ``test_characteristic_reading.py::test_garcias_case_1_per_point``.
 """

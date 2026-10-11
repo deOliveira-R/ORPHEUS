@@ -70,8 +70,7 @@ self-convergence under panel refinement),
 :mod:`tests.gates.derivations.test_peierls_multigroup` (including the
 diagnostic test
 :class:`tests.gates.derivations.test_peierls_multigroup.TestSlabViaUnifiedDiscrepancyDiagnostic`,
-now at ``rel_diff < 1e-10`` bound), and
-:mod:`tests.gates.derivations.test_peierls_greens_function_slab_solver`.
+now at ``rel_diff < 1e-10`` bound).
 """
 from __future__ import annotations
 

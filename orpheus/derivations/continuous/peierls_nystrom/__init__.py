@@ -10,10 +10,13 @@ grid; they are the reference of choice for heterogeneous CP
 verification.
 
 The companion sub-package
-:mod:`orpheus.derivations.continuous.trajectory_resolvent` hosts
-the angle-resolved Variant α Green's-function references that share
-the Peierls integral ancestry but discretize the angle-resolved
-Green's function rather than the scalar-flux integral equation.
+:mod:`orpheus.derivations.continuous.characteristic` hosts the
+characteristic reference: the angle-resolved transport along straight
+lines (a Volterra operator per line, closed by the boundary laws),
+discretised by a Galerkin method over the emission rather than by
+collocation of the scalar-flux integral equation. It superseded the
+trajectory-resolvent family (Variant α), retired in P1 step (e2) of
+#405.
 
 Sub-modules:
 

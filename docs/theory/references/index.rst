@@ -31,9 +31,11 @@ therefore the production solvers) trust.
   upstream identity will agree to machine precision while both
   being wrong (ERR-032 in the project's error catalog).
 - **Folder names follow method-canonical naming**, not author names
-  (refactor commit ``d7fa25b``). The folder ``trajectory_resolvent/``
-  documents what the method *does* (trajectory tracking + resolvent
-  closure), not who introduced it. Author names are reserved for
+  (refactor commit ``d7fa25b``). The folder ``characteristic/``
+  documents what the method *does* (transport integrated along the
+  characteristic lines), not who introduced it, as did
+  ``trajectory_resolvent/`` (trajectory tracking + resolvent closure),
+  the family it replaced, deleted on 2026-10-10. Author names are reserved for
   *case registries* like ``sood_registry/``.
 - **Empty reserve folders carry intent**: the seven folders
   ``spectral_resolvent/``, ``pn_method/``, ``spn_method/``,
@@ -117,13 +119,16 @@ invariant that determines the boundary-closure rank:
   :math:`T = (I - S)^{-1}` is a :math:`2 \times 2` block on the
   surface state vector.
 
-This is **why** :mod:`orpheus.derivations.continuous.trajectory_resolvent.variant_alpha_core`
-treats the slab asymmetric, hollow sphere, and annulus as a single
-**rank-2 family** despite their entirely different curvatures:
-their orbit-space M/G classification is identical (1-D interval with
-two distinct BC endpoints). Only the chord algebra and the
-G-equivariant lift back to :math:`M` (the higher-dim Jacobian) differ
-between the three.
+This is **why** the trajectory resolvent's ``variant_alpha_core``
+(deleted with its family on 2026-10-10) treated the slab asymmetric,
+hollow sphere, and annulus as a single **rank-2 family** despite their
+entirely different curvatures: their orbit-space M/G classification is
+identical (1-D interval with two distinct BC endpoints). Only the chord
+algebra and the G-equivariant lift back to :math:`M` (the higher-dim
+Jacobian) differ between the three. The characteristic reference, which
+replaced it, derives the rank of each line's period from the walls the
+line meets (:ref:`characteristic-period`), so the same classification
+holds per line rather than per geometry.
 
 Where this page (and downstream pages) say "topology" or
 "topological class", read **orbit-space M/G classification**. The
@@ -172,9 +177,10 @@ the V&V chain.
      - Trace characteristic rays, integrate optical depth
        :math:`\tau` along each ray, close multi-bounce trajectories
        via the resolvent :math:`T = (I - S)^{-1}`. Sanchez 2002 family
-       — Variant α specialisation in ORPHEUS.
-     - :ref:`theory-trajectory-resolvent`
-       (``trajectory_resolvent/``)
+       — Variant α specialisation in ORPHEUS until 2026-10-10.
+     - :ref:`theory-characteristic-reference` (``characteristic/``),
+       which replaced :ref:`theory-trajectory-resolvent`
+       (``trajectory_resolvent/``, deleted 2026-10-10)
    * - **(β) Spectral resolvent**
      - Same scalar Green's kernel
        :math:`G(\rho \to \rho')`.
@@ -205,14 +211,16 @@ indicates which problems currently realise the triple match.
 .. note::
 
    In ORPHEUS today: (α) is in production for slab / cylinder /
-   sphere / annulus / hollow sphere via ``trajectory_resolvent/``.
+   sphere, solid or hollow and of any number of regions, via
+   ``characteristic/`` (via ``trajectory_resolvent/`` until
+   2026-10-10).
    (γ) is in production for slab / sphere / cylinder via
    ``singular_eigenfunction/`` (criticality only) and
    :mod:`orpheus.derivations.continuous.fn_method` (interior flux
-   reconstruction via KLL 1974). (β) is the **gap** — its closed-form
-   spectral kernel is currently obtained indirectly through
-   ``trajectory_resolvent/`` rather than via the direct PS-1982
-   Eq. (21) / Sanchez 1986 Eq. (A6) evaluator. See the literature
+   reconstruction via KLL 1974). (β) is the **gap** — no direct
+   PS-1982 Eq. (21) / Sanchez 1986 Eq. (A6) evaluator of its
+   closed-form spectral kernel exists (the trajectory resolvent
+   obtained it indirectly until its deletion). See the literature
    memo at ``.claude/scratch/sanchez_chandrasekhar_gap.md`` for the
    full implementation roadmap.
 
@@ -241,17 +249,21 @@ table is the canonical assignment.
      - SymPy-derived kernel + Atkinson product Nyström quadrature
        (ERR-036). Tanh substitution for log-singular kernel
        (ERR-037).
-   * - :ref:`theory-trajectory-resolvent` (Variant α MoC)
+   * - :ref:`theory-trajectory-resolvent` (Variant α MoC; retired)
      - Semi-analytical
      - Integral (Peierls form via trajectory tracking)
      - Bouncing characteristics + multi-bounce resolvent
        :math:`T = (I-S)^{-1}` (Sanchez 1986 Eq. A4 / PS-1982 Eq. 14).
+       Deleted on 2026-10-10; the characteristic reference replaced it.
    * - :ref:`theory-characteristic-reference` (characteristic reference)
      - Semi-analytical
      - Integral (transport along the lines of the body)
      - The re-architecture of the trajectory-resolvent family, built rung
-       by rung on the geometric kernel; its walls and the line part of its
-       boundary resolvent exist, and it answers no question yet.
+       by rung on the geometric kernel: walls read from the laws, each
+       line's closure, a Galerkin pencil over lines on graded panels. It
+       answers the eigenvalue, source and response questions, flux
+       integrals and point values, and carries no certificate yet
+       (#566).
    * - :ref:`theory-fn-method` (F_N method)
      - Semi-analytical
      - Differential transport (boundary-collocated)

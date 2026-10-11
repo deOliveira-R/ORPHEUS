@@ -30,16 +30,11 @@ A name matches when it is a new module, lies under one, or is a name a parent
 package of a new module re-exports from it (read from the parent's namespace
 at check time, so a re-export added later is caught without editing a list).
 
-:func:`assert_closure_independent` is the transitive leg: it walks the
-first-party modules the old modules import, followed through every import of
-every module reached (a package's ``__init__`` included, since importing a
-submodule runs it), and applies the per-module leg to EVERY member, so a
-helper module between the two sides is refused whichever shape it reaches the
-new code by. It over-approximates: an imported module need not be called.
-``[M]`` 2026-10-09: the trajectory-resolvent family's closure is 153
-first-party modules, 0 refused (qa ``qa_c/closure_full_probe.py``); P0's four
-old modules' closure is clean too (P0's file keeps the per-module leg, as it
-landed).
+A transitive leg (``assert_closure_independent``, walking every first-party
+module the old modules import) served the characteristic reference's
+corroboration file and was deleted with it in step (e2) of the
+characteristic-reference campaign (the user's ruling of 2026-10-10: an
+uncalled helper is deleted); the per-module leg is the one P0's file uses.
 
 What the static legs still miss, by construction (qa ``qa_c/static_probe.py``
 measured the shapes): a module name COMPUTED at run time (an f-string, a
@@ -220,61 +215,6 @@ def assert_source_independent(subject: str, source: str, package: str, new: NewS
     """:func:`assert_independent` on a source text (its relative imports resolved against ``package``): the leg's control."""
     if (message := _refusal(subject, references_in(source, package), new, _reexported(new))) is not None:
         raise AssertionError(message)
-
-
-def import_closure(modules: Iterable[str], first_party: tuple[str, ...]) -> dict[str, str]:
-    """Every first-party module the given modules import, transitively, mapped to the module that imported it first.
-
-    Each imported name is resolved to its longest importable prefix, and each
-    module reached brings its parent packages (importing ``a.b.c`` runs ``a``
-    and ``a.b``).
-    """
-    start = list(modules)
-    importer: dict[str, str] = {m: "" for m in start}
-    frontier = list(start)
-
-    def reach(name: str, by: str) -> None:
-        parts = name.split(".")
-        for depth in range(1, len(parts) + 1):
-            candidate = ".".join(parts[:depth])
-            if candidate in importer or not _under(candidate, first_party):
-                continue
-            try:
-                spec = importlib.util.find_spec(candidate)
-            except (ImportError, ValueError):
-                spec = None
-            if spec is None:
-                break
-            importer[candidate] = by
-            frontier.append(candidate)
-
-    while frontier:
-        module_name = frontier.pop()
-        try:
-            names = references(module_name)["import"]
-        except (OSError, TypeError):                                     # no source (a namespace package)
-            continue
-        for name in names:
-            reach(name, module_name)
-    return importer
-
-
-def assert_closure_independent(old_modules: Iterable[str], new: NewSide, first_party: tuple[str, ...] = ("orpheus",)) -> None:
-    """The transitive leg: the per-module leg on every first-party module the old modules can import."""
-    importer = import_closure(old_modules, first_party)
-    reexported = _reexported(new)
-    for module_name in sorted(importer):
-        if _under(module_name, new.modules):
-            continue                                                     # reached only through a member refused below
-        try:
-            found = references(module_name)
-        except (OSError, TypeError):                                     # no source (a namespace package)
-            continue
-        chain = [module_name]
-        while importer[chain[-1]]:
-            chain.append(importer[chain[-1]])
-        if (message := _refusal(" <- ".join(chain), found, new, reexported)) is not None:
-            raise AssertionError(f"the old family's imports reach {new.label}: {message}")
 
 
 def _entry_class(new: NewSide, class_name: str) -> type:

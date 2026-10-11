@@ -497,7 +497,7 @@ Written by the agent that builds the prototype. Contains:
 
   .. todo:: Archivist expansion needed.
      The SymPy derivation lives in
-     :mod:`orpheus.derivations.continuous.peierls.origins.specular.greens_function`
+     :mod:`orpheus.derivations.continuous.characteristic.origins.specular.greens_function`
      (function ``derive_operator_constant_trial_closed_sphere``).
      Test gate:
      :func:`tests.gates.derivations.test_peierls_greens_function_symbolic.test_v_alpha1_overall_pass`.
@@ -601,10 +601,11 @@ shared keys, catching drift between metadata and shipped references.
 
 The threshold "≥3 distinct shipped references" is the rule of thumb;
 in practice, any method with parameter sweeps (geometries, group
-counts, hollow ratios) crosses it instantly. As of 2026-05-04,
-candidate methods are: `peierls_nystrom` (live), `fn_method` (in
-flight), `singular_eigenfunction`, `galerkin_spectral`,
-`trajectory_resolvent`, `flat_source_cp`. New methods should add
+counts, hollow ratios) crosses it instantly. Candidates when this
+section was written (2026-05-04): `peierls_nystrom`, `fn_method`,
+`singular_eigenfunction`, `galerkin_spectral`, `flat_source_cp`, and
+the trajectory-resolvent family, since retired (2026-10-10) in favour of
+the characteristic reference (`characteristic`). New methods should add
 `cases.py` with both `continuous_cases()` (data) and
 `capability_rows()` (metadata) at implementation time, not bolt them
 on later.
@@ -702,11 +703,15 @@ naming the offending package + row index.
 
 The Variant α Green's function work in this project followed this
 discipline (with a notable A1+A2 deviation that the discipline would
-have caught earlier):
+have caught earlier). Its Branch 2 and its cross-check tests were
+retired on 2026-10-10 (P1 step (e2) of the characteristic reference
+campaign, #405); the record below is history, with the paths that
+survive marked as current.
 
-**Branch 1 SymPy** (algebra-of-record):
+**Branch 1 SymPy** (algebra-of-record; survives):
 
-- Path: `orpheus/derivations/continuous/peierls/origins/specular/greens_function.py`
+- Path then: `orpheus/derivations/continuous/peierls/origins/specular/greens_function.py`;
+  now `orpheus/derivations/continuous/characteristic/origins/specular/greens_function.py`.
 - States used: 1A (closed-form for V_α1, V_α2, V_α3 algebraic identities).
 - Verification functions:
   `derive_operator_constant_trial_closed_sphere()`,
@@ -715,34 +720,45 @@ have caught earlier):
 - Test gate: `tests/gates/derivations/test_peierls_greens_function_symbolic.py`
   with one foundation-tagged test per `derive_*`.
 
-**Branch 1 semi-analytical** (PS-1982 reference, State 1B):
+**Branch 1 semi-analytical** (PS-1982 reference, State 1B; survives):
 
-- Path: `orpheus/derivations/continuous/peierls/ps1982_reference.py`
+- Path then: `orpheus/derivations/continuous/peierls/ps1982_reference.py`;
+  now `orpheus/derivations/continuous/peierls_nystrom/ps1982_reference.py`.
 - States used: 1B (SymPy-derived kernel `[E_1(|r-x|) - E_1(r+x)]`,
   `scipy.integrate.quad` evaluates Nyström matrix with QAGS log-
   singularity treatment).
-- Used as L1 reference for the vacuum-BC case.
+- Used as L1 reference for the vacuum-BC case; today it is a reference
+  of the characteristic reference
+  (`tests/gates/derivations/test_characteristic_independent_references.py`).
 
-**Branch 2 production**:
+**Branch 2 production** (retired):
 
-- Path: `orpheus/derivations/continuous/peierls/greens_function.py`
-- Uses numpy + scipy.special.exp1 + scipy.interpolate.CubicSpline +
+- Path then: `orpheus/derivations/continuous/peierls/greens_function.py`,
+  later the `trajectory_resolvent/` package, deleted 2026-10-10.
+- Used numpy + scipy.special.exp1 + scipy.interpolate.CubicSpline +
   `numpy.polynomial.legendre.leggauss`.
 - Trajectory + bounce-period integrals along bouncing characteristics.
 
-**L1 cross-check**:
+**L1 cross-check** (retired with Branch 2; each module was under
+`tests/gates/derivations/`):
 
-- Closed-sphere V_α1 numerical (`test_peierls_greens_function_solver.py`):
-  Branch 2 reproduces V_α1 algebraic identity to machine precision.
-- PS-1982 vacuum (`test_peierls_greens_function_xverif_ps1982.py`):
-  Branch 2 (vacuum branch, α=0) agrees with PS-1982 reference solver
-  to ≤ 1e-4 relative across 4 configurations.
-- Multi-group (`test_peierls_greens_function_mg.py`): Branch 2 (G≥1)
-  agrees with `kinf_and_spectrum_homogeneous` transfer-matrix at
-  closed sphere.
-- Multi-region fixed-source (`test_peierls_greens_function_garcia2021.py`):
-  Branch 2 (multi-region) agrees with Garcia 2021 Table 5 ppP_N
-  benchmark.
+- Closed-sphere V_α1 numerical (the `test_peierls_greens_function_solver`
+  module): Branch 2 reproduced the V_α1 algebraic identity to machine
+  precision.
+- PS-1982 vacuum (the `test_peierls_greens_function_xverif_ps1982`
+  module): Branch 2 (vacuum branch, α=0) agreed with the PS-1982
+  reference solver to ≤ 1e-4 relative across 4 configurations.
+- Multi-group (the `test_peierls_greens_function_mg` module): Branch 2
+  (G≥1) agreed with the `kinf_and_spectrum_homogeneous` transfer matrix
+  at the closed sphere.
+- Multi-region fixed-source (the `test_peierls_greens_function_garcia2021`
+  module): Branch 2 (multi-region) agreed with the Garcia 2021 Table 5
+  ppP_N benchmark.
+
+The successor of Branch 2 is the characteristic reference
+(`orpheus/derivations/continuous/characteristic/`, narrated on
+`docs/theory/references/characteristic.rst`), whose rows re-posed these
+cross-checks.
 
 **Sphinx**:
 

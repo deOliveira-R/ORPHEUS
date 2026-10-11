@@ -25,13 +25,16 @@ Why this folder exists
 
 This is **Meaning (β)** in the
 :ref:`reference-solvers-three-meanings` taxonomy: it constructs the
-**same scalar Green's kernel** as :ref:`theory-trajectory-resolvent`
-(Variant α), but via a **structurally independent integrand**:
+**same scalar Green's kernel** as the characteristic reference
+(:ref:`theory-characteristic-reference`; Variant α,
+:ref:`theory-trajectory-resolvent`, until 2026-10-10), but via a
+**structurally independent integrand**:
 
-- Variant α (``trajectory_resolvent/``): traces characteristic rays,
-  integrates :math:`\tau` along each ray, sums multi-bounce via
-  :math:`T = (I - S)^{-1}`. Integrand is exponential attenuation
-  along characteristics.
+- The characteristic reference (``characteristic/``): integrates
+  transport along the body's lines and closes each line's multi-bounce
+  series at its walls, as Variant α (``trajectory_resolvent/``, deleted)
+  summed :math:`T = (I - S)^{-1}` over traced rays. Integrand is
+  exponential attenuation along characteristics.
 - Spectral resolvent (this folder): closed-form spectral
   μ-integration of the within-medium angular Green's function.
   Integrand is :math:`T(\mu)\cdot\cosh(\rho\mu) \cdot \exp(-2R\mu)`
@@ -43,8 +46,8 @@ medium. The two-path agreement is treated as an **L1 cross-check
 anchor** — agreement is meaningful evidence because the integrands
 are structurally distinct (ray-traced vs spectral-μ).
 
-Today ORPHEUS realises (β) only **indirectly** via the trajectory
-construction. A direct closed-form evaluator of PS-1982 Eq. (21) is
+Today ORPHEUS does not realise (β); the trajectory construction
+realised it indirectly until its deletion on 2026-10-10. A direct closed-form evaluator of PS-1982 Eq. (21) is
 the headline gap for hardening the (α)-vs-(β) cross-check.
 
 

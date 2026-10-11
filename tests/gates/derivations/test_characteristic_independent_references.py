@@ -3,7 +3,7 @@
 P1 step (e1b) of the characteristic-reference campaign
 (``.claude/plans/characteristic_reference_architecture.md``, "Step (e): the audit
 and four rulings"): the old trajectory-resolvent family's cross-reference rows,
-re-pointed at the characteristic reference before step (e2) deletes the family.
+re-pointed at the characteristic reference before step (e2) deleted the family.
 The row-by-row map is ``scratch/characteristic_architecture/p1_step_e/ta_e1b/README.md``.
 
 Each reference here shares no transport primitive with the characteristic

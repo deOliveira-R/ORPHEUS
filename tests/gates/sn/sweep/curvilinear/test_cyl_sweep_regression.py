@@ -93,7 +93,7 @@ class TestCylindricalSweepRegression:
     # folded(4,16) all measured 1.500000000000), so the 1e-6 agreement
     # never constrained either family's angular wiring.  The live
     # cross-checks of the folded cylinder's angular fidelity are the
-    # trajectory_resolvent L1 gate (test_unified_matvec_cylinder) and the
+    # characteristic-reference L1 gate (test_unified_matvec_cylinder) and the
     # MMS σ_y-parity + azimuthal-floor gates (tests/gates/sn/verification/mms).
 
     def test_requires_level_quadrature(self):

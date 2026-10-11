@@ -59,10 +59,11 @@ Test breakdown
   to **≤ 1e-5 relative** at :math:`n_{\rm grid} = 24`. The hardened
   WM-72 Fredholm method with Mitsis-Zweifel singular subtraction +
   Lagrangian-derivative diagonal handling reaches ~3e-7 in practice,
-  comfortably exceeding the 1e-5 brief target. The Variant α cylinder
-  cross-check (already shipped at 8.5e-6 in
-  :mod:`tests.gates.derivations.test_peierls_greens_function_cylinder_xverif_sood2003`)
-  is now joined by this WM-72 path as a **second, structurally-
+  comfortably exceeding the 1e-5 brief target. The cylinder's other
+  anchor is the characteristic reference at Sood's printed radius
+  (``tests/gates/derivations/test_characteristic_independent_references.py``;
+  until step (e2) it was the trajectory resolvent's Variant α cylinder,
+  deleted with its family), so WM-72 is a **second, structurally-
   independent** anchor at the same precision.
 
 * **L1 WM-72 Table II benchmark** — six-configuration parametrized
@@ -298,10 +299,10 @@ def test_solver_matches_sood_ua_1_0_cy_to_1e5():
     This is the brief's hardening target. The hardened WM-72 Fredholm
     method with Mitsis-Zweifel singular subtraction reaches ~3e-7
     relative in practice; the 1e-5 assertion has 30× slack to absorb
-    platform variation. Together with the Variant α cylinder
-    cross-check (already at 8.5e-6 in
-    :mod:`tests.gates.derivations.test_peierls_greens_function_cylinder_xverif_sood2003`),
-    Sood ``Ua-1-0-CY`` now has TWO structurally-independent anchors at
+    platform variation. Together with the characteristic reference's
+    cylinder (``test_characteristic_independent_references.py``; the
+    Variant α cylinder until step (e2)),
+    Sood ``Ua-1-0-CY`` has TWO structurally-independent anchors at
     the same precision:
 
     * Variant α via bouncing-characteristic integration with analytical

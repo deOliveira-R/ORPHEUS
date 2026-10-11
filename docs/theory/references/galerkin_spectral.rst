@@ -598,9 +598,11 @@ this codebase:
 
 * :class:`MomentSpace` (F_N) returns only the dominant
   :math:`(c, a)` root from :math:`\det M(a) = 0` — by construction.
-* :class:`Billiard` (trajectory_resolvent) returns only the
-  power-iteration fundamental :math:`k_{\rm eff}` from the
-  Birkhoff resolvent — by construction.
+* the characteristic reference (:doc:`/theory/references/characteristic`)
+  answers only the dominant eigenvalue of its Galerkin pencil over
+  lines (``Billiard``, the trajectory resolvent it replaced on
+  2026-10-10, returned only the power-iteration fundamental
+  :math:`k_{\rm eff}` from the Birkhoff resolvent).
 * :class:`BasisSpace` returns the full :math:`2N`-eigenvalue
   spectrum.
 
@@ -752,12 +754,15 @@ of one-speed neutron transport:
   the resolvent's spectral kernel is collocated at discrete
   :math:`\xi` points. The eigenvalue falls out of a small dense
   determinantal condition.
-* :class:`Billiard` (trajectory_resolvent) is the **path-integral
-  (time-domain) realisation** — the Birkhoff transfer operator
-  :math:`S` advances trajectories one bounce period at a time;
-  its resolvent :math:`T = (I - S)^{-1} = \sum_n S^n` is the
-  geometric-series sum over bouncing characteristics weighted by
-  streaming attenuation.
+* the characteristic reference (:doc:`/theory/references/characteristic`)
+  is the **path-integral realisation** — transport is integrated
+  along the body's lines, and each line's walls are closed by the
+  least solution of its cycle, the geometric series
+  :math:`(1 - \Pi)^{-1} = \sum_n \Pi^n` over the unfolded backward
+  path weighted by streaming attenuation. ``Billiard``, the
+  trajectory resolvent it replaced on 2026-10-10, realised the same
+  series with the Birkhoff transfer operator :math:`S` advancing
+  trajectories one bounce period at a time.
 * :class:`BasisSpace` (Galerkin spectral) is the **full-range
   polynomial-basis realisation** — the resolvent's interior is
   projected onto a Legendre basis on the spatial variable, with
@@ -779,7 +784,8 @@ The shared cross-method result type
 is the load-bearing piece of the unification. Each reference
 solver returns the same ``CriticalSolution`` shape regardless of
 pillar; the ``eigenvalue_kind`` field disambiguates ``"k_eff"``
-(MomentSpace, Billiard) from ``"c_critical"`` (BasisSpace) so
+(MomentSpace; ``Billiard`` until its deletion) from ``"c_critical"``
+(BasisSpace) so
 cross-method comparators read the right field before comparing.
 
 The pre-Phase-D ``TransportSolver`` Protocol (in

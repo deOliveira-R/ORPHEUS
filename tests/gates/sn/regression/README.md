@@ -8,7 +8,7 @@ combinations. It is **not** a verification reference; it is a
 
 End-to-end correctness verification runs through the L0/L1
 analytical-reference suite (see `tests/gates/sn/l1_analytical/` and the
-F_N / Case-method / `trajectory_resolvent` cross-verifications under
+F_N / Case-method / characteristic-reference cross-verifications under
 `tests/gates/derivations/`).
 
 ## Layout

@@ -1245,15 +1245,19 @@ the retired test-side helper ``certify_agreement``:
 **Declared limit.** A 1 % perturbation
 of the sphere reference's moderator emission density at reading time only
 moves the shape gap from 1.08e-3 to 1.92e-3, under the row's absolute
-tolerance of 4.98e-3: below the row's resolution. Its catcher is R7b2.2.2
-(the fixed-point identity), and tightening the row is phase P4's.
+tolerance of 4.98e-3: below the row's resolution. Its catcher was the old
+reading's fixed-point identity (R7b2.2.2, deleted with the trajectory
+resolvent in P1 step (e2) of #405); its successor is the characteristic
+reference's fundamental mode satisfying its pencil
+(``tests/gates/derivations/test_characteristic_system.py``). Tightening the
+row is phase P4's.
 
 No migrated row carries a ``verifies`` marker: an uncertified comparison
 is never a verification claim, and a strict xfail verifies nothing. The
-label ``sn-curvilinear-trajectory-resolvent-crosscheck`` is verified by 3
+label ``sn-curvilinear-characteristic-reference-crosscheck`` is verified by 3
 rows (`[M]` the regenerated matrix, 2026-10-03), which verify its
 homogeneous reduction only
-(:ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section`).
+(:ref:`sn-curvilinear-characteristic-reference-crosscheck-section`).
 
 **Since P1 step (d)** of the characteristic reference campaign
 (``d9425977``, 2026-10-10) none of the rows in the table above reads the
@@ -1314,9 +1318,12 @@ What no gate in P2 can see
   caller pairs them until P4.
 * Whether the singular set a quadrature splits at is complete: a missing
   split no ray crosses is silently wrong (the reading-bound prototype,
-  above); the trajectory resolvent's splits are derived from its knots and
-  interfaces, and the brute-force rows R7b2.2.1 check the result against
-  an unsplit fine rule.
+  above). The retired trajectory resolvent derived its splits from its
+  knots and interfaces, checked by the brute-force rows R7b2.2.1 against
+  an unsplit fine rule; those rows were deleted with it in P1 step (e2),
+  and the characteristic reference's reading is checked by the flux
+  integral of a step weight instead (the sphere supports of
+  ``tests/gates/sn/verification/analytical/test_phase_c_crosscheck.py``).
 
 
 Declared limits and their issues
@@ -1371,7 +1378,8 @@ Declared limits and their issues
      - open
    * - #572
      - ``Billiard``'s geometry-kind tag is branched on at five sites and its
-       solve result is an untyped metadata entry
+       solve result is an untyped metadata entry (moot since P1 step (e2)
+       of the characteristic reference campaign deleted ``Billiard``)
      - open
    * - #573
      - an anisotropic reference as isotropic plus an anisotropic correction

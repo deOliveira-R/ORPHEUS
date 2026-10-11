@@ -6,8 +6,8 @@ adapter:
 
 * reads cross sections directly off ``case.registry_case.materials``
   / ``case.materials`` (the production-protocol Mixture API);
-* selects internal numerical parameters (n_modes for fn_method,
-  n_r/n_mu/n_traj_quad for trajectory_resolvent) based on the
+* selects internal numerical parameters (n_modes for fn_method, the
+  resolution rung for the characteristic reference) based on the
   requested case tolerance;
 * performs unit conversions (mfp ↔ cm, half-thickness ↔ full
   slab);
@@ -19,7 +19,7 @@ Phase D
 The pre-Phase-D ``mixture_to_fn_arrays`` extractor was retired as
 part of the architectural reset; adapters now read
 ``mixture.SigT`` / ``SigS`` / ``SigP`` directly (the same pattern
-the math-heart classes Billiard / MomentSpace / Spectrum / BasisSpace
+the math-heart classes MomentSpace / Spectrum / BasisSpace
 already use after their direct-__init__ migration).
 """
 from __future__ import annotations
@@ -28,8 +28,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from orpheus.derivations.common.reference_body import HomogeneousBody, reference_body
-from orpheus.geometry import CoordSystem
 
 from .protocol import CrossMethodCase, ScalarResult, ScalarTag
 
@@ -123,7 +121,7 @@ class FNReflectedSlabAdapter:
     :attr:`Mixture.scattering_ratio`, and converts the reflector width to
     mean free paths.
 
-    There is currently no trajectory_resolvent counterpart for
+    There is currently no characteristic-reference counterpart for
     reflected slab — this adapter has no agreement partner. That
     one-sided coverage is intentional; see
     ``.claude/scratch/cross_method_test_protocol_assessment.md``
@@ -164,219 +162,6 @@ class FNReflectedSlabAdapter:
                 "c_reflector": solution.metadata["c_reflector"],
                 "reflector_half_thickness_mfp": solution.metadata["reflector_half_thickness_mfp"],
                 "converged": bool(solution.converged),
-            },
-        )
-
-
-# ═══════════════════════════════════════════════════════════════════
-# trajectory_resolvent adapters (Variant α package)
-# ═══════════════════════════════════════════════════════════════════
-
-
-@dataclass(frozen=True)
-class TrajectoryResolventSlabAdapter:
-    r"""Adapter for :func:`...trajectory_resolvent.greens_function_slab.solve_greens_function_slab`.
-
-    Trajectory_resolvent solves the k-eigenvalue problem on the slab at a
-    given full-width ``L``; the cross-method gate evaluates ``k_eff``
-    at the **independently-known critical half-thickness from a
-    different reference** (typically F_N's ``a_critical_mfp``). The
-    adapter therefore reports ``k_eff`` (which should be 1.0 at the
-    truth thickness).
-
-    The continuous-albedo ``alpha`` is derived from
-    ``structured_geometry.boundaries[-1]`` (slab cases use symmetric BCs by
-    convention) via :meth:`BC.to_alpha`; bare-critical slab registry
-    cases are vacuum-on-vacuum (``α = 0``), closed slab is reflective-
-    on-reflective (``α = 1``).
-
-    Default quadrature: ``(n_x, n_mu, n_traj_quad) = (48, 128, 96)``.
-    Slab vacuum has a near-cusp at μ=0 that needs ~128 angular nodes
-    to resolve to ~1e-5.
-    """
-
-    name: str = "trajectory_resolvent_slab"
-    method: str = "trajectory_resolvent"
-    geometry: str = "slab"
-    n_x: int = 48
-    n_mu: int = 128
-    n_traj_quad: int = 96
-    max_iter: int = 500
-    tol: float = 1e-9
-
-    def solve(self, case: CrossMethodCase) -> ScalarResult:
-        from orpheus.derivations.continuous.trajectory_resolvent.greens_function_slab import (
-            solve_greens_function_slab,
-        )
-
-        sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
-        # Trajectory_resolvent slab takes FULL width L (not the half-
-        # thickness). StructuredGeometry.domain_extent_cm IS the full
-        # slab width in cm — no truth-vs-cm re-derivation needed.
-        L_full_cm = _slab_L_full_cm(case)
-        alpha = _outer_bc_for(case).to_alpha()
-
-        res = solve_greens_function_slab(
-            L=L_full_cm,
-            sigma_t=sigma_t,
-            sigma_s=sigma_s,
-            nu_sigma_f=nu_sigma_f,
-            alpha=alpha,
-            n_x=self.n_x,
-            n_mu=self.n_mu,
-            n_traj_quad=self.n_traj_quad,
-            max_iter=self.max_iter,
-            tol=self.tol,
-        )
-        return ScalarResult(
-            tag="k_eff",
-            value=float(res.k_eff),
-            solver_name=self.name,
-            metadata={
-                "n_x": self.n_x,
-                "n_mu": self.n_mu,
-                "n_traj_quad": self.n_traj_quad,
-                "iterations": int(res.iterations),
-                "converged": bool(res.converged),
-                "L_full_cm": L_full_cm,
-                "alpha": alpha,
-            },
-        )
-
-
-@dataclass(frozen=True)
-class TrajectoryResolventSphereAdapter:
-    r"""Adapter for :func:`...trajectory_resolvent.greens_function.solve_greens_function_sphere`
-    for bare-critical sphere cases.
-
-    Reports ``k_eff`` at the **independently-known critical radius**
-    (typically F_N's ``R_critical_mfp``). At ``α = 0`` and the truth
-    radius, ``k_eff`` should be 1.0.
-
-    The continuous-albedo ``alpha`` is derived from
-    ``structured_geometry.boundaries[-1]`` (the outer-surface BC) via
-    :meth:`BC.to_alpha`. The inner BC at ``r = 0`` is the natural
-    centreline reflective and is not parametrically relevant to the
-    trajectory_resolvent operator.
-
-    Closed-sphere ``α = 1`` cases (``k_eff = k_inf`` exactly) use
-    :class:`TrajectoryResolventSphereClosedAdapter` instead — the
-    parameter sets and convergence behaviour are different enough
-    that two adapters keep the protocol clean.
-    """
-
-    name: str = "trajectory_resolvent_sphere"
-    method: str = "trajectory_resolvent"
-    geometry: str = "sphere-1d"
-    n_r: int = 32
-    n_mu: int = 32
-    n_traj_quad: int = 64
-    max_iter: int = 400
-    tol: float = 1e-10
-
-    def solve(self, case: CrossMethodCase) -> ScalarResult:
-        from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
-            solve_greens_function_sphere,
-        )
-
-        sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs(case)
-        # Read the radius in cm directly off the case's
-        # StructuredGeometry. Sphere convention:
-        # ``StructuredGeometry.domain_extent_cm`` IS R_cm.
-        R_cm = _sphere_R_cm(case)
-        alpha = _outer_bc_for(case).to_alpha()
-
-        res = solve_greens_function_sphere(
-            R=R_cm,
-            sigma_t=sigma_t,
-            sigma_s=sigma_s,
-            nu_sigma_f=nu_sigma_f,
-            alpha=alpha,
-            n_r=self.n_r,
-            n_mu=self.n_mu,
-            n_traj_quad=self.n_traj_quad,
-            max_iter=self.max_iter,
-            tol=self.tol,
-        )
-        return ScalarResult(
-            tag="k_eff",
-            value=float(res.k_eff),
-            solver_name=self.name,
-            metadata={
-                "n_r": self.n_r,
-                "n_mu": self.n_mu,
-                "n_traj_quad": self.n_traj_quad,
-                "iterations": int(res.iterations),
-                "converged": bool(res.converged),
-                "R_cm": R_cm,
-                "alpha": alpha,
-            },
-        )
-
-
-@dataclass(frozen=True)
-class TrajectoryResolventSphereClosedAdapter:
-    r"""Adapter for closed-sphere (``α = 1``) k_inf cases.
-
-    The closed sphere with perfect specular BC has rank-1 isotropic
-    eigenmode and ``k_eff = k_inf = νΣ_f / Σ_a`` to machine
-    precision (V_α1 algebraic identity). Useful as a multi-group
-    cross-method gate where the bare-critical pillar is missing.
-
-    Geometry, XS, and radius come from the case's inline
-    ``materials`` + ``structured_geometry`` (the registry-less path).
-    The continuous-albedo ``alpha`` is derived from
-    ``structured_geometry.boundaries[-1]`` via :meth:`BC.to_alpha`; closed
-    sphere is :attr:`BC.reflective` on the outer surface, giving
-    ``α = 1.0``.
-    """
-
-    name: str = "trajectory_resolvent_sphere_closed"
-    method: str = "trajectory_resolvent"
-    geometry: str = "closed-sphere-1d"
-    n_r: int = 12
-    n_mu: int = 12
-    n_traj_quad: int = 24
-    max_iter: int = 50
-    tol: float = 1e-12
-
-    def solve(self, case: CrossMethodCase) -> ScalarResult:
-        from orpheus.derivations.continuous.trajectory_resolvent.greens_function import (
-            solve_greens_function_sphere,
-        )
-
-        # Closed-sphere cases use the inline-materials path
-        # (registry_case is None; materials + structured_geometry are set).
-        sigma_t, sigma_s, nu_sigma_f = _extract_1g_xs_inline(case)
-        R_cm = _sphere_R_cm(case)
-        alpha = _outer_bc_for(case).to_alpha()
-        res = solve_greens_function_sphere(
-            R=R_cm,
-            sigma_t=sigma_t,
-            sigma_s=sigma_s,
-            nu_sigma_f=nu_sigma_f,
-            alpha=alpha,
-            n_r=self.n_r,
-            n_mu=self.n_mu,
-            n_traj_quad=self.n_traj_quad,
-            max_iter=self.max_iter,
-            tol=self.tol,
-        )
-        return ScalarResult(
-            tag="k_inf",
-            value=float(res.k_eff),
-            solver_name=self.name,
-            metadata={
-                "n_r": self.n_r,
-                "n_mu": self.n_mu,
-                "n_traj_quad": self.n_traj_quad,
-                "iterations": int(res.iterations),
-                "converged": bool(res.converged),
-                "sigma_t": sigma_t,
-                "sigma_s": sigma_s,
-                "nu_sigma_f": nu_sigma_f,
-                "R_cm": R_cm,
-                "alpha": alpha,
             },
         )
 
@@ -450,34 +235,16 @@ def _extract_1g_xs(case: CrossMethodCase) -> tuple[float, float, float]:
     Pulls from ``case.registry_case.materials[0]`` via
     :func:`mixture_to_fn_arrays`. Raises if the case is multi-group
     (1G adapters can't consume those) or if the case carries no
-    registry case (use :func:`_extract_1g_xs_inline` for that path).
+    registry case.
     """
     if case.registry_case is None:
         raise ValueError(
             f"CrossMethodCase {case.case_id!r} has registry_case=None; "
-            f"the registry-backed XS extractor cannot serve this case. "
-            f"Use _extract_1g_xs_inline for inline-materials cases."
+            f"the registry-backed XS extractor cannot serve this case."
         )
     return _xs_from_materials_dict(
         case.registry_case.materials, case.case_id
     )
-
-
-def _extract_1g_xs_inline(case: CrossMethodCase) -> tuple[float, float, float]:
-    r"""Extract :math:`(\Sigma_t, \Sigma_s, \nu\Sigma_f)` for a 1G case
-    from inline ``case.materials``.
-
-    Used by adapters whose case carries inline materials + geometry_spec
-    (the no-registry path — closed-sphere k_inf, MMS, custom
-    configurations).
-    """
-    if case.materials is None:
-        raise ValueError(
-            f"CrossMethodCase {case.case_id!r} has materials=None; "
-            f"_extract_1g_xs_inline requires inline materials. Use "
-            f"_extract_1g_xs for registry-backed cases."
-        )
-    return _xs_from_materials_dict(case.materials, case.case_id)
 
 
 def _xs_from_materials_dict(
@@ -526,51 +293,6 @@ def _structured_geometry_for(case: CrossMethodCase):
     )
 
 
-def _sphere_R_cm(case: CrossMethodCase) -> float:
-    r"""Return the sphere radius in cm from the case's StructuredGeometry.
-
-    Read through the one body reading,
-    :func:`~orpheus.derivations.common.reference_body.reference_body`; only
-    a homogeneous solid sphere has one radius.
-    """
-    body = reference_body(_structured_geometry_for(case))
-    if not isinstance(body, HomogeneousBody) or body.coord is not CoordSystem.SPHERICAL:
-        raise ValueError(
-            f"_sphere_R_cm: case {case.case_id!r} structured geometry "
-            f"is {body!r}, expected a homogeneous solid sphere"
-        )
-    return float(body.extent_cm)
-
-
-def _slab_L_full_cm(case: CrossMethodCase) -> float:
-    r"""Return the slab full width in cm from the case's StructuredGeometry.
-
-    Slab convention: ``StructuredGeometry.domain_extent_cm`` IS the
-    FULL slab width :math:`[0, L]`, which is exactly what
-    :func:`solve_greens_function_slab` expects as its ``L`` argument.
-    """
-    body = reference_body(_structured_geometry_for(case))
-    if not isinstance(body, HomogeneousBody) or body.coord is not CoordSystem.CARTESIAN:
-        raise ValueError(
-            f"_slab_L_full_cm: case {case.case_id!r} structured "
-            f"geometry is {body!r}, expected a homogeneous slab"
-        )
-    return float(body.extent_cm)
-
-
-def _outer_bc_for(case: CrossMethodCase):
-    """Return the outer-surface BC for a case.
-
-    On a slab the geometry is symmetric vacuum-vacuum (or closed
-    reflective-reflective); both boundary points share the same kind in
-    the cases this protocol covers, so we return the right-hand law. On
-    a solid sphere or cylinder the single law in
-    :attr:`StructuredGeometry.boundaries` IS the outer-surface law.
-    """
-    geom = _structured_geometry_for(case)
-    return geom.boundaries[-1]
-
-
 # ═══════════════════════════════════════════════════════════════════
 # Adapter registry — used by tests and (future) agreement-matrix renderer
 # ═══════════════════════════════════════════════════════════════════
@@ -580,9 +302,6 @@ ADAPTERS_BY_NAME: dict[str, object] = {
     "fn_slab": FNSlabAdapter(),
     "fn_sphere": FNSphereAdapter(),
     "fn_reflected_slab": FNReflectedSlabAdapter(),
-    "trajectory_resolvent_slab": TrajectoryResolventSlabAdapter(),
-    "trajectory_resolvent_sphere": TrajectoryResolventSphereAdapter(),
-    "trajectory_resolvent_sphere_closed": TrajectoryResolventSphereClosedAdapter(),
     "characteristic_slab": CHARACTERISTIC_SLAB,
     "characteristic_sphere": CHARACTERISTIC_SPHERE,
     "characteristic_sphere_closed": CHARACTERISTIC_SPHERE_CLOSED,

@@ -23,9 +23,12 @@ harmonic polynomials. It is the historical alternative to the
 
 Within the ORPHEUS verification stack, P_N is the **natural
 structurally-independent cross-check** for multi-region sphere
-results from :ref:`theory-trajectory-resolvent`. ORPHEUS already
+results from the characteristic reference
+(:ref:`theory-characteristic-reference`, which replaced
+:ref:`theory-trajectory-resolvent` on 2026-10-10). ORPHEUS already
 cross-checks against Garcia 2021 multi-region sphere truth values
-inside ``tests/gates/derivations/test_peierls_greens_function_garcia2021.py``;
+(``test_garcias_case_1_per_point`` in
+``tests/gates/derivations/test_characteristic_reading.py``);
 having ``pn_method/`` reserved makes this asymmetry explicit:
 today Garcia 2021 is a *truth set without a method-of-record*, but
 once this folder is populated the cross-check becomes

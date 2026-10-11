@@ -8,8 +8,8 @@ r"""Issue #168 Phase C/D/E — Gate Set 4: the curvilinear discrete-ordinates so
   (:func:`~orpheus.derivations.continuous.characteristic.characteristic_reference`)
   since P1 step (d) of ``.claude/plans/characteristic_reference_architecture.md``
   (2026-10-09), the trajectory-resolvent Variant α Green's-function solvers
-  before it. The row names keep the old reference's name: the
-  ``#516`` census (``test_crosscheck_harness.py``) keys on them.
+  before it. The row names were renamed onto the characteristic reference in step
+  (e2), with the ``#516`` census (``test_crosscheck_harness.py``) that keys on them.
 
 The rows, with the claim each makes:
 
@@ -253,13 +253,13 @@ _GATE_4_2_CASES: tuple[tuple[str, object, float, str], ...] = (
 
 @pytest.mark.l1
 @pytest.mark.slow
-@pytest.mark.verifies("sn-curvilinear-trajectory-resolvent-crosscheck")
+@pytest.mark.verifies("sn-curvilinear-characteristic-reference-crosscheck")
 @pytest.mark.parametrize(
     "snapshot_id, runner, rtol, rationale",
     _GATE_4_2_CASES,
     ids=[case[0] for case in _GATE_4_2_CASES],
 )
-def test_phase_d_trajectory_resolvent_crosscheck(
+def test_phase_d_characteristic_reference_crosscheck(
     snapshot_id, runner, rtol, rationale,
 ) -> None:
     r"""Gate 4.2, the edge rows: SN snapshot k against the characteristic reference on a homogeneous medium.
@@ -389,7 +389,7 @@ _SPHERE_TOLERANCE = {
 _SPHERE_SUPPORTS = (
     f"{_REGIONWISE}[sphere_solid_b0.3-1]",
     "tests/gates/derivations/test_characteristic_system.py::test_one_group_k_increases_on_nested_spaces[sphere]",
-    f"{_THIS}::test_phase_d_trajectory_resolvent_crosscheck[sphere_2g_homogeneous_dd_n20]",
+    f"{_THIS}::test_phase_d_characteristic_reference_crosscheck[sphere_2g_homogeneous_dd_n20]",
     f"{_THIS}::test_sn_spherical_homogeneous_kinf_recovery_2g",
     "tests/gates/derivations/test_characteristic_reference.py::test_a_flux_integral_is_the_volume_integral_of_the_galerkin_flux[step-symbolic]",
     "tests/gates/sn/test_solution_read.py::test_r7b2_9_2_the_cells_sum_to_the_whole_domain",
@@ -399,7 +399,7 @@ _SPHERE_SUPPORTS = (
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.rests_on(*_SPHERE_SUPPORTS)
-def test_sphere_3reg_k_against_trajectory_resolvent() -> None:
+def test_sphere_3reg_k_against_characteristic_reference() -> None:
     r"""The heterogeneous closed sphere's eigenvalue: SN at GL32 against the UNCERTIFIED characteristic reference at p = 5.
 
     Fuel A | moderator B | fuel A at 0.5, 1.5, 2.0 cm, 2 groups, reflective
@@ -440,7 +440,7 @@ def test_sphere_3reg_k_against_trajectory_resolvent() -> None:
     "tests/gates/derivations/test_characteristic_system.py"
     "::test_the_fundamental_mode_satisfies_its_pencil[closed-sphere]",
 )
-def test_sphere_3reg_flux_shape_against_trajectory_resolvent() -> None:
+def test_sphere_3reg_flux_shape_against_characteristic_reference() -> None:
     r"""The heterogeneous closed sphere's flux shape: 80 fission-gauged cell averages over the SN cells.
 
     Activates the spatial and angular redistribution in both groups and the
@@ -507,7 +507,7 @@ _CYLINDER_TOLERANCE = {
 #: cylinder's escape and transmission probabilities against their closed forms).
 _CYLINDER_SUPPORTS = (
     f"{_REGIONWISE}[cylinder_solid_b0.7_wz0.8-1]",
-    f"{_THIS}::test_phase_d_trajectory_resolvent_crosscheck[cyl_1g_homogeneous_folded_4x8_dd_n20]",
+    f"{_THIS}::test_phase_d_characteristic_reference_crosscheck[cyl_1g_homogeneous_folded_4x8_dd_n20]",
     "tests/gates/derivations/test_characteristic_assembly.py::test_an_interface_between_equal_materials_is_invisible[3]",
     "tests/gates/derivations/test_characteristic_assembly.py::test_the_escape_and_transmission_probabilities_are_the_closed_forms[cylinder-tau2.0]",
 )
@@ -516,7 +516,7 @@ _CYLINDER_SUPPORTS = (
 @pytest.mark.slow
 @pytest.mark.rests_on(*_CYLINDER_SUPPORTS)
 @awaits_cylinder_bound
-def test_cylinder_3reg_k_against_trajectory_resolvent() -> None:
+def test_cylinder_3reg_k_against_characteristic_reference() -> None:
     r"""The heterogeneous closed cylinder's eigenvalue: live SN at folded 16x32 against the reference at the door default.
 
     Held to 6e-5 (derived above). The reference has no certificate (#566),
@@ -532,7 +532,7 @@ def test_cylinder_3reg_k_against_trajectory_resolvent() -> None:
 @pytest.mark.slow
 @pytest.mark.rests_on(*_CYLINDER_SUPPORTS)
 @awaits_cylinder_bound
-def test_cylinder_3reg_flux_shape_against_trajectory_resolvent() -> None:
+def test_cylinder_3reg_flux_shape_against_characteristic_reference() -> None:
     r"""The heterogeneous closed cylinder's flux shape: the 80 gauged cell averages, each verified once certified.
 
     Re-posed on 2026-09-26 from the 4x8 snapshot onto a live 16x32 solve: at

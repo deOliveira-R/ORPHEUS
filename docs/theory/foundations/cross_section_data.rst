@@ -2212,12 +2212,18 @@ genuinely-zero spectra pass the null clause.
 
 The two predicates **diverge** for a synthetic fixture that sets the
 production XS directly while leaving the fission XS at zero — a
-*production-bearing but non-fissile* material. The canonical instance is
-the trajectory-resolvent billiard reference solver
-(``tests/gates/derivations/test_trajectory_resolvent_billiard.py``), which
-builds a multiplying medium by setting ``SigP = νΣ_f > 0`` and
-``SigF = 0`` (the billiard solver reads ``SigP`` and ``chi`` to build
-the fission source; it never reads ``SigF``). For this fixture:
+*production-bearing but non-fissile* material. The canonical instance was
+the trajectory-resolvent billiard reference solver's fixture (the
+``test_trajectory_resolvent_billiard`` module, then under
+``tests/gates/derivations/``, deleted with the family at P1 step (e2) of
+the characteristic reference campaign, 2026-10-10), which built a
+multiplying medium by setting ``SigP = νΣ_f > 0`` and ``SigF = 0`` (the
+billiard solver read ``SigP`` and ``chi`` to build the fission source; it
+never read ``SigF``). Its successor, the characteristic reference, has the
+same reading: its group emission is built from ``SigS``, ``SigP``,
+``chi`` and ``Sig2``
+(:mod:`orpheus.derivations.continuous.characteristic.cross_sections`), and
+no line of the package reads ``SigF``. For that fixture:
 
 - ``is_fissile`` (keyed on ``SigF``) would return **False**, demanding a
   null spectrum — yet :math:`\chi` is genuinely consumed via
@@ -2233,7 +2239,7 @@ Production-keying classifies the production-bearing fixture correctly
 ``is_fissile`` and worked around this divergence by patching the billiard
 fixture to carry a synthetic ``SigF`` (a stand-in for the untracked true
 :math:`\Sigma_f = \mathtt{SigP}/\nu`). Re-keying on production *retired*
-that hack: the fixture now sets ``SigF = 0`` honestly, and the
+that hack: the fixture then set ``SigF = 0`` honestly, and the
 divergence that looked like an irreducible design seam dissolves. The
 isolation is pinned directly by ``test_non_producing_nonzero_raises``,
 which builds an isotope with ``sigF > 0`` but ``nubar = 0`` (fissile, yet

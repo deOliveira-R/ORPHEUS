@@ -1,8 +1,9 @@
 """Foundation gates for :attr:`Mixture.scattering_ratio`.
 
 The Case–Zweifel ``c = (Σ_s + νΣ_f)/Σ_t`` is the canonical scalar
-input to 1G analytical solvers (F_N method, trajectory_resolvent
-specular kernels). Promoting it from an ad-hoc helper in
+input to 1G analytical solvers (the F_N method; until step (e2) of the
+characteristic-reference campaign also the trajectory resolvent's specular
+kernels, deleted with their family). Promoting it from an ad-hoc helper in
 ``tests/gates/cross_method/adapters.py`` to a :class:`Mixture` property
 eliminates the ``_extract_c`` helper and makes the per-group ratio
 available to any consumer of the production XS payload.

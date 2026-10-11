@@ -106,12 +106,17 @@ Key facts
   ``evaluate`` returns, an establishment or an uncertified value, never a
   certificate or a verdict; ``ReferenceSolution`` re-checks every claim
   against that evaluation, cached or computed.
-* **Three clients in P3**: the two multi-region trajectory-resolvent
-  solvers (``solve_greens_function_sphere_mr`` and
-  ``solve_greens_function_cylinder_mr``), and the trajectory-resolvent
-  derivation's ``evaluate``, a memoised method keyed on the derivation's
-  content. The exact infinite medium is **not** a client: its reading
-  costs 0.01 s, less than one interpreter start (the user's ruling, Q5).
+* **Two clients today**: the characteristic reference's reading,
+  ``CharacteristicDerivation.evaluate``, keyed on the derivation and the
+  observable, and its solve, ``CharacteristicDerivation.solve``, keyed on
+  the derivation alone and a child entry of every reading (#592). P3
+  shipped three others, the two multi-region trajectory-resolvent solvers
+  (``solve_greens_function_sphere_mr`` and
+  ``solve_greens_function_cylinder_mr``) and the trajectory-resolvent
+  derivation's ``evaluate``; they were deleted with their family at P1
+  step (e2) of the characteristic reference campaign (2026-10-10). The
+  exact infinite medium is **not** a client: its reading costs 0.01 s,
+  less than one interpreter start (the user's ruling, Q5).
 * **A test that monkeypatches anything a generation runs reads under**
   ``with bypass():``, because a patch never reaches a fresh process.
 * **A generation may start only a declared machine query** (``uname``)
@@ -288,7 +293,8 @@ process per miss."* The reasons:
 
 **What crosses into the process is content, never a built object.** The
 census of 2026-10-04 (finding F1) measured the trap: unpickling a built
-``TrajectoryResolventDerivation`` or ``Billiard`` restores the object
+``TrajectoryResolventDerivation`` or ``Billiard`` (both deleted since)
+restored the object
 without running its construction, so in 2 of 2 traced trajectory runs the
 construction functions (``Billiard.__post_init__``, ``_route``,
 ``_layered_xs_payload``, ``_read_isotropically``, ``reference_body`` and
@@ -327,9 +333,9 @@ where the function id is ``module:qualname``.
 
 **The arguments are bound to the signature**, defaults applied
 (``inspect.signature(f).bind(...).apply_defaults()``). Without the binding
-one call has two keys: ``Billiard`` omits the solver settings it leaves at
-``None``, while a direct caller may pass the same default explicitly
-(census, 2026-10-04).
+one call has two keys: ``Billiard`` (deleted since) omitted the solver
+settings it left at ``None``, while a direct caller may pass the same
+default explicitly (census, 2026-10-04).
 
 **A parameter may declare a canonical form**, applied before the key is
 taken, and the generating process receives the canonical argument, not
@@ -1008,11 +1014,14 @@ reading and writing nothing. It is the spelling for a test that
 monkeypatches anything a generation runs: a patch never reaches a fresh
 process, so without the bypass the test would read the honest entry
 instead of its patched answer, and a spy counting calls would count
-nothing. The census found two such sites: the solve spy of
-``tests/gates/derivations/test_trajectory_resolvent_reference.py``, which
-patches both multi-region solvers to count lazy solves (its rows read
-under an ``in_process`` fixture that enters the bypass), and a counting
-spy on ``Symbolic.steps``. M3.10 gates both halves: a patch in the parent
+nothing. The census found two such sites: the solve spy of the
+``test_trajectory_resolvent_reference`` module (then under
+``tests/gates/derivations/``, deleted with its family on 2026-10-10),
+which patched both multi-region solvers to count lazy solves (its rows
+read under an ``in_process`` fixture that entered the bypass), and a
+counting spy on ``Symbolic.steps``. The characteristic reference's rows
+that read ``answer`` directly enter the bypass the same way, because
+``answer`` reads the memoised solve. M3.10 gates both halves: a patch in the parent
 never reaches an entry, and a call under the bypass reads and writes
 nothing.
 
@@ -1124,13 +1133,19 @@ interpreter start plus one validation is not memoised.**
 The clients
 ===========
 
-**The two multi-region solvers**,
+Since P1 step (e2) of the characteristic reference campaign
+(2026-10-10) the clients are the characteristic reading and its solve,
+below. The two trajectory-resolvent clients described first were P3's,
+and were deleted with their family; their description is the record of
+how ruling 2 was first realised.
+
+**The two multi-region solvers (deleted)**,
 ``solve_greens_function_sphere_mr`` (in
-:mod:`orpheus.derivations.continuous.trajectory_resolvent.greens_function`)
-and ``solve_greens_function_cylinder_mr`` (in
-``greens_function_cylinder``), are decorated
-``@traced_memo(canonical=SOLVER_ARRAY_ARGUMENTS)``. The census showed why
-the memo sits at the solver functions themselves: they return frozen
+``trajectory_resolvent.greens_function``) and
+``solve_greens_function_cylinder_mr`` (in ``greens_function_cylinder``),
+were decorated ``@traced_memo(canonical=SOLVER_ARRAY_ARGUMENTS)``. The
+census showed why the memo sat at the solver functions themselves: they
+returned frozen
 results of 11 and 10 plain-data fields, each field read by at least one of
 the 21 consumer sites (2 in production, 19 in tests); the reference's
 eigenvalue and a direct call's are bit-identical (``1.1703350703390714``
@@ -1142,18 +1157,18 @@ knots the reading needs to rebuild its rays. This is the user's ruling 2
 ruling 3's legacy client (the cylinder multi-region Green's function, the
 first family of P4) in one decoration.
 
-**The trajectory-resolvent reading.**
-:class:`~orpheus.derivations.continuous.trajectory_resolvent.reference.TrajectoryResolventDerivation`
-has content identity (its six init fields; its ``Billiard`` and its rays
-class are derived from them and excluded), and its ``evaluate`` is a
-memoised METHOD. A reading is generated once, in a fresh process that
-constructs the derivation from its content (finding F1), solves through
-the solver's memo (a child entry) and evaluates the observable. The memo
-is on ``evaluate`` itself, not on a module-level reading function beside
-it, which would be a second spelling of ``evaluate`` free to drift from
-it. Within one process the derivation still holds its solve
-in a ``cached_property``; across processes, the reading and the solve are
-memo entries (:ref:`trajectory-resolvent-reference-reading`).
+**The trajectory-resolvent reading (deleted).**
+``TrajectoryResolventDerivation`` had content identity (its six init
+fields; its ``Billiard`` and its rays class were derived from them and
+excluded), and its ``evaluate`` was a memoised METHOD. A reading was
+generated once, in a fresh process that constructed the derivation from
+its content (finding F1), solved through the solver's memo (a child
+entry) and evaluated the observable. The memo was on ``evaluate`` itself,
+not on a module-level reading function beside it, which would be a
+second spelling of ``evaluate`` free to drift from it; the characteristic
+reading keeps that choice. Within one process the derivation held its
+solve in a ``cached_property``; across processes, the reading and the
+solve were memo entries (:ref:`trajectory-resolvent-reference-reading`).
 
 **The characteristic reading and its solve.**
 :class:`~orpheus.derivations.continuous.characteristic.reference.CharacteristicDerivation`
@@ -1293,7 +1308,8 @@ such reads and writes in ``orpheus/``:
   sees it (its environment is declared, above).
 * **Two writes of the global mpmath precision**, ``mp.dps = 30``, in the
   cylinder Wronskian identity (``cylinder_derivations.py``) and the slab
-  :math:`T_{00} = P_{ss}` identity (``greens_function_slab.py``). A global
+  :math:`T_{00} = P_{ss}` identity (``greens_function_slab.py``, since
+  step (e1a) under ``characteristic/origins/specular/``). A global
   write leaves the precision at 30 for whatever runs next in the process,
   so an answer computed later would depend on which test ran before it.
   Both are local ``mpmath.workdps`` contexts.
@@ -1339,8 +1355,10 @@ The cold read costs 2.2 to 2.5 times the in-process computation (two
 interpreter starts, two import closures under recording, two manifests);
 the warm read costs about half a percent of it.
 
-**The suite, before and after**, from the specification (`[M]`
-2026-10-04, ``0e8740ef`` and the prototype, one run per file, concurrent
+**The suite, before and after**, from the specification (the files
+named ``test_trajectory_resolvent_*`` and ``test_peierls_greens_function_*``
+below were deleted with their family on 2026-10-10; the tables record
+P3) (`[M]` 2026-10-04, ``0e8740ef`` and the prototype, one run per file, concurrent
 with the mutation battery on 10 cores, so upper bounds; "cold" is cold
 for the first file only, because later files of the cold pass meet entries
 earlier files wrote):
@@ -1395,13 +1413,18 @@ runs each, serially). The cache after both passes held 8 724 KB.
 ``test_traced_memo_clients.py``), the three reviews' findings (33,
 ``test_traced_memo_findings.py``) and the ambient state (14,
 ``tests/gates/test_ambient_state.py``), all under ``tests/gates/``. The
-real-tree witnesses (M4.4) copy every ``*.py`` under ``orpheus/`` into a
-temporary directory and make a behaviour-neutral edit there: an edit to a
-construction helper the reading ran makes the reading stale and leaves
-the solve valid; an edit to the solver makes both stale, the reading
-through its child pin; an edit to the cylinder's rays, which a sphere
-reading never ran, leaves both valid; a constant in the reading module's
-skeleton makes the reading stale.
+real-tree witnesses (M4.4) copied every ``*.py`` under ``orpheus/`` into a
+temporary directory and made a behaviour-neutral edit there: an edit to a
+construction helper the reading ran made the reading stale and left the
+solve valid; an edit to the solver made both stale, the reading through
+its child pin; an edit to the cylinder's rays, which a sphere reading
+never ran, left both valid; a constant in the reading module's skeleton
+made the reading stale. Since P1 step (e2) the witnesses are re-posed on
+the characteristic reading (``test_m4_4c_…`` in
+``tests/gates/numerics/test_traced_memo_clients.py``): an edit to the
+wall reader ``_wall_of`` makes the reading stale, an edit to the polar
+rule of another chart leaves it valid, and a constant in the reading
+module makes it stale.
 
 **The cadence: the specification's timing protocol** (`[M]` 2026-10-04,
 ``main`` at ``2bae331a``, a detached worktree on the host ``.venv``,
@@ -1487,7 +1510,7 @@ not meant to be memoised:
   never a reference (the plan's reference ban), so these run every time;
   the memo removed the A|B|A cylinder reference those rows compare with,
   which is why the file is faster cold than bypassed.
-* ``test_trajectory_resolvent_reference.py`` keeps 91 s in the two rows
+* ``test_trajectory_resolvent_reference.py`` (deleted since) kept 91 s in the two rows
   that count solves under ``bypass()`` (a spy counts only in-process) and
   47 s in the row that recomputes the cylinder reading against a fine
   angular rule, its own independent check.
@@ -1899,6 +1922,14 @@ the memo. The 2026-10-04 rows sat on the branch
      - Milestone
      - Issue
      - Where
+   * - 2026-10-10
+     - **The trajectory-resolvent clients deleted.** P1 step (e2) of the
+       characteristic reference campaign deleted the two multi-region
+       solvers and the trajectory-resolvent reading with their family;
+       the characteristic reading and its solve are the memo's clients,
+       and the client gates (M4.1b to M4.8) were re-posed on them.
+     - #405
+     - *(in development)*
    * - 2026-10-10
      - **A set is keyed by its elements' order, not its iteration order**,
        and the generator contract gains the clause that a memoised

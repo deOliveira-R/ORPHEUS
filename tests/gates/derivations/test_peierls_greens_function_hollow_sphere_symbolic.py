@@ -43,12 +43,12 @@ V_α3_hollow_sph. **Vacuum reduction at**
 Predecessor / sibling tests
 ---------------------------
 
-- :mod:`.test_trajectory_resolvent_slab_asymmetric_symbolic` —
+- :mod:`.test_peierls_greens_function_slab_asymmetric_symbolic` —
   Phase-3B asymmetric slab V_α (the rank-2 template the hollow-sphere
   rank-2 closure is lifted from).
-- :mod:`.test_trajectory_resolvent_symbolic` — sphere V_α1/V_α2/V_α3
+- :mod:`.test_peierls_greens_function_symbolic` — sphere V_α1/V_α2/V_α3
   (the rank-1 template the outer-only branch reuses).
-- :mod:`.test_trajectory_resolvent_cylinder_symbolic` — cylinder
+- :mod:`.test_peierls_greens_function_cylinder_symbolic` — cylinder
   V_α1/V_α2/V_α3.
 
 References
@@ -58,6 +58,11 @@ References
   hollow sphere plan.
 - :file:`.claude/agent-memory/cross-domain-attacker/variant_alpha_2surface_bie_frame.md`
   — frame match: rank-2 BIE block resolvent at 2-surface topologies.
+
+**Retired in step (e2) of the characteristic-reference campaign** (2026-10-10):
+the 7 V_α2_hollow_sph rows (the asymmetric slab's rank-2 resolvent re-stated),
+with their ``derive_*`` function. ``peierls-greens-hollow-sph-through-rank2``
+moved to ``test_characteristic_transport.py::test_the_closed_angular_flux_is_the_unfolded_backward_path``.
 """
 from __future__ import annotations
 
@@ -66,7 +71,6 @@ import pytest
 from orpheus.derivations.continuous.characteristic.origins.specular import (
     derive_alpha_zero_kernel_reduction_hollow_sphere,
     derive_operator_constant_trial_closed_hollow_sphere,
-    derive_rank2_resolvent_hollow_sphere,
 )
 
 
@@ -196,122 +200,6 @@ def test_v_alpha1_hollow_sph_overall_pass():
 # ═══════════════════════════════════════════════════════════════════════
 # V_α2_hollow_sph — rank-2 resolvent T = (I - S)^{-1}
 # ═══════════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.foundation
-@pytest.mark.verifies("peierls-greens-hollow-sph-through-rank2")
-def test_v_alpha2_hollow_sph_determinant_canonical_form():
-    r"""V_α2_hollow_sph.a — :math:`\det(I - S) = 1 - \alpha_{\rm in}\,
-    \alpha_{\rm out}\,e^{-2\tau_{\rm step}}` via SymPy direct matrix
-    determinant.
-
-    Same algebraic structure as the slab-asymmetric determinant; only
-    the meaning of :math:`\tau_{\rm step}` changes (curvilinear shell
-    chord vs slab chord). The singular locus :math:`\alpha_{\rm in}\,
-    \alpha_{\rm out}\,e^{-2\tau_{\rm step}} = 1` is reachable only at
-    :math:`\alpha_{\rm in} = \alpha_{\rm out} = 1` and
-    :math:`\tau_{\rm step} = 0` (tangent rays at :math:`b = R_{\rm
-    in}` in a closed shell).
-    """
-    result = derive_rank2_resolvent_hollow_sphere()
-    assert result["pass_det"], (
-        f"V_α2_hollow_sph determinant failed: got {result['det_M']}, "
-        f"expected {result['det_canonical']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha2_hollow_sph_canonical_T_form():
-    r"""V_α2_hollow_sph.b — the rank-2 resolvent matches the canonical
-    closed form
-    :math:`T = (1/\det)\,\bigl[[1, \alpha_{\rm in} e^{-\tau_{\rm step}}],
-    [\alpha_{\rm out} e^{-\tau_{\rm step}}, 1]\bigr]`.
-
-    SymPy's ``Matrix.inv()`` produces the inverse, and each entry is
-    matched against the canonical form via ``sp.simplify``.
-    """
-    result = derive_rank2_resolvent_hollow_sphere()
-    assert result["pass_T_form"], (
-        f"V_α2_hollow_sph canonical T form failed: "
-        f"T = {result['T_resolvent']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha2_hollow_sph_symmetric_reduction():
-    r"""V_α2_hollow_sph.c — at :math:`\alpha_{\rm in} = \alpha_{\rm
-    out} = \alpha`, :math:`T_{11} + T_{12} = 1/(1 - \alpha\,
-    e^{-\tau_{\rm step}})`.
-
-    The rank-2 → rank-1 collapse on a constant source with symmetric
-    BC. Same algebraic identity as V_α2_slab_asym.c.
-    """
-    result = derive_rank2_resolvent_hollow_sphere()
-    assert result["pass_symmetric_simplification"], (
-        f"V_α2_hollow_sph symmetric reduction failed."
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha2_hollow_sph_alpha_in_zero_reduction():
-    r"""V_α2_hollow_sph.d — at :math:`\alpha_{\rm in} = 0` (cavity
-    absorber), the determinant is 1 and only :math:`T_{21} = \alpha_{
-    \rm out}\,e^{-\tau_{\rm step}}` is nonzero off-diagonal.
-
-    Physical meaning: with the inner surface absorbing perfectly, the
-    cavity acts as a "particle sink." Through-rays that reach the
-    inner surface are lost; the bouncing geometric series is broken
-    after the first traversal.
-    """
-    result = derive_rank2_resolvent_hollow_sphere()
-    assert result["pass_alpha_in_zero"], (
-        f"V_α2_hollow_sph α_in=0 reduction failed: "
-        f"T = {result['T_inner_vac']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha2_hollow_sph_alpha_out_zero_reduction():
-    r"""V_α2_hollow_sph.e — at :math:`\alpha_{\rm out} = 0` (vacuum
-    outer), the determinant is 1 and only :math:`T_{12} = \alpha_{
-    \rm in}\,e^{-\tau_{\rm step}}` is nonzero off-diagonal.
-
-    Physical meaning: with the outer surface in vacuum, through-rays
-    that reach the outer surface escape. The reflective inner surface
-    can re-launch them once but they leak out at the next outer
-    arrival. (The outer-only subset has :math:`\alpha_{\rm out} = 0`
-    rank-1 closure with :math:`T = 1` — outer-only rays escape on the
-    first arrival.)
-    """
-    result = derive_rank2_resolvent_hollow_sphere()
-    assert result["pass_alpha_out_zero"], (
-        f"V_α2_hollow_sph α_out=0 reduction failed: "
-        f"T = {result['T_outer_vac']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha2_hollow_sph_vacuum_vacuum_identity_reduction():
-    r"""V_α2_hollow_sph.f — at :math:`\alpha_{\rm in} = \alpha_{\rm
-    out} = 0`, :math:`T = I`.
-
-    Vacuum-vacuum BC removes the bouncing geometric series entirely;
-    the closure reduces to :math:`\psi_{\rm surf} = T \cdot \alpha\,
-    B = I \cdot 0 = 0`. The interior reconstruction is the bare
-    first-leg integral.
-    """
-    result = derive_rank2_resolvent_hollow_sphere()
-    assert result["pass_vacuum_identity"], (
-        f"V_α2_hollow_sph α_in=α_out=0 → T=I reduction failed: "
-        f"T = {result['T_vac_vac']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha2_hollow_sph_overall_pass():
-    """V_α2_hollow_sph — composite gate."""
-    result = derive_rank2_resolvent_hollow_sphere()
-    assert result["pass"], f"V_α2_hollow_sph composite failed: {result}"
 
 
 # ═══════════════════════════════════════════════════════════════════════

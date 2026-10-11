@@ -44,13 +44,19 @@ V_α3_cyl. **Vacuum reduction at :math:`\alpha = 0`**. Surface fixed-point
 
 Predecessor / sibling tests:
 
-- :mod:`.test_trajectory_resolvent_symbolic` — sphere V_α1/V_α2/V_α3.
+- :mod:`.test_peierls_greens_function_symbolic` — sphere V_α1/V_α2/V_α3.
 
 References
 ----------
 
 - :file:`.claude/plans/peierls-greens-cylinder-and-2bc.md` — Phase 1
   cylinder Variant α plan.
+
+**Retired in step (e2) of the characteristic-reference campaign** (2026-10-10):
+the 4 V_α1_cyl rows, which re-stated the sphere's surface fixed point
+(``test_peierls_greens_function_symbolic.py``), with their ``derive_*`` function.
+Their label ``peierls-greens-cylinder-trajectory`` moved to the kernel's chord
+row ``tests/gates/geometry/test_chord.py::test_the_multi_region_segments_are_the_hand_written_table``.
 """
 from __future__ import annotations
 
@@ -62,7 +68,6 @@ from orpheus.derivations.continuous.characteristic.origins.specular import (
     derive_alpha_zero_kernel_reduction_cylinder,
     derive_bounce_period_chord_cylinder,
     derive_homogeneous_limit_reducibility_cylinder_mr,
-    derive_operator_constant_trial_closed_cylinder,
     derive_piecewise_3d_optical_depth_cylinder_mr,
     derive_two_region_constant_source_consistency_cylinder_mr,
 )
@@ -71,72 +76,6 @@ from orpheus.derivations.continuous.characteristic.origins.specular import (
 # ═══════════════════════════════════════════════════════════════════════
 # V_α1_cyl — closed-cylinder bounce-sum self-consistency on constant trial
 # ═══════════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.foundation
-@pytest.mark.verifies("peierls-greens-cylinder-trajectory")
-def test_v_alpha1_cyl_surface_fixed_point_solves_to_q_over_sigma_t():
-    r"""V_α1_cyl.a — surface fixed-point gives :math:`\psi_{\rm surf}
-    = q/\Sigma_t`.
-
-    The bounce self-consistency equation for cylinder
-    :math:`\psi_{\rm surf} = (q/\Sigma_t)(1 - e^{-\Sigma_t L_{\rm period}})
-    + e^{-\Sigma_t L_{\rm period}}\,\psi_{\rm surf}` has a unique
-    solution independent of the bounce period :math:`L_{\rm period}`.
-    The algebra is structurally identical to V_α1 sphere — only the
-    chord formula :math:`L_{\rm period}(b, \mu_{\rm axial})` differs.
-
-    Verifies the first-leg trajectory eq.
-    :eq:`peierls-greens-cylinder-trajectory`: the surface fixed-point
-    closure cancels the first-leg :math:`L_0`-dependence by
-    construction.
-    """
-    result = derive_operator_constant_trial_closed_cylinder()
-    assert result["pass_surf_consistency"], (
-        f"V_α1_cyl surface fixed-point failed: solution = "
-        f"{result['psi_surf_solution']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha1_cyl_total_psi_is_independent_of_first_leg():
-    r"""V_α1_cyl.b — total :math:`\psi(r, \mu_{\rm axial},
-    \varphi_{\rm az}) = q/\Sigma_t` everywhere.
-
-    First-leg :math:`(q/\Sigma_t)(1 - e^{-\Sigma_t L_0})` plus
-    attenuated-surface :math:`e^{-\Sigma_t L_0}\,\psi_{\rm surf}` cancels
-    the :math:`L_0`-dependence identically.
-    """
-    result = derive_operator_constant_trial_closed_cylinder()
-    assert result["pass_total_constant"], (
-        f"V_α1_cyl total-ψ-constant failed: psi_total = "
-        f"{result['psi_total_simplified']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha1_cyl_operator_on_constant_gives_omega_0():
-    r"""V_α1_cyl.c — :math:`(K \cdot 1) = \omega_0 = \Sigma_s/\Sigma_t`.
-
-    For ψ_trial = 1 (isotropic constant) with isotropic-scattering
-    source :math:`q = \Sigma_s\,\psi_{\rm trial} = \Sigma_s`, the
-    operator action is :math:`q/\Sigma_t = \Sigma_s/\Sigma_t = \omega_0`.
-    The k_inf identity follows: :math:`(1 - \omega_0)\,\phi =
-    (\nu\Sigma_f/k)\,\phi` ⟹ :math:`k = \nu\Sigma_f/\Sigma_a`.
-    """
-    result = derive_operator_constant_trial_closed_cylinder()
-    assert result["pass_eigenvalue"], (
-        f"V_α1_cyl operator-eigenvalue failed: K·1 = "
-        f"{result['K_on_constant_trial']}, expected = "
-        f"{result['omega_0']}"
-    )
-
-
-@pytest.mark.foundation
-def test_v_alpha1_cyl_overall_pass():
-    """V_α1_cyl — composite gate."""
-    result = derive_operator_constant_trial_closed_cylinder()
-    assert result["pass"], f"V_α1_cyl composite failed: {result}"
 
 
 # ═══════════════════════════════════════════════════════════════════════

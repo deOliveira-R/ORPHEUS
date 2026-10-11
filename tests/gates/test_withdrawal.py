@@ -30,7 +30,7 @@ The seven gates (the specification's M1 to M6, and M7 from the review):
   test-side mark :data:`tests._harness.withdrawals.PEIERLS_NYSTROM_WITHDRAWN`,
   minted from the package's :data:`PEIERLS_NYSTROM_WITHDRAWAL`, and no test
   file spells the marker by hand;
-* **M5** the placement theorem: a full run of the 27 files that hold the
+* **M5** the placement theorem: a full run of the 25 files that hold the
   withdrawn tests, plus ``test_peierls_assembly_drivers.py`` (the control
   file of the same package, which holds none), has no failure (a kept test
   that reached a locked generator would be red) and skips exactly the
@@ -45,7 +45,7 @@ The seven gates (the specification's M1 to M6, and M7 from the review):
   ``pytest_runtest_makereport``).
 
 All seven are ``foundation`` (software invariants; no ``verifies``). M5
-runs the 28 files again (about 35 s), so it is also ``slow``; every kept
+runs the 26 files again (about 35 s), so it is also ``slow``; every kept
 test in those files enforces the same theorem in its own run, and M5 adds
 the end-to-end count.
 """
@@ -301,14 +301,14 @@ def test_m3_a_mistyped_opt_in_is_a_usage_error():
 
 def test_m4_the_tests_withdrawn_under_506_are_exactly_the_placement():
     """M4: the registry's #506 withdrawals, over the WHOLE collected tree,
-    equal the committed placement list (297 node ids), and each parses to the
+    equal the committed placement list (294 node ids), and each parses to the
     package's one :data:`PEIERLS_NYSTROM_WITHDRAWAL`."""
     from tests._harness.audit import audit_payload
 
     withdrawn = audit_payload()["withdrawn_tests"]
     under_506 = {nid for nid, w in withdrawn.items() if w["issue"] == 506}
     expected = _placement()
-    assert len(expected) == 297
+    assert len(expected) == 294
     missing, extra = sorted(expected - under_506), sorted(under_506 - expected)
     assert not missing and not extra, (
         f"placement drift — listed but not marked: {missing}; marked but not "
@@ -371,7 +371,7 @@ def _junit_key(nodeid: str) -> tuple[str, str]:
 
 @pytest.mark.slow
 def test_m5_no_kept_test_reaches_a_locked_generator(tmp_path):
-    """M5: the 27 files that hold a #506 withdrawal, plus the package's
+    """M5: the 25 files that hold a #506 withdrawal, plus the package's
     control file ``test_peierls_assembly_drivers.py`` (0 withdrawn), run as
     the canonical invocation, have 0 failures and 0 errors (the lock reds any kept test
     that reaches a withdrawn generator), and the cases skipped with the
@@ -379,7 +379,7 @@ def test_m5_no_kept_test_reaches_a_locked_generator(tmp_path):
     placement = _placement()
     files = sorted({nid.split("::", 1)[0] for nid in placement}
                    | {"tests/gates/derivations/test_peierls_assembly_drivers.py"})
-    assert len(files) == 28
+    assert len(files) == 26
     report = tmp_path / "m5.xml"
     subprocess.run(
         [sys.executable, "-O", "-m", "pytest", "-p", "no:cacheprovider", "--color=no",

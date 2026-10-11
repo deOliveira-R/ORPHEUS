@@ -255,8 +255,9 @@ The discipline:
   only "SI ≡ Krylov" are dangerous — they prove agreement, not
   correctness.
 - **Use structurally-independent references.** For curvilinear SN,
-  Variant α from `orpheus/derivations/continuous/trajectory_resolvent`
-  is the reference. The L0 streaming-equilibrium analytical answer
+  the characteristic reference (`orpheus/derivations/continuous/characteristic`)
+  is the reference; Variant α (`trajectory_resolvent`, deleted on
+  2026-10-10) was when this lesson was written. The L0 streaming-equilibrium analytical answer
   (`φ = Q/(Σ_t(1-c))`, `ψ_n = φ/Σw`) is a second reference. Both
   are structurally independent of the production sweep code.
 - **Verify under refinement.** Snapshot bit-identity at one mesh
