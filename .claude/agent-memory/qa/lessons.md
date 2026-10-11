@@ -327,6 +327,12 @@ REMAINDER, and the question is then completeness. `[M]` `39b46a31`'s universal
 "all 23 snapshots … the only two that changed" was scoped to ONE directory while
 7 further references had moved. [skill: #25 owns the per-mechanism null-check] → L-069
 
+**D15. A carve that DISSOLVES branches of HEAD (a `len(radii) == 1` fast path, a
+solid-only shortcut, a per-kind arm) owes its old-vs-new probe one fixture inside
+each dissolved branch's domain; a probe on the general fixture certifies the
+general branch only.** check: grep HEAD's body for `if len(`, `== 0.0`, `kind ==`
+guards the new body lacks, and run HEAD vs new once per guard. → L-101
+
 ## E. Markers, levels, and the ORPHEUS audit surface
 
 **E3. An audit-MISSING `catches` has FOUR outcomes — grep the production RAISE

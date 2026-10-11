@@ -2041,3 +2041,108 @@ Then put the scope question to the user with the counts, then plan mode (the ont
 - `rm -rf` is refused by the permission settings: ask the user to run it.
 
 Read this point first on resume.
+
+## P2 — scope rulings and the plan (2026-10-10)
+
+**The census** (`[M]` the explorer, tree `a7aeebb5`; `scratch/characteristic_architecture/p2/census.md`, AST plus text filters, 7 positive controls). Outside the kernel and the SymPy origins:
+- **Chord sites, 28:** 22 reference-live (common 4, characteristic 1, fn_method 1, Peierls 16), 2 with only withdrawn consumers, 1 dead, and 3 production (all MoC).
+- **Point locators, 14:** production 6 (MoC 1, MC 3, mesh 1, numerics 1); reference-live 7; withdrawn 1.
+- **Line-measure sites, 11:** 5 density spellings and 6 quadrature rules.
+
+**The premise correction.** #506 withdraws only the Peierls *solver* half. `CurvilinearGeometry` and the `compute_P_ss_*`, `compute_T_specular_*`, `P_esc*` and `G_bc*` primitives are reference-live.
+
+**The cost** (`[M]`; `scratch/characteristic_architecture/p2/caller_shapes.md`).
+- One kernel chord over one line costs 229 µs. Over a batch it costs 0.33–6 µs per line.
+- The Peierls scalar primitives cost 0.3–3.8 µs per call, and are called two loops deep.
+- So the Peierls layer migrates batched per observer: about +0.16 s in its tests, against +11.7 s for a scalar re-spelling.
+
+**The user's rulings (2026-10-10, AskUserQuestion):**
+1. The reference sites move now. Production gets one issue per method campaign (MoC, MC, CP).
+2. Generic interval locators (`IndicatorBasis.evaluate`, `mesh/factories.pwr_pin_2d`) are out of scope.
+3. The Peierls ray layer is batched per observer: one batched chord per observer (the plan first said one `ConcentricPartition` per `compute_*` call; `rays_from` mints one per observer, 28 µs `[M]`, immaterial beside the chord, so the wording was amended on 2026-10-11). This dissolves the slab/curvilinear branches of the ray methods into the `Chart`, a slice of #419.
+4. `chord_half_lengths` is re-spelled on the kernel even though production CP imports it. This is a harmonisation, and CP's numbers move toward the cancellation-free value.
+
+**The plan** (approved; `~/.claude/plans/zesty-dazzling-hanrahan.md`). Branch `refactor/kernel-p2-reference`. The commits, each green on what it touches:
+0. the test-architect's specification;
+1. K: `impact_rule` onto `half_chord`. This is 0 ulp `[M]`; the 126 memo entries regenerate once, with identical values;
+2. F: the Fn sphere reconstruction, batched;
+3. C: `chord_half_lengths`;
+4. P: the Peierls ray layer, possibly with a `Chord.lengths_between` verb;
+5. D: the densities onto `beam_density`, and the deletion of the dead `_chord_tau_mu_sphere`;
+6. the issues (MoC, MC, CP), comments on #419 and #506, and the closing of #578;
+7. the docs.
+
+**Kept, with the reason:**
+- the mpmath-precision chord bodies, because the kernel is float64;
+- the quadrature rules, because the kernel owns the density and not the rule;
+- the test oracles, because re-pointing them would be demotion.
+
+**CP defects found in P2 (2026-10-10, W2 numerics-investigator; memo `scratch/characteristic_architecture/p2/cp_pi_investigation/memo.md`):**
+1. **The sphere's line density.** CP writes it as 2y where it is 2πy, so the sphere's P_cell is π too small, in production and in `flat_source_cp` alike. `[M]`:
+   - two independent grounds (the closed form, and a 3-D point escape integral) agree to 4e-14, and both codes read exactly 1/π of them;
+   - under white, k moves by +6.4e-5 and the flux shape by up to 13.6 %.
+2. **CP's vacuum k omits leakage** in every geometry, the CP twin of ERR-064. `[M]`: slab 1.23 against a true 0.52; sphere 0.59 against 0.018.
+
+**The user's ruling (2026-10-10).** Both are symptoms of CP lacking the shared machinery: a measure on lines, a boundary trace, an operator pencil.
+- **Defect 1:** group D SEEDS the measure. CP and the reference read the line density from `Chart.beam_density`, which fixes the π at its root, in a form the CP campaign will build on.
+- **No CP plan is opened now.** CP's development is a known latent move; P2 keeps marching, so that CP's campaign starts on a good verification infrastructure.
+- **Defect 2:** filed as an issue, with an ERR entry and a strict-xfail gate, until CP's pencil exists.
+
+## P2 step 7, the docs: written to the working tree (the archivist, 2026-10-11)
+
+Not committed; the main agent commits it with the code. Every commit cell below is *(in development)* until then.
+
+**The error catalogue** (`docs/theory/verification/error_catalog.rst`; it ended at ERR-106):
+- **ERR-107**: the CP sphere's density `2y` where the measure is `2πy`, in production and in `flat_source_cp`; the root of #283 and #509. Catchers named: `test_cp_first_collision.py::test_the_first_collision_probability_is_the_closed_form` and the large-radius sphere cells of `test_white_boundary_infinite_medium.py`.
+- **ERR-108**: the Peierls cylinder-3D response paired the exit distance along +cos ω with τ along −cos ω. `[M]` against qa's 3-D ray trace: the old pairing 1.2 % to 11.0 % off; the one-ray reading within 2.3e-5 at 16 points. Catcher: `test_peierls_ray.py::test_the_cylinder_3d_responses_are_their_characteristic_integrals`.
+- **ERR-109**: the `len(radii) == 1` shortcuts ignored `inner_radius`. `[M]` 13 (function, geometry, mode) rows over 7 functions moved 1.4 % to 22 %. Catcher named: `test_peierls_ray.py::test_a_hollow_single_region_body_has_a_void_cavity_in_each_consumer`.
+- **ERR-110**: CP's vacuum k omits leakage (#546). No catcher by design: the strict xfail documents it, and its catcher lands with #546's fix. Once the three markers are placed, the index reads 2 uncaught: ERR-103 (its marker sits on one parametrize row, which the graph does not see) and ERR-110.
+
+**The pages:**
+- `chart_and_chord.rst`: a new section, `chart-and-chord-rays`, on the rays from a point and the five verbs, with their derivations, the measured guards they retired, and the AST census of consumers (13 modules, 1 of them production). Also: the Key facts, the half-lines, point location, the deferred census, the gates, three refuted designs, three gotchas, and a history row.
+- `collision_probability.rst`: the #509 warning, the sphere's weight, and `second-diff-sph` / `self-sph` with `2πy dy`. A new anchor, `cp-sphere-measure-on-lines`, carries the measurement. The cylinder's factor 2 is now explained as S₀, not as the two halves of the chord.
+- `peierls_nystrom.rst`: a new section, `peierls-ray-layer`. `cp-unified-outer-integration` and its measure table now carry `2πy`. The retired names are re-tensed, and the slab refusal now holds at every n.
+- `peierls.rst`: the ray walker and its short-circuit.
+- `characteristic.rst`: the refusal message, `impact_rule`'s inverse map, and `line_integral`.
+- `fn_method.rst`: the label `fn-sphere-psi-characteristic` and its code paragraph. It has no `verifies` marker yet; F1 should carry it.
+
+**The hollow responses (the archivist, 2026-10-11, second dispatch; W2 memo `scratch/characteristic_architecture/p2/hollow_investigation/memo.md`).**
+- **ERR-111**: `compute_G_bc_outer` counted the rays that meet the cavity first (G/P = 5.20).
+- **ERR-112**: the cylinder's `compute_G_bc_inner` used the far-side `Ki_1/d` form.
+- **ERR-113**: `W_oo` was −inf for every Σ_t > 0.
+- **ERR-114**: the rank-1 cylinder `compute_G_bc` was the surface-centred `Ki_1/d` form. It is now `4·compute_P_esc`. #112's rank-N half (`compute_G_bc_mode`, n ≥ 1) stays open.
+- The catchers are the test-architect's rows; their names are reconciled at commit.
+- `peierls_nystrom.rst` changes:
+  - the F.4 "does NOT close" claim is refuted for the fixed-source identity; k = k∞ is reasoned (`[R]`), not measured;
+  - §22.8 lists two surface-centred consumers, not four;
+  - the observer rule includes a breakpoint at the observer;
+  - `peierls-specular-T-matrix` lost its `documented` status, because its row now verifies it.
+- `[M]` After the last `-W` build, the index read 113 entries; after the hollow-response entries it reads 114 entries, 373 catching tests, 2 uncaught: ERR-103 and ERR-110 (`[M]` the `-W` build of 2026-10-11).
+
+## P2 landed (2026-10-11)
+
+**The commits** on `refactor/kernel-p2-reference`: the code `124edf67`, the docs `ba407665`, and this note with the agent memories. The code commit closes #283 and #509.
+
+**The pre-merge evidence:**
+- **The slow characteristic rows.** `[M]` 60 passed, 1154 deselected, in 3 h 31 min (`-m slow` over the 15 characteristic and Fn cross-verification files and `test_composition_cost.py`; log `scratch/characteristic_architecture/p2/characteristic_slow.log`).
+- **What those rows check, and what they do not.** They call the reference under `traced_memo.bypass()`, so they compute it in-process on the final tree and compare it with their pins. That is the direct check of the pinned values against the re-spelled kernel. They read and write no cache entry. The earlier claim that they regenerate the cache was wrong.
+- **The cache is stale and will rebuild lazily.** `[M]` 103 of 103 `evaluate` entries and 24 of 24 `solve` entries in `.cache/references` read Stale. The `solve` entries name `orpheus/geometry/chart.py` (the `half_chord` signature widening), and the `evaluate` entries name their stale `solve` children. The audit script is `scratch/characteristic_architecture/p2/audit_memo.py`. It must run with `PYTHONPATH` set to the repository root, because a pinned path resolves through `sys.path`: run from the scratchpad, it first read every pinned function as "gone". The cache is gitignored, so CI never reads it. The first local test that reads an entry regenerates it.
+- **The full non-slow suite** passed before the last fixes (`scratch/characteristic_architecture/p2/full_nonslow_2.log`). The files that failed in it were re-run alone and passed. The last edit changed only an annotation (`half_chord` accepts scalars). The suite was not re-run after it.
+- **Sphinx `-E -W`:** exit 0. The incremental `-W` build after the history hashes: exit 0.
+- **`dead_references`:** 0 dead of 65 targets, on a graph rebuilt from this tree. Positive control: the graph holds the new `rays_from` and none of the retired Peierls methods.
+- **pyright:** 0 new errors. The 12 errors left in the changed files are on lines this branch did not change.
+- **Docstring xrefs and the catalogue gate:** 54 passed.
+- **The retirement audit:** `.claude/plans/p2_peierls_dependency_audit.md`. 0 of the 18 non-archaeology hits is a present-tense claim or an imperative.
+
+**The issues:**
+- **Filed in P2:** #595 (MoC), #596 (MC) and #597 (CP).
+- **Commented with the hashes:** #546 (ERR-110 open), #112 (rank 1 fixed, rank N open), #419 (the ray-layer slice done) and #506 (what stays withdrawn).
+- **Re-scoped and closed:** #578.
+
+## ⏸ COMPACTION POINT — 2026-10-11, P2 landed
+
+**Next, by the plan's phases** (a `[HYPOTHESIS]` until the user rules): **P3**, where #405 resumes. The slow reference files are re-timed through `.claude/plans/reference_cache.md`'s P4, against the speed of the parked hoist `a336bde4`.
+
+**On resume:**
+- Read `git log --oneline -5` and `gh run list --branch main --limit 3`. Do not trust this note's merge state; check it with `git merge-base --is-ancestor 124edf67 main`.
+- The characteristic cache is cold. The first non-bypassed run regenerates its 127 entries, which takes hours. Time P3 against a warm cache, or say that it was cold.

@@ -59,14 +59,17 @@ that rank-1 Mark omits.
 - Cavity-segment optical-depth bug-hiding: a Σ_t-sign flip in cavity
   handling is invisible to sum-consistency tests (hits outer and
   inner identically). Dual-route REQUIRED — hand-algebra
-  reconstruction of τ from `rho_inner_intersections` + `rho_max`
-  against the implementation.
+  reconstruction of τ from the cavity's walls and the exit distance
+  against the implementation (until #578, 2026-10-10, those were the
+  scalar `rho_inner_intersections` + `rho_max`; since then they are read
+  from the kernel's `Rays` via `CurvilinearGeometry.rays_from`).
 
 **File placement (Phase F.1+F.2):**
 
 - NEW file `tests/gates/derivations/test_peierls_geometry.py` for
-  dataclass + method-contract tests (inner_radius validation,
-  rho_inner_intersections, optical_depth_along_ray cavity handling).
+  dataclass + method-contract tests (inner_radius validation, the
+  cavity's walls and the optical depth across the cavity; until #578
+  the retired `rho_inner_intersections` and `optical_depth_along_ray`).
 - Extend `tests/gates/derivations/test_peierls_reference.py` Layer 6 with
   per-face E_2 tests (sibling to `TestSlabPescClosedForm`).
 - Extend `tests/gates/derivations/test_peierls_closure_operator.py` with

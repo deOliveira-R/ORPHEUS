@@ -6102,3 +6102,14 @@ at the rule's exact distance (2.2e-16) against the line's realised distance from
 = the code) showed the line coordinate losing the half-chord. Not covered by `vv-principles` mode 12 or AP24 or
 B17 (B17 sweeps optical scale; this sweeps SITES of one mechanism and splits rule error from realisation error).
 Probes: `scratch/characteristic_architecture/p1_step_b5b/qa/p1`, `p2`, `p4`-`p8`.
+
+## L-101 — a carve that dissolves HEAD's branches owes its before/after probe one fixture per dissolved branch (2026-10-11, W3 #578 P2 qa, `a7aeebb5` + uncommitted)
+
+P2 re-spelled 18 Peierls consumers onto one batched ray layer. Main's HEAD-vs-new probe (`p2/p_baseline/probe.py`)
+ran every consumer on a THREE-region fixture and found only the intended cylinder-3D move. HEAD's consumers each
+carried a `len(radii) == 1` fast path (`tau = sig_t[0] * d`) that ignored `inner_radius`, so on a HOLLOW
+SINGLE-region body the cavity was read as material; the general walker (the branch the probe exercised) read it as
+void. The new layer has no such branch, so it moved 8 consumers by 1.4 % to 22 % on hollow single-region bodies,
+silently, and toward the oracle (`p2/qa/q7_hollow_single.py`, `q8_hollow_single_oracle.py`). The new PC-value rows
+are also three-region only, so a re-added fast path would not red. Not covered by `vv-principles` AP12 (per
+CONSUMER, not per branch) or AP23 (readers of one knob): the population is the BRANCHES the carve deletes.
