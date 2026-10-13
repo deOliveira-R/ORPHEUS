@@ -183,7 +183,8 @@ def test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pi
     solve (``LinePeriod.inflow``, ``DensePencil.fundamental``: they ran in the solve's child); it carries exactly ONE
     ``ChildPin``, whose function id is ``CharacteristicDerivation.solve`` and whose key names the solve entry in the
     store; the solve entry's own manifest holds the solve and pins no child. The cylinder's polar rule, which a
-    sphere never runs, is in neither.
+    sphere never runs, is in neither. Since P3 step 3 (the axial lift) ``polar_rule`` is the cylinder's only own def
+    (``impact_per_polar`` retired, asserted absent: a name a manifest can never hold would make the leg vacuous).
 
     Until #592 this row asserted the reading pinned no child (one memo level). First red (``[M]`` 2026-10-10, the
     tree at ``2f56e69b``, ``scratch/characteristic_architecture/p1_step_e/ta_592/``): ``ChildPin`` is ``[]`` and the
@@ -197,7 +198,11 @@ def test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pi
     functions = {q for _, q, *_ in api.manifest_rows(entry, "DefPin")}
     assert _CONSTRUCTION <= functions, sorted(_CONSTRUCTION - functions)
     assert not (_SOLVE_ONLY & functions), sorted(_SOLVE_ONLY & functions)
-    assert "polar_rule" not in functions and "impact_per_polar" not in functions
+    assert "polar_rule" not in functions
+    # P3 step 3 (the axial lift) retired ``impact_per_polar``: the cylinder's only own def is now ``polar_rule`` (its
+    # speed family runs through the shared ``TraversalRule`` the sphere runs at speed 1); the retirement's witness:
+    from orpheus.derivations.continuous.characteristic import lines as _lines
+    assert not hasattr(_lines, "impact_per_polar"), "impact_per_polar is back: re-point this leg at it"
     children = api.manifest_rows(entry, "ChildPin")
     assert [c[0] for c in children] == [api.spelled_function_id("characteristic_solve")], children
     (solve_file,) = _solve_entries(tmp_path)

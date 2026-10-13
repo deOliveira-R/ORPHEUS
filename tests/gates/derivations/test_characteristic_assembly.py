@@ -68,7 +68,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.characteristic import LineRule, PanelBasis, TrappedSource, Wall, Walls
-from orpheus.derivations.continuous.characteristic.lines import Lines, impact_rule
+from orpheus.derivations.continuous.characteristic.lines import Lines, OpticalScale, impact_rule, polar_rule
 from orpheus.derivations.common.quadrature import composite_gauss_legendre, gauss_legendre
 from orpheus.derivations.continuous.characteristic.grading import graded_ends
 from orpheus.geometry.chart import Chart
@@ -179,27 +179,31 @@ def test_the_cylinders_direction_rule_is_gauss_in_the_polar_angle() -> None:
     """[LR1, structure leg] The cylinder's lines sit at the Gauss points of [0, pi/2] in theta (not in mu_z), and each
     weight is the impact rule's weight times the theta weight times the domain's density over 4 pi.
 
+    Re-posed at P3 step 3 (the axial lift): the rule's lines are the in-plane lines (b, pi/2), its polar nodes the
+    family of speeds 1/sin(theta) (``Lines.speeds``), its weights ``(V, L)`` over the product (theta_j, b_l); the
+    product is a tensor grid by construction, which the leg asserts.
+
     The user's ruling of 2026-10-06 (`[M]` the orchestrator's ``m12_theta.py``:
     C9 against Bickley 2.0e-6, 2.3e-9, 1.7e-12 at 8, 16, 32 points in theta;
     5.4e-4 at 8 in mu_z). The value leg is WC1's cylinder rows. First red:
     Gauss in mu_z (the nodes arccos of the mu_z Gauss points).
     """
     # a void cylinder: no absorbing panel, so the polar angle is not graded (plain Gauss on [0, pi/2])
-    rule = _rule("cylinder", (0.0, 1.3), (_WHITE,), (0.0,), 8)
-    theta = np.unique(rule.lines.coordinates[:, 1])
+    lines = _rule("cylinder", (0.0, 1.3), (_WHITE,), (0.0,), 8).lines
+    np.testing.assert_array_equal(lines.coordinates[:, 1], math.pi / 2)        # the lines chorded are in plane
+    theta = np.arcsin(1.0 / lines.speeds)                                     # the family: theta = arcsin(1/speed)
+    order = np.argsort(theta)
     plain = gauss_legendre(0.0, math.pi / 2, 8)
-    np.testing.assert_allclose(theta, plain.pts, rtol=2 * _EPS, atol=0.0)
+    np.testing.assert_allclose(theta[order], plain.pts, rtol=8 * _EPS, atol=0.0)
     domain = Chart(CoordSystem.CYLINDRICAL).line_domain()
-    w_theta = dict(zip(plain.pts, plain.wts))
-    # the rule orders its lines by projected speed (2026-10-06): put them back on the (b, theta) grid first
-    grid = np.lexsort((rule.lines.coordinates[:, 1], rule.lines.coordinates[:, 0]))
-    coordinates, weights = rule.lines.coordinates[grid], rule.lines.weights[grid]
-    per_impact = weights / (domain.density(coordinates) / (4.0 * math.pi))
-    by_theta = per_impact / np.array([w_theta[min(w_theta, key=lambda t: abs(t - x))] for x in coordinates[:, 1]])
-    impact = by_theta.reshape(-1, 8)
-    np.testing.assert_allclose(impact, impact[:, :1] * np.ones((1, 8)), rtol=8 * _EPS, atol=0.0)
+    b = lines.coordinates[:, 0]
+    # the product (theta_j, b_l): weights (V, L) over the domain's density at (b_l, theta_j) over 4 pi
+    product = np.stack(np.broadcast_arrays(b[None, :], theta[:, None]), axis=-1)       # (V, L, 2)
+    per_impact = lines.weights / (domain.density(product) / (4.0 * math.pi))
+    by_theta = per_impact[order] / plain.wts[:, None]                                   # (V, L): the impact weight
+    np.testing.assert_allclose(by_theta, np.ones((8, 1)) * by_theta[:1], rtol=8 * _EPS, atol=0.0)
     # an absorbing cylinder: the polar angle is graded toward 0 (the grazing direction), never in mu_z
-    graded = np.unique(_rule("cylinder", (0.0, 1.3), (_WHITE,), (1.0,), 8).lines.coordinates[:, 1])
+    graded = np.arcsin(1.0 / _rule("cylinder", (0.0, 1.3), (_WHITE,), (1.0,), 8).lines.speeds)
     assert graded.min() < plain.pts.min() / 4, "the polar angle is not graded toward the grazing direction"
 
 
@@ -230,49 +234,95 @@ def grading_distances(ends, sigma, albedo: float, speed: float) -> np.ndarray:
     return np.array(distances)
 
 
-def assert_each_polar_angle_is_graded_at_its_own_speed(lines: Lines, ends, sigma, albedo: float, points: int,
-                                                       panels: int | None = None) -> list[int]:
-    """Per polar node theta of ``lines``, the impact nodes and their levels equal ``impact_rule`` graded by
-    :func:`grading_distances` at sin theta, ``array_equal``; returns the per-angle node counts. The rule orders its
-    lines by projected speed, so each group is put back in b order first."""
+def assert_the_impact_rule_is_graded_at_the_slowest_speed(lines: Lines, ends, sigma, albedo: float, points: int,
+                                                       slowest: float, panels: int | None = None) -> int:
+    """The in-plane lines of ``lines`` (one impact rule shared by every polar node) are exactly ``impact_rule`` graded by
+    :func:`grading_distances` at the projected speed ``slowest`` (sin of the polar rule's first node), with their
+    levels, ``array_equal`` after sorting by b; returns the node count. The family's speeds are 1/sin(theta) of the
+    polar nodes, the slowest of them is ``1/slowest``."""
     if lines.levels is None:
         raise AssertionError("a radial chart's lines carry their levels")
-    theta = lines.coordinates[:, 1]
-    counts = []
-    for node in np.unique(theta):
-        where = np.flatnonzero(theta == node)
-        order = where[np.argsort(lines.coordinates[where, 0], kind="stable")]
-        own = impact_rule(np.asarray(ends), np.asarray(sigma), points,
-                          grading_distances(ends, sigma, albedo, float(np.sin(node))), panels=panels)
-        by_b = np.argsort(own.b, kind="stable")
-        np.testing.assert_array_equal(lines.coordinates[order, 0], own.b[by_b], err_msg=f"theta {node!r}")
-        np.testing.assert_array_equal(lines.levels[0][order], own.top[by_b], err_msg=f"theta {node!r}")
-        np.testing.assert_array_equal(lines.levels[1][order], own.half_chord[by_b], err_msg=f"theta {node!r}")
-        counts.append(order.size)
-    return counts
+    np.testing.assert_array_equal(lines.coordinates[:, 1], np.pi / 2)
+    np.testing.assert_allclose(lines.speeds.max(), 1.0 / slowest, rtol=2 * np.finfo(float).eps, atol=0.0)
+    order = np.argsort(lines.coordinates[:, 0], kind="stable")
+    shared = impact_rule(np.asarray(ends), np.asarray(sigma), points, grading_distances(ends, sigma, albedo, slowest),
+                         panels=panels)
+    by_b = np.argsort(shared.b, kind="stable")
+    np.testing.assert_array_equal(lines.coordinates[order, 0], shared.b[by_b])
+    np.testing.assert_array_equal(lines.levels[0][order], shared.top[by_b])
+    np.testing.assert_array_equal(lines.levels[1][order], shared.half_chord[by_b])
+    return order.size
 
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("albedo", [0.0, 0.9], ids=["vacuum-layer", "mirror-pole"])
 @pytest.mark.rests_on(_HERE + "test_the_cylinders_direction_rule_is_gauss_in_the_polar_angle")
-def test_each_polar_angle_carries_the_impact_rule_graded_at_its_own_speed(albedo: float) -> None:
-    """[LR2, #587; foundation, THEOREM of the rule's construction] The cylinder's rule over (b, theta) is ITERATED:
-    the lines at each polar node theta are exactly ``impact_rule`` graded at that line's own projected speed
-    sin theta by the grading law written by hand (:func:`grading_distances`), with their exact levels,
-    ``array_equal``. The weights are pinned by the value rows (WC1's cylinder escape, C2b, the reading's Q2/Q4).
+def test_the_impact_rule_is_graded_at_the_slowest_polar_node(albedo: float) -> None:
+    """[LR2', P3 step 3; foundation, THEOREM of the rule's construction] The cylinder's rule holds ONE impact rule for
+    every polar node (the axial lift): its in-plane lines are exactly ``impact_rule`` graded at the slowest polar
+    node's projected speed sin(theta_min), theta_min the polar rule's first node, by the grading law written by hand
+    (:func:`grading_distances`), with their exact levels, ``array_equal``. The weights are pinned by the value rows.
 
-    Behaviour only: the row reads ``LineRule.lines`` and ``impact_rule``, never how the rule composes them. Activation:
-    on this small cylinder the layer (vacuum) and the closure's pole (a = 0.9) both scale with the speed, so the
-    per-angle node count takes several values (`[M]` 2026-10-08, ``p1_step_c/ta/probe_small.log``: 13 and 21
-    distinct counts over 128 polar nodes); the row asserts more than one. First reds (``p1_step_c/ta/``): the tensor
-    rule of ``11b263a5``, every angle graded at the slowest speed (127 of 128 polar nodes differ, a worktree; the
-    in-process arm ``slowest``); the grading law's layer term or pole term dropped (arms ``no_layer``,
-    ``no_pole``)."""
+    INVERTED from LR2 (#587, until P3 step 3: each polar node at its own speed). The tangency layers nest (the
+    distances are monotone in the speed and ``graded_ends`` halves from one span), so the shared rule is the union of
+    #587's per-node rules: `[M]` 2026-10-11 it is no less accurate on any of 384 polar nodes
+    (``test_characteristic_lift.py``, P1). Activation: on this small cylinder the layer (vacuum) and the pole
+    (a = 0.9) scale with the speed, so the shared rule holds more nodes than the rule at speed 1 (asserted). First
+    reds: #587's own-speed rule (the tree before the carve: `[M]` 2 of 2 red under the inverse arm ``slowest``,
+    ``scratch/characteristic_architecture/p3/step3/ta/run_slowest_not_slow.log``); the rule at speed 1; the grading
+    law's layer or pole term dropped."""
     sigma = (0.6, 2.4)
     basis = _basis("cylinder", _SMALL_CYL, (2, 0, 0.4))
     lines = LineRule.of(basis, _walls("cylinder", _SMALL_CYL, ((albedo, 0.0),)), np.asarray(sigma), 8).lines
-    counts = assert_each_polar_angle_is_graded_at_its_own_speed(lines, _SMALL_CYL, sigma, albedo, 8)
-    assert len(set(counts)) > 1, f"the fixture does not distinguish the polar speeds: {counts}"
+    slowest = float(np.sin(polar_rule(OpticalScale.of(np.asarray(_SMALL_CYL), np.asarray(sigma)), 8).pts[0]))
+    count = assert_the_impact_rule_is_graded_at_the_slowest_speed(lines, _SMALL_CYL, sigma, albedo, 8, slowest)
+    at_one = impact_rule(np.asarray(_SMALL_CYL), np.asarray(sigma), 8, grading_distances(_SMALL_CYL, sigma, albedo, 1.0))
+    assert count > at_one.b.size, f"the fixture does not distinguish the slowest speed from 1: {count}, {at_one.b.size}"
+
+
+# ── P3 step 3e: a cylinder block's VALUE in the fast tier; the planner's budget (qa's witnesses) ──
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("characteristic-boundary-resolvent")
+@pytest.mark.rests_on(_HERE + "test_the_impact_rule_is_graded_at_the_slowest_polar_node")
+def test_a_cylinders_block_total_under_a_partial_mirror_is_the_per_line_closed_form() -> None:
+    """[CB1, qa's NEEDS: the cylinder block's value] 1^T K 1 of a homogeneous cylinder (R 2, Sigma 2.4) behind a partial
+    mirror a = 0.9, at 6 points per piece, equals ``specular_cylinder_total`` (mpmath: per line of impact b and polar
+    angle theta, the chord 2 sqrt(R^2 - b^2) / sin(theta), int psi ds = psi_in B + (l - B)/Sigma, over the line measure
+    2 sin^2(theta) db dtheta; no line of the code) to 3e-11. The fast tier's only row on a cylinder block's value: the
+    lifted line part (the Volterra fold over the polar family, kappa^2) and the closure.
+
+    `[M]` 2026-10-12 (``scratch/characteristic_architecture/p3/step3/ta/e/block_probe.log``): 3.9e-11, 3.2e-12,
+    1.6e-15 at 4, 6, 8 points (28, 27, 41 s); the reference 4.8 s. First reds: the block's outer length weight without
+    the speed (qa's ``fold_k1``: -4.3e-2); the inner rule's length weight without the speed (``inner_V``, see
+    ``ta/e/battery.log``)."""
+    from tests.gates.derivations._characteristic_point_mp import specular_cylinder_total
+
+    block = _transport("cylinder", (0.0, 2.0), ((0.9, 0.0),), (2.4,), 6).block
+    total = float(np.ones(block.shape[0]) @ block @ np.ones(block.shape[1]))
+    reference = specular_cylinder_total(2.4, 2.0, 0.9)
+    assert abs(total / reference - 1.0) <= 3e-11, total / reference - 1.0
+
+
+@pytest.mark.foundation
+def test_every_chunk_of_lines_fits_its_piece_budget_or_holds_one_line() -> None:
+    """[PL1, qa's ``halvings_min``] ``Lines.chunks`` plans its halvings from each line's piece count: every rule it yields
+    holds at most ``budget`` piece slots (``TraversalRule.extent``) unless it holds one line, and the planner did halve
+    (activation: more rules than blocks of ``chunk`` lines). On the small cylinder of Q4 (8 points), whose lines' piece
+    counts differ, at a fifth of a whole block's extent. First red: a range sized by its cheapest line (qa's arm,
+    0 reds in the suite before this row)."""
+    basis = _basis("cylinder", _SMALL_CYL, (2, 0, 0.4))
+    walls = _walls("cylinder", _SMALL_CYL, ((0.0, 0.0),))
+    lines = LineRule.of(basis, walls, np.asarray((0.6, 2.4)), 8).lines
+    whole = lines._rule(slice(0, len(lines.coordinates)), 8, 8)
+    budget = whole.extent // 5
+    small = LineRule.of(basis, walls, np.asarray((0.6, 2.4)), 8, chunk=10 ** 9, budget=budget).lines
+    rules = list(small.chunks(8, 8))
+    assert len(rules) > 1, "the planner did not halve"
+    for rule, part in rules:
+        assert rule.extent <= budget or part.stop - part.start == 1, (rule.extent, budget, part)
+    assert sum(part.stop - part.start for _rule, part in rules) == len(small.coordinates)
 
 
 # ── AS1: closed-body conservation (the re-posed C11) ─────────────────────
@@ -440,8 +490,9 @@ def test_the_block_does_not_depend_on_the_piece_budget(chart, breakpoints, laws,
     blocks = []
     for budget, chunk in ((1024, 512), (256, 512), (1, 512), (10 ** 12, 10 ** 9)):
         rule = LineRule.of(basis, walls, sigma, points, chunk=chunk, budget=budget)
-        counted = sum(len(rule.lines.weights[lines]) for _rule_, lines in rule.lines.chunks(_INNER, _INNER))
-        assert counted == len(rule.lines.weights), f"budget {budget}: {counted} lines in the chunks of {len(rule.lines.weights)}"
+        # the lines chorded (P3 step 3: ``weights`` is (V, L) over the speed family, the chunks slice the L lines)
+        counted = sum(len(rule.lines.coordinates[lines]) for _rule_, lines in rule.lines.chunks(_INNER, _INNER))
+        assert counted == len(rule.lines.coordinates), f"budget {budget}: {counted} lines in the chunks of {len(rule.lines.coordinates)}"
         blocks.append(rule.transport(_INNER, _INNER).block)
     scale = np.max(np.abs(blocks[0]))
     for k, other in enumerate(blocks[1:], 1):
@@ -1003,8 +1054,9 @@ def test_the_centre_impact_piece_converges_geometrically() -> None:
         q = gauss_legendre(0.0, 0.25, n)
         coordinates = q.pts[:, None]
         # each line chorded from its own b (the level (b, 0))
-        rule = LineRule(Lines(basis, walls, np.asarray((0.7, 0.7)), coordinates, q.wts * domain.density(coordinates) / (4.0 * math.pi),
-                              (q.pts, np.zeros_like(q.pts)), 512, 10 ** 9))
+        rule = LineRule(Lines(basis=basis, walls=walls, sigma_t=np.asarray((0.7, 0.7)), coordinates=coordinates,
+                              speeds=np.ones(1), weights=(q.wts * domain.density(coordinates) / (4.0 * math.pi))[None, :],
+                              levels=(q.pts, np.zeros_like(q.pts)), partition=basis.partition, chunk=512, budget=10 ** 9))
         return rule.transport(12, 12).block @ ones
 
     reference = k_one(128)
@@ -1061,8 +1113,9 @@ def _slab_rule_with_fixed_halvings(breakpoints, laws, sigma, points: int, halvin
     mu = np.concatenate([-half.pts[::-1], half.pts])[:, None]
     w = np.concatenate([half.wts[::-1], half.wts])
     domain = Chart(CoordSystem.CARTESIAN).line_domain()
-    return LineRule(Lines(basis, _walls("slab", breakpoints, laws), np.asarray(sigma), mu, w * domain.density(mu) / (4.0 * math.pi),
-                          None, 512, 1024))
+    return LineRule(Lines(basis=basis, walls=_walls("slab", breakpoints, laws), sigma_t=np.asarray(sigma), coordinates=mu,
+                          speeds=np.ones(1), weights=(w * domain.density(mu) / (4.0 * math.pi))[None, :], levels=None,
+                          partition=basis.partition, chunk=512, budget=1024))
 
 
 @pytest.mark.l2
@@ -1185,8 +1238,9 @@ def test_every_block_entry_of_a_thin_panel_slab_is_resolved_at_eight_points() ->
     mu = np.concatenate([-half.pts[::-1], half.pts])[:, None]
     w = np.concatenate([half.wts[::-1], half.wts])
     domain = Chart(CoordSystem.CARTESIAN).line_domain()
-    reference = LineRule(Lines(basis, walls, np.asarray((sigma, sigma)), mu, w * domain.density(mu) / (4.0 * math.pi),
-                               None, 512, 1024)).transport(_INNER, _INNER).block
+    reference = LineRule(Lines(basis=basis, walls=walls, sigma_t=np.asarray((sigma, sigma)), coordinates=mu,
+                               speeds=np.ones(1), weights=(w * domain.density(mu) / (4.0 * math.pi))[None, :], levels=None,
+                               partition=basis.partition, chunk=512, budget=1024)).transport(_INNER, _INNER).block
     worst = float(np.max(np.abs(np.diag(honest) - np.diag(reference)) / np.abs(np.diag(reference))))
     assert worst <= 1e-11, f"worst diagonal entry {worst:.1e}"
 
@@ -1276,7 +1330,7 @@ def test_the_cylinders_escape_converges_in_the_polar_angle() -> None:
 
 @pytest.mark.l0
 @pytest.mark.rests_on("tests/gates/geometry/test_chord_level.py::test_the_half_chord_at_the_level_is_the_level_half_chord_exactly",
-                      _HERE + "test_each_polar_angle_carries_the_impact_rule_graded_at_its_own_speed")
+                      _HERE + "test_the_impact_rule_is_graded_at_the_slowest_polar_node")
 @pytest.mark.parametrize("ratio", [0.5, 1e-3, 1e-6, 1e-12])
 def test_the_impact_rules_inverse_map_keeps_its_digits_at_a_tiny_inner_radius(ratio: float) -> None:
     """KN1 (#578, P2 group K; spec ``scratch/characteristic_architecture/p2/gate_spec.md`` §K): on the panel

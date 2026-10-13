@@ -84,7 +84,7 @@ from orpheus.numerics.content import ContentIdentity
 from .basis import PanelBasis
 from .closure import FULL_SOLID_ANGLE, DiffuseWalls, WallCoupling
 from .lines import (
-    ImpactPanels, Lines, OpticalScale, StackedSources, cosine_rule, impact_per_polar, outer_amplitude, polar_rule,
+    ImpactPanels, Lines, OpticalScale, StackedSources, axial_lift, cosine_rule, outer_amplitude, polar_rule,
 )
 from .transport import TraversalRule
 from .walls import Walls
@@ -179,18 +179,24 @@ class LineRule:
         sigma = basis.on_panels(sigma_t)
         scale = OpticalScale.of(ends, sigma)
         levels = None
+        speeds = np.ones(1)
         match domain.shape:
             case LineShape.IMPACT:
                 impact = ImpactPanels.of(basis.regions.chart, ends, sigma, outer_amplitude(walls, basis.partition)).rule(points, 1.0)
-                coordinates, weights, levels = impact.b[:, None], impact.weights, (impact.top, impact.half_chord)
+                coordinates, weights, levels = impact.b[:, None], impact.weights[None, :], (impact.top, impact.half_chord)
+                lines = coordinates[None]
             case LineShape.IMPACT_POLAR:
+                polar = polar_rule(scale, points)
                 panels = ImpactPanels.of(basis.regions.chart, ends, sigma, outer_amplitude(walls, basis.partition))
-                coordinates, weights, levels = impact_per_polar(lambda speed: panels.rule(points, speed), polar_rule(scale, points))
+                impact = panels.lifted_rule(points, polar)
+                coordinates, speeds, lines = axial_lift(impact.b, polar)
+                weights, levels = np.outer(polar.wts, impact.weights), (impact.top, impact.half_chord)
             case LineShape.COSINE:
-                mu, weights = cosine_rule(scale, points)
-                coordinates = mu[:, None]
-        weights = weights * domain.density(coordinates) / FULL_SOLID_ANGLE
-        return cls(Lines(basis, walls, sigma_t, coordinates, weights, levels, chunk, budget).ordered())
+                mu, mu_weights = cosine_rule(scale, points)
+                coordinates, weights = mu[:, None], mu_weights[None, :]
+                lines = coordinates[None]
+        weights = weights * domain.density(lines) / FULL_SOLID_ANGLE
+        return cls(Lines(basis, walls, sigma_t, coordinates, speeds, weights, levels, basis.partition, chunk, budget).ordered())
 
     def transport(self, points: int, inner_points: int, support: np.ndarray | None = None) -> GroupTransport:
         r"""The group's transport block, ``points`` and ``inner_points`` along each line (:class:`TraversalRule`).
@@ -232,27 +238,28 @@ class LineRule:
         response, escape = np.zeros((n, m + d)), np.zeros((m, d))
         line_volterra = np.zeros((n, m))
         injected, lost, reached = np.zeros(d), np.zeros(d), np.zeros((d, d))
+        # every array below leads with the speeds each line is read at, (V, L, ...); the period's tables are per line
         for rule, chunk in lines.chunks(points, inner_points):
-            weight = lines.weights[chunk]
+            weight = lines.weights[:, chunk]                                                    # (V, L)
             period = rule.period
-            depth = rule.optical_depth
-            forward = weight[:, None] * (period.present & ~period.reversed)                   # (L, 2)
-            sources = StackedSources.of(rule, columns, diffuse)                                 # (L, 2, m + d)
+            depth = rule.optical_depth                                                          # (V, L, 2)
+            forward = weight[..., None] * (period.present & ~period.reversed)                  # (V, L, 2)
+            sources = StackedSources.of(rule, columns, diffuse)                                 # (V, L, 2, m + d)
             outflow, arriving, inflow = sources.outflow, sources.arriving, sources.inflow
             line_volterra += rule.volterra(weight)[:, columns]
-            response += np.einsum("lk,lki,lks->is", forward, rule.entry_response(), inflow)
+            response += np.einsum("vlk,vlki,vlks->is", forward, rule.entry_response(), inflow)
             leaving = np.exp(-depth)[..., None] * inflow[..., :m] + outflow[..., :m]
-            exits = forward[..., None] * (period.exit_wall[..., None] == walls_at)              # (L, 2, d)
-            escape += np.einsum("lkw,lks->sw", exits, leaving)
+            exits = forward[..., None] * (period.exit_wall[..., None] == walls_at)              # (V, L, 2, d)
+            escape += np.einsum("vlkw,vlks->sw", exits, leaving)
             # the injections' balance over every traversal: entering = absorbed + leaked + reaching a diffuse wall
-            every = weight[:, None] * period.present                                           # (L, 2)
-            carried = inflow[..., m:]                                                           # (L, 2, d)
+            every = weight[..., None] * period.present                                         # (V, L, 2)
+            carried = inflow[..., m:]                                                           # (V, L, 2, d)
             at_diffuse = period.exit_wall[..., None] == walls_at                                # (L, 2, d)
             leaks = (1.0 - period.amplitude) * ~at_diffuse.any(axis=-1)
-            injected += np.einsum("lk,lkd->d", every, arriving[..., m:])
-            lost += np.einsum("lk,lkd->d", every * -np.expm1(-depth), carried)
-            lost += np.einsum("lk,lkd->d", every * leaks * np.exp(-depth), carried)
-            reached += np.einsum("lkw,lkd->wd", every[..., None] * at_diffuse, np.exp(-depth)[..., None] * carried)
+            injected += np.einsum("vlk,vlkd->d", every, arriving[..., m:])
+            lost += np.einsum("vlk,vlkd->d", every * -np.expm1(-depth), carried)
+            lost += np.einsum("vlk,vlkd->d", every * leaks * np.exp(-depth), carried)
+            reached += np.einsum("vlkw,vlkd->wd", every[..., None] * at_diffuse, np.exp(-depth)[..., None] * carried)
         line = line_volterra + response[:, :m]
         coupling = WallCoupling(response[:, m:], escape, reached / injected, lost / injected, diffuse)
         return GroupTransport(line, coupling, columns)

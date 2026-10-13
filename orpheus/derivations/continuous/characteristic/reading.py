@@ -98,7 +98,7 @@ from .assembly import GroupTransport, TransportResolution
 from .basis import PanelBasis
 from .closure import FULL_SOLID_ANGLE
 from .lines import (
-    ImpactPanels, Lines, OpticalScale, StackedSources, cosine_rule, impact_per_polar, outer_amplitude, polar_rule,
+    ImpactPanels, Lines, OpticalScale, StackedSources, axial_lift, cosine_rule, outer_amplitude, polar_rule,
 )
 from .transport import TraversalRule
 from .walls import Walls
@@ -132,7 +132,7 @@ def refuse_outside(basis: PanelBasis, orbit_coordinate: float) -> float:
 
 
 def _stacked_flux(rule: TraversalRule, t: np.ndarray, transport: GroupTransport) -> np.ndarray:
-    r"""The flux at parameters ``t`` ``(L, q)`` on ``rule``'s lines, ``(L, q, M + W)``, :data:`~.closure.FULL_SOLID_ANGLE` times per steradian.
+    r"""The flux at parameters ``t`` ``(L, q)`` on ``rule``'s lines, ``(*family, L, q, M + W)``, :data:`~.closure.FULL_SOLID_ANGLE` times per steradian.
 
     Per stacked source (:class:`~.lines.StackedSources`): the inflow the
     period returns, attenuated to the point, plus the emission's own
@@ -141,7 +141,7 @@ def _stacked_flux(rule: TraversalRule, t: np.ndarray, transport: GroupTransport)
     columns = transport.support
     sources = StackedSources.of(rule, columns, transport.coupling.walls)
     reading = rule.at(t)
-    walls = np.zeros(t.shape + (transport.coupling.walls.breakpoint.size,))
+    walls = np.zeros(reading.transmission.shape + (transport.coupling.walls.breakpoint.size,))
     return reading.inflow_term(sources.inflow) + np.concatenate([reading.vacuum[..., columns], walls], axis=-1)
 
 
@@ -191,46 +191,50 @@ class PointRule:
         the grading law at every panel top (:class:`~.lines.ImpactPanels`),
         which raised them to 19 584 and 44 992 lines and the readings to about
         5 s and 43 s on a loaded host (the archivist, 2026-10-08): the cost is
-        #591's. The cylinder's impact rule has since been graded at each polar
-        angle's own speed rather than the slowest (#587).
+        #591's. Those budgets counted 3-D lines; since the axial lift
+        (:func:`~.lines.axial_lift`, P3 2026-10-11) the cylinder's lines are its
+        in-plane lines read at every polar node's speed, and a rule's extent
+        counts the speeds, so the budgets are re-measured in P3 step 3f.
         """
         sigma_t = np.asarray(sigma_t, dtype=float)
         c = refuse_outside(basis, orbit_coordinate)
         chart = basis.regions.chart
         directions = chart.directions_at(c)
-        ends = np.asarray(basis.partition.breakpoints)
         # the point is one more end: each new panel keeps the cross section of the panel it splits
-        split = np.unique(np.append(ends, c))
-        sigma = basis.on_panels(sigma_t)[np.searchsorted(ends, split[:-1], side="right") - 1]
+        through_point = basis.partition.refined_at(c)
+        split = np.asarray(through_point.breakpoints)
+        sigma = basis.on_panels(sigma_t)[through_point.coarsening(basis.partition)]
         scale = OpticalScale.of(split, sigma)
         per_steradian = directions.density / FULL_SOLID_ANGLE
         amplitude = outer_amplitude(walls, basis.partition)
         levels: tuple[np.ndarray, np.ndarray] | None = None
+        speeds = np.ones(1)
         match chart.line_domain().shape, directions.shape:
             case LineShape.IMPACT, DirectionShape.WHOLE:
-                coordinates, weights = np.zeros((1, 1)), np.array([per_steradian])
+                coordinates, weights = np.zeros((1, 1)), np.array([[per_steradian]])
                 levels = (np.zeros(1), np.zeros(1))
             case LineShape.IMPACT_POLAR, DirectionShape.AXIAL_COSINE:
                 polar = polar_rule(scale, points)
-                coordinates = np.stack([np.zeros_like(polar.pts), polar.pts], axis=-1)
-                weights = per_steradian * np.sin(polar.pts) * polar.wts
-                levels = (np.zeros_like(polar.pts), np.zeros_like(polar.pts))
+                coordinates, speeds, _ = axial_lift(np.zeros(1), polar)
+                weights = per_steradian * (np.sin(polar.pts) * polar.wts)[:, None]
+                levels = (np.zeros(1), np.zeros(1))
             case LineShape.IMPACT, DirectionShape.COSINE:
                 impact = ImpactPanels.of(chart, split, sigma, amplitude).rule(points, 1.0, below=c)
                 coordinates, levels = impact.b[:, None], (impact.top, impact.half_chord)
-                weights = per_steradian * impact.b * impact.weights / (c * _distance_to_point(levels, c))
+                weights = (per_steradian * impact.b * impact.weights / (c * _distance_to_point(levels, c)))[None, :]
             case LineShape.IMPACT_POLAR, DirectionShape.ANGLE_AXIAL:
-                panels = ImpactPanels.of(chart, split, sigma, amplitude)
-                coordinates, weights, levels = impact_per_polar(
-                    lambda speed: panels.rule(points, speed, below=c), polar_rule(scale, points)
-                )
-                weights = per_steradian * weights * np.sin(coordinates[:, 1]) / _distance_to_point(levels, c)
+                polar = polar_rule(scale, points)
+                impact = ImpactPanels.of(chart, split, sigma, amplitude).lifted_rule(points, polar, below=c)
+                coordinates, speeds, _ = axial_lift(impact.b, polar)
+                levels = (impact.top, impact.half_chord)
+                weights = per_steradian * np.outer(np.sin(polar.pts) * polar.wts, impact.weights / _distance_to_point(levels, c))
             case LineShape.COSINE, DirectionShape.COSINE:
                 mu, mu_weights = cosine_rule(scale, points)
-                coordinates, weights = mu[:, None], per_steradian * mu_weights
+                coordinates, weights = mu[:, None], per_steradian * mu_weights[None, :]
             case pair:
                 raise AssertionError(f"unreachable: a chart with lines {pair[0]} and directions {pair[1]}")
-        return cls(Lines(basis, walls, sigma_t, coordinates, weights, levels, chunk=4096, budget=32768).ordered(), c)
+        lines = Lines(basis, walls, sigma_t, coordinates, speeds, weights, levels, through_point, chunk=4096, budget=2**18)
+        return cls(lines.ordered(), c)
 
     def row(self, transport: GroupTransport, resolution: TransportResolution) -> np.ndarray:
         r"""The point's functional on the group's emission coefficients, ``(M,)``: :math:`\phi(x) = \mathrm{row}\cdot q`.
@@ -242,7 +246,7 @@ class PointRule:
         stacked = np.zeros(transport.support.size + transport.coupling.walls.breakpoint.size)
         for rule, chunk in lines.chunks(resolution.points, resolution.inner_points):
             t = rule.period.chord.image.parameters_at(c, side)
-            stacked += np.einsum("l,lqs->s", lines.weights[chunk], _stacked_flux(rule, t, transport))
+            stacked += np.einsum("vl,vlqs->s", lines.weights[:, chunk], _stacked_flux(rule, t, transport))
         return _on_emission(stacked, transport)
 
 
@@ -275,7 +279,7 @@ def angular_flux(
     batch = np.shape(coordinates)[:-1]
     if not chart.acts_on_kept_space:
         _refuse_slab_grazing(omega[:, 0])
-    rays = basis.partition.rays_from(c, omega)
+    rays = basis.partition.refined_at(c).rays_from(c, omega)
     traversals = TraversalRule.on_chord(rays.chord, basis, walls, sigma_t, resolution.points, resolution.inner_points)
     t = rays.start[:, None]
     psi = _on_emission(_stacked_flux(traversals, t, transport)[:, 0], transport) / FULL_SOLID_ANGLE

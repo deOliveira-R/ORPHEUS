@@ -38,7 +38,7 @@ from orpheus.geometry.chord import ConcentricPartition
 from .basis import PanelBasis
 
 from .closure import DiffuseWalls
-from .grading import VANISHING_DEPTH, exponential_ends, graded_ends, halvings
+from .grading import DYADIC, VANISHING_DEPTH, exponential_ends, graded_ends, halvings
 from .transport import TraversalRule
 from .walls import Walls
 
@@ -64,9 +64,12 @@ def _grazing_ends(speed_to_coordinate: Callable[[np.ndarray], np.ndarray], thinn
       ``q3``: basis layers 6, :math:`\Sigma = 0.01`; 2 more halvings gave
       2.6e-10, 6 gave 9.1e-13);
     * toward :math:`v = 1`, :math:`e^{-\tau s}` with :math:`s = 1/v` is an
-      exponential layer of width :math:`1/\tau` in :math:`s`: the
-      exponential ends of the traversal rule at :math:`2^k` over the
-      thickest normal optical depth ``thickest``, on :math:`s \in [1, \infty)`.
+      exponential layer of width :math:`1/\tau` in :math:`s`: exponential
+      ends at :math:`2^k` over the thickest normal optical depth
+      ``thickest``, on :math:`s \in [1, \infty)` (the dyadic grading,
+      :data:`~.grading.DYADIC`: the nodes are in the polar angle or the
+      cosine, where the exponent :math:`\tau/v` is not linear, so the Gauss
+      bound of :class:`~.grading.ExponentialGrading` does not apply).
       Without them a thick slab's transmission missed :math:`2E_3(\tau)` by
       4.1e-11 at :math:`\tau = 8` and 1.8e-4 at :math:`\tau = 30`, 8 points
       (measured 2026-10-06 by the test-architect, ``gates/slab_tw.py``); with
@@ -80,7 +83,7 @@ def _grazing_ends(speed_to_coordinate: Callable[[np.ndarray], np.ndarray], thinn
         return [0.0, float(speed_to_coordinate(np.array(1.0)))]
     layers = int(halvings(1.0, thinnest / VANISHING_DEPTH))
     toward_grazing = graded_ends(0.0, 1.0, True, False, layers, 0.5)
-    toward_normal = 1.0 / exponential_ends(np.array(1.0), np.array(np.inf), np.array(thickest))
+    toward_normal = 1.0 / exponential_ends(np.array(1.0), np.array(np.inf), np.array(thickest), np.array(thickest), DYADIC)
     speeds = np.unique(np.concatenate([[0.0, 1.0], toward_grazing, toward_normal]))
     return list(np.unique(speed_to_coordinate(speeds)))
 
@@ -111,7 +114,11 @@ def impact_rule(ends: np.ndarray, sigma: np.ndarray, points: int, toward_tangenc
     substitution, which absorbs the square-root end at :math:`r_{k+1}`),
     graded toward each of its singularities until every piece is no wider
     than its distance to them (hp), and at :math:`2^j` mean free paths of
-    the thickest panel from :math:`[r_k, r_{k+1}]` outward:
+    the thickest panel from :math:`[r_k, r_{k+1}]` outward (the dyadic
+    grading, :data:`~.grading.DYADIC`: the line quadrature is the
+    reference's convergence parameter, so its coarse rules stay coarse;
+    ruled 2026-10-12, after the Gauss-derived grading took a 2-point rule
+    from 26 nodes to 15 066 on a three-region cylinder):
 
     * toward :math:`y = 0`, the nearest feature of the transport at the
       tangency (:class:`ImpactPanels`): the next radius out, just past
@@ -146,10 +153,11 @@ def impact_rule(ends: np.ndarray, sigma: np.ndarray, points: int, toward_tangenc
             lo = hi / 2.0
         span = float(half_chord(hi, lo, 0.0))                   # the half-chord at r_{k+1} of the line tangent to r_k
         to_centre = lo * lo / (hi + span)                         # r_{k+1} - span, without cancellation
+        thickest = np.array(float(np.max(sigma[k:])))
         y_ends = [
             *graded_ends(0.0, span, True, False, halvings(span, float(toward_tangency[k])), 0.5),
             *graded_ends(0.0, span, False, True, halvings(span, to_centre), 0.5),
-            *exponential_ends(np.array(0.0), np.array(span), np.array(float(np.max(sigma[k:])))),
+            *exponential_ends(np.array(0.0), np.array(span), thickest, thickest, DYADIC),
         ]
         y = composite_gauss_legendre(np.unique(np.clip(y_ends, 0.0, span)), points)
         # the inverse map y -> b: b and y are the legs over r_{k+1}, so b is the half-chord at span of the level (y, r_k),
@@ -188,10 +196,16 @@ class ImpactPanels:
     :math:`(s\,(-\ln a) + \tau_{\rm out})/(2\Sigma_k)`: the first is the
     body's, the last two depend on the line's own speed :math:`s`. So the
     speed-free data are held here per panel, read once, and graded per
-    speed by :meth:`distances`; :meth:`rule` builds the impact rule at a
-    speed. On the cylinder each polar angle's impact rule is graded at its
-    own :math:`\sin\theta` (#587, :func:`impact_per_polar`), and on the
-    sphere at 1.
+    projected speed by :meth:`distances`; :meth:`rule` builds the impact
+    rule at a projected speed. The projected speed :math:`s = |P\Omega|` is
+    the in-plane length per unit arc length, the reciprocal of a lifted
+    line's speed :math:`v = 1/s` (:attr:`~.transport.TraversalRule.speed`).
+    On the sphere :math:`s = 1`. On the cylinder one in-plane impact
+    rule serves every polar angle (:func:`axial_lift`), so it is graded at
+    the smallest polar node's :math:`s = \sin\theta_{\min}`
+    (:meth:`lifted_rule`): both speed-bound distances shrink with
+    :math:`s`, and halving from the same span nests a larger :math:`s`'s
+    layers inside the smallest's, so that node's rule holds every other's.
     The pole is absent where the outer wall returns nothing specularly and
     where it returns everything (amplitude 1: the closure is regular, the
     source integral vanishing with :math:`1 - \Pi`); a void panel's
@@ -203,10 +217,16 @@ class ImpactPanels:
     :math:`1^{\mathsf T}K1` by 5.3e-10; a void outer region under
     :math:`a = 0.99` off by 5.1e-4 at the interface and 2.6e-6 in the block;
     a three-region cylinder off by 7.9e-8 on its vacuum wall and 1.0e-6 at
-    an interface. Grading every polar angle at the slowest one instead of
-    its own cost the ``ABA`` cylinder 308 480 lines per block against
-    102 320, for the same k to 8e-15 (2026-10-08,
-    ``scratch/characteristic_architecture/p1_step_c/``).
+    an interface. While each 3-D line was chorded on its own, grading every
+    polar angle at the slowest one instead of its own cost the ``ABA``
+    cylinder 308 480 lines per block against 102 320, for the same k to
+    8e-15 (2026-10-08, ``scratch/characteristic_architecture/p1_step_c/``),
+    and each polar angle was graded at its own speed (#587). Since the axial
+    lift (P3, 2026-10-11) an in-plane line is chorded once for every polar
+    angle, and grading at the smallest :math:`\sin\theta` costs one impact
+    rule; per polar node its error was no larger than 1.5 times the node's
+    own rule's plus 1e-14 on 384 of 384 nodes (`[M]` the test-architect,
+    ``scratch/characteristic_architecture/p3/step3/ta/per_polar_probe.log``: three bodies, 128 polar nodes each).
 
     Attributes
     ----------
@@ -249,25 +269,36 @@ class ImpactPanels:
         pole = -np.log(amplitude) if 0.0 < amplitude < 1.0 else np.inf
         return cls(ends, sigma, next_radius, outside, float(pole))
 
-    def distances(self, speed: float) -> np.ndarray:
-        r"""Per panel, the distance in :math:`y` from the tangency to the nearest feature of a line of projected speed ``speed``, ``(P,)``.
+    def distances(self, projected_speed: float) -> np.ndarray:
+        r"""Per panel, the distance in :math:`y` from the tangency to the nearest feature of a line of projected speed ``projected_speed``, ``(P,)``.
 
-        The layer's reach is the speed itself; the pole's, where the closure
-        has one, is :math:`s(-\ln a) + \tau_{\rm out}`.
+        The layer's reach is the projected speed :math:`s` itself; the pole's,
+        where the closure has one, is :math:`s(-\ln a) + \tau_{\rm out}`.
         """
-        reach = speed if np.isinf(self.pole) else np.minimum(speed, speed * self.pole + self.outside)
+        s = projected_speed
+        reach = s if np.isinf(self.pole) else np.minimum(s, s * self.pole + self.outside)
         with np.errstate(divide="ignore"):
             transport = np.where(self.sigma > 0.0, reach / (2.0 * self.sigma), np.inf)
         return np.minimum(self.to_next_radius, transport)
 
-    def rule(self, points: int, speed: float, below: float | None = None) -> ImpactRule:
-        r"""The impact rule (:func:`impact_rule`) graded at the projected speed ``speed``, ``points`` per piece.
+    def rule(self, points: int, projected_speed: float, below: float | None = None) -> ImpactRule:
+        r"""The impact rule (:func:`impact_rule`) graded at the projected speed ``projected_speed``, ``points`` per piece.
 
         With ``below``, only the panels below that orbit coordinate carry
         nodes (a point's rule, which has the point among its ends).
         """
         panels = None if below is None else int(np.searchsorted(self.ends, below))
-        return impact_rule(self.ends, self.sigma, points, self.distances(speed), panels)
+        return impact_rule(self.ends, self.sigma, points, self.distances(projected_speed), panels)
+
+    def lifted_rule(self, points: int, polar: Quadrature1D, below: float | None = None) -> ImpactRule:
+        r"""The one in-plane impact rule every polar node of ``polar`` reads (:func:`axial_lift`), ``points`` per piece.
+
+        Graded at the smallest projected speed :math:`\sin\theta_{\min}`
+        (the largest speed :math:`1/\sin\theta` along the line), whose
+        speed-bound distances are the shortest: halving from the same span
+        nests every other node's layers inside it. ``below`` is :meth:`rule`'s.
+        """
+        return self.rule(points, float(np.sin(np.min(polar.pts))), below)
 
 
 def outer_amplitude(walls: Walls, partition: ConcentricPartition) -> float:
@@ -307,25 +338,23 @@ def cosine_rule(scale: OpticalScale, points: int) -> tuple[np.ndarray, np.ndarra
     return np.concatenate([-half.pts[::-1], half.pts]), np.concatenate([half.wts[::-1], half.wts])
 
 
-def impact_per_polar(impact_at: Callable[[float], ImpactRule], polar: Quadrature1D):
-    r"""The cylinder's iterated rule over :math:`(b, \theta)` for :math:`\mathrm db\,\mathrm d\theta`: coordinates ``(L, 2)``,
-    weights ``(L,)``, levels.
+def axial_lift(b: np.ndarray, polar: Quadrature1D) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    r"""The cylinder's lines :math:`(b, \theta)` as its in-plane lines read at a family of speeds: coordinates, speeds, lines.
 
-    For each polar node :math:`\theta_j` the impact rule ``impact_at`` builds
-    at that line's own projected speed :math:`\sin\theta_j`, so each polar
-    angle is graded toward its own features (:meth:`ImpactPanels.distances`)
-    and never at a slower one's (#587). A role's own density over the lines
-    multiplies the weights after (:class:`~.assembly.LineRule`,
-    :class:`~.reading.PointRule`).
+    The 3-D line at polar angle :math:`\theta` from the axis projects onto
+    the plane normal to it with speed :math:`|P\Omega| = \sin\theta`, so its
+    arc length per in-plane length is :math:`v = 1/\sin\theta`: it is the
+    in-plane line :math:`(b, \pi/2)` read at speed :math:`v`
+    (:attr:`~.transport.TraversalRule.speed`). Returns the in-plane lines'
+    coordinates ``(L, 2)``, the speeds :math:`1/\sin\theta_j` of the polar
+    nodes ``(V,)``, and the coordinates of the 3-D lines they stand for,
+    ``(V, L, 2)``, at which a measure on the line domain is read.
     """
-    coordinates, weights, tops, half_chords = [], [], [], []
-    for theta, polar_weight in zip(polar.pts, polar.wts, strict=True):
-        impact = impact_at(float(np.sin(theta)))
-        coordinates.append(np.stack([impact.b, np.full(impact.b.shape, theta)], axis=-1))
-        weights.append(impact.weights * polar_weight)
-        tops.append(impact.top)
-        half_chords.append(impact.half_chord)
-    return np.concatenate(coordinates), np.concatenate(weights), (np.concatenate(tops), np.concatenate(half_chords))
+    b = np.asarray(b, dtype=float)
+    theta = np.asarray(polar.pts, dtype=float)
+    in_plane = np.stack([b, np.full(b.shape, np.pi / 2.0)], axis=-1)
+    lines = np.stack(np.broadcast_arrays(b[None, :], theta[:, None]), axis=-1)
+    return in_plane, 1.0 / np.sin(theta), lines
 
 
 @dataclass(frozen=True, eq=False)
@@ -333,8 +362,14 @@ class Lines:
     r"""A weighted set of the oriented lines through a body, for one group, on a panel basis.
 
     Its lines are the chart's :class:`~orpheus.geometry.chart.LineDomain` at
-    :attr:`coordinates`, each of weight :attr:`weights`, chorded at their
-    exact :attr:`levels` on a radial chart. Two roles hold one, each with its
+    :attr:`coordinates`, chorded at their exact :attr:`levels` on a radial
+    chart, each read at every one of the :attr:`speeds`
+    (:attr:`~.transport.TraversalRule.speed`), with weight :attr:`weights`
+    per speed and line. The cylinder's lines are its in-plane lines
+    :math:`(b, \pi/2)`, and its speeds :math:`1/\sin\theta_j` over the polar
+    rule are its 3-D lines :math:`(b, \theta_j)`: one in-plane chord carries
+    every polar angle. The sphere's and the slab's lines are read at speed 1
+    alone. Two roles hold one, each with its
     own measure: the lines of space (:class:`~.assembly.LineRule`), whose
     weight is the quadrature weight times the invariant density over
     :math:`4\pi`, for the Galerkin block; and the directions at one point
@@ -353,12 +388,17 @@ class Lines:
         The group's total cross section of each region, ``(n,)``.
     coordinates:
         The lines' coordinates on the chart's line domain, ``(L, k)``.
+    speeds:
+        The speeds each line is read at, ``(V,)``.
     weights:
-        :math:`w_L`, ``(L,)``.
+        :math:`w_L`, per speed and line, ``(V, L)``.
     levels:
         Each line's exact level, a radius and its half-chord there, each ``(L,)``
         (:meth:`~orpheus.geometry.chart.RadialImage.at_level`): required on a radial chart, ``None`` on the slab,
         whose lines have none.
+    partition:
+        The partition the lines are chorded through: the basis's panels, or a refinement of them at the levels the flux
+        is read at (:meth:`~.transport.TraversalRule.at`).
     chunk:
         The most lines one traversal rule takes.
     budget:
@@ -378,50 +418,84 @@ class Lines:
     walls: Walls
     sigma_t: np.ndarray
     coordinates: np.ndarray
+    speeds: np.ndarray
     weights: np.ndarray
     levels: tuple[np.ndarray, np.ndarray] | None
+    partition: ConcentricPartition
     chunk: int
     budget: int
 
     def __post_init__(self) -> None:
-        if self.coordinates.shape[:1] != self.weights.shape:
-            raise ValueError(f"one weight per line; got {self.coordinates.shape} coordinates and {self.weights.shape} weights")
+        if self.speeds.ndim != 1 or self.weights.shape != self.speeds.shape + self.coordinates.shape[:1]:
+            raise ValueError(
+                f"one weight per speed and line; got {self.speeds.shape} speeds, {self.coordinates.shape} coordinates "
+                f"and {self.weights.shape} weights"
+            )
         if self.chunk < 1 or self.budget < 1:
             raise ValueError(f"a chunk holds at least one line and the budget one piece; got {self.chunk}, {self.budget}")
         radial = self.basis.regions.chart.acts_on_kept_space
         if radial != (self.levels is not None):
             raise ValueError("a radial chart's lines carry their exact levels and a slab's carry none (#590)")
-        if self.levels is not None and any(level.shape != self.weights.shape for level in self.levels):
-            raise ValueError(f"one level per line; got {[level.shape for level in self.levels]} for {self.weights.shape} weights")
+        if self.levels is not None and any(level.shape != self.coordinates.shape[:1] for level in self.levels):
+            raise ValueError(f"one level per line; got {[level.shape for level in self.levels]} for {self.coordinates.shape} coordinates")
 
     def ordered(self) -> "Lines":
         r"""The same lines ordered by projected speed: a line's pieces grow as it nears grazing, and a chunk pads every
-        line to its longest, so lines of like cost share a chunk."""
+        line to its longest, so lines of like cost share a chunk. The cylinder's in-plane lines (:func:`axial_lift`) all
+        have projected speed 1, so they keep the impact rule's order."""
         domain = self.basis.regions.chart.line_domain()
         order = np.argsort(self.basis.regions.chart.projected_speed(domain.lines(self.coordinates).direction), kind="stable")
         levels = None if self.levels is None else (self.levels[0][order], self.levels[1][order])
-        return replace(self, coordinates=self.coordinates[order], weights=self.weights[order], levels=levels)
+        return replace(self, coordinates=self.coordinates[order], weights=self.weights[:, order], levels=levels)
 
     def chunks(self, points: int, inner_points: int) -> Iterator[tuple[TraversalRule, slice]]:
         r"""The traversal rule of each chunk of lines, with its slice, ``points`` and ``inner_points`` along each line.
 
-        A chunk holds at most :attr:`chunk` lines, and one whose rule exceeds
-        :attr:`budget` piece slots (:attr:`TraversalRule.extent`) is halved
-        until it fits.
+        Each rule reads its lines at every one of the :attr:`speeds`, its
+        functionals leading with them, ``(V, l, ...)``. A chunk holds at most
+        :attr:`chunk` lines, and one whose rule exceeds :attr:`budget` piece
+        slots (:attr:`TraversalRule.extent`: the speeds times the lines times
+        the most pieces on one of them) is halved until it fits. The halving
+        is planned from each line's piece count, read once per block of
+        :attr:`chunk` lines (:attr:`TraversalRule.piece_counts`), so only the
+        rules it yields are built: halving by building every half discarded
+        27 of the 56 rules one cylinder reading built (`[M]` 2026-10-11, P3
+        step 3, ``scratch/characteristic_architecture/p3/step3/q1_split.py``).
         """
-        domain = self.basis.regions.chart.line_domain()
-        pending = [(k, min(k + self.chunk, len(self.coordinates))) for k in range(0, len(self.coordinates), self.chunk)]
-        while pending:
-            start, stop = pending.pop(0)
-            level = None if self.levels is None else (self.levels[0][start:stop], self.levels[1][start:stop])
-            traversals = TraversalRule.of(
-                domain.lines(self.coordinates[start:stop]), self.basis, self.walls, self.sigma_t, points, inner_points, level
-            )
-            if traversals.extent > self.budget and stop - start > 1:
-                middle = (start + stop) // 2
-                pending[:0] = [(start, middle), (middle, stop)]
+        n_lines = len(self.coordinates)
+        for first in range(0, n_lines, self.chunk):
+            block = slice(first, min(first + self.chunk, n_lines))
+            whole = self._rule(block, points, inner_points)
+            if whole.extent <= self.budget:
+                yield whole, block
                 continue
-            yield traversals, slice(start, stop)
+            slots = self.speeds.size * np.maximum(whole.piece_counts, 1)                          # per line, (l,)
+            for start, stop in _halvings(slots, self.budget):
+                part = slice(block.start + start, block.start + stop)
+                yield self._rule(part, points, inner_points), part
+
+    def _rule(self, lines: slice, points: int, inner_points: int) -> TraversalRule:
+        r"""The traversal rule of the lines ``lines``, read at every speed."""
+        level = None if self.levels is None else (self.levels[0][lines], self.levels[1][lines])
+        chord = self.partition.chord(self.basis.regions.chart.line_domain().lines(self.coordinates[lines]), level)
+        return TraversalRule.on_chord(chord, self.basis, self.walls, self.sigma_t, points, inner_points, self.speeds)
+
+
+def _halvings(slots: np.ndarray, budget: int) -> Iterator[tuple[int, int]]:
+    r"""The ranges of lines a block is halved into until each fits ``budget``, in order, from each line's slots ``(l,)``.
+
+    A range's extent is its line count times its costliest line's slots
+    (:attr:`~.transport.TraversalRule.extent`); a range of one line is kept
+    whatever its extent.
+    """
+    pending = [(0, slots.size)]
+    while pending:
+        start, stop = pending.pop(0)
+        if (stop - start) * int(slots[start:stop].max()) > budget and stop - start > 1:
+            middle = (start + stop) // 2
+            pending[:0] = [(start, middle), (middle, stop)]
+            continue
+        yield start, stop
 
 
 @dataclass(frozen=True, eq=False)
@@ -446,8 +520,8 @@ class StackedSources:
         inflow is the period's least solution of both
         (:meth:`~.closure.LinePeriod.inflow`).
         """
-        entering = walls.injected(rule.period)                                                 # (..., 2, W)
-        depth = rule.optical_depth
+        depth = rule.optical_depth                                                            # (..., 2)
+        entering = np.broadcast_to(walls.on(rule.period.chord.partition).injected(rule.period), depth.shape + walls.breakpoint.shape)
         outflow = np.concatenate([rule.outflow()[..., columns], np.zeros(entering.shape)], axis=-1)
         arriving = np.concatenate([np.zeros(depth.shape + (columns.size,)), entering], axis=-1)
         return cls(outflow, arriving, rule.period.inflow(depth, outflow, arriving))
@@ -459,6 +533,6 @@ class StackedSources:
 
 
 __all__ = [
-    "ImpactRule", "Lines", "OpticalScale", "StackedSources", "ImpactPanels", "cosine_rule", "impact_panels", "impact_per_polar", "impact_rule",
+    "ImpactRule", "Lines", "OpticalScale", "StackedSources", "ImpactPanels", "axial_lift", "cosine_rule", "impact_panels", "impact_rule",
     "outer_amplitude", "polar_rule",
 ]

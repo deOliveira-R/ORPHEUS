@@ -42,14 +42,14 @@ traversal :math:`k + 1`: it is the wall at which the backward path from
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from math import pi
 
 import numpy as np
 
 from orpheus.geometry.chord import Chord, ConcentricPartition
 
-from .walls import Walls
+from .walls import Walls, end_on
 
 #: The full solid angle. A line's quadrature weight carries its inverse, so the lines carry every flux as
 #: 4 pi times a flux per steradian: one convention, read by the block (:mod:`.assembly`), the walls' injection
@@ -200,7 +200,10 @@ class LinePeriod:
 
         ``optical_depth`` is :math:`\tau_k`, ``(..., 2)``; ``outflow`` is
         :math:`B_k`, the traversal's source integral attenuated to its exit,
-        ``(..., 2, *rest)``. Returns ``(..., 2, *rest)``, 0 where absent.
+        ``(..., 2, *rest)``. Returns ``(..., 2, *rest)``, 0 where absent. The
+        batch ``...`` may lead the period's own lines with a family read on
+        the same lines (:attr:`~.transport.TraversalRule.speed`): the period's
+        tables broadcast against it.
 
         ``arriving`` is :math:`s_k`, a flux injected at each traversal's
         entry from outside the line part (a diffuse wall's re-entry), shape
@@ -216,7 +219,7 @@ class LinePeriod:
         :math:`\Pi = 1` and the entering flux is not zero.
         """
         outflow = np.asarray(outflow, dtype=float)
-        rest = (1,) * (outflow.ndim - self.present.ndim)
+        rest = (1,) * (outflow.ndim - np.ndim(optical_depth))
         axis = -1 - len(rest)                                    # the period axis
 
         def lifted(per_traversal: np.ndarray) -> np.ndarray:     # (..., 2) -> (..., 2, *rest)
@@ -280,6 +283,10 @@ class DiffuseWalls:
         at = np.array([w.breakpoint for w in diffuse], dtype=int)
         area = partition.chart.measure_density(np.asarray(partition.breakpoints)[at])
         return cls(at, np.array([w.diffuse for w in diffuse], dtype=float), pi * area / FULL_SOLID_ANGLE)
+
+    def on(self, partition: ConcentricPartition) -> "DiffuseWalls":
+        r"""The same walls keyed on ``partition``, a refinement of the body's with the same ends (:func:`~.walls.end_on`)."""
+        return replace(self, breakpoint=end_on(self.breakpoint, partition))
 
     def injected(self, period: LinePeriod) -> np.ndarray:
         r"""A unit current entering each wall, as the flux it injects at each traversal's entry, ``(..., 2, W)``.

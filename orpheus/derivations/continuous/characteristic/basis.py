@@ -133,8 +133,7 @@ class PanelBasis:
     @cached_property
     def region_of_panel(self) -> np.ndarray:
         """The region holding each panel, ``(P,)``."""
-        coarse, fine = np.asarray(self.regions.breakpoints), np.asarray(self.partition.breakpoints)
-        return np.searchsorted(coarse, fine[:-1], side="right") - 1
+        return self.partition.coarsening(self.regions)
 
     @property
     def n_panels(self) -> int:

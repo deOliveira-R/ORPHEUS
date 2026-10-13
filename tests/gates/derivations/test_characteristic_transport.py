@@ -25,6 +25,15 @@ The ladder, bottom up (``rests_on`` on each row):
    closure, against the explicitly unfolded backward path [T11, B2's line
    half]; amplitude 0 adds nothing, bitwise [T12, B4a at line level].
 
+**Scope after P3 step 3 (the cylinder's axial lift).** The cylinder rows here
+gate ``TraversalRule`` on 3-D cylinder chords at speed 1, the path
+``angular_flux`` keeps (the user's ruling of 2026-10-11). The cylinder's Galerkin
+block and point reading no longer run on that path: they read each in-plane
+line at the family of speeds 1/sin(theta), gated against the same mpmath lines
+in ``test_characteristic_lift.py`` (K1a-K1d, K2, K3). A cylinder row here is
+therefore evidence for ``angular_flux`` and the per-line transport, not for the
+cylinder's block or reading.
+
 Every reference is written in ``_characteristic_mp.py`` (mpmath, no import of
 the code under test). Every traversal a row reads is HAND-WRITTEN per fixture
 (transit, reversed), never taken from the period under test.
@@ -130,15 +139,27 @@ class _Case:
         self.body = body
         self.geometry = geometry or _geometry(body)
         self.basis = PanelBasis.of(ConcentricPartition.of(self.geometry), *resolution)
-        line = Line.through(np.asarray(point, dtype=float), np.asarray(direction, dtype=float))
+        self.line = Line.through(np.asarray(point, dtype=float), np.asarray(direction, dtype=float))
+        self.walls = Walls.of(self.geometry)
         self.sigma_t = np.asarray(sigma_t, dtype=float)
-        self.rule = TraversalRule.of(line, self.basis, Walls.of(self.geometry), self.sigma_t, points, inner)
+        self.rule = TraversalRule.of(self.line, self.basis, self.walls, self.sigma_t, points, inner)
         self.period = self.rule.period
         self.mp = R.MpLine(_chart(body), self.geometry.breakpoints, point, direction,
                            extra_radii=self.basis.partition.breakpoints)
 
     def coefficients(self, q) -> np.ndarray:
         return R.sample(R.region_polynomial(q), np.asarray(self.basis.region), np.asarray(self.basis.nodes))
+
+    def read_at(self, t) -> tuple[TraversalRule, float]:
+        """The rule on the line chorded through the basis's panels refined at the level of the point at parameter
+        ``t`` (``ConcentricPartition.refined_at``: the flux is read at a crossing, since P3 step 3's target-graded reading), and
+        that chord's own crossing nearest ``t``, where the point is read and the reference is evaluated."""
+        level = float(self.mp.c(R.mpf(t) if not isinstance(t, mp.mpf) else t))
+        chord = self.basis.partition.refined_at(level).chord(self.line)
+        rule = TraversalRule.on_chord(chord, self.basis, self.walls, self.sigma_t, self.rule.points, self.rule.inner_points)
+        crossings = rule.period.chord.crossings
+        parameters = np.asarray(crossings.parameter, dtype=float)[np.asarray(crossings.present, dtype=bool)]
+        return rule, float(parameters[np.argmin(np.abs(parameters - float(t)))])
 
 
 def _close(got: float, want, rtol: float, what: str) -> None:
@@ -559,10 +580,11 @@ def test_the_turning_grading_halves_toward_the_closest_approach_at_seven_points(
     f = R.region_polynomial(q)
     trav = case.mp.traversal(0, False)
     _close(float(case.rule.outflow()[0] @ x), R.outflow(case.mp, trav, f, _SIGMA[0]), _T1_TOL, "B_0 at 7 points")
-    t, ts = _points_on(case, 0)
-    psi = case.rule.angular_flux(t, np.zeros((2, case.basis.size))) @ x
+    _, ts = _points_on(case, 0)
     for i, tm in enumerate(ts):
-        _close(float(psi[i]), R.partial_outflow(case.mp, trav, f, _SIGMA[0], tm), _T1_TOL, f"psi(t_{i}) at 7 points")
+        rule, t = case.read_at(tm)
+        psi = rule.angular_flux(np.array([t]), np.zeros((2, case.basis.size)))[0] @ x
+        _close(float(psi), R.partial_outflow(case.mp, trav, f, _SIGMA[0], R.mpf(t)), _T1_TOL, f"psi(t_{i}) at 7 points")
 
 
 # ── T5, T6: the Volterra triangle ────────────────────────────────────────
@@ -740,17 +762,19 @@ def test_a_thick_slot_is_read_by_the_triangle_and_by_psi_in_closed_form(sigma: f
     xf, xg = case.coefficients([f]), case.coefficients([g])
     S = R.mpf(sigma)
     mfp = 1.0 / sigma
-    t = np.array([0.5, 1.0 - 64.0 * mfp, 1.0 - 64.0 * mfp + 0.25 * mfp, 1.0 - 0.5 * mfp])
-    psi = case.rule.angular_flux(t, np.zeros((2, case.basis.size))) @ xg
-    for i, ti in enumerate(t):
-        _close(float(psi[i]), _attenuated_to(g, S, R.mpf(ti)), _T1_TOL, f"psi at t = {ti}")
+    for i, target in enumerate((0.5, 1.0 - 64.0 * mfp, 1.0 - 64.0 * mfp + 0.25 * mfp, 1.0 - 0.5 * mfp)):
+        rule, ti = case.read_at(target)                       # the slab refined at the point's x (P3 step 3)
+        psi = rule.angular_flux(np.array([ti]), np.zeros((2, case.basis.size)))[0] @ xg
+        _close(float(psi), _attenuated_to(g, S, R.mpf(ti)), _T1_TOL, f"psi at t = {ti}")
     V = case.rule.volterra(np.array(1.0))
     _close(float(xf @ V @ xg), _volterra_closed(f, g, S, mp.mpf(1)), _T1_TOL, "f . V g")
 
 
 # ── T10-T12: the angular flux along the line ─────────────────────────────
 
-_FRACTIONS = (0.013, 0.37, 0.5, 0.91, 1.0 - 1e-9)
+#: Interior fractions of a transit; the middle (0.5) is dropped since P3 step 3: on a radial line it is the closest
+#: approach, tangent to its own level, which no chord crosses.
+_FRACTIONS = (0.013, 0.37, 0.63, 0.91, 1.0 - 1e-9)
 
 
 def _points_on(case: _Case, transit: int) -> tuple[np.ndarray, list]:
@@ -783,15 +807,19 @@ def test_the_vacuum_angular_flux_is_the_source_integral_since_the_entry(body, po
     for k, (transit, rev, _end) in enumerate(expected):
         if rev:
             continue
-        t, ts = _points_on(case, transit)
-        psi = case.rule.angular_flux(t, zero)
-        assert psi.shape == (len(t), case.basis.size)
+        _, ts = _points_on(case, transit)
         trav = case.mp.traversal(transit, False)
         for i, tm in enumerate(ts):
-            _close(float(psi[i] @ x), R.partial_outflow(case.mp, trav, f, _SIGMA[1], tm), _T1_TOL, f"psi(t_{i})")
+            rule, t = case.read_at(tm)
+            psi = rule.angular_flux(np.array([t]), zero)
+            assert psi.shape == (1, case.basis.size)
+            _close(float(psi[0] @ x), R.partial_outflow(case.mp, trav, f, _SIGMA[1], R.mpf(t)), _T1_TOL, f"psi(t_{i})")
     outside = float(case.mp.transits()[-1][1]) + 0.1
-    with pytest.raises(ValueError, match="lies on a transit of its line"):
+    with pytest.raises(ValueError, match="is a crossing on a transit of its line"):
         case.rule.angular_flux(np.array([outside]), zero)
+    # an interior parameter of the unrefined chord is refused by the same fragment (P3 step 3: read at a crossing)
+    with pytest.raises(ValueError, match="is a crossing on a transit of its line"):
+        case.rule.angular_flux(np.array([float(_points_on(case, 0)[1][1])]), zero)
     # no point is a read of nothing, not an ambiguous reshape (qa, #586, 2026-10-07)
     assert case.rule.angular_flux(np.zeros(0), zero).shape == (0, case.basis.size)
 
@@ -908,16 +936,16 @@ def test_the_closed_angular_flux_is_the_unfolded_backward_path(body, point, dire
     """
     case = _Case(body, point, direction, sigma_t=_SIGMA[0])
     x = case.coefficients(_Q)
-    rule = case.rule
-    inflow = case.period.inflow(rule.optical_depth, rule.outflow())
     f = R.region_polynomial(_Q)
     for k0, (transit, rev, _end) in enumerate(period_by_hand):
         if rev:
             continue
-        t, ts = _points_on(case, transit)
-        psi = rule.angular_flux(t, inflow) @ x
+        _, ts = _points_on(case, transit)
         for i, tm in enumerate(ts):
-            _close(float(psi[i]), _unfolded_psi(case, period_by_hand, amplitudes, f, _SIGMA[0], k0, tm), _T1_TOL,
+            rule, t = case.read_at(tm)
+            inflow = rule.period.inflow(rule.optical_depth, rule.outflow())
+            psi = rule.angular_flux(np.array([t]), inflow)[0] @ x
+            _close(float(psi), _unfolded_psi(case, period_by_hand, amplitudes, f, _SIGMA[0], k0, R.mpf(t)), _T1_TOL,
                    f"psi(t_{i}) on traversal {k0}")
 
 
@@ -990,5 +1018,83 @@ def test_vacuum_walls_add_nothing_on_a_line(body: str) -> None:
     rule = case.rule
     inflow = case.period.inflow(rule.optical_depth, rule.outflow())
     np.testing.assert_array_equal(inflow, 0.0)
-    t, _ = _points_on(case, 0)
-    np.testing.assert_array_equal(rule.angular_flux(t, inflow), rule.angular_flux(t, np.zeros_like(inflow)))
+    _, ts = _points_on(case, 0)
+    for tm in ts:
+        refined, t = case.read_at(tm)
+        on_level = refined.period.inflow(refined.optical_depth, refined.outflow())
+        np.testing.assert_array_equal(on_level, 0.0)
+        np.testing.assert_array_equal(refined.angular_flux(np.array([t]), on_level),
+                                      refined.angular_flux(np.array([t]), np.zeros_like(on_level)))
+
+
+# ── P3 step 3e: the speed family, the refinement and the middle cut (qa's and the elegance review's witnesses) ──
+
+
+@pytest.mark.foundation
+def test_a_speed_is_a_scalar_or_one_family_shared_by_every_line() -> None:
+    """[SP1, the elegance review's B1] ``TraversalRule``'s speed is a scalar or ONE family axis ``(F,)`` shared by every
+    line: a family of length F on F lines is a family (the functionals lead with it, ``(F, F, 2, N)``, and member j
+    reads every line at speed v_j: its outflow on line l equals the single-speed rule's); a speed of two axes is
+    refused by its fragment, as are a non-positive and a non-finite speed. First reds: the ``ndim > 1`` refusal
+    removed (a ``(F, 1)`` speed read as per-line, told apart by shape alone); F speeds on F lines read per line (the
+    family leg)."""
+    geometry = _geometry("cylinder_solid")
+    basis = PanelBasis.of(ConcentricPartition.of(geometry), *_RES)
+    walls = Walls.of(geometry)
+    domain = basis.regions.chart.line_domain()
+    lines = domain.lines(np.array([[0.3, np.pi / 2], [0.7, np.pi / 2], [1.6, np.pi / 2]]))
+    speeds = np.array([1.0, 1.25, 10.0])
+    family = TraversalRule.of(lines, basis, walls, np.asarray(_SIGMA[0]), 8, 8, speed=speeds).outflow()
+    assert family.shape == (3, 3, 2, basis.size), family.shape
+    for j, v in enumerate(speeds):
+        alone = TraversalRule.of(lines, basis, walls, np.asarray(_SIGMA[0]), 8, 8, speed=float(v)).outflow()
+        np.testing.assert_allclose(family[j], alone, rtol=0.0, atol=1e-13 * np.max(np.abs(alone)))
+    for bad in (speeds[:, None], np.array([1.0, 0.0, 2.0]), np.array([1.0, np.inf, 2.0])):
+        with pytest.raises(ValueError, match=r"a scalar or a family \(F,\) shared by every line"):
+            TraversalRule.of(lines, basis, walls, np.asarray(_SIGMA[0]), 8, 8, speed=bad)
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on("tests/gates/geometry/test_chord_refinement.py::test_a_partition_coarsens_only_onto_one_it_refines")
+def test_a_rule_reads_only_a_chord_through_a_refinement_of_its_basis() -> None:
+    """[RF5, the refinement at the rule] ``TraversalRule.on_chord`` takes a chord through the basis's panels or any
+    refinement of them (positive leg: refined at a level); a chord through a partition that drops a panel breakpoint, or
+    ends elsewhere, is refused by the kernel's fragment (``coarsening``, evaluated in ``__post_init__``). First red: the
+    refusal removed (the rule reads the foreign partition's regions as panels)."""
+    case = _Case("sphere_solid", *_in_plane(0.7), sigma_t=_SIGMA[0])
+    panels = case.basis.partition
+    refined = panels.refined_at(1.1)
+    TraversalRule.on_chord(refined.chord(case.line), case.basis, case.walls, case.sigma_t, 8, 8)
+    coarser = ConcentricPartition(panels.chart, (panels.breakpoints[0], *panels.breakpoints[2:]))
+    longer = ConcentricPartition(panels.chart, (*panels.breakpoints, panels.breakpoints[-1] + 1.0))
+    for foreign in (coarser, longer):
+        with pytest.raises(ValueError, match="coarsens only onto one it refines"):
+            TraversalRule.on_chord(foreign.chord(case.line), case.basis, case.walls, case.sigma_t, 8, 8)
+
+
+#: (id, b, sin theta): MR3 cylinder lines at a hundredth of the spec's cross sections (thin slots).
+_MIDDLE = [("b0.3_normal", 0.3, 1.0), ("b0.3_oblique", 0.3, 0.1), ("b1.6_normal", 1.6, 1.0), ("b1.6_oblique", 1.6, 0.1)]
+
+
+@pytest.mark.l0
+@pytest.mark.verifies("characteristic-traversal-integrals")
+@pytest.mark.parametrize(("b", "sine"), [r[1:] for r in _MIDDLE], ids=[r[0] for r in _MIDDLE])
+@pytest.mark.rests_on(_HERE + "test_the_outflow_of_a_per_region_polynomial_is_its_line_integral_attenuated_to_the_exit")
+def test_a_thin_slot_is_cut_at_its_middle_at_four_points(b: float, sine: float) -> None:
+    """[MC1, qa's ``no_middle``] Every slot is cut at its middle, also in a set graded toward one end: at 4 points per
+    piece a thin slot (optical width below the grading's first depth, 0.194 at 4 points, so not graded) is two pieces,
+    and the T1 cubics' outflow and entry response on the 3-D line meet mpmath to 3e-11. Thin by Sigma / 100.
+
+    `[M]` 2026-10-12 (``scratch/characteristic_architecture/p3/step3/ta/e/middle_probe2.log``): honest 9.2e-13 to
+    3.1e-12; with no middle cut on the one-sided sets (qa's arm) 3.2e-10 to 8.1e-10. At 6 points honest 0 and the arm
+    1.2e-13; at 8 points the arm is green, with the first piece capped at 2 and at 1 alike (`[M]` 2026-10-12,
+    ``ta/e/middle_probe_cap1.log``: 8 points integrate these thin slots exactly whole, so the cut's subject at 8 points
+    is gone, contrary to the 7.9e-11 measured under the fixed law): the witness is at 4."""
+    sigma = tuple(0.01 * v for v in _SIGMA[0])
+    case = _Case("cylinder_solid", (b, 0.0, 0.0), (0.0, sine, float(np.sqrt((1.0 - sine) * (1.0 + sine)))), sigma_t=sigma,
+                 points=4, inner=4)
+    x = case.coefficients(_Q)
+    f = R.region_polynomial(_Q)
+    trav = case.mp.traversal(0, False)
+    _close(float(case.rule.outflow()[0] @ x), R.outflow(case.mp, trav, f, sigma), 3e-11, "B_0 at 4 points")
+    _close(float(case.rule.entry_response()[0] @ x), R.entry_response(case.mp, trav, f, sigma), 3e-11, "A_0 at 4 points")

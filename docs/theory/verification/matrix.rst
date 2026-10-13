@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **17371**
+Total tests collected: **17464**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1825, 10.5%
-   L1, 2725, 15.7%
-   L2, 85, 0.5%
+   L0, 1847, 10.6%
+   L1, 2743, 15.7%
+   L2, 86, 0.5%
    L3, 0, 0.0%
-   foundation, 12704, 73.1%
+   foundation, 12756, 73.0%
    unmarked, 32, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 17260
+   explicit, 17353
    class-name, 46
    func-name, 0
    case, 33
@@ -180,16 +180,17 @@ Module × level grid
    derivations/test_case_method_x_function, 2, 3, 0, 0, 0, 0
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
    derivations/test_characteristic_albedos, 0, 30, 0, 0, 0, 0
-   derivations/test_characteristic_assembly, 4, 111, 5, 0, 67, 0
+   derivations/test_characteristic_assembly, 4, 112, 5, 0, 68, 0
    derivations/test_characteristic_basis, 0, 0, 0, 0, 271, 0
    derivations/test_characteristic_closure, 127, 0, 0, 0, 9, 0
    derivations/test_characteristic_convergence, 0, 0, 6, 0, 0, 0
    derivations/test_characteristic_independent_references, 0, 9, 0, 0, 0, 0
+   derivations/test_characteristic_lift, 18, 17, 1, 0, 37, 0
    derivations/test_characteristic_nystrom_withdrawn, 0, 1, 0, 0, 2, 0
    derivations/test_characteristic_reading, 0, 135, 3, 0, 40, 0
    derivations/test_characteristic_reference, 12, 40, 0, 0, 58, 1
    derivations/test_characteristic_system, 2, 95, 0, 0, 12, 0
-   derivations/test_characteristic_transport, 57, 0, 0, 0, 53, 0
+   derivations/test_characteristic_transport, 61, 0, 0, 0, 55, 0
    derivations/test_characteristic_walls, 19, 0, 0, 0, 31, 0
    derivations/test_chord_half_lengths, 3, 0, 0, 0, 0, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
@@ -313,6 +314,7 @@ Module × level grid
    geometry/test_chord, 53, 0, 0, 0, 30, 0
    geometry/test_chord_lengths_between, 5, 0, 0, 0, 10, 0
    geometry/test_chord_level, 0, 0, 0, 0, 12, 0
+   geometry/test_chord_refinement, 0, 0, 0, 0, 12, 0
    geometry/test_chord_transits, 88, 0, 0, 0, 1, 0
    geometry/test_content_identity_geometry, 0, 0, 0, 0, 101, 0
    geometry/test_deck_laws_do_not_compose, 0, 0, 0, 0, 217, 0
@@ -698,10 +700,12 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``alpha-cylindrical``, 95
    ``collision-rate``, 91
    ``geometry-transits``, 88
+   ``characteristic-galerkin-assembly``, 82
    ``characteristic-transit-rank``, 82
    ``multigroup``, 82
    ``peierls-unified``, 82
-   ``characteristic-galerkin-assembly``, 78
+   ``characteristic-quadrature``, 79
+   ``characteristic-traversal-integrals``, 79
    ``fission-matrix``, 76
    ``removal-matrix``, 76
    ``mm-weights``, 75
@@ -709,15 +713,13 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-annulus-impact-parameter-partition``, 73
    ``peierls-greens-hollow-sph-impact-parameter-partition``, 73
    ``flux-moments``, 70
-   ``characteristic-quadrature``, 65
    ``peierls-rank-n-bc-closure``, 64
    ``transport-cartesian``, 64
+   ``characteristic-closure``, 61
    ``e3-def``, 61
    ``geometry-chord-segment-lengths``, 61
    ``geometry-directions-at``, 61
    ``ki3-def``, 61
-   ``characteristic-closure``, 59
-   ``characteristic-traversal-integrals``, 59
    ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55
    ``chord-length``, 54
@@ -728,9 +730,9 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-cylinder-mr-kinf``, 51
    ``quadrature-ordinate-permutation``, 50
    ``quadrature-product-weights``, 50
+   ``characteristic-boundary-resolvent``, 49
    ``wigner-seitz``, 49
    ``attenuation``, 48
-   ``characteristic-boundary-resolvent``, 48
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
    ``pn-scatter``, 47
@@ -1074,8 +1076,10 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented`` and labels held by a withdrawal. **2** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented`` and labels held by a withdrawal. **4** of the testable equations found on theory pages are orphan.
 
+- ``characteristic-axial-lift``
+- ``characteristic-exponential-grading``
 - ``quadrature-sphere-monomial``
 - ``sn-exit-balance-defect``
 

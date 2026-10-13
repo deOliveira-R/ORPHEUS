@@ -55,6 +55,17 @@ from orpheus.geometry.structured_geometry import StructuredGeometry
 
 
 
+def end_on(breakpoint: np.ndarray | int, partition: ConcentricPartition) -> np.ndarray:
+    r"""A wall's breakpoint re-keyed onto ``partition``, a refinement of the body's with the same ends.
+
+    A wall is an end of the domain (:class:`Walls`), so :math:`0` stays
+    :math:`0` and the body's last breakpoint becomes the refinement's,
+    :math:`m`; the one law :meth:`Walls.on` and
+    :meth:`~.closure.DiffuseWalls.on` re-key by.
+    """
+    return np.where(np.asarray(breakpoint) == 0, 0, partition.n_regions)
+
+
 def _refuse(what: str, missing: str) -> NoReturn:
     """Refuse a boundary declaration the characteristic reference does not serve, naming why."""
     raise NotImplementedError(f"the characteristic reference does not serve a {what}: {missing}")
@@ -164,10 +175,11 @@ class Walls:
         """
         if partition.chart != self.chart:
             raise ValueError(f"walls on a {self.chart.coord} body are not re-keyed onto a {partition.chart.coord} partition")
-        n, m = self.n_regions, partition.n_regions
-        index = {0: 0, n: m}
-        rekeyed = tuple(replace(w, breakpoint=index[w.breakpoint], partner=index[w.partner]) for w in self.walls)
-        return Walls(rekeyed, m, self.chart)
+        rekeyed = tuple(
+            replace(w, breakpoint=int(end_on(w.breakpoint, partition)), partner=int(end_on(w.partner, partition)))
+            for w in self.walls
+        )
+        return Walls(rekeyed, partition.n_regions, self.chart)
 
     @property
     def _slot(self) -> np.ndarray:
@@ -269,4 +281,4 @@ def _wall_of(law: BoundaryTraceLaw, breakpoint: int, *, opposite: int) -> Wall:
     return wall
 
 
-__all__ = ["TAG_REGISTRY", "Wall", "Walls"]
+__all__ = ["TAG_REGISTRY", "Wall", "Walls", "end_on"]

@@ -161,6 +161,36 @@ class ConcentricPartition:
         canonical = self.pose.inverse().on_points(points)
         return self.region_containing(self.chart.orbit_coordinate(canonical))
 
+    def refined_at(self, orbit_coordinate: float) -> "ConcentricPartition":
+        r"""The same partition, posed alike, with the level ``orbit_coordinate`` among its breakpoints; itself where it is one.
+
+        The level lies on :math:`[r_0, r_n]`, so the refinement keeps the
+        ends and its regions coarsen onto these (:meth:`coarsening`). A line
+        chorded through it that crosses the level does so at a slot end; a
+        line tangent to it (impact parameter :math:`c`) only touches it, at
+        its closest approach.
+        """
+        c = float(orbit_coordinate)
+        if not self.breakpoints[0] <= c <= self.breakpoints[-1]:
+            raise ValueError(f"a refinement keeps the ends: the level {c!r} lies outside [{self.breakpoints[0]!r}, {self.breakpoints[-1]!r}]")
+        if c in self.breakpoints:
+            return self
+        return replace(self, breakpoints=tuple(sorted((*self.breakpoints, c))))
+
+    def coarsening(self, coarse: "ConcentricPartition") -> np.ndarray:
+        r"""The region of ``coarse`` holding each region of this partition, ``(n,)``: the map a refinement carries onto what it refines.
+
+        Refused unless this partition refines ``coarse``: the same chart, the
+        same ends, and every breakpoint of ``coarse`` among its own.
+        """
+        if coarse.chart != self.chart or (coarse.breakpoints[0], coarse.breakpoints[-1]) != (
+            self.breakpoints[0], self.breakpoints[-1]) or not set(coarse.breakpoints) <= set(self.breakpoints):
+            raise ValueError(
+                f"a partition coarsens only onto one it refines, on the same chart with the same ends; got "
+                f"{self.chart.coord} {self.breakpoints!r} onto {coarse.chart.coord} {coarse.breakpoints!r}"
+            )
+        return np.searchsorted(coarse._r, self._r[:-1], side="right") - 1
+
     def rays_from(self, orbit_coordinate: np.ndarray, directions: np.ndarray) -> "Rays":
         r"""The lines through the points :math:`c\,\hat e_x` of the canonical frame along ``directions``, read from the points (:class:`Rays`).
 

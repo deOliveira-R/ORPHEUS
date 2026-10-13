@@ -27,6 +27,7 @@ Every reference value is written in mpmath or by hand from the ``Mixture`` array
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from functools import lru_cache
 from typing import Any
 
@@ -40,7 +41,7 @@ from orpheus.derivations.continuous.characteristic import (
     characteristic_reference,
 )
 from orpheus.derivations.continuous.characteristic import reference as reference_module
-from orpheus.derivations.continuous.characteristic.lines import Lines
+from orpheus.derivations.continuous.characteristic.lines import Lines, OpticalScale, polar_rule
 from orpheus.derivations.continuous.characteristic.reading import PointRule
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.geometry.boundary import AlbedoBoundary, SpecularReturn
@@ -53,7 +54,9 @@ from orpheus.reference.reading import Uncertified
 from orpheus.specification.specification import GeometrySpecification
 from tests.gates.derivations import _characteristic_point_mp as mpref
 from tests.gates.derivations._characteristic_mp import specular_sphere_total
-from tests.gates.derivations.test_characteristic_assembly import assert_each_polar_angle_is_graded_at_its_own_speed
+from tests.gates.derivations.test_characteristic_assembly import (
+    assert_the_impact_rule_is_graded_at_the_slowest_speed, grading_distances, impact_rule,
+)
 from tests.gates.derivations.test_characteristic_system import (
     _ABS, _MIRROR, _PU2, _UP2N, _VACUUM, _WHITE, _basis, _mixture, _walls, _zero_d,
 )
@@ -170,13 +173,28 @@ def _rule_geometry(chart, breakpoints, laws, x):
     basis = _basis(chart, breakpoints, 3, 2, 0.4)
     rule = PointRule.of(basis, _walls(chart, breakpoints, laws), np.asarray(_SIGMA[0]), x, 8)
     chart_object = basis.regions.chart
-    lines = chart_object.line_domain().lines(rule.lines.coordinates)
+    coordinates, weights, levels = _product(rule.lines)
+    lines = chart_object.line_domain().lines(coordinates)
     image = chart_object.image(lines)
-    if rule.lines.levels is not None and isinstance(image, RadialImage):
-        image = image.at_level(*rule.lines.levels)
+    if levels is not None and isinstance(image, RadialImage):
+        image = image.at_level(*levels)
     t = image.parameters_at(np.array([x]), rule.side)                                    # (L, q)
     points = lines.foot[:, None, :] + t[..., None] * lines.direction[:, None, :]
-    return rule, lines.direction, points
+    return weights, rule.side, lines.direction, points
+
+
+def _product(lines: Lines):
+    """A line set's 3-D lines, flattened: the product (member j, line l) of its speed family and its chorded lines,
+    coordinates ``(V L, k)`` with the cylinder's polar angle arcsin(1/speed_j), weights ``(V L,)``, levels repeated
+    per member (the in-plane level is the 3-D line's: P3 step 3, the axial lift). One member at speed 1 on the
+    sphere and the slab, so the product is the set itself."""
+    V = lines.speeds.size
+    coordinates = np.repeat(lines.coordinates[None], V, axis=0)                     # (V, L, k)
+    if V > 1 or coordinates.shape[-1] == 2:
+        coordinates = coordinates.copy()
+        coordinates[..., 1] = np.arcsin(1.0 / lines.speeds)[:, None]
+    levels = None if lines.levels is None else tuple(np.tile(level, V) for level in lines.levels)
+    return coordinates.reshape(-1, coordinates.shape[-1]), np.asarray(lines.weights).reshape(-1), levels
 
 
 @pytest.mark.foundation
@@ -193,8 +211,8 @@ def test_the_point_rule_integrates_the_direction_moments(chart, breakpoints, law
     ``ta/measure_m1.log``). First reds: the sphere's Jacobian b / (c y) without its b (moments move O(1)); the
     cylinder's polar weight without sin(theta) (Omega_z^2 moves); one side dropped (the total halves).
     """
-    rule, direction, points = _rule_geometry(chart, breakpoints, laws, x)
-    weight = np.repeat(rule.lines.weights[:, None], rule.side.size, axis=1)                    # (L, q)
+    weights, side, direction, points = _rule_geometry(chart, breakpoints, laws, x)
+    weight = np.repeat(weights[:, None], side.size, axis=1)                                    # (L, q)
     assert abs(weight.sum() - 1.0) < 1e-13, ("total", weight.sum())
     kept = _kept(chart)
     radius = np.linalg.norm(points[..., :kept], axis=-1)
@@ -230,9 +248,10 @@ def test_on_the_outer_wall_the_point_rule_has_the_line_rules_lines(chart, breakp
     laws = ((0.6, 0.0),) if chart != "slab" else ((0.3, 0.0), (0.8, 0.0))
     walls = _walls(chart, breakpoints, laws)
     sigma = np.asarray(_SIGMA[1])
-    point = PointRule.of(basis, walls, sigma, x, 8).lines.coordinates
-    line = LineRule.of(basis, walls, sigma, 8).lines.coordinates
-    assert np.array_equal(np.unique(point, axis=0), np.unique(line, axis=0))
+    point, line = PointRule.of(basis, walls, sigma, x, 8).lines, LineRule.of(basis, walls, sigma, 8).lines
+    assert np.array_equal(np.unique(point.coordinates, axis=0), np.unique(line.coordinates, axis=0))
+    # P3 step 3: the cylinder's polar nodes are the family of speeds, the same family on both rules
+    assert np.array_equal(np.sort(point.speeds), np.sort(line.speeds))
 
 
 @pytest.mark.foundation
@@ -245,10 +264,10 @@ def test_a_line_set_carries_levels_iff_its_chart_is_radial(chart: str) -> None:
     breakpoints = _SLB3 if chart == "slab" else _MR3
     laws = ((0.3, 0.0), (0.8, 0.0)) if chart == "slab" else ((0.6, 0.0),)
     good = LineRule.of(_basis(chart, breakpoints, 1, 0, 0.4), _walls(chart, breakpoints, laws), np.asarray(_SIGMA[0]), 4).lines
-    n = good.weights.size
+    n = good.coordinates.shape[0]
     wrong = None if good.levels is not None else (np.ones(n), np.zeros(n))
     with pytest.raises(ValueError, match="carry their exact levels and a slab's carry none"):
-        Lines(good.basis, good.walls, good.sigma_t, good.coordinates, good.weights, wrong, good.chunk, good.budget)
+        replace(good, levels=wrong)            # re-runs __post_init__ (P3 step 3 added the speed family's fields)
 
 
 @pytest.mark.foundation
@@ -736,25 +755,29 @@ def test_a_small_cylinders_layer_is_graded_outside_slow(x: float) -> None:
 
 @pytest.mark.foundation
 @pytest.mark.parametrize(("x", "albedo"), [(1.0, 0.0), (0.5, 0.0), (1.0, 0.9)], ids=["wall", "interface", "wall-mirror"])
-@pytest.mark.rests_on(_ASSEMBLY + "test_each_polar_angle_carries_the_impact_rule_graded_at_its_own_speed")
-def test_each_polar_angle_through_a_point_carries_the_impact_rule_graded_at_its_own_speed(x: float, albedo: float) -> None:
-    """[Q4b, #587; foundation, THEOREM of the rule's construction] The cylinder's point rule is the line rule's
-    ITERATED rule below the point: at each polar node theta its lines are exactly ``impact_rule`` over the panels below
-    c, graded at the line's own projected speed sin theta by the hand-written law (``grading_distances`` of the
-    assembly file), with their exact levels, ``array_equal``. The weights carry the point's measure and are pinned by
-    the route rows (Q2, Q4, C2).
+@pytest.mark.rests_on(_ASSEMBLY + "test_the_impact_rule_is_graded_at_the_slowest_polar_node")
+def test_the_point_rules_impact_rule_is_graded_at_its_slowest_polar_node(x: float, albedo: float) -> None:
+    """[Q4b', P3 step 3; foundation, THEOREM of the rule's construction] The cylinder's point rule is the line rule's
+    construction below the point: ONE in-plane impact rule over the panels below c, shared by every polar node, exactly
+    ``impact_rule`` graded at the slowest polar node's speed sin(theta_min) (theta_min the first node of the polar rule
+    on the panels split at c) by the hand-written law (``grading_distances`` of the assembly file), with their exact
+    levels, ``array_equal``. The weights carry the point's measure and are pinned by the route rows (Q2, Q4, C2, P1).
 
-    Activation: the small cylinder of Q4 under vacuum (the layer) and a = 0.9 (the pole); at the interface only the
-    inner panel carries nodes and its layer binds below the next radius out. `[M]` 2026-10-08
-    (``p1_step_c/ta/probe_small.log``): 13, 12 and 21 distinct per-angle counts; the row asserts more than one. First
-    reds as the line rule's row (``p1_step_c/ta/``): the tensor rule of ``11b263a5`` (127 of 128 polar nodes
-    differ), and the arms ``slowest``, ``no_layer``, ``no_pole``."""
+    INVERTED from Q4b (#587: each polar node at its own speed). Activation: the small cylinder of Q4 under vacuum (the
+    layer) and a = 0.9 (the pole); the shared rule holds more nodes than the rule at speed 1 (asserted). First reds:
+    #587's own-speed rule (the tree before the carve: `[M]` 3 of 3 red under the inverse arm ``slowest``,
+    ``scratch/characteristic_architecture/p3/step3/ta/run_slowest_not_slow.log``), the rule at speed 1, the law's
+    layer or pole term dropped."""
     breakpoints, sigma = (0.0, 0.5, 1.0), (0.6, 2.4)
     basis = _basis("cylinder", breakpoints, 2, 0, 0.4)
     lines = PointRule.of(basis, _walls("cylinder", breakpoints, ((albedo, 0.0),)), np.asarray(sigma), x, 8).lines
     below = breakpoints.index(x)          # the point is a panel end, so the panels below it are the first ``below``
-    counts = assert_each_polar_angle_is_graded_at_its_own_speed(lines, breakpoints, sigma, albedo, 8, panels=below)
-    assert len(set(counts)) > 1, f"the fixture does not distinguish the polar speeds: {counts}"
+    slowest = float(np.sin(polar_rule(OpticalScale.of(np.asarray(breakpoints), np.asarray(sigma)), 8).pts[0]))
+    count = assert_the_impact_rule_is_graded_at_the_slowest_speed(lines, breakpoints, sigma, albedo, 8, slowest,
+                                                                  panels=below)
+    at_one = impact_rule(np.asarray(breakpoints), np.asarray(sigma), 8, grading_distances(breakpoints, sigma, albedo, 1.0),
+                         panels=below)
+    assert count > at_one.b.size, f"the fixture does not distinguish the slowest speed from 1: {count}, {at_one.b.size}"
 
 
 @pytest.mark.foundation

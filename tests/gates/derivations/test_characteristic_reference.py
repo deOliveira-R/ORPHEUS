@@ -89,8 +89,12 @@ _K = CellCoefficient.every(Channel.FISSION_EMISSION)
 #: The working point of rung 4 (``_WORK``: degree 3, 2 layers of ratio 0.4, 8 line points, 12 points along each line),
 #: with 8 = 2(p + 1) projection points, the mass matrix's own rule.
 _RES = Resolution(3, 2, 0.4, TransportResolution(8, 12, 12), 8)
-#: The smallest resolution a body solves at, for the rows that count interpreters and read no value.
-_TINY = Resolution(1, 0, 0.4, TransportResolution(4, 4, 4), 4)
+#: The cheapest resolution a body solves at, for the rows that count interpreters and read no value. Since the
+#: exponential grading is derived from the node count (P3 step 3e, the user's ruling of 2026-10-12) 4 points along a
+#: line cut 103 pieces per graded end and 8 cut 11, so the along-line rules are at 8: `[M]` 2026-10-12 the cylinder's
+#: k (F5's body) took 311 s at (4, 4, 4) and 25 s at (4, 8, 8), the same k to 1e-15
+#: (``scratch/characteristic_architecture/p3/step3/ta/e/f5_cost.log``).
+_TINY = Resolution(1, 0, 0.4, TransportResolution(4, 8, 8), 4)
 _COORD = {"sphere": CoordSystem.SPHERICAL, "cylinder": CoordSystem.CYLINDRICAL, "slab": CoordSystem.CARTESIAN}
 _MR3 = (0.0, 0.5, 1.5, 2.0)
 _MR3H = (0.4, 0.5, 1.5, 2.0)
