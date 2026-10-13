@@ -11758,3 +11758,6 @@ the read end): product integration's rounding is relative to the whole piece's m
 layer. That is a contract change, reported as a ruling, never a band edit. Third: the triangle's transposition is
 invisible on every reversal-closed line set (the assembled block sums own + own^T over each reversed pair); only the
 single-line value rows on a non-palindromic slab line and the weight-level closed form see it.
+Route B rider (same day): a prototype's "overlap measured stable" was measured with a weaker metric (one smooth f) on a
+grid that never reached the switch x = m; the rule's own promise (exactness to degree 2m - 1) measured AT the switch
+found a gap for m >= 16. Measure a regime switch with the strongest claim the rule makes, at the switch itself.
