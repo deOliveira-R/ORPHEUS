@@ -2361,3 +2361,136 @@ Next: 3e (qa and the elegance-enforcer, then the docs), 3f (the slow files re-ti
   - #587: comment on what the lift retired; it stays open for the polar weight absorbing sin²θ.
 
 ⏸ **Next: 3f.** Re-time the slow reference files with the §8 protocol, and re-measure the chunk budgets under the derived law; the reading's 0.122 s target is to be re-measured there. Then step 2.
+
+## P3 step 3f (2026-10-12): the landed reading re-timed, and the product-integration prototype
+
+**Landed:** step 3 merged to `main` at `0a058a2a` (`c9db13e3` code, `1ad1f557` docs). The full `-m "not slow"` suite passed before the merge: 16 882 passed, 0 failed. CI passed on `1ad1f557` (run 38331987610). The head commit's `[skip ci]` skipped the whole push, so `1ad1f557` was pushed to a temporary branch to run CI; that branch is deleted. Lesson: a `[skip ci]` plan commit pushed on top of code commits skips their CI too.
+
+**The §8 protocol on the landed reading** `[M]` 2026-10-12 (`scratch/characteristic_architecture/p3/timing/point/`, `driver_c_2_1_2_4_4.log`; 15 alternating subprocesses per side, 1 warm-up and 5 timed calls each, `OMP_NUM_THREADS=1`, `-O`; load average 14 at the start and 8.5 at the end; old tree a detached worktree at `a336bde4`, new tree a detached worktree at `0a058a2a`):
+
+| | old hoist | landed `main` |
+|---|---|---|
+| point reading, min (median) of the minima | 0.120 s (0.123 s) | 2.72 s (2.77 s) |
+| solve at the matched rule `c_2_1_2_4_4` | 7.0 s | 284.7 s (11.6 s at step 1) |
+| max φ_g error, φ₁/φ₀ error, against the panel-4 truth | 1.19e-3, −3.1e-5 | 9.3e-4, −1.2e-3 |
+
+**The cause** (`profile_reading.py`): the matched rule integrates each piece with 4 Gauss points, and the derived law at n = 4 has first depth 0.194 and ratio 1.059. Each slot is cut into 254 to 266 ends, and the time is in the piece integrals (`_PieceSet._integral`, `_attenuated_length`, `at`). Nodes per grading (pieces × n over 64 mean free paths times the speed spread S): n = 4: 412 (S = 1) and 652 (S = 30); n = 8: 104 and 184; n = 12: 96 and 168.
+
+**The diagnosis, offered to the user** `[R]`: the step-3 side effects share one cause. One piece mesh along each line resolves two unrelated scales: the geometry (the basis, and the branch points of r(t) = √(b² + t²)) and the attenuation e^{−vΣt}. Gauss–Legendre integrates polynomials, so the exponential has been resolved by cutting the line, and every fix since #587 was that mesh reacting to a speed, a node count or a spread. The proposed fix is **product integration**: interpolate the smooth factor at Legendre nodes shared across every speed, and integrate the attenuation exactly through the Legendre moments ∫₋₁¹ P_k(t) e^{−xt} dt = 2(−1)^k i_k(x) (i_k the modified spherical Bessel function). The error is then the interpolation error of the smooth factor, uniform in x. Checked `[M]`: the identity holds to about 1e-16 against mpmath for k = 0 to 6 and x from 1e-3 to 40. scipy's `spherical_in` loses accuracy at small x and high k (100 % wrong at k = 6, x = 1e-3; 1e-11 at k = 3), so a stable moment evaluation is part of the design.
+
+**The user's ruling** (2026-10-12): caching makes the runtime bearable, but the question was whether a more fundamental fix exists. "Run the scratch prototype and use 2 cases for it. Pick an average case, and pick the worst offender (which is probably a bothersome cylinder)." Step 2 (the file re-timing) waits for the prototype's outcome.
+
+⏸ **Next:** the prototype's report (numerics-investigator, `scratch/characteristic_architecture/p3/product/`), then a design section for the user's ruling before any production code.
+
+### 3f, the prototype's result (2026-10-13)
+
+The numerics-investigator's prototype is in `scratch/characteristic_architecture/p3/product/`. It ran in-process on `0a058a2a`; no file under `orpheus/`, `tests/` or `docs/` changed. Its report is in this section: the harness refused the agent's `report.md`. I re-read the check logs named below.
+
+**The method** `[M]`.
+- **Pieces.** Only the geometric ends: the slot, its middle, and production's hp branch halvings, packed by production's `_Packing`. The three piece sets collapse into one.
+- **One level (the reading, the start and end weights).** The smooth factor is interpolated at n Gauss–Legendre nodes. The weights are Σ_k C[j,k] · 2(±1)^k ĩ_k(x), with:
+  - x = Σvh/2, the half optical width of the piece;
+  - ĩ_k = e^{−x} i_k, the scaled modified spherical Bessel function;
+  - C, the Legendre coefficients of the Lagrange basis.
+- **Two levels (the block's Volterra triangle).** The triangle reduces to the same moment problem: T_ab(x) = ∫₀² C_ab(τ) e^{−xτ} dτ. C_ab is the correlation polynomial of the two interpolants, of degree 2n − 1. It is precomputed once per n and needs the moments up to k = 2n − 1.
+- **Reused unchanged.** The scan (`_carried`), `at`, `outflow`, `entry_response` and `LinePeriod.inflow`. The rule is injected through `lines.TraversalRule`.
+
+**The moment evaluation** `[M]` (`moments.py`, `moments_check*.log`).
+- **Below a threshold** X(K) = K(K−1)/ln 10: a positive power series gives the top ratio, and the continued-fraction recurrence carries the ratios downward, normalised by ĩ_0 = −expm1(−2x)/(2x).
+- **Above the threshold:** forward recurrence from the closed forms of ĩ_0 and ĩ_1.
+- **Why this scheme:** it has no cancellation and no overflow.
+- **Accuracy against mpmath:** ≤ 2.13e-15 relative for k = 0 to 31, at x = 0, at 89 points over [1e-8, 1e3], and at 1e4 and 1e5. On 1507 dense points across the threshold edges for K = 12 and 16, ≤ 1.42e-15.
+- **Mutations:** both arms red (inf): unscaled moments, and forward recurrence everywhere.
+- **Premise refuted** (2026-10-13), for the question "is scipy's `spherical_in` unusable at small x?": on scipy 1.17.1 it is accurate to 1.5e-15 for k ≤ 31 and x ≤ 700. The 3f note above is wrong on this point; its probe misread scipy. The real hazard is overflow past x ≈ 709, which the scaled moment avoids.
+
+**The weights** `[M]` (`weights_check.log`).
+- One level, against mpmath: ≤ 7.7e-14 at n = 8, relative to ∫|L_a| e^{−xt}.
+- The triangle, against a direct two-dimensional composite rule: ≤ 2.6e-15 at n = 4 and n = 8, for x from 0 to 1000.
+
+**The control (X1)** `[M]` (`control_mutations*.log`). The product weights, applied to production's own graded pieces, reproduce production: 0 relative on the reading and 2.0e-16 on the block. Mutation arms:
+
+| arm | reading | block |
+|---|---|---|
+| E and S swapped | red, 2.9e-5 | |
+| moments k ≥ 1 zeroed | red, 1.4e-5 | |
+| unscaled moments | red, NaN | |
+| the sign (−1)^k dropped in the start weights | green | red, 5.3e-3 |
+| the sign dropped in the triangle | | red, 2.5e-2 |
+| the triangle transposed | | green |
+
+The two green arms are designed-green:
+- The reading reads no start weight, so the start-weight arm cannot change it.
+- Every chord of a concentric body is a palindrome in r, so reversing a traversal leaves the sum unchanged. A transposed triangle is invisible on this geometry. A gate for the triangle's orientation therefore needs a line that is not a palindrome: a partial chord, or a point inside the body.
+
+**Case 1, the average case: the A|B|A cylinder, φ(1.2), rule `c_2_1_2_4_4`** `[M]`.
+- **Protocol:** the §8 protocol; load average 7.7 to 14.9.
+- **Errors:** "err" is measured against production at 16 points on the same lines, groups and emission. It isolates the integration.
+- **Truth:** every row reads 9.27e-4 (φ) and −1.22e-3 (φ₁/φ₀) against the panel-4 truth. That error is the line rule's, not the integration's.
+
+| | reading, s | solve, s | reading err | block err | k against landed |
+|---|---|---|---|---|---|
+| landed, 4 points | 2.753 | 285.9 | 3e-16 | 5e-16 | 0 |
+| production, 8 points | 0.578 | 26.3 | 1e-16 | 7e-16 | 3e-15 |
+| product, n = 4 | 0.123 | 1.363 | 1.3e-9 | 1.5e-6 | 1.1e-9 |
+| product, n = 8 | 0.146 | 1.704 | 4.7e-15 | 6.3e-13 | 1.0e-14 |
+| old hoist `a336bde4` | 0.120 | 7.0 | | | |
+
+**Case 2, the worst offender: the MR3 three-region vacuum cylinder read on its wall, rule (3, 0, 16, 12)** `[M]`.
+- **How it was chosen.** A census of 8 cylinder fixtures, each with an mpmath or closed-form reference (`census_production*.log`). This case is the costliest on both the block (555 s, 8.8 M slots, 169 M pieces) and the reading (7.45 s). The runner-up block is the white cylinder at τ = 30, at 407 s.
+- **The reference that isolates the integration.** The mpmath reference cannot: the fixture's source is constant per region, so every n reads ≤ 1.6e-15 against it. The isolating reference is production at 16 points on the same lines, compared on every basis coefficient (the "row").
+
+| | block, s | reading, s | block err | row err |
+|---|---|---|---|---|
+| production, 12 points | 572.8 | 7.538 | 2.6e-16 | 3.3e-16 |
+| production, 8 points (one run) | 674 | 11.2 | | |
+| product, n = 8 | 11.6 | 2.209 | 2.2e-12 | 3.8e-11 |
+| product, n = 12 | 15.51 | 2.583 | 1.0e-15 | 2.3e-15 |
+
+The production rows ran 2 or 3 single calls each, not the full protocol.
+
+**What the result says** `[M]`, read with the logs:
+- **Product integration takes the attenuation out of the piece mesh, for the reading and for the block.** At matched accuracy (n = 8 on case 1, n = 12 on case 2) the cost drops:
+
+  | | landed | product | factor |
+  |---|---|---|---|
+  | case 1 reading | 2.75 s | 0.146 s | 19 times |
+  | case 1 solve | 286 s | 1.70 s | 168 times |
+  | case 2 block | 573 s | 15.5 s | 37 times |
+  | case 2 reading | 7.54 s | 2.58 s | 2.9 times |
+
+  Case 1's reading (0.146 s) is within 22 % of the old hoist's 0.120 s, and its solve is 4 times faster than the hoist's 7.0 s.
+- **The win is cost, not accuracy, and it changes what the node count means.** The landed reading at 4 points was exact along lines only because its exponential mesh over-resolved the geometry too: 1 145 832 pieces against 7 704 geometric pieces on case 1's reading. On the geometric pieces alone, n is a real convergence parameter: n = 4 leaves 1.5e-6 on case 1's block.
+- **The derived law's cost is not monotone in n.** On case 2, production at 8 points costs more than at 12 (674 s against 573 s), so "just raise the points" is not a fix.
+
+**What retires if it lands** (the agent's list; the audit owed under `retirement-audit` G.24 has not been run):
+- `ExponentialGrading.of` (the node-count law) and `_WIDEST_FIRST`;
+- `exponential_ends` along lines, `_Toward`, and the three piece sets;
+- `_attenuated` (the graded inner rule), `_attenuated_length` and `_PieceSet._integral`;
+- `TransportResolution.inner_points`: the triangle no longer has an inner rule of its own. This changes the content identity, so every memo key moves once.
+
+**What stays:**
+- `DYADIC`, `VANISHING_DEPTH` and `exponential_ends`, for the rules over lines: the polar and cosine grazing ends, and the impact rule's grading toward the rim. These coordinates are not along a line and the attenuation's exponent is not linear in them.
+- The hp branch halvings: product integration's accuracy rests on them.
+
+**Rejected candidates**, each for its question:
+- **n = 4 kept**, for matched accuracy: the block error is 1.5e-6.
+- **"Use 8 production points"**, for cost: cheaper on case 1 and dearer on case 2, as above.
+- **Dropping the slot-middle cut**, for cost: 1.9 times fewer pieces and 300 times worse at n = 8.
+- **A nested mpmath quadrature for the n = 8 triangle**, as the triangle's check: too slow; replaced by the direct composite rule.
+
+**Open before production code:**
+1. **The ruling on what `points` means** (below).
+2. **Not run end to end with the product rule:** a hollow body's reading (the `to_start` path) and the partial mirrors (C2b).
+3. **The moment evaluation** is about half of case 2's reading (`profile_case2_read.log`). The chunk budgets need re-measuring under the new rule.
+4. **Gates for test-architect:** the moments against mpmath; the weights; the control; and a triangle-orientation gate on a line that is not a palindrome. No ERR entry: no defect was found. The scipy premise was a probe error, not a production defect.
+
+**The design question for the user: what `points` (n) means once the attenuation is exact.** With the exponential exact, n integrates only the smooth factor: the basis polynomial times the geometry, analytic on each hp piece. Two readings:
+- **(a) n derived from the hp law** `[R]`. The halvings make each piece no wider than its distance to the nearest branch point. In the piece's coordinate on [−1, 1] the singularity therefore lies at 3 or more, which is a Bernstein ellipse of parameter ρ ≥ 3 + √8 ≈ 5.83. Gauss–Legendre's error then falls like ρ^{−2n}, and double precision needs 2n ln ρ ≥ ln(1/ε), so n ≥ 10.4 for a square-root branch point. This is the same shape as the law it replaces (a law derived from double precision), and it agrees with case 2's measured n = 12.
+  - It is conservative for case 1, which reached 4.7e-15 at n = 8.
+  - The basis degree adds to the count.
+  - The rule would be: n = ⌈ln(1/ε) / (2 ln ρ)⌉ plus the basis degree's share. `points` then leaves the resolution, and the memo keys move once.
+- **(b) n stays a ladder axis.** The rung names n, and convergence is shown by the ladder against the independent truths, as now. The cost is that a coarse rung (n = 4) is no longer exact along lines, so the low rungs measure the along-line rule as well as the line rule.
+
+My recommendation is (a), with the derivation measured before it is adopted. The measurement: the row error against the hp ratio and n on both cases, and the predicted n against the measured one. The project's line is to derive a law where one exists; (a) keeps the ladder's rungs meaning the line rule alone; and the derivation names its premise (a square-root branch point at a distance of at least one width), which a gate can check.
+
+⏸ **Next:** the user's ruling on (a) or (b). Then a test-architect gate spec (the four gates above), the main agent's carve (W3, surgical: the reference's integration law), and the retirement audit table at `.claude/plans/p3_product_integration_dependency_audit.md`. Step 2, the file re-timing, follows the carve.

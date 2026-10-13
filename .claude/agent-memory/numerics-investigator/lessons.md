@@ -649,3 +649,17 @@ matching 1.2e-3 can be 40x worse in the ratio. **How to apply:** before fixing a
 target on a gauged quantity (eigen flux, any normalised reading), print the per-component errors and
 a gauge-free combination beside them; if the components share one factor, state both criteria and
 which rule each selects (`scratch/characteristic_architecture/p3/step1/errors.log`).
+
+## L30: Retiring a mesh that resolved two scales re-exposes the second scale's convergence parameter
+
+Not covered by M2 (it names which axis separates a claim, not that an incumbent's mesh can be doing a SECOND
+parameter's work for free) nor by `vv-principles` "bit-identity vs principled-equivalence" (which asks for an
+independent reference, not for the error's owner). `[M]` 2026-10-12, P3 step 3f, product integration along the
+characteristic reference's lines: production at 4 Gauss points per piece read 3e-16 along lines only because its
+exponential mesh (260 pieces per slot) also over-resolved the geometry; on the geometric pieces alone the same 4
+nodes left 1.5e-6 in a block (case 1) and 4e-5 (case 2), and matched accuracy needed n = 8 to 12. **How to apply:**
+before calling a mesh-removing scheme "matched at the nominal parameter", hold everything else fixed (same lines,
+same groups, same emission) and tabulate the integration error alone against a finer incumbent at n, 1.5n, 2n, 3n;
+and check the reference is not inside the scheme's exact class (case 2's mpmath reference had a source constant per
+region, which interpolation reproduces at any n: green at n = 4 for the wrong reason). Record:
+`scratch/characteristic_architecture/p3/product/` (untracked).

@@ -41,6 +41,8 @@ they exist on this machine only. The `_archive/` copies of their lessons are the
 - `_archive/krylov_composite_restart_and_stale_references.md` — the grown-composite `restart`
   truncation and the stale-frozen-reference triage. Backs L15/L22.
 - `_archive/rcond_threshold_rederivation.md` — the `pinv` cutoff re-derivation. Backs L27.
+- `scratch/characteristic_architecture/p3/product/` (UNTRACKED) — 2026-10-12 product-integration prototype along
+  the characteristic lines: stable scaled i_k moments, the triangle as a correlation moment problem. Backs L30.
 - [issue_341_boundary_gs_rate.md](issue_341_boundary_gs_rate.md) — DD's undamped `−1` channels
   void Varga; `ndim` refuted; the lever is the octant ORDER (#343).
 - [cylindrical_level_ordering_symmetry_adjudication.md](cylindrical_level_ordering_symmetry_adjudication.md)
