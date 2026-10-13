@@ -11745,3 +11745,16 @@ rows that floor cost 1.3e-6 (thick wall) and the derived floor is the slowest no
 tier had no cylinder row at 0 < a < 1 at all (16 of 1141 fast rows reach the cylinder's rule; every partial-mirror
 cylinder row is slow), so the defect, transcribed, would have passed every merge-deciding run. Evidence:
 `scratch/characteristic_architecture/p3/step3/ta/` (floor_probe*, proto_battery.log, census_slowest_not_slow.json).
+
+## L113 — P3 step 3f (product integration along lines): the consumer's index range, and a componentwise contract (2026-10-13)
+
+The prototype's moment check covered k < 32 (K = 32, n = 16). The triangle consumes K = 2n moments, and the plausible n
+reaches 32, so the gate's grid came from the CONSUMER's index law (K up to 64), not from the prototype's tested range:
+at K >= 48 the series overflowed between x = 709 and the switch X(K), and a self-convergence reference at n = 48
+returned a NaN block. Second: the honest prototype reddened a 4-ulp THEOREM row (B . 1 on a 1000-mfp slot) through the
+sum rule of its weights (columns of the Lagrange-to-Legendre table summing to k eps residues), and after the repair
+(projecting onto exact discrete orthogonality) still reddened the same row's componentwise leg (a source vanishing at
+the read end): product integration's rounding is relative to the whole piece's max|f|, the old graded rule's to the
+layer. That is a contract change, reported as a ruling, never a band edit. Third: the triangle's transposition is
+invisible on every reversal-closed line set (the assembled block sums own + own^T over each reversed pair); only the
+single-line value rows on a non-palindromic slab line and the weight-level closed form see it.

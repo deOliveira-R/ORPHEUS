@@ -469,6 +469,10 @@ shelf life — check it against a concrete row before trusting a green.
   "moving the result under 1e-6" against a 1e-4 reading cost 1.3e-6 at the closed-form bar. Then census the FAST tier
   for a row in that interior: none existed. → `L112`
 
+- **⛔ Derive a gate's grid from the CONSUMER's index law, not the prototype's tested range** (the triangle reads K = 2n
+  moments; checked to K = 32, broken at K >= 48). And a carve that changes WHAT an error is relative to (the whole piece's
+  max|f| against the layer's value) reddens componentwise rows honestly: report it as a contract ruling, never a band. → `L113`
+
 ## 5. Tolerance is a claim — choose it per law, from measurement
 
 - **State the law in the direction that IS a float theorem, and normalise a

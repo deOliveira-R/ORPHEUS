@@ -2494,3 +2494,68 @@ The production rows ran 2 or 3 single calls each, not the full protocol.
 My recommendation is (a), with the derivation measured before it is adopted. The measurement: the row error against the hp ratio and n on both cases, and the predicted n against the measured one. The project's line is to derive a law where one exists; (a) keeps the ladder's rungs meaning the line rule alone; and the derivation names its premise (a square-root branch point at a distance of at least one width), which a gate can check.
 
 ⏸ **Next:** the user's ruling on (a) or (b). Then a test-architect gate spec (the four gates above), the main agent's carve (W3, surgical: the reference's integration law), and the retirement audit table at `.claude/plans/p3_product_integration_dependency_audit.md`. Step 2, the file re-timing, follows the carve.
+
+**The user's ruling** (2026-10-13): **(a)**, n derived from the hp halving law. `points` leaves the resolution once the derivation is measured.
+
+**The measurement owed before adoption** (the numerics-investigator, resumed):
+- the row error on both cases against n and against the halving tightness (width ≤ distance/c, for c = 1, 2 and 4);
+- the predicted n against the measured n at 1e-14;
+- whether the basis degree's share is additive.
+
+In parallel, the test-architect writes the gate spec for the moments, the weights, the control and the triangle's orientation on a line that is not a palindrome.
+
+⏸ **Next:** both reports; then the law fixed in the plan, the dependency audit table, and the carve.
+
+### 3f, the law and the gate spec (2026-10-13)
+
+**The law, from the numerics-investigator** `[M]` (`product/contour_bound.py`, `contour_p3c2.log`, `contour_x100.log`, `hp_*.log`):
+- **The node count is the classical contour bound for interpolatory product rules** (Davis–Rabinowitz; Sloan–Smith). n is the smallest n with min over ρ′ < ρ⊥(c) of (1/2π)∮|f||K_n(x, z)||dz| ≤ ε∫ω|f|.
+- **Its inputs, none fitted:**
+  - x, the piece's largest optical half-width over the speed family;
+  - ρ⊥(c), from the branch point perpendicular to the piece's end, at z = −1 ± 2ic;
+  - f, the basis on the piece.
+- **The rate depends on x:** about ρ^−2n when the piece is optically thin and ρ^−n when it is thick. On a synthetic piece the bound's n equals the measured n at x ≤ 10.
+- **Refuted:** an algebraic n^(−p/2−1) prefactor in p. The dependence on p is the basis's amplitude on the ellipse; it replaces the fitted 1.5p.
+- **Even pieces** (the panels touching a solid body's centre) are exact at 2p + 1 nodes: the basis there is a polynomial in (b² + t²).
+- **The tightness:** c = 2 is recommended. The slot-middle cut is rejected: it costs more nodes than tightening c.
+
+**The gate spec, from the test-architect** (`product/gate_spec.md`, drafts in `product/ta/`):
+1. **The moments overflow at K ≥ 48** (n ≥ 24): the series overflows for x between 709 and X(K). A defect, to be fixed.
+2. **The one-level rule misses its closed form on constants by up to 340 ulp.** Projecting onto exact discrete orthogonality brings it to ≤ 3.5 ulp.
+3. **The componentwise leg of T7 reads 3.5e-13 against its 1e-13 band**, with a source that vanishes at the wall. `[HYPOTHESIS]` It is the same defect as the investigator's 3e-14 floor at x = 100: signed product weights on thick pieces, whose rounding scales as ε·Σ|w||f|. The investigator is measuring Σ|w|/∫ω and comparing positive-weight routes. **No tolerance is edited.**
+4. **Only 2 of the 81 assembled rows see the triangle's orientation:** the two slab rows of T5. Every line set is closed under reversal. The new gate PT1 tests the orientation at the weight level.
+5. **No existing row tells n = 8 from n = 12.** The law is pinned by a self-convergence row, PL1, owed with the law.
+6. **The control is a one-time carve check, not a gate** (retirement-audit D.14).
+7. **Existing gates:** the delete, move and keep lists are in the spec. `characteristic-exponential-grading` has no `verifies` marker.
+8. **The ERR re-drops** (ERR-099, ERR-100, ERR-105, ERR-106, ERR-035): each still has a catcher that reddens under the prototype.
+
+⏸ **Next:** the investigator's report on the 11-point table, the stable positive weights (items 1 to 3) and the law's own cost. Then the choice of weights goes to the user, then the carve.
+
+### 3f, the weights: the measured choice (2026-10-13)
+
+The numerics-investigator's item 2 and the law, verified against its logs by the main agent (scratch `p3/product/`; script `routeB_check.py`).
+
+- **The defect of the interpolatory weights is their sign structure** `[M]` (`abs_weights.log`). Σ|w_j| / ∫ω is 1.00 for x ≤ 10 and grows toward the endpoint Lebesgue constant Σ|L_j(1)| (4.5 to 7.9 at n = 8 to 20) for x ≥ 100: 3.5 at x = 100, n = 8; 6.6 at x = 1000, n = 20. This is a property of the rule, not of how its weights are computed. It is the cause of the 3e-14 floor and, `[R]`, of T7's componentwise 3.5e-13.
+- **Route B, the Gauss rule of the attenuation weight** (`product3.py`). Per (piece, speed), the m-point Gauss rule of e^{−x(1∓s)}, from Gautschi's modified Chebyshev algorithm and Golub–Welsch: Legendre modified moments for x < m, truncated-Laguerre moments for x ≥ m (`weights_routes.log`, an overlap measured stable). The weights are positive and rescaled to the exact zeroth moment. The source is evaluated at the rule's own nodes, so nothing is interpolated.
+  - Against mpmath `[M]` (`routeB_mp.log`): one level 5.5e-15 converged, 1.8e-14 worst (x = 1000, m = 16); two levels (the triangle, relative to ∫|u||v|) 6.7e-16 converged, 1.9e-15 at m = 24, x = 1000. Route A made stable reads 9.2e-14 on the triangle at n = 24, x = 1000 (`weights_stable_check.log`, which measures route A only).
+  - Constants: within 2 ulp at every x ∈ [0, 1e3] and m ∈ [2, 24] `[M]` (`constants_B.log`). The earlier "5 ulp" was never logged and is withdrawn.
+  - A source vanishing at the wall, x = 1000: 1.8e-14 with the nodes formed through absolute parameters, ≤ 4.4e-16 with the nodes held as offsets from the attenuated end `[M]` (`componentwise.log`, synthetic piece). The offset form needs a production verb, the chord's point-relative orbit coordinate (`RadialImage.orbit_coordinate_at(distance)`). Not yet measured on the test-architect's T7 wall row.
+  - Cost: nodes depend on the speed, so the source is evaluated F·m times per piece instead of n. Shared nodes across speeds are lost.
+- **The moment overflow at K ≥ 48 is fixed** in `moments.py` (the two series summed and rescaled together): ≤ 4.0e-15 at K = 48 and 64 over x ∈ [1e-6, 3000] `[M]` (`moments_highK.log`).
+- **Rejected:** splitting thick pieces at a depth derived from ε. It reintroduces the attenuation mesh that product integration removes, and route B is stable at every x.
+- **The law under route B.** For a positive weight the error is at most 2∫ω·E_{2m−1}(f), with E_k(f) ≤ 2M(ρ′)ρ′^{−k}/(ρ′ − 1). m = ⌈(k + 1)/2⌉ with k the least integer such that min over 1 < ρ′ < ρ_sing of 4M(ρ′)ρ′^{−k}/(ρ′ − 1) ≤ ε. m does not depend on x. ρ_sing is from the piece's branch points; M is a closed-form majorant of max |u| on the ellipse (squared for the triangle); an even panel is entire, m = p + 1 for a row and 2p + 1 for the triangle. Measured / sampled bound / closed form, smallest m at 1e-14 (`routeB_sweeps.log`, `routeB_rows.log`, `predict_sep.log`):
+
+  | | c = 1 | c = 2 | c = 4 |
+  |---|---|---|---|
+  | case 1, p = 2 | 11 / 14 / 16 | 9 / 11 / 12 | 8 / 9 / 10 |
+  | case 2, p = 3 | 12 / 15 / 17 | 10 / 11 / 13 | 7 / 9 / 10 |
+  | case 2 rows, p = 1 | 9 / 12 / 12 | 7 / 9 / 9 | 6 / 7 / 7 |
+  | case 2 rows, p = 5 | 12 / 14 / 16 | 10 / 11 / 12 | 7 / 9 / 10 |
+
+  0 of 11 cells underpredict. The closed form is never below the sampled bound (0 of 15 872 pieces) and costs about 200 flops per piece, once per piece. A sampled contour is not a safe bound (a coarser sampling read below the fine grid on up to 72 pieces). Per-piece m saves 25 to 31 % of nodes against one global m (c = 2: case 1 row 129 against 180, block 93 against 135; case 2 row 56 against 75, block 67 against 91). Not run: p = 5, c = 1, block.
+
+⏸ **The user's ruling on the weights** (route B against a normwise contract or an end-layer cut under route A).
+
+**The user's ruling** (2026-10-13): **route B**, the Gauss rule of the attenuation weight e^{−xt} per (piece, speed), with the nodes held as offsets from the attenuated end through a new chord verb `orbit_coordinate_at(distance)`, and the node count m from the derived law above. The normwise contract and the end-layer cut are not taken; T7's 1e-13 componentwise band stands.
+
+⏸ **Next:** the test-architect re-points the gate spec at route B (T7 under route B with offset nodes, PL1 for the law with its m − 2 red, the kernel gate for `orbit_coordinate_at`, the weight-level orientation row PT1). Then the G.24 dependency table at `.claude/plans/p3_product_integration_dependency_audit.md`, then the W3 carve.
