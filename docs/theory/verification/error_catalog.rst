@@ -10328,12 +10328,15 @@ older entries classify against.
    (:meth:`ImpactPanels.distances
    <orpheus.derivations.continuous.characteristic.lines.ImpactPanels.distances>`,
    the layer term, and
-   :func:`~orpheus.derivations.continuous.characteristic.lines.impact_per_polar`,
-   which grades each polar angle at its own speed; at the defect, the
-   private ``_impact_rule`` of ``assembly.py``; at the fix,
-   ``tangency_distances``, retired in #587). Theory:
+   :meth:`ImpactPanels.lifted_rule
+   <orpheus.derivations.continuous.characteristic.lines.ImpactPanels.lifted_rule>`,
+   which grades the cylinder's one impact rule at the smallest
+   :math:`\sin\theta`; at the defect, the private ``_impact_rule`` of
+   ``assembly.py``; at the fix, ``tangency_distances``, retired in #587;
+   from #587 to the axial lift, ``impact_per_polar``, which graded each
+   polar angle at its own speed). Theory:
    :ref:`characteristic-grading-law`,
-   :ref:`characteristic-iterated-cylinder-rule`.
+   :ref:`characteristic-axial-lift`.
 
    **Failure mode:** none of the six AI modes: a numerical-method defect in
    a **reference**, a feature in one coordinate whose width is set by
@@ -10373,11 +10376,17 @@ older entries classify against.
    round: the interface :math:`1.4 \times 10^{-15}` and
    :math:`2.2 \times 10^{-16}` at 8 and 16 line points, at 2.3 and 2.6 times
    the ungraded rule's cost of the reading there. #587 made the rule
-   iterated (``200b4233``): each polar angle's impact rule is graded at its own
-   :math:`\sin\theta` (:ref:`characteristic-iterated-cylinder-rule`).
+   iterated (``200b4233``): each polar angle's impact rule was graded at its own
+   :math:`\sin\theta`.
    `[M]` 2026-10-08: the ``ABA`` cylinder's block went from 308 480 lines to
    102 320 for the same k to :math:`8.3 \times 10^{-15}`, and qa measured
-   the readings above unchanged within :math:`2 \times 10^{-15}`.
+   the readings above unchanged within :math:`2 \times 10^{-15}`. The axial
+   lift (P3 step 3, 2026-10-11) grades one impact rule at the smallest
+   :math:`\sin\theta` again, read on in-plane lines at every polar node's
+   speed (:ref:`characteristic-axial-lift`); the layer term is unchanged,
+   and per polar node that rule is no worse than the node's own rule times
+   1.5 plus :math:`10^{-14}` on 384 of 384 nodes (`[M]` the test-architect,
+   ``p3/step3/ta/per_polar_probe.log``).
 
    **Caught by:**
    ``tests/gates/derivations/test_characteristic_reading.py::test_a_small_cylinders_layer_is_graded_outside_slow``,
@@ -10396,6 +10405,15 @@ older entries classify against.
    node: 3.0 times the lines on the ABA cylinder); and gate the feature
    where the point's measure weights it, at every radius, not only the
    wall.**
+
+   **The lesson, amended 2026-10-11.** The axial lift returned to the
+   tensor rule graded at the extreme value: once one in-plane chord serves
+   every polar node, the finer impact rule is paid once per in-plane line,
+   not once per 3-D line, and the per-polar rule's distinct impact nodes
+   prevented the sharing. What stands: grade the feature where its width
+   is set, at every radius, and gate it where the point's measure weights
+   it. Whether to iterate is a cost question that depends on whether the
+   inner object can be shared across the outer nodes.
 
 .. error-entry:: ERR-106
    :title: The characteristic reference chorded each line from its stored impact parameter b, known to an ulp, which near a tangency loses the half-chord: a sphere's wall reading under a partial mirror drifted as about 3e-15/(1 − a) at every resolution (6.6e-12 at a = 0.999), and nodes graded below b's resolution made tangent lines the block dropped silently

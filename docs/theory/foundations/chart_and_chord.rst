@@ -141,6 +141,15 @@ Key facts
   parameters, the line integral of a per-region field (exteriors void, the
   shape refused) and the cosine at a surface; the orbit space adds the
   region lengths of an impact parameter (:ref:`chart-and-chord-rays`).
+- **A partition refines at a level and coarsens back.**
+  :meth:`ConcentricPartition.refined_at
+  <orpheus.geometry.chord.ConcentricPartition.refined_at>` puts an orbit
+  coordinate :math:`c` among the breakpoints, so every line through the
+  level crosses it at a slot end, and
+  :meth:`~orpheus.geometry.chord.ConcentricPartition.coarsening` maps each
+  region of a refinement onto the region of the partition it refines,
+  refusing a partition that does not refine it
+  (:ref:`chart-and-chord-refinement`).
 - **Thirteen consumers, one of them production.** `[M]` 2026-10-11, an AST
   pass over the 389 ``.py`` files of ``orpheus/`` (absolute ``import`` and
   ``from`` statements): the modules outside the kernel that import
@@ -1888,7 +1897,9 @@ reference code and 1 is production.
        period's depth and the impact panels' outside depth;
        ``half_chord`` for the impact rule's chords, its span and the
        inverse map :math:`y \mapsto b`, each 0 ulp from the form it
-       replaced
+       replaced; ``refined_at`` and ``coarsening`` for the
+       reading at a point, the panel basis and the traversal rule on a
+       chord through a refinement (:ref:`chart-and-chord-refinement`)
    * - the Peierls reference
        (``orpheus.derivations.continuous.peierls_nystrom.geometry``)
      - ``rays_from`` once per observer for every ray reading, the
@@ -1991,6 +2002,70 @@ answered :math:`k + 1`) was retired in #578. Production still spells
 point location its own way, with both conventions in Monte Carlo (#596)
 and a :math:`10^{-12}` band in the method of characteristics (#595);
 :ref:`chart-and-chord-deferred` has the census.
+
+
+.. _chart-and-chord-refinement:
+
+Refining a partition at a level
+===============================
+
+A consumer that reads a quantity at an orbit coordinate :math:`c` often
+needs :math:`c` to be a breakpoint, so that every line through the level
+crosses it at a slot end and the quantity there is read at a crossing,
+not inside a slot. Two verbs of
+:class:`~orpheus.geometry.chord.ConcentricPartition` serve it, a
+refinement and the map back:
+
+- :meth:`ConcentricPartition.refined_at(c)
+  <orpheus.geometry.chord.ConcentricPartition.refined_at>` is the same
+  partition, on the same chart and pose, with :math:`c` among its
+  breakpoints, and the partition itself (the same object) when :math:`c`
+  already is one. The level must lie on the closed domain
+  :math:`[r_0, r_n]`, so the refinement keeps the ends; outside it the
+  call is refused, *a refinement keeps the ends*.
+- :meth:`ConcentricPartition.coarsening(coarse)
+  <orpheus.geometry.chord.ConcentricPartition.coarsening>` is the region
+  of ``coarse`` holding each region of this partition, ``(n,)``: the map a
+  refinement carries onto what it refines. It is refused unless this
+  partition refines ``coarse``: the same chart, the same two ends, and
+  every breakpoint of ``coarse`` among its own. A region of the
+  refinement lies in exactly one region of ``coarse`` (its breakpoints
+  include the coarse ones), so the map is the coarse region containing
+  each fine region's lower end, ``searchsorted(coarse, fine[:-1],
+  side="right") - 1``, with no tie to break.
+
+`[M]` 2026-10-12 (the archivist's probe on the working tree), the sphere
+:math:`(0, 0.5, 1.5, 2)`: ``refined_at(1.2)`` has the breakpoints
+:math:`(0, 0.5, 1.2, 1.5, 2)` and coarsens onto the sphere as
+:math:`(0, 1, 1, 2)`; ``refined_at(1.5)`` is the sphere itself; 2.5 is
+refused; and the sphere's ``coarsening`` onto its own refinement is
+refused, since the sphere does not refine it. The laws are gated, on the
+three charts, by ``tests/gates/geometry/test_chord_refinement.py``,
+written by the test-architect for P3 step 3: the inserted level with the
+chart, the pose and the ends kept; the refusal outside the ends; the
+coarsening against a hand loop over each fine region's midpoint; and the
+refusal of a partition that is not a refinement.
+
+**Why the kernel holds them.** "The coarse region of each fine region" was
+spelled by hand three times in the characteristic reference (its panel
+basis's region of each panel, its traversal rule's panel of each region,
+and its reading's cross section of each split panel), and its reading
+refined a partition by an inline insertion
+(:ref:`theory-characteristic-reference`). The refinement is a fact about
+the partition, as the locator of :ref:`chart-and-chord-location` is, so
+it is the kernel's: the three spellings read ``coarsening``, and the
+reading's point is inserted by ``refined_at`` (the elegance review's S2,
+2026-10-12). Its consumers, the characteristic reference's reading at a
+point and its traversal rule built on a chord through a refinement, are
+:ref:`characteristic-target-graded-reading`.
+
+A chord through ``refined_at(c)`` crosses the level :math:`c` wherever a
+line reaches it, by the crossing law of the chord
+(:ref:`chart-and-chord-level`): the point read from the level's own
+parameter, ``parameters_at(c, side)``, is then that crossing's parameter
+to the bit. A line tangent to the level (:math:`b = c`) does not cross it
+(:ref:`chart-and-chord-tangency`), and there the point is the line's
+closest approach, which is already a slot end.
 
 
 .. _chart-and-chord-measure:
@@ -3481,3 +3556,12 @@ Development history
        the user's ruling.
      - ``124edf67``
      - #578, #419
+   * - 2026-10-12
+     - ``ConcentricPartition.refined_at`` and ``coarsening``: a partition
+       refined at a level, and the map of its regions onto what it refines
+       (:ref:`chart-and-chord-refinement`), moved into the kernel from the
+       characteristic reference, where "the coarse region of each fine
+       region" was spelled three times (the elegance review's S2, P3 step 3
+       of #405).
+     - *(in development,* branch ``refactor/characteristic-axial-lift``\ *)*
+     - #405

@@ -17,7 +17,7 @@ The characteristic reference — transport along the lines of a concentric body
    .. code-block:: yaml
 
       module: derivations
-      concept: characteristic reference, boundary resolvent, walls, line period, line closure, panel basis, even basis at a singular stratum, traversal integrals, Volterra block, hp grading, Galerkin assembly over lines, line rule, white-wall coupling, region cross sections, emission support, multigroup Galerkin system, emission space, k pencil, source pencil, adjoint flux, one-group Rayleigh-Ritz bound, the door, resolution, projection onto the panel basis, role arrows, response as the transposed problem, eigen gauge, flux integral by pairing, grading law at every impact-panel top, weighted line set, reading at a point, point measure, iterated Galerkin, diffuse walls' currents, angular flux at a point
+      concept: characteristic reference, boundary resolvent, walls, line period, line closure, panel basis, even basis at a singular stratum, traversal integrals, Volterra block, hp grading, Galerkin assembly over lines, line rule, white-wall coupling, region cross sections, emission support, multigroup Galerkin system, emission space, k pencil, source pencil, adjoint flux, one-group Rayleigh-Ritz bound, the door, resolution, projection onto the panel basis, role arrows, response as the transposed problem, eigen gauge, flux integral by pairing, grading law at every impact-panel top, weighted line set, reading at a point, point measure, iterated Galerkin, diffuse walls' currents, angular flux at a point, axial lift, speed along a line, family of speeds, piece sets, target-graded reading, exponential grading derived from the node count, refinement at a level
       role: "the closed reference that integrates transport along the lines of a 1-D concentric body (slab, cylinder, sphere, solid or hollow); this page holds its walls (each boundary point with what its law returns, read from the law's factors), the line part of its boundary resolvent (the period of each line's unfolded path and the least solution of its cycle, with an arriving flux), its panel basis (even at a singular stratum) and the transport along one line on that basis (the traversal integrals, the vacuum Volterra block and the angular flux), and one group's transport block: the Galerkin assembly over the lines of the chart's line domain, the white walls' coupling, and the line rule graded from the group's optical scale; and the multigroup Galerkin system on the emission density (the cross sections per region, each group's exact emission support, the k pencil and the source pencil, the adjoint flux by transposition, the one-group Rayleigh-Ritz bound); and the door, the reference posed from a specification and a resolution (the projection of a mesh-free function onto the panel basis, the role arrows a source and a detector enter by, the response as the forward problem on the transposed cross sections, the eigen gauge, the flux integral as a pairing); and the reading at a point, the transported emission integrated over the line domain's lines through the point under the point's measure, with the diffuse walls folded in through their currents, and the angular flux at a point"
       code: [orpheus.derivations.continuous.characteristic.walls, orpheus.derivations.continuous.characteristic.closure, orpheus.derivations.continuous.characteristic.basis, orpheus.derivations.continuous.characteristic.transport, orpheus.derivations.continuous.characteristic.assembly, orpheus.derivations.continuous.characteristic.lines, orpheus.derivations.continuous.characteristic.reading, orpheus.derivations.continuous.characteristic.grading, orpheus.derivations.continuous.characteristic.cross_sections, orpheus.derivations.continuous.characteristic.system, orpheus.derivations.continuous.characteristic.reference, orpheus.derivations.common.eigenvalue, orpheus.derivations.common.angular_measure]
       depends_on: [chart_and_chord, boundary_conditions, reference_solutions]
@@ -125,13 +125,34 @@ Key facts
   :math:`B_k` and :math:`A_k` (:eq:`characteristic-traversal-integrals`),
   the vacuum Volterra block and the angular flux on a line
   (:ref:`characteristic-transport`).
-- **The pieces are graded twice.** Exponentially toward both ends of each
-  slot, at 1 to 64 mean free paths; and on a cylinder or a sphere by
-  halving toward the complex branch points of the orbit coordinate, which
-  lie :math:`c/|P\Omega|` from a point of orbit coordinate :math:`c`, until
-  each piece is no wider than its distance to them, so that every piece
-  converges at a rate independent of the impact parameter
+- **The pieces are graded twice, toward the ends they are read at.**
+  Exponentially, in three sets: toward each slot's exit (the outflow and
+  the flux at a crossing), toward its entry (the entry response) and
+  toward both ends (the Volterra block), every slot cut at its middle
+  (:ref:`characteristic-pieces`). The grading is derived from the node
+  count :math:`n` of the Gauss–Legendre rule that integrates the pieces:
+  a first piece of :math:`\min(h_n, 1)` mean free paths and a geometric
+  ratio :math:`\rho = 1 + e\,h_n/(2n + 1)`, with :math:`h_n` the widest
+  piece that :math:`n` points integrate :math:`e^{-x}` over to double
+  precision by the Gauss error bound (Abramowitz and Stegun 25.4.30; the
+  user's ruling of 2026-10-12, :ref:`characteristic-derived-grading`).
+  And on a cylinder or a sphere the pieces halve toward the complex branch
+  points of the orbit coordinate, which lie :math:`c/|P\Omega|` from a
+  point of orbit coordinate :math:`c`, until each piece is no wider than
+  its distance to them, so that every piece converges at a rate
+  independent of the impact parameter
   (:ref:`characteristic-branch-grading`).
+- **A point is read at a crossing** (the target-graded reading, the
+  user's ruling of 2026-10-11). The flux at a point is a sum of one-level
+  integrals over the pieces upstream of it, each on its own nodes and
+  graded toward the point, so the point must be a slot end:
+  :meth:`TraversalRule.at
+  <orpheus.derivations.continuous.characteristic.transport.TraversalRule.at>`
+  refuses any other parameter, and a reading chords its lines through the
+  panels refined at the point's level
+  (:meth:`ConcentricPartition.refined_at
+  <orpheus.geometry.chord.ConcentricPartition.refined_at>`,
+  :ref:`characteristic-target-graded-reading`).
 - **One group's transport block is a Galerkin assembly over lines**
   (:eq:`characteristic-galerkin-assembly`):
   :math:`K = \sum_L w_L \bigl(V_L + \sum_k A_k \otimes \mathrm{in}_k\bigr)`
@@ -164,13 +185,22 @@ Key facts
   body's normal optical depth. A fixed resolution passed every closed-body
   gate and missed the closed forms by up to :math:`5 \times 10^{-1}` near
   void and :math:`7.3 \times 10^{-1}` at :math:`\tau = 1000` (ERR-101,
-  ERR-103, :ref:`characteristic-line-rule`). The cylinder's rule over
-  :math:`(b, \theta)` is iterated: each polar angle carries its own impact
-  rule, graded at its own projected speed :math:`\sin\theta`, which on the
-  ``ABA`` cylinder holds 102 320 lines per block against the tensor rule's
-  308 480 at the slowest speed, for the same k to
-  :math:`8.3 \times 10^{-15}` (`[M]` 2026-10-08, #587,
-  :ref:`characteristic-iterated-cylinder-rule`). The cylinder's rule held
+  ERR-103, :ref:`characteristic-line-rule`).
+- **The cylinder's 3-D lines are its in-plane lines read at a family of
+  speeds** (the axial lift, the user's ruling of 2026-10-11). The line at
+  polar angle :math:`\theta` from the axis is the in-plane line
+  :math:`(b, \pi/2)` read at the speed :math:`v = \mathrm ds/\mathrm dt =
+  1/\sin\theta`, so every optical depth is :math:`\Sigma v\,\Delta t` and
+  every length weight :math:`v\,\mathrm dt`
+  (``TraversalRule.speed``,
+  a scalar or one family axis shared by every line). One chord of each
+  in-plane line then carries every polar node, the line closure is reused
+  unchanged, and the one impact rule is graded at the smallest
+  :math:`\sin\theta`, whose layers nest every other node's
+  (:meth:`ImpactPanels.lifted_rule
+  <orpheus.derivations.continuous.characteristic.lines.ImpactPanels.lifted_rule>`,
+  :ref:`characteristic-axial-lift`). It replaced the rule of one impact
+  rule per polar angle (#587), which could not share a chord. The cylinder's rule held
   about :math:`10^6` pieces at :math:`\tau = 30` when its cost was
   measured, and that cost was the inner rule's padding, not the count:
   packing each line's live
@@ -239,9 +269,14 @@ Key facts
   :class:`~orpheus.derivations.continuous.characteristic.lines.Lines`, has
   two roles: ``LineRule`` (the block) and ``PointRule`` (the point), so
   :math:`\int u_i\,\phi\,\mathrm dV = (Kq)_i` (C6); the white walls enter
-  both through one fold of their currents. A point on a cylinder costs
-  seconds, far above the verification spec's target (#591,
-  :ref:`characteristic-reading`).
+  both through one fold of their currents. On the cylinder the point's
+  lines are in-plane lines read at every polar node's speed, and the
+  point is a crossing of each. `[M]` 2026-10-11, the ``ABA`` cylinder's
+  point :math:`r = 1.2` at the coarsest rule that matches the old
+  family's accuracy read in 0.51 s (the minimum of 5 calls, before the
+  grading was derived from the node count), against P3's target of
+  0.122 s: the target is not met, for a structural reason the user
+  accepted (:ref:`characteristic-reading`, "Performance"; #591).
 - **Evidence** `[M]` 2026-10-06 and 2026-10-07: for the walls and the
   closure, 175 gate rows in two files and a 34-arm mutation battery; for
   the basis and the transport, 328 rows in two more files, the traversal
@@ -1660,7 +1695,20 @@ integral). It chords the lines through the basis's panel partition
 (:meth:`ConcentricPartition.chord <orpheus.geometry.chord.ConcentricPartition.chord>`),
 reads their period through the walls re-keyed onto it,
 ``LinePeriod.of(basis.partition.chord(lines), walls.on(basis.partition))``,
-and reads the cross sections onto the panels with ``basis.on_panels``. One
+and reads the cross sections onto the panels with ``basis.on_panels``.
+:meth:`TraversalRule.on_chord
+<orpheus.derivations.continuous.characteristic.transport.TraversalRule.on_chord>`
+does the same from a chord already formed, through the panel partition or
+through a **refinement** of it with the same ends, whose extra breakpoints
+are the levels a flux is read at
+(:ref:`characteristic-target-graded-reading`): each region of the
+refinement maps to the panel it lies in,
+:meth:`ConcentricPartition.coarsening
+<orpheus.geometry.chord.ConcentricPartition.coarsening>`, and a chord
+through a partition that does not refine the panels is refused there.
+Both factories take a ``speed``, the arc length per unit line parameter
+(``TraversalRule.speed``,
+default 1; :ref:`characteristic-axial-lift`). One
 chord then serves the period, the optical depths and every source
 integral: each slot of the chord lies in one panel, its length is the
 kernel's cancellation-free length (:eq:`geometry-chord-segment-lengths`),
@@ -1681,8 +1729,10 @@ and walls re-keyed onto a partition that is not the basis's, and the
 signature ``of(lines, basis, walls, sigma_t, ...)`` makes both
 unspellable through the factory. A directly constructed
 ``TraversalRule`` still checks that its period's chord is through the
-basis's own partition object, that ``sigma`` holds one finite,
-non-negative value per panel and that each rule has at least one point.
+basis's panel partition or a refinement of it (the coarsening is refused
+otherwise), that ``sigma`` holds one finite, non-negative value per
+panel, that each rule has at least one point, and that the speed is
+finite and positive, a scalar or one family axis ``(F,)``.
 It also refuses a traversed slot whose 3-D length overflowed (a line
 within an underflow of parallel to the level sets), a guard tagged
 ``ELEGANCE-DEBT[guard]`` that retires when the kernel's chord refuses or
@@ -1773,59 +1823,376 @@ polynomials in :math:`s`. Two features defeat one Gauss rule on a slot:
 the exponential, which varies over one mean free path, and on a cylinder
 or a sphere the orbit coordinate itself, which is not a polynomial in
 :math:`s`. The rule cuts each slot into **pieces** on which both are
-resolved, and evaluates every integral through one graded body.
+resolved, and evaluates every integral with one integrand
+(:ref:`characteristic-attenuated-integral`).
 
 .. _characteristic-pieces:
 
-The pieces: exponential grading toward both ends of a slot
-----------------------------------------------------------
+The pieces: three sets, each graded toward the ends it is read at
+-----------------------------------------------------------------
 
 A slot of the panel chord is a **member** when a transit traverses it,
-and it belongs to exactly one transit. Each member slot is cut at its
-midpoint, and each half is graded toward its own end of the slot: piece
-ends at the distances :math:`2^{k}/\Sigma`, :math:`k = 0, \dots, 6`
-(1, 2, 4, …, 64 mean free paths), clipped to the half, when the half's
-optical width exceeds 2 (the constant ``_THIN``; both are
-:func:`~orpheus.derivations.continuous.characteristic.grading.exponential_ends`
-since the third rung moved the gradings into one module). A half of optical
-width at most 2 is one piece. So a slot of optical width at most 4 is two
-pieces, its halves, and the rest of a thick half beyond 64 mean free paths
-is one **middle piece**.
-
-`[M]` 2026-10-06, the piece ends in mean free paths from the slot's
-start, on a one-panel slab of width 1 crossed at :math:`\mu = 1`:
+and it belongs to exactly one transit. The rule cuts its member slots into
+pieces three ways, one **piece set** per end a functional reads
+(``_Toward`` and ``_PieceSet`` in the transport module):
 
 .. list-table::
    :header-rows: 1
-   :widths: 14 86
+   :widths: 18 34 48
+
+   * - Set
+     - Graded toward
+     - Read by
+   * - ``EXITS``
+     - each slot's end
+     - the outflow :math:`B_k` of a transit read forward, and the flux at
+       a crossing (:meth:`TraversalRule.at
+       <orpheus.derivations.continuous.characteristic.transport.TraversalRule.at>`)
+   * - ``ENTRIES``
+     - each slot's start
+     - the entry response :math:`A_k`, which is the outflow of the
+       transit read backward
+   * - ``BOTH``
+     - both ends, each half of the slot toward its own
+     - the Volterra block alone, which reads the flux at every node and so
+       meets the layers at both ends (:ref:`characteristic-volterra`)
+
+Each set is a cached property of the rule, built only when a functional
+reads it: a solid body's period reads no traversal backward, and the
+point reading builds the ``EXITS`` set alone. Every slot is cut at its
+middle in every set. A one-sided set is then graded across the whole slot
+toward its end; the ``BOTH`` set grades each half toward its own end.
+
+The exponential ends toward an end are the depths
+
+.. math::
+
+   \delta_k \;=\; \frac{h\,\rho^{k}}{\Sigma\,v_{\max}},
+   \qquad k = 0, \dots, K - 1, \qquad
+   K \;=\; \Bigl\lceil \log_\rho \frac{D\,v_{\max}}{h\,v_{\min}} \Bigr\rceil + 1,
+
+from that end, clipped to the stretch being graded
+(:func:`~orpheus.derivations.continuous.characteristic.grading.exponential_ends`),
+with :math:`\Sigma` the slot's panel cross section, :math:`v_{\max}` and
+:math:`v_{\min}` the fastest and the slowest speed of the rule's family
+(both 1 off the cylinder; :ref:`characteristic-axial-lift`),
+:math:`D = 64` the depth past which an attenuation vanishes in double
+precision (``VANISHING_DEPTH``, :math:`e^{-64} \approx 1.6 \times
+10^{-28}`), and :math:`h` and :math:`\rho` the first depth and the ratio
+derived from the node count of the rule that integrates the pieces
+(:ref:`characteristic-derived-grading`). The first end is the steepest
+attenuation's first piece and the last reaches past 64 mean free paths of
+the gentlest, so every member of the family meets its own geometric
+grading. A stretch whose optical width at the steepest attenuation,
+:math:`\Sigma v_{\max}\ell`, is at most :math:`h` is not cut: the thin
+threshold is the first depth, and it moves with the node count.
+
+`[M]` 2026-10-12 (the archivist's probe, ``archivist_probe.py`` in the
+session scratchpad, on the working tree), the piece ends in mean free
+paths from the slot's start, on a one-panel slab of width 1 crossed at
+:math:`\mu = 1` (speed 1), at 8 points per piece (:math:`h = 1`,
+:math:`\rho = 1.419`), re-read on the working tree after the cap moved to 1:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 30 30 30
 
    * - :math:`\Sigma l`
-     - Piece ends
-   * - 1, 3
-     - 0, :math:`\Sigma l/2`, :math:`\Sigma l`: the halves only
+     - ``EXITS``
+     - ``ENTRIES``
+     - ``BOTH``
+   * - 1
+     - 0, 0.5, 1
+     - 0, 0.5, 1
+     - 0, 0.5, 1
+   * - 3
+     - 0, 0.141, 0.986, 1.5, 1.58, 2, 3
+     - 0, 1, 1.42, 1.5, 2.01, 2.86, 3
+     - 0, 1, 1.42, 1.5, 1.58, 2, 3
    * - 5
-     - 0, 1, 2, 2.5, 3, 4, 5
+     - 0, 0.943, 2.14, 2.5, 2.99, 3.58, 4, 5
+     - 0, 1, 1.42, 2.01, 2.5, 2.86, 4.06, 5
+     - 0, 1, 1.42, 2.01, 2.5, 2.99, 3.58, 4, 5
    * - 30
-     - 0, 1, 2, 4, 8, 15, 22, 26, 28, 29, 30
+     - 0, 6.64, 13.5, 15, 18.4, 21.8, 24.2, 25.9, 27.1, 28, 28.6, 29, 30
+     - 0, 1, 1.42, 2.01, 2.86, 4.06, 5.76, 8.17, 11.6, 15, 16.5, 23.4, 30
+     - 18 pieces: the ``ENTRIES`` ends below 15 and the ``EXITS`` ends
+       above it
    * - 1000
-     - 0, 1, 2, 4, 8, 16, 32, 64, 500, 936, 968, 984, 992, 996, 998, 999,
-       1000: two middle pieces of 436 mean free paths
+     - 15 pieces: 0, 500, 933, 953, …, 998, 999, 1000
+     - the mirror image: 0, 1, 1.42, …, 47.1, 66.8, 500, 1000
+     - 28 pieces: two middle pieces of 433 mean free paths
 
-**Why these numbers.** Inside a slot the cross section is constant, and
-the flux an emission density produces there is a smooth part plus a
-multiple of :math:`e^{-\Sigma s}`, the transient of what entered at the
-slot's start; an integral attenuated to the slot's exit carries the
-weight :math:`e^{-\Sigma(\ell - s)}` toward the other end. So the integrands
-vary on the scale of one mean free path within a few mean free paths of
-either end, and slowly elsewhere. Pieces of one mean free path at each
-end, doubling inward, keep the fast variation on short pieces and the slow
-remainder on wide ones. The doublings stop at 64 mean free paths because
-the transient there is :math:`e^{-64} \approx 1.6 \times 10^{-28}` of its
-starting value, far below double precision. Both ends are graded because
-the transient and the exit weight sit at opposite ends. The Volterra
-block's outer rule integrates on these pieces; the integrals attenuated to
-a piece's end are the graded body of :ref:`characteristic-attenuated-integral`,
-which does not rely on the piece being narrow.
+At 4 points per piece the first depth is 0.194 and the ratio 1.059, and
+the same slots hold 31, 50, 59, 91 and 105 pieces in the ``EXITS`` set
+(the probe above): a coarse rule pays in pieces for its accuracy.
+
+**Why toward the ends they are read at.** Inside a slot the cross section
+is constant. The flux an emission density produces there is a smooth part
+plus a multiple of :math:`e^{-\Sigma v s}`, the transient of what entered
+at the slot's start, and an integral attenuated to the slot's exit carries
+the weight :math:`e^{-\Sigma v(\ell - s)}` toward the other end. A
+quantity read at an end therefore lives in the last few mean free paths
+before it, on the scale of one mean free path, and the pieces graded
+toward that end resolve it at the rate the Gauss bound sets
+(:ref:`characteristic-derived-grading`). What lies farther than 64 mean
+free paths from the end reaches it attenuated below double precision, so
+a wide piece there costs nothing at the end, however coarsely it is
+integrated. That is why a set graded toward one end is integrated on each
+piece's own nodes, one level (:ref:`characteristic-attenuated-integral`),
+and why it is read only at the ends it is graded toward: the flux at a
+point inside a slot is read through the ``BOTH`` set's two-level rule in
+the block, and a point reading is moved onto a crossing
+(:ref:`characteristic-target-graded-reading`).
+
+**Why every slot is cut at its middle.** `[M]` 2026-10-11 (the main agent,
+``scratch/characteristic_architecture/p3/step3/impl/exits_accuracy.py``,
+a three-region cylinder's outflow at 8 points against 24, under the dyadic
+grading of the time): grading the whole slot toward its exit with no
+middle cut left a slot thinner than the first depth as one piece, 7.9e-11
+off on a 3-D line; grading only the half nearer the exit left the far
+half one piece, 1.2e-13 off on the in-plane line at speeds 1 to 100. Under
+the derived grading the middle cut still matters at low point counts:
+`[M]` 2026-10-12 (the test-architect's
+``scratch/characteristic_architecture/p3/step3/ta/e/middle_probe2.log``,
+the outflow and the entry response of the transport gates' solid cylinder
+against ``MpLine``, its cross sections scaled by 0.01, at :math:`b = 0.3`,
+the worst of four lines), without the cut 8.1e-10 at 4 points and
+1.2e-13 at 6, with it 3.1e-12 and 0; at 8 points the two cannot be told
+apart on any of the four lines. `[R]` The mechanism is the basis function's factor, a polynomial
+in the orbit coordinate that is not a polynomial in arc length on a
+radial line: one Gauss rule over a whole thin slot resolves it less well
+than two.
+
+.. _characteristic-derived-grading:
+
+The exponential grading, derived from the node count
+----------------------------------------------------
+
+Every exponential grading whose Gauss nodes lie in the exponent's own
+variable reads its first depth and its ratio from the node count of the
+rule that integrates its pieces,
+:meth:`ExponentialGrading.of(n)
+<orpheus.derivations.continuous.characteristic.grading.ExponentialGrading.of>`:
+the three piece sets at ``points``, the block's inner rule at
+``inner_points`` (:ref:`characteristic-attenuated-integral`): the gradings
+along a line. The user ruled it on 2026-10-12: the error of a graded
+integral along a line is set by the node count, so the grading is derived
+from it.
+
+**The derivation.** The :math:`n`-point Gauss–Legendre rule on an interval
+of width :math:`h` errs on a function :math:`f` by
+:math:`c_n h^{2n+1} f^{(2n)}(\xi)` for some :math:`\xi` inside, with
+
+.. math::
+   :label: characteristic-exponential-grading
+
+   c_n \;=\; \frac{(n!)^4}{(2n + 1)\,\bigl((2n)!\bigr)^3},
+   \qquad
+   h_n \;=\; \Bigl(\frac{\epsilon}{c_n}\Bigr)^{1/(2n+1)},
+   \qquad
+   h \;=\; \min(h_n,\ 1),
+   \qquad
+   \rho \;=\; 1 + \frac{e\,h_n}{2n + 1},
+
+with :math:`c_n` the Gauss–Legendre error constant of
+:cite:`AbramowitzStegun1964` (25.4.30, the interval :math:`[a, b]` of width
+:math:`h = b - a`) and :math:`\epsilon` the double-precision machine
+epsilon. On a piece
+:math:`[d, d + w]` mean free paths from the attenuated end the integrand
+is :math:`e^{-x}`, whose every derivative is at most :math:`e^{-d}` there,
+so the piece's error relative to the attenuation's whole weight
+:math:`\int_0^\infty e^{-x}\,\mathrm dx = 1` is at most
+:math:`c_n w^{2n+1} e^{-d}`.
+
+- **The first piece**, :math:`d = 0`: its error is at most
+  :math:`\epsilon` when :math:`w \le h_n`, which is the definition of
+  :math:`h_n`.
+- **The geometric pieces**, :math:`[d, \rho d]`: the bound
+  :math:`c_n\,\bigl(d(\rho - 1)\bigr)^{2n+1} e^{-d}` grows with
+  :math:`d` while :math:`(2n + 1)\ln d - d` does, so it is largest at
+  :math:`d = 2n + 1`. Setting it there to :math:`\epsilon`,
+  :math:`c_n\,\bigl((2n + 1)(\rho - 1)/e\bigr)^{2n+1} = \epsilon`, gives
+  :math:`(2n + 1)(\rho - 1)/e = h_n`, the ratio above. Every geometric
+  piece is then within :math:`\epsilon` of its integral, and the ones
+  nearer or farther than :math:`2n + 1` mean free paths by a margin.
+- **The cap of 1** is measured, not derived. The Gauss bound sees
+  :math:`e^{-x}` alone, but the integrand on a piece is a basis
+  polynomial times it, and the first piece carries the attenuation's
+  whole weight. `[M]` 2026-10-12 (the test-architect,
+  ``scratch/characteristic_architecture/p3/step3/ta/e/``), the per-polar
+  rows P1 at 8 points read :math:`2.5 \times 10^{-13}` at the wall and
+  :math:`1.2 \times 10^{-13}` at an interface with the first piece capped
+  at 2, against their :math:`10^{-13}` band, and within it capped at 1,
+  the dyadic law's first depth (the user's ruling of the same day). A
+  second reason stands against wider first pieces: the nodes' own
+  rounding, which the bound does not see either. On a piece of width
+  :math:`w` a node rounded by one ulp of its position moves
+  :math:`e^{-x}` by about :math:`w\,\epsilon` relative; `[M]` 2026-10-12
+  (the main agent, ``ratio/law.log``), with the first piece uncapped,
+  :math:`h_n` is 7.9, 15.0 and 32.6 mean free paths at 12, 16 and 24
+  points and the integral misses by :math:`9.3 \times 10^{-16}`,
+  :math:`1.1 \times 10^{-15}` and :math:`8.9 \times 10^{-15}`, 4 to 40
+  :math:`\epsilon`.
+
+`[M]` 2026-10-12 (``ratio/law_cap1.log``, re-read through
+``ExponentialGrading.of`` by the archivist's probe on the working tree),
+the integral of :math:`e^{-x}` over :math:`[0, 64]` read at 0, summed in
+double precision against mpmath, beside the two fixed laws it replaced
+(first depth 1, ratio 2 in 7 pieces and ratio :math:`\sqrt 2` in 13):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 8 12 12 12 16 20 20
+
+   * - :math:`n`
+     - :math:`h`
+     - :math:`\rho`
+     - Pieces
+     - Error
+     - Ratio 2
+     - Ratio :math:`\sqrt 2`
+   * - 2
+     - 0.0039
+     - 1.0021
+     - 4522
+     - :math:`1.2 \times 10^{-13}`
+     - :math:`1.4 \times 10^{-3}`
+     - :math:`2.2 \times 10^{-4}`
+   * - 4
+     - 0.194
+     - 1.059
+     - 103
+     - :math:`2.7 \times 10^{-15}`
+     - :math:`1.1 \times 10^{-6}`
+     - :math:`5.0 \times 10^{-9}`
+   * - 6
+     - 1
+     - 1.212
+     - 23
+     - :math:`1.1 \times 10^{-16}`
+     - :math:`9.7 \times 10^{-10}`
+     - :math:`2.6 \times 10^{-13}`
+   * - 8
+     - 1
+     - 1.419
+     - 13
+     - 0
+     - :math:`7.4 \times 10^{-13}`
+     - :math:`2.2 \times 10^{-16}`
+   * - 12
+     - 1
+     - 1.856
+     - 8
+     - 0
+     - 0
+     - :math:`1.1 \times 10^{-16}`
+   * - 16
+     - 1
+     - 2.238
+     - 7
+     - 0
+     - 0
+     - :math:`1.1 \times 10^{-16}`
+
+No fixed ratio holds at every node count: ratio 2 is exact from 12
+points and misses by :math:`10^{-6}` at 4; :math:`\sqrt 2` misses by
+:math:`5 \times 10^{-9}` at 4. Below about 5 points what remains under the
+derived law is the rounding summed over its many pieces
+(:math:`1.2 \times 10^{-13}` at 2 points, 4522 pieces). The derived law
+costs pieces where the rule is coarse: a resolution of 4 points per piece
+pays 103 pieces for each graded end of a thick slot.
+
+.. implements:: characteristic-exponential-grading
+   :by: orpheus.derivations.continuous.characteristic.grading.ExponentialGrading.of
+
+   **Implemented by** ``ExponentialGrading.of``, read by
+   ``exponential_ends`` for the three piece sets and the block's inner
+   rule.
+
+.. implements:: characteristic-exponential-grading
+   :by: orpheus.derivations.continuous.characteristic.grading.exponential_ends
+
+**Where it does not apply: the rules over lines.** The impact rule's
+rim grading in the chord half-length :math:`y`, and the direction rules'
+grading of the slab's cosine :math:`\mu` and the cylinder's polar angle
+:math:`\theta` toward the normal, use the dyadic grading, ends at
+:math:`2^k` mean free paths, first depth 1 and ratio 2
+(:data:`~orpheus.derivations.continuous.characteristic.grading.DYADIC`,
+:ref:`characteristic-line-rule`). Two reasons, one per rule. The line
+quadrature is the reference's convergence parameter: its point count is
+the rung of a convergence ladder, so a coarse rung must stay coarse, and
+a grading derived from that count would make the coarse rungs the most
+expensive (the user's ruling of 2026-10-12, after the measurement below).
+And the direction rules' nodes are in :math:`\mu` or :math:`\theta`,
+where the exponent :math:`\tau/v` is not linear in the variable, so the
+bound above on :math:`e^{-x}` does not describe their integrand.
+
+`[M]` 2026-10-12 (the archivist's ``archivist_probe_impact.py`` in the
+session scratchpad), the measurement that led to the ruling: the impact
+rule on the panels :math:`(0, 0.5, 1.5, 2)` of cross sections
+:math:`(0.6, 1.3, 0.45)`, with no tangency grading, held 15 066 nodes at
+2 points, 1518 at 3, 368 at 4 and 104 at 8 while its rim was graded by the
+derived law (at 2 points the first depth is 0.0039 mean free paths and the
+ratio 1.0021), against 26, 39, 52 and 104 on the tree before the carve
+(``4ebfa7a4``). Under ``DYADIC`` it holds 28, 42, 56 and 112: the dyadic
+grading's thin threshold is its first depth, 1, where the retired one was
+2, so a rim between one and two mean free paths is now cut.
+
+.. dropdown:: First got wrong: a fixed law at every node count
+   :color: muted
+
+   Until 2026-10-12 every exponential grading was dyadic: ends at
+   :math:`2^k` mean free paths, :math:`k = 0, \dots, 6`, that is first
+   depth 1 and ratio 2 to 64 mean free paths (the retired constant
+   ``_DOUBLINGS``), with a stretch of optical width at most 2 left uncut
+   (the retired ``_THIN``). On the cylinder's polar family the axial lift
+   (:ref:`characteristic-axial-lift`) graded from the slowest node's first
+   mean free path to 64 of the fastest node's; the test-architect measured
+   that stopping at 7 doublings of the slowest instead missed every
+   closed-form reading, by :math:`7.8 \times 10^{-9}` to
+   :math:`2.7 \times 10^{-3}` (`[M]` 2026-10-11,
+   ``scratch/characteristic_architecture/p3/step3/ta/reach_probe.log``).
+
+   When the target-graded reading made the point values one-level
+   integrals on each piece's own nodes, the fast tier found the per-polar
+   rows off by up to :math:`9.8 \times 10^{-13}` against a band of
+   :math:`10^{-13}`: over :math:`[0, 64]` at 8 points ratio 2 misses by
+   :math:`7.4 \times 10^{-13}` (7 pieces) and ratio :math:`\sqrt 2` by
+   :math:`2.2 \times 10^{-16}` (13 pieces). The one-level sets moved to
+   ratio :math:`\sqrt 2` (the retired ``ONE_LEVEL_RATIO``) and the block's
+   two-level inner rule kept ratio 2, on the claim that its inner rule
+   grades each piece. The elegance review measured that claim false at
+   low counts: a piece's integral to its end at :math:`\Sigma = 30`,
+   speeds 1 and 100, against 24 inner points, missed by
+   :math:`1.0 \times 10^{-6}` at 4 inner points,
+   :math:`5.8 \times 10^{-13}` at 8 and :math:`3.3 \times 10^{-15}` at 12
+   (`[M]` 2026-10-12,
+   ``scratch/characteristic_architecture/p3/step3/elegance/probe_shape.py``).
+
+   The two rulings, in order. On 2026-10-12, accepting the reading's cost,
+   the user ruled the grading law **resolution-independent**: production
+   resolves every attenuation to double precision at any resolution, and
+   coupling the grading to the resolution was rejected. Later the same day,
+   after the measurement above, the user ruled the ratio **derived from
+   the integrating rule's node count**, which supersedes the first ruling
+   on this one point: a fixed ratio's error is the node count's, so no
+   constant is resolution-independent in accuracy. One constant
+   :math:`\sqrt 2` everywhere was rejected (its 4-point error stays
+   :math:`5 \times 10^{-9}`), and so was keeping 2 and :math:`\sqrt 2` with
+   corrected docstrings. The law above still resolves every attenuation
+   at every resolution, to a few :math:`\epsilon` from 4 points up (the
+   table); what moved is that the first depth and the ratio are functions
+   of :math:`n`, not constants.
+
+   Two more rulings followed the same day. The derived law first graded
+   the impact rule's rim too, and its first piece was capped at 2 mean
+   free paths by the rounding argument alone. The rim went back to
+   ``DYADIC`` when its node count at 2 points rose from 26 to 15 066 (the
+   line quadrature is the convergence parameter, "Where it does not
+   apply" above), and the cap went to 1 when the per-polar rows missed
+   their band at a cap of 2 ("The cap of 1" above). At the cap of 2 the
+   table read 11, 7 and 6 pieces at 8, 12 and 16 points.
 
 .. _characteristic-branch-grading:
 
@@ -2029,39 +2396,63 @@ count.
 
 .. _characteristic-attenuated-integral:
 
-One attenuated integral
------------------------
+One integrand, two levels
+-------------------------
 
-Every quantity of the rule is built from one body,
-``TraversalRule._attenuated``: the functions of a slot's panel integrated
-between two distances :math:`a` and :math:`z` along the slot, attenuated
-to the second,
+Every attenuated integral along a line has one integrand,
+``_attenuated_length`` in the transport module: a node of weight
+:math:`w` in the line parameter, at speed :math:`v`
+(:ref:`characteristic-axial-lift`), attenuated over the parameter
+distance :math:`d` at cross section :math:`\Sigma`, contributes
+:math:`v\,w\,e^{-\Sigma v d}`, its arc-length element :math:`v\,w` times
+the attenuation. The functions of a slot's panel integrated between two
+distances :math:`a` and :math:`z` along the slot, attenuated to the
+second, are
 
 .. math::
 
-   I_m(a \to z) \;=\; \int_{[a, z]} u_m\bigl(c(s)\bigr)\,
-   e^{-\Sigma\,|z - s|}\,\mathrm{d}s ,
+   I_m(a \to z) \;=\; \int_{[a, z]} u_m\bigl(c(t)\bigr)\,
+   e^{-\Sigma v\,|z - t|}\,v\,\mathrm{d}t ,
 
-on a rule graded exponentially toward :math:`z` (the same cut at
-:math:`2^{k}` mean free paths, applied to the whole interval, with
-``inner_points`` Gauss–Legendre points per interval). It has three uses:
+per member of the family of speeds. The rule evaluates them at two
+levels, chosen by where the integral is read:
 
-- a piece's integral attenuated to its **end**,
-  :math:`I(s_{\rm lo} \to s_{\rm hi})`, which the outflow and the carried
-  flux are made of;
-- a piece's integral attenuated to its **start**,
-  :math:`I(s_{\rm hi} \to s_{\rm lo})`, which the entry response is made of;
-- the integral from a piece's start to a point inside it,
-  :math:`I(s_{\rm lo} \to s)`, which the Volterra block (at the piece's
-  nodes) and the angular flux (at any point) need.
+- **One level**, on each piece's own ``points`` Gauss–Legendre nodes
+  (``_PieceSet.to_end`` and ``_PieceSet.to_start``): a piece's integral
+  attenuated to its end, :math:`I^{(1)}(t_{\rm lo} \to t_{\rm hi})`, on
+  the ``EXITS`` set, and to its start, :math:`I^{(1)}(t_{\rm hi} \to
+  t_{\rm lo})`, on the ``ENTRIES`` set. These are read only at the slot
+  ends the set is graded toward: the outflow, the entry response and the
+  flux at a crossing (:ref:`characteristic-pieces`). A piece far from
+  that end is wide and integrated coarsely, and it reaches the end
+  attenuated below double precision.
+- **Two levels**, on an inner rule graded exponentially toward the
+  integral's stop at ``inner_points`` Gauss–Legendre points per interval
+  (``TraversalRule._attenuated``, with the grading of
+  :ref:`characteristic-derived-grading` at ``inner_points``): the
+  integrals the Volterra block reads where no piece end is graded toward.
+  These are each ``BOTH`` piece's integral attenuated to its end,
+  :math:`I(t_{\rm lo} \to t_{\rm hi})`, which the block's scan carries
+  (``TraversalRule._to_end``), and the integral from a piece's start to
+  one of its nodes, :math:`I(t_{\rm lo} \to t_q)`.
 
-**Why graded inside a piece.** A piece is graded toward the ends of its
-slot, not toward its own ends, and a middle piece of a thick slot is
-hundreds of mean free paths wide. Its integral attenuated to its own end
-lives in its last mean free path, and that integral is carried at full
-weight to the flux just past the piece, so an ungraded rule on the
-piece's own nodes misses it at order one. Grading each use toward the end
-it is attenuated to resolves every case with one body.
+`[M]` 2026-10-11 (the main agent,
+``scratch/characteristic_architecture/p3/step3/impl/one_level_probe.py``,
+the outflow at 8 points on the pieces graded toward both ends against the
+two-level rule at 24, under the dyadic grading of the time): on the
+three-region, thin and thick cylinders at one speed the one-level outflow
+equals the two-level one (:math:`5.7 \times 10^{-15}`,
+:math:`1.5 \times 10^{-14}`, :math:`2.4 \times 10^{-15}`).
+
+**Why two levels inside the block.** The ``BOTH`` set grades a slot
+toward its two ends, not toward its pieces' own ends, and a middle piece
+of a thick slot is hundreds of mean free paths wide. Its integral
+attenuated to its own end lives in its last mean free path, and the scan
+carries that integral at full weight to the flux just past the piece, so
+a one-level integral on the piece's own nodes misses it at order one.
+The inner rule grades each such integral toward the end it is attenuated
+to. Only the inner rule's live intervals are evaluated, each line's
+packed first (:ref:`characteristic-cylinder-cost`).
 
 .. dropdown:: First got wrong: the piece integrals on the piece's own nodes
    :color: muted
@@ -2081,45 +2472,55 @@ it is attenuated to resolves every case with one body.
    at 200 mean free paths :math:`9.0 \times 10^{-11}` and
    :math:`1.6 \times 10^{-12}`; at 100 and fewer, nothing above
    :math:`3 \times 10^{-14}`. The main agent made every carried quantity one
-   graded body (recorded as ERR-100).
+   graded body (recorded as ERR-100). The measurements in this box were
+   taken under the dyadic grading, before the piece sets
+   (:ref:`characteristic-pieces`). Since the target-graded reading
+   (2026-10-11) the one-level integrals are back, but only where they are
+   read at the end their set is graded toward, which is the case the
+   defect never touched; the flux just past a middle piece is still the
+   two-level rule's.
 
 Along a transit: the outflow, the entry response and the carried flux
 ---------------------------------------------------------------------
 
 The pieces of a transit, in chord order, have optical depths
-:math:`\tau_J = \Sigma_J (s_{J,\rm hi} - s_{J,\rm lo})`. Write
-:math:`\tau^{\uparrow}_J` for the depth of the transit's pieces before
-:math:`J` and :math:`\tau^{\downarrow}_J` for the depth of those after it.
-Both are exclusive cumulative sums of non-negative terms, so no
-difference of depths is ever formed. Read forward, the transit's two
-integrals are
+:math:`\tau_J = \Sigma_J v\,(t_{J,\rm hi} - t_{J,\rm lo})` per member of
+the family. Write :math:`\tau^{\uparrow}_J` for the depth of the
+transit's pieces before :math:`J` and :math:`\tau^{\downarrow}_J` for the
+depth of those after it. Both are exclusive cumulative sums of
+non-negative terms, so no difference of depths is ever formed. Read
+forward, the transit's two integrals are
 
 .. math::
 
-   B[u] \;=\; \sum_J e^{-\tau^{\downarrow}_J}\, I(s_{J,\rm lo} \to s_{J,\rm hi}),
+   B[u] \;=\; \sum_{J \in \texttt{EXITS}} e^{-\tau^{\downarrow}_J}\,
+   I^{(1)}(t_{J,\rm lo} \to t_{J,\rm hi}),
    \qquad
-   A[u] \;=\; \sum_J e^{-\tau^{\uparrow}_J}\, I(s_{J,\rm hi} \to s_{J,\rm lo}),
+   A[u] \;=\; \sum_{J \in \texttt{ENTRIES}} e^{-\tau^{\uparrow}_J}\,
+   I^{(1)}(t_{J,\rm hi} \to t_{J,\rm lo}),
 
-each piece's vector scattered into the columns of its panel's functions
-(:meth:`PanelBasis.columns
-<orpheus.derivations.continuous.characteristic.basis.PanelBasis.columns>`).
-A traversal of the period reads its transit forward or reversed, and
-reversing swaps the two, which is how ``outflow`` and ``entry_response``
-select their rows.
+each on its own piece set, and each piece's vector summed onto the
+columns of its panel's functions by a 0-or-1 indicator of the piece's
+panel, as one batched product (``_PieceSet.on_columns``). A traversal of
+the period reads its transit forward or reversed, and reversing swaps the
+two, which is how ``outflow`` and ``entry_response`` select their rows;
+each side is formed only where the period reads a transit that way.
 
 What a transit's earlier pieces carry into the start of piece :math:`J`
-is the vector
+of the ``BOTH`` set is the vector
 
 .. math::
 
-   C_{J+1} \;=\; e^{-\tau_J}\, C_J + I(s_{J,\rm lo} \to s_{J,\rm hi}),
+   C_{J+1} \;=\; e^{-\tau_J}\, C_J + I(t_{J,\rm lo} \to t_{J,\rm hi}),
    \qquad C_{\rm first} = 0,
 
-a scan over the pieces in chord order, one per transit. The scan is a
-Python loop, and it is essential: the closed form
+with the two-level integral, a scan over the pieces in chord order, one
+per transit and per member of the family (``TraversalRule._carried``).
+The scan is a Python loop, and it is essential: the closed form
 :math:`e^{-\tau^{\uparrow}_J}\sum_{J' < J} e^{+\tau^{\uparrow}_{J'+1}} I_{J'}`
 overflows on a thick transit and cancels, while the recurrence multiplies
-only by transmissions at most 1.
+only by transmissions at most 1. The block reads it; a point reading does
+not (:ref:`characteristic-angular-flux`).
 
 .. _characteristic-volterra:
 
@@ -2157,9 +2558,28 @@ the piece's own integral up to the node:
 
 and :math:`V` gains :math:`w_L \sum_q W_q\,u_i(s_q)\,\psi_j(s_q)` with the
 piece's ``points``-point Gauss–Legendre weights :math:`W_q`. The outer rule
-integrates the product :math:`u_i \psi_j`, smooth on a piece because the
-pieces are graded where :math:`\psi` has its layers; the inner integral is
-the graded one.
+integrates the product :math:`u_i \psi_j` on the ``BOTH`` set's pieces,
+smooth on a piece because those pieces are graded where :math:`\psi` has
+its layers at both ends of a slot; the inner integral is the two-level
+one (:ref:`characteristic-attenuated-integral`).
+
+**Over a family of speeds** the arc length is :math:`s = v t`, so the
+block in the line parameter reads
+
+.. math::
+
+   V_{ij} \;=\; \sum_{L} \sum_{f} w_{fL} \sum_{\text{transits of } L}
+   \int u_i\bigl(c(t)\bigr)\,\psi_{f,j}(t)\,v_f\,\mathrm{d}t ,
+
+with :math:`w_{fL}` the weight of line :math:`L` at member :math:`f`
+(``line_weight`` broadcast to ``(F, L)``) and :math:`\psi_{f,j}` the flux
+formed at the member's own speed :math:`v_f`, both in its attenuation and
+in its length element. The pieces, the nodes and the basis values are
+the same for every member; the weighted members are summed before the
+contraction with the test functions, as batched matrix products, so the
+family costs exponentials and no second set of nodes. On the cylinder's
+lifted lines this sum over the polar nodes is the polar integral of the
+3-D lines' blocks (:ref:`characteristic-axial-lift`).
 
 Only the line's transits read forward enter: a line's flux lives on its
 own transits in its own direction, and the reversed traversals of its
@@ -2190,22 +2610,44 @@ The angular flux on a line
 :meth:`TraversalRule.angular_flux
 <orpheus.derivations.continuous.characteristic.transport.TraversalRule.angular_flux>`
 reads the flux of every basis function at parameters :math:`t` on the
-lines, ``(..., q, N)``, given the inflow at each traversal's entry
-``(..., 2, N)`` that :meth:`LinePeriod.inflow
+lines, ``(*family, ..., q, N)``, given the inflow at each traversal's
+entry ``(*family, ..., 2, N)`` that :meth:`LinePeriod.inflow
 <orpheus.derivations.continuous.characteristic.closure.LinePeriod.inflow>`
-returns from the optical depths and the outflows. For a point at the
-distance :math:`d` from the start of its slot, in piece :math:`J` of a
-transit,
+returns from the optical depths and the outflows. It is
+:meth:`TraversalRule.at
+<orpheus.derivations.continuous.characteristic.transport.TraversalRule.at>`
+followed by the inflow: ``at`` returns a
+:class:`~orpheus.derivations.continuous.characteristic.transport.LineReading`,
+the traversal each point lies on, the transmission
+:math:`e^{-\tau_{\rm in}}` from that traversal's entry, and the vacuum
+term per basis function, so a caller can pair the inflow with any set of
+sources while the vacuum term stays on the basis (the reading at a point
+pairs it with the stacked sources, :ref:`characteristic-reading`).
+
+**A point is a crossing.** Each point :math:`t` must be a slot end on a
+transit of its line: a slot's start, or a transit's exit. There, on the
+``EXITS`` set, every piece upstream of the point is graded toward the end
+of its own slot, and the point is that end or lies downstream of it. The
+flux is
 
 .. math::
 
-   \psi(t) \;=\; e^{-(\tau^{\uparrow}_J + \Sigma_J (d - s_{J,\rm lo}))}\,
-   \psi^{\rm in}_{k_f}
-   \;+\; e^{-\Sigma_J (d - s_{J,\rm lo})}\,C_J
-   \;+\; I(s_{J,\rm lo} \to d),
+   \psi(t) \;=\; e^{-\tau_{\rm in}(t)}\,\psi^{\rm in}_{k_f}
+   \;+\; \sum_{J\ \text{upstream of}\ t}
+   e^{-\tau(t_{J,\rm hi} \to t)}\;
+   I^{(1)}(t_{J,\rm lo} \to t_{J,\rm hi}),
 
-the inflow attenuated from the transit's entry, what the transit's
-earlier pieces carry in, and the piece's own integral up to the point.
+the inflow attenuated from the transit's entry plus each upstream piece's
+one-level integral to its end (:ref:`characteristic-attenuated-integral`),
+carried to the point. The depth from each piece's end to the point is
+summed from the point upstream, a reversed cumulative sum of
+non-negative terms, so no difference of depths is formed, and
+:math:`\tau_{\rm in}(t)` is the same sum taken to the transit's first
+piece. There is no scan over the basis: the point reading costs one
+transmission and one gather per upstream piece. The place of a point on
+its line is the same for every member of the family; only the
+transmissions depend on the speed.
+
 :math:`k_f` is the traversal that reads the point's transit forward,
 :meth:`LinePeriod.forward_traversal
 <orpheus.derivations.continuous.characteristic.closure.LinePeriod.forward_traversal>`:
@@ -2217,23 +2659,179 @@ shell's second transit is reached forward. ``forward_traversal`` raises
 and a chord that disagree can produce.
 
 The point's piece is the number of live piece starts at or before
-:math:`t`, minus one. A point that is not on a transit of its line (before
-its first piece, in a cavity, beyond a wall) is refused with
-``ValueError``. The exit test compares :math:`t` with the parameter of the
-slot's closing crossing, the kernel's own spelling of the wall, and the
-distance is clipped to the slot's length (:ref:`characteristic-gotchas`,
-the exit wall). The same function, the same
-pieces and the same attenuated integral serve this reading and the
-Volterra block, so the reading of a flux and the assembly share one rule.
+:math:`t`, minus one. A point that is not a crossing on a transit of its
+line (inside a slot, before its first piece, in a cavity, beyond a wall)
+is refused with ``ValueError``, *a point at which the flux is read is a
+crossing on a transit of its line: chord the lines through the panels
+refined at its level*. ``at`` compares :math:`t` with the parameters of
+the chord's own crossings: a slot's start where the point's piece starts
+its slot, and the parameter of the slot's closing crossing for an exit,
+the kernel's own spelling of the wall, never the slot's start plus its
+length (:ref:`characteristic-gotchas`, the exit wall).
 
 The gates compare :math:`\psi` with mpmath at five fractions of each
-transit with no inflow; at each transit's exit crossing, where with no
-inflow it is the outflow; and with the closure, on mirrors and polished
-walls of amplitudes 0.3 and 0.6, with the explicit backward march wall by
-wall that the closure's own gate uses
+transit with no inflow, each point read on its line chorded through the
+panels refined at the point's level, and check that the same parameter on
+the unrefined chord is refused (as the transport file stood on
+2026-10-12; the test-architect is re-posing it for P3 step 3); at each
+transit's exit crossing, where with no inflow it is the outflow; and with
+the closure, on mirrors and polished walls of amplitudes 0.3 and 0.6, with
+the explicit backward march wall by wall that the closure's own gate uses
 (``test_the_closed_angular_flux_is_the_unfolded_backward_path``). With
 every amplitude 0 the inflow is exactly 0 and :math:`\psi` equals the
 no-inflow flux bitwise (``test_vacuum_walls_add_nothing_on_a_line``).
+
+.. _characteristic-target-graded-reading:
+
+The target-graded reading: why a point is read at a crossing
+------------------------------------------------------------
+
+The flux at a point needs its upstream integrals resolved where they are
+read, at the point. The block's two-level rule resolves the flux at any
+node by grading an inner rule toward it, and carries every basis
+function along the line by the scan; a point reading needs the flux at a
+few targets only (the point on each side, and the exit), and the scan's
+:math:`N` carried vectors per piece are its largest cost. The user ruled
+on 2026-10-11, after the measurement below, that the reading integrate
+straight to each target on pieces graded toward it, with no scan, and
+that the block keep its two-level path.
+
+**Moving the target onto a grading.** A target is resolved by the pieces
+graded toward it, and the ``EXITS`` set grades toward slot ends only. So
+the reading makes its target a slot end: it chords its lines through the
+panels **refined at the point's level**,
+:meth:`ConcentricPartition.refined_at(c)
+<orpheus.geometry.chord.ConcentricPartition.refined_at>`, the same
+partition with the orbit coordinate :math:`c` among its breakpoints, so
+that each line through the point crosses the level :math:`c` there, on
+each side of its closest approach
+(:ref:`chart-and-chord-refinement`). Each region of the refinement keeps
+the cross section of the panel it splits
+(:meth:`~orpheus.geometry.chord.ConcentricPartition.coarsening`), and the
+walls re-key onto it by their one law,
+:func:`~orpheus.derivations.continuous.characteristic.walls.end_on`
+(``Walls.on`` and ``DiffuseWalls.on``): a wall is an end of the domain,
+so breakpoint 0 stays 0 and the body's last breakpoint becomes the
+refinement's last. The point rule's lines
+(:class:`~orpheus.derivations.continuous.characteristic.reading.PointRule`)
+and the angular flux's rays
+(:func:`~orpheus.derivations.continuous.characteristic.reading.angular_flux`)
+are both chorded through it.
+
+**Why one level suffices at a crossing.** At the point :math:`t`, a
+piece :math:`J` upstream of it on the ``EXITS`` set either lies within
+:math:`D = 64` mean free paths of its slot's end, where the set grades
+it geometrically toward that end and its one-level integral is within
+the Gauss bound of :ref:`characteristic-derived-grading`, or lies
+farther, where its integral reaches the slot's end attenuated by
+:math:`e^{-64}` or more and then reaches the point attenuated further.
+Either way its error at the point is below double precision relative to
+the integral's weight. A point inside a slot would have no such
+guarantee: the pieces just upstream of it are graded toward the slot's
+end, not toward the point, and a wide piece ending at the point would be
+read at order one, as ERR-100's flux past a middle piece was
+(:ref:`characteristic-attenuated-integral`). Refusing such a point at
+``at`` makes that misreading unspellable.
+
+**The three piece sets are the reading's design.** The outflow is read
+at each exit, the entry response at each entry, and a crossing is an
+exit of the slot before it, so the reading builds only the ``EXITS``
+and, where the period reads a transit backward, the ``ENTRIES`` sets
+(:ref:`characteristic-pieces`). A rule's batch is sized from the ``EXITS``
+set (:attr:`TraversalRule.piece_counts
+<orpheus.derivations.continuous.characteristic.transport.TraversalRule.piece_counts>`,
+:attr:`~orpheus.derivations.continuous.characteristic.transport.TraversalRule.extent`),
+which every consumer builds, so sizing a point reading's chunks builds no
+``BOTH`` set.
+
+**The evidence.** `[M]` 2026-10-11 (the main agent,
+``scratch/characteristic_architecture/p3/step3/impl/exits_accuracy.py``,
+under the dyadic grading of the time), a three-region cylinder's outflow
+at 8 points against 24: the in-plane family at :math:`6.6 \times
+10^{-15}` or better and the single 3-D line at :math:`4.3 \times
+10^{-13}`. `[M]` 2026-10-12 (the main agent,
+``scratch/characteristic_architecture/p3/step3/fix/outflow_accuracy_cap1.log``),
+the same cylinder :math:`(0, 0.5, 1.5, 2)`, :math:`\Sigma = (0.6, 1.3,
+0.45)`, under a partial mirror of amplitude 0.6, three lines
+:math:`b = 0.3, 0.7, 1.6`, under the derived grading, the outflow's largest
+error over the lines relative to its largest entry, against 24 points:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 16 21 21 21 21
+
+   * - Points
+     - :math:`\theta = \pi/2`
+     - :math:`\theta = 0.644`
+     - :math:`\theta = 0.1`
+     - :math:`\theta = 0.01`
+   * - 4, in-plane family
+     - :math:`8.0 \times 10^{-15}`
+     - :math:`1.7 \times 10^{-15}`
+     - :math:`8.2 \times 10^{-15}`
+     - :math:`7.4 \times 10^{-13}`
+   * - 4, the 3-D line
+     - :math:`6.6 \times 10^{-8}`
+     - :math:`2.6 \times 10^{-8}`
+     - :math:`1.0 \times 10^{-10}`
+     - :math:`7.4 \times 10^{-13}`
+   * - 8, in-plane family
+     - :math:`3.5 \times 10^{-16}`
+     - :math:`4.4 \times 10^{-16}`
+     - :math:`3.2 \times 10^{-15}`
+     - :math:`8.9 \times 10^{-15}`
+   * - 8, the 3-D line
+     - :math:`5.5 \times 10^{-13}`
+     - :math:`1.7 \times 10^{-14}`
+     - :math:`1.2 \times 10^{-14}`
+     - :math:`1.9 \times 10^{-14}`
+   * - 12, in-plane family
+     - :math:`4.5 \times 10^{-16}`
+     - :math:`6.7 \times 10^{-16}`
+     - :math:`6.3 \times 10^{-15}`
+     - :math:`1.6 \times 10^{-14}`
+   * - 12, the 3-D line
+     - :math:`8.0 \times 10^{-16}`
+     - :math:`1.1 \times 10^{-15}`
+     - :math:`1.0 \times 10^{-14}`
+     - :math:`2.0 \times 10^{-14}`
+   * - 16, in-plane family
+     - :math:`4.0 \times 10^{-16}`
+     - :math:`5.1 \times 10^{-16}`
+     - :math:`2.8 \times 10^{-15}`
+     - :math:`4.2 \times 10^{-15}`
+   * - 16, the 3-D line
+     - :math:`1.3 \times 10^{-15}`
+     - :math:`1.2 \times 10^{-15}`
+     - :math:`8.6 \times 10^{-15}`
+     - :math:`2.2 \times 10^{-14}`
+
+The in-plane family reads every polar angle on one chord of the line
+:math:`(b, \pi/2)`; the 3-D line is chorded at its own :math:`\theta`. At
+4 points the 3-D line's residual is the curvature of its orbit
+coordinate near the closest approach, which the hp grading resolves at
+a rate in the point count, not the exponential (the main agent's
+reading of the same log).
+
+.. dropdown:: First got wrong: the point read by the block's two-level path, and two gradings toward the exit
+   :color: muted
+
+   Before the ruling the point reading used the block's path: every
+   piece's two-level integral to its end and the scan carrying every basis
+   function. `[M]` 2026-10-11 (the main agent,
+   ``scratch/characteristic_architecture/p3/step3/impl/reading_profile.py``),
+   in the lifted reading's profile the attenuated integral took 1.24 s of
+   2.75 s and the basis-wide scan 0.62 s.
+
+   Two gradings toward the exit were tried before every slot was cut at
+   its middle, each refuted by a measurement (:ref:`characteristic-pieces`,
+   "Why every slot is cut at its middle"): the whole slot graded toward its
+   exit alone, :math:`7.9 \times 10^{-11}` on a 3-D line, and only the half
+   nearer the exit, :math:`1.2 \times 10^{-13}` on the in-plane family.
+
+   A one-level read at ratio 2 then left the per-polar gate off by up to
+   :math:`9.8 \times 10^{-13}` against its band of :math:`10^{-13}`, which
+   led to the derived grading (:ref:`characteristic-derived-grading`).
 
 .. _characteristic-galerkin-assembly-section:
 
@@ -2899,12 +3497,24 @@ by every caller:
   and so do the grazing halvings below, at :math:`\rho = 1/2`.
 - **exponential**,
   :func:`~orpheus.derivations.continuous.characteristic.grading.exponential_ends`:
-  ends at :math:`2^k` mean free paths, :math:`k = 0, \dots, 6`, toward where
-  an attenuation concentrates, until it vanishes:
-  ``VANISHING_DEPTH`` :math:`= 2^6 = 64`, past which :math:`e^{-64}` is
-  below double precision; an interval of optical width at most 2 is not
-  cut. The traversal rule's pieces (:ref:`characteristic-pieces`) and the
-  rim and normal-direction gradings below use it.
+  ends at :math:`h\rho^k` mean free paths toward where an attenuation
+  concentrates, over a family of attenuations at once (from the steepest
+  member's first piece to past 64 mean free paths of the gentlest), until
+  it vanishes: ``VANISHING_DEPTH`` :math:`= 64`, past which
+  :math:`e^{-64}` is below double precision. The first depth :math:`h` and
+  the ratio :math:`\rho` are an
+  :class:`~orpheus.derivations.continuous.characteristic.grading.ExponentialGrading`,
+  derived from the node count of the rule that integrates the pieces
+  (:ref:`characteristic-derived-grading`); an interval no wider than
+  :math:`h` at the steepest attenuation is not cut. The traversal rule's
+  piece sets (:ref:`characteristic-pieces`) and the block's inner rule,
+  the gradings along a line, read the derived grading; the rim and
+  normal-direction gradings below, the rules over lines, read the dyadic
+  one,
+  :data:`~orpheus.derivations.continuous.characteristic.grading.DYADIC`
+  (first depth 1, ratio 2), because the line quadrature is the reference's
+  convergence parameter (:ref:`characteristic-derived-grading`, "Where it
+  does not apply").
 - **hp**,
   :func:`~orpheus.derivations.continuous.characteristic.grading.halvings`:
   :math:`\lceil\log_2(w/d)\rceil` halvings of a piece of width :math:`w`
@@ -2967,7 +3577,11 @@ interval and concentrations on it, and :math:`y` is graded toward each
   (:ref:`characteristic-even-basis`).
 - **The rim**, exponentially toward :math:`y = 0`, at :math:`2^j` mean
   free paths of the thickest panel the line crosses (those from
-  :math:`r_k` outward). The length the line travels inside the circle
+  :math:`r_k` outward), by the dyadic grading
+  (:data:`~orpheus.derivations.continuous.characteristic.grading.DYADIC`):
+  the line rule's point count is the reference's convergence parameter,
+  so its grading does not grow as the count falls
+  (:ref:`characteristic-derived-grading`). The length the line travels inside the circle
   :math:`r_{k+1}` is :math:`2y`, so its optical length there grows from 0
   like :math:`\Sigma y`, and on an optically thick panel the integrand
   changes on the scale of one mean free path in :math:`y` near
@@ -3081,11 +3695,14 @@ The law takes the nearest:
 with:
 
 - :math:`s` the projected speed of the lines the impact rule is built for:
-  1 on the sphere, and on the cylinder each polar node's own
-  :math:`\sin\theta_j`, one impact rule per polar node (the iterated rule,
-  :ref:`characteristic-iterated-cylinder-rule`). The layer's and the
-  pole's distances are affine in :math:`s`, so each line is graded to the
-  features it carries and to no slower line's;
+  1 on the sphere, and on the cylinder the smallest polar node's
+  :math:`\sin\theta_{\min}`, one impact rule for every polar node
+  (:meth:`ImpactPanels.lifted_rule
+  <orpheus.derivations.continuous.characteristic.lines.ImpactPanels.lifted_rule>`,
+  :ref:`characteristic-axial-lift`). The layer's and the pole's distances
+  are affine in :math:`s` with a non-negative slope, so the smallest
+  :math:`s` gives the shortest distances, and its halvings, from the same
+  span, contain every larger :math:`s`'s;
 - the :math:`-\ln a` term present only for :math:`0 < a < 1`: a wall with
   no specular return has no pole, and at :math:`a = 1` the closure is
   regular (its source integral vanishes with :math:`1 - \Pi`);
@@ -3150,12 +3767,12 @@ both rows of the small cylinder (the archivist's re-drop, 2026-10-08,
 
 **The cylinder's cost.** The law's cost on the cylinder is set by its
 slowest lines: a polar node at :math:`\sin\theta_j` grades each panel top
-to :math:`\sin\theta_j/(2\Sigma_k)`, so the impact rule of a near-grazing
-polar node holds several times the nodes of a fast one (240 to 1928
-impact nodes per polar node on the ``ABA`` cylinder's first group). Each
-polar node pays only for its own speed
-(:ref:`characteristic-iterated-cylinder-rule`, the measured line counts
-and times).
+to :math:`\sin\theta_j/(2\Sigma_k)`, so an impact rule graded for a
+near-grazing polar node holds several times the nodes of one graded for a
+fast node (`[M]` 2026-10-09, 240 to 1928 impact nodes on the ``ABA``
+cylinder's first group). The lifted rule grades every panel top at the
+slowest node and pays for it once per in-plane line, which every polar
+node then reads (:ref:`characteristic-axial-lift`).
 
 .. dropdown:: First got wrong: the rim law alone, and what the floor hid
    :color: muted
@@ -3213,219 +3830,439 @@ and times).
    grading law lands in 5b"), and its catalogue entries are ERR-104 (the
    pole) and ERR-105 (the layer).
 
-.. _characteristic-iterated-cylinder-rule:
+.. _characteristic-axial-lift:
 
-Each polar angle at its own speed: the cylinder's iterated rule (#587)
-----------------------------------------------------------------------
+The cylinder's axial lift: one in-plane line for every polar angle
+------------------------------------------------------------------
 
 The cylinder's lines are the box :math:`(b, \theta) \in [0, R] \times
 [0, \pi/2]` of the line domain (:eq:`geometry-line-domain`), with the
 density :math:`8\pi\sin^2\theta` of
 :meth:`LineDomain.density <orpheus.geometry.chart.LineDomain.density>`.
 Both roles integrate a functional of the line over it: the line rule's
-block and the point rule's row. The rule over the box is **iterated**,
-not a tensor product:
+block and the point rule's row. The rule over the box is the tensor
+product of one impact rule and the polar rule,
 
 .. math::
 
    \int_0^{\pi/2}\!\mathrm d\theta \int_0^R\!\mathrm db\; f(b, \theta)
-   \;\approx\; \sum_{j} w^\theta_j \sum_{i} w^b_{ij}\, f(b_{ij}, \theta_j),
+   \;\approx\; \sum_{j} w^\theta_j \sum_{i} w^b_{i}\, f(b_{i}, \theta_j),
 
-where :math:`(\theta_j, w^\theta_j)` is the polar rule
+with :math:`(\theta_j, w^\theta_j)` the polar rule
 (:func:`~orpheus.derivations.continuous.characteristic.lines.polar_rule`,
 graded toward grazing and toward the normal over the whole body,
-:ref:`characteristic-line-rule`) and :math:`(b_{ij}, w^b_{ij})` is the
-impact rule built for the lines of polar angle :math:`\theta_j` alone,
-graded by the grading law at that line's own projected speed
-:math:`s_j = \sin\theta_j`.
-:func:`~orpheus.derivations.continuous.characteristic.lines.impact_per_polar`
-builds it from a function of the speed (``ImpactPanels.rule`` at the
-group's panels) and the polar rule, and returns the plain
-:math:`\mathrm db\,\mathrm d\theta` weights :math:`w^\theta_j w^b_{ij}`;
-each role multiplies its own density afterwards, the line rule
+:ref:`characteristic-line-rule`) and :math:`(b_i, w^b_i)` the impact rule
+graded at the smallest polar node's projected speed
+(:meth:`ImpactPanels.lifted_rule
+<orpheus.derivations.continuous.characteristic.lines.ImpactPanels.lifted_rule>`).
+The weights are ``(V, L)``, one per polar node and impact node, the outer
+product times each role's own density: the line rule's
 :math:`8\pi\sin^2\theta/4\pi`
-(:class:`~orpheus.derivations.continuous.characteristic.assembly.LineRule`)
-and the point rule its direction measure through the point
+(:class:`~orpheus.derivations.continuous.characteristic.assembly.LineRule`),
+the point rule's direction measure through the point
 (:class:`~orpheus.derivations.continuous.characteristic.reading.PointRule`).
-A tensor product is the special case :math:`b_{ij} = b_i` for every
-:math:`j`.
+The functional :math:`f(b_i, \theta_j)` is never formed on a 3-D line: it
+is read on the in-plane line :math:`(b_i, \pi/2)` at a speed.
 
-**Why each line's own speed is the grading speed.** A line at polar angle
-:math:`\theta` from the axis advances :math:`\sin\theta` in the plane per
-unit of its own length, so an in-plane length :math:`\ell` in a region of
-cross section :math:`\Sigma` is an optical depth
-:math:`\Sigma\ell/\sin\theta` along it. The two features of the grading
-law that depend on the line are therefore those of that line's speed
-:math:`s = \sin\theta`:
+**The lift identity.** Parametrise a line of the cylinder by its length
+:math:`t` projected onto the plane normal to the axis. A line at polar
+angle :math:`\theta` from the axis advances :math:`\sin\theta` in that
+plane per unit of its own arc length :math:`s`, so
 
-- the turning slot, of in-plane length :math:`2y`, transmits
-  :math:`e^{-2\Sigma_k y/s}`, a layer of width :math:`s/(2\Sigma_k)` in
-  :math:`y`;
-- the cycle product :math:`\Pi = a\,e^{-(\tau_{\rm out} + 2\Sigma_k y)/s}`
-  makes the closure's pole a distance
-  :math:`(s(-\ln a) + \tau_{\rm out})/(2\Sigma_k)` from the interval
-  (:ref:`characteristic-grading-law`).
+.. math::
+   :label: characteristic-axial-lift
 
-Both distances are affine in :math:`s` with a non-negative slope, and the
-third feature, the next radius's branch point, does not depend on
-:math:`s`. At a fixed :math:`\theta_j` the integrand
-:math:`b \mapsto f(b, \theta_j)` carries the features of the speed
-:math:`s_j` only, so the impact rule graded at :math:`s_j` resolves it
-exactly as the law requires. A rule graded at a slower speed
-:math:`s_{\min} < s_j` subdivides the stretch nearer the tangency than
-:math:`d_k(s_j)` at scales finer than this line's integrand varies on, and
-buys no accuracy; a rule graded at a faster one misses the line's layer and
-pole. The hp grading adds a piece per halving of the distance, so the
-slower speed costs about :math:`\log_2(s_j/s_{\min})` pieces per graded
-panel top (`[R]`; measured: 30 pieces at :math:`s = 1` and 241 at the
-slowest polar node, :math:`\sin\theta = 4.85 \times 10^{-6}`, on the
-first group of the ``ABA`` cylinder below, 240 and 1928 impact nodes of
-8 points per piece).
+   v \;=\; \frac{\mathrm ds}{\mathrm dt} \;=\; \frac{1}{\sin\theta},
+   \qquad
+   \tau^{(\theta)}(t_1, t_2) \;=\; v\,\tau^{(\pi/2)}(t_1, t_2),
+   \qquad
+   I^{(\theta)}_m(a \to z) \;=\; \int_{[a, z]} u_m\bigl(c(t)\bigr)\,
+   e^{-\Sigma v |z - t|}\,v\,\mathrm dt .
 
-A tensor product cannot follow the speed: its impact nodes are shared by
-every polar node, so they must resolve the narrowest layer and the
-nearest pole of any polar node it holds, those of the slowest. The
-iterated rule is the quadrature of the iterated integral
-:math:`\int\mathrm d\theta\,\int\mathrm db` (Fubini: the integrand is integrable on the box),
-the one whose inner rule may depend on the outer node. Its error is the
-polar rule's error on :math:`g(\theta) = \int_0^R f(b, \theta)\,\mathrm db`
-plus :math:`\sum_j w^\theta_j E_j`, with :math:`E_j` the impact rule's
-error at :math:`\theta_j`, and each :math:`E_j` is controlled by the
-grading law at :math:`s_j`. The sphere (:math:`s = 1` for every line) and
-the slab (no impact parameter) are unchanged.
+The body is invariant along the axis, so on the 3-D line
+:math:`(b, \theta)` and on the in-plane line :math:`(b, \pi/2)` the orbit
+coordinate :math:`c(t)`, the panel crossed, the cross section and every
+basis function are the same functions of :math:`t`: the two lines have
+the same projection onto the plane, the orbit space of the cylinder's
+axial translations. Only the arc length per unit :math:`t` differs. Every
+optical depth along the 3-D line is :math:`\Sigma v\,\Delta t` and every
+length weight :math:`v\,\mathrm dt`, which is the one integrand of
+:ref:`characteristic-attenuated-integral` at speed :math:`v`. The line's
+period (its walls, partners and rank, :ref:`characteristic-period`) is
+read from the walls its projection meets, so it is the in-plane line's;
+:attr:`TraversalRule.optical_depth
+<orpheus.derivations.continuous.characteristic.transport.TraversalRule.optical_depth>`
+is the speed times the period's depth, and the closure
+:eq:`characteristic-closure` at those depths and the outflows at speed
+:math:`v` is the 3-D line's closure
+:math:`a\,B/(1 - a\,e^{-vT})`, through
+:meth:`LinePeriod.inflow
+<orpheus.derivations.continuous.characteristic.closure.LinePeriod.inflow>`
+unchanged. On every lifted line :math:`v \ge 1`; a line parallel to the
+axis (:math:`\theta = 0`) has no in-plane length and no transit, and the
+polar rule has no node there.
 
-**The evidence.** `[M]` 2026-10-08, the main agent
-(``scratch/characteristic_architecture/p1_step_c/aba_cyl_cost.py``,
-``cost_5a.log``, ``cost_head.log``, ``iterated.log``): the ``ABA``
-cylinder (``aba_specification(CYLINDRICAL)``) at resolution
-``Resolution(3, 2, 0.4, TransportResolution(8, 12, 12), 8)``, the k solve,
-one run each (no repeat protocol), lines per block of the first group:
+**The speed is one field of the traversal rule.**
+``TraversalRule.speed``
+is a scalar, every line read at it, or one family axis ``(F,)``, every
+line read at each member, and every functional of the rule leads with
+the family's axis, ``(F, *batch, ...)``. A speed per line is refused: a
+family ``(V, 1)`` and a per-line field ``(V,)`` on :math:`V` lines are
+told apart by their shape alone, so a dropped ``[:, None]`` was admitted
+whenever the number of speeds equalled the chunk's line count (the
+elegance review's blocker B1, 2026-10-12). The speed enters at the
+optical depths and at the length weights and nowhere else: the pieces,
+the nodes, the basis values and the period are built once per in-plane
+line, and only the exponentials and the weights are evaluated per
+member. :class:`~orpheus.derivations.continuous.characteristic.lines.Lines`
+carries the speeds, ``(V,)``, beside its in-plane coordinates ``(L, 2)``
+and its weights ``(V, L)``;
+:func:`~orpheus.derivations.continuous.characteristic.lines.axial_lift`
+maps the impact nodes and the polar rule to the in-plane lines, the
+speeds :math:`1/\sin\theta_j` and the coordinates of the 3-D lines they
+stand for, ``(V, L, 2)``, at which the line domain's density is read. The
+sphere and the slab are read at speed 1 alone.
 
-.. list-table::
-   :header-rows: 1
-   :widths: 40 16 14 30
+**Grading over the family.** Along a line, each slot is graded from the
+family's steepest attenuation to its gentlest
+(:ref:`characteristic-pieces`): the first end is the fastest member's
+first piece, :math:`h\sin\theta_{\min}/\Sigma` in the in-plane length,
+and the last reaches past 64 mean free paths of the slowest,
+:math:`64\sin\theta_{\max}/\Sigma`, so every polar node meets its own
+geometric grading on the shared pieces. Across the lines, the impact
+rule is graded at the smallest projected speed :math:`\sin\theta_{\min}`,
+the largest speed. The grading law's layer and pole distances
+(:ref:`characteristic-grading-law`) are affine in the projected speed
+with a non-negative slope, so the slowest node's distances are the
+shortest, and halving from the same span toward a shorter distance adds
+ends to a longer one's: the slowest node's impact rule contains every
+other node's ends. The polar rule is the body's, the same at every
+impact parameter.
 
-   * - Line rule
-     - Lines per block
-     - Wall time
-     - k
-   * - the fifth rung's first half, no grading law at the panel tops
-       (``fe977a90``)
-     - 38 400
-     - 384 s
-     - 1.231729452890078
-   * - the tensor rule, every polar angle at the slowest speed
-       (``11b263a5``)
-     - 308 480
-     - 2296 s
-     - 1.231729452890264
-   * - the iterated rule, each polar angle at its own speed
-     - 102 320
-     - 1275 s
-     - 1.231729452890254
+**What stays on the 3-D chord.** The angular flux at a point reads each
+direction on its own ray, chorded in three dimensions at speed 1, as the
+"reading and block" scope ruled
+(:ref:`characteristic-reading`, "The angular flux at a point"). The
+transport gates on single 3-D cylinder lines against the mpmath line
+``MpLine`` keep covering ``TraversalRule`` at speed 1, and the 3-D chord
+read against the in-plane chord at a speed is an independent check of
+the identity above: the kernel forms the 3-D chord from the line's own
+direction and shares no line of the lift.
 
-The iterated rule's k is the tensor rule's to :math:`8.3 \times 10^{-15}`
-relative, and the line count is a third of it (the second group: 106 784
-against 297 920). Its 1275 s was taken by an in-memory probe of the same
-rule (``iterated_probe.py``). `[M]` 2026-10-09, the archivist's re-count
-through the shipped ``ImpactPanels``
-(``p1_step_c/archivist_587_counts.py`` and its log, no solve): 102 320 and 106 784 lines, 160
-and 152 polar nodes, 240 impact nodes per polar node at :math:`s = 1` to
-1928 at the slowest; the tensor rule's count is :math:`1928 \times 160 =
-308\,480` and :math:`1960 \times 152 = 297\,920`. The k of the first row
-differs from the other two by :math:`1.5` and :math:`1.4 \times 10^{-13}`
-relative: it lacks the grading law, not the iteration.
+**The evidence.** `[M]` 2026-10-11 (the main agent,
+``scratch/characteristic_architecture/p3/step3/impl/lift_identity.py``):
+on single lines, the in-plane line at speed :math:`1/\sin\theta` against
+the 3-D line at speed 1 agree to :math:`4.3 \times 10^{-13}` relative in
+the optical depth, the outflow and the entry response, and to
+:math:`2.5 \times 10^{-11}` in the Volterra block, for :math:`\sin\theta`
+from 1 to 0.01. The outflow under the derived grading, per polar angle,
+is the table of :ref:`characteristic-target-graded-reading`: the in-plane
+family to :math:`7.4 \times 10^{-13}` at 4 points and
+:math:`1.6 \times 10^{-14}` or better at 8, 12 and 16, and the 3-D
+line to :math:`5.5 \times 10^{-13}` at 8 and :math:`2.2 \times 10^{-14}` at 16.
+`[M]` 2026-10-11 (the test-architect,
+``scratch/characteristic_architecture/p3/step3/ta/per_polar_probe.log``,
+three bodies, 128 polar nodes each): per polar node, the impact rule
+graded at the slowest node is no worse than the node's own rule times
+1.5 plus :math:`10^{-14}`, on 384 of 384 nodes. `[M]` 2026-10-11 (the main
+agent, before the target-graded reading): the cylinder block on the
+three-region body :math:`(0, 0.5, 1.5, 2)` at 4 points sums to within
+:math:`1.3 \times 10^{-9}` of the per-polar rule's; its largest entry
+difference, 6 % on one diagonal entry, is the per-polar rule's own error
+at 4 points, since that entry moves from 0.014650 at 4 points to 0.013807
+at 8 under the per-polar rule and reads 0.013755 at 4 under the lift. The
+sphere's and the slab's values were bit-identical through the lift
+itself (every reading row and boundary response on 5 bodies, every
+Volterra block within :math:`2.9 \times 10^{-16}` of its largest entry, a
+reordered sum); they move with the piece sets and the derived grading,
+which the test-architect re-baselines under the three-condition
+acceptance (the gate S1).
 
-`[M]` 2026-10-08, qa (``p1_step_c/qa.md``): no accuracy is lost.
-The three-region vacuum cylinder read at :math:`x = 1.5`, the small
-cylinder :math:`(0, 0.5, 1)` at its interface and its wall, the white
-cylinder's :math:`T_w` and :math:`P_{\rm esc}` at :math:`\tau = 0.5`,
-0.01 and :math:`10^{-4}`, and the hollow cylinder's conservation agree
-with the tensor rule's within :math:`2 \times 10^{-15}` on every row.
-The measure is exact: the weights
-over the density sum to :math:`R\pi/2`, and each polar node's impact
-weights to :math:`R`, within :math:`3.3 \times 10^{-15}` on 16 cylinder
-block rules. With every angle forced to the slowest speed, the iterated
-assembler reproduces the tensor rule's readings to all 17 printed digits.
-Under in-process mutations of the speed, against Bickley's
-:math:`\mathrm{Ki}_2` route:
+The gates are ``tests/gates/derivations/test_characteristic_lift.py``,
+written to the test-architect's specification
+(``scratch/characteristic_architecture/p3/step3/gate_spec.md``): the
+identity per polar column against ``MpLine`` (the outflow, the entry
+response, the flux at a crossing, the closed flux under a partial mirror
+and the folded Volterra form), the polar column as a pure broadcast axis,
+the identity on the rule itself, the along-line grading written by hand,
+and the readings against frozen mpmath values on the wall under a partial
+mirror. The test-architect is re-posing that file for the derived grading
+as this page is written; its row list is the file's.
 
-.. list-table::
-   :header-rows: 1
-   :widths: 46 27 27
+**The cost.** `[M]` 2026-10-11 (the main agent,
+``scratch/characteristic_architecture/p3/step3/impl/profile_block*.log``),
+the three-region cylinder's block under a partial mirror of amplitude 0.6
+at 4 points: 73.6 s under the per-polar rule; 218 s on the first lifted
+version; 53.7 s after the block folded the family before the basis
+contraction, as batched matrix products, and the packing's scatter became
+a segmented ``reduceat``. Those times precede the derived grading, which
+at 4 points cuts many more pieces (:ref:`characteristic-derived-grading`);
+the block's cost under it is being measured
+(``scratch/characteristic_architecture/p3/step3/fix/ladder_derived.log``),
+and the slow files are re-timed by the §8 protocol in P3 step 3f. The
+point reading's cost is :ref:`characteristic-reading`, "Performance".
 
-   * - Mutation
-     - three-region cylinder, :math:`x = 1.5`
-     - small cylinder, interface
-   * - the layer term removed (ERR-105's arm)
-     - :math:`1.01 \times 10^{-6}`
-     - :math:`7.97 \times 10^{-8}`
-   * - every angle graded at speed 1
-     - :math:`1.27 \times 10^{-7}`
-     - :math:`7.97 \times 10^{-8}`
-   * - :math:`\cos\theta` in place of :math:`\sin\theta`
-     - :math:`1.27 \times 10^{-7}`
-     - :math:`7.97 \times 10^{-8}`
-   * - every angle graded at the slowest speed
-     - unchanged
-     - unchanged
+**Designs the lift rejected.** Each was measured or reasoned at the
+ruling (the plan's step 3, 2026-10-11):
 
-Each angle's own speed is load-bearing: grading faster than it misses the
-layer, and grading slower costs lines and changes no value. The sphere's
-and the slab's rules are bit-identical to the tensor rule's tree, 86 of 86
-rules (the test-architect, ``p1_step_c/ta/bitid.log``: 10 sphere and 4 slab
-line rules, 56 sphere and 16 slab point rules), and 176 of 176 arrays in
-qa's own comparison.
+- **A separate lifted-line class**, beside ``TraversalRule``: it would
+  re-spell the closure, the pieces and the attenuated integral for one
+  geometry, a twin path, and the closure is where the prototype's error
+  lived. The prototype spelled the specular closure
+  :math:`a\,B/(1 - e^{-vT})`, exact at :math:`a = 0` and :math:`a = 1`
+  only (ERR-035's shape): `[M]` 2026-10-11 (the test-architect,
+  ``ta/floor_probe2.py``, ``floor_probe3.py``), a homogeneous cylinder's
+  wall reading was off by :math:`1.1 \times 10^{-2}` at :math:`a = 0.9` and
+  :math:`2.0 \times 10^{-2}` at :math:`a = 0.5`, unmoved from 8 to 16
+  points. The carve reads the closure through ``LinePeriod.inflow`` and
+  never re-spells it.
+- **The polar integral in closed form**, the Bickley–Naylor function: the
+  reading's polar sum is :math:`\sum_j w^\theta_j \sin\theta_j\,v_j
+  e^{-v_j x} \to \int_0^{\pi/2} e^{-x/\sin\theta}\,\mathrm d\theta =
+  \mathrm{Ki}_1(x)` :cite:`Bickley`, accurate (`[M]` the
+  numerics-investigator, :math:`8 \times 10^{-11}` at 16 points) but 4 to
+  6 times slower, and under a specular closure it needs the Neumann series
+  :math:`\sum_m a^m\,\mathrm{Ki}_1(x + mT)`, which diverges as the cycle
+  product tends to 1, the regime the pole grading guards. The polar
+  integral stays a numerical rule broadcast over the shared chord; the
+  series is a test reference only.
+- **One impact rule per polar angle**, the rule this section replaced
+  (#587): each polar node's impact nodes differ, so each 3-D line is
+  chorded alone and no chord is shared. `[M]` 2026-10-11 (the main agent,
+  ``impl/reading_census.py``), per group the lifted reading of the
+  ``ABA`` cylinder's point carries 126 in-plane lines times 38 speeds,
+  4788 line-speed pairs, against 2280 3-D lines under the per-polar rule:
+  the slowest node's impact rule is the finer one, and the lift wins by
+  chording 126 lines instead of 2280.
+- **A speed per line**, the shape ambiguity above.
 
-**The gates.**
-``test_each_polar_angle_carries_the_impact_rule_graded_at_its_own_speed``
-(``tests/gates/derivations/test_characteristic_assembly.py``, vacuum and
-:math:`a = 0.9`) and
-``test_each_polar_angle_through_a_point_carries_the_impact_rule_graded_at_its_own_speed``
-(``tests/gates/derivations/test_characteristic_reading.py``, the wall, the
-interface and the wall under :math:`a = 0.9`) assert, ``array_equal``,
-that the lines at each polar node are the impact rule graded by the
-grading law written by hand in the test at that node's
-:math:`\sin\theta`, with their levels. `[M]` 2026-10-08, the
-test-architect (``p1_step_c/ta/README.md``): on ``11b263a5`` 127 of 128
-polar nodes differ from their own-speed rule on all five rows, and 0 of
-128 on the iterated rule. Of the 16 rows of its battery, the arm that
-grades every angle at the slowest speed reddens these five and no value
-row, so they are its only catchers: a slower grading is invisible to a
-value gate by design (the paragraph above).
+The slab has the same structure, its line at cosine :math:`\mu` being
+its normal line at speed :math:`1/|\mu|`, and is not lifted: its rule
+reads every cosine on its own line at speed 1.
 
-**Where the remaining lines are.** `[M]` 2026-10-09, the archivist's
-re-count: on the first group 51 of 160 polar nodes have
-:math:`\sin\theta < 0.01` and carry 57 536 of the 102 320 lines (the
-second group: 43 of 152 nodes, 52 872 of 106 784 lines). They are there
-because the polar rule grades toward grazing down to
-:math:`\tau_{\min}/64` of the whole body (:ref:`characteristic-line-rule`,
-the direction rules), at every impact parameter, whereas a line of short
-chord near the rim would not need it. Grading :math:`\theta` per impact
-panel was the other half of #587; it is not built, and on this body it
-would not cut them, because every line crosses the thin outer-wall panel
-that sets the grazing grading (`[M]` 2026-10-09,
-:ref:`characteristic-what-is-not-built`).
-
-.. dropdown:: First got wrong: every polar angle graded at the slowest
+.. dropdown:: First got wrong: one impact rule per polar angle (#587), the rule the lift replaced
    :color: muted
 
-   When the grading law landed with the fifth rung's second half
-   (``b76b9a9d``), the cylinder's rule was the tensor product of one
-   impact rule and the polar rule (the retired ``impact_by_polar``), and
-   the law graded that one impact rule at the slowest projected speed the
-   polar rule sampled, :math:`\sin\theta_{\min}` (the retired
-   ``tangency_distances``, through its ``slowest`` argument). That was
-   correct, since the slowest line carries the narrowest layer and the
-   nearest pole, and wasteful: every other polar node carried the
-   slowest one's impact nodes. On the ``ABA`` cylinder the block grew from
-   38 400 lines to 308 480, 8.0 times the ungraded rule's, and the k solve
-   from 384 s to 2296 s; the point rule's line counts on the cylinder grew
-   3.6 and 5.3 times (one and three regions). The user accepted the cost until #587, which split the
-   law's speed-free data (``ImpactPanels``) from its evaluation at a
-   speed and made the rule iterated (``200b4233``): 102 320 lines and
-   1275 s, the same k
-   to :math:`8.3 \times 10^{-15}`.
+   From 2026-10-08 (``200b4233``) to the axial lift (2026-10-11) the cylinder's
+   rule was iterated: each polar node carried its own impact rule, graded at
+   its own projected speed, and each 3-D line was chorded alone. It was
+   right, and it cut the block's lines against the tensor rule of the time;
+   the lift retired it because a rule whose impact nodes differ per polar
+   node cannot share an in-plane chord across the polar nodes, and sharing
+   the chord is where the lift's saving is. The section as it stood, with
+   its measurements, follows verbatim; its present-tense sentences describe
+   that rule, and its gates were inverted by the lift (one impact rule at
+   the slowest node, ``array_equal`` against the grading law at
+   :math:`\sin\theta_{\min}`).
+
+   The cylinder's lines are the box :math:`(b, \theta) \in [0, R] \times
+   [0, \pi/2]` of the line domain (:eq:`geometry-line-domain`), with the
+   density :math:`8\pi\sin^2\theta` of
+   :meth:`LineDomain.density <orpheus.geometry.chart.LineDomain.density>`.
+   Both roles integrate a functional of the line over it: the line rule's
+   block and the point rule's row. The rule over the box is **iterated**,
+   not a tensor product:
+
+   .. math::
+
+      \int_0^{\pi/2}\!\mathrm d\theta \int_0^R\!\mathrm db\; f(b, \theta)
+      \;\approx\; \sum_{j} w^\theta_j \sum_{i} w^b_{ij}\, f(b_{ij}, \theta_j),
+
+   where :math:`(\theta_j, w^\theta_j)` is the polar rule
+   (:func:`~orpheus.derivations.continuous.characteristic.lines.polar_rule`,
+   graded toward grazing and toward the normal over the whole body,
+   :ref:`characteristic-line-rule`) and :math:`(b_{ij}, w^b_{ij})` is the
+   impact rule built for the lines of polar angle :math:`\theta_j` alone,
+   graded by the grading law at that line's own projected speed
+   :math:`s_j = \sin\theta_j`.
+   ``impact_per_polar``
+   builds it from a function of the speed (``ImpactPanels.rule`` at the
+   group's panels) and the polar rule, and returns the plain
+   :math:`\mathrm db\,\mathrm d\theta` weights :math:`w^\theta_j w^b_{ij}`;
+   each role multiplies its own density afterwards, the line rule
+   :math:`8\pi\sin^2\theta/4\pi`
+   (:class:`~orpheus.derivations.continuous.characteristic.assembly.LineRule`)
+   and the point rule its direction measure through the point
+   (:class:`~orpheus.derivations.continuous.characteristic.reading.PointRule`).
+   A tensor product is the special case :math:`b_{ij} = b_i` for every
+   :math:`j`.
+
+   **Why each line's own speed is the grading speed.** A line at polar angle
+   :math:`\theta` from the axis advances :math:`\sin\theta` in the plane per
+   unit of its own length, so an in-plane length :math:`\ell` in a region of
+   cross section :math:`\Sigma` is an optical depth
+   :math:`\Sigma\ell/\sin\theta` along it. The two features of the grading
+   law that depend on the line are therefore those of that line's speed
+   :math:`s = \sin\theta`:
+
+   - the turning slot, of in-plane length :math:`2y`, transmits
+     :math:`e^{-2\Sigma_k y/s}`, a layer of width :math:`s/(2\Sigma_k)` in
+     :math:`y`;
+   - the cycle product :math:`\Pi = a\,e^{-(\tau_{\rm out} + 2\Sigma_k y)/s}`
+     makes the closure's pole a distance
+     :math:`(s(-\ln a) + \tau_{\rm out})/(2\Sigma_k)` from the interval
+     (:ref:`characteristic-grading-law`).
+
+   Both distances are affine in :math:`s` with a non-negative slope, and the
+   third feature, the next radius's branch point, does not depend on
+   :math:`s`. At a fixed :math:`\theta_j` the integrand
+   :math:`b \mapsto f(b, \theta_j)` carries the features of the speed
+   :math:`s_j` only, so the impact rule graded at :math:`s_j` resolves it
+   exactly as the law requires. A rule graded at a slower speed
+   :math:`s_{\min} < s_j` subdivides the stretch nearer the tangency than
+   :math:`d_k(s_j)` at scales finer than this line's integrand varies on, and
+   buys no accuracy; a rule graded at a faster one misses the line's layer and
+   pole. The hp grading adds a piece per halving of the distance, so the
+   slower speed costs about :math:`\log_2(s_j/s_{\min})` pieces per graded
+   panel top (`[R]`; measured: 30 pieces at :math:`s = 1` and 241 at the
+   slowest polar node, :math:`\sin\theta = 4.85 \times 10^{-6}`, on the
+   first group of the ``ABA`` cylinder below, 240 and 1928 impact nodes of
+   8 points per piece).
+
+   A tensor product cannot follow the speed: its impact nodes are shared by
+   every polar node, so they must resolve the narrowest layer and the
+   nearest pole of any polar node it holds, those of the slowest. The
+   iterated rule is the quadrature of the iterated integral
+   :math:`\int\mathrm d\theta\,\int\mathrm db` (Fubini: the integrand is integrable on the box),
+   the one whose inner rule may depend on the outer node. Its error is the
+   polar rule's error on :math:`g(\theta) = \int_0^R f(b, \theta)\,\mathrm db`
+   plus :math:`\sum_j w^\theta_j E_j`, with :math:`E_j` the impact rule's
+   error at :math:`\theta_j`, and each :math:`E_j` is controlled by the
+   grading law at :math:`s_j`. The sphere (:math:`s = 1` for every line) and
+   the slab (no impact parameter) are unchanged.
+
+   **The evidence.** `[M]` 2026-10-08, the main agent
+   (``scratch/characteristic_architecture/p1_step_c/aba_cyl_cost.py``,
+   ``cost_5a.log``, ``cost_head.log``, ``iterated.log``): the ``ABA``
+   cylinder (``aba_specification(CYLINDRICAL)``) at resolution
+   ``Resolution(3, 2, 0.4, TransportResolution(8, 12, 12), 8)``, the k solve,
+   one run each (no repeat protocol), lines per block of the first group:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 40 16 14 30
+
+      * - Line rule
+        - Lines per block
+        - Wall time
+        - k
+      * - the fifth rung's first half, no grading law at the panel tops
+          (``fe977a90``)
+        - 38 400
+        - 384 s
+        - 1.231729452890078
+      * - the tensor rule, every polar angle at the slowest speed
+          (``11b263a5``)
+        - 308 480
+        - 2296 s
+        - 1.231729452890264
+      * - the iterated rule, each polar angle at its own speed
+        - 102 320
+        - 1275 s
+        - 1.231729452890254
+
+   The iterated rule's k is the tensor rule's to :math:`8.3 \times 10^{-15}`
+   relative, and the line count is a third of it (the second group: 106 784
+   against 297 920). Its 1275 s was taken by an in-memory probe of the same
+   rule (``iterated_probe.py``). `[M]` 2026-10-09, the archivist's re-count
+   through the shipped ``ImpactPanels``
+   (``p1_step_c/archivist_587_counts.py`` and its log, no solve): 102 320 and 106 784 lines, 160
+   and 152 polar nodes, 240 impact nodes per polar node at :math:`s = 1` to
+   1928 at the slowest; the tensor rule's count is :math:`1928 \times 160 =
+   308\,480` and :math:`1960 \times 152 = 297\,920`. The k of the first row
+   differs from the other two by :math:`1.5` and :math:`1.4 \times 10^{-13}`
+   relative: it lacks the grading law, not the iteration.
+
+   `[M]` 2026-10-08, qa (``p1_step_c/qa.md``): no accuracy is lost.
+   The three-region vacuum cylinder read at :math:`x = 1.5`, the small
+   cylinder :math:`(0, 0.5, 1)` at its interface and its wall, the white
+   cylinder's :math:`T_w` and :math:`P_{\rm esc}` at :math:`\tau = 0.5`,
+   0.01 and :math:`10^{-4}`, and the hollow cylinder's conservation agree
+   with the tensor rule's within :math:`2 \times 10^{-15}` on every row.
+   The measure is exact: the weights
+   over the density sum to :math:`R\pi/2`, and each polar node's impact
+   weights to :math:`R`, within :math:`3.3 \times 10^{-15}` on 16 cylinder
+   block rules. With every angle forced to the slowest speed, the iterated
+   assembler reproduces the tensor rule's readings to all 17 printed digits.
+   Under in-process mutations of the speed, against Bickley's
+   :math:`\mathrm{Ki}_2` route:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 46 27 27
+
+      * - Mutation
+        - three-region cylinder, :math:`x = 1.5`
+        - small cylinder, interface
+      * - the layer term removed (ERR-105's arm)
+        - :math:`1.01 \times 10^{-6}`
+        - :math:`7.97 \times 10^{-8}`
+      * - every angle graded at speed 1
+        - :math:`1.27 \times 10^{-7}`
+        - :math:`7.97 \times 10^{-8}`
+      * - :math:`\cos\theta` in place of :math:`\sin\theta`
+        - :math:`1.27 \times 10^{-7}`
+        - :math:`7.97 \times 10^{-8}`
+      * - every angle graded at the slowest speed
+        - unchanged
+        - unchanged
+
+   Each angle's own speed is load-bearing: grading faster than it misses the
+   layer, and grading slower costs lines and changes no value. The sphere's
+   and the slab's rules are bit-identical to the tensor rule's tree, 86 of 86
+   rules (the test-architect, ``p1_step_c/ta/bitid.log``: 10 sphere and 4 slab
+   line rules, 56 sphere and 16 slab point rules), and 176 of 176 arrays in
+   qa's own comparison.
+
+   **The gates.**
+   ``test_each_polar_angle_carries_the_impact_rule_graded_at_its_own_speed``
+   (``tests/gates/derivations/test_characteristic_assembly.py``, vacuum and
+   :math:`a = 0.9`) and
+   ``test_each_polar_angle_through_a_point_carries_the_impact_rule_graded_at_its_own_speed``
+   (``tests/gates/derivations/test_characteristic_reading.py``, the wall, the
+   interface and the wall under :math:`a = 0.9`) assert, ``array_equal``,
+   that the lines at each polar node are the impact rule graded by the
+   grading law written by hand in the test at that node's
+   :math:`\sin\theta`, with their levels. `[M]` 2026-10-08, the
+   test-architect (``p1_step_c/ta/README.md``): on ``11b263a5`` 127 of 128
+   polar nodes differ from their own-speed rule on all five rows, and 0 of
+   128 on the iterated rule. Of the 16 rows of its battery, the arm that
+   grades every angle at the slowest speed reddens these five and no value
+   row, so they are its only catchers: a slower grading is invisible to a
+   value gate by design (the paragraph above).
+
+   **Where the remaining lines are.** `[M]` 2026-10-09, the archivist's
+   re-count: on the first group 51 of 160 polar nodes have
+   :math:`\sin\theta < 0.01` and carry 57 536 of the 102 320 lines (the
+   second group: 43 of 152 nodes, 52 872 of 106 784 lines). They are there
+   because the polar rule grades toward grazing down to
+   :math:`\tau_{\min}/64` of the whole body (:ref:`characteristic-line-rule`,
+   the direction rules), at every impact parameter, whereas a line of short
+   chord near the rim would not need it. Grading :math:`\theta` per impact
+   panel was the other half of #587; it is not built, and on this body it
+   would not cut them, because every line crosses the thin outer-wall panel
+   that sets the grazing grading (`[M]` 2026-10-09,
+   :ref:`characteristic-what-is-not-built`).
+
+   .. dropdown:: First got wrong: every polar angle graded at the slowest
+      :color: muted
+
+      When the grading law landed with the fifth rung's second half
+      (``b76b9a9d``), the cylinder's rule was the tensor product of one
+      impact rule and the polar rule (the retired ``impact_by_polar``), and
+      the law graded that one impact rule at the slowest projected speed the
+      polar rule sampled, :math:`\sin\theta_{\min}` (the retired
+      ``tangency_distances``, through its ``slowest`` argument). That was
+      correct, since the slowest line carries the narrowest layer and the
+      nearest pole, and wasteful: every other polar node carried the
+      slowest one's impact nodes. On the ``ABA`` cylinder the block grew from
+      38 400 lines to 308 480, 8.0 times the ungraded rule's, and the k solve
+      from 384 s to 2296 s; the point rule's line counts on the cylinder grew
+      3.6 and 5.3 times (one and three regions). The user accepted the cost until #587, which split the
+      law's speed-free data (``ImpactPanels``) from its evaluation at a
+      speed and made the rule iterated (``200b4233``): 102 320 lines and
+      1275 s, the same k
+      to :math:`8.3 \times 10^{-15}`.
 
 The direction rules: grazing and normal
 ---------------------------------------
@@ -3586,14 +4423,30 @@ The order of the lines, the chunks and the piece budget
 The traversal rule pads every line of a chunk to the chunk's largest
 piece count, and a line's pieces grow as it nears grazing (the
 exponential and hp gradings along it multiply). So ``Lines.ordered``
-orders the lines by projected speed, and lines of like cost share a chunk.
+orders the lines by projected speed, and lines of like cost share a chunk;
+the cylinder's lifted lines are all in-plane, of projected speed 1, so the
+order leaves them as the impact rule made them
+(:ref:`characteristic-axial-lift`).
 ``Lines.chunks`` takes the lines ``chunk`` at a time (the line rule's
 default 512, the point rule's 4096), and a
 chunk whose traversal rule holds more than ``budget`` piece slots
 (:attr:`TraversalRule.extent
-<orpheus.derivations.continuous.characteristic.transport.TraversalRule.extent>`,
-the line rule's default 1024, the point rule's 32 768) is halved until it
-fits or holds one line. The budget
+<orpheus.derivations.continuous.characteristic.transport.TraversalRule.extent>`:
+the speeds times the lines times the most pieces on one line, counted on
+the ``EXITS`` set; the line rule's default 1024, the point rule's
+:math:`2^{18} = 262\,144`) is halved until it fits or holds one line. The
+halving is planned from each line's piece count, read once per block of
+``chunk`` lines (:attr:`TraversalRule.piece_counts
+<orpheus.derivations.continuous.characteristic.transport.TraversalRule.piece_counts>`),
+so only the rules it yields are built: halving by building every half
+discarded 27 of the 56 rules one cylinder reading built (`[M]`
+2026-10-11, ``scratch/characteristic_architecture/p3/step3/q1_split.py``).
+A rule of one line holds its whole family whatever its extent, and on the
+cylinder one in-plane line read at every polar node exceeds the line
+rule's budget of 1024: `[M]` 2026-10-12 (qa, its finding 5), 7616 to
+24 752 piece slots per in-plane line, 52 to 164 MiB per rule at 8 points,
+so every chunk of the cylinder's block is one line. The budgets were
+measured on 3-D lines and are re-measured in P3 step 3f. The budget
 bounds a chunk's memory where a line count does not, because a line's
 memory follows its pieces. Each line's live pieces are packed first, so
 the pieces pad only to the chunk's costliest line; since 2026-10-07 the
@@ -3700,11 +4553,13 @@ The cylinder's cost on a thick body (#586)
 ------------------------------------------
 
 The cylinder's rule is built from the impact rule and the polar-angle
-rule (iterated since #587, :ref:`characteristic-iterated-cylinder-rule`),
-and both grow with the optical scale: the impact rule with the rim's
-exponential ends, the polar rule with the grazing and normal gradings.
-The measurements of this section were taken before the grading law, when
-the rule was the two rules' tensor product. `[M]` 2026-10-07, the archivist's probe: the three-region
+rule (since 2026-10-11 one impact rule read on in-plane lines at every
+polar node's speed, :ref:`characteristic-axial-lift`), and both grow with
+the optical scale: the impact rule with the rim's exponential ends and
+the grading law at its panel tops, the polar rule with the grazing and
+normal gradings. The measurements of this section were taken before the
+grading law, the lift and the derived grading, when the rule was the two
+rules' tensor product on 3-D lines. `[M]` 2026-10-07, the archivist's probe: the three-region
 cylinder :math:`(0, 0.5, 1.5, 2)` at 8 points holds 38 400 lines, 240
 impact nodes times 160 polar nodes; a homogeneous cylinder at
 :math:`\tau = 30` holds 18 432 lines, 192 impact nodes times 96 polar
@@ -3730,7 +4585,10 @@ were too many lines.
 
 The inner rule grades the stretch between an integral's start and its
 stop exponentially toward the stop, so an integral over a thin stretch
-has one live interval and one over a thick stretch up to eight. The rule
+has one live interval and one over a thick stretch many (eight under the
+dyadic grading of the time; under the derived grading
+:math:`\lceil\log_\rho(64\,v_{\max}/(h\,v_{\min}))\rceil + 2` at
+``inner_points``, :ref:`characteristic-derived-grading`). The rule then
 kept an interval if any integral of the batch used it, so every integral
 was evaluated on the batch's thickest stretch, the thin ones on intervals
 of zero width. The evaluations were 4.2 times (the three-region cylinder)
@@ -3811,14 +4669,16 @@ rows, from about 62 minutes; the 722 rows outside it took 5 minutes.
 at the gates' resolution, is met: two groups at 27.8 s each are 55.6 s.
 
 **What a rule graded per impact panel would still buy.** The rule over
-:math:`(b, \theta)` is iterated in one direction: each polar angle
-carries its own impact rule (:ref:`characteristic-iterated-cylinder-rule`).
+:math:`(b, \theta)` is a tensor product read on in-plane lines
+(:ref:`characteristic-axial-lift`); from 2026-10-08 to the lift it was
+iterated in one direction, each polar angle carrying its own impact rule.
 The other direction is not built: the polar rule is graded toward grazing
 over the whole body's optical scale at every impact parameter. `[R]` A
 polar rule graded on each impact panel by that panel's own optical scale
 would skip the grazing grading where a short rim chord does not need it;
 on the ``ABA`` cylinder the polar nodes below :math:`\sin\theta = 0.01`
-carry 57 536 of the 102 320 lines (`[M]` 2026-10-09). Its saving
+carried 57 536 of the iterated rule's 102 320 lines (`[M]` 2026-10-09);
+under the lift they are speeds every in-plane line is read at. Its saving
 multiplies the packed cost; it does not repeat the packing's. It is the
 lever if a three-region cylinder at 16 points, 792 s a group before the
 grading law, enters a routine path
@@ -3829,6 +4689,14 @@ outer-wall panel :math:`[1.96, 2.0]`, 0.02 and 0.04 optical in groups 0
 and 1, every line crosses it, and so each impact panel's polar rule keeps
 the body's 160 or 152 nodes. What stays open in #587 is a polar weight
 absorbing :math:`\sin^2\theta`, unmeasured.
+
+**The cost under the lift.** Since 2026-10-11 the cylinder's pieces,
+nodes and basis values are built once per in-plane line and only the
+exponentials and the weights per polar node, so the line count that
+drives the basis evaluations is the impact rule's, not the product of
+the two rules. The block's times under the lift, and the measurement
+still running under the derived grading, are in
+:ref:`characteristic-axial-lift`, "The cost".
 
 **The slow tier, re-ruled.** The third rung had cut the slow cylinder
 rows to one fixture per law at 8 points, keeping the escape rows at
@@ -5240,7 +6108,11 @@ for gates and mints no observable; the flux integral stays the pairing.
 After the reviews the user ruled the same day that the grading law at every
 impact-panel top (:ref:`characteristic-grading-law`) and the image's exact
 level (:ref:`chart-and-chord-level`, #590) land in this rung,
-with the cylinder's extra cost accepted until #587.
+with the cylinder's extra cost accepted until #587. On 2026-10-11 the user
+ruled the cylinder's axial lift and the target-graded reading
+(:ref:`characteristic-axial-lift`,
+:ref:`characteristic-target-graded-reading`), which retired #587's rule
+and changed how a point's lines are chorded and read.
 
 What is read: the transported emission, not the basis value
 ------------------------------------------------------------
@@ -5331,11 +6203,22 @@ on a wall or an interface is read at the chord's crossing to the last bit.
 On the slab a line meets each level once, ``AxialImage.parameters_at``.
 
 The coordinates come from the line rule's constructors, on the panel
-partition with :math:`c` inserted as one more end (each new panel keeping
-the cross section of the panel it splits), and the impact panels are kept
-below :math:`c` (a line with :math:`b > c` does not pass through the
-point). The gradings the point needs are then the gradings the line rule
-already makes:
+partition refined at :math:`c`
+(:meth:`ConcentricPartition.refined_at
+<orpheus.geometry.chord.ConcentricPartition.refined_at>`, each new panel
+keeping the cross section of the panel it splits, through
+:meth:`~orpheus.geometry.chord.ConcentricPartition.coarsening`), and the
+impact panels are kept below :math:`c` (a line with :math:`b > c` does not
+pass through the point). The lines are chorded through that same
+refinement, so each one crosses the level :math:`c` at a slot end and the
+point is read at a crossing (:ref:`characteristic-target-graded-reading`).
+On the cylinder the lines are in-plane, :math:`(b, \pi/2)`, read at the
+speed :math:`1/\sin\theta_j` of every polar node (the axial lift,
+:ref:`characteristic-axial-lift`): the point's parameter on an in-plane
+line is the same for every polar node, and its impact rule is graded at
+the smallest :math:`\sin\theta`. On the cylinder's axis the one line
+:math:`b = 0` is read at every polar node's speed. The gradings the point
+needs are then the gradings the line rule already makes:
 
 - a **tangency** :math:`b = r_k` of the line to a radius below the point
   is an impact-panel end, under the visibility substitution;
@@ -5405,7 +6288,9 @@ quadrature weights. Per chart, with :math:`x = c\,\hat e_x`:
   cylinder's axis every direction has :math:`b = 0`: the box is
   :math:`w` (``AXIAL_COSINE``, :math:`\rho = 4\pi`), the rule is the lines
   :math:`b = 0` at the polar rule's angles, of weight
-  :math:`\sin\theta\,\mathrm d\theta`, each read at its closest approach.
+  :math:`\sin\theta\,\mathrm d\theta`, each read at its closest approach:
+  one in-plane line :math:`b = 0` read at every polar node's speed
+  (:ref:`characteristic-axial-lift`).
   The measure is a Dirac in :math:`b` there, so the stratum is its own arm
   of the ``match`` on the pair (line shape, direction shape), as the
   line rule's is on the line shape; the predicate is
@@ -5442,7 +6327,11 @@ its parameter at the point on side :math:`\sigma`, and
 
 with :math:`W_L` the line coordinates' quadrature weight, :math:`J_L` the
 Jacobian of the chart above, and :math:`\sigma` over the two sides off a
-radial chart's stratum and the one point otherwise. As a functional of the
+radial chart's stratum and the one point otherwise. On the cylinder a line
+:math:`L` is a pair of a polar node and an impact node, read as the
+in-plane line of that impact node at the polar node's speed, so the
+weights are ``(V, L)`` and the sum runs over both axes
+(:ref:`characteristic-axial-lift`). As a functional of the
 group's emission coefficients it is a row, :math:`\phi_g(x) = r_g(x)\cdot
 q_g` (``PointRule.row``), the discrete measure per evaluation point of the
 design.
@@ -5466,10 +6355,15 @@ One weighted set of lines, two test measures
 
 :class:`~orpheus.derivations.continuous.characteristic.lines.Lines` is a
 weighted set of the oriented lines through a body for one group: the
-basis, the walls, the group's :math:`\Sigma_t`, the line coordinates, their
-weights, their exact levels (required on a radial chart, absent on the
-slab, refused otherwise: *a radial chart's lines carry their exact levels
-and a slab's carry none*), and the chunk and the piece budget. It holds the
+basis, the walls, the group's :math:`\Sigma_t`, the line coordinates, the
+speeds each line is read at (``(V,)``: the cylinder's polar nodes,
+:ref:`characteristic-axial-lift`, and 1 alone on the sphere and the slab),
+their weights per speed and line (``(V, L)``), their exact levels
+(required on a radial chart, absent on the slab, refused otherwise: *a
+radial chart's lines carry their exact levels and a slab's carry none*),
+the partition they are chorded through (the panels, or the panels refined
+at a point's level, :ref:`characteristic-target-graded-reading`), and the
+chunk and the piece budget. It holds the
 guard, the order by projected speed (``ordered``) and the chunking
 (``chunks``, a chunk over the budget halved until it fits). Two roles hold
 one, each with its own measure:
@@ -5492,10 +6386,14 @@ graded at a projected speed by
 one speed),
 :func:`~orpheus.derivations.continuous.characteristic.lines.polar_rule`,
 :func:`~orpheus.derivations.continuous.characteristic.lines.cosine_rule`
-(the mirrored rule over both signs) and
-:func:`~orpheus.derivations.continuous.characteristic.lines.impact_per_polar`
-(the cylinder's iterated rule, each polar angle's impact rule built at
-its own speed), so a grading is written once and both measures read it. Holding the roles apart keeps a block from being
+(the mirrored rule over both signs), with
+:meth:`ImpactPanels.lifted_rule
+<orpheus.derivations.continuous.characteristic.lines.ImpactPanels.lifted_rule>`
+(the cylinder's one impact rule, graded at the smallest polar node's
+projected speed) and
+:func:`~orpheus.derivations.continuous.characteristic.lines.axial_lift`
+(its in-plane lines and their speeds), so a grading is written once and
+both measures read it. Holding the roles apart keeps a block from being
 computed on a point's measure, which was spellable when the point's lines
 were a ``LineRule`` (the elegance review's second round: a "block" with
 :math:`\mathbf 1^{\mathsf T}K\mathbf 1 = 1.49` and no meaning).
@@ -5565,10 +6463,15 @@ of the point's direction box (:meth:`Chart.directions_at
 <orpheus.geometry.chart.Chart.directions_at>`), and
 :meth:`CharacteristicDerivation.angular_flux
 <orpheus.derivations.continuous.characteristic.reference.CharacteristicDerivation.angular_flux>`
-returns it on the answer's scale. Each direction is read on the line
-through the point in that direction (:meth:`Line.through
-<orpheus.geometry.line.Line.through>`), by one traversal rule, at the
-point's parameter. The line carries its exact level: in the orbit space
+returns it on the answer's scale. Each direction is read on the ray
+from the point in that direction, chorded through the panels refined at
+the point's level so that the point is a crossing
+(:meth:`ConcentricPartition.rays_from
+<orpheus.geometry.chord.ConcentricPartition.rays_from>` of
+``refined_at(c)``, :ref:`characteristic-target-graded-reading`), by one
+traversal rule at speed 1, at the point's parameter: a cylinder direction
+is read on its own 3-D chord, not lifted, so this reading is independent
+of the axial lift (:ref:`characteristic-axial-lift`). The line carries its exact level: in the orbit space
 the point :math:`x = c\,\hat e_x` sits at the signed distance
 
 .. math::
@@ -5666,89 +6569,191 @@ The refusals
 Performance, as measured
 ------------------------
 
-The reading builds no Volterra block, the assembly's dominant cost, but
-transports every basis function of the support to the point along every
-line, :math:`L \times J \times N` per chunk. `[M]` 2026-10-08, the main
-agent (``PointRule.of``'s docstring), before the grading law: a point at
-:math:`c = 0.37` of white cylinders at 8 line points, 12 along each line:
-one region, 5440 lines,
-2.37 s at the line rule's chunk 512 and budget 1024, 1.49 s at chunk 4096
-and budget 32 768 (1.25 GB), 1.76 s at 8192 and 131 072 (2.8 GB); three
-regions, 8512 lines, 15.0 s, 8.1 s and 8.3 s. The point rule takes 4096 and
-32 768, a factor 1.6 to 1.8 over the line rule's chunking, because its
-pieces hold no Volterra arrays and the per-chunk overhead dominates
-sooner.
+The reading builds no Volterra block, the assembly's dominant cost. Along
+each line it builds the ``EXITS`` set (and the ``ENTRIES`` set where the
+period reads a transit backward), and reads the flux at the point as one
+transmission per upstream piece, with no scan over the basis
+(:ref:`characteristic-target-graded-reading`). On the cylinder the
+pieces, the nodes and the basis values are built once per in-plane line
+and the exponentials once per polar node (:ref:`characteristic-axial-lift`),
+so the cost scales with the in-plane lines' pieces times the speeds.
 
-`[M]` 2026-10-09, the archivist's re-measure on the iterated rule
-(``scratch/characteristic_architecture/p1_step_c/archivist_587_point_cost.py``
-and ``archivist_587_point_cost2.py``, with their logs; ``PointRule.of`` and
-``row`` at :math:`c = 0.37`, 8 line points, 12 along each line, chunk 4096
-and budget 32 768, the minimum of 3 calls in one process, the host at a
-load average of about 6 to 10 on 10 cores), beside the same probe on the
-tensor rule at the slowest polar speed (`[M]` 2026-10-08, the archivist,
-``p1_step_b5b/archivist_point_cost.py``, a load average of about 3.5):
+**The target.** P3 of the campaign (#405) measures one point reading by
+the P1 verification spec's §8 protocol: the ``ABA`` cylinder's
+:math:`\phi_g(1.2)`, both groups as one call, old against new at matched
+accuracy, the minimum over 15 alternating subprocesses. `[M]` 2026-10-11
+(a numerics-investigator, ``scratch/characteristic_architecture/p3/step1/``,
+5 timed calls per subprocess after one warm-up, ``OMP_NUM_THREADS=1``,
+``-O``, the host at a load average of 6.5 to 9.6):
 
 .. list-table::
    :header-rows: 1
-   :widths: 34 13 13 13 13 14
+   :widths: 26 32 12 12 18
 
-   * - Body
-     - Lines, tensor rule
-     - Lines
-     - Time, tensor rule
+   * - Side
+     - Rule
+     - Minimum
+     - Median
+     - Error, :math:`\max\phi_g` and :math:`\phi_1/\phi_0`
+   * - the hoisted trajectory resolvent, ``a336bde4``
+     - 48 cosines, 256 azimuths, 64 trajectory points
+     - 0.122 s
+     - 0.124 s
+     - :math:`1.19 \times 10^{-3}`, :math:`-3.1 \times 10^{-5}`
+   * - this reference, before the lift
+     - ``Resolution(2, 1, 0.4, TransportResolution(2, 4, 4), 6)``
+     - 2.29 s
+     - 2.30 s
+     - :math:`6.8 \times 10^{-4}`, :math:`-1.3 \times 10^{-3}`
+
+The new side's rule is the coarsest of the 10 probed that matches the old
+accuracy; the coarsest probed, one line point, read in 0.54 s at an error
+of :math:`5 \times 10^{-2}`. The errors are against the panel
+:math:`p = 4` solve.
+
+**The reading under the lift.** `[M]` 2026-10-11 (the main agent,
+``scratch/characteristic_architecture/p3/step3/impl/reading_quick.py
+c_2_1_2_4_4``, the same point and rule, the minimum of 5 calls after a
+warm-up, not the §8 protocol), each row adding one change to the row
+above; the errors are unchanged throughout, :math:`7.2 \times 10^{-4}`,
+:math:`-5.9 \times 10^{-4}` and the ratio :math:`-1.3 \times 10^{-3}`:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 70 30
+
+   * - Form
      - Time
-     - Peak memory
-   * - three-region sphere :math:`(0, 0.5, 1.5, 2)`, white
-     - 56
-     - 56
-     - 0.02 s
-     - 0.02 s
-     - 0.2 GB
-   * - one-region cylinder of radius 1, white
-     - 19 584
-     - 8544
-     - 4.94 s
-     - 3.08 s
-     - 1.2 GB
-   * - the same, vacuum
-     - 19 584
-     - 8544
-     - 5.13 s
-     - 3.08 s
-     - 1.2 GB
-   * - three-region cylinder :math:`(0, 0.5, 1.5, 2)`, vacuum
-     - 44 992
-     - 15 704
-     - 42.8 s
-     - 23.4 s
-     - 1.4 GB
+   * - lifted, the block's two-level path and scan
+     - 2.57 s
+   * - point values one-level, no scan
+     - 1.16 s
+   * - the gather onto each panel's columns by a matrix product
+     - 0.94 s
+   * - the point rule's budget raised to :math:`2^{18}`
+     - 0.72 s
+   * - pieces graded toward the exits only (``EXITS``), at ratio 2
+     - 0.37 to 0.39 s
+   * - the one-level sets at ratio :math:`\sqrt 2`
+     - 0.63 s
+   * - the piece integrals cached
+     - 0.51 s
 
-The peak memory is the process's, measured on the iterated rule (the
-white three-region cylinder's process, which also assembled its blocks,
-peaked at 2.3 GB and is not in the table). Before the grading law the
-same points held 5440 and 8512 lines (above). The cylinder's point cost
-is the line count the grading law produces at each polar node's own speed
-(:ref:`characteristic-iterated-cylinder-rule`); the white walls add a few
-stacked sources and no measurable time. Contracting the emission before
-the scan (#591) divides the cost per line; grading the polar angle per
-impact panel (#587's other half, not built) was measured not to cut the
-``ABA`` cylinder's near-grazing lines (:ref:`characteristic-what-is-not-built`).
+**The target is not met** (the user's ruling of 2026-10-12: accept and
+continue). The structural reason: this reference's grading resolves every
+attenuation to double precision at any resolution, the polar family
+stretches the along-line grading from the slowest node's first mean free
+path to 64 of the fastest node's, and the hoist reached its matched
+accuracy with a far coarser grading. Coupling the grading to the
+resolution, which would change that law, was rejected. `[R]` The
+prototype at a grading floor derived from the vanishing depth would cost
+about 1.8 times its 0.061 s, and about twice more at ratio
+:math:`\sqrt 2`, roughly 0.2 s; the remaining factor of about 3 is
+implementation (padding, and the gathers onto the basis columns).
 
-**This is not yet measured against the target.** The verification spec's
-§8 target is the hoisted trajectory-resolvent's one transport at a point,
-0.073 s per call (``scratch/characteristic_architecture/p1_verification_spec.md``
-§8), a figure that was not taken by a repeat protocol; §8's protocol (the
-same question at matched accuracy, alternating subprocesses, the minimum
-of at least 15) has not been run. A cylinder point at 3.1 to 23 s is 42
-to 320 times that figure, so the target is not met on any reading of it. The
-lever named is to contract the emission before the scan, so that one
-function is transported along each line instead of :math:`N` (#591).
-The grading law's cost on a reading at an interface was measured on the
-tensor rule only: `[M]` 2026-10-08, qa's second round, the three-region
-vacuum cylinder read at its interface took 136 s and 560 s at 8 and 16
-line points, against 59 s and 216 s before the law (the test with its
-route; 2.3 and 2.6 times); it has not been re-timed on the iterated rule
-(:ref:`characteristic-grading-law`).
+**Under the derived grading** (:ref:`characteristic-derived-grading`) the
+figures above move. The matched rule integrates its along-line pieces at
+4 points, where a graded end holds about 100 pieces against 7 under the
+dyadic grading. Its impact rule at 2 line points keeps the dyadic rim
+grading: when the derived law briefly graded the rim, that rule held
+15 066 nodes against 26 before the carve, which is why the user ruled the
+rim back to ``DYADIC`` (:ref:`characteristic-derived-grading`, "Where it
+does not apply"). The matched rule's cost is re-measured by the §8
+protocol in P3 step 3f, with the slow reference files; every time in this
+section precedes the derived grading.
+
+.. dropdown:: Before the lift: the point's cost on 3-D lines (2026-10-08 and 2026-10-09)
+   :color: muted
+
+   The measurements below were taken when each cylinder line was a 3-D
+   line chorded on its own, under the tensor rule and then the iterated
+   rule (:ref:`characteristic-axial-lift`, its "first got wrong" box);
+   they are kept verbatim.
+
+   The reading builds no Volterra block, the assembly's dominant cost, but
+   transports every basis function of the support to the point along every
+   line, :math:`L \times J \times N` per chunk. `[M]` 2026-10-08, the main
+   agent (``PointRule.of``'s docstring), before the grading law: a point at
+   :math:`c = 0.37` of white cylinders at 8 line points, 12 along each line:
+   one region, 5440 lines,
+   2.37 s at the line rule's chunk 512 and budget 1024, 1.49 s at chunk 4096
+   and budget 32 768 (1.25 GB), 1.76 s at 8192 and 131 072 (2.8 GB); three
+   regions, 8512 lines, 15.0 s, 8.1 s and 8.3 s. The point rule takes 4096 and
+   32 768, a factor 1.6 to 1.8 over the line rule's chunking, because its
+   pieces hold no Volterra arrays and the per-chunk overhead dominates
+   sooner.
+
+   `[M]` 2026-10-09, the archivist's re-measure on the iterated rule
+   (``scratch/characteristic_architecture/p1_step_c/archivist_587_point_cost.py``
+   and ``archivist_587_point_cost2.py``, with their logs; ``PointRule.of`` and
+   ``row`` at :math:`c = 0.37`, 8 line points, 12 along each line, chunk 4096
+   and budget 32 768, the minimum of 3 calls in one process, the host at a
+   load average of about 6 to 10 on 10 cores), beside the same probe on the
+   tensor rule at the slowest polar speed (`[M]` 2026-10-08, the archivist,
+   ``p1_step_b5b/archivist_point_cost.py``, a load average of about 3.5):
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 34 13 13 13 13 14
+
+      * - Body
+        - Lines, tensor rule
+        - Lines
+        - Time, tensor rule
+        - Time
+        - Peak memory
+      * - three-region sphere :math:`(0, 0.5, 1.5, 2)`, white
+        - 56
+        - 56
+        - 0.02 s
+        - 0.02 s
+        - 0.2 GB
+      * - one-region cylinder of radius 1, white
+        - 19 584
+        - 8544
+        - 4.94 s
+        - 3.08 s
+        - 1.2 GB
+      * - the same, vacuum
+        - 19 584
+        - 8544
+        - 5.13 s
+        - 3.08 s
+        - 1.2 GB
+      * - three-region cylinder :math:`(0, 0.5, 1.5, 2)`, vacuum
+        - 44 992
+        - 15 704
+        - 42.8 s
+        - 23.4 s
+        - 1.4 GB
+
+   The peak memory is the process's, measured on the iterated rule (the
+   white three-region cylinder's process, which also assembled its blocks,
+   peaked at 2.3 GB and is not in the table). Before the grading law the
+   same points held 5440 and 8512 lines (above). The cylinder's point cost
+   is the line count the grading law produces at each polar node's own speed
+   (the iterated rule, :ref:`characteristic-axial-lift`, its "first got
+   wrong" box); the white walls add a few
+   stacked sources and no measurable time. Contracting the emission before
+   the scan (#591) divides the cost per line; grading the polar angle per
+   impact panel (#587's other half, not built) was measured not to cut the
+   ``ABA`` cylinder's near-grazing lines (:ref:`characteristic-what-is-not-built`).
+
+   **This is not yet measured against the target.** The verification spec's
+   §8 target is the hoisted trajectory-resolvent's one transport at a point,
+   0.073 s per call (``scratch/characteristic_architecture/p1_verification_spec.md``
+   §8), a figure that was not taken by a repeat protocol; §8's protocol (the
+   same question at matched accuracy, alternating subprocesses, the minimum
+   of at least 15) has not been run. A cylinder point at 3.1 to 23 s is 42
+   to 320 times that figure, so the target is not met on any reading of it. The
+   lever named is to contract the emission before the scan, so that one
+   function is transported along each line instead of :math:`N` (#591).
+   The grading law's cost on a reading at an interface was measured on the
+   tensor rule only: `[M]` 2026-10-08, qa's second round, the three-region
+   vacuum cylinder read at its interface took 136 s and 560 s at 8 and 16
+   line points, against 59 s and 216 s before the law (the test with its
+   route; 2.3 and 2.6 times); it has not been re-timed on the iterated rule
+   (:ref:`characteristic-grading-law`).
 
 
 .. _characteristic-sn-rows:
@@ -6370,9 +7375,11 @@ with a mesh-free source, detector or weight projected onto the basis
 angular flux at a point for the gates. What is missing (the campaign's
 issue is #405):
 
-- **a point reading at the cost of the verification spec's target**: a
-  point on a cylinder costs seconds against the target's 0.073 s, and
-  the spec's §8 protocol has not been run (#591,
+- **a point reading at the cost of P3's target**: `[M]` 2026-10-11 the
+  ``ABA`` cylinder's point read in 0.51 s at the matched rule (the minimum
+  of 5 calls) against the hoisted old family's 0.122 s by the §8 protocol,
+  a miss the user accepted for its structural reason; the derived grading
+  moves the figure, which P3 step 3f re-measures by the §8 protocol (#591,
   :ref:`characteristic-reading`, "Performance");
 - **the flux of a higher mode**: a ``Nearest`` answer reads its
   eigenvalue only, and refuses a flux integral and a point value, because
@@ -6384,14 +7391,13 @@ issue is #405):
   both need an angular basis on each line;
 - **an error bound**: every reading is ``Uncertified`` (#566);
 - **a cylinder polar rule graded per impact panel**: the rule over
-  :math:`(b, \theta)` is iterated in :math:`b`, each polar angle carrying
-  an impact rule graded at its own speed
-  (:ref:`characteristic-iterated-cylinder-rule`), but the polar rule is
-  the same at every impact parameter, graded toward grazing over the whole
-  body, and on the ``ABA`` cylinder the polar nodes below
-  :math:`\sin\theta = 0.01` carry 57 536 of its 102 320 lines per block.
-  Grading :math:`\theta` per impact panel is not built, and it would not
-  cut them on that body: `[M]` 2026-10-09
+  :math:`(b, \theta)` is one impact rule read on in-plane lines at every
+  polar node's speed (:ref:`characteristic-axial-lift`), and the polar
+  rule is the same at every impact parameter, graded toward grazing over
+  the whole body; on the ``ABA`` cylinder the polar nodes below
+  :math:`\sin\theta = 0.01` carried 57 536 of the iterated rule's 102 320
+  lines per block (`[M]` 2026-10-09). Grading :math:`\theta` per impact
+  panel is not built, and it would not cut them on that body: `[M]` 2026-10-09
   (``scratch/characteristic_architecture/p1_step_c/polar_half_scales.py``)
   every line crosses the thinnest panel, the outer-wall panel
   :math:`[1.96, 2.0]` (0.02 and 0.04 optical in groups 0 and 1), which
@@ -6515,13 +7521,67 @@ structural reason it fails, so that no later design re-derives it.
        the two ratios cannot be told apart
        (:ref:`characteristic-branch-grading`).
    * - Each piece's attenuated integrals on the piece's own Gauss–Legendre
-       nodes
+       nodes, read inside a slot (the flux just past a middle piece, the
+       block's carried flux)
      - Misses the integral carried out of a wide middle piece at order one
        (the flux just past it off by 0.54 at 1000 mean free paths), while
        the outflow at the slot's exit, attenuated by :math:`e^{-64}` or
-       more from that piece, hides it. One graded body serves every
-       carried quantity (:ref:`characteristic-attenuated-integral`,
-       ERR-100).
+       more from that piece, hides it. The block reads such integrals on
+       a two-level rule graded toward each end; one-level integrals are
+       read only at the end their piece set is graded toward
+       (:ref:`characteristic-attenuated-integral`, ERR-100).
+   * - The flux at a point read inside a slot on the one-level pieces
+     - The pieces upstream of the point are graded toward the slot's end,
+       not toward the point, so a wide piece ending at the point is read
+       at order one, ERR-100's mechanism. ``TraversalRule.at`` refuses a
+       parameter that is not a crossing, and the reading chords its lines
+       through the panels refined at the point's level
+       (:ref:`characteristic-target-graded-reading`).
+   * - Pieces graded toward the exit alone, with no middle cut; or only the
+       half nearer the exit graded
+     - The first leaves a slot thinner than the first depth as one piece,
+       :math:`7.9 \times 10^{-11}` on a 3-D line at 8 points; the second
+       leaves the far half one piece, :math:`1.2 \times 10^{-13}` on the
+       in-plane family (`[M]` 2026-10-11). Every slot is cut at its middle
+       (:ref:`characteristic-pieces`).
+   * - A fixed exponential grading for every rule: first depth 1 and ratio
+       2, or ratio :math:`\sqrt 2` for the one-level sets
+     - The error of a graded integral is the node count's: ratio 2 misses
+       :math:`e^{-x}` over 64 mean free paths by :math:`1.1 \times
+       10^{-6}` at 4 points and :math:`7.4 \times 10^{-13}` at 8,
+       :math:`\sqrt 2` by :math:`5.0 \times 10^{-9}` at 4. The first depth
+       and the ratio are derived from the node count
+       (:ref:`characteristic-derived-grading`).
+   * - The cylinder's along-line grading from 7 doublings of the slowest
+       polar node's mean free path, or from a floor of 100 of them
+     - Stopping at 7 doublings of the slowest node does not reach 64 mean
+       free paths of the fastest and missed every closed-form reading, by
+       :math:`7.8 \times 10^{-9}` to :math:`2.7 \times 10^{-3}`; a first
+       depth 100 times the slowest node's mean free path cost up to
+       :math:`1.3 \times 10^{-6}`, and 16 times cost
+       :math:`6.7 \times 10^{-11}` on a thick wall at 8 points (`[M]`
+       2026-10-11, the test-architect). The grading runs from the steepest
+       member's first piece to past 64 mean free paths of the gentlest
+       (:ref:`characteristic-pieces`).
+   * - The lifted specular closure spelled :math:`a\,B/(1 - e^{-vT})` (the
+       prototype's)
+     - Exact at :math:`a = 0` and :math:`a = 1` only, ERR-035's shape: a
+       homogeneous cylinder's wall reading off by
+       :math:`1.1 \times 10^{-2}` at :math:`a = 0.9`, unmoved by refinement.
+       The lift reads the closure through ``LinePeriod.inflow`` at the
+       speed's optical depths and never re-spells it
+       (:ref:`characteristic-axial-lift`).
+   * - A speed per line, beside a family of speeds
+     - A family ``(V, 1)`` and a per-line field ``(V,)`` on :math:`V`
+       lines are told apart by shape alone, so a dropped axis is admitted
+       whenever the counts coincide. The speed is a scalar or one family
+       axis shared by every line (:ref:`characteristic-axial-lift`).
+   * - One impact rule per polar angle on the lifted lines
+     - Each polar node's impact nodes differ, so no in-plane chord is
+       shared and each 3-D line is chorded alone (2280 lines per group on
+       the ``ABA`` point, against 126 in-plane lines). The one impact rule
+       graded at the smallest :math:`\sin\theta` holds every node's ends
+       (:ref:`characteristic-axial-lift`).
    * - ``TraversalRule.of(period, basis, sigma_per_panel, resolution)``
        (the second rung's sketch)
      - Leaves two constructions spellable: a period chorded through
@@ -7823,10 +8883,13 @@ Gotchas
   :math:`\Sigma_t`, because every grading reads it; a rule built for one
   group is under-resolved for a thicker or a near-void one.
 - **The lines are ordered by projected speed, not by coordinate.** A
-  caller that wants the :math:`(b, \theta)` grid back sorts
-  ``LineRule.lines.coordinates`` itself (the polar-rule gate does); the
-  levels are permuted with them (``Lines.ordered``), so sort the three
-  arrays by one key.
+  caller that wants the impact nodes back in order sorts
+  ``LineRule.lines.coordinates`` itself; the levels and the weights' line
+  axis are permuted with them (``Lines.ordered``), so sort them by one
+  key. On the cylinder the coordinates are the in-plane lines
+  :math:`(b, \pi/2)`, ``(L, 2)``: the polar angles are not in them but in
+  ``Lines.speeds``, :math:`1/\sin\theta_j`, the leading axis of the
+  weights ``(V, L)`` (:ref:`characteristic-axial-lift`).
 - **Conservation cannot see the rule over lines.** It holds line by line
   on a closed body; gate a change to a line rule against the walls'
   closed forms, not against conservation (ERR-101).
@@ -7869,15 +8932,35 @@ Gotchas
   value.** ``TraversalRule.of`` takes one total cross section per region
   and reads it onto the panels; the direct constructor takes one per
   panel.
-- ``Walls.on`` **trusts the refinement.** It re-keys breakpoint :math:`n`
-  to the panel count and holds no positions to check against; call it
-  with a basis's own partition, as ``TraversalRule.of`` does.
-- **A point read by** ``angular_flux`` **lies on a transit of its line.** A
-  point in a cavity, beyond a wall, or on a line with no transit is
-  refused.
-- **The thin threshold is per half slot.** Every slot is cut at its
-  midpoint, and each half is graded only when its optical width exceeds
-  2: a slot of optical width up to 4 is two pieces.
+- ``Walls.on`` **and** ``DiffuseWalls.on`` **trust the refinement.** Both
+  re-key by ``walls.end_on``, which sends breakpoint 0 to 0 and any other
+  to the refinement's last, and hold no positions to check against; call
+  them with a refinement of the body's partition with the same ends, as
+  ``TraversalRule.on_chord`` does (the chord's partition, checked against
+  the panels by ``coarsening``).
+- **A point read by** ``angular_flux`` **or** ``at`` **is a crossing.** A
+  parameter inside a slot is refused, *a point at which the flux is read
+  is a crossing on a transit of its line*, as is a point in a cavity,
+  beyond a wall, or on a line with no transit. To read at an arbitrary
+  orbit coordinate :math:`c`, chord the lines through
+  ``basis.partition.refined_at(c)`` with ``TraversalRule.on_chord`` and
+  read at the chord's own crossing parameter
+  (:ref:`characteristic-target-graded-reading`).
+- **The thin threshold is the first depth, and it moves with the point
+  count.** A stretch is cut only when its optical width at the steepest
+  attenuation exceeds :math:`h`, which is 1 from 6 points up, 0.51 at 5,
+  0.194 at 4 and 0.0039 at 2 (:ref:`characteristic-derived-grading`). A
+  low ``points`` or ``inner_points`` buys accuracy with pieces along the
+  line: at 4 points a slot of one mean free path holds 31 pieces toward its
+  exit. The rules over lines do not (their rim and normal gradings are
+  dyadic at every point count). Size a fixture at a low along-line
+  resolution before adding it.
+- **Every functional leads with the family of speeds.** A rule built with
+  a speed family ``(F,)`` returns ``(F, *batch, ...)`` from ``outflow``,
+  ``entry_response``, ``optical_depth``, ``at`` and ``angular_flux``, and
+  ``volterra`` sums the family with weights ``(F, L)``; a scalar speed
+  returns no family axis. A per-line speed is refused: put the lines'
+  speeds on the family, never on the batch.
 
 - **The pencil's vector is the emission, not the flux.** An eigenvector of
   ``GalerkinSystem.pencil`` lives on the emission space, one coefficient
@@ -7962,7 +9045,8 @@ Gotchas
   refused**, other than the centre itself: read the centre, which is
   the limit to :math:`5 \times 10^{-14}` from :math:`10^{-12}` down.
 - **Size a cylinder point before adding it to a gate.** A point reading
-  on a cylinder costs seconds (:ref:`characteristic-reading`,
+  on a cylinder costs about half a second at the matched rule before the
+  derived grading and more under it (:ref:`characteristic-reading`,
   "Performance"; #591), and the grading law's cost grows with the number
   of panel tops; the sphere's costs hundredths of a second.
 - **The grading law cannot be gated against an under-estimate of**
@@ -8117,8 +9201,9 @@ History
      - The cylinder's rule over :math:`(b, \theta)` became iterated
        (#587, its first half): the grading law's speed-free data per
        impact panel became one value, ``ImpactPanels`` (its ``of``,
-       ``distances`` and ``rule``), and ``impact_per_polar`` builds each
-       polar angle's impact rule at its own projected speed, so the
+       ``distances`` and ``rule``), and ``impact_per_polar`` built each
+       polar angle's impact rule at its own projected speed (retired by the
+       axial lift, 2026-10-11), so the
        ``slowest`` argument, ``tangency_distances`` and ``impact_by_polar``
        retired. On the ``ABA`` cylinder the block went from 308 480 lines
        and 2296 s to 102 320 lines and 1275 s, the same k to
@@ -8179,4 +9264,43 @@ History
        step (e2) deleted its 12 numeric modules and 22 test files in one
        commit (:ref:`characteristic-successors`).
      - ``f66c1c45``, ``44303919``; (e2) ``5aa8cb88``
+     - #405
+   * - 2026-10-11
+     - P3 step 3, the cylinder's axial lift: a 3-D line at polar angle
+       :math:`\theta` is its in-plane line read at speed
+       :math:`1/\sin\theta`. ``TraversalRule`` gained ``speed`` (a scalar
+       or one family axis, every functional leading with it, a per-line
+       speed refused after the elegance review's blocker B1),
+       ``Lines`` its ``speeds`` and ``(V, L)`` weights, and
+       ``axial_lift`` with ``ImpactPanels.lifted_rule`` (one impact rule at
+       the smallest :math:`\sin\theta`) replaced ``impact_per_polar``,
+       retiring #587's per-polar grading. The closure is reused unchanged;
+       the prototype's closure, exact only at :math:`a = 0` and 1, was not
+       transcribed. The block folds the family before the basis
+       contraction. The same day the user ruled the target-graded reading:
+       three piece sets graded toward the ends they are read at, every slot
+       cut at its middle, point values as one-level sums with no scan, a
+       point read only at a crossing of the panels refined at its level
+       (``ConcentricPartition.refined_at`` and ``coarsening`` in the kernel,
+       ``walls.end_on``, ``DiffuseWalls.on``). P3's reading target of
+       0.122 s is not met (0.51 s); the user accepted it for its structural
+       reason.
+     - *(in development,* branch ``refactor/characteristic-axial-lift``\ *)*
+     - #405, #587, #591
+   * - 2026-10-12
+     - The exponential grading derived from the integrating rule's node
+       count, ``ExponentialGrading.of(n)``: a first depth
+       :math:`\min(h_n, 1)` and a ratio :math:`1 + e\,h_n/(2n + 1)` from
+       the Gauss–Legendre error bound on :math:`e^{-x}`, for the gradings
+       along a line (the three piece sets and the block's inner rule);
+       ``DYADIC`` kept for the rules over lines, the impact rule's rim and
+       the direction rules, after the derived rim cost 15 066 impact nodes
+       at 2 points against 26 (the line quadrature is the convergence
+       parameter); the cap of 1, not 2, after the per-polar rows missed
+       their band at 2 (both the user's rulings). It superseded, on this one point, the
+       same day's ruling that the grading law is resolution-independent:
+       the fixed ratios' errors were the node count's (ratio 2 at 4 inner
+       points, :math:`1.0 \times 10^{-6}`). ``ONE_LEVEL_RATIO``, ``_THIN``,
+       ``_DOUBLINGS`` and ``exponential_ends``' ratio retired.
+     - *(in development,* branch ``refactor/characteristic-axial-lift``\ *)*
      - #405
