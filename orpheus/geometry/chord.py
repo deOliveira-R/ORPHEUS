@@ -419,6 +419,32 @@ class Chord:
         r"""The orbit coordinate at the caller's parameters ``t`` ``(..., q)``, ``(..., q)``."""
         return self.image.orbit_coordinate_at(t)
 
+    def rays_at(self, crossing: np.ndarray) -> "Rays":
+        r"""The lines read from one of their crossings, the column ``crossing`` ``(...,)`` of :attr:`crossings` (:class:`Rays`).
+
+        Each point sits exactly on its surface: its parameter, its orbit
+        coordinate :math:`r_k` and its side are the crossing's own, and on the
+        cylinder and the sphere the image is re-levelled at
+        :math:`(r_k, y_k)`, the crossing's half-chord formed from the line's
+        level, so :meth:`Rays.orbit_coordinate_at` reads :math:`r_k` at
+        distance 0 and forms every distance from the wall, never through the
+        parameter. Refused at a crossing the line does not make.
+        """
+        column = np.asarray(crossing)[..., None]
+        if not np.all(np.take_along_axis(self.crossings.present, column, axis=-1)):
+            raise ValueError("a line is read from a crossing it makes; this one it does not")
+        start, breakpoint, sense = (np.take_along_axis(a, column, axis=-1)[..., 0] for a in (
+            self.crossings.parameter, self.crossings.breakpoint, self.crossings.sense))
+        radius = self.partition._r[breakpoint]
+        match self.image:
+            case RadialImage() as image:
+                chord = replace(self, image=image.at_level(radius, image.half_chord_at(radius[..., None])[..., 0]))
+            case AxialImage():
+                chord = self
+            case unreachable:
+                assert_never(unreachable)
+        return Rays(chord=chord, start=start, side=sense.astype(float), orbit_coordinate=radius)
+
     def line_integral(self, per_region: np.ndarray, lengths: np.ndarray) -> np.ndarray:
         r"""The integral :math:`\sum_{\rm slot} f_{\rm region}\,\ell_{\rm slot}` of a per-region field over slot lengths, ``lengths.shape[:-1]``.
 
@@ -688,5 +714,29 @@ class Rays:
                 return half_chord(position, image.level_half_chord[..., None], image.level[..., None])
             case AxialImage() as image:
                 return self.orbit_coordinate[..., None] + image.rate[..., None] * ell
+            case unreachable:
+                assert_never(unreachable)
+
+    def advanced(self, distance: np.ndarray) -> "Rays":
+        r"""The same lines read from the points ``distance`` ``(...,)`` further along (behind, where negative) (:class:`Rays`).
+
+        Each new point is anchored at its own coordinate: on the cylinder and
+        the sphere the image is re-levelled at the new point's radius and
+        half-chord :math:`(c', |s'|)`, :math:`s' = \pm y_* + |P\Omega|\,d`, on
+        its side of the closest approach; on the slab the coordinate is
+        :math:`c + \Omega_x d`. Distances from the new point are then formed
+        from it. One rounding of :math:`d` is spent here, so a point on a
+        surface is read from the crossing (:meth:`Chord.rays_at`) and
+        advanced from there only to a point inside a slot.
+        """
+        d = np.asarray(distance, dtype=float)
+        match self.chord.image:
+            case RadialImage() as image:
+                position = self.side * image.level_half_chord + image.speed * d
+                radius = half_chord(position, image.level_half_chord, image.level)
+                chord = replace(self.chord, image=image.at_level(radius, np.abs(position)))
+                return Rays(chord=chord, start=self.start + d, side=np.sign(position), orbit_coordinate=radius)
+            case AxialImage() as image:
+                return Rays(chord=self.chord, start=self.start + d, side=self.side, orbit_coordinate=self.orbit_coordinate + image.rate * d)
             case unreachable:
                 assert_never(unreachable)

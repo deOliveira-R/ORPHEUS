@@ -2587,3 +2587,9 @@ The investigator's report, checked against its logs (all in `scratch/characteris
 - **The margin**, closed form minus measured m, 1 to 5 per row; measured before the walk fix and with the old rule, so it is being re-measured on the new pair (`margin_B.log`).
 
 ⏸ **Next:** `margin_B.log`; the test-architect's RB3 on offsets and PL1 per row; then the G.24 dependency table and the carve.
+
+### 3f, the rulings on the offset's home (2026-10-13)
+
+- **The user's ruling: advance the rays.** "The point a distance d further along this line" is a geometry verb on `Rays`, not arithmetic in the reference: `Rays.advanced(d)` returns the same lines read from points d further along, re-anchored at the new point's own coordinate (on the cylinder and the sphere, the chord's image re-levelled at the new point's radius and half-chord; on the slab, the start shifted). Rejected: rays at crossings only (an hp-walk end lies inside a slot, on no crossing); the long distance from the observer (the offset's precision is lost to rounding against the end's distance).
+- **The user's ruling: a crossing is anchored exactly, a slot end is advanced from its crossing.** Advancing from the observer by the summed slot lengths places a wall only to eps × (distance travelled), which near a slab face at grazing incidence is the failure KG1 measured for the parameter route `[R]`. So two verbs: `Chord.rays_at(crossing)` mints the lines read from one crossing per line, with the start, the breakpoint and (radially) the exact half-chord read from the chord's own crossing, so l = 0 is the wall exactly and KG1 stands as written; `Rays.advanced(d)` serves the segment ends inside a slot, advanced from that slot's crossing.
+- The dependency table is `.claude/plans/p3_product_integration_dependency_audit.md` (the explorer, 2026-10-13; graph rebuilt the same day).
