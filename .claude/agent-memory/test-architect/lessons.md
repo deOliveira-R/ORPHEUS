@@ -463,6 +463,12 @@ shelf life — check it against a concrete row before trusting a green.
   formed in (y below sqrt(2 R ulp R) for b), it manufactures degenerate lines: gate the node set's degeneracy count
   with a floor-0 positive control. → `L111`
 
+- **⛔ Before speccing a carve from a PROTOTYPE, run the prototype on the interior of every law its measurements sat at the
+  corner of, and re-measure each of its tuned parameters on the closed-form rows, not on its acceptance fixture.** A
+  prototype timed on a mirror body (a = 1) carried a closure exact only at a in {0, 1} (1.1e-2 at a = 0.9), and a floor
+  "moving the result under 1e-6" against a 1e-4 reading cost 1.3e-6 at the closed-form bar. Then census the FAST tier
+  for a row in that interior: none existed. → `L112`
+
 ## 5. Tolerance is a claim — choose it per law, from measurement
 
 - **State the law in the direction that IS a float theorem, and normalise a

@@ -120,6 +120,13 @@ turns every later `is` test false, and the activation counter still reads
 non-zero from the definer's own internal callers. Attribute activations PER
 CALLER MODULE, or the count certifies the wrong site. → L-095
 
+**A26. A source-transform mutant exec'd into a COPY of the module namespace reads
+module globals from the copy, so a test's `monkeypatch.setattr(module, name, spy)`
+never reaches it** — a recording-spy row reads RED ("never called") for a harness
+reason. Exec into `module.__dict__` itself, or read every spy row's message before
+counting it (`[M]` 2026-10-12: G1b red under `ratio2` and `no_middle`, the only
+red of `no_middle`). Not `vv-principles` #17's parent/child process mechanism. → L-102
+
 ---
 
 ## B. Where a gate is structurally blind (ORPHEUS shapes)

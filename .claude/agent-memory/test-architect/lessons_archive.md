@@ -11732,3 +11732,16 @@ law) then graded the cylinder's y below sqrt(2 R ulp(R)): b rounded onto R, tang
 in the reading and a silent drop in the block (positive control: the floor at 0 brings back 4 / 52 such lines).
 Then a box rule graded to |mu| = 2^-40 found NaN in point_parameters (b > c by an ulp) and, on the wall, a
 direction no line represents (ruled: refused). Probes: scratch/characteristic_architecture/p1_step_b5b/ta/.
+
+## L112 — P3 step 3a (the cylinder's axial lift): a prototype measured only at a corner of its law (2026-10-11)
+
+The step-3 prototype of the lifted reading (`scratch/characteristic_architecture/p3/step3/lifted.py`) was timed and
+validated on the A|B|A cylinder, whose outer wall is a mirror (a = 1), and every number the plan carried came from it.
+Its closure was a B / (1 - e^{-kT}), exact at a = 0 and a = 1 only: on a homogeneous cylinder's wall at a = 0.9 it
+missed the mpmath route by 1.1e-2, not converging. Nobody had run it inside (0, 1); the spec's first probe did, because
+the closed-form rows it was choosing bands for happened to include C2b's a = 0.9 fixture. The same prototype carried a
+"floor of 100, moves the result under 1e-6" measured against a reading whose own error was 1e-4; on the closed-form
+rows that floor cost 1.3e-6 (thick wall) and the derived floor is the slowest node's own mean free path. And the fast
+tier had no cylinder row at 0 < a < 1 at all (16 of 1141 fast rows reach the cylinder's rule; every partial-mirror
+cylinder row is slow), so the defect, transcribed, would have passed every merge-deciding run. Evidence:
+`scratch/characteristic_architecture/p3/step3/ta/` (floor_probe*, proto_battery.log, census_slowest_not_slow.json).

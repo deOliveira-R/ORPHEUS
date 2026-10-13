@@ -6113,3 +6113,13 @@ void. The new layer has no such branch, so it moved 8 consumers by 1.4 % to 22 %
 silently, and toward the oracle (`p2/qa/q7_hollow_single.py`, `q8_hollow_single_oracle.py`). The new PC-value rows
 are also three-region only, so a re-added fast path would not red. Not covered by `vv-principles` AP12 (per
 CONSUMER, not per branch) or AP23 (readers of one knob): the population is the BRANCHES the carve deletes.
+
+## L-102 — a mutant exec'd in a namespace COPY detaches the tests' monkeypatches of module globals (2026-10-12, W1 P3 step 3e qa, `4ebfa7a4` + uncommitted)
+
+The battery (`scratch/characteristic_architecture/p3/step3/qa/qa_arms.py`) rebinds each mutant by exec'ing the edited
+source in `dict(module.__dict__)`. G1b (`test_a_familys_slots_are_graded_from_its_slowest_and_fastest_members`)
+monkeypatches `transport.exponential_ends` with a recording spy; the mutated `_PieceSet.of` looked the name up in the
+copy, so the spy recorded nothing and the row failed "never called" under `ratio2` and `no_middle`. Under `no_middle`
+it was the ONLY red, so the arm read "caught" while no value row saw the 7.9e-11 the mutation causes at 8 points
+(reproduced with `impl/exits_accuracy.py`). Not covered by `vv-principles` #17 (parent/child process) or #17(h) (the
+aim trap reads the red set against a target; this red is on the target's neighbour for a harness reason).

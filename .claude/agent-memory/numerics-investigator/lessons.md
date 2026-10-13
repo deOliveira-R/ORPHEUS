@@ -638,3 +638,14 @@ platform change with no old environment to run. `[M]` 2026-10-01, macOS 27.0.1 A
    seeds and green in others is a noise-verdict gate (two FP association orders, `(a·y)/a == y`,
    a tolerance inside its own noise band), and re-capturing does not cure it.
 Record: `scratch/platform_drift/memo.md` (untracked).
+
+## L29: A matched-accuracy target read off a GAUGED observable can be one scalar's error, not the reading's
+
+Not covered by `instrument-doctrine` X2 (it asks for both legs' populations, not for the error's
+decomposition). `[M]` 2026-10-11, #405 P3 step 1: the old reference's phi_g(1.2) erred 1.19e-3 and
+1.16e-3 in its two groups, the SAME sign and size, while the gauge-free ratio phi_1/phi_0 erred 3.1e-5:
+the "accuracy to match" was the old solve's production normaliser, not its transport. A rule
+matching 1.2e-3 can be 40x worse in the ratio. **How to apply:** before fixing a matched-accuracy
+target on a gauged quantity (eigen flux, any normalised reading), print the per-component errors and
+a gauge-free combination beside them; if the components share one factor, state both criteria and
+which rule each selects (`scratch/characteristic_architecture/p3/step1/errors.log`).

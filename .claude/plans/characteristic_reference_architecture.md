@@ -2146,3 +2146,218 @@ Not committed; the main agent commits it with the code. Every commit cell below 
 **On resume:**
 - Read `git log --oneline -5` and `gh run list --branch main --limit 3`. Do not trust this note's merge state; check it with `git merge-base --is-ancestor 124edf67 main`.
 - The characteristic cache is cold. The first non-bypassed run regenerates its 127 entries, which takes hours. Time P3 against a warm cache, or say that it was cold.
+
+## P3 opened (2026-10-11): #405 resumes — living section
+
+**The ruling.** The user, 2026-10-11: "Once everything looks good, let's start P3." P2 was already on `main` (`124edf67`, `ba407665`, `4ebfa7a4`; CI green at `ba407665`), so P3 starts now.
+
+**What P3 owes, read from the plans** (`[M]` read 2026-10-11):
+- this plan's phase line: "the slow reference files, re-timed against `a336bde4`'s measured speed";
+- the P1 verification spec §8 (`scratch/characteristic_architecture/p1_verification_spec.md`): the protocol for one point reading, the cylinder `ABA` at r = 1.2, old (the hoisted brute call at `a336bde4`) against new, at matched accuracy, min over ≥ 15 alternating subprocesses. It was never run: rung 5b recorded 1.5 to 8 s per cylinder point against the 0.073 s figure, "not yet measured by the §8 protocol";
+- `test_runtime_405.md`, "Step 3 moved": step 3 of #405 is done when this phase re-times the slow reference files;
+- `reference_cache.md`'s P3 timing protocol (bypassed, cold, warm twice, per file, serially, in a detached worktree; driver `scratch/reference_architecture/p3/timing/run.sh`).
+
+**The file set changed since that protocol ran.** `[M]` 2026-10-11: of its 11 files, the 5 of the deleted families are gone (`test_trajectory_resolvent_reference.py` and the four `test_peierls_greens_function_*` non-symbolic files); 6 remain (`test_aba_specification.py`, `test_crosscheck_harness.py`, `test_phase_c_crosscheck.py`, `test_l1_standoff_slab_cylinder.py`, `test_unified_matvec_cylinder.py`, `test_reference_body.py`). The memo has one client now, `characteristic/reference.py`. The new set is those 6 plus the characteristic consumers: the 11 `test_characteristic_*` files, the two Fn `*_xverif` files, `test_singular_eigenfunction_cylinder_xverif.py` and `test_partial_reflector_resolvent.py`.
+
+**The steps** (`[HYPOTHESIS]` until the measurements are in; each decision after a measurement goes to the user):
+1. **The §8 point-reading protocol** (a numerics-investigator; the host idle otherwise). Output: old and new minimum and median, both errors against the truth, the activation counts.
+2. **The file re-timing** (bypassed, cold, warm twice) on the new file set at `main`, after step 1, serially in a detached worktree. Output: the table beside P3's of 2026-10-04, and the hottest files, which order `reference_cache.md`'s P4 ("the families, hottest first").
+3. **If step 1 misses the target:** the lever named at rung 5b, contracting the emission before the scan (one function transported instead of N), is a code change to the reading. Its design goes to the user before any code.
+4. **Close-out:** the parked hoist `a336bde4` retires (its oracles were deleted in P1, so it cannot merge); the branch deletion goes to the user. #405's own remaining items (R2, R3, #504) stay in `test_runtime_405.md`.
+
+**Step 1 measured: the new reading misses the target by about 19×.** `[M]` 2026-10-11. The artefacts are in `scratch/characteristic_architecture/p3/step1/`; the driver is `driver.py c_2_1_2_4_4 15` and its log is `driver_c_2_1_2_4_4.log`. The reading is φ_g(1.2) of the cylinder ABA, both groups counted as one call. Each side ran in 15 alternating subprocesses; each subprocess made one untimed warm-up call and 5 timed calls. Settings: `OMP_NUM_THREADS=1`, Accelerate BLAS, `-O`. The host was not idle (load average 9.6 at the start, 6.5 at the end).
+
+| side | rule | min of the minima | median of the minima | max φ_g error, vs the panel p = 4 truth | φ₁/φ₀ error |
+|---|---|---|---|---|---|
+| old, `a336bde4` | 48 μ × 256 azimuths, n_traj 64 | 0.122 s | 0.124 s | 1.19e-3 | −3.1e-5 |
+| new, `main` | `Resolution(2, 1, 0.4, TransportResolution(2, 4, 4), 6)` | 2.29 s | 2.30 s | 6.8e-4 | −1.3e-3 |
+
+- **The new rule.** It is the coarsest of the 10 rules probed that matches the old accuracy. The coarsest rule probed (one line point) reads in 0.54 s at an error of 5e-2, so no rule choice meets the target.
+- **The old error is mostly one gauge factor.** Both groups are off by +1.2e-3 while the ratio is off by 3.1e-5: the old solve ran at the gate quadrature, where k = 1.1703. Under a ratio criterion the miss widens.
+- **The controls.** Activation counts were above 0 on every timed call: 512 segment builds per old call and 29 `_stacked_flux` calls per new call. Every reading was bit-equal to the reading of its own setup.
+- **Where a new reading spends its time** (`profile_c_2_1_2_4_4.txt`, 2.49 s in total):
+  - 55 %: `StackedSources.of` and `outflow`, the full-chord exit and entry integrals, one per basis column;
+  - 25 %: the chunking, the chord and its pieces;
+  - 12 %: `PointRule.of`, of which 0.18 s is `leggauss` recomputed 2401 times;
+  - 8 %: `rule.at`.
+- **Contracting the emission before the scan** `[R]`, from the tottime arithmetic, not prototyped. It saves about 0.5 s and leaves about 15× the old time. Each line carries p + 1 = 3 columns, not N, so the per-basis factor is small.
+- **The structural lever** `[M]` (`line_census.log`). The new rule chords about 2280 lines per group, with 214 distinct impact parameters over 38 polar angles, and each line is chorded separately. The old side chords 256 in-plane lines and lifts each over its 48 polar cosines almost for free. The impact rule is graded per polar angle (#587), which prevents one in-plane chord from serving every polar angle.
+- **The full solve** (reported, not gated): old 7.01 s min (N = 15), new 11.64 s min (N = 5). The two k accuracies differ: the old k is off by 5.0e-2, the new by 3.8e-4.
+
+Step 3's premise is therefore revised: the named lever (contracting the emission) cannot close the gap alone. The candidates go to the user.
+
+**The user's rulings on step 1** (2026-10-11, asked after the measurement):
+- Step 3 is the **axial lift**: each in-plane line is chorded once and lifted over every polar angle, as the hoist did. The impact rule is then graded in-plane, not per polar angle, so #587's grading is re-opened. The design goes to the user before any code.
+- Step 2 (the file re-timing) runs **after step 3**, so that it times the reading that ships.
+
+**Step 3 measured: the axial lift meets the target in a scratch prototype.** `[M]` 2026-10-11, numerics-investigator. The files are in `scratch/characteristic_architecture/p3/step3/`; no production file changed. The host was heavily loaded (load average 14 to 126), but the old minimum reproduced step 1's to 0.2 %.
+- **Shareable fraction** (`q1_split.py`). Of production's 2.30 s reading, 65 % (1.50 s) does not depend on θ once each in-plane line is chorded once: `basis.values` 26 %, the pieces 20.5 %, `PointRule.of` 7 %, the nodes 7 %, the slots, chord and period 4.5 %. 34 % is per (b, θ): the exponentials 22 %, the carried scan 6 %, the scatter 5 %. Of the 56 piece builds, 27 are discarded when the budget halves a chunk.
+- **The lift identity.** A 3-D line at polar angle θ is its in-plane line with every optical depth scaled by κ = 1/sin θ and the reading multiplied by κ. On production's own `TraversalRule` the identity holds to 1.2e-7 relative on the matched rule and 1.1e-12 on the panel-4 rule. It is not bit-equal.
+- **The prototype** (`lifted.py`):
+  - Each in-plane line is chorded once, and θ is a broadcast axis over the exponentials. The specular closure is a·B/(1 − a·e^{−κT}).
+  - Gradings: the impact rule is production's, at the slowest polar node. Its layers are nested, so this is the union, and its cost grows with log(1/sin θ_min). Along the line, each slot is graded dyadically from the slowest node's mean free path, with a floor of 100 that moves the result by under 1e-6.
+  - Controls: summed over production's own lines, the kernel reproduces production's reading to 3.7e-11. Activation counters were above 0.
+- **Timing, the §8 protocol** (`driver_lifted_matched.log`, 15 alternating subprocesses per side). The lifted reading: min 0.0612 s, median 0.0630 s, errors 7.2e-4 and −6.2e-4, ratio error −1.3e-3. The old reading: min 0.1222 s, median 0.1244 s. With 8 points throughout, the lifted reading reproduces the truth to 2e-16 in 14 s, where production takes 355 s.
+- **The analytic θ integral (Bickley–Naylor Ki₁)** is accurate (8e-11 at 16 points) but 4 to 6× slower. It needs a Neumann series for the specular closure, which diverges as the cycle product Π → 1. That is the regime the pole grading guards, so it is refuted as the general form.
+- **The Galerkin block** `[R]`: the same lift folds the θ-sum of the Volterra triangle into one kernel per in-plane line. The expected gain is up to the number of polar nodes on the shareable 65 %.
+- **Not measured:** the gauge-free ratio criterion. It is limited by the solve rung (it needs panel 2 or panel 3, solves of 375 s or 1259 s), not by the reading.
+
+**The user's rulings on the lift's design** (2026-10-11, asked after the measurement):
+- **Scope: both the reading and the block.** One lifted-line object serves the point reading and the Galerkin block, so no per-(b, θ) path survives on the cylinder.
+- **The polar integral is a numerical polar rule,** broadcast over the shared chord. The Bickley–Naylor form is refuted for this use: its closure series diverges as Π → 1.
+- **The along-line grading floor is derived** from the vanishing depth (`grading.VANISHING_DEPTH`), not tuned, and measured on the closed-form rows.
+
+**Step 3's carve** (`[HYPOTHESIS]` until the test-architect's spec is in; branch `refactor/characteristic-axial-lift`):
+- **3a. The specification** (test-architect), written to `scratch/characteristic_architecture/p3/step3/gate_spec.md`. It covers:
+  - the lift identity as a gate: a 3-D line equals κ times its in-plane line with Σ replaced by κΣ. Its witness is production's per-(b, θ) path, kept as a test oracle until the carve deletes it;
+  - the closed-form rows (C9, T_w) and conservation, unchanged within their bands;
+  - the re-baseline list: the reading and block values that move, each with its reason under the three-condition acceptance;
+  - a mutation that reddens each gate (X1);
+  - the memo regeneration: every cylinder entry goes cold once.
+- **3b. The lifted line rule.**
+  - The in-plane impact rule is graded at the slowest polar node (`ImpactPanels.rule` at sin θ_min; the layers nest, so this is their union). This re-opens #587, whose per-polar grading retires.
+  - Along each line, one set of nodes is graded from the slowest speed, with a floor derived from the vanishing depth.
+  - θ is a broadcast axis of the exponentials and of the closure a·B/(1 − a·e^{−κT}).
+- **3c. Both consumers onto 3b:** `PointRule` (the reading) and `LineRule` (the block, whose Volterra θ-sum folds into one kernel per in-plane line). The cylinder's `impact_per_polar` retires; the sphere and the slab are unchanged.
+- **3d.** Fix the 27 of 56 piece builds that `Lines.chunks` throws away when it halves a chunk.
+- **3e. Review and docs.** qa and the elegance-enforcer in parallel; the archivist updates `docs/theory/references/characteristic.rst` ("The cylinder's cost on a thick body") and the development history.
+- **3f. Re-time.** The §8 protocol on the landed reading, then step 2.
+
+**Step 3a landed: the gate specification** (`[M]` 2026-10-11, the test-architect; `scratch/characteristic_architecture/p3/step3/gate_spec.md`, probes in `.../step3/ta/`). Three findings change the carve:
+- **The prototype's closure is wrong between the corners.** `lifted.py` spells a·B/(1 − e^{−κT}), not a·B/(1 − a·e^{−κT}). It is exact at a = 0 and a = 1, and every step-3 measurement used the A|B|A mirror (a = 1), so the numbers above stand. At a = 0.9 a homogeneous cylinder's wall reading is off by 1.1e-2, and at a = 0.5 by 2.0e-2; more points do not reduce it. This is ERR-035's shape. The carve reuses `LinePeriod.inflow`, which is correct, and never re-spells the closure.
+- **No fast row sees a cylinder closure defect today.** Under `-m "not slow"`, 16 of 1141 rows of the `test_characteristic_*` files reach the cylinder's rule, and none checks 0 < a < 1 against a reference. The spec adds fast rows: K1c (one line against `MpLine`) and F1, F1b (wall readings against frozen mpmath values).
+- **The derived grading law.** The first graded depth is the slowest polar node's own in-plane mean free path, sin θ_min/Σ. A first depth 4× larger cannot be told apart at 8 points; 16× costs 6.7e-11 on a thick wall, and 100× costs up to 1.3e-6. The reach is K = ⌈log₂(VANISHING_DEPTH · sin θ_max/sin θ_min)⌉ + 1 doublings, which reaches 64 mean free paths of the FASTEST node. Stopping at production's 7 doublings misses every closed form, by 7.8e-9 to 2.7e-3. At a single speed the law reduces to production's 7 doublings exactly.
+- **#587's retirement costs no accuracy.** Per polar node, the impact rule graded at the slowest speed was worse than the own-speed rule on 0 of 384 nodes. Grading at speed 1 is off by 2e-5 to 8e-4 per node, while the total moves only by 1e-8, so the new gate P1 reads each node.
+- **The existing gates.** Simulating the impact half of the carve on today's tree reddens exactly 5 non-slow rows: LR2 (2) and Q4b (3). Both are inverted by the carve and are re-posed in its commit. The 7 slow closed-form cylinder rows tried stay green. The transport rows on 3-D cylinder lines keep gating `TraversalRule` and `angular_flux`, but no longer the cylinder's reading or block, so their scope sentences owe a re-scope.
+- **The memo.** Every cylinder entry goes stale. Every solve entry also regenerates if 3b–3d edit a definition it pins (`LineRule.of`, `Lines.chunks`, `StackedSources.of`, `TraversalRule`).
+
+**The user's rulings on the lift's form** (2026-10-11, asked after the spec):
+- **The lift is a speed on the traversal rule.** A cylinder 3-D line is its in-plane line traversed at speed v = ds/dt = 1/sin θ, where s is 3-D arc length and t is in-plane arc length. The rule gains one field, the speeds, which broadcast against the line batch; a leading axis of the speeds is a family over the same lines. Every optical depth is Σ·v·Δt, and every length weight along the line is v·Δt; the speed enters there and nowhere else. The pieces, the nodes, the basis values and the period are built once per in-plane line. The closure (`LinePeriod.inflow`) is reused unchanged. The exponential grading becomes graded over the family's range of optical speeds, by the derived law above. The sphere and the slab run at speed 1, and their values must be bit-identical (a gate). `Lines` holds the in-plane lines and the polar rule; its weights are the tensor product of the impact weights and the polar weights times the 3-D density, so the spec's (b, θ) gates re-pose by an accessor. A separate lifted-line class was rejected: it would re-spell the closure, the pieces and the attenuated integral for one geometry, a twin path, and the closure re-spelling is where the prototype's error lived.
+- **`angular_flux` stays on the 3-D chord** at speed 1, as the "reading and block" scope ruled. The per-line transport rows against `MpLine` keep covering a production path, and the 3-D chord against the in-plane chord with a speed is an independent check of the lift (spec gate K3).
+- **Noted, not in scope:** the slab's line at cosine μ is its normal line at speed 1/|μ|, the same structure. The ruling keeps the slab unchanged; an issue records the option.
+
+**Step 3b–3d written to the working tree; the reading misses the target** (`[M]` 2026-10-11; probes in `scratch/characteristic_architecture/p3/step3/impl/` and `.../baseline/`; the pre-carve tree is the worktree `scratch/characteristic_architecture/p3/step3/wt_head` at `4ebfa7a4`).
+- **What is written.** `TraversalRule.speed`, a family axis through the pieces, the attenuated integral, the scan and every functional. `exponential_ends` takes the family's steepest and gentlest attenuation. `Lines.speeds`, with weights `(V, L)`. `axial_lift` replaces `impact_per_polar`. `LinePeriod.inflow` reads its rank from the optical depth. The chunker plans its halving from per-line piece counts (3d). The block folds the family before the basis contraction, as batched matmuls. The packing's scatter is a segmented `reduceat`.
+- **Correctness.**
+  - The lift identity on single lines: the in-plane line at speed 1/sin θ against the 3-D line at speed 1 agree to ≤ 4.3e-13 (depth, outflow, entry response) and ≤ 2.5e-11 (Volterra) for sin θ from 1 to 0.01.
+  - Sphere and slab: 5 bodies × 4 arrays against `4ebfa7a4`. Every reading row and boundary response is bit-identical. Every Volterra block is within 2.9e-16 of its largest entry, a reordered sum.
+  - The cylinder block at 4 points sums to within 1.3e-9 of the old block. Its largest entry difference (6 % on one diagonal entry) is the old rule's own error at 4 points: the old block's entry moves from 0.014650 (4 points) to 0.013807 (8 points), and the new block reads 0.013755 at 4 points.
+- **Cost.**
+  - The cylinder block (MR3, a = 0.6, 4 points, `profile_block*.log`): old 73.6 s; first lifted version 218 s; after the fold, the matmuls and the segmented scatter, 53.7 s.
+  - The point reading at step 1's matched rule (`reading_quick.py c_2_1_2_4_4`): 2.57 s, against production's 2.29 s and the target 0.122 s. Its errors are the prototype's: 7.2e-4 and −5.9e-4.
+- **Why the reading does not gain** (`reading_census.py`, `reading_profile.py`).
+  - Per group the lifted reading carries 126 in-plane lines × 38 speeds = 4788 line-speed pairs, against 2280 3-D lines before. The impact rule graded at the slowest node is the finer rule.
+  - Each in-plane line carries up to 342 pieces, because the family's grading reaches 64 mean free paths of the fastest node from both ends of every slot.
+  - Production's traversal rule is two-level: every piece's inner rule is graded toward its own end, and a scan carries every basis function along the line. The Volterra block needs that, because it needs the flux at every node. The point reading needs only three targets (the point on each side, and the exit) and one emission. The prototype integrated straight to each target, on one node set graded toward it, with the emission contracted first. In the reading's profile the attenuated integral takes 1.24 s of 2.75 s and the basis-wide scan 0.62 s.
+
+**The user's ruling on the reading** (2026-10-11, asked after the measurement above): **a target-graded reading.** The traversal rule gains a second evaluation, for the flux at a few targets: integrate from the line's nodes straight to each target (the point, the exit), on nodes graded toward it, as the prototype did. The row stays a functional of the emission coefficients, with no scan over every basis function. The block keeps the two-level path, which it needs for the flux at every node. The pointwise reading `at(t)` and `angular_flux` move onto the target-graded evaluation, so that one quadrature serves point values. Rejected for now: landing the carve with the reading unchanged (P3's target stays unmet), and a separate investigation first.
+
+**Step 3a's gate rows are written** (the test-architect, 2026-10-11): the new file `tests/gates/derivations/test_characteristic_lift.py` (K1a–K1d, K2, K3, K4, G1, G1b, F1/F1b/F4, G2, the slow twin, P1, S1), plus the re-posed LR1, LR2', Q4b', M1, M2, M4 and M4.3c, and the transport file's re-scope. 40 rows pass against the working tree as it stood at their run; G2, P1 and S1 have not run yet. S1 compares SHA-256 hashes against a capture from `4ebfa7a4`, so the reading change will move it (see below).
+
+**The target-graded reading, written** (`[M]` 2026-10-11; probes in `scratch/characteristic_architecture/p3/step3/impl/`).
+- **A chord through a refinement.** `TraversalRule.on_chord` accepts a chord through any refinement of the basis's panels with the same ends; each region maps to the panel it lies in. `reading.refined_at(basis, c)` inserts the point's level. The reading's lines and `angular_flux`'s rays are chorded through it, so the point is a crossing on each side. The diffuse walls re-key onto the refinement (`DiffuseWalls.on`).
+- **Graded piece sets.** A rule's pieces are three sets (`_PieceSet`, by `_Toward`):
+  - toward the exits, for the outflow and the flux at a crossing (`at`);
+  - toward the entries, for the entry response;
+  - toward both ends, for the Volterra integral alone.
+
+  Every slot is cut at its middle. A one-sided set is graded across the whole slot. Each set is built only when a functional reads it, and a solid body's period reads no traversal backward.
+- **One-level point values.** The outflow, the entry response and the flux at a crossing are one-level integrals on each piece's own nodes. The flux at a crossing is a sum over the upstream pieces, with no scan over the basis. The block's scan keeps the two-level integral (`_to_end`), because it reads the flux at piece ends inside a slot.
+- **Accuracy** (`exits_accuracy.py`, a three-region cylinder's outflow at 8 points against 24): the in-plane family reads 6.6e-15 or better and the single 3-D line 4.3e-13. Two intermediate gradings were refuted, each for a stated reason:
+  - grading the whole slot toward its exit alone, with no middle cut: a thin slot stays one piece, 7.9e-11;
+  - grading only the half nearer the exit: the far half stays one piece, 1.2e-13 on the family.
+- **Sphere and slab against `4ebfa7a4`** (the capture at 4 line points, 6 along the line): reading rows move by 3.3e-11 to 5.7e-11 of their largest entry, a quadrature change; blocks by at most 3.0e-13; boundary responses by at most 3.4e-12. These are re-baselines under the three-condition acceptance, not bit-identity. The test-architect re-poses S1.
+- **Cost** (`reading_quick.py c_2_1_2_4_4`, min of 5 after a warm-up, not yet the §8 protocol): 0.39 s, against 2.29 s before the carve and the target 0.122 s. The errors are unchanged: 7.2e-4, −5.9e-4, ratio −1.3e-3. The steps:
+
+  | form | time |
+  |---|---|
+  | lifted, two-level | 2.57 s |
+  | point values one-level, scan-free | 1.16 s |
+  | per-panel gather by matmul | 0.94 s |
+  | point rule budget 2^18 | 0.72 s |
+  | exit-graded pieces | 0.37 to 0.39 s |
+
+  The cost now scales with the pieces, about 300 per in-plane line graded both ways, not with the nodes: 2 points along the line read in 0.64 s, 4 in 0.72 s, before the piece sets. The prototype's 0.061 s used 2 points along the line and a first graded depth of 100 slowest mean free paths, a floor the test-architect refuted at the closed-form bars.
+- **The one-level sets are graded at ratio √2** (`grading.ONE_LEVEL_RATIO`; `exponential_ends` takes a `ratio`, default 2). The fast tier (`impl/runs/fast1.log`: 56 failed, 1145 passed) showed P1 off by up to 9.8e-13 per polar node, against its 1e-13 bar. That is the one-level integral on dyadic pieces: over [0, 64] mean free paths at 8 points, ratio 2 misses by 7.4e-13 (7 pieces) and ratio √2 by 2.2e-16 (13 pieces). The Volterra set keeps ratio 2, because its inner rule grades each piece. After the change the in-plane family's outflow reads ≤ 7.8e-15 at 8 points, and the reading costs 0.63 s, up from 0.39 s.
+- The other 55 reds: 46 rows read at a parameter inside a slot, which is now refused (the transport file's rows and the old K1b/K1c/K2, which the test-architect is re-posing); the rest are S1's hashes and two `Lines(...)` calls that the run collected before the test edits.
+- **The gap to the target, reasoned** `[R]`. Production's grading law is fixed by `VANISHING_DEPTH` and resolves every attenuation to double precision at any resolution, so a coarse resolution still pays for machine-precision grading. The prototype at the derived floor would cost about 1.8× its 0.061 s (its own exponential count), and about 2× more again at ratio √2, so roughly 0.2 s. Production's remaining factor of about 3 over that is implementation: padding, the both-ends set built to size the batch, and the gathers onto the basis columns.
+- **The reading after caching the piece integrals:** 0.51 s (`reading_quick.py c_2_1_2_4_4`), with the errors unchanged. The characteristic fast tier is green (`impl/runs/fast2.log`: 1202 passed, 3 skipped, 16.8 min).
+
+**The user's ruling on the reading's cost** (2026-10-12): **accept and continue.** The resolution-independent grading law stands (the "derive it" ruling). P3's reading target of 0.122 s is recorded as **not met**, for this structural reason: production's grading resolves every attenuation to double precision at any resolution. The polar family stretches the grading from the slowest node's first mean free path to 64 of the fastest node's, and the one-level reads need ratio √2. The hoist reached its matched accuracy with a far coarser grading.
+
+Rejected for now:
+- coupling the grading to the resolution, which would change the ruled law;
+- measuring the prototype at an identical grading first.
+
+Next: 3e (qa and the elegance-enforcer, then the docs), 3f (the slow files re-timed with the §8 protocol), then step 2.
+
+**Step 3e: the reviews, and the fixes applied** (2026-10-12). qa ran 23 mutation arms (`scratch/characteristic_architecture/p3/step3/qa/`); the elegance review read the code (`.../step3/elegance/`). Fixed in the working tree, by the main agent:
+- **The speed is a scalar or one family axis `(F,)` shared by every line** (elegance B1, the blocker). Before, a `(V, 1)` speed was a family and a `(V,)` speed on V lines was per-line, told apart by shape alone, so a dropped `[:, None]` was admitted whenever the speed count equalled the chunk's line count. A speed of two or more axes is now refused.
+- **The refinement is the kernel's.** `ConcentricPartition.refined_at(c)` and `ConcentricPartition.coarsening(coarse)` (`orpheus/geometry/chord.py`) replace `reading.refined_at`, the inline refinement check in `TraversalRule.__post_init__`, and three spellings of "the coarse region holding each fine region" (`PanelBasis.region_of_panel`, the transport rule, the reading). The wall re-key law is one function, `walls.end_on`, used by `Walls.on` and `DiffuseWalls.on` (elegance S2).
+- **`ImpactPanels.lifted_rule(points, polar)`** holds the "grade at sin θ_min" law that the block's and the reading's cylinder arms had each spelled (elegance S3). `ImpactPanels`' parameter is renamed `projected_speed`: "speed" named both v = 1/sin θ (the rule's) and sin θ (the impact rule's), and a swap type-checks (qa finding 4).
+- **A batch is sized from the exits-graded set**, which every consumer builds, so the reading no longer builds the both-ends set just to size its chunks (elegance C1). **The integrand v·w·e^{−Σvd} is one function**, `_attenuated_length` (elegance C3).
+- **Prose corrected** (qa finding 6, elegance S1 and C4): the transport module's "one body", `_attenuated`'s interval count, the claim that ratio 2 holds for the two-level rule, the cost proxy that is a no-op on the cylinder, and `ImpactPanels`' "no less accurate on 384 of 384", now stated with its predicate (no worse than 1.5 times the node's own rule plus 1e-14).
+- The fast gates the fixes touch are green before the ruling below (`fix/smoke1.log`: 1033 passed, 45 deselected, 11.4 min).
+- **Not fixed, for a stated reason:**
+  - **C2, `at` taking a crossing (a level and a side) instead of a parameter**, is not done in this step: it re-spells the reading's and the tests' calling convention. Today a parameter that is not a crossing is refused at the door.
+  - **qa finding 5, the budget not bounding the cylinder**: a rule of one in-plane line holds its whole family (7616 to 24 752 piece slots against the default budget 1024; 52 to 164 MiB per rule at 8 points), so every chunk is one line. The halving planner itself is exact (0 of 576 rules over budget). The budgets are re-measured in 3f.
+  - **The folding of `_to_end` into the triangle's `own` read at `upper`** (an elegance NIT): not done.
+
+**The user's ruling on the grading ratio** (2026-10-12, asked after elegance S1): **derive the ratio from the integrating rule's node count.** This supersedes the same day's "resolution-independent law" on this one point. The measurement that prompted it: at any fixed ratio the error is the node count's. At ratio 2 the block's inner rule missed by 1.0e-6 at 4 inner points, 5.8e-13 at 8 and 3.3e-15 at 12 (`elegance/probe_shape.py`); at ratio √2 the one-level reads missed by 5e-9 at 4 points. Rejected: one constant √2 everywhere (the 4-point error stays 5e-9), and keeping 2 and √2 with corrected docstrings.
+- **The law** (`grading.ExponentialGrading.of(points)`).
+  - The n-point Gauss-Legendre error on e^{−x} over [d, d+h] is at most c_n h^{2n+1} e^{−d}, where c_n = (n!)^4 / ((2n+1)((2n)!)^3).
+  - h_n = (ε/c_n)^{1/(2n+1)} is the widest piece at the attenuated end that n points integrate to double precision.
+  - The first piece is min(h_n, 2) mean free paths; a stretch no wider is not cut.
+  - The geometric pieces have their largest bound at d = 2n+1, so ρ = 1 + e·h_n/(2n+1).
+  - The cap of 2 is the nodes' own rounding: an uncapped first piece of 7.9 to 32.6 mean free paths, at 12 to 24 points, missed by 4 to 40 ε.
+- **Measured** (`[M]` `ratio/law_capped.log`, the integral of e^{−x} over [0, 64] in double precision):
+
+  | n | first | ρ | pieces | error |
+  |---|---|---|---|---|
+  | 4 | 0.194 | 1.059 | 103 | 2.7e-15 |
+  | 8 | 2 | 1.419 | 11 | 0 |
+  | 12 | 2 | 1.856 | 7 | 0 |
+  | 16 | 2 | 2.238 | 6 | 2.2e-16 |
+
+  The fixed laws it replaces: at 4 points, 1.1e-6 (ratio 2) and 5.0e-9 (√2); at 8 points, 7.4e-13 and 2.2e-16, with 7 and 13 pieces.
+- **Applied to:** every rule whose Gauss nodes are in the exponent's own variable. That is the three piece sets (at `points`), the block's inner rule (at `inner_points`) and the impact rule in y (at `points`). `grading.DYADIC` (first 1, ratio 2) stays for the polar and cosine grazing ends: their nodes are in θ or μ, where the exponent τ/v is not linear. Retired: `ONE_LEVEL_RATIO`, `_THIN`, `_DOUBLINGS`, `exponential_ends`' `ratio`, and `_Toward`'s ratio.
+- **The outflow under the derived law** (`[M]` `fix/outflow_accuracy.log`, a three-region cylinder under a partial mirror, against 24 points):
+
+  | points | in-plane family | the 3-D line |
+  |---|---|---|
+  | 4 | ≤ 8.2e-15 (7.4e-13 at sin θ = 0.01) | up to 6.6e-8 |
+  | 8 | ≤ 7.1e-15 | ≤ 4.3e-13 |
+  | 16 | ≤ 3.6e-15 | ≤ 3.0e-14 |
+
+  The 3-D line's residual at 4 points is the closest approach's curvature (the hp grading), not the exponential.
+- Pending: the block's cost at 4 and 8 points (`fix/ladder_derived.log`); the test-architect's gates and re-baselines; the archivist's pages. The four `TransportResolution(4, 4, 4)` fixtures now pay 103 pieces per graded end.
+
+**Two further user rulings on the derived law** (2026-10-12):
+- **Along lines only.**
+  - **What I had done.** I applied the derived law to the impact rule's rim grading in y as well; that was my extension of the ruling, not part of it.
+  - **What it cost** (`[M]` the archivist, the three-region cylinder's impact rule; working tree against `4ebfa7a4`):
+
+    | line points | nodes, derived law | nodes, before |
+    |---|---|---|
+    | 2 | 15 066 | 26 |
+    | 3 | 1518 | 39 |
+    | 4 | 368 | 52 |
+    | 8 | 104 | 104 |
+
+    The block's cost probe at 4 points was killed (exit 137) under that law.
+  - **Ruled:** the impact rule returns to `grading.DYADIC`. The line quadrature is the reference's convergence parameter, so its coarse rules stay coarse. The derived law applies along lines: the three piece sets at `points`, and the block's inner rule at `inner_points`.
+- **The first piece is capped at 1 mean free path, not 2** (`grading._WIDEST_FIRST`).
+  - **Why the cap is measured, not derived.** The Gauss bound sees e^{−x} alone, but the integrand is a basis polynomial times it.
+  - **The red that prompted it.** At a cap of 2, the test-architect's P1 rows read 2.5e-13 at the wall and 1.2e-13 at an interface, against their 1e-13 band at 8 points; at a cap of 1 they are within it.
+  - **Refuted:** a degree-aware derivation. The safe width depends on how fast the polynomial varies over its panel, which the piece does not know (`ratio/first_poly.log`, eps-level and noisy).
+  - **The table** (`ratio/law_cap1.log`): 13 pieces at 8 points, 8 at 12, 7 at 16, all exact; 103 at 4 and 23 at 6.
+
+**Step 3e closed** (2026-10-12): code `c9db13e3`, docs `1ad1f557`.
+- **Gates.** The test-architect's gates landed, each with a mutation red (`scratch/characteristic_architecture/p3/step3/gate_spec.md` §9). The characteristic fast tier is green (`ta/confirm2/summary.log`, 11 files). K4 went from 523 s to 10 s and is back in the fast tier.
+- **Re-drops.** ERR-105, ERR-106 and ERR-035, re-dropped on the landed law, each red their catchers.
+- **Issues still to file:**
+  - the slab's own speed option (its line at cosine μ is its normal line at speed 1/|μ|);
+  - `at` taking a crossing (a level and a side) instead of a parameter (elegance C2);
+  - #587: comment on what the lift retired; it stays open for the polar weight absorbing sin²θ.
+
+⏸ **Next: 3f.** Re-time the slow reference files with the §8 protocol, and re-measure the chunk budgets under the derived law; the reading's 0.122 s target is to be re-measured there. Then step 2.

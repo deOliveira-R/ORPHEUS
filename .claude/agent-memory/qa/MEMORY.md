@@ -31,6 +31,7 @@ it (`process-discipline`).
 
 | review | lesson → digest rule |
 |---|---|
+| W1 P3 step 3e axial lift (2026-10-12) | L-102 → A26 |
 | W3 #578 P2 reference sites onto the kernel (2026-10-11) | L-101 → D15 |
 | W3 characteristic rung 5b reading (2026-10-08) | L-100 → B19 |
 | W3 characteristic rung 5a door (2026-10-07) | L-099 → B18 |
