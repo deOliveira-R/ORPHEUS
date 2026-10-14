@@ -224,26 +224,34 @@ class Quadrature1D:
 # Primitive constructors
 # ═══════════════════════════════════════════════════════════════════════
 
+@functools.cache
 def _leggauss(n: int, dps: int) -> tuple[np.ndarray, np.ndarray]:
     r"""Gauss-Legendre nodes/weights on :math:`[-1, 1]` at the requested
-    decimal precision, returned as float64 ndarrays.
+    decimal precision, returned as read-only float64 ndarrays.
 
     For ``dps <= 53`` (i.e. double precision) we use
     :func:`numpy.polynomial.legendre.leggauss`. For higher precision
     we use :func:`mpmath.gauss_quadrature` and cast to float — same
     routing as the legacy :func:`peierls_geometry.gl_float`.
+
+    Memoised by order and precision: the rule is a pure function of the
+    two, and rebuilding it was a third of the characteristic reference's
+    attenuation-rule construction (`[M]` 2026-10-14, 289 625 calls in one
+    391 s cylinder test, ``scratch/characteristic_architecture/p3/timing/profile/``).
+    The arrays are shared between callers, so they are frozen.
     """
     if n < 1:
         raise ValueError(f"n must be >= 1, got {n}")
     if dps <= 53:
         nodes, wts = np.polynomial.legendre.leggauss(n)
-        return nodes.astype(float), wts.astype(float)
-    with mpmath.workdps(dps):
-        mp_nodes, mp_wts = mpmath.gauss_quadrature(n, "legendre")
-    return (
-        np.fromiter((float(x) for x in mp_nodes), dtype=float, count=n),
-        np.fromiter((float(w) for w in mp_wts), dtype=float, count=n),
-    )
+        nodes, wts = nodes.astype(float), wts.astype(float)
+    else:
+        with mpmath.workdps(dps):
+            mp_nodes, mp_wts = mpmath.gauss_quadrature(n, "legendre")
+        nodes = np.fromiter((float(x) for x in mp_nodes), dtype=float, count=n)
+        wts = np.fromiter((float(w) for w in mp_wts), dtype=float, count=n)
+    nodes.flags.writeable = wts.flags.writeable = False
+    return nodes, wts
 
 
 def gauss_legendre(a: float, b: float, n: int, *, dps: int = 53) -> Quadrature1D:

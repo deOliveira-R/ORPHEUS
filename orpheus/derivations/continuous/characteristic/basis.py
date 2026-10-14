@@ -205,10 +205,16 @@ class PanelBasis:
         x = (2.0 * np.asarray(orbit_coordinate, dtype=float) - (a + b)) / (b - a)
         even = self.even[panel]
         x = np.where(even, _even_coordinate(x), x)
+        even = np.broadcast_to(even, x.shape)
         nodes, others, spread = self._lagrange
-        kind = even.astype(int)
-        factors = (x[..., None] - nodes[kind])[..., others] / spread[kind]                 # (..., p + 1, p)
-        return factors.prod(axis=-1)
+        values = np.empty(x.shape + (self.per_panel,))
+        # each coordinate's table applied to its own points, never gathered per point (26 % faster, `[M]` 2026-10-14,
+        # ``scratch/characteristic_architecture/p3/speed/values_kind.py``)
+        for kind, chosen in enumerate((~even, even)):
+            if chosen.any():
+                factors = (x[chosen][:, None] - nodes[kind])[:, others] / spread[kind]               # (q, p + 1, p)
+                values[chosen] = factors.prod(axis=-1)
+        return values
 
     def bound(self, radius: np.ndarray, panel: np.ndarray) -> np.ndarray:
         r"""A majorant of :math:`|u_i(c)|` over the functions of ``panel`` and every complex :math:`c` with :math:`|c| \le` ``radius``, ``(...)``.
