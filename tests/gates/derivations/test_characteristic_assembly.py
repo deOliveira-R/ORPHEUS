@@ -94,7 +94,6 @@ _SLB3 = (0.0, 0.4, 1.5, 2.3)
 #: Sigma_t per region and group (the spec's §4 data): distinct at every interface and per group.
 _SIGMA = {"g0": (0.6, 1.3, 0.45), "g1": (1.7, 0.35, 2.4), "hom": (0.7, 0.7, 0.7)}
 _RES = (3, 2, 0.4)                 # (degree, layers, ratio): the premises' working point
-_INNER = 12                        # outer and inner arc-length points
 
 _MIRROR, _WHITE = (1.0, 0.0), (0.0, 1.0)
 
@@ -121,14 +120,15 @@ def _rule(chart: str, breakpoints, laws, sigma, points: int, budget: int = 1024,
 
 
 @lru_cache(maxsize=None)
-def _transport(chart: str, breakpoints, laws, sigma, points: int, inner: int = _INNER, budget: int = 1024):
-    return _rule(chart, breakpoints, laws, sigma, points, budget).transport(inner, inner)
+def _transport(chart: str, breakpoints, laws, sigma, points: int, budget: int = 1024):
+    """The group's block at ``points`` line points; along each line the node counts are derived (P3 step 3f)."""
+    return _rule(chart, breakpoints, laws, sigma, points, budget).transport()
 
 
-def _conservation(chart, breakpoints, laws, sigma, points, inner=_INNER) -> float:
+def _conservation(chart, breakpoints, laws, sigma, points) -> float:
     """max |K_g sigma_g - W 1| / max |W 1| over every panel's row."""
     basis = _basis(chart, breakpoints)
-    g = _transport(chart, breakpoints, laws, sigma, points, inner)
+    g = _transport(chart, breakpoints, laws, sigma, points)
     lhs = g.block @ np.asarray(sigma)[basis.region][g.support]
     rhs = basis.mass @ np.ones(basis.size)
     return float(np.max(np.abs(lhs - rhs)) / np.max(np.abs(rhs)))
@@ -155,7 +155,7 @@ def test_the_mass_and_the_wall_area_read_the_one_density(monkeypatch: pytest.Mon
 
     def build():
         basis = PanelBasis.of(ConcentricPartition(Chart(CoordSystem.SPHERICAL), _MR3), *_RES)
-        g = LineRule.of(basis, _walls("sphere", _MR3, laws), np.asarray(_SIGMA["g0"]), 4).transport(4, 4)
+        g = LineRule.of(basis, _walls("sphere", _MR3, laws), np.asarray(_SIGMA["g0"]), 4).transport()
         return basis.mass, g.coupling
 
     mass, honest = build()
@@ -315,10 +315,10 @@ def test_every_chunk_of_lines_fits_its_piece_budget_or_holds_one_line() -> None:
     basis = _basis("cylinder", _SMALL_CYL, (2, 0, 0.4))
     walls = _walls("cylinder", _SMALL_CYL, ((0.0, 0.0),))
     lines = LineRule.of(basis, walls, np.asarray((0.6, 2.4)), 8).lines
-    whole = lines._rule(slice(0, len(lines.coordinates)), 8, 8)
+    whole = lines._rule(slice(0, len(lines.coordinates)))
     budget = whole.extent // 5
     small = LineRule.of(basis, walls, np.asarray((0.6, 2.4)), 8, chunk=10 ** 9, budget=budget).lines
-    rules = list(small.chunks(8, 8))
+    rules = list(small.chunks())
     assert len(rules) > 1, "the planner did not halve"
     for rule, part in rules:
         assert rule.extent <= budget or part.stop - part.start == 1, (rule.extent, budget, part)
@@ -447,24 +447,14 @@ def test_the_block_is_symmetric_and_blind_to_the_line_measure(chart, breakpoints
     reversal-symmetric, so the row cannot see the impact, mu or polar rule (the
     sphere at 4 impact points: 2.7e-16 where AS1 misses by 1.2e-2), the wall
     area D, the density or its fold, nor the group pairing (U_g0 D^-1 U_g0^T is
-    symmetric). Its teeth are a mismatch between the outer and inner arc-length
-    rules (`[M]` 1.5e-6 at 4 outer points, 3.8e-7 at 4 inner points).
+    symmetric). Its teeth were a mismatch between the outer and inner
+    arc-length rules until P3 step 3f; since one derived node count per piece
+    integrates both levels, its first red is a one-level rule read from the
+    wrong end (``carve/arms_*.log``, arm ``start_as_end``).
     """
-    K = _transport(chart, breakpoints, laws, _SIGMA[group], points, _INNER).block   # AS1's cached block (same key)
+    K = _transport(chart, breakpoints, laws, _SIGMA[group], points).block   # AS1's cached block (same key)
     assert K.shape[0] == K.shape[1]
     assert np.max(np.abs(K - K.T)) <= 1e-14 * np.max(np.abs(K)), np.max(np.abs(K - K.T)) / np.max(np.abs(K))
-
-
-@pytest.mark.foundation
-@pytest.mark.rests_on(_HERE + "test_the_block_is_symmetric_and_blind_to_the_line_measure")
-def test_the_symmetry_row_sees_the_arc_length_rules() -> None:
-    """[AS2, the teeth leg] At 4 outer points against 12 inner (and 4 inner against 12 outer) the block is asymmetric
-    above 1e-10: the symmetry row can see the arc-length rules (`[M]` the spec's prototype 1.5e-6, 3.8e-7)."""
-    for outer, inner in ((4, 12), (12, 4)):
-        g = _rule("sphere", _MR3, (_WHITE,), _SIGMA["g0"], 16).transport(outer, inner)
-        K = g.block
-        asym = np.max(np.abs(K - K.T)) / np.max(np.abs(K))
-        assert asym > 1e-10, f"outer {outer}, inner {inner}: {asym:.1e}: the row cannot see the arc-length rules"
 
 
 # ── AS3: the piece budget is a partition of the line sum ─────────────────
@@ -491,9 +481,9 @@ def test_the_block_does_not_depend_on_the_piece_budget(chart, breakpoints, laws,
     for budget, chunk in ((1024, 512), (256, 512), (1, 512), (10 ** 12, 10 ** 9)):
         rule = LineRule.of(basis, walls, sigma, points, chunk=chunk, budget=budget)
         # the lines chorded (P3 step 3: ``weights`` is (V, L) over the speed family, the chunks slice the L lines)
-        counted = sum(len(rule.lines.coordinates[lines]) for _rule_, lines in rule.lines.chunks(_INNER, _INNER))
+        counted = sum(len(rule.lines.coordinates[lines]) for _rule_, lines in rule.lines.chunks())
         assert counted == len(rule.lines.coordinates), f"budget {budget}: {counted} lines in the chunks of {len(rule.lines.coordinates)}"
-        blocks.append(rule.transport(_INNER, _INNER).block)
+        blocks.append(rule.transport().block)
     scale = np.max(np.abs(blocks[0]))
     for k, other in enumerate(blocks[1:], 1):
         assert np.max(np.abs(other - blocks[0])) <= 64 * _EPS * scale, (k, np.max(np.abs(other - blocks[0])) / scale / _EPS)
@@ -743,14 +733,14 @@ def test_a_source_behind_walls_that_return_everything_in_a_lossless_body_is_refu
     """
     void, bps = (0.0, 0.0, 0.0), _MR3
     support = np.array([True, True, True])
-    trapped = _rule("sphere", bps, (_WHITE,), void, 8).transport(8, 8, support)
+    trapped = _rule("sphere", bps, (_WHITE,), void, 8).transport(support)
     assert np.all(trapped.coupling.loss == 0.0) and np.any(trapped.coupling.escape != 0.0)
     with pytest.raises(TrappedSource, match="absorbs nothing, behind walls that return everything"):
         trapped.coupling.currents
-    assert np.all(np.isfinite(_rule("sphere", bps, ((0.0, 0.99),), void, 8).transport(8, 8, support).block))
-    assert np.all(np.isfinite(_rule("sphere", bps, (_WHITE,), (0.0, 0.3, 0.0), 8).transport(8, 8, support).block))
+    assert np.all(np.isfinite(_rule("sphere", bps, ((0.0, 0.99),), void, 8).transport(support).block))
+    assert np.all(np.isfinite(_rule("sphere", bps, (_WHITE,), (0.0, 0.3, 0.0), 8).transport(support).block))
     with pytest.raises(TrappedSource, match="lossless trapped line") as caught:
-        _rule("sphere", bps, (_MIRROR,), void, 8).transport(8, 8, support)
+        _rule("sphere", bps, (_MIRROR,), void, 8).transport(support)
     assert "behind walls that return everything" not in str(caught.value)
 
 
@@ -770,7 +760,7 @@ def test_a_lossless_body_with_no_source_has_an_empty_block() -> None:
     empty escape on a lossless body (2026-10-06). First red: that zero branch
     falling through to the solve (``LinAlgError``).
     """
-    empty = _rule("sphere", _MR3, (_WHITE,), (0.0, 0.0, 0.0), 8).transport(8, 8)
+    empty = _rule("sphere", _MR3, (_WHITE,), (0.0, 0.0, 0.0), 8).transport()
     assert empty.support.size == 0
     assert empty.block.shape == (empty.line.shape[0], 0)
 
@@ -933,7 +923,7 @@ def test_an_interface_between_equal_materials_is_invisible_on_a_cylinder() -> No
 
     def transfer(bps, sigma):
         basis = PanelBasis.of(ConcentricPartition(Chart(_COORD["cylinder"]), bps), *resolution)
-        g = LineRule.of(basis, _walls("cylinder", bps, ((0.6, 0.0),)), np.asarray(sigma), points).transport(points, points)
+        g = LineRule.of(basis, _walls("cylinder", bps, ((0.6, 0.0),)), np.asarray(sigma), points).transport()
         Q = np.stack([(basis.region == k).astype(float) for k in range(basis.regions.n_regions)], axis=-1)
         return Q.T @ g.block @ Q[g.support]
 
@@ -1016,8 +1006,8 @@ def test_the_full_block_of_a_void_layer_under_a_full_mirror_is_refused() -> None
     sigma = (0.6, 1.3, 0.45, 0.0)
     full = np.ones(4, dtype=bool)
     with pytest.raises(TrappedSource, match="lossless trapped line"):
-        _rule("sphere", _VOIDOUT, ((1.0, 0.0),), sigma, 8).transport(8, 8, full)
-    g = _rule("sphere", _VOIDOUT, ((0.6, 0.0),), sigma, 8).transport(8, 8, full)
+        _rule("sphere", _VOIDOUT, ((1.0, 0.0),), sigma, 8).transport(full)
+    g = _rule("sphere", _VOIDOUT, ((0.6, 0.0),), sigma, 8).transport(full)
     assert g.support.size == _basis("sphere", _VOIDOUT).size and np.all(np.isfinite(g.block))
 
 
@@ -1057,7 +1047,7 @@ def test_the_centre_impact_piece_converges_geometrically() -> None:
         rule = LineRule(Lines(basis=basis, walls=walls, sigma_t=np.asarray((0.7, 0.7)), coordinates=coordinates,
                               speeds=np.ones(1), weights=(q.wts * domain.density(coordinates) / (4.0 * math.pi))[None, :],
                               levels=(q.pts, np.zeros_like(q.pts)), partition=basis.partition, chunk=512, budget=10 ** 9))
-        return rule.transport(12, 12).block @ ones
+        return rule.transport().block @ ones
 
     reference = k_one(128)
     errors = [float(np.max(np.abs(k_one(n) - reference))) for n in (4, 6, 8)]
@@ -1079,30 +1069,6 @@ def test_conservation_converges_in_the_impact_rule_below_the_working_point() -> 
     errors = [_conservation("sphere", _MR3, (_WHITE,), _SIGMA["g0"], n) for n in (4, 6, 8, 12, 16)]
     assert errors[-1] <= _CONSERVATION_TOL["sphere"], errors
     _strictly_converging(errors, floor=1e-13)
-
-
-@pytest.mark.l2
-@pytest.mark.verifies("characteristic-galerkin-assembly")
-@pytest.mark.rests_on(_HERE + "test_a_closed_body_conserves_its_emission")
-def test_conservation_converges_in_the_arc_length_rules_below_the_working_point() -> None:
-    """[LA2; planned l2, CONV] Outer points 4, 6, 8 (inner 12) and inner points 4, 6, 8 (outer 12): monotone, each step
-    down by more than 10 above the impact rule's floor.
-
-    `[M]` the spec's prototype: outer 6.3e-7, 2.7e-10, 1.3e-12; inner 6.9e-8,
-    1.5e-11, 1.2e-12. First red (owed at build): the inner rule's exponential
-    grading removed.
-    """
-    rule = _rule("sphere", _MR3, (_WHITE,), _SIGMA["g0"], 16)
-    basis = rule.lines.basis
-    rhs = basis.mass @ np.ones(basis.size)
-    sigma = np.asarray(_SIGMA["g0"])
-
-    def err(outer, inner):
-        g = rule.transport(outer, inner)
-        return float(np.max(np.abs(g.block @ sigma[basis.region][g.support] - rhs)) / np.max(np.abs(rhs)))
-
-    _strictly_converging([err(n, 12) for n in (4, 6, 8)], floor=1e-11)
-    _strictly_converging([err(12, n) for n in (4, 6, 8)], floor=1e-11)
 
 
 def _slab_rule_with_fixed_halvings(breakpoints, laws, sigma, points: int, halvings: int) -> LineRule:
@@ -1143,7 +1109,7 @@ def test_the_slabs_derived_grading_converges_and_beats_twelve_fixed_halvings() -
         p_c = float(1 - R.escape_probability("slab", sigma * L))
 
     def collision(rule: LineRule) -> float:
-        g = rule.transport(_INNER, _INNER)
+        g = rule.transport()
         ones = np.ones(rule.lines.basis.size)
         return sigma * float(ones @ g.line @ ones[g.support]) / L / p_c - 1.0
 
@@ -1204,7 +1170,7 @@ def test_thin_graded_panels_set_the_slabs_grazing_depth(sigma) -> None:
     basis = PanelBasis.of(ConcentricPartition(Chart(CoordSystem.CARTESIAN), bps), 3, 10, 0.4)
     assert np.diff(basis.partition.breakpoints).min() < 1e-4
     rule = LineRule.of(basis, _walls("slab", bps, ((0.0, 0.0), (0.0, 0.0))), np.asarray((sigma, sigma)), 8)
-    g = rule.transport(_INNER, _INNER)
+    g = rule.transport()
     ones = np.ones(basis.size)
     with mp.workdps(40):
         p_c = float(1 - R.escape_probability("slab", sigma * L))
@@ -1231,7 +1197,7 @@ def test_every_block_entry_of_a_thin_panel_slab_is_resolved_at_eight_points() ->
     bps, sigma = (0.0, 0.9, 2.3), 0.01
     basis = PanelBasis.of(ConcentricPartition(Chart(CoordSystem.CARTESIAN), bps), 3, 6, 0.4)
     walls = _walls("slab", bps, ((0.0, 0.0), (0.0, 0.0)))
-    honest = LineRule.of(basis, walls, np.asarray((sigma, sigma)), 8).transport(_INNER, _INNER).block
+    honest = LineRule.of(basis, walls, np.asarray((sigma, sigma)), 8).transport().block
     thinnest = float(np.min(sigma * np.diff(basis.partition.breakpoints)))
     deep = int(np.ceil(np.log2(1.0 / thinnest))) + 30
     half = composite_gauss_legendre([0.0, *graded_ends(0.0, 1.0, True, False, deep, 0.5), 1.0], 16)
@@ -1240,7 +1206,7 @@ def test_every_block_entry_of_a_thin_panel_slab_is_resolved_at_eight_points() ->
     domain = Chart(CoordSystem.CARTESIAN).line_domain()
     reference = LineRule(Lines(basis=basis, walls=walls, sigma_t=np.asarray((sigma, sigma)), coordinates=mu,
                                speeds=np.ones(1), weights=(w * domain.density(mu) / (4.0 * math.pi))[None, :], levels=None,
-                               partition=basis.partition, chunk=512, budget=1024)).transport(_INNER, _INNER).block
+                               partition=basis.partition, chunk=512, budget=1024)).transport().block
     worst = float(np.max(np.abs(np.diag(honest) - np.diag(reference)) / np.abs(np.diag(reference))))
     assert worst <= 1e-11, f"worst diagonal entry {worst:.1e}"
 
@@ -1288,7 +1254,7 @@ def test_a_wide_panel_before_a_thin_one_conserves_at_eight_points() -> None:
     """
     bps, sigma = (0.2, 0.3, 1.0), np.asarray(_SIGMA["g0"][:2])
     basis = PanelBasis.of(ConcentricPartition(Chart(CoordSystem.SPHERICAL), bps), 3, 10, 0.4)
-    g = LineRule.of(basis, _walls("sphere", bps, (_MIRROR, _WHITE)), sigma, 8).transport(_INNER, _INNER)
+    g = LineRule.of(basis, _walls("sphere", bps, (_MIRROR, _WHITE)), sigma, 8).transport()
     lhs = g.block @ sigma[basis.region][g.support]
     rhs = basis.mass @ np.ones(basis.size)
     err = float(np.max(np.abs(lhs - rhs)) / np.max(np.abs(rhs)))

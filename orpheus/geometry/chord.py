@@ -54,7 +54,7 @@ The design and its rulings: ``.claude/plans/characteristic_reference_architectur
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields, replace
 from functools import cached_property
 from typing import TYPE_CHECKING, assert_never
 
@@ -428,7 +428,9 @@ class Chord:
         :math:`(r_k, y_k)`, the crossing's half-chord formed from the line's
         level, so :meth:`Rays.orbit_coordinate_at` reads :math:`r_k` at
         distance 0 and forms every distance from the wall, never through the
-        parameter. Refused at a crossing the line does not make.
+        parameter. Refused at a crossing the line does not make. Several
+        points on one line are read from the chord of its lines repeated
+        (:meth:`take`).
         """
         column = np.asarray(crossing)[..., None]
         if not np.all(np.take_along_axis(self.crossings.present, column, axis=-1)):
@@ -444,6 +446,62 @@ class Chord:
             case unreachable:
                 assert_never(unreachable)
         return Rays(chord=chord, start=start, side=sense.astype(float), orbit_coordinate=radius)
+
+    def rays_at_closest_approach(self) -> "Rays":
+        r"""The lines read from their closest approach :math:`t^*` (:class:`Rays`).
+
+        The point where a line turns in the orbit space, where a slot ends
+        without a crossing: its orbit coordinate is :math:`b`, its side 0, and
+        the image is levelled at :math:`(b, 0)`, so
+        :meth:`Rays.orbit_coordinate_at` reads :math:`\sqrt{(|P\Omega|\ell)^2 + b^2}`
+        with no subtraction, and a point advanced from it
+        (:meth:`Rays.advanced`) near :math:`t^*` keeps its relative precision.
+        Advanced from a crossing at :math:`r_k` instead, the same point forms
+        :math:`r^2 - b^2` from :math:`r_k^2`, cancelling where :math:`r \ll r_k`.
+        Refused on the slab, whose lines have no closest approach.
+        """
+        match self.image:
+            case RadialImage() as image:
+                b = image.impact_parameter
+                levelled = replace(self, image=image.at_level(b, np.zeros_like(b)))
+                return Rays(chord=levelled, start=image.closest_approach, side=np.zeros_like(b), orbit_coordinate=b)
+            case AxialImage():
+                raise ValueError("a slab line has no closest approach: its orbit coordinate is affine in the parameter")
+            case unreachable:
+                assert_never(unreachable)
+
+    def take(self, lines: np.ndarray) -> "Chord":
+        r"""The chord of the lines at flat indices ``lines`` ``(...)`` of the batch, in C order: a batch of ``lines``' shape.
+
+        A line may be taken several times, to read several points on it
+        (:meth:`rays_at`, :meth:`rays_at_closest_approach`). Every numeric
+        field of the line, its image and the crossings whose rank reaches the
+        batch's is the batch's and is gathered (a scalar of an unbatched line
+        included), and refused if it does not lead with the batch's shape; a
+        lower-rank field is shared, like the partition.
+        """
+        lines = np.asarray(lines, dtype=int)
+        batch = self.line.direction.ndim - 1
+        shape = self.line.direction.shape[:-1]
+
+        def gathered(a: np.ndarray) -> np.ndarray:
+            if a.shape[:batch] != shape:
+                raise ValueError(f"a chord's field of rank >= its batch's leads with the batch {shape}; got {a.shape}")
+            return a.reshape(-1, *a.shape[batch:])[lines]
+
+        def taken(record):
+            numbers = ((f.name, getattr(record, f.name)) for f in fields(record))
+            return replace(record, **{
+                name: gathered(np.asarray(a)) for name, a in numbers if isinstance(a, (np.ndarray, np.generic, float)) and np.ndim(a) >= batch
+            })
+
+        return replace(
+            self,
+            line=taken(self.line),
+            image=taken(self.image),
+            crossings=taken(self.crossings),
+            traversed_length=gathered(self.traversed_length),
+        )
 
     def line_integral(self, per_region: np.ndarray, lengths: np.ndarray) -> np.ndarray:
         r"""The integral :math:`\sum_{\rm slot} f_{\rm region}\,\ell_{\rm slot}` of a per-region field over slot lengths, ``lengths.shape[:-1]``.

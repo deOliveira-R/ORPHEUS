@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **17464**
+Total tests collected: **17590**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1847, 10.6%
-   L1, 2743, 15.7%
-   L2, 86, 0.5%
+   L0, 1870, 10.6%
+   L1, 2743, 15.6%
+   L2, 85, 0.5%
    L3, 0, 0.0%
-   foundation, 12756, 73.0%
+   foundation, 12860, 73.1%
    unmarked, 32, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 17353
+   explicit, 17479
    class-name, 46
    func-name, 0
    case, 33
@@ -180,17 +180,18 @@ Module × level grid
    derivations/test_case_method_x_function, 2, 3, 0, 0, 0, 0
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
    derivations/test_characteristic_albedos, 0, 30, 0, 0, 0, 0
-   derivations/test_characteristic_assembly, 4, 112, 5, 0, 68, 0
+   derivations/test_characteristic_assembly, 4, 112, 4, 0, 67, 0
+   derivations/test_characteristic_attenuation_rule, 34, 0, 0, 0, 56, 0
    derivations/test_characteristic_basis, 0, 0, 0, 0, 271, 0
    derivations/test_characteristic_closure, 127, 0, 0, 0, 9, 0
    derivations/test_characteristic_convergence, 0, 0, 6, 0, 0, 0
    derivations/test_characteristic_independent_references, 0, 9, 0, 0, 0, 0
-   derivations/test_characteristic_lift, 18, 17, 1, 0, 37, 0
+   derivations/test_characteristic_lift, 11, 17, 1, 0, 32, 0
    derivations/test_characteristic_nystrom_withdrawn, 0, 1, 0, 0, 2, 0
    derivations/test_characteristic_reading, 0, 135, 3, 0, 40, 0
-   derivations/test_characteristic_reference, 12, 40, 0, 0, 58, 1
+   derivations/test_characteristic_reference, 12, 40, 0, 0, 56, 1
    derivations/test_characteristic_system, 2, 95, 0, 0, 12, 0
-   derivations/test_characteristic_transport, 61, 0, 0, 0, 55, 0
+   derivations/test_characteristic_transport, 57, 0, 0, 0, 75, 0
    derivations/test_characteristic_walls, 19, 0, 0, 0, 31, 0
    derivations/test_chord_half_lengths, 3, 0, 0, 0, 0, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
@@ -313,7 +314,7 @@ Module × level grid
    geometry/test_chart_directions, 61, 0, 0, 0, 18, 0
    geometry/test_chord, 53, 0, 0, 0, 30, 0
    geometry/test_chord_lengths_between, 5, 0, 0, 0, 10, 0
-   geometry/test_chord_level, 0, 0, 0, 0, 12, 0
+   geometry/test_chord_level, 0, 0, 0, 0, 47, 0
    geometry/test_chord_refinement, 0, 0, 0, 0, 12, 0
    geometry/test_chord_transits, 88, 0, 0, 0, 1, 0
    geometry/test_content_identity_geometry, 0, 0, 0, 0, 101, 0
@@ -646,7 +647,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 470, 0
+   test_layer_imports, 0, 0, 0, 0, 471, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -700,12 +701,12 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``alpha-cylindrical``, 95
    ``collision-rate``, 91
    ``geometry-transits``, 88
-   ``characteristic-galerkin-assembly``, 82
+   ``characteristic-traversal-integrals``, 83
    ``characteristic-transit-rank``, 82
    ``multigroup``, 82
    ``peierls-unified``, 82
+   ``characteristic-galerkin-assembly``, 81
    ``characteristic-quadrature``, 79
-   ``characteristic-traversal-integrals``, 79
    ``fission-matrix``, 76
    ``removal-matrix``, 76
    ``mm-weights``, 75
@@ -1076,10 +1077,12 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented`` and labels held by a withdrawal. **4** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented`` and labels held by a withdrawal. **6** of the testable equations found on theory pages are orphan.
 
+- ``characteristic-attenuation-rule``
 - ``characteristic-axial-lift``
-- ``characteristic-exponential-grading``
+- ``characteristic-branch-walk``
+- ``characteristic-node-law``
 - ``quadrature-sphere-monomial``
 - ``sn-exit-balance-defect``
 

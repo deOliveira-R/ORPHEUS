@@ -86,15 +86,15 @@ _SU2 = _SYSTEM + "test_a_field_off_the_support_is_refused_and_answered_once_the_
 _D7 = _SYSTEM + "test_the_fundamental_mode_satisfies_its_pencil"
 
 _K = CellCoefficient.every(Channel.FISSION_EMISSION)
-#: The working point of rung 4 (``_WORK``: degree 3, 2 layers of ratio 0.4, 8 line points, 12 points along each line),
+#: The working point of rung 4 (``_WORK``: degree 3, 2 layers of ratio 0.4, 8 line points; along lines derived),
 #: with 8 = 2(p + 1) projection points, the mass matrix's own rule.
-_RES = Resolution(3, 2, 0.4, TransportResolution(8, 12, 12), 8)
+_RES = Resolution(3, 2, 0.4, TransportResolution(8), 8)
 #: The cheapest resolution a body solves at, for the rows that count interpreters and read no value. Since the
 #: exponential grading is derived from the node count (P3 step 3e, the user's ruling of 2026-10-12) 4 points along a
 #: line cut 103 pieces per graded end and 8 cut 11, so the along-line rules are at 8: `[M]` 2026-10-12 the cylinder's
 #: k (F5's body) took 311 s at (4, 4, 4) and 25 s at (4, 8, 8), the same k to 1e-15
 #: (``scratch/characteristic_architecture/p3/step3/ta/e/f5_cost.log``).
-_TINY = Resolution(1, 0, 0.4, TransportResolution(4, 8, 8), 4)
+_TINY = Resolution(1, 0, 0.4, TransportResolution(4), 4)
 _COORD = {"sphere": CoordSystem.SPHERICAL, "cylinder": CoordSystem.CYLINDRICAL, "slab": CoordSystem.CARTESIAN}
 _MR3 = (0.0, 0.5, 1.5, 2.0)
 _MR3H = (0.4, 0.5, 1.5, 2.0)
@@ -463,7 +463,7 @@ def test_a_malformed_resolution_is_refused(fields: dict, error: type, fragment: 
     mass matrix's rule, 2(p + 1) = 8 at degree 3 (below it a symbolic function of the panel space is no longer
     projected to rounding, P2), and a degree, a number of layers or of points that is not an integer.
     First reds: each guard removed."""
-    values = {"degree": 3, "layers": 2, "ratio": 0.4, "transport": TransportResolution(8, 12, 12), "source_points": 8}
+    values = {"degree": 3, "layers": 2, "ratio": 0.4, "transport": TransportResolution(8), "source_points": 8}
     with pytest.raises(error, match=fragment):
         Resolution(**(values | fields))
 
@@ -617,7 +617,7 @@ def test_the_doors_k_is_the_fundamental_of_the_system_written_by_hand(chart, bre
     spec = _spec(geometry(), _WIRING_MATERIALS, Eigen(_K))
     system = GalerkinSystem(
         _basis(chart, breakpoints), _walls(chart, breakpoints, laws),
-        RegionCrossSections.of([_UP2N, _PU2, _ABS]), TransportResolution(8, 12, 12),
+        RegionCrossSections.of([_UP2N, _PU2, _ABS]), TransportResolution(8),
     )
     k = system.pencil.fundamental().k
     assert _read(spec, Eigenvalue()) == k
@@ -1145,7 +1145,7 @@ def test_the_doors_response_is_the_forward_systems_adjoint_on_the_same_posing() 
     door = _read(_spec(geometry, _ADJ_MATERIALS, Response(_rwc(r_table))), FluxIntegral(_rwc(q_table)))
     basis = _basis("sphere", _ADJ_BREAKPOINTS)
     system = GalerkinSystem(basis, _walls("sphere", _ADJ_BREAKPOINTS, (_VACUUM,)),
-                            RegionCrossSections.of([_ADJ_FUEL, _ADJ_ABSORBER, _ADJ_REFLECTOR]), TransportResolution(8, 12, 12),
+                            RegionCrossSections.of([_ADJ_FUEL, _ADJ_ABSORBER, _ADJ_REFLECTOR]), TransportResolution(8),
                             source_regions=q_table != 0.0)
     q, r = q_table[basis.region].T, r_table[basis.region].T
     by_hand = float(system.response(r) @ system.emission_mass @ system.emission.restrict(q))
@@ -1186,19 +1186,17 @@ def _derivation_with(**changes: Any) -> CharacteristicDerivation:
 
 def _resolution_with(**changes: Any) -> Resolution:
     """The working point with 10 projection points, enough for degree 4 (so the degree leg moves one field)."""
-    return Resolution(**({"degree": 3, "layers": 2, "ratio": 0.4, "transport": TransportResolution(8, 12, 12),
+    return Resolution(**({"degree": 3, "layers": 2, "ratio": 0.4, "transport": TransportResolution(8),
                           "source_points": 10} | changes))
 
 
 ROSTER: tuple[Entry, ...] = (
     Entry(
         cls=TransportResolution,
-        base=lambda: TransportResolution(8, 12, 12),
-        parts=("line_points", "points", "inner_points"),
+        base=lambda: TransportResolution(8),
+        parts=("line_points",),
         perturb={
-            "line_points": (leg("more line points", lambda: TransportResolution(9, 12, 12)),),
-            "points": (leg("more traversal points", lambda: TransportResolution(8, 13, 12)),),
-            "inner_points": (leg("more inner points", lambda: TransportResolution(8, 12, 13)),),
+            "line_points": (leg("more line points", lambda: TransportResolution(9)),),
         },
     ),
     Entry(
@@ -1209,7 +1207,7 @@ ROSTER: tuple[Entry, ...] = (
             "degree": (leg("another degree", lambda: _resolution_with(degree=4)),),
             "layers": (leg("another grading depth", lambda: _resolution_with(layers=3)),),
             "ratio": (leg("another grading ratio", lambda: _resolution_with(ratio=0.3)),),
-            "transport": (leg("another transport", lambda: _resolution_with(transport=TransportResolution(8, 12, 13))),),
+            "transport": (leg("another transport", lambda: _resolution_with(transport=TransportResolution(9))),),
             "source_points": (leg("more projection points", lambda: _resolution_with(source_points=11)),),
         },
     ),
@@ -1224,7 +1222,7 @@ ROSTER: tuple[Entry, ...] = (
         },
         pairs=(("a-fresh-specification-and-resolution", _derivation_with,
                 lambda: _derivation_with(specification=_spec(_sphere(_MR3, (1, 0, 2), BC.vacuum), dict(_WIRING_MATERIALS),
-                                                             Eigen(_K)), resolution=Resolution(3, 2, 0.4, TransportResolution(8, 12, 12), 8))),),
+                                                             Eigen(_K)), resolution=Resolution(3, 2, 0.4, TransportResolution(8), 8))),),
     ),
 )
 
@@ -1274,7 +1272,7 @@ def test_c3_an_equal_derivation_reads_from_the_memo_and_a_new_resolution_does_no
         cold = CharacteristicDerivation(_tiny_spec(), _TINY).evaluate(Eigenvalue())
         started = spawns.count
         warm = CharacteristicDerivation(_tiny_spec(), _TINY).evaluate(Eigenvalue())
-        other = CharacteristicDerivation(_tiny_spec(), _resolution_with(degree=2, layers=0, transport=TransportResolution(4, 4, 4),
+        other = CharacteristicDerivation(_tiny_spec(), _resolution_with(degree=2, layers=0, transport=TransportResolution(4),
                                                                          source_points=6))
         verdict = CharacteristicDerivation.__dict__["evaluate"].lookup(other, Eigenvalue())
     assert started >= 1, "the activation leg: the cold read generated nothing"

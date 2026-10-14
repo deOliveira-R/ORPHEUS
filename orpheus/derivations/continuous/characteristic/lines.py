@@ -448,8 +448,8 @@ class Lines:
         levels = None if self.levels is None else (self.levels[0][order], self.levels[1][order])
         return replace(self, coordinates=self.coordinates[order], weights=self.weights[:, order], levels=levels)
 
-    def chunks(self, points: int, inner_points: int) -> Iterator[tuple[TraversalRule, slice]]:
-        r"""The traversal rule of each chunk of lines, with its slice, ``points`` and ``inner_points`` along each line.
+    def chunks(self) -> Iterator[tuple[TraversalRule, slice]]:
+        r"""The traversal rule of each chunk of lines, with its slice.
 
         Each rule reads its lines at every one of the :attr:`speeds`, its
         functionals leading with them, ``(V, l, ...)``. A chunk holds at most
@@ -465,20 +465,20 @@ class Lines:
         n_lines = len(self.coordinates)
         for first in range(0, n_lines, self.chunk):
             block = slice(first, min(first + self.chunk, n_lines))
-            whole = self._rule(block, points, inner_points)
+            whole = self._rule(block)
             if whole.extent <= self.budget:
                 yield whole, block
                 continue
             slots = self.speeds.size * np.maximum(whole.piece_counts, 1)                          # per line, (l,)
             for start, stop in _halvings(slots, self.budget):
                 part = slice(block.start + start, block.start + stop)
-                yield self._rule(part, points, inner_points), part
+                yield self._rule(part), part
 
-    def _rule(self, lines: slice, points: int, inner_points: int) -> TraversalRule:
+    def _rule(self, lines: slice) -> TraversalRule:
         r"""The traversal rule of the lines ``lines``, read at every speed."""
         level = None if self.levels is None else (self.levels[0][lines], self.levels[1][lines])
         chord = self.partition.chord(self.basis.regions.chart.line_domain().lines(self.coordinates[lines]), level)
-        return TraversalRule.on_chord(chord, self.basis, self.walls, self.sigma_t, points, inner_points, self.speeds)
+        return TraversalRule.on_chord(chord, self.basis, self.walls, self.sigma_t, self.speeds)
 
 
 def _halvings(slots: np.ndarray, budget: int) -> Iterator[tuple[int, int]]:

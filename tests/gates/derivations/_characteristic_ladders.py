@@ -11,7 +11,7 @@ their reference term is here. No tolerance is typed.
 
 "The door default" is the door gates' resolution, ``_RES`` of
 ``tests/gates/derivations/test_characteristic_reference.py``:
-``Resolution(3, 2, 0.4, TransportResolution(8, 12, 12), 8)``, :func:`rung` (3)
+``Resolution(3, 2, 0.4, TransportResolution(8), 8)``, :func:`rung` (3)
 here. The rows:
 
 - ``tests/gates/sn/verification/analytical/test_phase_c_crosscheck.py`` (the
@@ -85,20 +85,21 @@ def rung(degree: int) -> Resolution:
     from orpheus.derivations.continuous.characteristic import Resolution, TransportResolution
 
     layers, transport, source_points = _RUNG_AXES[degree]
-    return Resolution(degree, layers, 0.4, TransportResolution(*transport), source_points)
+    return Resolution(degree, layers, 0.4, TransportResolution(transport), source_points)
 
 
-#: degree -> (layers, (line points, traversal points, inner points), source points). Degree 3 is the door's gates'
+#: degree -> (layers, line points, source points); along each line the node counts are derived (P3 step 3f), so the
+#: rung names no along-line count (until 3f each rung carried (line, traversal, inner) points). Degree 3 is the door's gates'
 #: resolution (``test_characteristic_reference.py``, ``_RES``); degrees 3 to 5 are the rungs step (c) measured on
 #: (``p1_step_c/explorer/g12_sphere.py``); 2 and 6 extend them by one step each way.
 _RUNG_AXES = {
-    2: (1, (4, 8, 8), 6),
-    3: (2, (8, 12, 12), 8),
-    4: (3, (12, 16, 16), 10),
-    5: (4, (16, 20, 20), 12),
-    6: (5, (20, 24, 24), 14),
-    7: (6, (24, 28, 28), 16),
-    8: (7, (28, 32, 32), 18),
+    2: (1, 4, 6),
+    3: (2, 8, 8),
+    4: (3, 12, 10),
+    5: (4, 16, 12),
+    6: (5, 20, 14),
+    7: (6, 24, 16),
+    8: (7, 28, 18),
 }
 
 #: The working point of each fixture, by degree: the sphere and slab bodies at p = 5 (seconds), the A|B|A cylinder
@@ -151,7 +152,7 @@ def cylinder_panel_rung(degree: int) -> Resolution:
     """The A|B|A cylinder's panel ladder: degree p, p - 1 grading layers, the door default's transport block."""
     from orpheus.derivations.continuous.characteristic import Resolution, TransportResolution
 
-    return Resolution(degree, degree - 1, 0.4, TransportResolution(*_RUNG_AXES[3][1]), 2 * (degree + 1))
+    return Resolution(degree, degree - 1, 0.4, TransportResolution(_RUNG_AXES[3][1]), 2 * (degree + 1))
 
 
 #: ``aba-cylinder``: panel degree -> k. ``[M]`` 2026-10-09/10, one solve each, serially, in process
@@ -169,10 +170,13 @@ ABA_CYLINDER_SHAPE_STEP: dict[tuple[int, int], float] = {
     (2, 3): 8.5496e-4,
     (3, 4): 1.7907e-4,
 }
-#: The transport block's step one rung below the door default, (6, 9, 9) -> (8, 12, 12), relative in k: ``[M]``
-#: 2026-10-09 (``p1_step_d/explorer/cyl_rung.log``, 543 s): the error estimate of the coarser rung, so an
-#: over-estimate of the default's transport error, added to the panel estimate.
-ABA_CYLINDER_TRANSPORT_STEP = 6.906e-11
+#: The transport block's step one rung below the door default, relative in k: since P3 step 3f the block's only axis is
+#: the line points, (6) -> (8). ``[M]`` 2026-10-13 on the route-B carve (``scratch/characteristic_architecture/p3/product/
+#: ta/carve/cyl_transport_step.log``, in process, memo bypassed, 715 s and 415 s): k 1.2317294528902605 at (8), which is
+#: ABA_CYLINDER_K[3] to 5.4e-15, and 1.2317294528406608 at (6). Before 3f the step (6, 9, 9) -> (8, 12, 12) read
+#: 6.906e-11 (``p1_step_d/explorer/cyl_rung.log``). The error estimate of the coarser rung, so an over-estimate of the
+#: default's transport error, added to the panel estimate.
+ABA_CYLINDER_TRANSPORT_STEP = 4.027e-11
 
 # ── the ERR-094 partial reflectors: k ─────────────────────────────────────
 #: ``partial-reflector``: body -> degree -> k (slab L = 4 cm, albedos 0.3 | 0.7; sphere R = 4 cm, albedo 0.7; mixture

@@ -403,3 +403,185 @@ def test_a_line_is_not_read_from_a_crossing_it_does_not_make() -> None:
     with pytest.raises(ValueError, match="a line is read from a crossing it makes"):
         chord.rays_at(absent[:1])
     chord.rays_at(_kg_column(chord, 2.0, 1))
+
+
+# ── KG4, KG5: several crossings per line at once, and the closest approach (P3 step 3f, the carve) ─────────────────
+
+
+def _kg_lines(chart: str, n: int = 12, seed: int = 11):
+    """Seeded lines through the body (every one crossing the outer surface), on the KG partitions."""
+    rng = np.random.default_rng(seed)
+    direction = rng.normal(size=(n, 3))
+    direction /= np.linalg.norm(direction, axis=1)[:, None]
+    point = rng.uniform(-1.2, 1.2, size=(n, 3)) * (np.array([1.0, 0.0, 0.0]) if chart == "slab" else 1.0)
+    if chart == "slab":
+        point[:, 0] = rng.uniform(0.1, 2.2, size=n)
+    return Line.through(point, direction)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("chart", ["sphere", "cylinder", "slab"])
+def test_lines_taken_several_times_read_each_point_as_the_line_alone(chart: str) -> None:
+    """[KG4; foundation, THEOREM] ``chord.take(idx)`` with each line's flat index repeated K times, read at K of its
+    crossings (``rays_at`` on the taken batch, ``(L, K)``), is, per (line i, point j), ``chord.rays_at(columns[:, j])``
+    at line i, bit for bit: the start, the side, the orbit coordinate, ``orbit_coordinate_at`` and
+    ``advanced(d).orbit_coordinate_at`` at offsets. ``take`` gathers every field carrying the line batch (the user's
+    ruling of 2026-10-13: live ends only, via ``Chord.take``), so a repeated line is the line. Also a taken batch of
+    the flat shape (L K,) equals the (L, K) one. First red: ``take`` gathering the image's fields at the wrong
+    line (``kg_arms.py``, ``take_shifted``: rolled by one)."""
+    partition = _partition(_kg_chart(chart), _SLAB if chart == "slab" else _RADII)
+    chord = partition.chord(_kg_lines(chart))
+    present = chord.crossings.present
+    K = int(present.sum(axis=-1).min())
+    assert K >= 2, K
+    L = present.shape[0]
+    columns = np.argsort(~present, axis=-1, kind="stable")[:, :K]                       # each line's first K made
+    index = np.repeat(np.arange(L)[:, None], K, axis=1)
+    together = chord.take(index).rays_at(columns)
+    flat = chord.take(index.ravel()).rays_at(columns.ravel())
+    ells = np.array([0.0, -1e-9, -0.05, 0.02])
+    joint = np.asarray(together.orbit_coordinate_at(np.broadcast_to(ells, columns.shape + ells.shape)))
+    moved = np.asarray(together.advanced(np.full(columns.shape, -0.01)).orbit_coordinate_at(
+        np.broadcast_to(ells, columns.shape + ells.shape)))
+    np.testing.assert_array_equal(np.asarray(flat.orbit_coordinate_at(np.broadcast_to(ells, (L * K,) + ells.shape))),
+                                  joint.reshape(L * K, -1))
+    for j in range(K):
+        alone = chord.rays_at(columns[:, j])
+        np.testing.assert_array_equal(together.start[:, j], alone.start)
+        np.testing.assert_array_equal(together.side[:, j], alone.side)
+        np.testing.assert_array_equal(together.orbit_coordinate[:, j], alone.orbit_coordinate)
+        each = np.asarray(alone.orbit_coordinate_at(np.broadcast_to(ells, (L,) + ells.shape)))
+        np.testing.assert_array_equal(joint[:, j], each)
+        each_moved = np.asarray(alone.advanced(np.full(L, -0.01)).orbit_coordinate_at(np.broadcast_to(ells, (L,) + ells.shape)))
+        np.testing.assert_array_equal(moved[:, j], each_moved)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("chart", ["sphere", "cylinder", "slab"])
+def test_an_unbatched_lines_chord_taken_is_the_same_line_in_a_batch_of_one(chart: str) -> None:
+    """[KG4b; foundation, THEOREM] An unbatched line (``Line.through`` of 1-D arrays, its image fields numpy scalars)
+    taken at index 0 three times reads, at a crossing it makes, what the same line in a batch of one reads, bit for bit
+    (the carve's defect 1: ``take`` gathers numpy scalars too). First red: ``take`` skipping scalar fields
+    (``kg_arms.py``, ``take_arrays_only``)."""
+    partition = _partition(_kg_chart(chart), _SLAB if chart == "slab" else _RADII)
+    point, direction = ((0.7, 0.0, 0.0), (-0.6, 0.8, 0.0)) if chart == "slab" else ((0.7, -0.4, 0.0), (0.0, 0.6, 0.8))
+    single = partition.chord(Line.through(np.array(point), np.array(direction)))
+    batch = partition.chord(Line.through(np.array([point]), np.array([direction])))
+    k = int(np.flatnonzero(batch.crossings.present[0])[-1])
+    ells = np.array([0.0, -1e-9, -0.1])
+    got = np.asarray(single.take(np.zeros(3, dtype=int)).rays_at(np.full(3, k)).orbit_coordinate_at(np.broadcast_to(ells, (3, 3))))
+    want = np.asarray(batch.rays_at(np.array([k])).orbit_coordinate_at(ells[None, :]))
+    for row in got:
+        np.testing.assert_array_equal(row, want[0])
+
+
+#: (id, chart, point (the line's parameter origin, far from t*), direction): b from 1e-8 to 1.2
+_KG5_ROWS = [
+    ("sphere-b0.7", "sphere", (0.7, -1.9, 0.0), (0.0, 1.0, 0.0)),
+    ("sphere-b1e-8", "sphere", (1e-8, -1.7, 0.0), (0.0, 1.0, 0.0)),
+    ("cylinder-3d-b0.3", "cylinder", (0.3, -0.9, 0.4), (0.0, 0.6, 0.8)),
+    ("cylinder-3d-b1e-6", "cylinder", (1e-6, 1.3, -0.2), (0.0, -0.6, 0.8)),
+]
+_KG5_DISTANCES = (0.0, 1e-15, -1e-12, 1e-9, -1e-6, 1e-3, -0.4)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("chart", "point", "direction"), [r[1:] for r in _KG5_ROWS], ids=[r[0] for r in _KG5_ROWS])
+def test_a_line_read_from_its_closest_approach_keeps_relative_precision_near_it(chart, point, direction) -> None:
+    """[KG5; foundation, REFERENCE] ``chord.take([0, 0, 0]).rays_at_closest_approach()``: three points on the line,
+    each at t* with orbit coordinate exactly the image's b and side 0; ``orbit_coordinate_at(l)`` equals the mpmath
+    sqrt(b^2 + (|P Omega| l)^2) within 4 eps RELATIVE for l from 1e-15 to 0.4, both signs, at b down to 1e-8 (the point
+    a slot ending at t* is advanced from, which a far crossing would form by r^2 - b^2's cancellation, ERR-106's
+    mechanism). On lines whose parameter origin is far from t*. First red `[M]` 2026-10-13 (``kg_arms.py``,
+    ``carve/kg2_*.log``): ``param_route`` (the coordinate through the line parameter) the ``cylinder-3d-b1e-6`` row;
+    the other three DECLARED blind to it (where the parameter's rounding is of the size of l, c is b's). ``no_relevel``
+    is blind here by construction: the image's default level is already (b, 0)."""
+    chord = _kg_chord(chart, point, direction)
+    rays = chord.take(np.zeros((1, 3), dtype=int)).rays_at_closest_approach()
+    image = chord.image
+    assert isinstance(image, RadialImage)
+    b = float(np.asarray(image.impact_parameter)[0])
+    np.testing.assert_array_equal(rays.orbit_coordinate, b)
+    np.testing.assert_array_equal(rays.side, 0.0)
+    got = np.asarray(rays.orbit_coordinate_at(np.broadcast_to(np.array(_KG5_DISTANCES), (1, 3, len(_KG5_DISTANCES)))))
+    with mp.workdps(80):
+        P = [mp.mpf(repr(float(v))) for v in point]
+        O = [mp.mpf(repr(float(v))) for v in direction]
+        keep = 3 if chart == "sphere" else 2
+        v2 = sum(O[i] ** 2 for i in range(keep))
+        b_mp = mp.sqrt(sum(P[i] ** 2 for i in range(keep)) - sum(P[i] * O[i] for i in range(keep)) ** 2 / v2)
+        want = [float(mp.sqrt(b_mp**2 + v2 * mp.mpf(repr(e)) ** 2)) for e in _KG5_DISTANCES]
+    assert abs(b - float(b_mp)) <= 2 * _KG_EPS * float(b_mp), ("the line's own b", b, float(b_mp))
+    for j in range(3):
+        for e, g, w in zip(_KG5_DISTANCES, got[0, j], want):
+            # the line stores b to an ulp (its moment): the reading's error at l = 0 is b's; beyond, relative 4 eps
+            assert abs(g - w) <= _KG_BAND * _KG_EPS * w, (e, g, w, abs(g - w) / w)
+
+
+@pytest.mark.foundation
+def test_a_slab_line_has_no_closest_approach() -> None:
+    """[KG5b; foundation] ``rays_at_closest_approach`` on the slab is refused, naming the reason; a sphere line is not
+    (the positive leg). First red: the refusal removed (``no_slab_refusal``)."""
+    with pytest.raises(ValueError, match="a slab line has no closest approach"):
+        _kg_chord("slab", (0.7, 0.0, 0.0), (-0.6, 0.8, 0.0)).rays_at_closest_approach()
+    _kg_chord("sphere", (0.7, -0.4, 0.0), (0.0, 1.0, 0.0)).rays_at_closest_approach()
+
+
+@pytest.mark.foundation
+def test_a_point_rules_line_re_levelled_at_an_inner_crossing_agrees_and_a_foreign_pair_is_refused() -> None:
+    """[K7; foundation] ``RadialImage.at_level`` holds a new pair to the CURRENT level's own b^2 = (r_c - y_c)(r_c + y_c),
+    in ulp of max(r*^2, r_c^2) (the carve's rulings of 2026-10-13; the default level (b, 0) holds a first level to the
+    line's b). A point rule's line levelled at the wall point (c = 2) and nearly radial
+    (b = 0.0366, Omega_x = -0.99983) crosses a small inner radius 0.05; ``rays_at`` there re-levels at
+    (0.05, half_chord_at(0.05)), a pair formed from the current level, which agrees with b only as well as that level
+    does: it is accepted and reads 0.05 at distance 0, and the same pair re-checked from the re-levelled image (an
+    advance by 0) is accepted. A pair from another line (the half-chord of b' = 1.0001 b) is refused, before and after
+    the re-level. `[M]` 2026-10-13 (``scratch/.../p3/product/ta/carve/probe_level_inner.log``, 4000 such lines): worst
+    3702.5 ulp of r_k^2 (the old guard's scale), 2.6 ulp of the new. First reds (``kg_arms.py``): the guard's scale
+    back at r*^2 (``level_scale_old``); the reference back at the line's b (``level_ref_b``: the re-check from the
+    re-levelled image inherits the wall-scale disagreement at the inner scale)."""
+    partition = ConcentricPartition(Chart(CoordSystem.SPHERICAL), (0.0, 0.05, 1.5, 2.0))
+    mu = -0.9998326310319164
+    rays = partition.rays_from(np.array(2.0), np.array([mu, float(np.sqrt((1 - mu) * (1 + mu))), 0.0]))
+    chord = rays.chord.take(np.zeros(1, dtype=int))
+    r = np.asarray(partition.breakpoints)[chord.crossings.breakpoint[0]]
+    inner = np.flatnonzero(chord.crossings.present[0] & (r == 0.05))
+    assert inner.size == 2, inner
+    image = chord.image
+    assert isinstance(image, RadialImage)
+    b = float(image.impact_parameter[0])
+    foreign = float(np.sqrt((0.05 - 1.0001 * b) * (0.05 + 1.0001 * b)))
+    for k in inner:
+        read = chord.rays_at(np.array([k]))
+        assert float(read.orbit_coordinate[0]) == 0.05
+        assert float(np.asarray(read.orbit_coordinate_at(np.zeros((1, 1))))[0, 0]) == 0.05
+        # the same pair re-checked from the re-levelled image (an advance by 0) is held to THAT level, and accepted
+        again = read.advanced(np.zeros(1))
+        assert float(again.orbit_coordinate[0]) == 0.05
+        # a pair from another line is refused after the re-level too
+        relevelled = read.chord.image
+        assert isinstance(relevelled, RadialImage)
+        with pytest.raises(ValueError, match="a line's level disagrees with its impact parameter"):
+            relevelled.at_level(np.array([0.05]), np.array([foreign]))
+    with pytest.raises(ValueError, match="a line's level disagrees with its impact parameter"):
+        image.at_level(np.array([0.05]), np.array([foreign]))
+
+
+@pytest.mark.foundation
+def test_taking_a_chord_whose_field_does_not_lead_with_the_batch_is_refused() -> None:
+    """[KG6; foundation] ``Chord.take`` gathers every field whose rank reaches the batch's, and refuses one that does
+    not lead with the batch's shape (a (2, 3) batch carrying a (3, 2) image field), naming the batch; the same chord
+    with its fields intact is taken (the positive leg). First red: the shape check removed (``kg_arms.py``,
+    ``take_unchecked``: the transposed field is then gathered as if it led with the batch)."""
+    from dataclasses import replace
+
+    partition = _partition(CoordSystem.SPHERICAL)
+    lines = _kg_lines("sphere", n=6)
+    batched = Line(direction=lines.direction.reshape(2, 3, 3), moment=lines.moment.reshape(2, 3, 3))
+    chord = partition.chord(batched)
+    chord.take(np.array([0, 5, 5]))
+    image = chord.image
+    assert isinstance(image, RadialImage)
+    broken = replace(chord, image=replace(image, impact_parameter=np.ascontiguousarray(image.impact_parameter.T)))
+    with pytest.raises(ValueError, match="leads with the batch"):
+        broken.take(np.array([0, 5, 5]))

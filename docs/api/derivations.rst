@@ -231,10 +231,10 @@ The characteristic reference
 ----------------------------
 
 The package, built rung by rung beside the trajectory-resolvent family;
-the theory is :ref:`theory-characteristic-reference`. Its eleven modules
+the theory is :ref:`theory-characteristic-reference`. Its twelve modules
 are documented below; the package re-exports the public names of every
-module but the gradings, the line sets and the reading, which are
-imported by module.
+module but the gradings, the rule of the attenuation weight, the line
+sets and the reading, which are imported by module.
 
 .. automodule:: orpheus.derivations.continuous.characteristic
 
@@ -266,6 +266,9 @@ imported by module.
    :members:
 
 .. automodule:: orpheus.derivations.continuous.characteristic.grading
+   :members:
+
+.. automodule:: orpheus.derivations.continuous.characteristic.attenuation_rule
    :members:
 
 .. automodule:: orpheus.derivations.continuous.characteristic.reference

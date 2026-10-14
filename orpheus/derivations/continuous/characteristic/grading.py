@@ -1,6 +1,6 @@
-r"""The gradings of the characteristic reference: where a quadrature puts its piece ends.
+r"""The gradings of the characteristic reference: where a quadrature puts its piece ends, and how many nodes a piece takes.
 
-Three laws, each the one place it is spelled:
+Four laws, each the one place it is spelled:
 
 * **geometric** (:func:`graded_ends`): layers at :math:`w\rho^j` toward an
   end, the panels toward walls and interfaces and the halvings of the line
@@ -8,93 +8,45 @@ Three laws, each the one place it is spelled:
 * **exponential** (:func:`exponential_ends`): ends at a first depth times
   :math:`\rho^k` mean free paths toward where an attenuation concentrates,
   until it vanishes (:data:`VANISHING_DEPTH`), over a family of attenuations
-  at once (the cylinder's polar angles, read as speeds along one in-plane
-  line); the first depth and :math:`\rho` are derived from the node count
-  of the rule integrating the pieces (:class:`ExponentialGrading`);
-* **hp** (:func:`halvings`): halve toward a singularity off the interval
-  until each piece is no wider than its distance to it, so Gauss-Legendre
-  converges geometrically on every piece. The branch points of a line's
-  orbit coordinate (the traversal rule), the next radius and :math:`b = 0`
-  (the impact rule), and the grazing direction (the direction rules) are
-  graded by it.
+  at once, at the :data:`DYADIC` first depth and ratio. It grades the rules
+  over lines (the polar angle and the cosine toward the normal, toward
+  grazing; :mod:`.lines`), coordinates in which the attenuation's exponent
+  is not linear. Along a line the attenuation cuts nothing: it is the
+  measure of each piece's rule (:mod:`.attenuation_rule`);
+* **hp**: toward a singularity off the interval, until each piece is no
+  wider than its distance to it over a tightness, so a Gauss rule converges
+  geometrically on every piece. :func:`halvings` halves toward the impact
+  rule's next radius and :math:`b = 0`, and the direction rules toward
+  grazing; :func:`branch_walk` walks each slot of a line toward the orbit
+  coordinate's complex branch points, at the tightness :data:`TIGHTNESS`;
+* **the node count** (:func:`gauss_nodes`): the least number of nodes of a
+  piece's Gauss rule that holds :data:`ALONG_LINE_ERROR`, from the Bernstein
+  ellipse through the piece's nearest singularity.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from math import e, lgamma, log, exp
 
 import numpy as np
+
+from .attenuation_rule import BAND
 
 #: The optical depth past which an attenuation vanishes in double precision (e^-64): the last graded end reaches it.
 VANISHING_DEPTH = 64.0
 
-#: The widest first piece an exponential grading cuts, in mean free paths. The Gauss bound sees e^-x alone; the integrand
-#: is a basis polynomial times it, whose variation over the panel the piece does not know, so the cap is measured, not
-#: derived. `[M]` 2026-10-12: at a cap of 2 the cylinder's slowest polar node missed its mpmath density by 2.5e-13 at the
-#: wall and 1.2e-13 at an interface at 8 points (the test-architect's P1 rows, ``scratch/characteristic_architecture/p3/
-#: step3/ta/e/``), within its 1e-13 band at a cap of 1 (ruled 2026-10-12: the old law's first depth). Uncapped, the
-#: nodes' own rounding (about h eps relative) also shows: 4 to 40 eps at 12 to 24 points, 7.9 to 32.6 mean free paths wide.
-_WIDEST_FIRST = 1.0
-
 
 @dataclass(frozen=True)
 class ExponentialGrading:
-    r"""Where an exponential grading puts its ends, in mean free paths of the attenuation: a first depth and a ratio.
-
-    Each piece of the grading is integrated by an :math:`n`-point
-    Gauss-Legendre rule, whose error on :math:`e^{-x}` over a piece
-    :math:`[d, d + h]` is at most
-    :math:`c_n h^{2n+1} e^{-d}`, :math:`c_n = (n!)^4 / ((2n+1)\,((2n)!)^3)`
-    (Abramowitz and Stegun 25.4.30). Two widths follow from it, with
-    :math:`h_n = (\epsilon / c_n)^{1/(2n+1)}` the widest piece at the
-    attenuated end that :math:`n` points integrate to the double-precision
-    :math:`\epsilon`:
-
-    * the **first** piece :math:`[0, h]`, the attenuation's whole weight:
-      :math:`h = \min(h_n, 1)` (:data:`_WIDEST_FIRST`, measured, since the
-      integrand is a basis polynomial times :math:`e^{-x}`). A stretch no
-      wider than it is not cut;
-    * the **geometric** pieces :math:`[d, \rho d]`, whose bound
-      :math:`c_n (d(\rho - 1))^{2n+1} e^{-d}` is largest at
-      :math:`d = 2n + 1`: :math:`\rho = 1 + e\,h_n/(2n + 1)`.
-
-    `[M]` 2026-10-12 (``scratch/characteristic_architecture/p3/step3/ratio/law_cap1.log``), the integral of
-    :math:`e^{-x}` over :math:`[0, 64]` read at 0, in double precision:
-
-    ====  =======  =======  ======  =======  ===========  ===================
-    n     first    rho      pieces  error    ratio 2 [1]  ratio sqrt 2 [1]
-    ====  =======  =======  ======  =======  ===========  ===================
-    4     0.194    1.059    103     2.7e-15  1.1e-6       5.0e-9
-    6     1        1.212    23      1.1e-16  9.7e-10      2.6e-13
-    8     1        1.419    13      0        7.4e-13      2.2e-16
-    12    1        1.856    8       0        0            1.1e-16
-    16    1        2.238    7       0        0            1.1e-16
-    ====  =======  =======  ======  =======  ===========  ===================
-
-    [1] the fixed laws this replaced, first depth 1 (7 and 13 pieces): the
-    error is the node count's, and no fixed ratio holds at every count
-    (ruled 2026-10-12: derive it from the node count). Below 5 points the
-    rounding over the many pieces is what remains (1.2e-13 at 2 points, 4522
-    pieces).
-    """
+    r"""Where an exponential grading puts its ends, in mean free paths of the attenuation: a first depth and a ratio (:func:`exponential_ends`)."""
 
     first: float
     ratio: float
 
-    @classmethod
-    def of(cls, points: int) -> "ExponentialGrading":
-        r"""The grading a rule of ``points`` Gauss-Legendre nodes per piece integrates to double precision."""
-        if points < 1:
-            raise ValueError(f"a Gauss-Legendre rule has at least one point; got {points}")
-        n = points
-        log_bound = 4.0 * lgamma(n + 1) - log(2 * n + 1) - 3.0 * lgamma(2 * n + 1)          # log c_n
-        resolved = exp((log(np.finfo(float).eps) - log_bound) / (2 * n + 1))               # h_n
-        return cls(min(resolved, _WIDEST_FIRST), 1.0 + e * resolved / (2 * n + 1))
-
 
 #: The dyadic grading, first depth 1 and ratio 2: for a coordinate in which the attenuation's exponent is not linear (the
-#: polar angle and the cosine toward the normal, :mod:`.lines`), where the Gauss bound in the exponent does not apply.
+#: polar angle and the cosine toward the normal, :mod:`.lines`), where no Gauss bound in the exponent applies.
 DYADIC = ExponentialGrading(1.0, 2.0)
 
 
@@ -121,19 +73,13 @@ def exponential_ends(stop: np.ndarray, start: np.ndarray, steepest: np.ndarray, 
     two are equal). The ends are the depths :math:`h\rho^k/\Sigma_{\rm steep}`,
     :math:`k = 0, \dots, K - 1`, from ``stop``, clipped to the interval, with
     :math:`h` and :math:`\rho` the ``grading``'s first depth and ratio
-    (:class:`ExponentialGrading`, from the integrating rule's node count),
+    (:class:`ExponentialGrading`),
     :math:`K = \lceil \log_\rho(D\,\Sigma_{\rm steep}/(h\,\Sigma_{\rm gentle})) \rceil + 1`
     and :math:`D` the :data:`VANISHING_DEPTH`: the first end is the steepest
     member's first piece, and the last reaches past :math:`D` mean free
     paths of the gentlest, so every member's own ends are resolved. None
     where the steepest member's optical width over the interval is at most
     :math:`h`.
-
-    `[M]` 2026-10-11 (the test-architect, P3 step 3a, ``scratch/characteristic_architecture/p3/step3/ta/``):
-    on the cylinder's polar family a first end 16 times the steepest mean free
-    path cost 6.7e-11 on a thick wall at 8 points and 100 times cost 1.3e-6;
-    stopping at 7 doublings of the steepest missed every closed-form reading
-    by 7.8e-9 to 2.7e-3.
     """
     width = np.abs(stop - start)
     thick = steepest * width > grading.first
@@ -145,6 +91,111 @@ def exponential_ends(stop: np.ndarray, start: np.ndarray, steepest: np.ndarray, 
     depth = np.where(thick[..., None] & (k < steps[..., None]), depth, 0.0)
     inward = np.sign(start - stop)[..., None]
     return np.sort(np.concatenate([start[..., None], stop[..., None] + inward * depth, stop[..., None]], axis=-1), axis=-1)
+
+
+#: The hp grading's tightness along a line: every piece no wider than its distance to the orbit coordinate's branch
+#: points over it, so in the piece's coordinate on :math:`[-1, 1]` they lie at least at :math:`z = -1 \pm 2ic` from it
+#: (the user's ruling of 2026-10-13, ``.claude/plans/characteristic_reference_architecture.md`` P3 step 3f: 9 to 13
+#: nodes per piece at :math:`c = 2`, against up to 17 at :math:`c = 1`).
+TIGHTNESS = 2.0
+
+#: The error a piece's Gauss rule is held to, relative to the attenuation's integral over it: :func:`gauss_nodes`'s
+#: target, 64 eps, the band the rule itself holds on the polynomials it is exact for (:mod:`.attenuation_rule`), so the
+#: count spends its budget down to the rule's own rounding and no further (the user's ruling of 2026-10-13: a target of
+#: 1e-14 sat below that floor, and PL1 read 1.09e-14 at it on the cylinder's speed family).
+ALONG_LINE_ERROR = BAND
+
+#: The Bernstein ellipses :func:`gauss_nodes` tries, as fractions of the way from 1 to the singularity's: each gives a
+#: valid bound, and their least is still one.
+_ELLIPSES = np.geomspace(0.02, 0.98, 24)
+
+
+def branch_walk(length: np.ndarray, height: np.ndarray, approach: np.ndarray, tightness: float = TIGHTNESS) -> np.ndarray:
+    r"""The hp grading of a slot toward its end nearer the closest approach: the piece ends' distances from that end, ``(..., K)``; 0 past the last.
+
+    A slot of length ``length`` whose near end lies ``approach`` (:math:`e`,
+    the parameter distance from the closest approach :math:`t^*`) from
+    :math:`t^*`, on a line whose branch points sit at
+    :math:`t^* \pm i\,` ``height`` (:math:`b/|P\Omega|`), is cut at
+    :math:`a_{k+1} = a_k + D(a_k)/c`, :math:`a_0 = 0`, with
+    :math:`D(a)^2 = (b/|P\Omega|)^2 + (e + a)^2` the distance from the point
+    :math:`a` beyond the near end to the branch points. :math:`D` grows away
+    from the closest approach, so it is each piece's least distance and every
+    piece is no wider than it over :math:`c` (``tightness``). The distance is
+    formed in closed form from exact quantities, never through the line's
+    parameter, which rounds the end of a small cavity's slot onto the closest
+    approach (`[M]` 2026-10-13, a cavity of radius 1e-12: the walk read
+    :math:`D = 0` and stalled; ``scratch/characteristic_architecture/p3/product/qa4_fix.log``).
+
+    Since :math:`D \ge e + a` and :math:`D \ge D(0) = d_0 > 0`, :math:`a_1 = d_0/c`
+    and :math:`a_{k+1} \ge a_k (1 + 1/c)`, so the walk has at most
+    :math:`1 + \lceil \ln(c(L + d_0)/d_0) / \ln(1 + 1/c) \rceil` steps. A slot
+    with :math:`d_0 = 0` (a line through the centre, ending at it) is entire
+    in the parameter and not cut.
+    """
+    length, height, approach = np.broadcast_arrays(*(np.asarray(a, dtype=float) for a in (length, height, approach)))
+    nearest = np.hypot(height, approach)                                                   # d_0
+    graded = (nearest > 0.0) & (length > 0.0)
+    d0 = np.where(graded, nearest, 1.0)
+    steps = np.where(graded, np.ceil(np.log(tightness * (length + d0) / d0) / np.log1p(1.0 / tightness)) + 1, 0).astype(int)
+    a = np.zeros_like(length)
+    ends = []
+    for _ in range(int(steps.max(initial=0))):
+        a = np.where(graded & (a < length), a + np.hypot(height, approach + a) / tightness, a)
+        ends.append(np.where(graded & (a < length), a, 0.0))
+    if np.any(graded & (a < length)):
+        raise RuntimeError("the hp walk did not reach the slot's far end within its closed-form step bound")
+    return np.stack(ends, axis=-1) if ends else np.zeros(length.shape + (0,))
+
+
+def bernstein_parameter(z: np.ndarray) -> np.ndarray:
+    r"""The parameter :math:`\rho = |z \pm \sqrt{z^2 - 1}|`, the larger, of the Bernstein ellipse through each complex ``z``: 1 on :math:`[-1, 1]`."""
+    root = np.sqrt(np.asarray(z, dtype=complex) ** 2 - 1.0)
+    return np.maximum(np.abs(z + root), np.abs(z - root))
+
+
+def exact_nodes(degree: np.ndarray | int) -> np.ndarray:
+    r"""The fewest nodes of a Gauss rule exact on every polynomial of degree ``degree``: :math:`\lceil (k + 1)/2 \rceil`."""
+    return (np.asarray(degree, dtype=int) + 2) // 2
+
+
+def gauss_nodes(singular: np.ndarray, majorant: Callable[[np.ndarray], np.ndarray], target: float = ALONG_LINE_ERROR) -> np.ndarray:
+    r"""The least node count :math:`m` of a Gauss rule of a positive weight that integrates the factor to ``target``, per piece, ``(...)``.
+
+    For a positive weight :math:`\omega` the :math:`m`-point Gauss rule's
+    error on :math:`f\omega` is at most :math:`2\int\omega\;E_{2m-1}(f)`, with
+    :math:`E_k(f)` the best uniform error of a polynomial of degree :math:`k`
+    (the rule is exact on those and its weights are positive), and
+    :math:`E_k(f) \le 2M(\rho)\rho^{-k}/(\rho - 1)` for any Bernstein ellipse
+    :math:`\rho` on and inside which :math:`f` is analytic and bounded by
+    :math:`M(\rho)` (Trefethen, *Approximation Theory and Approximation
+    Practice*, 2013, Theorem 8.2). So :math:`m` is :func:`exact_nodes` of
+    the least degree :math:`k` at which
+    :math:`4M(\rho)\rho^{-k}/(\rho - 1) \le` ``target`` on one of 24
+    ellipses between 1 and :math:`\rho_{\rm sing}` (:data:`_ELLIPSES`):
+    each gives a valid bound, so the count is safe, though not the least
+    the theorem allows. The count does not depend on the weight, so not on
+    the optical width.
+
+    ``singular`` is :math:`\rho_{\rm sing}`, the ellipse through each piece's
+    nearest singularity (:func:`bernstein_parameter`), ``(...)``;
+    ``majorant(rho)`` returns :math:`M(\rho)` for an ellipse ``rho`` ``(...)``.
+    Every count is at least 1. Refused: a singularity on the interval
+    (:math:`\rho_{\rm sing} \le 1`, no ellipse to bound on) and a majorant
+    that is not finite and positive.
+    """
+    singular = np.asarray(singular, dtype=float)
+    if not np.all(singular > 1.0):
+        raise ValueError("a node count is bounded on a Bernstein ellipse inside the singularity's: it lies on the interval")
+    degree = np.full(singular.shape, np.inf)
+    for fraction in _ELLIPSES:
+        rho = 1.0 + (singular - 1.0) * fraction
+        bound = majorant(rho)
+        if not np.all(np.isfinite(bound) & (bound > 0.0)):
+            raise ValueError("a majorant of the integrand on an ellipse is finite and positive")
+        needed = np.ceil(np.log(4.0 * bound / ((rho - 1.0) * target)) / np.log(rho))
+        np.minimum(degree, np.maximum(needed, 1.0), out=degree)
+    return exact_nodes(degree.astype(int))
 
 
 def halvings(width: np.ndarray, distance: np.ndarray) -> np.ndarray:
@@ -162,4 +213,17 @@ def halvings(width: np.ndarray, distance: np.ndarray) -> np.ndarray:
     return np.where(needed, np.minimum(np.ceil(np.log2(ratio)), np.finfo(float).nmant), 0).astype(int)
 
 
-__all__ = ["DYADIC", "ExponentialGrading", "VANISHING_DEPTH", "exponential_ends", "graded_ends", "halvings"]
+__all__ = [
+    "ALONG_LINE_ERROR",
+    "DYADIC",
+    "ExponentialGrading",
+    "TIGHTNESS",
+    "VANISHING_DEPTH",
+    "bernstein_parameter",
+    "branch_walk",
+    "exponential_ends",
+    "exact_nodes",
+    "gauss_nodes",
+    "graded_ends",
+    "halvings",
+]

@@ -667,21 +667,33 @@ class RadialImage:
     def at_level(self, radius: np.ndarray, half_chord: np.ndarray) -> "RadialImage":
         r"""The same image with its half-chords formed from the exact pair :math:`(r_*, y_*)`, each ``(...,)``.
 
-        The pair and the line's own :math:`b` describe one line, so they are
-        held to agree: :math:`|r_*^2 - y_*^2 - b^2|` at most
-        :data:`_LEVEL_AGREEMENT` ulp of :math:`r_*^2`, the squares compared
-        because recomputing :math:`b` from the pair amplifies its rounding by
-        :math:`r_*/b`. `[M]` 2026-10-08: at most 8 ulp over about 400 000
-        lines of the characteristic reference's line and point rules (spheres
-        and cylinders, solid and hollow; ``scratch/characteristic_architecture/p1_step_b5b/main/level_tolerance.py``).
+        The pair and the line's current level describe one line, so they are
+        held to agree: :math:`|r_*^2 - y_*^2 - (r_{\rm c}^2 - y_{\rm c}^2)|`
+        at most :data:`_LEVEL_AGREEMENT` ulp of the larger of :math:`r_*^2`
+        and :math:`r_{\rm c}^2`, with :math:`(r_{\rm c}, y_{\rm c})` the
+        current level, the squares compared because recomputing :math:`b`
+        from a pair amplifies its rounding by :math:`r_*/b`. The default level
+        is :math:`(b, 0)`, so a first level is held to the line's own
+        :math:`b`; a pair formed from the current level (:meth:`half_chord_at`,
+        a point advanced along the line) is held to that level, the scale its
+        rounding was made on. `[M]` 2026-10-08: at most 8 ulp over about
+        400 000 lines of the characteristic reference's line and point rules
+        (spheres and cylinders, solid and hollow;
+        ``scratch/characteristic_architecture/p1_step_b5b/main/level_tolerance.py``).
+        `[M]` 2026-10-13 (P3 step 3f, the test-architect's red): held to
+        :math:`b` instead, a point rule's line levelled at its point and
+        re-levelled at an inner crossing disagreed by 75 to 100 ulp of the
+        inner radius's square, the disagreement the point's level already
+        carried at its own scale.
         """
         radius, half_chord = np.asarray(radius, dtype=float), np.asarray(half_chord, dtype=float)
         if not (np.all(np.isfinite(half_chord)) and np.all(half_chord >= 0.0) and np.all(radius >= 0.0)):
             raise ValueError("a level is a non-negative radius with a non-negative, finite half-chord there")
         radius = np.broadcast_to(radius, self.impact_parameter.shape).copy()
         half_chord = np.broadcast_to(half_chord, self.impact_parameter.shape).copy()
-        b = self.impact_parameter
-        if np.any(np.abs((radius - half_chord) * (radius + half_chord) - b * b) > _LEVEL_AGREEMENT * np.spacing(radius * radius)):
+        current = (self.level - self.level_half_chord) * (self.level + self.level_half_chord)          # b^2, as the level holds it
+        scale = np.maximum(radius * radius, self.level * self.level)
+        if np.any(np.abs((radius - half_chord) * (radius + half_chord) - current) > _LEVEL_AGREEMENT * np.spacing(scale)):
             raise ValueError("a line's level disagrees with its impact parameter: r*^2 - y*^2 is not b^2")
         return replace(self, level=radius, level_half_chord=half_chord)
 

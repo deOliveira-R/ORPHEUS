@@ -210,6 +210,26 @@ class PanelBasis:
         factors = (x[..., None] - nodes[kind])[..., others] / spread[kind]                 # (..., p + 1, p)
         return factors.prod(axis=-1)
 
+    def bound(self, radius: np.ndarray, panel: np.ndarray) -> np.ndarray:
+        r"""A majorant of :math:`|u_i(c)|` over the functions of ``panel`` and every complex :math:`c` with :math:`|c| \le` ``radius``, ``(...)``.
+
+        In the panel's coordinate :math:`|x| \le X`, :math:`X = (2|c| + |a + b|)/(b - a)`
+        (on an :attr:`even` panel :math:`((X + 1)/2)^2`), and each Lagrange
+        factor is bounded alone: :math:`|u_i| \le \prod_{k \ne i} (X + |\xi_k|)/|\xi_i - \xi_k|`.
+        The bound of the integrand on a Bernstein ellipse that the node count of
+        a piece reads (:func:`~.grading.gauss_nodes`).
+        """
+        ends = np.asarray(self.partition.breakpoints)
+        panel = np.asarray(panel)
+        a, b = ends[panel], ends[panel + 1]
+        x = (2.0 * np.asarray(radius, dtype=float) + np.abs(a + b)) / (b - a)
+        even = self.even[panel]
+        x = np.where(even, _even_coordinate(x), x)
+        nodes, others, spread = self._lagrange
+        kind = even.astype(int)
+        factors = (x[..., None] + np.abs(nodes[kind]))[..., others] / np.abs(spread[kind])          # (..., p + 1, p)
+        return factors.prod(axis=-1).max(axis=-1)
+
     @cached_property
     def _lagrange(self) -> _LagrangeTables:
         r"""The Lagrange tables of the reference and the :attr:`even` coordinate. Built once, they leave :meth:`values` one product per point, which had been

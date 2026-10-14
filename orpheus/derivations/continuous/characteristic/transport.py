@@ -25,61 +25,64 @@ arc length :math:`s`: the rule carries the speed :math:`v = \mathrm ds/\mathrm d
 :math:`\Sigma v\,\Delta t` and every length element is :math:`v\,\mathrm dt`.
 A cylinder's 3-D line at polar angle :math:`\theta` is its in-plane line read
 at :math:`v = 1/\sin\theta`, so one in-plane line carries every polar angle
-as a family of speeds: its pieces, its nodes and its basis values are formed
-once, and only the attenuations and the length weights depend on the
-speed. A line parametrised by its own arc length, any line the kernel
+as a family of speeds: its pieces and their node counts are formed once,
+and the rules of the attenuation, their nodes and the basis values there
+are formed per speed, since the attenuation is each rule's measure. A line parametrised by its own arc length, any line the kernel
 chords in three dimensions, has speed 1.
 
 **The pieces.** The lines are chorded through the basis's panel partition
 (:attr:`~.basis.PanelBasis.partition`), or a refinement of it at the levels
-a flux is read at, so each slot lies in one panel, and every slot is cut at
-its middle and into pieces by two gradings:
+a flux is read at, so each slot lies in one panel. On a cylinder or a
+sphere each slot is cut by the hp walk toward its end nearer the line's
+closest approach (:func:`~.grading.branch_walk`): the orbit coordinate
+:math:`c(t) = \sqrt{b^2 + |P\Omega|^2 (t - t^*)^2}` has complex branch
+points at :math:`t^* \pm i\,b/|P\Omega|`, and every piece is no wider than
+its distance to them over the tightness :math:`c = 2`
+(:data:`~.grading.TIGHTNESS`), so its integrand is analytic on a fixed
+Bernstein ellipse. A slot of an :attr:`~.basis.PanelBasis.even` panel, of
+a line through the centre (:math:`b = 0`, where :math:`c` is linear on each
+slot) or of a slab is entire and is not cut. Each line keeps only its live
+pieces, in chord order. The attenuation cuts nothing: it is the measure of
+each piece's rule.
 
-* exponentially toward the ends it is read at, where the attenuation
-  concentrates every integrand: piece ends at :math:`h\rho^k` mean free
-  paths of the family's steepest attenuation from each such end, until 64
-  mean free paths of its gentlest (:func:`~.grading.exponential_ends`), with
-  :math:`h` and :math:`\rho` derived from the node count
-  (:class:`~.grading.ExponentialGrading`). A slot of optical width at most
-  :math:`h` at the steepest is not graded. Three sets of
-  pieces are graded so (:class:`_Toward`): toward each slot's end, for an
-  outflow and the flux at a crossing; toward its start, for the entry
-  response; toward both ends, for the block's Volterra integral.
-* on a cylinder or a sphere, toward the end nearer the line's closest
-  approach, halving, down to that end's distance from the complex branch
-  points of the orbit coordinate :math:`c(t) = \sqrt{b^2 + |P\Omega|^2 (t - t^*)^2}`.
-  They lie at :math:`t^* \pm i\,b/|P\Omega|`, a distance :math:`c/|P\Omega|`
-  from a point of orbit coordinate :math:`c`, so each piece stays a fixed
-  number of its widths from them and Gauss-Legendre in arc length converges
-  geometrically on every piece (hp grading). On a line through the centre
-  (:math:`b = 0`) the coordinate is linear at the closest approach, so the
-  two slots meeting there are not graded; a slot starting at an interface
-  :math:`r_k > 0` still is.
+**One integrand, one rule per piece and speed.** Along a piece every
+quantity is a smooth factor against the attenuation to one of its ends, so
+each is integrated by the Gauss rule of that attenuation
+(:class:`~.attenuation_rule.AttenuationRule`) at the piece's optical
+half-width, one rule per member of the speed family: positive weights,
+exact for the factor's polynomials of degree :math:`2m - 1` at every optical
+width, the factor evaluated at the rule's own nodes. The node count
+:math:`m` is derived per piece (:func:`~.grading.gauss_nodes`), from the
+Bernstein ellipse through the piece's branch point and the basis's bound on
+it (:meth:`~.basis.PanelBasis.bound`), and does not depend on the width;
+the block's triangle, a product of two panel functions, takes its own
+count. An entire piece takes the count its degree in the parameter asks:
+:math:`p + 1` (:math:`2p + 1` for the triangle) on an even panel, whose
+functions are of degree :math:`2p` in :math:`t`, and
+:math:`\lceil (p + 1)/2 \rceil` (:math:`p + 1`) where :math:`c` is linear.
 
-Each line keeps only its live pieces, in chord order.
+**The nodes are placed from the piece's end.** A node is an offset from
+the attenuated end (:class:`~.attenuation_rule.AttenuationRule`), and the
+orbit coordinate there is read from the lines anchored at that end: exactly
+at a crossing (:meth:`~orpheus.geometry.chord.Chord.rays_at`), and inside a
+slot advanced (:meth:`~orpheus.geometry.chord.Rays.advanced`) from the
+slot's near end, a crossing or the line's closest approach
+(:meth:`~orpheus.geometry.chord.Chord.rays_at_closest_approach`), never
+through the line's parameter. Only the live piece ends are read
+(:meth:`~orpheus.geometry.chord.Chord.take`).
 
-**One integrand, two levels.** Every attenuated integral along a line has
-the one integrand :math:`v\,w\,e^{-\Sigma v d}` (:func:`_attenuated_length`).
-A quantity read at a slot end the pieces are graded toward (the outflow, the
-entry response, the flux at a crossing) is integrated on each piece's own
-nodes, one level (:meth:`_PieceSet.to_end`, :meth:`_PieceSet.to_start`). A
-quantity read where no piece end is graded toward, the flux at a node inside
-a piece, is integrated on an inner rule graded toward that node, two levels
-(:meth:`TraversalRule._attenuated`): the integral out of a wide middle piece
-lives in its last few mean free paths, which an ungraded rule on the piece's
-own nodes misses at O(1) (`[M]` qa's ``probe_thick_psi.py``, 2026-10-06:
-0.54 in the flux just past the middle piece of a 1000-mfp slot).
-
-**The Volterra block** pairs the flux at a piece's own nodes with the test
-functions there: the flux at a node is what the transit's earlier pieces
-carry in, attenuated from the piece's start, plus the integral from the
-piece's start to the node. The outer rule integrates the smooth product
-:math:`u_i \psi_j`; the inner integral is the graded one, and what the
-earlier pieces carry is each piece's graded integral to its end, scanned
-along the transit (:attr:`TraversalRule._carried`).
+**The functionals.** The outflow, the entry response and the flux at a
+crossing are one-level integrals of each piece (:meth:`_PieceSet.to_end`,
+:meth:`_PieceSet.to_start`) carried along the transit. **The Volterra
+block** pairs the flux with the test functions: what the transit's earlier
+pieces carry into a piece (:attr:`TraversalRule._carried`, a scan of the
+pieces' integrals to their ends) is integrated against the tests toward the
+piece's start, and the piece's own triangle
+:math:`\int\!\!\int_{t' < t} u_i(t)\,e^{-\Sigma v (t - t')}\,u_j(t')` is
+the rule of the triangle (:meth:`~.attenuation_rule.AttenuationRule.triangle`).
 
 The design and its rulings: ``.claude/plans/characteristic_reference_architecture.md``
-(P1 step (b), second rung).
+(P1 step (b), second rung; P3 step 3f, product integration along lines).
 """
 
 from __future__ import annotations
@@ -91,26 +94,14 @@ from functools import cached_property
 
 import numpy as np
 
-from orpheus.derivations.common.quadrature import gauss_legendre
-from orpheus.geometry.chord import Chord, RadialImage
+from orpheus.geometry.chord import Chord, RadialImage, Rays
 from orpheus.geometry.line import Line
 
+from .attenuation_rule import AttenuationRule
 from .basis import PanelBasis
-from .grading import ExponentialGrading, exponential_ends, halvings
+from .grading import bernstein_parameter, branch_walk, exact_nodes, gauss_nodes
 from .closure import LinePeriod
 from .walls import Walls
-
-
-def _attenuated_length(speed: np.ndarray, weight: np.ndarray, sigma: np.ndarray, distance: np.ndarray) -> np.ndarray:
-    r""":math:`v\,w\,e^{-\Sigma v d}`: a node's arc-length element :math:`v\,w` (its weight :math:`w` in the line parameter at speed
-    :math:`v`), attenuated over the parameter distance :math:`d` at cross section :math:`\Sigma`; the arguments broadcast.
-
-    The one integrand of every attenuated integral along a line: the one-level
-    integrals of a piece set (:meth:`_PieceSet._integral`), the graded inner rule
-    (:meth:`TraversalRule._attenuated`) and the flux carried into a node of the
-    block (:meth:`TraversalRule.volterra`).
-    """
-    return speed * weight * np.exp(-(speed * sigma) * distance)
 
 
 @dataclass(frozen=True, eq=False)
@@ -196,9 +187,22 @@ class _Slots:
         +1 where the slot's end is the one nearer the line's closest
         approach, -1 where its start is, 0 on a line with no closest
         approach (the slab).
-    branch_distance:
-        The distance from that end to the orbit coordinate's complex branch
-        points, :math:`c_{\rm near}/|P\Omega|`.
+    height:
+        :math:`b/|P\Omega|`, the distance in the parameter from the line to
+        the orbit coordinate's complex branch points
+        :math:`t^* \pm i\,b/|P\Omega|`; 0 on the slab.
+    approach:
+        The parameter distance from the closest approach :math:`t^*` to the
+        slot's near end, :math:`y_k/|P\Omega|` from the half-chord
+        :math:`y_k` at the crossing there (0 where the near end is
+        :math:`t^*` itself); 0 on the slab.
+    anchor:
+        The column of :attr:`~orpheus.geometry.chord.Chord.crossings` at the
+        slot's anchor, the end every piece end is measured from: its near end,
+        its start on the slab.
+    anchored_on_crossing:
+        Whether the anchor is a crossing the line makes; where not, it is the
+        closest approach.
     """
 
     start: np.ndarray
@@ -208,7 +212,30 @@ class _Slots:
     transit: np.ndarray
     member: np.ndarray
     near_end: np.ndarray
-    branch_distance: np.ndarray
+    height: np.ndarray
+    approach: np.ndarray
+    anchor: np.ndarray
+    anchored_on_crossing: np.ndarray
+
+    @property
+    def direction(self) -> np.ndarray:
+        r"""The slot's direction along the line from its anchor, ``(L, S)``: -1 where the anchor is its end, else +1."""
+        return np.where(self.anchor > np.arange(self.start.shape[-1]), -1.0, 1.0)
+
+    @property
+    def origin(self) -> np.ndarray:
+        r"""The parameter of each slot's anchor."""
+        return np.where(self.direction < 0, self.end, self.start)
+
+    @property
+    def first(self) -> np.ndarray:
+        r"""The slot's start, as a signed distance from its anchor: :math:`-\ell` where the anchor is its end, else 0."""
+        return np.where(self.direction < 0, -self.length, 0.0)
+
+    @property
+    def last(self) -> np.ndarray:
+        r"""The slot's end, as a signed distance from its anchor: 0 where the anchor is its end, else :math:`\ell`."""
+        return np.where(self.direction < 0, 0.0, self.length)
 
 
 @dataclass(frozen=True, eq=False)
@@ -220,7 +247,8 @@ class _Pieces:
     slot:
         The slot holding the piece (0 on the tail).
     lower, upper:
-        The piece's ends, distances from its slot's start (equal on the tail).
+        The piece's ends, signed distances along the line from its slot's anchor (:attr:`_Slots.origin`):
+        the hp walk's own distances, never a difference with the slot's length (equal on the tail).
     panel, transit:
         The piece's panel and transit (0 on the tail).
     live:
@@ -235,63 +263,69 @@ class _Pieces:
     live: np.ndarray
 
 
-class _Toward(Enum):
-    r"""The ends of every slot a set of pieces is graded toward: ``(start, end)``.
+class _End(Enum):
+    r"""A piece's end a one-level integral is attenuated to: the :class:`_Pieces` field holding it, and the direction its nodes lie in along the line."""
 
-    ``EXITS``: each slot's end, where a transit read forward exits and where
-    a point on a level is read (:meth:`TraversalRule.at`). ``ENTRIES``: each
-    slot's start, where a transit read backward exits. ``BOTH``: the block's
-    Volterra integral, which reads the flux at every node and so meets the
-    layers at both ends. Every set is graded for the rule's
-    :attr:`~TraversalRule.points` (:class:`~.grading.ExponentialGrading`).
-    The block's inner rule is graded for its own node count,
-    :attr:`~TraversalRule.inner_points`: at the fixed ratio 2 it replaced, a
-    piece's integral to its end at :math:`\Sigma = 30`, speeds 1 and 100,
-    against 24 inner points, missed by 1.0e-6 at 4 inner points, 5.8e-13 at 8
-    and 3.3e-15 at 12 (`[M]` 2026-10-12, the elegance review,
-    ``scratch/characteristic_architecture/p3/step3/elegance/probe_shape.py``).
+    UPPER = ("upper", -1.0)
+    LOWER = ("lower", 1.0)
+
+    @property
+    def toward(self) -> float:
+        r"""The direction along the line from the end into its piece: behind the upper end, ahead of the lower."""
+        return self.value[1]
+
+    def of(self, pieces: _Pieces) -> np.ndarray:
+        r"""The end's signed distance from each piece's slot anchor, ``(L, J)``."""
+        return getattr(pieces, self.value[0])
+
+
+@dataclass(frozen=True, eq=False)
+class _EndPoints:
+    r"""The live pieces' ends on their lines, each read from where it is exact; a padded entry is no point.
+
+    Attributes
+    ----------
+    groups:
+        Each group of ends read one way (from a crossing, or from the closest approach): its points
+        (:class:`~orpheus.geometry.chord.Rays`, ``(P,)``) and their flat places among the pieces ``(L, J)``.
     """
 
-    EXITS = (False, True)
-    ENTRIES = (True, False)
-    BOTH = (True, True)
+    groups: tuple[tuple[Rays, np.ndarray], ...]
+
+    @cached_property
+    def at(self) -> np.ndarray:
+        r"""The flat places of every live end among the pieces, ``(P,)``, in the order :meth:`orbit_coordinate_at` returns them."""
+        return np.concatenate([at for _, at in self.groups]) if self.groups else np.zeros(0, dtype=int)
+
+    def orbit_coordinate_at(self, distance: np.ndarray) -> np.ndarray:
+        r"""The orbit coordinate at the distances ``distance`` ``(P, q)`` ahead of each live end (:attr:`at`), ``(P, q)``."""
+        if not self.groups:
+            return np.zeros_like(distance)
+        sizes = np.cumsum([at.size for _, at in self.groups])[:-1]
+        return np.concatenate([points.orbit_coordinate_at(part) for (points, _), part in zip(self.groups, np.split(distance, sizes))])
 
 
 @dataclass(frozen=True, eq=False)
 class _PieceSet:
-    r"""A rule's slots cut into pieces graded toward some of their ends (:class:`_Toward`), and the quadrature on them.
+    r"""A rule's slots cut into pieces by the hp walk, and the quadrature on them.
 
-    Each slot is graded exponentially toward the ends it is read at
-    (:func:`~.grading.exponential_ends`, over the family's range of
-    attenuations) and, halving, toward the end nearer the line's closest
-    approach (:meth:`TraversalRule._branch_edges`). The integrals over it are
-    one level, on each piece's :attr:`TraversalRule.points` nodes, and exact
-    to the rule's order where they are read at a graded end.
+    Each slot is cut toward its end nearer the line's closest approach
+    (:func:`~.grading.branch_walk`); an entire slot is one piece. Every
+    integral over a piece is a smooth factor against the attenuation to one
+    of its ends, integrated by the Gauss rule of that attenuation
+    (:class:`~.attenuation_rule.AttenuationRule`), per member of the speed
+    family, with the node counts of :attr:`node_counts`.
     """
 
     rule: "TraversalRule"
     pieces: _Pieces
 
     @classmethod
-    def of(cls, rule: "TraversalRule", toward: _Toward) -> "_PieceSet":
-        r"""The pieces of ``rule``'s slots graded toward the ends ``toward``."""
+    def of(cls, rule: "TraversalRule") -> "_PieceSet":
+        r"""The pieces of ``rule``'s slots."""
         s = rule._slots
-        steepest, gentlest = rule._attenuations(rule.sigma[s.panel])
-        grading = ExponentialGrading.of(rule.points)
-        to_start, to_end = toward.value
-        # graded toward both ends, each half of a slot is graded toward its own; toward one, the whole slot is. A slot
-        # is always cut at its middle: `[M]` 2026-10-11 (``scratch/characteristic_architecture/p3/step3/impl/
-        # exits_accuracy.py``, a three-region cylinder's outflow at 8 points against 24), the whole slot graded toward
-        # its end alone left a thin slot one piece, 7.9e-11 off on a 3-D line; the halves graded toward the end
-        # alone left the far half one piece, 1.2e-13 off on the in-plane line at speeds 1 to 100
-        half = s.length / 2.0
-        middle = half if to_start and to_end else (np.zeros_like(s.length) if to_end else s.length)
-        graded = [rule._branch_edges(), half[..., None]]
-        if to_start:
-            graded.append(exponential_ends(np.zeros_like(s.length), middle, steepest, gentlest, grading))
-        if to_end:
-            graded.append(exponential_ends(s.length, middle, steepest, gentlest, grading))
-        ends = np.sort(np.concatenate([np.zeros_like(s.length)[..., None], s.length[..., None], *graded], axis=-1), axis=-1)
+        cut = branch_walk(np.where(rule._walked, s.length, 0.0), s.height, s.approach)          # from the near end, the anchor
+        ends = np.sort(np.concatenate([s.first[..., None], s.last[..., None], s.direction[..., None] * cut], axis=-1), axis=-1)
         lower, upper = ends[..., :-1], ends[..., 1:]                                       # (L, S, M)
         live = (upper > lower) & s.member[..., None]
         # the live pieces first, each line's in chord order (slot-major, then along the slot)
@@ -321,39 +355,161 @@ class _PieceSet:
         return self.rule._speed[..., None] * self.sigma * (p.upper - p.lower)
 
     @cached_property
-    def nodes(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        r"""The :attr:`TraversalRule.points` Gauss-Legendre nodes of every piece: distance from the slot's start, weight, and the basis values there, ``(L, J, n)`` and ``(L, J, n, p + 1)``."""
-        p, rule = self.pieces, self.rule
-        distance, orbit, weight = rule._nodes(p.slot, p.lower, p.upper, rule.points)
-        return distance, weight, rule.basis.values(orbit, np.broadcast_to(p.panel[..., None], orbit.shape))
+    def begins(self) -> np.ndarray:
+        r"""The line parameter at each piece's beginning, ``(L, J)``; :math:`\infty` on the padding.
 
-    def _integral(self, distance_to: np.ndarray) -> np.ndarray:
-        r"""Each piece's integral attenuated over ``distance_to`` from each node ``(L, J, n)``, on its own nodes, ``(F, L, J, p + 1)``."""
-        _, weight, values = self.nodes
-        attenuated = _attenuated_length(self.rule._speed[..., None, None], weight, self.sigma[..., None], distance_to)
-        return (attenuated[..., None, :] @ values)[..., 0, :]
+        Its slot's start crossing where it begins there, exactly; else its
+        slot's anchor plus its signed distance.
+        """
+        rule, p = self.rule, self.pieces
+        s = rule._slots
+        at_start = p.lower == rule._of_slot(s.first, p.slot)
+        begins = np.where(at_start, rule._slot_start(p.slot), rule._of_slot(s.origin, p.slot) + p.lower)
+        return np.where(p.live, begins, np.inf)
+
+    @cached_property
+    def half_length(self) -> np.ndarray:
+        r""":math:`v h/2`, each piece's arc length over its reference coordinate's :math:`[-1, 1]`, per family member, ``(F, L, J)``."""
+        p = self.pieces
+        return self.rule._speed[..., None] * (p.upper - p.lower) / 2.0
+
+    @cached_property
+    def node_counts(self) -> tuple[np.ndarray, np.ndarray]:
+        r"""The nodes of each piece's rules, ``(L, J)`` each: for one panel function, and for the triangle's product of two.
+
+        A piece cut by the hp walk takes the count of :func:`~.grading.gauss_nodes`:
+        its branch points :math:`t^* \pm i\,b/|P\Omega|` lie at
+        :math:`z_0 = 2(d + i\,b/|P\Omega|)/h` in its coordinate, :math:`d` the
+        distance from :math:`t^*` to its middle and :math:`h` its width, and on
+        the Bernstein ellipse :math:`\rho` inside them the orbit coordinate is
+        at most :math:`|P\Omega|\,|(b/|P\Omega|,\; d + (h/2)(\rho + 1/\rho)/2)|`,
+        whose panel functions the basis bounds (:meth:`~.basis.PanelBasis.bound`;
+        squared for the triangle). An entire piece takes its degree's count.
+        """
+        rule, p = self.rule, self.pieces
+        s, degree = rule._slots, rule.basis.degree
+        even = rule.basis.even[p.panel]
+        walked = p.live & rule._of_slot(rule._walked, p.slot)
+        # an even panel's functions are of degree 2p in the parameter; elsewhere the coordinate is linear, degree p
+        one = np.where(even, exact_nodes(2 * degree), exact_nodes(degree))
+        two = np.where(even, exact_nodes(4 * degree), exact_nodes(2 * degree))
+        if not walked.any():
+            return one, two
+        height, approach, speed = (rule._of_slot(a, p.slot)[walked] for a in (
+            s.height, s.approach, rule._projected_speed[:, None] * np.ones_like(s.length)))
+        lower, upper, panel = p.lower[walked], p.upper[walked], p.panel[walked]
+        width = upper - lower
+        middle = (lower + upper) / 2.0
+        distance = approach + np.abs(middle)                                                  # from t* to the piece's middle
+        singular = bernstein_parameter(2.0 * (distance + 1j * height) / width)
+
+        def majorant(rho: np.ndarray) -> np.ndarray:
+            reach = distance + width / 2.0 * (rho + 1.0 / rho) / 2.0
+            return rule.basis.bound(speed * np.hypot(height, reach), panel)
+
+        one, two = one.copy(), two.copy()
+        one[walked] = gauss_nodes(singular, majorant)
+        two[walked] = gauss_nodes(singular, lambda rho: majorant(rho) ** 2)
+        return one, two
+
+    @cached_property
+    def _upper(self) -> _EndPoints:
+        r"""Each live piece's upper end on its line (:meth:`_end_points`)."""
+        return self._end_points(_End.UPPER)
+
+    @cached_property
+    def _lower(self) -> _EndPoints:
+        r"""Each live piece's lower end on its line (:meth:`_end_points`)."""
+        return self._end_points(_End.LOWER)
+
+    def _end_points(self, end: _End) -> _EndPoints:
+        r"""Each live piece's ``end`` on its line, read from where it is exact (:class:`_EndPoints`).
+
+        A piece end on one of its slot's crossings is read from that crossing
+        (:meth:`~orpheus.geometry.chord.Chord.rays_at`). Every other end is
+        advanced (:meth:`~orpheus.geometry.chord.Rays.advanced`) by its own
+        signed distance from its slot's anchor, the end the hp walk measured
+        from: the crossing there, or the closest approach itself
+        (:meth:`~orpheus.geometry.chord.Chord.rays_at_closest_approach`) where
+        the slot ends without one, so a point near :math:`t^*` is never
+        advanced from a far crossing, which forms :math:`r^2 - b^2` by
+        cancellation. Only the live ends are read, each on the chord of its
+        own line (:meth:`~orpheus.geometry.chord.Chord.take`): a line with no
+        piece places no point.
+        """
+        rule, p = self.rule, self.pieces
+        s, chord = rule._slots, rule.period.chord
+        present = rule._flat(chord.crossings.present)                                      # (L, S + 1)
+        at = end.of(p)
+        first, last, anchor, anchored = (rule._of_slot(a, p.slot) for a in (s.first, s.last, s.anchor, s.anchored_on_crossing))
+        at_start = (at == first) & np.take_along_axis(present, p.slot, axis=-1)
+        at_end = (at == last) & np.take_along_axis(present, p.slot + 1, axis=-1)
+        column = np.where(at_start, p.slot, np.where(at_end, p.slot + 1, anchor))
+        advance = np.where(at_start | at_end, 0.0, at)
+        on_crossing = p.live & (at_start | at_end | anchored)
+        line = np.broadcast_to(np.arange(p.live.shape[0])[:, None], p.live.shape)
+
+        def from_crossing(chosen: np.ndarray) -> Rays:
+            return chord.take(line[chosen]).rays_at(column[chosen])
+
+        def from_closest_approach(chosen: np.ndarray) -> Rays:
+            return chord.take(line[chosen]).rays_at_closest_approach()
+
+        groups = tuple(
+            (read(chosen).advanced(advance[chosen]), np.flatnonzero(chosen))
+            for chosen, read in ((on_crossing, from_crossing), (p.live & ~on_crossing, from_closest_approach))
+            if chosen.any()
+        )
+        return _EndPoints(groups)
+
+    def _values(self, end: _End, offset: np.ndarray) -> np.ndarray:
+        r"""The panel functions at reference offsets ``offset`` ``(F, L, J, *q)`` from each piece's ``end``, ``(F, L, J, *q, p + 1)``; 0 on the padding.
+
+        An offset :math:`\delta` is the distance :math:`\delta h/2` from the
+        end toward the piece's other end (:attr:`_End.toward`). The basis is
+        evaluated at the live ends' nodes only.
+        """
+        p = self.pieces
+        members, nodes = offset.shape[0], offset.shape[3:]
+        ell = end.toward * offset * ((p.upper - p.lower) / 2.0).reshape(1, *p.live.shape, *(1,) * len(nodes))
+        ahead = np.moveaxis(ell, 0, 2).reshape(p.live.size, -1)                             # (L J, F q)
+        points = self._upper if end is _End.UPPER else self._lower
+        at = points.at
+        orbit = points.orbit_coordinate_at(ahead[at])                                         # (P, F q)
+        live = self.rule.basis.values(orbit, np.broadcast_to(p.panel.reshape(-1)[at][:, None], orbit.shape))
+        values = np.zeros((p.live.size, *orbit.shape[1:], self.rule.basis.per_panel))
+        values[at] = live
+        values = values.reshape(*p.live.shape, members, *nodes, self.rule.basis.per_panel)
+        return np.moveaxis(values, 2, 0)
+
+    def _one_level(self, end: _End) -> np.ndarray:
+        r"""Each piece's integral attenuated to its ``end``, ``(F, L, J, p + 1)``."""
+        rule = AttenuationRule.of(self.depth / 2.0, self.node_counts[0])
+        values = self._values(end, rule.offset)
+        return self.half_length[..., None] * np.einsum("fljq,fljqi->flji", rule.weight, values)
 
     @cached_property
     def to_end(self) -> np.ndarray:
-        r"""Each piece's integral attenuated to its end, ``(F, L, J, p + 1)``: read at the ends the pieces are graded toward.
-
-        `[M]` 2026-10-11 (P3 step 3, ``scratch/characteristic_architecture/p3/step3/impl/one_level_probe.py``):
-        the outflow at 8 points on pieces graded toward both ends, against the
-        two-level rule at 24, equals the two-level outflow on the
-        three-region, thin and thick cylinders at one speed (5.7e-15,
-        1.5e-14, 2.4e-15), and reads 7.6e-13 against 9.6e-14 on a thick
-        cylinder at speeds 1 to 1000 (1.7e-14 both at 12 points). The flux
-        at a piece end inside a slot is not such a read: the block's scan
-        carries the graded integral (:attr:`TraversalRule._to_end`).
-        """
-        distance, _, _ = self.nodes
-        return self._integral(self.pieces.upper[..., None] - distance)
+        r"""Each piece's integral attenuated to its end, ``(F, L, J, p + 1)``."""
+        return self._one_level(_End.UPPER)
 
     @cached_property
     def to_start(self) -> np.ndarray:
-        r"""Each piece's integral attenuated to its start, ``(F, L, J, p + 1)``: read at the ends the pieces are graded toward."""
-        distance, _, _ = self.nodes
-        return self._integral(distance - self.pieces.lower[..., None])
+        r"""Each piece's integral attenuated to its start, ``(F, L, J, p + 1)``."""
+        return self._one_level(_End.LOWER)
+
+    @cached_property
+    def triangle(self) -> np.ndarray:
+        r"""Each piece's Volterra triangle :math:`\int\!\!\int_{t' < t} u_a(t)\,e^{-\Sigma v (t - t')}\,u_b(t')\,v^2\,\mathrm dt'\,\mathrm dt`, ``(F, L, J, p + 1, p + 1)``.
+
+        The test :math:`u_a` at each node's lead point, the source :math:`u_b`
+        at its lag point upstream (:class:`~.attenuation_rule.TriangleRule`),
+        both read from the piece's end.
+        """
+        rule = AttenuationRule.of(self.depth / 2.0, self.node_counts[1]).triangle()
+        test, source = self._values(_End.UPPER, rule.lead), self._values(_End.UPPER, rule.lag)
+        paired = np.einsum("fljqk,fljqka,fljqkb->fljab", rule.weight, test, source)
+        return self.half_length[..., None, None] ** 2 * paired
 
     def transit_depth(self, upstream: bool) -> np.ndarray:
         r"""The optical depth between each piece and its transit's entry (``upstream``) or exit, ``(F, L, J)``.
@@ -409,10 +565,6 @@ class TraversalRule:
         The basis.
     sigma:
         The total cross section of each panel, ``(P,)``.
-    points:
-        Gauss-Legendre points per piece.
-    inner_points:
-        Gauss-Legendre points per interval of the inner rule (the attenuated integral).
     speed:
         :math:`v = \mathrm ds/\mathrm dt`, the arc length per unit line parameter, positive: a scalar, every line
         read at it, or a family ``(F,)``, every line read at each member, which every functional returns first,
@@ -424,8 +576,6 @@ class TraversalRule:
     period: LinePeriod
     basis: PanelBasis
     sigma: np.ndarray
-    points: int
-    inner_points: int
     speed: np.ndarray | float = 1.0
 
     def __post_init__(self) -> None:
@@ -437,8 +587,6 @@ class TraversalRule:
                 f"got {sigma.shape}"
             )
         object.__setattr__(self, "sigma", sigma)
-        if self.points < 1 or self.inner_points < 1:
-            raise ValueError(f"a rule has at least one point; got {self.points}, {self.inner_points}")
         speed = np.asarray(self.speed, dtype=float)
         if speed.ndim > 1 or not np.all(np.isfinite(speed)) or np.any(speed <= 0.0):
             raise ValueError(f"a speed is finite and positive, a scalar or a family (F,) shared by every line; got shape {speed.shape}")
@@ -465,8 +613,6 @@ class TraversalRule:
         basis: PanelBasis,
         walls: Walls,
         sigma_t: np.ndarray,
-        points: int,
-        inner_points: int,
         level: tuple[np.ndarray, np.ndarray] | None = None,
         speed: np.ndarray | float = 1.0,
     ) -> "TraversalRule":
@@ -476,7 +622,7 @@ class TraversalRule:
         there (:meth:`~orpheus.geometry.chord.ConcentricPartition.chord`);
         ``speed`` is :attr:`speed`.
         """
-        return cls.on_chord(basis.partition.chord(lines, level), basis, walls, sigma_t, points, inner_points, speed)
+        return cls.on_chord(basis.partition.chord(lines, level), basis, walls, sigma_t, speed)
 
     @classmethod
     def on_chord(
@@ -485,13 +631,11 @@ class TraversalRule:
         basis: PanelBasis,
         walls: Walls,
         sigma_t: np.ndarray,
-        points: int,
-        inner_points: int,
         speed: np.ndarray | float = 1.0,
     ) -> "TraversalRule":
         r"""The rule along the lines of ``chord``, a chord of ``basis``'s panel partition (:meth:`of`, for a chord already formed, such as :meth:`~orpheus.geometry.chord.ConcentricPartition.rays_from`'s)."""
         period = LinePeriod.of(chord, walls.on(chord.partition))
-        return cls(period, basis, basis.on_panels(sigma_t), points, inner_points, speed)
+        return cls(period, basis, basis.on_panels(sigma_t), speed)
 
     # ── the line batch, flattened, and the family of speeds over it ──────
 
@@ -517,11 +661,11 @@ class TraversalRule:
 
     def _unflat(self, per_line: np.ndarray) -> np.ndarray:
         """``(L, ...)`` to ``(*batch, ...)``."""
-        return per_line.reshape(*self._lines, *per_line.shape[1:])
+        return per_line.reshape(self._lines + per_line.shape[1:])
 
     def _unflat_family(self, per_member: np.ndarray) -> np.ndarray:
         """``(F, L, ...)`` to ``(*family, *batch, ...)``."""
-        return per_member.reshape(*self._family, *self._lines, *per_member.shape[2:])
+        return per_member.reshape(self._family + self._lines + per_member.shape[2:])
 
     # ── the slots ────────────────────────────────────────────────────────
 
@@ -557,72 +701,45 @@ class TraversalRule:
             at_open = np.where(crossings.present[..., :-1], r[crossings.breakpoint[..., :-1]], b)
             at_close = np.where(crossings.present[..., 1:], r[crossings.breakpoint[..., 1:]], b)
             near_end = np.where(member, np.where(at_close < at_open, 1, -1), 0)
-            speed = np.where(image.parallel, 1.0, image.speed)[..., None]
-            branch_distance = np.where(member, np.minimum(at_open, at_close) / speed, 0.0)
+            # the near end's distance from t*: its crossing's half-chord from the exact level over |P Omega|, 0 at t* itself
+            anchor = np.where(near_end > 0, 1, 0) + np.arange(start.shape[-1])
+            near_present = np.take_along_axis(crossings.present, anchor, axis=-1)
+            near_radius = np.where(near_present, r[np.take_along_axis(crossings.breakpoint, anchor, axis=-1)], 0.0)
+            speed = self._unflat(self._projected_speed)[..., None]
+            approach = np.where(member & near_present, image.half_chord_at(near_radius) / speed, 0.0)
+            height = np.where(member, b / speed, 0.0)
         else:
-            near_end, branch_distance = np.zeros_like(panel), np.zeros_like(length)
-        return _Slots(*(self._flat(a) for a in (start, end, length, panel, transit, member, near_end, branch_distance)))
+            near_end, height, approach = np.zeros_like(panel), np.zeros_like(length), np.zeros_like(length)
+            anchor = np.broadcast_to(np.arange(start.shape[-1]), start.shape)
+            near_present = np.take_along_axis(crossings.present, anchor, axis=-1)
+        fields = (start, end, length, panel, transit, member, near_end, height, approach, anchor, near_present)
+        return _Slots(*(self._flat(np.asarray(a)) for a in fields))
 
-    def _branch_edges(self) -> np.ndarray:
-        r"""Piece ends graded toward each slot's end nearer the closest approach, ``(L, S, K)``; 0 where ungraded.
+    @cached_property
+    def _projected_speed(self) -> np.ndarray:
+        r""":math:`|P\Omega|` of each line, ``(L,)``: 1 on a line parallel to the level sets, and on the slab."""
+        image = self.period.chord.image
+        if isinstance(image, RadialImage):
+            return self._flat(np.where(image.parallel, 1.0, image.speed))
+        return np.ones(int(np.prod(self._lines)))
 
-        On a slot ending at the closest approach the branch distance is
-        :math:`b/|P\Omega|`; on one starting at the crossing of a small radius
-        :math:`r_k` (a small cavity or a small inner region) it is
-        :math:`r_k/|P\Omega|`. The pieces halve toward that end until each is
-        no wider than its distance to the branch point (:func:`~.grading.halvings`). `[M]` 2026-10-06: one piece at 16 points missed by 2.5e-12
-        at :math:`b = 10^{-4}` (the test-architect's ``probe_turn2.py``) and by
-        8.5e-7 on a hollow sphere of cavity radius 0.01 (qa's ``probe_branch.py``).
-
-        A change of variable :math:`c = b + (c_{\rm far} - b)u^2` on the slots
-        ending at the closest approach was tried first and retired: it leaves
-        a branch point in the Jacobian at :math:`u = \pm i\sqrt{2b/(c_{\rm far} - b)}`,
-        and it covered only those slots.
-        """
+    @cached_property
+    def _walked(self) -> np.ndarray:
+        r"""Whether each slot is cut by the hp walk, ``(L, S)``: a traversed slot of a line with a branch point off it (:math:`b > 0`), on a panel that is not :attr:`~.basis.PanelBasis.even`."""
         s = self._slots
-        reach = (s.near_end != 0) & (s.branch_distance > 0.0)
-        layers = halvings(s.length, np.where(reach, s.branch_distance, s.length))   # 0 where ungraded
-        level = np.arange(1, np.finfo(float).nmant + 1)
-        depth = s.length[..., None] * 0.5**level
-        at = np.where(s.near_end[..., None] > 0, s.length[..., None] - depth, depth)
-        return np.where(level <= layers[..., None], at, 0.0)
+        return s.member & (s.height > 0.0) & (s.near_end != 0) & ~self.basis.even[s.panel]
 
     # ── the pieces ───────────────────────────────────────────────────────
 
     @cached_property
-    def _toward_exits(self) -> _PieceSet:
-        r"""The pieces graded toward each slot's end: a forward transit's outflow and the flux at a point (:meth:`at`)."""
-        return _PieceSet.of(self, _Toward.EXITS)
-
-    @cached_property
-    def _toward_entries(self) -> _PieceSet:
-        r"""The pieces graded toward each slot's start: a transit's integral attenuated from its entry."""
-        return _PieceSet.of(self, _Toward.ENTRIES)
-
-    @cached_property
-    def _toward_both(self) -> _PieceSet:
-        r"""The pieces graded toward both ends of each slot: the block's Volterra integral (:meth:`volterra`)."""
-        return _PieceSet.of(self, _Toward.BOTH)
+    def _pieces(self) -> _PieceSet:
+        r"""The pieces every functional reads (:class:`_PieceSet`)."""
+        return _PieceSet.of(self)
 
     @property
     def piece_counts(self) -> np.ndarray:
-        r"""The number of live pieces on each line graded toward the exits, ``(*batch,)``: a line's share of :attr:`extent`, before the padding.
-
-        Counted on the set every consumer reads (the outflow, and the flux at a
-        point), so sizing a batch builds no set its consumer does not; the
-        block's set graded toward both ends is of the same order.
-        """
-        return self._unflat(self._toward_exits.pieces.live.sum(axis=-1))
-
-    def _attenuations(self, sigma: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        r"""The steepest and the gentlest attenuation per unit parameter over the family, for cross sections ``sigma`` ``(L, ...)``.
-
-        :math:`\Sigma v` at each line's fastest and slowest speed: the range
-        an exponential grading must resolve (:func:`~.grading.exponential_ends`).
-        """
-        speed = self._speed
-        fastest, slowest = (v.reshape(v.shape + (1,) * (sigma.ndim - 1)) for v in (speed.max(axis=0), speed.min(axis=0)))
-        return sigma * fastest, sigma * slowest
+        r"""The number of live pieces on each line, ``(*batch,)``: a line's share of :attr:`extent`, before the padding."""
+        return self._unflat(self._pieces.pieces.live.sum(axis=-1))
 
     @property
     def extent(self) -> int:
@@ -631,14 +748,9 @@ class TraversalRule:
         Every node array scales with it, so a caller bounds a batch's memory by
         it; a rule of one line holds its whole family, whatever its extent.
         """
-        return int(self._toward_exits.pieces.live.size) * self._speed.shape[0]
+        return int(self._pieces.pieces.live.size) * self._speed.shape[0]
 
-    # ── placing nodes and the one attenuated integral ────────────────────
-
-    def _orbit_coordinate(self, t: np.ndarray) -> np.ndarray:
-        """The orbit coordinate at parameters ``t`` ``(L, ...)`` of each line."""
-        flat = t.reshape(*self._lines, -1)
-        return self.period.chord.orbit_coordinate_at(flat).reshape(t.shape)
+    # ── reading per-slot fields at pieces ────────────────────────────────
 
     def _slot_start(self, slot: np.ndarray) -> np.ndarray:
         """The start parameter of slot ``slot`` ``(L, ...)`` of each line."""
@@ -649,62 +761,6 @@ class TraversalRule:
         """A per-slot field ``(L, S)`` read at slot ``slot`` ``(L, ...)``."""
         return np.take_along_axis(per_slot, slot.reshape(per_slot.shape[0], -1), axis=-1).reshape(slot.shape)
 
-    def _nodes(self, slot: np.ndarray, lower: np.ndarray, upper: np.ndarray, n: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        r"""``n`` Gauss-Legendre nodes on each ``[lower, upper]`` along slot ``slot``: distance, orbit coordinate, weight.
-
-        ``slot`` broadcasts against ``lower`` and ``upper``, ``(L, ...)``.
-        Returns arrays ``(L, ..., n)``.
-        """
-        rule = gauss_legendre(-1.0, 1.0, n)
-        lo, hi = lower[..., None], upper[..., None]
-        distance = lo + (hi - lo) * (rule.pts + 1.0) / 2.0
-        weight = rule.wts * (hi - lo) / 2.0
-        start = self._slot_start(np.broadcast_to(slot, lower.shape))[..., None]
-        return distance, self._orbit_coordinate(start + distance), weight
-
-    def _attenuated(self, slot: np.ndarray, start: np.ndarray, stop: np.ndarray) -> np.ndarray:
-        r"""The panel's functions integrated between distances ``start`` and ``stop`` along slot ``slot``, attenuated to ``stop``.
-
-        :math:`\int u_m(c(t))\,e^{-\Sigma v |{\rm stop} - t|}\,v\,\mathrm{d}t` over the
-        interval between the two, per member of the family of speeds
-        :math:`v`, on one rule graded exponentially toward ``stop`` over the
-        family's range of attenuations. ``slot`` broadcasts against ``start``
-        and ``stop``, ``(L, ...)``. Returns ``(F, L, ..., p + 1)``.
-
-        Only the live intervals of the graded rule are evaluated, each line's
-        packed first (:class:`_Packing`): an integral over a thin stretch has
-        one interval and one over a thick stretch up to
-        :math:`\lceil\log_\rho(64\,v_{\max}/(h\,v_{\min}))\rceil + 2`
-        (:class:`~.grading.ExponentialGrading`'s :math:`h` and :math:`\rho`
-        at :attr:`inner_points`), and padding every integral to the batch's thickest evaluated 4 to 6 times the
-        live nodes (`[M]` 2026-10-07, #586: three-region and tau = 30 white
-        cylinders, 8 points, a sixteenth of the lines). The nodes and the
-        basis values there are formed once for the whole family.
-        """
-        shape = np.broadcast_shapes(np.shape(slot), start.shape, stop.shape)
-        n_lines = shape[0]
-        slot, start, stop = (np.broadcast_to(a, shape).reshape(n_lines, -1) for a in (slot, start, stop))
-        panel = self._of_slot(self._slots.panel, slot)                                    # (L, O)
-        sigma = self.sigma[panel]
-        ends = exponential_ends(stop, start, *self._attenuations(sigma), ExponentialGrading.of(self.inner_points))   # (L, O, K + 2)
-        intervals = _Packing.of(ends[..., 1:] > ends[..., :-1])
-        owner = intervals.owner
-        lower, upper = intervals.gather(ends[..., :-1], 0.0), intervals.gather(ends[..., 1:], 0.0)   # (L, M)
-        distance, orbit, weight = self._nodes(self._of_slot(slot, owner), lower, upper, self.inner_points)
-        values = self.basis.values(orbit, np.broadcast_to(self._of_slot(panel, owner)[..., None], orbit.shape))
-        to_stop = np.abs(self._of_slot(stop, owner)[..., None] - distance)
-        attenuated = _attenuated_length(self._speed[..., None, None], weight, self._of_slot(sigma, owner)[..., None], to_stop)
-        # per interval, every member's attenuated length weights against the basis values there: (L, M, F, q) @ (L, M, q, p + 1)
-        per_interval = np.moveaxis(attenuated, 0, -2) @ values                               # (L, M, F, p + 1)
-        per_owner = intervals.scatter(per_interval)                                          # (L, O, F, p + 1)
-        return np.moveaxis(per_owner, -2, 0).reshape(-1, *shape, self.basis.per_panel)
-
-    @cached_property
-    def _to_end(self) -> np.ndarray:
-        r"""Each piece graded toward both ends, its integral attenuated to its end on the graded inner rule, ``(F, L, J, p + 1)``: exact at every piece end, for the block's scan (:attr:`_carried`)."""
-        p = self._toward_both.pieces
-        return self._attenuated(p.slot, p.lower, p.upper)
-
     # ── the block's scan ─────────────────────────────────────────────────
 
     @cached_property
@@ -714,20 +770,21 @@ class TraversalRule:
         A scan: carrying by the transmission of each piece in turn never
         forms a difference of optical depths.
         """
-        p = self._toward_both.pieces
+        pieces = self._pieces
+        p = pieces.pieces
         n_members = self._speed.shape[0]
         n_lines, n_pieces = p.live.shape
         carried = np.zeros((n_members, n_lines, 2, self.basis.size))
         before = np.zeros((n_members, n_lines, n_pieces, self.basis.size))
         members, lines = np.arange(n_members)[:, None, None], np.arange(n_lines)
         columns = self.basis.columns(p.panel)
-        transmission = np.exp(-self._toward_both.depth)
+        transmission = np.exp(-pieces.depth)
         for j in range(n_pieces):
             k = p.transit[:, j]
             entering = carried[:, lines, k]                                                 # (F, L, N)
             before[:, :, j] = entering
             step = transmission[:, :, j, None] * entering
-            step[members, lines[:, None], columns[:, j]] += self._to_end[:, :, j]            # a piece's columns are distinct
+            step[members, lines[:, None], columns[:, j]] += pieces.to_end[:, :, j]           # a piece's columns are distinct
             carried[:, lines, k] = np.where(p.live[:, j, None], step, entering)
         return before
 
@@ -740,14 +797,14 @@ class TraversalRule:
         return per_member * self.period.optical_depth(self.sigma[self._panel_of_region])
 
     def _exit_integral(self) -> np.ndarray:
-        """Each transit read forward: its integral attenuated to its exit, on the pieces graded toward the exits, ``(F, L, 2, N)``."""
-        exits = self._toward_exits
-        return exits.per_transit(np.exp(-exits.transit_depth(upstream=False)), exits.to_end)
+        """Each transit read forward: its integral attenuated to its exit, ``(F, L, 2, N)``."""
+        pieces = self._pieces
+        return pieces.per_transit(np.exp(-pieces.transit_depth(upstream=False)), pieces.to_end)
 
     def _entry_integral(self) -> np.ndarray:
-        """Each transit read forward: its integral attenuated from its entry, on the pieces graded toward the entries, ``(F, L, 2, N)``."""
-        entries = self._toward_entries
-        return entries.per_transit(np.exp(-entries.transit_depth(upstream=True)), entries.to_start)
+        """Each transit read forward: its integral attenuated from its entry, ``(F, L, 2, N)``."""
+        pieces = self._pieces
+        return pieces.per_transit(np.exp(-pieces.transit_depth(upstream=True)), pieces.to_start)
 
     def _per_traversal(self, forward: Callable[[], np.ndarray], backward: Callable[[], np.ndarray]) -> np.ndarray:
         """A per-transit quantity read along each traversal of the period: ``forward()`` or, reversed, ``backward()``.
@@ -787,26 +844,19 @@ class TraversalRule:
         carry its cycle and belong to the opposite line. Both integrals are
         over arc length, :math:`v\,\mathrm dt`.
         """
-        both = self._toward_both
-        p = both.pieces
+        pieces = self._pieces
+        p = pieces.pieces
         n_members = self._speed.shape[0]
         weight = np.broadcast_to(np.asarray(line_weight, dtype=float), self._family + self._lines).reshape(n_members, -1)
         weight = np.where(p.live, weight[..., None], 0.0)                                    # (F, L, J)
-        distance, node_weight, tests = both.nodes                                             # (L, J, n), (L, J, n, p+1)
-        speed = self._speed[..., None, None]                                                 # (F, L, 1, 1)
-        weighted_length = weight[..., None] * speed * node_weight                            # (F, L, J, n): w v dt
-        # the flux at each node, summed over the family with the weights: carried in from the piece's start ...
-        entering = weight[..., None] * _attenuated_length(speed, node_weight, both.sigma[..., None], distance - p.lower[..., None])
-        carried = np.moveaxis(entering, 0, -1) @ np.moveaxis(self._carried, 0, -2)          # (L, J, n, N)
-        # ... plus the piece's own integral up to the node
-        own = self._attenuated(p.slot[..., None], np.broadcast_to(p.lower[..., None], distance.shape), distance)
-        triangle = (weighted_length[..., None] * own).sum(axis=0)                           # (L, J, n, p+1)
-        # the test functions paired with that flux at the nodes
-        paired = np.swapaxes(tests, -1, -2)                                                  # (L, J, p+1, n)
+        # the flux the transit's earlier pieces carry into each piece, attenuated from its start, against the tests ...
+        carried = np.einsum("flj,flji,fljn->ljin", weight, pieces.to_start, self._carried)    # (L, J, p+1, N)
+        # ... and the piece's own triangle
+        own = np.einsum("flj,fljab->ljab", weight, pieces.triangle)                          # (L, J, p+1, p+1)
         columns = self.basis.columns(p.panel)                                                 # (L, J, p+1)
         block = np.zeros((self.basis.size, self.basis.size))
-        np.add.at(block, columns, paired @ carried)
-        np.add.at(block, (columns[..., :, None], columns[..., None, :]), paired @ triangle)
+        np.add.at(block, columns, carried)
+        np.add.at(block, (columns[..., :, None], columns[..., None, :]), own)
         return block
 
     def angular_flux(self, t: np.ndarray, inflow: np.ndarray) -> np.ndarray:
@@ -816,9 +866,8 @@ class TraversalRule:
         inflow at each traversal's entry per basis function, ``(*family, ..., 2, N)``
         (:meth:`~.closure.LinePeriod.inflow`). Each point lies on a transit of
         its line: inside the body, never in a cavity or beyond a wall. The
-        flux is the inflow attenuated from the transit's entry, plus what the
-        transit's earlier pieces carry in, plus the piece's own integral up to
-        the point (:meth:`at`).
+        flux is the inflow attenuated from the transit's entry, plus each
+        upstream piece's integral to its end, carried to the point (:meth:`at`).
         """
         return self.at(t).flux(inflow)
 
@@ -826,8 +875,8 @@ class TraversalRule:
         r"""The transport to parameters ``t`` ``(..., q)`` on the lines, read forward (:class:`LineReading`).
 
         Each point is a crossing on a transit of its line: a slot's start, or a
-        transit's exit. The pieces are graded toward it there, so the flux is
-        each upstream piece's one-level integral (:meth:`_PieceSet.to_end`, on the pieces graded toward the exits)
+        transit's exit, a piece end there, so the flux is
+        each upstream piece's one-level integral (:meth:`_PieceSet.to_end`)
         carried to the point, with no scan over the basis. The depth from each
         piece to the point is summed from the point upstream, so no difference
         of depths is formed. A point inside a slot is refused: its lines are
@@ -835,15 +884,16 @@ class TraversalRule:
         The place of a point on its line is the same for every member of the
         family.
         """
-        exits, slots = self._toward_exits, self._slots
+        exits, slots = self._pieces, self._slots
         p = exits.pieces
         t = self._flat(np.asarray(t, dtype=float))                                          # (L, q)
-        begins = np.where(p.live, self._slot_start(p.slot) + p.lower, np.inf)               # (L, J)
+        begins = exits.begins                                                                 # (L, J)
         held = np.sum(begins[:, None, :] <= t[..., None], axis=-1) - 1                       # the piece holding each point
         piece = np.maximum(held, 0)
         slot = np.take_along_axis(p.slot, piece, axis=-1)
         # a slot ends at its closing crossing: the parameter, not start + length, which round apart by an ulp
-        at_start = (np.take_along_axis(p.lower, piece, axis=-1) == 0.0) & (t == self._of_slot(slots.start, slot))
+        first = self._of_slot(slots.first, p.slot)
+        at_start = (np.take_along_axis(p.lower == first, piece, axis=-1)) & (t == self._of_slot(slots.start, slot))
         at_exit = t == self._of_slot(slots.end, slot)
         if not np.all((held >= 0) & np.take_along_axis(p.live, piece, axis=-1) & (at_start | at_exit)):
             raise ValueError(

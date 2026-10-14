@@ -9818,8 +9818,10 @@ older entries classify against.
 
    **Module:** ``orpheus/derivations/continuous/characteristic/transport.py``
    (:class:`~orpheus.derivations.continuous.characteristic.transport.TraversalRule`:
-   the near end and branch distance of each slot, and the private
-   ``_branch_edges`` that grades toward it). Theory:
+   the near end and branch distance of each slot, and the grading toward
+   it, then the private ``_branch_edges`` and since P3 step 3f the
+   closed-form walk
+   :func:`~orpheus.derivations.continuous.characteristic.grading.branch_walk`). Theory:
    :ref:`characteristic-branch-grading`.
 
    **Failure mode:** none of the six AI modes: a numerical-method defect in
@@ -9873,7 +9875,12 @@ older entries classify against.
    or not; the change of variable was retired. Every piece then sees the
    branch points at a fixed multiple of its own width, and its ellipse
    parameter is at least :math:`3 + 2\sqrt 2` whatever :math:`b` or
-   :math:`r_k` (:ref:`characteristic-branch-grading`).
+   :math:`r_k` (:ref:`characteristic-branch-grading`). Since P3 step 3f
+   (2026-10-13) the halving is a walk in closed form,
+   :math:`a_{k+1} = a_k + D(a_k)/c` at the tightness :math:`c = 2`, with
+   the distance :math:`D` formed from exact quantities at every step, and
+   each piece's node count is derived from its own ellipse; the near end
+   it walks from is the same.
 
    **Caught by:**
    ``tests/gates/derivations/test_characteristic_transport.py::test_a_slot_starting_at_a_small_radius_integrates_its_branch_point``,
@@ -9941,11 +9948,22 @@ older entries classify against.
    a slot wider than 128, and no gate read the flux or the Volterra block
    on a slot that thick; the thickest triangle row reached about 20.
 
-   **Fix.** One body, ``TraversalRule._attenuated``, integrates a panel's
-   functions between two distances along a slot attenuated to the second,
-   on a rule graded exponentially toward the second; a piece's integral to
-   its end, to its start and to a point inside it are three uses of it
-   (:ref:`characteristic-attenuated-integral`).
+   **Fix.** The fix of 2026-10-06 made one body, ``TraversalRule._attenuated``,
+   integrate a panel's functions between two distances along a slot
+   attenuated to the second, on a rule graded exponentially toward the
+   second; a piece's integral to its end, to its start and to a point
+   inside it were three uses of it. Since P3 step 3f (route B, 2026-10-13)
+   the defect is unspellable a second way: every integral over a piece is
+   integrated by the Gauss rule of its attenuation weight
+   (:class:`~orpheus.derivations.continuous.characteristic.attenuation_rule.AttenuationRule`),
+   positive weights exact on the factor's polynomials of degree
+   :math:`2m - 1` at every optical width, so a wide middle piece's
+   integral to its end is exact to the rule's band however much of it
+   lies in its last mean free path, and the Volterra block reads each
+   piece's triangle by the same rule
+   (``AttenuationRule.triangle``; :ref:`characteristic-attenuated-integral`,
+   :ref:`characteristic-volterra`). ``_attenuated`` and its graded inner
+   rule are retired.
 
    **Caught by:**
    ``tests/gates/derivations/test_characteristic_transport.py::test_a_thick_slot_is_read_by_the_triangle_and_by_psi_in_closed_form``

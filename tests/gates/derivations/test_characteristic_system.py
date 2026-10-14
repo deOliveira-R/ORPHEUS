@@ -68,7 +68,7 @@ _MR3 = (0.0, 0.5, 1.5, 2.0)
 _MR3H = (0.4, 0.5, 1.5, 2.0)
 _SLB3 = (0.0, 0.4, 1.5, 2.3)
 _MIRROR, _WHITE, _VACUUM = (1.0, 0.0), (0.0, 1.0), (0.0, 0.0)
-_WORK = (3, 2, 0.4, 8, 12)          # (degree, layers, ratio, line points, points along each line): the working point
+_WORK = (3, 2, 0.4, 8)              # (degree, layers, ratio, line points): the working point (along lines: derived)
 
 
 # ── the mixtures, built directly (``make_mixture`` nulls Sig2 unless given) ──
@@ -156,10 +156,10 @@ def _basis(chart: str, breakpoints, degree: int, layers: int, ratio: float) -> P
 
 @lru_cache(maxsize=None)
 def _system(chart: str, breakpoints, laws, mixtures, resolution=_WORK, source_regions=None) -> GalerkinSystem:
-    degree, layers, ratio, line_points, points = resolution
+    degree, layers, ratio, line_points = resolution
     return GalerkinSystem(
         _basis(chart, breakpoints, degree, layers, ratio), _walls(chart, breakpoints, laws),
-        RegionCrossSections.of(list(mixtures)), TransportResolution(line_points, points, points),
+        RegionCrossSections.of(list(mixtures)), TransportResolution(line_points),
         source_regions=None if source_regions is None else np.array(source_regions, dtype=bool),
     )
 
@@ -218,7 +218,7 @@ def test_the_emission_acts_node_by_node() -> None:
     at group 0 (the group offset dropped); the per-node matrix transposed
     ([r, g', g]).
     """
-    system = _system("sphere", _MR3, (_VACUUM,), (_UP2N, _SELF_ONLY, _FAST_CHI), (1, 0, 0.5, 4, 4))
+    system = _system("sphere", _MR3, (_VACUUM,), (_UP2N, _SELF_ONLY, _FAST_CHI), (1, 0, 0.5, 4))
     xs, basis = system.cross_sections, system.basis
     n = basis.size
     supports = system.emission.supports
@@ -320,7 +320,7 @@ def test_a_source_region_mask_in_group_major_orientation_is_refused() -> None:
     walls = _walls("sphere", _MR3, (_VACUUM,))
     xs = RegionCrossSections.of([_UP2N, _ABS, _PU2])
     with pytest.raises(ValueError, match=r"region-major \(3, 2\) mask"):
-        GalerkinSystem(basis, walls, xs, TransportResolution(4, 4, 4), source_regions=np.zeros((2, 3), dtype=bool))
+        GalerkinSystem(basis, walls, xs, TransportResolution(4), source_regions=np.zeros((2, 3), dtype=bool))
 
 
 _RESIDUAL_CASES = [
@@ -553,7 +553,7 @@ def test_one_group_k_increases_on_nested_spaces(body) -> None:
     order holds; the under-integration is caught by D5 and E2 instead.
     """
     chart, breakpoints, laws = body
-    ks = [_system(chart, breakpoints, laws, _ONE_GROUP, (p, 2, 0.4, 8, 12)).pencil.fundamental().k
+    ks = [_system(chart, breakpoints, laws, _ONE_GROUP, (p, 2, 0.4, 8)).pencil.fundamental().k
           for p in (1, 2, 3, 4, 6)]
     assert np.all(np.diff(ks) > 1e-10), ks
 
@@ -582,7 +582,7 @@ def test_one_group_k_is_below_one_at_soods_critical_size(case, chart: str, laws)
     a = case.truth.critical_dimension_mfp / float(mixture.SigT[0])
     resolution = _last_digit(case.truth.critical_dimension_mfp) * 0.5 * 1.0       # |dk/dmfp| < 1 for both rows
     for p in (1, 2, 3, 4):
-        k = _system(chart, (0.0, a), laws, (mixture,), (p, 0, 0.5, 8, 12)).pencil.fundamental().k
+        k = _system(chart, (0.0, a), laws, (mixture,), (p, 0, 0.5, 8)).pencil.fundamental().k
         assert 1.0 - k > 10.0 * resolution, (p, k)
 
 
@@ -602,8 +602,8 @@ def _critical(case, resolution):
 
 _SOOD_2G = [
     (sood.PU_2_0_SL_STUB, _WORK), (sood.PU_2_0_SP_STUB, _WORK), (sood.U_2_0_SL_STUB, _WORK),
-    (sood.U_2_0_SP_STUB, _WORK), (sood.URRA_2_0_SL_STUB, (4, 3, 0.4, 12, 16)),
-    (sood.URRA_2_0_SP_STUB, (4, 3, 0.4, 12, 16)),
+    (sood.U_2_0_SP_STUB, _WORK), (sood.URRA_2_0_SL_STUB, (4, 3, 0.4, 12)),
+    (sood.URRA_2_0_SP_STUB, (4, 3, 0.4, 12)),
 ]
 
 

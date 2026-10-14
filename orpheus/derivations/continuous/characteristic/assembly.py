@@ -92,24 +92,22 @@ from .walls import Walls
 
 @dataclass(frozen=True, eq=False)
 class TransportResolution(ContentIdentity):
-    r"""The resolution of a transport block: the line rule's points per piece, and the traversal rule's along each line.
+    r"""The resolution of a transport block: the line rule's points per piece.
+
+    Along each line the quadrature is derived, not chosen: each piece's node
+    counts come from the hp law (:class:`~.transport.TraversalRule`), so the
+    resolution names the line rule alone.
 
     Attributes
     ----------
     line_points:
         The points per piece of every coordinate of the line rule (:meth:`LineRule.of`).
-    points:
-        The points per arc-length piece of the traversals' integrals (:meth:`LineRule.transport`).
-    inner_points:
-        The points per piece of the Volterra triangle's inner rule (:meth:`LineRule.transport`).
     """
 
     line_points: int
-    points: int
-    inner_points: int
 
     def __post_init__(self) -> None:
-        if min(self.line_points, self.points, self.inner_points) < 1:
+        if self.line_points < 1:
             raise ValueError(f"every rule takes at least one point per piece; got {self}")
 
 
@@ -198,8 +196,8 @@ class LineRule:
         weights = weights * domain.density(lines) / FULL_SOLID_ANGLE
         return cls(Lines(basis, walls, sigma_t, coordinates, speeds, weights, levels, basis.partition, chunk, budget).ordered())
 
-    def transport(self, points: int, inner_points: int, support: np.ndarray | None = None) -> GroupTransport:
-        r"""The group's transport block, ``points`` and ``inner_points`` along each line (:class:`TraversalRule`).
+    def transport(self, support: np.ndarray | None = None) -> GroupTransport:
+        r"""The group's transport block (:class:`TraversalRule` along each line).
 
         ``support`` masks the emitting regions, ``(n,)``; by default the regions with :math:`\Sigma_t > 0`.
 
@@ -239,7 +237,7 @@ class LineRule:
         line_volterra = np.zeros((n, m))
         injected, lost, reached = np.zeros(d), np.zeros(d), np.zeros((d, d))
         # every array below leads with the speeds each line is read at, (V, L, ...); the period's tables are per line
-        for rule, chunk in lines.chunks(points, inner_points):
+        for rule, chunk in lines.chunks():
             weight = lines.weights[:, chunk]                                                    # (V, L)
             period = rule.period
             depth = rule.optical_depth                                                          # (V, L, 2)

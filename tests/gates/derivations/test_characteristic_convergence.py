@@ -20,12 +20,13 @@ estimates an error and never certifies one (the user's step-5 ruling of
 2026-10-03); the row's teeth are the contraction, which a defect that converges
 to the wrong limit cannot break and a defect that breaks the rule's order does.
 
-**The axes** (``TransportResolution(line_points, points, inner_points)``):
+**The axes** (``TransportResolution(line_points)``):
 ``degree`` (the panels' polynomial degree, with the projection points following
 it), ``layers`` (the geometric grading toward every wall and interface), ``line``
 (the points per piece of the line measure: the impact parameter, the polar angle,
-the slab's cosine, which is where grazing lines live) and ``along`` (the points per
-arc-length piece along each line and its inner rule).
+the slab's cosine, which is where grazing lines live). The ``along`` axis (the points per arc-length piece and its
+inner rule) retired with P3 step 3f: each piece's node counts are derived by the hp law, and the law's own
+convergence is gated by ``test_characteristic_transport.py``'s PL1 rows.
 
 **The fixtures**: two-group heterogeneous bodies PU2 | ABS | PU2 (fissile, a
 downscattering absorber between) at intermediate albedos, the regime the old
@@ -83,8 +84,8 @@ _BODIES = {
 }
 
 
-def _resolution(degree: int = 3, layers: int = 2, line: int = 8, along: int = 12) -> Resolution:
-    return Resolution(degree, layers, 0.4, TransportResolution(line, along, along), 2 * (degree + 1))
+def _resolution(degree: int = 3, layers: int = 2, line: int = 8) -> Resolution:
+    return Resolution(degree, layers, 0.4, TransportResolution(line), 2 * (degree + 1))
 
 
 #: axis -> (the rungs, the working point's index among them). The working point is the door's default.
@@ -92,12 +93,10 @@ _AXES = {
     "degree": ([dict(degree=p) for p in (2, 3, 4, 5, 6)], 1),
     "layers": ([dict(layers=n) for n in (0, 1, 2, 3, 4)], 2),
     "line": ([dict(line=n) for n in (4, 6, 8, 12, 16)], 2),
-    "along": ([dict(along=n) for n in (6, 8, 12, 16, 24)], 2),
 }
 #: The annulus's ladders at degree 2 (its rung-3 solve costs about 190 s): the angular axes only.
 _ANNULUS_AXES = {
     "line": ([dict(degree=2, line=n) for n in (4, 6, 8, 12)], 2),
-    "along": ([dict(degree=2, along=n) for n in (6, 8, 12, 16)], 2),
 }
 #: The cylinder's ladders here, as the annulus's: the angular axes at degree 2 on one region. ``[M]`` 2026-10-10: on a
 #: three-region two-group cylinder the degree axis to 4 and the angular axis at degree 3 each ran past 30 min. The
@@ -205,7 +204,7 @@ def _two_region_cylinder_k(degree: int) -> float:
 
     spec = GeometrySpecification(Materials({0: isotropic_mixture("A", "1g"), 1: isotropic_mixture("B", "1g")}),
                                  StructuredGeometry.cylinder((0.0, 0.6, 1.0), (0, 1), outer=_law(0.0)), Eigen(_K))
-    resolution = Resolution(degree, 1, 0.4, TransportResolution(8, 8, 8), 2 * (degree + 1))
+    resolution = Resolution(degree, 1, 0.4, TransportResolution(8), 2 * (degree + 1))
     with bypass():
         return float(CharacteristicDerivation(spec, resolution).evaluate(Eigenvalue()).value)
 

@@ -94,7 +94,7 @@ import numpy as np
 
 from orpheus.geometry.chart import Chart, DirectionShape, LineShape, half_chord
 
-from .assembly import GroupTransport, TransportResolution
+from .assembly import GroupTransport
 from .basis import PanelBasis
 from .closure import FULL_SOLID_ANGLE
 from .lines import (
@@ -236,15 +236,14 @@ class PointRule:
         lines = Lines(basis, walls, sigma_t, coordinates, speeds, weights, levels, through_point, chunk=4096, budget=2**18)
         return cls(lines.ordered(), c)
 
-    def row(self, transport: GroupTransport, resolution: TransportResolution) -> np.ndarray:
+    def row(self, transport: GroupTransport) -> np.ndarray:
         r"""The point's functional on the group's emission coefficients, ``(M,)``: :math:`\phi(x) = \mathrm{row}\cdot q`.
 
-        Along each line the traversal rule is the block's (``resolution``'s
-        ``points`` and ``inner_points``, :meth:`~.assembly.LineRule.transport`).
+        Along each line the traversal rule is the block's (:meth:`~.assembly.LineRule.transport`).
         """
         lines, side, c = self.lines, self.side, np.array([self.orbit_coordinate])
         stacked = np.zeros(transport.support.size + transport.coupling.walls.breakpoint.size)
-        for rule, chunk in lines.chunks(resolution.points, resolution.inner_points):
+        for rule, chunk in lines.chunks():
             t = rule.period.chord.image.parameters_at(c, side)
             stacked += np.einsum("vl,vlqs->s", lines.weights[:, chunk], _stacked_flux(rule, t, transport))
         return _on_emission(stacked, transport)
@@ -262,7 +261,6 @@ def angular_flux(
     transport: GroupTransport,
     orbit_coordinate: float,
     coordinates: np.ndarray,
-    resolution: TransportResolution,
 ) -> np.ndarray:
     r"""The angular flux per steradian at the point, in the directions at ``coordinates`` of its direction box, per emission function, ``(..., M)``.
 
@@ -280,7 +278,7 @@ def angular_flux(
     if not chart.acts_on_kept_space:
         _refuse_slab_grazing(omega[:, 0])
     rays = basis.partition.refined_at(c).rays_from(c, omega)
-    traversals = TraversalRule.on_chord(rays.chord, basis, walls, sigma_t, resolution.points, resolution.inner_points)
+    traversals = TraversalRule.on_chord(rays.chord, basis, walls, sigma_t)
     t = rays.start[:, None]
     psi = _on_emission(_stacked_flux(traversals, t, transport)[:, 0], transport) / FULL_SOLID_ANGLE
     return psi.reshape(*batch, -1)

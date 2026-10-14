@@ -200,9 +200,7 @@ class GalerkinSystem:
         support = self.cross_sections.emission_support() | self.source_regions
         r = self.resolution
         return tuple(
-            LineRule.of(self.basis, self.walls, self.cross_sections.total[:, g], r.line_points).transport(
-                r.points, r.inner_points, support[:, g]
-            )
+            LineRule.of(self.basis, self.walls, self.cross_sections.total[:, g], r.line_points).transport(support[:, g])
             for g in range(self.n_groups)
         )
 
@@ -289,7 +287,7 @@ class GalerkinSystem:
         r = self.resolution
         return np.array(
             [
-                PointRule.of(self.basis, self.walls, self.cross_sections.total[:, g], position, r.line_points).row(group, r) @ q
+                PointRule.of(self.basis, self.walls, self.cross_sections.total[:, g], position, r.line_points).row(group) @ q
                 for g, (group, q) in enumerate(zip(self.groups, self.emission.split(emission), strict=True))
             ]
         )
@@ -300,9 +298,8 @@ class GalerkinSystem:
         ``directions`` are coordinates of :meth:`~orpheus.geometry.chart.Chart.directions_at`'s box at the point,
         ``(..., k)`` (:func:`~.reading.angular_flux`); ``emission`` is on the emission space.
         """
-        r = self.resolution
         per_group = [
-            angular_flux(self.basis, self.walls, self.cross_sections.total[:, g], group, position, directions, r) @ q
+            angular_flux(self.basis, self.walls, self.cross_sections.total[:, g], group, position, directions) @ q
             for g, (group, q) in enumerate(zip(self.groups, self.emission.split(emission), strict=True))
         ]
         return np.stack(per_group, axis=-1)

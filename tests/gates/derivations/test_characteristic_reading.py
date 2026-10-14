@@ -85,8 +85,9 @@ _SLB3 = (0.0, 0.4, 1.5, 2.3)
 #: interfaces, distinct per group.
 _SIGMA = ((0.6, 1.3, 0.45), (1.7, 0.35, 2.4))
 _Q = ((1.0, 0.25, 3.0), (0.4, 2.0, 0.7))
-#: The working point (rung 4's ``_WORK``): degree 3, 2 layers of ratio 0.4, 8 line points, 12 along each line.
-_WORK = (3, 2, 8, 12)
+#: The working point (rung 4's ``_WORK``): degree 3, 2 layers of ratio 0.4, 8 line points; along each line the node
+#: counts are derived (P3 step 3f), so the working point names no along-line count.
+_WORK = (3, 2, 8)
 _GIVEN_BAND = 1e-12                 # the P1 spec's C1/C2 bar; [M] the worst sphere/slab/hollow row reads 6.7e-14
 
 
@@ -103,11 +104,11 @@ def _absorbing(chart: str, breakpoints, laws, resolution=_WORK, sigma=_SIGMA) ->
 
     With no scattering and no fission the emission is the given q: the reading is ``(K q)(x)`` of that q alone.
     """
-    degree, layers, line_points, points = resolution
+    degree, layers, line_points = resolution
     absorbers = [_mixture([s[j] for s in sigma], np.zeros((len(sigma), len(sigma)))) for j in range(len(sigma[0]))]
     return GalerkinSystem(
         _basis(chart, breakpoints, degree, layers, 0.4), _walls(chart, breakpoints, laws),
-        RegionCrossSections.of(absorbers), TransportResolution(line_points, points, points),
+        RegionCrossSections.of(absorbers), TransportResolution(line_points),
         source_regions=np.ones((len(sigma[0]), len(sigma)), dtype=bool),
     )
 
@@ -317,7 +318,7 @@ def test_the_reading_on_a_cylinders_axis_is_the_polar_integral(albedo: float) ->
     equals the polar integral of the in-plane diameter's closure (and, under vacuum, Bickley's Ki_2 closed form,
     which agrees with it to 1e-21 on the reference side) to 1e-12. Slow: a cylinder's block, 19 s per group at
     layers 0. First red: the axial cosine's weight without sin(theta)."""
-    _check_route("cylinder", _MR3, ((albedo, 0.0),), 0.0, resolution=(3, 0, 8, 12))
+    _check_route("cylinder", _MR3, ((albedo, 0.0),), 0.0, resolution=(3, 0, 8))
 
 
 _C2_SPHERE = [("sphere", _MR3, ((a, 0.0),), x) for a in (0.0, 0.6, 1.0) for x in (0.3, 0.5, 1.1, 1.5, 2.0)]
@@ -370,7 +371,7 @@ def test_the_reading_at_a_general_point_of_a_cylinder_is_the_mpmath_route(albedo
     ``peierls-greens-cylinder-architecture`` (psi = F + e^{-Sigma_t L} psi_surf, phi its angular reduction): the
     partial-mirror row is its witness (the vacuum rows null psi_surf), and the row is ``slow``, so the label has no
     default-tier verifier here."""
-    _check_route("cylinder", _MR3, ((albedo, 0.0),), x, resolution=(3, 0, line_points, 12))
+    _check_route("cylinder", _MR3, ((albedo, 0.0),), x, resolution=(3, 0, line_points))
 
 
 _C2B = [("sphere", _MR3, ((a, 0.0),), x) for a in (0.6, 0.9, 0.99) for x in (2.0, 2.0 * (1 - 1e-6))] + [
@@ -416,7 +417,7 @@ def test_the_blocks_total_under_a_partial_mirror_is_the_closed_form(albedo: floa
     (``ta/measure_rim_block.log``); after it, <= 5.1e-16 at every count from 8 (the main agent). First red:
     the grading law G returning infinity."""
     basis = _basis("sphere", (0.0, 2.0), 3, 2, 0.4)
-    block = LineRule.of(basis, _walls("sphere", (0.0, 2.0), ((albedo, 0.0),)), np.array([2.4]), 8).transport(12, 12).block
+    block = LineRule.of(basis, _walls("sphere", (0.0, 2.0), ((albedo, 0.0),)), np.array([2.4]), 8).transport().block
     ones = np.ones(basis.size)
     expected = float(specular_sphere_total(2.4, 2.0, albedo))
     assert abs(float(ones @ block @ ones) / expected - 1.0) < 1e-14
@@ -480,7 +481,7 @@ def test_the_reading_of_an_emission_outside_the_basis_converges_in_the_degree(x:
     """
     readings = []
     for degree in (1, 2, 3, 4, 5, 6):
-        system = _absorbing("sphere", _MR3, ((0.6, 0.0),), (degree, 2, 8, 12))
+        system = _absorbing("sphere", _MR3, ((0.6, 0.0),), (degree, 2, 8))
         coefficients = system.basis.project(_per_region(_MR3, _outside), 2 * (degree + 1))
         readings.append(system.point_flux(x, system.emission.restrict(coefficients)))
     change = np.array([np.max(np.abs(r / readings[-1] - 1.0)) for r in readings[:-1]])
@@ -517,9 +518,9 @@ def _rows(chart: str, breakpoints, laws, sigma: float) -> tuple[Any, np.ndarray,
     basis = _basis(chart, breakpoints, 2, 0, 0.4)
     walls = _walls(chart, breakpoints, laws)
     sig = np.full(len(breakpoints) - 1, sigma) if np.isscalar(sigma) else np.asarray(sigma)
-    transport = LineRule.of(basis, walls, sig, 8).transport(12, 12)
+    transport = LineRule.of(basis, walls, sig, 8).transport()
     xs, ws = _volume_rule(np.asarray(basis.partition.breakpoints), chart, layers=8, points=12)
-    rows = np.array([PointRule.of(basis, walls, sig, x, 8).row(transport, TransportResolution(8, 12, 12)) for x in xs])
+    rows = np.array([PointRule.of(basis, walls, sig, x, 8).row(transport) for x in xs])
     return transport, xs, ws, rows
 
 
@@ -704,7 +705,7 @@ def test_the_blocks_total_under_a_void_or_thin_outer_shell_is_the_closed_form(fi
     panel top only."""
     breakpoints, sigma, _ = fixture
     basis = _basis("sphere", breakpoints, 3, 2, 0.4)
-    block = LineRule.of(basis, _walls("sphere", breakpoints, ((0.99, 0.0),)), np.asarray(sigma[0]), 8).transport(12, 12).block
+    block = LineRule.of(basis, _walls("sphere", breakpoints, ((0.99, 0.0),)), np.asarray(sigma[0]), 8).transport().block
     emitting = tuple(1.0 if s > 0.0 else 0.0 for s in sigma[0])
     expected = mpref.specular_sphere_layered_total(breakpoints, sigma[0], emitting, 0.99)
     total = float(np.ones(block.shape[0]) @ block @ np.ones(block.shape[1]))
@@ -720,7 +721,7 @@ def test_a_cylinders_interface_point_is_read_to_the_bar() -> None:
     e^{-2 Sigma y / sin theta} sits at every panel top, not only the wall; the reading equals the Ki_2 azimuthal route
     to 1e-12. `[M]` qa (``qa/p2_cyl.log``), first build, layers 0: 1.0e-6 at 8 line points, 1.8e-8 at 16. First red:
     G's layer term at the outermost panel top only. Slow (a cylinder's block)."""
-    _check_route("cylinder", _MR3, (_VACUUM,), 1.5, resolution=(3, 0, 8, 12))
+    _check_route("cylinder", _MR3, (_VACUUM,), 1.5, resolution=(3, 0, 8))
 
 
 @pytest.mark.l1
@@ -749,7 +750,7 @@ def test_a_small_cylinders_layer_is_graded_outside_slow(x: float) -> None:
     2026-10-08, before #587 (``ta/measure_widened.log``):
     interface 4.5e-14 (5 s, the route 10 s), wall 4.8e-15 (37 s, slow); at degree 1 and 6 points 5.5e-11 and 4.6e-12, so
     the resolution is the row's. First red: G's layer term removed (the pole term only)."""
-    _check_route("cylinder", (0.0, 0.5, 1.0), (_VACUUM,), x, resolution=(2, 0, 8, 8),
+    _check_route("cylinder", (0.0, 0.5, 1.0), (_VACUUM,), x, resolution=(2, 0, 8),
                  sigma=((0.6, 2.4), (1.7, 0.8)), q=((1.0, 0.7), (0.4, 1.3)))
 
 
@@ -996,10 +997,10 @@ def test_at_the_centre_the_angular_flux_is_isotropic_and_four_pi_of_it_is_the_re
 # ── the door ─────────────────────────────────────────────────────────────
 
 _K = CellCoefficient.every(Channel.FISSION_EMISSION)
-_DOOR_RES = Resolution(3, 2, 0.4, TransportResolution(8, 12, 12), 8)
+_DOOR_RES = Resolution(3, 2, 0.4, TransportResolution(8), 8)
 #: The coarse resolution of the rows that integrate door readings over the body: the identity they gate holds at
 #: any resolution, so the cheapest that solves.
-_COARSE = Resolution(1, 0, 0.4, TransportResolution(6, 8, 8), 4)
+_COARSE = Resolution(1, 0, 0.4, TransportResolution(6), 4)
 
 
 def _spec(geometry: StructuredGeometry, mixtures: dict[int, Any], question: Any) -> GeometrySpecification:
@@ -1054,7 +1055,7 @@ def test_a_pure_absorbers_point_values_are_the_mpmath_route(outer, albedo: float
 _GARCIA = _spec(StructuredGeometry.sphere((0.0, 3.0, 5.0, 7.0), (0, 1, 2), outer=BC.vacuum),
                 {0: _mixture([1.0], [[0.99]]), 1: _mixture([0.5], [[0.3]]), 2: _mixture([2.0], [[1.9]])},
                 FixedSource(RegionwiseConstant(np.array([[0.5], [1.0], [1.5]]))))
-_GARCIA_RES = Resolution(4, 3, 0.4, TransportResolution(12, 16, 16), 10)
+_GARCIA_RES = Resolution(4, 3, 0.4, TransportResolution(12), 10)
 #: The reference's own step at Garcia's points, 10 x the largest change (4, 3, 12, 16) -> (5, 4, 16, 20): `[M]`
 #: 2026-10-08, 5.4e-6 at r = 0.5 cm... 5.5 cm (``ta/measure_garcia.log``), so 10 x is 5.4e-5, rounded up.
 _GARCIA_STEP = 6e-5

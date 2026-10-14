@@ -146,7 +146,7 @@ def tiny_sphere(radius=1.0):
     geometry = StructuredGeometry.sphere((0.0, radius), (0,), outer=BC.vacuum)
     question = Eigen(CellCoefficient.every(Channel.FISSION_EMISSION))
     specification = GeometrySpecification(Materials({0: mixture}), geometry, question)
-    return CharacteristicDerivation(specification, Resolution(1, 0, 0.4, TransportResolution(4, 4, 4), 4))
+    return CharacteristicDerivation(specification, Resolution(1, 0, 0.4, TransportResolution(4), 4))
 '''
 
 _tiny_namespace: dict[str, Any] = {}

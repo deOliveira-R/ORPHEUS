@@ -90,7 +90,6 @@ def _q(body: str):
     """The per-region source of the T1 family on ``body``: ``_Q``, with region 0 even on a solid body."""
     return _Q_SOLID if body.endswith("_solid") else _Q
 _A_IN, _A_OUT = 0.3, 0.6
-_POINTS, _INNER = 16, 16
 _RES = (3, 2, 0.5)                 # (degree, layers, ratio): the rung's working point
 
 
@@ -135,14 +134,14 @@ class _Case:
     """One line through one body, built twice: by the code under test and in mpmath."""
 
     def __init__(self, body: str, point, direction, *, sigma_t, resolution=_RES, geometry=None,
-                 points: int = _POINTS, inner: int = _INNER) -> None:
+                 ) -> None:
         self.body = body
         self.geometry = geometry or _geometry(body)
         self.basis = PanelBasis.of(ConcentricPartition.of(self.geometry), *resolution)
         self.line = Line.through(np.asarray(point, dtype=float), np.asarray(direction, dtype=float))
         self.walls = Walls.of(self.geometry)
         self.sigma_t = np.asarray(sigma_t, dtype=float)
-        self.rule = TraversalRule.of(self.line, self.basis, self.walls, self.sigma_t, points, inner)
+        self.rule = TraversalRule.of(self.line, self.basis, self.walls, self.sigma_t)
         self.period = self.rule.period
         self.mp = R.MpLine(_chart(body), self.geometry.breakpoints, point, direction,
                            extra_radii=self.basis.partition.breakpoints)
@@ -156,7 +155,7 @@ class _Case:
         that chord's own crossing nearest ``t``, where the point is read and the reference is evaluated."""
         level = float(self.mp.c(R.mpf(t) if not isinstance(t, mp.mpf) else t))
         chord = self.basis.partition.refined_at(level).chord(self.line)
-        rule = TraversalRule.on_chord(chord, self.basis, self.walls, self.sigma_t, self.rule.points, self.rule.inner_points)
+        rule = TraversalRule.on_chord(chord, self.basis, self.walls, self.sigma_t)
         crossings = rule.period.chord.crossings
         parameters = np.asarray(crossings.parameter, dtype=float)[np.asarray(crossings.present, dtype=bool)]
         return rule, float(parameters[np.argmin(np.abs(parameters - float(t)))])
@@ -560,31 +559,30 @@ _HALVING = [
 @pytest.mark.foundation
 @pytest.mark.parametrize(("body", "point", "direction"), [r[1:] for r in _HALVING], ids=[r[0] for r in _HALVING])
 @pytest.mark.rests_on(_HERE + "test_a_turning_slot_integrates_the_square_root_at_the_closest_approach")
-def test_the_turning_grading_halves_toward_the_closest_approach_at_seven_points(body, point, direction) -> None:
-    """[T9b] At 7 points per piece, B_0 . q and psi(t) . q on a turning line stay within 1e-13 of mpmath (q = c).
+def test_the_turning_grading_holds_a_turning_line_next_to_a_small_cavity(body, point, direction) -> None:
+    """[T9b] On a line turning next to a cavity of radius 1e-5, B_0 . q and psi(t) . q stay within 1e-13 of mpmath
+    (q = c), at the node counts the law derives per piece.
 
-    The witness for the grading's RATIO, which the 16-point rows cannot see:
-    pieces shrinking by 4 instead of 2 toward the branch point leave each one
-    too close to it for 7 Gauss points. Same 1e-13 band as T1. First red: the
-    ratio coarsened to 1/4 (battery arm T3b). Re-posed 2026-10-06 (rung 3, RB5)
-    from a solid body's centre (now the even panel, polynomial in arc length) to
-    a hollow body with a cavity of radius 1e-5; which rows the arm reds there,
-    and so which are controls, is in the rung-3 battery
-    (``scratch/characteristic_architecture/p1_step_b3/gates/battery/``).
+    Until P3 step 3f this row was the witness of the halving RATIO at 7 points per piece; since the node counts are
+    derived (route B, ``grading.gauss_nodes``) there is no point count to coarsen, and the walk's premise, each piece
+    no wider than its distance to the branch points over c, is gated geometrically and n-free (PP1,
+    ``test_every_piece_is_no_wider_than_its_branch_distance_over_the_tightness``). This row is the value leg. First
+    red: the hp walk disabled (`[M]` 2026-10-13 on the route-B prototype, arm ``b_hp_none``: 4 of 6 rows, the two
+    ``_control`` rows green as their names declare; re-run on production, ``carve/arms_*.log``). Same 1e-13 band as T1.
     """
     geometry = _geometry(body, breakpoints=_CAVITY)
-    case = _Case(body, point, direction, sigma_t=_SIGMA[0], points=7, inner=7, geometry=geometry)
+    case = _Case(body, point, direction, sigma_t=_SIGMA[0], geometry=geometry)
     assert int(case.period.rank) == 1, "the line misses the cavity"
     q = [[0.0, 1.0]] * 3
     x = case.coefficients(q)
     f = R.region_polynomial(q)
     trav = case.mp.traversal(0, False)
-    _close(float(case.rule.outflow()[0] @ x), R.outflow(case.mp, trav, f, _SIGMA[0]), _T1_TOL, "B_0 at 7 points")
+    _close(float(case.rule.outflow()[0] @ x), R.outflow(case.mp, trav, f, _SIGMA[0]), _T1_TOL, "B_0")
     _, ts = _points_on(case, 0)
     for i, tm in enumerate(ts):
         rule, t = case.read_at(tm)
         psi = rule.angular_flux(np.array([t]), np.zeros((2, case.basis.size)))[0] @ x
-        _close(float(psi), R.partial_outflow(case.mp, trav, f, _SIGMA[0], R.mpf(t)), _T1_TOL, f"psi(t_{i}) at 7 points")
+        _close(float(psi), R.partial_outflow(case.mp, trav, f, _SIGMA[0], R.mpf(t)), _T1_TOL, f"psi(t_{i})")
 
 
 # ── T5, T6: the Volterra triangle ────────────────────────────────────────
@@ -681,7 +679,7 @@ def test_the_triangle_of_a_batch_is_the_weighted_sum_of_its_lines() -> None:
     walls = Walls.of(geometry)
 
     def rule(p, d):
-        return TraversalRule.of(Line.through(p, d), basis, walls, np.asarray(_SIGMA[0]), _POINTS, _INNER)
+        return TraversalRule.of(Line.through(p, d), basis, walls, np.asarray(_SIGMA[0]))
 
     batch = rule(points, directions).volterra(weights)
     alone = [rule(p, d).volterra(np.array(1.0)) for p, d in zip(points, directions)]
@@ -1044,14 +1042,14 @@ def test_a_speed_is_a_scalar_or_one_family_shared_by_every_line() -> None:
     domain = basis.regions.chart.line_domain()
     lines = domain.lines(np.array([[0.3, np.pi / 2], [0.7, np.pi / 2], [1.6, np.pi / 2]]))
     speeds = np.array([1.0, 1.25, 10.0])
-    family = TraversalRule.of(lines, basis, walls, np.asarray(_SIGMA[0]), 8, 8, speed=speeds).outflow()
+    family = TraversalRule.of(lines, basis, walls, np.asarray(_SIGMA[0]), speed=speeds).outflow()
     assert family.shape == (3, 3, 2, basis.size), family.shape
     for j, v in enumerate(speeds):
-        alone = TraversalRule.of(lines, basis, walls, np.asarray(_SIGMA[0]), 8, 8, speed=float(v)).outflow()
+        alone = TraversalRule.of(lines, basis, walls, np.asarray(_SIGMA[0]), speed=float(v)).outflow()
         np.testing.assert_allclose(family[j], alone, rtol=0.0, atol=1e-13 * np.max(np.abs(alone)))
     for bad in (speeds[:, None], np.array([1.0, 0.0, 2.0]), np.array([1.0, np.inf, 2.0])):
         with pytest.raises(ValueError, match=r"a scalar or a family \(F,\) shared by every line"):
-            TraversalRule.of(lines, basis, walls, np.asarray(_SIGMA[0]), 8, 8, speed=bad)
+            TraversalRule.of(lines, basis, walls, np.asarray(_SIGMA[0]), speed=bad)
 
 
 @pytest.mark.foundation
@@ -1064,37 +1062,198 @@ def test_a_rule_reads_only_a_chord_through_a_refinement_of_its_basis() -> None:
     case = _Case("sphere_solid", *_in_plane(0.7), sigma_t=_SIGMA[0])
     panels = case.basis.partition
     refined = panels.refined_at(1.1)
-    TraversalRule.on_chord(refined.chord(case.line), case.basis, case.walls, case.sigma_t, 8, 8)
+    TraversalRule.on_chord(refined.chord(case.line), case.basis, case.walls, case.sigma_t)
     coarser = ConcentricPartition(panels.chart, (panels.breakpoints[0], *panels.breakpoints[2:]))
     longer = ConcentricPartition(panels.chart, (*panels.breakpoints, panels.breakpoints[-1] + 1.0))
     for foreign in (coarser, longer):
         with pytest.raises(ValueError, match="coarsens only onto one it refines"):
-            TraversalRule.on_chord(foreign.chord(case.line), case.basis, case.walls, case.sigma_t, 8, 8)
+            TraversalRule.on_chord(foreign.chord(case.line), case.basis, case.walls, case.sigma_t)
 
 
-#: (id, b, sin theta): MR3 cylinder lines at a hundredth of the spec's cross sections (thin slots).
-_MIDDLE = [("b0.3_normal", 0.3, 1.0), ("b0.3_oblique", 0.3, 0.1), ("b1.6_normal", 1.6, 1.0), ("b1.6_oblique", 1.6, 0.1)]
+# ── PP and PL: the pieces, the law's premise, and the law's node counts (P3 step 3f, route B) ────────────────────────
+#
+# Spec: ``scratch/characteristic_architecture/p3/product/gate_spec.md`` (R4 and REVISION 2). Each line's slots are cut
+# by the hp walk (``grading.branch_walk``) and each piece integrated by the Gauss rule of its attenuation at the node
+# counts the law derives (``_PieceSet.node_counts``). The rows here read batched lines (``Line.through`` of (1, 3)).
+
+import functools  # noqa: E402
+
+from orpheus.derivations.continuous.characteristic import transport as _transport_module  # noqa: E402
+from orpheus.derivations.continuous.characteristic.grading import ALONG_LINE_ERROR, TIGHTNESS  # noqa: E402
+
+_PP_SIGMA = (0.6, 1.3, 0.45)
+_PP_LINES = [
+    # (id, chart, breakpoints, point, direction, speed): b > 0 (b = 0 has no branch point: DECLARED excluded)
+    ("sphere-b0.7", "sphere", (0.0, 0.5, 1.5, 2.0), (0.7, 0.0, 0.0), (0.0, 1.0, 0.0), 1.0),
+    ("sphere-b1e-4", "sphere", (0.0, 0.5, 1.5, 2.0), (1e-4, 0.0, 0.0), (0.0, 1.0, 0.0), 1.0),
+    ("sphere-b1.49", "sphere", (0.0, 0.5, 1.5, 2.0), (1.49, 0.0, 0.0), (0.0, 1.0, 0.0), 1.0),
+    ("hsphere-cavity-b0.005", "sphere", (0.01, 0.5, 1.5, 2.0), (0.005, 0.0, 0.0), (0.0, 1.0, 0.0), 1.0),
+    ("hsphere-shell-b0.2", "sphere", (0.01, 0.5, 1.5, 2.0), (0.2, 0.0, 0.0), (0.0, 1.0, 0.0), 1.0),
+    ("cyl3d-b0.3-wz0.8", "cylinder", (0.0, 0.5, 1.5, 2.0), (0.3, 0.0, 0.0), (0.0, 0.6, 0.8), 1.0),
+    ("cyl-family-b1e-3", "cylinder", (0.0, 0.5, 1.5, 2.0), (1e-3, 0.0, 0.0), (0.0, 1.0, 0.0), (1.0, 10.0, 1e4)),
+    ("hcyl-cavity-b0.004", "cylinder", (0.01, 0.5, 1.5, 2.0), (0.004, 0.0, 0.0), (0.0, 1.0, 0.0), (1.0, 1e3)),
+]
 
 
-@pytest.mark.l0
-@pytest.mark.verifies("characteristic-traversal-integrals")
-@pytest.mark.parametrize(("b", "sine"), [r[1:] for r in _MIDDLE], ids=[r[0] for r in _MIDDLE])
-@pytest.mark.rests_on(_HERE + "test_the_outflow_of_a_per_region_polynomial_is_its_line_integral_attenuated_to_the_exit")
-def test_a_thin_slot_is_cut_at_its_middle_at_four_points(b: float, sine: float) -> None:
-    """[MC1, qa's ``no_middle``] Every slot is cut at its middle, also in a set graded toward one end: at 4 points per
-    piece a thin slot (optical width below the grading's first depth, 0.194 at 4 points, so not graded) is two pieces,
-    and the T1 cubics' outflow and entry response on the 3-D line meet mpmath to 3e-11. Thin by Sigma / 100.
+def _pp_rule(chart, breakpoints, point, direction, speed, sigma=_PP_SIGMA, degree: int = 3):
+    laws = {"outer": VacuumInflow()} | ({"inner": VacuumInflow()} if breakpoints[0] > 0 else {})
+    geometry = getattr(StructuredGeometry, chart)(breakpoints, (0, 1, 2), **laws)
+    basis = PanelBasis.of(ConcentricPartition.of(geometry), degree, 2, 0.5)
+    line = Line.through(np.array([point], dtype=float), np.array([direction], dtype=float))
+    return TraversalRule.of(line, basis, Walls.of(geometry), np.asarray(sigma, dtype=float),
+                            speed=np.asarray(speed, dtype=float) if np.ndim(speed) else float(speed))
 
-    `[M]` 2026-10-12 (``scratch/characteristic_architecture/p3/step3/ta/e/middle_probe2.log``): honest 9.2e-13 to
-    3.1e-12; with no middle cut on the one-sided sets (qa's arm) 3.2e-10 to 8.1e-10. At 6 points honest 0 and the arm
-    1.2e-13; at 8 points the arm is green, with the first piece capped at 2 and at 1 alike (`[M]` 2026-10-12,
-    ``ta/e/middle_probe_cap1.log``: 8 points integrate these thin slots exactly whole, so the cut's subject at 8 points
-    is gone, contrary to the 7.9e-11 measured under the fixed law): the witness is at 4."""
-    sigma = tuple(0.01 * v for v in _SIGMA[0])
-    case = _Case("cylinder_solid", (b, 0.0, 0.0), (0.0, sine, float(np.sqrt((1.0 - sine) * (1.0 + sine)))), sigma_t=sigma,
-                 points=4, inner=4)
-    x = case.coefficients(_Q)
-    f = R.region_polynomial(_Q)
-    trav = case.mp.traversal(0, False)
-    _close(float(case.rule.outflow()[0] @ x), R.outflow(case.mp, trav, f, sigma), 3e-11, "B_0 at 4 points")
-    _close(float(case.rule.entry_response()[0] @ x), R.entry_response(case.mp, trav, f, sigma), 3e-11, "A_0 at 4 points")
+
+def _branch_points(chart, point, direction):
+    """(t*, D) in the line's OWN parameterisation from ``point``: t* = -P.Omega/|P Omega|^2 and D = b/|P Omega|, 60 digits."""
+    with mp.workdps(60):
+        P = [mp.mpf(repr(float(v))) for v in point]
+        O = [mp.mpf(repr(float(v))) for v in direction]
+        keep = 3 if chart == "sphere" else 2
+        v2 = sum(O[i] ** 2 for i in range(keep))
+        t_star = -sum(P[i] * O[i] for i in range(keep)) / v2
+        b2 = sum(P[i] ** 2 for i in range(keep)) - sum(P[i] * O[i] for i in range(keep)) ** 2 / v2
+        return t_star, mp.sqrt(b2) / mp.sqrt(v2)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("chart", "breakpoints", "point", "direction", "speed"), [r[1:] for r in _PP_LINES],
+                         ids=[r[0] for r in _PP_LINES])
+def test_every_piece_is_no_wider_than_its_branch_distance_over_the_tightness(chart, breakpoints, point, direction,
+                                                                             speed) -> None:
+    """[PP1; foundation, THEOREM: the law's premise] Every live piece [a, c] off an even panel, in the line parameter,
+    satisfies TIGHTNESS (c - a) <= dist([a, c], t* +- iD), the branch points computed here from the line's point and
+    direction in mpmath (never from the rule's slots), slack 1e-12 relative. A piece's ends are signed distances from
+    its slot's anchor (``_Slots.origin``), read in the line's parameter, which is measured from its foot; t* is
+    translated by the point's parameter (formed from the same line).
+    DECLARED excluded: even panels (a polynomial in t, entire). First red (``carve/arms_*.log``): the walk at half the
+    tightness (``walk_loose``)."""
+    rule = _pp_rule(chart, breakpoints, point, direction, speed)
+    p = rule._pieces.pieces
+    start = rule._of_slot(rule._slots.origin, p.slot)            # piece ends are signed distances from the slot's anchor
+    live = p.live & ~np.asarray(rule.basis.even)[p.panel]
+    a, c = (start + p.lower)[live], (start + p.upper)[live]
+    assert a.size >= 3, "no pieces: the row reads nothing"
+    t_star, D = _branch_points(chart, point, direction)
+    foot = float(np.asarray(rule.period.chord.line.parameter_of(np.array([point], dtype=float)))[0])  # the point's t
+    worst = mp.mpf(0)
+    with mp.workdps(60):
+        for lo, hi in zip(a, c):
+            lo_, hi_ = mp.mpf(repr(float(lo))) - mp.mpf(repr(foot)), mp.mpf(repr(float(hi))) - mp.mpf(repr(foot))
+            real = max(lo_ - t_star, t_star - hi_, mp.mpf(0))
+            worst = max(worst, TIGHTNESS * (hi_ - lo_) / mp.sqrt(real * real + D * D))
+    assert worst <= 1 + 1e-12, f"a piece {float(worst):.6g} x (its branch distance / c) wide"
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("which", ["sphere-b0.7", "hsphere-cavity-b0.005", "cyl-family-b1e-3"])
+@pytest.mark.rests_on(_HERE + "test_every_piece_is_no_wider_than_its_branch_distance_over_the_tightness")
+def test_the_pieces_depend_on_the_geometry_alone(which: str) -> None:
+    """[PP2; foundation, ROUTE: the attenuation left the piece mesh] The piece set is ``array_equal`` under every cross
+    section scaled by 1e-3 and by 1e3 and under a family widened by 1e4: the attenuation is the measure of each piece's
+    Gauss rule, never a cut of the line. INVERTED successor of the lift file's G1b (the grading read the family's
+    extremes). First red: today's ``main`` before P3 step 3f (`[M]` 2026-10-13: 36 pieces against 272 on
+    ``sphere-b0.7``, ``scratch/.../p3/product/ta/runs/pieces_today.log``)."""
+    _, chart, breakpoints, point, direction, speed = next(r for r in _PP_LINES if r[0] == which)
+    base = _pp_rule(chart, breakpoints, point, direction, speed)._pieces.pieces
+    wide = tuple(np.atleast_1d(speed)) + (float(np.max(speed)) * 1e4,)
+    for sigma, sp in ((tuple(1e-3 * v for v in _PP_SIGMA), speed), (tuple(1e3 * v for v in _PP_SIGMA), speed),
+                      (_PP_SIGMA, wide)):
+        other = _pp_rule(chart, breakpoints, point, direction, sp, sigma)._pieces.pieces
+        for name in ("slot", "lower", "upper", "panel", "live"):
+            np.testing.assert_array_equal(getattr(base, name), getattr(other, name), err_msg=name)
+
+
+#: PL1's fixtures: (id, chart, breakpoints, point, direction, speed, degree, margin). The margin is the law's excess
+#: over the least shift that holds the target, measured on this fixture (`[M]` 2026-10-13, ``carve/probe_pl1.log``),
+#: within ``margin_B.log``'s c = 2 range (2 to 3); re-measured at the 64-eps target (``carve/probe_pl1_64.log``).
+_PL1 = [
+    ("sphere-turning-b1e-4-p3", "sphere", (0.0, 0.5, 1.5, 2.0), (1e-4, 0.0, 0.0), (0.0, 1.0, 0.0), 1.0, 3, 3),
+    ("sphere-b0.7-p5", "sphere", (0.0, 0.5, 1.5, 2.0), (0.7, 0.0, 0.0), (0.0, 1.0, 0.0), 1.0, 5, 1),
+    ("hsphere-cavity-b0.005-p3", "sphere", (0.01, 0.5, 1.5, 2.0), (0.005, 0.0, 0.0), (0.0, 1.0, 0.0), 1.0, 3, 2),
+    ("cyl-family-b0.3-p1", "cylinder", (0.0, 0.5, 1.5, 2.0), (0.3, 0.0, 0.0), (0.0, 1.0, 0.0), (1.0, 10.0, 1e3), 1, 0),
+    ("cyl-family-b0.3-p3", "cylinder", (0.0, 0.5, 1.5, 2.0), (0.3, 0.0, 0.0), (0.0, 1.0, 0.0), (1.0, 10.0, 1e3), 3, 0),
+]
+#: The law's target (``grading.ALONG_LINE_ERROR``, the user's ruling of 2026-10-13: the rule's own band, 64 eps).
+_PL1_TARGET = ALONG_LINE_ERROR
+
+
+#: The law, captured once at import (every shifted property below wraps THIS, never a property already shifted).
+_HONEST_COUNTS = _transport_module._PieceSet.__dict__["node_counts"].func
+
+
+def _shifted_counts(shift: int):
+    """``_PieceSet.node_counts`` with ``shift`` added to every walked piece's counts (at least 1): the law moved."""
+    honest = _HONEST_COUNTS
+
+    def counts(self):
+        one, two = honest(self)
+        rule, p = self.rule, self.pieces
+        walked = p.live & rule._of_slot(rule._walked, p.slot)
+        return np.where(walked, np.maximum(one + shift, 1), one), np.where(walked, np.maximum(two + shift, 1), two)
+
+    prop = functools.cached_property(counts)
+    prop.__set_name__(_transport_module._PieceSet, "node_counts")
+    return prop
+
+
+def _pl1_error(monkeypatch, row, shift: int, reference) -> float:
+    _, chart, breakpoints, point, direction, speed, degree, _ = row
+    monkeypatch.setattr(_transport_module._PieceSet, "node_counts", _shifted_counts(shift))
+    rule = _pp_rule(chart, breakpoints, point, direction, speed, degree=degree)
+    weight = np.ones((np.size(speed), 1)) if np.ndim(speed) else np.ones(1)
+    B, V = rule.outflow(), rule.volterra(weight)
+    return max(float(np.max(np.abs(B - reference[0])) / np.max(np.abs(reference[0]))),
+               float(np.max(np.abs(V - reference[1])) / np.max(np.abs(reference[1]))))
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("row", _PL1, ids=[r[0] for r in _PL1])
+@pytest.mark.rests_on(_HERE + "test_every_piece_is_no_wider_than_its_branch_distance_over_the_tightness",
+                      "tests/gates/derivations/test_characteristic_attenuation_rule.py::"
+                      "test_the_rule_is_exact_on_every_legendre_polynomial_below_degree_two_m")
+def test_the_laws_node_counts_meet_the_target_and_exceed_the_least_by_at_most_the_margin(monkeypatch, row) -> None:
+    """[PL1; foundation, REFERENCE by self-convergence] On each fixture line, the outflow and the Volterra block at the
+    law's node counts against the same rule at the counts + 3 (on the walked pieces; an entire piece is exact at its
+    degree's count): SAFE, within the law's target (``ALONG_LINE_ERROR``, 64 eps) of the largest entry; TIGHT, the
+    least shift from which every shift up holds the target is at most the row's margin below the law. No mpmath line reference resolves 1e-14 (the transport rows'
+    bands are 1e-12 and 1e-13), so the claim is convergence in the count, its value anchored by RB3, PT1 and the
+    mpmath rows. Arms (the witness of each leg): the law minus (margin + 1) reds SAFE; the law + 3 (a law grown
+    over-conservative) reds TIGHT (``carve/arms_*.log``)."""
+    monkeypatch.setattr(_transport_module._PieceSet, "node_counts", _shifted_counts(3))
+    _, chart, breakpoints, point, direction, speed, degree, margin = row
+    rule = _pp_rule(chart, breakpoints, point, direction, speed, degree=degree)
+    weight = np.ones((np.size(speed), 1)) if np.ndim(speed) else np.ones(1)
+    reference = (rule.outflow(), rule.volterra(weight))
+    shift = int(__import__("os").environ.get("PL1_SHIFT", "0"))         # the arms: the law moved by PL1_SHIFT
+    errors = {j: _pl1_error(monkeypatch, row, shift + j, reference) for j in range(0, -(margin + 2), -1)}
+    assert errors[0] <= _PL1_TARGET, ("SAFE", errors)
+    least = min(j for j in errors if all(errors[k] <= _PL1_TARGET for k in errors if k >= j))
+    assert -least <= margin, ("TIGHT", least, margin, errors)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("which", ["sphere-b0.7", "hsphere-shell-b0.2", "cyl3d-b0.3-wz0.8", "cyl-family-b1e-3"])
+def test_an_unbatched_line_is_the_same_line_in_a_batch_of_one(which: str) -> None:
+    """[UB1, qa's row; foundation, THEOREM] A line built from 1-D arrays (its image's fields numpy scalars) has the
+    outflow, the entry response and the Volterra block of the same line in a batch of one, ``array_equal`` (the
+    batch axis dropped), on each radial body. The carve's defect 1 (2026-10-13): ``Chord._per_point`` spread only
+    ndarray fields, and an unbatched line failed in ``rays_at``. First red: ``Chord.take`` gathering ndarray fields
+    only (``kg_arms.py``, ``take_arrays_only``)."""
+    _, chart, breakpoints, point, direction, speed = next(r for r in _PP_LINES if r[0] == which)
+    laws = {"outer": VacuumInflow()} | ({"inner": VacuumInflow()} if breakpoints[0] > 0 else {})
+    geometry = getattr(StructuredGeometry, chart)(breakpoints, (0, 1, 2), **laws)
+    basis = PanelBasis.of(ConcentricPartition.of(geometry), 3, 2, 0.5)
+    sp = np.asarray(speed, dtype=float) if np.ndim(speed) else float(speed)
+
+    def rule(line):
+        return TraversalRule.of(line, basis, Walls.of(geometry), np.asarray(_PP_SIGMA), speed=sp)
+
+    single = rule(Line.through(np.array(point, dtype=float), np.array(direction, dtype=float)))
+    batch = rule(Line.through(np.array([point], dtype=float), np.array([direction], dtype=float)))
+    family = np.ndim(speed)
+    one = (slice(None), 0) if family else (0,)
+    np.testing.assert_array_equal(single.outflow(), batch.outflow()[one])
+    np.testing.assert_array_equal(single.entry_response(), batch.entry_response()[one])
+    weights = np.ones(np.shape(speed)) if family else np.array(1.0)
+    np.testing.assert_array_equal(single.volterra(weights), batch.volterra(weights[:, None] if family else np.ones(1)))

@@ -1273,15 +1273,49 @@ the image's and not the line's (the user's ruling of 2026-10-08): a line
 is a point of the space of oriented lines, and the level is a datum of its
 image in the orbit space.
 
-**The pair is held to agree with** :math:`b`.
+**The pair is held to agree with the line's current level.**
 :meth:`RadialImage.at_level <orpheus.geometry.chart.RadialImage.at_level>`
 refuses a pair that describes another line:
-:math:`|r_*^2 - y_*^2 - b^2|` at most 64 ulp of :math:`r_*^2` (*a line's
-level disagrees with its impact parameter*). The squares are compared, not
-:math:`b` with :math:`\sqrt{(r_* - y_*)(r_* + y_*)}`: the rounding of
-:math:`y_*` moves :math:`r_*^2 - y_*^2` by a few ulp of :math:`r_*^2`
-whatever :math:`b` is, and taking the root divides that by :math:`2b`,
-which amplifies it by :math:`r_*/b` relative to :math:`b`'s own ulp. `[M]`
+
+.. math::
+
+   \bigl|\,(r_* - y_*)(r_* + y_*) - (r_{\rm c} - y_{\rm c})(r_{\rm c} + y_{\rm c})\,\bigr|
+   \;\le\; 64\ \text{ulp of}\ \max(r_*^2,\ r_{\rm c}^2),
+
+with :math:`(r_{\rm c}, y_{\rm c})` the image's current level (*a line's
+level disagrees with its impact parameter*). The default level is
+:math:`(b, 0)`, so a first level is held to the line's own :math:`b` to 64
+ulp of :math:`r_*^2`. A pair formed from the current level, as
+:meth:`~orpheus.geometry.chart.RadialImage.half_chord_at` at a crossing or
+a point advanced along the line forms it
+(:ref:`chart-and-chord-rays-at`), is held to that level, at the larger of
+the two scales, which is the scale its rounding was made on. The squares
+are compared, not :math:`b` with :math:`\sqrt{(r_* - y_*)(r_* + y_*)}`: the
+rounding of :math:`y_*` moves :math:`r_*^2 - y_*^2` by a few ulp of
+:math:`r_*^2` whatever :math:`b` is, and taking the root divides that by
+:math:`2b`, which amplifies it by :math:`r_*/b` relative to :math:`b`'s
+own ulp.
+
+**Why the current level and its scale** (the user's ruling of
+2026-10-13, P3 step 3f of #405). A point rule's line is levelled at its
+point, a wall at :math:`c = 2` say, and the characteristic reference then
+re-levels it at an inner crossing, :math:`(r_k, y_k)` with :math:`y_k`
+formed from the point's level. Held to :math:`b` in ulp of :math:`r_k^2`,
+the guard compared a pair that inherits the point level's rounding,
+a few ulp of :math:`c^2`, against the much smaller scale :math:`r_k^2`.
+`[M]` 2026-10-13: the test-architect's red, the near-tangent lines of a
+point reading, disagreed by 75 to 100 ulp of the inner radius's square
+(``RadialImage.at_level``'s docstring); over 4000 seeded lines through
+the wall point :math:`c = 2` of the sphere :math:`(0, 0.05, 1.5, 2)` with
+:math:`b` from :math:`10^{-4}` to 0.0499, re-levelled at their crossings of
+0.05 and 1.5, the worst disagreement was 3702.5 ulp of :math:`r_k^2` and
+2.6 ulp of :math:`\max(r_k^2, c^2)`
+(``scratch/characteristic_architecture/p3/product/ta/carve/probe_level_inner.log``;
+the probe measures the disagreement with :math:`b^2`, which differs from
+the current level's :math:`r_{\rm c}^2 - y_{\rm c}^2` by that level's own
+rounding). Both measurements are of the same mechanism at two populations:
+the first is the gate's lines, the second the sweep's worst line, near
+:math:`\mu = -0.99983`. `[M]`
 2026-10-08, the archivist's probe
 (``scratch/characteristic_architecture/p1_step_b5b/archivist_level_tol.py``,
 the main agent's ``main/level_tolerance.py`` on the final API): over
@@ -1295,7 +1329,12 @@ band of 64 is 8 times it. The gate
 ``test_a_level_that_disagrees_with_the_impact_parameter_is_refused``
 accepts the consistent pairs from :math:`y = 0.3` down to
 :math:`10^{-15}` and refuses a half-chord moved by :math:`10^{-12}`
-relative and a level moved to the next radius.
+relative and a level moved to the next radius, and
+``test_a_point_rules_line_re_levelled_at_an_inner_crossing_agrees_and_a_foreign_pair_is_refused``
+(K7) accepts the point rule's line re-levelled at its two crossings of
+0.05, read there as exactly 0.05, and refuses the half-chord of another
+line (:math:`1.0001\,b`); its first red is the guard's scale put back at
+:math:`r_*^2`.
 
 **One spelling of a parameter at a level.**
 ``RadialImage.parameters_at(r, side)`` is the parameter at which the line
@@ -1657,7 +1696,13 @@ other chord consumer: :meth:`~orpheus.geometry.chord.Chord.lengths_between`,
 :meth:`~orpheus.geometry.chord.Chord.line_integral` and
 :meth:`~orpheus.geometry.chord.Chord.cosine_at`; and one function of the
 orbit space, :func:`~orpheus.geometry.chord.region_half_lengths`
-(:ref:`chart-and-chord-region-half-lengths`).
+(:ref:`chart-and-chord-region-half-lengths`). Four more read a chord's
+lines from points the caller places on them rather than from an observer:
+:meth:`Chord.rays_at <orpheus.geometry.chord.Chord.rays_at>`,
+:meth:`Chord.rays_at_closest_approach <orpheus.geometry.chord.Chord.rays_at_closest_approach>`,
+:meth:`Rays.advanced <orpheus.geometry.chord.Rays.advanced>` and
+:meth:`Chord.take <orpheus.geometry.chord.Chord.take>`
+(:ref:`chart-and-chord-rays-at`).
 
 The point's level, and why the point sits on its crossing
 ---------------------------------------------------------
@@ -1751,6 +1796,138 @@ plain route's line; ``Rays.orbit_coordinate_at(0)`` read exactly
 :math:`R` on all 20 001. A consumer of the rounded form needs a clamp
 :math:`\min(r', R)` before it evaluates a field defined on
 :math:`[0, R]`; this one needs none.
+
+.. _chart-and-chord-rays-at:
+
+The lines read from a point on them
+-----------------------------------
+
+A consumer that integrates along the lines places its own points on them:
+the characteristic reference's product rule holds every node as an
+offset from a piece's end, and reads the orbit coordinate there
+(:ref:`characteristic-anchored-nodes`). An offset is only as good as the
+point it is measured from, so the kernel reads a line from three kinds of
+point it knows exactly, and advances from them.
+
+- :meth:`Chord.rays_at(crossing) <orpheus.geometry.chord.Chord.rays_at>`
+  reads each line from one of its crossings, the column ``crossing``
+  ``(...,)`` of the chord's ``crossings``, one per
+  line. Each point's parameter, orbit coordinate :math:`r_k` and side are
+  the crossing's own; on the cylinder and the sphere the image is
+  re-levelled at :math:`(r_k, y_k)`, the crossing's half-chord formed from
+  the line's current level, so
+  :meth:`Rays.orbit_coordinate_at <orpheus.geometry.chord.Rays.orbit_coordinate_at>`
+  reads :math:`r_k` exactly at distance 0 and forms every distance from
+  the wall (:ref:`chart-and-chord-rays`, "The orbit coordinate along the
+  ray"); on the slab the chord is unchanged and the coordinate is
+  :math:`r_k + \Omega_x\ell`. A crossing the line does not make is refused
+  (*a line is read from a crossing it makes*).
+- :meth:`Chord.rays_at_closest_approach()
+  <orpheus.geometry.chord.Chord.rays_at_closest_approach>` reads each line
+  from its closest approach :math:`t^*`: orbit coordinate :math:`b`, side
+  0, the image levelled at :math:`(b, 0)`, so the coordinate at the
+  distance :math:`\ell` is :math:`\sqrt{(|P\Omega|\ell)^2 + b^2}`, a sum
+  of squares. The slab is refused (*a slab line has no closest approach*):
+  its orbit coordinate is affine in the parameter.
+- :meth:`Rays.advanced(d) <orpheus.geometry.chord.Rays.advanced>` reads
+  the same lines from the points :math:`d` further along (behind, where
+  negative). On the cylinder and the sphere the new point's orbit-space
+  position is :math:`s' = \pm y_* + |P\Omega|\,d` on its side of the
+  closest approach, its coordinate
+  :math:`c' = \sqrt{c^2 + (s' - y_*)(s' + y_*)}`, and the image is
+  re-levelled at :math:`(c', |s'|)`, the side flipping where :math:`s'`
+  changes sign; on the slab the coordinate is :math:`c + \Omega_x d`.
+  Distances from the new point are then formed from it.
+- :meth:`Chord.take(lines) <orpheus.geometry.chord.Chord.take>` is the
+  chord of the lines at the flat indices ``lines`` ``(...)``, a batch of
+  their shape, so a line taken several times is read at several points.
+  Every numeric field of the line, the image and the crossings whose rank
+  reaches the batch's is gathered, the numpy scalars of an unbatched line
+  included, and a field that does not lead with the batch's shape is
+  refused (*leads with the batch*); a lower-rank field, such as the
+  partition, is shared.
+
+**Why the point is read where it is exact.** A coordinate read through
+the line parameter pays the parameter's round trip, and on the slab's
+face at grazing incidence the parameter is a quotient by a small
+:math:`\Omega_x`: `[M]` 2026-10-13 (KG1's arm ``param_route``), 8e13 to
+4.5e15 eps on the two slab-face rows and about 0.7 eps on radial bodies.
+Advancing every point from one far point by the summed distances places a
+wall only to :math:`\epsilon` times the distance travelled `[R]`. So a
+point on a crossing is read from the crossing, and a point inside a slot
+is advanced from the nearest exact point by a short distance, spending one
+rounding of :math:`s'`: the advanced coordinate is held to an absolute
+:math:`4\epsilon(r_k + |d|)`, not a relative bound, because near the
+closest approach :math:`|s'|` is small against the parts it was formed
+from (`[M]` 2026-10-13: 6.4 eps relative at :math:`c = 0.313` on the
+gate's row ``cylinder-3d-past-closest``).
+
+**Why the closest approach is a point of its own.** A crossing at
+:math:`r_k` levels the line at :math:`(r_k, y_k)`, and a point advanced
+from it toward :math:`t^*` forms :math:`c'^2 = r_k^2 + (s' - y_k)(s' + y_k)`,
+which cancels where :math:`c' \ll r_k`: the level form is exact only at
+and above its radius (:ref:`chart-and-chord-gotchas`). Read from
+:math:`(b, 0)` the same point is a sum of squares and keeps its relative
+precision. The characteristic reference reads every walk end of a slot
+that ends at the closest approach from there; advanced from the far
+crossing instead, ``at_level`` refused the result on the cylinder (`[M]`
+2026-10-13, the carve).
+
+**Why** ``take`` **and one crossing per line** (the user's ruling of
+2026-10-13, "Live ends only, through ``Chord.take``"). The reference
+first read a padded ``(L, J)`` layout of points at once, ``rays_at``
+taking ``(*batch, *k)`` crossings with the chord broadcast as views
+(``Chord._per_point``). The padded entries then needed a crossing to be
+read from, and a borrowed crossing or a foot is a point that does not
+exist: a line with no crossing aborted the batch, and the broadcast
+skipped an unbatched line's numpy scalars. ``take`` reads only the points
+that exist, each on its own line; the broadcast form and ``Rays.where``
+retired the same day.
+
+**The gates** (``tests/gates/geometry/test_chord_level.py``, every row
+``foundation``, against an mpmath reference written in the test from the
+line's point and direction, comparing distances only, so the line's own
+parameter origin never enters):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 50 40
+
+   * - Row
+     - What it asserts
+     - First reds (in-process arms, ``kg_arms.py``)
+   * - KG1
+     - ``rays_at(k)`` reads exactly :math:`r_k` at 0, and within 4 eps
+       relative of mpmath from :math:`\ell = -0.1` to :math:`10^{-3}`
+     - ``param_route`` (the 2 slab-face rows), ``no_relevel`` (3 radial
+       rows), ``b_relevel`` (the grazing row)
+   * - KG2, KG2b
+     - ``rays_at(k).advanced(d)`` within :math:`4\epsilon(r_k + |d|)`,
+       :math:`d` of both signs and past the closest approach (the side
+       flip asserted); the round trip lands on the crossing
+     - ``adv_no_relevel``, ``adv_no_flip``, ``no_relevel``
+   * - KG3
+     - a crossing the line does not make is refused
+     - ``no_refusal``
+   * - KG4, KG4b
+     - a line taken :math:`K` times and read at :math:`K` crossings is,
+       bit for bit, each column alone; an unbatched line taken is the line
+       in a batch of one
+     - ``take_shifted``, ``take_arrays_only``
+   * - KG5, KG5b
+     - three points at :math:`t^*` read :math:`b` and side 0, and within
+       4 eps relative of :math:`\sqrt{b^2 + (|P\Omega|\ell)^2}` from
+       :math:`\ell = 10^{-15}` to 0.4 at :math:`b` down to :math:`10^{-8}`;
+       the slab refused
+     - ``param_route`` (the cylinder row at :math:`b = 10^{-6}`; the other
+       three declared blind), ``no_slab_refusal``
+   * - KG6
+     - a field that does not lead with the batch is refused by ``take``
+     - ``take_unchecked``
+   * - K7
+     - a point rule's line re-levelled at an inner crossing is accepted, a
+       foreign pair refused (:ref:`chart-and-chord-level`)
+     - ``level_scale_old``
 
 The lengths between two parameters
 ----------------------------------
@@ -1893,7 +2070,10 @@ reference code and 1 is production.
        ``basis``, ``closure``, ``transport``, ``assembly``, ``lines``,
        ``reading``, ``reference``)
      - the chord, transits, levels and directions throughout
-       (:ref:`theory-characteristic-reference`); ``line_integral`` for the
+       (:ref:`theory-characteristic-reference`); ``rays_at``,
+       ``rays_at_closest_approach``, ``advanced`` and ``take`` for the
+       nodes of the rule along a line (:ref:`chart-and-chord-rays-at`);
+       ``line_integral`` for the
        period's depth and the impact panels' outside depth;
        ``half_chord`` for the impact rule's chords, its span and the
        inverse map :math:`y \mapsto b`, each 0 ulp from the form it
@@ -2945,11 +3125,14 @@ Which test carries which label is the generated matrix's to say
   test's own rule, the representative lines and the refusals
   (:ref:`chart-and-chord-line-domain`);
 - ``test_chord_level.py``: the image's exact level
-  (:ref:`chart-and-chord-level`), seven ``foundation`` functions (12
-  rows): the half-chord at the level exact, the default bit for bit the
-  plain chord, a line whose rounded :math:`b` loses its half-chord crossing
-  at its level, the parameters at a level equal to the chord's crossings
-  on both image classes, the slab's refusal and the agreement check;
+  (:ref:`chart-and-chord-level`) and the lines read from a point on them
+  (:ref:`chart-and-chord-rays-at`), 17 ``foundation`` functions (`[M]`
+  2026-10-13, an AST count of the file): the half-chord at the level
+  exact, the default bit for bit the plain chord, a line whose rounded
+  :math:`b` loses its half-chord crossing at its level, the parameters at
+  a level equal to the chord's crossings on both image classes, the
+  slab's refusal and the two agreement checks (K7); and KG1 to KG6 for
+  ``rays_at``, ``advanced``, ``rays_at_closest_approach`` and ``take``;
 - ``test_rays.py`` and ``test_chord_lengths_between.py``: the verbs of
   :ref:`chart-and-chord-rays` against mpmath oracles built from the
   ray's own quadratic, each piece's region read at its midpoint (the run
@@ -3401,10 +3584,18 @@ Gotchas
   direction is read; without it a direction rule should not put nodes
   there.
 - **A level must describe the line it is passed with.** ``at_level``
-  refuses a pair whose :math:`r_*^2 - y_*^2` misses :math:`b^2` by more
-  than 64 ulp of :math:`r_*^2`; a level from another line (the next
-  radius, a half-chord from another node) is a different line, and
-  reading its half-chords would be silently wrong.
+  refuses a pair whose :math:`r_*^2 - y_*^2` misses the current level's
+  by more than 64 ulp of the larger square (the default level's is
+  :math:`b^2`); a level from another line (the next radius, a half-chord
+  from another node) is a different line, and reading its half-chords
+  would be silently wrong.
+- **Read a point from the nearest exact point, never through the
+  parameter.** A node or a piece end on a crossing is
+  ``chord.rays_at(column)``; one inside a slot is advanced from the
+  nearest crossing, or from ``rays_at_closest_approach()`` when that is
+  nearer, by a short distance. Advancing toward :math:`t^*` from a far
+  crossing cancels :math:`r^2 - b^2`, and ``at_level`` refuses the result
+  (:ref:`chart-and-chord-rays-at`).
 - **A level is exact at and above its radius.** Below :math:`r_*` the
   form :math:`(r - r_*)(r + r_*) + y_*^2` subtracts, and is no better than
   :math:`(r - b)(r + b)`. Pass the lowest radius the line is read at; the
@@ -3563,5 +3754,25 @@ Development history
        characteristic reference, where "the coarse region of each fine
        region" was spelled three times (the elegance review's S2, P3 step 3
        of #405).
-     - *(in development,* branch ``refactor/characteristic-axial-lift``\ *)*
+     - ``c9db13e3``, docs ``1ad1f557``
+     - #405
+   * - 2026-10-13
+     - ``Chord.rays_at(crossing)`` and ``Rays.advanced(distance)``: a line
+       read from one of its crossings, exactly on its surface, and from
+       points advanced along it, each re-anchored at its own coordinate
+       (P3 step 3f of #405, the user's rulings: the offset's home is a
+       geometry verb; a crossing is anchored exactly, a slot end advanced
+       from it). Gates KG1 to KG3.
+     - ``c7904de6``
+     - #405
+   * - 2026-10-13
+     - ``Chord.rays_at_closest_approach`` (a slot ending without a
+       crossing is anchored at :math:`(b, 0)`, the user's ruling "Anchor at
+       the closest approach") and ``Chord.take`` (only the live points,
+       each on its own line, the user's ruling that reversed the same day's
+       broadcast ``rays_at`` and ``Rays.where``); ``RadialImage.at_level``
+       holds a pair to the current level at the larger scale, after a point
+       rule's re-levelled line read 75 to 100 ulp of the inner radius's
+       square. Gates KG4 to KG6 and K7's second row.
+     - *(in development,* branch ``refactor/p3-routeB-product``\ *)*
      - #405

@@ -5,8 +5,8 @@ spec ``scratch/characteristic_architecture/p3/step3/gate_spec.md``, the user's A
 line of impact parameter b at polar angle theta is its in-plane line (b, pi/2) traversed at 3-D speed
 ``ds/dt = 1/sin(theta)``. :class:`~orpheus.derivations.continuous.characteristic.transport.TraversalRule` carries the
 speed as a field whose leading axes are a FAMILY over the same lines, so each in-plane line is chorded once and theta
-is a broadcast axis of the exponentials and of the closure a B / (1 - a e^{-kappa T}); the along-line pieces are graded
-once per line from the family's steepest and gentlest attenuation (``grading.exponential_ends``); the impact rule is
+is a broadcast axis of the exponentials and of the closure a B / (1 - a e^{-kappa T}); the along-line pieces are the
+geometry's alone (the hp walk), each member integrating its attenuation by its own Gauss rule (P3 step 3f); the impact rule is
 graded at the slowest polar node (#587's per-polar grading retires).
 
 The ladder, bottom up (``rests_on`` on each row):
@@ -17,7 +17,8 @@ The ladder, bottom up (``rests_on`` on each row):
    angular flux under a partial mirror, K1d the Volterra triangle]; theta a pure broadcast axis [K2]; the stretch
    carried by the rule's speed equals the stretch carried by the kernel's 3-D chord [K3];
 3. the polar fold of one in-plane line against Bickley's functions [K4];
-4. the along-line grading law [G1, its route G1b] and its value leg on the closed-form readings [G2];
+4. the dyadic grading of the rules over lines [G1, the end law; G1c, its callers]; the along-line rule's value leg on
+   the closed-form readings [G2] (the rule itself: ``test_characteristic_attenuation_rule.py``);
 5. the readings against frozen mpmath routes [F1, F1b, F4; F2, F3 are G2], each literal recomputed by a slow twin;
 6. #587's retirement loses no accuracy, per polar node [P1];
 7. the sphere and the slab, moved by the target-graded reading, accepted on the three conditions [S1].
@@ -35,7 +36,6 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.characteristic import PanelBasis, Walls
-from orpheus.derivations.continuous.characteristic import transport as transport_module
 from orpheus.derivations.continuous.characteristic import reading as reading_module
 from orpheus.derivations.continuous.characteristic.grading import DYADIC, VANISHING_DEPTH, ExponentialGrading, exponential_ends
 from orpheus.derivations.continuous.characteristic.lines import OpticalScale, polar_rule
@@ -82,7 +82,7 @@ class _Family:
         self.sines = tuple(float(s) for s in sines)
         self.line = Line.through(np.array([b, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
         self.speed = 1.0 / np.asarray(self.sines)
-        self.rule = TraversalRule.of(self.line, self.basis, self.walls, self.sigma_t, T._POINTS, T._INNER, speed=self.speed)
+        self.rule = TraversalRule.of(self.line, self.basis, self.walls, self.sigma_t, speed=self.speed)
         self.planar = R.MpLine("cylinder", self.geometry.breakpoints, (b, 0.0, 0.0), (0.0, 1.0, 0.0),
                                extra_radii=self.basis.partition.breakpoints)
 
@@ -102,7 +102,7 @@ class _Family:
             t = float(t_in + (t_out - t_in) * mp.mpf(fraction))
             level = math.hypot(self.b, t)
             chord = self.basis.partition.refined_at(level).chord(self.line)
-            rule = TraversalRule.on_chord(chord, self.basis, self.walls, self.sigma_t, T._POINTS, T._INNER, speed=self.speed)
+            rule = TraversalRule.on_chord(chord, self.basis, self.walls, self.sigma_t, speed=self.speed)
             yield rule, _crossing_near(rule, t)
 
 
@@ -274,26 +274,26 @@ def _columns(body: str, sines) -> dict[str, np.ndarray]:
 
 @pytest.mark.foundation
 @pytest.mark.rests_on(_HERE + "test_each_speed_of_the_family_reads_its_3d_lines_closed_angular_flux")
-def test_a_member_inside_the_familys_speed_range_changes_no_other_member() -> None:
-    """[K2; foundation, THEOREM] Theta is a pure broadcast axis: inserting a member strictly between the family's
-    slowest and fastest leaves every other member's outflow, entry response, optical depth and closed angular flux
-    ``array_equal`` (the pieces depend on the extremes only); inserting a SLOWER member changes the nodes, so an
-    unchanged member's outflow moves (the activation leg: the grading reads the family).
+def test_a_member_added_to_the_family_changes_no_other_member() -> None:
+    """[K2; foundation, THEOREM] Theta is a pure broadcast axis: adding a member to the family, between its slowest and
+    fastest, slower than its slowest, or first in the family's order, leaves every other member's outflow, entry response,
+    optical depth and closed angular flux ``array_equal``. Since P3 step 3f the pieces are the geometry's alone and
+    each member integrates its own attenuation by its own Gauss rule, so no member reads another (PROMOTED: until 3f
+    the along-line grading read the family's extremes, and only an interior insertion was an invariance). The
+    activation leg: two members' columns differ (the broadcast is not a copy).
 
-    The grading's reach depends on the fastest member and its first depth on the slowest
-    (``grading.exponential_ends``), so only an interior insertion is an invariance. Under a partial mirror (0.6), so
-    the closure is in every column. Declared blind (Mode 12, `[M]` qa 2026-10-12, arm ``closure_kmax``): an optical
-    depth read at the family's max(speed) for every member, since an interior insertion leaves the max unchanged; its
-    catchers are K1c (2 rows), F1 and F1b. First red: the along-line grading read from the family's mean speed (an
-    interior insertion moves the mean, so the nodes; arm ``grading_mean``, ``ta/e/battery.log``).
+    Under a partial mirror (0.6), so the closure is in every column. Declared blind (Mode 12, `[M]` qa 2026-10-12,
+    arm ``closure_kmax``): an optical depth read at the family's max(speed) for every member when the insertion leaves
+    the max unchanged (the interior and first-placed legs); the slower leg moves the max and sees it. First red: the
+    member's rule read at the family's slowest speed (``carve/arms_*.log``, arm ``family_slowest``).
     """
     base = (1.0, 0.6, 1e-3)
-    inside = _columns("cylinder_solid", (1.0, 0.6, 0.1, 1e-3))
     honest = _columns("cylinder_solid", base)
-    for name, array in honest.items():
-        np.testing.assert_array_equal(inside[name][[0, 1, 3]], array, err_msg=name)
-    slower = _columns("cylinder_solid", base + (1e-4,))
-    assert not np.array_equal(slower["outflow"][1], honest["outflow"][1]), "a slower member did not regrade the line"
+    assert not np.array_equal(honest["outflow"][0], honest["outflow"][1]), "two members read the same column"
+    for added, keep in (((1.0, 0.6, 0.1, 1e-3), [0, 1, 3]), (base + (1e-4,), [0, 1, 2]), ((0.99999,) + base, [1, 2, 3])):
+        grown = _columns("cylinder_solid", added)
+        for name, array in honest.items():
+            np.testing.assert_array_equal(grown[name][keep], array, err_msg=f"{name} after adding {added}")
 
 
 # ── K3: the stretch, carried by the rule's speed and by the kernel's 3-D chord ──
@@ -349,7 +349,7 @@ def _fold_errors(points: int) -> tuple[float, float, float]:
     polar = polar_rule(OpticalScale.of(np.array([0.0, _FOLD_R]), np.array([_FOLD_SIGMA])), points)
     sine = np.sin(polar.pts)
     line = Line.through(np.array([_FOLD_B, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
-    rule = TraversalRule.of(line, basis, Walls.of(geometry), np.array([_FOLD_SIGMA]), T._POINTS, T._INNER, speed=1.0 / sine)
+    rule = TraversalRule.of(line, basis, Walls.of(geometry), np.array([_FOLD_SIGMA]), speed=1.0 / sine)
     one = np.ones(basis.size)                                           # q = 1: the panels reproduce a constant
     B = rule.outflow()[:, 0] @ one                                      # (V,)
     reading = float(np.sum(polar.wts * sine * B))
@@ -412,64 +412,13 @@ def test_the_polar_fold_of_one_line_converges_to_bickleys_functions() -> None:
         assert column[-1] < 1e-13, ("at 8 points", fold, column)
 
 
-# ── G1: the along-line grading law, derived from the node count (the user's ruling of 2026-10-12) ──
-
-#: (n, the most pieces the graded [0, 64] may hold): the derived law's own count (`[M]` 2026-10-12,
-#: ``scratch/characteristic_architecture/p3/step3/ratio/law_cap1.log``, the first piece capped at 1: 103, 43, 23, 13, 8,
-#: 7, 6 at 4, 5, 6, 8, 12, 16, 24), so a law
-#: that stays accurate by cutting many more pieces (a ratio toward 1) is a red too.
-_G1_POINTS = [(4, 103), (5, 43), (6, 23), (8, 13), (12, 8), (16, 7), (24, 6)]
-#: The error band of the integral below, in eps of the value: `[M]` 2026-10-12 (``ta/e/g1_arms.log``) 12.5 eps at 4
-#: points, 5.5 at 5, <= 2 from 6; the cap removed reads 40 eps at 24 points, the old law 1.1e-6 at 4.
-_G1_BAND = 16
-
-
-def _graded_integral(points: int, grading) -> tuple[float, int]:
-    """The integral of e^{-x} over [0, 64] read at 0, on the ends ``grading`` cuts toward 0, each piece by numpy's own
-    ``points``-point Gauss-Legendre rule (not the production's): the value and the piece count."""
-    ends = np.unique(exponential_ends(np.array(0.0), np.array(VANISHING_DEPTH), np.array(1.0), np.array(1.0), grading))
-    x, w = np.polynomial.legendre.leggauss(points)
-    lo, hi = ends[:-1, None], ends[1:, None]
-    return float(np.sum((hi - lo) / 2.0 * w * np.exp(-(lo + (hi - lo) * (x + 1.0) / 2.0)))), ends.size - 1
-
-
-@pytest.mark.l0
-@pytest.mark.verifies("characteristic-traversal-integrals")
-@pytest.mark.parametrize(("points", "pieces"), _G1_POINTS, ids=[f"n{p}" for p, _ in _G1_POINTS])
-def test_the_derived_grading_integrates_the_attenuation_to_double_precision(points: int, pieces: int) -> None:
-    """[G1; l0, REFERENCE] ``ExponentialGrading.of(n)`` (first depth min(h_n, 2), ratio 1 + e h_n/(2n + 1), h_n from the
-    Gauss bound, A&S 25.4.30) cuts [0, VANISHING_DEPTH] so that n Gauss points per piece integrate e^{-x}, read at its
-    graded end, to the integral 1 - e^{-64} in 50-digit mpmath within 16 eps, with no more pieces than the law's
-    measured count. Independent of the formula (X4): the reference is the integral, the quadrature numpy's own rule;
-    the row asks whether the law does its job, not whether it is spelled as derived.
-
-    First reds (``scratch/characteristic_architecture/p3/step3/ta/e/``, ``g1_arms.log``): the fixed law it replaced,
-    first 1 and ratio 2 (1.1e-6 at 4 points; table [1] of ``ExponentialGrading``); ratio sqrt 2 (5.0e-9 at 4); the
-    cap at 2 removed (the rounding of a first piece 7.9 to 32.6 mean free paths wide, 4 to 40 eps at 12 to 24); the
-    count leg: a ratio pulled toward 1.
-    """
-    with mp.workdps(50):
-        want = float(1 - mp.exp(-mp.mpf(VANISHING_DEPTH)))
-    got, count = _graded_integral(points, ExponentialGrading.of(points))
-    assert abs(got - want) <= _G1_BAND * np.finfo(float).eps * want, (got - want) / want
-    assert count <= pieces, (count, pieces)
-
-
-@pytest.mark.foundation
-def test_the_first_graded_piece_is_capped_at_one_mean_free_path() -> None:
-    """[G1, the cap; the user's ruling of 2026-10-12] The first depth is min(h_n, 1): below 6 points the Gauss width h_n
-    (growing with n), from 6 on the cap 1 (``_WIDEST_FIRST``). Two reasons, both measured: a wider first piece loses
-    digits to its nodes' own rounding (`[M]` 4 to 40 eps at 12 to 24 points uncapped), and the pieces integrate a
-    basis polynomial times e^{-x}, not e^{-x} alone: with the cap at 2 the slowest polar node of P1 missed its density
-    by 2.5e-13, at 1 it meets 1e-13 (`[M]` 2026-10-12, ``scratch/characteristic_architecture/p3/step3/ta/e/runs/
-    first1.log``). The ratio exceeds 1 and grows with n. ``DYADIC`` is (1, 2). First reds: the cap removed (the first
-    depth at 12 points 7.9); the cap at 2 (arm ``cap2``)."""
-    firsts = [ExponentialGrading.of(n).first for n in range(1, 33)]
-    ratios = [ExponentialGrading.of(n).ratio for n in range(1, 33)]
-    assert all(f <= 1.0 for f in firsts) and firsts[-1] == 1.0 and firsts[5] == 1.0, firsts
-    assert firsts[3] < 1.0, firsts[3]                                                   # 4 points: 0.194, the Gauss width
-    assert all(1.0 < a < b for a, b in zip(ratios, ratios[1:])), ratios
-    assert DYADIC == ExponentialGrading(1.0, 2.0)
+# ── G1: the dyadic grading of the rules over lines (along lines the attenuation is integrated by its Gauss rule) ──
+#
+# P3 step 3f (route B) retired the along-line exponential grading: each piece's attenuation is the measure of its own
+# Gauss rule (``attenuation_rule``, gated in ``test_characteristic_attenuation_rule.py``), and the derived law
+# (``ExponentialGrading.of``) and its cap went with it, with their rows (G1, the cap, G1b). The end law survives for the
+# rules over lines, whose coordinates (the polar angle, the cosine, the chord half-length) do not carry the attenuation
+# linearly: ``DYADIC``, first depth 1 and ratio 2.
 
 
 def _hand_ends(stop: float, start: float, steepest: float, gentlest: float, first: float, ratio: float) -> np.ndarray:
@@ -493,9 +442,6 @@ _G1_ENDS = [  # (id, stop, start, steepest, gentlest, grading)
     ("dyadic-kappa-1e4", 0.0, 3.0, 5.0e4, 5.0, "dyadic"),               # the reach of the gentlest member
     ("dyadic-clipped", 0.0, 0.01, 5.0e4, 5.0, "dyadic"),                # the slot ends before the reach
     ("dyadic-thin", 0.0, 0.1, 9.0, 5.0, "dyadic"),                      # optical width 0.9 <= first 1: not graded
-    ("n4-kappa-1e4", 0.0, 3.0, 5.0e4, 5.0, 4),
-    ("n8-one-speed", 0.0, 3.0, 5.0, 5.0, 8),
-    ("n8-thin", 0.0, 0.3, 3.0, 3.0, 8),                                  # optical width 0.9 <= first 1: not graded
 ]
 
 
@@ -509,7 +455,7 @@ def test_the_exponential_ends_follow_the_gradings_first_depth_and_ratio(stop, st
     reach the gentlest (fastest) member's. Rounding of rho^k: 4 eps. First reds (`[M]` on the prototype,
     ``ta/floor_probe_8.log``, ``ta/reach_probe.log``): the reach at the steepest member (7.8e-9 to 2.7e-3 on the
     closed-form readings); the first depth from the gentlest; the thin threshold at 2 instead of the grading's first."""
-    grading = DYADIC if which == "dyadic" else ExponentialGrading.of(which)
+    grading = DYADIC
     got = np.unique(exponential_ends(np.array(stop), np.array(start), np.array(steepest), np.array(gentlest), grading))
     want = _hand_ends(stop, start, steepest, gentlest, grading.first, grading.ratio)
     assert got.shape == want.shape, (got, want)
@@ -517,47 +463,12 @@ def test_the_exponential_ends_follow_the_gradings_first_depth_and_ratio(stop, st
 
 
 @pytest.mark.foundation
-@pytest.mark.rests_on(_HERE + "test_the_exponential_ends_follow_the_gradings_first_depth_and_ratio")
-def test_a_familys_slots_are_graded_from_its_slowest_and_fastest_members(monkeypatch: pytest.MonkeyPatch) -> None:
-    """[G1b; foundation, ROUTE] A family's rule grades every slot through ``exponential_ends`` with steepest =
-    sigma_slot x speed_max and gentlest = sigma_slot x speed_min, each graded element of every call (one or two calls
-    per piece set: toward the exits, the entries, both) having steepest / gentlest = speed_max / speed_min (4 eps) and
-    steepest / speed_max one of the panels' cross sections; and with the grading of the rule that integrates the
-    pieces: ``ExponentialGrading.of(points)`` for the piece sets, ``.of(inner_points)`` for the inner rule (points 8,
-    inner 12 here, so the two are told apart; both are seen). First reds: the grading read at speed 1, or at the mean
-    speed; the piece sets graded with the inner rule's count (or ``DYADIC``)."""
-    calls: list[tuple[np.ndarray, np.ndarray, object]] = []
-    honest = transport_module.exponential_ends
-
-    def recording(stop, start, steepest, gentlest, grading):
-        calls.append((np.asarray(steepest, dtype=float), np.asarray(gentlest, dtype=float), grading))
-        return honest(stop, start, steepest, gentlest, grading)
-
-    monkeypatch.setattr(transport_module, "exponential_ends", recording)
-    family = _Family("cylinder_solid", 0.7, _SINES, T._SIGMA[0])
-    rule = TraversalRule.of(family.line, family.basis, family.walls, family.sigma_t, 8, 12, speed=family.speed)
-    rule.outflow()
-    rule.volterra(np.ones(len(_SINES)))
-    gradings = {c[2] for c in calls}
-    assert gradings == {ExponentialGrading.of(8), ExponentialGrading.of(12)}, gradings
-    fastest, slowest = 1.0 / max(_SINES), 1.0 / min(_SINES)
-    sigmas = np.unique(family.basis.on_panels(np.asarray(T._SIGMA[0])))
-    assert any(np.any(gentlest > 0.0) for _s, gentlest, _g in calls), "no call graded a slot"
-    for steepest, gentlest, _grading in calls:
-        graded = gentlest > 0.0
-        if not np.any(graded):
-            continue
-        np.testing.assert_allclose(steepest[graded] / gentlest[graded], slowest / fastest, rtol=4 * np.finfo(float).eps)
-        per_panel = steepest[graded] / slowest
-        assert np.all(np.min(np.abs(per_panel[..., None] - sigmas), axis=-1) <= 4 * np.finfo(float).eps * sigmas.max())
-
-
-@pytest.mark.foundation
 def test_every_rule_over_lines_is_graded_dyadically(monkeypatch: pytest.MonkeyPatch) -> None:
     """[G1c; foundation, ROUTE] ``DYADIC``'s callers, every rule over lines: the polar and cosine rules toward the
-    normal direction, and the impact rule toward its rim (the user's ruling of 2026-10-12: the derived law applies
-    along lines only; the line rules' nodes are in the polar angle, the cosine or the chord half-length, where the
-    attenuation's exponent is not linear and the Gauss bound does not apply). Recorded on the ``lines`` module's binding
+    normal direction, and the impact rule toward its rim (the user's ruling of 2026-10-12; since P3 step 3f, along
+    lines the attenuation is integrated by its Gauss rule and no line is graded toward a mean free path; the line
+    rules' nodes are in the polar angle, the cosine or the chord half-length, where the attenuation's exponent is not
+    linear). ``DYADIC`` is (1, 2). Recorded on the ``lines`` module's binding
     while each rule is built at 8 points. First reds, on the grading leg (`[M]` 2026-10-12, ``ta/e/runs/``, the arms exec'd
     in the live module namespace, ``TA_LIVE=1``, so the spy sees the mutant's calls): the polar rule graded by the node
     count (``dyadic_by_count``), the impact rule graded by it (``impact_by_count``), each recording
@@ -577,6 +488,7 @@ def test_every_rule_over_lines_is_graded_dyadically(monkeypatch: pytest.MonkeyPa
     polar_rule(scale, 8)
     cosine_rule(scale, 8)
     assert seen and all(g is DYADIC for g in seen), seen
+    assert DYADIC == ExponentialGrading(1.0, 2.0)                       # its value, moved from the retired cap row
     seen.clear()
     impact_rule(np.array([0.0, 0.5, 1.5, 2.0]), np.array([0.6, 1.3, 0.45]), 8, np.array([0.1, 0.1, 0.1]))
     assert seen and all(g is DYADIC for g in seen), seen
@@ -635,8 +547,8 @@ def test_a_cylinders_reading_is_the_frozen_mpmath_route(breakpoints, amplitude, 
 @pytest.mark.verifies("characteristic-quadrature")
 @pytest.mark.parametrize(("breakpoints", "amplitude", "x", "sigma", "q", "route", "band"), [r[1:] for r in _G2_ROWS],
                          ids=[r[0] for r in _G2_ROWS])
-@pytest.mark.rests_on(_HERE + "test_the_derived_grading_integrates_the_attenuation_to_double_precision",
-                      _HERE + "test_a_familys_slots_are_graded_from_its_slowest_and_fastest_members")
+@pytest.mark.rests_on("tests/gates/derivations/test_characteristic_attenuation_rule.py::"
+                      "test_the_rule_is_exact_on_every_legendre_polynomial_below_degree_two_m")
 def test_the_along_line_grading_holds_a_thick_and_a_thin_cylinder_to_their_routes(breakpoints, amplitude, x, sigma, q,
                                                                                   route, band) -> None:
     """[G2 = F2, F3; l1, REFERENCE] The value leg of G1: a thick cylinder (Sigma R = 50) inside and on its wall, a thin
@@ -677,7 +589,7 @@ _SMALL_Q = (1.0, 0.7)
 def _polar_column_errors(x: float, albedo: float) -> np.ndarray:
     """Per polar node j of the point rule at ``x`` (group 0 of Q4's small cylinder), the reading's theta-column (the
     member's lines, weighted, both sides) relative to w_j g(theta_j), g the mpmath per-theta density."""
-    system = RE._absorbing("cylinder", _SMALL, ((albedo, 0.0),), (2, 0, 8, 8), (_SMALL_SIGMA, (1.7, 0.8)))
+    system = RE._absorbing("cylinder", _SMALL, ((albedo, 0.0),), (2, 0, 8), (_SMALL_SIGMA, (1.7, 0.8)))
     q = RE._emission(system, (_SMALL_Q, (0.4, 1.3)))
     group = system.groups[0]
     basis, walls = system.basis, system.walls
@@ -686,7 +598,7 @@ def _polar_column_errors(x: float, albedo: float) -> np.ndarray:
     rule = PointRule.of(basis, walls, sigma, x, 8)
     lines = rule.lines
     column = np.zeros(lines.speeds.size)
-    for traversals, chunk in lines.chunks(8, 8):
+    for traversals, chunk in lines.chunks():
         t = traversals.period.chord.image.parameters_at(np.array([x]), rule.side)
         stacked = reading_module._stacked_flux(traversals, t, group)                     # (V, l, q, M + W)
         psi = stacked[..., : group.support.size] @ coef
