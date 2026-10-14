@@ -2750,3 +2750,47 @@ The investigator's report, checked against its logs (all in `scratch/characteris
 Estimated together: about 391 s down to 120–150 s per slow cylinder test, roughly 2.5×.
 
 ⏸ **Next:** the user's ruling on remedies 1–3, and whether 3's ulp-level move is accepted. Then a W3 carve with a bit-identity probe for 1 and 2, and a re-timing of the five hottest characteristic files.
+
+### Step 2b, the remedies measured and the cache boundaries (2026-10-14)
+
+The user's rulings of 2026-10-14:
+- "I accept all 3 and ulp change that comes with the 3rd one."
+- Then, mid-carve: "attenuation rules and reference results could be 2 different caches", and "Finding cache opportunities and decoupling the impact is an important aspect of speed up".
+
+**The remedies, measured** `[M]` 2026-10-14. The probes are under `scratch/characteristic_architecture/p3/speed/`. Each replays the 1020 `AttenuationRule.of` calls, 909 024 rules, recorded from `test_the_escape_and_transmission_probabilities_are_the_closed_forms[cylinder-tau0.5]`.
+
+1. **Gauss–Legendre memoised by order** (`_leggauss`, `functools.cache`, read-only arrays). The rule build fell from 13.4 s to 8.5 s, bit-identical on every rule (`variants.py`). Kept.
+2. **One rule build per transport.** Not built.
+   - `[REFUTED 2026-10-14]` as a major remedy: the ceiling, every recorded rule built in one call, is 5.85 s against 8.5 s (`aggregate.py`). It is bit-identical row by row. Once Gauss–Legendre is cached, the arithmetic dominates rather than the per-call overhead.
+   - Padding every panel count into one discretisation was slower (9.3 s) and not bit-identical (23 eps).
+   - Dropped.
+3. **Prefix/suffix products in `basis.values`.** `[REFUTED 2026-10-14]`: 2.2 times slower at the working degree 3, faster only from degree 8 (`values_bench.py`).
+   - The real cost was gathering the Lagrange tables per point by panel kind. Applying each kind's table to its own points is 26 % faster and bit-identical (`values_kind.py`). Kept.
+   - Rejected: the modal form, `values = P(x) @ C`, the nodal-from-modal matrix built exactly from the Gauss rule's discrete orthogonality. It is 2.2 times faster, but its node values are off by 1e-15 to 1e-14 of either sign (`values_modal.py`), so the basis is no longer exactly one-hot at its nodes, which the dense pencil's single-sign test relies on. That is a semantic change, not the ulp move that was ruled.
+- **Net:** the 27 s test takes 20 s (−25 %), and the results are bit-identical, so the accepted ulp change is not used.
+
+**A correction to step 2.** That step said "memoising it would make the gates test the cache". `[REFUTED 2026-10-14]`. A traced-memo entry is pinned on every def that ran and is re-validated against the current source, so a hit is what the current code computes. A child entry is validated recursively, which is exactly the decoupling the user asked for.
+- The constraint is granularity: a miss regenerates in a fresh interpreter, about 0.65 s.
+- `AttenuationRule.of` is the wrong unit: about 8 ms per call, about 100 MB of rules per 27 s test, and its keys move with anything upstream.
+
+**The boundary census** `[M]` (explorer, `scratch/characteristic_architecture/p3/speed/memo_boundaries.md`). A dry-run plugin ran over 14 files and 1368 tests; 13 failed, and their counts are lower bounds.
+- **Where the time is:** about 7800 s of the 9172 s warm1 total is inside the reference stages, and 1350 s is test-side mpmath.
+- **Sharing:** 0 of the top 30 tests share a block with another test, so the gain is from re-runs, not from sharing within one run.
+- **Ranked boundaries:**
+  1. **C1, one group's transport block:** a module-level function equal to `LineRule.of(...).transport(support)`, consumed by `GalerkinSystem.groups` and the test helpers.
+     - It serves 5073 s with no gate change. Its payloads round-trip bit-exact, at 23 to 230 kB each and 11.7 MB in total.
+     - Body edits to `system`, `reading`, `reference` and `dense_pencil` leave blocks valid.
+     - A size threshold of at least 2000 line-speeds keeps 102 blocks (6101 s) and leaves 647 cheap blocks (186 s) unmemoised.
+     - **It needs** `PanelBasis`, `ConcentricPartition` and `RigidMotion` to be keyable. All three are `eq=False` today and refused by the key.
+     - The assembly test that monkeypatches `MeasureCoordinate.derivative` moves under `bypass()`.
+  2. **C2, cylinder point readings:** 60 reads, 10 to 20 s each `[R]`.
+  3. **C3, a bypass scoped per function:** the gates behind `bypass()` hold 2726 s. Needs C1 first.
+  4. **C4, a block memo keyed at the door** (the fallback): it fits the key today but misses assembly and system (4345 s).
+- **A limit:** the package `__init__` imports every submodule, so every memo pins all 13 characteristic module skeletons. Only edits inside function bodies regenerate one stage at a time; an edit to a signature, a constant or an import invalidates every entry.
+
+⏸ **Next:** the user's rulings on the following.
+- **(a)** Retire the step-2 claim, so that gates may read memoised blocks.
+- **(b)** Content identity for the three types (value equality and the memo's key), or a `canonical=` recipe form.
+- **(c)** C1 first, then C2 and C3.
+
+Remedies 1 and 3 [LANDED 6b9fdd9d]. Then: C1 as a W3 carve with its X1 witnesses, then a re-timing.
