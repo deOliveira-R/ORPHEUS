@@ -2671,3 +2671,82 @@ The investigator's report, checked against its logs (all in `scratch/characteris
   - the pieces have ragged node counts, which defeat `jit`;
   - the mpmath tier is untouchable;
   - JAX would be churn in the closed reference layer.
+
+### Step 2, the re-timing and the profile (2026-10-14)
+
+**The re-timing** `[M]`:
+- Run: `scratch/characteristic_architecture/p3/timing/run.sh`, 24 files, serial, `OMP_NUM_THREADS=1`, detached worktree at `941723dc`.
+- The four passes:
+  - bypass: memo plugin bypassed;
+  - cold: `.cache/references` emptied;
+  - warm1;
+  - warm2: `-m "not slow"`.
+- Started 02:15, ended 11:12, 96 rows. Every row exits 0, except 4 warm2 rows that exit 5 because `not slow` deselects every test in those files.
+- Table: `timing/results.tsv`. Logs, with `--durations=0`: `timing/logs/`.
+
+| pass | total |
+|---|---|
+| bypass | 11 601 s (3.22 h) |
+| cold | 10 329 s (2.87 h) |
+| warm1 | 9 307 s (2.59 h) |
+| warm2 | 991 s (0.28 h) |
+
+| file | bypass | cold | warm1 | warm2 | 2026-10-04 bypass |
+|---|---|---|---|---|---|
+| characteristic_assembly | 3559 | 3520 | 3535 | 108 | (new) |
+| characteristic_system | 1114 | 1108 | 1105 | 41 | (new) |
+| characteristic_lift | 1091 | 1088 | 1090 | 304 | (new) |
+| characteristic_albedos | 1039 | 975 | 988 | 90 | (new) |
+| characteristic_reading | 1031 | 1028 | 1032 | 131 | (new) |
+| characteristic_convergence | 935 | 937 | 933 | 31 | (new) |
+| phase_c_crosscheck | 820 | 1072 | 44 | (all slow) | 1112 |
+| l1_standoff_slab_cylinder | 736 | 22 | 23 | (all slow) | 1846 |
+| unified_matvec_cylinder | 722 | 4.7 | 4.9 | 1.9 | 848 |
+| characteristic_independent_references | 213 | 221 | 213 | 17 | (new) |
+| characteristic_transport | 167 | 167 | 166 | 168 | (new) |
+| characteristic_reference | 107 | 107 | 107 | 55 | (new) |
+| each of the other 12 files | ≤ 27 | ≤ 27 | ≤ 27 | ≤ 6 | |
+
+**What the table says:**
+- **The traced memo already finishes the older reference files.** Once the cache is warm (6020 entries), phase_c, l1_standoff and unified_matvec run in under a minute. Their bypass times fell 15 % to 60 % against 2026-10-04, from the P3 route-B carve.
+- **The characteristic files cost the same warm as in bypass.** About 2.6 h a pass is computation inside the characteristic reference, which is the system under test of those gates. Memoising it would make the gates test the cache. `reference_cache.md` P4, ordering cache families by the hot files, therefore has no hot file left to order `[R]`.
+- **The cost sits in the slow tier.** 21 of the 187 assembly tests carry about 3 450 of its 3 559 s (bypass minus warm2). The slowest single tests are cylinder cases:
+  - emission balance: hcylinder 540 and 507 s, cylinder 369 to 378 s;
+  - annulus convergence 435 s;
+  - F4 frozen route 390 s.
+
+**The profile** `[M]`:
+- Command: `python -O -m cProfile` on `test_characteristic_assembly.py::test_a_closed_body_conserves_its_emission[cylinder_white-g0]`, at 941723dc.
+- Runtime: 391 s under the profiler, against 369 s unprofiled.
+- Artefacts: `timing/profile/assembly_cyl_white_g0.prof`, plus `.main.prof` with the paths remapped to the main tree. Ingested into Nexus as run `char_assembly_cyl_white_g0`: 361 nodes, 367 edges.
+
+| where | cumulative | share | calls |
+|---|---|---|---|
+| `AttenuationRule.of` (rule builds) | 196 s | 50 % | 5 706 → 28 800 `_built` → 287 441 `_stieltjes` |
+| inside: `gauss_legendre`, recomputed per `_stieltjes` | 59 s | 15 % | 289 625 `leggauss` |
+| inside: `np.linalg.eigh` (Golub–Welsch) | 58 s | 15 % | 287 441 |
+| inside: `_jacobi` (Stieltjes recurrence) | 53 s | 14 % | 287 441 |
+| `CharacteristicBasis.values` (Lagrange product) | 116 s | 30 % | 7 609, 76 s self |
+| `einsum` | 53 s | 13 % | 20 923 |
+
+**The diagnosis** `[M]` from the counts, `[R]` for the remedy:
+- **The rule builds are dispatch-bound.**
+  - Each `_stieltjes` call costs about 0.65 ms of fixed overhead: one Legendre eigenproblem, one `eigh` call and a Python loop of m steps over small arrays.
+  - The batches are small because `of` is called per line (from `transport._one_level` and the exit integral), and then split by node count and panel count.
+  - Gauss–Legendre rules of a given order are rebuilt 289 625 times.
+- **`basis.values` is compute-bound.** The Lagrange product form costs O(p²) per point.
+
+**The JAX question, answered by measurement:**
+- Python dispatch does dominate the rule builds: 287 441 small calls. That is the one place where `jit` would help.
+- The same collapse is available in numpy by building the rules in one call per transport rather than one per line.
+- The other 45 % is LAPACK `eigh` and memory-bound array arithmetic, which JAX on the CPU does not change.
+- `[R]`: no JAX.
+
+**Remedies, cheapest first** `[R]`, unmeasured:
+1. **Memoise the Gauss–Legendre nodes by order**, in `derivations/common/quadrature._leggauss`, returning read-only arrays. Bit-identical. About 55 s of 391.
+2. **Build the attenuation rules once per transport, over every line and level**, not per line. Batched `eigh` and the row-wise recurrence give each rule the same arithmetic as now, so the result should be bit-identical; that needs a measurement. It turns 287 441 calls into about one per (node count, panel count) pair. Most of the 196 s.
+3. **Write `basis.values` as prefix and suffix products**, O(p) per point and still division-free. Not bit-identical, because the product order changes; the difference is at the ulp level and passes through the memo regeneration. About two thirds of the 116 s.
+
+Estimated together: about 391 s down to 120–150 s per slow cylinder test, roughly 2.5×.
+
+⏸ **Next:** the user's ruling on remedies 1–3, and whether 3's ulp-level move is accepted. Then a W3 carve with a bit-identity probe for 1 and 2, and a re-timing of the five hottest characteristic files.
