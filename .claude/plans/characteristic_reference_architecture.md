@@ -2593,3 +2593,81 @@ The investigator's report, checked against its logs (all in `scratch/characteris
 - **The user's ruling: advance the rays.** "The point a distance d further along this line" is a geometry verb on `Rays`, not arithmetic in the reference: `Rays.advanced(d)` returns the same lines read from points d further along, re-anchored at the new point's own coordinate (on the cylinder and the sphere, the chord's image re-levelled at the new point's radius and half-chord; on the slab, the start shifted). Rejected: rays at crossings only (an hp-walk end lies inside a slot, on no crossing); the long distance from the observer (the offset's precision is lost to rounding against the end's distance).
 - **The user's ruling: a crossing is anchored exactly, a slot end is advanced from its crossing.** Advancing from the observer by the summed slot lengths places a wall only to eps × (distance travelled), which near a slab face at grazing incidence is the failure KG1 measured for the parameter route `[R]`. So two verbs: `Chord.rays_at(crossing)` mints the lines read from one crossing per line, with the start, the breakpoint and (radially) the exact half-chord read from the chord's own crossing, so l = 0 is the wall exactly and KG1 stands as written; `Rays.advanced(d)` serves the segment ends inside a slot, advanced from that slot's crossing.
 - The dependency table is `.claude/plans/p3_product_integration_dependency_audit.md` (the explorer, 2026-10-13; graph rebuilt the same day).
+
+### 3f, the rule's home and the table retired (2026-10-13)
+
+- **The user's ruling: the reference package.** The Gauss rule of the attenuation weight is a new module beside `grading.py` in `orpheus/derivations/continuous/characteristic/`, not in `numerics/`; the node-count law goes into `grading.py`.
+- **The mpmath table does not ship** `[M]` (the numerics-investigator, `p3/product/table_vs_stieltjes.log`, the dense grid of `rb_dense_offsets.py`, 45 to 48 values of x per m). With the table disabled, the Stieltjes construction alone reads RB3 ≤ 61.4 eps over m = 1 to 40 (worst at m = 39; 0 of 40 rows above the 64-eps band). With the table, ≤ 42.4 eps over m = 1 to 32. Where both exist they differ by noise, not trend (Stieltjes better on 6 values of m, worse on 13, by at most 18 eps). The table is therefore a second definition of one quantity (X4), not a repair. The margin narrows for m ≥ 35 (49.5 to 61.4 eps); the law asks at most 17 at c = 1.
+- **The batched build, table-free** `[M]` (`rb_batched_noconst.log`, the same grid, the batched construction the product prototype runs, without Newton refinement): read below in the carve's record.
+- **Cost** `[M]` (`rule_cost.log`, min over 15 subprocesses of the min of 20 calls, load 11.7): one scalar build 0.63 to 0.67 ms at m = 16 and 0.92 to 0.97 ms at m = 24, independent of x.
+- **PL1's safe leg is measured at the law's m** `[M]` (`margin_B.log`, the m = 15 to 20 extension in `mB_case1.log` and `mB_case2.log`): case 1 p = 2 c = 1 and case 2 p = 3 c = 1 read ≤ 1e-14 on block and row at every m from the measured value through 20 (worst 6.1e-15), which covers the law's 16 and 17.
+- **The user's rulings on the carve's constants** (2026-10-13): the hp tightness is **c = 2**, fixed in the law (the investigator's recommendation; the node law asks 9 to 13 per piece there). **`TransportResolution` keeps one field**, `line_points`: `points` and `inner_points` leave it, so every memo key moves once.
+
+### 3f, the carve written (2026-10-13, uncommitted on `refactor/p3-routeB-product`)
+
+- **The rule** is `characteristic/attenuation_rule.py`: `AttenuationRule.of(half_width, count)`, nodes as offsets, zero-weight padding to the largest count, and `.triangle()` → `TriangleRule(lead, lag, weight)`, the weight-level verb PT1 asked for. `[M]` (scratchpad `probe_rule.py`): bit-identical to the prototype's batched build without the table at m = 1, 4, 9, 13, 17 over 12 values of x from 0 to 1000; the triangle on two cubics against mpmath at (x, m) = (0, 4), (7, 6), (1000, 7) ≤ 1.7e-16.
+- **The law** is in `grading.py`: `TIGHTNESS = 2`, `ALONG_LINE_ERROR = 1e-14`, `branch_walk` (the closed-form walk), `bernstein_parameter`, `gauss_nodes`. The basis's bound on the ellipse is `PanelBasis.bound`. `ExponentialGrading.of` and `_WIDEST_FIRST` are retired; `ExponentialGrading` keeps only DYADIC's first depth and ratio.
+- **A new finding, ruled** (the user, 2026-10-13, "Anchor at the closest approach"). A slot that ends at a line's closest approach has no crossing at its near end. Advancing from its far crossing to points near t* forms r² − b² from r_k² by cancellation, and `RadialImage.at_level` refused it on the cylinder `[M]`. The kernel gained `Chord.rays_at_closest_approach(points)`: level (b, 0), side 0. Every piece end that lies on a crossing is read from that crossing exactly. Every other piece end is advanced from its slot's near end, which is a crossing or the closest approach. The slab's slots are advanced from their start crossing.
+- **A second kernel ruling** (the user, 2026-10-13, "Rays over a broadcast batch"). `Chord.rays_at(crossing)` takes `(*batch, *k)`, with the chord broadcast as views (`Chord._per_point`). `[M]` (`probe_k.py`): bit-identical to per-column calls on the sphere, the cylinder and the slab, 50 lines each, with k = 3.
+- **Transport**: one piece set. `_PieceSet.node_counts` gives (m_one, m_two). `_Toward`, `_attenuated`, `_attenuated_length`, `_nodes`, `_orbit_coordinate`, `_branch_edges` and `_attenuations` are retired. `TraversalRule` lost `points` and `inner_points`. `Lines.chunks()`, `LineRule.transport(support)`, `PointRule.row(transport)` and `angular_flux(...)` lost them too. `TransportResolution(line_points)`.
+- **Smoke check** `[M]` (`probe_t.py`; 40 random lines; Σ = (0.6, 13, 0.45); degree 3; against HEAD's rule at 16 and 16 points):
+
+  | body | outflow | entry response | block | pieces | time |
+  |---|---|---|---|---|---|
+  | sphere | 7.6e-15 | 6.0e-15 | 1.1e-15 | 1096 vs 2122 | 0.11 s vs 0.11 s |
+  | cylinder, speeds 1, 3, 40 | 4.9e-14 | 2.7e-14 | 1.5e-15 | 1118 vs 7066 | 0.27 s vs 0.89 s |
+  | hollow cylinder | 6.0e-15 | 1.3e-14 | 2.8e-15 | 1210 vs 2684 | 0.11 s vs 0.21 s |
+  | slab | 6.2e-15 | 6.2e-15 | 1.9e-15 | 600 vs 1662 | 0.02 s vs 0.14 s |
+
+  The check does not establish which side carries the cylinder's 4.9e-14. The test-architect's mpmath rows decide it.
+
+⏸ **Next:** the test-architect lands the gates (RB1 to RB3 and PT1 on the module, PL1 on the production counts, KG rows for several points per line and for the closest approach) and migrates the signatures. Then the characteristic and geometry suites; the reviews; the archivist; the memo regeneration; the full suite.
+
+### 3f, the reviews and seven rulings (2026-10-13)
+
+**The reviews.** The elegance-enforcer (`p3/product/review/elegance.md`) found 0 violations and five concerns. qa (`review/qa.md`) found the terms right by reading, and its in-process mutations of each term reddened every arm, from 1.8e-5 to O(1). The test-architect's migrated suite found three production defects. Each item below is fixed in the working tree.
+
+- **An unbatched line crashed** in `rays_at`. Cause: the per-point spread skipped numpy scalars. A second cause sat in `TraversalRule._unflat`: `reshape(*())` fails on an empty batch. 98 of the suite's 116 reds `[M]`.
+- **A line that makes no crossing aborted the batch**, where HEAD returned zeros. The padded entries asked the kernel to anchor points that do not exist.
+- **The level guard tripped on a point rule's line** re-levelled at an inner crossing. The pair agrees with b only as well as the line's current level does.
+- **The cylinder's 4.9e-14 is the orbit coordinate's rounding at the nodes**, amplified on the narrow outer panel [1.425, 1.5], and is not the rule's error `[M]` (qa: mpmath 0.72766774696014214; HEAD +3.8e-14 relative, the carve −5.4e-14; the rule at exact coordinates is within 2.8e-16; one ulp at every node bounds it at 8.4e-14). An mpmath row on narrow panels needs a band of about 1e-13.
+- **Pieces stored from the slot's start** round-tripped the walk's near-end distances through L − a: 8.0e-4 relative at b/|PΩ| = 1e-13 `[M]` (elegance). Pieces are now signed distances from the slot's anchor (`_Slots.origin`, `first`, `last`).
+- **Smaller items, each fixed.** An `at_upper` flag (now the `_End` enum). |PΩ| spelled twice. `gauss_nodes` outside its domain. ⌈(k+1)/2⌉ spelled in two places (now `exact_nodes`). The small-x branch built in s (now in the offset). The false claim 2^20/20! < ε (it is 4.3e-13). Stale prose.
+
+**The rulings (the user, 2026-10-13):**
+1. **Live ends only, through `Chord.take`.** Asked to reason from first principles, I found the padding was the defect: a dummy anchor (a foot, a borrowed crossing) places a point that does not exist. `Chord.take(lines)` gives the chord of a sub-batch. Transport reads only the live piece ends, in two groups: from a crossing, and from the closest approach. This reverses two earlier rulings, the broadcast batch (`_per_point`) and `Rays.where`, which was added and removed the same day. `rays_at` takes one crossing per line again.
+2. **Zeros, as HEAD, for a line with no crossing.** It follows from ruling 1 by construction, on every chart.
+3. **Counts above 40 are refused.** `attenuation_rule.MOST_NODES = 40` is a scope boundary. Basis degree 16 asks 41 on the triangle; m = 64 read 68.5 eps (qa).
+4. **The law's target is the rule's band.** `ALONG_LINE_ERROR = 64 eps`. At 1e-14, PL1's safe leg read 1.09e-14 on the cylinder's speed family, under the rule's own floor (61.6 eps at m = 28).
+5. **The re-orthogonalisation is removed.** It had no witness: removing it reddened no gate up to m = 80.
+6. **The `rays_at` multi-crossing form and `Rays.where`** are superseded by ruling 1.
+7. **The level guard's scale is max(r*², the current level²)**, a fix of the guard's reference scale.
+
+⏸ **Next:** the test-architect re-points KG4 and KG5 onto `take`, adds the rows for an unbatched line, the level guard, `MOST_NODES` and `gauss_nodes`' refusals, re-measures PL1 at 64 eps, re-runs both suites and the ERR arms, and re-measures `ABA_CYLINDER_TRANSPORT_STEP`. Then the elegance-enforcer reviews the delta; the archivist; the memo regeneration; the full suite.
+
+### 3f, the level guard's reference and the second and third review rounds (2026-10-14)
+
+- **Ruling 7 is superseded by its root.** The max-scale fix widened the guard's scale but kept the wrong reference. A probe found the cause: a point-rule line at (0.3, y), re-read through `advanced(0)`, disagrees with its own b by 75 to 100 ulp, because b is itself a rounded quantity. `RadialImage.at_level` now holds a new pair to the line's **current** level, b² = (r_c − y_c)(r_c + y_c), within 64 ulp of max(r*², r_c²). The guard now checks that a step keeps the line on its level. It no longer checks agreement with a b recomputed elsewhere. Both measurements are in the method's docstring.
+- **The test-architect's last report** `[M]`:
+  - the characteristic fast tier, 1507 passed, 3 skipped, 0 failed;
+  - geometry, 1615 passed, 5 skipped;
+  - pyright 0.
+  
+  Every ERR arm reddens as designed. The transpose arm reddens only slab T5 and PT1, and the radial rows are declared blind to it. K7 has two first reds. KG1 to KG6 cover `take`, an unbatched line, the closest approach and the level guard.
+- **The archivist's report** `[M]`: `sphinx-build -E -W --keep-going` is clean, and `dead_references` reads 0 of 65. Four new labels: `characteristic-attenuation-rule`, `characteristic-node-law`, `characteristic-branch-walk` and `characteristic-anchored-nodes`. `characteristic-exponential-grading` is retired.
+- **Filed:**
+  - #600: F5's `catches("ERR-106")` is not reddened by the re-drop.
+  - #601: refs.bib entries for Gautschi 2004, Golub–Welsch 1969 and Trefethen's ATAP.
+
+⏸ **Next:** the full suite, including the slow tier and the memo regeneration under the moved keys. Then the commit on `refactor/p3-routeB-product`, the merge and CI. Then step 2, re-timing the slow reference files (#591).
+
+### 3f landed (2026-10-14) [LANDED 25b0c38f]
+
+- **The full suite** `[M]` (`python -O -m pytest -p no:cacheprovider tests/`, serial, slow tier included, the traced memo regenerated under the moved keys): 17214 passed, 316 skipped, 60 xfailed, 0 failed, in 4 h 19 min. `sphinx -W --keep-going` is clean. `dead_references` reads 0 of 65, after a control planted on the characteristic page read 1.
+- **The slowest characteristic gates** `[M]` (same run, `--durations=40`): the hollow cylinder's emission balance at 555 s and 525 s; the annulus convergence ladder at 450 s; the F4 frozen route at 409 s; the cylinder's emission balances at 377 to 389 s. Step 2 profiles them before choosing any speed-up.
+
+⏸ **Next:** step 2. Re-time the slow reference files (`timing/run.sh`, #591), profile one slow cylinder file with cProfile, and ingest the profile into Nexus. The user asked whether JAX would help. `[R]`: not before the profile shows Python dispatch dominating, for four reasons:
+  - float64 has no Metal backend, and on the CPU JAX calls the same LAPACK as numpy;
+  - the pieces have ragged node counts, which defeat `jit`;
+  - the mpmath tier is untouchable;
+  - JAX would be churn in the closed reference layer.
