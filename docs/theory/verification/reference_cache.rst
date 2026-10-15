@@ -80,11 +80,12 @@ Key facts
   memory, so a ``functools.cache`` hit, a ``cached_property`` computed
   earlier and a monkeypatch cannot hide a dependency from the record.
   In-process memoisation in ``orpheus/`` stays as it is. The price is one
-  generation per miss: the interpreter start, about 0.65 s (`[M]`
-  2026-10-04, three runs), plus the recorder and the manifest, which
-  bring a cheap miss to 2.8 to 3.6 s against a 0.012 to 0.017 s hit
-  (`[M]` 2026-10-14, five characteristic transport blocks that take 0.024
-  to 0.19 s in process); cutting that overhead is #602.
+  generation per miss: the interpreter start and the imports, about
+  0.5 s, plus the manifest, which bring a cheap miss to 1.14 to 1.32 s
+  against a 0.012 s hit (`[M]` 2026-10-15, five characteristic transport
+  blocks that take 0.03 to 0.19 s in process, three repeats). Before #602
+  the same miss cost 2.65 to 2.88 s; the section "What a miss costs"
+  below attributes it.
 * **The key is exact, finer than content equality.** It is
   :func:`~orpheus.numerics.content.encode_exact` of the function's
   identity, its signature-bound arguments (defaults applied, each declared
@@ -1222,12 +1223,110 @@ the measurements are on :ref:`characteristic-block-memo`. `[M]`
 2026-10-14 on 431 not-slow rows of the three files that read blocks:
 242 s without the memo, 1 303 s cold, 102 s warm; the cold overhead is
 the miss cost (#602), and the user ruled on 2026-10-15 that the block is
-memoised whatever its size, with no threshold.
+memoised whatever its size, with no threshold. After #602 the cold pass
+is 538 s against 234 to 244 s without the memo (the section "What a miss
+costs").
 
 **A solve that does not converge.** The solver's result is a value
 whatever its convergence, so an exhausted solve is a cached value; the
 reading of it is a refusal, and a refusal is an exception, which writes no
 entry (M4.8).
+
+.. _verification-reference-cache-miss-cost:
+
+What a miss costs
+-----------------
+
+`[M]` 2026-10-15 (#602; the explorer's profile and its probes under
+``scratch/characteristic_architecture/p3/m602/``). The fixture is five
+cheap ``group_transport`` blocks (three one-region and two three-region
+spheres, degree 3), each repeat salted so that every call misses, each
+repeat on a temporary store, ``-O``, serial. A miss was 2.65 to 2.88 s,
+of which:
+
+.. list-table:: One cheap miss before #602 (median, ms)
+   :header-rows: 1
+   :widths: 60 20
+
+   * - Part
+     - Time
+   * - interpreter start, to the boot script's first line
+     - 37
+   * - imports (``orpheus.numerics``, then the client's package)
+     - 467
+   * - the computation itself (one-region sphere)
+     - 30
+   * - the manifest
+     - 1 791
+   * - the child's teardown after its answer is written
+     - 369
+   * - the parent's read-back check (about 800 on a process's first)
+     - 14
+
+The recorder itself costs almost nothing: it is a ``sys.monitoring``
+``PY_START`` hook that disables itself after each code object's first
+report, and it added 37 ms to the imports and nothing measurable to the
+computation. The manifest held three avoidable costs, each a fact about
+unchanged files recomputed by every fresh process:
+
+* **Every def was digested.** Each of the 129 source files the run
+  touched was parsed twice and stripped of docstrings twice, and all 1 948
+  of their defs were dumped and digested, when 247 ran. A def's digest is
+  now computed when a pin asks for it, the file is parsed once, and the
+  skeleton is read from the same tree with each outermost def body
+  swapped for ``pass`` and put back before the tree is shared. The
+  docstring strip descends statements only (a docstring is the first
+  statement of a module, class or def body), where it walked every
+  expression node.
+* **A distribution's version was looked up per code object**: 1 245
+  lookups for 6 distributions, 0.64 s, each re-reading the metadata. It
+  is now looked up once per distribution in a manifest, and once per
+  distribution in a validation.
+* **The child freed its objects before exiting** (0.33 s). The boot
+  script now ends with ``os._exit(0)`` once the answer is written and
+  both standard streams are flushed.
+
+None of the three changes what an entry pins: over every tracked Python
+file (1 234 files, 15 515 defs) the old and the new parse give identical
+skeleton and def digests, with controls that a body edit moves only the
+def's digest and a constant edit only the skeleton's.
+
+After the cuts a miss is 1.14 to 1.16 s (one region) and 1.31 to 1.32 s
+(three regions); a hit is unchanged at about 0.012 s. On the 431 not-slow
+rows of the system, reading and assembly gates, in a fresh worktree of
+the commit (an empty store), one serial run each:
+
+.. list-table:: The system, reading and assembly gates after #602
+   :header-rows: 1
+   :widths: 40 20 40
+
+   * - Run
+     - Wall time
+     - Note
+   * - No memo (``bypass()`` entered for the session)
+     - 234 s, 244 s
+     - two runs
+   * - Cold store
+     - 538 s
+     - 257 block entries, 20 MB (1 303 s before #602)
+   * - Warm store
+     - 177 s, 177 s
+     - two runs; no entry written
+
+The cold pass costs about 300 s more than no memo, about 1.2 s per
+entry. The warm pass saves less than C1's 102 s suggested, and the
+per-test durations say why. The landed assembly gates build their blocks
+in process through ``LineRule.transport`` (the slowest, a cylinder block
+under a partial mirror, takes 16.8 s warm and without the memo alike),
+and the reading gates' point rows and their ``bypass()`` rows are also
+computed. C1's prototype had routed the assembly gates' blocks through
+the memo, which is why it stored 383 entries and ran warm in 102 s.
+
+**What remains.** The floor of a fresh process is about 0.56 s: the
+interpreter, the imports and the computation, measured with the recorder
+off. The other 0.6 s of a cheap miss is one parse of each touched file,
+the skeleton dumps, and building the package-to-distribution index
+(about 0.22 s, which reads every installed distribution).
 
 
 .. _verification-reference-cache-contract:
@@ -1965,13 +2064,22 @@ the memo. The 2026-10-04 rows sat on the branch
      - Issue
      - Where
    * - 2026-10-15
+     - **A miss costs half as much** (#602): each touched file is parsed
+       once, a def is digested only when a pin asks, a distribution's
+       version is read once per manifest and per validation, and the
+       child ends with ``os._exit``. A cheap miss went from 2.65 to 2.88 s
+       to 1.14 to 1.32 s, and the three-file cold pass from 1 303 s to
+       538 s; the pins are unchanged (section "What a miss costs").
+     - #602
+     - ``8e02236f``
+   * - 2026-10-15
      - **The characteristic transport block becomes a client**,
        ``group_transport``, one group's block, a child entry of the
        solve; the three geometry types it keys on become content values.
        The miss cost it exposed (about 2.3 s of recorder and manifest per
        miss) is #602; no size threshold (the user's ruling).
      - #405, #602
-     - *(in development)*
+     - ``9178ad00``
    * - 2026-10-10
      - **The trajectory-resolvent clients deleted.** P1 step (e2) of the
        characteristic reference campaign deleted the two multi-region
