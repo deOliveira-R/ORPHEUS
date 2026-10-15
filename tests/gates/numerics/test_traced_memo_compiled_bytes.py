@@ -99,6 +99,7 @@ GENERATOR = '''
 
 
 @pytest.mark.rests_on(_M31, _M32)
+@pytest.mark.catches("ERR-115")
 def test_p1_a_same_size_edit_in_the_same_second_regenerates_the_new_answer(make):
     """P1 (the probe ``ta/p8`` as a gate): a same-size edit whose mtime is put back in the same nanosecond as the
     previous source, the state a scripted edit within one second produces and a timestamp ``.pyc`` cannot tell
@@ -119,6 +120,7 @@ def test_p1_a_same_size_edit_in_the_same_second_regenerates_the_new_answer(make)
 
 @pytest.mark.timeout(300)
 @pytest.mark.rests_on(_M31, _M32)
+@pytest.mark.catches("ERR-115")
 def test_p2_an_edit_landing_during_a_generation_leaves_the_entry_stale(make, tmp_path):
     """P2: the generator waits on a barrier after its module was compiled. The test then edits the module and
     releases it, so the generation runs the old code. The entry must pin the bytes that were COMPILED, so it is

@@ -11068,3 +11068,129 @@ older entries classify against.
    **Lesson.** ⭐ **A correction built beside a wrong form is not a fix
    until every path reads it: retire the old form at the moment the new
    one is verified, or the corpus records the wrong answer as "legacy".**
+
+.. error-entry:: ERR-115
+   :title: A regenerated traced-memo entry held the OLD answer and validated: the generating process ran the bytecode CPython validates by a whole-second mtime and a size, while the manifest re-read the source after the run and pinned the NEW bytes (4.5 served where 6.0 is right)
+
+   **Status:** ✅ **FIXED 2026-10-15** in ``e666e58d`` on branch
+   ``perf/traced-memo-miss-cost`` (#602, round two). Found by the
+   test-architect while specifying #602's second round (the probe
+   ``scratch/characteristic_architecture/p3/m602/ta/p8_pyc_through_memo.py``).
+   The defect predates #602: the memo's first commit, ``99897d10``
+   (2026-10-04), already pinned a first-party source by
+   ``_source_text(Path(real).read_bytes())`` after the run (`[M]`
+   ``git show 99897d10:orpheus/numerics/traced_memo.py``, line 495).
+   Full account: :ref:`verification-reference-cache-pinned-source-loader`.
+
+   **Failure mode:** **#6 (convention drift)**, definition site against
+   usage site. Two components each held a definition of "the source of
+   the code that ran", and they disagreed. The import system defined it
+   as whatever bytecode passed CPython's validation of a timestamp
+   ``.pyc``; the manifest defined it as the file's bytes when the manifest
+   was written, after the run. Nothing reconciled the two, so an entry
+   could pair an answer computed from one text with a pin of another.
+
+   **Root cause.** CPython accepts a timestamp ``.pyc`` (the default
+   form, PEP 552) when two fields of its header match the source file:
+   the source's modification time truncated to whole seconds, and its
+   size (each taken modulo :math:`2^{32}`). A same-size edit whose
+   modification time falls in the same whole second as the write the
+   ``.pyc`` recorded therefore passes the check, and the interpreter runs
+   the bytecode of the text before the edit. In the traced memo, the
+   parent's own import writes that ``.pyc``; the generating process,
+   started for the miss the edit causes, imports the module, finds the
+   ``.pyc`` valid and runs the old code. The manifest then re-read the
+   file, parsed the new text and pinned its def and skeleton digests. The
+   entry so held the old answer under the new pins: it validated against
+   the edited file, and every later lookup was a ``Hit``.
+
+   The same re-read had a second exposure that needs no ``.pyc`` at all:
+   an edit landing while a generation runs (after the module was imported
+   and before the manifest was written). The generation ran the text it
+   had compiled, and the manifest pinned the text on disk at the end
+   (row P2 of the round-two specification; `[R]` before the fix, since no
+   probe ran it on the unfixed tree, and reddened by the battery arms
+   below). A cold pass generates for minutes, so an edit to a source file
+   during one is an ordinary event `[R]`.
+
+   **Measured** (`[M]` 2026-10-15):
+
+   * through the memo (``ta/p8_pyc_through_memo.py``, log beside it): a
+     generator returns ``x * SCALE`` with ``SCALE = 3.0``; the edit
+     ``SCALE = 3.0`` to ``SCALE = 4.0`` keeps the file's size, and
+     ``os.utime`` puts its modification time back to the original
+     nanosecond, the state a scripted edit within one second produces. The
+     lookup after the edit is ``Stale``; the regeneration returns **4.5**
+     for ``generate(1.5)``, where **6.0** is right; the next lookup is a
+     ``Hit``, so the wrong answer is served from then on;
+   * without the memo (``ta/p1_pyc_and_pass.py``, re-run by the
+     archivist): a module ``VALUE = 111`` imported by a fresh interpreter,
+     edited to ``VALUE = 222`` with its size and modification time kept,
+     and imported again by another fresh interpreter, prints **111**.
+
+   **Hiding mechanism.** Three layers.
+
+   (a) **A miss took longer than the window.** The gate that should have
+   seen it, M3.2's row ``constant-read``
+   (``tests/gates/numerics/test_traced_memo_process.py``), edits
+   ``SCALE = 3.0`` to ``SCALE = 4.0`` after one generation and asserts the
+   regeneration returns the new answer. Its edit lands one whole
+   generation after the module's previous write, and before #602 a cheap
+   miss took 2.65 to 2.88 s, so the edit always fell in a later second and
+   the ``.pyc`` was rejected. The row was green for that reason only.
+   #602's first round brought a miss to 1.14 to 1.32 s; in the round-two
+   battery with the loader removed (arm P-a) the row is red. It was green
+   in ``8e02236f``'s own gate run (142 passed), so on today's tree its
+   reading depends on how long a miss takes, and it is not a catcher.
+   Each further cut to the price of a miss would have shrunk the margin
+   again.
+
+   (b) **The forced state is rare by hand and common by script.** A
+   human edit rarely keeps a file's size and lands within a second of the
+   previous write; an agent or a test applying edits does both routinely.
+
+   (c) **The re-read looked like the conservative choice.** Pinning the
+   file as it stands after the run reads as "pin what is there now", and
+   for a data file it is right: a data file's bytes are what the run read
+   (``DataPin``). For source code it is wrong, because the code that ran
+   was compiled earlier, from bytes the manifest never saw.
+
+   **Module:** ``orpheus/numerics/_traced_memo_boot.py`` (the pinned-source
+   loader ``_PinnedSourceLoader``, the finder ``_PinnedSourceFinder`` at
+   ``sys.meta_path[0]``, ``_install_pinned_sources``, the field
+   ``Recording.sources``), ``orpheus/numerics/traced_memo.py``
+   (``_compiled_bytes``, which ``_manifest`` now reads in place of the
+   file).
+
+   **Fix.** Before any ``orpheus`` code is imported, the boot script of a
+   generating process installs a finder at ``sys.meta_path[0]`` that
+   delegates to every other finder and gives each first-party source module
+   (outside the standard library and the site-packages directories) a
+   loader that compiles from the bytes it read and records those bytes on
+   the recording. The manifest pins exactly those bytes; a code object of a
+   source file the loader did not compile is refused as
+   ``Unpinnable``. The bytecode cache sits apart from ``__pycache__`` and
+   is keyed on the source bytes, never on a timestamp.
+
+   **Caught by:**
+   ``tests/gates/numerics/test_traced_memo_compiled_bytes.py::test_p1_a_same_size_edit_in_the_same_second_regenerates_the_new_answer``
+   (the probe as a gate: the edit with the size and the modification time
+   kept; the regeneration must return 6.0 and then validate) and
+   ``::test_p2_an_edit_landing_during_a_generation_leaves_the_entry_stale``
+   (a generator that waits on a barrier file after its import; the test
+   edits the module and releases it; the entry must be ``Stale``). Both
+   carry ``@pytest.mark.catches("ERR-115")``. `[M]` 2026-10-15, the
+   round-two battery
+   (``scratch/characteristic_architecture/p3/m602/ta/battery0/``, every
+   arm a textual edit on a copy of the tree, 125 rows of the six
+   traced-memo gate files under ``-O``): arm P-a, the loader not
+   installed, which is the unfixed defect, reddens both P1 and P2; arm
+   P-b, the bytes re-read after the run with the loader installed,
+   reddens P2 (and P7) and not P1. P-a also reddens P5, P6, P7 and the
+   five P9 rows, but those assert the fix's own machinery (the bytecode
+   cache's place, key and corruption handling, the exec refusal), which
+   is absent rather than wrong under the arm, so they carry no marker.
+
+   **Lesson.** ⭐ **Pin the bytes that were compiled, never the file as it
+   stands after the run: a pin of source code is a claim about what ran,
+   and only the process that compiled the code can make it.**

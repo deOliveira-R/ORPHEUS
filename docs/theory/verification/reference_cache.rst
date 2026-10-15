@@ -81,11 +81,19 @@ Key facts
   earlier and a monkeypatch cannot hide a dependency from the record.
   In-process memoisation in ``orpheus/`` stays as it is. The price is one
   generation per miss: the interpreter start and the imports, about
-  0.5 s, plus the manifest, which bring a cheap miss to 1.14 to 1.32 s
+  0.5 s, plus the manifest, which bring a cheap miss to 1.17 to 1.35 s
   against a 0.012 s hit (`[M]` 2026-10-15, five characteristic transport
-  blocks that take 0.03 to 0.19 s in process, three repeats). Before #602
-  the same miss cost 2.65 to 2.88 s; the section "What a miss costs"
-  below attributes it.
+  blocks that take 0.03 to 0.19 s in process, three repeats, a warm
+  bytecode cache). Before #602 the same miss cost 2.65 to 2.88 s; the
+  section "What a miss costs" below attributes it.
+* **A fresh process compiles from the bytes it pins.** A loader the boot
+  script installs before any ``orpheus`` import compiles every
+  first-party module from the bytes it reads, and the manifest pins
+  exactly those bytes, never the file read again after the run. A
+  timestamp ``.pyc`` validated by a whole-second modification time and a
+  size had let a regenerated entry hold the old answer and validate
+  (ERR-115; the section "A fresh process must compile from the bytes it
+  pins").
 * **The key is exact, finer than content equality.** It is
   :func:`~orpheus.numerics.content.encode_exact` of the function's
   identity, its signature-bound arguments (defaults applied, each declared
@@ -299,6 +307,11 @@ process per miss."* The reasons:
   the cache is warm, misses are rare, so architecture A's only advantage,
   no process boundary, rarely matters.
 
+A fresh process removes what memory could hide, and the section
+:ref:`verification-reference-cache-pinned-source-loader` below states
+what it does not remove on its own: the code it runs must be compiled
+from the bytes its manifest pins.
+
 **What crosses into the process is content, never a built object.** The
 census of 2026-10-04 (finding F1) measured the trap: unpickling a built
 ``TrajectoryResolventDerivation`` or ``Billiard`` (both deleted since)
@@ -324,6 +337,154 @@ pinned as a child of the entry being generated; a miss starts its own
 generating process. So every entry carries exactly its own record, and
 the solve that several readings share is one entry, pinned by each reading
 that read it.
+
+
+.. _verification-reference-cache-pinned-source-loader:
+
+A fresh process must compile from the bytes it pins
+---------------------------------------------------
+
+A fresh process has nothing in memory, but it does not follow that it
+runs the source files as they stand on disk. CPython does not compile an
+imported module from its source when it finds a valid ``.pyc`` in the
+module's ``__pycache__``, and the default ``.pyc`` (the timestamp form of
+PEP 552) is valid when two fields of its header match the source file:
+the source's modification time truncated to whole seconds, and its size.
+A same-size edit whose modification time falls in the same whole second
+as the write the ``.pyc`` recorded passes that check, and the interpreter
+runs the bytecode of the text before the edit.
+
+Until ``e666e58d`` the manifest pinned a first-party source file by
+reading it after the run. The two definitions of "the source of the code
+that ran" then disagreed, and the memo served a wrong answer as a hit:
+the parent's import wrote the ``.pyc``, a same-size edit with its
+modification time in the same second made the next lookup ``Stale``, the
+generating process ran the old bytecode, and the manifest pinned the new
+text. `[M]` 2026-10-15, the test-architect's probe
+``scratch/characteristic_architecture/p3/m602/ta/p8_pyc_through_memo.py``:
+a generator returning ``x * SCALE``, edited from ``SCALE = 3.0`` to
+``SCALE = 4.0``, regenerated **4.5** for ``generate(1.5)`` where **6.0**
+is right, and the next lookup was a ``Hit``. The same re-read was wrong
+without any ``.pyc``: an edit landing during a generation, after the
+module was compiled and before the manifest was written, was pinned
+beside an answer computed from the text before it. The defect is
+ERR-115 in :ref:`theory-verification-error-catalog`, with how it hid.
+
+**The repair is a loader, not a check.** The generating process compiles
+every first-party module from bytes it reads itself, and the manifest
+pins exactly those bytes (the orchestrator's ruling, 2026-10-15). The
+manifest then cannot pair an answer with a text other than the one that
+produced it, whatever the file's times are and whenever an edit lands.
+Comparing the ``.pyc`` against the source a second time would have
+narrowed the window without closing it, since the edit during a
+generation needs no ``.pyc``.
+
+The parts, all in :mod:`orpheus.numerics._traced_memo_boot`:
+
+* **What it covers.** The boot script starts the recording on its first
+  line and, before any ``orpheus`` import, calls
+  ``_install_pinned_sources``. From then on every module whose spec
+  carries a plain ``SourceFileLoader`` and whose origin lies outside the
+  standard library and the site-packages directories is compiled by
+  ``_PinnedSourceLoader``. Code in the standard library is pinned by the
+  interpreter and code in site-packages by its distribution's version,
+  never by its bytes, so it keeps the ordinary loader. An extension
+  module, a namespace package and a sourceless module are left as they
+  are (only a spec whose loader is exactly ``SourceFileLoader`` is
+  swapped).
+* **The finder is first and delegates.** ``_PinnedSourceFinder`` is
+  inserted at ``sys.meta_path[0]``. It asks every other finder on
+  ``sys.meta_path``, in order, for the module's spec, and swaps the
+  loader of the spec the first one returns. A path hook alone would see
+  only modules found on ``sys.path``, and an editable install resolves
+  ``orpheus`` through its own meta-path finder when ``sys.path`` does not
+  hold the package; a finder appended after that one would never be
+  asked. (Gates P4, a module only a meta-path finder knows, and P4b, a
+  process importing ``orpheus`` through the editable finder. `[M]` the
+  battery arm that appends the finder instead of inserting it reddens P4
+  among 58 rows.)
+* **The bytes it records.** ``get_code`` reads the source once, offers
+  the bytes to every active recording whose ``sources`` field is a
+  dictionary (keyed by the file's real path), and compiles from them.
+  ``_compiled_bytes`` in :mod:`orpheus.numerics.traced_memo` gives the
+  manifest those bytes, so the skeleton and every def digest are of the
+  text that ran.
+* **Its reads are the memo's, not the run's.** The whole body runs
+  under ``unrecorded()``. Recorded, its reads of the source would pin
+  every imported module as data, so a comment edit would make the entry
+  stale, and its read of the bytecode cache would pin a cache file
+  (gate P3; `[M]` the arm that drops ``unrecorded()`` reddens P3).
+* **The bytecode cache** lives at
+  ``.cache/bytecode/<cache_tag>-O<level>/`` under the repository root,
+  beside the reference store, one directory per interpreter and ``-O``
+  level. An entry is named by the hexadecimal BLAKE2b-256 digest of the
+  module's path, the interpreter's cache tag, the ``-O`` level and the
+  source bytes. Its content is that key (32 bytes), the BLAKE2b-256
+  digest of the payload (32 bytes) and the payload, the code object
+  serialised by ``marshal``. The ``-O`` level is part of both the
+  directory and the key because ``-O`` acts at compile time: it makes
+  ``__debug__`` a false constant the compiler folds and removes every bare
+  ``assert``, so one source compiles to two different code objects, and
+  an entry shared between the levels would serve one level's code to the
+  other (gate P6, a generator returning
+  ``x + (1.0 if __debug__ else 2.0)`` generated at both levels; `[M]` the
+  arm that fixes the level at 1 in the directory and the key reddens P6).
+* **A corrupt or foreign entry is recompiled, never run.** An entry is
+  run only if its first 32 bytes equal the key computed from the bytes
+  just read and its second 32 bytes equal the digest of the rest. Any
+  read error, a short file, a flipped bit in the payload or in the stored
+  digest, and another file's entry copied under this name all fall
+  through to a compile (gate P9, five rows; `[M]` the arm that replaces
+  both comparisons with a length check reddens the stored-digest row and
+  the copied-entry row). The key carries the source bytes, so an entry of
+  an old text is never found for a new one: the cache cannot be stale,
+  only corrupt, and corruption is detected.
+* **The write is atomic.** A compiled entry is written to
+  ``<entry>.<pid>.<thread id>.part`` and moved into place with
+  ``os.replace``, so a concurrent reader finds a whole entry or none,
+  never a part (gate P8: two processes each delete the entry and compile
+  one module 200 times while the test process reads the entry as fast as
+  it can, and every read that finds the file finds a whole entry; the
+  file is the instrument, because the loader recompiles a partial entry
+  silently and no answer can show it; `[M]` the arm that writes straight
+  to the entry's name reddens P8). A write that fails (a read-only checkout) is ignored: the
+  module was compiled, and the next process compiles it again.
+* **Why apart from** ``__pycache__``. The ``__pycache__`` files are the
+  ones validated by timestamp, which is the hazard; they are also what
+  every ordinary import, the test process's included, reads and writes,
+  so a generation leaves them alone (gate P5: a module only the
+  generation imports leaves no ``.pyc`` in its ``__pycache__``, and its
+  code is in the bytecode cache under its key, in the format above). The
+  entry is not a ``.pyc`` of any form: the round-two specification had
+  named CPython's checked-hash ``.pyc``, and the shipped format carries
+  its key and the digest of its payload instead.
+
+**Code the loader did not compile is refused.** In a generating process a
+code object whose file is a first-party source the loader never compiled
+(an ``exec`` of a file read by hand, ``runpy``) has no recorded bytes, and
+a re-read after the run is the very pin this section removes, so
+``_compiled_bytes`` raises
+:class:`~orpheus.numerics.traced_memo.Unpinnable`, naming exec and runpy
+(gate P7). `[M]` the test-architect's AST census over the 390 files of
+``orpheus/`` (``ta/p9_exec_census.py``, its positive controls found all 8
+spellings): 4 calls of ``exec``, ``eval``, ``compile``, ``runpy.*``,
+``spec_from_file_location``, ``exec_module`` or ``SourceFileLoader``, and
+0 of the 4 compile a first-party file (two are ``re.compile``, and
+``numerics/mesh_free_function.py`` evaluates a syntax tree under the
+filename ``<srepr>``, which the manifest drops). No generator relies on
+the refused case.
+
+**What it costs.** `[M]` 2026-10-15
+(``scratch/characteristic_architecture/p3/m602/run_after_loader.log``
+against ``run_after_abcd1.log``, the fixture of
+:ref:`verification-reference-cache-miss-cost`, three repeats, a warm
+bytecode cache): the median time to spawn and finish a generation rose
+by 3 to 35 ms per block, 21 ms on average over the five blocks. Reading
+the source and computing one BLAKE2b digest per module is the added
+work; the compile itself is skipped by the bytecode cache as the
+``.pyc`` skipped it before. The cost of a cold bytecode cache, a
+compile of every first-party module the generation imports, is not
+measured.
 
 
 .. _verification-reference-cache-key:
@@ -605,7 +766,30 @@ syntax tree with line and column attributes excluded and every docstring
 removed, so a comment, a layout change or a docstring edit never moves the
 digest (the user's ruling of 2026-10-04, question 4: a docstring edit
 cannot change an answer). Hashing source rather than bytecode lets
-validation parse the current files without importing them.
+validation parse the current files without importing them. The source a
+generating process hashes is the bytes it compiled, recorded by its
+loader, never the file read again after the run
+(:ref:`verification-reference-cache-pinned-source-loader`).
+
+**A body that was only a docstring reads as** ``pass``, placed at the
+docstring's lines, so the first line of such a def's body is still a line
+of the file. ``_def_pin`` reads that line to tell a code object generated
+from the def's signature (its ``__annotate__``) from one of its body.
+Until ``e666e58d`` the substituted ``pass`` carried no location, and
+``_def_pin`` raised ``AttributeError`` on the ``__annotate__`` code object
+of such a def, the case of a ``typing.Protocol`` method stub whose
+annotations a generator reads (`[M]` 2026-10-15, the test-architect's
+``scratch/characteristic_architecture/p3/m602/ta/p1_pyc_and_pass.py``;
+present since ``99897d10``). The generation failed loudly; no entry was
+written. Gate A1 is that generation, which must succeed with a
+``ModulePin`` and no ``DefPin`` for the stub, whose body never ran. Gate
+A2 shows the location moves no digest: over every tracked Python file
+with a docstring-only body, the strip's digests equal those of the same
+text with each such docstring replaced by ``pass``. `[M]` 2026-10-15,
+``scratch/characteristic_architecture/p3/m602/a2_arm.py``, in process: A2
+is green on the tree, and red when the strip substitutes
+``Expr(Constant(None))`` in place of ``pass`` (38 of 38 such files digest
+unlike ``pass``).
 
 **One walk finds every outermost def.** The pinned unit is the outermost
 def: a nested function, a lambda or a comprehension inside a def is pinned
@@ -1272,16 +1456,23 @@ unchanged files recomputed by every fresh process:
 * **Every def was digested.** Each of the 129 source files the run
   touched was parsed twice and stripped of docstrings twice, and all 1 948
   of their defs were dumped and digested, when 247 ran. A def's digest is
-  now computed when a pin asks for it, the file is parsed once, and the
-  skeleton is read from the same tree with each outermost def body
-  swapped for ``pass`` and put back before the tree is shared. The
-  docstring strip descends statements only (a docstring is the first
-  statement of a module, class or def body), where it walked every
-  expression node.
+  now computed when a pin asks for it, and the file is parsed once. The
+  skeleton is the digest of a shallow copy of the module's statement
+  spine in which every outermost def's body reads as ``pass``, so the
+  parsed tree, which the defs' digests are later computed from, is never
+  changed. (``8e02236f`` first swapped each body for ``pass`` in the
+  shared tree and put it back; the elegance review found that a digest
+  computed lazily during the swap would read a hollowed body, and
+  ``e666e58d`` replaced the swap with the copy.) The docstring strip
+  descends statements only (a docstring is the first statement of a
+  module, class or def body), where it walked every expression node.
 * **A distribution's version was looked up per code object**: 1 245
   lookups for 6 distributions, 0.64 s, each re-reading the metadata. It
-  is now looked up once per distribution in a manifest, and once per
-  distribution in a validation.
+  is now looked up once per distribution, through one cache,
+  ``_Checkout.version``, which lives for one manifest or one validation,
+  so the manifest and the validation read a version by one definition. A
+  distribution that owns a file the run touched and has no installed
+  version is ``Unpinnable`` (``_distribution_pin``).
 * **The child freed its objects before exiting** (0.33 s). The boot
   script now ends with ``os._exit(0)`` once the answer is written and
   both standard streams are flushed.
@@ -1289,10 +1480,20 @@ unchanged files recomputed by every fresh process:
 None of the three changes what an entry pins: over every tracked Python
 file (1 234 files, 15 515 defs) the old and the new parse give identical
 skeleton and def digests, with controls that a body edit moves only the
-def's digest and a constant edit only the skeleton's.
+def's digest and a constant edit only the skeleton's. The same
+comparison after ``e666e58d`` (1 234 files, 15 522 defs) found 0
+mismatches against the original parse.
 
 After the cuts a miss is 1.14 to 1.16 s (one region) and 1.31 to 1.32 s
-(three regions); a hit is unchanged at about 0.012 s. On the 431 not-slow
+(three regions); a hit is unchanged at about 0.012 s. The pinned-source
+loader of ``e666e58d`` (:ref:`verification-reference-cache-pinned-source-loader`)
+then added 3 to 35 ms per block to the median generation, 21 ms on
+average over the five blocks, which brings a cheap miss to 1.17 to
+1.20 s (one region) and 1.33 to 1.35 s (three regions) with a warm
+bytecode cache (`[M]` 2026-10-15, ``run_after_loader.log`` against
+``run_after_abcd1.log`` in the same directory, the first miss of each
+process excluded, since its read-back costs about 0.26 s more). The
+timing table below predates the loader. On the 431 not-slow
 rows of the system, reading and assembly gates, in a fresh worktree of
 the commit (an empty store), one serial run each:
 
@@ -1418,6 +1619,33 @@ what the generator contract excludes (the section above):
   another checkout, the child imports from it only when ``sys.path`` does
   not already hold ``orpheus``; M3.8 shows the path wins, and the main tree
   is always on it under ``pytest``.
+* **Code of a source file the loader did not compile.** In a generating
+  process an ``exec`` of a first-party file read by hand, or ``runpy``,
+  produces code whose bytes no loader recorded; a re-read after the run
+  could pin bytes that never ran, so the manifest refuses it as
+  :class:`~orpheus.numerics.traced_memo.Unpinnable` (gate P7). No
+  generator in ``orpheus/`` does it (`[M]` the census in
+  :ref:`verification-reference-cache-pinned-source-loader`).
+* :func:`~orpheus.numerics.traced_memo.trace_call` **keeps the re-read,
+  and with it the window.** The in-process instrument has no loader: the
+  modules it runs were imported before it was called, possibly from a
+  timestamp ``.pyc``, so it pins a source file by reading it after the
+  call (gate P7b), and a same-size edit within one second of the previous
+  write, or an edit during the call, can be pinned beside an answer
+  computed from the text before it. It writes no entry; it is the
+  instrument the gates measure the recorder with.
+* **The modules imported before the loader.** The boot script and what
+  the interpreter's start imported (``site`` runs an editable install's
+  finder module, a file the installer generates, which the manifest pins
+  by its bytes) were compiled before the loader existed. Their bytes are
+  read when the loader is installed, the closest the process can come to
+  the moment they were compiled. The boot script runs as ``__main__``,
+  which CPython compiles from its source and never from a ``.pyc``, so
+  its exposure is the instant between its compile and that read `[R]`.
+  The finder module is imported like any other module, so a same-size
+  rewrite of it within the second of its previous write leaves the
+  stale ``.pyc`` hazard of ERR-115 open for it `[R]`; it is rewritten
+  only by a reinstall.
 * **The correctness of the answer.** The memo makes a reading cheap; it
   certifies nothing (the section on the certificate above).
 
@@ -1684,6 +1912,18 @@ Each limit is a phase of #405 in the plan of record
 * **The shipped memo's suite timings are not measured.** The figures above
   are the prototype's; the protocol of the specification's section 3
   (cold, warm and bypassed, serially, three runs each) is owed.
+* **Nothing prunes the store or the bytecode cache.** An entry of the
+  reference store whose pins no longer validate is regenerated under the
+  same name, but an entry no key will ask for again (an argument no
+  caller passes any more) stays; every source text any generation has
+  compiled keeps its entry under ``.cache/bytecode/``, one per text, per
+  interpreter and per ``-O`` level. Both grow without bound until
+  removed by hand: #603. `[M]` 2026-10-15, as filed there: after the
+  per-group block memo was renamed (``transport_block`` to
+  ``group_transport``) the store held 261 entries under the old function
+  id that nothing reads, and the bytecode cache held 366 entries after
+  one timing run. Neither growth can serve a wrong value: a stale entry
+  reads ``Stale``, and a bytecode entry runs only under its own key.
 
 
 What was tried and failed: the review round
@@ -2064,6 +2304,20 @@ the memo. The 2026-10-04 rows sat on the branch
      - Issue
      - Where
    * - 2026-10-15
+     - **A generation compiles from the bytes it pins** (#602, round
+       two). A loader installed at ``sys.meta_path[0]`` by the boot script
+       compiles every first-party module from the bytes it reads, keeps
+       its bytecode in a content-keyed cache apart from ``__pycache__``,
+       and records the bytes, which the manifest pins; code of a file it
+       did not compile is refused. It closes ERR-115, a regenerated entry
+       that held the old answer and validated (a timestamp ``.pyc``; an
+       edit during a generation). A docstring-only def no longer makes
+       ``_def_pin`` raise. The review fixes of ``8e02236f``: the skeleton
+       from a shallow copy, one version lookup. Gates P1 to P9, P4b, P7b,
+       A1, A2; a cheap miss 1.17 to 1.35 s.
+     - #602
+     - ``e666e58d``
+   * - 2026-10-15
      - **A miss costs half as much** (#602): each touched file is parsed
        once, a def is digested only when a pin asks, a distribution's
        version is read once per manifest and per validation, and the
@@ -2087,7 +2341,7 @@ the memo. The 2026-10-04 rows sat on the branch
        the characteristic reading and its solve are the memo's clients,
        and the client gates (M4.1b to M4.8) were re-posed on them.
      - #405
-     - *(in development)*
+     - ``5aa8cb88``
    * - 2026-10-10
      - **A set is keyed by its elements' order, not its iteration order**,
        and the generator contract gains the clause that a memoised

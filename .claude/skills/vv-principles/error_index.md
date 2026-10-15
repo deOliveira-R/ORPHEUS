@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**114 entries · 373 catching tests · 2 uncaught · 5 dormant.**
+**115 entries · 375 catching tests · 2 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-115` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-115")`.
+Append a `.. error-entry:: ERR-116` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-116")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -163,3 +163,4 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-112 | 3 |  | The hollow cylinder's compute_G_bc_inner integrated the surface-centred Ki_1/d form over φ ∈ [0… |
 | ERR-113 | 1 |  | compute_hollow_cyl_transmission returned W_oo = −inf for every Σ_t > 0, because the argument 2Σ… |
 | ERR-114 | 1 |  | The rank-1 Peierls compute_G_bc on the cylinder used the surface-centred Ki_1/d form, which rea… |
+| ERR-115 | 2 |  | A regenerated traced-memo entry held the OLD answer and validated: the generating process ran t… |
