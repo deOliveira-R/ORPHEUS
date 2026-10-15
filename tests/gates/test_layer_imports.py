@@ -412,12 +412,20 @@ def test_the_linter_admits_each_allowed_edge(rel: str, source: str) -> None:
 # under `derivations/continuous/` or `derivations/common/` imports from
 # `orpheus.numerics` only the vocabulary it shares with its consumers (the
 # question, the observables, the answer function, content identity, the
-# traced memo); its mathematics is the reference kernel's
+# traced memo, and the scalar parsers that define the values content
+# identity encodes); its mathematics is the reference kernel's
 # (`orpheus/derivations/common/dense_pencil.py`, `quadrature.py`), on numpy,
 # scipy and mpmath. A change to this set is a contract change.
+#
+# `scalars` joined at #405 P3 step 2c (C1): a reference normalises a key
+# argument at its definition site with the rule the content encoder applies
+# (`canonical_reals`, `parse_real`), so the key and the stored value agree.
+# The module is a leaf importing nothing from `orpheus`, and `content` already
+# imports it; it parses (NaN refused, -0.0 made +0.0) and computes nothing a
+# reference's value depends on.
 
 REFERENCE_INTERFACE_NUMERICS: frozenset[str] = frozenset(
-    {"question", "observable", "mesh_free_function", "content", "traced_memo"}
+    {"question", "observable", "mesh_free_function", "content", "scalars", "traced_memo"}
 )
 
 _CLOSED_REFERENCE_ROOTS: tuple[str, ...] = ("derivations/continuous/", "derivations/common/")

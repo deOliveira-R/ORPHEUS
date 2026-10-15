@@ -167,7 +167,10 @@ def _solve_entries(root: Path) -> list[Path]:
 
 
 #: What the solve runs and the reading, since #592, does not: the closure's least solution and the pencil's mode.
-_SOLVE_ONLY = {"LinePeriod.inflow", "DensePencil.fundamental"}
+_SOLVE_ONLY = {"DensePencil.fundamental"}
+#: What the solve's blocks run, in their own entries since C1 (a block is a child entry of the solve).
+_BLOCK_ONLY = {"LinePeriod.inflow", "LineRule.transport", "TraversalRule.on_chord"}
+BLOCK_ID = "orpheus.derivations.continuous.characteristic.assembly:group_transport"
 #: What every reading of a derivation runs in its own process: the derivation's construction.
 _CONSTRUCTION = {"CharacteristicDerivation.__post_init__", "Walls.of", "PanelBasis.of", "RegionCrossSections.of",
                  "GalerkinSystem.__post_init__"}
@@ -211,7 +214,10 @@ def test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pi
     solve_functions = {q for _, q, *_ in api.manifest_rows(solve, "DefPin")}
     assert _SOLVE_ONLY <= solve_functions, sorted(_SOLVE_ONLY - solve_functions)
     assert "polar_rule" not in solve_functions
-    assert api.manifest_rows(solve, "ChildPin") == []
+    solve_children = api.manifest_rows(solve, "ChildPin")
+    assert sorted(c[0] for c in solve_children) == [BLOCK_ID] * 2, solve_children          # one block per group
+    assert len({c[1] for c in solve_children}) == 2, solve_children
+    assert not (_BLOCK_ONLY & solve_functions), sorted(_BLOCK_ONLY & solve_functions)    # the direct route is absent
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_clients.py::test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve')
@@ -239,7 +245,7 @@ def test_m4_11_two_observables_of_one_cold_derivation_share_one_solve(tmp_path):
         _tiny_characteristic_sphere().evaluate(PointValue(position=0.4, group=1))
     readings = _characteristic_entries(tmp_path)
     assert len(readings) == 2, readings
-    keys = {c[1] for f in readings for c in api.manifest_rows(api.read_entry(f), "ChildPin")}
+    keys = {c[1] for f in readings for c in api.manifest_rows(api.read_entry(f), "ChildPin") if c[0] != BLOCK_ID}
     assert keys == {solves[0].stem}, keys
     assert _solve_entries(tmp_path) == solves
     again = solves[0].stat()
@@ -486,7 +492,7 @@ def test_m4_11b_m4_12b_a_parent_at_another_hash_seed_shares_the_readings_solve(t
     assert rows["LOOKUP"] == "Hit", (seed, rows["LOOKUP"])
     assert len(solves) == 1, solves
     assert solves[0].stem == rows["PARENT_KEY"]
-    keys = {c[1] for f in readings for c in api.manifest_rows(api.read_entry(f), "ChildPin")}
+    keys = {c[1] for f in readings for c in api.manifest_rows(api.read_entry(f), "ChildPin") if c[0] != BLOCK_ID}
     assert keys == {rows["PARENT_KEY"]}, keys
 
 
@@ -498,3 +504,37 @@ def test_m4_11b_the_iteration_order_arm_splits_the_parent_from_the_readings(tmp_
     rows = _gauge_driver(tmp_path, seed, "run", arm="iteration-order")
     assert rows["LOOKUP"] == "Absent", rows["LOOKUP"]
     assert len(_solve_entries(tmp_path / f"cache-{seed}-iteration-order")) == 2
+
+
+def _block_entries(root):
+    return [f for f in api.entry_files(root) if api.entry_function(f) == BLOCK_ID]
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_clients.py::test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve',
+                      'tests/gates/derivations/test_characteristic_block_memo.py::test_b4_a_block_entry_pins_the_kernel_and_none_of_its_consumers')
+def test_m4_14_a_point_reading_pins_the_blocks_as_children_and_assembles_none(tmp_path):
+    """C1, B7: on a cold root, a point value of the tiny two-group sphere writes the solve, one block per group and the
+    reading. The reading entry's ``ChildPin`` rows are the solve and the SAME two block keys the solve pins (the reading
+    reads each group's block from the entry the solve's generation wrote: ``system.point_flux`` reads
+    ``GalerkinSystem.groups``); its own manifest holds no def of the block assembly (``LineRule.of``,
+    ``LineRule.transport``, ``DiffuseWalls.of``: the direct route is absent, lessons L105), while it still holds the
+    point rule's own line work (``PointRule.row``). The store holds exactly two block entries.
+
+    First red: today's tree (``[M]`` 2026-10-14, ``memo/manifest_probe.log``: the PointValue reading pins
+    ``LineRule.transport``, ``Lines.chunks`` and ``GalerkinSystem.groups`` and has the solve as its only child)."""
+    from orpheus.numerics.observable import PointValue
+
+    with api.cache_root(tmp_path):
+        _tiny_characteristic_sphere().evaluate(PointValue(position=0.4, group=1))
+    (reading,) = [api.read_entry(f) for f in _characteristic_entries(tmp_path)]
+    (solve,) = [api.read_entry(f) for f in _solve_entries(tmp_path)]
+    blocks = _block_entries(tmp_path)
+    assert len(blocks) == 2, blocks
+    block_keys = sorted(f.stem for f in blocks)
+    reading_children = api.manifest_rows(reading, "ChildPin")
+    assert sorted(c[0] for c in reading_children) == sorted([api.spelled_function_id("characteristic_solve")] + [BLOCK_ID] * 2), reading_children
+    assert sorted(c[1] for c in reading_children if c[0] == BLOCK_ID) == block_keys
+    assert sorted(c[1] for c in api.manifest_rows(solve, "ChildPin")) == block_keys
+    functions = {q for _, q, *_ in api.manifest_rows(reading, "DefPin")}
+    assert not ({"LineRule.of", "LineRule.transport", "DiffuseWalls.of"} & functions), sorted(functions)
+    assert "PointRule.row" in functions

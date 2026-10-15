@@ -373,6 +373,19 @@ the theory page resolve to links.
    :members:
    :show-inheritance:
 
+Rigid motions and permutations
+------------------------------
+
+:class:`~orpheus.geometry.transformation.RigidMotion` is an isometry
+:math:`x \mapsto Qx + t` of :math:`\mathbb{R}^d`, a content value since
+#405 P3 step 2c: equal linear parts and translations are one motion, one
+hash and one memo key. :class:`~orpheus.geometry.transformation.Permutation`
+is the action such a motion induces on a finite point set.
+
+.. automodule:: orpheus.geometry.transformation
+   :members:
+   :show-inheritance:
+
 The geometric extent
 --------------------
 

@@ -87,8 +87,13 @@ _SEED_SCRIPT = textwrap.dedent(
     from orpheus.numerics.content import content_digest
     from orpheus.numerics.space import FunctionSpace
 
+    from orpheus.derivations.continuous.characteristic import PanelBasis
+    from orpheus.geometry.chart import Chart
+    from orpheus.geometry.chord import ConcentricPartition
+
     print("FILE", orpheus.__file__)
     values = {
+        "panel basis": PanelBasis.of(ConcentricPartition(Chart(CoordSystem.SPHERICAL), (0.0, 0.5, 2.0)), 3, 2, 0.4),
         "mixture A 4g": get_mixture("A", "4g"),
         "materials": Materials({0: get_mixture("A", "2g"), 3: get_mixture("B", "2g")}),
         "bc albedo": BC("albedo", {"albedo": 0.3}),
@@ -131,7 +136,7 @@ def test_s5_1_digests_and_hashes_are_seed_stable() -> None:
     files = [line.split(" ", 1)[1] for line in one if line.startswith("FILE ")]
     require(files and files[0].startswith(str(_ROOT)), f"the subprocess imported {files} (L22)")
     pick = lambda lines, kind: [l for l in lines if l.startswith(kind + " ")]  # noqa: E731
-    for kind, n in (("DIGEST", 5), ("HASH", 5), ("NAME", 1)):
+    for kind, n in (("DIGEST", 6), ("HASH", 6), ("NAME", 1)):
         require(len(pick(one, kind)) == n, f"{kind}: {len(pick(one, kind))} lines, expected {n}")
         require(pick(one, kind) == pick(two, kind), f"{kind} lines differ across seeds")
     unhashable = [l for l in pick(one, "HASH") if " UNHASHABLE " in l]

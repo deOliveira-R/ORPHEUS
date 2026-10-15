@@ -34,6 +34,7 @@ battery arm (``scratch/characteristic_architecture/p1_step_b5/ta/battery/``).
 """
 from __future__ import annotations
 
+import pickle
 from collections.abc import Callable
 from functools import lru_cache
 from typing import Any
@@ -65,8 +66,9 @@ from orpheus.reference.reading import Uncertified
 from orpheus.reference.solution import ReferenceSolution
 from orpheus.specification.specification import GeometrySpecification, InfiniteMediumSpecification
 from tests.gates._content_identity_helpers import (
-    Entry, check_equal_pair, check_perturbation, check_population, leg, pair_ids, param_id, perturbation_ids,
+    Entry, check_equal_pair, check_perturbation, check_pickle, check_population, leg, pair_ids, param_id, perturbation_ids,
 )
+from orpheus.numerics.content import content_digest, encode_exact
 from tests.gates.derivations.test_characteristic_system import (
     _ABS, _ADJ_ABSORBER, _ADJ_FUEL, _ADJ_REFLECTOR, _MIRROR, _N2N, _PU2, _SELF_ONLY, _UP2N, _URRB, _VACUUM,
     _fission_by_hand, _scattering_by_hand, _walls, _zero_d,
@@ -354,15 +356,19 @@ def _two_fissile(question: Any) -> GeometrySpecification:
 
 
 def _count_line_rules(monkeypatch: pytest.MonkeyPatch) -> list[int]:
-    """A spy on ``LineRule.of``, the start of every transport block's assembly: one entry per call."""
-    calls: list[int] = []
-    original: Any = LineRule.of
+    """A spy on ``group_transport`` as the system binds it, the start of every transport block's assembly whether the
+    block is served, generated or (under ``bypass()``) computed here: one entry per call. Until C1 it spied
+    ``LineRule.of``, which a memoised block runs in another interpreter (gate_spec.md §4)."""
+    from orpheus.derivations.continuous.characteristic import system as system_module
 
-    def counting(cls: Any, *args: Any, **kwargs: Any) -> Any:
+    calls: list[int] = []
+    original: Any = system_module.group_transport
+
+    def counting(*args: Any, **kwargs: Any) -> Any:
         calls.append(1)
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(LineRule, "of", classmethod(counting))
+    monkeypatch.setattr(system_module, "group_transport", counting)
     return calls
 
 
@@ -1190,7 +1196,41 @@ def _resolution_with(**changes: Any) -> Resolution:
                           "source_points": 10} | changes))
 
 
+# ── C1 (#405 P3 step 2c): paste into tests/gates/derivations/test_characteristic_reference.py ─────────────────
+# The PanelBasis entry joins ROSTER; the two rows follow the C1 rows of the roster. Imports to add: pickle;
+# from orpheus.numerics.content import content_digest, encode_exact; from orpheus.geometry.chart import Chart;
+# from orpheus.geometry.chord import ConcentricPartition; from orpheus.geometry.transformation import RigidMotion.
+
+_PB_REGIONS = (0.0, 0.5, 1.5, 2.0)
+
+
+def _panel_basis(regions=_PB_REGIONS, extra: tuple[float, ...] = (), degree: int = 3) -> PanelBasis:
+    """A basis built by its constructor: the body's partition, its panel ends (the regions plus ``extra``), a degree."""
+    chart = Chart(CoordSystem.SPHERICAL)
+    ends = tuple(sorted(set(_PB_REGIONS) | set(extra)))
+    return PanelBasis(ConcentricPartition(chart, tuple(regions)), ConcentricPartition(chart, ends), degree)
+
+
+_PANEL_BASIS = Entry(
+    cls=PanelBasis,
+    base=lambda: _panel_basis(extra=(1.0,)),
+    parts=("regions", "partition", "degree"),
+    perturb={
+        "regions": (leg("a coarser body", lambda: _panel_basis(regions=(0.0, 1.5, 2.0), extra=(1.0,))),),
+        "partition": (leg("another panel end", lambda: _panel_basis(extra=(1.0, 1.75))),),
+        "degree": (leg("another degree", lambda: _panel_basis(extra=(1.0,), degree=2)),),
+    },
+    pairs=(
+        ("two builds", lambda: _panel_basis(extra=(1.0,)), lambda: _panel_basis(extra=(1.0,))),
+        ("of() built twice", lambda: PanelBasis.of(ConcentricPartition(Chart(CoordSystem.SPHERICAL), _PB_REGIONS), 3, 2, 0.4),
+         lambda: PanelBasis.of(ConcentricPartition(Chart(CoordSystem.SPHERICAL), (0, 0.5, 1.5, 2)), 3, 2, 0.4)),
+    ),
+)
+
+
+
 ROSTER: tuple[Entry, ...] = (
+    _PANEL_BASIS,
     Entry(
         cls=TransportResolution,
         base=lambda: TransportResolution(8),
@@ -1547,3 +1587,66 @@ def test_the_reference_module_imports_the_reference_package_and_no_higher_layer(
             names.add(node.module)
     assert any(n.startswith("orpheus.reference") for n in names), names
     assert not [n for n in names if n.startswith(forbidden)], names
+
+
+
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("entry", [e for e in ROSTER if e.pickles], ids=[e.id for e in ROSTER if e.pickles])
+def test_c1_a_pickled_value_is_rebuilt_through_its_constructor(entry: Entry) -> None:
+    """[C1-P] The roster's values round-trip a pickle equal, with equal hash and digest (``check_pickle``, as the other
+    rosters run it; the characteristic roster had no pickle row before C1)."""
+    check_pickle(entry)
+
+
+@pytest.mark.foundation
+def test_c1_a_basis_derived_state_is_not_content_and_a_pickle_re_runs_the_laws() -> None:
+    """[C1-D] A basis whose cached properties have been computed (the nodes, the mass, the region of each panel, the
+    Lagrange tables) has the digest, the hash, the exact (memo) key and the pickle bytes of a fresh equal basis: derived
+    state is not content and does not travel. A basis whose partition no longer refines its regions (written past the
+    frozen guard after construction) fails to unpickle with the constructor's own refusal: a pickle re-runs the laws.
+
+    First reds: today's tree (the default dataclass pickle carries ``_lagrange``, ``_reference_nodes``, ``even``,
+    ``mass``, ``panel_mass`` and ``region_of_panel``: 25 030 bytes against 872 through the constructor, ``[M]``
+    2026-10-14 ``probe_q5_pickle.log``; and it restores the corrupted state without a refusal)."""
+    used, fresh = _panel_basis(extra=(1.0,)), _panel_basis(extra=(1.0,))
+    for name in ("nodes", "mass", "region_of_panel", "even"):
+        getattr(used, name)
+    assert {"nodes", "mass"} <= set(vars(used)), "activation: the cached properties were not computed"
+    assert content_digest(used) == content_digest(fresh) and hash(used) == hash(fresh)
+    assert encode_exact(used) == encode_exact(fresh)
+    assert pickle.dumps(used) == pickle.dumps(fresh)
+    broken = _panel_basis(extra=(1.0,))
+    object.__setattr__(broken, "regions", ConcentricPartition(Chart(CoordSystem.SPHERICAL), (0.0, 0.7, 2.0)))
+    with pytest.raises(ValueError, match="refine the body's breakpoints"):
+        pickle.loads(pickle.dumps(broken))
+
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("pair", [
+    pytest.param((lambda: TransportResolution(np.int64(4)), lambda: TransportResolution(4)), id="resolution-numpy-int"),  # pyright: ignore[reportArgumentType]
+    pytest.param((lambda: _panel_basis(extra=(1.0,), degree=np.int64(3)), lambda: _panel_basis(extra=(1.0,))), id="basis-numpy-int-degree"),  # pyright: ignore[reportArgumentType]
+])
+def test_c1_one_count_is_one_memo_key(pair) -> None:
+    """[C1-K, the counts] A numpy integer and a Python int of one count are one value AND one exact (memo) encoding:
+    ``TransportResolution`` and ``PanelBasis`` store ``operator.index`` of their count, which is what lets the memo drop its
+    ``operator.index`` canonical forms (the elegance review, 2026-10-15). First red: arm ``index-normalisation-removed``
+    (the constructors store the count as given: ``encode_exact`` tags ``np.int64`` apart from ``int``)."""
+    a, b = pair[0](), pair[1]()
+    assert a is not b
+    assert content_digest(a) == content_digest(b) and a == b
+    assert encode_exact(a) == encode_exact(b), f"{type(a).__qualname__}: one count, two memo keys"
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("build", [
+    pytest.param(lambda: TransportResolution(4.0), id="resolution-a-float"),  # pyright: ignore[reportArgumentType]
+    pytest.param(lambda: _panel_basis(extra=(1.0,), degree=3.0), id="basis-a-float-degree"),  # pyright: ignore[reportArgumentType]
+])
+def test_c1_a_count_that_is_not_an_integer_is_refused(build) -> None:
+    """[C1-K, the refusal] ``operator.index`` refuses a float count (``4.0`` is not an index), so a float can never key
+    beside its integer. First red: arm ``index-normalisation-removed`` (the float constructs)."""
+    with pytest.raises(TypeError, match="cannot be interpreted as an integer"):
+        build()

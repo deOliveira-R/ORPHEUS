@@ -33,10 +33,10 @@ there would be a source on the lossless lines a mirror traps in the void,
 which has no finite flux. A region void in the group that does emit in it
 (another group scatters or fissions into it there) does get a column, and
 under a mirror the trapped source is refused, because its flux is infinite.
-Without the emission, :meth:`LineRule.transport` takes the regions with
-:math:`\Sigma_t > 0`; the multigroup system passes each group's emission
-support (:class:`~.system.GalerkinSystem`). The rows span every panel: the
-flux is read everywhere.
+The caller passes the mask, since :meth:`LineRule.transport` takes no
+default: the multigroup system passes each group's emission support joined
+with the source regions (:class:`~.system.GalerkinSystem`). The rows span
+every panel: the flux is read everywhere.
 
 **The rule over lines** (:class:`LineRule`) is graded from the group's
 optical scale, by the law the traversal rule follows along a line: a piece
@@ -73,13 +73,17 @@ chunk whose rule exceeds the piece budget is halved until it fits.
 
 from __future__ import annotations
 
+import operator
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 from orpheus.geometry.chart import LineShape
 from orpheus.numerics.content import ContentIdentity
+from orpheus.numerics.scalars import canonical_reals
+from orpheus.numerics.traced_memo import traced_memo
 
 from .basis import PanelBasis
 from .closure import FULL_SOLID_ANGLE, DiffuseWalls, WallCoupling
@@ -107,6 +111,7 @@ class TransportResolution(ContentIdentity):
     line_points: int
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "line_points", operator.index(self.line_points))  # one count, one memo key
         if self.line_points < 1:
             raise ValueError(f"every rule takes at least one point per piece; got {self}")
 
@@ -165,13 +170,13 @@ class LineRule:
         cls,
         basis: PanelBasis,
         walls: Walls,
-        sigma_t: np.ndarray,
+        sigma_t: ArrayLike,
         points: int,
         chunk: int = 512,
         budget: int = 1024,
     ) -> "LineRule":
         r"""The rule for the group of total cross sections ``sigma_t`` (per region), ``points`` per piece of every coordinate."""
-        sigma_t = np.asarray(sigma_t, dtype=float)
+        sigma_t = _total_cross_sections(sigma_t)
         domain = basis.regions.chart.line_domain()
         ends = np.asarray(basis.partition.breakpoints)
         sigma = basis.on_panels(sigma_t)
@@ -196,10 +201,12 @@ class LineRule:
         weights = weights * domain.density(lines) / FULL_SOLID_ANGLE
         return cls(Lines(basis, walls, sigma_t, coordinates, speeds, weights, levels, basis.partition, chunk, budget).ordered())
 
-    def transport(self, support: np.ndarray | None = None) -> GroupTransport:
+    def transport(self, support: ArrayLike) -> GroupTransport:
         r"""The group's transport block (:class:`TraversalRule` along each line).
 
-        ``support`` masks the emitting regions, ``(n,)``; by default the regions with :math:`\Sigma_t > 0`.
+        ``support`` masks the emitting regions, ``(n,)``: the caller resolves it (the system's is
+        :meth:`~.cross_sections.RegionCrossSections.emission_support` joined with the source regions), so the
+        block has one definition of where emission lives.
 
         **Two tallies.** The line part, :math:`R` and :math:`U` are read on
         each line's forward traversals: a point of the line domain is an
@@ -227,7 +234,7 @@ class LineRule:
         """
         lines = self.lines
         basis, sigma_t = lines.basis, lines.sigma_t
-        emitting = sigma_t > 0.0 if support is None else np.asarray(support, dtype=bool)
+        emitting = _region_mask(support)
         columns = np.flatnonzero(np.repeat(basis.on_panels(emitting), basis.per_panel))
         diffuse = DiffuseWalls.of(lines.walls, basis.partition)
         walls_at = diffuse.breakpoint
@@ -263,4 +270,32 @@ class LineRule:
         return GroupTransport(line, coupling, columns)
 
 
-__all__ = ["GroupTransport", "LineRule", "TransportResolution"]
+def _total_cross_sections(sigma_t: ArrayLike) -> np.ndarray:
+    """A group's total cross sections per region, as the line rule reads them: ``float64``, ``-0.0`` folded."""
+    return canonical_reals(np.asarray(sigma_t), "the total cross sections")
+
+
+def _region_mask(support: ArrayLike) -> np.ndarray:
+    """A mask over the regions, as the block reads it."""
+    return np.asarray(support, dtype=bool)
+
+
+@traced_memo(canonical={"sigma_t": _total_cross_sections, "support": _region_mask})
+def group_transport(
+    basis: PanelBasis, walls: Walls, sigma_t: ArrayLike, resolution: TransportResolution, support: ArrayLike
+) -> GroupTransport:
+    r"""One group's transport block, memoised on disk: :meth:`LineRule.transport` of :meth:`LineRule.of`.
+
+    The block is the reference's dominant cost and a function of the basis, the walls, the group's
+    :math:`\Sigma_t`, the resolution and the emitting regions ``support`` alone, so it is its own traced-memo
+    entry (:mod:`orpheus.numerics.traced_memo`): it pins the transport kernel's defs only, and an edit to a
+    consumer (the system, the reading, the door) leaves it valid (#405 P3 step 2c, C1). The canonical forms of
+    ``sigma_t`` and ``support`` are the block's own first conversions, so a served block and one computed here
+    are one value; the basis, the walls and the resolution are content values. The line rule's piece chunk and
+    budget order the sum over lines (the block moves in its last bits); here they are :meth:`LineRule.of`'s
+    defaults, which the entry pins with that def's source.
+    """
+    return LineRule.of(basis, walls, sigma_t, resolution.line_points).transport(support)
+
+
+__all__ = ["GroupTransport", "LineRule", "TransportResolution", "group_transport"]

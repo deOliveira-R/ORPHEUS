@@ -67,7 +67,11 @@ import mpmath as mp
 import numpy as np
 import pytest
 
-from orpheus.derivations.continuous.characteristic import LineRule, PanelBasis, TrappedSource, Wall, Walls
+from orpheus.derivations.continuous.characteristic import (
+    GroupTransport, LineRule, PanelBasis, TransportResolution, TrappedSource, Wall, Walls,
+)
+from orpheus.derivations.continuous.characteristic.assembly import group_transport
+from orpheus.numerics.traced_memo import bypass
 from orpheus.derivations.continuous.characteristic.lines import Lines, OpticalScale, impact_rule, polar_rule
 from orpheus.derivations.common.quadrature import composite_gauss_legendre, gauss_legendre
 from orpheus.derivations.continuous.characteristic.grading import graded_ends
@@ -98,6 +102,12 @@ _RES = (3, 2, 0.4)                 # (degree, layers, ratio): the premises' work
 _MIRROR, _WHITE = (1.0, 0.0), (0.0, 1.0)
 
 
+def _on_emitting(rule: LineRule) -> GroupTransport:
+    """The rule's block with emission on the fixture's material regions (:math:`\\Sigma_t > 0`): the support a
+    fixture with no posed source resolves, since ``LineRule.transport`` takes no default (#405 P3 step 2c, C1)."""
+    return rule.transport(rule.lines.sigma_t > 0.0)
+
+
 def _walls(chart: str, breakpoints, laws) -> Walls:
     """Walls built directly (the law reader is gated in ``test_characteristic_walls.py``): one (specular, diffuse) per
     boundary point, inner first, or ``"P"`` for a periodic face."""
@@ -122,7 +132,7 @@ def _rule(chart: str, breakpoints, laws, sigma, points: int, budget: int = 1024,
 @lru_cache(maxsize=None)
 def _transport(chart: str, breakpoints, laws, sigma, points: int, budget: int = 1024):
     """The group's block at ``points`` line points; along each line the node counts are derived (P3 step 3f)."""
-    return _rule(chart, breakpoints, laws, sigma, points, budget).transport()
+    return _on_emitting(_rule(chart, breakpoints, laws, sigma, points, budget))
 
 
 def _conservation(chart, breakpoints, laws, sigma, points) -> float:
@@ -155,13 +165,15 @@ def test_the_mass_and_the_wall_area_read_the_one_density(monkeypatch: pytest.Mon
 
     def build():
         basis = PanelBasis.of(ConcentricPartition(Chart(CoordSystem.SPHERICAL), _MR3), *_RES)
-        g = LineRule.of(basis, _walls("sphere", _MR3, laws), np.asarray(_SIGMA["g0"]), 4).transport()
+        g = group_transport(basis, _walls("sphere", _MR3, laws), np.asarray(_SIGMA["g0"]), TransportResolution(4),
+                            np.asarray(_SIGMA["g0"]) > 0.0)
         return basis.mass, g.coupling
 
-    mass, honest = build()
-    original = MeasureCoordinate.derivative
-    monkeypatch.setattr(MeasureCoordinate, "derivative", lambda self, r: 2.0 * original(self, r))
-    decoy_mass, decoy = build()
+    with bypass():                     # the decoy is in THIS process: a generating interpreter never sees it
+        mass, honest = build()
+        original = MeasureCoordinate.derivative
+        monkeypatch.setattr(MeasureCoordinate, "derivative", lambda self, r: 2.0 * original(self, r))
+        decoy_mass, decoy = build()
     np.testing.assert_array_equal(decoy_mass, 2.0 * mass)
     np.testing.assert_array_equal(decoy.response, 0.5 * honest.response)
     np.testing.assert_array_equal(decoy.transmission, honest.transmission)
@@ -483,7 +495,7 @@ def test_the_block_does_not_depend_on_the_piece_budget(chart, breakpoints, laws,
         # the lines chorded (P3 step 3: ``weights`` is (V, L) over the speed family, the chunks slice the L lines)
         counted = sum(len(rule.lines.coordinates[lines]) for _rule_, lines in rule.lines.chunks())
         assert counted == len(rule.lines.coordinates), f"budget {budget}: {counted} lines in the chunks of {len(rule.lines.coordinates)}"
-        blocks.append(rule.transport().block)
+        blocks.append(_on_emitting(rule).block)
     scale = np.max(np.abs(blocks[0]))
     for k, other in enumerate(blocks[1:], 1):
         assert np.max(np.abs(other - blocks[0])) <= 64 * _EPS * scale, (k, np.max(np.abs(other - blocks[0])) / scale / _EPS)
@@ -760,7 +772,7 @@ def test_a_lossless_body_with_no_source_has_an_empty_block() -> None:
     empty escape on a lossless body (2026-10-06). First red: that zero branch
     falling through to the solve (``LinAlgError``).
     """
-    empty = _rule("sphere", _MR3, (_WHITE,), (0.0, 0.0, 0.0), 8).transport()
+    empty = _on_emitting(_rule("sphere", _MR3, (_WHITE,), (0.0, 0.0, 0.0), 8))
     assert empty.support.size == 0
     assert empty.block.shape == (empty.line.shape[0], 0)
 
@@ -923,7 +935,7 @@ def test_an_interface_between_equal_materials_is_invisible_on_a_cylinder() -> No
 
     def transfer(bps, sigma):
         basis = PanelBasis.of(ConcentricPartition(Chart(_COORD["cylinder"]), bps), *resolution)
-        g = LineRule.of(basis, _walls("cylinder", bps, ((0.6, 0.0),)), np.asarray(sigma), points).transport()
+        g = _on_emitting(LineRule.of(basis, _walls("cylinder", bps, ((0.6, 0.0),)), np.asarray(sigma), points))
         Q = np.stack([(basis.region == k).astype(float) for k in range(basis.regions.n_regions)], axis=-1)
         return Q.T @ g.block @ Q[g.support]
 
@@ -1047,7 +1059,7 @@ def test_the_centre_impact_piece_converges_geometrically() -> None:
         rule = LineRule(Lines(basis=basis, walls=walls, sigma_t=np.asarray((0.7, 0.7)), coordinates=coordinates,
                               speeds=np.ones(1), weights=(q.wts * domain.density(coordinates) / (4.0 * math.pi))[None, :],
                               levels=(q.pts, np.zeros_like(q.pts)), partition=basis.partition, chunk=512, budget=10 ** 9))
-        return rule.transport().block @ ones
+        return _on_emitting(rule).block @ ones
 
     reference = k_one(128)
     errors = [float(np.max(np.abs(k_one(n) - reference))) for n in (4, 6, 8)]
@@ -1109,7 +1121,7 @@ def test_the_slabs_derived_grading_converges_and_beats_twelve_fixed_halvings() -
         p_c = float(1 - R.escape_probability("slab", sigma * L))
 
     def collision(rule: LineRule) -> float:
-        g = rule.transport()
+        g = _on_emitting(rule)
         ones = np.ones(rule.lines.basis.size)
         return sigma * float(ones @ g.line @ ones[g.support]) / L / p_c - 1.0
 
@@ -1170,7 +1182,7 @@ def test_thin_graded_panels_set_the_slabs_grazing_depth(sigma) -> None:
     basis = PanelBasis.of(ConcentricPartition(Chart(CoordSystem.CARTESIAN), bps), 3, 10, 0.4)
     assert np.diff(basis.partition.breakpoints).min() < 1e-4
     rule = LineRule.of(basis, _walls("slab", bps, ((0.0, 0.0), (0.0, 0.0))), np.asarray((sigma, sigma)), 8)
-    g = rule.transport()
+    g = _on_emitting(rule)
     ones = np.ones(basis.size)
     with mp.workdps(40):
         p_c = float(1 - R.escape_probability("slab", sigma * L))
@@ -1197,16 +1209,16 @@ def test_every_block_entry_of_a_thin_panel_slab_is_resolved_at_eight_points() ->
     bps, sigma = (0.0, 0.9, 2.3), 0.01
     basis = PanelBasis.of(ConcentricPartition(Chart(CoordSystem.CARTESIAN), bps), 3, 6, 0.4)
     walls = _walls("slab", bps, ((0.0, 0.0), (0.0, 0.0)))
-    honest = LineRule.of(basis, walls, np.asarray((sigma, sigma)), 8).transport().block
+    honest = _on_emitting(LineRule.of(basis, walls, np.asarray((sigma, sigma)), 8)).block
     thinnest = float(np.min(sigma * np.diff(basis.partition.breakpoints)))
     deep = int(np.ceil(np.log2(1.0 / thinnest))) + 30
     half = composite_gauss_legendre([0.0, *graded_ends(0.0, 1.0, True, False, deep, 0.5), 1.0], 16)
     mu = np.concatenate([-half.pts[::-1], half.pts])[:, None]
     w = np.concatenate([half.wts[::-1], half.wts])
     domain = Chart(CoordSystem.CARTESIAN).line_domain()
-    reference = LineRule(Lines(basis=basis, walls=walls, sigma_t=np.asarray((sigma, sigma)), coordinates=mu,
+    reference = _on_emitting(LineRule(Lines(basis=basis, walls=walls, sigma_t=np.asarray((sigma, sigma)), coordinates=mu,
                                speeds=np.ones(1), weights=(w * domain.density(mu) / (4.0 * math.pi))[None, :], levels=None,
-                               partition=basis.partition, chunk=512, budget=1024)).transport().block
+                               partition=basis.partition, chunk=512, budget=1024))).block
     worst = float(np.max(np.abs(np.diag(honest) - np.diag(reference)) / np.abs(np.diag(reference))))
     assert worst <= 1e-11, f"worst diagonal entry {worst:.1e}"
 
@@ -1254,7 +1266,7 @@ def test_a_wide_panel_before_a_thin_one_conserves_at_eight_points() -> None:
     """
     bps, sigma = (0.2, 0.3, 1.0), np.asarray(_SIGMA["g0"][:2])
     basis = PanelBasis.of(ConcentricPartition(Chart(CoordSystem.SPHERICAL), bps), 3, 10, 0.4)
-    g = LineRule.of(basis, _walls("sphere", bps, (_MIRROR, _WHITE)), sigma, 8).transport()
+    g = _on_emitting(LineRule.of(basis, _walls("sphere", bps, (_MIRROR, _WHITE)), sigma, 8))
     lhs = g.block @ sigma[basis.region][g.support]
     rhs = basis.mass @ np.ones(basis.size)
     err = float(np.max(np.abs(lhs - rhs)) / np.max(np.abs(rhs)))

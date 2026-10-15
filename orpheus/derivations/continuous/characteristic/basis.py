@@ -41,6 +41,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import cached_property
+import operator
 from typing import NamedTuple
 
 import numpy as np
@@ -48,6 +49,7 @@ from scipy.linalg import block_diag
 
 from orpheus.derivations.common.quadrature import composite_gauss_legendre, gauss_legendre
 from orpheus.geometry.chord import ConcentricPartition
+from orpheus.numerics.content import ContentIdentity
 
 from .grading import graded_ends
 
@@ -84,11 +86,15 @@ class _LagrangeTables(NamedTuple):
 
 
 @dataclass(frozen=True, eq=False)
-class PanelBasis:
+class PanelBasis(ContentIdentity):
     r"""Discontinuous nodal Lagrange panels of degree :math:`p` on a concentric body.
 
     Built by :meth:`of`. Node :math:`i` is the :math:`m`-th Gauss-Legendre point
     of panel :math:`P`, :math:`i = P(p + 1) + m`.
+
+    **Identity is content** (:class:`~orpheus.numerics.content.ContentIdentity`):
+    two bases on equal partitions at one degree are one basis, so a reference
+    stage memoised on a basis keys on what it is, not on which object it is.
 
     Attributes
     ----------
@@ -105,6 +111,7 @@ class PanelBasis:
     degree: int
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "degree", operator.index(self.degree))  # one degree, one memo key
         coarse, fine = np.asarray(self.regions.breakpoints), np.asarray(self.partition.breakpoints)
         if self.partition.chart != self.regions.chart:
             raise ValueError("the panel partition and the body's partition are posed on one chart")

@@ -130,6 +130,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from orpheus.numerics.content import ContentIdentity
+from orpheus.numerics.scalars import canonical_reals
+
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from numpy.typing import ArrayLike
 
@@ -358,9 +361,19 @@ def permutation_preserving(
 
 
 @dataclass(frozen=True, eq=False)
-class RigidMotion:
+class RigidMotion(ContentIdentity):
     r"""An element :math:`(Q, t)` of :math:`E(d)`, acting as
     :math:`x \mapsto Qx + t`.
+
+    Prefer the named constructors — :meth:`reflection`, :meth:`rotation`,
+    :meth:`inversion`, :meth:`translation_by`, :meth:`signed_permutation` —
+    which take the *geometric* data that determines the element rather than
+    its matrix.
+
+    **Identity is content** (:class:`~orpheus.numerics.content.ContentIdentity`):
+    equality is exact on both parts, ``-0.0`` equal to ``0.0``, and the hash is
+    the same in every process. Both parts are read-only copies of what the
+    caller passed.
 
     Parameters
     ----------
@@ -373,23 +386,20 @@ class RigidMotion:
     translation:
         The translation part :math:`t`, shape ``(d,)``. ``None`` means the
         origin-fixing (purely linear) element.
-
-    Prefer the named constructors — :meth:`reflection`, :meth:`rotation`,
-    :meth:`inversion`, :meth:`translation_by`, :meth:`signed_permutation` —
-    which take the *geometric* data that determines the element rather than
-    its matrix.
     """
 
     linear: np.ndarray
     translation: np.ndarray = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
-        Q = np.asarray(self.linear, dtype=float)
+        Q = canonical_reals(np.asarray(self.linear), "the linear part")
         if Q.ndim != 2 or Q.shape[0] != Q.shape[1]:
             raise ValueError(
                 f"linear part must be a square matrix, got shape {Q.shape}"
             )
         d = Q.shape[0]
+        if not np.all(np.isfinite(Q)):
+            raise ValueError(f"linear part must be finite, got {Q.tolist()}")
         departure = np.max(np.abs(Q.T @ Q - np.eye(d)))
         if departure > _ORTHOGONALITY_ATOL:
             raise ValueError(
@@ -401,13 +411,19 @@ class RigidMotion:
         t = (
             np.zeros(d)
             if self.translation is None
-            else np.asarray(self.translation, dtype=float)
+            else canonical_reals(np.asarray(self.translation), "the translation")
         )
         if t.shape != (d,):
             raise ValueError(
                 f"translation must have shape ({d},) to match the linear "
                 f"part, got {t.shape}"
             )
+        if not np.all(np.isfinite(t)):
+            raise ValueError(f"translation must be finite, got {t.tolist()}")
+        # ``canonical_reals`` made fresh copies with ``-0.0`` folded onto ``0.0``
+        # (the exact key a memo reads separates the two); frozen: a value keyed
+        # by its content cannot share an array its caller may still write.
+        Q.flags.writeable = t.flags.writeable = False
         object.__setattr__(self, "linear", Q)
         object.__setattr__(self, "translation", t)
 
@@ -732,27 +748,10 @@ class RigidMotion:
         )
 
     # -- equality ---------------------------------------------------------
-
-    def _exact_key(self) -> bytes:
-        """Canonical bytes for exact equality and hashing.
-
-        ``+ 0.0`` canonicalises ``-0.0`` to ``0.0`` so that the two compare
-        AND hash alike; routing both dunders through this one function is
-        what keeps that guarantee from drifting.
-        """
-        return (self.linear + 0.0).tobytes() + (self.translation + 0.0).tobytes()
-
-    def __eq__(self, other: object) -> bool:
-        """Exact (bit-level) equality. For the tolerant question, use
-        :meth:`approximately_equals`."""
-        if not isinstance(other, RigidMotion):
-            return NotImplemented
-        if other.dimension != self.dimension:
-            return False
-        return self._exact_key() == other._exact_key()
-
-    def __hash__(self) -> int:
-        return hash((self.dimension, self._exact_key()))
+    #
+    # Exact equality and the hash are the content's (:class:`ContentIdentity`):
+    # the two arrays on their shapes, ``-0.0`` folded onto ``0.0``. For the
+    # tolerant question, use :meth:`approximately_equals`.
 
     def approximately_equals(
         self, other: "RigidMotion", *, atol: float = 1e-12

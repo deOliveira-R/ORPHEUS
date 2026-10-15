@@ -38,7 +38,10 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
     ZeroFluxBoundary,
 )
-from orpheus.numerics.content import ContentlessError, content_digest
+from orpheus.geometry.chart import Chart
+from orpheus.geometry.chord import ConcentricPartition
+from orpheus.geometry.transformation import RigidMotion
+from orpheus.numerics.content import ContentlessError, content_digest, encode_exact
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,
@@ -224,10 +227,77 @@ _GEOMETRY = Entry(
     ),
 )
 
+# ── C1 (#405 P3 step 2c): paste into tests/gates/geometry/test_content_identity_geometry.py ──────────────────────
+# Imports to add: from orpheus.geometry.chart import Chart; from orpheus.geometry.chord import ConcentricPartition;
+#                 from orpheus.geometry.transformation import RigidMotion; from orpheus.numerics.content import encode_exact
+# and the two entries appended to ROSTER: (..., _GEOMETRY, _RIGID_MOTION, _PARTITION).
+
+_Q90 = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])            # a quarter turn about z, exact
+
+
+def _motion(**over) -> RigidMotion:
+    kw = dict(linear=_Q90, translation=np.array([0.5, -0.25, 1.0]))
+    kw.update(over)
+    return RigidMotion(**kw)  # type: ignore[arg-type]  # kwargs assembled for the perturbation table
+
+
+_RIGID_MOTION = Entry(
+    cls=RigidMotion, base=_motion, parts=("linear", "translation"),
+    perturb={
+        "linear": (
+            leg("a reflection for the turn", lambda: _motion(linear=np.diag([1.0, 1.0, -1.0]))),
+            leg("the other quarter turn", lambda: _motion(linear=_Q90.T)),
+        ),
+        "translation": (
+            leg("one component one ulp", lambda: _motion(translation=np.array([0.5, -0.25, float(np.nextafter(1.0, 2.0))]))),
+            leg("components swapped", lambda: _motion(translation=np.array([-0.25, 0.5, 1.0]))),
+        ),
+    },
+    pairs=(
+        ("two builds", _motion, _motion),
+        ("int arrays", _motion, lambda: _motion(linear=_Q90.astype(int), translation=np.array([0.5, -0.25, 1]))),
+        ("signed zero in the translation", lambda: _motion(translation=np.array([-0.0, 0.0, 0.0])),
+         lambda: _motion(translation=np.zeros(3))),
+        ("the identity, named and built", lambda: RigidMotion.identity(3), lambda: RigidMotion(np.eye(3))),
+        ("an omitted translation is the zero one", lambda: RigidMotion(_Q90), lambda: RigidMotion(_Q90, np.zeros(3))),
+    ),
+)
+
+
+def _partition(**over) -> ConcentricPartition:
+    kw = dict(chart=Chart(_SPH), breakpoints=(0.0, 0.5, 1.5, 2.0), pose=RigidMotion.translation_by(np.array([0.0, 0.0, 1.0])))
+    kw.update(over)
+    return ConcentricPartition(**kw)  # type: ignore[arg-type]  # kwargs assembled for the perturbation table
+
+
+_PARTITION = Entry(
+    cls=ConcentricPartition, base=_partition, parts=("chart", "breakpoints", "pose"),
+    perturb={
+        "chart": (leg("cylinder", lambda: _partition(chart=Chart(_CYL))),),
+        "breakpoints": (
+            leg("an interior breakpoint", lambda: _partition(breakpoints=(0.0, 0.6, 1.5, 2.0))),
+            leg("the outer breakpoint one ulp", lambda: _partition(breakpoints=(0.0, 0.5, 1.5, float(np.nextafter(2.0, 3.0))))),
+        ),
+        "pose": (leg("the identity pose", lambda: _partition(pose=RigidMotion.identity(3))),),
+    },
+    pairs=(
+        ("two builds", _partition, _partition),
+        ("int breakpoints", _partition, lambda: _partition(breakpoints=(0, 0.5, 1.5, 2))),
+        ("a list of breakpoints", _partition, lambda: _partition(breakpoints=[0.0, 0.5, 1.5, 2.0])),
+        ("the default pose is the identity", lambda: ConcentricPartition(Chart(_SPH), (0.0, 1.0)),
+         lambda: ConcentricPartition(Chart(_SPH), (0.0, 1.0), RigidMotion.identity(3))),
+        ("of a geometry vs built", lambda: ConcentricPartition.of(_geometry()),
+         lambda: ConcentricPartition(Chart(_SPH), (0.5, 1.0, 2.0))),
+    ),
+)
+
+
+
+
 ROSTER: tuple[Entry, ...] = (
     _BC, _VACUUM, _REFLECTIVE, _WHITE, _PERIODIC, _ALBEDO, _PRESCRIBED, _ZERO_FLUX,
     _LAW_SUM, _LAW_SCALED, _SPECULAR_RETURN, _ISOTROPIC_RETURN, _NO_SOURCE,
-    _CONSTANT_SOURCE, _GEOMETRY,
+    _CONSTANT_SOURCE, _GEOMETRY, _RIGID_MOTION, _PARTITION,
 )
 
 
@@ -432,3 +502,89 @@ def test_s5_5_content_sources_digest() -> None:
     for law in (PrescribedInflow(NoSource()), PrescribedInflow(ConstantInflowSource(1.5))):
         require(len(content_digest(law)) == 32, f"{law!r} digests")
         require(hash(law) == hash(PrescribedInflow(law._source)), f"{law!r} hashes by content")
+
+
+# ── C1 rows beyond the roster ──────────────────────────────────────────────────────────────────────────────────
+
+_C1 = "C1 (#405 P3 step 2c, scratch/characteristic_architecture/p3/c1/gate_spec.md)"
+
+
+@pytest.mark.rests_on(f"{_HERE}::test_s5_2_equal_content_is_one_value")
+@pytest.mark.parametrize("pair", [
+    pytest.param((lambda: _motion(translation=np.array([-0.0, 0.0, 0.0])), lambda: _motion(translation=np.zeros(3))), id="motion-signed-zero"),
+    pytest.param((lambda: _motion(linear=_Q90.astype(int)), _motion), id="motion-int-linear"),
+    pytest.param((lambda: RigidMotion(_Q90), lambda: RigidMotion(_Q90, np.zeros(3))), id="motion-omitted-translation"),
+    pytest.param((lambda: _partition(breakpoints=(0, 0.5, 1.5, 2)), _partition), id="partition-int-breakpoints"),
+    pytest.param((lambda: ConcentricPartition(Chart(_SPH), (0.0, 1.0)),
+                  lambda: ConcentricPartition(Chart(_SPH), (0.0, 1.0), RigidMotion.identity(3))), id="partition-default-pose"),
+    pytest.param((lambda: RigidMotion.inversion(3), lambda: RigidMotion(np.diag([-1.0, -1.0, -1.0]))), id="motion-inversion-signed-zero-linear"),
+])
+def test_c1_one_value_is_one_memo_key(pair) -> None:
+    """[C1-K] Two spellings of one value give one EXACT encoding (``encode_exact``, the traced memo's key), not only one
+    content digest: the exact key separates ``-0.0`` from ``0.0``, an int from a float and an int array from a float one,
+    so each constructor must canonicalise before it stores. ``RigidMotion`` folds both parts through
+    ``canonical_reals`` (float64, ``-0.0`` onto ``0.0``); ``ConcentricPartition`` stores its breakpoints as a tuple of
+    floats. The inversion row is the LINEAR part's fold (qa, 2026-10-15): ``RigidMotion.inversion(3)`` produces
+    ``-0.0`` off the diagonal, and dropping that fold reddened 0 of 492 rows before this row; it asserts the digest too.
+
+    First reds: the signed-zero row on a ``RigidMotion`` that stores the given translation (today's
+    ``__post_init__`` keeps ``-0.0``; its ``_exact_key`` canonicalised at comparison only, ``[M]`` 2026-10-14
+    ``probe_q1_simulated.log``); the int row on a partition that stores its breakpoints as given (arm
+    ``breakpoints-as-given``)."""
+    a, b = pair[0](), pair[1]()
+    require(a is not b, "activation: one object")
+    require(content_digest(a) == content_digest(b), f"{type(a).__qualname__}: one value, two digests")
+    require(encode_exact(a) == encode_exact(b), f"{type(a).__qualname__}: one value, two memo keys")
+
+
+@pytest.mark.rests_on(f"{_HERE}::test_s5_2_pickle_round_trip")
+def test_c1_a_rigid_motion_owns_read_only_arrays() -> None:
+    """[C1-RO] A motion's arrays are read-only (a write raises), and they are its OWN: building one from a caller's
+    writeable float64 arrays leaves the caller's arrays writeable, and a later write into them does not move the motion.
+    The content encoder refuses a writeable array as a part, so without this a partition posed by a motion has no
+    digest. First reds: today's tree (``linear`` is writeable, the caller's array is aliased:
+    ``np.asarray(linear, dtype=float)`` returns it); arm ``freeze-in-place`` (``setflags`` on the aliased input: the
+    caller's array becomes read-only)."""
+    q, t = _Q90.copy(), np.array([0.5, -0.25, 1.0])
+    m = RigidMotion(q, t)
+    for name in ("linear", "translation"):
+        part = getattr(m, name)
+        require(not part.flags.writeable, f"RigidMotion.{name} is writeable")
+        with pytest.raises(ValueError, match="read-only"):
+            part[0] = 7.0
+    require(q.flags.writeable and t.flags.writeable, "the caller's arrays were frozen in place")
+    require(not np.shares_memory(m.linear, q) and not np.shares_memory(m.translation, t), "the motion aliases the caller's arrays")
+    q[0, 0], t[0] = 3.0, 3.0
+    require(m == RigidMotion(_Q90, np.array([0.5, -0.25, 1.0])), "a write into the caller's array moved the motion")
+
+
+@pytest.mark.rests_on(f"{_HERE}::test_s5_2_pickle_round_trip")
+@pytest.mark.parametrize("linear,translation,fragment", [
+    pytest.param(np.eye(3), np.array([np.nan, 0.0, 0.0]), r"the translation, the entry \(0,\) is NaN", id="a-NaN-translation"),
+    pytest.param(np.eye(3), np.array([np.inf, 0.0, 0.0]), "translation must be finite", id="an-infinite-translation"),
+    pytest.param(np.array([[np.nan, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]), np.zeros(3),
+                 r"the linear part, the entry \(0, 0\) is NaN", id="a-NaN-linear-part"),
+    pytest.param(np.array([[np.inf, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]), np.zeros(3),
+                 "linear part must be finite", id="an-infinite-linear-part"),
+])
+def test_c1_a_rigid_motion_refuses_a_non_finite_part(linear, translation, fragment: str) -> None:
+    """[C1-NF] A non-finite linear part or translation is refused at construction, naming it. Content identity refuses
+    NaN (it is not equal to itself), so without this law a NaN motion would construct and then fail at ``hash``, far
+    from its cause. The NaN linear part also passes today's orthogonality guard (``nan > atol`` is False).
+    Each input is keyed to its own guard's fragment: a NaN is refused by ``canonical_reals`` (BEFORE the orthogonality
+    guard, which ``nan > atol`` would pass), an infinity by the finiteness guard. First reds: today's tree (all
+    construct; ``[M]`` 2026-10-14 ``probe_q1_simulated.log``, the translation); arm ``finite-guard-removed`` (the two
+    infinity rows)."""
+    with pytest.raises(ValueError, match=fragment):
+        RigidMotion(linear, translation)
+
+
+@pytest.mark.rests_on(f"{_HERE}::test_s5_2_pickle_round_trip")
+def test_c1_one_equality_for_a_rigid_motion() -> None:
+    """[C1-EQ] ``RigidMotion`` has one equality, the encoder's: its ``_exact_key`` is retired (X4: the bytes key and the
+    digest were two definitions of one equality), and ``-0.0``/``0.0`` and two dimensions behave as the retired key did
+    (the dimension is the shape of the encoded arrays). The mixin's dunders are S5.9's leg; this row adds the retirement
+    and the two behaviours the retired key carried by hand. First red: today's tree (``_exact_key`` defined)."""
+    require(not hasattr(RigidMotion, "_exact_key"), "RigidMotion._exact_key survives beside the encoder")
+    require(RigidMotion.identity(2) != RigidMotion.identity(3), "two dimensions compare equal")
+    require(len({RigidMotion.identity(2), RigidMotion.identity(3)}) == 2, "a set merged two dimensions")

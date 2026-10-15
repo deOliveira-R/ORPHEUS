@@ -414,10 +414,11 @@ class TestTheWrapConstructor:
         r"""Value semantics, which ``_LAW_SPECS`` in
         ``test_boundary_factors.py`` compares against with ``==``.
 
-        Not free: :class:`RigidMotion` is declared ``eq=False`` and supplies
-        a bit-exact ``__eq__`` of its own. Two separately-constructed unit
-        translations are bit-identical, so the equality holds — and a wrap
-        along a DIFFERENT axis must not.
+        Not free: :class:`RigidMotion` compares by its content
+        (:class:`~orpheus.numerics.content.ContentIdentity`, exact on both
+        parts). Two separately-constructed unit translations are
+        bit-identical, so the equality holds — and a wrap along a DIFFERENT
+        axis must not.
         """
         assert PairedDeck.wrap(axis="x") == PairedDeck.wrap(axis="x")
         assert PairedDeck.wrap(axis="x") != PairedDeck.wrap(axis="y")

@@ -280,6 +280,14 @@ Key facts
   homogeneous body). A flux integral is the pairing
   :math:`(Wc_w)^{\mathsf T}\phi_h = \int w\,\phi_h\,\mathrm dV`, with no
   point (:eq:`characteristic-door-pairing`).
+- **Three nested memo entries.** A reading is a traced-memo entry, the
+  solve a child entry of every reading, and each group's transport
+  block, ``group_transport``, a child entry of the solve: the block's
+  manifest pins the transport kernel only, so an edit to a consumer
+  (the system, the reading, the door, the dense pencil) leaves the
+  blocks valid (:ref:`characteristic-block-memo`). A served block comes
+  from the source on disk: an in-process patch of the kernel does not
+  reach it.
 - **A point value is the transported emission**, :math:`\phi(x) =
   (\mathcal Kq)(x)`, the iterated Galerkin value, not the basis value
   :math:`\phi_h(x)`, which carries the projection
@@ -3658,11 +3666,16 @@ The emission support
 
 The columns of :math:`K` are the basis functions of the regions that
 emit in the group: the regions of a mask the caller passes
-(``transport(..., support=...)``), which the multigroup system sets to the
-group's exact emission support (:ref:`characteristic-galerkin-system`),
-and by default, for a block assembled on its own, those with
-:math:`\Sigma_t > 0`;
-``GroupTransport.support`` holds their indices. The rows run over every panel, so the flux is read
+(``transport(support)``, a required argument), which the multigroup
+system sets to the group's exact emission support joined with the posed
+source regions (:ref:`characteristic-galerkin-system`); a block
+assembled on its own passes the regions it means, usually
+:math:`\Sigma_t > 0`. ``GroupTransport.support`` holds their indices.
+There is no default, because a default would be a second definition
+of where emission lives, and :math:`\Sigma_t > 0` is not the system's
+(:ref:`characteristic-galerkin-system` shows the two differ on a region
+transparent in a group that receives emission into it); the mask is
+also part of the block memo's key (:ref:`characteristic-block-memo`). The rows run over every panel, so the flux is read
 everywhere, and the block is rectangular, :math:`N \times M`.
 
 **Why the columns stop at the emission.** A basis function on a panel
@@ -5086,6 +5099,8 @@ answer. A slab placed at
 :math:`5.6 \times 10^{-10}`), filed as
 `#585 <https://github.com/deOliveira-R/ORPHEUS/issues/585>`_.
 
+.. _characteristic-lines-chunks:
+
 The order of the lines, the chunks and the piece budget
 -------------------------------------------------------
 
@@ -5523,10 +5538,11 @@ on a body the gates pose:
   white sphere a column there is not refused (the test-architect's
   ``m4_support``).
 
-The default of :meth:`LineRule.transport
-<orpheus.derivations.continuous.characteristic.assembly.LineRule.transport>`,
-:math:`\Sigma_t > 0`, serves a block assembled on its own, where no
-emission is known; the system always passes each group's exact support.
+:meth:`LineRule.transport
+<orpheus.derivations.continuous.characteristic.assembly.LineRule.transport>`
+takes the mask as a required argument, so the system's exact support is
+the only definition of it in production; a block assembled on its own
+(a gate's) passes :math:`\Sigma_t > 0` explicitly.
 
 **A field off the support is refused.** The emission space has no
 coefficient there, so a source with a non-zero coefficient outside its
@@ -6000,10 +6016,13 @@ transport resolution
 the line rule's points per piece; the rule along each line is derived,
 :ref:`characteristic-derived-grading`) and
 the source regions. The transport blocks are derived from them
-(``GalerkinSystem.groups``, one ``LineRule.of`` and one ``transport`` per
-group, each group's rule graded by its own :math:`\Sigma_t`, as the third
-rung ruled), so a block assembled for another group or another cross
-section cannot be put in.
+(``GalerkinSystem.groups``, one call of
+:obj:`~orpheus.derivations.continuous.characteristic.assembly.group_transport`
+per group, which is ``LineRule.of`` then ``transport``, each group's
+rule graded by its own :math:`\Sigma_t`, as the third rung ruled, and
+memoised on disk since 2026-10-15, :ref:`characteristic-block-memo`),
+so a block assembled for another group or another cross section cannot
+be put in.
 
 **Cost.** The dense problem has :math:`M` unknowns, a few hundred at the
 gates' resolution, and its eigen and least solves take under 0.03 s
@@ -6109,7 +6128,13 @@ geometry's interval order (``geometry.mat_ids``), and the basis on
 ``ConcentricPartition.of(geometry)``. Construction assembles no
 transport block: the system's blocks are derived on first use, and the
 gate ``test_a_served_question_constructs_and_assembles_nothing`` counts
-zero calls of ``LineRule.of`` for every served question.
+zero block requests for every served question. Its spy wraps
+``group_transport`` as the system module binds it, the boundary every
+block crosses whether it is served or computed; a spy on ``LineRule.of``
+would count nothing for a served block, whose ``LineRule.of`` runs in
+another interpreter (`[M]` 2026-10-14, the test-architect's arm
+``eager-blocks``: the system's blocks built at construction reddened 8
+rows through the re-pointed spy and 4 through the old one).
 
 **The answer is solved once, typed per question.** ``solve`` resolves
 the question into one of three values: the fundamental mode (its :math:`k`, its gauged flux
@@ -6204,6 +6229,257 @@ iteration order, the test process and a generation (which runs under
 ``answer`` missed the solve its readings had written and wrote a second.
 The exact key now orders a set by its elements' encodings
 (:ref:`verification-reference-cache-key`).
+
+.. _characteristic-block-memo:
+
+A transport block is an entry of its own
+----------------------------------------
+
+**What is memoised.** One group's transport block is a traced memo
+(:mod:`orpheus.numerics.traced_memo`):
+
+.. code-block:: text
+
+   group_transport(basis, walls, sigma_t, resolution, support)
+       = LineRule.of(basis, walls, sigma_t, resolution.line_points).transport(support)
+
+:obj:`~orpheus.derivations.continuous.characteristic.assembly.group_transport`
+returns the :class:`~orpheus.derivations.continuous.characteristic.assembly.GroupTransport`
+of the group (the block :math:`K_g`, its support columns and the white
+walls' coupling), and ``GalerkinSystem.groups`` calls it once per group.
+The entries then nest three deep: a reading's generation reads the solve
+(a child entry, above), and the solve's generation reads
+``GalerkinSystem.groups``, so each group's block is a child entry of the
+solve, and a point reading, which reads the system's blocks as well,
+pins the same block keys as children of its own
+(``test_m4_14_a_point_reading_pins_the_blocks_as_children_and_assembles_none``
+and ``test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve``,
+in ``tests/gates/numerics/test_traced_memo_clients.py``). This is C1 of
+#405 P3 step 2c, the user's rulings of 2026-10-14 (gates may read
+memoised blocks; the three key types get content identity; C1 first).
+
+**Why the boundary is the group's block.** Three properties, each
+measured by the explorer's boundary census
+(``scratch/characteristic_architecture/p3/speed/memo_boundaries.md``,
+`[M]` 2026-10-14, a dry-run plugin over 14 files and 1 368 tests, 13 of
+them failing, so its counts are lower bounds):
+
+- **It is where the time is.** About 7 800 s of the 9 172 s warm pass of
+  those files ran inside the reference's stages, and the block boundary
+  alone serves 5 073 s of it with no gate re-posed; its payloads
+  round-trip bit-exact, 23 to 230 kB each, 11.7 MB in all.
+- **It decouples.** A block's generation runs the transport kernel (the
+  line rule, the traversal rule, the attenuation rule, the chord, the
+  basis values, the walls' period) and nothing that consumes the block,
+  so its manifest pins the kernel's defs only. An edit to a function
+  body in ``system``, ``reading``, ``reference`` or ``dense_pencil``
+  makes the solve and the readings stale and leaves every block valid:
+  the next cold pass regenerates the cheap dense solve, not the
+  expensive blocks.
+- **It is coarse enough.** A finer unit costs more than it saves: an
+  ``AttenuationRule.of`` call takes about 8 ms, against about 3 s for a
+  miss, a 27 s test builds about 100 MB of such rules, and their keys
+  move with anything upstream. A coarser unit, a block keyed at the door
+  (the census's C4, which needs no new content type), misses the
+  assembly and system rows, which build blocks without a door (4 345 s).
+
+The decoupling has a declared limit: the package ``__init__`` imports
+every submodule, so every entry pins all 13 module skeletons of the
+characteristic package. An edit inside a function body regenerates only
+the entries that ran that function; an edit to a signature, a module
+constant or an import of any of the 13 modules makes every block stale.
+B5 (below) records both halves, the skeleton edit as a declared ``Stale``
+row that flips to ``Hit`` if the package's ``__init__`` ever becomes lazy.
+
+**The key: content values, and canonical forms that are the body's own.**
+The memo keys on the exact encoding of its arguments
+(:ref:`verification-reference-cache-key`), so every argument must have a
+content identity and one spelling per value:
+
+- :class:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis`,
+  :class:`~orpheus.geometry.chord.ConcentricPartition` and
+  :class:`~orpheus.geometry.transformation.RigidMotion` (the partition's
+  pose) are :class:`~orpheus.numerics.content.ContentIdentity` values:
+  equality and hash by content digest, the same in every process
+  (:ref:`structured-geometry-content-identity`). A rigid motion stores
+  read-only float64 copies of its two parts, refuses a non-finite part,
+  and, like the partition's breakpoints, folds ``-0.0`` onto ``0.0``
+  through :func:`~orpheus.numerics.scalars.canonical_reals`; the exact key
+  separates the two zeros (a function can tell them apart), so without
+  the fold one motion would key twice (``RigidMotion.inversion(3)`` is
+  ``-I``, with ``-0.0`` off the diagonal). A basis's degree and
+  :class:`~orpheus.derivations.continuous.characteristic.assembly.TransportResolution`'s
+  ``line_points`` are normalised by ``operator.index``, and a
+  :class:`~orpheus.derivations.continuous.characteristic.walls.Wall`
+  normalises its indices by ``operator.index`` and its amplitudes by
+  :func:`~orpheus.numerics.scalars.parse_real`, so ``np.int64(3)`` and
+  ``3``, or a wall written with ``0`` and ``1`` and one written with
+  ``0.0`` and ``1.0``, are one key.
+- ``sigma_t`` and ``support`` take declared canonical forms,
+  ``_total_cross_sections`` (``canonical_reals``: float64, ``-0.0``
+  folded, NaN refused) and ``_region_mask`` (``bool``). Each is the
+  function the body itself calls first (``LineRule.of`` reads
+  ``sigma_t`` through the first, ``LineRule.transport`` reads the mask
+  through the second), so the canonical form and the body are one
+  function. This matters because :func:`~orpheus.numerics.traced_memo.bypass`
+  calls the wrapped function with the raw arguments: a canonical form that
+  differed from the body's first conversion (a float32 rounding, the
+  test-architect's arm ``canonical-float32``) would make a served block
+  and an in-process one two values, and B1 reddens on it (4 of 4
+  fixtures, a relative difference of 4.5e-9 to 1.5e-8).
+
+**The key is complete.** qa moved each argument of ``group_transport`` on
+its own, and the key moved for 6 of 6 (the basis's degree and its
+breakpoints, the walls, :math:`\Sigma_t` by one ulp, the resolution, the
+support), and found every canonical form idempotent and lossless (`[M]`
+2026-10-15, ``scratch/characteristic_architecture/p3/c1/qa_review.md``,
+part two). The two over-keys it found (``-0.0`` against ``0.0`` in
+:math:`\Sigma_t`; a wall's integer amplitudes against float ones), each a
+spurious miss and never a wrong answer, were closed by the fold in
+``_total_cross_sections`` and the normalisation in ``Wall``. `[M]`
+2026-10-15, the archivist's probe on the three-region sphere: those two
+spellings, a ``numpy`` array :math:`\Sigma_t`, an ``np.int64``
+resolution, an integer support and integer breakpoints each give the
+reference call's key, and :math:`\Sigma_t` moved by one ulp gives another.
+
+**Why the support is required.** ``support`` has no default, on
+``group_transport`` and on ``LineRule.transport`` alike. A default would
+be a second definition of where emission lives: the one the method used
+to carry, :math:`\Sigma_t > 0`, is not the system's
+(``emission_support() | source_regions``,
+:ref:`characteristic-galerkin-system`). A default also splits the key:
+an omitted mask and the mask it resolves to are one value, and keyed
+apart they are two entries of it, while a canonical form that mapped the
+omission to a fixed mask would be wrong whenever the mask is not the
+resolution (on the three-region sphere with a void middle, the emitting
+regions' block has 32 columns and every region's 52, so serving one for
+the other is a wrong answer, `[M]` 2026-10-14, the gate specification's
+B3); the
+per-parameter canonical form cannot resolve a default itself, because the
+resolution reads ``sigma_t``. Making the mask required leaves one value,
+one key and one resolution site, the caller (B3).
+
+**Why the chunk and the budget are not arguments.** ``LineRule.of``
+takes the lines in chunks and bounds each by a piece budget
+(:ref:`characteristic-lines-chunks`), and the chunks re-order the
+sum over lines, so the block moves in its last bits with them (12.9 ulp
+on the slab), and two values would be two answers. They are therefore
+part of what the entry computes, but no production caller varies them
+(0 of 1 call sites passes either), so ``group_transport`` does not take
+them: the entry runs ``LineRule.of`` with its defaults, 512 and 1024, and
+pins that def's source, defaults included. `[M]` 2026-10-15, qa: an entry
+generated on a copy of the tree went ``Stale`` when the default chunk was
+edited from 512 to 256, and ``Hit`` again when the file was restored. A
+gate that varies the chunk or the budget calls ``LineRule.of`` directly.
+
+**The cost.** `[M]` 2026-10-14, the test-architect (gate specification
+``scratch/characteristic_architecture/p3/c1/gate_spec.md`` §2.1 and §7):
+a block's miss costs 2.8 to 3.6 s (5 of 5 cheap blocks, which take 0.024
+to 0.19 s in process), a hit 0.012 to 0.017 s. The three files whose rows
+read blocks through the memo, the system, the reading and the assembly
+gates, ``-m "not slow"``, 431 rows, one serial run each (not interleaved,
+so a draw):
+
+.. list-table:: The system, reading and assembly gates (431 not-slow rows)
+   :header-rows: 1
+   :widths: 46 18 36
+
+   * - Tree
+     - Wall time
+     - Store
+   * - No block memo (a clean worktree of ``9e903a4d``)
+     - 242 s
+     - none
+   * - Block memo, cold store
+     - 1 303 s
+     - 383 block entries, 30 MB
+   * - Block memo, warm store
+     - 102 s
+     - unchanged
+
+0 of 431 rows change behaviour when their blocks come through the memo.
+A cold pass costs 1 061 s more than no memo, about 2.8 s per miss; a warm
+pass saves 140 s (58 %). On these rows the memo pays only after about
+eight warm passes per cold one, because their blocks are mostly cheap;
+the expensive cylinder blocks (5 to 400 s each) gain from the first
+re-run. The measurement ran on the prototype of the specification
+(``points``, ``chunk`` and ``budget`` as memo parameters, a ``support``
+default), before the elegance review's re-pose to the signature above.
+
+**No size threshold, and why** (the user's ruling of 2026-10-15). A
+threshold of about 2 000 line-speeds would keep 102 blocks (6 101 s)
+memoised and compute 647 cheap ones (186 s) in process, cutting the cold
+overhead, but every fixture a fast gate can afford is below it (the
+three-region sphere 128 line-speeds, the slab 160, the one-region
+cylinder at degree 1 840; the cheapest working-basis cylinder is 14 112),
+so the gates would run the in-process arm while production's expensive
+blocks took the memo arm; and it would be a second route to one value,
+chosen at the call site by a performance number. The cost is the miss
+itself: about 2.3 s of each cheap miss is the recorder and the manifest,
+not the interpreter (an import of the package costs 0.51 to 0.60 s), and
+every memo client pays it. #602 is the root-cause lever, owed before the
+P3 re-timing.
+
+**Gotcha: an in-process mutation does not reach a served block.** A
+block is generated in a fresh interpreter from the source on disk, and a
+hit is that source's answer, so a monkeypatch or a ``-p`` plugin
+rebinding a kernel symbol is invisible to every row that reads
+``GalerkinSystem.groups`` (the system, reading, albedos, convergence,
+lift and independent-references gates) or the assembly helper
+``_transport``. A mutation battery or a ``catches`` re-drop on those rows
+mutates textually (a copied tree or a worktree, so the bug is on disk)
+or enters ``bypass()`` at the plugin's ``pytest_configure``
+(``vv-principles`` #17); a test that patches the kernel itself reads
+under ``with bypass():`` (the assembly row
+``test_the_mass_and_the_wall_area_read_the_one_density`` does: without
+it, its doubled-density decoy is served the honest block and 52 of 52
+response entries mismatch, the test-architect's arm ``md3-no-bypass``).
+
+**Gotcha: a served-versus-in-process comparison builds its subject
+fresh.** The test helpers ``_system``, ``_absorbing``, ``_transport`` and
+``_rule`` are cached, and ``GalerkinSystem.groups`` is a
+``cached_property``, so a "warm" and a "fresh" system taken from a cached
+helper are one object carrying the route of whichever test touched it
+first. `[M]` 2026-10-14: built that way, B6b stayed green under the arm
+``consumer-writes`` in the battery and reddened alone.
+
+**The gates** (``tests/gates/derivations/test_characteristic_block_memo.py``,
+all ``foundation``: software invariants with no theory-page label):
+
+- B1: a served block is the in-process block, leaf for leaf (dtype,
+  shape, bytes), on the three line shapes and a void region; served
+  arrays are read-only.
+- B2: the spellings of one call key alike, and each parameter of
+  ``group_transport``'s signature moves the key on its own.
+- B3: the support is required, and the emitting regions never key as
+  every region.
+- B4: a block entry pins one def per kernel module, no consumer's def
+  (``GalerkinSystem``, ``PointRule``, ``CharacteristicDerivation``,
+  ``DensePencil``, ``RegionCrossSections``, ``EmissionSpace``,
+  ``angular_flux``) and no child.
+- B5 (13 rows, on a copy of ``orpheus/`` in a temporary directory): an
+  edit to a kernel body makes the block stale; an edit to a consumer's
+  body leaves it a ``Hit`` while the reading that ran it goes stale; a
+  skeleton constant makes it stale (the declared limit above).
+- B6: the system reads every group through ``group_transport``, with the
+  system's basis and walls and the group's columns, and ``LineRule.of``
+  has one call site in ``orpheus/``, inside ``group_transport``.
+- B6b: a two-group system on served blocks has the in-process transport
+  matrix and :math:`k`, bitwise.
+
+The content identity of the three types is gated in
+``tests/gates/geometry/test_content_identity_geometry.py`` (one value,
+one memo key; a motion's read-only arrays; the non-finite refusal; one
+equality for a motion), in ``test_characteristic_reference.py`` (the
+basis's parts, its derived state outside its content) and by the content
+roster gate S5.9 (``tests/gates/numerics/test_content_identity.py``).
+Each row's first red is an arm of the battery in
+``scratch/characteristic_architecture/p3/c1/gate_spec.md`` §6, re-run on
+the carve before the elegance review's re-pose
+(``ta/battery_landed_table.md``, 2026-10-15): every arm reddened its
+target row, and the positive control (a garbage kernel in process)
+reddened B1 on 4 of 4 fixtures and B6b.
+
 
 How a function enters: the role arrows
 --------------------------------------
@@ -9601,6 +9877,15 @@ rows of ``test_a_small_cylinders_layer_is_graded_outside_slow``, the
 Gotchas
 =======
 
+- **A monkeypatch of the kernel does not reach a memoised block.** Every
+  row that reads ``GalerkinSystem.groups`` reads served blocks, so a
+  mutation battery or a ``catches`` re-drop mutates on disk (a copied
+  tree, a worktree) or enters ``bypass()`` first, and a test that patches
+  the kernel reads under ``with bypass():``
+  (:ref:`characteristic-block-memo`).
+- **Pass the support.** ``LineRule.transport`` and ``group_transport``
+  take the emitting-region mask as a required argument; a block on its
+  own passes :math:`\Sigma_t > 0` explicitly.
 - **A wall is not a position.** Index the walls with the breakpoint a
   transit reports; a solid body's one wall is at :math:`n`, and asking
   at :math:`0` raises ``IndexError``.
@@ -10116,5 +10401,33 @@ History
        the prototype at matched accuracy: the A|B|A cylinder's solve 286 s
        to 1.70 s and its reading 2.75 s to 0.146 s; the MR3 cylinder's
        block 573 s to 15.5 s.
-     - *(in development,* branch ``refactor/p3-routeB-product``\ *)*
+     - ``25b0c38f``
      - #405, #591
+   * - 2026-10-14
+     - P3 step 2b, two of three profiled remedies: Gauss–Legendre rules
+       memoised by order, and the panel basis evaluated per coordinate
+       kind; bit-identical, a 27 s cylinder test to 20 s. Refuted: one
+       rule build per transport (5.85 s against 8.5 s at best), prefix
+       and suffix products in ``basis.values`` (2.2 times slower at degree
+       3), the modal form (not exactly one-hot at its nodes).
+     - ``6b9fdd9d``
+     - #405
+   * - 2026-10-15
+     - P3 step 2c, C1: one group's transport block memoised on disk,
+       ``group_transport`` (:ref:`characteristic-block-memo`), called per
+       group by ``GalerkinSystem.groups``; each block a child entry of
+       the solve. ``PanelBasis``, ``ConcentricPartition`` and
+       ``RigidMotion`` became ``ContentIdentity`` values (the motion
+       copies, freezes and refuses a non-finite part; ``-0.0`` folded;
+       ``RigidMotion._exact_key`` and its ``__eq__``/``__hash__``
+       retired onto the encoder); ``Wall``, the basis's degree and
+       ``TransportResolution.line_points`` normalised. The elegance
+       review re-posed the prototype's ``transport_block(..., points,
+       support=None, chunk, budget)``: the resolution as one argument,
+       ``support`` required there and on ``LineRule.transport`` (whose
+       :math:`\Sigma_t > 0` default retired), chunk and budget pinned
+       through ``LineRule.of``'s source, and the name ``group_transport``.
+       Ruled: no size threshold; the miss cost first (#602). `[M]` 431
+       not-slow rows: 242 s without the memo, 1 303 s cold, 102 s warm.
+     - *(in development,* branch ``perf/characteristic-block-memo``\ *)*
+     - #405, #602

@@ -37,7 +37,7 @@ import pytest
 from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.materials import Materials
 from orpheus.derivations.continuous.characteristic import (
-    CharacteristicDerivation, GalerkinSystem, LineRule, PanelBasis, RegionCrossSections, Resolution, TransportResolution,
+    CharacteristicDerivation, GalerkinSystem, GroupTransport, LineRule, PanelBasis, RegionCrossSections, Resolution, TransportResolution,
     characteristic_reference,
 )
 from orpheus.derivations.continuous.characteristic import reference as reference_module
@@ -89,6 +89,12 @@ _Q = ((1.0, 0.25, 3.0), (0.4, 2.0, 0.7))
 #: counts are derived (P3 step 3f), so the working point names no along-line count.
 _WORK = (3, 2, 8)
 _GIVEN_BAND = 1e-12                 # the P1 spec's C1/C2 bar; [M] the worst sphere/slab/hollow row reads 6.7e-14
+
+
+def _on_emitting(rule: LineRule) -> GroupTransport:
+    """The rule's block with emission on the fixture's material regions (:math:`\\Sigma_t > 0`): the support a
+    fixture with no posed source resolves, since ``LineRule.transport`` takes no default (#405 P3 step 2c, C1)."""
+    return rule.transport(rule.lines.sigma_t > 0.0)
 
 
 def _partial(albedo: float) -> AlbedoBoundary:
@@ -417,7 +423,7 @@ def test_the_blocks_total_under_a_partial_mirror_is_the_closed_form(albedo: floa
     (``ta/measure_rim_block.log``); after it, <= 5.1e-16 at every count from 8 (the main agent). First red:
     the grading law G returning infinity."""
     basis = _basis("sphere", (0.0, 2.0), 3, 2, 0.4)
-    block = LineRule.of(basis, _walls("sphere", (0.0, 2.0), ((albedo, 0.0),)), np.array([2.4]), 8).transport().block
+    block = _on_emitting(LineRule.of(basis, _walls("sphere", (0.0, 2.0), ((albedo, 0.0),)), np.array([2.4]), 8)).block
     ones = np.ones(basis.size)
     expected = float(specular_sphere_total(2.4, 2.0, albedo))
     assert abs(float(ones @ block @ ones) / expected - 1.0) < 1e-14
@@ -518,7 +524,7 @@ def _rows(chart: str, breakpoints, laws, sigma: float) -> tuple[Any, np.ndarray,
     basis = _basis(chart, breakpoints, 2, 0, 0.4)
     walls = _walls(chart, breakpoints, laws)
     sig = np.full(len(breakpoints) - 1, sigma) if np.isscalar(sigma) else np.asarray(sigma)
-    transport = LineRule.of(basis, walls, sig, 8).transport()
+    transport = _on_emitting(LineRule.of(basis, walls, sig, 8))
     xs, ws = _volume_rule(np.asarray(basis.partition.breakpoints), chart, layers=8, points=12)
     rows = np.array([PointRule.of(basis, walls, sig, x, 8).row(transport) for x in xs])
     return transport, xs, ws, rows
@@ -705,7 +711,7 @@ def test_the_blocks_total_under_a_void_or_thin_outer_shell_is_the_closed_form(fi
     panel top only."""
     breakpoints, sigma, _ = fixture
     basis = _basis("sphere", breakpoints, 3, 2, 0.4)
-    block = LineRule.of(basis, _walls("sphere", breakpoints, ((0.99, 0.0),)), np.asarray(sigma[0]), 8).transport().block
+    block = _on_emitting(LineRule.of(basis, _walls("sphere", breakpoints, ((0.99, 0.0),)), np.asarray(sigma[0]), 8)).block
     emitting = tuple(1.0 if s > 0.0 else 0.0 for s in sigma[0])
     expected = mpref.specular_sphere_layered_total(breakpoints, sigma[0], emitting, 0.99)
     total = float(np.ones(block.shape[0]) @ block @ np.ones(block.shape[1]))

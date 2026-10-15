@@ -2575,8 +2575,14 @@ no production consumer (one test file reads it), so it is outside the
 encoder. The in-process keys that compare by content within
 one process and are never persisted are outside it too:
 ``MaterialMesh._identity_key`` and ``_contractibility_key``, the
-``SNProblem`` extension of them, ``Quadrature._identity_key`` and
-``RigidMotion._exact_key``.
+``SNProblem`` extension of them, and ``Quadrature._identity_key``.
+A rigid motion, a :class:`~orpheus.geometry.chord.ConcentricPartition`
+and the characteristic reference's ``PanelBasis`` are inside it, as
+:class:`~orpheus.numerics.content.ContentIdentity` values, because the
+reference's transport block is memoised on them
+(:ref:`characteristic-block-memo`); the rigid motion's own bytes key,
+``RigidMotion._exact_key``, retired onto the encoder when they joined
+(#405 P3 step 2c, 2026-10-15).
 
 .. dropdown:: The encoders and keys the encoder replaced, and who read equality (`[M]` at ``1dc31163``)
    :color: muted

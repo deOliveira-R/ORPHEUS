@@ -63,6 +63,8 @@ import numpy as np
 from orpheus.geometry.chart import AxialImage, Chart, RadialImage, half_chord
 from orpheus.geometry.line import Line
 from orpheus.geometry.transformation import RigidMotion
+from orpheus.numerics.content import ContentIdentity
+from orpheus.numerics.scalars import canonical_reals
 
 if TYPE_CHECKING:
     from orpheus.geometry.structured_geometry import StructuredGeometry
@@ -71,8 +73,11 @@ __all__ = ["Chord", "ConcentricPartition", "Crossings", "Rays", "Transits", "reg
 
 
 @dataclass(frozen=True, eq=False)
-class ConcentricPartition:
+class ConcentricPartition(ContentIdentity):
     r"""The level sets :math:`c = r_0 < r_1 < \dots < r_n` of a chart, posed in space.
+
+    **Identity is content** (:class:`~orpheus.numerics.content.ContentIdentity`):
+    the chart, the breakpoints and the pose.
 
     Attributes
     ----------
@@ -92,7 +97,7 @@ class ConcentricPartition:
     pose: RigidMotion = field(default_factory=lambda: RigidMotion.identity(3))
 
     def __post_init__(self) -> None:
-        r = tuple(float(v) for v in self.breakpoints)
+        r = tuple(canonical_reals(np.asarray(self.breakpoints), "the breakpoints").tolist())  # ``-0.0`` folded: one memo key
         if len(r) < 2 or not all(np.isfinite(r)) or any(b <= a for a, b in zip(r, r[1:])):
             raise ValueError(f"breakpoints are finite and strictly increasing, at least two; got {r!r}")
         if self.chart.acts_on_kept_space and r[0] < 0.0:

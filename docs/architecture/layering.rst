@@ -452,7 +452,7 @@ consumers: it receives a question, it is read through observables, it is
 keyed and memoised by content. That vocabulary is shared, so it is
 imported; what is computed is not. The allowlist is the set
 ``REFERENCE_INTERFACE_NUMERICS`` in :file:`tests/gates/test_layer_imports.py`,
-five submodules of :mod:`orpheus.numerics`:
+six submodules of :mod:`orpheus.numerics`:
 
 .. list-table::
    :header-rows: 1
@@ -472,6 +472,15 @@ five submodules of :mod:`orpheus.numerics`:
        a symbolic function)
    * - ``orpheus.numerics.content``
      - content identity, the one encoder of a persistent key
+   * - :mod:`orpheus.numerics.scalars`
+     - the one definition of a real number, an integer and a finite real
+       that the content encoder applies (:func:`~orpheus.numerics.scalars.canonical_reals`,
+       :func:`~orpheus.numerics.scalars.parse_real`); a reference normalises
+       a memo key's argument at its definition site with it, so the key and
+       the stored value agree (#405 P3 step 2c, C1). It parses and computes
+       nothing: NaN is refused and ``-0.0`` becomes ``+0.0``, which ``==``
+       already identifies. It imports nothing from ``orpheus``, and
+       ``content`` already imports it.
    * - :mod:`orpheus.numerics.traced_memo`
      - the traced memo, a pure function of content memoised on disk
 

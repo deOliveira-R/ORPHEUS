@@ -27,6 +27,7 @@ duplicate across the branch line, recorded in the conceptual view.
 
 from __future__ import annotations
 
+import operator
 from collections.abc import Callable
 from typing import NoReturn
 from dataclasses import dataclass, replace
@@ -52,6 +53,7 @@ from orpheus.geometry.boundary import (
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.structured_geometry import StructuredGeometry
+from orpheus.numerics.scalars import parse_real
 
 
 
@@ -97,6 +99,11 @@ class Wall:
     partner: int
 
     def __post_init__(self) -> None:
+        # one value, one memo key: the indices as ``int``, the amplitudes as canonical ``float`` (``-0.0`` folded)
+        object.__setattr__(self, "breakpoint", operator.index(self.breakpoint))
+        object.__setattr__(self, "partner", operator.index(self.partner))
+        object.__setattr__(self, "specular", parse_real(self.specular, f"the specular amplitude at breakpoint {self.breakpoint}"))
+        object.__setattr__(self, "diffuse", parse_real(self.diffuse, f"the diffuse amplitude at breakpoint {self.breakpoint}"))
         if not (0.0 <= self.specular <= 1.0 and 0.0 <= self.diffuse <= 1.0 and self.specular + self.diffuse <= 1.0):
             _refuse(
                 f"wall at breakpoint {self.breakpoint} returning (specular {self.specular}, "

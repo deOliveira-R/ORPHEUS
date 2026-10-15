@@ -80,7 +80,11 @@ Key facts
   memory, so a ``functools.cache`` hit, a ``cached_property`` computed
   earlier and a monkeypatch cannot hide a dependency from the record.
   In-process memoisation in ``orpheus/`` stays as it is. The price is one
-  interpreter start per miss, about 0.65 s (`[M]` 2026-10-04, three runs).
+  generation per miss: the interpreter start, about 0.65 s (`[M]`
+  2026-10-04, three runs), plus the recorder and the manifest, which
+  bring a cheap miss to 2.8 to 3.6 s against a 0.012 to 0.017 s hit
+  (`[M]` 2026-10-14, five characteristic transport blocks that take 0.024
+  to 0.19 s in process); cutting that overhead is #602.
 * **The key is exact, finer than content equality.** It is
   :func:`~orpheus.numerics.content.encode_exact` of the function's
   identity, its signature-bound arguments (defaults applied, each declared
@@ -106,10 +110,13 @@ Key facts
   ``evaluate`` returns, an establishment or an uncertified value, never a
   certificate or a verdict; ``ReferenceSolution`` re-checks every claim
   against that evaluation, cached or computed.
-* **Two clients today**: the characteristic reference's reading,
-  ``CharacteristicDerivation.evaluate``, keyed on the derivation and the
-  observable, and its solve, ``CharacteristicDerivation.solve``, keyed on
-  the derivation alone and a child entry of every reading (#592). P3
+* **Three clients today**, all in the characteristic reference: its
+  reading, ``CharacteristicDerivation.evaluate``, keyed on the derivation
+  and the observable; its solve, ``CharacteristicDerivation.solve``, keyed
+  on the derivation alone and a child entry of every reading (#592); and
+  one group's transport block, ``group_transport``, keyed on the basis,
+  the walls, the group's total cross sections, the resolution and the
+  emitting regions, and a child entry of the solve (#405 P3 step 2c). P3
   shipped three others, the two multi-region trajectory-resolvent solvers
   (``solve_greens_function_sphere_mr`` and
   ``solve_greens_function_cylinder_mr``) and the trajectory-resolvent
@@ -1025,6 +1032,18 @@ that read ``answer`` directly enter the bypass the same way, because
 never reaches an entry, and a call under the bypass reads and writes
 nothing.
 
+**What this does to a mutation battery.** For the same reason, an
+in-process mutation (a monkeypatch, or a ``-p`` plugin rebinding a
+symbol) is invisible to every row that reads a value through the memo: a
+miss generates from the source on disk, and a hit serves what that source
+computed. Since the transport blocks became a client (2026-10-15), that
+covers every characteristic row that reads ``GalerkinSystem.groups``. A
+battery or a ``catches`` re-drop on such rows mutates textually (a copied
+tree or a worktree, so the defect is on disk) or has its plugin enter
+:func:`~orpheus.numerics.traced_memo.bypass` at ``pytest_configure``;
+otherwise it reads 0 reds and reports a catcher as blind, or the tree as
+clean (``vv-principles`` #17).
+
 The bypass is a context manager, not an environment variable, because an
 environment variable is exactly the ambient state the ambient-state step
 removed (below). It and
@@ -1133,9 +1152,8 @@ interpreter start plus one validation is not memoised.**
 The clients
 ===========
 
-Since P1 step (e2) of the characteristic reference campaign
-(2026-10-10) the clients are the characteristic reading and its solve,
-below. The two trajectory-resolvent clients described first were P3's,
+The clients are the characteristic reading, its solve and its
+transport blocks, below. The two trajectory-resolvent clients described first were P3's,
 and were deleted with their family; their description is the record of
 how ruling 2 was first realised.
 
@@ -1183,6 +1201,28 @@ method pair rather than on a module-level solver. Within one process the
 the elegance review's probe: three observables of one cold fundamental
 wrote 3 reading entries and 1 solve entry. The page of record is
 :ref:`characteristic-door`.
+
+**The characteristic transport block.**
+:obj:`~orpheus.derivations.continuous.characteristic.assembly.group_transport`
+is a module-level traced memo, one group's block, called once per group
+by ``GalerkinSystem.groups``, so the solve's generation reads each block
+as a child entry and a point reading pins the same block keys. It is the
+first client whose arguments are geometry: it needed
+``PanelBasis``, ``ConcentricPartition`` and ``RigidMotion`` to become
+:class:`~orpheus.numerics.content.ContentIdentity` values, and it declares
+two canonical forms, ``sigma_t`` and ``support``, each the function the
+body itself calls first, so a served block and one computed under
+``bypass()`` (which passes the raw arguments) are one value. Its point is
+the decoupling: the block's manifest pins the transport kernel and no
+consumer, so an edit to the system, the reading or the door leaves the
+expensive blocks valid while the cheap solve regenerates. The design, the
+key's completeness, why its ``support`` is required, why the line rule's
+chunk and budget are pinned through its source rather than passed, and
+the measurements are on :ref:`characteristic-block-memo`. `[M]`
+2026-10-14 on 431 not-slow rows of the three files that read blocks:
+242 s without the memo, 1 303 s cold, 102 s warm; the cold overhead is
+the miss cost (#602), and the user ruled on 2026-10-15 that the block is
+memoised whatever its size, with no threshold.
 
 **A solve that does not converge.** The solver's result is a value
 whatever its convergence, so an exhausted solve is a cached value; the
@@ -1530,10 +1570,10 @@ Declared limits
 Each limit is a phase of #405 in the plan of record
 (``.claude/plans/reference_cache.md``):
 
-* **Two clients only.** No reference family besides the characteristic
-  reference is memoised: its reading and, since #592 (``23e7711e``), its
-  solve as a child entry (the multi-region trajectory resolvent was the
-  client until its deletion on 2026-10-10); the other families migrate in
+* **One family only.** No reference family besides the characteristic
+  reference is memoised: its reading, its solve as a child entry (#592,
+  ``23e7711e``) and its transport blocks as children of the solve (#405
+  P3 step 2c); the other families migrate in
   phase P4, and a certification run becomes a client there. No gate yet refuses a
   traced memo on a withdrawn generator (the generating process refuses it,
   since its declared environment holds no ``ORPHEUS_*`` switch).
@@ -1924,6 +1964,14 @@ the memo. The 2026-10-04 rows sat on the branch
      - Milestone
      - Issue
      - Where
+   * - 2026-10-15
+     - **The characteristic transport block becomes a client**,
+       ``group_transport``, one group's block, a child entry of the
+       solve; the three geometry types it keys on become content values.
+       The miss cost it exposed (about 2.3 s of recorder and manifest per
+       miss) is #602; no size threshold (the user's ruling).
+     - #405, #602
+     - *(in development)*
    * - 2026-10-10
      - **The trajectory-resolvent clients deleted.** P1 step (e2) of the
        characteristic reference campaign deleted the two multi-region

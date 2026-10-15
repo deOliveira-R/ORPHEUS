@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **17590**
+Total tests collected: **17663**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1870, 10.6%
-   L1, 2743, 15.6%
+   L1, 2743, 15.5%
    L2, 85, 0.5%
    L3, 0, 0.0%
-   foundation, 12860, 73.1%
+   foundation, 12933, 73.2%
    unmarked, 32, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 17479
+   explicit, 17552
    class-name, 46
    func-name, 0
    case, 33
@@ -183,13 +183,14 @@ Module × level grid
    derivations/test_characteristic_assembly, 4, 112, 4, 0, 67, 0
    derivations/test_characteristic_attenuation_rule, 34, 0, 0, 0, 56, 0
    derivations/test_characteristic_basis, 0, 0, 0, 0, 271, 0
+   derivations/test_characteristic_block_memo, 0, 0, 0, 0, 23, 0
    derivations/test_characteristic_closure, 127, 0, 0, 0, 9, 0
    derivations/test_characteristic_convergence, 0, 0, 6, 0, 0, 0
    derivations/test_characteristic_independent_references, 0, 9, 0, 0, 0, 0
    derivations/test_characteristic_lift, 11, 17, 1, 0, 32, 0
    derivations/test_characteristic_nystrom_withdrawn, 0, 1, 0, 0, 2, 0
    derivations/test_characteristic_reading, 0, 135, 3, 0, 40, 0
-   derivations/test_characteristic_reference, 12, 40, 0, 0, 56, 1
+   derivations/test_characteristic_reference, 12, 40, 0, 0, 71, 1
    derivations/test_characteristic_system, 2, 95, 0, 0, 12, 0
    derivations/test_characteristic_transport, 57, 0, 0, 0, 75, 0
    derivations/test_characteristic_walls, 19, 0, 0, 0, 31, 0
@@ -317,7 +318,7 @@ Module × level grid
    geometry/test_chord_level, 0, 0, 0, 0, 47, 0
    geometry/test_chord_refinement, 0, 0, 0, 0, 12, 0
    geometry/test_chord_transits, 88, 0, 0, 0, 1, 0
-   geometry/test_content_identity_geometry, 0, 0, 0, 0, 101, 0
+   geometry/test_content_identity_geometry, 0, 0, 0, 0, 135, 0
    geometry/test_deck_laws_do_not_compose, 0, 0, 0, 0, 217, 0
    geometry/test_geometry, 0, 0, 0, 0, 50, 0
    geometry/test_geometry_extent, 0, 0, 0, 0, 8, 0
@@ -490,7 +491,7 @@ Module × level grid
    numerics/test_tensor_product_metric_is_factored, 0, 0, 0, 0, 10, 0
    numerics/test_tensor_product_operator, 35, 0, 0, 0, 0, 0
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 16, 0
-   numerics/test_traced_memo_clients, 0, 0, 0, 0, 14, 0
+   numerics/test_traced_memo_clients, 0, 0, 0, 0, 15, 0
    numerics/test_traced_memo_data, 0, 0, 0, 0, 1, 0
    numerics/test_traced_memo_findings, 0, 0, 0, 0, 35, 0
    numerics/test_traced_memo_manifest, 0, 0, 0, 0, 22, 0

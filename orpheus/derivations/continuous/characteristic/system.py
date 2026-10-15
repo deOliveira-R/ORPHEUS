@@ -78,7 +78,7 @@ from scipy.linalg import block_diag
 
 from orpheus.derivations.common.dense_pencil import DensePencil
 
-from .assembly import GroupTransport, LineRule, TransportResolution
+from .assembly import GroupTransport, TransportResolution, group_transport
 from .basis import PanelBasis
 from .cross_sections import RegionCrossSections
 from .reading import PointRule, angular_flux
@@ -198,9 +198,8 @@ class GalerkinSystem:
     def groups(self) -> tuple[GroupTransport, ...]:
         """Each group's transport block, on its own line rule, its columns on the group's support."""
         support = self.cross_sections.emission_support() | self.source_regions
-        r = self.resolution
         return tuple(
-            LineRule.of(self.basis, self.walls, self.cross_sections.total[:, g], r.line_points).transport(support[:, g])
+            group_transport(self.basis, self.walls, self.cross_sections.total[:, g], self.resolution, support[:, g])
             for g in range(self.n_groups)
         )
 
