@@ -2835,3 +2835,55 @@ Merged to `main` @ `9178ad00`. The full not-slow suite before the merge `[M]` 20
 **Docs** (the archivist): `docs/theory/references/characteristic.rst`, new section `characteristic-block-memo` ("A transport block is an entry of its own"), the support prose, the door's spy, a Key fact, two Gotchas and two History rows (2b, 2c); `docs/theory/verification/reference_cache.rst`, the clients, the miss price, the bypass's battery paragraph, the declared limit and a History row; `docs/theory/foundations/structured_geometry.rst`, the encoder's population.
 
 ⏸ **Next:** C2 (the cylinder point rows, 60 reads at 10 to 20 s each `[R]`) and C3 (a bypass scoped per function; the gates behind `bypass()` hold 2726 s), then the re-timing of the hot characteristic files; #602 before the re-timing.
+
+### Step 2c, C2 and C3 measured (2026-10-15)
+
+Two explorer censuses on `main` @ `da74b1ce`. The files are `scratch/characteristic_architecture/p3/c2/census.md` and `scratch/characteristic_architecture/p3/c3/census.md`. Both ran serially with `-O -p no:cacheprovider`, `OMP_NUM_THREADS=1`, on a warm store, and both report the second of two passes.
+
+**The bypass population** `[M]` (AST over `git ls-files tests orpheus`, 1119 files; both call spellings found as positive controls).
+- 50 `bypass()` call sites in 16 files, all under `tests/`. 171 tests enter it.
+- **Arm P**, a test that monkeypatches: 20 tests, 25.1 s wall, of which 1.6 s is inside memoised calls.
+- **Arm N**, a test that patches nothing: 151 tests, 2226 s wall, of which 2049 s is inside memoised calls. By file: convergence 688 s, albedos 746 s, lift 391 s, independent_references 110 s, reference 71 s.
+- Four arm-N rows must keep `bypass()`, because their in-process side is the claim: B3, B6b, M4.12 and M4.5c.
+- No code comment, commit message or page states why the readers bypass. `[R]` the reason is the cold cost: a miss regenerates in a fresh interpreter, and C1 measured cold 1303 s against no-memo 242 s on its 431 rows.
+
+**C3, a bypass scoped per function.** `[REFUTED 2026-10-15]` as a speed remedy.
+- Its ceiling is 1.4 s per pass by the dynamic predicate, and 0.7 s by the store's manifests.
+- The reason: only arm P has a patched def to scope by, and its patched defs (`MeasureCoordinate.derivative`, `group_transport`, `GalerkinSystem.pencil`) are reached by nearly every entry. `group_transport` pins `MeasureCoordinate.derivative` in 278 of 278 entries.
+- The plan's 2726 s, at step 2b's boundary ranking item 3, was the time `bypass()` keeps unserved (2049 s today), not what scoping would recover.
+- **The fact it establishes, for correctness:** a scoped bypass would serve a stale value for a patch on any of the following, because the recorder never pins them:
+  - a module constant or registry entry;
+  - a class attribute holding a value;
+  - a dataclass-generated method (its code is from `<string>`);
+  - a C or third-party function (only the version is pinned);
+  - a def read but not called;
+  - an attribute added and probed by `hasattr`.
+- If C3 is ever built: `bypass(of=(original_def, ...))` refuses anything that is not a first-party Python def, and decides by reach through child entries.
+
+**C2, the cylinder point rows** `[M]`.
+- The count was right and the time was not: 60 rows, 239 s per pass in all, median 2.65 s, max 26.6 s. 8 of 60 take 10 s or more.
+- The plan's "10 to 20 s each" was a residual (test time minus block time) that also held in-process blocks and test-side mpmath.
+- The cost is `PointRule.row` (`reading.py:239`). 86 % of it is `AttenuationRule.of` inside the exit integral, and there is no mpmath.
+- 40 of the 60 rows, 177 s, run under an arm-N `bypass()`, together with 453 s of their blocks computed in-process.
+- `point_flux` computes every group's row, and a door read of `PointValue(x, g)` keeps one: 11 of 34 door rows are discarded.
+- **Candidates:**
+  - **C2-0:** a door `PointValue(x, g)` reads only group g's row. No key change; about 16 s per pass `[R]`.
+  - **C2-A:** a `point_row` memo reading `group_transport` as a child, keyed on `orbit_coordinate` through `canonical_real`. It saves about 62 s warm, or 239 s once arm N is served. Its hazard: under `bypass()` its generation re-assembles the block.
+  - **C2-B:** the same memo keyed on the block's content. It needs `GroupTransport`, `WallCoupling` and `DiffuseWalls` as content values.
+- **Rejected,** with the reasons in the census:
+  - `PointRule.of`;
+  - `point_flux` (the system is `eq=False`);
+  - the per-chunk kernel;
+  - a batch over positions;
+  - the `evaluate` memo, which is already a memo but is bypassed.
+
+**The store** still holds 261 entries under the retired name `transport_block`. Nothing reads them.
+
+**The user's ruling (2026-10-15):**
+1. C3 is not built.
+2. #602 comes first: cut the miss overhead so that a cold run costs about what no memo costs.
+3. Then remove `bypass()` from the 147 incidental arm-N readers. The four rows B3, B6b, M4.12 and M4.5c keep it.
+4. Measure cold, warm and no-memo before merging.
+5. C2-0 lands alongside, since it is independent.
+
+⏸ **Next:** #602 (the miss cost), then C2-0, then dropping `bypass()` from arm N, then the re-timing.

@@ -68,3 +68,4 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Characteristic memo stage census](characteristic_memo_stage_census.md) — dry-run stub census; block is the seam; PointValue re-assembles blocks.
 - [Trajectory-resolvent retirement audit](trajectory_resolvent_retirement_audit.md) — origins stay; placement/catalogue/roster gates string-pin deleted files.
 - [C1 three types content identity](c1_three_types_content_identity_census.md) — RigidMotion already value-equal, aliases arrays; 0 runtime eq/hash; S5.9 roster.
+- [C2 cylinder point rows](c2_cylinder_point_row_census.md) — 239 s not 600-1200; 40 of 60 under bypass; row = attenuation rules.
