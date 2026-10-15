@@ -244,6 +244,12 @@ def main() -> None:
     answer = traced_memo._generate_here(envelope["job"], recording)
     with os.fdopen(result_fd, "wb") as channel:
         channel.write(answer)
+    # The entry is written and the answer sent; the process ends without tearing down its objects (the parsed
+    # sources and the imported modules took 0.33 s to free per miss, ``[M]`` #602). Nothing after this line
+    # could change what the parent reads.
+    sys.stdout.flush()  # a generator's print, which went to standard error (qa finding 9)
+    sys.stderr.flush()
+    os._exit(0)
 
 
 if __name__ == "__main__":  # an import (a roster walk over the package) runs nothing

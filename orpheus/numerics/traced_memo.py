@@ -120,11 +120,21 @@ _DEF = (ast.FunctionDef, ast.AsyncFunctionDef)
 
 
 def _without_docstrings(tree: ast.Module) -> ast.Module:
-    for node in ast.walk(tree):
+    """``tree`` with the docstring of the module, of every class and of every def removed.
+
+    A docstring is the first statement of a module, class or def body, and every class and def is a
+    statement, so the walk descends statements only (and the handlers and cases that hold statements),
+    never an expression: walking every expression node cost a cheap miss about 0.2 s (``[M]`` #602)."""
+    def strip(node: ast.AST) -> None:
         if isinstance(node, (ast.Module, ast.ClassDef, *_DEF)):
             first = node.body[0] if node.body else None
             if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
                 node.body = node.body[1:] or [ast.Pass()]
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.stmt, ast.excepthandler, ast.match_case)):
+                strip(child)
+
+    strip(tree)
     return tree
 
 
@@ -138,15 +148,23 @@ def _span(node: ast.AST) -> range:
     return range(first, node.end_lineno + 1)  # type: ignore[attr-defined]
 
 
-class _Def(NamedTuple):
+@dataclasses.dataclass(frozen=True, eq=False)
+class _Def:
     """An outermost def: its qualified name, its rank among the defs of that name (0 first), its span with
-    decorators, its node and the digest of its normalised source."""
+    decorators, its node and the digest of its normalised source.
+
+    The digest is computed when a pin first asks for it: a generation runs a few of the defs of the files it
+    imports (247 of 1948 in a cheap characteristic block, ``[M]`` #602), and dumping every def cost most of a
+    miss's manifest."""
 
     qualname: str
     ordinal: int
     span: range
     node: ast.FunctionDef | ast.AsyncFunctionDef
-    digest: str
+
+    @functools.cached_property
+    def digest(self) -> str:
+        return _ast_digest(self.node)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -173,7 +191,10 @@ def _source_text(data: bytes) -> _SourceText:
 
     ONE walk finds every outermost def: it descends every statement except a def's body, so a def under any
     block (``if``, ``for``, ``while``, ``match``, ``try``, ``with``) is found; a class adds its name to the
-    qualified names of the defs in its body."""
+    qualified names of the defs in its body. The file is parsed once: the skeleton is the same tree read with
+    every outermost def's body taken as ``pass`` (the bodies are swapped out for the one dump and put back,
+    before the tree is shared), which is the skeleton of every def, since a def nested in a body vanishes
+    with that body."""
     tree = _without_docstrings(ast.parse(data))
     found: list[_Def] = []
     seen: dict[str, int] = {}
@@ -183,18 +204,22 @@ def _source_text(data: bytes) -> _SourceText:
             if isinstance(node, _DEF):
                 qualname = prefix + node.name
                 seen[qualname] = seen.get(qualname, -1) + 1
-                found.append(_Def(qualname, seen[qualname], _span(node), node, _ast_digest(node)))
+                found.append(_Def(qualname, seen[qualname], _span(node), node))
             elif isinstance(node, ast.ClassDef):
                 walk(node, f"{prefix}{node.name}.")
             elif isinstance(node, (ast.stmt, ast.excepthandler, ast.match_case)):
                 walk(node, prefix)
 
     walk(tree, "")
-    skeleton = _without_docstrings(ast.parse(data))
-    for node in ast.walk(skeleton):
-        if isinstance(node, _DEF):
-            node.body = [ast.Pass()]
-    return _SourceText(tree, tuple(found), _ast_digest(skeleton))
+    bodies = [d.node.body for d in found]
+    try:
+        for d in found:
+            d.node.body = [ast.Pass()]
+        skeleton = _ast_digest(tree)
+    finally:
+        for d, body in zip(found, bodies, strict=True):
+            d.node.body = body
+    return _SourceText(tree, tuple(found), skeleton)
 
 
 def function_digest(source: bytes | str, qualname: str, ordinal: int = -1) -> str | None:
@@ -404,12 +429,26 @@ class _Checkout:
     def __init__(self, store: Store) -> None:
         self.store = store
         self._texts: dict[str, bytes | None] = {}
+        self._versions: dict[str, str | None] = {}
 
     def text(self, path: str) -> bytes | None:
         if path not in self._texts:
             found = _locate(path)
             self._texts[path] = found.read_bytes() if found is not None else None
         return self._texts[path]
+
+    def version(self, name: str) -> str | None:
+        """The installed version of the distribution ``name``, or ``None`` when none is installed."""
+        if name not in self._versions:
+            self._versions[name] = _installed_version(name)
+        return self._versions[name]
+
+
+def _installed_version(name: str) -> str | None:
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return None
 
 
 def _file_digest(path: str) -> str:
@@ -471,10 +510,7 @@ class DistributionPin(NamedTuple):
     version: str
 
     def stale(self, checkout: _Checkout) -> str | None:
-        try:
-            now: str | None = importlib.metadata.version(self.name)
-        except importlib.metadata.PackageNotFoundError:
-            now = None
+        now = checkout.version(self.name)
         return f"distribution {self.name}: {self.version} != {now}" if now != self.version else None
 
 
@@ -642,11 +678,14 @@ def _manifest(recording: Recording, store: Store) -> Manifest:
     pins: set[Pin] = {InterpreterPin(_python_identity()), MemoPin(_memo_digest()), EnvironmentPin(_environment_digest(recording.environment))}
     pins |= {_program_pin(program) for program in recording.spawned}
     pins |= {ChildPin(*child) for child in recording.children}
+    # One version lookup per distribution, not per code object: a cheap characteristic block records 1245
+    # third-party code objects of 6 distributions, and each lookup re-reads the metadata (``[M]`` #602, 0.64 s).
+    version = functools.cache(importlib.metadata.version)
     by_file: dict[str, list[types.CodeType]] = {}
     for code in recording.codes:
         match origin(code.co_filename):
             case Distribution(name):
-                pins.add(DistributionPin(name, importlib.metadata.version(name)))
+                pins.add(DistributionPin(name, version(name)))
             case Source(path):
                 by_file.setdefault(path, []).append(code)
             case Dropped() | Interpreter():
@@ -662,7 +701,7 @@ def _manifest(recording: Recording, store: Store) -> Manifest:
             continue  # a store entry is a child
         match origin(opened):
             case Distribution(name):
-                pins.add(DistributionPin(name, importlib.metadata.version(name)))
+                pins.add(DistributionPin(name, version(name)))
             case Source():
                 pins.add(DataPin(opened, _file_digest(opened)))
             case Dropped() | Interpreter():
