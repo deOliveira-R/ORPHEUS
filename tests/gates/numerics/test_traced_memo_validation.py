@@ -44,6 +44,7 @@ WITNESSES = [
     ("traced-body", "alpha", "return x * SCALE", "return x * SCALE * 1.0", True, "helper"),
     ("traced-method", "alpha", "return x + 2.0", "return x + 2.5", True, "Box.method"),
     ("traced-nested-lambda", "alpha", "(lambda z: z * 0.5)", "(lambda z: z * 0.25)", True, "nested_user"),
+    ("traced-nested-def", "alpha", "return y + 1.0", "return y + 2.0", True, "nested_user"),
     ("constant-read", "alpha", "SCALE = 3.0", "SCALE = 3.5", True, "skeleton"),
     ("constant-unread", "alpha", "UNREAD = 7.0", "UNREAD = 8.0", True, "skeleton"),
     ("untraced-body", "alpha", "return x - 1.0", "return x - 9.0", False, ""),
@@ -92,6 +93,19 @@ def test_m2_3_a_distribution_version_and_the_interpreter_are_validated(package):
     assert any("python" in r for r in api.validate(manifest.replacing(interpreter, [interpreter("CPython 2.7")])))
     gone = [*manifest.distributions, pin("no-such-distribution-xyz", "1.0")]
     assert any("no-such-distribution-xyz" in r for r in api.validate(manifest.replacing(pin, gone)))
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3_a_distribution_version_and_the_interpreter_are_validated')
+def test_m2_3b_each_validation_reads_the_installed_versions_afresh(package, monkeypatch):
+    """M2.3 (b): a validation looks each distribution's version up once and keeps it for that validation
+    only (#602), so a version that changes between two validations is a reason in the second. M2.3 edits the
+    manifest; this row changes what is installed (``importlib.metadata.version``, the lookup a validation
+    makes), so a cache that outlived one validation would read the first version and stay clean."""
+    manifest = _generate_manifest(package)
+    assert not any("numpy" in r for r in api.validate(manifest)), "the fresh manifest is already stale"
+    real = importlib.metadata.version
+    monkeypatch.setattr(importlib.metadata, "version", lambda name: "9.9.9" if name == "numpy" else real(name))
+    assert any("numpy" in r and "9.9.9" in r for r in api.validate(manifest))
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed')

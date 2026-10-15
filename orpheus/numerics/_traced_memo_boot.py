@@ -29,6 +29,9 @@ directory while it is imported is the run's own dependency (qa's second review, 
 Audit hooks cannot be removed, so one hook is installed per process and serves the recordings active at the
 moment of each event; the ``os.stat`` probe is installed while a recording is active and removed after.
 """
+import hashlib
+import importlib.machinery
+import marshal
 import os
 import sys
 import threading
@@ -151,6 +154,9 @@ class Recording:
         self.directory = os.getcwd()
         self.environment: dict[str, str] = dict(os.environ)
         self.children: set[tuple[str, str, str]] = set()
+        #: The bytes each first-party module was compiled from, by real path, when the pinned-source loader
+        #: is installed (a generating process); ``None`` in a process without it (``trace_call``).
+        self.sources: dict[str, bytes] | None = None
         self._tool: int | None = None
 
     def start(self) -> "Recording":
@@ -222,6 +228,116 @@ class spawning:
         _SPAWNING.on = False
 
 
+#: Where the pinned-source loader keeps bytecode: beside the store, at the repository root, one directory per
+#: interpreter and ``-O`` level. An entry is named by the digest of (path, interpreter, ``-O`` level, source
+#: bytes), so sharing it across stores and processes is sound.
+_BYTECODE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".cache",
+                         "bytecode", f"{sys.implementation.cache_tag}-O{sys.flags.optimize}")
+
+
+def _bytecode_key(path: str, source: bytes) -> bytes:
+    head = f"{path}\0{sys.implementation.cache_tag}\0{sys.flags.optimize}\0".encode()
+    return hashlib.blake2b(head + source, digest_size=32).digest()
+
+
+class _PinnedSourceLoader(importlib.machinery.SourceFileLoader):
+    """A first-party module compiled from the bytes this process read, never from a timestamp ``.pyc``.
+
+    CPython accepts a timestamp ``.pyc`` when the source's whole-second mtime and its size match, so a
+    same-size edit within the second of the previous write ran the OLD code while the manifest pinned the NEW
+    bytes: a regenerated entry served the old answer and validated (the test-architect's probe, 2026-10-15,
+    #602). This loader compiles from the bytes it reads, offers those bytes to every active recording (the
+    manifest pins exactly them), and keeps its bytecode apart from ``__pycache__``: an entry carries its key
+    and the digest of its code, and one that does not match both is recompiled, never run. Its own reads are
+    the memo's, not the run's (``unrecorded``)."""
+
+    def get_code(self, fullname: str):  # type: ignore[override]
+        with unrecorded():
+            path = self.get_filename(fullname)
+            source = self.get_data(path)
+            real = os.path.realpath(path)
+            for recording in list(_ACTIVE):
+                if recording.sources is not None:
+                    recording.sources[real] = source
+            key = _bytecode_key(path, source)
+            entry = os.path.join(_BYTECODE, key.hex())
+            try:
+                with open(entry, "rb") as stored:
+                    data = stored.read()
+                if data[:32] == key and data[32:64] == hashlib.blake2b(data[64:], digest_size=32).digest():
+                    return marshal.loads(data[64:])
+            except (OSError, EOFError, ValueError, TypeError):
+                pass
+            code = self.source_to_code(source, path)
+            payload = marshal.dumps(code)
+            try:
+                os.makedirs(_BYTECODE, exist_ok=True)
+                partial = f"{entry}.{os.getpid()}.{threading.get_ident()}.part"
+                with open(partial, "wb") as out:
+                    out.write(key + hashlib.blake2b(payload, digest_size=32).digest() + payload)
+                os.replace(partial, entry)
+            except OSError:
+                pass
+            return code
+
+
+def _vendor_dirs() -> tuple[str, ...]:
+    """The standard library and the site-packages directories: code there is pinned by the interpreter or by
+    a distribution's version, never by its bytes."""
+    import site
+    import sysconfig
+
+    paths = sysconfig.get_paths()
+    dirs = {paths["stdlib"], paths["platstdlib"], paths["purelib"], paths["platlib"], *site.getsitepackages()}
+    return tuple(sorted({os.path.realpath(d) + os.sep for d in dirs}, key=len, reverse=True))
+
+
+class _PinnedSourceFinder:
+    """The first entry of ``sys.meta_path`` in a generating process: it finds a module through every finder
+    after it, in order (so a module only an editable install's finder knows is covered), and gives a
+    first-party source module the pinned-source loader."""
+
+    vendor: tuple[str, ...] = ()
+
+    @classmethod
+    def find_spec(cls, fullname, path=None, target=None):
+        for finder in sys.meta_path:
+            if finder is cls or not hasattr(finder, "find_spec"):
+                continue
+            spec = finder.find_spec(fullname, path, target)
+            if spec is not None:
+                break
+        else:
+            return None
+        if type(spec.loader) is importlib.machinery.SourceFileLoader and spec.origin is not None:
+            with unrecorded():
+                vendored = os.path.realpath(spec.origin).startswith(cls.vendor)
+            if not vendored:
+                spec.loader = _PinnedSourceLoader(fullname, spec.origin)
+        return spec
+
+
+def _install_pinned_sources(recording: "Recording") -> None:
+    """Compile every first-party module this process imports from now on through the pinned-source loader,
+    and record its bytes on ``recording``.
+
+    The modules already imported were compiled before the loader existed: this script, and what the
+    interpreter's start imported (``site`` runs an editable install's finder module, which the manifest pins
+    by its bytes). Their bytes are recorded now, the closest this process can come to the moment they were
+    compiled."""
+    recording.sources = {}
+    with unrecorded():
+        _PinnedSourceFinder.vendor = _vendor_dirs()
+        started = {os.path.realpath(__file__)} | {
+            os.path.realpath(f) for module in list(sys.modules.values())
+            if isinstance(f := getattr(module, "__file__", None), str) and f.endswith(".py")
+        }
+        for path in started:
+            with open(path, "rb") as source:
+                recording.sources[path] = source.read()
+    sys.meta_path.insert(0, _PinnedSourceFinder)
+
+
 def main() -> None:
     """Record from the first line, then run the job; answer through the descriptor the parent reads.
 
@@ -233,6 +349,7 @@ def main() -> None:
     # own start of a nested generating process, would be offered to nobody.
     sys.modules["orpheus.numerics._traced_memo_boot"] = sys.modules[__name__]
     recording = Recording().start()
+    _install_pinned_sources(recording)
     import pickle  # after the recorder starts, so its own import is recorded
 
     result_fd = os.dup(1)

@@ -63,6 +63,7 @@ from __future__ import annotations
 
 import ast
 import contextlib
+import copy
 import dataclasses
 import functools
 import hashlib
@@ -117,6 +118,9 @@ class Unencodable(TypeError):
 # ── the normalised source ───────────────────────────────────────────────────────────────────────────
 
 _DEF = (ast.FunctionDef, ast.AsyncFunctionDef)
+#: The nodes whose fields hold statements: a statement, an ``except`` handler and a ``match`` case. A docstring
+#: and a def are statements, so every walk that looks for either descends these and never an expression.
+_HOLDS_STATEMENTS = (ast.stmt, ast.excepthandler, ast.match_case)
 
 
 def _without_docstrings(tree: ast.Module) -> ast.Module:
@@ -129,9 +133,11 @@ def _without_docstrings(tree: ast.Module) -> ast.Module:
         if isinstance(node, (ast.Module, ast.ClassDef, *_DEF)):
             first = node.body[0] if node.body else None
             if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
-                node.body = node.body[1:] or [ast.Pass()]
+                # A body that was only a docstring keeps a ``pass`` AT THE DOCSTRING'S LINES, so the first line of
+                # a def's body is still a line of the file (``_def_pin`` reads it; digests exclude locations).
+                node.body = node.body[1:] or [ast.copy_location(ast.Pass(), first)]
         for child in ast.iter_child_nodes(node):
-            if isinstance(child, (ast.stmt, ast.excepthandler, ast.match_case)):
+            if isinstance(child, _HOLDS_STATEMENTS):
                 strip(child)
 
     strip(tree)
@@ -191,34 +197,30 @@ def _source_text(data: bytes) -> _SourceText:
 
     ONE walk finds every outermost def: it descends every statement except a def's body, so a def under any
     block (``if``, ``for``, ``while``, ``match``, ``try``, ``with``) is found; a class adds its name to the
-    qualified names of the defs in its body. The file is parsed once: the skeleton is the same tree read with
-    every outermost def's body taken as ``pass`` (the bodies are swapped out for the one dump and put back,
-    before the tree is shared), which is the skeleton of every def, since a def nested in a body vanishes
-    with that body."""
+    qualified names of the defs in its body. The file is parsed once, and the same walk returns the skeleton:
+    a shallow copy of the statement spine with every outermost def's body read as ``pass`` (a def nested in a
+    body vanishes with that body). The parsed tree is never changed, so a def's digest, computed when a pin
+    asks for it, is always of its own body."""
     tree = _without_docstrings(ast.parse(data))
     found: list[_Def] = []
     seen: dict[str, int] = {}
 
-    def walk(parent: ast.AST, prefix: str) -> None:
-        for node in ast.iter_child_nodes(parent):
-            if isinstance(node, _DEF):
-                qualname = prefix + node.name
-                seen[qualname] = seen.get(qualname, -1) + 1
-                found.append(_Def(qualname, seen[qualname], _span(node), node))
-            elif isinstance(node, ast.ClassDef):
-                walk(node, f"{prefix}{node.name}.")
-            elif isinstance(node, (ast.stmt, ast.excepthandler, ast.match_case)):
-                walk(node, prefix)
+    def hollowed(node: ast.AST, prefix: str) -> ast.AST:
+        if isinstance(node, _DEF):
+            qualname = prefix + node.name
+            seen[qualname] = seen.get(qualname, -1) + 1
+            found.append(_Def(qualname, seen[qualname], _span(node), node))
+            hollow = copy.copy(node)
+            hollow.body = [ast.Pass()]
+            return hollow
+        inner = f"{prefix}{node.name}." if isinstance(node, ast.ClassDef) else prefix
+        clone = copy.copy(node)
+        for field, value in ast.iter_fields(node):
+            if isinstance(value, list) and any(isinstance(v, _HOLDS_STATEMENTS) for v in value):
+                setattr(clone, field, [hollowed(child, inner) for child in value])
+        return clone
 
-    walk(tree, "")
-    bodies = [d.node.body for d in found]
-    try:
-        for d in found:
-            d.node.body = [ast.Pass()]
-        skeleton = _ast_digest(tree)
-    finally:
-        for d, body in zip(found, bodies, strict=True):
-            d.node.body = body
+    skeleton = _ast_digest(hollowed(tree, ""))
     return _SourceText(tree, tuple(found), skeleton)
 
 
@@ -438,17 +440,15 @@ class _Checkout:
         return self._texts[path]
 
     def version(self, name: str) -> str | None:
-        """The installed version of the distribution ``name``, or ``None`` when none is installed."""
+        """The installed version of the distribution ``name``, or ``None`` when none is installed: looked up
+        once per checkout, which lives for one manifest or one validation (a lookup re-reads the
+        distribution's metadata: 1245 lookups for 6 distributions cost a cheap miss 0.64 s, ``[M]`` #602)."""
         if name not in self._versions:
-            self._versions[name] = _installed_version(name)
+            try:
+                self._versions[name] = importlib.metadata.version(name)
+            except importlib.metadata.PackageNotFoundError:
+                self._versions[name] = None
         return self._versions[name]
-
-
-def _installed_version(name: str) -> str | None:
-    try:
-        return importlib.metadata.version(name)
-    except importlib.metadata.PackageNotFoundError:
-        return None
 
 
 def _file_digest(path: str) -> str:
@@ -678,21 +678,19 @@ def _manifest(recording: Recording, store: Store) -> Manifest:
     pins: set[Pin] = {InterpreterPin(_python_identity()), MemoPin(_memo_digest()), EnvironmentPin(_environment_digest(recording.environment))}
     pins |= {_program_pin(program) for program in recording.spawned}
     pins |= {ChildPin(*child) for child in recording.children}
-    # One version lookup per distribution, not per code object: a cheap characteristic block records 1245
-    # third-party code objects of 6 distributions, and each lookup re-reads the metadata (``[M]`` #602, 0.64 s).
-    version = functools.cache(importlib.metadata.version)
+    checkout = _Checkout(store)
     by_file: dict[str, list[types.CodeType]] = {}
     for code in recording.codes:
         match origin(code.co_filename):
             case Distribution(name):
-                pins.add(DistributionPin(name, version(name)))
+                pins.add(_distribution_pin(checkout, name))
             case Source(path):
                 by_file.setdefault(path, []).append(code)
             case Dropped() | Interpreter():
                 pass
     for real, file_codes in by_file.items():
         path = _pin_path(real)
-        text = _source_text(Path(real).read_bytes())
+        text = _source_text(_compiled_bytes(recording, real))
         pins.add(ModulePin(path, text.skeleton))
         pins |= {pin for code in file_codes if (pin := _def_pin(text, path, code)) is not None}
     store_root = _real(str(store.root)) + os.sep
@@ -701,7 +699,7 @@ def _manifest(recording: Recording, store: Store) -> Manifest:
             continue  # a store entry is a child
         match origin(opened):
             case Distribution(name):
-                pins.add(DistributionPin(name, version(name)))
+                pins.add(_distribution_pin(checkout, name))
             case Source():
                 pins.add(DataPin(opened, _file_digest(opened)))
             case Dropped() | Interpreter():
@@ -711,6 +709,30 @@ def _manifest(recording: Recording, store: Store) -> Manifest:
     if recording.relative:
         pins.add(WorkingDirectoryPin(recording.directory))
     return Manifest(frozenset(pins))
+
+
+def _distribution_pin(checkout: _Checkout, name: str) -> DistributionPin:
+    """The pin of a distribution whose code ran or whose file was read, by its installed version."""
+    version = checkout.version(name)
+    if version is None:
+        raise Unpinnable(f"the distribution {name} owns a file the run touched, but no version of it is installed")
+    return DistributionPin(name, version)
+
+
+def _compiled_bytes(recording: Recording, real: str) -> bytes:
+    """The bytes a source file's code ran from. A generating process compiles every first-party module from
+    the bytes its loader read and records them (``_traced_memo_boot``), so they are pinned even when the file
+    changed during the run, or within the second a timestamp ``.pyc`` cannot tell apart; code of such a file
+    that the loader did not compile (an ``exec`` of a file read by hand, ``runpy``) has no bytes to pin and is
+    refused. :func:`trace_call`, the in-process instrument, has no loader and reads the file after the run."""
+    if recording.sources is None:
+        return Path(real).read_bytes()
+    if real not in recording.sources:
+        raise Unpinnable(
+            f"{real}: code of this file ran without being imported (an exec or runpy of a source file), so no "
+            "bytes were recorded for it and a re-read after the run could pin bytes that never ran"
+        )
+    return recording.sources[real]
 
 
 def _program_pin(program: str) -> DataPin:

@@ -39,7 +39,12 @@ SOURCE = textwrap.dedent('''
         """Doc one."""
         # a comment
         total = x + y
-        return total * LIMIT
+
+        def scale(v):
+            """Nested doc."""
+            return v * 2
+
+        return scale(total) * LIMIT
 
 
     def neighbour(x):
@@ -68,7 +73,9 @@ EDITS = [
     ("module-docstring", '"""Module doc."""', '"""Another module doc."""', False, False),
     ("reformat", "total = x + y", "total = (x\n                 + y)", False, False),
     ("body-operator", "total = x + y", "total = x - y", True, False),
-    ("body-constant", "return total * LIMIT", "return total * LIMIT * 1", True, False),
+    ("body-constant", "return scale(total) * LIMIT", "return scale(total) * LIMIT * 1", True, False),
+    ("nested-def-body", "return v * 2", "return v * 3", True, False),
+    ("nested-def-docstring", '"""Nested doc."""', '"""Another nested doc."""', False, False),
     ("signature-default", "def target(x, y=2):", "def target(x, y=3):", True, True),
     ("decorator", "def target(x, y=2):", "@staticmethod\ndef target(x, y=2):", True, True),
     ("neighbour-body", "return x - 1", "return x - 2", False, False),
