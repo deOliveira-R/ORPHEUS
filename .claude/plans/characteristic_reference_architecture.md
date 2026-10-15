@@ -420,7 +420,7 @@ Every item is a proposal until ruled. It names and places the objects the ruling
 
 **4. The basis (Branch 1, `basis.py`).** `PanelBasis(geometry, degree, grading)`: per region, polynomial panels of degree p with nodal Lagrange functions through each panel's Gauss-Legendre points; panel ends graded geometrically toward every wall and interface (ratio and layers in the resolution); no node on an interface. It is nodal, so `DensePencil.fundamental`'s single-sign test reads coefficients as values. It records each node's region and panel, and gives the mass matrix W in the chart's measure (`Chart.measure`'s density, exact by Gauss on each panel). The quadrature is `composite_gauss_legendre` (`derivations/common/quadrature.py:332`); the trajectory family's `_composite_per_region_gl` and `_gauss_legendre_pieces` retire onto it with the family.
 
-**5. The Galerkin assembly over lines (Branch 1, `assembly.py`).** `LineRule(partition, basis, resolution)`: the measure on lines through `Chart.beam_density` (2 pi b db on the sphere, 2|P Omega| per unit height on the cylinder with the polar angle, |Omega_x| on the slab), split at every radius and every panel end, each piece under the cosine endpoint map (`chord_quadrature`'s substitution); along each line, the double arc-length integral of u_i G_L u_j per slot and panel, with about p + 8 points per piece and exponential arc-length panels on optically thick slots. `transport_block(g) -> ndarray` (K_g); the scattering and fission blocks per node from `_infinite_medium_matrices` per region (so (n,2n) enters as 2 Sigma_2 in S and its refusal retires, elegance E8). Gates: C11's symmetry defect as the under-integration alarm; D11's 1G Rayleigh-Ritz bound.
+**5. The Galerkin assembly over lines (Branch 1, `assembly.py`).** `LineRule(partition, basis, resolution)`: the measure on lines through `Chart.beam_density` (2 pi b db on the sphere, 2|P Omega| per unit height on the cylinder with the polar angle, |Omega_x| on the slab), split at every radius and every panel end, each piece under the cosine endpoint map (`chord_quadrature`'s substitution); along each line, the double arc-length integral of u_i G_L u_j per slot and panel, with about p + 8 points per piece and exponential arc-length panels on optically thick slots. `transport_block(g) -> ndarray` (K_g; the sketch's name, renamed: the landed function, 2026-10-15, is `group_transport(basis, walls, sigma_t, resolution, support) -> GroupTransport`, step 2c); the scattering and fission blocks per node from `_infinite_medium_matrices` per region (so (n,2n) enters as 2 Sigma_2 in S and its refusal retires, elegance E8). Gates: C11's symmetry defect as the under-integration alarm; D11's 1G Rayleigh-Ritz bound.
 
 **6. The questions, on `DensePencil`.** The unknown is the FLUX coefficients phi on every panel; K's columns span only the emission support (regions with scattering, fission or an external source), so a void region never gets an emission column and a trapped line with no source never enters K. Correction to the verification spec §0, which writes the pencil "on the emission coefficients c": with phi the unknown,
 - k: `DensePencil(W - K S, K F)`: `.fundamental()` for `Eigen(..., mode=Fundamental())`; `.spectrum()` and the mode nearest tau for `Nearest(tau)`;
@@ -861,7 +861,7 @@ Every item is a proposal until ruled. It spells what the fifth compaction point 
   - K_line = Σ_L w_L (V_L + Σ_(forward k) A_k ⊗ in_k);
   - the escape U[i, w] = Σ_L w_L Σ_(forward traversals exiting at w) (e^(−τ_k) in_k + B_k)_i, at every diffuse wall;
   - the wall transmission T_w[w′, w]: the current out at w′ per unit isotropic current in at w, through the line part (`arriving` = 1/(π A_w) on the traversals entering at w).
-- Per group, not all groups in one pass: the algebra is per group (ruled sketch item 5, `transport_block(g)`). The chunk's chord and period are rebuilt per group; the cost is measured at build, and a cache is added only if the geometry is a measured fraction of the time.
+- Per group, not all groups in one pass: the algebra is per group (ruled sketch item 5, `transport_block(g)`, renamed `group_transport` at step 2c). The chunk's chord and period are rebuilt per group; the cost is measured at build, and a cache is added only if the geometry is a measured fraction of the time.
 
 **6. `WallCoupling` (`closure.py`, the diffuse part of the boundary resolvent).**
 - `WallCoupling(escape U, transmission T_w, area A_w, diffuse α)`: pure linear algebra; `update` = U D^(−1) α (I − T_w α)^(−1) Uᵀ with D = diag(A_w/4), A_w = `chart.measure_density(r_w)`.
@@ -2794,3 +2794,44 @@ The user's rulings of 2026-10-14:
 - **(c)** C1 first, then C2 and C3.
 
 Remedies 1 and 3 [LANDED 6b9fdd9d]. Then: C1 as a W3 carve with its X1 witnesses, then a re-timing.
+
+### Step 2c, the rulings on the cache boundaries and C1 opened (2026-10-14)
+
+The user's rulings of 2026-10-14 ("yes. I agree with your recommendations"):
+- **(a)** Gates may read memoised blocks. The step-2 sentence "memoising it would make the gates test the cache" is retired (step 2b gives the reason: a hit is re-validated against every def that ran).
+- **(b)** `PanelBasis`, `ConcentricPartition` and `RigidMotion` get value equality, through `ContentIdentity`, so the memo keys them directly. The `canonical=` recipe form is not taken.
+- **(c)** The order is C1 (one group's transport block as a memoised function), then C2 (cylinder point rows) and C3 (a bypass scoped per function), then a re-timing.
+
+C1 is a W3 surgical carve on a branch `perf/characteristic-block-memo`; the main agent writes the code. Before the code:
+1. the explorer's census of the three types: every constructor, every `==`/`is`/hash use, every container or cache that keys on one, and every field that would be refused as a content part (`scratch/characteristic_architecture/p3/c1/census.md`);
+2. the test-architect's gate spec (`scratch/characteristic_architecture/p3/c1/gate_spec.md`).
+
+⏸ **Next:** the census and the gate spec; then the content-identity commit for the three types; then the block function and its consumers.
+
+### Step 2c, C1 [LANDED 9178ad00] (2026-10-15)
+
+Merged to `main` @ `9178ad00`. The full not-slow suite before the merge `[M]` 2026-10-15: 17 080 passed, 1 failed, 261 skipped, 268 deselected, 53 xfailed, 3 924 s. The failure was `test_closed_references_import_only_the_numerics_interface`: `assembly.py` and `walls.py` now import `orpheus.numerics.scalars`, which was outside `REFERENCE_INTERFACE_NUMERICS`. **Contract change:** `scalars` joined the set (the gate's comment, the layering page's table). It is the definition of a value that the content encoder applies, a leaf that `content` already imports, and it parses without computing anything a reference's value depends on. Copying it into `derivations/` would have been a second definition of a real number. After the change, `test_layer_imports.py` passed 471 tests and Sphinx `-W` exited 0.
+
+**What C1 is.** One group's transport block is a traced memo, `group_transport(basis, walls, sigma_t, resolution: TransportResolution, support)` in `assembly.py`, equal to `LineRule.of(basis, walls, sigma_t, resolution.line_points).transport(support)`; `GalerkinSystem.groups` calls it once per group, so each block is a child entry of the solve, and a point reading pins the same block keys. The test-architect's prototype and this plan's earlier text called it `transport_block`; it was renamed `group_transport` (elegance finding 5: the function returns a `GroupTransport`, and `transport_block(...).block` read twice).
+
+**Content identity.** `RigidMotion`, `ConcentricPartition` and `PanelBasis` are `ContentIdentity` values. `RigidMotion` copies its parts, makes them read-only, refuses a non-finite part, and folds `-0.0` through `numerics.scalars.canonical_reals` (so do the partition's breakpoints); its `_exact_key`, `__eq__` and `__hash__` retired onto the encoder. `PanelBasis.degree` and `TransportResolution.line_points` are normalised by `operator.index`; `Wall` normalises its indices by `operator.index` and its amplitudes by `parse_real` (a late fix after qa's key review).
+
+**The elegance review's changes** (`scratch/characteristic_architecture/p3/c1/elegance_review.md`):
+1. The resolution is one argument, `TransportResolution`, not loose `points`, `chunk`, `budget`; its guard `line_points >= 1` is no longer bypassed.
+2. `chunk` and `budget` are not memo parameters: the entry pins `LineRule.of`'s defaults (512, 1024) through that def's source. `[M]` qa: editing the default chunk to 256 made an entry `Stale`, and restoring it made it a `Hit` again.
+3. The canonical forms `_total_cross_sections` (now `canonical_reals`) and `_region_mask` are shared with `LineRule.of` and `LineRule.transport`: one function at each site.
+4. `support` is required on `group_transport` and on `LineRule.transport`: the old default `sigma_t > 0` was a second definition of where emission lives, different from the system's `emission_support() | source_regions`.
+5. `canonical_reals` replaced the hand-written `+ 0.0` folds.
+
+**The measurements** `[M]` 2026-10-14 (gate_spec §2.1, §7), on the prototype before the re-pose:
+- a miss 2.8 to 3.6 s (5 of 5 cheap blocks), a hit 0.012 to 0.017 s;
+- the 431 not-slow rows of the system, reading and assembly files: no memo 242 s, cold 1303 s (383 block entries, 30 MB), warm 102 s; 0 of 431 rows change behaviour.
+- qa's key review (`qa_review.md` part two): every argument moves the key (6 of 6), the canonical forms are idempotent and lossless; its two over-keys (`-0.0` in sigma_t, a wall's int amplitudes) were closed by the late fixes. `[M]` the archivist's probe on the landed tree: both spellings now key alike, with a one-ulp sigma_t control keying apart.
+
+**Rulings** (the user, 2026-10-15): land without a size threshold; cut the miss cost first, #602 (about 2.3 s of each cheap miss is the recorder and the manifest).
+
+**The battery consequence.** A block read through the memo is generated from the source on disk, so an in-process mutation (monkeypatch, `-p` rebind) does not reach it. Post-C1 batteries and `catches` re-drops on rows that read blocks mutate textually (a copied tree or a worktree) or enter `bypass()` at `pytest_configure`. Written into `vv-principles` #17 (source `docs/development/skills/vv-principles.md`), the qa and test-architect definitions, and the evidence page `docs/development/evidence/vv-anti-patterns.md` ("2026-10-15 the memo-served value").
+
+**Docs** (the archivist): `docs/theory/references/characteristic.rst`, new section `characteristic-block-memo` ("A transport block is an entry of its own"), the support prose, the door's spy, a Key fact, two Gotchas and two History rows (2b, 2c); `docs/theory/verification/reference_cache.rst`, the clients, the miss price, the bypass's battery paragraph, the declared limit and a History row; `docs/theory/foundations/structured_geometry.rst`, the encoder's population.
+
+⏸ **Next:** C2 (the cylinder point rows, 60 reads at 10 to 20 s each `[R]`) and C3 (a bypass scoped per function; the gates behind `bypass()` hold 2726 s), then the re-timing of the hot characteristic files; #602 before the re-timing.

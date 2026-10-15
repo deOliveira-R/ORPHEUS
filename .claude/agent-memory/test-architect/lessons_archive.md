@@ -11761,3 +11761,20 @@ single-line value rows on a non-palindromic slab line and the weight-level close
 Route B rider (same day): a prototype's "overlap measured stable" was measured with a weaker metric (one smooth f) on a
 grid that never reached the switch x = m; the rule's own promise (exactness to degree 2m - 1) measured AT the switch
 found a gap for m >= 16. Measure a regime switch with the strongest claim the rule makes, at the switch itself.
+
+## L114 — #405 P3 step 2c, C1 (the transport block memoised): a cached builder made a served-versus-in-process gate one object, and in-process arms go blind behind a memo (2026-10-14)
+
+`[M]` on a prototype of the carve (`scratch/characteristic_architecture/p3/c1/ta/`). (1) B6b compared a two-group system
+on served (read-only) blocks with the same system under `bypass()`, both built through the sibling module's
+`_system`, which is `lru_cache`d: the two builds were ONE object, whose `groups` (a `cached_property`) kept the route
+of whichever earlier test touched it (an earlier row had computed them in process). The arm that writes into a block
+in place stayed green in the battery and reddened when B6b ran alone. A served-versus-in-process (or any A-versus-B
+route) gate builds its subject fresh; a cached test builder is a shared-object path that no AST or docstring shows.
+(2) After a carve puts a stage behind the traced memo, every in-process mutation arm aimed at that stage is blind on
+every row reading through it: the generation imports the source from disk in a fresh interpreter, and a hit is the
+honest entry. Spies on a symbol inside the stage go blind the same way: the door rows' `LineRule.of` counting spy
+left F5 and D11 green under an "eager blocks" mutant; re-pointed onto the memo's binding in the consumer module
+(the boundary the route crosses) it reddened them. Batteries and `catches` re-drops there are textual, or enter
+`bypass()` at `pytest_configure`. (3) A census figure for the memo's miss cost (0.65 s, an interpreter start) was
+the import alone; the measured miss was 2.8-3.6 s (the recorder and the manifest), which reverses a threshold
+calculus: measure the unit cost a recommendation multiplies before using a relayed one.

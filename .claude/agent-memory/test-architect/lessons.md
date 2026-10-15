@@ -225,6 +225,11 @@ only the ORPHEUS mechanisms they do not name.
   the sketch's spelling: the red set is the re-baseline list — and read each red for whether the row loses its
   SUBJECT (the change removes the mechanism it witnesses), not only its tolerance. And `pkill -f <script>` kills
   any waiting shell whose command line names the script, dropping what was chained after it. → `L108`
+- **⛔ A served-versus-in-process (A-versus-B route) gate builds its subject FRESH** — an `lru_cache`d sibling builder returns
+  one object whose `cached_property` keeps whichever route ran first, so the comparison is the object against itself. And
+  behind a traced memo every in-process arm and every spy on a symbol INSIDE the memoised stage is blind (the stage runs
+  from disk in a fresh interpreter): spy the memo's binding in the consumer, and run batteries textually or under
+  `bypass()` at configure. → `L114`
 - **⛔ Copy a pristine file aside PRESERVING ITS PATH, into a directory of your own** — two
   production files named `solver.py` collapse into one in a flat copy, silently, and the session
   scratchpad is shared with other agents. → `L97`
