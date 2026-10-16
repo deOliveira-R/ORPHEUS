@@ -384,7 +384,7 @@ def test_e7b_a_killed_template_is_replaced_at_the_next_miss(make):
 @needs_fork
 @pytest.mark.rests_on(_E1)
 def test_e7c_a_child_that_aborts_is_reported_and_the_template_lives_on(make):
-    """E7c: a generator that calls ``os.abort()`` raises ``RuntimeError`` naming the dead process in the asking
+    """E7c: a generator whose process ends without answering (``os._exit``) raises ``RuntimeError`` naming the dead process in the asking
     process; the next miss is answered by the SAME template. First red: a template that dies with its child,
     or a death reported as a value."""
     m = make(m='''
@@ -396,7 +396,7 @@ def test_e7c_a_child_that_aborts_is_reported_and_the_template_lives_on(make):
         @traced_memo
         def aborting(x: float) -> float:
             if x < 0:
-                os.abort()
+                os._exit(70)  # ends without answering; os.abort() would also leave a macOS crash report each run
             return x + 1.0
     ''').module()
     m.aborting(1.0)
