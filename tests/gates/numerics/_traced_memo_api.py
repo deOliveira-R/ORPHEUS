@@ -59,7 +59,7 @@ _ORIGIN_KIND = {"Dropped": "dropped", "Interpreter": "python", "Distribution": "
 
 def classify(filename: str) -> tuple[str, str]:
     """``(kind, detail)`` of a traced file's origin (``kind`` one of dropped, python, distribution, source)."""
-    found = name("origin")(filename)
+    found = name("origin")(filename, name("_InstalledFiles")())
     return _ORIGIN_KIND[type(found).__name__], found[0]
 
 

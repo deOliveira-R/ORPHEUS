@@ -847,18 +847,34 @@ code is refused as :class:`~orpheus.numerics.traced_memo.Unpinnable`
 (``<string>``, ``<frozen …>``) is dropped, because the interpreter pin and
 the skeleton that generated it cover it; a standard-library file is
 covered by the interpreter pin; a file in ``site-packages`` is pinned by
-its distribution's version, found through
-``importlib.metadata.packages_distributions`` and, for a file no top-level
-name maps, through the distributions' ``RECORD`` files; everything else is
-source, pinned by content. A file of an **editable** distribution is pinned
-as source, because an editable install's version never moves: every
-generating process runs the editable ``orpheus`` finder,
-``__editable___orpheus_0_1_0_finder.py``, which no top-level name maps
-and which only the ``RECORD`` search places. Searching the raw ``RECORD``
-texts for one file costs 0.23 s; building the whole file-to-distribution
-index through ``importlib.metadata`` costs 9.4 to 10.9 s per process
-(`[M]` 2026-10-04, 24 484 files). A ``site-packages``
-file that belongs to no distribution is refused as unpinnable.
+the version of the distribution that OWNS it, the one whose ``RECORD``
+lists the file; everything else is source, pinned by content. A file of an
+**editable** distribution is pinned as source, because an editable
+install's version never moves: every generating process runs the editable
+``orpheus`` finder, ``__editable___orpheus_0_1_0_finder.py``, which the
+``RECORD`` of ``orpheus`` lists. A ``site-packages`` file that no
+``RECORD`` lists is refused as unpinnable; so is every file of an
+``*.egg-info`` install, whose file list is not a ``RECORD`` (`[M]`
+2026-10-15: no such install in the environment).
+
+Ownership is a property of the file, never of its top-level name. Until
+2026-10-15 (#602) the owner was found through
+``importlib.metadata.packages_distributions``, a map from each top-level
+name to the distributions that claim it, and the first claimant was taken.
+A namespace top is claimed by several distributions, so
+``sphinxcontrib/tikz.py`` was pinned to ``sphinxcontrib-applehelp``, and an
+upgrade of ``sphinxcontrib-tikz`` left valid every entry that ran its code
+(`[M]` 2026-10-15, the test-architect: four namespace tops in the
+environment, ``sphinxcontrib``, ``jaraco``, ``opentelemetry`` and
+``_binding``; no client ran their code). The table now reads every
+distribution's ``RECORD`` once per checkout (``_InstalledFiles``), as CSV
+because a path may be quoted and hold a comma: 30 446 paths in 18 to 20 ms,
+where the top-level map cost 0.22 s. Over the 474 site-packages files a
+characteristic import loads, the new owner equals the old on 473; the one
+that moved is ``sphinxcontrib/tikz.py`` (``scratch/characteristic_architecture/p3/m602/fix/d1_probe.py``).
+The gates are ``tests/gates/numerics/test_traced_memo_ownership.py`` (D1
+to D8; D1 checks each owner against the standard library's own ``RECORD``
+reader, an independent route).
 
 **A source file is pinned relative to the** ``sys.path`` **entry that
 holds it**, so validation finds the file the same import would load now;
@@ -1525,9 +1541,11 @@ the memo, which is why it stored 383 entries and ran warm in 102 s.
 
 **What remains.** The floor of a fresh process is about 0.56 s: the
 interpreter, the imports and the computation, measured with the recorder
-off. The other 0.6 s of a cheap miss is one parse of each touched file,
-the skeleton dumps, and building the package-to-distribution index
-(about 0.22 s, which reads every installed distribution).
+off. The other 0.6 s of a cheap miss was one parse of each touched file,
+the skeleton dumps, and building the package-to-distribution index (about
+0.22 s, which read every installed distribution's metadata). The index is
+replaced by per-file ownership from the ``RECORD`` files, 18 to 20 ms
+(section "Where a file belongs", above).
 
 
 .. _verification-reference-cache-contract:

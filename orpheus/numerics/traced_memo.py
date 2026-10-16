@@ -64,6 +64,7 @@ from __future__ import annotations
 import ast
 import contextlib
 import copy
+import csv
 import dataclasses
 import functools
 import hashlib
@@ -282,22 +283,45 @@ def _stdlib_dirs() -> tuple[str, ...]:
     return tuple({_real(paths["stdlib"]) + os.sep, _real(paths["platstdlib"]) + os.sep})
 
 
-@functools.cache
-def _distributions_by_top_level() -> Mapping[str, tuple[str, ...]]:
-    return {top: tuple(sorted(names)) for top, names in importlib.metadata.packages_distributions().items()}
+class _InstalledFiles:
+    """Which installed distribution owns each file under the site-packages directories: the one whose
+    ``RECORD`` lists it. Built once per checkout (one manifest), on first use.
 
+    Ownership is a property of the FILE, never of its top-level name: a namespace top such as
+    ``sphinxcontrib`` is claimed by several distributions, and the top-level map that preceded this table
+    pinned ``sphinxcontrib/tikz.py`` to ``sphinxcontrib-applehelp``, so an upgrade of ``sphinxcontrib-tikz``
+    left valid every entry that ran its code (``[M]`` 2026-10-15, the test-architect, #602). Reading the raw
+    ``RECORD`` bytes of every distribution builds the table for 30 446 paths in 18 to 20 ms; the top-level map
+    cost 0.22 s. A ``RECORD`` row is parsed as CSV, since a path may be quoted and hold a comma."""
 
-def _recording_distribution(site_dir: str, relative: str) -> tuple[str, bool] | None:
-    """The distribution whose ``RECORD`` lists ``relative`` (a path under ``site_dir``) and whether it is an
-    editable install. Searching the raw ``RECORD`` texts costs 0.23 s; building the whole file index through
-    :mod:`importlib.metadata` costs 9.4 to 10.9 s per process ``[M]`` 2026-10-04 (24 484 files)."""
-    for info in Path(site_dir).glob("*.dist-info"):
-        record = info / "RECORD"
-        if record.is_file() and f"\n{relative}," in "\n" + record.read_text():
+    def __init__(self) -> None:
+        self._listed: dict[str, dict[str, Path]] | None = None
+        self._owners: dict[Path, tuple[str, bool]] = {}
+
+    def _table(self) -> dict[str, dict[str, Path]]:
+        if self._listed is None:
+            self._listed = {}
+            for site_dir in _site_dirs():
+                listed = self._listed.setdefault(site_dir, {})
+                for info in Path(site_dir).glob("*.dist-info"):
+                    record = info / "RECORD"
+                    if record.is_file():
+                        for row in csv.reader(io.StringIO(record.read_text(encoding="utf-8"))):
+                            if row:
+                                listed[row[0]] = info
+        return self._listed
+
+    def owner(self, site_dir: str, relative: str) -> tuple[str, bool] | None:
+        """The name of the distribution whose ``RECORD`` lists ``relative`` (a path under ``site_dir``, in
+        ``/`` form) and whether it is an editable install; ``None`` when no ``RECORD`` lists it."""
+        info = self._table().get(site_dir, {}).get(relative)
+        if info is None:
+            return None
+        if info not in self._owners:
             distribution = importlib.metadata.Distribution.at(info)
             direct = json.loads(distribution.read_text("direct_url.json") or "{}")
-            return distribution.metadata["Name"], bool(direct.get("dir_info", {}).get("editable"))
-    return None
+            self._owners[info] = distribution.metadata["Name"], bool(direct.get("dir_info", {}).get("editable"))
+        return self._owners[info]
 
 
 class Dropped(NamedTuple):
@@ -327,23 +351,23 @@ class Source(NamedTuple):
 Origin = Dropped | Interpreter | Distribution | Source
 
 
-def origin(filename: str) -> Origin:
-    """Where a file a run touched belongs, and so how the manifest pins it."""
+def origin(filename: str, installed: _InstalledFiles) -> Origin:
+    """Where a file a run touched belongs, and so how the manifest pins it. ``installed`` is the ownership
+    table of the checkout asking: building one reads every ``RECORD``, so it is built once per checkout and
+    passed, never rebuilt per file."""
     if filename.startswith("<"):
         return Dropped(filename)
     real = _real(filename)
     for site_dir in _site_dirs():
         if real.startswith(site_dir):
             relative = real[len(site_dir):]
-            top = relative.split(os.sep)[0].removesuffix(".py")
+            top = relative.split(os.sep)[0]
             if top.endswith(".dist-info"):  # a distribution's own metadata, read by importlib.metadata
                 return Distribution(importlib.metadata.Distribution.at(Path(site_dir) / top).metadata["Name"])
-            if names := _distributions_by_top_level().get(top):
-                return Distribution(names[0])
-            recorded = _recording_distribution(site_dir, Path(relative).as_posix())
-            if recorded is None:
-                raise Unpinnable(f"{filename}: in site-packages and in no installed distribution, so no version pins it")
-            name, editable = recorded
+            owned = installed.owner(site_dir, Path(relative).as_posix())
+            if owned is None:
+                raise Unpinnable(f"{filename}: in site-packages and listed by no installed distribution's RECORD, so no version pins it")
+            name, editable = owned
             return Source(real) if editable else Distribution(name)  # an editable version never moves
     if any(real.startswith(d) for d in _stdlib_dirs()):
         return Interpreter(real)
@@ -432,6 +456,7 @@ class _Checkout:
         self.store = store
         self._texts: dict[str, bytes | None] = {}
         self._versions: dict[str, str | None] = {}
+        self.installed = _InstalledFiles()
 
     def text(self, path: str) -> bytes | None:
         if path not in self._texts:
@@ -681,7 +706,7 @@ def _manifest(recording: Recording, store: Store) -> Manifest:
     checkout = _Checkout(store)
     by_file: dict[str, list[types.CodeType]] = {}
     for code in recording.codes:
-        match origin(code.co_filename):
+        match origin(code.co_filename, checkout.installed):
             case Distribution(name):
                 pins.add(_distribution_pin(checkout, name))
             case Source(path):
@@ -697,7 +722,7 @@ def _manifest(recording: Recording, store: Store) -> Manifest:
     for opened in recording.opened:
         if _real(opened).startswith(store_root):
             continue  # a store entry is a child
-        match origin(opened):
+        match origin(opened, checkout.installed):
             case Distribution(name):
                 pins.add(_distribution_pin(checkout, name))
             case Source():
