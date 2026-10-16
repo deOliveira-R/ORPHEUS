@@ -277,19 +277,21 @@ class GalerkinSystem:
     # ── the readings at a point ──────────────────────────────────────────
 
     def point_flux(self, position: float, emission: np.ndarray) -> np.ndarray:
-        r"""The scalar flux at the point of orbit coordinate ``position``, ``(G,)``: :math:`(\mathcal K_g q_g)(x)`.
+        r"""The scalar flux at the point of orbit coordinate ``position``, ``(G,)``: each group's :meth:`group_point_flux`."""
+        return np.array([self.group_point_flux(position, emission, g) for g in range(len(self.groups))])
 
-        ``emission`` is on the emission space; each group's emission is
+    def group_point_flux(self, position: float, emission: np.ndarray, g: int) -> float:
+        r"""Group ``g``'s scalar flux at the point of orbit coordinate ``position``: :math:`(\mathcal K_g q_g)(x)`.
+
+        ``emission`` is on the emission space; group ``g``'s emission is
         transported to the point once more (:class:`~.reading.PointRule`),
-        on that group's own lines and with its walls' currents.
+        on that group's own lines and with its walls' currents. A reading of
+        one group transports that group alone: the point rule's line work is
+        most of a point reading's cost (``[M]`` 2026-10-15, the C2 census:
+        86 % of ``PointRule.row`` is ``AttenuationRule.of``).
         """
-        r = self.resolution
-        return np.array(
-            [
-                PointRule.of(self.basis, self.walls, self.cross_sections.total[:, g], position, r.line_points).row(group) @ q
-                for g, (group, q) in enumerate(zip(self.groups, self.emission.split(emission), strict=True))
-            ]
-        )
+        rule = PointRule.of(self.basis, self.walls, self.cross_sections.total[:, g], position, self.resolution.line_points)
+        return float(rule.row(self.groups[g]) @ self.emission.split(emission)[g])
 
     def angular_flux(self, position: float, directions: np.ndarray, emission: np.ndarray) -> np.ndarray:
         r"""The angular flux per steradian at the point, ``(..., G)``, in the directions at box coordinates ``directions``.

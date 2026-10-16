@@ -1650,3 +1650,36 @@ def test_c1_a_count_that_is_not_an_integer_is_refused(build) -> None:
     beside its integer. First red: arm ``index-normalisation-removed`` (the float constructs)."""
     with pytest.raises(TypeError, match="cannot be interpreted as an integer"):
         build()
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(_HERE + "test_c3_an_equal_derivation_reads_from_the_memo_and_a_new_resolution_does_not")
+def test_c2_0_a_point_value_transports_its_own_group_alone(monkeypatch) -> None:
+    """[C2-0] On the two-group sphere, a door read of ``PointValue(x, g)`` transports group ``g`` alone: it runs
+    ``PointRule.row`` exactly once (the census, ``scratch/.../p3/c2/census.md``: 11 of 34 door rows threw the other
+    groups' rows away), and its value equals ``GalerkinSystem.point_flux(x, emission)[g]``, the stack of every
+    group, bit for bit. Counted in this process under ``bypass()``; the solve is read before the spy. First red:
+    the door reverted to ``point_flux(...)[group]`` (G rows per read, battery arm C2-a)."""
+    from orpheus.derivations.continuous.characteristic import reading as reading_module
+
+    derivation = CharacteristicDerivation(_tiny_spec(), _TINY)
+    rows: list[int] = []
+    original = reading_module.PointRule.row
+
+    def counting(rule: Any, transport: Any) -> np.ndarray:
+        rows.append(1)
+        return original(rule, transport)
+
+    with bypass():
+        answer = derivation.answer
+        assert isinstance(answer, reference_module._FundamentalAnswer), type(answer)
+        emission = answer.emission
+        n_groups = len(derivation.system.groups)
+        assert n_groups >= 2, "a one-group problem cannot tell one group's transport from all of them"
+        monkeypatch.setattr(reading_module.PointRule, "row", counting)
+        for group in range(n_groups):
+            rows.clear()
+            read = derivation.evaluate(PointValue(position=0.4, group=group))
+            assert len(rows) == 1, f"group {group}: PointRule.row ran {len(rows)} times for one group's point value"
+            stacked = derivation.system.point_flux(0.4, emission)
+            assert float(read.value).hex() == float(stacked[group]).hex(), (group, read.value, stacked)

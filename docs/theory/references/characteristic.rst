@@ -7294,14 +7294,18 @@ design.
 
    **Implemented by** ``PointRule.of``, which places the lines and their
    weights :math:`\omega_L^x`, and ``PointRule.row``, which reads each
-   line's transport at the point and sums; ``GalerkinSystem.point_flux``
-   applies each group's row to its emission.
+   line's transport at the point and sums;
+   ``GalerkinSystem.group_point_flux`` applies one group's row to its
+   emission, and ``GalerkinSystem.point_flux`` stacks it over the groups.
 
 .. implements:: characteristic-quadrature
    :by: orpheus.derivations.continuous.characteristic.reading.PointRule.row
 
 .. implements:: characteristic-quadrature
    :by: orpheus.derivations.continuous.characteristic.system.GalerkinSystem.point_flux
+
+.. implements:: characteristic-quadrature
+   :by: orpheus.derivations.continuous.characteristic.system.GalerkinSystem.group_point_flux
 
 One weighted set of lines, two test measures
 --------------------------------------------
@@ -7467,7 +7471,11 @@ holds the emission its flux was formed from
 (:meth:`GalerkinSystem.source_emission
 <orpheus.derivations.continuous.characteristic.system.GalerkinSystem.source_emission>`).
 ``evaluate(PointValue(x, g))`` returns
-``Uncertified(system.point_flux(x, emission)[g])``; a ``Nearest`` answer
+``Uncertified(system.group_point_flux(x, emission, g))``, which
+transports group :math:`g` alone (the point rule's line work is most of a
+reading's cost, so a door read of one group does not pay for the others:
+``test_c2_0_a_point_value_transports_its_own_group_alone``, C2-0 of #405
+P3); a ``Nearest`` answer
 refuses it after the solve, as it refuses a flux integral, naming the
 :math:`k` found; ``admit_observable`` refuses a position outside
 :math:`[r_0, r_n]` and a group outside the problem's before any solve; and

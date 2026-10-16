@@ -515,8 +515,8 @@ def _block_entries(root):
 def test_m4_14_a_point_reading_pins_the_blocks_as_children_and_assembles_none(tmp_path):
     """C1, B7: on a cold root, a point value of the tiny two-group sphere writes the solve, one block per group and the
     reading. The reading entry's ``ChildPin`` rows are the solve and the SAME two block keys the solve pins (the reading
-    reads each group's block from the entry the solve's generation wrote: ``system.point_flux`` reads
-    ``GalerkinSystem.groups``); its own manifest holds no def of the block assembly (``LineRule.of``,
+    reads each group's block from the entry the solve's generation wrote: ``system.group_point_flux`` reads
+    ``GalerkinSystem.groups``, every group's block, though it transports only the group asked for); its own manifest holds no def of the block assembly (``LineRule.of``,
     ``LineRule.transport``, ``DiffuseWalls.of``: the direct route is absent, lessons L105), while it still holds the
     point rule's own line work (``PointRule.row``). The store holds exactly two block entries.
 

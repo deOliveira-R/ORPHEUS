@@ -401,7 +401,7 @@ class CharacteristicDerivation(ContentIdentity):
             case FluxIntegral(weight=weight), _FundamentalAnswer(flux=flux) | _SourceAnswer(flux=flux):
                 return Uncertified(self._pairing(self._coefficients(weight, None), flux))
             case PointValue(position=position, group=group), _FundamentalAnswer(emission=q) | _SourceAnswer(emission=q):
-                return Uncertified(float(self.system.point_flux(position, q)[group]))
+                return Uncertified(self.system.group_point_flux(position, q, group))
             case FluxIntegral() | PointValue(), _ModeAnswer(k=k):
                 _refuse_mode_flux(k)
         raise AssertionError(f"unreachable: {observable!r} on {type(self.answer).__name__}")
