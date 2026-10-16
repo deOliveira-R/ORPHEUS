@@ -57,7 +57,7 @@ class _FakeSite:
         return info
 
     def origin(self, relative: str):
-        return api.name("origin")(str(self.dir / relative), api.name("_InstalledFiles")())
+        return api.name("origin")(str(self.dir / relative), api.name("_Installed")())
 
 
 @pytest.fixture
@@ -85,7 +85,7 @@ def test_d1_every_imported_site_file_is_owned_by_the_distribution_whose_record_l
     (``sphinxcontrib/tikz.py``, ``jaraco/context/__init__.py``) belong to their own distributions, not to
     the first claimant of their top-level name. First red: ownership by the top-level name's first claimant
     (``sphinxcontrib-applehelp``)."""
-    installed = api.name("_InstalledFiles")()  # one table for the whole row, as one manifest holds one
+    installed = api.name("_Installed")()  # one table for the whole row, as one manifest holds one
 
     def origin(path: str):
         return api.name("origin")(path, installed)
@@ -120,6 +120,18 @@ def test_d2_files_under_a_shared_namespace_top_belong_to_their_own_distributions
     fake_site.install("ns-b", "2.0", {"ns/b.py": "B = 2\n"})
     assert _kind_and_name(fake_site.origin("ns/a.py")) == ("Distribution", "ns-a")
     assert _kind_and_name(fake_site.origin("ns/b.py")) == ("Distribution", "ns-b")
+
+
+@pytest.mark.rests_on(_D2)
+def test_d2b_a_file_several_records_list_is_refused(fake_site):
+    """D2b (qa's round-two review, F2): a file listed by two distributions' ``RECORD`` (two distributions
+    shipping one tree) has no one version that pins it: pinning either leaves an upgrade of the other unseen,
+    so it is refused; a file only one of them lists is still owned. First red: the last ``RECORD`` read wins."""
+    fake_site.install("alpha", "1.0", {"ns/x.py": "X = 1\n", "ns/a.py": "A = 1\n"})
+    fake_site.install("beta", "2.0", {"ns/x.py": "X = 1\n"}, record_rows=["ns/x.py,sha256=x,1"])
+    with pytest.raises(api.name("Unpinnable"), match="listed by the RECORD of several installed distributions"):
+        fake_site.origin("ns/x.py")
+    assert _kind_and_name(fake_site.origin("ns/a.py")) == ("Distribution", "alpha")
 
 
 @pytest.mark.rests_on(_D2)

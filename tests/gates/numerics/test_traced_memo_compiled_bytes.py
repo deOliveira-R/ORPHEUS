@@ -493,7 +493,7 @@ def _with_pass_for_docstring_only_bodies(data: bytes, docstrings: list[ast.Expr]
 
 
 def _all_digests(module, data: bytes) -> tuple:
-    text = module._source_text(data)
+    text = module._parsed_index(data)
     return text.skeleton, tuple((d.qualname, d.ordinal, d.digest) for d in text.defs)
 
 

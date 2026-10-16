@@ -228,11 +228,27 @@ class spawning:
         _SPAWNING.on = False
 
 
-#: Where the pinned-source loader keeps bytecode: beside the store, at the repository root, one directory per
-#: interpreter and ``-O`` level. An entry is named by the digest of (path, interpreter, ``-O`` level, source
-#: bytes), so sharing it across stores and processes is sound.
-_BYTECODE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".cache",
-                         "bytecode", f"{sys.implementation.cache_tag}-O{sys.flags.optimize}")
+#: The repository's cache directory (gitignored), the one root of the memo's three stores: the entries
+#: (``references``), the source indexes (``sources``) and the pinned bytecode (``bytecode``).
+CACHE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))), ".cache")
+#: Where the pinned-source loader keeps bytecode, one directory per interpreter and ``-O`` level. An entry is
+#: named by the digest of (path, interpreter, ``-O`` level, source bytes), so sharing it across stores and
+#: processes is sound.
+_BYTECODE = os.path.join(CACHE, "bytecode", f"{sys.implementation.cache_tag}-O{sys.flags.optimize}")
+#: The bytes each first-party module of this process was compiled from, by real path, once the pinned-source
+#: loader is installed (a generating process); ``None`` in any other process.
+PINNED_SOURCES: dict[str, bytes] | None = None
+
+
+def write_atomically(path, data: bytes) -> None:
+    """Write ``data`` to a temporary file beside ``path``, then move it into place with one ``os.replace``: a
+    reader sees the old file or the new one, never a part of either. The memo's three stores write this way."""
+    directory = os.path.dirname(os.fspath(path))
+    os.makedirs(directory, exist_ok=True)
+    partial = f"{os.fspath(path)}.{os.getpid()}.{threading.get_ident()}.part"
+    with open(partial, "wb") as out:
+        out.write(data)
+    os.replace(partial, path)
 
 
 def _bytecode_key(path: str, source: bytes) -> bytes:
@@ -255,10 +271,8 @@ class _PinnedSourceLoader(importlib.machinery.SourceFileLoader):
         with unrecorded():
             path = self.get_filename(fullname)
             source = self.get_data(path)
-            real = os.path.realpath(path)
-            for recording in list(_ACTIVE):
-                if recording.sources is not None:
-                    recording.sources[real] = source
+            if PINNED_SOURCES is not None:
+                PINNED_SOURCES[os.path.realpath(path)] = source
             key = _bytecode_key(path, source)
             entry = os.path.join(_BYTECODE, key.hex())
             try:
@@ -271,11 +285,7 @@ class _PinnedSourceLoader(importlib.machinery.SourceFileLoader):
             code = self.source_to_code(source, path)
             payload = marshal.dumps(code)
             try:
-                os.makedirs(_BYTECODE, exist_ok=True)
-                partial = f"{entry}.{os.getpid()}.{threading.get_ident()}.part"
-                with open(partial, "wb") as out:
-                    out.write(key + hashlib.blake2b(payload, digest_size=32).digest() + payload)
-                os.replace(partial, entry)
+                write_atomically(entry, key + hashlib.blake2b(payload, digest_size=32).digest() + payload)
             except OSError:
                 pass
             return code
@@ -325,7 +335,8 @@ def _install_pinned_sources(recording: "Recording") -> None:
     interpreter's start imported (``site`` runs an editable install's finder module, which the manifest pins
     by its bytes). Their bytes are recorded now, the closest this process can come to the moment they were
     compiled."""
-    recording.sources = {}
+    global PINNED_SOURCES
+    PINNED_SOURCES = recording.sources = {}
     with unrecorded():
         _PinnedSourceFinder.vendor = _vendor_dirs()
         started = {os.path.realpath(__file__)} | {

@@ -91,7 +91,8 @@ from typing import Any, Generic, NamedTuple, ParamSpec, TypeVar, overload
 
 import numpy as np
 
-from orpheus.numerics._traced_memo_boot import Recording, note_child, spawning, unrecorded
+from orpheus.numerics import _traced_memo_boot
+from orpheus.numerics._traced_memo_boot import CACHE, Recording, note_child, spawning, unrecorded, write_atomically
 from orpheus.numerics.content import ContentIdentity, _rebuild, constructor_arguments, encode_exact
 
 __all__ = [
@@ -155,62 +156,100 @@ def _span(node: ast.AST) -> range:
     return range(first, node.end_lineno + 1)  # type: ignore[attr-defined]
 
 
-@dataclasses.dataclass(frozen=True, eq=False)
-class _Def:
-    """An outermost def: its qualified name, its rank among the defs of that name (0 first), its span with
-    decorators, its node and the digest of its normalised source.
+#: Code objects Python generates from a SIGNATURE or a class body rather than from a def body: lazy
+#: annotations (PEP 649, ``__annotate__``) and the scopes of type parameters (PEP 695). Their source is the
+#: signature, which the skeleton pins; they never pin the body of the def they belong to (reading a def's
+#: annotations does not run it).
+_SIGNATURE_SCOPES = ("__annotate__", "<generic parameters of ", "<TypeVar bound of ", "<TypeVar constraint of ",
+                     "<TypeAlias ", "<type parameters of ")
+#: The anonymous expressions, each with the name of the code object it compiles to.
+_ANONYMOUS_NAME: Mapping[type[ast.AST], str] = {
+    ast.Lambda: "<lambda>", ast.GeneratorExp: "<genexpr>", ast.ListComp: "<listcomp>",
+    ast.SetComp: "<setcomp>", ast.DictComp: "<dictcomp>",
+}
 
-    The digest is computed when a pin first asks for it: a generation runs a few of the defs of the files it
-    imports (247 of 1948 in a cheap characteristic block, ``[M]`` #602), and dumping every def cost most of a
-    miss's manifest."""
+
+class _IndexedDef(NamedTuple):
+    """An outermost def: its qualified name, its rank among the defs of that name (0 first), its span with
+    decorators (first and last line, inclusive), the line of its stripped body's first statement, and the
+    digest of its normalised source."""
 
     qualname: str
     ordinal: int
-    span: range
-    node: ast.FunctionDef | ast.AsyncFunctionDef
+    first: int
+    last: int
+    body_line: int
+    digest: str
 
-    @functools.cached_property
-    def digest(self) -> str:
-        return _ast_digest(self.node)
+
+class _Scope(NamedTuple):
+    """A node a code object can be compiled from (a def, a class, a lambda, a comprehension): the name of that
+    code object and the node's span (inclusive)."""
+
+    name: str
+    first: int
+    last: int
 
 
 @dataclasses.dataclass(frozen=True)
-class _SourceText:
-    """One source file, parsed once: its outermost defs and its skeleton's digest."""
+class _SourceIndex:
+    """What a manifest and a validation read from one source text: the skeleton's digest, every outermost def,
+    and every node a code object can be compiled from. It holds no tree, so it is written to disk and read
+    back (:func:`_source_index`); :func:`_parsed_index` builds it from the text."""
 
-    tree: ast.Module
-    defs: tuple[_Def, ...]
     skeleton: str
+    defs: tuple[_IndexedDef, ...]
+    scopes: tuple[_Scope, ...]
 
     def digest(self, qualname: str, ordinal: int = -1) -> str | None:
         """The digest of the ``ordinal``-th def named ``qualname`` (``-1``: the last, the one Python binds)."""
         named = [d for d in self.defs if d.qualname == qualname]
         return named[ordinal].digest if -len(named) <= ordinal < len(named) else None
 
-    def enclosing(self, line: int) -> _Def | None:
+    def enclosing(self, line: int) -> _IndexedDef | None:
         """The outermost def whose span holds ``line`` (outermost defs never overlap)."""
-        return next((d for d in self.defs if line in d.span), None)
+        return next((d for d in self.defs if d.first <= line <= d.last), None)
+
+    def holds(self, within: _IndexedDef | None, line: int, name: str) -> bool:
+        """Whether the source of a code object named ``name`` first reported at ``line`` lies in ``within``'s
+        span (``None``: anywhere in the module). A node lies in an outermost def's span exactly when the def's
+        tree holds it, since outermost defs never overlap (``[M]`` 2026-10-15, the elegance review: 24 262 of
+        24 262 nodes over the tracked files)."""
+        if name.startswith(_SIGNATURE_SCOPES):
+            return True
+        return any(s.name == name and s.first <= line <= s.last
+                   and (within is None or within.first <= s.first and s.last <= within.last) for s in self.scopes)
+
+    def to_json(self) -> bytes:
+        return json.dumps({"skeleton": self.skeleton, "defs": self.defs, "scopes": self.scopes}).encode()
+
+    @classmethod
+    def from_json(cls, body: bytes) -> _SourceIndex:
+        data = json.loads(body)
+        return cls(data["skeleton"], tuple(_IndexedDef(*d) for d in data["defs"]), tuple(_Scope(*r) for r in data["scopes"]))
 
 
 @functools.cache
-def _source_text(data: bytes) -> _SourceText:
-    """The parse of a source text, cached by its BYTES (an edited file is another key, never a stale read).
+def _parsed_index(data: bytes) -> _SourceIndex:
+    """The index of a source text, built from its parse and cached in memory by its BYTES (an edited file is
+    another key, never a stale read).
 
     ONE walk finds every outermost def: it descends every statement except a def's body, so a def under any
     block (``if``, ``for``, ``while``, ``match``, ``try``, ``with``) is found; a class adds its name to the
-    qualified names of the defs in its body. The file is parsed once, and the same walk returns the skeleton:
-    a shallow copy of the statement spine with every outermost def's body read as ``pass`` (a def nested in a
-    body vanishes with that body). The parsed tree is never changed, so a def's digest, computed when a pin
-    asks for it, is always of its own body."""
+    qualified names of the defs in its body. The same walk returns the skeleton: a shallow copy of the
+    statement spine with every outermost def's body read as ``pass`` (a def nested in a body vanishes with that
+    body), so the parsed tree is never changed. Every def is digested: the index is built once per content
+    and then read back from disk."""
     tree = _without_docstrings(ast.parse(data))
-    found: list[_Def] = []
+    defs: list[_IndexedDef] = []
     seen: dict[str, int] = {}
 
     def hollowed(node: ast.AST, prefix: str) -> ast.AST:
         if isinstance(node, _DEF):
             qualname = prefix + node.name
             seen[qualname] = seen.get(qualname, -1) + 1
-            found.append(_Def(qualname, seen[qualname], _span(node), node))
+            span = _span(node)
+            defs.append(_IndexedDef(qualname, seen[qualname], span.start, span.stop - 1, node.body[0].lineno, _ast_digest(node)))
             hollow = copy.copy(node)
             hollow.body = [ast.Pass()]
             return hollow
@@ -222,45 +261,80 @@ def _source_text(data: bytes) -> _SourceText:
         return clone
 
     skeleton = _ast_digest(hollowed(tree, ""))
-    return _SourceText(tree, tuple(found), skeleton)
+    scopes = tuple(
+        _Scope(node.name if isinstance(node, (*_DEF, ast.ClassDef)) else _ANONYMOUS_NAME[type(node)],
+               _span(node).start, _span(node).stop - 1)
+        for node in ast.walk(tree) if isinstance(node, (*_DEF, ast.ClassDef, *_ANONYMOUS_NAME))
+    )
+    return _SourceIndex(skeleton, tuple(defs), scopes)
 
 
 def function_digest(source: bytes | str, qualname: str, ordinal: int = -1) -> str | None:
     """The digest of the ``ordinal``-th outermost def ``qualname`` (``function`` or ``Class.method``; ``-1``,
     the default, is the last, which Python binds), docstrings stripped; ``None`` when there is none."""
-    return _source_text(source.encode() if isinstance(source, str) else source).digest(qualname, ordinal)
+    return _parsed_index(source.encode() if isinstance(source, str) else source).digest(qualname, ordinal)
 
 
 def skeleton_digest(source: bytes | str) -> str:
     """The digest of the module with every function body replaced by ``pass`` and every docstring stripped:
     what a traced function reads by name without its own body changing (constants, imports, decorators,
     signatures with their defaults, class attributes, dataclass fields)."""
-    return _source_text(source.encode() if isinstance(source, str) else source).skeleton
+    return _parsed_index(source.encode() if isinstance(source, str) else source).skeleton
 
 
-#: Code objects Python generates from a SIGNATURE or a class body rather than from a def body: lazy
-#: annotations (PEP 649, ``__annotate__``) and the scopes of type parameters (PEP 695). Their source is the
-#: signature, which the skeleton pins; they never pin the body of the def they belong to (reading a def's
-#: annotations does not run it).
-_SIGNATURE_SCOPES = ("__annotate__", "<generic parameters of ", "<TypeVar bound of ", "<TypeVar constraint of ",
-                     "<TypeAlias ", "<type parameters of ")
-#: Anonymous code objects and the expression that compiles to each.
-_ANONYMOUS: Mapping[str, type[ast.AST]] = {
-    "<lambda>": ast.Lambda, "<genexpr>": ast.GeneratorExp, "<listcomp>": ast.ListComp,
-    "<setcomp>": ast.SetComp, "<dictcomp>": ast.DictComp,
-}
+#: Where the source indexes live, beside the store and the bytecode.
+_SOURCE_INDEXES = Path(CACHE) / "sources"
 
 
-def _holds(scope: ast.AST, line: int, name: str) -> bool:
-    """Whether ``scope`` holds the source of a code object named ``name`` first reported at ``line``."""
-    if name.startswith(_SIGNATURE_SCOPES):
-        return True
-    for node in ast.walk(scope):
-        if isinstance(node, (*_DEF, ast.ClassDef)) and node.name == name and line in _span(node):
-            return True
-        if name in _ANONYMOUS and isinstance(node, _ANONYMOUS[name]) and line in _span(node):
-            return True
-    return False
+class _CorruptIndex(NamedTuple):
+    """An index file that does not hold the index of the key it is named by (a parse error, a body that does
+    not match its digest, a header for other bytes) or cannot be read. It is rebuilt, never read."""
+
+    reason: str
+
+
+def _read_index(path: Path, header: Mapping[str, str]) -> _SourceIndex | _CorruptIndex | None:
+    """The index stored at ``path`` if it is the index ``header`` names; ``None`` when there is none."""
+    try:
+        raw = path.read_bytes()
+    except FileNotFoundError:
+        return None
+    except OSError as error:
+        return _CorruptIndex(f"{type(error).__name__}: {error}")
+    try:
+        head, body = raw.split(b"\n", 1)
+        if json.loads(head) != {**header, "body": _digest(body)}:
+            return _CorruptIndex("the header names other bytes, or the body does not match its digest")
+        return _SourceIndex.from_json(body)
+    except (ValueError, TypeError, KeyError) as error:
+        return _CorruptIndex(f"{type(error).__name__}: {error}")
+
+
+@functools.cache
+def _source_index(data: bytes) -> _SourceIndex:
+    """The index of a source text: from memory, else from disk, else parsed.
+
+    An index on disk is named by the digest of (the text's bytes, the interpreter, the memo's source), so a
+    change to the normalisation is a change of name. Only a GENERATING process writes one: its memo was
+    compiled from bytes it pinned (:data:`_RUNNING_MEMO_DIGEST`), so the name it writes under is the code that
+    built the index. Any other process may run its memo from a timestamp ``.pyc`` or from a text edited after
+    it was read, so it names indexes by the memo's source on disk, reads the indexes generations wrote under
+    that name (the code that wrote the entries it validates), and parses in memory when there is none, never
+    writing (qa's round-two review of #602: a process running old code wrote an index under new code's name,
+    and a later process read the old normalisation's digests as its own). ``[M]`` #602: 128 indexes read back
+    in 9.6 ms against 225 ms of parsing; building them costs 0.56 s once per content."""
+    parts = (_digest(data), _python_identity(), _INDEX_MEMO_DIGEST)
+    header: dict[str, str] = dict(zip(("bytes", "python", "memo"), parts, strict=True))
+    path = _SOURCE_INDEXES / f"{_digest(chr(0).join(parts).encode())}.json"
+    with unrecorded():
+        found = _read_index(path, header)
+        if isinstance(found, _SourceIndex):
+            return found
+        index = _parsed_index(data)
+        if _RUNNING_MEMO_DIGEST is not None:
+            body = index.to_json()
+            write_atomically(path, json.dumps({**header, "body": _digest(body)}).encode() + b"\n" + body)
+        return index
 
 
 # ── where a file a run touched belongs ──────────────────────────────────────────────────────────────
@@ -283,20 +357,25 @@ def _stdlib_dirs() -> tuple[str, ...]:
     return tuple({_real(paths["stdlib"]) + os.sep, _real(paths["platstdlib"]) + os.sep})
 
 
-class _InstalledFiles:
-    """Which installed distribution owns each file under the site-packages directories: the one whose
-    ``RECORD`` lists it. Built once per checkout (one manifest), on first use.
+class _Installed:
+    """The installed environment as one checkout reads it: which distribution owns each file under the
+    site-packages directories, and each distribution's version. Built once per checkout (one manifest or one
+    validation), each part on first use.
 
-    Ownership is a property of the FILE, never of its top-level name: a namespace top such as
-    ``sphinxcontrib`` is claimed by several distributions, and the top-level map that preceded this table
-    pinned ``sphinxcontrib/tikz.py`` to ``sphinxcontrib-applehelp``, so an upgrade of ``sphinxcontrib-tikz``
-    left valid every entry that ran its code (``[M]`` 2026-10-15, the test-architect, #602). Reading the raw
-    ``RECORD`` bytes of every distribution builds the table for 30 446 paths in 18 to 20 ms; the top-level map
-    cost 0.22 s. A ``RECORD`` row is parsed as CSV, since a path may be quoted and hold a comma."""
+    Ownership is a property of the FILE, never of its top-level name: the distribution whose ``RECORD`` lists
+    it. A namespace top such as ``sphinxcontrib`` is claimed by several distributions, and the top-level map
+    that preceded this table pinned ``sphinxcontrib/tikz.py`` to ``sphinxcontrib-applehelp``, so an upgrade of
+    ``sphinxcontrib-tikz`` left valid every entry that ran its code (``[M]`` 2026-10-15, the test-architect,
+    #602). Reading the raw ``RECORD`` bytes of every distribution builds the table for 30 446 paths in 18 to
+    20 ms; the top-level map cost 0.22 s. A ``RECORD`` row is parsed as CSV, since a path may be quoted and
+    hold a comma. A version lookup re-reads the distribution's metadata (1245 lookups for 6 distributions cost
+    a cheap miss 0.64 s, ``[M]`` #602), so each is made once."""
 
     def __init__(self) -> None:
         self._listed: dict[str, dict[str, Path]] | None = None
+        self._shared: set[tuple[str, str]] = set()
         self._owners: dict[Path, tuple[str, bool]] = {}
+        self._versions: dict[str, str | None] = {}
 
     def _table(self) -> dict[str, dict[str, Path]]:
         if self._listed is None:
@@ -307,21 +386,34 @@ class _InstalledFiles:
                     record = info / "RECORD"
                     if record.is_file():
                         for row in csv.reader(io.StringIO(record.read_text(encoding="utf-8"))):
-                            if row:
-                                listed[row[0]] = info
+                            if row and listed.setdefault(row[0], info) != info:
+                                self._shared.add((site_dir, row[0]))
         return self._listed
 
     def owner(self, site_dir: str, relative: str) -> tuple[str, bool] | None:
         """The name of the distribution whose ``RECORD`` lists ``relative`` (a path under ``site_dir``, in
-        ``/`` form) and whether it is an editable install; ``None`` when no ``RECORD`` lists it."""
+        ``/`` form) and whether it is an editable install; ``None`` when no ``RECORD`` lists it. A file that
+        several ``RECORD`` files list is refused: pinning one owner would leave an upgrade of another unseen
+        (qa's round-two review of #602; 0 of 30 446 paths in the environment)."""
         info = self._table().get(site_dir, {}).get(relative)
         if info is None:
             return None
+        if (site_dir, relative) in self._shared:
+            raise Unpinnable(f"{site_dir}{relative}: listed by the RECORD of several installed distributions, so no one version pins it")
         if info not in self._owners:
             distribution = importlib.metadata.Distribution.at(info)
             direct = json.loads(distribution.read_text("direct_url.json") or "{}")
             self._owners[info] = distribution.metadata["Name"], bool(direct.get("dir_info", {}).get("editable"))
         return self._owners[info]
+
+    def version(self, name: str) -> str | None:
+        """The installed version of the distribution ``name``, or ``None`` when none is installed."""
+        if name not in self._versions:
+            try:
+                self._versions[name] = importlib.metadata.version(name)
+            except importlib.metadata.PackageNotFoundError:
+                self._versions[name] = None
+        return self._versions[name]
 
 
 class Dropped(NamedTuple):
@@ -351,7 +443,7 @@ class Source(NamedTuple):
 Origin = Dropped | Interpreter | Distribution | Source
 
 
-def origin(filename: str, installed: _InstalledFiles) -> Origin:
+def origin(filename: str, installed: _Installed) -> Origin:
     """Where a file a run touched belongs, and so how the manifest pins it. ``installed`` is the ownership
     table of the checkout asking: building one reads every ``RECORD``, so it is built once per checkout and
     passed, never rebuilt per file."""
@@ -455,8 +547,7 @@ class _Checkout:
     def __init__(self, store: Store) -> None:
         self.store = store
         self._texts: dict[str, bytes | None] = {}
-        self._versions: dict[str, str | None] = {}
-        self.installed = _InstalledFiles()
+        self.installed = _Installed()
 
     def text(self, path: str) -> bytes | None:
         if path not in self._texts:
@@ -464,16 +555,6 @@ class _Checkout:
             self._texts[path] = found.read_bytes() if found is not None else None
         return self._texts[path]
 
-    def version(self, name: str) -> str | None:
-        """The installed version of the distribution ``name``, or ``None`` when none is installed: looked up
-        once per checkout, which lives for one manifest or one validation (a lookup re-reads the
-        distribution's metadata: 1245 lookups for 6 distributions cost a cheap miss 0.64 s, ``[M]`` #602)."""
-        if name not in self._versions:
-            try:
-                self._versions[name] = importlib.metadata.version(name)
-            except importlib.metadata.PackageNotFoundError:
-                self._versions[name] = None
-        return self._versions[name]
 
 
 def _file_digest(path: str) -> str:
@@ -498,6 +579,27 @@ def _memo_digest() -> str:
     return _digest(b"".join(p.read_bytes() for p in _MEMO_SOURCES))
 
 
+#: The memo's source as this process imported it: it built every index this process writes, so it keys them
+#: (an edit to the memo's source after the import changes the next process's indexes, not this one's).
+def _pinned_memo_digest() -> str | None:
+    """The digest of the bytes this process compiled the memo from, when it compiled them through the
+    pinned-source loader (a generating process); ``None`` in any other process, which may run the memo from a
+    timestamp ``.pyc`` or from a text edited after it was read, and so cannot name its own code."""
+    pinned = _traced_memo_boot.PINNED_SOURCES
+    if pinned is None:
+        return None
+    return _digest(b"".join(pinned[os.path.realpath(p)] for p in _MEMO_SOURCES))
+
+
+#: The memo's source this process RAN, named by its pinned bytes in a generating process (``None``
+#: elsewhere): the memo pin of every entry a generation writes, and the name of every index it writes.
+_RUNNING_MEMO_DIGEST = _pinned_memo_digest()
+#: The memo's source a process names indexes by: the code it ran in a generation; elsewhere the source on disk at
+#: import, which names the indexes generations wrote from it (no recording is active when a process that is not
+#: generating imports the memo, so this read is nobody's dependency).
+_INDEX_MEMO_DIGEST = _RUNNING_MEMO_DIGEST if _RUNNING_MEMO_DIGEST is not None else _memo_digest()
+
+
 class DefPin(NamedTuple):
     """A first-party def that ran: its file, its qualified name, its rank among the defs of that name, and
     the digest of its normalised source."""
@@ -509,7 +611,7 @@ class DefPin(NamedTuple):
 
     def stale(self, checkout: _Checkout) -> str | None:
         text = checkout.text(self.path)
-        found = None if text is None else function_digest(text, self.qualname, self.ordinal)
+        found = None if text is None else _source_index(text).digest(self.qualname, self.ordinal)
         if found is None:
             return f"function {self.path}:{self.qualname} gone"
         return f"function {self.path}:{self.qualname} changed" if found != self.digest else None
@@ -525,7 +627,7 @@ class ModulePin(NamedTuple):
         text = checkout.text(self.path)
         if text is None:
             return f"module {self.path} gone"
-        return f"module {self.path} skeleton changed" if skeleton_digest(text) != self.digest else None
+        return f"module {self.path} skeleton changed" if _source_index(text).skeleton != self.digest else None
 
 
 class DistributionPin(NamedTuple):
@@ -535,7 +637,7 @@ class DistributionPin(NamedTuple):
     version: str
 
     def stale(self, checkout: _Checkout) -> str | None:
-        now = checkout.version(self.name)
+        now = checkout.installed.version(self.name)
         return f"distribution {self.name}: {self.version} != {now}" if now != self.version else None
 
 
@@ -682,25 +784,24 @@ class Manifest:
         return cls(frozenset(_PIN_KINDS[kind](*fields) for kind, *fields in rows))
 
 
-def _def_pin(text: _SourceText, path: str, code: types.CodeType) -> DefPin | None:
+def _def_pin(index: _SourceIndex, path: str, code: types.CodeType) -> DefPin | None:
     """The pin of the outermost def whose source holds ``code``; ``None`` for module-level code (a module or
     class body, a module-level lambda, a signature), which the skeleton pins."""
     line, name = code.co_firstlineno, code.co_name
-    found = text.enclosing(line)
-    if name == "<module>" or (found is not None and name.startswith(_SIGNATURE_SCOPES) and line < found.node.body[0].lineno):
+    found = index.enclosing(line)
+    if name == "<module>" or (found is not None and name.startswith(_SIGNATURE_SCOPES) and line < found.body_line):
         return None
-    if found is None:
-        if _holds(text.tree, line, name):
-            return None
-    elif _holds(found.node, line, name):
-        return DefPin(path, found.qualname, found.ordinal, found.digest)
+    if index.holds(found, line, name):
+        return None if found is None else DefPin(path, found.qualname, found.ordinal, found.digest)
     raise Unpinnable(f"{path}:{line} {code.co_qualname}: no def of that name at its line")
 
 
 def _manifest(recording: Recording, store: Store) -> Manifest:
     """The manifest of a recorded run: every code object it started, file it read, directory it listed and
     memo entry it read, each pinned by its origin."""
-    pins: set[Pin] = {InterpreterPin(_python_identity()), MemoPin(_memo_digest()), EnvironmentPin(_environment_digest(recording.environment))}
+    # The memo pin names the code that ran in a generation; trace_call, the in-process instrument, re-reads it.
+    running = _RUNNING_MEMO_DIGEST if _RUNNING_MEMO_DIGEST is not None else _memo_digest()
+    pins: set[Pin] = {InterpreterPin(_python_identity()), MemoPin(running), EnvironmentPin(_environment_digest(recording.environment))}
     pins |= {_program_pin(program) for program in recording.spawned}
     pins |= {ChildPin(*child) for child in recording.children}
     checkout = _Checkout(store)
@@ -715,9 +816,9 @@ def _manifest(recording: Recording, store: Store) -> Manifest:
                 pass
     for real, file_codes in by_file.items():
         path = _pin_path(real)
-        text = _source_text(_compiled_bytes(recording, real))
-        pins.add(ModulePin(path, text.skeleton))
-        pins |= {pin for code in file_codes if (pin := _def_pin(text, path, code)) is not None}
+        index = _source_index(_compiled_bytes(recording, real))
+        pins.add(ModulePin(path, index.skeleton))
+        pins |= {pin for code in file_codes if (pin := _def_pin(index, path, code)) is not None}
     store_root = _real(str(store.root)) + os.sep
     for opened in recording.opened:
         if _real(opened).startswith(store_root):
@@ -738,7 +839,7 @@ def _manifest(recording: Recording, store: Store) -> Manifest:
 
 def _distribution_pin(checkout: _Checkout, name: str) -> DistributionPin:
     """The pin of a distribution whose code ran or whose file was read, by its installed version."""
-    version = checkout.version(name)
+    version = checkout.installed.version(name)
     if version is None:
         raise Unpinnable(f"the distribution {name} owns a file the run touched, but no version of it is installed")
     return DistributionPin(name, version)
@@ -925,7 +1026,7 @@ _ENTRY = "__entry__"
 
 def default_root() -> Path:
     """``.cache/references`` at the repository root (gitignored)."""
-    return Path(__file__).resolve().parents[2] / ".cache" / "references"
+    return Path(CACHE) / "references"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -970,12 +1071,9 @@ class Store:
         tree, arrays = encode_payload(value, allowed)
         entry = {"function": function_id, "key": key, "manifest": manifest.to_json(),
                  "payload": tree, "payload_digest": _payload_digest(tree, arrays)}
-        path = self.path(function_id, key)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
-        with temporary.open("wb") as handle:
-            np.savez(handle, allow_pickle=False, **arrays, **{_ENTRY: np.frombuffer(json.dumps(entry).encode(), np.uint8)})
-        os.replace(temporary, path)
+        written = io.BytesIO()
+        np.savez(written, allow_pickle=False, **arrays, **{_ENTRY: np.frombuffer(json.dumps(entry).encode(), np.uint8)})
+        write_atomically(self.path(function_id, key), written.getvalue())
 
 
 class InProcess:
