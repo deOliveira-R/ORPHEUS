@@ -601,6 +601,8 @@ centroid, bijectivity vs match window, the coset-search inverse-direction
 theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
 §L88 on 2026-09-21 — open it when the dispatch is a group/algebra-type gate.
 
+- **A guarantee resting on "a new process loads the code" owes a same-second same-size edit row** (forced by `os.utime`): timestamp pycs serve stale code. A fork warning is not a thread count. → `L115`
+
 ## 9. Pointers
 
 - **Two instrument vocabularies, do not mix them.** THEOREM / REFERENCE / RECORD

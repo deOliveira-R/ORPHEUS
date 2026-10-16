@@ -11778,3 +11778,15 @@ left F5 and D11 green under an "eager blocks" mutant; re-pointed onto the memo's
 `bypass()` at `pytest_configure`. (3) A census figure for the memo's miss cost (0.65 s, an interpreter start) was
 the import alone; the measured miss was 2.8-3.6 s (the recorder and the manifest), which reverses a threshold
 calculus: measure the unit cost a recommendation multiplies before using a relayed one.
+
+## L115 — #602 round two (traced-memo miss cost): a fresh process is not fresh code, and a fork warning is not a thread count (2026-10-15)
+
+- A timestamp `.pyc` is validated by int(mtime) and size: a same-size edit in the same second is compiled from the
+  stale pyc by a "fresh" interpreter while the manifest pinned the new bytes (probe `scratch/.../m602/ta/p8_*`:
+  stale entry served as a Hit). The existing M3.2 row was green only because a miss took > 1 s; a speed-up widens
+  the exposure. Rule: when a guarantee rests on "a new process loads the code from disk", ask what the loader
+  actually reads (pyc), and force the same-second state with `os.utime`.
+- Python's fork-with-threads DeprecationWarning fired in 1 of 2 forks with 8 OS threads (macOS, Accelerate); the
+  silent fork's child SIGSEGVed. Count OS threads directly (`ps -M` / proc_pidinfo); a missing warning is no witness.
+- `packages_distributions()` maps a namespace top to `names[0]`: the wrong distribution's version pinned
+  (sphinxcontrib/tikz.py -> applehelp). A top-level map answers a per-FILE ownership question approximately.

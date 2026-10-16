@@ -2887,3 +2887,25 @@ Two explorer censuses on `main` @ `da74b1ce`. The files are `scratch/characteris
 5. C2-0 lands alongside, since it is independent.
 
 ⏸ **Next:** #602 (the miss cost), then C2-0, then dropping `bypass()` from arm N, then the re-timing.
+
+### #602, the miss cost: rounds one and two [LANDED 1d8e2c99] (2026-10-15 to 16)
+
+Cheap miss (5 sphere blocks × 3 repeats, `-O`, serial; `scratch/characteristic_architecture/p3/m602/`): 2.65–2.88 s before, 1.14–1.35 s after round one, 0.66–0.85 s after round two. Three files (system, reading and assembly, 431 not-slow rows, a fresh worktree each): cold 1303 → 538 → 406 s; no memo 236 s; warm 168 s. The warm figure is above C1's 102 s because the landed assembly gates build their blocks in process.
+
+**What landed:**
+- **Round one** (`8e02236f`, `e666e58d`): one parse per file, one version lookup per checkout, the child exits with `os._exit`.
+- **Two pre-existing defects fixed:**
+  - ERR-115, the stale timestamp `.pyc`: a regenerated entry served the old answer and validated. The fix is a pinned-source loader in the generating process.
+  - A docstring-only def crashed `_def_pin`.
+- **Round two:**
+  - D (`0c569df8`): per-file ownership from `RECORD`. It fixes a third defect, namespace tops pinned to the wrong distribution.
+  - B (`155fbdbd`): an on-disk source index. Only a generating process writes one, after qa's case of an index written under another code's name. The memo pin names the code that ran (the elegance review's F4).
+- **Gates:** `test_traced_memo_compiled_bytes.py`, `_ownership.py`, `_source_index.py`. Every battery arm reddens its row (batteries 0, D, B, R).
+- **Full suite:** 17 136 passed.
+- **Filed:** #603, nothing prunes the three stores.
+
+**E, forking each miss from a template:** gated on the fork-safety protocol (`round2_gate_spec.md` §3.3), which is running.
+- `[M]` A fork after a BLAS call crashes the child (8 OS threads under Accelerate).
+- A template that has only imported was safe in 30 of 30 forks.
+
+⏸ **Next:** E's fork-safety verdict. Then, by the user's ruling, C2-0 and dropping `bypass()` from the 147 arm-N readers, then the re-timing.
