@@ -88,10 +88,10 @@ def test_m2_3_a_distribution_version_and_the_interpreter_are_validated(package):
     MANIFEST (the installed environment is not mutable from a gate); the reason names the distribution."""
     manifest = _generate_manifest(package)
     pin, interpreter = api.name("DistributionPin"), api.name("InterpreterPin")
-    distributions = [pin(n, "0.0.0-not-installed" if n == "numpy" else v) for n, v in manifest.distributions]
+    distributions = [pin(n, "0.0.0-not-installed" if n == "numpy" else v, r) for n, v, r in manifest.distributions]
     assert any("numpy" in r for r in api.validate(manifest.replacing(pin, distributions)))
     assert any("python" in r for r in api.validate(manifest.replacing(interpreter, [interpreter("CPython 2.7")])))
-    gone = [*manifest.distributions, pin("no-such-distribution-xyz", "1.0")]
+    gone = [*manifest.distributions, pin("no-such-distribution-xyz", "1.0", "absent")]
     assert any("no-such-distribution-xyz" in r for r in api.validate(manifest.replacing(pin, gone)))
 
 
@@ -99,12 +99,23 @@ def test_m2_3_a_distribution_version_and_the_interpreter_are_validated(package):
 def test_m2_3b_each_validation_reads_the_installed_versions_afresh(package, monkeypatch):
     """M2.3 (b): a validation looks each distribution's version up once and keeps it for that validation
     only (#602), so a version that changes between two validations is a reason in the second. M2.3 edits the
-    manifest; this row changes what is installed (``importlib.metadata.version``, the lookup a validation
+    manifest; this row changes what is installed (``importlib.metadata.distribution``, the lookup a validation
     makes), so a cache that outlived one validation would read the first version and stay clean."""
     manifest = _generate_manifest(package)
     assert not any("numpy" in r for r in api.validate(manifest)), "the fresh manifest is already stale"
-    real = importlib.metadata.version
-    monkeypatch.setattr(importlib.metadata, "version", lambda name: "9.9.9" if name == "numpy" else real(name))
+    real = importlib.metadata.distribution
+
+    class Upgraded:
+        """numpy as an upgrade would leave it: another version (the lookup a validation makes since #602 cut E
+        reads the distribution, its version and its RECORD)."""
+
+        def __init__(self, distribution):
+            self.version, self._distribution = "9.9.9", distribution
+
+        def read_text(self, name):
+            return self._distribution.read_text(name)
+
+    monkeypatch.setattr(importlib.metadata, "distribution", lambda name: Upgraded(real(name)) if name == "numpy" else real(name))
     assert any("numpy" in r and "9.9.9" in r for r in api.validate(manifest))
 
 

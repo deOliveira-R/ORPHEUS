@@ -83,14 +83,14 @@ def _copy_tree(tmp_path: Path) -> Path:
 def test_m4_9_the_exact_medium_is_read_in_the_asking_process(tmp_path, monkeypatch):
     """M4.9, re-posed by the user's ruling of 2026-10-04 (Q5: "It can execute if it's fast"): the exact infinite
     medium reads in 0.01 s, against 0.11 s warm and 6.3 s cold through a generating process, so it is not
-    memoised. Its construction and every reading start no interpreter and write no entry, its ``evaluate`` is a
+    memoised. Its construction and every reading ask for no generation and write no entry, its ``evaluate`` is a
     plain method, and its refusal of a point value is raised in this process. Its certificate is unaffected
     either way: ``ReferenceSolution`` re-checks every claim against the evaluation at construction."""
     from orpheus.derivations.common.exact_homogeneous import ExactInfiniteMediumDerivation, exact_infinite_medium_reference
     from orpheus.numerics.observable import Eigenvalue, PointValue
 
     assert not isinstance(ExactInfiniteMediumDerivation.__dict__["evaluate"], api.name("TracedMemo"))
-    spawns = api.SpawnCounter(monkeypatch)
+    spawns = api.GenerationCounter(monkeypatch)
     with api.cache_root(tmp_path):
         reference = exact_infinite_medium_reference(_exact_specification())
         reference.read(Eigenvalue())
@@ -402,8 +402,8 @@ def test_m4_8c_a_characteristic_refusal_is_never_cached(tmp_path, monkeypatch):
     """M4.8, re-posed: the characteristic reference is a direct solve (no iteration to leave unconverged), so its
     refusal after the solve is the one M4.8's contract applies to: the flux of a mode nearest tau. Read through the
     memo it crosses back as ``NotImplementedError`` with its message and writes nothing, so a second reading starts
-    an interpreter again; the mode's eigenvalue, read beside it, is cached. First red: a refusal cached as a value
-    (the second read starts no interpreter)."""
+    a generation again; the mode's eigenvalue, read beside it, is cached. First red: a refusal cached as a value
+    (the second read asks for no generation)."""
     from dataclasses import replace
 
     from orpheus.numerics.observable import Eigenvalue, PointValue
@@ -415,12 +415,12 @@ def test_m4_8c_a_characteristic_refusal_is_never_cached(tmp_path, monkeypatch):
     with api.cache_root(tmp_path):
         with pytest.raises(NotImplementedError, match="a higher mode has no flux scale"):
             derivation.evaluate(PointValue(position=0.4, group=0))
-        spawns = api.SpawnCounter(monkeypatch)
+        spawns = api.GenerationCounter(monkeypatch)
         with pytest.raises(NotImplementedError, match="a higher mode has no flux scale"):
             type(base)(derivation.specification, base.resolution).evaluate(PointValue(position=0.4, group=0))
         refused_again = spawns.count
         derivation.evaluate(Eigenvalue())
-    assert refused_again >= 1, f"the second refusal started {refused_again} interpreters: it was served from an entry"
+    assert refused_again >= 1, f"the second refusal asked for {refused_again} generations: it was served from an entry"
     assert len(_characteristic_entries(tmp_path)) == 1
 
 

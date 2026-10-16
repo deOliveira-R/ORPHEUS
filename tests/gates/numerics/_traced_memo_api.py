@@ -174,20 +174,19 @@ def function_id(name_: str) -> str:
     return client(name_).function_id
 
 
-class SpawnCounter:
-    """Counts the interpreters started from THIS process (a ``subprocess.Popen`` of ``sys.executable``): the
-    route a generation takes, observed on the route (``vv-principles`` #26), not reported by the memo."""
+class GenerationCounter:
+    """Counts the generations THIS process asks for, forked from a template or spawned fresh (``#602`` cut E: a
+    miss no longer always starts an interpreter, so an interpreter count is not a generation count): every
+    generation passes through ``TracedMemo._generate``, which this wraps. Observed on the route (``vv-principles``
+    #26), not reported by the memo; a hit asks for none, which each user of this counter asserts."""
 
     def __init__(self, monkeypatch: Any) -> None:
-        import subprocess
-        import sys
-
         self.count = 0
-        original = subprocess.Popen.__init__
+        memo_class = name("TracedMemo")
+        original = memo_class._generate
 
-        def counting(popen: Any, args: Any, *a: Any, **k: Any) -> None:
-            if isinstance(args, (list, tuple)) and args and str(args[0]) == sys.executable:
-                self.count += 1
-            original(popen, args, *a, **k)
+        def counting(memo: Any, job: Any) -> None:
+            self.count += 1
+            return original(memo, job)
 
-        monkeypatch.setattr(subprocess.Popen, "__init__", counting)
+        monkeypatch.setattr(memo_class, "_generate", counting)

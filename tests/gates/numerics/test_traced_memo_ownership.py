@@ -176,13 +176,13 @@ def test_d6_an_upgrade_between_two_manifests_in_one_process_is_seen(fake_site, m
     importlib.invalidate_caches()
     f = importlib.import_module(module).f
     _, first = api.trace_call(f, 1.0)
-    assert ("own6", "1.0") in set(first.distributions), first.distributions
+    assert ("own6", "1.0") in {(p.name, p.version) for p in first.distributions}, first.distributions
     upgraded = info.with_name(f"own6-2.0.dist-info")
     info.rename(upgraded)
     (upgraded / "METADATA").write_text("Metadata-Version: 2.1\nName: own6\nVersion: 2.0\n")
     importlib.invalidate_caches()
     _, second = api.trace_call(f, 1.0)
-    assert ("own6", "2.0") in set(second.distributions), second.distributions
+    assert ("own6", "2.0") in {(p.name, p.version) for p in second.distributions}, second.distributions
     sys.modules.pop(module, None)
 
 
@@ -202,21 +202,30 @@ def test_d7_the_top_level_map_is_retired(monkeypatch):
     import numpy as np
 
     _, manifest = api.trace_call(lambda: float(np.linalg.norm(np.ones(3))))
-    assert any(name == "numpy" for name, _ in manifest.distributions), manifest.distributions
+    assert any(p.name == "numpy" for p in manifest.distributions), manifest.distributions
     assert calls == [], f"the manifest built the top-level map {len(calls)} time(s)"
 
 
 def test_d8_a_distribution_pin_carries_the_installed_name_and_version():
     """D8: the pins of a traced run that executes numpy and scipy name each distribution as its ``METADATA``
-    does and hold its installed version, so a validation looks up the same name. First red: a name spelled
+    does and hold its installed version and the digest of its ``RECORD`` file's text (qa's review of #602 cut E: a
+    rebuild under the same version is another install), so a validation looks up the same name. First red: a name spelled
     from the ``dist-info`` directory (``sphinxcontrib_tikz`` against ``sphinxcontrib-tikz``; D1 reddens on it
     too, these rows carry no such name)."""
     import scipy.special
 
     _, manifest = api.trace_call(lambda: float(scipy.special.roots_legendre(4)[1].sum()))  # Python-level code of both
     pins = set(manifest.distributions)
-    assert {"numpy", "scipy"} <= {name for name, _ in pins}, pins
-    for name, version in pins:
+    assert {"numpy", "scipy"} <= {p.name for p in pins}, pins
+    import hashlib
+
+    for name, version, record in pins:
         assert importlib.metadata.metadata(name)["Name"] == name, name
         assert importlib.metadata.version(name) == version, (name, version)
+        # The RECORD digest is of the file's TEXT (newlines translated: ``[M]`` 2026-10-16 numpy's and scipy's
+        # RECORD end their lines in CRLF, so a change of line endings alone is no change), read here through the
+        # distribution's own file list.
+        record_file = next(f for f in importlib.metadata.distribution(name).files or [] if f.name == "RECORD")
+        text = Path(str(record_file.locate())).read_text(encoding="utf-8")
+        assert hashlib.blake2b(text.encode(), digest_size=32).hexdigest() == record, name
     assert api.validate(manifest) == ()

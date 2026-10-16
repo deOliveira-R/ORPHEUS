@@ -156,7 +156,7 @@ def test_m1_4_the_manifest_is_what_ran(package):
     assert "unused" not in ran and "Box.other" not in ran, ran
     assert {"solve", "_count"} <= {q for r, q, *_ in manifest.functions if r == rel}
     assert rel in {r for r, _ in manifest.modules}
-    assert dict(manifest_g.distributions).get("numpy") == np.__version__, manifest_g.distributions
+    assert {p.name: p.version for p in manifest_g.distributions}.get("numpy") == np.__version__, manifest_g.distributions
     stdlib = os.path.realpath(sysconfig.get_paths()["stdlib"])
     assert not any(r.startswith(stdlib) or r.startswith("json/") for r, *_ in manifest.functions)
     assert not any(r.startswith("<") for r, *_ in manifest.functions)

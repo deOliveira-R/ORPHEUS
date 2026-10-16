@@ -560,7 +560,8 @@ refusals and the gates, is :ref:`structured-geometry-content-identity`.
 The traced memo — :mod:`orpheus.numerics.traced_memo`, a pure function of
 content-identified arguments memoised on disk under ``.cache/references/``
 and keyed on what ran: on a miss the call is generated in a fresh
-interpreter that records, from its first line, every function that starts,
+interpreter (or, on a platform where forking is measured, a child forked
+from a template interpreter that has only imported) that records, from its first line, every function that starts,
 every file it reads or probes and every directory it lists
 (:mod:`orpheus.numerics._traced_memo_boot`); the entry keeps that
 :class:`~orpheus.numerics.traced_memo.Manifest` beside an exact payload,
@@ -580,7 +581,7 @@ manifest can see and the review round's defects, is
       DistributionPin, InterpreterPin, DataPin, PresencePin, ListingPin,
       EnvironmentPin, WorkingDirectoryPin, ChildPin, MemoPin, validate,
       trace_call,
-      origin, function_digest, skeleton_digest, platform_tag,
+      origin, function_digest, skeleton_digest, platform_tag, fork_platform,
       encode_payload, decode_payload, Unpinnable, Unencodable
 
 .. autodata:: orpheus.numerics.traced_memo.Pin
@@ -590,7 +591,7 @@ manifest can see and the review round's defects, is
    :no-value:
 
 .. automodule:: orpheus.numerics._traced_memo_boot
-   :members: Recording, note_child, spawning, main
+   :members: Recording, note_child, spawning, main, template, FORK_MEASURED
 
 Mesh-free functions — :mod:`orpheus.numerics.mesh_free_function`, the
 source and the detector a specification states before any mesh exists:

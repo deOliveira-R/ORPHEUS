@@ -101,7 +101,7 @@ def _arrays(value: Any, path: str = "") -> dict[str, Any]:
 @pytest.mark.parametrize("name", list(_BLOCKS))
 @pytest.mark.rests_on(_MEMO + "test_m3_14_a_served_payload_is_fresh_read_only_and_bit_identical")
 def test_b1_a_served_block_is_the_in_process_block_bit_for_bit(name: str, tmp_path, monkeypatch) -> None:
-    """[B1] On a cold root the first call generates (one interpreter started), the second is a ``Hit`` (none started),
+    """[B1] On a cold root the first call generates (one generation, forked or spawned), the second is a ``Hit`` (none),
     and the served block equals ``group_transport`` under ``bypass()`` leaf for leaf: every array's dtype, shape and
     bytes, every scalar; the served arrays are read-only; ``.block`` agrees bitwise.
 
@@ -110,13 +110,13 @@ def test_b1_a_served_block_is_the_in_process_block_bit_for_bit(name: str, tmp_pa
     and the line part differs. Activation: the leaf count is printed and at least 9 (line, support, four coupling
     arrays, three diffuse-wall arrays)."""
     args = _BLOCKS[name]()
-    spawns = api.SpawnCounter(monkeypatch)
+    spawns = api.GenerationCounter(monkeypatch)
     with api.cache_root(tmp_path):
         group_transport(*args)
         cold = spawns.count
         _require(api.verdict_kind(group_transport.lookup(*args)) == "Hit", f"{name}: the entry just written does not validate")
         served = group_transport(*args)
-    _require((cold, spawns.count) == (1, 1), f"{name}: interpreters started cold {cold}, after the hit {spawns.count}")
+    _require((cold, spawns.count) == (1, 1), f"{name}: generations cold {cold}, after the hit {spawns.count}")
     with api.bypass():
         fresh = group_transport(*args)
     leaves_served, leaves_fresh = _arrays(served), _arrays(fresh)

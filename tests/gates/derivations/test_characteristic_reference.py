@@ -1303,11 +1303,11 @@ def _tiny_spec(question: Any = None) -> GeometrySpecification:
 @pytest.mark.rests_on(_HERE + "test_c2_evaluate_is_a_traced_memo",
                       "tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never")
 def test_c3_an_equal_derivation_reads_from_the_memo_and_a_new_resolution_does_not(tmp_path, monkeypatch) -> None:
-    """[C3] A first reading of a one-region sphere at the smallest resolution starts an interpreter; a FRESH
-    derivation of equal content reads the same observable with 0 interpreters started and the same value
+    """[C3] A first reading of a one-region sphere at the smallest resolution asks for a generation; a FRESH
+    derivation of equal content reads the same observable with 0 generations and the same value
     bit for bit; a derivation at another resolution is ``Absent`` (its key differs). First reds: the resolution
     left out of the content (the last leg reads ``Hit``); the evaluate undecorated (the first count is 0)."""
-    spawns = memo_api.SpawnCounter(monkeypatch)
+    spawns = memo_api.GenerationCounter(monkeypatch)
     with memo_api.cache_root(tmp_path):
         cold = CharacteristicDerivation(_tiny_spec(), _TINY).evaluate(Eigenvalue())
         started = spawns.count
@@ -1316,7 +1316,7 @@ def test_c3_an_equal_derivation_reads_from_the_memo_and_a_new_resolution_does_no
                                                                          source_points=6))
         verdict = CharacteristicDerivation.__dict__["evaluate"].lookup(other, Eigenvalue())
     assert started >= 1, "the activation leg: the cold read generated nothing"
-    assert spawns.count == started, f"the warm read started {spawns.count - started} interpreters"
+    assert spawns.count == started, f"the warm read asked for {spawns.count - started} generations"
     assert float(warm.value).hex() == float(cold.value).hex()
     assert memo_api.verdict_kind(verdict) == "Absent"
 

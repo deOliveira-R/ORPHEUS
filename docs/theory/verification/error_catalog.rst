@@ -11153,7 +11153,9 @@ older entries classify against.
    file as it stands after the run reads as "pin what is there now", and
    for a data file it is right: a data file's bytes are what the run read
    (``DataPin``). For source code it is wrong, because the code that ran
-   was compiled earlier, from bytes the manifest never saw.
+   was compiled earlier, from bytes the manifest never saw. (That reading
+   of a data file was itself wrong whenever the file changed during the
+   run: ERR-116, fixed 2026-10-16 by a digest at the first open.)
 
    **Module:** ``orpheus/numerics/_traced_memo_boot.py`` (the pinned-source
    loader ``_PinnedSourceLoader``, the finder ``_PinnedSourceFinder`` at
@@ -11194,3 +11196,136 @@ older entries classify against.
    **Lesson.** ⭐ **Pin the bytes that were compiled, never the file as it
    stands after the run: a pin of source code is a claim about what ran,
    and only the process that compiled the code can make it.**
+
+.. error-entry:: ERR-116
+   :title: A traced-memo entry pinned its file-system inputs (a data file's bytes, a probed path's presence, a listed directory's names) by a state other than the one the run read: observed AFTER the run, or, for a file opened both to read and to write, never, so an input changed while the generation ran was pinned at its new state beside an answer computed from the old one; the entry validated and served the stale answer (1.0 served after the file became 2.0)
+
+   **Status:** ✅ **FIXED 2026-10-16** on branch
+   ``perf/traced-memo-fork-template`` (#602, cut E; the commit is the one
+   that lands this entry). Found by qa's review of cut E. Catalogued as
+   pre-existing: it predates cut E and was on the fresh route too. The
+   memo's first commit, ``99897d10`` (2026-10-04), already pinned an opened
+   file by ``_digest(Path(real).read_bytes())`` when the manifest was
+   written (`[M]` ``git show 99897d10:orpheus/numerics/traced_memo.py``,
+   line 475), and the tree before cut E did the same through
+   ``_file_digest(opened)`` in ``_manifest``, and observed a probed path's
+   presence (``_presence(probed)``) and a listed directory's names
+   (``_listing_digest(listed)``) there too (`[M]` ``git show
+   HEAD:orpheus/numerics/traced_memo.py`` on ``f0d47585``). Full account:
+   :ref:`verification-reference-cache-manifest`, "Every input at its first
+   touch".
+
+   **Failure mode:** **#6 (convention drift)**, definition site against
+   usage site, the same shape as ERR-115. The generator's use of a data
+   file defined "the bytes the run depended on" as the bytes it read when
+   it opened the file; the manifest defined them as the bytes on disk when
+   the manifest was written, after the run. Between the two moments lies
+   the whole generation, so this is a time-of-check against time-of-use
+   window: the check (the pin) and the use (the read) were taken at
+   different times.
+
+   **Root cause.** A generating process records every path opened for
+   reading, every path probed and every directory listed. Before the fix
+   it recorded the paths only, and ``_manifest`` observed them afterwards:
+   the file's digest, the path's presence, the directory's names. The
+   data file is the measured case; a flag file created or a file added to
+   a listed directory during the run is the same window (qa's third
+   review, finding F2).
+
+   A second hole of the same family, found by the elegance review of cut
+   E and also pre-existing (the classification by mode string is in
+   ``99897d10`` and in ``f0d47585``): an ``open`` was classified as a read
+   or as a write by its mode string, never as both, so an ``"r+"`` open,
+   which reads and writes, was recorded as a write only and what it read
+   was never pinned (an ``os.open``, which has no mode string, was taken
+   for a read before cut E, and an ``os.open`` with ``O_RDWR`` for a write
+   only in E's review rounds before the fix) (`[M]` 2026-10-16,
+   ``scratch/characteristic_architecture/p3/m602/elegance4/probe_rplus.py``:
+   0 data pins). Its mechanism is the one above: an input pinned by a
+   state other than the one the run read (here, by none). A file rewritten after the generator read
+   it and before the manifest was written was therefore pinned at its new
+   bytes, while the answer had been computed from the old ones. A later
+   lookup compared the pin with the file on disk, found them equal, and
+   served the old answer as a ``Hit``, from then on.
+
+   **Measured** (`[M]` 2026-10-16, qa's review of cut E): a generator reads
+   ``1.0`` from a data file and waits on a barrier file; the file is then
+   rewritten to ``2.0`` and the barrier released. The entry validated and
+   ``1.0`` was served, where a generation run against the file as it now
+   stands returns ``2.0``.
+
+   **Hiding mechanism.** Three layers.
+
+   (a) **No gate changed a file during a generation.** Gate M3.17 edits a
+   data file BETWEEN two generations, where a pin taken after the run and
+   a pin taken at the read agree, so it was green under both definitions.
+   ERR-115's gate P2 does land an edit during a generation, but on a
+   source module, which the pinned-source loader pins by its compiled
+   bytes, not on a data file.
+
+   (b) **The after-run read was argued to be right for data.** ERR-115's
+   own account (its hiding mechanism (c), written 2026-10-15) said that
+   pinning the file as it stands after the run "for a data file is right:
+   a data file's bytes are what the run read". That holds only when
+   nothing writes the file while the run uses it.
+
+   (c) **No client reads a data file.** In P3, 0 of the 3 clients read a
+   nuclear-data file (`[M]` the AST census of 2026-10-04 in
+   :ref:`verification-reference-cache-manifest`), so no served entry was
+   exposed; the defect waited for P4's generators.
+
+   **Module:** ``orpheus/numerics/_traced_memo_boot.py`` (``Observation``
+   and its kinds ``CONTENT``, ``PRESENCE``, ``LISTING``, ``_observe``,
+   ``_access``, ``file_digest``, ``presence``, ``listing_digest``,
+   ``_note_written``,
+   the fields ``Recording.opened``, ``probed``, ``listed`` and
+   ``written``), ``orpheus/numerics/traced_memo.py`` (``_manifest`` and
+   ``_unchanged_by_the_run``).
+
+   **Fix.** Every input is observed at the run's first touch, by one
+   function (``_observe``), and the manifest pins those observations. An
+   input changed during the run leaves the entry born ``Stale``: the call
+   raises "does not validate" and the next call regenerates from the new
+   state. An ``open`` is decoded from its ``O_*`` flags (``_access``): it
+   reads when its access mode is not ``O_WRONLY`` and neither ``O_TRUNC``
+   nor ``O_EXCL`` is set, and writes when its access mode is not
+   ``O_RDONLY`` or ``O_CREAT``, ``O_TRUNC`` or ``O_APPEND`` is set; one
+   that does both is observed first and noted as written second. A path
+   the run touches only after it has written it (by such an open, or by
+   ``os.remove``, ``os.rename`` or ``os.truncate``) is the run's own
+   output and is not observed (qa's second review, finding
+   N1: a scratch file written, read back and deleted was born stale on
+   every miss). A path the run observed and THEN changed (for a listing,
+   also a path written directly inside the listed directory) is refused
+   as ``Unpinnable``, "the run observed it and then changed it": the state it saw no longer exists, so no state pins the
+   answer. An intermediate rule, pinning such a path by what the run left
+   at its end, served a counter's old value ``n`` as a ``Hit`` where a
+   cold run returned ``n + 1`` (qa's third review, finding F1, `[M]`
+   2026-10-16) and was retired. The refusal also turns away a cache file
+   read absent and then created (finding N2), deliberately; no generator
+   in the tree does that. ``file_digest`` reads a regular file only; a
+   device such as ``/dev/urandom`` digests as ``"absent"`` and is never
+   read to its end (finding N3: the miss hung). A file rewritten and
+   restored within one run is not seen (a declared limit of the
+   chapter).
+
+   **Caught by:**
+   ``tests/gates/numerics/test_traced_memo_template.py::test_qa2_a_data_file_rewritten_during_the_run_leaves_the_entry_stale``,
+   both rows (``[fresh]`` and ``[forked]``): the generator reads the file,
+   touches a ready file and waits; the test rewrites the data file and
+   releases it; the call must raise "does not validate" and the lookup
+   must read ``Stale``. Both rows carry ``@pytest.mark.catches("ERR-116")``.
+   `[M]` 2026-10-16, battery F
+   (``scratch/characteristic_architecture/p3/m602/ta/batteryF/``, every arm
+   a textual edit on a copy of the tree, 196 traced-memo gate rows under
+   ``-O``, on the tree of the first fix): arm R-2, the manifest pinning
+   ``_file_digest(opened)`` after the run in place of the first-open
+   digest, which is the unfixed defect for data files, reddens exactly
+   those 2 rows and no other; the arm with no mutation reddens none. The
+   arm predates the first-touch rule for presence and listings, and no
+   row named here is yet shown to redden on those two halves.
+
+   **Lesson.** ⭐ **Pin an input at the moment it is read (opened,
+   probed or listed): a pin taken
+   later is a claim about a file, not about the run, and every second
+   between the read and the pin is a window in which the two differ.**

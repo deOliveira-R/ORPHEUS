@@ -62,12 +62,12 @@ A test that monkeypatches anything a generation runs reads under :func:`bypass`.
 from __future__ import annotations
 
 import ast
+import atexit
 import contextlib
 import copy
 import csv
 import dataclasses
 import functools
-import hashlib
 import importlib
 import importlib.metadata
 import inspect
@@ -79,6 +79,8 @@ import platform
 import site
 import subprocess
 import sys
+import tempfile
+import threading
 import sysconfig
 import traceback
 import types
@@ -92,7 +94,10 @@ from typing import Any, Generic, NamedTuple, ParamSpec, TypeVar, overload
 import numpy as np
 
 from orpheus.numerics import _traced_memo_boot
-from orpheus.numerics._traced_memo_boot import CACHE, Recording, note_child, spawning, unrecorded, write_atomically
+from orpheus.numerics._traced_memo_boot import (
+    CACHE, CONTENT, FORK_MEASURED, LISTING, PRESENCE, Observation, Recording, _read_frame, _write_frame, digest as _digest, file_digest as _file_digest, listing_digest as _listing_digest, presence as _presence, frame, note_child,
+    spawning, unrecorded, write_atomically,
+)
 from orpheus.numerics.content import ContentIdentity, _rebuild, constructor_arguments, encode_exact
 
 __all__ = [
@@ -102,10 +107,6 @@ __all__ = [
     "encode_payload", "function_digest", "origin", "platform_tag", "skeleton_digest", "trace_call",
     "traced_memo", "validate",
 ]
-
-
-def _digest(data: bytes) -> str:
-    return hashlib.blake2b(data, digest_size=32).hexdigest()
 
 
 class Unpinnable(RuntimeError):
@@ -368,14 +369,14 @@ class _Installed:
     ``sphinxcontrib-tikz`` left valid every entry that ran its code (``[M]`` 2026-10-15, the test-architect,
     #602). Reading the raw ``RECORD`` bytes of every distribution builds the table for 30 446 paths in 18 to
     20 ms; the top-level map cost 0.22 s. A ``RECORD`` row is parsed as CSV, since a path may be quoted and
-    hold a comma. A version lookup re-reads the distribution's metadata (1245 lookups for 6 distributions cost
+    hold a comma. A lookup of what is installed re-reads the distribution's metadata (1245 lookups for 6 distributions cost
     a cheap miss 0.64 s, ``[M]`` #602), so each is made once."""
 
     def __init__(self) -> None:
         self._listed: dict[str, dict[str, Path]] | None = None
         self._shared: set[tuple[str, str]] = set()
         self._owners: dict[Path, tuple[str, bool]] = {}
-        self._versions: dict[str, str | None] = {}
+        self._versions: dict[str, tuple[str, str] | None] = {}
 
     def _table(self) -> dict[str, dict[str, Path]]:
         if self._listed is None:
@@ -406,13 +407,18 @@ class _Installed:
             self._owners[info] = distribution.metadata["Name"], bool(direct.get("dir_info", {}).get("editable"))
         return self._owners[info]
 
-    def version(self, name: str) -> str | None:
-        """The installed version of the distribution ``name``, or ``None`` when none is installed."""
+    def installed(self, name: str) -> tuple[str, str] | None:
+        """What is installed as the distribution ``name``: its version and the digest of its ``RECORD`` (the
+        hash of every file it installed, so a rebuild reinstalled under the same version is another install,
+        qa's review of #602 cut E); ``None`` when none is installed."""
         if name not in self._versions:
             try:
-                self._versions[name] = importlib.metadata.version(name)
+                distribution = importlib.metadata.distribution(name)
             except importlib.metadata.PackageNotFoundError:
                 self._versions[name] = None
+            else:
+                record = distribution.read_text("RECORD")
+                self._versions[name] = (distribution.version, _digest(record.encode()) if record is not None else "absent")
         return self._versions[name]
 
 
@@ -492,12 +498,22 @@ def _python_identity() -> str:
 
 
 @functools.cache
+def _blas() -> str:
+    """The BLAS numpy was built against (Accelerate and OpenBLAS differ in the last bits, #504)."""
+    config = np.show_config(mode="dicts")
+    return config.get("Build Dependencies", {}).get("blas", {}).get("name", "unknown") if isinstance(config, dict) else "unknown"
+
+
 def platform_tag() -> str:
     """The operating system, the machine, the ``-O`` level (a bare ``assert`` in a generator is stripped under
-    it) and the BLAS (Accelerate and OpenBLAS differ in the last bits, #504)."""
-    config = np.show_config(mode="dicts")
-    blas = config.get("Build Dependencies", {}).get("blas", {}).get("name", "unknown") if isinstance(config, dict) else "unknown"
-    return f"{sys.implementation.cache_tag}-{sys.platform}-{platform.machine()}-O{sys.flags.optimize}-{blas}"
+    it) and the BLAS."""
+    return f"{sys.implementation.cache_tag}-{sys.platform}-{platform.machine()}-O{sys.flags.optimize}-{_blas()}"
+
+
+def fork_platform() -> tuple[str, str, str]:
+    """The platform as the fork protocol's table names it (:data:`~orpheus.numerics._traced_memo_boot.FORK_MEASURED`):
+    the operating system, the machine and the BLAS."""
+    return sys.platform, platform.machine(), _blas()
 
 
 # ── the manifest ────────────────────────────────────────────────────────────────────────────────────
@@ -536,7 +552,9 @@ _MAX_GENERATION_DEPTH = 16
 
 def _child_environment(environment: Mapping[str, str] | None = None) -> dict[str, str]:
     """What a generation receives from ``environment`` (default: this process's): the declared variables and
-    the fixed ones. A generating process projects to itself; ``trace_call`` projects its caller's."""
+    the fixed ones. The parent projects its own and hands it to the generation on the job (``_Job.environment``),
+    so the pin never reads the child's ``os.environ``, which PEP 538 rewrites under ``LANG=C``; ``trace_call``
+    projects its caller's."""
     source = os.environ if environment is None else environment
     return {k: source[k] for k in _CHILD_ENVIRONMENT if k in source} | _FIXED_ENVIRONMENT
 
@@ -555,24 +573,6 @@ class _Checkout:
             self._texts[path] = found.read_bytes() if found is not None else None
         return self._texts[path]
 
-
-
-def _file_digest(path: str) -> str:
-    """The digest of a file's bytes, or ``"absent"``: a run that found no file there depended on that."""
-    return _digest(Path(path).read_bytes()) if os.path.isfile(path) else "absent"
-
-
-def _presence(path: str) -> str:
-    """What a probe of ``path`` finds: a file, a directory, something else, or nothing."""
-    if os.path.isfile(path):
-        return "file"
-    if os.path.isdir(path):
-        return "directory"
-    return "other" if os.path.lexists(path) else "absent"
-
-
-def _listing_digest(path: str) -> str:
-    return _digest("\0".join(sorted(os.listdir(path))).encode()) if os.path.isdir(path) else "absent"
 
 
 def _memo_digest() -> str:
@@ -631,14 +631,19 @@ class ModulePin(NamedTuple):
 
 
 class DistributionPin(NamedTuple):
-    """A third-party distribution whose code ran or whose file was read, by its version."""
+    """A third-party distribution whose code ran or whose file was read, by its version and its ``RECORD``."""
 
     name: str
     version: str
+    record: str
 
     def stale(self, checkout: _Checkout) -> str | None:
-        now = checkout.installed.version(self.name)
-        return f"distribution {self.name}: {self.version} != {now}" if now != self.version else None
+        now = checkout.installed.installed(self.name)
+        if now is None:
+            return f"distribution {self.name}: {self.version} is no longer installed"
+        if now != (self.version, self.record):
+            return f"distribution {self.name}: {self.version} (RECORD {self.record[:12]}) != {now[0]} (RECORD {now[1][:12]})"
+        return None
 
 
 class InterpreterPin(NamedTuple):
@@ -772,6 +777,12 @@ class Manifest:
     def data(self) -> tuple[DataPin, ...]:
         return self.of(DataPin)
 
+    def with_compiled_sources(self, sources: Mapping[str, bytes]) -> Manifest:
+        """This manifest, holding also the whole bytes each first-party source was compiled from: a process that
+        keeps running that code (a template) is stale when any of them differs on disk, an edit to a def body
+        that never ran included, which the skeleton and def pins do not see."""
+        return Manifest(self.pins | {DataPin(path, _digest(text)) for path, text in sources.items()})
+
     def replacing(self, kind: type[Any], pins: Iterable[Pin]) -> Manifest:
         """This manifest with every pin of ``kind`` replaced by ``pins``."""
         return Manifest(frozenset({p for p in self.pins if not isinstance(p, kind)} | set(pins)))
@@ -794,6 +805,16 @@ def _def_pin(index: _SourceIndex, path: str, code: types.CodeType) -> DefPin | N
     if index.holds(found, line, name):
         return None if found is None else DefPin(path, found.qualname, found.ordinal, found.digest)
     raise Unpinnable(f"{path}:{line} {code.co_qualname}: no def of that name at its line")
+
+
+def _unchanged_by_the_run(recording: Recording, kind: Observation, path: str, seen: str) -> str:
+    """What the run saw at ``path``, refused when the run itself changed it afterwards: the state it saw no longer
+    exists, so no state a later lookup can find pins the answer (qa's third review of #602 cut E, ``[M]``
+    2026-10-16: a generator that read ``n`` and wrote ``n + 1`` was served as a Hit, while a cold run returned
+    ``n + 1``)."""
+    if kind.changed_by(path, recording.written) and kind.observe(path) != seen:
+        raise Unpinnable(f"{path}: the run observed it and then changed it, so no state of it pins the answer")
+    return seen
 
 
 def _manifest(recording: Recording, store: Store) -> Manifest:
@@ -820,29 +841,31 @@ def _manifest(recording: Recording, store: Store) -> Manifest:
         pins.add(ModulePin(path, index.skeleton))
         pins |= {pin for code in file_codes if (pin := _def_pin(index, path, code)) is not None}
     store_root = _real(str(store.root)) + os.sep
-    for opened in recording.opened:
+    for opened, read in recording.opened.items():
         if _real(opened).startswith(store_root):
             continue  # a store entry is a child
         match origin(opened, checkout.installed):
             case Distribution(name):
                 pins.add(_distribution_pin(checkout, name))
             case Source():
-                pins.add(DataPin(opened, _file_digest(opened)))
+                pins.add(DataPin(opened, _unchanged_by_the_run(recording, CONTENT, opened, read)))
             case Dropped() | Interpreter():
                 pass
-    pins |= {PresencePin(probed, _presence(probed)) for probed in recording.probed if not _real(probed).startswith(store_root)}
-    pins |= {ListingPin(listed, _listing_digest(listed)) for listed in recording.listed}
+    pins |= {PresencePin(probed, _unchanged_by_the_run(recording, PRESENCE, probed, kind))
+             for probed, kind in recording.probed.items() if not _real(probed).startswith(store_root)}
+    pins |= {ListingPin(listed, _unchanged_by_the_run(recording, LISTING, listed, seen))
+             for listed, seen in recording.listed.items()}
     if recording.relative:
         pins.add(WorkingDirectoryPin(recording.directory))
     return Manifest(frozenset(pins))
 
 
 def _distribution_pin(checkout: _Checkout, name: str) -> DistributionPin:
-    """The pin of a distribution whose code ran or whose file was read, by its installed version."""
-    version = checkout.installed.version(name)
-    if version is None:
+    """The pin of a distribution whose code ran or whose file was read, by what is installed."""
+    installed = checkout.installed.installed(name)
+    if installed is None:
         raise Unpinnable(f"the distribution {name} owns a file the run touched, but no version of it is installed")
-    return DistributionPin(name, version)
+    return DistributionPin(name, *installed)
 
 
 def _compiled_bytes(recording: Recording, real: str) -> bytes:
@@ -1153,26 +1176,56 @@ class _Job:
     key: str
     root: str
     ancestry: tuple[tuple[str, str], ...]
+    #: The environment the asking process hands the generation (:func:`_child_environment`), which its entry
+    #: pins. Not the generating process's own ``os.environ``: under ``LANG=C`` the interpreter coerces the
+    #: locale at its start (PEP 538) and adds ``LC_CTYPE=C.UTF-8``, so that environment differs from the one
+    #: the asking process validates against, and every entry would be born stale.
+    environment: dict[str, str]
 
 
-def _failure(error: BaseException) -> dict[str, Any]:
-    """An exception as it crosses back: pickled, and described in case the parent cannot rebuild it."""
+class _Generated(NamedTuple):
+    """A generating process's answer: the entry is written."""
+
+
+class _Failed(NamedTuple):
+    """A generating process's answer: the call, or the writing of its entry, raised. The exception is pickled,
+    and described in case the parent cannot rebuild it."""
+
+    error: bytes | None
+    described: str
+
+
+class _Refused(NamedTuple):
+    """A template's answer: it will not fork (what its imports depended on changed, or it holds more than one
+    OS thread); it exits after answering."""
+
+    reasons: tuple[str, ...]
+
+
+class _Died(NamedTuple):
+    """A template's answer: the child it forked ended without answering, with this wait status."""
+
+    status: int
+
+
+def _failure(error: BaseException) -> _Failed:
     described = "".join(traceback.format_exception(error))
     try:
         pickled: bytes | None = pickle.dumps(error)
     except Exception:  # noqa: BLE001 - an exception that cannot cross is described instead
         pickled = None
-    return {"ok": False, "error": pickled, "described": described}
+    return _Failed(pickled, described)
 
 
 def _generate_here(job_bytes: bytes, recording: Recording) -> bytes:
     """The generating process's body (called by the boot script, recording since its first line): run the
-    call, stop recording, write the entry; the answer is a pickled ``{"ok": ...}``."""
+    call, stop recording, write the entry; the answer is a pickled :class:`_Generated` or :class:`_Failed`."""
     global _ANCESTRY
     try:
         job: _Job = pickle.loads(job_bytes)
         _TARGETS.append(Store(Path(job.root)))
         _ANCESTRY = job.ancestry
+        recording.environment = job.environment
         value = job.memo.__wrapped__(*job.args, **job.kwargs)
     except BaseException as error:  # noqa: BLE001 - every failure crosses back to the caller
         recording.stop()
@@ -1183,8 +1236,154 @@ def _generate_here(job_bytes: bytes, recording: Recording) -> bytes:
         store.write(job.memo.function_id, job.key, _manifest(recording, store), value, job.memo.returned_types)
     except BaseException as error:  # noqa: BLE001 - an unpinnable run or an unencodable value crosses back
         return pickle.dumps(_failure(error))
-    return pickle.dumps({"ok": True})
+    return pickle.dumps(_Generated())
 
+
+#: How many children one template forks before it is replaced: its resident size grew about 16 kB per fork in
+#: the protocol (``[M]`` 2026-10-16, 99 to 156 MB over 3600 forks).
+_FORKS_PER_TEMPLATE = 256
+def _forks_here() -> bool:
+    """Whether this process's misses are forked from a template: on a measured platform, never inside a
+    generating process (a nested miss spawns its own fresh interpreter, as it always has), and not after a
+    fresh template refused to fork."""
+    return _traced_memo_boot.PINNED_SOURCES is None and _SLOT.refused is None and fork_platform() in FORK_MEASURED
+
+
+class _Launch(NamedTuple):
+    """How a generating process is started, by either route: the interpreter, the ``-O`` level, ``sys.path``,
+    the working directory and the environment the job is handed. A template serves a job iff it was started
+    with an equal launch, since the generation's manifest pins that state as it was at the template's start."""
+
+    executable: str
+    optimize: int
+    sys_path: tuple[str, ...]
+    directory: str
+    environment: tuple[tuple[str, str], ...]
+
+    @classmethod
+    def of(cls, job: _Job) -> _Launch:
+        return cls(sys.executable, sys.flags.optimize, tuple(sys.path), os.getcwd(), tuple(sorted(job.environment.items())))
+
+    def argv(self, *mode: str) -> list[str]:
+        return [self.executable, *(["-" + "O" * self.optimize] if self.optimize else []), "-P", str(_BOOT), *mode]
+
+    def envelope(self) -> bytes:
+        return frame(pickle.dumps({"sys_path": list(self.sys_path)}))
+
+    def options(self) -> dict[str, Any]:
+        return {"cwd": self.directory, "env": dict(self.environment)}
+
+
+def _answer(data: bytes | None, errors: str) -> _Generated | _Failed | _Refused | _Died:
+    """A frame from a generating process or a template, read back; a missing or unreadable one raises with the
+    tail of the process's standard error."""
+    try:
+        if data is not None:
+            return pickle.loads(data)
+    except Exception as error:  # noqa: BLE001 - the process ended inside its answer
+        raise RuntimeError(f"traced_memo: a generating process answered unreadably:\n{errors}") from error
+    raise RuntimeError(f"traced_memo: a generating process ended without answering:\n{errors}")
+
+
+class _Template:
+    """A template process (``_traced_memo_boot.template``) and the launch it was started with."""
+
+    def __init__(self, launch: _Launch) -> None:
+        self.launch = launch
+        self.forks = 0
+        self.errors = tempfile.TemporaryFile()
+        with spawning():
+            self.process = subprocess.Popen(launch.argv("--template"), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                            stderr=self.errors, **launch.options())
+        assert self.process.stdin is not None and self.process.stdout is not None
+        os.write(self.process.stdin.fileno(), launch.envelope())
+
+    def generate(self, job: bytes) -> _Generated | _Failed | _Refused | _Died | None:
+        """The template's answer to ``job``; ``None`` when it has exited (it ended at a previous refusal, or was
+        killed)."""
+        assert self.process.stdin is not None and self.process.stdout is not None
+        try:
+            _write_frame(self.process.stdin.fileno(), job)
+        except BrokenPipeError:
+            return None
+        data = _read_frame(self.process.stdout)
+        if data is None:
+            return None
+        self.forks += 1
+        return _answer(data, self.stderr_tail())
+
+    def stderr_tail(self) -> str:
+        self.errors.seek(0)
+        return self.errors.read().decode(errors="replace")[-4000:]
+
+    def release(self) -> None:
+        """Close this process's ends of the pipes and the error file, without waiting for the template."""
+        for pipe in (self.process.stdin, self.process.stdout):
+            if pipe is not None:
+                pipe.close()
+        self.errors.close()
+
+    def close(self) -> None:
+        self.release()
+        try:
+            self.process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            self.process.kill()
+            self.process.wait()
+
+
+class _TemplateSlot:
+    """This process's template, if it has started one; the lock that gives one miss at a time its pipes (two
+    threads missing at once interleaved their frames and read each other's answers: qa's review of #602 cut E,
+    ``[M]`` 14 of 40 calls raised); and why a fresh template refused its first job, if one has. The refusal's
+    cause holds for this process (an OS thread its imports started, say) and for a child forked from it, so
+    their misses spawn from then on instead of starting a template per miss."""
+
+    def __init__(self) -> None:
+        self.template: _Template | None = None
+        self.lock = threading.Lock()
+        self.refused: tuple[str, ...] | None = None
+
+    def forget(self) -> None:
+        """In a child of this process (``os.fork``): the template is the parent's, so the child closes its copies
+        of the pipes (the template reads its end of input only when every holder of its stdin has closed it) and
+        starts its own; the lock may have been held by a thread the fork did not copy."""
+        if self.template is not None:
+            self.template.release()
+        self.template, self.lock = None, threading.Lock()
+
+    def close(self) -> None:
+        if self.template is not None:
+            self.template.close()
+            self.template = None
+
+    def answer(self, launch: _Launch, job: bytes) -> _Generated | _Failed | None:
+        """The answer of a child forked from the template, starting or replacing the template as the launch, its
+        fork count or its refusal requires; ``None`` when no template forked the job (the miss then spawns)."""
+        with self.lock:
+            for _ in range(2):
+                if self.template is not None and (self.template.launch != launch or self.template.forks >= _FORKS_PER_TEMPLATE):
+                    self.close()
+                if self.template is None:
+                    self.template = _Template(launch)
+                fresh = self.template.forks == 0
+                match self.template.generate(job):
+                    case _Generated() | _Failed() as answer:
+                        return answer
+                    case _Died(status):
+                        raise RuntimeError(f"traced_memo: a forked generating process died (wait status {status}):\n{self.template.stderr_tail()}")
+                    case _Refused(reasons) if fresh:
+                        self.refused = reasons
+                        self.close()
+                        return None
+                    case _Refused() | None:
+                        self.close()
+            return None
+
+
+_SLOT = _TemplateSlot()
+os.register_at_fork(after_in_child=_SLOT.forget)
+atexit.register(_SLOT.close)
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -1258,7 +1457,8 @@ class TracedMemo(Generic[P, R]):
             raise RecursionError(f"traced_memo: {self.function_id} would start a generation {_MAX_GENERATION_DEPTH + 1} deep")
         verdict = store.lookup(self.function_id, key)
         if not isinstance(verdict, Hit):
-            self._generate(_Job(self, bound.args, bound.kwargs, key, str(store.root), (*_ANCESTRY, (self.function_id, key))))
+            self._generate(_Job(self, bound.args, bound.kwargs, key, str(store.root), (*_ANCESTRY, (self.function_id, key)),
+                                _child_environment()))
             verdict = store.lookup(self.function_id, key)
             if not isinstance(verdict, Hit):
                 raise RuntimeError(f"traced_memo: the entry just generated for {self.function_id} does not validate: {verdict}")
@@ -1266,32 +1466,33 @@ class TracedMemo(Generic[P, R]):
         return decode_payload(verdict.tree, verdict.arrays, self.returned_types)
 
     def _generate(self, job: _Job) -> None:
-        """Run ``job`` in a fresh interpreter with this process's ``-O`` level, ``sys.path`` and working
-        directory, and the declared environment only (:data:`_CHILD_ENVIRONMENT`: a withdrawn generator's
-        ``ORPHEUS_*`` switch never reaches it, and no variable selects an answer no pin holds). The answer comes back on the
+        """Run ``job`` in a generating process: a child forked from this process's template where forking is
+        measured (:func:`_forks_here`), else a fresh interpreter. Either is started by the job's
+        :class:`_Launch`: this process's ``-O`` level, ``sys.path`` and working directory, and the declared
+        environment only (:data:`_CHILD_ENVIRONMENT`: a withdrawn generator's ``ORPHEUS_*`` switch never reaches
+        it, and no variable selects an answer no pin holds). The answer comes back as one frame on the
         process's standard output, which the boot script reserves for it (qa finding 9)."""
-        optimize = ["-" + "O" * sys.flags.optimize] if sys.flags.optimize else []
-        with spawning():
-            run = subprocess.run(
-                [sys.executable, *optimize, "-P", str(_BOOT)],
-                input=pickle.dumps({"sys_path": list(sys.path), "job": _constructor_pickle(job)}),
-                capture_output=True, cwd=os.getcwd(),
-                env=_child_environment(),
-            )
-        try:
-            result = pickle.loads(run.stdout)
-        except Exception as error:  # noqa: BLE001 - the process died before it could answer
-            raise RuntimeError(f"traced_memo: the process generating {self.function_id} failed:\n{run.stderr.decode()[-4000:]}") from error
-        if result["ok"]:
-            return
-        try:
-            error = pickle.loads(result["error"]) if result["error"] is not None else None
-        except Exception:  # noqa: BLE001 - pickled there, not rebuildable here (qa finding 11)
-            error = None
-        if not isinstance(error, BaseException):
-            raise RuntimeError(f"traced_memo: the process generating {self.function_id} raised:\n{result['described']}")
-        error.add_note(f"raised in the process generating {self.function_id}")
-        raise error
+        job_bytes, launch = _constructor_pickle(job), _Launch.of(job)
+        answer = _SLOT.answer(launch, job_bytes) if _forks_here() else None
+        if answer is None:
+            with spawning():
+                run = subprocess.run(launch.argv(), input=launch.envelope() + frame(job_bytes), capture_output=True,
+                                     **launch.options())
+            answer = _answer(_read_frame(io.BytesIO(run.stdout)), run.stderr.decode(errors="replace")[-4000:])
+        match answer:
+            case _Generated():
+                return
+            case _Failed(pickled, described):
+                try:
+                    error = pickle.loads(pickled) if pickled is not None else None
+                except Exception:  # noqa: BLE001 - pickled there, not rebuildable here (qa finding 11)
+                    error = None
+                if not isinstance(error, BaseException):
+                    raise RuntimeError(f"traced_memo: the process generating {self.function_id} raised:\n{described}")
+                error.add_note(f"raised in the process generating {self.function_id}")
+                raise error
+            case _:
+                raise RuntimeError(f"traced_memo: the process generating {self.function_id} answered {answer!r}")
 
 
 @overload
