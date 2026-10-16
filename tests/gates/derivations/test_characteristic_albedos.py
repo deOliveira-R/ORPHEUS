@@ -127,6 +127,14 @@ def test_a_mirror_is_the_symmetry_plane_of_the_doubled_vacuum_slab(name: str) ->
     Unlike the old family's collocation, the Galerkin assembly transports
     each basis function, so a flat emission does not hide the defect: the
     closed slabs of D5 red under the in-class arm (6 of 6 slab rows).
+
+    Re-dropped ``[M]`` 2026-10-16 (the #405 P3 step 2c drop, a textual arm on a
+    worktree copy): the arms above edited ``chart.AxialImage.orbit_coordinate_at``,
+    which the slab's transport no longer reaches since the point readings form
+    each position from the point (``chord.Rays.orbit_coordinate_at``), and that
+    arm reds 0 of 4. The same scaling in ``chord.Rays.orbit_coordinate_at``
+    reds 3 of 4 across this row and the flux row: both of this row's cases and
+    the flux row's 1G case; the flux row's PU2 case stays green.
     """
     half, doubled = _images(name)
     k_half = _read(half, Eigenvalue(), _IMAGE_RESOLUTION)
@@ -150,7 +158,10 @@ def test_the_mirrored_slabs_flux_is_twice_the_doubled_slabs_right_half(name: str
     no node. It succeeds the old family's
     ``test_method_of_images_flux_shape_matches_doubled_slab_right_half``.
 
-    First red (``[M]`` 2026-10-10): ERR-034 (arm ``err034``).
+    First red (``[M]`` 2026-10-10): ERR-034 (arm ``err034``). Re-dropped ``[M]``
+    2026-10-16 in ``chord.Rays.orbit_coordinate_at``, where the slab's point
+    readings now form their positions (the mirror row above): the 1G case reds and
+    the PU2 case stays green.
     """
     half, doubled = _images(name)
     groups = _IMAGE_MIXTURES[name].SigT.size
