@@ -10,7 +10,8 @@ The reference cache: a traced memo keyed on what ran
    of a generator is its recorded execution and not a declared version or
    a static call graph; why a miss is generated in a fresh process; the
    exact key; the manifest and its eleven pin kinds; validation that runs
-   nothing; the exact payload; the process boundary; the bypass; how the
+   nothing; the source index and its write rule; what a miss costs; the
+   exact payload; the process boundary; the bypass; how the
    memo relates to the reference certificate; the exact medium's
    exclusion; the clients; the limits no manifest can see; the review
    round's defects and their fixes; the ambient-state step (the slab
@@ -26,8 +27,10 @@ The reference cache: a traced memo keyed on what ran
    (2026-10-04)" to its end, and discussion 2; specification of the
    gates: .claude/plans/reference_p3_spec.md. Written at P3's close,
    2026-10-04, against branch refactor/p3-ambient-state at 39ee20f2;
-   updated for the second review round at 994ba740 and for the generator
-   contract and the third review at bacf0787.
+   updated for the second review round at 994ba740, for the generator
+   contract and the third review at bacf0787, and for #602 (the miss
+   cost, the pinned-source loader, per-file ownership, the source index)
+   at 8e02236f, e666e58d, 0c569df8 and 155fbdbd.
 
 A reference reading costs seconds to minutes. The multi-region sphere
 of the A|B|A cross-check, at the coarse resolution the gates use, takes
@@ -81,11 +84,12 @@ Key facts
   earlier and a monkeypatch cannot hide a dependency from the record.
   In-process memoisation in ``orpheus/`` stays as it is. The price is one
   generation per miss: the interpreter start and the imports, about
-  0.5 s, plus the manifest, which bring a cheap miss to 1.17 to 1.35 s
-  against a 0.012 s hit (`[M]` 2026-10-15, five characteristic transport
-  blocks that take 0.03 to 0.19 s in process, three repeats, a warm
-  bytecode cache). Before #602 the same miss cost 2.65 to 2.88 s; the
-  section "What a miss costs" below attributes it.
+  0.5 s, plus the computation and the manifest, which bring a cheap miss
+  to 0.66 to 0.85 s against a 0.010 s hit (`[M]` 2026-10-15 at
+  ``155fbdbd``, five characteristic transport blocks that take 0.02 to
+  0.17 s in process, three repeats, a warm bytecode cache and warm source
+  indexes). Before #602 the same miss cost 2.65 to 2.88 s; the section
+  "What a miss costs" below attributes it.
 * **A fresh process compiles from the bytes it pins.** A loader the boot
   script installs before any ``orpheus`` import compiles every
   first-party module from the bytes it reads, and the manifest pins
@@ -94,6 +98,13 @@ Key facts
   size had let a regenerated entry hold the old answer and validate
   (ERR-115; the section "A fresh process must compile from the bytes it
   pins").
+* **Each source text is parsed once per content.** What a manifest and
+  a validation read from a first-party source file (its skeleton digest,
+  every outermost def's span and digest, the span of every node a code
+  object is compiled from) is kept under ``.cache/sources/``, named by the
+  text's bytes, the interpreter and the memo's own source, and only a
+  generating process, which knows the bytes of the memo it ran, writes
+  one (the section "The source index" below).
 * **The key is exact, finer than content equality.** It is
   :func:`~orpheus.numerics.content.encode_exact` of the function's
   identity, its signature-bound arguments (defaults applied, each declared
@@ -416,8 +427,8 @@ The parts, all in :mod:`orpheus.numerics._traced_memo_boot`:
   (gate P3; `[M]` the arm that drops ``unrecorded()`` reddens P3).
 * **The bytecode cache** lives at
   ``.cache/bytecode/<cache_tag>-O<level>/`` under the repository root,
-  beside the reference store, one directory per interpreter and ``-O``
-  level. An entry is named by the hexadecimal BLAKE2b-256 digest of the
+  beside the reference store and the source indexes (one root, ``CACHE``
+  in the boot module), one directory per interpreter and ``-O`` level. An entry is named by the hexadecimal BLAKE2b-256 digest of the
   module's path, the interpreter's cache tag, the ``-O`` level and the
   source bytes. Its content is that key (32 bytes), the BLAKE2b-256
   digest of the payload (32 bytes) and the payload, the code object
@@ -439,8 +450,9 @@ The parts, all in :mod:`orpheus.numerics._traced_memo_boot`:
   the copied-entry row). The key carries the source bytes, so an entry of
   an old text is never found for a new one: the cache cannot be stale,
   only corrupt, and corruption is detected.
-* **The write is atomic.** A compiled entry is written to
-  ``<entry>.<pid>.<thread id>.part`` and moved into place with
+* **The write is atomic.** A compiled entry is written by
+  ``write_atomically``, the one atomic write of the memo's three stores,
+  to ``<entry>.<pid>.<thread id>.part`` and moved into place with
   ``os.replace``, so a concurrent reader finds a whole entry or none,
   never a part (gate P8: two processes each delete the entry and compile
   one module 200 times while the test process reads the entry as fast as
@@ -756,10 +768,12 @@ kind and is parsed once, in ``Manifest.from_json``.
      - The design (recursive validation).
    * - :class:`~orpheus.numerics.traced_memo.MemoPin`
      - The memo's own two source files and ``content.py``, whose
-       constructor form the write path runs.
+       constructor form the write path runs; in a generation, by the bytes
+       the pinned-source loader compiled them from.
      - An entry written by a memo whose writing code has since been
        fixed.
-     - qa finding 8, both halves.
+     - qa finding 8, both halves; the compiled bytes from the elegance
+       review of #602 round two (F4).
 
 **The normalised source of a def.** A def is hashed as the dump of its
 syntax tree with line and column attributes excluded and every docstring
@@ -855,7 +869,9 @@ install's version never moves: every generating process runs the editable
 ``RECORD`` of ``orpheus`` lists. A ``site-packages`` file that no
 ``RECORD`` lists is refused as unpinnable; so is every file of an
 ``*.egg-info`` install, whose file list is not a ``RECORD`` (`[M]`
-2026-10-15: no such install in the environment).
+2026-10-15: no such install in the environment). :func:`~orpheus.numerics.traced_memo.origin`
+takes the ownership table as a required argument, so no caller can build
+it once per file.
 
 Ownership is a property of the file, never of its top-level name. Until
 2026-10-15 (#602) the owner was found through
@@ -866,14 +882,32 @@ A namespace top is claimed by several distributions, so
 upgrade of ``sphinxcontrib-tikz`` left valid every entry that ran its code
 (`[M]` 2026-10-15, the test-architect: four namespace tops in the
 environment, ``sphinxcontrib``, ``jaraco``, ``opentelemetry`` and
-``_binding``; no client ran their code). The table now reads every
-distribution's ``RECORD`` once per checkout (``_InstalledFiles``), as CSV
-because a path may be quoted and hold a comma: 30 446 paths in 18 to 20 ms,
-where the top-level map cost 0.22 s. Over the 474 site-packages files a
+``_binding``; no client ran their code). The table, ``_Installed``, reads
+every distribution's ``RECORD`` once per checkout (one manifest or one
+validation, which holds it as ``_Checkout.installed``), as CSV because a
+path may be quoted and hold a comma: 30 446 paths in 18 to 20 ms, where
+the top-level map cost 0.22 s. The same object holds each distribution's
+version, looked up by name once per checkout, so a checkout is two parts:
+its first-party texts (``_Checkout``) and its installed environment
+(``_Installed``: which distribution owns a file, and at which version).
+
+A file that several ``RECORD`` files list is refused as
+:class:`~orpheus.numerics.traced_memo.Unpinnable`: pinning one owner's
+version would leave an upgrade of the other unseen, a stale hit. qa's
+round-two review of #602 (finding F2) showed it on a fake site directory
+in which two distributions list ``ns/x.py`` and the last one read was
+pinned; `[M]` 0 of the 30 446 paths in the environment are listed twice,
+so no entry was wrong. Gate D2b; battery arm D-f, the refusal removed,
+reddens it alone. The version is resolved by the distribution's name, not
+by the ``.dist-info`` directory the table found, and the two routes agree
+in the environment (`[M]` the same review, finding F3: 0 of 185
+name-to-version mismatches and 0 duplicate normalised names).
+
+Over the 474 site-packages files a
 characteristic import loads, the new owner equals the old on 473; the one
 that moved is ``sphinxcontrib/tikz.py`` (``scratch/characteristic_architecture/p3/m602/fix/d1_probe.py``).
 The gates are ``tests/gates/numerics/test_traced_memo_ownership.py`` (D1
-to D8; D1 checks each owner against the standard library's own ``RECORD``
+to D8 and D2b; D1 checks each owner against the standard library's own ``RECORD``
 reader, an independent route).
 
 **A source file is pinned relative to the** ``sys.path`` **entry that
@@ -954,7 +988,23 @@ its own source, an entry written by a memo with a codec defect would stay
 a ``Hit`` after the defect was fixed (review finding qa 8). The pin covers
 the memo's two source files and ``content.py``, whose
 :func:`~orpheus.numerics.content.constructor_arguments` the write path
-runs; an edit to any of them makes every entry stale.
+runs; an edit to any of them makes every entry stale. In a generating
+process the pin is the digest of the bytes the pinned-source loader
+compiled those three files from (``_RUNNING_MEMO_DIGEST``, computed once
+at the memo's import from the bytes the loader recorded), never a read of
+the files when the manifest is written. A read after the run is the
+defect class of ERR-115: an edit to the memo during a generation would be
+pinned beside an entry the old memo wrote, and the entry would validate
+against the edited memo (the elegance review of #602 round two, finding
+F4). Gate B15 edits the memo's source on a copy of the tree while a
+generation runs and requires the entry to read ``Stale``; `[M]` battery
+arm B-s, the pin read again after the run, reddens B15 alone. The same
+digest names the source indexes a generation writes
+(:ref:`verification-reference-cache-index-write-rule`). Validation
+compares the pin with the three files on disk now, as for every other
+source pin. :func:`~orpheus.numerics.traced_memo.trace_call` has no
+loader and keeps the read after the call
+(:ref:`verification-reference-cache-unseen`).
 
 **What a real manifest holds** (`[M]` 2026-10-04 at ``6bfde984``, this
 chapter's probe, the A|B|A sphere at ``n_r=8, n_mu=8, n_traj_quad=16``,
@@ -1011,15 +1061,16 @@ Validation runs nothing
 
 :func:`~orpheus.numerics.traced_memo.validate` asks every pin whether the
 checkout still matches it and returns every reason it does not, sorted. It
-imports nothing and runs nothing (M2.4 counts it): a def pin parses the
-current file and digests the def; a module pin digests the skeleton; a
-distribution pin reads the installed version's metadata; a child pin looks
-the child up in the same store, recursively. The parse of a file is cached
-by the file's BYTES, so an edited file is a new key and never a stale read
-(M2.5), and in one process the first validation costs about 0.3 s and every
-later one about 10 ms (`[M]` 2026-10-04 on the prototype: hashing the 121
-first-party files of the sphere workload 8.5 ms per pass, parsing them
-once 268.5 ms).
+imports nothing and runs nothing (M2.4 counts it): a def pin reads its
+def's digest from the source index of the file's current bytes; a module
+pin reads the skeleton digest from the same index; a distribution pin
+reads the installed version's metadata; a child pin looks the child up in
+the same store, recursively. An index is found by the file's BYTES, so an
+edited file is a new key and never a stale read (M2.5). With the indexes
+on disk, a process's first validation costs 0.036 s where parsing every
+pinned file cost 0.27 s, and a later one 11 to 13 ms (`[M]` 2026-10-15,
+the read-back validation of the cheap-miss fixture at ``155fbdbd`` and at
+``e666e58d``; :ref:`verification-reference-cache-source-index`).
 
 A lookup's verdict is the closed sum ``Hit | Absent | Stale | Corrupt``:
 
@@ -1052,6 +1103,360 @@ child regenerated with ANOTHER answer makes the parent stale (M3.12c). In
 the vocabulary of build systems the memo is a build with dynamic
 dependencies (recorded while the task runs) and early cutoff (a rebuilt
 dependency with an unchanged result does not rebuild its dependents).
+
+
+.. _verification-reference-cache-source-index:
+
+The source index: each source text parsed once per content
+==========================================================
+
+A manifest and a validation read the same few facts from a first-party
+source file: the digest of its skeleton (the module pin), the digest of
+each outermost def that ran (the def pins), and, to map a code object
+that ran onto the def that holds it, the span of every node a code
+object can be compiled from. Those facts are a function of two things
+only: the file's bytes, and the memo code that normalises and digests
+them. A fresh process holds none of them in memory, so without a store
+every miss parsed each of the about 128 first-party files its imports
+touched, and a process's first validation parsed every file its entries
+pinned. The source index keeps the facts on disk under the content that
+determines them: the first generation that meets a text parses it once
+and writes its index, and every later process reads the index back.
+
+What an index holds, and why it holds no tree
+---------------------------------------------
+
+An index is a ``_SourceIndex`` (a frozen value, private to
+:mod:`orpheus.numerics.traced_memo`), built from one parse of a text's
+bytes by ``_parsed_index(data)``. It has three parts:
+
+* ``skeleton``: the digest of the module's skeleton, the syntax tree with
+  every outermost def's body read as ``pass`` and every docstring removed
+  (:ref:`verification-reference-cache-manifest`).
+* ``defs``: one ``_IndexedDef`` per outermost def, in the order of the
+  walk that finds them. Each holds the def's qualified name (``Class.method``
+  for a def in a class body), its ordinal among the defs of that name (0
+  for the first), the first and last line of its span (inclusive; the
+  first line is that of its first decorator), ``body_line`` (the line of
+  the first statement of its body once the docstring is stripped) and the
+  digest of its normalised source.
+* ``scopes``: one ``_Scope`` per node that a code object is compiled
+  from, anywhere in the file (a ``def``, an ``async def``, a ``class``, a
+  ``lambda``, a generator expression, and a list, set or dict
+  comprehension). Each holds the name of that code object (the def's or
+  the class's own name, or ``<lambda>``, ``<genexpr>``, ``<listcomp>``,
+  ``<setcomp>``, ``<dictcomp>``) and the node's inclusive span.
+
+Three queries read it:
+
+* ``digest(qualname, ordinal)``: the digest of the ``ordinal``-th def of
+  that name (``-1``, the default, is the last, the one Python binds), or
+  ``None`` when there is none, which ``DefPin.stale`` reports as "gone".
+  The public :func:`~orpheus.numerics.traced_memo.function_digest` is this
+  query, and :func:`~orpheus.numerics.traced_memo.skeleton_digest` reads
+  ``skeleton``.
+* ``enclosing(line)``: the outermost def whose span holds ``line``, or
+  ``None``.
+* ``holds(within, line, name)``: whether a node whose code object is named
+  ``name`` spans ``line`` and lies inside the span of the def ``within``
+  (``None``: anywhere in the module). The name of a signature scope
+  (``__annotate__``, a type-parameter scope) answers yes: the skeleton
+  pins its source.
+
+``_def_pin`` composes the three. A code object first reported at ``line``
+under the name ``name`` is module-level code, which the skeleton pins
+(no def pin), when it is ``<module>`` or a signature scope that starts
+before its def's ``body_line``. Otherwise the def that holds it is
+``enclosing(line)``, and ``holds`` must confirm that a node of that name
+spans the line inside that def; the pin is that def's ``DefPin``, or none
+when no def encloses the line. A code object no node accounts for is
+refused as :class:`~orpheus.numerics.traced_memo.Unpinnable`
+(:ref:`verification-reference-cache-manifest`, "Code that is not a def
+body").
+
+**It holds no tree**, for three reasons.
+
+* It is written to disk and read back, and the facts above are a few
+  kilobytes of JSON per file where a syntax tree has no serial form short
+  of the source it was parsed from.
+* The in-memory cache keeps only the index. ``_parsed_index`` is cached
+  by the text's bytes (an edited file is another key, never a stale read),
+  and caching the index rather than the parsed tree does not keep every
+  module's tree alive for the life of the process.
+* One source text has one representation. Before ``155fbdbd`` the parse
+  was a second type beside the index, a parsed text holding its tree and
+  its defs, and the two answered ``digest`` with α-identical bodies (the
+  elegance review of #602 round two, finding F1): one concept twice, which
+  would let the public :func:`~orpheus.numerics.traced_memo.function_digest`
+  and the pins drift apart under a change to one of them. The parse is now
+  the index's constructor, and one type answers every query.
+
+**Every def is digested when the index is built.** A miss that parses
+each file pins only the defs that ran (247 of 1 948 on the cheap-miss
+fixture), so digesting a def only when a pin asks for it saved work while
+every miss parsed afresh. An index written to disk cannot know which defs
+a later process's pins will ask for, and it is built once per content and
+read many times, so it digests them all. `[M]` 2026-10-16, this chapter's
+probe (``scratch/characteristic_architecture/p3/m602/archivist_numbers.py``) over the 390 tracked ``orpheus/*.py`` files, ``-O``, in memory:
+building their indexes from their bytes takes 1.40 s (4 198 defs, 6 366
+scopes, 713 kB of JSON, the largest index 35 kB), and reading the 390
+back from disk, with every header and body digest checked, takes 33 ms
+(median of five passes). Over the 128 files one characteristic block
+imports, the specification measured a build of 557 ms, a read-back of
+9.3 to 9.6 ms (minimum and median of seven) and a cold parse of 225 ms
+(``scratch/characteristic_architecture/p3/m602/round2_gate_spec.md``
+§1.1, on the draft format).
+
+**Why** ``holds`` **asks span containment.** Outermost defs never
+overlap: the walk that finds them never descends a def's body, and a def
+is a statement, never part of an expression. So a node lies inside an
+outermost def's span exactly when it lies in that def's syntax tree, and
+the question "is this node part of the def that ran" is two comparisons
+of line numbers, which the index can answer without the tree. The
+specification's draft stored, beside every scope, the position of the def
+that owns it, with ``-1`` for none; the elegance review found the field
+derivable and the sentinel dangerous. `[M]` 2026-10-15, its probes
+``scratch/characteristic_architecture/p3/m602/elegance2/probe_owner.py``
+and ``probe_control.py`` over the tracked files: the stored owner equals
+the def whose span contains the scope's span on 24 262 of 24 262 scopes,
+and shifting the owner of each of the 5 664 scopes that have one makes
+5 664 of 5 664 mismatch (the control). A ``-1`` read as a list index
+names the last def, silently, and ``-1`` meant "no owner" in one place and
+"any owner" in another. The field and the sentinel are gone; ``enclosing``
+returns the def or ``None``.
+
+**The key** names an index by the digest of three components, joined by
+a NUL byte:
+
+* the digest of the text's **bytes**: an edited file is another name, so
+  an index never goes stale, it is only no longer asked for (gate B6);
+* the **interpreter** (``sys.version`` and the bytecode cache tag): the
+  ``ast.dump`` that the digests hash is not a stable interface across
+  Python versions, although `[M]` 0 of 390 ``orpheus/`` files differ in
+  it between 3.13.12 and 3.14.3 (the specification's
+  ``ta/p2_ast_across_pythons.py``), so the component is mechanical (gate
+  B7);
+* the **memo's source**: the docstring strip, the walk and the dump are
+  code in the memo, a change to them changes every digest, and naming the
+  index by the memo's source makes that change a change of name (gate
+  B8). Which digest of the memo's source this is, is the write rule below.
+
+The ``-O`` level is not part of the key: the build contains no ``assert``
+and ``ast.parse`` does not optimise, and gate B9 shows indexes built with
+and without ``-O`` are byte-equal.
+
+**The file.** An index lives at ``.cache/sources/<name>.json`` under the
+repository root, beside ``references`` (the entries) and ``bytecode`` (the
+pinned-source loader's cache). The three stores share one root, ``CACHE``,
+defined once in :mod:`orpheus.numerics._traced_memo_boot` as the real path
+of the repository's ``.cache``; before ``155fbdbd`` the root was spelled
+three times, two of them resolving symbolic links and one not (the
+elegance review, finding F3). The file is one header line, then the body:
+
+.. code-block:: text
+
+   {"bytes": <digest of the text>, "python": <interpreter>, "memo": <digest of the memo's source>, "body": <digest of the body>}
+   {"skeleton": <digest>, "defs": [[qualname, ordinal, first, last, body_line, digest], ...], "scopes": [[name, first, last], ...]}
+
+**Reading.** ``_source_index(data)`` serves an index from memory (a
+cache by the bytes), else from its file, else from a parse. ``_read_index``
+returns the index, nothing (no file), or a ``_CorruptIndex`` with its
+reason. An index is corrupt when its header names other key parts (the
+index of another text copied under this name), when its body does not
+match the body digest in its header (a flipped bit), when it does not
+parse into the three parts (a truncated or malformed file), or when the
+file cannot be read at all (an ``OSError`` other than a missing file, a
+``PermissionError`` for one; before ``155fbdbd`` that error escaped and
+crashed the lookup, qa's round-two finding F4). A corrupt index is never
+read: the text is parsed and its index served, and a generating process
+writes the file again over it. The reads run under
+``_traced_memo_boot.unrecorded``: an index is the memo's own reading, so
+no recording pins a file under ``.cache/sources`` (gates B14 and B18).
+
+**Writing** goes through ``write_atomically`` in
+:mod:`orpheus.numerics._traced_memo_boot`, the one atomic write of the
+memo's three stores: the bytes go to ``<path>.<pid>.<thread id>.part`` in
+the same directory and are moved into place with one ``os.replace``, so a
+reader finds a whole index or none (gate B11, four processes writing and
+reading one name 200 times each). Before ``155fbdbd`` the three stores
+had three spellings of that write with three temporary-name schemes (the
+elegance review, finding F3).
+
+.. _verification-reference-cache-index-write-rule:
+
+Only a generating process writes an index
+-----------------------------------------
+
+The name of an index is meant to name the code that built it. A
+generating process can name that code exactly; no other process can.
+
+**A generating process knows the bytes it ran.** The pinned-source loader
+(:ref:`verification-reference-cache-pinned-source-loader`) compiled the
+memo's three source files, ``traced_memo.py``, ``_traced_memo_boot.py``
+and ``content.py``, from bytes it read and recorded in
+``_traced_memo_boot.PINNED_SOURCES``. At the memo's import,
+``_RUNNING_MEMO_DIGEST`` is the digest of those recorded bytes: the code
+that is running. A generating process names every index it writes by it,
+and the entry it writes pins the memo by it too (``MemoPin``, the
+manifest section).
+
+**Any other process cannot.** The test process, or a script, imported the
+memo through the ordinary loader, which may have run a timestamp ``.pyc``
+of a text since edited at the same size within the same second (the
+mechanism of ERR-115, applied to the memo itself), and the source on disk
+may change between the loader's read and any later read of it. Such a
+process has ``_RUNNING_MEMO_DIGEST = None``. It names indexes by
+``_INDEX_MEMO_DIGEST``, the digest of the memo's source as it stood on
+disk when the memo was imported; it reads the indexes that generations
+wrote under that name, parses in memory when none exists, and never
+writes. Its read of the memo's source at import is nobody's dependency,
+since no recording is active when a process that is not generating
+imports the memo.
+
+**The founding case** (qa's round-two review of #602, finding F1; `[M]`
+2026-10-15, ``scratch/characteristic_architecture/p3/m602/qa2/p2_stale_pyc_poison.py``
+and its log, on a temporary copy of the memo's files). Before the rule,
+any process wrote an index, named by the memo's source as read from disk.
+Process A imports the memo, whose normaliser strips docstrings. A
+same-size edit makes the normaliser keep them, and the file's
+modification time is put back. Process B imports the OLD normaliser from
+the ``.pyc``, names its index by the NEW source, and writes the index of
+a sample file. Process C compiles the new code afresh and reads B's index
+under its own name: the index gives the digest ``c923c2ad`` where C's own
+parse gives ``e3c45572``. The control, C with the index deleted, gives
+``e3c45572`` both ways. No check on the file could see it, since a
+well-formed index is accepted whoever wrote it, and an index is never
+re-validated, so the wrong digests stand for that text as long as the
+file exists. A stale hit then needs a coarser poisoned normaliser that
+gives the pinned text and an edited text one digest `[R]`; the poisoning
+is `[M]`.
+
+**Why the indexes a non-generating process reads are the right ones**
+`[R]`. Such a process reads indexes to validate entries. An entry is a
+``Hit`` only if its ``MemoPin`` equals the memo's source on disk now, and
+that pin is the code of the generation that wrote the entry and its
+indexes. So an entry that can be served was pinned by digests built by
+the code whose name the reading process looks indexes up under, and the
+validation compares like with like. An index written by a memo that is
+not the one on disk is never read by a validation that could serve.
+
+The gates: B16 (both sides of the rule: outside a generation an index is
+parsed in memory and no file is written, and in the generating condition
+the same call writes one) and B17 (qa's scenario on a copy of the memo's
+files: C is served its own normalisation's digest). `[M]` battery arm B-q,
+which lets every process write, reddens B16 and B17.
+
+``trace_call``, the in-process instrument, runs in a process that is not
+generating, so it writes no index, and its memo pin re-reads the memo's
+source after the call (:ref:`verification-reference-cache-unseen`).
+
+.. rubric:: Gotcha: a generation's manifest depends on the state of the index directory
+
+A generation that validates a child entry runs the memo's index code
+while it records, and ``unrecorded`` silences the audit events and the
+probes but not ``sys.monitoring``, which reports every code object that
+starts. A cold index directory runs the build (``_parsed_index``, the
+JSON writer) and a warm one runs the reader, so the def pins of
+``traced_memo.py``'s own defs differ between a cold and a warm run of the
+same generation (qa's round-two review, an observation `[R]`). The extra
+pins only ever make an entry stricter, never a stale hit; gate B5, which
+requires one manifest cold and warm, uses five blocks with no nested
+lookup.
+
+The gates and their witnesses
+-----------------------------
+
+The rows are ``tests/gates/numerics/test_traced_memo_source_index.py``.
+B1 to B4 compare the index production builds with a parse the test makes
+for itself (the docstring strip, the outermost-def walk, the skeleton and
+the digests re-spelled from their definitions, and, for B3 and B4, the
+retired tree-walking ``_def_pin`` and ``_holds`` of ``main`` before
+``155fbdbd`` as the oracle), so production's builder is on neither side;
+only ``ast`` and ``hashlib`` are shared. The battery
+(``scratch/characteristic_architecture/p3/m602/ta/batteryR/``, the
+test-architect, 2026-10-15) applies each arm as a textual edit to a copy
+of the tree and runs the 174 traced-memo rows in that copy: 174 of 174
+pass unmutated, and the positive control, arm B-c (the key without the
+bytes), reddens 113 of them.
+
+.. list-table:: The source-index gates
+   :header-rows: 1
+   :widths: 9 55 36
+
+   * - Row
+     - Assertion
+     - First red (battery arm, rows red)
+   * - B1
+     - An index survives its JSON round trip, over every tracked ``.py``
+       file and a fixture of 26 def shapes.
+     - ``from_json`` and ``to_json`` disagreeing (not in the battery)
+   * - B2
+     - The skeleton digest and every def digest equal the test's own
+       parse.
+     - A normalisation that differs from its definition (not in the
+       battery)
+   * - B3
+     - ``_def_pin`` read from the index equals the tree-walking oracle on
+       every code object reachable from ``compile`` of the file.
+     - B-k, spans written exclusive (B3, B4)
+   * - B4
+     - The same at the first and last line of every span and one line
+       outside it, which B3's realisable code objects never probe.
+     - B-d, the containment check removed (B4); B-k
+   * - B5
+     - A real manifest of five blocks is the same from an empty and from
+       a warm index directory.
+     - B-m, every index read made a miss (13 rows, B5, B6 and B10 among
+       them)
+   * - B6, B7, B8
+     - An edit to the bytes, another interpreter identity, another
+       normaliser: each is another name, and the old index is not read.
+     - B-c (113 rows), B-a, B-b (one row each)
+   * - B9
+     - Indexes built with and without ``-O`` are byte-equal.
+     - None expected: a ``-O`` dependence brought into the build
+   * - B10
+     - A truncated (0, 1, half, all but one byte), bit-flipped, copied or
+       re-headed index is corrupt, the parse's digests are served, and
+       the file is valid again afterwards.
+     - B-f, no body digest check (the flipped digest); B-g, no header
+       check (the copied index, the re-headed one)
+   * - B11
+     - Concurrent writers never expose a partial index.
+     - A write in place (not in the round-two battery)
+   * - B12, B13
+     - A process's first validation reads indexes and parses nothing; a
+       miss indexes only bytes no generation has indexed.
+     - The index not consulted (not in the battery)
+   * - B14, B18
+     - Neither the index directory nor the memo's own source is a
+       dependency of a run, including a recorded run that validates a
+       manifest itself.
+     - B-o, the read outside ``unrecorded`` (B18)
+   * - B15
+     - The memo's own source edited during a generation leaves the entry
+       ``Stale``.
+     - B-s, the memo pin re-read after the run
+   * - B16, B17
+     - The write rule above.
+     - B-q, any process writes (both)
+   * - B19
+     - An unreadable index is corrupt, and the parse is served.
+     - B-r, an ``OSError`` escaping the read
+
+One arm was blind and is removed: B-n, a quiet scope around the import-
+time read of the memo's digest, which no recording can be active for, so
+no row could see it. Arm B-i (an index cached by the file's path, not its
+bytes) reddens 20 rows across the memo's gates, M2.5 among them.
+
+**Equivalence with the tree route** `[M]` 2026-10-15
+(``scratch/characteristic_architecture/p3/m602/fix/b3_probe.py``, the
+commit's probe): ``_def_pin`` read from the index equals ``main``'s
+tree-based ``_def_pin`` on 33 750 code objects of 1 236 files, 0
+mismatches, with the indexes built cold and read back from disk. qa's
+review: 128 of 128 indexes on disk equal a fresh build (control: a
+perturbed index compares unequal), and 10 of 10 corrupt shapes read as
+corrupt.
 
 
 .. _verification-reference-cache-payload:
@@ -1424,8 +1829,8 @@ the measurements are on :ref:`characteristic-block-memo`. `[M]`
 242 s without the memo, 1 303 s cold, 102 s warm; the cold overhead is
 the miss cost (#602), and the user ruled on 2026-10-15 that the block is
 memoised whatever its size, with no threshold. After #602 the cold pass
-is 538 s against 234 to 244 s without the memo (the section "What a miss
-costs").
+is 406 s against 236 s without the memo and 168 s warm (`[M]` 2026-10-15
+at ``155fbdbd``; the section "What a miss costs").
 
 **A solve that does not converge.** The solver's result is a value
 whatever its convergence, so an exhausted solve is a cached value; the
@@ -1441,8 +1846,8 @@ What a miss costs
 ``scratch/characteristic_architecture/p3/m602/``). The fixture is five
 cheap ``group_transport`` blocks (three one-region and two three-region
 spheres, degree 3), each repeat salted so that every call misses, each
-repeat on a temporary store, ``-O``, serial. A miss was 2.65 to 2.88 s,
-of which:
+repeat on a temporary store, ``-O``, serial. Before #602 a miss was 2.65
+to 2.88 s, of which:
 
 .. list-table:: One cheap miss before #602 (median, ms)
    :header-rows: 1
@@ -1466,86 +1871,140 @@ of which:
 The recorder itself costs almost nothing: it is a ``sys.monitoring``
 ``PY_START`` hook that disables itself after each code object's first
 report, and it added 37 ms to the imports and nothing measurable to the
-computation. The manifest held three avoidable costs, each a fact about
-unchanged files recomputed by every fresh process:
+computation. The manifest and the read-back held four costs, each a fact
+about unchanged files recomputed by every fresh process; the two rounds
+of #602 removed them.
 
-* **Every def was digested.** Each of the 129 source files the run
-  touched was parsed twice and stripped of docstrings twice, and all 1 948
-  of their defs were dumped and digested, when 247 ran. A def's digest is
-  now computed when a pin asks for it, and the file is parsed once. The
-  skeleton is the digest of a shallow copy of the module's statement
-  spine in which every outermost def's body reads as ``pass``, so the
-  parsed tree, which the defs' digests are later computed from, is never
-  changed. (``8e02236f`` first swapped each body for ``pass`` in the
-  shared tree and put it back; the elegance review found that a digest
-  computed lazily during the swap would read a hollowed body, and
-  ``e666e58d`` replaced the swap with the copy.) The docstring strip
-  descends statements only (a docstring is the first statement of a
-  module, class or def body), where it walked every expression node.
+* **Every source file the run touched was parsed, and every def in it
+  digested, in every miss.** Each of the 129 source files the run touched
+  was parsed twice and stripped of docstrings twice, and all 1 948 of
+  their defs were dumped and digested, when 247 ran. Round one
+  (``8e02236f``, ``e666e58d``) parsed each file once per process and
+  digested a def only when a pin asked for it. Round two (``155fbdbd``)
+  keeps the answer on disk: a text's index is built from one parse by the
+  first generation that meets it and read back by every later process, so
+  a miss parses only text no generation has indexed, and a process's first
+  validation reads indexes instead of parsing every pinned file
+  (:ref:`verification-reference-cache-source-index`). An index on disk
+  cannot know which defs later pins will ask for, so it digests every def
+  when it is built, once per content. The skeleton is the digest of a
+  shallow copy of the module's statement spine in which every outermost
+  def's body reads as ``pass``, so the parsed tree is never changed; the
+  docstring strip descends statements only (a docstring is the first
+  statement of a module, class or def body), where it walked every
+  expression node.
 * **A distribution's version was looked up per code object**: 1 245
-  lookups for 6 distributions, 0.64 s, each re-reading the metadata. It
-  is now looked up once per distribution, through one cache,
-  ``_Checkout.version``, which lives for one manifest or one validation,
-  so the manifest and the validation read a version by one definition. A
-  distribution that owns a file the run touched and has no installed
-  version is ``Unpinnable`` (``_distribution_pin``).
+  lookups for 6 distributions, 0.64 s, each re-reading the metadata. It is
+  looked up once per distribution and per checkout, by
+  ``_Installed.version``, the table of
+  :ref:`the ownership paragraph <verification-reference-cache-manifest>`
+  ("Where a file belongs"), which lives for one manifest or one
+  validation, so the manifest and the validation read a version by one
+  definition. A distribution that owns a file the run touched and has no
+  installed version is ``Unpinnable`` (``_distribution_pin``).
+* **The owner of each site-packages file came from a top-level map**,
+  ``importlib.metadata.packages_distributions``, which read every installed
+  distribution's metadata, about 0.22 s per miss. The per-file table that
+  replaced it for correctness (``0c569df8``) reads the ``RECORD`` files in
+  18 to 20 ms.
 * **The child freed its objects before exiting** (0.33 s). The boot
-  script now ends with ``os._exit(0)`` once the answer is written and
-  both standard streams are flushed.
+  script ends with ``os._exit(0)`` once the answer is written and both
+  standard streams are flushed.
 
-None of the three changes what an entry pins: over every tracked Python
-file (1 234 files, 15 515 defs) the old and the new parse give identical
-skeleton and def digests, with controls that a body edit moves only the
-def's digest and a constant edit only the skeleton's. The same
+None of these changes what an entry pins. Over every tracked Python file
+(1 234 files, 15 515 defs) round one's parse and the original give
+identical skeleton and def digests, with controls that a body edit moves
+only the def's digest and a constant edit only the skeleton's; the same
 comparison after ``e666e58d`` (1 234 files, 15 522 defs) found 0
-mismatches against the original parse.
+mismatches. After round two, ``_def_pin`` read from the index equals the
+original tree-based ``_def_pin`` on 33 750 code objects of 1 236 files,
+built cold and read back from disk, with 0 mismatches
+(:ref:`verification-reference-cache-source-index`).
 
-After the cuts a miss is 1.14 to 1.16 s (one region) and 1.31 to 1.32 s
-(three regions); a hit is unchanged at about 0.012 s. The pinned-source
-loader of ``e666e58d`` (:ref:`verification-reference-cache-pinned-source-loader`)
-then added 3 to 35 ms per block to the median generation, 21 ms on
-average over the five blocks, which brings a cheap miss to 1.17 to
-1.20 s (one region) and 1.33 to 1.35 s (three regions) with a warm
-bytecode cache (`[M]` 2026-10-15, ``run_after_loader.log`` against
-``run_after_abcd1.log`` in the same directory, the first miss of each
-process excluded, since its read-back costs about 0.26 s more). The
-timing table below predates the loader. On the 431 not-slow
-rows of the system, reading and assembly gates, in a fresh worktree of
-the commit (an empty store), one serial run each:
+.. list-table:: One cheap miss, per round (seconds; each process's first miss excluded)
+   :header-rows: 1
+   :widths: 34 22 22 22
+
+   * - Tree
+     - One-region block
+     - Three-region block
+     - A process's first read-back validation
+   * - Before #602
+     - 2.65 to 2.88 (all five blocks)
+     - (not measured apart)
+     - about 0.8
+   * - Round one, ``e666e58d``
+     - 1.17 to 1.20
+     - 1.33 to 1.35
+     - 0.27
+   * - Round two, ``155fbdbd``
+     - 0.66 to 0.70
+     - 0.84 to 0.85
+     - 0.036
+
+`[M]` 2026-10-15 for the last two rows, the logs
+``run_after_loader.log`` and ``run_after_R2.log`` in the same directory,
+five blocks times three repeats in one process, a warm bytecode cache and
+(round two) warm source indexes, re-read by this chapter's probe
+(``archivist_numbers.py`` and its log in the same directory, 2026-10-16). Each cell
+is the range over every draw but the process's first; the per-block medians
+are 1.18 to 1.20 and 1.34 to 1.35 s (round one) and 0.69 to 0.70 and
+0.84 to 0.85 s (round two). A hit is 0.010 to 0.013 s in both rounds, and
+a later read-back validation 13 to 39 ms (round one) and 11 to 13 ms
+(round two). The blocks themselves take 0.02 to 0.17 s in process.
+
+**The three files.** The 431 not-slow rows of the system, reading and
+assembly gates, in a fresh worktree of each commit (an empty store), one
+serial run each (`[M]` 2026-10-15,
+``scratch/characteristic_architecture/p3/m602/timing/summary.txt`` and
+its logs, ``r2_*.log`` for round two):
 
 .. list-table:: The system, reading and assembly gates after #602
    :header-rows: 1
-   :widths: 40 20 40
+   :widths: 28 30 42
 
    * - Run
-     - Wall time
-     - Note
+     - Round one, ``8e02236f``
+     - Round two, ``155fbdbd``
    * - No memo (``bypass()`` entered for the session)
-     - 234 s, 244 s
-     - two runs
+     - 234 s, 244 s (two runs)
+     - 236 s
    * - Cold store
-     - 538 s
-     - 257 block entries, 20 MB (1 303 s before #602)
+     - 538 s; 257 block entries, 20 MB
+     - 406 s; 257 block entries (19.9 MB), 129 source indexes (0.4 MB),
+       127 bytecode entries (3.2 MB)
    * - Warm store
-     - 177 s, 177 s
-     - two runs; no entry written
+     - 177 s, 177 s (two runs); no entry written
+     - 168 s; no entry written
 
-The cold pass costs about 300 s more than no memo, about 1.2 s per
-entry. The warm pass saves less than C1's 102 s suggested, and the
+Before #602 the cold pass was 1 303 s, on the block memo's prototype,
+which stored 383 entries (:ref:`characteristic-block-memo`). The cold pass
+now costs 170 s more than no memo, about 0.66 s per entry, where round one
+cost about 300 s, about 1.2 s per entry. The warm pass saves 68 s of
+236 s, less than the prototype's 102 s warm pass suggested, and the
 per-test durations say why. The landed assembly gates build their blocks
 in process through ``LineRule.transport`` (the slowest, a cylinder block
-under a partial mirror, takes 16.8 s warm and without the memo alike),
-and the reading gates' point rows and their ``bypass()`` rows are also
-computed. C1's prototype had routed the assembly gates' blocks through
-the memo, which is why it stored 383 entries and ran warm in 102 s.
+under a partial mirror, takes 16.8 s warm and without the memo alike), and
+the reading gates' point rows and their ``bypass()`` rows are also
+computed. The prototype had routed the assembly gates' blocks through the
+memo, which is why it stored 383 entries and ran warm in 102 s.
 
-**What remains.** The floor of a fresh process is about 0.56 s: the
-interpreter, the imports and the computation, measured with the recorder
-off. The other 0.6 s of a cheap miss was one parse of each touched file,
-the skeleton dumps, and building the package-to-distribution index (about
-0.22 s, which read every installed distribution's metadata). The index is
-replaced by per-file ownership from the ``RECORD`` files, 18 to 20 ms
-(section "Where a file belongs", above).
+**What remains.** A cheap miss is now the floor of a fresh process plus
+the computation and a manifest built from indexes: the interpreter start
+and the imports, about 0.5 s (37 ms and 467 ms in the first table), are
+paid again by every miss, whatever the manifest costs. Only a process that
+has already imported the package can remove them: the fork template, cut
+E of the round-two specification
+(``scratch/characteristic_architecture/p3/m602/round2_gate_spec.md`` §3), a
+recording template that has done the imports and forks one child per miss.
+E is the next step of #602, and it is gated on fork safety. A forked
+child inherits the template's memory, which is what a fresh process exists
+to exclude (:ref:`verification-reference-cache-fresh-process`), and a fork
+after a BLAS call crashed the child (`[M]` 5 of 5 by ``SIGSEGV`` under
+Accelerate with ``VECLIB_MAXIMUM_THREADS`` unset, the specification's
+``ta/p7_fork_safety.py``). E lands only if the specification's fork-safety
+protocol (§3.3: 3 000 forks per cell of a thread-setting matrix, no
+failure) holds and its gates E1 to E10 are green.
 
 
 .. _verification-reference-cache-contract:
@@ -1610,6 +2069,8 @@ dependency, none in a real client):
   import system decided, and the import system's probes are exempt.
 
 
+.. _verification-reference-cache-unseen:
+
 What no manifest can see
 ========================
 
@@ -1650,8 +2111,10 @@ what the generator contract excludes (the section above):
   timestamp ``.pyc``, so it pins a source file by reading it after the
   call (gate P7b), and a same-size edit within one second of the previous
   write, or an edit during the call, can be pinned beside an answer
-  computed from the text before it. It writes no entry; it is the
-  instrument the gates measure the recorder with.
+  computed from the text before it. Its memo pin is the same read: the
+  digest of the memo's three source files read after the call, since no
+  loader recorded the bytes the memo ran from. It writes no entry and no
+  source index; it is the instrument the gates measure the recorder with.
 * **The modules imported before the loader.** The boot script and what
   the interpreter's start imported (``site`` runs an editable install's
   finder module, a file the installer generates, which the manifest pins
@@ -1909,6 +2372,8 @@ The store after the cold pass: 9 528 kB under ``.cache/references`` (``du
 The largest entry is a cylinder solve, 229 126 bytes.
 
 
+.. _verification-reference-cache-limits:
+
 Declared limits
 ===============
 
@@ -1930,18 +2395,34 @@ Each limit is a phase of #405 in the plan of record
 * **The shipped memo's suite timings are not measured.** The figures above
   are the prototype's; the protocol of the specification's section 3
   (cold, warm and bypassed, serially, three runs each) is owed.
-* **Nothing prunes the store or the bytecode cache.** An entry of the
-  reference store whose pins no longer validate is regenerated under the
-  same name, but an entry no key will ask for again (an argument no
-  caller passes any more) stays; every source text any generation has
-  compiled keeps its entry under ``.cache/bytecode/``, one per text, per
-  interpreter and per ``-O`` level. Both grow without bound until
-  removed by hand: #603. `[M]` 2026-10-15, as filed there: after the
-  per-group block memo was renamed (``transport_block`` to
-  ``group_transport``) the store held 261 entries under the old function
-  id that nothing reads, and the bytecode cache held 366 entries after
-  one timing run. Neither growth can serve a wrong value: a stale entry
-  reads ``Stale``, and a bytecode entry runs only under its own key.
+* **Nothing prunes the memo's three stores.** An entry of the reference
+  store whose pins no longer validate is regenerated under the same name,
+  but an entry no key will ask for again (an argument no caller passes any
+  more) stays; every source text any generation has compiled keeps its
+  entry under ``.cache/bytecode/``, one per text, per interpreter and per
+  ``-O`` level; and every source text any generation has indexed keeps its
+  index under ``.cache/sources/``, one per text, per interpreter and per
+  version of the memo's source, so every edit to the memo orphans every
+  index. All three grow without bound until removed by hand: #603. `[M]`
+  2026-10-15, as filed there: after the per-group block memo was renamed
+  (``transport_block`` to ``group_transport``) the store held 261 entries
+  under the old function id that nothing reads, and the bytecode cache
+  held 366 entries after one timing run; qa's round-two review counted
+  1 494 index files, 128 of them under the memo's current source. `[M]`
+  2026-10-16, this checkout (``archivist_numbers.py``): 1 926 index files
+  (5.1 MB), 198 under the memo's current source; 1 899 bytecode entries
+  (9.7 MB); 1 261 reference entries (80.3 MB). None of the growth can
+  serve a wrong value: a stale entry reads ``Stale``, a bytecode entry
+  runs only under its own key, and an index is read only under the name
+  of the text, interpreter and memo it was built from.
+* **An** ``*.egg-info`` **install is refused.** A site-packages file is
+  pinned by the version of the distribution whose ``RECORD`` lists it,
+  and an egg-info install has no ``RECORD``, so a run that touches one of
+  its files is :class:`~orpheus.numerics.traced_memo.Unpinnable` and
+  writes no entry. Before ``0c569df8`` such a file was pinned through the
+  top-level map; the refusal is loud, never a stale hit, and `[M]`
+  2026-10-15 no egg-info install is in the environment. A generator that
+  needs one reopens the ruling.
 
 
 What was tried and failed: the review round
@@ -2321,6 +2802,33 @@ the memo. The 2026-10-04 rows sat on the branch
      - Milestone
      - Issue
      - Where
+   * - 2026-10-15
+     - **Each source text is parsed once per content, on disk** (#602,
+       round two, B). A text's index (the skeleton digest, every outermost
+       def with its span and digest, every scope's span) is built from one
+       parse and kept under ``.cache/sources/``, named by the bytes, the
+       interpreter and the memo's source; only a generating process
+       writes one, named by the bytes of the memo it ran, and the same
+       digest is now a generation's memo pin (qa's finding F1, the
+       elegance review's F4). Review fixes: the parse and the index one
+       type (``_parsed_index``), span containment in place of a stored
+       owner, one cache root and one atomic write for the three stores,
+       ``_Installed`` holding ownership and versions, a file several
+       ``RECORD`` files list refused, an unreadable index corrupt. Gates
+       B1 to B19 and D2b; a cheap miss 0.66 to 0.85 s, the three-file cold
+       pass 406 s.
+     - #602
+     - ``155fbdbd``
+   * - 2026-10-15
+     - **A site-packages file is owned by the distribution whose**
+       ``RECORD`` **lists it** (#602, D). The top-level map pinned a
+       namespace top's files to its first claimant
+       (``sphinxcontrib/tikz.py`` to ``sphinxcontrib-applehelp``); one
+       table read from every ``RECORD`` replaces it and the per-file
+       ``RECORD`` search, 18 to 20 ms per manifest. A file no ``RECORD``
+       lists, and every egg-info file, is refused. Gates D1 to D8.
+     - #602
+     - ``0c569df8``
    * - 2026-10-15
      - **A generation compiles from the bytes it pins** (#602, round
        two). A loader installed at ``sys.meta_path[0]`` by the boot script

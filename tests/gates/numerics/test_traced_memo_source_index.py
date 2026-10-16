@@ -5,7 +5,7 @@ Spec ``scratch/characteristic_architecture/p3/m602/round2_gate_spec.md`` §1, ro
 A miss used to parse every source file the generation touched, and a process's first validation parsed every
 pinned file. The index (:class:`~orpheus.numerics.traced_memo._SourceIndex`) is what those reads take from a
 tree: the skeleton digest, each outermost def with its span and digest, and each node a code object can be
-compiled from with the def that owns it. It is kept under ``.cache/sources`` and keyed by the file's bytes,
+compiled from, with its span. It is kept under ``.cache/sources`` and keyed by the file's bytes,
 the interpreter and the memo's own source.
 
 **The oracle is the test's own parse (X4).** B1–B4 compare the index a process reads from disk with a parse
@@ -413,7 +413,7 @@ SOURCE = b'def f(x):\n    """Doc."""\n    return x + 1\n\n\nLIMIT = 3\n'
 
 def _fresh(memo) -> None:
     """Every in-memory cache a source text is read through, so the next read is the disk's or a parse."""
-    for name in ("_source_index", "_source_text", "_parsed_index"):
+    for name in ("_source_index", "_parsed_index"):
         if hasattr(cached := getattr(memo, name, None), "cache_clear"):
             cached.cache_clear()  # type: ignore[union-attr]
 
@@ -521,7 +521,7 @@ def _corrupt(memo, data: bytes) -> dict[str, bytes]:
 @pytest.mark.parametrize("kind", ["empty", "one-byte", "half", "last-byte-missing", "digest-hex-flipped", "other-file", "header-identity"])
 def test_b10_a_corrupt_index_is_rebuilt_never_read(isolated, kind):
     """B10: a truncated index file, one hex digit of its skeleton digest flipped (still valid JSON), the index of
-    other bytes copied under this key, and a header naming another interpreter are each a ``CorruptIndex``; the
+    other bytes copied under this key, and a header naming another interpreter are each a ``_CorruptIndex``; the
     next read gives the parse's digests, and the file holds a valid index again. First red: the body's digest
     not checked (the flipped digit is served), or the header not checked (the copied index is served)."""
     memo, _ = isolated
@@ -540,7 +540,7 @@ def test_b10_a_corrupt_index_is_rebuilt_never_read(isolated, kind):
 @pytest.mark.timeout(300)
 def test_b11_concurrent_writers_never_expose_a_partial_index(tmp_path, monkeypatch):
     """B11: four processes each write one key's index 200 times (removing it before each write) while this
-    process reads it. Every read is the index or nothing; 0 reads are a ``CorruptIndex``. A corrupt read is
+    process reads it. Every read is the index or nothing; 0 reads are a ``_CorruptIndex``. A corrupt read is
     rebuilt silently, so the pins are blind to a write in place, and the typed verdict is the instrument.
     First red: an index written straight to its name, with no ``os.replace``."""
     memo = api.module()

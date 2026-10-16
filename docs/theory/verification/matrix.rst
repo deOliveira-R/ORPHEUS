@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **17692**
+Total tests collected: **17718**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2743, 15.5%
    L2, 85, 0.5%
    L3, 0, 0.0%
-   foundation, 12962, 73.3%
+   foundation, 12988, 73.3%
    unmarked, 32, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 17581
+   explicit, 17607
    class-name, 46
    func-name, 0
    case, 33
@@ -496,8 +496,9 @@ Module × level grid
    numerics/test_traced_memo_data, 0, 0, 0, 0, 1, 0
    numerics/test_traced_memo_findings, 0, 0, 0, 0, 35, 0
    numerics/test_traced_memo_manifest, 0, 0, 0, 0, 24, 0
-   numerics/test_traced_memo_ownership, 0, 0, 0, 0, 8, 0
+   numerics/test_traced_memo_ownership, 0, 0, 0, 0, 9, 0
    numerics/test_traced_memo_process, 0, 0, 0, 0, 28, 0
+   numerics/test_traced_memo_source_index, 0, 0, 0, 0, 25, 0
    numerics/test_traced_memo_validation, 0, 0, 0, 0, 20, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 9, 0

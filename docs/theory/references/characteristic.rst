@@ -6415,12 +6415,12 @@ cylinder at degree 1 840; the cheapest working-basis cylinder is 14 112),
 so the gates would run the in-process arm while production's expensive
 blocks took the memo arm; and it would be a second route to one value,
 chosen at the call site by a performance number. The cost is the miss
-itself: about 2.3 s of each cheap miss is the recorder and the manifest,
-not the interpreter (an import of the package costs 0.51 to 0.60 s), and
-every memo client pays it. #602 is the root-cause lever, owed before the
-P3 re-timing. `[M]` 2026-10-15, after #602: a cheap block's miss is 1.14
-to 1.32 s, and the three files' cold pass 538 s against 234 to 244 s
-without the memo and 177 s warm. The warm pass is slower than the 102 s
+itself, which every memo client pays, and #602 lowered it at its root:
+before #602 about 2.3 s of each cheap miss was the recorder and the
+manifest, not the interpreter (an import of the package costs 0.51 to
+0.60 s). `[M]` 2026-10-15, after #602's two rounds (``155fbdbd``): a
+cheap block's miss is 0.66 to 0.85 s, and the three files' cold pass
+406 s against 236 s without the memo and 168 s warm. The warm pass is slower than the 102 s
 above because the landed assembly gates build their blocks in process
 through ``LineRule.transport``, where the prototype had routed them
 through the memo (:ref:`verification-reference-cache-miss-cost`).
