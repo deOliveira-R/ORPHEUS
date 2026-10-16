@@ -2909,3 +2909,15 @@ Cheap miss (5 sphere blocks × 3 repeats, `-O`, serial; `scratch/characteristic_
 - A template that has only imported was safe in 30 of 30 forks.
 
 ⏸ **Next:** E's fork-safety verdict. Then, by the user's ruling, C2-0 and dropping `bypass()` from the 147 arm-N readers, then the re-timing.
+
+### #602, cut E ready to land (2026-10-16)
+
+E, forking each miss from a recording template, is written and reviewed on `perf/traced-memo-fork-template` (uncommitted in the main tree at the time of writing; `git log` decides whether it has landed). The chapter of record is `docs/theory/verification/reference_cache.rst`, section "The fork template (#602, cut E)".
+- **Fork-safety protocol PASSED** (`[M]` 2026-10-16, `scratch/characteristic_architecture/p3/m602/ta/fork/full/driver.log`): 9 cells (`OMP_NUM_THREADS` × `VECLIB_MAXIMUM_THREADS`, each unset, 1, 8), 3600 forks per cell, 32 400 of 32 400 answered and equal to a fresh interpreter's digest, no new crash report. Control: a template that called BLAS before forking lost 20 of 20 children to a signal.
+- **Scope:** only darwin/arm64/Accelerate forks (`FORK_MEASURED`); every other platform spawns fresh.
+- **Review fixes:** every input (file bytes, presence, listing) observed at its first touch (ERR-116, pre-existing, also on the fresh route); the run's own output not observed; a run that changes an input it observed refused as `Unpinnable` (qa's F1, F2; N2's absent-then-created cache is refused); a device never read (N3); the environment pin is what the generation was handed (PEP 538 under `LANG=C`); a distribution pinned by its `RECORD` digest; a lock on the template's pipes; `sys.argv` emptied and stdin `/dev/null` in the child; a fresh template's refusal turns forking off for the process.
+- **Cost** (`[M]` 2026-10-16, `e_miss_cost.py`, `-O`, five processes per route): a cheap miss 0.293–0.301 s forked against 0.650–0.663 s fresh; the first miss of a process 0.81–1.01 s (it starts the template).
+- **Full suite:** 17 181 passed, 0 failed (`-m "not slow"`, `-O`, 53 min).
+- **Open, untraced:** with the pinned-source loader removed (arm P-a), E3's def-body case stays green while arm E-c reddens it, so a second mechanism also refuses that stale template (probably the def's source-text pin); not a defect, not traced.
+
+⏸ **Next (the user's ruling):** land E; then C2-0; then drop `bypass()` from the 147 arm-N readers and measure the three files cold, warm and with no memo; then the re-timing.
