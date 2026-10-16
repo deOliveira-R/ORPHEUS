@@ -2921,3 +2921,26 @@ E, forking each miss from a recording template, is written and reviewed on `perf
 - **Open, untraced:** with the pinned-source loader removed (arm P-a), E3's def-body case stays green while arm E-c reddens it, so a second mechanism also refuses that stale template (probably the def's source-text pin); not a defect, not traced.
 
 ⏸ **Next (the user's ruling):** land E; then C2-0; then drop `bypass()` from the 147 arm-N readers and measure the three files cold, warm and with no memo; then the re-timing.
+
+### C2-0 landed; the bypass drop measured on the not-slow rows and parked (2026-10-16)
+
+**Landed on `main` @ `bb2835d4`** (full suite `-m "not slow"`, `-O`: 17 182 passed, 0 failed, 55 min):
+- E (`98dc5242`, docs `ab8217ee`): the fork template, the first-touch inputs, ERR-116. CI run 38934685877 green.
+- C2-0 (`410bfca8`): `GalerkinSystem.group_point_flux(position, emission, g)` transports one group; `point_flux` is the stack of it, and the characteristic reference's point read (`reference.py`) calls the one-group primitive. Gate: `test_c2_0_a_point_value_transports_its_own_group_alone`.
+- E7c (`452dedb8`): the killed child ends with `os._exit(70)`, not `os.abort()`, which left a macOS crash report per run.
+- ERR-034's first red re-aimed (`bb2835d4`): the documented arm edited `chart.AxialImage.orbit_coordinate_at`, which the slab readings never reach (0 of 4 rows red); the re-drop in `chord.Rays.orbit_coordinate_at` reddens 3 of 4 (both mirror cases and the flux row's 1G case; PU2 stays green).
+
+**The bypass drop (arm N, 27 sites in 10 test files)** is committed on `test/arm-n-bypass-drop` (rebased onto `bb2835d4`), UNMERGED. `[M]` 2026-10-16, `scratch/characteristic_architecture/p3/c3/drop/timing/summary.txt`: the 10 files, not slow, a fresh worktree each, serial, `-O`, `OMP_NUM_THREADS=1`, 375 passed and 3 skipped in every run.
+
+| tree | cold | warm | no memo | store entries after cold |
+|---|---|---|---|---|
+| before the drop (`410bfca8`) | 518 s | 484 s | 505 s | 68 |
+| after the drop | 1474 s | 347 s | 525 s | 1819 |
+
+A cold run pays one process per miss (1751 new entries); a warm run saves 137 s. The 40 slow rows of the same files hold most of the census's 2049 s and were not in this measurement.
+
+**The user's ruling (2026-10-16), "measure slow, then decide":** keep the drop unmerged; time the 40 slow rows cold, warm and with no memo before and after; decide per population with both numbers in hand. The driver is `scratch/characteristic_architecture/p3/c3/drop/timing/run_slow.sh` (summary `summary_slow.txt`; worktrees `wt_slow_before` at `bb2835d4`, `wt_slow_after` on the branch).
+
+**Owed by the drop when it lands:** the 22 `verifies`-only rows that reach a dropped site are re-dropped one by one (an in-process mutation no longer reaches a memo-served value, `vv-principles` #17).
+
+⏸ **Next:** the slow-row verdict to the user; then the drop per population; then the re-timing of the three hot files (#602's last done-when; #602 stays open).
