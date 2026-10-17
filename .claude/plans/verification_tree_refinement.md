@@ -335,6 +335,17 @@ Three consumers ask one question: *which of my nodes did this edit to the tree i
 
 Each hypothesis is measured before it is built: the share of edits that are doc-only, the cost of stage two on a full tree, and whether Nexus can rebuild incrementally at all (a question for sphinxcontrib-nexus).
 
+**The first concrete client: C6** (the user's ruling, 2026-10-17, accepting the recommendation to leave C6 in process and send its cost here).
+- **The test:** `test_the_volume_integral_of_the_reading_is_the_galerkin_block` in `tests/gates/derivations/test_characteristic_reading.py`, verifying `characteristic-galerkin-assembly`. It is a theorem row, and both sides are the characteristic reference's.
+  - One side is the Galerkin block `K_ij`, an integral over the lines of space.
+  - The other is the point reading of each basis function `u_j`, read at the 648 points of a volume rule and integrated against `u_i`.
+  - The two agree to 1e-11 of max|K|.
+- **The cost:** its two slow white fixtures cost about 10 s each warm `[M]` 2026-10-17 (`p3/c3/concept3/slow10_warm.log`). That is 20.7 s of the 27.1 s warm slow run over the 10 characteristic files. The time is the 648 calls of `PointRule.of(...).row(transport)` in `_rows`; C8, the reciprocity row, reuses them.
+- **Why a stored value is the wrong fix:** storing the rows (two keys) would make a warm run compare the live block with a stored copy of the code's own earlier output. The reading code would not run, so neither a mutation nor a coverage capture would see it. Nothing independent would remain to carry the check.
+- **Why a verdict is the right one:** C6's pass or fail is a function of the code it ran and nothing else, so it is the ideal case for a verdict keyed on its execution cone (hypothesis 3). It re-runs only when a def in that cone changes (hypotheses 1 and 2), and the stored claim reads "verified against this code".
+- **The pins already strip prose** `[M]` 2026-10-17: a docstring-only edit to a stored reference's function or module leaves its entries warm (`p3/c3/concept3/probe_docedit.log`, `probe_moddoc.log`). Ruling 15's "stripped of documentation during pinning" is therefore already the memo's behaviour at def and module granularity (gate M2.1). The verdict store would inherit it, not build it.
+- **Its place in the certificate (ruling 8):** C6 is one constituent claim of the characteristic method's certificate. The certificate says what C6 contributes. It does not make C6 cheaper; the revalidation does.
+
 ## Side findings to place
 
 - **The Nyström row's marker** (`peierls-greens-slab-architecture`) runs only under `ORPHEUS_RUN_WITHDRAWN=506`. In the canonical run it covers nothing. Its margin is 7.3e-5 against a 5e-5 band, for an attenuation error of 1e-3. Record it under #506. (`scratch/characteristic_architecture/p3/c3/drop/redrop/verifies_verdicts.md`)

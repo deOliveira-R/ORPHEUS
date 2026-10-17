@@ -3051,13 +3051,13 @@ Three concepts from the profile, all `[HYPOTHESIS]`, to be tested in the order o
 - The census gate is now `test_each_stored_reference_imports_nothing_but_the_memo`, with the rows `[mpmath-routes]` and `[ps1982]`.
 - `[M]` The PS-1982 file runs 87 s cold and 2.3 s warm.
 - `[M]` The 40 slow rows of the 10 files take 27.1 s warm, against 82.9 s after concept 2 and 2824 s before the drop. 20.7 s of the 27.1 s is C6, in process.
-- `[M]` qa: a docstring edit regenerates the entries, because a module pin reads prose (227 s, then 2.3 s). This is evidence for ruling 15's question of pinning code only.
+- [REFUTED 2026-10-17] that a docstring edit regenerates the entries. The claim came from qa's 227 s run and was repeated in `da043d1c`'s message. `[M]` A docstring-only edit to the function left the file warm (3.15 s), and so did a module-docstring edit (2.50 s), because the pins strip docstrings (gate M2.1). The 227 s run's cause was not recovered (`concept3/probe_docedit.log`, `probe_moddoc.log`).
 - Merged @ `dcf631dd`.
 
 **Concepts 1 to 3 are closed.** What remains in the warm slow run is C6's in-process `PointRule.row`, about 21 s.
 
 ⏸ **Next:**
-1. Choose between a C6 reading-operator client (the scoping found it feasible with two keys) and closing the speed work here.
+1. C6 stays in process, by the user's ruling (2026-10-17). It is a self-consistency theorem: the code is compared with itself. Storing its 648 point rows would leave a warm run comparing the live block with a stored copy of the code's own output. Its cost goes to ruling 15's verdict revalidation instead (`verification_tree_refinement.md`, "One change-detection layer").
 2. The follow-ups: #608, #609, #605, #606, #607.
 3. Close-out asks, held for the user:
    - the worktrees under `p3/c3/{retime,hitcost,hitcost2,oracle}`, `concept2/ta/wt`, and the older ones;
