@@ -566,9 +566,10 @@ def test_the_along_line_grading_holds_a_thick_and_a_thin_cylinder_to_their_route
 @pytest.mark.parametrize(("breakpoints", "amplitude", "x", "sigma", "q", "route"), [r[1:7] for r in _F_ROWS + _G2_ROWS],
                          ids=[r[0] for r in _F_ROWS + _G2_ROWS])
 def test_the_frozen_cylinder_routes_are_the_mpmath_routes(breakpoints, amplitude, x, sigma, q, route) -> None:
-    """[F slow twin] Each frozen literal of F1-F4 is its mpmath route recomputed, to 1e-15 relative: the literal is a
-    reference computed from the law, never from the code under test. Slow: the routes take 1 s to 4 min
-    (`[M]` 2026-10-11, the thick wall 239 s). First red: a literal edited to a reading of the code."""
+    """[F slow twin] Each frozen literal of F1-F4 is its mpmath route, to 1e-15 relative: the literal is a reference
+    computed from the law, never from the code under test. The routes are stored by the traced memo, so a warm store
+    serves them; a cold one computes them, 1 s to 4 min each (`[M]` 2026-10-11, the thick wall 239 s). First red: a
+    literal edited to a reading of the code."""
     if amplitude == 0.0:
         want = mpref.phi_cylinder_vacuum(tuple(breakpoints), tuple(sigma), tuple(q), x)
     else:

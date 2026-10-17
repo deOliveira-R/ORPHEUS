@@ -26,6 +26,7 @@ Every reference value is written in mpmath or by hand from the ``Mixture`` array
 """
 from __future__ import annotations
 
+import pathlib
 from collections.abc import Callable
 from dataclasses import replace
 from functools import lru_cache
@@ -51,6 +52,7 @@ from orpheus.numerics.observable import FluxIntegral, PointValue, Ratio
 from orpheus.numerics.question import Eigen, FixedSource, Nearest, Response
 from orpheus.reference.reading import Uncertified
 from orpheus.specification.specification import GeometrySpecification
+from tests.gates._corroboration import references_in
 from tests.gates.derivations import _characteristic_point_mp as mpref
 from tests.gates.derivations._characteristic_mp import specular_sphere_total
 from tests.gates.derivations.test_characteristic_assembly import (
@@ -155,6 +157,39 @@ def _check_route(chart, breakpoints, laws, x, band=_GIVEN_BAND, **kwargs) -> Non
         expected = _route(chart, breakpoints, laws, x, g, **data)
         assert abs(got[g] / expected - 1.0) < band, (chart, laws, x, g, got[g], expected)
 
+
+
+
+_MEMO = "orpheus.numerics.traced_memo"
+
+
+def _imports_closure(module: str) -> dict[str, set[str]]:
+    """Each ``tests`` module ``module`` reaches through its imports (itself included), with every name it imports,
+    at any depth of its source (a function body's import included): :func:`tests.gates._corroboration.references_in`."""
+    found: dict[str, set[str]] = {}
+    pending = [module]
+    root = pathlib.Path(__file__).resolve().parents[3]
+    while pending:
+        name = pending.pop()
+        if name in found:
+            continue
+        path = root.joinpath(*name.split(".")).with_suffix(".py")
+        found[name] = references_in(path.read_text(), name.rpartition(".")[0])["import"]
+        pending += [m for m in found[name] if m.startswith("tests.") and root.joinpath(*m.split(".")).with_suffix(".py").is_file()]
+    return found
+
+
+@pytest.mark.foundation
+def test_the_mpmath_routes_import_nothing_but_the_memo() -> None:
+    """The mpmath routes' one ``orpheus`` import, in their own source and in each test module they import, at any
+    depth, is the traced memo that stores them (#405 P3, concept 1; ``instrument-doctrine`` X4). The control: the
+    same census of the characteristic reference's ``lines`` module finds imports of ``orpheus`` beyond the memo.
+    First red: an import of the code under test added to the routes' module, at its top or inside a function."""
+    def beyond_memo(module: str) -> set[str]:
+        return {n for names in _imports_closure(module).values() for n in names
+                if (n == "orpheus" or n.startswith("orpheus.")) and n not in (_MEMO, f"{_MEMO}.traced_memo")}
+    assert beyond_memo("orpheus.derivations.continuous.characteristic.lines"), "the census sees no import"
+    assert not (found := beyond_memo(mpref.__name__)), sorted(found)
 
 # ── M. the point rule's measure ──────────────────────────────────────────
 

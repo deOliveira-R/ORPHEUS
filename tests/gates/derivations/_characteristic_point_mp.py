@@ -2,7 +2,15 @@
 
 Used by ``test_characteristic_reading.py``. NOTHING here imports the code under test: the backward path from the
 point, its passages through the regions, the reflections at the walls, the angular integrals and the escape and
-transmission probabilities are written in mpmath from the closed forms (``instrument-doctrine`` X4). The inputs are
+transmission probabilities are written in mpmath from the closed forms (``instrument-doctrine`` X4). Its one
+``orpheus`` import, at any depth, is :func:`~orpheus.numerics.traced_memo.traced_memo`
+(``test_the_mpmath_routes_import_nothing_but_the_memo``, an AST census of this module and of the test modules it
+imports). The memo stores the routes that take seconds to minutes a point; a route that takes milliseconds is
+not stored, since its lookup alone (about 8 ms a hit) would cost about what it does and its first call a miss
+(about 0.5 s, #602). No ``lru_cache`` sits above a stored route: it would serve a value from before a
+``bypass()``. A stored entry pins every module the memo's import brings: 76 of them, 54 of ``orpheus.numerics``
+and all of ``orpheus.geometry.boundary`` (#605: the numerics package imports eagerly), so an edit there
+regenerates the stored routes; it costs their minutes again and never changes their values. The inputs are
 data: the breakpoints, each region's total cross section and each region's emission RATE ``q`` (per unit volume,
 integrated over the directions, the code's convention), and the walls' specular or diffuse amplitudes.
 
@@ -38,6 +46,8 @@ from functools import lru_cache
 from typing import Any
 
 import mpmath as mp
+
+from orpheus.numerics.traced_memo import traced_memo
 
 from tests.gates.derivations._characteristic_mp import bickley_ki1
 
@@ -225,7 +235,7 @@ def phi_cylinder_axis_vacuum(edges: tuple, sigma: tuple, q: tuple) -> float:
         return float(total)
 
 
-@lru_cache(maxsize=None)
+@traced_memo
 def phi_cylinder_vacuum(edges: tuple, sigma: tuple, q: tuple, r: float) -> float:
     r"""A solid cylinder under vacuum at radius ``r``: ``(1/pi) int_0^pi sum q/Sigma (Ki_2(tau_s) - Ki_2(tau_e)) dalpha``.
 
@@ -257,7 +267,7 @@ def phi_cylinder_vacuum(edges: tuple, sigma: tuple, q: tuple, r: float) -> float
         return float(_quad(integrand, sorted(breaks)) / mp.pi)
 
 
-@lru_cache(maxsize=None)
+@traced_memo
 def phi_cylinder(edges: tuple, sigma: tuple, q: tuple, outer: float, r: float) -> float:
     r"""A solid cylinder under a specular law at radius ``r``: ``(1/pi) int_0^pi dalpha int_0^{pi/2} sin(theta) psi dtheta``.
 
