@@ -20,7 +20,6 @@ from orpheus.derivations.continuous.characteristic import CharacteristicDerivati
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.numerics.observable import Eigenvalue
 from orpheus.numerics.question import Eigen
-from orpheus.numerics.traced_memo import bypass
 from orpheus.specification.specification import GeometrySpecification
 from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 from tests.gates.derivations._characteristic_ladders import rung
@@ -37,8 +36,7 @@ def _derivation(specification: GeometrySpecification, resolution: Resolution) ->
 
 
 def _read(specification: GeometrySpecification, observable, resolution: Resolution) -> float:
-    with bypass():
-        return float(_derivation(specification, resolution).evaluate(observable).value)
+    return float(_derivation(specification, resolution).evaluate(observable).value)
 
 
 def _one_group(sigma_t: float, sigma_s: float, nu_sigma_f: float):

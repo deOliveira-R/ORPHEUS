@@ -49,7 +49,6 @@ from orpheus.geometry.chart import RadialImage
 from orpheus.numerics.mesh_free_function import RegionwiseConstant
 from orpheus.numerics.observable import FluxIntegral, PointValue, Ratio
 from orpheus.numerics.question import Eigen, FixedSource, Nearest, Response
-from orpheus.numerics.traced_memo import bypass
 from orpheus.reference.reading import Uncertified
 from orpheus.specification.specification import GeometrySpecification
 from tests.gates.derivations import _characteristic_point_mp as mpref
@@ -1019,8 +1018,7 @@ def _door(specification: GeometrySpecification, resolution: Resolution = _DOOR_R
 
 
 def _point(specification: GeometrySpecification, x: float, g: int, resolution: Resolution = _DOOR_RES) -> float:
-    with bypass():
-        reading = _door(specification, resolution).evaluate(PointValue(x, g))
+    reading = _door(specification, resolution).evaluate(PointValue(x, g))
     assert type(reading) is Uncertified
     return float(reading.value)
 
@@ -1032,11 +1030,10 @@ def _door_volume_integral(specification, resolution, weight_of_region: np.ndarra
     xs, ws = _volume_rule(np.asarray(derivation.basis.partition.breakpoints), "sphere", layers=4, points=8)
     region = np.clip(np.searchsorted(breakpoints, xs, side="right") - 1, 0, len(breakpoints) - 2)
     total = 0.0
-    with bypass():
-        for x, w, k in zip(xs, ws, region):
-            for g in range(weight_of_region.shape[1]):
-                if weight_of_region[k, g] != 0.0:
-                    total += w * weight_of_region[k, g] * float(derivation.evaluate(PointValue(float(x), g)).value)
+    for x, w, k in zip(xs, ws, region):
+        for g in range(weight_of_region.shape[1]):
+            if weight_of_region[k, g] != 0.0:
+                total += w * weight_of_region[k, g] * float(derivation.evaluate(PointValue(float(x), g)).value)
     return total
 
 
@@ -1086,9 +1083,8 @@ def test_garcias_case_1_per_point(r: float, phi: float, rounding: float) -> None
     defect class and is re-dropped by the battery's interface arm. First reds: the scattering's emission omitted
     from the point (the source alone transported: O(1)); the reading's sides weighted unequally.
     """
-    with bypass():
-        derivation = _door(_GARCIA, _GARCIA_RES)
-        value = float(derivation.evaluate(PointValue(float(r), 0)).value)
+    derivation = _door(_GARCIA, _GARCIA_RES)
+    value = float(derivation.evaluate(PointValue(float(r), 0)).value)
     expected = 0.5 * phi
     assert abs(value / expected - 1.0) < rounding + _GARCIA_STEP, (r, value, expected)
 
@@ -1165,8 +1161,7 @@ def test_a_detectors_importance_read_at_points_is_reciprocal_to_the_forward_flux
     detector = np.array([[0.3, 1.1], [2.0, 0.4], [0.7, 0.9]])
     forward = _spec(geometry, materials, FixedSource(RegionwiseConstant(source)))
     adjoint = _spec(geometry, materials, Response(RegionwiseConstant(detector)))
-    with bypass():
-        expected = float(_door(forward, _COARSE).evaluate(FluxIntegral(RegionwiseConstant(detector))).value)
+    expected = float(_door(forward, _COARSE).evaluate(FluxIntegral(RegionwiseConstant(detector))).value)
     assert abs(_door_volume_integral(adjoint, _COARSE, source) / (4.0 * np.pi) / expected - 1.0) < 1e-9
 
 
@@ -1191,7 +1186,7 @@ def test_a_point_value_of_a_mode_nearest_tau_is_refused_after_the_solve() -> Non
     scale, as its ``FluxIntegral`` does (rung 5a's N4); a ``PointValue`` of the fundamental is answered. First red:
     the mode's eigenvector read at the point on the pencil's normalisation."""
     spec = _spec(StructuredGeometry.sphere(_MR3, (0, 1, 0), outer=BC.vacuum), {0: _PU2, 1: _UP2N}, Eigen(_K, mode=Nearest(0.5)))
-    with bypass(), pytest.raises(NotImplementedError, match="has no flux scale"):
+    with pytest.raises(NotImplementedError, match="has no flux scale"):
         _door(spec, _COARSE).evaluate(PointValue(1.0, 0))
 
 
@@ -1204,10 +1199,9 @@ def test_a_ratio_of_point_values_is_the_quotient_and_gauge_free() -> None:
     observable alone)."""
     spec = _closed_mirror(_PU2, Eigen(_K))
     solution = characteristic_reference(spec, _DOOR_RES)
-    with bypass():
-        ratio = solution.read(Ratio(PointValue(0.2, 0), PointValue(0.9, 1))).value
-        numerator = solution.read(PointValue(0.2, 0)).value
-        denominator = solution.read(PointValue(0.9, 1)).value
+    ratio = solution.read(Ratio(PointValue(0.2, 0), PointValue(0.9, 1))).value
+    numerator = solution.read(PointValue(0.2, 0)).value
+    denominator = solution.read(PointValue(0.9, 1)).value
     assert ratio == numerator / denominator
     loss, production = _zero_d(_PU2)
     values, vectors = np.linalg.eig(np.linalg.solve(loss, production))

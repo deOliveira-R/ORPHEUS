@@ -60,20 +60,18 @@ pytestmark = [
 
 
 def _characteristic_k(geometry, mixture, degree: int) -> float:
-    """The characteristic reference's k for one mixture on ``geometry``, at rung ``degree`` of the joint ladder, in
-    this process (:func:`~orpheus.numerics.traced_memo.bypass`)."""
+    """The characteristic reference's k for one mixture on ``geometry``, at rung ``degree`` of the joint ladder,
+    through the traced memo (served from the store, or generated in its own process)."""
     from orpheus.data.cells import CellCoefficient, Channel
     from orpheus.data.materials import Materials
     from orpheus.derivations.continuous.characteristic import CharacteristicDerivation
     from orpheus.numerics.observable import Eigenvalue
     from orpheus.numerics.question import Eigen
-    from orpheus.numerics.traced_memo import bypass
     from orpheus.specification.specification import GeometrySpecification
     from tests.gates.derivations._characteristic_ladders import rung
 
     spec = GeometrySpecification(Materials({0: mixture}), geometry, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
-    with bypass():
-        return float(CharacteristicDerivation(spec, rung(degree)).evaluate(Eigenvalue()).value)
+    return float(CharacteristicDerivation(spec, rung(degree)).evaluate(Eigenvalue()).value)
 
 
 @pytest.mark.l1

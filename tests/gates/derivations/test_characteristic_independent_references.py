@@ -22,7 +22,10 @@ independence):
   (a file of withdrawn rows only, so the withdrawal's M5 run over the files that
   hold them stays cheap).
 
-Every characteristic reading runs in this process (:func:`~orpheus.numerics.traced_memo.bypass`).
+Every characteristic reading goes through the traced memo.
+Since #405 P3 step 2c the reads go through the traced memo (an entry served from the store, or generated in
+its own process). A first-red arm that rebound production IN THIS PROCESS reached these rows only while they
+read under ``bypass()``; a re-drop now edits a copy of the tree (``vv-principles`` #17).
 Bands are measured (``[M]`` 2026-10-10, probes in
 ``scratch/characteristic_architecture/p1_step_e/ta_e1b/probes/``); first reds are arms of
 ``scratch/characteristic_architecture/p1_step_e/ta_e1b/battery/``.
@@ -42,7 +45,6 @@ from orpheus.derivations.continuous.sood_registry import sood2003 as sood
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.numerics.observable import Eigenvalue, PointValue
 from orpheus.numerics.question import Eigen
-from orpheus.numerics.traced_memo import bypass
 from orpheus.specification.specification import GeometrySpecification
 from tests.gates.derivations._characteristic_ladders import rung
 from tests.gates.derivations._ladder_rules import geometric_error
@@ -66,8 +68,7 @@ def _derivation(specification: GeometrySpecification, resolution: Resolution) ->
 
 
 def _read(specification: GeometrySpecification, observable, resolution: Resolution) -> float:
-    with bypass():
-        return float(_derivation(specification, resolution).evaluate(observable).value)
+    return float(_derivation(specification, resolution).evaluate(observable).value)
 
 
 def _one_group(sigma_t: float, sigma_s: float, nu_sigma_f: float):

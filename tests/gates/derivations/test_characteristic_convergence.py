@@ -53,7 +53,6 @@ from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.boundary import AlbedoBoundary, SpecularReturn, VacuumInflow
 from orpheus.numerics.observable import Eigenvalue
 from orpheus.numerics.question import Eigen
-from orpheus.numerics.traced_memo import bypass
 from orpheus.specification.specification import GeometrySpecification
 from tests.gates.derivations._ladder_rules import geometric_error
 from tests.gates.derivations.test_characteristic_system import _ABS, _PU2
@@ -124,8 +123,7 @@ _ANGULAR_RATE = 1e-2
 @lru_cache(maxsize=None)
 def _k(body: str, resolution: Resolution) -> float:
     spec = GeometrySpecification(Materials({0: _PU2, 1: _ABS}), _BODIES[body](), Eigen(_K))
-    with bypass():
-        return float(CharacteristicDerivation(spec, resolution).evaluate(Eigenvalue()).value)
+    return float(CharacteristicDerivation(spec, resolution).evaluate(Eigenvalue()).value)
 
 
 def _contraction(body: str, rungs: list[dict]) -> tuple[list[float], np.ndarray]:
@@ -205,8 +203,7 @@ def _two_region_cylinder_k(degree: int) -> float:
     spec = GeometrySpecification(Materials({0: isotropic_mixture("A", "1g"), 1: isotropic_mixture("B", "1g")}),
                                  StructuredGeometry.cylinder((0.0, 0.6, 1.0), (0, 1), outer=_law(0.0)), Eigen(_K))
     resolution = Resolution(degree, 1, 0.4, TransportResolution(8), 2 * (degree + 1))
-    with bypass():
-        return float(CharacteristicDerivation(spec, resolution).evaluate(Eigenvalue()).value)
+    return float(CharacteristicDerivation(spec, resolution).evaluate(Eigenvalue()).value)
 
 
 #: ``[M]`` 2026-10-10 (``probes/probe_cyl_cost.py``): degree 2 and 3 at 41 s and 48 s, k 0.58054060, 0.58054171.

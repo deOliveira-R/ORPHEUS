@@ -26,9 +26,12 @@ Every closed form is written here from the ``Mixture`` arrays or the geometry's
 numbers (volumes, the mirror slab's modes), never through the door's objects
 (``instrument-doctrine`` X4); the rows that read the door's own flux
 coefficients (R1) say so, since their claim is the reading and not the solve.
-Every value row reads in this process (:func:`~orpheus.numerics.traced_memo.bypass`),
-so one solve serves a derivation's readings; the memo's own rows (C2-C5) run
-through it. Bands are measured (`[M]` 2026-10-07, ``.venv/bin/python -O``,
+Every value row reads through the traced memo (since #405 P3 step 2c): a derivation's
+solve is one memo entry, a child of every reading of it, so one solve serves its
+readings. The rows that patch production, or whose claim is the in-process side, still
+enter :func:`~orpheus.numerics.traced_memo.bypass` and say why. A first-red arm that
+rebound production in this process reached the value rows only under ``bypass()``; a
+re-drop now edits a copy of the tree (``vv-principles`` #17). Bands are measured (`[M]` 2026-10-07, ``.venv/bin/python -O``,
 ``scratch/characteristic_architecture/p1_step_b5/ta/``); each row's first red is a
 battery arm (``scratch/characteristic_architecture/p1_step_b5/ta/battery/``).
 """
@@ -134,9 +137,8 @@ def _derivation(specification: GeometrySpecification, resolution: Resolution = _
 
 
 def _read(specification: GeometrySpecification, observable: Any, resolution: Resolution = _RES) -> float:
-    """The door's reading of ``observable``, in this process."""
-    with bypass():
-        reading = _derivation(specification, resolution).evaluate(observable)
+    """The door's reading of ``observable``, through the traced memo."""
+    reading = _derivation(specification, resolution).evaluate(observable)
     assert type(reading) is Uncertified
     return float(reading.value)
 
@@ -586,8 +588,7 @@ def test_a_flux_integral_is_the_volume_integral_of_the_galerkin_flux(case: int) 
     name, weight, by_hand, cut = _weights()[case]
     derivation = _derivation(_SUBCRITICAL_SPHERE)
     reading = _read(_SUBCRITICAL_SPHERE, FluxIntegral(weight))
-    with bypass():                                   # the answer is a memo's child since #592: solve it here
-        answer = derivation.answer
+    answer = derivation.answer
     assert isinstance(answer, reference_module._SourceAnswer)
     expected = _volume_integral(derivation.basis, answer.flux, by_hand, cut)
     assert abs(reading / expected - 1.0) < 1e-13, (name, reading, expected)
@@ -872,7 +873,7 @@ def test_a_nearest_answer_reads_its_eigenvalue_and_refuses_a_flux_integral(at: s
     left_half = FluxIntegral(Symbolic.of(sympy.Piecewise((1, Symbolic.r < sympy.Rational(1)), (0, True)), 0))
     with pytest.raises(NotImplementedError, match=_HIGHER_MODE_REFUSAL):
         _read(spec, left_half)
-    with bypass(), pytest.raises(NotImplementedError, match=_HIGHER_MODE_REFUSAL):
+    with pytest.raises(NotImplementedError, match=_HIGHER_MODE_REFUSAL):
         characteristic_reference(spec, _RES).read(Ratio(left_half, FluxIntegral(Symbolic.of(1, 0))))
 
 
@@ -945,8 +946,7 @@ def test_a_multigroup_source_answers_every_group() -> None:
     the flux integral reduced to its group-0 term (arm ``err091-pairing``).
     """
     both = _spec(_E7_SPHERE, _E7_MATERIALS, FixedSource(_rwc([[1.0, 0.5], [0.0, 0.0]])))
-    with bypass():                                   # the answer is a memo's child since #592: solve it here
-        answer = _derivation(both).answer
+    answer = _derivation(both).answer
     assert isinstance(answer, reference_module._SourceAnswer)
     flux = answer.flux
     assert flux.shape == (2, _derivation(both).basis.size), flux.shape
@@ -1174,9 +1174,8 @@ def test_the_factory_returns_an_uncertified_reference_that_reads_a_ratio_as_a_qu
     assert isinstance(solution.derivation, CharacteristicDerivation)
     assert solution.derivation == CharacteristicDerivation(spec, _RES)
     a, b = _indicator(3, 0, 0), _indicator(3, 2, 1)
-    with bypass():
-        quotient = solution.read(Ratio(a, b)).value
-        assert quotient == solution.read(a).value / solution.read(b).value
+    quotient = solution.read(Ratio(a, b)).value
+    assert quotient == solution.read(a).value / solution.read(b).value
     derivation = _derivation(spec)
     flux = derivation.system.flux(derivation.system.pencil.fundamental().vector)
     by_hand = _volume_integral(derivation.basis, flux, lambda c: np.stack([c < _MR3[1], 0 * c]).astype(float), None) \
@@ -1405,8 +1404,7 @@ def test_every_reading_through_the_solution_is_uncertified(coord: CoordSystem) -
     solution = characteristic_reference(_layered_on(coord, Eigen(_K)), _TINY)
     observables = (Eigenvalue(), FluxIntegral(_rwc(np.tile([1.0, 0.0], (3, 1)))), _indicator(3, 2, 1), PointValue(0.8, 1),
                    Ratio(_indicator(3, 0, 0), _indicator(3, 2, 1)))
-    with bypass():
-        readings = [solution.read(o) for o in observables]
+    readings = [solution.read(o) for o in observables]
     for observable, reading in zip(observables, readings, strict=True):
         assert type(reading) is Uncertified, (observable, reading)
         assert np.isfinite(reading.value) and reading.value != 0.0, (observable, reading)
@@ -1462,8 +1460,7 @@ def test_a_material_the_body_does_not_hold_is_never_read() -> None:
     assert len(anisotropic.SigS) == 2 and anisotropic.SigS[1].count_nonzero() > 0     # the activation
     spec = _spec(_sphere(_MR3, (1, 0, 1), BC.vacuum), {0: _ABS, 1: _UP2N, 7: anisotropic}, Eigen(_K))
     assert set(spec.materials.keys()) == {0, 1}
-    with bypass():
-        k = CharacteristicDerivation(spec, _TINY).evaluate(Eigenvalue()).value
+    k = CharacteristicDerivation(spec, _TINY).evaluate(Eigenvalue()).value
     assert np.isfinite(k) and k > 0.0
 
 
@@ -1529,8 +1526,7 @@ def test_a_flux_integral_is_additive_over_a_split_of_its_weight() -> None:
     parts = _read(spec, _box(0.6, 0.65, 1)) + _read(spec, _box(0.65, 0.7, 1))
     assert abs(parts / whole - 1.0) < 1e-12, (whole, parts)
     derivation = _derivation(spec)
-    with bypass():                                   # the answer is a memo's child since #592: solve it here
-        answer = derivation.answer
+    answer = derivation.answer
     assert isinstance(answer, reference_module._FundamentalAnswer)
     flux = answer.flux
     basis = derivation.basis

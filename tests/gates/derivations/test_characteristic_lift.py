@@ -43,7 +43,6 @@ from orpheus.derivations.continuous.characteristic.reading import PointRule
 from orpheus.derivations.continuous.characteristic.transport import TraversalRule
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.line import Line
-from orpheus.numerics.traced_memo import bypass
 
 from . import _characteristic_mp as R
 from . import _characteristic_point_mp as mpref
@@ -538,8 +537,7 @@ def test_a_cylinders_reading_is_the_frozen_mpmath_route(breakpoints, amplitude, 
     converging); kappa inverted, V without the speed, the polar sin dropped (F4 O(1)). Declared blind: F4 to every
     closure arm (vacuum) and to the impact rule at speed 1 (`[M]` -4.1e-15: x = 1.1's lines miss the slow layer).
     """
-    with bypass():
-        got = _reading(breakpoints, amplitude, x, sigma, q)
+    got = _reading(breakpoints, amplitude, x, sigma, q)
     assert abs(got / route - 1.0) <= band, (got, route, got / route - 1.0)
 
 
@@ -559,8 +557,7 @@ def test_the_along_line_grading_holds_a_thick_and_a_thin_cylinder_to_their_route
     (thick); at 64 x, -3.2e-7, -1.3e-6. The thin band is the polar rule's own floor in that regime (the prototype read
     +5.3e-12). First reds: those three gradings.
     """
-    with bypass():
-        got = _reading(breakpoints, amplitude, x, sigma, q)
+    got = _reading(breakpoints, amplitude, x, sigma, q)
     assert abs(got / route - 1.0) <= band, (got, route, got / route - 1.0)
 
 
@@ -642,8 +639,7 @@ def test_each_polar_node_of_the_reading_is_its_mpmath_density(x: float, albedo: 
     ``vv-principles`` anti-#24 (d)): the per-node functional is the instrument. First red: the impact rule at speed 1.
     The a = 0.9 fixture's reference takes 20 s: slow.
     """
-    with bypass():
-        errors = _polar_column_errors(x, albedo)
+    errors = _polar_column_errors(x, albedo)
     assert np.max(np.abs(errors)) <= 1e-13, (np.max(np.abs(errors)), int(np.argmax(np.abs(errors))))
 
 
@@ -686,9 +682,8 @@ def test_a_sphere_or_slab_block_moved_by_the_carve_conserves_and_stays_within_it
     capture is below ``_S1_BLOCK_DRIFT``, a quadrature-sized move and not an algorithmic one. First reds: a re-grading
     that loses accuracy (the conservation leg), any change moving the block by more than its accuracy (the drift
     leg: e.g. the response's outflow integrated toward the wrong end)."""
-    with bypass():
-        conservation = AS._conservation(chart, breakpoints, laws, AS._SIGMA[group], points)
-        block = AS._transport(chart, breakpoints, laws, AS._SIGMA[group], points).block
+    conservation = AS._conservation(chart, breakpoints, laws, AS._SIGMA[group], points)
+    block = AS._transport(chart, breakpoints, laws, AS._SIGMA[group], points).block
     assert conservation <= AS._CONSERVATION_TOL[chart], (conservation, AS._CONSERVATION_TOL[chart])
     drift = abs(float(block.sum()) / captured - 1.0)
     assert drift <= _S1_BLOCK_DRIFT, drift
@@ -710,8 +705,7 @@ def test_a_sphere_or_slab_reading_moved_by_the_carve_stays_on_its_mpmath_route(c
     bounded by twice that bar, a quadrature move. Measured here at the reading file's working point (8 line points,
     12 along). First reds: a reading that leaves the route (the new value outside the bar); a capture edited to
     the new value is caught by leg (2) only if it leaves the route, so the capture is printed by its script."""
-    with bypass():
-        got = RE._given(chart, breakpoints, laws, x)
+    got = RE._given(chart, breakpoints, laws, x)
     for g in range(len(got)):
         route = RE._route(chart, breakpoints, laws, x, g)
         assert abs(captured[g] / route - 1.0) < RE._GIVEN_BAND, ("the capture", g, captured[g], route)

@@ -19,11 +19,14 @@ The ladder, bottom up (``rests_on`` on each row):
    from the vacuum body to k_inf, and tends to k_inf as the body thickens.
 
 Every row reads through the door (:class:`~orpheus.derivations.continuous.characteristic.CharacteristicDerivation`)
-in this process (:func:`~orpheus.numerics.traced_memo.bypass`), at rungs of the
+through the traced memo, at rungs of the
 joint ladder (:func:`tests.gates.derivations._characteristic_ladders.rung`).
 Bands are measured (``[M]`` 2026-10-10, ``.venv/bin/python -O``, probes in
 ``scratch/characteristic_architecture/p1_step_e/ta_e1b/probes/``); each row's first
 red is an arm of ``scratch/characteristic_architecture/p1_step_e/ta_e1b/battery/``.
+Since #405 P3 step 2c the reads go through the traced memo (an entry served from the store, or generated in
+its own process). A first-red arm that rebound production IN THIS PROCESS reached these rows only while they
+read under ``bypass()``; a re-drop now edits a copy of the tree (``vv-principles`` #17).
 """
 from __future__ import annotations
 
@@ -40,7 +43,6 @@ from orpheus.geometry import BC, StructuredGeometry
 from orpheus.geometry.boundary import ReflectiveBoundary
 from orpheus.numerics.observable import Eigenvalue, PointValue
 from orpheus.numerics.question import Eigen
-from orpheus.numerics.traced_memo import bypass
 from orpheus.reference.reading import Uncertified
 from orpheus.specification.specification import GeometrySpecification
 from tests.gates.derivations._characteristic_ladders import rung
@@ -63,8 +65,7 @@ def _derivation(specification: GeometrySpecification, resolution: Resolution) ->
 
 
 def _read(specification: GeometrySpecification, observable: Any, resolution: Resolution) -> float:
-    with bypass():
-        reading = _derivation(specification, resolution).evaluate(observable)
+    reading = _derivation(specification, resolution).evaluate(observable)
     assert type(reading) is Uncertified
     return float(reading.value)
 
