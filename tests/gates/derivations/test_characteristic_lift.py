@@ -607,18 +607,7 @@ def _polar_column_errors(x: float, albedo: float) -> np.ndarray:
     theta = np.arcsin(1.0 / lines.speeds)
     order = np.argsort(theta)
     np.testing.assert_allclose(theta[order], polar.pts, rtol=1e-13, atol=0.0)
-    e, s, qq = mpref._mp(_SMALL), mpref._mp(_SMALL_SIGMA), mpref._mp(_SMALL_Q)
-    amp = {"outer": mp.mpf(repr(albedo)), "inner": mp.mpf(0)}
-    X = mp.mpf(repr(x))
-    breaks = {mp.mpf(0), mp.pi / 2, mp.pi}
-    for rk in e[1:-1]:
-        if rk < X:
-            alpha = mp.asin(rk / X)
-            breaks |= {alpha, mp.pi - alpha}
-    with mp.workdps(20):
-        density = np.array([float(mp.sin(th) * mp.quad(lambda al: mpref.psi_disk(e, s, qq, amp, X, mp.cos(al), 1 / mp.sin(th)),
-                                                        sorted(breaks)) / mp.pi)
-                            for th in (mp.mpf(repr(float(v))) for v in polar.pts)])
+    density = np.array(mpref.cylinder_polar_density(_SMALL, _SMALL_SIGMA, _SMALL_Q, albedo, x, tuple(map(float, polar.pts))))
     return column[order] / (polar.wts * density) - 1.0
 
 

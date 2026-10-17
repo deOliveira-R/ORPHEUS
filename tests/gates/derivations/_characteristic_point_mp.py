@@ -289,7 +289,32 @@ def phi_cylinder(edges: tuple, sigma: tuple, q: tuple, outer: float, r: float) -
         return float(_quad(f, sorted(breaks), [0, mp.pi / 4, mp.pi / 2]) / mp.pi)
 
 
-@lru_cache(maxsize=None)
+
+@traced_memo
+def cylinder_polar_density(edges: tuple, sigma: tuple, q: tuple, outer: float, r: float,
+                           thetas: tuple) -> tuple[float, ...]:
+    r"""Per polar angle ``theta`` of ``thetas``, a solid cylinder's per-theta flux density at radius ``r`` under a
+    specular amplitude ``outer``: ``g(theta) = (1/pi) sin(theta) int_0^pi psi_disk(r, cos alpha, 1/sin theta) dalpha``.
+
+    The integrand of :func:`phi_cylinder`'s polar integral, one column per call: ``phi = int_0^{pi/2} g dtheta``.
+    ``alpha`` split at ``pi/2`` and at the tangencies, as there.
+    """
+    with mp.workdps(20):
+        e, s, qq = _mp(edges), _mp(sigma), _mp(q)
+        amp = {"outer": mp.mpf(repr(float(outer))), "inner": mp.mpf(0)}
+        x = mp.mpf(repr(float(r)))
+        breaks = {mp.mpf(0), mp.pi / 2, mp.pi}
+        for rk in e[1:-1]:
+            if rk < x:
+                a = mp.asin(rk / x)
+                breaks |= {a, mp.pi - a}
+        columns = []
+        for theta in (mp.mpf(repr(float(v))) for v in thetas):
+            inner = _quad(lambda al: psi_disk(e, s, qq, amp, x, mp.cos(al), 1 / mp.sin(theta)), sorted(breaks))
+            columns.append(float(mp.sin(theta) * inner / mp.pi))
+        return tuple(columns)
+
+@traced_memo
 def specular_cylinder_total(sigma: float, R: float, a: float) -> float:
     r"""``1^T K 1`` per unit height of a homogeneous cylinder behind a partial mirror ``a`` (q = 1, K the flux over 4 pi).
 
