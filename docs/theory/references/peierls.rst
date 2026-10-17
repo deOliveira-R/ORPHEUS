@@ -2750,11 +2750,23 @@ independent confirmation of the same kernel. The local PDF copy is
 
 ORPHEUS implementation:
 :func:`orpheus.derivations.continuous.peierls_nystrom.ps1982_reference.solve_ps1982_vacuum_sphere`
-— Nyström quadrature on the
-:math:`[E_1(|r-x|) - E_1(r+x)]` kernel via
-:func:`mpmath.expint`. Used as the L1 cross-check truth source for
-Variant α vacuum BC; also serves as a candidate L1 reference for the
-Nyström family's vacuum sphere closure when high precision is needed.
+— product integration of the
+:math:`[E_1(|r-x|) - E_1(r+x)]` kernel, not a straight Nyström rule,
+because the kernel is logarithmically singular at :math:`x = r`. The
+flux is held on a Gauss–Legendre grid in optical units; each application
+of the operator interpolates it by a cubic spline and integrates the
+spline times the kernel, evaluated with :func:`scipy.special.exp1`, by
+:func:`scipy.integrate.quad` with a break at :math:`x = r`; power
+iteration gives the dominant eigenvalue and, from it, :math:`k`. It is
+a traced-memo client (:ref:`verification-reference-cache-clients`), so
+a warm store serves its solves. Its consumer is the characteristic
+reference: it is the independent reference of that reference's
+one-group vacuum sphere
+(``tests/gates/derivations/test_characteristic_independent_references.py``:
+:math:`k` to :math:`10^{-5}` relative on four cases, the flux shape to
+:math:`10^{-4}` on two). It was the L1 cross-check truth source for the
+Variant α vacuum BC, whose Green's function family was deleted on
+2026-10-10.
 
 The Sanchez 1986 / 2002 architecture references
 ------------------------------------------------

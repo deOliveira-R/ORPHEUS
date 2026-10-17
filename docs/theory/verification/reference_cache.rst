@@ -42,6 +42,8 @@ The reference cache: a traced memo keyed on what ran
    routes stored after them at 76d0409d on branch test/oracle-memo-columns,
    2026-10-17, and for the slow cylinder point readings read through the
    door (concept 2) at 94143ecd on branch test/door-cylinder-readings,
+   2026-10-17, and for the PS-1982 vacuum-sphere solver as the eighth
+   client (concept 3) on branch test/ps1982-memo over d5c1ea54,
    2026-10-17.
 
 A reference reading costs seconds to minutes. The multi-region sphere
@@ -145,7 +147,7 @@ Key facts
   ``evaluate`` returns, an establishment or an uncertified value, never a
   certificate or a verdict; ``ReferenceSolution`` re-checks every claim
   against that evaluation, cached or computed.
-* **Seven clients today.** Three are in the characteristic reference: its
+* **Eight clients today.** Three are in the characteristic reference: its
   reading, ``CharacteristicDerivation.evaluate``, keyed on the derivation
   and the observable; its solve, ``CharacteristicDerivation.solve``, keyed
   on the derivation alone and a child entry of every reading (#592); and
@@ -159,7 +161,10 @@ Key facts
   seconds to minutes a call (#405 P3 concept 1 and ``76d0409d``,
   2026-10-17). The slow cylinder point-reading rows of the characteristic
   gates read through the first of these, the reading, since concept 2
-  (``94143ecd``), which added no client. P3 shipped three others, the two multi-region trajectory-resolvent solvers
+  (``94143ecd``), which added no client. One is the independent reference
+  of the characteristic reference's vacuum sphere, the PS-1982 solver
+  ``solve_ps1982_vacuum_sphere``, 11.6 to 20.7 s a solve (#405 P3 concept
+  3, 2026-10-17). P3 shipped three others, the two multi-region trajectory-resolvent solvers
   (``solve_greens_function_sphere_mr`` and
   ``solve_greens_function_cylinder_mr``) and the trajectory-resolvent
   derivation's ``evaluate``; they were deleted with their family at P1
@@ -2304,7 +2309,8 @@ The clients
 ===========
 
 The clients are the characteristic reading, its solve and its
-transport blocks, and four mpmath routes of a test oracle, below. The
+transport blocks, four mpmath routes of a test oracle, and the PS-1982
+vacuum-sphere solver, below. The
 two trajectory-resolvent clients described first were P3's, and were
 deleted with their family; their description is the record of how ruling
 2 was first realised.
@@ -2459,9 +2465,10 @@ of the process boundary (the section "The process boundary" above).
 characteristic reference only if it shares nothing with it above the
 trusted-library line (``instrument-doctrine`` X4), and the memo is the
 oracle's first ``orpheus`` import. The gate
-``test_the_mpmath_routes_import_nothing_but_the_memo`` (foundation, in
+``test_each_stored_reference_imports_nothing_but_the_memo`` (foundation, in
 ``tests/gates/derivations/test_characteristic_reading.py``) is an AST
-census. ``tests.gates._corroboration.references_in`` lists every name a
+census, one row per stored independent reference: ``[mpmath-routes]``
+and, since concept 3, ``[ps1982]``, the PS-1982 solver's module. ``tests.gates._corroboration.references_in`` lists every name a
 module imports at any depth of its source, a function body's import
 included; the gate reads the oracle module and every ``tests`` module it
 reaches through its imports, at any depth, and allows one ``orpheus``
@@ -2727,6 +2734,115 @@ C6's two white rows, 10.9 s each, and the polar-column row
 above (a fresh worktree with an empty store), so no before and after ratio
 against its 127 s is claimed. 240 of 240 collected ids are unchanged, and
 217 of 217 under ``-m "not slow"`` (qa, ``--collect-only``).
+
+**The PS-1982 vacuum-sphere solver** (#405 P3 concept 3, 2026-10-17;
+the user's ruling of 2026-10-17, "Memo the solver").
+``solve_ps1982_vacuum_sphere``, in
+``orpheus/derivations/continuous/peierls_nystrom/ps1982_reference.py``, is
+the independent reference the characteristic reference's one-group
+vacuum sphere is compared with
+(``tests/gates/derivations/test_characteristic_independent_references.py``:
+:math:`k` to :math:`10^{-5}` relative on four cases, the flux shape to
+:math:`10^{-4}` on the first two). It solves Pomraning and Siewert's
+scalar-flux integral equation :cite:`PomraningSiewert1982` (Eq. (21)) by
+power iteration on 40 Gauss–Legendre nodes, each application of the
+operator an adaptive ``scipy.integrate.quad`` per node over the kernel
+:math:`E_1(|r-x|) - E_1(r+x)` with a break at :math:`x = r`
+(:doc:`/theory/references/peierls`, "The Pomraning-Siewert 1982 vacuum
+sphere"). It carries ``@traced_memo`` alone.
+
+*Why it.* `[M]` 2026-10-17
+(``scratch/characteristic_architecture/p3/c3/concept3/scoping.md``, its
+section 4): after concept 2 a warm ``-m slow`` run of the 40 slow rows in
+their 10 files took 82.9 s, and 55.8 s of it was the PS-1982 rows
+(21.74, 21.22, 12.11 and 0.73 s), all in the solver: a full run makes
+four distinct solves (three under ``-m slow``; the shape rows read the
+same cases as the first two :math:`k` rows), each 11.6 to 20.7 s at the
+gates' 40 nodes, 59 or 110 iterations (`[M]` ``probe_calls.log``, one run
+each, under ``-O`` and ``OMP_NUM_THREADS=1``). The solver is a client the
+memo admits as it stands. It has one caller, the test helper ``_ps1982``,
+and no production caller (the Nexus graph's transitive callers and
+``git grep``). It is pure: no module state, a deterministic start, a
+repeat call bit-equal in :math:`k` and the flux, and no warning recorded
+on any of the four cases under ``simplefilter("always")`` (its control,
+``quad(1/x, limit=5)``, records one), so #607 is inert here. Its result,
+``PS1982Result``, is a frozen dataclass of seven plain-data fields (three
+floats, two float arrays, an integer and a flag) that the return
+annotation names, so the payload rebuilds it through its constructor. A
+solve that exhausts its iterations is a value and would be stored; the
+``converged`` assertion stays in the helper. The key is exact, so
+``R=5`` and ``R=5.0`` are two entries; the helper passes floats.
+
+*Why on the solver, and not on the test helper.* A memo on ``_ps1982``
+would pin the test module's import closure, which is the whole
+characteristic reference, so every edit to the code under test would
+regenerate its independent reference; and it would be a second spelling
+of the solver. That arm is refuted. On the solver the memo is one route
+per value, the precedent of the multi-region solvers above. The helper's
+``lru_cache`` was removed: a function cache above a memo serves, for the
+life of the process, the value from before a ``bypass()`` (the oracle
+routes' paragraph above says why).
+
+*The alternative not taken: memoise the eigenpair.* The eigenproblem
+depends on the optical radius :math:`R\Sigma_t` alone: the body's power
+iteration reads neither :math:`\Sigma_s` nor :math:`\nu\Sigma_f`, and only
+its last three lines (the critical albedo, the denominator and
+:math:`k`) do. `[M]` the scoping (section 2): two cases with the same
+optical radius and different :math:`\Sigma_s` return bit-equal
+``lambda_max``, ``phi``, ``r_nodes_optical`` and ``iterations``, and two
+optical radii differ (the control). So the four cases are two
+eigenproblems and four arithmetic conversions. A memoised eigenpair keyed
+on the optical radius, the node count and the iteration budget, with
+:math:`k` converted in process, would halve the cold cost, to about 36 s
+against about 72 s, and let the default tier's entry serve a slow row's
+eigenproblem. It was not taken: it restructures the reference code (a
+second function and a second result type) and keys on a computed float
+product, while warm the two arms cost the same. The user chose the
+solver unchanged.
+
+*What an entry pins, and what an edit there costs.* A generation imports
+``ps1982_reference``, so an entry pins the module's functions it runs
+(``solve_ps1982_vacuum_sphere``, ``_apply_L_operator`` and its integrand)
+and the skeletons of about 90 ``orpheus`` modules: the 76 the memo itself
+loads (#605) and 14 more that the package chain from ``orpheus.derivations``
+down to ``ps1982_reference`` loads, the module itself among them (`[M]`
+qa's review, ``scratch/characteristic_architecture/p3/c3/concept3/qa/``:
+90 loaded, the memo's 76 all inside them, none under ``characteristic``).
+An edit to the module, or to an import, a constant or a signature in that
+cone, regenerates all four entries, about 72 s (`[R]`, from the per-solve
+times); the values never change under those edits. A docstring edit to the
+module regenerates them too: `[M]` qa, the first run after this commit's
+own docstring edit took 227 s and the next 2.3 s, because a module's pin
+reads its source, prose included. Whether a pin should read only code is
+ruling 15's open question (the verification-tree plan).
+
+*What a warm store no longer exercises.* The solver does not run on a
+hit, so a mutation of it reaches the PS-1982 rows only under
+``bypass()`` or on a mutated copy of the tree, as for the door rows
+above. `[M]` 2026-10-17
+(``scratch/characteristic_architecture/p3/c3/concept3/probe_bypass.py``,
+re-run by the archivist): with ``_apply_L_operator`` scaled by 1.001, the
+case ``tauR2.5-c0.4`` read :math:`k = 0.0563821101969148` from the store,
+the unmutated value, and :math:`0.056463960765175535` under ``bypass()``,
+a relative move of :math:`1.45 \times 10^{-3}`, 145 times the
+:math:`10^{-5}` band. The PS-1982 rows carry no ``verifies`` or
+``catches`` marker, so a coverage capture on a warm store refutes no
+claim of theirs.
+
+*What it bought.* `[M]` 2026-10-17
+(``scratch/characteristic_architecture/p3/c3/concept3/landed_cold.log``
+and ``landed_warm3_1.log``, the warm run re-captured after the review's
+docstring edits had regenerated the entries): the nine rows of
+``test_characteristic_independent_references.py``, the slow ones
+included, on the main tree's store, each run once, serially, under
+``-O`` and ``OMP_NUM_THREADS=1``: 87 s with the store cold for the four
+PS-1982 keys, 2.29 s warm (2.25 s on a repeat), each PS-1982 :math:`k`
+row 0.02 to 0.22 s warm. The 40 slow rows of the 10 characteristic files
+(``slow10_first.log`` and ``slow10_warm.log`` beside them, the same
+protocol): 216 s on the pass that regenerated the entries the review's
+edits had invalidated, then 27.1 s warm, against 82.9 s before this
+concept; 20.7 s of the 27.1 s is C6's two white rows (10.35 and 10.32 s),
+which read in process.
 
 **A solve that does not converge.** The solver's result is a value
 whatever its convergence, so an exhausted solve is a cached value; the
@@ -4051,6 +4167,20 @@ the memo. The 2026-10-04 rows sat on the branch
      - Issue
      - Where
    * - 2026-10-17
+     - **The PS-1982 vacuum-sphere solver becomes a client** (#405 P3
+       concept 3; the user's ruling, "Memo the solver").
+       ``solve_ps1982_vacuum_sphere`` carries ``@traced_memo`` alone and
+       the test helper's ``lru_cache`` is removed; a memo on the helper
+       was refuted (it would pin the characteristic reference), and a
+       memoised eigenpair (the four cases are two eigenproblems; about
+       36 s cold against 72 s) was not taken, since it restructures the
+       reference. The nine rows of its gate file: 87 s cold, 2.25 s warm;
+       under ``bypass()`` a 1.001 scaling of the operator moves
+       :math:`k` by :math:`1.45 \times 10^{-3}`, and the store serves the
+       unmutated value.
+     - #405
+     - (this commit)
+   * - 2026-10-17
      - **The slow cylinder point readings read through the door** (#405
        P3 concept 2; the user's ruling, "Door, with batteries in bypass").
        Eight ``slow`` rows read ``CharacteristicDerivation.evaluate(PointValue)``
@@ -4078,7 +4208,7 @@ the memo. The 2026-10-04 rows sat on the branch
        ``lru_cache`` removed (above a memo it serves the value from before
        a ``bypass()``). The other routes take milliseconds and are not
        stored. The oracle's independence is the AST census
-       ``test_the_mpmath_routes_import_nothing_but_the_memo``, its control
+       ``test_each_stored_reference_imports_nothing_but_the_memo``, its control
        the ``lines`` module, three first reds; a first version comparing
        fresh interpreters' module sets was blind (the memo alone loads 76
        ``orpheus`` modules; a function-body import never runs). Before it,
