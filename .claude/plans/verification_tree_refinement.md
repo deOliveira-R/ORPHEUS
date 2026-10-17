@@ -143,6 +143,7 @@ All counts below are `[M]` 2026-10-16 on `main` `417f64f3`, by `git ls-files` an
 1. **Measure before scheduling.**
    - Collect per-test duration and peak memory over the whole suite. Duration comes from `--durations`. Peak memory needs a sampler: `ru_maxrss` is the process high-water mark and cannot attribute memory to a test.
    - This decides whether the 21 GB came from slow tests running together or from each worker's import footprint.
+   - For the slow tests, also measure S(p) and C(k), defined in the section on running slow tests below.
    - Also take the current `rests_on` graph as Nexus reads it: its components, its cycles, and its nodes with no edge.
 2. **Census of the tree, by the test-architect, capability by capability.** It is the raw-material assay. For each test it records:
    - its rung and the nodes it should rest on;
@@ -155,11 +156,42 @@ All counts below are `[M]` 2026-10-16 on `main` `417f64f3`, by `git ls-files` an
 5. **Scheduling on the DAG.** Three mechanisms, each `[R]` until phase 1 measures:
    - start a test only when its supports are green;
    - bound concurrency by a memory budget, from each test's measured peak, not by a worker count;
+   - give each test its thread count from its own scaling curve, running a slow test alone when it uses every core (H-SEQ, below);
    - start the longest ready tests first, so slow tests start early beside fast ones instead of piling up at the end.
 
    The DAG's critical path, its longest chain of dependent tests, is the wall-time floor. A red support invalidates its cone rather than stopping the run (#358).
 
 Sizing `[R]`: phases 2–3 are several sessions per large package (`sn` alone holds 232 files).
+
+## Run slow tests one at a time with every core, or several at once? (the user, 2026-10-16)
+
+> "There is also potentially some advantage in the slow tests being run sequentialy, which has to be measured. In principle, the production code should be mostly computation bounda, rather than memory bound (this has to be measured, but I think it is a strong hypothesis), which means that it might make more sense to execute each one sequentially giving all the computational power to it unless we hit a parallelism scaling problem (which requires its own measurement). The production code algorithms might also not be highly parallelised at this point, but we are certain to invest time and effort in it, with the intention of seeking vectorization, batching and parallelism (and whatever else technique you suggest)."
+
+**H-SEQ** `[HYPOTHESIS]`: slow tests are bound by computation, not by memory bandwidth. If so, running them one at a time, each given every core, finishes sooner than running several at once with one core each. The exception is a test whose own parallel scaling is poor.
+
+The choice is per test, decided by two curves, each measured:
+- **Its own scaling, S(p):** the test's wall time alone at p = 1, 2, 4, 8 threads, through `OMP_NUM_THREADS`, `VECLIB_MAXIMUM_THREADS` and any parallelism of its own.
+  - If S(p) is close to p, the test uses the cores, so it runs alone with all of them.
+  - If S(p) is flat, extra cores are wasted on it, so it runs beside others.
+- **Its contention, C(k):** the slowdown of one copy when k copies run at once, each on one thread.
+  - If C(k) is close to 1, the test is bound by computation and does not compete.
+  - If C(k) grows with k, the test competes for memory bandwidth or cache, and running copies together costs more than it saves.
+
+**The answer depends on the code's present state.** The profiled population is the 40 slow characteristic rows. 82 % of its time is pure-Python mpmath, which runs on one thread whatever `OMP_NUM_THREADS` is, so S(p) is flat for it today. `[M]` the profile above; the flatness `[R]`, from the backend. For that population, the only levers are concurrency and the backend (gmpy2). A production solve whose time is BLAS (`numpy.linalg.eigh` took 50 s of self time in the same profile) can have S(p) above 1.
+
+So the scheduler keeps a resource profile per test: duration, peak memory, S(p) and C(k). Since the production code will be parallelised over time, the profile is re-measured as the code changes, and the schedule follows it. It is never fixed by hand.
+
+**One constraint from the memo.** A forked child crashes when the parent called BLAS with several threads before the fork (`[M]` 2026-10-16, the fork-safety protocol of #602, `reference_cache.rst`). A test process given many BLAS threads must therefore not fork memo children after its first BLAS call. Today the template forks from a process that has only imported, which avoids this. A schedule that gives tests threads must keep that.
+
+**The production techniques the profile would steer** (each `[R]`; where it applies is decided by measurement, not by this list):
+- **Batching:** one call over many lines, angles or groups instead of a loop of scalar calls. `[M]` the chord kernel: 229 µs for one line, 0.33 µs per line in batches of 10 000 (`characteristic_reference_architecture.md`, P2).
+- **Vectorization in numpy:** whole-array expressions in place of Python loops.
+- **A compiler for the hot loops** (numba): for a recurrence that cannot be written as array expressions, such as a sweep along a direction.
+- **Threads over independent work:** the directions of an SN sweep inside one octant and the groups of a Jacobi-style group iteration are independent, so they can run on separate cores. Gauss-Seidel over groups orders them, so it is not.
+- **Faster convergence:** Krylov acceleration of the sweep (#200) and diffusion synthetic acceleration cut the number of sweeps, which outweighs any speed-up per sweep.
+- **The array-library lowering** (#394, the layout freed for JAX): compiled, fused kernels and, later, a GPU.
+
+The order follows phase 1's measurements: the techniques go where S(p), C(k) and the profile say the time is.
 
 ## Open questions for the user
 
