@@ -2999,3 +2999,29 @@ Three concepts from the profile, all `[HYPOTHESIS]`, to be tested in the order o
 1. The three-file re-timing (system, reading, assembly; not slow; cold, warm, no memo) at `3ff7866b`. This is #602's last done-when. Driver: `scratch/characteristic_architecture/p3/c3/retime/run.sh`; compare `p3/c1/gate_spec.md` §7 (242 / 1303 / 102 s on 2026-10-14).
 2. Record the re-timing on the reference-cache theory page.
 3. Concepts 1 to 3 above, oracle first.
+
+## The hit cost, then concept 1: the cylinder mpmath routes stored (2026-10-17)
+
+**The hit cost (#602, closed).** A warm hit had come to cost what no memo did: 222 s warm against 221 s with no memo, at `3ff7866b`. Each validation re-read every pinned source and re-found every pinned distribution. `8fbb1d61` keeps each read for the process, guarded by the file's stat identity (`FileIdentity`, `Witness`, `Kept`), and it is the first stage of ruling 15 in `verification_tree_refinement.md`. `[M]` the three files, single runs: no memo 221 s, cold 820 s, warm 163 s. Merged @ `b2037667`.
+
+**Concept 1, landed.** The two costly cylinder routes, `phi_cylinder_vacuum` and `phi_cylinder` in `tests/gates/derivations/_characteristic_point_mp.py`, are `@traced_memo`, with no `lru_cache` above them. The routes that take milliseconds are not stored.
+- **A defect it exposed, fixed** (`7ca91c43`). A memo under a `functools.wraps`-style decorator refused to generate: the child found the outer wrapper by name and called the memo again. The child now resolves the memo through `_resolve_memo`. Gates M3.1b and M3.1c.
+- **The independence gate is an AST census.** It covers the oracle and every test module it imports, and the one `orpheus` import it allows is the memo.
+  - [REFUTED 2026-10-17] the first version compared the module sets that fresh interpreters hold. It was blind on two counts: the memo alone loads 76 orpheus modules, all inside the reference's closure, and an import inside a function body is never run (qa and elegance-enforcer, `scratch/characteristic_architecture/p3/c3/oracle/{qa,elegance}/review.md`).
+- **`[M]` timings,** the slow rows of the lift and reading files (23 rows), single serial runs, a fresh worktree each:
+
+  | tree | cold | warm | entries |
+  |---|---|---|---|
+  | before (`b2037667`) | 1075 s | 353 s | 17 |
+  | after | 1044 s | 127 s | 34 |
+
+- **What remains of the warm 127 s** (`oracle/after_warm.log`): in-process reads through `point_flux`, about 28.9 s and 25.6 s on the top two rows; the lift's polar-column quadrature, 14.3 s.
+- **Filed:** #605, #606, #607.
+- Merged @ `9f924a2d` (`7ca91c43`, `333268fb`, the docs).
+
+⏸ **Next:**
+1. Concept 2: the in-process `point_flux` reads through the memo. First measure which rows hold the remaining warm time and whether their reads are a function of content (the key).
+2. Concept 3: PS1982 (about 57 s, scipy, returns a frozen dataclass).
+3. Close-out asks, held for the user:
+   - the worktrees under `p3/c3/{retime,hitcost,hitcost2,oracle}` and the older ones listed in the 2026-10-16 note;
+   - the branch `refactor/chord-oracle-axial-lift`.
