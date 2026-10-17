@@ -566,7 +566,8 @@ every file it reads or probes and every directory it lists
 (:mod:`orpheus.numerics._traced_memo_boot`); the entry keeps that
 :class:`~orpheus.numerics.traced_memo.Manifest` beside an exact payload,
 and a lookup validates the manifest against the checkout without importing
-or running anything. The key is
+or running anything, reading again only what changed on disk since the
+process last read it (:class:`~orpheus.numerics._traced_memo_boot.Kept`). The key is
 :func:`~orpheus.numerics.content.encode_exact` of the function, its
 signature-bound arguments and the platform tag. The theory, with why the
 identity of a generator is its recorded execution, why a miss runs in a
@@ -591,7 +592,8 @@ manifest can see and the review round's defects, is
    :no-value:
 
 .. automodule:: orpheus.numerics._traced_memo_boot
-   :members: Recording, note_child, spawning, main, template, FORK_MEASURED
+   :members: Recording, note_child, spawning, main, template, FORK_MEASURED,
+      FileIdentity, Witness, Kept, TRUSTED_AGE_NS, file_digest, listing_digest
 
 Mesh-free functions — :mod:`orpheus.numerics.mesh_free_function`, the
 source and the detector a specification states before any mesh exists:

@@ -10,7 +10,8 @@ The reference cache: a traced memo keyed on what ran
    of a generator is its recorded execution and not a declared version or
    a static call graph; why a miss is generated in a fresh process; the
    exact key; the manifest and its eleven pin kinds; validation that runs
-   nothing; the source index and its write rule; what a miss costs; the
+   nothing; what a validation keeps for the process; the source index and
+   its write rule; what a miss costs; the
    exact payload; the process boundary; the bypass; how the
    memo relates to the reference certificate; the exact medium's
    exclusion; the clients; the limits no manifest can see; the review
@@ -32,7 +33,9 @@ The reference cache: a traced memo keyed on what ran
    cost, the pinned-source loader, per-file ownership, the source index)
    at 8e02236f, e666e58d, 0c569df8 and 155fbdbd, and for cut E (the fork
    template, every input observed at its first touch, the RECORD pin) on branch
-   perf/traced-memo-fork-template, 2026-10-16.
+   perf/traced-memo-fork-template, 2026-10-16, and for the hit cost (a
+   validation's reads kept for the process: FileIdentity, Witness, Kept)
+   at 8fbb1d61 on branch fix/memo-hit-cost, 2026-10-17.
 
 A reference reading costs seconds to minutes. The multi-region sphere
 of the A|B|A cross-check, at the coarse resolution the gates use, takes
@@ -117,7 +120,9 @@ Key facts
   the key is exact all the way up: an object is its constructor form, a
   container carries its concrete type, a mapping its order.
 * **Validation runs nothing.** A lookup re-hashes the manifest's pins
-  against the current files and returns one of four verdicts,
+  against the current files, reading again only a file or directory whose
+  identity on disk (device, inode, size, modification and change times)
+  has moved since the process last read it, and returns one of four verdicts,
   :class:`~orpheus.numerics.traced_memo.Hit`,
   :class:`~orpheus.numerics.traced_memo.Absent`,
   :class:`~orpheus.numerics.traced_memo.Stale` (with every reason) or
@@ -902,10 +907,14 @@ environment, ``sphinxcontrib``, ``jaraco``, ``opentelemetry`` and
 every distribution's ``RECORD`` once per checkout (one manifest or one
 validation, which holds it as ``_Checkout.installed``), as CSV because a
 path may be quoted and hold a comma: 30 446 paths in 18 to 20 ms, where
-the top-level map cost 0.22 s. The same object holds what is installed
-as each distribution (``_Installed.installed``: its version and the digest
-of its ``RECORD``), looked up by name once per checkout, so a checkout is
-two parts: its first-party texts (``_Checkout``) and its installed
+the top-level map cost 0.22 s. Ownership stays per checkout. What is
+installed as each distribution (``_Installed.installed``: its version and
+the digest of its ``RECORD``) is answered from a read kept for the whole
+process, ``_DISTRIBUTIONS``, made again when a ``sys.path`` directory or
+the found distribution's ``METADATA``, ``PKG-INFO`` or ``RECORD`` changes
+on disk (since 2026-10-17;
+:ref:`verification-reference-cache-kept-reads`). So a checkout is two
+parts: its first-party texts (``_Checkout``) and its installed
 environment (``_Installed``: which distribution owns a file, and which
 install of it is there).
 
@@ -1193,7 +1202,10 @@ imports nothing and runs nothing (M2.4 counts it): a def pin reads its
 def's digest from the source index of the file's current bytes; a module
 pin reads the skeleton digest from the same index; a distribution pin
 reads the installed version and the digest of its ``RECORD``; a child pin looks the child up in
-the same store, recursively. An index is found by the file's BYTES, so an
+the same store, recursively. Each read of a file or of what is installed is
+kept for the process while every file and directory it looked at keeps its
+identity on disk, so a second validation reads again only what changed
+(:ref:`verification-reference-cache-kept-reads`). An index is found by the file's BYTES, so an
 edited file is a new key and never a stale read (M2.5). With the indexes
 on disk, a process's first validation costs 0.036 s where parsing every
 pinned file cost 0.27 s, and a later one 11 to 13 ms (`[M]` 2026-10-15,
@@ -1231,6 +1243,347 @@ child regenerated with ANOTHER answer makes the parent stale (M3.12c). In
 the vocabulary of build systems the memo is a build with dynamic
 dependencies (recorded while the task runs) and early cutoff (a rebuilt
 dependency with an unchanged result does not rebuild its dependents).
+
+.. _verification-reference-cache-kept-reads:
+
+What a validation reads is kept for the process
+-----------------------------------------------
+
+**The problem, measured.** `[M]` 2026-10-17 (#602; the profile
+``scratch/characteristic_architecture/p3/c3/retime/warm.prof``, read by
+``an.py`` beside it). At ``main`` ``3ff7866b`` the 431 not-slow rows of
+the system, reading and assembly gates ran warm in 222 s and with no memo
+in 221 s: a warm store saved nothing, where on 2026-10-14 the prototype's
+warm pass had saved 140 s. A cProfile of the warm run, 292.5 s under the
+profiler, put 111.5 s in the 5 346 calls of
+:func:`~orpheus.numerics.traced_memo.validate` (5 347 lookups). Over the
+whole profiled process there were 832 287 file opens, 711 872 of them
+through ``Path.read_bytes``, and 1 406 174 ``stat`` calls; the lookup of
+a pinned source's file on ``sys.path`` (``_locate``) ran 690 354 times,
+the first-party text reads of a validation (``_Checkout.text``) 2 282 208
+times for 34.9 s, and the lookup of what is installed
+(``_Installed.installed``) 38 142 times for 47.7 s.
+
+Two facts multiplied the reads. Every validation built a fresh
+``_Checkout``, and its texts and its installed environment lived for that
+one validation only, so a second validation in the same process read
+every pinned file and found every pinned distribution again. And an entry
+pins many files: the elegance review's census over 400 entries of the
+store counted, per entry, 226.2 def pins, 125.7 module pins, 62.0
+presence pins, 17.5 data pins, 6.3 distribution pins, 1.0 memo pin and
+0.7 child pins (`[M]` 2026-10-17). Since the transport block became a
+client (``9178ad00``) a solve's blocks are its child entries, and a child
+pin validates its child recursively with a checkout of its own, so one
+hit of a solve read the same sources once more per child.
+
+**The primitive.** Three objects in the standard-library-only boot module
+:mod:`orpheus.numerics._traced_memo_boot` (the user's ruling of
+2026-10-17: the change-detection layer is a primitive of that module, so
+it moves with the harness package of #501 and imports nothing from
+``orpheus``; it is the first stage of the change-detection layer of
+``.claude/plans/verification_tree_refinement.md``, ruling 15):
+
+* :class:`~orpheus.numerics._traced_memo_boot.FileIdentity` is a path's
+  identity on disk as ``stat`` reads it: its device, its inode, its size,
+  and its modification and change times in nanoseconds.
+* :class:`~orpheus.numerics._traced_memo_boot.Witness` records the stats
+  one read makes, each taken BEFORE the read of what it guards, and
+  whether every one of them was settled. A stat that finds nothing is
+  recorded too, as ``None``.
+* :class:`~orpheus.numerics._traced_memo_boot.Kept` is a read kept for
+  the life of the process. It is built from a function
+  ``read(key, witness)``. Its key holds the read's inputs that are not
+  files (a ``sys.path``, a working directory, a name); its witness holds
+  the files and directories the read looked at. A call serves the kept
+  value while a fresh ``stat`` of every witnessed path shows the
+  identity recorded, a missing path still missing included, and reads
+  again otherwise.
+
+The argument that an unchanged identity means unchanged content holds on
+POSIX. Any write to a file moves its change time, and no call sets the
+change time back: ``os.utime`` sets the access and modification times
+and moves the change time to now. A replacement by rename gives the path
+another inode. A name added to, removed from or renamed in a directory
+moves the directory's modification time, so a directory's identity
+witnesses its names. So the identity is a cheap face of each observation
+the boot module defines (a file's bytes, a directory's names), and an
+unchanged identity implies an unchanged digest. Gate M2.3d makes the
+change time load-bearing: an edit of the same size whose modification
+time is set back with ``os.utime`` keeps the size, the modification time
+and the inode, and moves only the change time.
+
+**Stat before read.** The order is the race argument. A write that lands
+after the stat and before or during the read is kept under the identity
+from before the write, so the next stat sees another identity and the
+read is made again. The other order, read and then stat, would file the
+bytes from before a write under the identity after it, and serve them for
+the life of the process. Gate M2.3g writes the file right after the read
+and requires the next validation to name the edit.
+
+**Only settled reads are kept.** A second write within one timestamp tick
+can leave the size and both times as the first write left them; git calls
+such index entries "racily clean". A stat is settled when the later of
+its modification and change times lies more than
+:data:`~orpheus.numerics._traced_memo_boot.TRUSTED_AGE_NS` (2 s, which
+covers FAT's two-second timestamps, the coarsest of a common filesystem)
+before the process's wall clock. A read with any unsettled stat is
+returned and not kept, so the next call reads again. A read that depended
+on something no stat witnesses is marked ``unkeepable`` and never kept.
+Gate M2.3e simulates every write landing in one tick (an identity whose
+two times never move) and requires a same-size edit of a freshly written
+file to be named.
+
+**The five kept reads**, each a module-level ``Kept`` of
+:mod:`orpheus.numerics.traced_memo`:
+
+.. list-table:: What a validation keeps for the process
+   :header-rows: 1
+   :widths: 16 26 36 22
+
+   * - Kept read
+     - Key
+     - Witness
+     - Read by
+   * - ``_SOURCES``
+     - the pin's path, ``tuple(sys.path)``, the working directory
+     - every candidate up to the one read, a missing one included: the
+       absolute path itself, or the pin's path under each ``sys.path``
+       entry in order (an empty entry is the working directory)
+     - ``_Checkout.text``, so every def pin and module pin
+   * - ``_DISTRIBUTIONS``
+     - the distribution's name, ``tuple(sys.path)``, the working
+       directory
+     - every ``sys.path`` directory, before the find (an install or an
+       uninstall adds or removes a ``.dist-info`` there); then the found
+       directory's ``METADATA``, ``PKG-INFO`` and ``RECORD``, named from
+       the directory. A find that names no directory is unkeepable.
+     - ``_Installed.installed``, so every distribution pin and the
+       manifest's ``_distribution_pin``
+   * - ``_FILE_DIGESTS``
+     - the data pin's path (absolute, as the recording observed it)
+     - the file
+     - :class:`~orpheus.numerics.traced_memo.DataPin`
+   * - ``_LISTINGS``
+     - the listing pin's path
+     - the directory
+     - :class:`~orpheus.numerics.traced_memo.ListingPin`
+   * - ``_MEMO_DIGESTS``
+     - the memo's three source files (``traced_memo.py``,
+       ``_traced_memo_boot.py``, ``content.py``)
+     - the three files
+     - :class:`~orpheus.numerics.traced_memo.MemoPin`, and the memo pin
+       of a manifest built outside a generation (``trace_call``'s)
+
+``sys.path`` and the working directory are in the KEY, never in the
+witness, because they are not files: a different ``sys.path`` is a
+different read, made fresh. Shadowing is why ``_SOURCES`` witnesses every
+candidate and not only the file it read. A pin's path is relative to its
+``sys.path`` entry (``_pin_path``), so a module can appear on an EARLIER
+entry that is already on ``sys.path``; the same import would then load
+it. The earlier candidate was witnessed as missing, so its appearance is
+a change, the read is made again, and the shadowing file is the one read
+(gate M2.3f). ``_DISTRIBUTIONS`` names the files it guards from the found
+directory and not from what ``RECORD`` lists, so a distribution whose
+``RECORD`` does not list its ``METADATA`` is still guarded (the elegance
+review, A6). :func:`~orpheus.numerics._traced_memo_boot.file_digest` and
+:func:`~orpheus.numerics._traced_memo_boot.listing_digest` take an
+optional witness, so a recording's observation of a file and a pin's
+validation of it are one definition.
+
+What stays per validation: ``_Checkout._texts`` gives one state per
+source file within one validation, so every pin of a file is judged
+against one read of it; it does not reach across files, nor across
+children, each of which validates with a checkout of its own. The
+ownership table of ``_Installed`` (which distribution's ``RECORD`` lists
+a file) is still built once per checkout; what is installed as each
+distribution is the process's ``_DISTRIBUTIONS``. Presence pins are not
+kept: a presence probe is itself one ``stat``. ``_locate`` and
+``_Installed._versions`` retired.
+
+**The scope boundary.** The argument above holds on a POSIX filesystem
+whose timestamps come from the clock this process reads. Outside it:
+
+* On Windows ``st_ctime`` is the creation time, so the same-size edit
+  with its modification time set back (M2.3d's) would be served stale
+  (qa's review, finding 7a).
+* On a network filesystem the timestamps come from the server's clock,
+  which may differ from the client's, and attribute caching may serve an
+  old identity (finding 7c); a wall clock stepped backwards on a
+  coarse-tick filesystem, with a same-size edit in place, is the third
+  case (finding 7b).
+* The racy reference is the process's wall clock. git compares against
+  the index file's own modification time, so both sides of its
+  comparison come from the filesystem's clock. Inside one process the
+  difference is small; a persisted identity store, the next stage of the
+  change-detection layer, takes its own write time as the reference (the
+  elegance review, A5). `[R]`
+* Beneath ``_DISTRIBUTIONS``, the standard library's
+  ``importlib.metadata`` keeps each ``sys.path`` directory's listing in a
+  cache keyed on the directory's float ``st_mtime``, with no racy guard
+  of its own. When ``_DISTRIBUTIONS`` declines to keep a find whose
+  directory was written within the trusted age, the find it repeats can
+  still be handed a stale listing by that cache. The exposure predates
+  this change (qa's review, finding 8; `[R]`, unmeasured).
+
+None of these is the host on which the memo is measured (APFS, a local
+disk). qa's review of the first version found no realizable state on
+this host in which a kept value is served while the file on disk differs
+(`[M]` 2026-10-17,
+``scratch/characteristic_architecture/p3/c3/hitcost/qa/review.md``, ten
+attacks withdrawn with their reasons).
+
+**What was tried first, and what the reviews changed.** The first version
+of the fix (``53551868``, never merged) had two hand-written caches,
+``_Sources`` and ``_Distributions``. Each spelled the four steps itself
+(stat before read; keep only if settled; serve while the stats are equal;
+read again otherwise), and they spelled settledness differently: one
+called a predicate inline, the other stored an ``"unsettled"`` sentinel as
+a third value beside an identity and ``None``, a state the kept record's
+type admitted and the code had to keep out. Data pins, listing pins and
+the memo pin still read afresh, so the subject line "a validation
+re-reads only what changed on disk" held for 2 of the 5 pin kinds that
+read a file. The distribution's guard set was filtered from what its
+``RECORD`` lists. And the ladder marker of the old M2.3b had stayed on
+the new helper ``_install``, which pytest never collects. The elegance
+review (A1 to A9, ``scratch/characteristic_architecture/p3/c3/hitcost/elegance_review.md``)
+proposed one stage-1 primitive in the boot module: ``FileIdentity``,
+``Witness``, ``Kept``, with the inputs that are not files in the key. The
+landed version is that primitive, with all five kept reads built on it.
+
+qa's review of the first version (``.../hitcost/qa/review.md``) applied
+five arms, each removing one claim the commit made, to the 23 shipped
+rows. Three of the five reddened no shipped row: the claims of shadowing,
+of stat before read and of ``METADATA`` in the guard set. The racy
+guard's row, M2.3e, reddened under its arm but skipped by chance in 2 of
+12 isolated runs, because it waited on the wall clock, so a merge run
+could read it as green. Those four claims became gates M2.3f, M2.3g and
+M2.3h and the deterministic M2.3e. M2.3i gates the
+data and listing pins the elegance review absorbed. M2.3b was re-posed:
+it had faked an upgrade by monkeypatching
+``importlib.metadata.distribution``, a change no disk shows, and it now
+installs a numpy ``9.9.9`` into a directory already on ``sys.path`` and
+then rewrites that install's ``RECORD`` in place.
+
+**The gates and their first reds.** The rows are in
+``tests/gates/numerics/test_traced_memo_validation.py``. Each arm is
+applied at ``pytest_configure`` in the process pytest runs, over the 27
+rows of the file (`[M]` 2026-10-17,
+``scratch/characteristic_architecture/p3/c3/hitcost/arms2.log``):
+
+.. list-table:: The kept-read gates
+   :header-rows: 1
+   :widths: 9 55 36
+
+   * - Row
+     - Assertion
+     - First red (arm: rows red)
+   * - M2.3b
+     - An install into a ``sys.path`` directory that was already there,
+       then its ``RECORD`` rewritten in place, are each a reason in the
+       next validation of the same process.
+     - ``distributions-blind``, a kept find served without its stats:
+       M2.3b, M2.3h
+   * - M2.3c
+     - A second validation with nothing changed makes no read of a
+       pinned source (the spy counts the reads ``_SOURCES`` makes,
+       however a read is spelled).
+     - ``never-serve``: M2.3c
+   * - M2.3d
+     - A same-size edit with its modification time set back is a reason.
+     - ``drop-ctime``: M2.3d, M2.3i; ``always-serve``: M2.3b, d, f, g,
+       h, i
+   * - M2.3e
+     - A write within the tick of the last read is read again
+       (deterministic: an identity whose two times never move).
+     - ``settled-true``, the racy guard removed: M2.3e
+   * - M2.3f
+     - A module appearing on an earlier ``sys.path`` entry that shadows
+       the pinned file is a reason.
+     - ``witness-the-read-file-only``: M2.3f
+   * - M2.3g
+     - A write between the read and the next stat is read again.
+     - ``read-then-stat``: M2.3g
+   * - M2.3h
+     - A ``METADATA`` rewritten in place, same size, is a reason.
+     - ``record-only``: M2.3h
+   * - M2.3i
+     - A data pin's file edited in place with its time set back, and a
+       name added to a listing pin's directory, are reasons.
+     - ``never-witness``, a kept read served without its stats: M2.3i
+
+The positive control, ``control-empty-sources`` (every source read
+returns nothing), reddens 21 of the 27 rows.
+
+**The measured outcome.** The three files' timing, #602's last done-when
+("the three-file cold/warm/no-memo timing is re-measured and recorded on
+the reference-cache theory page"), is the table below. Each row is one
+serial run under ``-O`` with ``OMP_NUM_THREADS=1`` in a fresh worktree
+(an empty store) of the tree named, over the same 431 not-slow rows
+(`[M]`; the drivers are ``run.sh`` beside each summary):
+
+.. list-table:: The system, reading and assembly gates (not slow), seconds of wall time
+   :header-rows: 1
+   :widths: 30 12 12 12 34
+
+   * - Tree
+     - No memo
+     - Cold
+     - Warm
+     - Source
+   * - The block memo's prototype, 2026-10-14
+     - 242
+     - 1 303
+     - 102
+     - ``p3/c1/gate_spec.md`` §7; 383 entries
+   * - ``155fbdbd``, #602 round two, 2026-10-15
+     - 236
+     - 406
+     - 168
+     - "What a miss costs" below; 257 block entries
+   * - ``main`` ``3ff7866b``, 2026-10-17
+     - 221
+     - 816
+     - 222
+     - ``p3/c3/retime/summary.txt``; 1 123 entries
+   * - ``53551868``, the first version of this fix, 2026-10-17
+     - 227
+     - 725
+     - 155
+     - ``p3/c3/hitcost/summary.txt``; 1 123 entries
+   * - ``8fbb1d61``, the landed fix, 2026-10-17
+     - 221
+     - 820
+     - 163
+     - ``p3/c3/hitcost2/summary.txt``; 1 123 entries
+
+The paths are under ``scratch/characteristic_architecture/``. Every row
+is a single run. Other agents' work shared the host during the cold and
+warm runs of the ``53551868`` row; the last row ran alone. Each
+``summary.txt`` records the ``HEAD`` it timed. The last row was timed at
+``b57648b5``, whose tree is ``8fbb1d61``'s (the two differ in the commit
+message only). The landed version adds to the first the shadowing
+witness, the data, listing and memo kept reads and the directory-named
+guard set. Its warm pass, 163 s, is the first version's 155 s within what
+one run of each can separate; its cold pass, 820 s, is ``3ff7866b``'s
+816 s, so the first version's 725 s cold is `[R]` host variation rather
+than a saving of the fix: a miss re-reads nothing the fix keeps, since a
+miss validates nothing.
+
+Between ``155fbdbd`` and ``3ff7866b`` the store grew from 257 block
+entries to 1 123 entries of every kind, as more of the readings' rows
+read through the memo (``6af57441``, ``410bfca8``); `[R]` that, with
+the per-validation re-reads, is why the warm pass rose from 168 s to
+222 s. A warm pass of the fix costs 67 s less than ``3ff7866b``'s and
+72 s less than no memo. It is still above the prototype's 102 s, for
+two reasons `[R]`, neither profiled after the fix. Each entry now pins
+about 130 modules, where the prototype's blocks pinned 13
+(``gate_spec.md`` §5), and the store holds 1 123 entries against 383;
+a kept read still makes one ``stat`` per witnessed path, which for a
+relative source pin is one per ``sys.path`` entry up to the one that
+holds the file, and every pin is still walked. And part of the run is
+computation outside the memo: the assembly gates build their blocks in
+process, and the reading gates' point rows and ``bypass()`` rows are
+computed (the paragraph after the round-two table below).
 
 
 .. _verification-reference-cache-source-index:
@@ -1475,8 +1828,10 @@ files: C is served its own normalisation's digest). `[M]` battery arm B-q,
 which lets every process write, reddens B16 and B17.
 
 ``trace_call``, the in-process instrument, runs in a process that is not
-generating, so it writes no index, and its memo pin re-reads the memo's
-source after the call (:ref:`verification-reference-cache-unseen`).
+generating, so it writes no index, and its memo pin is the digest of the
+memo's source on disk after the call, read through the process's kept
+read ``_MEMO_DIGESTS``, which reads the three files again when any of them
+has changed (:ref:`verification-reference-cache-unseen`).
 
 .. rubric:: Gotcha: a generation's manifest depends on the state of the index directory
 
@@ -1967,7 +2322,12 @@ the measurements are on :ref:`characteristic-block-memo`. `[M]`
 the miss cost (#602), and the user ruled on 2026-10-15 that the block is
 memoised whatever its size, with no threshold. After #602 the cold pass
 is 406 s against 236 s without the memo and 168 s warm (`[M]` 2026-10-15
-at ``155fbdbd``; the section "What a miss costs").
+at ``155fbdbd``; the section "What a miss costs"). On 2026-10-17, with
+1 123 entries in the store, ``main`` at ``3ff7866b`` ran 816 s cold,
+222 s warm and 221 s without the memo, and the first version of the
+hit-cost fix (``53551868``) 725 s, 155 s and 227 s, and the landed fix
+(``8fbb1d61``) 820 s, 163 s and 221 s (`[M]`, single runs;
+:ref:`verification-reference-cache-kept-reads`).
 
 **A solve that does not converge.** The solver's result is a value
 whatever its convergence, so an exhausted solve is a cached value; the
@@ -2031,14 +2391,14 @@ of #602 removed them.
   statement of a module, class or def body), where it walked every
   expression node.
 * **A distribution's version was looked up per code object**: 1 245
-  lookups for 6 distributions, 0.64 s, each re-reading the metadata. It is
-  looked up once per distribution and per checkout, by
+  lookups for 6 distributions, 0.64 s, each re-reading the metadata.
+  Round one looked it up once per distribution and per checkout (one
+  manifest or one validation); since 2026-10-17 it is looked up by
   ``_Installed.installed`` (``_Installed.version`` until cut E, which added
-  the ``RECORD`` digest), the table of
-  :ref:`the ownership paragraph <verification-reference-cache-manifest>`
-  ("Where a file belongs"), which lives for one manifest or one
-  validation, so the manifest and the validation read a version by one
-  definition. A distribution that owns a file the run touched and has no
+  the ``RECORD`` digest) from ``_DISTRIBUTIONS``, a read kept for the
+  process while what the find looked at is unchanged on disk
+  (:ref:`verification-reference-cache-kept-reads`), so the manifest and
+  the validation read a version by one definition. A distribution that owns a file the run touched and has no
   installed version is ``Unpinnable`` (``_distribution_pin``).
 * **The owner of each site-packages file came from a top-level map**,
   ``importlib.metadata.packages_distributions``, which read every installed
@@ -2126,6 +2486,13 @@ under a partial mirror, takes 16.8 s warm and without the memo alike), and
 the reading gates' point rows and their ``bypass()`` rows are also
 computed. The prototype had routed the assembly gates' blocks through the
 memo, which is why it stored 383 entries and ran warm in 102 s.
+
+The three files were re-timed on 2026-10-17, at ``main`` ``3ff7866b``
+(221 s without the memo, 816 s cold, 222 s warm) and on the first version
+of the fix that keeps a validation's reads for the process (227 s, 725 s,
+155 s), and on the landed fix, ``8fbb1d61`` (221 s, 820 s, 163 s); the
+table and its reading are in
+:ref:`verification-reference-cache-kept-reads`.
 
 **What the two rounds left.** After round two a cheap miss is the floor of
 a fresh process plus the computation and a manifest built from indexes:
@@ -2570,7 +2937,11 @@ what the generator contract excludes (the section above):
   write, or an edit during the call, can be pinned beside an answer
   computed from the text before it. Its memo pin is the same read: the
   digest of the memo's three source files read after the call, since no
-  loader recorded the bytes the memo ran from. It writes no entry and no
+  loader recorded the bytes the memo ran from. Both reads go through the
+  process's kept reads (:ref:`verification-reference-cache-kept-reads`),
+  which serve an earlier read only while every file it looked at shows
+  the same identity on disk, and keep nothing written within the last
+  2 s, so they add no window of their own (`[R]`). It writes no entry and no
   source index; it is the instrument the gates measure the recorder with.
 * **The modules imported before the loader.** The boot script and what
   the interpreter's start imported (``site`` runs an editable install's
@@ -2849,8 +3220,10 @@ Each limit is a phase of #405 in the plan of record
   the read-only test shards and the scheduled cold rebuild that would
   control the recorder itself are phase P5. A coarse cache key is safe
   there because a restored stale entry is a miss, never a wrong answer.
-* **The shipped memo's suite timings are not measured.** The figures above
-  are the prototype's; the protocol of the specification's section 3
+* **The suite timings are single runs.** The three files' timings
+  (:ref:`verification-reference-cache-kept-reads`) are one serial run per
+  tree and per mode, and the ``53551868`` runs shared the host with
+  other agents' work; the protocol of the specification's section 3
   (cold, warm and bypassed, serially, three runs each) is owed.
 * **Nothing prunes the memo's three stores.** An entry of the reference
   store whose pins no longer validate is regenerated under the same name,
@@ -3269,6 +3642,24 @@ the memo. The 2026-10-04 rows sat on the branch
      - Milestone
      - Issue
      - Where
+   * - 2026-10-17
+     - **A validation's reads are kept for the process** (#602, the hit
+       cost). A warm run of the three files cost what no memo did (222 s
+       against 221 s at ``3ff7866b``): 111.5 of 292.5 profiled seconds were
+       validations, each re-reading every pinned source and re-finding
+       every pinned distribution. One primitive in the boot module,
+       ``FileIdentity``, ``Witness`` and ``Kept`` (stat before read; only
+       settled reads kept, ``TRUSTED_AGE_NS`` = 2 s), and five kept reads
+       built on it: ``_SOURCES`` (shadowing through witnessed candidates),
+       ``_DISTRIBUTIONS``, ``_FILE_DIGESTS``, ``_LISTINGS``,
+       ``_MEMO_DIGESTS``; ``_locate`` and ``_Installed._versions``
+       retired. The elegance review unified the first version's two
+       hand-written caches; qa's four unguarded claims became gates. Gates
+       M2.3b (re-posed) to M2.3i. The three-file re-timing that is #602's
+       last done-when: 221 s without the memo, 820 s cold, 163 s warm on
+       the landed version (227, 725 and 155 s on the first, ``53551868``).
+     - #602
+     - ``8fbb1d61``
    * - 2026-10-16
      - **Each miss forked from a recording template** (#602, cut E). A
        template interpreter does the imports once and forks one generating
@@ -3290,7 +3681,7 @@ the memo. The 2026-10-04 rows sat on the branch
        ``/dev/null`` in the child. Gates E1 to E9 and the qa and N rows of
        ``test_traced_memo_template.py``.
      - #602
-     - (this commit)
+     - ``98dc5242``
    * - 2026-10-15
      - **Each source text is parsed once per content, on disk** (#602,
        round two, B). A text's index (the skeleton digest, every outermost
