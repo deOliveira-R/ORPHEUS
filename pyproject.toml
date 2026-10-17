@@ -19,6 +19,11 @@ dependencies = [
     # is computed in arbitrary precision and rounded once, so it is the same
     # on every platform. Arrived only through sympy before 2026-10-01.
     "mpmath>=1.3",
+    # mpmath's integer backend: mpmath runs the same algorithms on gmpy2's
+    # integers instead of Python's. [M] 2026-10-16, three frozen cylinder
+    # routes of the characteristic tests: 1.4x, 3.5x and 8x faster, the same
+    # floats. sympy also adopts it as its ground types when present.
+    "gmpy2>=2.3",
     "scipy>=1.14",
     # Symbolic phase-space functions (numerics.mesh_free_function) and the
     # Gauss-Legendre nodes (numerics.manifold) import it at run time. Listed
