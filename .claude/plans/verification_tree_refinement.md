@@ -44,6 +44,8 @@ The graph is also the schedule. A test runs only when its supports are green. A 
 13. **How bounds compose up the cone is deferred until after the restructuring** (the user, 2026-10-16). No claim on it exists today, so the refinement does not study it. It is filed as an issue for after the restructuring. It is far from trivial: it is the uncertainty contributed by the MODEL itself, which modellers rarely measure; they usually bound the final result, and the usual scope of uncertainty quantification is the uncertainty brought in by the model's parameters. Measuring it would make ORPHEUS an outlier in computational modelling.
 14. **The three-pass verdict method is accepted provisionally** (the user, 2026-10-16): "I accept this method for census verification, at least provisionally. We will revisit it during a second pass through the entire plan (where we will refine everything) when we go back to it when we tackle that campaign after finishing the one we're in." The campaign starts after the characteristic-reference campaign closes (`characteristic_reference_architecture.md`), with a second pass that refines this whole plan first.
 
+15. **Invalidating a region of the DAG on a file change is foundational, and it rests on code changes only** (the user, 2026-10-17, answering the memo's hit-cost question): "You can also consider how we store a graph of tests, or Nexus graph, and consider how to validate rebuilds very fast. This is something that will become foundational to invalidating regions of the DAG based on changes in files. We might also want to pin revalidation strictly to code changes (so the files probably need to be stripped of documentation during pinning, maybe)." The section "One change-detection layer" below holds the hypotheses.
+
 ## Vocabulary (one meaning per word)
 
 - **Claim:** a statement the code is held to, with a home where it is written: an equation's label on a theory page, a law, a contract, an invariant. A claim is the node of the graph (ruling 4).
@@ -312,6 +314,26 @@ Questions 1–3 were answered on 2026-10-16 (rulings 4–6).
    - the claim written once in the test and harvested by the graph.
 
    The first keeps the corpus as the knowledge base (Cardinal Rule 3); the second keeps the claim next to its instrument. How `rests_on` names a claim follows from this answer.
+
+## One change-detection layer for the memo, the test DAG and the graph (ruling 15)
+
+Three consumers ask one question: *which of my nodes did this edit to the tree invalidate?*
+- **The traced memo** asks it per entry, from the entry's manifest (the defs that ran, the module skeletons, the distributions, the files read).
+- **The test DAG** would ask it per claim: a changed node invalidates its cone, and only that cone re-runs (phase 5; #358 for a red support).
+- **Nexus** asks it per build: today `sphinx-build` rebuilds the whole graph `[R]`, not measured here.
+
+**What exists** `[M]`:
+- The memo's pins already ignore documentation. A def is pinned by the digest of its AST with docstrings, comments and layout removed, and a module by its skeleton (every body replaced by `pass`, docstrings stripped). The gate is `test_traced_memo_validation.py::test_m2_1_…` (rows `docstring`, `comment-added`).
+- Since `53551868` (#602), the memo keeps what validations read for the whole process, keyed by each file's identity on disk (device, inode, size, modification and change times), with git's guard against a write too recent to trust. A warm hit no longer re-reads an unchanged file.
+- The parsed index of a source text is stored on disk by the digest of the text's bytes, the interpreter and the memo's own source (`_source_index`), so the parse is paid once per content.
+
+**Hypotheses** `[HYPOTHESIS]`, for the second pass over this plan:
+1. **Two stages, as git and build systems do.** First the stat identity says which files MAY have changed; then the AST digest of each such file says which defs and skeletons DID. A doc-only edit passes stage one and stops at stage two. The memo already has both stages, so this would be its machinery shared, not built a second time (Cardinal Rule 2).
+2. **The node a pin names is a def, not a file.** An edit to one function invalidates the entries and claims that ran that function, not the whole module. The memo's `DefPin` already has this granularity; Nexus's function nodes and the test DAG's claims could share the same key: the qualname plus the digest of the normalised AST.
+3. **The edges come from execution where they can.** The static call cone has 12 to 15 % recall against execution evidence (`retest`'s own note, ORPHEUS 2026-08-18). A memo manifest is an execution record of one call. A coverage capture with per-test contexts is the same for a test. The invalidation cone of a test would be read from what it ran, not from the call graph.
+4. **One store of digests per checkout.** The memo's index store, the graph database and a test-result store would key one table: file identity, then def digest. A rebuild would read only the changed rows.
+
+Each hypothesis is measured before it is built: the share of edits that are doc-only, the cost of stage two on a full tree, and whether Nexus can rebuild incrementally at all (a question for sphinxcontrib-nexus).
 
 ## Side findings to place
 
