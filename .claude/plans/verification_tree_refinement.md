@@ -38,6 +38,10 @@ The graph is also the schedule. A test runs only when its supports are green. A 
    - the test-architect, as a guide to which claims a concept could carry ("not every concept needs every claim in the catalogue... it's just a guide of what one could claim");
    - qa, as a checklist for attack ("I managed to break X because claim A is important and you did not design a test for this claim");
    - the project, which learns from it what a robust scientific code must claim, as the catalogue grows.
+10. **The catalogue is a guide, never an oracle, and it is organised by category, never by field** (the user, 2026-10-16). The test-architect and qa actively pursue the important claims that are not vacuous (invariances, conjectures, theorems) and look for the ones that should be proven and are not. A catalogue entry says "find invariances", never "find this specific invariance": a specific invariance is an instance of the invariance category and belongs to the concept's own claims.
+11. **Each test says which category it is** (the user, 2026-10-16): "Tests should probably get a mark or something clearly say what they are according to the catalogue." The spelling (a marker naming the kind, beside the claim the test passes or fails) is open, and follows from where a claim lives (open question 5).
+12. **A refusal is an elegance question, and the graph says where its debt clears** (the user, 2026-10-16). A guard that refuses illegal input is debt or not depending on where it sits in the graph: the graph shows the root, the producer upstream where the illegal state could be made unspellable instead (`coding-elegance` Pattern 4; the guard-as-debt rule of `coding-standards`). So the graph also serves the elegance-enforcer.
+13. **How bounds compose up the cone is deferred until after the restructuring** (the user, 2026-10-16). No claim on it exists today, so the refinement does not study it. It is filed as an issue for after the restructuring. It is far from trivial: it is the uncertainty contributed by the MODEL itself, which modellers rarely measure; they usually bound the final result, and the usual scope of uncertainty quantification is the uncertainty brought in by the model's parameters. Measuring it would make ORPHEUS an outlier in computational modelling.
 
 ## Vocabulary (one meaning per word)
 
@@ -251,7 +255,7 @@ It is the dual of the error catalogue, `docs/theory/verification/error_catalog.r
 | bit identity | two computations agree to the last bit | a re-spelling that keeps the floating-point reduction tree |
 | bounded drift from re-association | two orderings agree within a bound set by the reduction depth or iterations × condition × ULP, and are expected to differ | `vv-principles`, "Bit-identity vs principled-equivalence" |
 | positivity, the cone | a flux or an albedo lies in its positive cone | ERR-043, ERR-046 |
-| refusal | an illegal input is refused with a named reason, never answered | `NoLeastSolution` on an (n,2n)-supercritical body |
+| refusal | an illegal input is refused with a named reason, never answered. Whether the guard is debt is read from the graph (ruling 12) | `NoLeastSolution` on an (n,2n)-supercritical body |
 | agreement with an independent reference | the answer matches a structurally independent reference within a measured band | the characteristic reading against the mpmath route |
 | sensitivity and uncertainty | the answer's sensitivity to the discretisation and its numerical uncertainty are bounded and measured | the method-level certificate (ruling 8); no instance yet `[R]` |
 
@@ -260,7 +264,7 @@ It is the dual of the error catalogue, `docs/theory/verification/error_catalog.r
 - qa attacks the kinds a concept should claim and does not.
 - A census finding of a kind not in the catalogue adds a row.
 
-**The certificate.** At the top of each method's sub-cone sits a composed claim. Its parts are the claims it rests on, each with its bound. Its statement is the method's verified behaviour, with the sensitivity and uncertainty from numerical and method sources, bounded and measured. How a bound composes up the cone (added, multiplied, taken as the maximum) is an open mathematical question, owed before the certificate can be more than a list `[R]`.
+**The certificate.** At the top of each method's sub-cone sits a composed claim. Its parts are the claims it rests on, each with its bound. Its statement is the method's verified behaviour, with the sensitivity and uncertainty from numerical and method sources, bounded and measured. How a bound composes up the cone (added, multiplied, taken as the maximum) is an open mathematical question, owed before the certificate can be more than a list `[R]`. It is deferred until after the restructuring (ruling 13).
 
 **Where the catalogue lives** is open. A theory page under `docs/theory/verification/`, beside the error catalogue, with each kind a directive the graph indexes, is the obvious candidate `[HYPOTHESIS]`.
 
@@ -269,11 +273,38 @@ It is the dual of the error catalogue, `docs/theory/verification/error_catalog.r
 - So the reflection-invariance claim of a quadrature rests on the claims of `RigidMotion` (its action on a direction is an isometry, and a reflection is an involution) and of `SubgroupOfO3`. SN's reflective-boundary claim rests on it in turn.
 - Whether those `RigidMotion` claims are tested today, and as which kinds, is a census question.
 
+## How census verdicts are decided (`[HYPOTHESIS]`, proposed 2026-10-16, awaiting the user's ruling)
+
+Per layer, in three passes. Each pass narrows the next, so no mutation is run against a test it cannot reach.
+
+1. **Capture what each test executes.** One coverage run of the layer's tests with per-test contexts (`dynamic_context = test_function`, `--show-contexts`), ingested into Nexus.
+   - This is the instrument the plan already owes the `rests_on` falsifier: a claim resting on another must execute what the lower claim executes.
+   - Captures of this kind exist for every package (`runtime_runs`: the "wide capture v2" runs). They predate the `tests/gates/` layout, so they are re-taken, not reused `[M]` 2026-10-16, the run list.
+2. **A reading pass by the test-architect.** For each test it records:
+   - the claim it passes or fails, and its kind from the catalogue;
+   - its rung, and the claims it should rest on;
+   - a candidate verdict: keep, strengthen, re-base, merge into a stronger twin, or vacuous.
+
+   The candidate verdicts are flags, not rulings. Reading finds the claim, which no instrument can. It cannot prove a test blind or dominated, which only a mutation can.
+3. **Adjudication by a kill matrix.** Rows are mutations, columns are tests; a cell is red or green.
+   - **Designed mutations:** at least one per claim, inside the claim's algebraic class (X1), aimed at what the claim says.
+   - **Generated mutations:** cosmic-ray over the layer's modules, as a sweep for defects nobody named. `[M]` the harness's founding run: 373 of 374 mutants killed on `diamond.py`, about 1 s per mutant (`tests/gates/_mutation/README.md`).
+   - **Each mutation runs only on the tests whose capture executed the mutated lines** (pass 1). The matrix's cost is then a few tests per mutation, not the whole layer per mutation.
+   - Mutations are textual, on a copy of the tree. Memo-served values cannot be reached in-process (`vv-principles` #17), as the bypass drop's re-drop showed.
+
+**The verdicts the matrix decides, and how:**
+- **Blind:** a test reddened by no mutation of its claim. Before it retires, qa gets one attempt to find a mutation that reddens it. A test qa can redden was under-attacked, not blind.
+- **Dominated:** a test whose red set is contained in another test's red set, for the same claim. The containment is relative to the mutation set: a test can look dominated only because the set lacks the one mutation it alone catches. So a dominated verdict is confirmed by reading, and qa gets one attempt to find a mutation that separates the two, before the weaker test retires into its stronger twin (ruling 3).
+- **Strengthen:** a claim the catalogue marks important (an invariance, a theorem) whose own designed mutation no test reddens. The claim is real and its instrument is missing.
+- **Re-base:** a test that reddens under mutations of a simpler claim it does not declare resting on. The matrix shows the dependence; the edge is then designed and declared.
+
+Mutant subsumption, the containment of one test's kill set in another's, is the standard instrument of mutation testing for redundant tests. Here it is run per claim, not per suite.
+
 ## Open questions for the user
 
 Questions 1–3 were answered on 2026-10-16 (rulings 4–6).
 
-4. **Census verdicts:** proven by mutation per test, which is expensive and exact, or flagged by reading first with a mutation pass per capability after?
+4. **Census verdicts:** proposed above ("How census verdicts are decided"); awaiting the user's ruling.
 
 5. **Where a claim lives that has no equation** (follows from ruling 4). [Answered in part, ruling 7: both homes, chosen per claim; the rule for choosing is open.] An equation's claim lives at its `:label:` on a theory page, and `verifies` names it. A contract, an invariant or a law of a type has no such home today. 12 745 foundation test ids carry no `verifies`. The candidates, each `[HYPOTHESIS]`:
    - a claim directive on the theory or architecture page that owns the concept, minted like `.. error-entry::` (a node in the graph, an id a marker can name);
