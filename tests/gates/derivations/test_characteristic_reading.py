@@ -78,6 +78,7 @@ _D5 = _SYSTEM + "test_a_closed_body_reads_k_inf_with_a_flat_flux_in_the_infinite
 _PAIRING = _REFERENCE + "test_a_flux_integral_is_the_volume_integral_of_the_galerkin_flux"
 _M1 = _HERE + "test_the_point_rule_integrates_the_direction_moments"
 _C2 = _HERE + "test_the_reading_at_a_general_point_is_the_mpmath_route"
+_E4 = _HERE + "test_a_pure_absorbers_point_values_are_the_mpmath_route"
 
 _MR3 = (0.0, 0.5, 1.5, 2.0)
 _MR3H = (0.4, 0.5, 1.5, 2.0)
@@ -130,6 +131,33 @@ def _given(chart: str, breakpoints, laws, x: float, resolution=_WORK, sigma=_SIG
     return system.point_flux(x, _emission(system, q))
 
 
+def _given_by_the_door(chart: str, breakpoints, laws, x: float, resolution=_WORK, sigma=_SIGMA, q=_Q) -> np.ndarray:
+    """``_given``'s reading posed as a question and read through the door: a ``FixedSource`` of the per-region rates
+    ``q`` in pure absorbers of total cross sections ``sigma``, one ``PointValue`` per group. With no scattering and no
+    fission the emission is the source (E4), so this is ``_given`` to the rounding of the source's least solution
+    (`[M]` 2026-10-17, the concept-2 spec's ``equiv_*.log``: at most 1 ulp on the 8 re-posed rows). Each reading is a
+    traced-memo client (``CharacteristicDerivation.evaluate``): a warm store serves it, and an in-process mutation
+    reaches it only under ``bypass()``. This helper poses only a solid radial body behind one outer law
+    ``(specular, 0)``; the door itself poses more (a hollow body, a slab, a diffuse wall)."""
+    if breakpoints[0] != 0.0 or len(laws) != 1 or laws[0][1] != 0.0:
+        raise ValueError(f"_given_by_the_door poses only a solid body behind one (specular, 0) law, got {breakpoints}, {laws}")
+    n, groups = len(breakpoints) - 1, len(sigma)
+    absorbers = {j: _mixture([s[j] for s in sigma], np.zeros((groups, groups))) for j in range(n)}
+    # BC.vacuum, not _partial(0.0): the two read the same wall, but they are different content, so E4's stored
+    # readings keep their key only under the deck's own spelling of vacuum.
+    outer = BC.vacuum if laws[0][0] == 0.0 else _partial(laws[0][0])
+    geometry = getattr(StructuredGeometry, chart)(tuple(breakpoints), tuple(range(n)), outer=outer)
+    specification = _spec(geometry, absorbers, FixedSource(RegionwiseConstant(np.array(q, dtype=float).T)))
+    return np.array([_point(specification, x, g, _door_resolution(resolution)) for g in range(groups)])
+
+
+def _door_resolution(resolution) -> Resolution:
+    """The door's ``Resolution`` of a ``(degree, layers, line points)`` triple: ``_given``'s grading ratio 0.4 and the
+    least source points that project the panel space onto itself, 2 (p + 1)."""
+    degree, layers, line_points = resolution
+    return Resolution(degree, layers, 0.4, TransportResolution(line_points), 2 * (degree + 1))
+
+
 def _route(chart: str, breakpoints, laws, x: float, g: int, sigma=_SIGMA, q=_Q) -> float:
     """The mpmath route of the point's flux: the chart's one-dimensional integral (``_characteristic_point_mp``)."""
     s, qq = tuple(sigma[g]), tuple(q[g])
@@ -150,8 +178,8 @@ def _route(chart: str, breakpoints, laws, x: float, g: int, sigma=_SIGMA, q=_Q) 
     raise AssertionError(chart)
 
 
-def _check_route(chart, breakpoints, laws, x, band=_GIVEN_BAND, **kwargs) -> None:
-    got = _given(chart, breakpoints, laws, x, **kwargs)
+def _check_route(chart, breakpoints, laws, x, band=_GIVEN_BAND, read=_given, **kwargs) -> None:
+    got = read(chart, breakpoints, laws, x, **kwargs)
     data = {k: v for k, v in kwargs.items() if k in ("sigma", "q")}
     for g in range(len(got)):
         expected = _route(chart, breakpoints, laws, x, g, **data)
@@ -395,7 +423,7 @@ def test_the_reading_at_a_general_point_is_the_mpmath_route(chart, breakpoints, 
 @pytest.mark.verifies("characteristic-quadrature", "peierls-greens-cylinder-architecture")
 @pytest.mark.parametrize(("albedo", "x", "line_points"), [(0.0, 1.1, 8), (0.0, 2.0, 16), (0.6, 1.1, 8)],
                          ids=["vacuum-1.1", "vacuum-wall", "partial-1.1"])
-@pytest.mark.rests_on(_M1)
+@pytest.mark.rests_on(_M1, _E4)
 def test_the_reading_at_a_general_point_of_a_cylinder_is_the_mpmath_route(albedo: float, x: float, line_points: int) -> None:
     """[C2, cylinder; l1, REFERENCE] Off the axis of the MR3 cylinder: under vacuum the azimuthal integral of
     in-plane Ki_2 differences, under a partial mirror the two-dimensional route (alpha, theta) over the in-plane
@@ -410,8 +438,10 @@ def test_the_reading_at_a_general_point_of_a_cylinder_is_the_mpmath_route(albedo
 
     ``peierls-greens-cylinder-architecture`` (psi = F + e^{-Sigma_t L} psi_surf, phi its angular reduction): the
     partial-mirror row is its witness (the vacuum rows null psi_surf), and the row is ``slow``, so the label has no
-    default-tier verifier here."""
-    _check_route("cylinder", _MR3, ((albedo, 0.0),), x, resolution=(3, 0, line_points))
+    default-tier verifier here. The reading is through the door (``_given_by_the_door``): on a warm store the reading
+    code does not run in this process, so a warm coverage capture cannot corroborate either label from this row, and
+    an in-process mutation reaches it only under ``bypass()``."""
+    _check_route("cylinder", _MR3, ((albedo, 0.0),), x, resolution=(3, 0, line_points), read=_given_by_the_door)
 
 
 _C2B = [("sphere", _MR3, ((a, 0.0),), x) for a in (0.6, 0.9, 0.99) for x in (2.0, 2.0 * (1 - 1e-6))] + [
@@ -467,7 +497,7 @@ def test_the_blocks_total_under_a_partial_mirror_is_the_closed_form(albedo: floa
 @pytest.mark.slow
 @pytest.mark.verifies("characteristic-galerkin-assembly")
 @pytest.mark.parametrize("albedo", [0.9, 0.99])
-@pytest.mark.rests_on(_ESCAPE)
+@pytest.mark.rests_on(_ESCAPE, _E4)
 def test_on_a_cylinders_partial_mirror_the_block_and_the_wall_reading_are_the_closed_forms(albedo: float) -> None:
     """[C2b, the cylinder; l1, REFERENCE] A homogeneous cylinder (Sigma 2.4, R 2, q 0.7) behind a partial mirror: its
     1^T K 1 equals the mpmath integral over lines (b, theta) to 1e-14, and its reading ON the wall equals the
@@ -479,16 +509,18 @@ def test_on_a_cylinders_partial_mirror_the_block_and_the_wall_reading_are_the_cl
     (``ta/measure_cylinder_rim.log``): 1^T K 1 1.6e-15 at both albedos; the wall
     4.3e-14 (0.9) and 3.4e-13 (0.99); 0 tangent lines among the point rule's. Positive control (the grading's floor
     at 0, ``measure_cylinder_rim_floor0.log``): 4 (0.9) and 52 (0.99) tangent lines, and the wall reading raises
-    "lies on a transit". [The floor retires with the level (K, #590); this row's first red becomes the level
-    dropped.] First reds: the level not passed by the line set (the wall rows raise or drift); G infinite (the wall
-    rows move). Slow: 30 s per albedo.
+    "lies on a transit". The wall leg is read through the door (``_given_by_the_door``, 1 ulp from the system's
+    ``point_flux``). First reds, `[M]` 2026-10-17 under ``bypass()`` (the concept-2 battery,
+    ``scratch/characteristic_architecture/p3/c3/concept2/ta/``): G infinite reddens the block leg; the polar sine
+    dropped from the point rule and the door's answer scaled by 1 + 1e-9 redden the wall leg. Blind: the level not
+    passed by the line set, which once reddened the wall leg (#608). Slow: 30 s per albedo.
     """
     basis = _basis("cylinder", (0.0, 2.0), 3, 2, 0.4)
     system = _absorbing("cylinder", (0.0, 2.0), ((albedo, 0.0),), sigma=((2.4,),))
     ones = np.ones(basis.size)
     total = float(ones @ system.groups[0].block @ ones)
     assert abs(total / mpref.specular_cylinder_total(2.4, 2.0, albedo) - 1.0) < 1e-14
-    wall = float(system.point_flux(2.0, system.emission.restrict(np.full((1, basis.size), 0.7)))[0])
+    wall = float(_given_by_the_door("cylinder", (0.0, 2.0), ((albedo, 0.0),), 2.0, sigma=((2.4,),), q=((0.7,),))[0])
     assert abs(wall / mpref.phi_cylinder((0.0, 2.0), (2.4,), (0.7,), albedo, 2.0) - 1.0) < 1e-12
 
 
@@ -755,13 +787,14 @@ def test_the_blocks_total_under_a_void_or_thin_outer_shell_is_the_closed_form(fi
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.verifies("characteristic-quadrature")
-@pytest.mark.rests_on(_M1)
+@pytest.mark.rests_on(_M1, _E4)
 def test_a_cylinders_interface_point_is_read_to_the_bar() -> None:
     """[Q2 = qa F2; l1, REFERENCE] The MR3 cylinder under vacuum, at the interface x = 1.5: the polar-speed layer
     e^{-2 Sigma y / sin theta} sits at every panel top, not only the wall; the reading equals the Ki_2 azimuthal route
     to 1e-12. `[M]` qa (``qa/p2_cyl.log``), first build, layers 0: 1.0e-6 at 8 line points, 1.8e-8 at 16. First red:
-    G's layer term at the outermost panel top only. Slow (a cylinder's block)."""
-    _check_route("cylinder", _MR3, (_VACUUM,), 1.5, resolution=(3, 0, 8))
+    G's layer term at the outermost panel top only. Slow (a cylinder's block). Read through the door
+    (``_given_by_the_door``), so a mutation reaches it only under ``bypass()``."""
+    _check_route("cylinder", _MR3, (_VACUUM,), 1.5, resolution=(3, 0, 8), read=_given_by_the_door)
 
 
 @pytest.mark.l1
@@ -779,18 +812,21 @@ def test_the_wall_reading_as_the_mirror_tends_to_one_holds_the_bar(albedo: float
 
 
 @pytest.mark.l1
-@pytest.mark.parametrize("x", [pytest.param(1.0, marks=pytest.mark.slow), 0.5], ids=["wall", "interface"])
+@pytest.mark.parametrize(("x", "read"), [pytest.param(1.0, _given_by_the_door, id="wall",
+                                                      marks=(pytest.mark.slow, pytest.mark.rests_on(_E4))),
+                                         pytest.param(0.5, _given, id="interface")])
 @pytest.mark.rests_on(_M1)
 @pytest.mark.catches("ERR-105")
-def test_a_small_cylinders_layer_is_graded_outside_slow(x: float) -> None:
+def test_a_small_cylinders_layer_is_graded_outside_slow(x: float, read) -> None:
     """[Q4 = qa F4; l1, REFERENCE] A small cylinder (radii 0.5, 1; Sigma (0.6, 2.4) and (1.7, 0.8); q (1, 0.7) and
     (0.4, 1.3); vacuum) read at its wall and at its interface, degree 2, layers 0, 8 line points, equals the Ki_2
     route to 1e-12: the fast catcher of G's layer term (on the sphere the layer is s = 1, graded by the exponential
     ends; only the cylinder's slow polar angles make it thin, each graded at its own sin(theta) since #587). `[M]`
     2026-10-08, before #587 (``ta/measure_widened.log``):
     interface 4.5e-14 (5 s, the route 10 s), wall 4.8e-15 (37 s, slow); at degree 1 and 6 points 5.5e-11 and 4.6e-12, so
-    the resolution is the row's. First red: G's layer term removed (the pole term only)."""
-    _check_route("cylinder", (0.0, 0.5, 1.0), (_VACUUM,), x, resolution=(2, 0, 8),
+    the resolution is the row's. First red: G's layer term removed (the pole term only). The wall is read through the
+    door (``_given_by_the_door``), so its re-drop needs ``bypass()``; the interface is read in process."""
+    _check_route("cylinder", (0.0, 0.5, 1.0), (_VACUUM,), x, resolution=(2, 0, 8), read=read,
                  sigma=((0.6, 2.4), (1.7, 0.8)), q=((1.0, 0.7), (0.4, 1.3)))
 
 
@@ -1037,10 +1073,10 @@ def test_at_the_centre_the_angular_flux_is_isotropic_and_four_pi_of_it_is_the_re
 # ── the door ─────────────────────────────────────────────────────────────
 
 _K = CellCoefficient.every(Channel.FISSION_EMISSION)
-_DOOR_RES = Resolution(3, 2, 0.4, TransportResolution(8), 8)
+_DOOR_RES = _door_resolution(_WORK)
 #: The coarse resolution of the rows that integrate door readings over the body: the identity they gate holds at
 #: any resolution, so the cheapest that solves.
-_COARSE = Resolution(1, 0, 0.4, TransportResolution(6), 4)
+_COARSE = _door_resolution((1, 0, 6))
 
 
 def _spec(geometry: StructuredGeometry, mixtures: dict[int, Any], question: Any) -> GeometrySpecification:
@@ -1073,27 +1109,29 @@ def _door_volume_integral(specification, resolution, weight_of_region: np.ndarra
 
 
 @pytest.mark.l1
-@pytest.mark.parametrize(("outer", "albedo"), [(BC.vacuum, 0.0), (_partial(0.6), 0.6)], ids=["vacuum", "partial-0.6"])
+@pytest.mark.parametrize("albedo", [0.0, 0.6], ids=["vacuum", "partial-0.6"])
 @pytest.mark.rests_on(_C2)
-def test_a_pure_absorbers_point_values_are_the_mpmath_route(outer, albedo: float) -> None:
+def test_a_pure_absorbers_point_values_are_the_mpmath_route(albedo: float) -> None:
     """[E4; l1, REFERENCE] Through the door: a ``FixedSource`` (the MR3 rates per region, both groups) in pure
     absorbers (no scattering, no fission) reads ``PointValue`` at the centre, x = 1.1 and the wall equal to C1/C2's
-    routes, to 1e-12. The door composes with the reading: the emission IS the source. First reds: the source
-    read as a detector (x 4 pi); the solve applied as (I + K S) (no effect here: declared, S = 0; E1 and D3 see it).
+    routes, to 1e-12. The door composes with the reading: the emission IS the source. The posing is
+    ``_given_by_the_door``'s, which the slow cylinder rows read: this row gates that posing on the sphere at ``_WORK``;
+    the cylinder rows' own resolutions are pinned against ``_given`` only by the concept-2 spec's ``equiv_*.log``. First
+    reds: the
+    source read as a detector (x 4 pi); the solve applied as (I + K S) (no effect here: declared, S = 0; E1 and D3 see
+    it).
     """
-    absorbers = {j: _mixture([_SIGMA[0][j], _SIGMA[1][j]], np.zeros((2, 2))) for j in range(3)}
-    spec = _spec(StructuredGeometry.sphere(_MR3, (0, 1, 2), outer=outer), absorbers,
-                 FixedSource(RegionwiseConstant(np.array(_Q).T)))
     for x in (0.0, 1.1, 2.0):
+        got = _given_by_the_door("sphere", _MR3, ((albedo, 0.0),), x)
         for g in range(2):
             expected = _route("sphere", _MR3, ((albedo, 0.0),), x, g)
-            assert abs(_point(spec, x, g) / expected - 1.0) < _GIVEN_BAND, (x, g)
+            assert abs(got[g] / expected - 1.0) < _GIVEN_BAND, (x, g)
 
 
 _GARCIA = _spec(StructuredGeometry.sphere((0.0, 3.0, 5.0, 7.0), (0, 1, 2), outer=BC.vacuum),
                 {0: _mixture([1.0], [[0.99]]), 1: _mixture([0.5], [[0.3]]), 2: _mixture([2.0], [[1.9]])},
                 FixedSource(RegionwiseConstant(np.array([[0.5], [1.0], [1.5]]))))
-_GARCIA_RES = Resolution(4, 3, 0.4, TransportResolution(12), 10)
+_GARCIA_RES = _door_resolution((4, 3, 12))
 #: The reference's own step at Garcia's points, 10 x the largest change (4, 3, 12, 16) -> (5, 4, 16, 20): `[M]`
 #: 2026-10-08, 5.4e-6 at r = 0.5 cm... 5.5 cm (``ta/measure_garcia.log``), so 10 x is 5.4e-5, rounded up.
 _GARCIA_STEP = 6e-5

@@ -506,8 +506,9 @@ _F_ROWS = [
     ("F4-mr3-vacuum-1.1", (0.0, 0.5, 1.5, 2.0), 0.0, 1.1, (0.6, 1.3, 0.45), (1.0, 0.7, 0.4), 0.49269148377062716, 1e-13),
 ]
 #: F4 reads a three-region cylinder's block: 761 s before the carve (`[M]` 2026-10-11, ``ta/f_rows_today.log``), so it
-#: is slow until the lifted block's cost is measured; every other F row took 14 to 55 s before the carve.
-_F_SLOW = {"F4-mr3-vacuum-1.1"}
+#: is slow until the lifted block's cost is measured; every other F row took 14 to 55 s before the carve. A slow row
+#: reads through the door (a stored reading; #405 P3 concept 2), so one membership decides both.
+_F_BY_THE_DOOR = {"F4-mr3-vacuum-1.1"}
 _G2_ROWS = [
     ("F2-thick-0.5", (0.0, 1.0), 0.0, 0.5, (50.0,), (1.0,), 0.019999999999992617, 3e-12),
     ("F2-thick-wall", (0.0, 1.0), 0.0, 1.0, (50.0,), (1.0,), 0.00994999624718132, 3e-12),
@@ -515,20 +516,23 @@ _G2_ROWS = [
 ]
 
 
-def _reading(breakpoints, amplitude, x, sigma, q) -> float:
-    return float(RE._given("cylinder", breakpoints, ((amplitude, 0.0),), x, RE._WORK, (tuple(sigma),), (tuple(q),))[0])
+def _reading(breakpoints, amplitude, x, sigma, q, read=RE._given) -> float:
+    return float(read("cylinder", breakpoints, ((amplitude, 0.0),), x, RE._WORK, (tuple(sigma),), (tuple(q),))[0])
 
 
 @pytest.mark.l1
 @pytest.mark.verifies("characteristic-quadrature")
-@pytest.mark.parametrize(("breakpoints", "amplitude", "x", "sigma", "q", "route", "band"),
-                         [pytest.param(*r[1:], id=r[0], marks=pytest.mark.slow if r[0] in _F_SLOW else ()) for r in _F_ROWS])
+@pytest.mark.parametrize(("breakpoints", "amplitude", "x", "sigma", "q", "route", "band", "read"),
+                         [pytest.param(*r[1:], RE._given_by_the_door, id=r[0],
+                                       marks=(pytest.mark.slow, pytest.mark.rests_on(_READING + "test_a_pure_absorbers_point_values_are_the_mpmath_route")))
+                          if r[0] in _F_BY_THE_DOOR else pytest.param(*r[1:], RE._given, id=r[0]) for r in _F_ROWS])
 @pytest.mark.rests_on(_HERE + "test_each_speed_of_the_family_reads_its_3d_lines_closed_angular_flux",
                       _READING + "test_the_point_rule_integrates_the_direction_moments")
-def test_a_cylinders_reading_is_the_frozen_mpmath_route(breakpoints, amplitude, x, sigma, q, route, band) -> None:
+def test_a_cylinders_reading_is_the_frozen_mpmath_route(breakpoints, amplitude, x, sigma, q, route, band, read) -> None:
     """[F1, F1b, F4; l1, REFERENCE] The lifted point reading of a cylinder (degree 3, 2 layers, 8 line points, 12 along
-    each line) equals the frozen mpmath route, in the fast tier: the partial mirror on the wall at a = 0.9 (F1) and
-    0.999 (F1b, ERR-106's regime: the in-plane lines chorded from their levels), and the MR3 body under vacuum
+    each line) equals the frozen mpmath route: in the fast tier, read in process, the partial mirror on the wall at
+    a = 0.9 (F1) and 0.999 (F1b, ERR-106's regime: the in-plane lines chorded from their levels); slow, read through
+    the door (``_given_by_the_door``, so a mutation reaches it only under ``bypass()``), the MR3 body under vacuum
     inside (F4).
 
     First reds (`[M]` on the prototype, ``ta/proto_battery.log``, ``ta/level_probe.log``): the closure without a in
@@ -537,7 +541,7 @@ def test_a_cylinders_reading_is_the_frozen_mpmath_route(breakpoints, amplitude, 
     converging); kappa inverted, V without the speed, the polar sin dropped (F4 O(1)). Declared blind: F4 to every
     closure arm (vacuum) and to the impact rule at speed 1 (`[M]` -4.1e-15: x = 1.1's lines miss the slow layer).
     """
-    got = _reading(breakpoints, amplitude, x, sigma, q)
+    got = _reading(breakpoints, amplitude, x, sigma, q, read)
     assert abs(got / route - 1.0) <= band, (got, route, got / route - 1.0)
 
 
