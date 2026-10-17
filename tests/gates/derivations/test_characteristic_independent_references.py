@@ -102,8 +102,8 @@ _PS_K_BAND = 1e-5
 _PS_SHAPE_BAND = 1e-4
 
 
-@lru_cache(maxsize=None)
 def _ps1982(case: tuple[float, float, float, float]):
+    # No lru_cache: the solver is a traced memo, and a function cache above it would serve a pre-bypass() value.
     from orpheus.derivations.continuous.peierls_nystrom.ps1982_reference import solve_ps1982_vacuum_sphere
 
     radius, sigma_t, sigma_s, nu_sigma_f = case

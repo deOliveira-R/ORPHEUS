@@ -208,16 +208,19 @@ def _imports_closure(module: str) -> dict[str, set[str]]:
 
 
 @pytest.mark.foundation
-def test_the_mpmath_routes_import_nothing_but_the_memo() -> None:
-    """The mpmath routes' one ``orpheus`` import, in their own source and in each test module they import, at any
-    depth, is the traced memo that stores them (#405 P3, concept 1; ``instrument-doctrine`` X4). The control: the
-    same census of the characteristic reference's ``lines`` module finds imports of ``orpheus`` beyond the memo.
-    First red: an import of the code under test added to the routes' module, at its top or inside a function."""
-    def beyond_memo(module: str) -> set[str]:
-        return {n for names in _imports_closure(module).values() for n in names
+@pytest.mark.parametrize("module", [mpref.__name__, "orpheus.derivations.continuous.peierls_nystrom.ps1982_reference"],
+                         ids=["mpmath-routes", "ps1982"])
+def test_each_stored_reference_imports_nothing_but_the_memo(module: str) -> None:
+    """A stored independent reference's one ``orpheus`` import, in its own source and in each test module it imports,
+    at any depth, is the traced memo that stores it (``instrument-doctrine`` X4): the mpmath routes (#405 P3,
+    concept 1) and the PS-1982 solver (concept 3). The control: the same census of the characteristic reference's
+    ``lines`` module finds imports of ``orpheus`` beyond the memo. First red: an import of the code under test added
+    to the reference's module, at its top or inside a function."""
+    def beyond_memo(name: str) -> set[str]:
+        return {n for names in _imports_closure(name).values() for n in names
                 if (n == "orpheus" or n.startswith("orpheus.")) and n not in (_MEMO, f"{_MEMO}.traced_memo")}
     assert beyond_memo("orpheus.derivations.continuous.characteristic.lines"), "the census sees no import"
-    assert not (found := beyond_memo(mpref.__name__)), sorted(found)
+    assert not (found := beyond_memo(module)), sorted(found)
 
 # ── M. the point rule's measure ──────────────────────────────────────────
 

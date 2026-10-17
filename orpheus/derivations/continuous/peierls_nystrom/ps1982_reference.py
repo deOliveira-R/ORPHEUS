@@ -1,8 +1,12 @@
 r"""Plan-2 follow-on A2 — Pomraning-Siewert 1982 reference solver for
 homogeneous sphere with vacuum BC and isotropic scattering.
 
-This is the **structurally-independent reference** for Variant α
-verification at :math:`\alpha = 0`. PS-1982 derives the same
+This is a **structurally-independent reference** for the vacuum sphere's
+one-group k and flux shape; its consumer today is the characteristic
+reference's gate
+``tests/gates/derivations/test_characteristic_independent_references.py``
+(it was first the reference for Variant α at :math:`\alpha = 0`, since
+deleted). PS-1982 derives the same
 :math:`[E_1(|r-x|) - E_1(r+x)]` kernel as Sanchez 1986 but by a
 genuinely different mathematical path (radial-µ integration + half-space
 addition vs cosh-even-extension). Same final kernel, different routes —
@@ -62,8 +66,8 @@ straight Nyström breaks down. Instead we use product-integration:
    :math:`k_{\rm eff}`.
 
 This is slower than direct matrix Nyström but **correct**, and
-the prototype is meant for verification (used as L1 reference for
-Variant α), not production speed.
+the prototype is meant for verification (an L1 reference), not
+production speed.
 
 References
 ----------
@@ -84,6 +88,8 @@ import numpy as np
 from scipy.integrate import quad
 from scipy.interpolate import CubicSpline
 from scipy.special import exp1
+
+from orpheus.numerics.traced_memo import traced_memo
 
 
 @dataclass(frozen=True)
@@ -137,6 +143,7 @@ def _apply_L_operator(
     return out
 
 
+@traced_memo
 def solve_ps1982_vacuum_sphere(
     R: float,
     sigma_t: float,
@@ -168,6 +175,12 @@ def solve_ps1982_vacuum_sphere(
     Returns
     -------
     :class:`PS1982Result`
+
+    Notes
+    -----
+    A traced memo (:ref:`verification-reference-cache-clients`): a solve costs 11.6 to 20.7 s at the gates' 40 nodes
+    (`[M]` 2026-10-17, ``scratch/characteristic_architecture/p3/c3/concept3/scoping.md``), and its result is plain
+    data, so a warm store serves it. Keyed on the arguments as given: ``R=5`` and ``R=5.0`` are two entries.
     """
     R_opt = R * sigma_t
 
