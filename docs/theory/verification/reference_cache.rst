@@ -38,7 +38,9 @@ The reference cache: a traced memo keyed on what ran
    at 8fbb1d61 on branch fix/memo-hit-cost, 2026-10-17, and for the
    first test-oracle clients and the memo's child resolution
    (_resolve_memo) at 7ca91c43 and 333268fb on branch
-   test/characteristic-oracle-memo, 2026-10-17.
+   test/characteristic-oracle-memo, 2026-10-17, and for the two oracle
+   routes stored after them at 76d0409d on branch test/oracle-memo-columns,
+   2026-10-17.
 
 A reference reading costs seconds to minutes. The multi-region sphere
 of the A|B|A cross-check, at the coarse resolution the gates use, takes
@@ -2295,7 +2297,7 @@ The clients
 ===========
 
 The clients are the characteristic reading, its solve and its
-transport blocks, and the two mpmath routes of a test oracle, below. The
+transport blocks, and four mpmath routes of a test oracle, below. The
 two trajectory-resolvent clients described first were P3's, and were
 deleted with their family; their description is the record of how ruling
 2 was first realised.
@@ -2391,13 +2393,36 @@ cProfile of a warm run of the slow rows
 routes, ``phi_cylinder_vacuum`` at 12 distinct points a run, 43.6 s each,
 and ``phi_cylinder`` at 5, 94 s each. Each sat under ``lru_cache``, which
 lives for one process, so every run paid for them again. The module's
-other routes take milliseconds a point and keep their ``lru_cache``. That
+other routes took milliseconds a point and kept their ``lru_cache``, apart
+from the two stored after them (the next paragraph). That
 split is the rule the exact medium's section set: a stored hit costs
 about 8 ms in process (`[M]` the elegance review's probe3: 17.7 ms on the
 first lookup, then 8.3 and 7.5 ms) and a first call a miss of at least
 one interpreter start, about 0.5 s (:ref:`verification-reference-cache-miss-cost`),
 so a millisecond route would cost about its own time on every lookup and
 far more on its miss.
+
+*The two routes stored after them* (``76d0409d``, the user's ruling of
+2026-10-17, "store them"). ``specular_cylinder_total``, the block total of
+a solid cylinder behind a partial mirror, now carries ``@traced_memo`` in
+place of its ``lru_cache``, two keys a run. ``cylinder_polar_density`` is
+new: the lift's polar-column rows computed it inline, the density
+:math:`g(\theta) = \tfrac{1}{\pi}\sin\theta\int\psi\,d\alpha` at each
+polar node of the reading's rule. It is stored as one column per call, not
+one entry per node: a node costs 0.07 to 0.21 s, less than a miss, while a
+column costs 9 to 27 s. `[M]` against the inline computation under
+``bypass()``, the 12 nodes of the interface row: 9 bit-equal and 3 off by
+1 ulp, against the row's band of 1e-13 (its tangency breaks are now
+computed at 20 digits rather than 15). Over the 27 rows that read them
+(``scratch/characteristic_architecture/p3/c3/concept2/rows_cold.log`` and
+``rows_warm.log``, one run each, serially, under ``-O``), a cold store
+took 162 s and a warm one 29 s; the polar row
+``test_each_polar_node_of_the_reading_is_its_mpmath_density[wall-mirror]``
+went from 14.3 s warm on the tree before (the scoping's measurement) to
+1.5 s, and the partial-mirror row ``[0.99]`` of
+``test_on_a_cylinders_partial_mirror_the_block_and_the_wall_reading_are_the_closed_forms``
+read 83 s cold and 2.7 s warm. The census gate below reads the whole
+module, so it covers both.
 
 *Why this is not the size threshold refused for the transport block.* On
 2026-10-15 the user ruled that ``group_transport`` is memoised whatever its
@@ -3834,6 +3859,15 @@ the memo. The 2026-10-04 rows sat on the branch
      - Milestone
      - Issue
      - Where
+   * - 2026-10-17
+     - **Two more oracle routes stored** (#405 P3). The partial-mirror
+       block total ``specular_cylinder_total`` carries ``@traced_memo`` in
+       place of its ``lru_cache``, and the lift's inline polar density
+       became the stored column ``cylinder_polar_density``, one entry per
+       column (a node costs less than a miss). 27 rows: cold 162 s, warm
+       29 s; the polar row ``[wall-mirror]`` 14.3 s warm to 1.5 s.
+     - #405
+     - ``76d0409d``, (this commit)
    * - 2026-10-17
      - **The first test-oracle clients** (#405 P3, concept 1). A warm run
        of the slow lift and reading rows spent 993 s in two mpmath routes
