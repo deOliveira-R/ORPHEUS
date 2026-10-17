@@ -10408,13 +10408,34 @@ older entries classify against.
 
    **Caught by:**
    ``tests/gates/derivations/test_characteristic_reading.py::test_a_small_cylinders_layer_is_graded_outside_slow``,
-   both rows (the interface outside ``slow``, the wall ``slow``). `[M]`
-   2026-10-08: the test-architect's arm removing the layer term reddens the
-   interface row, the one row outside ``slow`` it reddens
-   (``ta/battery/verdicts.md``); the archivist's re-drop of the same arm
-   on the function alone reddens both rows (37 s). The three-region
-   cylinder's interface row, ``test_a_cylinders_interface_point_is_read_to_the_bar``
-   (``slow``), was written as a catcher and has not been re-dropped.
+   whose ``catches`` marker sits on the function and so covers both of its
+   rows: ``[interface]``, outside ``slow``, read in process, and ``[wall]``
+   (``slow``), read through the door
+   (``CharacteristicDerivation.evaluate(PointValue)``, a traced-memo
+   client) since #405 P3 concept 2 (``94143ecd``,
+   :ref:`verification-reference-cache-clients`). The two rows reach a
+   re-drop differently. An in-process mutation reaches ``[interface]``
+   only: `[M]` 2026-10-17, qa's review of concept 2 (its M5, on the landed
+   tree, without ``bypass()``), the arm removing the layer term reddens
+   ``[interface]`` at :math:`1.1 \times 10^{-8}` against the band
+   :math:`10^{-12}`, and ``[wall]`` stays green, because the store serves
+   the reading that the unmutated source computed. ``[wall]`` reddens only
+   when the mutation reaches the generation, under ``bypass()`` entered at
+   ``pytest_configure`` or on a mutated copy of the tree: `[M]` 2026-10-17,
+   the test-architect under ``bypass()`` (the concept-2 specification's
+   section 6,
+   ``scratch/characteristic_architecture/p3/c3/concept2/ta/runs/err105_q4.log``),
+   ``[wall]`` :math:`4.8 \times 10^{-7}` and ``[interface]``
+   :math:`1.1 \times 10^{-8}`, both red. The catcher in the default tier is
+   therefore ``[interface]``, and it needs no bypass. Before concept 2 both
+   rows read in process: `[M]` 2026-10-08, the test-architect's arm
+   removing the layer term reddened the interface row, the one row outside
+   ``slow`` it reddens (``ta/battery/verdicts.md``), and the archivist's
+   re-drop of the same arm on the function alone reddened both rows
+   (37 s). The three-region cylinder's interface row,
+   ``test_a_cylinders_interface_point_is_read_to_the_bar`` (``slow``, read
+   through the door since concept 2), was written as a catcher and has not
+   been re-dropped with this arm.
 
    **Lesson.** ⭐ **When a feature's width in one coordinate is set by
    another coordinate, integrate iteratively and grade the inner rule at

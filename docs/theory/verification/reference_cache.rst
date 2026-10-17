@@ -40,6 +40,8 @@ The reference cache: a traced memo keyed on what ran
    (_resolve_memo) at 7ca91c43 and 333268fb on branch
    test/characteristic-oracle-memo, 2026-10-17, and for the two oracle
    routes stored after them at 76d0409d on branch test/oracle-memo-columns,
+   2026-10-17, and for the slow cylinder point readings read through the
+   door (concept 2) at 94143ecd on branch test/door-cylinder-readings,
    2026-10-17.
 
 A reference reading costs seconds to minutes. The multi-region sphere
@@ -143,17 +145,21 @@ Key facts
   ``evaluate`` returns, an establishment or an uncertified value, never a
   certificate or a verdict; ``ReferenceSolution`` re-checks every claim
   against that evaluation, cached or computed.
-* **Five clients today.** Three are in the characteristic reference: its
+* **Seven clients today.** Three are in the characteristic reference: its
   reading, ``CharacteristicDerivation.evaluate``, keyed on the derivation
   and the observable; its solve, ``CharacteristicDerivation.solve``, keyed
   on the derivation alone and a child entry of every reading (#592); and
   one group's transport block, ``group_transport``, keyed on the basis,
   the walls, the group's total cross sections, the resolution and the
-  emitting regions, and a child entry of the solve (#405 P3 step 2c). Two
-  are a test's oracle, the mpmath routes ``phi_cylinder_vacuum`` and
-  ``phi_cylinder`` of ``tests/gates/derivations/_characteristic_point_mp.py``,
-  which take tens of seconds to minutes a point (#405 P3 concept 1,
-  2026-10-17). P3 shipped three others, the two multi-region trajectory-resolvent solvers
+  emitting regions, and a child entry of the solve (#405 P3 step 2c). Four
+  are a test's oracle, the mpmath routes ``phi_cylinder_vacuum``,
+  ``phi_cylinder``, ``specular_cylinder_total`` and
+  ``cylinder_polar_density`` of
+  ``tests/gates/derivations/_characteristic_point_mp.py``, which take
+  seconds to minutes a call (#405 P3 concept 1 and ``76d0409d``,
+  2026-10-17). The slow cylinder point-reading rows of the characteristic
+  gates read through the first of these, the reading, since concept 2
+  (``94143ecd``), which added no client. P3 shipped three others, the two multi-region trajectory-resolvent solvers
   (``solve_greens_function_sphere_mr`` and
   ``solve_greens_function_cylinder_mr``) and the trajectory-resolvent
   derivation's ``evaluate``; they were deleted with their family at P1
@@ -2180,8 +2186,9 @@ symbol) is invisible to every row that reads a value through the memo: a
 miss generates from the source on disk, and a hit serves what that source
 computed. Since the transport blocks became a client (2026-10-15), that
 covers every characteristic row that reads ``GalerkinSystem.groups``, and
-since 2026-10-17 every row that reads the oracle routes
-``phi_cylinder_vacuum`` and ``phi_cylinder`` (the clients, below). A
+since 2026-10-17 every row that reads one of the four stored oracle routes
+and the eight slow cylinder point-reading rows that read through
+``CharacteristicDerivation.evaluate`` (concept 2; the clients, below). A
 battery or a ``catches`` re-drop on such rows mutates textually (a copied
 tree or a worktree, so the defect is on disk) or has its plugin enter
 :func:`~orpheus.numerics.traced_memo.bypass` at ``pytest_configure``;
@@ -2524,18 +2531,202 @@ fresh worktree with an empty store, cold and then warm.
 
 The 17 added entries are the 12 and 5 distinct oracle points. A warm run
 saves 226 s. A cold run computes each route once either way, so its
-31 s difference is between two single runs and is not a measured gain. What remains of the warm
-127 s is computed in process, not in the oracle (the ``--durations`` of
-``after_warm.log`` beside the summary): the characteristic reading's
-point reads through ``point_flux``, the top rows 28.9 s
+31 s difference is between two single runs and is not a measured gain.
+On ``333268fb`` the rest of the warm 127 s was computed in process, not in
+the oracle (the ``--durations`` of ``after_warm.log`` beside the summary):
+the characteristic reading's point read through ``point_flux``, the top
+rows 28.9 s
 (``test_the_reading_at_a_general_point_of_a_cylinder_is_the_mpmath_route[vacuum-wall]``)
 and 25.6 s
 (``test_a_cylinders_reading_is_the_frozen_mpmath_route[F4-mr3-vacuum-1.1]``),
 and the lift's polar-column quadrature, 14.3 s
 (``test_each_polar_node_of_the_reading_is_its_mpmath_density[wall-mirror]``).
-Concept 2 of ``.claude/plans/verification_tree_refinement.md`` (an oracle
-value computed once and stored, instead of recomputed by every test that
-reads it) is the next step.
+The polar column is a stored route since ``76d0409d`` (above), and the
+point readings are served by the reading's memo since concept 2 (below).
+
+**The slow cylinder point readings, through the door** (#405 P3 concept
+2 of ``.claude/plans/verification_tree_refinement.md``, 2026-10-17,
+``94143ecd``; the user's ruling of 2026-10-17, "Door, with batteries in
+bypass"). Eight ``slow`` rows of the characteristic gates read their point
+flux as a question put to the reference,
+``CharacteristicDerivation.evaluate(PointValue(x, g))``, one call per
+group, instead of ``GalerkinSystem.point_flux`` in the test process. They
+are the three rows of
+``test_the_reading_at_a_general_point_of_a_cylinder_is_the_mpmath_route``
+(``[vacuum-1.1]``, ``[vacuum-wall]``, ``[partial-1.1]``),
+``test_a_cylinders_interface_point_is_read_to_the_bar``, the wall leg of
+the two rows of
+``test_on_a_cylinders_partial_mirror_the_block_and_the_wall_reading_are_the_closed_forms``
+(``[0.9]``, ``[0.99]``; the block-total leg is unchanged),
+``test_a_small_cylinders_layer_is_graded_outside_slow[wall]`` in
+``test_characteristic_reading.py``, and
+``test_a_cylinders_reading_is_the_frozen_mpmath_route[F4-mr3-vacuum-1.1]``
+in ``test_characteristic_lift.py``. Each row's claim, route side and band
+are unchanged.
+
+*The posing.* ``_given_by_the_door``, beside the in-process ``_given`` in
+``tests/gates/derivations/test_characteristic_reading.py``, takes
+``_given``'s arguments and returns its type. It poses a
+``GeometrySpecification``: a solid ``StructuredGeometry`` behind one outer
+law (``BC.vacuum`` at albedo 0, a partial specular mirror otherwise), pure
+absorbers of the row's total cross sections, and the question
+``FixedSource(RegionwiseConstant(q))``. It reads that specification at the
+``Resolution`` that ``_door_resolution`` maps the row's (degree, layers,
+line points) to: the grading ratio 0.4 and the least source points
+:math:`2(p + 1)`. With no scattering and no fission the emission is the
+source, so the door reads the quantity ``_given`` reads. The helper
+refuses with a ``ValueError`` a hollow body, more than one law and a law
+with a diffuse part; the door itself poses a hollow body and a diffuse
+wall, so the edge is the helper's, not the door's. A test picks its reader per parameter with ``read=``
+(on ``_check_route``, and on the lift's ``_reading``), so a test that
+has both kinds of row carries both: in the lift file one set,
+``_F_BY_THE_DOOR``, decides both a row's tier and its reader. The door
+rows declare ``rests_on`` the door's own gate on a pure absorber,
+``test_a_pure_absorbers_point_values_are_the_mpmath_route`` (E4),
+per parameter, so the in-process rows of the same tests do not.
+
+*Why the door, and not a memo of* ``point_flux``. A reading of the
+reference is already a client: ``evaluate`` is keyed on the derivation
+(the specification and the resolution) and the observable, and its solve
+is a child entry. A point reading posed as a question is therefore served
+by machinery that exists, and concept 2 memoises nothing new.
+``GalerkinSystem.point_flux`` cannot be a client: ``GalerkinSystem`` is a
+``dataclass(frozen=True, eq=False)``, compared by identity, so it has no
+content, and the content encoder refuses it with ``ContentlessError``
+(``orpheus.numerics.content``; the scoping's census). A test-side memo of
+``_given`` would encode (its arguments are tuples, a string and a float),
+but it would be a second spelling of the door, and it would put a hit or a
+miss on the fast sphere and slab rows, which take milliseconds in process.
+So the rows were re-posed as questions rather than given a memo of their
+own. The open follow-up is one posing for both readers (#609): the system
+``_given`` builds and the specification ``_given_by_the_door`` poses are
+two spellings of one problem, which agree on the admitted domain.
+
+*One ulp.* `[M]` the test-architect (the concept-2 specification's
+section 2, ``ta/equiv_*.log``, on ``0da80c8c``, under ``bypass()``, each
+row in a fresh process): 13 of 13 group readings of the eight rows are
+within 1 ulp of ``_given``'s, 7 at 1 ulp and 6 equal, the largest
+relative difference :math:`2.2 \times 10^{-16}`. ``orpheus/`` is the same
+on ``0da80c8c`` and ``94143ecd`` (``git diff --stat``), so the
+measurement carries to the landed tree. The ulp is the rounding of the
+source's least solution (``source_emission``), which on a pure absorber is
+the source in exact arithmetic: qa measured on
+``test_a_small_cylinders_layer_is_graded_outside_slow[wall]`` (1 row of
+the 8) that the source coefficients and the restriction are bit-equal and
+that ``source_emission`` moves 5 of 12 emission entries by 1 ulp. By the
+triangle inequality a row's error to its route moves by at most
+:math:`2.2 \times 10^{-16}`, against measured errors of
+:math:`2.4 \times 10^{-15}` to :math:`2.8 \times 10^{-14}` below a band of
+:math:`10^{-12}`; the frozen lift row reads :math:`-4.22 \times 10^{-15}`
+through the door and :math:`-4.33 \times 10^{-15}` through ``_given``,
+against :math:`10^{-13}`. The equivalence is not the evidence: each row is
+compared with its mpmath route, which shares nothing with the reference
+above the trusted-library line.
+
+*What a warm store no longer exercises in the test process.* On a warm
+store the reading code these rows reach (``PointRule.of``,
+``PointRule.row``, ``AttenuationRule``, ``GalerkinSystem.group_point_flux``)
+does not run in the test process: the hit serves what that source
+computed, as the block memo already does for the blocks the rows read.
+Three consequences follow.
+
+#. **Coverage.** A coverage capture taken on a warm store cannot
+   corroborate a ``verifies`` claim from these rows: it reads ``refuted``
+   or ``out_of_capture``. ``characteristic-quadrature`` keeps verifiers
+   read in process. ``peierls-greens-cylinder-architecture`` does not: its
+   only verifier is
+   ``test_the_reading_at_a_general_point_of_a_cylinder_is_the_mpmath_route``,
+   a door row, so its claim is corroborated only by a capture on a cold
+   store or under ``bypass()`` (qa's review of concept 2, finding 1).
+#. **Mutation.** A battery or a ``catches`` re-drop reaches these rows
+   only under ``bypass()`` or on a mutated copy of the tree (the bypass,
+   above). The concept-2 battery
+   (``scratch/characteristic_architecture/p3/c3/concept2/ta/concept2_arms.py``)
+   enters ``bypass()`` at ``pytest_configure`` and lists as ``UNREACHED``
+   every row that ran under any other target. `[M]` the test-architect,
+   on ``0da80c8c`` with the draft, over 13 rows (the 8 door rows, the
+   small cylinder's interface row, the lift's F1 and F1b, and E4's two
+   sphere rows), ``UNREACHED`` empty on every arm:
+
+   .. list-table:: The concept-2 battery under ``bypass()``
+      :header-rows: 1
+      :widths: 34 33 33
+
+      * - Arm
+        - Red
+        - Green
+      * - none
+        - none
+        - 13 of 13
+      * - the polar sine dropped from the point rule (the positive
+          control)
+        - 11 of 13, at 0.36 to 0.90
+        - E4's two sphere rows (a sphere has no polar sine)
+      * - the door's answer scaled by :math:`1 + 10^{-9}` (the route
+          witness)
+        - 10 of 13, at :math:`10^{-9}`: the 8 door rows and E4's two
+        - the small cylinder's interface row, F1 and F1b, exactly the
+          rows read in process
+      * - the layer term removed (ERR-105)
+        - the small cylinder's wall :math:`4.8 \times 10^{-7}` and
+          interface :math:`1.1 \times 10^{-8}`
+        - —
+
+   The in-process default tier lost no first red. `[M]` qa, on the landed
+   tree without ``bypass()``, ``-m "not slow"``: the arm grading the
+   layer only for :math:`0 < a < 1`, whose only red in the battery was a
+   door row, reddens the small cylinder's interface row and the lift's
+   ``F2-thick-wall`` and ``F3-thin-wall``; the arm grading the outermost
+   panel only, likewise, reddens the small cylinder's interface row; the
+   arm none, 6 of 6 green. One documented first red is blind on today's
+   tree whichever reader the row uses: the level not passed by the line
+   set, on the partial-mirror wall rows, leaves both green under
+   ``bypass()`` (#608; ``_given`` reads the same quantity within 1 ulp).
+#. **What the door rows exercise instead.** On a cold store or under
+   ``bypass()`` they also run the door's posing: the walls of a law
+   (``Walls.of``), the coefficients of a ``RegionwiseConstant``,
+   ``source_emission``, ``solve`` and the ``PointValue`` arm of
+   ``evaluate``.
+
+*Why one row stays in process.*
+``test_the_volume_integral_of_the_reading_is_the_galerkin_block`` (C6)
+integrates the reading OPERATOR, one row per point of a 648-point volume
+rule against every basis column, against the block. The door poses a
+source as a ``RegionwiseConstant``, which cannot pose one basis function,
+so C6 has no question to put through it, and it reads in process. Its two
+``slow`` white rows are the slowest of the warm ``slow`` run below.
+
+*What it bought.* `[M]` 2026-10-17
+(``scratch/characteristic_architecture/p3/c3/concept2/landed_cold.log``,
+``landed_warm.log`` and ``landed_warm_slow.log``): the landed tree,
+``test_characteristic_lift.py`` and ``test_characteristic_reading.py``,
+on the main tree's store, each run once, serially, under ``-O`` and
+``OMP_NUM_THREADS=1``.
+
+.. list-table:: The lift and reading gates after concept 2 (single runs,
+   the main tree's store)
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Selection
+     - Store
+     - Time
+   * - both files, 240 rows
+     - cold for the door rows' keys
+     - 1 882 s
+   * - both files, 240 rows
+     - warm
+     - 217 s
+   * - the 23 ``slow`` rows
+     - warm
+     - 25.8 s
+
+Warm, each door row takes 0.03 to 0.13 s; the slowest ``slow`` rows are
+C6's two white rows, 10.9 s each, and the polar-column row
+``[wall-mirror]``, 1.5 s. This is not the protocol of the concept-1 table
+above (a fresh worktree with an empty store), so no before and after ratio
+against its 127 s is claimed. 240 of 240 collected ids are unchanged, and
+217 of 217 under ``-m "not slow"`` (qa, ``--collect-only``).
 
 **A solve that does not converge.** The solver's result is a value
 whatever its convergence, so an exhausted solve is a cached value; the
@@ -3860,6 +4051,17 @@ the memo. The 2026-10-04 rows sat on the branch
      - Issue
      - Where
    * - 2026-10-17
+     - **The slow cylinder point readings read through the door** (#405
+       P3 concept 2; the user's ruling, "Door, with batteries in bypass").
+       Eight ``slow`` rows read ``CharacteristicDerivation.evaluate(PointValue)``
+       instead of ``GalerkinSystem.point_flux`` in process, through
+       ``_given_by_the_door``; 13 of 13 group readings within 1 ulp; a
+       battery reaches them only under ``bypass()``; C6 stays in process.
+       Warm: both gate files 217 s, the 23 ``slow`` rows 25.8 s, each door
+       row 0.03 to 0.13 s.
+     - #405, #608, #609
+     - ``94143ecd``
+   * - 2026-10-17
      - **Two more oracle routes stored** (#405 P3). The partial-mirror
        block total ``specular_cylinder_total`` carries ``@traced_memo`` in
        place of its ``lru_cache``, and the lift's inline polar density
@@ -3867,7 +4069,7 @@ the memo. The 2026-10-04 rows sat on the branch
        column (a node costs less than a miss). 27 rows: cold 162 s, warm
        29 s; the polar row ``[wall-mirror]`` 14.3 s warm to 1.5 s.
      - #405
-     - ``76d0409d``, (this commit)
+     - ``76d0409d``, ``712293a9``
    * - 2026-10-17
      - **The first test-oracle clients** (#405 P3, concept 1). A warm run
        of the slow lift and reading rows spent 993 s in two mpmath routes

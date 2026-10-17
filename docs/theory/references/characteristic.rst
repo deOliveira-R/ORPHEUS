@@ -4446,7 +4446,13 @@ tree (G returning the next radius alone, which is the third rung's rule)
 reddens 21 of the 172 rows of the reading's and the level's files outside
 ``slow``; removing the pole term alone, 18; removing the layer term alone,
 both rows of the small cylinder (the archivist's re-drop, 2026-10-08,
-``-O``).
+``-O``). Since #405 P3 concept 2 (``94143ecd``) the small cylinder's
+``slow`` wall row reads through the door, a traced-memo client, so a
+re-drop reaches it only under ``bypass()`` or on a mutated copy of the
+tree; the interface row is read in process and is the layer term's catcher
+outside ``slow`` (`[M]` 2026-10-17: under ``bypass()`` the wall
+:math:`4.8 \times 10^{-7}` and the interface :math:`1.1 \times 10^{-8}`,
+without it the interface alone; ERR-105, "Caught by").
 
 **The cylinder's cost.** The law's cost on the cylinder is set by its
 slowest lines: a polar node at :math:`\sin\theta_j` grades each panel top
@@ -8218,7 +8224,8 @@ that asserts its equation:
      - :math:`\psi = F + e^{-\Sigma L}\psi_{\rm surf}` on the cylinder,
        :math:`\phi` its angular reduction
      - ``test_characteristic_reading.py::test_the_reading_at_a_general_point_of_a_cylinder_is_the_mpmath_route``
-       (slow)
+       (slow; read through the door, so a warm coverage capture cannot
+       corroborate it)
    * - ``cylinder-mr-interface-continuity``
      - :math:`\phi` continuous across an interface
      - ``test_characteristic_albedos.py::test_the_modes_scalar_flux_is_continuous_across_a_material_interface``
@@ -9883,7 +9890,13 @@ partial mirror's walls and blocks at 0.9 and 0.99, the void and thin
 outer shells, the walls at :math:`a \to 1`, the wall's box integral, the
 partial absorber through the door); its layer term removed reddens both
 rows of ``test_a_small_cylinders_layer_is_graded_outside_slow``, the
-``slow`` wall row included (run alone, 37 s).
+``slow`` wall row included (run alone, 37 s). Both rows read in process on
+that tree. Since #405 P3 concept 2 (``94143ecd``) the wall row reads
+through the door, so the same arm reddens it only under ``bypass()``:
+`[M]` 2026-10-17, the test-architect under ``bypass()``, the wall
+:math:`4.8 \times 10^{-7}` and the interface :math:`1.1 \times 10^{-8}`;
+qa without it, the interface alone, the wall served green by the store
+(:ref:`verification-reference-cache-clients`).
 
 .. _characteristic-gotchas:
 
@@ -9895,7 +9908,13 @@ Gotchas
   mutation battery or a ``catches`` re-drop mutates on disk (a copied
   tree, a worktree) or enters ``bypass()`` first, and a test that patches
   the kernel reads under ``with bypass():``
-  (:ref:`characteristic-block-memo`).
+  (:ref:`characteristic-block-memo`). The same holds whole for a row that
+  reads through the door: its reading is served, so a mutation of the
+  point rule does not reach it either. Since #405 P3 concept 2 these are
+  the eight slow cylinder point-reading rows of the reading and lift gates
+  (:ref:`verification-reference-cache-clients`), whose in-process twins in
+  the default tier (the small cylinder's interface, the lift's F1, F1b and
+  G2 rows) still read ``GalerkinSystem.point_flux`` in process.
 - **Pass the support.** ``LineRule.transport`` and ``group_transport``
   take the emitting-region mask as a required argument; a block on its
   own passes :math:`\Sigma_t > 0` explicitly.

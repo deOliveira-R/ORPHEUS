@@ -506,7 +506,14 @@ is the obliquity dropped.
 (``slow``): off the axis of a three-region cylinder, under a partial
 mirror, the reading against a two-dimensional mpmath route over the
 in-plane disc, to :math:`10^{-12}`; its vacuum rows null
-:math:`\psi_{\rm surf}`, so the partial-mirror row is the witness.
+:math:`\psi_{\rm surf}`, so the partial-mirror row is the witness. It is
+the label's only verifier, and since #405 P3 concept 2 (``94143ecd``) it
+reads through the door (``CharacteristicDerivation.evaluate``, a
+traced-memo client; :ref:`verification-reference-cache-clients`): on a
+warm store the reading code does not run in the test process, so a
+coverage capture taken warm reads this claim ``refuted`` or
+``out_of_capture``, and only a cold store or ``bypass()`` lets a capture
+corroborate it.
 
 V_α2 and V_α3 on the cylinder
 -----------------------------
@@ -1255,7 +1262,7 @@ unless they begin ``geometry/``.
    * - ``cylinder-architecture``
      - N
      - ``test_characteristic_reading.py::test_the_reading_at_a_general_point_of_a_cylinder_is_the_mpmath_route``
-       (``slow``)
+       (``slow``, read through the door)
    * - ``cylinder-mr-trajectory-segments``
      - N
      - ``geometry/test_chord.py::test_the_multi_region_segments_are_the_hand_written_table``
