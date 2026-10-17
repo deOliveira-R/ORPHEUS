@@ -2810,11 +2810,17 @@ qa's review, ``scratch/characteristic_architecture/p3/c3/concept3/qa/``:
 90 loaded, the memo's 76 all inside them, none under ``characteristic``).
 An edit to the module, or to an import, a constant or a signature in that
 cone, regenerates all four entries, about 72 s (`[R]`, from the per-solve
-times); the values never change under those edits. A docstring edit to the
-module regenerates them too: `[M]` qa, the first run after this commit's
-own docstring edit took 227 s and the next 2.3 s, because a module's pin
-reads its source, prose included. Whether a pin should read only code is
-ruling 15's open question (the verification-tree plan).
+times); the values never change under those edits. A docstring edit does
+not regenerate them: a def is pinned by its normalised AST and a module by
+its skeleton, both with docstrings stripped (gate M2.1). `[M]` 2026-10-17
+(``scratch/characteristic_architecture/p3/c3/concept3/probe_docedit.log``
+and ``probe_moddoc.log``, each edit made on a copy-protected file and
+restored): after a docstring-only edit to ``solve_ps1982_vacuum_sphere``
+the file ran warm, 9 passed in 3.15 s, and after a module-docstring edit
+in 2.50 s; no entry's ``DataPin`` names a ``.py`` file
+(``probe_manifest.py``). [REFUTED 2026-10-17] the review's first reading,
+that a docstring edit regenerated all four entries (a 227 s run): it was
+inferred from file times, and that run's cause was not recovered.
 
 *What a warm store no longer exercises.* The solver does not run on a
 hit, so a mutation of it reaches the PS-1982 rows only under
@@ -2832,7 +2838,7 @@ claim of theirs.
 *What it bought.* `[M]` 2026-10-17
 (``scratch/characteristic_architecture/p3/c3/concept3/landed_cold.log``
 and ``landed_warm3_1.log``, the warm run re-captured after the review's
-docstring edits had regenerated the entries): the nine rows of
+edits): the nine rows of
 ``test_characteristic_independent_references.py``, the slow ones
 included, on the main tree's store, each run once, serially, under
 ``-O`` and ``OMP_NUM_THREADS=1``: 87 s with the store cold for the four
@@ -4177,9 +4183,11 @@ the memo. The 2026-10-04 rows sat on the branch
        reference. The nine rows of its gate file: 87 s cold, 2.25 s warm;
        under ``bypass()`` a 1.001 scaling of the operator moves
        :math:`k` by :math:`1.45 \times 10^{-3}`, and the store serves the
-       unmutated value.
+       unmutated value. A later correction refutes the review's reading
+       that a docstring edit regenerated the entries: the pins strip
+       docstrings, and both docstring edits left the file warm.
      - #405
-     - (this commit)
+     - ``da043d1c``, ``dcf631dd``, (this commit)
    * - 2026-10-17
      - **The slow cylinder point readings read through the door** (#405
        P3 concept 2; the user's ruling, "Door, with batteries in bypass").
