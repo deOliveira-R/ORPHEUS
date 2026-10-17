@@ -6123,3 +6123,13 @@ copy, so the spy recorded nothing and the row failed "never called" under `ratio
 it was the ONLY red, so the arm read "caught" while no value row saw the 7.9e-11 the mutation causes at 8 points
 (reproduced with `impl/exits_accuracy.py`). Not covered by `vv-principles` #17 (parent/child process) or #17(h) (the
 aim trap reads the red set against a target; this red is on the target's neighbour for a harness reason).
+
+## L-103 — a bypass battery proves a memo-client row's teeth only under bypass; pin loss is decided by the warm run (2026-10-17, W1 #405 P3 concept 2 qa, `712293a9` + uncommitted)
+
+Concept 2 moved 8 slow cylinder rows behind `CharacteristicDerivation.evaluate` (a traced memo whose misses generate in
+a clean child). The spec's battery ran every arm under `bypass()`, so it showed each re-posed row still reddens, but
+not whether the merge-deciding warm run kept any tooth: two arms (`layer-only-for-a`, `g-outermost-only`) reddened
+ONLY re-posed rows in the bypass table. Re-run with `NO_BYPASS=1` on a store target over `-m "not slow"`, both
+reddened in-process rows (Q4[interface], G2 F2-thick-wall, F3-thin-wall): no pin lost. ERR-105's `[wall]` row, red
+under bypass, is GREEN without it (`qa/q4_nobypass_err105.log`). Not covered by `vv-principles` #17's traced-memo
+sentence (it says how to make a mutation reach a memo read, not which run decides whether a re-pose lost a pin).

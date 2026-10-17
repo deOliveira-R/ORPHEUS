@@ -234,6 +234,11 @@ site of the mechanism; and the rule's sum of the exact integrand at its exact
 nodes against the same sum at the nodes the object REALISES from its stored
 coordinate. → L-100
 
+**B20. A row moved behind a memo is blind to in-process mutation in the warm run, so a
+bypass battery proves its teeth only under bypass.** check: for each arm whose reds fell ONLY on
+re-posed rows, re-run it WITHOUT bypass on a store target over the default tier; a red names the
+surviving in-process pin, a green is a lost pin; and a `catches` marker's row is re-read the same way. → L-103
+
 ---
 
 
