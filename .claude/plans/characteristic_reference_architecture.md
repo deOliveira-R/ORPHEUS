@@ -2944,3 +2944,58 @@ A cold run pays one process per miss (1751 new entries); a warm run saves 137 s.
 **Owed by the drop when it lands:** the 22 `verifies`-only rows that reach a dropped site are re-dropped one by one (an in-process mutation no longer reaches a memo-served value, `vv-principles` #17).
 
 ⏸ **Next:** the slow-row verdict to the user; then the drop per population; then the re-timing of the three hot files (#602's last done-when; #602 stays open).
+
+### The drop landed everywhere; the warm slow run profiled; gmpy2; a template refusal made audible (2026-10-17)
+
+**The user's ruling (2026-10-16):** drop `bypass()` from arm N everywhere, and time gmpy2 in parallel.
+
+**The drop is on `main`:**
+- `6af57441` and `3d3b0f75`; CI 39005451105 green.
+- `3d3b0f75` removes `verifies("characteristic-adjoint")` from A1 and A2. These are the 2 markers of 26 that the re-drop could not witness; the other 24 reddened under a textual mutation on a worktree copy (`scratch/characteristic_architecture/p3/c3/drop/redrop/verifies_verdicts.md`).
+
+**The 40 slow rows of the 10 files** `[M]` 2026-10-16:
+- Method: a fresh worktree each, serial, `-O`, `OMP_NUM_THREADS=1`, 40 passed in every run.
+- Source: `drop/timing/summary_slow.txt`.
+
+| tree | cold | warm | no memo | store entries |
+|---|---|---|---|---|
+| before the drop (`bb2835d4`) | 3212 s | 2824 s | 3107 s | 14 |
+| after the drop | 3272 s | 905 s | 3208 s | 284 |
+
+A cold run costs +60 s; a warm run saves 1919 s.
+
+**The warm slow run, profiled** `[M]` (`drop/timing/profile/warm_slow.prof`; 942 s of wall time, 1290 s under cProfile):
+- 82 % of profiled time is `mpmath.quad`, all of it called from the test oracles `_characteristic_point_mp.phi_cylinder_vacuum` and `phi_cylinder`. These oracles are not memoised, so a warm run still pays for them.
+- About 85 s is in-process `point_flux` reached through `_given`.
+- About 57 s is the PS1982 reference.
+- About 10 s is memo lookups.
+
+Three concepts from the profile, all `[HYPOTHESIS]`, to be tested in the order of the time they hold:
+1. Store the mpmath oracles as references, i.e. memoise the oracle. This would turn 82 % of warm time into lookups.
+2. Route the in-process `point_flux` reads through the memo.
+3. Memoise the PS1982 reference.
+
+**gmpy2 (`3ff7866b`), adopted by the user's ruling:**
+- The floats are identical on three routes `[M]`, single runs:
+
+  | route | pure Python | gmpy2 |
+  |---|---|---|
+  | F1 | 11.1 s | 7.8 s |
+  | F4 | 26.7 s | 7.7 s |
+  | F2 | 241 s | 30 s |
+
+- sympy's ground types become gmpy too.
+- The full not-slow suite on the branch matched `main` exactly: 17 182 passed, 261 skipped, 0 failed, 69 min, cold store.
+
+**A refusal by a fresh template is warned (`8f11ad66`, #602):**
+- The drop branch's first full run had 3 extra skips (17 179 / 264). A re-run of the same commit matched `main` (17 182 / 261) and logged no refusal, so the cause was not recovered.
+- The one mechanism that produces exactly those skips is a fresh template's refusal. It turned forking off for the process with no output.
+- It now raises `TemplateRefused` once, with the template's reasons. S4 asserts it, and the arm `0 and warnings.warn` reddens S4.
+- The gate run above printed 0 `TemplateRefused`.
+
+**Merged @ `3ff7866b`** (ff), pushed.
+
+⏸ **Next:**
+1. The three-file re-timing (system, reading, assembly; not slow; cold, warm, no memo) at `3ff7866b`. This is #602's last done-when. Driver: `scratch/characteristic_architecture/p3/c3/retime/run.sh`; compare `p3/c1/gate_spec.md` §7 (242 / 1303 / 102 s on 2026-10-14).
+2. Record the re-timing on the reference-cache theory page.
+3. Concepts 1 to 3 above, oracle first.
