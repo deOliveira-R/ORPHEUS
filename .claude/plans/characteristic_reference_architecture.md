@@ -3046,8 +3046,19 @@ Three concepts from the profile, all `[HYPOTHESIS]`, to be tested in the order o
   - #609: one posing for `_given` and `_given_by_the_door`.
 - Merged @ `893d85b5`.
 
+**Concept 3, landed** (the user's ruling "Memo the solver", over splitting out the optical-radius eigenpair).
+- `solve_ps1982_vacuum_sphere` carries `@traced_memo`, and the helper's `lru_cache` is removed.
+- The census gate is now `test_each_stored_reference_imports_nothing_but_the_memo`, with the rows `[mpmath-routes]` and `[ps1982]`.
+- `[M]` The PS-1982 file runs 87 s cold and 2.3 s warm.
+- `[M]` The 40 slow rows of the 10 files take 27.1 s warm, against 82.9 s after concept 2 and 2824 s before the drop. 20.7 s of the 27.1 s is C6, in process.
+- `[M]` qa: a docstring edit regenerates the entries, because a module pin reads prose (227 s, then 2.3 s). This is evidence for ruling 15's question of pinning code only.
+- Merged @ `dcf631dd`.
+
+**Concepts 1 to 3 are closed.** What remains in the warm slow run is C6's in-process `PointRule.row`, about 21 s.
+
 ⏸ **Next:**
-1. Concept 3: PS1982. The explorer's scoping goes to `p3/c3/concept3/scoping.md`.
-2. Close-out asks, held for the user:
+1. Choose between a C6 reading-operator client (the scoping found it feasible with two keys) and closing the speed work here.
+2. The follow-ups: #608, #609, #605, #606, #607.
+3. Close-out asks, held for the user:
    - the worktrees under `p3/c3/{retime,hitcost,hitcost2,oracle}`, `concept2/ta/wt`, and the older ones;
    - the branch `refactor/chord-oracle-axial-lift`.
