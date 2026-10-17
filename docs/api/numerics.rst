@@ -582,7 +582,7 @@ manifest can see and the review round's defects, is
       EnvironmentPin, WorkingDirectoryPin, ChildPin, MemoPin, validate,
       trace_call,
       origin, function_digest, skeleton_digest, platform_tag, fork_platform,
-      encode_payload, decode_payload, Unpinnable, Unencodable
+      encode_payload, decode_payload, Unpinnable, Unencodable, TemplateRefused
 
 .. autodata:: orpheus.numerics.traced_memo.Pin
    :no-value:

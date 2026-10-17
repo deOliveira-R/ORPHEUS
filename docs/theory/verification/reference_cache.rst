@@ -2317,6 +2317,15 @@ new state and validates).
   start costing more than the fresh process it replaced. Turning forking
   off costs speed only: the fresh route is the route that ran before E,
   and an answer is never served from a template that refused.
+
+  The refusal is warned once, when forking turns off, as
+  :class:`~orpheus.numerics.traced_memo.TemplateRefused` with the
+  template's reasons. Until then it was silent. A process that turned
+  forking off ran slower, and its forked-route rows skipped, with no
+  cause printed. ``[M]`` 2026-10-16: one full ``-m "not slow"`` run of the
+  bypass drop's branch showed three more skips than ``main``; a re-run of
+  the same commit matched ``main``; the cause was not recovered. Gate S4
+  asserts the warning, and a mutation removing the warning reddens it.
 * **A template ends with its parent.** It reads jobs until its job pipe
   ends, and a parent that exits, even by ``SIGKILL`` with no ``atexit``,
   closes that pipe (gate E7a: the template is gone within 5 s); a parent

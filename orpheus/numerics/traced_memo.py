@@ -86,6 +86,7 @@ import traceback
 import types
 import typing
 import uuid
+import warnings
 import zipfile
 from collections.abc import Callable, Generator, Iterable, Mapping
 from pathlib import Path
@@ -103,7 +104,7 @@ from orpheus.numerics.content import ContentIdentity, _rebuild, constructor_argu
 __all__ = [
     "Absent", "ChildPin", "Corrupt", "DataPin", "DefPin", "DistributionPin", "EnvironmentPin", "Hit", "InterpreterPin", "PresencePin",
     "ListingPin", "Manifest", "MemoPin", "ModulePin", "Pin", "Stale", "TracedMemo", "Unencodable",
-    "Unpinnable", "Verdict", "WorkingDirectoryPin", "bypass", "cache_root", "decode_payload", "default_root",
+    "TemplateRefused", "Unpinnable", "Verdict", "WorkingDirectoryPin", "bypass", "cache_root", "decode_payload", "default_root",
     "encode_payload", "function_digest", "origin", "platform_tag", "skeleton_digest", "trace_call",
     "traced_memo", "validate",
 ]
@@ -112,6 +113,13 @@ __all__ = [
 class Unpinnable(RuntimeError):
     """A run depends on something no manifest can pin: a site-packages file of no distribution, code compiled
     under a file's name at a line where the file holds no such code, or a process the run started."""
+
+
+class TemplateRefused(RuntimeWarning):
+    """A fresh fork template refused its first job, so this process generates every later miss in a fresh
+    interpreter: still correct, slower, and the forked route goes unexercised. Warned once, when it happens,
+    with the template's reasons. While it was silent, a full run could lose the forked-route rows to skips and
+    print no cause (``[M]`` 2026-10-16: three extra skips in one run, not reproduced, cause unrecovered)."""
 
 
 class Unencodable(TypeError):
@@ -1375,6 +1383,8 @@ class _TemplateSlot:
                     case _Refused(reasons) if fresh:
                         self.refused = reasons
                         self.close()
+                        warnings.warn(f"traced_memo: a fresh fork template refused ({'; '.join(reasons)}); this process "
+                                      "now generates every miss in a fresh interpreter", TemplateRefused, stacklevel=2)
                         return None
                     case _Refused() | None:
                         self.close()

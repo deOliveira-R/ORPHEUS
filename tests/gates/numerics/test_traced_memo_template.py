@@ -784,8 +784,9 @@ def test_s4_a_fresh_template_that_refuses_makes_the_process_spawn_from_then_on(t
     """S4: on a copy of the package's Python files, a module the template imports starts an OS thread, so a fresh
     template refuses its first job (two OS threads). The process then spawns every miss: three misses are
     answered, ONE template was started (not one per miss), and the refusal is recorded (``_SLOT.refused``
-    names the two threads). First red: the refusal of a fresh template not remembered, which starts a template,
-    and has it refuse, at every miss."""
+    names the two threads), and warned once, as ``TemplateRefused`` with the template's reasons. First reds: the
+    refusal of a fresh template not remembered, which starts a template, and has it refuse, at every miss; the
+    refusal not warned (forking turned off in silence)."""
     tree = tmp_path / "tree"
     shutil.copytree(REPO / "orpheus", tree / "orpheus",
                     ignore=lambda d, names: [n for n in names if n == "__pycache__" or (not n.endswith(".py") and not (Path(d) / n).is_dir())])
@@ -804,6 +805,7 @@ def test_s4_a_fresh_template_that_refuses_makes_the_process_spawn_from_then_on(t
     assert words[words.index("STARTS") + 1] == "1", run.stdout
     assert words[words.index("FORKS_HERE") + 1] == "False", run.stdout
     assert "OS threads" in run.stdout.split("REFUSED", 1)[1], run.stdout
+    assert run.stderr.count("TemplateRefused: traced_memo: a fresh fork template refused (2 OS threads)") == 1, run.stderr[-3000:]
 
 
 # ── qa's second review of cut E: what a run writes is its own output; a device is not a file ──────────
