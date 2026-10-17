@@ -3025,3 +3025,29 @@ Three concepts from the profile, all `[HYPOTHESIS]`, to be tested in the order o
 3. Close-out asks, held for the user:
    - the worktrees under `p3/c3/{retime,hitcost,hitcost2,oracle}` and the older ones listed in the 2026-10-16 note;
    - the branch `refactor/chord-oracle-axial-lift`.
+
+## Concept 2, and the two more oracle routes (2026-10-17)
+
+**Two more oracle routes stored** (`76d0409d`, the user's ruling "Yes, store them"). The partial-mirror total `specular_cylinder_total` is a stored route. The lift's inline polar density became the stored column `cylinder_polar_density`, one entry per column: a node costs less than a miss, and a column costs 9 to 27 s. `[M]` the 27 rows that read them: cold 162 s, warm 29 s. Merged @ `712293a9` with the docs.
+
+**Concept 2, landed** (the user's ruling "Door, with batteries in bypass"). Eight slow cylinder point-reading rows now read their flux through the door, `CharacteristicDerivation.evaluate(PointValue)`, via `_given_by_the_door`: C2-cylinder ×3, Q2, C2b's wall leg ×2, Q4 `[wall]`, and lift F4.
+- `[M]` the test-architect's spec, `p3/c3/concept2/spec.md`:
+  - 13 of 13 group readings are within 1 ulp of the in-process reading;
+  - under `bypass()`, every re-posed row reddens under at least one arm;
+  - the door witness reddens exactly the 10 door rows.
+- `[M]` both files on the main tree's store: 240 passed cold for the door keys, in 1 882 s, and warm in 217 s. The 23 slow rows warm take 25.8 s, each door row 0.03 to 0.13 s.
+- C6 stays in process: a basis function is not a `RegionwiseConstant` question.
+- Battery plugins:
+  - b5b enters `bypass()` at configure;
+  - the product plugin already pushed `InProcess`, and its ERR-105 run must drop `-m "not slow"`;
+  - 11 of b5b's 26 arms no longer install.
+- Filed:
+  - #608: C2b's documented first red is blind on today's tree.
+  - #609: one posing for `_given` and `_given_by_the_door`.
+- Merged @ `893d85b5`.
+
+⏸ **Next:**
+1. Concept 3: PS1982. The explorer's scoping goes to `p3/c3/concept3/scoping.md`.
+2. Close-out asks, held for the user:
+   - the worktrees under `p3/c3/{retime,hitcost,hitcost2,oracle}`, `concept2/ta/wt`, and the older ones;
+   - the branch `refactor/chord-oracle-axial-lift`.
