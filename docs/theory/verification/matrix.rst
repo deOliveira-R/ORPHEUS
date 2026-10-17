@@ -772,7 +772,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``decompose``, 29
    ``scattering-cdf``, 29
    ``transport-cylindrical``, 29
-   ``characteristic-adjoint``, 27
    ``cp-flat-source-derivation``, 27
    ``cp-flat-source-double-integral``, 27
    ``cp-unified-outer-integration``, 27
@@ -793,6 +792,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``two-group-Ainv``, 23
    ``two-group-F``, 23
    ``two-group-M``, 23
+   ``characteristic-adjoint``, 22
    ``peierls-cyl-3d-mode-formula``, 22
    ``peierls-sphere-Pss-homogeneous``, 22
    ``n2n-source``, 21

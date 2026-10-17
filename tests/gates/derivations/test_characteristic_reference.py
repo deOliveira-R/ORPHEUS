@@ -1066,11 +1066,10 @@ _RECIPROCITY_BODIES = [
 
 @pytest.mark.verifies("characteristic-door-reciprocity")
 @pytest.mark.l1
-@pytest.mark.verifies("characteristic-adjoint")
 @pytest.mark.parametrize("body", [b[1] for b in _RECIPROCITY_BODIES], ids=[b[0] for b in _RECIPROCITY_BODIES])
 @pytest.mark.rests_on(_D13IV, _HERE + "test_a_flux_integral_is_the_volume_integral_of_the_galerkin_flux")
 def test_a_detectors_reading_of_a_source_is_the_sources_reading_of_the_detectors_importance(body) -> None:
-    """[A1; l1, ``characteristic-adjoint``] Reciprocity across two questions: ``FixedSource(q)`` read by
+    """[A1; l1, ``characteristic-door-reciprocity``] Reciprocity across two questions: ``FixedSource(q)`` read by
     ``FluxIntegral(r)`` equals ``Response(r)`` read by ``FluxIntegral(q)`` over 4 pi, two seeded positive
     region-wise pairs, to 1e-13 relative, on qa's adjoint body (up- and downscatter, (n,2n), fission with chi in both
     groups, supports that differ by group).
@@ -1101,11 +1100,10 @@ def test_a_detectors_reading_of_a_source_is_the_sources_reading_of_the_detectors
 
 @pytest.mark.verifies("characteristic-door-response")
 @pytest.mark.l1
-@pytest.mark.verifies("characteristic-adjoint")
 @pytest.mark.parametrize(("chart", "breakpoints", "body"), _E2_BODIES[:2])
 @pytest.mark.rests_on(_HERE + "test_a_closed_body_with_a_uniform_source_reads_the_infinite_medium_flux_through_the_door")
 def test_a_closed_bodys_importance_is_the_infinite_mediums_adjoint_solve(chart, breakpoints, body) -> None:
-    """[A2; l1, ``characteristic-adjoint``] A closed body of ``_UP2N`` and the uniform detector r = (0.3, 1):
+    """[A2; l1, ``characteristic-door-response``] A closed body of ``_UP2N`` and the uniform detector r = (0.3, 1):
     each region's group integral of the adjoint scalar flux, over the region's volume, is
     4 pi (diag Sigma_t - S - F)^-T r (the detector's retraction as the source), to 1e-13; the untransposed solve differs from it by more than 1e-2 (the premise: the transpose matters).
 
