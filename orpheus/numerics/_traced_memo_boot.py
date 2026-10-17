@@ -42,9 +42,11 @@ import hashlib
 import importlib.machinery
 import marshal
 import os
+import stat
 import struct
 import sys
 import threading
+import time
 from collections.abc import Callable
 from typing import NamedTuple
 
@@ -105,19 +107,6 @@ def digest(data: bytes) -> str:
     return hashlib.blake2b(data, digest_size=32).hexdigest()
 
 
-def file_digest(path: str) -> str:
-    """The digest of a regular file's bytes, or ``"absent"``: a run that found no regular file there depended on
-    that. A directory, a device or a pipe is never read: ``/dev/urandom`` has no end (qa's second review of #602
-    cut E, ``[M]`` 2026-10-16: a run that read it hung)."""
-    if not os.path.isfile(path):
-        return "absent"
-    try:
-        with open(path, "rb") as file:
-            return digest(file.read())
-    except FileNotFoundError:
-        return "absent"
-
-
 def presence(path: str) -> str:
     """What a probe of ``path`` finds: a file, a directory, something else, or nothing."""
     if os.path.isfile(path):
@@ -127,9 +116,107 @@ def presence(path: str) -> str:
     return "other" if os.path.lexists(path) else "absent"
 
 
-def listing_digest(path: str) -> str:
-    """The digest of a directory's names, or ``"absent"``."""
-    return digest("\0".join(sorted(os.listdir(path))).encode()) if os.path.isdir(path) else "absent"
+# ── reads kept while what they read is unchanged on disk ─────────────────────────────────────────────
+
+
+class FileIdentity(NamedTuple):
+    """A path's identity on disk, as ``stat`` reads it: its device, its inode, its size and its modification
+    and change times in nanoseconds. On POSIX any write moves the change time and no call sets it back, and a
+    replace by rename moves the inode, so an unchanged identity says the bytes (a directory's names) are the
+    ones read before. Its scope: a POSIX filesystem whose timestamps come from the clock this process reads
+    (on Windows ``st_ctime`` is the creation time; a network filesystem's server clock may differ)."""
+
+    device: int
+    inode: int
+    size: int
+    modified_ns: int
+    changed_ns: int
+
+    @classmethod
+    def of(cls, found: os.stat_result) -> "FileIdentity":
+        return cls(found.st_dev, found.st_ino, found.st_size, found.st_mtime_ns, found.st_ctime_ns)
+
+
+#: How far in the past a path's last write must lie for its identity to be trusted to show the next one. A second
+#: write in the same timestamp tick can leave the size and both times as they were (git's "racily clean"
+#: entries), so a read of something written this recently is never kept (2 s covers the coarsest timestamp of a
+#: common filesystem, FAT's).
+TRUSTED_AGE_NS = 2_000_000_000
+
+
+def identity(path: str) -> FileIdentity | None:
+    """What a ``stat`` of ``path`` shows now: its identity, or ``None`` when nothing is there."""
+    try:
+        return FileIdentity.of(os.stat(path))
+    except (OSError, ValueError):
+        return None
+
+
+class Witness:
+    """The stats one read makes, each taken BEFORE the read of what it guards (a write after it then shows in the
+    next stat, so the read is made again; never the other way round), and whether every one was settled."""
+
+    def __init__(self) -> None:
+        self.seen: list[tuple[str, FileIdentity | None]] = []
+        self.settled = True
+
+    def stat(self, path: str) -> os.stat_result | None:
+        try:
+            found = os.stat(path)
+        except (OSError, ValueError):  # ValueError: a path holding a NUL, as ``os.path.isfile`` treats it
+            self.seen.append((path, None))
+            return None
+        self.settled = self.settled and max(found.st_mtime_ns, found.st_ctime_ns) < time.time_ns() - TRUSTED_AGE_NS
+        self.seen.append((path, FileIdentity.of(found)))
+        return found
+
+    def unkeepable(self) -> None:
+        """The read depended on something no stat witnesses, so it is never kept."""
+        self.settled = False
+
+
+class Kept[K, V]:
+    """A read kept for the life of the process: served again while every stat it witnessed shows the same
+    identity, made again otherwise. The key holds the read's inputs that are not files (a ``sys.path``, a working
+    directory, a name); the witness holds the files and directories it looked at, a missing one included (one
+    appearing there is a change). Only a read whose every stat was settled is kept."""
+
+    def __init__(self, read: Callable[[K, Witness], V]) -> None:
+        self._read = read
+        self._kept: dict[K, tuple[V, tuple[tuple[str, FileIdentity | None], ...]]] = {}
+
+    def __call__(self, key: K) -> V:
+        kept = self._kept.get(key)
+        if kept is not None and all(identity(path) == seen for path, seen in kept[1]):
+            return kept[0]
+        witness = Witness()
+        value = self._read(key, witness)
+        if witness.settled:
+            self._kept[key] = (value, tuple(witness.seen))
+        return value
+
+
+def file_digest(path: str, witness: Witness | None = None) -> str:
+    """The digest of a regular file's bytes, or ``"absent"``: a run that found no regular file there depended on
+    that. A directory, a device or a pipe is never read: ``/dev/urandom`` has no end (qa's second review of #602
+    cut E, ``[M]`` 2026-10-16: a run that read it hung). ``witness`` records the stat that decided it."""
+    found = (witness or Witness()).stat(path)
+    if found is None or not stat.S_ISREG(found.st_mode):
+        return "absent"
+    try:
+        with open(path, "rb") as file:
+            return digest(file.read())
+    except FileNotFoundError:
+        return "absent"
+
+
+def listing_digest(path: str, witness: Witness | None = None) -> str:
+    """The digest of a directory's names, or ``"absent"``. On POSIX a name added, removed or renamed in a
+    directory moves its modification time, so the directory's identity witnesses its names."""
+    found = (witness or Witness()).stat(path)
+    if found is None or not stat.S_ISDIR(found.st_mode):
+        return "absent"
+    return digest("\0".join(sorted(os.listdir(path))).encode())
 
 
 class Observation(NamedTuple):

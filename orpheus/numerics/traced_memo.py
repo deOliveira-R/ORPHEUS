@@ -77,6 +77,7 @@ import os
 import pickle
 import platform
 import site
+import stat
 import subprocess
 import sys
 import tempfile
@@ -96,7 +97,7 @@ import numpy as np
 
 from orpheus.numerics import _traced_memo_boot
 from orpheus.numerics._traced_memo_boot import (
-    CACHE, CONTENT, FORK_MEASURED, LISTING, PRESENCE, Observation, Recording, _read_frame, _write_frame, digest as _digest, file_digest as _file_digest, listing_digest as _listing_digest, presence as _presence, frame, note_child,
+    CACHE, CONTENT, FORK_MEASURED, LISTING, Kept, Witness, PRESENCE, Observation, Recording, _read_frame, _write_frame, digest as _digest, file_digest as _file_digest, listing_digest as _listing_digest, presence as _presence, frame, note_child,
     spawning, unrecorded, write_atomically,
 )
 from orpheus.numerics.content import ContentIdentity, _rebuild, constructor_arguments, encode_exact
@@ -377,14 +378,13 @@ class _Installed:
     ``sphinxcontrib-tikz`` left valid every entry that ran its code (``[M]`` 2026-10-15, the test-architect,
     #602). Reading the raw ``RECORD`` bytes of every distribution builds the table for 30 446 paths in 18 to
     20 ms; the top-level map cost 0.22 s. A ``RECORD`` row is parsed as CSV, since a path may be quoted and
-    hold a comma. A lookup of what is installed re-reads the distribution's metadata (1245 lookups for 6 distributions cost
-    a cheap miss 0.64 s, ``[M]`` #602), so each is made once."""
+    hold a comma. What is installed as a distribution is kept for the process (:data:`_DISTRIBUTIONS`): a find
+    parses metadata across ``sys.path`` (1245 lookups for 6 distributions cost a cheap miss 0.64 s, ``[M]`` #602)."""
 
     def __init__(self) -> None:
         self._listed: dict[str, dict[str, Path]] | None = None
         self._shared: set[tuple[str, str]] = set()
         self._owners: dict[Path, tuple[str, bool]] = {}
-        self._versions: dict[str, tuple[str, str] | None] = {}
 
     def _table(self) -> dict[str, dict[str, Path]]:
         if self._listed is None:
@@ -418,16 +418,37 @@ class _Installed:
     def installed(self, name: str) -> tuple[str, str] | None:
         """What is installed as the distribution ``name``: its version and the digest of its ``RECORD`` (the
         hash of every file it installed, so a rebuild reinstalled under the same version is another install,
-        qa's review of #602 cut E); ``None`` when none is installed."""
-        if name not in self._versions:
-            try:
-                distribution = importlib.metadata.distribution(name)
-            except importlib.metadata.PackageNotFoundError:
-                self._versions[name] = None
-            else:
-                record = distribution.read_text("RECORD")
-                self._versions[name] = (distribution.version, _digest(record.encode()) if record is not None else "absent")
-        return self._versions[name]
+        qa's review of #602 cut E); ``None`` when none is installed. From the process's :data:`_DISTRIBUTIONS`."""
+        return _DISTRIBUTIONS((name, tuple(sys.path), os.getcwd()))
+
+
+def _find_installed(key: tuple[str, tuple[str, ...], str], witness: Witness) -> tuple[str, str] | None:
+    """What is installed as the distribution ``key[0]`` under ``sys.path`` ``key[1]`` and working directory
+    ``key[2]``: its version and the digest of its ``RECORD``, or ``None``. The witness stats every ``sys.path``
+    directory (an install or an uninstall adds or removes a ``.dist-info`` there) before the find, then the
+    found directory's ``METADATA``, ``PKG-INFO`` and ``RECORD`` before they are read, named from the directory
+    rather than from what ``RECORD`` lists (the elegance review of #602's hit cost, A6). A find that names no
+    directory is never kept."""
+    name, entries, directory = key
+    for entry in entries:
+        witness.stat(entry or directory)
+    try:
+        distribution = importlib.metadata.distribution(name)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+    info = getattr(distribution, "_path", None)  # a PathDistribution's directory; the stdlib names it nowhere else
+    if info is None:
+        witness.unkeepable()
+    else:
+        for file in ("METADATA", "PKG-INFO", "RECORD"):
+            witness.stat(os.path.join(info, file))
+    record = distribution.read_text("RECORD")
+    return distribution.version, _digest(record.encode()) if record is not None else "absent"
+
+
+#: What validations have found installed, kept for the process (``[M]`` 2026-10-17: 38 142 finds held 47.7 of
+#: the 292 profiled seconds of the warm three-file run, one per distribution per validation).
+_DISTRIBUTIONS = Kept(_find_installed)
 
 
 class Dropped(NamedTuple):
@@ -489,16 +510,6 @@ def _pin_path(real: str) -> str:
         if real.startswith(root):
             return real[len(root):]
     return real
-
-
-def _locate(path: str) -> Path | None:
-    if os.path.isabs(path):
-        return Path(path) if os.path.isfile(path) else None
-    for entry in sys.path:
-        candidate = Path(entry or os.getcwd()) / path
-        if candidate.is_file():
-            return candidate
-    return None
 
 
 def _python_identity() -> str:
@@ -567,8 +578,34 @@ def _child_environment(environment: Mapping[str, str] | None = None) -> dict[str
     return {k: source[k] for k in _CHILD_ENVIRONMENT if k in source} | _FIXED_ENVIRONMENT
 
 
+def _read_source(key: tuple[str, tuple[str, ...], str], witness: Witness) -> bytes | None:
+    """The bytes of the source a pin's path ``key[0]`` names under ``sys.path`` ``key[1]`` and working directory
+    ``key[2]``: the absolute path itself, or the first entry holding a regular file there (the one the same import
+    would load); ``None`` when none does. Every candidate up to the one read is witnessed, a missing one
+    included, so a file appearing on an earlier entry is a change and the shadowing file is read."""
+    path, entries, directory = key
+    candidates = (path,) if os.path.isabs(path) else tuple(os.path.join(entry or directory, path) for entry in entries)
+    for candidate in candidates:
+        found = witness.stat(candidate)
+        if found is not None and stat.S_ISREG(found.st_mode):
+            return Path(candidate).read_bytes()
+    return None
+
+
+#: The pinned sources validations have read, kept for the process. Without it every validation re-read every
+#: pinned file: ``[M]`` 2026-10-17, the warm three-file run (system, reading, assembly; not slow) made 5346
+#: lookups, 832 287 opens and 1.4 M stats over a few hundred files, and the validations held 111 of its 292
+#: profiled seconds, so the warm run cost what no memo did (222 s against 221 s; 155 s after).
+_SOURCES = Kept(_read_source)
+#: A data pin's file and a listing pin's directory, kept for the process.
+_FILE_DIGESTS = Kept(_file_digest)
+_LISTINGS = Kept(_listing_digest)
+
+
 class _Checkout:
-    """The source files as one validation reads them (no read outlives it), and the store children live in."""
+    """One validation's view of the checkout: one state per source file (every pin of a file is judged against
+    one read of it; this does not reach across files or across children, each of which validates with its own
+    checkout), the installed environment, and the store children live in."""
 
     def __init__(self, store: Store) -> None:
         self.store = store
@@ -577,14 +614,23 @@ class _Checkout:
 
     def text(self, path: str) -> bytes | None:
         if path not in self._texts:
-            found = _locate(path)
-            self._texts[path] = found.read_bytes() if found is not None else None
+            self._texts[path] = _SOURCES((path, tuple(sys.path), os.getcwd()))
         return self._texts[path]
 
 
 
+def _read_memo_digest(paths: tuple[Path, ...], witness: Witness) -> str:
+    for path in paths:
+        witness.stat(str(path))
+    return _digest(b"".join(path.read_bytes() for path in paths))
+
+
+_MEMO_DIGESTS = Kept(_read_memo_digest)
+
+
 def _memo_digest() -> str:
-    return _digest(b"".join(p.read_bytes() for p in _MEMO_SOURCES))
+    """The digest of the memo's source on disk now (kept for the process while its three files are unchanged)."""
+    return _MEMO_DIGESTS(_MEMO_SOURCES)
 
 
 #: The memo's source as this process imported it: it built every index this process writes, so it keys them
@@ -670,7 +716,7 @@ class DataPin(NamedTuple):
     digest: str
 
     def stale(self, checkout: _Checkout) -> str | None:
-        return f"data {self.path} changed" if _file_digest(self.path) != self.digest else None
+        return f"data {self.path} changed" if _FILE_DIGESTS(self.path) != self.digest else None
 
 
 class ListingPin(NamedTuple):
@@ -680,7 +726,7 @@ class ListingPin(NamedTuple):
     digest: str
 
     def stale(self, checkout: _Checkout) -> str | None:
-        return f"listing {self.path} changed" if _listing_digest(self.path) != self.digest else None
+        return f"listing {self.path} changed" if _LISTINGS(self.path) != self.digest else None
 
 
 class PresencePin(NamedTuple):

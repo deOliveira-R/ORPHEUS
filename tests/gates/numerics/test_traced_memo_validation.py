@@ -6,9 +6,11 @@ in this process on a fresh synthetic package (step 1); every edit is to that pac
 from __future__ import annotations
 
 import dataclasses
+import importlib
 import importlib.metadata
 import math
 import os
+import pathlib
 import random
 import struct
 import subprocess
@@ -95,28 +97,171 @@ def test_m2_3_a_distribution_version_and_the_interpreter_are_validated(package):
     assert any("no-such-distribution-xyz" in r for r in api.validate(manifest.replacing(pin, gone)))
 
 
+def _boot():
+    return importlib.import_module("orpheus.numerics._traced_memo_boot")
+
+
+def _trust_every_read(monkeypatch):
+    """Keep every read, so each row reaches the comparison of identities and not the racy guard."""
+    monkeypatch.setattr(_boot(), "TRUSTED_AGE_NS", 0)
+
+
+def _install(site, version):
+    """Write a numpy ``.dist-info`` of ``version`` into ``site`` (an install as it lands on disk)."""
+    info = site / f"numpy-{version}.dist-info"
+    info.mkdir(exist_ok=True)
+    (info / "METADATA").write_text(f"Metadata-Version: 2.1\nName: numpy\nVersion: {version}\n")
+    (info / "RECORD").write_text(f"numpy-{version}.dist-info/METADATA,,\nnumpy-{version}.dist-info/RECORD,,\n")
+    return info
+
+
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3_a_distribution_version_and_the_interpreter_are_validated')
-def test_m2_3b_each_validation_reads_the_installed_versions_afresh(package, monkeypatch):
-    """M2.3 (b): a validation looks each distribution's version up once and keeps it for that validation
-    only (#602), so a version that changes between two validations is a reason in the second. M2.3 edits the
-    manifest; this row changes what is installed (``importlib.metadata.distribution``, the lookup a validation
-    makes), so a cache that outlived one validation would read the first version and stay clean."""
+def test_m2_3b_an_install_between_two_validations_of_one_process_is_a_reason(package, monkeypatch, tmp_path):
+    """M2.3 (b): what a validation found installed is kept for the process (``_DISTRIBUTIONS``) while every
+    stat its find made is unchanged, so an install that lands between two validations is a reason in the
+    second. Two legs: a distribution of the same name installed into an earlier ``sys.path`` directory that was
+    already there (the directory's identity moves), then its ``RECORD`` rewritten in place (the directory's does
+    not; the file's does). First red: arm ``distributions-blind`` (a kept find served without its stats)."""
+    _trust_every_read(monkeypatch)
+    site = tmp_path / "site"
+    site.mkdir()
+    monkeypatch.syspath_prepend(str(site))
     manifest = _generate_manifest(package)
-    assert not any("numpy" in r for r in api.validate(manifest)), "the fresh manifest is already stale"
-    real = importlib.metadata.distribution
+    assert not any("numpy" in r for r in api.validate(manifest)), "the cache served a clean find as stale"
+    _install(site, "9.9.9")
+    first = api.validate(manifest)
+    assert any("numpy" in r and "9.9.9" in r for r in first), f"an install into a sys.path directory went unseen: {first}"
+    (site / "numpy-9.9.9.dist-info" / "RECORD").write_text("numpy/__init__.py,sha256=rebuilt,1\n")
+    second = api.validate(manifest)
+    assert first != second and any("RECORD" in r for r in second), f"a RECORD rewritten in place went unseen: {first} / {second}"
 
-    class Upgraded:
-        """numpy as an upgrade would leave it: another version (the lookup a validation makes since #602 cut E
-        reads the distribution, its version and its RECORD)."""
 
-        def __init__(self, distribution):
-            self.version, self._distribution = "9.9.9", distribution
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3b_an_install_between_two_validations_of_one_process_is_a_reason')
+def test_m2_3h_a_metadata_rewritten_in_place_is_a_reason(package, monkeypatch, tmp_path):
+    """M2.3 (h): the found distribution's ``METADATA`` is witnessed from its directory, so a version changed in
+    place (same size, same directory) is a reason (qa's review of the hit-cost fix, finding 5). First red: arm
+    ``record-only`` (only ``RECORD`` witnessed)."""
+    _trust_every_read(monkeypatch)
+    site = tmp_path / "site"
+    site.mkdir()
+    monkeypatch.syspath_prepend(str(site))
+    info = _install(site, "9.9.9")
+    manifest = _generate_manifest(package)  # pins numpy 9.9.9 from the installed one
+    assert api.validate(manifest) == ()
+    (info / "METADATA").write_text("Metadata-Version: 2.1\nName: numpy\nVersion: 9.9.8\n")
+    assert any("9.9.8" in r for r in api.validate(manifest)), "a METADATA rewritten in place went unseen"
 
-        def read_text(self, name):
-            return self._distribution.read_text(name)
 
-    monkeypatch.setattr(importlib.metadata, "distribution", lambda name: Upgraded(real(name)) if name == "numpy" else real(name))
-    assert any("numpy" in r and "9.9.9" in r for r in api.validate(manifest))
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed')
+def test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process(package, monkeypatch):
+    """M2.3 (c), the saving: a second validation in the process makes no read of a pinned source while every
+    stat the first read made is unchanged (``[M]`` 2026-10-17, the warm three-file run made 832 287 opens for a
+    few hundred files before it). The spy counts the reads ``_SOURCES`` makes, however a read is spelled. First
+    red: arm ``never-serve``."""
+    _trust_every_read(monkeypatch)
+    manifest = _generate_manifest(package)
+    sources = api.module()._SOURCES
+    real, reads = sources._read, []
+    monkeypatch.setattr(sources, "_read", lambda key, witness: reads.append(key[0]) or real(key, witness))
+    assert api.validate(manifest) == ()
+    assert reads == [], f"a validation with nothing changed read {sorted(set(reads))}"
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
+def test_m2_3d_an_edit_that_keeps_size_and_modification_time_is_a_reason(package, monkeypatch):
+    """M2.3 (d): an edit of the same size with the modification time set back to what it was (``os.utime``)
+    changes only the file's change time, which no call sets back on POSIX; the second validation reads it again
+    and names it. First reds: arms ``drop-ctime`` and ``always-serve``."""
+    _trust_every_read(monkeypatch)
+    manifest = _generate_manifest(package)
+    path = package.path("alpha")
+    before = os.stat(path)
+    package.edit("alpha", "return x * SCALE", "return x / SCALE")
+    os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+    after = os.stat(path)
+    assert (after.st_size, after.st_mtime_ns, after.st_ino) == (before.st_size, before.st_mtime_ns, before.st_ino), "the edit did not keep size, time and inode"
+    assert any("helper" in r for r in api.validate(manifest)), "a same-size edit with its time set back went unseen"
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
+def test_m2_3e_a_write_too_recent_to_trust_is_read_again(package, monkeypatch):
+    """M2.3 (e), the racy guard: on a filesystem whose timestamps are coarse, a second write in the same tick
+    leaves the identity as it was. Simulated by an identity whose two times never move (every write in one
+    tick); the fixture's files are seconds old, so the default trusted age keeps them out of the cache and the
+    second validation reads the edit and names it. Deterministic (qa's review, finding 3: a one-second
+    simulation skipped 2 runs in 12). First red: arm ``settled-true``."""
+    identity = _boot().FileIdentity
+    real = identity.of.__func__
+    monkeypatch.setattr(identity, "of", classmethod(lambda cls, found: real(cls, found)._replace(modified_ns=0, changed_ns=0)))
+    manifest = _generate_manifest(package)
+    before = os.stat(package.path("alpha"))
+    package.edit("alpha", "return x * SCALE", "return x / SCALE")
+    assert os.stat(package.path("alpha")).st_size == before.st_size, "the edit changed the size, which the identity sees"
+    assert any("helper" in r for r in api.validate(manifest)), "a write within the tick of the last read was served from the cache"
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
+def test_m2_3f_a_file_shadowing_the_pinned_one_on_an_earlier_entry_is_a_reason(package, monkeypatch, tmp_path):
+    """M2.3 (f): a pin's path is relative to its ``sys.path`` entry, and the read witnesses every candidate up to
+    the one it read, a missing one included, so a module that appears in an earlier entry ALREADY on ``sys.path``
+    (the one the same import would now load; ``sys.path`` itself is in the key) is read and named (qa's review,
+    finding 1). First red: arm ``witness-the-read-file-only``."""
+    _trust_every_read(monkeypatch)
+    shadow = tmp_path / "shadow"
+    shadow.mkdir()
+    monkeypatch.syspath_prepend(str(shadow))
+    manifest = _generate_manifest(package)
+    assert api.validate(manifest) == ()
+    (shadow / package.name).mkdir()
+    (shadow / package.name / "alpha.py").write_text(package.path("alpha").read_text().replace("return x * SCALE", "return x / SCALE"))
+    assert any("helper" in r for r in api.validate(manifest)), "a file shadowing the pinned one went unseen"
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
+def test_m2_3g_a_write_right_after_the_read_is_read_again(package, monkeypatch):
+    """M2.3 (g): the stat comes before the read it guards, so a write landing between the read and the next
+    validation is kept under the identity before it and read again (qa's review, finding 2). First red: arm
+    ``read-then-stat``."""
+    _trust_every_read(monkeypatch)
+    memo = api.module()
+    manifest = _generate_manifest(package)
+    memo._SOURCES._kept.clear()
+    alpha = package.path("alpha")
+    real, fired = pathlib.Path.read_bytes, []
+
+    def read_then_write(self):
+        data = real(self)
+        if not fired and os.path.samefile(self, alpha):
+            fired.append(1)
+            package.edit("alpha", "return x * SCALE", "return x / SCALE")
+        return data
+
+    monkeypatch.setattr(pathlib.Path, "read_bytes", read_then_write)
+    assert api.validate(manifest) == (), "the bytes read are the ones before the write"
+    assert fired, "the validation did not read alpha.py"
+    assert any("helper" in r for r in api.validate(manifest)), "a write between the read and the next stat was served from the cache"
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
+def test_m2_3i_a_data_file_and_a_listing_changed_between_two_validations_are_reasons(monkeypatch, tmp_path):
+    """M2.3 (i): a data pin's file and a listing pin's directory are kept for the process too (``_FILE_DIGESTS``,
+    ``_LISTINGS``), so a same-size edit with its time set back, and a name added to a listed directory, are
+    reasons in the next validation. First red: arm ``never-witness`` (a kept read served without its stats)."""
+    _trust_every_read(monkeypatch)
+    memo = api.module()
+    data, listed = tmp_path / "data.txt", tmp_path / "listed"
+    data.write_text("one")
+    listed.mkdir()
+    checkout = memo._Checkout(memo.Store.current())
+    data_pin = memo.DataPin(str(data), memo._FILE_DIGESTS(str(data)))
+    listing_pin = memo.ListingPin(str(listed), memo._LISTINGS(str(listed)))
+    assert (data_pin.stale(checkout), listing_pin.stale(checkout)) == (None, None)
+    before = os.stat(data)
+    data.write_text("two")
+    os.utime(data, ns=(before.st_atime_ns, before.st_mtime_ns))
+    (listed / "new").write_text("")
+    assert data_pin.stale(checkout) is not None, "a data file edited in place went unseen"
+    assert listing_pin.stale(checkout) is not None, "a name added to a listed directory went unseen"
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed')
