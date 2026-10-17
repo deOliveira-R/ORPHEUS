@@ -32,6 +32,12 @@ The graph is also the schedule. A test runs only when its supports are green. A 
 4. **The node is a claim; a test is the pass or fail of one claim** (the user, 2026-10-16): "Node is a claim, test is pass or fail on the claim. What is a test without a claim? What are we even testing for? Tests hierarchy is essentially claim dependency." Candidate B is ruled; candidate A is refuted for this question (below). An edge says that one claim depends on another.
 5. **The census goes by layer** (the user, 2026-10-16): "census by layer, because layers build up the verification causality cone. Transport methods are subcones at the base of the big cone." The order follows the import layers (`docs/architecture/layering.rst`): `numerics/` first, then the input layer (`geometry/`, `mesh/`, `data/`), then `transport/`. Each L3 method package (`sn/`, `diffusion/`, `homogeneous/`, `cp/`, `moc/`, `mc/`) is a sub-cone resting on that base, and `derivations/` sits beside them, below L2.
 6. **gmpy2 is adopted** as mpmath's backend (the user, 2026-10-16). It lands after the bypass drop's merge gate, so the running suite does not see two backends.
+7. **Claims have both kinds of home, chosen per claim** (the user, 2026-10-16): "Probably there are claims that would fit the first candidate and claims that better fit the second one." The two candidates of open question 5 are both kept; which one a claim uses is decided per claim, and the rule for deciding is still to be found.
+8. **A concept is proved by several claims, and claims compose up the cone into a method's verification certificate** (the user, 2026-10-16). In the user's words: "a simple quadrature is verified by a whole battery of tests that shows a bunch of characteristics, including something elaborate like "invariant over reflection", which is a claim that is required when finally Sn hits a reflective boundary." At the top of the cone the claims compose into "SN behaves in XYZ way, with this kind of sensitivity/uncertainty, from numerical and method sources, bounded and measured. The method is verified. Verification Certificate".
+9. **A catalogue of claim categories** (the user, 2026-10-16), with three readers:
+   - the test-architect, as a guide to which claims a concept could carry ("not every concept needs every claim in the catalogue... it's just a guide of what one could claim");
+   - qa, as a checklist for attack ("I managed to break X because claim A is important and you did not design a test for this claim");
+   - the project, which learns from it what a robust scientific code must claim, as the catalogue grows.
 
 ## Vocabulary (one meaning per word)
 
@@ -222,13 +228,54 @@ So the scheduler keeps a resource profile per test: duration, peak memory, S(p) 
 
 The order follows phase 1's measurements: the techniques go where S(p), C(k) and the profile say the time is.
 
+## The claim catalogue (ruling 9)
+
+**What it is.** A catalogue of the *kinds* of claim a concept can be held to, each kind with:
+- its definition;
+- the functional a test of it measures;
+- the defects it is blind to: its stabiliser, in `instrument-doctrine` X1's sense;
+- its known instances in the tree.
+
+It is the dual of the error catalogue, `docs/theory/verification/error_catalog.rst`. The error catalogue records what has gone wrong, with the test that catches each defect. The claim catalogue records what can be asserted, with the tests that assert it. #358 already asks for "a claim-KIND axis"; this is that axis, given its own home.
+
+**Seed kinds, from the user's list and the tree** (each `[HYPOTHESIS]` until the census confirms or merges it):
+
+| Kind | What it claims | An instance in the tree |
+|---|---|---|
+| invariance under a group action | the object is unchanged by every element of a group (a reflection, a rotation, a permutation of equivalent regions) | a quadrature invariant under the reflections of a reflective boundary (`numerics/invariance.py`, `is_invariant_under`) |
+| equivariance | the map commutes with the group action | the sweep commuting with a reflection of the mesh `[R]` |
+| conservation, balance | a balance closes: production = loss + leakage, current continuity at a face | the characteristic block's conservation rows |
+| exact identity | an algebraic identity holds exactly or to rounding: `R∘E = id`, an adjoint pairing, a Galerkin relation | the door's reciprocity `⟨r, φ_q⟩ = ⟨q, φ†_r⟩` (A1) |
+| exactness degree | a rule integrates every polynomial up to degree d exactly, and fails at d + 1 | Gauss–Legendre's degree 2n − 1 |
+| convergence order | the error falls as O(h^p) with the observed p | MMS ladders |
+| bit identity | two computations agree to the last bit | a re-spelling that keeps the floating-point reduction tree |
+| bounded drift from re-association | two orderings agree within a bound set by the reduction depth or iterations × condition × ULP, and are expected to differ | `vv-principles`, "Bit-identity vs principled-equivalence" |
+| positivity, the cone | a flux or an albedo lies in its positive cone | ERR-043, ERR-046 |
+| refusal | an illegal input is refused with a named reason, never answered | `NoLeastSolution` on an (n,2n)-supercritical body |
+| agreement with an independent reference | the answer matches a structurally independent reference within a measured band | the characteristic reading against the mpmath route |
+| sensitivity and uncertainty | the answer's sensitivity to the discretisation and its numerical uncertainty are bounded and measured | the method-level certificate (ruling 8); no instance yet `[R]` |
+
+**How it is used:**
+- The test-architect's spec names, for each concept, which kinds it claims and why the others do not apply.
+- qa attacks the kinds a concept should claim and does not.
+- A census finding of a kind not in the catalogue adds a row.
+
+**The certificate.** At the top of each method's sub-cone sits a composed claim. Its parts are the claims it rests on, each with its bound. Its statement is the method's verified behaviour, with the sensitivity and uncertainty from numerical and method sources, bounded and measured. How a bound composes up the cone (added, multiplied, taken as the maximum) is an open mathematical question, owed before the certificate can be more than a list `[R]`.
+
+**Where the catalogue lives** is open. A theory page under `docs/theory/verification/`, beside the error catalogue, with each kind a directive the graph indexes, is the obvious candidate `[HYPOTHESIS]`.
+
+**The worked example.**
+- `[M]` 2026-10-16 (code reading: an import plus a call): `numerics/invariance.py` imports `RigidMotion` (line 56). `is_invariant_under` decides a measure's invariance by applying the group's motions to the nodes (`_orbit_space_closure`). The specular boundary reads `RigidMotion.preserves` (`geometry/boundary/_specular.py:113`).
+- So the reflection-invariance claim of a quadrature rests on the claims of `RigidMotion` (its action on a direction is an isometry, and a reflection is an involution) and of `SubgroupOfO3`. SN's reflective-boundary claim rests on it in turn.
+- Whether those `RigidMotion` claims are tested today, and as which kinds, is a census question.
+
 ## Open questions for the user
 
 Questions 1–3 were answered on 2026-10-16 (rulings 4–6).
 
 4. **Census verdicts:** proven by mutation per test, which is expensive and exact, or flagged by reading first with a mutation pass per capability after?
 
-5. **Where a claim lives that has no equation** (follows from ruling 4). An equation's claim lives at its `:label:` on a theory page, and `verifies` names it. A contract, an invariant or a law of a type has no such home today. 12 745 foundation test ids carry no `verifies`. The candidates, each `[HYPOTHESIS]`:
+5. **Where a claim lives that has no equation** (follows from ruling 4). [Answered in part, ruling 7: both homes, chosen per claim; the rule for choosing is open.] An equation's claim lives at its `:label:` on a theory page, and `verifies` names it. A contract, an invariant or a law of a type has no such home today. 12 745 foundation test ids carry no `verifies`. The candidates, each `[HYPOTHESIS]`:
    - a claim directive on the theory or architecture page that owns the concept, minted like `.. error-entry::` (a node in the graph, an id a marker can name);
    - the claim written once in the test and harvested by the graph.
 
