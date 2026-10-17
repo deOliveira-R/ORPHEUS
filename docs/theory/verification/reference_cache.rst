@@ -35,7 +35,10 @@ The reference cache: a traced memo keyed on what ran
    template, every input observed at its first touch, the RECORD pin) on branch
    perf/traced-memo-fork-template, 2026-10-16, and for the hit cost (a
    validation's reads kept for the process: FileIdentity, Witness, Kept)
-   at 8fbb1d61 on branch fix/memo-hit-cost, 2026-10-17.
+   at 8fbb1d61 on branch fix/memo-hit-cost, 2026-10-17, and for the
+   first test-oracle clients and the memo's child resolution
+   (_resolve_memo) at 7ca91c43 and 333268fb on branch
+   test/characteristic-oracle-memo, 2026-10-17.
 
 A reference reading costs seconds to minutes. The multi-region sphere
 of the A|B|A cross-check, at the coarse resolution the gates use, takes
@@ -138,14 +141,17 @@ Key facts
   ``evaluate`` returns, an establishment or an uncertified value, never a
   certificate or a verdict; ``ReferenceSolution`` re-checks every claim
   against that evaluation, cached or computed.
-* **Three clients today**, all in the characteristic reference: its
+* **Five clients today.** Three are in the characteristic reference: its
   reading, ``CharacteristicDerivation.evaluate``, keyed on the derivation
   and the observable; its solve, ``CharacteristicDerivation.solve``, keyed
   on the derivation alone and a child entry of every reading (#592); and
   one group's transport block, ``group_transport``, keyed on the basis,
   the walls, the group's total cross sections, the resolution and the
-  emitting regions, and a child entry of the solve (#405 P3 step 2c). P3
-  shipped three others, the two multi-region trajectory-resolvent solvers
+  emitting regions, and a child entry of the solve (#405 P3 step 2c). Two
+  are a test's oracle, the mpmath routes ``phi_cylinder_vacuum`` and
+  ``phi_cylinder`` of ``tests/gates/derivations/_characteristic_point_mp.py``,
+  which take tens of seconds to minutes a point (#405 P3 concept 1,
+  2026-10-17). P3 shipped three others, the two multi-region trajectory-resolvent solvers
   (``solve_greens_function_sphere_mr`` and
   ``solve_greens_function_cylinder_mr``) and the trajectory-resolvent
   derivation's ``evaluate``; they were deleted with their family at P1
@@ -2024,6 +2030,42 @@ job frame per miss and forks a child for each
 ``_Launch``, holds the interpreter, the ``-O`` level, ``sys.path``, the
 working directory and the environment, and starts either.
 
+**The memo crosses by its name, and is found through the decorators
+above it.** The job carries the memo as a reference, never as code:
+``TracedMemo.__reduce__`` pickles it as a call of ``_resolve_memo`` on its
+``function_id``, so the generating process imports the memo's module
+(compiled from the bytes it pins, below) and finds the memo there.
+``_resolve_memo`` reads the module attribute the ``function_id`` names and
+follows its ``__wrapped__`` chain with :func:`inspect.unwrap`, stopping at
+the first ``TracedMemo`` (``inspect.unwrap`` raises ``ValueError`` on a
+cyclic chain). It refuses by name, with ``TypeError`` ("names no memo,
+directly or through __wrapped__"), unless what it reached is a memo whose
+``function_id`` is the one asked for. The unwrap is needed because a
+decorator stacked above the memo (``functools.lru_cache``, or any wrapper
+built with ``functools.wraps``) makes the module attribute the outer
+wrapper, whose ``__wrapped__`` is the memo. Before ``7ca91c43``
+(2026-10-17) the child resolved the attribute alone: it called the
+wrapper, the wrapper called the memo with the key the child was
+answering, and the cycle guard below refused it with "calls itself with
+the same arguments". `[M]` 2026-10-17: the first stacked client,
+``phi_cylinder_vacuum`` under ``lru_cache``, failed
+``test_a_small_cylinders_layer_is_graded_outside_slow[interface]`` with
+exactly that error. Two gates in
+``tests/gates/numerics/test_traced_memo_process.py``, each with its first
+red:
+
+* **M3.1b**: a memo under ``lru_cache`` in the synthetic ``beta`` module
+  generates once and returns its body's value. The old ``__reduce__``
+  restored in process reddens M3.1b and leaves M3.1 green; qa reddened it
+  on the fresh-interpreter route too, with forking off.
+* **M3.1c**: a name whose attribute is no memo, or wraps a memo of another
+  ``function_id``, is refused by name rather than run. Dropping the
+  identity check reddens the another-memo row only.
+
+No client stacks a decorator above its memo today: the first that did,
+the oracle's ``lru_cache``, was removed in review (the clients, below,
+say why). The resolution is the door for any later wrapping decorator.
+
 **The boot script imports only the standard library**, so it can start
 recording before any ``orpheus`` code runs: the shared start of a
 generating process and a template, ``_boot``, starts a :class:`~orpheus.numerics._traced_memo_boot.Recording`,
@@ -2135,7 +2177,9 @@ in-process mutation (a monkeypatch, or a ``-p`` plugin rebinding a
 symbol) is invisible to every row that reads a value through the memo: a
 miss generates from the source on disk, and a hit serves what that source
 computed. Since the transport blocks became a client (2026-10-15), that
-covers every characteristic row that reads ``GalerkinSystem.groups``. A
+covers every characteristic row that reads ``GalerkinSystem.groups``, and
+since 2026-10-17 every row that reads the oracle routes
+``phi_cylinder_vacuum`` and ``phi_cylinder`` (the clients, below). A
 battery or a ``catches`` re-drop on such rows mutates textually (a copied
 tree or a worktree, so the defect is on disk) or has its plugin enter
 :func:`~orpheus.numerics.traced_memo.bypass` at ``pytest_configure``;
@@ -2251,9 +2295,10 @@ The clients
 ===========
 
 The clients are the characteristic reading, its solve and its
-transport blocks, below. The two trajectory-resolvent clients described first were P3's,
-and were deleted with their family; their description is the record of
-how ruling 2 was first realised.
+transport blocks, and the two mpmath routes of a test oracle, below. The
+two trajectory-resolvent clients described first were P3's, and were
+deleted with their family; their description is the record of how ruling
+2 was first realised.
 
 **The two multi-region solvers (deleted)**,
 ``solve_greens_function_sphere_mr`` (in
@@ -2329,10 +2374,157 @@ hit-cost fix (``53551868``) 725 s, 155 s and 227 s, and the landed fix
 (``8fbb1d61``) 820 s, 163 s and 221 s (`[M]`, single runs;
 :ref:`verification-reference-cache-kept-reads`).
 
+**The mpmath routes of a test oracle** (#405 P3 concept 1, 2026-10-17,
+``333268fb``). ``phi_cylinder_vacuum`` and ``phi_cylinder``, in
+``tests/gates/derivations/_characteristic_point_mp.py``, are the routes the
+characteristic reading and lift gates compare a cylinder's point flux
+with: a solid cylinder under vacuum, and under a specular law, read at a
+radius, written in mpmath from the closed forms. They are the first
+clients outside ``orpheus/``, and the first whose value is a test's
+oracle rather than a reference's reading. Each carries ``@traced_memo``
+alone.
+
+*Why these two, and no other route of the module.* `[M]` 2026-10-17, a
+cProfile of a warm run of the slow rows
+(``scratch/characteristic_architecture/p3/c3/drop/timing/profile/warm_slow.prof``):
+82 % of the run was in ``mpmath.quad``, and 993 s of it in these two
+routes, ``phi_cylinder_vacuum`` at 12 distinct points a run, 43.6 s each,
+and ``phi_cylinder`` at 5, 94 s each. Each sat under ``lru_cache``, which
+lives for one process, so every run paid for them again. The module's
+other routes take milliseconds a point and keep their ``lru_cache``. That
+split is the rule the exact medium's section set: a stored hit costs
+about 8 ms in process (`[M]` the elegance review's probe3: 17.7 ms on the
+first lookup, then 8.3 and 7.5 ms) and a first call a miss of at least
+one interpreter start, about 0.5 s (:ref:`verification-reference-cache-miss-cost`),
+so a millisecond route would cost about its own time on every lookup and
+far more on its miss.
+
+*Why this is not the size threshold refused for the transport block.* On
+2026-10-15 the user ruled that ``group_transport`` is memoised whatever its
+size (:ref:`characteristic-block-memo`): a threshold would have sent the
+fast gates' cheap blocks through an in-process arm while production's
+costly blocks took the memo arm, two routes to one value, chosen at the
+call site by a performance number. Here no value has two routes. Each
+oracle value has one route, its mpmath body, stored or not, and nothing in
+production reaches it. Choosing which routes to store chooses which
+functions are clients; it never chooses, call by call, which arm of one
+function a value takes.
+
+*Why no* ``lru_cache`` *sits above the memo.* A function cache stacked above
+a memo serves, for the life of the process, whatever the memo returned
+first, so under :func:`~orpheus.numerics.traced_memo.bypass` it serves the
+value from before the bypass. `[M]` the elegance review's probe2: after a
+module constant was patched under ``bypass()``, a memo under ``lru_cache``
+returned 2.0 before and 2.0 after the patch, a bare memo 2.0 and 10.0.
+The bypass is the spelling for a test that patches what a generation runs
+(:ref:`verification-reference-cache-bypass`), so the stacking breaks it
+silently and leaks a value between tests in either direction. At about
+8 ms a hit the function cache buys nothing, so it was removed. The first
+version kept it, above the memo, and exposed the child-resolution defect
+of the process boundary (the section "The process boundary" above).
+
+*The oracle's independence, gated.* The oracle is evidence about the
+characteristic reference only if it shares nothing with it above the
+trusted-library line (``instrument-doctrine`` X4), and the memo is the
+oracle's first ``orpheus`` import. The gate
+``test_the_mpmath_routes_import_nothing_but_the_memo`` (foundation, in
+``tests/gates/derivations/test_characteristic_reading.py``) is an AST
+census. ``tests.gates._corroboration.references_in`` lists every name a
+module imports at any depth of its source, a function body's import
+included; the gate reads the oracle module and every ``tests`` module it
+reaches through its imports, at any depth, and allows one ``orpheus``
+name, ``orpheus.numerics.traced_memo`` (with its ``traced_memo``). Its
+control, in the same gate: the same census of the characteristic
+reference's ``lines`` module must find ``orpheus`` imports beyond the
+memo, or the gate fails with "the census sees no import". Its first reds,
+each on a copy restored with a clean diff:
+
+* an import of ``orpheus.numerics.quadrature`` at the top of the oracle
+  module;
+* an import of ``characteristic.lines`` inside one of its functions;
+* an import of ``orpheus.geometry.boundary`` in ``_characteristic_mp``,
+  which the oracle imports.
+
+*The refuted first version.* The first gate compared the ``orpheus``
+modules that fresh interpreters hold after importing the memo and after
+importing the oracle. It is refuted for the question "does the oracle
+import the code under test?", and both reviews found it blind twice. (1)
+Importing the memo alone loads 76 ``orpheus`` modules (`[M]` 2026-10-17,
+a fresh interpreter: 54 of ``orpheus.numerics``, whose package
+``__init__`` imports it eagerly; 21 of ``orpheus.geometry``, the package
+``orpheus.geometry.boundary`` whole among them; and ``orpheus``), every one
+inside the reference's own import closure, so an added import of any of
+them changed nothing the comparison saw. (2) An import inside a function
+does not run at import time, so no interpreter holds it. The fact the
+refutation establishes: what an import adds to ``sys.modules`` is not
+whether the source imports it, and only the source can answer the second.
+
+*What an entry pins, and what an edit there costs.* A stored entry pins
+what its generation ran, and the generation imports the memo, so the
+entry pins the skeletons of those 76 modules (`[M]` qa's review: 76
+``orpheus`` module pins and 39 def pins of ``orpheus`` functions run at
+import, beside the distribution pins of numpy and scipy). An edit to an
+import, a constant or a signature anywhere in ``orpheus.numerics``'s
+loaded modules or in the geometry they load (``orpheus.geometry.boundary``
+included) regenerates both routes, about 993 s at the profile's
+per-point figures (`[R]`). It costs minutes and never changes a value: by
+the census, the routes import nothing of those modules beyond the memo.
+The root is #605 (importing the memo imports the whole numerics package);
+its fix shrinks the cone to the memo's own modules.
+
+*What it bought.* `[M]` 2026-10-17
+(``scratch/characteristic_architecture/p3/c3/oracle/summary.txt``, driver
+``run.sh`` beside it): the 23 slow rows (``-m slow``) of
+``test_characteristic_lift.py`` and ``test_characteristic_reading.py``,
+each tree run once, serially, under ``-O`` and ``OMP_NUM_THREADS=1``, in a
+fresh worktree with an empty store, cold and then warm.
+
+.. list-table:: The slow rows of the lift and reading gates, before and
+   after the oracle routes became clients (single runs)
+   :header-rows: 1
+   :widths: 40 20 20 20
+
+   * - Tree
+     - Cold
+     - Warm
+     - Entries in the store
+   * - ``b2037667``, the routes under ``lru_cache``
+     - 1 075 s
+     - 353 s
+     - 17
+   * - ``333268fb``, the routes stored
+     - 1 044 s
+     - 127 s
+     - 34
+
+The 17 added entries are the 12 and 5 distinct oracle points. A warm run
+saves 226 s. A cold run computes each route once either way, so its
+31 s difference is between two single runs and is not a measured gain. What remains of the warm
+127 s is computed in process, not in the oracle (the ``--durations`` of
+``after_warm.log`` beside the summary): the characteristic reading's
+point reads through ``point_flux``, the top rows 28.9 s
+(``test_the_reading_at_a_general_point_of_a_cylinder_is_the_mpmath_route[vacuum-wall]``)
+and 25.6 s
+(``test_a_cylinders_reading_is_the_frozen_mpmath_route[F4-mr3-vacuum-1.1]``),
+and the lift's polar-column quadrature, 14.3 s
+(``test_each_polar_node_of_the_reading_is_its_mpmath_density[wall-mirror]``).
+Concept 2 of ``.claude/plans/verification_tree_refinement.md`` (an oracle
+value computed once and stored, instead of recomputed by every test that
+reads it) is the next step.
+
 **A solve that does not converge.** The solver's result is a value
 whatever its convergence, so an exhausted solve is a cached value; the
 reading of it is a refusal, and a refusal is an exception, which writes no
-entry (M4.8).
+entry (M4.8). The same question is open for warnings (#607): the caller's
+warning filters do not reach a generation, which runs in another process
+under the interpreter's default filters, so a warning that a test module's
+``filterwarnings("error::RuntimeWarning")`` would raise in process is only
+printed in the generating child, and the entry is stored. `[R]` inert
+today: no stored generator's correctness rests on a warning raised as an
+error (`[M]` 2026-10-17, qa's grep of their module tree). Whether the
+filters become part of what a generation inherits, and so of the key, or
+the page states that an entry is a value whatever the caller's filters,
+is #607's ruling.
 
 .. _verification-reference-cache-miss-cost:
 
@@ -3642,6 +3834,27 @@ the memo. The 2026-10-04 rows sat on the branch
      - Milestone
      - Issue
      - Where
+   * - 2026-10-17
+     - **The first test-oracle clients** (#405 P3, concept 1). A warm run
+       of the slow lift and reading rows spent 993 s in two mpmath routes
+       of ``_characteristic_point_mp``, ``phi_cylinder_vacuum`` and
+       ``phi_cylinder``; both carry ``@traced_memo`` alone, their
+       ``lru_cache`` removed (above a memo it serves the value from before
+       a ``bypass()``). The other routes take milliseconds and are not
+       stored. The oracle's independence is the AST census
+       ``test_the_mpmath_routes_import_nothing_but_the_memo``, its control
+       the ``lines`` module, three first reds; a first version comparing
+       fresh interpreters' module sets was blind (the memo alone loads 76
+       ``orpheus`` modules; a function-body import never runs). Before it,
+       the child resolution ``_resolve_memo`` (``7ca91c43``): a memo under
+       a wrapping decorator generated by calling itself and was refused;
+       gates M3.1b and M3.1c. 23 slow rows: warm 353 s to 127 s, cold
+       1 075 s to 1 044 s, 17 entries to 34. Follow-ups: #605 (an entry
+       pins the eagerly imported numerics package), #606 (seven copies of
+       the ``_LAYER_SCRIPT`` import probe), #607 (a warnings filter does
+       not reach the child).
+     - #405; #605, #606, #607
+     - ``7ca91c43``, ``333268fb``, (this commit)
    * - 2026-10-17
      - **A validation's reads are kept for the process** (#602, the hit
        cost). A warm run of the three files cost what no memo did (222 s
