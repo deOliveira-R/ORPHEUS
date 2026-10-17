@@ -42,6 +42,7 @@ The graph is also the schedule. A test runs only when its supports are green. A 
 11. **Each test says which category it is** (the user, 2026-10-16): "Tests should probably get a mark or something clearly say what they are according to the catalogue." The spelling (a marker naming the kind, beside the claim the test passes or fails) is open, and follows from where a claim lives (open question 5).
 12. **A refusal is an elegance question, and the graph says where its debt clears** (the user, 2026-10-16). A guard that refuses illegal input is debt or not depending on where it sits in the graph: the graph shows the root, the producer upstream where the illegal state could be made unspellable instead (`coding-elegance` Pattern 4; the guard-as-debt rule of `coding-standards`). So the graph also serves the elegance-enforcer.
 13. **How bounds compose up the cone is deferred until after the restructuring** (the user, 2026-10-16). No claim on it exists today, so the refinement does not study it. It is filed as an issue for after the restructuring. It is far from trivial: it is the uncertainty contributed by the MODEL itself, which modellers rarely measure; they usually bound the final result, and the usual scope of uncertainty quantification is the uncertainty brought in by the model's parameters. Measuring it would make ORPHEUS an outlier in computational modelling.
+14. **The three-pass verdict method is accepted provisionally** (the user, 2026-10-16): "I accept this method for census verification, at least provisionally. We will revisit it during a second pass through the entire plan (where we will refine everything) when we go back to it when we tackle that campaign after finishing the one we're in." The campaign starts after the characteristic-reference campaign closes (`characteristic_reference_architecture.md`), with a second pass that refines this whole plan first.
 
 ## Vocabulary (one meaning per word)
 
@@ -273,7 +274,7 @@ It is the dual of the error catalogue, `docs/theory/verification/error_catalog.r
 - So the reflection-invariance claim of a quadrature rests on the claims of `RigidMotion` (its action on a direction is an isometry, and a reflection is an involution) and of `SubgroupOfO3`. SN's reflective-boundary claim rests on it in turn.
 - Whether those `RigidMotion` claims are tested today, and as which kinds, is a census question.
 
-## How census verdicts are decided (`[HYPOTHESIS]`, proposed 2026-10-16, awaiting the user's ruling)
+## How census verdicts are decided (proposed 2026-10-16; accepted provisionally, ruling 14)
 
 Per layer, in three passes. Each pass narrows the next, so no mutation is run against a test it cannot reach.
 
@@ -304,7 +305,7 @@ Mutant subsumption, the containment of one test's kill set in another's, is the 
 
 Questions 1–3 were answered on 2026-10-16 (rulings 4–6).
 
-4. **Census verdicts:** proposed above ("How census verdicts are decided"); awaiting the user's ruling.
+4. **Census verdicts:** accepted provisionally (ruling 14).
 
 5. **Where a claim lives that has no equation** (follows from ruling 4). [Answered in part, ruling 7: both homes, chosen per claim; the rule for choosing is open.] An equation's claim lives at its `:label:` on a theory page, and `verifies` names it. A contract, an invariant or a law of a type has no such home today. 12 745 foundation test ids carry no `verifies`. The candidates, each `[HYPOTHESIS]`:
    - a claim directive on the theory or architecture page that owns the concept, minted like `.. error-entry::` (a node in the graph, an id a marker can name);
@@ -316,4 +317,4 @@ Questions 1–3 were answered on 2026-10-16 (rulings 4–6).
 
 - **The Nyström row's marker** (`peierls-greens-slab-architecture`) runs only under `ORPHEUS_RUN_WITHDRAWN=506`. In the canonical run it covers nothing. Its margin is 7.3e-5 against a 5e-5 band, for an attenuation error of 1e-3. Record it under #506. (`scratch/characteristic_architecture/p3/c3/drop/redrop/verifies_verdicts.md`)
 
-⏸ **Next:** the user's answers to the open questions; then phase 1.
+⏸ **Next:** this campaign waits for the characteristic-reference campaign to close (ruling 14). It resumes with a second pass refining this whole plan, then phase 1. Open question 5 (the rule for choosing a claim's home) stays for that pass. #604 is the deferred bound composition (ruling 13).
