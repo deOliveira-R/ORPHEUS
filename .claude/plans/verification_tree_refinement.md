@@ -29,10 +29,15 @@ The graph is also the schedule. A test runs only when its supports are green. A 
    - **The method** stays in force: every `rests_on` edge is designed by reading the two tests, one capability at a time, never added by a pattern. The reason is measured: one blanket module-level `pytestmark` minted 124 of 243 refuted coverage claims (#387).
 3. **A duplicate gives way to its stronger twin** (the user, 2026-10-16). Two tests with the same function and behaviour are one claim: the stronger stays, the weaker retires. "Stronger" is decided by the mutations each turns red (X1), not by name or size. `[R]` the criterion's form is a hypothesis until the census applies it.
 
+4. **The node is a claim; a test is the pass or fail of one claim** (the user, 2026-10-16): "Node is a claim, test is pass or fail on the claim. What is a test without a claim? What are we even testing for? Tests hierarchy is essentially claim dependency." Candidate B is ruled; candidate A is refuted for this question (below). An edge says that one claim depends on another.
+5. **The census goes by layer** (the user, 2026-10-16): "census by layer, because layers build up the verification causality cone. Transport methods are subcones at the base of the big cone." The order follows the import layers (`docs/architecture/layering.rst`): `numerics/` first, then the input layer (`geometry/`, `mesh/`, `data/`), then `transport/`. Each L3 method package (`sn/`, `diffusion/`, `homogeneous/`, `cp/`, `moc/`, `mc/`) is a sub-cone resting on that base, and `derivations/` sits beside them, below L2.
+6. **gmpy2 is adopted** as mpmath's backend (the user, 2026-10-16). It lands after the bypass drop's merge gate, so the running suite does not see two backends.
+
 ## Vocabulary (one meaning per word)
 
-- **Node:** a verification test (a pytest function, with all its parametrised cases). Whether the node should instead be a claim, meaning a test paired with one label it verifies, is open (candidate ontologies, below).
-- **Edge:** `@pytest.mark.rests_on(<node id>, ...)` on the upper test. It means three things: the upper test assumes the lower is green (dependency); a red lower test invalidates the upper reading rather than failing it (boundary); a failure propagates only along edges (causality). The definition is the test-architect's (`docs/development/agents/test-architect.md`, item 4).
+- **Claim:** a statement the code is held to, with a home where it is written: an equation's label on a theory page, a law, a contract, an invariant. A claim is the node of the graph (ruling 4).
+- **Test:** the instrument that passes or fails one claim. A test with no claim tests nothing nameable.
+- **Edge:** one claim depends on another. Today it is spelled `@pytest.mark.rests_on(<test id>, ...)` on the upper test, naming a test, not a claim; the spelling has to follow ruling 4 (open question 5). It means three things: the upper test assumes the lower is green (dependency); a red lower test invalidates the upper reading rather than failing it (boundary); a failure propagates only along edges (causality). The definition is the test-architect's (`docs/development/agents/test-architect.md`, item 4).
 - **Vacuous test:** a test no realisable defect turns red. It comes in two kinds:
   - **blind:** no mutation of what it claims to verify reddens it (X1);
   - **dominated:** a stronger twin reddens under every mutation that reddens it.
@@ -53,6 +58,30 @@ The graph is also the schedule. A test runs only when its supports are green. A 
 | `docs/development/agents/test-architect.md` | The ladder-is-a-DAG directive and the `rests_on` duty. |
 
 ## Measured state
+
+- **Tests with a claim today** (`[M]` 2026-10-16, `main` `8a1512b1`; `pytest --collect-only` with a counting plugin, `scratch` `claimcount.py`; parametrised cases each count, so these count test ids, not functions): 2 837 of 17 764 collected ids carry a `verifies` marker (16 %); 14 927 carry none. By V&V level marker:
+
+  | Level marker | With `verifies` | Without |
+  |---|---|---|
+  | foundation | 289 | 12 745 |
+  | L0 | 1 235 | 635 |
+  | L1 | 1 259 | 1 484 |
+  | L2 | 54 | 31 |
+  | none | 0 | 32 |
+
+  The packages with the fewest claims, by ids without `verifies` against all ids:
+
+  | Package | Without | All |
+  |---|---|---|
+  | `numerics` | 4 383 | 4 467 |
+  | `mesh` | 564 | 564 |
+  | `reference` | 387 | 387 |
+  | `geometry` | 1 411 | 1 654 |
+  | `transport` | 1 097 | 1 131 |
+  | `sn` | 3 225 | 3 983 |
+  | `derivations` | 2 206 | 3 453 |
+
+  Under ruling 4, each of the 14 927 ids either names its claim in the census or is vacuous. Most foundation tests do assert something definite (a contract, an invariant, a law of a type); their claim is written only in the test's name and docstring, with no home a `verifies` marker could name. `[R]`, from reading the foundation tests touched this session, not a census.
 
 All counts below are `[M]` 2026-10-16 on `main` `417f64f3`, by `git ls-files` and `git grep`.
 
@@ -119,16 +148,16 @@ All counts below are `[M]` 2026-10-16 on `main` `417f64f3`, by `git ls-files` an
 
 ## Candidate ontologies (each a hypothesis)
 
-**A. The node is a test function.** This is the current spelling of `rests_on`.
+**A. The node is a test function.** This is the current spelling of `rests_on`. **[REFUTED 2026-10-16 for the question "what is a node", by the user's ruling 4]**: a test is the instrument of a claim, not the thing depended on. The FACT it establishes stays: the 603 existing edges are spelled as test ids and must migrate (open question 5).
 - *Makes unspellable:* an edge to a test that does not exist; the edge resolves to a collected id.
 - *Leaves welded:* a test that verifies two labels is one node, so an edge cannot say which of its claims the upper test assumes. The bypass drop's re-drop found this case: A1 carried `characteristic-door-reciprocity` (red under its mutation) and `characteristic-adjoint` (green under every mutation). It was one node holding one real claim and one empty one.
 
-**B. The node is a claim: a test paired with one label.**
+**B. The node is a claim: a test paired with one label.** **RULED 2026-10-16 (ruling 4).**
 - *Makes unspellable:* an edge resting on a claim the lower test does not make.
 - *Leaves welded:* nothing found yet.
 - *Costs:* `rests_on` would name a claim, not a test id. A second spelling of the edge would then exist next to the 603 current ones, unless they migrate.
 
-**C. Oracle values are nodes of their own, beside the tests** (concept 2).
+**C. Oracle values are nodes of their own, beside the tests** (concept 2). Under ruling 4 this is not a separate kind of node `[R]`: an oracle value is a claim ("this number is the solution of problem X to precision p"). Its test is the oracle's own validation, the slow twin that recomputes a frozen literal. The stored value is the evidence that claim produced, and a claim that rests on the oracle reads that value.
 - *Makes unspellable:* a test silently recomputing a reference that another test already validated.
 - *Leaves welded:* still to be found.
 - *What it means:* the oracle's own validation (for example the slow twin that recomputes a frozen literal) becomes that node's test. Every reader rests on the node and reads its stored value. The traced memo's manifest already invalidates a stored value when the code under it changes. That is the same dependence graph seen from code instead of from tests, so the two invalidation rules would compose on one graph `[R]`.
@@ -195,10 +224,15 @@ The order follows phase 1's measurements: the techniques go where S(p), C(k) and
 
 ## Open questions for the user
 
-1. **The node:** a test (A) or a claim (B)? The re-drop's A1 case argues for B. The 603 existing edges argue for A plus a convention.
-2. **The census order:** by layer (`numerics` and `geometry` first, since everything rests on them), or by the sharpening order (`sn`, `diffusion`, `homogeneous` first)?
-3. **gmpy2:** adopt it as a project dependency? It is below the trusted-library line, and gave identical floats on three routes.
+Questions 1–3 were answered on 2026-10-16 (rulings 4–6).
+
 4. **Census verdicts:** proven by mutation per test, which is expensive and exact, or flagged by reading first with a mutation pass per capability after?
+
+5. **Where a claim lives that has no equation** (follows from ruling 4). An equation's claim lives at its `:label:` on a theory page, and `verifies` names it. A contract, an invariant or a law of a type has no such home today. 12 745 foundation test ids carry no `verifies`. The candidates, each `[HYPOTHESIS]`:
+   - a claim directive on the theory or architecture page that owns the concept, minted like `.. error-entry::` (a node in the graph, an id a marker can name);
+   - the claim written once in the test and harvested by the graph.
+
+   The first keeps the corpus as the knowledge base (Cardinal Rule 3); the second keeps the claim next to its instrument. How `rests_on` names a claim follows from this answer.
 
 ## Side findings to place
 
