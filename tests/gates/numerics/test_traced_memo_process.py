@@ -6,6 +6,7 @@ number of generations is read from the generator's own counter file, never from 
 """
 from __future__ import annotations
 
+import functools
 import json
 import os
 import subprocess
@@ -47,6 +48,26 @@ def test_m3_1_a_miss_generates_once_and_a_hit_never(package, tmp_path):
     direct = alpha.generate.__wrapped__(1.5)
     assert first.hex() == second.hex() == direct.hex()
 
+
+
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+def test_m3_1b_a_memo_under_a_wrapping_decorator_generates_its_own_body(package, tmp_path):
+    """M3.1b: a memo stacked under ``functools.lru_cache`` (the module attribute is the cache, whose ``__wrapped__``
+    is the memo) generates once from its body and serves the value its body returns. First red: the child resolving
+    the memo by the attribute alone, which calls the memo again (``calls itself with the same arguments``)."""
+    beta = package.module("beta")
+    value = beta.kept(1.5)
+    assert package.generations("kept") == 1 and len(_entry_files(tmp_path)) == 1
+    assert value.hex() == (1.5 * 5.0 + 2.0).hex()
+
+
+@pytest.mark.parametrize("name", ["alpha:helper", "beta:inner_alias"], ids=["no-memo", "another-memo"])
+def test_m3_1c_a_name_resolving_to_no_memo_of_its_own_is_refused_by_name(package, name):
+    """M3.1c: a memo crosses into the child by its ``function_id``; a name whose attribute is no memo, or wraps a
+    memo of another ``function_id``, is refused by name rather than run. First red: the identity check dropped."""
+    package.module("beta").inner_alias = functools.wraps(package.module("beta").inner)(lambda x: x)
+    with pytest.raises(TypeError, match="names no memo"):
+        api.module()._resolve_memo(f"{package.name}.{name}")
 
 #: (row, old, new, a miss?)
 MEMO_WITNESSES = [

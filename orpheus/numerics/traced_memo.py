@@ -1023,6 +1023,17 @@ def _resolve(dotted: str) -> Any:
     return value
 
 
+
+def _resolve_memo(function_id: str) -> TracedMemo[..., Any]:
+    """The memo named ``function_id``: its module attribute, or the memo a decorator stacked above it wraps
+    (``functools.wraps`` keeps the chain in ``__wrapped__``; :func:`inspect.unwrap` follows it and raises on a cycle).
+    The attribute alone would be the outer wrapper, whose ``__wrapped__`` is the memo again, so the child would call
+    the memo instead of its body."""
+    memo = inspect.unwrap(_resolve(function_id), stop=lambda f: isinstance(f, TracedMemo))
+    if not isinstance(memo, TracedMemo) or memo.function_id != function_id:
+        raise TypeError(f"traced_memo: {function_id} names no memo, directly or through __wrapped__")
+    return memo
+
 def decode_payload(tree: Any, arrays: Mapping[str, np.ndarray], allowed: set[str]) -> Any:
     """The value :func:`encode_payload` wrote: every array a fresh read-only copy, every dataclass rebuilt
     through its constructor (so its laws re-run), and only a dataclass named in ``allowed``."""
@@ -1458,7 +1469,7 @@ class TracedMemo(Generic[P, R]):
             raise TypeError(f"traced_memo({self.function_id}): canonical names no parameter of it: {unknown}")
 
     def __reduce__(self) -> Any:
-        return (_resolve, (self.function_id,))
+        return (_resolve_memo, (self.function_id,))
 
     def __get__(self, instance: object, owner: type | None = None) -> Any:
         """A memoised method binds like a function: ``instance.method(x)`` is the memo called with

@@ -125,7 +125,9 @@ def divide(x) -> float:
 '''
 
 BETA = '''
-"""The beta module: a parent generator whose answer reads a child entry."""
+"""The beta module: a parent generator whose answer reads a child entry, and a memo under a wrapping decorator."""
+import functools
+
 from {memo_module} import traced_memo
 
 from .alpha import _count
@@ -149,6 +151,13 @@ def outer(x: float) -> float:
 def outer_twice(x: float) -> float:
     _count("outer_twice")
     return inner(x) + inner(x)
+
+
+@functools.lru_cache(maxsize=None)
+@traced_memo
+def kept(x: float) -> float:
+    _count("kept")
+    return 2.0 + FACTOR * x
 '''
 
 GAMMA = '''
