@@ -238,6 +238,32 @@ That is CLAUDE.md's vocabulary taken literally ("the frame pairing them, which i
 - (b) On a bridged factor, does the modal axis carry the frame's discrete Gram (today's R-6.2c-1)? Then a modal axis has two legitimate metrics: continuum where the factor is purely modal (LD's spatial moments), discrete where it is bridged (SN's angular moments).
 - (c) Is the curvilinear LD guard (no product form when the volume element is not constant) the declared edge of machinery not yet built, a cell-dependent moment metric, and so an issue?
 
+## Step 3: the target order, checked mechanically (2026-10-18)
+
+`[M]` the explorer, `scratch/numerics_untangling/step3/report.md` (saved by the orchestrator), scripts and `target_*.json` beside it. Positive control: its builder reproduces `subdag.static_graph()` exactly (91, 110 and 123 edges) and the census's 17 edges.
+
+**The result.** With rulings 5, 10 (three alternatives), 11, 12 and 13 applied, the full graph (top plus lazy plus typing) is still not acyclic. Every residual cycle passes through one of 7 edges; remove those and alternative B2 for the lift is acyclic, in 17 layers. Of today's 17 cycle-closing edges, 5 are gone, 4 remain on no cycle, and 8 remain on cycles.
+
+**The 7 edges, with the orchestrator's reading** (`[R]`, for the user):
+1. **`LinearOperator`'s own dunders build the composers** (`__add__` → `OperatorSum`, `__mul__` → `ScaledOperator`, `__matmul__` → `OperatorProduct`). An algebra is closed under its operations, so the abstract type and its composites are one concept, and ruling 5's split cuts through it. The split that ruling 5 needs instead moves the leaves out (the Riesz operators, the axis marginal operators, the leaf operators) and keeps the algebra, its type and its composites, together.
+2. **`OperatorSum.inverse` builds a `GreenOperator`,** whose class is `InverseWrapMixin[OperatorSum]` and which wraps the iteration drivers. Inversion is an operation of the algebra, but this one chooses a solution strategy (an iteration) inside the algebra. CLAUDE.md: "the Strategy inverts only M: `M.inverse()` is the sweep". So the Problem/Solution boundary may be crossed here. That is a question to investigate before the split, not a module move.
+3. **`SupportsAssembly` annotates `SparseAssembledOperator`** for typing only. The assembly is a homomorphism into the matrix representation, and naming its target type in a protocol is a forward reference: an artefact.
+4. and 5. **`Axis.generator`'s union names `FrameBase` and `Quadrature`** for typing. Ruling 4 keeps the generator as provenance until a forgetful-map concept is designed, so these two are owed to that design. No issue tracks it yet.
+6. **`manifold`'s catalogue stores `LEGENDRE` as the orbit space S²/O(2)'s reference measure.** The reference measure of an orbit space is the pushforward of the sphere's uniform measure along the quotient map, which is a measure on the manifold, downstream of it. The manifold knowing a downstream measure is a leak. Its one reader is the quadrature registry (`registry.py:1043`), so the knowledge can live there, or be derived as that pushforward.
+7. **The memo's boot split**, deliberate: kept with its reason.
+
+**The lift (ruling 10), measured three ways.**
+- A: the space mints the lift (a 2-cycle between `space` and the operators).
+- B: the operator type builds it, `AxisRetractionOperator.of(space, axis)`. The cycle survives through the Riesz operators.
+- B2: B, plus the Riesz operators built on the operator side. The space imports no operator, and the cycle is gone.
+- B2 refines ruling 10's "the space owns the lift" into "the space owns the product structure the lift is built from; the operator layer builds the lift". That is #611's rule (raw types upstream, convenient constructors downstream). It re-points 6 production callers of `.retraction(` and `.section(`.
+
+**The small choices the check surfaced:**
+- where the fold `DiscreteMeasure.quotient` goes, since it calls `certificate_under` and must leave `measure` with the five invariance verbs: `invariance`, or `quadrature` with the certificate passed in;
+- whether the indicator bases' `.space` retires too: it must, or the cycle `{axis, basis, space}` remains (`[M]`, `KEEP_INDICATOR_SPACE=1`);
+- `_padded_metric_tensor` moves with `HarmonicAxis`'s new classmethod;
+- `ReferenceMeasure` and `OrthogonalSystem` move into `manifold.py`, or upstream of it.
+
 ## Candidate ontologies
 
 None yet. The edges' uses are measured first (below). Then each knot is read as one of four cases:
@@ -317,4 +343,4 @@ Reports (each read with session context; the explorer's saved by the orchestrato
   2. **A modal axis with a fibre metric varying over the cells,** which needs the cross-axis metric machinery the space refuses today.
   - The second pass favours (1): it removes a concept instead of adding one, and it makes the curvilinear guard unnecessary rather than satisfied. The moment reading (cell average and slope) stays available through a frame, the sampling map of the Legendre moments on the Gauss nodes, wherever an output needs it.
 
-⏸ **Next:** rulings 16 to 18 recorded, and ruling 17's method choice closed (standard S_N; Galerkin quadrature #613). Step 3, the ordered concept list: measure and basis in parallel; the axis (nodal from a measure, modal from a basis, each carrying its factor's pulled-back measure); the frame, the sampling map with its dual; the space, a product of axes; quadrature; invariance as a composition; and the operator module cut into the abstract operator, then the assembled and Green operators, then the composers. Each concept gets its home module and the edges its ruling removes; acyclicity is the done-when. Then the packages (verification-tree ruling 18). "Every axis is what a frame induces" is refuted by the exercise. Then step 3: the ordered concept list of `numerics` (groups, the G-space manifold, measure and basis in parallel, the axis that receives either, the frame as their join, the space as a product of axes, quadrature, invariance as a composition, and the operator module cut abstract-then-composers), with each concept's home module and the edges each ruling removes. Its acyclicity is the done-when. Then the work cut into packages (verification-tree ruling 18).
+⏸ **Next:** the user's rulings on step 3's residual edges (asked 2026-10-18): the algebra kept whole, the Green operator's strategy question, the lift as B2, the reference measure's home, and the small choices. The earlier step-3 sketch follows: the ordered concept list: measure and basis in parallel; the axis (nodal from a measure, modal from a basis, each carrying its factor's pulled-back measure); the frame, the sampling map with its dual; the space, a product of axes; quadrature; invariance as a composition; and the operator module cut into the abstract operator, then the assembled and Green operators, then the composers. Each concept gets its home module and the edges its ruling removes; acyclicity is the done-when. Then the packages (verification-tree ruling 18). "Every axis is what a frame induces" is refuted by the exercise. Then step 3: the ordered concept list of `numerics` (groups, the G-space manifold, measure and basis in parallel, the axis that receives either, the frame as their join, the space as a product of axes, quadrature, invariance as a composition, and the operator module cut abstract-then-composers), with each concept's home module and the edges each ruling removes. Its acyclicity is the done-when. Then the work cut into packages (verification-tree ruling 18).
