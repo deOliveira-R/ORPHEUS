@@ -2850,6 +2850,100 @@ edits had invalidated, then 27.1 s warm, against 82.9 s before this
 concept; 20.7 s of the 27.1 s is C6's two white rows (10.35 and 10.32 s),
 which read in process.
 
+*The 24 files re-timed after concepts 1 to 3.* `[M]` 2026-10-17
+(``scratch/characteristic_architecture/p3/close/timing/``: ``run.sh``,
+``results.tsv``, ``logs/`` with ``--durations=0``). The protocol is the
+one of 2026-10-14: the same 24 files, one at a time, under ``-O`` and
+``OMP_NUM_THREADS=1``, in a detached worktree of ``main`` at
+``a456a9bf``, in four passes. The passes are: the memo bypassed; the
+store emptied (cold); the store warm (warm1); and warm with
+``-m "not slow"`` (warm2). 96 of 96 rows pass. The 3 warm2 rows that exit
+5 are files whose every test is ``slow``.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 15 15 15 15
+
+   * - file (seconds)
+     - bypass
+     - cold
+     - warm1, 2026-10-14
+     - warm1, now
+   * - ``test_characteristic_assembly``
+     - 2 609
+     - 2 622
+     - 3 535
+     - 2 579
+   * - ``test_characteristic_system``
+     - 845
+     - 892
+     - 1 105
+     - 4
+   * - ``test_characteristic_lift``
+     - 642
+     - 638
+     - 1 090
+     - 134
+   * - ``test_characteristic_albedos``
+     - 744
+     - 1 078
+     - 988
+     - 6
+   * - ``test_characteristic_reading``
+     - 870
+     - 1 170
+     - 1 032
+     - 88
+   * - ``test_characteristic_convergence``
+     - 712
+     - 819
+     - 933
+     - 3
+   * - ``test_characteristic_transport``
+     - 136
+     - 136
+     - 166
+     - 138
+   * - ``test_characteristic_independent_references``
+     - 210
+     - 223
+     - 213
+     - 4
+   * - ``test_characteristic_reference``
+     - 83
+     - 244
+     - 107
+     - 15
+   * - all 24 files
+     - 8 630
+     - 8 571
+     - 9 307
+     - 3 073
+
+warm2 took 487 s, against 991 s on 2026-10-14. The bypass and cold
+passes fell from 11 601 s and 10 329 s; `[R]` through the reference's own
+speed-ups since (the axial lift, the derived node counts), not measured
+per cause.
+
+What remains warm is the system under test, computed in process by
+design. ``test_characteristic_assembly`` holds 2 579 of the 3 073 s
+warm. Of that, 2 493 s is its 21 ``slow`` rows (warm1 minus warm2), and
+12 cylinder rows account for 2 345 s. The 6 closed-body conservation rows
+on the three-region cylinders take 277 to 418 s each, and the 5 cylinder
+escape and transmission closed forms take 30 to 97 s each, and the
+interface between equal materials on a cylinder takes 109 s. These gates
+build the transport block through ``LineRule.of(...).transport``. They do
+not go through the stored ``group_transport``, because the block is what
+they verify, and a served block would make them read the store. So no
+stored reference can make them cheaper. Two things can: a cheaper
+cylinder block (#587, the non-tensor (b, θ) line rule), or re-running a
+verdict only when the code it rests on changes, which is ruling 15 of
+the verification-tree plan, the same route as C6. The remaining warm
+cost of ``lift``, ``transport`` and ``reading`` (88 to 138 s each, of
+which 63 to 137 s is outside ``slow``) is likewise in-process transport:
+the Volterra-triangle rows lead the durations of ``lift`` and
+``transport``, and the fundamentals' readings and C6 those of ``reading``.
+
 **A solve that does not converge.** The solver's result is a value
 whatever its convergence, so an exhausted solve is a cached value; the
 reading of it is a refusal, and a refusal is an exception, which writes no
@@ -4172,6 +4266,15 @@ the memo. The 2026-10-04 rows sat on the branch
      - Milestone
      - Issue
      - Where
+   * - 2026-10-17
+     - **The 24 files re-timed after concepts 1 to 3** (the protocol of
+       2026-10-14, at ``a456a9bf``). warm1 9 307 s to 3 073 s, warm2
+       991 s to 487 s; system, albedos, convergence and the independent
+       references take 3 to 6 s warm. 2 493 s of the remaining warm cost
+       is the assembly file's 21 ``slow`` block theorems, which compute the
+       system under test in process; their levers are #587 and ruling 15.
+     - #405, #587
+     - (this commit)
    * - 2026-10-17
      - **The PS-1982 vacuum-sphere solver becomes a client** (#405 P3
        concept 3; the user's ruling, "Memo the solver").
