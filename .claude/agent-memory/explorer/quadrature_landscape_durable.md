@@ -45,6 +45,12 @@ TABULATED / EXTERNAL:
   **not exported** from `numerics/__init__.py`. The remaining #325 surface is enumerated
   in the angular geometric-transform audit (see [[angular-layer-hidden-transformations]]);
   three of the six open sites are `symmetry.py`'s OWN operators.
+- ⚠ SUPERSEDED `[M]` 2026-10-18 (F5 audit): since 2026-10-01 `GeneratingMeasure.gauss` is
+  correctly rounded (mpmath Newton, cached) and `rules_1d.gauss_legendre_on_mu` calls
+  `LEGENDRE.gauss`; every numerics GL spelling is bit-equal to it, while the 20 `leggauss`
+  calls in `orpheus/derivations/` differ by up to 1e4 ulp in weights. Exactness/selector
+  machinery has 0 code consumers outside `orpheus/numerics/`; `Quadrature` is minted in
+  production only by `derivations/continuous/mms/sn.py`. The bullet below is history.
 - **IMPOSED-SYMMETRY: two** — `GeneratingMeasure.gauss` (`(x−x[::-1])/2`, gated by the
   COMPUTED `is_symmetric`) and numpy's `leggauss` inside `rules_1d`. Note these are two
   DIFFERENT code paths for the same rule, deliberately 1-4 ULP apart (snapshots pinned

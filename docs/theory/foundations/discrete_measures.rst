@@ -823,11 +823,12 @@ contract covers every family the module ships (Legendre, Chebyshev of the
 first and second kinds, Jacobi :math:`(a, b)`, Laguerre :math:`(a)`,
 Hermite) and the affine remap
 :meth:`~orpheus.numerics.generating_measure.GeneratingMeasure.on`.
-Production reaches the Legendre family, through
-:func:`~orpheus.numerics.measure.gauss_legendre` and
+Production reaches the Legendre family through
 :func:`~orpheus.numerics.quadrature.rules_1d.gauss_legendre_on_mu`, and every
-product or folded angular quadrature carries a Gauss–Legendre factor through
-the latter.
+Gauss–Legendre, product or folded angular quadrature carries its
+Gauss–Legendre factor through it. :func:`~orpheus.numerics.measure.gauss_legendre`
+is the same rule under a second name (its body is ``LEGENDRE.gauss(n)``), and
+only tests call it. No production code reaches the other families.
 
 **Why the floats are not the textbook's.**  A measure
 :math:`d\lambda = w(x)\,dx` fixes monic orthogonal polynomials obeying

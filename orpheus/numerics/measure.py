@@ -123,9 +123,8 @@ if TYPE_CHECKING:
     # module (its ``gauss`` returns a DiscreteMeasure), so the arrow runs
     # one way and the field holds the object by forward reference.
     from orpheus.numerics.generating_measure import GeneratingMeasure
-    # ``exactness`` imports ``DiscreteMeasure`` from here, so the same
-    # one-way arrow applies: the field holds an ``ExactnessClaim`` by
-    # forward reference.
+    # ``exactness`` does not import this module (it imports only
+    # ``manifold``), so this import need not be typing-only.
     from orpheus.numerics.exactness import ExactnessClaim
 
 # ---------------------------------------------------------------------------

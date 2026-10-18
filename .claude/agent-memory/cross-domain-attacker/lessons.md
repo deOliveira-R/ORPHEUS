@@ -420,6 +420,16 @@ of `V`) inflates the interface from `rank T` to `n` — expose the RANGE. `[M]` 
 3e-9; CW valid on two non-regular fixtures; GMRES 17 vs 255. → pointer:
 `ordering_cut_interface_augmentation_frames.md`
 
+**D23 — A verb TOTAL on a host whose meaning needs a structure only some values of one FIELD carry
+manufactures answers off those values: probe it on the field values WITHOUT the structure before
+choosing a home, and put any specialisation on the FIELD's type, never on the host keyed by a
+taxonomy derived from that field.** TELL: an implicit embedding/padding convention inside the kernel
+("a bare interval names no axis"); a proposed host subtype (`AngularMeasure`) whose key is a derived
+category (`phase`). Two-direction discriminator: one host value inside the taxonomy with no structure,
+one outside it with the structure. `[M]` 2026-10-18: invariance on EnergyGroups/IndexSet answers O2_x
+True; the z-product polar factor answers SO2_x True; spatial R² answers D_4h meaningfully. → pointer:
+`axis_collapse_unit_and_gspace_invariance.md`
+
 ---
 
 ## Part 3 — Smell-promotion ledger
