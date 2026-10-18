@@ -173,3 +173,12 @@ today: the 2026-09-21 candidates landed).
   mark each successor HEAD vs working tree. Not carried by the definition's
   "close by re-running the empty searches": those re-runs see content, not a
   NEW file. → M-3.
+- **L-047** "Would hoisting this lazy import create a runtime cycle?": answer
+  by an in-memory hoist probe (a meta-path loader that inserts the import
+  statement at the top of ONE file's source; one fresh interpreter per import
+  order), never from the module graph alone. The group-level graph
+  underestimates: a package `__init__` executes its siblings, so 5 of 7
+  "needs a lazy hop" typing edges still failed at load time. Tell: the loader
+  must override `get_code`, or the cached `.pyc` skips `source_to_code` and
+  every probe passes silently; print a rewritten/NOT-REWRITTEN flag as the
+  control. Script: `scratch/numerics_untangling/hoist.py` (2026-10-18). → M-5.
