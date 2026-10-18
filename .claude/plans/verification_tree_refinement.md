@@ -49,6 +49,8 @@ The graph is also the schedule. A test runs only when its supports are green. A 
 16. **The assembly file's slow block theorems go to ruling 15** (the user, 2026-10-18, on #587). `test_characteristic_assembly.py`'s 21 `slow` rows build the transport block in process because the block is their system under test, so no stored reference reaches them. Their cost is taken by verdict revalidation, not by a cheaper line rule now. They are ruling 15's second client, after C6.
 17. **The campaign is active** (the user, 2026-10-18: "Seems like it's time to start the verification tree campaign"). The characteristic-reference campaign closed the same day. Per ruling 14 the work starts with a second pass that refines this whole plan.
 
+18. **Execution is delegated** (the user, 2026-10-18): "my intention is that plan execution will either be carried out by a fan out of Sonnet models or an ultracode session. So we should basically reach a state that is good enough to delegate sections of the execution." The polish criterion for this plan is therefore delegability: each phase is cut into work packages that an agent with no session context executes from the text alone. Each package states its input set, its fixed output schema, the evidence every field must cite, and an acceptance check the orchestrator runs mechanically on the return. What needs the user's or the orchestrator's judgment (a ruling, an ontology question, a retirement) is named as such and kept out of the packages.
+
 ## Vocabulary (one meaning per word)
 
 - **Claim:** a statement the code is held to, with a home where it is written: an equation's label on a theory page, a law, a contract, an invariant. A claim is the node of the graph (ruling 4).
@@ -363,5 +365,7 @@ Per ruling 14, the whole plan is refined before phase 1. The pass reconciles the
 **First-pass reviews dispatched** (W5, adversarial; reports under `scratch/verification_tree/pass2/`):
 - the test-architect, who will own the census: open question 5 by a discriminating sample; where the three-pass verdict method is blind and what coverage per test costs on `sn`; whether ruling 15's verdict store precedes the census; stale or mis-predicated measured state; what is missing;
 - the cross-domain attacker: foreign frames that already solved these structures (content-addressed build systems and early cutoff, proof assistants' dependency tracking, mutant subsumption, assurance cases).
+
+Both reviewers were told of ruling 18 after dispatch and asked to add: the cut into packages, the census's per-test output schema, where a Sonnet-class agent would go wrong and the check that catches it, and each package's acceptance gate.
 
 ⏸ **Next:** read both reports with full context, write their findings into this plan in place (each with its marker), and bring the user the questions the pass must rule: the census method (ruling 14's revisit), open question 5, and the phase order. #604 is the deferred bound composition (ruling 13).
