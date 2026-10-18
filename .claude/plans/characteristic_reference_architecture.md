@@ -3096,4 +3096,6 @@ Three concepts from the profile, all `[HYPOTHESIS]`, to be tested in the order o
 
 **#591** (the point reading's cost): its done-when protocol ran at P3 step 3f (`[M]` route B 0.146 s against the old hoist's 0.120 s, within 22 %; the solve 4 times faster). The second half of the done-when, a ruling on the remaining gap, is the user's. **#587**: open, and now the named lever for the remaining 2 345 s.
 
-⏸ **Next:** the user's rulings on #591 (close at 22 %, or keep for the emission contraction) and on #587 (take the non-tensor rule now, or leave the assembly slow tier to ruling 15). Then the verification-tree campaign's second pass (ruling 14).
+**The user's rulings (2026-10-18):** #591 stays open for the emission-contraction lever, to be taken up later. #587's share of the suite's cost goes to the verification tree's ruling 15, like C6; #587 stays open as the cylinder rule's own improvement. Both recorded on the issues.
+
+⏹ **CLOSED 2026-10-18.** The campaign's last commits are `75ba375e` (plan) and `8ffafc6a` (docs, CI green). Open issues it leaves: #584, #585, #587, #588, #589, #591, #603, #605, #606, #607, #608, #609. The verification-tree campaign (`verification_tree_refinement.md`) starts with its second pass (its ruling 14).

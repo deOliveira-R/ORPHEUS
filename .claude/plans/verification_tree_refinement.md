@@ -31,7 +31,7 @@ The graph is also the schedule. A test runs only when its supports are green. A 
 
 4. **The node is a claim; a test is the pass or fail of one claim** (the user, 2026-10-16): "Node is a claim, test is pass or fail on the claim. What is a test without a claim? What are we even testing for? Tests hierarchy is essentially claim dependency." Candidate B is ruled; candidate A is refuted for this question (below). An edge says that one claim depends on another.
 5. **The census goes by layer** (the user, 2026-10-16): "census by layer, because layers build up the verification causality cone. Transport methods are subcones at the base of the big cone." The order follows the import layers (`docs/architecture/layering.rst`): `numerics/` first, then the input layer (`geometry/`, `mesh/`, `data/`), then `transport/`. Each L3 method package (`sn/`, `diffusion/`, `homogeneous/`, `cp/`, `moc/`, `mc/`) is a sub-cone resting on that base, and `derivations/` sits beside them, below L2.
-6. **gmpy2 is adopted** as mpmath's backend (the user, 2026-10-16). It lands after the bypass drop's merge gate, so the running suite does not see two backends.
+6. **gmpy2 is adopted** as mpmath's backend (the user, 2026-10-16). It lands after the bypass drop's merge gate, so the running suite does not see two backends. [LANDED; `[M]` 2026-10-18 `mpmath.libmp.BACKEND == 'gmpy'` in `.venv`, `gmpy2>=2.3` in `pyproject.toml`.]
 7. **Claims have both kinds of home, chosen per claim** (the user, 2026-10-16): "Probably there are claims that would fit the first candidate and claims that better fit the second one." The two candidates of open question 5 are both kept; which one a claim uses is decided per claim, and the rule for deciding is still to be found.
 8. **A concept is proved by several claims, and claims compose up the cone into a method's verification certificate** (the user, 2026-10-16). In the user's words: "a simple quadrature is verified by a whole battery of tests that shows a bunch of characteristics, including something elaborate like "invariant over reflection", which is a claim that is required when finally Sn hits a reflective boundary." At the top of the cone the claims compose into "SN behaves in XYZ way, with this kind of sensitivity/uncertainty, from numerical and method sources, bounded and measured. The method is verified. Verification Certificate".
 9. **A catalogue of claim categories** (the user, 2026-10-16), with three readers:
@@ -45,6 +45,9 @@ The graph is also the schedule. A test runs only when its supports are green. A 
 14. **The three-pass verdict method is accepted provisionally** (the user, 2026-10-16): "I accept this method for census verification, at least provisionally. We will revisit it during a second pass through the entire plan (where we will refine everything) when we go back to it when we tackle that campaign after finishing the one we're in." The campaign starts after the characteristic-reference campaign closes (`characteristic_reference_architecture.md`), with a second pass that refines this whole plan first.
 
 15. **Invalidating a region of the DAG on a file change is foundational, and it rests on code changes only** (the user, 2026-10-17, answering the memo's hit-cost question): "You can also consider how we store a graph of tests, or Nexus graph, and consider how to validate rebuilds very fast. This is something that will become foundational to invalidating regions of the DAG based on changes in files. We might also want to pin revalidation strictly to code changes (so the files probably need to be stripped of documentation during pinning, maybe)." The section "One change-detection layer" below holds the hypotheses.
+
+16. **The assembly file's slow block theorems go to ruling 15** (the user, 2026-10-18, on #587). `test_characteristic_assembly.py`'s 21 `slow` rows build the transport block in process because the block is their system under test, so no stored reference reaches them. Their cost is taken by verdict revalidation, not by a cheaper line rule now. They are ruling 15's second client, after C6.
+17. **The campaign is active** (the user, 2026-10-18: "Seems like it's time to start the verification tree campaign"). The characteristic-reference campaign closed the same day. Per ruling 14 the work starts with a second pass that refines this whole plan.
 
 ## Vocabulary (one meaning per word)
 
@@ -133,7 +136,8 @@ All counts below are `[M]` 2026-10-16 on `main` `417f64f3`, by `git ls-files` an
   | other | 1 |
 
   So 13 of the 232 `sn` files carry an edge.
-- **Where a slow run's time goes:** one population, the 40 slow rows of 10 characteristic files, a warm store, `-O`, serial; `scratch/characteristic_architecture/p3/c3/drop/timing/profile/`.
+- **Where a slow run's time goes, today** `[M]` 2026-10-17, the 24 reference files re-timed at `a456a9bf` (`scratch/characteristic_architecture/p3/close/timing/results.tsv`; serial, `-O`, `OMP_NUM_THREADS=1`): warm 3 073 s, `not slow` 487 s. 2 493 s of the warm total is the 21 slow rows of `test_characteristic_assembly.py` (ruling 16); the 40 slow rows of the other 10 characteristic files take 27.1 s warm, 20.7 s of it C6. The profile below is the state before the stored references, kept as the evidence that sent oracle values to the store.
+- **Where a slow run's time went, 2026-10-16:** one population, the 40 slow rows of 10 characteristic files, a warm store, `-O`, serial; `scratch/characteristic_architecture/p3/c3/drop/timing/profile/`.
   - **Wall time:** 942 s.
   - **mpmath quadrature:** 82 % of the profiled time (1060 of 1291 s under cProfile). All of it is called from the tests' own oracle modules (`tests/gates/derivations/_characteristic_point_mp.py`, and `_polar_column_errors` in `test_characteristic_lift.py`).
   - **By test name:** the rows that call those oracles take 764 s of the 942 s.
@@ -194,7 +198,7 @@ All counts below are `[M]` 2026-10-16 on `main` `417f64f3`, by `git ls-files` an
 
    The census sizes the refinement before any rewrite. Its order, its schema and whether its verdicts are proven by mutation or only flagged for a later mutation pass are open (below).
 3. **Refinement, capability by capability.** Apply the census verdicts. A retirement follows `retirement-audit`; a strengthened test lands with the defect it now catches (`plan-authoring` §6c).
-4. **Oracle nodes as stored references** (candidate C). The prerequisite is a test of whether the memo can generate from a function under `tests/`.
+4. **Oracle nodes as stored references** (candidate C). The prerequisite is a test of whether the memo can generate from a function under `tests/`. [REMEDIED 2026-10-17 for the characteristic oracles: the mpmath routes in `tests/gates/derivations/_characteristic_point_mp.py` are traced-memo clients that generate in a child process, and their independence is the census gate `test_each_stored_reference_imports_nothing_but_the_memo` (`characteristic_reference_architecture.md`, concepts 1 to 3). The phase now means the other families' oracles, if the census finds any recomputed.]
 5. **Scheduling on the DAG.** Three mechanisms, each `[R]` until phase 1 measures:
    - start a test only when its supports are green;
    - bound concurrency by a memory budget, from each test's measured peak, not by a worker count;
@@ -350,4 +354,14 @@ Each hypothesis is measured before it is built: the share of edits that are doc-
 
 - **The Nyström row's marker** (`peierls-greens-slab-architecture`) runs only under `ORPHEUS_RUN_WITHDRAWN=506`. In the canonical run it covers nothing. Its margin is 7.3e-5 against a 5e-5 band, for an attenuation error of 1e-3. Record it under #506. (`scratch/characteristic_architecture/p3/c3/drop/redrop/verifies_verdicts.md`)
 
-⏸ **Next:** this campaign waits for the characteristic-reference campaign to close (ruling 14). It resumes with a second pass refining this whole plan, then phase 1. Open question 5 (the rule for choosing a claim's home) stays for that pass. #604 is the deferred bound composition (ruling 13).
+## The second pass (opened 2026-10-18)
+
+Per ruling 14, the whole plan is refined before phase 1. The pass reconciles the plan against the tree (`plan-authoring` §7), revisits the provisional verdict method, settles open question 5 if evidence can, and fixes the phase order.
+
+**Reconciled so far** (2026-10-18, the orchestrator): ruling 6 landed; phase 4's prerequisite is met for the characteristic oracles; the slow-run measurement is replaced by the 2026-10-17 re-timing; ruling 15 has two clients (C6 and the assembly slow tier, ruling 16). The counts under "Measured state" are from 2026-10-16 and are re-taken at phase 1, not here.
+
+**First-pass reviews dispatched** (W5, adversarial; reports under `scratch/verification_tree/pass2/`):
+- the test-architect, who will own the census: open question 5 by a discriminating sample; where the three-pass verdict method is blind and what coverage per test costs on `sn`; whether ruling 15's verdict store precedes the census; stale or mis-predicated measured state; what is missing;
+- the cross-domain attacker: foreign frames that already solved these structures (content-addressed build systems and early cutoff, proof assistants' dependency tracking, mutant subsumption, assurance cases).
+
+⏸ **Next:** read both reports with full context, write their findings into this plan in place (each with its marker), and bring the user the questions the pass must rule: the census method (ruling 14's revisit), open question 5, and the phase order. #604 is the deferred bound composition (ruling 13).
