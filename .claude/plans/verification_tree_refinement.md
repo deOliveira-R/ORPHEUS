@@ -62,6 +62,8 @@ The graph is also the schedule. A test runs only when its supports are green. A 
    - **Confirmed** (the user, 2026-10-18), with the reason: "otherwise, we would have to keep some sort of catalogue of sorts and organize everything later, which is fragile. It seems better to organize as we go already as a DAG that we can later refine."
 23. **The DAG is identified by layer and by sub-cone, if measurement supports it** (the user, 2026-10-18): "It would be good also if the DAG was already identified by layers and by sub-cones (for example, at the transport method layer, there is an Sn sub-cone, a CP sub-cone, etc., in the numerics layer, there might be a discrete measure sub-cone, a space sub-cone, etc). We have to measure this and check if this is a good idea. After measurement, check if this influences the design of candidate D." The measurement is specified below under "Sub-cones: the measurement"; its result decides whether a sub-cone is an object of the DAG, and then what it changes in candidate D.
 
+24. **A failure to find sub-cones is evaluated, by the mathematics or other criteria** (the user, 2026-10-18). It may be intrinsic, or it may show a concept leaking into another. The criteria are under "Sub-cones: the measurement", open to the user's refinement.
+
 ## Vocabulary (one meaning per word)
 
 - **Claim:** a statement the code is held to, with a home where it is written: an equation's label on a theory page, a law, a contract, an invariant. A claim is the node of the graph (ruling 4).
@@ -226,6 +228,15 @@ All counts below are `[M]` 2026-10-16 on `main` `417f64f3`, by `git ls-files` an
 **Positive controls** (X1): a test known to be a unit test of one concept must come out pure, and a known cross-cutting test (an end-to-end solve) must come out impure. If the controls do not separate, the instrument cannot decide the question.
 
 **Population.** The `numerics` layer first, the base of the cone (ruling 5), with its 109 files. Then one method package, to test whether "one method package = one sub-cone" holds, and whether a method package itself splits (the SN sweep, its boundaries, its eigenvalue).
+
+**A straddler is judged, not just counted** (ruling 24, the user, 2026-10-18): "note that not being able to find well-defined sub-cones might be instrinsic, or might be an indication of a concept leaking onto another. that must be evaluated based on the math involved (or some other criteria which I'm open to suggestions)." A test that straddles groups is classified INTRINSIC or LEAK. The orchestrator's proposed criteria, `[HYPOTHESIS]`, tested and refined by the measurement:
+1. *Mention:* the claim, read from the test's assertions, needs both concepts because it is about a composite or a morphism between them (a frame is a measure paired with a basis). Then it is intrinsic.
+2. *Interface:* the straddle goes through the other concept's named, typed interface (intrinsic or incidental), or through its internals, a private helper or an inline recomputation (a leak).
+3. *Twin:* the other group's executed code is a second spelling of something the test's own group computes (Nexus `twin_paths`). Then it is a leak (Cardinal Rule 2).
+4. *Direction:* the dependence follows the layer and import direction (a composition on a lower concept), or goes sideways or against it (a leak suspected; Nexus `native_place` on the executed defs).
+5. *Counterfactual:* the claim can be posed with the other concept replaced by anything satisfying its interface. Then the straddle is incidental: the test is re-based onto a simpler node, and the code has no leak.
+
+A leak that is a production defect becomes an issue; one that is a test's incidental dependence becomes a re-base.
 
 **What the result decides in candidate D:** whether a claim's id carries its sub-cone (`<layer>.<sub-cone>.<concept>.<claim>`); whether a sub-cone is a node with its own composed claim (a certificate per sub-cone, under ruling 8); and whether an edge across sub-cones is a different kind of fact from an edge within one (a cross-sub-cone edge is what couples two concepts, so it may need a reading by the orchestrator under ruling 18).
 
