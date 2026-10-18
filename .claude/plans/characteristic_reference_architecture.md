@@ -3054,11 +3054,46 @@ Three concepts from the profile, all `[HYPOTHESIS]`, to be tested in the order o
 - [REFUTED 2026-10-17] that a docstring edit regenerates the entries. The claim came from qa's 227 s run and was repeated in `da043d1c`'s message. `[M]` A docstring-only edit to the function left the file warm (3.15 s), and so did a module-docstring edit (2.50 s), because the pins strip docstrings (gate M2.1). The 227 s run's cause was not recovered (`concept3/probe_docedit.log`, `probe_moddoc.log`).
 - Merged @ `dcf631dd`.
 
-**Concepts 1 to 3 are closed.** What remains in the warm slow run is C6's in-process `PointRule.row`, about 21 s.
+**Concepts 1 to 3 are closed.** What remains in the warm slow run of those 10 files is C6's in-process `PointRule.row`, about 21 s. The assembly file was never among the 10 (see the re-timing below).
 
 ⏸ **Next:**
 1. C6 stays in process, by the user's ruling (2026-10-17). It is a self-consistency theorem: the code is compared with itself. Storing its 648 point rows would leave a warm run comparing the live block with a stored copy of the code's own output. Its cost goes to ruling 15's verdict revalidation instead (`verification_tree_refinement.md`, "One change-detection layer").
 2. The follow-ups: #608, #609, #605, #606, #607.
-3. Close-out asks, held for the user:
-   - the worktrees under `p3/c3/{retime,hitcost,hitcost2,oracle}`, `concept2/ta/wt`, and the older ones;
-   - the branch `refactor/chord-oracle-axial-lift`.
+3. Close-out asks, held for the user. Both were done 2026-10-17: 18 scratch worktrees removed, the dirty ones' diffs saved beside them as `<wt>.uncommitted.patch` and `<wt>.untracked/`; the branch `refactor/chord-oracle-axial-lift` (`a336bde4`, local only) deleted.
+
+## The 24 files re-timed after concepts 1 to 3 (2026-10-17)
+
+`[M]` `scratch/characteristic_architecture/p3/close/timing/` (`run.sh` copied from the 2026-10-14 driver; `results.tsv`; `logs/` with `--durations=0`). The same 24 files, serial, `-O`, `OMP_NUM_THREADS=1`, detached worktree at `a456a9bf`, 17:21 to 23:07. 96 of 96 rows pass; 3 warm2 rows exit 5 (every test in the file is `slow`).
+
+| pass | 2026-10-14 | now |
+|---|---|---|
+| bypass | 11 601 s | 8 630 s |
+| cold | 10 329 s | 8 571 s |
+| warm1 | 9 307 s | 3 073 s |
+| warm2 (`not slow`) | 991 s | 487 s |
+
+| file, warm1 | 2026-10-14 | now |
+|---|---|---|
+| characteristic_assembly | 3 535 | 2 579 |
+| characteristic_system | 1 105 | 4 |
+| characteristic_lift | 1 090 | 134 |
+| characteristic_albedos | 988 | 6 |
+| characteristic_reading | 1 032 | 88 |
+| characteristic_convergence | 933 | 3 |
+| characteristic_transport | 166 | 138 |
+| characteristic_independent_references | 213 | 4 |
+| characteristic_reference | 107 | 15 |
+
+**What it says.**
+- The stored references did what they were for. Outside the assembly file, warm1 fell from 5 772 s to 494 s.
+- The bypass and cold falls (about 26 % and 17 %) are `[R]` the reference's own speed-ups since 2026-10-14 (the axial lift, the derived node counts), not measured per cause.
+- **81 % of what remains warm (2 493 of 3 073 s) is one file's slow tier.** The assembly file's 21 `slow` rows take 2 493 s warm (warm1 2 579 minus warm2 86). 12 cylinder rows carry 2 345 s:
+  - the 6 closed-body conservation rows on the three-region cylinders (AS1, `_CLOSED_SLOW`), 277 to 418 s each;
+  - the 5 cylinder escape and transmission closed forms, 30 to 97 s;
+  - the equal-materials interface on a cylinder, 109 s.
+- These rows build the block in process (`LineRule.of(...).transport`, not the stored `group_transport`): the block is their system under test. Like C6, no stored reference reaches them. The two levers are a cheaper cylinder block (#587, the non-tensor (b, θ) rule) and ruling 15's verdict revalidation.
+- The remaining warm cost of lift, transport and reading (88 to 138 s each) is also in-process transport, and most of it is outside `slow`.
+
+**#591** (the point reading's cost): its done-when protocol ran at P3 step 3f (`[M]` route B 0.146 s against the old hoist's 0.120 s, within 22 %; the solve 4 times faster). The second half of the done-when, a ruling on the remaining gap, is the user's. **#587**: open, and now the named lever for the remaining 2 345 s.
+
+⏸ **Next:** the user's rulings on #591 (close at 22 %, or keep for the emission contraction) and on #587 (take the non-tensor rule now, or leave the assembly slow tier to ruling 15). Then the verification-tree campaign's second pass (ruling 14).
