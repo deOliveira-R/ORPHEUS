@@ -258,4 +258,50 @@ Three perspectives in parallel, each adversarial in its first pass (W5). A separ
    - (b): which Gram a bridged modal axis carries, and whether a discrete Gram is a variational crime or the consistent choice (Petrov–Galerkin, Galerkin quadrature);
    - the user's attack: is LD's within-cell factor a fibre whose metric varies over the cells (a vector bundle with a fibre metric), and is the diagonal-only axis metric the gap that makes curvilinear LD unspellable?
 
-⏸ **Next:** the three reports, then the second-pass re-evaluation, then the user. "Every axis is what a frame induces" is refuted by the exercise. Then step 3: the ordered concept list of `numerics` (groups, the G-space manifold, measure and basis in parallel, the axis that receives either, the frame as their join, the space as a product of axes, quadrature, invariance as a composition, and the operator module cut abstract-then-composers), with each concept's home module and the edges each ruling removes. Its acyclicity is the done-when. Then the work cut into packages (verification-tree ruling 18).
+### The three reports, and the second pass (2026-10-18)
+
+Reports (each read with session context; the explorer's saved by the orchestrator):
+- facts: `frame_bridge/facts/report.md`;
+- literature: `frame_bridge/literature.md`;
+- frames: `frame_bridge/attack.md`, with probes in `frame_bridge/attack_probes/`;
+- one wrong-answer diagnosis it triggered: `scratch/adjoint_underresolved/report.md`.
+
+**The adjoint check** (`[M]`, the numerics-investigator). The attacker found the angular frame's two faces disagreeing on 3 of 37 rule × order rows, all where the order outruns the rule: `folded_product(2,4)` L = 2, LS4 L = 3, LS8 L = 5 (`attack_probes/p6_tree_square.py`, reproduced by the orchestrator). Production's SN adjoint is nonetheless correct.
+- Slab forward/adjoint reciprocity holds to round-off on every row.
+- A positive control (dropping the group transpose) breaks it to 0.92.
+- The production scattering operator is standard S_N, `(1/W) R Λ M`, self-adjoint in the quadrature weights on every rule (Morel 1989, Eqs. 39a, 39b). It never uses the frame's square.
+- What was wrong: the `frame.py` docstring claiming the square closes "across every shipped sphere family" [REMEDIED 2026-10-18, this pass's commit], and the absence of any reciprocity gate above L = 1 (the test-architect is adding the rung).
+
+**Second pass: the re-evaluation** (`[R]` the orchestrator, unless marked). It weighs the three first-pass reports against each other; it does not bound them.
+
+(a) **What a frame is.**
+- The first-pass reading ("a bridge between two representations of one factor, needed only when both are carried") is refuted twice by the attacker (`[M]`):
+  - 7 of the 10 production frame constructions are homogenisation and condensation frames, mapping fine cells to coarse regions: two resolutions, not two representations;
+  - on 30 of 33 angular rows the frame is an embedding, not a change of basis.
+- The reading that survives both is the attacker's. A frame is the **sampling map** (the basis evaluated on a measure's points), taking a basis's coefficients to a measure's samples, together with its canonical-dual inverse.
+  - On the angle, the basis is the harmonics and the measure the quadrature.
+  - On homogenisation, the basis is the coarse-region indicators and the measure the fine volume measure.
+  - It is a morphism between two coordinate spaces of possibly different dimension. Representations and resolutions are two uses of one construction.
+
+(b) **Which metric a modal axis carries.** The attacker's rule unifies what looked like two legitimate metrics: **every axis carries the pullback of its factor's own measure**.
+- A nodal axis pulls back along the identity: its weights.
+- A modal axis pulls back along its basis's synthesis: its Gram, `ΦᵀWΦ` when the factor's measure is discrete, the continuum Gram when it is continuous.
+- So SN's angular moments carry the discrete Gram, because the quadrature is the angle's measure. LD's spatial moments carry the continuum mass, because the cell's Lebesgue measure is integrated exactly. That is one rule applied to two factors whose measures differ. It agrees with today's tree in both places.
+- `[M]` (the attacker) the alternative that ruling R-6.2c-1 rejected was mis-specified: it put the continuum `4π/(2ℓ+1)` on covariant moments (a variance error, failing Parseval on 33 of 33 rows; the variance-correct dual passes on 32 of 33). The ruling's outcome stands under the pullback rule; its recorded evidence does not.
+- What is left is one genuine choice, on the rows where the order outruns the rule. There the frame's reconstruction uses the continuum addition-theorem factor while its metric uses the discrete Gram, so the frame mixes two measures.
+  - Make one datum single-sourced on the frame (Galerkin quadrature: GQ2-like, Morel 1989 and Sanchez–Ragusa 2011). Every identity then closes, but it changes the scattering on those rows: it is a different method.
+  - Or keep standard S_N, which is correct and self-adjoint, and state that the frame's square does not close there. That is what the remedied docstring and the coming rung do.
+  - The literature takes both (Shands et al. 2025 builds the moments orthogonal under the quadrature, so the weights survive). This is a method choice for the user, not a defect.
+
+(c) **Curvilinear LD.** The user's attack holds and sharpens.
+- The carrier stays a tensor product: a bundle of constant rank over a finite set of cells is trivial. What fails is the metric's Kronecker form, `G = ⊕_c V_c ĝ(τ_c)`, `τ = r_in/h`. It is Kronecker exactly when the volume element is constant, the guard's predicate.
+- `[M]` (the facts): no space today admits a metric spanning two axes (the probe was refused on an axis-built space and admitted on an axes-less one). The mass is spelled twice (space side and kernel side). The `scheme.mint(chart)` that would build mass and redistribution as two products of one form was designed and never built, blocked on #423 (no polynomial `Basis`).
+- Two repairs:
+  1. **A Gauss-nodal spatial axis.** Within each cell, take the Lagrange basis at the 2-point Gauss rule of the weight `r^{max(d−2,0)}`. Both curvilinear LD forms are then exactly diagonal. `[M]` the attacker, ≤ 1.3e-13; the orchestrator re-derived it by exactness of the Gauss rules:
+     - sphere: the mass `∫bᵢbⱼ r² dr` is degree 3 under weight r, and the redistribution `2∫bᵢbⱼ r dr` degree 2;
+     - cylinder: the mass is degree 3 and the redistribution degree 2 under weight 1.
+     The redistribution becomes the multiplier `(d−1)/r` at the nodes. The spatial factor is then ONE nodal axis from a discrete measure (two points per cell, with the volume-element weights), machinery that exists. No moment axis and no cross-axis metric are needed. It is the same Galerkin scheme in another basis, not lumping: the solution is identical in exact arithmetic, and positivity and lumping stay #158's separate choice. The literature agrees: the robust curvilinear schemes are nodal, and lumping is defined only in the nodal basis (Palmer and Adams 1993).
+  2. **A modal axis with a fibre metric varying over the cells,** which needs the cross-axis metric machinery the space refuses today.
+  - The second pass favours (1): it removes a concept instead of adding one, and it makes the curvilinear guard unnecessary rather than satisfied. The moment reading (cell average and slope) stays available through a frame, the sampling map of the Legendre moments on the Gauss nodes, wherever an output needs it.
+
+⏸ **Next:** the user's rulings on (a), (b) and (c) as re-evaluated above (asked 2026-10-18). "Every axis is what a frame induces" is refuted by the exercise. Then step 3: the ordered concept list of `numerics` (groups, the G-space manifold, measure and basis in parallel, the axis that receives either, the frame as their join, the space as a product of axes, quadrature, invariance as a composition, and the operator module cut abstract-then-composers), with each concept's home module and the edges each ruling removes. Its acyclicity is the done-when. Then the work cut into packages (verification-tree ruling 18).
