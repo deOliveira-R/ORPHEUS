@@ -70,6 +70,8 @@ The graph is also the schedule. A test runs only when its supports are green. A 
 27. **The numerics knot is settled before the census** (the user, 2026-10-18: "settle it first"). It is its own living plan, `numerics_untangling.md`, whose concept order becomes the base of the cone.
 28. **SN stays one sub-cone hanging off `SNProblem` for now, and the constructor rule gets its own campaign** (the user, 2026-10-18): "It's fine that the SN is essentially a big blob depending on SNProblem *for now*. This is a fairly strong indication that we have not been diligent enough with our rule of "__init__ constructor being the raw constructor for testing and class methods the specialized constructors that receive convenient arguments that needs unravelling", so we need to revit it in its own campaign. Untangling the numerics layer is a pretty good start." Filed as #611. The rule is not written in the rules corpus today (`[M]` a grep of `docs/development/rules/` and `.claude/rules/` for "constructor").
 
+29. **The sub-cone DAG states the code's ontology** (the user, 2026-10-18, in `numerics_untangling.md`, ruling 3 there): the way the sub-cones connect says what machinery exists, what depends on what, at what level, and how it stacks. So the census's concept order and the code's concept order are one object, and a knot in either is a knot in both.
+
 ## Vocabulary (one meaning per word)
 
 - **Claim:** a statement the code is held to, with a home where it is written: an equation's label on a theory page, a law, a contract, an invariant. A claim is the node of the graph (ruling 4).
