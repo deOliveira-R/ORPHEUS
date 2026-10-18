@@ -159,6 +159,36 @@ Reports: `scratch/numerics_untangling/f4/report.md`, `f5/report.md`, `f6/report.
 
 **Side finding, under diagnosis.** Two traced-memo gates failed when many test processes shared the host: `test_m3_15_two_processes_racing_on_one_miss_leave_one_valid_entry` (the entry read `Absent`, where `Hit` was expected) and `test_b13_a_miss_indexes_only_bytes_it_has_not_indexed`. Both pass serially: `[M]` 56 of 56. The numerics-investigator is reproducing both under controlled load (`scratch/memo_race/`). The first may be a real race in the memo's write.
 
+## What an axis needs to be constructed (the user's question, 2026-10-18: "Evaluate it. Check if an axis only needs a measure or a basis to be constructed.")
+
+`[M]` by reading, the orchestrator, 2026-10-18, at `main` `e6354b31`: `orpheus/numerics/axis.py:117-466`; `spaces/spherical_harmonic_space.py:193-215` (`for_basis`); `frame.py`, `_dressed` (the frame's re-dressing of a coefficient space); `measure.py:391-420` (`DiscreteMeasure.axis`).
+
+**An axis's identity** is its class plus `(label, shape, weights, kind)`, plus each family's own fields: `EnergyAxis.edges`, `LegendreAxis.spent_axis`. `generator` is provenance only (`compare=False`). Where each part comes from:
+
+| part | nodal axis (from a measure) | modal axis (from a basis) | energy axis |
+|---|---|---|---|
+| `label` | the role in the posing (`"angular"`, `"spatial"`); not in the measure | the role (`"harmonic"`); not in the basis | `"energy"`, fixed |
+| `shape` | `(n_points,)` | the basis's coefficient layout (`(L+1,)`, `(L+1, 2L+1)`) | `(n_groups,)` |
+| `weights`, the metric | the measure's weights | **a Gram, which the basis alone does not fix.** Minted from the basis, it is the continuum Gram `basis.metric_per_ell`, the basis against its continuous reference measure. Re-dressed by a frame, it is the Parseval inverse of the discrete Gram over a quadrature. When that Gram is dense, the axis's `weights` are emptied and the metric is positioned on the space (`FactoredMetric`), because the axis can hold only a diagonal | none: the counting measure, as a theorem (group integrals pair with group averages without widths) |
+| `kind` | NODAL, implied by the measure | MODAL | NODAL, enforced |
+| family content | — | `spent_axis`, from the basis's domain `S²/O(2)_a` | `edges`, from the energy grid |
+
+So:
+- **A nodal axis needs a measure, plus its role label.** Everything else is the measure's.
+- **A modal axis needs a basis AND a measure.** The basis gives the shape and the kind. The metric needs a measure to integrate against: the continuum reference measure, or a quadrature. The two give different axes, since the weights are in the identity. The tree carries one moment space per carrier, the frame's (ruling R-6.2c-1, cited in `HarmonicAxis`'s docstring). That is why `FrameBase.basis_space` re-dresses the basis-minted space, and why every frame family reads `basis.space` only to replace its metric (F4).
+- **An energy axis needs neither:** a partition of energy (the group edges), with its counting measure and the group-indicator basis implicit.
+- **Ruling 10's marginal covector** `m_i = ∫ u_i dμ` also needs both the basis and the measure.
+
+**The reading this suggests** `[R]`, the orchestrator, for the user: **every axis is what a frame induces**, a measure paired with a basis.
+- A nodal axis is the degenerate frame: a measure with its own point-evaluation basis, whose Gram is `diag(w)`. `DiscreteMeasure.axis` mints that frame's axis without naming the frame.
+- A modal axis is a Galerkin frame's axis. Its metric is that frame's Gram. The basis-only mint is the frame of the basis with its continuum reference measure, a second frame the tree does not name.
+- An energy axis is the frame of a partition with its indicator basis under the counting measure.
+
+That is CLAUDE.md's vocabulary taken literally ("the frame pairing them, which induces the space's metric"), and the stage-2 generator rule ("Frame/Scheme induce space + operator together at one site; read for their induced data and then forgotten"). Its consequences, each to rule:
+1. **The concept order.** `Axis` and `FunctionSpace` are value types with raw constructors (label, shape, metric, kind), and import nothing above them. The frame, the join of measure and basis, mints them as their generator. So the order is: measure and basis in parallel, then the frame, which mints axes and spaces. The types themselves sit below the frame. This refines ruling 4: an axis comes after what defines it, and what defines a modal axis is a frame, not a basis.
+2. **F4, refined.** A modal axis receives its metric from a frame. So the convenience constructor is the frame's (`FrameBase.basis_space` today), not the basis's (`basis.space`). The continuum mint becomes a named frame (the basis with its reference measure), or it retires if nothing but tests needs a continuum-metric head.
+3. **The axis's metric is a diagonal slot.** A general modal metric (a dense Gram) cannot sit on the axis today; it is positioned on the space instead. Under "the metric is an object" (CLAUDE.md), the axis would carry a metric object, diagonal or dense.
+
 ## Candidate ontologies
 
 None yet. The edges' uses are measured first (below). Then each knot is read as one of four cases:
@@ -179,4 +209,4 @@ None yet.
 
 **The memo-race diagnosis** [REMEDIED 2026-10-18 @829b79d8]: neither red was a memo defect (`scratch/memo_race/report.md`). M3.15 launched its racing processes with a hardcoded `-O` while the memo key carries the optimisation level. B13 counted every file of the shared `.cache/sources`. Both tests now read only their own run.
 
-⏸ **Next:** rulings 10 to 13 recorded (2026-10-18). Then step 3: the ordered concept list of `numerics` (groups, the G-space manifold, measure and basis in parallel, the axis that receives either, the frame as their join, the space as a product of axes, quadrature, invariance as a composition, and the operator module cut abstract-then-composers), with each concept's home module and the edges each ruling removes. Its acyclicity is the done-when. Then the work cut into packages (verification-tree ruling 18).
+⏸ **Next:** the user's ruling on "every axis is what a frame induces" and its three consequences (2026-10-18), which fixes the order of measure, basis, frame, axis and space. Then step 3: the ordered concept list of `numerics` (groups, the G-space manifold, measure and basis in parallel, the axis that receives either, the frame as their join, the space as a product of axes, quadrature, invariance as a composition, and the operator module cut abstract-then-composers), with each concept's home module and the edges each ruling removes. Its acyclicity is the done-when. Then the work cut into packages (verification-tree ruling 18).
