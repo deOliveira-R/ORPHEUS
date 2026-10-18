@@ -2262,10 +2262,14 @@ always was.
    Two independent consumers demanded the same missing primitive, which
    is what promoted it from a loose end to a layer:
 
-   - the **slab spherical-harmonic frame**, whose measured discrete Gram
-     carries live off-diagonals at :math:`0.93` of the Cauchy–Schwarz
-     scale, so no diagonal metric satisfies Parseval on it
-     (:ref:`frame-parseval-dense-arm`); and
+   - a **spherical-harmonic frame on a rule that does not integrate its
+     products exactly**, whose measured discrete Gram couples the modes,
+     so no diagonal metric satisfies Parseval on it
+     (:ref:`frame-parseval-dense-arm`). `[M]` 2026-10-18 on
+     ``folded_product(4, 4).angular_frame(2)`` the live block's largest
+     off-diagonal is 1.000 of the Cauchy–Schwarz scale. The frame that
+     first demanded the primitive was the slab one, whose density was
+     ERR-080's signature and went with its repair (#429); and
    - the **curvilinear multi-moment cell mass** :math:`M/V`, whose true
      value at a spherical pole cell is
      ``[[1, 0.5], [0.5, 0.4]]``
@@ -2423,13 +2427,26 @@ tangential ordinate with :math:`|\Omega\cdot n| = 0` has weight zero and
 must map to zero, not to infinity). The dense arm extends it unchanged,
 and there it is **not a convenience: it is the only thing that exists.**
 
-`[M]` 2026-08-30 on ``Quadrature.gauss_legendre(8).angular_frame(2)`` —
-the flagship consumer — the discrete Gram is :math:`15\times15` with
-**5 live diagonal slots and rank 4**: its singular values are
-:math:`2.708,\ 1.419,\ 4.925\times10^{-1},\ 4.745\times10^{-2}` and then
-the round-off floor (:math:`\sim10^{-17}`, fifteen orders below the
-smallest genuine mode). :func:`numpy.linalg.inv` raises there;
-:func:`numpy.linalg.pinv` returns the object Parseval needs.
+`[M]` 2026-10-18 on ``Quadrature.folded_product(4, 4).angular_frame(2)``,
+the mirror-even spherical harmonics on :math:`S^2/\sigma_y` and the
+smallest of the three dense angular heads production builds (the
+frame-bridge census of 2026-10-18), the discrete Gram is :math:`15\times15` with **6 live diagonal slots and rank 5**. Its
+singular values are :math:`4\pi = 12.566,\ 4.189,\ 4.189,\ 2.513,\
+2.513` and then round-off (the largest :math:`2.7\times10^{-16}`, sixteen
+orders below the smallest genuine mode). The dropped mode is structural,
+not small: its singular vector, a combination of two :math:`\ell = 2`
+columns, annihilates the evaluation table on the rule's 8 nodes
+(:math:`\|Av\|_\infty = 2.8\times10^{-16}`), so the rule cannot tell those
+two harmonics apart. :func:`numpy.linalg.inv` raises there;
+:func:`numpy.linalg.pinv` returns the object Parseval needs. The other two
+dense heads are singular too: ``folded_product(4, 4).angular_frame(4)``,
+:math:`45\times45` with 15 live slots and rank 8, and
+``product(4, 8).angular_frame(4)``, :math:`45\times45` with 25 live slots
+and rank 23. (Probes ``scratch/metric_docstring/probe_flagship.py``,
+``probe_kernel.py`` and ``probe_theory.py``, numpy 2.4.4. Until the
+ERR-080 repair of 2026-09-02 the example here was the slab
+``gauss_legendre(8).angular_frame(2)``, 5 live slots and rank 4; that
+frame's Gram is now diagonal, :math:`3\times3` and rank 3.)
 
 Two construction choices in
 :class:`~orpheus.numerics.metric.DenseMetric` are worth their reasons:
@@ -2440,19 +2457,30 @@ Two construction choices in
    value. The shipped ``rcond`` is :math:`10^{-12}`, and the cliff it
    must sit below is computable rather than guessed: NumPy's ``rcond``
    is relative to the largest singular value, so truncation begins at
-   :math:`\sigma_{\min}^{\rm live}/\sigma_{\max} = 4.745\times10^{-2} /
-   2.708 = 1.75\times10^{-2}`. `[M]` scanned on the flagship Gram, the
-   Parseval ratio reads ``1.000000000`` at every scanned ``rcond`` in
-   :math:`[10^{-15},\,10^{-2}]` — as it must, since no truncation can
-   occur below the cliff — and drops to ``0.991414787`` from
-   :math:`3\times10^{-2}` upward, where the genuine
-   :math:`4.745\times10^{-2}` mode is discarded. :math:`10^{-12}` sits
-   ten orders below the cliff and five above the noise floor.
-#. **The pseudo-inversion declares hermiticity.** `[M]` the same call
-   *without* ``hermitian=True`` returns a matrix whose asymmetry is
-   :math:`\max|M - M^{\mathsf T}| = 4.74\times10^{-14}`, against
-   :math:`1.1\times10^{-16}` with it — three orders, and enough to trip
-   the type's own symmetry admission on a re-wrap.
+   :math:`\sigma_{\min}^{\rm live}/\sigma_{\max} = 2.513 / 12.566 = 0.2`.
+   `[M]` scanned on that Gram, the draw-free range of the Parseval ratio
+   over the band-limited subspace is :math:`[1, 1]` to nine digits at
+   every scanned ``rcond`` from :math:`10^{-15}` to :math:`0.19`, as it
+   must be, since no truncation can occur below the cliff. From
+   :math:`0.21` upward it is :math:`[0, 1]`: the genuine :math:`2.513`
+   pair is discarded and a field living in it reads zero.
+   :math:`10^{-12}` sits 11.3 decades below the cliff and 3.8 above the
+   largest round-off residue as ``eigh`` reports it
+   (:math:`1.67\times10^{-16}` relative), and that lower margin moves
+   with the LAPACK driver (the window and its census are the comment on
+   ``_DENSE_METRIC_RCOND`` in :mod:`orpheus.numerics.metric`).
+#. **The pseudo-inversion declares hermiticity.** `[M]` 2026-10-18 over
+   six dense frames (``scratch/metric_docstring/probe_hermitian.py``),
+   the same call *without* ``hermitian=True`` returns a matrix whose
+   asymmetry :math:`\max|M - M^{\mathsf T}|` ranges from
+   :math:`4.6\times10^{-17}` to :math:`1.75\times10^{-15}` (the largest
+   on ``product(4, 4).angular_frame(2)``), against at most
+   :math:`6.9\times10^{-17}` with it: one to two orders, and far below
+   the type's symmetry admission of :math:`10^{-12}`. The declaration is
+   kept because it makes the pseudo-inverse cut on ``eigh``, the
+   decomposition the cutoff window is measured on. (On the pre-repair
+   slab Gram of 2026-08-30 the two read :math:`4.74\times10^{-14}` and
+   :math:`1.1\times10^{-16}`.)
 
 The type refuses two illegal states outright rather than repairing them:
 an **asymmetric** matrix (an asymmetric form is not an inner product —
@@ -2493,8 +2521,8 @@ moments under :math:`G^{+}` and using the first Penrose identity
    content is the DenseMetric law battery
    (``tests/gates/numerics/test_dense_metric.py``, hand-derived literals in
    exact binary fractions plus the range-projector leg) and, on the
-   frame side, the four-mechanism dressing gate, the isometry gate's
-   slab row, and the wrong-metric discriminator
+   frame side, the six-mechanism dense dressing gate, the isometry
+   gate's three dense rows, and the wrong-metric discriminator
    (``tests/gates/numerics/test_frame.py``).
 .. vv-status: spaces-pseudo-inverse-parseval documented
 
@@ -2512,13 +2540,14 @@ moments under :math:`G^{+}` and using the first Penrose identity
 
 The identity holds because :math:`G G^{+} G = G` is one of the four
 Penrose conditions, true by definition of the pseudo-inverse — no
-hypothesis about rank, conditioning or invertibility enters. `[M]` on
-the flagship slab Gram the residual is
-:math:`\max|G G^{+} G - G| = 1.55\times10^{-15}` absolute, which is
-:math:`7.8\times10^{-16}` relative to :math:`\max|G| = 2` (and
-:math:`7.7\times10^{-16}` in the Frobenius ratio — the norm is worth
-writing down, because three reasonable norms of the same residual differ
-by an order).
+hypothesis about rank, conditioning or invertibility enters. `[M]`
+2026-10-18 on ``folded_product(4, 4).angular_frame(2)``
+(``scratch/metric_docstring/probe_theory.py``) the residual is
+:math:`\max|G G^{+} G - G| = 1.78\times10^{-15}` absolute, which is
+:math:`1.41\times10^{-16}` relative to :math:`\max|G| = 4\pi`, and
+:math:`1.71\times10^{-16}` in the Frobenius ratio. Name the norm when
+quoting it: the absolute figure is an order larger only because
+:math:`\max|G|` is :math:`4\pi`.
 
 .. _spaces-metric-one-spelling:
 
@@ -2735,7 +2764,8 @@ so this is also the representative of least Euclidean norm. The next
 subsection shows the choice is exact for the adjoint whenever the
 operator does not carry kernel content into what the codomain metric
 measures. :math:`G^{-1}` does not exist there (:func:`numpy.linalg.inv`
-raises on the flagship slab Gram, :ref:`spaces-metric-moore-penrose`),
+raises on every dense angular Gram the tree builds,
+:ref:`spaces-metric-moore-penrose`),
 and a reciprocal :math:`1/w` would put infinities in the tangential
 slots.
 
@@ -3093,7 +3123,7 @@ pinned cutoff, with the exact symmetrized Gram kept as the inverse face
 strictly better conditioned than a second pseudo-inversion) — and
 **strips** the basis's continuum weights, because the dressing
 *replaces* the metric on that arm exactly as the diagonal arm
-overwrites it. Full account, including the slab Gram's own table:
+overwrites it. Full account, including the pre-repair slab Gram's table:
 :ref:`frame-parseval-dense-arm`.
 
 ⛔ **Reciprocity cannot adjudicate a metric, and it never will.** The
@@ -3108,31 +3138,40 @@ fail is one that compares the metric against a quantity defined without
 it — Parseval, i.e. the field's own norm — plus hand-derived literals
 with no solver, frame or quadrature in the chain.
 
-.. list-table:: The wrong-metric discriminator — `[M]` 2026-08-30, one band-limited :math:`\psi` on ``gauss_legendre(8).angular_frame(2)``
+.. list-table:: The wrong-metric discriminator — `[M]` 2026-10-18, the draw-free range of the Parseval ratio over the band-limited subspace of ``folded_product(4, 4).angular_frame(2)``
    :header-rows: 1
    :widths: 40 24 36
 
    * - Metric on the coefficient space
-     - Parseval ratio
+     - Parseval ratio range
      - Verdict
    * - the basis's **continuum** Gram (pre-F-0, undressed)
-     - :math:`25.53`
+     - :math:`[6.317,\ 157.9]`
      - the ERR-039 defect
    * - the best **diagonal** candidate, :math:`1/\operatorname{diag}(G)`
-     - :math:`1.806`
+     - :math:`[1.000,\ 2.000]`
      - a diagonal metric is *provably insufficient* here, not merely
        unavailable
    * - the **matrix** pseudo-inverse :math:`G^{+}` (shipped)
-     - :math:`0.999999999999999`
+     - :math:`[1.000,\ 1.000]`
      - the theorem, :eq:`spaces-pseudo-inverse-parseval`
 
 The middle row is the whole justification for the phase, and it is the
-row a diagonal-only design could never have produced. ⚠ Its **floor is
-frame-dependent** and only the slab's is gated: `[M]` on the same
-construction the diagonal candidate reads :math:`1.066` on
-``product(4,4)`` at :math:`L=2` and :math:`0.996` on
-``level_symmetric(4)`` at :math:`L=3` — close enough to 1 that a gate
-pinned there would be pinning noise.
+row a diagonal-only design could never have produced. The range is the
+generalized-eigenvalue range of the Rayleigh quotient
+:math:`(Gc)^{\mathsf T} M (Gc) / c^{\mathsf T} G c`, so it is a property of
+the frame and cannot move with a random draw
+(``scratch/metric_docstring/probe_theory.py``). ⚠ It is **frame-dependent**:
+`[M]` the diagonal candidate ranges over :math:`[0.707,\ 1.842]` on
+``product(4, 4).angular_frame(2)`` and :math:`[0.889,\ 1.111]` on
+``level_symmetric(4).angular_frame(3)``, so a single draw there can land
+near 1. The committed discriminator,
+``test_no_diagonal_metric_can_satisfy_parseval_on_a_dense_frame``, reads
+``folded_product(2, 4).angular_frame(3)``, where the diagonal range is
+:math:`[1.000,\ 3.000]` and never drops below 1. (Until the ERR-080
+repair this table read one seeded :math:`\psi` on the slab
+``gauss_legendre(8).angular_frame(2)``: 25.53, 1.806 and
+0.999999999999999.)
 
 **The dressing moves a production adjoint, and nothing observed it.**
 This is not plumbing. The scattering operator builds
@@ -3368,9 +3407,10 @@ metric that can now be *spelled* is not a metric anyone has *chosen*.
    and that asymmetry is the strongest argument for an
    operator-valued metric over a "matrix weights slot on ``Axis``":
 
-   - the slab frame needs **one cell-independent** dense
-     :math:`K\times K` coefficient Gram — a per-axis matrix could carry
-     that;
+   - a dense angular frame (today ``folded_product(4, 4).angular_frame(2)``;
+     the slab frame before the ERR-080 repair) needs **one
+     cell-independent** dense :math:`K\times K` coefficient Gram — a
+     per-axis matrix could carry that;
    - the curvilinear mass is
      :math:`G_{(i,k),(i,j)} = V_i\,M_{kj}(r_i)` — dense in the moment
      index **and** varying along the spatial index, i.e.
@@ -5235,58 +5275,120 @@ against ``frame.discrete_gram[0, 0]`` (exact, always), never against
 **The section is the harmonic frame's isotropic column — at the
 measure level.** A natural question is whether the collapse pair
 duplicates the spherical-harmonic frame's :math:`\ell = 0` channel.
-Measured on the :math:`S_N` carrier above with
-``HarmonicFrame.from_galerkin(sn.quad.angular_frame(L))``, feeding a
-moment field that is zero except at :math:`(\ell, m) = (0,0)`:
+`[M]` 2026-10-18 (``scratch/metric_docstring/probe_iso_column.py``, run
+as ``PYTHONPATH=. .venv/bin/python -O <probe>``): on the :math:`S_N`
+carrier above, on its spherical twin (the same edges and the same
+``gauss_legendre(4)``), and on the slab carrier with dense-Gram
+sphere rules, build
+``HarmonicFrame.from_galerkin(sn.quad.angular_frame(L))``, feed a moment
+field that is zero except at the :math:`(0,0)` slot, and compare both
+faces with :math:`E\varphi`, :math:`E` the collapse pair's section
+``sn.angular_bulk_space.section("angular")``. Each entry is the worst
+relative deviation over 20 draws ``default_rng(1000+k)``; "row-0
+coupling" is :math:`\max_{j>0}|G_{0j}|/G_{00}`. ``SNProblem`` on the
+spherical mesh refuses the 3-D rules (``ValueError``: an ordinate's
+``tau_raw`` lies outside :math:`[0, 1]`), so the dense rows run on the
+slab mesh; the frame reads only
+``sn.quad``, so the mesh does not enter.
 
 .. list-table:: The isotropic column against the section
    :header-rows: 1
-   :widths: 26 18 28 28
+   :widths: 24 14 14 24 24
 
    * - frame
-     - Gram max off-diagonal
+     - Gram verdict, max off-diagonal
+     - row-0 coupling
      - :math:`\text{face}^{\dagger}(e_0\varphi)` vs :math:`E\varphi`
      - :math:`\text{reconstruction}(e_0\varphi)/W` vs :math:`E\varphi`
-   * - slab, :math:`L=1`
-     - :math:`5.6\times10^{-17}`
-     - :math:`5.6\times10^{-17}`
-     - **0.0** (``array_equal``)
-   * - sphere, :math:`L=1`
-     - :math:`5.6\times10^{-17}`
+   * - slab ``gauss_legendre(4)``, :math:`L=1`
+     - DIAGONAL, :math:`1.4\times10^{-17}`
+     - :math:`6.8\times10^{-18}`
+     - :math:`2.1\times10^{-16}`
+     - **0.0** (``array_equal`` 20 of 20)
+   * - slab ``gauss_legendre(4)``, :math:`L=2`
+     - DIAGONAL, :math:`5.6\times10^{-17}`
+     - :math:`2.3\times10^{-17}`
+     - :math:`2.1\times10^{-16}`
+     - **0.0** (20 of 20)
+   * - sphere ``gauss_legendre(4)``, :math:`L=1`
+     - DIAGONAL, :math:`1.4\times10^{-17}`
+     - :math:`6.8\times10^{-18}`
+     - :math:`2.2\times10^{-16}`
+     - **0.0** (20 of 20)
+   * - sphere ``gauss_legendre(4)``, :math:`L=2`
+     - DIAGONAL, :math:`5.6\times10^{-17}`
+     - :math:`2.3\times10^{-17}`
+     - :math:`2.2\times10^{-16}`
+     - **0.0** (20 of 20)
+   * - ``product(4, 4)``, :math:`L=2`
+     - DENSE, :math:`1.088`
+     - :math:`2.2\times10^{-17}`
+     - :math:`1.7\times10^{-16}`
+     - **0.0** (20 of 20)
+   * - ``folded_product(4, 4)``, :math:`L=2`
+     - DENSE, :math:`1.088`
+     - :math:`5.3\times10^{-17}`
+     - :math:`3.5\times10^{-16}`
+     - **0.0** (20 of 20)
+   * - ``folded_product(2, 4)``, :math:`L=3`
+     - DENSE, :math:`2.793`
      - :math:`1.1\times10^{-16}`
-     - **0.0** (``array_equal``)
-   * - slab, :math:`L=2`
-     - :math:`1.155`
-     - :math:`16.17`
-     - **0.0** (``array_equal``)
-   * - sphere, :math:`L=2`
-     - :math:`1.155`
-     - :math:`16.17`
-     - **0.0** (``array_equal``)
+     - :math:`2.1\times10^{-16}`
+     - **0.0** (20 of 20)
+   * - ``level_symmetric(4)``, :math:`L=3`
+     - DENSE, :math:`0.193`
+     - :math:`1.2\times10^{-16}`
+     - :math:`9.0\times10^{-16}`
+     - :math:`4.2\times10^{-16}` (0 of 20)
+   * - ``product(4, 8)``, :math:`L=4`
+     - DENSE, :math:`1.112`
+     - :math:`4.7\times10^{-17}`
+     - :math:`5.3\times10^{-16}`
+     - :math:`6.0\times10^{-16}` (0 of 20)
+   * - ``folded_product(4, 4)``, :math:`L=4`
+     - DENSE, :math:`3.665`
+     - :math:`0.292`
+     - :math:`0.356`
+     - **0.0** (20 of 20)
 
 Two readings, and the second is the one to carry:
 
 #. The **adjoint** correspondence — the section is the isotropic column
    of the harmonic frame's *physical* adjoint — holds exactly when the
-   measured Gram is DIAGONAL, i.e. when the Parseval metric exists at
-   all (:ref:`frame-parseval-metric`). ⚠ The discriminator is the
-   **Gram**, not the geometry: the :math:`L=2` rows read identically on
-   slab and sphere, because the angular frame is built from
-   ``sn.quad`` and knows nothing about the spatial coordinate system.
-   A 1-D polar Gauss–Legendre rule has no azimuthal nodes, so the
-   :math:`m \ne 0` modes are not orthogonal under it and the Gram is
-   dense at :math:`L\ge2` — `[M]` refining the polar order does not fix
-   it (``gauss_legendre(8)`` at :math:`L=2` reads the same
-   :math:`1.155` off-diagonal and the same :math:`16.17`).
+   constant mode :math:`e_0` is an eigenvector of the discrete Gram, that
+   is, when the rule integrates every other live basis function to zero
+   (row-0 coupling zero). `[R]` Then :math:`G^{+}e_0 = e_0/G_{00}`, and
+   the adjoint face, which synthesizes from :math:`G^{+}` applied to the
+   moments, returns the constant :math:`\varphi\,Y_{00}/G_{00} =
+   \varphi/W`. A DIAGONAL Gram satisfies this, but a DENSE Gram does too
+   whenever only the higher modes couple: `[M]` 5 of the 6 dense rows
+   above read round-off, and the one that breaks,
+   ``folded_product(4, 4)`` at :math:`L=4`, is the one whose rule
+   integrates a non-constant mirror-even harmonic to a nonzero value
+   (row-0 coupling :math:`0.292`, deviation :math:`0.356`). ⚠ The
+   discriminator is that one row of the Gram, not the geometry and not
+   the Gram's diagonality: the slab and sphere rows read alike because
+   the frame is built from ``sn.quad`` and knows nothing about the
+   spatial coordinate system.
 #. The **measure-level** correspondence —
-   :math:`E = \text{reconstruction}(e_0\,\cdot)/W` — is bit-exact in
-   *every* configuration, dense Gram included, because it never touches
-   a metric. That is the honest statement of the relationship, and it
-   is also the reason the collapse pair is minted from an **indicator**
-   frame rather than lifted out of the harmonic one: the collapse rides
-   the measure, and it must keep working where the harmonic frame's
-   metric does not exist.
+   :math:`E = \text{reconstruction}(e_0\,\cdot)/W` — never touches a
+   metric, so it holds in *every* configuration, the broken dense row
+   included. It is bit-exact (``array_equal`` 20 of 20) on 8 of the 10
+   rows and two to three ULP off on the other two
+   (``level_symmetric(4)`` and ``product(4, 8)``). That is
+   the honest statement of the relationship, and it is also the reason
+   the collapse pair is minted from an **indicator** frame rather than
+   lifted out of the harmonic one: the collapse rides the measure, and
+   it must keep working where the harmonic frame's adjoint column does
+   not match.
 
+Until the ERR-080 repair (#429, 2026-09-02) this table measured a 1-D
+rule bound to the full spherical harmonics on a fabricated azimuth:
+`[M]` 2026-08-24, the :math:`L=2` rows read a Gram off-diagonal of
+:math:`1.155` and an adjoint deviation of :math:`16.17` on slab and
+sphere alike (``gauss_legendre(8)`` read the same), and the reading
+drawn from them, that the adjoint correspondence needs a DIAGONAL Gram,
+was the sufficient condition taken for the exact one.
 
 .. _spaces-collapse-pair-gates:
 

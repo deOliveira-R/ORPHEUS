@@ -3639,7 +3639,8 @@ older entries classify against.
 
    **The refusal arm was part of the fix, not a gap** — and it has
    since been repaired rather than merely tolerated. On the slab
-   Gauss–Legendre measure the discrete Gram is not diagonal at all
+   Gauss–Legendre measure the discrete Gram then was not diagonal at all
+   (it is diagonal since the ERR-080 repair)
    (`[M]` total weight 2 rather than :math:`4\pi`; live slots
    :math:`[1,1,3]` per degree; three genuine off-diagonal couplings,
    the largest at :math:`0.93` of :math:`\sqrt{G_{jj}G_{kk}}`), so **no
@@ -3663,10 +3664,12 @@ older entries classify against.
    (:ref:`spaces-metric-object`), and the frame's ``DENSE`` arm now
    installs ``DenseMetric.inverse_of(discrete_gram)``: the Moore–Penrose
    pseudo-inverse of the symmetrized measured Gram at a pinned cutoff,
-   with the exact Gram kept as the inverse face. The pseudo-inverse is
-   forced rather than chosen — `[M]` the slab Gram is
+   with the exact Gram kept as the inverse face. The pseudo-inverse was
+   forced rather than chosen — `[M]` the slab Gram then was
    :math:`15\times15` with 5 live slots and **rank 4**, so
-   ``np.linalg.inv`` raises — and it is exactly right, because
+   ``np.linalg.inv`` raised (that Gram is diagonal since the ERR-080
+   repair; the dense Grams the tree builds today are singular too,
+   :ref:`spaces-metric-moore-penrose`) — and it is exactly right, because
    :math:`G G^{+} G = G` makes Parseval a theorem for any Gram, singular
    or not.
 
@@ -3676,9 +3679,10 @@ older entries classify against.
    identity :math:`A^{\dagger} \equiv G^{-1}A^{\mathsf T}G` holds to
    :math:`1.4\times10^{-16}` for **every** invertible :math:`G`, so no
    reciprocity gate can ever adjudicate one. The instrument that can is
-   the **wrong-metric discriminator**, which reads one band-limited
-   :math:`\psi` on the slab frame under three metrics — `[M]`
-   2026-08-30: :math:`25.53` undressed (the original ERR-039 defect),
+   the **wrong-metric discriminator**, which then read one band-limited
+   :math:`\psi` on the slab frame under three metrics (since the ERR-080
+   repair it reads ``folded_product(2, 4).angular_frame(3)``, draw-free)
+   — `[M]` 2026-08-30: :math:`25.53` undressed (the original ERR-039 defect),
    :math:`1.806` under the best *diagonal* candidate
    :math:`1/\operatorname{diag}(G)`, and :math:`0.999999999999999`
    under the matrix :math:`G^{+}`. The middle reading is the one that

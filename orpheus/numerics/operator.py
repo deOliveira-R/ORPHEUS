@@ -3539,16 +3539,19 @@ class AxisSectionOperator(_AxisMarginalBase):
     :math:`Q/\Sigma w` broadcast across the ordinates
     (``AngularSourceSink.from_isotropic``'s kernel — gated
     ``np.array_equal`` on the GL4 fixture, G6.6), and the iso column of
-    the harmonic frame's physical adjoint WHEN the frame's discrete
-    Gram is DIAGONAL (`[M]` slab L=1: ``face.H(e₀φ) == E(φ)`` to
-    5.6e-17; a DENSE Gram — slab or sphere at L=2 — breaks it: pre-P7
-    by the undressed continuum-metric factor (the then-recorded
-    F-0/CS4c debt), and still post-P7 under the honest dense dressing,
-    because :math:`G^{+}` couples the modes and admits no per-ℓ scalar
-    collapse. The discriminator is Gram diagonality, not geometry —
-    unchanged). The metric-free
-    form ``reconstruction(e₀φ)/W == E(φ)`` is bit-exact regardless
-    (``scratch/probe_s6_q5_dissolution.py`` carries the DENSE arm).
+    the harmonic frame's physical adjoint WHEN the constant mode is an
+    eigenvector of the frame's discrete Gram, i.e. the rule integrates
+    every other live basis function to zero (`[M]` 2026-10-18,
+    ``scratch/metric_docstring/probe_iso_column.py``: ``face.H(e₀φ)``
+    matches ``E(φ)`` to round-off on every DIAGONAL row and on 5 of 6
+    DENSE rows; it breaks, rel 0.356, only on
+    ``folded_product(4, 4).angular_frame(4)``, whose Gram row 0 couples
+    at 0.292). The discriminator is that Gram row, not geometry and not
+    diagonality (until the ERR-080 repair a DENSE slab Gram broke it, and
+    the condition was read as diagonality). The metric-free form
+    ``reconstruction(e₀φ)/W == E(φ)`` holds regardless: bit-exact on 8
+    of the probe's 10 rows, two to three ULP on the other two
+    (:ref:`spaces-collapse-pair-evidence`).
 
     NOT the adjoint of :class:`AxisRetractionOperator` — that is the
     pullback :class:`AxisPullbackOperator`, the plain broadcast

@@ -203,20 +203,24 @@ in the adjoint row and in the :math:`\Pi R` row — the two are
 
    The identification :math:`G_\ell = W/(2\ell+1)` is a property of a
    **degree-exact sphere cubature**, not of the basis. `[M]`
-   2026-08-23 on the slab ``gauss_legendre(8)`` measure at
-   :math:`L = 2` the discrete Gram is **not diagonal at all** (largest
-   live off-diagonal :math:`0.93` of :math:`\sqrt{G_{jj}G_{kk}}`), so
-   **no** :math:`(2\ell+1)/W` **diagonal is its inverse** — and that is
-   a structural impossibility, not an accident of the rule: `[M]`
-   2026-08-30 the best diagonal candidate reads a Parseval ratio of
-   :math:`1.806` where the matrix pseudo-inverse reads
-   :math:`0.999999999999999`. The frame there carries a **matrix**
-   Parseval metric (a
+   2026-10-18 on ``folded_product(4, 4).angular_frame(2)``, a rule that
+   does not integrate the harmonics' products exactly, the discrete Gram
+   is **not diagonal at all** (largest live off-diagonal :math:`1.000`
+   of :math:`\sqrt{G_{jj}G_{kk}}`), so **no** :math:`(2\ell+1)/W`
+   **diagonal is its inverse**. That is a structural impossibility, not
+   an accident of the rule: over the whole band-limited subspace the
+   best diagonal candidate's Parseval ratio ranges over :math:`[1, 2]`,
+   the matrix pseudo-inverse's over :math:`[1, 1]`
+   (``scratch/metric_docstring/probe_theory.py``). Such a frame carries
+   a **matrix** Parseval metric (a
    :class:`~orpheus.numerics.metric.DenseMetric`, campaign 1 P7,
-   2026-08-30; until then it refused the dressing altogether). Hébert's
-   :math:`W = 2` row remains the right reading of the *prefactor*; it
-   is not a claim about the slab frame's metric. See
-   :ref:`frame-parseval-dense-arm`.
+   2026-08-30). On the slab the identification now holds: since the
+   ERR-080 repair (#429) ``gauss_legendre(8).angular_frame(2)`` binds
+   the Legendre basis, whose Gram is exactly :math:`2/(2\ell+1) =
+   W/(2\ell+1)` with :math:`W = 2`. (Before the repair that slab Gram
+   was dense, off-diagonal :math:`0.93` of the Cauchy–Schwarz scale,
+   best diagonal ratio :math:`1.806`, `[M]` 2026-08-23 and 2026-08-30.)
+   See :ref:`frame-parseval-dense-arm`.
 
 **The catchers.** In
 ``tests/gates/numerics/test_spherical_harmonic_space.py``:
@@ -229,8 +233,9 @@ that the :math:`(2\ell+1)` lives in :math:`R`;
 ``test_pi_R_is_4pi_identity_on_band_limited`` pins
 :math:`\Pi R = 4\pi I` (ERR-051). In ``tests/gates/numerics/test_frame.py``
 the ``test_parseval_*`` family pins the metric itself — the isometry
-:math:`\|\Pi\psi\|_\star = \|\psi\|_W` over the six ``DIAGONAL``
-sphere families **and** the ``DENSE`` slab, the closure
+:math:`\|\Pi\psi\|_\star = \|\psi\|_W` over ten rows (the six
+``DIAGONAL`` sphere families, the ``DIAGONAL`` slab and three ``DENSE``
+heads), the closure
 :math:`\Pi^* = R/W` and :math:`R^* = W\,\Pi` over the six (a
 ``DIAGONAL``-only law — see :ref:`spaces-metric-frame-square`), the
 slab's matrix dressing and the wrong-metric discriminator that

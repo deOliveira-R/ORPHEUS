@@ -8,7 +8,7 @@ them into memory.
 
 ## 1. Lessons — read `lessons.md` FIRST, every dispatch
 
-- [lessons.md](lessons.md) — meta-lesson M1 (M2–M4 retired into the definition) + 14 standing detection rules (D16: projector-vs-Markov; D18: home-count + quantifier test on a consolidated text, rider: a table and a worked example in one memo are two homes; D19: a quotient datum → write the INVARIANT first, measure the "kind" on an asymmetric AND a symmetric fixture; D20: a green control is a theorem or a defect — compute Aut of the permuted parts before calling a law blind; D21: a nested inner strategy is tested at m = 1 COLD — a cold start converges to a wrong fixed point; D22: restrict ρ/CW/Krylov/guard to the cut's INTERFACE, `K ≥ 0` is the predicate) + the
+- [lessons.md](lessons.md) — meta-lesson M1 (M2–M4 retired into the definition) + 14 standing detection rules (D16: projector-vs-Markov; D18: home-count + quantifier test on a consolidated text, rider: a table and a worked example in one memo are two homes; D19: a quotient datum → write the INVARIANT first, measure the "kind" on an asymmetric AND a symmetric fixture; D20: a green control is a theorem or a defect — compute Aut of the permuted parts before calling a law blind; D21: a nested inner strategy is tested at m = 1 COLD — a cold start converges to a wrong fixed point; D22: restrict ρ/CW/Krylov/guard to the cut's INTERFACE, `K ≥ 0` is the predicate; D24: fix VARIANCE before a metric fork) + the
   promotion and refuted-frame ledgers. Spine: a concrete reformulation with a
   fail-able first test, or a refutation carrying its structural reason AND the
   question it was refuted for.
@@ -94,6 +94,8 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [projection discipline](projection_discipline_hierarchy_frames.md) — "projector" = the idempotent R∘Π only; Saad's (K,L) = ORPHEUS (basis,measure).
 - [M/R frame pair](projection_reconstruction_frame_pair.md) — the M/R asymmetry was a half-applied refactor; 3 weight families = ONE convention datum.
 - [unified Frame API](unified_frame_api_design.md) — the 3 verbs (project_weighted / conjugate / analyze) + `is_galerkin = (test is basis)`.
+
+- [frame bridge: pullback, Riesz, fibre metric](frame_bridge_pullback_riesz_fibre_metric.md) — frame = sampling map + canonical dual; fork R-6.2c-1 variance-mis-posed (D24); LD curvilinear = fibre metric ĝ(τ), Gauss-r^{d−2} nodes diagonalise M and R.
 
 ### Naming
 - [collision = perfect match](feedback_naming_collision_perfect_match.md) — USER RULING: a contested name goes to its formal perfect match; amends D6(b)'s "spent = kill".

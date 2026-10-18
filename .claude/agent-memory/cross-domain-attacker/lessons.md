@@ -430,6 +430,18 @@ one outside it with the structure. `[M]` 2026-10-18: invariance on EnergyGroups/
 True; the z-product polar factor answers SO2_x True; spatial R² answers D_4h meaningfully. → pointer:
 `axis_collapse_unit_and_gspace_invariance.md`
 
+**D24 — Before adjudicating "metric A vs metric B" on a coefficient space, fix the VARIANCE: are the
+components coefficients `c` (metric `G`) or moments `m = Gc` (metric `G⁺`)? A fork whose losing arm is the
+other variance measures a variance error, not the question asked.** Instrument: add the variance-correct
+dual of the losing arm as a third arm and rerun the fork's own discriminator. TELL: a "continuum vs discrete
+Gram" fork where the continuum arm's weights equal the basis's Gram on a carrier documented as COVARIANT; a
+ratio range topping out at `(total mass)²`. `[M]` 2026-10-18: R-6.2c-1's continuum arm failed Parseval
+33/33 (4.7…157.9); the dual `(2ℓ+1)/W` passed 32/33 — the genuine discrete-vs-continuum choice was ONE row,
+an iso (Morel's Galerkin-quadrature case), where the frame read its Riesz datum from two homes (R: basis's
+continuum factor; metric: frame's discrete Gram) and closed neither identity. Not covered by D17 (surfaces)
+or D18 (homes) alone: the defect is a hidden datum (variance) the axis cannot state. → pointer:
+`frame_bridge_pullback_riesz_fibre_metric.md`
+
 ---
 
 ## Part 3 — Smell-promotion ledger
@@ -449,7 +461,7 @@ already promoted (Smell #15, Smell #16).
 | Identity-scarcity accretion — a container wins every placement because no candidate owner's `__eq__` separates the inputs (→ L-019 / M1.8) | 2 (one inverted: everything induced has structural `__eq__`, the hub has none) | a third outside the SN container family |
 | A precondition spelled as a 30-line docstring caveat on a 3-line body wants to be a TYPE — declare the structure (DIAGONAL / POU / DENSE) and RAISE on the unhandled case (→ L-010) | 1 | a second non-Gram precondition |
 | A property stated of a PHYSICAL PARAMETER that belongs to (parameter × discretisation × CHART × reduction) — TELL: "the outer extent is non-affine" / "DD vs LD splits on the sweep strategy" with no scheme named, or a second-difference test with no chart named; FIX: the second-difference test per scheme IN THE PARAMETER'S NATURAL CHART (affine ⟺ zero), then name the SCHEME trait (→ `d5_trait_and_mms_frames.md`; `shift_ontology_taxonomy_frames.md`; `posing_ontology_clean_attack_frames.md`) | 3 (transverse-coupling order; affinity in a width; 2026-09-27 the diffusion P1 face closure — a NON-SN scheme — makes the slab dilation rational while SN-DD is an exact pencil in 1/λ); a 4th of a DIFFERENT class 2026-09-28: "a mode admits a positive-functional gauge" stated of the MODE when it belongs to (mode × functional × symmetry group) — `[M]` parity, not kind (D19) | PROPOSED for Part C (third sighting met, non-SN scheme); the chart rider is the 2026-09-27 addition; the 2026-09-28 sighting widens the smell from "physical parameter" to "any unary predicate that is a product" |
-| Multiplier-algebra embedding `f ↦ M_f` — scalar "coefficients" on terms that are really FIELDS per region/group; the scalars are the constant sections; unshielded composition directions are vectors in it (→ `coefficient_field_promotion_frames.md`; `posing_ontology_clean_attack_frames.md`) | 2 (XS-field promotion; 2026-09-27 the question space's cell coordinates) | PROPOSED for Part A.3 at this second sighting (a different problem class: question posing, not carrier typing) |
+| Multiplier-algebra embedding `f ↦ M_f` — scalar "coefficients" on terms that are really FIELDS per region/group; the scalars are the constant sections; unshielded composition directions are vectors in it (→ `coefficient_field_promotion_frames.md`; `posing_ontology_clean_attack_frames.md`) | 3 (XS-field promotion; 2026-09-27 the question space's cell coordinates; 2026-10-18 the curvilinear LD fibre metric `ĝ(τ_c)` = an SPD(2)-valued multiplier on the cell axis, and the redistribution = multiplier `(d−1)/r` in the Gauss-nodal basis) | PROPOSED for Part A.3 at this second sighting (a different problem class: question posing, not carrier typing) |
 | Projector-vs-Markov split on a positive PoU table (D16) — a row-sum normaliser on a non-one-hot coupling yields a conservative disintegration, not a projection; TELL: `project` whose callers want conservation, a Gram-structure tag dispatch; FIX: the coefficient-measure SLOT with its three fillers (→ `frame_hierarchy_kernel_coupling_frames.md`) | 1 (2026-09-28 energy condensation; the CP `_normalize_rcp` and the MC per-lethargy tally are the SAME verb but were named from D4, not sighted independently) | a second sighting on a non-XS coupling (a non-nested SPATIAL remap, a response-matrix normalisation) with the idempotency and composition tests |
 | Interface-blind iteration analysis — `ρ`/CW/Krylov/guard computed on the dense `M⁻¹N` when they live on `range N` (D22) | 1 (2026-09-29, SN cuts; the coproduct attack's "response form" was an [R] sighting of the same object, not an independent payoff) | a second sighting on a non-SN cut (a CP group loop, a coupled-physics lag) with the `K ≥ 0` test |
 | Section-of-a-retraction augmentation — `expose` (term image) and a Galerkin-correction summand are two SECTIONS of `reduce`; TELL: "X is REDUCE's inverse" measured one way; a coarse correction called "outside the ordering" (D21/D22 pointer file) | 1 (2026-09-29) | a second augmentation kind (an overlap duplicate, a Lagrange multiplier) spelled as a section with a cut |

@@ -29,6 +29,7 @@ decides whether to open it.
 - [Face transmission = Padé](face_transmission_pade.md) — LR-1974 Thm 2 DG(k)=[k/k+1] (FREE Rennes copy LOCAL); MWS-96 Eq.74 LD; DD [1/1] Stacey/Hébert/LMM-87; multi-D DD −1 eig UNPUBLISHED.
 
 ### Angular quadrature
+- [Galerkin quadrature metric + LD mass](galerkin_quadrature_metric_and_ld_mass.md) — GQ1/2/3 (Morel 89/17, Shands 25, LOCAL); W_gal=DᵗD (Sanchez-Ragusa Eq.21); AM (A.4) mass; FL = nodal row-sum; Hansen-Ghrist weighted sheaf.
 - [TY polar quadrature (MOC)](ty_polar_quadrature_moc.md) — NOT local; JNST 44(2):129-136 2007 (5 authors) + Knott-Yamamoto Handbook ch.9 2010 (= what OpenMOC actually cites, so "2007 Table 2" is mis-attributed); NO earlier Tabuchi; bronze-OA-but-Cloudflare; MINIMAX verified, order/range/bound UNKNOWN; weight convention decoded via the LOCAL Hébert-Leonard pair.
 - [LA-3186 + LA-4058 LS quadrature](la3186_level_symmetric_quadrature.md) — #337 FULL: axis-weight ansatz p{ijk}=aᵢ+aⱼ+aₖ = the systematic n>12 class rule; Table I = {4,6,8,12,16,20}, S20 p-column BLANK; "n>22 negative" = LEVEL weights; [M] point frontier S20 (+9.8e-4), S22 LP-infeasible; print μ₁ slips S6/S12/S16.
 

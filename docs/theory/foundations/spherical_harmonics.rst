@@ -670,12 +670,17 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    :class:`~orpheus.numerics.metric.DenseMetric` when it does not. On a
    degree-exact sphere cubature the two are reciprocal
    (:math:`G = g_C`, so :math:`G^{-1} = g_C^{-1}`) and the distinction
-   is invisible in the *values*; on the slab Gauss–Legendre measure the
-   discrete Gram is not even diagonal, so **no diagonal metric
-   reproduces** :math:`g_C^{-1}`\ **'s role at all** — which is why
-   that frame needs the matrix realization rather than a better choice
-   of diagonal (`[M]` the best diagonal candidate reads a Parseval
-   ratio of :math:`1.806`; see :ref:`frame-parseval-dense-arm`). Use
+   is invisible in the *values*; on a rule that does not integrate the
+   basis's products exactly the discrete Gram is not even diagonal, so
+   **no diagonal metric reproduces** :math:`g_C^{-1}`\ **'s role at
+   all** — which is why that frame needs the matrix realization rather
+   than a better choice of diagonal (`[M]` 2026-10-18 on
+   ``folded_product(4, 4).angular_frame(2)``, the best diagonal
+   candidate's Parseval ratio ranges over :math:`[1, 2]` across the
+   band-limited subspace, the pseudo-inverse's over :math:`[1, 1]`; see
+   :ref:`frame-parseval-dense-arm`). Until the ERR-080 repair the
+   example here was the slab Gauss–Legendre measure, where the best
+   diagonal candidate read a Parseval ratio of :math:`1.806`. Use
    :eq:`sh-space-metric` when you mean the convention (``project`` /
    :attr:`FrameBase.gram_inverse
    <orpheus.numerics.frame.FrameBase.gram_inverse>`, the cross-Gram
@@ -685,7 +690,7 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
 
 .. warning::
 
-   ⛔ **The paragraph above is true and its diagnosis was INCOMPLETE,
+   ⛔ **The paragraph above's former slab example was true and its diagnosis was INCOMPLETE,
    and the missing half was the load-bearing one (ERR-080, 2026-08-31;
    REPAIRED 2026-09-02).** On the slab Gauss–Legendre measure the
    discrete Gram was not merely *non-diagonal* — at :math:`L = 2` it was

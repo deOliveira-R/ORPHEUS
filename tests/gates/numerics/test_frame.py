@@ -556,15 +556,52 @@ _DIAGONAL_FRAME_CASES = [
     ),
 ]
 
-#: Every Parseval-capable frame — the diagonal six PLUS the slab, whose
-#: dressing is the matrix pseudo-inverse (P7). Until P7 the slab param
-#: carried a skip mark (*"NON-DIAGONAL discrete Gram … no diagonal
-#: Parseval metric exists; the matrix-metric home is the CS4c Riesz-leg
-#: machinery"* — [M] 2026-08-23): the isometry now RUNS there through
-#: the DenseMetric dressing, and the mark retired with the refusal.
-_PARSEVAL_FRAME_CASES = _DIAGONAL_FRAME_CASES + [
+#: Every Parseval row, each paired with the discrete-Gram verdict it is
+#: there to exercise, so the premise is ASSERTED per row and a repair that
+#: changes a verdict reddens the row instead of silently demoting it.
+#:
+#: ⛔ RE-POINTED 2026-10-18 (``retirement-audit`` D.14/D.17). This list
+#: once added the slab ``gauss_legendre(8).angular_frame(2)`` as the ONE
+#: dense row, the frame P7 dressed with the matrix pseudo-inverse. The
+#: ERR-080 repair (#429) made that Gram DIAGONAL (`[M]` 2026-10-18: 3×3,
+#: rank 3, live relative off-diagonal ``6.7e-17``), so for a month the
+#: gate covered no dense frame while staying green. The slab row stays,
+#: declared as what it now is: the Legendre-basis diagonal case. The
+#: dense rows are three dense heads production builds today, chosen for
+#: rank deficiency of different depths (dead slots the pseudo-inverse
+#: must handle) on two quadrature families. `[M]` 2026-10-18,
+#: ``scratch/parseval_gate/probe.py`` (seed 1234), live relative
+#: off-diagonal 1.000 on all three, and under a diagonal ``1/diag(G)``
+#: metric substituted for ``DenseMetric.inverse_of`` the Parseval ratio
+#: reads:
+#:
+#: * ``folded_product(4,4).angular_frame(2)``: 15×15, rank 5, ratio 1.067;
+#: * ``folded_product(4,4).angular_frame(4)``: 45×45, rank 8, ratio 1.709;
+#: * ``product(4,8).angular_frame(4)``: 45×45, rank 23, ratio 1.045.
+_PARSEVAL_FRAME_CASES = [
+    pytest.param(make, GramStructure.DIAGONAL, id=case.id)
+    for case in _DIAGONAL_FRAME_CASES
+    for make in case.values
+] + [
     pytest.param(
-        lambda: Quadrature.gauss_legendre(8).angular_frame(2), id="slab-GL8-L2",
+        lambda: Quadrature.gauss_legendre(8).angular_frame(2),
+        GramStructure.DIAGONAL,
+        id="slab-GL8-L2-diagonal",
+    ),
+    pytest.param(
+        lambda: Quadrature.folded_product(4, 4).angular_frame(2),
+        GramStructure.DENSE,
+        id="folded4x4-L2-dense",
+    ),
+    pytest.param(
+        lambda: Quadrature.folded_product(4, 4).angular_frame(4),
+        GramStructure.DENSE,
+        id="folded4x4-L4-dense",
+    ),
+    pytest.param(
+        lambda: Quadrature.product(4, 8).angular_frame(4),
+        GramStructure.DENSE,
+        id="product4x8-L4-dense",
     ),
 ]
 
@@ -654,16 +691,34 @@ def test_parseval_dressing_installed_on_diagonal_frames(make_frame):
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-039")
-@pytest.mark.parametrize("make_frame", _PARSEVAL_FRAME_CASES)
-def test_parseval_analysis_is_an_isometry_onto_its_image(make_frame):
+@pytest.mark.parametrize("make_frame, gram_structure", _PARSEVAL_FRAME_CASES)
+def test_parseval_analysis_is_an_isometry_onto_its_image(make_frame, gram_structure):
     r"""``‖Mψ‖_{basis_space} = ‖ψ‖_W`` for band-limited ψ — Parseval, rtol 1e-12.
+
+    The claim: for ψ = S₀c, analysis returns φ = Gc with G the discrete
+    trial Gram, so under the installed codomain metric G⁺ the norm is
+    cᵀG G⁺ G c = cᵀGc = ‖ψ‖²_W, on a DIAGONAL Gram (metric ``1/G_kk``) and
+    on a DENSE one (metric the matrix pseudo-inverse, ``DenseMetric``)
+    alike. Each row asserts the verdict it was chosen for: a dense row
+    whose Gram a future repair makes diagonal reddens here rather than
+    covering nothing in silence (the slab row's history, above the list).
 
     The coefficient draw is deliberately UNMASKED (garbage in dead slots): a
     dead table column annihilates its coefficient in ψ = S₀c AND zeroes both
     its moment and its metric slot, so the identity must hold regardless —
-    pinning the Moore–Penrose dead-slot handling for free.
+    pinning the Moore–Penrose dead-slot handling for free; the dense rows
+    are all rank-deficient, so they pin it for the matrix pseudo-inverse.
+
+    First red (X1): replacing ``DenseMetric.inverse_of`` by the diagonal
+    ``1/diag(G)`` reddens exactly the three dense rows (`[M]` 2026-10-18,
+    ratios 1.067 / 1.709 / 1.045), and leaves the diagonal rows green.
     """
     frame = make_frame()
+    assert frame.discrete_gram_structure is gram_structure, (
+        f"premise lost: this row exercises a {gram_structure.name} discrete "
+        f"Gram, the frame now reads {frame.discrete_gram_structure.name}; "
+        f"re-point the row to a frame that still carries the verdict"
+    )
     rng = np.random.default_rng(1234)
     c = rng.standard_normal(frame.basis_space.shape)
     psi = frame.basis.synthesize(c, frame.table)

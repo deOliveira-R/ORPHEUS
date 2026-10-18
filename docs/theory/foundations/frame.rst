@@ -554,7 +554,8 @@ representable as :math:`\psi = S_0 c` for some coefficient vector
    separate implementing symbol to gate: it is the reason the Parseval
    metric is G⁻¹, and it is what the isometry gate
    ``test_parseval_analysis_is_an_isometry_onto_its_image``
-   (``tests/gates/numerics/test_frame.py``, 6 sphere families) measures the
+   (``tests/gates/numerics/test_frame.py``, ten rows: six diagonal sphere
+   families, the diagonal slab, three dense heads) measures the
    consequence of.
 .. vv-status: frame-analysis-is-the-gram documented
 
@@ -607,10 +608,14 @@ inner product :math:`\langle\cdot,\cdot\rangle_\star` with
    substitution, defining the codomain metric rather than asserting a
    solver result. Shipped by FrameBase.basis_space (the dressing) and
    gated directly by ``test_parseval_analysis_is_an_isometry_onto_its_image``
-   over the seven Parseval-capable frames (the six DIAGONAL sphere
-   families plus, since P7, the DENSE slab) plus
+   over ten rows, each asserting its Gram verdict: the six DIAGONAL
+   sphere families, the slab ``gauss_legendre(8)`` at L = 2 (DIAGONAL
+   since the ERR-080 repair; until then it was the gate's one DENSE row),
+   and three DENSE heads production builds,
+   ``folded_product(4, 4)`` at L = 2 (rank 5 of 15) and L = 4 (rank 8 of
+   45) and ``product(4, 8)`` at L = 4 (rank 23 of 45); plus
    ``test_indicator_frame_parseval_metric_is_the_inverse_region_mass``
-   and the DENSE arm's own four-mechanism dressing gate
+   and the DENSE arm's own six-mechanism dressing gate
    ``test_dense_frames_are_dressed_with_the_pseudo_inverse_gram``, with
    two loaded-not-blind negative legs — the diagonal arm's
    ``test_parseval_reds_under_the_pre_repair_continuum_metric`` and the
@@ -766,7 +771,9 @@ a metric) **and** every live off-diagonal is below
 :math:`10^{-10}` of the Cauchy–Schwarz scale
 :math:`\sqrt{G_{jj}G_{kk}}`. The measured separation is wide open: `[M]` 2026-08-23, the six
 shipped sphere families sit at
-:math:`\le 2.7\times10^{-16}` and the slab at :math:`0.93`, so **any**
+:math:`\le 2.7\times10^{-16}` and the then-dense slab sat at :math:`0.93`
+(`[M]` 2026-10-18, today's dense ``folded_product(4, 4).angular_frame(2)``
+sits at :math:`1.000`), so **any**
 threshold across fifteen orders of magnitude draws the same verdict
 (the shipped one is :math:`10^{-10}`, leaving six orders of headroom
 for round-off accumulation at high mode counts). **Structurally dead slots** (:math:`G_{kk}=0`:
@@ -6481,10 +6488,13 @@ pseudo-inverse at a pinned cutoff, with the exact symmetrized Gram kept
 as the inverse face — and strips the basis's continuum weights, so
 **Parseval becomes a theorem on every frame** rather than a property of
 the diagonal ones (:eq:`spaces-pseudo-inverse-parseval`). ``pinv``
-rather than ``inv`` is forced, not stylistic: `[M]` the flagship slab
-Gram is :math:`15\times15` with 5 live slots and **rank 4**, so no
-inverse exists, while :math:`G G^{+} G = G` holds to
-:math:`1.6\times10^{-15}` and is exactly what the theorem needs. Two
+rather than ``inv`` was forced, not stylistic: `[M]` the then-flagship
+slab Gram was :math:`15\times15` with 5 live slots and **rank 4**, so no
+inverse existed, while :math:`G G^{+} G = G` held to
+:math:`1.6\times10^{-15}`, exactly what the theorem needs. (That slab
+Gram is diagonal since the ERR-080 repair, #429; the smallest dense
+occupant today is ``folded_product(4, 4).angular_frame(2)``, rank 5 of
+15, :ref:`spaces-metric-moore-penrose`.) Two
 consequences the phase had to own rather than announce. (i) The change
 is *behavioural*: `[M]` 10 of the 30 shipped angular frame
 constructions (nine quadrature families :math:`\times` :math:`L \le 3`,

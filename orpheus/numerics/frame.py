@@ -127,8 +127,9 @@ __all__ = ["FrameBase", "GalerkinFrame", "PetrovGalerkinFrame"]
 #: Relative off-diagonal threshold for the :attr:`FrameBase.discrete_gram_structure`
 #: diagonality verdict. The measured separation is wide open: an SH-degree-exact
 #: sphere cubature's off-diagonals sit at ~1e-16 of the Cauchy–Schwarz scale
-#: :math:`\sqrt{G_{jj}G_{kk}}`, while the slab GL live Gram's sit at 0.93 of
-#: it (0.58 of the largest diagonal; `[M]` 2026-08-23) — any threshold in
+#: :math:`\sqrt{G_{jj}G_{kk}}`, while a dense frame's live Gram reaches 1.000
+#: of it (`[M]` 2026-10-18, ``folded_product(4, 4).angular_frame(2)``; the
+#: pre-ERR-080 slab GL Gram sat at 0.93, `[M]` 2026-08-23) — any threshold in
 #: (1e-12, 1e-2) draws the same verdict; 1e-10 leaves two orders of headroom
 #: for accumulated roundoff at high mode counts.
 _DISCRETE_GRAM_DIAGONALITY_RTOL = 1e-10
@@ -374,9 +375,13 @@ class FrameBase(ABC):
         whether the *trial* Gram :math:`G` is diagonal **on this measure** — the
         precondition for the Parseval metric (:attr:`basis_space`). The two can
         disagree: the SH basis declares DIAGONAL (continuum-orthogonal) yet
-        measures DENSE on a slab GL measure (total weight 2, live off-diagonals
-        at 0.93 of the Cauchy–Schwarz scale — `[M]` 2026-08-23; discovery record
-        ``scratch/probe_f1_parseval_slab.py``),
+        measures DENSE on a rule that does not integrate its products exactly
+        (`[M]` 2026-10-18 on ``product(4, 4).angular_frame(2)``: live
+        off-diagonals up to 0.293 of the Cauchy–Schwarz scale; on
+        ``folded_product(4, 4).angular_frame(2)``, whose mirror-even basis
+        also declares DIAGONAL, 1.000; ``scratch/metric_docstring/probe_flagship.py``.
+        Until the ERR-080 repair the example was the slab GL measure, `[M]`
+        2026-08-23, ``scratch/probe_f1_parseval_slab.py``),
         and an :class:`~orpheus.numerics.basis.overlap_basis.OverlapBasis`
         declares PARTITION_OF_UNITY while its trial Gram measures DENSE.
 
@@ -431,20 +436,24 @@ class FrameBase(ABC):
         NOW-DRESSED space, so its "stored" row prints 1.000 post-repair).
 
         For a frame whose discrete Gram is NOT diagonal
-        (:attr:`discrete_gram_structure` DENSE — e.g. the slab GL measure,
-        where NO diagonal metric satisfies Parseval), the metric is the
+        (:attr:`discrete_gram_structure` DENSE — e.g.
+        ``folded_product(4, 4).angular_frame(2)``, where NO diagonal metric
+        satisfies Parseval), the metric is the
         matrix pseudo-inverse :math:`G^{+}` installed as a
         :class:`~orpheus.numerics.metric.DenseMetric` (campaign 1, P7):
         Parseval is then a THEOREM for any Gram, singular or not
         (:math:`\|Mc\|^2_{G^{+}} = c^{\mathsf T} G G^{+} G c =
         \|S_0 c\|^2_W`), and the faces' ``.H`` is the physical Hilbert
         adjoint on every frame, not only the diagonal ones. `[M]`
-        2026-08-30, the wrong-metric discriminator on the slab GL8/L=2
-        frame: the dense dressing reads the Parseval ratio
-        1.000000000000 where the best diagonal candidate ``1/diag(G)``
-        reads 1.806 and the undressed continuum metric reads 25.53 — a
-        diagonal metric there is not merely unavailable but provably
-        insufficient. (Until P7 the DENSE arm returned the space
+        2026-10-18 on ``folded_product(4, 4).angular_frame(2)``, draw-free
+        over the band-limited subspace: the dense dressing's Parseval ratio
+        ranges over [1.000, 1.000], the best diagonal candidate
+        ``1/diag(G)``'s over [1.000, 2.000] and the undressed continuum
+        metric's over [6.317, 157.9] — a diagonal metric there is not
+        merely unavailable but provably insufficient
+        (``scratch/metric_docstring/probe_theory.py``; on the pre-ERR-080
+        slab GL8/L=2 frame, 2026-08-30, one draw read 1.000000000000,
+        1.806 and 25.53). (Until P7 the DENSE arm returned the space
         UNDRESSED — *"Parseval is unavailable"* was the recorded F-0
         limitation, with the matrix-metric home deferred to the CS4c
         Riesz-leg machinery; P7 landed the metric object CS4c's legs will
