@@ -71,3 +71,4 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [C2 cylinder point rows](c2_cylinder_point_row_census.md) — 239 s not 600-1200; 40 of 60 under bypass; row = attenuation rules.
 - [Characteristic slow rows, warm](characteristic_slow_rows_warm_anatomy.md) — 83 s SUT point readings; door matches to 1 ulp; system unkeyable.
 - [Traced-memo miss anatomy](traced_memo_miss_cost_anatomy.md) — manifest 1.8 s of 2.7; version() per code; double parse; fork template equal.
+- [Invariance kernel measure kinds](invariance_kernel_measure_kinds.md) — production asks only sphere-family; kernel pads others; AngularMeasure name taken.

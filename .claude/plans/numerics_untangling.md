@@ -81,6 +81,72 @@ All `[M]` 2026-10-18, the test-architect's scripts under `scratch/verification_t
 
 **The census's own limits:** coverage covers `tests.gates.numerics` only; `_boot` runs in a child process the capture does not measure; Nexus `native_place` scores only module-level functions and its replies stopped at 22 of 50 rows; method and property callers are found by name, without resolving the receiver.
 
+## The F3 to F6 investigations (landed 2026-10-18)
+
+Reports: `scratch/numerics_untangling/f4/report.md`, `f5/report.md`, `f6/report.md` (explorers, facts only), and `ontology_f3_f6.md` (the cross-domain attacker), each with its scripts beside it. Each was read by the orchestrator with session context. The explorers' reports were saved by the orchestrator, because the harness refuses a sub-agent's write of a report file.
+
+**F3, the collapse pair.**
+- `[M]` (the attacker; `ontology_f3_f6/probe_f3.py`): no frame mints a collapsed space. All 6 production collapses are along `"angular"`, on products built by `FunctionSpace.of_axes`.
+- The pair is integration along one factor of a product space (the pushforward on densities), with its Moore–Penrose right inverse `E = R^H (R R^H)^-1` as the section. `R R^H` is the measure's total mass `Σw`, so ERR-051's divisor is derived, not chosen. `E∘R` is the conditional expectation onto fields that are constant along the axis.
+- The pair needs one datum per axis: the coordinates of the constant function 1 on that axis. The attacker calls it the axis's **unit**, an invented name. Together with the axis's metric it builds the pair.
+  - On a nodal axis the unit is the all-ones vector: `[M]` it matches today's pair to ≤ 9e-16.
+  - On a modal Legendre axis it is `e_0`: `[M]` it matches the nodal result to 0.0.
+- So a modal marginal exists. The docstring that refuses one names the wrong covector, which `[M]` misses by 9.1 %.
+- The frame's `_collapse_pair` reads back exactly what it is given: weights equal the axis weights, and the Gram entry equals `Σw` to 0 to 6 ULP. Its proposed home is a gate oracle, not the mint.
+- **Proposal** `[HYPOTHESIS]`: the axis owns its unit; the space owns the lift into the product (`R = ⟨unit, ·⟩ ⊗ id_rest`, `E` its pseudo-inverse). This fits ruling 6's leaning ("an axis carries the method to marginalise itself") for the one-axis datum. The whole operator needs the product, which only the space has. It agrees with #525's mathematics (its scope item 9), but not with its title, since no frame object owns the pair.
+- **Open:** whether `E.apply` stays bit-identical. That needs `Σw` summed in the Gram's order, or the gram-derivation gate re-pinned at its nulp tier.
+
+**F4, `mass_matrix` and `basis.space`** (`[M]` the explorer).
+- `mass_matrix` meets both of `coding-elegance` Pattern 6's trim conditions:
+  - 0 production calls, now and in its history;
+  - docstrings conceding it ("a one-off diagnostic", "Not on any hot path", "no consumer");
+  - bit-equal to the frame's `discrete_gram` on 11 of 11 fixtures (one formula under two spellings, X4), and no test compares the two.
+  - It has 6 production definitions, the sixth in `sn/` (`LossKernelBasis`).
+- What still points at it, and so must migrate (`retirement-audit`):
+  - closed-form test gates with `verifies` and `catches` markers (ERR-039, `real-sh-discrete-orthogonality`);
+  - `implements` directives in `frame.rst:516-536` and `spherical_harmonics.rst:328`;
+  - the `@abstractmethod`, which forces two test stubs.
+- Its history: it landed as `discrete_mass_matrix` (`0eb9cf39`, 2026-05-26) and was made abstract in the Frame carve (`c65154a0`, 2026-06-23). The frame's `discrete_gram` came two months later (`0317373d`). The user's "legacy leftover" (ruling 7) is consistent with this history.
+- A stale role the dead-reference tool misses: `spherical_harmonic_basis.py:153` and `:198` still say `:meth:discrete_mass_matrix`, a name removed in `28d92758`.
+- `basis.space` is not dead. It has production consumers on every frame family (`FrameBase.basis_space`, `test_space`, `moment_head.truncated_head`).
+- For Legendre and spherical harmonics, `for_basis` mints a single-axis space, with the basis as that axis's generator. It calls the raw constructor and bypasses `FunctionSpace.of_axes`, "the ONE composition mechanism". Its result is `==` and hash-equal to `of_axes` on its own axis; only the subclass and the name differ.
+- Indicator and loss-kernel bases return a plain `FunctionSpace(name, shape)` with no axes.
+- So ruling 7's "malformed concept" reads `[R]`: a basis builds one axis, and a space is a product of axes (`of_axes`). `basis.space` is that one-axis product under a second constructor.
+
+**F5, the quadrature machinery** (`[M]` the explorer).
+- `Quadrature` holds a `DiscreteMeasure`; it is not a subclass. The two differ in identity: the measure is unhashable and raises on `==`, while the quadrature has content equality.
+- Every numerics Gauss–Legendre rule comes from `LEGENDRE.gauss(n)` by delegation: a pure alias, one wrapper that adds σ_x, one that adds the polar orbit, and the `Quadrature` classmethod and the registry entry on top. They are bit-equal.
+- The derivations code computes GL separately (numpy, mpmath, its own Golub–Welsch), within 1 ulp in nodes and up to about 1e4 ulp in weights.
+- Production solver code never constructs a rule: all 13 production `Quadrature` factory calls are in `derivations/continuous/mms/sn.py`.
+- The exactness machinery decides nothing in production: its two deciding sites sit behind `select_quadrature`, which has 0 production callers.
+- Cleaning candidates:
+  - two lists of the same rules (`Quadrature`'s 5 classmethods and the registry's 4 factories; the registry builds a bare `DiscreteMeasure`, and `folded_product` is unregistered);
+  - pass-throughs under second names (`n_points` against `n_ordinates`/`N`; `permutation_under` against `ordinate_permutation`, with two constants of the same value 1e-13);
+  - 8 re-exported rule names never imported through the package;
+  - 3 production-dead factories (`measure.gauss_legendre`, `gauss_chebyshev`, `equispaced`).
+- The stale theory-page sentence and code comment it found are fixed [REMEDIED 2026-10-18 @cf1ec9bc].
+
+**F6, invariance** (`[M]` the explorer's spy over `numerics`, `geometry`, `transport` and `sn`, serial).
+- 0 of 20 168 production-entered invariance calls are on a non-angular measure. Every one is on S² or a quotient of it.
+- The other production invariance question goes around the kernel: `rules_product._derived_product_group` asks the circle factor and the μ factor through `RigidMotion.preserves`, at their own dimension.
+- **A latent wrong answer.** On a support that is not a quotient, the kernel zero-pads the nodes into R³ and answers (`invariance.py:142-160`):
+  - an energy-group measure reports σ_y, σ_z, SO2_x and O2_x invariance True;
+  - `equispaced(0,1,4)` and `equispaced(-1,1,4)` disagree on σ_x, since the answer depends on the origin of an embedding the support never names;
+  - the chart μ-rule reports SO2_x True and SO2_y False, the "x" being the padding's column 0.
+  - Production never asks these questions, so no production answer is wrong today.
+- The group acts on the support (`induced_action` on a quotient), not on the measure. A primitive over a bare weighted point set already exists (`permutation_preserving`, `transformation.py:334`).
+- **A prior ruling bears on the user's `AngularMeasure` question:** "RULED 2026-08-29 … `DiscreteMeasure` does NOT branch into Spatial/Angular/Energy subtypes … `Quadrature` IS the angular measure-plus-fibration" (`space_and_kernel_binding_campaign.md:2248`). The name `AngularMeasure` is taken by a Protocol in `sn/angular/redistribution.py:224`, which `Quadrature` implements.
+- **Proposal** `[HYPOTHESIS]` (the attacker):
+  - invariance is a property of the pair (measure, a group's action on its support); the support carries the action (a *G-space*: a manifold with an action of a subgroup of O(3));
+  - the measure contributes one group-free verb, equality up to a relabelling of its points (the equality #403 owes);
+  - invariance is that equality after the pushforward along `support.action(g)`;
+  - `[M]` the composition agrees with today's kernel on 75 of 75 rule × finite-group rows, 45 of them invariant, and a perturbed weight breaks both;
+  - a support with no action then refuses the question instead of answering it;
+  - no `AngularMeasure`: the chart μ-rule is "angular" with no action, and a spatial R² point set asks a meaningful D_4h question. If anything is specialised, it is the manifold;
+  - the concept order becomes groups, then the G-space manifold, then the measure, then invariance as a composition; census edge 13 vanishes.
+
+**Side finding, under diagnosis.** Two traced-memo gates failed when many test processes shared the host: `test_m3_15_two_processes_racing_on_one_miss_leave_one_valid_entry` (the entry read `Absent`, where `Hit` was expected) and `test_b13_a_miss_indexes_only_bytes_it_has_not_indexed`. Both pass serially: `[M]` 56 of 56. The numerics-investigator is reproducing both under controlled load (`scratch/memo_race/`). The first may be a real race in the memo's write.
+
 ## Candidate ontologies
 
 None yet. The edges' uses are measured first (below). Then each knot is read as one of four cases:
@@ -99,4 +165,4 @@ None yet.
 2. **Read each knot with the user**, and classify it under the four cases above. This is the ontology search, and it is not delegable.
 3. Write the ordered concept list (the `numerics` sub-cone DAG at concept grain), with each concept's home module. Its acyclicity is the done-when.
 
-⏸ **Next:** F1 and F2 ruled; F3 to F6 investigated in parallel (dispatched 2026-10-18; reports under `scratch/numerics_untangling/`): F3, the space, the frame and marginalisation; F4, the consumers of `mass_matrix` and `basis.space`; F5, the quadrature API of the measure family; F6, which measures ask invariance questions, and whether that marks a specialisation. Then the readings with the user.
+⏸ **Next:** the user's readings of the F3 to F6 findings (2026-10-18); the memo-race diagnosis in parallel.
