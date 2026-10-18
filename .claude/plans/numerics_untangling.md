@@ -53,6 +53,13 @@ The `numerics` layer holds the mathematics every method rests on: axes, discrete
     - The remaining method choice: standard S_N (the continuum dual; exact in the tight regime, correct and self-adjoint but not tight elsewhere, today's code) against Galerkin quadrature (a dual that closes every identity in all three regimes, a different method). Ruled (the user, 2026-10-18): "We keep Sn for now and file Galerkin as an issue (because it will require us to investigate that deeper)." Standard S_N stays the method; Galerkin quadrature is #613, an investigation before any build.
 18. **(c) Curvilinear LD gets a Gauss-nodal spatial axis** (the user, 2026-10-18): "The nodal seems correct for today. Maybe the modal one has a different use (finite element?) which is not currently in scope." Within each cell, the Lagrange basis at the 2-point Gauss rule of the weight `r^{max(d−2,0)}`: one nodal spatial axis from a discrete measure, with both curvilinear LD forms exactly diagonal. The modal within-cell axis is not retired by this ruling: it may serve a finite-element method outside today's scope. #612 carries the ruling.
 
+19. **Order the concepts by what is joined to what; the cycles were the signal** (the user, 2026-10-18, on step 3's residual edges):
+    - On the operator split: "Option 1 seems correct, but before that simply making a ruling on it, try to check how the ontology stacks up. For example, Riesz operators arise when operator and what other concept get joined? In other words, don't simply rely on a ruling. Instead, try to make a minimal organization of the ontology by sub-cones to see exactly where the things join. Like we did with frame."
+    - On the Green operator: "does all inverse of an operator sum returns a GreenOperator mathematically? I think the inverse of the sum of the streaming and collision operators ends up being a GreenOperator. Is that the only GreenOperator we can make, or other sums also result in Green operator mathematically?"
+    - On the lift: "An operator maps a space onto another space (this is implicit in that an operator has domain and co-domain). Therefore, the operator sub-cone must come after space for the ontology to be well-formed. This is a strong indication that option 1 is at least directionally correct from principled thinking, and trying to break the cycles was the signal."
+    - On the reference measure: "Option 1 looks like it takes my other answers directionally. You might want to rethink this anyway and see if the ontology is well-formed with option 1. The question is "what are we joining and when?""
+    - So the order is derived, not ruled edge by edge. Candidate E below is that derivation.
+
 ## Measured state
 
 All `[M]` 2026-10-18, the test-architect's scripts under `scratch/verification_tree/subcones/`. The tree was at `main` `c5c21b25`, and `orpheus/` was unchanged during the run.
@@ -272,6 +279,65 @@ None yet. The edges' uses are measured first (below). Then each knot is read as 
 - a mutual definition the mathematics really has: a duality, or an adjoint pair defined together;
 - an artefact: a deferred import for import order only, or a type hint that could name a protocol.
 
+**E. The `numerics` concepts as sub-cones with their joins** (drafted 2026-10-18 by the orchestrator, for ruling 19; `[R]` from the mathematics, each join with the reason it is a join; the comparison with the code is `[M]` from step 3's report and the edge census).
+
+Read each line as "X: its upstream concepts (the join), and why". A join is a concept that needs two or more upstream concepts at once, the way the frame needs a measure and a basis (ruling 25 of the verification tree).
+
+1. **Primitives:** scalars, units, content identity, small enums, and the metric forms as plain bilinear forms on arrays (`DiagonalMetric`, `DenseMetric`). They depend on nothing.
+2. **Symmetry groups:** `SubgroupOfO3`, rigid motions. Group theory, upstream of anything they act on.
+3. **Manifold:** a set with charts.
+   - **G-space** = join(manifold, group action): the manifold carries its group's action (ruling 13).
+   - **Orbit space** `M/H` = join(G-space, subgroup): the quotient, with its `induced_action`.
+4. **Continuous measure on a manifold** (`GeneratingMeasure`, `UniformMeasure`, `ProductMeasure`): after the manifold.
+   - **The pushforward of a continuous measure** along a map of manifolds = join(continuous measure, manifold map).
+   - The **reference measure of an orbit space** is the pushforward of the base's uniform measure along the quotient map, so it is a join(continuous measure, orbit space).
+   - Its identification with `LEGENDRE` is a theorem through the Archimedes chart: the uniform measure on S² projects to the uniform measure on the axis.
+   - So it sits after both the manifold and the continuous measures. The manifold storing `LEGENDRE` (step 3's edge 6) is this join written into the upstream concept. That answers the user's "what are we joining and when?" for the reference measure, and it is the user's option 1.
+5. **Discrete measure** (point masses on a manifold, with the group-free relabelling equality): after the manifold, parallel to the continuous measures.
+   - **Exactness claim** = join(discrete measure, continuous reference measure, orthogonal system): a statement relating the two measures.
+   - **Gauss construction** (`gauss(n)`) = join(continuous measure, discrete measure): it makes the second from the first.
+   - **Invariance** = join(discrete measure, G-space): the relabelling equality after the pushforward along the action (ruling 13).
+6. **Basis** (functions on a domain): after the manifold. Parallel to both kinds of measure.
+   - **Continuum Gram** (the mass of a basis against a continuous measure) = join(basis, continuous measure).
+7. **Axis.** A nodal axis receives a discrete measure; a modal axis receives a basis and carries its factor's pulled-back measure (ruling 17). Its metric's join therefore depends on the factor:
+   - join(basis, continuous measure) gives the continuum Gram (LD's within-cell moments);
+   - join(basis, discrete measure), the frame's data, gives the discrete Gram (SN's angular moments).
+8. **Space** = a product of axes, its metric derived from them: after the axis.
+9. **Operator** (a map from a space to a space, with domain and codomain): after the space (the user's reading). Together with it, its **algebra**: sum, product, scaling, tensor product.
+   - L(V, W) is itself a vector space under sum and scaling, and composition makes the algebra. These are properties of the set of operators, not of any single operator, so the element type and its operations are ONE concept. That is the user's option 1 for the split: the abstract type and its composites stay together.
+   - The dunders on the base class are where Python spells the algebra's operations (Pattern 1), not a dependence of "operator" on "sum".
+10. **The metric-bearing constructions** = join(operator, space with a metric):
+    - the dual space and `_DualOperator`;
+    - the **Riesz operators** ♭ and ♯ (the answer to the user's question: an operator joined with a space's metric);
+    - the **adjoint** `.H = ♯ ∘ dual ∘ ♭` (after the Riesz operators and the product).
+    - Step 3's Riesz SCC (`{field, functional, linear_operator, space}`) is this join written backwards: `space.riesz_lower` and `riesz_raise` (`space.py:856`, `:876`) mint downstream objects. Alternative B2 (built on the operator side) is the join written forwards.
+11. **Field** (an element of a space) after the space. **Functional** (an element of the dual) after the dual space. **Rank-one operator** = join(field, functional, operator).
+12. **Frame** = join(basis, discrete measure), as data: the sampling map Φ and the weights. Its **faces** (analysis and reconstruction) are operators between two coordinate spaces, so the frame-with-faces is also after the space and the operator.
+    - The **marginalisation lift** (retraction and section) = join(space, axis covector, operator): built on the operator side from the space's product structure and the axis's covector (ruling 10 refined by B2).
+    - The **assembled operator** (the homomorphism into the matrix representation) is after the operator algebra.
+13. **Inverse family.**
+    - A **formal inverse** T⁻¹ is after the operator: a typed object meaning "the inverse of T".
+    - Its **realisations** are a separate axis: direct (structural: a triangular solve, the fused `L + C` sweep), or through a **splitting** (the Neumann series of M − N with M invertible). The splitting is the Strategy's `Splitting` (CLAUDE.md, the Solution half), so it sits after the operator algebra AND after the iteration drivers.
+    - **Today's `GreenOperator`** is the splitting realisation. Its docstring says "the name is EARNED by the distinguishing G-Neumann invariant". It derives the splitting from the sum's SPELLING ORDER ("the left-spine head is the DESIGNATED preconditioner"). So the algebra's sum encodes which term is implicit, which is the Strategy's decision written into the Problem half: a weld, `[R]`.
+    - The answer to the user's question: mathematically every invertible operator has a Green's operator, its inverse, whose kernel is the Green's function. Green-ness is not a property of a sum, nor of `L + C` alone:
+      - `(L + C)⁻¹` is the uncollided transport Green's operator;
+      - `(L + C − S)⁻¹` is the full transport Green's operator;
+      - a sum with no streaming (`C − S`) has an inverse with a local kernel.
+    - What the tree's class names is a realisation.
+    - **Proposed:** `OperatorSum.inverse` returns the formal inverse. The Strategy realises it, through the splitting it already owns. Edge 2 of step 3 (`green_operator -> composers`, the algebra reaching the drivers) then disappears.
+14. **Iteration drivers** (Richardson, power iteration, Krylov), **posing** (the pencil, `EigenPosing`, `SourcePosing`) and **outcomes**: after the operator algebra, posing before the drivers that consume it.
+15. **Quadrature:** a composite of a discrete measure, a level structure and its cached angular frames, so after the frame. Concrete spaces (`spaces/`) are after the axis, the space and their bases.
+
+**What E says about step 3's 7 residual edges:**
+- edge 1 (the dunders): not a cycle between concepts, the algebra is one concept (item 9);
+- edge 2 (Green): the Strategy's splitting written into the algebra (item 13);
+- edge 3 (`SupportsAssembly`'s forward reference): the assembled operator after the algebra (item 12); a typing artefact;
+- edges 4 and 5 (`Axis.generator`): provenance pointing downstream, owed to a forgetful-map design (ruling 4);
+- edge 6 (`LEGENDRE` in the manifold): the reference measure's join written into the manifold (item 4);
+- edge 7 (the boot split): deliberate.
+
+**Where E's order differs from the code** (`[M]` step 3): the axis moves after the measure and the basis; the space and the operators swap (today `space` imports operators, while E puts the operator after the space); invariance moves after the measure; the operator layer builds the Riesz operators and the lift; the reference measure leaves the manifold.
+
 ## Refuted candidates
 
 None yet.
@@ -343,4 +409,4 @@ Reports (each read with session context; the explorer's saved by the orchestrato
   2. **A modal axis with a fibre metric varying over the cells,** which needs the cross-axis metric machinery the space refuses today.
   - The second pass favours (1): it removes a concept instead of adding one, and it makes the curvilinear guard unnecessary rather than satisfied. The moment reading (cell average and slope) stays available through a frame, the sampling map of the Legendre moments on the Gauss nodes, wherever an output needs it.
 
-⏸ **Next:** the user's rulings on step 3's residual edges (asked 2026-10-18): the algebra kept whole, the Green operator's strategy question, the lift as B2, the reference measure's home, and the small choices. The earlier step-3 sketch follows: the ordered concept list: measure and basis in parallel; the axis (nodal from a measure, modal from a basis, each carrying its factor's pulled-back measure); the frame, the sampling map with its dual; the space, a product of axes; quadrature; invariance as a composition; and the operator module cut into the abstract operator, then the assembled and Green operators, then the composers. Each concept gets its home module and the edges its ruling removes; acyclicity is the done-when. Then the packages (verification-tree ruling 18). "Every axis is what a frame induces" is refuted by the exercise. Then step 3: the ordered concept list of `numerics` (groups, the G-space manifold, measure and basis in parallel, the axis that receives either, the frame as their join, the space as a product of axes, quadrature, invariance as a composition, and the operator module cut abstract-then-composers), with each concept's home module and the edges each ruling removes. Its acyclicity is the done-when. Then the work cut into packages (verification-tree ruling 18).
+⏸ **Next:** candidate E (the sub-cones with their joins, ruling 19) with the user, then a first-pass adversarial review of it (W5), then its mechanical check (the step-3 instrument re-run on E's moves). The earlier step-3 sketch follows: the ordered concept list: measure and basis in parallel; the axis (nodal from a measure, modal from a basis, each carrying its factor's pulled-back measure); the frame, the sampling map with its dual; the space, a product of axes; quadrature; invariance as a composition; and the operator module cut into the abstract operator, then the assembled and Green operators, then the composers. Each concept gets its home module and the edges its ruling removes; acyclicity is the done-when. Then the packages (verification-tree ruling 18). "Every axis is what a frame induces" is refuted by the exercise. Then step 3: the ordered concept list of `numerics` (groups, the G-space manifold, measure and basis in parallel, the axis that receives either, the frame as their join, the space as a product of axes, quadrature, invariance as a composition, and the operator module cut abstract-then-composers), with each concept's home module and the edges each ruling removes. Its acyclicity is the done-when. Then the work cut into packages (verification-tree ruling 18).
