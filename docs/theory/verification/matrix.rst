@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **17779**
+Total tests collected: **17787**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1870, 10.5%
-   L1, 2746, 15.4%
+   L1, 2753, 15.5%
    L2, 85, 0.5%
    L3, 0, 0.0%
-   foundation, 13046, 73.4%
+   foundation, 13047, 73.4%
    unmarked, 32, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 17668
+   explicit, 17676
    class-name, 46
    func-name, 0
    case, 33
@@ -427,7 +427,7 @@ Module × level grid
    numerics/test_field, 0, 0, 0, 0, 31, 0
    numerics/test_fixed_point_step, 0, 0, 0, 0, 8, 0
    numerics/test_flux_vector_algebra, 0, 0, 0, 0, 26, 0
-   numerics/test_frame, 0, 18, 0, 0, 45, 5
+   numerics/test_frame, 0, 18, 0, 0, 46, 5
    numerics/test_full_field_space, 0, 0, 0, 0, 7, 0
    numerics/test_gauge, 0, 0, 0, 0, 15, 0
    numerics/test_gauss_rule_fingerprint, 0, 14, 0, 0, 7, 0
@@ -623,7 +623,7 @@ Module × level grid
    solve/test_si_gate_dispatch, 0, 0, 0, 0, 4, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
    solve/test_sn_adjoint_certification, 0, 13, 0, 0, 2, 0
-   solve/test_sn_adjoint_entries, 0, 6, 0, 0, 0, 0
+   solve/test_sn_adjoint_entries, 0, 13, 0, 0, 0, 0
    solve/test_subcritical_multiplying_source, 0, 8, 0, 0, 0, 0
    solve/test_windowed_si_diagnostic_trajectory, 0, 0, 0, 0, 6, 0
    spatial/test_affine_closure, 0, 0, 0, 0, 5, 0
@@ -926,6 +926,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``phase-f-q-bar-twin-forms``, 4
    ``reference-kernel-least-solution``, 4
    ``reference-kernel-reach``, 4
+   ``sn-adjoint-duality``, 4
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
    ``sn-mms-nonvacuum-qext``, 4
@@ -1057,7 +1058,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``si-spectral-rate``, 1
    ``sigT-computed``, 1
    ``singular-eigenfunction-eq5``, 1
-   ``sn-adjoint-duality``, 1
    ``sn-angular-endpoint-defect-eq``, 1
    ``sn-dsa-cell-update``, 1
    ``sn-dsa-coefficients``, 1
