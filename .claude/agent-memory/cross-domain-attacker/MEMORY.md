@@ -117,3 +117,6 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [diffusion carve](diffusion_integration_frames.md) — the diffusion solver IS the transport algebra hand-inlined; trace = partial currents J±.
 
 Files here not listed above = archive: early Peierls / Variant-α / phase attacks.
+
+### Verification graph (tests / claims / verdict cache)
+- [claim/trace frames](verification_graph_claim_trace_frames.md) — claim = statement+mentions (Lean); rests_on welds executes vs reads; memo ChildPin cutoff lost; GSN argument node.
