@@ -379,7 +379,11 @@ def test_m3_15_two_processes_racing_on_one_miss_leave_one_valid_entry(package, t
         with cache_root({str(tmp_path / "cache")!r}):
             print("K", solve(7).k.hex())
     '''))
-    procs = [subprocess.Popen([sys.executable, "-O", str(script)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    # The parents run at this process's optimisation level: the key carries ``-O{n}`` (``platform_tag``), so a
+    # hardcoded ``-O`` wrote the entry under another key whenever pytest itself ran without it (2026-10-18).
+    level = ["-O"] * sys.flags.optimize
+    procs = [subprocess.Popen([sys.executable, *level, str(script)], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              text=True)
              for _ in range(2)]
     outs = [p.communicate(timeout=120) for p in procs]
     answers = {line for out, _ in outs for line in out.split() if line != "K"}

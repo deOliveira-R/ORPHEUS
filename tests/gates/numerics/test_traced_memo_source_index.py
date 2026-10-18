@@ -29,6 +29,7 @@ from __future__ import annotations
 import ast
 import copy
 import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -633,6 +634,11 @@ def _inodes(directory: Path) -> dict[str, int]:
     return {p.name: p.stat().st_ino for p in directory.glob("*.json")} if directory.is_dir() else {}
 
 
+def _indexed_digest(path: Path) -> str:
+    """The digest of the bytes an index file indexes, read from its header line."""
+    return json.loads(path.read_bytes().split(b"\n", 1)[0])["bytes"]
+
+
 @pytest.mark.rests_on(_B3)
 def test_b13_a_miss_indexes_only_bytes_it_has_not_indexed(tmp_path):
     """B13, through the generating process (which uses the tree's fixed ``.cache/sources``): the first miss of
@@ -654,9 +660,17 @@ def test_b13_a_miss_indexes_only_bytes_it_has_not_indexed(tmp_path):
             before = _inodes(directory)
             assert m.f(2.0) == 3.0
             after = _inodes(directory)
+            # The directory is the tree's, shared with every other process that generates (another pytest run
+            # indexes its own synthetic modules there), so the claim is read on this generation's bytes only
+            # (2026-10-18). An index is named by the bytes it indexes, so a re-written index is an existing name
+            # with a new inode.
+            readable = {hashlib.blake2b(path.read_bytes(), digest_size=32).hexdigest()
+                        for root in (package.dir, REPO / "orpheus") for path in root.rglob("*.py")}
     finally:
         package.close()
-    assert after == before, f"the second miss wrote {len(set(after.items()) - set(before.items()))} index files"
+    replaced = sorted(name for name, inode in before.items() if after.get(name) != inode)
+    written = sorted(name for name in after.keys() - before.keys() if _indexed_digest(directory / name) in readable)
+    assert not replaced and not written, f"the second miss replaced {replaced} and wrote {written}"
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_findings.py::test_a_parent_does_not_pin_its_childs_sources_as_data')
