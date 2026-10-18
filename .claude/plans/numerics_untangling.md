@@ -37,6 +37,9 @@ The `numerics` layer holds the mathematics every method rests on: axes, discrete
 12. **F5: the quadrature part of the measure family is cleaned** (rulings 8 and 11): the two rule lists become one, the second names of one verb become one name, and the production-dead factories and the never-used re-exports retire. Each retirement goes under `retirement-audit`.
 13. **F6: the support carries the group action** (the user, 2026-10-18: "If you see this as the correct path forward, I endorse it."). The manifold carries its group's action (a G-space). The measure contributes one group-free verb, equality up to a relabelling of its points (#403's equality). Invariance is that equality after the pushforward along the action. A support with no action refuses the question rather than zero-padding an answer. The 2026-08-29 ruling stands: no `DiscreteMeasure` subtypes.
 
+14. **The code is never the oracle; (a) and (b) are investigated** (the user, 2026-10-18): "(a) and (b) I'm genuinely not sure. It seems like we need to investigate, gather more data, reason about it from multiple perspectives and adversarially attack perspectives to find the correct way to think about it. The important part is that we should never take the current state of code as a correct oracle. It is by definition under development, which means we should always be willing to refine our understanding and change the code. The development is guide by math, ontology (what machinery, how they connect, direction of connection, and the stackup) and elegance." A reading of the tree establishes what IS; what SHOULD be is argued from the mathematics, the ontology and elegance, and the tree changes to match.
+15. **(c): the curvilinear LD refusal is machinery not yet built** (the user, 2026-10-18): "Is it the right way for the LD to behave as it is? ... Is the reason why it doesn't work for curvilinear a side-effect of the modal description of it being under-developed? ... a refusal here is just something not yet build. there is no principled reason that I can think of for why we couldn't analyse a cylinder or a sphere with LD scheme." Filed as #612. The user's attack is one of the investigation's questions (below).
+
 ## Measured state
 
 All `[M]` 2026-10-18, the test-architect's scripts under `scratch/verification_tree/subcones/`. The tree was at `main` `c5c21b25`, and `orpheus/` was unchanged during the run.
@@ -242,4 +245,17 @@ None yet.
 
 **The memo-race diagnosis** [REMEDIED 2026-10-18 @829b79d8]: neither red was a memo defect (`scratch/memo_race/report.md`). M3.15 launched its racing processes with a hardcoded `-O` while the memo key carries the optimisation level. B13 counted every file of the shared `.cache/sources`. Both tests now read only their own run.
 
-⏸ **Next:** the user's answers to the exercise's questions (a) to (c) (2026-10-18). "Every axis is what a frame induces" is refuted by the exercise. Then step 3: the ordered concept list of `numerics` (groups, the G-space manifold, measure and basis in parallel, the axis that receives either, the frame as their join, the space as a product of axes, quadrature, invariance as a composition, and the operator module cut abstract-then-composers), with each concept's home module and the edges each ruling removes. Its acyclicity is the done-when. Then the work cut into packages (verification-tree ruling 18).
+### The investigation of (a), (b) and the user's attack (dispatched 2026-10-18)
+
+Three perspectives in parallel, each adversarial in its first pass (W5). A separate second pass re-evaluates them; it never bounds the first. Reports go under `scratch/numerics_untangling/frame_bridge/`.
+1. **The facts** (explorer). The places where LD, the axis or the space assume a product metric or a diagonal one. The deferred `scheme.mint(chart)` and its CS5 gate. `BundleMeasure`, with its 5 references. The frame's re-dressing. How curvilinear DD carries `r^{d-1}`.
+2. **The literature** (literature-researcher):
+   - LD and discontinuous finite elements in spherical and cylindrical SN: the moment against the nodal form, the mass with `r^{d-1}`, positivity, and the cell at r = 0;
+   - Galerkin quadrature (Morel 1989) and the discrete against the continuum moment metric, which bears on (b);
+   - any treatment of a broken polynomial space as a fibred space.
+3. **The frames** (cross-domain attacker):
+   - (a): is the frame a bridge between two axes of one factor, or a generator?
+   - (b): which Gram a bridged modal axis carries, and whether a discrete Gram is a variational crime or the consistent choice (Petrov–Galerkin, Galerkin quadrature);
+   - the user's attack: is LD's within-cell factor a fibre whose metric varies over the cells (a vector bundle with a fibre metric), and is the diagonal-only axis metric the gap that makes curvilinear LD unspellable?
+
+⏸ **Next:** the three reports, then the second-pass re-evaluation, then the user. "Every axis is what a frame induces" is refuted by the exercise. Then step 3: the ordered concept list of `numerics` (groups, the G-space manifold, measure and basis in parallel, the axis that receives either, the frame as their join, the space as a product of axes, quadrature, invariance as a composition, and the operator module cut abstract-then-composers), with each concept's home module and the edges each ruling removes. Its acyclicity is the done-when. Then the work cut into packages (verification-tree ruling 18).
