@@ -59,6 +59,8 @@ The graph is also the schedule. A test runs only when its supports are green. A 
    - A test of the next layer is placed against the placed nodes: a placed claim whose cone the test's cone contains is a proposed `executes` support (S7's containment signal), and a stored value it read is a proposed `reads` support. The reading pass and the mutant selection for that layer are then guided by the partial DAG, not by the whole suite.
    - The cone store is incremental by construction: what the census captures is the store, and an edit re-keys only the rows whose defs changed (ruling 15).
    - So there is no separate up-front build of the whole store before the census. The store's machinery (keys, the union of S8's four sources, its positive controls) is built first; its contents grow with the census.
+   - **Confirmed** (the user, 2026-10-18), with the reason: "otherwise, we would have to keep some sort of catalogue of sorts and organize everything later, which is fragile. It seems better to organize as we go already as a DAG that we can later refine."
+23. **The DAG is identified by layer and by sub-cone, if measurement supports it** (the user, 2026-10-18): "It would be good also if the DAG was already identified by layers and by sub-cones (for example, at the transport method layer, there is an Sn sub-cone, a CP sub-cone, etc., in the numerics layer, there might be a discrete measure sub-cone, a space sub-cone, etc). We have to measure this and check if this is a good idea. After measurement, check if this influences the design of candidate D." The measurement is specified below under "Sub-cones: the measurement"; its result decides whether a sub-cone is an object of the DAG, and then what it changes in candidate D.
 
 ## Vocabulary (one meaning per word)
 
@@ -205,6 +207,27 @@ All counts below are `[M]` 2026-10-16 on `main` `417f64f3`, by `git ls-files` an
   - Migration: each existing `verifies` label is a mention of a claim nobody has written. The claims are written by the census's reading pass, never minted from the labels by a pattern (ruling 2).
   - The band at the claim needs, for each claim, the tolerance its tests use today; where two tests of one claim use different bands, they are two claims or one is mis-banded, a census finding.
   - Heterogeneous rows (S1) are split into one claim per row, or given a per-row claim marker.
+
+### Sub-cones: the measurement (ruling 23; specified 2026-10-18, `[HYPOTHESIS]` until run)
+
+**The question.** Within a layer, do the tests fall into sub-cones: groups whose tests execute mostly one region of the layer's code (plus lower layers), with few dependences between groups? If they do, the sub-cone is a real object and the DAG names it. If tests straddle regions, a sub-cone would be an imposed filing and would fragment claims.
+
+**The candidate partitions of a layer's code**, compared against each other:
+- (a) by module or sub-package (`orpheus/numerics/<module>`);
+- (b) by concept, from `docs/architecture/conceptual_view.rst` (a discrete measure, a space, a frame, an operator...);
+- (c) found from the data: communities of the bipartite graph of tests and the production defs each test executes, from the per-test coverage capture.
+
+**The readings**, per partition:
+- *purity*: for each test, the share of its executed in-layer lines that falls in its dominant group; the distribution over the layer's tests;
+- *cross-group dependence*: how many test pairs would be proposed edges by containment (S7) across groups against within groups; and the existing `rests_on` edges, within against across;
+- *agreement*: how far (a), (b) and (c) agree (a partition-agreement score, with the tests each disagrees on listed);
+- *nesting*: whether the groups nest (a sub-cone containing smaller ones) or overlap.
+
+**Positive controls** (X1): a test known to be a unit test of one concept must come out pure, and a known cross-cutting test (an end-to-end solve) must come out impure. If the controls do not separate, the instrument cannot decide the question.
+
+**Population.** The `numerics` layer first, the base of the cone (ruling 5), with its 109 files. Then one method package, to test whether "one method package = one sub-cone" holds, and whether a method package itself splits (the SN sweep, its boundaries, its eigenvalue).
+
+**What the result decides in candidate D:** whether a claim's id carries its sub-cone (`<layer>.<sub-cone>.<concept>.<claim>`); whether a sub-cone is a node with its own composed claim (a certificate per sub-cone, under ruling 8); and whether an edge across sub-cones is a different kind of fact from an edge within one (a cross-sub-cone edge is what couples two concepts, so it may need a reading by the orchestrator under ruling 18).
 
 ## Refuted candidates
 
@@ -436,4 +459,4 @@ Reports: `scratch/verification_tree/pass2/test_architect_attack.md` (TA below; p
 
 **Measured state, corrections not yet applied above** (TA F6, `[M]` 2026-10-18): 636 test files (was 625); 609 lines naming `rests_on` in 95 files (a line count, not the earlier mark count, so no delta is claimed); 12 of the 232 `sn` files carry one; H-SEQ's premise rests on the old mpmath-bound population, while today's slow population is numpy-bound (ruling 16), so its S(p) is not known to be flat.
 
-⏸ **Next:** rulings 19 to 22 recorded (2026-10-18). Candidate D is with the user for discussion, and ruling 22's reading for confirmation. Then: the four-file sample (TA F7), now run against candidate D (does each function's claim fit D's object, and which declaration site does it take?), and the cone store's specification by the test-architect, cut into packages per ruling 18. #604 is the deferred bound composition (ruling 13); #610 the memo's early cutoff.
+⏸ **Next:** the sub-cone measurement (ruling 23), dispatched to the test-architect 2026-10-18. Then its influence on candidate D. Rulings 19 to 22 recorded (2026-10-18). Candidate D is with the user for discussion, and ruling 22's reading for confirmation. Then: the four-file sample (TA F7), now run against candidate D (does each function's claim fit D's object, and which declaration site does it take?), and the cone store's specification by the test-architect, cut into packages per ruling 18. #604 is the deferred bound composition (ruling 13); #610 the memo's early cutoff.
