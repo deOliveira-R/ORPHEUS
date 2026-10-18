@@ -64,6 +64,8 @@ The graph is also the schedule. A test runs only when its supports are green. A 
 
 24. **A failure to find sub-cones is evaluated, by the mathematics or other criteria** (the user, 2026-10-18). It may be intrinsic, or it may show a concept leaking into another. The criteria are under "Sub-cones: the measurement", open to the user's refinement.
 
+25. **Sub-cones form a DAG of their own, with joins** (the user, 2026-10-18): "The Frame is a sub-cone that is after the sub-cones of Discrete Measures and Basis functions. There is a contraction after the Discrete Measures and Basis functions subcones, where both sub-cones should feed into the Frame sub-cone." So a sub-cone is not a cell of a flat partition of a layer. It has upstream sub-cones, and a join (here Frame, a measure paired with a basis) has two or more. The sub-cone DAG is the quotient of the claim DAG by sub-cone membership. The measurement is re-defined accordingly (below).
+
 ## Vocabulary (one meaning per word)
 
 - **Claim:** a statement the code is held to, with a home where it is written: an equation's label on a theory page, a law, a contract, an invariant. A claim is the node of the graph (ruling 4).
@@ -217,10 +219,11 @@ All counts below are `[M]` 2026-10-16 on `main` `417f64f3`, by `git ls-files` an
 **The candidate partitions of a layer's code**, compared against each other:
 - (a) by module or sub-package (`orpheus/numerics/<module>`);
 - (b) by concept, from `docs/architecture/conceptual_view.rst` (a discrete measure, a space, a frame, an operator...);
-- (c) found from the data: communities of the bipartite graph of tests and the production defs each test executes, from the per-test coverage capture.
+- (c) found from the data: communities of the bipartite graph of tests and the production defs each test executes, from the per-test coverage capture. A flat community method cannot represent a join (ruling 25), so the order is derived from containment: sub-cone A precedes B when B's tests execute A's code and A's tests do not execute B's.
 
 **The readings**, per partition:
-- *purity*: for each test, the share of its executed in-layer lines that falls in its dominant group; the distribution over the layer's tests;
+- *purity*: for each test, the share of its executed in-layer lines that falls in its dominant group; the distribution over the layer's tests; [REFUTED 2026-10-18 as the reading, by ruling 25: a flat share calls every test of a join impure. Replaced by *upstream-closed purity*: a test's **home** is the most downstream sub-cone whose code it executes, and the test is pure iff everything else it executes in the layer lies in its home's upstream closure.]
+- *the quotient*: the sub-cone DAG (sub-cones as nodes, an edge where one sub-cone's tests execute another's code). It must be acyclic; a cycle means a wrong cut or a leak. Its joins are listed;
 - *cross-group dependence*: how many test pairs would be proposed edges by containment (S7) across groups against within groups; and the existing `rests_on` edges, within against across;
 - *agreement*: how far (a), (b) and (c) agree (a partition-agreement score, with the tests each disagrees on listed);
 - *nesting*: whether the groups nest (a sub-cone containing smaller ones) or overlap.
@@ -234,11 +237,12 @@ All counts below are `[M]` 2026-10-16 on `main` `417f64f3`, by `git ls-files` an
 2. *Interface:* the straddle goes through the other concept's named, typed interface (intrinsic or incidental), or through its internals, a private helper or an inline recomputation (a leak).
 3. *Twin:* the other group's executed code is a second spelling of something the test's own group computes (Nexus `twin_paths`). Then it is a leak (Cardinal Rule 2).
 4. *Direction:* the dependence follows the layer and import direction (a composition on a lower concept), or goes sideways or against it (a leak suspected; Nexus `native_place` on the executed defs).
+Under ruling 25, foreign code in an UPSTREAM sub-cone is composition by definition and needs no criterion. Only foreign code in a sibling or downstream sub-cone goes through the five criteria.
 5. *Counterfactual:* the claim can be posed with the other concept replaced by anything satisfying its interface. Then the straddle is incidental: the test is re-based onto a simpler node, and the code has no leak.
 
 A leak that is a production defect becomes an issue; one that is a test's incidental dependence becomes a re-base.
 
-**What the result decides in candidate D:** whether a claim's id carries its sub-cone (`<layer>.<sub-cone>.<concept>.<claim>`); whether a sub-cone is a node with its own composed claim (a certificate per sub-cone, under ruling 8); and whether an edge across sub-cones is a different kind of fact from an edge within one (a cross-sub-cone edge is what couples two concepts, so it may need a reading by the orchestrator under ruling 18).
+**What the result decides in candidate D:** whether a claim's id carries its sub-cone (`<layer>.<sub-cone>.<concept>.<claim>`); whether a sub-cone is a node with its own composed claim (a certificate per sub-cone, under ruling 8); whether sub-cones carry edges to sub-cones, so that a sub-cone's composed claim composes from its upstream sub-cones' composed claims; and whether an edge across sub-cones is a different kind of fact from an edge within one (a cross-sub-cone edge is what couples two concepts, so it may need a reading by the orchestrator under ruling 18).
 
 ## Refuted candidates
 
