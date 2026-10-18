@@ -424,16 +424,28 @@ class FrameBase(ABC):
         :math:`4\pi/(2\ell+1)` — the cross-Gram vocabulary of
         :attr:`gram_inverse`/:meth:`project`), and the frame REPLACES the metric with
         the measured inverse. With this metric the faces' ``.H`` is the
-        physical Hilbert adjoint: for the SH frame :math:`M^{*} = R/W` and
-        :math:`R^{*} = W\,M` with :math:`W = \sum_n w_n` — the frame square
-        closes with one scalar (`[M]` closure ≤1e-15 across every shipped
-        sphere family; the pre-F-0 stored continuum metric was the WRONG
+        physical Hilbert adjoint, and for the SH frame the square
+        :math:`M^{*} = R/W`, :math:`R^{*} = W\,M` (with :math:`W = \sum_n w_n`)
+        closes with one scalar exactly when the discrete trial Gram equals the
+        continuum Gram on the live modes, i.e. when the rule integrates every
+        product of two live basis functions exactly. `[M]` 2026-10-18
+        (``scratch/numerics_untangling/frame_bridge/attack_probes/p6_tree_square.py``,
+        37 rule × order rows): it closes to ≤1e-12 on 34 and fails on the 3
+        whose order outruns the rule — ``folded_product(2, 4)`` at L=2
+        (0.365), ``level_symmetric(4)`` at L=3 (0.067), ``level_symmetric(8)``
+        at L=5 (0.039). The SN scattering adjoint does not rest on the square:
+        it is standard S_N, :math:`(1/W)\,R\Lambda^{\mathsf T}M`, self-adjoint
+        in the quadrature weights on every rule, and forward/adjoint
+        reciprocity holds to round-off on those 3 rows
+        (``scratch/adjoint_underresolved/``). A spelling that daggers the two
+        faces separately and assumes the square closes is wrong there by 3 % to
+        26 % (ERR-039's class). The pre-F-0 stored continuum metric was the WRONG
         side — off the physical adjoint by exactly :math:`(4\pi/(2\ell+1))^2`
         per ℓ. Live witnesses: ``tests/gates/numerics/test_frame.py``'s
         ``test_parseval_*`` suite, whose negative leg re-installs the
         pre-repair metric in-process; discovery record
         ``scratch/probe_f1_parseval.py`` — note the probe reads the frame's
-        NOW-DRESSED space, so its "stored" row prints 1.000 post-repair).
+        NOW-DRESSED space, so its "stored" row prints 1.000 post-repair.
 
         For a frame whose discrete Gram is NOT diagonal
         (:attr:`discrete_gram_structure` DENSE — e.g.

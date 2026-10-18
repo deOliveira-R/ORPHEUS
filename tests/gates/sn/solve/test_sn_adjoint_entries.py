@@ -386,3 +386,359 @@ class TestSolveSnAdjointFixedSource:
             solve_sn_adjoint_fixed_source(
                 mats, mesh, _quad(), np.ones((3, 8)),
             )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The adjoint at an UNDER-RESOLVED scattering order — the rung above L ≤ 1.
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Every other reciprocity or adjoint gate under ``tests/gates/sn`` runs at
+# scattering order L = 0 or 1, where every shipped rule integrates the
+# products of two live harmonics exactly, so the frame square M* = R/W
+# closes. Production's scattering gain is standard S_N,
+# S = (1/W)·R Λ M, with S.H = G⁻¹SᵀG, G = diag(V·w_n): it is self-adjoint in
+# the quadrature weights on every rule and does NOT rest on the square. A
+# spelling that daggers the two frame faces separately and assumes the
+# square (ERR-039's class) agrees with production wherever the square
+# closes, so the L ≤ 1 gates cannot see it. These rows pin the adjoint where
+# the square FAILS: level_symmetric(4) at L = 3 (the Gram goes dense) and at
+# L = 5 (66 harmonics on 24 ordinates: the reconstruction face has a
+# kernel), with L = 2 on the same rule as the resolved control.
+# `[M]` 2026-10-18, ``scratch/adjoint_underresolved/`` (diagnosis) and
+# ``scratch/adjoint_rung/`` (these rows' probes and battery).
+
+_RUNG_LMAX = 5
+_RUNG_INNER_TOL = 1e-15
+#: Reciprocity bound: about four decades above the measured gap at this
+#: inner tolerance, so it is not the iteration exit that the row reads.
+_RUNG_RECIPROCITY_BOUND = 1e-12
+
+#: ASYMMETRIC P0 blocks (strong 0→1 downscatter, weak upscatter) and a
+#: per-element anisotropy ratio, so Σ_ℓ = Σ_0 ∘ ratio^ℓ is group-asymmetric at
+#: EVERY order: a dropped group transpose is visible at each ℓ, and every
+#: |Σ_ℓ|/Σ_0 = |ratio|^ℓ ≤ 1 (a physical Legendre stack).
+_RUNG_P0 = {
+    0: np.array([[0.50, 0.30], [0.02, 0.90]]),
+    1: np.array([[0.30, 0.10], [0.01, 0.40]]),
+}
+_RUNG_RATIO = {
+    0: np.array([[0.8, 0.6], [0.5, 0.7]]),
+    1: np.array([[0.6, 0.4], [0.3, 0.5]]),
+}
+_RUNG_SIG_C = {0: np.array([0.05, 0.10]), 1: np.array([0.20, 0.50])}
+
+_RECIPROCITY_ID = (
+    "tests/gates/sn/solve/test_sn_adjoint_entries.py::"
+    "TestSolveSnAdjointFixedSource::test_duality_cross_group_source_detector"
+)
+_SCATTERING_ADJOINT = "tests/gates/sn/operators/test_scattering_adjoint.py::"
+_FRAME_EDGE_ID = (
+    "tests/gates/numerics/test_frame.py::"
+    "test_the_square_fails_where_the_order_outruns_the_rule"
+)
+_RUNG = (
+    "tests/gates/sn/solve/test_sn_adjoint_entries.py::"
+    "TestAdjointAtAnUnderResolvedOrder::"
+)
+
+
+def _rung_mixture(material: int, *, transposed: bool = False):
+    r"""The P0–P5 anisotropic 2G mixture; ``transposed`` flips every Σ_ℓ.
+
+    The transposed stack is the STANDARD discrete-ordinates adjoint's
+    data (Lewis & Miller: the same quadrature reconstruction, the transfer
+    transposed in the groups), so a forward ``S`` built on it is identity
+    (b)'s right-hand side, assembled with no adjoint machinery at all.
+    """
+    from scipy.sparse import csr_matrix
+
+    from orpheus.data.macro_xs.mixture import Mixture
+
+    p0, ratio, sig_c = _RUNG_P0[material], _RUNG_RATIO[material], _RUNG_SIG_C[material]
+    stack = [p0 * ratio**ell for ell in range(_RUNG_LMAX + 1)]
+    if transposed:
+        stack = [block.T for block in stack]
+    zero = np.zeros(2)
+    return Mixture(
+        SigC=sig_c.copy(), SigL=zero.copy(), SigF=zero.copy(), SigP=zero.copy(),
+        SigT=sig_c + stack[0].sum(axis=1),
+        SigS=[csr_matrix(block) for block in stack],
+        Sig2=[csr_matrix((2, 2))], chi=zero.copy(),
+    )
+
+
+def _rung_slab(*, transposed: bool = False):
+    r"""The heterogeneous vacuum slab of :func:`_het_vacuum_slab` (A | B | A,
+    8 cells) carrying the anisotropic mixtures."""
+    _, mesh = _het_vacuum_slab()
+    mats = {m: _rung_mixture(m, transposed=transposed) for m in (0, 1)}
+    return mats, mesh
+
+
+def _ls4():
+    return Quadrature.level_symmetric(4)
+
+
+#: (order, square closes?) on level_symmetric(4); the ids say which side
+#: of the frame-square edge each row sits on.
+_RUNG_ROWS = [
+    pytest.param(2, True, id="LS4-L2-resolved"),
+    pytest.param(3, False, id="LS4-L3-under-resolved"),
+    pytest.param(5, False, id="LS4-L5-non-injective"),
+]
+
+
+def _assert_rung_premise(quad, order: int, square_closes: bool) -> None:
+    r"""The row's premise, asserted so a change of quadrature cannot silently
+    move it across the edge: the square's residual
+    ``max|M* − R/W| / max|R/W|`` (draw-free, both faces as matrices) is ≤
+    1e-12 on the resolved row and > 1e-3 on the others; the L = 5 row
+    additionally has more harmonics than ordinates. `[M]` 2026-10-18:
+    residuals 0, 0.1261, 0.6180 at L = 2, 3, 5."""
+    from tests.gates.numerics.test_frame import _collapse_residual
+
+    frame = quad.angular_frame(order)
+    residual = _collapse_residual(frame)
+    if square_closes:
+        require(
+            residual < 1e-12,
+            f"premise lost: the frame square of level_symmetric(4) at L={order} "
+            f"no longer closes (residual {residual:.3e}); this row is the "
+            f"RESOLVED control — re-point it to a row where the square closes.",
+        )
+        return
+    require(
+        residual > 1e-3,
+        f"premise lost: the frame square of level_symmetric(4) at L={order} "
+        f"now closes (residual {residual:.3e}), so this row no longer tests "
+        f"the adjoint at an under-resolved order — re-point it to an order "
+        f"that outruns the rule.",
+    )
+    if order == _RUNG_LMAX:
+        n_modes = int(np.prod(frame.basis_space.shape))
+        require(
+            n_modes > quad.N,
+            f"premise lost: L={order} carries {n_modes} harmonics on {quad.N} "
+            f"ordinates — the reconstruction face is no longer non-injective.",
+        )
+
+
+def _response_pair(quad, order: int):
+    r"""``(⟨q*, φ⟩, ⟨q, φ*⟩)`` from an INDEPENDENT forward and adjoint solve:
+    a fast isotropic source in the left region, a thermal detector in the
+    right one (the duality row's killer configuration). Both pairings are
+    the hand volume sums ``Σ V·Σ_d·φ`` and ``Σ V·q·φ*/W`` (the per-ordinate
+    source is ``q/W``), so no production inner product is read."""
+    mats, mesh = _rung_slab()
+    ng, nx = 2, 8
+    W = float(quad.weights.sum())
+    q_iso = np.zeros((ng, nx))
+    q_iso[0, 0:2] = 1.3
+    sigma_d = np.zeros((ng, nx))
+    sigma_d[1, 6:8] = 0.7
+    fwd = solve_sn_fixed_source(
+        mats, mesh, quad,
+        np.broadcast_to((q_iso / W)[None], (quad.N, ng, nx)).copy(),
+        scattering_order=order, inner_tol=_RUNG_INNER_TOL, max_inner=5000,
+    )
+    adj = solve_sn_adjoint_fixed_source(
+        mats, mesh, quad, sigma_d,
+        scattering_order=order, inner_tol=_RUNG_INNER_TOL, max_inner=5000,
+    )
+    V = np.diff(np.asarray(mesh.edges))
+    forward = float(np.sum(V * sigma_d * np.asarray(fwd.scalar_flux.values)))
+    adjoint = float(np.sum(V * q_iso * np.asarray(adj.scalar_flux.values))) / W
+    return forward, adjoint
+
+
+def _dense_scattering(quad, order: int, *, transposed: bool = False):
+    r"""``(S, S.H, G)`` as dense matrices on the rung slab — columns swept on
+    unit vectors through the production bound operator, ``G = w_n ⊗ 1 ⊗ V``
+    flattened."""
+    from orpheus.sn.problem import SNProblem
+    from orpheus.transport.fields.angular_flux import AngularFlux
+    from orpheus.transport.source_sinks import AngularSourceSink
+    from tests.gates.sn.operators._composite_operand import bulk_apply
+
+    mats, mesh = _rung_slab(transposed=transposed)
+    problem = SNProblem(mesh, quad, mats, scattering_order=order)
+    S = problem.system.factors.scattering
+    shape = (quad.N, 2, mesh.N)
+    n = int(np.prod(shape))
+    forward, adjoint = [], []
+    for j in range(n):
+        unit = np.zeros(n)
+        unit[j] = 1.0
+        unit = unit.reshape(shape)
+        forward.append(np.asarray(bulk_apply(
+            S, AngularFlux(values=unit, space=problem.angular_bulk_space),
+        ).values).ravel())
+        source = AngularSourceSink(values=unit, space=problem.angular_bulk_space)
+        adjoint.append(np.asarray(bulk_apply(S.H, source).values).ravel())
+    V = np.diff(np.asarray(mesh.edges))
+    G = np.einsum("n,g,c->ngc", np.asarray(quad.weights), np.ones(2), V).ravel()
+    return np.array(forward).T, np.array(adjoint).T, G
+
+
+def _relative(a: np.ndarray, b: np.ndarray) -> float:
+    return float(np.linalg.norm(a - b) / np.linalg.norm(b))
+
+
+def _install_mixed_convention(monkeypatch, quad, mesh) -> None:
+    r"""ERR-039's class, in process: S.H := M* Λᵀ M — the analysis face
+    daggered on its own and the reconstruction's adjoint taken as W·M (the
+    square assumed). Installed as the Euclidean transpose G·(M* Λᵀ M)·G⁻¹,
+    so production's ``.H = G⁻¹SᵀG`` returns exactly the mixed spelling. It
+    equals the correct (1/W)·R Λᵀ M wherever the square closes."""
+    from orpheus.transport.operators.transfer import TransferOperator
+
+    V = np.diff(np.asarray(mesh.edges))
+    G = np.asarray(quad.weights)[:, None, None] * V[None, None, :]
+
+    def mixed(self, bulk):
+        analysis = self.frame.analysis
+        transfer = self._moment_transfer(skip_l0=False)
+        x = np.asarray(bulk.values) / G
+        y = np.asarray(analysis.H.apply(transfer.apply_transpose(np.asarray(analysis.apply(x)))))
+        return self._end.cotangent(self, G * y)
+
+    # On the transfer binding only (scattering and (n,2n)); fission is not a
+    # frame-conjugated transfer and keeps its honest transpose.
+    monkeypatch.setattr(TransferOperator, "_interior_transpose", mixed)
+
+
+class TestAdjointAtAnUnderResolvedOrder:
+    r"""The SN adjoint is exact at a scattering order the angular rule does
+    not integrate — level_symmetric(4) at L = 3 and L = 5, with L = 2 on the
+    same rule as the resolved control.
+
+    Claim layer: the operator (L0, identities (a) and (b)) and the
+    fixed-source flux functional (L1, reciprocity). Activated: the ℓ ≥ 2
+    moments in two groups with group-asymmetric Σ_ℓ at every order, two
+    materials, vacuum leakage, cross-group and cross-region response.
+    Nulled: curvature and reflection (slab, vacuum faces) — the
+    curvilinear rows are the cylinder's business.
+
+    First reds (X1), `[M]` 2026-10-18, ``scratch/adjoint_rung/``:
+
+    * the Λᵀ → Λ drop (``TransferMaterialField.moment_source_transpose``
+      replaced by ``moment_source``) reddens every row, the resolved one
+      included (reciprocity rel 0.92);
+    * the mixed-convention spelling (:func:`_install_mixed_convention`)
+      reddens the two under-resolved rows only (reciprocity rel 4.7e-4 at
+      L = 3, 3.2e-3 at L = 5; the resolved row reads 7e-16) — the defect
+      every L ≤ 1 gate is blind to, and the reason this rung exists.
+      :meth:`test_the_rung_sees_the_mixed_convention` pins that split.
+    """
+
+    @pytest.mark.rests_on(
+        _SCATTERING_ADJOINT + "TestLambdaTranspose::test_transpose_matches_dense_per_material",
+        _SCATTERING_ADJOINT + "TestFullScatterKernel::test_S_euclidean_reciprocity",
+        _FRAME_EDGE_ID,
+    )
+    @pytest.mark.parametrize("order, square_closes", _RUNG_ROWS)
+    def test_the_scattering_adjoint_is_the_metric_adjoint_and_the_transposed_transfer(
+        self, order, square_closes,
+    ):
+        r"""(a) ``S.H = G⁻¹SᵀG`` and (b) ``S.H = S[Σ_ℓ → Σ_ℓᵀ]``, as dense
+        matrices.
+
+        (a) pins the ``.H`` route (the Euclidean transpose and the Riesz
+        legs) against the FORWARD apply transposed by hand. (b) pins it
+        against an independent assembly: a forward operator posed on the
+        transposed data, which is the standard discrete-ordinates adjoint
+        and involves no adjoint machinery. Tolerance: a direct product
+        whose deepest reduction sums over the ordinates and the harmonics,
+        ``8·(N + n_modes)·ε`` relative (`[M]` ≤ 3e-16 on all three rows;
+        the bound is 1.7e-13 at L = 5).
+        """
+        quad = _ls4()
+        _assert_rung_premise(quad, order, square_closes)
+        S, SH, G = _dense_scattering(quad, order)
+        S_transposed_data, _, _ = _dense_scattering(quad, order, transposed=True)
+        n_modes = int(np.prod(quad.angular_frame(order).basis_space.shape))
+        tol = 8.0 * (quad.N + n_modes) * np.finfo(float).eps
+        require(
+            _relative(S, S_transposed_data) > 0.1,
+            "the transposed data reproduces S — the group asymmetry the "
+            "identities discriminate on is gone; the row is vacuous.",
+        )
+        a = _relative(SH, (S.T * G[None, :]) / G[:, None])
+        require(
+            a <= tol,
+            f"(a) S.H != G^-1 S^T G at level_symmetric(4) L={order}: rel {a:.3e} "
+            f"> {tol:.1e} — the .H route is not the metric adjoint of the "
+            f"forward scattering gain.",
+        )
+        b = _relative(SH, S_transposed_data)
+        require(
+            b <= tol,
+            f"(b) S.H != S[Sigma_l^T] at level_symmetric(4) L={order}: rel "
+            f"{b:.3e} > {tol:.1e} — the adjoint is not the standard S_N "
+            f"adjoint (same reconstruction, transfer transposed in the groups).",
+        )
+
+    @pytest.mark.verifies("sn-adjoint-duality")
+    @pytest.mark.rests_on(
+        _RECIPROCITY_ID,
+        _RUNG + "test_the_scattering_adjoint_is_the_metric_adjoint_and_the_transposed_transfer",
+    )
+    @pytest.mark.parametrize("order, square_closes", _RUNG_ROWS)
+    def test_reciprocity_through_the_entries(self, order, square_closes):
+        r"""``⟨q*, φ⟩ = ⟨q, φ*⟩`` between an independent forward
+        ``solve_sn_fixed_source`` and ``solve_sn_adjoint_fixed_source``.
+
+        Tolerance: the solves run at inner tolerance 1e-15 and the bound is
+        1e-12 relative, about four decades above the gap. `[M]` 2026-10-18,
+        ``PYTHONPATH=. .venv/bin/python -O scratch/adjoint_rung/q3_tol.py``:
+        3.7e-16, 1.9e-16, 5.6e-16 at L = 2, 3, 5. At inner tolerance 1e-13
+        the gap was 4.6e-13: the iteration exit, not the operator
+        (``scratch/adjoint_underresolved/p1t_tol.py``). Activation leg: the order is live — the
+        forward response at L differs from the one at L − 1 by more than
+        1e-4 relative, so the top moment carries the answer.
+        """
+        quad = _ls4()
+        _assert_rung_premise(quad, order, square_closes)
+        forward, adjoint = _response_pair(quad, order)
+        lower, _ = _response_pair(quad, order - 1)
+        require(
+            abs(forward - lower) > 1e-4 * abs(forward),
+            f"the ell={order} moments do not move the response "
+            f"({lower:.10e} at L={order - 1}, {forward:.10e} at L={order}); "
+            f"the row does not exercise the order it names.",
+        )
+        rel = abs(forward - adjoint) / abs(forward)
+        require(
+            rel <= _RUNG_RECIPROCITY_BOUND,
+            f"reciprocity broken at level_symmetric(4) L={order}: <q*,phi>="
+            f"{forward:.15e}, <q,phi*>={adjoint:.15e}, rel {rel:.3e} > "
+            f"{_RUNG_RECIPROCITY_BOUND:.0e} — the adjoint entry is not the "
+            f"adjoint of the forward one at this scattering order.",
+        )
+
+    @pytest.mark.rests_on(_RUNG + "test_reciprocity_through_the_entries")
+    def test_the_rung_sees_the_mixed_convention(self, monkeypatch):
+        r"""The loaded reading (``vv-principles`` #19): under the mixed
+        spelling of :func:`_install_mixed_convention`, reciprocity BREAKS at
+        L = 3 and HOLDS at L = 2 on the same rule.
+
+        The L = 2 half is the finding the rung rests on: a resolved order is
+        blind to this defect, so the under-resolved rows are its only
+        catcher. `[M]` 2026-10-18: rel 4.7e-4 at L = 3, 7.4e-16 at L = 2."""
+        quad = _ls4()
+        _, mesh = _rung_slab()
+        _install_mixed_convention(monkeypatch, quad, mesh)
+        f3, a3 = _response_pair(quad, 3)
+        f2, a2 = _response_pair(quad, 2)
+        require(
+            abs(f3 - a3) / abs(f3) > 1e-5,
+            f"the mixed-convention adjoint passes reciprocity at L=3 (rel "
+            f"{abs(f3 - a3) / abs(f3):.3e}) — the under-resolved row is blind "
+            f"to ERR-039's class.",
+        )
+        require(
+            abs(f2 - a2) / abs(f2) <= _RUNG_RECIPROCITY_BOUND,
+            f"the mixed-convention adjoint breaks reciprocity at the RESOLVED "
+            f"L=2 (rel {abs(f2 - a2) / abs(f2):.3e}): the mutant is not the "
+            f"square-assuming spelling, and this row's split means nothing.",
+        )

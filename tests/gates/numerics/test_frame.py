@@ -1208,6 +1208,50 @@ def test_diagonal_gram_suffices_for_the_collapse_and_dense_does_not_decide_it():
     ) == pytest.approx((1.0, 1.0), abs=1e-12)
 
 
+@pytest.mark.foundation
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_frame.py::test_parseval_frame_square_closes[LS4-L2]",
+    "tests/gates/numerics/test_frame.py::"
+    "test_diagonal_gram_suffices_for_the_collapse_and_dense_does_not_decide_it",
+)
+def test_the_square_fails_where_the_order_outruns_the_rule():
+    r"""The edge of the closing population: on ``level_symmetric(4)`` the square
+    ``M.H = R/W`` closes at L = 2 and FAILS at L = 3.
+
+    ``test_parseval_frame_square_closes`` gates the square on the DIAGONAL
+    population, LS4-L2 among it. One order up the same rule no longer
+    integrates every product of two live harmonics, the discrete Gram goes
+    DENSE, and the square fails: `[M]` 2026-10-18, draw-free residual
+    ``max|M* - R/W| / max|R/W|`` = 0.1261 at L = 3, 6.6e-16 at L = 2.
+    This row marks that edge on a shipped rule, so a consumer reading the
+    diagonal-population gate as "the square closes on level_symmetric(4)"
+    meets the order at which it stops. The SN scattering adjoint does not
+    rest on the square: ``tests/gates/sn/solve/test_sn_adjoint_entries.py``,
+    class ``TestAdjointAtAnUnderResolvedOrder``, gates it at this row.
+
+    First red (X1): the shortcut spelled into production, the analysis
+    face's adjoint replaced by ``R/W``, makes the residual 0 and reddens the
+    L = 3 assertion (`[M]` ``scratch/adjoint_rung/``).
+    """
+    closing = Quadrature.level_symmetric(4).angular_frame(2)
+    assert _collapse_residual(closing) < 1e-12, (
+        "level_symmetric(4) at L=2 must close the square (it is in the "
+        "DIAGONAL population of test_parseval_frame_square_closes)"
+    )
+    outrun = Quadrature.level_symmetric(4).angular_frame(3)
+    assert outrun.discrete_gram_structure is GramStructure.DENSE, (
+        f"level_symmetric(4) at L=3 reads {outrun.discrete_gram_structure.name}; "
+        f"the rule now integrates the order, so this row no longer marks the edge"
+    )
+    residual = _collapse_residual(outrun)
+    assert residual > 1e-3, (
+        f"the square M.H = R/W closes at level_symmetric(4) L=3 (residual "
+        f"{residual:.3e}): either the rule now integrates the order, or the "
+        f"analysis adjoint has been spelled as R/W, the shortcut that is wrong "
+        f"wherever the order outruns the rule"
+    )
+
+
 def _collapse_residual(frame) -> float:
     r"""``max|M† − R/W| / max|R/W|`` with both faces swept as MATRICES — draw-free."""
     shape = frame.basis_space.shape
