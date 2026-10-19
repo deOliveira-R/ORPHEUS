@@ -841,11 +841,11 @@ class TestManifoldMap:
         self,
     ) -> None:
         from orpheus.numerics.manifold import ManifoldMap
-        from orpheus.numerics.measure import gauss_legendre
+        from orpheus.numerics.generating_measure import LEGENDRE
 
         phi = ManifoldMap(COSINE_INTERVAL, UNIT_INTERVAL, lambda x: 0.5 * (x + 1.0))
         psi = ManifoldMap(UNIT_INTERVAL, UNIT_INTERVAL, lambda x: x * x)
-        mu = gauss_legendre(5)
+        mu = LEGENDRE.gauss(5)
 
         at_once = mu.pushforward(psi @ phi)
         stepwise = mu.pushforward(phi).pushforward(psi)

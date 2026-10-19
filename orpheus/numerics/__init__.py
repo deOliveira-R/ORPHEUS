@@ -9,9 +9,6 @@ from .measure import (
     BundleMeasure,
     DiscreteMeasure,
     DiscreteMeasurePartition,
-    equispaced,
-    gauss_chebyshev,
-    gauss_legendre,
 )
 from .operator import (
     DiagonalOperator,
@@ -34,7 +31,6 @@ from .operator import (
     invertible,
     outer,
 )
-from orpheus.numerics.quadrature import gauss_legendre_on_mu, gauss_legendre_on_polar_orbit, lebedev_sphere, level_symmetric_sn, product_mu_phi
 from .basis import Basis, SphericalHarmonicBasis
 from .frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from .projection import AnalysisOperator, ReconstructionOperator
@@ -93,15 +89,7 @@ __all__ = [
     "ZeroMorphism",
     "ZeroOperator",
     "adjointable",
-    "equispaced",
-    "gauss_chebyshev",
-    "gauss_legendre",
-    "gauss_legendre_on_mu",
-    "gauss_legendre_on_polar_orbit",
     "invertible",
-    "lebedev_sphere",
-    "level_symmetric_sn",
     "outer",
     "power_iteration",
-    "product_mu_phi",
 ]

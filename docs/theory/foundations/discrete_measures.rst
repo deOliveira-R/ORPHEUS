@@ -746,18 +746,30 @@ predicate and on a randomised generic predicate.
 1-D primitive constructors
 ==========================
 
-The module ships three 1-D primitives:
+The 1-D rules a reader meets first are:
 
-- :func:`~orpheus.numerics.measure.gauss_legendre`
-  ``(n)`` — Gauss-Legendre on :math:`[-1, 1]`, exact to algebraic
-  degree :math:`2n - 1` **against** ``legendre``; weights sum to 2.
-- :func:`~orpheus.numerics.measure.gauss_chebyshev`
-  ``(n)`` — Gauss-Chebyshev (first kind) on :math:`[-1, 1]`, exact to
-  algebraic degree :math:`2n - 1` **against** ``chebyshev_t``, whose
-  weight is :math:`(1 - x^2)^{-1/2}`; weights sum to :math:`\pi`.
+- ``LEGENDRE.gauss(n)``
+  (:meth:`~orpheus.numerics.generating_measure.GeneratingMeasure.gauss`
+  on :data:`~orpheus.numerics.generating_measure.LEGENDRE`) —
+  Gauss-Legendre on :math:`[-1, 1]`, exact to algebraic degree
+  :math:`2n - 1` **against** ``legendre``; weights sum to 2.
+- ``CHEBYSHEV_T.gauss(n)``
+  (the same method on
+  :data:`~orpheus.numerics.generating_measure.CHEBYSHEV_T`) —
+  Gauss-Chebyshev (first kind) on :math:`[-1, 1]`, exact to algebraic
+  degree :math:`2n - 1` **against** ``chebyshev_t``, whose weight is
+  :math:`(1 - x^2)^{-1/2}`; weights sum to :math:`\pi`.
 - :func:`~orpheus.numerics.measure.equispaced`
   ``(a, b, n)`` — midpoint rule on :math:`[a, b]`, exact to algebraic
   degree 1 against ``uniform([a,b])``; weights sum to :math:`b - a`.
+
+The module once also shipped ``gauss_legendre(n)`` and
+``gauss_chebyshev(n)`` as functions; each was the one-line body
+``LEGENDRE.gauss(n)`` / ``CHEBYSHEV_T.gauss(n)`` under a second name, with
+no production caller, and both were retired (2026-10-19, ruling 12 of
+the numerics untangling) so that a generating measure is the one place a
+Gauss rule is made. ``equispaced`` stays: it is the only non-Gauss rule on
+an interval, and the measure-algebra tests use it as their fixture.
 
 .. important::
 
@@ -776,7 +788,7 @@ The module ships three 1-D primitives:
    does not say which.
 
 Higher-dimensional rules are built by composition. The tensor product
-``gauss_legendre(n_mu) * equispaced(0.0, 2*np.pi, n_phi)`` gives a rule
+``LEGENDRE.gauss(n_mu) * equispaced(0.0, 2*np.pi, n_phi)`` gives a rule
 on the **parameter rectangle**
 :math:`(\mu, \varphi) \in [-1,1] \times [0, 2\pi)` — the standard
 polar-azimuthal split.
@@ -826,9 +838,9 @@ Hermite) and the affine remap
 Production reaches the Legendre family through
 :func:`~orpheus.numerics.quadrature.rules_1d.gauss_legendre_on_mu`, and every
 Gauss–Legendre, product or folded angular quadrature carries its
-Gauss–Legendre factor through it. :func:`~orpheus.numerics.measure.gauss_legendre`
-is the same rule under a second name (its body is ``LEGENDRE.gauss(n)``), and
-only tests call it. No production code reaches the other families.
+Gauss–Legendre factor through it. ``LEGENDRE.gauss(n)`` is that one construction; the module-level
+``measure.gauss_legendre`` that once repeated it under a second name is
+retired. No production code reaches the other families.
 
 **Why the floats are not the textbook's.**  A measure
 :math:`d\lambda = w(x)\,dx` fixes monic orthogonal polynomials obeying
@@ -1816,8 +1828,8 @@ always names its stage — points at the paragraph that explains it.
    orthogonal system **and** on degree while being exact against the
    wrong thing. That is not hypothetical, and this page's own two
    :ref:`1-D primitives <1-d-primitive-constructors>` are the witness:
-   ``[M]`` :func:`~orpheus.numerics.measure.gauss_legendre` and
-   :func:`~orpheus.numerics.measure.gauss_chebyshev` at :math:`n = 4`
+   ``[M]`` ``LEGENDRE.gauss(4)`` and
+   ``CHEBYSHEV_T.gauss(4)`` (:math:`n = 4`)
    agree on all three (support :math:`[-1,1]`, system ``ALGEBRAIC``,
    degree 7) and differ on the **unweighted**
    :math:`\int_{-1}^{1} x^6 \, dx` — a monomial comfortably inside that

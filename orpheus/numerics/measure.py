@@ -115,10 +115,6 @@ if TYPE_CHECKING:
     # measure), so the arrow runs one way and the annotation is a forward
     # reference.
     from orpheus.numerics.space import FunctionSpace
-    # Same forward-ref reason: ``generating_measure`` imports FROM this
-    # module (its ``gauss`` returns a DiscreteMeasure), so the arrow runs
-    # one way and the field holds the object by forward reference.
-    from orpheus.numerics.generating_measure import GeneratingMeasure
     # ``exactness`` does not import this module (it imports only
     # ``manifold``), so this import need not be typing-only.
     from orpheus.numerics.exactness import ExactnessClaim
@@ -250,7 +246,7 @@ class DiscreteMeasure:
         computed.
 
         **This used to be two loose fields** — a bare
-        ``degree_of_exactness`` beside a ``generating_measure`` — and a
+        ``degree_of_exactness`` beside a generating measure — and a
         degree could therefore exist without saying what it was about.
         Two measured consequences, and they are *different* bugs:
 
@@ -263,10 +259,11 @@ class DiscreteMeasure:
           degree 1); the same nodes on the circle are the periodic
           trapezoid (*trigonometric* degree :math:`n-1`).
 
-        :attr:`degree_of_exactness` and :attr:`generating_measure`
-        survive as **derived read-only views** over this one field, so
-        the convenient readings remain available while the storage that
-        let them drift apart is gone.
+        :attr:`degree_of_exactness` survives as a **derived read-only
+        view** over this one field, so the convenient reading remains
+        available while the storage that let the two drift apart is
+        gone. The reference is read off the claim itself,
+        ``exactness.reference``.
 
         A claim whose reference is a
         :class:`~orpheus.numerics.generating_measure.GeneratingMeasure`
@@ -615,8 +612,8 @@ class DiscreteMeasure:
           ``None``. (For separable polynomials of degree :math:`p` per
           axis, both rules need to integrate monomials up to :math:`p`
           exactly.)
-        - ``generating_measure`` becomes ``None``: the product rule's
-          reference is the *product* measure :math:`w_\mu \otimes
+        - the claim's ``reference`` becomes a ``ProductMeasure``: the
+          product rule's reference is the *product* measure :math:`w_\mu \otimes
           w_\nu`, which a 1-D
           :class:`~orpheus.numerics.generating_measure.GeneratingMeasure`
           cannot name.
@@ -626,7 +623,7 @@ class DiscreteMeasure:
            A degree of exactness is a claim relative to a measure, so
            combining two rules with *different* references produces a
            claim about a mongrel measure no consumer expects. `[M]`
-           ``gauss_legendre(4) * gauss_chebyshev(4)`` used to advertise
+           ``LEGENDRE.gauss(4) * CHEBYSHEV_T.gauss(4)`` used to advertise
            ``degree_of_exactness = 7`` while integrating the constant
            ``1`` to **6.2832** instead of 4 — Gauss-Chebyshev is not
            exact for the unweighted integral even at degree **0**
@@ -700,9 +697,8 @@ class DiscreteMeasure:
           weakest piece on the union domain, and only if the two pieces
           are exact against the *same* measure (see :meth:`__mul__` for
           the measurement that motivated the condition).
-        - ``generating_measure`` is set to ``None``: the union's
-          reference is a measure on the union domain, not either
-          piece's.
+        - ``exactness`` is set to ``None``: the union's reference is a
+          measure on the union domain, not either piece's.
 
         Raises
         ------
@@ -758,7 +754,7 @@ class DiscreteMeasure:
         helper served both, which is how a product could report a factor's
         reference — asserting exactness against a measure it is not exact
         against. `[M]` a test caught it on the first run of the carve:
-        ``gauss_legendre(3) * gauss_legendre(4)`` reported ``legendre``
+        ``LEGENDRE.gauss(3) * LEGENDRE.gauss(4)`` reported ``legendre``
         where the reference is ``legendre ⊗ legendre``.
         """
         if self.exactness is None or other.exactness is None:
@@ -781,30 +777,6 @@ class DiscreteMeasure:
         reference.
         """
         return None if self.exactness is None else self.exactness.degree
-
-    @property
-    def generating_measure(self) -> "GeneratingMeasure | None":
-        r"""The claim's reference **when it is a Golub-Welsch generator**.
-
-        A derived view over :attr:`exactness`, and deliberately narrower
-        than the claim's own ``reference``: not every reference measure
-        generates its rule. The circle's Fourier system has no three-term
-        recurrence, and Lebedev's reference (uniform on :math:`S^2`)
-        generates nothing at all — both are legitimate references and
-        neither is a generating measure, so this returns ``None`` for
-        them.
-
-        ``None`` therefore keeps its original meaning: *this rule was not
-        built by the Golub-Welsch construction*, and so its exactness
-        rests on external authority rather than following from how it was
-        made.
-        """
-        from orpheus.numerics.generating_measure import GeneratingMeasure
-
-        if self.exactness is None:
-            return None
-        reference = self.exactness.reference
-        return reference if isinstance(reference, GeneratingMeasure) else None
 
     # ------------------------------------------------------------------
     # Pushforward (image measure)
@@ -1595,94 +1567,6 @@ class BundleMeasure:
 # ---------------------------------------------------------------------------
 
 
-def gauss_legendre(n: int) -> DiscreteMeasure:
-    r"""N-point Gauss-Legendre quadrature on :math:`[-1, 1]`.
-
-    Returns the discrete measure :math:`\mu = \sum_{i=1}^n w_i \,
-    \delta_{x_i}` whose nodes :math:`x_i` are the roots of the
-    Legendre polynomial :math:`P_n` and whose weights are the
-    Christoffel numbers
-    :math:`w_i = 2 \big/ \bigl[(1 - x_i^2) (P_n'(x_i))^2\bigr]`.
-
-    Polynomial exactness (Stoer & Bulirsch 2002, Theorem 3.6.20):
-    exact for every polynomial of degree :math:`\le 2n - 1`. The
-    returned measure carries ``degree_of_exactness = 2*n - 1`` so
-    downstream consumers can verify the claim.
-
-    Weight sum: :math:`\sum_i w_i = 2`.
-
-    Parameters
-    ----------
-    n : int
-        Number of quadrature nodes; must be :math:`\ge 1`.
-
-    Returns
-    -------
-    DiscreteMeasure
-        On ``support=COSINE_INTERVAL`` with ``degree_of_exactness=2n-1``.
-
-    See Also
-    --------
-    :meth:`orpheus.numerics.quadrature.Quadrature.gauss_legendre` — the
-    named factory SN consumers call. There is no per-family adapter
-    class: the four SN-side wrappers this docstring used to point at
-    (``orpheus.sn.quadrature.GaussLegendre1D`` and its siblings) were
-    retired into classmethod factories on the one ``Quadrature`` type.
-    """
-    # Late import: ``generating_measure`` imports DiscreteMeasure from
-    # this module, so the runtime arrow has to run one way. See the
-    # TYPE_CHECKING block at the top.
-    from orpheus.numerics.generating_measure import LEGENDRE
-
-    return LEGENDRE.gauss(n)
-
-
-def gauss_chebyshev(n: int) -> DiscreteMeasure:
-    r"""N-point Gauss-Chebyshev (first-kind) quadrature on
-    :math:`[-1, 1]` with weight :math:`(1 - x^2)^{-1/2}`.
-
-    The closed-form rule (Stoer & Bulirsch 2002, §3.6) is
-
-    .. math::
-       :label: discrete-measure-gauss-chebyshev
-
-       x_i = \cos\!\left( \frac{(2i - 1) \pi}{2n} \right),
-       \qquad w_i = \frac{\pi}{n}, \qquad i = 1, \ldots, n,
-
-    and the rule is exact in the weighted sense
-
-    .. math::
-
-       \sum_{i=1}^n w_i \, q(x_i)
-       \;=\; \int_{-1}^{1} \frac{q(x)}{\sqrt{1 - x^2}} \, dx
-
-    for every polynomial :math:`q` of degree :math:`\le 2n - 1`.
-
-    Note the **weight function is in the integral**, not in the
-    quadrature — :math:`\int q \, d\mu_{\text{GC}} = \int q(x) (1 -
-    x^2)^{-1/2} dx`, so an unweighted polynomial integration on
-    :math:`[-1, 1]` does **not** simplify to evaluating
-    :math:`\int q \, dx`. Callers wanting unweighted polynomial
-    integration should use :func:`gauss_legendre`.
-
-    Weight sum: :math:`\sum_i w_i = \pi`.
-
-    Parameters
-    ----------
-    n : int
-        Number of quadrature nodes; must be :math:`\ge 1`.
-
-    Returns
-    -------
-    DiscreteMeasure
-        On ``support=COSINE_INTERVAL`` with ``degree_of_exactness=2n-1``
-        (with respect to the weighted integral).
-    """
-    from orpheus.numerics.generating_measure import CHEBYSHEV_T
-
-    return CHEBYSHEV_T.gauss(n)
-
-
 def equispaced(a: float, b: float, n: int) -> DiscreteMeasure:
     r"""Equispaced (midpoint-rule) measure on :math:`[a, b]`.
 
@@ -1771,6 +1655,4 @@ __all__ = [
     "DiscreteMeasure",
     "DiscreteMeasurePartition",
     "equispaced",
-    "gauss_chebyshev",
-    "gauss_legendre",
 ]
