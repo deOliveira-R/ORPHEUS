@@ -82,7 +82,7 @@ def _head_shape(problem: SNProblem, L: int) -> tuple[int, ...]:
 
 def _head_of(problem: SNProblem, L: int) -> MomentHead:
     """The angular head OBJECT — the surface that says where the isotropic slot and each degree block live."""
-    head = frame_faces.basis_space(problem.quad.angular_frame(L))   # the frame's Parseval-dressed head — the ONE moment space (6.2c-ii)
+    head = frame_faces.basis_space(frame_faces.angular_frame(problem.quad, L))   # the frame's Parseval-dressed head — the ONE moment space (6.2c-ii)
     assert isinstance(head, MomentHead)
     return head
 
@@ -194,7 +194,7 @@ class TestHarmonicMomentFluxConstruction:
 
             head = phi.space.factors[0]
             assert isinstance(head, family), (
-                f"{type(mesh.quad._harmonic_basis(L)).__name__} should induce "
+                f"{type(frame_faces.angular_frame(mesh.quad, L).basis).__name__} should induce "
                 f"a {family.__name__} head; got {type(head).__name__}"
             )
             # …and whichever family it is, it satisfies the ONE surface every
@@ -382,7 +382,7 @@ class TestHarmonicMomentFluxScalarFlux:
         sf_direct = psi.integrate_angular()
 
         # Via moment projection (frame analysis face) + scalar_flux extraction.
-        moments_values = frame_faces.FrameAnalysis.of(m.quad.angular_frame(L)).apply(psi.values)
+        moments_values = frame_faces.FrameAnalysis.of(frame_faces.angular_frame(m.quad, L)).apply(psi.values)
         moments = HarmonicMomentFlux.from_problem_and_L(moments_values, m, L)
         sf_via_moments = moments.scalar_flux()
 

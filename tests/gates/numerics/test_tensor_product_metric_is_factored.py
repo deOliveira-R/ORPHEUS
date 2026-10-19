@@ -107,7 +107,7 @@ def _capture_production_factor_tuples(problem, L: int) -> "list[tuple[FunctionSp
         HarmonicMomentFlux.zeros_for_problem_and_L(
             problem, L, spatial_moments=problem.scheme.spatial_basis_per_axis,
         )
-        frame = problem.quad.angular_frame(L)
+        frame = frame_faces.angular_frame(problem.quad, L)
         # ⚠ `moment_space_on` is HarmonicFrame's mint; a GalerkinFrame (what a
         # 1-D rule returns) does not carry it.  Guarded so the row reports the
         # mints it REACHED rather than dying on a frame-family difference.
@@ -235,7 +235,7 @@ def test_g2_2_the_moment_product_carries_no_dense_slot_and_threads_its_axes():
         bulk_axes = problem.bulk_space.axes
         assert bulk_axes is not None, "the carrier's bulk space is of_axes-built"
         for L in _ORDERS:
-            frame = problem.quad.angular_frame(L)
+            frame = frame_faces.angular_frame(problem.quad, L)
             head = frame_faces.basis_space(frame)
             product = head * problem.bulk_space
             findings.append(

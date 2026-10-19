@@ -253,8 +253,8 @@ to the scattering operator.
    The relocation tripwire (when a second consumer with an
    :math:`L` independent of ``scattering_order`` moves the
    constructor ownership off the scattering operator onto the neutral
-   :meth:`Quadrature.angular_frame(L)
-   <orpheus.numerics.quadrature.Quadrature.angular_frame>` factory)
+   :func:`frame_faces.angular_frame(Quadrature, L)
+   <orpheus.numerics.frame_faces.angular_frame>` factory)
    is documented at :ref:`frame-eigenbasis-relocation-tripwire`.
 
 
@@ -672,7 +672,7 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    **no diagonal metric reproduces** :math:`g_C^{-1}`\ **'s role at
    all** — which is why that frame needs the matrix realization rather
    than a better choice of diagonal (`[M]` 2026-10-18 on
-   ``folded_product(4, 4).angular_frame(2)``, the best diagonal
+   ``frame_faces.angular_frame(folded_product(4, 4), 2)``, the best diagonal
    candidate's Parseval ratio ranges over :math:`[1, 2]` across the
    band-limited subspace, the pseudo-inverse's over :math:`[1, 1]`; see
    :ref:`frame-parseval-dense-arm`). Until the ERR-080 repair the
@@ -697,7 +697,7 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
 
    ✅ **What repaired it is not a metric at all: a 1-D rule no longer
    binds this basis.** `[M]` 2026-09-02
-   ``gauss_legendre(8).angular_frame(2)`` binds
+   ``frame_faces.angular_frame(gauss_legendre(8), 2)`` binds
    :class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis` to the
    rule's own measure, measures ``DIAGONAL`` with off-diagonal
    :math:`8.8\times10^{-17}` and diagonal :math:`2/(2\ell+1)`, and the
@@ -720,7 +720,7 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    not roundoff.**
 
    The cause was upstream of the metric entirely: a 1-D rule carries no
-   azimuthal information, but the measure ``Quadrature.angular_frame``
+   azimuthal information, but the measure ``frame_faces.angular_frame``
    integrated against padded the polar nodes with two zero columns and
    then declared the result ``support=SPHERE`` over nodes with
    :math:`\lVert\Omega\rVert \ne 1`. ``_evaluate_real_sh`` duly read
@@ -1123,8 +1123,8 @@ Legendre table instead (:ref:`sh-legendre-is-the-1d-family`):
   <orpheus.numerics.basis.SphericalHarmonicBasis.reconstruct>`).
 
 The single home of the angular frame is
-:meth:`Quadrature.angular_frame(L)
-<orpheus.numerics.quadrature.Quadrature.angular_frame>`, so PN, SN and
+:func:`frame_faces.angular_frame(Quadrature, L)
+<orpheus.numerics.frame_faces.angular_frame>`, so PN, SN and
 MC consume the same frame without importing from :mod:`orpheus.sn`.
 ⛔ This paragraph read *"which binds the SH basis to the quadrature's
 angular measure"* until 2026-09-02, and the unqualified *"the SH
@@ -1179,8 +1179,8 @@ is the architectural reason the basis lives in
        :class:`~orpheus.transport.operators.scattering.ScatteringOperator`.
      - Live (Frame/Basis carve; the SN scattering operator pulls its
        frame from
-       :meth:`Quadrature.angular_frame(L)
-       <orpheus.numerics.quadrature.Quadrature.angular_frame>`).
+       :func:`frame_faces.angular_frame(Quadrature, L)
+       <orpheus.numerics.frame_faces.angular_frame>`).
    * - PN solver (§10)
      - Native moment-space basis on the streaming-coupling.
      - Pending (PN solver not yet implemented; the basis is
@@ -1214,8 +1214,8 @@ Code references
   angular measure; its ``analysis`` face is the Galerkin projection
   :math:`M` that consumes the :math:`Y` table, its ``reconstruction``
   face the addition-theorem :math:`R`.
-* :meth:`Quadrature.angular_frame(L)
-  <orpheus.numerics.quadrature.Quadrature.angular_frame>` — the
+* :func:`frame_faces.angular_frame(Quadrature, L)
+  <orpheus.numerics.frame_faces.angular_frame>` — the
   single home of the :math:`S^2` embedding; builds the SH frame on
   a quadrature.
 

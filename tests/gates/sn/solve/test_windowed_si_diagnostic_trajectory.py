@@ -200,7 +200,7 @@ def test_the_recorded_trajectory_was_taken_under_the_PARSEVAL_head_metric() -> N
     assert isinstance(head, MomentHead)
     assert head.inner_product_weights is None and head.metric is None
     assert head.axes is not None and len(head.axes) == 1
-    frame = problem.quad.angular_frame(_L)
+    frame = frame_faces.angular_frame(problem.quad, _L)
     assert head.axes[0].generator is frame
     weights = head.axes[0].weights
     assert weights is not None
@@ -287,7 +287,7 @@ def test_the_pin_discriminates_the_head_metric_choice() -> None:
         _mesh(), Quadrature.level_symmetric(sn_order=_SN_ORDER), _two_region_fissile(),
     )
     dressed_space = problem.moment_space(_L)
-    frame = HarmonicFrame.from_galerkin(problem.quad.angular_frame(_L))
+    frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(problem.quad, _L))
     assert dressed_space == frame_faces.basis_space(frame) * problem.bulk_space, (
         "the hub's space IS the frame's dressed product — one space, two owners (O-5)"
     )

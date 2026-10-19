@@ -116,7 +116,7 @@ class HarmonicMomentSourceSink(MomentField, flux=HarmonicMomentFlux):
         ``<angular head>(L) ⊗ CellGroup``, the head being the coefficient
         space of the basis the mesh's quadrature frame bound at ``L``
         (``SphericalHarmonicSpace(L)`` on a full-sphere rule; READ off
-        ``mesh.quad.angular_frame(L)`` since #429 tracker 2.5, never minted
+        ``frame_faces.angular_frame(mesh.quad, L)`` since #429 tracker 2.5, never minted
         from ``L``). Construction via
         :meth:`~orpheus.transport.fields._bases.MomentField.from_problem_and_L`
         is the canonical path.

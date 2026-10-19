@@ -2289,7 +2289,7 @@ always was.
      products exactly**, whose measured discrete Gram couples the modes,
      so no diagonal metric satisfies Parseval on it
      (:ref:`frame-parseval-dense-arm`). `[M]` 2026-10-18 on
-     ``folded_product(4, 4).angular_frame(2)`` the live block's largest
+     ``frame_faces.angular_frame(folded_product(4, 4), 2)`` the live block's largest
      off-diagonal is 1.000 of the Cauchy–Schwarz scale. The frame that
      first demanded the primitive was the slab one, whose density was
      ERR-080's signature and went with its repair (#429); and
@@ -2450,7 +2450,7 @@ tangential ordinate with :math:`|\Omega\cdot n| = 0` has weight zero and
 must map to zero, not to infinity). The dense arm extends it unchanged,
 and there it is **not a convenience: it is the only thing that exists.**
 
-`[M]` 2026-10-18 on ``Quadrature.folded_product(4, 4).angular_frame(2)``,
+`[M]` 2026-10-18 on ``frame_faces.angular_frame(Quadrature.folded_product(4, 4), 2)``,
 the mirror-even spherical harmonics on :math:`S^2/\sigma_y` and the
 smallest of the three dense angular heads production builds (the
 frame-bridge census of 2026-10-18), the discrete Gram is :math:`15\times15` with **6 live diagonal slots and rank 5**. Its
@@ -2462,13 +2462,13 @@ columns, annihilates the evaluation table on the rule's 8 nodes
 (:math:`\|Av\|_\infty = 2.8\times10^{-16}`), so the rule cannot tell those
 two harmonics apart. :func:`numpy.linalg.inv` raises there;
 :func:`numpy.linalg.pinv` returns the object Parseval needs. The other two
-dense heads are singular too: ``folded_product(4, 4).angular_frame(4)``,
+dense heads are singular too: ``frame_faces.angular_frame(folded_product(4, 4), 4)``,
 :math:`45\times45` with 15 live slots and rank 8, and
-``product(4, 8).angular_frame(4)``, :math:`45\times45` with 25 live slots
+``frame_faces.angular_frame(product(4, 8), 4)``, :math:`45\times45` with 25 live slots
 and rank 23. (Probes ``scratch/metric_docstring/probe_flagship.py``,
 ``probe_kernel.py`` and ``probe_theory.py``, numpy 2.4.4. Until the
 ERR-080 repair of 2026-09-02 the example here was the slab
-``gauss_legendre(8).angular_frame(2)``, 5 live slots and rank 4; that
+``frame_faces.angular_frame(gauss_legendre(8), 2)``, 5 live slots and rank 4; that
 frame's Gram is now diagonal, :math:`3\times3` and rank 3.)
 
 Two construction choices in
@@ -2497,7 +2497,7 @@ Two construction choices in
    the same call *without* ``hermitian=True`` returns a matrix whose
    asymmetry :math:`\max|M - M^{\mathsf T}|` ranges from
    :math:`4.6\times10^{-17}` to :math:`1.75\times10^{-15}` (the largest
-   on ``product(4, 4).angular_frame(2)``), against at most
+   on ``frame_faces.angular_frame(product(4, 4), 2)``), against at most
    :math:`6.9\times10^{-17}` with it: one to two orders, and far below
    the type's symmetry admission of :math:`10^{-12}`. The declaration is
    kept because it makes the pseudo-inverse cut on ``eigh``, the
@@ -2564,7 +2564,7 @@ moments under :math:`G^{+}` and using the first Penrose identity
 The identity holds because :math:`G G^{+} G = G` is one of the four
 Penrose conditions, true by definition of the pseudo-inverse — no
 hypothesis about rank, conditioning or invertibility enters. `[M]`
-2026-10-18 on ``folded_product(4, 4).angular_frame(2)``
+2026-10-18 on ``frame_faces.angular_frame(folded_product(4, 4), 2)``
 (``scratch/metric_docstring/probe_theory.py``) the residual is
 :math:`\max|G G^{+} G - G| = 1.78\times10^{-15}` absolute, which is
 :math:`1.41\times10^{-16}` relative to :math:`\max|G| = 4\pi`, and
@@ -3165,7 +3165,7 @@ fail is one that compares the metric against a quantity defined without
 it — Parseval, i.e. the field's own norm — plus hand-derived literals
 with no solver, frame or quadrature in the chain.
 
-.. list-table:: The wrong-metric discriminator — `[M]` 2026-10-18, the draw-free range of the Parseval ratio over the band-limited subspace of ``folded_product(4, 4).angular_frame(2)``
+.. list-table:: The wrong-metric discriminator — `[M]` 2026-10-18, the draw-free range of the Parseval ratio over the band-limited subspace of ``frame_faces.angular_frame(folded_product(4, 4), 2)``
    :header-rows: 1
    :widths: 40 24 36
 
@@ -3190,19 +3190,19 @@ generalized-eigenvalue range of the Rayleigh quotient
 the frame and cannot move with a random draw
 (``scratch/metric_docstring/probe_theory.py``). ⚠ It is **frame-dependent**:
 `[M]` the diagonal candidate ranges over :math:`[0.707,\ 1.842]` on
-``product(4, 4).angular_frame(2)`` and :math:`[0.889,\ 1.111]` on
-``level_symmetric(4).angular_frame(3)``, so a single draw there can land
+``frame_faces.angular_frame(product(4, 4), 2)`` and :math:`[0.889,\ 1.111]` on
+``frame_faces.angular_frame(level_symmetric(4), 3)``, so a single draw there can land
 near 1. The committed discriminator,
 ``test_no_diagonal_metric_can_satisfy_parseval_on_a_dense_frame``, reads
-``folded_product(2, 4).angular_frame(3)``, where the diagonal range is
+``frame_faces.angular_frame(folded_product(2, 4), 3)``, where the diagonal range is
 :math:`[1.000,\ 3.000]` and never drops below 1. (Until the ERR-080
 repair this table read one seeded :math:`\psi` on the slab
-``gauss_legendre(8).angular_frame(2)``: 25.53, 1.806 and
+``frame_faces.angular_frame(gauss_legendre(8), 2)``: 25.53, 1.806 and
 0.999999999999999.)
 
 **The dressing moves a production adjoint, and nothing observed it.**
 This is not plumbing. The scattering operator builds
-``quadrature.angular_frame(scattering_order)`` in production, so
+``frame_faces.angular_frame(quadrature, scattering_order)`` in production, so
 dressing a ``DENSE`` frame changes the spaces every ``.H`` through the
 adjoint sandwich reads. `[M]` comparing the dressed and undressed
 analysis adjoints **as operators** (column by column on the coefficient
@@ -3434,7 +3434,7 @@ metric that can now be *spelled* is not a metric anyone has *chosen*.
    and that asymmetry is the strongest argument for an
    operator-valued metric over a "matrix weights slot on ``Axis``":
 
-   - a dense angular frame (today ``folded_product(4, 4).angular_frame(2)``;
+   - a dense angular frame (today ``frame_faces.angular_frame(folded_product(4, 4), 2)``;
      the slab frame before the ERR-080 repair) needs **one
      cell-independent** dense :math:`K\times K` coefficient Gram — a
      per-axis matrix could carry that;
@@ -5733,7 +5733,7 @@ as ``PYTHONPATH=. .venv/bin/python -O <probe>``): on the :math:`S_N`
 carrier above, on its spherical twin (the same edges and the same
 ``gauss_legendre(4)``), and on the slab carrier with dense-Gram
 sphere rules, build
-``HarmonicFrame.from_galerkin(sn.quad.angular_frame(L))``, feed a moment
+``HarmonicFrame.from_galerkin(frame_faces.angular_frame(sn.quad, L))``, feed a moment
 field that is zero except at the :math:`(0,0)` slot, and compare both
 faces with :math:`E\varphi`, :math:`E` the angular section
 ``AxisSectionOperator.of(sn.angular_bulk_space, "angular")``. Each entry is the worst

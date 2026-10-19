@@ -195,10 +195,11 @@ def _bind_foreign(sn: SNProblem, L: int) -> HarmonicFrame:
     # the foreign frame rides the SAME measure the production frame carries
     # (today the forged 3-D padding of a 1-D rule; after #429's fix the rule's
     # own) — the test is about the SPACE, not the nodes
-    honest = sn.quad.angular_frame(L)
-    cache = sn.quad._angular_frames or {}
-    cache[L] = GalerkinFrame(_ForeignTruncatedBasis.like(honest.basis), honest.measure)
-    object.__setattr__(sn.quad, "_angular_frames", cache)
+    honest = frame_faces.angular_frame(sn.quad, L)
+    cache = sn.quad.__dict__.setdefault("_frame_faces", {})
+    cache[("angular_frame", L)] = GalerkinFrame(
+        _ForeignTruncatedBasis.like(honest.basis), honest.measure,
+    )
     frame = HarmonicFrame.for_space(sn.angular_bulk_space, L)
     assert frame.basis.space.name == _MUTANT_NAME, "the route through for_space did not reach the foreign frame"
     return frame
@@ -245,10 +246,10 @@ def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() ->
     # the truncated head keeps its own FAMILY's L = 0 layout — ``(1, 1)`` for
     # the rectangular harmonics, ``(1,)`` for the flat Legendre family the
     # slab now binds. Read off the honest head, so this line cannot drift.
-    assert truncated.factors[0].shape == sn.quad.angular_frame(0).basis.space.shape
+    assert truncated.factors[0].shape == frame_faces.angular_frame(sn.quad, 0).basis.space.shape
     assert truncated.factors[0].name == _MUTANT_NAME
 
-    foreign = _ForeignTruncatedBasis.like(sn.quad.angular_frame(L).basis)
+    foreign = _ForeignTruncatedBasis.like(frame_faces.angular_frame(sn.quad, L).basis)
     assert LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(mat), foreign,
         ).domain.name == _MUTANT_NAME
@@ -311,7 +312,7 @@ def test_the_tree_binds_the_frames_parseval_space_and_not_the_continuum_head(lab
     carries no measure and the matrix pseudo-inverse is POSITIONED on the
     space's derived metric object (item 6.2c-i)."""
     q = _RULES[label]()              # built in the body, never in the parametrize list
-    frame = HarmonicFrame.from_galerkin(q.angular_frame(L))
+    frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(q, L))
     dressed = frame_faces.basis_space(frame)
     # ⛔ RE-KEYED 2026-09-02 (#429): the family to compare against is the one
     # the rule's ORBIT SPACE carries — a 1-D rule's frame binds the flat
@@ -359,7 +360,7 @@ def test_the_operator_ends_carry_the_frames_parseval_space_not_the_continuum_one
     L = 1                      # the synthetic data carries P0 and P1
     S = ScatteringOperator.from_solver_data(mat_xs=_mat_xs(), space=sn.full_field_space, scattering_order=L)
     ends = S._moment_transfer(skip_l0=False).domain
-    frame = sn.quad.angular_frame(L)
+    frame = frame_faces.angular_frame(sn.quad, L)
     assert ends == frame_faces.basis_space(frame)
     assert ends != frame.basis.space
     hub_space = sn.moment_space(L)
@@ -404,7 +405,7 @@ def test_the_door_asks_for_a_truncation_order_not_for_one_class() -> None:
     # hard-coding the harmonics would red for the WRONG reason and this gate
     # would stop measuring the door.
     rule = Quadrature.gauss_legendre(4)
-    foreign = _ForeignTruncatedBasis.like(rule.angular_frame(1).basis)
+    foreign = _ForeignTruncatedBasis.like(frame_faces.angular_frame(rule, 1).basis)
     assert isinstance(foreign, TruncatedBasis)
     assert not isinstance(foreign, SphericalHarmonicBasis)
     frame = HarmonicFrame(foreign, rule.measure)
@@ -415,5 +416,5 @@ def test_the_door_asks_for_a_truncation_order_not_for_one_class() -> None:
     # …and the same twin on a SPHERE rule, so the door gate is not keyed to
     # one family either (the foreign basis there wraps the harmonics).
     sphere = Quadrature.level_symmetric(4)
-    foreign_sphere = _ForeignTruncatedBasis.like(sphere.angular_frame(1).basis)
+    foreign_sphere = _ForeignTruncatedBasis.like(frame_faces.angular_frame(sphere, 1).basis)
     assert HarmonicFrame(foreign_sphere, sphere.measure).truncation_order == 1

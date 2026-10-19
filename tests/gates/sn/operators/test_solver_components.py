@@ -33,6 +33,7 @@ from tests.gates.sn._independent_dd_sweep import (
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from dataclasses import replace
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.l0  # SN solver method-in-isolation component checks
 
@@ -597,7 +598,7 @@ class TestAnisotropicScattering:
     def test_spherical_harmonics_orthogonality(self):
         """Lebedev spherical harmonics must satisfy discrete orthogonality."""
         quad = Quadrature.lebedev(order=17)
-        Y = quad.angular_frame(1).table
+        Y = frame_faces.angular_frame(quad, 1).table
         w = quad.weights
 
         ortho_00 = np.sum(w * Y[:, 0, 0] ** 2)
@@ -617,7 +618,7 @@ class TestAnisotropicScattering:
     def test_spherical_harmonics_l1_unchanged_after_extension(self):
         """Y[L<=1] must be bit-identical to the legacy hardcoded values."""
         quad = Quadrature.lebedev(order=17)
-        Y = quad.angular_frame(1).table
+        Y = frame_faces.angular_frame(quad, 1).table
         np.testing.assert_array_equal(Y[:, 0, 0], np.ones(quad.N))
         np.testing.assert_array_equal(Y[:, 1, 0], quad.mu_z)  # m = -1
         np.testing.assert_array_equal(Y[:, 1, 1], quad.mu_x)  # m =  0
@@ -630,7 +631,7 @@ class TestAnisotropicScattering:
 
         quad = Quadrature.lebedev(order=17)
         L = 3
-        Y = quad.angular_frame(L).table
+        Y = frame_faces.angular_frame(quad, L).table
         N = quad.N
         rng = np.random.default_rng(seed=0)
         pairs = rng.choice(N, size=(20, 2), replace=True)
@@ -653,7 +654,7 @@ class TestAnisotropicScattering:
         r"""Discrete orthogonality of Y_l^m on Lebedev for l, l' <= 3."""
         quad = Quadrature.lebedev(order=17)
         L = 3
-        Y = quad.angular_frame(L).table
+        Y = frame_faces.angular_frame(quad, L).table
         w = quad.weights
         four_pi = w.sum()
 

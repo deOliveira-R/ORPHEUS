@@ -449,7 +449,7 @@ class TestG6Refusals:
         from orpheus.numerics.space import FunctionSpace
 
         V = (FunctionSpace.of_axes(Axis("angular", (4,), weights=np.array([0.3, 0.7, 0.5, 0.5]), kind=BasisKind.NODAL))
-             if which == "nodal" else frame_faces.basis_space(Quadrature.folded_product(4, 4).angular_frame(2)))
+             if which == "nodal" else frame_faces.basis_space(frame_faces.angular_frame(Quadrature.folded_product(4, 4), 2)))
         assert V.axes is not None  # narrowing only: both members are axis-built
         with pytest.raises(ValueError, match="bare scalar"):
             AxisRetractionOperator.of(V, V.axes[0].label)

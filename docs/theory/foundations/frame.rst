@@ -259,8 +259,8 @@ Key Facts
 
 - **Two families of concrete frame ship today.** The
   **spherical-harmonic frame**
-  :meth:`Quadrature.angular_frame(L)
-  <orpheus.numerics.quadrature.Quadrature.angular_frame>` — the
+  :func:`frame_faces.angular_frame(Quadrature, L)
+  <orpheus.numerics.frame_faces.angular_frame>` — the
   :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` of order
   :math:`L` bound to an :math:`S^2` cubature — is a
   :class:`~orpheus.numerics.frame.GalerkinFrame` (``test is trial``)
@@ -699,7 +699,7 @@ slab. The same :class:`~orpheus.numerics.basis.SphericalHarmonicBasis`
 bound to a 1-D Gauss–Legendre measure has total weight
 :math:`W = \sum_n w_n = 2`, not :math:`4\pi`; every basis-level
 constant carries :math:`4\pi` in it, so no basis-level constant can be
-right for both. (`[M]` 2026-08-23, ``gauss_legendre(8).angular_frame(2)``.)
+right for both. (`[M]` 2026-08-23, ``frame_faces.angular_frame(gauss_legendre(8), 2)``.)
 
 **(2) The metric depends on the ORDER, not only on the family.** Two
 frames over the same basis with different measures have different
@@ -778,7 +778,7 @@ a metric) **and** every live off-diagonal is below
 :math:`\sqrt{G_{jj}G_{kk}}`. The measured separation is wide open: `[M]` 2026-08-23, the six
 shipped sphere families sit at
 :math:`\le 2.7\times10^{-16}` and the then-dense slab sat at :math:`0.93`
-(`[M]` 2026-10-18, today's dense ``folded_product(4, 4).angular_frame(2)``
+(`[M]` 2026-10-18, today's dense ``frame_faces.angular_frame(folded_product(4, 4), 2)``
 sits at :math:`1.000`), so **any**
 threshold across fifteen orders of magnitude draws the same verdict
 (the shipped one is :math:`10^{-10}`, leaving six orders of headroom
@@ -896,7 +896,7 @@ close, for a reason worth knowing — is
    again.
 
 The witness WAS the slab. `[M]` 2026-08-23,
-``Quadrature.gauss_legendre(8).angular_frame(2)``, **before the ERR-080
+``frame_faces.angular_frame(Quadrature.gauss_legendre(8), 2)``, **before the ERR-080
 repair**:
 
 .. list-table:: The slab GL(8) discrete Gram at :math:`L = 2` — why no diagonal metric works
@@ -4157,7 +4157,7 @@ consumers re-minting it from the integer :math:`L`:
    * - ``MomentField._space_for_mesh_and_L``
      - the moment field's angular HEAD factor
      - ``SNProblem.moment_space(L)`` — the hub, which reads
-       ``mesh.quad.angular_frame(L).basis.space``
+       ``frame_faces.angular_frame(mesh.quad, L).basis.space``
    * - ``HarmonicMomentFlux.truncate``
      - the head of the truncated space
      - ``head.truncated(L_new)`` — the head's OWN family
@@ -4174,7 +4174,7 @@ consumers re-minting it from the integer :math:`L`:
    (``from_problem_and_L``, ``zeros_for_problem_and_L``), the ``space_on``
    admission reference, and the sweep's iterate wrap all hold the SAME
    instance (``is``, not merely ``==``). The head is still read off the
-   frame at ``quad.angular_frame(L).basis.space``, so the row's third
+   frame at ``frame_faces.angular_frame(quad, L).basis.space``, so the row's third
    column stays true one hop in; what changed is *who owns the product*.
    `[M]` until 6.2b the field-side mint ran **113 of the 118** ``*``
    products per 2-D windowed solve — 58 from the boundary leaf's guard, 55
@@ -4377,8 +4377,7 @@ The identity the step installs:
    sets the re-measurement beside it.
 
 with :math:`q` the quadrature, so that *which family* is the quadrature's
-decision (:meth:`Quadrature._harmonic_basis
-<orpheus.numerics.quadrature.Quadrature._harmonic_basis>` derives it from
+decision (``frame_faces._harmonic_basis`` derives it from
 the point set the measure lives on — the σ-even restriction on a folded
 rule, the full harmonics otherwise) and every consumer is a reader.
 
@@ -4387,7 +4386,7 @@ constructions drawn from **all five** shipped ``Quadrature`` classmethod
 factories (`[M]` ``vars(Quadrature)``: ``gauss_legendre`` 2/8/16,
 ``level_symmetric`` 4/8, ``lebedev`` 11/17, ``product`` (4,6)/(8,8),
 ``folded_product`` (2,4)/(4,8)) × :math:`L \in \{0,1,2\}`, each frame
-built as ``HarmonicFrame.from_galerkin(q.angular_frame(L))``:
+built as ``HarmonicFrame.from_galerkin(frame_faces.angular_frame(q, L))``:
 
 .. list-table:: `[M]` 2026-09-02 — the two spellings against the ``from_L(L)`` mint they replace
    :header-rows: 1
@@ -4642,7 +4641,7 @@ caller passes an integer.
 
 .. note:: **Dated 2026-09-07, CS4c step 6 item 6.2b.** Until this item the
    paragraph above read *"It is found the same way:*
-   ``mesh.quad.angular_frame(L).basis.space``\ *, behind a small*
+   ``frame_faces.angular_frame(mesh.quad, L).basis.space``\ *, behind a small*
    ``_CarriesQuadrature`` *Protocol"* — accurate for tracker 2.5's tree,
    where each consumer re-derived the product from the head it had just
    read. The head is still read exactly there; the difference is that the
@@ -4688,7 +4687,7 @@ Giving the product to the hub changes *which object* the field side holds
 — one cached space per ``(L, spatial_moments)`` instead of one fresh mint
 per call, `[M]` 113 field-side re-mints in a single 2-D windowed solve
 before the item — and changes nothing about its **metric**: the hub reads
-the same ``quad.angular_frame(L).basis.space``, so the head still carries
+the same ``frame_faces.angular_frame(quad, L).basis.space``, so the head still carries
 the continuum Gram. The seam therefore sharpens rather than closes: it now
 separates **one hub-owned field space** from the frame's Parseval-dressed
 codomain, two objects that are ``(name, shape)``-equal and
@@ -5015,8 +5014,8 @@ question asked in the category, and it answers all three.
        arrow exists
 
 The message names both point sets, both groups, and
-:meth:`Quadrature.angular_frame
-<orpheus.numerics.quadrature.directional.Quadrature.angular_frame>` as
+:func:`angular_frame
+<orpheus.numerics.frame_faces.angular_frame>` as
 the surface that derives the right basis — so a caller who trips it is
 told what to do rather than what happened.
 
@@ -5531,7 +5530,7 @@ was true until 2026-08-30 and is not any more.  It read, verbatim:
 *"*
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
 *holds the frame as a cached property and binds its order to the
-scattering order,* ``quadrature.angular_frame(self.scattering_order)``
+scattering order,* ``frame_faces.angular_frame(quadrature, self.scattering_order)``
 *(the canonical constructor + the L-binding) … the constructor
 ownership sits on scattering."*  At CS4c step 3 the frame became a
 shared object **constructed outside and handed in**, interned on the
@@ -5684,8 +5683,8 @@ The relocation tripwire — when scattering stops owning the constructor
 
    *What it got right.*  Constructor ownership did relocate, it did
    relocate onto the discipline-neutral
-   :meth:`Quadrature.angular_frame(L)
-   <orpheus.numerics.quadrature.Quadrature.angular_frame>` factory, the
+   :func:`frame_faces.angular_frame(Quadrature, L)
+   <orpheus.numerics.frame_faces.angular_frame>` factory, the
    factory did already exist and did already anticipate it, and the
    eigenbasis ruling did survive untouched.
 
@@ -5705,7 +5704,7 @@ The relocation tripwire — when scattering stops owning the constructor
    interning tiers —
    :meth:`HarmonicFrame.for_space
    <orpheus.transport.frames.harmonic_frame.HarmonicFrame.for_space>`
-   over ``Quadrature.angular_frame(L)`` — so that "one frame per (axis
+   over ``frame_faces.angular_frame(Quadrature, L)`` — so that "one frame per (axis
    content, :math:`L`)" is an object identity and every consumer
    receives the same cached projection table.  The operator retains the
    *products* (its two minted faces) and forgets the factory, keeping
@@ -5725,8 +5724,8 @@ order :math:`L` is physically meaningful. The constructor ownership
 <orpheus.transport.operators.scattering.ScatteringOperator.frame>` bound the frame
 order to ``self.scattering_order``. This binding **relocates** to the
 discipline-neutral factory
-:meth:`Quadrature.angular_frame(L)
-<orpheus.numerics.quadrature.Quadrature.angular_frame>` the moment a
+:func:`frame_faces.angular_frame(Quadrature, L)
+<orpheus.numerics.frame_faces.angular_frame>` the moment a
 **second** consumer arrives with an :math:`L` *independent of*
 ``scattering_order``:
 
@@ -5743,7 +5742,7 @@ ORPHEUS
 computes is the :math:`\ell = 0` scalar flux (via the
 :class:`~orpheus.sn.solver.SNSolver`'s angular integration), which does
 **not** use the frame. The factory
-:meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame` already
+:func:`~orpheus.numerics.frame_faces.angular_frame` already
 exists and already anticipates this relocation — its naming tripwire
 names the permanent *angular axis*, not the contingent
 spherical-harmonic basis, so a second consumer is a signature change
@@ -5769,7 +5768,7 @@ measure-free method, the frame cannot live *as a field on* the shared
 operator. Two resolutions were open (deferred to `#261`; user,
 2026-06-25): **(a) relocate** the frame to where the angular measure
 lives (the
-:meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame` factory —
+:func:`~orpheus.numerics.frame_faces.angular_frame` factory —
 the original W-E idea), or **(b) specialize**
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` per method — an SN
 subclass that holds the frame (it carries the :math:`S^2` measure) over
@@ -5784,7 +5783,7 @@ CS4c step 3 relocated the frame to the measure's side and removed it
 as a field on the operator: the frame is reached through
 :meth:`HarmonicFrame.for_space
 <orpheus.transport.frames.harmonic_frame.HarmonicFrame.for_space>` over
-``Quadrature.angular_frame(L)``, minted at the tier-2 classmethod,
+``frame_faces.angular_frame(Quadrature, L)``, minted at the tier-2 classmethod,
 and the operator retains only the two **faces** it minted from it plus
 a provenance accessor.  Note the ordering, because it is the reusable
 lesson: the resolution was chosen for a reason (sharing between
@@ -5827,7 +5826,7 @@ the appropriate discipline type.
      - GalerkinFrame
      - ``FrameAnalysis.of(frame)`` /
        ``FrameReconstruction.of(frame)``
-       (``Quadrature.angular_frame(L)``)
+       (``frame_faces.angular_frame(Quadrature, L)``)
      - **Live** (Wave 1)
      - §9 (Grand Report v3 line 1230)
    * - PN solver
@@ -6219,7 +6218,7 @@ reading the docstring**:
    )
 
    # Galerkin: test IS trial, Π* ∝ R (a CANONICAL dual: 1/W for SH)
-   sh_frame = quad.angular_frame(L)            # -> GalerkinFrame
+   sh_frame = frame_faces.angular_frame(quad, L)            # -> GalerkinFrame
 
    # Petrov-Galerkin: explicit test basis, M* ≠ R (an oblique dual)
    homog = PetrovGalerkinFrame(
@@ -6342,8 +6341,8 @@ Implementation map
 * :class:`~orpheus.numerics.projection.ReconstructionOperator` —
   the abstract coarse→fine operator role :math:`R : W \to V`; the
   ``reconstruction`` face subclasses it.
-* :meth:`Quadrature.angular_frame(L)
-  <orpheus.numerics.quadrature.Quadrature.angular_frame>` — builds
+* :func:`frame_faces.angular_frame(Quadrature, L)
+  <orpheus.numerics.frame_faces.angular_frame>` — builds
   the order-:math:`L` spherical-harmonic
   :class:`~orpheus.numerics.frame.GalerkinFrame` on a quadrature; the
   single home of the :math:`S^2` embedding.
@@ -6361,7 +6360,7 @@ and identity operators on the spatial / energy axes:
 
    from orpheus.numerics.operator import IdentityOperator
 
-   frame = quad.angular_frame(L)
+   frame = frame_faces.angular_frame(quad, L)
    M = FrameAnalysis.of(frame)
    M_full = M & IdentityOperator() & IdentityOperator() & IdentityOperator()
 
@@ -6484,7 +6483,7 @@ slab Gram was :math:`15\times15` with 5 live slots and **rank 4**, so no
 inverse existed, while :math:`G G^{+} G = G` held to
 :math:`1.6\times10^{-15}`, exactly what the theorem needs. (That slab
 Gram is diagonal since the ERR-080 repair, #429; the smallest dense
-occupant today is ``folded_product(4, 4).angular_frame(2)``, rank 5 of
+occupant today is ``frame_faces.angular_frame(folded_product(4, 4), 2)``, rank 5 of
 15, :ref:`spaces-metric-moore-penrose`.) Two
 consequences the phase had to own rather than announce. (i) The change
 is *behavioural*: `[M]` 10 of the 30 shipped angular frame

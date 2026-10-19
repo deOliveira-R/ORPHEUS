@@ -16,7 +16,7 @@ and the DISCRIMINATOR, written where both realizations can see it:
     realization).**
 
 That sentence is what :attr:`Descent.frame_basis` returns and what
-:meth:`Quadrature._harmonic_basis <orpheus.numerics.quadrature.directional.Quadrature._harmonic_basis>`
+``frame_faces._harmonic_basis`` (behind :func:`~orpheus.numerics.frame_faces.angular_frame`)
 binds — the basis a frame on THIS orbit space carries is DERIVED from the
 entry, never chosen at the call site.
 

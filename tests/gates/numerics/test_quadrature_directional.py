@@ -396,7 +396,7 @@ def test_q4_8_derivation_refuses_when_closure_actually_breaks() -> None:
 def test_q5_1_spherical_harmonics_shape() -> None:
     """spherical_harmonics(L) returns shape (N, L+1, 2L+1)."""
     q = Quadrature.lebedev(17)
-    Y = q.angular_frame(2).table
+    Y = frame_faces.angular_frame(q, 2).table
     assert Y.shape == (q.N, 3, 5)
 
 
@@ -413,7 +413,7 @@ def test_q5_2_spherical_harmonics_l0_constant() -> None:
     normalisation value.
     """
     q = Quadrature.lebedev(17)
-    Y = q.angular_frame(0).table
+    Y = frame_faces.angular_frame(q, 0).table
     np.testing.assert_allclose(Y[:, 0, 0], Y[0, 0, 0])
     assert Y[0, 0, 0] != 0.0
 
@@ -515,7 +515,7 @@ def test_q8_1_sphere_rules_hand_the_frame_their_OWN_measure(make) -> None:
     """
     q = make()
     for L in (0, 1, 2):
-        assert q.angular_frame(L).measure is q.measure
+        assert frame_faces.angular_frame(q, L).measure is q.measure
 
 
 @pytest.mark.parametrize(
@@ -540,7 +540,7 @@ def test_q8_2_routing_carries_all_three_truths_the_rebuild_destroyed(make) -> No
     full pre-carve rebuild reds all **8**.
     """
     q = make()
-    m = q.angular_frame(2).measure
+    m = frame_faces.angular_frame(q, 2).measure
     assert m.support == q.measure.support
     assert m.invariance_group is q.measure.invariance_group
     assert m.exactness is q.measure.exactness
@@ -557,11 +557,11 @@ def test_q8_3_the_fold_keeps_its_quotient_tag_all_the_way_to_the_frame() -> None
     """
     q = Quadrature.folded_product(n_mu=4, n_phi=8)
     assert q.measure.support == SPHERE.quotient(SubgroupOfO3.Mirror("y"))
-    assert q.angular_frame(2).measure.support == SPHERE.quotient(SubgroupOfO3.Mirror("y"))
-    assert frame_faces.measure_space(q.angular_frame(2)).name == "L2[S^2/sigma_y]"
+    assert frame_faces.angular_frame(q, 2).measure.support == SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+    assert frame_faces.measure_space(frame_faces.angular_frame(q, 2)).name == "L2[S^2/sigma_y]"
     # …and an UNfolded sibling of the same family still says S^2, so the
     # assertion above is discriminating rather than a tautology on the tag.
-    assert frame_faces.measure_space(Quadrature.product(n_mu=4, n_phi=8).angular_frame(2)).name == "L2[S^2]"
+    assert frame_faces.measure_space(frame_faces.angular_frame(Quadrature.product(n_mu=4, n_phi=8), 2)).name == "L2[S^2]"
 
 
 @pytest.mark.parametrize(
@@ -599,7 +599,7 @@ def test_q8_4_the_1d_rule_ROUTES_its_own_measure_and_binds_the_legendre_basis(
        :math:`m \ne 0` slot for the defect to live in.
     """
     q = make()
-    frame = q.angular_frame(2)
+    frame = frame_faces.angular_frame(q, 2)
 
     # 1 — the ROUTE
     assert frame.measure is q.measure, (
@@ -635,7 +635,7 @@ def test_q8_5_routing_moved_no_numbers(make) -> None:
     numerically — that is what makes 0.1a landable ahead of 3.4.
     """
     q = make()
-    m = q.angular_frame(2).measure
+    m = frame_faces.angular_frame(q, 2).measure
     rebuilt = np.column_stack([q.axis_cosines(0), q.axis_cosines(1), q.axis_cosines(2)])
     np.testing.assert_array_equal(m.nodes, rebuilt)
     np.testing.assert_array_equal(m.weights, q.weights)

@@ -41,6 +41,7 @@ from orpheus.sn.loss_representation import (
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
+from orpheus.numerics import frame_faces
 
 pytestmark = [
     pytest.mark.foundation,
@@ -143,7 +144,7 @@ def test_scanmarch_moment_equals_window(nx, ny, lvl, ng, bc):
     problem = _build_mesh(nx, ny, lvl, ng, bc)
     sig_t, Q, bf_sm = _random_inputs(rng, problem, ng, nx, ny)
     bf_win = AngularBoundaryFlux(values=bf_sm.values.copy(), space=problem.angular_trace)
-    frame = problem.quad.angular_frame(Lm)
+    frame = frame_faces.angular_frame(problem.quad, Lm)
 
     march, win = ScanMarch.pose(problem), MovingFrontierWindow.pose(problem)
     mom_sm, second_sm = march.sweep(

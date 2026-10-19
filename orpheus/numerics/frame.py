@@ -121,7 +121,7 @@ __all__ = ["FrameBase", "GalerkinFrame", "PetrovGalerkinFrame"]
 #: diagonality verdict. The measured separation is wide open: an SH-degree-exact
 #: sphere cubature's off-diagonals sit at ~1e-16 of the Cauchy–Schwarz scale
 #: :math:`\sqrt{G_{jj}G_{kk}}`, while a dense frame's live Gram reaches 1.000
-#: of it (`[M]` 2026-10-18, ``folded_product(4, 4).angular_frame(2)``; the
+#: of it (`[M]` 2026-10-18, ``frame_faces.angular_frame(folded_product(4, 4), 2)``; the
 #: pre-ERR-080 slab GL Gram sat at 0.93, `[M]` 2026-08-23) — any threshold in
 #: (1e-12, 1e-2) draws the same verdict; 1e-10 leaves two orders of headroom
 #: for accumulated roundoff at high mode counts.
@@ -158,7 +158,7 @@ def _descent_arrow(basis: Basis, measure: DiscreteMeasure, role: str) -> Manifol
             f"has {has.name if has is not None else None}). A basis eats "
             f"points of its own orbit space or of a finer one; give the rule "
             f"the basis its orbit space carries "
-            f"(Quadrature.angular_frame derives it) — #429, ERR-080."
+            f"(frame_faces.angular_frame derives it) — #429, ERR-080."
         )
     return arrow
 
@@ -265,9 +265,9 @@ class FrameBase(ABC):
         (:func:`~orpheus.numerics.frame_faces.basis_space`). The two can
         disagree: the SH basis declares DIAGONAL (continuum-orthogonal) yet
         measures DENSE on a rule that does not integrate its products exactly
-        (`[M]` 2026-10-18 on ``product(4, 4).angular_frame(2)``: live
+        (`[M]` 2026-10-18 on ``frame_faces.angular_frame(product(4, 4), 2)``: live
         off-diagonals up to 0.293 of the Cauchy–Schwarz scale; on
-        ``folded_product(4, 4).angular_frame(2)``, whose mirror-even basis
+        ``frame_faces.angular_frame(folded_product(4, 4), 2)``, whose mirror-even basis
         also declares DIAGONAL, 1.000; ``scratch/metric_docstring/probe_flagship.py``.
         Until the ERR-080 repair the example was the slab GL measure, `[M]`
         2026-08-23, ``scratch/probe_f1_parseval_slab.py``),
@@ -360,7 +360,7 @@ class GalerkinFrame(PetrovGalerkinFrame):
     the Gram is symmetric (here diagonal — SH-orthogonal / disjoint indicators), so
     :math:`M^* = R` up to the basis's dual factor and the coefficient extraction is a
     reciprocal, not a solve. The angular spherical-harmonic projection
-    (``quadrature.angular_frame(L)``) is the canonical pure-Galerkin frame; the in-sweep
+    (``frame_faces.angular_frame(quadrature, L)``) is the canonical pure-Galerkin frame; the in-sweep
     moment accumulation AND the §5.6 scattering kernel share THIS object.
 
     It is a genuine subtype of :class:`PetrovGalerkinFrame` (Liskov: a Galerkin frame

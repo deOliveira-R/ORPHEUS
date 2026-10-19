@@ -72,7 +72,7 @@ Structural independence of the hand-references
      \qquad
      \phi_1^m = \sum_n w_n\,Y_1^m(\Omega_n)\,\psi_n.
 
-  This reuses ``quad.angular_frame(1).table`` (a verified primitive,
+  This reuses ``frame_faces.angular_frame(quad, 1).table`` (a verified primitive,
   below the trusted-library line — see ``algebra-of-record`` §structural
   independence) but assembles the moment sum by an INDEPENDENT explicit
   Python loop, not the production frame analysis/reconstruction faces /
@@ -103,6 +103,7 @@ from tests.gates.sn._test_helpers import curvilinear_homogeneous_mesh
 # under ``tests/gates/sn/operators/`` because that is where the ~40 step-5 re-key
 # sites are; ``tests/gates/sn/_test_helpers.py`` is its natural long-term home.
 from tests.gates.sn.operators._composite_operand import bulk_apply
+from orpheus.numerics import frame_faces
 
 
 # ── shared builders ─────────────────────────────────────────────────────
@@ -250,7 +251,7 @@ def test_cylindrical_p1_source_matches_hand_reference():
     #   phi_1^m = sum_n w_n Y_1^m(Omega_n) psi_n.
     # Y shape (N, L+1, 2L+1); the ell=1 block lives at index [:, 1, :],
     # with the m-slot running 0,1,2 (the addition-theorem-shifted index).
-    Y = quad.angular_frame(1).table
+    Y = frame_faces.angular_frame(quad, 1).table
     wts = quad.weights
     psi_vals = psi.values[:, 0, :]  # (N, nx)
     nx = problem.spatial_shape[0]

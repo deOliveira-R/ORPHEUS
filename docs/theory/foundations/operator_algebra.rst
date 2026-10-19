@@ -3814,7 +3814,7 @@ through one body, at one order, into one interned frame.  The blessed chain is o
 
    composite space → .interior_space → axes[0]
                    → axis.generator_as(Quadrature)      (the CS5 channel)
-                   → Quadrature.angular_frame(L)        (interned per (rule, L))
+                   → frame_faces.angular_frame(Quadrature, L)        (interned per (rule, L))
                    → HarmonicFrame.from_galerkin(...)   (interned on the upstream frame)
 
 wrapped as
@@ -4665,7 +4665,7 @@ a layering constraint, not a preference:
 
 * The generic angular spherical-harmonic frame is the numerics
   :class:`~orpheus.numerics.frame.GalerkinFrame` built by
-  :meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame` — its
+  :func:`~orpheus.numerics.frame_faces.angular_frame` — its
   :meth:`~orpheus.numerics.frame_faces.FrameAnalysis.of` /
   :meth:`~orpheus.numerics.frame_faces.FrameReconstruction.of` faces are
   **carrier-agnostic** ``np.ndarray → np.ndarray`` maps. This is by
@@ -4688,7 +4688,7 @@ a layering constraint, not a preference:
   :class:`~orpheus.numerics.space.FunctionSpace` and nothing else. The
   layer argument is unaffected, because it is the leaf *classes* that
   are transport-level, not the key their factories take.)
-  And :meth:`Quadrature.angular_frame <orpheus.numerics.quadrature.Quadrature.angular_frame>`
+  And :func:`angular_frame <orpheus.numerics.frame_faces.angular_frame>`
   is in numerics, which *cannot* import the transport carriers without
   inverting the layer order.
 
@@ -5582,7 +5582,7 @@ a layer above.
    * - **Operator algebra** (this module)
      - Typed operators; ``axis`` attribute on each factor; the two-axis
        predicate meet; algebraic laws checked at composition.
-     - ``quad.angular_frame(L).analysis & IdentityOperator()`` —
+     - ``frame_faces.angular_frame(quad, L).analysis & IdentityOperator()`` —
        the type signal carries the axis structure; mismatched axes
        raise at composition; the :meth:`apply` routes through
        ``np.einsum`` internally with the correct subscripts.

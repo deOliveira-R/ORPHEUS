@@ -251,7 +251,7 @@ class TestMembership:
     def test_sphere_admits_unit_directions_and_refuses_the_err_080_forgery(self):
         r"""⭐ The load-bearing case: a 1-D rule's ordinates are not on :math:`S^2`.
 
-        ``Quadrature.angular_frame`` builds an :math:`S^2` measure whose
+        ``frame_faces.angular_frame`` builds an :math:`S^2` measure whose
         nodes are ``column_stack([mu_x, mu_y, mu_z])``.  On a 1-D rule
         ``mu_y = mu_z = 0`` means *"there is no azimuthal information"*,
         so the rows are :math:`(\mu, 0, 0)` with :math:`\|\Omega\| =

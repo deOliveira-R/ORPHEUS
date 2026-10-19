@@ -20,13 +20,22 @@ constructor of the frame, not an attribute of it):
   :func:`project` (:math:`G^{-1}M f`).
 
 **One build per frame instance.** Each face is built once and then returned as the
-same object. The built faces live in ONE private slot of the frame's instance
-``__dict__``, ``"_frame_faces"``, a dict keyed by face name (written through
-``__dict__`` because the frame is a frozen dataclass), so no face can be read back
-as a frame attribute. Identities rest on it: a Galerkin frame's
+same object, through :func:`~orpheus.numerics.instance_cache.cached_on` under this
+module's slot ``"_frame_faces"`` (on the quadrature too, for its angular frames,
+keyed ``("angular_frame", L)``). Identities rest on it: a Galerkin frame's
 :func:`test_space` IS its :func:`basis_space` (the analysis codomain ``is`` the
 reconstruction domain), and every operator composed through a face carries the one
 space object.
+
+**The angular frame of a quadrature** is a constructor of a frame from a
+quadrature, so it is homed here, downstream of both: the quadrature is a discrete
+measure with a fibration and does not know which basis its orbit space admits, and
+a frame is the join of a basis and a measure (concept-order ruling 21).
+:func:`angular_frame` ``(quadrature, L)`` builds the Galerkin frame once per
+(quadrature instance, ``L``) and caches it in the quadrature's own
+``"_frame_faces"`` slot (the same slot and helper as the frame faces, keyed
+``("angular_frame", L)``), so every consumer shares one frame object per rule and
+order.
 
 The frame itself carries none of these as an attribute: ``frame.analysis`` and the
 other old spellings do not exist.
@@ -34,19 +43,23 @@ other old spellings do not exist.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass, replace
-from typing import Any, TypeVar, cast
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.axis import Modal
-from orpheus.numerics.basis.base import GramStructure
+from orpheus.numerics.basis.base import Basis, GramStructure
+from orpheus.numerics.basis.descent import Descent
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import FrameBase, GalerkinFrame
+from orpheus.numerics.instance_cache import cached_on
+from orpheus.numerics.manifold import Quotient, Sphere
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
 from orpheus.numerics.operator import LinearOperator, NotInvertible, OperatorProduct
 from orpheus.numerics.projection import AnalysisOperator, ReconstructionOperator
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 
 
@@ -54,6 +67,7 @@ __all__ = [
     "CrossGramInverse",
     "FrameAnalysis",
     "FrameReconstruction",
+    "angular_frame",
     "basis_space",
     "conjugate",
     "measure_space",
@@ -62,20 +76,85 @@ __all__ = [
     "test_space",
 ]
 
-_Face = TypeVar("_Face")
 
 
-def _face(frame: FrameBase, name: str, build: Callable[[], _Face]) -> _Face:
-    r"""The frame's face ``name``, built once and then the same object.
+def _harmonic_basis(support: Any, L: int) -> Basis:
+    r"""The degree-:math:`L` basis a rule's function space admits, DERIVED from the point set its measure lives on.
 
-    The faces are stored in the one private slot ``frame.__dict__["_frame_faces"]``
-    (a dict keyed by face name; written through ``__dict__``, which bypasses the
-    frozen-dataclass ``__setattr__``), never under a public attribute name.
+    The measure's :attr:`~orpheus.numerics.measure.DiscreteMeasure.support`
+    says which functions the rule can carry, and nothing else does
+    (#429's thesis, *angular spaces are derived from symmetry*):
+
+    * the bare sphere: the full real harmonics
+      :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`;
+    * an orbit space of the sphere: whatever
+      :class:`~orpheus.numerics.basis.descent.Descent`'s discriminator
+      says for that ENTRY: the Legendre basis on :math:`S^2/O(2)_a` (a
+      1-D rule, THE FIX for ERR-080, 2026-09-02), the sigma-even harmonics
+      on :math:`S^2/\sigma_a` (the fold; rectangular layout, odd columns
+      structurally zeroed);
+    * anything else refuses, naming the work.
+
+    Until 2026-09-02 this dispatched on the ``folded_by`` TAG and
+    knew nothing of the 1-D case: a 1-D rule got the full harmonics on a
+    measure forged onto :math:`S^2`, which is the whole of ERR-080.
     """
-    faces = cast("dict[str, Any]", frame.__dict__).setdefault("_frame_faces", {})
-    if name not in faces:
-        faces[name] = build()
-    return faces[name]
+    if isinstance(support, Sphere):
+        return SphericalHarmonicBasis(L=L)
+    if isinstance(support, Quotient) and isinstance(support.base, Sphere):
+        return Descent.for_entry(support, L).frame_basis
+    raise NotImplementedError(
+        f"harmonic machinery on a rule whose measure lives on "
+        f"{support.name}: only the sphere and its catalogued orbit "
+        f"spaces carry a shipped angular basis."
+    )
+
+
+def angular_frame(quadrature: Quadrature, L: int) -> GalerkinFrame:
+    r"""The degree-:math:`L` spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame` on ``quadrature``.
+
+    Binds the basis the rule's orbit space admits (``_harmonic_basis``: the full
+    harmonics on a sphere rule, the Legendre basis on a 1-D rule's
+    :math:`S^2/O(2)_a`, the sigma-even harmonics on a fold) to **the
+    quadrature's own measure**, always. Until 2026-09-02 a 1-D rule's measure
+    was rebuilt here by padding :math:`\mu` to :math:`(\mu, 0, 0)` and calling
+    the result :math:`S^2`, ERR-080's construction, retired with #429's fused
+    commit; the route gate ``test_q8_4`` pins ``frame.measure is q.measure`` on
+    12 of 12 shipped rules. The weights are the analysis metric. The frame is a
+    pure-Galerkin frame (test IS trial: the basis is its own test basis); its
+    :meth:`~orpheus.numerics.frame_faces.FrameAnalysis.of` face is the
+    :math:`Y^* W` moment projection :math:`M` and its
+    :meth:`~orpheus.numerics.frame_faces.FrameReconstruction.of` face the
+    addition-theorem synthesis :math:`R`.
+
+    ``frame.table`` IS the rule's angular basis table, the ONE spelling since
+    2026-09-02: the pass-through accessor ``spherical_harmonics(L)`` (zero
+    production consumers, and a name that became false the day a 1-D rule bound
+    its Legendre basis) was retired with #429's fused commit; its nine test
+    readers read this frame's table.
+
+    **One frame per (quadrature instance, L)** (CS4c section 14.4, the hub):
+    every consumer reaching the frame (S, F, the windowing method) shares ONE
+    object and its cached table; the cache is the quadrature's private
+    ``"_frame_faces"`` slot, a provenance that is never identity.
+
+    The single source of the angular frame consumed by
+    :class:`~orpheus.transport.operators.scattering.ScatteringOperator`: its
+    section 5.6 kernel AND the in-sweep moment accumulation share THIS object,
+    so the projection table is never re-evaluated or allowed to diverge.
+
+    Naming tripwire: ``angular_frame(quadrature, L)`` names the quadrature's
+    permanent physical **axis** (the :math:`S^2` directions), NOT the contingent
+    spherical-harmonic basis, preserving the greppable
+    ``angular_frame``/``spatial_frame``/``energy_frame`` family. The
+    :class:`SphericalHarmonicBasis` hardcode is honest while the angular axis has
+    exactly one basis; a *second* angular basis (a Fourier / Slepian angular
+    expansion) parametrises the basis, ``angular_frame(quadrature, L, basis=...)``,
+    a SIGNATURE change, and must NOT rename the function.
+    """
+    return cached_on(quadrature, "_frame_faces", ("angular_frame", L),
+        lambda: GalerkinFrame(_harmonic_basis(quadrature.measure.support, L), quadrature.measure),
+    )
 
 
 class CrossGramInverse(LinearOperator):
@@ -183,7 +262,7 @@ class CrossGramInverse(LinearOperator):
         normalisation :math:`G^{-1}` is not realizable as posed) rather than
         return a silently-wrong probe.
         """
-        return _face(frame, "gram_inverse", lambda: cls._probe(frame))
+        return cached_on(frame, "_frame_faces", "gram_inverse", lambda: cls._probe(frame))
 
     @classmethod
     def _probe(cls, frame: FrameBase) -> "CrossGramInverse":
@@ -360,7 +439,7 @@ def basis_space(frame: FrameBase) -> FunctionSpace:
     space is spelled (ruling R-6.2c-1) — the metric-blind seam that
     let the two pass for one is gone.
     """
-    return _face(frame, "basis_space", lambda: _parseval_dressed(frame))
+    return cached_on(frame, "_frame_faces", "basis_space", lambda: _parseval_dressed(frame))
 
 
 def _parseval_dressed(frame: FrameBase) -> FunctionSpace:
@@ -394,8 +473,7 @@ def test_space(frame: FrameBase) -> FunctionSpace:
     explicit test basis included, reads ``frame.test.space``.
     """
     # S7 settles this: a PetrovGalerkinFrame with test_basis IS basis gets test.space (undressed), a GalerkinFrame the dressed basis_space.
-    return _face(
-        frame, "test_space",
+    return cached_on(frame, "_frame_faces", "test_space",
         lambda: basis_space(frame) if isinstance(frame, GalerkinFrame) else frame.test.space,
     )
 
@@ -407,7 +485,7 @@ def measure_space(frame: FrameBase) -> FunctionSpace:
     quadrature weights as the metric): the measure OWNS its domain space,
     symmetric with the basis owning its codomain — neither is fabricated here.
     """
-    return _face(frame, "measure_space", lambda: frame.measure.space)
+    return cached_on(frame, "_frame_faces", "measure_space", lambda: frame.measure.space)
 
 
 @dataclass(frozen=True)
@@ -429,7 +507,7 @@ class FrameAnalysis(AnalysisOperator):
     @classmethod
     def of(cls, frame: FrameBase) -> "FrameAnalysis":
         r"""The analysis face of ``frame``, built once per frame."""
-        return _face(frame, "analysis", lambda: cls(frame))
+        return cached_on(frame, "_frame_faces", "analysis", lambda: cls(frame))
 
     @property
     def domain(self) -> FunctionSpace:
@@ -468,7 +546,7 @@ class FrameReconstruction(ReconstructionOperator):
     @classmethod
     def of(cls, frame: FrameBase) -> "FrameReconstruction":
         r"""The reconstruction face of ``frame``, built once per frame."""
-        return _face(frame, "reconstruction", lambda: cls(frame))
+        return cached_on(frame, "_frame_faces", "reconstruction", lambda: cls(frame))
 
     @property
     def is_adjointable(self) -> bool:

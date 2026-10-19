@@ -78,11 +78,11 @@ def head_products():
 
     cells = FunctionSpace.of_axes(*_cells())
     heads = {
-        "folded(4,4) frame L2": frame_faces.basis_space(Quadrature.folded_product(4, 4).angular_frame(2)),
-        "folded(4,4) frame L4": frame_faces.basis_space(Quadrature.folded_product(4, 4).angular_frame(4)),
-        "product(4,8) frame L4": frame_faces.basis_space(Quadrature.product(4, 8).angular_frame(4)),
-        "lebedev7 frame L3": frame_faces.basis_space(Quadrature.lebedev(order=7).angular_frame(3)),
-        "GL8 frame L3": frame_faces.basis_space(Quadrature.gauss_legendre(n_ordinates=8).angular_frame(3)),
+        "folded(4,4) frame L2": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.folded_product(4, 4), 2)),
+        "folded(4,4) frame L4": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.folded_product(4, 4), 4)),
+        "product(4,8) frame L4": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.product(4, 8), 4)),
+        "lebedev7 frame L3": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.lebedev(order=7), 3)),
+        "GL8 frame L3": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.gauss_legendre(n_ordinates=8), 3)),
         "continuum SH L3": SphericalHarmonicSpace.from_L(3),
         "continuum Legendre L3 z": LegendreSpace.from_L(3, "z"),
     }

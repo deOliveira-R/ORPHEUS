@@ -38,6 +38,7 @@ from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.sn.operators.windowing import WindowedSweep
 from orpheus.sn.solver import _maybe_window
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics import frame_faces
 
 pytestmark = [pytest.mark.foundation]
 
@@ -90,7 +91,7 @@ def _scattering_stub():
     return SimpleNamespace(
         flux_analysis=SimpleNamespace(
             codomain=FunctionSpace("fake_moment_bulk", (3,)),
-            frame=Quadrature.level_symmetric(sn_order=4).angular_frame(0),
+            frame=frame_faces.angular_frame(Quadrature.level_symmetric(sn_order=4), 0),
         ),
     )
 

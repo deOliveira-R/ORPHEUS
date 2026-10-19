@@ -79,7 +79,7 @@ that seam is decided.)
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from numpy.typing import NDArray
 
@@ -94,6 +94,7 @@ from orpheus.transport.source_sinks.harmonic_moment_source_sink import (
     HarmonicMomentSourceSink,
 )
 from orpheus.numerics import frame_faces
+from orpheus.numerics.instance_cache import cached_on
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
@@ -302,11 +303,6 @@ class HarmonicReconstructionOperator(
         )
 
 
-#: Instance-dict key under which :meth:`HarmonicFrame.from_galerkin`
-#: interns the upgrade on the upstream :class:`GalerkinFrame`.
-_UPGRADE_SLOT = "_harmonic_frame_upgrade"
-
-
 def _admit_truncated(basis: Basis, door: str) -> TruncatedBasis:
     r"""The door's ONE demand: a trial basis that carries a truncation order.
 
@@ -341,7 +337,7 @@ class HarmonicFrame(GalerkinFrame):
     spherical harmonics, their σ-even restriction, the Legendre basis on
     :math:`S^2/O(2)_a`; a harmonic frame over an indicator trial is an
     illegal state, refused at the door) — or upgraded from a generic
-    ``quadrature.angular_frame(L)`` via :meth:`from_galerkin`. WHICH family
+    ``frame_faces.angular_frame(quadrature, L)`` via :meth:`from_galerkin`. WHICH family
     the frame binds is the quadrature's decision, derived from the point
     set its measure lives on; this frame reads the basis it is handed. ⭐
     The FRAME is the single source of the angular coefficient space: the
@@ -389,29 +385,23 @@ class HarmonicFrame(GalerkinFrame):
 
         INTERNED per upstream frame object (CS4c §14.4): upgrading the same
         :class:`GalerkinFrame` twice returns the SAME :class:`HarmonicFrame`
-        — combined with :meth:`Quadrature.angular_frame
-        <orpheus.numerics.quadrature.directional.Quadrature.angular_frame>`'s
+        — combined with :func:`angular_frame
+        <orpheus.numerics.frame_faces.angular_frame>`'s
         per-``(rule, L)`` interning, "one frame per (axis content, L)" is an
         object identity, and the cached projection table is shared by every
         consumer rather than re-evaluated per operator.
         """
-        # The intern rides the upstream frame's own instance dict — the
-        # cached_property idiom one level out (a frozen dataclass has no
-        # __slots__ here, and writing __dict__ directly bypasses the
-        # frozen __setattr__ exactly as cached_property does).  Lifetime
-        # is thereby correct for free: the upgrade dies with its
-        # quadrature-interned upstream, and no global registry exists to
-        # leak or to key (a GalerkinFrame hashes its ndarray fields, so
-        # it cannot key a dict).
-        inst_dict = cast("dict[str, Any]", frame.__dict__)
-        cached = inst_dict.get(_UPGRADE_SLOT)
-        if cached is not None:
-            return cached
-        basis = frame.basis
-        _admit_truncated(basis, "HarmonicFrame.from_galerkin")
-        upgraded = cls(basis, frame.measure)
-        inst_dict[_UPGRADE_SLOT] = upgraded
-        return upgraded
+        # The intern rides the upstream frame's own instance (the one
+        # per-instance memo, instance_cache.cached_on, under this module's
+        # slot). Lifetime is thereby correct for free: the upgrade dies with
+        # its quadrature-interned upstream, and no global registry exists to
+        # leak or to key (a GalerkinFrame hashes its ndarray fields, so it
+        # cannot key a dict).
+        def upgrade() -> "HarmonicFrame":
+            _admit_truncated(frame.basis, "HarmonicFrame.from_galerkin")
+            return cls(frame.basis, frame.measure)
+
+        return cached_on(frame, "_harmonic_frame", "upgrade", upgrade)
 
     @classmethod
     def for_space(
@@ -423,8 +413,8 @@ class HarmonicFrame(GalerkinFrame):
         ``angular_space → leading (angular) axis →``
         :meth:`Axis.generator_as <orpheus.numerics.axis.Axis.generator_as>`
         ``(Quadrature) →``
-        :meth:`Quadrature.angular_frame
-        <orpheus.numerics.quadrature.directional.Quadrature.angular_frame>`
+        :func:`angular_frame
+        <orpheus.numerics.frame_faces.angular_frame>`
         ``(L) →`` :meth:`from_galerkin` — every hop single-sourced, both
         cache tiers interned, so S, F, and the windowing method minting
         from the same posed space share ONE frame object and ONE metric
@@ -451,7 +441,7 @@ class HarmonicFrame(GalerkinFrame):
         quadrature = axes[0].generator_as(
             Quadrature, consumer="HarmonicFrame.for_space",
         )
-        return cls.from_galerkin(quadrature.angular_frame(L))
+        return cls.from_galerkin(frame_faces.angular_frame(quadrature, L))
 
     # ── the moment-codomain derivation (the PUBLIC single source) ─────
 

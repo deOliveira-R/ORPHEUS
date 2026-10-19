@@ -3,7 +3,7 @@ r"""Foundation tests for the :class:`HarmonicFrame` factory and its minted faces
 The F-1 contract (``frame_square_recarve.md``):
 
 * the frame is the SHARED ``(basis, measure)`` operator factory —
-  :meth:`from_galerkin` upgrades a generic ``quadrature.angular_frame(L)``
+  :meth:`from_galerkin` upgrades a generic ``frame_faces.angular_frame(quadrature, L)``
   sharing its basis + measure (table bit-identical), and identity is the
   table's identity (same-pairing frames compare equal);
 * the mint verbs (:meth:`flux_analysis_on` / :meth:`source_reconstruction_on`)
@@ -81,7 +81,7 @@ def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNProblem:
 
 
 def _frame(m: SNProblem, L: int = _L) -> HarmonicFrame:
-    return HarmonicFrame.from_galerkin(m.quad.angular_frame(L))
+    return HarmonicFrame.from_galerkin(frame_faces.angular_frame(m.quad, L))
 
 
 def _angular_values(m: SNProblem, seed: int) -> np.ndarray:
@@ -91,7 +91,7 @@ def _angular_values(m: SNProblem, seed: int) -> np.ndarray:
 
 def _head(m: SNProblem, L: int = _L):
     """The angular head this mesh's frame induces — the SINGLE source of the layout (#429)."""
-    return m.quad.angular_frame(L).basis.space
+    return frame_faces.angular_frame(m.quad, L).basis.space
 
 
 def _moment_values(m: SNProblem, seed: int, L: int = _L) -> np.ndarray:
@@ -113,7 +113,7 @@ def _moment_values(m: SNProblem, seed: int, L: int = _L) -> np.ndarray:
 class TestFromGalerkin:
     def test_is_a_galerkin_frame_sharing_basis_measure(self) -> None:
         m = _slab_mesh()
-        gf = m.quad.angular_frame(_L)
+        gf = frame_faces.angular_frame(m.quad, _L)
         frame = HarmonicFrame.from_galerkin(gf)
         assert isinstance(frame, type(gf))  # Liskov: HarmonicFrame IS-A GalerkinFrame
         assert frame.basis is gf.basis
@@ -124,7 +124,7 @@ class TestFromGalerkin:
     def test_inherited_faces_unchanged(self) -> None:
         """The generic ndarray faces are inherited untouched (0-ULP-safe)."""
         m = _slab_mesh()
-        gf = m.quad.angular_frame(_L)
+        gf = frame_faces.angular_frame(m.quad, _L)
         frame = HarmonicFrame.from_galerkin(gf)
         vals = _angular_values(m, 1)
         np.testing.assert_array_equal(
@@ -152,7 +152,7 @@ class TestFromGalerkin:
         identity again — two frames over the same (basis, measure) are the
         same projection, and no field-space binding distinguishes them."""
         m = _slab_mesh()
-        gf = m.quad.angular_frame(_L)
+        gf = frame_faces.angular_frame(m.quad, _L)
         assert HarmonicFrame.from_galerkin(gf) == HarmonicFrame.from_galerkin(gf)
 
 
@@ -469,10 +469,10 @@ class TestP7DenseMetricRidesTheMint:
         # (LS4 at L = 2 measures DIAGONAL, which is why the order moves too).
         m = _2d_mesh()
         L_dense = 3
-        frame = HarmonicFrame.from_galerkin(m.quad.angular_frame(L_dense))
+        frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(m.quad, L_dense))
         assert frame.discrete_gram_structure is GramStructure.DENSE
         assert (
-            HarmonicFrame.from_galerkin(m.quad.angular_frame(2))
+            HarmonicFrame.from_galerkin(frame_faces.angular_frame(m.quad, 2))
             .discrete_gram_structure
             is GramStructure.DIAGONAL
         ), "the ORDER is what makes this frame dense — state it, do not assume it"
@@ -506,14 +506,14 @@ class TestHubInterning:
 
     def test_angular_frame_interns_per_L(self) -> None:
         m = _slab_mesh()
-        g1, g2 = m.quad.angular_frame(_L), m.quad.angular_frame(_L)
+        g1, g2 = frame_faces.angular_frame(m.quad, _L), frame_faces.angular_frame(m.quad, _L)
         assert g1 is g2
-        assert m.quad.angular_frame(_L + 1) is not g1
+        assert frame_faces.angular_frame(m.quad, _L + 1) is not g1
 
     def test_from_galerkin_interns_the_upgrade(self) -> None:
         m = _slab_mesh()
-        h1 = HarmonicFrame.from_galerkin(m.quad.angular_frame(_L))
-        h2 = HarmonicFrame.from_galerkin(m.quad.angular_frame(_L))
+        h1 = HarmonicFrame.from_galerkin(frame_faces.angular_frame(m.quad, _L))
+        h2 = HarmonicFrame.from_galerkin(frame_faces.angular_frame(m.quad, _L))
         assert h1 is h2
         assert h1.table is h2.table
 
@@ -524,15 +524,15 @@ class TestHubInterning:
         axis identity deliberately drops the nodes)."""
         q1 = Quadrature.gauss_legendre(n_ordinates=4)
         q2 = Quadrature.gauss_legendre(n_ordinates=4)
-        assert q1.angular_frame(_L) is not q2.angular_frame(_L)
+        assert frame_faces.angular_frame(q1, _L) is not frame_faces.angular_frame(q2, _L)
 
     def test_for_space_is_the_blessed_chain(self) -> None:
         """``for_space(space, L)`` ≡ reach the axis's generator, mint,
         upgrade — and lands on the SAME interned object a direct
-        ``from_galerkin(quad.angular_frame(L))`` returns."""
+        ``from_galerkin(frame_faces.angular_frame(quad, L))`` returns."""
         m = _slab_mesh()
         via_space = HarmonicFrame.for_space(m.angular_bulk_space, _L)
-        via_quad = HarmonicFrame.from_galerkin(m.quad.angular_frame(_L))
+        via_quad = HarmonicFrame.from_galerkin(frame_faces.angular_frame(m.quad, _L))
         assert via_space is via_quad
 
     def test_for_space_refuses_a_shape_only_space(self) -> None:

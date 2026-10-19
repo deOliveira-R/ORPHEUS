@@ -27,6 +27,7 @@ from orpheus.transport.source_sinks import (
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -400,7 +401,7 @@ def _moment_shape(m: SNProblem, L: int) -> tuple[int, ...]:
     :math:`S^2/O(2)_x` — one coefficient per degree, because the trivial
     isotypic component of :math:`SO(2)` is one-dimensional in every degree.
     """
-    return (*m.quad.angular_frame(L).basis.space.shape, m.ng, *m.spatial_shape)
+    return (*frame_faces.angular_frame(m.quad, L).basis.space.shape, m.ng, *m.spatial_shape)
 
 
 class TestHarmonicMomentSourceSink:

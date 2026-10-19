@@ -360,7 +360,7 @@ discipline-type hierarchy, GitHub #268):
   promise to :math:`\Pi^* = R` up to one scalar
   (:math:`\Pi^* = R/W`, :math:`W = \sum_n w_n`, on the spherical
   harmonics; :ref:`frame-square-closure-section`). The angular
-  spherical-harmonic projection (``quadrature.angular_frame(L)``) is
+  spherical-harmonic projection (``frame_faces.angular_frame(quadrature, L)``) is
   the canonical pure-Galerkin frame; in the production spaces' own
   metrics it is a **Parseval** frame (:math:`\Pi\,\Pi^{*} = I`), and
   the :math:`4\pi` of :math:`\Pi R = 4\pi I` is that adjoint scalar,

@@ -41,13 +41,16 @@ The :class:`DiscreteMeasure` primitive is enough mathematically; the
 class only adds:
 
 1. The *SN-side derived-data surface* (``ordinate_permutation``,
-   ``angular_frame``, octants) over the one underlying measure.
+   octants) over the one underlying measure.
 2. A *bundling* for the cylindrical-level side-channel
    (:class:`LevelStructure`) that one of two quadrature families
    carries.
-3. Convenience methods (``axis_cosines``, ``angular_frame``)
-   that take an axis index or :math:`L` and return the right slice
-   of derived data.
+3. Convenience methods (``axis_cosines``) that take an axis index
+   and return the right slice of derived data.
+
+The angular frame of a quadrature is not one of them: a frame is the join
+of a basis and a measure, downstream of the quadrature, so it is built by
+:func:`orpheus.numerics.frame_faces.angular_frame`.
 
 These are all session-time concerns rather than primitive-time math.
 Keeping them on a thin class is structurally honest: one cache, one
@@ -85,21 +88,14 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-import dataclasses
-
 import numpy as np
 
-from orpheus.numerics.basis.base import Basis
-from orpheus.numerics.basis.descent import Descent
-from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.measure import DiscreteMeasure, DiscreteMeasurePartition
-from orpheus.numerics.manifold import Quotient, Sphere
 from orpheus.numerics.invariance import WEIGHT_ATOL
 from orpheus.numerics.symmetry import SubgroupOfO3
 
 if TYPE_CHECKING:
     from orpheus.geometry.transformation import Permutation, RigidMotion
-    from orpheus.numerics.frame import GalerkinFrame
 
 from .rules_1d import gauss_legendre_on_mu, gauss_legendre_on_polar_orbit
 from .rules_circle import STAGGERED, periodic_trapezoid
@@ -205,26 +201,23 @@ class Quadrature:
     #: The symmetry subgroup this rule was QUOTIENTED by, or ``None`` for
     #: an unfolded rule.  Set by :meth:`quotient`.  PROVENANCE since
     #: 2026-09-02 (#429): the harmonic machinery binds its basis off the
-    #: MEASURE'S SUPPORT (:meth:`_harmonic_basis` reads the orbit space and
-    #: :class:`~orpheus.numerics.basis.descent.Descent`'s discriminator), not
+    #: MEASURE'S SUPPORT (:func:`~orpheus.numerics.frame_faces.angular_frame` reads
+    #: the orbit space and :class:`~orpheus.numerics.basis.descent.Descent`'s
+    #: discriminator), not
     #: off this tag — the same fact lives on
     #: :attr:`DiscreteMeasure.quotient_group
     #: <orpheus.numerics.measure.DiscreteMeasure.quotient_group>`.
     folded_by: "SubgroupOfO3 | None" = None
 
-    #: Per-L interning cache for :meth:`angular_frame` (CS4c §14.4 — the
-    #: HUB): one :class:`~orpheus.numerics.frame.GalerkinFrame` per
-    #: ``(this rule, L)``, so every consumer reaching the frame through
-    #: the generator channel (S, F, the windowing method) shares ONE
-    #: object and its cached table.  ``compare=False``: a cache is
-    #: provenance, never identity.  Lazy — ``None`` until first mint.
     # ── identity: CONTENT (consumers campaign step 1, R-cc3, 2026-09-12) ──
     # A quadrature is a generating datum of every SN Problem, so two rules
     # carrying the same nodes, weights, support, invariance group, exactness
     # claim, level structure and folding compare ``==`` and hash equal
     # whatever objects they are. ⚠ There is no rule NAME to fall back on —
-    # the content IS the identity. The frame cache below is DERIVED and is
-    # excluded (provenance is not identity — the Axis precedent). Computed
+    # the content IS the identity. The angular frames built on a rule live in
+    # the rule's private ``"_frame_faces"`` slot (``frame_faces.angular_frame``),
+    # outside the fields and excluded (provenance is not identity — the Axis
+    # precedent). Computed
     # once: the measure and the level structure are frozen dataclasses, so
     # nothing can move the data after construction.
     @cached_property
@@ -251,10 +244,6 @@ class Quadrature:
 
     def __hash__(self) -> int:
         return hash((type(self), self._identity_key))
-
-    _angular_frames: "dict[int, GalerkinFrame] | None" = dataclasses.field(
-        default=None, init=False, repr=False, compare=False,
-    )
 
     # ────────────────────────────────────────────────────────────
     # Canonical scalar / array accessors
@@ -593,92 +582,6 @@ class Quadrature:
             level_structure=folded_structure,
             folded_by=group,
         )
-
-    # ────────────────────────────────────────────────────────────
-    # Spherical harmonics evaluation
-    # ────────────────────────────────────────────────────────────
-
-    def _harmonic_basis(self, L: int) -> Basis:
-        r"""The degree-:math:`L` basis this rule's function space admits — DERIVED from the point set its measure lives on.
-
-        The measure's :attr:`~orpheus.numerics.measure.DiscreteMeasure.support`
-        says which functions the rule can carry, and nothing else does
-        (#429's thesis — *angular spaces are derived from symmetry*):
-
-        * the bare sphere — the full real harmonics
-          :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`;
-        * an orbit space of the sphere — whatever
-          :class:`~orpheus.numerics.basis.descent.Descent`'s discriminator
-          says for that ENTRY: the Legendre basis on :math:`S^2/O(2)_a` (a
-          1-D rule — THE FIX for ERR-080, 2026-09-02), the σ-even harmonics
-          on :math:`S^2/\sigma_a` (the fold; rectangular layout, odd columns
-          structurally zeroed);
-        * anything else refuses, naming the work.
-
-        Until 2026-09-02 this dispatched on the :attr:`folded_by` TAG and
-        knew nothing of the 1-D case: a 1-D rule got the full harmonics on a
-        measure forged onto :math:`S^2`, which is the whole of ERR-080.
-        """
-        support = self.measure.support
-        if isinstance(support, Sphere):
-            return SphericalHarmonicBasis(L=L)
-        if isinstance(support, Quotient) and isinstance(support.base, Sphere):
-            return Descent.for_entry(support, L).frame_basis
-        raise NotImplementedError(
-            f"harmonic machinery on a rule whose measure lives on "
-            f"{support.name}: only the sphere and its catalogued orbit "
-            f"spaces carry a shipped angular basis."
-        )
-
-    def angular_frame(self, L: int) -> "GalerkinFrame":
-        r"""The degree-:math:`L` spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame` on this quadrature.
-
-        Binds the basis the rule's orbit space admits (:meth:`_harmonic_basis`
-        — the full harmonics on a sphere rule, the Legendre basis on a 1-D
-        rule's :math:`S^2/O(2)_a`, the σ-even harmonics on a fold) to
-        **this quadrature's own measure**, always. Until 2026-09-02 a 1-D
-        rule's measure was rebuilt here by padding :math:`\mu` to
-        :math:`(\mu, 0, 0)` and calling the result :math:`S^2` — ERR-080's
-        construction, retired with #429's fused commit; the route gate
-        ``test_q8_4`` pins ``frame.measure is q.measure`` on 12 of 12 shipped
-        rules. The weights are the analysis metric. The frame is a
-        pure-Galerkin frame (test IS trial — the basis is its own test
-        basis); its :meth:`~orpheus.numerics.frame_faces.FrameAnalysis.of` face is
-        the :math:`Y^* W` moment projection :math:`M` and its
-        :meth:`~orpheus.numerics.frame_faces.FrameReconstruction.of` face the
-        addition-theorem synthesis :math:`R`.
-
-        ``frame.table`` IS the rule's angular basis table — the ONE spelling
-        since 2026-09-02: the pass-through accessor ``spherical_harmonics(L)``
-        (zero production consumers, and a name that became false the day a
-        1-D rule bound its Legendre basis) was retired with #429's fused
-        commit; its nine test readers read this frame's table.
-
-        The single source of the angular frame consumed by
-        :class:`~orpheus.transport.operators.scattering.ScatteringOperator` — its §5.6 kernel
-        AND the in-sweep moment accumulation share THIS object, so the
-        projection table is never re-evaluated or allowed to diverge.
-
-        Naming tripwire: ``angular_frame`` names the quadrature's permanent
-        physical **axis** (the :math:`S^2` directions), NOT the contingent
-        spherical-harmonic basis — preserving the greppable
-        ``angular_frame``/``spatial_frame``/``energy_frame`` family. The
-        :class:`SphericalHarmonicBasis` hardcode is honest while the angular
-        axis has exactly one basis; a *second* angular basis (a Fourier /
-        Slepian angular expansion) parametrises the basis —
-        ``angular_frame(basis=...)``, a SIGNATURE change — and must NOT rename
-        the method.
-        """
-        from orpheus.numerics.frame import GalerkinFrame
-
-        if self._angular_frames is None:
-            self._angular_frames = {}
-        cached = self._angular_frames.get(L)
-        if cached is not None:
-            return cached
-        frame = GalerkinFrame(self._harmonic_basis(L), self.measure)
-        self._angular_frames[L] = frame
-        return frame
 
     # ────────────────────────────────────────────────────────────
     # Octants (cached partition by sign-of-direction)

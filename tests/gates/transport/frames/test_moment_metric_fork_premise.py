@@ -162,7 +162,7 @@ def test_the_two_moment_heads_are_UNEQUAL_and_the_dressed_one_is_the_frames(labe
     Reddens under: re-installing the metric-blind identity, or a producer
     handing back the continuum head where the dressed one is bound.
     """
-    frame = HarmonicFrame.from_galerkin(_RULES[label]().angular_frame(L))
+    frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(_RULES[label](), L))
     continuum, dressed = frame.basis.space, frame_faces.basis_space(frame)
 
     assert continuum != dressed and dressed != continuum, "the metric is the identity now"
@@ -210,7 +210,7 @@ def test_the_dense_gram_inventory_is_the_one_this_file_declares() -> None:
         for label in _RULES
         for L in _ORDERS
         if HarmonicFrame.from_galerkin(
-            _RULES[label]().angular_frame(L)
+            frame_faces.angular_frame(_RULES[label](), L)
         ).discrete_gram_structure is GramStructure.DENSE
     }
     assert measured == _DENSE_ROWS, (
@@ -245,7 +245,7 @@ def test_parseval_holds_under_the_dressed_metric_and_FAILS_under_the_continuum_o
     Reddens under: reverting the F-0/P7 dressing (the frame returning
     ``basis.space`` undressed) — which is exactly the continuum arm of the fork.
     """
-    frame = HarmonicFrame.from_galerkin(_RULES[label]().angular_frame(L))
+    frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(_RULES[label](), L))
     rng = np.random.default_rng(1234)
     c = rng.standard_normal(frame_faces.basis_space(frame).shape)
     psi = frame.basis.synthesize(c, frame.table)
@@ -290,7 +290,7 @@ def test_the_lambda_adjoint_is_the_transpose_on_PHYSICAL_moments_under_both_metr
     ⟹ the Λ-adjoint objection to the Parseval metric is a claim about inputs
     production cannot produce.
     """
-    frame = HarmonicFrame.from_galerkin(_RULES[label]().angular_frame(L))
+    frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(_RULES[label](), L))
     transfer = _transfer(L)
     rng = np.random.default_rng(20260907)
     n_nodes = frame.measure.weights.shape[0]
@@ -324,7 +324,7 @@ def test_the_dressed_adjoint_moves_ONLY_off_the_range_of_analysis() -> None:
     ]
     rng = np.random.default_rng(20260907)
     for label, L in movers:
-        frame = HarmonicFrame.from_galerkin(_RULES[label]().angular_frame(L))
+        frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(_RULES[label](), L))
         transfer = _transfer(L)
         x = rng.standard_normal(frame.basis.space.shape + (_NG, _NX, 1))
         continuum_gap = _adjoint_gap(frame.basis.space, transfer, L, x)
