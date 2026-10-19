@@ -132,7 +132,7 @@ def test_2d_cartesian_vacuum_xmin_is_the_zero_map(quad_2d):
     # S4-amendment: the probe is an HONEST Γ₊ element — (ng=1, ny=3)
     # trailing, the declared trace shape (the bound ZeroMorphism emits its
     # DECLARED codomain zero, not an echo of arbitrary probe trailing).
-    psi = rng.uniform(0.5, 2.0, size=(quad_2d.N, 1, 3))
+    psi = rng.uniform(0.5, 2.0, size=(quad_2d.n_ordinates, 1, 3))
     inflow = np.flatnonzero(quad_2d.mu_x > 1e-12)
     outflow = np.flatnonzero(quad_2d.mu_x < -1e-12)
     out = sn.bc["xmin"].apply(psi[outflow])
@@ -168,7 +168,7 @@ def test_2d_cartesian_reflective_ymax_returns_narrowed_permutation(quad_2d):
     assert isinstance(sn.bc["ymax"].law, ReflectiveBoundary)
 
     rng = np.random.default_rng(1)
-    psi = rng.standard_normal(size=(quad_2d.N, 4, 2))
+    psi = rng.standard_normal(size=(quad_2d.n_ordinates, 4, 2))
     inflow = sn.angular_trace.inflow_indices_for_face("ymax")
     outflow = sn.angular_trace.outflow_indices_for_face("ymax")
     expected = psi[mirror_partner_indices(quad_2d, "y")][inflow]
@@ -272,7 +272,7 @@ def test_1d_cartesian_vacuum_right_is_the_zero_map(quad_1d):
     assert isinstance(sn.bc["xmax"].law, VacuumInflow)
 
     # S4-amendment: an honest Γ₊ element carries the declared ng=1 tail.
-    psi = np.arange(quad_1d.N, dtype=float).reshape(quad_1d.N, 1)
+    psi = np.arange(quad_1d.n_ordinates, dtype=float).reshape(quad_1d.n_ordinates, 1)
     inflow = np.flatnonzero(quad_1d.mu_x < -1e-12)
     outflow = np.flatnonzero(quad_1d.mu_x > +1e-12)
     out = sn.bc["xmax"].apply(psi[outflow])
@@ -402,7 +402,7 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
 
     # B3.2: the zero map onto Γ₋ — the whole image, not a masked full face.
     # S4-amendment: an honest Γ₊ element carries the declared ng=1 tail.
-    psi = np.arange(quad_1d.N, dtype=float).reshape(quad_1d.N, 1) + 1.0
+    psi = np.arange(quad_1d.n_ordinates, dtype=float).reshape(quad_1d.n_ordinates, 1) + 1.0
     outflow = sn._trace.outflow_indices_for_face("xmax")
     out = sn.bc["xmax"].apply(psi[outflow])
     assert out.shape == (expected_inflow.size, 1)
@@ -450,13 +450,13 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
         outer_perm.perm,
         local_positions(mirror_partner_indices(quad, "x")[inflow], outflow),
     )
-    assert outer_perm.perm.size == outflow.size < quad.N
+    assert outer_perm.perm.size == outflow.size < quad.n_ordinates
 
     # Bit-equivalence: the shim's 1-arg apply matches the
     # ReflectiveBoundary semantics — ``psi[mirror_partner]`` RESTRICTED to
     # Γ₋, which is the pre-B3.2 value this face's consumer actually read.
     rng = np.random.default_rng(7)
-    psi = rng.standard_normal(size=(quad.N, 2))
+    psi = rng.standard_normal(size=(quad.n_ordinates, 2))
     np.testing.assert_array_equal(
         sn.bc["xmax"].apply(psi[outflow]),
         psi[mirror_partner_indices(quad, "x")][inflow],

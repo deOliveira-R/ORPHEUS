@@ -119,7 +119,7 @@ def _extract_at_unknown_slots(
     inflow_outer = quad.mu_x < -1e-15  # (N,)
     cols = []
     for ix in range(nx):
-        for n in range(quad.N):
+        for n in range(quad.n_ordinates):
             if ix == nx - 1 and inflow_outer[n]:
                 continue
             cols.append(field_4d[n, :, ix])
@@ -150,7 +150,7 @@ class TestUnifiedMatvecSphere:
         ng = 1
         sigma_t_val = 2.0
         sigma_t = np.full((ng, problem.nx), sigma_t_val)
-        psi_view = np.ones((problem.quad.N, ng, problem.nx))
+        psi_view = np.ones((problem.quad.n_ordinates, ng, problem.nx))
 
         m_unified = legacy_proxy_matvec(psi_view, problem, sigma_t)
         # At constant ψ = 1: (L+C)·1 ≈ σ_t · 1 = 2.0 everywhere.
@@ -164,7 +164,7 @@ class TestUnifiedMatvecSphere:
         problem = _build_sphere(n_cells=5, n_ord=4)
         ng = 1
         sigma_t = np.full((ng, problem.nx), 2.0)
-        psi_view = np.zeros((problem.quad.N, ng, problem.nx))
+        psi_view = np.zeros((problem.quad.n_ordinates, ng, problem.nx))
 
         m_unified = legacy_proxy_matvec(psi_view, problem, sigma_t)
         np.testing.assert_array_equal(

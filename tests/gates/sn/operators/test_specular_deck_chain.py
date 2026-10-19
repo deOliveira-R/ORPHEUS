@@ -149,7 +149,7 @@ def _fixture(case: str):
     factory, face, axis = _CASES[case]
     quad = factory()
     layout = FaceLayout.from_named_shapes(
-        [("xmin", (int(quad.N), _NG)), ("xmax", (int(quad.N), _NG))]
+        [("xmin", (int(quad.n_ordinates), _NG)), ("xmax", (int(quad.n_ordinates), _NG))]
     )
     trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
     method_space = SNMethodSpace.for_face(
@@ -589,7 +589,7 @@ def test_a_spaceless_method_space_is_REFUSED_by_the_deck_arm() -> None:
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     layout = FaceLayout.from_named_shapes(
-        [("xmin", (int(quad.N), _NG)), ("xmax", (int(quad.N), _NG))]
+        [("xmin", (int(quad.n_ordinates), _NG)), ("xmax", (int(quad.n_ordinates), _NG))]
     )
     bound_trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
     with_trace = SNMethodSpace.for_face(
@@ -646,7 +646,7 @@ def test_the_realized_operator_carries_the_binding() -> None:
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     layout = FaceLayout.from_named_shapes(
-        [("xmin", (int(quad.N), _NG)), ("xmax", (int(quad.N), _NG))]
+        [("xmin", (int(quad.n_ordinates), _NG)), ("xmax", (int(quad.n_ordinates), _NG))]
     )
     trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
     method_space = SNMethodSpace.for_face(

@@ -87,7 +87,7 @@ class TestBoundaryFaceLayout:
     def test_slab_layout_has_xmin_and_xmax(self) -> None:
         m = _slab_mesh(nx=5, ng=2)
         layout = m.boundary_face_layout
-        N = m.quad.N
+        N = m.quad.n_ordinates
         assert isinstance(layout, FaceLayout)
         assert set(layout.faces) == {"xmin", "xmax"}
         assert layout.faces["xmin"].shape == (N, 2)
@@ -97,7 +97,7 @@ class TestBoundaryFaceLayout:
     def test_sphere_layout_has_only_xmax(self) -> None:
         m = _spherical_mesh(nx=5, ng=2)
         layout = m.boundary_face_layout
-        N = m.quad.N
+        N = m.quad.n_ordinates
         assert set(layout.faces) == {"xmax"}
         assert layout.faces["xmax"].shape == (N, 2)
         assert layout.total_size == N * 2
@@ -105,7 +105,7 @@ class TestBoundaryFaceLayout:
     def test_2d_layout_has_four_faces(self) -> None:
         m = _2d_mesh(nx=3, ny=2, ng=2)
         layout = m.boundary_face_layout
-        N = m.quad.N
+        N = m.quad.n_ordinates
         assert set(layout.faces) == {"xmin", "xmax", "ymin", "ymax"}
         assert layout.faces["xmin"].shape == (N, 2, 2)
         assert layout.faces["xmax"].shape == (N, 2, 2)
@@ -129,7 +129,7 @@ class TestBoundaryFaceLayout:
         not in any sweep-private type.
         """
         m = _2d_mesh(nx=3, ny=2, ng=2)
-        N = m.quad.N
+        N = m.quad.n_ordinates
         layout = m.boundary_face_layout
         x_faces = 2 * N * 2 * 2   # xmin + xmax, each (N, ng, ny)
         y_faces = 2 * N * 2 * 3   # ymin + ymax, each (N, ng, nx)

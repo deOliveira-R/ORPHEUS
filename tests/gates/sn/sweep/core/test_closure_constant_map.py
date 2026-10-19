@@ -114,7 +114,7 @@ def test_sphere_closure_map_matches_inline():
     op = spherical_streaming(mesh, quad)
     closure = problem.angular_closure
 
-    for n in range(quad.N):
+    for n in range(quad.n_ordinates):
         for cell in range(problem.nx):
             _assert_closure_map_matches_inline(
                 closure, op, cell, n, n,
@@ -161,10 +161,10 @@ def test_multilevel_cylinder_closure_map_matches_inline():
                     ),
                 )
             n_pairs += 1
-    if n_pairs != quad.N:
+    if n_pairs != quad.n_ordinates:
         pytest.fail(
             f"cylinder level blocks covered {n_pairs} ordinates, "
-            f"expected {quad.N}"
+            f"expected {quad.n_ordinates}"
         )
 
 
@@ -184,20 +184,20 @@ def test_slab_closure_map_is_neutral():
     op = slab_streaming(mesh, quad)
     closure = problem.angular_closure
 
-    for n in range(quad.N):
+    for n in range(quad.n_ordinates):
         _assert_closure_map_matches_inline(
             closure, op, 0, n, n,
             where=f"slab ordinate {n}",
         )
     np.testing.assert_array_equal(
-        closure.c_in_per_ordinate, np.zeros(quad.N),
+        closure.c_in_per_ordinate, np.zeros(quad.n_ordinates),
         err_msg="slab c_in not neutral zero",
     )
     np.testing.assert_array_equal(
-        closure.c_out_per_ordinate, np.zeros(quad.N),
+        closure.c_out_per_ordinate, np.zeros(quad.n_ordinates),
         err_msg="slab c_out not neutral zero",
     )
     np.testing.assert_array_equal(
-        closure.tau_per_ordinate, np.ones(quad.N),
+        closure.tau_per_ordinate, np.ones(quad.n_ordinates),
         err_msg="slab tau not neutral one",
     )

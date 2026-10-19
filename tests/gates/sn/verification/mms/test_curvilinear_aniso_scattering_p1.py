@@ -146,8 +146,8 @@ def _anisotropic_flux(problem, centers):
     A = 1.0 + 0.5 * r
     B = 0.3 + 0.2 * r
     zeta = quad.mu_x  # radial cosine in both spherical (dim=1) and cyl
-    vals = np.zeros((quad.N, problem.ng, *problem.spatial_shape))
-    for n in range(quad.N):
+    vals = np.zeros((quad.n_ordinates, problem.ng, *problem.spatial_shape))
+    for n in range(quad.n_ordinates):
         vals[n, 0, :] = (A + zeta[n] * B) / W
     return AngularFlux(values=vals, space=problem.angular_bulk_space), A, B, W
 
@@ -210,7 +210,7 @@ def test_spherical_p1_source_matches_hand_reference():
     wts = quad.weights
     phi1 = B * float(np.sum(wts * mu**2)) / W
     hand = np.zeros_like(P1)
-    for n in range(quad.N):
+    for n in range(quad.n_ordinates):
         hand[n, 0, :] = (1.0 / W) * 3.0 * mu[n] * _SIGMA_S1 * phi1
 
     np.testing.assert_allclose(
@@ -256,7 +256,7 @@ def test_cylindrical_p1_source_matches_hand_reference():
     psi_vals = psi.values[:, 0, :]  # (N, nx)
     nx = problem.spatial_shape[0]
     hand = np.zeros_like(P1)
-    for n in range(quad.N):
+    for n in range(quad.n_ordinates):
         acc = np.zeros(nx)
         for m_slot in range(3):
             phi1m = np.einsum("n,nx->x", wts * Y[:, 1, m_slot], psi_vals)

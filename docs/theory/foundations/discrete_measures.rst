@@ -1605,7 +1605,9 @@ count of *executable* ``1e-13`` constants falls **9 → 3**, and the three
 survivors are each a different window with its own name:
 ``WEIGHT_ATOL``'s own definition, ``directional._REFLECTION_ATOL`` (the
 ordinate-permutation weight window, documented as the same number and
-deliberately re-declared where it is consumed) and
+re-declared where it was consumed; retired 2026-10-19, so
+``Quadrature.ordinate_permutation`` now takes ``permutation_under``'s
+``WEIGHT_ATOL`` default and the window has one name) and
 ``rules_product.spherical_product``'s ``atol`` default (a *composition*
 tolerance, not an invariance one). ⚠ Both
 windows are ABSOLUTE: for a rule whose weights are :math:`O(10^{-3})` the

@@ -255,7 +255,7 @@ def test_f0_6_face_outflow_ordinates_matches_inline_expression_1d() -> None:
     np.testing.assert_array_equal(out_max, np.where(quad.mu_x > 1e-15)[0])
     np.testing.assert_array_equal(out_min, np.where(-quad.mu_x > 1e-15)[0])
     # In 1-D GL even-N the two are complementary halves of (0..N-1).
-    assert out_max.size == out_min.size == quad.N // 2
+    assert out_max.size == out_min.size == quad.n_ordinates // 2
 
 
 def test_f0_6_face_outflow_ordinates_2d_LS4() -> None:
@@ -340,7 +340,7 @@ def test_f0_7_synthetic_3d_face_outflow_axis_beyond_quad_dim_is_empty() -> None:
     # GL1D's measure is 1-D scalar — only axis 0 carries real cosines.
     assert quad.measure.nodes.ndim == 1
     out_xmax = face_outflow_ordinates(axes, FaceLabel(0, "max"), quad)
-    assert out_xmax.size == quad.N // 2   # axis 0 is the polar μ — real cosines
+    assert out_xmax.size == quad.n_ordinates // 2   # axis 0 is the polar μ — real cosines
     # Axes 1 and 2 are beyond the quadrature's intrinsic dim — outflow is empty.
     for axis_idx in (1, 2):
         out_max = face_outflow_ordinates(axes, FaceLabel(axis_idx, "max"), quad)
@@ -368,7 +368,7 @@ def test_f0_7_synthetic_3d_face_outflow_axis_2_ls4_native_mu_z() -> None:
     np.testing.assert_array_equal(out_zmin, np.where(-quad.mu_z > 1e-15)[0])
     # LS4 is symmetric over the unit sphere: half the ordinates have
     # mu_z > 0, half have mu_z < 0.
-    assert out_zmax.size == out_zmin.size == quad.N // 2
+    assert out_zmax.size == out_zmin.size == quad.n_ordinates // 2
 
 
 # ─── F0.8 ────────────────────────────────────────────────────────────────
@@ -381,7 +381,7 @@ def test_f0_8_n_unknowns_flat_slab() -> None:
     mesh = SNProblem.from_axes(
         axes, quadrature=quad, materials={0: _one_group_mixture()},
     )
-    N, ng = quad.N, 1
+    N, ng = quad.n_ordinates, 1
     n_max = np.where(quad.mu_x > 1e-15)[0].size
     n_min = np.where(-quad.mu_x > 1e-15)[0].size
     expected = N * ng * 10 + (n_max + n_min) * ng * 1  # face_shape=()
@@ -400,7 +400,7 @@ def test_f0_8_n_unknowns_flat_sphere() -> None:
     mesh = SNProblem.from_axes(
         axes, quadrature=quad, materials={0: _one_group_mixture()},
     )
-    N, ng = quad.N, 1
+    N, ng = quad.n_ordinates, 1
     n_outer = np.where(quad.mu_x > 1e-15)[0].size
     expected = N * ng * 20 + n_outer * ng * 1
     assert mesh.n_unknowns_flat == expected
@@ -416,7 +416,7 @@ def test_f0_8_n_unknowns_flat_2d_cartesian() -> None:
     mesh = SNProblem.from_axes(
         axes, quadrature=quad, materials={0: _one_group_mixture()},
     )
-    N, ng = quad.N, 1
+    N, ng = quad.n_ordinates, 1
     n_xpos = np.where(quad.mu_x > 1e-15)[0].size
     n_xneg = np.where(-quad.mu_x > 1e-15)[0].size
     n_ypos = np.where(quad.mu_y > 1e-15)[0].size
@@ -443,7 +443,7 @@ def test_f0_8_n_unknowns_flat_synthetic_3d() -> None:
     )
     quad = _level_symmetric_quad_2d(order=4)
     ng = 1
-    N = quad.N
+    N = quad.n_ordinates
     n_xpos = np.where(quad.mu_x > 1e-15)[0].size
     n_xneg = np.where(-quad.mu_x > 1e-15)[0].size
     n_ypos = np.where(quad.mu_y > 1e-15)[0].size

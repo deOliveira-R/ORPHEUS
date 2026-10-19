@@ -72,7 +72,7 @@ def _random_state(
     implicit-zero L2 :class:`AngularBoundaryFlux`.
     """
     rng = np.random.default_rng(seed)
-    N, ng = problem.quad.N, problem.ng
+    N, ng = problem.quad.n_ordinates, problem.ng
     state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space, history_depth=history_depth)
     return replace(
         state,
@@ -86,7 +86,7 @@ def _const_state(
     problem: SNProblem, value: float = 1.0, *, history_depth: int = 2,
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` whose bulk is uniformly ``value``."""
-    N, ng = problem.quad.N, problem.ng
+    N, ng = problem.quad.n_ordinates, problem.ng
     state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space, history_depth=history_depth)
     return replace(
         state,
@@ -401,7 +401,7 @@ class TestSolve:
             sigma_t, sn,
         )
 
-        N, ng, nx = sn.quad.N, sn.ng, sn.nx
+        N, ng, nx = sn.quad.n_ordinates, sn.ng, sn.nx
         x = np.linspace(0.5 / nx, 1.0 - 0.5 / nx, nx)
         rhs_values = np.broadcast_to(
             np.sin(np.pi * x)[None, None, :] * np.ones((N, ng, 1)),
@@ -449,7 +449,7 @@ class TestSolve:
 
         from tests.gates.sn._test_helpers import joint_m_grid
 
-        q_values = np.ones((sn.quad.N, sn.ng, *sn.spatial_shape))
+        q_values = np.ones((sn.quad.n_ordinates, sn.ng, *sn.spatial_shape))
         q = TimedFullField(
             interior=AngularSourceSink(values=q_values, space=sn.angular_bulk_space),
             boundary=AngularBoundarySourceSink.zeros(sn.angular_trace),
@@ -508,7 +508,7 @@ class TestSolve:
             interior=replace(
                 zero.interior,
                 values=np.full(
-                    (sn.quad.N, sn.ng, *sn.spatial_shape), per_ord_density,
+                    (sn.quad.n_ordinates, sn.ng, *sn.spatial_shape), per_ord_density,
                 ),
             ),
         )
@@ -847,7 +847,7 @@ class TestStreamingCollisionSolveBridgeRegression:
 
         solver, _case = self._homogeneous_solver("slab")
         problem = solver.problem
-        N = solver.quad.N
+        N = solver.quad.n_ordinates
         ng = solver.ng
 
         sigma_t = solver.problem.mat_xs.total_cross_section
@@ -935,7 +935,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         solver, _case = self._homogeneous_solver(coord)
         problem = solver.problem
         quad = solver.quad
-        N = quad.N
+        N = quad.n_ordinates
         ng = solver.ng
         sum_w = float(quad.weights.sum())
 

@@ -275,7 +275,7 @@ class TestStreamingEquilibrium2D:
         self, problem: SNProblem, phi: np.ndarray, W: float,
     ) -> TimedFullField:
         """Flat ψ_n,g = φ_g/W everywhere, with a consistent uniform trace."""
-        N = problem.quad.N
+        N = problem.quad.n_ordinates
         ng = phi.size
         nx, ny = problem.spatial_shape
         state = TimedFullField.zeros(
@@ -304,7 +304,7 @@ class TestStreamingEquilibrium2D:
         """
         problem = _homogeneous_reflective_2d(nx=4, ny=4)
         quad = problem.quad
-        N, ng = quad.N, 2
+        N, ng = quad.n_ordinates, 2
         nx, ny = problem.spatial_shape
         W = float(quad.weights.sum())
 
@@ -355,7 +355,7 @@ class TestStreamingEquilibrium2D:
         """
         problem = _homogeneous_reflective_2d(nx=4, ny=4)
         quad = problem.quad
-        N, ng = quad.N, 2
+        N, ng = quad.n_ordinates, 2
         nx, ny = problem.spatial_shape
         W = float(quad.weights.sum())
 

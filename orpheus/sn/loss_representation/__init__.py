@@ -1336,7 +1336,7 @@ class _OctantWalk:
 
         # (L+C)·ψ̄ accumulator; ``L.apply`` reaches bare-streaming Lψ̄ by running
         # this SAME frame at σ = 0 (#257 S8b), never by subtracting Σ_t·ψ̄.
-        LpC = np.zeros((problem.quad.N, ng, *spatial, *moment_tail))
+        LpC = np.zeros((problem.quad.n_ordinates, ng, *spatial, *moment_tail))
         trace = problem.angular_trace
         boundary = psi.boundary
         streamed = {
@@ -1477,7 +1477,7 @@ class _OctantWalk:
             Q_zero=np.zeros((1, ng, *spatial, *moment_tail)),
         )
 
-        psi_cot = np.zeros((problem.quad.N, ng, *spatial, *moment_tail))
+        psi_cot = np.zeros((problem.quad.n_ordinates, ng, *spatial, *moment_tail))
         trace = problem.angular_trace
         b_bar = phi.boundary
 
@@ -3379,7 +3379,7 @@ class _OneDimScanWalk:
         problem = self.problem
         psi_view = psi.interior.values
         quad = problem.quad
-        N = quad.N
+        N = quad.n_ordinates
         ng = psi_view.shape[1]
         nx = problem.nx
         # The chart is an ENUM on the mesh.  Until 2026-08-26 this frame
@@ -3733,7 +3733,7 @@ class _OneDimScanWalk:
 
         problem = self.problem
         quad = problem.quad
-        N = quad.N
+        N = quad.n_ordinates
         ng = phi.interior.values.shape[1]
         nx = problem.nx
         # See _apply_walk's note: the twin of that prelude, and already
@@ -4123,7 +4123,7 @@ class _OneDimScanWalk:
           curvilinear too (research-level; deferred per plan §7).
         """
         quad = self.problem.quad
-        N = quad.N
+        N = quad.n_ordinates
         nx = self.problem.nx
         ng = Q.shape[1]                                          # (N, ng, nx, ny=1)
         weights = quad.weights
@@ -4679,7 +4679,7 @@ class _OneDimScanWalk:
         from orpheus.transport.source_sinks import AngularBoundarySourceSink
 
         quad = self.problem.quad
-        N = quad.N
+        N = quad.n_ordinates
         nx = self.problem.nx
         ng = bulk_cot.shape[1]
         mu = quad.mu_x
@@ -5113,7 +5113,7 @@ def _sweep_scheduled(
     # the historical ``ng, nx, ny`` unpack was a 2-D hardcode).
     ng = sig_t.shape[0]
     spatial = sig_t.shape[1:]
-    N = problem.quad.N
+    N = problem.quad.n_ordinates
     weights = problem.quad.weights
     # The output buffers carry the trailing 2^d spatial-moment axis at a
     # multi-moment closure (the φ̂ iterate accumulated by ``_CellSolve``; #240

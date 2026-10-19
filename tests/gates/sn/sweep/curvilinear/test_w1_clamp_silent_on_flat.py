@@ -79,7 +79,7 @@ def _clamped_and_raw_tau(quad: Quadrature) -> tuple[np.ndarray, np.ndarray]:
     Mirrors :func:`spherical_streaming` exactly so the unit test is
     independent of which :math:`\\tau` production currently ships.
     """
-    mu, w, N = quad.mu_x, quad.weights, quad.N
+    mu, w, N = quad.mu_x, quad.weights, quad.n_ordinates
     mu_edge = np.zeros(N + 1)
     mu_edge[0] = -1.0
     for n in range(N):

@@ -241,7 +241,7 @@ def test_one_full_restart_cycle_solves_a_diffusive_infinite_medium() -> None:
         warnings.simplefilter("always")
         solution = solve_sn_fixed_source(
             materials={0: medium}, mesh=mesh, quadrature=quadrature,
-            external_source=np.full((quadrature.N, 1, n_cells), source),
+            external_source=np.full((quadrature.n_ordinates, 1, n_cells), source),
             inner_solver="krylov", inner_tol=_DIFFUSIVE_INNER_TOL, max_inner=1,
         )
     exact = float(np.sum(quadrature.weights)) * source / sigma_a

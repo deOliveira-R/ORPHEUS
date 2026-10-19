@@ -542,7 +542,7 @@ def _build_sphere_visits_and_inputs(
     mesh = _spherical_mesh(nx=nx, radius=1.0)
     quad = Quadrature.gauss_legendre(8)
     op = spherical_streaming(mesh, quad)
-    direction_idx = quad.N - 2 if outward else 1
+    direction_idx = quad.n_ordinates - 2 if outward else 1
     visits = []
     cs: list[tuple[float, float, float]] = []
     if outward:

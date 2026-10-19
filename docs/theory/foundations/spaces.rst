@@ -1316,7 +1316,7 @@ readings are the table above. Run today it prints the third answer
    def readings(generator_of):
        q1, q2 = Quadrature.gauss_legendre(4), Quadrature.gauss_legendre(4)
        a1, a2 = (
-           _WithGeneratorInKey("angular", (q.N,), weights=q.weights,
+           _WithGeneratorInKey("angular", (q.n_ordinates,), weights=q.weights,
                                kind=BasisKind.NODAL, generator=generator_of(q))
            for q in (q1, q2)
        )
@@ -1402,7 +1402,7 @@ Three consequences follow, and each is separately load-bearing:
    :attr:`SNProblem.angular_bulk_space
    <orpheus.sn.problem.SNProblem.angular_bulk_space>`'s
    generator-minted angular axis compares equal to the literal
-   ``Axis("angular", (quad.N,), weights=quad.weights, kind=NODAL)`` it
+   ``Axis("angular", (quad.n_ordinates,), weights=quad.weights, kind=NODAL)`` it
    replaced, and mints the same digest — so no snapshot, no cached
    space, and no equality-keyed consumer could observe the change.
 

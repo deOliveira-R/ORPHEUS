@@ -200,7 +200,7 @@ def _build_composite(
 
 def _random_bulk(problem: SNProblem, rng: np.random.Generator) -> np.ndarray:
     """Random ``(N, ng, *spatial)`` bulk values for the mesh."""
-    return rng.standard_normal((problem.quad.N, problem.ng, *problem.spatial_shape))
+    return rng.standard_normal((problem.quad.n_ordinates, problem.ng, *problem.spatial_shape))
 
 
 def _joint_op(problem: SNProblem, op):
@@ -299,7 +299,7 @@ def _flat_psi_composite(
     Resolution A: ``(L + C).apply(flat_ψ) = M(flat_ψ; σ_t) = σ_t·ψ``
     bit-exact at the cell-centre block.
     """
-    bulk = np.ones((problem.quad.N, ng, *problem.spatial_shape))
+    bulk = np.ones((problem.quad.n_ordinates, ng, *problem.spatial_shape))
     return _build_composite(problem, bulk)
 
 
@@ -687,7 +687,7 @@ def _outflow_at_boundary_for_sphere_from_bulk(
     psi_g_first = psi_bulk.transpose(1, 0, 2)
     outgoing_mask = quad.mu_x > +eps
     incoming_mask = quad.mu_x < -eps
-    outflow_at_boundary = np.zeros((ng, quad.N))
+    outflow_at_boundary = np.zeros((ng, quad.n_ordinates))
     if not np.any(outgoing_mask):
         return outflow_at_boundary
     # Carlson coupled-pole seed (ERR-058 a, Issue #195): the inward
@@ -701,7 +701,7 @@ def _outflow_at_boundary_for_sphere_from_bulk(
     for i in range(nx - 1, -1, -1):
         psi_cell = psi_g_first[:, incoming_mask, i]
         psi_face_in_inward = 2.0 * psi_cell - psi_face_in_inward
-    pole_outflow = np.zeros((ng, quad.N))
+    pole_outflow = np.zeros((ng, quad.n_ordinates))
     pole_outflow[:, incoming_mask] = psi_face_in_inward
     pole_pi = quad.ordinate_permutation(SelfPairedDeck.mirror(axis="x").motion)
     assert pole_pi is not None  # mimics production's _ensure_pole_mirror source

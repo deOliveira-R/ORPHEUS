@@ -251,7 +251,7 @@ class TestAffineCarveSweepBaseline:
         ``nx`` scan → ``reduction_depth = nx + N``.
         """
         problem = _build_sn_mesh(geometry)
-        N = problem.quad.N
+        N = problem.quad.n_ordinates
         ng = problem.ng
         nx = problem.nx
 

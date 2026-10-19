@@ -178,7 +178,7 @@ def test_ld_two_paths_scan_equals_dag_oracle() -> None:
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
     ld_mesh = SNProblem(mesh, quad, materials, scheme=LinearDiscontinuous())
-    N, ng = quad.N, ld_mesh.ng
+    N, ng = quad.n_ordinates, ld_mesh.ng
 
     rng = np.random.default_rng(20260614)
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx))          # het, ≥2G
@@ -232,7 +232,7 @@ def test_ld_curvilinear_solve_fails_fast() -> None:
         (0.0, 1.0), (0,), outer=BC("vacuum"),
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
-    Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()
+    Q = np.ones((quad.n_ordinates, 1, nx)) / quad.weights.sum()
     with pytest.raises(
         NotImplementedError, match="no moment mass on a radial_spherical",
     ):
@@ -330,7 +330,7 @@ def test_ld_thick_diffusive_limit() -> None:
         (0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"),
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
-    Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()   # uniform iso source
+    Q = np.ones((quad.n_ordinates, 1, nx)) / quad.weights.sum()   # uniform iso source
     dd = solve_sn_fixed_source(
         materials, mesh, quad, Q,
         inner_solver="krylov", max_inner=2000, inner_tol=1e-10,
@@ -384,7 +384,7 @@ def test_ld_thick_diffusive_limit_2g() -> None:
         (0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"),
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
-    Q = np.ones((quad.N, 2, nx)) / quad.weights.sum()
+    Q = np.ones((quad.n_ordinates, 2, nx)) / quad.weights.sum()
     common = dict(inner_solver="krylov",
                   max_inner=4000, inner_tol=1e-10)
     dd = solve_sn_fixed_source(materials, mesh, quad, Q, **common)

@@ -1212,7 +1212,7 @@ def test_wavefront_solve_transpose_still_raises():
     spine = FullFieldWavefront.pose(sn)
     with pytest.raises(NotImplementedError, match="reverse-scan"):
         spine.sweep_transpose(
-            np.zeros((sn.quad.N, 2, *sn.spatial_shape)),
+            np.zeros((sn.quad.n_ordinates, 2, *sn.spatial_shape)),
             spine.bind_sigma(np.full((2, *sn.spatial_shape), 0.5)),
             _random_composite(sn, np.random.default_rng(1)).boundary,
         )

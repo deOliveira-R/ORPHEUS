@@ -207,7 +207,7 @@ _ROTATION_NONTRIVIAL_LOCAL = [
 
 def _trace(quad: Quadrature, faces) -> AngularTraceSpace:
     layout = FaceLayout.from_named_shapes(
-        [(f, (int(quad.N), _NG)) for f in faces]
+        [(f, (int(quad.n_ordinates), _NG)) for f in faces]
     )
     return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
@@ -304,7 +304,7 @@ class TestThePermutationIsTheLinearParts:
         )
         linear = _linear_part(wrap).permutes(nodes, atol=1e-13)
         assert linear is not None
-        np.testing.assert_array_equal(linear.indices, np.arange(quad.N))
+        np.testing.assert_array_equal(linear.indices, np.arange(quad.n_ordinates))
 
     @pytest.mark.parametrize("case", ["gauss_legendre(8)", "product(4,8)"])
     def test_a_SEATED_mirror_gives_the_same_kernel_as_an_origin_one(

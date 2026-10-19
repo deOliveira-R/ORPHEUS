@@ -94,7 +94,7 @@ def test_c3_in_m_lag_trips_the_claim_check_while_the_stop_stays_green(
     solve (a stale zero ψ_B inside M) still satisfies its own running
     stop but the claim check raises the loud lag-death error."""
     sn = _sphere()
-    q = np.ones((sn.quad.N, sn.ng, sn.nx))  # per-ordinate (the module entry's contract)
+    q = np.ones((sn.quad.n_ordinates, sn.ng, sn.nx))  # per-ordinate (the module entry's contract)
 
     # ── CONTROL: unmutated — the claim check stays silent.
     solution = solve_sn_fixed_source(

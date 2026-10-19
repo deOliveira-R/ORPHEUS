@@ -50,7 +50,7 @@ def test_dag_walk_spherical_outward_matches_per_ordinate():
         v.cell_idx for v in problem.dag_walk(direction_sign=+1)
     ]
     # Every μ ≥ 0 ordinate must produce the same cell sequence.
-    for n in range(quad.N):
+    for n in range(quad.n_ordinates):
         if quad.mu_x[n] >= 0:
             seq_by_ord = [
                 v.cell_idx for v in problem.dag_walk(ordinate_idx=n)
@@ -73,7 +73,7 @@ def test_dag_walk_spherical_inward_matches_per_ordinate():
     seq_by_dir = [
         v.cell_idx for v in problem.dag_walk(direction_sign=-1)
     ]
-    for n in range(quad.N):
+    for n in range(quad.n_ordinates):
         if quad.mu_x[n] < 0:
             seq_by_ord = [
                 v.cell_idx for v in problem.dag_walk(ordinate_idx=n)
@@ -97,7 +97,7 @@ def test_dag_walk_slab_matches_per_ordinate():
         seq_by_dir = [
             v.cell_idx for v in problem.dag_walk(direction_sign=sign)
         ]
-        for n in range(quad.N):
+        for n in range(quad.n_ordinates):
             if (sign == +1 and quad.mu_x[n] >= 0) or (
                 sign == -1 and quad.mu_x[n] < 0
             ):

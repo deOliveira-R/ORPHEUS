@@ -81,7 +81,7 @@ class TestG11AxisTuple:
         angular, energy, spatial = space.axes
 
         assert angular.label == "angular"
-        assert angular.shape == (sn.quad.N,)
+        assert angular.shape == (sn.quad.n_ordinates,)
         assert angular.kind is BasisKind.NODAL
         assert angular.weights is not None
         assert np.array_equal(angular.weights, sn.quad.weights)
@@ -95,7 +95,7 @@ class TestG11AxisTuple:
         assert spatial.weights is not None
         assert np.array_equal(spatial.weights, sn.volumes)
 
-        assert space.shape == (sn.quad.N, sn.ng, *sn.spatial_shape)
+        assert space.shape == (sn.quad.n_ordinates, sn.ng, *sn.spatial_shape)
 
     def test_energy_and_spatial_arms_are_bulk_space_axes_verbatim(self):
         """The scalar arms are REUSED objects, not respelled twins — the

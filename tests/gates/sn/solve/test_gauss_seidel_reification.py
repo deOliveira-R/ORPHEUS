@@ -327,7 +327,7 @@ def test_w2_fixed_point_equivalence_diagonal_cubature():
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    q_ext = np.full((quad.N, 2, nx, ny), 1.0 / float(quad.weights.sum()))
+    q_ext = np.full((quad.n_ordinates, 2, nx, ny), 1.0 / float(quad.weights.sum()))
     inner_tol = 1e-12
     kwargs = dict(
         scattering_order=1, inner_solver="source_iteration",

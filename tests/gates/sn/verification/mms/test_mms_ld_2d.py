@@ -157,7 +157,7 @@ def test_ld_2d_two_paths_ffw_equals_mfw():
     nx, ny = 5, 4
     sn = _nonsquare_het_2g_mesh(nx, ny)
     ng = 2
-    N = sn.quad.N
+    N = sn.quad.n_ordinates
     rng = np.random.default_rng(583)
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))
     Q = rng.uniform(0.0, 2.0, size=(N, ng, nx, ny))
@@ -288,7 +288,7 @@ def test_ld_2d_krylov_equals_si_pure_z_quadrature():
 
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     ng = 2
-    N = quad.N
+    N = quad.n_ordinates
     rng = np.random.default_rng(583)
     Q = rng.uniform(0.0, 2.0, size=(N, ng, nx, ny))
 
@@ -680,7 +680,7 @@ def _project_external_source(case, mesh):
     quad = case.quadrature
     fn = lambda x, y, g: _manufactured_Q_pointwise(case, x, y, g, quad)  # noqa: E731
     return _project_scalar_to_tensor_legendre(
-        mesh, fn, ng=case.n_groups, q_nodes=6, per_ord=quad.N,
+        mesh, fn, ng=case.n_groups, q_nodes=6, per_ord=quad.n_ordinates,
     )
 
 
@@ -999,7 +999,7 @@ def test_moment_resolved_bulk_still_rejects_wrong_trailing_axis():
     case = build_2d_cartesian_ld_stress_mms_case()
     mesh = case.build_mesh(8)
     materials = case.build_materials(mesh)
-    N = case.quadrature.N
+    N = case.quadrature.n_ordinates
     ng = case.n_groups
     nx, ny = mesh.mat_map.shape
 

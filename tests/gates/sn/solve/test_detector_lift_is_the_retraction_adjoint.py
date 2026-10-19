@@ -84,7 +84,7 @@ def test_s6_6_a_the_ndarray_detector_routes_through_the_pullback(monkeypatch) ->
     problem = _as_problem(mesh, quad, mats)
     composite = FullField(
         interior=AngularSourceSink(
-            values=np.ascontiguousarray(np.broadcast_to(sigma_d[None], (quad.N, *sigma_d.shape))),
+            values=np.ascontiguousarray(np.broadcast_to(sigma_d[None], (quad.n_ordinates, *sigma_d.shape))),
             space=problem.angular_trial_space,
         ),
         boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),

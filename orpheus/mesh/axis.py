@@ -454,7 +454,7 @@ def n_unknowns_flat(
         Number of energy groups.
     """
     shape = spatial_shape(axes)
-    n_cells = int(quad.N) * int(ng) * int(np.prod(shape, dtype=np.int64))
+    n_cells = int(quad.n_ordinates) * int(ng) * int(np.prod(shape, dtype=np.int64))
     n_face = 0
     for label in face_labels(axes):
         outflow = face_outflow_ordinates(axes, label, quad)

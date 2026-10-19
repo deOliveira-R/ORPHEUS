@@ -72,7 +72,7 @@ def _problem(config: str) -> tuple[SNProblem, np.ndarray, np.ndarray]:
     problem = SNProblem(mesh, Quadrature.level_symmetric(order), {0: get_mixture("A", f"{ng}g")})
     rng = np.random.default_rng(7)
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))
-    source = rng.uniform(0.0, 2.0, size=(problem.quad.N, ng, nx, ny))
+    source = rng.uniform(0.0, 2.0, size=(problem.quad.n_ordinates, ng, nx, ny))
     return problem, sig_t, source
 
 
@@ -172,7 +172,7 @@ class FixedSourceSolve:
         )
         self.quad = Quadrature.level_symmetric(8)
         self.materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
-        self.source = np.full((self.quad.N, 2, nx, ny), 1.0 / float(self.quad.weights.sum()))
+        self.source = np.full((self.quad.n_ordinates, 2, nx, ny), 1.0 / float(self.quad.weights.sum()))
 
     def _solve(self, representation: str):
         def run():

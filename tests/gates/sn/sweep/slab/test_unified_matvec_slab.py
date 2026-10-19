@@ -80,7 +80,7 @@ def test_unified_slab_zero_psi_gives_zero() -> None:
     problem = _build_slab(n_cells=5, n_ord=4)
     ng = 1
     sigma_t = np.full((ng, problem.nx), 2.0)
-    psi_view = np.zeros((problem.quad.N, ng, problem.nx))
+    psi_view = np.zeros((problem.quad.n_ordinates, ng, problem.nx))
 
     m_unified = legacy_proxy_matvec(psi_view, problem, sigma_t)
     np.testing.assert_array_equal(m_unified, np.zeros_like(m_unified))
@@ -96,7 +96,7 @@ def test_unified_slab_constant_psi_gives_sigma_t() -> None:
     ng = 1
     sigma_t_val = 2.0
     sigma_t = np.full((ng, problem.nx), sigma_t_val)
-    psi_view = np.ones((problem.quad.N, ng, problem.nx))
+    psi_view = np.ones((problem.quad.n_ordinates, ng, problem.nx))
 
     m_unified = legacy_proxy_matvec(psi_view, problem, sigma_t)
     np.testing.assert_allclose(

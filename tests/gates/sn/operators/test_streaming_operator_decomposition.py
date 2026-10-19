@@ -158,7 +158,7 @@ class TestResolutionADecomposition:
         """
         problem = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
         ng = 1
-        N = problem.quad.N
+        N = problem.quad.n_ordinates
 
         rng = np.random.default_rng(seed)
         bulk_arr = rng.standard_normal((N, ng, *problem.spatial_shape))
@@ -262,7 +262,7 @@ class TestSubtractiveDefinition:
     def test_L_apply_equals_subtractive_form(self, geometry, seed):
         problem = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
         ng = 1
-        N = problem.quad.N
+        N = problem.quad.n_ordinates
 
         rng = np.random.default_rng(seed)
         bulk_arr = rng.standard_normal((N, ng, *problem.spatial_shape))
@@ -343,7 +343,7 @@ class TestPureLIsLossActionAtZeroSigma:
     def test_pure_L_is_loss_action_at_zero_sigma(self, geometry):
         problem = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
         ng = 1
-        N = problem.quad.N
+        N = problem.quad.n_ordinates
 
         rng = np.random.default_rng(0)
         bulk_arr = rng.standard_normal((N, ng, *problem.spatial_shape))

@@ -67,7 +67,7 @@ def _declare(sn: SNProblem, face: str, law) -> SNProblem:
 
 
 def _bulk(sn: SNProblem) -> np.ndarray:
-    return np.zeros((sn.quad.N, sn.ng, *sn.spatial_shape))
+    return np.zeros((sn.quad.n_ordinates, sn.ng, *sn.spatial_shape))
 
 
 class TestOnlyPrescribedInflowContributes:
@@ -155,7 +155,7 @@ class TestTheDeclarationIsNotInert:
         """
         rng = np.random.default_rng(20260805)
         vacuum = _slab()
-        bulk = rng.standard_normal((vacuum.quad.N, vacuum.ng, *vacuum.spatial_shape))
+        bulk = rng.standard_normal((vacuum.quad.n_ordinates, vacuum.ng, *vacuum.spatial_shape))
         declared = _declare(
             _slab(), "xmin",
             PrescribedInflow(source=ConstantInflowSource(value=_VALUE)),

@@ -890,7 +890,7 @@ class RadialCharacteristicSeeding(
         )
         closure = self._angular_closure
         space = self._ray_space
-        N = mesh.quad.N
+        N = mesh.quad.n_ordinates
         ng = space.ng
         nx = mesh.nx
         V = mesh.volumes

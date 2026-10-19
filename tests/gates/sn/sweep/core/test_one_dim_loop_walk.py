@@ -266,8 +266,8 @@ def test_legs_and_degenerates_partition_the_quadrature():
             "degenerate set — the trichotomy double-counts"
         )
     covered = set(leg_ordinates) | set(degenerates)
-    if covered != set(range(sn.quad.N)):
+    if covered != set(range(sn.quad.n_ordinates)):
         pytest.fail(
             f"legs ∪ degenerates covers {sorted(covered)} != all "
-            f"{sn.quad.N} ordinates — the trichotomy drops ordinates"
+            f"{sn.quad.n_ordinates} ordinates — the trichotomy drops ordinates"
         )

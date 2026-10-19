@@ -87,7 +87,7 @@ def test_sweep_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     migration)."""
     rng = np.random.default_rng(abs(hash((nx, ny, lvl, ng, bc))) % (2**32))
     problem = _build_mesh(nx, ny, lvl, ng, bc)
-    N = problem.quad.N
+    N = problem.quad.n_ordinates
     sig_t = _random_sig_t(rng, ng, nx, ny)
     Q = rng.uniform(0.0, 2.0, size=(N, ng, nx, ny))
 
@@ -126,7 +126,7 @@ def test_matvec_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     S6.4 sub-step that touches the octant frame."""
     rng = np.random.default_rng((abs(hash((nx, ny, lvl, ng, bc))) % (2**32)) ^ 9)
     problem = _build_mesh(nx, ny, lvl, ng, bc)
-    N = problem.quad.N
+    N = problem.quad.n_ordinates
     sig_t = _random_sig_t(rng, ng, nx, ny)
 
     state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)

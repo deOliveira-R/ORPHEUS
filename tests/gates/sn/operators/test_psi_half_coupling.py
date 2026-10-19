@@ -243,7 +243,7 @@ def _loss(sn, slope: float = 0.4):
 
 def _template(sn):
     """A zero 2-block :class:`FullField` (bulk ⊕ trace) to seed dense probes."""
-    N, nx, ng = sn.quad.N, sn.nx, sn.ng
+    N, nx, ng = sn.quad.n_ordinates, sn.nx, sn.ng
     n_tr = int(sn.angular_trace.layout.total_size)
     return FullField(
         interior=AngularFlux(values=np.zeros((N, ng, nx)), space=sn.angular_bulk_space),
@@ -290,7 +290,7 @@ def _blocks(sn):
     B's own composite tail; its internal member order differs from the old
     unified layout, which every consumer here treats as a BLOCK — max-abs
     norms, eigenvalues, and round-trips are permutation-invariant)."""
-    N, nx, ng = sn.quad.N, sn.nx, sn.ng
+    N, nx, ng = sn.quad.n_ordinates, sn.nx, sn.ng
     nb = N * ng * nx
     nt = int(sn.angular_trace.layout.total_size)
     ns = sn.radial_characteristic_field_space.shape[0]
@@ -435,7 +435,7 @@ class TestRegressionFloor:
         sn = _sphere()
         M_op = _joint_M(sn, _loss(sn, slope=0.3))
         tpl = _coupled_template(sn)
-        nb = sn.quad.N * sn.ng * sn.nx
+        nb = sn.quad.n_ordinates * sn.ng * sn.nx
         rng = np.random.default_rng(7)
         psi0 = np.zeros(tpl.to_flat().size)
         psi0[:nb] = rng.standard_normal(nb)                 # random physical bulk
@@ -457,7 +457,7 @@ class TestRegressionFloor:
         sn = _sphere()
         M_op = _joint_M(sn, _loss(sn, slope=0.3))
         tpl = _coupled_template(sn)
-        nb = sn.quad.N * sn.ng * sn.nx
+        nb = sn.quad.n_ordinates * sn.ng * sn.nx
         M = _dense(M_op.apply, tpl)                          # the EXTRACTED explicit matrix
         rng = np.random.default_rng(11)
         psi0 = np.zeros(tpl.to_flat().size)
@@ -489,7 +489,7 @@ def _seed_leaf(sn, seed_values: NDArray) -> RadialCharacteristicField:
 
 def _random_composite(sn, rng) -> FullField:
     """A 2-block composite with random bulk and trace (System A alone)."""
-    N, nx, ng = sn.quad.N, sn.nx, sn.ng
+    N, nx, ng = sn.quad.n_ordinates, sn.nx, sn.ng
     n_tr = int(sn.angular_trace.layout.total_size)
     return FullField(
         interior=AngularFlux(values=rng.standard_normal((N, ng, nx)), space=sn.angular_bulk_space),
@@ -651,7 +651,7 @@ class TestBoundaryUnweld:
         if not isinstance(B, SNBoundaryOperator):
             pytest.fail(f"seedless record boundary gain is "
                         f"{type(B).__name__} — must be B_a alone (no B_b arm).")
-        N, nx, ng = slab.quad.N, slab.nx, slab.ng
+        N, nx, ng = slab.quad.n_ordinates, slab.nx, slab.ng
         n_tr = int(slab.angular_trace.layout.total_size)
         psi = FullField(
             interior=AngularFlux(values=np.random.default_rng(4).standard_normal((N, ng, nx)), space=slab.angular_bulk_space),
@@ -1901,7 +1901,7 @@ class TestA_BA_SchurFold:
         for tag, sn in (("slab", slab),):
             if sn.radial_characteristic_field_space is not None:
                 pytest.fail(f"{tag} carries a ray space — the non-carrying CONTROL is invalid.")
-            N, nx, ng = sn.quad.N, sn.nx, sn.ng
+            N, nx, ng = sn.quad.n_ordinates, sn.nx, sn.ng
             n_tr = int(sn.angular_trace.layout.total_size)
             bulk_only = FullField(
                 interior=AngularFlux(values=np.random.default_rng(50).standard_normal((N, ng, nx)), space=sn.angular_bulk_space),
@@ -2699,7 +2699,7 @@ def _seed_flux(sn, rng) -> RadialCharacteristicField:
 
 def _bulk_cotangent(sn, rng) -> AngularSourceSink:
     """A random bulk-residual cotangent — the ``A_AB.apply_transpose`` input."""
-    return AngularSourceSink(values=rng.standard_normal((sn.quad.N, sn.ng, sn.nx)), space=sn.angular_bulk_space)
+    return AngularSourceSink(values=rng.standard_normal((sn.quad.n_ordinates, sn.ng, sn.nx)), space=sn.angular_bulk_space)
 
 
 def _install_closure_spy(monkeypatch, sn, method_name: str) -> list[dict]:
@@ -2809,7 +2809,7 @@ class TestA_AB_SeedInjection:
         gate below (the two separately-implemented duals).  ≥2G."""
         sn = _sphere()
         rng = np.random.default_rng(31)
-        vv = rng.standard_normal((sn.quad.N, sn.ng, sn.nx))
+        vv = rng.standard_normal((sn.quad.n_ordinates, sn.ng, sn.nx))
         aa = _install_closure_spy(monkeypatch, sn, "angular_adjoint")
         # B.2c: the cotangent arrives as System A's FullField (the codomain);
         # only its interior member is read (trace/ray structurally discarded).
@@ -2960,7 +2960,7 @@ class TestA_AB_SeedInjection:
             op.apply_transpose(_bulk_composite(
                 other,
                 np.random.default_rng(9).standard_normal(
-                    (other.quad.N, other.ng, other.nx))))
+                    (other.quad.n_ordinates, other.ng, other.nx))))
         # 4e block-boundary refusals: a System-A FullField / a bulk field are
         # not the typed carriers (parse-don't-validate at the block boundary).
         with pytest.raises(TypeError, match="System B's member carrier"):
@@ -2993,7 +2993,7 @@ class TestA_AB_SeedInjection:
             err_msg="apply's trace slot is not zero (A_AB writes only "
                     "the interior).")
         out_t = op.apply_transpose(_bulk_composite(
-            sn, rng.standard_normal((sn.quad.N, sn.ng, sn.nx))))
+            sn, rng.standard_normal((sn.quad.n_ordinates, sn.ng, sn.nx))))
         if type(out_t) is not RadialCharacteristicField:
             pytest.fail(f"apply_transpose did not emit the member composite; "
                         f"got {type(out_t).__name__}.")
@@ -3784,7 +3784,7 @@ class TestWithinGroupSystem:
         3-block at d2, and the cross-driver row is the standing successor.)"""
         tol = 1e-11
         sn = _het_vacuum_sphere()
-        q_np = np.ones((sn.quad.N, sn.ng, sn.nx))
+        q_np = np.ones((sn.quad.n_ordinates, sn.ng, sn.nx))
         mats = {0: _mixture(1.0, 0.4, 2), 1: _mixture(0.5, 0.1, 2)}
         sols = {
             inner: solve_sn_fixed_source(
@@ -3821,7 +3821,7 @@ class TestWithinGroupSystem:
             )).partition(CellsByCount.uniform_width(5)).mesh,
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         tol, mi = 1e-11, 3000
-        q_np = np.ones((slab.quad.N, slab.ng, slab.nx))
+        q_np = np.ones((slab.quad.n_ordinates, slab.ng, slab.nx))
         sol = solve_sn_fixed_source(
             {0: _mixture(1.0, 0.4, 2)}, slab.mesh,
             Quadrature.gauss_legendre(4), q_np,
@@ -3856,7 +3856,7 @@ class TestWithinGroupSystem:
         si, *_ = _within_group_si(
             _labelled(system), sn, max_iter=60, tol=1e-10)
         q_pair = _build_fixed_source_rhs(
-            np.ones((sn.quad.N, sn.ng, sn.nx)), sn)  # coupled on carrying
+            np.ones((sn.quad.n_ordinates, sn.ng, sn.nx)), sn)  # coupled on carrying
         if not isinstance(q_pair, CoupledField):
             pytest.fail("the carrying rhs builder did not return the coupled pair")
         cold = _coupled_flux_state(
@@ -3888,7 +3888,7 @@ class TestWithinGroupSystem:
         size_a = int(cold_a.to_flat().size)
         size_b = int(np.asarray(cold.systems[1].to_flat()).size)
         n_seed = int(sn.radial_characteristic_field_space.shape[0])
-        nb = sn.quad.N * sn.ng * sn.nx
+        nb = sn.quad.n_ordinates * sn.ng * sn.nx
         nt = int(sn.angular_trace.layout.total_size)
         if size_a != nb + nt:
             pytest.fail(f"size_A = {size_a} ≠ bulk + trace = {nb + nt} — "
@@ -3988,7 +3988,7 @@ class TestWithinGroupSystemAnchors:
         sig_t_g = np.asarray(materials[0].SigT, dtype=float)
         Q_g = np.array([3.0, 0.7])
         q = np.broadcast_to(
-            Q_g[None, :, None], (quad.N, ng, nx),
+            Q_g[None, :, None], (quad.n_ordinates, ng, nx),
         ).astype(float).copy()
 
         sol = solve_sn_fixed_source(
@@ -4084,11 +4084,11 @@ class TestPrescribedCornerDatum:
 
         sn = _sphere(nx=4, ng=2)
         rng = np.random.default_rng(7)
-        trace_vals = rng.random((sn.quad.N, sn.ng))
+        trace_vals = rng.random((sn.quad.n_ordinates, sn.ng))
         bnd = AngularBoundarySourceSink.zeros(sn.angular_trace)
         bnd.face_view("xmax")[...] = trace_vals
         q = TimedFullField(
-            interior=AngularSourceSink(values=np.ones((sn.quad.N, sn.ng, sn.nx)), space=sn.angular_bulk_space),
+            interior=AngularSourceSink(values=np.ones((sn.quad.n_ordinates, sn.ng, sn.nx)), space=sn.angular_bulk_space),
             boundary=bnd,
             _history=(),
             history_depth=2,
@@ -4124,7 +4124,7 @@ class TestPrescribedCornerDatum:
         so vacuum/reflective solves stay byte-identical."""
         sn = _sphere(nx=4, ng=2)
         rhs = _build_fixed_source_rhs(
-            np.ones((sn.quad.N, sn.ng, sn.nx)), sn,
+            np.ones((sn.quad.n_ordinates, sn.ng, sn.nx)), sn,
         )
         if not isinstance(rhs, CoupledField):
             pytest.fail("carrying rhs builder did not return the coupled pair")

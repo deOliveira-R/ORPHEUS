@@ -118,7 +118,7 @@ def test_angular_flux_default_byte_identical_all_schemes(scheme_name, dd_2d, ld_
     """
     mesh = {"dd": dd_2d, "ld": ld_2d}[scheme_name]
     field = AngularFlux.zeros(mesh.angular_bulk_space)
-    expected = (mesh.quad.N, mesh.ng, *mesh.spatial_shape)
+    expected = (mesh.quad.n_ordinates, mesh.ng, *mesh.spatial_shape)
     np.testing.assert_equal(field.space.shape, expected)
     np.testing.assert_equal(field.values.shape, expected)
     # the space is a bare FunctionSpace (no tensor-product factor at default)
@@ -276,7 +276,7 @@ def test_ctor_widened_roundtrip(ld_2d):
     (``values.shape == space.shape`` — Pattern 4).
     """
     mesh = ld_2d
-    shape = (mesh.quad.N, mesh.ng, *mesh.spatial_shape, 2 ** mesh.ndim)
+    shape = (mesh.quad.n_ordinates, mesh.ng, *mesh.spatial_shape, 2 ** mesh.ndim)
     values = np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
     field = AngularFlux(values=values, space=mesh.angular_trial_space)
     np.testing.assert_equal(field.space.shape, shape)
@@ -293,7 +293,7 @@ def test_widened_space_rejects_wrong_shape_buffer(ld_2d):
     """
     mesh = ld_2d
     # the trial space carries tail 4 (per_axis² on 2-D); feed a tail-2 buffer
-    bad_shape = (mesh.quad.N, mesh.ng, *mesh.spatial_shape, 2)
+    bad_shape = (mesh.quad.n_ordinates, mesh.ng, *mesh.spatial_shape, 2)
     bad = np.zeros(bad_shape)
     with pytest.raises(ValueError):
         AngularFlux(values=bad, space=mesh.angular_trial_space)

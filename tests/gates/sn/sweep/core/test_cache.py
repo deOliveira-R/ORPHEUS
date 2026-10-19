@@ -654,7 +654,7 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
     # R-1 Step 4 A1 — ``external_source`` is per-ordinate density
     # (already ``/sum_w``).  Iso scalar magnitude 1 ⇒ per-ord ``1/sum_w``.
     sum_w = float(quad.weights.sum())
-    Q_external = np.full((quad.N, 1, *problem.spatial_shape), 1.0 / sum_w)
+    Q_external = np.full((quad.n_ordinates, 1, *problem.spatial_shape), 1.0 / sum_w)
 
     result = solve_sn_fixed_source(
         materials=materials,
@@ -754,7 +754,7 @@ def test_closure_block_slab_neutral_element() -> None:
     """
     problem = _make_slab(nx=8, N=4)
     closure = problem.angular_closure
-    N = problem.quad.N
+    N = problem.quad.n_ordinates
     np.testing.assert_array_equal(closure.tau_inv_per_ordinate, np.ones(N))
     np.testing.assert_array_equal(closure.march_a_in_coeff_per_ordinate, np.zeros(N))
     np.testing.assert_array_equal(closure.c_in_per_ordinate, np.zeros(N))
@@ -831,7 +831,7 @@ def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
         counts["builds"] += 1
         return real(cls, m)
 
-    q_ext = np.ones((quad.N, problem.ng, 4))
+    q_ext = np.ones((quad.n_ordinates, problem.ng, 4))
     try:
         StreamingCoefficientCache.from_mesh_and_quad = classmethod(counting)
         # Leg 1 — one FULL solve builds exactly once (the entry builds its
@@ -935,7 +935,7 @@ def test_two_sigmas_on_one_strategy_give_two_answers() -> None:
     quad = Quadrature.gauss_legendre(4)
     hub = SNProblem(mesh, quad, placeholder_materials(ng=2))
     rep = default_for(hub, hub.scheme, hub.angular_closure)
-    Q = np.ones((quad.N, hub.ng, *hub.spatial_shape))
+    Q = np.ones((quad.n_ordinates, hub.ng, *hub.spatial_shape))
     bf = AngularBoundaryFlux.zeros(hub.angular_trace)
     a1, _ = rep.sweep(Q, rep.bind_sigma(np.full((hub.ng, *hub.spatial_shape), 1.0)), bf)
     a2, _ = rep.sweep(Q, rep.bind_sigma(np.full((hub.ng, *hub.spatial_shape), 5.0)), bf)

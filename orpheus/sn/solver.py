@@ -3043,7 +3043,7 @@ def _build_fixed_source_rhs(
         AngularBoundarySourceSink,
     )
 
-    N = problem.quad.N
+    N = problem.quad.n_ordinates
     ng = problem.ng
     expected = (N, ng, *problem.spatial_shape)
 
@@ -3901,7 +3901,7 @@ def _solve_fixed_source_krylov(
     from orpheus.transport.fields.scalar_flux import ScalarFlux
 
     ng = solver.ng
-    N = problem.quad.N
+    N = problem.quad.n_ordinates
 
     # ``q_ext_composite`` is the normalised composite RHS ``q = q_bulk ⊕ q_∂``
     # built once by :func:`_build_fixed_source_rhs` (Cardinal Rule 2). B.5.2:

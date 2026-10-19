@@ -115,7 +115,7 @@ def _extract_at_unknown_slots(
     inflow_outer = quad.mu_x < -1e-15  # (N,)
     cols = []
     for ix in range(nx):
-        for n in range(quad.N):
+        for n in range(quad.n_ordinates):
             if ix == nx - 1 and inflow_outer[n]:
                 continue
             cols.append(field_4d[n, :, ix])
@@ -135,7 +135,7 @@ def _hand_reference_cyl_matvec(
     Returns shape ``(N, ng, nx)``.
     """
     quad = problem.quad
-    N = quad.N
+    N = quad.n_ordinates
     ng = psi_view.shape[1]
     nx = problem.nx
     eps = 1e-15
@@ -292,7 +292,7 @@ def test_unified_cylinder_matches_hand_reference(
     quad = quad_factory()
     problem = _build_cyl(n_cells, quad)
     ng = 1
-    N = quad.N
+    N = quad.n_ordinates
 
     rng = np.random.default_rng(seed)
     psi_view = rng.standard_normal((N, ng, n_cells)).astype(np.float64)
@@ -321,7 +321,7 @@ def test_unified_cylinder_zero_psi_gives_zero() -> None:
     problem = _build_cyl(n_cells=5, quad=quad)
     ng = 1
     sigma_t = np.full((ng, problem.nx), 2.0)
-    psi_view = np.zeros((quad.N, ng, problem.nx))
+    psi_view = np.zeros((quad.n_ordinates, ng, problem.nx))
 
     m_unified = legacy_proxy_matvec(psi_view, problem, sigma_t)
     np.testing.assert_array_equal(m_unified, np.zeros_like(m_unified))
@@ -337,7 +337,7 @@ def test_unified_cylinder_constant_psi_gives_sigma_t() -> None:
     ng = 1
     sigma_t_val = 2.0
     sigma_t = np.full((ng, problem.nx), sigma_t_val)
-    psi_view = np.ones((quad.N, ng, problem.nx))
+    psi_view = np.ones((quad.n_ordinates, ng, problem.nx))
 
     m_unified = legacy_proxy_matvec(psi_view, problem, sigma_t)
     m_at_unknowns = _extract_at_unknown_slots(m_unified, problem)

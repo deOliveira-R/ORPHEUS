@@ -79,7 +79,7 @@ def test_dd_per_cell_recurrence_matches_symbolic_derivation():
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(1)).mesh
     op = slab_streaming(mesh, quad)
     W = quad.weights.sum()
-    n_half = quad.N // 2
+    n_half = quad.n_ordinates // 2
     mu_pos = np.abs(quad.mu_x[n_half:])
 
     # Synthetic ψ_in per positive ordinate.

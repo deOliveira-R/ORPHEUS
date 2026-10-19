@@ -130,7 +130,7 @@ class TestSweepInverseIdentity:
                 trace.outflow_indices_for_face(face),
             )
             degenerate = np.setdiff1d(
-                np.arange(problem.quad.N), live,
+                np.arange(problem.quad.n_ordinates), live,
             )
             n_live += live.size
             n_degenerate += degenerate.size

@@ -134,7 +134,7 @@ def _cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNProblem:
 def _random_state(problem: SNProblem, ng: int = 2, seed: int = 42) -> TimedFullField:
     """Random :class:`TimedFullField` whose bulk has shape ``(N, ng, *spatial)``."""
     rng = np.random.default_rng(seed)
-    N = problem.quad.N
+    N = problem.quad.n_ordinates
     state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     return replace(
         state,
@@ -659,7 +659,7 @@ class TestMeshlessBareArm:
         C_plain = _multiplier(sn, sigma, plain=True)
         C = _multiplier(sn, sigma)
 
-        N = sn.quad.N
+        N = sn.quad.n_ordinates
         bulk_vals = np.broadcast_to(x[None], (N, 2, 5, 3)).copy()
         state = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,

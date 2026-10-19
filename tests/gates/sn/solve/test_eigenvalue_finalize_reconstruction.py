@@ -1374,7 +1374,7 @@ class TestAgainstAnIndependentRoute:
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         q_ext = np.broadcast_to(
             fission / float(quad.weights.sum()),
-            (quad.N,) + fission.shape,
+            (quad.n_ordinates,) + fission.shape,
         ).copy()
 
         with contextlib.redirect_stdout(io.StringIO()):

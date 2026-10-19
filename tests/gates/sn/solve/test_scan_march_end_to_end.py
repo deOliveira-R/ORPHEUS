@@ -147,7 +147,7 @@ def _build_2d_aniso_het_vacuum():
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     sum_w = float(quad.weights.sum())
-    q_ext = np.full((quad.N, 2, nx, ny), 1.0 / sum_w)
+    q_ext = np.full((quad.n_ordinates, 2, nx, ny), 1.0 / sum_w)
     return {2: fuel, 0: mod}, mesh, quad, q_ext
 
 
@@ -180,7 +180,7 @@ def _build_2d_het_all_reflective():
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     sum_w = float(quad.weights.sum())
-    q_ext = np.zeros((quad.N, 2, nx, ny))
+    q_ext = np.zeros((quad.n_ordinates, 2, nx, ny))
     q_ext[:, :, :4, :] = 1.0 / sum_w  # the fuel half only
     return {2: fuel, 0: mod}, mesh, quad, q_ext
 

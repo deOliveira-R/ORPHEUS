@@ -52,7 +52,7 @@ def _slab_visit(cell_idx: int = 2, n_ord: int = 4, *, positive: bool = True):
     mesh = _slab_mesh(nx=5, length=1.0)
     quad = Quadrature.gauss_legendre(n_ord)
     op = slab_streaming(mesh, quad)
-    direction_idx = quad.N - 1 if positive else 0
+    direction_idx = quad.n_ordinates - 1 if positive else 0
     st = op.streaming_terms(cell_idx, direction_idx)
     x0 = float(mesh.edges[cell_idx])
     h = float(mesh.edges[cell_idx + 1] - mesh.edges[cell_idx])

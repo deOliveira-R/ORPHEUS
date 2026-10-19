@@ -214,7 +214,7 @@ def _generate_psi(quad: Quadrature, case_id: str) -> np.ndarray:
     """
     seed = _seed_from_case_id(case_id)
     rng = np.random.default_rng(seed)
-    shape = (int(quad.N),) + _PSI_TRAILING_SHAPE
+    shape = (int(quad.n_ordinates),) + _PSI_TRAILING_SHAPE
     return rng.uniform(0.0, 2.0, size=shape)
 
 
@@ -297,7 +297,7 @@ def _mirror_partner(quad: Quadrature, axis: str) -> np.ndarray:
     """
     if axis not in ("x", "y", "z"):
         raise ValueError(f"unknown mirror axis {axis!r}")
-    n = int(quad.N)
+    n = int(quad.n_ordinates)
     cosines = np.stack(
         [
             np.asarray(getattr(quad, f"mu_{a}", np.zeros(n)), dtype=float)
@@ -393,7 +393,7 @@ def _specular_image(ri: ReferenceInputs, *, albedo: float) -> np.ndarray:
             f"{sorted(set(sources) - set(ht.outflow.tolist()))} outside Γ₊. A "
             f"reflection must exchange the half-traces."
         )
-    full = np.zeros((int(ht.quadrature.N),) + ri.psi_out.shape[1:], dtype=float)
+    full = np.zeros((int(ht.quadrature.n_ordinates),) + ri.psi_out.shape[1:], dtype=float)
     full[ht.outflow] = ri.psi_out
     return albedo * full[sources]
 

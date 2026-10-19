@@ -125,7 +125,7 @@ def _shell_flux_with_core(coord: CoordSystem, core, n_core: int = 4) -> np.ndarr
         (CellsByCount.uniform_volume(n_core), CellsByCount.uniform_volume(8)),
     ).mesh
     source = np.concatenate(
-        [np.zeros((quadrature.N, 2, n_core)), np.ones((quadrature.N, 2, 8))], axis=2,
+        [np.zeros((quadrature.n_ordinates, 2, n_core)), np.ones((quadrature.n_ordinates, 2, 8))], axis=2,
     )
     flux = np.asarray(solve_sn_fixed_source(
         {0: get_mixture("B", "2g"), 1: core}, mesh, quadrature, source,
@@ -159,7 +159,7 @@ def test_a_reflective_inner_law_is_a_void_cavity(coord):
     """
     hollow = np.asarray(solve_sn_fixed_source(
         _materials(), _hollow_mesh(coord, BC.reflective), _quadrature(coord),
-        np.ones((_quadrature(coord).N, 2, 8)),
+        np.ones((_quadrature(coord).n_ordinates, 2, 8)),
     ).scalar_flux.values)
     scale = np.max(np.abs(hollow))
 

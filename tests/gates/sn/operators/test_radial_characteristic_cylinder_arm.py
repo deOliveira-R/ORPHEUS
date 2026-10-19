@@ -94,7 +94,7 @@ def test_flat_flux_equilibrium_per_ordinate(c: float):
     seed feeds (vv anti-pattern #8).
     """
     sn, mesh = _folded_cylinder(c)
-    q = np.ones((sn.quad.N, 1, _NX))
+    q = np.ones((sn.quad.n_ordinates, 1, _NX))
     res = solve_sn_fixed_source(
         {0: _mixture(c)}, mesh, sn.quad, q, max_inner=800, inner_tol=1e-13,
     )
@@ -128,7 +128,7 @@ def test_source_fold_is_the_arc_endpoint_synthesis():
     b = rng.uniform(-0.5, 0.5, _NX)
     c2 = rng.uniform(-0.3, 0.3, _NX)
 
-    vals = np.empty((sn.quad.N, 1, _NX))
+    vals = np.empty((sn.quad.n_ordinates, 1, _NX))
     for p, ords in enumerate(sn.quad.level_indices):
         ords = np.asarray(ords)
         mu_z0 = float(sn.quad.mu_z[ords[0]])

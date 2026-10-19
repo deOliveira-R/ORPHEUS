@@ -1329,7 +1329,7 @@ class SNProblem(MaterialMesh):
         scalar = self.bulk_space
         assert scalar.axes is not None  # of_axes-built by construction
         # The generator mints its own axis (CS5): identical structural
-        # content to the literal ``Axis("angular", (quad.N,), weights=
+        # content to the literal ``Axis("angular", (quad.n_ordinates,), weights=
         # quad.weights, kind=NODAL)`` this replaced — the space name and
         # identity are unchanged — plus provenance: the axis carries the
         # quadrature, so a consumer holding the SPACE can recover the
@@ -1589,7 +1589,7 @@ class SNProblem(MaterialMesh):
         from orpheus.numerics.face_layout import FaceLayout
         from orpheus.numerics.moment_layout import face_moment_count, face_moment_tail
 
-        N = self.quad.N
+        N = self.quad.n_ordinates
         # Per-face transverse moment count per_axis^{d-1} (#251) — the FACE
         # tail (the CELL tail is per_axis^d).  DD/Step → () → byte-identical.
         # Single-sourced with the cochain's ``_n_face_moments`` via

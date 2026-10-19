@@ -199,7 +199,7 @@ class TestBitIdenticalSlab:
         ng = 2
         cell_idx = 0
         # Most-positive ordinate is the last index for GL quadrature.
-        direction_idx = quad.N - 1
+        direction_idx = quad.n_ordinates - 1
         st = op.streaming_terms(cell_idx, direction_idx)
 
         # Synthetic ng-shaped inputs.
@@ -267,7 +267,7 @@ class TestBitIdenticalSlab:
 
         ng = 3
         cell_idx = 2
-        direction_idx = quad.N - 2  # second-most-positive ordinate
+        direction_idx = quad.n_ordinates - 2  # second-most-positive ordinate
         st = op.streaming_terms(cell_idx, direction_idx)
 
         total_xs = np.array([2.0, 0.5, 1.1])
@@ -470,7 +470,7 @@ class TestCurvilinearCellUpdate:
     def test_spherical_outward_cell_update(self):
         """Outward-sweep cell (positive μ, away from r=0): downstream face = OUTER."""
         quad = Quadrature.gauss_legendre(8)
-        _curvilinear_row(2, quad.N - 2, True, np.array([1.3, 0.9]), np.array([2.1, 0.4]),
+        _curvilinear_row(2, quad.n_ordinates - 2, True, np.array([1.3, 0.9]), np.array([2.1, 0.4]),
              np.array([0.21, 0.11]), np.array([0.05, 0.03]))
 
 
@@ -711,7 +711,7 @@ class TestPositivityFailure:
         mesh = _slab_mesh(nx=2, length=2.0)  # Δx = 1.0
         quad = Quadrature.gauss_legendre(2)  # |μ| ≈ 0.577
         op = slab_streaming(mesh, quad)
-        st = op.streaming_terms(cell_idx=0, direction_idx=quad.N - 1)
+        st = op.streaming_terms(cell_idx=0, direction_idx=quad.n_ordinates - 1)
 
         # Σ_t * Δx = 10 vs 2|μ| ≈ 1.15 — strongly thick cell.
         total_xs = np.array([10.0])
@@ -796,7 +796,7 @@ def _slab_visit_inputs(
     quad = Quadrature.gauss_legendre(4)
     op = slab_streaming(mesh, quad)
     if direction_idx is None:
-        direction_idx = quad.N - 1
+        direction_idx = quad.n_ordinates - 1
     st = op.streaming_terms(cell_idx, direction_idx)
     if total_xs is None:
         total_xs = np.linspace(0.6, 1.5, n_groups)
@@ -845,7 +845,7 @@ def _sphere_visit_inputs(
     quad = Quadrature.gauss_legendre(8)
     op = spherical_streaming(mesh, quad)
     if direction_idx is None:
-        direction_idx = quad.N - 2 if outward else 1
+        direction_idx = quad.n_ordinates - 2 if outward else 1
     st = op.streaming_terms(cell_idx, direction_idx)
     if total_xs is None:
         total_xs = np.linspace(0.7, 1.4, n_groups)

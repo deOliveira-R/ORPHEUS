@@ -240,7 +240,7 @@ def assert_specular_pairing_involutive(
         When the derived specular pairing is not its own inverse.
     """
     ref = _specular_pairing(quadrature, axis, law_key=law_key)
-    if not np.array_equal(ref[ref], np.arange(quadrature.N)):
+    if not np.array_equal(ref[ref], np.arange(quadrature.n_ordinates)):
         from ._errors import ReflectionNotInvolutiveError
 
         raise ReflectionNotInvolutiveError(

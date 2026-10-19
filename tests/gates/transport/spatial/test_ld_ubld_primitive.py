@@ -370,7 +370,7 @@ class TestProductionViewsAnchoredToPrimitive:
         ).mesh
         quad = Quadrature.gauss_legendre(4)
         op = slab_streaming(mesh, quad)
-        cell_idx, direction_idx = 2, quad.N - 1     # most-positive ordinate
+        cell_idx, direction_idx = 2, quad.n_ordinates - 1     # most-positive ordinate
         st = op.streaming_terms(cell_idx, direction_idx)
         visit = CellVisit(
             cell_idx=cell_idx, streaming_terms=st, face_area_downstream=1.0,

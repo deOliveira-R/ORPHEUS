@@ -142,7 +142,7 @@ def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):
         RadialCharacteristicField,
     )
 
-    N, nx, ng = sn.quad.N, sn.nx, sn.ng
+    N, nx, ng = sn.quad.n_ordinates, sn.nx, sn.ng
     n_tr = int(sn.angular_trace.layout.total_size)
     psi_a = FullField(
         interior=AngularFlux(values=rng.standard_normal((N, ng, nx)) if bulk else np.zeros((N, ng, nx)), space=sn.angular_bulk_space),
@@ -184,7 +184,7 @@ def _blocks(sn):
     member order differs from the old unified interleave — every consumer
     here treats it as a BLOCK, so the analysis is permutation-invariant
     within the slice)."""
-    N, nx, ng = sn.quad.N, sn.nx, sn.ng
+    N, nx, ng = sn.quad.n_ordinates, sn.nx, sn.ng
     nb = N * ng * nx
     nt = int(sn.angular_trace.layout.total_size)
     ns = sn.radial_characteristic_field_space.shape[0]

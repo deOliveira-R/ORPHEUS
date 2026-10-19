@@ -82,9 +82,9 @@ def test_sweep_ng2_layout_shapes():
 
     ang, phi = sweep_once(source, sig_t, problem, boundary_flux)
 
-    assert ang.shape == (quad.N, ng, nx), (
+    assert ang.shape == (quad.n_ordinates, ng, nx), (
         f"angular flux layout drift: got {ang.shape}, "
-        f"expected (N={quad.N}, ng={ng}, nx={nx})"
+        f"expected (N={quad.n_ordinates}, ng={ng}, nx={nx})"
     )
     assert phi.shape == (ng, nx), (
         f"scalar flux layout drift: got {phi.shape}, "

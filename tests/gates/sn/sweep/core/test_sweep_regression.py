@@ -104,7 +104,7 @@ class TestSNProblem:
         quad = Quadrature.gauss_legendre(4)
         problem = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
 
-        for n in range(quad.N):
+        for n in range(quad.n_ordinates):
             for i in range(problem.nx):
                 expected = abs(quad.mu_x[n]) / mesh.widths[i]
                 np.testing.assert_allclose(
@@ -176,7 +176,7 @@ class TestSNProblem:
         problem = SNProblem(mesh, quad, placeholder_materials())
 
         sig_t = 0.5  # scalar for simplicity
-        for n in range(quad.N):
+        for n in range(quad.n_ordinates):
             for i in range(problem.nx):
                 for j in range(problem.spatial_shape[1]):
                     old = sig_t + 2*abs(quad.mu_x[n])/mesh.dx[i] + 2*abs(quad.mu_y[n])/mesh.dy[j]
@@ -242,7 +242,7 @@ class TestSNProblem:
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         assert reduced.face_areas is not None
         assert reduced.angular.alpha_per_level[0] is not None
-        assert len(reduced.angular.alpha_per_level[0]) == quad.N + 1
+        assert len(reduced.angular.alpha_per_level[0]) == quad.n_ordinates + 1
         # α_{1/2} = 0 and α_{N+1/2} ≈ 0
         np.testing.assert_allclose(reduced.angular.alpha_per_level[0][0], 0.0)
         np.testing.assert_allclose(reduced.angular.alpha_per_level[0][-1], 0.0, atol=1e-14)

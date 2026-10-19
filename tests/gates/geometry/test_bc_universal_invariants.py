@@ -124,12 +124,12 @@ class TestReflectiveInvolutionInvariant:
         :class:`Permutation` construction and only THIS check sees it.
         """
         quad = Quadrature.lebedev(17)
-        N = quad.N
+        N = quad.n_ordinates
 
         # A fake pairing that is a rotation (i → (i+1) % N) — not an
         # involution for N ≠ 2.
         class _FakeQuad:
-            N = quad.N
+            n_ordinates = quad.n_ordinates
 
             @staticmethod
             def ordinate_permutation(motion) -> Permutation:  # noqa: ARG004
@@ -156,7 +156,7 @@ class _TableQuad:
     """
 
     def __init__(self, base: Quadrature, table: np.ndarray) -> None:
-        self.N = base.N
+        self.n_ordinates = base.n_ordinates
         self.weights = base.weights
         self._base = base
         self._table = np.asarray(table)
@@ -277,7 +277,7 @@ class TestReflectiveInflowToOutflowInvariant:
         """The independence triad on ONE mutant: identity passes
         involution AND measure, reds ONLY inflow→outflow."""
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        mutant = _TableQuad(quad, np.arange(quad.N))
+        mutant = _TableQuad(quad, np.arange(quad.n_ordinates))
         bc = ReflectiveBoundary(axis="x")
 
         bc.assert_is_involutive(mutant)  # type: ignore[arg-type]
@@ -296,7 +296,7 @@ class TestReflectiveInflowToOutflowInvariant:
             SelfPairedDeck.mirror(axis="y", dimension=3).motion
         )
         assert pi is not None
-        np.testing.assert_array_equal(pi.indices, np.arange(quad.N))
+        np.testing.assert_array_equal(pi.indices, np.arange(quad.n_ordinates))
         ReflectiveBoundary(axis="y").assert_reflection_maps_inflow_to_outflow(quad)
 
     def test_raises_at_realize_time(self, monkeypatch) -> None:
@@ -309,7 +309,7 @@ class TestReflectiveInflowToOutflowInvariant:
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         monkeypatch.setattr(
             quad, "ordinate_permutation",
-            lambda motion: Permutation(np.arange(quad.N)),
+            lambda motion: Permutation(np.arange(quad.n_ordinates)),
         )
         with pytest.raises(ReflectionDidNotMapInflowToOutflowError):
             SNBoundaryRealizer().realize(
@@ -922,14 +922,14 @@ def _non_involutive_but_otherwise_valid(
     # supplies the swap. Rounded because the class is a float coincidence of
     # a symmetric node set, not an exact-compare question.
     classes: dict[tuple[int, float], list[int]] = {}
-    for n in range(int(quadrature.N)):
+    for n in range(int(quadrature.n_ordinates)):
         classes.setdefault(
             (int(np.sign(mu[n])), round(float(measure[n]), 12)), []
         ).append(n)
     for members in classes.values():
         if len(members) >= 2:
             a, b = members[0], members[1]
-            sigma = np.arange(int(quadrature.N))
+            sigma = np.arange(int(quadrature.n_ordinates))
             sigma[a], sigma[b] = b, a
             return perm[sigma]
     raise AssertionError(
@@ -988,7 +988,7 @@ class TestSpecularPairingCertifiedOnBothCarriers:
         # ITSELF instead of its outflow partner. ERR-045 only.
         ("self_map_identity",
          lambda: Quadrature.gauss_legendre(n_ordinates=8),
-         lambda q: np.arange(q.N),
+         lambda q: np.arange(q.n_ordinates),
          ReflectionDidNotMapInflowToOutflowError),
         # The true mirror composed with a swap of two SAME-SIGN, SAME-MEASURE
         # ordinates: measure-preserving and sign-crossing, but NOT its own
@@ -1084,7 +1084,7 @@ class TestSpecularPairingCertifiedOnBothCarriers:
         from orpheus.geometry.boundary import IsotropicReturn
 
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        mutant = _TableQuad(quad, np.roll(np.arange(quad.N), 1))
+        mutant = _TableQuad(quad, np.roll(np.arange(quad.n_ordinates), 1))
         AlbedoBoundary(
             0.5, IsotropicReturn(axis="x", outward_sign=+1),
         ).assert_realizable(mutant)  # type: ignore[arg-type]

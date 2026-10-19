@@ -104,7 +104,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
 
     # PR-TYPED-6c Step 7: route through ``_transport_operator_matvec_unified``
     # — the legacy ``transport_operator_matvec_cylindrical`` retired.
-    psi_view = np.full((quad.N, ng, nx), psi_flat)
+    psi_view = np.full((quad.n_ordinates, ng, nx), psi_flat)
     m_cell = legacy_proxy_matvec(psi_view, problem, sig_t)
     # D-J (2026-05-30): equation slots derived from quad direction signs
     # (replaces ``EquationMap`` slot map — curvilinear set is all
@@ -112,7 +112,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
     inflow_outer = quad.mu_x < -1e-15  # (N,)
     ord_list, ix_list = [], []
     for ix in range(nx):
-        for n in range(quad.N):
+        for n in range(quad.n_ordinates):
             if ix == nx - 1 and inflow_outer[n]:
                 continue
             ord_list.append(n)
@@ -166,7 +166,7 @@ def test_cylinder_three_way_standoff(
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
-    N = quad.N
+    N = quad.n_ordinates
     nx = mesh.N
     ng = 1
     # R-1 Step 4 A1 — ``external_source`` is per-ordinate density.

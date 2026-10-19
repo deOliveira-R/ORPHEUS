@@ -190,7 +190,7 @@ class TestLawTheCoupledStateKnowsItsSpace:
     @pytest.mark.parametrize("hub_of, nx", [(_slab, 8), (_carrying_sphere, 6)], ids=["slab (1 system)", "carrying sphere (2 systems)"])
     def test_law_the_source_lives_on_the_pencils_domain(self, hub_of, nx: int) -> None:
         hub = hub_of()
-        q = _build_fixed_source_rhs(np.ones((hub.quad.N, 2, nx)), hub)
+        q = _build_fixed_source_rhs(np.ones((hub.quad.n_ordinates, 2, nx)), hub)
         posing = hub.source_posing(q)
         _require(posing.source.space == hub.pencil.at(1.0).domain, "the lifted source's DERIVED space equals the pencil's domain (content identity)")
         _require(posing.source.space == hub.system.space, "…and the builder-minted coupled space")
@@ -201,7 +201,7 @@ class TestLawTheCoupledStateKnowsItsSpace:
         cannot be posed on this one (until step 3 the coupled state had no
         ``.space`` and this raised nothing)."""
         here, there = _slab(4.0), _slab(6.0)
-        foreign = _build_fixed_source_rhs(np.ones((there.quad.N, 2, 8)), there)
+        foreign = _build_fixed_source_rhs(np.ones((there.quad.n_ordinates, 2, 8)), there)
         with pytest.raises(ValueError, match="pose q on the operator's ends"):
             here.source_posing(foreign)
 

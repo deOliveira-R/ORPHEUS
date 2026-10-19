@@ -39,15 +39,15 @@ pytestmark = pytest.mark.l0
 
 def _slab_trace(mesh: Mesh1D, quad) -> AngularTraceSpace:
     layout = FaceLayout.from_named_shapes(
-        [("xmin", (quad.N, 1)), ("xmax", (quad.N, 1))]
+        [("xmin", (quad.n_ordinates, 1)), ("xmax", (quad.n_ordinates, 1))]
     )
     return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
 
 def _cartesian2d_trace(mesh: Mesh2D, quad, nx: int, ny: int) -> AngularTraceSpace:
     layout = FaceLayout.from_named_shapes([
-        ("xmin", (quad.N, 1, ny)), ("xmax", (quad.N, 1, ny)),
-        ("ymin", (quad.N, 1, nx)), ("ymax", (quad.N, 1, nx)),
+        ("xmin", (quad.n_ordinates, 1, ny)), ("xmax", (quad.n_ordinates, 1, ny)),
+        ("ymin", (quad.n_ordinates, 1, nx)), ("ymax", (quad.n_ordinates, 1, nx)),
     ])
     return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 

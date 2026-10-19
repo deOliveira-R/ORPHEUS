@@ -116,7 +116,7 @@ def _solve_1g_slab(scheme):
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(8)
-    Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()
+    Q = np.ones((quad.n_ordinates, 1, nx)) / quad.weights.sum()
     return solve_sn_fixed_source(
         materials, mesh, quad, Q, scheme=scheme,
         inner_solver="krylov",
@@ -180,7 +180,7 @@ def test_spatial_moment_axis_absent_on_hand_built_ld_field() -> None:
         "premise broken: the SNProblem scheme must be LD (multi-moment)",
     )
     # Bare field — NO spatial_moments=, the construct-general default 1.
-    values = np.zeros((quad.N, ld_sn_mesh.ng, nx))
+    values = np.zeros((quad.n_ordinates, ld_sn_mesh.ng, nx))
     bulk = AngularFlux(values=values, space=ld_sn_mesh.angular_bulk_space)
     _require(
         bulk.spatial_moments_per_axis == 1,

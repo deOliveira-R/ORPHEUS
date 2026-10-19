@@ -220,7 +220,7 @@ class TestShippedKernelEquivalence:
         ``test_angular_flux.py::TestIntegrateAngular``. Reddened by
         changing the contraction order or dropping w."""
         sn = _sn()
-        psi_values = _rand((sn.quad.N, sn.ng, *sn.spatial_shape), 6)
+        psi_values = _rand((sn.quad.n_ordinates, sn.ng, *sn.spatial_shape), 6)
         R = AxisRetractionOperator.of(sn.angular_bulk_space, "angular")
         npt.assert_array_equal(
             R.apply(psi_values),
@@ -243,7 +243,7 @@ class TestShippedKernelEquivalence:
         E = AxisSectionOperator.of(sn.angular_bulk_space, "angular")
         sum_w = float(sn.quad.weights.sum())
         expected = np.broadcast_to(
-            (Q / sum_w)[None], (sn.quad.N, sn.ng, *sn.spatial_shape),
+            (Q / sum_w)[None], (sn.quad.n_ordinates, sn.ng, *sn.spatial_shape),
         ).copy()
         npt.assert_array_equal(E.apply(Q), expected)
 
@@ -460,7 +460,7 @@ class TestFrameInduction:
         npt.assert_array_almost_equal_nulp(E.mass, sum_w, nulp=1)
         Q = _rand((sn.ng, *sn.spatial_shape), 40)
         old_kernel = np.broadcast_to(
-            (Q / sum_w)[None], (sn.quad.N, sn.ng, *sn.spatial_shape),
+            (Q / sum_w)[None], (sn.quad.n_ordinates, sn.ng, *sn.spatial_shape),
         ).copy()
         npt.assert_array_almost_equal_nulp(E.apply(Q), old_kernel, nulp=4)
 

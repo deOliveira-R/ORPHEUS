@@ -128,7 +128,7 @@ _CUBATURES = [
 
 def _level_of(quad: Quadrature) -> np.ndarray:
     """``(N,)`` array mapping each ordinate index to its μ-level index."""
-    level_of = np.empty(quad.N, dtype=int)
+    level_of = np.empty(quad.n_ordinates, dtype=int)
     for p, ids in enumerate(quad.level_indices):
         level_of[np.asarray(ids, dtype=int)] = p
     return level_of
@@ -210,7 +210,7 @@ def test_x_reflection_is_an_involution(quad_factory):
     quad = quad_factory()
     mirror = _seed_mirror(quad)
     np.testing.assert_array_equal(
-        mirror[mirror], np.arange(quad.N),
+        mirror[mirror], np.arange(quad.n_ordinates),
         err_msg="the seed's x-mirror pairing is not an involution (mirror∘mirror ≠ id).",
     )
 
@@ -244,7 +244,7 @@ def test_a_sigma_x_unclosed_rule_refuses_through_the_public_funnel():
         StructuredGeometry.cylinder((0.0, 2.0), (0,), outer=BC("vacuum")),
     ).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.product(n_mu=4, n_phi=5)
-    Q = np.full((quad.N, 1, nx), 1.0)
+    Q = np.full((quad.n_ordinates, 1, nx), 1.0)
     with pytest.raises(ValueError, match="non-carrying"):
         solve_sn_fixed_source(
             {0: _make_1g_mixture(1.0, 0.5)}, mesh, quad, Q,

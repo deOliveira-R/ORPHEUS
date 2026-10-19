@@ -128,7 +128,7 @@ class TestOctantsInvariants:
         assert len(np.unique(all_indices)) == len(all_indices)
         # Complete: union = {0, ..., N-1}.
         np.testing.assert_array_equal(
-            np.sort(all_indices), np.arange(quad.N),
+            np.sort(all_indices), np.arange(quad.n_ordinates),
         )
 
     @pytest.mark.parametrize("factory", _QUAD_FACTORIES)
@@ -262,7 +262,7 @@ class TestLevelSymmetricSNOctants:
         """LS quadrature is octant-symmetric: every partition has N/8 ordinates."""
         quad = Quadrature.level_symmetric(4)
         sizes = sorted(e.indices.size for e in quad.octants)
-        assert sizes == [quad.N // 8] * 8
+        assert sizes == [quad.n_ordinates // 8] * 8
 
 
 @pytest.mark.l0

@@ -375,7 +375,7 @@ def _cartesian_2d_p1_aniso_het_si(ng: str) -> dict:
         },
     )
     quadrature = Quadrature.level_symmetric(sn_order=4)
-    n_ord = quadrature.N             # derive N from the quadrature (Pattern 14)
+    n_ord = quadrature.n_ordinates             # derive N from the quadrature (Pattern 14)
     # Per-ordinate density (producer-side /W projection, R-1 Step 4 A1).
     sum_w = float(quadrature.weights.sum())
     external_source = np.full((n_ord, n_groups, nx, ny), 1.0 / sum_w)

@@ -108,7 +108,7 @@ class _TableQuad:
     """
 
     def __init__(self, n: int, table: np.ndarray) -> None:
-        self.N = n
+        self.n_ordinates = n
         self._table = table
 
     def ordinate_permutation(self, motion) -> "Permutation":  # noqa: ARG002
@@ -366,7 +366,7 @@ def test_reflection_did_not_map_inflow_to_outflow_error(monkeypatch) -> None:
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     monkeypatch.setattr(
         quad, "ordinate_permutation",
-        lambda motion: Permutation(np.arange(quad.N)),
+        lambda motion: Permutation(np.arange(quad.n_ordinates)),
     )
     with pytest.raises(ReflectionDidNotMapInflowToOutflowError) as exc:
         SNBoundaryRealizer().realize(

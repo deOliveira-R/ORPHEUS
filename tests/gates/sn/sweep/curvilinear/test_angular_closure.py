@@ -716,7 +716,7 @@ class TestP4RemTheClosureMintReadsThroughTheAxis:
         assert reduced is not None
         # the decoy's admissibility premise (see _weight_scale_decoy's
         # order-dependence note) — asserted, not assumed:
-        assert sn.quad.N == 2, "the weight decoy is only dome+tau-admissible at N=2"
+        assert sn.quad.n_ordinates == 2, "the weight decoy is only dome+tau-admissible at N=2"
         decoy = _weight_scale_decoy(sn.quad)
         true_c = MorelMontryAngularSweep(
             reduced.angular, reduced.redistribution_pairing, Axis.of_quadrature(sn.quad)
@@ -743,8 +743,8 @@ class TestP4RemTheClosureMintReadsThroughTheAxis:
         closure = IdentityAngularClosure(
             reduced.angular, reduced.redistribution_pairing, Axis.of_quadrature(other)
         )
-        assert closure.tau_per_ordinate.size == other.N
-        assert closure.tau_per_ordinate.size != sn.quad.N
+        assert closure.tau_per_ordinate.size == other.n_ordinates
+        assert closure.tau_per_ordinate.size != sn.quad.n_ordinates
 
     @pytest.mark.foundation
     @pytest.mark.parametrize(
@@ -764,7 +764,7 @@ class TestP4RemTheClosureMintReadsThroughTheAxis:
         reduced = sn.reduced
         assert reduced is not None
         bare = Axis(
-            "angular", (sn.quad.N,),
+            "angular", (sn.quad.n_ordinates,),
             weights=np.asarray(sn.quad.weights, float), kind=BasisKind.NODAL,
         )
         with pytest.raises(ValueError, match="angular"):

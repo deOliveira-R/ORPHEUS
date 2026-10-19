@@ -104,7 +104,7 @@ class TestConstruction:
         m = _cartesian_2d_mesh()
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
         assert isinstance(state, TimedFullField)
-        assert state.interior.values.shape == (m.quad.N, m.ng, *m.spatial_shape)
+        assert state.interior.values.shape == (m.quad.n_ordinates, m.ng, *m.spatial_shape)
         assert state.boundary.layout.total_size == state.boundary.values.size
 
     def test_factory_custom_history_depth(self) -> None:
@@ -302,11 +302,11 @@ class TestHistoryShiftRegister:
     def test_advance_pushes_current_to_lag_1(self) -> None:
         m = _slab_mesh()
         state = _filled_state(m, bulk_val=1.0, bound_val=2.0)
-        new_bulk = AngularFlux(values=np.full((m.quad.N, m.ng, *m.spatial_shape), 10.0), space=m.angular_bulk_space)
+        new_bulk = AngularFlux(values=np.full((m.quad.n_ordinates, m.ng, *m.spatial_shape), 10.0), space=m.angular_bulk_space)
         new_boundary = AngularBoundaryFlux.from_face_arrays(
             m, {
-                "xmin": np.full((m.quad.N, m.ng), 20.0),
-                "xmax": np.full((m.quad.N, m.ng), 20.0),
+                "xmin": np.full((m.quad.n_ordinates, m.ng), 20.0),
+                "xmax": np.full((m.quad.n_ordinates, m.ng), 20.0),
             },
         )
         advanced = state.advance(new_bulk, new_boundary)
@@ -325,11 +325,11 @@ class TestHistoryShiftRegister:
         m = _slab_mesh()
         state = _filled_state(m, bulk_val=1.0, bound_val=10.0)
         for i in range(2, 5):
-            new_bulk = AngularFlux(values=np.full((m.quad.N, m.ng, *m.spatial_shape), float(i)), space=m.angular_bulk_space)
+            new_bulk = AngularFlux(values=np.full((m.quad.n_ordinates, m.ng, *m.spatial_shape), float(i)), space=m.angular_bulk_space)
             new_boundary = AngularBoundaryFlux.from_face_arrays(
                 m, {
-                    "xmin": np.full((m.quad.N, m.ng), float(i) * 10),
-                    "xmax": np.full((m.quad.N, m.ng), float(i) * 10),
+                    "xmin": np.full((m.quad.n_ordinates, m.ng), float(i) * 10),
+                    "xmax": np.full((m.quad.n_ordinates, m.ng), float(i) * 10),
                 },
             )
             state = state.advance(new_bulk, new_boundary)
@@ -390,11 +390,11 @@ class TestTimeDerivativeStencil:
     def test_first_order_backward_difference(self) -> None:
         m = _slab_mesh()
         state_old = _filled_state(m, bulk_val=1.0, bound_val=2.0)
-        new_bulk = AngularFlux(values=np.full((m.quad.N, m.ng, *m.spatial_shape), 1.5), space=m.angular_bulk_space)
+        new_bulk = AngularFlux(values=np.full((m.quad.n_ordinates, m.ng, *m.spatial_shape), 1.5), space=m.angular_bulk_space)
         new_boundary = AngularBoundaryFlux.from_face_arrays(
             m, {
-                "xmin": np.full((m.quad.N, m.ng), 2.5),
-                "xmax": np.full((m.quad.N, m.ng), 2.5),
+                "xmin": np.full((m.quad.n_ordinates, m.ng), 2.5),
+                "xmax": np.full((m.quad.n_ordinates, m.ng), 2.5),
             },
         )
         state = state_old.advance(new_bulk, new_boundary)

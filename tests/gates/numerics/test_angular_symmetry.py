@@ -618,7 +618,7 @@ def _cylinder_solution():
     quad = Quadrature.folded_product(4, 8)
     mesh = Mesher(StructuredGeometry.cylinder((0.0, 2.0), (0,), outer=BC("vacuum")),
                   ).partition(CellsByCount.uniform_width(8)).mesh
-    source = np.zeros((quad.N, 1, 8))
+    source = np.zeros((quad.n_ordinates, 1, 8))
     source[:, :, :4] = 1.0                     # r-ASYMMETRIC: no flat-flux nulling
     solution = solve_sn_fixed_source({0: _one_group_mixture()}, mesh, quad, source,
                                      inner_tol=1e-13, max_inner=20_000)
@@ -636,7 +636,7 @@ def _plane_solution():
                       "ymin": BC("vacuum"),
                       "ymax": BC("vacuum"),
                   })
-    source = np.zeros((quad.N, 1, 5, 3))
+    source = np.zeros((quad.n_ordinates, 1, 5, 3))
     source[:, :, :2, :1] = 1.0                 # x- AND y-asymmetric corner source
     solution = solve_sn_fixed_source({0: _one_group_mixture()}, mesh, quad, source,
                                      inner_tol=1e-13, max_inner=20_000)
@@ -649,7 +649,7 @@ def _slab_solution():
     mesh = Mesher(StructuredGeometry.slab((0.0, 2.0), (0,), left=BC("vacuum"),
                                           right=BC("vacuum")),
                   ).partition(CellsByCount.uniform_width(8)).mesh
-    source = np.zeros((quad.N, 1, 8))
+    source = np.zeros((quad.n_ordinates, 1, 8))
     source[:, :, :4] = 1.0
     solution = solve_sn_fixed_source({0: _one_group_mixture()}, mesh, quad, source,
                                      inner_tol=1e-13, max_inner=20_000)

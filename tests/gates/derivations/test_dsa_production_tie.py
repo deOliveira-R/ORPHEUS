@@ -103,7 +103,7 @@ class TestParentTie:
         )  # (ng, K)
         mu = np.asarray(slab.quad.mu_x, float)
 
-        for ordinate in range(slab.quad.N):
+        for ordinate in range(slab.quad.n_ordinates):
             blocks = assemble_ordinate_blocks(
                 slab, ordinate, include_collision=True
             )

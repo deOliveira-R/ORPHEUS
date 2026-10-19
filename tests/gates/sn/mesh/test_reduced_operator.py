@@ -378,7 +378,7 @@ class TestProperties:
         # The ANGULAR factor is present and NEUTRAL.
         assert op.angular.n_levels == 1
         assert np.array_equal(
-            op.angular.alpha_per_level[0], np.zeros(quad.N + 1)
+            op.angular.alpha_per_level[0], np.zeros(quad.n_ordinates + 1)
         )
         assert op.angular.mu_start_per_level == (-1.0,)
 
@@ -586,7 +586,7 @@ class TestStreamingTermsGeometricLabels:
         op = spherical_streaming(mesh, quad)
         i = 2
         # n_neg has μ < 0 (inward); n_pos has μ > 0 (outward).
-        n_neg, n_pos = 0, quad.N - 1
+        n_neg, n_pos = 0, quad.n_ordinates - 1
         st_neg = op.streaming_terms(cell_idx=i, direction_idx=n_neg)
         st_pos = op.streaming_terms(cell_idx=i, direction_idx=n_pos)
         # Geometric labels — same for both directions.
@@ -839,7 +839,7 @@ class TestP4RemTheProducerBindsTheAxis:
 
         closure = sn.angular_closure
         assert isinstance(closure, IdentityAngularClosure)
-        assert closure.tau_per_ordinate.size == sn.quad.N
+        assert closure.tau_per_ordinate.size == sn.quad.n_ordinates
 
     @pytest.mark.foundation
     def test_the_courier_is_dead_by_field_set(self):
@@ -873,7 +873,7 @@ class TestP4RemTheProducerBindsTheAxis:
 
         quad = Quadrature.gauss_legendre(4)
         bare = Axis(
-            "angular", (quad.N,),
+            "angular", (quad.n_ordinates,),
             weights=np.asarray(quad.weights, float), kind=BasisKind.NODAL,
         )
         op = ReducedStreamingOperator(
@@ -942,7 +942,7 @@ class TestP4RemTheProducerBindsTheAxis:
                             op.streaming_terms(1, d_idx, mu_level_idx=p_idx).abs_mu
                         )
             else:
-                for d_idx in range(quad.N):
+                for d_idx in range(quad.n_ordinates):
                     out.append(op.streaming_terms(1, d_idx).abs_mu)
             return np.asarray(out)
 

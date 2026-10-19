@@ -330,7 +330,7 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
         mesh, Quadrature.gauss_legendre(8),
         {2: get_mixture("A", "1g"), 0: get_mixture("B", "1g")},
     )
-    bulk_only = sn.quad.N * sn.ng * int(np.prod(sn.spatial_shape))
+    bulk_only = sn.quad.n_ordinates * sn.ng * int(np.prod(sn.spatial_shape))
     # B.2d (F3 migration): the Krylov state on a carrying mesh is the COUPLED
     # pair — the honest two-system ravel (2-block ψ_A + System B's composite;
     # NO dead padding).  The pre-fix bulk-only restart under-sizes it by
@@ -394,7 +394,7 @@ def _expected_coupled_restart(sn) -> tuple[int, int]:
         RadialCharacteristicField,
     )
 
-    bulk = int(sn.quad.N * sn.ng * int(np.prod(sn.spatial_shape)))
+    bulk = int(sn.quad.n_ordinates * sn.ng * int(np.prod(sn.spatial_shape)))
     trace = int(sn.angular_trace.layout.total_size)
     size_b = int(np.asarray(
         RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space).to_flat(),
@@ -451,7 +451,7 @@ def test_g_d3_3_production_sites_size_restart_from_the_coupled_ravel(
     else:
         solve_sn_fixed_source(
             materials=materials, mesh=mesh, quadrature=quad,
-            external_source=np.ones((quad.N, sn.ng, sn.nx)),
+            external_source=np.ones((quad.n_ordinates, sn.ng, sn.nx)),
             inner_solver="krylov", max_inner=60, inner_tol=1e-8,
         )
 
@@ -490,7 +490,7 @@ def test_g_d3_3_site_gate_has_teeth(monkeypatch) -> None:
 
     solver_mod.solve_sn_fixed_source(
         materials=materials, mesh=mesh, quadrature=quad,
-        external_source=np.ones((quad.N, sn.ng, sn.nx)),
+        external_source=np.ones((quad.n_ordinates, sn.ng, sn.nx)),
         inner_solver="krylov", max_inner=40, inner_tol=1e-6,
     )
 

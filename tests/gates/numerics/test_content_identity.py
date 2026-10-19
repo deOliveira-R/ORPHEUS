@@ -467,7 +467,7 @@ def _space_names() -> dict[str, Callable[[], str]]:
 
     def angular() -> AngularTraceSpace:
         quad = Quadrature.gauss_legendre(4)
-        layout = FaceLayout.from_named_shapes([("xmin", (quad.N, 1)), ("xmax", (quad.N, 1))])
+        layout = FaceLayout.from_named_shapes([("xmin", (quad.n_ordinates, 1)), ("xmax", (quad.n_ordinates, 1))])
         return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
     def scalar() -> ScalarTraceSpace:

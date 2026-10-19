@@ -257,7 +257,7 @@ def _outflow_restriction(
     )
     return TraceRestrictionOperator(
         np.sort(np.asarray(method_space.outflow_indices, dtype=np.intp)),
-        n_total=method_space.quadrature.N,
+        n_total=method_space.quadrature.n_ordinates,
         axis=_ORDINATE_AXIS,
         domain=gamma,
         codomain=gamma_plus,
@@ -301,7 +301,7 @@ def _partner_outflow_restriction(
     )
     return TraceRestrictionOperator(
         np.sort(outflow),
-        n_total=quadrature.N,
+        n_total=quadrature.n_ordinates,
         axis=_ORDINATE_AXIS,
         domain=gamma,
         codomain=gamma_plus,
@@ -600,7 +600,7 @@ def _deck_kernel(
             f"SNBoundaryRealizer cannot realize {law_key!r}: the deck "
             f"motion does not permute this quadrature's weighted ordinate "
             f"set — no bijective, weight-preserving match of the "
-            f"{quadrature.N} ordinates onto their images exists within the "
+            f"{quadrature.n_ordinates} ordinates onto their images exists within the "
             f"certification windows (the ERR-073/ERR-074 discipline, live "
             f"at realization). A deck transformation is a "
             f"measure-preserving bijection of the trace, so a rule not "

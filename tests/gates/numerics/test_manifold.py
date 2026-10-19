@@ -2977,7 +2977,7 @@ class TestR4OrbitBarycentresIsOneConceptOnBothWidths:
 
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         reference = mirror_partner_indices(quad, "y")
-        np.testing.assert_array_equal(reference, np.arange(quad.N))
+        np.testing.assert_array_equal(reference, np.arange(quad.n_ordinates))
 
         kernel = quad.measure.permutation_under(RigidMotion.reflection(normal=_R4_I3[1]), atol=1e-9)
         assert kernel is not None

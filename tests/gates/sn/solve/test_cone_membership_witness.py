@@ -68,7 +68,7 @@ def _solve(nx: int, width: float):
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=2)
-    q = np.zeros((quad.N, 1, nx))
+    q = np.zeros((quad.n_ordinates, 1, nx))
     # Per-ordinate source of 100 in cell 0 — the asymmetry that drives the
     # DD dome; magnitude matches the CS3 plan §5.3 freeze so the [M] numbers
     # cross-reference verbatim (min ψ = −6.399383e-01 on the thick leg).

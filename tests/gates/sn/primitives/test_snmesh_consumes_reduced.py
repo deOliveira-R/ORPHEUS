@@ -110,7 +110,7 @@ def test_sphere_reduced_is_reduced_streaming_operator() -> None:
     # onto the shared angular factor and retired the fused ΔA ⊗ 1/w
     # cache, so a not-None check has nothing left to be about.)
     assert sn.reduced.angular.n_levels == 1
-    assert sn.reduced.angular.alpha_per_level[0].shape == (sn.quad.N + 1,)
+    assert sn.reduced.angular.alpha_per_level[0].shape == (sn.quad.n_ordinates + 1,)
     assert sn.reduced.angular.mu_start_per_level == (-1.0,)
     assert sn.reduced.delta_A is not None
 
@@ -220,7 +220,7 @@ def test_sphere_dag_walk_outward_order() -> None:
     sn = _sphere_mesh()
     quad = sn.quad
     # Pick a positive-μ ordinate.
-    n = quad.N - 1
+    n = quad.n_ordinates - 1
     assert quad.mu_x[n] > 0
     visits = list(sn.dag_walk(ordinate_idx=n))
     assert [v.cell_idx for v in visits] == list(range(sn.nx))
@@ -257,7 +257,7 @@ def test_slab_dag_walk_no_face_areas() -> None:
     sn = _slab_mesh()
     quad = sn.quad
     # Forward (μ > 0).
-    n_pos = quad.N - 1
+    n_pos = quad.n_ordinates - 1
     visits_pos = list(sn.dag_walk(ordinate_idx=n_pos))
     assert [v.cell_idx for v in visits_pos] == list(range(sn.nx))
     for v in visits_pos:

@@ -810,9 +810,9 @@ class TestP1DSAArm:
         # …and a 3-D rule answers both, so the refusal is about the RULE's
         # dimension and not about the accessor being unimplemented.
         sphere = Quadrature.level_symmetric(4)
-        assert np.asarray(sphere.axis_cosines(1)).shape == (sphere.N,)
+        assert np.asarray(sphere.axis_cosines(1)).shape == (sphere.n_ordinates,)
         assert not np.array_equal(
-            np.asarray(sphere.axis_cosines(1)), np.zeros(sphere.N)
+            np.asarray(sphere.axis_cosines(1)), np.zeros(sphere.n_ordinates)
         )
 
 

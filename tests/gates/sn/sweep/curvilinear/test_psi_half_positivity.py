@@ -147,7 +147,7 @@ def _converged_flux(sn):
     """
     solution = solve_sn_fixed_source(
         sn.materials, sn.mesh, sn.quad,
-        external_source=np.ones((sn.quad.N, 2, sn.nx)),
+        external_source=np.ones((sn.quad.n_ordinates, 2, sn.nx)),
         inner_tol=1e-12,
     )
     psi = np.asarray(solution.angular_flux.interior.values, dtype=float)

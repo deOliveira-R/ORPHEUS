@@ -130,7 +130,7 @@ def solve_uniform_source_ball(*, sigma_t, radius, nx, quad,
         mesh = Mesher(StructuredGeometry.sphere(
             (0.0, radius), (0,), outer=BC("vacuum"),
         )).partition(CellsByCount.uniform_width(nx)).mesh
-        source = np.full((quad.N, 1, nx), 1.0 / float(quad.weights.sum()))
+        source = np.full((quad.n_ordinates, 1, nx), 1.0 / float(quad.weights.sum()))
         solution = solve_sn_fixed_source(
             {0: _pure_scatterer(sigma_t)}, mesh, quad, source,
             max_inner=400_000, inner_tol=1e-12,

@@ -281,7 +281,7 @@ def face_trace(quadrature, faces=("xmin", "xmax")):
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 
     layout = FaceLayout.from_named_shapes(
-        [(f, (int(quadrature.N),)) for f in faces]
+        [(f, (int(quadrature.n_ordinates),)) for f in faces]
     )
     return AngularTraceSpace.from_quadrature_and_layout(quadrature, layout)
 

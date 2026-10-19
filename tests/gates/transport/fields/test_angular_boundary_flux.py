@@ -219,7 +219,7 @@ class TestFaceLayoutSliceViews:
         m = _cartesian_2d_mesh()
         bf = AngularBoundaryFlux.zeros(m.angular_trace)
         xmin_view = bf.face_view("xmin")
-        N = m.quad.N
+        N = m.quad.n_ordinates
         assert xmin_view.shape == (N, m.ng, m.spatial_shape[1])
         xmin_view[0, 0, 0] = 9.0
         flat_idx = bf.layout.faces["xmin"].offset
@@ -228,20 +228,20 @@ class TestFaceLayoutSliceViews:
     def test_face_shapes_match_per_geometry(self) -> None:
         # 1-D slab.
         m = _slab_mesh(nx=4, ng=2)
-        N = m.quad.N
+        N = m.quad.n_ordinates
         bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert bf.face_view("xmin").shape == (N, 2)
         assert bf.face_view("xmax").shape == (N, 2)
 
         # 1-D sphere.
         m = _sphere_mesh(nx=4, ng=2)
-        N = m.quad.N
+        N = m.quad.n_ordinates
         bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert bf.face_view("xmax").shape == (N, 2)
 
         # 2-D Cartesian.
         m = _cartesian_2d_mesh(nx=3, ny=2, ng=2)
-        N = m.quad.N
+        N = m.quad.n_ordinates
         bf = AngularBoundaryFlux.zeros(m.angular_trace)
         assert bf.face_view("xmin").shape == (N, 2, 2)
         assert bf.face_view("xmax").shape == (N, 2, 2)
@@ -274,7 +274,7 @@ class TestFaceLayoutSliceViews:
         Catches Rank 5 failure mode per the verification memo.
         """
         m = _cartesian_2d_mesh(nx=3, ny=2, ng=2)
-        N = m.quad.N
+        N = m.quad.n_ordinates
         bf = AngularBoundaryFlux.zeros(m.angular_trace)
         # Post-D-G face-only total:
         face_only = 2 * N * 2 * 2 + 2 * N * 2 * 3  # x-faces + y-faces
@@ -403,7 +403,7 @@ class TestConstruction:
 
     def test_from_face_arrays_slab(self) -> None:
         m = _slab_mesh()
-        N = m.quad.N
+        N = m.quad.n_ordinates
         xmin_arr = np.full((N, 2), 1.0)
         xmax_arr = np.full((N, 2), 2.0)
         bf = AngularBoundaryFlux.from_face_arrays(m, {"xmin": xmin_arr, "xmax": xmax_arr})
@@ -412,7 +412,7 @@ class TestConstruction:
 
     def test_from_face_arrays_2d(self) -> None:
         m = _cartesian_2d_mesh(nx=3, ny=2, ng=2)
-        N = m.quad.N
+        N = m.quad.n_ordinates
         face_arrays = {
             "xmin": np.full((N, 2, 2), 1.0),
             "xmax": np.full((N, 2, 2), 2.0),
@@ -425,14 +425,14 @@ class TestConstruction:
 
     def test_from_face_arrays_missing_face_raises(self) -> None:
         m = _slab_mesh()
-        N = m.quad.N
+        N = m.quad.n_ordinates
         # Slab needs both xmin and xmax; omit xmin.
         with pytest.raises(ValueError, match="do not match"):
             AngularBoundaryFlux.from_face_arrays(m, {"xmax": np.zeros((N, 2))})
 
     def test_from_face_arrays_extra_face_raises(self) -> None:
         m = _sphere_mesh()
-        N = m.quad.N
+        N = m.quad.n_ordinates
         # Sphere only has xmax; passing xmin should raise.
         with pytest.raises(ValueError, match="do not match"):
             AngularBoundaryFlux.from_face_arrays(
@@ -441,7 +441,7 @@ class TestConstruction:
 
     def test_from_face_arrays_wrong_shape_raises(self) -> None:
         m = _slab_mesh()
-        N = m.quad.N
+        N = m.quad.n_ordinates
         with pytest.raises(ValueError, match="shape"):
             AngularBoundaryFlux.from_face_arrays(m, {
                 "xmin": np.zeros((N, 3)),   # ng=3 instead of 2

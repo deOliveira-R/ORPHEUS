@@ -144,7 +144,7 @@ def test_of_axes_name_is_BLIND_to_the_generator() -> None:
     q = Quadrature.gauss_legendre(4)
     minted = Axis.of_quadrature(q, "angular")
     literal = Axis(
-        "angular", (q.N,), weights=np.asarray(q.weights, float),
+        "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
         kind=BasisKind.NODAL,
     )
     s_m = FunctionSpace.of_axes(minted)

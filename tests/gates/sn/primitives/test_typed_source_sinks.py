@@ -148,18 +148,18 @@ class TestAngularSource:
     def test_construct_from_factory(self) -> None:
         m = _slab_mesh()
         Qa = AngularSourceSink.zeros(m.angular_bulk_space)
-        assert Qa.values.shape == (m.quad.N, m.ng, *m.spatial_shape)
+        assert Qa.values.shape == (m.quad.n_ordinates, m.ng, *m.spatial_shape)
         assert np.all(Qa.values == 0.0)
         assert isinstance(Qa, AngularSourceSink)
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
         m = _slab_mesh()
         with pytest.raises(ValueError, match="AngularSourceSink.*does not match"):
-            AngularSourceSink(values=np.zeros((m.quad.N + 1, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
+            AngularSourceSink(values=np.zeros((m.quad.n_ordinates + 1, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
 
     def test_within_type_add(self) -> None:
         m = _slab_mesh()
-        shape = (m.quad.N, m.ng, *m.spatial_shape)
+        shape = (m.quad.n_ordinates, m.ng, *m.spatial_shape)
         a = AngularSourceSink(values=np.ones(shape), space=m.angular_bulk_space)
         b = AngularSourceSink(values=2.0 * np.ones(shape), space=m.angular_bulk_space)
         c = a + b
@@ -168,7 +168,7 @@ class TestAngularSource:
 
     def test_scalar_mul(self) -> None:
         m = _slab_mesh()
-        shape = (m.quad.N, m.ng, *m.spatial_shape)
+        shape = (m.quad.n_ordinates, m.ng, *m.spatial_shape)
         a = AngularSourceSink(values=np.ones(shape), space=m.angular_bulk_space)
         c = 2.5 * a
         assert isinstance(c, AngularSourceSink)
@@ -176,7 +176,7 @@ class TestAngularSource:
 
     def test_at_ordinate_selector(self) -> None:
         m = _slab_mesh()
-        shape = (m.quad.N, m.ng, *m.spatial_shape)
+        shape = (m.quad.n_ordinates, m.ng, *m.spatial_shape)
         rng = np.random.default_rng(7)
         values = rng.standard_normal(shape)
         a = AngularSourceSink(values=values, space=m.angular_bulk_space)
@@ -202,7 +202,7 @@ class TestCrossClassDunder:
         m = _slab_mesh()
         rng = np.random.default_rng(11)
         iso_values = rng.standard_normal((m.ng, *m.spatial_shape))
-        aniso_values = rng.standard_normal((m.quad.N, m.ng, *m.spatial_shape))
+        aniso_values = rng.standard_normal((m.quad.n_ordinates, m.ng, *m.spatial_shape))
         iso = ScalarSourceSink(values=iso_values, space=m.bulk_space)
         aniso = AngularSourceSink(values=aniso_values, space=m.angular_bulk_space)
 
@@ -219,7 +219,7 @@ class TestCrossClassDunder:
         m = _slab_mesh()
         rng = np.random.default_rng(13)
         iso_values = rng.standard_normal((m.ng, *m.spatial_shape))
-        aniso_values = rng.standard_normal((m.quad.N, m.ng, *m.spatial_shape))
+        aniso_values = rng.standard_normal((m.quad.n_ordinates, m.ng, *m.spatial_shape))
         iso = ScalarSourceSink(values=iso_values, space=m.bulk_space)
         aniso = AngularSourceSink(values=aniso_values, space=m.angular_bulk_space)
 
@@ -236,10 +236,10 @@ class TestCrossClassDunder:
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # distinct instance, same content
         iso = ScalarSourceSink(values=np.ones((m1.ng, *m1.spatial_shape)), space=m1.bulk_space)
-        aniso = AngularSourceSink(values=np.ones((m2.quad.N, m2.ng, *m2.spatial_shape)), space=m2.angular_bulk_space)
+        aniso = AngularSourceSink(values=np.ones((m2.quad.n_ordinates, m2.ng, *m2.spatial_shape)), space=m2.angular_bulk_space)
         _ = iso + aniso  # twin content — legal since the F2 re-key
         m3 = _stretched_mesh()
-        aniso3 = AngularSourceSink(values=np.ones((m3.quad.N, m3.ng, *m3.spatial_shape)), space=m3.angular_bulk_space)
+        aniso3 = AngularSourceSink(values=np.ones((m3.quad.n_ordinates, m3.ng, *m3.spatial_shape)), space=m3.angular_bulk_space)
         with pytest.raises(ValueError, match="marginal"):
             _ = iso + aniso3
 
@@ -256,7 +256,7 @@ class TestCrossClassDunder:
         m = _slab_mesh()
         rng = np.random.default_rng(17)
         iso_values = rng.standard_normal((m.ng, *m.spatial_shape))
-        aniso_values = rng.standard_normal((m.quad.N, m.ng, *m.spatial_shape))
+        aniso_values = rng.standard_normal((m.quad.n_ordinates, m.ng, *m.spatial_shape))
         iso = ScalarSourceSink(values=iso_values, space=m.bulk_space)
         aniso = AngularSourceSink(values=aniso_values, space=m.angular_bulk_space)
         sum_w = float(m.quad.weights.sum())
@@ -311,7 +311,7 @@ class TestCrossClassDunder:
     def test_aniso_plus_aniso_within_type(self) -> None:
         """``AngularSourceSink + AngularSourceSink → AngularSourceSink``."""
         m = _slab_mesh()
-        shape = (m.quad.N, m.ng, *m.spatial_shape)
+        shape = (m.quad.n_ordinates, m.ng, *m.spatial_shape)
         a = AngularSourceSink(values=np.ones(shape), space=m.angular_bulk_space)
         b = AngularSourceSink(values=2.0 * np.ones(shape), space=m.angular_bulk_space)
         c = a + b
@@ -336,9 +336,9 @@ class TestBroadcastInjection:
 
         aniso = iso + AngularSourceSink.zeros(m.angular_bulk_space)
         assert isinstance(aniso, AngularSourceSink)
-        assert aniso.values.shape == (m.quad.N, m.ng, *m.spatial_shape)
+        assert aniso.values.shape == (m.quad.n_ordinates, m.ng, *m.spatial_shape)
         # Every ordinate slice IS the isotropic source.
-        for n in range(m.quad.N):
+        for n in range(m.quad.n_ordinates):
             np.testing.assert_array_equal(aniso.values[n], iso_values)
 
     def test_dunder_broadcast_owns_data(self) -> None:
@@ -362,13 +362,13 @@ class Test2DTypedSources:
         iso = ScalarSourceSink.zeros(m.bulk_space)
         aniso = AngularSourceSink.zeros(m.angular_bulk_space)
         assert iso.values.shape == (m.ng, *m.spatial_shape)
-        assert aniso.values.shape == (m.quad.N, m.ng, *m.spatial_shape)
+        assert aniso.values.shape == (m.quad.n_ordinates, m.ng, *m.spatial_shape)
 
     def test_cross_type_add_2d(self) -> None:
         m = _2d_mesh()
         rng = np.random.default_rng(29)
         iso = ScalarSourceSink(values=rng.standard_normal((m.ng, *m.spatial_shape)), space=m.bulk_space)
-        aniso = AngularSourceSink(values=rng.standard_normal((m.quad.N, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
+        aniso = AngularSourceSink(values=rng.standard_normal((m.quad.n_ordinates, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
         combined = iso + aniso
         expected = iso.values[None] + aniso.values
         np.testing.assert_array_equal(combined.values, expected)
@@ -512,7 +512,7 @@ class TestHarmonicMomentSourceSink:
         q = HarmonicMomentSourceSink.from_problem_and_L(
             np.ones(_moment_shape(m, 2)), m, L=2,
         )
-        ang = AngularSourceSink(values=np.ones((m.quad.N, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
+        ang = AngularSourceSink(values=np.ones((m.quad.n_ordinates, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
         with pytest.raises(TypeError, match="same-class partner"):
             _ = q + ang
 

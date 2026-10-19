@@ -374,7 +374,7 @@ class TestHarmonicMomentFluxScalarFlux:
         m = _slab_mesh()
         L = 1
         rng = np.random.default_rng(seed=5)
-        N = m.quad.N
+        N = m.quad.n_ordinates
         psi_values = rng.standard_normal((N, m.ng, *m.spatial_shape))
         psi = AngularFlux(values=psi_values, space=m.angular_bulk_space)
 
@@ -591,7 +591,7 @@ class TestRLambdaMRoundTrip:
         op = solver.problem.system.factors.scattering
 
         # Build a typed AngularFlux with isotropic content.
-        N = quad.N
+        N = quad.n_ordinates
         psi_values = np.ones((N, mix.ng, nx, ny))
         psi = AngularFlux(values=psi_values, space=problem.angular_bulk_space)
 

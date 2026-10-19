@@ -231,7 +231,7 @@ def test_xmin_source_streams_in_positive_x_direction() -> None:
 
     geom = _decay_mesh_geom()
     quad = Quadrature.level_symmetric(sn_order=4)
-    nx, ny, N = 6, 6, quad.N
+    nx, ny, N = 6, 6, quad.n_ordinates
     ext = np.zeros((N, 1, nx, ny))
     ext[:, 0, 0, :] = 1.0  # source on the xmin column (all y)
 
@@ -265,7 +265,7 @@ def test_ymin_source_streams_in_positive_y_direction() -> None:
 
     geom = _decay_mesh_geom()
     quad = Quadrature.level_symmetric(sn_order=4)
-    nx, ny, N = 6, 6, quad.N
+    nx, ny, N = 6, 6, quad.n_ordinates
     ext = np.zeros((N, 1, nx, ny))
     ext[:, 0, :, 0] = 1.0  # source on the ymin row (all x)
 

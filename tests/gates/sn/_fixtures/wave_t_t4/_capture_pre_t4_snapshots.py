@@ -185,7 +185,7 @@ def _cart2d_mesh(
 def _make_state(problem: SNProblem, *, seed: int) -> TimedFullField:
     """Build a TimedFullField with a deterministic random bulk ψ."""
     rng = np.random.default_rng(seed)
-    N = problem.quad.N
+    N = problem.quad.n_ordinates
     ng = problem.ng
     # Rank-agnostic (C2 rank-d carve): 1-D meshes carry spatial_shape
     # (nx,), 2-D (nx, ny).

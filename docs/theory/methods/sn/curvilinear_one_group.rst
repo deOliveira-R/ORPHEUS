@@ -4422,7 +4422,7 @@ Ordinate vectorisation
 
 Per the user's hard architectural directive (and the precedent at
 ``orpheus/sn/angular_operator.py:183``), the rewritten matvec
-carries **no** ``for n in range(quad.N)`` loop. The per-cell update
+carries **no** ``for n in range(quad.n_ordinates)`` loop. The per-cell update
 operates on whole ordinate subsets via boolean masks:
 
 .. code-block:: python

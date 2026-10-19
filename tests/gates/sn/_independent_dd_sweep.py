@@ -120,7 +120,7 @@ def hand_sweep(
     and the scalar flux ``phi = sum_n w_n psi_n``, ``(ng, nx, ny)``.
     """
     quad = problem.quad
-    N = quad.N
+    N = quad.n_ordinates
     ng, nx, ny = Q.shape
     W = float(quad.weights.sum())
     dx, dy = (np.asarray(w) for w in problem.axis_widths)
@@ -188,7 +188,7 @@ def sweep_agreement_tolerances(problem: SNProblem) -> tuple[float, float]:
     eps = float(np.finfo(float).eps)
     nx, ny = problem.spatial_shape
     depth = nx + ny
-    return 10.0 * depth * eps, 10.0 * (depth + problem.quad.N) * eps
+    return 10.0 * depth * eps, 10.0 * (depth + problem.quad.n_ordinates) * eps
 
 
 def regenerate_sweep_snapshot() -> None:

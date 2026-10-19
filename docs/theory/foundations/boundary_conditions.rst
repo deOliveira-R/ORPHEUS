@@ -1464,7 +1464,7 @@ Until campaign phase **B3.2** the trace operators :math:`\gamma_\pm`
 existed on this page and in the affine form :eq:`affine-bc-form` but
 had **no type in the code**. They were spelled three different ways and
 typed as none of them, and the SN boundary law was consequently handed
-the *whole face slot* — all ``quad.N`` ordinate rows — with the outflow
+the *whole face slot* — all ``quad.n_ordinates`` ordinate rows — with the outflow
 rows thrown away afterwards by a slice-write at the consumer. B3.1
 minted the missing primitive and B3.2 narrowed the law onto it.
 
@@ -5459,7 +5459,7 @@ else to represent.
 
    **What this replaced, and why the replacement is not a
    simplification.** Pre-B3.2 this arm returned
-   ``IncomingOrdinateMaskTensor(inflow_indices=…, n_ordinates=quad.N)
+   ``IncomingOrdinateMaskTensor(inflow_indices=…, n_ordinates=quad.n_ordinates)
    & IdentityOperator()`` — a **full-face** operator that zeroed the
    inflow rows and *preserved* the outflow rows, which the consumer
    then discarded with a slice-write. Two campaign phases had

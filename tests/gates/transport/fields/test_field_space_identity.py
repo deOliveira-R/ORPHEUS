@@ -156,7 +156,7 @@ class TestG23RoleIsClassIdentity:
 
     def test_same_role_addition_still_succeeds(self):
         sn = _mesh()
-        a = AngularFlux(values=np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space)
+        a = AngularFlux(values=np.ones((sn.quad.n_ordinates, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space)
         b = AngularFlux(values=2.0 * np.ones_like(a.values), space=sn.angular_bulk_space)
         c = a + b
         assert isinstance(c, AngularFlux)

@@ -280,7 +280,7 @@ class TestLinearity:
     def test_linearity(self, name, builder) -> None:
         problem = builder()
         ng = problem.ng
-        N = problem.quad.N
+        N = problem.quad.n_ordinates
         sigma_t = np.full((ng, *problem.spatial_shape), 0.5)
 
         rng = np.random.default_rng(seed=42)
@@ -359,11 +359,11 @@ class TestOutputShape:
         assert isinstance(result.boundary, AngularBoundarySourceSink)
         # Cell values: (N, ng, *spatial).
         assert result.interior.values.shape == (
-            problem.quad.N, problem.ng, *problem.spatial_shape,
+            problem.quad.n_ordinates, problem.ng, *problem.spatial_shape,
         )
         # Outer face: (N, ng) for every geometry.
         assert result.boundary.face_view("xmax").shape == (
-            problem.quad.N, problem.ng,
+            problem.quad.n_ordinates, problem.ng,
         )
         # Inner face: (N, ng) for slab; absent for curvilinear.
         # Reads the CONTRACT, not a defaulted getattr on a field: the
@@ -374,7 +374,7 @@ class TestOutputShape:
         if problem.is_cartesian:
             assert "xmin" in result.boundary.layout.faces
             assert result.boundary.face_view("xmin").shape == (
-                problem.quad.N, problem.ng,
+                problem.quad.n_ordinates, problem.ng,
             )
         else:
             assert "xmin" not in result.boundary.layout.faces
@@ -414,14 +414,14 @@ class TestFaceResidualMask:
         rng = np.random.default_rng(seed=11)
         psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
         psi.interior.values[:] = rng.standard_normal(
-            (problem.quad.N, ng, *problem.spatial_shape),
+            (problem.quad.n_ordinates, ng, *problem.spatial_shape),
         )
         psi.boundary.face_view("xmax")[:] = rng.standard_normal(
-            (problem.quad.N, ng),
+            (problem.quad.n_ordinates, ng),
         )
         if "xmin" in psi.boundary.layout.faces:
             psi.boundary.face_view("xmin")[:] = rng.standard_normal(
-                (problem.quad.N, ng),
+                (problem.quad.n_ordinates, ng),
             )
 
         result = _LC_matvec(psi, sigma_t, problem=problem)
@@ -452,13 +452,13 @@ class TestFaceResidualMask:
         rng = np.random.default_rng(seed=22)
         psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
         psi.interior.values[:] = rng.standard_normal(
-            (problem.quad.N, ng, *problem.spatial_shape),
+            (problem.quad.n_ordinates, ng, *problem.spatial_shape),
         )
         psi.boundary.face_view("xmax")[:] = rng.standard_normal(
-            (problem.quad.N, ng),
+            (problem.quad.n_ordinates, ng),
         )
         psi.boundary.face_view("xmin")[:] = rng.standard_normal(
-            (problem.quad.N, ng),
+            (problem.quad.n_ordinates, ng),
         )
 
         result = _LC_matvec(psi, sigma_t, problem=problem)
@@ -561,7 +561,7 @@ class TestTypeContract:
         from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
         problem = _slab_mesh()
         sigma_t = np.full((problem.ng, *problem.spatial_shape), 1.0)
-        psi_bare = np.zeros((problem.quad.N, problem.ng, *problem.spatial_shape))
+        psi_bare = np.zeros((problem.quad.n_ordinates, problem.ng, *problem.spatial_shape))
         L_op = StreamingOperator.pose(problem)
         C_op = MultiplicationOperator.from_mesh(sigma_t, problem)
         with pytest.raises(TypeError, match="TimedFullField"):

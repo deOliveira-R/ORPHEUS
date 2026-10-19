@@ -242,7 +242,7 @@ class TestSolveSnAdjointFixedSource:
         materials, mesh, _ = _homogeneous_2g(BC.vacuum)
         _, reflective_mesh, _ = _homogeneous_2g(BC.reflective)
         quad = _quad()
-        N, ng, nx = quad.N, 2, 10
+        N, ng, nx = quad.n_ordinates, 2, 10
 
         fwd_fs = solve_sn_fixed_source(
             materials, mesh, quad, np.ones((N, ng, nx)),
@@ -307,7 +307,7 @@ class TestSolveSnAdjointFixedSource:
         q_iso[0, 0:2] = 1.3
         W = float(quad.weights.sum())
         q_per_ord = np.broadcast_to(
-            (q_iso / W)[None], (quad.N, ng, nx),
+            (q_iso / W)[None], (quad.n_ordinates, ng, nx),
         ).copy()
         fwd = solve_sn_fixed_source(
             mats, mesh, quad, q_per_ord,
@@ -331,7 +331,7 @@ class TestSolveSnAdjointFixedSource:
             _history=(), history_depth=2,
         )
         qstar_composite = TimedFullField(
-            interior=AngularSourceSink(values=np.broadcast_to(sigma_d[None], (quad.N, ng, nx)).copy(), space=sn.angular_bulk_space),
+            interior=AngularSourceSink(values=np.broadcast_to(sigma_d[None], (quad.n_ordinates, ng, nx)).copy(), space=sn.angular_bulk_space),
             boundary=AngularBoundarySourceSink.zeros(sn.angular_trace),
             _history=(), history_depth=2,
         )
@@ -518,8 +518,8 @@ def _assert_rung_premise(quad, order: int, square_closes: bool) -> None:
     if order == _RUNG_LMAX:
         n_modes = int(np.prod(frame_faces.basis_space(frame).shape))
         require(
-            n_modes > quad.N,
-            f"premise lost: L={order} carries {n_modes} harmonics on {quad.N} "
+            n_modes > quad.n_ordinates,
+            f"premise lost: L={order} carries {n_modes} harmonics on {quad.n_ordinates} "
             f"ordinates — the reconstruction face is no longer non-injective.",
         )
 
@@ -539,7 +539,7 @@ def _response_pair(quad, order: int):
     sigma_d[1, 6:8] = 0.7
     fwd = solve_sn_fixed_source(
         mats, mesh, quad,
-        np.broadcast_to((q_iso / W)[None], (quad.N, ng, nx)).copy(),
+        np.broadcast_to((q_iso / W)[None], (quad.n_ordinates, ng, nx)).copy(),
         scattering_order=order, inner_tol=_RUNG_INNER_TOL, max_inner=5000,
     )
     adj = solve_sn_adjoint_fixed_source(
@@ -564,7 +564,7 @@ def _dense_scattering(quad, order: int, *, transposed: bool = False):
     mats, mesh = _rung_slab(transposed=transposed)
     problem = SNProblem(mesh, quad, mats, scattering_order=order)
     S = problem.system.factors.scattering
-    shape = (quad.N, 2, mesh.N)
+    shape = (quad.n_ordinates, 2, mesh.N)
     n = int(np.prod(shape))
     forward, adjoint = [], []
     for j in range(n):
@@ -658,7 +658,7 @@ class TestAdjointAtAnUnderResolvedOrder:
         S, SH, G = _dense_scattering(quad, order)
         S_transposed_data, _, _ = _dense_scattering(quad, order, transposed=True)
         n_modes = int(np.prod(frame_faces.basis_space(frame_faces.angular_frame(quad, order)).shape))
-        tol = 8.0 * (quad.N + n_modes) * np.finfo(float).eps
+        tol = 8.0 * (quad.n_ordinates + n_modes) * np.finfo(float).eps
         require(
             _relative(S, S_transposed_data) > 0.1,
             "the transposed data reproduces S — the group asymmetry the "

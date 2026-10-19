@@ -153,7 +153,7 @@ def zero_source_composite(problem: SNProblem) -> FullField:
     )
 
     return FullField(
-        interior=AngularSourceSink(values=np.zeros((problem.quad.N, problem.ng, *problem.spatial_shape)), space=problem.angular_bulk_space),
+        interior=AngularSourceSink(values=np.zeros((problem.quad.n_ordinates, problem.ng, *problem.spatial_shape)), space=problem.angular_bulk_space),
         boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
     )
 
@@ -184,7 +184,7 @@ def random_composite(problem: SNProblem, seed: int) -> FullField:
     rows the old sweep dropped — with shapes read off the mesh (so the
     same builder serves slab and the xmax-only curvilinear layout)."""
     rng = np.random.default_rng(seed)
-    interior = AngularFlux(values=rng.normal(size=(problem.quad.N, problem.ng, *problem.spatial_shape)), space=problem.angular_bulk_space)
+    interior = AngularFlux(values=rng.normal(size=(problem.quad.n_ordinates, problem.ng, *problem.spatial_shape)), space=problem.angular_bulk_space)
     boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
     for face in boundary.layout.faces:
         view = boundary.face_view(face)
@@ -200,7 +200,7 @@ def random_source_composite(problem: SNProblem, seed: int) -> FullField:
 
     rng = np.random.default_rng(seed)
     interior = AngularSourceSink(
-        values=rng.normal(size=(problem.quad.N, problem.ng, *problem.spatial_shape)), space=problem.angular_bulk_space,
+        values=rng.normal(size=(problem.quad.n_ordinates, problem.ng, *problem.spatial_shape)), space=problem.angular_bulk_space,
     )
     boundary = AngularBoundarySourceSink.zeros(problem.angular_trace)
     for face in boundary.layout.faces:

@@ -92,7 +92,7 @@ def _build_mesh(nx, ny, lvl, ng, bc):
 def _random_inputs(rng, problem, ng, nx, ny):
     """Het Σ_t + per-ordinate (anisotropic) source + random non-zero inflow."""
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))
-    Q = rng.uniform(0.0, 2.0, size=(problem.quad.N, ng, nx, ny))
+    Q = rng.uniform(0.0, 2.0, size=(problem.quad.n_ordinates, ng, nx, ny))
     bf = AngularBoundaryFlux.zeros(problem.angular_trace)
     for face in bf.layout.faces:
         fv = bf.face_view(face)
