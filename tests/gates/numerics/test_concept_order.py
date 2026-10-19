@@ -75,13 +75,15 @@ PENDING: dict[tuple[str, str], str] = {
     ("operator", "frame"): "M3",
     ("projection", "frame"): "M3",
     ("space", "frame"): "M3, S1",
-    # M4: the axis receives its generator; mass_matrix retires (ruling 11)
-    ("axis", "measure"): "M4",
-    ("axis", "quadrature"): "M4",
-    ("measure", "basis"): "M4",
-    ("space", "basis"): "M4",
-    ("space", "measure"): "M4",
-    ("spaces", "basis"): "M4",
+    # M4a: mass_matrix retires onto the frame's discrete Gram (ruling 11)
+    ("measure", "basis"): "M4a",
+    # M4b: the axis receives its generator (ruling 11)
+    ("axis", "measure"): "M4b",
+    ("axis", "quadrature"): "M4b",
+    # S7: the coefficient space of a basis and the sampled space of a measure (ruling 35)
+    ("space", "basis"): "S7",
+    ("space", "measure"): "S7",
+    ("spaces", "basis"): "S7",
     # M6: the measure stops reaching the generating measure (ruling 12)
     ("generating_measure", "measure"): "M6",
     # S1: the marginalisation lift is built on the operator side (ruling 10)
