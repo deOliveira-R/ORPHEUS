@@ -19,7 +19,10 @@ from orpheus.numerics.scalars import canonical_reals
 from orpheus.data.micro_xs.isotope import NG, Isotope
 from .interpolation import interp_sig_s, interp_xs_field
 from .sigma_zeros import solve_sigma_zeros
-from orpheus.numerics import frame_faces
+# Submodule form, not ``from orpheus.numerics import frame_faces``: an input-layer
+# module imports numerics by submodule (tests/gates/test_layer_imports.py), so the
+# numerics -> geometry back-edge cannot deadlock on the package root.
+import orpheus.numerics.frame_faces as frame_faces
 
 if TYPE_CHECKING:
     from orpheus.data.energy_grid import EnergyGrid, WithinGroupSpectrum
