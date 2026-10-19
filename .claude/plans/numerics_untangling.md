@@ -784,3 +784,18 @@ Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
 - **Deferred NIT:** e₀ is hand-minted at 3 sites. It becomes a basis verb ("the coefficients of 1") when a second basis normalisation appears.
 
 **Integration** (`refactor/eprime-wave3` at `7baf444c`): S1 with M2 (`ee80ff47`) and M5 (`e4c3160c`). Its wide run is in progress, and the archivist, qa and the elegance enforcer are confirming.
+
+## Wave 3 LANDED (2026-10-19, `main` `659a4656`)
+
+- `[LANDED 659a4656]` M2, M5 and S1, with the review fixes. The integrated tree was `7baf444c`; the fix commit is `659a4656`, preceded by the plan commit `ee9b9cc0`.
+- `[M]` The wide run on `7baf444c` (`-O`, serial, `-m "not slow"`): 17 of 17 test directories exit 0 (numerics 4864 passed, sn 3834, derivations 3098, the root gates 613; `scratch/numerics_untangling/packages/wave3_wide/summary.txt`).
+- `[M]` After the fixes, the touched files plus `tests/gates/test_*.py` gave 1364 passed. pyright found 0 errors in the touched files. Sphinx -W exit 0. dead_references 0 of 66.
+- The review fixes applied after the wide run:
+  - the alias `AxisKind = BasisKind | Modal`;
+  - `frame_faces._SLOT`;
+  - `_harmonic_basis(support: Manifold, ...)`;
+  - the `_overlay_forms` docstring;
+  - the modal-kind refusal test split into three parametrized legs.
+- The branches and worktrees of waves 1–3 are deleted.
+
+⏸ **Next:** wave 4, which is M6, M7 and S5. Then S2, S3, S4 and S6 in series. S7's design is still to be settled with the user; the PG-degenerate ruling is owed there. qa F2 goes to S6. The numerics test census interleaves with the waves.
