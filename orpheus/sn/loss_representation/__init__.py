@@ -449,6 +449,24 @@ class LossRepresentation(Protocol):
         """
         ...
 
+    @property
+    def has_transpose_sweep(self) -> bool:
+        r"""Whether THIS representation realises the transpose-solve :math:`(L+C)^{-\mathsf T}`.
+
+        The capability :meth:`sweep_transpose` answers, read by the inverse:
+        :attr:`~orpheus.numerics.operator.InverseWrapMixin.is_adjointable`
+        needs the REVERSE SCAN, which is a different object from the matvec
+        transpose that :attr:`has_transpose_walk` gates (the reverse walk of
+        the forward action). Every registered representation reverses its
+        walk, but only the 1-D scan family realises the reverse scan (#280
+        Phase 2.5b); the multi-D wavefront's is the deferred G-S
+        schedule-reverse arm. Reading the walk factor for the inverse made
+        ``SweepOperator.is_adjointable`` ``True`` on every 2-D pose while
+        ``S.H.apply`` raised (`[M]` 2026-10-18,
+        ``tests/gates/numerics/test_adjointability_is_honest.py``).
+        """
+        ...
+
     @classmethod
     def supports(
         cls, problem: "SNProblem", spatial_closure: "DiscretizationSchemeBase",
@@ -864,6 +882,16 @@ class _LossRepresentation:
         FUTURE representation inherits until its reverse lands: the eager
         ``.H`` refuses at construction rather than reaching a raising
         ``loss_action_transpose`` at apply time.
+        """
+        return False
+
+    @property
+    def has_transpose_sweep(self) -> bool:
+        """Reverse-scan capability — ``False`` unless the leaf realises :meth:`sweep_transpose`.
+
+        See :meth:`LossRepresentation.has_transpose_sweep`. Only
+        :class:`CumprodScan` overrides; this base's :meth:`sweep_transpose`
+        raises the deferral, and this default says so beforehand.
         """
         return False
 
@@ -1647,6 +1675,11 @@ class CumprodScan(_LossRepresentation):
         ``_OneDimScanWalk`` frame traverses ``_reverse_traversal`` of the
         same legs the forward marches.
         """
+        return True
+
+    @property
+    def has_transpose_sweep(self) -> bool:
+        """``True`` — the 1-D scan realises :meth:`sweep_transpose`, the reverse scan (#280 2.5b)."""
         return True
 
 

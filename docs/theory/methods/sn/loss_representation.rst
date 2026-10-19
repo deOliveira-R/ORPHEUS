@@ -2676,6 +2676,23 @@ deferral, not a coverage gap:
   is the #280 sibling deferral (no consumer), so a
   :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` over it
   stays non-adjointable.
+* The **multi-dimensional transposed sweep** :math:`(L+C)^{-\mathsf T}`
+  — ``sweep_transpose`` is realised only by the 1-D scan
+  (:class:`~orpheus.sn.loss_representation.CumprodScan`); the multi-D
+  representations (``ScanMarch``, ``MovingFrontierWindow``,
+  ``FullFieldWavefront``) inherit the base's ``NotImplementedError``
+  (`#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_). Each
+  representation states it beforehand through
+  :attr:`~orpheus.sn.loss_representation.LossRepresentation.has_transpose_sweep`
+  (``True`` only on ``CumprodScan``), a different capability from
+  ``has_transpose_walk`` (the reverse walk of the forward *action*, which
+  every registered representation has). The forward's
+  ``is_transpose_invertible`` reads both, so a multi-D
+  :math:`(L+C)` reads ``is_adjointable = True`` and
+  ``is_transpose_invertible = False``, its sweep reads
+  ``is_adjointable = False``, and ``(L+C).H.inverse()`` refuses with
+  :class:`~orpheus.numerics.operator.NotInvertible` at construction
+  (:ref:`operator-adjoint-two-questions`).
 
 That is the WHOLE ledger for the adjoint *matvec*: since #310 C5 the
 ``loss_action_transpose`` grid is complete over every registered
@@ -2722,11 +2739,17 @@ without adding a single line of new solve machinery, by reading the
 :math:`(L+C)^{-1} = A^{-1}` (the object
 :meth:`(L+C).inverse() <orpheus.sn.operators.streaming.StreamingCollisionOperator.inverse>`
 returns). Since the composite is endomorphic, its Euclidean transpose
-is :math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}` — so
-:meth:`SweepOperator.apply_transpose <orpheus.sn.operators.sweep_operator.SweepOperator.apply_transpose>`
-is *exactly* the inner's
+is :math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}` — so the sweep's
+``apply_transpose`` is *exactly* the inner's
 :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve_transpose`
-(the 2.5b reverse-scan). Nothing else is needed.
+(the 2.5b reverse-scan). The sweep codes none of this itself: the law is
+the inverse family's, written once on
+:class:`~orpheus.numerics.operator.InverseWrapMixin`
+(:meth:`InverseWrapMixin.apply_transpose
+<orpheus.numerics.operator.InverseWrapMixin.apply_transpose>`), which the
+sweep inherits as :class:`~orpheus.numerics.operator.InverseOperator` does
+(:ref:`operator-adjoint-two-questions`).
+Nothing else is needed.
 
 The consequence is the **swap law**, an *object identity of the
 algebra* rather than a numerical coincidence of two implementations:
@@ -2788,11 +2811,16 @@ code in the sweep — the original A3 plan's "Deliverable 3" (a separate
 metric transpose-solve) *dissolved*. The honest two-factor predicates
 guard it (ruling R11):
 
-* :attr:`SweepOperator.is_adjointable <orpheus.sn.operators.sweep_operator.SweepOperator.is_adjointable>`
-  ``= isinstance(inner, StreamingCollisionOperator) and inner.is_adjointable``
-  (the schedule-folded arm has no ``solve_transpose`` → stays
-  non-adjointable; LD / multi-D Cartesian defer via
-  ``inner.is_adjointable``);
+* the sweep's ``is_adjointable``, inherited from
+  :class:`~orpheus.numerics.operator.InverseWrapMixin`,
+  ``= transpose_invertible(inner)``: the forward realises the transposed
+  solve. For :math:`(L+C)` that is
+  :attr:`StreamingCollisionOperator.is_transpose_invertible
+  <orpheus.sn.operators.streaming.StreamingCollisionOperator.is_transpose_invertible>`
+  ``= is_adjointable and loss_representation.has_transpose_sweep``: the
+  matvec transpose's factors and the reverse scan, which only the 1-D
+  scan family realises. The schedule-folded arm has no
+  ``solve_transpose`` and stays non-adjointable;
 * :attr:`AdjointOperator.is_invertible <orpheus.numerics.operator.AdjointOperator.is_invertible>`
   ``= invertible(inner) and adjointable(inner.inverse())`` — a name
   earns its invariant: ``.inverse()`` cannot promise more than
@@ -2822,13 +2850,16 @@ is the keystone catcher against a bug copied into both
    is the adjoint-**apply** of the inverse operator.
 
 .. implements:: loss-rep-metric-adjoint-solve
-   :by: orpheus.sn.operators.sweep_operator.SweepOperator.apply_transpose
+   :by: orpheus.numerics.operator.InverseWrapMixin.apply_transpose
 
    Supplies the equation's second equality, :math:`(A^{-1})^{\mathsf T} =
-   \texttt{solve\_transpose}`. Its body is ``return
-   self.inner.solve_transpose(b)`` behind an ``isinstance`` narrowing
-   that raises :class:`~orpheus.numerics.operator.MissingAdjoint` for the
-   schedule-folded composite. Without this the conjugation above would
+   \texttt{solve\_transpose}`, for every member of the inverse family
+   that does not override it, the S\ :sub:`N` sweep among them. Its body
+   is ``return inner.solve_transpose(x)`` behind a
+   :func:`~orpheus.numerics.operator.transpose_invertible` check that
+   raises :class:`~orpheus.numerics.operator.MissingAdjoint` for a forward
+   with no transposed solve (the schedule-folded composite, a
+   multi-dimensional :math:`(L+C)`). Without this the conjugation above would
    have nothing to conjugate — the two declarations are the two factors
    of one chain, not two views of one symbol.
 

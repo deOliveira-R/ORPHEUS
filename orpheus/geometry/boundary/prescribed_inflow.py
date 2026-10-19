@@ -90,7 +90,8 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
             quadrature=quad, face="xmax", trace=trace,
         )
         op = SNBoundaryRealizer().realize(law, space)
-        psi_in = op.apply(psi_out)   # ignores psi_out; returns q on Γ₋
+        psi_in = op.apply(psi_out)   # the linear factor: zero on Γ₋
+        # q itself travels the boundary-source channel, not this operator
 
     Only ``psi_out``'s TRAILING axes are read, to size the group /
     spatial block; its leading axis is ignored entirely, so unlike the

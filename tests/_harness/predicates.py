@@ -49,9 +49,11 @@ def assert_inverse_adjoint_contract(
     invertible : bool
         Expected ``op.is_invertible``.
     adjointable : bool
-        Expected ``op.is_adjointable`` — and the eager-``.H`` behaviour
-        that must match it (returns the wrapper vs raises
-        ``MissingAdjoint`` at CONSTRUCTION, never lazily at apply).
+        Expected ``op.is_adjointable`` — and the eager behaviour that must
+        match it: ``.dual()`` returns iff it is ``True``, and ``.H`` returns
+        iff it is ``True`` AND the adjoint is
+        :func:`~orpheus.numerics.operator.posed`; every refusal is
+        ``MissingAdjoint`` at CONSTRUCTION, never lazily at apply.
     inverse_contract : str
         One of :data:`INVERTIBLE` / :data:`VALUE_RAISE` /
         :data:`STRUCTURAL_ABSENT`.
@@ -64,6 +66,7 @@ def assert_inverse_adjoint_contract(
         NotInvertible,
         adjointable as _adj_bridge,
         invertible as _inv_bridge,
+        posed,
     )
 
     # (a) inverse axis — predicate + the three-valued method contract.
@@ -98,22 +101,28 @@ def assert_inverse_adjoint_contract(
             )
     else:
         raise AssertionError(f"unknown inverse_contract {inverse_contract!r}")
-    # (b) adjoint axis — uniformly eager return-or-raise (.H is base-level).
+    # (b) adjoint axis — uniformly eager return-or-raise, on both doors:
+    # .dual() reads the transpose flag alone, .H the flag AND the posing.
     if op.is_adjointable != adjointable:
         raise AssertionError(
             f"{op!r}: is_adjointable={op.is_adjointable}, expected {adjointable}"
         )
-    if adjointable:
-        op.H  # eager: returns the wrapper, no raise
-    else:
+    for door, opens in (
+        ("dual", adjointable),
+        ("H", adjointable and posed(op)),
+    ):
+        if opens:
+            op.dual() if door == "dual" else op.H  # eager: returns, no raise
+            continue
         try:
-            op.H
+            op.dual() if door == "dual" else op.H
         except MissingAdjoint:
             pass
         else:
             raise AssertionError(
-                f"{op!r}: non-adjointable .H did not raise MissingAdjoint "
-                f"EAGERLY at construction"
+                f"{op!r}: .{door} did not raise MissingAdjoint EAGERLY at "
+                f"construction (is_adjointable={adjointable}, "
+                f"posed={posed(op)})"
             )
     # (c) bridge consistency — pins the one-line TypeGuard bodies (spec
     # §36 leg c; a bridge reading anything but the predicate drifts here).

@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**116 entries · 378 catching tests · 2 uncaught · 5 dormant.**
+**117 entries · 380 catching tests · 2 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-117` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-117")`.
+Append a `.. error-entry:: ERR-118` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-118")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -165,3 +165,4 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-114 | 1 |  | The rank-1 Peierls compute_G_bc on the cylinder used the surface-centred Ki_1/d form, which rea… |
 | ERR-115 | 2 |  | A regenerated traced-memo entry held the OLD answer and validated: the generating process ran t… |
 | ERR-116 | 3 |  | A traced-memo entry pinned its file-system inputs (a data file's bytes, a probed path's presenc… |
+| ERR-117 | 2 |  | One adjointability predicate answered two questions, "a Euclidean transpose is coded" and "the… |

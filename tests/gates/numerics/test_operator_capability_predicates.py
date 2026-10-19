@@ -61,7 +61,8 @@ class _ApplyOnly(LinearOperator):
 class _BoundDiagonalLeaf(LinearOperator):
     """A BOUND non-pointwise leaf for the AdjointOperator rows: diagonal
     action with declared spaces, adjointable, invertible via the generic
-    InverseOperator (whose adjoint axis is #280-deferred — the branch the
+    InverseOperator (not adjointable: the leaf codes no ``solve_transpose``,
+    so the mixin's law (A⁻¹)ᵀ = (Aᵀ)⁻¹ has nothing to ride — the branch the
     wrapper rows exist to pin). Since the S4-amendment a pointwise member
     never builds the wrapper (its .H is itself) and an UNBOUND inner is
     REFUSED at the wrapper's constructor, so this bound stand-in is the
@@ -171,8 +172,8 @@ def test_scaled_and_adjoint_predicates_faithful():
     so the #280-deferred wrapper branches dissolve for the family), while
     the generic ``AdjointOperator`` wrapper — pinned here by direct
     construction — keeps its CONDITIONAL swap law (#280 2.5c): False for
-    this inner because ``DiagonalOperator``'s inverse
-    (``InverseOperator``) is non-adjointable (#280-deferred), so
+    this inner because the bound leaf's inverse (``InverseOperator``) is
+    non-adjointable (the leaf codes no ``solve_transpose``), so
     ``(A⁻¹).H`` does not exist. Since CS4c step 1 (the Riesz-leg
     re-expression, closing #375) the wrapper IS adjointable — its
     transpose is the leg theorem ``(A*)ᵀ = ♭_W ∘ A ∘ ♯_V`` — and the
@@ -198,15 +199,16 @@ def test_inverse_objects_are_faithful():
     The two-axis truth must hold on what ``.inverse()`` RETURNS, not just
     on the advertisers: every family member is ``is_invertible=True``
     (its ``solve`` is the wrapped forward) with the involution closing by
-    object identity, and stays honest on the adjoint axis (False until
-    #280). The full contract legs run in the keystone-v2 rows below;
+    object identity, and stays honest on the transpose axis (the mixin's
+    law, see ``_mixin_family``). The full contract legs run in the
+    keystone-v2 rows below;
     here the involution identities are pinned.
     """
     D = DiagonalOperator(_C)
     assert D.inverse().inverse() is D  # (A⁻¹)⁻¹ — the leaf, by identity
     # G-I3 (#226 step 4): the GreenOperator a Green-invertible SUM returns
     # is faithful too — {APPLY, SOLVE} via the mixin back-half,
-    # is_invertible=True, adjoint axis honestly deferred (#280).
+    # is_invertible=True; its transpose axis is the Green of the dual sum.
     s = IdentityOperator() + DiagonalOperator(_C)
     green = s.inverse()
     assert green.inverse() is s  # involution by object identity (mixin)
@@ -229,13 +231,18 @@ def _mixin_family():
     D = DiagonalOperator(_C)
     from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 
-    # (name, op, is_adjointable) — the adjoint axis lands PER SIBLING
-    # (#280 family): FREE for the materialized matrix (step 5 — the
-    # ``trans=1`` backsolve on the SAME LU factors, the arm the swap law
-    # rides), still deferred for the pointwise and splitting siblings.
+    # (name, op, is_adjointable) — the transpose axis per sibling (#280
+    # family): the mixin's law (A⁻¹)ᵀ = (Aᵀ)⁻¹ for the generic inverse (the
+    # diagonal's transposed solve is its solve), the Green of the dual sum
+    # for the splitting sibling, the ``trans=1`` backsolve on the SAME LU
+    # factors for the materialized matrix. The first two are metric-free
+    # (an inverse of multipliers is a multiplier), so their ``.H`` is posed
+    # with no spaces declared. Both read False until ruling 27 of
+    # ``.claude/plans/numerics_untangling.md`` (2026-10-18) made the flag
+    # answer "a transpose is coded".
     return [
-        ("InverseOperator", D.inverse(), False),
-        ("GreenOperator", (IdentityOperator() + D).inverse(), False),
+        ("InverseOperator", D.inverse(), True),
+        ("GreenOperator", (IdentityOperator() + D).inverse(), True),
         (
             # Over the BOUND leaf (S4-amendment): its adjointable arm takes
             # .H, which demands the inner's declared spaces.
@@ -273,8 +280,9 @@ _CONTRACT_ROWS = [
     ("TensorProduct-both", TensorProductOperator((DiagonalOperator(_C), IdentityOperator())), True, True, INVERTIBLE),
     ("TensorProduct-singular", TensorProductOperator((DiagonalOperator(_CZ), IdentityOperator())), False, True, VALUE_RAISE),
     # The adjoint wrapper: the swap law (A.H)⁻¹ = (A⁻¹).H is now DECLARED
-    # (#280 2.5c), but THIS instance is not invertible — DiagonalOperator's
-    # inverse (InverseOperator) is #280-deferred on the adjoint axis, so
+    # (#280 2.5c), but THIS instance is not invertible — the bound leaf's
+    # inverse (InverseOperator) does not transpose (the leaf codes no
+    # solve_transpose, so the mixin's law has nothing to ride), so
     # is_invertible=False and inverse() RAISES NotInvertible (VALUE_RAISE, not
     # STRUCTURAL_ABSENT — the method now exists). Since CS4c step 1
     # (the Riesz-leg re-expression, #375 closed) the wrapper IS

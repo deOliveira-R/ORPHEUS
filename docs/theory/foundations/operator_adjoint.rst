@@ -132,7 +132,12 @@ where the Riesz legs :math:`\flat` and :math:`\sharp` are defined).
      :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
      report ``False``, so ``.H`` **raises**
      :class:`~orpheus.numerics.operator.MissingAdjoint` **eagerly at**
-     ``.H`` **construction** — it never silently goes Euclidean. (The
+     ``.H`` **construction** — it never silently goes Euclidean.
+   - ``.H`` **asks two questions**: a Euclidean transpose is coded
+     (``is_adjointable``, which gates ``.dual()``), and both ends give
+     Riesz legs (:func:`~orpheus.numerics.operator.posed`: declared, not
+     a ``DualSpace``, or metric-free). ``.H`` exists iff both hold
+     (:ref:`operator-adjoint-two-questions`). (The
      **Supersession note below** records the retirement of an earlier
      ``S`` / ``F`` no-``apply_transpose`` mechanism that predated the
      #112 / #118 / #276 adjoint work.)
@@ -547,7 +552,11 @@ non-adjointable operand reports
 :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
 ``= False``, and its :attr:`~orpheus.numerics.operator.LinearOperator.H`
 raises :class:`~orpheus.numerics.operator.MissingAdjoint` **eagerly at
-construction** — never silently Euclidean. This is
+construction** — never silently Euclidean. An operator whose ends give
+no Riesz legs (an unbound end, a ``DualSpace`` end) is refused at the
+same door by the second question,
+:func:`~orpheus.numerics.operator.posed`
+(:ref:`operator-adjoint-two-questions`). This is
 **illegal-states-unrepresentable** (Cardinal Rule 2) realized through the
 recursive predicate, orthogonal to the W-D domain plumbing (which serves
 the *forward* composition guard).
@@ -582,6 +591,404 @@ the *forward* composition guard).
    ``F`` handled at the eigenvalue / DSA **outer** layer (where the
    adjoint posing row daggers :math:`M = F` as :math:`M^{\dagger}`; see
    :ref:`eigenvalue-posing`), not via a within-group composite adjoint.
+
+
+.. _operator-adjoint-two-questions:
+
+Two questions behind ``.H``: a coded transpose, and a posed adjoint
+-------------------------------------------------------------------
+
+The arrow form of the adjoint, :eq:`spaces-adjoint-riesz-composition`,
+
+.. math::
+
+   A^{*} \;=\; \sharp_V \circ A^{\mathsf T} \circ \flat_W ,
+   \qquad A : V \to W ,
+
+is a composition of three arrows, and each arrow is a separate fact about
+the operator. The middle arrow :math:`A^{\mathsf T} : W^{*} \to V^{*}` is
+the **dual arrow**, the Euclidean transpose on the flat coordinates. The
+two outer arrows are the **Riesz legs** of the two ends
+(:ref:`spaces-riesz-legs`): :math:`\flat_W` multiplies by the codomain's
+metric :math:`G_W`, :math:`\sharp_V` by the (pseudo-)inverse of the
+domain's metric :math:`G_V`. The adjoint machinery therefore asks **two
+questions**, and the code answers each with its own predicate.
+
+1. **Is a Euclidean transpose coded?**
+   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable` is
+   ``True`` iff the operator's ``apply_transpose`` runs on every input of
+   this instance. It gates
+   :meth:`~orpheus.numerics.operator.LinearOperator.dual`, which returns
+   the dual arrow as an operator.
+2. **Is the Hilbert adjoint posed?**
+   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjoint_posed` is a
+   predicate on the type, read by the free function
+   :func:`~orpheus.numerics.operator.posed`. At the base it is ``True``
+   iff both ends are declared spaces whose metrics give Riesz legs
+   (neither end is ``None`` and neither is a
+   :class:`~orpheus.numerics.space.DualSpace`), or the operator's adjoint
+   needs no metric
+   (:attr:`~orpheus.numerics.operator.LinearOperator.is_metric_free_adjoint`).
+   A type whose adjoint is a law over other objects overrides it: the
+   dual arrow :math:`A^{\mathsf T}`, whose adjoint is the dagger–dual
+   commutation :math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}`, is
+   posed iff :math:`A` is, whatever its own ``DualSpace`` ends.
+
+``.H`` = ``♯ ∘ dual ∘ ♭`` exists **iff both hold**. The one door is
+:class:`~orpheus.numerics.operator.AdjointOperator`: ``op.H`` refuses
+eagerly, at construction, with
+:class:`~orpheus.numerics.operator.MissingAdjoint` when either answer is
+no, and its message names which (``is UNBOUND`` for a missing end,
+``has a DualSpace end`` for a dual end, or the missing transpose).
+
+Why the dual arrow needs no posing, and the adjoint does
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The dual arrow is defined by the Euclidean pairing of flat coordinates,
+
+.. math::
+
+   \langle A x, y\rangle \;=\; y^{\mathsf T} A x
+   \;=\; (A^{\mathsf T} y)^{\mathsf T} x
+   \;=\; \langle x, A^{\mathsf T} y\rangle
+   \qquad \forall\, x \in V,\; y \in W^{*} ,
+
+which mentions no metric: every matrix has a transpose, so the question
+"does :math:`A^{\mathsf T}` exist" is only "is it coded". The Hilbert
+adjoint is defined by the two **metric** pairings,
+
+.. math::
+
+   \langle A x, y\rangle_W \;=\; \langle x, A^{*} y\rangle_V
+   \;\Longleftrightarrow\;
+   y^{\mathsf T} G_W A x \;=\; (A^{*} y)^{\mathsf T} G_V x
+   \quad \forall\, x
+   \;\Longleftrightarrow\;
+   G_V A^{*} \;=\; A^{\mathsf T} G_W ,
+
+so (with :math:`G_V` symmetric) :math:`A^{*} = G_V^{-1} A^{\mathsf T}
+G_W`, the pseudo-inverse :math:`G_V^{+}` standing in for
+:math:`G_V^{-1}` on a singular metric (:ref:`spaces-riesz-legs`). The
+right-hand side needs both metrics. An operator with an unbound end has
+no metric to read there, and answering with :math:`G = I` would return
+the Euclidean transpose under the adjoint's name: the silent reduction
+this page's opening section records for the S\ :sub:`N` composite before
+R5. The door refuses instead.
+
+A ``DualSpace`` end is the second refusal, and it is the subtler one
+(the **G² trap**). A :class:`~orpheus.numerics.space.DualSpace` carries
+its primal's metric :math:`G`, which is the L²-Riesz identification; the
+inner product that the Riesz map induces on the dual is
+:math:`\langle f, g\rangle_{V^{*}} = f^{\mathsf T} G^{-1} g`, so a leg
+built on :math:`V^{*}` would apply :math:`G` where :math:`G^{-1}` is
+required, and :math:`\flat(\flat x)` would read :math:`G^{2}x`. Both leg
+constructors refuse a ``DualSpace`` for that reason
+(:ref:`spaces-riesz-legs`). The two legs themselves, :math:`\flat : V \to
+V^{*}` and :math:`\sharp : V^{*} \to V`, each have a ``DualSpace`` end:
+their transpose is coded (a symmetric :math:`G` is its own transpose, so
+``.dual()`` runs), and their adjoint is not posed, so ``.H`` refuses.
+The repair, a dual space that carries :math:`G^{-1}`, after which
+:math:`\flat^{*} = \sharp` holds as a law, is `#617 <https://github.com/deOliveira-R/ORPHEUS/issues/617>`_. On the dual
+side today, a Hilbert adjoint routes through the dagger–dual
+commutation :math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}`
+on the primal operator, and that is what the dual arrow's own posing
+predicate reads: ``A.dual()`` has ``DualSpace`` ends and is posed exactly
+when ``A`` is, so ``A.dual().H`` opens for a posed ``A`` and refuses for
+an unposed one (the dual of a Riesz leg).
+
+The metric-free exception is a short computation. If :math:`A` commutes
+with every diagonal metric (a pointwise multiplier does), then for
+diagonal :math:`G_V = G_W = G`,
+:math:`G^{-1} A^{\mathsf T} G = A^{\mathsf T} G^{-1} G = A^{\mathsf T}`:
+the adjoint is the transpose whatever the metric, so it is posed with no
+ends at all. The inverse of such an operator commutes with every
+diagonal metric too, so the inverse family inherits the flag from its
+forward (``InverseWrapMixin.is_metric_free_adjoint``), and an
+:class:`~orpheus.numerics.operator.InverseOperator` over an unbound
+:class:`~orpheus.numerics.operator.DiagonalOperator` has a working
+``.H``.
+
+.. list-table:: The four states of the two predicates, and the two doors
+   :header-rows: 1
+   :widths: 14 10 12 12 52
+
+   * - ``is_adjointable``
+     - ``posed``
+     - ``.dual()``
+     - ``.H``
+     - Shipped instances (rows of the honesty gate's registry)
+   * - ``True``
+     - ``True``
+     - opens
+     - opens
+     - the S\ :sub:`N` loss leaves and sums, the 1-D sweeps (DD, LD, the
+       product-quadrature cylinder) and the dual arrow of the slab sweep,
+       the fission composite, the frame faces, the inverses (one of them
+       over a product with a scaled factor), the 1-D Green
+   * - ``True``
+     - ``False``
+     - opens
+     - refuses
+     - the Riesz legs (a ``DualSpace`` end) and the dual arrow of one of
+       them; the rank-one dyad :func:`~orpheus.numerics.operator.outer`
+       and the tensor product it builds, whose ends are ``None``
+   * - ``False``
+     - ``True``
+     - refuses
+     - refuses
+     - the 2-D sweeps (no reverse scan, `#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_), the 2-D coupled
+       substitution, the Green over a 2-D head, the DSA correction
+   * - ``False``
+     - ``False``
+     - refuses
+     - refuses
+     - no registry row
+
+`[M]` 2026-10-19, the 51 rows of
+``tests/gates/numerics/test_adjointability_is_honest.py``'s registry,
+built and probed one by one (both doors applied to a codomain sample):
+35 rows open both doors, 5 open ``.dual()`` and refuse ``.H``, 9 refuse
+both, and 2 read ``True``, ``True`` while ``.H.apply`` fails. The last 2
+(the assembled diffusion leakage and the diffusion resolvent) and 4 of
+the 9 (the diffusion leaf operators, whose
+transpose the assembled matrix realises while their flag reads
+``False``) are the diffusion carrier defect, `#614
+<https://github.com/deOliveira-R/ORPHEUS/issues/614>`_: composite-ended
+operators that speak flat arrays. The gate carries those 6 rows as
+strict ``xfail``, so each turns red the day its carrier is fixed.
+
+The inverse family's transpose is one law
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Transposing :math:`A A^{-1} = I` gives :math:`(A^{-1})^{\mathsf T}
+A^{\mathsf T} = I`, so
+
+.. math::
+
+   (A^{-1})^{\mathsf T} \;=\; (A^{\mathsf T})^{-1} :
+
+the transpose of an inverse is the **transposed solve** of its forward.
+That is a third capability of a forward, beside ``solve``
+(:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`) and
+``apply_transpose`` (``is_adjointable``):
+:attr:`~orpheus.numerics.operator.LinearOperator.is_transpose_invertible`,
+``True`` iff ``solve_transpose`` exists and runs on every input. Its
+checked bridge is :func:`~orpheus.numerics.operator.transpose_invertible`,
+a ``TypeGuard`` narrowing to
+:class:`~orpheus.numerics.operator.SupportsTransposeSolve`, the sibling of
+``invertible`` / ``adjointable``.
+
+The law lives once, on ``InverseWrapMixin``: an inverse transposes iff its
+forward is transpose-invertible, and its ``apply_transpose`` is the
+forward's ``solve_transpose``. Read the other way,
+:math:`\bigl((A^{-1})^{\mathsf T}\bigr)^{-1} = A^{\mathsf T}`, so the
+inverse's own transposed solve is the forward's ``apply_transpose`` and
+its ``is_transpose_invertible`` is the forward's ``is_adjointable``.
+:class:`~orpheus.numerics.operator.InverseOperator` and the S\ :sub:`N`
+:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` inherit it,
+and the coupled block substitution
+(:class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`)
+inherits it too, so its transpose is the grid's transposed block
+substitution ``CoupledOperator.solve_transpose`` and its flag the grid's
+``is_transpose_invertible``.
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+overrides it (its transpose is the ``trans=1`` backsolve on its own LU
+factors), and so does the Green below. The dual arrow carries the same
+swap law: the dual of :math:`A` is invertible iff :math:`A` is and
+:math:`A`'s inverse transposes, and its ``inverse()`` is
+``A.inverse().dual()`` (the private ``_DualOperator``, the Euclidean twin
+of :meth:`AdjointOperator.inverse
+<orpheus.numerics.operator.AdjointOperator.inverse>`).
+
+A product's transposed solve reaches its factors through their inverse
+**objects**, not their native ``solve_transpose``:
+:math:`((AB)^{\mathsf T})^{-1} = (A^{-1})^{\mathsf T}(B^{-1})^{\mathsf T}`,
+and ``OperatorProduct.is_transpose_invertible`` asks of each factor that
+it is invertible and its inverse transposes (the private
+``_inverse_transposes``, the one spelling the two swap laws read too). A
+factor whose inverse is a first-class forward, a scaled operator or a
+permutation, therefore qualifies although it has no native transposed
+solve: `[M]` 2026-10-19, the gate row ``(D @ 2D)⁻¹`` over an unbound
+diagonal opens both doors. :class:`~orpheus.numerics.operator.ScaledOperator`
+itself has no native ``solve_transpose``; one is owed when a scaled block
+first sits on a coupled grid's diagonal, which reads the native
+predicate.
+
+Neither of the forward's other two flags answers the third question. A
+multi-dimensional :math:`(L+C)` transposes its **action** (the
+``loss_action_transpose`` grid is complete over every registered scheme
+and representation, :ref:`loss-rep-orientation-two-frames`) and does not
+transpose its **sweep**: the reverse scan ``sweep_transpose`` is realised
+only by the 1-D scan representation
+(:class:`~orpheus.sn.loss_representation.CumprodScan`), and the
+representation says so through ``has_transpose_sweep``.
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`'s
+``is_transpose_invertible`` reads both factors, the matvec transpose and
+the reverse scan. `[M]` 2026-10-18: on the 2-D Cartesian fixture
+(``ScanMarch``; the multi-D transposed sweep is `#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_) the leaf reads ``is_adjointable = True`` and
+``is_transpose_invertible = False``, so ``(L+C).H`` constructs and
+``(L+C).H.inverse()`` refuses with
+:class:`~orpheus.numerics.operator.NotInvertible`; on the slab, the LD
+slab and the product-quadrature cylinder (``CumprodScan``) both read
+``True`` and the inverse constructs. The coupled substitution reads the
+same predicate per diagonal block; a ``callable(solve_transpose)`` test
+would pass a 2-D block whose method raises.
+
+The Green of the transposed sum
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :class:`~orpheus.numerics.green_operator.GreenOperator`
+:math:`G = (A - B)^{-1}` is realised by a splitting iteration, so it has
+no transposed solve to delegate to, and it overrides the mixin. Both of
+its transposes are Greens of the transposed sum:
+
+.. math::
+
+   \bigl((A - B)^{-1}\bigr)^{*} \;=\; (A^{*} - B^{*})^{-1},
+   \qquad
+   \bigl((A - B)^{-1}\bigr)^{\mathsf T} \;=\; (A^{\mathsf T} - B^{\mathsf T})^{-1} .
+
+The code builds only the second. ``GreenOperator.dual()`` takes the
+dual arrow of each signed left-spine term, head first, sums them, and
+wraps the sum in a new ``GreenOperator`` with the same budget and
+tolerance; ``apply_transpose`` is ``dual().apply``. The dual records the
+Green it is the dual of, so ``G.dual().dual() is G`` (the involution as
+object identity, `[M]` 2026-10-19 on the gate's slab Green). The
+transposed Green's preconditioner is its head's inverse,
+:math:`(A^{\mathsf T})^{-1} = (A^{-1})^{\mathsf T}`, so it exists exactly
+where the head's inverse transposes. Hence ``GreenOperator.is_adjointable``
+is: every term transposes, and the dual of the head is invertible.
+
+The Green does **not** override the Hilbert adjoint. ``G.H`` is the
+base's ``♯ ∘ G.dual() ∘ ♭`` through the one door, posed by the Green's own
+ends. The first identity, :math:`((A - B)^{-1})^{*} = (A^{*} - B^{*})^{-1}`,
+still holds, and it is what the honesty gate uses as its **independent**
+witness for the Green row: a Green built over the terms' ``.H``, compared
+with ``G.H`` by reciprocity. When the Green carried an ``adjoint()``
+override built from that same formula, the witness was the override's
+own body, a tautology that agreed to exactly ``0.0``.
+
+The Green's cold start is part of the same repair. With
+``initial_guess=None`` the Neumann series starts at its first partial
+sum :math:`A^{-1}q`, which is one splitting step from zero,
+:math:`A^{-1}(q + B\cdot 0)`, and is counted as one step; that partial
+sum is checked against the promise before it is driven, as the driver
+checks its own first iterate. The zero itself is never formed: it would
+live in the iterate's class (a flux), while the only template at hand is
+the right-hand side's (a source), and the scattering gain refuses a
+source-classed input. This seed is a workaround for the driver, which
+mints its zero in the source's class (`#618 <https://github.com/deOliveira-R/ORPHEUS/issues/618>`_). The budget is exact:
+the driver is built per refinement call with what remains of the Green's
+**total** ``max_iter``. `[M]` 2026-10-19, the gate's heterogeneous
+2-group slab Green: the cold start and an explicit flux-classed zero seed
+give bit-identical results (``array_equal``, 3 of 3 seeds); and, by the
+orchestrator (``scratch/adjoint_honesty/split/probe_coldstart_exact.py``),
+the old and new loops give the same apply count on 30 of 30
+configurations and bit-identical results on the 20 of 20 that
+converge.
+
+Gotchas
+~~~~~~~
+
+* ``is_adjointable is True`` does **not** mean ``.H`` exists. It means
+  ``.dual()`` exists; ``.H`` also needs
+  :func:`~orpheus.numerics.operator.posed`. An operator with unbound
+  ends (a bare rank-one dyad) answers through ``.dual()``.
+* A composite's ``is_adjointable`` is the conjunction over its operands'
+  transposes, and :class:`~orpheus.numerics.operator.TensorProductOperator`
+  refuses a factor whose flag is ``False``. Turning a leaf's flag
+  ``False`` because its ``.H`` refuses therefore breaks every transpose
+  built over it, even where the composite is posed; that is the failure
+  recorded in the box below.
+* A coded transpose can still have no admissible input. The collision
+  multiplier :math:`C` accepts a source-classed input in ``apply``, so its
+  transpose keeps the forward's carrier roles, and the product
+  ``C @ B`` has no input its transpose accepts (`#619 <https://github.com/deOliveira-R/ORPHEUS/issues/619>`_).
+  The flags do not see this: they read capabilities, not carrier roles.
+* A method's presence is not a capability:
+  ``callable(op.solve_transpose)`` is ``True`` on a 2-D
+  :math:`(L+C)` whose reverse scan raises. Read
+  :func:`~orpheus.numerics.operator.transpose_invertible`.
+
+.. dropdown:: First got wrong — one flag for two questions (2026-10-18)
+   :color: muted
+
+   Until 2026-10-18 one flag, ``is_adjointable``, answered both
+   questions, and it was wrong in both directions. `[M]` 2026-10-18, the
+   same 47-row registry probed on the tree at ``37dc85e0`` (the commit
+   before the fix):
+
+   * **True while a door failed (5 rows).** The 2-D DD and LD sweeps and
+     the 2-D coupled substitution read ``True``, and both doors failed
+     at ``apply`` (``NotImplementedError`` from the multi-D reverse scan):
+     the sweep's flag read the forward's matvec factors, which transpose,
+     and the substitution's read ``callable(solve_transpose)``, a method
+     that raises. The two Riesz legs read ``True``, and ``.H`` raised a
+     ``TypeError`` from the leg constructor on the ``DualSpace`` end,
+     not a ``MissingAdjoint``.
+   * **False while the transpose was realisable.** All 5 non-diffusion
+     rows that carry a witness route read ``False``: the masked boundary
+     half (whose transpose :math:`B^{\mathsf T}P_{\rm rows}` is the
+     whole-trace operator's rows branch), the bulk analysis
+     :math:`M \oplus \mathrm{Id}`, the generic inverse of the pointwise
+     collision leaf, the generic inverse of the product
+     :math:`(L+C)\,C`, and the Green. Two rows built over them read
+     ``False`` with them: a product holding the Green, and the inverse of
+     an unbound diagonal.
+   * **True while** ``.H`` **refused, under the one-flag reading (2
+     rows).** The rank-one dyad and the tensor product built over it read
+     ``True`` while ``.H`` refused with ``MissingAdjoint`` (``is
+     UNBOUND``). These are honest under the two-question reading (the
+     transpose is coded; the adjoint is not posed), and they are the rows
+     the first attempt below turned ``False``.
+
+   The first attempt at the fix kept one flag and made it mean "``.H``
+   works": it set ``RankOneOperator.is_adjointable`` to ``False``
+   because the dyad's ends are unbound. The dyad's transpose was coded
+   and correct, and every fission operator is built over it
+   (``outer(χ, νΣ_f) & I`` through
+   :class:`~orpheus.numerics.operator.TensorProductOperator`, which
+   refuses a ``False`` factor), so ``F.H.apply`` raised in all 7 fission
+   builders a review censused, 2 of the 13 tests of
+   ``tests/gates/sn/solve/test_sn_adjoint_entries.py`` failed
+   (``solve_sn_adjoint`` among them), and
+   :class:`~orpheus.transport.operators.fission.FissionOperator`'s own
+   flag, still ``True``, became a new lie one level up. The review
+   (qa, 2026-10-18) caught it before it reached ``main``. Splitting the
+   flag into the two predicates above is the repair: the dyad keeps
+   ``is_adjointable = True`` (its ``.dual()`` runs), and its ``.H``
+   refuses through ``posed``. The catalogue entry is ERR-117 in
+   :doc:`/theory/verification/error_catalog`.
+
+   The split itself first read posing off the ENDS only, so
+   every dual arrow, whose ends are ``DualSpace`` ends, read unposed. Its
+   ``.H`` opened anyway, through the dagger–dual commutation
+   :math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}`: `[M]` 2026-10-18,
+   qa's census, 52 of 308 rows were dual arrows whose ``.H`` opened while
+   the end-reading predicate said unposed. Posing became a predicate on
+   the type, ``is_adjoint_posed``, which the dual arrow overrides with its
+   inner's.
+
+The honesty gate, ``tests/gates/numerics/test_adjointability_is_honest.py``
+(``foundation``), pins both directions over the registry.
+``test_each_transpose_door_opens_iff_predicted`` asserts that
+``.dual()`` constructs and applies exactly when ``is_adjointable``, that
+``.H`` does exactly when ``is_adjointable`` and ``posed``, that a refused
+door raises ``MissingAdjoint`` at construction and never another
+exception, and, where a door opens, a reciprocity sanity leg (Euclidean
+for ``.dual()``, the operator's own end metrics for ``.H``).
+``test_a_realisable_transpose_is_advertised`` covers the other direction:
+for 9 rows it builds a witness of the adjoint from the algebra's own laws
+or from the assembled matrix (never a second hand-written transpose),
+checks the witness by reciprocity against the forward, and then requires
+the flag to read ``True``. A row with no coded route (the 2-D sweep, the
+DSA correction) carries no witness, and ``False`` is legal there.
+``test_the_registry_reaches_every_lying_class`` is the gate's input
+count and positive control: at least 45 rows build (51 today), and each class the
+census named is present. The reciprocity legs are a sanity check, not
+the adjoint's correctness evidence: that is the structurally independent
+reciprocity gates the module declares it ``rests_on``
+(``test_g_adjoint_reciprocity.py``, ``test_riesz_legs.py``, below).
 
 
 The singular trace metric and the pseudo-inverse — exactness

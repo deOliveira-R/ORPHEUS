@@ -412,8 +412,14 @@ Key Facts
   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
   reports ``False`` and ``.H`` *raises*
   :class:`~orpheus.numerics.operator.MissingAdjoint` **eagerly at
-  construction**, never silently goes Euclidean. See
-  :ref:`g-adjoint`.
+  construction**, never silently goes Euclidean. ``is_adjointable``
+  answers only whether a Euclidean transpose is coded (it gates
+  ``.dual()``); ``.H`` also needs both ends to give Riesz legs,
+  :func:`~orpheus.numerics.operator.posed`, the reader of the type's
+  ``is_adjoint_posed`` (at the base: both ends declared and not a
+  ``DualSpace``, or metric-free; a dual arrow is posed iff its inner
+  is), and exists iff both hold. See
+  :ref:`g-adjoint` and :ref:`operator-adjoint-two-questions`.
 
 - The :class:`~orpheus.numerics.operator.LinearOperator` Protocol
   carries one mandatory method (``apply``) and, per optional axis
@@ -457,7 +463,7 @@ Key Facts
   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
   recursively from the operands; mismatches fail at composition time,
   NEVER mid-iteration — an ``apply`` mismatch raises ``TypeError``
-  eagerly, a non-adjointable ``.H`` raises
+  eagerly, a non-adjointable or unposed ``.H`` raises
   :class:`~orpheus.numerics.operator.MissingAdjoint` at construction,
   and a value-dependent ``inverse()`` raises
   :class:`~orpheus.numerics.operator.NotInvertible` before any inverse
@@ -1929,25 +1935,47 @@ honesty is enforced is the subject of this section.
 The three layers, per axis
 --------------------------
 
-Each optional axis — **inverse** and **adjoint** — now has exactly three
-layers, and each layer carries the truth it *alone* can express:
+Each optional axis — **inverse**, **transpose** and **transposed
+solve** — has exactly three layers, and each layer carries the truth it
+*alone* can express:
 
 .. list-table::
    :header-rows: 1
-   :widths: 20 34 46
+   :widths: 20 26 28 26
 
    * - Layer
      - Inverse axis
-     - Adjoint axis
+     - Transpose axis
+     - Transposed-solve axis
    * - **Predicate** (runtime truth)
      - :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`
      - :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
+     - :attr:`~orpheus.numerics.operator.LinearOperator.is_transpose_invertible`
    * - **Operator-returning method**
      - ``inverse()`` — declared *per-class*
-     - :attr:`~orpheus.numerics.operator.LinearOperator.H` — hosted on the base
+     - :meth:`~orpheus.numerics.operator.LinearOperator.dual` and
+       :attr:`~orpheus.numerics.operator.LinearOperator.H` — hosted on
+       the base
+     - none: it is the transpose of the inverse,
+       :math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}`
    * - **Realization verb**
      - ``solve``
      - ``apply_transpose``
+     - ``solve_transpose``
+
+The transpose axis's two methods answer different questions.
+``.dual()``, the dual arrow :math:`A^{\mathsf T}`, needs only the
+predicate. ``.H``, the Hilbert adjoint :math:`\sharp \circ A^{\mathsf T}
+\circ \flat`, also needs :func:`~orpheus.numerics.operator.posed`, the
+reader of the recursive predicate
+:attr:`~orpheus.numerics.operator.LinearOperator.is_adjoint_posed`: at
+the base, both ends declared and neither a ``DualSpace``, or a
+metric-free operator; the dual arrow overrides it with its inner's,
+since :math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}`.
+The three predicates have checked bridges, ``invertible``,
+``adjointable`` and ``transpose_invertible``, each a ``TypeGuard``
+narrowing to its ``Supports*`` protocol
+(:ref:`operator-adjoint-two-questions`).
 
 - The **predicate** is the runtime, instance-accurate truth. Unlike an
   ``isinstance`` check — which sees only class-level method presence — it
@@ -2276,7 +2304,12 @@ A wrapper that could only fail at its first ``.apply`` is precisely the
 broken-stub anti-pattern this module refuses; the
 :func:`~orpheus.numerics.operator.adjointable` guard doubles as the
 static bridge (the wrapper's constructor consumes the narrowed
-:class:`~orpheus.numerics.operator.SupportsAdjoint`).
+:class:`~orpheus.numerics.operator.SupportsAdjoint`). The guard in
+``adjoint()`` answers the first of the adjoint's two questions (a
+transpose is coded); the wrapper's constructor answers the second, and
+refuses just as eagerly when the adjoint is not
+:func:`~orpheus.numerics.operator.posed`
+(:ref:`operator-adjoint-two-questions`).
 
 .. _design-c-false-dichotomy:
 
@@ -8560,6 +8593,25 @@ the cheapest tell.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-18
+     - **The adjointability flag asks one question, and** ``.H`` **asks
+       two.** ``is_adjointable`` had answered both "a Euclidean transpose
+       is coded" and "the Hilbert adjoint is posed", and was wrong in both
+       directions (``True`` on the 2-D sweeps whose reverse scan raises,
+       ``False`` on the inverses, the Green, the masked boundary half and
+       the bulk analysis whose transposes exist). It now answers the first
+       and gates ``.dual()``; :func:`~orpheus.numerics.operator.posed`
+       answers the second, and ``.H`` exists iff both hold. A third
+       forward capability, ``is_transpose_invertible`` /
+       ``solve_transpose``, carries the inverse family's one transpose law
+       :math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}` on
+       ``InverseWrapMixin``; the Green's dual is the Green of the dual
+       sum, and its ``.H`` is the base's (no override). A first attempt that kept one flag broke every
+       fission adjoint and was caught in review (ERR-117). Pinned by
+       ``tests/gates/numerics/test_adjointability_is_honest.py``. See
+       :ref:`operator-adjoint-two-questions`.
+     - #614, #616
+     - ``[LANDED <hash>]``, branch ``fix/adjointability-honest``
    * - 2026-08-28
      - **A discretization scheme closes ONE axis — the angular closure
        owns its march, and the operator composes the two** (un-weld

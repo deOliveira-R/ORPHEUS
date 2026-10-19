@@ -553,12 +553,20 @@ have. Round-trip alone (:math:`A^{-1}(Ax)=x`) earns only the generic name;
    :math:`G^{\mathsf T}` here is the plain transpose under the :math:`L^2`
    pairing, built manually from the transposed operands — **not** the
    ``.H`` Hilbert adjoint :math:`G^{\dagger} = \mathcal G^{-1}
-   G^{\mathsf T}\mathcal G` carrying the angular Gram metric. The
-   adjoint-inverse axis (``G.H == (A-B).H.inverse()`` — free at the object
-   level on the iterative branch, but blocked on the SN preconditioner's
-   as-yet-unbuilt multi-D transpose sweep) is the separate
-   `#280 <https://github.com/deOliveira-R/ORPHEUS/issues/280>`_ family and
-   is deliberately *not* promised here.
+   G^{\mathsf T}\mathcal G` carrying the angular Gram metric. That
+   adjoint exists on the object: ``G.dual()`` is the Green of the dual
+   sum, ``G.H`` is the base's ``♯ ∘ G.dual() ∘ ♭``, and by the law
+   :math:`((A - B)^{-1})^{*} = (A^{*} - B^{*})^{-1}` it equals the Green of
+   the adjoint sum, which the honesty gate builds as its independent
+   witness (:ref:`operator-adjoint-two-questions`). Both need the head's
+   inverse to transpose, which on S\ :sub:`N` is the 1-D reverse scan; on
+   a multi-dimensional mesh the reverse scan is not realised
+   (`#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_; the deferral ledger of
+   :ref:`loss-rep-orientation-two-frames`), so there
+   ``G.is_adjointable`` reads ``False`` and both refuse. This
+   reciprocity gate does not use them: it builds :math:`G^{\mathsf T}`
+   by hand from the transposed operands, so it stays independent of the
+   object it would otherwise test.
 
 The family is keyed by **which mathematical object the inverse is, not by
 the algorithm that realizes it**. A Richardson-realized Green and a
@@ -769,8 +777,25 @@ The mixin also carries the **abstract** seeded-apply signature ``apply(x,
 /, *, initial_guess=None)`` — the structural resolution of #285 discussed at
 :ref:`inverse-application-driver`: a new sibling *cannot* forget the keyword
 (pyright rejects a kwarg-less override; ``ABCMeta`` blocks a missing one).
-The adjoint axis is **not** part of the back-half — ``is_adjointable`` /
-``.H`` stay at the base defaults, deferred to the #280 family.
+The **transpose** axis is part of the back-half, as one law,
+:math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}` (transpose
+:math:`A A^{-1} = I`): the mixin's ``apply_transpose`` is the forward's
+transposed solve ``inner.solve_transpose``, and its ``is_adjointable`` is
+:func:`~orpheus.numerics.operator.transpose_invertible` of the forward
+(:attr:`~orpheus.numerics.operator.LinearOperator.is_transpose_invertible`,
+a capability of the forward beside ``is_invertible`` and
+``is_adjointable``). Read the other way, the inverse's own
+``solve_transpose`` is the forward's ``apply_transpose`` and its
+``is_transpose_invertible`` is the forward's ``is_adjointable``. The
+mixin also passes the forward's ``is_metric_free_adjoint`` through, since
+an operator that commutes with every diagonal metric has an inverse that
+does too. ``.H`` itself stays the base's ``♯ ∘ dual ∘ ♭``, built when the
+transpose exists and the adjoint is posed
+(:ref:`operator-adjoint-two-questions`). Two siblings override the law:
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+(the ``trans=1`` backsolve on its own LU factors) and ``GreenOperator``
+(its dual is the Green of the dual sum, since a sum has no transposed
+solve of its own; its ``.H`` is the base's).
 
 
 .. _green-verification:

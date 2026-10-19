@@ -48,7 +48,7 @@ composition.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, overload
+from typing import TYPE_CHECKING, Optional, cast, overload
 
 from orpheus.numerics.operator import (
     D2,
@@ -80,9 +80,11 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
     :class:`~orpheus.numerics.projection.AnalysisOperator` member) while the
     boundary trace passes through VERBATIM (the biproduct keeps the trace a
     distinct summand — the reflective ``B`` coupling reads full per-ordinate
-    face values).  A block coisometry: not invertible, no transpose
-    advertised (mint the synthesis-side lift when a consumer arrives), so
-    apply-only, and the two-axis contract holds by the base defaults.
+    face values).  A block coisometry, not invertible. Its transpose is the
+    block transpose :math:`P^{\mathsf T} = M^{\mathsf T} \oplus \mathrm{Id}_{\Gamma}`:
+    the face's own transpose on the moment bulk, the trace passed through.
+    Until 2026-10-18 it advertised no transpose although the face has one
+    (``tests/gates/numerics/test_adjointability_is_honest.py``).
 
     ``face`` must be the SCATTERING operator's own minted
     :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.flux_analysis`
@@ -145,6 +147,23 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
                 else 0
             ),
         )
+
+    def apply_transpose(self, field: "FullField") -> "FullField":
+        r"""``Pᵀ·φ = Mᵀ φ_bulk ⊕ φ_Γ`` — the face's transpose on the moment bulk, the trace passed through."""
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
+        from orpheus.transport.full_field import FullField
+
+        # The admission is the face's, as in :meth:`apply`; a typed moment
+        # maps to a typed flux.
+        bulk = self.face.apply_transpose(cast(HarmonicMomentFlux, field.interior))
+        return FullField(interior=cast(AngularFlux, bulk), boundary=field.boundary)
+
+    @property
+    def is_adjointable(self) -> bool:
+        # The block transpose exists wherever the face's does (the identity
+        # on the trace always transposes).
+        return self.face.is_adjointable
 
     @overload
     def __matmul__(self, other: "SweepOperator") -> "WindowedSweep": ...

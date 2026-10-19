@@ -389,17 +389,23 @@ def test_mutation_adj_metric_reds_gate1(geom, monkeypatch):
 # ── predicate flips — the ``is_adjointable`` flip is SURGICAL ───────────
 
 
-def test_predicate_flip_is_surgical():
-    r"""``SweepOperator.is_adjointable`` flips True (over ``StreamingCollisionOperator``);
-    the sibling wrap-delegates ``InverseOperator`` / ``GreenOperator`` STAY False.
+def test_the_inverse_family_reads_one_transposed_solve_predicate():
+    r"""Every inverse-family sibling over ``(L+C)`` is adjointable iff ``(L+C)`` is transpose-invertible.
 
-    Forward-safety: 2.5c adds ``SweepOperator.apply_transpose`` and flips ITS
-    ``is_adjointable``, keyed on ``isinstance(inner, StreamingCollisionOperator) and
-    inner.is_adjointable`` — the two OTHER ``InverseWrapMixin`` siblings must NOT
-    inherit the flip (they have no reverse-scan).
+    The law :math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}`, read through one
+    predicate (:attr:`~orpheus.numerics.operator.LinearOperator.is_transpose_invertible`,
+    2026-10-18). On the 1-D slab ``(L+C)`` realises the reverse scan, so the
+    sweep, the generic ``InverseOperator`` and the Green of ``(L+C) − B`` are
+    all adjointable. Re-posed from ``test_predicate_flip_is_surgical``, which
+    pinned ``InverseOperator`` and ``GreenOperator`` non-adjointable "(no
+    reverse-scan)": on this slab the reverse scan exists, so that premise was
+    false, and the two flags lied (``tests/gates/numerics/test_adjointability_is_honest.py``
+    holds the same law across the registry, with the 2-D refusals).
     """
     sn = _slab()
     A = _loss(sn)
+    if not A.is_transpose_invertible:
+        pytest.fail("premise lost: the 1-D slab (L+C) no longer realises the reverse scan")
 
     sweep = A.inverse()
     if not (isinstance(sweep, SweepOperator) and sweep.is_adjointable is True):
@@ -409,17 +415,17 @@ def test_predicate_flip_is_surgical():
         )
 
     green = (A - SNBoundaryOperator(sn)).inverse()
-    if not (isinstance(green, GreenOperator) and green.is_adjointable is False):
+    if not (isinstance(green, GreenOperator) and green.is_adjointable is True):
         pytest.fail(
-            f"GreenOperator must STAY non-adjointable (no reverse-scan): "
+            f"GreenOperator over a transpose-invertible head must be adjointable: "
             f"type={type(green).__name__}, is_adjointable={green.is_adjointable}"
         )
 
     inverse_op = InverseOperator(A)
-    if inverse_op.is_adjointable is not False:
+    if inverse_op.is_adjointable is not True:
         pytest.fail(
-            f"InverseOperator must STAY non-adjointable (the flip is surgical to "
-            f"SweepOperator): is_adjointable={inverse_op.is_adjointable}"
+            f"InverseOperator over a transpose-invertible forward must be adjointable: "
+            f"is_adjointable={inverse_op.is_adjointable}"
         )
 
 

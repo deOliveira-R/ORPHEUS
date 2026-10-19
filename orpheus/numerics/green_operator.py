@@ -112,15 +112,19 @@ trace rows included.
 from __future__ import annotations
 
 import math
-from typing import Any
+import operator
+from functools import reduce
+from typing import Any, cast
 
 from orpheus.numerics.iteration import SourceIteration, _l2_norm, seeded_inverse
 from orpheus.numerics.operator import (
     InverseWrapMixin,
     LinearOperator,
+    MissingAdjoint,
     NotInvertible,
     OperatorSum,
     ScaledOperator,
+    adjointable,
 )
 
 __all__ = [
@@ -219,11 +223,21 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
     :class:`~orpheus.numerics.operator.InverseWrapMixin` — this class is
     the THIRD sibling, the one that fired the twins' extraction trigger.
 
-    The ADJOINT axis stays deferred with the family (#280):
-    ``G.H == (A-B).H.inverse()`` is free at the OBJECT level for the
-    iterative branch (Green of the adjoint sum), but the SN
-    preconditioner's transpose sweep is unbuilt multi-D — do not promise
-    what the leaves cannot yet do.
+    The Euclidean transpose is the Green of the dual sum,
+    :math:`((A - B)^{-1})^{\mathsf T} = (A^{\mathsf T} - B^{\mathsf T})^{-1}`
+    (:meth:`dual`, which :meth:`apply_transpose` applies): the terms' dual
+    arrows, head first, wrapped in a ``GreenOperator`` with the same budget.
+    Its preconditioner is the dual arrow's swap law
+    :math:`(A^{\mathsf T})^{-1} = (A^{-1})^{\mathsf T}`, so it exists exactly
+    where the head's inverse transposes, i.e. where the head is
+    transpose-invertible (the SN sweep: the 1-D scan family; the multi-D
+    reverse scan is #616). :attr:`is_adjointable` reads that condition and
+    that every term transposes. These override the mixin's inverse law,
+    since a sum has no transposed solve of its own. The Hilbert adjoint is
+    the base's ``♯ ∘ dual ∘ ♭``: the law
+    :math:`((A - B)^{-1})^{*} = (A^{*} - B^{*})^{-1}` holds and the honesty
+    gate checks it independently (its witness is the Green of the adjoint
+    sum), but it is not a second route to ``.H``.
 
     Parameters
     ----------
@@ -259,6 +273,12 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
         tol: float = 1e-8,
     ) -> None:
         terms = _left_spine_terms(inner)
+        #: The signed left-spine terms, head first: the splitting's operands,
+        #: and the terms whose dual arrows :meth:`dual` sums.
+        self._terms = terms
+        #: The Green this one is the dual of, when :meth:`dual` built it:
+        #: the involution (Gᵀ)ᵀ = G as an object identity.
+        self._dual_of: "GreenOperator | None" = None
         leading = terms[0]
         if not leading.is_invertible:
             raise NotInvertible(
@@ -279,12 +299,17 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
         # A⁻¹(q + Σ gains·x_n) with gains = the negated non-leading terms
         # — handed to the SAME Richardson driver the solvers consume
         # (§11.2: wrap, never re-implement).
-        self._driver: SourceIteration[Any] = SourceIteration(
-            seeded_inverse(leading),
-            *(_negated(t) for t in terms[1:]),
-            max_iter=max_iter,
-            tol=tol,
-        )
+        self._preconditioner = seeded_inverse(leading)
+        self._gains = tuple(_negated(t) for t in terms[1:])
+
+    def _driver(self, budget: int) -> SourceIteration[Any]:
+        r"""The Richardson driver of this splitting, allowed ``budget`` passes.
+
+        Built per refinement call so the TOTAL budget is exact: each call
+        receives what the earlier calls (and a cold start's first partial
+        sum) left. Construction stores references only.
+        """
+        return SourceIteration(self._preconditioner, *self._gains, max_iter=budget, tol=self.tol)
 
     def _true_relative_residual(self, psi: Any, q: Any) -> float:
         r"""The PROMISE metric :math:`\lVert(A-B)\,\psi - q\rVert / \lVert q\rVert`.
@@ -309,7 +334,17 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
         ``initial_guess`` seeds the splitting iteration's start (§38
         application context — the converged result is seed-independent to
         ``tol`` by the promise check itself); ``None`` starts the Neumann
-        series from zero, whose partial sums the G-Neumann gate pins.
+        series from zero, whose partial sums the G-Neumann gate pins. The
+        cold start is taken as the series' first partial sum
+        :math:`A^{-1}q`, which is one splitting step from zero
+        (:math:`A^{-1}(q + B\,0)`) and is counted as one: the zero itself is
+        never formed, because it lives in the iterate's class (a flux) while
+        the only template at hand is the right-hand side's (a source), and a
+        gain refuses a source-classed zero (`[M]` 2026-10-18: ``TypeError``
+        from the scattering gain on every typed S\ :sub:`N` Green applied
+        without a seed, and on every composite that holds one). The defect
+        is the driver's (#618), and this seed retires when the driver's own
+        cold start stops forming the zero.
 
         The promise is verified — and driven — on the equation residual,
         not the driver's increment (spec §18.A): the driver stops on
@@ -322,16 +357,28 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
         iteration math stays entirely inside the driver; this loop is
         pure tolerance bookkeeping.
         """
-        psi: Any = initial_guess
-        steps = 0
+        # A cold start's first partial sum is checked before it is driven,
+        # as the driver checks its own first iterate; a handed-in seed is
+        # driven first.
+        cold = initial_guess is None
+        psi: Any = self._preconditioner.apply(q) if cold else initial_guess
+        steps = int(cold)
+        record = None
         while True:
-            psi, record = self._driver.solve(q, initial_guess=psi)
-            # The driver's OWN pass count, not its trajectory length — the
-            # two differ by one for SourceIteration (#340 F10), and this
-            # loop's budget is spent in passes.  ``max(_, 1)`` survives as
-            # the guarantee that a driver returning nothing still advances
-            # the outer counter, so the while-loop cannot spin forever.
-            steps += max(record.n_iterations, 1)
+            if not cold:
+                # Only what the earlier passes left of the TOTAL budget: the
+                # promise test below raises before the budget can be spent.
+                psi, record = self._driver(self.max_iter - steps).solve(
+                    q, initial_guess=psi,
+                )
+                # The driver's OWN pass count, not its trajectory length —
+                # the two differ by one for SourceIteration (#340 F10), and
+                # this loop's budget is spent in passes.  ``max(_, 1)``
+                # survives as the guarantee that a driver returning nothing
+                # still advances the outer counter, so the while-loop cannot
+                # spin forever.
+                steps += max(record.n_iterations, 1)
+            cold = False
             true_res = self._true_relative_residual(psi, q)
             # NaN-safe promise test (spelled "converged", never "above
             # tol"): a hard-divergent split overflows the iterate — or,
@@ -344,7 +391,7 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
             if true_res < self.tol:
                 return psi
             if steps >= self.max_iter or not math.isfinite(true_res):
-                criterion = record.binding_criterion
+                criterion = None if record is None else record.binding_criterion
                 increment = (
                     float("nan")
                     if criterion is None or criterion.last is None
@@ -361,6 +408,43 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
                     f"ruling) — a slow one, that max_iter is too small for "
                     f"the physics."
                 )
+
+    @property
+    def is_adjointable(self) -> bool:
+        # The dual sum needs every term's transpose, and its head
+        # (A^T)^{-1} = (A^{-1})^T needs the dual arrow's swap law.
+        return all(adjointable(t) for t in self._terms) and (
+            self._terms[0].dual().is_invertible
+        )
+
+    def dual(self) -> "GreenOperator":
+        r"""Return :math:`((A - B)^{-1})^{\mathsf T} = (A^{\mathsf T} - B^{\mathsf T})^{-1}`, the Green of the dual sum.
+
+        The terms' dual arrows, head first, with the same budget; the
+        preconditioner is the dual arrow's swap law
+        :math:`(A^{\mathsf T})^{-1} = (A^{-1})^{\mathsf T}`. The Hilbert
+        adjoint is NOT overridden: ``.H`` is the base's
+        ``♯ ∘ dual ∘ ♭`` over this dual, through the one door that reads
+        :func:`~orpheus.numerics.operator.posed`.
+        """
+        if self._dual_of is not None:
+            return self._dual_of  # (Gᵀ)ᵀ = G, by object identity
+        if not self.is_adjointable:
+            raise MissingAdjoint(
+                f"GreenOperator.dual: the Green of the dual sum needs every "
+                f"term to transpose and the head's inverse to transpose "
+                f"((A^T)^{{-1}} = (A^{{-1}})^T); the head is "
+                f"{type(self._terms[0]).__name__}."
+            )
+        # A Green holds two terms or more, so the reduction is a sum.
+        dual_sum = cast(OperatorSum, reduce(operator.add, (t.dual() for t in self._terms)))
+        transposed = GreenOperator(dual_sum, max_iter=self.max_iter, tol=self.tol)
+        transposed._dual_of = self
+        return transposed
+
+    def apply_transpose(self, x: Any, /, *, initial_guess: Any | None = None) -> Any:
+        r"""Return :math:`((A - B)^{-1})^{\mathsf T} x` through :meth:`dual`, converged or loud."""
+        return self.dual().apply(x, initial_guess=initial_guess)
 
     def __repr__(self) -> str:
         return (

@@ -147,6 +147,7 @@ from orpheus.numerics.operator import (
     NotInvertible,
     SystemRole,
     adjointable,
+    transpose_invertible,
     assemblable,
 )
 from orpheus.numerics.space import FunctionSpace
@@ -978,10 +979,11 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
     def _transpose_substitution_ready(self) -> bool:
         r"""``True`` iff the TRANSPOSED substitution route exists: the
         forward route plus every coupling block adjointable and every
-        diagonal bearing BOTH the direct ``solve_transpose`` verb and an
-        adjointable reverse (the #280 two-factor discipline surfaces here
-        per block — an LD / multi-D diagonal that defers its reverse scan
-        honestly reports ``False``)."""
+        diagonal transpose-invertible
+        (:attr:`~orpheus.numerics.operator.LinearOperator.is_transpose_invertible`)
+        and adjointable. A ``callable(solve_transpose)`` test, used before,
+        passed a multi-D ``(L+C)`` whose reverse scan raises (`[M]`
+        2026-10-18, ``tests/gates/numerics/test_adjointability_is_honest.py``)."""
         if not self._substitution_ready():
             return False
         n = self.n_rows
@@ -991,7 +993,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
                 if block is None:
                     continue
                 if i == j:
-                    if not callable(getattr(block, "solve_transpose", None)):
+                    if not transpose_invertible(block):
                         return False
                     if not block.is_adjointable:
                         return False
@@ -1058,6 +1060,11 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
             f"diagonals nor square-materializable (assemblable blocks or "
             f"a domain zeros factory). is_invertible is False."
         )
+
+    @property
+    def is_transpose_invertible(self) -> bool:
+        r"""``True`` iff the transposed block substitution runs (:meth:`_transpose_substitution_ready`)."""
+        return self._transpose_substitution_ready()
 
     def solve_transpose(self, b: "CoupledField") -> "CoupledField":
         r"""The transposed DIRECT solve ``A⁻ᵀ·b``.
@@ -1347,16 +1354,6 @@ class CoupledSubstitutionOperator(
         """
         del initial_guess  # exact direct substitution — nothing to seed
         return self.inner.solve(rhs)
-
-    @property
-    def is_adjointable(self) -> bool:
-        r"""``True`` iff the transposed substitution is realizable
-        (:meth:`CoupledOperator._transpose_substitution_ready`)."""
-        return self.inner._transpose_substitution_ready()
-
-    def apply_transpose(self, b: "CoupledField", /) -> "CoupledField":
-        r"""Return ``A⁻ᵀ·b`` — the transposed block substitution."""
-        return self.inner.solve_transpose(b)
 
     def __repr__(self) -> str:
         return f"CoupledSubstitutionOperator({self.inner!r})"

@@ -248,6 +248,11 @@ class _Block(LinearOperator):
     def is_invertible(self) -> bool:
         return self._invertible
 
+    @property
+    def is_transpose_invertible(self) -> bool:
+        # The stub's solve_transpose runs wherever its solve does.
+        return self._invertible
+
     def solve(self, b):
         if type(b) is not self._out_cls:
             raise TypeError(
@@ -266,11 +271,15 @@ class _Block(LinearOperator):
 
 
 class _NoReverseBlock(_Block):
-    """A diagonal block WITHOUT the direct transpose-solve verb (the
-    ``solve_transpose = None`` class attr makes ``callable(getattr(...))``
-    False) — the transposed-substitution MissingAdjoint leg's fixture."""
+    """A diagonal block WITHOUT the direct transpose-solve verb — it is not
+    transpose-invertible, and ``solve_transpose = None`` keeps the verb
+    absent too — the transposed-substitution MissingAdjoint leg's fixture."""
 
     solve_transpose = None  # type: ignore[assignment]
+
+    @property
+    def is_transpose_invertible(self) -> bool:
+        return False
 
 
 _RNG = np.random.default_rng(20260710)

@@ -1086,10 +1086,13 @@ class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
     swapping silently); the exactness of the partition is pinned by the
     W2-split gate.
 
-    A masked half is NOT invertible and does not advertise a transpose
-    (``B_lowerᵀ`` masks input rows, not output rows — mint it when the
-    adjoint-inverse carve #280 produces a consumer), so it is apply-only
-    and the two-axis contract holds by the base defaults.
+    A masked half is NOT invertible. Its transpose is
+    :math:`(P_{\rm rows} B)^{\mathsf T} = B^{\mathsf T} P_{\rm rows}`: it masks
+    the INPUT rows, then applies ``Bᵀ``, which is exactly the ``rows`` branch of
+    the whole-trace operator's transpose leg (:meth:`apply_transpose`). So the
+    half is adjointable wherever ``B`` is. Until 2026-10-18 it advertised no
+    transpose although that branch existed
+    (``tests/gates/numerics/test_adjointability_is_honest.py``).
     """
 
     block_role = BlockRole.BOUNDARY
@@ -1123,6 +1126,15 @@ class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
     def apply(self, psi: "FullField") -> "FullField":
         r"""``B_half·ψ`` — the per-face law projected onto :attr:`rows`, zero bulk."""
         return self.inner._apply_faces(psi, "apply", rows=self.rows)
+
+    def apply_transpose(self, psi: "FullField") -> "FullField":
+        r"""``B_halfᵀ·ψ = Bᵀ(P_rows ψ)`` — the input masked to :attr:`rows`, then the per-face transpose."""
+        return self.inner._apply_faces(psi, "apply_transpose", rows=self.rows)
+
+    @property
+    def is_adjointable(self) -> bool:
+        # (P B)^T = B^T P: the half transposes wherever the whole-trace B does.
+        return self.inner.is_adjointable
 
     def reflect_rows_inplace(
         self, boundary_flux: "AngularBoundaryFlux", faces: "Iterable[str]",

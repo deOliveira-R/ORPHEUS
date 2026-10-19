@@ -184,7 +184,7 @@ def test_g_neumann_l1_expansion_and_manufactured_anchor():
 
 def test_green_driver_bit_identical_to_hand_source_iteration():
     """The flatten derivation reproduces the CANONICAL within-group SI —
-    ``green._driver`` ≡ hand-built ``SourceIteration(sweep, S)`` BIT-
+    ``green._driver(budget)`` ≡ hand-built ``SourceIteration(sweep, S)`` BIT-
     identically.  Pinned at the DRIVER grain: ``green.apply`` adds the
     true-residual refinement layer on top (spec §18.A), so the promise
     surface may legitimately run extra steps; the derivation — which
@@ -196,7 +196,7 @@ def test_green_driver_bit_identical_to_hand_source_iteration():
     hand = SourceIteration(
         seeded_inverse(lc), S, max_iter=1000, tol=_TOL,
     )
-    got, _ = green._driver.solve(q, initial_guess=_flux_zeros(sn))
+    got, _ = green._driver(1000).solve(q, initial_guess=_flux_zeros(sn))
     ref, _ = hand.solve(q, initial_guess=_flux_zeros(sn))
     np.testing.assert_array_equal(
         got.interior.values, ref.interior.values,

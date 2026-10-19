@@ -2694,7 +2694,15 @@ Three facts about the dual end are load-bearing:
   built from such factors), so :math:`\flat^{\mathsf T} = \flat` and
   :math:`\sharp^{\mathsf T} = \sharp` under the reflexive identification
   :math:`V^{**} = V`, and both legs report
-  :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`.
+  :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`, so
+  their ``.dual()`` runs. Their ``.H`` does not: each leg has a
+  ``DualSpace`` end, so its adjoint is not
+  :func:`~orpheus.numerics.operator.posed` (the previous fact), and the
+  adjoint door refuses with
+  :class:`~orpheus.numerics.operator.MissingAdjoint`
+  (:ref:`operator-adjoint-two-questions`). The repair, a dual space
+  carrying :math:`G^{-1}`, is
+  `#617 <https://github.com/deOliveira-R/ORPHEUS/issues/617>`_.
 
 The round trip, and the Moore–Penrose choice on the kernel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

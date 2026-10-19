@@ -629,6 +629,13 @@ class StreamingCollisionOperator(
         # OperatorSum a∧b law (both L and C advertise apply_transpose).
         return True
 
+    @property
+    def is_transpose_invertible(self) -> bool:
+        # The transposed solve is the REVERSE SCAN (:meth:`solve_transpose`):
+        # it needs the matvec transpose's factors AND a representation that
+        # realises the reverse scan, which only the 1-D scan family does.
+        return self.is_adjointable and self.loss_representation.has_transpose_sweep
+
     # ── Convenience accessors ─────────────────────────────────────────
 
     @property

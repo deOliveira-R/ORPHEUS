@@ -11354,3 +11354,122 @@ older entries classify against.
    probed or listed): a pin taken
    later is a claim about a file, not about the run, and every second
    between the read and the pin is a window in which the two differ.**
+
+.. error-entry:: ERR-117
+   :title: One adjointability predicate answered two questions, "a Euclidean transpose is coded" and "the Hilbert adjoint is posed", so is_adjointable lied in both directions: True on the 2-D sweeps and the 2-D coupled substitution whose reverse scan raises and on the Riesz legs whose .H raised TypeError, False on the inverses, the Green, the masked boundary half and the bulk analysis whose transposes exist
+
+   **Status:** ✅ **FIXED 2026-10-18** on branch
+   ``fix/adjointability-honest`` (ruling 27 of
+   ``.claude/plans/numerics_untangling.md``; the commit is the one that
+   lands this entry). Found by an adjointability census while the numerics
+   untangling was checking whether the adjoint is always posed. The defect
+   predates the census: every lying flag below reads the same on
+   ``37dc85e0``. Full account: :ref:`operator-adjoint-two-questions`.
+
+   **Failure mode:** **#6 (convention drift)**, definition site against
+   usage site. ``LinearOperator.is_adjointable`` was documented as "this
+   operator exposes a Hilbert adjoint (``.H`` / transpose)", one predicate
+   for two facts. Its implementers each defined it by one of the two, and
+   by a third proxy where neither was at hand: the sweep by its forward's
+   matvec-transpose factors, the coupled substitution by
+   ``callable(solve_transpose)``, the inverse family and the Green by the
+   base default ``False``, the Riesz legs and the rank-one dyad by "the
+   transpose is coded". The adjoint door, ``AdjointOperator``, read a
+   fourth definition, the ends' posedness, and refused unbound ends on its
+   own. Nothing reconciled them.
+
+   **Root cause.** The adjoint :math:`A^{*} = \sharp_V A^{\mathsf T}
+   \flat_W` is a composition of three arrows. The middle one, the dual
+   arrow, exists iff ``apply_transpose`` is coded; the two outer ones,
+   the Riesz legs, exist iff both ends are declared spaces that are not a
+   ``DualSpace`` (or the operator is metric-free). A boolean that must
+   answer both is wrong wherever they differ, and the inverse family adds
+   a third fact, the transposed solve :math:`(A^{\mathsf T})^{-1}`, which
+   neither answers: a 2-D :math:`(L+C)` transposes its action and has no
+   reverse scan.
+
+   **Measured** (`[M]` 2026-10-18, the 47-row registry of
+   ``tests/gates/numerics/test_adjointability_is_honest.py``, every row
+   built and both doors probed, on the tree at ``37dc85e0``):
+
+   * ``True`` while a door failed: the 2-D DD and LD sweeps and the 2-D
+     coupled substitution (both doors raise ``NotImplementedError`` at
+     ``apply``, from the multi-D reverse scan); the two Riesz legs
+     (``.H`` raises ``TypeError`` from the leg constructor on the
+     ``DualSpace`` end);
+   * ``False`` while the transpose was realisable: 5 of the 5
+     non-diffusion rows carrying a witness route (the masked boundary
+     half, the bulk analysis, the inverse of the collision leaf, the
+     inverse of :math:`(L+C)C`, the Green), and two rows built over them
+     (a product holding the Green, the inverse of an unbound diagonal).
+
+   The six diffusion rows that also lie are a different defect, the flat
+   carrier of composite-ended diffusion operators (#614), and stay strict
+   ``xfail``.
+
+   **The first repair repeated the defect.** It kept one flag and made it
+   mean "``.H`` works", turning ``RankOneOperator.is_adjointable`` to
+   ``False`` because the dyad's ends are unbound. Every fission operator is
+   built over that dyad (``outer(χ, νΣ_f) & I`` through
+   ``TensorProductOperator``, which refuses a ``False`` factor), so
+   ``F.H.apply`` raised in all 7 fission builders the review censused and
+   2 of the 13 tests of ``tests/gates/sn/solve/test_sn_adjoint_entries.py``
+   failed (``solve_sn_adjoint`` among them), while ``FissionOperator``'s
+   own hard-coded ``True`` became a new lie one level up (`[M]` qa,
+   2026-10-18). It never reached ``main``.
+
+   **Hiding mechanism.** No test compared any flag with the behaviour of
+   the door it advertises. The flag-reading gates asserted flag values
+   (the keystone ``test_inverse_adjoint_contract_keystone_v2`` pinned the
+   inverse and the Green at ``False``, the old wrong value), and the
+   adjoint gates exercise ``.H`` on 1-D fixtures, where the sweep's flag
+   is right (`[R]`, not censused). A ``False`` flag fails safe-looking: ``.H`` refuses with
+   ``MissingAdjoint``, which reads as an honest limitation.
+
+   **Module:** ``orpheus/numerics/operator.py`` (``posed``,
+   ``is_transpose_invertible``, ``transpose_invertible``,
+   ``SupportsTransposeSolve``, ``InverseWrapMixin``'s transpose law,
+   ``_DualOperator``'s swap law, ``AdjointOperator.__init__``),
+   ``orpheus/numerics/green_operator.py`` (``dual``, ``apply_transpose``,
+   the cold start and the exact budget), ``orpheus/numerics/coupled_system.py``,
+   ``orpheus/sn/operators/{sweep_operator,streaming,radial_characteristic,boundary,windowing}.py``,
+   ``orpheus/sn/loss_representation/__init__.py`` (``has_transpose_sweep``),
+   ``orpheus/transport/operators/multiplication_operator.py``.
+
+   **Fix.** Two predicates for two questions: ``is_adjointable`` answers
+   "a Euclidean transpose is coded" and gates ``.dual()``;
+   ``is_adjoint_posed`` (read by ``posed``) answers "the adjoint is
+   posed" and is the adjoint door's one reading, at the base "both ends
+   give Riesz legs", on the dual arrow "the inner is posed"; ``.H``
+   exists iff both hold. A first version read posing off the ends only
+   and called every dual arrow unposed while its ``.H`` opened (`[M]`
+   qa, 2026-10-18: 52 of 308 census rows). A third forward capability,
+   ``is_transpose_invertible`` / ``solve_transpose``, carries the inverse
+   family's law :math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}` once,
+   on ``InverseWrapMixin``. The Green's dual is the Green of the dual
+   sum, and its ``.H`` is the base's ``♯ ∘ dual ∘ ♭`` (the ``adjoint()``
+   override was deleted: the gate's witness for the Green row had been
+   that override's own body, agreeing to exactly ``0.0``). The rank-one dyad and the Riesz legs keep ``True``.
+
+   **Caught by:** the two legs of
+   ``tests/gates/numerics/test_adjointability_is_honest.py``.
+   ``test_each_transpose_door_opens_iff_predicted`` (``.dual()`` works iff
+   ``is_adjointable``; ``.H`` works iff ``is_adjointable`` and ``posed``;
+   a refusal is ``MissingAdjoint`` at construction) catches the first
+   direction; ``test_a_realisable_transpose_is_advertised`` (a witness
+   built from the algebra's laws, checked by reciprocity, then the flag
+   must read ``True``) catches the second. `[M]` 2026-10-19, by the
+   archivist, each arm an in-process patch, both legs called directly over
+   their 49 and 5 non-``xfail`` rows: no mutation, 0 and 0 red; the sweep
+   flag reading the forward's matvec factors (the old body), leg 1 red on
+   ``sn_sweep_cart2d``, ``sn_sweep_ld_2d`` and ``sn_green_cart2d``; the
+   inverse family's flag ``False`` (the old default), leg 2 red on 3 of 5
+   (the two inverses and the Green) and leg 1 on 3; the rank-one flag
+   ``False`` (the first repair), leg 1 red on the three fission rows; the
+   base posing always ``True`` (ends ignored), leg 1 red on the two Riesz
+   legs and the dual of one; the control after the arms, 0 and 0.
+
+   **Lesson.** ⭐ **A capability flag answers one question, and each door
+   it opens is gated against it by a test that walks through the door:
+   a flag no test compares with behaviour drifts into as many meanings as
+   it has implementers.**

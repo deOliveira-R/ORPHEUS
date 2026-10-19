@@ -1069,19 +1069,25 @@ The swap law on the grid
 
 The inverse-as-operator taxonomy's swap law :math:`A.H.\text{inverse}()
 \equiv A.\text{inverse}().H` extends to the grid: the joint adjoint IS the
-grid's transposed substitution. :class:`CoupledSubstitutionOperator`
-advertises ``is_adjointable`` iff every coupling block transposes AND every
-diagonal carries the direct ``solve_transpose`` verb (the #280 two-factor
-discipline per block), and its :meth:`apply_transpose` delegates to
-:meth:`CoupledOperator.solve_transpose` (the transposed block
-substitution). The step-6 collapse sharpened the single-system predicate
-to match: :attr:`SweepOperator.is_adjointable
-<orpheus.sn.operators.sweep_operator.SweepOperator.is_adjointable>` is now
-the two-factor ``isinstance(inner, StreamingCollisionOperator) and
-inner.is_adjointable`` — the B.2d carrying-mesh *third* factor retired,
-because with no ψ½ legs anywhere a bare :math:`(L+C)` on a carrying mesh IS
-unambiguously the ray-decoupled :math:`(A,A)` block (the type says what you
-hold). The joint adjoint's one home is the grid's transposed substitution;
+grid's transposed substitution. :class:`CoupledSubstitutionOperator` is a
+member of the inverse family and inherits the family's one law
+:math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}`
+(:ref:`operator-adjoint-two-questions`): its ``apply_transpose`` is the
+grid's :meth:`CoupledOperator.solve_transpose` (the transposed block
+substitution), and its ``is_adjointable`` is the grid's
+``is_transpose_invertible``, ``True`` iff the forward substitution route
+exists, every coupling block transposes, and every diagonal block is
+transpose-invertible
+(:func:`~orpheus.numerics.operator.transpose_invertible`) and
+adjointable. A test of the bare method's presence,
+``callable(block.solve_transpose)``, is not that predicate: it passes a
+multi-dimensional :math:`(L+C)` whose reverse scan raises
+(:ref:`loss-rep-orientation-two-frames`, the deferral ledger). The
+single-system sweep reads the same law: its ``is_adjointable`` is
+``transpose_invertible(inner)``, with no carrying-mesh factor, because
+with no ψ½ legs anywhere a bare :math:`(L+C)` on a carrying mesh IS
+unambiguously the ray-decoupled :math:`(A,A)` block (the type says what
+you hold). The joint adjoint's one home is the grid's transposed substitution;
 there is no adjoint SI driver in production, so the :math:`A_{BA}`/:math:`A_{AB}`
 pullbacks are reached only by the ``.H`` reciprocity gates — which is why
 they are realised now and pinned by **nonzero-seed-cotangent** gates (a

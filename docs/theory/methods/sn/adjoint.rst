@@ -87,7 +87,11 @@ sweep — is a consequence of that one choice.
      :math:`(A^{\dagger})^{-1} = (A^{-1})^{\dagger}`
      (:eq:`loss-rep-adjoint-inverse-swap`) makes :math:`(L+C).\mathtt{H}`
      invertible for free — the daggered inner solve rides the
-     reverse-scan transpose sweep behind ``A.H.inverse()``.
+     reverse-scan transpose sweep behind ``A.H.inverse()``.  That sweep
+     is realised by the 1-D scan only: on a multi-dimensional mesh
+     ``(L+C).H`` constructs and ``(L+C).H.inverse()`` refuses with
+     ``NotInvertible`` (`#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_;
+     :ref:`operator-adjoint-two-questions`).
    * **The G-metric is a free parameter that no eigenvalue gate can
      see.**  :math:`A.\mathtt{H} = G'^{-1}A^{\mathsf T}G'` is
      metric-similar to :math:`A^{\mathsf T}` for ANY invertible
@@ -417,7 +421,11 @@ exactly the properties route (1) cannot deliver at finite resolution:
   invertible by routing to :math:`(L+C).\mathtt{inverse()}.\mathtt{H}`,
   so the daggered inner solve rides the reverse-scan transpose sweep
   (:ref:`loss-rep-orientation-two-frames`) behind ``(L+C).H.inverse()``
-  with no new machinery.
+  with no new machinery.  The reverse scan exists on the 1-D scan
+  representation only; on a multi-dimensional mesh the swap law refuses
+  at construction, because the sweep's ``is_adjointable`` reads the
+  forward's ``is_transpose_invertible``, which is ``False`` there
+  (`#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_; :ref:`operator-adjoint-two-questions`).
 
 This is Cardinal Rule 2 (architecture) paying a physics dividend: the
 adjoint is not a parallel implementation to keep in sync with the
@@ -1925,7 +1933,8 @@ within-group loss splits and each term daggers independently:
   (:eq:`loss-rep-adjoint-inverse-swap`): ``(L+C).H.inverse()`` routes to
   ``(L+C).inverse().H``, i.e. the reverse-scan transpose sweep
   (:ref:`loss-rep-orientation-two-frames`), so the daggered inner solve
-  is the reversed walk with no new solver code.
+  is the reversed walk with no new solver code.  It is 1-D only: the
+  multi-dimensional transposed sweep is not realised (`#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_).
 * :math:`S.\mathtt{H}` is the frame-conjugated scattering transpose
   (:ref:`sn-scattering-adjoint`) wrapped in the angular metric.
 * :math:`N_{2n}.\mathtt{H}` is the metric-wrapped
@@ -2529,8 +2538,14 @@ its consumers are unblocked:
   response-sensitivity estimation are the adjoint eigenmode's native
   applications — the trajectory the A5 type ruling was made for.
 
-The **honest deferral ledger.**  Two arms are callable-but-deferred by
-design, each a typed refusal rather than an unexercised path:
+The **honest deferral ledger.**  Three arms are callable-but-deferred
+by design, each a typed refusal rather than an unexercised path:
+
+* the daggered inner solve on a **multi-dimensional** mesh: the
+  transposed sweep :math:`(L+C)^{-\mathsf T}` exists on the 1-D scan
+  only, so ``(L+C).H.inverse()`` refuses with
+  :class:`~orpheus.numerics.operator.NotInvertible` at construction
+  (`#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_; :ref:`operator-adjoint-two-questions`);
 
 * the daggered **coupled fixed-source** arm (a carrying Problem with
   System B) refuses loud in

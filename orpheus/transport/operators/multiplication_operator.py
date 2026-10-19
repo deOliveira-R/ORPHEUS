@@ -302,6 +302,11 @@ class MultiplicationOperator(BoundOperator):
         return self.engine.is_adjointable
 
     @property
+    def is_transpose_invertible(self) -> bool:
+        # M^T = M, so delegate to the engine, as is_invertible does.
+        return self.engine.is_transpose_invertible
+
+    @property
     def is_metric_free_adjoint(self) -> bool:
         r"""``True`` — M[f] is a real multiplier, so its Hilbert adjoint is
         metric-free (the module docstring's self-adjointness law: pointwise
@@ -471,3 +476,12 @@ class MultiplicationOperator(BoundOperator):
         metric-blind Euclidean transpose).
         """
         return self.apply(psi)
+
+    def solve_transpose(self, q: "FullField | np.ndarray", /) -> "FullField | np.ndarray":
+        r"""Transposed solve :math:`(M[f]^{\mathsf T})^{-1} q = M[f]^{-1} q` — equal to :meth:`solve`.
+
+        A real-valued multiplier is its own transpose, so its transposed
+        solve is its solve, carrier roles included, exactly as
+        :meth:`apply_transpose` is :meth:`apply`.
+        """
+        return self.solve(q)

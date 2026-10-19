@@ -2634,7 +2634,7 @@ them.  Trust ``git``, not this column.
        cotangent propagates nowhere; the
        :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicSeeding`
        grid block carries the coupling). :attr:`SweepOperator.is_adjointable
-       <orpheus.sn.operators.sweep_operator.SweepOperator.is_adjointable>`
+       <orpheus.numerics.operator.InverseWrapMixin.is_adjointable>`
        dropped its carrying-mesh third factor (R-6.2). The mesh stays the
        single authority on presence — nothing *checks* against it anymore,
        the type system carries the biconditional. Sphere re-baselines are
@@ -2807,7 +2807,7 @@ them.  Trust ``git``, not this column.
        inverse-as-operator taxonomy *without new solve machinery*:
        :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
        (:math:`(L+C)^{-1}`) gained
-       :meth:`apply_transpose <orpheus.sn.operators.sweep_operator.SweepOperator.apply_transpose>`
+       :meth:`apply_transpose <orpheus.numerics.operator.InverseWrapMixin.apply_transpose>`
        delegating to the inner's
        :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve_transpose`
        (the 2.5b reverse-scan), and

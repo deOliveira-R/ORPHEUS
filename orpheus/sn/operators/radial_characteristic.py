@@ -368,6 +368,12 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         # ``solve_transpose`` (:math:`(A_{BB}^{-1})^{\mathsf T}`).
         return True
 
+    @property
+    def is_transpose_invertible(self) -> bool:
+        # The reverse two-leg march (:meth:`solve_transpose`) runs wherever the
+        # forward march does.
+        return self.is_invertible
+
     # ── Forward action — A_BB ψ = (μ ∂_r + σ_t)ψ (campaign step 4b) ────
 
     def apply(

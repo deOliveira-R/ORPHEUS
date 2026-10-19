@@ -155,6 +155,7 @@ __all__ = [
     "LinearOperator",
     "SupportsInverse",
     "SupportsAdjoint",
+    "SupportsTransposeSolve",
     "SupportsAssembly",
     "BlockRole",
     "BulkOperator",
@@ -165,6 +166,8 @@ __all__ = [
     "MissingAssembly",
     "invertible",
     "adjointable",
+    "transpose_invertible",
+    "posed",
     "assemblable",
     "IncompatibleOperatorComposition",
     "MatrixTooLarge",
@@ -733,9 +736,16 @@ class LinearOperator(Protocol[Domain, Codomain]):
 
     @property
     def is_adjointable(self) -> bool:
-        r"""Whether this operator exposes a Hilbert adjoint (:attr:`H` / transpose).
+        r"""Whether this operator realises its Euclidean transpose (``apply_transpose``, :meth:`dual`).
 
-        The RUNTIME predicate for the adjoint axis. The
+        The RUNTIME predicate for the transpose axis: ``True`` iff
+        ``apply_transpose`` runs on every input of this instance, so
+        :meth:`dual` constructs and applies. The Hilbert adjoint
+        :attr:`H` = ``♯ ∘ dual ∘ ♭`` needs a second fact, that both ends'
+        metrics give Riesz legs (:func:`posed`): ``.H`` exists iff both hold,
+        and refuses with :class:`MissingAdjoint` otherwise (`[M]`
+        2026-10-18, ``tests/gates/numerics/test_adjointability_is_honest.py``,
+        which pins both directions). The
         transpose-of-a-sum law :math:`(A+B)^{\mathsf T} = A^{\mathsf T} +
         B^{\mathsf T}` is realised in the composer method bodies; this
         predicate is the matching *advertisement* —
@@ -744,6 +754,52 @@ class LinearOperator(Protocol[Domain, Codomain]):
         ``False``; an operator with a working ``apply_transpose`` overrides.
         """
         return False
+
+    @property
+    def is_transpose_invertible(self) -> bool:
+        r"""Whether this forward realises its TRANSPOSED solve :math:`(A^{\mathsf T})^{-1}`.
+
+        The third capability of a forward, beside :attr:`is_invertible`
+        (``solve``) and :attr:`is_adjointable` (``apply_transpose``):
+        ``True`` iff ``solve_transpose`` exists AND runs on every input of
+        this instance. It is the capability the inverse's adjoint needs, by
+        the law :math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}`: an
+        inverse object is adjointable iff its forward is transpose-invertible
+        (:class:`InverseOperator`, the SN sweep, the coupled substitution all
+        read this one predicate). Neither of the other two flags answers it:
+        a multi-D ``(L+C)`` transposes its action but not its sweep, and a
+        ``callable(solve_transpose)`` test passes a method that raises (`[M]`
+        2026-10-18, ``tests/gates/numerics/test_adjointability_is_honest.py``).
+        Default ``False``; a forward with a working ``solve_transpose``
+        overrides. Three composites derive it: :class:`OperatorProduct`
+        through each factor's inverse OBJECT (whether it transposes, so a
+        scaled or permuted factor qualifies though it has no transposed
+        solve of its own), :class:`~orpheus.numerics.coupled_system.CoupledOperator`
+        from its diagonal blocks' own transposed solves (the substitution
+        calls ``block.solve_transpose``), and the inverse family
+        (:class:`InverseWrapMixin`) from its forward's transpose. A sum has
+        none: its inverse is a Green, whose transpose is the Green of the
+        dual sum. A :class:`ScaledOperator` has none either; a native one is
+        owed when a scaled block first sits on a coupled grid's diagonal.
+        """
+        return False
+
+    @property
+    def is_adjoint_posed(self) -> bool:
+        r"""Whether this operator's Hilbert adjoint :math:`A^{*}` is POSED (read through :func:`posed`).
+
+        The second transpose question beside :attr:`is_adjointable`, and like
+        every predicate here computed from structure, overridden where a
+        class's adjoint is a law rather than the base door. The base answer:
+        both ends' metrics give Riesz legs, i.e. both ends are declared and
+        neither is a :class:`~orpheus.numerics.space.DualSpace` (the G² trap,
+        ``numerics_untangling.md`` ruling 26), or the adjoint needs no metric
+        (:attr:`is_metric_free_adjoint`). :class:`_DualOperator` overrides it:
+        its adjoint is the dagger–dual commutation
+        :math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}`, posed exactly when
+        its inner's is, whatever its own (dual) ends.
+        """
+        return _ends_give_riesz_legs(self)
 
     @property
     def is_metric_free_adjoint(self) -> bool:
@@ -970,8 +1026,10 @@ class LinearOperator(Protocol[Domain, Codomain]):
         Raises
         ------
         MissingAdjoint
-            **Eagerly, here at construction** when
-            this operator is not :attr:`is_adjointable` — a wrapper that
+            **Eagerly, here at construction** when this operator is not
+            :attr:`is_adjointable`, or when its adjoint is not
+            :func:`posed` (an unbound end, a ``DualSpace`` end; the
+            refusal is :class:`AdjointOperator`'s) — a wrapper that
             could only fail at its first ``.apply`` is the broken-stub
             anti-pattern this module refuses. The :func:`adjointable`
             guard doubles as the static bridge: the wrapper's
@@ -1243,6 +1301,21 @@ class SupportsAdjoint(LinearOperator[Domain, Codomain], Protocol):
     def apply_transpose(self, x: Codomain, /) -> Domain: ...
 
 
+class SupportsTransposeSolve(LinearOperator[Domain, Codomain], Protocol):
+    r"""Narrowing target: an operator whose ``solve_transpose`` may be called.
+
+    The transposed-solve sibling of :class:`SupportsInverse` /
+    :class:`SupportsAdjoint`: the branch narrowed by
+    :func:`transpose_invertible` may call ``solve_transpose``, which returns
+    :math:`(A^{\mathsf T})^{-1} y`, the realisation the inverse family's
+    transpose rides by the law :math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}`.
+    Same discipline: never ``isinstance`` this, never annotate a parameter
+    with it to demand the capability.
+    """
+
+    def solve_transpose(self, y: Domain, /) -> Codomain: ...
+
+
 class SupportsAssembly(LinearOperator[Domain, Codomain], Protocol):
     r"""Narrowing target: an operator whose :meth:`assemble` may be called.
 
@@ -1297,6 +1370,67 @@ def adjointable(
     gates the eager :attr:`~LinearOperator.H` construction.
     """
     return op.is_adjointable
+
+
+def transpose_invertible(
+    op: "LinearOperator[Domain, Codomain]",
+) -> "TypeGuard[SupportsTransposeSolve[Domain, Codomain]]":
+    r"""Checked bridge: narrow ``op`` to :class:`SupportsTransposeSolve` iff it realises its transposed solve.
+
+    The third bridge beside :func:`invertible` and :func:`adjointable`, with
+    their one-directional ``TypeGuard`` semantics: ``True`` licenses
+    ``op.solve_transpose`` (:attr:`~LinearOperator.is_transpose_invertible`).
+    The attribute is read with a ``False`` default because an operand typed
+    only by a narrower protocol need not carry it.
+    """
+    return bool(getattr(op, "is_transpose_invertible", False))
+
+
+def posed(op: "LinearOperator[Domain, Codomain]") -> bool:
+    r"""Whether ``op``'s Hilbert adjoint :math:`A^{*} = \sharp_V A^{\mathsf T} \flat_W` is POSED.
+
+    The free-function reader of :attr:`~LinearOperator.is_adjoint_posed`,
+    beside :func:`adjointable` (which answers only whether a Euclidean
+    transpose is coded, so ``.dual()`` runs): ``.H`` exists iff both hold.
+    The adjoint is defined by the two inner products, so at the base it is
+    posed exactly when the Riesz legs of both ends exist: both ends are
+    declared, and neither is a :class:`~orpheus.numerics.space.DualSpace`
+    (which carries its primal's metric :math:`G` where the dual side needs
+    :math:`G^{-1}`, so the legs refuse it: the G² trap,
+    ``numerics_untangling.md`` ruling 26). An operator whose adjoint needs no
+    metric (:attr:`~LinearOperator.is_metric_free_adjoint`) is posed whatever
+    its ends, and the dual arrow is posed when its inner is (its adjoint is
+    the dagger–dual commutation). The adjoint door (:class:`AdjointOperator`)
+    reads this one predicate. An operand typed only by a narrower protocol
+    that does not carry the attribute is judged by its ends.
+    """
+    is_posed = getattr(op, "is_adjoint_posed", None)
+    return _ends_give_riesz_legs(op) if is_posed is None else bool(is_posed)
+
+
+def _ends_give_riesz_legs(op: Any) -> bool:
+    r"""The base posing: metric-free, or both ends declared primal spaces."""
+    from orpheus.numerics.space import DualSpace
+
+    if getattr(op, "is_metric_free_adjoint", False):
+        return True
+    ends = (getattr(op, "domain", None), getattr(op, "codomain", None))
+    return all(end is not None and not isinstance(end, DualSpace) for end in ends)
+
+
+def _inverse_transposes(op: "LinearOperator[Domain, Codomain]") -> bool:
+    r"""Whether :math:`(A^{-1})^{\mathsf T}` exists through the canonical surface: ``op`` is
+    invertible and its inverse OBJECT transposes.
+
+    The predicate of the swap laws :math:`(A^{*})^{-1} = (A^{-1})^{*}`
+    (:attr:`AdjointOperator.is_invertible`) and
+    :math:`(A^{\mathsf T})^{-1} = (A^{-1})^{\mathsf T}`
+    (:attr:`_DualOperator.is_invertible`), and of a product's transposed
+    solve: one spelling. A leaf's NATIVE transposed solve is
+    :func:`transpose_invertible`, which the inverse object's own flag reads
+    (:class:`InverseWrapMixin`), so the two agree on every wrapped leaf.
+    """
+    return invertible(op) and adjointable(op.inverse())
 
 
 def assemblable(
@@ -1390,6 +1524,12 @@ class RieszLowerOperator(LinearOperator[Domain, Domain], Generic[Domain]):
 
     @property
     def is_adjointable(self) -> bool:
+        # The transpose is coded (``apply_transpose``: a symmetric G is its
+        # own transpose), so ``.dual()`` runs. ``.H`` is not POSED
+        # (:func:`posed`): the codomain is a ``DualSpace``, which carries the
+        # primal's G where the dual side needs G⁻¹, so the adjoint door
+        # refuses it until the dual-metric repair (``numerics_untangling.md``
+        # ruling 26) makes it the law ♭ᴴ = ♯.
         return True
 
 
@@ -1447,6 +1587,8 @@ class RieszRaiseOperator(LinearOperator[Domain, Domain], Generic[Domain]):
 
     @property
     def is_adjointable(self) -> bool:
+        # As for ♭ (:class:`RieszLowerOperator`): the transpose is coded;
+        # ``.H`` is not posed on the ``DualSpace`` domain (ruling 26).
         return True
 
 
@@ -1500,9 +1642,39 @@ class _DualOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain])
     def is_adjointable(self) -> bool:
         return True
 
+    @property
+    def is_adjoint_posed(self) -> bool:
+        # (Aᵀ)* = (A*)ᵀ (:meth:`adjoint`): posed iff the inner's adjoint is,
+        # whatever the dual ends this arrow carries.
+        return posed(self.inner)
+
     def dual(self) -> "LinearOperator[Domain, Codomain]":
         # Involution as OBJECT IDENTITY: (Aᵀ)ᵀ = A.
         return self.inner  # type: ignore[return-value]
+
+    @property
+    def is_invertible(self) -> bool:
+        r"""The swap law on the dual arrow: :math:`(A^{\mathsf T})^{-1} = (A^{-1})^{\mathsf T}`.
+
+        The Euclidean twin of :attr:`AdjointOperator.is_invertible`: the dual
+        is invertible iff the inner is AND the inner's inverse transposes.
+        """
+        return _inverse_transposes(self.inner)
+
+    def inverse(self) -> "LinearOperator[Domain, Codomain]":
+        r"""The inverse of the dual = the dual of the inverse, as an object.
+
+        :math:`(A^{\mathsf T})^{-1} = (A^{-1})^{\mathsf T}`, routed as
+        ``A.inverse().dual()`` (the twin of :meth:`AdjointOperator.inverse`).
+        Gated by :attr:`is_invertible`.
+        """
+        if not (invertible(self.inner) and adjointable(self.inner.inverse())):
+            raise NotInvertible(
+                f"_DualOperator.inverse(): the swap law (A^T)^{{-1}} = "
+                f"(A^{{-1}})^T needs the inner {type(self.inner).__name__} "
+                f"invertible and its inverse adjointable."
+            )
+        return self.inner.inverse().dual()
 
     def adjoint(self) -> "LinearOperator[Domain, Codomain]":
         r"""The dagger–dual commutation: ``(A.dual()).H = (A.H).dual()``.
@@ -1588,9 +1760,20 @@ class AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain
         # own broken-stub-refusing style. The metric-free families never
         # reach this constructor: a PointwiseOperator's adjoint() returns
         # itself, ZeroMorphism's the swapped zero map.
-        if (
-            inner.domain is None or inner.codomain is None
-        ) and not inner.is_metric_free_adjoint:
+        from orpheus.numerics.space import DualSpace
+
+        # The door reads ONE predicate, :func:`posed`, whose second refusal
+        # is a ``DualSpace`` end (the G² trap: the legs refuse it, ruling 26).
+        if not posed(inner):
+            if isinstance(inner.domain, DualSpace) or isinstance(inner.codomain, DualSpace):
+                raise MissingAdjoint(
+                    f"{type(inner).__name__} has a DualSpace end — its Hilbert "
+                    f"adjoint needs the dual space's own metric G⁻¹, which a "
+                    f"DualSpace does not carry yet (it carries the primal's "
+                    f"G; numerics_untangling.md ruling 26). Use .dual() for "
+                    f"the transpose, or the dagger–dual commutation "
+                    f"(A.dual()).H = (A.H).dual() on the primal operator."
+                )
             raise MissingAdjoint(
                 f"{type(inner).__name__} is UNBOUND (domain/codomain "
                 f"None) — the Hilbert adjoint needs the two spaces' "
@@ -1702,7 +1885,7 @@ class AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain
         the ``and`` short-circuits so ``inner.inverse()`` is never built for a
         non-invertible inner.
         """
-        return invertible(self.inner) and adjointable(self.inner.inverse())
+        return _inverse_transposes(self.inner)
 
     def inverse(self) -> "LinearOperator[Domain, Codomain]":
         r"""The inverse of the adjoint = the adjoint of the inverse (#280).
@@ -2087,11 +2270,38 @@ class OperatorProduct(
             )
         return self.b.apply_transpose(self.a.apply_transpose(x))
 
+    def solve_transpose(self, y: Domain) -> Codomain:
+        r"""Solve :math:`(AB)^{\mathsf T} x = y` — :math:`(A^{-1})^{\mathsf T}(B^{-1})^{\mathsf T} y`, factor-wise.
+
+        :math:`(AB)^{\mathsf T} = B^{\mathsf T}A^{\mathsf T}`, so its inverse
+        applies :math:`B`'s inverse transposed first, then :math:`A`'s. The
+        transposed sibling of :meth:`solve`, through the same canonical
+        surface (each factor's ``.inverse()``, here its ``apply_transpose``),
+        so it is total over the factor kinds whose inverse is a first-class
+        forward (a scaled operator, a permutation) or a Green. Gated by
+        :attr:`is_transpose_invertible`.
+        """
+        a, b = self.a, self.b
+        if invertible(a) and invertible(b):
+            a_inverse, b_inverse = a.inverse(), b.inverse()
+            if adjointable(a_inverse) and adjointable(b_inverse):
+                return a_inverse.apply_transpose(b_inverse.apply_transpose(y))
+        raise NotInvertible(
+            f"OperatorProduct.solve_transpose requires both factors' "
+            f"inverses to transpose ((AB)^{{-T}} = A^{{-T}} B^{{-T}}); got "
+            f"{type(a).__name__} / {type(b).__name__}."
+        )
+
     @property
     def is_invertible(self) -> bool:
         # (AB)^{-1} = B^{-1} A^{-1} (the law in :meth:`solve`) — the product
         # is invertible iff BOTH factors are.
         return self.a.is_invertible and self.b.is_invertible
+
+    @property
+    def is_transpose_invertible(self) -> bool:
+        # (AB)^{-T} = A^{-T} B^{-T} (the law in :meth:`solve_transpose`).
+        return _inverse_transposes(self.a) and _inverse_transposes(self.b)
 
     def inverse(self) -> "InverseOperator":
         r"""Return :math:`(AB)^{-1}` — the generic family member wrapping this product.
@@ -2636,10 +2846,26 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
     type, a derivable splitting), the :meth:`apply` body (the inversion
     algorithm), and ``__repr__``.
 
-    The ADJOINT axis is NOT part of the back-half: ``is_adjointable`` /
-    ``.H`` stay at the base defaults — the adjoint-inverse is the #280
-    family, deferred (free for the iterative branch, a reverse-DAG
-    ``sweep_transpose`` for the direct sweep).
+    * The TRANSPOSE axis, by the law
+      :math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}`:
+      :meth:`apply_transpose` is the forward's transposed solve
+      ``inner.solve_transpose``, and :attr:`is_adjointable` is
+      :func:`transpose_invertible` of the forward (the SN sweep's reverse
+      scan, a coupled block substitution, a diagonal leaf all answer
+      through it). Read the other way, the inverse's transposed solve is
+      the forward's transpose: :meth:`solve_transpose` is
+      ``inner.apply_transpose`` and :attr:`is_transpose_invertible` is
+      :func:`adjointable` of the forward.
+    * :attr:`is_metric_free_adjoint` is the forward's: an operator that
+      commutes with every diagonal metric has an inverse that does too, so
+      the inverse of a multiplier needs no spaces for its ``.H``.
+
+    A sibling whose transpose is not the forward's transposed solve
+    overrides these: :class:`~orpheus.numerics.green_operator.GreenOperator`
+    (its transpose is the Green of the dual sum), and
+    ``MatrixInverseOperator`` (the ``trans=1`` backsolve on its own LU
+    factors). ``.H`` itself is the base's: ``♯ ∘ dual ∘ ♭`` when
+    :func:`posed`.
 
     (This wrap-delegate family is ONE of two kinds of inverse in the
     algebra: ALGEBRA-CLOSED structures invert into themselves — a
@@ -2692,6 +2918,45 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
         fact: ``A.inverse().inverse() is A``.
         """
         return self.inner
+
+    def apply_transpose(self, x: Any, /) -> Any:
+        r"""Return :math:`(A^{-1})^{\mathsf T} x = (A^{\mathsf T})^{-1} x` — the forward's transposed solve."""
+        inner = cast("LinearOperator", self.inner)
+        if not transpose_invertible(inner):
+            raise MissingAdjoint(
+                f"{type(self).__name__}.apply_transpose: the forward "
+                f"{type(inner).__name__} is not transpose-invertible, so "
+                f"(A^{{-1}})^T = (A^T)^{{-1}} has no realisation."
+            )
+        return inner.solve_transpose(x)
+
+    @property
+    def is_adjointable(self) -> bool:
+        # (A^{-1})^T = (A^T)^{-1}: the inverse transposes iff its forward
+        # realises the transposed solve.
+        return transpose_invertible(cast("LinearOperator", self.inner))
+
+    def solve_transpose(self, y: Any, /) -> Any:
+        r"""Solve :math:`(A^{-1})^{\mathsf T} x = y`, i.e. return :math:`A^{\mathsf T} y` (the forward's transpose)."""
+        inner = cast("LinearOperator", self.inner)
+        if not adjointable(inner):
+            raise MissingAdjoint(
+                f"{type(self).__name__}.solve_transpose: the forward "
+                f"{type(inner).__name__} has no transpose, so "
+                f"((A^{{-1}})^T)^{{-1}} = A^T has no realisation."
+            )
+        return inner.apply_transpose(y)
+
+    @property
+    def is_transpose_invertible(self) -> bool:
+        # ((A^{-1})^T)^{-1} = A^T: exists iff the forward transposes.
+        return adjointable(cast("LinearOperator", self.inner))
+
+    @property
+    def is_metric_free_adjoint(self) -> bool:
+        # An operator commuting with every diagonal metric has an inverse
+        # that commutes with it too.
+        return bool(getattr(self.inner, "is_metric_free_adjoint", False))
 
 
 class InverseOperator(InverseWrapMixin[_InvertibleForward], LinearOperator):
@@ -4321,10 +4586,19 @@ class DiagonalOperator(PointwiseOperator):
         self._check_shape(b_arr)
         return b_arr / self._broadcast(b_arr.ndim)
 
+    def solve_transpose(self, b_vec: np.ndarray) -> np.ndarray:
+        # A real diagonal is its own transpose, so (D^T)^{-1} = D^{-1}.
+        return self.solve(b_vec)
+
     @property
     def is_invertible(self) -> bool:
         # Invertible iff every coefficient entry is non-zero (D^{-1} = 1/c).
         return bool(np.all(self.coefficient != 0.0))
+
+    @property
+    def is_transpose_invertible(self) -> bool:
+        # D^T = D, so the transposed solve exists exactly when the solve does.
+        return self.is_invertible
 
     def inverse(self) -> "InverseOperator":
         r"""Return :math:`D^{-1}` as an :class:`InverseOperator` over this leaf.
@@ -4481,7 +4755,9 @@ class RankOneOperator(LinearOperator):
         # weight IS the dual column — an InnerProductFunctional (the
         # ReactionRateFunctional specialisation included). A nonlinear /
         # opaque functional has no dual column. Mirrors — and gates —
-        # the apply_transpose realization below.
+        # the apply_transpose realization below. Whether ``.H`` is POSED is a
+        # separate question (:func:`posed`): this dyad's ends are ``None``
+        # (the CS4c debt), so ``.H`` refuses while ``.dual()`` runs.
         from orpheus.numerics.functional import InnerProductFunctional
 
         return isinstance(self.functional, InnerProductFunctional)
