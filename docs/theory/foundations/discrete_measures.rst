@@ -1836,11 +1836,9 @@ always names its stage — points at the paragraph that explains it.
    exactly as the domain is (see *The ledger* below) — and since
    #429 tracker 3.1 (2026-09-02) the two are derived from **one
    object**: the property reads
-   :attr:`Quotient.reference
-   <orpheus.numerics.manifold.Quotient.reference>` off the very orbit-space
-   catalogue entry that ``support`` returns, where the measure is a
-   recorded output of the orbit-space derivation rather than a second
-   table (:ref:`manifold-pushforward-reference`).
+   :func:`~orpheus.numerics.generating_measure.pushforward_reference` of the very orbit space
+   that ``support`` returns, where the measure is the measure layer's
+   answer for that orbit space's group rather than a second table (:ref:`manifold-pushforward-reference`).
 
    Most rules have a parameter-dependent degree — :math:`2n - 1` for
    Gauss-Legendre, ``order`` for Lebedev,
@@ -2260,8 +2258,7 @@ non-*``None``\ *, not on equality with one group"*. True when written;
 repealed hours later by #429 tracker 3.1, which collapsed the twin the
 way tracker 2.4 collapsed ``support``. The property now keys on
 **nothing**: it *reads*
-:attr:`Quotient.reference
-<orpheus.numerics.manifold.Quotient.reference>` off the catalogue entry
+:func:`~orpheus.numerics.generating_measure.pushforward_reference` of the orbit space
 ``support`` already returns, and ``[M]`` for a slab the two are the
 same object by ``is`` identity. The axis-generality the old predicate
 bought did not go away — it moved into the derivation, which reads its
@@ -2284,11 +2281,11 @@ family the measure generates, not a weighting.
 The ``uniform(S^2)`` arm is *not* a catalogue read: a geometry that
 spends nothing is handed the **base**, and Lebesgue on :math:`S^2` is a
 property of the base that a :class:`~orpheus.numerics.manifold.Manifold`
-does not carry — so the identity quotient itself ships
-``reference=None`` and the registry keeps its own arm (user-ruled
+does not carry — so ``pushforward_reference`` of the identity quotient is
+``None`` and the registry keeps its own arm (user-ruled
 2026-09-02). And the refusal is now reachable for a *second* reason: a
 spent group with no catalogue entry is refused by ``support``, one call
-earlier, while a spent **mirror** has an entry whose ``reference`` is
+earlier, while a spent **mirror** has an entry whose ``pushforward_reference`` is
 ``None`` — its pushforward is the weighted disk measure
 :math:`2\,du\,dv/\sqrt{1-u^2-v^2}`, which no shipped
 :class:`~orpheus.numerics.exactness.ReferenceMeasure` realization

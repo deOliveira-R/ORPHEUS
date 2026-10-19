@@ -31,7 +31,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.exactness import UNIFORM_ON_SPHERE
-from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE
+from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE, pushforward_reference
 from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE, Quotient
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import (
@@ -1353,9 +1353,10 @@ def test_the_reference_is_READ_off_the_catalogue_entry() -> None:
     home, and it is the orbit space's own derivation.
 
     ``AngularSymmetry.reference`` used to TABULATE ``LEGENDRE`` for any
-    rotation axis; it now reads :attr:`Quotient.reference` off the entry
-    :attr:`support` derives — the same collapse ``support`` underwent at
-    tracker 2.4. Three legs: the axial geometry reads the entry's field by
+    rotation axis; it now reads
+    :func:`~orpheus.numerics.generating_measure.pushforward_reference` of the
+    orbit space :attr:`support` derives — the same collapse ``support``
+    underwent at tracker 2.4. Three legs: the axial geometry reads that answer by
     IDENTITY; the geometry that spends nothing has the bare sphere as its
     domain, so its reference is the sphere's own Lebesgue measure (a
     property of the base, not a catalogue read — user-ruled); and the
@@ -1367,7 +1368,7 @@ def test_the_reference_is_READ_off_the_catalogue_entry() -> None:
 
     slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
     assert isinstance(slab.support, Quotient)
-    assert slab.reference is slab.support.reference
+    assert slab.reference is pushforward_reference(slab.support)
     assert slab.reference is LEGENDRE
 
     cylinder = GEOMETRY_ANGULAR_SYMMETRY["cylinder"]
@@ -1381,7 +1382,7 @@ def test_the_reference_is_READ_off_the_catalogue_entry() -> None:
     )
     mirror_entry = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
     assert spends_a_mirror.support == mirror_entry
-    assert mirror_entry.reference is None
+    assert pushforward_reference(mirror_entry) is None
     with pytest.raises(NotImplementedError, match="no shipped ReferenceMeasure"):
         _ = spends_a_mirror.reference
 

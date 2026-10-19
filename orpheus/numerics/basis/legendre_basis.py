@@ -57,7 +57,7 @@ Conventions
   :math:`m = 0`;
 * the continuum Gram is :math:`4\pi/(2\ell+1)`: the Gram against the
   **pushforward** :math:`\pi_* d\Omega = 2\pi\,d\mu`
-  (:attr:`~orpheus.numerics.manifold.Quotient.reference`), which coincides
+  (:func:`~orpheus.numerics.generating_measure.pushforward_reference`), which coincides
   with the harmonics' — the descent is an isometry. ⚠ NOT the bare Legendre
   mass-2 value :math:`2/(2\ell+1)`;
 * the discrete Gram over a rule is DIAGONAL wherever the rule is exact to

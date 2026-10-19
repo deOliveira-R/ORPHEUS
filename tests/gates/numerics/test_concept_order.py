@@ -68,9 +68,6 @@ EXEMPT: frozenset[tuple[str, str]] = frozenset({("traced_memo", "_traced_memo_bo
 
 # (imported module, importing module) -> the plan package that removes the edge.
 PENDING: dict[tuple[str, str], str] = {
-    # M2: the orbit space's reference measure leaves the manifold (ruling 31)
-    ("exactness", "manifold"): "M2",
-    ("generating_measure", "manifold"): "M2",
     # S7: the coefficient space of a basis and the sampled space of a measure (ruling 35)
     ("space", "basis"): "S7",
     ("space", "measure"): "S7",
