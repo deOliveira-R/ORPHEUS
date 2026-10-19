@@ -19,7 +19,7 @@ from orpheus.numerics.scalars import canonical_reals
 from orpheus.data.micro_xs.isotope import NG, Isotope
 from .interpolation import interp_sig_s, interp_xs_field
 from .sigma_zeros import solve_sigma_zeros
-import orpheus.numerics.frame_faces as frame_faces
+from orpheus.numerics import frame_faces
 
 if TYPE_CHECKING:
     from orpheus.data.energy_grid import EnergyGrid, WithinGroupSpectrum

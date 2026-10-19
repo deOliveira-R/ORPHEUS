@@ -637,7 +637,7 @@ def _correctly_rounded_rule(
 # ---------------------------------------------------------------------------
 #
 # Coefficients: Gautschi 2004 §1.3, each written once in arbitrary precision
-# (mpmath arithmetic at the precision ``at_digits`` sets, in
+# (mpmath arithmetic at the precision ``_at_digits`` sets, in
 # ``orpheus.numerics.recurrence``). Each family's rule is verified against an independent correctly rounded reference in
 # tests/gates/numerics/test_gauss_rules_correctly_rounded.py, and the
 # parameterised families are cross-checked against the constants they

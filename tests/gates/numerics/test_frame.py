@@ -778,7 +778,7 @@ def test_parseval_reds_under_the_pre_repair_continuum_metric():
     r"""The §6c witness: the Parseval isometry gate is LOADED on the metric, not blind.
 
     In-process pre-repair mutation (process-discipline: monkeypatch, never a git
-    checkout): pre-seed the frame's cached-property slots with the UNDRESSED
+    checkout): pre-seed the frame's face cache with the UNDRESSED
     continuum-metric space (``SphericalHarmonicSpace.from_L`` — exactly what the
     pre-F-0 ``basis_space`` returned), and Parseval FAILS by the measured
     margin: the ratio is a weighted average of the per-ℓ factors
@@ -788,10 +788,10 @@ def test_parseval_reds_under_the_pre_repair_continuum_metric():
     """
     frame = Quadrature.level_symmetric(4).angular_frame(1)
     undressed = SphericalHarmonicSpace.from_L(1)
-    # cached_property stores in the instance __dict__ — pre-seeding it IS the
-    # pre-repair frame; no production code is touched and nothing needs undoing.
-    frame.__dict__["basis_space"] = undressed
-    frame.__dict__["test_space"] = undressed
+    # frame_faces builds each face once into the frame's private "_frame_faces"
+    # slot — pre-seeding it IS the pre-repair frame; no production code is
+    # touched and nothing needs undoing.
+    frame.__dict__["_frame_faces"] = {"basis_space": undressed, "test_space": undressed}
     rng = np.random.default_rng(1234)
     c = rng.standard_normal(undressed.shape)
     psi = frame.basis.synthesize(c, frame.table)
@@ -999,7 +999,7 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
         frame.basis.space,
         metric=DenseMetric.inverse_of(frame.discrete_gram),
     )
-    vars(frame)["basis_space"] = dressed  # the cached_property pre-seed idiom
+    vars(frame)["_frame_faces"] = {"basis_space": dressed}  # pre-seed the frame_faces cache
     assert frame_faces.test_space(frame) is dressed  # the Galerkin identity holds on the seed
     probe = frame_faces.CrossGramInverse.of(frame)
     assert isinstance(probe, CrossGramInverse)

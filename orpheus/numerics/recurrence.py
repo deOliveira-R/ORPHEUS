@@ -1,28 +1,38 @@
 r"""The three-term recurrence of an orthogonal family: the Jacobi matrix.
 
-An orthonormal polynomial family :math:`\{p_n\}` for a positive measure
-:math:`d\lambda` on the real line obeys
+The monic orthogonal polynomials :math:`\{\pi_k\}` of a positive measure
+:math:`d\lambda` on the real line obey
 
 .. math::
 
-   x\, p_n(x) = a_n\, p_{n+1}(x) + b_n\, p_n(x) + a_{n-1}\, p_{n-1}(x),
+   \pi_{k+1}(x) = (x - \alpha_k)\,\pi_k(x) - \beta_k\,\pi_{k-1}(x),
+   \qquad \pi_{-1} = 0,\ \pi_0 = 1,
 
-and the coefficients :math:`(a_n, b_n)` are the entries of the symmetric
-tridiagonal **Jacobi matrix** (:math:`b_n` on the diagonal, :math:`a_n` off
-it). The recurrence is the measure's spectral data: Favard's theorem
-recovers the measure from it, and the :math:`n`-point Gauss rule is the
-eigen-decomposition of its :math:`n \times n` truncation (Golub & Welsch
-1969). It is therefore upstream of both the continuous generating measure
+and this module stores exactly those coefficients: each function returns
+``(alpha, beta)``, two lists of ``n`` ``mpmath.mpf``, with the convention
+``beta[0]`` :math:`= \mu_0 = \int d\lambda`, the zeroth moment (Gautschi 2004
+§1.3). The orthonormal family :math:`p_k = \pi_k / \|\pi_k\|` obeys the
+symmetric form
+
+.. math::
+
+   x\, p_k(x) = a_k\, p_{k+1}(x) + b_k\, p_k(x) + a_{k-1}\, p_{k-1}(x),
+   \qquad b_k = \alpha_k,\quad a_k = \sqrt{\beta_{k+1}},
+
+whose coefficients are the entries of the symmetric tridiagonal **Jacobi
+matrix** (:math:`b_k` on the diagonal, :math:`a_k` off it). The recurrence is
+the measure's spectral data: Favard's theorem recovers the measure from it,
+and the :math:`n`-point Gauss rule is the eigen-decomposition of the
+:math:`n \times n` Jacobi matrix, with weights :math:`\mu_0 v_{0j}^2` from the
+first components of its eigenvectors (Golub & Welsch 1969). It is therefore
+upstream of both the continuous generating measure
 (:mod:`orpheus.numerics.generating_measure`) and the discrete Gauss measure
 derived from it, and imports nothing from :mod:`orpheus.numerics`.
 
-Storage convention. The functions here return the monic-form coefficients
-``(alpha, beta)`` of :math:`p_{k+1} = (x - \alpha_k) p_k - \beta_k p_{k-1}`
-with ``beta[0] = mu_0`` the zeroth moment, each a list of ``n``
-``mpmath.mpf`` evaluated at an explicit number of decimal digits (the
-precision is an argument, never mpmath's ambient setting). The closed forms
-are written once, in arbitrary precision; every float coefficient and every
-Gauss rule is derived from them.
+Precision. Every coefficient is evaluated at an explicit number of decimal
+digits (the precision is an argument, never mpmath's ambient setting). The
+closed forms are written once, in arbitrary precision; every float
+coefficient and every Gauss rule is derived from them.
 
 References
 ----------
@@ -50,7 +60,7 @@ import mpmath
 RecurrenceCoefficients = Callable[[int, int], "tuple[list, list]"]
 
 
-def at_digits(closed_form: "Callable[[int], tuple[list, list]]") -> RecurrenceCoefficients:
+def _at_digits(closed_form: "Callable[[int], tuple[list, list]]") -> RecurrenceCoefficients:
     """Lift a closed form written in mpmath arithmetic to a
     :data:`RecurrenceCoefficients`: evaluate it at the precision the caller
     names, never at mpmath's ambient one."""
@@ -63,14 +73,14 @@ def at_digits(closed_form: "Callable[[int], tuple[list, list]]") -> RecurrenceCo
     return recurrence
 
 
-@at_digits
+@_at_digits
 def legendre_recurrence(n: int) -> "tuple[list, list]":
     alpha = [mpmath.mpf(0)] * n
     beta = [mpmath.mpf(2)] + [mpmath.mpf(k * k) / (4 * k * k - 1) for k in range(1, n)]
     return alpha, beta[:n]
 
 
-@at_digits
+@_at_digits
 def chebyshev_t_recurrence(n: int) -> "tuple[list, list]":
     alpha = [mpmath.mpf(0)] * n
     # beta_1 = 1/2 breaks the otherwise-constant 1/4 pattern; this is the
@@ -79,14 +89,14 @@ def chebyshev_t_recurrence(n: int) -> "tuple[list, list]":
     return alpha, beta[:n]
 
 
-@at_digits
+@_at_digits
 def chebyshev_u_recurrence(n: int) -> "tuple[list, list]":
     alpha = [mpmath.mpf(0)] * n
     beta = [mpmath.pi / 2] + [mpmath.mpf(1) / 4] * (n - 1)
     return alpha, beta
 
 
-@at_digits
+@_at_digits
 def hermite_recurrence(n: int) -> "tuple[list, list]":
     alpha = [mpmath.mpf(0)] * n
     beta = [mpmath.sqrt(mpmath.pi)] + [mpmath.mpf(k) / 2 for k in range(1, n)]
@@ -98,7 +108,7 @@ def jacobi_recurrence(a: float, b: float) -> RecurrenceCoefficients:
 
     ``a`` and ``b`` enter the working precision exactly (a float64 is a binary rational)."""
 
-    @at_digits
+    @_at_digits
     def recurrence(n: int) -> "tuple[list, list]":
         A, B = mpmath.mpf(a), mpmath.mpf(b)
         AB = A + B
@@ -129,7 +139,7 @@ def jacobi_recurrence(a: float, b: float) -> RecurrenceCoefficients:
 def laguerre_recurrence(a: float) -> RecurrenceCoefficients:
     r"""The generalised Laguerre recurrence for weight :math:`x^a e^{-x}` on :math:`[0,\infty)` (Gautschi 2004 §1.3)."""
 
-    @at_digits
+    @_at_digits
     def recurrence(n: int) -> "tuple[list, list]":
         A = mpmath.mpf(a)
         alpha = [2 * k + A + 1 for k in range(n)]
@@ -141,7 +151,6 @@ def laguerre_recurrence(a: float) -> RecurrenceCoefficients:
 
 __all__ = [
     "RecurrenceCoefficients",
-    "at_digits",
     "chebyshev_t_recurrence",
     "chebyshev_u_recurrence",
     "hermite_recurrence",

@@ -720,12 +720,8 @@ def cylindrical_streaming(
             f"cylindrical_streaming requires CYLINDRICAL mesh, "
             f"got {mesh.coord!r}"
         )
-    # A direct read since the P4-remainder: the AngularMeasure contract
-    # declares ``level_structure`` (CS5's G9 repair), and [M] no shipped
-    # or test carrier lacks the attribute — the defaulted ``getattr``
-    # that guarded against structural conformers predating the
-    # declaration retired with the courier (it was the one string-form
-    # read no symbol grep could see).
+    # A direct read: the factory takes a ``Quadrature``, which declares
+    # ``level_structure`` (None on a rule without polar levels).
     if angular_measure.level_structure is None:
         raise ValueError(
             "Cylindrical streaming requires a quadrature with level "

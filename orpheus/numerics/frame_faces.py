@@ -20,10 +20,10 @@ constructor of the frame, not an attribute of it):
   :func:`project` (:math:`G^{-1}M f`).
 
 **One build per frame instance.** Each face is built once and then returned as the
-same object, exactly as the ``functools.cached_property`` it replaces did: the
-value lives in the frame's instance ``__dict__`` under the face's own name
-(``"analysis"``, ``"basis_space"``, …), written through ``__dict__`` because the
-frame is a frozen dataclass. Identities rest on it: a Galerkin frame's
+same object. The built faces live in ONE private slot of the frame's instance
+``__dict__``, ``"_frame_faces"``, a dict keyed by face name (written through
+``__dict__`` because the frame is a frozen dataclass), so no face can be read back
+as a frame attribute. Identities rest on it: a Galerkin frame's
 :func:`test_space` IS its :func:`basis_space` (the analysis codomain ``is`` the
 reconstruction domain), and every operator composed through a face carries the one
 space object.
@@ -36,7 +36,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, replace
-from functools import wraps
 from typing import Any, TypeVar, cast
 
 import numpy as np
@@ -65,29 +64,17 @@ __all__ = [
 _Face = TypeVar("_Face")
 
 
-def _cached(frame: FrameBase, name: str, build: Callable[[], _Face]) -> _Face:
+def _face(frame: FrameBase, name: str, build: Callable[[], _Face]) -> _Face:
     r"""The frame's face ``name``, built once and then the same object.
 
-    Exactly ``functools.cached_property``: the value is stored in the frame's
-    instance ``__dict__`` under ``name`` (which bypasses the frozen-dataclass
-    ``__setattr__``), so an instance cached by either spelling is read back
-    identically by the other.
+    The faces are stored in the one private slot ``frame.__dict__["_frame_faces"]``
+    (a dict keyed by face name; written through ``__dict__``, which bypasses the
+    frozen-dataclass ``__setattr__``), never under a public attribute name.
     """
-    cache = cast("dict[str, Any]", frame.__dict__)
-    if name not in cache:
-        cache[name] = build()
-    return cache[name]
-
-
-def _per_frame(build: Callable[[FrameBase], _Face]) -> Callable[[FrameBase], _Face]:
-    r"""Cache a one-frame constructor under its own name (see :func:`_cached`)."""
-    name = build.__name__
-
-    @wraps(build)
-    def face(frame: FrameBase) -> _Face:
-        return _cached(frame, name, lambda: build(frame))
-
-    return face
+    faces = cast("dict[str, Any]", frame.__dict__).setdefault("_frame_faces", {})
+    if name not in faces:
+        faces[name] = build()
+    return faces[name]
 
 
 class CrossGramInverse(LinearOperator):
@@ -195,13 +182,13 @@ class CrossGramInverse(LinearOperator):
         normalisation :math:`G^{-1}` is not realizable as posed) rather than
         return a silently-wrong probe.
         """
-        return _cached(frame, "gram_inverse", lambda: cls._probe(frame))
+        return _face(frame, "gram_inverse", lambda: cls._probe(frame))
 
     @classmethod
     def _probe(cls, frame: FrameBase) -> "CrossGramInverse":
         if frame.basis.gram_structure is GramStructure.DENSE:
             raise NotInvertible(
-                f"FrameBase.project / .gram_inverse needs a row-sum-collapsible trial Gram, but "
+                f"frame_faces.project / CrossGramInverse.of needs a row-sum-collapsible trial Gram, but "
                 f"the trial {type(frame.basis).__name__} declares GramStructure.DENSE: "
                 f"its cross Gram MR is neither diagonal nor a partition of unity, so the "
                 f"row-sum probe is NOT the projection normalisation G⁻¹. The dense "
@@ -292,7 +279,6 @@ def _dressed(
     )
 
 
-@_per_frame
 def basis_space(frame: FrameBase) -> FunctionSpace:
     r"""The codomain — the trial coefficient space, carrying the PARSEVAL metric.
 
@@ -363,6 +349,11 @@ def basis_space(frame: FrameBase) -> FunctionSpace:
     space is spelled (ruling R-6.2c-1) — the metric-blind seam that
     let the two pass for one is gone.
     """
+    return _face(frame, "basis_space", lambda: _parseval_dressed(frame))
+
+
+def _parseval_dressed(frame: FrameBase) -> FunctionSpace:
+    r"""The trial coefficient space dressed with the Parseval metric (see :func:`basis_space`)."""
     space = frame.basis.space
     if frame.discrete_gram_structure is not GramStructure.DIAGONAL:
         # DENSE verdict (P7): the Parseval metric exists — it is just
@@ -382,7 +373,6 @@ def basis_space(frame: FrameBase) -> FunctionSpace:
     return _dressed(space, diagonal=inverse, frame=frame)
 
 
-@_per_frame
 def test_space(frame: FrameBase) -> FunctionSpace:
     r"""The analysis codomain — the test basis's coefficient space (``= test.space``).
 
@@ -393,18 +383,12 @@ def test_space(frame: FrameBase) -> FunctionSpace:
     explicit test basis included, reads ``frame.test.space``.
     """
     # S7 settles this: a PetrovGalerkinFrame with test_basis IS basis gets test.space (undressed), a GalerkinFrame the dressed basis_space.
-    if isinstance(frame, GalerkinFrame):
-        return basis_space(frame)
-    return frame.test.space
+    return _face(
+        frame, "test_space",
+        lambda: basis_space(frame) if isinstance(frame, GalerkinFrame) else frame.test.space,
+    )
 
 
-# pytest collects any module-level ``test_*`` callable it can import, so the face is
-# not a test: the marker keeps a ``from ...frame_faces import test_space`` in a test
-# module from being collected as one.
-test_space.__test__ = False  # type: ignore[attr-defined]
-
-
-@_per_frame
 def measure_space(frame: FrameBase) -> FunctionSpace:
     r"""The domain — the measure's induced discrete-:math:`L^2` space.
 
@@ -412,7 +396,7 @@ def measure_space(frame: FrameBase) -> FunctionSpace:
     quadrature weights as the metric): the measure OWNS its domain space,
     symmetric with the basis owning its codomain — neither is fabricated here.
     """
-    return frame.measure.space
+    return _face(frame, "measure_space", lambda: frame.measure.space)
 
 
 @dataclass(frozen=True)
@@ -434,7 +418,7 @@ class FrameAnalysis(AnalysisOperator):
     @classmethod
     def of(cls, frame: FrameBase) -> "FrameAnalysis":
         r"""The analysis face of ``frame``, built once per frame."""
-        return _cached(frame, "analysis", lambda: cls(frame))
+        return _face(frame, "analysis", lambda: cls(frame))
 
     @property
     def domain(self) -> FunctionSpace:
@@ -473,7 +457,7 @@ class FrameReconstruction(ReconstructionOperator):
     @classmethod
     def of(cls, frame: FrameBase) -> "FrameReconstruction":
         r"""The reconstruction face of ``frame``, built once per frame."""
-        return _cached(frame, "reconstruction", lambda: cls(frame))
+        return _face(frame, "reconstruction", lambda: cls(frame))
 
     @property
     def is_adjointable(self) -> bool:

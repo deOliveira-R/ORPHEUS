@@ -4915,9 +4915,9 @@ marginal-space instance (``R.codomain is E.domain``), gated.
 retain the bound spaces, the ndarray dims the axis occupies, the flat
 weights, and the scalar divisor — and nothing else. In particular they
 do **not** retain a frame *face*: a face is a view holding
-``frame:`` (:class:`~orpheus.numerics.frame.FrameBase`'s
-``_FrameAnalysis`` / ``_FrameReconstruction``), so keeping one would
-keep the generator alive through it. `[M]` read the face
+``frame:`` (:class:`~orpheus.numerics.frame_faces.FrameAnalysis` /
+:class:`~orpheus.numerics.frame_faces.FrameReconstruction`), so keeping one
+would keep the generator alive through it. `[M]` read the face
 dataclasses — this is why the mint copies arrays rather than storing
 ``FrameAnalysis.of(frame)``.
 

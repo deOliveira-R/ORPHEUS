@@ -66,9 +66,11 @@ class OverlapBasis(IndicatorBasis):
     disjoint supports are what make the indicator Gram diagonal). The frame's
     :func:`~orpheus.numerics.frame_faces.project` uses the partition-of-unity
     row-sum probe, not the full Gram — see
-    :meth:`~orpheus.numerics.frame_faces.CrossGramInverse.of`. A future least-squares consumer
-    that needs the dense Gram reads :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`,
-    which is the full cross-Gram for the fractional case.
+    :meth:`~orpheus.numerics.frame_faces.CrossGramInverse.of`, which probes the cross
+    Gram :math:`MR = \chi^{\mathsf T} W \Phi` through its row sums. A future
+    least-squares consumer that needs the dense cross Gram builds :math:`MR` from the
+    two faces; :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram` is a different
+    matrix, the TRIAL Gram :math:`\Phi^{\mathsf T} W \Phi`.
     """
 
     overlap_table: NDArray

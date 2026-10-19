@@ -529,16 +529,6 @@ table, :math:`O(N K^2)`, as
    G_{jk} \;=\; \sum_n w_n\,\phi_j(x_n)\,\phi_k(x_n)
    \;=\; \bigl(Y^{\mathsf T}\,\mathrm{diag}(w)\,Y\bigr)_{jk}
 
-.. (vv-status rationale) Definition of the frame's discrete trial Gram —
-   a named intermediate, not a solver claim. Its shipped computation is
-   FrameBase.discrete_gram (einsum over the CACHED table); the value is
-   pinned per family by ``test_parseval_dressing_installed_on_diagonal_frames``
-   in ``tests/gates/numerics/test_frame.py`` (which reads the diagonal back out
-   of it) and, for the SH basis, by the closed-form
-   :eq:`real-sh-discrete-orthogonality` gate.
-.. vv-status: frame-discrete-gram documented
-
-
 .. implements:: frame-discrete-gram
    :by: orpheus.numerics.frame.FrameBase.discrete_gram
 

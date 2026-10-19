@@ -247,7 +247,7 @@ class FrameBase(ABC):
         basis's mode layout flattened to one axis (``K =`` the coefficient count,
         row-major — the same order as ``table.reshape(N, K)``). The one home
         of the mass matrix: a basis alone does not mint it (it pairs the basis
-        with a measure, which is this frame). It is the Parseval-metric source
+        with a measure, which is this frame). The Parseval-metric source
         (:func:`~orpheus.numerics.frame_faces.basis_space`) and the diagonality verdict
         (:attr:`discrete_gram_structure`) both read it, and a gate that wants
         the Gram in the basis's own mode layout reshapes this one.

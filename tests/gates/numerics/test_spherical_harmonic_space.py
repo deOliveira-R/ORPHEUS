@@ -113,7 +113,7 @@ def test_space_inner_product_weights_equal_4pi_over_2l_plus_1():
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-039")
-@pytest.mark.verifies("real-sh-discrete-orthogonality")
+@pytest.mark.verifies("real-sh-discrete-orthogonality", "frame-discrete-gram")
 def test_frame_discrete_gram_against_lebedev(lebedev_L_pair):
     r"""The frame's ``discrete_gram`` over a Lebedev measure ≈ the theoretical metric.
 

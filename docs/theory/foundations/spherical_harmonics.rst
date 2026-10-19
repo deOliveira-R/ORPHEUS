@@ -361,7 +361,7 @@ sufficiently-exact angular cubature:
    :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.reconstruct
 
 .. implements:: pi-r-equals-4pi-i
-   :by: orpheus.numerics.frame.CrossGramInverse.of(frame)
+   :by: orpheus.numerics.frame_faces.CrossGramInverse.of
 
 .. implements:: pi-r-equals-4pi-i
    :by: orpheus.numerics.frame.GalerkinFrame
