@@ -2506,9 +2506,9 @@ shipped rule's ``support`` happens to be parameter-independent, so it
 *could* have been a field — but since stage 1 forces the build anyway,
 the selector reads every such fact off the one constructed object: the
 support, the computed invariance group, the exactness claim, **and the
-node count stage 4 sorts on**. The winning candidate's measure is then
+node count stage 4 sorts on**. The winning candidate's quadrature is then
 carried forward rather than rebuilt. There is therefore exactly one
-construction of the measure the selector returns, and no second,
+construction of the quadrature the selector returns, and no second,
 divergence-capable one — the same single-source argument that makes the
 spec carry no invariance group and no parallel node-count formula.
 
@@ -2743,7 +2743,7 @@ The four canonical happy-path selections:
   2026-09-03) —
   ``domain mismatch: geometry 'slab' discretises S^2/O2_x, but the
   rule's nodes live on S^2, and S^2/O2_x has no descent arrow onto it``
-  — leaving GL1D (n=8 → degree 15, 8
+  — leaving GL1D (n_ordinates=8 → degree 15, 8
   nodes), whose own measure `[M]` declares ``support=S^2/O2_x``.
   ⭐ The message names **one** clause, the one that actually bit; the
   same rejection for a cylinder is the OTHER clause and says so:
@@ -2783,6 +2783,48 @@ The four canonical happy-path selections:
   *valid candidates that lost*, not rejections — their names are
   absent from ``log.rejected``.
 
+One rule list (ruling 32, 2026-10-19)
+-------------------------------------
+
+The registry holds the rule list :class:`~orpheus.numerics.quadrature.directional.Quadrature`
+already has, not a second one. Each :class:`~orpheus.numerics.quadrature.registry.QuadratureSpec`'s
+``factory`` is the classmethod (``Quadrature.gauss_legendre``, ``.lebedev``,
+``.level_symmetric``, ``.product``), ``QuadratureSpec.build`` returns the
+:class:`~orpheus.numerics.quadrature.directional.Quadrature` (its level
+structure rides with it; the old ``build`` unpacked ``(measure, LevelStructure)``
+to a bare measure and dropped the structure), and
+:func:`~orpheus.numerics.quadrature.registry.select_quadrature` returns
+``(Quadrature, SelectionLog)``. The selector reads ``quadrature.measure`` where it
+asks the domain, symmetry and exactness questions. The Gauss-Legendre
+parameter is spelled ``n_ordinates`` in the spec, as in the classmethod
+(it was ``n``).
+
+``[M]`` 2026-10-19, ``tests/gates/numerics/test_registry_rule_list.py``: for each of the four
+entries over every parameter set the degree inversion returns for targets
+0 to 21 (plus the buildable orders it never picks), the classmethod's
+``.measure`` equals the measure the module rule function it wraps builds,
+bit for bit (``np.array_equal`` on nodes and weights; ``==`` on support,
+invariance group and exactness claim), and the inversion is the cheapest
+set that meets the target (the built rule's ``degree_of_exactness`` is at
+least the target and the next smaller set's is below it). The same file
+pins that each ``factory`` IS the classmethod. A one-ulp weight change, a
+wrong polar axis, an inversion that under-promises and one that
+over-promises each turn it red (in-process mutations, 2026-10-19).
+
+⛔ ``Quadrature.folded_product`` is **not** registered. The brief was to
+derive its degree inversion from the built rule, and `[M]` the built rule
+carries no degree: for every ``(n_mu, n_phi)`` in
+``{1,2,3,4,8} x {2,4,6,8,16}``, ``Quadrature.folded_product(n_mu,
+n_phi).measure.exactness`` is ``None``, because ``DiscreteMeasure.quotient``
+drops the claim when the quotient's reference measure (Lebesgue on
+``S^2/sigma_y``) has no ``ReferenceMeasure`` realization. A registered spec
+would be refused at stage 2 ("the rule carries no exactness claim") on every
+geometry, and typing the parent product's degree onto it would be a table
+that asserts nothing about the built rule. The prerequisite is that
+reference measure; the guard
+``TestTheSelectorIsUNMOVEDByTheCarve::test_the_fold_is_not_registered_so_no_selection_reaches_it``
+is the pin that stays until then.
+
 Explainability log
 ------------------
 
@@ -2793,7 +2835,7 @@ the full decision provenance:
 
 .. code-block:: python
 
-   measure, log = select_quadrature("cartesian2d", target_degree=5)
+   quadrature, log = select_quadrature("cartesian2d", target_degree=5)
    print(log.summary())
    # select_quadrature(geometry='cartesian2d', target_degree=5)
    # -> LebedevSphere({'order': 5}) [1 rejected]

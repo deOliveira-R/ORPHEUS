@@ -1072,7 +1072,7 @@ def test_every_registry_rule_declares_a_symmetry_it_actually_has() -> None:
     for spec in quadrature_registry:
         params = spec.degree_of_exactness_for(5)
         assert params is not None, f"{spec.name} cannot reach degree 5"
-        measure = spec.build(params)
+        measure = spec.build(params).measure
         declared = measure.invariance_group
         assert declared is not None, (
             f"{spec.name} carries no invariance_group; DiscreteMeasure.phase "

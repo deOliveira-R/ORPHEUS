@@ -161,8 +161,8 @@ on :class:`QuadratureSpec` can express it, and the older design that
 tried to had to lie. The same is true of the claim: it is read off the
 built measure, never declared on the spec.
 
-The :func:`select_quadrature` function returns both the chosen measure
-**and** a :class:`SelectionLog` listing every rejected candidate with
+The :func:`select_quadrature` function returns both the chosen
+:class:`~orpheus.numerics.quadrature.directional.Quadrature` **and** a :class:`SelectionLog` listing every rejected candidate with
 the stage-and-reason that disqualified it. The log makes the choice
 explainable for the SN solver's diagnostic output and for teaching:
 "why was rule X picked over rule Y?" answers itself.
@@ -353,7 +353,7 @@ page rather than the section.)
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from functools import cache, partial
+from functools import cache
 from collections.abc import Sequence
 from typing import Any, Callable
 
@@ -362,8 +362,7 @@ from ..generating_measure import pushforward_reference
 from ..measure import DiscreteMeasure
 from orpheus.numerics.manifold import SPHERE, Manifold, Quotient, quotient_onto
 from ..symmetry import SubgroupOfO3
-from .rules_1d import gauss_legendre_on_polar_orbit
-from .rules_product import product_mu_phi
+from .directional import Quadrature
 from .rules_sphere import lebedev_sphere, level_symmetric_sn
 
 
@@ -491,14 +490,18 @@ class QuadratureSpec:
         Human-readable identifier (used in :class:`SelectionLog`
         messages and Sphinx documentation).
     factory : callable
-        Constructor returning the measure. Must accept the parameter
-        keys listed in :attr:`parameters` and return either a
-        :class:`DiscreteMeasure` directly or a tuple
-        ``(DiscreteMeasure, ...)`` — the selector unpacks the first
-        element when a tuple is returned, matching the
-        :func:`level_symmetric_sn` and :func:`product_mu_phi`
-        signatures that pair the measure with a
-        :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`.
+        The :class:`~orpheus.numerics.quadrature.directional.Quadrature`
+        classmethod that makes the rule (``Quadrature.gauss_legendre``,
+        ``.lebedev``, ``.level_symmetric``, ``.product``): the registry
+        holds the same rule list the class does, not a second one over
+        the module rule functions (ruling 32, 2026-10-19). It accepts
+        the parameter keys listed in :attr:`parameters` and returns a
+        :class:`~orpheus.numerics.quadrature.directional.Quadrature`,
+        whose ``level_structure`` rides with the measure, so the
+        :func:`level_symmetric_sn` and :func:`product_mu_phi` pairing
+        of a measure with a
+        :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`
+        is no longer unpacked and dropped here.
     parameters : dict[str, type]
         Parameter names and their types. The selector calls
         :meth:`degree_of_exactness_for` to invert the degree formula
@@ -542,7 +545,7 @@ class QuadratureSpec:
     """
 
     name: str
-    factory: Callable[..., Any]
+    factory: Callable[..., Quadrature]
     parameters: dict[str, type]
     degree_of_exactness_for: Callable[[int], dict[str, Any] | None]
     positive_weights: bool
@@ -564,18 +567,15 @@ class QuadratureSpec:
             "half_range_clean": self.half_range_clean,
         }
 
-    def build(self, parameters: dict[str, Any]) -> DiscreteMeasure:
-        """Instantiate the rule at ``parameters`` and return its measure.
+    def build(self, parameters: dict[str, Any]) -> Quadrature:
+        """Instantiate the rule at ``parameters``.
 
-        The registered factories return either a
-        :class:`~orpheus.numerics.measure.DiscreteMeasure` or a
-        ``(measure, LevelStructure)`` pair. This is the **one** place
-        that unpacking happens — the selector needs a measure to ask
-        the domain and symmetry questions, and needs one again to
-        return the winner.
+        The factory is a :class:`~orpheus.numerics.quadrature.directional.Quadrature`
+        classmethod, so the result is the quadrature itself, level structure
+        included. The selector reads ``.measure`` where it asks the domain,
+        symmetry and exactness questions, and returns the quadrature it built.
         """
-        result = self.factory(**parameters)
-        return result[0] if isinstance(result, tuple) else result
+        return self.factory(**parameters)
 
 
 # ---------------------------------------------------------------------------
@@ -606,7 +606,7 @@ def _gl1d_invert(target_degree: int) -> dict[str, Any] | None:
         n_min = 1
     if n_min % 2 == 1:
         n_min += 1
-    return {"n": n_min}
+    return {"n_ordinates": n_min}
 
 
 def _lebedev_invert(target_degree: int) -> dict[str, Any] | None:
@@ -819,8 +819,8 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
         # spends. The chart-level `gauss_legendre_on_mu` (the product
         # rules' polar factor) is deliberately NOT registered: it names no
         # axis, and stage 0 refuses it for exactly that reason.
-        factory=partial(gauss_legendre_on_polar_orbit, axis="x"),
-        parameters={"n": int},
+        factory=Quadrature.gauss_legendre,
+        parameters={"n_ordinates": int},
         degree_of_exactness_for=_gl1d_invert,
         positive_weights=True,
         axis_aligned=True,        # 1-D nodes ARE the axis (μ-axis)
@@ -829,7 +829,7 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
     ),
     QuadratureSpec(
         name="LebedevSphere",
-        factory=lebedev_sphere,
+        factory=Quadrature.lebedev,
         parameters={"order": int},
         degree_of_exactness_for=_lebedev_invert,
         positive_weights=True,
@@ -839,7 +839,7 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
     ),
     QuadratureSpec(
         name="LevelSymmetricSN",
-        factory=level_symmetric_sn,
+        factory=Quadrature.level_symmetric,
         parameters={"sn_order": int},
         degree_of_exactness_for=_ls_sn_invert,
         positive_weights=True,
@@ -849,7 +849,7 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
     ),
     QuadratureSpec(
         name="ProductQuadrature",
-        factory=product_mu_phi,
+        factory=Quadrature.product,
         parameters={"n_mu": int, "n_phi": int},
         degree_of_exactness_for=_product_invert,
         positive_weights=True,
@@ -1295,7 +1295,7 @@ def select_quadrature(
     *,
     registry: Sequence[QuadratureSpec] | None = None,
     **structural: bool,
-) -> tuple[DiscreteMeasure, SelectionLog]:
+) -> tuple[Quadrature, SelectionLog]:
     r"""Pick the cheapest registered quadrature satisfying every constraint.
 
     Implements :eq:`quadrature-selection-criterion` over the global
@@ -1338,12 +1338,10 @@ def select_quadrature(
 
     Returns
     -------
-    DiscreteMeasure
-        The chosen quadrature measure (or, for rules whose factory
-        returns ``(measure, structure)``, just the measure — the
-        structure is dropped because the registry is for "give me a
-        measure" use cases; consumers needing per-level structure
-        should call the factory directly).
+    Quadrature
+        The chosen quadrature, built by its spec's classmethod factory:
+        its ``.measure`` is the discrete measure, and its
+        ``level_structure`` rides with it for the rules that have one.
     SelectionLog
         Decision record: chosen spec + parameters + rejection list.
 
@@ -1387,11 +1385,11 @@ def select_quadrature(
         )
 
     rejected: list[tuple[str, str]] = []
-    # The measure rides along: stages 0/1 had to build it, so rebuilding
+    # The quadrature rides along: stages 0/1 had to build it, so rebuilding
     # the winner afterwards would be a second, divergence-capable
     # construction of the same object.
     candidates: list[
-        tuple[QuadratureSpec, dict[str, Any], int, DiscreteMeasure]
+        tuple[QuadratureSpec, dict[str, Any], int, Quadrature]
     ] = []
 
     for spec in registry:
@@ -1406,7 +1404,8 @@ def select_quadrature(
             ))
             continue
 
-        measure = spec.build(params)
+        quadrature = spec.build(params)
+        measure = quadrature.measure
 
         # ---- Stage 0: angular domain ----------------------------------
         domain_refusal = angular_symmetry.domain_refusal(measure)
@@ -1510,7 +1509,7 @@ def select_quadrature(
         # The cost is the measure's OWN node count. Stages 0 and 1 have
         # already built it, so a second, formula-shaped source for the same
         # number would be a twin that can only ever drift.
-        candidates.append((spec, params, measure.n_points, measure))
+        candidates.append((spec, params, measure.n_points, quadrature))
 
     def _selection_log(
         chosen_spec: QuadratureSpec | None,
@@ -1558,12 +1557,12 @@ def select_quadrature(
     # has to be said and gated (cf. LOSS_REPRESENTATIONS, whose own comment
     # states "the registry ORDER is the default-selection policy").
     candidates.sort(key=lambda c: c[2])
-    chosen_spec, chosen_params, _, measure = candidates[0]
+    chosen_spec, chosen_params, _, quadrature = candidates[0]
 
     log = _selection_log(
         chosen_spec=chosen_spec, chosen_parameters=chosen_params,
     )
-    return measure, log
+    return quadrature, log
 
 
 __all__ = [
