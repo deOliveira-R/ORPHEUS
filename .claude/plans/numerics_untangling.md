@@ -612,3 +612,15 @@ This supersedes the compaction point above for the fix. Its rulings and step-5 l
 2. Add the `catches("ERR-087")` markers the archivist lists.
 3. Commit code, gate and docs together, with `matrix.rst` and `error_index.md` regenerated and staged; merge `--ff-only`; push; watch CI.
 4. E′ cut into packages.
+
+## ⏹ RULING 27's FIX — LANDED 2026-10-19, `main` `31f14c93` (+ `ef50f730`, the history hash)
+
+This closes the two state sections above for the fix; their rulings stand.
+
+- `[M]` 2026-10-19, before the commit: the full serial suite with `-O` over every gate directory plus derivations and the root files ran with 0 failed (numerics 4539 passed and 6 strict xfail on #614; sn 3834; derivations 3098; `scratch/adjoint_honesty/wide4/summary.txt`). The xref and catalogue gates passed 46, pyright reported 0 errors on the touched files, and CI `gates` run 39215087307 succeeded.
+- The catalogue entry is **ERR-117**; ERR-087 was already taken.
+- Green's cold start: the first Neumann partial sum is one counted step, checked before it is driven, and the driver is built per call with the remaining total budget (`[M]` 30 of 30 configurations use the same number of applies; 20 of 20 converged ones are bit-identical).
+- A deferred edge recorded in the code: `ScaledOperator` has no native transposed solve. One is owed when a scaled block first sits on a coupled grid's diagonal (the `is_transpose_invertible` base docstring, `orpheus/numerics/operator.py`). No issue is filed, because no consumer exists.
+- Filed during the fix: #615 (the analysis face's `.H` refuses its typed moment), #616 (the multi-D transposed sweep), #617 (`DualSpace` carries G, not G⁻¹), #618 (the driver cold start), #619 (`C.apply` accepts a source).
+
+⏸ **Next:** cut E′ into delegable packages, each with an acceptance check (the verification-tree plan's ruling 18). The executor is a Sonnet fan-out or an ultracode session.
