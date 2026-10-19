@@ -856,7 +856,7 @@ axes :math:`(n_x, n_y)`.
      - ``(<angular head>, ng, nx, ny)`` — ``(L+1, 2L+1)`` on a rule
        that binds the spherical harmonics, ``(L+1,)`` on a 1-D rule
        (see the note below this table)
-     - ``frame.analysis.apply`` output (the SH
+     - ``FrameAnalysis.of(frame).apply`` output (the SH
        :class:`~orpheus.numerics.frame.GalerkinFrame`'s analysis face;
        :mod:`orpheus.transport.operators.scattering`); typed wrapper at
        :class:`orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`

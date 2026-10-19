@@ -82,6 +82,7 @@ from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from orpheus.transport.material_field import TransferMaterialField
 from tests.gates.sn._test_helpers import material_xs_from_raw, placeholder_materials
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -182,7 +183,7 @@ def _mat_xs(nx: int = 4):
 
 
 def _inner_factor_domain_name(kernel: OperatorProduct) -> str:
-    """``frame.conjugate(X)`` is ``R ∘ (X ∘ M)``; the domain of ``X`` is the end under test."""
+    """``conjugate(frame, X)`` is ``R ∘ (X ∘ M)``; the domain of ``X`` is the end under test."""
     inner = kernel.b
     assert isinstance(inner, OperatorProduct)
     domain = inner.a.domain
@@ -265,7 +266,7 @@ def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() ->
         S.transfer, skip_l0=False, domain=minted, codomain=minted,
     )
     with pytest.raises(IncompatibleOperatorComposition, match=r"A\.domain == B\.codomain"):
-        S.flux_analysis.frame.conjugate(stale)
+        frame_faces.conjugate(S.flux_analysis.frame, stale)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -314,7 +315,7 @@ def test_the_tree_binds_the_frames_parseval_space_and_not_the_continuum_head(lab
     space's derived metric object (item 6.2c-i)."""
     q = _RULES[label]()              # built in the body, never in the parametrize list
     frame = HarmonicFrame.from_galerkin(q.angular_frame(L))
-    dressed = frame.basis_space
+    dressed = frame_faces.basis_space(frame)
     # ⛔ RE-KEYED 2026-09-02 (#429): the family to compare against is the one
     # the rule's ORBIT SPACE carries — a 1-D rule's frame binds the flat
     # Legendre head, a sphere rule's the rectangular harmonics.
@@ -362,7 +363,7 @@ def test_the_operator_ends_carry_the_frames_parseval_space_not_the_continuum_one
     S = ScatteringOperator.from_solver_data(mat_xs=_mat_xs(), space=sn.full_field_space, scattering_order=L)
     ends = S._moment_transfer(skip_l0=False).domain
     frame = sn.quad.angular_frame(L)
-    assert ends == frame.basis_space
+    assert ends == frame_faces.basis_space(frame)
     assert ends != frame.basis.space
     hub_space = sn.moment_space(L)
     assert isinstance(hub_space, TensorProductSpace)

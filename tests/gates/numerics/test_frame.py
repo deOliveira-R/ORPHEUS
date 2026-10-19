@@ -3,7 +3,7 @@ r"""Intrinsic-property tests for the frame faces + the discipline-type hierarchy
 The angular :class:`~orpheus.numerics.frame.GalerkinFrame` binds a :class:`Basis` to a
 :class:`DiscreteMeasure` and exposes the analysis / reconstruction faces. These tests pin:
 
-* the **adjoint-for-free** — BOTH ``frame.analysis.H`` and ``frame.reconstruction.H``
+* the **adjoint-for-free** — BOTH ``FrameAnalysis.of(frame).H`` and ``FrameReconstruction.of(frame).H``
   fall out of the frame's swapped spaces with no bespoke code (each pinned against an
   INDEPENDENT closed-form einsum: :math:`M^* = S_0 \circ G^{-1} = R/W` for analysis,
   :math:`R^* = W\,M` for reconstruction — the F-0 Parseval metric);
@@ -56,6 +56,7 @@ from tests._harness.predicates import (
     STRUCTURAL_ABSENT,
     assert_inverse_adjoint_contract,
 )
+from orpheus.numerics import frame_faces
 
 
 @pytest.fixture
@@ -82,7 +83,7 @@ def test_frame_faces_two_axis_contract(sh_frame):
     :class:`~orpheus.numerics.projection.AnalysisOperator`.
     """
     frame, _ = sh_frame
-    for face in (frame.analysis, frame.reconstruction):
+    for face in (frame_faces.FrameAnalysis.of(frame), frame_faces.FrameReconstruction.of(frame)):
         assert_inverse_adjoint_contract(
             face,
             invertible=False,
@@ -103,12 +104,12 @@ def _band_limited(rng, L, *trailing):
 
 @pytest.mark.foundation
 def test_analysis_hilbert_adjoint_falls_out_of_the_frame_spaces(sh_frame):
-    r"""``frame.analysis.H`` is the PHYSICAL Hilbert adjoint :math:`M^* = S_0 \circ G^{-1}`.
+    r"""``FrameAnalysis.of(frame).H`` is the PHYSICAL Hilbert adjoint :math:`M^* = S_0 \circ G^{-1}`.
 
     No bespoke adjoint code — the frame's swapped ``(measure_space, basis_space)``
     metrics feed the generic ``AdjointOperator``, and the F-0 Parseval dressing
     (the codomain metric is the INVERSE discrete Gram — see
-    :attr:`FrameBase.basis_space`) makes the sandwich the physical adjoint. Pinned
+    :func:`~orpheus.numerics.frame_faces.basis_space`) makes the sandwich the physical adjoint. Pinned
     against an INDEPENDENT reference: the direct :math:`S_0(G^{-1}c)` einsum with
     the closed-form inverse SH Gram :math:`(2\ell+1)/4\pi` (exact for the
     degree-exact Lebedev rule; NOT the frame's own contraction). Equivalently
@@ -127,13 +128,13 @@ def test_analysis_hilbert_adjoint_falls_out_of_the_frame_spaces(sh_frame):
     g_inv = (2.0 * np.arange(L + 1) + 1.0) / (4.0 * np.pi)  # closed-form G⁻¹ diag
     expected = np.einsum("nlm,l,lm...->n...", frame.table, g_inv, c)
     np.testing.assert_allclose(
-        frame.analysis.H.apply(c), expected, rtol=1e-12, atol=1e-14,
+        frame_faces.FrameAnalysis.of(frame).H.apply(c), expected, rtol=1e-12, atol=1e-14,
     )
 
 
 @pytest.mark.foundation
 def test_reconstruction_hilbert_adjoint_falls_out_of_the_frame_spaces(sh_frame):
-    r"""``frame.reconstruction.H`` is the PHYSICAL Hilbert adjoint :math:`R^* = W\,M`.
+    r"""``FrameReconstruction.of(frame).H`` is the PHYSICAL Hilbert adjoint :math:`R^* = W\,M`.
 
     Symmetric with the analysis face: the F-0-dressed domain metric
     (:math:`G^{-1}`) enters the sandwich through its pseudo-inverse :math:`G`,
@@ -154,7 +155,7 @@ def test_reconstruction_hilbert_adjoint_falls_out_of_the_frame_spaces(sh_frame):
         "n,nlm,n...->lm...", frame.measure.weights, frame.table, v,
     )
     np.testing.assert_allclose(
-        frame.reconstruction.H.apply(v), expected, rtol=1e-12, atol=1e-14,
+        frame_faces.FrameReconstruction.of(frame).H.apply(v), expected, rtol=1e-12, atol=1e-14,
     )
 
 
@@ -168,27 +169,27 @@ def test_basis_space_is_the_spherical_harmonic_space(sh_frame):
     # frame its generator), so since the identity flip (CS4c step 6, item
     # 6.2c-ii) it is a DIFFERENT space from the continuum mint, same family,
     # same order, same name; the Frame caches it and shares it across the faces.
-    assert isinstance(frame.basis_space, SphericalHarmonicSpace)
-    assert frame.basis_space.L == L and frame.basis_space.shape == (L + 1, 2 * L + 1)
-    assert frame.basis_space.name == frame.basis.space.name == SphericalHarmonicSpace.from_L(L).name
-    assert frame.basis_space != frame.basis.space
-    assert frame.basis_space != SphericalHarmonicSpace.from_L(L)
+    assert isinstance(frame_faces.basis_space(frame), SphericalHarmonicSpace)
+    assert frame_faces.basis_space(frame).L == L and frame_faces.basis_space(frame).shape == (L + 1, 2 * L + 1)
+    assert frame_faces.basis_space(frame).name == frame.basis.space.name == SphericalHarmonicSpace.from_L(L).name
+    assert frame_faces.basis_space(frame) != frame.basis.space
+    assert frame_faces.basis_space(frame) != SphericalHarmonicSpace.from_L(L)
     assert frame.basis.space == SphericalHarmonicSpace.from_L(L)
-    assert frame.basis_space.axes is not None and frame.basis_space.axes[0].generator is frame
+    assert frame_faces.basis_space(frame).axes is not None and frame_faces.basis_space(frame).axes[0].generator is frame
     # the analysis codomain / reconstruction domain are that same space
-    assert frame.analysis.codomain is frame.basis_space
-    assert frame.reconstruction.domain is frame.basis_space
+    assert frame_faces.FrameAnalysis.of(frame).codomain is frame_faces.basis_space(frame)
+    assert frame_faces.FrameReconstruction.of(frame).domain is frame_faces.basis_space(frame)
 
 
 @pytest.mark.foundation
 def test_measure_space_carries_the_quadrature_weights_as_its_metric(sh_frame):
     frame, _ = sh_frame
-    ms = frame.measure_space
+    ms = frame_faces.measure_space(frame)
     assert ms.shape == (frame.measure.weights.shape[0],)
     np.testing.assert_array_equal(ms.inner_product_weights, frame.measure.weights)
     # analysis domain / reconstruction codomain are that same space
-    assert frame.analysis.domain is ms
-    assert frame.reconstruction.codomain is ms
+    assert frame_faces.FrameAnalysis.of(frame).domain is ms
+    assert frame_faces.FrameReconstruction.of(frame).codomain is ms
 
 
 # ── composition through OperatorProduct (the cast-retirement enabler) ─────
@@ -205,8 +206,8 @@ def test_faces_compose_through_operator_product_with_real_spaces(sh_frame):
     frame, _ = sh_frame
     rng = np.random.default_rng(15)
     psi = rng.standard_normal((frame.measure.weights.shape[0], 4, 2))
-    product = frame.reconstruction @ frame.analysis
-    expected = frame.reconstruction.apply(frame.analysis.apply(psi))
+    product = frame_faces.FrameReconstruction.of(frame) @ frame_faces.FrameAnalysis.of(frame)
+    expected = frame_faces.FrameReconstruction.of(frame).apply(frame_faces.FrameAnalysis.of(frame).apply(psi))
     np.testing.assert_array_equal(product.apply(psi), expected)
 
 
@@ -220,7 +221,7 @@ def test_pi_R_is_4pi_identity_through_the_frame(sh_frame):
     frame, L = sh_frame
     rng = np.random.default_rng(16)
     c = _band_limited(rng, L)
-    out = frame.analysis.apply(frame.reconstruction.apply(c))
+    out = frame_faces.FrameAnalysis.of(frame).apply(frame_faces.FrameReconstruction.of(frame).apply(c))
     np.testing.assert_allclose(out, 4.0 * np.pi * c, rtol=1e-10, atol=1e-12)
 
 
@@ -230,8 +231,8 @@ def test_pi_R_is_4pi_identity_through_the_frame(sh_frame):
 def test_table_and_faces_are_cached(sh_frame):
     frame, _ = sh_frame
     assert frame.table is frame.table
-    assert frame.analysis is frame.analysis
-    assert frame.reconstruction is frame.reconstruction
+    assert frame_faces.FrameAnalysis.of(frame) is frame_faces.FrameAnalysis.of(frame)
+    assert frame_faces.FrameReconstruction.of(frame) is frame_faces.FrameReconstruction.of(frame)
 
 
 # (The former ``test_face_capabilities`` API-smoke — caps == {apply,
@@ -266,8 +267,8 @@ def test_galerkin_frame_test_is_the_trial_basis(sh_frame):
     frame, _ = sh_frame
     assert frame.test is frame.basis
     assert frame.test_table is frame.table
-    assert frame.test_space is frame.basis_space
-    assert frame.analysis.codomain is frame.basis_space
+    assert frame_faces.test_space(frame) is frame_faces.basis_space(frame)
+    assert frame_faces.FrameAnalysis.of(frame).codomain is frame_faces.basis_space(frame)
 
 
 @pytest.mark.foundation
@@ -301,11 +302,11 @@ def test_petrov_galerkin_degenerate_equals_galerkin_bit_identically(sh_frame):
     rng = np.random.default_rng(24)
     psi = rng.standard_normal((galerkin.measure.weights.shape[0], 4, 2))
     np.testing.assert_array_equal(
-        pg.analysis.apply(psi), galerkin.analysis.apply(psi),
+        frame_faces.FrameAnalysis.of(pg).apply(psi), frame_faces.FrameAnalysis.of(galerkin).apply(psi),
     )
     c = _band_limited(rng, L)
     np.testing.assert_array_equal(
-        pg.reconstruction.apply(c), galerkin.reconstruction.apply(c),
+        frame_faces.FrameReconstruction.of(pg).apply(c), frame_faces.FrameReconstruction.of(galerkin).apply(c),
     )
 
 
@@ -332,7 +333,7 @@ def _indicator_frame(edges, centres, weights, test_weight=None):
 
 @pytest.mark.foundation
 def test_project_is_gram_inverse_times_analysis():
-    r"""``frame.project(f) = G⁻¹ M f`` on a hand-known diagonal-Gram frame.
+    r"""``project(frame, f) = G⁻¹ M f`` on a hand-known diagonal-Gram frame.
 
     Galerkin indicator frame (test=trial), 4 fine nodes / non-uniform volumes, 3
     coarse cells the LAST of which is EMPTY (no fine node). The diagonal Gram is the
@@ -345,7 +346,7 @@ def test_project_is_gram_inverse_times_analysis():
     V = [1.0, 1.0, 2.0, 1.0]
     f = np.array([10.0, 20.0, 30.0, 40.0])
     frame = _indicator_frame([0.0, 2.0, 4.0, 5.0], centres, V)  # R2=[4,5] empty
-    out = frame.project(f)
+    out = frame_faces.project(frame, f)
     expected = np.array([
         (1.0 * 10 + 1.0 * 20) / (1.0 + 1.0),    # R0: nodes 0,1
         (2.0 * 30 + 1.0 * 40) / (2.0 + 1.0),    # R1: nodes 2,3
@@ -357,7 +358,7 @@ def test_project_is_gram_inverse_times_analysis():
 
 @pytest.mark.foundation
 def test_petrov_galerkin_project_is_cross_gram_extraction():
-    r"""``PetrovGalerkinFrame.project`` extracts coefficients against the CROSS Gram.
+    r"""``project(PetrovGalerkinFrame, ·)`` extracts coefficients against the CROSS Gram.
 
     A genuine ``test ≠ trial`` frame (test = a flux-weighted indicator ``w·1_R``,
     trial = ``1_R``): the diagonal cross Gram is :math:`G_R = \langle\chi_R,
@@ -375,7 +376,7 @@ def test_petrov_galerkin_project_is_cross_gram_extraction():
         sum(w[i] * V[i] * f[i] for i in sel) / sum(w[i] * V[i] for i in sel)
         for sel in regions
     ])
-    np.testing.assert_allclose(frame.project(f), expected, rtol=1e-13)
+    np.testing.assert_allclose(frame_faces.project(frame, f), expected, rtol=1e-13)
 
 
 @pytest.mark.foundation
@@ -390,7 +391,7 @@ def test_petrov_galerkin_degenerate_project_equals_galerkin_project(sh_frame):
     pg = PetrovGalerkinFrame(galerkin.basis, galerkin.measure, galerkin.basis)
     rng = np.random.default_rng(31)
     psi = rng.standard_normal((galerkin.measure.weights.shape[0], 4, 2))
-    np.testing.assert_array_equal(pg.project(psi), galerkin.project(psi))
+    np.testing.assert_array_equal(frame_faces.project(pg, psi), frame_faces.project(galerkin, psi))
 
 
 @pytest.mark.foundation
@@ -410,8 +411,8 @@ def test_petrov_galerkin_project_differs_from_galerkin_when_test_neq_trial():
     edges = [0.0, 2.0, 4.0]
     regions = [[0, 1], [2, 3]]
 
-    pg = _indicator_frame(edges, centres, V, test_weight=w).project(f)
-    galerkin = _indicator_frame(edges, centres, V).project(f)
+    pg = frame_faces.project(_indicator_frame(edges, centres, V, test_weight=w), f)
+    galerkin = frame_faces.project(_indicator_frame(edges, centres, V), f)
 
     pg_ref = np.array([
         sum(w[i] * V[i] * f[i] for i in sel) / sum(w[i] * V[i] for i in sel)
@@ -484,15 +485,15 @@ def test_project_refuses_dense_gram_trial():
         WeightedIndicatorBasis(IndicatorBasis((edges,), RealSpace(1)), np.ones(2)),
     )
     with pytest.raises(NotInvertible, match="DENSE"):
-        _ = dense.gram_inverse
+        _ = frame_faces.CrossGramInverse.of(dense)
     with pytest.raises(NotInvertible, match="DENSE"):
-        dense.project(np.array([3.0, 5.0]))
+        frame_faces.project(dense, np.array([3.0, 5.0]))
     # Control: the SAME geometry with the honest DIAGONAL trial projects fine.
     ok = PetrovGalerkinFrame(
         IndicatorBasis((edges,), RealSpace(1)), measure,
         WeightedIndicatorBasis(IndicatorBasis((edges,), RealSpace(1)), np.ones(2)),
     )
-    np.testing.assert_allclose(ok.project(np.array([3.0, 5.0])), [3.0, 5.0])
+    np.testing.assert_allclose(frame_faces.project(ok, np.array([3.0, 5.0])), [3.0, 5.0])
 
 
 # ── the F-0 Parseval metric — the metric truth (frame_square_recarve F-0) ──
@@ -686,7 +687,7 @@ def test_parseval_dressing_installed_on_diagonal_frames(make_frame):
     assert metric is not None
     np.testing.assert_allclose(metric[live], 1.0 / diag[live], rtol=1e-15)
     np.testing.assert_array_equal(metric[~live], 0.0)
-    assert frame.test_space is frame.basis_space
+    assert frame_faces.test_space(frame) is frame_faces.basis_space(frame)
 
 
 @pytest.mark.l1
@@ -720,12 +721,12 @@ def test_parseval_analysis_is_an_isometry_onto_its_image(make_frame, gram_struct
         f"re-point the row to a frame that still carries the verdict"
     )
     rng = np.random.default_rng(1234)
-    c = rng.standard_normal(frame.basis_space.shape)
+    c = rng.standard_normal(frame_faces.basis_space(frame).shape)
     psi = frame.basis.synthesize(c, frame.table)
-    phi = frame.analysis.apply(psi)
+    phi = frame_faces.FrameAnalysis.of(frame).apply(psi)
     np.testing.assert_allclose(
-        frame.basis_space.inner_product(phi, phi),
-        frame.measure_space.inner_product(psi, psi),
+        frame_faces.basis_space(frame).inner_product(phi, phi),
+        frame_faces.measure_space(frame).inner_product(psi, psi),
         rtol=1e-12,
     )
 
@@ -760,14 +761,14 @@ def test_parseval_frame_square_closes(make_frame):
     frame = make_frame()
     W = float(frame.measure.weights.sum())
     rng = np.random.default_rng(4321)
-    y = rng.standard_normal(frame.basis_space.shape)
+    y = rng.standard_normal(frame_faces.basis_space(frame).shape)
     v = rng.standard_normal(frame.measure.weights.shape)
     np.testing.assert_allclose(
-        frame.analysis.H.apply(y), frame.reconstruction.apply(y) / W,
+        frame_faces.FrameAnalysis.of(frame).H.apply(y), frame_faces.FrameReconstruction.of(frame).apply(y) / W,
         rtol=1e-12, atol=1e-13,
     )
     np.testing.assert_allclose(
-        frame.reconstruction.H.apply(v), W * frame.analysis.apply(v),
+        frame_faces.FrameReconstruction.of(frame).H.apply(v), W * frame_faces.FrameAnalysis.of(frame).apply(v),
         rtol=1e-12, atol=1e-13,
     )
 
@@ -794,9 +795,9 @@ def test_parseval_reds_under_the_pre_repair_continuum_metric():
     rng = np.random.default_rng(1234)
     c = rng.standard_normal(undressed.shape)
     psi = frame.basis.synthesize(c, frame.table)
-    phi = frame.analysis.apply(psi)
-    ratio = frame.basis_space.inner_product(phi, phi) / (
-        frame.measure_space.inner_product(psi, psi)
+    phi = frame_faces.FrameAnalysis.of(frame).apply(psi)
+    ratio = frame_faces.basis_space(frame).inner_product(phi, phi) / (
+        frame_faces.measure_space(frame).inner_product(psi, psi)
     )
     assert ratio > 10.0, (
         f"pre-repair continuum metric read Parseval ratio {ratio:.3g} ≈ 1 — "
@@ -855,7 +856,7 @@ def test_the_slab_frame_is_DIAGONAL_after_the_err080_repair():
 
     # the DIAGONAL dressing is the plain reciprocal, and no DenseMetric is
     # installed (the arm the old body asserted)
-    assert frame.basis_space.metric is None
+    assert frame_faces.basis_space(frame).metric is None
     weights = _dressed_measure(frame)
     assert weights is not None
     np.testing.assert_allclose(weights, 1.0 / diag, rtol=1e-12)
@@ -909,8 +910,8 @@ def test_the_dense_matrix_parseval_dressing_rides_a_quotient_basis_frame():
         ),
         rtol=1e-12, atol=1e-15,
     )
-    assert frame.basis_space.inner_product_weights is None
-    assert frame.test_space is frame.basis_space
+    assert frame_faces.basis_space(frame).inner_product_weights is None
+    assert frame_faces.test_space(frame) is frame_faces.basis_space(frame)
 
 
 @pytest.mark.foundation
@@ -928,13 +929,13 @@ def test_indicator_frame_parseval_metric_is_the_inverse_region_mass():
     )  # R2 = [4, 5] is empty
     assert frame.discrete_gram_structure is GramStructure.DIAGONAL
     np.testing.assert_allclose(
-        frame.basis_space.inner_product_weights, [0.5, 1.0 / 3.0, 0.0],
+        frame_faces.basis_space(frame).inner_product_weights, [0.5, 1.0 / 3.0, 0.0],
     )
     f = np.array([10.0, 10.0, 30.0, 30.0])  # constant per region — band-limited
-    phi = frame.analysis.apply(f)
+    phi = frame_faces.FrameAnalysis.of(frame).apply(f)
     np.testing.assert_allclose(
-        frame.basis_space.inner_product(phi, phi),
-        frame.measure_space.inner_product(f, f),
+        frame_faces.basis_space(frame).inner_product(phi, phi),
+        frame_faces.measure_space(frame).inner_product(f, f),
         rtol=1e-13,
     )
 
@@ -954,10 +955,10 @@ def test_overlap_frame_measures_dense_while_declaring_partition_of_unity():
     frame = _overlap_frame()
     assert frame.basis.gram_structure is GramStructure.PARTITION_OF_UNITY  # declared
     assert frame.discrete_gram_structure is GramStructure.DENSE    # measured
-    assert isinstance(frame.basis_space.metric, DenseMetric)       # dressed (P7)
-    assert frame.basis_space.inner_product_weights is None         # ≠ Euclidean
+    assert isinstance(frame_faces.basis_space(frame).metric, DenseMetric)       # dressed (P7)
+    assert frame_faces.basis_space(frame).inner_product_weights is None         # ≠ Euclidean
     np.testing.assert_allclose(
-        frame.project(np.array([2.0, 4.0, 6.0])), [8.0 / 3.0, 16.0 / 3.0],
+        frame_faces.project(frame, np.array([2.0, 4.0, 6.0])), [8.0 / 3.0, 16.0 / 3.0],
     )
 
 
@@ -970,7 +971,7 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
     The pre-P7 spelling ``replace(self.test_space,
     inner_product_weights=diagonal)`` carried a dense-dressed test
     space's metric OBJECT into the probe — [M] 2026-08-30 (pre-flight,
-    ``scratch/p7/preflight.log``): ``frame.project([2,4,6])`` read
+    ``scratch/p7/preflight.log``): ``project(frame, [2,4,6])`` read
     ``[7.0, 11.0]`` against the true ``[8/3, 16/3]`` (rel 1.625), a
     silent VALUE error, with no guard involved. Since CS4c step 6 item
     6.2c-ii the normalisation is an ARROW (:class:`CrossGramInverse`,
@@ -981,7 +982,7 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
     """
     from dataclasses import replace as _replace
 
-    from orpheus.numerics.frame import CrossGramInverse
+    from orpheus.numerics.frame_faces import CrossGramInverse
     from orpheus.numerics.metric import DenseMetric
 
     ob = OverlapBasis(
@@ -999,19 +1000,19 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
         metric=DenseMetric.inverse_of(frame.discrete_gram),
     )
     vars(frame)["basis_space"] = dressed  # the cached_property pre-seed idiom
-    assert frame.test_space is dressed  # the Galerkin identity holds on the seed
-    probe = frame.gram_inverse
+    assert frame_faces.test_space(frame) is dressed  # the Galerkin identity holds on the seed
+    probe = frame_faces.CrossGramInverse.of(frame)
     assert isinstance(probe, CrossGramInverse)
-    assert probe.domain is frame.test_space and probe.codomain is frame.basis_space
+    assert probe.domain is frame_faces.test_space(frame) and probe.codomain is frame_faces.basis_space(frame)
     np.testing.assert_allclose(probe.diagonal, [1.5, 1.5])   # the row sums of MR on this overlap frame
     np.testing.assert_array_equal(
-        frame.project(np.array([2.0, 4.0, 6.0])), [8.0 / 3.0, 16.0 / 3.0],
+        frame_faces.project(frame, np.array([2.0, 4.0, 6.0])), [8.0 / 3.0, 16.0 / 3.0],
     )
     # and the frame's own projector composes through the arrow
-    projector = frame.conjugate(probe)
+    projector = frame_faces.conjugate(frame, probe)
     np.testing.assert_allclose(
         projector.apply(np.array([2.0, 4.0, 6.0])),
-        frame.reconstruction.apply(frame.project(np.array([2.0, 4.0, 6.0]))),
+        frame_faces.FrameReconstruction.of(frame).apply(frame_faces.project(frame, np.array([2.0, 4.0, 6.0]))),
     )
 
 
@@ -1034,7 +1035,7 @@ def test_dense_frames_are_dressed_with_the_pseudo_inverse_gram(make_frame):
         (g + g.T) / 2.0, hermitian=True, rcond=_DENSE_METRIC_RCOND
     )
     np.testing.assert_allclose(metric.matrix, expected, rtol=1e-12, atol=1e-15)
-    assert frame.test_space is frame.basis_space
+    assert frame_faces.test_space(frame) is frame_faces.basis_space(frame)
 
 
 def _dressed_measure(frame) -> np.ndarray | None:
@@ -1042,7 +1043,7 @@ def _dressed_measure(frame) -> np.ndarray | None:
     step 6 item 6.2c-ii): the single head axis's measure on an axis-built
     coefficient space, the legacy weights slot on an axes-less one (the
     indicator bases, CS2)."""
-    space = frame.basis_space
+    space = frame_faces.basis_space(frame)
     if space.axes is not None:
         assert len(space.axes) == 1, "a coefficient space is single-axis"
         return space.axes[0].weights
@@ -1061,7 +1062,7 @@ def _dense_metric_of(frame) -> DenseMetric:
     """The installed DenseMetric — POSITIONED on the derived object of an
     axis-built head (item 6.2c-i), bare on an axes-less coefficient space —
     narrowed, so a diagonal-dressed frame fails HERE, loudly."""
-    metric = frame.basis_space.metric
+    metric = frame_faces.basis_space(frame).metric
     if isinstance(metric, FactoredMetric):
         assert len(metric.entries) == 1, f"{frame}: a coefficient space is single-axis"
         metric = metric.entries[0][1]
@@ -1254,7 +1255,7 @@ def test_the_square_fails_where_the_order_outruns_the_rule():
 
 def _collapse_residual(frame) -> float:
     r"""``max|M† − R/W| / max|R/W|`` with both faces swept as MATRICES — draw-free."""
-    shape = frame.basis_space.shape
+    shape = frame_faces.basis_space(frame).shape
     n_modes = int(np.prod(shape))
 
     def sweep(operator):
@@ -1265,8 +1266,8 @@ def _collapse_residual(frame) -> float:
             columns.append(np.asarray(operator.apply(unit.reshape(shape))).ravel())
         return np.array(columns).T
 
-    adjoint = sweep(frame.analysis.H)
-    reconstruction = sweep(frame.reconstruction) / float(frame.measure.weights.sum())
+    adjoint = sweep(frame_faces.FrameAnalysis.of(frame).H)
+    reconstruction = sweep(frame_faces.FrameReconstruction.of(frame)) / float(frame.measure.weights.sum())
     return float(
         np.max(np.abs(adjoint - reconstruction)) / np.max(np.abs(reconstruction))
     )
@@ -1325,7 +1326,7 @@ def test_the_dressing_lands_parseval_on_the_production_anisotropic_frame():
     ScatteringOperator configuration (``scattering.py`` builds
     ``quadrature.angular_frame(scattering_order)``) and its Gram measures
     DENSE. `[M]` 2026-08-30 (design pre-flight): dressing it moves
-    ``frame.analysis.H`` by ``max|Δ| = 8.246`` — **rel 0.8995** on that
+    ``FrameAnalysis.of(frame).H`` by ``max|Δ| = 8.246`` — **rel 0.8995** on that
     probe's draw; ⚠ draw-banded 0.879–0.986 over 200 seeds, with the
     draw-free operator-level Frobenius relative at **0.980–0.985**
     across three DENSE frames (archivist census) — the recorded F-0
@@ -1341,9 +1342,9 @@ def test_the_dressing_lands_parseval_on_the_production_anisotropic_frame():
     rng = np.random.default_rng(1234)
     c = rng.standard_normal(frame.basis.space.shape)
     psi = frame.basis.synthesize(c, frame.table)
-    phi = frame.analysis.apply(psi)
-    norm_w = frame.measure_space.inner_product(psi, psi)
-    assert frame.basis_space.inner_product(phi, phi) / norm_w == pytest.approx(
+    phi = frame_faces.FrameAnalysis.of(frame).apply(psi)
+    norm_w = frame_faces.measure_space(frame).inner_product(psi, psi)
+    assert frame_faces.basis_space(frame).inner_product(phi, phi) / norm_w == pytest.approx(
         1.0, rel=1e-12
     )
     pre_repair = frame.basis.space.inner_product(phi, phi) / norm_w
@@ -1706,7 +1707,7 @@ class TestTheStabiliserDecidesAdmissionOnAMirrorFold:
         assert fold.support == SPHERE.quotient(SubgroupOfO3.Mirror("y"))
 
         frame = GalerkinFrame(LegendreBasis(L=L), fold)
-        moments = frame.analysis.apply(np.ones(fold.n_points))
+        moments = frame_faces.FrameAnalysis.of(frame).apply(np.ones(fold.n_points))
         assert moments.shape == (L + 1,)
         np.testing.assert_allclose(moments[0], 4.0 * np.pi, atol=1e-13)
         assert float(np.max(np.abs(moments[1:]))) < 1e-13, moments

@@ -53,6 +53,7 @@ from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE
 from orpheus.numerics.symmetry import SubgroupOfO3
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.frames.harmonic_frame import HarmonicFrame
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -128,15 +129,15 @@ def _faces(frame):
     # spelling raised ``IndexError`` on it.
     n_modes = int(np.prod(tab.shape[1:]))
     shape = tab.shape[1:]
-    M = _sweep(frame.analysis, (tab.shape[0],), tab.shape[0]) if False else None
+    M = _sweep(frame_faces.FrameAnalysis.of(frame), (tab.shape[0],), tab.shape[0]) if False else None
     # analysis: ordinate -> coeff; sweep over ordinates
     cols = []
     for i in range(tab.shape[0]):
         e = np.zeros(tab.shape[0])
         e[i] = 1.0
-        cols.append(np.asarray(frame.analysis.apply(e)).ravel())
+        cols.append(np.asarray(frame_faces.FrameAnalysis.of(frame).apply(e)).ravel())
     M = np.array(cols).T                       # (n_modes, N)
-    R = _sweep(frame.reconstruction, shape, n_modes)   # (N, n_modes)
+    R = _sweep(frame_faces.FrameReconstruction.of(frame), shape, n_modes)   # (N, n_modes)
     return M, R
 
 
@@ -152,9 +153,9 @@ def _metric_adjoint(frame, M):
     for i in range(n_modes):
         c = np.zeros(n_modes)
         c[i] = 1.0
-        gc = np.asarray(frame.basis_space.apply_metric(c.reshape(shape))).ravel()
+        gc = np.asarray(frame_faces.basis_space(frame).apply_metric(c.reshape(shape))).ravel()
         cols.append(
-            np.asarray(frame.measure_space.apply_inverse_metric(M.T @ gc)).ravel()
+            np.asarray(frame_faces.measure_space(frame).apply_inverse_metric(M.T @ gc)).ravel()
         )
     return np.array(cols).T                    # (N, n_modes)
 
@@ -177,7 +178,7 @@ class TestLegIGalerkinOnTheFaces:
             c = np.zeros(n_modes)
             c[i] = 1.0
             cols.append(
-                np.asarray(frame.analysis.H.apply(c.reshape(shape))).ravel()
+                np.asarray(frame_faces.FrameAnalysis.of(frame).H.apply(c.reshape(shape))).ravel()
             )
         MH = np.array(cols).T
         defect = np.linalg.norm(MH - target) / np.linalg.norm(target)

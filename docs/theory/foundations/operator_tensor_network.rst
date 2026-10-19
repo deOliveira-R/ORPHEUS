@@ -219,7 +219,7 @@ shape choice.
      - :class:`OperatorProduct`
        :math:`R \circ \Lambda_{\ell\ge 1} \circ M`
      - the moment-space integral kernel
-       ``frame.conjugate(Λ)``
+       ``conjugate(frame, Λ)``
        (:attr:`TransferOperator.kernel
        <orpheus.transport.operators.transfer.TransferOperator.kernel>`),
        projecting to harmonic

@@ -69,6 +69,7 @@ from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.transport.frames import HarmonicFrame
 from tests.gates.sn.architecture.test_monomorphic_leaves import _two_region_fissile
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -287,7 +288,7 @@ def test_the_pin_discriminates_the_head_metric_choice() -> None:
     )
     dressed_space = problem.moment_space(_L)
     frame = HarmonicFrame.from_galerkin(problem.quad.angular_frame(_L))
-    assert dressed_space == frame.basis_space * problem.bulk_space, (
+    assert dressed_space == frame_faces.basis_space(frame) * problem.bulk_space, (
         "the hub's space IS the frame's dressed product — one space, two owners (O-5)"
     )
     continuum_space = frame.basis.space * problem.bulk_space   # the loser, as the negative control

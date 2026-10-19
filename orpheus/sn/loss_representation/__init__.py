@@ -5103,7 +5103,7 @@ def _sweep_scheduled(
     separately (the angular-mode scalar is an independent array; ``None`` keeps
     the modes' second slot from being mistaken).  Principled-equivalence, NOT
     bit-identity: the cross-octant ``+=`` reorders the ordinate sum vs the
-    post-sweep flat :attr:`~orpheus.numerics.frame.FrameBase.analysis` projection
+    post-sweep flat :meth:`~orpheus.numerics.frame_faces.FrameAnalysis.of` projection
     reduce (≤ 4 ULP de-risk).  ``moment_frame is None`` (every full-angular
     consumer — reconstruction, Krylov, 1-D) returns ``(angular_flux,
     scalar_flux)`` exactly as before.

@@ -154,7 +154,7 @@ reads ``0.000e+00`` at :math:`d = 2` but **``1.72e-01``** at ``(2,2,2)`` and
 :math:`2\sum n - 1` modes and the :math:`\{a,b\}` and :math:`\{a,c\}` generators
 share the :math:`a` faces.
 
-That matters because :attr:`~orpheus.numerics.frame.FrameBase.gram_inverse` computes its
+That matters because :meth:`~orpheus.numerics.frame_faces.CrossGramInverse.of` computes its
 diagonal by the row-sum probe ``analysis(reconstruction(ones))``, which equals
 the true diagonal **only** if :math:`MR` is diagonal.  Declaring
 :attr:`~orpheus.numerics.basis.GramStructure.DIAGONAL` on a 43 %-off-diagonal
@@ -224,6 +224,7 @@ from orpheus.numerics.operator import (
 )
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.spatial.scheme import FaceModeDamping
+from orpheus.numerics import frame_faces
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from orpheus.sn.problem import SNProblem
@@ -1056,7 +1057,7 @@ class LossKernelGauge(LinearOperator):
     with the bulk untouched by construction rather than by a zero block.
 
     Each :math:`\Pi_b` is built the frame way —
-    ``frame.conjugate(frame.gram_inverse)`` — so there is ONE
+    ``conjugate(frame, CrossGramInverse.of(frame))`` — so there is ONE
     spelling of "project onto a span" in the package and this is a consumer of
     it, not a second implementation.  Because each block's basis is
     :math:`G`-orthonormal (§5), :math:`G_b^{-1}` is the identity and the
@@ -1203,7 +1204,7 @@ class LossKernelGauge(LinearOperator):
                     gather=TraceRestrictionOperator(
                         indices, n_total=n_trace,
                         domain=trace_space, codomain=measure.space),
-                    projector=frame.conjugate(frame.gram_inverse),
+                    projector=frame_faces.conjugate(frame, frame_faces.CrossGramInverse.of(frame)),
                     basis=basis,
                 ))
         return cls(tuple(blocks), trace_space)

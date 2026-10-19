@@ -289,7 +289,7 @@ class TestN2NMomentTransfer:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Full scatter kernel = frame.conjugate(Λ_{ℓ≥0}) — the A2a readiness gate:
+# Full scatter kernel = conjugate(frame, Λ_{ℓ≥0}) — the A2a readiness gate:
 # the frame form reproduces the CURRENT forward S (P0+aniso; the (n,2n)
 # term is N2NOperator's own lift since the §14.1 extraction).
 # ═══════════════════════════════════════════════════════════════════════
@@ -297,14 +297,14 @@ class TestN2NMomentTransfer:
 
 class TestFullScatterKernel:
     def _full_kernel(self, op):
-        # The production property: frame.conjugate(Λ_{ℓ≥0}) — R∘Λ∘M (§14.1: n2n extracted).
+        # The production property: conjugate(frame, Λ_{ℓ≥0}) — R∘Λ∘M (§14.1: n2n extracted).
         # The forward apply does NOT use this (it keeps the fast-path for perf,
         # campaign #276 A2a finding); it is the validated frame form for the
         # adjoint transpose (A2b) + the Option-2 forward-unification reference.
         return op.full_transfer_kernel
 
     def test_reproduces_forward_scattering_source(self, solver_p1_het):
-        r"""``(1/W)·frame.conjugate(Λ_{ℓ≥0}).apply(ψ) == S.apply(ψ)`` (principled-equiv).
+        r"""``(1/W)·conjugate(frame, Λ_{ℓ≥0}).apply(ψ) == S.apply(ψ)`` (principled-equiv).
 
         The load-bearing A2a equivalence: the frame path reproduces the
         fast-path forward (P0 via add_iso, aniso via kernel) —
@@ -323,7 +323,7 @@ class TestFullScatterKernel:
         forward = bulk_apply(op, psi).values
         np.testing.assert_allclose(
             candidate, forward, rtol=1e-12, atol=0.0,
-            err_msg="frame.conjugate(Λ_{ℓ≥0})/W does NOT reproduce the forward "
+            err_msg="conjugate(frame, Λ_{ℓ≥0})/W does NOT reproduce the forward "
             "scattering source — the iso-modernization is not equivalent to the "
             "legacy fast-path.",
         )

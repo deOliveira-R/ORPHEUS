@@ -63,6 +63,7 @@ from .angular.closure import (
     default_angular_closure_class,
     march_start_structure_per_level,
 )
+from orpheus.numerics import frame_faces
 
 if TYPE_CHECKING:
     from orpheus.transport.operators.fission import FissionOperator
@@ -1454,7 +1455,7 @@ class SNProblem(MaterialMesh):
             return cached
         from orpheus.transport.fields._bases import BulkField
 
-        head = self.quad.angular_frame(L).basis_space
+        head = frame_faces.basis_space(self.quad.angular_frame(L))
         bulk = BulkField.compose_spatial_moments(
             self.bulk_space, self, spatial_moments,
         )

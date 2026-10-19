@@ -3527,7 +3527,7 @@ older entries classify against.
    field it came from is :math:`G^{-1}`, not :math:`G` — Parseval:
    :math:`\|\varphi\|^2_{G^{-1}} = c^{\mathsf T}Gc = \|\psi\|^2_W`.
    Storing :math:`g_C` put the metric on the wrong side, so the
-   generically-composed ``frame.analysis.H`` came out
+   generically-composed ``FrameAnalysis.of(frame).H`` came out
    :math:`(4\pi/(2\ell+1))^2` per :math:`\ell` away from the physical
    adjoint — :math:`157.9\times` on the scalar moment,
    :math:`17.5\times` on the current, :math:`6.3\times` at
@@ -3731,7 +3731,7 @@ older entries classify against.
    which puts the measure into the identity and makes the two heads
    structurally UNEQUAL, so one had to be chosen; ruling R-6.2c-1 chose
    **Parseval**, and the whole tree now reads
-   ``frame.basis_space``.
+   ``basis_space(frame)``.
 
    ⭐ **Why this belongs to ERR-039 rather than to a new ERR number: it
    is the same defect one consumer further out, and the same shield
@@ -6879,12 +6879,12 @@ older entries classify against.
 
      ⚠ **The SPELLING in the paragraph above changed on 2026-09-08 and
      the finding did not.** CS4c step 6 item 6.2c-ii re-bound the seven
-     sites from ``frame.basis.space`` to ``frame.basis_space`` (ruling
+     sites from ``frame.basis.space`` to ``basis_space(frame)`` (ruling
      R-6.2c-1 — the Parseval metric; ERR-039 chapter 4), so "READS the
      frame" is still exactly what they do and *which of the frame's two
      coefficient spellings* is what moved. The 2026-09-02 numbers are
      unchanged as a record of that tree; on this one the two spellings
-     are no longer interchangeable — `[M]` ``frame.basis_space ==
+     are no longer interchangeable — `[M]` ``basis_space(frame) ==
      frame.basis.space`` is **0 of 33**, because the heads became
      axis-built and their measure entered the identity.
 
@@ -7624,7 +7624,7 @@ older entries classify against.
       forced the two together.
    3. **Every gate was on the** :math:`\ell = 0` **object.**  The lift's
       catcher pinned ``N2N.apply(ψ)`` against
-      ``(1/W)·frame.conjugate(N2NMomentOperator).apply(ψ)`` — a
+      ``(1/W)·conjugate(frame, N2NMomentOperator).apply(ψ)`` — a
       genuinely independent float program, and a genuinely correct
       cross-check *of the P0 model*.  ``vv-principles`` Mode 12 at the
       fixture: no tolerance, refinement or regime change could have

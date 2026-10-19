@@ -10,7 +10,7 @@ flux the solve emits.
 Mirrors ``tests/gates/sn/test_homogenization.py`` (the spatial sibling). THE gate
 (rate preservation) checks the condensed reaction rate against a
 **structurally-independent** per-fine-group Python hand-sum (``vv L11`` —
-NOT a re-call of ``frame.project``). Companion checks: the result is a
+NOT a re-call of ``project(frame, ·)``). Companion checks: the result is a
 portable ``dict[int, Mixture]`` (no mesh), every condensed Mixture balances,
 χ stays a fast-peaked simplex, and the real EGB421→WIMS-69 structure
 integrates end-to-end.

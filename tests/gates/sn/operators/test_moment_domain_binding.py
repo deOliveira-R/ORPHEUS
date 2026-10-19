@@ -9,7 +9,7 @@ ruling R-1):
 * ``domain.interior == flux_analysis.domain`` — the **angular** end. The operand
   is :math:`\psi`; :math:`\phi` is its angular integral; the
   :math:`\ell \ge 1` half runs the fused conjugation
-  :math:`R\,\Lambda\,M` (``frame.conjugate``); the transpose's cotangent is a
+  :math:`R\,\Lambda\,M` (``conjugate(frame, ·)``); the transpose's cotangent is a
   per-ordinate source/sink.
 * ``domain.interior == flux_analysis.codomain`` — the **moment** end
   (:meth:`~orpheus.transport.operators.angular_lift.AngularLift.on_moment_domain`).
@@ -25,7 +25,7 @@ carrier's class per call — `[M]` 143 such feeds per windowed solve, the shippe
 non-endomorphism the step-0 census measured. So the two bodies lived on one
 instance and no gate could speak about the BINDING. They are now two operators
 with different ends, and *neither calls the other* (the ``coding-standards``
-rewire-demotion check): the angular binding runs ``frame.conjugate(Λ)``, the
+rewire-demotion check): the angular binding runs ``conjugate(frame, Λ)``, the
 moment sibling runs ``Λ`` then the minted source-reconstruction FACE.
 
 **The fixture** is the ``2d_2g_p1_aniso`` family: ``Mesh2D`` 8×4, fuel|moderator

@@ -15,7 +15,7 @@ basis of the spatial homogenisation :class:`~orpheus.numerics.frame.PetrovGalerk
 paired with the plain :class:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis`
 as the **trial** side: the flux-weighted effective cross section
 :math:`\Sigma_R = \int_R \varphi\Sigma\,\mathrm{d}V / \int_R \varphi\,\mathrm{d}V`
-is the frame's coefficient extraction :math:`G^{-1}M` (``frame.project``) with
+is the frame's coefficient extraction :math:`G^{-1}M` (``project(frame, ·)``) with
 ``test = `` :math:`\varphi\cdot\mathbf 1_R`, ``trial = `` :math:`\mathbf 1_R`,
 ``measure = `` the geometric volume measure.
 
@@ -37,7 +37,7 @@ A test-only basis (the synthesis side is the trial's)
 =====================================================
 
 A :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` takes its **reconstruction**
-from the **trial** basis (:meth:`~orpheus.numerics.frame.FrameBase.reconstruction`
+from the **trial** basis (:meth:`~orpheus.numerics.frame_faces.FrameReconstruction.of`
 reads ``frame.basis``), so this basis is consumed ONLY through its
 :meth:`evaluate` (the test table = the geometric membership, weight-free — the
 weight is an *analysis* weight, not a tabulation) and :meth:`analyze` (the
@@ -52,7 +52,7 @@ of the weighted SYNTHESIS side arrives (e.g. a least-squares frame) the weighted
 transposes get built then, consistently.  (The P6 #281 adjoint-weighted collapse is
 NOT that consumer: its bilinear frames — pair weight :math:`\varphi^*\!\odot\varphi`,
 the angular :math:`\rho`, the emission fold — consume only :meth:`analyze` through
-``FrameBase.project``, exactly like the forward frames.)
+``frame_faces.project``, exactly like the forward frames.)
 
 References
 ----------

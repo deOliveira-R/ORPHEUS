@@ -51,6 +51,7 @@ from tests.gates.sn.operators._composite_operand import (
     zero_trace_composite,
 )
 from dataclasses import replace
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation  # software-invariant tier
 
@@ -1223,7 +1224,7 @@ class TestAnisoMomentSourcePath:
     The two aniso paths are:
 
     * the ANGULAR binding — the full-angular path, ``(1/W)·kernel`` where
-      ``kernel = frame.conjugate(Λ) = R∘Λ∘M`` (``_redistribute_ordinates`` is
+      ``kernel = conjugate(frame, Λ) = R∘Λ∘M`` (``_redistribute_ordinates`` is
       its per-ordinate spelling — the body the angular end selects);
     * the MOMENT-DOMAIN sibling ``S.on_moment_domain()`` — the windowed SI
       driver's binding, whose operand IS ``φ = Mψ`` (the 2-D Cartesian
@@ -1563,7 +1564,7 @@ class TestAnisoMomentSourcePath:
         # Reproduce the snapshot script's psi (seed=20260530).
         psi_p1 = self._reproduce_psi(solver_2g_p1_n2n, seed=20260530)
         L = 1
-        moments_values = op_p1.frame.analysis.apply(psi_p1.values)
+        moments_values = frame_faces.FrameAnalysis.of(op_p1.frame).apply(psi_p1.values)
 
         # The moment verb (CS4c step 3: the arm moved to the kernel
         # field; the snapshot pins the einsum leaf unchanged).
@@ -1610,7 +1611,7 @@ class TestAnisoMomentSourcePath:
         rng = np.random.default_rng(20260530 + 2)
         psi_p3 = AngularFlux(values=rng.uniform(0.05, 1.0, size=(quad.N, 2, nx, ny)), space=solver_p3.problem.angular_bulk_space)
         L = 3
-        moments_values = op_p3.frame.analysis.apply(psi_p3.values)
+        moments_values = frame_faces.FrameAnalysis.of(op_p3.frame).apply(psi_p3.values)
         assert op_p3.legendre_order == L
         head = op_p3.frame.basis.space
         assert isinstance(head, MomentHead)

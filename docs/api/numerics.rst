@@ -277,7 +277,7 @@ master condition that decides between :class:`TensorProductOperator`,
    ``93807aa7``, which factored the anisotropic path onto the shared
    :math:`R\circ\Lambda` moment→source primitive.  Today the kernel is a
    single :class:`~orpheus.numerics.operator.OperatorProduct` —
-   ``frame.conjugate(LegendreMomentTransfer(..., skip_l0=True))``, i.e.
+   ``conjugate(frame, LegendreMomentTransfer(..., skip_l0=True))``, i.e.
    :math:`R \circ \Lambda_{\ell\ge1} \circ M` with **one** shared
    :math:`\Lambda` rather than a per-ℓ summand family.  (The class was
    ``LegendreMomentScattering`` until #426 step 2, 2026-09-04; it is now
@@ -329,13 +329,20 @@ discipline-type hierarchy, GitHub #268):
 
 * :class:`~orpheus.numerics.frame.FrameBase` — the abstract discrete
   frame: binds a :class:`~orpheus.numerics.basis.Basis` to a
-  :class:`~orpheus.numerics.measure.DiscreteMeasure` and emits the
-  ``analysis`` (:math:`M = T`) and ``reconstruction`` (:math:`R`)
-  faces as :class:`~orpheus.numerics.operator.LinearOperator` views.
-  Carries the **discipline-free** mechanics — the trial table, the two
-  spaces, the reconstruction face, the analysis-face wiring; the single
-  abstract hook is the test basis. The coefficient-extraction verb
-  :meth:`~orpheus.numerics.frame.FrameBase.project` (:math:`G^{-1}M`, the
+  :class:`~orpheus.numerics.measure.DiscreteMeasure`. Carries the
+  **discipline-free** data — the trial table, the discrete Gram and its
+  measured structure, the test table; the single abstract hook is the
+  test basis. Its **faces** are built from it downstream, in
+  :mod:`orpheus.numerics.frame_faces`:
+  :meth:`~orpheus.numerics.frame_faces.FrameAnalysis.of` (:math:`M = T`),
+  :meth:`~orpheus.numerics.frame_faces.FrameReconstruction.of`
+  (:math:`R`) as :class:`~orpheus.numerics.operator.LinearOperator`
+  views, the dressed spaces
+  :func:`~orpheus.numerics.frame_faces.basis_space`,
+  :func:`~orpheus.numerics.frame_faces.test_space` and
+  :func:`~orpheus.numerics.frame_faces.measure_space`, and
+  :func:`~orpheus.numerics.frame_faces.conjugate`. The coefficient-extraction verb
+  :func:`~orpheus.numerics.frame_faces.project` (:math:`G^{-1}M`, the
   homogenise / condense verb) normalises by a **row-sum** Gram probe,
   valid only for a row-sum-collapsible trial; it **refuses**
   (:class:`~orpheus.numerics.operator.NotInvertible`) a trial whose
@@ -369,7 +376,7 @@ discipline-type hierarchy, GitHub #268):
   refusal (a new basis must consciously declare it row-sum-collapsible).
 * :class:`~orpheus.numerics.basis.GramStructure` — the trial basis's
   **projection-validity declaration** (the precondition
-  :meth:`~orpheus.numerics.frame.FrameBase.project`'s row-sum probe needs,
+  :func:`~orpheus.numerics.frame_faces.project`'s row-sum probe needs,
   carried by the *type* not a docstring):
   :attr:`~orpheus.numerics.basis.base.GramStructure.DIAGONAL`
   (disjoint-support — orthogonal harmonics, nested indicators),

@@ -44,16 +44,15 @@ array level). A1's derivation logic, content-equality admission text, and
 gates carried over into the mint — completion, not revert.
 
 Kernels delegate to the frame's numerics faces
-(:attr:`~orpheus.numerics.frame.FrameBase.analysis` /
-:attr:`~orpheus.numerics.frame.FrameBase.reconstruction`), so a minted face is
+(:meth:`~orpheus.numerics.frame_faces.FrameAnalysis.of` /
+:meth:`~orpheus.numerics.frame_faces.FrameReconstruction.of`), so a minted face is
 bit-identical to the raw face on values — the typed seam adds carriers and
 binding, never a number. ``apply`` ADMITS exactly its carrier on its bound
 domain (content equality — the space-content invariant); ``apply_transpose``
 also accepts raw ``ndarray`` values, the seam the metric-aware
 ``AdjointOperator`` drives, so a face's ``.H`` is the PHYSICAL Hilbert
 adjoint on the F-0 Parseval metrics — ``M* = R/W`` and ``R* = W·M`` (see
-:attr:`FrameBase.basis_space
-<orpheus.numerics.frame.FrameBase.basis_space>`).
+:func:`basis_space <orpheus.numerics.frame_faces.basis_space>`).
 
 The moment codomain is derived at mint time — moment = f(angular, L), never
 the reverse, because the angular space carries the quadrature axis and, on a
@@ -62,7 +61,7 @@ moment operand determines (an earlier revision made ``reconstruct`` take a
 per-call ``space=``; that parameter was an unbound operator's missing
 codomain leaking into the apply signature — user diagnosis, 2026-08-22). Its
 spherical-harmonic factor is the frame's OWN F-0-dressed
-:attr:`~orpheus.numerics.frame.FrameBase.basis_space`, so the Parseval metric
+:func:`~orpheus.numerics.frame_faces.basis_space`, so the Parseval metric
 rides into the product codomain with a single source: the frame's codomain IS
 the SH factor. Since CS4c step 6 item 6.2c-ii (ruling R-6.2c-1) the
 carrier's own cached moment space —
@@ -94,6 +93,7 @@ from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
 from orpheus.transport.source_sinks.harmonic_moment_source_sink import (
     HarmonicMomentSourceSink,
 )
+from orpheus.numerics import frame_faces
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
@@ -198,7 +198,7 @@ class HarmonicAnalysisOperator(
     def apply(self, field: AngularFieldT) -> MomentFieldT:
         r"""Project the bound per-ordinate carrier to its SH moments (:math:`M`)."""
         _admit(self, field, self.domain_carrier, self._domain, "angular domain")
-        values = self.frame.analysis.apply(field.values)
+        values = frame_faces.FrameAnalysis.of(self.frame).apply(field.values)
         return self.codomain_carrier(
             values=values,
             space=self._codomain,
@@ -213,9 +213,9 @@ class HarmonicAnalysisOperator(
         or raw values → raw values (the ``AdjointOperator`` seam)."""
         if isinstance(moment, self.codomain_carrier):
             _admit(self, moment, self.codomain_carrier, self._codomain, "moment codomain")
-            values = self.frame.analysis.apply_transpose(moment.values)
+            values = frame_faces.FrameAnalysis.of(self.frame).apply_transpose(moment.values)
             return self.domain_carrier(values=values, space=self._domain)
-        return self.frame.analysis.apply_transpose(moment)
+        return frame_faces.FrameAnalysis.of(self.frame).apply_transpose(moment)
 
     def __repr__(self) -> str:
         return (
@@ -235,7 +235,7 @@ class HarmonicReconstructionOperator(
     to the frame's numerics reconstruction face — the addition-theorem
     (canonical-dual) synthesis. The role ABC is apply-only; this face ADDS the
     transpose, so ``is_adjointable`` is overridden ``True`` (mirroring the
-    numerics ``_FrameReconstruction``) and ``face.H`` is the physical
+    numerics ``FrameReconstruction``) and ``face.H`` is the physical
     :math:`R^* = W\,M` on the F-0 Parseval metrics.
     """
 
@@ -262,7 +262,7 @@ class HarmonicReconstructionOperator(
     def is_adjointable(self) -> bool:
         # The face adds apply_transpose on top of the apply-only role, so
         # ``R.H`` is free here — the override lives on the face (as on the
-        # numerics ``_FrameReconstruction``).
+        # numerics ``FrameReconstruction``).
         return True
 
     @property
@@ -276,7 +276,7 @@ class HarmonicReconstructionOperator(
     def apply(self, moment: MomentFieldT) -> AngularFieldT:
         r"""Synthesise the bound per-ordinate carrier from SH moments (:math:`R`)."""
         _admit(self, moment, self.domain_carrier, self._domain, "moment domain")
-        values = self.frame.reconstruction.apply(moment.values)
+        values = frame_faces.FrameReconstruction.of(self.frame).apply(moment.values)
         return self.codomain_carrier(values=values, space=self._codomain)
 
     def apply_transpose(
@@ -286,14 +286,14 @@ class HarmonicReconstructionOperator(
         or raw values → raw values (the ``AdjointOperator`` seam)."""
         if isinstance(field, self.codomain_carrier):
             _admit(self, field, self.codomain_carrier, self._codomain, "angular codomain")
-            values = self.frame.reconstruction.apply_transpose(field.values)
+            values = frame_faces.FrameReconstruction.of(self.frame).apply_transpose(field.values)
             return self.domain_carrier(
                 values=values,
                 space=self._domain,
                 L=self._L,
                 spatial_moments=self._spatial_moments,
             )
-        return self.frame.reconstruction.apply_transpose(field)
+        return frame_faces.FrameReconstruction.of(self.frame).apply_transpose(field)
 
     def __repr__(self) -> str:
         return (
@@ -460,7 +460,7 @@ class HarmonicFrame(GalerkinFrame):
 
         ``basis_space * of_axes(<cell axes>)`` — the angular HEAD factor is
         the frame's OWN F-0-dressed
-        :attr:`~orpheus.numerics.frame.FrameBase.basis_space` (the bound
+        :func:`~orpheus.numerics.frame_faces.basis_space` (the bound
         basis's coefficient space, whatever family the quadrature bound —
         the spherical-harmonic space on a full-sphere rule; single source:
         the Parseval metric rides into the product), the cell group is the
@@ -496,7 +496,7 @@ class HarmonicFrame(GalerkinFrame):
         # moment axis (CS4c step 6 item 6.2c-iii: ONE spelling of the
         # tail; until then this dropped that axis and re-appended a
         # Euclidean ``SpatialMomentSpace`` class).
-        return self.basis_space * FunctionSpace.of_axes(*axes[1:])
+        return frame_faces.basis_space(self) * FunctionSpace.of_axes(*axes[1:])
 
     # ── the mint verbs (one per face-with-a-consumer) ─────────────────
 

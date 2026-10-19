@@ -64,6 +64,7 @@ import pytest
 from scipy import sparse
 
 from orpheus.geometry import BC, CoordSystem
+from orpheus.numerics import frame_faces
 from orpheus.numerics.assembled_operator import SparseAssembledOperator
 from orpheus.numerics.coupled_system import (
     CoupledField,
@@ -312,7 +313,10 @@ def _isotropic_fission() -> _Posed:
 def _frame_face(rule: Callable[[], Quadrature], L: int, face: str) -> Callable[[], _Posed]:
     def build() -> _Posed:
         frame = rule().angular_frame(L)
-        op = getattr(frame, face)
+        op = {
+            "analysis": frame_faces.FrameAnalysis,
+            "reconstruction": frame_faces.FrameReconstruction,
+        }[face].of(frame)
         rng = np.random.default_rng(31)
         return _Posed(op, rng.standard_normal(op.domain.shape))
 

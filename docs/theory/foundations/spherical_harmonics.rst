@@ -361,20 +361,20 @@ sufficiently-exact angular cubature:
    :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.reconstruct
 
 .. implements:: pi-r-equals-4pi-i
-   :by: orpheus.numerics.frame.FrameBase.gram_inverse
+   :by: orpheus.numerics.frame.CrossGramInverse.of(frame)
 
 .. implements:: pi-r-equals-4pi-i
    :by: orpheus.numerics.frame.GalerkinFrame
 
 .. implements:: pi-r-equals-4pi-i
-   :by: orpheus.numerics.frame._FrameAnalysis
+   :by: orpheus.numerics.frame_faces.FrameAnalysis
 
 .. implements:: pi-r-equals-4pi-i
-   :by: orpheus.numerics.frame._FrameReconstruction
+   :by: orpheus.numerics.frame_faces.FrameReconstruction
 
 where :math:`\Pi` is the spherical-harmonic frame's **analysis
-face** (``frame.analysis``, :math:`M = Y^*W`), :math:`R` is its
-**reconstruction face** (``frame.reconstruction``, with the
+face** (``FrameAnalysis.of(frame)``, :math:`M = Y^*W`), :math:`R` is its
+**reconstruction face** (``FrameReconstruction.of(frame)``, with the
 :math:`(2\ell+1)` factor), and the :math:`4\pi` factor comes from
 the no-prefactor convention summing the :math:`4\pi/(2\ell+1)`
 orthogonality with the :math:`(2\ell+1)` reconstruction weight. ⛔
@@ -431,8 +431,7 @@ lives in exactly ONE place in the codebase.
           before F-0** — the wrong side for covariant moments.
       * - **Parseval metric** :math:`G^{-1}`, the inverse *discrete*
           Gram — :math:`(2\ell+1)/4\pi` on a degree-exact sphere rule
-        - :attr:`FrameBase.basis_space
-          <orpheus.numerics.frame.FrameBase.basis_space>` — the frame
+        - :func:`basis_space <orpheus.numerics.frame_faces.basis_space>` — the frame
           dresses the basis's space with it (F-0; on a rule whose
           discrete Gram measures ``DENSE`` the dressing is the matrix
           pseudo-inverse :math:`G^{+}` instead — P7,
@@ -458,7 +457,7 @@ lives in exactly ONE place in the codebase.
   :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.synthesize`.
 * :math:`\Pi^\top = w_n \cdot S_0` — the representation transpose of
   the analysis face, exposed by
-  :meth:`frame.analysis.apply_transpose
+  :meth:`FrameAnalysis.of(frame).apply_transpose
   <orpheus.numerics.basis.SphericalHarmonicBasis.analyze_transpose>`.
   The :math:`w_n` factor is the quadrature weight carried on the
   analysis face's domain (the frame's ``measure_space``)
@@ -472,7 +471,7 @@ lives in exactly ONE place in the codebase.
    \;=\; w_n \sum_{\ell, m} Y_\ell^m(\hat\Omega_n) c_\ell^m.
 
 * :math:`\Pi^* = S_0 \circ G^{-1}` — the **Hilbert adjoint under the
-  frame's Parseval metric**, exposed by ``frame.analysis.H`` and
+  frame's Parseval metric**, exposed by ``FrameAnalysis.of(frame).H`` and
   computed generically by the metric-aware ``AdjointOperator``
   wrapper. The :math:`G^{-1}` factor is the inverse of the frame's
   **discrete** trial Gram
@@ -485,15 +484,14 @@ lives in exactly ONE place in the codebase.
   :meth:`~orpheus.numerics.spaces.SphericalHarmonicSpace.from_L`
   builds: ``from_L`` carries the CONTINUUM Gram
   :math:`g_C` (:eq:`sh-space-metric`) and
-  :attr:`FrameBase.basis_space
-  <orpheus.numerics.frame.FrameBase.basis_space>` REPLACES it with
+  :func:`basis_space <orpheus.numerics.frame_faces.basis_space>` REPLACES it with
   :math:`G^{-1}`. ⚠ Since item 6.2c-ii (2026-09-08) the space is
   AXIS-BUILT and the metric lives on its single ``MODAL`` head axis as
   that axis's MEASURE — so *replaces* now means "re-weights the head
   axis" (or, on a ``DENSE`` frame, "empties the axis's measure and
   positions :math:`G^{+}` on the space's derived metric object"), and the
   two copies are structurally UNEQUAL rather than ``(name,
-  shape)``-equal: `[M]` ``frame.basis_space == frame.basis.space`` is 0
+  shape)``-equal: `[M]` ``basis_space(frame) == frame.basis.space`` is 0
   of 33 shipped (rule, :math:`L`) rows
   (:ref:`spaces-moment-head-axis-built`). The general statement, and the
   SH collapse of it:
@@ -573,7 +571,7 @@ property of *this* basis-measure pairing, not of frames in general
    longer the metric this equation reads; it is declared against
    :eq:`sh-space-metric` instead. The two frame properties that now
    produce the Parseval metric — ``FrameBase.discrete_gram`` (which
-   computes :math:`G`) and ``FrameBase.basis_space`` (which installs
+   computes :math:`G`) and ``frame_faces.basis_space`` (which installs
    :math:`G^{-1}` as the codomain metric) — JOINED it.
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
@@ -583,10 +581,10 @@ property of *this* basis-measure pairing, not of frames in general
    :by: orpheus.numerics.frame.FrameBase.discrete_gram
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
-   :by: orpheus.numerics.frame.FrameBase.basis_space
+   :by: orpheus.numerics.frame_faces.basis_space
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
-   :by: orpheus.numerics.frame._FrameAnalysis
+   :by: orpheus.numerics.frame_faces.FrameAnalysis
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
    :by: orpheus.numerics.operator.AdjointOperator
@@ -599,7 +597,7 @@ property of *this* basis-measure pairing, not of frames in general
 
 * :math:`R = (2\ell+1) \cdot S_0 = W \cdot G^{-1} \cdot S_0
   = W \cdot \Pi^*` — the addition-theorem reconstruction, exposed by the frame's
-  **reconstruction face** (``frame.reconstruction``,
+  **reconstruction face** (``FrameReconstruction.of(frame)``,
   :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.reconstruct`),
   which reads the :math:`(2\ell+1)` factor live from
   :attr:`SphericalHarmonicBasis.addition_theorem_factor
@@ -661,8 +659,7 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
 
    :eq:`sh-space-metric` is the **continuum** Gram, and after F-0 it is
    *not* the metric a frame's coefficient codomain carries. The frame
-   REPLACES it: :attr:`FrameBase.basis_space
-   <orpheus.numerics.frame.FrameBase.basis_space>` dresses the space
+   REPLACES it: :func:`basis_space <orpheus.numerics.frame_faces.basis_space>` dresses the space
    with the inverse of the **discrete** Gram measured on that frame's
    own measure — a diagonal ``inner_product_weights`` array when that
    Gram measures ``DIAGONAL``, and since campaign 1 P7 (2026-08-30) the
@@ -682,8 +679,7 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    example here was the slab Gauss–Legendre measure, where the best
    diagonal candidate read a Parseval ratio of :math:`1.806`. Use
    :eq:`sh-space-metric` when you mean the convention (``project`` /
-   :attr:`FrameBase.gram_inverse
-   <orpheus.numerics.frame.FrameBase.gram_inverse>`, the cross-Gram
+   :meth:`CrossGramInverse.of <orpheus.numerics.frame_faces.CrossGramInverse.of>`, the cross-Gram
    :math:`MR`); use
    :eq:`hilbert-adjoint-equals-metric-times-S0` when you mean what
    ``.H`` computes.
@@ -1115,11 +1111,11 @@ caches the table once (``frame.table``) and the two faces delegate.
 level-2 refusal. A 1-D rule's frame carries the FLAT ``(N, L+1)``
 Legendre table instead (:ref:`sh-legendre-is-the-1d-family`):
 
-* the **analysis face** ``frame.analysis`` — the Galerkin projection
+* the **analysis face** ``FrameAnalysis.of(frame)`` — the Galerkin projection
   :math:`\phi^{\ell m} = \sum_n w_n\,Y_\ell^m(\hat\Omega_n)\,\psi_n`
   (:meth:`SphericalHarmonicBasis.analyze
   <orpheus.numerics.basis.SphericalHarmonicBasis.analyze>`).
-* the **reconstruction face** ``frame.reconstruction`` — the
+* the **reconstruction face** ``FrameReconstruction.of(frame)`` — the
   addition-theorem reconstruction
   :math:`q_n = \sum_\ell (2\ell+1) \sum_m Y_\ell^m(\hat\Omega_n)\,
   \phi^{\ell m}`
@@ -1155,10 +1151,10 @@ The complete data flow:
         │   .table = basis.evaluate(descent(measure.nodes))
         │   (cached once; both faces delegate)
         │
-        ├──────────────► frame.analysis        (M = Y* W)
+        ├──────────────► FrameAnalysis.of(frame)        (M = Y* W)
         │                    Π : ψ_n  →  φ_ℓ  (or φ^{ℓm})
         │
-        └──────────────► frame.reconstruction  (R = (2ℓ+1) S₀)
+        └──────────────► FrameReconstruction.of(frame)  (R = (2ℓ+1) S₀)
                              R : φ_ℓ  →  q_n
 
 

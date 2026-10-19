@@ -30,6 +30,7 @@ from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.spaces.moment_head import MomentHead
 from orpheus.transport.material_field import TransferMaterialField
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -81,7 +82,7 @@ def _head_shape(problem: SNProblem, L: int) -> tuple[int, ...]:
 
 def _head_of(problem: SNProblem, L: int) -> MomentHead:
     """The angular head OBJECT — the surface that says where the isotropic slot and each degree block live."""
-    head = problem.quad.angular_frame(L).basis_space   # the frame's Parseval-dressed head — the ONE moment space (6.2c-ii)
+    head = frame_faces.basis_space(problem.quad.angular_frame(L))   # the frame's Parseval-dressed head — the ONE moment space (6.2c-ii)
     assert isinstance(head, MomentHead)
     return head
 
@@ -381,7 +382,7 @@ class TestHarmonicMomentFluxScalarFlux:
         sf_direct = psi.integrate_angular()
 
         # Via moment projection (frame analysis face) + scalar_flux extraction.
-        moments_values = m.quad.angular_frame(L).analysis.apply(psi.values)
+        moments_values = frame_faces.FrameAnalysis.of(m.quad.angular_frame(L)).apply(psi.values)
         moments = HarmonicMomentFlux.from_problem_and_L(moments_values, m, L)
         sf_via_moments = moments.scalar_flux()
 

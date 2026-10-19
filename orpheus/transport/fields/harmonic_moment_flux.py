@@ -260,7 +260,7 @@ class HarmonicMomentFlux(MomentField):
         from orpheus.transport.fields.scalar_flux import ScalarFlux
         # CS4b S4: the scalar target space IS the product's cell-group
         # factor — the carrier's cached ``bulk_space`` instance the hub
-        # composed in (``frame.basis_space * mesh.bulk_space``), so the
+        # composed in (``basis_space(frame) * mesh.bulk_space``), so the
         # derived scalar rides the same mint every scalar leaf shares; on a
         # widened field that factor is the carrier's widened bulk carrying
         # the scheme's mass-weighted moment axis (item 6.2c-iii), so the

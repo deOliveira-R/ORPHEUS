@@ -21,7 +21,7 @@ and never assumes it was one-hot. So the fractional generalization reuses ALL of
 them unchanged; only the table *production* differs. :class:`OverlapBasis` overrides
 exactly one method, :meth:`evaluate`, to return the precomputed overlap table rather
 than bucketing points with ``searchsorted``. The rate-preserving projection then
-falls out of the existing ``frame.project = G⁻¹ M`` because a partition-of-unity
+falls out of the existing ``project(frame, ·) = G⁻¹ M`` because a partition-of-unity
 table gives ``reconstruction(ones) = 1`` → the diagonal Gram :math:`\Phi_G =
 \sum_g T[g,G]\,\varphi_g`.
 """
@@ -65,9 +65,9 @@ class OverlapBasis(IndicatorBasis):
     docstring claims a **diagonal** Gram ("the indicators have disjoint support") —
     that claim does **not** hold for a fractional table (a straddling row makes two
     columns share support, so the cross Gram is non-diagonal). It is latent: no
-    consumer calls ``mass_matrix`` (the frame's :meth:`~orpheus.numerics.frame.FrameBase.project`
+    consumer calls ``mass_matrix`` (the frame's :func:`~orpheus.numerics.frame_faces.project`
     uses the partition-of-unity row-sum probe, not the full Gram — see
-    :attr:`~orpheus.numerics.frame.FrameBase.gram_inverse`). A future least-squares consumer
+    :meth:`~orpheus.numerics.frame_faces.CrossGramInverse.of`). A future least-squares consumer
     that needs the dense Gram must compute it for the fractional case, not trust the
     inherited diagonal claim.
     """
@@ -128,9 +128,9 @@ class OverlapBasis(IndicatorBasis):
 
         Overrides the inherited :attr:`IndicatorBasis.gram_structure` DIAGONAL: a fine
         row straddling a coarse boundary populates ≥2 columns, so the cross Gram
-        :math:`MR` is non-diagonal. The :meth:`~orpheus.numerics.frame.FrameBase.project`
+        :math:`MR` is non-diagonal. The :func:`~orpheus.numerics.frame_faces.project`
         row-sum probe stays valid because the rows are a partition of unity (see
-        :attr:`~orpheus.numerics.frame.FrameBase.gram_inverse`), NOT because the Gram is diagonal.
+        :meth:`~orpheus.numerics.frame_faces.CrossGramInverse.of`), NOT because the Gram is diagonal.
         """
         return GramStructure.PARTITION_OF_UNITY
 

@@ -19,7 +19,7 @@ The discrete spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`'s
 codomain is this space **re-dressed by the frame** (F-0,
 ``frame_square_recarve.md``): :meth:`SphericalHarmonicSpace.from_L` carries the
 CONTINUUM Gram :math:`g_C = 4\pi/(2\ell+1)` as its head axis's measure, and
-:attr:`FrameBase.basis_space <orpheus.numerics.frame.FrameBase.basis_space>`
+:func:`basis_space <orpheus.numerics.frame_faces.basis_space>`
 re-weights that axis with the PARSEVAL metric — the inverse of the frame's
 discrete Gram, :math:`(2\ell+1)/4\pi` on a degree-exact sphere rule (a
 positioned matrix pseudo-inverse where the Gram is dense) — because the
@@ -31,7 +31,7 @@ field's energy*) that dressed head is the ONE moment space the tree binds
 — the carrier's cached moment space, every moment field, every operator
 end — and the two heads are structurally UNEQUAL (the measure enters the
 identity), so the metric-blind seam that let them pass for one is gone.
-The generic ``AdjointOperator`` machinery then computes ``frame.analysis.H``
+The generic ``AdjointOperator`` machinery then computes ``FrameAnalysis.of(frame).H``
 as the physical :math:`S_0 \circ G^{-1} = R/W` with no bespoke code.
 
 ERR-039 in one sentence: the addition-theorem reconstruction
@@ -135,8 +135,7 @@ class SphericalHarmonicSpace(FunctionSpace):
         generator), while a frame's dressed ``basis_space`` — built from
         this same class via :func:`dataclasses.replace` — carries the
         PARSEVAL inverse (:math:`(2\ell+1)/4\pi` on a degree-exact rule;
-        the frame its generator; F-0, :attr:`FrameBase.basis_space
-        <orpheus.numerics.frame.FrameBase.basis_space>`). The legacy
+        the frame its generator; F-0, :func:`basis_space <orpheus.numerics.frame_faces.basis_space>`). The legacy
         ``inner_product_weights`` slot stays ``None``.
     L : int, default 0
         Maximum harmonic degree retained. Must satisfy
@@ -239,8 +238,7 @@ class SphericalHarmonicSpace(FunctionSpace):
             whose measure is the padded :math:`4\pi/(2\ell+1)` CONTINUUM
             Gram and whose generator is the basis. (A frame's
             ``basis_space`` is this object re-dressed with the discrete
-            Parseval inverse — :attr:`FrameBase.basis_space
-            <orpheus.numerics.frame.FrameBase.basis_space>`, F-0 — the
+            Parseval inverse — :func:`basis_space <orpheus.numerics.frame_faces.basis_space>`, F-0 — the
             moment space the tree binds.)
         """
         return cls.for_basis(SphericalHarmonicBasis(L=L))

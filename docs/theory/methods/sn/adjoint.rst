@@ -683,7 +683,7 @@ is why the whole product transpose is one expression.
    built and still tested; what it no longer did was ride inside
    :math:`S`'s composite.  Its remaining production-facing role was as
    the *algebra of record* for the fast path, pinning ``N2N.apply(ψ)``
-   against ``(1/W)·frame.conjugate(N2NMomentOperator).apply(ψ)`` — the
+   against ``(1/W)·conjugate(frame, N2NMomentOperator).apply(ψ)`` — the
    very conjugation these equations used to spell.
 
    ⭐ **And #426 step 2 (2026-09-04) closed the loop the other way.**
@@ -1376,7 +1376,7 @@ operator,
    and is stated separately because it is the block the FAST PATH
    evaluates.  Its verifiable content is the identity with the
    conjugation it realizes at the solve's order,
-   ``N2N.apply(ψ) == (1/W)·frame.conjugate(Λ₂ₙ).apply(ψ)``, pinned by
+   ``N2N.apply(ψ) == (1/W)·conjugate(frame, Λ₂ₙ).apply(ψ)``, pinned by
    the ``@pytest.mark.foundation`` gate
    ``tests/gates/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder::test_apply_equals_the_frame_conjugation_at_the_solve_order``.
    ⚠ Scope, stated so the row is not over-read: that gate's fixture runs
@@ -1496,7 +1496,7 @@ form, two different float programs.
    :math:`w`-broadcast followed by a division by :math:`W`.  It now
    retains the :math:`L = 0` **frame** instead and spells the transpose
    as factor reversal of the cached conjugated product
-   ``N2NOperator.full_n2n_kernel = frame.conjugate(N2NMomentOperator)``,
+   ``N2NOperator.full_n2n_kernel = conjugate(frame, N2NMomentOperator)``,
    followed by the producer-side :math:`/W` — exactly the shape
    :math:`S` and :math:`F` use (:ref:`sn-fission-binding-adjoint`).  So
    the equation above became the **product chain's** identity rather
@@ -1511,7 +1511,7 @@ form, two different float programs.
    step 2 (2026-09-04) collapsed the two channels onto one binding, so
    the product is
    :attr:`~orpheus.transport.operators.transfer.TransferOperator.full_transfer_kernel`
-   ``= frame.conjugate(Λ_c)`` for either channel and
+   ``= conjugate(frame, Λ_c)`` for either channel and
    ``N2NMomentOperator`` — the :math:`\ell = 0`-only moment factor —
    retired into
    :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`.
@@ -1574,7 +1574,7 @@ sibling, not into nothing, and the distinction is what a future reader
 greping ``N2NMomentOperator`` needs.  It was the **algebra of record**
 for the fast path: its ``apply`` was :math:`\nu_{2n}\Sigma_{2n}` on the
 :math:`\ell = 0` moment and its ``apply_transpose`` the group transpose
-of that, so ``frame.conjugate(N2NMomentOperator)`` reconstructed
+of that, so ``conjugate(frame, N2NMomentOperator)`` reconstructed
 :eq:`sn-n2n-isotropic-lift` as a literal
 :class:`~orpheus.numerics.operator.OperatorProduct` — precisely the
 reference the lift was gated against.  Retiring it as dead weight would
@@ -1584,7 +1584,7 @@ exception).
 That is not what happened.  The class was a one-block special case of
 :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`,
 which now carries both channels — so the oracle is **stronger**, not
-gone: ``frame.conjugate(LegendreMomentTransfer(n2n_field, skip_l0=False))``
+gone: ``conjugate(frame, LegendreMomentTransfer(n2n_field, skip_l0=False))``
 reconstructs :eq:`sn-n2n-transfer-binding` at the solve's order, and the
 gate that consumes it
 (``test_apply_equals_the_frame_conjugation_at_the_solve_order``) now

@@ -36,6 +36,7 @@ from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import LevelStructure, Quadrature
 from orpheus.numerics.invariance import _embedded_nodes
+from orpheus.numerics import frame_faces
 
 pytestmark = [pytest.mark.foundation]
 
@@ -552,15 +553,15 @@ def test_q8_3_the_fold_keeps_its_quotient_tag_all_the_way_to_the_frame() -> None
     size of the one its nodes cover.
 
     This is the one row of the carve that is NOT bit-identical in its tag:
-    ``frame.measure_space`` moves ``L2[S^2]`` → ``L2[S^2/sigma_y]``.
+    ``measure_space(frame)`` moves ``L2[S^2]`` → ``L2[S^2/sigma_y]``.
     """
     q = Quadrature.folded_product(n_mu=4, n_phi=8)
     assert q.measure.support == SPHERE.quotient(SubgroupOfO3.Mirror("y"))
     assert q.angular_frame(2).measure.support == SPHERE.quotient(SubgroupOfO3.Mirror("y"))
-    assert q.angular_frame(2).measure_space.name == "L2[S^2/sigma_y]"
+    assert frame_faces.measure_space(q.angular_frame(2)).name == "L2[S^2/sigma_y]"
     # …and an UNfolded sibling of the same family still says S^2, so the
     # assertion above is discriminating rather than a tautology on the tag.
-    assert Quadrature.product(n_mu=4, n_phi=8).angular_frame(2).measure_space.name == "L2[S^2]"
+    assert frame_faces.measure_space(Quadrature.product(n_mu=4, n_phi=8).angular_frame(2)).name == "L2[S^2]"
 
 
 @pytest.mark.parametrize(

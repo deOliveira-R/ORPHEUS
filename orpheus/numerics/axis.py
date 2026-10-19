@@ -413,7 +413,7 @@ class HarmonicAxis(Axis):
     <orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace.from_L>`)
     the weights are the CONTINUUM Gram :math:`4\pi/(2\ell+1)` broadcast to
     the padded layout; re-dressed by a FRAME
-    (:attr:`~orpheus.numerics.frame.FrameBase.basis_space`) they are the
+    (:func:`~orpheus.numerics.frame_faces.basis_space`) they are the
     Parseval inverse of the discrete Gram's diagonal — or ``None`` with the
     matrix pseudo-inverse POSITIONED on the space's derived metric object
     when that Gram is dense (item 6.2c-i) — and the frame becomes the

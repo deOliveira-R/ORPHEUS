@@ -4297,9 +4297,9 @@ class InverseMetricOperator(LinearOperator):
     metric's Moore–Penrose face — wherever :math:`G^{+}` of a SPACE is the
     operator wanted. (Until CS4c step 6 item 6.2c-ii the frame's projector
     was spelled through it too, as
-    ``frame.conjugate(InverseMetricOperator(frame.gram))`` over a metric-twin
+    ``conjugate(frame, InverseMetricOperator(frame.gram))`` over a metric-twin
     of the test space; the frame now owns that factor as a typed arrow,
-    :attr:`~orpheus.numerics.frame.FrameBase.gram_inverse` — an endomorphism
+    :meth:`~orpheus.numerics.frame_faces.CrossGramInverse.of` — an endomorphism
     of a twin space cannot compose with the faces once the metric enters
     space identity.)
 

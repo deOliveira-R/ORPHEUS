@@ -39,6 +39,7 @@ from orpheus.geometry import CoordSystem
 from orpheus.sn.angular.closure import (
     march_start_structure_per_level,
 )
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -260,7 +261,7 @@ class TestFoldedHarmonics:
         ξ-carrier slot bit-zero."""
         fold = Quadrature.folded_product(4, 8)
         frame = fold.angular_frame(1)
-        moments = frame.analysis.apply(np.ones(fold.N))
+        moments = frame_faces.FrameAnalysis.of(frame).apply(np.ones(fold.N))
         assert moments.shape == (2, 3)
         np.testing.assert_allclose(moments[0, 0], 4.0 * np.pi, rtol=1e-14)
         assert float(moments[1, 2]) == 0.0      # the garbage carrier

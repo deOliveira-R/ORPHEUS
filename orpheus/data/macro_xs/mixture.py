@@ -19,6 +19,7 @@ from orpheus.numerics.scalars import canonical_reals
 from orpheus.data.micro_xs.isotope import NG, Isotope
 from .interpolation import interp_sig_s, interp_xs_field
 from .sigma_zeros import solve_sigma_zeros
+import orpheus.numerics.frame_faces as frame_faces
 
 if TYPE_CHECKING:
     from orpheus.data.energy_grid import EnergyGrid, WithinGroupSpectrum
@@ -450,7 +451,7 @@ class Mixture(ContentIdentity):
 
         The collapse has TWO morphisms (the marginalize-vs-average distinction):
 
-        * **average** :math:`G^{-1}M` (``frame.project``) — preserves a reaction RATE:
+        * **average** :math:`G^{-1}M` (``project(frame, ·)``) — preserves a reaction RATE:
           the vectors (``SigT``/``SigC``/``SigL``/``SigF``/``SigP``), :math:`\Sigma_G =
           (\sum_g T_{gG}\varphi_g\Sigma_g)/(\sum_g T_{gG}\varphi_g)`; and the **source**
           ``g_from`` axis of each matrix.
@@ -544,7 +545,7 @@ class Mixture(ContentIdentity):
 
         def average(sig: np.ndarray) -> np.ndarray:
             """Rate-preserving flux-average G⁻¹M over the source-group axis."""
-            return frame.project(np.asarray(sig, dtype=float))
+            return frame_faces.project(frame, np.asarray(sig, dtype=float))
 
         if adjoint_spectrum is None:
             def collapse_matrix(mat: csr_matrix) -> np.ndarray:
@@ -553,7 +554,7 @@ class Mixture(ContentIdentity):
                 return average(sink_summed)
 
             return Mixture.from_dense_channels(
-                # vectors → AVERAGE (frame.project = G⁻¹M): rate-preserving flux-average.
+                # vectors → AVERAGE (project(frame, ·) = G⁻¹M): rate-preserving flux-average.
                 SigC=average(self.SigC),
                 SigL=average(self.SigL),
                 SigF=average(self.SigF),
@@ -581,7 +582,7 @@ class Mixture(ContentIdentity):
         )
 
         def bilinear(sig: np.ndarray) -> np.ndarray:
-            return pair_frame.project(np.asarray(sig, dtype=float))
+            return frame_faces.project(pair_frame, np.asarray(sig, dtype=float))
 
         # The adjoint carrier Ψ†_G = ⟨φ*φ⟩_G/Φ_G (B&G 6.126-6.128), with the
         # frames' own Moore-Penrose convention on empty coarse groups.

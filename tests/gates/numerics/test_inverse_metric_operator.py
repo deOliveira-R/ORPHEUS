@@ -5,9 +5,9 @@ the trace metrics' :math:`G^{+}`, a degenerate metric's Moore–Penrose face.
 :func:`test_the_frame_can_now_spell_its_own_projector` was its founding
 reason: the projection algebra :math:`\Pi = R \circ G^{-1} \circ M` was
 written down in the tree but the frame's probe was a ``FunctionSpace``
-while :meth:`~orpheus.numerics.frame.FrameBase.conjugate` wants a
+while :func:`~orpheus.numerics.frame_faces.conjugate` wants a
 ``LinearOperator``. Since CS4c step 6 item 6.2c-ii the frame owns that
-factor as a typed arrow (:attr:`~orpheus.numerics.frame.FrameBase.gram_inverse`,
+factor as a typed arrow (:meth:`~orpheus.numerics.frame_faces.CrossGramInverse.of`,
 ``test_space → basis_space``): an endomorphism of a metric-twin space
 cannot compose with the faces once the metric enters space identity, so the
 projector row below spells the frame's own arrow, and this adapter keeps
@@ -34,6 +34,7 @@ from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.operator import InverseMetricOperator
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
 from orpheus.sn.problem import SNProblem
+from orpheus.numerics import frame_faces
 
 _REFLECTIVE = BC("reflective")
 
@@ -154,7 +155,7 @@ def test_it_inverts_the_metric_off_the_null_space(name):
 def test_the_frame_can_now_spell_its_own_projector():
     r"""⭐ ``conjugate(G⁻¹)`` is the projector — spelled with the frame's own arrow.
 
-    ``frame.conjugate(frame.gram_inverse)`` composes
+    ``conjugate(frame, CrossGramInverse.of(frame))`` composes
     :math:`R \circ G^{-1} \circ M`, which for a Galerkin frame (test ==
     trial) is the orthogonal projector onto ``span(basis)``.  Asserted
     the way a projector is defined — idempotence — plus agreement with
@@ -162,11 +163,11 @@ def test_the_frame_can_now_spell_its_own_projector():
     spelling and the array spelling cannot drift.
 
     Until item 6.2c-ii the composition went through this adapter over the
-    frame's probe SPACE; the arrow (:class:`~orpheus.numerics.frame.CrossGramInverse`)
+    frame's probe SPACE; the arrow (:class:`~orpheus.numerics.frame_faces.CrossGramInverse`)
     is the same :math:`G^{-1}` with the faces' ends as its type.
     """
     frame = GalerkinFrame(SphericalHarmonicBasis(L=3), lebedev_sphere(13))
-    projector = frame.conjugate(frame.gram_inverse)
+    projector = frame_faces.conjugate(frame, frame_faces.CrossGramInverse.of(frame))
 
     rng = np.random.default_rng(0)
     # The field lives on the MEASURE's nodes (``table`` is ``(n_nodes, …)``),
@@ -179,12 +180,12 @@ def test_the_frame_can_now_spell_its_own_projector():
 
     # Same answer as the hand-rolled chain the frame already supports.
     np.testing.assert_allclose(
-        once, frame.reconstruction.apply(frame.project(field)), atol=1e-12,
+        once, frame_faces.FrameReconstruction.of(frame).apply(frame_faces.project(frame, field)), atol=1e-12,
     )
 
     # An exact SH frame at L=3 reproduces an in-span field exactly, so the
     # projector is not merely idempotent-by-being-zero.
-    in_span = frame.reconstruction.apply(frame.project(field))
+    in_span = frame_faces.FrameReconstruction.of(frame).apply(frame_faces.project(frame, field))
     np.testing.assert_allclose(
         projector.apply(in_span), in_span, atol=1e-12,
     )

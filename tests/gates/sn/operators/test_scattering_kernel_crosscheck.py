@@ -149,7 +149,7 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
     ``S.on_moment_domain()`` is the SAME datum and the SAME faces bound to
     consume :math:`M\psi` (the analysis face's CODOMAIN). Their bodies are
     selected at construction and are different code — the fused
-    ``frame.conjugate`` product vs the typed
+    ``conjugate(frame, ·)`` product vs the typed
     :math:`\Lambda`-then-reconstruction-face grid path — so agreement is a
     claim, not a tautology.
     """
@@ -191,8 +191,8 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
 
         The row above compares the WHOLE emission; this one isolates the
         :math:`\ell\ge1` redistribution, which is where the two spellings
-        actually differ (``frame.conjugate(Λ)`` = :math:`R\circ(\Lambda\circ M)`
-        on the angular end, ``frame.reconstruct_after(Λ)`` = :math:`R\circ\Lambda`
+        actually differ (``conjugate(frame, Λ)`` = :math:`R\circ(\Lambda\circ M)`
+        on the angular end, ``reconstruct_after(frame, Λ)`` = :math:`R\circ\Lambda`
         on the moment end — :math:`M` is skipped there because the operand is
         already projected; re-projecting would double-project). Fed the
         corresponding operands the two must coincide.

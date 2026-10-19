@@ -17,7 +17,7 @@ spaces existed in the tree and carried DIFFERENT metrics:
 object                                     head factor                metric on the head
 =========================================  =========================  ===================
 ``SNProblem.moment_space(L, w)`` (6.2b)       ``frame.basis.space``      CONTINUUM ``4π/(2ℓ+1)``
-``HarmonicFrame.moment_space_on(space)``   ``frame.basis_space``      PARSEVAL ``1/diag(G)``
+``HarmonicFrame.moment_space_on(space)``   ``basis_space(frame)``      PARSEVAL ``1/diag(G)``
                                                                       (or ``G⁺``, DENSE rows)
 =========================================  =========================  ===================
 
@@ -73,6 +73,7 @@ from orpheus.transport.frames import HarmonicFrame
 from orpheus.transport.material_field import TransferMaterialField
 from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from tests.gates.sn._test_helpers import material_xs_from_raw
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -162,7 +163,7 @@ def test_the_two_moment_heads_are_UNEQUAL_and_the_dressed_one_is_the_frames(labe
     handing back the continuum head where the dressed one is bound.
     """
     frame = HarmonicFrame.from_galerkin(_RULES[label]().angular_frame(L))
-    continuum, dressed = frame.basis.space, frame.basis_space
+    continuum, dressed = frame.basis.space, frame_faces.basis_space(frame)
 
     assert continuum != dressed and dressed != continuum, "the metric is the identity now"
     assert continuum.name == dressed.name and continuum.shape == dressed.shape
@@ -246,14 +247,14 @@ def test_parseval_holds_under_the_dressed_metric_and_FAILS_under_the_continuum_o
     """
     frame = HarmonicFrame.from_galerkin(_RULES[label]().angular_frame(L))
     rng = np.random.default_rng(1234)
-    c = rng.standard_normal(frame.basis_space.shape)
+    c = rng.standard_normal(frame_faces.basis_space(frame).shape)
     psi = frame.basis.synthesize(c, frame.table)
-    phi = frame.analysis.apply(psi)
-    energy = frame.measure_space.inner_product(psi, psi)
+    phi = frame_faces.FrameAnalysis.of(frame).apply(psi)
+    energy = frame_faces.measure_space(frame).inner_product(psi, psi)
     assert energy > 0.0
 
     np.testing.assert_allclose(
-        frame.basis_space.inner_product(phi, phi), energy, rtol=1e-12,
+        frame_faces.basis_space(frame).inner_product(phi, phi), energy, rtol=1e-12,
         err_msg="the dressed (Parseval) metric must make analysis an isometry",
     )
     # the NEGATIVE control: the same pairing under the continuum Gram
@@ -294,9 +295,9 @@ def test_the_lambda_adjoint_is_the_transpose_on_PHYSICAL_moments_under_both_metr
     rng = np.random.default_rng(20260907)
     n_nodes = frame.measure.weights.shape[0]
     psi = rng.standard_normal((n_nodes, _NG, _NX, 1))
-    phi = np.asarray(frame.analysis.apply(psi))
+    phi = np.asarray(frame_faces.FrameAnalysis.of(frame).apply(psi))
 
-    for name, space in (("continuum", frame.basis.space), ("dressed", frame.basis_space)):
+    for name, space in (("continuum", frame.basis.space), ("dressed", frame_faces.basis_space(frame))):
         gap = _adjoint_gap(space, transfer, L, phi)
         assert gap < 1e-12, f"{name} end moved Λ.H off Λᵀ on a physical moment: {gap:.3e}"
 
@@ -327,7 +328,7 @@ def test_the_dressed_adjoint_moves_ONLY_off_the_range_of_analysis() -> None:
         transfer = _transfer(L)
         x = rng.standard_normal(frame.basis.space.shape + (_NG, _NX, 1))
         continuum_gap = _adjoint_gap(frame.basis.space, transfer, L, x)
-        dressed_gap = _adjoint_gap(frame.basis_space, transfer, L, x)
+        dressed_gap = _adjoint_gap(frame_faces.basis_space(frame), transfer, L, x)
         assert continuum_gap < 1e-12, (
             f"{label} L={L}: the continuum end must be transpose-exact off-range too"
         )
