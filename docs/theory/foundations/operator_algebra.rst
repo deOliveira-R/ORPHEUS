@@ -8611,7 +8611,7 @@ the cheapest tell.
        ``tests/gates/numerics/test_adjointability_is_honest.py``. See
        :ref:`operator-adjoint-two-questions`.
      - #614, #616
-     - ``[LANDED <hash>]``, branch ``fix/adjointability-honest``
+     - ``[LANDED 31f14c93]``
    * - 2026-08-28
      - **A discretization scheme closes ONE axis — the angular closure
        owns its march, and the operator composes the two** (un-weld

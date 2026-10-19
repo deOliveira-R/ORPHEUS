@@ -239,6 +239,8 @@ grep inventory with a per-hit KEEP/FIX adjudication.**
   → L-004, L-035, L-036, L-039, L-065, L-077, L-063, L-049, L-037, L-027, L-030
 - **A new `:label:` under frozen tests is an ORPHAN, not a red** — the matrix lists it and nothing
   forces the marker; hand the `verifies` lines per test function in `NEEDS:`, never `documented`. → L-121
+- **A member hoisted to a base is rescued by `dead_references` and flagged by `-n`; a `:by:` line naming
+  it is a real `-W` error.** Grep the old `Class.member` in roles and `:by:` and re-point. → L-122
 - **Declaring `.. implements::` switches token-inference OFF for the WHOLE equation, so an
   incomplete declaration UNDER-covers** — ask *what else computes this?* before the first directive
   (7 of 14 needed 2–4). Writing the explanation MINTS new guesses, so never publish a live guess

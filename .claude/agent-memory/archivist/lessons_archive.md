@@ -14114,3 +14114,18 @@ markers to land, and a later reader sees six tested claims listed as untested. D
 label to the existing test functions that assert it, and hand the marker lines to the orchestrator
 in `NEEDS:`, one `@pytest.mark.verifies("<label>")` per function. Never mark them `documented` to
 keep the count flat: they are tested claims.
+
+## L-122 — a member HOISTED to a base: `dead_references` rescues it, Sphinx `-n` flags it; both are right
+
+Clause not covered: `retirement-audit` A.2/B.4 assign `-n` to rendered roles and `dead_references`
+to docstrings, and say nothing about a member that is deleted from a class but survives on its
+base. `[M]` 2026-10-18, ruling 27: `SweepOperator.is_adjointable` / `.apply_transpose` moved onto
+`InverseWrapMixin`. `dead_references` read 0 dead, 67 checked, 67 rescued: the node
+`py:attribute:...SweepOperator.is_adjointable` existed (unresolved, degree 5) and inheritance
+rescue judged it live, which is true at runtime (`getattr` resolves it through the MRO). Sphinx
+`-n` flagged all 6 role sites (`py:attr reference target not found`), because autodoc does not
+render inherited members, and one `.. implements:: :by:` naming the removed method was a REAL `-W`
+error (`the ontology refuses this edge — source is 'unresolved'`) on the tree the brief called
+clean. Do: after a hoist, grep the old `Class.member` spelling in roles AND in `:by:` lines and
+re-point at the base; treat `dead_references`' zero as "no symbol is gone", never as "no role is
+broken".
