@@ -323,7 +323,7 @@ def test_the_metric_enters_the_identity_once_the_head_is_axis_built(L: int) -> N
     tree carried until 6.2c-ii and the reason the fork had to be ruled
     before the head could be axis-built. The tree binds the dressed one.
     """
-    frame = Quadrature.lebedev(11).angular_frame(L)
+    frame = frame_faces.angular_frame(Quadrature.lebedev(11), L)
     continuum = frame.basis.space
     dressed = frame_faces.basis_space(frame)
     assert isinstance(continuum, SphericalHarmonicSpace) and isinstance(dressed, SphericalHarmonicSpace)
@@ -378,15 +378,15 @@ def test_a_frame_dressed_head_truncates_to_the_frames_dressed_head_at_the_lower_
     """
     quad = _RULES[label]()
     L = 2
-    dressed = frame_faces.basis_space(quad.angular_frame(L))
+    dressed = frame_faces.basis_space(frame_faces.angular_frame(quad, L))
     assert isinstance(dressed, MomentHead)
-    assert dressed.axes is not None and dressed.axes[0].generator is quad.angular_frame(L)
+    assert dressed.axes is not None and dressed.axes[0].generator is frame_faces.angular_frame(quad, L)
     lower = dressed.truncated(L - 1)
     assert isinstance(lower, MomentHead)
     assert lower.axes is not None and lower.L == L - 1 and lower.name == dressed.name
-    assert lower == frame_faces.basis_space(quad.angular_frame(L - 1))
-    assert lower != quad.angular_frame(L - 1).basis.space
-    assert lower.axes[0].generator == quad.angular_frame(L - 1)
+    assert lower == frame_faces.basis_space(frame_faces.angular_frame(quad, L - 1))
+    assert lower != frame_faces.angular_frame(quad, L - 1).basis.space
+    assert lower.axes[0].generator == frame_faces.angular_frame(quad, L - 1)
 
 
 def test_a_dense_gram_lives_positioned_on_the_axis_built_heads_own_object() -> None:
@@ -482,7 +482,7 @@ def test_the_production_head_of_every_family_is_axis_buildable(label: str, L: in
     from orpheus.numerics.frame import GramStructure
     from orpheus.transport.frames import HarmonicFrame
 
-    frame = HarmonicFrame.from_galerkin(_RULES[label]().angular_frame(L))
+    frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(_RULES[label](), L))
     rng = np.random.default_rng(11)
     for head, generator in ((frame.basis.space, frame.basis), (frame_faces.basis_space(frame), frame)):
         assert isinstance(head, (SphericalHarmonicSpace, LegendreSpace)), (

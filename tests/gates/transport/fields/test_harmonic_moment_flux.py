@@ -83,7 +83,7 @@ def _sn(family: str = "flat") -> SNProblem:
 
 def _head(sn: SNProblem, L: int = _L) -> MomentHead:
     """The angular head this mesh's frame induces — the single source of the layout (the frame's Parseval-dressed head, item 6.2c-ii)."""
-    head = frame_faces.basis_space(sn.quad.angular_frame(L))
+    head = frame_faces.basis_space(frame_faces.angular_frame(sn.quad, L))
     assert isinstance(head, MomentHead)
     return head
 

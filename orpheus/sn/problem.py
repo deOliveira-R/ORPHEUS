@@ -1408,7 +1408,7 @@ class SNProblem(MaterialMesh):
         The carrier owns its spaces the way it owns
         :attr:`angular_bulk_space` and :attr:`angular_trial_space`: the
         quadrature frame at ``L`` is read for the angular HEAD
-        (``quad.angular_frame(L).basis_space`` — the frame's
+        (``frame_faces.angular_frame(quad, L).basis_space`` — the frame's
         Parseval-dressed coefficient space, the ONE moment space the tree
         binds since CS4c step 6 item 6.2c-ii, ruling R-6.2c-1 2026-09-08:
         *the carrier's norm is the field's energy* — ``‖Mψ‖² = ‖ψ‖²_W``
@@ -1456,7 +1456,7 @@ class SNProblem(MaterialMesh):
             return cached
         from orpheus.transport.fields._bases import BulkField
 
-        head = frame_faces.basis_space(self.quad.angular_frame(L))
+        head = frame_faces.basis_space(frame_faces.angular_frame(self.quad, L))
         bulk = BulkField.compose_spatial_moments(
             self.bulk_space, self, spatial_moments,
         )

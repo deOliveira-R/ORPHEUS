@@ -193,7 +193,7 @@ class TestFoldedHarmonics:
         """Σ w Y ψ_flat = [4π at (0,0), EXACT 0.0 elsewhere] — the +6.49
         garbage channel is structurally closed."""
         fold = Quadrature.folded_product(4, 8)
-        Y = fold.angular_frame(2).table
+        Y = frame_faces.angular_frame(fold, 2).table
         M = np.einsum("n,nlm->lm", fold.weights, np.ones(fold.N)[:, None, None] * Y)
         np.testing.assert_allclose(M[0, 0], 4.0 * np.pi, rtol=1e-14)
         M_rest = M.copy()
@@ -255,13 +255,13 @@ class TestFoldedHarmonics:
 
     def test_the_folded_frame_analysis_is_isotropic_on_a_flat_flux(self):
         """The PRODUCTION seam: ``ScatteringOperator.frame`` wraps exactly
-        ``quadrature.angular_frame(L)``, whose raw analysis face
+        ``frame_faces.angular_frame(quadrature, L)``, whose raw analysis face
         (``YᵀW``, no Gram division) is where the +6.49 garbage entered.
         On the folded rule that frame now binds the restricted basis:
         a flat flux analyses to the isotropic moment ALONE, the
         ξ-carrier slot bit-zero."""
         fold = Quadrature.folded_product(4, 8)
-        frame = fold.angular_frame(1)
+        frame = frame_faces.angular_frame(fold, 1)
         moments = frame_faces.FrameAnalysis.of(frame).apply(np.ones(fold.N))
         assert moments.shape == (2, 3)
         np.testing.assert_allclose(moments[0, 0], 4.0 * np.pi, rtol=1e-14)

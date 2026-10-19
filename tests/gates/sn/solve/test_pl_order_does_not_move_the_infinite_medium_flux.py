@@ -117,7 +117,7 @@ not coverage). ``[M]`` 2026-09-02, the exact catalogued defect re-introduced
 in-process by monkeypatch — never ``git checkout``, the tree carries
 uncommitted edits (``process-discipline``) — as three coupled arms: the
 frame's G0 arrow removed, the harmonics' off-sphere refusal removed, and
-``Quadrature.angular_frame``'s 1-D branch re-forged to pad :math:`\mu` to
+``frame_faces.angular_frame``'s 1-D branch re-forged to pad :math:`\mu` to
 :math:`(\mu, 0, 0)` on :math:`S^2` and bind the FULL harmonics. Over
 ``tests/gates/sn/solve/test_pl_order…`` + ``tests/gates/numerics/{test_spherical_harmonic_basis,
 test_frame,test_quadrature_directional}.py`` (170 rows) the mutant reddens

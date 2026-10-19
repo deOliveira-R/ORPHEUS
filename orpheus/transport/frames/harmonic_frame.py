@@ -341,7 +341,7 @@ class HarmonicFrame(GalerkinFrame):
     spherical harmonics, their σ-even restriction, the Legendre basis on
     :math:`S^2/O(2)_a`; a harmonic frame over an indicator trial is an
     illegal state, refused at the door) — or upgraded from a generic
-    ``quadrature.angular_frame(L)`` via :meth:`from_galerkin`. WHICH family
+    ``frame_faces.angular_frame(quadrature, L)`` via :meth:`from_galerkin`. WHICH family
     the frame binds is the quadrature's decision, derived from the point
     set its measure lives on; this frame reads the basis it is handed. ⭐
     The FRAME is the single source of the angular coefficient space: the
@@ -389,8 +389,8 @@ class HarmonicFrame(GalerkinFrame):
 
         INTERNED per upstream frame object (CS4c §14.4): upgrading the same
         :class:`GalerkinFrame` twice returns the SAME :class:`HarmonicFrame`
-        — combined with :meth:`Quadrature.angular_frame
-        <orpheus.numerics.quadrature.directional.Quadrature.angular_frame>`'s
+        — combined with :func:`angular_frame
+        <orpheus.numerics.frame_faces.angular_frame>`'s
         per-``(rule, L)`` interning, "one frame per (axis content, L)" is an
         object identity, and the cached projection table is shared by every
         consumer rather than re-evaluated per operator.
@@ -423,8 +423,8 @@ class HarmonicFrame(GalerkinFrame):
         ``angular_space → leading (angular) axis →``
         :meth:`Axis.generator_as <orpheus.numerics.axis.Axis.generator_as>`
         ``(Quadrature) →``
-        :meth:`Quadrature.angular_frame
-        <orpheus.numerics.quadrature.directional.Quadrature.angular_frame>`
+        :func:`angular_frame
+        <orpheus.numerics.frame_faces.angular_frame>`
         ``(L) →`` :meth:`from_galerkin` — every hop single-sourced, both
         cache tiers interned, so S, F, and the windowing method minting
         from the same posed space share ONE frame object and ONE metric
@@ -451,7 +451,7 @@ class HarmonicFrame(GalerkinFrame):
         quadrature = axes[0].generator_as(
             Quadrature, consumer="HarmonicFrame.for_space",
         )
-        return cls.from_galerkin(quadrature.angular_frame(L))
+        return cls.from_galerkin(frame_faces.angular_frame(quadrature, L))
 
     # ── the moment-codomain derivation (the PUBLIC single source) ─────
 

@@ -865,8 +865,8 @@ verification of the addition theorem lives at
    The Pℓ Galerkin reconstruction is realised by the
    spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`
    (Frame/Basis carve), built on a quadrature via
-   :meth:`Quadrature.angular_frame(L)
-   <orpheus.numerics.quadrature.Quadrature.angular_frame>`. Its
+   :func:`frame_faces.angular_frame(Quadrature, L)
+   <orpheus.numerics.frame_faces.angular_frame>`. Its
    ``analysis`` face is the :math:`\Pi = Y^* W` projection on the
    angular axis; its ``reconstruction`` face is the addition-theorem
    reconstruction with the :math:`(2\ell+1)` factor. The full-space
@@ -948,7 +948,7 @@ normalisation
 (4\pi/(2\ell+1))\,\delta_{\ell\ell'}\delta_{mm'}` working out across
 both projection and reconstruction. The Galerkin frame is **real**
 spherical harmonics (the
-:meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame` (its ``table``; the ``spherical_harmonics`` pass-through accessor was retired 2026-09-02 with #429's fix)
+:func:`~orpheus.numerics.frame_faces.angular_frame` (its ``table``; the ``spherical_harmonics`` pass-through accessor was retired 2026-09-02 with #429's fix)
 implementation), not complex --- this is the convention native to
 the Lebedev tabulation and avoids carrying complex arithmetic
 through the source-iteration inner loop.

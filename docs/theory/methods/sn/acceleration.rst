@@ -57,7 +57,7 @@ pins every claim to a measured number.
    * **The correction operator mints NOTHING.**  Restriction and
      prolongation are the :math:`\ell = 0` faces of the existing
      spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`
-     (``Quadrature.angular_frame(0)``), pinned 0-ULP against
+     (``frame_faces.angular_frame(Quadrature, 0)``), pinned 0-ULP against
      :meth:`~orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular`;
      the P1 arm's :math:`\ell = 1` row is ``angular_frame(1)``'s slab
      component, :math:`\mu` bit-exactly (:ref:`sn-dsa-restriction-prolongation`;
@@ -604,7 +604,7 @@ The structural verdict of the 3-P0 frame analysis
 pair already exists as the :math:`\ell = 0` faces of the
 spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`.
 
-Read straight off ``Quadrature.angular_frame(0)`` (the
+Read straight off ``frame_faces.angular_frame(Quadrature, 0)`` (the
 :math:`\ell = 0` branch: :math:`Y_0 = 1`, addition-theorem factor
 :math:`2\ell + 1 = 1`):
 

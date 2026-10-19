@@ -75,7 +75,7 @@ def test_P7_the_three_product_mechanisms_are_one_space_by_identity_not_by_name(
 ) -> None:
     problem = _GEOMETRIES[geometry]()
     hub = problem.moment_space(L)
-    frame = problem.quad.angular_frame(L)
+    frame = frame_faces.angular_frame(problem.quad, L)
     head = frame_faces.basis_space(frame)
     bulk = problem.bulk_space
     assert head.axes is not None and bulk.axes is not None
@@ -102,7 +102,7 @@ def test_P7_the_three_product_mechanisms_are_one_space_by_identity_not_by_name(
 def test_P10_the_moment_space_is_axis_built_and_never_densified(geometry: str, L: int) -> None:
     problem = _GEOMETRIES[geometry]()
     space = problem.moment_space(L)
-    frame = problem.quad.angular_frame(L)
+    frame = frame_faces.angular_frame(problem.quad, L)
     assert space.axes is not None, "the moment space is axis-built"
     assert space.inner_product_weights is None
     if frame.discrete_gram_structure is GramStructure.DENSE:

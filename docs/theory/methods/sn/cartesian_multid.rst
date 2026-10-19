@@ -2951,8 +2951,8 @@ The load-bearing observation is the **arity of the scattering gain**.
 spherical-harmonic flux moments. Writing the moment-projection operator
 :math:`M` (the :eq:`flux-moments` quadrature contraction, the SH frame's
 analysis face ``FrameAnalysis.of(frame)`` from
-:meth:`Quadrature.angular_frame(L)
-<orpheus.numerics.quadrature.Quadrature.angular_frame>`)
+:func:`frame_faces.angular_frame(Quadrature, L)
+<orpheus.numerics.frame_faces.angular_frame>`)
 
 .. math::
    :label: angular-windowing-moment-projection

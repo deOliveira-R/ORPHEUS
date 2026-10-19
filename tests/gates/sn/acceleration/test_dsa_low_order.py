@@ -44,6 +44,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration import DSACorrection, DSALowOrderSystem
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -364,10 +365,10 @@ class TestRestrictionProlongation:
     @pytest.mark.verifies("sn-dsa-restriction")
     def test_d8_restriction_is_the_frame_moment_row(self, psi):
         r"""``integrate_angular`` ≡ the ℓ=0 analysis row of
-        ``Quadrature.angular_frame(0)`` (Y⁰₀ = 1 under the no-prefactor
+        ``frame_faces.angular_frame(Quadrature, 0)`` (Y⁰₀ = 1 under the no-prefactor
         SH convention ⟹ the row IS the weight vector) — 0-ULP."""
         problem, psi = psi
-        frame = problem.quad.angular_frame(0)
+        frame = frame_faces.angular_frame(problem.quad, 0)
         table = np.asarray(frame.table)  # (N, 1, 1); Y00 ≡ 1
         np.testing.assert_array_equal(table.ravel(), np.ones(4))
         w = np.asarray(problem.quad.weights, float)
@@ -450,7 +451,7 @@ class TestApplyAdmission:
         L = 1
         # the angular head is READ off the frame (#429): the slab's is FLAT.
         shape = (
-            *problem.quad.angular_frame(L).basis.space.shape,
+            *frame_faces.angular_frame(problem.quad, L).basis.space.shape,
             problem.ng,
             *problem.spatial_shape,
         )

@@ -134,7 +134,8 @@ class TruncatedBasis(Protocol):
     angular head, a frame's mint — reads it off such a basis
     (:attr:`space`), never mints it from the integer. The family the frame
     binds is DERIVED from the point set its measure lives on
-    (:meth:`~orpheus.numerics.quadrature.directional.Quadrature._harmonic_basis`),
+    (``frame_faces._harmonic_basis``, behind
+    :func:`~orpheus.numerics.frame_faces.angular_frame`),
     so a consumer that re-minted the space from ``L`` would silently choose
     the full-sphere family on every rule — which is exactly how the angular
     moment space had eight homes until #429 tracker 2.5 (2026-09-02):

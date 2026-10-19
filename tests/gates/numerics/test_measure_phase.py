@@ -19,6 +19,7 @@ from orpheus.numerics.measure import DiscreteMeasure, gauss_chebyshev, gauss_leg
 from orpheus.numerics.manifold import SPHERE, Quotient, RealSpace
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.numerics import frame_faces
 
 
 # ── angular: derived from the O(3) invariance group (the Erlangen route) ──
@@ -134,8 +135,8 @@ def test_phase_is_a_closed_category_consistent_with_angular_frame():
     q = Quadrature.lebedev(order=17)
     assert q.measure.phase == "angular"
     # the frame built on it is the angular frame on the same (angular) measure
-    assert q.angular_frame(2).measure.support == SPHERE
-    assert q.angular_frame(2).measure.phase == "angular"
+    assert frame_faces.angular_frame(q, 2).measure.support == SPHERE
+    assert frame_faces.angular_frame(q, 2).measure.phase == "angular"
 
 
 # ── the fold: what the measure HAS vs what it has SPENT ───────────────────

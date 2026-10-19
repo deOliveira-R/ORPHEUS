@@ -203,7 +203,7 @@ in the adjoint row and in the :math:`\Pi R` row — the two are
 
    The identification :math:`G_\ell = W/(2\ell+1)` is a property of a
    **degree-exact sphere cubature**, not of the basis. `[M]`
-   2026-10-18 on ``folded_product(4, 4).angular_frame(2)``, a rule that
+   2026-10-18 on ``frame_faces.angular_frame(folded_product(4, 4), 2)``, a rule that
    does not integrate the harmonics' products exactly, the discrete Gram
    is **not diagonal at all** (largest live off-diagonal :math:`1.000`
    of :math:`\sqrt{G_{jj}G_{kk}}`), so **no** :math:`(2\ell+1)/W`
@@ -215,7 +215,7 @@ in the adjoint row and in the :math:`\Pi R` row — the two are
    a **matrix** Parseval metric (a
    :class:`~orpheus.numerics.metric.DenseMetric`, campaign 1 P7,
    2026-08-30). On the slab the identification now holds: since the
-   ERR-080 repair (#429) ``gauss_legendre(8).angular_frame(2)`` binds
+   ERR-080 repair (#429) ``frame_faces.angular_frame(gauss_legendre(8), 2)`` binds
    the Legendre basis, whose Gram is exactly :math:`2/(2\ell+1) =
    W/(2\ell+1)` with :math:`W = 2`. (Before the repair that slab Gram
    was dense, off-diagonal :math:`0.93` of the Cauchy–Schwarz scale,

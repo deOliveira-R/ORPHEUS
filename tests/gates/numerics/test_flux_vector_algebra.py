@@ -52,6 +52,7 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.numerics import frame_faces
 
 
 pytestmark = pytest.mark.foundation
@@ -91,7 +92,7 @@ def rng() -> np.random.Generator:
 
 def _moment_shape(m: SNProblem, L: int) -> tuple[int, ...]:
     """``<angular head> ⊗ (ng, *spatial)`` — the head is read off the frame (#429)."""
-    return (*m.quad.angular_frame(L).basis.space.shape, m.ng, *m.spatial_shape)
+    return (*frame_faces.angular_frame(m.quad, L).basis.space.shape, m.ng, *m.spatial_shape)
 
 
 def _make_flux(leaf: str, m: SNProblem, rng: np.random.Generator) -> Field:

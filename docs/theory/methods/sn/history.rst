@@ -1302,7 +1302,7 @@ them.  Trust ``git``, not this column.
        **(1) What the tree did until this change.**  #429 tracker 2.5
        (2026-09-02) had already made the moment field's angular HEAD a
        READ of the quadrature's frame —
-       ``quad.angular_frame(L).basis.space``, never a mint from the
+       ``frame_faces.angular_frame(quad, L).basis.space``, never a mint from the
        integer :math:`L`.  What it did not move was the **product**:
        ``MomentField._space_for_mesh_and_L`` still formed
        ``<head> * bulk_space`` — plus the within-cell spatial-moment tail

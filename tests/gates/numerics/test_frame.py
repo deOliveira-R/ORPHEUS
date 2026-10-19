@@ -544,12 +544,12 @@ def _overlap_frame() -> GalerkinFrame:
 #: population of the DIAGONAL-arm dressing gate and of the scalar
 #: frame-square collapse (a sphere-family property; see D3).
 _DIAGONAL_FRAME_CASES = [
-    pytest.param(lambda: Quadrature.level_symmetric(4).angular_frame(1), id="LS4-L1"),
-    pytest.param(lambda: Quadrature.level_symmetric(4).angular_frame(2), id="LS4-L2"),
-    pytest.param(lambda: Quadrature.level_symmetric(8).angular_frame(2), id="LS8-L2"),
-    pytest.param(lambda: Quadrature.product(8, 8).angular_frame(2), id="product8x8-L2"),
+    pytest.param(lambda: frame_faces.angular_frame(Quadrature.level_symmetric(4), 1), id="LS4-L1"),
+    pytest.param(lambda: frame_faces.angular_frame(Quadrature.level_symmetric(4), 2), id="LS4-L2"),
+    pytest.param(lambda: frame_faces.angular_frame(Quadrature.level_symmetric(8), 2), id="LS8-L2"),
+    pytest.param(lambda: frame_faces.angular_frame(Quadrature.product(8, 8), 2), id="product8x8-L2"),
     pytest.param(
-        lambda: Quadrature.folded_product(8, 8).angular_frame(2), id="folded8x8-L2",
+        lambda: frame_faces.angular_frame(Quadrature.folded_product(8, 8), 2), id="folded8x8-L2",
     ),
     pytest.param(
         lambda: GalerkinFrame(SphericalHarmonicBasis(L=2), lebedev_sphere(13)),
@@ -562,7 +562,7 @@ _DIAGONAL_FRAME_CASES = [
 #: changes a verdict reddens the row instead of silently demoting it.
 #:
 #: ⛔ RE-POINTED 2026-10-18 (``retirement-audit`` D.14/D.17). This list
-#: once added the slab ``gauss_legendre(8).angular_frame(2)`` as the ONE
+#: once added the slab ``frame_faces.angular_frame(gauss_legendre(8), 2)`` as the ONE
 #: dense row, the frame P7 dressed with the matrix pseudo-inverse. The
 #: ERR-080 repair (#429) made that Gram DIAGONAL (`[M]` 2026-10-18: 3×3,
 #: rank 3, live relative off-diagonal ``6.7e-17``), so for a month the
@@ -576,31 +576,31 @@ _DIAGONAL_FRAME_CASES = [
 #: metric substituted for ``DenseMetric.inverse_of`` the Parseval ratio
 #: reads:
 #:
-#: * ``folded_product(4,4).angular_frame(2)``: 15×15, rank 5, ratio 1.067;
-#: * ``folded_product(4,4).angular_frame(4)``: 45×45, rank 8, ratio 1.709;
-#: * ``product(4,8).angular_frame(4)``: 45×45, rank 23, ratio 1.045.
+#: * ``frame_faces.angular_frame(folded_product(4,4), 2)``: 15×15, rank 5, ratio 1.067;
+#: * ``frame_faces.angular_frame(folded_product(4,4), 4)``: 45×45, rank 8, ratio 1.709;
+#: * ``frame_faces.angular_frame(product(4,8), 4)``: 45×45, rank 23, ratio 1.045.
 _PARSEVAL_FRAME_CASES = [
     pytest.param(make, GramStructure.DIAGONAL, id=case.id)
     for case in _DIAGONAL_FRAME_CASES
     for make in case.values
 ] + [
     pytest.param(
-        lambda: Quadrature.gauss_legendre(8).angular_frame(2),
+        lambda: frame_faces.angular_frame(Quadrature.gauss_legendre(8), 2),
         GramStructure.DIAGONAL,
         id="slab-GL8-L2-diagonal",
     ),
     pytest.param(
-        lambda: Quadrature.folded_product(4, 4).angular_frame(2),
+        lambda: frame_faces.angular_frame(Quadrature.folded_product(4, 4), 2),
         GramStructure.DENSE,
         id="folded4x4-L2-dense",
     ),
     pytest.param(
-        lambda: Quadrature.folded_product(4, 4).angular_frame(4),
+        lambda: frame_faces.angular_frame(Quadrature.folded_product(4, 4), 4),
         GramStructure.DENSE,
         id="folded4x4-L4-dense",
     ),
     pytest.param(
-        lambda: Quadrature.product(4, 8).angular_frame(4),
+        lambda: frame_faces.angular_frame(Quadrature.product(4, 8), 4),
         GramStructure.DENSE,
         id="product4x8-L4-dense",
     ),
@@ -628,10 +628,10 @@ _PARSEVAL_FRAME_CASES = [
 #:   row-4 pairing), so the dense arm is exercised on both charts of the
 #:   orbit space, not only the realization's.
 _DENSE_FRAME_CASES = [
-    pytest.param(lambda: Quadrature.product(4, 4).angular_frame(2), id="product4x4-L2"),
-    pytest.param(lambda: Quadrature.level_symmetric(4).angular_frame(3), id="LS4-L3"),
+    pytest.param(lambda: frame_faces.angular_frame(Quadrature.product(4, 4), 2), id="product4x4-L2"),
+    pytest.param(lambda: frame_faces.angular_frame(Quadrature.level_symmetric(4), 3), id="LS4-L3"),
     pytest.param(
-        lambda: Quadrature.folded_product(2, 4).angular_frame(3),
+        lambda: frame_faces.angular_frame(Quadrature.folded_product(2, 4), 3),
         id="folded2x4-L3",
     ),
     pytest.param(lambda: _equispaced_legendre_frame(3), id="equispaced8-L3"),
@@ -658,13 +658,13 @@ def _equispaced_legendre_frame(L: int, n: int = 8):
     """
     mu = np.linspace(-1.0, 1.0, n + 2)[1:-1]
     weights = np.full(mu.size, 2.0 / mu.size)
-    return Quadrature(
+    return frame_faces.angular_frame(Quadrature(
         measure=DiscreteMeasure(
             nodes=mu,
             weights=weights,
             support=SPHERE.quotient(SubgroupOfO3.O2("x")),
         )
-    ).angular_frame(L)
+    ), L)
 
 
 @pytest.mark.foundation
@@ -786,7 +786,7 @@ def test_parseval_reds_under_the_pre_repair_continuum_metric():
     seed). A BLIND gate would read 1.0 here (vv-principles #19: only the
     wrong-structure reading discriminates loaded from blind).
     """
-    frame = Quadrature.level_symmetric(4).angular_frame(1)
+    frame = frame_faces.angular_frame(Quadrature.level_symmetric(4), 1)
     undressed = SphericalHarmonicSpace.from_L(1)
     # frame_faces builds each face once into the frame's private "_frame_faces"
     # slot — pre-seeding it IS the pre-repair frame; no production code is
@@ -836,7 +836,7 @@ def test_the_slab_frame_is_DIAGONAL_after_the_err080_repair():
     ``0.8``\ s were fabricated. This row pins the honest three and asserts the
     other two cannot be indexed at all.
     """
-    frame = Quadrature.gauss_legendre(8).angular_frame(2)
+    frame = frame_faces.angular_frame(Quadrature.gauss_legendre(8), 2)
 
     assert isinstance(frame.basis, LegendreBasis)
     assert frame.basis.gram_structure is GramStructure.DIAGONAL       # declared
@@ -875,7 +875,7 @@ def test_the_slab_frame_is_DIAGONAL_after_the_err080_repair():
 def test_the_dense_matrix_parseval_dressing_rides_a_quotient_basis_frame():
     r"""The DENSE arm's flagship, re-keyed off the slab (#429 §5.5).
 
-    ``folded_product(2, 4).angular_frame(3)`` binds the σ-even harmonic
+    ``frame_faces.angular_frame(folded_product(2, 4), 3)`` binds the σ-even harmonic
     sub-basis on :math:`S^2/\sigma_y` and is untouched by the ERR-080 repair.
     `[M]` 2026-09-02: verdict DENSE, **live-block relative off-diagonal
     1.000** (a genuine coupling, not a rank artefact), rank 4/28 — and the
@@ -887,7 +887,7 @@ def test_the_dense_matrix_parseval_dressing_rides_a_quotient_basis_frame():
     is numerically diagonal and its DENSE verdict is driven by rank
     deficiency alone. A dense gate keyed there would be pinning a label.
     """
-    frame = Quadrature.folded_product(2, 4).angular_frame(3)
+    frame = frame_faces.angular_frame(Quadrature.folded_product(2, 4), 3)
     assert frame.discrete_gram_structure is GramStructure.DENSE
 
     gram = frame.discrete_gram
@@ -1119,7 +1119,7 @@ def test_no_diagonal_metric_can_satisfy_parseval_on_a_dense_frame():
     ⛔ **RE-KEYED 2026-09-02 (#429).** This gate rode ``slab-GL8-L2``, whose
     Gram is DIAGONAL after the ERR-080 repair — the separation it measured
     was a property of the fabrication. Its replacement is
-    ``folded_product(2, 4).angular_frame(3)``, a σ-fold quotient-basis frame
+    ``frame_faces.angular_frame(folded_product(2, 4), 3)``, a σ-fold quotient-basis frame
     untouched by the repair.
 
     ⭐ And the replacement is STRICTLY stronger, in the exact sense the claim
@@ -1142,7 +1142,7 @@ def test_no_diagonal_metric_can_satisfy_parseval_on_a_dense_frame():
     holds to 1e-16 for EVERY invertible :math:`G` (#409) and can never
     adjudicate one.
     """
-    frame = Quadrature.folded_product(2, 4).angular_frame(3)
+    frame = frame_faces.angular_frame(Quadrature.folded_product(2, 4), 3)
     gram = np.asarray(frame.discrete_gram)
 
     dense = _parseval_ratio_range(gram, _dense_matrix_of(frame))
@@ -1177,7 +1177,7 @@ def test_diagonal_gram_suffices_for_the_collapse_and_dense_does_not_decide_it():
     the inversion is asserted below, because it is the sharpest statement the
     repair licenses and it would otherwise be lost.
 
-    The DENSE failing witness moves to ``folded_product(2, 4).angular_frame(3)``:
+    The DENSE failing witness moves to ``frame_faces.angular_frame(folded_product(2, 4), 3)``:
     `[M]` matrix-level ``max|M† − R/W| / max|R/W| = 0.6564``, draw-free (both
     faces swept as matrices, no random probe).
 
@@ -1187,14 +1187,14 @@ def test_diagonal_gram_suffices_for_the_collapse_and_dense_does_not_decide_it():
     rule and BREAKS the collapse, while ``folded_product(4,6)`` L=3 measures
     DENSE and SATISFIES it — so DENSE does not decide it either way.
     """
-    slab = Quadrature.gauss_legendre(8).angular_frame(2)
+    slab = frame_faces.angular_frame(Quadrature.gauss_legendre(8), 2)
     assert slab.discrete_gram_structure is GramStructure.DIAGONAL
     assert _collapse_residual(slab) < 1e-12, (
         "the repaired slab frame must SATISFY the collapse: its Legendre Gram "
         "is diag(2/(2l+1)) and its dual factor is (2l+1), so d_l G_l = 2 = W"
     )
 
-    dense = Quadrature.folded_product(2, 4).angular_frame(3)
+    dense = frame_faces.angular_frame(Quadrature.folded_product(2, 4), 3)
     assert dense.discrete_gram_structure is GramStructure.DENSE
     residual = _collapse_residual(dense)
     assert residual > 0.5, (
@@ -1234,12 +1234,12 @@ def test_the_square_fails_where_the_order_outruns_the_rule():
     face's adjoint replaced by ``R/W``, makes the residual 0 and reddens the
     L = 3 assertion (`[M]` ``scratch/adjoint_rung/``).
     """
-    closing = Quadrature.level_symmetric(4).angular_frame(2)
+    closing = frame_faces.angular_frame(Quadrature.level_symmetric(4), 2)
     assert _collapse_residual(closing) < 1e-12, (
         "level_symmetric(4) at L=2 must close the square (it is in the "
         "DIAGONAL population of test_parseval_frame_square_closes)"
     )
-    outrun = Quadrature.level_symmetric(4).angular_frame(3)
+    outrun = frame_faces.angular_frame(Quadrature.level_symmetric(4), 3)
     assert outrun.discrete_gram_structure is GramStructure.DENSE, (
         f"level_symmetric(4) at L=3 reads {outrun.discrete_gram_structure.name}; "
         f"the rule now integrates the order, so this row no longer marks the edge"
@@ -1289,11 +1289,11 @@ def test_the_dense_dressing_reds_under_the_diagonal_and_the_pre_repair_metrics()
     :func:`_parseval_ratio_range`, which is the exact range of that ratio
     over the whole band-limited subspace and so cannot move with a draw.
 
-    `[M]` 2026-09-02 on ``folded_product(2,4).angular_frame(3)``: continuum
+    `[M]` 2026-09-02 on ``frame_faces.angular_frame(folded_product(2,4), 3)``: continuum
     ``[10.53, 157.9]``, best diagonal candidate ``[1.000, 3.000]``, dressed
     ``[1.000, 1.000]``.
     """
-    frame = Quadrature.folded_product(2, 4).angular_frame(3)
+    frame = frame_faces.angular_frame(Quadrature.folded_product(2, 4), 3)
     gram = np.asarray(frame.discrete_gram)
 
     dressed = _parseval_ratio_range(gram, _dense_matrix_of(frame))
@@ -1322,9 +1322,9 @@ def test_the_dense_dressing_reds_under_the_diagonal_and_the_pre_repair_metrics()
 def test_the_dressing_lands_parseval_on_the_production_anisotropic_frame():
     r"""D5 — the tier-of-observability gate for the production adjoint move.
 
-    ``product(4,4).angular_frame(2)`` is a production-reachable
+    ``frame_faces.angular_frame(product(4,4), 2)`` is a production-reachable
     ScatteringOperator configuration (``scattering.py`` builds
-    ``quadrature.angular_frame(scattering_order)``) and its Gram measures
+    ``frame_faces.angular_frame(quadrature, scattering_order)``) and its Gram measures
     DENSE. `[M]` 2026-08-30 (design pre-flight): dressing it moves
     ``FrameAnalysis.of(frame).H`` by ``max|Δ| = 8.246`` — **rel 0.8995** on that
     probe's draw; ⚠ draw-banded 0.879–0.986 over 200 seeds, with the
@@ -1337,7 +1337,7 @@ def test_the_dressing_lands_parseval_on_the_production_anisotropic_frame():
     post-dressing (`[M]` 1.000000000000 this seed) and the pre-repair
     continuum metric reads 65.66.
     """
-    frame = Quadrature.product(4, 4).angular_frame(2)
+    frame = frame_faces.angular_frame(Quadrature.product(4, 4), 2)
     assert frame.discrete_gram_structure is GramStructure.DENSE
     rng = np.random.default_rng(1234)
     c = rng.standard_normal(frame.basis.space.shape)
@@ -1423,11 +1423,11 @@ class TestG0TheFrameBindsAlongAQuotientMap:
         assert row1.table.shape == (24, 3, 5)
 
         # row 2 — the sigma-even sub-basis on the fold (dispatch-selected)
-        row2 = fold_rule.angular_frame(2)
+        row2 = frame_faces.angular_frame(fold_rule, 2)
         assert isinstance(row2.basis, MirrorEvenSphericalHarmonicBasis)
 
         # row 3 — the Legendre basis on the slab's own orbit space
-        row3 = slab_rule.angular_frame(2)
+        row3 = frame_faces.angular_frame(slab_rule, 2)
         assert isinstance(row3.basis, LegendreBasis)
         assert row3.table.shape == (8, 3)
 

@@ -10,7 +10,7 @@ and the tree carries frames whose discrete Gram has one. A frame's Gram is
 diagonal only when its rule integrates every product of two basis functions
 exactly; on a rule that does not, the Gram couples the modes, and then **no
 diagonal metric satisfies Parseval on it**. `[M]` 2026-10-18 on
-``Quadrature.folded_product(4, 4).angular_frame(2)``, the mirror-even
+``frame_faces.angular_frame(Quadrature.folded_product(4, 4), 2)``, the mirror-even
 spherical harmonics on :math:`S^2/\sigma_y`, the smallest of the three dense
 angular heads the frame-bridge census found production building
 (``scratch/numerics_untangling/frame_bridge/facts/report.md`` §5): the live block's largest off-diagonal is 1.000 of
@@ -21,7 +21,7 @@ pseudo-inverse (``scratch/metric_docstring/probe_flagship.py``, a draw-free
 generalized-eigenvalue range). The committed wrong-metric discriminator,
 ``test_no_diagonal_metric_can_satisfy_parseval_on_a_dense_frame`` in
 ``tests/gates/numerics/test_frame.py``, reads the same statistic on
-``folded_product(2, 4).angular_frame(3)``: ``[1.000, 3.000]`` diagonal,
+``frame_faces.angular_frame(folded_product(2, 4), 3)``: ``[1.000, 3.000]`` diagonal,
 ``[1.000, 1.000]`` dense.
 
 This module makes the metric a thing that is **applied** rather than a thing
@@ -62,7 +62,7 @@ on every dense Gram the tree builds, :math:`G` is singular, so the
 pseudo-inverse is the only inverse that exists. `[M]` 2026-10-18
 (``scratch/metric_docstring/probe_flagship.py``, numpy 2.4.4):
 
-* ``folded_product(4, 4).angular_frame(2)``: :math:`15\times 15`, 6 live
+* ``frame_faces.angular_frame(folded_product(4, 4), 2)``: :math:`15\times 15`, 6 live
   diagonal slots, **rank 5**. The other 9 slots are structurally dead
   layout. The one kernel mode inside the live block is structural, not
   small: the combination :math:`(-\sqrt3/2,\ 1/2)` of two
@@ -70,9 +70,9 @@ pseudo-inverse is the only inverse that exists. `[M]` 2026-10-18
   nodes (``‖A v‖∞ = 2.8e-16``,
   ``scratch/metric_docstring/probe_kernel.py``), so the rule cannot tell
   those two harmonics apart.
-* ``folded_product(4, 4).angular_frame(4)``: :math:`45\times 45`, 15 live
+* ``frame_faces.angular_frame(folded_product(4, 4), 4)``: :math:`45\times 45`, 15 live
   slots, rank 8.
-* ``product(4, 8).angular_frame(4)``: :math:`45\times 45`, 25 live slots,
+* ``frame_faces.angular_frame(product(4, 8), 4)``: :math:`45\times 45`, 25 live slots,
   rank 23.
 
 On each of the three ``np.linalg.inv`` raises ``Singular matrix``, while
@@ -127,7 +127,7 @@ History
 =======
 
 * Until the ERR-080 repair (#429, 2026-09-02) the witness of both sections
-  above was the slab ``gauss_legendre(8).angular_frame(2)``. A 1-D rule
+  above was the slab ``frame_faces.angular_frame(gauss_legendre(8), 2)``. A 1-D rule
   then bound the full real spherical harmonics on a fabricated azimuth, and
   its Gram measured :math:`15\times 15` with 5 live slots and rank 4; the
   best diagonal dressing read a Parseval ratio of 1.806 there. After the
@@ -166,7 +166,7 @@ __all__ = [
 #: **What it is FOR: structural RANK DETERMINATION, not noise suppression.**
 #: A frame whose rule cannot resolve its basis has a Gram that is
 #: rank-deficient by construction. `[M]` 2026-10-18 on
-#: ``folded_product(4, 4).angular_frame(2)``: the dropped singular value is
+#: ``frame_faces.angular_frame(folded_product(4, 4), 2)``: the dropped singular value is
 #: ``2.2e-17`` of the largest, and its singular vector annihilates the
 #: evaluation **table** (``‖A v‖∞ = 2.8e-16``), not merely the Gram. So the
 #: dropped value is the floating-point residue of an EXACT zero, not a
@@ -180,9 +180,9 @@ __all__ = [
 #:
 #: * **Upper: over-truncation**, at the ratio of the smallest kept to the
 #:   largest singular value: ``2.000000e-01`` on
-#:   ``folded_product(4, 4).angular_frame(2)``, ``1.224672e-01`` on its
+#:   ``frame_faces.angular_frame(folded_product(4, 4), 2)``, ``1.224672e-01`` on its
 #:   ``angular_frame(4)``, ``6.666667e-02`` on
-#:   ``product(4, 8).angular_frame(4)``. Construction cannot see it
+#:   ``frame_faces.angular_frame(product(4, 8), 4)``. Construction cannot see it
 #:   (``G⁺ G G⁺ = G⁺`` holds for a TRUNCATED pinv too, so
 #:   :data:`_DENSE_METRIC_PENROSE_RTOL` is blind). The catchers are the
 #:   Parseval gates on dense frames: `[M]` with the module global mutated
@@ -192,22 +192,22 @@ __all__ = [
 #:   ``test_parseval_analysis_is_an_isometry_onto_its_image`` (the three
 #:   heads above),
 #:   ``test_the_dressing_lands_parseval_on_the_production_anisotropic_frame``
-#:   (``product(4, 4).angular_frame(2)``, edge ``0.2``) and one
+#:   (``frame_faces.angular_frame(product(4, 4), 2)``, edge ``0.2``) and one
 #:   ``test_dense_metric.py`` law; ``rcond = 0.5`` reddens 7, the three
-#:   ``folded_product(2, 4).angular_frame(3)`` gates joining (edge
+#:   ``frame_faces.angular_frame(folded_product(2, 4), 3)`` gates joining (edge
 #:   ``1/3``); ``1e-12`` reddens 0.
 #: * **Lower: a construction REFUSAL**, at the largest relative round-off
 #:   residue as ``eigh`` reports it (the decomposition
 #:   ``pinv(hermitian=True)`` actually cuts on): ``1.670e-16`` on
-#:   ``folded_product(4, 4).angular_frame(2)``, ``1.46e-16`` on the other
+#:   ``frame_faces.angular_frame(folded_product(4, 4), 2)``, ``1.46e-16`` on the other
 #:   two. Below it the residue is inverted and
 #:   :meth:`DenseMetric.__post_init__` refuses the pair: `[M]`
 #:   :meth:`inverse_of` raises at half the residue and builds at twice it,
 #:   on all three. So no ADMISSIBLE rcond can admit the kernel.
 #:
 #: ``1e-12`` sits ``11.30`` decades below the upper edge and ``3.78`` above
-#: the lower on ``folded_product(4, 4).angular_frame(2)`` (``10.82`` and
-#: ``3.84`` on ``product(4, 8).angular_frame(4)``). ⚠ The lower margin must
+#: the lower on ``frame_faces.angular_frame(folded_product(4, 4), 2)`` (``10.82`` and
+#: ``3.84`` on ``frame_faces.angular_frame(product(4, 8), 4)``). ⚠ The lower margin must
 #: stay wide **because the number it is measured from is round-off with no
 #: stable value**: `[M]` the same matrix's largest residue reads
 #: ``1.67e-16`` (``eigh``), ``4.71e-17`` (``eigvalsh`` and
@@ -235,7 +235,7 @@ __all__ = [
 #: on 3-D (``product(3, 6)``, ``L = 7``).
 #:
 #: History. Until the ERR-080 repair (#429, 2026-09-02) this block was
-#: measured on the slab ``gauss_legendre(8).angular_frame(2)``, whose Gram
+#: measured on the slab ``frame_faces.angular_frame(gauss_legendre(8), 2)``, whose Gram
 #: was rank-deficient because a 1-D rule fabricated an azimuth; it first read
 #: the dropped mode as a "noise floor" (refuted 2026-08-31), and the census
 #: then found 31 of 105 slab rows affected and 0 of 196 3-D rows. The repair
@@ -253,7 +253,7 @@ _DENSE_METRIC_RCOND: float = 1e-12
 #: 2026-10-18 over six dense frames
 #: (``scratch/metric_docstring/probe_hermitian.py``): ``np.linalg.pinv``
 #: WITHOUT ``hermitian=True`` leaves ``max|M − Mᵀ|`` up to ``1.75e-15``
-#: (``product(4, 4).angular_frame(2)``), and at most ``6.9e-17`` with it.
+#: (``frame_faces.angular_frame(product(4, 4), 2)``), and at most ``6.9e-17`` with it.
 #: Both sit more than two decades below this threshold, so `[R]` what it
 #: refuses is a form that is asymmetric in fact, not round-off. (On the
 #: pre-ERR-080 slab Gram the non-hermitian spelling read ``4.74e-14``.)

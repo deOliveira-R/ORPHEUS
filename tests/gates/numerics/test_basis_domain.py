@@ -96,6 +96,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.symmetry import SubgroupOfO3
 from orpheus.sn.operators.loss_kernel_gauge import LossKernelBasis
+from orpheus.numerics import frame_faces
 
 pytestmark = [pytest.mark.foundation]
 
@@ -423,7 +424,7 @@ def test_e1_the_folds_two_halves_read_ONE_group_and_the_slab_now_does_too() -> N
     ``tests/gates/numerics/test_frame.py::TestG0TheFrameBindsAlongAQuotientMap``.
     """
     fold = Quadrature.folded_product(n_mu=4, n_phi=8)
-    fold_basis = fold.angular_frame(2).basis
+    fold_basis = frame_faces.angular_frame(fold, 2).basis
     spent = fold.measure.quotient_group
     has = fold_basis.invariance_group
     assert spent is not None and has is not None
@@ -433,7 +434,7 @@ def test_e1_the_folds_two_halves_read_ONE_group_and_the_slab_now_does_too() -> N
     assert fold_basis.domain is fold.measure.support       # ...because the manifold is one object
 
     slab = Quadrature.gauss_legendre(8)
-    slab_basis = slab.angular_frame(2).basis
+    slab_basis = frame_faces.angular_frame(slab, 2).basis
     spent = slab.measure.quotient_group
     has = slab_basis.invariance_group
     assert spent is not None and has is not None

@@ -67,7 +67,7 @@ CARRIER's cached mints (campaign 1 CS4b): the Angular/Scalar families
 read ``mesh.angular_bulk_space`` / ``mesh.bulk_space``, ``MomentField``
 composes ``<the quadrature frame's basis space at L> * mesh.bulk_space``
 (the spherical-harmonic space on a full-sphere rule — READ off
-``mesh.quad.angular_frame(L)``, never minted from ``L``; #429 tracker
+``frame_faces.angular_frame(mesh.quad, L)``, never minted from ``L``; #429 tracker
 2.5), and the
 ``BoundaryField`` families read the cached traces
 (``mesh.angular_trace`` / ``mesh.scalar_trace`` via
@@ -848,7 +848,7 @@ class MomentField(BulkField):
         :meth:`~orpheus.sn.problem.SNProblem.moment_space`
         (CS4c step 6 item 6.2b): ``<angular head> * mesh.bulk_space``, the
         angular head read off the carrier's quadrature frame at ``L``
-        (``mesh.quad.angular_frame(L).basis_space`` — the frame's
+        (``frame_faces.angular_frame(mesh.quad, L).basis_space`` — the frame's
         Parseval-dressed head, item 6.2c-ii; the spherical-harmonic
         family on a full-sphere rule — #429 tracker 2.5, never minted from
         ``L``), the cell-group factor the carrier's cached scalar bulk

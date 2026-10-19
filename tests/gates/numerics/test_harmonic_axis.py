@@ -142,7 +142,7 @@ def test_the_frame_dressed_head_axis_carries_the_parseval_measure_and_the_frame(
         "lebedev(11)": lambda: Quadrature.lebedev(11),
         "level_symmetric(4)": lambda: Quadrature.level_symmetric(4),
     }
-    frame = rules[label]().angular_frame(2)
+    frame = frame_faces.angular_frame(rules[label](), 2)
     dressed = frame_faces.basis_space(frame)
     ax = _head_axis(dressed)
     cont = _head_axis(frame.basis.space)

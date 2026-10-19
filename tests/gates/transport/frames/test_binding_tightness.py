@@ -63,7 +63,7 @@ def _sphere_frame(L: int) -> HarmonicFrame:
     with genuinely NON-uniform weights (the wrong-embedding controls
     would degenerate on an equal-weight rule)."""
     return HarmonicFrame.from_galerkin(
-        Quadrature.lebedev(order=17).angular_frame(L),
+        frame_faces.angular_frame(Quadrature.lebedev(order=17), L),
     )
 
 
@@ -77,7 +77,7 @@ def _equispaced_frame(L: int, n: int) -> HarmonicFrame:
     happens to be that interval. Post-repair the distinction is enforced at
     two doors, and this fixture hit **both**:
 
-    1. ``Quadrature._harmonic_basis``'s ``match support:`` — an ``Interval``
+    1. ``frame_faces._harmonic_basis``'s ``match support:`` — an ``Interval``
        matches no arm, so the dispatch refuses ("harmonic machinery on a rule
        whose measure lives on [-1,1]");
     2. the frame's G0 arrow — `[M]` ``domain.realization == COSINE_INTERVAL``
@@ -98,7 +98,7 @@ def _equispaced_frame(L: int, n: int) -> HarmonicFrame:
     :func:`test_a_bare_interval_measure_is_refused_by_the_dispatch_before_g0`.
     """
     quad = Quadrature(measure=_equispaced_measure(n, support="orbit"))
-    return HarmonicFrame.from_galerkin(quad.angular_frame(L))
+    return HarmonicFrame.from_galerkin(frame_faces.angular_frame(quad, L))
 
 
 def _equispaced_measure(n: int, *, support: str) -> DiscreteMeasure:
@@ -325,7 +325,7 @@ class TestABareIntervalMeasureIsRefused:
     def test_a_bare_interval_measure_is_refused_by_the_dispatch_before_g0(self) -> None:
         r"""Guard 1 fires: the basis DISPATCH, not the frame's G0 arrow.
 
-        ``Quadrature._harmonic_basis`` reads the measure's support and matches
+        ``frame_faces._harmonic_basis`` reads the measure's support and matches
         ``Sphere`` / a sphere ``Quotient``; a bare ``Interval`` matches
         neither, so the refusal happens before a basis exists to bind. Its
         message names the point set; G0's names a missing quotient MAP; the
@@ -333,7 +333,7 @@ class TestABareIntervalMeasureIsRefused:
         """
         quad = Quadrature(measure=_equispaced_measure(8, support="interval"))
         with pytest.raises(NotImplementedError) as excinfo:
-            quad.angular_frame(3)
+            frame_faces.angular_frame(quad, 3)
         message = str(excinfo.value)
 
         assert "harmonic machinery on a rule whose measure lives on" in message

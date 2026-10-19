@@ -116,7 +116,7 @@ def test_the_widened_moment_product_is_axis_built_with_the_schemes_axis_as_its_t
     np.testing.assert_array_equal(tail.weights, sn.scheme.moment_mass_diagonal(sn.axes))
     # the cell-group factor is the carrier's WIDENED bulk — the same space the scalar family mints
     assert space.factors[1] == BulkField.compose_spatial_moments(sn.bulk_space, sn, per_axis)
-    assert space.factors[0] == frame_faces.basis_space(sn.quad.angular_frame(L))
+    assert space.factors[0] == frame_faces.basis_space(frame_faces.angular_frame(sn.quad, L))
     # width reads
     assert BulkField.spatial_moments_per_axis_of(space) == per_axis
     assert BulkField._spatial_moment_tail_of(space) == (cell_moment_count(per_axis, sn.ndim),)

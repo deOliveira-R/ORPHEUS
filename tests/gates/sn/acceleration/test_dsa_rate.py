@@ -64,6 +64,7 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration.dsa import DSACorrection, DSALowOrderSystem
 from orpheus.sn.solver import Solution, solve_sn_fixed_source
+from orpheus.numerics import frame_faces
 
 #: The A&L (3.65) continuum Fourier bound coefficient: ρ ≤ 0.2247 c.
 RHO_BOUND = 0.2247
@@ -749,7 +750,7 @@ class TestP1DSAArm:
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         mu = np.asarray(quad.mu_x, dtype=float)
         w = np.asarray(quad.weights, dtype=float)
-        table = np.asarray(quad.angular_frame(1).table)
+        table = np.asarray(frame_faces.angular_frame(quad, 1).table)
         assert table.shape == (mu.size, 2), "the 1-D frame's table is FLAT"
         np.testing.assert_array_equal(table[:, 0], np.ones(mu.size))
         np.testing.assert_array_equal(table[:, 1], mu)

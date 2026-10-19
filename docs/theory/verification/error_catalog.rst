@@ -3681,7 +3681,7 @@ older entries classify against.
    reciprocity gate can ever adjudicate one. The instrument that can is
    the **wrong-metric discriminator**, which then read one band-limited
    :math:`\psi` on the slab frame under three metrics (since the ERR-080
-   repair it reads ``folded_product(2, 4).angular_frame(3)``, draw-free)
+   repair it reads ``frame_faces.angular_frame(folded_product(2, 4), 3)``, draw-free)
    — `[M]` 2026-08-30: :math:`25.53` undressed (the original ERR-039 defect),
    :math:`1.806` under the best *diagonal* candidate
    :math:`1/\operatorname{diag}(G)`, and :math:`0.999999999999999`
@@ -6749,7 +6749,7 @@ older entries classify against.
      by any change to ``DenseMetric``: with no fabricated azimuth a 1-D
      Gauss–Legendre rule carries only the Legendre polynomials it
      integrates exactly, so its Gram is DIAGONAL — `[M]`
-     ``gauss_legendre(8).angular_frame(2).discrete_gram_structure`` is
+     ``frame_faces.angular_frame(gauss_legendre(8), 2).discrete_gram_structure`` is
      ``GramStructure.DIAGONAL``, off-diagonal **exactly** ``0.0``,
      diagonal :math:`2/(2\ell+1) = [2,\ 2/3,\ 2/5]`. That was written here
      as *"the falsifiable check on the day it lands"*; it lands true.
@@ -7096,7 +7096,7 @@ older entries classify against.
      ⛔ **Nothing refuses on that verdict, and this does not repair the
      defect.** The frame's pairing gate is tracker 2.2, fused with its
      siblings; `[M]` a gate written on the *frame's* measure would be
-     inert today, because ``gauss_legendre(8).angular_frame(2)``'s
+     inert today, because ``frame_faces.angular_frame(gauss_legendre(8), 2)``'s
      measure still declares ``support.name == 'S^2'`` while the
      quadrature's own measure declares ``'S^2/O2_x'``. That is why the
      witness — ``test_e1_the_folds_two_halves_read_ONE_group_and_the_slabs_pairing_is_refusable``
@@ -7146,7 +7146,7 @@ older entries classify against.
      :math:`SO(2)` action on :math:`S^2`. The predicted null direction
      :math:`[-0.447214,\,0,\,+0.447214,\,0,\,+0.774597]` over the live slots
      :math:`\{(0,0),(1,0),(2,0),(2,1),(2,2)\}` IS the SVD-measured one:
-     ``[M]`` 2026-08-31 on ``gauss_legendre(8).angular_frame(2)``, alignment
+     ``[M]`` 2026-08-31 on ``frame_faces.angular_frame(gauss_legendre(8), 2)``, alignment
      :math:`\bigl|1-|\cos\theta|\bigr| =` **2.75e-14**, over a Gram whose
      singular values read ``2.7075 / 1.4192 / 4.9245e-01 / 4.7447e-02 /
      1.8968e-17`` — 5 live slots, ``matrix_rank`` **4**. ⚠ The component-wise
@@ -7310,7 +7310,7 @@ older entries classify against.
      Gauss–Legendre integrates exactly to degree :math:`2N-1` — so the Gram
      becomes DIAGONAL, exactly :math:`2/(2\ell+1)`, with
      :math:`\mathrm{cond} = 2L+1`. The falsifiable check on the day it lands:
-     ``gauss_legendre(8).angular_frame(2).discrete_gram_structure is
+     ``frame_faces.angular_frame(gauss_legendre(8), 2).discrete_gram_structure is
      GramStructure.DIAGONAL``.
      ``[M]`` an in-process candidate patch is bit-identical at :math:`L \le 1`
      (:math:`\Delta = +0.000\mathrm{e}{+}00`), returns

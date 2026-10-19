@@ -467,8 +467,8 @@ A rule does not merely supply nodes and weights; it supplies the point
 set they live on, and that point set decides which functions the rule
 can carry. Since 2026-09-02 (#429's fused commit, the
 :doc:`ERR-080 </theory/verification/error_catalog>` repair)
-:meth:`Quadrature.angular_frame(L)
-<orpheus.numerics.quadrature.Quadrature.angular_frame>` reads
+:func:`frame_faces.angular_frame(Quadrature, L)
+<orpheus.numerics.frame_faces.angular_frame>` reads
 ``measure.support`` and derives the basis — it never chooses one, and
 it no longer dispatches on the ``folded_by`` tag:
 

@@ -498,7 +498,7 @@ def _assert_rung_premise(quad, order: int, square_closes: bool) -> None:
     residuals 0, 0.1261, 0.6180 at L = 2, 3, 5."""
     from tests.gates.numerics.test_frame import _collapse_residual
 
-    frame = quad.angular_frame(order)
+    frame = frame_faces.angular_frame(quad, order)
     residual = _collapse_residual(frame)
     if square_closes:
         require(
@@ -657,7 +657,7 @@ class TestAdjointAtAnUnderResolvedOrder:
         _assert_rung_premise(quad, order, square_closes)
         S, SH, G = _dense_scattering(quad, order)
         S_transposed_data, _, _ = _dense_scattering(quad, order, transposed=True)
-        n_modes = int(np.prod(frame_faces.basis_space(quad.angular_frame(order)).shape))
+        n_modes = int(np.prod(frame_faces.basis_space(frame_faces.angular_frame(quad, order)).shape))
         tol = 8.0 * (quad.N + n_modes) * np.finfo(float).eps
         require(
             _relative(S, S_transposed_data) > 0.1,

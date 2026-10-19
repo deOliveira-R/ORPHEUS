@@ -2850,7 +2850,7 @@ Domain-specific quadrature: the Quadrature class
 
 The SN solver consumes angular quadratures through ~50
 attribute-access sites (``quad.mu_x``, ``quad.weights``,
-``quad.ordinate_permutation(motion)``, ``quad.angular_frame(L)``, …)
+``quad.ordinate_permutation(motion)``, ``frame_faces.angular_frame(quad, L)``, …)
 in sweeps, operators, mesh constructors, and solvers.
 Re-routing every site through
 :meth:`DiscreteMeasure.integrate` would impose a per-site method-call

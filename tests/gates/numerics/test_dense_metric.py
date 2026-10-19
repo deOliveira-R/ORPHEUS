@@ -31,6 +31,7 @@ from orpheus.numerics.metric import (
 from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -166,7 +167,7 @@ class TestDenseMetricLaws:
 
         for label, gram in (
             ("equispaced(8)-L4", _equispaced_legendre_gram(L=4)),
-            ("LS4-L3", np.asarray(Quadrature.level_symmetric(4).angular_frame(3).discrete_gram)),
+            ("LS4-L3", np.asarray(frame_faces.angular_frame(Quadrature.level_symmetric(4), 3).discrete_gram)),
             ("constructed-kappa1e4", constructed_gram(8, 1e4)),
         ):
             bound = honest_asymmetry_bound(gram)

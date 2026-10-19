@@ -3810,7 +3810,7 @@ class AxisSectionOperator(_AxisMarginalBase):
     ``scratch/metric_docstring/probe_iso_column.py``: ``face.H(e₀φ)``
     matches ``E(φ)`` to round-off on every DIAGONAL row and on 5 of 6
     DENSE rows; it breaks, rel 0.356, only on
-    ``folded_product(4, 4).angular_frame(4)``, whose Gram row 0 couples
+    ``frame_faces.angular_frame(folded_product(4, 4), 4)``, whose Gram row 0 couples
     at 0.292). The discriminator is that Gram row, not geometry and not
     diagonality (until the ERR-080 repair a DENSE slab Gram broke it, and
     the condition was read as diagonality). The metric-free form

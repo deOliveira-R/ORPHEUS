@@ -312,7 +312,7 @@ def _isotropic_fission() -> _Posed:
 
 def _frame_face(rule: Callable[[], Quadrature], L: int, face: str) -> Callable[[], _Posed]:
     def build() -> _Posed:
-        frame = rule().angular_frame(L)
+        frame = frame_faces.angular_frame(rule(), L)
         op = {
             "analysis": frame_faces.FrameAnalysis,
             "reconstruction": frame_faces.FrameReconstruction,

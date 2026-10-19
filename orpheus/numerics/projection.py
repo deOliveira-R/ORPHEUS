@@ -19,7 +19,7 @@ The concrete realisation is the discrete frame: a
 :class:`AnalysisOperator`) and the
 :meth:`~orpheus.numerics.frame_faces.FrameReconstruction.of` face (a
 :class:`ReconstructionOperator`). Build the angular one with
-``quadrature.angular_frame(L)``.
+``frame_faces.angular_frame(quadrature, L)``.
 
 The discipline lives in the frame TYPE, not in an operator marker
 =================================================================

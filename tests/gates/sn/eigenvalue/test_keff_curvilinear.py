@@ -884,7 +884,7 @@ class TestSphereP1DirectionalEigenvalue:
 # through ``Quadrature.gauss_legendre(8)`` — an UNFOLDED rule, which
 # binds the plain ``SphericalHarmonicBasis`` and is therefore blind to
 # everything below.  This section is the folded-cylinder half, and it
-# exists because ``Quadrature._harmonic_basis`` makes a CHOICE that
+# exists because ``frame_faces._harmonic_basis`` makes a CHOICE that
 # nothing at the solve tier was asserting (tracker 2.1-W of
 # ``.claude/plans/angular_spaces_derived_from_symmetry.md``, #429).
 #
@@ -954,7 +954,7 @@ class TestSphereP1DirectionalEigenvalue:
 # ≥2 groups, so the 1-group degeneracy does not apply.
 #
 # ⭐ MEASURED MUTATION TABLE (2026-08-31, in-process monkeypatch of
-# ``Quadrature._harmonic_basis``, ``python -O``).  Columns are the two
+# ``frame_faces._harmonic_basis``, ``python -O``).  Columns are the two
 # rows below; "keystone" is |k(P1) − k_inf| on the homogeneous
 # reflective cylinder, "companion" is k(P0) − k(P1) on the
 # heterogeneous vacuum cylinder.
@@ -987,7 +987,7 @@ class TestSphereP1DirectionalEigenvalue:
 # and a 2-D/3-D fixture is the only place one could live.
 #
 # ⚠ HARNESS NOTE for anyone re-running the battery: ``Quadrature``
-# memoises its frames in ``_angular_frames[L]``, so a ``Quadrature``
+# memoises its frames in its ``"_frame_faces"`` slot, so a ``Quadrature``
 # instance that was already solved UNMUTATED returns the cached honest
 # frame and the mutation reads bit-identical (`[M]` 0.9726641733732218
 # both ways — a false "no teeth").  Build the rule AFTER installing the
@@ -1042,7 +1042,7 @@ class TestFoldedCylinderP1BindsTheQuotientBasis:
         source and drags k off the closed form.
 
         WHAT REDDENS IT — `[M]` 2026-08-31, in-process monkeypatch of
-        ``Quadrature._harmonic_basis``, ``python -O``:
+        ``frame_faces._harmonic_basis``, ``python -O``:
 
         * honest        |k(P1) − k_inf| = 1.4699e-11 (4x8) / 1.5106e-11 (8x4)
         * ``return SphericalHarmonicBasis(L=L)``  → 4.3231e-02 / 4.9992e-02

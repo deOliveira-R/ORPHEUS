@@ -227,7 +227,7 @@ def _capture_legendre_moments(
     from orpheus.transport.operators.transfer import LegendreMomentTransfer
 
     quad = solver.quad
-    moments_values = frame_faces.FrameAnalysis.of(quad.angular_frame(L)).apply(psi.values)
+    moments_values = frame_faces.FrameAnalysis.of(frame_faces.angular_frame(quad, L)).apply(psi.values)
     moments = HarmonicMomentFlux.from_problem_and_L(
         moments_values, solver.problem, L,
     )
