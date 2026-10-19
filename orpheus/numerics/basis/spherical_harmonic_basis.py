@@ -108,7 +108,6 @@ from orpheus.numerics.basis.base import Basis, GramStructure
 
 if TYPE_CHECKING:
     from orpheus.numerics.manifold import Manifold, Quotient
-    from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.spaces.spherical_harmonic_space import (
         SphericalHarmonicSpace,
     )
@@ -128,9 +127,8 @@ class SphericalHarmonicBasis(Basis):
 
     The first concrete :class:`~orpheus.numerics.basis.base.Basis` — the
     synthesis (trial) side of the spherical-harmonic frame. Implements the
-    three fundamental basis operations (:meth:`evaluate`, :meth:`synthesize`,
-    :meth:`mass_matrix`) and carries the SH convention (the no-prefactor
-    normalisation, the addition-theorem factor :math:`2\ell+1`, the continuous
+    fundamental basis operations (:meth:`evaluate`, :meth:`synthesize`) and
+    carries the SH convention (the no-prefactor normalisation, the addition-theorem factor :math:`2\ell+1`, the continuous
     Gram diagonal :math:`4\pi/(2\ell+1)`).
 
     Parameters
@@ -149,8 +147,8 @@ class SphericalHarmonicBasis(Basis):
     documented in the module docstring) and the addition-theorem factor
     :math:`2\ell+1`. The continuous (theoretical) mass-matrix diagonal
     :math:`4\pi/(2\ell+1)` is the :meth:`metric_per_ell` property; the
-    DISCRETE mass matrix against a quadrature is computed by
-    :meth:`discrete_mass_matrix`. The two agree to within the
+    DISCRETE mass matrix against a quadrature is the frame's
+    :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`. The two agree to within the
     quadrature's degree of exactness.
     """
 
@@ -195,7 +193,7 @@ class SphericalHarmonicBasis(Basis):
         This is the THEORETICAL (continuous-:math:`L^2`-on-:math:`S^2`)
         metric under the project's no-prefactor SH convention. The
         DISCRETE counterpart against a quadrature is the diagonal of
-        :meth:`discrete_mass_matrix`; the two agree iff the quadrature
+        the frame's :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`; the two agree iff the quadrature
         is exact for :math:`Y_\ell^m Y_{\ell'}^{m'}` of degree
         :math:`\ell + \ell' \le 2L`.
         """
@@ -268,49 +266,6 @@ class SphericalHarmonicBasis(Basis):
             Same layout as :meth:`evaluate`.
         """
         return self.evaluate(np.column_stack([mu_x, mu_y, mu_z]))
-
-    # ── Mass matrix ───────────────────────────────────────────────────
-
-    def mass_matrix(self, measure: "DiscreteMeasure") -> NDArray:
-        r"""Discrete Gram matrix :math:`\sum_n w_n Y_\ell^m Y_{\ell'}^{m'}` over a quadrature.
-
-        Computes the :math:`(L+1, 2L+1, L+1, 2L+1)` 4-tensor
-
-        .. math::
-
-            g[\ell, m, \ell', m']
-            \;=\; \sum_n w_n \, Y_\ell^m(\hat\Omega_n) \, Y_{\ell'}^{m'}(\hat\Omega_n).
-
-        For an exact quadrature of degree :math:`\ge 2L` this equals
-
-        .. math::
-
-            \mathrm{diag}\!\left(\frac{4\pi}{2\ell+1}\right)
-            \delta_{\ell\ell'} \delta_{m m'}
-
-        per :eq:`sh-mass-matrix-diagonal`, agreeing with
-        :attr:`metric_per_ell` along the diagonal and vanishing
-        off-diagonal. The match-to-:attr:`metric_per_ell` is the
-        ERR-039 test gate pinned by
-        ``tests/gates/numerics/test_spherical_harmonic_space.py``.
-
-        Parameters
-        ----------
-        measure : DiscreteMeasure
-            Angular quadrature on :math:`S^2`. ``measure.nodes`` MUST be
-            a ``(N, 3)`` array of direction cosines; ``measure.weights``
-            the :math:`(N,)` quadrature weights.
-
-        Returns
-        -------
-        NDArray, shape ``(L+1, 2L+1, L+1, 2L+1)``
-            Full 4-tensor Gram matrix. Off-diagonal entries that vanish
-            under an exact quadrature are bit-zero only at exact arithmetic;
-            small FP residuals are expected and used by tests as a
-            quadrature-exactness diagnostic.
-        """
-        Y = self.evaluate(measure.nodes)
-        return np.einsum("n,nlm,nLM->lmLM", measure.weights, Y, Y)
 
     # ── Table contractions (the Frame caches the table, delegates here) ───
 

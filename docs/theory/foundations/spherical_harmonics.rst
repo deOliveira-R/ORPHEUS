@@ -325,7 +325,7 @@ real :math:`Y_\ell^m` satisfy the **discrete** orthogonality
    others.
 
 .. implements:: real-sh-discrete-orthogonality
-   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.mass_matrix
+   :by: orpheus.numerics.frame.FrameBase.discrete_gram
 
 .. implements:: real-sh-discrete-orthogonality
    :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.metric_per_ell

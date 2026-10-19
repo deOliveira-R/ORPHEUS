@@ -810,7 +810,7 @@ non-associativity would move the factored form at the ULP level, and the
 scattering kernel that consumes these rows is pinned at 0 ULP. The
 discrete Gram
 :math:`\sum_n w_n\,\phi_j(x_n)\,\phi_k(x_n)`
-(:meth:`~orpheus.numerics.basis.base.Basis.mass_matrix`) is the matrix
+(:attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`) is the matrix
 of the **Gram operator** :math:`T T^{*}` on the :math:`K` coefficients,
 read with the Euclidean coefficient metric in which :math:`T^{*}` is the
 naked synthesis :math:`S_0`. It is not the frame operator
@@ -818,9 +818,11 @@ naked synthesis :math:`S_0`. It is not the frame operator
 share their nonzero spectrum, so frame bounds read off either agree, but
 they are different objects (:ref:`frame-discrete-frame-definition`). It
 equals the continuum Gram when the
-quadrature is exact to the basis's degree, and the frame's
-:eq:`frame-discrete-gram` is the same object computed from the cached
-table.
+quadrature is exact to the basis's degree. It is the frame's
+:eq:`frame-discrete-gram`, computed from the cached table; the basis
+alone does not mint it, because it pairs the basis with a measure and
+that pairing is the frame (the former ``Basis.mass_matrix`` was retired
+onto it).
 
 **The basis is choice-free; the frame makes the choice.** A basis knows
 its functions and their normalization convention and nothing about which
@@ -840,9 +842,9 @@ sides split as follows:
   test basis, and the shipped one,
   :class:`~orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis`
   (cell indicators times a nodal weight such as the region flux), builds
-  only ``evaluate`` and ``analyze`` and refuses the other five verbs
+  only ``evaluate`` and ``analyze`` and refuses the other four verbs
   (``synthesize``, ``reconstruct``, ``reconstruct_transpose``,
-  ``analyze_transpose``, ``mass_matrix``) by name: none has a consumer,
+  ``analyze_transpose``) by name: none has a consumer,
   and a Petrov–Galerkin reconstruction is trial-side.
 
 The separation is why one basis can serve several frames: the same

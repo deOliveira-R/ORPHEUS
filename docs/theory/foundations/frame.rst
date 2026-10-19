@@ -542,24 +542,15 @@ table, :math:`O(N K^2)`, as
 .. implements:: frame-discrete-gram
    :by: orpheus.numerics.frame.FrameBase.discrete_gram
 
-   **Implemented by** 5 sites — the frame's cached operational copy
-   (``FrameBase.discrete_gram``, an ``einsum`` over the cached table),
-   the basis-side diagnostic contract (``Basis.mass_matrix``), and its
-   three concrete overrides, which compute the same object in each
-   basis's own index layout. Declaring only the frame's copy would
-   refute the tests that exercise a basis's own ``mass_matrix``.
-
-.. implements:: frame-discrete-gram
-   :by: orpheus.numerics.basis.base.Basis.mass_matrix
-
-.. implements:: frame-discrete-gram
-   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.mass_matrix
-
-.. implements:: frame-discrete-gram
-   :by: orpheus.numerics.basis.indicator_basis.IndicatorBasis.mass_matrix
-
-.. implements:: frame-discrete-gram
-   :by: orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis.mass_matrix
+   **Implemented by** one site — the frame's cached operational copy
+   (``FrameBase.discrete_gram``, an ``einsum`` over the cached table).
+   The basis-side ``Basis.mass_matrix`` (an abstract method with four
+   concrete overrides, each computing this same object from its own
+   table in the basis's own index layout) was retired (ruling 11,
+   2026-10-18, package M4a): a mass matrix pairs a basis with a measure,
+   which is the frame's Gram, so the frame is its only home and the
+   gates that read it through a basis now read ``GalerkinFrame(basis,
+   measure).discrete_gram``.
 
 Now take a field that is **band-limited** in the frame, i.e. exactly
 representable as :math:`\psi = S_0 c` for some coefficient vector
@@ -3317,16 +3308,17 @@ returns the spectrum-weighted average
    only the **diagonal** :math:`G_{GG} = \Phi_G` (each coarse group's
    rate is its *own* functional — one DOF per group, the P0 / rank-0
    space), so it ignores the off-diagonals by construction. The
-   :meth:`OverlapBasis.mass_matrix
-   <orpheus.numerics.basis.indicator_basis.IndicatorBasis.mass_matrix>`
-   inherits a docstring claiming a *diagonal* Gram (true for the one-hot
-   parent, false for a fractional table) — that claim is **latent**: no
-   consumer calls ``mass_matrix``, and the frame's row-sum probe never
-   forms the full Gram. A *future* least-squares consumer needing the
-   dense Gram (a non-indicator, richer coarse basis — which cross
-   sections never want, a P1 coarse XS is not rate-meaningful) must
-   compute it for the fractional case, not trust the inherited diagonal
-   claim. See :ref:`frame-least-squares-discipline` for why this is
+   frame's :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`
+   over an :class:`OverlapBasis` is the full (non-diagonal) cross-Gram,
+   and its measured structure
+   (:attr:`~orpheus.numerics.frame.FrameBase.discrete_gram_structure`)
+   says so; the row-sum probe never forms it. (The retired
+   ``IndicatorBasis.mass_matrix`` carried a docstring claiming a
+   *diagonal* Gram, true for the one-hot parent and false for a
+   fractional table; that latent claim left with the method.) A *future*
+   least-squares consumer needing the dense Gram (a non-indicator,
+   richer coarse basis — which cross sections never want, a P1 coarse XS
+   is not rate-meaningful) reads it from the frame. See :ref:`frame-least-squares-discipline` for why this is
    **not** a ``LeastSquaresFrame`` (its trigger — test = :math:`A`·trial,
    a dense SPD Gram needing a real solve — is absent here; that
    discipline is designed-but-not-built, gated by

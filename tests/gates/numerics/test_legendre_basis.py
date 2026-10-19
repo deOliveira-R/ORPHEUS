@@ -53,6 +53,7 @@ from scipy.special import eval_legendre, lpmv
 
 from orpheus.numerics.basis.legendre_basis import LegendreBasis, legendre_table
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.manifold import SPHERE
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.legendre_space import LegendreSpace
@@ -139,7 +140,7 @@ def test_orthogonality_against_the_entrys_own_reference_measure(
     ORPHEUS object.
     """
     basis = LegendreBasis(L=L)
-    gram = basis.mass_matrix(_rule(f"gauss_legendre({n_nodes})").measure)
+    gram = GalerkinFrame(basis, _rule(f"gauss_legendre({n_nodes})").measure).discrete_gram
     expected = np.diag(2.0 / (2.0 * np.arange(L + 1) + 1.0))
 
     np.testing.assert_allclose(
@@ -202,7 +203,7 @@ def test_gram_is_diagonal_and_exact_against_the_legendre_gauss_rule() -> None:
     exact to ``4.4e-16``; GL4/L=3 offdiag ``1.994e-16``.
     """
     for n_nodes, L in ((8, 2), (16, 4), (4, 3)):
-        gram = LegendreBasis(L=L).mass_matrix(_rule(f"gauss_legendre({n_nodes})").measure)
+        gram = GalerkinFrame(LegendreBasis(L=L), _rule(f"gauss_legendre({n_nodes})").measure).discrete_gram
         diag = np.diag(gram)
         offdiag = float(np.max(np.abs(gram - np.diag(diag))))
         assert offdiag < 1e-14, f"GL{n_nodes} L={L}: offdiag {offdiag:.3e}"
@@ -234,16 +235,16 @@ def test_a_gauss_rule_acquires_a_structurally_dead_slot_at_ell_equals_n() -> Non
     silently regularised :math:`P_n` would pass the first and fail this.
     """
     for n_nodes in (2, 4, 8):
-        alive = LegendreBasis(L=n_nodes - 1).mass_matrix(
-            _rule(f"gauss_legendre({n_nodes})").measure
-        )
+        alive = GalerkinFrame(
+            LegendreBasis(L=n_nodes - 1), _rule(f"gauss_legendre({n_nodes})").measure
+        ).discrete_gram
         assert np.linalg.matrix_rank(alive) == n_nodes, (
             f"GL{n_nodes} at L={n_nodes - 1} must be full rank"
         )
 
-        dead = LegendreBasis(L=n_nodes).mass_matrix(
-            _rule(f"gauss_legendre({n_nodes})").measure
-        )
+        dead = GalerkinFrame(
+            LegendreBasis(L=n_nodes), _rule(f"gauss_legendre({n_nodes})").measure
+        ).discrete_gram
         assert abs(dead[n_nodes, n_nodes]) < 1e-28, (
             f"GL{n_nodes}: G[{n_nodes},{n_nodes}] = {dead[n_nodes, n_nodes]:.3e} "
             f"must be the structurally dead slot"

@@ -766,15 +766,6 @@ class LossKernelBasis(Basis):
     def reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
         return np.einsum("nk,n...->k...", table, values)
 
-    def mass_matrix(self, measure: DiscreteMeasure, /) -> NDArray:
-        r"""The discrete Gram :math:`\Phi^{\mathsf T} G \Phi` — should be ``I``.
-
-        Not on any hot path; it exists so the orthonormality claim behind
-        :attr:`gram_structure` is directly assertable rather than trusted.
-        """
-        table = self.evaluate(measure.nodes)
-        return np.einsum("n,nj,nk->jk", measure.weights, table, table)
-
     @property
     def domain(self) -> Manifold:
         r"""The block's trace degrees of freedom, as an index set.

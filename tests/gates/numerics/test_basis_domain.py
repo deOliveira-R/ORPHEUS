@@ -138,9 +138,6 @@ class _AbstractStub(Basis):
     ) -> NDArray:
         raise NotImplementedError
 
-    def mass_matrix(self, measure: DiscreteMeasure, /) -> NDArray:
-        raise NotImplementedError
-
     @property
     def space(self) -> FunctionSpace:
         raise NotImplementedError

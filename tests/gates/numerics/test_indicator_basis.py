@@ -31,6 +31,7 @@ import pytest
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.basis import Basis, IndicatorBasis
+from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 
@@ -91,9 +92,9 @@ def test_evaluate_accepts_1d_and_2d_points():
 
 # ── diagonal Gram ─────────────────────────────────────────────────────
 def test_diagonal_gram_disjoint_supports():
-    """mass_matrix is diagonal = region masses (indicators have disjoint support)."""
+    """The frame's discrete Gram is diagonal = region masses (indicators have disjoint support)."""
     b, mu = _basis(), _measure()
-    gram = b.mass_matrix(mu)
+    gram = GalerkinFrame(b, mu).discrete_gram
     np.testing.assert_allclose(gram, np.diag(np.diag(gram)), atol=0.0)
     region_mass = _independent_membership(_COARSE_EDGES, _FINE_CENTERS).T @ _FINE_VOLS
     np.testing.assert_allclose(np.diag(gram), region_mass)

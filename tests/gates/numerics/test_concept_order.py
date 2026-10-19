@@ -71,8 +71,6 @@ PENDING: dict[tuple[str, str], str] = {
     # M2: the orbit space's reference measure leaves the manifold (ruling 31)
     ("exactness", "manifold"): "M2",
     ("generating_measure", "manifold"): "M2",
-    # M4a: mass_matrix retires onto the frame's discrete Gram (ruling 11)
-    ("measure", "basis"): "M4a",
     # M4b: the axis receives its generator (ruling 11)
     ("axis", "measure"): "M4b",
     ("axis", "quadrature"): "M4b",

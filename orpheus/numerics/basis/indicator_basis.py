@@ -97,7 +97,6 @@ from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.manifold import Manifold, ambient_dim
 
 if TYPE_CHECKING:
-    from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.space import FunctionSpace
 
 
@@ -182,7 +181,7 @@ class IndicatorBasis(Basis):
     # ── Gram structure: disjoint cells ⟹ diagonal Gram ────────────────────
     @property
     def gram_structure(self) -> GramStructure:
-        r"""DIAGONAL — the cell indicators have disjoint support (:meth:`mass_matrix`)."""
+        r"""DIAGONAL — the cell indicators have disjoint support (the frame's :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`)."""
         return GramStructure.DIAGONAL
 
     # ── Derived cell counts ───────────────────────────────────────────────
@@ -314,32 +313,13 @@ class IndicatorBasis(Basis):
         """
         return np.einsum("nR,n...->R...", table, values)
 
-    # ── The discrete Gram + the coefficient space ─────────────────────────
-    def mass_matrix(self, measure: "DiscreteMeasure", /) -> NDArray:
-        r"""Discrete Gram :math:`g_{RS} = \sum_n w_n\, \mathbf{1}_R(x_n)\, \mathbf{1}_S(x_n)` over ``measure``.
-
-        **Diagonal** — the indicators have disjoint support, so
-        :math:`g_{RS} = \delta_{RS}\, m_R` with the region mass
-        :math:`m_R = \sum_{i\in R} w_i` (the cell's measure-weighted size).  The
-        diagonal is the inverse of the canonical-dual factor; its reciprocal is the
-        :meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric` weight a
-        Frame applies to normalise the projection.
-
-        Returns
-        -------
-        NDArray, shape ``(n_cells, n_cells)``
-            The diagonal Gram against ``measure``.
-        """
-        table = self.evaluate(measure.nodes)
-        return np.einsum("n,nR,nS->RS", measure.weights, table, table)
-
     @property
     def space(self) -> "FunctionSpace":
         r"""The coarse coefficient :class:`FunctionSpace`, shape ``(n_cells,)``.
 
         Euclidean (no intrinsic metric): the indicator basis is **measure-free**,
         so its Gram :math:`\mathrm{diag}(m_R)` exists only against a bound measure
-        (:meth:`mass_matrix`), not as a standalone basis property — unlike the
+        (the frame's :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`), not as a standalone basis property — unlike the
         analytic spherical-harmonic Gram.  The frame installs the Hilbert-adjoint
         metric itself: :func:`~orpheus.numerics.frame_faces.basis_space`
         dresses this space with the measured Parseval inverse :math:`1/m_R`

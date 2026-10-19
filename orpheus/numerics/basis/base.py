@@ -3,7 +3,7 @@ r"""The :class:`Basis` ABC — a discrete spectral basis on a measure space.
 A *basis* is the **synthesis (trial) side** of a discrete frame
 (:class:`orpheus.numerics.frame.FrameBase`): a collection of functions that can be
 tabulated at sample points, reconstructed from coefficients, and weighed against
-a quadrature to form a discrete Gram. It is the choice-free, measure-free half of
+a quadrature by the frame, which forms the discrete Gram. It is the choice-free, measure-free half of
 the analysis/synthesis pair — the :class:`~orpheus.numerics.measure.DiscreteMeasure`
 supplies the analysis (test) side, and the :class:`FrameBase` binds the two.
 
@@ -19,7 +19,7 @@ measure and applies a non-identity morphism (analysis / reconstruction) across t
 interface. The Frame needs the interface, not a second basis; the interface itself
 is math-rigid (Grand Report v3 §5.4 lists the nine eventual bases — real spherical
 harmonics, Chebyshev, Lagrange, FE shape functions, ...) and every one of them
-tabulates, reconstructs, and has a discrete Gram. Deferring the ABC would force the
+tabulates and reconstructs, and has a discrete Gram against any measure (the frame's). Deferring the ABC would force the
 Frame to name a concrete basis, which is exactly the coupling the abstraction exists
 to break.
 
@@ -84,7 +84,6 @@ from orpheus.numerics.manifold import Manifold, Quotient, Sphere
 from orpheus.numerics.symmetry import SubgroupOfO3
 
 if TYPE_CHECKING:
-    from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.space import FunctionSpace
 
 
@@ -281,22 +280,6 @@ class Basis(ABC):
         silently mis-projected.
         """
         return GramStructure.DENSE
-
-    # ── The discrete Gram + the coefficient space ─────────────────────────
-    @abstractmethod
-    def mass_matrix(self, measure: "DiscreteMeasure", /) -> NDArray:
-        r"""Discrete Gram :math:`\sum_n w_n\, \phi_j(x_n)\, \phi_k(x_n)` over ``measure``.
-
-        The GRAM operator :math:`TT^*` on the coefficient space, in discrete form
-        (the frame operator :math:`S = T^*T` acts on the sampled space instead;
-        the two share their nonzero spectrum, so frame bounds read off either
-        agree, but they are different objects). Equals the
-        continuous Gram (the basis's intrinsic metric) when the quadrature is
-        exact to the basis's degree; the residual is a quadrature-exactness
-        diagnostic. (A one-off diagnostic, so it is naturally measure-based and
-        evaluates its own table.)
-        """
-        ...
 
     # ── The manifold the basis functions are defined ON ───────────────────
     @property

@@ -14,7 +14,7 @@ the test-architect's verification plan so that Phase 2's ``dual-`` /
 
 Pillars (per ``vv-principles`` skill):
 
-* ``test_basis_mass_matrix_against_lebedev`` — semi-analytical (the
+* ``test_frame_discrete_gram_against_lebedev`` — semi-analytical (the
   Lebedev rule integrates spherical harmonics exactly up to its
   declared degree; the resulting Gram matrix is the discrete
   semi-analytical reference for the continuous identity
@@ -114,8 +114,8 @@ def test_space_inner_product_weights_equal_4pi_over_2l_plus_1():
 @pytest.mark.l1
 @pytest.mark.catches("ERR-039")
 @pytest.mark.verifies("real-sh-discrete-orthogonality")
-def test_basis_mass_matrix_against_lebedev(lebedev_L_pair):
-    r"""``SphericalHarmonicBasis.mass_matrix(lebedev_measure)`` ≈ the theoretical metric.
+def test_frame_discrete_gram_against_lebedev(lebedev_L_pair):
+    r"""The frame's ``discrete_gram`` over a Lebedev measure ≈ the theoretical metric.
 
     Pins the SH convention against a structurally-independent
     discrete-orthogonality computation: the Lebedev rule of degree
@@ -126,7 +126,7 @@ def test_basis_mass_matrix_against_lebedev(lebedev_L_pair):
     """
     measure, L = lebedev_L_pair
     basis = SphericalHarmonicBasis(L=L)
-    G = basis.mass_matrix(measure)  # (L+1, 2L+1, L+1, 2L+1)
+    G = GalerkinFrame(basis, measure).discrete_gram.reshape(L + 1, 2 * L + 1, L + 1, 2 * L + 1)
     assert G.shape == (L + 1, 2 * L + 1, L + 1, 2 * L + 1)
 
     expected_per_ell = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)
@@ -292,8 +292,8 @@ def test_H_equals_parseval_metric_times_S0(lebedev_L_pair):
         ),
     ],
 )
-def test_mass_matrix_under_multiple_quadratures(quadrature_factory):
-    r""":meth:`SphericalHarmonicBasis.mass_matrix` is exact across SH-degree-sufficient quadratures.
+def test_discrete_gram_under_multiple_quadratures(quadrature_factory):
+    r""":attr:`~orpheus.numerics.frame.FrameBase.discrete_gram` of the SH Galerkin frame is exact across SH-degree-sufficient quadratures.
 
     For :math:`L=2` and a quadrature that integrates the
     :math:`Y_\ell^m Y_{\ell'}^{m'}` products up to total degree
@@ -317,7 +317,7 @@ def test_mass_matrix_under_multiple_quadratures(quadrature_factory):
     L = 2
     basis = SphericalHarmonicBasis(L=L)
     measure = quadrature_factory()
-    G = basis.mass_matrix(measure)
+    G = GalerkinFrame(basis, measure).discrete_gram.reshape(L + 1, 2 * L + 1, L + 1, 2 * L + 1)
     expected_per_ell = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)
     for ell in range(L + 1):
         for m_off in range(2 * ell + 1):

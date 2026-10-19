@@ -151,9 +151,6 @@ class _ForeignTruncatedBasis(Basis):
     def reconstruct_transpose(self, values, table, /):
         return self._parent().reconstruct_transpose(values, table)
 
-    def mass_matrix(self, measure, /):
-        return self._parent().mass_matrix(measure)
-
     @property
     def gram_structure(self) -> GramStructure:
         return self._parent().gram_structure

@@ -27,6 +27,7 @@ from orpheus.numerics.basis.spherical_harmonic_basis import (
     MirrorEvenSphericalHarmonicBasis,
     SphericalHarmonicBasis,
 )
+from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.manifold import SPHERE
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
@@ -244,7 +245,7 @@ class TestEvaluateRefusesDirectionsOffTheSphere:
             support=SPHERE,
         )
         with pytest.raises(ValueError, match="not points of S"):
-            SphericalHarmonicBasis(L=2).mass_matrix(forged_measure)
+            GalerkinFrame(SphericalHarmonicBasis(L=2), forged_measure).discrete_gram
 
     def test_honest_three_d_nodes_are_admitted(self) -> None:
         r"""The positive leg — every shipped sphere rule tabulates, at every :math:`L` used here.
