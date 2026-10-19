@@ -75,8 +75,6 @@ PENDING: dict[tuple[str, str], str] = {
     ("operator", "frame"): "M3",
     ("projection", "frame"): "M3",
     ("space", "frame"): "M3, S1",
-    # M4a: mass_matrix retires onto the frame's discrete Gram (ruling 11)
-    ("measure", "basis"): "M4a",
     # M4b: the axis receives its generator (ruling 11)
     ("axis", "measure"): "M4b",
     ("axis", "quadrature"): "M4b",

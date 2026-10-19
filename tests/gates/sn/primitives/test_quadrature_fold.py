@@ -233,13 +233,14 @@ class TestFoldedHarmonics:
         metric diag(4π/(2l+1)) on the quotient (nonzero-diagonal block),
         which is false for the unrestricted basis (the even-odd cross
         block carries the +6.49)."""
+        from orpheus.numerics.frame import GalerkinFrame
         from orpheus.numerics.basis.spherical_harmonic_basis import (
             MirrorEvenSphericalHarmonicBasis,
         )
 
         fold = Quadrature.folded_product(4, 8)
         basis = MirrorEvenSphericalHarmonicBasis(L=2, mirror_axis=1)
-        g = basis.mass_matrix(fold.measure).reshape(15, 15)
+        g = GalerkinFrame(basis, fold.measure).discrete_gram
         mask = basis.even_slot_mask.reshape(-1).astype(bool)
         g_even = g[np.ix_(mask, mask)]
         ell = np.repeat(np.arange(3), 5)[mask]

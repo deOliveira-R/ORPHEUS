@@ -43,7 +43,7 @@ reads ``frame.basis``), so this basis is consumed ONLY through its
 weight is an *analysis* weight, not a tabulation) and :meth:`analyze` (the
 :math:`w`-reweighted projection), plus :attr:`space` (the coarse coefficient
 space, shared with the trial).  The synthesis-side operations (:meth:`synthesize`,
-:meth:`reconstruct`, the representation transposes, :meth:`mass_matrix`) have **no
+:meth:`reconstruct`, the representation transposes) have **no
 consumer** — building the weighted synthesis / weighted Hilbert adjoint is
 speculation until one arrives — so they **raise** rather than silently delegate to
 the *unweighted* indicator (which would be a half-consistent basis: a landmine
@@ -76,7 +76,6 @@ from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 
 if TYPE_CHECKING:
     from orpheus.numerics.manifold import Manifold
-    from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.space import FunctionSpace
 
 
@@ -214,6 +213,3 @@ class WeightedIndicatorBasis(Basis):
         self, coefficients: NDArray, table: NDArray, weights: NDArray, /,
     ) -> NDArray:
         raise NotImplementedError(_TEST_ONLY.format(op="analyze_transpose"))
-
-    def mass_matrix(self, measure: "DiscreteMeasure", /) -> NDArray:
-        raise NotImplementedError(_TEST_ONLY.format(op="mass_matrix"))

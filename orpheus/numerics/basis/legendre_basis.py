@@ -90,7 +90,6 @@ from orpheus.numerics.basis.base import Basis, GramStructure
 
 if TYPE_CHECKING:
     from orpheus.numerics.manifold import Manifold, Quotient
-    from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.spaces.legendre_space import LegendreSpace
 
 
@@ -256,11 +255,6 @@ class LegendreBasis(Basis):
     def gram_structure(self) -> GramStructure:
         r"""DIAGONAL — the Legendre polynomials are orthogonal on the orbit space."""
         return GramStructure.DIAGONAL
-
-    def mass_matrix(self, measure: "DiscreteMeasure", /) -> NDArray:
-        r"""Discrete Gram :math:`\sum_n w_n P_\ell(\mu_n) P_{\ell'}(\mu_n)` over a rule, shape ``(L+1, L+1)``."""
-        table = self.evaluate(measure.nodes)
-        return np.einsum("n,nl,nL->lL", measure.weights, table, table)
 
     # ── The domain (what they eat) and the coefficient space (what they span) ──
 

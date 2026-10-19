@@ -19,6 +19,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
+from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.manifold import SPHERE
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.metric import (
@@ -54,7 +55,7 @@ def _equispaced_legendre_gram(*, L: int, n: int = 8) -> np.ndarray:
     measure = DiscreteMeasure(
         nodes=mu, weights=weights, support=SPHERE.quotient(SubgroupOfO3.O2("x"))
     )
-    return LegendreBasis(L=L).mass_matrix(measure)
+    return GalerkinFrame(LegendreBasis(L=L), measure).discrete_gram
 
 
 #: Exact-binary-fraction fixture: every entry a multiple of 1/4, so G@x and

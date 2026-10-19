@@ -352,13 +352,13 @@ class FrameBase(ABC):
         :math:`G_{jk} = \sum_n w_n\,\phi_j(x_n)\,\phi_k(x_n)`, computed from the
         CACHED :attr:`table` (the L16 perf guard — never re-tabulates), with the
         basis's mode layout flattened to one axis (``K =`` the coefficient count,
-        row-major — the same order as ``table.reshape(N, K)``). The same
-        mathematical object as :meth:`Basis.mass_matrix
-        <orpheus.numerics.basis.base.Basis.mass_matrix>` in the basis's own
-        layout; that one is the measure-based *diagnostic*, this one is the
-        frame's cached *operational* copy — the Parseval-metric source
+        row-major — the same order as ``table.reshape(N, K)``). The one home
+        of the mass matrix: a basis alone does not mint it (it pairs the basis
+        with a measure, which is this frame). It is the Parseval-metric source
         (:attr:`basis_space`) and the diagonality verdict
-        (:attr:`discrete_gram_structure`) both read it. O(N·K²), once per frame.
+        (:attr:`discrete_gram_structure`) both read it, and a gate that wants
+        the Gram in the basis's own mode layout reshapes this one.
+        O(N·K²), once per frame.
         """
         weights = self.measure.weights
         flat = self.table.reshape(weights.shape[0], -1)

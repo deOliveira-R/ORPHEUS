@@ -19,10 +19,11 @@ The :class:`~orpheus.numerics.basis.base.Basis` ABC (formerly deferred
 "until a second concrete basis arrives") is now promoted — the forcing
 consumer, the generic :class:`~orpheus.numerics.frame.FrameBase`, binds an
 *abstract* basis to a measure, so it needs the interface rather than a
-second instance. The contract is the three fundamental operations
-:meth:`~orpheus.numerics.basis.base.Basis.evaluate` (tabulate),
-:meth:`~orpheus.numerics.basis.base.Basis.synthesize` (naked :math:`S_0`),
-and :meth:`~orpheus.numerics.basis.base.Basis.mass_matrix` (discrete Gram).
+second instance. The contract is the fundamental operations
+:meth:`~orpheus.numerics.basis.base.Basis.evaluate` (tabulate) and
+:meth:`~orpheus.numerics.basis.base.Basis.synthesize` (naked :math:`S_0`);
+the discrete Gram is the frame's
+(:attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`).
 See :mod:`orpheus.numerics.basis.base` for the rationale.
 
 References

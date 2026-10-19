@@ -132,13 +132,3 @@ def test_synthesis_side_raises_test_only_basis(op):
             wb.reconstruct_transpose(np.zeros((4,)), table)
         elif op == "analyze_transpose":
             wb.analyze_transpose(np.zeros((2,)), table, _WEIGHTS)
-
-
-def test_mass_matrix_raises_test_only_basis():
-    """``mass_matrix`` raises — the test-only synthesis side has no consumer."""
-    from orpheus.numerics.measure import DiscreteMeasure
-
-    wb = WeightedIndicatorBasis(_trial(), np.array([2.0, 3.0, 5.0, 7.0]))
-    measure = DiscreteMeasure(nodes=_NODES, weights=_WEIGHTS, support=RealSpace(1))
-    with pytest.raises(NotImplementedError, match="no consumer"):
-        wb.mass_matrix(measure)

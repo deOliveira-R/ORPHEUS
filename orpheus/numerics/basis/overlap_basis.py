@@ -61,15 +61,14 @@ class OverlapBasis(IndicatorBasis):
     -----
     Frozen, ``eq=False`` (identity equality; the fields are NumPy arrays).
 
-    The inherited :meth:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis.mass_matrix`
-    docstring claims a **diagonal** Gram ("the indicators have disjoint support") —
-    that claim does **not** hold for a fractional table (a straddling row makes two
-    columns share support, so the cross Gram is non-diagonal). It is latent: no
-    consumer calls ``mass_matrix`` (the frame's :meth:`~orpheus.numerics.frame.FrameBase.project`
-    uses the partition-of-unity row-sum probe, not the full Gram — see
-    :attr:`~orpheus.numerics.frame.FrameBase.gram_inverse`). A future least-squares consumer
-    that needs the dense Gram must compute it for the fractional case, not trust the
-    inherited diagonal claim.
+    The Gram is **not** diagonal for a fractional table (a straddling row makes two
+    columns share support, so the cross Gram is non-diagonal; the one-hot parent's
+    disjoint supports are what make the indicator Gram diagonal). The frame's
+    :meth:`~orpheus.numerics.frame.FrameBase.project` uses the partition-of-unity
+    row-sum probe, not the full Gram — see
+    :attr:`~orpheus.numerics.frame.FrameBase.gram_inverse`. A future least-squares consumer
+    that needs the dense Gram reads :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`,
+    which is the full cross-Gram for the fractional case.
     """
 
     overlap_table: NDArray
