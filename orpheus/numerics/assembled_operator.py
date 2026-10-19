@@ -79,7 +79,7 @@ class SparseAssembledOperator(LinearOperator):
 
     (Deliberately unparameterized — the ndarray-carrier family convention,
     the :class:`~orpheus.numerics.flat_operator.FlattenedOperator` /
-    :class:`~orpheus.numerics.operator.DiagonalOperator` precedent: the
+    :class:`~orpheus.numerics.elementary_operators.DiagonalOperator` precedent: the
     carrier is the bare flat vector.)
 
     Parameters

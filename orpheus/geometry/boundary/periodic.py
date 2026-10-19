@@ -46,7 +46,7 @@ class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
     by the composition
     (:attr:`~orpheus.sn.operators.boundary.SNBoundaryOperator._face_domains`).
     The realized angular factor (G6.3 step 7) is the
-    :class:`~orpheus.numerics.operator.PermutationOperator` the wrap MOTION
+    :class:`~orpheus.numerics.elementary_operators.PermutationOperator` the wrap MOTION
     derives — the identity permutation, as a typed arrow
     :math:`\Gamma_+(f') \to \Gamma_-(f)` between the two faces' half-trace
     spaces: ordinate :math:`n` of the partner's outflow IS ordinate

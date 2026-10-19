@@ -51,12 +51,8 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.functional import InnerProductFunctional
-from orpheus.numerics.operator import (
-    IdentityOperator,
-    LinearOperator,
-    RankOneOperator,
-    outer,
-)
+from orpheus.numerics.elementary_operators import RankOneOperator, outer
+from orpheus.numerics.operator import IdentityOperator, LinearOperator
 from orpheus.numerics.vector import Vector
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 

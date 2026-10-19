@@ -5,11 +5,11 @@ connects — every input goes to zero, so no probe distinguishes
 :math:`0 : \mathcal D \to \mathcal C` from :math:`0` on any other pair. The
 S4-amendment (2026-08-22) split the two roles the old single class straddled:
 
-* :class:`~orpheus.numerics.operator.ZeroMorphism` — the zero MAP between two
+* :class:`~orpheus.numerics.elementary_operators.ZeroMorphism` — the zero MAP between two
   DECLARED spaces, which therefore DEMANDS both at construction and derives
   its zeros from the bound shapes (the per-site ``codomain_zero`` /
   ``transpose_zero`` closures retired with their consumers);
-* :class:`~orpheus.numerics.operator.ZeroOperator` — the ENDOMORPHIC zero,
+* :class:`~orpheus.numerics.elementary_operators.ZeroOperator` — the ENDOMORPHIC zero,
   multiplication by ``0``: a stateless :class:`PointwiseOperator` member whose
   ``0.0 * x`` echo IS the zero of the operand's own space.
 
@@ -42,11 +42,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.operator import (
-    PointwiseOperator,
-    ZeroMorphism,
-    ZeroOperator,
-)
+from orpheus.numerics.elementary_operators import ZeroMorphism, ZeroOperator
+from orpheus.numerics.operator import PointwiseOperator
 from orpheus.numerics.space import FunctionSpace
 
 pytestmark = pytest.mark.foundation

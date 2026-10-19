@@ -653,7 +653,8 @@ class TestSNRealizerPrescribedInflowDispatch:
             ConstantInflowSource,
             PrescribedInflow,
         )
-        from orpheus.numerics.operator import BlockRole, ZeroMorphism
+        from orpheus.numerics.elementary_operators import ZeroMorphism
+        from orpheus.numerics.operator import BlockRole
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=1.5))

@@ -1,4 +1,4 @@
-r"""Tests for :class:`orpheus.numerics.operator.PermutationOperator`.
+r"""Tests for :class:`orpheus.numerics.elementary_operators.PermutationOperator`.
 
 Verifies the operator's invariants:
 
@@ -23,10 +23,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.operator import (
-    IdentityOperator,
-    PermutationOperator,
-)
+from orpheus.numerics.elementary_operators import PermutationOperator
+from orpheus.numerics.operator import IdentityOperator
 from orpheus.numerics.space import FunctionSpace
 
 

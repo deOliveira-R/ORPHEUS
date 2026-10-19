@@ -1,8 +1,8 @@
 r"""``outer(reconstruction, functional)`` — the rank-1 dyad's defining laws (L0).
 
 Intrinsic-property gate for the universal rank-1 constructor
-:func:`~orpheus.numerics.operator.outer` (and its product type
-:class:`~orpheus.numerics.operator.RankOneOperator`). Tests the dyad's
+:func:`~orpheus.numerics.elementary_operators.outer` (and its product type
+:class:`~orpheus.numerics.elementary_operators.RankOneOperator`). Tests the dyad's
 DEFINING laws, not merely its usage:
 
 * **Action law** — ``outer(v, w).apply(x) == v * w.evaluate(x)`` (the matvec IS
@@ -26,11 +26,8 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.functional import InnerProductFunctional
-from orpheus.numerics.operator import (
-    MissingAdjoint,
-    RankOneOperator,
-    outer,
-)
+from orpheus.numerics.elementary_operators import RankOneOperator, outer
+from orpheus.numerics.operator import MissingAdjoint
 
 pytestmark = pytest.mark.l0
 

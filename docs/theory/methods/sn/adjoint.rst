@@ -1682,7 +1682,7 @@ leaf transposes.  For :math:`F` the middle transpose
 :math:`K^{\mathsf T} = |\nu\Sigma_f\rangle\langle\chi|` is the
 :math:`\chi \leftrightarrow \nu\Sigma_f` **role swap** — a theorem of
 the rank-1 ``outer`` primitive (:meth:`RankOneOperator.apply_transpose
-<orpheus.numerics.operator.RankOneOperator.apply_transpose>`), never
+<orpheus.numerics.elementary_operators.RankOneOperator.apply_transpose>`), never
 re-derived — so *no line of fission code computes an adjoint*.  The
 metric Hilbert adjoint ``F.H`` then composes
 :math:`\sharp_V \circ F^{\mathsf T} \circ \flat_W` out of the bound
@@ -2175,7 +2175,7 @@ On the eigen-:math:`M`
 operator that fold **belongs** in the posing; the within-group gain
 keeps it out (HAZARD 5), not the eigenproblem.  There is no
 :math:`(B,B)` **block**: the ray column the pre-2026-08-22 grid spelled
-as a hooked :class:`~orpheus.numerics.operator.ZeroOperator` is now the
+as a hooked :class:`~orpheus.numerics.elementary_operators.ZeroOperator` is now the
 column the restriction :math:`r_{\rm bulk}` simply does not have, and
 the source-classed ray zero the dagger emits is the restriction's
 extension-by-zero rather than a closure anyone wrote (above).  The

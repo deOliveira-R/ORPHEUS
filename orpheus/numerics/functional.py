@@ -7,7 +7,7 @@ algebra by what they produce:
   (the :class:`~orpheus.numerics.operator.LinearOperator` surface
   ``apply(x: V) -> V``);
 * a **Kernel** integrates a field against a measure on one or more axes
-  (the :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+  (the :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
   scattering / fission form — still field → field, but nonlocal);
 * a **Functional** maps a field to a **scalar** (or, fiberwise over
   space, to a scalar-field) — the surface this module names.
@@ -195,7 +195,7 @@ class InnerProductFunctional:
     of a :class:`~orpheus.numerics.vector.Vector` (a *column*). Its defining
     role in the operator algebra is as the **row-factor of a rank-1 operator**:
     the dyad :math:`|v\rangle\langle w|` is built by
-    :func:`~orpheus.numerics.operator.outer`\ ``(reconstruction, functional)``
+    :func:`~orpheus.numerics.elementary_operators.outer`\ ``(reconstruction, functional)``
     and applies as ``reconstruction * functional.evaluate(x)`` — the functional
     *is* the contraction, not a parallel description of one. The transport-level
     :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`

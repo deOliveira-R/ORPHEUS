@@ -151,7 +151,7 @@ from orpheus.numerics.space import FunctionSpace
 
 if TYPE_CHECKING:
     from orpheus.numerics.face_layout import FaceLayout
-    from orpheus.numerics.operator import TraceRestrictionOperator
+    from orpheus.numerics.elementary_operators import TraceRestrictionOperator
     from orpheus.numerics.quadrature import Quadrature
 
 
@@ -529,7 +529,7 @@ class AngularTraceSpace(FunctionSpace):
         which is the shape of a performance regression that no correctness
         gate would catch.
         """
-        from orpheus.numerics.operator import TraceRestrictionOperator
+        from orpheus.numerics.elementary_operators import TraceRestrictionOperator
 
         n_ordinates = int(self.omega_dot_n.shape[1])
         out: dict[tuple[str, str], TraceRestrictionOperator] = {}

@@ -193,7 +193,7 @@ class _BoundBoundaryOperator(LinearOperator):
 
         The shim is a transparent typed handle: whenever the inner law
         advertises ``is_invertible`` (a reflective
-        :class:`~orpheus.numerics.operator.PermutationOperator` does), its
+        :class:`~orpheus.numerics.elementary_operators.PermutationOperator` does), its
         inverse OPERATOR must be reachable through the shim exactly as the
         predicate is — otherwise the shim would advertise a promise
         (``is_invertible=True``) it cannot deliver. Raises the inner law's

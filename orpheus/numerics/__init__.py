@@ -13,26 +13,28 @@ from .measure import (
     gauss_chebyshev,
     gauss_legendre,
 )
-from .operator import (
+from .elementary_operators import (
     DiagonalOperator,
+    RankOneOperator,
+    SumOfTensorProductsOperator,
+    ZeroMorphism,
+    ZeroOperator,
+    outer,
+)
+from .operator import (
     IdentityOperator,
     LinearOperator,
     MissingAdjoint,
     NotInvertible,
     OperatorProduct,
     OperatorSum,
-    RankOneOperator,
     ScaledOperator,
-    SumOfTensorProductsOperator,
     SupportsAdjoint,
     SupportsInverse,
     TensorProductOperator,
     PointwiseOperator,
-    ZeroMorphism,
-    ZeroOperator,
     adjointable,
     invertible,
-    outer,
 )
 from orpheus.numerics.quadrature import gauss_legendre_on_mu, gauss_legendre_on_polar_orbit, lebedev_sphere, level_symmetric_sn, product_mu_phi
 from .basis import Basis, SphericalHarmonicBasis

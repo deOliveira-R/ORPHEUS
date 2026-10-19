@@ -3158,7 +3158,7 @@ production bug surfaces; none did.
    reflective ``B`` operator's transverse-slope handling is exercised for
    STORAGE but not for its SIGN.  Storage is verified correct: the realized
    reflective law is a
-   :class:`~orpheus.numerics.operator.PermutationOperator` on the ordinate axis
+   :class:`~orpheus.numerics.elementary_operators.PermutationOperator` on the ordinate axis
    (axis 0), which broadcasts UNCHANGED over the new trailing moment axis — no
    hard-coded trailing-axis assumption, so the widening introduces NO latent
    storage bug (read at

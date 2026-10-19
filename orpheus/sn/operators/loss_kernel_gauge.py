@@ -135,7 +135,7 @@ those supports are **disjoint**.  So the kernel is a direct sum
     \Pi \;=\; \sum_b \gamma_b^{\mathsf T} \, \Pi_b \, \gamma_b
 
 over :math:`n_{\rm orbits} \cdot n_g` blocks, with :math:`\gamma_b` the
-:class:`~orpheus.numerics.operator.TraceRestrictionOperator` gather onto block
+:class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` gather onto block
 :math:`b`'s degrees of freedom and :math:`\gamma_b^{\mathsf T}` its scatter.
 This is not a storage optimisation — it is the reason the Gram is block
 diagonal at all.  ``[M]`` the blocked projector holds **150 MiB** at
@@ -218,10 +218,8 @@ from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.manifold import IndexSet, Manifold
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.outcome import Evidence, Measured
-from orpheus.numerics.operator import (
-    LinearOperator,
-    TraceRestrictionOperator,
-)
+from orpheus.numerics.elementary_operators import TraceRestrictionOperator
+from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.spatial.scheme import FaceModeDamping
 from orpheus.numerics import frame_faces
@@ -873,7 +871,7 @@ def _block_support(
     Indices are **trace-local** — offsets into the flat
     :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
     buffer, which is the carrier
-    :class:`~orpheus.numerics.operator.TraceRestrictionOperator` gathers from.
+    :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` gathers from.
     (⚠ Not full-field offsets: ``FullFieldSpace``'s carrier is the *typed
     composite*, so a ``np.take`` operator declaring it as a domain would be a
     lie that the ``(name, shape)`` composability guard cannot catch.)
@@ -1043,7 +1041,7 @@ class LossKernelGauge(LinearOperator):
     An endomorphism of the boundary-trace space — **not** of the full field,
     because the kernel is a trace object (module docstring §1) and the trace
     space's carrier is the flat boundary array a
-    :class:`~orpheus.numerics.operator.TraceRestrictionOperator` can gather
+    :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` can gather
     from.  Gauging a state is therefore ``boundary - gauge.apply(boundary)``,
     with the bulk untouched by construction rather than by a zero block.
 

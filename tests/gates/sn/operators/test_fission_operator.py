@@ -122,7 +122,7 @@ class TestBitIdenticalExtraction:
 
         Pre-T.2 the apply body inlined the einsum and matched the
         legacy bit-identically.  Post-T.2 the inlined math lives in
-        :class:`~orpheus.numerics.operator.RankOneOperator.apply`
+        :class:`~orpheus.numerics.elementary_operators.RankOneOperator.apply`
         (single source of truth); the reduction order is whatever
         numpy chooses for ``(a * b).sum(axis=0)``.
         """
@@ -364,7 +364,7 @@ class TestCompositeInvariants:
 
 class TestRankOneTensorProductKernel:
     """Wave T step T.2 — fission kernel is a 2-factor TensorProductOperator
-    wrapping :class:`~orpheus.numerics.operator.RankOneOperator`.
+    wrapping :class:`~orpheus.numerics.elementary_operators.RankOneOperator`.
     """
 
     def test_kernel_is_2_factor_tensor_product(self, solver_2g):
@@ -377,11 +377,8 @@ class TestRankOneTensorProductKernel:
         :class:`IdentityOperator` factor that advertises the spatial-
         axis broadcast.
         """
-        from orpheus.numerics.operator import (
-            IdentityOperator,
-            RankOneOperator,
-            TensorProductOperator,
-        )
+        from orpheus.numerics.elementary_operators import RankOneOperator
+        from orpheus.numerics.operator import IdentityOperator, TensorProductOperator
 
         kernel = solver_2g.problem.fission.isotropic_energy.kernel
         assert isinstance(kernel, TensorProductOperator)

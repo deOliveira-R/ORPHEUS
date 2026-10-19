@@ -75,15 +75,14 @@ from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.functional import InnerProductFunctional
 from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+from orpheus.numerics.elementary_operators import DiagonalOperator, outer
 from orpheus.numerics.operator import (
-    DiagonalOperator,
     IdentityOperator,
     LinearOperator,
     MissingAdjoint,
     MissingAssembly,
     TensorProductOperator,
     assemblable,
-    outer,
     posed,
 )
 from orpheus.numerics.quadrature import Quadrature
@@ -1068,7 +1067,8 @@ def test_a_converged_first_partial_sum_is_returned_unswept() -> None:
     is driven: when it already meets the promise, one preconditioner solve is
     the whole apply, as it was when the driver started from zero (`[M]`
     2026-10-18: 1 solve old, 2 without the check)."""
-    from orpheus.numerics.operator import PermutationOperator, ScaledOperator
+    from orpheus.numerics.elementary_operators import PermutationOperator
+    from orpheus.numerics.operator import ScaledOperator
 
     calls = [0]
 

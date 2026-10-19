@@ -1,4 +1,4 @@
-r"""Tests for :class:`orpheus.numerics.operator.TraceRestrictionOperator`.
+r"""Tests for :class:`orpheus.numerics.elementary_operators.TraceRestrictionOperator`.
 
 Campaign phase **B3.1** (``.claude/plans/archive/b3_domain_narrowing_crosswalk.md``).
 This operator is the trace map :math:`\gamma_\pm` of the affine boundary form
@@ -20,7 +20,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.operator import TraceRestrictionOperator
+from orpheus.numerics.elementary_operators import TraceRestrictionOperator
 
 
 pytestmark = [pytest.mark.foundation]

@@ -6,7 +6,7 @@ to a diagonal :class:`~orpheus.numerics.operator.LinearOperator`. Two
 test families:
 
 1. **Broadcast oracle** — the generalised N-D
-   :class:`~orpheus.numerics.operator.DiagonalOperator` engine on the
+   :class:`~orpheus.numerics.elementary_operators.DiagonalOperator` engine on the
    σ_t leading-ordinate form reduces EXACTLY to the legacy
    ``sigma[None] * psi`` at the VALUES level. The discriminating regime
    is a 2-D mesh carrier ``(N_ord, ng, nx, ny)`` with **nx ≠ ny** and
@@ -61,8 +61,8 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
+from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.operator import (
-    DiagonalOperator,
     IdentityOperator,
     IncompatibleOperatorComposition,
     NotInvertible,

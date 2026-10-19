@@ -5,7 +5,7 @@ The Lambertian is a two-link chain :math:`\Gamma_+(f) \to S(f) \to
 \Gamma_-(f)`; a measure-preserving bijection has nothing to factor, so the
 specular mirror is the **same structure with one link** — no separate "atomic"
 arm, just a shorter chain. The kernel returns its
-:class:`~orpheus.numerics.operator.PermutationOperator` bound
+:class:`~orpheus.numerics.elementary_operators.PermutationOperator` bound
 :math:`\Gamma_+(f) \to \Gamma_-(f)`. (Since G6.3 step 7 the body is
 ``_deck_kernel``, deriving the permutation from the mirror MOTION rather
 than the axis-letter table; these gates migrated with the rename and their
@@ -35,7 +35,7 @@ with an in-process plugin rebinding the kernel:
      - **0**
 
 ⭐ **The swap is the mutation to design for.** It is a one-word slip; it
-survives :func:`~orpheus.numerics.operator.checked_space_extent` because
+survives :func:`~orpheus.numerics.elementary_operators.checked_space_extent` because
 :math:`|\Gamma_+| = |\Gamma_-|` on every shipped quadrature; it changes no
 arithmetic, so every value gate stays green. And once step 8 routes
 ``_reflect_trace`` through ``@`` it makes the *legal* composition raise and the
@@ -105,10 +105,8 @@ import pytest
 
 from orpheus.geometry.boundary import BoundaryError, ReflectiveBoundary
 from orpheus.numerics.face_layout import FaceLayout
-from orpheus.numerics.operator import (
-    IncompatibleOperatorComposition,
-    PermutationOperator,
-)
+from orpheus.numerics.elementary_operators import PermutationOperator
+from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
 from orpheus.geometry.boundary import SelfPairedDeck

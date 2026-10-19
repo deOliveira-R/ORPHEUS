@@ -429,7 +429,7 @@ class FissionMaterialField(MaterialField[FissionKernel]):
     Unlike its transfer sibling this field carries **gather verbs, not
     accumulation verbs**: fission's arithmetic home is the rank-1 dyad
     :math:`|\chi\rangle\langle\nu\Sigma_f|` realized once on the CELLWISE
-    factors (the :class:`~orpheus.numerics.operator.RankOneOperator`
+    factors (the :class:`~orpheus.numerics.elementary_operators.RankOneOperator`
     route the bound operators cache at construction), so what the binding
     needs from the datum is the densified factor — bit-identical to the
     facade's per-cell views, being the same pure index gather of the same

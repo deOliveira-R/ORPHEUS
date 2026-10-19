@@ -43,10 +43,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from orpheus.numerics.operator import (
-    LinearOperator,
-    checked_space_extent,
-)
+from orpheus.numerics.elementary_operators import checked_space_extent
+from orpheus.numerics.operator import LinearOperator
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace

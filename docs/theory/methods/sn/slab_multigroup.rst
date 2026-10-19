@@ -1234,7 +1234,7 @@ directly (predicate + verb), not a capability tag:
   non-invertible ``A`` raises
   :class:`~orpheus.numerics.operator.NotInvertible`.  ``S`` / ``F`` MUST
   provide ``apply`` (pass
-  :class:`~orpheus.numerics.operator.ZeroOperator` for the
+  :class:`~orpheus.numerics.elementary_operators.ZeroOperator` for the
   scattering- / fission-free case).
 
 Constructor failure raises ``TypeError`` (a missing ``apply``) or

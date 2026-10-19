@@ -705,7 +705,7 @@ ends at all. The inverse of such an operator commutes with every
 diagonal metric too, so the inverse family inherits the flag from its
 forward (``InverseWrapMixin.is_metric_free_adjoint``), and an
 :class:`~orpheus.numerics.operator.InverseOperator` over an unbound
-:class:`~orpheus.numerics.operator.DiagonalOperator` has a working
+:class:`~orpheus.numerics.elementary_operators.DiagonalOperator` has a working
 ``.H``.
 
 .. list-table:: The four states of the two predicates, and the two doors
@@ -730,7 +730,7 @@ forward (``InverseWrapMixin.is_metric_free_adjoint``), and an
      - opens
      - refuses
      - the Riesz legs (a ``DualSpace`` end) and the dual arrow of one of
-       them; the rank-one dyad :func:`~orpheus.numerics.operator.outer`
+       them; the rank-one dyad :func:`~orpheus.numerics.elementary_operators.outer`
        and the tensor product it builds, whose ends are ``None``
    * - ``False``
      - ``True``

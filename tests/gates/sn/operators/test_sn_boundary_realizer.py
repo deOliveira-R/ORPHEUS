@@ -43,12 +43,11 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
     WhiteBoundary,
 )
+from orpheus.numerics.elementary_operators import PermutationOperator, ZeroMorphism
 from orpheus.numerics.operator import (
     IdentityOperator,
-    PermutationOperator,
     ScaledOperator,
     TensorProductOperator,
-    ZeroMorphism,
 )
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace

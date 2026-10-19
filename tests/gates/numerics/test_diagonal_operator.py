@@ -1,4 +1,4 @@
-r"""Tests for :class:`orpheus.numerics.operator.DiagonalOperator`.
+r"""Tests for :class:`orpheus.numerics.elementary_operators.DiagonalOperator`.
 
 The operator is the N-D broadcast engine: it multiplies a carrier
 tensor by a coefficient occupying a sub-product of the carrier's axes,
@@ -30,8 +30,8 @@ import pytest
 
 from orpheus.numerics.manifold import UNIT_INTERVAL
 from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.operator import (
-    DiagonalOperator,
     IdentityOperator,
     NotInvertible,
     OperatorProduct,

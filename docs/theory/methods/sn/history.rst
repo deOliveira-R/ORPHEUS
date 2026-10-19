@@ -2253,9 +2253,9 @@ them.  Trust ``git``, not this column.
        TensorProduct, so the new refusal never fires on a composite that
        genuinely needs no metric.  **(b) The zero splits in two:** the
        natural endomorphic
-       :class:`~orpheus.numerics.operator.ZeroOperator` (a stateless
+       :class:`~orpheus.numerics.elementary_operators.ZeroOperator` (a stateless
        :math:`\times 0` echo, a pointwise member) and the born-bound
-       :class:`~orpheus.numerics.operator.ZeroMorphism`, which mints its
+       :class:`~orpheus.numerics.elementary_operators.ZeroMorphism`, which mints its
        zeros from its own declared pair — which is what retires the
        ``codomain_zero`` / ``transpose_zero`` closures both production
        consumers had been passing.  **(c) The fission pencil un-welds.**
@@ -3178,7 +3178,7 @@ them.  Trust ``git``, not this column.
        construction**, not lazily at the first ``.apply``. Two real production
        bugs the net caught and fixed root-cause: ``_seeded_inverse`` crashing on
        algebra-closed preconditioner heads (fixed with a two-kinds dispatch),
-       and :class:`~orpheus.numerics.operator.RankOneOperator` losing its only
+       and :class:`~orpheus.numerics.elementary_operators.RankOneOperator` losing its only
        adjointability advertisement (restored via an ``is_adjointable``
        override). Verification: **keystone v2** (``tests/_harness/predicates.py``
        rewritten to the permanent two-axis / three-valued contract; the
