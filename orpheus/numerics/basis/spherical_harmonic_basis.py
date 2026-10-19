@@ -430,7 +430,7 @@ class SphericalHarmonicBasis(Basis):
         continuum Gram :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))` on the
         padded layout, this basis its generator. The spherical-harmonic
         :class:`~orpheus.numerics.frame.GalerkinFrame` re-dresses it with the
-        discrete Parseval inverse (:attr:`~orpheus.numerics.frame.FrameBase.basis_space`)
+        discrete Parseval inverse (:func:`~orpheus.numerics.frame_faces.basis_space`)
         — that dressed head is the moment space the tree binds. Lazy import:
         ``SphericalHarmonicSpace`` imports this basis, so a top-level import
         would cycle.

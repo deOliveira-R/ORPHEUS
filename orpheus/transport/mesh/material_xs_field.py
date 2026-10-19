@@ -89,6 +89,7 @@ import numpy as np
 
 from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.transport.fields.cross_section_field import CrossSectionField
+from orpheus.numerics import frame_faces
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -226,7 +227,7 @@ class MaterialXSField:
         * the **rate-bearing** channels — :math:`\Sigma_t,\Sigma_c,\Sigma_L,
           \Sigma_f,\nu\Sigma_f` (vectors) and :math:`\Sigma_{s,\ell},\Sigma_{2n}`
           (``[g_from, g_to]`` matrices) — collapse through ``sigma_frame``, whose
-          flux-weighted test basis makes :meth:`~orpheus.numerics.frame.FrameBase.project`
+          flux-weighted test basis makes :func:`~orpheus.numerics.frame_faces.project`
           the reaction-rate-preserving average :math:`\Sigma_R = \int_R\varphi\Sigma\,
           \mathrm{d}V/\int_R\varphi\,\mathrm{d}V` (matrices weight by the **source**
           group, the leading axis the test weight aligns to);
@@ -261,16 +262,16 @@ class MaterialXSField:
         # rate-preserving collapse G⁻¹M (the per-channel inline gather/collapse the
         # method body used to carry now lives here, projected as ONE field).
         n_legendre = self._n_legendre("SigS")
-        sig_t = sigma_frame.project(self._gather_vector("SigT"))
-        sig_c = sigma_frame.project(self._gather_vector("SigC"))
-        sig_l = sigma_frame.project(self._gather_vector("SigL"))
-        sig_f = sigma_frame.project(self._gather_vector("SigF"))
-        sig_p = sigma_frame.project(self._gather_vector("SigP"))
-        sig_s = [sigma_frame.project(self._gather_stack("SigS", l)) for l in range(n_legendre)]
-        sig2 = [sigma_frame.project(self._gather_stack("Sig2", l)) for l in range(self._n_legendre("Sig2"))]
+        sig_t = frame_faces.project(sigma_frame, self._gather_vector("SigT"))
+        sig_c = frame_faces.project(sigma_frame, self._gather_vector("SigC"))
+        sig_l = frame_faces.project(sigma_frame, self._gather_vector("SigL"))
+        sig_f = frame_faces.project(sigma_frame, self._gather_vector("SigF"))
+        sig_p = frame_faces.project(sigma_frame, self._gather_vector("SigP"))
+        sig_s = [frame_faces.project(sigma_frame, self._gather_stack("SigS", l)) for l in range(n_legendre)]
+        sig2 = [frame_faces.project(sigma_frame, self._gather_stack("Sig2", l)) for l in range(self._n_legendre("Sig2"))]
 
         # χ → the production-weighted frame (a different conserved rate).
-        chi = emission_frame.project(self._gather_vector("chi"))
+        chi = frame_faces.project(emission_frame, self._gather_vector("chi"))
 
         return self._assemble_mixtures(
             sig_t=sig_t, sig_c=sig_c, sig_l=sig_l, sig_f=sig_f, sig_p=sig_p,
@@ -361,10 +362,10 @@ class MaterialXSField:
             trial, measure, WeightedIndicatorBasis(trial, rho),
         )
 
-        sig_t = collision_frame.project(self._gather_vector("SigT"))
-        sig_c = pair_frame.project(self._gather_vector("SigC"))
-        sig_l = pair_frame.project(self._gather_vector("SigL"))
-        sig_f = pair_frame.project(self._gather_vector("SigF"))
+        sig_t = frame_faces.project(collision_frame, self._gather_vector("SigT"))
+        sig_c = frame_faces.project(pair_frame, self._gather_vector("SigC"))
+        sig_l = frame_faces.project(pair_frame, self._gather_vector("SigL"))
+        sig_f = frame_faces.project(pair_frame, self._gather_vector("SigF"))
 
         # The fission dyad (T3). ι and p are per-cell physics folds the field
         # owns (they read the field's own channels); the caller owns only the
@@ -376,7 +377,7 @@ class MaterialXSField:
         emission_frame = PetrovGalerkinFrame(
             trial, measure, WeightedIndicatorBasis(trial, iota * p),
         )
-        chi = emission_frame.project(chi_fine)               # (n_coarse, ng)
+        chi = frame_faces.project(emission_frame, chi_fine)               # (n_coarse, ng)
 
         # The explicit (non-frame-shaped) morphisms share the frames' own
         # tabulation surfaces — one membership table, one volume weight.

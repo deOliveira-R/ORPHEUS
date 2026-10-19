@@ -982,7 +982,7 @@ them.  Trust ``git``, not this column.
        6.2c-ii; ruling R-6.2c-1).
        **(1) The seam this closes.**  The tree carried TWO angular moment
        heads with two metrics.  The frame's analysis codomain
-       (:attr:`~orpheus.numerics.frame.FrameBase.basis_space`) carried the
+       (:func:`~orpheus.numerics.frame_faces.basis_space`) carried the
        Parseval metric :math:`G^{-1}`, the inverse *discrete* Gram; the
        moment FIELD's space, the carrier's cached
        :meth:`SNMesh.moment_space
@@ -1043,7 +1043,7 @@ them.  Trust ``git``, not this column.
        re-baselined by this item and its docstring carries both records.
        **(6) Three consequences that are not about the metric.**  The
        projection normalisation became a typed ARROW
-       (:class:`~orpheus.numerics.frame.CrossGramInverse`,
+       (:class:`~orpheus.numerics.frame_faces.CrossGramInverse`,
        ``test_space → basis_space``) because its metric-twin-space
        spelling stopped type-checking under structural identity — and the
        2026-08-30 leak it needed a guard against is now unspellable.
@@ -1645,9 +1645,9 @@ them.  Trust ``git``, not this column.
        :math:`M \otimes I` has two ends — the per-ordinate space it
        reads and the moment space it writes — and a lift's DOMAIN
        interior is one of them: the angular end (:math:`\phi = \int\psi`,
-       ``frame.conjugate``, a per-ordinate cotangent) or the moment end
+       ``conjugate(frame, ·)``, a per-ordinate cotangent) or the moment end
        (:math:`\phi` = the :math:`\ell=0` slot of :math:`M\psi`,
-       ``frame.reconstruct_after``, a moment cotangent); a third
+       ``reconstruct_after(frame, ·)``, a moment cotangent); a third
        interior is refused.  The shared base
        :class:`~orpheus.transport.operators.angular_lift.AngularLift`
        (ruling **R-1**: :math:`\{S, N_{2n}\} \mid \{F\}` share the
@@ -1803,7 +1803,7 @@ them.  Trust ``git``, not this column.
        metric by construction (:eq:`sn-gain-channels-one-shape`).  The
        consequence is the adjoint: :math:`F`'s Euclidean transpose is
        **factor reversal** of the cached
-       ``frame.conjugate(FissionMomentOperator)`` product, so the
+       ``conjugate(frame, FissionMomentOperator)`` product, so the
        hand-rolled ``np.multiply.outer(w, ·)/W`` died and *no line of
        fission code computes an adjoint*; ``F.H`` composes the bound
        spaces' own Riesz legs around it.
@@ -2177,7 +2177,7 @@ them.  Trust ``git``, not this column.
        MEASURED
        :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram_structure`
        verdict (deliberately distinct from the basis's DECLARED one), and
-       a :attr:`~orpheus.numerics.frame.FrameBase.basis_space` that
+       a :func:`~orpheus.numerics.frame_faces.basis_space` that
        dressed with :math:`G^{-1}` on a diagonal frame and **refused** on
        a dense one — slab Gauss–Legendre being the standing witness that
        no diagonal candidate can satisfy Parseval there.  (That refusal
@@ -3414,7 +3414,7 @@ them.  Trust ``git``, not this column.
        (``dict[int, Mixture]``, mesh-DECOUPLED — the asymmetry-law
        counterpart of ``homogenize``'s mesh-COUPLED ``MaterialMesh``).
        Reuses the *unchanged* Petrov-Galerkin frame
-       (:meth:`frame.project <orpheus.numerics.frame.FrameBase.project>`,
+       (:func:`project <orpheus.numerics.frame_faces.project>`,
        flux = test weight, counting measure). The production case
        (421-group → WIMS-69/172) is **non-nested**, so the partition is a
        fractional, partition-of-unity overlap table
@@ -3453,7 +3453,7 @@ them.  Trust ``git``, not this column.
        test side), **never folded into the measure**, which carries only
        the geometric volume + fixed :math:`L^2` metric. Homogenization
        becomes the coefficient extraction :math:`G^{-1}M`
-       (:meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`)
+       (:func:`project <orpheus.numerics.frame_faces.project>`)
        of a :class:`~orpheus.numerics.frame.PetrovGalerkinFrame`; the
        forward (:math:`\varphi^*=\varphi`) case is the *Galerkin
        degenerate* of the eigenvalue-consistent adjoint-weighted

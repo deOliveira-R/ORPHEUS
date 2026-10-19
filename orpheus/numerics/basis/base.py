@@ -95,7 +95,7 @@ class GramStructure(Enum):
     r"""The structure of a TRIAL basis's frame-Gram — the projection-validity declaration.
 
     When a basis is the **trial** side of a :class:`~orpheus.numerics.frame.FrameBase`,
-    the coefficient extraction :meth:`~orpheus.numerics.frame.FrameBase.project`
+    the coefficient extraction :func:`~orpheus.numerics.frame_faces.project`
     (:math:`G^{-1}M`) normalises by the cross Gram :math:`G = MR`. The frame computes
     :math:`G` with a single **row-sum probe** (``analysis(reconstruction(ones))``) — but
     that probe equals the projection's required normalisation ONLY under one of two
@@ -111,7 +111,7 @@ class GramStructure(Enum):
       to the per-region weight anyway.
     * :attr:`DENSE` — neither (a tapered weight, a higher-rank GEC moment — GitHub #275):
       the row-sum probe is wrong; the true projection needs the dense :math:`(MR)^{-1}M`
-      solve, which is NOT built. :meth:`~orpheus.numerics.frame.FrameBase.project`
+      solve, which is NOT built. :func:`~orpheus.numerics.frame_faces.project`
       **refuses** a DENSE-Gram trial rather than return a silently-wrong coarsening.
 
     The base :class:`Basis` defaults to :attr:`DENSE` — the safe refusal: a new basis
@@ -272,7 +272,7 @@ class Basis(ABC):
     def gram_structure(self) -> GramStructure:
         r"""How this basis's frame-Gram is structured when it is the **trial** side.
 
-        Declares whether :meth:`~orpheus.numerics.frame.FrameBase.project`'s row-sum
+        Declares whether :func:`~orpheus.numerics.frame_faces.project`'s row-sum
         probe is a valid coefficient normalisation for this basis (:class:`GramStructure`).
         Defaults to :attr:`GramStructure.DENSE` — the safe refusal: a new basis must
         consciously override this to :attr:`~GramStructure.DIAGONAL` or
@@ -432,7 +432,7 @@ class Basis(ABC):
         one MODAL head axis carrying the basis's CONTINUUM Gram as its
         measure, this basis its generator. A measure-free basis like the
         indicators carries no metric at all. The frame's codomain
-        (:attr:`~orpheus.numerics.frame.FrameBase.basis_space`) re-DRESSES
+        (:func:`~orpheus.numerics.frame_faces.basis_space`) re-DRESSES
         that space with the discrete PARSEVAL inverse (the head axis
         re-weighted, the frame its generator) — the dressed space, not this
         one, is the ONE moment space the tree binds (the operator ends, the
@@ -442,6 +442,6 @@ class Basis(ABC):
         basis owns exactly one space (the nodal/domain space comes from the
         measure), so the unqualified name is unambiguous — matching the
         ``Field.space`` convention. The :class:`FrameBase` re-exposes it provenance-
-        qualified as ``frame.basis_space`` (beside ``frame.measure_space``).
+        qualified as ``basis_space(frame)`` (beside ``measure_space(frame)``).
         """
         ...

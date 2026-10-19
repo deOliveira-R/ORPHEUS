@@ -69,6 +69,7 @@ from tests.gates.sn.architecture.test_monomorphic_leaves import (
     _slab,
     _sphere,
 )
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -235,7 +236,7 @@ def test_g2_2_the_moment_product_carries_no_dense_slot_and_threads_its_axes():
         assert bulk_axes is not None, "the carrier's bulk space is of_axes-built"
         for L in _ORDERS:
             frame = problem.quad.angular_frame(L)
-            head = frame.basis_space
+            head = frame_faces.basis_space(frame)
             product = head * problem.bulk_space
             findings.append(
                 f"{geometry} L={L}: head.axes={head.axes is not None} "

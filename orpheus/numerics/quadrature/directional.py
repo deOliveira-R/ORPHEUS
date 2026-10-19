@@ -672,9 +672,9 @@ class Quadrature:
         ``test_q8_4`` pins ``frame.measure is q.measure`` on 12 of 12 shipped
         rules. The weights are the analysis metric. The frame is a
         pure-Galerkin frame (test IS trial — the basis is its own test
-        basis); its :attr:`~orpheus.numerics.frame.FrameBase.analysis` face is
+        basis); its :meth:`~orpheus.numerics.frame_faces.FrameAnalysis.of` face is
         the :math:`Y^* W` moment projection :math:`M` and its
-        :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face the
+        :meth:`~orpheus.numerics.frame_faces.FrameReconstruction.of` face the
         addition-theorem synthesis :math:`R`.
 
         ``frame.table`` IS the rule's angular basis table — the ONE spelling

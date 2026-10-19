@@ -315,7 +315,7 @@ def test_homogenize_routes_through_the_petrov_galerkin_frame(solution, monkeypat
     * ``IndicatorBasis.evaluate`` — the TRIAL membership table (still a reader);
     * ``WeightedIndicatorBasis.analyze`` — the **TEST-side** reader (the load-bearing
       re-point: φ now lives on the test basis, not folded into the metric);
-    * ``FrameBase.project`` — the NEW coefficient-extraction verb G⁻¹M;
+    * ``frame_faces.project`` — the NEW coefficient-extraction verb G⁻¹M;
     * ``CrossGramInverse.apply`` — the normalisation :math:`G^{-1}` inside it,
       the frame's own arrow ``test_space → basis_space`` (CS4c step 6 item
       6.2c-ii; until then ``project`` normalised through the probe SPACE's
@@ -327,7 +327,8 @@ def test_homogenize_routes_through_the_petrov_galerkin_frame(solution, monkeypat
     """
     from orpheus.numerics.basis.indicator_basis import IndicatorBasis
     from orpheus.numerics.basis.weighted_indicator_basis import WeightedIndicatorBasis
-    from orpheus.numerics.frame import CrossGramInverse, FrameBase
+    from orpheus.numerics import frame_faces
+    from orpheus.numerics.frame_faces import CrossGramInverse
 
     counts = {"evaluate": 0, "test_analyze": 0, "project": 0, "inverse_metric": 0}
 
@@ -345,7 +346,7 @@ def test_homogenize_routes_through_the_petrov_galerkin_frame(solution, monkeypat
         _counting("test_analyze", WeightedIndicatorBasis.analyze),
     )
     monkeypatch.setattr(
-        FrameBase, "project", _counting("project", FrameBase.project),
+        frame_faces, "project", _counting("project", frame_faces.project),
     )
     monkeypatch.setattr(
         CrossGramInverse, "apply",
@@ -359,7 +360,7 @@ def test_homogenize_routes_through_the_petrov_galerkin_frame(solution, monkeypat
         "homogenize did NOT route the analysis through the WEIGHTED test basis — "
         "the flux is not on the test side (it may still be folded into the metric)"
     )
-    assert counts["project"] > 0, "homogenize did NOT use the FrameBase.project verb"
+    assert counts["project"] > 0, "homogenize did NOT use the frame_faces.project verb"
     assert counts["inverse_metric"] > 0, (
         "homogenize did NOT normalise through the frame's gram_inverse arrow"
     )

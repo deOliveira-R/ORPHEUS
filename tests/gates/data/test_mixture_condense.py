@@ -17,10 +17,10 @@ spectrum-weighted. This file pins the per-material math:
   interval rule reproduces ``CONDENSE_172_TO_69`` within the documented
   boundary tolerance).
 * **G6** Mode-11 execution sentinel (condense routes through
-  ``FrameBase.project`` and the TEST-side ``WeightedIndicatorBasis``).
+  ``frame_faces.project`` and the TEST-side ``WeightedIndicatorBasis``).
 
 The structurally-independent oracle (vv L11) is ALWAYS an explicit
-per-fine-group Python hand-sum — NEVER a re-call of ``frame.project`` or a
+per-fine-group Python hand-sum — NEVER a re-call of ``project(frame, ·)`` or a
 second condense path (that would be twin-consistency, vv L4). The oracle
 math is verified against the live frame in the P5.0 memo
 (``.claude/plans/archive/p5_0_condensation_gate.md``).
@@ -38,6 +38,7 @@ from scipy.sparse import csr_matrix
 from orpheus.data.energy_grid import EnergyGrid, InverseEnergySpectrum
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.numerics.manifold import EnergyGroups
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -117,7 +118,7 @@ def _condense(mix: Mixture) -> Mixture:
     return mix.condense(EnergyGrid(_EG_COARSE), _PHI)
 
 
-# ── Structurally-independent oracles (hand-sums; NEVER frame.project) ───
+# ── Structurally-independent oracles (hand-sums; NEVER project(frame, ·)) ───
 
 
 def _phi_R() -> np.ndarray:
@@ -377,7 +378,7 @@ class TestG3ScatteringTwoAxisCollapse:
         """The CORRECT condense: sink summed (@T), source flux-avg (project)."""
         T = self._membership()
         sink_summed = sig_s_fine @ T                  # (n_from, n_coarse_to)
-        return self._frame().project(sink_summed)     # (n_coarse_from, n_coarse_to)
+        return frame_faces.project(self._frame(), sink_summed)     # (n_coarse_from, n_coarse_to)
 
     def test_design_collapse_matches_rate_oracle(self) -> None:
         """The design collapse reproduces the hand-summed in-scatter rate."""
@@ -399,7 +400,7 @@ class TestG3ScatteringTwoAxisCollapse:
         sig_s_fine = np.asarray(_balanced_fissile_4g().SigS[0].todense(), dtype=float)
         design = self._design_collapse(sig_s_fine)
         T = self._membership()
-        mut = self._frame().project(sig_s_fine.T @ T)
+        mut = frame_faces.project(self._frame(), sig_s_fine.T @ T)
         np.testing.assert_array_equal(
             bool(np.allclose(mut, design)), False,
             err_msg="swap-axes mutation must NOT match the design collapse",
@@ -425,7 +426,7 @@ class TestG3ScatteringTwoAxisCollapse:
         sig_s_fine = np.asarray(_balanced_fissile_4g().SigS[0].todense(), dtype=float)
         design = self._design_collapse(sig_s_fine)
         frame = self._frame()
-        mut = frame.project(frame.project(sig_s_fine).T).T  # project source AND sink
+        mut = frame_faces.project(frame, frame_faces.project(frame, sig_s_fine).T).T  # project source AND sink
         np.testing.assert_array_equal(
             bool(np.allclose(mut, design)), False,
             err_msg="project-both-axes (homogenize-style) must NOT match condense",
@@ -641,7 +642,7 @@ class TestG5WimsDerivationValidation:
 
 
 def test_condense_routes_through_frame_project(fine_mix: Mixture, monkeypatch) -> None:
-    """Mode-11: ``condense`` actually executes ``FrameBase.project`` AND the
+    """Mode-11: ``condense`` actually executes ``frame_faces.project`` AND the
     TEST-side ``WeightedIndicatorBasis.analyze`` on the new path.
 
     A green rate gate is VACUOUS for the 'routes through the PG frame' claim
@@ -652,8 +653,6 @@ def test_condense_routes_through_frame_project(fine_mix: Mixture, monkeypatch) -
     the count) — NEVER a bare ``assert`` (Mode-8: ``-O`` strips it).
     """
     from orpheus.numerics.basis.weighted_indicator_basis import WeightedIndicatorBasis
-    from orpheus.numerics.frame import FrameBase
-
     counts = {"project": 0, "test_analyze": 0}
 
     def _counting(name, fn):
@@ -664,7 +663,7 @@ def test_condense_routes_through_frame_project(fine_mix: Mixture, monkeypatch) -
         return wrapped
 
     monkeypatch.setattr(
-        FrameBase, "project", _counting("project", FrameBase.project)
+        frame_faces, "project", _counting("project", frame_faces.project)
     )
     monkeypatch.setattr(
         WeightedIndicatorBasis, "analyze",
@@ -675,7 +674,7 @@ def test_condense_routes_through_frame_project(fine_mix: Mixture, monkeypatch) -
 
     np.testing.assert_array_less(
         0, counts["project"],
-        err_msg="condense did NOT use the FrameBase.project verb (open-coded?)",
+        err_msg="condense did NOT use the frame_faces.project verb (open-coded?)",
     )
     np.testing.assert_array_less(
         0, counts["test_analyze"],

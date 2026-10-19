@@ -71,10 +71,6 @@ PENDING: dict[tuple[str, str], str] = {
     # M2: the orbit space's reference measure leaves the manifold (ruling 31)
     ("exactness", "manifold"): "M2",
     ("generating_measure", "manifold"): "M2",
-    # M3: the frame's faces leave the frame's data (ruling 22)
-    ("operator", "frame"): "M3",
-    ("projection", "frame"): "M3",
-    ("space", "frame"): "M3, S1",
     # M4a: mass_matrix retires onto the frame's discrete Gram (ruling 11)
     ("measure", "basis"): "M4a",
     # M4b: the axis receives its generator (ruling 11)
@@ -88,7 +84,9 @@ PENDING: dict[tuple[str, str], str] = {
     ("generating_measure", "measure"): "M6",
     # S1: the marginalisation lift is built on the operator side (ruling 10)
     ("axis", "frame"): "S1",
+    ("operator", "frame"): "S1",
     ("operator", "space"): "S1",
+    ("space", "frame"): "S1",
     # S3: assembly is a homomorphism downstream of the algebra (ruling 24)
     ("assembled_operator", "operator"): "S3",
     # S4: a sum's inverse is InverseOperator(sum), realised by the Strategy (ruling 20)

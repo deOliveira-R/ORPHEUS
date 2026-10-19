@@ -63,6 +63,7 @@ from orpheus.numerics.space import FunctionSpace, TensorProductSpace
 from orpheus.numerics.spaces.legendre_space import LegendreSpace
 from orpheus.numerics.spaces.moment_head import MomentHead
 from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -324,7 +325,7 @@ def test_the_metric_enters_the_identity_once_the_head_is_axis_built(L: int) -> N
     """
     frame = Quadrature.lebedev(11).angular_frame(L)
     continuum = frame.basis.space
-    dressed = frame.basis_space
+    dressed = frame_faces.basis_space(frame)
     assert isinstance(continuum, SphericalHarmonicSpace) and isinstance(dressed, SphericalHarmonicSpace)
     assert continuum.axes is not None and dressed.axes is not None
     assert not np.array_equal(
@@ -377,13 +378,13 @@ def test_a_frame_dressed_head_truncates_to_the_frames_dressed_head_at_the_lower_
     """
     quad = _RULES[label]()
     L = 2
-    dressed = quad.angular_frame(L).basis_space
+    dressed = frame_faces.basis_space(quad.angular_frame(L))
     assert isinstance(dressed, MomentHead)
     assert dressed.axes is not None and dressed.axes[0].generator is quad.angular_frame(L)
     lower = dressed.truncated(L - 1)
     assert isinstance(lower, MomentHead)
     assert lower.axes is not None and lower.L == L - 1 and lower.name == dressed.name
-    assert lower == quad.angular_frame(L - 1).basis_space
+    assert lower == frame_faces.basis_space(quad.angular_frame(L - 1))
     assert lower != quad.angular_frame(L - 1).basis.space
     assert lower.axes[0].generator == quad.angular_frame(L - 1)
 
@@ -472,7 +473,7 @@ def test_the_production_head_of_every_family_is_axis_buildable(label: str, L: in
 
     Both heads are covered: the **continuum** head (``frame.basis.space``,
     the basis its generator) and the frame's **dressed** head
-    (``frame.basis_space``, the frame its generator) — each axis-built, each
+    (``basis_space(frame)``, the frame its generator) — each axis-built, each
     bit-identical to its own retired dense-slot twin on the metric verbs; on
     a DENSE-Gram row the dressed head carries no axis measure and its dense
     form is POSITIONED on the space's own metric object (hazard H-1, ruling
@@ -483,7 +484,7 @@ def test_the_production_head_of_every_family_is_axis_buildable(label: str, L: in
 
     frame = HarmonicFrame.from_galerkin(_RULES[label]().angular_frame(L))
     rng = np.random.default_rng(11)
-    for head, generator in ((frame.basis.space, frame.basis), (frame.basis_space, frame)):
+    for head, generator in ((frame.basis.space, frame.basis), (frame_faces.basis_space(frame), frame)):
         assert isinstance(head, (SphericalHarmonicSpace, LegendreSpace)), (
             "every shipped rule binds one of the two head families"
         )
@@ -491,7 +492,7 @@ def test_the_production_head_of_every_family_is_axis_buildable(label: str, L: in
         assert head.axes[0].generator is generator
         assert isinstance(head, MomentHead) and head.L == L
         if head.axes[0].weights is None:
-            assert frame.discrete_gram_structure is GramStructure.DENSE and head is frame.basis_space
+            assert frame.discrete_gram_structure is GramStructure.DENSE and head is frame_faces.basis_space(frame)
             assert isinstance(head.metric, FactoredMetric)
             continue
         twin = _dense_slot_twin(head)

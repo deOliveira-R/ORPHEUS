@@ -6,7 +6,7 @@ as :math:`S`, at the solve's order, over the channel's own Legendre stack).
 The claims, each with its own witness:
 
 * the action IS the frame conjugation at the SOLVE's order —
-  ``N2N.apply(ψ) ≡ (1/W)·frame.conjugate(Λ₂ₙ).apply(ψ)`` with ``Λ₂ₙ`` the
+  ``N2N.apply(ψ) ≡ (1/W)·conjugate(frame, Λ₂ₙ).apply(ψ)`` with ``Λ₂ₙ`` the
   full (``skip_l0=False``) moment transfer over the (n,2n) field at ``L``
   (the P0 half on the reaction-rate fast path, the ℓ ≥ 1 half through
   the frame — the shape ``S`` has always had);
@@ -67,6 +67,7 @@ from tests.gates.sn.operators._composite_operand import (
     transpose_values,
     zero_trace_composite,
 )
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -140,7 +141,7 @@ class TestTheBindingAtTheSolveOrder:
         moment = LegendreMomentTransfer.on_frame(
             TransferMaterialField.n2n(solver.problem.mat_xs), S.frame, skip_l0=False,
         )
-        conjugated = S.frame.conjugate(moment).apply(psi.values)
+        conjugated = frame_faces.conjugate(S.frame, moment).apply(psi.values)
         np.testing.assert_allclose(
             got, np.asarray(conjugated) / n2n.total_weight,
             rtol=1e-13, atol=1e-16,

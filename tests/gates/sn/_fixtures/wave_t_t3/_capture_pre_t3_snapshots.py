@@ -57,6 +57,7 @@ from pathlib import Path
 
 import numpy as np
 from scipy.sparse import csr_matrix
+from orpheus.numerics import frame_faces
 
 # Ensure the orpheus package on the path when running standalone.
 _REPO_ROOT = Path(__file__).resolve().parents[5]
@@ -226,7 +227,7 @@ def _capture_legendre_moments(
     from orpheus.transport.operators.transfer import LegendreMomentTransfer
 
     quad = solver.quad
-    moments_values = quad.angular_frame(L).analysis.apply(psi.values)
+    moments_values = frame_faces.FrameAnalysis.of(quad.angular_frame(L)).apply(psi.values)
     moments = HarmonicMomentFlux.from_problem_and_L(
         moments_values, solver.problem, L,
     )

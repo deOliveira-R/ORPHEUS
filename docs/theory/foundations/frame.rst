@@ -19,6 +19,33 @@ discipline subclasses), and for the **discipline** — Galerkin vs
 Petrov-Galerkin, test space equal to vs different from trial space — that
 distinguishes its variants.
 
+.. note::
+
+   **Where the faces live (concept-order ruling 22, numerics untangling
+   package M3).** A frame is the join of a basis and a discrete measure:
+   the binding, its sampling table and its Gram
+   (:mod:`orpheus.numerics.frame`). That datum sits upstream of the axis,
+   the space and the operators, so the faces built *from* it do not live on
+   it. Everywhere this page says that a frame "emits" or "has" a face, read
+   the downstream constructor of :mod:`orpheus.numerics.frame_faces`:
+   :meth:`FrameAnalysis.of(frame) <orpheus.numerics.frame_faces.FrameAnalysis.of>`,
+   :meth:`FrameReconstruction.of(frame) <orpheus.numerics.frame_faces.FrameReconstruction.of>`,
+   :meth:`CrossGramInverse.of(frame) <orpheus.numerics.frame_faces.CrossGramInverse.of>`,
+   the functions :func:`~orpheus.numerics.frame_faces.basis_space`,
+   :func:`~orpheus.numerics.frame_faces.test_space`,
+   :func:`~orpheus.numerics.frame_faces.measure_space`,
+   :func:`~orpheus.numerics.frame_faces.conjugate`,
+   :func:`~orpheus.numerics.frame_faces.reconstruct_after` and
+   :func:`~orpheus.numerics.frame_faces.project`. Each is built once per
+   frame instance and returned as the same object afterwards (the value is
+   stored in the frame's instance ``__dict__``, as ``cached_property``
+   did), which the identity of a Galerkin frame's analysis codomain with its
+   reconstruction domain relies on. One recorded inconsistency, for the
+   space-valued faces' own package to settle: a Galerkin frame's
+   ``test_space`` is its Parseval-dressed ``basis_space``, while a
+   Petrov-Galerkin frame whose test basis *is* its trial basis reads the
+   undressed ``test.space``.
+
 The page is organised **general case first**. The Petrov-Galerkin frame
 (test :math:`\ne` trial) is the general object; the Galerkin frame (test
 :math:`=` trial) is its symmetric specialisation — a structure the code
@@ -118,10 +145,10 @@ Key Facts
   operational faces:
 
   * the **analysis** face :math:`M = T` — sampled values →
-    coefficients (``frame.analysis``), measured against the **test**
+    coefficients (``FrameAnalysis.of(frame)``), measured against the **test**
     basis;
   * the **reconstruction** face :math:`R` — coefficients → values,
-    the canonical-dual synthesis (``frame.reconstruction``), purely
+    the canonical-dual synthesis (``FrameReconstruction.of(frame)``), purely
     trial-side.
 
   Together :math:`(R, M)` define a Galerkin-style discretisation of
@@ -172,8 +199,7 @@ Key Facts
   hypothesis), i.e. the *covariant* moments, not the coefficients. So
   the inner product under which analysis is an isometry onto its image
   is :math:`G^{-1}`, and
-  :attr:`FrameBase.basis_space
-  <orpheus.numerics.frame.FrameBase.basis_space>` dresses the basis's
+  :func:`basis_space <orpheus.numerics.frame_faces.basis_space>` dresses the basis's
   space with it. Consequences: (i) the metric is a property of the
   **pairing**, never a basis constant — the same SH basis on a slab
   Gauss–Legendre measure has :math:`W = 2`, not :math:`4\pi`;
@@ -265,9 +291,9 @@ Key Facts
   Beyond ``analysis`` / ``reconstruction``, a
   :class:`~orpheus.numerics.frame.FrameBase` emits the composed-operator
   verbs a consumer uses directly — *define a frame, compose, done*:
-  :meth:`conjugate <orpheus.numerics.frame.FrameBase.conjugate>`
+  :func:`conjugate <orpheus.numerics.frame_faces.conjugate>`
   (:math:`R\circ A\circ M`, the scattering kernel) and
-  :meth:`project <orpheus.numerics.frame.FrameBase.project>`
+  :func:`project <orpheus.numerics.frame_faces.project>`
   (:math:`G^{-1}M`, the homogenise / condense verb). These are typed
   operator products, not hand-rolled numpy chains
   (:ref:`frame-composed-verbs`).
@@ -280,7 +306,7 @@ Key Facts
   partition-of-unity Gram). The third discipline — a least-squares
   frame over a **dense** cross-Gram needing the real
   :math:`(MR)^{-1}M` solve — is **designed but not built**:
-  :meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
+  :func:`project <orpheus.numerics.frame_faces.project>`
   *refuses* a :class:`~orpheus.numerics.basis.GramStructure`
   ``DENSE`` trial (raising
   :class:`~orpheus.numerics.operator.NotInvertible`) rather than
@@ -335,7 +361,7 @@ Key Facts
   called the continuum one *"the end an* :math:`\ell`\ *-diagonal operator
   wants"*. Both halves are now false. The harmonic heads are AXIS-BUILT,
   so the measure is part of the identity: `[M]` over the 33 shipped
-  (rule, :math:`L`) rows ``frame.basis_space == frame.basis.space`` is
+  (rule, :math:`L`) rows ``basis_space(frame) == frame.basis.space`` is
   **0 of 33** (it was 33 of 33). And ruling **R-6.2c-1** binds the ONE
   moment space the tree carries — the carrier's cached mint, every
   moment field, every operator end — to ``basis_space``, because *the
@@ -606,7 +632,7 @@ inner product :math:`\langle\cdot,\cdot\rangle_\star` with
 .. (vv-status rationale) The Parseval isometry — a representational
    identity that FOLLOWS from :eq:`frame-analysis-is-the-gram` by
    substitution, defining the codomain metric rather than asserting a
-   solver result. Shipped by FrameBase.basis_space (the dressing) and
+   solver result. Shipped by frame_faces.basis_space (the dressing) and
    gated directly by ``test_parseval_analysis_is_an_isometry_onto_its_image``
    over ten rows, each asserting its Gram verdict: the six DIAGONAL
    sphere families, the slab ``gauss_legendre(8)`` at L = 2 (DIAGONAL
@@ -626,12 +652,12 @@ inner product :math:`\langle\cdot,\cdot\rangle_\star` with
 
 
 .. implements:: frame-parseval-isometry
-   :by: orpheus.numerics.frame.FrameBase.basis_space
+   :by: orpheus.numerics.frame_faces.basis_space
 
    **Implemented by** 1 site, deliberately. This equation *determines*
    the coefficient-space inner product, and exactly one symbol makes
    the choice it determines:
-   :attr:`~orpheus.numerics.frame.FrameBase.basis_space`, which installs
+   :func:`~orpheus.numerics.frame_faces.basis_space`, which installs
    :math:`G^{-1}` (zero on dead slots) as the codomain's metric — since
    CS4c step 6 item 6.2c-ii by RE-WEIGHTING the coefficient space's single
    head axis, or, on a ``DENSE`` frame, by emptying that axis's measure and
@@ -672,7 +698,7 @@ it also zeroes that slot's moment; and the zero metric entry then
 zeroes its contribution to :math:`\|\varphi\|_\star`. Parseval
 therefore holds **whatever garbage sits in a dead slot**, which is
 exactly the convention
-:meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
+:func:`project <orpheus.numerics.frame_faces.project>`
 already uses.
 
 .. _frame-metric-is-induced-not-a-constant:
@@ -732,19 +758,18 @@ one for the other is the trap this subsection exists to close.
      - **MEASURED** from :eq:`frame-discrete-gram`
    * - About which matrix
      - The *cross* Gram :math:`MR` — what
-       :meth:`~orpheus.numerics.frame.FrameBase.project` inverts via its
+       :func:`~orpheus.numerics.frame_faces.project` inverts via its
        row-sum probe
      - The *trial* Gram :math:`G = Y^{\mathsf T}WY` on **this** measure
    * - Depends on the measure?
      - No — a statement about the basis family
      - Yes — it is a measurement
    * - What it gates
-     - :meth:`FrameBase.project
-       <orpheus.numerics.frame.FrameBase.project>` (a
+     - :func:`project <orpheus.numerics.frame_faces.project>` (a
        :attr:`~orpheus.numerics.basis.base.GramStructure.DENSE`
        declaration is refused)
      - The Parseval dressing on
-       :attr:`~orpheus.numerics.frame.FrameBase.basis_space`
+       :func:`~orpheus.numerics.frame_faces.basis_space`
 
 Two measured disagreements ship today, one in each direction:
 
@@ -797,8 +822,7 @@ When no diagonal metric exists — the dense arm, and the slab witness
    every build severity; if you meet one, it predates P7.
 
 If the measured verdict is ``DENSE``,
-:attr:`FrameBase.basis_space
-<orpheus.numerics.frame.FrameBase.basis_space>` dresses the basis's
+:func:`basis_space <orpheus.numerics.frame_faces.basis_space>` dresses the basis's
 space with the **matrix** Parseval metric — the Moore–Penrose
 pseudo-inverse :math:`G^{+}` of the measured (symmetrized) Gram,
 installed as a :class:`~orpheus.numerics.metric.DenseMetric` at the
@@ -1085,14 +1109,14 @@ Numerical evidence
 construction, so the table regenerates from this page**: build the
 frame (``Quadrature.<family>(...).angular_frame(L)``, or
 ``GalerkinFrame(SphericalHarmonicBasis(L=2), lebedev_sphere(13))``);
-draw :math:`c \sim` ``default_rng(1234).standard_normal(frame.basis_space.shape)``
+draw :math:`c \sim` ``default_rng(1234).standard_normal(basis_space(frame).shape)``
 *unmasked* (garbage in the dead slots is deliberate — see the
 pseudo-inverse paragraph above); form
 :math:`\psi = \texttt{frame.basis.synthesize}(c, \texttt{frame.table})`
-and :math:`\varphi = \texttt{frame.analysis.apply}(\psi)`; then read
+and :math:`\varphi = \texttt{FrameAnalysis.of(frame).apply}(\psi)`; then read
 the five residuals off ``frame.discrete_gram``,
-``frame.basis_space.inner_product``, ``frame.measure_space.inner_product``,
-``frame.analysis.H``, ``frame.reconstruction.H`` and
+``basis_space(frame).inner_product``, ``measure_space(frame).inner_product``,
+``FrameAnalysis.of(frame).H``, ``FrameReconstruction.of(frame).H`` and
 :math:`W = \texttt{frame.measure.weights.sum()}`. Columns 3, 5 and 6
 are max-absolute residuals; the Parseval column is the *ratio*
 :math:`\|\varphi\|^2_\star / \|\psi\|^2_W` under whichever metric the
@@ -1210,7 +1234,7 @@ masses), the dressed metric is
 (:math:`\|\varphi\|^2_{1/m} = \|f\|^2_V = 2900` on a region-wise
 constant field). The empty region's metric slot is **exactly**
 :math:`0.0`, matching
-:meth:`~orpheus.numerics.frame.FrameBase.project`'s Moore–Penrose
+:func:`~orpheus.numerics.frame_faces.project`'s Moore–Penrose
 convention: a dead slot annihilates its coefficient in :math:`S_0c`,
 zeroes its moment, and zeroes its metric entry, so the identity holds
 whatever garbage sits in that slot.
@@ -1229,7 +1253,7 @@ not its inverse — the **wrong side** for the covariant moments
 
 `[M]` the damage, on an LS\ :sub:`4` rule: the Parseval ratio read
 :math:`81.4` at :math:`L=1` and :math:`65.2` at :math:`L=2` instead of
-:math:`1`, and ``frame.analysis.H`` was off the physical adjoint by
+:math:`1`, and ``FrameAnalysis.of(frame).H`` was off the physical adjoint by
 exactly :math:`(4\pi/(2\ell+1))^2` per :math:`\ell` — a factor of
 :math:`157.9` on the scalar moment, :math:`17.5` on the current,
 :math:`6.3` at :math:`\ell = 2`. (The ratio is a moment-energy-weighted
@@ -1627,7 +1651,7 @@ carries the per-group flux :math:`\phi` as its test weight, and its
 vector channel weights elementwise, a ``[g_from, g_to]`` matrix channel
 weights by its source group — *before* the region integral. The
 :math:`1/\Phi_{R,g'}` normalisation is the frame's diagonal Gram
-(:meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`'s
+(:func:`project <orpheus.numerics.frame_faces.project>`'s
 :meth:`FunctionSpace.apply_inverse_metric
 <orpheus.numerics.space.FunctionSpace.apply_inverse_metric>`), whose
 :math:`\Phi_{R,g'}` rides the ``g_from`` axis and broadcasts over the
@@ -2194,7 +2218,7 @@ The coefficient-extraction verb and its normalisation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The homogenization map is the frame's **coefficient-extraction verb**
-:meth:`frame.project <orpheus.numerics.frame.FrameBase.project>`
+:func:`project <orpheus.numerics.frame_faces.project>`
 = :math:`G^{-1} M`:
 
 .. math::
@@ -2207,7 +2231,7 @@ The homogenization map is the frame's **coefficient-extraction verb**
 
 .. (vv-status rationale) Structural/representational identity: the
    homogenization map as the inverse-Gram ∘ analysis coefficient
-   extraction (``FrameBase.project``) of the Petrov-Galerkin frame.
+   extraction (``frame_faces.project``) of the Petrov-Galerkin frame.
    Each factor is a Frame primitive whose bit-identity is gated by
    ``tests.gates.numerics.test_indicator_basis`` /
    ``tests.gates.numerics.test_weighted_indicator_basis`` /
@@ -2218,7 +2242,7 @@ The homogenization map is the frame's **coefficient-extraction verb**
 
 read right-to-left:
 
-#. **analysis** :math:`M` = ``frame.analysis.apply``, which delegates to
+#. **analysis** :math:`M` = ``FrameAnalysis.of(frame).apply``, which delegates to
    the *test* basis's weighted analysis: the flux-weighted region
    integral :math:`(M\Sigma)_R = \sum_{i\in R} V_i\,\phi_i\,\Sigma_i =
    \int_R \phi\,\Sigma\,\mathrm{d}V` — the region reaction rate. The
@@ -2227,9 +2251,8 @@ read right-to-left:
    V_i\,\phi_i = \Phi_R` (a single ``analysis ∘ reconstruction`` probe
    of the all-ones coefficient vector; the off-diagonals are
    structurally zero, so the row-sum IS the diagonal — see
-   :attr:`frame.gram_inverse
-   <orpheus.numerics.frame.FrameBase.gram_inverse>`, whose
-   :attr:`~orpheus.numerics.frame.CrossGramInverse.diagonal` IS that
+   :meth:`CrossGramInverse.of <orpheus.numerics.frame_faces.CrossGramInverse.of>`, whose
+   :attr:`~orpheus.numerics.frame_faces.CrossGramInverse.diagonal` IS that
    probe).
 #. **inverse Gram** :math:`G^{-1} = \operatorname{diag}(1/\Phi_R)` =
    :meth:`FunctionSpace.apply_inverse_metric
@@ -2316,7 +2339,7 @@ owns *which* weighting each channel needs.
    membership), :meth:`WeightedIndicatorBasis.analyze
    <orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis.analyze>`
    (the **test-side** flux-weighted reader),
-   :meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
+   :func:`project <orpheus.numerics.frame_faces.project>`
    (the :math:`G^{-1}M` verb), and
    :meth:`FunctionSpace.apply_inverse_metric
    <orpheus.numerics.space.FunctionSpace.apply_inverse_metric>` — rather
@@ -2516,8 +2539,7 @@ the contract:
        membership), :meth:`WeightedIndicatorBasis.analyze
        <orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis.analyze>`
        (the **test-side** flux-weighted reader),
-       :meth:`FrameBase.project
-       <orpheus.numerics.frame.FrameBase.project>`, and
+       :func:`project <orpheus.numerics.frame_faces.project>`, and
        :meth:`FunctionSpace.apply_inverse_metric
        <orpheus.numerics.space.FunctionSpace.apply_inverse_metric>` — the
        Petrov-Galerkin routing
@@ -2814,12 +2836,12 @@ So the matrix collapse is
 .. vv-status: energy-condensation-matrix-collapse documented
 
 with :math:`\operatorname{project}` the source-group flux average
-(:meth:`frame.project <orpheus.numerics.frame.FrameBase.project>`) and
+(:func:`project <orpheus.numerics.frame_faces.project>`) and
 :math:`T` the fine→coarse membership table. The :math:`(n,2n)` channel
 collapses identically. In the code
 (:meth:`Mixture.condense
 <orpheus.data.macro_xs.mixture.Mixture.condense>`) this reads exactly
-``frame.project(mat @ T)`` per matrix channel.
+``project(frame, mat @ T)`` per matrix channel.
 
 .. warning::
 
@@ -2931,7 +2953,7 @@ the simplex. The rate-preserving choice is the **pure birth-group sum**
    Two design properties of that gate are worth carrying into any future
    condensation work on this page.  First, the morphisms in the gate are
    **hand-built in the test body** from the partition and :math:`\varphi`
-   — never a second ``frame.project`` call — so the reference is
+   — never a second ``project(frame, ·)`` call — so the reference is
    structurally independent of the machinery under test rather than a
    procedural rearrangement of it (``vv-principles`` L11).  Second, the
    gate **asserts its own activation precondition**: a target with one
@@ -2972,8 +2994,7 @@ fine group's mass is counted exactly once;
 :eq:`energy-condensation-partition-of-unity`). A flux-weighted
 projection would give :math:`\sum_G\chi_G \ne 1`, destroying the
 simplex — which is why :math:`\chi` is routed through the *table*
-contraction ``χ @ T``, **not** through :meth:`frame.project
-<orpheus.numerics.frame.FrameBase.project>`. The simplex / null law is
+contraction ``χ @ T``, **not** through :func:`project <orpheus.numerics.frame_faces.project>`. The simplex / null law is
 re-validated when the condensed
 :class:`~orpheus.data.macro_xs.mixture.Mixture` is constructed
 (:meth:`Mixture.__post_init__
@@ -3205,8 +3226,7 @@ standard first choice for condensation, NJOY ``IWT=3``). Flat-in-energy
 (NJOY ``IWT=2``) and the library weighting spectrum (fission + 1/E +
 Maxwellian, NJOY ``IWT=4``) are future options on the same strategy
 seam. The model is the **only new numerics surface** the non-nested case
-adds — everything else (the Petrov-Galerkin frame, :meth:`frame.project
-<orpheus.numerics.frame.FrameBase.project>`, the diagonal Gram, rate
+adds — everything else (the Petrov-Galerkin frame, :func:`project <orpheus.numerics.frame_faces.project>`, the diagonal Gram, rate
 preservation) is unchanged.
 
 .. _sn-condensation-petrov-galerkin-frame:
@@ -3219,8 +3239,7 @@ condensation is the coefficient extraction :math:`G^{-1}M` of a
 **Petrov-Galerkin** frame — the *energy-axis instance* of the *same*
 mechanism, which is exactly why the numerics core is reused verbatim:
 
-  Condensation is :meth:`frame.project
-  <orpheus.numerics.frame.FrameBase.project>` of a
+  Condensation is :func:`project <orpheus.numerics.frame_faces.project>` of a
   :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` whose *trial*
   basis is the fractional group-overlap indicator
   :math:`\mathbf{1}_G` (carried by
@@ -3283,7 +3302,7 @@ test indicators of (fractional) partition-of-unity support, the
 gives :math:`(M\,\mathbf 1)_G = \sum_g \varphi_g\,T[g,G] = \Phi_G`, the
 coarse-group flux :eq:`energy-condensation-coarse-flux`, which *is* the
 diagonal of the Gram — so the normal equations decouple group-by-group
-and :meth:`frame.project <orpheus.numerics.frame.FrameBase.project>`
+and :func:`project <orpheus.numerics.frame_faces.project>`
 returns the spectrum-weighted average
 :eq:`energy-condensation-vector-collapse` with a per-group
 **reciprocal**, not a linear solve.
@@ -3294,7 +3313,7 @@ returns the spectrum-weighted average
    row, so the **off-diagonal** cross-Gram
    :math:`G_{GG'} = \sum_g \varphi_g\,T[g,G]\,T[g,G']` is **not**
    structurally zero. This is correct and harmless:
-   :meth:`frame.project <orpheus.numerics.frame.FrameBase.project>` uses
+   :func:`project <orpheus.numerics.frame_faces.project>` uses
    only the **diagonal** :math:`G_{GG} = \Phi_G` (each coarse group's
    rate is its *own* functional — one DOF per group, the P0 / rank-0
    space), so it ignores the off-diagonals by construction. The
@@ -3553,8 +3572,7 @@ takes both), so even there a single "HomogenizationFrame" is the wrong
 shape. Second it is **unjustified type-minting** (the project's
 type-vs-property rule): a new frame *type* is earned only by a new frame
 *morphism*, and condensation introduces none — its analysis,
-reconstruction, Gram, and :meth:`project
-<orpheus.numerics.frame.FrameBase.project>` are the *unchanged*
+reconstruction, Gram, and :func:`project <orpheus.numerics.frame_faces.project>` are the *unchanged*
 Petrov-Galerkin operations. The only genuinely new surface is the
 fractional trial *basis* (:class:`~orpheus.numerics.basis.OverlapBasis`),
 which is exactly where the novelty belongs — a basis, not a frame.
@@ -3587,8 +3605,7 @@ a solve, so there is no :math:`k` to verify; the pillar question is "does
 the reduction preserve the rate functional", answered by closed-form
 hand-summation. The correctness oracle is a **structurally-independent**
 explicit per-group Python loop over the fine groups — *not* a re-call of
-the production :meth:`frame.project
-<orpheus.numerics.frame.FrameBase.project>` (vv-principles **L11**: a
+the production :func:`project <orpheus.numerics.frame_faces.project>` (vv-principles **L11**: a
 cross-check must be structurally independent, not merely procedurally
 independent; a frame-vs-frame comparison would share any reduction bug).
 The scattering rate is one ULP, not bit-identical, because the
@@ -3674,8 +3691,7 @@ The discriminator and the companion invariants:
        χ fast-half-mass :math:`>0.5`, and a non-empty
        ``locally_interpolated``.
    * - Mode-11 routing sentinel
-     - ``Mixture.condense`` actually calls :meth:`frame.project
-       <orpheus.numerics.frame.FrameBase.project>` and
+     - ``Mixture.condense`` actually calls :func:`project <orpheus.numerics.frame_faces.project>` and
        :meth:`WeightedIndicatorBasis.analyze
        <orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis.analyze>`
        (the **test-side** spectrum reader) — the Petrov-Galerkin routing
@@ -3821,13 +3837,13 @@ why a single basis :math:`\{e_k\}` produces both :math:`M` and
    :math:`M^* = R/W`.
 
    The analysis face's representation transpose
-   :meth:`frame.analysis.apply_transpose
+   :meth:`FrameAnalysis.of(frame).apply_transpose
    <orpheus.numerics.basis.Basis.analyze_transpose>` is
    :math:`w_n\,S_0` (the *naked* synthesis weighted by the
    quadrature weight) — that one is metric-free and unchanged; its
-   metric-aware Hilbert adjoint ``frame.analysis.H`` is
+   metric-aware Hilbert adjoint ``FrameAnalysis.of(frame).H`` is
    :math:`M^* = S_0 \circ G^{-1} = R/W`; and
-   :meth:`frame.reconstruction.apply
+   :meth:`FrameReconstruction.of(frame).apply
    <orpheus.numerics.basis.Basis.reconstruct>` returns :math:`R`
    (with the :math:`(2\ell+1)` factor). The adjoint-face dishonesty
    that conflated the bare transpose with the Hilbert adjoint was
@@ -4049,7 +4065,7 @@ diagonal of eigenvalues. The discrete ORPHEUS scattering kernel is
 
 with
 
-* :math:`M` (the frame's **analysis** face, ``frame.analysis``) =
+* :math:`M` (the frame's **analysis** face, ``FrameAnalysis.of(frame)``) =
   :math:`U^*` — the change of basis *into* the eigenbasis (project the
   flux onto its harmonic moments :math:`\phi_\ell^m`);
 * :math:`\Lambda` (=
@@ -4057,7 +4073,7 @@ with
   :math:`\Sigma` — the diagonal multiply by the spectrum
   :math:`\Sigma_{s,\ell}`, one scalar per :math:`\ell`-block;
 * :math:`R` (the frame's **reconstruction** face,
-  ``frame.reconstruction``) = :math:`U` — the synthesis *out of* the
+  ``FrameReconstruction.of(frame)``) = :math:`U` — the synthesis *out of* the
   eigenbasis (rebuild the per-ordinate source).
 
 The **addition theorem** :eq:`real-sh-addition-theorem` —
@@ -4067,7 +4083,7 @@ resolution* of the zonal kernel: it expresses the rank-:math:`(2\ell+1)`
 projector onto the degree-:math:`\ell` eigenspace as an outer product
 of harmonics. Reading :math:`S = R\circ\Lambda\circ M` as
 :math:`U\Sigma U^*` is what makes the conjugation
-:math:`S = \texttt{frame.conjugate}(\Lambda)` (the scattering **2-cell**
+:math:`S = \texttt{conjugate}(\texttt{frame}, \Lambda)` (the scattering **2-cell**
 of the operator-algebra double category, :doc:`/theory/foundations/operator_algebra`) a
 *spectral* statement and not merely a convenient bracketing.
 
@@ -4240,7 +4256,7 @@ different objects. The basis's own
 :attr:`Basis.space <orpheus.numerics.basis.Basis.space>` carries the
 **continuum** Gram :math:`g_C = 4\pi/(2\ell+1)`
 (:eq:`sh-space-metric`); the frame's
-:attr:`~orpheus.numerics.frame.FrameBase.basis_space` **replaces** that
+:func:`~orpheus.numerics.frame_faces.basis_space` **replaces** that
 with the Parseval metric :math:`G^{-1}` — the inverse *discrete* Gram —
 because the analysis face returns covariant moments
 (:ref:`frame-parseval-metric`, and
@@ -4407,10 +4423,10 @@ built as ``HarmonicFrame.from_galerkin(q.angular_frame(L))``:
    * - ``frame.basis.space is from_L(L)``
      - 0 / 33
      - content-equal, never the same object
-   * - ``frame.basis_space == frame.basis.space``
+   * - ``basis_space(frame) == frame.basis.space``
      - 33 / 33
      - ``(name, shape)``-equal — **equality was metric-blind**
-   * - ``frame.basis_space`` metric ≠ ``frame.basis.space`` metric
+   * - ``basis_space(frame)`` metric ≠ ``frame.basis.space`` metric
      - 33 / 33
      - the fork a ``==`` gate structurally cannot see
 
@@ -4431,7 +4447,7 @@ the wrong-structure one).
    tuple, weights bytes included (:ref:`spaces-identity-bridge`). So the
    metric entered the identity and the two heads separated: `[M]`
    re-measured for this page on the same 33 rows,
-   ``frame.basis_space == frame.basis.space`` is **0 of 33**, and every
+   ``basis_space(frame) == frame.basis.space`` is **0 of 33**, and every
    one of the 33 dressed heads reports ``axes is not None``. Row 5 stands
    and is now *implied* by row 4 rather than hidden from it. ⭐ The
    consequence for gate design runs the other way too: the ``==``
@@ -4758,7 +4774,7 @@ What that changes, stated as the tree now reads:
 :meth:`HarmonicFrame.moment_space_on
 <orpheus.transport.frames.harmonic_frame.HarmonicFrame.moment_space_on>`
 both build ``<head> ⊗ <cell axes>`` and both read the head off
-``frame.basis_space``. They cannot share an *instance*: the frame is
+``basis_space(frame)``. They cannot share an *instance*: the frame is
 constructed from ``(basis, measure)`` and has no reference to the carrier,
 so no cache lookup can reach across. What they share is *identity*, which
 under structural equality is the whole of what a composability guard asks.
@@ -4866,7 +4882,7 @@ to catch is green by construction):
        end and the moment field's head MOVE with it
      - an end minted from :math:`L` alone: it fails the composability
        guard ``A.domain == B.codomain`` under
-       :meth:`frame.conjugate <orpheus.numerics.frame.FrameBase.conjugate>`,
+       :func:`conjugate <orpheus.numerics.frame_faces.conjugate>`,
        which is the red a reverted producer produces
    * - **METRIC**
      - *(as written 2026-09-02:)* the bound end carries the basis's own
@@ -5180,19 +5196,19 @@ hand-rolled numpy chain). Three composed verbs cover every consumer:
    * - Verb
      - Composition
      - Consumer
-   * - :meth:`conjugate(A) <orpheus.numerics.frame.FrameBase.conjugate>`
+   * - :func:`conjugate(A) <orpheus.numerics.frame_faces.conjugate>`
      - :math:`R \circ A \circ M`
      - SN anisotropic scattering
        :math:`S_{\ell\ge 1} = R\,\Lambda\,M` (project to moments,
        multiply by the spectrum :math:`\Sigma_{s,\ell}`, reconstruct
        the per-ordinate source)
-   * - :meth:`reconstruct_after(A) <orpheus.numerics.frame.FrameBase.reconstruct_after>`
+   * - :func:`reconstruct_after(A) <orpheus.numerics.frame_faces.reconstruct_after>`
      - :math:`R \circ A`
      - inputs **already** in coefficient space — the angular-windowed
        SN moment iterate, whose bulk is already :math:`M\psi`, so only
        :math:`R\,\Lambda` remains (wiring it to ``conjugate`` would
        double-project)
-   * - :meth:`project(f) <orpheus.numerics.frame.FrameBase.project>`
+   * - :func:`project(f) <orpheus.numerics.frame_faces.project>`
      - :math:`G^{-1} M`
      - the **homogenise / condense** coefficient extraction —
        :meth:`Solution.homogenize
@@ -5210,7 +5226,7 @@ guard enforcing that :math:`A` composes between the faces (its
 ``domain`` is the analysis codomain, its ``codomain`` the
 reconstruction domain).
 
-:meth:`conjugate <orpheus.numerics.frame.FrameBase.conjugate>` is the
+:func:`conjugate <orpheus.numerics.frame_faces.conjugate>` is the
 **2-cell** of the (Representation × Role) carrier double category
 (:ref:`operator-algebra`): a coefficient-space Role-morphism :math:`A`
 conjugated by the horizontal Representation-adjoint pair
@@ -5219,12 +5235,10 @@ angular frame is the scattering kernel's, by Funk–Hecke —
 :math:`R\circ\Lambda\circ M` **is** the spectral theorem
 :math:`U\Sigma U^*` written out, and the frame is then *owned* by that
 operator (:ref:`frame-eigenbasis-ownership`). The
-coefficient-extraction verb :meth:`project
-<orpheus.numerics.frame.FrameBase.project>` is the Petrov-Galerkin
+coefficient-extraction verb :func:`project <orpheus.numerics.frame_faces.project>` is the Petrov-Galerkin
 :math:`G^{-1}M` derived term-by-term for the homogenisation consumer in
 :ref:`sn-homogenization-petrov-galerkin-frame`; its diagonal-Gram normalisation
-is the typed ARROW :attr:`gram_inverse
-<orpheus.numerics.frame.FrameBase.gram_inverse>`, whose action is the
+is the typed ARROW :meth:`gram_inverse <orpheus.numerics.frame_faces.CrossGramInverse.of>`, whose action is the
 row-sum probe of :ref:`frame-least-squares-discipline` and whose ends
 are the two faces' coefficient ends (:ref:`frame-gram-inverse-arrow`).
 
@@ -5234,7 +5248,7 @@ are the two faces' coefficient ends (:ref:`frame-gram-inverse-arrow`).
 The projection normalisation is an ARROW, not a metric-twin space
 ==================================================================
 
-:meth:`project <orpheus.numerics.frame.FrameBase.project>` is
+:func:`project <orpheus.numerics.frame_faces.project>` is
 :math:`G^{-1}M`: analyse against the test functions, then divide by the
 cross Gram :math:`G_{kj} = \langle\chi_k, \phi_j\rangle_W = (MR)_{kj}`.
 The frame computes :math:`G` with a single ``analysis ∘ reconstruction``
@@ -5251,17 +5265,16 @@ probe diagonal as its ``inner_product_weights``, and the
 
 .. code-block:: python
 
-   frame.conjugate(InverseMetricOperator(frame.gram))     # retired
+   conjugate(frame, InverseMetricOperator(frame.gram))     # retired
 
 i.e. as an endomorphism of that re-dressed twin. Since 6.2c-ii it is a
 typed **arrow**,
-:class:`~orpheus.numerics.frame.CrossGramInverse`, exposed as
-:attr:`FrameBase.gram_inverse
-<orpheus.numerics.frame.FrameBase.gram_inverse>`, and the projector is
+:class:`~orpheus.numerics.frame_faces.CrossGramInverse`, exposed as
+:meth:`CrossGramInverse.of <orpheus.numerics.frame_faces.CrossGramInverse.of>`, and the projector is
 
 .. code-block:: python
 
-   frame.conjugate(frame.gram_inverse)                    # = R G⁻¹ M
+   conjugate(frame, CrossGramInverse.of(frame))                    # = R G⁻¹ M
 
 ⭐ **Two independent reasons, and the second is the one that generalises.**
 
@@ -5278,9 +5291,9 @@ exactly its job, on a spelling that had been relying on the seam.
 
 **(2) The twin was a costume, and it carried a real hazard.**
 :math:`G^{-1}` maps the analysis face's covariant output (in
-:attr:`~orpheus.numerics.frame.FrameBase.test_space`) to the trial side's
+:func:`~orpheus.numerics.frame_faces.test_space`) to the trial side's
 contravariant coefficients (in
-:attr:`~orpheus.numerics.frame.FrameBase.basis_space`). Those ARE the two
+:func:`~orpheus.numerics.frame_faces.basis_space`). Those ARE the two
 faces' coefficient ends — it was an arrow all along, wearing an
 endomorphism's clothes. Spelled as one it composes by construction, and a
 whole class of defect becomes **unspellable**: the arrow's action reads
@@ -5293,17 +5306,17 @@ space whose ``apply_inverse_metric`` applied its own matrix instead, a
 ``gram`` to *strip* the dressing — a guard. The arrow removes the state
 the guard was guarding.
 
-.. list-table:: :class:`~orpheus.numerics.frame.CrossGramInverse` at a glance
+.. list-table:: :class:`~orpheus.numerics.frame_faces.CrossGramInverse` at a glance
    :header-rows: 1
    :widths: 24 76
 
    * - Slot
      - What it is
    * - ``domain``
-     - :attr:`~orpheus.numerics.frame.FrameBase.test_space` — the analysis
+     - :func:`~orpheus.numerics.frame_faces.test_space` — the analysis
        codomain, where a covariant moment lands
    * - ``codomain``
-     - :attr:`~orpheus.numerics.frame.FrameBase.basis_space` — the
+     - :func:`~orpheus.numerics.frame_faces.basis_space` — the
        reconstruction domain, the trial coefficient space. One space on a
        :class:`~orpheus.numerics.frame.GalerkinFrame`, two on a
        :class:`~orpheus.numerics.frame.PetrovGalerkinFrame`
@@ -5319,11 +5332,10 @@ the guard was guarding.
      - ``True`` — a real diagonal is self-adjoint, and its two ends share
        one shape
 
-The consumers moved with it: :meth:`project
-<orpheus.numerics.frame.FrameBase.project>` is now literally
+The consumers moved with it: :func:`project <orpheus.numerics.frame_faces.project>` is now literally
 ``gram_inverse.apply(analysis.apply(field))``, and the SN loss-kernel
 gauge spells its :math:`G`-orthogonal projector
-``frame.conjugate(frame.gram_inverse)``. The ``DENSE``-trial refusal is
+``conjugate(frame, CrossGramInverse.of(frame))``. The ``DENSE``-trial refusal is
 unchanged and still lives on this property
 (:ref:`frame-least-squares-discipline`).
 
@@ -5362,8 +5374,7 @@ The discipline split is carried one level deeper than the
 Galerkin / Petrov-Galerkin *type* by the **trial basis's Gram
 structure** — the declaration
 :class:`~orpheus.numerics.basis.GramStructure` that decides whether the
-coefficient extraction :meth:`project
-<orpheus.numerics.frame.FrameBase.project>` can use a cheap row-sum
+coefficient extraction :func:`project <orpheus.numerics.frame_faces.project>` can use a cheap row-sum
 probe or needs a full dense solve. ``project`` normalises by the
 cross-Gram :math:`G = MR`; the frame computes it with a single
 ``analysis(reconstruction(ones))`` **row-sum probe**, but that probe
@@ -5398,9 +5409,8 @@ The first two rows are the **built** frames: a
 :class:`~orpheus.numerics.frame.GalerkinFrame` (diagonal Gram,
 ``test is trial``) and the forward
 :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` (diagonal *or*
-partition-of-unity). For both, :attr:`FrameBase.gram_inverse
-<orpheus.numerics.frame.FrameBase.gram_inverse>` is a single row-sum probe and
-:meth:`project <orpheus.numerics.frame.FrameBase.project>` is a per-cell
+partition-of-unity). For both, :meth:`CrossGramInverse.of <orpheus.numerics.frame_faces.CrossGramInverse.of>` is a single row-sum probe and
+:func:`project <orpheus.numerics.frame_faces.project>` is a per-cell
 reciprocal (a Moore–Penrose pseudo-inverse, so an empty / zero-flux
 region maps to :math:`\Sigma_R = 0` for free), **not** a linear solve.
 
@@ -5414,7 +5424,7 @@ for some non-identity :math:`A`, a dense SPD Gram needing a real solve —
 for which the row-sum probe is **wrong**. It is **designed but not
 built**: the base :class:`~orpheus.numerics.basis.Basis` defaults to
 ``GramStructure.DENSE`` (the safe refusal), and
-:meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
+:func:`project <orpheus.numerics.frame_faces.project>`
 raises :class:`~orpheus.numerics.operator.NotInvertible` on a
 ``DENSE`` trial rather than return a silently-wrong coarsening. The
 known future consumer is **higher-rank Generalized Energy Condensation**
@@ -5833,14 +5843,14 @@ the appropriate discipline type.
      - Reference
    * - **SN aniso scattering**
      - GalerkinFrame
-     - ``frame.analysis`` /
-       ``frame.reconstruction``
+     - ``FrameAnalysis.of(frame)`` /
+       ``FrameReconstruction.of(frame)``
        (``Quadrature.angular_frame(L)``)
      - **Live** (Wave 1)
      - §9 (Grand Report v3 line 1230)
    * - PN solver
      - GalerkinFrame
-     - Same SH ``frame.analysis``
+     - Same SH ``FrameAnalysis.of(frame)``
        on the moment-space side
      - Pending (PN solver not implemented)
      - §10 (lines 1299–1305)
@@ -5873,7 +5883,7 @@ the appropriate discipline type.
      - §15A.7
    * - MC adjoint moments
      - GalerkinFrame
-     - Same SH ``frame.analysis``
+     - Same SH ``FrameAnalysis.of(frame)``
        used as a variance-reduction estimator
      - Pending
      - Lewis & Miller 1993 §10
@@ -6312,14 +6322,13 @@ Implementation map
   single mechanism for every choice-dependent change-of-basis. Also
   emits the **composed-operator verbs**
   (:ref:`frame-composed-verbs`):
-  :meth:`conjugate <orpheus.numerics.frame.FrameBase.conjugate>`
+  :func:`conjugate <orpheus.numerics.frame_faces.conjugate>`
   (:math:`R\circ A\circ M`),
-  :meth:`reconstruct_after <orpheus.numerics.frame.FrameBase.reconstruct_after>`
+  :func:`reconstruct_after <orpheus.numerics.frame_faces.reconstruct_after>`
   (:math:`R\circ A`), and
-  :meth:`project <orpheus.numerics.frame.FrameBase.project>`
-  (:math:`G^{-1}M`) with its :attr:`gram_inverse
-  <orpheus.numerics.frame.FrameBase.gram_inverse>` cross-Gram arrow
-  (:class:`~orpheus.numerics.frame.CrossGramInverse`,
+  :func:`project <orpheus.numerics.frame_faces.project>`
+  (:math:`G^{-1}M`) with its :meth:`gram_inverse <orpheus.numerics.frame_faces.CrossGramInverse.of>` cross-Gram arrow
+  (:class:`~orpheus.numerics.frame_faces.CrossGramInverse`,
   ``test_space → basis_space``).
 * :meth:`GalerkinFrame.at_order
   <orpheus.numerics.frame.GalerkinFrame.at_order>` — THIS frame over the
@@ -6328,8 +6337,7 @@ Implementation map
   (:func:`~orpheus.numerics.spaces.moment_head.truncated_head`).
 * :class:`~orpheus.numerics.basis.GramStructure` — the trial basis's
   projection-validity declaration (``DIAGONAL`` / ``PARTITION_OF_UNITY``
-  / ``DENSE``) that decides whether :meth:`project
-  <orpheus.numerics.frame.FrameBase.project>` uses the row-sum probe or
+  / ``DENSE``) that decides whether :func:`project <orpheus.numerics.frame_faces.project>` uses the row-sum probe or
   refuses (:ref:`frame-least-squares-discipline`).
 * :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` — the general
   discipline: an explicit ``test_basis`` distinct from the trial
@@ -6372,7 +6380,7 @@ and identity operators on the spatial / energy axes:
    from orpheus.numerics.operator import IdentityOperator
 
    frame = quad.angular_frame(L)
-   M = frame.analysis
+   M = FrameAnalysis.of(frame)
    M_full = M & IdentityOperator() & IdentityOperator() & IdentityOperator()
 
 The ``&`` dunder constructs the
@@ -6401,12 +6409,11 @@ two unrelated operator classes — they are the **two faces of one
 discrete frame** binding the SH basis to the angular measure. The
 standalone operator classes were retired into the frame faces:
 
-* ``HarmonicMomentProjection`` → ``frame.analysis``
-  (:attr:`FrameBase.analysis <orpheus.numerics.frame.FrameBase.analysis>`,
+* ``HarmonicMomentProjection`` → ``FrameAnalysis.of(frame)``
+  (:meth:`FrameAnalysis.of <orpheus.numerics.frame_faces.FrameAnalysis.of>`,
   the analysis face :math:`M = T`);
-* ``HarmonicMomentReconstruction`` → ``frame.reconstruction``
-  (:attr:`FrameBase.reconstruction
-  <orpheus.numerics.frame.FrameBase.reconstruction>`, the
+* ``HarmonicMomentReconstruction`` → ``FrameReconstruction.of(frame)``
+  (:meth:`FrameReconstruction.of <orpheus.numerics.frame_faces.FrameReconstruction.of>`, the
   reconstruction face :math:`R`);
 * the :math:`(2\ell+1)` factor moved onto
   :attr:`SphericalHarmonicBasis.addition_theorem_factor
@@ -6437,7 +6444,7 @@ analysis emits need its *inverse*
 :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram_structure` (a
 MEASURED diagonality verdict, distinct from the basis's DECLARED
 :attr:`~orpheus.numerics.basis.base.Basis.gram_structure`), and a
-:attr:`~orpheus.numerics.frame.FrameBase.basis_space` that dresses the
+:func:`~orpheus.numerics.frame_faces.basis_space` that dresses the
 space with :math:`G^{-1}` on a diagonal frame and refuses on a dense
 one. Nothing about the design was wrong; **what was stored** was. Full
 account, with the derivation, the slab witness, the family-wide
@@ -6507,8 +6514,7 @@ design pre-flight injected the dressing on unmodified production over
 four test trees (4371 tests) and reddened **two** gates, neither of
 which observes the adjoint, so the change landed with the gate that
 does. (ii) ``FrameBase.gram`` — the accessor CS4c step 6 item 6.2c-ii
-retired in favour of the :attr:`gram_inverse
-<orpheus.numerics.frame.FrameBase.gram_inverse>` arrow — had to learn to
+retired in favour of the :meth:`gram_inverse <orpheus.numerics.frame_faces.CrossGramInverse.of>` arrow — had to learn to
 **strip** the dressing: the row-sum probe is CROSS-Gram machinery and
 must never inherit the trial-side Parseval metric, `[M]` on pain of a
 :math:`162\,\%` projection error on the overlap frame. The correctness
@@ -6569,11 +6575,11 @@ on* ``Axis.weights``); the inline ``_apply_axes_weights`` loop retired into
 the head's metric — which puts the metric into the identity and forces the
 fork. Ruled: the ONE moment space carries **Parseval**, so the carrier's
 cached mint, every moment field, every operator end and the frame's own
-faces read ``frame.basis_space``; the continuum head survives as the
+faces read ``basis_space(frame)``; the continuum head survives as the
 basis's own coefficient space. Three consequences this page owns: the
 metric-blind ``(name, shape)`` seam is **gone**
 (:ref:`frame-the-one-moment-space`); the projection normalisation became
-the typed arrow :class:`~orpheus.numerics.frame.CrossGramInverse`, because
+the typed arrow :class:`~orpheus.numerics.frame_faces.CrossGramInverse`, because
 its metric-twin spelling stopped type-checking under structural identity
 (:ref:`frame-gram-inverse-arrow`); and truncation re-mints through the
 head axis's generator, with :meth:`GalerkinFrame.at_order

@@ -965,7 +965,7 @@ def test_fission_space_is_mandatory():
 
 # The shipped 4g→2g fixture of tests/gates/data/test_mixture_condense.py,
 # restated here as hand literals (vv L11: the morphisms below are built
-# in THIS test body from the partition and φ — never frame.project,
+# in THIS test body from the partition and φ — never project(frame, ·),
 # never a second condense call).
 _XD9_PHI = np.array([1.0, 4.0, 2.0, 0.5])
 _XD9_EG_FINE = np.array([1.0e7, 1.0e5, 1.0e2, 1.0e0, 1.0e-2])

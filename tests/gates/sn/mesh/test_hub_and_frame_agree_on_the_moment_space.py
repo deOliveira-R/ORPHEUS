@@ -40,6 +40,7 @@ from tests.gates.sn.architecture.test_monomorphic_leaves import (
     _slab,
     _sphere,
 )
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -63,7 +64,7 @@ def test_P5_the_hub_and_the_frame_derive_one_space_by_equality_and_each_owner_by
     assert frame.flux_analysis_on(problem.angular_bulk_space).codomain == hub
     # the head both owners hold is the frame's Parseval-dressed one
     assert isinstance(hub, TensorProductSpace)
-    assert hub.factors[0] == frame.basis_space
+    assert hub.factors[0] == frame_faces.basis_space(frame)
     assert hub.factors[0] != frame.basis.space, "the continuum head is another space"
 
 
@@ -75,7 +76,7 @@ def test_P7_the_three_product_mechanisms_are_one_space_by_identity_not_by_name(
     problem = _GEOMETRIES[geometry]()
     hub = problem.moment_space(L)
     frame = problem.quad.angular_frame(L)
-    head = frame.basis_space
+    head = frame_faces.basis_space(frame)
     bulk = problem.bulk_space
     assert head.axes is not None and bulk.axes is not None
     star = head * bulk

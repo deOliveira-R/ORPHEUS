@@ -887,7 +887,7 @@ a :class:`~orpheus.numerics.basis.base.GramStructure`):
   collapses the probe to the per-region weight anyway;
 - ``DENSE`` — neither: the true projection needs the dense
   :math:`(MR)^{-1}M` solve, which is not built, so
-  :meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
+  :func:`project <orpheus.numerics.frame_faces.project>`
   REFUSES a dense trial rather than return a silently wrong coarsening.
 
 The base class answers ``DENSE``, the safe refusal: a new basis earns the
@@ -1609,7 +1609,7 @@ wrong, each worth keeping:
   installed the head's MEASURE: the basis on a continuum head
   (``for_basis`` / ``from_L``), and the **frame** on the
   Parseval-dressed one the tree actually binds
-  (:attr:`~orpheus.numerics.frame.FrameBase.basis_space`). That is why
+  (:func:`~orpheus.numerics.frame_faces.basis_space`). That is why
   the annotation gained a
   :class:`~orpheus.numerics.frame.FrameBase` arm and why
   :func:`~orpheus.numerics.spaces.moment_head.truncated_head` dispatches
@@ -3047,8 +3047,7 @@ to a plausible-looking value, with no error and no warning):
        spaces, none of which enters a product. What 6.2a changed is the
        arm's REACHABILITY, not its existence: the dense arm it shared the
        dispatch with is gone, so every axes-less product now takes it
-   * - ``FrameBase.gram`` (retired 2026-09-08 → :attr:`gram_inverse
-       <orpheus.numerics.frame.FrameBase.gram_inverse>`)
+   * - ``FrameBase.gram`` (retired 2026-09-08 → :meth:`gram_inverse <orpheus.numerics.frame_faces.CrossGramInverse.of>`)
      - ``replace(test_space, inner_product_weights=diagonal)`` on a
        dressed test space handed the **row-sum probe** a space whose
        ``apply_inverse_metric`` ignores that slot and applies its own
@@ -3057,13 +3056,13 @@ to a plausible-looking value, with no error and no warning):
        diagonal — the cross-Gram machinery must never inherit the
        trial-side Parseval dressing. ⭐ Item 6.2c-ii went further and made
        the state unspellable: the normalisation is now the typed arrow
-       :class:`~orpheus.numerics.frame.CrossGramInverse`, whose action
+       :class:`~orpheus.numerics.frame_faces.CrossGramInverse`, whose action
        reads the probe diagonal and NO space's metric
        (:ref:`frame-gram-inverse-arrow`)
 
 The third is the sharpest, because it is not a missing feature but a
 live projection error on a production path
-(:meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
+(:func:`project <orpheus.numerics.frame_faces.project>`
 is what homogenisation and condensation call). `[M]` on the overlap
 frame — Gram
 ``[[1.25, 0.25], [0.25, 1.25]]``,
@@ -3122,8 +3121,7 @@ The dense dressing, and the only evidence that can adjudicate a metric
 ------------------------------------------------------------------------
 
 The founding consumer installs it:
-:attr:`FrameBase.basis_space
-<orpheus.numerics.frame.FrameBase.basis_space>` on a ``DENSE`` verdict
+:func:`basis_space <orpheus.numerics.frame_faces.basis_space>` on a ``DENSE`` verdict
 now returns the basis's space dressed with
 ``DenseMetric.inverse_of(discrete_gram)`` — the pseudo-inverse at the
 pinned cutoff, with the exact symmetrized Gram kept as the inverse face
@@ -3189,7 +3187,7 @@ adjoint sandwich reads. `[M]` comparing the dressed and undressed
 analysis adjoints **as operators** (column by column on the coefficient
 basis, so the number carries no random draw):
 
-.. list-table:: Movement of ``frame.analysis.H`` under the dressing
+.. list-table:: Movement of ``FrameAnalysis.of(frame).H`` under the dressing
    :header-rows: 1
    :widths: 34 22 22 22
 
@@ -3358,7 +3356,7 @@ Two later steps falsified both of its clauses, in opposite directions:
 * item **6.2c-ii** (2026-09-08) made the moment heads axis-built, so
   ``basis_space`` and ``basis.space`` differ in their head axis's measure
   and are therefore **different spaces**. `[M]` re-measured on the same
-  33 shipped (rule, :math:`L`) rows: ``frame.basis_space ==
+  33 shipped (rule, :math:`L`) rows: ``basis_space(frame) ==
   frame.basis.space`` is **0 of 33** where it was 33 of 33.
 
 Item **6.2c-i** (2026-09-08) also repealed the parenthetical's last
@@ -4919,7 +4917,7 @@ do **not** retain a frame *face*: a face is a view holding
 ``_FrameAnalysis`` / ``_FrameReconstruction``), so keeping one would
 keep the generator alive through it. `[M]` read the face
 dataclasses — this is why the mint copies arrays rather than storing
-``frame.analysis``.
+``FrameAnalysis.of(frame)``.
 
 **Consistency is a gate, not an instance.** Because the generator is
 thrown away, nothing at runtime *forces* the minted kernels to agree
@@ -5845,8 +5843,7 @@ status.
        <orpheus.numerics.space.DualSpace.of>` threads the object,
        ``TensorProductSpace.from_factors`` grows a dense-factor arm, and
        ``FrameBase.gram`` (retired at item 6.2c-ii in favour of the
-       :attr:`gram_inverse
-       <orpheus.numerics.frame.FrameBase.gram_inverse>` arrow)
+       :meth:`gram_inverse <orpheus.numerics.frame_faces.CrossGramInverse.of>` arrow)
        **strips** it while installing the row-sum probe (`[M]` the
        pre-P7 spelling returned ``[7.0, 11.0]`` for a projection whose
        true value is :math:`[8/3,\,16/3]` — a silent value error, and

@@ -6,7 +6,7 @@ A moment head is an axis-built space with ONE MODAL axis whose measure is the
 head's metric and whose generator is the object that minted it — the
 :class:`~orpheus.numerics.basis.base.TruncatedBasis` for the continuum head
 (``from_L`` / ``basis.space``), the :class:`~orpheus.numerics.frame.GalerkinFrame`
-for the Parseval-dressed one (``frame.basis_space``). Two things this file
+for the Parseval-dressed one (``basis_space(frame)``). Two things this file
 pins that nothing else does:
 
 * **P2 — the spent axis is part of the Legendre head's IDENTITY.** `[M]`
@@ -39,6 +39,7 @@ from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.legendre_space import LegendreSpace
 from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -131,7 +132,7 @@ def test_the_basis_minted_head_axis_carries_the_continuum_gram_and_the_basis(L: 
 
 @pytest.mark.parametrize("label", ["gauss_legendre(8)", "lebedev(11)", "level_symmetric(4)"])
 def test_the_frame_dressed_head_axis_carries_the_parseval_measure_and_the_frame(label: str) -> None:
-    """``frame.basis_space`` re-weights the SAME axis class with the Parseval
+    """``basis_space(frame)`` re-weights the SAME axis class with the Parseval
     inverse of the discrete Gram's diagonal (zero on dead slots) and makes the
     FRAME the generator — the object that can re-dress the head at another
     order; the basis is no longer reachable through the axis, the quadrature
@@ -142,7 +143,7 @@ def test_the_frame_dressed_head_axis_carries_the_parseval_measure_and_the_frame(
         "level_symmetric(4)": lambda: Quadrature.level_symmetric(4),
     }
     frame = rules[label]().angular_frame(2)
-    dressed = frame.basis_space
+    dressed = frame_faces.basis_space(frame)
     ax = _head_axis(dressed)
     cont = _head_axis(frame.basis.space)
     assert type(ax) is type(cont) and ax.kind is BasisKind.MODAL and ax.shape == cont.shape

@@ -2950,7 +2950,7 @@ The load-bearing observation is the **arity of the scattering gain**.
 :math:`S\,\psi` depends on :math:`\psi` *only* through its
 spherical-harmonic flux moments. Writing the moment-projection operator
 :math:`M` (the :eq:`flux-moments` quadrature contraction, the SH frame's
-analysis face ``frame.analysis`` from
+analysis face ``FrameAnalysis.of(frame)`` from
 :meth:`Quadrature.angular_frame(L)
 <orpheus.numerics.quadrature.Quadrature.angular_frame>`)
 
@@ -3036,13 +3036,13 @@ public ``ScatteringOperator.build_aniso_source`` verb until #448)
 where (reading right to left):
 
 * :math:`M` is the moment **projection** :eq:`angular-windowing-moment-projection`
-  (the SH frame's analysis face ``frame.analysis``);
+  (the SH frame's analysis face ``FrameAnalysis.of(frame)``);
 * :math:`\Lambda` is the per-:math:`\ell` block-diagonal scattering on
   moment space :math:`\Lambda = \sum_\ell P_\ell \otimes \Sigma_{s,\ell}`
   (:class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`);
 * :math:`R` is the addition-theorem **reconstruction** with the
   :math:`(2\ell+1)` factor
-  (the SH frame's reconstruction face ``frame.reconstruction``);
+  (the SH frame's reconstruction face ``FrameReconstruction.of(frame)``);
 * :math:`1/W` is the producer-side normalization applied at the
   :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.apply` boundary.
 
@@ -3050,7 +3050,7 @@ The associativity :math:`(R\,\Lambda)\,M` is the whole trick. The
 **full-angular** path evaluates the composition as written —
 :math:`R\cdot\Lambda\cdot M(\psi)`: project, scatter, reconstruct,
 consuming the §5.6 :attr:`kernel <orpheus.transport.operators.transfer.TransferOperator.kernel>`
-``= frame.conjugate(Λ)`` as a single composed ``np.ndarray`` operator. The
+``= conjugate(frame, Λ)`` as a single composed ``np.ndarray`` operator. The
 **windowed** path's iterate bulk **is** the moments :math:`\phi = M\psi`,
 so :math:`M` is *already done* and only the **moment → source** map
 :math:`R\,\Lambda` remains: :math:`R\cdot\Lambda(\phi)`.
@@ -3418,7 +3418,7 @@ moments (the 18.3× shrink) but still **materialized the full
 per-ordinate angular field** :math:`\psi \in (N, n_g, n_x, n_y)` inside
 *every* sweep, then projected it to moments **post-hoc** — a flat reduce
 :eq:`angular-windowing-moment-projection` applied once at the end of the
-sweep by the SH frame's analysis face ``frame.analysis.apply`` (the then
+sweep by the SH frame's analysis face ``FrameAnalysis.of(frame).apply`` (the then
 Phase-5a moment-windowed resolvent's ``solve`` called ``base.solve`` then
 ``self._projection.apply(full.bulk.values)``).
 That transient full-angular array is the dominant peak-memory cost the
@@ -3458,7 +3458,7 @@ applies directly (:ref:`windowing-retyped` below, and
      ``+=`` reorders the ordinate sum vs the flat single-reduce; IEEE-754
      addition is non-associative, so the moments drift at ULP level.
      The per-cell :math:`w\,Y\,\psi` fold is **term-for-term identical**
-     to the SH frame's analysis face ``frame.analysis.apply`` — only the
+     to the SH frame's analysis face ``FrameAnalysis.of(frame).apply`` — only the
      accumulation *order* differs. Measured max-relative drift
      :math:`2.74\times10^{-16}` (:math:`\le 4N\varepsilon`, 4 ULP).
    - **The scalar is subsumed.** The scalar flux **is**
@@ -3466,7 +3466,7 @@ applies directly (:ref:`windowing-retyped` below, and
      off the moment tensor — there is no separate scalar reduction
      (``coding-elegance`` Pattern 2: one source of truth).
    - **The fuller view is retained as a verification oracle.** The pre-5c
-     "full-angular solve + flat ``frame.analysis.apply``" path is kept
+     "full-angular solve + flat ``FrameAnalysis.of(frame).apply``" path is kept
      reachable and pins the optimized path
      (``feedback_aggressive_retirement`` — the "verification oracle"
      exception to retirement).
@@ -3497,7 +3497,7 @@ post-sweep reduce collapsed *all* :math:`N` ordinates at once,
 
    \phi_\ell^m(\vec r)
    \;=\;\sum_{n=1}^{N} w_n\, Y_\ell^m(\hat\Omega_n)\,\psi_n(\vec r)
-   \qquad\bigl(\texttt{frame.analysis.apply}, \;
+   \qquad\bigl(\texttt{FrameAnalysis.of(frame).apply}, \;
    \texttt{einsum}\;\texttt{"n,nlm,n...->lm..."}\bigr),
 
 which is :eq:`angular-windowing-moment-projection` again, evaluated once.
@@ -3518,7 +3518,7 @@ later; 5c **projects it on the spot** and discards it. For each level
 .. (vv-status rationale) The in-sweep per-anti-diagonal moment
    accumulation. The verifiable claim is the fuller-view-oracle
    equivalence: the in-sweep accumulation equals the flat post-sweep
-   frame.analysis.apply of the same swept psi within the
+   FrameAnalysis.of(frame).apply of the same swept psi within the
    reduction-order drift bound (criterion 3 of bit-identity-vs-
    principled-equivalence). Pinned by
    test_2d_windowed_product_equals_post_projection (renamed from
@@ -3659,7 +3659,7 @@ field that the post-hoc reduce consumed. By the
 optimization that gives up a fuller view of a concept **keeps that fuller
 view reachable** as a verification oracle that pins the optimized path.
 The pre-5c "full-angular ``base.solve`` then flat
-``frame.analysis.apply``" path is exactly
+``FrameAnalysis.of(frame).apply``" path is exactly
 that fuller view: it is *not* deleted, and — since #226 step 2 — it is
 the **inherited**
 :meth:`OperatorProduct.apply <orpheus.numerics.operator.OperatorProduct.apply>`
@@ -3949,7 +3949,7 @@ where :math:`A^{-1}` is the swept loss inverse — this section's
 :ref:`si-gauss-seidel-reification`), the **inner kernel** of the
 honest within-group :math:`(L+C-S-N_{2n}-B)^{-1}`, never the full solve —
 and :math:`M_{\rm frame}` is the
-scattering frame's :attr:`~orpheus.numerics.frame.FrameBase.analysis`
+scattering frame's :meth:`~orpheus.numerics.frame_faces.FrameAnalysis.of`
 face, the angular→moment reduction :math:`\phi_\ell^m = \sum_n w_n
 Y_\ell^m \psi_n` (:eq:`harmonic-moment-projection`). The boundary trace
 passes through **un-reduced**: windowing is interior-bulk-only (the

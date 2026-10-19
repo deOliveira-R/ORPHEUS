@@ -62,6 +62,7 @@ from orpheus.sn.solver import (
 )
 
 from tests.gates.sn._test_helpers import energy_spectrum, g_inner
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.l1
 
@@ -515,7 +516,7 @@ def _assert_rung_premise(quad, order: int, square_closes: bool) -> None:
         f"that outruns the rule.",
     )
     if order == _RUNG_LMAX:
-        n_modes = int(np.prod(frame.basis_space.shape))
+        n_modes = int(np.prod(frame_faces.basis_space(frame).shape))
         require(
             n_modes > quad.N,
             f"premise lost: L={order} carries {n_modes} harmonics on {quad.N} "
@@ -596,7 +597,7 @@ def _install_mixed_convention(monkeypatch, quad, mesh) -> None:
     G = np.asarray(quad.weights)[:, None, None] * V[None, None, :]
 
     def mixed(self, bulk):
-        analysis = self.frame.analysis
+        analysis = frame_faces.FrameAnalysis.of(self.frame)
         transfer = self._moment_transfer(skip_l0=False)
         x = np.asarray(bulk.values) / G
         y = np.asarray(analysis.H.apply(transfer.apply_transpose(np.asarray(analysis.apply(x)))))
@@ -656,7 +657,7 @@ class TestAdjointAtAnUnderResolvedOrder:
         _assert_rung_premise(quad, order, square_closes)
         S, SH, G = _dense_scattering(quad, order)
         S_transposed_data, _, _ = _dense_scattering(quad, order, transposed=True)
-        n_modes = int(np.prod(quad.angular_frame(order).basis_space.shape))
+        n_modes = int(np.prod(frame_faces.basis_space(quad.angular_frame(order)).shape))
         tol = 8.0 * (quad.N + n_modes) * np.finfo(float).eps
         require(
             _relative(S, S_transposed_data) > 0.1,

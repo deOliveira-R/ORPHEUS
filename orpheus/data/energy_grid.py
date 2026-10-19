@@ -63,7 +63,7 @@ The fractional table feeds the *unchanged* Petrov-Galerkin frame
 weight**, the energy measure is **counting** (``w_g = 1`` — :meth:`as_measure`; ORPHEUS
 ``φ_g`` is already group-integrated). Because the table is a partition of unity
 (:attr:`~orpheus.numerics.basis.base.GramStructure.PARTITION_OF_UNITY`),
-``frame.project = G⁻¹ M`` yields the rate-preserving average with the diagonal Gram
+``project(frame, ·) = G⁻¹ M`` yields the rate-preserving average with the diagonal Gram
 :math:`\Phi_G = \sum_g T[g,G]\,\varphi_g` — no new frame method, only the
 fractional-overlap basis.
 

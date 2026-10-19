@@ -117,6 +117,7 @@ from orpheus.transport.operators.angular_lift import AngularEnd, AngularLift, Mo
 from orpheus.transport.operators.bound_operator import BoundOperator
 from orpheus.transport.operators.isotropic_transfer import IsotropicTransfer
 from orpheus.transport.operators.lift import interior_space_of
+from orpheus.numerics import frame_faces
 
 if TYPE_CHECKING:
     from orpheus.numerics.frame import FrameBase
@@ -247,7 +248,7 @@ class LegendreMomentTransfer(BoundOperator):
         r"""Tier-2 mint on the FRAME's Parseval-dressed coefficient space —
         the ends production binds (CS4c step 6 item 6.2c-ii, ruling
         R-6.2c-1), so the factor composes with the frame's faces
-        (``frame.conjugate(Λ)``) by construction. The order is the frame's
+        (``conjugate(frame, Λ)``) by construction. The order is the frame's
         bound family's; :meth:`on_basis` is the frame-less sibling on the
         basis's own continuum space."""
         basis = frame.basis
@@ -256,7 +257,7 @@ class LegendreMomentTransfer(BoundOperator):
                 f"LegendreMomentTransfer.on_frame: the frame's trial "
                 f"{type(basis).__name__} carries no truncation order."
             )
-        ends = frame.basis_space
+        ends = frame_faces.basis_space(frame)
         return cls(
             transfer.at_order(basis.L),
             skip_l0=skip_l0,
@@ -587,17 +588,17 @@ class TransferOperator(AngularLift[IsotropicTransfer]):
         on THIS binding's domain.
 
         On the angular end :math:`R \circ \Lambda_{\ell\ge 1} \circ M` — the
-        frame conjugation ``frame.conjugate(Λ)`` ``= OperatorProduct(R,
+        frame conjugation ``conjugate(frame, Λ)`` ``= OperatorProduct(R,
         OperatorProduct(Λ, M))``, so ``kernel.apply(ψ.values) = R(Λ(M ψ))``;
         on the moment end :math:`R \circ \Lambda_{\ell\ge 1}` (the operand
         is already :math:`M\psi`). The factors:
 
-        * :math:`M` = ``frame.analysis`` (the :attr:`frame`'s
-          :attr:`~orpheus.numerics.frame.FrameBase.analysis` face);
+        * :math:`M` = ``FrameAnalysis.of(frame)`` (the :attr:`frame`'s
+          :meth:`~orpheus.numerics.frame_faces.FrameAnalysis.of` face);
         * :math:`\Lambda_{\ell\ge 1}` = :class:`LegendreMomentTransfer`
           over this binding's field (``skip_l0=True``);
-        * :math:`R` = ``frame.reconstruction`` (the :attr:`frame`'s
-          :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face).
+        * :math:`R` = ``FrameReconstruction.of(frame)`` (the :attr:`frame`'s
+          :meth:`~orpheus.numerics.frame_faces.FrameReconstruction.of` face).
 
         This is the production :math:`\ell\ge 1` map on the angular end
         (:meth:`_redistribute_ordinates` is ``(1/W)·kernel``) and the moment
@@ -629,7 +630,7 @@ class TransferOperator(AngularLift[IsotropicTransfer]):
                 f"operator. The P0 emission is the LOCAL component, handled by "
                 f"the lift's l=0 half (isotropic_energy)."
             )
-        # Λ carries real spaces (== frame.basis_space), so the OperatorProduct
+        # Λ carries real spaces (== basis_space(frame)), so the OperatorProduct
         # composability guard validates the composition natively — NO cast.
         return self._end.conjugate(self, self._moment_transfer(skip_l0=True))
 

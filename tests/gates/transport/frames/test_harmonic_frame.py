@@ -12,7 +12,7 @@ The F-1 contract (``frame_square_recarve.md``):
   :class:`~orpheus.numerics.projection.ReconstructionOperator` role family —
   taking at mint time the one input the frame cannot know (the angular field
   space) and deriving the moment codomain once (moment = f(angular, L),
-  never the reverse), with the F-0 Parseval-dressed ``frame.basis_space`` as
+  never the reverse), with the F-0 Parseval-dressed ``basis_space(frame)`` as
   the codomain's SH factor (single source);
 * each face's ``apply`` is **bit-identical** to the generic ``np.ndarray``
   face it wraps — the typed seam adds carriers and binding, never a number;
@@ -53,6 +53,7 @@ from orpheus.transport.source_sinks import (
 )
 
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -126,7 +127,7 @@ class TestFromGalerkin:
         frame = HarmonicFrame.from_galerkin(gf)
         vals = _angular_values(m, 1)
         np.testing.assert_array_equal(
-            frame.analysis.apply(vals), gf.analysis.apply(vals),
+            frame_faces.FrameAnalysis.of(frame).apply(vals), frame_faces.FrameAnalysis.of(gf).apply(vals),
         )
 
     def test_a_trial_basis_without_a_truncation_order_is_rejected_at_both_doors(self) -> None:
@@ -231,7 +232,7 @@ class TestMint:
 
         assert isinstance(face.codomain, TensorProductSpace)
         sh = face.codomain.find_factor(SphericalHarmonicSpace)
-        assert sh is frame.basis_space
+        assert sh is frame_faces.basis_space(frame)
 
     def test_mint_refuses_a_shape_only_angular_space(self) -> None:
         from orpheus.numerics.space import FunctionSpace
@@ -286,7 +287,7 @@ class TestFluxAnalysisFace:
         assert moments.space is face.codomain    # bound codomain, no re-mint
         assert moments.L == _L
         np.testing.assert_array_equal(
-            moments.values, frame.analysis.apply(vals),
+            moments.values, frame_faces.FrameAnalysis.of(frame).apply(vals),
         )
 
     def test_wrong_carrier_raises(self) -> None:
@@ -323,11 +324,11 @@ class TestFluxAnalysisFace:
         assert isinstance(back, AngularFlux)
         assert back.space is face.domain
         np.testing.assert_array_equal(
-            back.values, frame.analysis.apply_transpose(moment.values),
+            back.values, frame_faces.FrameAnalysis.of(frame).apply_transpose(moment.values),
         )
         np.testing.assert_array_equal(
             face.apply_transpose(moment.values),
-            frame.analysis.apply_transpose(moment.values),
+            frame_faces.FrameAnalysis.of(frame).apply_transpose(moment.values),
         )
 
     def test_s6_precursor_the_faces_H_is_the_physical_adjoint(self) -> None:
@@ -338,7 +339,7 @@ class TestFluxAnalysisFace:
         on the moment side, the per-axis (quadrature ⊗ cell) measures on the
         angular side. The cell metrics cancel interior (the composite law)
         and the SH closure collapses to the one scalar ``W`` — so the
-        transport face's adjoint equals ``frame.reconstruction/W`` exactly
+        transport face's adjoint equals ``FrameReconstruction.of(frame)/W`` exactly
         as the numerics face's does. Runs on the LS4 2-D mesh (DIAGONAL
         verdict — the dressing is live; the slab's DENSE arm has no such
         claim and is pinned separately in ``test_frame.py``).
@@ -350,7 +351,7 @@ class TestFluxAnalysisFace:
         y = _moment_values(m, 6)
         np.testing.assert_allclose(
             face.H.apply(y),
-            frame.reconstruction.apply(y) / W,
+            frame_faces.FrameReconstruction.of(frame).apply(y) / W,
             rtol=1e-12, atol=1e-13,
         )
 
@@ -371,7 +372,7 @@ class TestSourceReconstructionFace:
         assert isinstance(out, AngularSourceSink)
         assert out.space is m.angular_bulk_space
         np.testing.assert_array_equal(
-            out.values, frame.reconstruction.apply(vals),
+            out.values, frame_faces.FrameReconstruction.of(frame).apply(vals),
         )
 
     def test_wrong_carrier_raises(self) -> None:
@@ -403,7 +404,7 @@ class TestSourceReconstructionFace:
         v = _angular_values(m, 8)
         np.testing.assert_allclose(
             face.H.apply(v),
-            W * frame.analysis.apply(v),
+            W * frame_faces.FrameAnalysis.of(frame).apply(v),
             rtol=1e-12, atol=1e-13,
         )
 
@@ -476,7 +477,7 @@ class TestP7DenseMetricRidesTheMint:
         ), "the ORDER is what makes this frame dense — state it, do not assume it"
         moment = frame.flux_analysis_on(m.angular_bulk_space).codomain
         assert moment.metric is not None, "the dense factor was dropped"
-        sh = frame.basis_space
+        sh = frame_faces.basis_space(frame)
         cell_axes = m.angular_bulk_space.axes
         assert cell_axes is not None
         cell = FunctionSpace.of_axes(*cell_axes[1:])

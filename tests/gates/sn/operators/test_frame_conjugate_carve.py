@@ -1,5 +1,5 @@
-r"""P2 operator-algebra carve — new-convention catchers for ``frame.conjugate`` /
-``frame.reconstruct_after`` and the ``LegendreMomentTransfer`` real-space leaf.
+r"""P2 operator-algebra carve — new-convention catchers for ``conjugate(frame, ·)`` /
+``reconstruct_after(frame, ·)`` and the ``LegendreMomentTransfer`` real-space leaf.
 
 Born as SPECS written BEFORE the production carve (main-agent-direct, branch
 ``refactor/operator-inverse-algebra``, plan ``frame_projection_machinery.md`` P2);
@@ -10,14 +10,14 @@ What P2 does (the SUT this file gates)
 --------------------------------------
 
 1. Two ``FrameBase`` methods:
-     ``frame.conjugate(A)         -> R ∘ A ∘ M``   (OperatorProduct(R, OperatorProduct(A, M)))
-     ``frame.reconstruct_after(A) -> R ∘ A``        (OperatorProduct(R, A))
+     ``conjugate(frame, A)         -> R ∘ A ∘ M``   (OperatorProduct(R, OperatorProduct(A, M)))
+     ``reconstruct_after(frame, A) -> R ∘ A``        (OperatorProduct(R, A))
 2. ``LegendreMomentTransfer`` gets REAL spaces
-     (``domain == codomain == frame.basis_space``), retiring the
+     (``domain == codomain == basis_space(frame)``), retiring the
      ``cast(LinearOperator, …)`` at ``scattering.py:663``.
 3. Production ``apply`` arms call the composed operator:
-     ``kernel`` becomes ``frame.conjugate(Λ)``; the windowed-moment arm uses
-     ``frame.reconstruct_after(Λ)``. The hand-chains retire.
+     ``kernel`` becomes ``conjugate(frame, Λ)``; the windowed-moment arm uses
+     ``reconstruct_after(frame, Λ)``. The hand-chains retire.
 
 vv discipline carried by every row below
 ----------------------------------------
@@ -29,10 +29,10 @@ vv discipline carried by every row below
   function-call form anyway so the SAME idiom carries into any helper).
 * **Mode-11 (gate-never-executes-the-rewired-path):** the production-equivalence
   rows read ``S.kernel`` / the windowed ``apply`` arm OFF the LIVE operator and
-  the §"call-graph sentinel" row monkeypatch-wraps ``frame.conjugate`` to PROVE
+  the §"call-graph sentinel" row monkeypatch-wraps ``conjugate(frame, ·)`` to PROVE
   the production ``kernel`` property actually calls it (counter > 0). A green
   twin that routed around ``conjugate`` would leave the counter at 0.
-* **L11 structural independence:** ``frame.conjugate(Λ)`` is checked against a
+* **L11 structural independence:** ``conjugate(frame, Λ)`` is checked against a
   reference built from the SAME R/Λ/M *factors* (an EQUIVALENCE/de-risk leg, NOT
   a physics-correctness claim — that reference is the aniso MMS gate). The
   factor-order reference is deliberately the manual nesting so a swap reddens.
@@ -42,6 +42,8 @@ bit-identity equivalence check. No theory ``:label:`` (the physics labels
 ``pn-scatter`` / ``flux-moments`` are pinned by the MMS gate, NOT here).
 """
 from __future__ import annotations
+
+import functools
 
 import numpy as np
 import pytest
@@ -64,6 +66,7 @@ from tests.gates.sn.operators._composite_operand import bulk_apply
 from tests.gates.transport._integral_kernel_helpers import require
 from orpheus.transport.material_field import TransferMaterialField
 from dataclasses import replace
+from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
@@ -72,17 +75,14 @@ pytestmark = pytest.mark.foundation
 
 
 def _require_conjugate(frame):
-    """``frame.conjugate`` — self-healing PRE-IMPL guard (the P2 carve has landed)."""
-    if not hasattr(frame, "conjugate"):
-        pytest.skip("P2 PRE-IMPL: FrameBase.conjugate not yet written.")
-    return frame.conjugate
+    """``conjugate(frame, ·)`` as a one-argument callable (the P2 carve has landed;
+    the verb is the downstream constructor ``frame_faces.conjugate``)."""
+    return functools.partial(frame_faces.conjugate, frame)
 
 
 def _require_reconstruct_after(frame):
-    """``frame.reconstruct_after`` — self-healing PRE-IMPL guard (the P2 carve has landed)."""
-    if not hasattr(frame, "reconstruct_after"):
-        pytest.skip("P2 PRE-IMPL: FrameBase.reconstruct_after not yet written.")
-    return frame.reconstruct_after
+    """``reconstruct_after(frame, ·)`` as a one-argument callable."""
+    return functools.partial(frame_faces.reconstruct_after, frame)
 
 
 # ── ANISOTROPIC (P1) + heterogeneous + 2G fixture (Λ's ℓ≥1 blocks active) ─────
@@ -141,7 +141,7 @@ def _aniso_psi(solver, seed=20260624):
 
 
 class TestLegendreMomentTransferHasRealSpaces:
-    """Λ is an endomorphism on the SH coefficient space (``= frame.basis_space``).
+    """Λ is an endomorphism on the SH coefficient space (``= basis_space(frame)``).
 
     Catches: the cast at ``scattering.py:663`` is gone because Λ now carries
     real ``domain``/``codomain`` so ``OperatorProduct`` admits it natively.
@@ -157,13 +157,13 @@ class TestLegendreMomentTransferHasRealSpaces:
         require(
             getattr(lam, "domain", None) is not None,
             "P2: LegendreMomentTransfer.domain must be a real FunctionSpace "
-            "(== frame.basis_space), not None — the cast at scattering.py:663 "
+            "(== basis_space(frame)), not None — the cast at scattering.py:663 "
             "papered over None spaces; the carve gives Λ real spaces.",
         )
         require(
-            lam.domain == frame.basis_space and lam.codomain == frame.basis_space,
+            lam.domain == frame_faces.basis_space(frame) and lam.codomain == frame_faces.basis_space(frame),
             f"P2: Λ must be an endomorphism on the SH coefficient space "
-            f"(frame.basis_space={frame.basis_space!r}); got domain={lam.domain!r}, "
+            f"(basis_space(frame)={frame_faces.basis_space(frame)!r}); got domain={lam.domain!r}, "
             f"codomain={lam.codomain!r}.",
         )
 
@@ -204,7 +204,7 @@ class TestLegendreMomentTransferHasRealSpaces:
 
         The fact that genuinely changes is the INNER product
         ``OperatorProduct(Λ, M).codomain``, which reads ``Λ.codomain``: ``None``
-        pre-carve (Λ unparametrised), ``frame.basis_space`` post-carve. This
+        pre-carve (Λ unparametrised), ``basis_space(frame)`` post-carve. This
         row reads that inner codomain and demands it be real — so it is RED
         until Λ gets spaces. Build the inner product explicitly (mirrors the
         kernel's construction) and read its codomain.
@@ -214,17 +214,17 @@ class TestLegendreMomentTransferHasRealSpaces:
         lam = LegendreMomentTransfer.on_frame(
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
-        inner = OperatorProduct(lam, frame.analysis)
+        inner = OperatorProduct(lam, frame_faces.FrameAnalysis.of(frame))
         require(
             inner.codomain is not None,
             "P2: OperatorProduct(Λ, M).codomain must be Λ's real codomain "
-            "(== frame.basis_space), not None. It is None pre-carve because Λ "
+            "(== basis_space(frame)), not None. It is None pre-carve because Λ "
             "is unparametrised; the carve gives Λ real spaces so the cast at "
             "scattering.py:663 retires.",
         )
         require(
-            inner.codomain == frame.basis_space,
-            f"P2: the inner Λ∘M product's codomain must be frame.basis_space "
+            inner.codomain == frame_faces.basis_space(frame),
+            f"P2: the inner Λ∘M product's codomain must be basis_space(frame) "
             f"(Λ is endomorphic on coefficient space); got {inner.codomain!r}.",
         )
 
@@ -240,13 +240,13 @@ class TestLegendreMomentTransferHasRealSpaces:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# (b)(ii) — frame.conjugate(Λ) == R∘Λ∘M and frame.reconstruct_after(Λ) == R∘Λ
+# (b)(ii) — conjugate(frame, Λ) == R∘Λ∘M and reconstruct_after(frame, Λ) == R∘Λ
 #           on INDEPENDENT reference inputs.
 # ═════════════════════════════════════════════════════════════════════════════
 
 
 class TestFrameConjugateEqualsRLambdaM:
-    """``frame.conjugate(A) == OperatorProduct(R, OperatorProduct(A, M))``."""
+    """``conjugate(frame, A) == OperatorProduct(R, OperatorProduct(A, M))``."""
 
     def test_conjugate_equals_manual_R_A_M_nesting(self, solver_p1_het):
         """conjugate(Λ).apply(ψ) == R(Λ(M·ψ)) on a non-isotropic reference ψ.
@@ -266,12 +266,12 @@ class TestFrameConjugateEqualsRLambdaM:
 
         via_conjugate = conjugate(lam).apply(psi.values)
         # Independent manual nesting (the canonical order R∘Λ∘M).
-        manual = frame.reconstruction.apply(
-            lam.apply(frame.analysis.apply(psi.values)),
+        manual = frame_faces.FrameReconstruction.of(frame).apply(
+            lam.apply(frame_faces.FrameAnalysis.of(frame).apply(psi.values)),
         )
         np.testing.assert_array_equal(
             via_conjugate, manual,
-            err_msg="P2: frame.conjugate(Λ).apply(ψ) must equal the manual "
+            err_msg="P2: conjugate(frame, Λ).apply(ψ) must equal the manual "
             "R(Λ(M·ψ)) nesting BIT-IDENTICALLY — conjugate composes "
             "OperatorProduct(R, OperatorProduct(Λ, M)). A mismatch means the "
             "factor order (M↔R swap) or composition is wrong.",
@@ -281,7 +281,7 @@ class TestFrameConjugateEqualsRLambdaM:
         """The reference ψ genuinely activates ℓ≥1 (else the leg is vacuous)."""
         op = solver_p1_het.problem.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
-        moments = op.frame.analysis.apply(psi.values)
+        moments = frame_faces.FrameAnalysis.of(op.frame).apply(psi.values)
         require(
             bool(np.any(moments[1:] != 0.0)),
             "P2: ℓ≥1 moments must be non-zero so R∘Λ∘M runs the aniso "
@@ -290,7 +290,7 @@ class TestFrameConjugateEqualsRLambdaM:
 
 
 class TestFrameReconstructAfterEqualsRLambda:
-    """``frame.reconstruct_after(A) == OperatorProduct(R, A)`` (M already applied)."""
+    """``reconstruct_after(frame, A) == OperatorProduct(R, A)`` (M already applied)."""
 
     def test_reconstruct_after_equals_manual_R_A(self, solver_p1_het):
         """reconstruct_after(Λ).apply(φ) == R(Λ·φ) on a moment-tensor input φ.
@@ -307,13 +307,13 @@ class TestFrameReconstructAfterEqualsRLambda:
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
-        moments = frame.analysis.apply(psi.values)  # φ = M·ψ (the windowed bulk)
+        moments = frame_faces.FrameAnalysis.of(frame).apply(psi.values)  # φ = M·ψ (the windowed bulk)
 
         via_recon_after = reconstruct_after(lam).apply(moments)
-        manual = frame.reconstruction.apply(lam.apply(moments))
+        manual = frame_faces.FrameReconstruction.of(frame).apply(lam.apply(moments))
         np.testing.assert_array_equal(
             via_recon_after, manual,
-            err_msg="P2: frame.reconstruct_after(Λ).apply(φ) must equal R(Λ·φ) "
+            err_msg="P2: reconstruct_after(frame, Λ).apply(φ) must equal R(Λ·φ) "
             "BIT-IDENTICALLY — reconstruct_after composes OperatorProduct(R, Λ). "
             "It must NOT re-apply M (the moments are already M·ψ).",
         )
@@ -339,7 +339,7 @@ class TestFrameReconstructAfterEqualsRLambda:
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
-        moments = frame.analysis.apply(psi.values)  # φ = M·ψ (the windowed bulk)
+        moments = frame_faces.FrameAnalysis.of(frame).apply(psi.values)  # φ = M·ψ (the windowed bulk)
 
         np.testing.assert_array_equal(
             reconstruct_after(lam).apply(moments),
@@ -357,7 +357,7 @@ class TestFrameReconstructAfterEqualsRLambda:
 
 # ═════════════════════════════════════════════════════════════════════════════
 # (b)(iii) + (c) Mode-11 — production apply ≡ composed operator AND the
-#                production path actually EXECUTES frame.conjugate.
+#                production path actually EXECUTES conjugate(frame, ·).
 # ═════════════════════════════════════════════════════════════════════════════
 
 
@@ -365,9 +365,9 @@ class TestProductionApplyEqualsComposedOperator:
     """After the carve, production ``apply`` runs through the composed operator."""
 
     def test_kernel_property_is_frame_conjugate_of_lambda(self, solver_p1_het):
-        """``S.kernel.apply(ψ) == frame.conjugate(Λ).apply(ψ)`` (0 ULP).
+        """``S.kernel.apply(ψ) == conjugate(frame, Λ).apply(ψ)`` (0 ULP).
 
-        Post-carve, ``S.kernel`` IS ``frame.conjugate(Λ)``. This pins the
+        Post-carve, ``S.kernel`` IS ``conjugate(frame, Λ)``. This pins the
         production kernel property to the new composed operator. Reads
         ``S.kernel`` OFF the live operator (Mode-11: no routing around).
         """
@@ -381,7 +381,7 @@ class TestProductionApplyEqualsComposedOperator:
         np.testing.assert_array_equal(
             op.kernel.apply(psi.values),
             conjugate(lam).apply(psi.values),
-            err_msg="P2: S.kernel must BE frame.conjugate(Λ) post-carve "
+            err_msg="P2: S.kernel must BE conjugate(frame, Λ) post-carve "
             "(0 ULP). The production kernel is the composed operator now.",
         )
 
@@ -428,11 +428,11 @@ class TestProductionApplyEqualsComposedOperator:
 
 class TestProductionExecutesFrameConjugate:
     """vv Mode-11 SENTINEL: the production ``kernel`` property MUST call
-    ``frame.conjugate`` — proven by an in-process counter wrap, NOT a bare
+    ``conjugate(frame, ·)`` — proven by an in-process counter wrap, NOT a bare
     assert (which -O strips) and NOT trust in a green twin.
 
     This is the gold-standard "the gate executes the rewired line" proof: an
-    autouse-free monkeypatch that WRAPS the production reader (``FrameBase.conjugate``)
+    autouse-free monkeypatch that WRAPS the production reader (``frame_faces.conjugate``)
     and counts entries. A green path that routed around ``conjugate`` (e.g. the
     carve left ``kernel`` building the manual nesting) leaves the counter at 0
     and reddens this gate.
@@ -445,26 +445,24 @@ class TestProductionExecutesFrameConjugate:
         frame = op.frame
         _require_conjugate(frame)  # skip PRE-IMPL
 
-        from orpheus.numerics.frame import FrameBase
-
         calls: list[object] = []
-        real_conjugate = FrameBase.conjugate  # type: ignore[attr-defined]
+        real_conjugate = frame_faces.conjugate
 
-        def _counting_conjugate(self, A):
+        def _counting_conjugate(frame, A):
             calls.append(A)
-            return real_conjugate(self, A)
+            return real_conjugate(frame, A)
 
         monkeypatch.setattr(
-            FrameBase, "conjugate", _counting_conjugate, raising=True,
+            frame_faces, "conjugate", _counting_conjugate, raising=True,
         )
 
-        # Access the production property — must route through frame.conjugate.
+        # Access the production property — must route through conjugate(frame, ·).
         _ = op.kernel
         require(
             len(calls) > 0,
             "vv Mode-11: ScatteringOperator.kernel did NOT call "
-            "frame.conjugate — the production property routes AROUND the new "
+            "conjugate(frame, ·) — the production property routes AROUND the new "
             "reader (e.g. still builds the manual OperatorProduct nesting). "
             "The kernel-equivalence gate would then be vacuous FOR the carve "
-            "claim. Wire S.kernel to frame.conjugate(Λ).",
+            "claim. Wire S.kernel to conjugate(frame, Λ).",
         )

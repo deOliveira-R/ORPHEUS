@@ -65,7 +65,7 @@ transfer stack. That single sentence fixes both action spellings:
   moment tensor on the hot path);
 * **Euclidean transpose** — the frame form: the cached
   :attr:`~FissionOperator.full_fission_kernel` product
-  ``frame.conjugate(FissionMomentOperator)`` reversed by
+  ``conjugate(frame, FissionMomentOperator)`` reversed by
   :meth:`~orpheus.numerics.operator.OperatorProduct.apply_transpose`,
   then the producer :math:`/W` — factor reversal, ZERO fission-side
   :math:`w`-arithmetic. (The pre-step-4 hand-rolled

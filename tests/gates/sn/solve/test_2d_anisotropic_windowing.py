@@ -63,6 +63,7 @@ from orpheus.sn.solver import (
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
+from orpheus.numerics import frame_faces
 
 # L1 — equation-level (anisotropic scattering source + 2-D streaming closure).
 pytestmark = pytest.mark.l1
@@ -318,7 +319,7 @@ def _windowed_product_and_oracle_operands(
         # frame's analysis face) of the full-angular sweep — structurally the
         # inherited ``OperatorProduct.apply`` body, spelled independently.
         return np.asarray(
-            S.frame.analysis.apply(base.solve(rhs).interior.values),
+            frame_faces.FrameAnalysis.of(S.frame).apply(base.solve(rhs).interior.values),
             dtype=np.float64,
         )
 
@@ -331,7 +332,7 @@ def _windowed_product_and_oracle_operands(
 def test_2d_windowed_product_equals_post_projection():
     r"""W1 deforestation gate (#226 step 2, spec §13.4): the FUSED windowed
     product ``(P @ A.inverse()).apply(rhs)`` (per-anti-diagonal in-sweep
-    moment accumulation) ≡ the flat post-sweep ``frame.analysis`` projection
+    moment accumulation) ≡ the flat post-sweep ``FrameAnalysis.of(frame)`` projection
     of the SAME full-angular sweep — the FULLER-VIEW VERIFICATION ORACLE.
 
     Renamed/migrated from ``test_2d_windowed_moments_in_sweep_equal_post_

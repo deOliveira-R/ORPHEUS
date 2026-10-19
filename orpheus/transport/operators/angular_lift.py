@@ -30,14 +30,14 @@ binding's DOMAIN interior is one of them:
   (:class:`AngularEnd`): the operand is the per-ordinate flux
   :class:`~orpheus.transport.fields.angular_flux.AngularFlux`;
   :math:`\phi` is its angular integral; a coefficient-space operator acts
-  through ``frame.conjugate`` (:math:`R\,\Lambda\,M`); the transpose's
+  through ``conjugate(frame, ·)`` (:math:`R\,\Lambda\,M`); the transpose's
   cotangent is a per-ordinate source/sink;
 * ``domain.interior == flux_analysis.codomain`` — the **moment** end
   (:class:`MomentEnd`): the operand is ALREADY :math:`M\psi`
   (:class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
   — the 2-D Cartesian windowed iterate, which never materialises the
   per-ordinate flux between sweeps); :math:`\phi` is its :math:`\ell = 0`
-  slot; a coefficient-space operator acts through ``frame.reconstruct_after``
+  slot; a coefficient-space operator acts through ``reconstruct_after(frame, ·)``
   (:math:`R\,\Lambda`, :math:`M` skipped — re-projecting would
   double-project); the cotangent is a moment source/sink.
 
@@ -110,6 +110,7 @@ from orpheus.transport.source_sinks import (
     HarmonicMomentSourceSink,
     ScalarSourceSink,
 )
+from orpheus.numerics import frame_faces
 
 if TYPE_CHECKING:
     from orpheus.numerics.operator import LinearOperator, OperatorProduct
@@ -146,7 +147,7 @@ class AngularEnd:
     @staticmethod
     def conjugate(lift: "AngularLift", operator: "LinearOperator") -> "OperatorProduct":
         # R ∘ A ∘ M — the frame's production composition.
-        return lift.frame.conjugate(operator)
+        return frame_faces.conjugate(lift.frame, operator)
 
     @staticmethod
     def cotangent(lift: "AngularLift", values: np.ndarray) -> BulkField:
@@ -171,7 +172,7 @@ class MomentEnd:
     @staticmethod
     def conjugate(lift: "AngularLift", operator: "LinearOperator") -> "OperatorProduct":
         # R ∘ A — M already applied; conjugating would double-project.
-        return cast("OperatorProduct", lift.frame.reconstruct_after(operator))
+        return cast("OperatorProduct", frame_faces.reconstruct_after(lift.frame, operator))
 
     @staticmethod
     def cotangent(lift: "AngularLift", values: np.ndarray) -> BulkField:
@@ -325,7 +326,7 @@ class AngularLift(CompositeBound, Generic[EnergyT]):
         r"""The bound frame's Parseval-dressed coefficient space — the
         endomorphic ends of the internally-minted moment factors.
 
-        READ off the frame (``frame.basis_space``), never minted from an
+        READ off the frame (``basis_space(frame)``), never minted from an
         order: which family spans the moments is the quadrature's
         decision, and which METRIC it carries is the frame's (CS4c step 6
         item 6.2c-ii, ruling R-6.2c-1, 2026-09-08). Until then the ends
@@ -339,7 +340,7 @@ class AngularLift(CompositeBound, Generic[EnergyT]):
         frame's space the moment iterate, the operator ends and the
         frame's faces share ONE metric, and structural space identity
         admits them without a metric-blind seam."""
-        return self.frame.basis_space
+        return frame_faces.basis_space(self.frame)
 
     @property
     def _scalar_interior_space(self) -> FunctionSpace:

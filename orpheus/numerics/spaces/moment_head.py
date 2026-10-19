@@ -83,7 +83,7 @@ def truncated_head(head: "FunctionSpace", L_new: int, /) -> "FunctionSpace":
       ``L_new`` — same functions, same spent axis — and hands back ITS
       space;
     * a :class:`~orpheus.numerics.frame.GalerkinFrame` (the head is the
-      frame's Parseval-dressed :attr:`~orpheus.numerics.frame.FrameBase.basis_space`,
+      frame's Parseval-dressed :func:`~orpheus.numerics.frame_faces.basis_space`,
       the ONE moment space the tree binds) re-poses itself at ``L_new`` and
       hands back its dressed space at that order — the metric is the
       frame's to install at EVERY order, because the discrete Gram's
@@ -97,6 +97,7 @@ def truncated_head(head: "FunctionSpace", L_new: int, /) -> "FunctionSpace":
     second-metric twin.
     """
     from orpheus.numerics.basis.base import TruncatedBasis
+    from orpheus.numerics import frame_faces
     from orpheus.numerics.frame import GalerkinFrame
 
     if not isinstance(head, MomentHead):
@@ -117,7 +118,7 @@ def truncated_head(head: "FunctionSpace", L_new: int, /) -> "FunctionSpace":
         )
     generator = axes[0].generator
     if isinstance(generator, GalerkinFrame):
-        lower = generator.at_order(L_new).basis_space
+        lower = frame_faces.basis_space(generator.at_order(L_new))
     elif isinstance(generator, TruncatedBasis):
         lower = generator.at_order(L_new).space
     else:

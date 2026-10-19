@@ -205,7 +205,7 @@ Key Facts
   the role-changing cross sections :math:`C`/:math:`\Lambda`/:math:`F`
   (representation-generic — the role change *is* the cross-section
   physics); **scattering** :math:`S = \tfrac{1}{W}(R\circ\Lambda\circ M)
-  = \texttt{frame.conjugate}(\Lambda)` is the **2-cell**, the vertical
+  = \texttt{conjugate}(\texttt{frame}, \Lambda)` is the **2-cell**, the vertical
   :math:`\Lambda` conjugated by the horizontal adjoint pair, and the
   bit-identical windowed-vs-full crosscheck is its **interchange-law
   coherence witness**. **A grid cell IS an operator's** ``(Domain,
@@ -749,8 +749,8 @@ the retained flux-analysis face :math:`M \otimes I` has **two ends**, and
 the binding's domain interior is one of them — the per-ordinate angular
 space it reads, or the harmonic-moment space it writes. Which one it is
 selects the interior body (:math:`\phi` by angular integration vs
-:math:`\phi` as the :math:`\ell = 0` slot; ``frame.conjugate`` vs
-``frame.reconstruct_after``; a per-ordinate cotangent vs a moment one).
+:math:`\phi` as the :math:`\ell = 0` slot; ``conjugate(frame, ·)`` vs
+``reconstruct_after(frame, ·)``; a per-ordinate cotangent vs a moment one).
 A third interior is refused. The base that owns this is
 :class:`!orpheus.transport.operators.angular_lift.AngularLift`, and the
 re-binding verb is ``on_moment_domain()`` — see
@@ -2557,7 +2557,7 @@ any method needs for "multiply-by-weights along one axis":
        :math:`w_n`; the operator multiplies the angular axis of
        :math:`\psi`.
      - This work, Wave 1 (the :math:`W` inside the SH frame's
-       analysis face ``frame.analysis``).
+       analysis face ``FrameAnalysis.of(frame)``).
    * - **MoC**
      - Track-weight diagonal :math:`w_t` on the track axis of an
        angular flux defined per-track.
@@ -3434,7 +3434,7 @@ Legendre moments :math:`\Sigma_{s,\ell}` (the diagonal of
 :math:`\Lambda` = :math:`\Sigma` (the diagonal spectrum), and
 :math:`R` = :math:`U` (synthesis *out of* it) is what makes the
 conjugation
-:math:`S = \tfrac{1}{W}\,\texttt{frame.conjugate}(\Lambda)` — the
+:math:`S = \tfrac{1}{W}\,\texttt{conjugate}(\texttt{frame}, \Lambda)` — the
 scattering **2-cell** of the carrier-grid double category
 (:ref:`carrier-grid-double-category`) — a *spectral* statement: the
 horizontal adjoint pair :math:`(M, R)` is the unitary diagonalising the
@@ -3672,9 +3672,9 @@ Transfer as the nonlocal-in-angle kernel
 The transfer :attr:`kernel <orpheus.transport.operators.transfer.TransferOperator.kernel>`
 is the :class:`~orpheus.numerics.operator.OperatorProduct`
 :math:`R \circ \Lambda \circ M` built from the SH frame's analysis
-face ``frame.analysis`` (:math:`M`),
+face ``FrameAnalysis.of(frame)`` (:math:`M`),
 :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer` (:math:`\Lambda`),
-and the frame's reconstruction face ``frame.reconstruction``
+and the frame's reconstruction face ``FrameReconstruction.of(frame)``
 (:math:`R`). It is the strictly-anisotropic :math:`\ell \ge 1` part of the
 full ``apply``: the isotropic :math:`P_0` in-transfer and the
 per-ordinate :math:`1/W` normalisation
@@ -4293,7 +4293,7 @@ role transition itself is the carriers' declared partnership
 .. implements:: scattering-aniso-composite
    :by: orpheus.transport.operators.transfer.TransferOperator.kernel
 
-   **Implemented by** the ``frame.conjugate(Λ)`` composite — the
+   **Implemented by** the ``conjugate(frame, Λ)`` composite — the
    :math:`R\circ\Lambda\circ M` product **before** the :math:`1/W`, because
    the kernel is the redistribution and the :term:`quadrature` weighting
    lives outside it by design.
@@ -4337,7 +4337,7 @@ role transition itself is the carriers' declared partnership
 This 2×2 scattering square is one face of a larger structure. The next
 three subsections lift it to the full :math:`(\text{Representation} \times
 \text{Role})` carrier grid, identify that grid as a **double category**
-whose 2-cell IS :math:`\texttt{frame.conjugate}(\Lambda)`, and then derive
+whose 2-cell IS :math:`\texttt{conjugate}(\texttt{frame}, \Lambda)`, and then derive
 the load-bearing architectural consequence: why the flat
 multiple-inheritance leaves the grid is built from are not a workaround but
 the **unique principled normal form**, and why the genericity the grid
@@ -4467,7 +4467,7 @@ already pins to 0 ULP.
      - **Scattering** :math:`S_{\rm aniso} = \tfrac{1}{W}\,(R \circ
        \Lambda \circ M)` — the vertical 1-morphism :math:`\Lambda`
        **conjugated by the horizontal adjoint pair** :math:`M`/:math:`R`.
-       Realised as :meth:`frame.conjugate(Λ) <orpheus.numerics.frame.FrameBase.conjugate>`
+       Realised as :func:`conjugate(frame, Λ) <orpheus.numerics.frame_faces.conjugate>`
        :math:`=` ``OperatorProduct(R, OperatorProduct(Λ, M))``.
      - The 2-cell fills the square: it is the canonical conjugation of a
        vertical morphism by the horizontal frame. The role change stays
@@ -4505,7 +4505,7 @@ not approximately, but to the last bit. That is exactly what
 .. math::
    :label: carrier-grid-interchange-witness
 
-   \underbrace{\big(\texttt{frame.conjugate}(\Lambda)\big).\texttt{apply}(\psi)}_{\text{single composed 2-cell}}
+   \underbrace{\big(\texttt{conjugate}(\texttt{frame}, \Lambda)\big).\texttt{apply}(\psi)}_{\text{single composed 2-cell}}
    \;\;\equiv\;\;
    \underbrace{R\big(\Lambda\,(M\,\psi)\big)}_{\text{step-by-step horizontal·vertical·horizontal}}
    \qquad(0\ \text{ULP}).
@@ -4664,8 +4664,8 @@ a layering constraint, not a preference:
 * The generic angular spherical-harmonic frame is the numerics
   :class:`~orpheus.numerics.frame.GalerkinFrame` built by
   :meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame` — its
-  :attr:`~orpheus.numerics.frame.FrameBase.analysis` /
-  :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` faces are
+  :meth:`~orpheus.numerics.frame_faces.FrameAnalysis.of` /
+  :meth:`~orpheus.numerics.frame_faces.FrameReconstruction.of` faces are
   **carrier-agnostic** ``np.ndarray → np.ndarray`` maps. This is by
   design: the same generic faces are shared with the P3
   indicator-homogenisation frame, and keeping them ndarray-valued is what
@@ -4791,7 +4791,7 @@ which end of the retained analysis face the domain's interior is
   ``TransferOperator._redistribute_ordinates`` — a public
   ``build_aniso_source`` wrapper stood in front of it until #448)
   consumes the §5.6 :attr:`kernel <orpheus.transport.operators.transfer.TransferOperator.kernel>`
-  ``= frame.conjugate(Λ)`` — the **single composed** ``np.ndarray``
+  ``= conjugate(frame, Λ)`` — the **single composed** ``np.ndarray``
   operator. This is the 0-ULP canary: one composition, one reduction
   tree. The role change is *implicit* inside the ndarray chain; that is
   correct here, because the consumer is a tight numerical loop that never
@@ -4817,7 +4817,7 @@ operator keeps the reduction tree single and the 0-ULP canary meaningful.
 ⛔ **The crosscheck's second side moved UP a tier, and the private oracle
 is gone.** Until CS4c step 5 the comparison was against
 ``ScatteringOperator._aniso_source_from_moment_values``, a private
-``frame.reconstruct_after(Λ)`` chain reached by handing a moment iterate
+``reconstruct_after(frame, Λ)`` chain reached by handing a moment iterate
 to the ANGULAR-bound operator (`[M]` 143 such feeds per windowed solve).
 That helper is **retired**: the moment operand now rides an operator
 bound on the moment end, so the two sides of the crosscheck are the two
@@ -8719,7 +8719,7 @@ the cheapest tell.
        1-morphisms are the role-changing cross sections :math:`C`,
        :math:`\Lambda`, :math:`F` (representation-generic), and scattering
        :math:`S = \tfrac{1}{W}(R\circ\Lambda\circ M) =
-       \texttt{frame.conjugate}(\Lambda)` is the **2-cell**, with the
+       \texttt{conjugate}(\texttt{frame}, \Lambda)` is the **2-cell**, with the
        existing 0-ULP windowed-vs-full crosscheck recognised as its
        interchange-law coherence witness (:ref:`carrier-grid-double-category`).
        The operator Protocol is widened to the honest two-parameter

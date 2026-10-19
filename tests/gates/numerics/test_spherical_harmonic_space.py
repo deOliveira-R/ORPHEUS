@@ -39,6 +39,7 @@ from orpheus.numerics.quadrature import (
     product_mu_phi,
 )
 from orpheus.numerics.spaces import SphericalHarmonicSpace
+from orpheus.numerics import frame_faces
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -171,7 +172,7 @@ def test_R_equals_2l_plus_1_times_S0(lebedev_L_pair):
     measure, L = lebedev_L_pair
     basis = SphericalHarmonicBasis(L=L)
     Y = basis.evaluate(measure.nodes)
-    R = GalerkinFrame(basis, measure).reconstruction
+    R = frame_faces.FrameReconstruction.of(GalerkinFrame(basis, measure))
 
     rng = np.random.default_rng(seed=2026)
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
@@ -215,8 +216,8 @@ def test_pi_R_is_4pi_identity_on_band_limited(lebedev_L_pair):
     """
     measure, L = lebedev_L_pair
     frame = GalerkinFrame(SphericalHarmonicBasis(L=L), measure)
-    M = frame.analysis
-    R = frame.reconstruction
+    M = frame_faces.FrameAnalysis.of(frame)
+    R = frame_faces.FrameReconstruction.of(frame)
 
     rng = np.random.default_rng(seed=42)
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
@@ -254,7 +255,7 @@ def test_H_equals_parseval_metric_times_S0(lebedev_L_pair):
     measure, L = lebedev_L_pair
     basis = SphericalHarmonicBasis(L=L)
     Y = basis.evaluate(measure.nodes)
-    M = GalerkinFrame(basis, measure).analysis
+    M = frame_faces.FrameAnalysis.of(GalerkinFrame(basis, measure))
 
     rng = np.random.default_rng(seed=99)
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
@@ -346,12 +347,12 @@ def test_moment_projection_codomain_is_spherical_harmonic_space():
     """
     measure = lebedev_sphere(7)
     L = 2
-    M = GalerkinFrame(SphericalHarmonicBasis(L=L), measure).analysis
+    M = frame_faces.FrameAnalysis.of(GalerkinFrame(SphericalHarmonicBasis(L=L), measure))
     cod = M.codomain
     assert isinstance(cod, SphericalHarmonicSpace)
     assert cod.L == L
     assert cod.shape == (L + 1, 2 * L + 1)
-    assert cod == GalerkinFrame(SphericalHarmonicBasis(L=L), measure).basis_space
+    assert cod == frame_faces.basis_space(GalerkinFrame(SphericalHarmonicBasis(L=L), measure))
     assert cod != SphericalHarmonicSpace.from_L(L)   # the continuum head is another space
     assert cod.name == SphericalHarmonicSpace.from_L(L).name
 
@@ -387,7 +388,7 @@ def test_T_carries_w_n_and_H_carries_the_parseval_metric(lebedev_L_pair):
     by :math:`(4\pi/(2\ell+1))^2` per ℓ.
     """
     measure, L = lebedev_L_pair
-    M = GalerkinFrame(SphericalHarmonicBasis(L=L), measure).analysis
+    M = frame_faces.FrameAnalysis.of(GalerkinFrame(SphericalHarmonicBasis(L=L), measure))
 
     rng = np.random.default_rng(seed=7)
     psi = rng.standard_normal(measure.n_points)
@@ -434,7 +435,7 @@ def test_R_transpose_equals_2l_plus_1_times_S0_transpose(lebedev_L_pair):
     measure, L = lebedev_L_pair
     basis = SphericalHarmonicBasis(L=L)
     Y = basis.evaluate(measure.nodes)
-    R = GalerkinFrame(basis, measure).reconstruction
+    R = frame_faces.FrameReconstruction.of(GalerkinFrame(basis, measure))
 
     rng = np.random.default_rng(seed=2027)
     v = rng.standard_normal(measure.n_points)
@@ -491,7 +492,7 @@ def test_R_transpose_carries_d_ell_and_RH_carries_d_ell_squared(lebedev_L_pair):
     :math:`(2\ell+1)^2/4\pi\cdot Y^{\mathsf T}W` — the wrong-side metric.)
     """
     measure, L = lebedev_L_pair
-    R = GalerkinFrame(SphericalHarmonicBasis(L=L), measure).reconstruction
+    R = frame_faces.FrameReconstruction.of(GalerkinFrame(SphericalHarmonicBasis(L=L), measure))
 
     rng = np.random.default_rng(seed=11)
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)

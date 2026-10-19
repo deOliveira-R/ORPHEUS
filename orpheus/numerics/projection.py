@@ -15,9 +15,9 @@ The concrete realisation is the discrete frame: a
 :class:`~orpheus.numerics.frame.FrameBase` binds a
 :class:`~orpheus.numerics.basis.Basis` to a
 :class:`~orpheus.numerics.measure.DiscreteMeasure` and emits the
-:attr:`~orpheus.numerics.frame.FrameBase.analysis` face (an
+:meth:`~orpheus.numerics.frame_faces.FrameAnalysis.of` face (an
 :class:`AnalysisOperator`) and the
-:attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face (a
+:meth:`~orpheus.numerics.frame_faces.FrameReconstruction.of` face (a
 :class:`ReconstructionOperator`). Build the angular one with
 ``quadrature.angular_frame(L)``.
 
@@ -92,7 +92,7 @@ class AnalysisOperator(LinearOperator[Domain, Codomain], ABC):
     IS a map between distinct spaces (the measure space :math:`V` → the
     coefficient space :math:`W`) — the two-parameter shape is the role's
     definition, not a speculative generalisation. The numerics frame face
-    (:class:`~orpheus.numerics.frame._FrameAnalysis`) inherits this BARE: it
+    (:class:`~orpheus.numerics.frame_faces.FrameAnalysis`) inherits this BARE: it
     acts on raw ``ndarray`` — a carrier-agnostic numerics primitive that carries
     no ``Vector``-typed static carrier (same as the bare operator primitives,
     :class:`~orpheus.numerics.operator.DiagonalOperator` et al.) — so the
@@ -102,7 +102,7 @@ class AnalysisOperator(LinearOperator[Domain, Codomain], ABC):
     (e.g. ``AnalysisOperator[AngularFlux, HarmonicMomentFlux]``).
 
     The ABC carries no implementation — the concrete realisation is the
-    :attr:`~orpheus.numerics.frame.FrameBase.analysis` face of a frame, which
+    :meth:`~orpheus.numerics.frame_faces.FrameAnalysis.of` face of a frame, which
     provides :meth:`apply` (and :meth:`apply_transpose`, so its Hilbert adjoint
     ``.H`` falls out of the metric-aware ``AdjointOperator``). The discipline
     (Galerkin vs Petrov-Galerkin) is the frame's TYPE, not a property of this role.
@@ -148,7 +148,7 @@ class ReconstructionOperator(LinearOperator[Domain, Codomain], ABC):
     :class:`ReconstructionOperator` carries :math:`R`.
 
     The concrete realisation — the
-    :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face of a frame —
+    :meth:`~orpheus.numerics.frame_faces.FrameReconstruction.of` face of a frame —
     provides :meth:`apply` (and :meth:`apply_transpose`, so ``R.H`` falls out for
     free). The role is apply-only; the frame face adds the transpose and
     overrides :attr:`is_adjointable`.
