@@ -71,9 +71,6 @@ PENDING: dict[tuple[str, str], str] = {
     # M2: the orbit space's reference measure leaves the manifold (ruling 31)
     ("exactness", "manifold"): "M2",
     ("generating_measure", "manifold"): "M2",
-    # M4b: the axis receives its generator (ruling 11)
-    ("axis", "measure"): "M4b",
-    ("axis", "quadrature"): "M4b",
     # S7: the coefficient space of a basis and the sampled space of a measure (ruling 35)
     ("space", "basis"): "S7",
     ("space", "measure"): "S7",

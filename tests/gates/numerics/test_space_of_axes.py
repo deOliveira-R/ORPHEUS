@@ -141,7 +141,7 @@ def test_of_axes_name_is_BLIND_to_the_generator() -> None:
     from orpheus.numerics.quadrature.directional import Quadrature
 
     q = Quadrature.gauss_legendre(4)
-    minted = q.axis("angular")
+    minted = Axis.of_quadrature(q, "angular")
     literal = Axis(
         "angular", (q.N,), weights=np.asarray(q.weights, float),
         kind=BasisKind.NODAL,
@@ -525,6 +525,7 @@ def test_the_spatial_axis_is_minted_through_the_carriers_own_measure() -> None:
     from orpheus.derivations.common.xs_library import get_mixture
     from orpheus.geometry import BC, StructuredGeometry
     from orpheus.mesh import CellEdges, Mesher
+    from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
     mix = get_mixture("A", "2g")
@@ -556,13 +557,17 @@ def test_the_spatial_axis_is_minted_through_the_carriers_own_measure() -> None:
         "the spatial digest moved",
     )
     # G8-spatial — the section law on the rank-1 arm (the law's domain):
-    _require(g.axis(sp_ax.label) == sp_ax, "spatial mint: not a section")
+    _require(
+        Axis.of_measure(
+            sp_ax.generator_as(DiscreteMeasure, consumer="G8 spatial leg"),
+            sp_ax.label,
+        ) == sp_ax, "spatial mint: not a section")
 
 
 def test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT() -> None:
     """G6b (CS5) — the CS2 rank-d seam, pinned as a CONTRACT.
 
-    A ``DiscreteMeasure`` is a flat atom list, so ``measure.axis`` mints
+    A ``DiscreteMeasure`` is a flat atom list, so ``Axis.of_measure`` mints
     rank 1; a rank-d spatial axis (shape ``(nx, ny, nz)``) has no rank-d
     measure→axis pairing yet. [M] minting it flat would change every
     d≥2 space name (``spatial(12,)#3712…`` vs ``spatial(3, 4)#1dcb…`` —

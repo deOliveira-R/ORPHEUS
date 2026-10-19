@@ -58,6 +58,7 @@ from orpheus.sn.operators.streaming import (
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from tests.gates.sn.regression._regression_assert import assert_regression
+from orpheus.numerics.axis import Axis
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import placeholder_materials, radial_characteristic_edge_seed
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -1129,7 +1130,7 @@ def test_the_raw_ctor_is_a_declared_expert_seam():
     doctored = IdentityAngularClosure(
         angular_redistribution(sn.quad, sn.coord),
         np.zeros((sn.nx, 1, 1)),
-        sn.quad.axis(),
+        Axis.of_quadrature(sn.quad),
     )
     L = StreamingOperator(sn, sn.scheme, doctored)
     assert L.angular_closure is doctored

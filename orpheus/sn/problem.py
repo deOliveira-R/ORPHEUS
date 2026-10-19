@@ -52,6 +52,7 @@ from .mesh.reduced_operator import (
     slab_streaming,
     spherical_streaming,
 )
+from orpheus.numerics.axis import Axis
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase, CellVisit
 from orpheus.transport.spatial.diamond import DiamondDifference
@@ -455,11 +456,11 @@ class SNProblem(MaterialMesh):
             # needs it.  That they are buildable from ``(quad, coord)``
             # alone is the un-weld's own point: the closure's operands
             # were never mesh facts.  The axis mint is the same one the
-            # 1-D factories run (``quad.axis()``, label defaulted at the
+            # 1-D factories run (``Axis.of_quadrature(quad)``, label defaulted at the
             # generator so the two arms cannot spell it differently).
             angular = angular_redistribution(self.quad, self.coord)
             pairing = np.zeros((int(np.prod(self.spatial_shape)), 1, 1))
-            angular_axis = self.quad.axis()
+            angular_axis = Axis.of_quadrature(self.quad)
         self.angular_closure: AngularClosureBase = closure_cls(
             angular, pairing, angular_axis,
         )
@@ -1335,7 +1336,7 @@ class SNProblem(MaterialMesh):
         # forgotten angular geometry (``mu_x``/``eta``/``mu_z``/
         # ``level_indices``) without being handed the quadrature
         # separately.
-        angular = self.quad.axis()
+        angular = Axis.of_quadrature(self.quad)
         return FunctionSpace.of_axes(angular, *scalar.axes)
 
     @cached_property
