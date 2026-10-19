@@ -126,7 +126,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.quadrature.directional import Quadrature
 
-__all__ = ["Axis", "BasisKind", "EnergyAxis", "Modal"]
+__all__ = ["Axis", "AxisKind", "BasisKind", "EnergyAxis", "Modal"]
 
 #: The generator kinds :meth:`Axis.generator_as` can narrow to.
 _G = TypeVar("_G")
@@ -192,6 +192,10 @@ class Modal(ContentIdentity):
         return self.unit
 
 
+#: A space factor's kind, the closed sum of its two arms (ruling 41).
+AxisKind = BasisKind | Modal
+
+
 @dataclass(frozen=True, eq=False)
 class Axis(ContentIdentity):
     r"""One tensor factor of a function space — a frozen value object.
@@ -212,7 +216,7 @@ class Axis(ContentIdentity):
         canonicalized (``w + 0.0``, killing ``-0.0``), defensively
         copied, read-only. Non-finite entries are refused; signed
         weights are legal (quadrature families need them).
-    kind : BasisKind | Modal
+    kind : AxisKind
         Keyword-only, no default — the basis character is physics and
         must be spelled at every mint: ``BasisKind.NODAL``, or
         ``Modal(unit)`` carrying the coordinates of the constant function
@@ -245,7 +249,7 @@ class Axis(ContentIdentity):
     label: str
     shape: tuple[int, ...]
     weights: NDArray | None = field(default=None, repr=False)
-    kind: BasisKind | Modal = field(kw_only=True)
+    kind: AxisKind = field(kw_only=True)
     # Provenance is not identity: ``compare=False`` is the content encoder's
     # one spelling of "not content" (#405 P1 step 5).
     generator: DiscreteMeasure | Basis | Quadrature | FrameBase | None = field(

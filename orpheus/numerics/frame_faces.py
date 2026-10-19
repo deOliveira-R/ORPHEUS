@@ -44,8 +44,6 @@ other old spellings do not exist.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Any
-
 import numpy as np
 from numpy.typing import NDArray
 
@@ -55,13 +53,16 @@ from orpheus.numerics.basis.descent import Descent
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import FrameBase, GalerkinFrame
 from orpheus.numerics.instance_cache import cached_on
-from orpheus.numerics.manifold import Quotient, Sphere
+from orpheus.numerics.manifold import Manifold, Quotient, Sphere
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
 from orpheus.numerics.operator import LinearOperator, NotInvertible, OperatorProduct
 from orpheus.numerics.projection import AnalysisOperator, ReconstructionOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 
+
+#: This module's private slot on a frame or a quadrature (:func:`~orpheus.numerics.instance_cache.cached_on`).
+_SLOT = "_frame_faces"
 
 __all__ = [
     "CrossGramInverse",
@@ -78,7 +79,7 @@ __all__ = [
 
 
 
-def _harmonic_basis(support: Any, L: int) -> Basis:
+def _harmonic_basis(support: Manifold, L: int) -> Basis:
     r"""The degree-:math:`L` basis a rule's function space admits, DERIVED from the point set its measure lives on.
 
     The measure's :attr:`~orpheus.numerics.measure.DiscreteMeasure.support`
@@ -152,7 +153,10 @@ def angular_frame(quadrature: Quadrature, L: int) -> GalerkinFrame:
     expansion) parametrises the basis, ``angular_frame(quadrature, L, basis=...)``,
     a SIGNATURE change, and must NOT rename the function.
     """
-    return cached_on(quadrature, "_frame_faces", ("angular_frame", L),
+    return cached_on(
+        quadrature,
+        _SLOT,
+        ("angular_frame", L),
         lambda: GalerkinFrame(_harmonic_basis(quadrature.measure.support, L), quadrature.measure),
     )
 
@@ -262,7 +266,7 @@ class CrossGramInverse(LinearOperator):
         normalisation :math:`G^{-1}` is not realizable as posed) rather than
         return a silently-wrong probe.
         """
-        return cached_on(frame, "_frame_faces", "gram_inverse", lambda: cls._probe(frame))
+        return cached_on(frame, _SLOT, "gram_inverse", lambda: cls._probe(frame))
 
     @classmethod
     def _probe(cls, frame: FrameBase) -> "CrossGramInverse":
@@ -439,7 +443,7 @@ def basis_space(frame: FrameBase) -> FunctionSpace:
     space is spelled (ruling R-6.2c-1) — the metric-blind seam that
     let the two pass for one is gone.
     """
-    return cached_on(frame, "_frame_faces", "basis_space", lambda: _parseval_dressed(frame))
+    return cached_on(frame, _SLOT, "basis_space", lambda: _parseval_dressed(frame))
 
 
 def _parseval_dressed(frame: FrameBase) -> FunctionSpace:
@@ -473,7 +477,7 @@ def test_space(frame: FrameBase) -> FunctionSpace:
     explicit test basis included, reads ``frame.test.space``.
     """
     # S7 settles this: a PetrovGalerkinFrame with test_basis IS basis gets test.space (undressed), a GalerkinFrame the dressed basis_space.
-    return cached_on(frame, "_frame_faces", "test_space",
+    return cached_on(frame, _SLOT, "test_space",
         lambda: basis_space(frame) if isinstance(frame, GalerkinFrame) else frame.test.space,
     )
 
@@ -485,7 +489,7 @@ def measure_space(frame: FrameBase) -> FunctionSpace:
     quadrature weights as the metric): the measure OWNS its domain space,
     symmetric with the basis owning its codomain — neither is fabricated here.
     """
-    return cached_on(frame, "_frame_faces", "measure_space", lambda: frame.measure.space)
+    return cached_on(frame, _SLOT, "measure_space", lambda: frame.measure.space)
 
 
 @dataclass(frozen=True)
@@ -507,7 +511,7 @@ class FrameAnalysis(AnalysisOperator):
     @classmethod
     def of(cls, frame: FrameBase) -> "FrameAnalysis":
         r"""The analysis face of ``frame``, built once per frame."""
-        return cached_on(frame, "_frame_faces", "analysis", lambda: cls(frame))
+        return cached_on(frame, _SLOT, "analysis", lambda: cls(frame))
 
     @property
     def domain(self) -> FunctionSpace:
@@ -546,7 +550,7 @@ class FrameReconstruction(ReconstructionOperator):
     @classmethod
     def of(cls, frame: FrameBase) -> "FrameReconstruction":
         r"""The reconstruction face of ``frame``, built once per frame."""
-        return cached_on(frame, "_frame_faces", "reconstruction", lambda: cls(frame))
+        return cached_on(frame, _SLOT, "reconstruction", lambda: cls(frame))
 
     @property
     def is_adjointable(self) -> bool:

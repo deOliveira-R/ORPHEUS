@@ -1088,7 +1088,7 @@ Numerical evidence
 
 `[M]` 2026-08-23, measured against the tree at HEAD. **The
 construction, so the table regenerates from this page**: build the
-frame (``Quadrature.<family>(...).angular_frame(L)``, or
+frame (``frame_faces.angular_frame(Quadrature.<family>(...), L)``, or
 ``GalerkinFrame(SphericalHarmonicBasis(L=2), lebedev_sphere(13))``);
 draw :math:`c \sim` ``default_rng(1234).standard_normal(basis_space(frame).shape)``
 *unmasked* (garbage in the dead slots is deliberate — see the

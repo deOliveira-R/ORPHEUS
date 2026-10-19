@@ -484,9 +484,10 @@ class FunctionSpace(Generic[Carrier]):
         r"""The positioned overlay of forms, one entry per axis (``None`` where
         the axis carries no form, and on every axis of a space with no overlay).
 
-        The one reader of the overlay: the product composition
-        (:func:`_positioned_forms`), the axis verbs :meth:`without_axis` and
-        :meth:`with_axis`, and :func:`_axis_entries` read it here.
+        The one reader of the overlay for the product composition
+        (:func:`_positioned_forms`) and the axis verbs :meth:`without_axis` and
+        :meth:`with_axis`; :func:`_axis_entries` reads the factored metric's
+        ``entries`` directly instead.
         """
         assert self.axes is not None  # narrowing only: callers are axis-built
         if isinstance(self.metric, FactoredMetric):

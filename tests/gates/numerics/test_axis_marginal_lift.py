@@ -483,24 +483,29 @@ class TestG6Refusals:
         with pytest.raises(ValueError, match="zero total weight"):
             AxisSectionOperator.of(V, label)
 
-    def test_a_modal_kind_carries_its_unit_or_is_refused(self):
+    @pytest.mark.parametrize("leg", ["a string kind", "a zero unit", "a unit over another shape"])
+    def test_a_modal_kind_carries_its_unit_or_is_refused(self, leg):
         """Rulings 40 and 41: the kind is the closed sum ``BasisKind.NODAL |
         Modal(unit)``, so a modal factor without its unit cannot be spelled.
-        What is left to refuse at construction: a kind that is neither arm
-        (a string, the pre-S1 test spelling the S1 review caught), a unit
-        that cannot be the constant's coordinates (zero), and a unit over
-        another shape, including through ``replace`` on a nodal axis."""
+        What is left to refuse at construction, one leg each so one red cannot
+        mask another: a kind that is neither arm (a string, the pre-S1 test
+        spelling the S1 review caught), a unit that cannot be the constant's
+        coordinates (zero), and a unit over another shape, here through
+        ``replace`` on a nodal axis."""
         import dataclasses
 
         from orpheus.numerics.axis import Axis, BasisKind, Modal
 
-        with pytest.raises(TypeError, match="kind must be BasisKind.NODAL or Modal"):
-            Axis("moment", (2,), kind="nodal")  # pyright: ignore[reportArgumentType]
-        with pytest.raises(ValueError, match="finite and nonzero"):
-            Modal(np.zeros(2))
-        nodal = Axis("moment", (2,), weights=np.array([1.0, 3.0]), kind=BasisKind.NODAL)
-        with pytest.raises(ValueError, match="must live over exactly the axis shape"):
-            dataclasses.replace(nodal, kind=Modal(np.eye(3)[0]))
+        if leg == "a string kind":
+            with pytest.raises(TypeError, match="kind must be BasisKind.NODAL or Modal"):
+                Axis("moment", (2,), kind="nodal")  # pyright: ignore[reportArgumentType]
+        elif leg == "a zero unit":
+            with pytest.raises(ValueError, match="finite and nonzero"):
+                Modal(np.zeros(2))
+        else:
+            nodal = Axis("moment", (2,), weights=np.array([1.0, 3.0]), kind=BasisKind.NODAL)
+            with pytest.raises(ValueError, match="must live over exactly the axis shape"):
+                dataclasses.replace(nodal, kind=Modal(np.eye(3)[0]))
 
     def test_wrong_shapes_refuse_both_directions(self):
         V, _ = resolve("synthetic nodal", "angular")

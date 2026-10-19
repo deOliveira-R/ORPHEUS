@@ -295,21 +295,26 @@ position of a monolithic shape tuple.
        the slot the pairing consumes, and (through identity) the slot
        that makes a quotient point and a one-cell mesh different spaces.
    * - ``kind``
-     - :class:`~orpheus.numerics.axis.BasisKind`
-     - ``NODAL`` ⟹ the factor carries a **coordinate cone**;
-       ``MODAL`` ⟹ it does not. Keyword-only with **no default** — the
-       basis character is physics and must be spelled at every mint.
+     - ``BasisKind.NODAL`` or :class:`Modal(unit) <orpheus.numerics.axis.Modal>`,
+       a closed sum
+     - ``NODAL`` ⟹ the factor carries a **coordinate cone**; the modal
+       arm ⟹ it does not, and it CARRIES the factor's unit.
+       Keyword-only with **no default** — the basis character is physics
+       and must be spelled at every mint. Any other value is refused
+       (``TypeError``, *"kind must be BasisKind.NODAL or Modal(unit)"*).
    * - ``unit``
-     - ``NDArray`` over exactly ``shape``, keyword-only, read-only
+     - ``NDArray`` over exactly ``shape``, read-only; a property read from
+       the kind (``kind.unit_over(shape)``)
      - The **coordinates of the constant function** :math:`1` in this
        factor's representation, minted with the axis by whatever mints
-       it (S1 of the numerics untangling, 2026-10-19): all ones on a
-       ``NODAL`` axis (filled in at construction; any other value is
-       refused); :math:`e_0` on a continuum head; the moments
-       :math:`\Phi^{\mathsf T} w` on a head a frame has dressed. A
-       ``MODAL`` axis minted without one is refused. The marginal over
-       the axis integrates against :math:`m = G_k u`
-       (:ref:`spaces-axis-unit`).
+       it (S1 and ruling 41 of the numerics untangling, 2026-10-19): all
+       ones on a ``NODAL`` axis, which the enum member implies and
+       carries nothing for; on a modal axis the unit the ``Modal`` arm
+       carries: :math:`e_0` on a continuum head, the moments
+       :math:`\Phi^{\mathsf T} w` on a head a frame has dressed,
+       :math:`e_0` on the LD spatial-moment axis. A modal kind without a
+       unit cannot be spelled. The marginal over the axis integrates
+       against :math:`m = G_k u` (:ref:`spaces-axis-unit`).
    * - ``generator``
      - ``DiscreteMeasure | Basis | Quadrature | FrameBase | None``,
        keyword-only, default ``None``
@@ -329,13 +334,15 @@ position of a monolithic shape tuple.
    * - identity
      - structural, **per subclass**
      - :math:`(\text{type}, \text{label}, \text{shape}, \text{kind},
-       \text{weights bytes})`, the unit's bytes on a ``MODAL`` axis, plus
-       each subclass's own data. Two axes differing only in measure are
-       DIFFERENT axes; two modal axes differing only in unit (a
-       coefficient head and a moment head) are DIFFERENT axes; two axes
-       differing only in ``generator`` are the SAME axis. A ``NODAL``
-       axis's unit is implied by its kind and stays out of the identity,
-       so every nodal digest is the one it had before the unit existed.
+       \text{weights bytes})` plus each subclass's own data, where the
+       kind is content: ``BasisKind.NODAL`` encodes as the enum member,
+       and ``Modal(unit)``, itself a content-identified value, encodes its
+       unit's bytes. Two axes differing only in measure are DIFFERENT
+       axes; two modal axes differing only in unit (a coefficient head
+       and a moment head) are DIFFERENT axes; two axes differing only in
+       ``generator`` are the SAME axis. The unit is content on a modal
+       axis and not on a nodal one by the TYPE of the kind (ruling 39,
+       made structural by ruling 41).
 
 Composition, and the metric that comes with it
 ----------------------------------------------
@@ -718,8 +725,8 @@ that preceded it and was never reconciled here.
 **seven** production call sites, not one. And the ``False`` row now has
 a production occupant: :attr:`SNProblem.angular_trial_space
 <orpheus.sn.problem.SNProblem.angular_trial_space>` appends the
-scheme-owned ``moment_axis`` — declared ``BasisKind.MODAL``, because a
-DG cell moment is an expansion coefficient — to an axis-built base
+scheme-owned ``moment_axis`` — declared modal (``Modal(e_0)``), because
+a DG cell moment is an expansion coefficient — to an axis-built base
 whenever the bound scheme is multi-moment, and `[M]`
 ``LinearDiscontinuous.is_multi_moment`` is ``True`` while
 ``DiamondDifference``'s is ``False``. So an LD carrier's trial space is
@@ -4234,9 +4241,11 @@ every :math:`c`,
 
    **Implemented by** 2 sites. The retraction's ``apply`` is the pairing
    :math:`\langle m, c\rangle` along the axis; the mint forms the covector
-   :math:`m = G_k u` from the axis's metric block, which is a positioned
-   form on the space's overlay when the axis is measure-less, else the
-   axis's weights, else the identity of the counting measure.
+   :math:`m = G_k u` from the axis's metric block,
+   ``FunctionSpace._axis_block(k)``, the same entry the space's derived
+   metric composes (a positioned form on the space's overlay when the axis
+   is measure-less, else the axis's weights, else ``None``, the counting
+   measure), so the covector and the space's metric cannot disagree.
 
 .. implements:: spaces-axis-marginal-integral
    :by: py:function:orpheus.numerics.axis_marginal._mint
@@ -4349,16 +4358,22 @@ the unit is what tells them apart.
   is :math:`\mathbf 1`, :math:`u = B\,e_0`. That vector is
   :math:`(\Sigma w)\,e_0` only on a rule that integrates every live
   harmonic of the head exactly; on ``folded_product(4, 4)`` at
-  :math:`L = 4` its other entries reach 3.67 (`[M]` this pass).
+  :math:`L = 4` its other entries reach 3.67 (`[M]` 2026-10-19, the unit table of
+  :ref:`spaces-collapse-pair-evidence`).
 
 The weights alone do not fix which of the two a head holds: two dense
 frame-dressed heads of the same order, with ``weights=None`` and the form
-positioned on the space, were EQUAL axes with different units (:math:`B
-e_0` on different rules). So on a ``MODAL`` axis the unit is part of the
-axis's content identity (it enters ``==``, ``hash`` and the digest), and
-on a ``NODAL`` axis, where it is all ones by the kind, it is not, so every
-nodal axis keeps the digest it had before the unit existed (ruling 39 of
-the numerics-untangling plan; ``Axis.content_parts``).
+positioned on the space, would be EQUAL axes with different units
+(:math:`B e_0` on different rules) if the unit were not content. So the
+unit lives inside the kind: the kind is the closed sum
+``BasisKind.NODAL | Modal(unit)`` (ruling 41 of the numerics-untangling
+plan), :class:`~orpheus.numerics.axis.Modal` is a content-identified
+value carrying the unit, and the kind is part of the axis's content. On
+a modal axis the unit therefore enters ``==``, ``hash`` and the digest;
+on a nodal axis, whose kind is the bare enum member, there is nothing to
+enter, so every nodal axis keeps the digest it had before the unit
+existed (ruling 39, which an override of ``content_parts`` enforced
+until ruling 41 made it a property of the type).
 
 **Why the moment head integrates.** On a moment head,
 :eq:`spaces-axis-marginal-integral` has to be checked directly, because
@@ -4409,20 +4424,23 @@ e_0 = B_{00} = \Sigma w` in exact arithmetic, and to rounding in the code
    d\mu`: `[M]` 0.5 on Gauss–Legendre and :math:`1/(4\pi) = 0.0796` on
    the sphere rules, and on ``folded_product(4, 4)`` at :math:`L = 4`
    not a multiple of the integral at all (the ratio ranges from
-   :math:`-0.11` to :math:`0.18` over 20 random columns, this pass). The basis knows its coefficients of :math:`1`;
+   :math:`-0.11` to :math:`0.18` over 20 random columns, `[M]` 2026-10-19). The basis knows its coefficients of :math:`1`;
    it does not know whether a head built on it holds coefficients or
    moments. That fact is decided where the head is dressed, so the unit
    is minted there (ruling 37), and the reciprocity and section gates
    could never have seen the error, because they hold for every nonzero
    :math:`u` (:ref:`spaces-collapse-pair-gates`).
 
-**A modal axis is minted with its unit, or not at all** (ruling 40). A
-``NODAL`` axis fills its unit with ones and refuses any other value; a
-``MODAL`` axis constructed without one raises ``ValueError`` (*"is MODAL
-and was minted without its unit"*), and a unit of the wrong shape, a
-non-finite one and the zero vector are refused too. So a modal factor
-that cannot integrate is unrepresentable, and the marginal has no "this
-axis cannot integrate" refusal to make. A planned refusal for a basis
+**A modal axis is minted with its unit, or not at all** (rulings 40 and
+41). The modal arm of the kind is ``Modal(unit)``, so a modal factor
+without its unit cannot be spelled. What remains to refuse is refused at
+construction: a kind that is neither arm (``TypeError``, *"kind must be
+BasisKind.NODAL or Modal(unit)"*), a unit that is not finite or is zero
+(``ValueError``, *"finite and nonzero"*, in ``Modal``), and a unit over
+another shape than the axis's (``ValueError``, *"must live over exactly
+the axis shape"*, also through ``dataclasses.replace`` of a nodal axis's
+kind). So a modal factor that cannot integrate is unrepresentable, and
+the marginal has no "this axis cannot integrate" refusal to make. A planned refusal for a basis
 that cannot represent the constant was dropped: `[M]` (the S1
 specification, by reading the families) 0 of the 5 shipped
 families with a synthesis lacks the constant (Legendre, the spherical
@@ -4673,7 +4691,7 @@ is :math:`\Sigma w` to a few ULP, not exactly.
 **And** :math:`R\circ E` **is not bit-exact.** :math:`R E \varphi =
 \sum_n m_n\,(u_n\varphi/M)` re-associates a sum of :math:`N_k` terms, so
 it reproduces :math:`\varphi` to the reduction depth and no better:
-`[M]` this pass, at most :math:`N_k/3` ULP on each of the 120 shipped
+`[M]` 2026-10-19 at ``7baf444c``, at most :math:`N_k/3` ULP on each of the 120 shipped
 rules (the largest count 67 ULP on ``lebedev(41)``, :math:`N_k = 590`),
 and bit-exact on all 20 draws on only 2 of the 120 rules
 (:ref:`spaces-collapse-pair-evidence`). The gate's tolerance is therefore
@@ -4807,7 +4825,10 @@ Each hypothesis has a failure, and each failure is a different object:
   :math:`\ker G_k\otimes V'`. On a moment head they agree, because its
   unit :math:`B e_0` lies in :math:`\operatorname{range}(B) =
   \operatorname{range}(B^{+})`. Reciprocity is blind to a write into the
-  kernel, so neither gate G3 nor S6.4 can tell the two apart there.
+  kernel, so the reciprocity rows cannot tell two adjoints apart there;
+  what pins the agreement on the moment heads is G3's sandwich row, which
+  compares the closed form with ``AdjointOperator(R)`` directly on the 19
+  modal rows, the singular heads among them.
 
 The closed form is therefore the Hilbert adjoint of every retraction the
 mint can produce, and ``.H`` carries no guard.
@@ -4922,7 +4943,7 @@ that can exist, not only for the one ``R.H`` returns.
      - :class:`~orpheus.numerics.axis_marginal.AxisSectionOperator`
      - divide by :math:`\langle m, u\rangle`, then place along :math:`u`
      - :math:`R\circ E = \mathrm{id}` to at most :math:`N_k/3` ULP
-       (`[M]` this pass, 120 shipped rules × 20 draws)
+       (`[M]` 2026-10-19, 120 shipped rules × 20 draws)
    * - :math:`R^{\dagger} = \pi^{*}`
      - :class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`
      - :math:`u\otimes\varphi`
@@ -5343,8 +5364,8 @@ than a wrong answer. The energy clause is checked before the
 single-axis clause, so a lone energy axis is refused toward
 condensation and not as a bare scalar (gate G6, the wiring-order row).
 
-The clause gate is not hypothetical on a shipped carrier. `[M]` this
-pass, on the :math:`S_N` fixture of :ref:`spaces-collapse-pair-evidence`
+The clause gate is not hypothetical on a shipped carrier. `[M]` 2026-10-19 at
+``7baf444c``, on the :math:`S_N` fixture of :ref:`spaces-collapse-pair-evidence`
 (a five-cell slab, ``gauss_legendre(4)``, 2 groups), whose
 ``angular_bulk_space`` axes are ``(Axis, EnergyAxis, Axis)``, and on its
 moment space at :math:`L = 1`, whose head is a frame-dressed Legendre
@@ -5477,7 +5498,8 @@ Numerical evidence
 :math:`u = \mathbf 1` and :math:`m = w`, and gate G5 pins the arrows of
 today ``array_equal`` to the hand einsum and the broadcast those
 measurements used, so the rows below describe today's arrows; the
-divisor table and the unit table further down are this pass's. **The construction,
+divisor table and the unit table further down were measured on
+2026-10-19 at ``7baf444c``. **The construction,
 so the tables regenerate from this page.** The *synthetic* fixture is
 the three-axis product ``angular(4, w=[0.3, 0.7, 0.5, 0.5]) ⊗
 energy(2, counting) ⊗ spatial(5, V=[0.2, 0.3, 0.4, 0.7, 1.4])`` built
@@ -5584,9 +5606,11 @@ would be a latent false red (``vv-principles`` #16).
    sums more terms.
 
 **The divisor is the correctly rounded mass, and every other spelling
-rounds differently somewhere.** `[M]` this pass
-(``scratch/numerics_untangling/packages/S1_doc_probes/numbers.py``, run as ``PYTHONPATH=. .venv/bin/python -O
-<probe>`` from outside the repository), over the 120 shipped rules of
+rounds differently somewhere.** `[M]` 2026-10-19, re-run at
+``7baf444c``
+(``scratch/numerics_untangling/packages/S1_doc_probes/s1_numbers.py``, run
+from outside the repository as ``PYTHONPATH=<repo> <repo>/.venv/bin/python
+-O <probe>``), over the 120 shipped rules of
 gate G5-mass: Gauss–Legendre 2 to 64, level-symmetric 2 to 16,
 ``product`` and ``folded_product`` over :math:`(2, 4, 6, 8)\times(4, 8,
 12, 16)`, and 17 Lebedev orders from 3 to 41. Each spelling of
@@ -5626,9 +5650,9 @@ the change of spelling moved the divisor on three: by 2 ULP on
 ``product(4, 8)`` (the S1 specification, §7; one regression case's
 :math:`k_{\rm eff}` moved by 1 ULP).
 
-**The unit on the frame-dressed heads.** `[M]` this pass
-(``scratch/numerics_untangling/packages/S1_doc_probes/heads.py``, the same invocation): each head is
-``frame_faces.basis_space(quad.angular_frame(L))`` ⊗ a counting axis of
+**The unit on the frame-dressed heads.** `[M]` 2026-10-19 at ``7baf444c``
+(``scratch/numerics_untangling/packages/S1_doc_probes/s1_heads.py``, the same invocation): each head is
+``frame_faces.basis_space(frame_faces.angular_frame(quad, L))`` ⊗ a counting axis of
 20 slots, :math:`\psi` is ``default_rng(7).standard_normal((N, 20))``,
 the moments are the frame's own analysis :math:`\Phi^{\mathsf T}W\psi`,
 and the reference is :math:`\sum_n w_n \psi_n`. The column "with
@@ -5714,8 +5738,8 @@ analysis of :math:`\mathbf 1`, an einsum, so :math:`u_0` already carries
 that reduction's rounding (up to 32 ULP on ``lebedev(27)``); gate G2c
 bounds the mass at :math:`8\varepsilon` relative on its five heads.
 
-**The section is not bit-exact against the retraction.** `[M]` this
-pass, the 120 rules × 20 draws ``standard_normal(3)`` scaled by
+**The section is not bit-exact against the retraction.** `[M]` 2026-10-19 at
+``7baf444c``, the 120 rules × 20 draws ``standard_normal(3)`` scaled by
 :math:`10^{k}`, :math:`k\in[-6, 6]`, seed 7: the worst ULP of
 :math:`R(E\varphi)` against :math:`\varphi` is at most :math:`N_k/3` on
 every rule. The ratio is attained on ``lebedev(3)`` (2 ULP,
@@ -5860,7 +5884,8 @@ integration family G2 is its gate.
 
 ``tests/gates/numerics/test_axis_marginal_lift.py`` holds the six
 families of the S1 specification
-(``scratch/numerics_untangling/packages/S1_gate_spec.md``), 294 rows,
+(``scratch/numerics_untangling/packages/S1_gate_spec.md``) and the rows
+the S1 review added, 314 rows,
 over a registry built from production factories (nodal axes of six
 S\ :sub:`N` problems, the twelve production moment spaces, five
 frame-dressed heads ⊗ energy ⊗ spatial, two continuum heads ⊗ cells, the
@@ -5875,12 +5900,14 @@ zero-mass axes):
      - Rows
      - What it pins, and what it cannot see
    * - G1, the unit is the constant
-     - 36
+     - 37
      - nodal units are ones (``array_equal``); a coefficient head's unit
        is :math:`e_0` and the function it represents, evaluated in the
        test with numpy and scipy, is 1; a moment head's unit equals the
        moments of 1 computed in the test with an independent evaluation
-       of the basis and ``math.fsum``, and represents 1 at the nodes.
+       of the basis and ``math.fsum``, and represents 1 at the nodes; the
+       LD spatial-moment axis's unit is :math:`e_0` and its marginal is
+       slot 0, the cell average, read from the array directly.
    * - G2, integration
      - 33
      - the modal marginal :eq:`spaces-axis-marginal-integral`: on
@@ -5891,13 +5918,18 @@ zero-mass axes):
        or :math:`\Sigma w`. With G1, the only family that sees a wrong
        unit.
    * - G3, reciprocity
-     - 39
+     - 58
      - the product condition from the raw axes and forms, then
        :math:`\langle R\psi,\varphi\rangle = \langle\psi,
        \pi^{*}\varphi\rangle`, over 38 (space, axis) rows, modal heads
-       with dense forms included; and the refusal of a non-product metric
-       on an axis-built space. ⛔ Blind to the unit by construction: the
-       algebra is self-consistent for every nonzero :math:`u`.
+       with dense forms included; the closed form against the generic
+       sandwich ``AdjointOperator(R)`` on the 19 modal rows (to
+       :math:`64\varepsilon` of the largest entry), the X4 witness that
+       on a singular head the two adjoints still agree because
+       :math:`u = B e_0 \in \operatorname{range}(G^{+})`; and the refusal
+       of a non-product metric on an axis-built space. ⛔ Blind to the
+       unit by construction: the algebra is self-consistent for every
+       nonzero :math:`u`.
    * - G4, the section laws
      - 38
      - :math:`R\circ E = \mathrm{id}` at ``nulp = max(4, N_k)`` and
@@ -5912,8 +5944,9 @@ zero-mass axes):
    * - G6, the refusals
      - 12
      - every row of the admission table above by its shortest distinctive
-       message fragment, the wiring order (energy before single-axis), a
-       modal axis minted without its unit, the shape guards, the second
+       message fragment, the wiring order (energy before single-axis), the
+       kind's refusals (neither arm; a zero unit; a unit over another
+       shape), the shape guards, the second
        pullback, and the memo (one marginal instance per (space, label)).
 
 ``tests/gates/numerics/test_retraction_adjoint_is_the_pullback.py`` holds
@@ -6226,22 +6259,29 @@ status.
      - Where
    * - 2026-10-19
      - **The axis owns its unit, and the marginal is built from it**
-       (numerics untangling, package S1; rulings 36 to 40). Every axis
+       (numerics untangling, package S1; rulings 36 to 41). Every axis
        carries :attr:`~orpheus.numerics.axis.Axis.unit`, the coordinates
        of the constant function :math:`1` in its own representation,
        minted with the axis: all ones on a ``NODAL`` axis; :math:`e_0` on
        the continuum Legendre and harmonic heads; the moments
        :math:`\Phi^{\mathsf T} w = B e_0` on a head a frame has dressed;
-       :math:`e_0` on the LD spatial-moment axis. A ``MODAL`` axis
-       without a unit is refused, and the unit is content on ``MODAL``
-       axes only, so every nodal digest is unchanged. The three arrows
+       :math:`e_0` on the LD spatial-moment axis. Ruling 41 makes the
+       kind a closed sum, ``BasisKind.NODAL | Modal(unit)``: the modal arm
+       is the value class :class:`~orpheus.numerics.axis.Modal`, which
+       carries the unit, ``Axis.unit`` is read from the kind, and a modal
+       factor without a unit cannot be spelled; the unit is content on
+       modal axes only by that type, so every nodal digest is unchanged.
+       The metric block :math:`G_k` has one answer,
+       ``FunctionSpace._axis_block(k)``, shared by the space's metric and
+       the covector. The three arrows
        move to :mod:`orpheus.numerics.axis_marginal` and are built as
        :math:`R = (G_k u)^{\mathsf T}\otimes\mathrm{id}`,
        :math:`\pi^{*} = u\otimes\mathrm{id}` and :math:`E = (u/\langle
        m,u\rangle)\otimes\mathrm{id}` by
        ``AxisRetractionOperator.of(space, label)`` /
        ``AxisSectionOperator.of(space, label)``, with the correctly
-       rounded mass (``math.fsum``) as the divisor. The modal marginal
+       rounded mass (``math.fsum``, ``AxisSectionOperator.mass``) as the
+       divisor. The modal marginal
        becomes an integral (:eq:`spaces-axis-marginal-integral`), so the
        MODAL refusal and the "two measures on one block" refusal retire;
        the single-region indicator frame the mint built and discarded
@@ -6250,7 +6290,7 @@ status.
        The divisor moved on 68 of 120 shipped rules (up to 39 ULP).
        Record: :ref:`spaces-axis-unit`, :ref:`spaces-collapse-pair`.
      - —
-     - ``5f850a69`` on ``refactor/s1-axis-marginal`` *(in development)*
+     - ``5f850a69``, ``71896877`` on ``refactor/eprime-wave3`` *(in development)*
    * - 2026-10-02
      - **The retraction's adjoint is minted as the pullback** (#405 P1
        step 6). :class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`,

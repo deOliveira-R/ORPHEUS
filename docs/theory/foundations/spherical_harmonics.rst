@@ -1138,7 +1138,7 @@ The complete data flow:
 .. code-block:: text
 
    Quadrature
-        │   .angular_frame(L)
+        │   frame_faces.angular_frame(quadrature, L)
         │   .measure.support decides the family (never `folded_by`):
         │
         ├─ S²                 → SphericalHarmonicBasis(L)      (N, L+1, 2L+1)

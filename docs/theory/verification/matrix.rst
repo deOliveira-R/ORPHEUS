@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **18157**
+Total tests collected: **18184**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1870, 10.3%
-   L1, 2753, 15.2%
+   L1, 2753, 15.1%
    L2, 85, 0.5%
    L3, 0, 0.0%
-   foundation, 13413, 73.9%
+   foundation, 13440, 73.9%
    unmarked, 36, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 18042
+   explicit, 18069
    class-name, 46
    func-name, 0
    case, 33
@@ -404,12 +404,12 @@ Module × level grid
    numerics/test_axis, 0, 0, 0, 0, 15, 0
    numerics/test_axis_generator, 0, 0, 0, 0, 50, 0
    numerics/test_axis_marginal, 0, 0, 0, 0, 22, 0
-   numerics/test_axis_marginal_lift, 0, 0, 0, 0, 294, 0
+   numerics/test_axis_marginal_lift, 0, 0, 0, 0, 316, 0
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 11, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
    numerics/test_concept_order, 0, 0, 0, 0, 0, 4
    numerics/test_content_identity, 0, 0, 0, 0, 46, 0
-   numerics/test_content_identity_axis, 0, 0, 0, 0, 42, 0
+   numerics/test_content_identity_axis, 0, 0, 0, 0, 47, 0
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
    numerics/test_content_identity_observable, 0, 0, 0, 0, 26, 0
    numerics/test_content_identity_question, 0, 0, 0, 0, 52, 0
@@ -769,6 +769,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``bc-response-factored-adjoint``, 33
    ``dd-face-transmission-spectrum``, 33
    ``dd-slab``, 33
+   ``spaces-axis-marginal-integral``, 33
    ``free-flight``, 32
    ``angular-cell-partition``, 30
    ``chi-sampling``, 29
@@ -1086,7 +1087,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented`` and labels held by a withdrawal. **7** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``.. vv-status: <label> documented`` and labels held by a withdrawal. **6** of the testable equations found on theory pages are orphan.
 
 - ``characteristic-attenuation-rule``
 - ``characteristic-axial-lift``
@@ -1094,7 +1095,6 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``characteristic-node-law``
 - ``quadrature-sphere-monomial``
 - ``sn-exit-balance-defect``
-- ``spaces-axis-marginal-integral``
 
 Documented-only equations
 -------------------------
