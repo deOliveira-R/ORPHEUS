@@ -442,6 +442,22 @@ continuum factor; metric: frame's discrete Gram) and closed neither identity. No
 or D18 (homes) alone: the defect is a hidden datum (variance) the axis cannot state. → pointer:
 `frame_bridge_pullback_riesz_fibre_metric.md`
 
+**D25 — On a concept ORDER, a "join" is real only if its parents are an ANTICHAIN; and a set of
+composite TYPES in an operator layer exists because of a TERM ALGEBRA, never because hom-sets are
+vector spaces.** Before agreeing that X = join(A, B), check that A and B are incomparable in the order.
+If one is an ancestor of the other, the "join" is a chain step. Then classify each cycle by where it
+sits: on a chain, a cycle is a later concept written into an earlier one (a realisation inside the
+algebra); at a join, it is the join written into one parent (a derived datum stored on the manifold).
+For "the type and its composites are one concept", the discriminator is: would an EVALUATED
+representation (dense matrices) need the composite types? If not, they exist because the algebra is
+kept as terms that interpretations dispatch on, an inductive type whose sort and constructors define
+each other. Then check whether the terms are quotiented by the algebra's laws: an ordered, identity-less
+sum makes spelling order an input to every shape-reading interpretation. TELL: a "canonical ordering"
+contract, or "different algorithm by spelling". `[M]` 2026-10-18, candidate E: 5 of 14 declared joins
+were nominal; `operator.py` has 0 `__eq__`; 35 `GreenOperator` constructions in 7 tiers, 0 from
+production outside numerics. Not covered by D10 (layers) or D18 (homes): the defect is in the ORDER's
+shape. → pointer: `scratch/numerics_untangling/ontology_e_attack.md` (not durable; the rule is the lesson).
+
 ---
 
 ## Part 3 — Smell-promotion ledger
