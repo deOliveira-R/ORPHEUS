@@ -624,3 +624,71 @@ This closes the two state sections above for the fix; their rulings stand.
 - Filed during the fix: #615 (the analysis face's `.H` refuses its typed moment), #616 (the multi-D transposed sweep), #617 (`DualSpace` carries G, not G⁻¹), #618 (the driver cold start), #619 (`C.apply` accepts a source).
 
 ⏸ **Next:** cut E′ into delegable packages, each with an acceptance check (the verification-tree plan's ruling 18). The executor is a Sonnet fan-out or an ultracode session.
+
+## E′ cut into packages (draft, 2026-10-19, `[R]` the orchestrator; open to the user's rulings)
+
+**Purpose.** Execute E′ (the target order above) so that `orpheus/numerics/` imports in one acyclic order, the import order being the concept order. The census of the numerics tests (`verification_tree_refinement.md`, phase 2) then reads each concept against code that already sits at its place. Each package below is written for an agent with no session context (verification-tree ruling 18).
+
+**One correction to E′'s mechanical report, from rulings 25 and 26.** `AdjointOperator`, `_DualOperator` and the Riesz operators stay in the algebra module, because the adjoint is dagger-category structure (ruling 26) and `AdjointOperator.__init__` builds `♯ ∘ dual ∘ ♭`. The report's "verbs kept" variant moved them to the chain-step module, which is what left the cycle `{operator, operator_steps}`. With them kept in the algebra module, that cycle does not arise. The chain-step module then holds only the nine concrete leaves and the marginalisation lift. `[R]`, to be measured by package G0's instrument once the target order is written as data.
+
+**Two kinds of package.**
+- **M, mechanical: delegable.** A move, a re-home or a retirement whose target is fully specified here. Behaviour is unchanged. Callers are re-pointed in the same package, with no compatibility re-exports (`coding-standards`, "Retire as you go"). An M package ends bit-identical on every test.
+- **S, semantic: not delegable as written.** A package that changes what an object is or what it returns: a ruling realised as code (the sum's normal form, the live subspace, the lift's covector). Each one needs a design pass before its code. By the workflows rule's surgical-carve exception, an operator-algebra carve is written by the main agent with the user steering. This conflicts with verification-tree ruling 18 (delegate), so the executor is a question for the user (below).
+
+**The acceptance instrument every package shares (G0).**
+- A new gate, `tests/gates/numerics/test_concept_order.py`, in the idiom of `tests/gates/test_layer_imports.py`. It holds E′'s order as data: each `orpheus/numerics/` module is assigned a rank. It asserts that every import edge (top-level, lazy and `TYPE_CHECKING`, all three kinds) goes from a lower rank to a higher one.
+- Its allow-list `PENDING` names every edge that violates the order today. Each entry names the package that removes it. A package's acceptance includes its entries leaving the list, with the gate green. The list only shrinks; an entry added to it is a review blocker.
+- The gate's first red, which it must show when it lands (X1): with `PENDING` emptied, it fails on exactly today's violating edges. Its builder is checked against `scratch/numerics_untangling/step3/control.py` (91, 110 and 123 edges at `bcad95f5`).
+- The memo pair `{traced_memo, _traced_memo_boot}` is a deliberate boot split (F7), and is a permanent named exemption, not a pending entry.
+
+**Common acceptance for every package**, run by the orchestrator on the return, serially (`reference_test_execution_env`):
+1. G0 is green, and the package's `PENDING` entries are gone.
+2. Behaviour: `python -O -m pytest -p no:cacheprovider -m "not slow"` over `tests/gates/{numerics,transport,sn,diffusion,homogeneous,geometry,cross_method}` gives 0 failed. For an M package, the passed count equals the pre-package count, except for tests the package lists as moved or retired.
+3. `npx pyright` shows 0 new errors on the touched files.
+4. `sphinx-build -W` is clean. `dead_references` shows no new row, with a positive control (a deliberately dead `:class:` on a scratch page).
+5. The return lists every caller it re-pointed. The orchestrator re-runs the caller census (an AST pass over `orpheus/`, `tests/` and `docs/`, with a known member of each shape) and requires 0 imports of the moved names from their old modules.
+
+### The packages
+
+| id | kind | ruling | what | files (the conflict set) | depends on |
+|---|---|---|---|---|---|
+| G0 | M | E′ | the concept-order gate with `PENDING` (above) | new test file | none |
+| M1 | M | E′ item 4 (E7) | extract the orthogonal-polynomial recurrence into `numerics/recurrence.py`: `_at_digits`, the four closed forms, and the Jacobi and Laguerre recurrences, lifted from closures inside `_jacobi` and `_laguerre` into builder functions of (a, b). The Gauss path stays in `generating_measure`. | `generating_measure.py`, new `recurrence.py` | G0 |
+| M2 | M | E′ item 5 (E7) | `Quotient.reference` leaves `manifold`: remove the lazy `LEGENDRE` import (`manifold.py:1659`) and the typing `ReferenceMeasure` import (`:86`); the orbit space's reference measure becomes a function of the measure layer. Its one production reader is `quadrature/registry.py:1043`, and `tests/gates/numerics/test_manifold.py:1170-1185` migrate. **The home is a judgement (owed below).** | `manifold.py`, `generating_measure.py` or `measure.py`, `quadrature/registry.py`, the test | G0, M1 |
+| M3 | M | 22 (E3) | split `frame.py` into the frame's data (binding, sampling map, Gram; imports only `basis`, `manifold`, `measure`) and `frame_faces.py` (`CrossGramInverse`, `_dressed`, `_FrameAnalysis`, `_FrameReconstruction`, and the 10 face methods listed under E3, `project` among them). `_collapse_pair` and `_AxisCollapsePair` stay put until S1 deletes them. | `frame.py`, new `frame_faces.py`, 24 + 11 + 13 + 10 production face-method callers (E3's counts, receivers unresolved) | G0 |
+| M4 | M | 11 | the axis receives its generator. `DiscreteMeasure.axis` / `.space`, `Quadrature.axis` (5 callers: `sn/problem.py:461`, `:1337`; `sn/mesh/reduced_operator.py:605`, `:670`, `:775`), `basis.space` and `FunctionSpace.for_basis` become classmethods on the axis kinds (#611's rule). Retire `mass_matrix` onto the frame's `discrete_gram` under `retirement-audit`, migrating its closed-form gates with their `verifies`/`catches` markers and the two docs `implements` directives. | `measure.py`, `basis.py`, `axis.py`, `space.py`, `quadrature/directional.py`, the callers | G0 |
+| M5 | M | 21 (E4) | free the quadrature: `angular_frame`, its cache and `_harmonic_basis` move to `frame_faces`. Callers: `sn/problem.py:1457`, `transport/frames/harmonic_frame.py:454`. | `quadrature/directional.py`, `frame_faces.py`, 2 callers | M3, M4 |
+| M6 | M | 12 | the quadrature cleanup: one rule list, one name per verb, retire the production-dead factories and the unused re-exports, each under `retirement-audit` with its dependency table. **The list of names is owed by the orchestrator** (from the F5 report) before dispatch. | `quadrature/`, `measure.py` | M5 |
+| S1 | S | 10 (B2) | the axis owns its marginal covector `m_i = ∫ u_i dμ`; the space owns the product structure; the operator side builds the lift `R = ⟨m, ·⟩ ⊗ id` and `E = Rᴴ(RRᴴ)⁻¹`. A modal axis marginalises, and the energy axis refuses with its own reason. Deletes `_collapse_pair` and `_AxisCollapsePair`, and removes `space.py`'s operator imports (`:86`, `:87`, `:558`, `:871`, `:887`). Re-points 6 production callers of `.retraction(` and `.section(`. | `axis.py`, `space.py`, `frame.py`, `operator.py` | M3, M4 |
+| M7 | M | 5 (E1) | the operator module is cut: the nine concrete leaves (`ZeroOperator`, `ZeroMorphism`, `PermutationOperator`, `checked_space_extent`, `TraceRestrictionOperator`, `SumOfTensorProductsOperator`, `DiagonalOperator`, `RankOneOperator`, `outer`) and the lift move to a chain-step module. `[M]` 2026-10-19 the importers by AST: 15 import sites in 9 production files and 72 in 40 test files. | `operator.py`, the new module(s), 49 files | S1 |
+| S2 | S | 23 | `OperatorSum` becomes a formal linear combination (an unordered collection of signed, scaled terms, with `__eq__`); `OperatorProduct` a flattened ordered sequence. `(A+B)ᴴ = Aᴴ + Bᴴ` on the sum (the item tracked to E′ by ruling 27's review). | `operator.py`, the sum's consumers | M7 |
+| S3 | S | 24 | assembly as a homomorphism downstream of the algebra: the three composite `assemble` laws (`operator.py:1948`, `:2161`, `:2300`) and `SupportsAssembly` move to `assembled_operator`, and each leaf returns its raw matrix. Removes the cycle `{assembled_operator, operator}`. | `operator.py`, `assembled_operator.py`, every leaf's `assemble` | S2 |
+| S4 | S | 20 (E2) | a sum's inverse is `InverseOperator(sum)`, realised by a solve the Strategy supplies (its splitting and driver); removes the lazy `GreenOperator` import (`operator.py:1916`). Green's `adjoint` then becomes `GreenOperator(self.inner.H)`. | `operator.py`, `green_operator.py`, `iteration`, the Strategy (`sn/`), every `.inverse()` on a sum | S2 |
+| S5 | S | 13 | invariance as a composition: the manifold carries its group's action (a G-space); the measure contributes equality up to relabelling (#403); a support with no action refuses rather than zero-padding (`invariance.py:150`). | `manifold.py`, `measure.py`, `invariance.py`, `rules_product.py` | M2 |
+| S6 | S | 26, #617 | degenerate metrics replaced by the live subspace; `DualSpace` carries G⁻¹. Closes case (1) and case (2) of ruling 25. | `space.py`, `metric.py`, `frame.py`, `operator.py`'s Riesz | S1 |
+
+**The waves this order gives** (packages in one wave touch disjoint files):
+- wave 1: G0;
+- wave 2: M1, M3, M4 (M1 touches the generating measure; M3 the frame; M4 the measure, basis, axis and space; disjoint);
+- wave 3: M2, M5, S1;
+- wave 4: M6, M7, S5;
+- then S2, S3, S4, S6 in series, because each touches `operator.py`.
+
+**Done-when for the whole cut:** G0's `PENDING` is empty; the graph is acyclic with the memo pair as the one named exemption; the full suite (every directory plus derivations and the root files, serial, `-O`) shows 0 failed; and the orchestrator's re-run of the E′ instrument on the real tree reproduces the target layers.
+
+**What stays out of the packages (judgement, owed before dispatch):**
+1. M2's home for the orbit space's reference measure.
+2. M6's list of names, from the F5 report.
+3. The names of the new modules. The session names `frame_faces` and `operator_steps` are placeholders. Proposals: the frame's faces in `frame_faces.py`; the concrete leaves in `elementary_operators.py`; the lift in `axis_marginal.py`.
+4. Each S package's design.
+
+**Rulings on the cut** (the user, 2026-10-19, choosing the recommended option each time):
+- **28. Split execution.** M packages go to a Sonnet fan-out or an ultracode session. For each S package, the main agent writes the design, the user rules on it, and the main agent writes the code with checkpoints (the workflows rule's surgical-carve exception, read together with verification-tree ruling 18).
+- **29. The census interleaves.** Each concept is censused as soon as its packages land, upstream first (verification-tree ruling 22: the cone is built as it is sorted).
+- **30. No compatibility re-exports.** Every caller is re-pointed in the package that moves the name, and the old import path stops working.
+
+⏸ **Next:**
+1. Settle the three judgement items above: M2's home, M6's name list, the module names.
+2. Build G0, and measure the correction above (no `{operator, operator_steps}` cycle with the adjoint kept in the algebra) on it.
+3. Dispatch wave 2 (M1, M3, M4) in worktrees.
+4. Write S1's design for the user.
