@@ -872,8 +872,10 @@ measured reasons:
 1. **One definition of the measure.**  Each family's recurrence coefficients
    :math:`(\alpha_k, \beta_k)`, with Gautschi's storage convention
    :math:`\beta_0 = \mu_0`, are written once, as closed forms evaluated at the
-   caller's working precision
-   (:attr:`~orpheus.numerics.generating_measure.GeneratingMeasure.exact_recurrence`).
+   caller's working precision, in the module :mod:`orpheus.numerics.recurrence`
+   (one builder per family, e.g. :func:`~orpheus.numerics.recurrence.jacobi_recurrence`)
+   and carried by
+   :attr:`~orpheus.numerics.generating_measure.GeneratingMeasure.exact_recurrence`.
    The float coefficients
    (:meth:`~orpheus.numerics.generating_measure.GeneratingMeasure.recurrence`)
    and the mass are their rounded images, so a consumer reading coefficients
