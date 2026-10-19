@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **17853**
+Total tests collected: **17857**
 
 V&V level distribution
 ----------------------
@@ -23,7 +23,7 @@ V&V level distribution
    L2, 85, 0.5%
    L3, 0, 0.0%
    foundation, 13113, 73.4%
-   unmarked, 32, 0.2%
+   unmarked, 36, 0.2%
 
 Tagging source
 --------------
@@ -38,7 +38,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 32
+   unmarked, 36
 
 Module × level grid
 -------------------
@@ -406,6 +406,7 @@ Module × level grid
    numerics/test_axis_marginal, 0, 0, 0, 0, 23, 0
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 11, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
+   numerics/test_concept_order, 0, 0, 0, 0, 0, 4
    numerics/test_content_identity, 0, 0, 0, 0, 46, 0
    numerics/test_content_identity_axis, 0, 0, 0, 0, 40, 0
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
@@ -1737,7 +1738,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**32 tests** have no V&V level marker.
+**36 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1753,6 +1754,7 @@ taxonomy.
    ``tests/gates/numerics/test_frame.py``, 5
    ``tests/gates/sn/operators/test_sn_boundary_realizer.py``, 5
    ``tests/gates/geometry/test_kernel_corroboration.py``, 4
+   ``tests/gates/numerics/test_concept_order.py``, 4
    ``tests/gates/numerics/test_iteration_record.py``, 4
    ``tests/gates/numerics/test_symmetry.py``, 2
    ``tests/gates/sn/sweep/core/test_cache.py``, 2
