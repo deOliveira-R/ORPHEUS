@@ -584,3 +584,31 @@ Pristine copies of every touched `orpheus/` file are under the session scratchpa
 3. Re-run the honesty gate, the fission, keystone, coherence, coupled and adjoint files, then the wide run.
 4. qa re-check; commit (code plus the gate), Sphinx `-W` with the regenerated `matrix.rst` staged; merge `--ff-only`; push; watch CI.
 5. Then E′ cut into packages (verification-tree ruling 18), now with ruling 26's live-subspace move, case (1)'s typed ends and the dual metric among them. Then E′ cut into packages (verification-tree ruling 18). Then E revised in place as E′ [done above], then the step-3 instrument re-run on E′'s moves. The earlier step-3 sketch follows: the ordered concept list: measure and basis in parallel; the axis (nodal from a measure, modal from a basis, each carrying its factor's pulled-back measure); the frame, the sampling map with its dual; the space, a product of axes; quadrature; invariance as a composition; and the operator module cut into the abstract operator, then the assembled and Green operators, then the composers. Each concept gets its home module and the edges its ruling removes; acyclicity is the done-when. Then the packages (verification-tree ruling 18). "Every axis is what a frame induces" is refuted by the exercise. Then step 3: the ordered concept list of `numerics` (groups, the G-space manifold, measure and basis in parallel, the axis that receives either, the frame as their join, the space as a product of axes, quadrature, invariance as a composition, and the operator module cut abstract-then-composers), with each concept's home module and the edges each ruling removes. Its acyclicity is the done-when. Then the work cut into packages (verification-tree ruling 18).
+
+## ⏸ STATE — 2026-10-18 (later), ruling 27's fix revised, under second review, NOT committed
+
+This supersedes the compaction point above for the fix. Its rulings and step-5 list stand.
+
+**The revision** (branch `fix/adjointability-honest`, still uncommitted; the record is `git diff 37dc85e0 -- orpheus tests`, plus the untracked gate):
+- **The split.** Two questions, two predicates. `is_adjointable` means a Euclidean transpose is coded, and gates `.dual()`. The new `posed(op)` means the ends give Riesz legs: declared and not a `DualSpace`, or metric-free. `.H` needs both, and `AdjointOperator.__init__` reads `posed`. Rank-one and Riesz are back to True. qa and the elegance review found the same root cause independently (`scratch/adjoint_honesty/qa/report.md` F1).
+- **One inverse law on `InverseWrapMixin`**: transpose = forward's transposed solve and dually, plus metric-free inheritance. The `InverseOperator` and `SweepOperator` copies are deleted. `SupportsTransposeSolve` makes `transpose_invertible` a `TypeGuard`.
+- **`_DualOperator` swap law** `(Aᵀ)⁻¹ = (A⁻¹)ᵀ` (pulled forward from item 6 above).
+- **Green**: `dual()` = Green of the dual sum and `adjoint()` = Green of the adjoint sum, through one `_transposed` helper; `apply_transpose = dual().apply`. Cold start = the first Neumann partial sum, `[M]` bit-identical to zero-seeded.
+- **Elegance finding 4 refuted for the question "one home for the self-transpose law"**: `IdentityOperator` has no `solve`, and `MultiplicationOperator` is not a `PointwiseOperator`.
+
+**Measured** `[M]` 2026-10-18:
+- the gate: 51 passed, 6 strict xfail (#614);
+- the formerly red and adjoint-touching files: 516 passed;
+- the mutation battery (`scratch/adjoint_honesty/split/mut_battery.py`): 7 of 8 arms red;
+- the radial-flag arm reddens 8 tests outside the gate;
+- pyright: 0 errors on the touched files.
+
+**Filed:** #615, the analysis face's `.H` refusing its typed moment.
+
+**In flight:** the wide run (`scratch/adjoint_honesty/wide2/summary.txt`, every gate directory, `-m "not slow"`), the qa re-check (`qa2/`), the elegance re-check (`elegance2.md`), and the archivist (docs, ERR-087, Sphinx `-W`).
+
+⏸ **Next:**
+1. Read the three reports and the wide-run summary; fix what they find.
+2. Add the `catches("ERR-087")` markers the archivist lists.
+3. Commit code, gate and docs together, with `matrix.rst` and `error_index.md` regenerated and staged; merge `--ff-only`; push; watch CI.
+4. E′ cut into packages.
