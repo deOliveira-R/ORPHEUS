@@ -762,3 +762,25 @@ Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
 - M5 is running.
 - S1 is committed as `5f850a69` on `refactor/s1-axis-marginal`. Its wide run is in progress, as are qa (with the spec's §6 mutation arms on the landed module), the elegance review and the archivist.
 - **Integration note:** M5 generalises `frame_faces._face`. S1 adds `instance_cache.cached_on`, which is meant as the one home of that memo. At merge, `_face` is re-pointed onto it.
+
+**Ruling at S1's review** (the user, 2026-10-19, the recommended option):
+- **41. The axis kind is a closed sum, `BasisKind.NODAL | Modal(unit)`.** The elegance review measured two states the field-based design allowed:
+  - `replace(nodal_axis, kind=MODAL)` yielded a modal axis whose unit was all ones, which bypassed ruling 40;
+  - a nodal unit of the wrong shape was accepted.
+  qa found a third: a test built `Axis(kind="nodal")` with a string, and the old enum read it as modal.
+  - The modal arm is the value class `Modal(unit)`. `Axis.unit` is read from the kind, so ruling 39 holds by the type.
+  - Construction refuses three things: a kind that is neither arm, a zero unit, and a unit over another shape.
+  - It retired the `content_parts` override, the nodal branch of the unit check and the narrowing assert. Landed at `71896877`.
+
+**S1 review outcome.**
+- qa: every §6 mutation arm reddens as predicted on the landed module. Two coverage gaps were closed with rows that redden under their own arm:
+  - the LD unit row;
+  - the closed-form adjoint against the sandwich on the 19 modal rows.
+- The elegance review's C1, C3 and C4 were taken:
+  - `FunctionSpace._axis_block(k)`;
+  - one memo, `instance_cache.cached_on`;
+  - `total_weight` renamed `mass`.
+- **Owed to S6** (qa F2, which predates S1): `basis_space(frame)` holds two variances. The analysis face writes moments there, while `project` and the reconstruction read coefficients. Φᵀw is the right unit for the moment reading only. No production path reaches the Petrov–Galerkin case.
+- **Deferred NIT:** e₀ is hand-minted at 3 sites. It becomes a basis verb ("the coefficients of 1") when a second basis normalisation appears.
+
+**Integration** (`refactor/eprime-wave3` at `7baf444c`): S1 with M2 (`ee80ff47`) and M5 (`e4c3160c`). Its wide run is in progress, and the archivist, qa and the elegance enforcer are confirming.
