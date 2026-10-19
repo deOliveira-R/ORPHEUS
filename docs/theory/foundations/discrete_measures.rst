@@ -102,12 +102,12 @@ Key Facts
   :math:`\mu \otimes \nu` multiplies the supports, the fold takes
   ``support.quotient(G)``, and the direct sum compares objects.
 - A measure **generates space factors, not only whole spaces**:
-  :meth:`μ.axis(label) <orpheus.numerics.measure.DiscreteMeasure.axis>`
+  :meth:`Axis.of_measure(μ, label) <orpheus.numerics.axis.Axis.of_measure>`
   is the axis-composed sibling of ``μ.space``, minting one
   :class:`~orpheus.numerics.axis.Axis` that keeps the weights, drops
   the nodes, and records ``μ`` itself as its generator so the
   forgetting is recoverable.
-  :meth:`Quadrature.axis <orpheus.numerics.quadrature.directional.Quadrature.axis>`
+  :meth:`Axis.of_quadrature <orpheus.numerics.axis.Axis.of_quadrature>`
   is the angular sibling and records the RULE, because
   ``level_indices`` lives on the
   :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`
@@ -3037,13 +3037,16 @@ consumes for automated rule selection.
 
 .. _discrete-measures-quadrature-axis:
 
-``quad.axis(label)`` — the rule as a space factor
---------------------------------------------------
+``Axis.of_quadrature(quad, label)`` — the rule as a space factor
+----------------------------------------------------------------
 
-Beside the ordinate accessors sits one mint, added at campaign-1 phase
-CS5 (2026-08-29):
-:meth:`Quadrature.axis(label)
-<orpheus.numerics.quadrature.directional.Quadrature.axis>` returns the
+Beside the ordinate accessors sat one mint, added at campaign-1 phase
+CS5 (2026-08-29) as a method of the rule; since the numerics untangling
+(package M4b, ruling 11) it is a classmethod of the axis, because the
+axis is the forgetful image of its generator and so lies downstream of
+it:
+:meth:`Axis.of_quadrature(quad, label)
+<orpheus.numerics.axis.Axis.of_quadrature>` returns the
 angular :class:`~orpheus.numerics.axis.Axis` — the space factor whose
 measure is this rule's weights — carrying **this rule** as its
 :attr:`~orpheus.numerics.axis.Axis.generator`.
@@ -3053,8 +3056,8 @@ each one is load-bearing:
 
 #. **It delegates the structural mint and upgrades only the
    provenance.** The shape/weights/``kind`` logic lives once, in
-   :meth:`DiscreteMeasure.axis
-   <orpheus.numerics.measure.DiscreteMeasure.axis>`; ``Quadrature.axis``
+   :meth:`Axis.of_measure
+   <orpheus.numerics.axis.Axis.of_measure>`; ``Axis.of_quadrature``
    calls it and then re-points the generator with
    ``dataclasses.replace``. There is no second copy of the mint to drift
    — the Pattern-2 single-source rule applied to a two-tier accessor.

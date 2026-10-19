@@ -4,7 +4,7 @@ One doctrine, one file (the ``test_space_of_axes.py`` file-level-doctrine
 precedent): an :class:`~orpheus.numerics.axis.Axis` is a **forgetful map**
 from its generator — it keeps the weights and drops the nodes — and since
 CS5 (2026-08-29) the mint routes THROUGH the generator
-(``measure.axis(label)`` / ``quad.axis(label)``), which records itself as
+(``Axis.of_measure(measure, label)`` / ``Axis.of_quadrature(quad, label)``), which records itself as
 ``Axis.generator``: provenance, **never identity**.
 
 The gates here are the landed machinery's ONLY witnesses — ``[M]`` a
@@ -91,7 +91,7 @@ class TestG1GeneratorIsProvenanceNotIdentity:
         """
         q1, q2 = factory(), factory()
         _require(q1 is not q2, "the two rules must be distinct instances")
-        a1, a2 = q1.axis("angular"), q2.axis("angular")
+        a1, a2 = Axis.of_quadrature(q1, "angular"), Axis.of_quadrature(q2, "angular")
         _require(a1 == a2, f"{name}: content-equal generators must not split identity")
         _require(hash(a1) == hash(a2), f"{name}: hash must agree with eq")
         _require(len({a1, a2}) == 1, f"{name}: one axis, one set member")
@@ -99,7 +99,7 @@ class TestG1GeneratorIsProvenanceNotIdentity:
     def test_a_generator_ful_axis_equals_the_generator_LESS_one(self):
         """G1b — the accessor is additive: adding provenance moves nothing."""
         q = Quadrature.gauss_legendre(4)
-        minted = q.axis("angular")
+        minted = Axis.of_quadrature(q, "angular")
         bare = Axis(
             "angular", (q.N,), weights=np.asarray(q.weights, float),
             kind=BasisKind.NODAL,
@@ -134,11 +134,11 @@ class TestG1GeneratorIsProvenanceNotIdentity:
 
 
 class TestG3MintFidelity:
-    """G3 — ``quad.axis(label)`` ≡ the literal mint, plus provenance.
+    """G3 — ``Axis.of_quadrature(quad, label)`` ≡ the literal mint, plus provenance.
 
     Independence, stated honestly: the two sides are NOT independent on
     the weight VALUES (``q.weights`` is ``measure.weights``, which is
-    what ``DiscreteMeasure.axis`` reads). What this gate genuinely pins
+    what ``Axis.of_measure`` reads). What this gate genuinely pins
     is the THREADING — label, shape spelling (``(n_points,)`` vs
     ``(quad.N,)``: same value, different producer chain), ``kind``, the
     ``weights=`` wiring, and that ``replace`` preserves the canonicalized
@@ -152,7 +152,7 @@ class TestG3MintFidelity:
         self, name, factory
     ):
         q = factory()
-        minted = q.axis("angular")
+        minted = Axis.of_quadrature(q, "angular")
         literal = Axis(
             "angular", (q.N,), weights=np.asarray(q.weights, float),
             kind=BasisKind.NODAL,
@@ -198,7 +198,7 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
     @pytest.mark.parametrize("attr", ["mu_x", "eta", "mu_z"])
     def test_direction_cosines_answer_through_the_space(self, name, factory, attr):
         q = factory()
-        space = FunctionSpace.of_axes(q.axis("angular"), _point())
+        space = FunctionSpace.of_axes(Axis.of_quadrature(q, "angular"), _point())
         g = space.axis("angular").generator
         assert g is not None
         npt.assert_array_equal(
@@ -218,7 +218,7 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
         """
         q = factory()
         g = (
-            FunctionSpace.of_axes(q.axis("angular"), _point())
+            FunctionSpace.of_axes(Axis.of_quadrature(q, "angular"), _point())
             .axis("angular")
             .generator_as(Quadrature, consumer="G4 gate")
         )
@@ -239,7 +239,7 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
         """
         q = factory()
         g = (
-            FunctionSpace.of_axes(q.axis("angular"), _point())
+            FunctionSpace.of_axes(Axis.of_quadrature(q, "angular"), _point())
             .axis("angular")
             .generator_as(Quadrature, consumer="G4 gate")
         )
@@ -255,23 +255,23 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
         """The refutation leg — do NOT weaken the done-when to three.
 
         A ``DiscreteMeasure``-generated axis answers three of four; the
-        fourth is the whole reason ``Quadrature.axis`` exists. If a
+        fourth is the whole reason ``Axis.of_quadrature`` exists. If a
         measure starts answering ``level_indices``, this design must be
         re-ruled — that is a signal, not a convenience.
         """
         q = Quadrature.level_symmetric(4)
-        measure_axis = q.measure.axis("angular")
+        measure_axis = Axis.of_measure(q.measure, "angular")
         _require(
             not hasattr(measure_axis.generator, "level_indices"),
             "a DiscreteMeasure must NOT answer level_indices — if it "
-            "starts to, Quadrature.axis's raison d'etre changed and this "
+            "starts to, Axis.of_quadrature's raison d'etre changed and this "
             "design must be re-ruled",
         )
 
 
 class TestG8TheMintIsASectionOfTheForgetfulMap:
     """G8 ⭐ — the intrinsic law: for every generator-ful axis ``a``,
-    ``a.generator.axis(a.label) == a`` (the mint is a SECTION of the
+    ``Axis.of_<generator>(a.generator, a.label) == a`` (the mint is a SECTION of the
     forgetful map, so the forgetting is recoverable).
 
     ⚠ Scoped honestly: the law ranges over GENERATOR-FUL axes only. A
@@ -289,11 +289,11 @@ class TestG8TheMintIsASectionOfTheForgetfulMap:
 
     @pytest.mark.parametrize("name,factory", _RULES)
     def test_angular_round_trip(self, name, factory):
-        a = factory().axis("angular")
-        assert a.generator is not None
-        _require(a.generator.axis(a.label) == a, f"{name}: not a section")
+        a = Axis.of_quadrature(factory(), "angular")
+        g = a.generator_as(Quadrature, consumer="G8 gate")
+        _require(Axis.of_quadrature(g, a.label) == a, f"{name}: not a section")
         _require(
-            a.generator.axis(a.label).generator is a.generator,
+            Axis.of_quadrature(g, a.label).generator is g,
             f"{name}: the round-trip must preserve the generator itself",
         )
 
@@ -306,9 +306,9 @@ class TestG8TheMintIsASectionOfTheForgetfulMap:
             weights=np.array([0.2, 0.3, 0.5]),
             support=RealSpace(1),
         )
-        a = m.axis("spatial")
+        a = Axis.of_measure(m, "spatial")
         _require(a.generator is m, "the mint must record its generator")
-        _require(m.axis(a.label) == a, "measure mint: not a section")
+        _require(Axis.of_measure(m, a.label) == a, "measure mint: not a section")
 
 
 class TestG5GeneratorAsIsTheOneRefusalHome:
@@ -326,7 +326,7 @@ class TestG5GeneratorAsIsTheOneRefusalHome:
     def test_the_narrow_returns_the_generator_itself(self):
         """G5.1's Axis-tier half — positive first (vv #11)."""
         q = Quadrature.gauss_legendre(4)
-        a = q.axis()
+        a = Axis.of_quadrature(q)
         assert a.generator_as(Quadrature, consumer="test") is q
 
     def test_a_generator_less_axis_refuses_with_both_names(self):
@@ -352,7 +352,7 @@ class TestG5GeneratorAsIsTheOneRefusalHome:
             nodes=np.array([0.5, 1.5]), weights=np.array([0.4, 0.6]),
             support=RealSpace(1),
         )
-        a = m.axis("spatial")
+        a = Axis.of_measure(m, "spatial")
         with pytest.raises(ValueError, match="DiscreteMeasure"):
             a.generator_as(Quadrature, consumer="test")
 

@@ -204,21 +204,15 @@ from functools import cached_property
 
 import numpy as np
 
-from typing import TYPE_CHECKING
-
 from orpheus.geometry.coord import CoordSystem
 from orpheus.mesh import Mesh1D
+from orpheus.numerics.axis import Axis
 from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.sn.angular.redistribution import (
-    AngularMeasure,
     AngularRedistribution,
     angular_redistribution,
 )
-
-if TYPE_CHECKING:
-    from orpheus.numerics.axis import Axis
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # ReducedStreamingOperator — the primitive
@@ -318,7 +312,7 @@ class ReducedStreamingOperator:
     angular_axis: Axis
     """The generator-stamped angular space FACTOR (CS5) — the producer's
     binding to the space (P4-remainder, 2026-08-29). The factories mint it
-    from the quadrature they are handed (``quadrature.axis()``), so it
+    from the quadrature they are handed (``Axis.of_quadrature(quadrature)``), so it
     carries the quadrature as :attr:`~orpheus.numerics.axis.Axis.generator`
     and :meth:`streaming_terms` recovers the direction cosines and the
     level fibration THROUGH it (``generator_as`` — the typed narrow with
@@ -565,7 +559,7 @@ class ReducedStreamingOperator:
 
 def slab_streaming(
     mesh: Mesh1D,
-    angular_measure: AngularMeasure,
+    angular_measure: Quadrature,
 ) -> ReducedStreamingOperator:
     """Build the slab :class:`ReducedStreamingOperator`.
 
@@ -592,7 +586,9 @@ def slab_streaming(
         Slab :class:`~orpheus.mesh.structured.Mesh1D`
         (``coord == CoordSystem.CARTESIAN``).
     angular_measure :
-        Any :class:`AngularMeasure`-shaped object; only ``mu_x`` and
+        The :class:`~orpheus.numerics.quadrature.directional.Quadrature`
+        (it generates the angular axis via :meth:`Axis.of_quadrature
+        <orpheus.numerics.axis.Axis.of_quadrature>`); only ``mu_x`` and
         ``weights`` are read at extraction time.
     """
     if mesh.coord is not CoordSystem.CARTESIAN:
@@ -602,7 +598,7 @@ def slab_streaming(
     return ReducedStreamingOperator(
         mesh=mesh,
         angular=angular_redistribution(angular_measure, CoordSystem.CARTESIAN),
-        angular_axis=angular_measure.axis(),
+        angular_axis=Axis.of_quadrature(angular_measure),
     )
 
 
@@ -612,7 +608,7 @@ def slab_streaming(
 
 def spherical_streaming(
     mesh: Mesh1D,
-    angular_measure: AngularMeasure,
+    angular_measure: Quadrature,
 ) -> ReducedStreamingOperator:
     r"""Build the spherical :class:`ReducedStreamingOperator`.
 
@@ -667,7 +663,7 @@ def spherical_streaming(
     return ReducedStreamingOperator(
         mesh=mesh,
         angular=angular_redistribution(angular_measure, CoordSystem.SPHERICAL),
-        angular_axis=angular_measure.axis(),
+        angular_axis=Axis.of_quadrature(angular_measure),
     )
 
 
@@ -677,7 +673,7 @@ def spherical_streaming(
 
 def cylindrical_streaming(
     mesh: Mesh1D,
-    angular_measure: AngularMeasure,
+    angular_measure: Quadrature,
 ) -> ReducedStreamingOperator:
     r"""Build the cylindrical :class:`ReducedStreamingOperator`.
 
@@ -772,7 +768,7 @@ def cylindrical_streaming(
     return ReducedStreamingOperator(
         mesh=mesh,
         angular=angular_redistribution(angular_measure, CoordSystem.CYLINDRICAL),
-        angular_axis=angular_measure.axis(),
+        angular_axis=Axis.of_quadrature(angular_measure),
     )
 
 

@@ -44,7 +44,7 @@ ordered product of its axes (:class:`~orpheus.numerics.axis.Axis`):
 * ``EnergyGroupSpace`` — :class:`~orpheus.numerics.axis.EnergyAxis`, a
   one-dimensional mesh in energy.
 * ``DiscreteAngularSpace`` —
-  :meth:`~orpheus.numerics.measure.DiscreteMeasure.axis` on the
+  :meth:`~orpheus.numerics.axis.Axis.of_measure` on the
   quadrature's measure, which carries the invariance group.
 
 Of the compositional dunders anticipated with them, ``S * T`` (the tensor

@@ -149,11 +149,11 @@ the same space" is a claim this corpus has **overturned**.
    - **An axis is a FORGETFUL MAP from its generator, and the mint is
      its section.** The axis keeps the weights and drops the nodes; since
      CS5 the mint routes THROUGH the generator
-     (:meth:`measure.axis(label) <orpheus.numerics.measure.DiscreteMeasure.axis>`
-     / :meth:`quad.axis(label) <orpheus.numerics.quadrature.directional.Quadrature.axis>`),
+     (:meth:`Axis.of_measure(measure, label) <orpheus.numerics.axis.Axis.of_measure>`
+     / :meth:`Axis.of_quadrature(quad, label) <orpheus.numerics.axis.Axis.of_quadrature>`),
      which records itself in
      :attr:`~orpheus.numerics.axis.Axis.generator`, so the forgetting is
-     **recoverable**: ``a.generator.axis(a.label) == a``
+     **recoverable**: ``Axis.of_<g>(a.generator, a.label) == a``
      (:eq:`spaces-axis-generator-section`). A consumer holding the SPACE
      recovers ``mu_x`` / ``eta`` / ``mu_z`` / ``level_indices`` without
      being handed the quadrature separately
@@ -1006,7 +1006,7 @@ measure it presents,
    \bigl(\,\ell,\ (n,),\ w,\ \texttt{NODAL}\,\bigr) ,
 
 .. (vv-status rationale) Structural/representational identity: it STATES
-   what ``DiscreteMeasure.axis`` constructs from a measure's atoms — the
+   what ``Axis.of_measure`` constructs from a measure's atoms — the
    label, the rank-1 index shape ``(n_points,)``, the weight vector, and
    the NODAL kind implied by the generator's TYPE. Not a solver claim —
    no flux, no eigenvalue, no discretization error. The verifiable
@@ -1058,7 +1058,7 @@ reads it back. The two compose to identities in both directions:
    STATES that the generator-minted axis is a two-sided inverse pair
    with the generator projection — the mint records its own input
    (``a.generator is g``, an identity check) and re-minting from the
-   recorded generator reproduces the axis (``a.generator.axis(a.label)
+   recorded generator reproduces the axis (``Axis.of_<g>(a.generator, a.label)
    == a``, a structural-equality check). Not a solver claim — no flux,
    no eigenvalue, no discretization error. The verifiable content is the
    CS5 foundation battery: ``tests/gates/numerics/test_axis_generator.py``
@@ -1068,7 +1068,7 @@ reads it back. The two compose to identities in both directions:
 .. vv-status: spaces-axis-generator-section documented
 
 The right-hand law is the operational one and it is gated by name:
-``a.generator.axis(a.label) == a``. Read it as *the mint is a section of
+``Axis.of_<g>(a.generator, a.label) == a``. Read it as *the mint is a section of
 the forgetful map* — every generator-ful axis can be regenerated from
 what it remembers, so nothing the axis dropped is unreachable from the
 axis.
@@ -1146,9 +1146,9 @@ design still requiring the reach-past.
 
 The ruling is consequently: **the angular axis's generator is the
 Quadrature**, and
-:meth:`Quadrature.axis <orpheus.numerics.quadrature.directional.Quadrature.axis>`
+:meth:`Axis.of_quadrature <orpheus.numerics.axis.Axis.of_quadrature>`
 delegates the *structural* mint down to
-:meth:`DiscreteMeasure.axis <orpheus.numerics.measure.DiscreteMeasure.axis>`
+:meth:`Axis.of_measure <orpheus.numerics.axis.Axis.of_measure>`
 — one home for the shape/weights/kind logic, no twin — and upgrades only
 the provenance, through ``dataclasses.replace``. The upgrade re-runs the
 axis's ``__post_init__``, so it cannot bypass a construction invariant:
@@ -1561,8 +1561,8 @@ the transferable content.
 **Rank-d spatial axes are generator-less BY CONTRACT (CS2).**
 A :class:`~orpheus.numerics.measure.DiscreteMeasure` is a **flat atom
 list** — nodes :math:`(N, d)`, weights :math:`(N,)` — so
-:meth:`DiscreteMeasure.axis
-<orpheus.numerics.measure.DiscreteMeasure.axis>` mints at rank 1, by
+:meth:`Axis.of_measure
+<orpheus.numerics.axis.Axis.of_measure>` mints at rank 1, by
 construction. A rank-:math:`d` spatial axis has shape
 :math:`(n_x, n_y, n_z)`, and there is no rank-:math:`d` measure-to-axis
 pairing yet. Minting flat anyway is not merely inelegant, it is
@@ -1604,7 +1604,7 @@ wrong, each worth keeping:
   :eq:`spaces-axis-generator-section` still ranges over the
   measure- and quadrature-generated axes only — a MODAL axis's
   provenance is recoverable (``axis.generator``), but there is no
-  ``generator.axis(label)`` half to close the round trip with.
+  ``Axis.of_<g>(generator, label)`` half to close the round trip with.
 * **The generator is not always the basis.** It is whichever object
   installed the head's MEASURE: the basis on a continuum head
   (``for_basis`` / ``from_L``), and the **frame** on the
@@ -1676,8 +1676,8 @@ route probe — the axis's own record is its weights
 (:ref:`spaces-generator-none-inventory`), so a decoy that preserves
 weights is **invisible to the space**, and any movement in the produced
 value can only have come from a read that went *through* the axis to the
-generator. `[M]` on the keystone's own fixtures ``quad.axis() ==
-decoy.axis()`` and ``hash`` agree, so the decoy cannot be caught by
+generator. `[M]` on the keystone's own fixtures ``Axis.of_quadrature(quad) ==
+Axis.of_quadrature(decoy)`` and ``hash`` agree, so the decoy cannot be caught by
 identity.
 
 ⚠ **The decoy catalogue is not free — production's own admission guards
@@ -1819,7 +1819,7 @@ the measure they are handed, so ``axis()`` is now something a consumer of
 this contract calls — and a Protocol that omitted it would be
 under-declaring exactly as before. The contract therefore declares
 ``axis(label="angular") -> Axis`` as well, with
-:meth:`Quadrature.axis <orpheus.numerics.quadrature.directional.Quadrature.axis>`
+:meth:`Axis.of_quadrature <orpheus.numerics.axis.Axis.of_quadrature>`
 as its concrete implementer. ⭐ The label **defaults at the generator**,
 which is a single-source move rather than an ergonomic one: a directional
 quadrature *is* the angular generator, so its axis's role is intrinsic,
@@ -5509,8 +5509,8 @@ taken.
        and the coupled-block machinery.
    * - The rank-:math:`d` measure-to-axis pairing
      - **CS2.** A :class:`~orpheus.numerics.measure.DiscreteMeasure` is
-       a flat atom list, so :meth:`DiscreteMeasure.axis
-       <orpheus.numerics.measure.DiscreteMeasure.axis>` mints at rank 1;
+       a flat atom list, so :meth:`Axis.of_measure
+       <orpheus.numerics.axis.Axis.of_measure>` mints at rank 1;
        the rank-:math:`d` arm of :attr:`MaterialMesh.bulk_space
        <orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`
        therefore stays literal and **generator-less by contract**,
@@ -5901,7 +5901,7 @@ status.
        sheds its ``quadrature`` field and is pure :math:`\alpha` data —
        ``coord``, ``alpha_per_level``, ``mu_start_per_level`` — pinned
        structurally by field-set equality so a re-addition reds. Two
-       supporting single-source moves: ``Quadrature.axis``'s label
+       supporting single-source moves: ``Axis.of_quadrature``'s label
        **defaults**, making a label twin across mint sites unspellable,
        and the cylinder admission probe's defaulted ``getattr`` on
        ``level_structure`` hardens to a direct read now that the contract
@@ -5920,11 +5920,11 @@ status.
        phase CS5). The axis gains a fifth slot,
        :attr:`~orpheus.numerics.axis.Axis.generator` — **provenance,
        never identity** — and the mint routes THROUGH the generator:
-       :meth:`DiscreteMeasure.axis
-       <orpheus.numerics.measure.DiscreteMeasure.axis>` (the
+       :meth:`Axis.of_measure
+       <orpheus.numerics.axis.Axis.of_measure>` (the
        axis-composed sibling of :attr:`~orpheus.numerics.measure.DiscreteMeasure.space`,
-       ``NODAL`` by construction) and :meth:`Quadrature.axis
-       <orpheus.numerics.quadrature.directional.Quadrature.axis>`
+       ``NODAL`` by construction) and :meth:`Axis.of_quadrature
+       <orpheus.numerics.axis.Axis.of_quadrature>`
        (delegating the structural mint down and upgrading only the
        provenance). An axis is a **forgetful map** from its generator —
        it keeps the weights and drops the nodes — and the mint is that
@@ -5943,7 +5943,7 @@ status.
        tree's three nodal mint sites consume it, bit-identically:
        :attr:`SNProblem.angular_bulk_space
        <orpheus.sn.problem.SNProblem.angular_bulk_space>`
-       collapses to ``self.quad.axis(...)``, and the rank-1 arm of
+       collapses to ``Axis.of_quadrature(self.quad)``, and the rank-1 arm of
        :attr:`MaterialMesh.bulk_space
        <orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`
        mints through the carrier's own ``volume_measure``; the third,

@@ -88,7 +88,7 @@ dependency direction stays ``data → numerics``.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum, unique
 from typing import TYPE_CHECKING, TypeVar
 
@@ -156,8 +156,8 @@ class Axis(ContentIdentity):
         Keyword-only provenance: the object that minted this axis (see
         the module docstring's slot table). NOT part of the identity —
         equality, hash and the ``of_axes`` name digest ignore it. Prefer
-        minting through the generator (``measure.axis(label)`` /
-        ``quad.axis(label)``) over passing this by hand: a
+        minting through the generator (``Axis.of_measure(measure, label)`` /
+        ``Axis.of_quadrature(quad, label)``) over passing this by hand: a
         generator-minted axis cannot forget its provenance, and its
         ``kind`` is implied by the generator's type (a measure mints
         NODAL — its components are point values with a coordinate cone).
@@ -236,8 +236,8 @@ class Axis(ContentIdentity):
         ------
         ValueError
             If the axis carries no generator of ``kind`` — i.e. it was
-            not minted through one (``measure.axis(...)`` /
-            ``quad.axis()``).
+            not minted through one (``Axis.of_measure(...)`` /
+            ``Axis.of_quadrature(...)``).
         """
         g = self.generator
         if not isinstance(g, kind):
@@ -246,10 +246,73 @@ class Axis(ContentIdentity):
                 f"axis '{self.label}': {consumer} needs the generating "
                 f"{kind.__name__}, but this axis was not minted through "
                 f"one (generator={got}). Mint the axis via its generator "
-                f"(e.g. quad.axis()) so consumers can recover what the "
+                f"(e.g. Axis.of_quadrature(quad)) so consumers can recover what the "
                 f"axis forgot."
             )
         return g
+
+    @classmethod
+    def of_measure(cls, measure: "DiscreteMeasure", label: str) -> "Axis":
+        r"""The space-factor axis a discrete measure generates.
+
+        The axis receives its generator: a nodal axis is the **forgetful
+        image** of a discrete measure (it keeps the weights and drops the
+        nodes), so the axis is downstream of the measure and the mint
+        lives here, on the axis side. The returned axis carries
+        ``generator=measure`` (provenance, excluded from axis identity),
+        which makes the forgetting recoverable: a consumer reads the
+        un-forgotten data through the space instead of being handed the
+        measure separately (CS5).
+
+        ``kind`` is NOT a parameter: a discrete measure's samples are
+        point values with a coordinate cone, so the generator's type
+        implies :attr:`BasisKind.NODAL` and the "nodal basis carrying no
+        nodes" mis-declaration is unspellable on this path. (A MODAL axis
+        is minted from its :class:`~orpheus.numerics.basis.base.Basis`,
+        not from a measure.)
+
+        This reads only the measure's attributes (``n_points``,
+        ``weights``), so the module takes no runtime import of
+        :mod:`orpheus.numerics.measure`.
+        """
+        return Axis(
+            label,
+            (measure.n_points,),
+            weights=measure.weights,
+            kind=BasisKind.NODAL,
+            generator=measure,
+        )
+
+    @classmethod
+    def of_quadrature(
+        cls, quadrature: "Quadrature", label: str = "angular"
+    ) -> "Axis":
+        r"""The angular space-factor axis a directional quadrature
+        generates, with THAT rule as its generator.
+
+        The label DEFAULTS: a directional quadrature is the angular
+        generator, so its axis's role is intrinsic, and defaulting the
+        spelling makes a label-twin across mint sites unspellable (the
+        P4-remainder's second-mint hazard). Pass a label only for a
+        deliberately re-labelled factor.
+
+        Delegates the structural mint to :meth:`of_measure` (one home for
+        the shape/weights logic) and upgrades the provenance to the
+        quadrature via ``dataclasses.replace``, which re-runs the axis's
+        construction canonicalization, so the upgrade cannot bypass an
+        invariant.
+
+        The quadrature, not the bare measure, is the angular axis's
+        generator because the measure alone does not answer everything
+        the axis forgot: ``level_indices`` lives on the
+        :class:`~orpheus.numerics.quadrature.directional.LevelStructure`
+        side-channel, carried by the quadrature. A consumer recovering the
+        angular geometry through the space (``axis.generator.mu_x`` /
+        ``.eta`` / ``.mu_z`` / ``.level_indices``) gets the whole
+        generator, not a projection of it ([M] 2026-08-29, CS5 ground memo
+        section L).
+        """
+        return replace(Axis.of_measure(quadrature.measure, label), generator=quadrature)
 
 
 @dataclass(frozen=True, eq=False)

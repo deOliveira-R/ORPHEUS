@@ -44,6 +44,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics.axis import Axis
 from orpheus.sn.angular.closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
@@ -692,13 +693,13 @@ class TestP4RemTheClosureMintReadsThroughTheAxis:
         assert reduced is not None
         decoy = _scale_decoy(sn.quad)
         true_c = MorelMontryAngularSweep(
-            reduced.angular, reduced.redistribution_pairing, sn.quad.axis()
+            reduced.angular, reduced.redistribution_pairing, Axis.of_quadrature(sn.quad)
         )
         decoy_c = MorelMontryAngularSweep(
-            reduced.angular, reduced.redistribution_pairing, decoy.axis()
+            reduced.angular, reduced.redistribution_pairing, Axis.of_quadrature(decoy)
         )
         # the decoy is invisible to axis identity (weights preserved)
-        assert sn.quad.axis() == decoy.axis()
+        assert Axis.of_quadrature(sn.quad) == Axis.of_quadrature(decoy)
         (tau_t,), (tau_d,) = true_c._tau_per_level, decoy_c._tau_per_level
         if np.allclose(tau_t, tau_d):
             pytest.fail("τ did not move — the mint did not read the axis")
@@ -718,10 +719,10 @@ class TestP4RemTheClosureMintReadsThroughTheAxis:
         assert sn.quad.N == 2, "the weight decoy is only dome+tau-admissible at N=2"
         decoy = _weight_scale_decoy(sn.quad)
         true_c = MorelMontryAngularSweep(
-            reduced.angular, reduced.redistribution_pairing, sn.quad.axis()
+            reduced.angular, reduced.redistribution_pairing, Axis.of_quadrature(sn.quad)
         )
         decoy_c = MorelMontryAngularSweep(
-            reduced.angular, reduced.redistribution_pairing, decoy.axis()
+            reduced.angular, reduced.redistribution_pairing, Axis.of_quadrature(decoy)
         )
         (d_t,), (d_d,) = true_c._dAw_per_level, decoy_c._dAw_per_level
         if np.allclose(d_t, d_d):
@@ -740,7 +741,7 @@ class TestP4RemTheClosureMintReadsThroughTheAxis:
 
         other = Quadrature.gauss_legendre(8)
         closure = IdentityAngularClosure(
-            reduced.angular, reduced.redistribution_pairing, other.axis()
+            reduced.angular, reduced.redistribution_pairing, Axis.of_quadrature(other)
         )
         assert closure.tau_per_ordinate.size == other.N
         assert closure.tau_per_ordinate.size != sn.quad.N
@@ -757,7 +758,7 @@ class TestP4RemTheClosureMintReadsThroughTheAxis:
         """G5.2 (closure rows) — two-fragment refusal: the axis label AND
         the consumer's own class name; fires at CONSTRUCTION (the mint),
         i.e. at ``SNProblem.__init__`` time on the production path."""
-        from orpheus.numerics.axis import Axis, BasisKind
+        from orpheus.numerics.axis import BasisKind
 
         sn = make_tiny_spherical_sn_mesh()
         reduced = sn.reduced

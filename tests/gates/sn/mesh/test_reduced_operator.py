@@ -97,6 +97,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.transport.spatial.scheme import StreamingTerms
+from orpheus.numerics.axis import Axis
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.mesh.reduced_operator import (
@@ -828,12 +829,12 @@ class TestP4RemTheProducerBindsTheAxis:
         # The closures consume the axis at construction and do not store
         # it (a stored-but-unread field is dead weight, not provenance),
         # so the arm's mint is witnessed by: the two mint EXPRESSIONS
-        # agreeing (the label-twin witness — both spell ``quad.axis()``
+        # agreeing (the label-twin witness — both spell ``Axis.of_quadrature(quad)``
         # with the label defaulted at the generator), and the narrow's
         # observable consequence (the closure's ordinate count followed
         # the axis's generator).
-        assert sn.quad.axis() == sn.angular_bulk_space.axis("angular")
-        assert sn.quad.axis().generator is sn.quad
+        assert Axis.of_quadrature(sn.quad) == sn.angular_bulk_space.axis("angular")
+        assert Axis.of_quadrature(sn.quad).generator is sn.quad
         from orpheus.sn.angular.closure import IdentityAngularClosure
 
         closure = sn.angular_closure
@@ -868,7 +869,7 @@ class TestP4RemTheProducerBindsTheAxis:
         disjointness (G5.4): the neighbouring space refusal spells
         'axis lookup:', which this message deliberately does not.
         """
-        from orpheus.numerics.axis import Axis, BasisKind
+        from orpheus.numerics.axis import BasisKind
 
         quad = Quadrature.gauss_legendre(4)
         bare = Axis(
@@ -918,14 +919,14 @@ class TestP4RemTheProducerBindsTheAxis:
         decoy = _scale_decoy(quad)
 
         op_true = ReducedStreamingOperator(
-            mesh=mesh, angular=ar_true, angular_axis=quad.axis()
+            mesh=mesh, angular=ar_true, angular_axis=Axis.of_quadrature(quad)
         )
         op_decoy = ReducedStreamingOperator(
-            mesh=mesh, angular=ar_true, angular_axis=decoy.axis()
+            mesh=mesh, angular=ar_true, angular_axis=Axis.of_quadrature(decoy)
         )
         # leg 3: the decoy is INVISIBLE to space identity
-        assert quad.axis() == decoy.axis()
-        assert hash(quad.axis()) == hash(decoy.axis())
+        assert Axis.of_quadrature(quad) == Axis.of_quadrature(decoy)
+        assert hash(Axis.of_quadrature(quad)) == hash(Axis.of_quadrature(decoy))
         # leg 4: the AR was NOT reached (nothing on it to reach — the
         # discriminating power comes from the axis alone)
         assert op_decoy.angular is ar_true
@@ -983,13 +984,13 @@ class TestP4RemTheProducerBindsTheAxis:
         mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
         ar_true = angular_redistribution(quad, CoordSystem.CYLINDRICAL)
         decoy = _level_roll_decoy(quad)
-        assert quad.axis() == decoy.axis()  # same measure ⟹ invisible
+        assert Axis.of_quadrature(quad) == Axis.of_quadrature(decoy)  # same measure ⟹ invisible
 
         op_true = ReducedStreamingOperator(
-            mesh=mesh, angular=ar_true, angular_axis=quad.axis()
+            mesh=mesh, angular=ar_true, angular_axis=Axis.of_quadrature(quad)
         )
         op_decoy = ReducedStreamingOperator(
-            mesh=mesh, angular=ar_true, angular_axis=decoy.axis()
+            mesh=mesh, angular=ar_true, angular_axis=Axis.of_quadrature(decoy)
         )
         ls = quad.level_structure
         assert ls is not None

@@ -569,7 +569,7 @@ class MaterialMesh:
             # present, bit-identically) — so the minted axis has exactly
             # the structural content of the literal it replaced, plus its
             # generator.
-            spatial = self.volume_measure.axis("spatial")
+            spatial = SpaceFactorAxis.of_measure(self.volume_measure, "spatial")
         else:
             # Rank-d axes have no rank-d measure->axis mint: the measure
             # is FLAT (nodes ``(N, d)``, weights ``(N,)``) while the axis

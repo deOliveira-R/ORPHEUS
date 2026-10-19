@@ -212,7 +212,6 @@ import numpy as np
 from orpheus.geometry.coord import CoordSystem
 
 if TYPE_CHECKING:
-    from orpheus.numerics.axis import Axis
     from orpheus.numerics.quadrature.rules_sphere import LevelStructure
 
 
@@ -289,18 +288,6 @@ class AngularMeasure(Protocol):
         Protocol under-declared what its consumer needs. The tolerant
         ``getattr`` at the probe survives (structural conformers may
         predate this declaration); the CONTRACT now tells the truth.
-        """
-        ...
-
-    def axis(self, label: str = "angular") -> "Axis":
-        """Mint the generator-stamped angular space-factor axis.
-
-        Declared since the P4-remainder (2026-08-29), the same repair
-        shape as ``level_structure`` above: the three streaming factories
-        MINT the axis from the measure they are handed, so the mint is
-        part of what this contract's consumers need — a Protocol that
-        omitted it would under-declare again. The concrete implementer is
-        :meth:`Quadrature.axis <orpheus.numerics.quadrature.directional.Quadrature.axis>`.
         """
         ...
 
