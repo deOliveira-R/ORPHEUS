@@ -12,7 +12,7 @@ protocol rather than assuming either (#429 tracker 3.4, 2026-09-02).
 The continuum metric it carries is :math:`4\pi/(2\ell+1)` — the Gram of
 :math:`P_\ell` against the **pushforward** of :math:`d\Omega` along the
 quotient map, :math:`\pi_* d\Omega = 2\pi\,d\mu` (Archimedes' hat-box;
-:attr:`~orpheus.numerics.manifold.Quotient.reference`):
+:func:`~orpheus.numerics.generating_measure.pushforward_reference`):
 :math:`\int_{-1}^{1} P_\ell^2 \, 2\pi\,d\mu = 4\pi/(2\ell+1)`. It coincides
 exactly with the spherical-harmonic
 :attr:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.metric_per_ell`,

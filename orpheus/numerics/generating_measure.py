@@ -198,7 +198,7 @@ from dataclasses import dataclass, field
 import mpmath
 import numpy as np
 
-from .exactness import ExactnessClaim, OrthogonalSystem
+from .exactness import ExactnessClaim, OrthogonalSystem, ReferenceMeasure
 from .measure import DiscreteMeasure
 from .recurrence import (
     RecurrenceCoefficients,
@@ -214,7 +214,9 @@ from orpheus.numerics.manifold import (
     HALF_LINE,
     Interval,
     Manifold,
+    Quotient,
     REAL_LINE,
+    Sphere,
 )
 
 # The two working precisions (decimal digits) a rule is computed at. Each
@@ -766,6 +768,61 @@ def _laguerre(a: float = 0.0) -> GeneratingMeasure:
     )
 
 
+def pushforward_reference(orbit_space: Quotient) -> ReferenceMeasure | None:
+    r"""The measure a degree of exactness on ``orbit_space`` is AGAINST.
+
+    The pushforward of the base's Lebesgue measure along the quotient map,
+    :math:`\pi_*\,d\Omega`, as a :class:`~orpheus.numerics.exactness.ReferenceMeasure`.
+    It is a fact about measures (the manifold says which point set a measure
+    lives on, and nothing more), so it is answered here, in the measure layer,
+    keyed on the orbit space's GROUP (its stabiliser, the key the orbit
+    catalogue is named by).
+
+    * **The axial quotients** :math:`S^2/O(2)_a` (every axis ``a``) give
+      ``LEGENDRE``.  Archimedes' hat-box theorem: the image of
+      :math:`d\Omega` under the invariant :math:`\mu = \Omega\cdot\hat e_a`
+      is :math:`2\pi\,d\mu`, uniform on :math:`[-1,1]`.  That is Lebesgue on
+      the interval up to a constant no exactness claim carries, so the
+      reference is ``LEGENDRE``, whose weight is 1 and whose name is the
+      polynomial family, not a weighting.
+    * **The mirror quotients** :math:`S^2/\sigma_a = D^2` give ``None``.  The
+      two hemispheres fold onto the disk with the Jacobian of
+      :math:`x_a = \pm\sqrt{1 - x_b^2 - x_c^2}`, so the pushforward is the
+      WEIGHTED disk measure :math:`2\,dx_b\,dx_c/\sqrt{1 - x_b^2 - x_c^2}`.
+      No shipped :class:`~orpheus.numerics.exactness.ReferenceMeasure`
+      spells it (``UniformMeasure`` has no weight, the generating measures
+      are 1-D recurrences, ``ProductMeasure`` needs separable factors).
+      Adding a weighted-disk realization is the missing work.
+    * **The trivial quotient** :math:`M/\{e\} = M` gives ``None``.  The
+      pushforward along the identity is Lebesgue on the BASE, whose
+      orthogonal system (spherical harmonics on :math:`S^2`, Fourier on
+      :math:`S^1`, polynomials on an interval) is a property of the base that
+      :class:`~orpheus.numerics.manifold.Manifold` does not carry.
+
+    ``None`` keeps one meaning: no shipped ``ReferenceMeasure`` spells this
+    pushforward.  Every other (base, group) pair is refused, so an
+    uncatalogued orbit space cannot silently read as "no reference".
+    The orbit catalogue (``manifold._ORBIT_CATALOGUE`` plus the trivial arm
+    of ``_catalogued_quotient``) is the only door that mints a ``Quotient``,
+    and it admits exactly the three families above (`[M]` 2026-10-19, the
+    only ``Quotient(...)`` constructions in ``orpheus/`` are the three
+    derivation functions).
+    """
+    match orbit_space.base, orbit_space.by:
+        case Sphere(), group if group.rotation_axis is not None:
+            return LEGENDRE
+        case Sphere(), group if group.mirror_axis is not None:
+            return None
+        case _, group if group.is_trivial:
+            return None
+        case _:
+            raise NotImplementedError(
+                f"no pushforward reference is catalogued for the orbit space "
+                f"{orbit_space.name}: the shipped quotients are S^2/O(2)_a "
+                "(LEGENDRE), S^2/sigma_a and M/{e} (None)."
+            )
+
+
 __all__ = [
     "CHEBYSHEV_T",
     "CHEBYSHEV_U",
@@ -774,4 +831,5 @@ __all__ = [
     "GeneratingMeasure",
     "jacobi",
     "laguerre",
+    "pushforward_reference",
 ]

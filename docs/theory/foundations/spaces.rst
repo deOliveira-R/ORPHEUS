@@ -3625,7 +3625,7 @@ the descent is an ISOMETRY rather than merely an isomorphism.** The
 Legendre Gram is taken against the **pushforward** of :math:`d\Omega`
 along the quotient map — :math:`\pi_*\,d\Omega = 2\pi\,d\mu` by
 Archimedes' hat-box, which is what
-:attr:`Quotient.reference <orpheus.numerics.manifold.Quotient.reference>`
+:func:`~orpheus.numerics.generating_measure.pushforward_reference`
 carries — so
 
 .. math::

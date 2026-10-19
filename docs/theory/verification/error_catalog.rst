@@ -6945,14 +6945,14 @@ older entries classify against.
 
      ⛔ **Nothing here repairs the defect, and 3.1's two halves differ in
      consumption.** `[M]` 2026-09-02 over ``orpheus/``:
-     :attr:`~orpheus.numerics.manifold.Quotient.reference` — the second
-     new field, carrying :math:`\pi_*\,d\Omega` as a
+     :func:`~orpheus.numerics.generating_measure.pushforward_reference` — the second
+     new output (a field of the entry until 2026-10-19), carrying :math:`\pi_*\,d\Omega` as a
      :class:`~orpheus.numerics.exactness.ReferenceMeasure`, ``LEGENDRE``
      on the three axial entries by Archimedes' hat-box and ``None`` on
      the mirrors and on :math:`M/\{e\}` — has **one** production reader,
      :attr:`AngularSymmetry.reference
      <orpheus.numerics.quadrature.registry.AngularSymmetry.reference>`,
-     which now reads the entry instead of tabulating a twin. But
+     which now reads it instead of tabulating a twin. But
      ``quotient_map`` and ``orbit_coordinates`` have **zero** production
      readers outside their own module: at 3.1 nothing in production
      pushed a measure along :math:`\pi`, the ``angular_frame`` 1-D arm

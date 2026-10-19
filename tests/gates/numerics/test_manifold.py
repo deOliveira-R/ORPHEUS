@@ -46,7 +46,9 @@ Three groups:
    arrows of group 4 — :math:`\pi \circ \varphi_a = \mathrm{pr}_1`,
    :math:`\beta_a \circ \pi = ` the axial projection) and the pushforward
    reference (the hat-box measure on the axial entries; ``None`` where no
-   shipped realization spells it), which the registry now READS.
+   shipped realization spells it), which the registry READS and which is
+   :func:`~orpheus.numerics.generating_measure.pushforward_reference`
+   (a function of the measure layer, no longer a field of the entry).
 """
 
 from __future__ import annotations
@@ -1156,7 +1158,7 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         with pytest.raises(ValueError, match="map's domain must be the measure's support"):
             gauss_legendre_on_mu(4).pushforward(q.quotient_map)
 
-    def test_the_axial_entries_carry_the_hat_box_reference_and_the_others_carry_None(
+    def test_the_axial_entries_have_the_hat_box_reference_and_the_others_None(
         self,
     ) -> None:
         r"""Archimedes: :math:`\mu_* d\Omega = 2\pi\,d\mu`, so the reference
@@ -1164,15 +1166,15 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         three axes.  ``None`` on the mirror (a weighted disk measure no
         shipped realization spells) and on the trivial quotient (Lebesgue
         on the BASE, whose orthogonal system the type does not carry)."""
-        from orpheus.numerics.generating_measure import LEGENDRE
+        from orpheus.numerics.generating_measure import LEGENDRE, pushforward_reference
 
         for axis in self._AXES:
-            assert SPHERE.quotient(SubgroupOfO3.O2(axis)).reference is LEGENDRE
+            assert pushforward_reference(SPHERE.quotient(SubgroupOfO3.O2(axis))) is LEGENDRE
         assert LEGENDRE.support == COSINE_INTERVAL
         for axis in self._AXES:
-            assert SPHERE.quotient(SubgroupOfO3.Mirror(axis)).reference is None
-        assert SPHERE.quotient(SubgroupOfO3.Trivial).reference is None
-        assert CIRCLE.quotient(SubgroupOfO3.Trivial).reference is None
+            assert pushforward_reference(SPHERE.quotient(SubgroupOfO3.Mirror(axis))) is None
+        assert pushforward_reference(SPHERE.quotient(SubgroupOfO3.Trivial)) is None
+        assert pushforward_reference(CIRCLE.quotient(SubgroupOfO3.Trivial)) is None
         # ⚠ A reference lives on the REALIZATION — the chart codomain, where
         # the quotient map's image lands and where 2 pi d(mu) is written —
         # never on the entry, which would demand a measure carry an axis it
@@ -1180,9 +1182,10 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         # reads `reference.support`, so this is the only pin on it.
         for group in _ROSTER:
             q = SPHERE.quotient(group)
-            if q.reference is not None:
-                assert q.reference.support == q.realization
-                assert q.reference.support != q
+            reference = pushforward_reference(q)
+            if reference is not None:
+                assert reference.support == q.realization
+                assert reference.support != q
 
     def test_the_map_is_DERIVED_so_it_takes_no_part_in_equality_and_survives_a_pickle(
         self,
@@ -1192,6 +1195,8 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         and an entry — a support, hence a thing measures carry — pickles."""
         import pickle
 
+        from orpheus.numerics.generating_measure import pushforward_reference
+
         q = SPHERE.quotient(SubgroupOfO3.O2("x"))
         twin = dataclasses.replace(q, orbit_coordinates=lambda points: points[:, 0])
         assert twin == q and hash(twin) == hash(q)
@@ -1200,7 +1205,7 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         back = pickle.loads(pickle.dumps(q))
         assert back == q
         assert np.array_equal(back.quotient_map(omega), q.quotient_map(omega))
-        assert back.reference == q.reference
+        assert pushforward_reference(back) == pushforward_reference(q)
 
     def test_no_quotient_is_minted_at_MODULE_scope_anywhere_in_the_package(self) -> None:
         r"""The function-scope import's safety condition, gated.
@@ -1641,7 +1646,7 @@ class TestTheOrbitSpaceIsNamedByItsStabiliser:
         :math:`O(2)_a` as its ``by``, the cosine interval as its realization,
         and Archimedes' hat-box measure (``LEGENDRE``) as its pushforward
         reference."""
-        from orpheus.numerics.generating_measure import LEGENDRE
+        from orpheus.numerics.generating_measure import LEGENDRE, pushforward_reference
         from orpheus.numerics.manifold import AXIS_INDEX
 
         stabiliser = SubgroupOfO3.O2(axis)
@@ -1649,7 +1654,7 @@ class TestTheOrbitSpaceIsNamedByItsStabiliser:
         assert entry.by == stabiliser
         assert entry.name == f"S^2/O2_{axis}"
         assert entry.realization == COSINE_INTERVAL
-        assert entry.reference is LEGENDRE
+        assert pushforward_reference(entry) is LEGENDRE
         assert entry.dim == 1
         # the surviving invariant IS the cosine against THIS axis
         directions = _generic_unit_directions()
