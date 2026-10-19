@@ -750,3 +750,15 @@ Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
 - G0's `PENDING` now holds 13 edges: M2 2, S7 3, M6 1, S1 4, S3 1, S4 1, S5 1.
 
 ⏸ **Next:** wave 3, which is M2, M5 and S1. The main agent writes S1 from `S1_design.md` (its REVISED section) and `S1_gate_spec.md`, under rulings 36 to 38. M2 and M5 are delegable, one worktree each.
+
+## Wave 3 (in flight, 2026-10-19): M2, M5, S1
+
+**Rulings at S1's first checkpoint** (the user, 2026-10-19, the recommended option each time):
+- **39. The unit is content on MODAL axes only.** `Axis.content_parts` drops `unit` on a NODAL axis, where it is all ones by the kind, so every nodal digest is the one it had before the unit existed (`[M]` a nodal axis's digest, before and after: `26b7af9d…`). On a MODAL axis the unit records the variance of the coordinates (coefficients against moments), which the weights do not fix. The case that decided it: two dense frame-dressed heads of the same order (weights `None`, the form positioned on the space) were EQUAL axes with different units, B e₀ on different rules.
+- **40. A MODAL axis is minted with its unit**, and a unit-less MODAL mint is refused at construction. A modal factor that cannot integrate is then unrepresentable, and no guard at the marginal is needed. Cost: 10 test fixtures gained a unit (an AST census, its positive control the new refusal row).
+
+**State.**
+- M2 is back on `worktree-agent-acb35fb3873af4fb3`, at `ee80ff47`: `pushforward_reference` lives in `generating_measure`, numerics has 4542 passed, and its 2 PENDING edges are gone. Its review is owed at integration.
+- M5 is running.
+- S1 is committed as `5f850a69` on `refactor/s1-axis-marginal`. Its wide run is in progress, as are qa (with the spec's §6 mutation arms on the landed module), the elegance review and the archivist.
+- **Integration note:** M5 generalises `frame_faces._face`. S1 adds `instance_cache.cached_on`, which is meant as the one home of that memo. At merge, `_face` is re-pointed onto it.

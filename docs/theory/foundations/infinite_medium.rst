@@ -711,7 +711,7 @@ read per unit volume.
 
 In ORPHEUS's vocabulary the marginal is the **retraction of a body
 solution along the spatial axis**, the arrow
-:class:`~orpheus.numerics.operator.AxisRetractionOperator` that
+:class:`~orpheus.numerics.axis_marginal.AxisRetractionOperator` that
 integrates a field over one axis with that axis's measure
 (:ref:`spaces-collapse-pair`). Two different collapses of the spatial
 axis therefore meet at the same equation, and they are different

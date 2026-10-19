@@ -2483,23 +2483,25 @@ partition with its type-system table is set out in
 
 .. note::
 
-   **Where the axis collapse pair sits.** Campaign 1 CS4b added a third
+   **Where the axis marginal sits.** Campaign 1 CS4b added a third
    kind of nonlocal map: the **axis marginal** —
-   :class:`~orpheus.numerics.operator.AxisRetractionOperator` (fiber
+   :class:`~orpheus.numerics.axis_marginal.AxisRetractionOperator` (fibre
    integration over one named axis), its
-   :class:`~orpheus.numerics.operator.AxisSectionOperator` and, since #405
-   P1 step 6, its closed-form adjoint, the pullback
-   :class:`~orpheus.numerics.operator.AxisPullbackOperator`. By the
+   :class:`~orpheus.numerics.axis_marginal.AxisSectionOperator` and its
+   closed-form adjoint, the pullback
+   :class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`, in
+   their own module, :mod:`orpheus.numerics.axis_marginal`. By the
    locality discriminator these are **nonlocal**: the retraction's
    output at a point reads the input at every index of the collapsed
    axis. `[M]` they do NOT conform to the
    :class:`~orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
    Protocol (no ``kernel`` member) — deliberately, because the
-   "kernel" they would expose is the axis measure itself, which the
-   bound spaces already carry, and no consumer wants a second copy of
-   it. They are plain
-   :class:`~orpheus.numerics.operator.LinearOperator`\ s born bound,
-   minted by the SPACE rather than by a Problem or a materials record.
+   "kernel" they would expose is the axis's covector of integration
+   :math:`m = G_k u`, built from the unit and the metric block the bound
+   spaces already carry, and no consumer wants a second copy of it. They
+   are plain :class:`~orpheus.numerics.operator.LinearOperator`\ s born
+   bound, built downstream of the SPACE (``AxisRetractionOperator.of(space,
+   label)``) rather than by a Problem or a materials record.
    Their admission is not an operator-algebra question at all — it is
    the collapse doctrine's — which is why the pair is developed on
    :doc:`/theory/foundations/spaces` (:ref:`spaces-collapse-pair`) and

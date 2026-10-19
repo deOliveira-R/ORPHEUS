@@ -957,15 +957,14 @@ proving *choice*.
    **Recorded debt (CS4c) — DISCHARGED.** This note stood from
    2026-08-23, first waiting for the matrix metric, which campaign 1 P7
    (2026-08-30) landed (:ref:`spaces-metric-object`), then for the legs.
-   Both halves have landed since: the legs are space-minted operators,
-   :attr:`~orpheus.numerics.space.FunctionSpace.riesz_lower` (♭, applies
-   :math:`G`) and :attr:`~orpheus.numerics.space.FunctionSpace.riesz_raise`
-   (♯, applies :math:`G^{+}`), realised by
+   Both halves have landed since: the legs are operators built from a
+   space, ``RieszLowerOperator(space)`` (♭, applies :math:`G`) and
+   ``RieszRaiseOperator(space)`` (♯, applies :math:`G^{+}`), the classes
    :class:`~orpheus.numerics.operator.RieszLowerOperator` and
    :class:`~orpheus.numerics.operator.RieszRaiseOperator`, and
    :class:`~orpheus.numerics.operator.AdjointOperator` IS the composition
-   :math:`A^{*} = A.\mathrm{domain.riesz\_raise} \circ A.\mathrm{dual}()
-   \circ A.\mathrm{codomain.riesz\_lower}`, which a full matrix metric
+   :math:`A^{*} = \sharp_{A.\mathrm{domain}} \circ A.\mathrm{dual}()
+   \circ \flat_{A.\mathrm{codomain}}`, which a full matrix metric
    satisfies as easily as a diagonal because the
    :class:`~orpheus.numerics.metric.HilbertMetric` family is the one
    metric arithmetic the legs wrap. The legs are defined at
@@ -1076,10 +1075,11 @@ once (:eq:`scattering-aniso-composite`,
    :math:`[0.5,\,0.5,\,0.667,\,0.667]` where :math:`R/W` reads
    :math:`[0.2,\,0.2,\,0.4,\,0.4]`). Never quote the closure as a frame
    law. The **single-region** indicator frame — the degenerate
-   :math:`K = 1` case of the same counter-example — is what mints the
-   axis collapse pair, where the Gram is :math:`1\times1` and its entry
-   is the axis's total mass: see
-   :ref:`spaces-collapse-pair-frame`.
+   :math:`K = 1` case of the same counter-example — has a
+   :math:`1\times1` Gram whose entry is the axis's total mass, the
+   divisor of the axis marginal's section; the marginal is built from
+   the axis's unit, and the frame is its independent oracle in the
+   tightness gate: see :ref:`spaces-collapse-pair-frame`.
 
 .. _frame-parseval-numerical-evidence:
 
@@ -6460,7 +6460,9 @@ entry. The frame is built at the mint, read for its induced data, and
 discipline), with a tightness gate standing in for instance sharing.
 Full account, including why the pair is not lifted out of the harmonic
 frame: :ref:`spaces-collapse-pair` on
-:doc:`/theory/foundations/spaces`.
+:doc:`/theory/foundations/spaces`. Since S1 of the numerics untangling
+(2026-10-19) no frame is built at the mint: the axis carries its unit,
+and the indicator frame survives only as the tightness gate's oracle.
 
 
 **2026-08-30 — campaign 1 phase P7, the metric becomes an object, and

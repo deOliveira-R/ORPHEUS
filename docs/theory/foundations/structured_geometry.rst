@@ -3155,8 +3155,8 @@ Branch 1: the continuous measure and its two lifts
 --------------------------------------------------
 
 The discrete arrows are the space layer's
-(:class:`~orpheus.numerics.operator.AxisSectionOperator`,
-:class:`~orpheus.numerics.operator.AxisPullbackOperator`). Their
+(:class:`~orpheus.numerics.axis_marginal.AxisSectionOperator`,
+:class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`). Their
 continuous counterpart, written so that the measure's mass is derived
 and never typed, is the algebra of record
 :mod:`orpheus.derivations.common.angular_measure` (Branch 1, closed-form

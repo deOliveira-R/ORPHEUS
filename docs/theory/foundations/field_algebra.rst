@@ -1735,8 +1735,9 @@ status.
        **space-primary** (the leaf sugar tier is deleted; call sites
        read a carrier mint), and S6.2 gives the canonical angular
        reduction and the isotropic-source projection ONE realization
-       each — the space's frame-induced collapse pair
-       (:ref:`spaces-collapse-pair` on
+       each — the space's frame-induced collapse pair, since S1 of the
+       numerics untangling (2026-10-19) built from the axis's unit
+       instead (:ref:`spaces-collapse-pair` on
        :doc:`/theory/foundations/spaces`) — while the per-face packing
        loop re-homes to its layout's own
        :meth:`FaceLayout.pack

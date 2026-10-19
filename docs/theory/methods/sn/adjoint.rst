@@ -2205,7 +2205,7 @@ section :math:`E` and its adjoint :math:`R^{\dagger}`:
 - the **adjoint** detector-response lift is the retraction's Hilbert
   adjoint, :math:`\Sigma_d \mapsto R^{\dagger}\Sigma_d =
   \mathbf 1_\Omega\,\Sigma_d`, the pullback
-  (:class:`~orpheus.numerics.operator.AxisPullbackOperator`): a plain
+  (:class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`): a plain
   broadcast with **no** :math:`w_n` and **no** :math:`1/W`.
 
 The two lifts are duals of *different* maps, and they differ by
@@ -2238,7 +2238,7 @@ carrying Problems.)
 
 **How the entry spells it.** Since #405 P1 step 6 (2026-10-02) the
 entry reads the lift from the problem's own space,
-``problem.angular_bulk_space.retraction("angular").H.apply(sigma_d)``,
+``AxisRetractionOperator.of(problem.angular_bulk_space, "angular").H.apply(sigma_d)``,
 and then moment-lifts it through the one external-source policy.  Until
 then it wrote ``np.broadcast_to(sigma_d[None], …)`` by hand: the
 content of :math:`R^{\dagger}`, but not the operator, so nothing tied the

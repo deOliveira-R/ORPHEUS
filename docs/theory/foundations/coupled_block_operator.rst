@@ -701,12 +701,13 @@ whose projector is orthogonal, and it is the restriction's adjoint.
 That is why the family carries one class and not two. Because the section
 is the transpose, :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`
 serves both arrows, ``apply`` the restriction and ``apply_transpose`` the
-extension by zero. The axis collapse pair (:ref:`spaces-collapse-pair`) is
+extension by zero. The axis marginal (:ref:`spaces-collapse-pair`) is
 the contrasting kind: its retraction is not a coisometry,
-:math:`R\,R^{\dagger} = (\Sigma w)\,\mathrm{id}`, so its section
-:math:`E = R^{\dagger}/\Sigma w` differs from the adjoint by that scalar and
-is a class of its own,
-:class:`~orpheus.numerics.operator.AxisSectionOperator`. The trace
+:math:`R\,R^{\dagger} = \langle m, u\rangle\,\mathrm{id}` (the axis's
+mass, :math:`\Sigma w` on a nodal axis), so its section
+:math:`E = R^{\dagger}/\langle m, u\rangle` differs from the adjoint by
+that scalar and is a class of its own,
+:class:`~orpheus.numerics.axis_marginal.AxisSectionOperator`. The trace
 restriction is the system restriction's kind, a gather whose scatter is its
 transpose.
 

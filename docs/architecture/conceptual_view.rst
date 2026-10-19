@@ -63,7 +63,7 @@ commits regions, identifications and boundary data; the mesh commits
 cells and the spatial measure; state fields put data on the cells; the
 method head commits the terminal refinement of every axis, and only
 there does every axis formally construct. Coarsening is the same chain
-walked backward: the collapse pair is the projection onto a coarser stage
+walked backward: the axis marginal is the projection onto a coarser stage
 (:ref:`spaces-collapse-pair`), and homogenisation and condensation are its
 Petrov–Galerkin form (:ref:`sn-homogenization-petrov-galerkin-frame`,
 :ref:`sn-condensation-petrov-galerkin-frame`).
@@ -208,10 +208,13 @@ on the operator together, consistency between the two inductions is the
 gate (tightness for a frame, one closure serving apply and solve for a
 scheme), and after minting the generator is forgotten, the operators
 retaining only the induced data. A mesh and a quadrature are the
-degenerate, space-side-only cases. The discipline is stated at rank one
-by the collapse pair (:ref:`spaces-collapse-pair-frame`): a single-region
-indicator basis bound to the axis measure is built, read for its induced
-retraction and section, and discarded.
+degenerate, space-side-only cases. The axis is the forgetful image that
+keeps the induced data, and one of them is its **unit**, the coordinates
+of the constant function :math:`1` in its own representation
+(:attr:`~orpheus.numerics.axis.Axis.unit`), written by whatever mints the
+axis: ones from a measure, :math:`e_0` from a basis, the moments
+:math:`\Phi^{\mathsf T} w` from a frame that dresses a head
+(:ref:`spaces-collapse-pair-frame`, :ref:`spaces-axis-unit`).
 
 
 Between spaces — retraction, section, restriction, lift, trace
@@ -220,19 +223,24 @@ Between spaces — retraction, section, restriction, lift, trace
 Four typed families move a field between a space and a subspace, a
 boundary or a member, each a split pair :math:`(r, e)` with
 :math:`r \circ e = \mathrm{id}`. Along an axis, the **retraction**
-:math:`R = \pi_{*}` is the measure contraction (angular integration on the
-angular axis, the volume integral on the spatial one) and the **section**
-:math:`E` is the measure-normalised constant field
-(:ref:`spaces-collapse-pair-naming`; "embedding" is not an operator name
-in this corpus, by that ruling);
-:class:`~orpheus.numerics.operator.AxisRetractionOperator`,
-:class:`~orpheus.numerics.operator.AxisSectionOperator`. The retraction's
-Hilbert adjoint is a third arrow and a third type, the **pullback**
-:math:`R^{\dagger} = \pi^{*}`, the plain broadcast, minted with the pair
-and returned by ``R.H``
-(:class:`~orpheus.numerics.operator.AxisPullbackOperator`;
+:math:`R = \pi_{*} = m^{\mathsf T}\otimes\mathrm{id}` is integration
+along the axis, the pairing with the covector :math:`m = G_k u` built from
+the axis's unit and metric block (angular integration on the angular axis,
+the volume integral on the spatial one, the integral of the represented
+function on a modal head; :eq:`spaces-axis-marginal-integral`), and the
+**section** :math:`E = (u/\langle m,u\rangle)\otimes\mathrm{id}` is the
+mass-normalised constant field (:ref:`spaces-collapse-pair-naming`;
+"embedding" is not an operator name in this corpus, by that ruling);
+:class:`~orpheus.numerics.axis_marginal.AxisRetractionOperator`,
+:class:`~orpheus.numerics.axis_marginal.AxisSectionOperator`, built by
+``.of(space, label)``. The retraction's Hilbert adjoint is a third arrow
+and a third type, the **pullback** :math:`R^{\dagger} = \pi^{*} =
+u\otimes\mathrm{id}` (on a nodal axis the plain broadcast), minted with
+the retraction and returned by ``R.H``
+(:class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`;
 :ref:`spaces-collapse-pair-pullback`); it differs from the section by the
-axis's mass :math:`\Sigma w`, which is why an angle-integrated source
+axis's mass :math:`\langle m, u\rangle` (:math:`\Sigma w` on a nodal
+axis), which is why an angle-integrated source
 enters phase space through :math:`E` and a detector through
 :math:`R^{\dagger}` (:ref:`spaces-collapse-pair-two-lifts`). Along an index
 subset, the **trace restriction** :math:`\gamma_S` gathers and its
@@ -433,8 +441,11 @@ The concept table
    * - Scheme
      - :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase`
      - :ref:`discretization-closures`
+   * - Unit of an axis (the constant function's coordinates); covector of integration
+     - :attr:`~orpheus.numerics.axis.Axis.unit`, :attr:`~orpheus.numerics.axis_marginal.AxisRetractionOperator.covector`
+     - :ref:`spaces-axis-unit`, :eq:`spaces-axis-marginal-integral`
    * - Retraction; section; pullback (the retraction's adjoint)
-     - :class:`~orpheus.numerics.operator.AxisRetractionOperator`, :class:`~orpheus.numerics.operator.AxisSectionOperator`, :class:`~orpheus.numerics.operator.AxisPullbackOperator`
+     - :class:`~orpheus.numerics.axis_marginal.AxisRetractionOperator`, :class:`~orpheus.numerics.axis_marginal.AxisSectionOperator`, :class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`
      - :ref:`spaces-collapse-pair`, :ref:`spaces-collapse-pair-naming`, :ref:`spaces-collapse-pair-pullback`, :ref:`spaces-collapse-pair-two-lifts`
    * - Trace restriction; trace space; half-trace
      - :class:`~orpheus.numerics.operator.TraceRestrictionOperator`, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`

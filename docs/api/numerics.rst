@@ -539,6 +539,19 @@ API Reference
    :undoc-members:
    :show-inheritance:
 
+The axis marginal — :mod:`orpheus.numerics.axis_marginal`, the three
+arrows of fibre integration over one axis of a product space: the
+retraction :math:`R = (G_k u)^{\mathsf T}\otimes\mathrm{id}`, its section
+and its Hilbert adjoint, the pullback, built from the axis's unit
+(:attr:`Axis.unit <orpheus.numerics.axis.Axis.unit>`, the coordinates of
+the constant function 1) and the axis's metric block. The theory, with the
+unit on every kind of axis, the modal marginal as an integral, the
+derivation of the adjoint, the correctly rounded mass and the admission
+table, is :ref:`spaces-collapse-pair` and :ref:`spaces-axis-unit`.
+
+.. automodule:: orpheus.numerics.axis_marginal
+   :members: AxisRetractionOperator, AxisSectionOperator, AxisPullbackOperator
+
 Content identity — :mod:`orpheus.numerics.content`, the one encoder
 behind every persistent key and every content ``==`` and ``hash``. Its
 module docstring is the design record; the theory, with the canonical

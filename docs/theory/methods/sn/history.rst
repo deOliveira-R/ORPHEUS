@@ -82,7 +82,9 @@ them.  Trust ``git``, not this column.
      - **The adjoint fixed-source entry lifts its detector by the
        retraction's adjoint** —
        ``solve_sn_adjoint_fixed_source`` reads
-       ``angular_bulk_space.retraction("angular").H`` (the pullback
+       ``angular_bulk_space.retraction("angular").H`` (since S1 of the
+       numerics untangling, 2026-10-19, spelled
+       ``AxisRetractionOperator.of(angular_bulk_space, "angular").H``; the pullback
        :math:`R^{\dagger}`) where it wrote ``np.broadcast_to`` by hand,
        bit-exact (36 of 36 arrays), with a route gate (a counting spy and
        a ×2 decoy). The forward source enters through the section
@@ -1952,11 +1954,11 @@ them.  Trust ``git``, not this column.
        :class:`~orpheus.numerics.operator.AdjointOperator` and
        re-expressed as
        :math:`A^{*} = \sharp_V \circ A^{\mathsf T} \circ \flat_W` over
-       the new public space verbs
-       :attr:`~orpheus.numerics.space.FunctionSpace.riesz_lower`
-       (:math:`V \to V^{*}`) and
-       :attr:`~orpheus.numerics.space.FunctionSpace.riesz_raise`
-       (:math:`V^{*} \to V`), both PRIMAL-only so the
+       the new public space verbs ``FunctionSpace.riesz_lower``
+       (:math:`V \to V^{*}`) and ``FunctionSpace.riesz_raise``
+       (:math:`V^{*} \to V`; both retired in S1 of the numerics
+       untangling, 2026-10-19, for ``RieszLowerOperator(space)`` and
+       ``RieszRaiseOperator(space)``), both PRIMAL-only so the
        double-metric trap is unspellable.  The dagger laws become
        structure rather than arithmetic: ``A.H.H is A`` is an OBJECT
        identity, the #280 swap law stays object identity, and
@@ -2098,9 +2100,10 @@ them.  Trust ``git``, not this column.
        <orpheus.transport.operators.multiplication_operator.MultiplicationOperator.from_mesh>`
        (operator tier).  **(4) The angular reduction and the isotropic
        source projection have ONE realization each** (S6): the space mints
-       the axis **collapse pair** — :meth:`FunctionSpace.retraction
-       <orpheus.numerics.space.FunctionSpace.retraction>` and
-       :meth:`~orpheus.numerics.space.FunctionSpace.section` — and both
+       the axis **collapse pair** — ``FunctionSpace.retraction`` and
+       ``FunctionSpace.section`` (since S1 of the numerics untangling,
+       2026-10-19, ``AxisRetractionOperator.of`` and
+       ``AxisSectionOperator.of``, built from the axis's unit) — and both
        are the *induced output* of a single-region indicator frame built
        and discarded at one site (the stage-2 generator discipline), so
        the section's normalising divisor is READ OFF that frame's
