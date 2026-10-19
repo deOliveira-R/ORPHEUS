@@ -55,6 +55,7 @@ Merge status comes from git and GitHub, never from this list (`process-disciplin
 - **#602 round two (B source index, D ownership, E fork template; W3)** — spec 2026-10-15 `scratch/characteristic_architecture/p3/m602/round2_gate_spec.md`, probes `m602/ta/p1-p9`. On resume: confirm landed; run batteries B/D/P on the real module; E only after §3.3 protocol. → **`L115`**
 - **#405 P3 concept 2 (slow cylinder readings through the door, W1 spec)** — 2026-10-17 `scratch/characteristic_architecture/p3/c3/concept2/spec.md`; draft worktree + bypass battery `.../concept2/ta/` (`run_arms.sh "<arms>" <sel>`). On resume: confirm landed; re-run §4 on the landed tree.
 - **Under-resolved adjoint rung (W2 follow-up, `docs/frame-square-closure`)** — 2026-10-18, uncommitted: `TestAdjointAtAnUnderResolvedOrder` (LS4 L=2/3/5) + frame edge row; battery `scratch/adjoint_rung/arms.py` (`ARM=drop|mixed|short`). On resume: confirm landed.
+- **Adjointability honesty gate (W2, ruling 27 of `numerics_untangling.md`)** — 2026-10-18, uncommitted on `main`: `tests/gates/numerics/test_adjointability_is_honest.py` (leg 1 flag⟺.H applies, leg 2 witness routes); battery `scratch/adjoint_honesty/battery/run.sh <arms>`. On resume: re-run after the fixes; 17 reds expected to clear.
 - Everything else is merged; the record is the SN theory page's development history and the archive.
 
 ## 3. Durable reference (reusable verification-design recipes)

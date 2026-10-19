@@ -528,4 +528,59 @@ The order, by concept. "After" means "imports from"; a join names all its parent
   1. The adjoint, the dual operator and the Riesz operators stay WITH the algebra. With metric-bearing spaces (ruling 22) the operators form a dagger category, so the adjoint is a term constructor of the algebra's structure, like `+` and `@`, and the transpose is the dual functor's action. The Riesz operators are leaves the algebra builds (the explorer's own criterion). Their parents (the space's metric, the dual space) are upstream. And `.H` is the syntax of the Master Standard.
   2. The assembly moves OUT, as a homomorphism from the operator algebra into the matrix algebra. With a sum a formal linear combination (ruling 23) it is a fold over the terms, `[Σ cᵢTᵢ] = Σ cᵢ[Tᵢ]`. Each leaf returns its raw matrix, and the homomorphism, downstream, wraps it.
 
-⏸ **Next:** ruling 27's fix (the honesty gate by the test-architect, dispatched 2026-10-18; the fixes by the orchestrator, then qa and the elegance-enforcer). Then E′ cut into packages (verification-tree ruling 18), now with ruling 26's live-subspace move and case (1)'s typed ends and dual metric among them. Then E′ cut into packages (verification-tree ruling 18). Then E revised in place as E′ [done above], then the step-3 instrument re-run on E′'s moves. The earlier step-3 sketch follows: the ordered concept list: measure and basis in parallel; the axis (nodal from a measure, modal from a basis, each carrying its factor's pulled-back measure); the frame, the sampling map with its dual; the space, a product of axes; quadrature; invariance as a composition; and the operator module cut into the abstract operator, then the assembled and Green operators, then the composers. Each concept gets its home module and the edges its ruling removes; acyclicity is the done-when. Then the packages (verification-tree ruling 18). "Every axis is what a frame induces" is refuted by the exercise. Then step 3: the ordered concept list of `numerics` (groups, the G-space manifold, measure and basis in parallel, the axis that receives either, the frame as their join, the space as a product of axes, quadrature, invariance as a composition, and the operator module cut abstract-then-composers), with each concept's home module and the edges each ruling removes. Its acyclicity is the done-when. Then the work cut into packages (verification-tree ruling 18).
+## ⏸ COMPACTION POINT — 2026-10-18, ruling 27's fix in flight, NOT committed
+
+**Where the work is.** Branch `fix/adjointability-honest`, cut from `main` at `37dc85e0`. The code is UNCOMMITTED in the working tree:
+- `orpheus/numerics/{operator,green_operator,coupled_system}.py`;
+- `orpheus/sn/loss_representation/__init__.py`;
+- `orpheus/sn/operators/{sweep_operator,streaming,radial_characteristic,boundary,windowing}.py`;
+- `orpheus/transport/operators/multiplication_operator.py`;
+- `tests/gates/numerics/test_coupled_operator.py`, `tests/gates/sn/operators/test_inverse_adjoint_coherence.py`;
+- the untracked new gate `tests/gates/numerics/test_adjointability_is_honest.py`.
+
+Pristine copies of every touched `orpheus/` file are under the session scratchpad `pristine/`. That path is lost at compaction; `git diff` against `37dc85e0` is the durable record.
+
+**What the fix does** (ruling 27, the user's rulings "A + B now, C tracked" and "Add it now"):
+- A new forward capability, `LinearOperator.is_transpose_invertible`, with the reader `transpose_invertible(op)`: the transposed solve `(Aᵀ)⁻¹` exists and runs. One law: an inverse is adjointable iff its forward is transpose-invertible.
+- Implemented by: `StreamingCollisionOperator` (matvec factors AND the new representation capability `has_transpose_sweep`, True only on the 1-D `CumprodScan`); `RadialCharacteristicOperator`; `DiagonalOperator` and `MultiplicationOperator` (`solve_transpose = solve`); `OperatorProduct` (A⁻ᵀB⁻ᵀ); `CoupledOperator`.
+- Readers: `SweepOperator.is_adjointable`; `InverseOperator` (new `apply_transpose = inner.solve_transpose`); `CoupledOperator._transpose_substitution_ready`.
+- `GreenOperator.adjoint()` = Green of Σ tᵢᴴ, with an honest flag.
+- `SNMaskedBoundaryOperator.apply_transpose` = the existing rows branch; `BulkAnalysisOperator` gets Mᵀ ⊕ Id.
+- Riesz legs and `RankOneOperator` set to False. **That last one is a regression; see below.**
+- The honesty gate: 44 passed, 6 strict-xfail against #614 (the diffusion carrier defect, group C), split by leg (`_CARRIER_BLOCKED_LEG1/2`). Leg 1 threads a cold start for the Green row (`adjoint_act`).
+- `test_predicate_flip_is_surgical` is re-posed as `test_the_inverse_family_reads_one_transposed_solve_predicate`. The coupled-operator stubs declare the capability.
+
+**The elegance review: NOT READY** (`scratch/adjoint_honesty/elegance.md`, read by the orchestrator). Owed before commit:
+1. **REGRESSION.** `RankOneOperator.is_adjointable = False` breaks `IsotropicFission.apply_transpose`: its kernel `outer(χ, νΣf) & IdentityOperator()` refuses through `TensorProductOperator`'s factor check. `[M]` `tests/gates/sn/operators/test_isotropic_fission.py`: 4 failed (`TestTranspose`). Cause: one flag answers two questions. **Fix:**
+   - keep `is_adjointable` = "a transpose is coded";
+   - extract posing from `AdjointOperator.__init__` as one `posed(op)`, with the DualSpace-end case tagged for ruling 26;
+   - leg 1 splits: `.dual()` iff the flag; `.H` iff flag ∧ `posed(op)`;
+   - revert `RankOneOperator` and the Riesz legs to True.
+   This is the transposable/adjointable split, owed NOW.
+2. **Single source.** Hoist the inverse law onto `InverseWrapMixin`, deleting the copies in `InverseOperator`, `SweepOperator` and `CoupledSubstitutionOperator`, and `SweepOperator.apply_transpose`'s `isinstance` backstop. `MatrixInverseOperator` and `GreenOperator` override. Correct the mixin docstring's "adjoint axis deferred", now false.
+3. `transpose_invertible` returns a `TypeGuard` via a `SupportsTransposeSolve` Protocol, removing two `# type: ignore[attr-defined]`.
+4. Move `solve_transpose = solve` to `PointwiseOperator` (it is stated twice).
+5. **Gate repairs:**
+   - fix Green's default cold start in Green itself (it takes the right-hand side's class, not the iterate's), then delete `adjoint_act`;
+   - the module docstring's "not marked xfail" is now false;
+   - add `TensorProductOperator` and `IsotropicFission` rows;
+   - `test_inverse_adjoint_contract_keystone_v2`'s `[InverseOperator]` and `[GreenOperator]` rows still expect False: re-baseline them in the same commit;
+   - `SweepOperator.is_adjointable`'s docstring first sentence still names the removed `isinstance`.
+6. **Tracked to E′:** the flag is primitive at a leaf (`invertible(A.dual())` needs a `_DualOperator` swap law); `(A+B)* = A* + B*` belongs on `OperatorSum` (ruling 23), after which Green's `adjoint` is `GreenOperator(self.inner.H)`.
+
+**Also pending:**
+- the qa review (dispatched; report to `scratch/adjoint_honesty/qa/report.md`);
+- the wide serial run (`scratch/adjoint_honesty/wide/summary.txt`, `numerics`, `geometry`, `transport`, `diffusion`, `sn`, `-m "not slow"`). It was started before the regression was known, so expect the fission and keystone reds;
+- the `PrescribedInflow` docstring example (`geometry/boundary/prescribed_inflow.py:93`, "ignores psi_out; returns q") is false and is corrected in this commit;
+- the finding that the harmonic analysis face's `.H` refuses its own typed codomain element (TypeError in 2-D, ValueError on the slab) gets an issue.
+
+**Issues filed this session:** #610 (memo early cutoff), #611 (the raw-`__init__` constructor-rule campaign), #612 (curvilinear LD, ruled Gauss-nodal), #613 (Galerkin quadrature, investigate), #614 (diffusion composite carriers).
+
+**Rulings 1 to 27 stand** (above). Candidate E′ is the target order, with rulings 24 (assembly out), 25 and 26 (the adjoint stays with the algebra as dagger structure; degenerate metrics replaced by live subspaces) and 27.
+
+⏸ **Next, in order:**
+1. Apply the elegance findings 1 to 5 on the branch. Do NOT edit `orpheus/` while the wide run is in flight; check `summary.txt` for DONE first.
+2. Read qa's report and fold it in.
+3. Re-run the honesty gate, the fission, keystone, coherence, coupled and adjoint files, then the wide run.
+4. qa re-check; commit (code plus the gate), Sphinx `-W` with the regenerated `matrix.rst` staged; merge `--ff-only`; push; watch CI.
+5. Then E′ cut into packages (verification-tree ruling 18), now with ruling 26's live-subspace move, case (1)'s typed ends and the dual metric among them. Then E′ cut into packages (verification-tree ruling 18). Then E revised in place as E′ [done above], then the step-3 instrument re-run on E′'s moves. The earlier step-3 sketch follows: the ordered concept list: measure and basis in parallel; the axis (nodal from a measure, modal from a basis, each carrying its factor's pulled-back measure); the frame, the sampling map with its dual; the space, a product of axes; quadrature; invariance as a composition; and the operator module cut into the abstract operator, then the assembled and Green operators, then the composers. Each concept gets its home module and the edges its ruling removes; acyclicity is the done-when. Then the packages (verification-tree ruling 18). "Every axis is what a frame induces" is refuted by the exercise. Then step 3: the ordered concept list of `numerics` (groups, the G-space manifold, measure and basis in parallel, the axis that receives either, the frame as their join, the space as a product of axes, quadrature, invariance as a composition, and the operator module cut abstract-then-composers), with each concept's home module and the edges each ruling removes. Its acyclicity is the done-when. Then the work cut into packages (verification-tree ruling 18).
