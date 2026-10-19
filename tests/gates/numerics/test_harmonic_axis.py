@@ -40,6 +40,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.legendre_space import LegendreSpace
 from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
 from orpheus.numerics import frame_faces
+from orpheus.numerics.axis import Modal
 
 pytestmark = pytest.mark.foundation
 
@@ -68,7 +69,7 @@ def test_the_spent_axis_is_part_of_the_legendre_heads_identity(L: int) -> None:
     # does not know the axis — so the inequality below is the spent axis's alone
     assert ax1.weights is not None and az.weights is not None
     np.testing.assert_array_equal(ax1.weights, az.weights)
-    assert ax1.shape == az.shape and ax1.kind is az.kind
+    assert ax1.shape == az.shape and ax1.kind == az.kind
     assert ax1 != az and x1 != z and hash(x1) != hash(z)
     assert len({x1, x2, z}) == 2
 
@@ -80,8 +81,8 @@ def test_a_family_generic_axis_would_collapse_the_two_poles() -> None:
     ``x`` from ``z``. The subclass's extended identity key is what separates
     them."""
     ax_x, ax_z = _head_axis(LegendreSpace.from_L(1, "x")), _head_axis(LegendreSpace.from_L(1, "z"))
-    plain_x = Axis(ax_x.label, ax_x.shape, ax_x.weights, kind=ax_x.kind, unit=ax_x.unit)
-    plain_z = Axis(ax_z.label, ax_z.shape, ax_z.weights, kind=ax_z.kind, unit=ax_z.unit)
+    plain_x = Axis(ax_x.label, ax_x.shape, ax_x.weights, kind=ax_x.kind)
+    plain_z = Axis(ax_z.label, ax_z.shape, ax_z.weights, kind=ax_z.kind)
     assert plain_x == plain_z, "the generic identity is blind to the spent axis — that is the collapse"
     assert ax_x != ax_z
     # and a LegendreAxis is never equal to a plain Axis wearing its slots
@@ -90,7 +91,7 @@ def test_a_family_generic_axis_would_collapse_the_two_poles() -> None:
 
 def test_the_legendre_axis_refuses_an_unknown_spent_axis() -> None:
     with pytest.raises(ValueError, match="spent_axis must be x/y/z"):
-        LegendreAxis("legendre", (2,), None, kind=BasisKind.MODAL, unit=np.eye(2)[0], spent_axis="w")
+        LegendreAxis("legendre", (2,), None, kind=Modal(np.eye(2)[0]), spent_axis="w")
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -105,7 +106,7 @@ def test_the_basis_minted_head_axis_carries_the_continuum_gram_and_the_basis(L: 
     quadrature, naming both parties."""
     sh = SphericalHarmonicSpace.from_L(L)
     ax = _head_axis(sh)
-    assert isinstance(ax, HarmonicAxis) and ax.kind is BasisKind.MODAL
+    assert isinstance(ax, HarmonicAxis) and isinstance(ax.kind, Modal)
     assert ax.shape == (L + 1, 2 * L + 1)
     w = ax.weights
     assert w is not None
@@ -120,7 +121,7 @@ def test_the_basis_minted_head_axis_carries_the_continuum_gram_and_the_basis(L: 
 
     leg = LegendreSpace.from_L(L, "z")
     lax = _head_axis(leg)
-    assert isinstance(lax, LegendreAxis) and lax.kind is BasisKind.MODAL and lax.shape == (L + 1,)
+    assert isinstance(lax, LegendreAxis) and isinstance(lax.kind, Modal) and lax.shape == (L + 1,)
     assert lax.weights is not None
     np.testing.assert_allclose(lax.weights, per_ell, rtol=1e-15)
     lbasis = lax.generator_as(Basis, consumer="test")
@@ -146,7 +147,7 @@ def test_the_frame_dressed_head_axis_carries_the_parseval_measure_and_the_frame(
     dressed = frame_faces.basis_space(frame)
     ax = _head_axis(dressed)
     cont = _head_axis(frame.basis.space)
-    assert type(ax) is type(cont) and ax.kind is BasisKind.MODAL and ax.shape == cont.shape
+    assert type(ax) is type(cont) and isinstance(ax.kind, Modal) and ax.shape == cont.shape
     assert ax.generator_as(GalerkinFrame, consumer="test") is frame
     with pytest.raises(ValueError, match="needs the generating Basis"):
         ax.generator_as(Basis, consumer="the-asker")
@@ -166,6 +167,6 @@ def test_the_harmonic_axis_is_never_a_plain_axis_wearing_its_slots() -> None:
     different axis (the identity is *what kind of generator produced this
     factor*), so a hand-built head can never pass for the family's."""
     ax = _head_axis(SphericalHarmonicSpace.from_L(1))
-    plain = Axis(ax.label, ax.shape, ax.weights, kind=ax.kind, unit=ax.unit)
+    plain = Axis(ax.label, ax.shape, ax.weights, kind=ax.kind)
     assert ax != plain and plain != ax
     assert hash(ax) != hash(plain) or ax != plain

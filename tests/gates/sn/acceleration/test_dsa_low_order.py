@@ -382,16 +382,15 @@ class TestRestrictionProlongation:
         r"""The P0 injection IS the angular section (#520), and
         R ∘ P = I to the N-term product-sum's rounding.
 
-        The section's divisor is the frame's Gram entry, so DSA follows
-        the one convention instead of re-deriving it. GL8 is the witness:
-        its Gram entry is ``1.9999999999999998`` against
-        ``w.sum() == 2.0``, so the former hand-rolled ``x / w.sum()``
-        injection differs from the section there (the equality below is
-        red under that spelling), while GL4 cannot tell the two apart.
-        R ∘ P is nulp-tier, not bit-exact, whichever divisor is used
-        (``[M]`` 2026-09-28: max rel 2.2e-16 at GL8 for both; the same
-        re-association ``test_g61_retraction_of_section_is_the_identity``
-        records)."""
+        The section's divisor is the angular axis's correctly rounded mass
+        (numerics-untangling ruling 38), so DSA follows the one convention
+        instead of re-deriving it. On GL4 and GL8 every spelling of that
+        divisor gives exactly 2.0 (`[M]` 2026-10-19), so this row cannot
+        tell the spellings apart; the divisor's pin is
+        ``test_axis_marginal_lift.py``'s G5-mass row over 120 shipped
+        rules. R ∘ P is nulp-tier, not bit-exact (``[M]`` 2026-09-28: max
+        rel 2.2e-16 at GL8; the same re-association
+        ``test_g61_retraction_of_section_is_the_identity`` records)."""
         mesh1d = _four_cell_mesh(BC("vacuum"), BC("vacuum"))
         problem = SNProblem(
             mesh1d,
@@ -400,7 +399,7 @@ class TestRestrictionProlongation:
         )
         corr = DSACorrection.from_problem(problem)
         section = AxisSectionOperator.of(problem.angular_bulk_space, "angular")
-        np.testing.assert_array_equal(corr._sum_w, section.total_weight)
+        np.testing.assert_array_equal(corr._sum_w, section.mass)
         phi = np.random.default_rng(0).uniform(0.5, 2.0, (2, 4))
         injection = corr._section.apply(phi)
         np.testing.assert_array_equal(injection, section.apply(phi))

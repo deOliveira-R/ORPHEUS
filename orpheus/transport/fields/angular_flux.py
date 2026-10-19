@@ -116,9 +116,9 @@ class AngularFlux(AngularField):
         retired at campaign 1 CS3 — differences are same-typed now).
         """
         from orpheus.transport.fields.scalar_flux import ScalarFlux
-        # CS4b S6.2: BOTH halves ride the space's ONE memoized collapse
-        # pair — the values are the frame-induced retraction's
-        # contraction ([M] bit-identical with the pre-S6.2 einsum,
+        # CS4b S6.2: BOTH halves ride the angular axis's ONE memoized
+        # marginal — the values are the retraction's contraction with the
+        # covector m = w ([M] bit-identical with the pre-S6.2 einsum,
         # G6.5) and the target space is its bound codomain: the
         # memoized marginal, content-EQUAL to the carrier's cached
         # scalar bulk (the O7 marginal law's own predicate), with any

@@ -12,7 +12,7 @@ m = G_k u (the covector of integration), R = m^T (x) id, pi* = R^H = u (x) id,
 E = (u / <m,u>) (x) id.
 
 Families (one class each): G1 the unit is the constant; G2 integration; G3
-reciprocity; G4 the section laws; G5 bit identity with today's nodal pair;
+reciprocity; G4 the section laws; G5 bit identity with the pre-S1 nodal pair;
 G6 the refusals. ⛔ G3 and G4 hold for EVERY nonzero u (the algebra is
 self-consistent whatever the unit), so they are blind to a wrong unit by
 construction: only G1 and G2 see it (battery arm ``unit_e0``).
@@ -28,6 +28,7 @@ import numpy.testing as npt
 import pytest
 
 from orpheus.numerics import frame_faces
+from orpheus.numerics.axis import Modal
 from orpheus.numerics.axis_marginal import AxisPullbackOperator, AxisRetractionOperator, AxisSectionOperator
 from tests.gates.numerics._axis_marginal_lift_support import (
     COEFFICIENT_HEAD_ROWS,
@@ -47,7 +48,7 @@ _EPS = np.finfo(float).eps
 _HERE = "tests/gates/numerics/test_axis_marginal_lift.py::"
 _G1C = _HERE + "TestG1UnitIsTheConstant::test_g1c_a_moment_head_unit_is_the_moments_of_one"
 _G1B = _HERE + "TestG1UnitIsTheConstant::test_g1b_a_coefficient_head_unit_is_e0_and_evaluates_to_one"
-_G5 = _HERE + "TestG5NodalBitIdentity::test_g5_the_nodal_arrows_are_todays"
+_G5 = _HERE + "TestG5NodalBitIdentity::test_g5_the_nodal_arrows_are_the_pre_s1_pair"
 _G3_PRODUCT = _HERE + "TestG3Reciprocity::test_g3_a_non_product_metric_cannot_be_built_on_axes"
 _ALL_ROWS = NODAL_ROWS + MODAL_ROWS + [("folded(4,4) frame L4", "spatial"), ("xy LS4 moment L2", "spatial")]
 
@@ -126,17 +127,37 @@ class TestG1UnitIsTheConstant:
     @pytest.mark.parametrize("name,label", NODAL_ROWS, ids=_ids(NODAL_ROWS))
     def test_g1a_a_nodal_unit_is_ones(self, name, label):
         """THEOREM: on point values the constant 1 is the all-ones vector. ``array_equal``.
-        First red today: AttributeError (``Axis`` has no ``unit``). Arm ``unit_pinv``
+        First red (before S1, at 0457f113): AttributeError (``Axis`` has no ``unit``). Arm ``unit_pinv``
         (u := G⁺m) reds the zero-weight row only."""
         V, label = resolve(name, label)
         ax = V.axis(label)
         npt.assert_array_equal(np.asarray(ax.unit), np.ones(ax.shape))
 
+    def test_g1d_the_ld_moment_unit_is_e0_and_its_marginal_is_the_cell_average(self):
+        """THEOREM: the LD scheme's within-cell moments are Legendre coefficients on the
+        reference cell (P_0 = 1 at slot 0), so the unit of the spatial-moment axis is e_0,
+        and with its mass diagonal [1, 1/3] the covector is e_0 too: the marginal over the
+        axis is the average slot, the cell average. The second leg reads slot 0 of the
+        array directly, never through the lift. Added after the S1 qa review (F1): the arm
+        ``ld_unit_ones`` (u := ones) reddened nothing in 524 tests."""
+        from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
+
+        V, label = resolve("slab GL8 LD angular_trial", SPATIAL_MOMENT_AXIS_LABEL)
+        ax = V.axis(label)
+        e0 = np.zeros(ax.shape)
+        e0[0] = 1.0
+        npt.assert_array_equal(np.asarray(ax.unit), e0)
+        assert V.axes is not None  # narrowing only
+        k = V._axis_index(label)
+        dim = sum(len(a.shape) for a in V.axes[:k])
+        x = _rng(17).standard_normal(V.shape)
+        npt.assert_array_equal(AxisRetractionOperator.of(V, label).apply(x), np.take(x, 0, axis=dim))
+
     @pytest.mark.parametrize("name,label", COEFFICIENT_HEAD_ROWS, ids=_ids(COEFFICIENT_HEAD_ROWS))
     def test_g1b_a_coefficient_head_unit_is_e0_and_evaluates_to_one(self, name, label):
         """THEOREM (no-prefactor convention: P_0 = Y_00 = 1): u = e_0 exactly, and the
         function it represents, evaluated by numpy/scipy at 64 random points, is 1.
-        First red today: AttributeError. Arm ``sh_orthonormal`` reds."""
+        First red (before S1, at 0457f113): AttributeError. Arm ``sh_orthonormal`` reds."""
         V, label = resolve(name, label)
         ax = V.axis(label)
         u = np.asarray(ax.unit)
@@ -161,7 +182,7 @@ class TestG1UnitIsTheConstant:
         function they represent, Y·(G_k u), is 1 at the axis's nodes.
         [M] 2026-10-19 on the model: ≤ 5.7e-16 / ≤ 4.4e-16; with u = e_0 (the design's
         literal prescription) the second leg misses by 0.50 (Legendre) and 0.92-0.95 (harmonic).
-        First red today: AttributeError. Arm ``unit_e0`` reds every row."""
+        First red (before S1, at 0457f113): AttributeError. Arm ``unit_e0`` reds every row."""
         V, label = resolve(name, label)
         frame, L = _head_frame(V), _head_L(V)
         u = np.asarray(V.axes[0].unit).ravel()
@@ -177,13 +198,14 @@ class TestG1UnitIsTheConstant:
 # ═══ G2 — integration ═════════════════════════════════════════════════════════
 
 
+@pytest.mark.verifies("spaces-axis-marginal-integral")
 class TestG2Integration:
     @pytest.mark.rests_on(_G1B)
     @pytest.mark.parametrize("name,label", COEFFICIENT_HEAD_ROWS, ids=_ids(COEFFICIENT_HEAD_ROWS))
     def test_g2a_a_coefficient_head_integrates_the_represented_function(self, name, label):
         """REFERENCE: R(c ⊗ y) = (∫_{S²} f_c dΩ)·y, the integral by a 40 × 80 product rule
         built HERE and f_c evaluated by numpy/scipy (never the axis's own measure).
-        [M] model: rel ≤ 1.5e-15. First red today: TypeError (MODAL refused)."""
+        [M] model: rel ≤ 1.5e-15. First red (before S1, at 0457f113): TypeError (MODAL refused)."""
         V, label = resolve(name, label)
         ax = V.axis(label)
         c = _rng(21).standard_normal(ax.shape)
@@ -205,7 +227,7 @@ class TestG2Integration:
         head equals integrating ψ over the ordinates, R_head(Mψ) = R_angular(ψ), with Mψ
         computed HERE (independent evaluator, σ-even restriction). The right side rests on
         G5 (the nodal retraction pinned to the hand einsum). [M] model: max rel ≤ 2.2e-16;
-        arm ``unit_e0`` reds by 0.50 (GL) / 0.92 (harmonic). First red today: TypeError."""
+        arm ``unit_e0`` reds by 0.50 (GL) / 0.92 (harmonic). First red (before S1, at 0457f113): TypeError."""
         from tests.gates.numerics._axis_marginal_lift_support import problems
 
         V, label = resolve(name, label)
@@ -233,7 +255,7 @@ class TestG2Integration:
         from orpheus.numerics.frame import FrameBase
 
         mass = math.fsum(np.asarray(gen.measure.weights, float)) if isinstance(gen, FrameBase) else 4.0 * math.pi
-        npt.assert_allclose(E.total_weight, mass, rtol=8 * _EPS)
+        npt.assert_allclose(E.mass, mass, rtol=8 * _EPS)
 
 
 # ═══ G3 — reciprocity under the product metric ════════════════════════════════
@@ -260,7 +282,7 @@ class TestG3Reciprocity:
         ⟨Rψ, φ⟩ = ⟨ψ, π*φ⟩ (leg 2, residual normalised by ‖Gψ‖‖π*φ‖ ≤ 16ε; [M] model
         ≤ 0.06ε). ⛔ Blind to the unit (arm ``unit_e0`` green, declared). Arms
         ``pullback_from_m``, ``adjoint_is_section``, ``pullback_scaled``, ``metric_inverse`` red.
-        First red today: TypeError (modal rows), ValueError "two measures" (D2)."""
+        First red (before S1, at 0457f113): TypeError (modal rows), ValueError "two measures" (D2)."""
         V, label = resolve(name, label)
         x = _rng(41).standard_normal(V.shape)
         if _product_residual(V, label, x) > 4 * _EPS:
@@ -273,6 +295,24 @@ class TestG3Reciprocity:
         scale = np.linalg.norm(np.asarray(V.apply_metric(psi))) * np.linalg.norm(P_phi)
         if abs(lhs - rhs) > 16 * _EPS * scale:
             pytest.fail(f"{name}: reciprocity residual {abs(lhs - rhs) / scale:.2e} (normalised)")
+
+    @pytest.mark.parametrize("name,label", MODAL_ROWS, ids=_ids(MODAL_ROWS))
+    def test_g3_the_closed_form_agrees_with_the_sandwich_on_modal_heads(self, name, label):
+        """X4 witness on the modal rows: the closed-form pullback u ⊗ id agrees with the
+        generic sandwich ♯ ∘ Rᵀ ∘ ♭ (``AdjointOperator(R)``, built here; production does
+        not route there). On a singular head (a frame head of deficient rank) the sandwich
+        applies G⁺ and still lands on u ⊗ φ, because the moment unit u = B e₀ lies in
+        range(G⁺). Bound 64·ε relative to the largest entry; [M] qa 2026-10-19: worst
+        3.7e-16 over the 19 modal rows. The spec's §5 widening of S6.4, added after the
+        S1 qa review (F4)."""
+        from orpheus.numerics.operator import AdjointOperator
+
+        V, label = resolve(name, label)
+        R = AxisRetractionOperator.of(V, label)
+        sandwich = AdjointOperator(R)  # pyright: ignore[reportArgumentType]
+        phi = _rng(44).standard_normal(R.codomain.shape)
+        closed, generic = np.asarray(R.H.apply(phi)), np.asarray(sandwich.apply(phi))
+        npt.assert_allclose(closed, generic, rtol=0, atol=64 * _EPS * np.max(np.abs(closed)))
 
     def test_g3_a_non_product_metric_cannot_be_built_on_axes(self):
         """The product condition is a CONSTRUCTION invariant: an axis-built space with a
@@ -309,17 +349,17 @@ class TestG4Section:
         npt.assert_allclose(np.asarray(E.apply(R.apply(p))), p, rtol=0, atol=max(4, nk) * _EPS * float(np.max(np.abs(p))))
 
 
-# ═══ G5 — bit identity with today's nodal pair ════════════════════════════════
+# ═══ G5 — bit identity with the pre-S1 nodal pair ═════════════════════════════
 
 _G5_ROWS = [r for r in NODAL_ROWS if r[0] not in ("D2",)]  # D2 had no pair before S1
 
 
 class TestG5NodalBitIdentity:
     @pytest.mark.parametrize("name,label", _G5_ROWS, ids=_ids(_G5_ROWS))
-    def test_g5_the_nodal_arrows_are_todays(self, name, label):
+    def test_g5_the_nodal_arrows_are_the_pre_s1_pair(self, name, label):
         """RECORD at bit level: R = the hand einsum over the raw weights; π* = the broadcast;
-        E = broadcast(φ / E.total_weight) (divide, then scatter). ``array_equal`` each.
-        Green today (the arrows exist). Arms ``R_uses_u`` (positive control),
+        E = broadcast(φ / E.mass) (divide, then scatter). ``array_equal`` each.
+        Green before S1 too (the arrows existed); S1 must keep them. Arms ``R_uses_u`` (positive control),
         ``section_scale_first``, ``pullback_from_m``, ``unit_pinv`` (zero-weight row) red."""
         V, label = resolve(name, label)
         k = V._axis_index(label)
@@ -332,7 +372,7 @@ class TestG5NodalBitIdentity:
         phi = _rng(62).standard_normal(R.codomain.shape) * 3.7
         bcast = np.broadcast_to(np.expand_dims(phi, dims), V.shape)
         npt.assert_array_equal(np.asarray(R.H.apply(phi)), bcast)
-        scaled = np.broadcast_to(np.expand_dims(phi / E.total_weight, dims), V.shape)
+        scaled = np.broadcast_to(np.expand_dims(phi / E.mass, dims), V.shape)
         npt.assert_array_equal(np.asarray(E.apply(phi)), scaled)
 
 
@@ -361,15 +401,15 @@ _RULES = _rule_population()
 def test_g5_the_nodal_mass_is_correctly_rounded(rule):
     """THEOREM (recommended contract, spec §G5): the section's divisor ⟨m, u⟩ = Σw is the
     correctly rounded sum of the stored weights, ``math.fsum``, ``array_equal``. First red
-    today: 68 of 120 rules (today's divisor is the retired frame's 3-operand Gram einsum,
+    before S1 (0457f113): 68 of 120 rules (that divisor is the retired frame's 3-operand Gram einsum,
     up to 39 ULP off at lebedev29). Arms ``mass_gram_einsum`` (68 red), ``mass_numpy_sum``
-    (61 red)."""
+    (29 red, `[M]` qa 2026-10-19)."""
     from orpheus.numerics.axis import Axis, BasisKind
     from orpheus.numerics.space import FunctionSpace
 
     w = np.asarray(_RULES[rule]().weights, float)
     V = FunctionSpace.of_axes(Axis("angular", w.shape, weights=w, kind=BasisKind.NODAL), Axis("x", (3,), kind=BasisKind.NODAL))
-    npt.assert_array_equal(AxisSectionOperator.of(V, "angular").total_weight, math.fsum(w))
+    npt.assert_array_equal(AxisSectionOperator.of(V, "angular").mass, math.fsum(w))
 
 
 # ═══ G6 — the refusals keep their messages ═══════════════════════════════════
@@ -402,7 +442,7 @@ class TestG6Refusals:
 
     @pytest.mark.parametrize("which", ["nodal", "moment head"])
     def test_a_single_axis_space_refuses_as_a_bare_scalar(self, which):
-        """The moment-head leg is the discrimination row: today it refuses as MODAL (first
+        """The moment-head leg is the discrimination row: before S1 it refused as MODAL (first
         red), after S1 as a bare scalar."""
         from orpheus.numerics.axis import Axis, BasisKind
         from orpheus.numerics.quadrature import Quadrature
@@ -428,7 +468,7 @@ class TestG6Refusals:
     @pytest.mark.parametrize("which", ["nodal signed", "modal"])
     def test_zero_mass_refuses_the_section_only(self, which):
         """⟨m,u⟩ = 0: no section; the retraction stays legal. The modal leg is new (a head whose
-        metric vanishes on the constant); first red today: TypeError (MODAL)."""
+        metric vanishes on the constant); first red before S1 (0457f113): TypeError (MODAL)."""
         from orpheus.numerics.axis import Axis, BasisKind, LegendreAxis
         from orpheus.numerics.basis.legendre_basis import LegendreBasis
         from orpheus.numerics.space import FunctionSpace
@@ -436,23 +476,31 @@ class TestG6Refusals:
         if which == "nodal signed":
             V, label = resolve("zero-mass signed", "angular")
         else:
-            head = LegendreAxis("legendre", (3,), weights=np.array([0.0, 1.0, 1.0]), kind=BasisKind.MODAL,
-                                spent_axis="z", generator=LegendreBasis(L=2, axis="z"),
-                                unit=np.array([1.0, 0.0, 0.0]))
+            head = LegendreAxis("legendre", (3,), weights=np.array([0.0, 1.0, 1.0]), kind=Modal(np.array([1.0, 0.0, 0.0])),
+                                spent_axis="z", generator=LegendreBasis(L=2, axis="z"))
             V, label = FunctionSpace.of_axes(head, Axis("spatial", (3,), kind=BasisKind.NODAL)), "legendre"
         AxisRetractionOperator.of(V, label)
         with pytest.raises(ValueError, match="zero total weight"):
             AxisSectionOperator.of(V, label)
 
-    def test_a_modal_axis_minted_without_its_unit_refuses(self):
-        """Ruling 40: a MODAL axis is minted WITH its unit, so a modal factor
-        that cannot integrate is unrepresentable. The refusal is at the axis's
-        construction, not at the marginal. Its first red: before S1 the axis
-        had no unit and this construction succeeded."""
-        from orpheus.numerics.axis import Axis, BasisKind
+    def test_a_modal_kind_carries_its_unit_or_is_refused(self):
+        """Rulings 40 and 41: the kind is the closed sum ``BasisKind.NODAL |
+        Modal(unit)``, so a modal factor without its unit cannot be spelled.
+        What is left to refuse at construction: a kind that is neither arm
+        (a string, the pre-S1 test spelling the S1 review caught), a unit
+        that cannot be the constant's coordinates (zero), and a unit over
+        another shape, including through ``replace`` on a nodal axis."""
+        import dataclasses
 
-        with pytest.raises(ValueError, match="minted without its unit"):
-            Axis("moment", (2,), weights=np.array([1.0, 3.0]), kind=BasisKind.MODAL)
+        from orpheus.numerics.axis import Axis, BasisKind, Modal
+
+        with pytest.raises(TypeError, match="kind must be BasisKind.NODAL or Modal"):
+            Axis("moment", (2,), kind="nodal")  # pyright: ignore[reportArgumentType]
+        with pytest.raises(ValueError, match="finite and nonzero"):
+            Modal(np.zeros(2))
+        nodal = Axis("moment", (2,), weights=np.array([1.0, 3.0]), kind=BasisKind.NODAL)
+        with pytest.raises(ValueError, match="must live over exactly the axis shape"):
+            dataclasses.replace(nodal, kind=Modal(np.eye(3)[0]))
 
     def test_wrong_shapes_refuse_both_directions(self):
         V, _ = resolve("synthetic nodal", "angular")

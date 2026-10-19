@@ -1153,7 +1153,7 @@ def test_tangential_trace_slots_are_a_zero_summand_of_the_loss(bc):
     is non-vacuity: a rule whose grazing cosines were only round-off zeros
     would empty ``K`` and pass every leg. ``K`` is counted a second way from
     the quadrature's own cosines, and ``K`` equals the zero set of the
-    PRODUCTION metric (``riesz_lower`` of the all-ones composite), so the
+    PRODUCTION metric (``RieszLowerOperator`` of the all-ones composite), so the
     gate's ``K`` is the kernel the adjoint actually projects.
 
     **What reds it** (in-process mutations, ``python -O``, `[M]` 2026-09-22):

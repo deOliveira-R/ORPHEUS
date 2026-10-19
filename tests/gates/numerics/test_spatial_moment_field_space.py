@@ -39,6 +39,7 @@ from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
 from orpheus.transport.fields import HarmonicMomentFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
+from orpheus.numerics.axis import Modal
 
 from tests.gates.sn._test_helpers import placeholder_materials
 
@@ -213,7 +214,7 @@ def test_bulk_field_widened_2d_shape(field_factory, ld_2d):
     # MODAL moment AXIS (mass-carrying) — the scheme's own, the ONE spelling of the tail (6.2c-iii).
     tail_axis = field.space.axes[-1]
     np.testing.assert_equal(tail_axis.label, SPATIAL_MOMENT_AXIS_LABEL)
-    assert tail_axis.kind is BasisKind.MODAL
+    assert isinstance(tail_axis.kind, Modal)
     np.testing.assert_array_equal(
         tail_axis.weights, mesh.scheme.moment_mass_diagonal(mesh.axes),
     )

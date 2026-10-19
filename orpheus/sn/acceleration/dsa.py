@@ -600,7 +600,7 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         #: shipped rules, N the ordinate count (``test_dsa_low_order.py``
         #: asserts ``rtol = N·ε``). It is not bit-exact on 118 of them.
         self._section = AxisSectionOperator.of(angular_bulk_space, "angular")
-        self._sum_w = self._section.total_weight
+        self._sum_w = self._section.mass
         self._w_mu = w * mu_row
         self._mu = mu_row
         #: 1/W₂ of Larsen's (33) synthesis Ψ = f₀ + (μ/W₂)f₁ — computed

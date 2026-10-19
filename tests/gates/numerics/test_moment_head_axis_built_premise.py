@@ -3,7 +3,7 @@ r"""Pre-carve anchors for CS4c step 6 item 6.2c — the angular moment HEAD beco
 **What this file is.** Item 6.2c makes the angular head of every moment space
 an AXIS-BUILT space: one rank-``r`` :class:`~orpheus.numerics.axis.Axis`
 (``(L+1, 2L+1)`` for the rectangular harmonics, ``(L+1,)`` for the flat
-Legendre family), ``BasisKind.MODAL``, carrying the head's own measure, with
+Legendre family), ``Modal(unit)``, carrying the head's own measure, with
 ``inner_product_weights = None`` (the "never both" construction guard).  It is
 the last axes-less factor on every production tensor product.
 
@@ -64,6 +64,7 @@ from orpheus.numerics.spaces.legendre_space import LegendreSpace
 from orpheus.numerics.spaces.moment_head import MomentHead
 from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
 from orpheus.numerics import frame_faces
+from orpheus.numerics.axis import Modal
 
 pytestmark = pytest.mark.foundation
 
@@ -409,7 +410,7 @@ def test_a_dense_gram_lives_positioned_on_the_axis_built_heads_own_object() -> N
 
     G = np.eye(3) + 0.25
     dense = DenseMetric.inverse_of(G)
-    axis = Axis(_HARMONIC_AXIS_LABEL, (3,), None, kind=BasisKind.MODAL, unit=np.eye(3)[0])
+    axis = Axis(_HARMONIC_AXIS_LABEL, (3,), None, kind=Modal(np.eye(3)[0]))
     with pytest.raises(ValueError, match="positioned over them"):
         FunctionSpace(name="probe", shape=(3,), axes=(axis,), metric=dense)
     head = FunctionSpace(

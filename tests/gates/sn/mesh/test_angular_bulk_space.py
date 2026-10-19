@@ -50,6 +50,7 @@ from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.spatial import LinearDiscontinuous
 from orpheus.transport.spatial.diamond import DiamondDifference
+from orpheus.numerics.axis import Modal
 from tests.gates.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.foundation
@@ -382,7 +383,7 @@ class TestMomentAxisAdmission:
         axis = scheme.moment_axis(_cart_axes())
         assert axis.label == "spatial_moment"
         assert axis.shape == (2,)
-        assert axis.kind is BasisKind.MODAL
+        assert isinstance(axis.kind, Modal)
         assert axis.weights is not None
         assert np.array_equal(
             axis.weights,

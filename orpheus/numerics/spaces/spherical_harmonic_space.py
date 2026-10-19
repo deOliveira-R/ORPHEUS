@@ -61,7 +61,7 @@ from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.axis import BasisKind, HarmonicAxis
+from orpheus.numerics.axis import HarmonicAxis, Modal
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.moment_head import truncated_head
@@ -210,9 +210,8 @@ class SphericalHarmonicSpace(FunctionSpace):
             "harmonic",
             shape,
             _padded_metric_tensor(L, basis.metric_per_ell),
-            kind=BasisKind.MODAL,
+            kind=Modal(unit),
             generator=basis,
-            unit=unit,
         )
         return cls(
             name="spherical_harmonic_space",

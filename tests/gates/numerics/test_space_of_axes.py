@@ -26,6 +26,7 @@ import pytest
 
 from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.axis import Modal
 
 pytestmark = pytest.mark.foundation
 
@@ -67,7 +68,7 @@ def test_of_axes_shape_is_the_concatenation() -> None:
     """
     space = FunctionSpace.of_axes(
         EnergyAxis.synthetic(2),
-        Axis("harmonic", (3, 5), kind=BasisKind.MODAL, unit=np.eye(1, 15)[0].reshape(3, 5)),
+        Axis("harmonic", (3, 5), kind=Modal(np.eye(1, 15)[0].reshape(3, 5))),
         _point(),
     )
     _require(space.shape == (2, 3, 5, 1), f"shape {space.shape} != (2, 3, 5, 1)")
@@ -102,7 +103,7 @@ def test_of_axes_name_is_INJECTIVE_on_structural_content() -> None:
         (EnergyAxis.synthetic(2), Axis("spatial", (1,), weights=np.array([2.0]), kind=BasisKind.NODAL)),  # same shapes
         (EnergyAxis.synthetic(3), _point()),
         (EnergyAxis.synthetic(2),),
-        (EnergyAxis.synthetic(2), Axis("spatial", (1,), kind=BasisKind.MODAL, unit=np.eye(1)[0])),  # kind differs
+        (EnergyAxis.synthetic(2), Axis("spatial", (1,), kind=Modal(np.eye(1)[0]))),  # kind differs
     ]
     spaces = [FunctionSpace.of_axes(*t) for t in tuples]
     names = {s.name for s in spaces}
@@ -368,8 +369,8 @@ def test_mul_threads_axes_and_does_not_fabricate_them() -> None:
     "kinds,expected",
     [
         ((BasisKind.NODAL, BasisKind.NODAL), True),
-        ((BasisKind.NODAL, BasisKind.MODAL), False),
-        ((BasisKind.MODAL, BasisKind.MODAL), False),
+        ((BasisKind.NODAL, "modal"), False),
+        (("modal", "modal"), False),
     ],
 )
 def test_has_coordinate_cone_follows_the_basis_kinds(
@@ -377,8 +378,8 @@ def test_has_coordinate_cone_follows_the_basis_kinds(
 ) -> None:
     """B8a — all-nodal ⟹ True, any-modal ⟹ False."""
     space = FunctionSpace.of_axes(
-        Axis("p", (2,), kind=kinds[0], unit=np.eye(2)[0] if kinds[0] is BasisKind.MODAL else None),
-        Axis("q", (3,), kind=kinds[1], unit=np.eye(3)[0] if kinds[1] is BasisKind.MODAL else None),
+        Axis("p", (2,), kind=Modal(np.eye(2)[0]) if kinds[0] == "modal" else kinds[0]),
+        Axis("q", (3,), kind=Modal(np.eye(3)[0]) if kinds[1] == "modal" else kinds[1]),
     )
     _require(
         space.has_coordinate_cone is expected,

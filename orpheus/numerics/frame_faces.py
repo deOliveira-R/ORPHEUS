@@ -41,6 +41,7 @@ from typing import Any, TypeVar, cast
 import numpy as np
 from numpy.typing import NDArray
 
+from orpheus.numerics.axis import Modal
 from orpheus.numerics.basis.base import GramStructure
 from orpheus.numerics.frame import FrameBase, GalerkinFrame
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
@@ -274,7 +275,7 @@ def _dressed(
     if dense is not None:
         return replace(
             space,
-            axes=(replace(axis, weights=None, generator=frame, unit=unit),),
+            axes=(replace(axis, weights=None, generator=frame, kind=Modal(unit)),),
             inner_product_weights=None,
             metric=FactoredMetric(((axis.shape, dense),)),
         )
@@ -282,7 +283,7 @@ def _dressed(
     return replace(
         space,
         axes=(replace(
-            axis, weights=np.asarray(diagonal).reshape(axis.shape), generator=frame, unit=unit,
+            axis, weights=np.asarray(diagonal).reshape(axis.shape), generator=frame, kind=Modal(unit),
         ),),
         inner_product_weights=None,
         metric=None,

@@ -27,7 +27,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from orpheus.numerics.axis import BasisKind, LegendreAxis
+from orpheus.numerics.axis import LegendreAxis, Modal
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.moment_head import truncated_head
@@ -111,10 +111,9 @@ class LegendreSpace(FunctionSpace):
             "legendre",
             (L + 1,),
             basis.metric_per_ell,
-            kind=BasisKind.MODAL,
+            kind=Modal(unit),
             generator=basis,
             spent_axis=basis.axis,
-            unit=unit,
         )
         return cls(
             name=f"legendre_space({basis.domain.name})",

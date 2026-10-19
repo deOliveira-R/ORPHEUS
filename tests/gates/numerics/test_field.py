@@ -41,6 +41,7 @@ import pytest
 
 from orpheus.numerics.field import Field
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.axis import Modal
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -455,8 +456,9 @@ def _axis_field(values, kind):
     from orpheus.numerics.axis import Axis, BasisKind
 
     arr = np.asarray(values, dtype=float)
-    unit = np.eye(arr.size)[0].reshape(arr.shape) if kind is BasisKind.MODAL else None
-    space = FunctionSpace.of_axes(Axis("p", arr.shape, kind=kind, unit=unit))
+    if kind == "modal":
+        kind = Modal(np.eye(arr.size)[0].reshape(arr.shape))
+    space = FunctionSpace.of_axes(Axis("p", arr.shape, kind=kind))
     return _DummyField(values=arr, space=space), BasisKind
 
 
@@ -469,7 +471,7 @@ def test_modal_space_REFUSES_cone_violations():
     error names the space and the reason."""
     from orpheus.numerics.axis import BasisKind
 
-    field, _ = _axis_field([1.0, -0.5, 2.0], BasisKind.MODAL)
+    field, _ = _axis_field([1.0, -0.5, 2.0], "modal")
     with pytest.raises(ValueError, match="MODAL factor") as exc:
         field.cone_violations()
     if field.space.name not in str(exc.value):

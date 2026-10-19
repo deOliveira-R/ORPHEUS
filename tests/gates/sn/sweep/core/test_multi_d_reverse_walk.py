@@ -106,6 +106,7 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
+from orpheus.numerics.axis import Modal
 from tests.gates.sn.operators.test_g_adjoint_reciprocity import (
     _make_ld_slab,
     _make_slab,
@@ -1241,7 +1242,7 @@ def test_tail_mismatch_refuses_loudly():
         # CS4c step 6 item 6.2c-iii the tail is always an axis, never a class)
         space=FunctionSpace.of_axes(
             *sn.angular_bulk_space.axes,
-            Axis(SPATIAL_MOMENT_AXIS_LABEL, (4,), kind=BasisKind.MODAL, unit=np.eye(4)[0]),
+            Axis(SPATIAL_MOMENT_AXIS_LABEL, (4,), kind=Modal(np.eye(4)[0])),
         ),
     )
     bad = FullField(interior=bad_interior, boundary=phi.boundary)

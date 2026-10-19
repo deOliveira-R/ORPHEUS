@@ -1723,7 +1723,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
                 "appends no factor at width 1, so there is no moment axis "
                 "to mint."
             )
-        from orpheus.numerics.axis import Axis, BasisKind
+        from orpheus.numerics.axis import Axis, Modal
         from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
 
         n_moments = cell_moment_count(self.spatial_basis_per_axis, len(axes))
@@ -1736,8 +1736,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
             SPATIAL_MOMENT_AXIS_LABEL,
             (n_moments,),
             weights=self.moment_mass_diagonal(axes),
-            kind=BasisKind.MODAL,
-            unit=unit,
+            kind=Modal(unit),
         )
 
     # ── Generic affine reconstruction ops (#158 Inc B / #240 D2) ─────────────

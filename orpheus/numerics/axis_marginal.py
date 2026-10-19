@@ -39,11 +39,14 @@ the axis carries, and :math:`\langle m, u\rangle` is that measure's MASS
   summing to zero).
 
 The nodal case is the pair the tree shipped before the unit existed:
-:math:`u = 1`, :math:`m = w`, :math:`\langle m, u\rangle = \Sigma w`, and
-the three arrows are bit-identical to it (gated). The divisor is the
-correctly rounded mass, ``math.fsum`` (ruling 38).
+:math:`u = 1`, :math:`m = w`, :math:`\langle m, u\rangle = \Sigma w`. The
+retraction and the pullback are bit-identical to it (gated), and so is the
+section wherever its divisor is: that divisor is now the correctly rounded
+mass, ``math.fsum`` (ruling 38), which differs from the retired spelling (the
+throw-away frame's Gram entry) on 68 of 120 shipped rules.
 
-**What is refused, and why** (each at the one mint, :func:`_lift`):
+**What is refused, and why** (at the one mint, :func:`_mint`, except the
+section's zero-mass refusal, at :meth:`AxisSectionOperator.of`):
 
 * an axes-less space, or a label naming not exactly one axis (the space's
   by-label resolver, ``FunctionSpace._axis_index``);
@@ -279,14 +282,14 @@ class AxisSectionOperator(_AxisMarginalBase):
         axis_shape: tuple[int, ...],
         dims: tuple[int, ...],
         unit: np.ndarray,
-        total_weight: float,
+        mass: float,
     ) -> None:
         super().__init__(
             full_space=full_space, marginal_space=marginal_space,
             axis_shape=axis_shape, dims=dims,
         )
         self._unit = unit
-        self._total_weight = total_weight
+        self._mass = mass
 
     @classmethod
     def of(cls, space: "FunctionSpace", axis_label: str) -> "AxisSectionOperator":
@@ -310,9 +313,13 @@ class AxisSectionOperator(_AxisMarginalBase):
         return section
 
     @property
-    def total_weight(self) -> float:
-        r"""The mass :math:`\langle m, u\rangle` of the axis's measure (``math.fsum``)."""
-        return self._total_weight
+    def mass(self) -> float:
+        r"""The mass :math:`\langle m, u\rangle` of the axis's measure, summed
+        correctly rounded (``math.fsum``): :math:`\Sigma w` on a nodal axis,
+        :math:`4\pi` on a sphere-rule head, not the sum of a modal head's
+        weights (those are its metric, :math:`4\pi/(2\ell+1)` on a continuum
+        harmonic head)."""
+        return self._mass
 
     @property
     def domain(self) -> "FunctionSpace":
@@ -329,12 +336,12 @@ class AxisSectionOperator(_AxisMarginalBase):
         # Divide THEN scatter: on a nodal axis (u = 1) these are the shipped
         # isotropic-source kernel's float operations, so the equivalence
         # gate pins np.array_equal.
-        return self._scatter(x / self._total_weight, self._unit)
+        return self._scatter(x / self._mass, self._unit)
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         r"""The pairing with :math:`u` over the mass, the Euclidean transpose."""
         x = self._require(x, self._full_space, "full", "apply_transpose")
-        return self._contract(x, self._unit) / self._total_weight
+        return self._contract(x, self._unit) / self._mass
 
 
 class AxisPullbackOperator(_AxisMarginalBase):
@@ -458,17 +465,11 @@ def _mint(space: "FunctionSpace", axis_label: str) -> _AxisMarginal:
     # metric is exactly G_k ⊗ (the marginal's metric).
     marginal_space = space.without_axis(axis_label)
 
-    # m = G_k u: the axis's metric block is a positioned form (on a
-    # measure-less axis), else the axis's weights, else the counting measure.
+    # m = G_k u, with G_k the space's own metric block for the axis (None is
+    # the counting measure).
     unit = axis.unit
-    assert unit is not None  # narrowing only: the axis fills its unit at construction
-    form = space._overlay_forms()[k]
-    if form is not None:
-        covector = np.asarray(form.apply(unit))
-    elif axis.weights is not None:
-        covector = axis.weights * unit
-    else:
-        covector = unit
+    block = space._axis_block(k)
+    covector = unit if block is None else np.asarray(block.apply(unit))
     flat_unit = unit.ravel()
     flat_covector = covector.ravel()
     mass = math.fsum(flat_covector * flat_unit)
@@ -481,6 +482,6 @@ def _mint(space: "FunctionSpace", axis_label: str) -> _AxisMarginal:
     section = None if mass == 0.0 else AxisSectionOperator(
         full_space=space, marginal_space=marginal_space,
         axis_shape=axis.shape, dims=dims,
-        unit=flat_unit, total_weight=mass,
+        unit=flat_unit, mass=mass,
     )
     return _AxisMarginal(retraction, section)

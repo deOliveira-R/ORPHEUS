@@ -1502,7 +1502,8 @@ class RieszLowerOperator(LinearOperator[Domain, Domain], Generic[Domain]):
                 f"Riesz legs live on the PRIMAL space only. A DualSpace "
                 f"carries its primal's metric (L²-Riesz), so ♭ on V* would "
                 f"apply G where the dual-side map needs G⁻¹ (the G² trap). "
-                f"Compose the primal's riesz_lower/riesz_raise, or use the "
+                f"Build the legs on the primal (RieszLowerOperator(V), "
+                f"RieszRaiseOperator(V)), or use the "
                 f"dagger–dual commutation (A.dual()).H = (A.H).dual()."
             )
         self.space: Final = space

@@ -7,9 +7,10 @@ axis of a space. Identity tests rest on it (``R.codomain is E.domain``; a
 Galerkin frame's test space ``is`` its trial space). The value is stored on
 the host, in its instance ``__dict__`` (which also bypasses a frozen
 dataclass's ``__setattr__``), under ONE private slot named for the module
-that owns the values, so no cached value can be read back as an attribute of
-the host. A cache is not a concept: the host does not know what is cached on
-it, and the module that builds the value owns the slot.
+that owns the values (``"_frame_faces"``, ``"_axis_marginal"``), so no cached
+value sits under a public attribute name, where it could shadow or stand in
+for a retired attribute. A cache is not a concept: the host does not know
+what is cached on it, and the module that builds the value owns the slot.
 """
 
 from __future__ import annotations

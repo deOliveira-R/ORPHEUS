@@ -486,12 +486,22 @@ class FunctionSpace(Generic[Carrier]):
 
         The one reader of the overlay: the product composition
         (:func:`_positioned_forms`), the axis verbs :meth:`without_axis` and
-        :meth:`with_axis`, and the collapse-pair mint all read it here.
+        :meth:`with_axis`, and :func:`_axis_entries` read it here.
         """
         assert self.axes is not None  # narrowing only: callers are axis-built
         if isinstance(self.metric, FactoredMetric):
             return tuple(form for _, form in self.metric.entries)
         return (None,) * len(self.axes)
+
+    def _axis_block(self, k: int) -> DiagonalMetric | DenseMetric | None:
+        r"""The metric block :math:`G_k` of axis ``k``: the positioned form on
+        its block if there is one, else its measure, else ``None`` (the
+        counting measure). The same entry the space's derived metric
+        composes (:func:`_axis_entries`), so the axis marginal's covector
+        :math:`m = G_k u` and the space's metric cannot disagree.
+        """
+        assert self.axes is not None  # narrowing only: callers are axis-built
+        return _axis_entries(self.axes, self.metric)[k][1]
 
     def _with_overlay(
         self, forms: tuple[DiagonalMetric | DenseMetric | None, ...],

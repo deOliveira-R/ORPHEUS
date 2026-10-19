@@ -434,7 +434,7 @@ class TestFrameInduction:
         import math
 
         E = AxisSectionOperator.of(_product(), "angular")
-        npt.assert_array_equal(E.total_weight, math.fsum(_W_ANG))
+        npt.assert_array_equal(E.mass, math.fsum(_W_ANG))
 
     def test_gl8_divisor_is_ulp_equivalent_to_the_sum_spelling(self):
         """A bound, not an equality: on GL8 the divisor and the
@@ -457,7 +457,7 @@ class TestFrameInduction:
         )
         E = AxisSectionOperator.of(sn.angular_bulk_space, "angular")
         sum_w = float(sn.quad.weights.sum())
-        npt.assert_array_almost_equal_nulp(E.total_weight, sum_w, nulp=1)
+        npt.assert_array_almost_equal_nulp(E.mass, sum_w, nulp=1)
         Q = _rand((sn.ng, *sn.spatial_shape), 40)
         old_kernel = np.broadcast_to(
             (Q / sum_w)[None], (sn.quad.N, sn.ng, *sn.spatial_shape),

@@ -52,6 +52,7 @@ from orpheus.transport.frames import HarmonicFrame
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
 from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.numerics import frame_faces
+from orpheus.numerics.axis import Modal
 
 pytestmark = pytest.mark.foundation
 
@@ -111,7 +112,7 @@ def test_the_widened_moment_product_is_axis_built_with_the_schemes_axis_as_its_t
     (tail,) = _tail_axes(space)
     expected = sn.scheme.moment_axis(sn.axes)
     assert tail == expected, "the tail IS the scheme's own moment axis"
-    assert tail.kind is BasisKind.MODAL
+    assert isinstance(tail.kind, Modal)
     assert tail.weights is not None
     np.testing.assert_array_equal(tail.weights, sn.scheme.moment_mass_diagonal(sn.axes))
     # the cell-group factor is the carrier's WIDENED bulk — the same space the scalar family mints

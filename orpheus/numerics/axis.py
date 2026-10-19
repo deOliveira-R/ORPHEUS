@@ -20,9 +20,12 @@ The six slots, precisely
   has no "unbound" state, so the two-state ambiguity of the legacy
   ``FunctionSpace.inner_product_weights`` (``None`` = "no canonical
   quadrature" *or* "Euclidean") cannot arise on this type.
-* ``kind`` — :class:`BasisKind`. ``NODAL`` factors carry a coordinate
-  cone (per-component positivity is meaningful); ``MODAL`` factors do not
-  (a spectral coefficient may be negative for a positive function).
+* ``kind`` — a closed sum, ``BasisKind.NODAL`` or :class:`Modal`
+  ``(unit)`` (ruling 41). ``NODAL`` factors carry a coordinate cone
+  (per-component positivity is meaningful); ``MODAL`` factors do not (a
+  spectral coefficient may be negative for a positive function), and the
+  modal arm CARRIES the factor's unit, so a modal kind without a unit, or a
+  unit that disagrees with the kind, cannot be constructed.
 * ``generator`` — **provenance, never identity** (CS5): the object that
   minted this axis — a :class:`~orpheus.numerics.measure.DiscreteMeasure`
   or :class:`~orpheus.numerics.quadrature.directional.Quadrature` for
@@ -42,21 +45,22 @@ The six slots, precisely
   so content-equal but distinct-instance generators (the #403 hazard)
   never reach axis equality — and never perturb the ``of_axes``
   space-name digest, whose injectivity rides the same key.
-* ``unit`` — the coordinates of the constant function :math:`1` in this
-  factor's own representation (ruling 37: minted with the axis, by whatever
-  mints it, like the weights). On a ``NODAL`` factor the coordinates are
-  point values, so the unit is all ones, always, and is filled in at
-  construction (any other value is refused). A ``MODAL`` factor must be
-  minted WITH its unit: the coefficients of :math:`1` in the basis on a
-  continuum head (:math:`e_0`, since :math:`Y_{00} = P_0 = 1`), the
-  moments of :math:`1`, :math:`\Phi^{\mathsf T} w`, on a head a frame has
-  dressed (its coordinates are covariant moments), :math:`e_0` on the LD
-  scheme's spatial-moment axis. The marginal over the axis integrates
-  against the covector :math:`m = G_k\,u` (the axis's metric block applied
-  to the unit; :mod:`orpheus.numerics.axis_marginal`). Part of the content
-  on a ``MODAL`` factor only (ruling 39): there it records the variance of
-  the coordinates (coefficients or moments), which the weights alone do not
-  fix; on a ``NODAL`` factor it is implied by the kind.
+* :attr:`Axis.unit` (read from the kind) — the coordinates of the
+  constant function :math:`1` in this factor's own representation (ruling
+  37: minted with the axis, by whatever mints it, like the weights). On a
+  ``NODAL`` factor the coordinates are point values, so the unit is all
+  ones. A modal factor is minted as ``Modal(unit)``: the coefficients of
+  :math:`1` in the basis on a continuum head (:math:`e_0`, since
+  :math:`Y_{00} = P_0 = 1`), the moments of :math:`1`,
+  :math:`\Phi^{\mathsf T} w`, on a head a frame has dressed (its
+  coordinates are covariant moments), :math:`e_0` on the LD scheme's
+  spatial-moment axis. The marginal over the axis integrates against the
+  covector :math:`m = G_k\,u` (the axis's metric block applied to the
+  unit; :mod:`orpheus.numerics.axis_marginal`). The unit is content on a
+  modal factor only (ruling 39), and that holds by the type: the kind is
+  content, the ``NODAL`` enum member carries nothing, and ``Modal`` carries
+  the unit, which records the variance of the coordinates (coefficients or
+  moments) that the weights alone do not fix.
 * identity — **structural, per subclass** (see below).
 
 Canonical storage — one spelling per measure (ruled 2026-08-20)
@@ -122,7 +126,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.quadrature.directional import Quadrature
 
-__all__ = ["Axis", "BasisKind", "EnergyAxis"]
+__all__ = ["Axis", "BasisKind", "EnergyAxis", "Modal"]
 
 #: The generator kinds :meth:`Axis.generator_as` can narrow to.
 _G = TypeVar("_G")
@@ -130,18 +134,62 @@ _G = TypeVar("_G")
 
 @unique
 class BasisKind(Enum):
-    """The basis character of a space factor.
+    """The NODAL arm of a space factor's kind (the other arm is :class:`Modal`).
 
     ``NODAL`` — components are point/cell VALUES (indicator-like basis):
     the factor carries a coordinate cone, so per-component positivity is a
-    meaningful predicate. ``MODAL`` — components are expansion
-    COEFFICIENTS (spectral basis): no coordinate cone; a positive function
-    may have negative coefficients, so per-component sign tests are
-    meaningless and must be refused, not answered.
+    meaningful predicate, and the coordinates of the constant function are
+    all ones, so the arm needs no data. The MODAL arm carries data, the
+    factor's unit, and is therefore the value class :class:`Modal`, not an
+    enum member (ruling 41: the kind is the closed sum ``NODAL | Modal(unit)``).
     """
 
     NODAL = "nodal"
-    MODAL = "modal"
+
+    def unit_over(self, shape: tuple[int, ...]) -> NDArray:
+        r"""All ones over ``shape``: on a nodal factor the coordinates are
+        point values, and the constant function's are ones."""
+        ones = np.ones(shape)
+        ones.setflags(write=False)
+        return ones
+
+
+@dataclass(frozen=True, eq=False)
+class Modal(ContentIdentity):
+    r"""The MODAL arm of a space factor's kind, carrying the factor's unit.
+
+    Components are expansion COEFFICIENTS (a spectral basis): no coordinate
+    cone, since a positive function may have negative coefficients, so
+    per-component sign tests are meaningless and must be refused, not
+    answered. A modal factor is minted WITH ``unit``, the coordinates of the
+    constant function :math:`1` in its representation (rulings 37, 40 and
+    41), so a modal factor that cannot integrate is unrepresentable. The
+    unit is stored canonicalized (``u + 0.0``), copied and read-only, and
+    must be finite and nonzero; its shape is checked against the axis's
+    shape by the axis.
+    """
+
+    unit: NDArray
+
+    def __post_init__(self) -> None:
+        u = np.ascontiguousarray(self.unit, dtype=float)
+        if not bool(np.isfinite(u).all()) or not bool(u.any()):
+            raise ValueError(
+                f"a modal unit must be finite and nonzero (the coordinates of "
+                f"the constant function 1); got {u!r}"
+            )
+        u = u + 0.0
+        u.setflags(write=False)
+        object.__setattr__(self, "unit", u)
+
+    def unit_over(self, shape: tuple[int, ...]) -> NDArray:
+        r"""The carried unit, which must live over exactly ``shape``."""
+        if self.unit.shape != shape:
+            raise ValueError(
+                f"the modal unit must live over exactly the axis shape: unit "
+                f"shape {self.unit.shape} != axis shape {shape}"
+            )
+        return self.unit
 
 
 @dataclass(frozen=True, eq=False)
@@ -164,17 +212,11 @@ class Axis(ContentIdentity):
         canonicalized (``w + 0.0``, killing ``-0.0``), defensively
         copied, read-only. Non-finite entries are refused; signed
         weights are legal (quadrature families need them).
-    kind : BasisKind
+    kind : BasisKind | Modal
         Keyword-only, no default — the basis character is physics and
-        must be spelled at every mint.
-    unit : NDArray | None, default None
-        Keyword-only. The coordinates of the constant function :math:`1`
-        on this factor (the module docstring's slot table). ``None`` on a
-        ``NODAL`` axis is filled with ones (the only legal nodal unit); a
-        ``MODAL`` axis REFUSES ``None`` (ruling 40: a modal factor that
-        cannot integrate is unrepresentable). Stored canonicalized
-        (``u + 0.0``), copied and read-only, over exactly ``shape``; it
-        must be finite and nonzero.
+        must be spelled at every mint: ``BasisKind.NODAL``, or
+        ``Modal(unit)`` carrying the coordinates of the constant function
+        (the module docstring's slot table). Any other value is refused.
     generator : DiscreteMeasure | Basis | Quadrature | FrameBase | None, default None
         Keyword-only provenance: the object that minted this axis (see
         the module docstring's slot table). NOT part of the identity —
@@ -203,19 +245,22 @@ class Axis(ContentIdentity):
     label: str
     shape: tuple[int, ...]
     weights: NDArray | None = field(default=None, repr=False)
-    kind: BasisKind = field(kw_only=True)
+    kind: BasisKind | Modal = field(kw_only=True)
     # Provenance is not identity: ``compare=False`` is the content encoder's
     # one spelling of "not content" (#405 P1 step 5).
     generator: DiscreteMeasure | Basis | Quadrature | FrameBase | None = field(
         default=None, kw_only=True, repr=False, compare=False
     )
-    # ``None`` is accepted at construction and filled there (ones on a nodal
-    # axis; a modal axis refuses it), so a constructed axis never holds None.
-    unit: NDArray | None = field(default=None, kw_only=True, repr=False)
 
     def __post_init__(self) -> None:
         shape = tuple(int(n) for n in self.shape)
         object.__setattr__(self, "shape", shape)
+        if not isinstance(self.kind, (BasisKind, Modal)):
+            raise TypeError(
+                f"axis '{self.label}': kind must be BasisKind.NODAL or "
+                f"Modal(unit), got {self.kind!r}"
+            )
+        self.kind.unit_over(shape)  # a modal unit over another shape is refused
         if len(shape) < 1:
             raise ValueError(
                 f"an Axis needs rank >= 1, got shape {shape!r} — a rank-0 "
@@ -243,54 +288,13 @@ class Axis(ContentIdentity):
                 w = w + 0.0
                 w.setflags(write=False)
                 object.__setattr__(self, "weights", w)
-        object.__setattr__(self, "unit", self._minted_unit(shape))
 
-    def _minted_unit(self, shape: tuple[int, ...]) -> NDArray:
-        r"""The unit this axis was minted with, validated and canonicalized."""
-        if self.kind is BasisKind.NODAL:
-            if self.unit is not None and not bool((np.asarray(self.unit) == 1.0).all()):
-                raise ValueError(
-                    f"axis '{self.label}' is NODAL: its coordinates are point "
-                    f"values, so the constant function's coordinates are all "
-                    f"ones; got unit {self.unit!r}"
-                )
-            ones = np.ones(shape)
-            ones.setflags(write=False)
-            return ones
-        if self.unit is None:
-            raise ValueError(
-                f"axis '{self.label}' is MODAL and was minted without its unit: "
-                f"a modal factor is minted WITH the coordinates of the "
-                f"constant function 1 in its representation (the basis "
-                f"coefficients of 1 on a continuum head, the moments of 1 on "
-                f"a frame-dressed head), so that it can integrate."
-            )
-        u = np.ascontiguousarray(self.unit, dtype=float)
-        if u.shape != shape:
-            raise ValueError(
-                f"axis '{self.label}': the unit must live over exactly the "
-                f"axis shape: unit shape {u.shape} != axis shape {shape}"
-            )
-        if not bool(np.isfinite(u).all()) or not bool(u.any()):
-            raise ValueError(
-                f"axis '{self.label}': the unit must be finite and nonzero "
-                f"(the coordinates of the constant function 1); got {u!r}"
-            )
-        u = u + 0.0
-        u.setflags(write=False)
-        return u
-
-    def content_parts(self) -> tuple[tuple[str, object], ...]:
-        r"""The dataclass content, without ``unit`` on a ``NODAL`` axis.
-
-        A nodal unit is all ones by the kind (ruling 39), so it carries no
-        information and stays out of the identity: every nodal axis keeps
-        the digest it had before the unit existed. A modal unit is content.
-        """
-        parts = super().content_parts()
-        if self.kind is BasisKind.NODAL:
-            return tuple(part for part in parts if part[0] != "unit")
-        return parts
+    @property
+    def unit(self) -> NDArray:
+        r"""The coordinates of the constant function :math:`1` on this factor,
+        read from the kind: ones on a ``NODAL`` axis, the carried unit on a
+        :class:`Modal` one."""
+        return self.kind.unit_over(self.shape)
 
     def generator_as(self, kind: type[_G], *, consumer: str) -> _G:
         r"""The generator, NARROWED to the type ``consumer`` needs — or a
