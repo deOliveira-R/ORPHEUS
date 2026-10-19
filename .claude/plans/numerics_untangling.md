@@ -692,3 +692,23 @@ This closes the two state sections above for the fix; their rulings stand.
 2. Build G0, and measure the correction above (no `{operator, operator_steps}` cycle with the adjoint kept in the algebra) on it.
 3. Dispatch wave 2 (M1, M3, M4) in worktrees.
 4. Write S1's design for the user.
+
+**Rulings on the judgement items** (the user, 2026-10-19, the recommended option each time):
+- **31. M2's home.** The orbit space's reference measure is one function, `pushforward_reference(orbit_space)`, in `generating_measure.py`, keyed on the quotient's group. The per-entry data (`LEGENDRE` for the O(2) quotients, `None` elsewhere) leaves the manifold's catalogue.
+- **32. M6's surviving rule list is `Quadrature`'s classmethods.** Each registry entry references a classmethod and returns a `Quadrature`, and `folded_product` is registered.
+- **33. One name per level.** The measure keeps the generic names (`n_points`, `permutation_under`), and the quadrature keeps the angular ones (`n_ordinates`, `ordinate_permutation`). `N` retires, and the two 1e-13 constants become one.
+- **Module names** (the orchestrator's call): the frame's faces go in `frame_faces.py`, the nine concrete leaves in `elementary_operators.py`, and the lift in `axis_marginal.py`.
+
+**G0 LANDED** (`tests/gates/numerics/test_concept_order.py`). `[M]` 2026-10-19: its edge builder equals the step-3 control's (108 edges between modules = 123 less the 15 into the package root); a planted backward import is detected; with `PENDING` emptied the order test reddens on exactly 17 edges. **The 17 pending edges, by package:**
+- M2: 2;
+- M3: 2, plus `frame` importing `space`, shared with S1;
+- M4: 6;
+- M6: 1;
+- S1: 2;
+- S3: 1;
+- S4: 1;
+- S5: 1.
+
+M1, M5 and M7 remove no pending edge. M1 adds the `recurrence` module and M7 two new modules, already ranked; they are moves the order needs for the concepts, not repairs. An edge from `measure` into `invariance` is pending for S5 (the measure's five invariance wrappers).
+
+⏸ **Next:** dispatch wave 2 (M1, M3, M4), each in its own worktree with a brief written to ruling 18's form. Then write S1's design for the user.
