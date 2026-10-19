@@ -11790,3 +11790,16 @@ calculus: measure the unit cost a recommendation multiplies before using a relay
   silent fork's child SIGSEGVed. Count OS threads directly (`ps -M` / proc_pidinfo); a missing warning is no witness.
 - `packages_distributions()` maps a namespace top to `names[0]`: the wrong distribution's version pinned
   (sphinxcontrib/tikz.py -> applehelp). A top-level map answers a per-FILE ownership question approximately.
+
+## L116 — numerics untangling S1 (the axis owns its unit): a free vector in a self-consistent algebra, and the variance of a modal head's coordinates (2026-10-19)
+
+- The lift R = (G u)^T, pi* = u, E = u/(u^T G u) satisfies reciprocity and R o E = id for EVERY nonzero u. The design's
+  gates 3 and 4 were therefore 0 of 38 red under u = e_0 and under u := m; only "u is the constant" (against an
+  independent evaluator) and "<m, c> is the integral" (against an independent rule or a commuting square with the nodal
+  marginal) saw it. Spec: `scratch/numerics_untangling/packages/S1_gate_spec.md`, battery `S1_gates/battery/table.txt`.
+- The production moment heads (frame-dressed, metric = pinv of the discrete Gram) carry COVARIANT moments, so the
+  coordinates of 1 are B e_0, not e_0; the basis-minted heads carry contravariant coefficients under the continuum Gram,
+  where e_0 is right. The design's "delegate to the basis" was correct only on the heads nothing in production uses.
+  [M] u = e_0 integrates to (1/Sigma w) x the truth on 8 of 9 heads, and to a non-multiple on folded(4,4) L4.
+- Side measurements: today's section divisor (the retired frame's 3-operand Gram einsum) is the WORST of six spellings
+  against fsum (39 ULP at lebedev29); R o E is non-bit-exact on 118 of 120 rules (law <= N/3 ULP), refuting a DSA comment.

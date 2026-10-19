@@ -720,3 +720,32 @@ M1, M5 and M7 remove no pending edge. M1 adds the `recurrence` module and M7 two
 - **35. M4 splits.** M4a (retire `mass_matrix`) and M4b (the axis mint moves to the axis side: `Axis.of_measure`, `Axis.of_quadrature`) are mechanical. The coefficient space of a basis (`basis.space`, `for_basis`) and the sampled space of a measure (`DiscreteMeasure.space`) become **S7**, designed by the main agent with the user after wave 2. G0's `PENDING` labels are updated to match.
 
 Wave 2 = M1, M3, M4a and M4b. Baseline at dispatch: `main` `e7ad3127` plus this commit. M1's trusted checker is `scratch/numerics_untangling/packages/m1_snapshot.py` (`[M]` on `main`: 234 rules and recurrence rows, digest `e2d578f3…`).
+
+**36. The axis owns its unit, not its covector** (the user, 2026-10-19, refining ruling 10). The axis owns u, the coordinates of the constant function 1: ones on a nodal axis, the expansion of 1 on a modal one. The covector of integration is m = G_k u, from the space's metric block. Then R = mᵀ ⊗ id, Rᴴ = π* = u ⊗ id (exact under the product metric, with no inverse of G), and E = u/⟨m,u⟩ ⊗ id. The nodal case is today's collapse pair. An axis whose basis cannot represent 1 refuses with that reason. The modal and positioned-form refusals retire. Design: `scratch/numerics_untangling/packages/S1_design.md`. The lift's four classes move to `axis_marginal.py` in S1, not in M7.
+
+**S1's gate spec corrected the design** (`[M]` the test-architect, `scratch/numerics_untangling/packages/S1_gate_spec.md`, on `cd9e7e18`):
+- Every production `SNProblem.moment_space(L)` head is frame-dressed. It holds covariant moments under the pseudo-inverse of the discrete Gram B (to 1.9e-15, 9 of 9 heads), so the constant's coordinates there are B e₀, not e₀. With u = e₀ the marginal is the integral divided by Σw on 8 of 9 heads, and not proportional on `folded_product(4,4)` at L = 4.
+- Reciprocity and R∘E hold for any nonzero u: 38 of 38 rows stay green with the wrong unit. Only the unit and integration gates see it.
+- The product-metric condition fails on 0 of 112 (space, axis) pairs over 39 multi-axis spaces: `_require_positioned_over` makes it structural on axis-built spaces.
+- The LD spatial-moment axis is MODAL with no generator.
+- `dsa.py:595-597`'s "bit-exactly on every rule" is false: R∘E is not bit-exact on 118 of 120 rules (≤ N/3 ULP).
+- Across the gates, 179 of 293 rows are red on today's tree, each for its named reason.
+
+**37. The unit is minted with the axis** (the user, 2026-10-19). u is an axis field set by whatever mints the axis, like the weights: ones for a measure; the coefficients of 1 for a basis; the analysis of 1, Φᵀw from the frame's data, when a frame dresses a head; e₀ at the LD scheme's moment-axis mint. This is the stage-2 rule: the forgetful image keeps the induced data, and the generator stays provenance.
+**38. The section's divisor is the correctly rounded mass** ⟨m,u⟩ (`math.fsum`) (the user, 2026-10-19). Moved pins are re-baselined under the three-condition rule and listed in the S1 commit (61 to 79 of 120 rules differ from today's bits; the LS4 2-D regression cases by 2 ULP).
+- The orchestrator's calls: the "constant not in the span" refusal is dropped (F5: nothing in the tree can trigger it, so it would be an unwitnessed guard); `dsa.py`'s false comment is corrected in the S1 commit; the archivist gives the modal marginal a theory label, so G2 can carry `verifies`.
+
+## ⏹ WAVE 2 — LANDED 2026-10-19 (M1 `2071c98e`, M3 `1ecbc64a`, M4a `cac6d401`, M4b `4e1f2182`, review fixes `9e2dd251`)
+
+Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
+- **M1.** `orpheus/numerics/recurrence.py` holds `RecurrenceCoefficients`, the private lift `_at_digits`, the four closed forms, `jacobi_recurrence` and `laguerre_recurrence`. `[M]` the trusted checker `m1_snapshot.py` prints the same digest (234 rows, `e2d578f3…`) after the move.
+- **M3.** `orpheus/numerics/frame_faces.py`: `FrameAnalysis.of`, `FrameReconstruction.of`, `CrossGramInverse.of`, and the functions `basis_space`, `test_space`, `measure_space`, `conjugate`, `reconstruct_after`, `project`. Two departures from ruling 34's text:
+  - The cache is not the `cached_property` slot under the old names. The elegance review found that writing `frame.__dict__["analysis"]` resurrects `frame.analysis` depending on call order. The faces live in one private slot, `frame.__dict__["_frame_faces"]`, behind one helper `_face`.
+  - The Galerkin override is `isinstance(frame, GalerkinFrame)`, not `frame.test is frame.basis`. The two differ on `PetrovGalerkinFrame(b, m, b)`: the identity predicate gives it the dressed test space, while the isinstance predicate gives it `test.space`, undressed. The tree had the isinstance behaviour, so M3 kept it. The mathematics favours the identity predicate. **This is a user ruling owed at S7.**
+- **M4a.** `Basis.mass_matrix` and its 5 overrides are retired; tests read `GalerkinFrame(...).discrete_gram`. `frame-discrete-gram` lost its `documented` sentinel. It is now verified by `test_frame_discrete_gram_against_lebedev`, which qa's perturb arm reddens.
+- **M4b.** `Axis.of_measure` and `Axis.of_quadrature` are classmethods on the axis. The `AngularMeasure` Protocol's `axis` member is deleted, and the reduced-operator factories are annotated `Quadrature`. Recorded, not taken: `Axis.of_measure` ignores `cls` (S7 revisits the axis constructors).
+- **Review.** qa passed all five checks: 56 of 56 identities; 9 of 9 markers migrated; the mutation arms redden every migrated test; 0 silent monkeypatches. The elegance review raised two blockers (the cache and three false sentences), both fixed in `9e2dd251`.
+- `[M]` wide run on the integrated branch: 17 of 17 test directories exit 0 (numerics 4542 passed, sn 3834, derivations 3098, the root gates 611, …; `scratch/numerics_untangling/packages/wave2_wide/summary.txt`). After the fixes, numerics, transport, data and sn reran with the same counts. Sphinx -W exit 0. dead_references 0 of 66 (positive control: the new nodes are present).
+- G0's `PENDING` now holds 13 edges: M2 2, S7 3, M6 1, S1 4, S3 1, S4 1, S5 1.
+
+⏸ **Next:** wave 3, which is M2, M5 and S1. The main agent writes S1 from `S1_design.md` (its REVISED section) and `S1_gate_spec.md`, under rulings 36 to 38. M2 and M5 are delegable, one worktree each.

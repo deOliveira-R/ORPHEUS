@@ -478,6 +478,11 @@ shelf life — check it against a concrete row before trusting a green.
   moments; checked to K = 32, broken at K >= 48). And a carve that changes WHAT an error is relative to (the whole piece's
   max|f| against the layer's value) reddens componentwise rows honestly: report it as a contract ruling, never a band. → `L113`
 
+- **⛔ When a new case enters an algebra through a FREE VECTOR (a unit, a seed, a gauge), the algebra's own laws
+  (reciprocity, a section identity) hold for every value of it** — gate the vector against an independent ground
+  and gate one functional it determines; then read which coordinates the new case carries (covariant moments under
+  G⁺ versus contravariant coefficients under G) before accepting "the nodal case is today's". → `L116`
+
 ## 5. Tolerance is a claim — choose it per law, from measurement
 
 - **State the law in the direction that IS a float theorem, and normalise a
