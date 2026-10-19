@@ -68,6 +68,7 @@ from numpy.typing import NDArray
 from orpheus.numerics.units import ANGULAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import AngularField
 from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.numerics.axis_marginal import AxisSectionOperator
 
 if TYPE_CHECKING:
     from orpheus.sn.problem import SNProblem
@@ -144,8 +145,10 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
 
         Producer-side Pattern 7 normalisation: applies the ``/sum_w``
         projection and broadcasts across the :math:`N` ordinates —
-        realized (CS4b S6.2) by the space's frame-induced section
-        :meth:`~orpheus.numerics.space.FunctionSpace.section`. Returns a
+        realized (CS4b S6.2) by the angular axis's section
+        :meth:`AxisSectionOperator.of
+        <orpheus.numerics.axis_marginal.AxisSectionOperator.of>`, whose
+        divisor is the correctly rounded mass. Returns a
         per-ordinate source whose every ordinate slice equals
         ``iso_values / sum_w``.
 
@@ -190,7 +193,7 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
         # survives as the ergonomic producer entry (ruled 2026-08-24:
         # re-key now; its retirement question is re-posed at S7).
         space = cls._space_for_problem(problem)
-        return cls(values=space.section("angular").apply(iso_values), space=space)
+        return cls(values=AxisSectionOperator.of(space, "angular").apply(iso_values), space=space)
 
     # ── Selectors ────────────────────────────────────────────────────
 

@@ -53,6 +53,7 @@ from orpheus.transport.operators.isotropic_transfer import (
 from orpheus.transport.operators.n2n import N2NOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.numerics.axis_marginal import AxisRetractionOperator
 
 pytestmark = pytest.mark.foundation
 
@@ -326,7 +327,7 @@ def test_the_scalar_subspace_is_the_codomains_memoised_angular_marginal():
     S = _lifts(sn)["S_L0"]
     interior = sn.full_field_space.interior_space
     assert interior is not None
-    marginal = interior.retraction("angular").codomain
+    marginal = AxisRetractionOperator.of(interior, "angular").codomain
     assert S._scalar_interior_space is marginal
     assert S.isotropic_energy.domain is marginal
     phi = _state(sn, 3).interior.integrate_angular()

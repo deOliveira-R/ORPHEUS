@@ -36,6 +36,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
+from orpheus.numerics.axis_marginal import AxisRetractionOperator
 
 from tests.gates.sn._test_helpers import placeholder_materials
 
@@ -296,14 +297,14 @@ class TestMetadata:
             psi.ny
 
 
-class TestIntegrateAngularRidesTheCollapsePair:
-    """CS4b S6.2: both halves of the reduction ride the space's ONE
-    memoized frame-induced collapse pair."""
+class TestIntegrateAngularRidesTheAxisMarginal:
+    """CS4b S6.2: both halves of the reduction ride the angular axis's ONE
+    memoized marginal (:mod:`orpheus.numerics.axis_marginal`)."""
 
     def test_space_is_the_memoized_marginal(self) -> None:
         m = _slab_mesh()
         psi = AngularFlux.zeros(m.angular_bulk_space)
         phi = psi.integrate_angular()
-        R = m.angular_bulk_space.retraction("angular")
+        R = AxisRetractionOperator.of(m.angular_bulk_space, "angular")
         assert phi.space is R.codomain
         assert phi.space == m.bulk_space

@@ -6,7 +6,13 @@ step 5 moved it onto the one content encoder,
 :class:`~orpheus.numerics.content.ContentIdentity`. Its parts are its
 dataclass fields: ``generator`` is provenance, not identity (the module
 docstring's slot table, ruling of 2026-08-20), so it is declared
-``field(compare=False)``, the encoder's one spelling of "not content".
+``field(compare=False)``, the encoder's one spelling of "not content". The
+``unit`` (the coordinates of the constant function, numerics-untangling ruling
+39) is content on a MODAL axis only: a nodal unit is all ones by the kind, so
+``Axis.content_parts`` drops it there and every nodal digest is the one it was
+before the unit existed. The nodal entries therefore declare
+``fields_are_parts=False``; the modal entries carry ``unit`` as a part with its
+own perturbation leg.
 
 The roster also holds :class:`~orpheus.numerics.content.FrozenMapping`, the
 one frozen mapping value the content types hold (``Materials``, ``BC``
@@ -54,13 +60,18 @@ def _energy(**kw) -> EnergyAxis:
     return EnergyAxis(**(base | kw))
 
 
+_E0 = np.array([1.0, 0.0])
+
+
 def _harmonic(**kw) -> HarmonicAxis:
-    base: dict[str, Any] = dict(label="angular", shape=(2,), weights=_W, kind=BasisKind.MODAL)
+    base: dict[str, Any] = dict(label="angular", shape=(2,), weights=_W, kind=BasisKind.MODAL, unit=_E0)
     return HarmonicAxis(**(base | kw))
 
 
 def _legendre(**kw) -> LegendreAxis:
-    base: dict[str, Any] = dict(label="angular", shape=(2,), weights=_W, kind=BasisKind.MODAL, spent_axis="z")
+    base: dict[str, Any] = dict(
+        label="angular", shape=(2,), weights=_W, kind=BasisKind.MODAL, spent_axis="z", unit=_E0,
+    )
     return LegendreAxis(**(base | kw))
 
 
@@ -77,17 +88,33 @@ def _forged(value, name: str, part):
 
 def _base_legs(build) -> dict:
     """A leg per base part, for any member's builder (the shape leg moves the
-    weights with it, since the weights live on the shape)."""
+    weights with it, since the weights live on the shape; on a modal member it
+    moves the unit too). The kind leg mints the other kind lawfully: a nodal
+    axis turned modal is given a unit, a modal one turned nodal drops its unit
+    (which then leaves the content, the declared co-mover)."""
+    if build().kind is BasisKind.NODAL:
+        return {
+            "label": (leg("another role", lambda: build(label="other")),),
+            "shape": (leg("another shape", lambda: build(shape=(3,), weights=np.array([0.5, 1.5, 2.0])), "weights"),),
+            "kind": (leg("the other kind", lambda: build(kind=BasisKind.MODAL, unit=_E0)),),
+            "weights": (leg("one weight", lambda: build(weights=np.array([0.5, 2.5]))),),
+        }
     return {
         "label": (leg("another role", lambda: build(label="other")),),
-        "shape": (leg("another shape", lambda: build(shape=(3,), weights=np.array([0.5, 1.5, 2.0])), "weights"),),
-        "kind": (leg("the other kind", lambda: build(kind=BasisKind.MODAL if build().kind is BasisKind.NODAL else BasisKind.NODAL)),),
+        "shape": (leg(
+            "another shape",
+            lambda: build(shape=(3,), weights=np.array([0.5, 1.5, 2.0]), unit=np.array([1.0, 0.0, 0.0])),
+            "weights", "unit",
+        ),),
+        "kind": (leg("the other kind", lambda: build(kind=BasisKind.NODAL, unit=None), "unit"),),
         "weights": (leg("one weight", lambda: build(weights=np.array([0.5, 2.5]))),),
+        "unit": (leg("the moments of one, not e0", lambda: build(unit=np.array([2.0, 0.0]))),),
     }
 
 
 _AXIS = Entry(
     cls=Axis, base=_axis, parts=("label", "shape", "weights", "kind"),
+    fields_are_parts=False,  # a content_parts() override: a nodal unit is not content
     perturb=_base_legs(_axis),
     pairs=(
         ("two builds", _axis, _axis),
@@ -99,6 +126,7 @@ _AXIS = Entry(
 
 _ENERGY = Entry(
     cls=EnergyAxis, base=_energy, parts=("label", "shape", "weights", "kind", "edges"),
+    fields_are_parts=False,  # a content_parts() override: a nodal unit is not content
     perturb=_base_legs(_energy) | {
         "shape": (leg("another shape", lambda: _energy(shape=(3,), edges=np.array([1.0, 2.0, 3.0, 4.0])), "edges"),),
         # An EnergyAxis is NODAL with the counting measure BY CONSTRUCTION, so
@@ -113,14 +141,14 @@ _ENERGY = Entry(
 )
 
 _HARMONIC = Entry(
-    cls=HarmonicAxis, base=_harmonic, parts=("label", "shape", "weights", "kind"),
+    cls=HarmonicAxis, base=_harmonic, parts=("label", "shape", "weights", "kind", "unit"),
     perturb=_base_legs(_harmonic),
     pairs=(("two builds", _harmonic, _harmonic),),
 )
 
 _LEGENDRE = Entry(
     cls=LegendreAxis, base=_legendre,
-    parts=("label", "shape", "weights", "kind", "spent_axis"),
+    parts=("label", "shape", "weights", "kind", "unit", "spent_axis"),
     perturb=_base_legs(_legendre) | {
         "spent_axis": (leg("the other pole", lambda: _legendre(spent_axis="x")),),
     },

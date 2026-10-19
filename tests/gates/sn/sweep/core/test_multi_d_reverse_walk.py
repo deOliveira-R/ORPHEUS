@@ -1241,7 +1241,7 @@ def test_tail_mismatch_refuses_loudly():
         # CS4c step 6 item 6.2c-iii the tail is always an axis, never a class)
         space=FunctionSpace.of_axes(
             *sn.angular_bulk_space.axes,
-            Axis(SPATIAL_MOMENT_AXIS_LABEL, (4,), kind=BasisKind.MODAL),
+            Axis(SPATIAL_MOMENT_AXIS_LABEL, (4,), kind=BasisKind.MODAL, unit=np.eye(4)[0]),
         ),
     )
     bad = FullField(interior=bad_interior, boundary=phi.boundary)

@@ -123,6 +123,7 @@ from orpheus.geometry.boundary import (
     law_permutes_ordinates,
 )
 from orpheus.numerics.operator import LinearOperator
+from orpheus.numerics.axis_marginal import AxisSectionOperator
 
 if TYPE_CHECKING:
     from orpheus.numerics.quadrature.directional import Quadrature
@@ -592,11 +593,13 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         # `[M]` bit-identical to that slot on 5 of 5 Gauss–Legendre rules.
         mu_row = np.asarray(quadrature.axis_cosines(0), dtype=float)
         #: The P0 injection is the angular axis's SECTION (#520): its
-        #: divisor is the frame's 1×1 Gram entry, the same datum the
-        #: restriction ``integrate_angular`` is the analysis face of, so
-        #: ``R∘P = I`` holds bit-exactly on every rule (``w.sum()``
-        #: differs from the Gram entry by 1 ULP at GL8).
-        self._section = angular_bulk_space.section("angular")
+        #: divisor is the mass Σw, summed correctly rounded (numerics-
+        #: untangling ruling 38), and the restriction ``integrate_angular``
+        #: is the same axis's retraction, so ``R∘P = I`` holds to the
+        #: re-association of Σ w_n/Σw: `[M]` at most N/3 ULP over 120
+        #: shipped rules, N the ordinate count (``test_dsa_low_order.py``
+        #: asserts ``rtol = N·ε``). It is not bit-exact on 118 of them.
+        self._section = AxisSectionOperator.of(angular_bulk_space, "angular")
         self._sum_w = self._section.total_weight
         self._w_mu = w * mu_row
         self._mu = mu_row

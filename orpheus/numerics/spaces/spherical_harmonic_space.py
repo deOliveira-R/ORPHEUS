@@ -201,12 +201,18 @@ class SphericalHarmonicSpace(FunctionSpace):
         """
         L = basis.L
         shape = (L + 1, 2 * L + 1)
+        # The coefficients of the constant function 1: this family carries
+        # Y_00 = 1 (its l = 0 metric is 4π), so 1 = Y_00 and the unit is e_0
+        # at the (l, l + m) = (0, 0) slot (ruling 37).
+        unit = np.zeros(shape)
+        unit[0, 0] = 1.0
         head_axis = HarmonicAxis(
             "harmonic",
             shape,
             _padded_metric_tensor(L, basis.metric_per_ell),
             kind=BasisKind.MODAL,
             generator=basis,
+            unit=unit,
         )
         return cls(
             name="spherical_harmonic_space",

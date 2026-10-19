@@ -36,8 +36,8 @@ orbit (:math:`\int_0^{2\pi} q\,\mathrm d\varphi`, which is
 :math:`2\pi q` when q does not depend on :math:`\varphi`). That
 pushforward is part of projecting a specification onto a method's unknowns
 (#405 phase P4), not of this module. The discrete arrows are
-:class:`~orpheus.numerics.operator.AxisSectionOperator` and
-:class:`~orpheus.numerics.operator.AxisPullbackOperator`; the continuous
+:class:`~orpheus.numerics.axis_marginal.AxisSectionOperator` and
+:class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`; the continuous
 ones are Branch 1's, :mod:`orpheus.derivations.common.angular_measure`.
 
 **The chart.** :math:`\mu` and :math:`\varphi` are read in the chart the

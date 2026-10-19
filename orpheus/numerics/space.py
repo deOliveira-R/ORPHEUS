@@ -40,7 +40,8 @@ ordered product of its axes (:class:`~orpheus.numerics.axis.Axis`):
   are selectors over its signed :math:`\Omega\cdot\hat n`, not
   directional tags.
 * ``RegionSpace`` — a coarser stage of the same filtration, reached by
-  the collapse pair (retraction and section), not by a class.
+  the axis marginal (:mod:`orpheus.numerics.axis_marginal`: retraction
+  and section), not by a class.
 * ``EnergyGroupSpace`` — :class:`~orpheus.numerics.axis.EnergyAxis`, a
   one-dimensional mesh in energy.
 * ``DiscreteAngularSpace`` —
@@ -68,7 +69,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Any, Generic, Optional, TYPE_CHECKING, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -82,15 +83,6 @@ from .metric import (
     HilbertMetric,
 )
 
-if TYPE_CHECKING:
-    from orpheus.numerics.frame import _AxisCollapsePair
-    from orpheus.numerics.operator import (
-        AxisRetractionOperator,
-        AxisSectionOperator,
-        LinearOperator,
-        RieszLowerOperator,
-        RieszRaiseOperator,
-    )
 
 __all__ = [
     "DualSpace",
@@ -452,10 +444,9 @@ class FunctionSpace(Generic[Carrier]):
         """Position of the unique axis labeled ``label`` in :attr:`axes`.
 
         The one home of by-label axis resolution: the public
-        :meth:`axis` accessor and the collapse-pair mint
-        (:func:`orpheus.numerics.frame._collapse_pair`) both route
-        through here, so the refusal vocabulary cannot drift between
-        them.
+        :meth:`axis` accessor and the axis-marginal mint
+        (:mod:`orpheus.numerics.axis_marginal`) both route through here,
+        so the refusal vocabulary cannot drift between them.
         """
         if self.axes is None:
             raise TypeError(
@@ -481,7 +472,7 @@ class FunctionSpace(Generic[Carrier]):
         count, ``space.axis("spatial").shape`` the spatial shape.
         Refuses a legacy name-built space (``axes is None``, TypeError)
         and a label naming zero or several axes (ValueError, naming the
-        inventory) — the same vocabulary the collapse pair refuses in
+        inventory) — the same vocabulary the axis marginal refuses in
         (shared resolver).
         """
         k = self._axis_index(label)
@@ -534,100 +525,6 @@ class FunctionSpace(Generic[Carrier]):
         if self.axes is None:
             raise TypeError(f"with_axis: {self!r} is not axis-built (axes is None)")
         return FunctionSpace.of_axes(*self.axes, axis)._with_overlay(self._overlay_forms() + (None,))
-
-    # ------------------------------------------------------------------
-    # Axis collapse — the retraction / section pair (CS4b S6.0b)
-    # ------------------------------------------------------------------
-
-    def _axis_collapse_pair(self, axis_label: str) -> "_AxisCollapsePair":
-        r"""Memoized mint of the axis collapse pair (one mint per axis label).
-
-        The pair is frame-induced at ONE site
-        (:func:`orpheus.numerics.frame._collapse_pair` — the stage-2
-        generator discipline: both inductions minted together, generator
-        discarded) and cached in the frozen dataclass's ``__dict__`` (the
-        F-0 ``basis_space`` pre-seed pattern), so both verbs share one
-        mint and carriers that cache their spaces get warm operators for
-        free — ``sn.angular_bulk_space.retraction("angular")`` costs the
-        frame build once per carrier.
-        """
-        cache: dict[str, "_AxisCollapsePair"] = self.__dict__.setdefault(
-            "_collapse_pairs", {}
-        )
-        if axis_label not in cache:
-            from orpheus.numerics.frame import _collapse_pair
-
-            cache[axis_label] = _collapse_pair(self, axis_label)
-        return cache[axis_label]
-
-    def retraction(self, axis_label: str) -> "AxisRetractionOperator":
-        r"""Mint (memoized) the retraction :math:`R = \pi_*` over the named axis.
-
-        The measure contraction of the axis's factor —
-        :math:`(R\psi)(\cdot) = \sum_n w_n \psi(n, \cdot)`: fiber
-        integration (the pushforward :math:`\pi_*` along the projection
-        that forgets the axis) — the angular flux reduction when the
-        axis is ``"angular"`` (`[M]` bit-identical with the shipped
-        einsum, G6.5), the volume integral on ``"spatial"``.
-
-        **Frame-induced**: the pair is the single-region indicator
-        frame's output, minted once per axis at
-        :func:`orpheus.numerics.frame._collapse_pair` and memoized on
-        this space — both arrows come from that one mint (the stage-2
-        generator's two-inductions clause; the frame itself is
-        discarded, per the forgetful-map discipline). Born bound: domain
-        is THIS space, codomain the same product with the axis dropped
-        (remaining measures and positioned forms intact, so the full
-        metric is (the axis measure) ⊗ (the marginal metric)), and ``.H``
-        is the Hilbert adjoint in closed form, the pullback :math:`\pi^*`
-        (:class:`~orpheus.numerics.operator.AxisPullbackOperator`), the
-        plain broadcast.
-
-        The section satisfying :math:`R \circ E = \mathrm{id}` is
-        :meth:`section` — a DIFFERENT arrow
-        (:math:`R^\dagger = \Sigma w \cdot E` up to rounding, `[M]` at
-        most 2 ULP); the
-        split epi/mono pair carries the canonical names (retraction /
-        section, Mac Lane CWM §I.5) so the :math:`\Sigma w` convention
-        is unspellable to swap (ERR-051).
-
-        A typed :class:`~orpheus.numerics.axis.EnergyAxis` is REFUSED
-        (collapse doctrine clause 2 — condensation owns that collapse);
-        see the mint's docstring for the full admission table.
-        """
-        return self._axis_collapse_pair(axis_label).retraction
-
-    def section(self, axis_label: str) -> "AxisSectionOperator":
-        r"""Mint (memoized) the section :math:`E` of the axis retraction.
-
-        The measure-normalized right inverse — the constant-along-the-
-        axis field whose retraction reproduces the input,
-        :math:`(E\phi)(n, \cdot) = \phi(\cdot)/\Sigma w`; DEFINED
-        by :math:`R \circ E = \mathrm{id}` (up to rounding, `[M]` at most
-        4 ULP on Gauss-Legendre 16 and ``folded_product(4, 8)``; the
-        canonical name for the right inverse of a retraction — split
-        monomorphism). On the ``"angular"`` axis this is the
-        isotropic-source projection :math:`Q/\Sigma w` broadcast across
-        the ordinates. The divisor is frame-induced — the rank-one
-        frame's 1×1 ``discrete_gram`` entry (the Parseval metric), read
-        at the shared mint (see :meth:`retraction`). Born bound: domain
-        is the marginal space, codomain THIS space.
-        :math:`E \circ R` is the conditional expectation onto
-        axis-constant functions.
-
-        Refuses an axis whose SIGNED measure sums to zero: the rank-one
-        Gram is singular — the frame has no canonical dual, so no
-        section exists (the retraction over the same axis stays legal).
-        """
-        pair = self._axis_collapse_pair(axis_label)
-        if pair.section is None:
-            raise ValueError(
-                f"FunctionSpace.section: axis {axis_label!r} of {self!r} "
-                f"has zero total weight (a signed measure summing to 0) "
-                f"— the section divides by Σw, so none exists. The "
-                f"retraction over this axis is still legal."
-            )
-        return pair.section
 
     # ------------------------------------------------------------------
     # Inner product / norm
@@ -851,42 +748,6 @@ class FunctionSpace(Generic[Carrier]):
             other.factors if isinstance(other, TensorProductSpace) else (other,)
         )
         return TensorProductSpace.from_factors(self_factors + other_factors)
-
-    @property
-    def riesz_lower(self) -> "RieszLowerOperator":
-        r"""The Riesz LOWERING leg :math:`\flat : V \to V^*` — ``G x``.
-
-        The inner product's isomorphism onto the dual, as a first-class
-        arrow (CS4c R2): delegates to :meth:`apply_metric`, so the metric
-        arithmetic stays single-sourced; what the leg adds is the
-        bookkeeping (``domain = V``, ``codomain = V.dual()``) and an
-        individually-testable, individually-MUTABLE seam — the
-        codomain-side factor of the Hilbert adjoint
-        ``A* = domain.riesz_raise ∘ A.dual() ∘ codomain.riesz_lower``.
-
-        PRIMAL spaces only — the leg's constructor refuses a
-        :class:`DualSpace` (which deliberately carries its primal's
-        metric, so a dual-side ♭ would be the G² trap; see the leg class).
-        """
-        from orpheus.numerics.operator import RieszLowerOperator
-
-        return RieszLowerOperator(self)
-
-    @property
-    def riesz_raise(self) -> "RieszRaiseOperator":
-        r"""The Riesz RAISING leg :math:`\sharp : V^* \to V` — ``G⁺ f``.
-
-        The mirror of :attr:`riesz_lower` (Moore–Penrose by the metric
-        family's doctrine): delegates to :meth:`apply_inverse_metric`;
-        ``domain = V.dual()``, ``codomain = V``. The domain-side factor
-        of the Hilbert adjoint. The round trip
-        ``riesz_raise ∘ riesz_lower`` is :math:`P_{\mathrm{range}(G)}` —
-        the identity iff the metric is strictly positive (a singular
-        trace block projects its tangential slots to zero).
-        """
-        from orpheus.numerics.operator import RieszRaiseOperator
-
-        return RieszRaiseOperator(self)
 
     def dual(self) -> "FunctionSpace":
         r"""Return the dual space :math:`V^*`.

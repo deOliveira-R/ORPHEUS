@@ -6,8 +6,8 @@ named composition
 .. math::
 
    A^{*} \;=\; \sharp_V \circ A^{\mathsf T} \circ \flat_W
-   \qquad (\text{``domain.riesz_raise} \circ \text{A.dual()} \circ
-   \text{codomain.riesz_lower''})
+   \qquad (\text{``RieszRaiseOperator(domain)} \circ \text{A.dual()} \circ
+   \text{RieszLowerOperator(codomain)''})
 
 with the legs delegating to the space's single-sourced metric verbs. This
 module is the legs' DIRECT witness set (the composition's end-to-end
@@ -140,7 +140,7 @@ def test_round_trip_is_identity_on_a_strictly_positive_metric():
             "identity) holds ONLY for a strictly positive metric"
         )
     x = np.array([0.2, 1.1, -0.4])
-    rt = V.riesz_raise.apply(V.riesz_lower.apply(x))
+    rt = RieszRaiseOperator(V).apply(RieszLowerOperator(V).apply(x))
     np.testing.assert_array_equal(rt, x)
 
 
@@ -152,7 +152,7 @@ def test_round_trip_is_the_range_projector_on_a_singular_metric():
     four geometries carry 0 tangential slots)."""
     Vs = _vs()
     x = np.array([1.0, 2.0, 3.0, 4.0])
-    rt = Vs.riesz_raise.apply(Vs.riesz_lower.apply(x))
+    rt = RieszRaiseOperator(Vs).apply(RieszLowerOperator(Vs).apply(x))
     expected = np.where(_W_SINGULAR != 0.0, x, 0.0)
     assert np.all(np.isfinite(rt)), (
         f"round trip produced non-finite values {rt} — ♯ is 1/G, not the "
@@ -172,7 +172,7 @@ def test_lowering_realizes_the_metric_pairing():
     V = _v()
     x = np.array([0.7, -1.2, 0.9])
     y = np.array([2.0, 0.3, -0.8])
-    lhs = float(np.sum(V.riesz_lower.apply(x) * y))
+    lhs = float(np.sum(RieszLowerOperator(V).apply(x) * y))
     rhs = float(np.sum((_W_POSITIVE * x) * y))
     assert lhs == rhs, f"Riesz pairing broken: {lhs} != {rhs}"
 
@@ -255,7 +255,7 @@ def test_the_legs_refuse_a_dual_space():
     with pytest.raises(TypeError, match="PRIMAL space only"):
         RieszRaiseOperator(dual)
     # positive leg (vv #11): the primal constructs both, ends correct.
-    low, high = V.riesz_lower, V.riesz_raise
+    low, high = RieszLowerOperator(V), RieszRaiseOperator(V)
     assert low.domain == V and isinstance(low.codomain, DualSpace)
     assert high.codomain == V and isinstance(high.domain, DualSpace)
 

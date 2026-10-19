@@ -455,7 +455,8 @@ def _axis_field(values, kind):
     from orpheus.numerics.axis import Axis, BasisKind
 
     arr = np.asarray(values, dtype=float)
-    space = FunctionSpace.of_axes(Axis("p", arr.shape, kind=kind))
+    unit = np.eye(arr.size)[0].reshape(arr.shape) if kind is BasisKind.MODAL else None
+    space = FunctionSpace.of_axes(Axis("p", arr.shape, kind=kind, unit=unit))
     return _DummyField(values=arr, space=space), BasisKind
 
 

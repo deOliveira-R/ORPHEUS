@@ -238,7 +238,7 @@ def test_basis_kind_participates_in_identity() -> None:
     refusal would be reachable through the wrong space.
     """
     nodal = Axis("x", (3,), kind=BasisKind.NODAL)
-    modal = Axis("x", (3,), kind=BasisKind.MODAL)
+    modal = Axis("x", (3,), kind=BasisKind.MODAL, unit=np.eye(3)[0])
     _require(nodal != modal, "basis kind must participate in identity")
 
 
@@ -287,7 +287,7 @@ def test_energy_axis_refuses_weights_and_modal_kind() -> None:
     with pytest.raises(ValueError, match="[Cc]ounting|theorem"):
         EnergyAxis("energy", (2,), weights=np.array([2.0, 5.0]), kind=BasisKind.NODAL)
     with pytest.raises(ValueError, match="NODAL"):
-        EnergyAxis("energy", (2,), kind=BasisKind.MODAL)
+        EnergyAxis("energy", (2,), kind=BasisKind.MODAL, unit=np.eye(2)[0])
     ones_spelled = EnergyAxis("energy", (2,), weights=np.ones(2), kind=BasisKind.NODAL)
     _require(
         ones_spelled == EnergyAxis.synthetic(2),

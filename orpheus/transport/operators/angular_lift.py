@@ -111,6 +111,7 @@ from orpheus.transport.source_sinks import (
     ScalarSourceSink,
 )
 from orpheus.numerics import frame_faces
+from orpheus.numerics.axis_marginal import AxisRetractionOperator
 
 if TYPE_CHECKING:
     from orpheus.numerics.operator import LinearOperator, OperatorProduct
@@ -354,7 +355,7 @@ class AngularLift(CompositeBound, Generic[EnergyT]):
         domain agree by IDENTITY, and the angular marginal has one
         spelling on this tier (the elegance review's S6 — a positional
         ``of_axes(*axes[1:])`` was a second one, 39× dearer per read)."""
-        return self._codomain_interior.retraction("angular").codomain
+        return AxisRetractionOperator.of(self._codomain_interior, "angular").codomain
 
     @property
     def is_adjointable(self) -> bool:

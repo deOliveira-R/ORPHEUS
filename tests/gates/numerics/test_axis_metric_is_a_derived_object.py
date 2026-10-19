@@ -89,7 +89,7 @@ def _synthetic_axes() -> tuple[Axis, ...]:
     spatial axis — every shape the realization must position."""
     head_w = np.array([[4.0 * np.pi, 0.0, 0.0], [4.0 * np.pi / 3.0] * 3])
     return (
-        Axis(label="harmonic_probe", shape=(2, 3), weights=head_w, kind=BasisKind.MODAL),
+        Axis(label="harmonic_probe", shape=(2, 3), weights=head_w, kind=BasisKind.MODAL, unit=np.eye(1, 6)[0].reshape(2, 3)),
         EnergyAxis(label="energy", shape=(2,), kind=BasisKind.NODAL),
         Axis(label="spatial", shape=(4,), weights=np.array([0.5, 1.0, 1.5, 2.0]), kind=BasisKind.NODAL),
     )
@@ -166,7 +166,7 @@ def _dense_gram_on_the_head() -> tuple[tuple[Axis, ...], np.ndarray]:
     """Axes whose head block carries NO diagonal measure (a dense Gram has
     none) plus a symmetric positive-definite 6×6 form for that block."""
     axes = (
-        Axis(label="harmonic_probe", shape=(2, 3), kind=BasisKind.MODAL),
+        Axis(label="harmonic_probe", shape=(2, 3), kind=BasisKind.MODAL, unit=np.eye(1, 6)[0].reshape(2, 3)),
         Axis(label="spatial", shape=(4,), weights=np.array([0.5, 1.0, 1.5, 2.0]), kind=BasisKind.NODAL),
     )
     rng = np.random.default_rng(11)

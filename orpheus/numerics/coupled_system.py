@@ -1375,8 +1375,9 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
     :class:`~orpheus.numerics.operator.TraceRestrictionOperator` is the
     index-subset sibling (gather / scatter along an axis); this one
     selects a member SYSTEM of a :class:`CoupledField`. The
-    measure-weighted realization of a split pair (the collapse pair: the
-    constant section and the w-average retraction) lives with the frames. A shared family ABC is deliberately
+    measure-weighted realization of a split pair (the axis marginal: the
+    integrating retraction and its section, :mod:`orpheus.numerics.axis_marginal`)
+    is a different object. A shared family ABC is deliberately
     NOT minted: no consumer treats "any restriction" generically yet —
     that consumer is the CS4c restriction verb, and the type-minting rule
     defers the base to it.

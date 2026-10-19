@@ -47,6 +47,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import AngularField
+from orpheus.numerics.axis_marginal import AxisRetractionOperator
 
 if TYPE_CHECKING:
     from orpheus.sn.problem import SNProblem
@@ -122,7 +123,7 @@ class AngularFlux(AngularField):
         # memoized marginal, content-EQUAL to the carrier's cached
         # scalar bulk (the O7 marginal law's own predicate), with any
         # optional moment tail riding in the axes untouched.
-        retraction = self.space.retraction("angular")
+        retraction = AxisRetractionOperator.of(self.space, "angular")
         return ScalarFlux(
             values=retraction.apply(self.values),
             space=retraction.codomain,

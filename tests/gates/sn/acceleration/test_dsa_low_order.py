@@ -44,6 +44,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration import DSACorrection, DSALowOrderSystem
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.numerics.axis_marginal import AxisSectionOperator
 
 pytestmark = pytest.mark.foundation
 
@@ -398,7 +399,7 @@ class TestRestrictionProlongation:
             {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
         )
         corr = DSACorrection.from_problem(problem)
-        section = problem.angular_bulk_space.section("angular")
+        section = AxisSectionOperator.of(problem.angular_bulk_space, "angular")
         np.testing.assert_array_equal(corr._sum_w, section.total_weight)
         phi = np.random.default_rng(0).uniform(0.5, 2.0, (2, 4))
         injection = corr._section.apply(phi)

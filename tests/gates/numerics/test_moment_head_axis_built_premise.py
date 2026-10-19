@@ -409,7 +409,7 @@ def test_a_dense_gram_lives_positioned_on_the_axis_built_heads_own_object() -> N
 
     G = np.eye(3) + 0.25
     dense = DenseMetric.inverse_of(G)
-    axis = Axis(_HARMONIC_AXIS_LABEL, (3,), None, kind=BasisKind.MODAL)
+    axis = Axis(_HARMONIC_AXIS_LABEL, (3,), None, kind=BasisKind.MODAL, unit=np.eye(3)[0])
     with pytest.raises(ValueError, match="positioned over them"):
         FunctionSpace(name="probe", shape=(3,), axes=(axis,), metric=dense)
     head = FunctionSpace(

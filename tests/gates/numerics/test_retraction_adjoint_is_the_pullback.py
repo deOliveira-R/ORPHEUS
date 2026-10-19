@@ -1,29 +1,32 @@
 r"""The retraction's Hilbert adjoint is the pullback (#405 P1 step 6, S6.1-S6.4).
 
-The retraction :math:`R = \pi_*` integrates over one axis,
-:math:`(R\psi)(\cdot) = \sum_n w_n \psi(n, \cdot)`. When the full space's
-metric is the product (the axis measure) ⊗ (the marginal metric), its
-Hilbert adjoint is the pullback :math:`\pi^*`, the plain broadcast, with no
-metric in it:
-:math:`\langle R\psi, \phi\rangle = \sum_n w_n \langle\psi_n, \phi\rangle
-= \langle\psi, \pi^*\phi\rangle`.
+The retraction :math:`R = \pi_*` integrates over one axis against the
+covector :math:`m = G_k u` (the axis's metric block applied to its unit; on
+the nodal axes here :math:`u = 1`, so :math:`m` is the weights, or the
+positioned form's row sums on D2). When the full space's metric is the
+product :math:`G_k \otimes G_{\rm rest}`, its Hilbert adjoint is the
+pullback :math:`\pi^* = u \otimes \mathrm{id}`, the plain broadcast here,
+with no metric in it:
+:math:`\langle R\psi, \phi\rangle = \langle\psi, \pi^*\phi\rangle`.
 
 Until step 6, ``R.H`` was the generic metric sandwich ♯∘Rᵀ∘♭, the same
 operator in exact arithmetic, but rounding 1-3 ULP away from the broadcast
 (``[M]`` 2026-10-02: ``array_equal`` failed 1 178 of 1 200 draws over the
-six spaces below). The mint now returns the closed form, and it admits only
-spaces on which the product holds: it refuses an axis carrying a positioned
-form, and the marginal keeps the forms of the axes that remain (before step
-6 the marginal dropped them, the spaces D1 and D3 below).
+six spaces below). The mint now returns the closed form. Every axis-built
+space carries the product metric, and the marginal keeps the forms of the
+axes that remain (before step 6 it dropped them, the spaces D1 and D3
+below). Until S1 the mint refused a positioned form on the collapsed axis
+(D2, "two measures on one block"); since S1 that form IS :math:`G_k`, the
+covector is built with it, and D2 is a member of the population.
 
 The rows:
 
 - S6.1: ``R.H`` is the pullback type, ``R.H.H is R``, the spaces swap, and
   ``R.H.apply`` is ``array_equal`` to the broadcast.
 - S6.2: the product condition and reciprocity, the licence of the closed
-  form, with the weights read from the raw axes, never from ``R``.
-- S6.3: the mint refuses the one space family on which the product fails
-  (a form on the collapsed axis, D2), so ``.H`` needs no guard.
+  form, with the axis's metric block read from the raw axes and forms,
+  never from ``R``.
+- S6.3: the marginal keeps the kept axes' forms.
 - S6.4: the X4 witness: the closed form agrees with an explicitly built
   sandwich ``AdjointOperator(R)`` to ``nulp=4`` (measured worst 3 ULP).
 
@@ -43,11 +46,8 @@ from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.axis import Axis, BasisKind
 from orpheus.numerics.metric import DenseMetric, FactoredMetric
-from orpheus.numerics.operator import (
-    AdjointOperator,
-    AxisPullbackOperator,
-    AxisRetractionOperator,
-)
+from orpheus.numerics.axis_marginal import AxisPullbackOperator, AxisRetractionOperator
+from orpheus.numerics.operator import AdjointOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.sn.solver import _as_problem
@@ -97,7 +97,7 @@ def _population() -> dict[str, FunctionSpace]:
     """P_π: the synthetic product, the SN bulk spaces of a 3-region non-uniform
     slab at Gauss-Legendre 5, 8 and 16, that slab's linear-discontinuous trial
     space (it carries the moment axis), a 2-region cylinder's bulk space at
-    ``folded_product(4, 8)``, and the dense-form spaces D1 and D3."""
+    ``folded_product(4, 8)``, and the dense-form spaces D1, D2 and D3."""
     mats = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     slab = Mesher(StructuredGeometry.slab(
         (0.0, 0.37, 1.9, 4.13), (0, 1, 0), left=BC.vacuum, right=BC.reflective,
@@ -119,21 +119,32 @@ def _population() -> dict[str, FunctionSpace]:
     ).angular_trial_space
     spaces["cylinder folded(4,8) bulk"] = _as_problem(cyl, Quadrature.folded_product(4, 8), mats).angular_bulk_space
     spaces["D1 dense form on a kept axis"] = _d1()
+    spaces["D2 dense form on the collapsed axis"] = _d2()
     spaces["D3 (angular x spatial) * dense head"] = _d3()
     return spaces
 
 
 _NAMES = (
     "synthetic", "slab GL5 bulk", "slab GL8 bulk", "slab GL16 bulk", "slab GL8 LD trial",
-    "cylinder folded(4,8) bulk", "D1 dense form on a kept axis", "D3 (angular x spatial) * dense head",
+    "cylinder folded(4,8) bulk", "D1 dense form on a kept axis", "D2 dense form on the collapsed axis",
+    "D3 (angular x spatial) * dense head",
 )
 
 
-def _angular_weights(space: FunctionSpace) -> np.ndarray:
-    """The collapsed axis's measure, read from the raw axis (never from R)."""
+def _angular_block(space: FunctionSpace) -> np.ndarray:
+    """The collapsed axis's metric block G_k as a matrix, read from the raw
+    axis and the space's positioned forms (never from R): the form on the
+    axis's block if there is one, else diag(weights), else the identity."""
     assert space.axes is not None  # narrowing only: every member is axis-built
-    (axis,) = (ax for ax in space.axes if ax.label == "angular")
-    return np.ones(int(np.prod(axis.shape))) if axis.weights is None else np.asarray(axis.weights, float).ravel()
+    labels = [ax.label for ax in space.axes]
+    k = labels.index("angular")
+    axis = space.axes[k]
+    if isinstance(space.metric, FactoredMetric):
+        form = space.metric.entries[k][1]
+        if isinstance(form, DenseMetric):
+            return np.asarray(form.matrix, float)
+    n = int(np.prod(axis.shape))
+    return np.eye(n) if axis.weights is None else np.diag(np.asarray(axis.weights, float).ravel())
 
 
 def _angular_dim(space: FunctionSpace) -> int:
@@ -154,7 +165,7 @@ def test_s6_1_the_adjoint_is_the_pullback(name: str) -> None:
     """S6.1. First red (2026-10-02): ``R.H`` was ``AdjointOperator(R)``, and
     ``array_equal`` with the broadcast failed 1 178 of 1 200 draws."""
     V = _population()[name]
-    R = V.retraction("angular")
+    R = AxisRetractionOperator.of(V, "angular")
     P = R.H
     if not isinstance(P, AxisPullbackOperator):
         pytest.fail(f"{name}: R.H is a {type(P).__name__}, not the pullback")
@@ -170,21 +181,20 @@ def test_s6_1_the_adjoint_is_the_pullback(name: str) -> None:
 
 @pytest.mark.parametrize("name", _NAMES)
 def test_s6_2_the_product_metric_licenses_the_closed_form(name: str) -> None:
-    """S6.2. The full metric is (the axis measure) ⊗ (the marginal metric),
-    and reciprocity ⟨Rψ, φ⟩ = ⟨ψ, R.Hφ⟩ holds. D1 and D3 failed the product
-    by 0.80 and 0.79 (relative) before the mint kept the marginal's forms."""
+    """S6.2. The full metric is G_k ⊗ (the marginal metric), and reciprocity
+    ⟨Rψ, φ⟩ = ⟨ψ, R.Hφ⟩ holds. D1 and D3 failed the product by 0.80 and 0.79
+    (relative) before the mint kept the marginal's forms."""
     V = _population()[name]
-    R = V.retraction("angular")
+    R = AxisRetractionOperator.of(V, "angular")
     M = R.codomain
-    w = _angular_weights(V)
+    G_k = _angular_block(V)
     rng = np.random.default_rng(29)
     x = rng.standard_normal(V.shape)
     full = np.asarray(V.apply_metric(x))
     angular_dim = _angular_dim(V)
     moved = np.moveaxis(x, angular_dim, 0)
-    product = np.moveaxis(
-        np.stack([w_n * np.asarray(M.apply_metric(moved[n])) for n, w_n in enumerate(w)]), 0, angular_dim,
-    )
+    marginal_metric = np.stack([np.asarray(M.apply_metric(moved[n])) for n in range(G_k.shape[0])])
+    product = np.moveaxis(np.einsum("nk,k...->n...", G_k, marginal_metric), 0, angular_dim)
     npt.assert_allclose(full, product, rtol=1e-14, atol=1e-14 * np.max(np.abs(full)))
     psi, phi = rng.standard_normal(V.shape), rng.standard_normal(M.shape)
     npt.assert_allclose(
@@ -192,18 +202,9 @@ def test_s6_2_the_product_metric_licenses_the_closed_form(name: str) -> None:
     )
 
 
-def test_s6_3_the_mint_refuses_a_form_on_the_collapsed_axis() -> None:
-    """S6.3. On D2 the retraction integrates with the axis's counting measure
-    while the space's metric on that block is a dense form: two measures on
-    one block. Before step 6 the mint admitted it and ``R.H`` was the
-    sandwich; the pullback would violate reciprocity there by 0.19."""
-    with pytest.raises(ValueError, match="two measures on one block"):
-        _d2().retraction("angular")
-
-
 def test_s6_3_positive_leg_the_marginal_keeps_the_kept_forms() -> None:
     """The marginal of D1 carries D1's dense form on the moment block."""
-    M = _d1().retraction("angular").codomain
+    M = AxisRetractionOperator.of(_d1(), "angular").codomain
     if not isinstance(M.metric, FactoredMetric):
         pytest.fail("the marginal dropped the kept axes' positioned forms")
     forms = [form for _, form in M.metric.entries]
@@ -237,7 +238,7 @@ def test_s6_4_the_sandwich_witnesses_the_closed_form(name: str) -> None:
     is the same operator and agrees to 0-1 ULP, so this row cannot tell them
     apart (S6.1 can)."""
     V = _population()[name]
-    R = V.retraction("angular")
+    R = AxisRetractionOperator.of(V, "angular")
     sandwich = AdjointOperator(R)  # pyright: ignore[reportArgumentType]
     kappa = _dense_condition(V)
     for phi in _phis(R, seed=13):
@@ -251,7 +252,7 @@ def test_s6_4_the_sandwich_witnesses_the_closed_form(name: str) -> None:
 def test_s6_1_a_second_pullback_cannot_be_minted() -> None:
     """The pullback is minted by its retraction, once, so ``R.H.H is R``
     holds for every pullback that exists."""
-    R = _population()["synthetic"].retraction("angular")
+    R = AxisRetractionOperator.of(_population()["synthetic"], "angular")
     with pytest.raises(TypeError, match="minted by its retraction, once"):
         AxisPullbackOperator(R)
 

@@ -83,6 +83,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
+from orpheus.numerics.operator import RieszLowerOperator
 from tests.gates.sn._test_helpers import (
     cart2d_2g_nonsquare,
     g_bulk_measure,
@@ -1191,7 +1192,7 @@ def test_tangential_trace_slots_are_a_zero_summand_of_the_loss(bc):
         )
     ones = TimedFullField.from_flat(np.ones(n), template)
     metric_zero_set = (
-        sn.full_field_space.riesz_lower.apply(ones).to_flat() == 0.0
+        RieszLowerOperator(sn.full_field_space).apply(ones).to_flat() == 0.0
     )
     if not np.array_equal(kernel, metric_zero_set):
         pytest.fail(

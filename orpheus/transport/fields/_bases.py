@@ -112,6 +112,7 @@ from orpheus.numerics.spaces.radial_characteristic_space import (
     RadialCharacteristicBoundarySpace,
     RadialCharacteristicInteriorSpace,
 )
+from orpheus.numerics.axis_marginal import AxisRetractionOperator
 
 if TYPE_CHECKING:
     from orpheus.numerics.spaces.moment_head import MomentHead
@@ -636,15 +637,16 @@ class AngularField(BulkField):
         canonical angular reduction (the DSA restriction ``R`` rides it,
         #2).
 
-        Since CS4b S6.2 the realization IS the space's memoized
-        frame-induced retraction (:meth:`FunctionSpace.retraction
-        <orpheus.numerics.space.FunctionSpace.retraction>` — the
-        rank-one indicator frame's analysis content; `[M]` bit-identical
-        with the pre-S6.2 einsum spelling, G6.5), so the canonical
-        reduction has ONE realization tree-wide and admission
-        (axis-built space, NODAL angular axis) lives at the mint.
+        Since CS4b S6.2 the realization IS the angular axis's memoized
+        retraction (:meth:`AxisRetractionOperator.of
+        <orpheus.numerics.axis_marginal.AxisRetractionOperator.of>`, the
+        pairing with the covector :math:`m = G_k u = w` on the nodal
+        angular axis; `[M]` bit-identical with the pre-S6.2 einsum
+        spelling, G6.5), so the canonical reduction has ONE realization
+        tree-wide and admission (an axis-built space with more than one
+        axis) lives at the mint.
         """
-        return self.space.retraction("angular").apply(self.values)
+        return AxisRetractionOperator.of(self.space, "angular").apply(self.values)
 
     @property
     def N(self) -> int:  # noqa: N802 — matches Quadrature.N

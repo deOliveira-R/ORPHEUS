@@ -77,8 +77,8 @@ transfer stack. That single sentence fixes both action spellings:
 ``F.apply_transpose`` is factor reversal; the metric Hilbert adjoint
 ``F.H`` composes :math:`\sharp_V \circ F^{\mathsf T} \circ \flat_W` from
 the bound spaces' own first-class Riesz legs
-(:attr:`~orpheus.numerics.space.FunctionSpace.riesz_raise` /
-:attr:`~orpheus.numerics.space.FunctionSpace.riesz_lower`) — nothing
+(:class:`~orpheus.numerics.operator.RieszRaiseOperator` /
+:class:`~orpheus.numerics.operator.RieszLowerOperator`) — nothing
 fission-specific anywhere on the adjoint path. The kernel level stays
 dagger-free by ruling (§6): ``FissionKernel(chi=νΣf, nu_sig_f=χ)`` is
 refused by its own simplex guard — the adjoint exists only where the two

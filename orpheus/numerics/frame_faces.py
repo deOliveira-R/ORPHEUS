@@ -248,7 +248,12 @@ def _dressed(
     on the space's derived metric object (item 6.2c-i) — and in both the
     frame becomes the axis's :attr:`~orpheus.numerics.axis.Axis.generator`,
     the object that can re-dress the head at another order
-    (:meth:`~orpheus.numerics.frame.GalerkinFrame.at_order`). On an axes-less
+    (:meth:`~orpheus.numerics.frame.GalerkinFrame.at_order`). The dressing
+    also re-mints the head's :attr:`~orpheus.numerics.axis.Axis.unit`: a
+    dressed head holds COVARIANT moments :math:`\varphi = \Phi^{\mathsf T} W
+    \psi`, so the coordinates of the constant function there are its
+    moments, :math:`u = \Phi^{\mathsf T} w` (the trial basis's analysis of
+    :math:`1`, ruling 37), not the basis's coefficient :math:`e_0`. On an axes-less
     space (the indicator bases' coefficient spaces — CS2 axis-ifies them) the
     legacy slots carry it, exactly as before.
     """
@@ -263,17 +268,22 @@ def _dressed(
             f"{space.name!r} carries {len(axes)} axes."
         )
     axis = axes[0]
+    unit = np.asarray(frame.basis.analyze(
+        np.ones(frame.measure.n_points), frame.table, frame.measure.weights,
+    )).reshape(axis.shape)
     if dense is not None:
         return replace(
             space,
-            axes=(replace(axis, weights=None, generator=frame),),
+            axes=(replace(axis, weights=None, generator=frame, unit=unit),),
             inner_product_weights=None,
             metric=FactoredMetric(((axis.shape, dense),)),
         )
     assert diagonal is not None  # narrowing only
     return replace(
         space,
-        axes=(replace(axis, weights=np.asarray(diagonal).reshape(axis.shape), generator=frame),),
+        axes=(replace(
+            axis, weights=np.asarray(diagonal).reshape(axis.shape), generator=frame, unit=unit,
+        ),),
         inner_product_weights=None,
         metric=None,
     )

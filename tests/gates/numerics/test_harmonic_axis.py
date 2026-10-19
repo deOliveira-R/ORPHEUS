@@ -80,8 +80,8 @@ def test_a_family_generic_axis_would_collapse_the_two_poles() -> None:
     ``x`` from ``z``. The subclass's extended identity key is what separates
     them."""
     ax_x, ax_z = _head_axis(LegendreSpace.from_L(1, "x")), _head_axis(LegendreSpace.from_L(1, "z"))
-    plain_x = Axis(ax_x.label, ax_x.shape, ax_x.weights, kind=ax_x.kind)
-    plain_z = Axis(ax_z.label, ax_z.shape, ax_z.weights, kind=ax_z.kind)
+    plain_x = Axis(ax_x.label, ax_x.shape, ax_x.weights, kind=ax_x.kind, unit=ax_x.unit)
+    plain_z = Axis(ax_z.label, ax_z.shape, ax_z.weights, kind=ax_z.kind, unit=ax_z.unit)
     assert plain_x == plain_z, "the generic identity is blind to the spent axis — that is the collapse"
     assert ax_x != ax_z
     # and a LegendreAxis is never equal to a plain Axis wearing its slots
@@ -90,7 +90,7 @@ def test_a_family_generic_axis_would_collapse_the_two_poles() -> None:
 
 def test_the_legendre_axis_refuses_an_unknown_spent_axis() -> None:
     with pytest.raises(ValueError, match="spent_axis must be x/y/z"):
-        LegendreAxis("legendre", (2,), None, kind=BasisKind.MODAL, spent_axis="w")
+        LegendreAxis("legendre", (2,), None, kind=BasisKind.MODAL, unit=np.eye(2)[0], spent_axis="w")
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -166,6 +166,6 @@ def test_the_harmonic_axis_is_never_a_plain_axis_wearing_its_slots() -> None:
     different axis (the identity is *what kind of generator produced this
     factor*), so a hand-built head can never pass for the family's."""
     ax = _head_axis(SphericalHarmonicSpace.from_L(1))
-    plain = Axis(ax.label, ax.shape, ax.weights, kind=ax.kind)
+    plain = Axis(ax.label, ax.shape, ax.weights, kind=ax.kind, unit=ax.unit)
     assert ax != plain and plain != ax
     assert hash(ax) != hash(plain) or ax != plain

@@ -4,7 +4,7 @@ A detector response :math:`\Sigma_d(\vec r, g)` is the functional
 :math:`\psi \mapsto \langle \Sigma_d, R\psi\rangle`, with :math:`R` the angular
 retraction (fibre integration). Its Riesz representative in phase space is
 :math:`R^\dagger \Sigma_d`, the pullback
-:class:`~orpheus.numerics.operator.AxisPullbackOperator`. A source rate is
+:class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`. A source rate is
 lifted by the section :math:`E` instead; the two differ by the mass of the
 angular measure, which is never typed (the user's ruling of 2026-10-02).
 
@@ -38,7 +38,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.numerics.operator import AxisPullbackOperator
+from orpheus.numerics.axis_marginal import AxisPullbackOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import _as_problem, solve_sn_adjoint_fixed_source
 from orpheus.transport.full_field import FullField

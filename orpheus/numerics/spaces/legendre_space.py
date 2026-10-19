@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
+
 from orpheus.numerics.axis import BasisKind, LegendreAxis
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
 from orpheus.numerics.space import FunctionSpace
@@ -101,6 +103,10 @@ class LegendreSpace(FunctionSpace):
         delegates here; :meth:`from_L` is the ``(L, axis)`` sugar.
         """
         L = basis.L
+        # The coefficients of the constant function 1: P_0 = 1, so the unit
+        # is e_0 (ruling 37).
+        unit = np.zeros(L + 1)
+        unit[0] = 1.0
         head_axis = LegendreAxis(
             "legendre",
             (L + 1,),
@@ -108,6 +114,7 @@ class LegendreSpace(FunctionSpace):
             kind=BasisKind.MODAL,
             generator=basis,
             spent_axis=basis.axis,
+            unit=unit,
         )
         return cls(
             name=f"legendre_space({basis.domain.name})",

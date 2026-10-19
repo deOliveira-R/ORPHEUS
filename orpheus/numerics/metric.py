@@ -113,12 +113,12 @@ CS4c compatibility (the leg target)
 ===================================
 
 The Hilbert adjoint is the Riesz-leg composition
-``A* = A.domain.riesz_raise ∘ A.dual() ∘ A.codomain.riesz_lower``, which
+``A* = RieszRaiseOperator(A.domain) ∘ A.dual() ∘ RieszLowerOperator(A.codomain)``, which
 :class:`~orpheus.numerics.operator.AdjointOperator` builds at construction
 (CS4c R2, 2026-08-30). The legs wrap this family's two faces:
-:attr:`~orpheus.numerics.space.FunctionSpace.riesz_lower` applies
+:class:`~orpheus.numerics.operator.RieszLowerOperator` applies
 ``apply_metric`` and
-:attr:`~orpheus.numerics.space.FunctionSpace.riesz_raise` applies
+:class:`~orpheus.numerics.operator.RieszRaiseOperator` applies
 ``apply_inverse_metric``, and the space delegates both to its realization
 here. So the metric arithmetic lives here once, and the adjoint holds the
 composition, never a second spelling of it.

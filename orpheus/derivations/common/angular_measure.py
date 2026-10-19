@@ -20,8 +20,8 @@ integrating 1 over :data:`SPHERE`, never typed (the user's ruling of
 2026-10-02: the :math:`4\pi` is the measure, not a convention).
 
 This is the continuous counterpart of the discrete arrows
-:class:`~orpheus.numerics.operator.AxisSectionOperator` and
-:class:`~orpheus.numerics.operator.AxisPullbackOperator`, built independently
+:class:`~orpheus.numerics.axis_marginal.AxisSectionOperator` and
+:class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`, built independently
 of them: it reads no quadrature and no production operator (X4). It is the
 Branch-1 measure object #557 asks the manufactured sources and the
 Green's-function sphere to lift through.

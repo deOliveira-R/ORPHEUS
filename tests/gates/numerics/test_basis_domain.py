@@ -319,11 +319,12 @@ def test_d6_a_frames_two_halves_name_ONE_manifold() -> None:
     retirement can silently PROMOTE a gate's claim class; the description
     moves with it or it goes on advertising the weaker claim.)
 
-    ⚠ One known limit, stated rather than hidden: the fifth production pair
-    (``frame.py``'s axis marginal, a private ``_collapse_pair`` whose frame is
-    deliberately forgetful) is pinned instead by
-    ``tests/gates/numerics/test_axis_marginal.py``'s independent re-spelling of the
-    same construction.
+    Until S1 (numerics untangling, 2026-10-19) a fifth production pair
+    existed: ``frame.py``'s private ``_collapse_pair`` built a single-region
+    indicator frame for every axis marginal and discarded it. S1 retired it
+    (the marginal is built from the axis's unit and covector, with no frame);
+    ``tests/gates/numerics/test_axis_marginal.py`` keeps an independent
+    re-spelling of that frame as an oracle.
 
     ✅ The ``LossKernelBasis`` divergence this test used to pin — its measure
     tagging the bare label while ``IndexSet`` wrapped it as ``index(...)`` —

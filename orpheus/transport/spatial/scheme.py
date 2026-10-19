@@ -1726,11 +1726,18 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         from orpheus.numerics.axis import Axis, BasisKind
         from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
 
+        n_moments = cell_moment_count(self.spatial_basis_per_axis, len(axes))
+        # The coefficients of the constant function 1 on the reference cell:
+        # the moment basis is Legendre per direction with P_0 = 1 at slot 0,
+        # so the unit is e_0 and the marginal is the cell average (ruling 37).
+        unit = np.zeros(n_moments)
+        unit[0] = 1.0
         return Axis(
             SPATIAL_MOMENT_AXIS_LABEL,
-            (cell_moment_count(self.spatial_basis_per_axis, len(axes)),),
+            (n_moments,),
             weights=self.moment_mass_diagonal(axes),
             kind=BasisKind.MODAL,
+            unit=unit,
         )
 
     # ── Generic affine reconstruction ops (#158 Inc B / #240 D2) ─────────────

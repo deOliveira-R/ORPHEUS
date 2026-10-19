@@ -67,7 +67,7 @@ def test_of_axes_shape_is_the_concatenation() -> None:
     """
     space = FunctionSpace.of_axes(
         EnergyAxis.synthetic(2),
-        Axis("harmonic", (3, 5), kind=BasisKind.MODAL),
+        Axis("harmonic", (3, 5), kind=BasisKind.MODAL, unit=np.eye(1, 15)[0].reshape(3, 5)),
         _point(),
     )
     _require(space.shape == (2, 3, 5, 1), f"shape {space.shape} != (2, 3, 5, 1)")
@@ -102,7 +102,7 @@ def test_of_axes_name_is_INJECTIVE_on_structural_content() -> None:
         (EnergyAxis.synthetic(2), Axis("spatial", (1,), weights=np.array([2.0]), kind=BasisKind.NODAL)),  # same shapes
         (EnergyAxis.synthetic(3), _point()),
         (EnergyAxis.synthetic(2),),
-        (EnergyAxis.synthetic(2), Axis("spatial", (1,), kind=BasisKind.MODAL)),  # kind differs
+        (EnergyAxis.synthetic(2), Axis("spatial", (1,), kind=BasisKind.MODAL, unit=np.eye(1)[0])),  # kind differs
     ]
     spaces = [FunctionSpace.of_axes(*t) for t in tuples]
     names = {s.name for s in spaces}
@@ -377,7 +377,8 @@ def test_has_coordinate_cone_follows_the_basis_kinds(
 ) -> None:
     """B8a — all-nodal ⟹ True, any-modal ⟹ False."""
     space = FunctionSpace.of_axes(
-        Axis("p", (2,), kind=kinds[0]), Axis("q", (3,), kind=kinds[1])
+        Axis("p", (2,), kind=kinds[0], unit=np.eye(2)[0] if kinds[0] is BasisKind.MODAL else None),
+        Axis("q", (3,), kind=kinds[1], unit=np.eye(3)[0] if kinds[1] is BasisKind.MODAL else None),
     )
     _require(
         space.has_coordinate_cone is expected,
@@ -717,7 +718,7 @@ class TestThreeSourceExclusivity:
 
 class TestAxisAccessor:
     """S-1 (un-weld arc): ``FunctionSpace.axis(label)`` — the public
-    by-label factor accessor, sharing the collapse pair's resolver so the
+    by-label factor accessor, sharing the axis marginal's resolver so the
     refusal vocabulary cannot drift (``_axis_index`` is the one home).
 
     Positive AND negative per vv-principles #11: the axis returned IS the

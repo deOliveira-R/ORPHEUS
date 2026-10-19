@@ -35,8 +35,8 @@ NUMERICS = pathlib.Path(__file__).resolve().parents[3] / "orpheus" / "numerics"
 # between them in the target order.
 TIERS: tuple[tuple[str, ...], ...] = (
     # primitives, and the orthogonal-polynomial recurrence (upstream of both measures)
-    ("face_layout", "gauge", "metric", "moment_layout", "recurrence", "registry",
-     "roots_of_unity", "scalars", "units", "vector"),
+    ("face_layout", "gauge", "instance_cache", "metric", "moment_layout", "recurrence",
+     "registry", "roots_of_unity", "scalars", "units", "vector"),
     ("content", "symmetry"),
     ("_traced_memo_boot", "enclosure", "manifold", "mesh_free_function"),
     ("traced_memo",),
@@ -77,11 +77,6 @@ PENDING: dict[tuple[str, str], str] = {
     ("spaces", "basis"): "S7",
     # M6: the measure stops reaching the generating measure (ruling 12)
     ("generating_measure", "measure"): "M6",
-    # S1: the marginalisation lift is built on the operator side (ruling 10)
-    ("axis", "frame"): "S1",
-    ("operator", "frame"): "S1",
-    ("operator", "space"): "S1",
-    ("space", "frame"): "S1",
     # S3: assembly is a homomorphism downstream of the algebra (ruling 24)
     ("assembled_operator", "operator"): "S3",
     # S4: a sum's inverse is InverseOperator(sum), realised by the Strategy (ruling 20)

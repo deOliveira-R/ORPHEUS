@@ -1,16 +1,21 @@
-r"""S6 gates for the axis collapse pair (CS4b S6.0 + S6.0b).
+r"""S6 gates for the axis marginal on NODAL axes (CS4b S6.0, S6.0b; S1).
 
 G6.1–G6.6 of the CS4b verification plan §11 S6, realized on
-:meth:`FunctionSpace.retraction` / :meth:`FunctionSpace.section` — the
-split epi/mono pair :math:`R = \pi_*` (fiber integration) and :math:`E`
-(its measure-normalized section), ruled onto :class:`FunctionSpace` by
-the user 2026-08-24; names ratified canonical (retraction / section, Mac
-Lane CWM §I.5) the same day. S6.0b re-carved the REALIZATION: the pair
-is the single-region indicator frame's induced output, minted at one
-site (:func:`orpheus.numerics.frame._collapse_pair`), memoized on the
-space, with the frame discarded (the stage-2 generator discipline) —
-``TestFrameInduction`` gates that induction (tightness, gram-derivation,
-the clause-2 energy refusal, the one-mint memo).
+:meth:`AxisRetractionOperator.of
+<orpheus.numerics.axis_marginal.AxisRetractionOperator.of>` /
+:meth:`AxisSectionOperator.of
+<orpheus.numerics.axis_marginal.AxisSectionOperator.of>` — the split
+epi/mono pair :math:`R = \pi_*` (fiber integration) and :math:`E` (its
+mass-normalized section); names ratified canonical (retraction /
+section, Mac Lane CWM §I.5) 2026-08-24. Since S1 (numerics-untangling
+rulings 36 to 38) the arrows are built from the axis's unit :math:`u` and
+its covector :math:`m = G_k u`, and the divisor is the correctly rounded
+mass; on a nodal axis :math:`u = 1` and :math:`m = w`, so every row here
+is the pre-S1 pair's record. The modal marginal and the six gate families
+of the S1 spec are ``test_axis_marginal_lift.py``. ``TestFrameInduction``
+re-builds the single-region indicator frame the pre-S1 mint used and pins
+the arrows against its faces: an independent oracle now (the mint no
+longer builds it).
 
 The convention discipline under test (the anti-ERR-051 design): the two
 arrows differ by exactly the axis's total weight,
@@ -41,6 +46,7 @@ from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellEdges, Mesher
 from orpheus.numerics.axis import Axis, BasisKind
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.axis_marginal import AxisRetractionOperator, AxisSectionOperator
 from orpheus.numerics.space import FunctionSpace
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import placeholder_materials
@@ -89,7 +95,7 @@ class TestSectionLaws:
         shipped SN carrier (GL4): 200/200 draws exact. Reddened by
         dropping ÷Σw from E (an O(Σw) error, far above nulp)."""
         V = _product()
-        R, E = V.retraction("angular"), V.section("angular")
+        R, E = AxisRetractionOperator.of(V, "angular"), AxisSectionOperator.of(V, "angular")
         phi = _rand((2, 5), 1)
         npt.assert_array_almost_equal_nulp(R.apply(E.apply(phi)), phi, nulp=1)
 
@@ -99,7 +105,7 @@ class TestSectionLaws:
         re-association as G6.1, same S7 audit finding). Same mutation
         as G6.1 (a mis-scaled section makes P(P) = Σw²·P)."""
         V = _product()
-        R, E = V.retraction("angular"), V.section("angular")
+        R, E = AxisRetractionOperator.of(V, "angular"), AxisSectionOperator.of(V, "angular")
         x = _rand(V.shape, 2)
         p = E.apply(R.apply(x))
         npt.assert_array_almost_equal_nulp(E.apply(R.apply(p)), p, nulp=1)
@@ -109,7 +115,7 @@ class TestSectionLaws:
         axes verbatim, measures intact (the marginal's metric stays
         physical)."""
         V = _product()
-        R, E = V.retraction("angular"), V.section("angular")
+        R, E = AxisRetractionOperator.of(V, "angular"), AxisSectionOperator.of(V, "angular")
         marginal = FunctionSpace.of_axes(*V.axes[1:])
         if R.codomain != marginal or E.domain != marginal:
             pytest.fail("marginal space must be the remaining axes verbatim")
@@ -131,7 +137,7 @@ class TestAdjointPairing:
         which holds reciprocity only because the mint admits product
         metrics, so this row now tests that law (scale π* by 2 → red)."""
         V = _product()
-        R = V.retraction("angular")
+        R = AxisRetractionOperator.of(V, "angular")
         x, phi = _rand(V.shape, 3), _rand((2, 5), 4)
         lhs = R.codomain.inner_product(R.apply(x), phi)
         rhs = V.inner_product(x, np.asarray(R.H.apply(phi)))
@@ -148,7 +154,7 @@ class TestAdjointPairing:
             Axis("spatial", (5,), kind=BasisKind.NODAL),  # V dropped
         )
         V = _product()
-        R = V.retraction("angular")
+        R = AxisRetractionOperator.of(V, "angular")
         x, phi = _rand(V.shape, 3), _rand((2, 5), 4)
         lhs = R.codomain.inner_product(R.apply(x), phi)          # keeps V
         rhs = stripped.inner_product(x, np.asarray(R.H.apply(phi)))
@@ -171,7 +177,7 @@ class TestTwoArrows:
         THE anti-ERR-051 row: swapping R.H for E at a call site is a
         Σw-sized error this gate names."""
         V = _product()
-        R, E = V.retraction("angular"), V.section("angular")
+        R, E = AxisRetractionOperator.of(V, "angular"), AxisSectionOperator.of(V, "angular")
         phi = _rand((2, 5), 5)
         npt.assert_array_almost_equal_nulp(
             np.asarray(R.H.apply(phi)), _W_ANG.sum() * E.apply(phi), nulp=4,
@@ -181,14 +187,14 @@ class TestTwoArrows:
         """The convention lives in the TYPE system: R.H is not an
         AxisSectionOperator and E is not an adjoint — a swapped call
         site cannot type-narrow its way through."""
-        from orpheus.numerics.operator import (
+        from orpheus.numerics.axis_marginal import (
             AxisPullbackOperator,
             AxisSectionOperator,
             AxisRetractionOperator,
         )
 
         V = _product()
-        R, E = V.retraction("angular"), V.section("angular")
+        R, E = AxisRetractionOperator.of(V, "angular"), AxisSectionOperator.of(V, "angular")
         if not isinstance(R, AxisRetractionOperator):
             pytest.fail("retraction() must mint the retraction type")
         if not isinstance(E, AxisSectionOperator):
@@ -215,7 +221,7 @@ class TestShippedKernelEquivalence:
         changing the contraction order or dropping w."""
         sn = _sn()
         psi_values = _rand((sn.quad.N, sn.ng, *sn.spatial_shape), 6)
-        R = sn.angular_bulk_space.retraction("angular")
+        R = AxisRetractionOperator.of(sn.angular_bulk_space, "angular")
         npt.assert_array_equal(
             R.apply(psi_values),
             np.einsum("n,ng...->g...", sn.quad.weights, psi_values),
@@ -227,14 +233,14 @@ class TestShippedKernelEquivalence:
         — written HERE, independent of production. Pre-S6.2 this was
         the licence for re-keying ``from_isotropic`` through E; S6.2
         consumed it (the factory now routes through this very section),
-        so the inline spelling is the surviving independent pin. ⚠ The
-        identity is NOT universal: at GL8 the induced divisor is 1 ULP
-        off ``weights.sum()`` (the frame-induction gate's GL8 row) —
-        principled-over-bit-identical, ruled. Reddened by dropping ÷Σw
-        (G6.1's mutation)."""
+        so the inline spelling is the surviving independent pin. It holds
+        bit for bit only where the divisor and ``weights.sum()`` agree:
+        since S1 the divisor is the correctly rounded mass (``math.fsum``),
+        and on GL4 the two are both 2.0. Reddened by dropping ÷Σw (G6.1's
+        mutation)."""
         sn = _sn()
         Q = _rand((sn.ng, *sn.spatial_shape), 7)
-        E = sn.angular_bulk_space.section("angular")
+        E = AxisSectionOperator.of(sn.angular_bulk_space, "angular")
         sum_w = float(sn.quad.weights.sum())
         expected = np.broadcast_to(
             (Q / sum_w)[None], (sn.quad.N, sn.ng, *sn.spatial_shape),
@@ -246,7 +252,7 @@ class TestShippedKernelEquivalence:
         the two mints share the energy/spatial axes verbatim (S1), so
         the marginal IS the scalar carrier, not a lookalike."""
         sn = _sn()
-        R = sn.angular_bulk_space.retraction("angular")
+        R = AxisRetractionOperator.of(sn.angular_bulk_space, "angular")
         if R.codomain != sn.bulk_space:
             pytest.fail(
                 f"the angular marginal must BE the scalar bulk space; "
@@ -266,7 +272,7 @@ class TestAxisGeneric:
         sum, E the uniform 1/n disaggregation, R∘E=id bit-exact. The
         typed EnergyAxis refusal is TestFrameInduction's clause-2 gate."""
         V = _product()
-        R, E = V.retraction("energy"), V.section("energy")
+        R, E = AxisRetractionOperator.of(V, "energy"), AxisSectionOperator.of(V, "energy")
         x = _rand(V.shape, 8)
         npt.assert_array_equal(R.apply(x), x.sum(axis=1))
         phi = _rand((4, 5), 9)
@@ -281,12 +287,12 @@ class TestAxisGeneric:
             Axis("energy", (2,), kind=BasisKind.NODAL),
             Axis("spatial", (3, 2), weights=Vw, kind=BasisKind.NODAL),
         )
-        R = V.retraction("spatial")
+        R = AxisRetractionOperator.of(V, "spatial")
         x = _rand(V.shape, 10)
         npt.assert_allclose(
             R.apply(x), np.einsum("xy,gxy->g", Vw, x), rtol=1e-15,
         )
-        E = V.section("spatial")
+        E = AxisSectionOperator.of(V, "spatial")
         phi = _rand((2,), 11)
         # The section law is ULP-tier here, NOT bit-exact: the flattened
         # 2-D measure sums 6 terms of φ/W whose reassociation wobbles 1
@@ -299,30 +305,21 @@ class TestAxisGeneric:
 
 
 class TestAdmission:
-    def test_modal_axis_is_refused_with_the_average_slot_pointer(self):
-        V = FunctionSpace.of_axes(
-            Axis("angular", (4,), weights=_W_ANG, kind=BasisKind.NODAL),
-            Axis("moment", (2,), weights=np.array([1.0, 3.0]),
-                 kind=BasisKind.MODAL),
-        )
-        with pytest.raises(TypeError, match="MODAL.*average slot"):
-            V.retraction("moment")
-
     def test_unknown_label_is_refused_naming_the_axes(self):
         with pytest.raises(ValueError, match="names 0 axes"):
-            _product().retraction("azimuthal")
+            AxisRetractionOperator.of(_product(), "azimuthal")
 
     def test_non_axis_built_space_is_refused(self):
         bare = FunctionSpace(name="legacy", shape=(4, 2))
         with pytest.raises(TypeError, match="not axis-built"):
-            bare.retraction("angular")
+            AxisRetractionOperator.of(bare, "angular")
 
     def test_single_axis_space_is_refused(self):
         lone = FunctionSpace.of_axes(
             Axis("angular", (4,), weights=_W_ANG, kind=BasisKind.NODAL),
         )
         with pytest.raises(ValueError, match="bare scalar"):
-            lone.retraction("angular")
+            AxisRetractionOperator.of(lone, "angular")
 
     def test_zero_total_weight_refuses_the_section_only(self):
         """A signed measure summing to zero has no section — the mint's
@@ -335,13 +332,13 @@ class TestAdmission:
                  kind=BasisKind.NODAL),
             Axis("spatial", (3,), kind=BasisKind.NODAL),
         )
-        signed.retraction("angular")  # legal
+        AxisRetractionOperator.of(signed, "angular")  # legal
         with pytest.raises(ValueError, match="zero total weight"):
-            signed.section("angular")
+            AxisSectionOperator.of(signed, "angular")
 
     def test_wrong_shape_inputs_are_refused_both_directions(self):
         V = _product()
-        R, E = V.retraction("angular"), V.section("angular")
+        R, E = AxisRetractionOperator.of(V, "angular"), AxisSectionOperator.of(V, "angular")
         with pytest.raises(ValueError, match="full space"):
             R.apply(np.zeros((2, 5)))
         with pytest.raises(ValueError, match="marginal space"):
@@ -352,15 +349,15 @@ class TestAdmission:
 
 
 class TestFrameInduction:
-    """The pair is the single-region indicator frame's induced output.
+    """The nodal pair against the single-region indicator frame's faces.
 
-    The mint (:func:`orpheus.numerics.frame._collapse_pair`) builds the
-    literal ``GalerkinFrame(IndicatorBasis, axis measure)``, reads the
-    induced data off it, and discards it. These gates re-build that frame
-    INDEPENDENTLY and pin the minted operators against its face contents
-    — the generator discipline's consistency (tightness) gate — plus the
-    gram-derivation of the section divisor, the clause-2 energy refusal,
-    and the one-mint memoization.
+    Until S1 the mint built the literal ``GalerkinFrame(IndicatorBasis,
+    axis measure)``, read the kernel weights and the divisor off it, and
+    discarded it. Since S1 the arrows are built from the axis's unit and
+    covector, so the frame these gates re-build is an INDEPENDENT oracle:
+    the tightness row is promoted from a consistency check to a comparison
+    of two implementations. Also here: the divisor against the correctly
+    rounded mass, the clause-2 energy refusal, and the one-mint memo.
     """
 
     @staticmethod
@@ -405,10 +402,12 @@ class TestFrameInduction:
         normalization). The operator kernels are hand einsums and the
         frame path runs the basis's table einsums — different programs,
         so agreement is a real claim. Reddened by any drift between the
-        operator kernels and the frame's contraction law."""
+        operator kernels and the frame's contraction law. Since S1 the
+        divisor is ``math.fsum`` of the weights, not the frame's Gram entry;
+        on ``_W_ANG`` both are exactly 2.0, so the E row stays bit-exact."""
         frame = self._literal_frame()
         V = _product()
-        R, E = V.retraction("angular"), V.section("angular")
+        R, E = AxisRetractionOperator.of(V, "angular"), AxisSectionOperator.of(V, "angular")
         x, phi = _rand(V.shape, 12), _rand((2, 5), 13)
         analysis = frame.basis.analyze(x, frame.table, frame.measure.weights)
         npt.assert_array_equal(R.apply(x), analysis[0])
@@ -424,36 +423,27 @@ class TestFrameInduction:
             frame.basis.reconstruct((phi / gram[0, 0])[None], frame.table),
         )
 
-    def test_the_section_divisor_is_the_frames_discrete_gram(self):
-        """The section's divisor IS the rank-one Parseval metric — the
-        1×1 ``discrete_gram`` entry of the literal frame (F-0's
-        inverse-discrete-Gram theorem at K=1), pinned EXACTLY against
-        the frame. ⚠ Its agreement with the OLD ``weights.sum()``
-        spelling is fixture-dependent: [M] 2026-08-24 (corrected by the
-        S7 docs audit — the first probe's 8 fixtures skipped GL8) exact
-        at GL{2,4,5,6,12,16,32,64} and 1 ULP off at GL8; the GL8 row
-        below records that divergence at its honest tier. The second
-        equality here pins the exact coincidence on THIS fixture
-        (n=4)."""
-        frame = self._literal_frame()
-        E = _product().section("angular")
-        if frame.discrete_gram.shape != (1, 1):
-            pytest.fail(
-                f"the single-region frame's Gram must be 1×1; got "
-                f"{frame.discrete_gram.shape}"
-            )
-        npt.assert_array_equal(E.total_weight, frame.discrete_gram[0, 0])
-        npt.assert_array_equal(E.total_weight, _W_ANG.sum())
+    def test_the_section_divisor_is_the_correctly_rounded_mass(self):
+        """The section's divisor is the mass ⟨m, u⟩ = Σw, summed correctly
+        rounded (``math.fsum``, ruling 38), ``array_equal``. Until S1 it was
+        the literal frame's 1×1 ``discrete_gram`` entry (a three-operand
+        einsum), the least accurate of the candidate spellings (`[M]` up to
+        39 ULP off ``fsum`` over 120 shipped rules; the S1 gate spec's F3).
+        The 120-rule row is ``test_axis_marginal_lift.py``'s G5-mass; this is
+        the synthetic fixture's."""
+        import math
+
+        E = AxisSectionOperator.of(_product(), "angular")
+        npt.assert_array_equal(E.total_weight, math.fsum(_W_ANG))
 
     def test_gl8_divisor_is_ulp_equivalent_to_the_sum_spelling(self):
-        """The principled-over-bit-identical record, falsifiable: at GL8
-        the induced divisor (the frame's gram einsum) and the old
-        ``weights.sum()`` spelling differ — [M] 2026-08-24, gram
-        1.9999999999999998 vs sum 2.0 (1 ULP), and the section then
-        differs from the pre-S6.0b iso kernel by 2.07e-16 max rel.
-        This row pins the BOUND (≤ 1 ulp on the divisor; ≤ 4 nulp on
-        the kernel), not the inequality — a future numpy that closes
-        the gap tightens silently, which is the correct direction."""
+        """A bound, not an equality: on GL8 the divisor and the
+        ``weights.sum()`` spelling agree to ≤ 1 ULP, and the section agrees
+        with the pre-S6.0b isotropic kernel to ≤ 4 nulp. `[M]` 2026-10-19
+        both are exactly 2.0 on GL8 (the correctly rounded Gauss rules,
+        ``a34f8c2c``, and since S1 a correctly rounded divisor); the row
+        stays as the bound, so a rule whose weights do not sum exactly is
+        still admitted at its honest tier."""
         from orpheus.sn.problem import SNProblem
 
         geometry = StructuredGeometry.slab(
@@ -465,7 +455,7 @@ class TestFrameInduction:
         sn = SNProblem(
             mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=2),
         )
-        E = sn.angular_bulk_space.section("angular")
+        E = AxisSectionOperator.of(sn.angular_bulk_space, "angular")
         sum_w = float(sn.quad.weights.sum())
         npt.assert_array_almost_equal_nulp(E.total_weight, sum_w, nulp=1)
         Q = _rand((sn.ng, *sn.spatial_shape), 40)
@@ -489,9 +479,9 @@ class TestFrameInduction:
             Axis("spatial", (5,), weights=_W_SPA, kind=BasisKind.NODAL),
         )
         with pytest.raises(TypeError, match="condensation"):
-            V.retraction("energy")
+            AxisRetractionOperator.of(V, "energy")
         with pytest.raises(TypeError, match="condensation"):
-            V.section("energy")
+            AxisSectionOperator.of(V, "energy")
 
     def test_both_verbs_share_one_memoized_mint(self):
         """§5.3 of the induction plan: one mint per space per axis —
@@ -499,9 +489,9 @@ class TestFrameInduction:
         the two arrows share ONE marginal-space instance (both
         inductions minted together at one site)."""
         V = _product()
-        R1, R2 = V.retraction("angular"), V.retraction("angular")
-        E1, E2 = V.section("angular"), V.section("angular")
+        R1, R2 = AxisRetractionOperator.of(V, "angular"), AxisRetractionOperator.of(V, "angular")
+        E1, E2 = AxisSectionOperator.of(V, "angular"), AxisSectionOperator.of(V, "angular")
         if R1 is not R2 or E1 is not E2:
-            pytest.fail("the collapse pair must be memoized per axis label")
+            pytest.fail("the axis marginal must be memoized per axis label")
         if R1.codomain is not E1.domain:
             pytest.fail("the pair must share ONE marginal space (one mint)")

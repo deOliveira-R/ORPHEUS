@@ -96,6 +96,7 @@ from orpheus.mesh import Axis1D
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
+from orpheus.numerics.axis_marginal import AxisRetractionOperator
 
 if TYPE_CHECKING:
     # Annotation-only names for the late-imported operator/driver types
@@ -2855,7 +2856,7 @@ def solve_sn_adjoint_fixed_source(
           adjoint source).  Lifted to the composite by :math:`R^\dagger`,
           the Hilbert adjoint of the angular retraction
           :math:`R\psi = \sum_n w_n \psi_n = \varphi` (the pullback
-          :class:`~orpheus.numerics.operator.AxisPullbackOperator`, a
+          :class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`, a
           plain broadcast with no quadrature weights and no ``1/W``).
           The detector-response functional is
           :math:`\psi \mapsto \langle\Sigma_d, R\psi\rangle_V =
@@ -2931,7 +2932,7 @@ def solve_sn_adjoint_fixed_source(
         # The detector lift is the angular retraction's adjoint R† (the
         # docstring above), moment-lifted through the ONE external-source
         # policy (Q̂ = 0).
-        per_ord = problem.angular_bulk_space.retraction("angular").H.apply(sigma_d)
+        per_ord = AxisRetractionOperator.of(problem.angular_bulk_space, "angular").H.apply(sigma_d)
         bulk, _ = _lift_external_source_to_moments(per_ord, problem)
         q_star = FullField(
             interior=AngularSourceSink(

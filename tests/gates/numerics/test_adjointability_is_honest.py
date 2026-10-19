@@ -88,6 +88,8 @@ from orpheus.numerics.operator import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.operator import RieszLowerOperator
+from orpheus.numerics.operator import RieszRaiseOperator
 
 pytestmark = [
     pytest.mark.foundation,
@@ -248,12 +250,12 @@ _W = FunctionSpace("W_honesty", (4,), inner_product_weights=np.array([3.0, 0.25,
 
 
 def _riesz_lower_primal() -> _Posed:
-    return _Posed(_V.riesz_lower, np.array([1.0, -2.0, 0.5]))
+    return _Posed(RieszLowerOperator(_V), np.array([1.0, -2.0, 0.5]))
 
 
 def _riesz_raise_primal() -> _Posed:
     # ♯ : V* → V, so its sample is a co-vector (a bare array on V*).
-    return _Posed(_V.riesz_raise, np.array([0.3, 1.0, -1.5]))
+    return _Posed(RieszRaiseOperator(_V), np.array([0.3, 1.0, -1.5]))
 
 
 def _rank_one() -> _Posed:
@@ -734,7 +736,7 @@ def _sn_sweep_dual() -> _Posed:
 
 def _riesz_lower_dual() -> _Posed:
     r"""``♭ᵀ``: the dual arrow of an unposed operator stays unposed."""
-    return _Posed(_V.riesz_lower.dual(), np.array([1.0, -2.0, 0.5]))
+    return _Posed(RieszLowerOperator(_V).dual(), np.array([1.0, -2.0, 0.5]))
 
 
 def _sn_green_cart2d() -> _Posed:
