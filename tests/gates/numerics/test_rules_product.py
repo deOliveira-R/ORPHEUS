@@ -344,10 +344,12 @@ def test_e4_the_level_order_tie_break_is_NAMED_not_round_off(
 # `product_mu_phi` is now a named family OF the combinator: the pair of
 # factor rules arrives as ARGUMENTS, so the fold selects the staggered
 # circle rule by substitution — no `half_range=True` flag exists. The
-# result's group is DERIVED from three RigidMotion.preserves generator
-# checks on the factors (this module shipped three false symmetry
-# declarations: ERR-072/073/074), and the Hasse walk over the assembled
-# nodes is the independent realization that confirms the derivation.
+# result's group is DERIVED from three generator checks on the factors,
+# each the factor's own permutation_under (RigidMotion.preserves until S5;
+# this module shipped three false symmetry declarations: ERR-072/073/074).
+# The Hasse walk over the assembled nodes shares that matcher since S5, so
+# the independent pin is the scipy-assignment certificate in
+# test_invariance_composition.py.
 
 
 @pytest.mark.foundation
@@ -621,5 +623,12 @@ def test_spherical_product_refuses_a_polar_factor_off_the_charts_domain() -> Non
     accepted, _ = spherical_product(gauss_legendre_on_mu(4), azimuthal)
     assert accepted.support is SPHERE
 
-    with pytest.raises(ValueError, match="map's domain must be the measure's support"):
+    # Re-posed at S5 as a DISCRIMINATION row (F6): ``spherical_product`` now refuses
+    # the off-chart polar factor at its top, before the group derivation (whose
+    # measure-level question would raise a TypeError) and before the pushforward
+    # that used to refuse it. Its own fragment present, the pushforward's absent:
+    # that pins the wiring order.
+    with pytest.raises(ValueError, match="polar factor must be a rule on") as info:
         spherical_product(gauss_legendre_on_polar_orbit(4, "x"), azimuthal)
+    assert "[-1,1]" in str(info.value)
+    assert "map's domain must be the measure's support" not in str(info.value)

@@ -39,17 +39,24 @@ from orpheus.geometry.boundary._errors import (
 from orpheus.geometry.boundary._specular import (
     assert_specular_pairing_maps_inflow_to_outflow,
 )
-from orpheus.numerics import invariance as inv
 from orpheus.numerics import manifold as man
+from orpheus.numerics import measure as mea
 from orpheus.numerics import symmetry as sym
-from orpheus.numerics.invariance import (
-    _distinct_azimuths,
-    _embedded_nodes,
-    _maximal,
-    candidate_groups,
-    certificate_under,
-    symmetry_groups,
-)
+from orpheus.numerics.symmetry import _distinct_azimuths, _maximal
+
+# S5 (2026-10-19): ``orpheus.numerics.invariance`` is deleted. Its kernel is the
+# measure's composition, the lattice and the candidates live in ``symmetry``, the
+# windows in ``measure``. These two spell the retired free functions' readings.
+
+
+def _embedded(measure):
+    """The measure's ambient points (``GSpace.ambient_points``; ``_embedded_nodes`` until S5)."""
+    return measure.support.ambient_points(measure.nodes)
+
+
+def candidate_groups(measure):
+    """``symmetry.candidate_groups`` on the measure's ambient points at the old default window."""
+    return sym.candidate_groups(_embedded(measure), atol=mea._node_window(mea.WEIGHT_ATOL))
 from orpheus.numerics.manifold import SPHERE, Quotient
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature.directional import Quadrature
@@ -349,7 +356,7 @@ class TestR2ImportGraph:
     @pytest.mark.foundation
     def test_a3_no_cycle_motivated_lazy_imports_remain(self) -> None:
         r"""No function-scope import of ``symmetry``/``manifold``/``measure``/
-        ``invariance`` survives in the four modules.
+        ``invariance`` survives in the three modules (four until S5 deleted ``invariance.py``).
 
         ⚠ The predicate is the CYCLE-motivated set, not "all deferred imports":
         `[M]` ``measure.py`` legitimately defers ``space``, ``axis``,
@@ -360,7 +367,8 @@ class TestR2ImportGraph:
         """
         cycle_targets = {"symmetry", "manifold", "measure", "invariance"}
         offenders: list[str] = []
-        for name in ("measure.py", "manifold.py", "symmetry.py", "invariance.py"):
+        # ``invariance.py`` left the list at S5: the module is deleted.
+        for name in ("measure.py", "manifold.py", "symmetry.py"):
             path = _NUMERICS / name
             for lineno, target in _r2_deferred_imports(path):
                 tail = target.lstrip(".").split(".")[-1]
@@ -410,60 +418,10 @@ class TestR2OneClosure:
     what ``plan-authoring`` §6c asks of every gate.
     """
 
-    @pytest.mark.foundation
-    def test_b1_the_closure_has_exactly_one_caller(self) -> None:
-        sites = [
-            s for s in _r2_call_sites("_orbit_closure", ORPHEUS_ROOT / "orpheus")
-        ]
-        assert len(sites) == 1, (
-            f"_orbit_closure is called from {len(sites)} sites {sites}; the "
-            f"'one closure' claim is that there is exactly one"
-        )
-
-    @pytest.mark.foundation
-    @pytest.mark.parametrize(
-        "rule_label,group_name",
-        [("product(4,8)", "Dnh8"), ("folded_product(4,8)", "sigma_y"),
-         ("gauss_legendre(8)", "sigma_x")],
-    )
-    def test_b2_both_verbs_enter_the_same_closure_with_the_same_arguments(
-        self, monkeypatch, rule_label: str, group_name: str
-    ) -> None:
-        """A COUNTING SPY, not a reading.
-
-        Two verbs claiming to share a path is a claim about the ROUTE, and a route claim
-        cannot be gated by an output (`vv` #26): a correct implementation and one that
-        recomputes the match are indistinguishable in the answer.
-        """
-        measure = _r2_rule(rule_label).measure
-        group = {
-            "Dnh8": SubgroupOfO3.Dnh(8),
-            "sigma_y": SubgroupOfO3.Mirror("y"),
-            "sigma_x": SubgroupOfO3.Mirror("x"),
-        }[group_name]
-
-        spy = _R2CountingSpy(monkeypatch, inv, "_orbit_closure")
-        measure.is_invariant_under(group)
-        n_after_predicate = len(spy.calls)
-        measure.certificate_under(group)
-        n_after_certificate = len(spy.calls)
-
-        assert n_after_predicate == 1, (
-            f"is_invariant_under entered the closure {n_after_predicate} times"
-        )
-        assert n_after_certificate == 2, (
-            f"certificate_under did not enter the closure "
-            f"({n_after_certificate - n_after_predicate} entries)"
-        )
-        (a_args, _), (b_args, _) = spy.calls[0], spy.calls[1]
-        np.testing.assert_array_equal(
-            np.asarray(a_args[0]), np.asarray(b_args[0]),
-            err_msg="the two verbs pass DIFFERENT node arrays to the one closure",
-        )
-        np.testing.assert_array_equal(
-            np.asarray(a_args[1]), np.asarray(b_args[1]),
-            err_msg="the two verbs pass DIFFERENT weight arrays",
-        )
+    # b1 (``_orbit_closure`` has exactly one caller) and b2 (both verbs enter that one
+    # closure with the same arguments) were DELETED at S5: ``_orbit_closure`` is gone.
+    # The route claim moved to ``test_invariance_composition.py``'s counting spy on
+    # ``DiscreteMeasure.relabelling_to`` (family F), which every verb composes.
 
     @pytest.mark.foundation
     @pytest.mark.parametrize("rule_label", _R2_RULE_LABELS)
@@ -608,7 +566,7 @@ class TestR2PositionWindow:
         """The separation table, asserted rather than believed."""
         in_band: list[str] = []
         for label in _R2_RULE_LABELS:
-            bary = _embedded_nodes(_r2_rule(label).measure)
+            bary = _embedded(_r2_rule(label).measure)
             for axis in range(3):
                 off = float(np.abs(np.delete(bary, axis, axis=1)).max())
                 if 1e-13 < off <= 1e-11:
@@ -634,7 +592,7 @@ class TestR2PositionWindow:
         measure = _r2_off_axis_sphere_measure(1e-12)
         measure.is_invariant_under(SubgroupOfO3.SO2("x"), atol=1e-13)
         assert seen, "the position leg never ran — the spy has nothing to report"
-        expected = 1e-13 * inv._NODE_WINDOW_FACTOR
+        expected = 1e-13 * mea._NODE_WINDOW_FACTOR
         assert all(a == pytest.approx(expected, rel=0, abs=0) for a in seen), (
             f"the position test used {seen}, not atol * _NODE_WINDOW_FACTOR "
             f"= {expected}"
@@ -681,7 +639,7 @@ class TestR2AzimuthWindow:
             "product(4,4)": 4, "folded_product(2,4)": 2, "folded_product(4,8)": 2,
         }
         got = {
-            label: _distinct_azimuths(_embedded_nodes(_r2_rule(label).measure), 1e-13)
+            label: _distinct_azimuths(_embedded(_r2_rule(label).measure), 1e-13)
             for label in _R2_RULE_LABELS
         }
         assert got == expected, got
@@ -722,7 +680,7 @@ class TestR2Candidates:
         ``0.000e+00`` on ``folded_product(4,8)``."""
         ambient = _r2_rule(fold_label).measure
         np.testing.assert_array_equal(
-            _embedded_nodes(ambient), _embedded_nodes(_r2_chart_spelling(ambient))
+            _embedded(ambient), _embedded(_r2_chart_spelling(ambient))
         )
 
     @pytest.mark.foundation
@@ -732,8 +690,8 @@ class TestR2Candidates:
     ) -> None:
         ambient = _r2_rule(fold_label).measure
         for measure in (ambient, _r2_chart_spelling(ambient)):
-            walk = {g.name for g in symmetry_groups(measure, method="walk")}
-            brute = {g.name for g in symmetry_groups(measure, method="bruteforce")}
+            walk = {g.name for g in measure.symmetry_groups(method="walk")}
+            brute = {g.name for g in measure.symmetry_groups(method="bruteforce")}
             assert walk == brute, (walk, brute)
             assert walk == {"D_2h"}, walk
 
@@ -748,8 +706,8 @@ class TestR2Candidates:
         The derivation legs below are what make this a computed answer rather than a pin.
         """
         measure = Quadrature.gauss_legendre(n_ordinates=n).measure
-        walk = {g.name for g in symmetry_groups(measure, method="walk")}
-        brute = {g.name for g in symmetry_groups(measure, method="bruteforce")}
+        walk = {g.name for g in measure.symmetry_groups(method="walk")}
+        brute = {g.name for g in measure.symmetry_groups(method="bruteforce")}
         assert walk == brute, (walk, brute)
         assert walk == {"O2_x", "D_2h"}, walk
 
@@ -840,7 +798,7 @@ class TestR2Maximal:
         and a one-element list has no pair to disagree about.  Stated here so the
         battery's null on this row reads as EXPECTED rather than as a blind gate.
         """
-        got = {g.name for g in symmetry_groups(_r2_asymmetric_sphere_measure(), method=method)}
+        got = {g.name for g in _r2_asymmetric_sphere_measure().symmetry_groups(method=method)}
         assert got == {"Trivial"}, got
 
 
@@ -872,7 +830,8 @@ class TestR2RetiredNames:
          "maximal_invariance_groups", "orbit_certificate", "singular_set",
          "induced_permutation",                      # the names they LEFT under
          "certificate_under", "singular_set_under", "permutation_under",
-         "candidate_groups", "_embedded_nodes", "_orbit_closure",
+         # "candidate_groups" left this list at S5: ruling 42 moves it INTO symmetry.
+         "_embedded_nodes", "_orbit_closure",
          "_NODE_WINDOW_FACTOR"],
     )
     def test_h2_the_kernel_names_left_the_symmetry_module(self, name: str) -> None:
@@ -889,7 +848,7 @@ class TestR2RetiredNames:
 
 
 class TestR2MeasureVerbs:
-    """The five verbs live on ``DiscreteMeasure`` and DELEGATE to ``invariance``."""
+    """The five verbs live on ``DiscreteMeasure``; since S5 they are compositions of its pushforward with its support's action (they delegated to ``invariance`` from R2 until then)."""
 
     @pytest.mark.foundation
     @pytest.mark.parametrize(
@@ -899,15 +858,9 @@ class TestR2MeasureVerbs:
     def test_h3_the_measure_carries_the_verb(self, verb: str) -> None:
         assert hasattr(DiscreteMeasure, verb)
 
-    @pytest.mark.foundation
-    def test_h3b_the_verb_delegates_rather_than_reimplements(self, monkeypatch) -> None:
-        spy = _R2CountingSpy(monkeypatch, inv, "is_invariant_under")
-        measure = Quadrature.product(4, 8).measure
-        measure.is_invariant_under(SubgroupOfO3.Dnh(8))
-        assert len(spy.calls) == 1, (
-            f"the method entered invariance.is_invariant_under {len(spy.calls)} "
-            f"times; a second implementation is a Pattern-2 twin"
-        )
+    # h3b (the method delegates to ``invariance.is_invariant_under``) was DELETED at S5:
+    # the free function is retired and the method IS the composition; the
+    # anti-twin claim is the relabelling spy in ``test_invariance_composition.py``.
 
     @pytest.mark.foundation
     def test_h3c_quotient_reads_the_measures_own_certificate(self, monkeypatch) -> None:

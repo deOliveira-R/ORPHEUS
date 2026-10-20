@@ -8,10 +8,12 @@ destroys the symmetry to rounding, and no downstream tolerance recovers
 it.
 
 This module is the *generating* face of the concept whose *checking*
-face is :mod:`orpheus.numerics.invariance` (since R2 of #434, 2026-09-03;
-:mod:`~orpheus.numerics.symmetry` held the check until then and now only
-NAMES the groups): that module answers "does this measure respect group
-:math:`G`?", this one produces a node set that does, by construction. A
+face is :meth:`DiscreteMeasure.is_invariant_under
+<orpheus.numerics.measure.DiscreteMeasure.is_invariant_under>` (a composition
+of the measure's pushforward with its support's action since S5,
+2026-10-19; a separate ``invariance`` module from R2 of #434 until then):
+that verb answers "does this measure respect group :math:`G`?", this module
+produces a node set that does, by construction. A
 generated set is the natural input to
 :meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`.
 ⚠ This module imports numpy only, and must keep doing so — ``symmetry``
@@ -125,7 +127,7 @@ Node values move by at most ``9.99e-16`` relative to the status quo.
 
 See Also
 --------
-:mod:`orpheus.numerics.invariance`
+:meth:`orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`
     The checking face —
     :meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`
     verifies that a measure respects a named subgroup of :math:`O(3)`.

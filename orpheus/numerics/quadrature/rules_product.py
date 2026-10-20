@@ -36,18 +36,19 @@ rotations :math:`C_{n_\phi}` and by the vertical mirrors at
 symmetric about :math:`\mu = 0`, which supplies :math:`\sigma_h`.
 Together these generate :math:`D_{n_\phi h}` — and the tag is now
 **derived at construction** from exactly those three generator facts,
-each measured on its factor through
-:meth:`~orpheus.geometry.transformation.RigidMotion.preserves` (see
+each measured on its factor through the factor's
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.permutation_under` (see
 :func:`spherical_product`); a factor pair failing a check is refused,
-never mis-tagged. The independent realization —
-:meth:`~orpheus.numerics.measure.DiscreteMeasure.symmetry_groups`
-computing the group from the ASSEMBLED nodes — pins the same answer
-in ``tests/``, so the derivation and the walk verify each other.
+never mis-tagged. The walk over the ASSEMBLED nodes
+(:meth:`~orpheus.numerics.measure.DiscreteMeasure.symmetry_groups`) pins
+the same answer in ``tests/``, through the same matcher since S5
+(2026-10-19); the independent pin is the certificate rebuilt from the
+group elements' raw matrices with scipy's assignment solver.
 
 .. caution::
 
    The agreement holds to ~1e-16, not bit-exactly, and the match window
-   (``invariance._NODE_WINDOW_FACTOR``) is what absorbs the difference.
+   (``measure._NODE_WINDOW_FACTOR``) is what absorbs the difference.
    Lebedev's :math:`O_h` claim, by contrast, is exact on both sides
    because signed permutations are exact in IEEE.
 
@@ -109,7 +110,7 @@ from ..exactness import (
     OrthogonalSystem,
 )
 from ..measure import DiscreteMeasure
-from orpheus.numerics.manifold import CIRCLE, archimedes
+from orpheus.numerics.manifold import CIRCLE, COSINE_INTERVAL, archimedes
 from ..symmetry import SubgroupOfO3
 from .rules_1d import gauss_legendre_on_mu
 from .rules_circle import NODE_ALIGNED, periodic_trapezoid
@@ -238,13 +239,15 @@ def _derived_product_group(
 ) -> SubgroupOfO3:
     r"""The product measure's invariance group, COMPUTED from the factors.
 
-    Three generator checks through the verified
-    :meth:`~orpheus.geometry.transformation.RigidMotion.preserves` core,
-    each on the FACTOR it concerns (small arrays — cheap at
-    construction, unlike an orbit closure over the assembled sphere
-    rule):
+    Three generator checks, each asked of the FACTOR it concerns through the
+    factor's own :meth:`~orpheus.numerics.measure.DiscreteMeasure.permutation_under`
+    — the one invariance kernel, the composition of the factor's pushforward
+    with its support's action (S5, 2026-10-19; until then this function asked
+    ``RigidMotion.preserves`` directly, a
+    second door).  Small arrays — cheap at construction, unlike an orbit
+    closure over the assembled sphere rule:
 
-    * the azimuthal node set is closed under rotation by
+    * the azimuthal node set, on the circle, is closed under rotation by
       :math:`2\pi/n_\varphi` — the :math:`C_{n_\varphi}` generator
       (closure under a generator implies closure under its powers, so a
       single check is sound here — this is NOT the ERR-072 trap, which
@@ -253,18 +256,24 @@ def _derived_product_group(
       :math:`y \to -y` — the standard-setting vertical mirror, which
       together with :math:`C_{n_\varphi}` generates all
       :math:`n_\varphi` vertical mirrors at :math:`k\pi/n_\varphi`;
-    * the polar node set is closed under :math:`\mu \to -\mu` — which
-      the embedding turns into :math:`\sigma_h`.
+    * the polar node set, on :math:`[-1, 1]`, is closed under
+      :math:`\mu \to -\mu` — the interval's own isometry
+      :math:`x \mapsto a + b - x` at :math:`a + b = 0`, which the embedding
+      turns into :math:`\sigma_h`.
 
     All three together generate :math:`D_{n_\varphi h}` (order
     :math:`4 n_\varphi`) in the standard setting. The checks are run on
     the factors rather than inherited from their ``invariance_group``
     tags: this module shipped three false symmetry declarations
     (ERR-072/073/074), so the derivation's inputs are *measured* facts,
-    not declarations. The independent realization — the Hasse walk
-    :meth:`~orpheus.numerics.measure.DiscreteMeasure.symmetry_groups` over
-    the ASSEMBLED nodes — pins the same answer in ``tests/``; the two
-    verify each other.
+    not declarations.  The Hasse walk over the ASSEMBLED nodes
+    (:meth:`~orpheus.numerics.measure.DiscreteMeasure.symmetry_groups`) is
+    no longer an independent realisation of these checks: since S5 both go
+    through :meth:`~orpheus.numerics.measure.DiscreteMeasure.relabelling_to`
+    and share its matcher (``retirement-audit`` D.16).  The surviving
+    independent pin is the certificate rebuilt from the elements' raw
+    matrices with scipy's assignment solver
+    (``test_invariance_composition.py::test_the_certificate_against_an_independent_matcher``).
 
     Raises
     ------
@@ -284,13 +293,7 @@ def _derived_product_group(
     vertical_mirror = RigidMotion.reflection(normal=e2)
     polar_mirror = RigidMotion.reflection(normal=np.array([1.0]))
 
-    rotation_ok = (
-        step.preserves(
-            azimuthal.nodes, azimuthal.weights, atol=atol, weight_atol=atol
-        )
-        is not None
-    )
-    if not rotation_ok:
+    if azimuthal.permutation_under(step, atol=atol) is None:
         raise ValueError(
             f"the azimuthal factor is not invariant under rotation by "
             f"2π/{n_phi} — a spherical product's fiber must be a "
@@ -298,21 +301,8 @@ def _derived_product_group(
             f"node set), got {azimuthal.n_points} nodes on "
             f"{azimuthal.support!r} that are not"
         )
-    mirror_ok = (
-        vertical_mirror.preserves(
-            azimuthal.nodes, azimuthal.weights, atol=atol, weight_atol=atol
-        )
-        is not None
-    )
-    polar_ok = (
-        polar_mirror.preserves(
-            polar.nodes.reshape(-1, 1),
-            polar.weights,
-            atol=atol,
-            weight_atol=atol,
-        )
-        is not None
-    )
+    mirror_ok = azimuthal.permutation_under(vertical_mirror, atol=atol) is not None
+    polar_ok = polar.permutation_under(polar_mirror, atol=atol) is not None
     if mirror_ok and polar_ok:
         return SubgroupOfO3.Dnh(n_phi)
 
@@ -379,7 +369,7 @@ def spherical_product(
       as the fiber is caught there, which is E3's same-nodes /
       wrong-space confusion made unrepresentable);
     * ``invariance_group`` through three
-      :meth:`~orpheus.geometry.transformation.RigidMotion.preserves`
+      :meth:`~orpheus.numerics.measure.DiscreteMeasure.permutation_under`
       generator checks on the factors (see
       :func:`_derived_product_group`) — measured, not declared;
     * the :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`
@@ -426,6 +416,14 @@ def spherical_product(
         derived group family is unrealized (via
         :func:`_derived_product_group`).
     """
+    if polar.support != COSINE_INTERVAL:
+        raise ValueError(
+            f"the polar factor must be a rule on {COSINE_INTERVAL.name} (μ = "
+            f"cos θ, the chart the Archimedes map is defined on), got support "
+            f"{polar.support.name}. A rule already read on an orbit space is a "
+            f"different measure on the same numbers; build the product from "
+            f"the chart rule."
+        )
     if polar.nodes.ndim != 1:
         raise ValueError(
             f"the polar factor must have scalar μ nodes of shape "

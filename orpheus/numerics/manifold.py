@@ -47,9 +47,11 @@ way — ``symmetry`` held the invariance kernel and therefore imported
 symmetry`` edge closed a cycle and the group could be referenced here only
 under ``TYPE_CHECKING``, ten of its members duck-typed (`[M]` by AST on a
 ``group`` / ``.by`` receiver, 24 sites — the count has been published as three,
-seven and nine under narrower predicates).  The kernel now
-lives in :mod:`orpheus.numerics.invariance`, below ``measure``, and no cycle
-remains to defer around.  This module imports
+seven and nine under narrower predicates).  From R2 the kernel lived in an
+``invariance`` module that ``measure`` imported and that imported ``measure``
+back; since S5 of the numerics untangling (2026-10-19) invariance is the
+measure's own composition of its pushforward with its support's
+:meth:`GSpace.action`, and no such module exists.  This module imports
 nothing from the measure layer, at any scope: it says which point set a
 measure lives on, and the measure a degree of exactness on an orbit space is
 AGAINST (the pushforward of the base's Lebesgue measure) is the measure
@@ -64,6 +66,15 @@ quotient carries belong to :class:`Quotient` alone — on a hierarchy they
 would sit on the base returning ``None`` for every non-quotient, which is
 the tax :attr:`SubgroupOfO3.mirror_axis` already pays and which
 ``directional.py`` already branches on.
+
+One intermediate layer is real and is typed: :class:`GSpace`, the members a
+rigid motion acts on (:class:`Sphere`, :class:`Ball`, :class:`Circle`,
+:class:`Interval`, :class:`RealSpace`, :class:`Quotient`), carrying
+:meth:`GSpace.action` by one law, :math:`g` acts iff :math:`g(M) = M`
+(rulings 43 and 47 of the numerics untangling, 2026-10-19).  It is the same
+rule the base states for quotients — an operation lives on the families that
+answer it — applied to the action: an energy-group index set has no action,
+and asking it for one is a type error rather than a zero-padded answer.
 """
 
 from __future__ import annotations
@@ -85,6 +96,11 @@ if TYPE_CHECKING:  # RigidMotion is annotation-only here (transformation
 
 __all__ = [
     "Manifold",
+    "GSpace",
+    "Refusal",
+    "OutOfDimension",
+    "DoesNotMap",
+    "DoesNotNormalise",
     "Ball",
     "FundamentalDomain",
     "Sphere",
@@ -180,8 +196,93 @@ class Manifold(ABC):
             return NotImplemented
         return Product(self, other)
 
+    def coordinates(self, points: ArrayLike) -> NDArray:
+        """The point identity: two points of this manifold are one point iff
+        these coordinates agree.
+
+        The points themselves, except on a :class:`Quotient`, where two
+        representatives of one orbit are one point.  On every manifold, not
+        only a :class:`GSpace`: relabelling two measures needs no group (the
+        user's ruling of 2026-10-19, amending ruling 43)."""
+        return np.asarray(points, dtype=float)
+
+    def _as_points(self, points: ArrayLike, ambient: int) -> NDArray:
+        """Coerce ``points`` to ``(n, ambient)``, or raise saying why not."""
+        arr = np.atleast_1d(np.asarray(points, dtype=float))
+        if ambient == 1 and arr.ndim == 1:
+            arr = arr[:, None]
+        if arr.ndim != 2 or arr.shape[1] != ambient:
+            raise ValueError(
+                f"{self.name}.contains expects points of ambient dimension "
+                f"{ambient} — an (n, {ambient}) array"
+                f"{' or an (n,) array' if ambient == 1 else ''}; got shape "
+                f"{arr.shape}."
+            )
+        return arr
+
+
+@dataclass(frozen=True)
+class GSpace(Manifold):
+    r"""A manifold the rigid motions of its ambient space act on — a
+    :math:`G`-space, :math:`G \le E(d)`.
+
+    An invariance question ("does :math:`g` permute these atoms?") is asked of
+    a measure ON its support, so the support must say how :math:`g` moves its
+    points.  The families that can say it are the members of this class:
+    :class:`Sphere`, :class:`Ball`, :class:`Circle`, :class:`Interval`,
+    :class:`RealSpace` and :class:`Quotient`.  :class:`EnergyGroups`,
+    :class:`IndexSet`, :class:`Product` and :class:`FundamentalDomain` are not
+    G-spaces and carry no :meth:`action` at all — asking a group index set how a
+    reflection moves it is a type error, not a ``None`` (the base class's rule;
+    ruling 43 of the numerics untangling, 2026-10-19).  Until then
+    ``invariance._orbit_space_of`` asked EVERY support on
+    :math:`\mathbb{R}^3/\{e\}` after zero-padding its nodes, so an
+    energy-group measure answered ``SO2_x``-invariant: True, and the chart
+    :math:`\mu`-rule answered ``SO2_x`` True and ``SO2_y`` False, the "x" being
+    the padding's column 0 and not a property of the rule.
+
+    **One law** (ruling 47, 2026-10-19): a motion :math:`g` acts on :math:`M`
+    iff :math:`g(M) = M`, and the action is then :math:`x \mapsto g(x)`,
+    :math:`M \to M`.  :meth:`action` states it once; each family answers only
+    whether :math:`g` preserves the data that DEFINES it (:meth:`_refusal`):
+
+    =====================  ==================================  =========================
+    family                 defining data                       :math:`g(M) = M` iff
+    =====================  ==================================  =========================
+    Sphere, Ball, Circle   centred at the origin               :math:`g` fixes the origin
+    RealSpace(d)           all of :math:`\mathbb{R}^d`          always (:math:`E(d)`)
+    Interval [a, b]        the endpoint set :math:`\{a, b\}`   :math:`g` permutes it
+    Quotient M/H           the base and :math:`H`              the base's law, and
+                                                               :math:`g H g^{-1} = H`
+    =====================  ==================================  =========================
+
+    There is no special case: the polar mirror :math:`\mu \to -\mu` of
+    ``COSINE_INTERVAL`` is the Interval law's answer at :math:`a + b = 0`
+    (:math:`x \mapsto a + b - x`), and on :math:`[0, 1]` the same law admits
+    :math:`x \mapsto 1 - x`.  What is special about :math:`[-1, 1]` is that it
+    is the chart of :math:`S^2/O(2)_x`, where :math:`\mu \to -\mu` is the
+    action :math:`\sigma_x` induces on the quotient — a fact a gate checks
+    (the polar mirror spelled twice must agree), never a branch.
+
+    Three readings of a point accompany the action:
+
+    * :attr:`acting_dimension` — the :math:`d` of the motions in :math:`E(d)`
+      that are asked to act: the base's ambient width on a quotient (its
+      points are acted on through the base), the manifold's own elsewhere;
+    * :meth:`~Manifold.coordinates` — the point identity, inherited from
+      :class:`Manifold` (every manifold has one; a quotient overrides it);
+    * :meth:`ambient_points` — where a point sits in the space the motions act
+      on: the orbit barycentre on a quotient, the point itself elsewhere
+      (ruling 46).
+    """
+
     def quotient(self, group: SubgroupOfO3) -> "Quotient":
         r"""The orbit space :math:`M/H`, by catalogue lookup.
+
+        On a G-space only (S5, 2026-10-19): an orbit space is the set of
+        orbits of a group ACTING on the manifold, and a manifold no rigid
+        motion acts on has none — until then this lived on :class:`Manifold`
+        and ``ENERGY.quotient(Trivial)`` built an entry.
 
         Computing an orbit space from scratch — invariant ring, syzygy
         ideal by elimination, then the Procesi–Schwarz PSD condition — is
@@ -223,19 +324,115 @@ class Manifold(ABC):
         """
         return _catalogued_quotient(self, group)
 
-    def _as_points(self, points: ArrayLike, ambient: int) -> NDArray:
-        """Coerce ``points`` to ``(n, ambient)``, or raise saying why not."""
-        arr = np.atleast_1d(np.asarray(points, dtype=float))
-        if ambient == 1 and arr.ndim == 1:
-            arr = arr[:, None]
-        if arr.ndim != 2 or arr.shape[1] != ambient:
-            raise ValueError(
-                f"{self.name}.contains expects points of ambient dimension "
-                f"{ambient} — an (n, {ambient}) array"
-                f"{' or an (n,) array' if ambient == 1 else ''}; got shape "
-                f"{arr.shape}."
+    @property
+    def acting_dimension(self) -> int:
+        """The :math:`d` of the rigid motions in :math:`E(d)` asked to act here."""
+        return ambient_dim(self)
+
+    @abstractmethod
+    def _refusal(self, motion: "RigidMotion") -> "DoesNotMap | DoesNotNormalise | None":
+        """The family's own law: why ``motion`` does not map this manifold onto
+        itself, or ``None``.
+
+        Called by :meth:`refusal` with a motion of :attr:`acting_dimension`
+        only.  Every family answers :class:`DoesNotMap`; a quotient also
+        answers :class:`DoesNotNormalise`.
+        """
+        ...
+
+    def refusal(self, motion: "RigidMotion") -> "Refusal | None":
+        r"""Why ``motion`` does not act on this manifold, or ``None`` if it does
+        — the one door to the law, as a VALUE.
+
+        A typed value rather than an exception, so a caller that turns "this
+        motion is no symmetry here" into ``None`` branches on the KIND and
+        cannot swallow an unrelated error (the S5 elegance review, 2026-10-19:
+        an ``except ValueError`` around :meth:`action` read an internal bug as
+        "not a symmetry").  The kinds are a closed sum:
+        :class:`OutOfDimension`, :class:`DoesNotMap`, :class:`DoesNotNormalise`.
+        """
+        if motion.dimension != self.acting_dimension:
+            return OutOfDimension(
+                f"{motion!r} does not act on {self.name}: it is a motion of "
+                f"R^{motion.dimension}, and {self.name} is acted on by the "
+                f"motions of R^{self.acting_dimension}."
             )
-        return arr
+        return self._refusal(motion)
+
+    def _image_map(self, motion: "RigidMotion") -> Callable[[NDArray], NDArray]:
+        """The action's ``apply``: the motion on the points, shape kept."""
+        return functools.partial(_apply_motion, motion)
+
+    def action(self, motion: "RigidMotion") -> ManifoldMap:
+        r"""The action of ``motion`` on this manifold, :math:`x \mapsto g(x)`,
+        as the typed arrow :math:`M \to M`.
+
+        Raises
+        ------
+        ValueError
+            With the :meth:`refusal`'s message: ``does not act`` (the motion is
+            not one of :math:`E(d)` for this manifold's
+            :attr:`acting_dimension`), ``does not map`` (it does not carry the
+            manifold onto itself), ``normalise`` (on a quotient, it does not
+            normalise the group spent there).
+        """
+        refusal = self.refusal(motion)
+        if refusal is not None:
+            raise ValueError(refusal.message)
+        return ManifoldMap(domain=self, codomain=self, apply=self._image_map(motion))
+
+    def ambient_points(self, points: ArrayLike) -> NDArray:
+        """Each point's position in the space the motions act on.
+
+        The points themselves, except on a :class:`Quotient`, where it is the
+        orbit barycentre."""
+        return np.asarray(points, dtype=float)
+
+
+def _apply_motion(motion: "RigidMotion", points: NDArray) -> NDArray:
+    """``motion`` on ``points``, keeping an ``(n,)`` interval array ``(n,)``.
+
+    Module-level, partially applied, so the arrow is picklable (as
+    :func:`_act_through` is)."""
+    arr = np.asarray(points, dtype=float)
+    if arr.ndim == 1:
+        return motion.on_points(arr[:, None])[:, 0]
+    return motion.on_points(arr)
+
+
+@dataclass(frozen=True)
+class Refusal:
+    """Why a rigid motion does not act on a :class:`GSpace` — a closed sum of
+    three kinds, each carrying the message :meth:`GSpace.action` raises."""
+
+    message: str
+
+
+@dataclass(frozen=True)
+class OutOfDimension(Refusal):
+    """The motion is not one of :math:`E(d)` for the space's acting dimension."""
+
+
+@dataclass(frozen=True)
+class DoesNotMap(Refusal):
+    r"""The motion does not carry the manifold onto itself: :math:`g(M) \ne M`."""
+
+
+@dataclass(frozen=True)
+class DoesNotNormalise(Refusal):
+    r"""On an orbit space :math:`M/H`: the motion does not normalise :math:`H`,
+    so :math:`[p] \mapsto [g p]` is not a function of the orbit."""
+
+
+def _origin_refusal(manifold: Manifold, motion: "RigidMotion") -> DoesNotMap | None:
+    """The centred families' law: :math:`g(M) = M` iff :math:`g` fixes the origin."""
+    if np.all(np.abs(motion.translation) <= _MEMBERSHIP_ATOL):
+        return None
+    return DoesNotMap(
+        f"{motion!r} does not map {manifold.name} onto itself: it moves the "
+        f"centre to {np.asarray(motion.translation).tolist()}. Only the motions "
+        f"fixing the origin, O({motion.dimension}), carry {manifold.name} onto itself."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +441,7 @@ class Manifold(ABC):
 
 
 @dataclass(frozen=True)
-class Sphere(Manifold):
+class Sphere(GSpace):
     r""":math:`S^2 = \{\Omega \in \mathbb{R}^3 : \|\Omega\| = 1\}`."""
 
     @property
@@ -264,8 +461,12 @@ class Sphere(Manifold):
         )
 
 
+    def _refusal(self, motion: "RigidMotion") -> DoesNotMap | None:
+        return _origin_refusal(self, motion)
+
+
 @dataclass(frozen=True)
-class Circle(Manifold):
+class Circle(GSpace):
     r""":math:`S^1 = \{u \in \mathbb{R}^2 : \|u\| = 1\}`.
 
     The circle names the MANIFOLD, not a chart of it — the tag was
@@ -291,13 +492,17 @@ class Circle(Manifold):
         )
 
 
+    def _refusal(self, motion: "RigidMotion") -> DoesNotMap | None:
+        return _origin_refusal(self, motion)
+
+
 # ---------------------------------------------------------------------------
 # Flat members
 # ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
-class Interval(Manifold):
+class Interval(GSpace):
     r"""The real interval :math:`[a, b]`, endpoints included.
 
     One family, not three tags: the retired ``SPACE_INTERVAL_M11``,
@@ -343,8 +548,28 @@ class Interval(Manifold):
         )
 
 
+    def _refusal(self, motion: "RigidMotion") -> DoesNotMap | None:
+        r""":math:`g([a, b]) = [a, b]` iff :math:`g` permutes the endpoint set
+        :math:`\{a, b\}`: the identity always, :math:`x \mapsto a + b - x`
+        on a bounded interval, every motion on :math:`\mathbb{R}`, only the
+        identity on a half-line.  The endpoints may be infinite; ``g(±inf)``
+        is read off the affine map, as the image interval's own ends."""
+        q = float(motion.linear[0, 0])
+        t = float(motion.translation[0])
+        lo, hi = sorted((q * self.a + t, q * self.b + t))
+        if np.isclose(lo, self.a, rtol=0.0, atol=_MEMBERSHIP_ATOL) and np.isclose(
+            hi, self.b, rtol=0.0, atol=_MEMBERSHIP_ATOL
+        ):
+            return None
+        return DoesNotMap(
+            f"{motion!r} does not map {self.name} onto itself: it carries it "
+            f"onto [{_fmt(lo)},{_fmt(hi)}]. A motion acts on an interval iff it "
+            f"permutes the endpoints {{{_fmt(self.a)}, {_fmt(self.b)}}}."
+        )
+
+
 @dataclass(frozen=True)
-class RealSpace(Manifold):
+class RealSpace(GSpace):
     r""":math:`\mathbb{R}^d` — the spatial manifold, indexed by ``d``.
 
     Replaces the interpolated ``support=f"spatial_R{ndim}"``.
@@ -369,6 +594,11 @@ class RealSpace(Manifold):
     def contains(self, points: ArrayLike) -> bool:
         arr = self._as_points(points, self.d)
         return bool(np.all(np.isfinite(arr)))
+
+
+    def _refusal(self, motion: "RigidMotion") -> DoesNotMap | None:
+        r"""Every motion of :math:`E(d)` maps :math:`\mathbb{R}^d` onto itself."""
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -473,7 +703,7 @@ class Product(Manifold):
 
 
 @dataclass(frozen=True)
-class Ball(Manifold):
+class Ball(GSpace):
     r"""The closed unit ball :math:`D^d = \{p \in \mathbb{R}^d : \|p\| \le 1\}`.
 
     Minted 2026-08-31 because the derivation demanded it: ``S^2/sigma_y``
@@ -502,6 +732,10 @@ class Ball(Manifold):
                 np.sum(arr * arr, axis=1) <= 1.0 + _MEMBERSHIP_ATOL
             )
         )
+
+
+    def _refusal(self, motion: "RigidMotion") -> DoesNotMap | None:
+        return _origin_refusal(self, motion)
 
 
 @dataclass(frozen=True)
@@ -575,7 +809,7 @@ class FundamentalDomain(Manifold):
 
 
 @dataclass(frozen=True)
-class Quotient(Manifold):
+class Quotient(GSpace):
     r"""The orbit space :math:`M/H`, and the derivation that produced it.
 
     ⭐ **The fields below ARE the derivation procedure's output**, not a
@@ -592,7 +826,7 @@ class Quotient(Manifold):
     :math:`S^2/O(2)_a` that locus is :math:`\mu = \pm 1`, the poles.
     """
 
-    base: Manifold
+    base: GSpace
     #: The group the orbit space is NAMED BY — its **stabiliser**: the
     #: largest subgroup of :math:`O(3)` whose orbits are these orbits,
     #: equivalently the largest one fixing every invariant in
@@ -741,6 +975,11 @@ class Quotient(Manifold):
            the x-hemisphere, ``dim`` 2 against the interval's 1, would
            violate this clause too and still be refused by clause 2).
         """
+        if not isinstance(self.base, GSpace):
+            raise TypeError(
+                f"{self.base.name}/{self.by.name}: the base {self.base.name} is "
+                f"not a G-space, so no group acts on it and it has no orbit space."
+            )
         _assert_named_by_stabiliser(self.base, self.by)
         # The generic orbit's dimension is a property of the GROUP acting on
         # the base's generic points; a finite group has point orbits, so it
@@ -844,7 +1083,7 @@ class Quotient(Manifold):
         orbit is a point — but it is what an ORBIT question needs: canonical,
         hence EQUIVARIANT under every isometry that descends to the orbit
         space (:math:`g P_H g^{-1} = P_{gHg^{-1}}`), which is all
-        :meth:`induced_action` requires.  A consumer that needs a point of
+        :meth:`action` requires.  A consumer that needs a point of
         :math:`S^2` must ask for a section, and no shipped consumer does.
 
         Typed honestly: the domain is this entry in its chart coordinates, the
@@ -893,43 +1132,63 @@ class Quotient(Manifold):
         lifted = np.asarray(self.lift_coordinates(chart), dtype=float)
         return lifted if lifted.ndim == 2 else lifted[:, None]
 
-    def induced_action(self, motion: "RigidMotion") -> ManifoldMap:
-        r"""The action of the isometry ``motion`` ON this orbit space,
-        :math:`M/H \to M/H`, :math:`[p] \mapsto [g\,p]`.
+    @property
+    def acting_dimension(self) -> int:
+        """The BASE's acting dimension: an orbit space is acted on through its
+        base, so the motions are the base's, whatever the chart's width
+        (:func:`ambient_dim` of a quotient is the chart's).  Read through the
+        base's own property, so a quotient of a quotient asks the sphere."""
+        return self.base.acting_dimension
 
-        Well-defined iff :math:`g` NORMALISES :math:`H` (:math:`gHg^{-1} =
-        H`): then :math:`g` carries every :math:`H`-orbit onto an
-        :math:`H`-orbit and the image orbit is a function of the orbit
-        alone. Otherwise :math:`[g\,p]` depends on the representative and
-        the map is not a map — REFUSED with the reason, rather than
-        evaluated on whatever representative arrived (`[M]` :math:`C_4`
-        about :math:`z` does not normalise :math:`\sigma_y`; it conjugates
-        it to :math:`\sigma_x`). The question is asked of the group
-        (:meth:`SubgroupOfO3.is_normalised_by
-        <orpheus.numerics.symmetry.SubgroupOfO3.is_normalised_by>`),
-        duck-typed like every other read of :attr:`by` in this module.
-
-        Barycentres in (either width, through :meth:`orbit_barycentres`),
-        chart coordinates out — the convention of :attr:`quotient_map`. This is the arrow the OWED
-        residual symmetry :math:`\Gamma` of a geometry acts through on a
-        folded rule (#429 tracker 2.2b, 2026-09-02): a fold's nodes are
-        representatives, so asking :math:`\sigma_y` of the representatives
-        of :math:`S^2/\sigma_y` in the ambient space reads *"not
-        closed"* while :math:`\sigma_y` acts TRIVIALLY on the orbit space
-        — the question was being asked in the wrong place.
-        """
+    def _refusal(self, motion: "RigidMotion") -> DoesNotMap | DoesNotNormalise | None:
+        r""":math:`g` acts on :math:`M/H` iff it maps the base onto itself AND
+        NORMALISES :math:`H` (:math:`gHg^{-1} = H`): then :math:`g` carries
+        every :math:`H`-orbit onto an :math:`H`-orbit and the image orbit is a
+        function of the orbit alone.  Otherwise :math:`[g\,p]` depends on the
+        representative and the map is not a map — refused with the reason,
+        rather than evaluated on whatever representative arrived (`[M]`
+        :math:`C_4` about :math:`z` does not normalise :math:`\sigma_y`; it
+        conjugates it to :math:`\sigma_x`).  The base's law runs first: the
+        normaliser test reads the LINEAR part only, so a translated motion
+        (a deck wrap) "normalises" :math:`O(2)_x`, and until S5 the induced
+        action applied its translation to the barycentres, off the ball."""
+        base_refusal = self.base._refusal(motion)
+        if base_refusal is not None:
+            return base_refusal
         if not self.by.is_normalised_by(motion):
-            raise ValueError(
+            return DoesNotNormalise(
                 f"{motion!r} does not descend to {self.name}: it does not "
                 f"normalise {self.by.name} (g H g^-1 != H), so [p] -> [g p] "
                 f"is not a function of the orbit. Only the normaliser of the "
                 f"quotienting group acts on an orbit space."
             )
-        return ManifoldMap(
-            domain=self,
-            codomain=self,
-            apply=functools.partial(_act_through, self, motion),
-        )
+        return None
+
+    def _image_map(self, motion: "RigidMotion") -> Callable[[NDArray], NDArray]:
+        r""":math:`[p] \mapsto [g\,p]`: barycentres in (either width, through
+        :meth:`orbit_barycentres`), chart coordinates out — the convention of
+        :attr:`quotient_map`.
+
+        This is the arrow the residual symmetry :math:`\Gamma` of a geometry
+        acts through on a folded rule (#429 tracker 2.2b, 2026-09-02): a
+        fold's nodes are representatives, so asking :math:`\sigma_y` of the
+        representatives of :math:`S^2/\sigma_y` in the ambient space reads
+        *"not closed"* while :math:`\sigma_y` acts TRIVIALLY on the orbit
+        space — the question was being asked in the wrong place.  Named
+        ``induced_action`` until S5 (2026-10-19): one name for one verb across
+        the G-space family (ruling 43), the word "induced" kept here."""
+        return functools.partial(_act_through, self, motion)
+
+    def coordinates(self, points: ArrayLike) -> NDArray:
+        r"""The orbit's chart coordinates, from a point in EITHER of the
+        quotient's coordinate systems: two representatives of one orbit
+        (a fold's node and its :math:`\sigma_y` mate) are one point."""
+        return np.asarray(self.orbit_coordinates(self.orbit_barycentres(points)), dtype=float)
+
+    def ambient_points(self, points: ArrayLike) -> NDArray:
+        """The orbit barycentre in the BASE's ambient space
+        (:meth:`orbit_barycentres`, ruling 46)."""
+        return self.orbit_barycentres(points)
 
     def descending_slots(
         self, basis: Any, *, probe: ArrayLike | None = None, atol: float = 1e-12,
@@ -1113,7 +1372,8 @@ class ManifoldMap:
     ``spherical_product`` (a loop plus the literal ``support=SPHERE``), and
     the orbit-barycentre map :math:`S^2/O(2)_a \to D^3` spelled **twice**
     — honestly by ``_embedded_nodes`` (then in ``symmetry``, in ``invariance``
-    since R2), and dishonestly by the
+    from R2 until S5, which retired it for :meth:`GSpace.ambient_points`), and
+    dishonestly by the
     ERR-080 forgery arm, which applies the SAME :math:`\mu \mapsto \mu\,\hat
     e_a` and declares the result on :math:`S^2`.  A codomain that is a
     field of the map cannot be forged at the call site; that is the whole
@@ -1292,8 +1552,9 @@ def barycentre(orbit_space: Quotient) -> ManifoldMap:
     the mirror entries lifted through a hemisphere section instead.
 
     **This is the map ERR-080 forges.**  `[M]` 2026-09-02 the tree spelled it
-    twice: ``_embedded_nodes`` (then in ``symmetry``, in ``invariance`` since
-    R2 — honestly: an invariance check wants
+    twice: ``_embedded_nodes`` (then in ``symmetry``, in ``invariance`` from
+    R2; :meth:`Quotient.ambient_points` since S5 — honestly: an invariance
+    check wants
     the barycentre, because a rotation about :math:`a` fixes it), and
     ``Quadrature._harmonic_frame_measure``'s 1-D arm, which computed the
     same :math:`(\mu, 0, 0)` and declared it a measure on ``SPHERE``.  The
@@ -1394,7 +1655,7 @@ def quotient_onto(source: Manifold, target: Manifold) -> ManifoldMap | None:
 
 
 def _act_through(orbit_space: Quotient, motion: "RigidMotion", points: NDArray) -> NDArray:
-    r""":math:`[p] \mapsto [g\,p]` — :meth:`Quotient.induced_action`'s apply,
+    r""":math:`[p] \mapsto [g\,p]` — :meth:`Quotient.action`'s apply,
     a module-level function partially applied so the arrow is picklable."""
     return orbit_space.orbit_coordinates(
         motion.on_points(orbit_space.orbit_barycentres(points))
@@ -1495,8 +1756,8 @@ def _generic_points(base: Manifold) -> NDArray:
 
 
 @functools.cache
-def _catalogued_quotient(base: Manifold, group: SubgroupOfO3) -> Quotient:
-    """The memoised body of :meth:`Manifold.quotient` — see its Notes.
+def _catalogued_quotient(base: GSpace, group: SubgroupOfO3) -> Quotient:
+    """The memoised body of :meth:`GSpace.quotient` — see its Notes.
 
     **SCOPE-BOUNDARY[guard]** — machinery: the Gröbner-basis orbit-space
     engine, which would derive every entry. ruling: D0.1, the user,
@@ -1506,7 +1767,7 @@ def _catalogued_quotient(base: Manifold, group: SubgroupOfO3) -> Quotient:
     below is the boundary's refusal; each entry is the engine's output in
     its own data model, so building the engine develops the catalogue.
     """
-    # M/{e} = M is a THEOREM for every manifold, not a table row —
+    # M/{e} = M is a THEOREM for every G-space, not a table row —
     # so it is derived here rather than needing one entry per member.
     # Run the same procedure on the trivial group: its invariant ring
     # is the whole polynomial ring, generated by the coordinates
@@ -1516,10 +1777,9 @@ def _catalogued_quotient(base: Manifold, group: SubgroupOfO3) -> Quotient:
     # trivial action is free, vacuously, since its only element is
     # the identity.  The procedure reproduces the known answer, so
     # this case is also a positive control on the machinery.
-    # The trivial group is admitted on EVERY base, first: M/{e} is the
-    # identity ENTRY (`_mod_trivial` — a derivation output, the catalogue's
-    # positive control, and the orbit space a measure that names no group is
-    # asked on).  And (M/H)/{e} IS M/H — the same theorem the door below
+    # The trivial group is admitted on EVERY G-space base, first: M/{e} is
+    # the identity ENTRY (`_mod_trivial` — a derivation output and the
+    # catalogue's positive control).  And (M/H)/{e} IS M/H — the same theorem the door below
     # states for every G ⊆ H, applied to G = {e}: until 2026-09-03 (#434 R4)
     # this built a SECOND Quotient named ``S^2/sigma_y/Trivial``, unequal to
     # the entry it is, which is the two-spellings defect the door exists to
@@ -1562,7 +1822,7 @@ def _catalogued_quotient(base: Manifold, group: SubgroupOfO3) -> Quotient:
     return entry(base, group)
 
 
-def _sphere_mod_o2(base: Manifold, group: SubgroupOfO3) -> Quotient:
+def _sphere_mod_o2(base: GSpace, group: SubgroupOfO3) -> Quotient:
     r"""``S^2 / O(2)_a = [-1, 1]``, derived per the standard procedure.
 
     Write :math:`a` for the axis and :math:`b, c` for the other two.
@@ -1626,7 +1886,7 @@ def _sphere_mod_o2(base: Manifold, group: SubgroupOfO3) -> Quotient:
 
     SymPy is imported lazily: it costs ~250 ms and nothing else in
     :mod:`orpheus.numerics` needs it, so a session that never asks for a
-    quotient never pays for it — and :meth:`Manifold.quotient` memoises,
+    quotient never pays for it — and :meth:`GSpace.quotient` memoises,
     so a session that asks pays the derivation once.
     """
     import sympy as sp
@@ -1691,7 +1951,7 @@ def _sphere_mod_o2(base: Manifold, group: SubgroupOfO3) -> Quotient:
     )
 
 
-def _sphere_mod_mirror(base: Manifold, group: SubgroupOfO3) -> Quotient:
+def _sphere_mod_mirror(base: GSpace, group: SubgroupOfO3) -> Quotient:
     r"""``S^2 / <sigma_a> = D^2``, derived per the standard procedure.
 
     The shipped CYLINDRICAL FOLD.  ``[M]``
@@ -1805,7 +2065,7 @@ def _sphere_mod_mirror(base: Manifold, group: SubgroupOfO3) -> Quotient:
     )
 
 
-def _mod_trivial(base: Manifold, group: SubgroupOfO3) -> Quotient:
+def _mod_trivial(base: GSpace, group: SubgroupOfO3) -> Quotient:
     r"""``M/{e} = M`` — the identity quotient, derived not tabulated.
 
     The invariant ring of the trivial group is all of
@@ -1818,9 +2078,12 @@ def _mod_trivial(base: Manifold, group: SubgroupOfO3) -> Quotient:
     ⭐ Who reads it.  Not the registry: `[M]` ``AngularSymmetry.support``
     hands out the bare ``SPHERE`` for a geometry that spends nothing and
     never this entry (0 production ``SPHERE.quotient(Trivial)`` sites).  It
-    is the orbit space a measure that names no group is asked ON —
-    ``invariance._ambient_orbit_space`` is ``RealSpace(3)/{e}`` — and the
-    catalogue's positive control: the procedure reproducing a known answer.
+    is the catalogue's positive control: the procedure reproducing a known
+    answer.  Until S5 (2026-10-19) it was also the orbit space a measure that
+    named no group was asked ON (``invariance._ambient_orbit_space``,
+    ``RealSpace(3)/{e}``, after zero-padding the nodes into
+    :math:`\mathbb{R}^3`); since S5 a measure is asked on its own support,
+    which must be a :class:`GSpace`.
     (Until 2026-09-03 this paragraph claimed the registry read it — the
     twin it names had been absorbed the other way, by the registry handing
     out the base.)
@@ -1864,7 +2127,7 @@ def _mod_trivial(base: Manifold, group: SubgroupOfO3) -> Quotient:
 #: alone.  About a dozen entries are expected; the engine that would
 #: compute them instead of reading them is deferred, not refused.
 _ORBIT_CATALOGUE: dict[
-    tuple[type, str], Callable[[Manifold, SubgroupOfO3], Quotient]
+    tuple[type, str], Callable[[GSpace, SubgroupOfO3], Quotient]
 ] = {
     # The three axial orbit spaces S^2/O(2)_a share ONE derivation — it
     # reads the axis off the group — so they are three keys, not three

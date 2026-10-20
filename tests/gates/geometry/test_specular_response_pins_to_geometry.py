@@ -31,7 +31,8 @@ are genuinely independent:
   :class:`~orpheus.geometry.transformation.RigidMotion` — the ``G1``–``G5``
   core, verified against pure math — to the quadrature's direction cosines and
   reads off the induced permutation with this module's OWN
-  argmin + exactness + injectivity discipline (no call into ``preserves``);
+  argmin + exactness + injectivity discipline (no call into the production
+  matcher, ``DiscreteMeasure.relabelling_to``; ``preserves`` until S5);
 * the **response** side is ``quadrature.ordinate_permutation(motion)``, the
   quadrature's own certified pairing derivation — the one source production
   realization also reads (G6.3 step 7; until §7d.3 this side was the
@@ -45,8 +46,9 @@ swapping x↔y inside ``_mirror_motion`` leaves all rows here GREEN while
 78 sibling gates red. The letter-convention cross-check lives in the
 reference helper's deliberately-local axis map
 (``tests/_harness/references.py`` ``_AXIS_INDEX``) and the gates it
-feeds. What THIS file pins is the DERIVATION: ``preserves``'s match
-machinery against an independently-written match, on the same motion.
+feeds. What THIS file pins is the DERIVATION: the production match
+machinery (``permutation_between`` under ``relabelling_to``; ``preserves``
+until S5) against an independently-written match, on the same motion.
 
 `[M]` the two derivations agree EXACTLY (``atol=1e-12``, and the
 permutation is a genuine bijection) on ``gauss_legendre(4)``,

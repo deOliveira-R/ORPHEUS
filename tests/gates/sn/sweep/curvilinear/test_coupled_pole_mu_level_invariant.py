@@ -72,7 +72,6 @@ from __future__ import annotations
 
 import numpy as np
 
-from orpheus.numerics.invariance import _embedded_nodes
 import pytest
 
 from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
@@ -164,14 +163,14 @@ def test_x_reflection_is_intra_level_signflip_partner(quad_factory):
     # linear and so commute with the orbit mean, which is what the embedding
     # of a 1-D ordinate is — so negating column 0 below is still exactly the
     # x-reflection acting on the orbit.
-    # ⚠ Since R4 of #434 (2026-09-03) ``_embedded_nodes`` returns orbit
+    # ⚠ Since R4 of #434 (2026-09-03) the ambient points (``GSpace.ambient_points`` since S5) are orbit
     # BARYCENTRES for a fold too, so on the two ``folded_*`` rows the μ_y
     # column is identically 0 (`[M]` |μ_y|max 8.7e-01 / 9.1e-01 → 0.0) and
     # the "μ_y must be held" half of the claim is VACUOUS there — vv #20: two
     # of eight rows cannot see a μ_y perturbation. The μ_z leg and the six
     # unfolded rows carry it. Do not "fix" this by feeding the fold's raw
     # nodes: that would re-mint the duplicate the comment above records.
-    mu = np.asarray(_embedded_nodes(quad.measure), dtype=float)
+    mu = np.asarray(quad.measure.support.ambient_points(quad.measure.nodes), dtype=float)
     expected = mu.copy()
     expected[:, 0] *= -1.0  # -0.0 for axis-tangent μ_x=0 ordinates → still ==0
     np.testing.assert_allclose(

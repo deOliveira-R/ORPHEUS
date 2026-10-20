@@ -105,7 +105,6 @@ from orpheus.numerics.quadrature.rules_1d import (
     gauss_legendre_on_polar_orbit,
 )
 from orpheus.numerics.symmetry import SubgroupOfO3
-from orpheus.numerics.invariance import permutation_under
 
 pytestmark = pytest.mark.foundation
 
@@ -452,7 +451,7 @@ class TestQuotient:
 
         ``AngularSymmetry.support`` (``quadrature/registry.py``) was a
         **hand-written table** — ``SO2 -> COSINE_INTERVAL``,
-        ``Trivial -> SPHERE``, raise otherwise.  :meth:`Manifold.quotient`
+        ``Trivial -> SPHERE``, raise otherwise.  :meth:`GSpace.quotient`
         **derives** the same orbit space from invariant theory (the
         Procesi--Schwarz matrix of the invariant ring).  Neither read the
         other, so this was a genuine two-implementation agreement and the
@@ -756,16 +755,29 @@ def test_every_variant_is_reachable_from_this_modules_list():
 
     The closed sum's whole benefit is that an operation can be checked
     against every member; that benefit is only real if the member list
-    is itself pinned.  ``Manifold.__subclasses__`` is the tree's own
+    is itself pinned.  The subclass tree of ``Manifold`` is the tree's own
     answer, so this cannot drift from the module.
+
+    Since S5 (2026-10-19) the abstract ``GSpace`` sits between ``Manifold`` and
+    six members, so ``__subclasses__()`` (direct children only) no longer
+    reaches them: the walk is RECURSIVE and keeps the CONCRETE classes, so the
+    population stays "every constructible variant".
     """
+    import inspect
+
     from orpheus.numerics import manifold as mod
+
+    def _walk(cls):
+        for sub in cls.__subclasses__():
+            yield sub
+            yield from _walk(sub)
 
     declared = {
         c.__name__
-        for c in Manifold.__subclasses__()
-        if c.__module__ == mod.__name__
+        for c in _walk(Manifold)
+        if c.__module__ == mod.__name__ and not inspect.isabstract(c)
     }
+    assert {"Sphere", "Quotient", "EnergyGroups"} <= declared  # both levels reached
     exercised = {type(m).__name__ for m in _ALL} | {"Quotient"}
     assert declared == exercised, (
         f"variants declared but not exercised: {sorted(declared - exercised)}; "
@@ -943,18 +955,18 @@ class TestManifoldMap:
     ) -> None:
         """Pattern 2: the honest spelling of the map READS the map.
 
-        ``invariance._embedded_nodes`` is what ``is_invariant_under`` and the
+        ``GSpace.ambient_points`` (``invariance._embedded_nodes`` until S5) is what
+        ``is_invariant_under`` and the
         motion-preservation check embed a polar marginal through; since
         2.3 it is this map, so the two cannot drift.
         """
         from orpheus.numerics.manifold import barycentre
         from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_polar_orbit
-        from orpheus.numerics.invariance import _embedded_nodes
 
         rule = gauss_legendre_on_polar_orbit(8, axis)
         assert isinstance(rule.support, Quotient)
         assert np.array_equal(
-            _embedded_nodes(rule), barycentre(rule.support)(rule.nodes)
+            rule.support.ambient_points(rule.nodes), barycentre(rule.support)(rule.nodes)
         )
 
 
@@ -1473,7 +1485,7 @@ class TestDescendingSlots:
         )
 
         with pytest.raises(NotImplementedError, match="no default probe"):
-            ENERGY.quotient(SubgroupOfO3.Trivial).descending_slots(
+            CIRCLE.quotient(SubgroupOfO3.Trivial).descending_slots(  # S5: quotient is GSpace's
                 SphericalHarmonicBasis(L=1)
             )
 
@@ -1977,14 +1989,14 @@ class TestTheLiftIsARightInverseOfTheQuotientMap:
 # G2 — tests/gates/numerics/test_manifold.py
 # =============================================================================
 class TestTheInducedActionIsWellDefinedAndActsAsTheTheoremSays:
-    r"""(i) ``Quotient.induced_action`` — REFUSE what does not normalise, and
+    r"""(i) ``Quotient.action`` (``induced_action`` until S5) — REFUSE what does not normalise, and
     act as the algebra says on what does.
 
     ⛔ **§6c note, and the coordinator must read it before crediting this
     gate.**  The refusal is provably UNREACHABLE from
     :meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`
     (``SubgroupOfO3.is_invariant`` until R2 of #434): the orbit-space kernel asks
-    ``G.normalises(H)`` at step 1 and only then applies ``induced_action`` to
+    ``G.normalises(H)`` at step 1 and only then applies the orbit space's ``action`` to
     elements of ``G``, every one of which normalises ``H`` because ``G``
     does.  So its only witness is a DIRECT call — which is what this class
     is.  Do not add an end-to-end row for it; there is none to add.
@@ -1999,16 +2011,16 @@ class TestTheInducedActionIsWellDefinedAndActsAsTheTheoremSays:
         conj = _g22b_mirror("y").conjugated_by(c4z)
         assert np.allclose(conj.linear, np.diag([-1.0, 1.0, 1.0]), atol=1e-12)
         with pytest.raises(ValueError, match="normalise"):
-            fold.induced_action(c4z)
+            fold.action(c4z)
 
     @pytest.mark.foundation
     def test_a_rotation_about_another_axis_does_not_descend_to_an_AXIAL_entry(self):
         entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
         with pytest.raises(ValueError, match="normalise"):
-            entry.induced_action(_g22b_rot("y", 1.0))
+            entry.action(_g22b_rot("y", 1.0))
         # the positive control: about its OWN axis it descends, and is the
         # IDENTITY on the chart (every orbit is fixed as a set).
-        act = entry.induced_action(_g22b_rot("x", 1.0))
+        act = entry.action(_g22b_rot("x", 1.0))
         mu = np.linspace(-1.0, 1.0, 21).reshape(-1, 1)
         assert np.allclose(np.asarray(act(mu)).reshape(-1), mu[:, 0], atol=1e-15)
 
@@ -2019,12 +2031,12 @@ class TestTheInducedActionIsWellDefinedAndActsAsTheTheoremSays:
         rho = np.sqrt(rng.uniform(0.0, 1.0, 64))
         phi = rng.uniform(0.0, 2.0 * np.pi, 64)
         chart = np.column_stack([rho * np.cos(phi), rho * np.sin(phi)])
-        got = np.asarray(fold.induced_action(_g22b_mirror("x"))(chart), dtype=float)
+        got = np.asarray(fold.action(_g22b_mirror("x"))(chart), dtype=float)
         assert np.allclose(got, chart * np.array([-1.0, 1.0]), atol=1e-15)
-        got_z = np.asarray(fold.induced_action(_g22b_mirror("z"))(chart), dtype=float)
+        got_z = np.asarray(fold.action(_g22b_mirror("z"))(chart), dtype=float)
         assert np.allclose(got_z, chart * np.array([1.0, -1.0]), atol=1e-15)
         # and the quotienting mirror itself acts TRIVIALLY — the whole point.
-        got_y = np.asarray(fold.induced_action(_g22b_mirror("y"))(chart), dtype=float)
+        got_y = np.asarray(fold.action(_g22b_mirror("y"))(chart), dtype=float)
         assert np.allclose(got_y, chart, atol=1e-15)
 
     @pytest.mark.foundation
@@ -2032,7 +2044,7 @@ class TestTheInducedActionIsWellDefinedAndActsAsTheTheoremSays:
     def test_the_axis_flipping_mirror_is_mu_to_minus_mu_THROUGH_the_barycentre(self, axis):
         entry = SPHERE.quotient(SubgroupOfO3.O2(axis))
         mu = np.linspace(-1.0, 1.0, 41).reshape(-1, 1)
-        got = np.asarray(entry.induced_action(_g22b_mirror(axis))(mu), dtype=float)
+        got = np.asarray(entry.action(_g22b_mirror(axis))(mu), dtype=float)
         assert np.array_equal(got.reshape(-1), -mu[:, 0])
 
     @pytest.mark.foundation
@@ -2054,10 +2066,10 @@ class TestTheInducedActionIsWellDefinedAndActsAsTheTheoremSays:
             for g in elements:
                 for h in elements:
                     lhs = np.asarray(
-                        entry.induced_action(g)(entry.induced_action(h)(chart)),
+                        entry.action(g)(entry.action(h)(chart)),
                         dtype=float,
                     )
-                    rhs = np.asarray(entry.induced_action(g @ h)(chart), dtype=float)
+                    rhs = np.asarray(entry.action(g @ h)(chart), dtype=float)
                     assert np.allclose(lhs, rhs, atol=1e-14), (g, h)
 
 
@@ -2100,7 +2112,9 @@ class TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice:
 
     `[M]` 2026-09-02.  ``_embedded_nodes`` has TWO production readers, and
     only one of them is the invariance kernel: ``Quadrature.ordinate_permutation``
-    (``directional.py:539``) feeds it to ``RigidMotion.preserves``.  With the
+    (``directional.py:539``) fed it to ``RigidMotion.preserves`` (both
+    retired at S5, 2026-10-19, for ``GSpace.ambient_points`` and the
+    measure's relabelling).  With the
     axial arm deleted, a rule on ``S^2/O2_y`` embeds as ``(μ, 0, 0)`` instead
     of ``(0, μ, 0)`` — max |difference| **9.603e-01** — and
     ``ordinate_permutation(σ_x)`` answers the μ→−μ permutation
@@ -2108,6 +2122,9 @@ class TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice:
     with σ_y flipping the other way.  Two of the three axes are wrong; the
     slab's own ``S^2/O2_x`` is the one axis where the two agree, which is why
     ``symmetry.py``'s own suite cannot see it.
+
+    (Since S5, 2026-10-19, the arm is ``GSpace.ambient_points`` on the orbit space,
+    and ``_embedded_nodes`` is retired with ``orpheus.numerics.invariance``.)
 
     ⟹ the arm is RE-POINTED, not deleted: ``_embedded_nodes``'s axial branch
     reads ``measure.support.lift(nodes)``.  `[M]` that is ``array_equal`` to
@@ -2118,12 +2135,11 @@ class TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice:
     @pytest.mark.foundation
     @pytest.mark.parametrize("axis", _g22b_AXES)
     def test_the_axial_embedding_IS_the_entrys_lift(self, axis):
-        from orpheus.numerics.invariance import _embedded_nodes
 
         rule = gauss_legendre_on_polar_orbit(8, axis)
         nodes = np.asarray(rule.nodes, dtype=float).reshape(-1, 1)
         assert np.array_equal(
-            np.asarray(_embedded_nodes(rule), dtype=float),
+            np.asarray(rule.support.ambient_points(rule.nodes), dtype=float),
             np.asarray(rule.support.lift(nodes), dtype=float),
         )
 
@@ -2142,17 +2158,10 @@ class TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice:
             moved = perm.indices.tolist() != list(range(rule.n_points))
             assert moved is (other == axis), (axis, other)
 
-    @pytest.mark.foundation
-    def test_a_BARE_interval_keeps_the_column_zero_convention(self):
-        """The arm that does NOT retire: a bare interval names no axis, so
-        column 0 is the convention and there is no lift to read."""
-        from orpheus.numerics.invariance import _embedded_nodes
-
-        m = gauss_legendre_on_mu(8)
-        assert m.support == COSINE_INTERVAL
-        emb = np.asarray(_embedded_nodes(m), dtype=float)
-        assert np.array_equal(emb[:, 0], np.asarray(m.nodes, dtype=float))
-        assert np.array_equal(emb[:, 1:], np.zeros((m.n_points, 2)))
+    # ``test_a_BARE_interval_keeps_the_column_zero_convention`` was DELETED at S5 (ruling 44):
+    # it pinned the zero-padding of a bare interval as the contract, and S5 retires the
+    # padding (an O(3) question on ``[-1,1]`` is a TypeError). Its successor is
+    # ``test_invariance_composition.py::TestTheChartRuleIsRefused``.
 
 
 # =============================================================================
@@ -2259,7 +2268,8 @@ def _r4_circle_mean(axis: int, points: np.ndarray, n: int = 16) -> np.ndarray:
 
 #: Every orbit space the tree can construct whose base has ambient width 3 —
 #: the 6 catalogue entries plus the two shipped trivial ones (``R^3/{e}`` IS
-#: ``invariance._ambient_orbit_space()``, a production object).  The FINITE
+#: what ``invariance._ambient_orbit_space()`` returned until S5 retired the
+#: padding; it is built here directly).  The FINITE
 #: roster is probed whole, never sampled (``vv-principles`` #31's finite-roster
 #: corollary; #13's ladder rule governs unbounded families, and this is not one).
 _R4_ENTRY_LABELS = (
@@ -2568,7 +2578,7 @@ class TestR4TheLiftIsEquivariantUnderTheNormaliserAndOnlyThere:
     carries it off the fundamental domain) with the orbit BARYCENTRE.
 
     ⛔ **This class is the ONLY place the property is falsifiable.**  Routing it
-    through :meth:`Quotient.induced_action` is Mode-12 blind: the chart drops
+    through :meth:`Quotient.action` is Mode-12 blind: the chart drops
     exactly the column the projector zeroes.  ``[M]`` 0 of 9925 kernel answers
     move under R4's lift.  The third row below states that blindness as a
     measurement rather than leaving it to be rediscovered.
@@ -2958,7 +2968,7 @@ class TestR4OrbitBarycentresIsOneConceptOnBothWidths:
     @pytest.mark.foundation
     def test_the_HARNESS_fold_answer_now_agrees_with_the_kernel(self) -> None:
         r"""⭐ ``tests/_harness/references.py``'s partner map is derived from
-        ``_embedded_nodes``, so R4 moves ONE of its 33 (rule × axis) answers per
+        ``_embedded_nodes`` (``GSpace.ambient_points`` since S5), so R4 moves ONE of its 33 (rule × axis) answers per
         fold — and it moves it INTO agreement with the kernel.
 
         ``[M]`` 2026-09-03: 31 of 33 answers unchanged; the 2 that move are

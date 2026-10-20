@@ -5,7 +5,8 @@ production mirror gather — realized specular operators, narrowed
 permutations, hand-written specular closures. It derives the partner map
 from nothing but the quadrature's direction cosines and plain numpy: no
 call into :meth:`Quadrature.ordinate_permutation` /
-:meth:`RigidMotion.preserves` / ``_orbit_closure``, so a defect in the
+:meth:`DiscreteMeasure.relabelling_to` (``RigidMotion.preserves`` and
+``_orbit_closure`` until S5), so a defect in the
 production derivation cannot cancel against it (``vv-principles`` L11
 structural independence).
 
@@ -28,7 +29,6 @@ from __future__ import annotations
 
 import numpy as np
 
-from orpheus.numerics.invariance import _embedded_nodes
 
 #: Axis letter → direction-cosine column. Deliberately a local literal
 #: rather than an import of the production convention home
@@ -77,9 +77,10 @@ def mirror_partner_indices(quad, axis: int | str) -> np.ndarray:
     # the y-mirror's answer is the identity permutation, and it agrees with
     # ``DiscreteMeasure.permutation_under`` (gated in test_manifold.py's R4
     # rows); until R4 the two disagreed — this raised where the closure
-    # answered.  ``_embedded_nodes`` lives in ``orpheus.numerics.invariance``
-    # since R2 of #434.
-    nodes = np.asarray(_embedded_nodes(quad.measure), dtype=float)
+    # answered.  The ambient points are the support's own verb,
+    # ``GSpace.ambient_points`` (S5, ruling 46; until S5 the private
+    # ``invariance._embedded_nodes``).
+    nodes = np.asarray(quad.measure.support.ambient_points(quad.measure.nodes), dtype=float)
     mirrored = nodes.copy()
     mirrored[:, idx] *= -1.0
     distances = np.linalg.norm(mirrored[:, None, :] - nodes[None, :, :], axis=-1)

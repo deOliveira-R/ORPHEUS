@@ -865,7 +865,6 @@ def test_quotient_weights_are_orbit_stabilizer_derived() -> None:
     read off the CERTIFICATE — and mass is preserved (quotient, not
     restriction)."""
     from orpheus.numerics.quadrature import Quadrature
-    from orpheus.numerics.invariance import certificate_under
 
     mu = Quadrature.product(n_mu=4, n_phi=8).measure
     group = SubgroupOfO3.Mirror("y")
@@ -898,7 +897,6 @@ def test_a_free_action_folds_to_uniform_double_weights() -> None:
     orbit-stabilizer weight collapses to a uniform :math:`|G| \cdot w` —
     per-atom BIT-exact (``w + w`` never rounds), with no mixed
     :math:`w/2w` sum."""
-    from orpheus.numerics.invariance import certificate_under
 
     mu = _fold_ring(n_phi=8)
     group = SubgroupOfO3.Mirror("y")

@@ -35,7 +35,6 @@ from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import LevelStructure, Quadrature
-from orpheus.numerics.invariance import _embedded_nodes
 from orpheus.numerics import frame_faces
 
 pytestmark = [pytest.mark.foundation]
@@ -199,8 +198,8 @@ def _mirror(axis_index: int) -> RigidMotion:
 def test_q4_2_mirror_permutation_is_an_involution() -> None:
     """For every axis, pi[pi] == arange (a mirror composed twice is identity).
 
-    ERR-044's quadrature-tier home: ``preserves`` certifies bijection and
-    weight equality, NOT the involution — σ² = id is asserted ON the
+    ERR-044's quadrature-tier home: the relabelling (``preserves`` until S5)
+    certifies bijection and weight equality, NOT the involution — σ² = id is asserted ON the
     derived π.
     """
     for q in [Quadrature.lebedev(17), Quadrature.level_symmetric(4),
@@ -285,12 +284,12 @@ def test_q4_5_every_derived_mirror_permutation_really_is_its_reflection(
     q = build()
     # The canonical R^3 embedding, from its one home. This line used to
     # hand-roll it as ``column_stack([q.axis_cosines(a) for a in range(3)])``
-    # — a Pattern-2 duplicate of ``_embedded_nodes``, and one that only worked
+    # — a Pattern-2 duplicate of the support's ``ambient_points``, and one that only worked
     # because ``axis_cosines`` silently padded a suppressed axis with zeros.
     # Phase 0.2 made that padding a refusal, which is what surfaced the
     # duplicate: applying a RigidMotion needs POINTS of R^3, and minting them
     # is the embedding's job, not an accessor's.
-    nodes3 = _embedded_nodes(q.measure)
+    nodes3 = q.measure.support.ambient_points(q.measure.nodes)
     available = []
     for axis in (0, 1, 2):
         pi = q.ordinate_permutation(_mirror(axis))

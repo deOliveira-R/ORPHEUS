@@ -281,7 +281,8 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         # green (order-dependent; plan-authoring §6d).
         "orpheus.numerics.manifold",
         "orpheus.numerics.measure",
-        "orpheus.numerics.invariance",
+        # (``orpheus.numerics.invariance`` was an entry until S5, 2026-10-19,
+        # which deleted the module: invariance is the measure's composition.)
         "orpheus.numerics.quadrature.registry",
         "orpheus.geometry",
         "orpheus.geometry.transformation",

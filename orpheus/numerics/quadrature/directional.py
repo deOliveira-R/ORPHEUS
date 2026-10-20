@@ -91,7 +91,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.numerics.measure import DiscreteMeasure, DiscreteMeasurePartition
-from orpheus.numerics.invariance import WEIGHT_ATOL
+from orpheus.numerics.measure import WEIGHT_ATOL
 from orpheus.numerics.symmetry import SubgroupOfO3
 
 if TYPE_CHECKING:
@@ -472,7 +472,7 @@ class Quadrature:
           (#429 tracker 2.2b, 2026-09-02): a polar marginal's :math:`\mu`
           is carried to the base through the entry's lift and acted on
           through the entry's
-          :meth:`~orpheus.numerics.manifold.Quotient.induced_action`, a
+          :meth:`~orpheus.numerics.manifold.GSpace.action`, a
           fold's REPRESENTATIVES likewise (so :math:`\sigma_y` on a
           :math:`\sigma_y`-folded rule is the IDENTITY permutation of the
           stored ordinates — it acts trivially on the orbit space — where
@@ -481,9 +481,9 @@ class Quadrature:
           lower-dimensional motion is lifted through
           :meth:`~orpheus.geometry.transformation.RigidMotion.embedded_in`;
         * the same two tolerance windows (node window
-          :data:`~orpheus.numerics.invariance._NODE_WINDOW_FACTOR` times the
+          :data:`~orpheus.numerics.measure._NODE_WINDOW_FACTOR` times the
           weight window, the measure-level claim recorded on
-          ``_orbit_closure``);
+          :meth:`~orpheus.numerics.measure.DiscreteMeasure.relabelling_to`);
         * the same three certifications, delivered by
           :meth:`~orpheus.numerics.measure.DiscreteMeasure.permutation_under` (the
           single-motion face of the closure ``is_invariant_under`` and

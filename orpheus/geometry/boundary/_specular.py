@@ -110,9 +110,10 @@ def _specular_pairing(
 
     Each invariant below asserts ITS OWN claim on this array — the
     derivation's built-in certificate (bijection + bare-weight equality,
-    from :meth:`~orpheus.geometry.transformation.RigidMotion.preserves`)
-    is deliberately NOT treated as subsuming them: ERR-044's involution
-    has no carrier in ``preserves`` (a bijection needn't be its own
+    from :meth:`~orpheus.numerics.measure.DiscreteMeasure.relabelling_to`;
+    ``RigidMotion.preserves`` until S5) is deliberately NOT treated as
+    subsuming them: ERR-044's involution has no carrier in the relabelling
+    (a bijection needn't be its own
     inverse), and ERR-042's measure is the TRACE one,
     :math:`w\,|\mu_a|`, not the bare :math:`w` the matcher compares.
     The checks keep their teeth; only the array's source moved.

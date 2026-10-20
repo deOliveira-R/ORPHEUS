@@ -42,8 +42,10 @@ TIERS: tuple[tuple[str, ...], ...] = (
     ("traced_memo",),
     ("basis", "exactness", "observable", "question"),
     ("measure",),
-    # the frame's data = join(basis, measure); the Gauss rule; invariance = join(measure, G-space)
-    ("frame", "generating_measure", "invariance"),
+    # the frame's data = join(basis, measure); the Gauss rule. Invariance is no module:
+    # S5 (ruling 42) made it the measure's composition of pushforward with its
+    # G-space support's action, so it ranks with the measure.
+    ("frame", "generating_measure"),
     ("quadrature",),
     ("axis",),
     ("space",),
@@ -76,8 +78,6 @@ PENDING: dict[tuple[str, str], str] = {
     ("assembled_operator", "operator"): "S3",
     # S4: a sum's inverse is InverseOperator(sum), realised by the Strategy (ruling 20)
     ("green_operator", "operator"): "S4",
-    # S5: invariance is a composition the measure does not own (ruling 13)
-    ("invariance", "measure"): "S5",
 }
 
 

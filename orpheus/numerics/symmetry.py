@@ -49,16 +49,22 @@ two different shapes.
 Whether a MEASURE is invariant under a group is the measure's question, and
 it lives with the measure: :meth:`DiscreteMeasure.is_invariant_under
 <orpheus.numerics.measure.DiscreteMeasure.is_invariant_under>` and its siblings
-delegate to :mod:`orpheus.numerics.invariance` (since R2 of #434, 2026-09-03 —
-until then the kernel, the closure and the lattice walk lived here, this
-module imported :mod:`~orpheus.numerics.measure` at module scope, and the
-manifold module could reference a group only under ``TYPE_CHECKING``).  This
-module imports :mod:`orpheus.geometry.transformation` and, inside
-``numerics``, only :mod:`~orpheus.numerics.roots_of_unity` — itself a
-numpy-only leaf (`[M]` 2026-09-03: its imports are ``numpy`` and
-``numpy.typing``), and it must STAY one, because the day it imports
-``measure`` or ``manifold`` this module re-acquires the cycle R2 broke: a
-group is a group.
+are compositions of the measure's own pushforward with its support's
+:meth:`~orpheus.numerics.manifold.GSpace.action` (S5 of the numerics
+untangling, 2026-10-19).  What is a statement about a GROUP acting on a POINT
+SET, and needs nothing from a measure, lives here: the realized action of a
+finite group on a point set (:class:`OrbitCertificate`), the candidate groups a
+point set is worth testing against (:func:`candidate_groups`), and the walk of
+the subgroup lattice that returns the maximal members satisfying a
+downward-closed predicate (:func:`maximal_satisfying`, :func:`maximal_subgroups`).
+Between R2 of #434 (2026-09-03) and S5 those lived in a separate
+``invariance`` module, above ``measure``, which imported it back: a cycle the
+concept-order gate held as pending.  This module imports
+:mod:`orpheus.geometry.transformation` and, inside ``numerics``, only
+:mod:`~orpheus.numerics.roots_of_unity` — itself a numpy-only leaf (`[M]`
+2026-09-03: its imports are ``numpy`` and ``numpy.typing``), and it must STAY
+one, because the day it imports ``measure`` or ``manifold`` this module
+re-acquires a cycle: a group is a group.
 
 References
 ----------
@@ -72,7 +78,7 @@ References
 * Lebedev, V.I. (1976). "Quadratures on a sphere." *USSR Computational
   Mathematics and Mathematical Physics* **16**(2), 10-24. The
   octahedral-invariant construction the :math:`O_h` invariance check
-  (:mod:`~orpheus.numerics.invariance`) validates.
+  (:meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`) validates.
 * Carlson, B.G. and Lathrop, K.D. (1968). "Transport theory: the
   method of discrete ordinates." In *Computing Methods in Reactor
   Physics*, Greenspan, Kelber, Okrent, eds., Gordon & Breach.
@@ -95,11 +101,12 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass
 from enum import Enum
-from typing import ClassVar
+from typing import Callable, ClassVar, Iterable, Literal
 
 import numpy as np
 
 from orpheus.geometry.transformation import (
+    Permutation,
     RigidMotion,
     close_group as _close_rigid_motions,
 )
@@ -569,8 +576,10 @@ class SubgroupOfO3:
         :attr:`mirror_axis`: it identifies the axis whose polar interval the
         group's orbit space on :math:`S^2` IS, which is what an orbit-space
         derivation (``manifold._sphere_mod_o2`` needs the invariant
-        coordinate) and the embedding of a polar marginal
-        (``invariance._embedded_nodes`` puts :math:`\mu` on THIS axis) read off it.
+        coordinate) and the orbit barycentre of a polar marginal
+        (:meth:`Quotient.ambient_points
+        <orpheus.numerics.manifold.Quotient.ambient_points>` puts :math:`\mu`
+        on THIS axis) read off it.
         """
         tag = self._tag
         if isinstance(tag, (SO2, O2)):
@@ -864,8 +873,8 @@ class SubgroupOfO3:
         An isometry carries :math:`H`-orbits onto :math:`H`-orbits exactly
         when it normalises :math:`H`; then :math:`[p] \mapsto [g\,p]` is a
         function of the orbit and :math:`g` acts on :math:`M/H`
-        (:meth:`Quotient.induced_action
-        <orpheus.numerics.manifold.Quotient.induced_action>`). Otherwise
+        (:meth:`GSpace.action
+        <orpheus.numerics.manifold.GSpace.action>`). Otherwise
         the image of an orbit depends on the representative and there is
         no action to speak of. Decided EXACTLY, family by family:
 
@@ -965,7 +974,7 @@ class SubgroupOfO3:
         :math:`C_4`, which `[M]` 2026-09-02 falsely admits the
         :math:`m = \pm 4` real-harmonic slots at :math:`L \ge 4`
         (``vv-principles`` #13 — this is the trap
-        :func:`~orpheus.numerics.invariance.is_invariant_under` avoids
+        :meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under` avoids
         by deciding continuous groups EXACTLY; a probe of FUNCTIONS cannot,
         so it samples where no finite subgroup can hide). :math:`D_{\infty h}`
         has an axis (:math:`z`) and four components, so since 2026-09-02 (R1
@@ -1727,10 +1736,297 @@ SubgroupOfO3.SO3 = SubgroupOfO3._from_named(_NamedSubgroup.SO3)
 SubgroupOfO3.O3 = SubgroupOfO3._from_named(_NamedSubgroup.O3)
 
 
+# ---------------------------------------------------------------------------
+# The realized action of a finite group on a point set
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class OrbitCertificate:
+    r"""The realized action of a group on a point set.
+
+    Returned by the closure check instead of a bare ``True``. The check
+    ALREADY computes, for each operator :math:`M` and node :math:`i`, the
+    index :math:`\pi_M(i)` with :math:`M x_i = x_{\pi_M(i)}` — it simply
+    discarded it. A ``-> bool`` predicate that internally builds the
+    permutation IS the missing primitive; widening the return type is
+    cheaper than minting a class to recompute it.
+
+    Everything below is a *reading* of the permutations, not new work:
+
+    * :attr:`singular_set` — the orbifold **singular set**
+      :math:`\Sigma = \{x : \mathrm{Stab}(x) \neq \{e\}\}`. Because
+      :math:`\pi_M(i) = i` means exactly :math:`M x_i = x_i`, i.e.
+      :math:`x_i \in \mathrm{Fix}(M)`, membership is an **integer
+      identity** — exact, with no tolerance. The only place a tolerance
+      enters is matching nodes while BUILDING :math:`\pi`, which is the
+      one place the question is honestly numerical.
+    * :attr:`stabilizer_order` — :math:`|\mathrm{Stab}(x_i)|`, the orbit
+      type; by orbit-stabilizer the orbit length is :math:`|G|` divided
+      by it.
+    * :meth:`orbits` — the :math:`G`-orbits themselves.
+
+    A certificate exists only for a :math:`G`-INVARIANT set, so
+    :math:`\Sigma` is unrepresentable without the closure proof — which is
+    the precondition ("the quotient is defined only on a G-invariant
+    measure") enforced by construction rather than by a comment.  It is a
+    statement about a group acting on a point set and needs nothing from a
+    measure, which is why it lives here and not beside the measure that
+    builds it (S5, 2026-10-19).
+    """
+
+    operators: tuple[RigidMotion, ...]
+    permutations: tuple[Permutation, ...]
+
+    @property
+    def n_points(self) -> int:
+        return self.permutations[0].n if self.permutations else 0
+
+    @property
+    def _non_identity(self) -> list[Permutation]:
+        """The permutations of operators other than the identity.
+
+        The identity fixes every point, so including it would report the
+        whole set as singular. The test asks the ELEMENT whether it is the
+        identity of its own dimension, rather than comparing against a
+        hard-coded ``np.eye(3)`` — the certificate is a statement about a
+        group acting on a point set, and nothing in it is three-dimensional.
+        """
+        return [
+            perm
+            for M, perm in zip(self.operators, self.permutations)
+            if not M.approximately_equals(RigidMotion.identity(M.dimension))
+        ]
+
+    @property
+    def singular_set(self) -> np.ndarray:
+        r"""Indices of the **singular points** — :math:`\Sigma`.
+
+        A point is singular iff some non-identity group element fixes it.
+        Under a reflection the fixed locus is a **mirror**; a point fixed
+        by two mirrors is a corner reflector; a point on a rotation axis
+        with no mirror is a cone point.
+        """
+        fixed = np.zeros(self.n_points, dtype=bool)
+        for perm in self._non_identity:
+            fixed[perm.fixed_points] = True
+        return np.flatnonzero(fixed)
+
+    @property
+    def stabilizer_order(self) -> np.ndarray:
+        r""":math:`|\mathrm{Stab}(x_i)|` for every node ``i``.
+
+        ``1`` exactly on the regular (free) points; the singular set is
+        ``> 1``. Meaningful only when the certificate was built from the
+        FULL group rather than a generating set.
+        """
+        order = np.zeros(self.n_points, dtype=np.int64)
+        for perm in self.permutations:
+            order[perm.fixed_points] += 1
+        return order
+
+    def orbits(self) -> tuple[np.ndarray, ...]:
+        """The :math:`G`-orbits, as arrays of node indices."""
+        parent = list(range(self.n_points))
+
+        def find(a: int) -> int:
+            while parent[a] != a:
+                parent[a] = parent[parent[a]]
+                a = parent[a]
+            return a
+
+        for perm in self.permutations:
+            for i, j in enumerate(perm.indices):
+                ra, rb = find(i), find(int(j))
+                if ra != rb:
+                    parent[ra] = rb
+
+        buckets: dict[int, list[int]] = {}
+        for i in range(self.n_points):
+            buckets.setdefault(find(i), []).append(i)
+        return tuple(np.array(v, dtype=np.int64) for v in buckets.values())
+
+
+# ---------------------------------------------------------------------------
+# The subgroup lattice, and walking it
+# ---------------------------------------------------------------------------
+#
+# Crystallography does not ASK a structure what its symmetry group is — it
+# walks the subgroup lattice downward from high symmetry until it reaches
+# the symmetry the structure actually has. The graph is the Hasse diagram of
+# the lattice: nodes are groups, edges are MAXIMAL-subgroup relations
+# (International Tables Vol. A1 renders it as a Bärnighausen tree).
+#
+# A DECLARED invariance group is a claim with no construction behind it, and
+# such claims have already shipped false here twice. A COMPUTED one cannot lie
+# about the object it was computed from.
+
+
+def _distinct_azimuths(points: np.ndarray, atol: float) -> int:
+    r"""Number of distinct azimuthal angles among the off-axis points.
+
+    Bounds the cyclic families: a :math:`C_n` rotation (``n > 1``) fixes no
+    azimuth, so the azimuths split into FREE orbits of size ``n`` and
+    therefore ``n`` divides this count. That turns two infinite families
+    into a handful of divisors.  ``atol`` is BOTH the off-axis cut and the
+    angle-merge window (until R2 of #434 a literal ``1e-9`` shadowed the
+    argument for the merge, so the function's own parameter could not move
+    its answer — `[M]` inert on all 15 shipped rules, witnessed by a
+    manufactured pair of near-coincident azimuths).
+    """
+    rho = np.hypot(points[:, 0], points[:, 1])
+    off_axis = points[rho > atol]
+    if off_axis.shape[0] == 0:
+        return 0
+    phi = np.sort(np.mod(np.arctan2(off_axis[:, 1], off_axis[:, 0]), 2.0 * np.pi))
+    distinct = [phi[0]]
+    for p in phi[1:]:
+        if p - distinct[-1] > atol:
+            distinct.append(float(p))
+    # The first and last can be the same angle seen either side of the branch.
+    if len(distinct) > 1 and (2.0 * np.pi - distinct[-1] + distinct[0]) < atol:
+        distinct.pop()
+    return len(distinct)
+
+
+def candidate_groups(points: np.ndarray, *, atol: float) -> tuple[SubgroupOfO3, ...]:
+    r"""The expressible groups worth testing against a point set in
+    :math:`\mathbb{R}^3`.
+
+    The named entries always, plus :math:`C_n` / :math:`D_{nh}` for each
+    divisor of the points' distinct-azimuth count (see
+    :func:`_distinct_azimuths` for why divisors suffice).  ``points`` are
+    AMBIENT points — a measure hands its support's
+    :meth:`~orpheus.numerics.manifold.GSpace.ambient_points`, the orbit
+    barycentres on a quotient (ruling 46), never the stored width: until R2
+    of #434 this branched on ``measure.nodes.shape[1]``, so ONE fold had two
+    candidate sets by spelling (`[M]` 20 names at ambient width, 15 at chart
+    width, reporting {D_2h} and {sigma_x, sigma_y, sigma_z}).  On the
+    barycentres a polar marginal's set is :math:`(\mu, 0, 0)`, two
+    z-azimuths, so :math:`D_{2h}` is offered and absorbs :math:`\sigma_x`
+    in the walk's answer.  ``atol`` is a POSITION window (the off-axis cut
+    and the angle merge) and is the caller's to state: this module sits
+    below the measure that owns the node window.
+    """
+    named = [
+        SubgroupOfO3.Trivial,
+        SubgroupOfO3.Dinfh, SubgroupOfO3.OctahedralOh,
+        SubgroupOfO3.IcosahedralIh, SubgroupOfO3.SO3, SubgroupOfO3.O3,
+    ]
+    # All three mirrors, always. The parameter set of a reflection family
+    # is {x, y, z} — FINITE BY CONSTRUCTION, so unlike Cn/Dnh (which need
+    # the distinct-azimuth divisor bound to stay finite) it needs no bound
+    # at all, and unlike the retired parameter-free Z2 it offers the walk
+    # all three planes instead of silently only sigma_z.
+    named += [SubgroupOfO3.Mirror(a) for a in ("x", "y", "z")]
+    # And all three axial rotation groups, for the same reason: offering
+    # only z (what the retired bare SO2 amounted to) made every x-pole
+    # rule — the slab's own polar marginal — read as carrying no
+    # continuous symmetry at all.
+    named += [SubgroupOfO3.SO2(a) for a in ("x", "y", "z")]
+    # And the three stabilisers O(2)_a above them (#432, 2026-09-02).
+    # Finite-vs-finite the walk never sees them as equal, and on a polar
+    # marginal they are what is MAXIMAL: the slab's rule reports O(2)_x
+    # (with its μ → −μ mirror σ_x beside it, since σ_x flips the axis and
+    # so lies in neither) where it used to stop at the rotations.
+    named += [SubgroupOfO3.O2(a) for a in ("x", "y", "z")]
+    n_az = _distinct_azimuths(np.asarray(points, dtype=float), atol)
+    families: list[SubgroupOfO3] = []
+    for d in (d for d in range(1, n_az + 1) if n_az % d == 0) if n_az else (1,):
+        if d > 1:  # C_1 IS Trivial, already in `named`; D_1h is a real group of order 4
+            families.append(SubgroupOfO3.Cn(d))
+        families.append(SubgroupOfO3.Dnh(d))
+    return tuple(named + families)
+
+
+def _maximal(groups: Iterable[SubgroupOfO3]) -> tuple[SubgroupOfO3, ...]:
+    """Those members not STRICTLY contained in another member.
+
+    Strict containment — ``h ⊇ g`` and not ``g ⊇ h`` — as the docstring has
+    always said; until R2 of #434 the body tested ``h != g and h.contains(g)``,
+    which drops BOTH members of an equal-but-distinct pair (`[M]` with
+    ``Cn(1)`` a second value for ``{e}`` that emptied the walk's answer on a
+    symmetry-free measure; R1 merged the pair, so no expressible pair can
+    tell the two predicates apart today — the gate's witness is synthetic).
+    """
+    items = list(groups)
+    return tuple(
+        g for g in items
+        if not any(h.contains(g) and not g.contains(h) for h in items)
+    )
+
+
+def maximal_subgroups(
+    group: SubgroupOfO3, candidates: Iterable[SubgroupOfO3],
+) -> tuple[SubgroupOfO3, ...]:
+    """The Hasse edges below ``group`` — its maximal proper subgroups.
+
+    Derived from :meth:`SubgroupOfO3.contains`, never tabulated: a
+    hand-drawn Bärnighausen tree would be exactly the unverifiable claim
+    the computed lattice exists to eliminate.
+    """
+    below = [h for h in candidates if h != group and group.contains(h)]
+    return _maximal(below)
+
+
+def maximal_satisfying(
+    predicate: Callable[[SubgroupOfO3], bool],
+    candidates: Iterable[SubgroupOfO3],
+    *,
+    method: Literal["walk", "bruteforce"] = "walk",
+) -> tuple[SubgroupOfO3, ...]:
+    r"""The maximal candidates satisfying ``predicate``.
+
+    For a DOWNWARD-CLOSED predicate (if :math:`G` satisfies it and
+    :math:`H \le G`, so does :math:`H` — invariance is one), the satisfying
+    set is an order ideal, giving the walk both prunings: a failing node
+    kills every supergroup, a passing node implies every subgroup.
+
+    Parameters
+    ----------
+    method : {"walk", "bruteforce"}
+        ``"walk"`` descends the Hasse diagram with both prunings;
+        ``"bruteforce"`` tests every candidate.  ⚠ Their agreement is NOT
+        evidence that the predicate is downward-closed, nor that the lattice
+        is right: the walk descends from every failing node, so it visits
+        every candidate not below an accepted one, and the two return the
+        same maximal set for ANY predicate (`[M]` 2000 of 2000 random
+        non-downward-closed predicates on LS8's 32 candidates, 0
+        disagreements; S5's finding F2, 2026-10-19).  They are one definition
+        evaluated twice; downward closure has its own law gate
+        (``test_symmetry.py::test_invariance_is_downward_closed``).
+    """
+    cands = tuple(candidates)
+    if method == "bruteforce":
+        return _maximal(g for g in cands if predicate(g))
+    if method != "walk":
+        raise ValueError(f"method must be 'walk' or 'bruteforce', got {method!r}")
+
+    accepted: list[SubgroupOfO3] = []
+    visited: set[SubgroupOfO3] = set()
+    stack = list(_maximal(cands))
+    while stack:
+        group = stack.pop()
+        if group in visited:
+            continue
+        visited.add(group)
+        if any(a.contains(group) for a in accepted):
+            continue  # already implied by an accepted supergroup
+        if predicate(group):
+            accepted.append(group)  # everything below is implied — do not descend
+        else:
+            stack.extend(maximal_subgroups(group, cands))
+    return _maximal(accepted)
+
+
 __all__ = [
     "AXIS_INDEX",
     "AXIS_LETTER",
     "IdentityComponent",
+    "OrbitCertificate",
     "Realization",
     "SubgroupOfO3",
+    "candidate_groups",
+    "maximal_satisfying",
+    "maximal_subgroups",
 ]

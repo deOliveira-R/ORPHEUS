@@ -83,24 +83,32 @@ import numpy as np
 
 # ⭐ Module-scope imports, safe by the LAYERING rather than by luck: ``symmetry``
 # imports only ``geometry.transformation`` and the numpy-only
-# ``roots_of_unity``; ``manifold`` imports ``symmetry``; ``invariance`` imports
-# both and reads THIS module under ``TYPE_CHECKING`` only.  The arrows run one
-# way — measure → invariance → manifold → symmetry — so no cycle can close at
-# runtime.  (Until R2 of #434, 2026-09-03, ``symmetry`` held the invariance
-# kernel and imported this module at module scope, ``manifold`` could reach
-# ``symmetry`` only under ``TYPE_CHECKING``, and `[M]` 2026-09-01 five import
-# orders were probed by hand.  The live witness is now the fresh-interpreter
-# gate in ``tests/gates/test_layer_imports.py`` over every entry point the old cycle
-# killed.)  ``invariance`` is bound as a MODULE so each verb below resolves its
-# kernel at call time — the delegation a counting spy can see.
-from orpheus.numerics import invariance as _invariance
-from orpheus.numerics.symmetry import SubgroupOfO3
+# ``roots_of_unity``; ``manifold`` imports ``symmetry``; this module imports
+# both.  The arrows run one way — measure → manifold → symmetry — and read like
+# the mathematics: groups, certificates and the lattice < G-spaces < measures
+# (pushforward, relabelling, and the invariance compositions).  Until S5 of the
+# numerics untangling (2026-10-19) an ``invariance`` module sat between, which
+# this module imported for its kernel and which imported this one back for its
+# types; the concept-order gate held that edge as pending.  The live witness of
+# the order is the fresh-interpreter gate in ``tests/gates/test_layer_imports.py``
+# and ``tests/gates/numerics/test_concept_order.py``.
+from orpheus.geometry.transformation import permutation_between
+from orpheus.numerics.symmetry import (
+    OrbitCertificate,
+    SubgroupOfO3,
+    candidate_groups,
+    maximal_satisfying,
+)
 from orpheus.numerics.manifold import (
     COSINE_INTERVAL,
+    DoesNotMap,
+    DoesNotNormalise,
     EnergyGroups,
+    GSpace,
     Interval,
     Manifold,
     ManifoldMap,
+    OutOfDimension,
     Quotient,
     RealSpace,
     Sphere,
@@ -109,7 +117,6 @@ from orpheus.numerics.manifold import (
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from orpheus.geometry.transformation import Permutation, RigidMotion
-    from .invariance import OrbitCertificate
 
     # ``space`` imports FROM this module (a function space is built on a
     # measure), so the arrow runs one way and the annotation is a forward
@@ -173,6 +180,46 @@ Phase = Literal["angular", "spatial", "energy"]
 # ---------------------------------------------------------------------------
 # Core primitive
 # ---------------------------------------------------------------------------
+
+
+#: The WEIGHT window every invariance verb defaults to — the absolute
+#: tolerance at which two weights are one weight.  Spelled once: the measure
+#: verbs and the quadrature's fold default to THIS name, so the day the window
+#: becomes relative (see :data:`_NODE_WINDOW_FACTOR`) one edit moves every
+#: caller.  (In ``invariance`` until S5, 2026-10-19.)
+WEIGHT_ATOL = 1e-13
+
+#: The node-match window is this multiple of the WEIGHT window. The asymmetry is
+#: deliberate and worth naming rather than leaving as a bare ``* 100``: a node
+#: coordinate is the accumulated result of a matrix product against a
+#: constructed direction cosine, so it carries more round-off than a weight,
+#: which is usually read straight from a table. Both windows are ABSOLUTE — for
+#: rules whose weights are O(1e-3) the weight test is correspondingly stricter
+#: in relative terms, which is a known characteristic of this check and not an
+#: accident of it.
+_NODE_WINDOW_FACTOR = 100.0
+
+
+def _node_window(weight_atol: float) -> float:
+    """The node-match window that goes with a weight window."""
+    return weight_atol * _NODE_WINDOW_FACTOR
+
+
+def _no_action(support: GSpace, dimension: int) -> TypeError:
+    """The refusal of an O(d) question on a G-space acted on in another dimension."""
+    return TypeError(
+        f"{support.name} has no O({dimension}) action: the "
+        f"{type(support).__name__} {support.name} is acted on by the motions of "
+        f"R^{support.acting_dimension}. To ask an O({dimension}) question of a "
+        f"rule on a chart, read it on the orbit space whose chart it is "
+        f"(DiscreteMeasure.on_orbit_space)."
+    )
+
+
+def _as_columns(points: np.ndarray) -> np.ndarray:
+    """``(n,)`` coordinates as the ``(n, 1)`` column a point-set match wants."""
+    arr = np.asarray(points, dtype=float)
+    return arr if arr.ndim == 2 else arr[:, None]
 
 
 @dataclass(frozen=True)
@@ -998,72 +1045,282 @@ class DiscreteMeasure:
             )
         return replace(self, support=orbit_space, invariance_group=None)
 
-    # ── Invariance — the measure's question, answered on its orbit space ──
-    # (R2 of #434, 2026-09-03: five verbs, each delegating to ONE kernel in
-    # :mod:`orpheus.numerics.invariance`; until then the predicate lived on the
-    # GROUP, which dragged this module into the group module's imports.)
+    # ── Invariance — the measure's question, answered on its support ──
+    # S5 of the numerics untangling (2026-10-19, rulings 42-47): every verb is a
+    # COMPOSITION of this measure's pushforward with its support's action,
+    # through one group-free verb, :meth:`relabelling_to`.  Until then five
+    # verbs delegated to an ``invariance`` module that asked every support on
+    # R^3/{e} after zero-padding its nodes, and hand-rolled the match.
 
-    def is_invariant_under(
-        self, group: "SubgroupOfO3", *, atol: float = _invariance.WEIGHT_ATOL,
-    ) -> bool:
-        r"""``True`` iff this measure is invariant under every element of
-        ``group``, asked ON its orbit space
-        (:func:`~orpheus.numerics.invariance.is_invariant_under`): the group
-        must normalise the quotienting group, a continuous group's identity
-        component must fix every node's orbit barycentre, and every element
-        (or coset representative) must permute the weighted nodes through its
-        induced action.  ``atol`` is the WEIGHT window; nodes match at
-        :data:`~orpheus.numerics.invariance._NODE_WINDOW_FACTOR` times it."""
-        return _invariance.is_invariant_under(self, group, atol=atol)
+    def relabelling_to(
+        self, other: DiscreteMeasure, *, atol: float = WEIGHT_ATOL,
+    ) -> "Permutation | None":
+        r"""The permutation :math:`\pi` with ``other``'s atom :math:`i` equal to
+        this measure's atom :math:`\pi(i)`, or ``None`` if no bijection exists.
 
-    def certificate_under(
-        self, group: "SubgroupOfO3", *, atol: float = _invariance.WEIGHT_ATOL,
-    ) -> "OrbitCertificate | None":
-        r"""The realized action of ``group`` on this measure — every element's
-        permutation of the nodes on the orbit space
-        (:func:`~orpheus.numerics.invariance.certificate_under`) — or ``None``
-        when the group is continuous (no finite element set: POLICY, while the
-        measure may well be invariant under it), does not act on the orbit
-        space, or does not permute the weighted nodes there."""
-        return _invariance.certificate_under(self, group, atol=atol)
+        Two atoms are equal when their points are equal in the support's
+        :meth:`~orpheus.numerics.manifold.Manifold.coordinates` (the point
+        identity: two representatives of one orbit are one point of a
+        quotient) to the NODE window, :data:`_NODE_WINDOW_FACTOR` times
+        ``atol``, and their weights to ``atol``.  The match is
+        :func:`~orpheus.geometry.transformation.permutation_between`, so
+        ERR-073's bijection guard and ERR-074's no-bare-``argmin`` guard hold;
+        the weight leg compares the TWO measures' weights,
+        :math:`w^{\mu}_{\pi(i)} = w^{\nu}_i` (S5 finding F1: a one-array
+        leg, ``permutation_preserving``, is right only when ``other`` is a
+        pushforward of this measure).
+
+        It is the orderless, weak grade of the measure equality #403 owes; it
+        does not close #403, whose ordered content equality is another
+        question.
+
+        Group-free, so it is defined on EVERY support: two permuted
+        energy-group measures relabel onto each other (the user's ruling of
+        2026-10-19 put the point identity on :class:`Manifold`).
+
+        Raises
+        ------
+        ValueError
+            If the two measures live on different supports: the same numbers on
+            a different manifold are a different measure.
+        """
+        if other.support != self.support:
+            raise ValueError(
+                f"cannot relabel a measure on {self.support.name!r} onto one on "
+                f"{other.support.name!r}: a relabelling is between two measures "
+                f"on the same support."
+            )
+        if other.n_points != self.n_points:
+            return None
+        pi = permutation_between(
+            _as_columns(self.support.coordinates(self.nodes)),
+            _as_columns(self.support.coordinates(other.nodes)),
+            atol=_node_window(atol),
+        )
+        if pi is None or np.any(np.abs(self.weights[pi.indices] - other.weights) > atol):
+            return None
+        return pi
+
+    def _gspace(self) -> GSpace:
+        """The support as a G-space, or the refusal that it is not one.
+
+        ELEGANCE-DEBT[guard] #624 — retires when the measure is typed by its
+        support, so the invariance verbs exist only on a measure over a G-space."""
+        if not isinstance(self.support, GSpace):
+            raise TypeError(
+                f"{self.support.name} is not a G-space: no rigid motion acts on "
+                f"the {type(self.support).__name__} {self.support.name}, so a "
+                f"measure on it has no invariance question to answer. The "
+                f"G-spaces are the sphere, the ball, the circle, an interval, "
+                f"R^d and an orbit space."
+            )
+        return self.support
+
+    def _acted_on_in(self, dimension: int) -> GSpace:
+        r"""The support as a G-space acted on by the motions of
+        :math:`\mathbb{R}^{d}`, or the refusal naming it.
+
+        ELEGANCE-DEBT[guard] #624 — retires when the measure is typed by its
+        support, so an O(d) verb exists only where the support is acted on in d."""
+        support = self._gspace()
+        if support.acting_dimension != dimension:
+            raise _no_action(support, dimension)
+        return support
 
     def permutation_under(
-        self, motion: "RigidMotion", *, atol: float = _invariance.WEIGHT_ATOL,
+        self, motion: "RigidMotion", *, atol: float = WEIGHT_ATOL,
     ) -> "Permutation | None":
-        r"""The permutation ``motion`` induces on the weighted nodes, on the
-        orbit space (:func:`~orpheus.numerics.invariance.permutation_under`) —
-        the single-motion face of :meth:`certificate_under` — or ``None`` if
-        it is not a symmetry there."""
-        return _invariance.permutation_under(self, motion, atol=atol)
+        r"""The permutation ``motion`` induces on the weighted atoms, or
+        ``None`` if it is not a symmetry of this measure:
+
+        .. math::
+
+           \pi_g \;=\; \mu.\mathrm{relabelling\_to}\big(
+              \mu.\mathrm{pushforward}(\mathrm{support.action}(g))\big).
+
+        One spelling for 1-D, 2-D and 3-D G-spaces.  ``None``, never a raise,
+        when the support's action refuses the motion (a translation off the
+        sphere, a non-normaliser of the group a fold spent): the callers own
+        their refusal messages and branch on ``None`` (S5 finding F5).
+        Convention: :math:`g(x_i) = x_{\pi(i)}`.
+
+        Raises
+        ------
+        TypeError
+            If the support is not a G-space, or is not acted on by motions of
+            ``motion``'s dimension (``no O(d) action``).
+        """
+        support = self._gspace()
+        match support.refusal(motion):
+            case None:
+                return self.relabelling_to(self.pushforward(support.action(motion)), atol=atol)
+            case OutOfDimension():
+                raise _no_action(support, motion.dimension)
+            case DoesNotMap() | DoesNotNormalise():
+                return None  # g does not act on the support: no symmetry of a measure on it
+
+    def certificate_under(
+        self, group: "SubgroupOfO3", *, atol: float = WEIGHT_ATOL,
+    ) -> "OrbitCertificate | None":
+        r"""The realized action of ``group`` on this measure — every ELEMENT's
+        :meth:`permutation_under` — or ``None``.
+
+        ``None`` when the group is CONTINUOUS (no finite element set to permute
+        nodes by: POLICY, while the measure may well be invariant under it),
+        when it does not act on the measure's support (on an orbit space: it
+        does not normalise the group spent there), or when some element does
+        not permute the weighted nodes there.  Built from the group's ELEMENTS,
+        not a generating set: orbit closure only needs generators, but a
+        point's stabilizer may be generated by a non-generator, so the singular
+        set needs them all.  Its ``operators`` are the ambient motions; its
+        ``permutations`` are of the measure's atoms in the support's
+        coordinates — for a fold, the permutations of the REPRESENTATIVES; for a
+        polar marginal, the permutations of :math:`\mu`.
+        """
+        self._acted_on_in(3)
+        realization = group.realization
+        if not realization.is_finite:
+            return None
+        permutations = []
+        for g in realization.elements:
+            pi = self.permutation_under(g, atol=atol)
+            if pi is None:
+                return None
+            permutations.append(pi)
+        return OrbitCertificate(
+            operators=tuple(realization.elements), permutations=tuple(permutations)
+        )
+
+    def is_invariant_under(
+        self, group: "SubgroupOfO3", *, atol: float = WEIGHT_ATOL,
+    ) -> bool:
+        r"""``True`` iff this measure is invariant under every element of
+        ``group``, asked ON its support.
+
+        Three facts, in the order they are cheapest and most decisive:
+
+        1. :math:`G` must NORMALISE :math:`H`, the group the support has spent
+           (:attr:`quotient_group`; the trivial group on a bare G-space), else
+           it does not act on :math:`M/H` at all
+           (:meth:`SubgroupOfO3.normalises
+           <orpheus.numerics.symmetry.SubgroupOfO3.normalises>`, exact through
+           the Lie algebra) — ``False``.
+        2. A CONTINUOUS :math:`G` is decided exactly through its realization:
+           the identity component :math:`G^0` has connected orbits, and a
+           connected orbit inside a finite set is a point, so :math:`G^0` must
+           FIX every node's ambient point
+           (:meth:`~orpheus.numerics.manifold.GSpace.ambient_points`, the orbit
+           barycentre on a quotient; :meth:`IdentityComponent.fixes
+           <orpheus.numerics.symmetry.IdentityComponent.fixes>` — the
+           axis-support / origin rule of ERR-072, stated once), at the NODE
+           window.  Exact on the barycentre because the chart is injective on
+           orbits, so :math:`G^0` fixes :math:`P_H p` iff it fixes :math:`[p]`.
+        3. Every element (finite :math:`G`) or coset representative (continuous
+           :math:`G`) must permute the weighted atoms: :meth:`permutation_under`,
+           the composition.
+
+        ⚠ There is no ":math:`G \subseteq H` ⇒ ``True``" short circuit: the
+        composition re-proves it (a group inside :math:`H` acts trivially on
+        :math:`M/H`, so every element's relabelling is the identity; `[M]`
+        deleting it reddened 0 of 2290 kernel calls).  ⚠ And step 1 is not
+        redundant with step 3: for a CONTINUOUS group the representatives do
+        not cover :math:`G^0`, and the ``component`` half of ``normalises`` is
+        the only check that :math:`G^0` normalises :math:`H` — deleting it is a
+        silent wrong ``True`` in ERR-072's direction.
+
+        Raises
+        ------
+        TypeError
+            If the support is not a G-space acted on by :math:`O(3)`.
+        """
+        support = self._acted_on_in(3)
+        if not group.normalises(self.quotient_group or SubgroupOfO3.Trivial):
+            return False
+        realization = group.realization
+        if not realization.is_finite and not realization.component.fixes(
+            support.ambient_points(self.nodes), atol=_node_window(atol)
+        ):
+            return False
+        return all(
+            self.permutation_under(g, atol=atol) is not None
+            for g in realization.representatives
+        )
 
     def singular_set_under(
-        self, group: "SubgroupOfO3", *, atol: float = _invariance.WEIGHT_ATOL,
+        self, group: "SubgroupOfO3", *, atol: float = WEIGHT_ATOL,
     ) -> np.ndarray:
-        r"""Indices of the nodes fixed by some non-identity element of ``group``
-        — the orbifold singular set :math:`\Sigma`, an integer identity on the
-        certificate (:func:`~orpheus.numerics.invariance.singular_set_under`).
-        Raises if no certificate exists."""
-        return _invariance.singular_set_under(self, group, atol=atol)
+        r"""The **singular set** :math:`\Sigma` of this measure under ``group``:
+        the indices of the nodes fixed by some non-identity element.
+
+        Under a reflection the fixed locus is a **mirror**; a point on two
+        mirrors is a corner reflector; a point on a rotation axis with no mirror
+        through it is a cone point.  Membership is decided by
+        :math:`\pi_M(i) = i` — an **integer identity**, exact, with no
+        tolerance. The three ad-hoc float comparisons the tree grew for this
+        question (``_OCTANT_SIGN_EPS``, ``_MU_DIRECTION_EPS``,
+        ``TANGENTIAL_EPS``) were all asking it numerically; measured across 29
+        production rules, the separation between "zero" and "nonzero" cosines
+        is a factor of :math:`2.7\times10^{13}`, so the tolerance was never
+        doing real work.
+
+        Raises
+        ------
+        ValueError
+            If this measure is not ``group``-invariant: :math:`\Sigma` is
+            defined only on an invariant set.
+        """
+        cert = self.certificate_under(group, atol=atol)
+        if cert is None:
+            raise ValueError(
+                f"the singular set is defined only for a {group.name}-invariant "
+                f"measure with a finite realization; no certificate exists "
+                f"because {group.name} is continuous (no finite node "
+                f"permutation), or does not ACT on this measure's orbit space "
+                f"{self.support.name} (it does not normalise the group "
+                f"already spent there), or acts there without permuting the "
+                f"weighted nodes — this measure is not {group.name}-invariant "
+                f"on its orbit space."
+            )
+        return cert.singular_set
 
     def symmetry_groups(
         self,
         *,
-        atol: float = _invariance.WEIGHT_ATOL,
+        atol: float = WEIGHT_ATOL,
         candidates: "Iterable[SubgroupOfO3] | None" = None,
         method: Literal["walk", "bruteforce"] = "walk",
     ) -> "tuple[SubgroupOfO3, ...]":
-        r"""The maximal expressible groups leaving this measure invariant
-        (:func:`~orpheus.numerics.invariance.symmetry_groups`) — its symmetry,
-        computed from the nodes, never declared."""
-        return _invariance.symmetry_groups(
-            self, atol=atol, candidates=candidates, method=method,
+        r"""The maximal expressible groups leaving this measure invariant — its
+        symmetry, computed from the nodes, never declared.
+
+        The lattice walk (:func:`~orpheus.numerics.symmetry.maximal_satisfying`)
+        with :meth:`is_invariant_under` as its predicate, over
+        :func:`~orpheus.numerics.symmetry.candidate_groups` of the atoms'
+        ambient points.  Several incomparable maxima can survive (a rule may
+        carry both a rotation group and a reflection with neither inside the
+        other); the true :math:`\mathrm{Sym}(\mu)` is the group they GENERATE,
+        which need not be expressible in the candidate set.
+
+        The answer is about the group's realization in the **standard setting**
+        (principal axis along z for :math:`C_n`, :math:`D_{nh}` and
+        :math:`D_{\infty h}`), not up to conjugation; :class:`Mirror`,
+        :class:`SO2` and :class:`O2` are offered on all three axes, so a polar
+        marginal along :math:`x` reports :math:`O(2)_x`.
+        """
+        support = self._acted_on_in(3)
+        cands = (
+            tuple(candidates) if candidates is not None
+            else candidate_groups(support.ambient_points(self.nodes), atol=_node_window(atol))
+        )
+        return maximal_satisfying(
+            lambda g: self.is_invariant_under(g, atol=atol), cands, method=method,
         )
 
     def quotient(
         self,
         group: "SubgroupOfO3",
         *,
-        atol: float = _invariance.WEIGHT_ATOL,
+        atol: float = WEIGHT_ATOL,
     ) -> DiscreteMeasure:
         r"""The quotient measure :math:`\mu / G` on the orbifold
         :math:`\mathcal{X}/G` — THE FOLD.
@@ -1184,14 +1441,14 @@ class DiscreteMeasure:
             representative[orbit] = orbit.min()
 
         # ⭐ The orbit retraction is a MAP, typed: out of this measure's
-        # support, onto the ORBIT SPACE that ``Manifold.quotient`` builds —
+        # support, onto the ORBIT SPACE that ``GSpace.quotient`` builds —
         # the same catalogue entry a geometry consults, not a second spelling
         # of its name. Its image stays in the BASE's coordinates (the
         # representative is a node of the parent), which is the quotient's
         # section coordinate system (``Quotient.contains`` accepts both).
         retraction = ManifoldMap(
             domain=self.support,
-            codomain=self.support.quotient(group),
+            codomain=self._gspace().quotient(group),
             apply=lambda nodes: nodes[representative],
         )
         return self.pushforward(retraction).consolidate()
@@ -1654,5 +1911,6 @@ __all__ = [
     "BundleMeasure",
     "DiscreteMeasure",
     "DiscreteMeasurePartition",
+    "WEIGHT_ATOL",
     "equispaced",
 ]

@@ -105,7 +105,6 @@ from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.operator import adjointable
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
-from orpheus.numerics.invariance import _embedded_nodes
 from orpheus.sn.boundary import realizer as realizer_module
 from orpheus.sn.boundary.realizer import (
     SNBoundaryRealizer,
@@ -229,7 +228,7 @@ def _deck_fixture(case: str, *, face: str, domain_face: str):
         quadrature=quad, face=domain_face, trace=trace
     )
     gamma_out = _outflow_restriction(domain_space, "deck")
-    return quad, trace, method_space, gamma_out, _embedded_nodes(quad.measure)
+    return quad, trace, method_space, gamma_out, quad.measure.support.ambient_points(quad.measure.nodes)
 
 
 def _mirror(axis: str = "x") -> RigidMotion:
@@ -294,7 +293,7 @@ class TestThePermutationIsTheLinearParts:
         assertions, which are about the kernel.
         """
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        nodes = _embedded_nodes(quad.measure)
+        nodes = quad.measure.support.ambient_points(quad.measure.nodes)
         wrap = PairedDeck.wrap(axis="x").motion
         assert wrap.permutes(nodes, atol=1e-13) is None, (
             "RigidMotion.permutes applies the AFFINE action, so a translation "
@@ -525,7 +524,7 @@ class TestTheGatherIsThePreimage:
         """
         n_mu, n_phi = _parse_product(case)
         quad = _QUADS[case][0]()
-        nodes = _embedded_nodes(quad.measure)
+        nodes = quad.measure.support.ambient_points(quad.measure.nodes)
         mu_nodes = np.polynomial.legendre.leggauss(n_mu)[0]
         for level in range(n_mu):
             mu = mu_nodes[level]
@@ -768,13 +767,13 @@ class TestTheDeckKernelRefuses:
             weights=np.concatenate([weights, weights[[0, 7]]]),
         )
         quad = Quadrature(measure=duplicated)
-        nodes3 = _embedded_nodes(quad.measure)
+        nodes3 = quad.measure.support.ambient_points(quad.measure.nodes)
         assert _mirror("x").permutes(nodes3, atol=1e-13) is None, (
             "the duplicated set must defeat the bijectivity clause, or this "
             "row is not the ERR-073 witness it claims to be"
         )
         assert _linear_part(_mirror("x")).permutes(
-            _embedded_nodes(base.measure), atol=1e-13
+            base.measure.support.ambient_points(base.measure.nodes), atol=1e-13
         ) is not None, "the UNduplicated control must still permute"
 
         trace = _trace(quad, _X_FACES)

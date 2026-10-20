@@ -66,9 +66,11 @@ well-posed question.**
 
 * A symmetry **preserves the structure**, and for a weighted point set that
   structure is distance and volume. A non-isometry carries the set to a
-  *different* set, so :meth:`RigidMotion.permutes` and
-  :meth:`RigidMotion.preserves` would not be answering a hard question — they
-  would be answering a malformed one.
+  *different* set, so :meth:`RigidMotion.permutes` (and the weighted question
+  a measure asks through it, :meth:`DiscreteMeasure.permutation_under
+  <orpheus.numerics.measure.DiscreteMeasure.permutation_under>`;
+  ``RigidMotion.preserves`` until S5, 2026-10-19) would not be answering a hard
+  question — they would be answering a malformed one.
 * A point group **is by definition** a subgroup of :math:`O(d)` seated at a
   point, not of :math:`GL(d)`.
 * :func:`close_group` of a non-isometry is generically **infinite** — a scaling
@@ -142,7 +144,6 @@ __all__ = [
     "RigidMotion",
     "close_group",
     "permutation_between",
-    "permutation_preserving",
 ]
 
 
@@ -294,8 +295,8 @@ def permutation_between(
 
     The point-set half of :meth:`RigidMotion.permutes`, on its own because
     an ACTION is not always an isometry of the ambient space: the action
-    an isometry INDUCES on an orbit space (:meth:`Quotient.induced_action
-    <orpheus.numerics.manifold.Quotient.induced_action>`) maps chart points
+    an isometry INDUCES on an orbit space (:meth:`GSpace.action
+    <orpheus.numerics.manifold.GSpace.action>` on a quotient) maps chart points
     to chart points through the quotient map, and asking whether it
     permutes a weighted node set is this same question with the images
     supplied rather than computed. Two guards, and the second is the one
@@ -329,35 +330,6 @@ def permutation_between(
     if np.unique(pi).size != n:
         return None  # the match is not a bijection (ERR-073)
     return Permutation(pi.astype(np.int64))
-
-
-def permutation_preserving(
-    points: "ArrayLike",
-    images: "ArrayLike",
-    weights: "ArrayLike",
-    *,
-    atol: float,
-    weight_atol: float,
-) -> "Permutation | None":
-    r""":func:`permutation_between` **and** :math:`w_i = w_{\pi(i)}`, or ``None``.
-
-    The weighted half of :meth:`RigidMotion.preserves`, free of the motion for
-    the reason :func:`permutation_between` is: a point set can be carried onto
-    itself while the weights it carries are not, and such a set is not
-    invariant for any integration purpose.
-    """
-    pi = permutation_between(points, images, atol=atol)
-    if pi is None:
-        return None
-    w = np.asarray(weights, dtype=float)
-    if w.shape != (pi.n,):
-        raise ValueError(
-            f"weights must have shape ({pi.n},) to match the points, "
-            f"got {w.shape}"
-        )
-    if np.any(np.abs(w[pi.indices] - w) > weight_atol):
-        return None
-    return pi
 
 
 @dataclass(frozen=True, eq=False)
@@ -718,34 +690,6 @@ class RigidMotion(ContentIdentity):
         """
         x = np.asarray(points, dtype=float)
         return permutation_between(x, self.on_points(x), atol=atol)
-
-    def preserves(
-        self,
-        points: "ArrayLike",
-        weights: "ArrayLike",
-        *,
-        atol: float,
-        weight_atol: float,
-    ) -> "Permutation | None":
-        r"""The permutation :math:`\pi` with :math:`g(x_i) = x_{\pi(i)}`
-        **and** :math:`w_i = w_{\pi(i)}`, or ``None``.
-
-        :meth:`permutes` plus exactly one guard. The two are separate
-        questions and so have separate names: a point set can be carried onto
-        itself by ``g`` while the weights it carries are not — such a set is
-        not invariant for any integration purpose, and asking one question
-        with an optional ``weights=None`` would hide which was asked.
-
-        The two tolerances are both required and both explicit because they
-        are genuinely different windows. A coordinate is the accumulated
-        result of a matrix product, so it carries more round-off than a
-        weight, which is usually read straight from a table; a caller that
-        wants them equal must say so.
-        """
-        x = np.asarray(points, dtype=float)
-        return permutation_preserving(
-            x, self.on_points(x), weights, atol=atol, weight_atol=weight_atol,
-        )
 
     # -- equality ---------------------------------------------------------
     #

@@ -45,7 +45,7 @@ collides with a campaign STEP (``G1``…``G8``):
 * ``A1``–``A6`` group axioms; ``B1``–``B4`` orthogonality/determinant
 * ``C1``–``C5`` element order and the fixed set
 * ``D1``–``D5`` independent constructions; ``E1``–``E3`` conjugation
-* ``F1``–``F4`` seating; ``O1``–``O8`` ``permutes``/``preserves``/orbits
+* ``F1``–``F4`` seating; ``O1``–``O8`` ``permutes``, the weighted question (``preserves`` until S5) and orbits
 * ``X1``–``X3`` gates the landed design earns; ``H1``–``H3`` dimension genericity
 
 Every tolerance below is MEASURED (see ``_TOL_*`` provenance comments), never
@@ -116,6 +116,24 @@ _TOL_EXPM = 1e-12
 #: partners — never bit-exact — while the induced PERMUTATION is exactly
 #: ``arange(n)[::-1]``. Integers exact, coordinates not.
 _TOL_MATCH = 1e-12
+
+
+def _weighted_permutation(g: RigidMotion, points: ArrayLike, weights: ArrayLike):
+    r"""The WEIGHTED question — does ``g`` permute the weighted point set? —
+    asked where it lives since S5 (2026-10-19): on a measure supported on
+    :math:`\mathbb{R}^d`, which every motion of :math:`E(d)` acts on
+    (:meth:`~orpheus.numerics.measure.DiscreteMeasure.permutation_under`).
+    Until S5 it was ``RigidMotion.preserves``, a second door with a one-array
+    weight leg (the gate spec's finding F1).  The node window is ``_TOL_MATCH``
+    (the measure's node window is 100 times its weight window)."""
+    from orpheus.numerics.manifold import RealSpace
+    from orpheus.numerics.measure import DiscreteMeasure
+
+    pts = np.asarray(points, dtype=float)
+    measure = DiscreteMeasure(
+        nodes=pts, weights=np.asarray(weights, dtype=float), support=RealSpace(pts.shape[1])
+    )
+    return measure.permutation_under(g, atol=_TOL_MATCH / 100.0)
 
 #: Angles bounded away from zero for the fixed-subspace-dimension gate.
 #: ``fixed_subspace_dimension`` uses ``matrix_rank(Q − I, tol=1e-10)``, an
@@ -1258,7 +1276,7 @@ def test_f4_seating_at_the_origin_is_the_linear_element(d: int) -> None:
 
 
 # ===========================================================================
-# O — permutes / preserves, and the orbit action (ruling R4)
+# O — permutes, the weighted question (preserves until S5), and the orbit action (ruling R4)
 # ===========================================================================
 
 
@@ -1378,9 +1396,7 @@ def test_o3_a_non_invariant_set_is_refused() -> None:
     sigma = RigidMotion.reflection(normal=[1.0, 0.0, 0.0])
     assert sigma.permutes(asymmetric, atol=_TOL_MATCH) is None
     assert (
-        sigma.preserves(
-            asymmetric, np.ones(3), atol=_TOL_MATCH, weight_atol=_TOL_MATCH
-        )
+        _weighted_permutation(sigma, asymmetric, np.ones(3))
         is None
     )
     # …and a set that IS invariant is not refused, so the guard is not simply
@@ -1417,9 +1433,7 @@ def test_o4_a_duplicated_point_is_refused_and_guard_two_is_the_one_that_fires() 
     for g in _hyperoctahedral(3):
         assert g.permutes(duplicated, atol=_TOL_MATCH) is None
         assert (
-            g.preserves(
-                duplicated, weights, atol=_TOL_MATCH, weight_atol=_TOL_MATCH
-            )
+            _weighted_permutation(g, duplicated, weights)
             is None
         )
         # Input-side isolation, computed here rather than trusted.
@@ -1475,16 +1489,20 @@ def test_o5_the_match_window_is_an_explicit_parameter_and_it_bites() -> None:
                 assert pi is None, (delta, window)
 
 
-def test_o6_preserves_is_permutes_plus_exactly_one_weight_guard() -> None:
+def test_o6_the_weighted_question_is_permutes_plus_exactly_one_weight_guard() -> None:
     r"""O6 — the weight guard, positive AND negative.
 
-    On equal weights ``preserves`` and ``permutes`` answer identically. The
+    On equal weights the weighted question (:func:`_weighted_permutation`, the
+    measure's ``permutation_under``; ``RigidMotion.preserves`` until S5) and
+    ``permutes`` answer identically. The
     NEGATIVE leg needs UNEQUAL weights arranged non-invariantly, which is
     impossible on any shipped quadrature (weights are equal within an orbit) —
     so the witness is hand-built: two antipodal points with weights ``(1, 2)``
     under ``σ_x``. MEASURED: ``π = [1, 0]`` is a *valid* permutation while
-    ``w[π] = (2, 1) ≠ w``, so ``permutes`` SUCCEEDS and ``preserves`` FAILS.
-    That is guard 3 in isolation.
+    ``w[π] = (2, 1) ≠ w``, so ``permutes`` SUCCEEDS and the weighted question FAILS.
+    That is guard 3 in isolation; since S5 it compares the TWO measures'
+    weights (``DiscreteMeasure.relabelling_to``), which on a pushforward is
+    the same leg.
     """
     points = np.array([[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]])
     sigma = RigidMotion.reflection(normal=[1.0, 0.0, 0.0])
@@ -1493,28 +1511,20 @@ def test_o6_preserves_is_permutes_plus_exactly_one_weight_guard() -> None:
     assert pi is not None
     np.testing.assert_array_equal(pi.indices, [1, 0])
     assert (
-        sigma.preserves(
-            points, np.array([1.0, 2.0]), atol=_TOL_MATCH, weight_atol=_TOL_MATCH
-        )
+        _weighted_permutation(sigma, points, np.array([1.0, 2.0]))
         is None
     ), "unequal weights on a swapped pair must NOT be preserved"
     assert (
-        sigma.preserves(
-            points, np.array([1.0, 1.0]), atol=_TOL_MATCH, weight_atol=_TOL_MATCH
-        )
+        _weighted_permutation(sigma, points, np.array([1.0, 1.0]))
         == pi
     )
-    # Equal weights: preserves ≡ permutes on every shipped-style fixture.
+    # Equal weights: the weighted question ≡ permutes on every shipped-style fixture.
     for label, pts, elements in _point_set_cases():
         weights = np.full(len(pts), 0.31)
         for g in elements:
-            assert g.preserves(
-                pts, weights, atol=_TOL_MATCH, weight_atol=_TOL_MATCH
-            ) == g.permutes(pts, atol=_TOL_MATCH), label
-    with pytest.raises(ValueError, match="weights must have shape"):
-        sigma.preserves(
-            points, np.ones(3), atol=_TOL_MATCH, weight_atol=_TOL_MATCH
-        )
+            assert _weighted_permutation(g, pts, weights) == g.permutes(pts, atol=_TOL_MATCH), label
+    with pytest.raises(ValueError, match="nodes and weights disagree on N"):
+        _weighted_permutation(sigma, points, np.ones(3))
 
 
 def test_o7_orbit_stabiliser_against_the_published_wyckoff_table() -> None:
@@ -1587,14 +1597,12 @@ def test_o8_the_seat_is_forced_by_the_centroid_theorem() -> None:
     for g in _hyperoctahedral(3):
         seated = g.seated_at(centroid)
         if (
-            seated.preserves(
-                points, weights, atol=_TOL_MATCH, weight_atol=_TOL_MATCH
-            )
+            _weighted_permutation(seated, points, weights)
             is not None
         ):
             seated_hits += 1
         if (
-            g.preserves(points, weights, atol=_TOL_MATCH, weight_atol=_TOL_MATCH)
+            _weighted_permutation(g, points, weights)
             is not None
         ):
             unseated_hits += 1

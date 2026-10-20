@@ -48,7 +48,7 @@ from orpheus.numerics.basis.spherical_harmonic_basis import (
     MirrorEvenSphericalHarmonicBasis,
     SphericalHarmonicBasis,
 )
-from orpheus.numerics.manifold import ENERGY, SPHERE
+from orpheus.numerics.manifold import CIRCLE, ENERGY, SPHERE
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.symmetry import SubgroupOfO3
 
@@ -297,9 +297,10 @@ def test_max_abs_difference_refuses_an_entry_with_no_downstairs_face() -> None:
 
 def test_for_entry_refuses_a_quotient_of_anything_but_the_sphere() -> None:
     r"""``for_entry`` supplies the real harmonics as the parent, so only sphere entries have one."""
-    energy_entry = ENERGY.quotient(SubgroupOfO3.Trivial)
+    # S5 ruling (a): ``quotient`` lives on GSpace, so a non-sphere entry is spelled on S^1.
+    circle_entry = CIRCLE.quotient(SubgroupOfO3.Trivial)
     with pytest.raises(NotImplementedError, match="only quotients of S\\^2"):
-        Descent.for_entry(energy_entry, 2)
+        Descent.for_entry(circle_entry, 2)
 
     # positive leg: a sphere entry constructs and carries the harmonics
     descent = Descent.for_entry(_so2("x"), 2)

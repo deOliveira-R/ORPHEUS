@@ -471,7 +471,7 @@ class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
         :math:`\sigma_a\Omega` (that is what σ-even MEANS).  A function
         constant on the orbits of :math:`H` is a function on :math:`M/H`.
 
-        Derived through :meth:`~orpheus.numerics.manifold.Manifold.quotient`
+        Derived through :meth:`~orpheus.numerics.manifold.GSpace.quotient`
         rather than tagged, so it is the *same* object the folded measure
         carries — `[M]` ``S^2/sigma_y``, matching the support a
         ``folded_product`` rule's angular frame reports.  ⭐ That agreement is

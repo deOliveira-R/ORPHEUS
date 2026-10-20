@@ -165,7 +165,7 @@ class _TableQuad:
     def measure(self):
         # The surrogate mutates the PERMUTATION only; its nodes are the real
         # rule's, so the measure passes straight through. Needed because the
-        # reference embeds via ``_embedded_nodes(quad.measure)`` — a duck-typed
+        # reference embeds via ``quad.measure.support.ambient_points(...)`` — a duck-typed
         # stand-in owes every member of the contract it stands in for, not
         # only the ones the last reader happened to call (``plan-authoring``
         # §6b: a surrogate is a call site no symbol grep can return).
