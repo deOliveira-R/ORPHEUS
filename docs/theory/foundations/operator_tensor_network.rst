@@ -1127,7 +1127,7 @@ Cross-references
     :class:`orpheus.numerics.operator.OperatorSum`,
     :class:`orpheus.numerics.elementary_operators.RankOneOperator`,
     :class:`orpheus.numerics.operator.IdentityOperator`,
-    :class:`orpheus.numerics.elementary_operators.ZeroOperator`.
+    :class:`orpheus.numerics.operator.ZeroOperator`.
   - :class:`orpheus.sn.boundary.realizer.SNBoundaryRealizer` —
     the BC realizer dispatching the T.1 lifts.
   - :class:`orpheus.transport.operators.isotropic_transfer.IsotropicFission`

@@ -4,11 +4,9 @@ r"""The elementary operators: concrete leaves built on the operator algebra.
 :class:`~orpheus.numerics.operator.LinearOperator`, its sums, products,
 tensor products, the inverse, the adjoint
 :math:`\sharp\circ\mathrm{dual}\circ\flat`, the dual and the Riesz operators.
-This module holds the nine concrete operators and constructors that are
+This module holds the concrete operators and constructors that are
 INSTANCES built on that algebra and which the algebra itself does not need:
 
-- the zero maps :class:`ZeroOperator` (endomorphic) and :class:`ZeroMorphism`
-  (between two declared spaces);
 - the structural index maps :class:`PermutationOperator` and
   :class:`TraceRestrictionOperator`, with their shared extent check
   :func:`checked_space_extent`;
@@ -20,6 +18,13 @@ In the concept order of :mod:`orpheus.numerics` this module sits one step
 downstream of ``operator``: it imports the algebra, and the algebra never
 imports it (``tests/gates/numerics/test_concept_order.py``). The definitions
 moved here verbatim from ``operator.py``; behaviour is unchanged.
+
+The zero maps :class:`~orpheus.numerics.operator.ZeroOperator` and
+:class:`~orpheus.numerics.operator.ZeroMorphism` moved here too, and went
+back the same day (the user's ruling, 2026-10-19): the zero of
+:math:`\mathrm{Hom}(V, W)` is the additive identity of the algebra, as
+:class:`~orpheus.numerics.operator.IdentityOperator` is its multiplicative
+one, so it belongs to the algebra.
 """
 
 from __future__ import annotations
@@ -46,8 +51,6 @@ if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
 
 __all__ = [
-    "ZeroMorphism",
-    "ZeroOperator",
     "PermutationOperator",
     "TraceRestrictionOperator",
     "checked_space_extent",
@@ -56,144 +59,6 @@ __all__ = [
     "outer",
     "SumOfTensorProductsOperator",
 ]
-
-
-class ZeroOperator(PointwiseOperator[Domain]):
-    r"""The ENDOMORPHIC zero :math:`0\,x = 0` — multiplication by ``0``,
-    the pointwise family's absorbing element (:class:`PointwiseOperator`).
-
-    Stateless and space-polymorphic: the action routes through ``0.0 * x``,
-    echoing the operand's type — the zero OF the operand's own space,
-    which is correct precisely because a pointwise member is an
-    endomorphism there (``domain == codomain == the operand's space``,
-    by the family law). ``apply_transpose`` is the same map
-    (:math:`0^{\mathsf T} = 0`), and the inherited pointwise
-    :meth:`~PointwiseOperator.adjoint` returns ``self``.
-
-    STRUCTURALLY non-invertible — the singular map par excellence — so it
-    declares no ``inverse()`` at all: misuse is a static error, the
-    honest surface for a type whose inverse does not exist mathematically
-    (Design C; a raising stub would be the harmful-stub anti-pattern this
-    module is designed against).
-
-    The zero MAP between two DIFFERENT spaces is a different object —
-    :class:`ZeroMorphism`, born bound to its pair. Until the
-    S4-amendment (2026-08-22) this class straddled both roles through
-    per-site ``codomain_zero``/``transpose_zero`` closures and optional
-    space fields (#330); the un-weld split them: the closures' two
-    production consumers dissolved (the fission pencil member became
-    stack ∘ restriction at A2; the vacuum law binds a
-    :class:`ZeroMorphism`), and the hooks retired with them.
-    """
-
-    def apply(self, x: Domain, /) -> Domain:
-        # Endomorphic by the family law: the zero of the codomain IS the
-        # zero of the operand's own space — ``0.0 * x`` echoes it (bare
-        # ``np.ndarray`` → ``np.zeros_like(x)`` bit-exact; a typed
-        # carrier → a fresh same-class zero via its scalar dunder).
-        return cast("Domain", 0.0 * x)
-
-    def apply_transpose(self, x: Domain, /) -> Domain:
-        # 0^T = 0 — the same endomorphic echo.
-        return cast("Domain", 0.0 * x)
-
-    # is_invertible inherits the base ``False`` — the zero map is singular.
-
-
-class ZeroMorphism(LinearOperator):
-    r"""The zero MAP between two DECLARED spaces:
-    :math:`0 : \mathcal D \to \mathcal C`.
-
-    An operator :math:`A : \mathcal D \to \mathcal C` maps the domain
-    to the codomain; its action — including the zero action — produces an
-    element of :math:`\mathcal C`. The zero map is the ONE operator whose
-    action cannot reveal which spaces it connects (every probe returns
-    zero), so unlike every other operator it cannot even be *probed* into
-    a pair — the pair must be DECLARED, and this class demands both at
-    construction (the S4-amendment's base demand, in its sharpest
-    instance). The canonical production member is the vacuum boundary
-    law's :math:`R = 0 : \Gamma_+ \to \Gamma_-` — the α → 0 member of
-    the albedo family ``α · (geometric link)``, realized structurally
-    (the link is never built just to be zeroed).
-
-    The action mints the codomain's zero from the BOUND shape, with the
-    seam's payload convention: the space describes the STRUCTURAL axes,
-    and any trailing axes the operand carries beyond the domain's rank
-    (group/spatial payload at the trace seam) ride through unchanged —
-    ``zeros(codomain.shape + payload)``. The transpose mints the
-    domain's the same way (:math:`0^{\mathsf T} : \mathcal C \to
-    \mathcal D` — under #276 A4 duality typing it consumes the
-    codomain-cotangent and emits the domain-cotangent, and a zero is a
-    zero on either side). This is
-    :class:`TraceRestrictionOperator`'s trailing-axes-intact convention,
-    stated on a bound pair.
-    The pre-amendment spelling reached these shapes through per-site
-    ``codomain_zero``/``transpose_zero`` closures, which duplicated what
-    the bound spaces already knew; deriving from the binding retires the
-    closures AND their caller-side consistency check (the hook-vs-space
-    agreement is now unspellable — single source).
-
-    :meth:`adjoint` is algebra-closed and metric-free: the Hilbert
-    adjoint of the zero map is the zero map of the swapped pair, in any
-    inner product — no sandwich, no wrapper.
-
-    Deliberately UNPARAMETERIZED (the :class:`PermutationOperator`
-    precedent): the ndarray-seam consumers (the boundary trace algebra)
-    do not satisfy the ``Vector`` protocol statically, and the two
-    ``FunctionSpace``\ s — not static type parameters — are this
-    operator's identity.
-    """
-
-    def __init__(
-        self,
-        *,
-        domain: "FunctionSpace",
-        codomain: "FunctionSpace",
-    ) -> None:
-        if domain is None or codomain is None:  # a loud guard, not typing
-            raise TypeError(
-                "ZeroMorphism demands BOTH spaces at construction — the "
-                "zero map is the one operator whose action cannot reveal "
-                "its pair, so the pair must be declared. For the"
-                " endomorphic zero at the operand's own space use"
-                " ZeroOperator()."
-            )
-        self._domain = domain
-        self._codomain = codomain
-
-    @property
-    def domain(self) -> "FunctionSpace":
-        return self._domain
-
-    @property
-    def codomain(self) -> "FunctionSpace":
-        return self._codomain
-
-    def apply(self, x: object, /) -> "np.ndarray":
-        r"""The zero of the CODOMAIN — bound structural axes + the
-        operand's payload tail, in the operand's dtype."""
-        arr = np.asarray(x)
-        payload = arr.shape[len(self._domain.shape):]
-        return np.zeros(self._codomain.shape + payload, dtype=arr.dtype)
-
-    def apply_transpose(self, y: object, /) -> "np.ndarray":
-        r"""The zero of the DOMAIN (the transpose lands there), payload
-        riding through as in :meth:`apply`."""
-        arr = np.asarray(y)
-        payload = arr.shape[len(self._codomain.shape):]
-        return np.zeros(self._domain.shape + payload, dtype=arr.dtype)
-
-    @property
-    def is_adjointable(self) -> bool:
-        return True  # 0^* exists in any metric: the swapped zero map
-
-    def adjoint(self) -> "ZeroMorphism":
-        r"""``0^* : \mathcal C \to \mathcal D`` — the swapped pair's zero
-        map (metric-free: the zero is self-dual up to the swap)."""
-        return ZeroMorphism(domain=self._codomain, codomain=self._domain)
-
-    # is_invertible inherits ``False``; no ``inverse()`` is declared —
-    # the same Design-C surface as the endomorphic ZeroOperator.
 
 
 class PermutationOperator(LinearOperator):
@@ -519,7 +384,7 @@ class TraceRestrictionOperator(LinearOperator):
     Structurally NON-invertible — the restriction discards rows — so it
     declares no ``inverse()``; misuse is a static error rather than a
     silent wrong answer. (A restriction covering *every* row is the
-    identity in disguise; use :class:`IdentityOperator` for that.)
+    identity in disguise; use :class:`~orpheus.numerics.operator.IdentityOperator` for that.)
 
     Parameters
     ----------
@@ -530,7 +395,7 @@ class TraceRestrictionOperator(LinearOperator):
         Length of the FULL axis, i.e. the domain's extent along ``axis``.
     axis : int
         Axis to gather along. Trailing axes broadcast, so this composes as
-        a :class:`TensorProductOperator` factor.
+        a :class:`~orpheus.numerics.operator.TensorProductOperator` factor.
     domain, codomain : FunctionSpace, optional
         The spaces this restriction maps between — for a boundary trace,
         :math:`\gamma_\pm : \Gamma(f) \to \Gamma_\pm(f)`. Binding them is what
@@ -708,12 +573,12 @@ class SumOfTensorProductsOperator(LinearOperator):
       :math:`S = \sum_\ell P_\ell \otimes \Sigma_{s,\ell}` (per-:math:`\ell`
       block-diagonal on moment space).
 
-    Algebraically just :class:`OperatorSum` over
-    :class:`TensorProductOperator` summands, but exposed as a named
+    Algebraically just :class:`~orpheus.numerics.operator.OperatorSum` over
+    :class:`~orpheus.numerics.operator.TensorProductOperator` summands, but exposed as a named
     type because the structure carries V&V invariants worth checking
     explicitly:
 
-    * Each summand IS a :class:`TensorProductOperator` —
+    * Each summand IS a :class:`~orpheus.numerics.operator.TensorProductOperator` —
       :meth:`assert_separable`.
     * (Future) common-axis factorisation — when many summands share
       an axis-factor, refactoring saves work.
@@ -722,17 +587,22 @@ class SumOfTensorProductsOperator(LinearOperator):
     ----------
     summands : tuple of TensorProductOperator
         The tensor-product summands. Each MUST be a
-        :class:`TensorProductOperator`; mixing in non-separable
+        :class:`~orpheus.numerics.operator.TensorProductOperator`; mixing in non-separable
         operators makes the type label misleading.
 
     Notes
     -----
 
-    The implementation backs onto :class:`OperatorSum` —
-    :meth:`apply` simply sums each summand's action — so all the
-    algebra of :class:`OperatorSum` (composition, scaling, capability
-    intersection) is inherited by delegation. The named subclass
-    exists for the type signal and the assertion methods.
+    It is NOT an :class:`~orpheus.numerics.operator.OperatorSum`: it
+    subclasses :class:`~orpheus.numerics.operator.LinearOperator` and sums
+    its summands' actions itself, so the sum's algebra (its adjoint law,
+    its capability intersection) is not inherited. `[M]` 2026-10-19: no
+    production code constructs it (#260 tracks expressing scattering's
+    :math:`\sum_\ell P_\ell \otimes \Sigma_{s,\ell}` through it). It
+    becomes a refinement of the sum when package S2 makes ``OperatorSum``
+    a formal linear combination (numerics-untangling plan); its private
+    import of ``operator._agreed_space`` is the mark of that: it is a
+    composite, not a leaf.
     """
 
     def __init__(self, summands: tuple) -> None:
@@ -749,18 +619,18 @@ class SumOfTensorProductsOperator(LinearOperator):
                 )
         self.summands: tuple = tuple(summands)
         # A sum of tensor products is a sum: same agreement law as
-        # :class:`OperatorSum`, one spelling (G6.3 step 8.0).
+        # :class:`~orpheus.numerics.operator.OperatorSum`, one spelling (G6.3 step 8.0).
         _agreed_space(self.summands, "domain", "SumOfTensorProductsOperator")
         _agreed_space(self.summands, "codomain", "SumOfTensorProductsOperator")
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
-        """The space the summands agree on — see :func:`_agreed_space`."""
+        """The space the summands agree on — see :func:`~orpheus.numerics.operator._agreed_space`."""
         return _agreed_space(self.summands, "domain", "SumOfTensorProductsOperator")
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        """The space the summands agree on — see :func:`_agreed_space`."""
+        """The space the summands agree on — see :func:`~orpheus.numerics.operator._agreed_space`."""
         return _agreed_space(self.summands, "codomain", "SumOfTensorProductsOperator")
 
     def apply(self, x: np.ndarray) -> np.ndarray:
@@ -783,7 +653,7 @@ class SumOfTensorProductsOperator(LinearOperator):
         return out
 
     def assert_separable(self) -> None:
-        """Assert every summand is a :class:`TensorProductOperator`.
+        """Assert every summand is a :class:`~orpheus.numerics.operator.TensorProductOperator`.
 
         Holds by construction (the constructor enforces it), so this
         method is a no-op contract-validator. Useful as documentation
@@ -848,7 +718,7 @@ class DiagonalOperator(PointwiseOperator):
     Invertible iff every coefficient entry is non-zero — the
     VALUE-dependent arm of the split: :meth:`inverse` is declared and
     :meth:`solve` divides, both refusing eagerly
-    (:class:`NotInvertible`) on a zero entry.
+    (:class:`~orpheus.numerics.operator.NotInvertible`) on a zero entry.
 
     Parameters
     ----------
@@ -884,8 +754,8 @@ class DiagonalOperator(PointwiseOperator):
     The ``weights``/``axis`` attributes remain available in the 1-D
     case (``coefficient`` is exposed for both modes) as the back-compat
     alias for ``from_measure`` ergonomics and the existing 1-D call
-    sites. Composition (``&`` / :class:`TensorProductOperator`,
-    ``@`` / :class:`OperatorProduct`) does NOT read them — every composer
+    sites. Composition (``&`` / :class:`~orpheus.numerics.operator.TensorProductOperator`,
+    ``@`` / :class:`~orpheus.numerics.operator.OperatorProduct`) does NOT read them — every composer
     routes purely through ``apply`` / ``solve``.
 
     Use :meth:`from_measure` when a 1-D coefficient lives on a
@@ -1039,7 +909,7 @@ class DiagonalOperator(PointwiseOperator):
         return self.is_invertible
 
     def inverse(self) -> "InverseOperator":
-        r"""Return :math:`D^{-1}` as an :class:`InverseOperator` over this leaf.
+        r"""Return :math:`D^{-1}` as an :class:`~orpheus.numerics.operator.InverseOperator` over this leaf.
 
         Delegation, NOT a reciprocal-coefficient twin: the returned
         object's ``apply`` IS :meth:`solve` (the division ``b / c``),
@@ -1097,7 +967,7 @@ class RankOneOperator(LinearOperator):
     manages the analogous *stack* of dyads); see
     :mod:`orpheus.transport.operators.integral_kernel_operator`.
 
-    Relation to :class:`TensorProductOperator`
+    Relation to :class:`~orpheus.numerics.operator.TensorProductOperator`
     -------------------------------------------
 
     A :class:`RankOneOperator` satisfies the TP-factor contract (it acts on the
@@ -1108,7 +978,7 @@ class RankOneOperator(LinearOperator):
 
         F_kernel = outer(chi, InnerProductFunctional(nu_sigma_f, axis=0)) & IdentityOperator()
 
-    The :class:`IdentityOperator` factor advertises the spatial-axis broadcast;
+    The :class:`~orpheus.numerics.operator.IdentityOperator` factor advertises the spatial-axis broadcast;
     the TP fold reduces to :meth:`RankOneOperator.apply` bit-identically
     (``IdentityOperator.apply`` returns ``x``).
 
@@ -1194,7 +1064,7 @@ class RankOneOperator(LinearOperator):
         # ReactionRateFunctional specialisation included). A nonlinear /
         # opaque functional has no dual column. Mirrors — and gates —
         # the apply_transpose realization below. Whether ``.H`` is POSED is a
-        # separate question (:func:`posed`): this dyad's ends are ``None``
+        # separate question (:func:`~orpheus.numerics.operator.posed`): this dyad's ends are ``None``
         # (the CS4c debt), so ``.H`` refuses while ``.dual()`` runs.
         from orpheus.numerics.functional import InnerProductFunctional
 
@@ -1243,7 +1113,7 @@ def outer(
 ) -> RankOneOperator:
     r"""Build the rank-1 dyad :math:`|v\rangle\langle w|` from a column and a co-vector.
 
-    The universal constructor for a rank-1 :class:`LinearOperator`: a
+    The universal constructor for a rank-1 :class:`~orpheus.numerics.operator.LinearOperator`: a
     :class:`~orpheus.numerics.vector.Vector` (or ``ndarray``) ``reconstruction``
     :math:`v` (the column, the output direction) tensored with a
     :class:`~orpheus.numerics.functional.Functional` ``functional`` :math:`\langle w|`

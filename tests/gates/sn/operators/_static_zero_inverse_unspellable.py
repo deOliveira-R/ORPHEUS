@@ -28,7 +28,7 @@ accidental import cannot execute it.  Runtime twin: the keystone-v2
 ``STRUCTURAL_ABSENT`` leg (``tests/_harness/predicates.py``) pins
 ``not hasattr(ZeroOperator(), "inverse")``.
 """
-from orpheus.numerics.elementary_operators import ZeroOperator
+from orpheus.numerics.operator import ZeroOperator
 
 
 def _zero_inverse_is_unspellable() -> None:

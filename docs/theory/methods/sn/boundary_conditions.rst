@@ -539,7 +539,7 @@ at :ref:`bc-sweep-cycle`.
    * - ``"vacuum"`` — **narrowed** :math:`\Gamma_+ \to \Gamma_-`
      - :class:`~orpheus.geometry.boundary.VacuumInflow`
      - the **zero map**: a
-       :class:`~orpheus.numerics.elementary_operators.ZeroOperator` whose two
+       :class:`~orpheus.numerics.operator.ZeroOperator` whose two
        space hooks emit :math:`|\Gamma_-|` rows forward and
        :math:`|\Gamma_+|` rows on the transpose
      - —
@@ -606,7 +606,7 @@ at :ref:`bc-sweep-cycle`.
        :math:`G = \mathrm{Id}` supplies no crossing, so nothing says which
        outgoing direction feeds which incoming one. Until B3.4b this arm
        returned the full-face endomorphisms
-       :class:`~orpheus.numerics.elementary_operators.ZeroOperator` /
+       :class:`~orpheus.numerics.operator.ZeroOperator` /
        :class:`~orpheus.numerics.operator.IdentityOperator` /
        ``α·(I & I)``, which the composite then paired by ARRAY POSITION.
        A **scalar** method needs no closure, which is why the diffusion
@@ -616,7 +616,7 @@ at :ref:`bc-sweep-cycle`.
        **narrowed** :math:`\Gamma_+ \to \Gamma_-` (B3.4a),
        **collapsed** onto the zero morphism (P3)
      - :class:`~orpheus.geometry.boundary.PrescribedInflow`
-     - the same :class:`~orpheus.numerics.elementary_operators.ZeroOperator` the
+     - the same :class:`~orpheus.numerics.operator.ZeroOperator` the
        vacuum row builds. This tier realizes the law's LINEAR factor
        :math:`L`, and for prescribed inflow :math:`L = 0`; the source
        :math:`q` travels the boundary-source channel

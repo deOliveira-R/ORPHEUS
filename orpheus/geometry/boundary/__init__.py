@@ -216,7 +216,7 @@ sole bridge. The canonical SN-realised representation per law.
   wrong tier (corrected at B3.0; **this entry outlived that correction until
   B3.4b**, the same two-phase lag the white entry had). SN realises to the
   narrowed **zero map** :math:`\Gamma_+ \to \Gamma_-` — a
-  :class:`~orpheus.numerics.elementary_operators.ZeroOperator` carrying both space hooks,
+  :class:`~orpheus.numerics.operator.ZeroOperator` carrying both space hooks,
   so the forward emits the zero of :math:`\Gamma_-` and the transpose the
   zero of :math:`\Gamma_+`. It was an ``IncomingOrdinateMaskTensor`` (a
   full-face projector whose preserved rows the consumer discarded) until

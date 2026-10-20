@@ -23,14 +23,8 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.functional import InnerProductFunctional
-from orpheus.numerics.elementary_operators import (
-    DiagonalOperator,
-    PermutationOperator,
-    RankOneOperator,
-    SumOfTensorProductsOperator,
-    ZeroOperator,
-    outer,
-)
+from orpheus.numerics.elementary_operators import DiagonalOperator, PermutationOperator, RankOneOperator, SumOfTensorProductsOperator, outer
+from orpheus.numerics.operator import ZeroOperator
 from orpheus.numerics.operator import (
     IdentityOperator,
     IncompatibleOperatorComposition,

@@ -27,7 +27,7 @@ literally true:
 * **unital** — :math:`M[1] = I` (the constant-one field promotes to
   the identity);
 * **zero** — :math:`M[0] = 0` (the zero coefficient promotes to the
-  :class:`~orpheus.numerics.elementary_operators.ZeroOperator`, codomain-aware: a
+  :class:`~orpheus.numerics.operator.ZeroOperator`, codomain-aware: a
   *zero source*, never a zero flux);
 * **linear** — :math:`M[a f + b g] = a\,M[f] + b\,M[g]` (the promotion
   is a linear map on the coefficient vector space);

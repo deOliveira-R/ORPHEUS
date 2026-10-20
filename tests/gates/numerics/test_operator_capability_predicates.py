@@ -21,12 +21,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.elementary_operators import (
-    DiagonalOperator,
-    PermutationOperator,
-    TraceRestrictionOperator,
-    ZeroOperator,
-)
+from orpheus.numerics.elementary_operators import DiagonalOperator, PermutationOperator, TraceRestrictionOperator
+from orpheus.numerics.operator import ZeroOperator
 from orpheus.numerics.operator import (
     AdjointOperator,
     IdentityOperator,

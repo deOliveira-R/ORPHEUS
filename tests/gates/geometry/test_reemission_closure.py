@@ -103,7 +103,7 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
     ZeroFluxBoundary,
 )
-from orpheus.numerics.elementary_operators import ZeroMorphism, ZeroOperator
+from orpheus.numerics.operator import ZeroMorphism, ZeroOperator
 from orpheus.numerics.operator import IdentityOperator, ScaledOperator, adjointable
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.angular_trace_space import build_omega_dot_n

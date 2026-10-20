@@ -144,7 +144,7 @@ class HarmonicAnalysisOperator(
     carrier-typed.
 
     The role base is inherited UNPARAMETERIZED (the
-    :class:`~orpheus.numerics.elementary_operators.ZeroMorphism` precedent): the transport
+    :class:`~orpheus.numerics.operator.ZeroMorphism` precedent): the transport
     carriers deliberately do not satisfy the numerics ``Vector`` protocol's
     endomorphic-arithmetic shape (a source's ``+`` legitimately returns a
     union), so the per-carrier precision rides this class's OWN generics —
@@ -154,7 +154,7 @@ class HarmonicAnalysisOperator(
     An :class:`~orpheus.numerics.projection.AnalysisOperator` member whose two
     spaces AND two carriers are demanded at construction — the S4-amendment's
     base demand realised at the transport layer (the
-    :class:`~orpheus.numerics.elementary_operators.ZeroMorphism` binding precedent). The
+    :class:`~orpheus.numerics.operator.ZeroMorphism` binding precedent). The
     kernel delegates to the minting frame's numerics analysis face (shared
     cached table); the carrier wrap parameters — the truncation order ``L``
     and the within-cell spatial-moment width — are read ONCE, at mint time,

@@ -43,7 +43,8 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
     WhiteBoundary,
 )
-from orpheus.numerics.elementary_operators import PermutationOperator, ZeroMorphism
+from orpheus.numerics.elementary_operators import PermutationOperator
+from orpheus.numerics.operator import ZeroMorphism
 from orpheus.numerics.operator import (
     IdentityOperator,
     ScaledOperator,

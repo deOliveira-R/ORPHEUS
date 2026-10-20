@@ -25,11 +25,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.elementary_operators import (
-    DiagonalOperator,
-    SumOfTensorProductsOperator,
-    ZeroOperator,
-)
+from orpheus.numerics.elementary_operators import DiagonalOperator, SumOfTensorProductsOperator
+from orpheus.numerics.operator import ZeroOperator
 from orpheus.numerics.operator import (
     BlockRole,
     BoundaryOperator,

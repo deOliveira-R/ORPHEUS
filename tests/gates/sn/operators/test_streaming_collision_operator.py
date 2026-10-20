@@ -158,7 +158,7 @@ class TestDispatch:
 
     def test_streaming_plus_zero_operator_falls_through(self) -> None:
         """Non-Collision RHS falls back to generic OperatorSum."""
-        from orpheus.numerics.elementary_operators import ZeroOperator
+        from orpheus.numerics.operator import ZeroOperator
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         L = StreamingOperator.pose(sn)

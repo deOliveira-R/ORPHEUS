@@ -147,7 +147,7 @@ Key Facts
   a slice-write — see :ref:`bc-domain-narrowing`, and
   :ref:`bc-vacuum-semantic-correction` for what that removed.
 - **Vacuum realizes to the ZERO MAP** :math:`\Gamma_+ \to \Gamma_-`
-  (a :class:`~orpheus.numerics.elementary_operators.ZeroOperator` carrying both
+  (a :class:`~orpheus.numerics.operator.ZeroOperator` carrying both
   space hooks). Vacuum's whole content is :math:`R = 0`; with the
   domain narrowed there is nothing else to represent. Pre-B3.2 it
   realized to an ``IncomingOrdinateMaskTensor``
@@ -1644,7 +1644,7 @@ across four law kinds. **B3.4a** took two of those kinds:
 
 What remained was **four rows across two law kinds** — ``albedo`` at
 *three* rows (:math:`\alpha = 0` and :math:`\alpha = 1` take fast paths
-returning a bare :class:`~orpheus.numerics.elementary_operators.ZeroOperator` /
+returning a bare :class:`~orpheus.numerics.operator.ZeroOperator` /
 :class:`~orpheus.numerics.operator.IdentityOperator`, which are
 **endomorphisms**, and :math:`\alpha \notin \{0,1\}` scales an
 identity), plus ``periodic``. Both are blocked on a **design ruling**,
@@ -1979,12 +1979,12 @@ instead; it is realizable only on a scalar trace):
      - :math:`0` — the zero morphism
        :math:`\Gamma_+ \to \Gamma_-`
      - :math:`0`
-     - :class:`~orpheus.numerics.elementary_operators.ZeroOperator`, both spaces
+     - :class:`~orpheus.numerics.operator.ZeroOperator`, both spaces
        bound
    * - :class:`~orpheus.geometry.boundary.PrescribedInflow`
      - :math:`0` — **the same zero morphism**
      - :math:`\neq 0`
-     - :class:`~orpheus.numerics.elementary_operators.ZeroOperator`, both spaces
+     - :class:`~orpheus.numerics.operator.ZeroOperator`, both spaces
        bound
    * - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
      - :math:`P` — a permutation, unscaled (a symmetry has no
@@ -2919,7 +2919,7 @@ method:
 
 * SN realizes vacuum as the **zero map**
   :math:`\Gamma_+ \to \Gamma_-` on that face's two half-traces (a
-  :class:`~orpheus.numerics.elementary_operators.ZeroOperator` carrying both space
+  :class:`~orpheus.numerics.operator.ZeroOperator` carrying both space
   hooks, so the forward emits the zero of :math:`\Gamma_-` and the
   transpose the zero of :math:`\Gamma_+` — see
   :ref:`bc-domain-narrowing`).
@@ -4928,7 +4928,7 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
      - Realized representation (α ∉ {0, 1})
    * - :class:`VacuumInflow` — **narrowed**
      - the **zero map** :math:`\Gamma_+ \to \Gamma_-`: a
-       :class:`~orpheus.numerics.elementary_operators.ZeroMorphism` bound to the two
+       :class:`~orpheus.numerics.operator.ZeroMorphism` bound to the two
        half-traces, which derives the forward's :math:`|\Gamma_-|` rows
        and the transpose's :math:`|\Gamma_+|` rows from its **declared
        pair** (the 2026-08-22 S4-amendment; before it, two per-site
@@ -5032,7 +5032,7 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
    * - :class:`PrescribedInflow(source)` — the rank-0 **affine** law;
        **narrowed** (B3.4a), **collapsed** (P3)
      - the **zero map** :math:`\Gamma_+ \to \Gamma_-` — literally the
-       same :class:`~orpheus.numerics.elementary_operators.ZeroOperator` expression
+       same :class:`~orpheus.numerics.operator.ZeroOperator` expression
        the vacuum row above builds, from the same
        ``_narrowed_zero_operator`` body, stamped
        :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` like every
@@ -5448,7 +5448,7 @@ projection the face NAME alone implies:
 
 The returned ``realized`` is the **zero map**
 :math:`\Gamma_+ \to \Gamma_-`: a
-:class:`~orpheus.numerics.elementary_operators.ZeroMorphism` carrying **both
+:class:`~orpheus.numerics.operator.ZeroMorphism` carrying **both
 spaces**, so the forward emits the zero of :math:`\Gamma_-` and the
 transpose the zero of :math:`\Gamma_+`. It reports
 ``is_adjointable = True`` and ``is_invertible = False``. Vacuum's whole
@@ -5468,7 +5468,7 @@ else to represent.
    rows are no longer in the operator's domain.
 
    The two spaces are load-bearing, not ceremony. A
-   :class:`~orpheus.numerics.elementary_operators.ZeroOperator` — the endomorphic
+   :class:`~orpheus.numerics.operator.ZeroOperator` — the endomorphic
    member of the family — returns ``0.0 * x``, an *echo* of its input's
    shape.  That would be right here only by accident, because
    :math:`|\Gamma_+| = |\Gamma_-|` on every reachable fixture; the
@@ -5481,8 +5481,8 @@ else to represent.
    ``ZeroOperator``, ``codomain_zero`` and ``transpose_zero``, passed by
    each caller.  They duplicated what the bound spaces already knew, so
    the amendment split the zero in two — the stateless endomorphic
-   :class:`~orpheus.numerics.elementary_operators.ZeroOperator` and the born-bound
-   :class:`~orpheus.numerics.elementary_operators.ZeroMorphism`, which derives both
+   :class:`~orpheus.numerics.operator.ZeroOperator` and the born-bound
+   :class:`~orpheus.numerics.operator.ZeroMorphism`, which derives both
    zeros from its **declared pair** — and the hooks retired with it
    (``[M]`` ``grep -rn "codomain_zero" orpheus/`` returns four hits,
    every one of them past-tense prose).  The *argument* above is
@@ -5631,7 +5631,7 @@ it must now hand it a :math:`\Gamma_+`-shaped argument.
 
    **Being narrowed and validating one's own domain are separate
    properties.** Measured, and still true: fed a full-face input, both
-   vacuum's :class:`~orpheus.numerics.elementary_operators.ZeroOperator` and
+   vacuum's :class:`~orpheus.numerics.operator.ZeroOperator` and
    reflective's :class:`~orpheus.numerics.operator.TensorProductOperator`
    return :math:`|\Gamma_-|` rows of **wrong values with no raise** —
    they are correctly typed :math:`\Gamma_+ \to \Gamma_-` and still
@@ -6280,7 +6280,7 @@ the right contract:
    :math:`\Gamma_+`, the vacuum law is not an endomorphism at all, so
    "idempotent" is not even a well-typed thing to ask of it — the
    composite :math:`\text{law} \circ \text{law}` does not exist.
-   :class:`~orpheus.numerics.elementary_operators.ZeroOperator` is now exactly the
+   :class:`~orpheus.numerics.operator.ZeroOperator` is now exactly the
    right type tag, carrying two space hooks rather than an echo.
 3. **Algebraic uniformity.** *The argument was:* every other rank-1 law
    acts on the inflow ordinates only and leaves the outflow rows

@@ -2253,9 +2253,9 @@ them.  Trust ``git``, not this column.
        TensorProduct, so the new refusal never fires on a composite that
        genuinely needs no metric.  **(b) The zero splits in two:** the
        natural endomorphic
-       :class:`~orpheus.numerics.elementary_operators.ZeroOperator` (a stateless
+       :class:`~orpheus.numerics.operator.ZeroOperator` (a stateless
        :math:`\times 0` echo, a pointwise member) and the born-bound
-       :class:`~orpheus.numerics.elementary_operators.ZeroMorphism`, which mints its
+       :class:`~orpheus.numerics.operator.ZeroMorphism`, which mints its
        zeros from its own declared pair — which is what retires the
        ``codomain_zero`` / ``transpose_zero`` closures both production
        consumers had been passing.  **(c) The fission pencil un-welds.**

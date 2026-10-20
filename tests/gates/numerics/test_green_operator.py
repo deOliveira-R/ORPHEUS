@@ -59,11 +59,8 @@ import pytest
 
 from orpheus.numerics.green_operator import ConvergenceFailure, GreenOperator
 from orpheus.numerics.iteration import SourceIteration
-from orpheus.numerics.elementary_operators import (
-    DiagonalOperator,
-    PermutationOperator,
-    ZeroOperator,
-)
+from orpheus.numerics.elementary_operators import DiagonalOperator, PermutationOperator
+from orpheus.numerics.operator import ZeroOperator
 from orpheus.numerics.operator import NotInvertible, ScaledOperator
 
 pytestmark = pytest.mark.foundation

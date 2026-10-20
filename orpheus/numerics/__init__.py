@@ -10,15 +10,10 @@ from .measure import (
     DiscreteMeasure,
     DiscreteMeasurePartition,
 )
-from .elementary_operators import (
-    DiagonalOperator,
-    RankOneOperator,
-    SumOfTensorProductsOperator,
+from .elementary_operators import DiagonalOperator, RankOneOperator, SumOfTensorProductsOperator, outer
+from .operator import (
     ZeroMorphism,
     ZeroOperator,
-    outer,
-)
-from .operator import (
     IdentityOperator,
     LinearOperator,
     MissingAdjoint,

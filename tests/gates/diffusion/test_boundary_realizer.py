@@ -51,7 +51,7 @@ from orpheus.geometry.boundary import (
     ZeroFluxBoundary,
     realize_recursively,
 )
-from orpheus.numerics.elementary_operators import ZeroOperator
+from orpheus.numerics.operator import ZeroOperator
 from orpheus.numerics.operator import BlockRole, BoundaryOperator, IdentityOperator
 from orpheus.mesh import CellsByCount, Mesher
 

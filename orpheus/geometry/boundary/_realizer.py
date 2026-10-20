@@ -13,11 +13,11 @@ different** linear operators in each transport method:
 
 * SN realizes vacuum as the **narrowed zero map**
   :math:`\Gamma_+ \to \Gamma_-` — a
-  :class:`~orpheus.numerics.elementary_operators.ZeroOperator` between the two
+  :class:`~orpheus.numerics.operator.ZeroOperator` between the two
   half-traces of the affected face (pre-B3.2 it was a full-face
   projector onto the outflow subspace);
 * diffusion realizes the same vacuum law as the Marshak albedo row
-  :math:`J^- = 0` (the :class:`~orpheus.numerics.elementary_operators.ZeroOperator`
+  :math:`J^- = 0` (the :class:`~orpheus.numerics.operator.ZeroOperator`
   collapse);
 * MoC would realize it as zeroing the entering track boundary fluxes;
   MC by killing particles that exit; CP as zero rows in the

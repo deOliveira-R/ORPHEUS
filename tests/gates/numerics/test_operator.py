@@ -16,7 +16,8 @@ import numpy as np
 import pytest
 
 from tests.gates.numerics import NUMERICS_DATA
-from orpheus.numerics.elementary_operators import PermutationOperator, ZeroOperator
+from orpheus.numerics.elementary_operators import PermutationOperator
+from orpheus.numerics.operator import ZeroOperator
 from orpheus.numerics.operator import (
     IdentityOperator,
     InverseOperator,

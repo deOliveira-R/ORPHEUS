@@ -153,6 +153,8 @@ ScaledOperand = TypeVar(
 
 __all__ = [
     "LinearOperator",
+    "ZeroMorphism",
+    "ZeroOperator",
     "SupportsInverse",
     "SupportsAdjoint",
     "SupportsTransposeSolve",
@@ -483,7 +485,7 @@ class NotInvertible(TypeError):
     :class:`~orpheus.numerics.elementary_operators.DiagonalOperator`, a sum whose leading term is not
     invertible, a product with a singular factor: the TYPE supports
     inversion, this INSTANCE refuses, at construction of the inverse and
-    never mid-iteration. (The STRUCTURAL arm — :class:`~orpheus.numerics.elementary_operators.ZeroOperator`,
+    never mid-iteration. (The STRUCTURAL arm — :class:`~orpheus.numerics.operator.ZeroOperator`,
     masks, source dyads, for which no inverse exists mathematically —
     does not declare :meth:`inverse` at all, so misuse there is a
     *static* error, not this exception.) ``TypeError`` parentage carries
@@ -2400,13 +2402,15 @@ class ScaledOperator(
                 f"{type(op).__name__} lacks 'apply'."
             )
         if scalar == 0.0:
-            # Zero scaling is a degenerate case: the result behaves as
-            # a ZeroOperator (singular, structurally), not as the
-            # underlying operator. The user should construct
-            # ZeroOperator explicitly to make the intent clear.
+            # SCOPE-BOUNDARY[guard] machinery: S2's formal linear combination,
+            # where 0·A is ZeroMorphism(A.domain, A.codomain). ruling: the user,
+            # 2026-10-19, the zero belongs to the algebra (numerics_untangling.md,
+            # wave 4). revisit: when S2 lands. Until then 0·A refuses rather
+            # than return a scaled operand that is not structurally zero.
             raise ValueError(
-                "ScaledOperator with zero scalar is degenerate; "
-                "use ZeroOperator explicitly."
+                "ScaledOperator with zero scalar is degenerate; construct "
+                "the zero explicitly: ZeroMorphism(A.domain, A.codomain), "
+                "or ZeroOperator for an endomorphism."
             )
         self.scalar = float(scalar)
         self._op: Final = op
@@ -2520,7 +2524,7 @@ class PointwiseOperator(LinearOperator[Domain, Domain]):
     typed-carrier realization; this base is the polymorphic engine
     stratum). A member is *multiplication by a coefficient* — the
     constant ``1`` (:class:`IdentityOperator`), the constant ``0``
-    (:class:`~orpheus.numerics.elementary_operators.ZeroOperator`), a field ``f`` (:class:`~orpheus.numerics.elementary_operators.DiagonalOperator`) —
+    (:class:`~orpheus.numerics.operator.ZeroOperator`), a field ``f`` (:class:`~orpheus.numerics.elementary_operators.DiagonalOperator`) —
     so each output entry depends only on the SAME input entry: nothing
     couples, nothing is transposed across.
 
@@ -2608,6 +2612,144 @@ class IdentityOperator(PointwiseOperator[Domain]):
         return self
 
 
+
+
+class ZeroOperator(PointwiseOperator[Domain]):
+    r"""The ENDOMORPHIC zero :math:`0\,x = 0` — multiplication by ``0``,
+    the pointwise family's absorbing element (:class:`PointwiseOperator`).
+
+    Stateless and space-polymorphic: the action routes through ``0.0 * x``,
+    echoing the operand's type — the zero OF the operand's own space,
+    which is correct precisely because a pointwise member is an
+    endomorphism there (``domain == codomain == the operand's space``,
+    by the family law). ``apply_transpose`` is the same map
+    (:math:`0^{\mathsf T} = 0`), and the inherited pointwise
+    :meth:`~PointwiseOperator.adjoint` returns ``self``.
+
+    STRUCTURALLY non-invertible — the singular map par excellence — so it
+    declares no ``inverse()`` at all: misuse is a static error, the
+    honest surface for a type whose inverse does not exist mathematically
+    (Design C; a raising stub would be the harmful-stub anti-pattern this
+    module is designed against).
+
+    The zero MAP between two DIFFERENT spaces is a different object —
+    :class:`ZeroMorphism`, born bound to its pair. Until the
+    S4-amendment (2026-08-22) this class straddled both roles through
+    per-site ``codomain_zero``/``transpose_zero`` closures and optional
+    space fields (#330); the un-weld split them: the closures' two
+    production consumers dissolved (the fission pencil member became
+    stack ∘ restriction at A2; the vacuum law binds a
+    :class:`ZeroMorphism`), and the hooks retired with them.
+    """
+
+    def apply(self, x: Domain, /) -> Domain:
+        # Endomorphic by the family law: the zero of the codomain IS the
+        # zero of the operand's own space — ``0.0 * x`` echoes it (bare
+        # ``np.ndarray`` → ``np.zeros_like(x)`` bit-exact; a typed
+        # carrier → a fresh same-class zero via its scalar dunder).
+        return cast("Domain", 0.0 * x)
+
+    def apply_transpose(self, x: Domain, /) -> Domain:
+        # 0^T = 0 — the same endomorphic echo.
+        return cast("Domain", 0.0 * x)
+
+    # is_invertible inherits the base ``False`` — the zero map is singular.
+
+
+class ZeroMorphism(LinearOperator):
+    r"""The zero MAP between two DECLARED spaces:
+    :math:`0 : \mathcal D \to \mathcal C`.
+
+    An operator :math:`A : \mathcal D \to \mathcal C` maps the domain
+    to the codomain; its action — including the zero action — produces an
+    element of :math:`\mathcal C`. The zero map is the ONE operator whose
+    action cannot reveal which spaces it connects (every probe returns
+    zero), so unlike every other operator it cannot even be *probed* into
+    a pair — the pair must be DECLARED, and this class demands both at
+    construction (the S4-amendment's base demand, in its sharpest
+    instance). The canonical production member is the vacuum boundary
+    law's :math:`R = 0 : \Gamma_+ \to \Gamma_-` — the α → 0 member of
+    the albedo family ``α · (geometric link)``, realized structurally
+    (the link is never built just to be zeroed).
+
+    The action mints the codomain's zero from the BOUND shape, with the
+    seam's payload convention: the space describes the STRUCTURAL axes,
+    and any trailing axes the operand carries beyond the domain's rank
+    (group/spatial payload at the trace seam) ride through unchanged —
+    ``zeros(codomain.shape + payload)``. The transpose mints the
+    domain's the same way (:math:`0^{\mathsf T} : \mathcal C \to
+    \mathcal D` — under #276 A4 duality typing it consumes the
+    codomain-cotangent and emits the domain-cotangent, and a zero is a
+    zero on either side). This is
+    :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator`'s trailing-axes-intact convention,
+    stated on a bound pair.
+    The pre-amendment spelling reached these shapes through per-site
+    ``codomain_zero``/``transpose_zero`` closures, which duplicated what
+    the bound spaces already knew; deriving from the binding retires the
+    closures AND their caller-side consistency check (the hook-vs-space
+    agreement is now unspellable — single source).
+
+    :meth:`adjoint` is algebra-closed and metric-free: the Hilbert
+    adjoint of the zero map is the zero map of the swapped pair, in any
+    inner product — no sandwich, no wrapper.
+
+    Deliberately UNPARAMETERIZED (the :class:`~orpheus.numerics.elementary_operators.PermutationOperator`
+    precedent): the ndarray-seam consumers (the boundary trace algebra)
+    do not satisfy the ``Vector`` protocol statically, and the two
+    ``FunctionSpace``\ s — not static type parameters — are this
+    operator's identity.
+    """
+
+    def __init__(
+        self,
+        *,
+        domain: "FunctionSpace",
+        codomain: "FunctionSpace",
+    ) -> None:
+        if domain is None or codomain is None:  # a loud guard, not typing
+            raise TypeError(
+                "ZeroMorphism demands BOTH spaces at construction — the "
+                "zero map is the one operator whose action cannot reveal "
+                "its pair, so the pair must be declared. For the"
+                " endomorphic zero at the operand's own space use"
+                " ZeroOperator()."
+            )
+        self._domain = domain
+        self._codomain = codomain
+
+    @property
+    def domain(self) -> "FunctionSpace":
+        return self._domain
+
+    @property
+    def codomain(self) -> "FunctionSpace":
+        return self._codomain
+
+    def apply(self, x: object, /) -> "np.ndarray":
+        r"""The zero of the CODOMAIN — bound structural axes + the
+        operand's payload tail, in the operand's dtype."""
+        arr = np.asarray(x)
+        payload = arr.shape[len(self._domain.shape):]
+        return np.zeros(self._codomain.shape + payload, dtype=arr.dtype)
+
+    def apply_transpose(self, y: object, /) -> "np.ndarray":
+        r"""The zero of the DOMAIN (the transpose lands there), payload
+        riding through as in :meth:`apply`."""
+        arr = np.asarray(y)
+        payload = arr.shape[len(self._codomain.shape):]
+        return np.zeros(self._domain.shape + payload, dtype=arr.dtype)
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True  # 0^* exists in any metric: the swapped zero map
+
+    def adjoint(self) -> "ZeroMorphism":
+        r"""``0^* : \mathcal C \to \mathcal D`` — the swapped pair's zero
+        map (metric-free: the zero is self-dual up to the swap)."""
+        return ZeroMorphism(domain=self._codomain, codomain=self._domain)
+
+    # is_invertible inherits ``False``; no ``inverse()`` is declared —
+    # the same Design-C surface as the endomorphic ZeroOperator.
 
 
 class _WrappedForward(Protocol):

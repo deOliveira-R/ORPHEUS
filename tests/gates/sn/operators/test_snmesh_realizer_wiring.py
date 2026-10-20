@@ -43,7 +43,8 @@ from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
-from orpheus.numerics.elementary_operators import PermutationOperator, ZeroMorphism
+from orpheus.numerics.elementary_operators import PermutationOperator
+from orpheus.numerics.operator import ZeroMorphism
 from orpheus.numerics.operator import (
     IdentityOperator,
     LinearOperator,

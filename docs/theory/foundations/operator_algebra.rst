@@ -2032,7 +2032,7 @@ kinds:
        construction of the inverse and never mid-iteration.
 
 The structural leaves are
-:class:`~orpheus.numerics.elementary_operators.ZeroOperator`, the incoming-ordinate
+:class:`~orpheus.numerics.operator.ZeroOperator`, the incoming-ordinate
 and periodic masks, the source dyads
 (:class:`~orpheus.numerics.elementary_operators.RankOneOperator`), and the
 transport source leaves —
@@ -2322,7 +2322,7 @@ dichotomy as false (taxonomy §16 record):
 
 - **Option A — declare ``inverse()`` on the base.** Then every call site
   type-checks, but a
-  :class:`~orpheus.numerics.elementary_operators.ZeroOperator` (which mathematically
+  :class:`~orpheus.numerics.operator.ZeroOperator` (which mathematically
   has no inverse) would inherit a method it cannot honour — demoting the
   compiler's ability to catch ``Zero.inverse()`` misuse from a *static
   error* to a *runtime raise*. The honest "this type has no inverse"
@@ -2336,7 +2336,7 @@ dichotomy as false (taxonomy §16 record):
 
 The false premise was that *structural* absence and *value-dependent*
 refusal are the same phenomenon. They are not: the
-:class:`~orpheus.numerics.elementary_operators.ZeroOperator` case is structural
+:class:`~orpheus.numerics.operator.ZeroOperator` case is structural
 (Option A's failure), the zero-coefficient
 :class:`~orpheus.numerics.elementary_operators.DiagonalOperator` case is
 value-dependent (a method that *should* exist and refuse). **Design C
@@ -2409,7 +2409,7 @@ following closure laws:
      - ``solve`` is the same code path as ``apply``:
        :math:`I^{-1} = I`.
      - Trivially yes: :math:`I^T = I`.
-   * - :class:`~orpheus.numerics.elementary_operators.ZeroOperator`
+   * - :class:`~orpheus.numerics.operator.ZeroOperator`
        (:math:`0`)
      - Trivially yes (returns ``np.zeros_like(x)``).
      - **Does not propagate.** The zero operator is not invertible.
@@ -8352,7 +8352,7 @@ of those 60 symbols are named ``solve`` at all. The rest are matched by
 the label's *other* token: five ``apply`` methods, three
 ``solve_fixed_source``, ``is_invertible``, ``is_adjointable``,
 :func:`~orpheus.numerics.elementary_operators.outer`, and whole classes such as
-:class:`~orpheus.numerics.elementary_operators.ZeroOperator` and
+:class:`~orpheus.numerics.operator.ZeroOperator` and
 :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`.
 A two-token label over a module named ``operator`` matches most of the
 module.

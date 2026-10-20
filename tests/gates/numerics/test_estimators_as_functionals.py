@@ -42,7 +42,7 @@ import pytest
 from orpheus.numerics.iteration import KEigenvalue
 from orpheus.numerics.pencil import OperatorPencil
 from orpheus.numerics.posing import K_MAP, EigenPosing
-from orpheus.numerics.elementary_operators import ZeroOperator
+from orpheus.numerics.operator import ZeroOperator
 from orpheus.numerics.operator import LinearOperator
 
 pytestmark = pytest.mark.foundation

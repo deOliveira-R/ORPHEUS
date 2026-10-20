@@ -23,7 +23,7 @@ the source-iteration / Krylov / power-iteration loop requires — vector
 addition, vector subtraction, left-multiplication by a scalar
 (``scalar * ψ`` — the form every composer uses, see
 :class:`~orpheus.numerics.operator.ScaledOperator` and
-:class:`~orpheus.numerics.elementary_operators.ZeroOperator`), and division by a
+:class:`~orpheus.numerics.operator.ZeroOperator`), and division by a
 scalar (the eigenvalue renormalisations ``F ψ / k`` and ``ψ / p``):
 
 .. math::
@@ -103,7 +103,7 @@ class Vector(Protocol):
     algebra actually invokes —
     :class:`~orpheus.numerics.operator.ScaledOperator` returns
     ``scalar * op.apply(x)`` and
-    :class:`~orpheus.numerics.elementary_operators.ZeroOperator` returns ``0.0 * x``.
+    :class:`~orpheus.numerics.operator.ZeroOperator` returns ``0.0 * x``.
     Scalar division (``__truediv__``) is contracted because the
     eigenvalue drivers renormalise the carrier directly: ``F ψ / k`` in
     :class:`~orpheus.numerics.iteration.KEigenvalue` and the
