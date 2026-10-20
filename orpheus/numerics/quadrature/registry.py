@@ -357,13 +357,14 @@ from functools import cache
 from collections.abc import Sequence
 from typing import Any, Callable
 
+import numpy as np
+
 from ..exactness import UNIFORM_ON_SPHERE, ReferenceMeasure
 from ..generating_measure import pushforward_reference
 from ..measure import DiscreteMeasure
 from orpheus.numerics.manifold import SPHERE, Manifold, Quotient, quotient_onto
 from ..symmetry import SubgroupOfO3
 from .directional import Quadrature
-from .rules_sphere import lebedev_sphere, level_symmetric_sn
 
 
 # ---------------------------------------------------------------------------
@@ -438,7 +439,7 @@ def _lebedev_order_is_available(order: int) -> bool:
     hit — order 131, 5810 nodes — costs 1.85 ms.
     """
     try:
-        lebedev_sphere(order)
+        Quadrature.lebedev(order)  # the registry's factory: one rule list (ruling 32)
     except NotImplementedError:
         return False
     return True
@@ -515,25 +516,11 @@ class QuadratureSpec:
         no parameter combination supported by this rule reaches the
         target degree (e.g., a Lebedev order higher than scipy's
         tabulated 47).
-    positive_weights : bool
-        Are all weights non-negative? Standard for Gauss-Legendre,
-        Lebedev, level-symmetric :math:`S_N`, product. Negative-weight
-        rules (Newton-Cotes :math:`n \ge 9`) are rejected by physics
-        consumers because they amplify quadrature noise.
     axis_aligned : bool
         Are nodes aligned with coordinate axes? Lebedev's :math:`O_h`
         construction includes axis-aligned points; level-symmetric
         does *not* place ordinates on the axes. Cartesian-friendly
         consumers may prefer axis-aligned rules.
-    level_structured : bool
-        Does the rule expose per-:math:`\mu` polar levels?
-        Cylindrical SN sweeps need this for the azimuthal
-        redistribution coefficients (Bailey-Morel-Chang 2010 Eq. (50)),
-        which march per level in the order Eq. (52) fixes.
-        :func:`level_symmetric_sn` and :func:`product_mu_phi` both
-        return a :class:`LevelStructure`; :func:`lebedev_sphere`
-        does not (Lebedev points sit on :math:`O_h` orbits, not on
-        polar levels).
     half_range_clean : bool
         Does ``measure.restrict(lambda x: x > 0)`` give a valid
         quadrature without re-normalisation? Gauss-Legendre on
@@ -542,28 +529,41 @@ class QuadratureSpec:
         :math:`n` is even) carrying half the total weight. Lebedev
         and level-symmetric rules are not (they are designed to span
         the full sphere).
+
+    Two flags are NOT attributes, because they are facts of the BUILT rule
+    and a parameter-free field cannot state them truthfully:
+    ``positive_weights`` (every weight :math:`> 0`; negative-weight rules
+    amplify quadrature noise) and ``level_structured`` (the rule carries a
+    :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`, which
+    the cylindrical redistribution of Bailey-Morel-Chang 2010 Eq. (50)
+    marches over). :meth:`structural_flags` reads them off the rule.
+    `[M]` 2026-10-19: the typed ``positive_weights=True`` on Lebedev was
+    false for 3 of its 32 orders (13, 25, 27), and
+    ``select_quadrature("cartesian2d", 12, positive_weights=True)`` returned
+    order 13, whose weights include -0.372 (ERR-118).
     """
 
     name: str
     factory: Callable[..., Quadrature]
     parameters: dict[str, type]
     degree_of_exactness_for: Callable[[int], dict[str, Any] | None]
-    positive_weights: bool
     axis_aligned: bool
-    level_structured: bool
     half_range_clean: bool
 
-    def structural_flags(self) -> dict[str, bool]:
-        """Return the spec's structural flags as a dict.
+    def structural_flags(self, quadrature: Quadrature) -> dict[str, bool]:
+        """The four structural flags of ``quadrature``, a rule this spec built.
 
         The selector uses this to verify
         :math:`F_{\\text{req}} \\subseteq F_Q`: every requested flag
-        must hold ``True`` in the spec.
+        must hold ``True``. ``positive_weights`` and ``level_structured``
+        are read off the built rule (see the class docstring);
+        ``axis_aligned`` and ``half_range_clean`` are the spec's
+        declarations.
         """
         return {
-            "positive_weights": self.positive_weights,
+            "positive_weights": bool(np.all(quadrature.weights > 0.0)),
             "axis_aligned": self.axis_aligned,
-            "level_structured": self.level_structured,
+            "level_structured": quadrature.level_structure is not None,
             "half_range_clean": self.half_range_clean,
         }
 
@@ -727,7 +727,7 @@ def _ls_sn_invert(target_degree: int) -> dict[str, Any] | None:
 
     while candidate <= ceiling:
         try:
-            measure, _ = level_symmetric_sn(candidate)
+            measure = Quadrature.level_symmetric(candidate).measure  # the registry's factory
         except ValueError:
             # Above the positivity frontier. Every larger order is too, so
             # the family cannot serve this target — exactly what the
@@ -760,9 +760,11 @@ def _product_invert(target_degree: int) -> dict[str, Any] | None:
     For SN cylindrical-sweep compatibility the :math:`\\phi`-count
     must be at least :math:`4 n_\\mu` to avoid azimuthal-resolution
     pathology — but this is a *consumer* requirement, not a
-    polynomial-exactness one, so we leave it to the consumer to
-    request a larger ``n_phi`` explicitly via the ``parameters``
-    override path. The base inversion only meets the V criterion.
+    polynomial-exactness one. :func:`select_quadrature` has no path to
+    request a larger ``n_phi``; a consumer that needs one builds the rule
+    directly with :meth:`Quadrature.product
+    <orpheus.numerics.quadrature.directional.Quadrature.product>`. The base
+    inversion only meets the V criterion.
     """
     if target_degree < 0:
         return None
@@ -822,9 +824,7 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
         factory=Quadrature.gauss_legendre,
         parameters={"n_ordinates": int},
         degree_of_exactness_for=_gl1d_invert,
-        positive_weights=True,
         axis_aligned=True,        # 1-D nodes ARE the axis (μ-axis)
-        level_structured=False,    # no per-mu sub-levels (it IS the mu axis)
         half_range_clean=True,     # restrict(mu>0) gives n/2-point GL on [0,1]
     ),
     QuadratureSpec(
@@ -832,9 +832,7 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
         factory=Quadrature.lebedev,
         parameters={"order": int},
         degree_of_exactness_for=_lebedev_invert,
-        positive_weights=True,
         axis_aligned=True,         # Lebedev grids include axis-aligned orbits
-        level_structured=False,    # no polar-level structure (Oh orbits)
         half_range_clean=False,    # half-sphere restriction is not a valid Lebedev
     ),
     QuadratureSpec(
@@ -842,9 +840,7 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
         factory=Quadrature.level_symmetric,
         parameters={"sn_order": int},
         degree_of_exactness_for=_ls_sn_invert,
-        positive_weights=True,
         axis_aligned=False,        # LS_N nodes never lie on coordinate axes
-        level_structured=True,     # canonical N/2 polar levels per hemisphere
         half_range_clean=True,     # one hemisphere = exactly half the rule (Oh symmetry)
     ),
     QuadratureSpec(
@@ -852,9 +848,7 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
         factory=Quadrature.product,
         parameters={"n_mu": int, "n_phi": int},
         degree_of_exactness_for=_product_invert,
-        positive_weights=True,
         axis_aligned=False,        # depends on phi grid; conservatively False
-        level_structured=True,     # n_mu polar levels by construction
         half_range_clean=True,     # GL polar half restricted cleanly to mu>0
     ),
 )
@@ -1212,7 +1206,7 @@ GEOMETRY_ANGULAR_SYMMETRY: dict[str, AngularSymmetry] = {
 class SelectionLog:
     """Explainability record of a single :func:`select_quadrature` call.
 
-    Returned alongside the chosen measure so consumers can render the
+    Returned alongside the chosen quadrature so consumers can render the
     decision in diagnostic output ("why did the selector pick rule X?").
     The log is also the right place to inspect when a selection
     **fails**: every spec that was tried is listed with the precise
@@ -1302,7 +1296,7 @@ def select_quadrature(
     :data:`quadrature_registry` (or a caller-supplied ``registry`` for
     testing). The **five**-stage filter — domain, symmetry, V, structural,
     minimum-points — runs in priority order and produces an explainability
-    log alongside the chosen measure.
+    log alongside the chosen quadrature.
 
     ⛔ This read *"The four-stage filter — G, V, structural,
     minimum-points"* until 2026-08-14. Both halves were wrong, and in the
@@ -1492,7 +1486,7 @@ def select_quadrature(
             continue
 
         # ---- Stage 3: structural compatibility -----------------------
-        spec_flags = spec.structural_flags()
+        spec_flags = spec.structural_flags(quadrature)
         missing = [
             k for k in requested_flags
             if not spec_flags.get(k, False)

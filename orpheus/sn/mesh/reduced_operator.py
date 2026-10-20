@@ -631,7 +631,7 @@ def spherical_streaming(
         Spherical :class:`~orpheus.mesh.structured.Mesh1D`
         (``coord == CoordSystem.SPHERICAL``).
     angular_measure :
-        Quadrature with ``mu_x``, ``weights``, ``N``.
+        Quadrature with ``mu_x``, ``weights``, ``n_ordinates``.
     """
     if mesh.coord is not CoordSystem.SPHERICAL:
         raise ValueError(

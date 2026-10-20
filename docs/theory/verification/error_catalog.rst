@@ -11473,3 +11473,50 @@ older entries classify against.
    it opens is gated against it by a test that walks through the door:
    a flag no test compares with behaviour drifts into as many meanings as
    it has implementers.**
+
+.. error-entry:: ERR-118
+   :title: The quadrature registry typed "positive weights" on the Lebedev family, and the selector returned an order with a negative weight when positive weights were required
+
+   **Status:** ✅ **FIXED 2026-10-19 — numerics untangling, wave 4 review.**
+   :class:`~orpheus.numerics.quadrature.registry.QuadratureSpec` no longer
+   carries ``positive_weights`` or ``level_structured`` as fields:
+   :meth:`~orpheus.numerics.quadrature.registry.QuadratureSpec.structural_flags`
+   reads them off the rule the spec built (every weight :math:`> 0`; a
+   ``LevelStructure`` present).
+
+   **Failure mode:** **#6 (convention drift)** — a property of each built
+   rule was stated once, for the whole family, at the definition site of
+   the family.
+
+   **The defect.** ``positive_weights=True`` was typed on the Lebedev spec.
+   `[M]` 2026-10-19 (the wave-4 elegance review, at ``c27830f5``): 3 of
+   the 32 Lebedev orders SciPy serves (13, 25, 27) have a non-positive
+   weight, and ``select_quadrature("cartesian2d", 12,
+   positive_weights=True)`` returned order 13 (74 nodes), whose weights
+   include :math:`-0.372`. ``"cylinder"`` returned the same rule. Over
+   every parameter set the four registered specs' degree inversions reach
+   for degrees 1 to 21, the typed and the built flags disagree on exactly
+   this one row; ``level_structured`` agrees everywhere.
+
+   **How it hid.** Three things together.
+
+   - The selector already held the built rule at stage 3, and read the
+     spec's field instead.
+   - No production path calls ``select_quadrature``, so no solve met the
+     rule.
+   - The registry gates checked the degree column against the built rule,
+     not the flag columns. The flags were a table nothing compared with
+     behaviour.
+
+   **Catching tests.**
+   ``tests/gates/numerics/test_registry.py::test_a_rule_selected_for_positive_weights_has_positive_weights``
+   asks every degree from 0 to 21 on three geometries for a
+   positive-weight rule, and requires every chosen rule's weights to be
+   positive. `[M]` with the typed flag restored in-process, 3 of its
+   4 tests redden. The witness
+   ``test_lebedev_order_13_is_not_positive_weighted`` pins the order-13
+   fact the population rests on.
+
+   **Lesson.** ⭐ **A flag that a parameter decides is a property of the
+   built object, never a field of the family: read it off the thing you
+   already hold.**

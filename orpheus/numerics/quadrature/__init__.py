@@ -39,8 +39,8 @@ ground truth — plus the SN-side derived-data surface (ordinate
 permutations via :meth:`Quadrature.ordinate_permutation`, the octant
 partition, the level structure).
 
-The legacy ``mu_x`` / ``mu_y`` / ``mu_z`` / ``weights`` / ``N``
-attribute surface survives on :class:`Quadrature` as ``@property``
+The legacy ``mu_x`` / ``mu_y`` / ``mu_z`` / ``weights`` attribute surface,
+with the ordinate count ``n_ordinates`` (``N`` retired 2026-10-19, ruling 33), survives on :class:`Quadrature` as ``@property``
 views over the underlying ``measure.nodes`` / ``measure.weights``,
 preserving back-compat for the ~150 consumer call sites that still
 read by these names. The Pattern 7 violation that made the legacy

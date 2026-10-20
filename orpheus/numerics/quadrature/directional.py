@@ -60,7 +60,7 @@ Legacy denormalised views
 -------------------------
 
 The :class:`Quadrature` class keeps ``mu_x`` / ``mu_y`` / ``mu_z`` /
-``weights`` / ``N`` as ``@property`` views over the underlying
+``weights`` / ``n_ordinates`` as ``@property`` views over the underlying
 ``measure`` and ``measure.nodes`` columns. These names are SN slab
 convention; for cylindrical SN they are mis-leading (LS column 0 is
 the *radial* cosine :math:`\eta`, NOT a Cartesian X-projection).
@@ -640,7 +640,7 @@ class Quadrature:
         marginal :math:`S^2/O(2)_x \cong [-1, 1]`.
 
         Slab transport polar quadrature: :math:`\mu = \hat\Omega \cdot
-        \hat e_x`, the cosine against the slab's streaming axis. ``N``
+        \hat e_x`, the cosine against the slab's streaming axis. ``n_ordinates``
         must be even for SN (half-range integration over each
         hemisphere).
 

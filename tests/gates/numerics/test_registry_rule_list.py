@@ -15,7 +15,12 @@ Two instruments, both able to fail:
   ``np.array_equal`` and ``==``, never ``allclose``. The module rule functions
   are spelled out in ``_RULE_FUNCTION`` below so the equality is pinned rather
   than claimed; a classmethod that adds a keyword the rule function lacks, or
-  reorders its arguments, reddens it.
+  reorders its arguments, reddens it. This is a WIRING pin: each classmethod's
+  body is ``cls(measure=<rule function>(...), level_structure=...)``, so both
+  sides call the same rule function, and the row says nothing about whether
+  the rule is right (the rules' own gates say that). It also pins that the
+  level structure rides with the built rule, which the selector's
+  ``level_structured`` flag now reads off it (ERR-118).
 * **The table asserts itself.** The registry's degree table is an INVERSION
   (``degree_of_exactness_for``), and nothing used to check it against the
   rule it promises. For every spec and every target degree: the parameters it
@@ -64,6 +69,15 @@ _RULE_FUNCTION = {
     "LebedevSphere": lambda p: lebedev_sphere(p["order"]),
     "LevelSymmetricSN": lambda p: level_symmetric_sn(p["sn_order"])[0],
     "ProductQuadrature": lambda p: product_mu_phi(p["n_mu"], p["n_phi"])[0],
+}
+
+#: The level structure each rule function pairs with its measure, or ``None``
+#: for a rule that has none (Gauss-Legendre on the polar orbit, Lebedev).
+_LEVEL_STRUCTURE = {
+    "GaussLegendre1D": lambda p: None,
+    "LebedevSphere": lambda p: None,
+    "LevelSymmetricSN": lambda p: level_symmetric_sn(p["sn_order"])[1],
+    "ProductQuadrature": lambda p: product_mu_phi(p["n_mu"], p["n_phi"])[1],
 }
 
 #: The classmethod each registered rule must reference.
@@ -121,6 +135,12 @@ def test_the_classmethod_measure_is_the_rule_function_measure_bit_for_bit(name):
         assert new.invariance_group == old.invariance_group, f"{name}{params}: invariance group"
         assert new.exactness == old.exactness, f"{name}{params}: exactness"
         assert new.exactness is not None, f"{name}{params}: no claim to compare"
+        levels = _LEVEL_STRUCTURE[name](params)
+        assert (built.level_structure is None) == (levels is None), f"{name}{params}: level structure dropped or invented"
+        if levels is not None:
+            assert built.level_structure is not None
+            assert built.level_structure.n_levels == levels.n_levels, f"{name}{params}: level count"
+            assert np.array_equal(built.level_structure.level_mu, levels.level_mu), f"{name}{params}: level cosines"
 
 
 def _one_step_smaller(name: str, params: dict) -> list[dict]:

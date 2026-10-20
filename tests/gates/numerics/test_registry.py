@@ -125,7 +125,7 @@ def test_registry_specs_are_well_formed() -> None:
         assert isinstance(spec.parameters, dict)
         assert all(isinstance(t, type) for t in spec.parameters.values())
         # Structural-flags accessor must surface the four flags.
-        flags = spec.structural_flags()
+        flags = spec.structural_flags(spec.build(spec.degree_of_exactness_for(3)))
         assert set(flags) == {
             "positive_weights",
             "axis_aligned",
@@ -279,9 +279,7 @@ def _gauss_chebyshev_spec() -> QuadratureSpec:
         factory=lambda n_ordinates: Quadrature(measure=_on_slab(CHEBYSHEV_T.gauss(n_ordinates)), level_structure=None),
         parameters={"n_ordinates": int},
         degree_of_exactness_for=_gl1d_invert,   # same deg = 2n - 1
-        positive_weights=True,
         axis_aligned=True,
-        level_structured=False,
         half_range_clean=True,
     )
 
@@ -408,9 +406,7 @@ def test_a_rule_with_no_exactness_claim_at_all_is_refused() -> None:
         factory=lambda n_ordinates: Quadrature(measure=replace(_on_slab(LEGENDRE.gauss(n_ordinates)), exactness=None), level_structure=None),
         parameters={"n_ordinates": int},
         degree_of_exactness_for=_gl1d_invert,
-        positive_weights=True,
         axis_aligned=True,
-        level_structured=False,
         half_range_clean=True,
     )
     # It clears every other stage: same nodes, same support, same symmetry.
@@ -457,9 +453,7 @@ def test_an_inversion_that_over_promises_is_caught_not_trusted() -> None:
         factory=lambda n_ordinates: Quadrature(measure=_on_slab(LEGENDRE.gauss(n_ordinates)), level_structure=None),
         parameters={"n_ordinates": int},
         degree_of_exactness_for=lambda _target: {"n_ordinates": 1},
-        positive_weights=True,
         axis_aligned=True,
-        level_structured=False,
         half_range_clean=True,
     )
     with pytest.raises(QuadratureSelectionError) as excinfo:
@@ -1798,3 +1792,38 @@ class TestTheSelectorIsUNMOVEDByTheCarve:
             assert params is not None
             supports.add(spec.build(params).measure.support.name)
         assert "S^2/sigma_y" not in supports
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-118")
+@pytest.mark.parametrize("geometry", ["cartesian2d", "cylinder", "sphere"])
+def test_a_rule_selected_for_positive_weights_has_positive_weights(geometry) -> None:
+    """ERR-118: ``positive_weights=True`` is a fact of the BUILT rule.
+
+    The flag was a typed field on the spec, ``True`` for Lebedev, while
+    3 of Lebedev's 32 orders (13, 25, 27) carry a non-positive weight and
+    the selector returned order 13 (weights include -0.372) for
+    ``("cartesian2d", 12, positive_weights=True)``. Every degree the
+    selector can reach on the geometry is asked, so the order-13 row is in
+    the population whichever spec wins elsewhere.
+    """
+    reached = 0
+    for degree in range(0, 22):
+        try:
+            quadrature, _ = select_quadrature(geometry, degree, positive_weights=True)
+        except QuadratureSelectionError:
+            continue
+        reached += 1
+        if not np.all(quadrature.weights > 0.0):
+            pytest.fail(
+                f"{geometry} at degree {degree}: positive_weights=True selected a "
+                f"rule with min weight {quadrature.weights.min():.3e}"
+            )
+    assert reached > 0, f"no rule selected on {geometry}: the gate asked nothing"
+
+
+@pytest.mark.foundation
+def test_lebedev_order_13_is_not_positive_weighted() -> None:
+    """The witness ERR-118 rests on: the flag read off Lebedev order 13 is False."""
+    spec = next(s for s in quadrature_registry if s.name == "LebedevSphere")
+    assert spec.structural_flags(spec.build({"order": 13}))["positive_weights"] is False

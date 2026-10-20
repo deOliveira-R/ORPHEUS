@@ -195,7 +195,7 @@ def test_b2_stage_0_refuses_the_chart_level_rule_and_the_wrong_axis(
 
 @pytest.mark.foundation
 def test_b3_the_selector_still_hands_the_slab_its_declared_rule() -> None:
-    """End to end: selection for a slab returns a measure on the slab's
+    """End to end: selection for a slab returns a quadrature whose measure lives on the slab's
     orbit space, with the reference the geometry asks for."""
     quadrature, log = select_quadrature("slab", target_degree=7)
     measure = quadrature.measure
