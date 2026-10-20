@@ -1018,4 +1018,6 @@ Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
 - **Follow-ups filed:** #626, threading the full law path into `MissingAssembly` (elegance F5); #627, writing the domain composites as atoms whose expansions use restriction and extension maps, so the functor owns every law (elegance (d)).
 - `[M]` The wide run `-m "not slow"` on the settled tree (2026-10-20, `-O`, serial): 18 792 passed, 0 failed, 261 skipped, 59 xfailed (60 min). A first run had 1 failure, a traced-memo "skeleton changed" error caused by editing `operator.py` while that run was in progress; the test passed in isolation, and the second run is the one recorded here. pyright: 0 errors besides a planted probe (the control). Sphinx `-W` exits 0, regenerating `matrix.rst`; `error_index.md` is unchanged. `dead_references` reads 0 of 68, and 1 with a planted `orpheus.numerics.operator.MissingAssembly` docstring reference as its positive control.
 
-⏸ **Next:** merge S3; then S4 under rulings 65–67, then S6, then S7 under rulings 58, 63 and 64.
+**S3 merged @ `6f256ea6`** (2026-10-20); the theory page's history row is stamped landed.
+
+⏸ **Next:** S4 under rulings 65–67, in a new worktree from `main`: the test-architect's spec first, then the carve and the review. Then S6, then S7 under rulings 58, 63 and 64.
