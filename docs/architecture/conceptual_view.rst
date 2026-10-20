@@ -323,10 +323,18 @@ plus one representative per component): containment, the normaliser and
 the connected part's fixed set are each one computation. Whether a
 measure is invariant is the measure's question
 (:eq:`discrete-measure-g-invariance`;
-:meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`,
-delegating to :mod:`orpheus.numerics.invariance`), asked on the measure's
-orbit space so that a folded rule's permutation and its invariance cannot
-disagree. An **orbit space** is named by its stabiliser, one spelling
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`),
+asked on the measure's own support, so that a folded rule's permutation
+and its invariance cannot disagree. The support must be a **G-space**,
+one of the families a rigid motion acts on, and the action is one law:
+:math:`g` acts iff :math:`g(M) = M` (:ref:`manifold-gspace`,
+:eq:`manifold-gspace-action-law`;
+:class:`~orpheus.numerics.manifold.GSpace`); energy groups, an index set
+and a product are not G-spaces and refuse the question. Every invariance
+verb is a composition of the measure's pushforward with that action
+through one group-free relabelling (:eq:`manifold-invariance-composition`,
+:ref:`discrete-measure-invariance-module`;
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.relabelling_to`). An **orbit space** is named by its stabiliser, one spelling
 (:ref:`manifold-orbit-space`, :ref:`manifold-orbit-space-stabiliser`,
 :ref:`manifold-quotient-map`; :class:`~orpheus.numerics.manifold.Quotient`,
 :meth:`~orpheus.numerics.measure.DiscreteMeasure.quotient`), and the lift
@@ -472,8 +480,8 @@ The concept table
      - :class:`~orpheus.numerics.operator.AdjointOperator`, :meth:`~orpheus.numerics.operator.LinearOperator.dual`
      - :ref:`g-adjoint`, :eq:`g-adjoint-definition`, :eq:`spaces-adjoint-riesz-composition`, :ref:`spaces-metric-propagation`
    * - Symmetry group; invariance
-     - :class:`~orpheus.numerics.symmetry.SubgroupOfO3`, :mod:`orpheus.numerics.invariance`
-     - :ref:`manifold-realization`, :eq:`discrete-measure-g-invariance`
+     - :class:`~orpheus.numerics.symmetry.SubgroupOfO3`; :class:`~orpheus.numerics.manifold.GSpace` (its :meth:`~orpheus.numerics.manifold.GSpace.action`); :meth:`~orpheus.numerics.measure.DiscreteMeasure.relabelling_to` and the invariance verbs on :class:`~orpheus.numerics.measure.DiscreteMeasure`
+     - :ref:`manifold-realization`, :eq:`discrete-measure-g-invariance`, :ref:`manifold-gspace`, :eq:`manifold-invariance-composition`
    * - Orbit space; quotient; descent
      - :class:`~orpheus.numerics.manifold.Quotient`, :class:`~orpheus.numerics.basis.descent.Descent`
      - :ref:`manifold-orbit-space`, :ref:`manifold-orbit-space-stabiliser`, :ref:`manifold-quotient-map`, :ref:`manifold-reynolds-projector-section`, :ref:`manifold-descent`
@@ -632,7 +640,11 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   mesh-free function owns its second coordinate); and the characteristic
   reference's refusal of a traversed slot whose 3-D length overflowed
   (#582, retired when the kernel's chord refuses or resolves a line within
-  an underflow of parallel to the level sets). ``# TODO`` occurs once; ``raise NotImplementedError`` 72
+  an underflow of parallel to the level sets). Since S5 of the numerics
+  untangling (2026-10-19) two more sites carry the tag, both #624: the
+  measure's G-space guards ``DiscreteMeasure._gspace`` and
+  ``_acted_on_in``, retired when a measure is typed by its support
+  (:ref:`manifold-gspace`). ``# TODO`` occurs once; ``raise NotImplementedError`` 72
   times in 27 files under ``orpheus/`` excluding ``derivations/`` (119 in
   39 with it), the population a retirement audit walks (``[M]``
   2026-10-03, a line count over ``orpheus/**/*.py``).

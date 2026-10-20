@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **18202**
+Total tests collected: **19272**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1870, 10.3%
-   L1, 2753, 15.1%
-   L2, 85, 0.5%
+   L0, 1870, 9.7%
+   L1, 2753, 14.3%
+   L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 13457, 73.9%
+   foundation, 14527, 75.4%
    unmarked, 37, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 18086
+   explicit, 19156
    class-name, 46
    func-name, 0
    case, 33
@@ -440,14 +440,15 @@ Module × level grid
    numerics/test_harmonic_axis, 0, 0, 0, 0, 11, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
-   numerics/test_invariance, 0, 0, 0, 0, 120, 0
+   numerics/test_invariance, 0, 0, 0, 0, 114, 0
+   numerics/test_invariance_composition, 0, 0, 0, 0, 1079, 0
    numerics/test_inverse_metric_operator, 0, 0, 0, 0, 9, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
    numerics/test_iteration, 0, 3, 0, 0, 42, 0
    numerics/test_iteration_record, 0, 0, 0, 0, 136, 4
    numerics/test_legendre_basis, 0, 0, 0, 0, 34, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
-   numerics/test_manifold, 0, 0, 0, 0, 246, 0
+   numerics/test_manifold, 0, 0, 0, 0, 245, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 17, 0, 0, 48, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
@@ -656,7 +657,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 476, 0
+   test_layer_imports, 0, 0, 0, 0, 474, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -1100,7 +1101,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **589** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **591** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1363,6 +1364,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``manifold-descent-isomorphism``
 - ``manifold-gamma-slot-stage-zero``
 - ``manifold-group-as-component-and-cosets``
+- ``manifold-gspace-action-law``
+- ``manifold-invariance-composition``
 - ``manifold-map-functoriality``
 - ``manifold-normaliser-descent``
 - ``manifold-normaliser-lie-criterion``

@@ -3482,8 +3482,10 @@ import of ``content`` is seen); and in a fresh interpreter, importing the
 module and building one value of each kind with a table datum loads only
 the ``orpheus`` sub-packages ``numerics`` and ``geometry`` and no SymPy.
 ``geometry`` is admitted there because a cold ``import orpheus.numerics``
-already loads it (``numerics.invariance`` imports
-``geometry.transformation``, an exception the layer gate lists); the
+already loads it (``numerics.symmetry`` imports
+``geometry.transformation``, an exception the layer gate lists; until
+2026-10-19 this sentence named ``numerics.invariance``, a module since
+deleted, which imported it too); the
 positive control is that a cold ``orpheus.sn.problem`` loads
 ``transport``.
 
