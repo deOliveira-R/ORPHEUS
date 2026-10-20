@@ -877,4 +877,14 @@ Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
 
 - `[M]` **The wide run on `553ecea8` passed all 17 suites** (`scratch/numerics_untangling/packages/s5_wide/summary.txt`; numerics 5955, sn 3834, derivations 3098, root 612 passed). Sphinx `-W` is clean; `dead_references` reads 0, and reads 1 with a planted retired name (`induced_action`) as its positive control.
 
-⏸ **Next:** S2, S3, S4 and S6 in series. S7's design waits on the user (the PG-degenerate ruling is owed). qa F2 goes to S6; the census interleaves.
+**S5 merged @ `7621fc5f`** (2026-10-20). CI succeeded; the worktree and branch are deleted.
+
+**S2 designed** (2026-10-20; design `scratch/numerics_untangling/packages/S2_design.md`, census `S2_census.md` beside it: an AST pass over 1185 files and a runtime spy over 15586 tests). A sum is a formal linear combination, `{word ↦ coefficient}` with no order; a word is one operator or a flattened product; composition is not distributed over a sum. The census found what stood in the way: the sum's head contract (`is_invertible = a.is_invertible`, used by `GreenOperator`'s left-spine split, pinned by 5 tests and used by no production path), three fused composites chosen by type tests inside dunders (so `L + C` fused and `C + L` did not), the float association of a left-nested sum, and an adjoint that wrapped the whole sum.
+- **The design rulings** (the user, 2026-10-20, the recommended option each time):
+  - **50. A sum's inverse is named by its split.** S4's first half moves into S2: a sum of two or more terms has no inverse of its own, and `GreenOperator` is built from an explicit split `A = M − N`, as `GreenOperator(M, N)`. The left-spine walk and the lazy import leave. S4 keeps the Strategy driver and Green's adjoint.
+  - **51. `ScaledOperator` retires into the combination.** `αA` is the one-term combination; `{A: 1}` collapses to `A`; `(αA)⁻¹ = α⁻¹A⁻¹` stays algebra-closed.
+  - **52. `+` never fuses.** The three type-dispatching dunders are deleted. The fused composites (`StreamingCollisionOperator`, `ScheduledInvertibleOperator`, `WindowedSweep`) become atoms with named legs and an `expansion()`, built explicitly by the owner that needs the sweep (the Splitting's implicit part, the loss representation).
+  - **53. The adjoint distributes.** `(Σ cᵢwᵢ).H = Σ cᵢwᵢ.H`, and a word's adjoint is reversed. `A.H.H` on a sum is a new object equal to `A`; a leaf keeps `is`.
+  - Taken as recommended, with no objection: terms collect by object identity (D2), the zero is the empty combination (D6), a product keeps identity factors (D7), and `SumOfTensorProductsOperator` retires with its 8 tests re-pointed (D8).
+
+⏸ **Next:** the test-architect's S2 verification spec (`scratch/numerics_untangling/packages/S2_gate_spec.md`), then the code in worktree `.claude/worktrees/s2`, branch `refactor/s2-linear-combination`, with checkpoints. Then S3, S4 and S6 in series. S7's design waits on the user (the PG-degenerate ruling is owed). qa F2 goes to S6; the census interleaves.
