@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **18184**
+Total tests collected: **18202**
 
 V&V level distribution
 ----------------------
@@ -22,8 +22,8 @@ V&V level distribution
    L1, 2753, 15.1%
    L2, 85, 0.5%
    L3, 0, 0.0%
-   foundation, 13440, 73.9%
-   unmarked, 36, 0.2%
+   foundation, 13457, 73.9%
+   unmarked, 37, 0.2%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 18069
+   explicit, 18086
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 36
+   unmarked, 37
 
 Module × level grid
 -------------------
@@ -468,8 +468,9 @@ Module × level grid
    numerics/test_power_iteration_record, 0, 0, 0, 0, 30, 0
    numerics/test_quadrature_directional, 0, 0, 0, 0, 78, 0
    numerics/test_question, 0, 0, 0, 0, 66, 0
-   numerics/test_registry, 0, 0, 0, 0, 107, 0
+   numerics/test_registry, 0, 0, 0, 0, 111, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
+   numerics/test_registry_rule_list, 0, 0, 0, 0, 12, 1
    numerics/test_retraction_adjoint_is_the_pullback, 0, 0, 0, 0, 30, 0
    numerics/test_riesz_legs, 3, 0, 0, 0, 0, 8
    numerics/test_roots_of_unity, 0, 0, 0, 0, 251, 0
@@ -655,7 +656,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 475, 0
+   test_layer_imports, 0, 0, 0, 0, 476, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -1740,7 +1741,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**36 tests** have no V&V level marker.
+**37 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1761,5 +1762,6 @@ taxonomy.
    ``tests/gates/numerics/test_symmetry.py``, 2
    ``tests/gates/sn/sweep/core/test_cache.py``, 2
    ``tests/gates/derivations/test_characteristic_reference.py``, 1
+   ``tests/gates/numerics/test_registry_rule_list.py``, 1
    ``tests/gates/sn/angular/test_redistribution.py``, 1
 
