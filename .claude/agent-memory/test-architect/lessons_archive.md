@@ -11803,3 +11803,24 @@ calculus: measure the unit cost a recommendation multiplies before using a relay
   [M] u = e_0 integrates to (1/Sigma w) x the truth on 8 of 9 heads, and to a non-multiple on folded(4,4) L4.
 - Side measurements: today's section divisor (the retired frame's 3-operand Gram einsum) is the WORST of six spellings
   against fsum (39 ULP at lebedev29); R o E is non-bit-exact on 118 of 120 rules (law <= N/3 ULP), refuting a DSA comment.
+
+## L117 — numerics untangling S5 (invariance as a composition): a checker that sees nothing, a walk that equals its brute force, and a matcher built for pushforwards (2026-10-19)
+
+- pyright on a file under `.claude/worktrees/<wt>/` loads the MAIN `pyrightconfig.json`, whose `exclude` holds `**/.*`, so
+  the run prints `0 errors` with "No source files found" visible only under `--verbose`. [M] a probe `x: int = "a"` read
+  0 errors there. Working spelling: copy the files into a scratch dir with a config whose `include` is RELATIVE (absolute
+  include paths are ignored with a warning), `exclude: []`, `venvPath` = main repo, `extraPaths` = the worktree root; put
+  the probe file in the same run as the positive control.
+- A lattice walk that descends from every FAILING node through maximal-subgroup edges and stops at accepted nodes returns
+  maximal(true set) for ANY predicate, downward-closed or not: every unvisited candidate lies below an accepted one. [M]
+  2000 of 2000 random non-downward-closed predicates on LS8's 32 candidates, 0 walk/brute disagreements. A design that
+  offered "walk and bruteforce must disagree on a non-ideal predicate" as the lattice's first test proposed a tautology;
+  downward closure owes its own law gate (P(G) and H <= G imply P(H)).
+- The design named `permutation_preserving(points, images, weights)` as the matcher of a GENERAL relabelling between two
+  measures. That primitive's weight leg reads ONE array (`w[pi] == w`): exact for a pushforward (image i carries w_i), a
+  false refusal for an arbitrary second measure. Every shipped invariance question is a pushforward, so the 707 agreement
+  rows were blind to it; only the verb's own contract rows (a 3-cycle with distinct weights) redden. Gate a general verb
+  outside the special family its shipped callers all live in.
+- Battery mechanics: an arm "no bijection" that builds a `Permutation` from a nearest-neighbour map does not bite (the
+  constructor refuses a non-bijection); and `match="dimension"` stayed green with the dimension check removed because
+  numpy's matmul shape error says "core dimension". Pin a refusal's OWN phrase.

@@ -251,6 +251,11 @@ only the ORPHEUS mechanisms they do not name.
   operator loses the structure that made a factorisation cheap (18 s → > 5 min). Budget such
   arms per row, deselect the heavy rows by name, and report the hang-class blindness: `vv`
   #17(c) covers a collection kill, not a hang. → `L93`
+- **⛔ pyright on a file under `.claude/worktrees/` checks NOTHING and prints `0 errors`** (the main config excludes
+  `**/.*`): positive-control it with a probe file in the same run, from a scratch config with relative `include`. → `L117`
+- **⛔ A verb whose contract is general (any two measures) but whose shipped callers are all one special case (a
+  pushforward) is gated OUTSIDE that case**, or a primitive built for the special case passes every agreement row. → `L117`
+
 ## 3. Config blindness — the ORPHEUS fixture-fact inventory
 
 Generic rule: `AGENT.md` §0.6, `vv` §H2 / anti-#3 / anti-#4 / Mode 7. Below: the
@@ -606,6 +611,8 @@ centroid, bijectivity vs match window, the coset-search inverse-direction
 theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
 §L88 on 2026-09-21 — open it when the dispatch is a group/algebra-type gate.
 
+- **A Hasse walk that descends from every failing node equals its brute force for EVERY predicate** — their agreement is
+  not a test of downward closure; gate the law itself. → `L117`
 - **A guarantee resting on "a new process loads the code" owes a same-second same-size edit row** (forced by `os.utime`): timestamp pycs serve stale code. A fork warning is not a thread count. → `L115`
 
 ## 9. Pointers

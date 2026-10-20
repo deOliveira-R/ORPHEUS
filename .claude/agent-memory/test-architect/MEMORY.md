@@ -57,6 +57,7 @@ Merge status comes from git and GitHub, never from this list (`process-disciplin
 - **Under-resolved adjoint rung (W2 follow-up, `docs/frame-square-closure`)** — 2026-10-18, uncommitted: `TestAdjointAtAnUnderResolvedOrder` (LS4 L=2/3/5) + frame edge row; battery `scratch/adjoint_rung/arms.py` (`ARM=drop|mixed|short`). On resume: confirm landed.
 - **Adjointability honesty gate (W2, ruling 27 of `numerics_untangling.md`)** — 2026-10-18, uncommitted on `main`: `tests/gates/numerics/test_adjointability_is_honest.py` (leg 1 flag⟺.H applies, leg 2 witness routes); battery `scratch/adjoint_honesty/battery/run.sh <arms>`. On resume: re-run after the fixes; 17 reds expected to clear.
 - **Numerics untangling S1 (the lift, the axis owns its unit; W3 spec)** — 2026-10-19 `scratch/numerics_untangling/packages/S1_gate_spec.md`, drafts + model battery `.../S1_gates/`. On resume: the rulings F1/F3; re-run the arms on the landed module. → **`L116`**
+- **Numerics untangling S5 (invariance as a composition; W3 spec)** — 2026-10-19 `scratch/numerics_untangling/packages/S5_gate_spec.md`; baseline JSON + generator + draft `test_invariance_composition.py` in worktree `s5`; prototype + 38-arm battery `.../S5_gates/`. On resume: confirm landed; re-run the arms on the real module. → **`L117`**
 - Everything else is merged; the record is the SN theory page's development history and the archive.
 
 ## 3. Durable reference (reusable verification-design recipes)
