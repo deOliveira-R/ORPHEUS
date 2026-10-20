@@ -695,7 +695,7 @@ This closes the two state sections above for the fix; their rulings stand.
 
 **Rulings on the judgement items** (the user, 2026-10-19, the recommended option each time):
 - **31. M2's home.** The orbit space's reference measure is one function, `pushforward_reference(orbit_space)`, in `generating_measure.py`, keyed on the quotient's group. The per-entry data (`LEGENDRE` for the O(2) quotients, `None` elsewhere) leaves the manifold's catalogue.
-- **32. M6's surviving rule list is `Quadrature`'s classmethods.** Each registry entry references a classmethod and returns a `Quadrature`, and `folded_product` is registered.
+- **32. M6's surviving rule list is `Quadrature`'s classmethods.** Each registry entry references a classmethod and returns a `Quadrature`, and `folded_product` is registered. **Amended 2026-10-19 (wave 4, the orchestrator):** `folded_product` is NOT registered. Its built rule carries no exactness claim, because S²/σ_y has no reference measure, and registering it would mean typing its degree. See the wave-4 section.
 - **33. One name per level.** The measure keeps the generic names (`n_points`, `permutation_under`), and the quadrature keeps the angular ones (`n_ordinates`, `ordinate_permutation`). `N` retires, and the two 1e-13 constants become one.
 - **Module names** (the orchestrator's call): the frame's faces go in `frame_faces.py`, the nine concrete leaves in `elementary_operators.py`, and the lift in `axis_marginal.py`.
 
@@ -799,3 +799,62 @@ Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
 - The branches and worktrees of waves 1–3 are deleted.
 
 ⏸ **Next:** wave 4, which is M6, M7 and S5. Then S2, S3, S4 and S6 in series. S7's design is still to be settled with the user; the PG-degenerate ruling is owed there. qa F2 goes to S6. The numerics test census interleaves with the waves.
+
+## Wave 4 (in flight, 2026-10-19): M6, M7, S5
+
+**A correction to the wave table.** M6 and S5 both edit `measure.py`, so they are not disjoint. M6 and M7 ran in parallel. S5's code waits for M6.
+
+**M6 and M7 returned** (integrated on `refactor/eprime-wave4` at `c27830f5`; its wide run, qa and the elegance review are in progress).
+- M7 (`c6f164e2`): the nine leaves are in `elementary_operators.py`. `[M]` numerics 4866 passed, the baseline exactly.
+- M6 (`fcd2828e`, `e834dca5`, `1c42a5e0`):
+  - the aliases `measure.gauss_legendre` and `gauss_chebyshev` and the property `DiscreteMeasure.generating_measure` are retired, and `PENDING[("generating_measure", "measure")]` is gone;
+  - 8 root re-exports are retired;
+  - `Quadrature.N` is retired (509 reads rewritten; the 65 kept non-quadrature reads are listed in `M6_callers.txt`), and `_REFLECTION_ATOL` with it;
+  - the registry's factories are the classmethods, `build` and `select_quadrature` return `Quadrature`, and the new gate is `test_registry_rule_list.py` (13 rows).
+  - `[M]` numerics 4879 passed = 4866 + 13.
+- **Orchestrator rulings on M6's open points:**
+  - `folded_product` is NOT registered, against ruling 32's letter. `[M]` its built rule carries no exactness claim (25 of 25 sampled), because `quotient` drops the claim: S²/σ_y has no reference measure. Registering it would mean typing a degree, which "values are computed, never typed" forbids. The missing reference measure on S²/σ_y is the prerequisite.
+  - The Gauss–Legendre registry key `n` became `n_ordinates`, to match the classmethod (ruling 33).
+  - `AngularField.N` (`transport/fields/_bases.py`) is left for a later sweep.
+- `measure.equispaced` is kept, by the orchestrator's judgement: it is the only non-Gauss rule on an interval, and the measure-algebra tests use it as their fixture.
+
+**S5 design:** `scratch/numerics_untangling/packages/S5_design.md`. **Rulings** (the user, 2026-10-19, the recommended option each time):
+- **42. The invariance verbs stay on the measure, as compositions.**
+  - `permutation_under(g) = relabelling_to(pushforward(support.action(g)))`; the certificate, the invariance test and the fold are built on it.
+  - `invariance.py` is deleted: `OrbitCertificate` and the lattice walk (`maximal_satisfying`, `maximal_subgroups`, `candidate_groups(points)`) go to `symmetry`, and the windows go to `measure`.
+  - This supersedes G0's comment "a composition the measure does not own", which was written before the caller count (about 130 test calls) and the fold's dependence on the certificate were measured.
+- **43. The action is typed by an abstract `GSpace(Manifold)`.**
+  - It carries `action(motion)` (`Quotient.induced_action` is renamed to this) and `coordinates(points)`, the point identity of a quotient.
+  - Sphere, Ball, RealSpace, Circle, Interval and Quotient are G-spaces. On an Interval, x → −x acts iff the interval is symmetric.
+  - EnergyGroups, IndexSet, Product and FundamentalDomain are not, and asking them raises `TypeError`.
+- **44. The 93 test calls on a bare `Interval[-1,1]`** are re-posed on S²/O2_x through `on_orbit_space`. A test that pinned only the padding's verdict is deleted, with its reason.
+
+**The S5 gate spec returned** (the test-architect, `scratch/numerics_untangling/packages/S5_gate_spec.md`). The baseline is frozen at `c27830f5`: `.claude/worktrees/s5/tests/gates/numerics/data/s5_invariance_baseline.json`, 104 rules, 3242 verdicts, 2306 finite rows. The draft gate module has 1062 rows; `[M]` 38 mutation arms on a model of the design, none blind. Its findings, and what became of each:
+- F1, accepted (orchestrator): `relabelling_to` is `permutation_between` plus a weight leg that compares the TWO measures' weights. `permutation_preserving` compares one array, which is right only for a pushforward.
+- F2, accepted: walk-versus-bruteforce agreement is the same definition evaluated twice, not evidence of downward closure. That refutes F6's Frame-2 first test for this question. Downward closure keeps its own law gate.
+- F5, accepted: an action refuses a translation, and `permutation_under` turns a refused action into None, never a raise, because the three callers of `ordinate_permutation` branch on None.
+- F6, accepted: `spherical_product` refuses a polar factor whose support is not `COSINE_INTERVAL` at its top, as the azimuthal factor already does. The pinned row becomes a discrimination row.
+- F8: the "93 calls" are 10 tests. 9 are re-posed and 1 is deleted (`test_a_BARE_interval_keeps_the_column_zero_convention`, which pins the padding as the contract).
+- F9: `_derived_product_group`'s docstring loses its "independent Hasse walk" credit. The surviving independent pin is the scipy-assignment certificate check.
+- **46. (F3, the user, 2026-10-19) A total G-space verb `ambient_points(points)`.** On a Quotient it returns the orbit barycentres in the base's ambient space; on every other G-space it is the identity. It sits beside `ambient_dim`. `is_invariant_under` refuses when `ambient_dim` is not 3. It replaces the private `invariance._embedded_nodes`, which has 15 test reads and is imported at module scope by `tests/_harness/references.py`.
+- **47. (F4, the user, 2026-10-19) A motion acts on M iff g(M) = M, with no special case.** `GSpace.action` is ONE law: each family answers whether g preserves the data that defines it, and the action is then `x ↦ g(x)` from M to M.
+  - Sphere, Ball, Circle: g fixes the origin.
+  - RealSpace(d): E(d).
+  - Interval [a, b]: g permutes {a, b}, which leaves the identity and x ↦ a+b−x.
+  - Quotient: g normalises H.
+  The design table's "x → −x iff a = −b" is that rule's answer on [−1, 1], not a branch. The user asked whether the special case had any advantage; it has none. What is special about [−1, 1] is that it is the chart of S²/O2_x, where μ → −μ is the induced action of σ_x. That is a commuting-square gate to add: `Interval(-1, 1).action(mirror)` equals the quotient's `action(σ_x)` on the chart.
+
+**The wave-4 reviews** (`[M]` qa: ready; elegance: one blocker, which predates the wave). The fixes are on `fix/wave4-review` at `126cf514`, cut from `c27830f5`.
+- **ERR-118 (the elegance review's B1).** `positive_weights` was typed on the Lebedev spec, and the selector returned order 13, which has a weight of −0.372. Fixed by reading `positive_weights` and `level_structured` off the built rule.
+- **Ruling 45 (the user, 2026-10-19): the zero belongs to the algebra.**
+  - `ZeroOperator` and `ZeroMorphism` return to `operator.py`.
+  - `0·A` refuses under a SCOPE-BOUNDARY tag until S2, which makes it `ZeroMorphism(A.domain, A.codomain)`.
+- **Owed to S2:** `SumOfTensorProductsOperator` is a composite, not a leaf. It imports `operator._agreed_space` and sums by hand. It becomes a refinement of the formal linear combination, or it retires with #260.
+- **Kept or filed:**
+  - `checked_space_extent` stays in `elementary_operators`: it is a transitional guard that #330 retires.
+  - Elegance S4: the `AngularMeasure` Protocol is a second spelling of `Quadrature`'s surface. Filed as #620.
+  - `AngularField.N`. Filed as #621.
+  - qa F4: `examples/` is broken at import. Already #540, the same defect.
+  - `folded_product`'s registration waits on the S²/σ_y reference measure. #370 carries it, with a wave-4 status comment.
+- Elegance S2 was done instead of filed: `QuadratureSpec.parameters`, a second copy of the classmethod's signature, retired at `52c9253d`. That closes #371.
+- `[M]` The wide run on `c27830f5` passed all 17 suites (`scratch/numerics_untangling/packages/wave4_wide/summary.txt`; numerics 4879, sn 3834, derivations 3098 passed). The fixes were ff-merged onto `refactor/eprime-wave4` at `52c9253d`, and the touched suites were re-run (`wave4_fix/summary.txt`).
