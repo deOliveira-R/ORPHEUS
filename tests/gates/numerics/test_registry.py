@@ -122,8 +122,7 @@ def test_registry_specs_are_well_formed() -> None:
         assert callable(spec.degree_of_exactness_for)
         assert not hasattr(spec, "invariance_group")
         assert not hasattr(spec, "expected_node_count")
-        assert isinstance(spec.parameters, dict)
-        assert all(isinstance(t, type) for t in spec.parameters.values())
+        assert not hasattr(spec, "parameters")  # the classmethod's signature is the one list
         # Structural-flags accessor must surface the four flags.
         flags = spec.structural_flags(spec.build(spec.degree_of_exactness_for(3)))
         assert set(flags) == {
@@ -277,7 +276,6 @@ def _gauss_chebyshev_spec() -> QuadratureSpec:
     return QuadratureSpec(
         name="GaussChebyshev1D",
         factory=lambda n_ordinates: Quadrature(measure=_on_slab(CHEBYSHEV_T.gauss(n_ordinates)), level_structure=None),
-        parameters={"n_ordinates": int},
         degree_of_exactness_for=_gl1d_invert,   # same deg = 2n - 1
         axis_aligned=True,
         half_range_clean=True,
@@ -404,7 +402,6 @@ def test_a_rule_with_no_exactness_claim_at_all_is_refused() -> None:
     claimless = QuadratureSpec(
         name="ClaimlessGL",
         factory=lambda n_ordinates: Quadrature(measure=replace(_on_slab(LEGENDRE.gauss(n_ordinates)), exactness=None), level_structure=None),
-        parameters={"n_ordinates": int},
         degree_of_exactness_for=_gl1d_invert,
         axis_aligned=True,
         half_range_clean=True,
@@ -451,7 +448,6 @@ def test_an_inversion_that_over_promises_is_caught_not_trusted() -> None:
     lying = QuadratureSpec(
         name="OverPromisingGL",
         factory=lambda n_ordinates: Quadrature(measure=_on_slab(LEGENDRE.gauss(n_ordinates)), level_structure=None),
-        parameters={"n_ordinates": int},
         degree_of_exactness_for=lambda _target: {"n_ordinates": 1},
         axis_aligned=True,
         half_range_clean=True,

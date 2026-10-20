@@ -496,17 +496,14 @@ class QuadratureSpec:
         ``.lebedev``, ``.level_symmetric``, ``.product``): the registry
         holds the same rule list the class does, not a second one over
         the module rule functions (ruling 32, 2026-10-19). It accepts
-        the parameter keys listed in :attr:`parameters` and returns a
+        the keyword parameters its signature names (the keys
+        :attr:`degree_of_exactness_for` returns) and returns a
         :class:`~orpheus.numerics.quadrature.directional.Quadrature`,
         whose ``level_structure`` rides with the measure, so the
         :func:`level_symmetric_sn` and :func:`product_mu_phi` pairing
         of a measure with a
         :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`
         is no longer unpacked and dropped here.
-    parameters : dict[str, type]
-        Parameter names and their types. The selector calls
-        :meth:`degree_of_exactness_for` to invert the degree formula
-        and obtain the minimum parameters that meet the target degree.
     degree_of_exactness_for : callable
         Inverse of the rule's degree-of-exactness formula:
         ``target_degree -> dict[str, Any]`` returning the smallest
@@ -545,7 +542,6 @@ class QuadratureSpec:
 
     name: str
     factory: Callable[..., Quadrature]
-    parameters: dict[str, type]
     degree_of_exactness_for: Callable[[int], dict[str, Any] | None]
     axis_aligned: bool
     half_range_clean: bool
@@ -822,7 +818,6 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
         # rules' polar factor) is deliberately NOT registered: it names no
         # axis, and stage 0 refuses it for exactly that reason.
         factory=Quadrature.gauss_legendre,
-        parameters={"n_ordinates": int},
         degree_of_exactness_for=_gl1d_invert,
         axis_aligned=True,        # 1-D nodes ARE the axis (μ-axis)
         half_range_clean=True,     # restrict(mu>0) gives n/2-point GL on [0,1]
@@ -830,7 +825,6 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
     QuadratureSpec(
         name="LebedevSphere",
         factory=Quadrature.lebedev,
-        parameters={"order": int},
         degree_of_exactness_for=_lebedev_invert,
         axis_aligned=True,         # Lebedev grids include axis-aligned orbits
         half_range_clean=False,    # half-sphere restriction is not a valid Lebedev
@@ -838,7 +832,6 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
     QuadratureSpec(
         name="LevelSymmetricSN",
         factory=Quadrature.level_symmetric,
-        parameters={"sn_order": int},
         degree_of_exactness_for=_ls_sn_invert,
         axis_aligned=False,        # LS_N nodes never lie on coordinate axes
         half_range_clean=True,     # one hemisphere = exactly half the rule (Oh symmetry)
@@ -846,7 +839,6 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
     QuadratureSpec(
         name="ProductQuadrature",
         factory=Quadrature.product,
-        parameters={"n_mu": int, "n_phi": int},
         degree_of_exactness_for=_product_invert,
         axis_aligned=False,        # depends on phi grid; conservatively False
         half_range_clean=True,     # GL polar half restricted cleanly to mu>0
