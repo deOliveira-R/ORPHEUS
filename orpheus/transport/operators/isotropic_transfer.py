@@ -110,8 +110,11 @@ from orpheus.transport.operators.bound_operator import BoundOperator
 from orpheus.transport.operators.lift import admit_array
 
 if TYPE_CHECKING:
-    from orpheus.numerics.assembled_operator import SparseAssembledOperator
-    from orpheus.numerics.operator import TensorProductOperator
+    from typing import Callable
+
+    from scipy import sparse
+
+    from orpheus.numerics.operator import LinearOperator, TensorProductOperator
     from orpheus.numerics.space import FunctionSpace
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.transport.reaction_rate_functional import ReactionRateFunctional
@@ -250,10 +253,12 @@ class IsotropicTransfer(BoundOperator):
     def is_assemblable(self) -> bool:
         # The plain binding always emits: the ends carry the (ng, *cells)
         # layout the cell-block-diagonal is indexed by. The COMPOSITE flat
-        # layout is the lift's (BulkLift.assemble embeds this emission).
+        # layout is the lift's (BulkLift's emission embeds this one).
         return True
 
-    def assemble(self) -> "SparseAssembledOperator":
+    def assembled_matrix(
+        self, emit: "Callable[[LinearOperator], sparse.csr_array]", /,
+    ) -> "sparse.coo_array":
         r""":math:`[y\,\Sigma_{c,0}^{T}]` — the cell-block-diagonal emission
         on the plain ends, through the production kernel.
 
@@ -272,8 +277,6 @@ class IsotropicTransfer(BoundOperator):
         :func:`~orpheus.transport.operators.lift.embed_bulk_assembly`'s.
         """
         from scipy import sparse
-
-        from orpheus.numerics.assembled_operator import SparseAssembledOperator
 
         shape = tuple(self.domain.shape)
         ng = shape[0]
@@ -294,12 +297,9 @@ class IsotropicTransfer(BoundOperator):
             cols.append((g_from * n_cells + cell_of_row)[nonzero])
             vals.append(image[nonzero])
 
-        matrix = sparse.coo_array(
+        return sparse.coo_array(
             (np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))),
             shape=(n, n),
-        )
-        return SparseAssembledOperator(
-            matrix, domain=self.domain, codomain=self.codomain,
         )
 
     def dense_per_material(self) -> dict[int, np.ndarray]:
@@ -318,10 +318,8 @@ class IsotropicTransfer(BoundOperator):
         (`vv-principles` L11 — the two sides of an oracle pair must not
         share a realization).  Production materialization — the LHS-fold
         ``A = C − K_iso`` the homogeneous solver densifies — goes through
-        the operator's own
-        :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`
-        (since CS4c step 5 through :meth:`assemble`, the same
-        ``apply`` columns).  Each entry is a fresh copy.
+        :func:`~orpheus.numerics.assembled_operator.dense` (through
+        :meth:`assembled_matrix`, which reads its blocks through ``apply``).  Each entry is a fresh copy.
         """
         return {
             mid: kernel.emission_matrix()
@@ -418,7 +416,7 @@ class IsotropicFission(BoundOperator):
     loss-side sibling assembles because the within-group stencil
     folds it into :math:`A`; fission is the eigenvalue OUTER source
     (within-group fission is zero) and no stencil consumer exists.
-    Landing :meth:`assemble` here would be a gate-less capability
+    Landing an ``assembled_matrix`` here would be a gate-less capability
     (``coding-standards`` defer-until-consumer).
 
     Parameters

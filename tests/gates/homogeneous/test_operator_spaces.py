@@ -25,10 +25,8 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.homogeneous.solver import HomogeneousProblem, _pose_space
 from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
-from orpheus.numerics.operator import (
-    IncompatibleOperatorComposition,
-    MissingAssembly,
-)
+from orpheus.numerics.assembled_operator import MissingAssembly, assemble
+from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.space import FunctionSpace
 from tests.gates.transport._carrier_helpers import unit_cell_carrier
 from orpheus.transport.operators.isotropic_transfer import (
@@ -310,7 +308,7 @@ def test_plain_multiplier_assembles_its_own_diagonal() -> None:
     _require(collision.domain is not None, "precondition lost: C is unbound")
     _require(collision.is_assemblable, "the plain multiplier must be assemblable")
     sigma_t = np.asarray(mat_xs.total_cross_section_field.values)
-    emitted = collision.assemble()
+    emitted = assemble(collision)
     _require(
         bool(np.array_equal(emitted.as_matrix(), np.diag(sigma_t.ravel()))),
         "the plain emission is not diag(Σ_t) in the domain's C-ravel",

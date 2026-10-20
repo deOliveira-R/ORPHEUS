@@ -49,7 +49,7 @@ The verbs, the mixin, and the operator:
   the interior reads every composite-bound operator shares.
 * :class:`BulkLift` — a bulk-born operator (bound on the interior spaces)
   as an operator on the composite: ``apply``/``apply_transpose`` through
-  the verb, ``assemble`` through the embed. This is what a scalar-composite
+  the verb, its emission through the embed. This is what a scalar-composite
   consumer (diffusion) builds over its plain-bound energy bindings, so the
   energy bindings themselves stay plain-bound (R-4: the array carriers are
   theirs) and the composite is the lift's — one composite action for the
@@ -75,9 +75,7 @@ from orpheus.numerics.operator import (
     BlockRole,
     LinearOperator,
     MissingAdjoint,
-    MissingAssembly,
     adjointable,
-    assemblable,
 )
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.transport.fields._bases import BoundaryField, BulkField, FieldRole
@@ -85,7 +83,10 @@ from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.bound_operator import BoundOperator
 
 if TYPE_CHECKING:
-    from orpheus.numerics.assembled_operator import SparseAssembledOperator
+    from typing import Callable
+
+    from scipy import sparse
+
     from orpheus.numerics.space import FunctionSpace
 
 __all__ = [
@@ -296,11 +297,11 @@ def lift_pointwise(
 
 
 def embed_bulk_assembly(
-    bulk: "SparseAssembledOperator",
+    bulk: "sparse.csr_array | sparse.coo_array",
     *,
     domain: "FunctionSpace",
     codomain: "FunctionSpace",
-) -> "SparseAssembledOperator":
+) -> "sparse.coo_array":
     r"""Embed a bulk operator's sparse emission in the composite flat layout.
 
     The composite flat vector is ``[bulk C-ravel | trace]``
@@ -313,12 +314,10 @@ def embed_bulk_assembly(
     """
     from scipy import sparse
 
-    from orpheus.numerics.assembled_operator import SparseAssembledOperator
-
     owner = "embed_bulk_assembly"
     n_rows_bulk = int(np.prod(interior_space_of(codomain, owner=owner).shape))
     n_cols_bulk = int(np.prod(interior_space_of(domain, owner=owner).shape))
-    rows, cols = bulk.shape
+    rows, cols = cast("tuple[int, int]", bulk.shape)
     if (rows, cols) != (n_rows_bulk, n_cols_bulk):
         raise ValueError(
             f"{owner}: the bulk emission is {rows}×{cols} but the composite "
@@ -326,12 +325,11 @@ def embed_bulk_assembly(
             f"(domain) — the lifted operator is not bound on the composite's "
             f"interiors."
         )
-    coo = bulk.matrix.tocoo()
-    matrix = sparse.coo_array(
+    coo = sparse.coo_array(bulk)
+    return sparse.coo_array(
         (coo.data, (coo.row, coo.col)),
         shape=(int(np.prod(codomain.shape)), int(np.prod(domain.shape))),
     )
-    return SparseAssembledOperator(matrix, domain=domain, codomain=codomain)
 
 
 @dataclass(eq=False)
@@ -426,16 +424,12 @@ class BulkLift(CompositeBound):
     def is_assemblable(self) -> bool:
         return self.inner.is_assemblable
 
-    def assemble(self) -> "SparseAssembledOperator":
+    def assembled_matrix(
+        self, emit: "Callable[[LinearOperator], sparse.csr_array]", /,
+    ) -> "sparse.coo_array":
         r"""The inner's emission in the composite flat layout."""
-        inner = self.inner
-        if not assemblable(inner):
-            raise MissingAssembly(
-                f"BulkLift.assemble requires an assemblable inner operator; "
-                f"{type(inner).__name__}.is_assemblable is False."
-            )
         return embed_bulk_assembly(
-            inner.assemble(), domain=self.domain, codomain=self.codomain,
+            emit(self.inner), domain=self.domain, codomain=self.codomain,
         )
 
     def __repr__(self) -> str:

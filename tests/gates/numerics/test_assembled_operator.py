@@ -1,13 +1,16 @@
-r"""Core algebra of the assembly mode — the sparse carrier + the composer laws.
+r"""Core algebra of the assembly mode — the sparse carrier + the functor's laws.
 
-Stencil-assembly campaign 2b, commit 1 (the numerics home): pins the
+Stencil-assembly campaign 2b, commit 1 (the numerics home), re-posed at
+numerics_untangling S3: pins the
 :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`
-carrier contract, the three-layer assembly surface on
-:class:`~orpheus.numerics.operator.LinearOperator` (predicate /
-``SupportsAssembly`` / ``assemblable``), the composer homomorphism laws
-(Sum → ``+``, Product → ``@``, Scaled → scalar ``*``), the R2
-``as_matrix`` delegation WITH the retained probing pathway, and the
-L16 negative test (assembly is structure-only — it must succeed with
+carrier contract, the assembly surface (the flag
+:attr:`~orpheus.numerics.operator.LinearOperator.is_assemblable`, the
+``assemblable`` bridge and the functor
+:func:`~orpheus.numerics.assembled_operator.assemble`), the homomorphism
+laws on dyadic leaves (a combination folds, a word multiplies; the
+fold-order and nesting rows are in ``test_assembly_functor.py``), the two
+densifications (``as_matrix`` probes, ``dense`` assembles; ruling 60), and
+the L16 negative test (assembly is structure-only — it must succeed with
 every ``apply`` disabled).
 
 These are STRUCTURAL algebra pins (exact float comparisons are legal
@@ -21,18 +24,21 @@ sparse arithmetic on identical operands). The PHYSICS equivalence gates
 
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import pytest
 from scipy import sparse
 
-from orpheus.numerics.assembled_operator import SparseAssembledOperator
-from orpheus.numerics.flat_operator import FlattenedOperator
-from orpheus.numerics.operator import (
-    IdentityOperator,
-    MatrixTooLarge,
+from orpheus.numerics.assembled_operator import (
     MissingAssembly,
+    SparseAssembledOperator,
     assemblable,
+    assemble,
+    dense,
 )
+from orpheus.numerics.flat_operator import FlattenedOperator
+from orpheus.numerics.operator import IdentityOperator, MatrixTooLarge
 
 pytestmark = [pytest.mark.foundation]
 
@@ -99,7 +105,7 @@ class TestSparseAssembledOperator:
     def test_assemble_is_idempotent(self) -> None:
         op = _leaf_a()
         assert op.is_assemblable
-        assert op.assemble() is op  # the functor's fixed point
+        assert assemble(op) is op  # the functor's fixed point
 
     def test_shape_and_input_guards(self) -> None:
         op = _leaf_a()
@@ -139,7 +145,7 @@ class TestAssemblyAxis:
     @pytest.mark.verifies("matrix-functor-homomorphism")
     def test_sum_law(self) -> None:
         a, b = _leaf_a(), _leaf_b()
-        assembled = (a + b).assemble()
+        assembled = assemble(a + b)
         np.testing.assert_array_equal(
             assembled.as_matrix(), a.as_matrix() + b.as_matrix()
         )
@@ -149,7 +155,7 @@ class TestAssemblyAxis:
         # law [A] + (-1)[B], byte-equal to dense subtraction on exact
         # dyadic values.
         a, b = _leaf_a(), _leaf_b()
-        assembled = (a - b).assemble()
+        assembled = assemble(a - b)
         np.testing.assert_array_equal(
             assembled.as_matrix(), a.as_matrix() - b.as_matrix()
         )
@@ -157,7 +163,7 @@ class TestAssemblyAxis:
     @pytest.mark.verifies("matrix-functor-homomorphism")
     def test_product_law(self) -> None:
         a, b = _leaf_a(), _leaf_b()
-        assembled = (a @ b).assemble()
+        assembled = assemble(a @ b)
         np.testing.assert_array_equal(
             assembled.as_matrix(), a.as_matrix() @ b.as_matrix()
         )
@@ -165,7 +171,7 @@ class TestAssemblyAxis:
     @pytest.mark.verifies("matrix-functor-homomorphism")
     def test_scaled_law(self) -> None:
         a = _leaf_a()
-        assembled = (-0.5 * a).assemble()
+        assembled = assemble(-0.5 * a)
         np.testing.assert_array_equal(
             assembled.as_matrix(), -0.5 * a.as_matrix()
         )
@@ -183,14 +189,16 @@ class TestAssemblyAxis:
 
     def test_missing_assembly_refusals(self) -> None:
         a = _leaf_a()
-        # S2: n-ary wording ("every term", "every factor"); the scaled
-        # operator is the one-term combination, refused as a sum.
-        with pytest.raises(MissingAssembly, match="OperatorSum.assemble requires every term"):
-            (a + IdentityOperator()).assemble()
-        with pytest.raises(MissingAssembly, match="OperatorProduct.assemble requires every factor"):
-            (IdentityOperator() @ a).assemble()
-        with pytest.raises(MissingAssembly, match="OperatorSum.assemble requires every term"):
-            (3.0 * IdentityOperator()).assemble()
+        # S3: the functor names the non-emitting part and the law that
+        # needed it; the scaled operator is the one-term combination,
+        # refused under the sum's law.
+        sum_law, word_law = re.escape("[Σ cᵢwᵢ]"), re.escape("[A₁…Aₙ]")
+        with pytest.raises(MissingAssembly, match=f"{sum_law}.*IdentityOperator emits no assembly"):
+            assemble(a + IdentityOperator())
+        with pytest.raises(MissingAssembly, match=f"{word_law}.*IdentityOperator emits no assembly"):
+            assemble(IdentityOperator() @ a)
+        with pytest.raises(MissingAssembly, match=f"{sum_law}.*IdentityOperator emits no assembly"):
+            assemble(3.0 * IdentityOperator())
 
     def test_assembly_is_structure_only(self, monkeypatch) -> None:
         # L16's negative test: with every leaf ``apply`` disabled, the
@@ -203,39 +211,44 @@ class TestAssemblyAxis:
 
         monkeypatch.setattr(a, "apply", _boom)
         monkeypatch.setattr(b, "apply", _boom)
-        assembled = (a + b).assemble()
+        assembled = assemble(a + b)
         assert assembled.shape == (3, 3)
 
 
-# ── R2: as_matrix delegation + the retained probing pathway ───────────
+# ── Ruling 60: as_matrix probes, dense assembles — two algorithms ──────
 
 
-class TestAsMatrixDelegation:
-    def test_delegation_matches_probing_on_the_carrier(self) -> None:
-        # The core-level probed≡assembled pin: for the carrier itself a
-        # probe column apply(e_j) extracts stored coefficients with no
-        # summation, so the two pathways are EXACTLY equal. (The
-        # physics-emitter pins at nulp live with the emitters.)
+class TestTwoDensifications:
+    def test_dense_matches_the_probe_on_the_carrier(self) -> None:
+        # The core-level probed≡assembled pin, two algorithms for one
+        # matrix: ``as_matrix`` probes (apply on unit vectors, each leaf's
+        # CSR matvec), ``dense`` folds the leaves' CSR matrices. On dyadic
+        # leaves both are exact, so they are EXACTLY equal. Shared upstream:
+        # both read the leaves' stored entries, so a wrong stored entry is
+        # outside this row (the dense oracles of the law rows see it).
         a, b = _leaf_a(), _leaf_b()
         composed = a + 2.0 * b
-        via_delegation = composed.as_matrix(basis_shape=(3,))
-        via_probing = composed._as_matrix_by_probing((3,))
-        np.testing.assert_array_equal(via_delegation, via_probing)
+        via_probing = composed.as_matrix(basis_shape=(3,))
+        via_assembly = dense(composed, basis_shape=(3,))
+        np.testing.assert_array_equal(via_assembly, via_probing)
 
     def test_probing_remains_the_fallback(self) -> None:
-        # A non-assemblable operator still materializes by probing —
-        # the delegation is a no-op for the existing operator fleet.
+        # A non-assemblable operator materializes by probing, through
+        # either door.
         ident = IdentityOperator()
         np.testing.assert_array_equal(
             ident.as_matrix(basis_shape=(3,)), np.eye(3)
         )
+        np.testing.assert_array_equal(dense(ident, basis_shape=(3,)), np.eye(3))
 
-    def test_delegation_honors_the_size_gate(self) -> None:
+    def test_both_densifications_honor_the_size_gate(self) -> None:
         a = _leaf_a()
         with pytest.raises(MatrixTooLarge):
             (a + _leaf_b()).as_matrix(
                 basis_shape=(3,), max_dimension=2
             )
+        with pytest.raises(MatrixTooLarge):
+            dense(a + _leaf_b(), basis_shape=(3,), max_dimension=2)
 
 
 # ── FlattenedOperator passthrough ──────────────────────────────────────
@@ -257,19 +270,31 @@ class _FlatDuck:
 
 class TestFlattenedPassthrough:
     def test_passthrough_returns_the_inner_assembly(self) -> None:
+        # Ruling 62: a value pin (the emission is a raw matrix, wrapped
+        # once by the functor), plus the ends: the flattened view's ends
+        # are its inner's.
         inner = _leaf_a()
         wrapped = FlattenedOperator(inner, _FlatDuck(3))
         assert wrapped.is_assemblable
-        assert wrapped.assemble() is inner.assemble()
+        got = assemble(wrapped)
+        np.testing.assert_array_equal(
+            got.matrix.toarray(), assemble(inner).matrix.toarray()
+        )
+        assert got.domain is inner.domain and got.codomain is inner.codomain
 
     def test_dimension_drift_refuses(self) -> None:
         inner = _leaf_a()
         wrapped = FlattenedOperator(inner, _FlatDuck(4))
         with pytest.raises(ValueError, match="drifted"):
-            wrapped.assemble()
+            assemble(wrapped)
 
     def test_non_assemblable_inner_refuses(self) -> None:
         wrapped = FlattenedOperator(IdentityOperator(), _FlatDuck(3))
         assert not wrapped.is_assemblable
-        with pytest.raises(MissingAssembly):
-            wrapped.assemble()
+        # The functor runs the pass-through's own recursion, so the refusal
+        # names the inner part and the composite's law (S3 review, qa F1).
+        with pytest.raises(
+            MissingAssembly,
+            match="FlattenedOperator's assembly: IdentityOperator emits no assembly",
+        ):
+            assemble(wrapped)

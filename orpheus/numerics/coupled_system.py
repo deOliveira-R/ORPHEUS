@@ -46,10 +46,11 @@ The three consumption modes (the ``Op → Mat`` functor at block level)
 Mode           Realization here
 =============  ===========================================================
 ``apply``      the block matvec ``y_i = Σ_j A_ij x_j`` (Krylov action)
-``assemble``   each block's sparse assembly scattered at its
-               ``(row_i, col_j)`` block offset into ONE flat matrix
-               (:func:`scipy.sparse.block_array`), closing over
-               :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`
+assembly       each block's emission scattered at its ``(row_i, col_j)``
+               block offset into ONE flat matrix
+               (:func:`scipy.sparse.block_array`); the blocks recurse
+               through the functor
+               :func:`~orpheus.numerics.assembled_operator.assemble`
 ``solve``      the structure-keyed DIRECT solve (step 5): a
                block-triangular grid runs back/forward SUBSTITUTION
                through the diagonal blocks' own ``solve`` verbs
@@ -63,7 +64,7 @@ Mode           Realization here
                (ρ(M⁻¹N) < 1), never a structural capability
 =============  ===========================================================
 
-**The offsets ARE the block structure.** ``assemble`` needs a local→global
+**The offsets ARE the block structure.** The assembly needs a local→global
 DOF map, and :class:`CoupledSpace` provides it for free
 (:attr:`CoupledSpace.system_slices`): member ``i``'s flat DOFs occupy the
 contiguous slice at the cumulative offset of the members before it — the
@@ -136,19 +137,17 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, Sequence, c
 import numpy as np
 from scipy import sparse
 
-from orpheus.numerics.assembled_operator import SparseAssembledOperator
+from orpheus.numerics.assembled_operator import MissingAssembly
 from orpheus.numerics.operator import (
     IncompatibleOperatorComposition,
     InverseWrapMixin,
     LinearOperator,
     MatrixTooLarge,
     MissingAdjoint,
-    MissingAssembly,
     NotInvertible,
     SystemRole,
     adjointable,
     transpose_invertible,
-    assemblable,
 )
 from orpheus.numerics.space import FunctionSpace
 
@@ -1198,10 +1197,8 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
     ) -> "NDArray":
         r"""Materialize ``[A]`` — the typed-carrier ``Op → Mat`` realization.
 
-        An all-assemblable grid routes through the base assembly
-        delegation (:meth:`assemble` → dense, the structural emission).
-        Otherwise the base's ndarray basis probe cannot run (a typed block
-        matvec refuses flat columns — the base ``as_matrix`` "honest
+        The base's ndarray basis probe cannot run on a block grid (a typed
+        block matvec refuses flat columns, the base ``as_matrix`` "honest
         scope" note), so the probe runs over TYPED basis elements minted
         from the domain's zero exemplar: column ``j`` is
         ``apply(from_flat(δ_j, domain.zeros()))`` raveled — the same
@@ -1210,10 +1207,6 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
         builder); an explicit ``basis_shape`` must match the coupled flat
         dimension, and ``max_dimension`` gates as usual.
         """
-        if all(b.is_assemblable for b in self._present_blocks()):
-            return super().as_matrix(
-                basis_shape=basis_shape, max_dimension=max_dimension,
-            )
         n = int(np.prod(self._domain.shape))
         if basis_shape is not None and int(np.prod(basis_shape)) != n:
             raise ValueError(
@@ -1242,8 +1235,10 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
         r"""``True`` iff every present block emits its sparse assembly."""
         return all(b.is_assemblable for b in self._present_blocks())
 
-    def assemble(self) -> "SparseAssembledOperator":
-        r"""Scatter each block's assembly at its ``(row_i, col_j)`` offset.
+    def assembled_matrix(
+        self, emit: "Callable[[LinearOperator], sparse.csr_array]", /,
+    ) -> "sparse.sparray | sparse.spmatrix":
+        r"""Scatter each block's emission at its ``(row_i, col_j)`` offset.
 
         The block grid → ONE flat sparse matrix over the coupled flat layout
         (:attr:`CoupledSpace.system_slices` — the scoped ``LocalToGlobalMap``):
@@ -1256,31 +1251,25 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
         precondition (``block_array`` derives each block-row/column dimension
         from a present block).
         """
-        grid: list[list[Optional["sparse.csr_array"]]] = []
+        grid: list[list[Any]] = []
         for i, row in enumerate(self._blocks):
-            grid_row: list[Optional["sparse.csr_array"]] = []
+            grid_row: list[Any] = []
             for j, block in enumerate(row):
                 if block is None:
                     grid_row.append(None)
                     continue
-                # Guard-narrow (Design C) — mirrors OperatorSum.assemble's
-                # eager assembly-axis refusal, naming the offending block.
-                if not assemblable(block):
+                if not block.is_assemblable:
                     raise MissingAssembly(
-                        f"CoupledOperator.assemble: block ({i}, {j}) "
+                        f"CoupledOperator's assembly: block ({i}, {j}) "
                         f"({type(block).__name__}) emits no structural "
-                        f"assembly (is_assemblable False) — the block "
+                        f"assembly (is_assemblable False): the block "
                         f"scatter needs every present block's (row, col, "
-                        f"value) emission; the probing as_matrix fallback "
-                        f"is not available on a typed-carrier grid."
+                        f"value) emission. The grid's dense matrix is its "
+                        f"typed probe, as_matrix."
                     )
-                grid_row.append(block.assemble().matrix)
+                grid_row.append(emit(block))
             grid.append(grid_row)
-        return SparseAssembledOperator(
-            sparse.block_array(grid),
-            domain=self._domain,
-            codomain=self._codomain,
-        )
+        return sparse.block_array(grid)
 
     def __repr__(self) -> str:
         present = sum(1 for _ in self._present_blocks())

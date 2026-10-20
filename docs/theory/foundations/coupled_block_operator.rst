@@ -49,7 +49,7 @@ The curvilinear-S\ :sub:`N` within-group problem is the operator-surface
 taxonomy's capstone: a **2×2 coupled block operator** over two systems.
 It is the block-level generalisation of the three-layer surface
 (:ref:`capability-set-semantics`) — ``apply`` becomes the block
-matvec, ``assemble`` scatters each block at its DOF offset, and ``solve``
+matvec, assembly scatters each block's emission at its DOF offset, and ``solve``
 runs structure-keyed block substitution — and it is where the
 curvilinear starting-direction flux :math:`\psi_{1/2}` finally earns a
 first-class home. The campaign that built it (``coupled_block_operator``,
@@ -432,15 +432,19 @@ operator over a typed block vector, where every term of
 algebra is the syntax).
 
 **The three block-level modes** mirror the three-layer operator surface,
-one level up: ``apply`` (the block matvec, Krylov action), ``assemble``
+one level up: ``apply`` (the block matvec, Krylov action), assembly
 (each block's sparse emission scattered at its ``(row_i, col_j)`` DOF
-offset into one flat matrix via :func:`scipy.sparse.block_array`, closing
-over :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`
-— the same axis as :ref:`operator-algebra-assembly-axis`), and ``solve``
+offset into one flat matrix via :func:`scipy.sparse.block_array`; the
+coupled operator is an atom to the free algebra that keeps this block law
+in its own ``assembled_matrix`` and recurses into its blocks through the
+functor :func:`~orpheus.numerics.assembled_operator.assemble`, which alone
+wraps the result in a
+:class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator` —
+:ref:`operator-algebra-assembly-axis`), and ``solve``
 (the structure-keyed direct solve, below). The offsets ARE the block
 structure — :attr:`CoupledSpace.system_slices
 <orpheus.numerics.coupled_system.CoupledSpace.system_slices>` is the
-scoped local→global DOF map ``assemble`` needs, the same layout
+scoped local→global DOF map the block law needs, the same layout
 :meth:`CoupledField.to_flat` packs. Because :class:`CoupledField` itself
 satisfies the ravellable ``to_flat``/``from_flat`` protocol, every
 ``restart = n_dof = template.to_flat().size`` sizing site tracks the
@@ -977,9 +981,12 @@ substitution has nothing to seed).
 
 **The materialise/LU EXTRACT (step 5a).** The *full* 2×2 loss grid is not
 triangular (:math:`A_{BA} \neq 0`), so it takes the second route:
-:meth:`CoupledOperator.inverse` materialises the assembled matrix and
+:meth:`CoupledOperator.inverse` materialises the grid's matrix and
 LU-factors it via
-:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`,
+which densifies through :func:`~orpheus.numerics.assembled_operator.dense`
+(structural assembly when every present block emits, otherwise the
+coupled operator's typed-basis probe ``as_matrix``)
 (one eager LU, then back-substitution per solve). This EXTRACT is
 **principled-equivalent, not bit-identical** to the production
 splitting-iteration — the matrix reduction tree differs — and a naive
@@ -1214,7 +1221,7 @@ and prolongation :math:`P` (coarse correction → fine) operators. Those
 :math:`R`/:math:`P` operators **do not exist yet** — they are the future
 ``SystemRole`` members Issue #2 will add; the seam is *named*, not built.
 When they land, DSA consumes the same three modes (the block matvec, the
-``assemble`` route the diffusion resolvent already rides via
+assembly route the diffusion resolvent already rides via
 :ref:`operator-algebra-assembly-axis`, and the block ``solve``), and it
 consumes the transport residual :func:`~orpheus.sn.solver.evaluate_residual`
 already types — DSA computes that residual, the diffusion solve corrects

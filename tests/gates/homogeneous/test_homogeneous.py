@@ -156,11 +156,12 @@ def test_kinf_gate_executes_the_plain_multiplier_assembly(monkeypatch):
     """Mode-11: the homogeneous k∞ gate actually EXECUTES the PLAIN-bound
     ``MultiplicationOperator``'s emission.
 
-    The loss matrix ``A = C − K_iso`` is materialised through
-    ``as_matrix``, which delegates to ``assemble()`` on an assemblable
-    operator — and since CS4c step 5 the plain binding IS assemblable
-    (the bulk diagonal on its own ends), so the collision diagonal reaches
-    the k∞ gate through ``_bulk_assembly``, not through ``apply``
+    The solver factors the loss matrix ``A = C − K_iso`` through
+    ``MatrixInverseOperator``, which densifies by ``dense`` (the assembly
+    functor, numerics_untangling S3 ruling 60) on an assemblable operator
+    — and since CS4c step 5 the plain binding IS assemblable (the bulk
+    diagonal on its own ends), so the collision diagonal reaches the k∞
+    gate through ``_bulk_assembly``, not through ``apply``
     (`[M]` 2026-09-04: perturbing ``apply`` alone left k_inf unmoved —
     this row's pre-step-5 spelling had gone vacuous-green). Perturbing
     ONLY the emission (×1.5 on the diagonal) moves k_inf O(1) — proving
@@ -168,8 +169,10 @@ def test_kinf_gate_executes_the_plain_multiplier_assembly(monkeypatch):
     (``-O``-safe: the monkeypatch is an in-process attribute swap,
     reverted by the fixture; never a ``git checkout``.)
 
-    ⚠ Coverage shift, stated: ``test_kinf_exact`` no longer witnesses
-    ``MultiplicationOperator.apply`` at all (`[M]` 2026-09-05, perturbing
+    ⚠ Coverage shift, stated (pre-S3; since S3 the reference side of
+    ``test_kinf_exact_reference`` reads ``dense`` as the solver does, and
+    every bare ``as_matrix`` probes ``apply``): ``test_kinf_exact`` no
+    longer witnesses ``MultiplicationOperator.apply`` at all (`[M]` 2026-09-05, perturbing
     ``apply`` ×1.5 over this tree reds two STRUCTURAL rows in
     ``test_operator_spaces.py`` and no k∞ value gate). The plain binding's
     ``apply`` is pinned by the 33-cell ends→body fence
@@ -183,10 +186,7 @@ def test_kinf_gate_executes_the_plain_multiplier_assembly(monkeypatch):
     raw = MultiplicationOperator.__dict__["_bulk_assembly"]
 
     def perturbed(self, bulk_space):
-        emitted = raw.__get__(self, type(self))(bulk_space)
-        return type(emitted)(
-            emitted.matrix * 1.5, domain=emitted.domain, codomain=emitted.codomain,
-        )
+        return raw.__get__(self, type(self))(bulk_space) * 1.5
 
     monkeypatch.setattr(MultiplicationOperator, "_bulk_assembly", perturbed)
 

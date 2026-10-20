@@ -21,7 +21,7 @@ The Operator Inverse Family
       module: transport
       concept: operator_inverse_family
       role: "how the operator algebra's inverse A⁻¹ is realized and materialized (#226 taxonomy)"
-      covers: [driver-applied sweep inverse, Green preconditioned-splitting inverse, dense materialising inverse, sparse assembly axis]
+      covers: [driver-applied sweep inverse, Green preconditioned-splitting inverse, dense materialising inverse, sparse assembly functor]
       depends_on: [operator_algebra]
       status: "extracted from operator_algebra.rst; content verbatim, provisional header"
 
@@ -44,8 +44,10 @@ inverse itself and follows it through four distinct realizations:
   category, factored once into a
   :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
   (:ref:`matrix-inverse-operator`);
-- the **assembly axis** — structural sparse emission, the third per-axis
-  three-layer surface (:ref:`operator-algebra-assembly-axis`).
+- the **assembly functor** — structural sparse emission, a homomorphism
+  out of the operator algebra living downstream of it, and the second
+  algorithm for the matrix ``as_matrix`` probes
+  (:ref:`operator-algebra-assembly-axis`).
 
 
 .. _inverse-application-driver:
@@ -1036,31 +1038,23 @@ prohibitive for a meshed SN full-field operator by design. It is a per-call
 knob: ``try: A.as_matrix() except MatrixTooLarge: <iterative path>``, or
 raise the budget for one call.
 
-**The return is a dense** :class:`numpy.ndarray`. The dense-vs-sparse
-return keying was the one open thread (W4) that taxonomy §11.4 explicitly
-**deferred to step 5**, and the ruling is: *keyed by the operator's
-structural override, with dense the only realization built until a sparse
-consumer exists*. A structured operator MAY override ``as_matrix`` with a
-direct assembly — the future per-octant sparse-triangular streaming
-assembly noted at ``sweep_graph.py:66`` is exactly such an override, and it
-is **deferred with its 3-D consumer** (there is no sparse consumer today,
-so building the sparse path now would be a primitive with no product —
-defer-until-consumer, Cardinal Rule 2).
-:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator` is
-the one override that ships in step 5, and it collapses to a single batched
-LU back-solve (below), not a sparse form.
-
-.. note:: **Landed (stencil-assembly 2b, 2026-07-04).** The deferred
-   sparse-assembly override arrived. Not yet the *octant-batched 3-D*
-   form — that vectorization is still deferred with its 3-D consumer —
-   but the assembly axis itself: structured leaves now emit a
-   :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`,
-   and ``as_matrix`` **delegates** to the densified emission when the
-   operator is :func:`~orpheus.numerics.operator.assemblable` (the
-   probing loop retained as the fallback and fuller-view oracle). The
-   dense-vs-sparse keying above is now *realised* rather than deferred —
-   the key is exactly the ``is_assemblable`` predicate. See
-   :ref:`operator-algebra-assembly-axis`.
+**The return is a dense** :class:`numpy.ndarray`, and ``as_matrix`` is
+realised by the apply-to-basis loop above. Three classes override it, each
+reading a matrix it already holds rather than computing one from structure:
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+runs a single batched LU back-solve (below),
+:class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`
+densifies its sparse matrix, and
+:class:`~orpheus.numerics.coupled_system.CoupledOperator` probes over typed
+block-field basis elements. The *sparse* realization is not an override of
+``as_matrix``: it is a second algorithm for the same matrix, structural
+assembly, which lives downstream of the algebra as
+:func:`~orpheus.numerics.assembled_operator.assemble` (sparse) and
+:func:`~orpheus.numerics.assembled_operator.dense` (densified), and the
+consumer that pays for a densification chooses between the two
+(:ref:`assembly-matrix-and-algorithms`). No octant-batched 3-D streaming
+assembly exists; the SN assembly mode emits Cartesian per-ordinate blocks
+(:ref:`loss-rep-three-modes`).
 
 
 ``MatrixInverseOperator`` — the dense direct inverse
@@ -1361,189 +1355,458 @@ ignored seed). The pyright ratchet held exactly at 148; the homogeneous
 
 .. _operator-algebra-assembly-axis:
 
-The assembly axis — structural sparse emission (stencil-assembly 2b)
-====================================================================
+The assembly functor — structural sparse emission
+=================================================
 
-Step 5 established ``as_matrix`` as the functor **out** of the operator
-category, :math:`\mathrm{Op}\to\mathrm{Mat}`, realised by apply-to-basis
-probing (:eq:`matrix-functor-out`), and deferred a *sparse* override with
-its consumer. Stencil-assembly 2b lands that override — as a full
-**assembly axis** parallel to the inverse and adjoint axes. The
-per-method cell mathematics (the SN closure walk, the diffusion FD
-stencil) is developed in :doc:`/theory/methods/sn/loss_representation`
-(:ref:`loss-rep-three-modes`) and :doc:`/theory/methods/diffusion_1d`; this section is
-the *operator-algebra* view: how emission threads through the composers,
-how ``as_matrix`` delegates, and why the retained probing pathway is
-kept as a permanent oracle.
+An operator's matrix is fixed by its spaces: the domain's and the
+codomain's coordinates, the axes in their order, decide which row and
+which column every entry occupies, and
+:meth:`~orpheus.numerics.operator.LinearOperator.as_matrix` computes it by
+probing (:eq:`matrix-functor-out`). An operator that knows its own
+:math:`(\text{row},\text{col},\text{value})` footprint (a finite-difference
+stencil, a cell-block-diagonal transfer, a multiplier's diagonal) can
+compute the same matrix faster, by scattering its coefficients into a
+sparse matrix instead of applying itself :math:`n` times. That second
+algorithm is **assembly**, and this section is its operator-algebra view:
+where the algorithm lives, how it threads through the composites, and how
+the two algorithms are held to one matrix. The per-method cell mathematics
+(the SN closure walk, the diffusion finite-difference stencil) is developed
+in :doc:`/theory/methods/sn/loss_representation`
+(:ref:`loss-rep-three-modes`) and :doc:`/theory/methods/diffusion_1d`.
 
-Two realizations of the Mat-functor
------------------------------------
+Everything named here lives in :mod:`orpheus.numerics.assembled_operator`
+except one property: the structural flag
+:attr:`~orpheus.numerics.operator.LinearOperator.is_assemblable`, which
+:mod:`orpheus.numerics.operator` states and which is the only thing the
+operator algebra knows about assembly. The design is package S3 of the
+numerics untangling (rulings 24 and 60–62 of
+``.claude/plans/numerics_untangling.md``, 2026-10-20).
 
-The Mat-functor now has **two** realizations, and the split is the same
-total-versus-partial distinction that separates ``as_matrix`` (a total
-functor) from ``inverse()`` (partial — only where an inverse exists;
-:ref:`capability-set-semantics`):
+.. _assembly-matrix-and-algorithms:
+
+The matrix and its two algorithms
+---------------------------------
+
+The user's framing at the ruling (ruling 60) was: *"if space knows its
+axis, and LinearOperator knows its space, LinearOperators should have no
+problem assembling the associated matrix"*. It resolves into two separate
+facts. **The spaces fix where each entry sits**: the flat layout of the
+domain and the codomain is a property of the spaces, so the matrix is a
+property of the operator and its spaces, defined for every operator that
+has them. **The algorithm fixes how each entry is computed**: probing or
+assembly, two procedures for the one matrix. The code puts each fact in
+its own place:
 
 .. list-table::
    :header-rows: 1
-   :widths: 20 40 40
+   :widths: 22 26 26 26
 
-   * - Realization
+   * - Algorithm
+     - Spelling
      - Domain
      - Cost
-   * - **apply-to-basis probing** (``_as_matrix_by_probing``)
-     - **total** — every finite-dimensional operator has a matrix
-     - dense, :math:`n` operator applications
-   * - **structural emission** (:meth:`~orpheus.numerics.operator.SupportsAssembly.assemble`)
-     - **partial** — only where a leaf declares a stencil
-     - sparse, :math:`O(\mathrm{nnz})` scatter
+   * - **probing** (apply to the unit basis)
+     - :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`
+     - **total**: every operator with spaces has a matrix
+     - dense; :math:`n` operator applications
+   * - **assembly** (structural emission)
+     - :func:`~orpheus.numerics.assembled_operator.assemble` (sparse) and
+       :func:`~orpheus.numerics.assembled_operator.dense` (densified)
+     - **partial**: only where every part emits
+     - sparse; :math:`O(\mathrm{nnz})` scatter
 
-Probing is the honest fallback for any operator (it reads only
-``apply``); emission is the efficient path for a structured operator
-that knows its own :math:`(\text{row},\text{col},\text{value})`
-footprint. The emitted matrix lands in
-:class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator` — a
+``as_matrix`` is the representation and is realised by probing alone: it
+never consults ``is_assemblable``. Three classes override it, and each
+override reads a matrix the object already HOLDS rather than computing a
+new one by structure:
+:class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`
+densifies its CSR matrix;
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+runs one batched LU back-solve against the identity;
+:class:`~orpheus.numerics.coupled_system.CoupledOperator` probes over typed
+:class:`~orpheus.numerics.coupled_system.CoupledField` basis elements,
+because a typed block refuses the bare flat columns the base probe feeds
+it. An operator that only KNOWS its stencil does not override
+``as_matrix``. Its structural densification is ``dense(op)``, which
+assembles when ``op.is_assemblable`` holds and otherwise falls back to
+``op.as_matrix(...)``, under the same basis-shape resolution and the same
+:class:`~orpheus.numerics.operator.MatrixTooLarge` size gate (one helper,
+``_check_dimension`` in :mod:`orpheus.numerics.operator`, gates both). The
+consumer that pays for a densification chooses the algorithm; in
+production that consumer is ``MatrixInverseOperator``
+(:ref:`assembly-why-matrix-inverse-chooses-dense`).
+
+The separation has a verification consequence. Because ``as_matrix`` never
+routes through assembly, ``op.as_matrix()`` and ``dense(op)`` on an
+assemblable operator are two independent algorithms, and comparing them
+is a comparison (:ref:`assembly-verification`), not assembly compared with
+itself.
+
+The carrier
+-----------
+
+Assembly lands in
+:class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`, a
 thin :mod:`scipy.sparse` wrapper conforming to
-:class:`~orpheus.numerics.operator.LinearOperator`, **not** a new
-COO-builder type with its own algebra (that would twin the operator
-algebra one layer down — every law restated on triplet buffers). scipy's
-own ``COO → CSR`` conversion performs the FEM duplicate-summing, so an
-emitter may scatter per-cell / per-face contributions freely and the
-carrier assembles them. The functor is **closed** on that carrier: an
-assembled operator's ``assemble()`` is itself.
+:class:`~orpheus.numerics.operator.LinearOperator`: ``apply`` is the CSR
+matvec on a flat vector, ``apply_transpose`` the exact CSR transpose
+(``is_adjointable`` is ``True``), and ``is_invertible`` is the base
+``False`` (an inverse is an explicit consumer choice, such as a
+``MatrixInverseOperator`` over it). It is **not** a COO-builder type with
+an algebra of its own: that would restate every law of the operator
+algebra on triplet buffers, one layer down. Its constructor converts any
+scipy sparse input to CSR once, and scipy's ``COO → CSR`` conversion SUMS
+repeated :math:`(\text{row},\text{col})` entries, the finite-element
+scatter semantics, so an emitter may scatter per-cell and per-face
+contributions freely. Its ``domain`` and ``codomain`` are passthrough
+metadata from the operator it assembles. The functor is closed on the
+carrier: ``assemble(S) is S`` for an assembled operator ``S``.
 
-The three-layer assembly surface
---------------------------------
+The assembly surface
+--------------------
 
-Assembly is the third **per-axis three-layer surface**, minted exactly
-like the inverse and adjoint axes (:ref:`capability-set-semantics`):
+The assembly axis has the same three layers as the inverse and adjoint
+axes (:ref:`capability-set-semantics`), plus a refusal, but only its first
+layer lives in the algebra:
 
-#. a **predicate** —
+#. a **predicate**,
    :attr:`~orpheus.numerics.operator.LinearOperator.is_assemblable`
-   (base default ``False``; the runtime, instance-accurate truth,
-   recursive on composites) — the successor idea to the retired
-   capability tags, reading structure not a registry;
-#. a **narrowing target** —
-   :class:`~orpheus.numerics.operator.SupportsAssembly` (a Protocol
-   *extending* ``LinearOperator``, declaring ``assemble() ->
-   SparseAssembledOperator``), deliberately **not** ``runtime_checkable``
-   (an ``isinstance`` would match every ``OperatorSum``, which defines
-   ``assemble`` class-uniformly even when a summand cannot emit);
-#. a **checked bridge** —
-   :func:`~orpheus.numerics.operator.assemblable` (a PEP-647
-   ``TypeGuard``): the one construct that turns the runtime predicate
-   into the static permission to call ``assemble()``.
+   (base default ``False``; an operator emits only by explicit override).
+   Every composite derives it from its parts: a combination emits iff every
+   term does, a word iff every factor does, a fused atom iff its expansion
+   does, and each domain composite iff its parts do. Examples of operators
+   that emit nothing: :class:`~orpheus.numerics.operator.IdentityOperator`,
+   :class:`~orpheus.numerics.operator.ZeroOperator`, the numerics
+   :class:`~orpheus.numerics.elementary_operators.DiagonalOperator`,
+   :class:`~orpheus.numerics.operator.TensorProductOperator`, and the SN
+   sweep atoms, whose expansions do not emit;
+#. an **emission verb**, ``assembled_matrix(emit)``, defined on each
+   emitter and returning a RAW scipy sparse matrix in the flat layout of
+   the operator's spaces. ``emit`` is the functor's own raw emission,
+   handed to the domain composites that recurse into their parts; a true
+   leaf ignores it. The narrowing Protocol that declares the verb is
+   :class:`~orpheus.numerics.assembled_operator.SupportsAssembly`, and the
+   checked bridge that narrows to it is the ``TypeGuard``
+   :func:`~orpheus.numerics.assembled_operator.assemblable` (never
+   ``isinstance`` the Protocol: narrow with the bridge);
+#. an **operator-returning map**, the functor
+   :func:`~orpheus.numerics.assembled_operator.assemble`, which returns
+   :math:`[A]` wrapped once in a ``SparseAssembledOperator`` carrying
+   ``A``'s ends.
 
-The refusal is the assembly-axis sibling of
-:class:`~orpheus.numerics.operator.NotInvertible` (inverse axis) and
-:class:`~orpheus.numerics.operator.MissingAdjoint` (adjoint axis):
-:class:`~orpheus.numerics.operator.MissingAssembly`, a ``TypeError``
-raised **eagerly** by the composer ``assemble()`` bodies when an operand
-cannot emit. An operator without a stencil simply does **not** declare
-``assemble`` (misuse is a *static* error, method absence over an
-advertising flag), and the probing ``as_matrix`` remains its total
-Mat-functor. A space-anonymous leaf (a bare-ndarray multiplier / iso
-operator with no composite layout) reports ``is_assemblable = False``
-honestly — there is no global DOF numbering to emit into.
+The refusal is
+:class:`~orpheus.numerics.assembled_operator.MissingAssembly`, a
+``TypeError`` and the assembly-axis sibling of
+:class:`~orpheus.numerics.operator.NotInvertible` and
+:class:`~orpheus.numerics.operator.MissingAdjoint`. The functor raises it
+when it reaches a part that emits nothing, and its message names that
+part's type and the law that needed it: ``assemble(a + IdentityOperator())``
+refuses with ``[Σ cᵢwᵢ] = Σ cᵢ[wᵢ]: IdentityOperator emits no assembly``.
+A domain composite whose own flag is ``False`` refuses at itself, since
+its flag already says that some part cannot emit. ``dense`` does not
+refuse: an operator whose flag is ``False`` is densified by probing.
 
-The composer homomorphism laws
-------------------------------
+The emitters are the diffusion
+:class:`~orpheus.diffusion.operators.LeakageOperator` and
+:class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`, the
+transport
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicTransfer`
+(inherited by the isotropic scattering and :math:`(n,2n)` operators) and
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
+the carrier itself, and the three domain composites of the next
+subsection. The SN per-ordinate blocks are assembled outside the functor,
+by :func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`,
+which builds its carriers directly
+(:ref:`loss-rep-three-modes`).
 
-Emission is an **additive-monoidal functor**, so a composite assembles
-by recursion through its operands' emissions — no re-walk of the
-stencils. Each composer carries one homomorphism law in its
-``assemble()`` body, and the matching ``is_assemblable`` predicate is the
-conjunction over its legs:
+The homomorphism laws — one functor downstream of the algebra
+-------------------------------------------------------------
+
+Assembly is a homomorphism out of the operator algebra into the algebra of
+sparse matrices. The free algebra of :ref:`composition-algebra` has three
+composites, a formal linear combination of terms
+(:class:`~orpheus.numerics.operator.OperatorSum`), a flattened word of
+factors (:class:`~orpheus.numerics.operator.OperatorProduct`), and a fused
+atom (:class:`~orpheus.numerics.operator.FusedAtom`, an operator its owner
+built as one term, carrying an ``expansion()`` into the other two), and
+the functor carries one law per composite:
 
 .. math::
    :label: matrix-functor-homomorphism
 
-   [A+B] = [A] + [B], \qquad
-   [A\,B] = [A]\,[B], \qquad
-   [\alpha L] = \alpha\,[L],
+   \Bigl[\,\sum_i c_i\,w_i\Bigr] = \sum_i c_i\,[w_i], \qquad
+   [A_1 A_2 \cdots A_n] = [A_1]\,[A_2]\cdots[A_n], \qquad
+   [\,a\,] = [\operatorname{expansion}(a)],
 
-realised by the carrier's own CSR **addition** and scalar **multiply**
-over the terms of a combination
-(:class:`~orpheus.numerics.operator.OperatorSum`, folded left in insertion
-order, :math:`[\sum_i c_i w_i] = \sum_i c_i [w_i]`), and CSR **matmul**
-over the factors of a word
-(:class:`~orpheus.numerics.operator.OperatorProduct`,
-:math:`[A_1\cdots A_n] = [A_1]\cdots[A_n]`). A combination is
-assemblable iff **every** term is, a word iff every factor is; and the eager :class:`~orpheus.numerics.operator.MissingAssembly`
-guard-narrows the legs (Design C) before any operand call. The
-:class:`~orpheus.numerics.operator.TensorProductOperator` law would be
-:math:`[A\otimes B] = [A]\otimes[B]` (a :func:`scipy.sparse.kron`), but
-it is **deferred with no consumer** — the diffusion loss and the SN
-:math:`L(+C)` trees contain no tensor-product leaf, so building it now
-would be a primitive with no product (Cardinal Rule 2).
+where :math:`[\cdot]` is the sparse matrix in the flat layout of the
+operator's spaces, :math:`c_i` are the real coefficients of a combination,
+:math:`w_i` its terms, :math:`A_1 \cdots A_n` the factors of a word and
+:math:`a` a fused atom. The familiar binary laws are special cases:
+:math:`[A+B] = [A] + [B]` is a two-term combination with unit
+coefficients, :math:`[\alpha L] = \alpha[L]` the one-term combination (a
+scaled operator IS a one-term combination since package S2), and
+:math:`[AB] = [A][B]` a two-letter word.
 
-R2 — ``as_matrix`` delegates to densified assembly
---------------------------------------------------
+The laws are realised once, in the private ``_emit`` of
+:mod:`orpheus.numerics.assembled_operator`, as a ``match`` on the three
+composites followed by the leaf arm:
 
-The ruling **R2** wires the two realizations together without changing
-``as_matrix``'s contract. ``as_matrix`` keeps its dense semantics — same
-basis-shape resolution, same :class:`~orpheus.numerics.operator.MatrixTooLarge`
-size gate — and then, when the operator is
-:func:`~orpheus.numerics.operator.assemblable`, **delegates** the
-densification to ``self.assemble().as_matrix(...)`` (the assembled
-matrix's own ``.toarray()``, with the column dimension checked against
-the resolved basis shape) instead of running :math:`n` probing
-applications; otherwise it falls back to the probing loop. Because **no
-operator was assemblable until an emitter landed**, the delegation is a
-no-op for every pre-2b call site — bit-safety by construction. The
-:class:`~orpheus.numerics.flat_operator.FlattenedOperator` is transparent
-to the axis: its ``is_assemblable`` / ``assemble()`` are its inner
-operator's, since the typed operator's emission is already in the flat
-layout.
+* the **combination arm** folds the terms' emissions LEFT, in the order
+  the terms were first inserted, with the same helper ``_left_fold`` that
+  folds the combination's ``apply`` (out of place, because a sparse
+  matrix's in-place operators are not its out-of-place ones). The matrix
+  of a sum is therefore rounded in the same order as its action;
+* the **word arm** multiplies the factors' emissions left to right with
+  CSR ``@``;
+* the **fused-atom arm** assembles the atom's expansion, so a capability
+  the expansion gains reaches the atom with no edit to the atom;
+* the **leaf arm** refuses a part whose flag is ``False``, and otherwise
+  calls the part's ``assembled_matrix(emit)`` and converts the result to
+  CSR before any law touches it
+  (:ref:`assembly-why-csr-at-the-leaf`).
 
-The anti-tautology discipline
+``assemble(op)`` returns ``op`` itself when ``op`` is already a
+``SparseAssembledOperator``, and otherwise wraps ``_emit(op)`` ONCE. No
+emitter constructs the carrier: a leaf returns its raw matrix, and only
+the functor wraps (ruling 62).
+
+**The domain composites** (ruling 61) are three operators that are
+composites in their own domain but atoms to the free algebra:
+:class:`~orpheus.numerics.coupled_system.CoupledOperator` (a block grid
+over a coupled space), :class:`~orpheus.transport.operators.lift.BulkLift`
+(a bulk operator lifted onto bulk :math:`\oplus` trace) and
+:class:`~orpheus.numerics.flat_operator.FlattenedOperator` (a typed
+operator viewed on flat vectors). Each keeps its assembly law in its own
+module and recurses through the ``emit`` it is handed:
+
+* ``CoupledOperator`` scatters each present block's emission at its
+  :math:`(\text{row}_i,\text{col}_j)` offset with
+  :func:`scipy.sparse.block_array`, refusing with the offending block's
+  index when one cannot emit (:ref:`coupled-block-operator`);
+* ``BulkLift`` re-indexes its inner operator's emission into the
+  composite flat layout (the bulk C-ravel followed by the trace buffer,
+  zero trace rows and columns) with
+  :func:`~orpheus.transport.operators.lift.embed_bulk_assembly`, which maps
+  a raw matrix to a raw matrix and refuses a shape mismatch;
+* ``FlattenedOperator`` passes its inner operator's emission through
+  unchanged, because the typed operator's flat layout IS the flattened
+  view's, after checking the emission's dimension against the template's
+  flat size (a mismatch is an emitter drifting from the carrier's
+  ``to_flat`` layout, and raises ``ValueError``). The carrier that
+  ``assemble`` wraps around it carries the flattened view's ends, which
+  are its inner operator's spaces.
+
+No tensor-product law exists:
+:class:`~orpheus.numerics.operator.TensorProductOperator` emits nothing,
+so an expression containing one refuses with ``MissingAssembly``. The law
+would be :math:`[A\otimes B] = [A]\otimes[B]`, a
+:func:`scipy.sparse.kron`; no assembled operator contains a tensor-product
+factor (the diffusion loss and the SN :math:`L + C` trees have none).
+
+Why assembly is a homomorphism out of the algebra
+-------------------------------------------------
+
+**The free algebra must not know matrices.** The operator algebra is a
+free algebra over its atoms: a combination and a word are formal objects,
+and their meaning is given by the homomorphisms out of them. ``apply``
+(the action on a vector) is one, the dual is another, and assembly into
+sparse matrices is a third. If each composite carried its own law as a
+method, the algebra would import its target, the sparse carrier, and
+every new representation would add one method to every composite: the
+laws would be written once per composite instead of once per
+representation. A functor downstream of the algebra states each law once,
+as an arm on the composite's structure, and leaves the algebra closed
+under its own operations.
+
+**The import cycle it removed.** While the laws lived in the composites'
+bodies, :mod:`orpheus.numerics.operator` imported
+``SparseAssembledOperator`` from :mod:`orpheus.numerics.assembled_operator`
+(once under ``TYPE_CHECKING`` and lazily inside the sum's and the word's
+assembly bodies), while ``assembled_operator`` imports ``LinearOperator``
+from ``operator``: a cycle between the two modules. The concept-order gate,
+``tests/gates/numerics/test_concept_order.py``, reads every ``import``
+statement of the numerics package (lazy and ``TYPE_CHECKING`` imports
+included) against the tier list ``TIERS``, where ``operator`` stands alone
+in the lowest tier; the edge ``("assembled_operator", "operator")`` was
+listed in its ``PENDING`` table as owed to S3. Today ``operator.py``
+imports nothing from ``assembled_operator`` (its mentions of it are
+docstring cross-references, which are not imports), the ``PENDING`` entry
+is gone, and the gate reads the edge as a violation if it returns.
+
+**The emitters do not import the functor.** A domain composite recurses
+through the ``emit`` argument rather than calling ``assemble``. This is
+what lets :class:`~orpheus.numerics.flat_operator.FlattenedOperator`
+recurse at all: ``flat_operator`` and ``assembled_operator`` share one
+tier of ``TIERS``, and a same-tier import is a violation of the gate. The
+same argument keeps the emitters' modules free of the assembly module: of
+them only ``coupled_system`` (one tier up) imports it, and only for
+``MissingAssembly``.
+
+.. _assembly-why-csr-at-the-leaf:
+
+Why the CSR canonicalisation sits at the leaf arm
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An emitter usually returns COO triplets with repeated
+:math:`(\text{row},\text{col})` entries (a shared face contributes to the
+same diagonal from both cells). The leaf arm converts each emission to CSR
+before the combination arm multiplies it by a coefficient, so duplicates
+are summed first and scaled second: :math:`c\,(a + b)`, not
+:math:`c\,a + c\,b`. In floating point the two differ, and the first is
+the rounding the carrier fixed when every leaf still returned a
+``SparseAssembledOperator`` (whose constructor sums duplicates) and the sum
+law read its CSR ``.matrix``. Converting at the leaf keeps every assembled
+matrix bit-identical to what it was before the functor moved; converting
+in ``assemble`` alone, after the laws, would scale unsummed duplicates. The
+row ``test_g1g_a_leaf_emission_is_summed_before_its_coefficient`` in
+``tests/gates/numerics/test_assembly_functor.py`` pins the order.
+
+.. _assembly-why-matrix-inverse-chooses-dense:
+
+Why ``MatrixInverseOperator`` is the consumer that chooses ``dense``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+LU-factors a materialised matrix once, at construction, and it is the one
+production consumer that densifies an operator which emits: the diffusion
+resolvent ``MatrixInverseOperator(FlattenedOperator(A, template))``
+(``orpheus/diffusion/solver.py``), the homogeneous solver's inverse of its
+loss combination (``orpheus/homogeneous/solver.py``), and
+``CoupledOperator.inverse`` (its dense direct route, on a square grid). It pays for the
+densification, so it chooses the algorithm: ``dense(inner)``, which
+scatters :math:`O(\mathrm{nnz})` coefficients where ``as_matrix`` would
+apply the operator :math:`n` times. Its constructor is the one production
+call of ``dense``; ``matrix_inverse_operator`` therefore imports
+``assembled_operator`` and sits alone in its own tier of ``TIERS``, above
+the assembly module.
+
+The route also decides the matrix's bits. `[M]` 2026-10-20, the S3
+verification spec's capture over ``tests/gates/{numerics,diffusion,homogeneous}``
+(``-m "not slow"``), recording the SHA-256 of every matrix handed to
+``lu_factor``: 176 matrices in 139 tests. A simulation of ruling 60 on
+the pre-S3 tree, with ``MatrixInverseOperator`` assembling, changed 0 of
+the 139 tests' digests; the same simulation with ``MatrixInverseOperator``
+probing changed 9 of 139, because probing and assembly sum the stencil in
+different orders. So ``dense`` is not only faster: it keeps the matrices
+the diffusion and homogeneous solvers factor exactly as they were.
+
+Alternatives that do not work
 -----------------------------
 
-Once ``as_matrix`` delegates to assembly, a naive
-"``as_matrix`` :math:`\equiv` ``assemble().to_dense()``" gate compares
-assembly **with itself** — vacuous. The defence is a retained,
-**separately named** pathway: the probing loop lives on as
-``_as_matrix_by_probing`` (not inlined in ``as_matrix``), precisely so a
-gate can *force* the probing realization on an assemblable operator and
-compare it against the structural emission. This is the
-fuller-view-oracle discipline (the same reason the rolling-window sweep
-keeps its full-field oracle): the retained relinquished view is the
-verification pathway that pins the optimized path, and **an assembly bug
-must never be able to hide inside its own densification**.
+Three other placements were put to the user at the S3 design checkpoint and
+rejected there (2026-10-20, rulings 60 and 61). Each fails for a structural
+reason, not a cost:
 
-The G3 gate is exactly **one permanent pin per family** — the diffusion
-loss (``test_g3_probed_equals_assembled_pin``) and one DD slab block
-(``test_g3_dd_slab_probed_column_pin``) — forcing
-``_as_matrix_by_probing`` against ``assemble().as_matrix()``. One pin per
-family suffices: the equivalence is a structural property of the
-delegation, not a per-instance numerical coincidence.
+* **Moving** ``as_matrix`` **downstream, beside the functor.** The matrix
+  is a property of the operator and its spaces, and probing needs only
+  ``apply`` and the spaces, both of which the algebra already has. Moved
+  downstream, the total representation would depend on the partial
+  algorithm's module, every consumer of a dense matrix (the pencil, the
+  diffusion boundary operator's per-law blocks, the derivations) would
+  import the assembly layer although none of them assembles, and the
+  representation would read as if it depended on an algorithm. The
+  ruling keeps the representation with the spaces and the algorithm
+  downstream.
+* **A registration hook**: ``operator.py`` keeps an ``as_matrix`` that
+  delegates to a hook, and ``assembled_operator`` registers the laws when it
+  is imported. This hides the dependence instead of removing it. The
+  algebra's behaviour would become runtime state set by import order: the
+  same ``as_matrix`` call would probe or assemble depending on whether some
+  other module had imported ``assembled_operator`` first. And the
+  concept-order gate, which reads import statements, could not see the
+  edge it exists to forbid.
+* **All the domain composites' laws in** ``assembled_operator``. The block
+  law, the lift embedding and the flat pass-through each need their
+  composite's class. ``coupled_system`` sits one tier ABOVE
+  ``assembled_operator`` in ``TIERS``, ``flat_operator`` shares its tier,
+  and :class:`~orpheus.transport.operators.lift.BulkLift` lives in
+  ``transport/``, layer L2 of the architecture map, above ``numerics/``
+  (layer L1; :ref:`architecture-layering`). The numerics module would have
+  to import upward, sideways and out of its layer. Ruling 61 is the
+  structural answer: each domain composite is an atom to the free algebra
+  and keeps its law in its own module, recursing through ``emit``.
+
+.. _assembly-verification:
+
+Verification — two algorithms, one matrix
+-----------------------------------------
+
+**The laws.** :eq:`matrix-functor-homomorphism` is verified at two levels.
+``tests/gates/numerics/test_assembled_operator.py`` pins the binary laws
+(sum, product, one-term scaling, difference) on exact dyadic leaves, where
+every association gives the same bits. Those rows cannot see the fold
+ORDER, so ``tests/gates/numerics/test_assembly_functor.py`` adds the arms on
+a seeded non-dyadic fixture where the left fold of :math:`A - B + 0.3\,C`
+differs from the other associations (`[M]` 2026-10-20, the S3 spec: 2
+entries differ), the word order on integer-valued leaves, the fused arm,
+nesting through every arm, the domain composites' recursion through
+``emit``, the refusal's part and law, and the single wrap per functor call.
+
+**Probing against assembly.** Because ``as_matrix`` is the probe and
+``dense`` the assembly, a gate comparing them compares two algorithms. One
+permanent pin per family:
+
+* diffusion, ``test_g3_probed_equals_assembled_pin``
+  (``tests/gates/diffusion/test_operators.py``): ``dense(flat)`` against
+  ``flat.as_matrix()`` for the flattened diffusion loss;
+* SN, ``test_g3_dd_slab_probed_column_pin``
+  (``tests/gates/sn/sweep/test_assembly_mode.py``): the diamond-difference
+  slab block from ``assemble_ordinate_blocks`` against columns probed by
+  hand through ``A.apply``.
+
+The two algorithms share an upstream by design: both read the same
+coefficient sources (for diffusion the interior conductances, the boundary
+closures, the multiplier's coefficient and the energy kernels), which is
+the one-source discipline of :ref:`loss-rep-assembly-verification`. A
+probed-against-assembled pin is therefore blind to an error in a
+coefficient source. The absolute references cover that:
+``test_assembled_loss_matches_hand_posed_stencil`` compares BOTH
+``flat.as_matrix()`` and ``dense(flat)`` with the hand-posed stencil, and
+the one-source teeth move all three consumption modes together.
 
 The first production consumer — the diffusion resolvent
 -------------------------------------------------------
 
-The assembly axis is not a primitive-without-a-product: its first
-production consumer is the **diffusion resolvent**. The exact inner
-solve is ``MatrixInverseOperator(FlattenedOperator(A, template))`` — one
-eager LU at construction, one back-substitution per outer iteration
-(:doc:`/theory/methods/diffusion_1d`). Because every diffusion loss leaf now emits,
-``A.as_matrix()`` routes through the R2 delegation, so
-:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
-LU-factors the **assembled** matrix automatically — no consumer-side
-change, and the whole existing diffusion suite (its k / trace / balance
-gates) becomes the assembled path's regression net.
+The exact inner solve of the diffusion eigenvalue iteration is
+``MatrixInverseOperator(FlattenedOperator(A, template))``: one eager LU at
+construction, one back-substitution per outer iteration
+(:doc:`/theory/methods/diffusion_1d`). Every diffusion loss leaf emits, so
+``dense`` assembles the flattened loss and the LU factors the ASSEMBLED
+matrix; the whole diffusion suite (its eigenvalue, trace and balance gates)
+is the assembled path's regression net.
 
-That "automatically" is the exact place a coverage gate can go vacuous
-(vv-principles **Mode 11** — a green twin that never executes the
-rewired line), so it is pinned by a **sentinel** rather than trusted:
-``test_resolvent_materializes_through_assembly`` monkeypatches
-``_as_matrix_by_probing`` to a counter and asserts that constructing the
-resolvent fires **no probe at the composite flat dimension** — the
-delegation to assembly genuinely executed. (Probes at the tiny law
-dimension :math:`n_g` **are** expected and allowed: the boundary emitter
-extracts each realized law's :math:`n_g\times n_g` block *through* the
-law's own ``apply`` — that in-emitter probing is the one-source
-discipline, not a delegation escape.) A green equivalence gate proves the
-values; only the sentinel proves the consumer is on the new path. The
-diffusion probed-versus-assembled densification measured a max
-:math:`|\Delta| = 0.0` (bit-identical) on the heterogeneous fixture.
+A value gate cannot tell which route ran, because on the production
+fixtures the two routes agree bit for bit. The route is pinned by a
+sentinel (vv-principles Mode 11, a green gate that never executes the
+rewired line): ``test_resolvent_materializes_through_assembly`` spies on
+``LinearOperator.as_matrix`` and on the functor, constructs the resolvent,
+and asserts that the functor was called on the flattened loss and that no
+``as_matrix`` probe fired at the composite flat dimension. Probes at the
+law dimension :math:`n_g` are expected: the boundary emitter extracts each
+realised boundary law's :math:`n_g\times n_g` block through the law's own
+``as_matrix``, which is the one-source discipline (the law has no stencil
+of its own), not a route escape.
 
+`[M]` 2026-10-20, the S3 verification spec's route discriminator: on the
+heterogeneous diffusion fixtures, probing and assembly agree to
+:math:`\max|\Delta| = 0.0` in 3 of 3 configurations with the collision
+built from :math:`\Sigma_t`; built from :math:`\Sigma_a` (a valid operator,
+the fixture of the stencil-mutation tooth) they differ by 1 ULP
+(relative :math:`7.5\times10^{-17}`) at 2 entries in 3 of 3
+configurations. The bit-agreement is therefore a property of the fixture's
+values, not of the two algorithms.
+
+.. dropdown:: First got wrong — ``as_matrix`` delegating to assembly (2026-07-04 until 2026-10-20)
+
+   When the assembly axis landed (stencil-assembly Phase 2b), each composite
+   carried its law in an ``assemble()`` method, and ``as_matrix`` delegated
+   to ``self.assemble().as_matrix(...)`` whenever the operator was
+   assemblable. The representation then changed algorithm with the
+   operator, so a probed-against-assembled gate would have compared assembly
+   with itself; the probing loop had to be kept under a separate private
+   name, ``_as_matrix_by_probing``, for the gates to force, and the Mode-11
+   sentinel spied on that private name. Two concepts, the matrix and the
+   algorithm that computes it, were welded into one method. Ruling 60
+   separated them: ``as_matrix`` is the probe, ``dense`` the assembly, the
+   consumer chooses, and the private hook retired because ``as_matrix``
+   itself is the independent algorithm.

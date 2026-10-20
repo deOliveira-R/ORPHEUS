@@ -108,7 +108,7 @@ from typing import TYPE_CHECKING, Iterator
 import numpy as np
 from scipy import sparse
 
-from orpheus.numerics.assembled_operator import SparseAssembledOperator
+from orpheus.numerics.assembled_operator import MissingAssembly, SparseAssembledOperator
 from orpheus.numerics.moment_layout import (
     cell_moment_count,
     face_moment_count,
@@ -317,8 +317,6 @@ def assemble_ordinate_blocks(
     d = len(spatial_shape)
     scheme = problem.scheme
     if not type(scheme).is_linear:
-        from orpheus.numerics.operator import MissingAssembly
-
         raise MissingAssembly(
             f"assemble_ordinate_blocks: coefficient extraction by unit "
             f"probes requires a LINEAR closure (is_linear); "

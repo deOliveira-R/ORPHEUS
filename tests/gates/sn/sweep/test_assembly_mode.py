@@ -63,7 +63,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesh2D, Mesher
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
-from orpheus.numerics.operator import MissingAssembly
+from orpheus.numerics.assembled_operator import MissingAssembly
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation.assembly import (
     assemble_ordinate_blocks,

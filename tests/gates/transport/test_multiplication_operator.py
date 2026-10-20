@@ -61,6 +61,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
+from orpheus.numerics.assembled_operator import assemble
 from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.operator import (
     IdentityOperator,
@@ -907,7 +908,7 @@ class TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan:
         self._assembled_diagonal_reads_the_same_broadcast("dd_cart2d_2g")
 
     def _assembled_diagonal_reads_the_same_broadcast(self, case):
-        """``M[σ].assemble()`` emits σ expanded on the SAME axes the engine
+        """``assemble(M[σ])`` emits σ expanded on the SAME axes the engine
         multiplies on, so the assembled bulk block reproduces ``apply``'s bulk
         bit for bit (the trace rows are the multiplier's zero)."""
         from tests.gates.sn.operators.test_g_adjoint_reciprocity import _random_composite
@@ -917,7 +918,7 @@ class TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan:
         psi = _random_composite(sn, np.random.default_rng(11))
         bulk = np.asarray(psi.interior.values)
         n_bulk = bulk.size
-        matrix = C.assemble().matrix.tocsr()[:n_bulk, :n_bulk]
+        matrix = assemble(C).matrix.tocsr()[:n_bulk, :n_bulk]
         np.testing.assert_array_equal(
             (matrix @ bulk.ravel()).reshape(bulk.shape),
             np.asarray(C.apply(psi).interior.values),

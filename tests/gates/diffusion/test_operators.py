@@ -51,6 +51,7 @@ from orpheus.diffusion import (
 )
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
+from orpheus.numerics.assembled_operator import assemble, dense
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.operator import (
@@ -300,9 +301,13 @@ class TestStencilGate:
     def test_assembled_loss_matches_hand_posed_stencil(self, config):
         mesh, mat_xs, template, albedos = _config_setup(config)
         A = _loss(mesh, mat_xs)
-        produced = FlattenedOperator(A, template).as_matrix()
+        flat = FlattenedOperator(A, template)
         expected = _hand_posed_loss(albedos)
-        np.testing.assert_allclose(produced, expected, rtol=1e-13, atol=1e-16)
+        # Both densifications against the hand-posed stencil (S3, ruling
+        # 60): ``as_matrix`` probes the leaves' ``apply``, ``dense`` reads
+        # their emissions — each keeps its own absolute reference.
+        np.testing.assert_allclose(flat.as_matrix(), expected, rtol=1e-13, atol=1e-16)
+        np.testing.assert_allclose(dense(flat), expected, rtol=1e-13, atol=1e-16)
 
     def test_matrix_action_equals_typed_action(
         self, mesh, mat_xs, template, flux,
@@ -751,10 +756,10 @@ class TestSharedOperatorScalarArms:
 # FIRST emitter consumer). Gates per the L16 spec: G1 assembled@x ≡
 # apply(x) (never a scalar functional — Mode 12); G3 = THE diffusion
 # family's ONE probed≡assembled pin (the fuller-view-oracle keep
-# decision — forcing the RETAINED _as_matrix_by_probing pathway, since
-# as_matrix itself now DELEGATES to assembly and would compare assembly
-# with itself); a Mode-11 sentinel proving the resolvent path actually
-# executes the delegation; and the one-source teeth (a sign flip in the
+# decision: ``as_matrix`` probes and ``dense`` assembles, two algorithms
+# for one matrix, numerics_untangling.md ruling 60); a Mode-11 sentinel
+# proving the resolvent path actually densifies through assembly; and the
+# one-source teeth (a sign flip in the
 # SHARED coefficient source must red BOTH absolute gates while the
 # cross-mode equivalence PERSISTS — divergence under a shared-source
 # mutation is precisely the twin-path signature).
@@ -780,7 +785,7 @@ class TestAssemblyMode:
         A = _loss(mesh, mat_xs)
         x = _random_flux(mesh)
         np.testing.assert_allclose(
-            A.assemble().apply(x.to_flat()),
+            assemble(A).apply(x.to_flat()),
             np.asarray(A.apply(x).to_flat()),
             rtol=self._RTOL, atol=1e-14,
         )
@@ -810,7 +815,7 @@ class TestAssemblyMode:
         }
         for name, leaf in leaves.items():
             np.testing.assert_allclose(
-                leaf.assemble().apply(flux.to_flat()),
+                assemble(leaf).apply(flux.to_flat()),
                 np.asarray(leaf.apply(flux).to_flat()),
                 rtol=self._RTOL, atol=1e-14,
                 err_msg=f"leaf {name}: assembled matvec != typed apply",
@@ -818,13 +823,18 @@ class TestAssemblyMode:
 
     def test_g3_probed_equals_assembled_pin(self, mesh, mat_xs, template):
         """G3 — the diffusion family's ONE permanent probed≡assembled
-        oracle: the RETAINED apply-to-basis loop (forced explicitly —
-        as_matrix now delegates) against the densified emission."""
+        pin: two algorithms for one matrix (ruling 60). ``as_matrix``
+        probes the typed action on unit vectors; ``dense`` densifies the
+        structural emission. Shared upstream, stated: both read the same
+        coefficient sources (``_interior_conductance``,
+        ``_boundary_closure``, the multiplier's coefficient, the energy
+        kernels) by design (one source), so this row is blind to a
+        coefficient-source error; the hand-posed stencil gate and the
+        one-source teeth below see that."""
         A = _loss(mesh, mat_xs)
         flat = FlattenedOperator(A, template)
-        probed = flat._as_matrix_by_probing((flat.n_flat,))
         np.testing.assert_allclose(
-            A.assemble().as_matrix(), probed,
+            dense(flat), flat.as_matrix(),
             rtol=self._RTOL, atol=1e-15,
         )
 
@@ -833,28 +843,42 @@ class TestAssemblyMode:
     ):
         """Mode-11 sentinel: the production resolvent construction
         (MatrixInverseOperator over the flattened loss) must EXECUTE the
-        assembly delegation — no probing at the COMPOSITE flat dimension
-        may fire. (Probes at the tiny law dimension ng ARE expected: the
-        B emitter extracts each realized law's (ng × ng) matrix THROUGH
-        the law's own apply — that in-emitter probing is the one-source
-        discipline, not a delegation escape.) A green equivalence gate
-        proves values; only this sentinel proves the consumer is
-        actually on the new path."""
+        assembly — the functor is called on the flattened loss, and no
+        probing ``as_matrix`` at the COMPOSITE flat dimension fires.
+        (Probes at the tiny law dimension ng ARE expected: the B emitter
+        extracts each realized law's (ng × ng) matrix THROUGH the law's own
+        ``as_matrix`` — that in-emitter probing is the one-source
+        discipline, not a route escape.) A green equivalence gate proves
+        values; only this sentinel proves the consumer is actually on the
+        assembled path. S3 re-pose: ``as_matrix`` IS the probe (ruling 60)
+        and the resolvent reaches the assembly through ``dense``."""
+        import orpheus.numerics.assembled_operator as asm
         from orpheus.numerics.operator import LinearOperator
 
         probe_dims: list[tuple[str, int]] = []
-        original = LinearOperator._as_matrix_by_probing
+        original = LinearOperator.as_matrix
 
-        def counting(self, shape):
-            probe_dims.append((type(self).__name__, int(np.prod(shape))))
-            return original(self, shape)
+        def counting(self, *args, **kwargs):
+            out = original(self, *args, **kwargs)
+            probe_dims.append((type(self).__name__, int(out.shape[1])))
+            return out
 
-        monkeypatch.setattr(
-            LinearOperator, "_as_matrix_by_probing", counting,
-        )
+        assembled: list[object] = []
+        original_assemble = asm.assemble
+
+        def counting_assemble(op):
+            assembled.append(op)
+            return original_assemble(op)
+
+        monkeypatch.setattr(LinearOperator, "as_matrix", counting)
+        monkeypatch.setattr(asm, "assemble", counting_assemble)
         A = _loss(mesh, mat_xs)
         n_flat = int(np.asarray(template.to_flat()).size)
-        resolvent = MatrixInverseOperator(FlattenedOperator(A, template))
+        flat = FlattenedOperator(A, template)
+        resolvent = MatrixInverseOperator(flat)
+        assert [op for op in assembled if op is flat], (
+            f"the resolvent never assembled the flattened loss: {assembled}"
+        )
         composite_probes = [d for d in probe_dims if d[1] == n_flat]
         assert composite_probes == [], (
             f"the resolvent probed the composite instead of assembling: "
@@ -866,7 +890,7 @@ class TestAssemblyMode:
         )
         # And the inverse is real: A⁻¹(A x) round-trips.
         x = _random_flux(mesh).to_flat()
-        forward = A.assemble().apply(x)
+        forward = assemble(A).apply(x)
         np.testing.assert_allclose(
             np.asarray(resolvent.apply(forward)).ravel(), x,
             rtol=1e-10, atol=1e-12,
@@ -884,7 +908,7 @@ class TestAssemblyMode:
         hand = _hand_posed_loss(albedos)
         x = _random_flux(mesh)
         x_flat = x.to_flat()
-        assembled = A.assemble()
+        assembled = assemble(A)
         asm_delta = float(np.abs(assembled.as_matrix() - hand).max())
         apply_delta = float(
             np.abs(np.asarray(A.apply(x).to_flat()) - hand @ x_flat).max()
@@ -946,7 +970,7 @@ class TestAssemblyMode:
             (IsotropicN2N.from_material_xs(mat_xs, space=mat_xs.mesh.bulk_space), 1e-11),
         ):
             assert op.is_assemblable
-            emitted = op.assemble()
+            emitted = assemble(op)
             assert emitted.shape == (n, n)
             np.testing.assert_allclose(
                 emitted.apply(x.ravel()), np.asarray(op.apply(x)).ravel(),

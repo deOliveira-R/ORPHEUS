@@ -137,12 +137,11 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Mapping, Optional
+from typing import TYPE_CHECKING, Callable, Mapping, Optional
 
 import numpy as np
 from scipy import sparse
 
-from orpheus.numerics.assembled_operator import SparseAssembledOperator
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.operator import BlockRole, LinearOperator
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
@@ -440,7 +439,9 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
     def is_assemblable(self) -> bool:
         return True  # the FD stencil is structural — always emittable
 
-    def assemble(self) -> SparseAssembledOperator:
+    def assembled_matrix(
+        self, emit: "Callable[[LinearOperator], sparse.csr_array]", /,
+    ) -> "sparse.coo_array":
         r"""Emit the FD stencil as ``(row, col, value)`` — the third
         consumption mode of the SAME coefficient algebra :meth:`apply`
         marches.
@@ -540,7 +541,7 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
             ),
             shape=(n_total, n_total),
         )
-        return SparseAssembledOperator(matrix, domain=space, codomain=space)
+        return matrix
 
 
 class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
@@ -625,7 +626,9 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
     def is_assemblable(self) -> bool:
         return True  # the realized albedo block is structural
 
-    def assemble(self) -> SparseAssembledOperator:
+    def assembled_matrix(
+        self, emit: "Callable[[LinearOperator], sparse.csr_array]", /,
+    ) -> "sparse.coo_array":
         r"""Emit the ``A_ss`` albedo block: per face, the law's matrix on
         the inflow row against the outflow columns.
 
@@ -666,5 +669,4 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
             )
         else:  # a trace with no faces is unrepresentable, but stay total
             triplets = (np.zeros(0), (np.zeros(0, int), np.zeros(0, int)))
-        matrix = sparse.coo_array(triplets, shape=(n_total, n_total))
-        return SparseAssembledOperator(matrix, domain=space, codomain=space)
+        return sparse.coo_array(triplets, shape=(n_total, n_total))

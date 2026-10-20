@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19327**
+Total tests collected: **19380**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2753, 14.2%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14539, 75.2%
+   foundation, 14592, 75.3%
    unmarked, 37, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19211
+   explicit, 19264
    class-name, 46
    func-name, 0
    case, 33
@@ -401,6 +401,7 @@ Module × level grid
    numerics/test_angular_symmetry, 0, 0, 0, 0, 42, 0
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
+   numerics/test_assembly_functor, 0, 0, 0, 0, 53, 0
    numerics/test_axis, 0, 0, 0, 0, 15, 0
    numerics/test_axis_generator, 0, 0, 0, 0, 50, 0
    numerics/test_axis_marginal, 0, 0, 0, 0, 22, 0
@@ -902,6 +903,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``kin-kernel-special-values``, 6
    ``ld-ubld-d1-reduction``, 6
    ``manifold-fibre-constancy``, 6
+   ``matrix-functor-homomorphism``, 6
    ``peierls-greens-cylinder-mr-quadrature-convergence``, 6
    ``singular-eigenfunction-eq54``, 6
    ``sn-space-angle-separability``, 6
@@ -955,7 +957,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``hetero-tolerance``, 3
    ``isotropic-source``, 3
    ``ld-ubld-slope-angular-reduction``, 3
-   ``matrix-functor-homomorphism``, 3
    ``moc-fission-source``, 3
    ``moc-keff-update``, 3
    ``moc-mms-psi-ref``, 3

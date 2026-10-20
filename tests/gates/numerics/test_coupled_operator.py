@@ -52,7 +52,12 @@ import numpy as np
 import pytest
 from scipy import sparse
 
-from orpheus.numerics.assembled_operator import SparseAssembledOperator
+from orpheus.numerics.assembled_operator import (
+    MissingAssembly,
+    SparseAssembledOperator,
+    assemble,
+    dense,
+)
 from orpheus.numerics.coupled_system import (
     CoupledField,
     CoupledOperator,
@@ -72,7 +77,6 @@ from orpheus.numerics.operator import (
     LinearOperator,
     MatrixTooLarge,
     MissingAdjoint,
-    MissingAssembly,
     NotInvertible,
     SystemRole,
     AdjointOperator,
@@ -232,12 +236,9 @@ class _Block(LinearOperator):
     def is_assemblable(self) -> bool:
         return self._assemblable
 
-    def assemble(self) -> SparseAssembledOperator:
-        return SparseAssembledOperator(
-            sparse.coo_array(self.matrix),
-            domain=self._domain,
-            codomain=self._codomain,
-        )
+    def assembled_matrix(self, emit, /) -> sparse.coo_array:
+        # A leaf: its raw emission; the functor wraps it (ruling 62).
+        return sparse.coo_array(self.matrix)
 
     # The direct-invertible face (the step-5 substitution consumes it):
     # ``solve`` inverts the forward (out → in), ``solve_transpose`` the
@@ -611,7 +612,7 @@ class TestAssembleProbe:
     def test_assemble_equals_the_apply_probe(self) -> None:
         op = _operator()
         template = _x(30)
-        assembled = op.assemble().as_matrix()
+        assembled = dense(op)
         probed = _probe_dense(op, template)
         # Principled-equiv, NEVER array_equal: the sparse scatter-sum order
         # is not the block-matvec apply order (L16).
@@ -621,7 +622,7 @@ class TestAssembleProbe:
         b = _grid_blocks()
         op = _operator(b)
         cs = _coupled_space()
-        assembled = op.assemble().as_matrix()
+        assembled = dense(op)
         rows, cols = cs.system_slices, cs.system_slices
         np.testing.assert_allclose(assembled[rows[0], cols[1]], b["AB"].matrix)
         np.testing.assert_allclose(assembled[rows[1], cols[0]], b["BA"].matrix)
@@ -632,7 +633,7 @@ class TestAssembleProbe:
         op = CoupledOperator(
             [[b["AA"], None], [b["BA"], b["BB"]]], domain=cs, codomain=cs,
         )
-        assembled = op.assemble().as_matrix()
+        assembled = dense(op)
         np.testing.assert_array_equal(
             assembled[cs.system_slices[0], cs.system_slices[1]],
             np.zeros((3, 2)),
@@ -684,23 +685,20 @@ class TestAssembleProbe:
         # shape-legal and value-visible O(1).
         op, template, _ = self._square_fixture()
 
-        def _swapped_assemble(self: CoupledOperator) -> SparseAssembledOperator:
+        def _swapped_assemble(self: CoupledOperator, emit, /):
             grid = [
                 [
                     None
                     if self.blocks[j][i] is None
-                    else self.blocks[j][i].assemble().matrix  # type: ignore[union-attr]
+                    else emit(self.blocks[j][i])
                     for j in range(self.n_cols)
                 ]
                 for i in range(self.n_rows)
             ]
-            return SparseAssembledOperator(
-                sparse.block_array(grid), domain=self.domain,
-                codomain=self.codomain,
-            )
+            return sparse.block_array(grid)
 
-        monkeypatch.setattr(CoupledOperator, "assemble", _swapped_assemble)
-        assembled = op.assemble().as_matrix()
+        monkeypatch.setattr(CoupledOperator, "assembled_matrix", _swapped_assemble)
+        assembled = dense(op)
         probed = _probe_dense(op, template)
         defect = float(np.abs(assembled - probed).max())
         if defect < 1e-3:
@@ -712,23 +710,20 @@ class TestAssembleProbe:
     def test_dropped_block_tooth_reds_the_probe_gate(self, monkeypatch) -> None:
         op, template, _ = self._square_fixture()
 
-        def _dropping_assemble(self: CoupledOperator) -> SparseAssembledOperator:
+        def _dropping_assemble(self: CoupledOperator, emit, /):
             grid = [
                 [
                     None
                     if (b is None or (i, j) == (0, 1))
-                    else b.assemble().matrix  # type: ignore[union-attr]
+                    else emit(b)
                     for j, b in enumerate(row)
                 ]
                 for i, row in enumerate(self.blocks)
             ]
-            return SparseAssembledOperator(
-                sparse.block_array(grid), domain=self.domain,
-                codomain=self.codomain,
-            )
+            return sparse.block_array(grid)
 
-        monkeypatch.setattr(CoupledOperator, "assemble", _dropping_assemble)
-        assembled = op.assemble().as_matrix()
+        monkeypatch.setattr(CoupledOperator, "assembled_matrix", _dropping_assemble)
+        assembled = dense(op)
         probed = _probe_dense(op, template)
         defect = float(np.abs(assembled - probed).max())
         if defect < 1e-3:
@@ -746,8 +741,13 @@ class TestAssembleProbe:
         op = _operator(b)
         if op.is_assemblable:
             pytest.fail("is_assemblable must derive False from the block")
-        with pytest.raises(MissingAssembly, match=r"block \(0, 1\)"):
-            op.assemble()
+        # The functor runs the grid's own recursion, whose pre-check names
+        # the block (S3 review, qa F1); the same message when the emission
+        # is asked for directly.
+        with pytest.raises(MissingAssembly, match=r"CoupledOperator's assembly: block \(0, 1\) \(_Block\)"):
+            assemble(op)
+        with pytest.raises(MissingAssembly, match=r"block \(0, 1\) \(_Block\)"):
+            op.assembled_matrix(lambda part: sparse.csr_array(dense(part)))
 
 
 # ── M3 — per-block type safety (net-new teeth) ─────────────────────────
@@ -1279,12 +1279,18 @@ class TestBlockSolve:
         with pytest.raises(RuntimeError, match="zero-element factory"):
             zeroless.as_matrix()
 
-    def test_as_matrix_assemblable_grid_routes_through_assembly(self) -> None:
+    def test_as_matrix_probes_and_dense_assembles(self) -> None:
+        """Ruling 60 (S3): an assemblable grid's ``as_matrix`` is the typed
+        probe, the same drive as the test's ``_probe_dense`` (bit-identical;
+        a ROUTE row, not a value comparison), and ``dense`` is the block
+        scatter of the emissions, a second algorithm for the same matrix
+        (principled-equivalent at the L16 scatter-order band). Until S3 the
+        ``as_matrix`` side delegated to the assembly."""
         grid = _grid("upper")
-        np.testing.assert_allclose(  # principled-equiv — L16 scatter order
-            grid.as_matrix(), _probe_dense(grid, _zeros_field()),
-            rtol=1e-11,
-        )
+        assert grid.is_assemblable
+        probed = grid.as_matrix()
+        np.testing.assert_array_equal(probed, _probe_dense(grid, _zeros_field()))
+        np.testing.assert_allclose(dense(grid), probed, rtol=1e-11)
 
 
 class TestCoupledSpaceZeros:

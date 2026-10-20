@@ -41,6 +41,7 @@ from orpheus.homogeneous.solver import (
     _pose_space,
     solve_homogeneous_infinite,
 )
+from orpheus.numerics.assembled_operator import dense
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from tests.gates.homogeneous.test_kinf_exact_reference import _Bounds, _report, _within
@@ -189,7 +190,7 @@ def test_R5_the_hub_owns_the_pencil_and_no_inverse_of_it() -> None:
     _require(not hasattr(HomogeneousProblem, "multiplication"), "the hub carries a resolvent — a Strategy object on the Problem")
     pencil = problem.pencil
     _require(pencil.lhs is problem.loss and pencil.rhs is problem.production, "the pencil is not (loss, production)")
-    a_hat = np.asarray(pencil.lhs.as_matrix(), dtype=float)
+    a_hat = np.asarray(dense(pencil.lhs), dtype=float)  # the matrix the solver factors (S3)
     fission = problem.production.fission  # the pencil's rhs (asserted `is` above), typed
     exact = exact_pencil_eigenpair(
         loss=a_hat,

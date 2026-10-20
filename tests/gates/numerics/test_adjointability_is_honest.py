@@ -65,7 +65,12 @@ from scipy import sparse
 
 from orpheus.geometry import BC, CoordSystem
 from orpheus.numerics import frame_faces
-from orpheus.numerics.assembled_operator import SparseAssembledOperator
+from orpheus.numerics.assembled_operator import (
+    MissingAssembly,
+    SparseAssembledOperator,
+    assemblable,
+    assemble,
+)
 from orpheus.numerics.coupled_system import (
     CoupledField,
     CoupledOperator,
@@ -80,9 +85,7 @@ from orpheus.numerics.operator import (
     IdentityOperator,
     LinearOperator,
     MissingAdjoint,
-    MissingAssembly,
     TensorProductOperator,
-    assemblable,
     posed,
 )
 from orpheus.numerics.quadrature import Quadrature
@@ -344,7 +347,7 @@ def _assembled_sandwich(op: LinearOperator, template: Any) -> Callable[[Any], An
     """
     if not assemblable(op):
         raise MissingAssembly(f"{type(op).__name__} does not assemble")
-    M = op.assemble().matrix
+    M = assemble(op).matrix
     V, W = op.domain, op.codomain
     if V is None or W is None:
         raise RuntimeError(f"fixture drift: {type(op).__name__} has an unbound end")
@@ -418,7 +421,7 @@ def _diffusion_assembled() -> _Posed:
     x = D._random_flux(mesh)
     pair = _diffusion_flat_pairing(x)
     return _Posed(
-        LeakageOperator(mesh).assemble(), x.to_flat(), pair_v=pair, pair_w=pair,
+        assemble(LeakageOperator(mesh)), x.to_flat(), pair_v=pair, pair_w=pair,
     )
 
 

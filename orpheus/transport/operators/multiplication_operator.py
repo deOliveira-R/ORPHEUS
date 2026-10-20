@@ -139,7 +139,10 @@ from orpheus.transport.fields._bases import FieldRole
 from orpheus.transport.full_field import FullField
 
 if TYPE_CHECKING:
-    from orpheus.numerics.assembled_operator import SparseAssembledOperator
+    from typing import Callable
+
+    from scipy import sparse
+
     from orpheus.numerics.space import FunctionSpace
     from orpheus.transport.fields.cross_section_field import CrossSectionField
 
@@ -362,10 +365,8 @@ class MultiplicationOperator(BoundOperator):
         layout (zero trace rows — a multiplier has no face action)."""
         return True
 
-    def _bulk_assembly(self, bulk_space: "FunctionSpace") -> "SparseAssembledOperator":
+    def _bulk_assembly(self, bulk_space: "FunctionSpace") -> "sparse.coo_array":
         from scipy import sparse
-
-        from orpheus.numerics.assembled_operator import SparseAssembledOperator
 
         bulk_shape = tuple(bulk_space.shape)
         n_bulk = int(np.prod(bulk_shape))
@@ -382,12 +383,13 @@ class MultiplicationOperator(BoundOperator):
         ).ravel()
         nonzero = diagonal != 0.0
         indices = np.arange(n_bulk)[nonzero]
-        matrix = sparse.coo_array(
+        return sparse.coo_array(
             (diagonal[nonzero], (indices, indices)), shape=(n_bulk, n_bulk),
         )
-        return SparseAssembledOperator(matrix, domain=bulk_space, codomain=bulk_space)
 
-    def assemble(self) -> "SparseAssembledOperator":
+    def assembled_matrix(
+        self, emit: "Callable[[LinearOperator], sparse.csr_array]", /,
+    ) -> "sparse.coo_array":
         r"""Emit the bulk diagonal :math:`\mathrm{diag}(f)` — on the plain
         ends directly, on composite ends in the composite flat layout
         (:func:`~orpheus.transport.operators.lift.embed_bulk_assembly`)."""

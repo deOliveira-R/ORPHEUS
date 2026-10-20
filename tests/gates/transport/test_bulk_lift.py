@@ -18,7 +18,7 @@ of the family's two carrier parses. These rows pin the verbs and
   end, a bare array, a typed field, a composite on ANOTHER interior: each
   a typed refusal naming the operator (the ends select the carrier);
 * **the assembly embed** is index-identity on the bulk block and zero on
-  the trace rows/columns, and ``lift.assemble()`` acts as ``lift.apply``
+  the trace rows/columns, and ``assemble(lift)`` acts as ``lift.apply``
   on the flat.
 
 The inner used for the value rows is the diffusion energy binding
@@ -37,8 +37,8 @@ from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.diffusion import DiffusionMesh
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.numerics.assembled_operator import SparseAssembledOperator
-from orpheus.numerics.operator import BlockRole, MissingAssembly
+from orpheus.numerics.assembled_operator import MissingAssembly, assemble
+from orpheus.numerics.operator import BlockRole
 from orpheus.transport.fields._bases import FieldRole
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
@@ -245,10 +245,9 @@ class _ShapedDiagonal(BoundOperator):
     def is_assemblable(self) -> bool:
         return True
 
-    def assemble(self) -> SparseAssembledOperator:
-        return SparseAssembledOperator(
-            sparse.diags_array(self.diagonal.ravel()), domain=self.domain, codomain=self.codomain,
-        )
+    def assembled_matrix(self, emit, /):
+        # A leaf: its raw emission; the functor wraps it (ruling 62).
+        return sparse.diags_array(self.diagonal.ravel())
 
 
 @dataclass(eq=False)
@@ -272,17 +271,16 @@ class TestAssemblyEmbed:
         rng = np.random.default_rng(12)
         n = int(np.prod(mesh.bulk_space.shape))
         block = sparse.random_array((n, n), density=0.5, rng=rng)
-        bulk = SparseAssembledOperator(block, domain=mesh.bulk_space, codomain=mesh.bulk_space)
         space = mesh.full_field_space
-        embedded = embed_bulk_assembly(bulk, domain=space, codomain=space).as_matrix()
+        embedded = embed_bulk_assembly(block, domain=space, codomain=space).toarray()
         n_total = int(space.shape[0])
         assert embedded.shape == (n_total, n_total) and n_total > n
-        np.testing.assert_array_equal(embedded[:n, :n], bulk.as_matrix())
+        np.testing.assert_array_equal(embedded[:n, :n], block.toarray())
         assert not embedded[n:, :].any() and not embedded[:, n:].any()
 
     def test_a_bulk_of_the_wrong_size_is_refused(self, mesh):
         space = mesh.full_field_space
-        bulk = SparseAssembledOperator(sparse.eye_array(3), domain=mesh.bulk_space, codomain=mesh.bulk_space)
+        bulk = sparse.coo_array(sparse.eye_array(3))
         with pytest.raises(ValueError, match="not bound on the composite's interiors"):
             embed_bulk_assembly(bulk, domain=space, codomain=space)
 
@@ -297,7 +295,7 @@ class TestAssemblyEmbed:
         psi = _flux(mesh, 14)
         assert lift.is_assemblable
         np.testing.assert_array_equal(
-            lift.assemble().apply(psi.to_flat()), lift.apply(psi).to_flat(),
+            assemble(lift).apply(psi.to_flat()), lift.apply(psi).to_flat(),
         )
 
     def test_the_diffusion_binding_assembles_through_the_lift(self, mesh, inner, lift):
@@ -306,8 +304,8 @@ class TestAssemblyEmbed:
         plain emission (``array_equal``), the trace rows/columns are zero."""
         assert inner.is_assemblable and lift.is_assemblable
         n = int(np.prod(mesh.bulk_space.shape))
-        embedded = lift.assemble().as_matrix()
-        np.testing.assert_array_equal(embedded[:n, :n], inner.assemble().as_matrix())
+        embedded = assemble(lift).as_matrix()
+        np.testing.assert_array_equal(embedded[:n, :n], assemble(inner).as_matrix())
         assert not embedded[n:, :].any() and not embedded[:, n:].any()
 
     def test_a_non_assemblable_inner_refuses_naming_the_lift(self, mesh):
@@ -315,5 +313,7 @@ class TestAssemblyEmbed:
         space = mesh.full_field_space
         lift = BulkLift(inner, domain=space, codomain=space)
         assert not lift.is_assemblable
-        with pytest.raises(MissingAssembly, match="BulkLift.assemble"):
-            lift.assemble()
+        # The functor runs the lift's own recursion, so the refusal names
+        # the inner part under the lift's law (S3 review, qa F1).
+        with pytest.raises(MissingAssembly, match="BulkLift's assembly: _NoAssembly emits no assembly"):
+            assemble(lift)

@@ -16,7 +16,7 @@ self-certified against :math:`F\varphi = kA\varphi` with zero residual).
 The premise: what production computes (the rank-one route, ruled 2026-10-01)
 -----------------------------------------------------------------------------
 1. :math:`\hat A = \mathrm{fl}(\operatorname{diag}\Sigma_t - (\Sigma_{s0}^T + 2\Sigma_{2,0}^T))`,
-   the hub's ``loss.as_matrix()``;
+   ``dense(loss)``, the matrix the solver's ``MatrixInverseOperator`` factors (S3);
 2. :math:`\hat u` = one LU solve (``getrf`` with partial pivoting, then
    ``getrs``) of :math:`\hat A u = \chi` — ``MatrixInverseOperator(loss).apply(chi)``;
 3. :math:`\hat k = \mathrm{fl}\langle\nu\Sigma_f, \hat u\rangle` (a :math:`G`-term reduction);
@@ -119,6 +119,7 @@ import pytest
 from scipy.linalg import lu_factor
 
 from orpheus.data.macro_xs.mixture import Mixture
+from orpheus.numerics.assembled_operator import dense
 from orpheus.derivations.common.exact_homogeneous import (
     ExactInfiniteMedium,
     exact_infinite_medium_of,
@@ -218,7 +219,9 @@ def _case(name: str) -> tuple[ExactInfiniteMedium, _Bounds, HomogeneousResult]:
     if not isinstance(mix, Mixture):
         raise TypeError(f"{name}: the population helper returned {type(mix).__name__}, not a Mixture")
     ref = exact_infinite_medium_of(mix)
-    a_hat = np.asarray(HomogeneousProblem(mix).loss.as_matrix(), dtype=float)
+    # ``dense``: the matrix the solver's MatrixInverseOperator factors (S3,
+    # ruling 60), so the bound's assembly term is that matrix's, not the probe's.
+    a_hat = np.asarray(dense(HomogeneousProblem(mix).loss), dtype=float)
     return ref, _Bounds(ref, a_hat), solve_homogeneous_infinite(mix)
 
 

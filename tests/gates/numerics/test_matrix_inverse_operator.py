@@ -30,6 +30,7 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
+from orpheus.numerics.assembled_operator import dense
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.elementary_operators import DiagonalOperator, PermutationOperator
 from orpheus.numerics.operator import (
@@ -265,6 +266,12 @@ def test_as_matrix_equals_retired_as_dense_loop():
     moving the homogeneous basis columns). Keep through the merge cycle,
     then reassess.
 
+    DEMOTED at numerics_untangling S3 (ruling 60), stated: ``as_matrix``
+    IS the apply-to-basis loop again, so its leg compares one algorithm
+    with itself and pins only the column-order convention. The ``dense``
+    leg (the structural assembly the solver factors) is the second
+    algorithm that keeps the row a comparison (`[M]` bit-equal at S3).
+
     HOME delta vs spec §35.1: hosted HERE (foundation-marked) rather than
     in ``test_homogeneous.py``, whose file-level ``l1 + verifies(...)``
     marks would have written FALSE equation-TESTS edges for this pure
@@ -304,6 +311,10 @@ def test_as_matrix_equals_retired_as_dense_loop():
     np.testing.assert_array_equal(
         loss.as_matrix(basis_shape=(ng, 1)), oracle,
         err_msg="as_matrix diverged from the retired _as_dense loop",
+    )
+    np.testing.assert_array_equal(
+        dense(loss, basis_shape=(ng, 1)), oracle,
+        err_msg="dense (the assembly) diverged from the apply-to-basis loop",
     )
 
 

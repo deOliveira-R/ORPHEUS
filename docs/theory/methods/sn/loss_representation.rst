@@ -922,9 +922,11 @@ it lands its output in a numerics carrier,
 :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`,
 which is a *serialization* of the operator, **not** a fifth
 :class:`~orpheus.sn.loss_representation.LossRepresentation` (the
-operator-algebra view of the assemble functor — the three-layer
-``assemble()`` surface, the composer homomorphism laws, and the
-``as_matrix`` delegation — is documented at
+operator-algebra view of assembly — the functor
+:func:`~orpheus.numerics.assembled_operator.assemble`, its homomorphism
+laws, and the two algorithms for one matrix, ``as_matrix`` by probing and
+:func:`~orpheus.numerics.assembled_operator.dense` by assembly — is
+documented at
 :ref:`operator-algebra-assembly-axis`). The mode is **Cartesian only**
 in 2b; the curvilinear obstruction is a walk-order back edge (#282,
 below).
@@ -934,7 +936,7 @@ The one-source guardrail — assemble reads the coefficients solve/apply read
 
 The load-bearing design constraint is the **Phase-F twin-path lesson**:
 a second spelling of a discretisation is a latent divergence bug, so
-``assemble()`` MUST NOT carry its own copy of the diamond fold, the UBLD
+an emitter MUST NOT carry its own copy of the diamond fold, the UBLD
 cell system, or the trace reconstruction. It reads **the same
 coefficient source** ``apply`` reads — for the diffusion emitters, the
 precomputed conductance / closure attributes and the production einsum
@@ -975,7 +977,7 @@ traces :math:`\psi^{\rm in}_b`, and the source :math:`\bar Q`:
    inputs. Its reading is an algebraic identity rather than a fit
    *only because* the maps are affine, which is what this equation
    asserts; the precondition is enforced at the assembler's entry, which
-   raises :class:`~orpheus.numerics.operator.MissingAssembly` for a
+   raises :class:`~orpheus.numerics.assembled_operator.MissingAssembly` for a
    closure that does not declare ``is_linear``.
 
 .. implements:: loss-rep-affine-kernel-maps
@@ -1203,14 +1205,15 @@ The assembly mode is pinned by three gate families (in
   condition.
 
 For diffusion the same discipline holds bit-for-bit where the reduction
-order matches: the probed-versus-assembled densification (the retained
-fuller-view pathway, :ref:`operator-algebra-assembly-axis`) measured a
-max :math:`|\Delta| = 0.0` on the heterogeneous fixture, and the
-production resolvent
-(``MatrixInverseOperator(FlattenedOperator(A, template))``) now
-LU-factors the assembled matrix automatically through the ``as_matrix``
-delegation — the entire existing diffusion suite becomes the assembled
-path's regression net.
+order matches: probing (``as_matrix``) and assembly (``dense``), two
+algorithms for one matrix (:ref:`operator-algebra-assembly-axis`), agree
+to max :math:`|\Delta| = 0.0` on the heterogeneous fixtures with the
+collision built from :math:`\Sigma_t` (and differ by 1 ULP at 2 entries
+with it built from :math:`\Sigma_a`; `[M]` 2026-10-20). The production
+resolvent (``MatrixInverseOperator(FlattenedOperator(A, template))``)
+LU-factors the assembled matrix, because ``MatrixInverseOperator``
+densifies through ``dense``, so the entire existing diffusion suite is the
+assembled path's regression net.
 
 
 .. _loss-rep-four:

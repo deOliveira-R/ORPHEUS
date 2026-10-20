@@ -390,9 +390,10 @@ class HomogeneousProblem:
         :class:`~orpheus.numerics.operator.OperatorSum`) — the consumer
         chooses the realization: the solver hands it to
         :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`,
-        whose constructor materializes it through the operator's own
-        :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix` (the
-        shape derives from the threaded domain) and LU-factors it once.
+        whose constructor densifies it through
+        :func:`~orpheus.numerics.assembled_operator.dense` (its structural
+        assembly, every term being assemblable; the shape derives from the
+        threaded domain) and LU-factors it once.
         Every arm poses on :attr:`space`, so the combination's agreement law
         VALIDATES the spaces instead of skipping them. The terms flatten:
         ``C − K_iso`` is the three-term combination ``C − S − 2Σ₂ᵀ`` (K_iso

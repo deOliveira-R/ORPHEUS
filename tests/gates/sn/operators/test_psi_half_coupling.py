@@ -155,9 +155,9 @@ from orpheus.numerics.coupled_system import (
     CoupledSpace,
     CoupledSubstitutionOperator,
 )
+from orpheus.numerics.assembled_operator import MissingAssembly, assemble
 from orpheus.numerics.operator import (
     IncompatibleOperatorComposition,
-    MissingAssembly,
     SystemRole,
     _join_system_roles,
 )
@@ -3359,7 +3359,7 @@ class TestCoupledBuilder:
                         "sparse assembly (memo F3); did a walk assembler land? "
                         "Then wire the block_array M2 arm (R2).")
         with pytest.raises(MissingAssembly):
-            grid.assemble()
+            assemble(grid)
         # Tooth: drop System B's slice → the coverage pin reds.
         with monkeypatch.context() as m:
             first = slices[0]

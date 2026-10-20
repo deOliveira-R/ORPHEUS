@@ -72,6 +72,7 @@ from collections.abc import Hashable, Iterable
 from enum import Enum
 from functools import cached_property, reduce
 from typing import (
+    final,
     TYPE_CHECKING,
     Any,
     Callable,
@@ -90,7 +91,6 @@ import numpy as np
 from orpheus.numerics.vector import Vector
 
 if TYPE_CHECKING:
-    from orpheus.numerics.assembled_operator import SparseAssembledOperator
     from orpheus.numerics.functional import Functional
     from orpheus.numerics.space import FunctionSpace
 
@@ -129,19 +129,16 @@ __all__ = [
     "SupportsInverse",
     "SupportsAdjoint",
     "SupportsTransposeSolve",
-    "SupportsAssembly",
     "BlockRole",
     "BulkOperator",
     "FullOperator",
     "BoundaryOperator",
     "NotInvertible",
     "MissingAdjoint",
-    "MissingAssembly",
     "invertible",
     "adjointable",
     "transpose_invertible",
     "posed",
-    "assemblable",
     "IncompatibleOperatorComposition",
     "MatrixTooLarge",
     "InverseWrapMixin",
@@ -541,23 +538,6 @@ class MissingAdjoint(TypeError):
     """
 
 
-class MissingAssembly(TypeError):
-    r"""Asked for the sparse assembly of an operator that has none.
-
-    The ASSEMBLY-axis refusal — the third sibling of
-    :class:`NotInvertible` (inverse axis) and :class:`MissingAdjoint`
-    (adjoint axis): raised **eagerly** by the composer ``assemble()``
-    bodies when an operand is not :attr:`~LinearOperator.is_assemblable`
-    — a structural emission exists only where a leaf declared one, and a
-    composite can recurse (Sum → ``+``, Product → ``@``, Scaled →
-    scalar ``*``) only when every leg emits. Operators without a
-    stencil realization simply do not declare :meth:`assemble` (misuse
-    is a *static* error); the probing
-    :meth:`~LinearOperator.as_matrix` remains their total (dense)
-    Mat-functor. ``TypeError`` parentage mirrors the sibling refusals.
-    """
-
-
 class IncompatibleOperatorComposition(ValueError):
     """A composition's operands carry incompatible function spaces.
 
@@ -589,6 +569,26 @@ class MatrixTooLarge(RuntimeError):
     fallback pattern write ``try: A.as_matrix() except MatrixTooLarge:
     <iterative path>`` — or raise the per-call ``max_dimension``.
     """
+
+
+def _check_dimension(
+    op: "LinearOperator", shape: tuple[int, ...], max_dimension: int,
+) -> None:
+    r"""Refuse a densification whose basis dimension exceeds ``max_dimension``.
+
+    The one size gate of every densification of ``op``, whichever algorithm
+    computes it (:meth:`LinearOperator.as_matrix` by probing,
+    :func:`~orpheus.numerics.assembled_operator.dense` by assembly).
+    """
+    n = int(np.prod(shape)) if shape else 1
+    if n > max_dimension:
+        raise MatrixTooLarge(
+            f"densifying {type(op).__name__}: basis dimension "
+            f"{n} (= prod{shape}) exceeds max_dimension="
+            f"{max_dimension}. A dense matrix would commit ~"
+            f"{8 * n * n / 1e6:.0f} MB. Raise max_dimension= if this "
+            f"size is intended, or keep the operator matrix-free."
+        )
 
 
 def _resolve_basis_shape(
@@ -854,21 +854,19 @@ class LinearOperator(Protocol[Domain, Codomain]):
 
     @property
     def is_assemblable(self) -> bool:
-        r"""Whether this operator can emit its sparse assembly (:meth:`assemble`).
+        r"""Whether this operator emits its own sparse matrix.
 
-        The ASSEMBLY axis — the third structural surface beside
-        :attr:`is_invertible` / :attr:`is_adjointable`: ``True`` iff a
-        structural ``(row, col, value)`` emission of this operator
-        exists (the stencil-assembly third consumption mode of the
-        per-cell closure algebra; see
-        :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`).
-        Composites derive it recursively (a sum/product assembles iff
-        both legs do — the homomorphism laws in their ``assemble()``
-        bodies); the default is ``False`` — an operator is assemblable
-        only by explicit override, and the probing :meth:`as_matrix`
-        remains the total dense Mat-functor for everything else. The
-        static bridge is :func:`assemblable` (narrowing to
-        :class:`SupportsAssembly`).
+        The ASSEMBLY axis, the third structural surface beside
+        :attr:`is_invertible` and :attr:`is_adjointable`: ``True`` iff a
+        structural ``(row, col, value)`` emission of this operator exists
+        (the stencil-assembly third consumption mode of the per-cell
+        closure algebra). Composites derive it from their parts: a sum or a
+        word emits iff every term or factor does. The default is ``False``:
+        an operator emits only by explicit override, and the probing
+        :meth:`as_matrix` stays the total representation for everything
+        else. The emission itself and its laws live downstream
+        (:func:`~orpheus.numerics.assembled_operator.assemble`, ruling 24);
+        this module states only the flag.
         """
         return False
 
@@ -1139,15 +1137,15 @@ class LinearOperator(Protocol[Domain, Codomain]):
         the operator is not endomorphic; the output dimension emerges
         from :meth:`apply` itself, never from declared metadata.
 
-        This default is the apply-to-basis pattern. Structured operators
-        MAY override with a direct assembly (the future per-octant
-        sparse-triangular streaming assembly noted at
-        ``sweep_graph.py:66`` — DEFERRED with its 3-D consumer;
+        This default is the apply-to-basis pattern. An operator that HOLDS
+        its matrix reads it instead
+        (:class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`
+        densifies its CSR;
         :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
-        overrides with one batched LU backsolve). Until a sparse
-        consumer exists, the return is a DENSE :class:`numpy.ndarray` —
-        keyed by the operator's structural override, with dense the only
-        realization built (defer-until-consumer).
+        runs one batched LU backsolve). An operator that only KNOWS its
+        stencil does not override: its structural densification is
+        :func:`~orpheus.numerics.assembled_operator.dense`, chosen by the
+        consumer. The return is a DENSE :class:`numpy.ndarray`.
 
         Parameters
         ----------
@@ -1184,50 +1182,19 @@ class LinearOperator(Protocol[Domain, Codomain]):
         are not constructible from ndarray basis columns — and sit far
         above any sane gate; they stay matrix-free.
 
-        **Assembly delegation**: when
-        this operator is :func:`assemblable`, the densification routes
-        through the structural sparse emission
-        (``assemble().as_matrix(...)`` — same gate contract, same
-        dimension checks) instead of :math:`n` probing applications.
-        The probing loop is RETAINED as :meth:`_as_matrix_by_probing` —
-        the fallback for assembly-less operators AND the permanent
-        fuller-view oracle the probed≡assembled equivalence gates pin
-        (an assembly bug must never be able to hide inside its own
-        densification).
+        **The representation, by probing** (numerics_untangling.md ruling
+        60): the matrix is fixed by the spaces' coordinates, the axes in
+        their order, and column :math:`j` is :math:`A e_j` raveled. This is
+        total over operators with spaces. Structural assembly is a faster
+        algorithm for the same matrix and lives downstream
+        (:func:`~orpheus.numerics.assembled_operator.dense`); the consumer
+        that pays for the densification chooses it. The probed and the
+        assembled matrices are two algorithms the equivalence gates compare:
+        they share the leaves' coefficients, and differ in everything that
+        composes them (the laws against :math:`n` applications).
         """
         shape = _resolve_basis_shape(self, basis_shape)
-        n = int(np.prod(shape)) if shape else 1
-        if n > max_dimension:
-            raise MatrixTooLarge(
-                f"as_matrix on {type(self).__name__}: basis dimension "
-                f"{n} (= prod{shape}) exceeds max_dimension="
-                f"{max_dimension}. Materializing would commit ~"
-                f"{8 * n * n / 1e6:.0f} MB and {n} operator "
-                f"applications. Raise max_dimension= if this size is "
-                f"intended, or keep the operator matrix-free."
-            )
-        if assemblable(self):
-            # The assembly delegation: densified structural assembly, with
-            # the assembled column dimension checked against the resolved
-            # basis shape (SparseAssembledOperator.as_matrix enforces it).
-            return self.assemble().as_matrix(
-                basis_shape=shape, max_dimension=max_dimension,
-            )
-        return self._as_matrix_by_probing(shape)
-
-    def _as_matrix_by_probing(self, shape: tuple[int, ...]) -> np.ndarray:
-        r"""The apply-to-basis probing loop — the RETAINED fuller-view pathway.
-
-        Column :math:`j` = ``apply(e_j)`` raveled (the pre-assembly
-        ``as_matrix`` body, byte-identical). Kept as its own named
-        method — NOT inlined in :meth:`as_matrix` — for two consumers:
-        the delegation fallback (assembly-less operators), and the
-        probed≡assembled equivalence gates, which MUST be able to force
-        this pathway on an *assemblable* operator (otherwise
-        ``as_matrix ≡ assemble().to_dense()`` is assembly compared with
-        itself — vacuous). Size/shape gating is the caller's job
-        (:meth:`as_matrix` resolves and gates before delegating here).
-        """
+        _check_dimension(self, shape, max_dimension)
         n = int(np.prod(shape)) if shape else 1
         columns = []
         for j in range(n):
@@ -1332,23 +1299,6 @@ class SupportsTransposeSolve(LinearOperator[Domain, Codomain], Protocol):
     def solve_transpose(self, y: Domain, /) -> Codomain: ...
 
 
-class SupportsAssembly(LinearOperator[Domain, Codomain], Protocol):
-    r"""Narrowing target: an operator whose :meth:`assemble` may be called.
-
-    Extends :class:`LinearOperator`; the branch narrowed by
-    :func:`assemblable` may call the structural sparse emission
-    :meth:`assemble` — the ASSEMBLY-axis sibling of
-    :class:`SupportsInverse` / :class:`SupportsAdjoint`, with the same
-    discipline: never ``isinstance`` this (class-level method presence
-    is class-uniform on composites — every ``OperatorSum`` defines
-    ``assemble`` even when a summand cannot emit); never annotate a
-    parameter with it to *demand* assemblability — guard with
-    :func:`assemblable` instead.
-    """
-
-    def assemble(self) -> "SparseAssembledOperator": ...
-
-
 def invertible(
     op: "LinearOperator[Domain, Codomain]",
 ) -> "TypeGuard[SupportsInverse[Domain, Codomain]]":
@@ -1447,23 +1397,6 @@ def _inverse_transposes(op: "LinearOperator[Domain, Codomain]") -> bool:
     (:class:`InverseWrapMixin`), so the two agree on every wrapped leaf.
     """
     return invertible(op) and adjointable(op.inverse())
-
-
-def assemblable(
-    op: "LinearOperator[Domain, Codomain]",
-) -> "TypeGuard[SupportsAssembly[Domain, Codomain]]":
-    r"""Checked bridge: narrow ``op`` to :class:`SupportsAssembly` iff assemblable.
-
-    The assembly-axis member of the bridge family — same one-directional
-    ``TypeGuard`` semantics, same free-function necessity, same
-    guard-at-``LinearOperator``-typed-sites discipline as
-    :func:`invertible` / :func:`adjointable`. Licenses the structural
-    :meth:`~SupportsAssembly.assemble` emission in the composer
-    homomorphism-law bodies (Sum → ``+``, Product → ``@``, Scaled →
-    scalar ``*``) and the
-    :meth:`~LinearOperator.as_matrix` densification delegation (R2).
-    """
-    return op.is_assemblable
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -2133,7 +2066,7 @@ class OperatorSum(_KeyedEquality, LinearOperator[Domain, Codomain]):
       accumulates in place into a buffer it allocated itself, never into an
       operand's output (``test_composition_cost.py`` holds the allocation at
       ≤ 4 vectors per degree of freedom);
-    * :meth:`apply_transpose`, :meth:`dual`, :meth:`assemble`,
+    * :meth:`apply_transpose`, :meth:`dual`, :attr:`is_assemblable`,
       :attr:`is_adjointable`, :attr:`block_role`, :attr:`system_role`: the
       fold of the terms' own;
     * :attr:`is_invertible`: only a ONE-term combination with an invertible
@@ -2302,26 +2235,6 @@ class OperatorSum(_KeyedEquality, LinearOperator[Domain, Codomain]):
     def is_assemblable(self) -> bool:
         return all(w.is_assemblable for _, w in self._terms)
 
-    def assemble(self) -> "SparseAssembledOperator":
-        r"""Return :math:`[\sum_i c_i w_i] = \sum_i c_i [w_i]` — the additive homomorphism.
-
-        The structural emission is the carrier's own sparse arithmetic over
-        the terms' emissions, folded in insertion order.
-        """
-        terms = tuple((c, w) for c, w in self._terms if assemblable(w))
-        if len(terms) != len(self._terms):
-            raise MissingAssembly(_capability_refusal(
-                "OperatorSum.assemble", "every term to emit", "[Σ cᵢwᵢ] = Σ cᵢ[wᵢ]",
-                (w for _, w in self._terms), "is_assemblable",
-            ))
-        from orpheus.numerics.assembled_operator import SparseAssembledOperator
-
-        return SparseAssembledOperator(
-            _left_fold(terms, lambda w: w.assemble().matrix, in_place=False),
-            domain=self._domain,
-            codomain=self._codomain,
-        )
-
     def __repr__(self) -> str:
         return "(" + " + ".join(f"{c!r}·{w!r}" for c, w in self._terms) + ")"
 
@@ -2329,8 +2242,6 @@ class OperatorSum(_KeyedEquality, LinearOperator[Domain, Codomain]):
 def _left_fold(
     terms: "tuple[tuple[float, _Word], ...]",
     act: "Callable[[_Word], Any]",
-    *,
-    in_place: bool = True,
 ) -> Any:
     r"""The left fold :math:`((c_1 a_1 + c_2 a_2) + c_3 a_3) + \cdots`, :math:`a_i = \mathrm{act}(w_i)`.
 
@@ -2343,9 +2254,7 @@ def _left_fold(
     (which may be the operand's input, or a buffer the operand keeps), so the
     remaining terms accumulate into it in place. In place is taken only
     where it is the out-of-place result exactly (:func:`_accumulates_in_place`),
-    so the fold's VALUE never depends on the optimisation; ``in_place=False``
-    is for a carrier whose in-place operators are not its out-of-place ones
-    (the sparse matrices of :meth:`OperatorSum.assemble`).
+    so the fold's VALUE never depends on the optimisation.
     """
     iterator = iter(terms)
     c, w = next(iterator)
@@ -2355,7 +2264,7 @@ def _left_fold(
         accumulator = c * accumulator
     for c, w in iterator:
         value = act(w)
-        if owned and in_place and _accumulates_in_place(accumulator, value):
+        if owned and _accumulates_in_place(accumulator, value):
             if c == -1.0:
                 accumulator -= value
             else:
@@ -2445,7 +2354,9 @@ class OperatorProduct(_KeyedEquality, LinearOperator[Domain, Codomain]):
     * :meth:`apply_transpose`: left to right,
       :math:`A_n^{\mathsf T}(\cdots A_1^{\mathsf T} y)`; :meth:`dual` the
       reversed word of the factors' duals;
-    * :meth:`assemble`: the product of the factors' emissions.
+    * :attr:`is_assemblable`: every factor emits (the law
+      :math:`[A_1 \cdots A_n] = [A_1] \cdots [A_n]` lives downstream, in
+      :func:`~orpheus.numerics.assembled_operator.assemble`).
 
     The Hilbert adjoint is the base's, taken ONCE at the word's ends (ruling
     53's precise form). The reversed word of the factors' adjoints
@@ -2587,22 +2498,6 @@ class OperatorProduct(_KeyedEquality, LinearOperator[Domain, Codomain]):
     def is_assemblable(self) -> bool:
         return all(f.is_assemblable for f in self._factors)
 
-    def assemble(self) -> "SparseAssembledOperator":
-        r"""Return :math:`[A_1 \cdots A_n] = [A_1] \cdots [A_n]` — the multiplicative homomorphism."""
-        factors = tuple(f for f in self._factors if assemblable(f))
-        if len(factors) != len(self._factors):
-            raise MissingAssembly(_capability_refusal(
-                "OperatorProduct.assemble", "every factor to emit",
-                "[A₁…Aₙ] = [A₁]…[Aₙ]", self._factors, "is_assemblable",
-            ))
-        from orpheus.numerics.assembled_operator import SparseAssembledOperator
-
-        return SparseAssembledOperator(
-            reduce(lambda m, f: m @ f.assemble().matrix, factors[1:], factors[0].assemble().matrix),
-            domain=self.domain,
-            codomain=self.codomain,
-        )
-
     def __repr__(self) -> str:
         return "(" + " @ ".join(repr(f) for f in self._factors) + ")"
 
@@ -2620,12 +2515,12 @@ class FusedAtom(LinearOperator[Domain, Codomain]):
 
     Everything the atom does not realise itself is its expansion's, read from
     ONE cached expansion: the ends, the transpose (through the expansion's
-    dual arrow), the adjointability and metric-freeness, the assembly, and the
+    dual arrow), the adjointability and metric-freeness, assemblability, and the
     block and system roles (:meth:`_adopt_expansion_roles`, called by each
     atom's constructor once its legs are set). A subclass overrides a face
     only where it has a realisation of its own (the sweep atom's
-    :math:`M(\sigma)^{\mathsf T}`), so a capability its expansion gains — an
-    assemblable leaf, at package S3 — reaches the atom with no edit here.
+    :math:`M(\sigma)^{\mathsf T}`), so a capability its expansion gains reaches
+    the atom with no edit here; the assembly functor reads the expansion too.
     """
 
     @abstractmethod
@@ -2633,47 +2528,42 @@ class FusedAtom(LinearOperator[Domain, Codomain]):
         """The plain combination or word this atom realises."""
 
     @cached_property
-    def _expanded(self) -> "LinearOperator[Domain, Codomain]":
+    def expanded(self) -> "LinearOperator[Domain, Codomain]":
+        """The ONE cached :meth:`expansion` every non-realised face reads."""
         return self.expansion()
 
     def _adopt_expansion_roles(self) -> None:
         # The blocks and systems the realised expression touches.
-        self.block_role = getattr(self._expanded, "block_role", None)
-        self.system_role = getattr(self._expanded, "system_role", None)
+        self.block_role = getattr(self.expanded, "block_role", None)
+        self.system_role = getattr(self.expanded, "system_role", None)
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
-        return self._expanded.domain
+        return self.expanded.domain
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        return self._expanded.codomain
+        return self.expanded.codomain
 
     def apply_transpose(self, y: Codomain, /) -> Domain:
         # The expansion's dual arrow; its construction refuses (MissingAdjoint)
         # an expression with a part that does not transpose.
-        return self._expanded.dual().apply(y)
+        return self.expanded.dual().apply(y)
 
     @property
     def is_adjointable(self) -> bool:
-        return self._expanded.is_adjointable
+        return self.expanded.is_adjointable
 
     @property
     def is_metric_free_adjoint(self) -> bool:
-        return self._expanded.is_metric_free_adjoint
+        return self.expanded.is_metric_free_adjoint
 
+    @final
     @property
     def is_assemblable(self) -> bool:
-        return self._expanded.is_assemblable
-
-    def assemble(self) -> "SparseAssembledOperator":
-        expanded = self._expanded
-        if not assemblable(expanded):
-            raise MissingAssembly(
-                f"{type(self).__name__}.assemble: its expansion "
-                f"{type(expanded).__name__} does not emit an assembly."
-            )
-        return expanded.assemble()
+        # Final: an atom realises an ACTION of its own; its assembly is its
+        # expansion's, always (ruling 52, read at the S3 review).
+        return self.expanded.is_assemblable
 
 
 class PointwiseOperator(LinearOperator[Domain, Domain]):

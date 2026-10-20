@@ -54,7 +54,9 @@ TIERS: tuple[tuple[str, ...], ...] = (
     # the algebra, with the adjoint, the dual and the Riesz operators (rulings 25, 26)
     ("operator",),
     ("assembled_operator", "axis_marginal", "elementary_operators", "flat_operator",
-     "matrix_inverse_operator", "pencil", "projection"),
+     "pencil", "projection"),
+    # the LU inverse densifies through the assembly functor (ruling 60)
+    ("matrix_inverse_operator",),
     ("coupled_system", "frame_faces", "posing"),
     ("outcome", "spaces"),
     ("convergence",),
@@ -74,8 +76,6 @@ PENDING: dict[tuple[str, str], str] = {
     ("space", "basis"): "S7",
     ("space", "measure"): "S7",
     ("spaces", "basis"): "S7",
-    # S3: assembly is a homomorphism downstream of the algebra (ruling 24)
-    ("assembled_operator", "operator"): "S3",
 }
 
 

@@ -431,14 +431,18 @@ Key Facts
   :attr:`~orpheus.numerics.operator.LinearOperator.is_assemblable`), an
   **operator-returning method** (``inverse()`` per-class /
   :attr:`~orpheus.numerics.operator.LinearOperator.H` on the base /
-  ``assemble()`` →
+  the functor :func:`~orpheus.numerics.assembled_operator.assemble` →
   :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`),
-  and a **realization verb** (``solve`` / ``apply_transpose``) present
-  only where a native realization exists — each axis refusing eagerly via
-  its own ``TypeError`` sibling
+  and a **realization verb** (``solve`` / ``apply_transpose`` /
+  ``assembled_matrix``) present only where a native realization exists —
+  each axis refusing eagerly via its own ``TypeError`` sibling
   (:class:`~orpheus.numerics.operator.NotInvertible` /
   :class:`~orpheus.numerics.operator.MissingAdjoint` /
-  :class:`~orpheus.numerics.operator.MissingAssembly`). The stringly-typed
+  :class:`~orpheus.numerics.assembled_operator.MissingAssembly`). The
+  assembly axis is the one whose map and refusal live downstream of the
+  algebra: :mod:`orpheus.numerics.operator` states only the predicate, and
+  the functor, its laws, the narrowing Protocol, the bridge and the refusal
+  are :mod:`orpheus.numerics.assembled_operator`'s. The stringly-typed
   ``capabilities: frozenset[str]`` advertisement it replaced (``CAP_*``
   tags + ``MissingCapability``) is **retired** — the surface itself is
   now the single source of truth (:ref:`capability-set-semantics`).
@@ -9036,13 +9040,15 @@ falsehood at ``confidence = 1.0``.
      - Definition — a verb with no declaration site
      - The base-hosting rule forbids one. :math:`[M]`
        :class:`~orpheus.numerics.operator.LinearOperator` declares only
-       ``apply``, and the three narrowing Protocols declare
+       ``apply``, and the four narrowing Protocols declare
        ``inverse()``
        (:class:`~orpheus.numerics.operator.SupportsInverse`),
        ``apply_transpose``
-       (:class:`~orpheus.numerics.operator.SupportsAdjoint`) and
-       ``assemble``
-       (:class:`~orpheus.numerics.operator.SupportsAssembly`) — never
+       (:class:`~orpheus.numerics.operator.SupportsAdjoint`),
+       ``solve_transpose``
+       (:class:`~orpheus.numerics.operator.SupportsTransposeSolve`) and
+       ``assembled_matrix``
+       (:class:`~orpheus.numerics.assembled_operator.SupportsAssembly`) — never
        ``solve``; no ``SupportsSolve`` exists. Contrast
        :eq:`operator-apply` and :eq:`operator-apply-transpose`, whose
        declaration sites *do* exist and are declared. The asymmetry
@@ -9184,6 +9190,31 @@ the cheapest tell.
      - Issue
      - Where
    * - 2026-10-20
+     - **Assembly is a homomorphism out of the algebra, downstream of it**
+       (package S3 of the numerics untangling; rulings 24 and 60–62). The
+       composites' ``assemble()`` methods retired into one functor,
+       :func:`~orpheus.numerics.assembled_operator.assemble`, whose arms
+       realise :eq:`matrix-functor-homomorphism`: a combination folds left
+       in insertion order (the fold of ``apply``), a word multiplies, a
+       fused atom assembles its expansion, and a leaf's emission is
+       converted to CSR before any coefficient touches it. Each emitter
+       implements ``assembled_matrix(emit)`` and returns a raw sparse
+       matrix; only the functor wraps it. The domain composites
+       (``CoupledOperator``, ``BulkLift``, ``FlattenedOperator``) keep their
+       laws in their own modules and recurse through ``emit``.
+       ``SupportsAssembly``, ``assemblable`` and ``MissingAssembly`` moved
+       from ``operator`` to ``assembled_operator``, which removes the
+       import cycle between the two; ``operator`` keeps only the flag
+       ``is_assemblable``. ``as_matrix`` became the probe alone (the
+       matrix is fixed by the spaces, the algorithm by the consumer): the
+       delegation to assembly and the private ``_as_matrix_by_probing``
+       retired, ``dense`` is the structural densification, and
+       ``MatrixInverseOperator`` factors ``dense(inner)``. Pinned by
+       ``tests/gates/numerics/test_assembly_functor.py`` and the
+       concept-order gate. See :ref:`operator-algebra-assembly-axis`.
+     - —
+     - *(in development)* branch ``refactor/s3-assembly-homomorphism``
+   * - 2026-10-20
      - **A sum is a formal linear combination, a product a flattened
        word** (package S2 of the numerics untangling; rulings 23 and
        50–54). ``OperatorSum`` is ``{word ↦ coefficient}``, unordered for
@@ -9297,14 +9328,14 @@ the cheapest tell.
        COO-builder algebra), and the axis carries the full three-layer
        surface minted like inverse/adjoint —
        :attr:`~orpheus.numerics.operator.LinearOperator.is_assemblable`
-       predicate, :class:`~orpheus.numerics.operator.SupportsAssembly`
-       narrowing Protocol, :func:`~orpheus.numerics.operator.assemblable`
+       predicate, ``operator.SupportsAssembly``
+       narrowing Protocol, ``operator.assemblable``
        ``TypeGuard`` bridge, and the eager
-       :class:`~orpheus.numerics.operator.MissingAssembly` refusal. The
+       ``operator.MissingAssembly`` refusal. The
        composers recurse through the homomorphism laws (Sum → ``+``,
        Product → ``@``, Scaled → scalar ``·``; TensorProduct → ``kron``
        deferred, no consumer), and ``as_matrix`` **delegates** to the
-       densified emission when :func:`~orpheus.numerics.operator.assemblable`
+       densified emission when ``operator.assemblable``
        (ruling R2), with the probing loop retained as
        ``_as_matrix_by_probing`` — the fallback AND the anti-tautology
        oracle the probed≡assembled gates force. First production consumer:

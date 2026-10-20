@@ -57,13 +57,15 @@ on the TYPED operator where the block metrics are visible.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 import numpy as np
 
 from orpheus.numerics.operator import LinearOperator
 
 if TYPE_CHECKING:
+    from scipy import sparse
+
     from orpheus.numerics.space import FunctionSpace
 
 
@@ -133,48 +135,39 @@ class FlattenedOperator(LinearOperator):
     # The flat serialization is TRANSPARENT to structural assembly: a
     # typed operator's sparse emission is ALREADY in the flat layout
     # (the emitters scatter into the carrier's own ``to_flat`` DOF
-    # numbering — the 2-P0 never-re-derive rule), so the flattened
-    # view's assembly IS the inner operator's, dimension-checked against
-    # the template. Through this passthrough the ``as_matrix``
-    # delegation (R2) reaches the diffusion resolvent: once every loss
-    # leaf emits, ``MatrixInverseOperator(FlattenedOperator(A, t))``
-    # LU-factors the assembled matrix instead of probing n columns.
+    # numbering, the 2-P0 never-re-derive rule), so the flattened view's
+    # emission IS the inner operator's, dimension-checked against the
+    # template. Through it ``dense`` reaches the diffusion resolvent:
+    # ``MatrixInverseOperator(FlattenedOperator(A, t))`` LU-factors the
+    # assembled matrix instead of probing n columns.
 
     @property
     def is_assemblable(self) -> bool:
         return self.inner.is_assemblable
 
-    def assemble(self) -> "Any":
-        r"""Return the inner operator's assembly (the flat layouts coincide).
+    def assembled_matrix(
+        self, emit: "Callable[[LinearOperator], sparse.csr_array]", /,
+    ) -> "sparse.sparray | sparse.spmatrix":
+        r"""Return the inner operator's emission (the flat layouts coincide).
 
         Raises
         ------
-        MissingAssembly
-            Propagated from composer recursion when a leg of ``inner``
-            cannot emit (guarded here via the checked bridge).
         ValueError
             The inner emission's dimensions contradict the template's
-            flat size — a layout drift between an emitter and the
-            carrier's ``to_flat`` (must be impossible by construction;
-            checked because silence here would corrupt every consumer).
+            flat size: a layout drift between an emitter and the
+            carrier's ``to_flat`` (impossible by construction; checked
+            because silence here would corrupt every consumer).
         """
-        from orpheus.numerics.operator import MissingAssembly, assemblable
-
-        if not assemblable(self.inner):
-            raise MissingAssembly(
-                f"FlattenedOperator.assemble: the wrapped "
-                f"{type(self.inner).__name__} is not assemblable."
-            )
-        assembled = self.inner.assemble()
-        rows, cols = assembled.shape
+        matrix = emit(self.inner)
+        rows, cols = cast("tuple[int, int]", matrix.shape)
         if rows != self.n_flat or cols != self.n_flat:
             raise ValueError(
-                f"FlattenedOperator.assemble: the inner emission is "
+                f"FlattenedOperator's assembly: the inner emission is "
                 f"{rows}×{cols} but the template's flat size is "
-                f"{self.n_flat} — an emitter drifted from the carrier's "
+                f"{self.n_flat}: an emitter drifted from the carrier's "
                 f"to_flat layout."
             )
-        return assembled
+        return matrix
 
     def __repr__(self) -> str:
         return (

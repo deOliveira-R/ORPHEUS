@@ -11,8 +11,10 @@ leaf returns the pointwise :class:`~orpheus.numerics.operator.InverseOperator`.
 This class is the inverse of a **structureless small** operator — the 0-D
 energy spectrum, a CP collision-probability block, any composition whose
 only exploitable property is that it FITS: materialize
-:math:`[A]` (:meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`),
-factor it once (LU), and every :meth:`apply` is a direct backsolve.
+:math:`[A]` (:func:`~orpheus.numerics.assembled_operator.dense`: its
+structural assembly where it emits one, else the probed
+:meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`), factor it once
+(LU), and every :meth:`apply` is a direct backsolve.
 
 **The name is earned** (taxonomy §13, M-row):
 
@@ -64,7 +66,8 @@ Green splitting). CP's ``[P]`` — dense by construction, §14b — is the
 next production method in line.
 
 **Placement.** A leaf module importing :mod:`orpheus.numerics.operator`
-(the ``green_operator.py`` precedent) — nothing in ``operator.py``
+and :mod:`orpheus.numerics.assembled_operator` (for :func:`dense`), one tier
+below the assembly functor in the concept order; nothing in ``operator.py``
 routes back here. Since step 5 ONE structure-keyed factory does:
 :meth:`~orpheus.numerics.coupled_system.CoupledOperator.inverse` returns
 this type for a non-triangular square materializable block grid (a late
@@ -81,6 +84,7 @@ import numpy as np
 from numpy.linalg import LinAlgError
 from scipy.linalg import LinAlgWarning, lu_factor, lu_solve
 
+from orpheus.numerics.assembled_operator import dense
 from orpheus.numerics.operator import (
     InverseWrapMixin,
     LinearOperator,
@@ -93,7 +97,9 @@ __all__ = ["MatrixInverseOperator"]
 
 class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
     r"""The inverse operator :math:`A^{-1}` of a small materializable ``A``,
-    realized as a one-time LU factorization of ``inner.as_matrix()`` plus a
+    realized as a one-time LU factorization of ``dense(inner)`` (its
+    structural assembly where it emits one, else its probed
+    :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`) plus a
     direct backsolve per :meth:`apply`.
 
     Construction is EAGER: the materialization IS the guard. Size
@@ -125,7 +131,7 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
         an informative ``ValueError``). Solutions are reshaped back to
         this carrier shape.
     max_dimension : int, optional
-        The materialization size gate, forwarded to ``as_matrix``
+        The materialization size gate, forwarded to ``dense``
         (default ``4096`` — see
         :class:`~orpheus.numerics.operator.MatrixTooLarge`).
     """
@@ -138,7 +144,7 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
         max_dimension: int = 4096,
     ) -> None:
         shape = _resolve_basis_shape(inner, basis_shape)
-        matrix = inner.as_matrix(basis_shape=shape, max_dimension=max_dimension)
+        matrix = dense(inner, basis_shape=shape, max_dimension=max_dimension)
         rows, cols = matrix.shape
         if rows != cols:
             raise ValueError(
@@ -156,7 +162,7 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
         # fail at construction, never return a non-inverse.
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", LinAlgWarning)
-            # ``matrix`` is a fresh ctor-local from as_matrix — factor it
+            # ``matrix`` is a fresh ctor-local from ``dense`` — factor it
             # in place (1×n² transient instead of 2× at the gate ceiling).
             self._lu = lu_factor(matrix, overwrite_a=True)
         if np.any(np.diag(self._lu[0]) == 0.0):
