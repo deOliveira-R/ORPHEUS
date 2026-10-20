@@ -27,7 +27,7 @@ literally true:
 * **unital** — :math:`M[1] = I` (the constant-one field promotes to
   the identity);
 * **zero** — :math:`M[0] = 0` (the zero coefficient promotes to the
-  :class:`~orpheus.numerics.operator.ZeroOperator`, codomain-aware: a
+  :class:`~orpheus.numerics.elementary_operators.ZeroOperator`, codomain-aware: a
   *zero source*, never a zero flux);
 * **linear** — :math:`M[a f + b g] = a\,M[f] + b\,M[g]` (the promotion
   is a linear map on the coefficient vector space);
@@ -66,7 +66,7 @@ Delegation to the numerics broadcast engine
 ============================================
 
 The raw pointwise multiply is delegated to the N-D
-:class:`~orpheus.numerics.operator.DiagonalOperator` broadcast engine
+:class:`~orpheus.numerics.elementary_operators.DiagonalOperator` broadcast engine
 (#257 S3a): for a per-cell-per-group coefficient on a per-ordinate
 carrier ``(N, ng, *spatial)``, the engine
 ``DiagonalOperator(f.values, broadcast_axes=(0,))`` broadcasts the
@@ -123,9 +123,9 @@ from orpheus.transport.operators.lift import (
     embed_bulk_assembly,
     lift_pointwise,
 )
+from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.operator import (
     BlockRole,
-    DiagonalOperator,
     InverseOperator,
     LinearOperator,
     NotInvertible,
@@ -152,7 +152,7 @@ class MultiplicationOperator(BoundOperator):
 
     Stores ONLY the coefficient and its ends; the raw pointwise multiply
     is delegated to the N-D
-    :class:`~orpheus.numerics.operator.DiagonalOperator` broadcast engine,
+    :class:`~orpheus.numerics.elementary_operators.DiagonalOperator` broadcast engine,
     and the body (composite vs bare array) is selected from the domain
     at construction (module docstring).
 

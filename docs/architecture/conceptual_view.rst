@@ -246,7 +246,7 @@ enters phase space through :math:`E` and a detector through
 subset, the **trace restriction** :math:`\gamma_S` gathers and its
 transpose :math:`\iota_S` scatters (:eq:`bc-trace-restriction-pair`,
 :ref:`bc-domain-narrowing`;
-:class:`~orpheus.numerics.operator.TraceRestrictionOperator`); the
+:class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator`); the
 boundary trace is one whole-boundary space whose inflow and outflow
 halves are selectors over the sign of :math:`\Omega \cdot \hat n`
 (:ref:`bc-trace-structure`;
@@ -448,7 +448,7 @@ The concept table
      - :class:`~orpheus.numerics.axis_marginal.AxisRetractionOperator`, :class:`~orpheus.numerics.axis_marginal.AxisSectionOperator`, :class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`
      - :ref:`spaces-collapse-pair`, :ref:`spaces-collapse-pair-naming`, :ref:`spaces-collapse-pair-pullback`, :ref:`spaces-collapse-pair-two-lifts`
    * - Trace restriction; trace space; half-trace
-     - :class:`~orpheus.numerics.operator.TraceRestrictionOperator`, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`
+     - :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator`, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`
      - :eq:`bc-trace-restriction-pair`, :ref:`bc-trace-structure`, :ref:`half-trace <bc-half-trace>`
    * - System restriction; coupled space
      - :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`, :class:`~orpheus.numerics.coupled_system.CoupledSpace`

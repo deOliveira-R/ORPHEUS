@@ -60,7 +60,7 @@ The realization table (law → 𝒜 → operator)
 ===============================  =======  =========================================
 Law                              𝒜        Realized operator
 ===============================  =======  =========================================
-``VacuumInflow``                 ``0``    :class:`~orpheus.numerics.operator.ZeroOperator`
+``VacuumInflow``                 ``0``    :class:`~orpheus.numerics.elementary_operators.ZeroOperator`
 ``ReflectiveBoundary``           ``1``    ``IdentityOperator`` (a symmetry)
 ``WhiteBoundary(α)``             ``α``    ``IdentityOperator`` (α=1) / ``α·I``
 ``AlbedoBoundary(α)``            ``α``    ``Zero`` (α=0) / ``I`` (α=1) / ``α·I``
@@ -157,11 +157,8 @@ from orpheus.geometry.boundary import (
     PrescribedInflow,
     stamp_boundary_role,
 )
-from orpheus.numerics.operator import (
-    IdentityOperator,
-    LinearOperator,
-    ZeroOperator,
-)
+from orpheus.numerics.elementary_operators import ZeroOperator
+from orpheus.numerics.operator import IdentityOperator, LinearOperator
 
 from .method_space import DiffusionMethodSpace
 

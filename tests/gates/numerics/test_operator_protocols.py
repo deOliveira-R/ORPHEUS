@@ -25,18 +25,20 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics.elementary_operators import (
+    DiagonalOperator,
+    SumOfTensorProductsOperator,
+    ZeroOperator,
+)
 from orpheus.numerics.operator import (
     BlockRole,
     BoundaryOperator,
     BulkOperator,
-    DiagonalOperator,
     FullOperator,
     IdentityOperator,
     OperatorSum,
-    SumOfTensorProductsOperator,
     SystemRole,
     TensorProductOperator,
-    ZeroOperator,
 )
 
 pytestmark = [pytest.mark.foundation]

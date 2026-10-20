@@ -30,7 +30,7 @@ of the S\ :sub:`N` transport operators: *which* algebraic shape each
 operator leaf actually takes once it is lifted out of a procedural,
 single-axis numpy body into the operator-algebra types
 (:class:`~orpheus.numerics.operator.TensorProductOperator`,
-:class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`,
+:class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`,
 :class:`~orpheus.numerics.operator.OperatorSum`) developed in
 :doc:`/theory/foundations/operator_algebra`. The headline result is that
 **no single uniform tensor-product factorisation across space, angle and
@@ -61,7 +61,7 @@ streaming — from procedural single-axis numpy bodies into the
 operator-algebra types documented in
 :doc:`/theory/foundations/operator_algebra`
 (:class:`~orpheus.numerics.operator.TensorProductOperator`,
-:class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`,
+:class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`,
 :class:`~orpheus.numerics.operator.OperatorSum`). The migration is
 the consumer side of the Wave-0 + Depth B D-B infrastructure
 (:class:`~orpheus.numerics.operator.TensorProductOperator` shipped at
@@ -1006,7 +1006,7 @@ Wave T's verification chain combines three independent grounds:
 4. **Algebraic-identity gates** (new in Wave T). Each touched
    operator passes the algebra contracts:
 
-   - :meth:`~orpheus.numerics.operator.SumOfTensorProductsOperator.assert_separable`
+   - :meth:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator.assert_separable`
      passes on every TP-shaped operator (BC realizers, fission). The
      method's home is the SUM-of-tensor-products operator, not the bare
      :class:`~orpheus.numerics.operator.TensorProductOperator`: a single
@@ -1123,11 +1123,11 @@ Cross-references
 - **Code anchors**:
 
   - :class:`orpheus.numerics.operator.TensorProductOperator`,
-    :class:`orpheus.numerics.operator.SumOfTensorProductsOperator`,
+    :class:`orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`,
     :class:`orpheus.numerics.operator.OperatorSum`,
-    :class:`orpheus.numerics.operator.RankOneOperator`,
+    :class:`orpheus.numerics.elementary_operators.RankOneOperator`,
     :class:`orpheus.numerics.operator.IdentityOperator`,
-    :class:`orpheus.numerics.operator.ZeroOperator`.
+    :class:`orpheus.numerics.elementary_operators.ZeroOperator`.
   - :class:`orpheus.sn.boundary.realizer.SNBoundaryRealizer` —
     the BC realizer dispatching the T.1 lifts.
   - :class:`orpheus.transport.operators.isotropic_transfer.IsotropicFission`

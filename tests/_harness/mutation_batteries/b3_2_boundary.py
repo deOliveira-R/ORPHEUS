@@ -174,7 +174,7 @@ def _mutated_reflect_trace(mut: str):
 
 def _mutate_realizer(mut: str) -> None:
     """Patch the reflective branch's reduced permutation."""
-    from orpheus.numerics import operator as _op
+    from orpheus.numerics import elementary_operators as _op
 
     original = _op.PermutationOperator.__init__
 

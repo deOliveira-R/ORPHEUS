@@ -1372,7 +1372,7 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
     **split pair** ``(extension by zero e, restriction r)`` with ``r ∘ e = id`` on
     the member, ``r = e†`` under the direct sum's block-diagonal metric,
     and ``P = e ∘ r`` the orthogonal projector onto the member's copy.
-    :class:`~orpheus.numerics.operator.TraceRestrictionOperator` is the
+    :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` is the
     index-subset sibling (gather / scatter along an axis); this one
     selects a member SYSTEM of a :class:`CoupledField`. The
     measure-weighted realization of a split pair (the axis marginal: the

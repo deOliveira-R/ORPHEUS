@@ -95,7 +95,7 @@ class AnalysisOperator(LinearOperator[Domain, Codomain], ABC):
     (:class:`~orpheus.numerics.frame_faces.FrameAnalysis`) inherits this BARE: it
     acts on raw ``ndarray`` — a carrier-agnostic numerics primitive that carries
     no ``Vector``-typed static carrier (same as the bare operator primitives,
-    :class:`~orpheus.numerics.operator.DiagonalOperator` et al.) — so the
+    :class:`~orpheus.numerics.elementary_operators.DiagonalOperator` et al.) — so the
     :math:`V`/:math:`W` distinction lives in the runtime
     :attr:`domain`/:attr:`codomain` :class:`FunctionSpace`\\ s. A transport-layer
     realisation instead instantiates distinct typed carriers

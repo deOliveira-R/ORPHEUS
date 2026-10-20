@@ -58,14 +58,13 @@ from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.iteration import SupportsSeededApply
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+from orpheus.numerics.elementary_operators import DiagonalOperator, PermutationOperator
 from orpheus.numerics.operator import (
-    DiagonalOperator,
     IdentityOperator,
     InverseOperator,
     LinearOperator,
     OperatorProduct,
     OperatorSum,
-    PermutationOperator,
     ScaledOperator,
     SupportsAdjoint,
     SupportsInverse,

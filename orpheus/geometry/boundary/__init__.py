@@ -216,7 +216,7 @@ sole bridge. The canonical SN-realised representation per law.
   wrong tier (corrected at B3.0; **this entry outlived that correction until
   B3.4b**, the same two-phase lag the white entry had). SN realises to the
   narrowed **zero map** :math:`\Gamma_+ \to \Gamma_-` — a
-  :class:`~orpheus.numerics.operator.ZeroOperator` carrying both space hooks,
+  :class:`~orpheus.numerics.elementary_operators.ZeroOperator` carrying both space hooks,
   so the forward emits the zero of :math:`\Gamma_-` and the transpose the
   zero of :math:`\Gamma_+`. It was an ``IncomingOrdinateMaskTensor`` (a
   full-face projector whose preserved rows the consumer discarded) until
@@ -226,7 +226,7 @@ sole bridge. The canonical SN-realised representation per law.
   permutation the axis-mirror induces (derived via
   :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`);
   :math:`R = I`, since a symmetry plane has no amplitude. SN realises it to
-  :class:`~orpheus.numerics.operator.PermutationOperator`. A partially
+  :class:`~orpheus.numerics.elementary_operators.PermutationOperator`. A partially
   specular wall is a response,
   ``AlbedoBoundary(alpha, SpecularReturn(axis))``.
 * :class:`WhiteBoundary(axis, outward_sign, albedo)` (registry key
@@ -247,7 +247,7 @@ sole bridge. The canonical SN-realised representation per law.
   partner face onto this one; :math:`R = 1` (a periodic face is loss-free
   by construction, and a pure symmetry statement adds no physics). SN
   realises (B3.4c built the partner channel; **G6.3 step 7** derived the
-  arrow) to the :class:`~orpheus.numerics.operator.PermutationOperator`
+  arrow) to the :class:`~orpheus.numerics.elementary_operators.PermutationOperator`
   the wrap MOTION induces — the identity permutation, typed
   :math:`\Gamma_+(f') \to \Gamma_-(f)` — fed the PARTNER face's
   :math:`\Gamma_+`: :meth:`PairedDeck.domain_face` names the partner

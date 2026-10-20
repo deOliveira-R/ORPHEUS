@@ -29,10 +29,8 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.face_layout import FaceLayout
-from orpheus.numerics.operator import (
-    IncompatibleOperatorComposition,
-    TraceRestrictionOperator,
-)
+from orpheus.numerics.elementary_operators import TraceRestrictionOperator
+from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import AngularFaceTraceSpace, AngularTraceSpace

@@ -475,7 +475,7 @@ class SNBoundaryOperator(LinearOperator):
             B_faceᵀ = ι₊ ∘ lawᵀ ∘ γ₋        (Euclidean transpose)
 
         with ``γ±`` the trace restrictions
-        (:class:`~orpheus.numerics.operator.TraceRestrictionOperator`, cached on
+        (:class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator`, cached on
         the trace space) and ``ι± = γ±ᵀ`` their scatters. Nothing is computed
         and then discarded, and a non-zero outflow emission — which would
         corrupt the outflow-definition residual ``ψ.outflow − streamed``, a

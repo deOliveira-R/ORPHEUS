@@ -2032,9 +2032,9 @@ kinds:
        construction of the inverse and never mid-iteration.
 
 The structural leaves are
-:class:`~orpheus.numerics.operator.ZeroOperator`, the incoming-ordinate
+:class:`~orpheus.numerics.elementary_operators.ZeroOperator`, the incoming-ordinate
 and periodic masks, the source dyads
-(:class:`~orpheus.numerics.operator.RankOneOperator`), and the
+(:class:`~orpheus.numerics.elementary_operators.RankOneOperator`), and the
 transport source leaves —
 :class:`~orpheus.sn.operators.streaming.StreamingOperator` (:math:`L`),
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
@@ -2046,7 +2046,7 @@ For each, ``op.inverse()`` does not type-check — the absence *is* the
 honest surface, and the compiler enforces it.
 
 The value-dependent operators are
-:class:`~orpheus.numerics.operator.DiagonalOperator`,
+:class:`~orpheus.numerics.elementary_operators.DiagonalOperator`,
 :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
 and the composers when their invertibility fails a value test
 (:class:`~orpheus.numerics.operator.OperatorSum` with a non-invertible
@@ -2196,7 +2196,7 @@ machinery.
   :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` subclass
   keeps its own direct-sweep ``solve`` — that IS a native realization.)
 - :class:`~orpheus.numerics.operator.IdentityOperator`,
-  :class:`~orpheus.numerics.operator.PermutationOperator`,
+  :class:`~orpheus.numerics.elementary_operators.PermutationOperator`,
   :class:`~orpheus.numerics.operator.ScaledOperator`,
   :class:`~orpheus.numerics.operator.TensorProductOperator` — the
   **algebra-closed** kinds, whose inverse is itself a first-class
@@ -2205,7 +2205,7 @@ machinery.
 - the reflective boundary shim's forward.
 
 **Kept** (the native-realization face, what the wrap-delegate inverse
-family wraps): :class:`~orpheus.numerics.operator.DiagonalOperator`
+family wraps): :class:`~orpheus.numerics.elementary_operators.DiagonalOperator`
 (with its value guard, now raising
 :class:`~orpheus.numerics.operator.NotInvertible`),
 :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
@@ -2322,7 +2322,7 @@ dichotomy as false (taxonomy §16 record):
 
 - **Option A — declare ``inverse()`` on the base.** Then every call site
   type-checks, but a
-  :class:`~orpheus.numerics.operator.ZeroOperator` (which mathematically
+  :class:`~orpheus.numerics.elementary_operators.ZeroOperator` (which mathematically
   has no inverse) would inherit a method it cannot honour — demoting the
   compiler's ability to catch ``Zero.inverse()`` misuse from a *static
   error* to a *runtime raise*. The honest "this type has no inverse"
@@ -2336,9 +2336,9 @@ dichotomy as false (taxonomy §16 record):
 
 The false premise was that *structural* absence and *value-dependent*
 refusal are the same phenomenon. They are not: the
-:class:`~orpheus.numerics.operator.ZeroOperator` case is structural
+:class:`~orpheus.numerics.elementary_operators.ZeroOperator` case is structural
 (Option A's failure), the zero-coefficient
-:class:`~orpheus.numerics.operator.DiagonalOperator` case is
+:class:`~orpheus.numerics.elementary_operators.DiagonalOperator` case is
 value-dependent (a method that *should* exist and refuse). **Design C
 splits them** — structural leaves omit the method (Option B's win,
 static error), value-dependent operators declare it and raise
@@ -2409,7 +2409,7 @@ following closure laws:
      - ``solve`` is the same code path as ``apply``:
        :math:`I^{-1} = I`.
      - Trivially yes: :math:`I^T = I`.
-   * - :class:`~orpheus.numerics.operator.ZeroOperator`
+   * - :class:`~orpheus.numerics.elementary_operators.ZeroOperator`
        (:math:`0`)
      - Trivially yes (returns ``np.zeros_like(x)``).
      - **Does not propagate.** The zero operator is not invertible.
@@ -2515,7 +2515,7 @@ Diagonal operator on a tagged axis
 
 The simplest non-trivial operator beyond the composition primitives
 is the **diagonal-on-an-axis** operator
-:class:`~orpheus.numerics.operator.DiagonalOperator`. For a 1-D
+:class:`~orpheus.numerics.elementary_operators.DiagonalOperator`. For a 1-D
 weight vector :math:`w \in \mathbb{R}^N` and target axis ``axis``,
 its action on a multi-axis tensor :math:`x` is elementwise
 multiplication along ``axis``:
@@ -2533,7 +2533,7 @@ multiplication along ``axis``:
    \;=\; w_n \, x_{\ldots,\,n,\,\ldots}.
 
 .. implements:: diagonal-operator-action
-   :by: orpheus.numerics.operator.DiagonalOperator.apply
+   :by: orpheus.numerics.elementary_operators.DiagonalOperator.apply
 
    **Implemented by** ``return self._broadcast(x_arr.ndim) * x_arr``:
    the tagged axis carries the weights and every other axis broadcasts
@@ -2689,7 +2689,7 @@ group-and-space-indexed broadcast over the ordinate axis:
 
    **Implemented by** the public verb, through the ONE multiply
    ``_run`` — :math:`f_{g,\vec r}\,\psi_{n,g,\vec r}` evaluated by the
-   :class:`~orpheus.numerics.operator.DiagonalOperator` broadcast engine
+   :class:`~orpheus.numerics.elementary_operators.DiagonalOperator` broadcast engine
    built once over the immutable coefficient, on either bulk rank. What
    the binding selects is only *how the result is packaged*: a composite
    binding lifts (the multiply on the bulk block, the implicit zero
@@ -2711,7 +2711,7 @@ group-and-space-indexed broadcast over the ordinate axis:
    verb the caller actually names.
 
 The action is delegated to the N-D
-:class:`~orpheus.numerics.operator.DiagonalOperator` broadcast engine
+:class:`~orpheus.numerics.elementary_operators.DiagonalOperator` broadcast engine
 (:eq:`diagonal-operator-action`, #257 S3a) as
 ``DiagonalOperator(f.values, broadcast_axes=(0,))``: the coefficient is
 an :math:`(n_g, *\text{spatial})` field, broadcast over the leading
@@ -2920,7 +2920,7 @@ operator algebra performs elsewhere — it **is** the contraction. It is
 the row-factor :math:`\langle\nu\Sigma_f|` of the fission rank-1 dyad
 :math:`F = |\chi\rangle\langle\nu\Sigma_f|`
 (:ref:`fission-as-dyad`): :meth:`RankOneOperator.apply
-<orpheus.numerics.operator.RankOneOperator.apply>` routes the fission
+<orpheus.numerics.elementary_operators.RankOneOperator.apply>` routes the fission
 matvec *through* ``functional.evaluate``, so there is no separate "fused"
 realization to drift from the named factor (the procedural twin the
 earlier S5 design carried is **dissolved** — :ref:`fission-as-dyad`
@@ -3340,7 +3340,7 @@ above is the gate that states the new spelling.
    (the per-cell density, specialising ``InnerProductFunctional``) and
    :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
    (the volume-integrated scalar) (L2). Rank-1 constructor:
-   :func:`~orpheus.numerics.operator.outer`. Intrinsic-category gate:
+   :func:`~orpheus.numerics.elementary_operators.outer`. Intrinsic-category gate:
    ``tests/gates/transport/test_functional_category.py`` (Functional ≠
    LinearOperator, both directions + discriminator foils). Correctness:
    ``tests/gates/transport/test_reaction_rate_functional.py`` (the closed-form
@@ -3404,7 +3404,7 @@ single ``kernel`` member exposing the integral structure as a
 The two named transport instances are the Boltzmann emission kernels.
 **Fission** exposes the rank-1 **dyad** :math:`F = |\chi\rangle\langle
 \nu\Sigma_f| = \texttt{outer}(\chi,\,\mathrm{ReactionRateFunctional}(\nu
-\Sigma_f))` (a :class:`~orpheus.numerics.operator.RankOneOperator`, lifted
+\Sigma_f))` (a :class:`~orpheus.numerics.elementary_operators.RankOneOperator`, lifted
 to a :class:`~orpheus.numerics.operator.TensorProductOperator` only to
 advertise the spatial-axis broadcast). Its row co-vector
 :math:`\langle\nu\Sigma_f|` is the S5 :eq:`production-rate-functional`
@@ -3518,8 +3518,8 @@ longer a procedural twin of a separately-named decomposition.
    * - **Fission** :math:`F`
      - rank-1 dyad
        :math:`|\chi\rangle\langle\nu\Sigma_f|`
-       (:class:`~orpheus.numerics.operator.RankOneOperator` via
-       :func:`~orpheus.numerics.operator.outer`, lifted to a
+       (:class:`~orpheus.numerics.elementary_operators.RankOneOperator` via
+       :func:`~orpheus.numerics.elementary_operators.outer`, lifted to a
        :class:`~orpheus.numerics.operator.TensorProductOperator` for the
        spatial-axis broadcast)
      - Fission emits an isotropic source whose group spectrum
@@ -3612,7 +3612,7 @@ closed-form :math:`k_\infty = \lambda_{\max}(A^{-1}F)` oracle.
    home: ``chi = self.fission.gather_chi(tuple(bulk.shape[1:]))`` then
    ``return outer(chi, self.production_rate) & IdentityOperator()``. Both
    ``apply`` arms route the matvec **through** this kernel, and
-   :meth:`RankOneOperator.apply <orpheus.numerics.operator.RankOneOperator.apply>`
+   :meth:`RankOneOperator.apply <orpheus.numerics.elementary_operators.RankOneOperator.apply>`
    is ``recon * functional.evaluate(x)`` — so there is one contraction, not
    a fused realization sitting beside a named one.
 
@@ -3663,7 +3663,7 @@ closed-form :math:`k_\infty = \lambda_{\max}(A^{-1}F)` oracle.
    :math:`M_\bullet` notation implies. The honest form is the **two-factor
    dyad** :math:`|\chi\rangle\langle\nu\Sigma_f|`: the column and the row
    are the only two objects, and the rank-1
-   :class:`~orpheus.numerics.operator.RankOneOperator` is the principled
+   :class:`~orpheus.numerics.elementary_operators.RankOneOperator` is the principled
    primitive that *is* the dyad's effect — its ``apply`` routes the matvec
    through the row functional, with no intermediate operator stages to
    materialise.
@@ -3713,7 +3713,7 @@ P_\ell \otimes \Sigma_{c,\ell}` with :math:`y_S = 1`,
    :math:`P_\ell` is ``head.degree_block(l)``, not a hard-coded
    ``[l, :2l+1]`` (:ref:`spaces-moment-head`). Lifting that shape up to the **full** kernel
    :math:`R\circ\Lambda\circ M` was **considered and rejected**. A
-   :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator` would
+   :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator` would
    require :math:`R` and :math:`M` to be tensor-product *factors* on
    independent axes, but they are rank-changing einsums that mix the
    ordinate and harmonic-coefficient axes — they are *not* valid
@@ -3721,7 +3721,7 @@ P_\ell \otimes \Sigma_{c,\ell}` with :math:`y_S = 1`,
    ``SumOfTensorProductsOperator`` would be a re-derivation of the
    moment redistribution, not a re-presentation of the existing one;
    that path is tracked as the un-orphaning of
-   :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator` on
+   :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator` on
    #260. The :math:`1/W` per-ordinate normalisation lives *outside* the
    kernel (the kernel is the redistribution, not the :term:`quadrature`
    weighting).
@@ -4017,7 +4017,7 @@ scattering are the **same object at two ranks**, and naming the relationship
 sharpens why fission is the simpler one. This subsection is a *reading* —
 a lens that organises the two kernels — **not** a new type to build. The
 right-grained primitives already exist (the dyad
-:func:`~orpheus.numerics.operator.outer`, the
+:func:`~orpheus.numerics.elementary_operators.outer`, the
 :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`, and the
 ``⊗`` / :class:`~orpheus.numerics.operator.TensorProductOperator`); the
 decomposition vocabulary names what they already *are*.
@@ -4108,7 +4108,7 @@ decomposition (full scattering).
      this algebra — the factors here are *known by physics* (:math:`\chi`,
      :math:`\nu\Sigma_f`, the :math:`Y_\ell` eigenbasis), not fitted.
    * **Do not mint a ``CPOperator`` or a polyadic umbrella type.** The dyad
-     :func:`~orpheus.numerics.operator.outer`, the
+     :func:`~orpheus.numerics.elementary_operators.outer`, the
      :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`, and
      ``⊗`` are already the right-grained primitives; an umbrella type would
      add ceremony and a conversion seam without making any illegal state
@@ -5201,7 +5201,7 @@ tracks is the *relocation* itself and the CP / MoC carrier unification.
    ``tests/gates/sn/operators/test_scattering_kernel_crosscheck.py`` (the
    :math:`S.\mathrm{kernel}.\mathrm{apply} \equiv R\circ\Lambda\circ M`
    0-ULP equivalence). Deferred follow-up: #260
-   (:class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+   (:class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
    un-orphaning).
 
 
@@ -5227,7 +5227,7 @@ factor naturally as a **tensor product** of per-axis operators:
 
      **Nothing implements this** — the factorization is exhibited to show the
      structure, and no production path takes it. :math:`[M]` 2026-08-18:
-     :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator` has
+     :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator` has
      **zero** consumers outside its own definition module and the package
      re-export, so nothing in ``orpheus/`` ever assembles
      :math:`L = D_x \otimes \Omega_x \otimes I_g + D_y \otimes \Omega_y
@@ -5298,7 +5298,7 @@ factor naturally as a **tensor product** of per-axis operators:
      This equation is a statement about **moment space**, and as such it
      *is* realized. The full per-ordinate scattering operator
      :math:`S = \tfrac{1}{W}(R\circ\Lambda\circ M)` has **no** such form:
-     a :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+     a :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
      would need :math:`R` and :math:`M` to be tensor-product factors on
      independent axes, and they are rank-changing einsums that *mix* the
      ordinate and harmonic-coefficient axes. That lift was considered and
@@ -5319,7 +5319,7 @@ factor naturally as a **tensor product** of per-axis operators:
 
 These canonical forms motivate the
 :class:`~orpheus.numerics.operator.TensorProductOperator` and
-:class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+:class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
 types. The user's architectural correction that drove their
 introduction:
 
@@ -5498,7 +5498,7 @@ group factor an identity — is bound exactly where :math:`K_\omega` is.
 
 **Why agreement suffices, and where it would stop.** A factor's binding
 in this module is a WHOLE-space binding, not a per-leg one: a
-:class:`~orpheus.numerics.operator.PermutationOperator` tagged
+:class:`~orpheus.numerics.elementary_operators.PermutationOperator` tagged
 ``axis=0`` acting on a :math:`(4, 3)` trace declares
 ``domain.shape == (4, 3)`` — both axes — because it broadcasts on the
 rest. The factors are therefore not describing separate legs to be
@@ -5622,7 +5622,7 @@ SumOfTensorProductsOperator
 ---------------------------
 
 When several tensor products are summed,
-:class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+:class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
 provides the §15.2 canonical scattering / streaming form's named
 type:
 
@@ -5992,7 +5992,7 @@ Three consumers read the mask today:
   gives a realized law's codomain :math:`\Gamma_-`, and
   ``outflow_indices_for_face(face)`` its **domain** :math:`\Gamma_+` —
   restricted through the
-  :class:`~orpheus.numerics.operator.TraceRestrictionOperator` the same
+  :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` the same
   table caches (campaign phase B3.2; see
   :ref:`bc-domain-narrowing`).
 * The universal invariant
@@ -8045,7 +8045,7 @@ Matching to the standard form :eq:`eigen-standard-form` gives
 side, because it is no longer the eigen-operator), :math:`M = T = 1/v`,
 and :math:`\mu = -1/\alpha`, i.e. :math:`\alpha = -1/\mu`. The only new
 machinery the :math:`\alpha`-row needs is a seventh leaf — a
-:class:`~orpheus.numerics.operator.DiagonalOperator` realizing
+:class:`~orpheus.numerics.elementary_operators.DiagonalOperator` realizing
 :math:`T = 1/v` — joining :math:`L, C, S, N_{2n}, F, B`. The posing, resolvent,
 and algorithm layers are unchanged; this is the cleanest possible fit
 and is why the layering was designed this way. **Not built** (only K
@@ -8351,8 +8351,8 @@ How coarse the guessing is deserves one concrete look.
 of those 60 symbols are named ``solve`` at all. The rest are matched by
 the label's *other* token: five ``apply`` methods, three
 ``solve_fixed_source``, ``is_invertible``, ``is_adjointable``,
-:func:`~orpheus.numerics.operator.outer`, and whole classes such as
-:class:`~orpheus.numerics.operator.ZeroOperator` and
+:func:`~orpheus.numerics.elementary_operators.outer`, and whole classes such as
+:class:`~orpheus.numerics.elementary_operators.ZeroOperator` and
 :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`.
 A two-token label over a module named ``operator`` matches most of the
 module.
@@ -8437,7 +8437,7 @@ falsehood at ``confidence = 1.0``.
    * - :eq:`streaming-as-tensor-product-sum`
      - Canonical form, deliberately not realized
      - :math:`[M]` its named type
-       :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+       :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
        has **zero** production consumers: grepping ``orpheus/`` returns
        only its own class definition and guard messages, two
        ``numerics/__init__`` export lines, and one docstring mention.

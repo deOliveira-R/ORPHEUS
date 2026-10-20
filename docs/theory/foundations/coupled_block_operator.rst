@@ -537,7 +537,7 @@ is the gather over the contiguous index block :math:`S_i` of member
 :math:`i`, and :math:`\iota_i` is its scatter: the trace restriction pair
 :eq:`bc-trace-restriction-pair` with :math:`S = S_i`. `[M]` on the fixture,
 the production restriction and a
-:class:`~orpheus.numerics.operator.TraceRestrictionOperator` built on
+:class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` built on
 ``system_slices[i]`` agree under ``np.array_equal`` in 200 of 200 draws, for
 both members and in both directions, while the gather over the block
 shifted by one row disagrees (``sysres_probe4.py``). What the coupled class

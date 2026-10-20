@@ -138,12 +138,16 @@ The :mod:`orpheus.numerics.operator` module installs the matrix-free
 operator-algebra primitives consumed by every solver. See
 :ref:`operator-algebra` for the design rationale, the three-layer
 operator surface (predicate / operator-returning method / realization
-verb), and tensor-product algebra.
+verb), and tensor-product algebra. The concrete leaves built on that
+algebra (the zero maps, the permutation and trace-restriction index maps,
+the diagonal multiplier, the rank-1 dyad and the sum of tensor products)
+live in :mod:`orpheus.numerics.elementary_operators`; the algebra module
+does not import them.
 
 Tensor-product primitives (Wave 0 of SN performance plan, Wave T
 consumers landed May 2026):
 
-* :class:`~orpheus.numerics.operator.DiagonalOperator` — diagonal
+* :class:`~orpheus.numerics.elementary_operators.DiagonalOperator` — diagonal
   multiplication on a tagged tensor axis. The ``AngularWeightMatrix``
   :math:`W` of Grand Report v3 §9 is
   ``DiagonalOperator.from_measure(quad.measure, axis=0)``.
@@ -153,7 +157,7 @@ consumers landed May 2026):
   :math:`(A \otimes B)^* = A^* \otimes B^*`,
   :math:`(A \otimes B) \circ (C \otimes D) = (A \circ C) \otimes
   (B \circ D)`. See :ref:`tensorial-framing`.
-* :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+* :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
   — :math:`\sum_k A_k \otimes B_k \otimes \cdots`; the §15.2
   *aspirational* canonical scattering / streaming form. **Zero
   production consumers** today; see :ref:`tensor-network-decomposition`
@@ -164,19 +168,19 @@ consumers landed May 2026):
   status (T.3 scattering kernel; the T.4 per-direction streaming split
   was retired in #238 — the fused matvec walks both directions in one
   pass); see :ref:`tensor-network-shape-table`.
-* :class:`~orpheus.numerics.operator.RankOneOperator` — the rank-1 dyad
+* :class:`~orpheus.numerics.elementary_operators.RankOneOperator` — the rank-1 dyad
   :math:`|v\rangle\langle w|`: a reconstruction **column** ``v`` and a
   :class:`~orpheus.numerics.functional.Functional` **row** ``⟨w|``, with
   ``apply(x) = v * functional.evaluate(x)`` (the matvec routes *through*
   the functional, not a parallel reduction). Built by the free function
-  :func:`~orpheus.numerics.operator.outer`\ ``(reconstruction,
+  :func:`~orpheus.numerics.elementary_operators.outer`\ ``(reconstruction,
   functional)``; native to the multigroup fission emission
   :math:`F = |\chi\rangle\langle\nu\Sigma_f|` (:attr:`IsotropicFission.kernel`,
   the fission energy binding's one arithmetic home since CS4c step 4;
   ``FissionOperator.kernel`` delegates to it).
   A genuine :math:`M\times K` rank-1 operator is legal (no same-shape
   constraint between column and row).
-* :func:`~orpheus.numerics.operator.outer` — the universal rank-1
+* :func:`~orpheus.numerics.elementary_operators.outer` — the universal rank-1
   constructor ``outer(reconstruction, functional)``, the readable verb
   for :math:`|v\rangle\langle w|`. Exported from
   :mod:`orpheus.numerics`.
@@ -216,7 +220,7 @@ master condition that decides between :class:`TensorProductOperator`,
      - Six clean-TP production instances. The MA-Q1 master condition
        is satisfied: each consumer factors as disjoint per-axis
        operations.
-   * - :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+   * - :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
      - 0
      - (no production consumers)
      - The §15.2 SOTP form is aspirational; Wave T T.3 (scattering)
@@ -255,12 +259,12 @@ master condition that decides between :class:`TensorProductOperator`,
        (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`)
        walks both directions in ONE bidirectional pass.
        See :ref:`tensor-network-orchestrated-apply`.
-   * - :class:`~orpheus.numerics.operator.RankOneOperator`
+   * - :class:`~orpheus.numerics.elementary_operators.RankOneOperator`
      - 1
      - Wave T T.2 fission kernel
        (:attr:`IsotropicFission.kernel` first factor of the
        :class:`TensorProductOperator`); built via
-       :func:`~orpheus.numerics.operator.outer`
+       :func:`~orpheus.numerics.elementary_operators.outer`
      - The dyad :math:`|\chi\rangle\langle\nu\Sigma_f|`: encodes the
        group-axis contraction-then-broadcast
        :math:`(F\,\phi)_g = \chi_g\,\sum_{g'}\nu\Sigma_{f,g'}\,\phi_{g'}`
@@ -744,7 +748,7 @@ tensor-product primitives are documented at :ref:`operator-algebra`
 The :class:`~orpheus.numerics.functional.Functional` Protocol (the §5.6
 suffix-law co-vector), its concrete
 :class:`~orpheus.numerics.functional.InnerProductFunctional`, and the
-rank-1 dyad constructor :func:`~orpheus.numerics.operator.outer`
+rank-1 dyad constructor :func:`~orpheus.numerics.elementary_operators.outer`
 (:math:`|v\rangle\langle w|`) are documented at
 :ref:`functional-category`.
 The discrete :class:`~orpheus.numerics.frame.FrameBase` hierarchy

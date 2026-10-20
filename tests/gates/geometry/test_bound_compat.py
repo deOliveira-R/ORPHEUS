@@ -52,11 +52,8 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
 )
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
-from orpheus.numerics.operator import (
-    IdentityOperator,
-    PermutationOperator,
-    ZeroOperator,
-)
+from orpheus.numerics.elementary_operators import PermutationOperator, ZeroOperator
+from orpheus.numerics.operator import IdentityOperator
 from tests._harness.references import mirror_partner_indices
 from tests.gates.sn._test_helpers import placeholder_materials
 
@@ -284,7 +281,7 @@ class Test188WiringContracts:
         """
         from orpheus.geometry import BC, StructuredGeometry
         from orpheus.mesh import CellsByCount, Mesher
-        from orpheus.numerics.operator import ZeroMorphism
+        from orpheus.numerics.elementary_operators import ZeroMorphism
         from orpheus.sn.problem import SNProblem
         from orpheus.numerics.quadrature import Quadrature
 

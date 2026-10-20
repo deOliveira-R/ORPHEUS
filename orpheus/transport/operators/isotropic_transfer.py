@@ -403,7 +403,7 @@ class IsotropicFission(BoundOperator):
 
     **Arithmetic home & caching.** Unlike its two loss-side siblings
     (which route per-material accumulation verbs), fission's arithmetic
-    is the :class:`~orpheus.numerics.operator.RankOneOperator` dyad on
+    is the :class:`~orpheus.numerics.elementary_operators.RankOneOperator` dyad on
     CELLWISE factors, cached once via :attr:`kernel` (the CS4c step-3
     satellite ruling: composites are minted once per binding, not per
     apply; a depletion update re-binds the operator, as :math:`C`
@@ -514,13 +514,14 @@ class IsotropicFission(BoundOperator):
         ``outer(χ, production_rate) & IdentityOperator()``: the rank-1
         dyad on the gathered cellwise factors tensored with the
         spatial-axis broadcast (the
-        :meth:`~orpheus.numerics.operator.RankOneOperator.apply`
+        :meth:`~orpheus.numerics.elementary_operators.RankOneOperator.apply`
         reduction order is unchanged since CS4c step 4 — bit-identity is
         gated). Its transpose IS the dual dyad
         :math:`|\nu\Sigma_f\rangle\langle\chi|` by the factor-swap
         theorem — no fission-specific transpose arithmetic exists
         anywhere."""
-        from orpheus.numerics.operator import IdentityOperator, outer
+        from orpheus.numerics.elementary_operators import outer
+        from orpheus.numerics.operator import IdentityOperator
 
         return outer(self.emission_spectrum, self.production_rate) & IdentityOperator()
 

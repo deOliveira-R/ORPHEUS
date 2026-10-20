@@ -17,7 +17,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.homogeneous.solver import HomogeneousProblem, solve_homogeneous_infinite
 from orpheus.numerics.pencil import OperatorPencil
-from orpheus.numerics.operator import DiagonalOperator
+from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.posing import ALPHA_MAP, K_MAP, EigenPosing, SourcePosing
 
 pytestmark = pytest.mark.foundation

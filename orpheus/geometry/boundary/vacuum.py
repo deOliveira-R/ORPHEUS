@@ -31,7 +31,7 @@ class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
     no ``apply`` method. The SN realisation is the **narrowed zero
     map** :math:`\Gamma_+ \to \Gamma_-`: vacuum returns nothing for
     any outflow, so the honest realization is a
-    :class:`~orpheus.numerics.operator.ZeroOperator` *between* the two
+    :class:`~orpheus.numerics.elementary_operators.ZeroOperator` *between* the two
     half-traces, whose symmetric space hooks emit the zero of
     :math:`\Gamma_-` forward and the zero of :math:`\Gamma_+` on the
     transpose.

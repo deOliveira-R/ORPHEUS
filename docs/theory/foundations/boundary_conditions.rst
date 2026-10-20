@@ -141,13 +141,13 @@ Key Facts
   :math:`B_{\rm face} = \iota_- \circ \text{law} \circ \gamma_+`
   (transpose :math:`\iota_+ \circ \text{law}^{\mathsf T} \circ
   \gamma_-`) out of the trace restrictions
-  :class:`~orpheus.numerics.operator.TraceRestrictionOperator`; nothing
+  :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator`; nothing
   is computed and then discarded. Pre-B3.2 the law was handed the
   **whole face slot** and the consumer threw the outflow rows away with
   a slice-write — see :ref:`bc-domain-narrowing`, and
   :ref:`bc-vacuum-semantic-correction` for what that removed.
 - **Vacuum realizes to the ZERO MAP** :math:`\Gamma_+ \to \Gamma_-`
-  (a :class:`~orpheus.numerics.operator.ZeroOperator` carrying both
+  (a :class:`~orpheus.numerics.elementary_operators.ZeroOperator` carrying both
   space hooks). Vacuum's whole content is :math:`R = 0`; with the
   domain narrowed there is nothing else to represent. Pre-B3.2 it
   realized to an ``IncomingOrdinateMaskTensor``
@@ -1086,7 +1086,7 @@ A mirror is an involution — :math:`\sigma^2 = \mathrm{id}` is the whole
 content of a symmetry plane, and ERR-044 guards it. It is therefore
 natural to expect the *realized* specular operator to report itself an
 involution, and until G6.3 step 5
-:class:`~orpheus.numerics.operator.PermutationOperator` carried an
+:class:`~orpheus.numerics.elementary_operators.PermutationOperator` carried an
 ``is_involution`` attribute — set at construction from
 ``perm[perm] == np.arange(N)`` — to say so. **It could not, and the reason
 is structural rather than numerical.**
@@ -1174,7 +1174,7 @@ explicit rather than to tune the value.
 One consequence worth stating, because dropping it would have been the
 quieter bug. :math:`P : \Gamma_+ \to \Gamma_-` has
 :math:`P^{-1} : \Gamma_- \to \Gamma_+`, so
-:meth:`~orpheus.numerics.operator.PermutationOperator.inverse` **inverts
+:meth:`~orpheus.numerics.elementary_operators.PermutationOperator.inverse` **inverts
 the binding** rather than carrying or discarding it. Discarding it would
 have left the return leg composable with anything while the forward leg
 was fully typed — an asymmetry no gate on the forward leg could see.
@@ -1468,7 +1468,7 @@ the *whole face slot* — all ``quad.n_ordinates`` ordinate rows — with the ou
 rows thrown away afterwards by a slice-write at the consumer. B3.1
 minted the missing primitive and B3.2 narrowed the law onto it.
 
-:class:`~orpheus.numerics.operator.TraceRestrictionOperator` is the
+:class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` is the
 gather / scatter pair. Given a **sorted, unique** index set
 :math:`S \subset \{0,\dots,N-1\}` of size :math:`m < N`:
 
@@ -1492,11 +1492,11 @@ gather / scatter pair. Given a **sorted, unique** index set
 
 with :math:`\gamma_S \iota_S = I` on the restricted space and
 :math:`\iota_S \gamma_S = P_S` the orthogonal projector onto it. It is
-a **sibling of** :class:`~orpheus.numerics.operator.PermutationOperator`
+a **sibling of** :class:`~orpheus.numerics.elementary_operators.PermutationOperator`
 and deliberately **not a subclass**: same ``np.take`` mechanism with a
 non-square index array, but different algebra in kind — a permutation
 is a bijection (invertible, with an algebra-closed
-:meth:`~orpheus.numerics.operator.PermutationOperator.inverse`) while a
+:meth:`~orpheus.numerics.elementary_operators.PermutationOperator.inverse`) while a
 restriction is rank-deficient by construction and has a *scatter*
 transpose rather than an inverse. Inheriting would promise what the
 type cannot honour.
@@ -1570,7 +1570,7 @@ own:
      - taken **off the vacuum path** at B3.2 and **deleted at B3.3**.
        Of its thirteen tests, twelve asserted either the masking
        semantics the narrowing removed or a law
-       :class:`~orpheus.numerics.operator.TraceRestrictionOperator`'s
+       :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator`'s
        own battery already gates; only the non-aliasing claim was
        genuinely uncovered, and it migrated
 
@@ -1644,7 +1644,7 @@ across four law kinds. **B3.4a** took two of those kinds:
 
 What remained was **four rows across two law kinds** — ``albedo`` at
 *three* rows (:math:`\alpha = 0` and :math:`\alpha = 1` take fast paths
-returning a bare :class:`~orpheus.numerics.operator.ZeroOperator` /
+returning a bare :class:`~orpheus.numerics.elementary_operators.ZeroOperator` /
 :class:`~orpheus.numerics.operator.IdentityOperator`, which are
 **endomorphisms**, and :math:`\alpha \notin \{0,1\}` scales an
 identity), plus ``periodic``. Both are blocked on a **design ruling**,
@@ -1979,12 +1979,12 @@ instead; it is realizable only on a scalar trace):
      - :math:`0` — the zero morphism
        :math:`\Gamma_+ \to \Gamma_-`
      - :math:`0`
-     - :class:`~orpheus.numerics.operator.ZeroOperator`, both spaces
+     - :class:`~orpheus.numerics.elementary_operators.ZeroOperator`, both spaces
        bound
    * - :class:`~orpheus.geometry.boundary.PrescribedInflow`
      - :math:`0` — **the same zero morphism**
      - :math:`\neq 0`
-     - :class:`~orpheus.numerics.operator.ZeroOperator`, both spaces
+     - :class:`~orpheus.numerics.elementary_operators.ZeroOperator`, both spaces
        bound
    * - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
      - :math:`P` — a permutation, unscaled (a symmetry has no
@@ -2919,7 +2919,7 @@ method:
 
 * SN realizes vacuum as the **zero map**
   :math:`\Gamma_+ \to \Gamma_-` on that face's two half-traces (a
-  :class:`~orpheus.numerics.operator.ZeroOperator` carrying both space
+  :class:`~orpheus.numerics.elementary_operators.ZeroOperator` carrying both space
   hooks, so the forward emits the zero of :math:`\Gamma_-` and the
   transpose the zero of :math:`\Gamma_+` — see
   :ref:`bc-domain-narrowing`).
@@ -3225,7 +3225,7 @@ definition with no source).
 projection, since B3.2 solved by **typing**.
 At the time of the extraction the realized per-face law was a
 **full-face operator**: a specular
-:class:`~orpheus.numerics.operator.PermutationOperator` for reflective,
+:class:`~orpheus.numerics.elementary_operators.PermutationOperator` for reflective,
 the then-welded ``AngularAverageOperator`` for
 white. Its permutation mapped the input's *inflow* slots onto the
 *output's outflow* slots (a spurious :math:`R\cdot\psi.\text{inflow}`),
@@ -3564,7 +3564,7 @@ V_{\rm inflow}`: it maps the *outflow* trace to the *inflow* trace.
 Both delivery routes ultimately need the same per-face action —
 restrict the face slot to :math:`\Gamma_+`, apply that face's realized
 law (a specular
-:class:`~orpheus.numerics.operator.PermutationOperator` on the
+:class:`~orpheus.numerics.elementary_operators.PermutationOperator` on the
 **reduced** ordinate axis for reflective, the zero map for vacuum), and
 scatter the image back over :math:`\Gamma_-`. To guarantee
 they cannot drift, that action is the single
@@ -4928,7 +4928,7 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
      - Realized representation (α ∉ {0, 1})
    * - :class:`VacuumInflow` — **narrowed**
      - the **zero map** :math:`\Gamma_+ \to \Gamma_-`: a
-       :class:`~orpheus.numerics.operator.ZeroMorphism` bound to the two
+       :class:`~orpheus.numerics.elementary_operators.ZeroMorphism` bound to the two
        half-traces, which derives the forward's :math:`|\Gamma_-|` rows
        and the transpose's :math:`|\Gamma_+|` rows from its **declared
        pair** (the 2026-08-22 S4-amendment; before it, two per-site
@@ -5032,7 +5032,7 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
    * - :class:`PrescribedInflow(source)` — the rank-0 **affine** law;
        **narrowed** (B3.4a), **collapsed** (P3)
      - the **zero map** :math:`\Gamma_+ \to \Gamma_-` — literally the
-       same :class:`~orpheus.numerics.operator.ZeroOperator` expression
+       same :class:`~orpheus.numerics.elementary_operators.ZeroOperator` expression
        the vacuum row above builds, from the same
        ``_narrowed_zero_operator`` body, stamped
        :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` like every
@@ -5448,7 +5448,7 @@ projection the face NAME alone implies:
 
 The returned ``realized`` is the **zero map**
 :math:`\Gamma_+ \to \Gamma_-`: a
-:class:`~orpheus.numerics.operator.ZeroMorphism` carrying **both
+:class:`~orpheus.numerics.elementary_operators.ZeroMorphism` carrying **both
 spaces**, so the forward emits the zero of :math:`\Gamma_-` and the
 transpose the zero of :math:`\Gamma_+`. It reports
 ``is_adjointable = True`` and ``is_invertible = False``. Vacuum's whole
@@ -5468,7 +5468,7 @@ else to represent.
    rows are no longer in the operator's domain.
 
    The two spaces are load-bearing, not ceremony. A
-   :class:`~orpheus.numerics.operator.ZeroOperator` — the endomorphic
+   :class:`~orpheus.numerics.elementary_operators.ZeroOperator` — the endomorphic
    member of the family — returns ``0.0 * x``, an *echo* of its input's
    shape.  That would be right here only by accident, because
    :math:`|\Gamma_+| = |\Gamma_-|` on every reachable fixture; the
@@ -5481,8 +5481,8 @@ else to represent.
    ``ZeroOperator``, ``codomain_zero`` and ``transpose_zero``, passed by
    each caller.  They duplicated what the bound spaces already knew, so
    the amendment split the zero in two — the stateless endomorphic
-   :class:`~orpheus.numerics.operator.ZeroOperator` and the born-bound
-   :class:`~orpheus.numerics.operator.ZeroMorphism`, which derives both
+   :class:`~orpheus.numerics.elementary_operators.ZeroOperator` and the born-bound
+   :class:`~orpheus.numerics.elementary_operators.ZeroMorphism`, which derives both
    zeros from its **declared pair** — and the hooks retired with it
    (``[M]`` ``grep -rn "codomain_zero" orpheus/`` returns four hits,
    every one of them past-tense prose).  The *argument* above is
@@ -5631,12 +5631,12 @@ it must now hand it a :math:`\Gamma_+`-shaped argument.
 
    **Being narrowed and validating one's own domain are separate
    properties.** Measured, and still true: fed a full-face input, both
-   vacuum's :class:`~orpheus.numerics.operator.ZeroOperator` and
+   vacuum's :class:`~orpheus.numerics.elementary_operators.ZeroOperator` and
    reflective's :class:`~orpheus.numerics.operator.TensorProductOperator`
    return :math:`|\Gamma_-|` rows of **wrong values with no raise** —
    they are correctly typed :math:`\Gamma_+ \to \Gamma_-` and still
    silent about a wrong-shaped argument. The construction guard lives
-   on :class:`~orpheus.numerics.operator.TraceRestrictionOperator` and
+   on :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` and
    does not travel to the operator the realizer *emits*. This is
    unreachable through
    :meth:`_reflect_trace <orpheus.sn.operators.boundary.SNBoundaryOperator>`
@@ -6123,7 +6123,7 @@ The walker's input is intentionally narrow:
 * Wave-0 operator-tree composers
   (:class:`~orpheus.numerics.operator.OperatorProduct`,
   :class:`~orpheus.numerics.operator.TensorProductOperator`,
-  :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`,
+  :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`,
   :class:`~orpheus.numerics.operator.OperatorSum`,
   :class:`~orpheus.numerics.operator.ScaledOperator`) are **not**
   recognized — they belong to the operator tree, not the
@@ -6280,7 +6280,7 @@ the right contract:
    :math:`\Gamma_+`, the vacuum law is not an endomorphism at all, so
    "idempotent" is not even a well-typed thing to ask of it — the
    composite :math:`\text{law} \circ \text{law}` does not exist.
-   :class:`~orpheus.numerics.operator.ZeroOperator` is now exactly the
+   :class:`~orpheus.numerics.elementary_operators.ZeroOperator` is now exactly the
    right type tag, carrying two space hooks rather than an echo.
 3. **Algebraic uniformity.** *The argument was:* every other rank-1 law
    acts on the inflow ordinates only and leaves the outflow rows

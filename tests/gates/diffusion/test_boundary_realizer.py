@@ -51,12 +51,8 @@ from orpheus.geometry.boundary import (
     ZeroFluxBoundary,
     realize_recursively,
 )
-from orpheus.numerics.operator import (
-    BlockRole,
-    BoundaryOperator,
-    IdentityOperator,
-    ZeroOperator,
-)
+from orpheus.numerics.elementary_operators import ZeroOperator
+from orpheus.numerics.operator import BlockRole, BoundaryOperator, IdentityOperator
 from orpheus.mesh import CellsByCount, Mesher
 
 # V&V LEVELS — B0.3 REPAIR (2026-07-30). This file used to carry a

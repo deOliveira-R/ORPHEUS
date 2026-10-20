@@ -31,12 +31,11 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+from orpheus.numerics.elementary_operators import DiagonalOperator, PermutationOperator
 from orpheus.numerics.operator import (
-    DiagonalOperator,
     LinearOperator,
     MatrixTooLarge,
     NotInvertible,
-    PermutationOperator,
     ScaledOperator,
 )
 from orpheus.numerics.space import FunctionSpace

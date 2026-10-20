@@ -329,7 +329,7 @@ rebuilt fresh objects). The factors stay reachable as ``.inner.a`` /
        canonical seeded ``apply`` — the object *represents* :math:`A^{-1}`
        by inverting :math:`A` on demand.
    * - **Algebra-closed** (first-class forwards)
-     - :class:`~orpheus.numerics.operator.PermutationOperator` (inverse *is*
+     - :class:`~orpheus.numerics.elementary_operators.PermutationOperator` (inverse *is*
        a permutation), :class:`~orpheus.numerics.operator.IdentityOperator`
        (self-inverse), :class:`~orpheus.numerics.operator.ScaledOperator`
        (:math:`(\alpha L)^{-1}=\alpha^{-1}L^{-1}`)

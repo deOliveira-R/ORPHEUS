@@ -32,13 +32,13 @@ from orpheus.geometry.boundary import (
     stamp_boundary_role,
 )
 from orpheus.numerics.green_operator import GreenOperator
+from orpheus.numerics.elementary_operators import ZeroOperator
 from orpheus.numerics.operator import (
     BlockRole,
     BoundaryOperator,
     BulkOperator,
     FullOperator,
     OperatorSum,
-    ZeroOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
@@ -172,7 +172,7 @@ class TestRealizedPrescribedInflowCapabilities:
 
     ``is_invertible`` stays ``False`` and ``inverse`` stays absent — the zero
     map is the singular map par excellence, and
-    :class:`~orpheus.numerics.operator.ZeroOperator` declines to declare an
+    :class:`~orpheus.numerics.elementary_operators.ZeroOperator` declines to declare an
     ``inverse()`` at all rather than shipping a raising stub.
     """
 

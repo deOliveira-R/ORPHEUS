@@ -16,6 +16,7 @@ import numpy as np
 import pytest
 
 from tests.gates.numerics import NUMERICS_DATA
+from orpheus.numerics.elementary_operators import PermutationOperator, ZeroOperator
 from orpheus.numerics.operator import (
     IdentityOperator,
     InverseOperator,
@@ -23,9 +24,7 @@ from orpheus.numerics.operator import (
     NotInvertible,
     OperatorProduct,
     OperatorSum,
-    PermutationOperator,
     ScaledOperator,
-    ZeroOperator,
 )
 
 pytestmark = pytest.mark.foundation
@@ -760,7 +759,8 @@ def _reroute_fixtures():
     spelling on the pre-carve tree; the snapshot is the INHERITANCE
     reference the re-routed spelling must reproduce.
     """
-    from orpheus.numerics.operator import DiagonalOperator, TensorProductOperator  # noqa: F401
+    from orpheus.numerics.elementary_operators import DiagonalOperator
+    from orpheus.numerics.operator import TensorProductOperator
 
     rng = np.random.default_rng(2860)
     q = rng.standard_normal(7)

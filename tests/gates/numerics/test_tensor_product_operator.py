@@ -23,17 +23,19 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.functional import InnerProductFunctional
-from orpheus.numerics.operator import (
+from orpheus.numerics.elementary_operators import (
     DiagonalOperator,
-    IdentityOperator,
-    IncompatibleOperatorComposition,
-    NotInvertible,
     PermutationOperator,
     RankOneOperator,
     SumOfTensorProductsOperator,
-    TensorProductOperator,
     ZeroOperator,
     outer,
+)
+from orpheus.numerics.operator import (
+    IdentityOperator,
+    IncompatibleOperatorComposition,
+    NotInvertible,
+    TensorProductOperator,
 )
 from orpheus.numerics.space import FunctionSpace
 

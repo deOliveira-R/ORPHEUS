@@ -10,26 +10,28 @@ from .measure import (
     DiscreteMeasure,
     DiscreteMeasurePartition,
 )
-from .operator import (
+from .elementary_operators import (
     DiagonalOperator,
+    RankOneOperator,
+    SumOfTensorProductsOperator,
+    ZeroMorphism,
+    ZeroOperator,
+    outer,
+)
+from .operator import (
     IdentityOperator,
     LinearOperator,
     MissingAdjoint,
     NotInvertible,
     OperatorProduct,
     OperatorSum,
-    RankOneOperator,
     ScaledOperator,
-    SumOfTensorProductsOperator,
     SupportsAdjoint,
     SupportsInverse,
     TensorProductOperator,
     PointwiseOperator,
-    ZeroMorphism,
-    ZeroOperator,
     adjointable,
     invertible,
-    outer,
 )
 from .basis import Basis, SphericalHarmonicBasis
 from .frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame

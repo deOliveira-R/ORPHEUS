@@ -28,7 +28,7 @@ that a quadrature alone cannot supply, so ``SNMethodSpace.minimal`` no longer
 suffices for the two laws below.
 
 * :class:`~orpheus.geometry.boundary.vacuum.VacuumInflow` → the **zero map**
-  :math:`\Gamma_+ \to \Gamma_-` (a :class:`~orpheus.numerics.operator.ZeroMorphism`
+  :math:`\Gamma_+ \to \Gamma_-` (a :class:`~orpheus.numerics.elementary_operators.ZeroMorphism`
   bound to both half-traces). Vacuum's whole content is :math:`R = 0`; with
   the domain narrowed there is nothing else to represent.
 
@@ -101,7 +101,7 @@ suffices for the two laws below.
   :class:`~orpheus.numerics.operator.IdentityOperator` (the crossing it
   carries is the PARTNER-face channel, not an action on the trace).
 * :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow(source)` →
-  :class:`~orpheus.numerics.operator.ZeroMorphism` — the same zero morphism
+  :class:`~orpheus.numerics.elementary_operators.ZeroMorphism` — the same zero morphism
   vacuum returns, because the law is affine and this tier realizes its LINEAR
   factor, which is :math:`0`. The source travels the boundary-source channel
   (:ref:`bc-affine-source-channel`). The rank-0 affine BC (Wave 7 / C7.5);
@@ -177,14 +177,13 @@ from orpheus.numerics.spaces.angular_trace_space import (
     AngularFaceTraceSpace,
     build_omega_dot_n,
 )
-from orpheus.numerics.operator import (
-    IdentityOperator,
-    LinearOperator,
+from orpheus.numerics.elementary_operators import (
     PermutationOperator,
     TraceRestrictionOperator,
     ZeroMorphism,
     checked_space_extent,
 )
+from orpheus.numerics.operator import IdentityOperator, LinearOperator
 from .angular import (
     IsotropicEmissionOperator,
     PartialCurrentOperator,
@@ -318,7 +317,7 @@ def _narrowed_zero_operator(
 
     A zero map between two DIFFERENT spaces must emit the zero of the space it
     lands in, not an echo of the one it came from — the bound
-    :class:`~orpheus.numerics.operator.ZeroMorphism`, which derives both
+    :class:`~orpheus.numerics.elementary_operators.ZeroMorphism`, which derives both
     zeros from its DECLARED pair (the S4-amendment: the pre-amendment
     per-site ``codomain_zero``/``transpose_zero`` closures duplicated what
     the bound spaces already knew, and retired with the hooks). Relying on
@@ -542,7 +541,7 @@ def _deck_kernel(
     quadrature's local index ordering rather than the mirror. Bound, the
     question stops being answerable at all: :math:`P \circ P` is not an
     expression when the ends are different spaces, so
-    :class:`~orpheus.numerics.operator.PermutationOperator` no longer stores
+    :class:`~orpheus.numerics.elementary_operators.PermutationOperator` no longer stores
     a ``bool`` about it — ``P @ P`` raises, which is the same claim delivered
     by the algebra. The involution that IS real lives one tier up, on the
     full-space mirror pairing
@@ -772,7 +771,7 @@ class SNBoundaryRealizer:
         The concrete return is always a :class:`LinearOperator`
         subclass (a generic numerics primitive —
         :class:`TensorProductOperator` / :class:`ScaledOperator` /
-        :class:`~orpheus.numerics.operator.ZeroOperator` / …); the narrower mixin type
+        :class:`~orpheus.numerics.elementary_operators.ZeroOperator` / …); the narrower mixin type
         (vs the bare :class:`LinearOperator` Protocol) lets the
         :func:`~orpheus.geometry.boundary.stamp_boundary_role`
         ``block_role`` instance-stamp type-check and keeps the

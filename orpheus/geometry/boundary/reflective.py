@@ -64,7 +64,7 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
     This is a **pure descriptor** (Issue #186 / B3 + β2): it carries no
     ``apply`` / ``apply_transpose`` methods. Realize it via
     :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` to obtain the
-    :class:`~orpheus.numerics.operator.PermutationOperator`:
+    :class:`~orpheus.numerics.elementary_operators.PermutationOperator`:
 
     .. code-block:: python
 

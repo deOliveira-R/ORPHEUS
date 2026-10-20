@@ -21,17 +21,19 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics.elementary_operators import (
+    DiagonalOperator,
+    PermutationOperator,
+    TraceRestrictionOperator,
+    ZeroOperator,
+)
 from orpheus.numerics.operator import (
     AdjointOperator,
-    DiagonalOperator,
     IdentityOperator,
     LinearOperator,
     MissingAdjoint,
-    PermutationOperator,
     ScaledOperator,
     TensorProductOperator,
-    TraceRestrictionOperator,
-    ZeroOperator,
 )
 from orpheus.numerics.space import FunctionSpace
 from tests._harness.predicates import (
