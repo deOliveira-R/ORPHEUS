@@ -31,6 +31,7 @@ it (`process-discipline`).
 
 | review | lesson → digest rule |
 |---|---|
+| W3 numerics-untangling S2 linear combination (2026-10-20) | L-104 → B21 |
 | W1 #405 P3 concept 2 door re-pose (2026-10-17) | L-103 → B20 |
 | W1 P3 step 3e axial lift (2026-10-12) | L-102 → A26 |
 | W3 #578 P2 reference sites onto the kernel (2026-10-11) | L-101 → D15 |

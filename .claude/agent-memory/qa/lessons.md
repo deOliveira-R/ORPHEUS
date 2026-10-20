@@ -239,6 +239,11 @@ bypass battery proves its teeth only under bypass.** check: for each arm whose r
 re-posed rows, re-run it WITHOUT bypass on a store target over the default tier; a red names the
 surviving in-process pin, a green is a lost pin; and a `catches` marker's row is re-read the same way. → L-103
 
+**B21. When a carve makes the algebra NORMALISE (flatten, collect, collapse), census every fact
+STAMPED on an operator instance (`op.block_role = …`, `A.system_role = …`) and read it again after
+`-op`, `2·op` and `op + other`, at every amplitude.** A normaliser mints fresh objects and the stamp
+does not travel; the reading is amplitude-dependent when `1·X is X` keeps it and `α·X` does not. → L-104
+
 ---
 
 

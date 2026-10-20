@@ -6133,3 +6133,14 @@ ONLY re-posed rows in the bypass table. Re-run with `NO_BYPASS=1` on a store tar
 reddened in-process rows (Q4[interface], G2 F2-thick-wall, F3-thin-wall): no pin lost. ERR-105's `[wall]` row, red
 under bypass, is GREEN without it (`qa/q4_nobypass_err105.log`). Not covered by `vv-principles` #17's traced-memo
 sentence (it says how to make a mutation reach a memo read, not which run decides whether a re-pose lost a pin).
+
+## L-104 — an algebra that NORMALISES drops every fact stamped on an operator INSTANCE (2026-10-20, W3 S2 qa, `05435b04` + uncommitted)
+
+S2 made `+`, `−`, `α·` route through `linear_combination`, which flattens a one-term combination operand, collects
+terms and collapses `1·A` to `A`. `stamp_boundary_role` sets `op.block_role = BOUNDARY` on the realized face
+operator, and at 0 < α < 1 that operator is now a one-term `OperatorSum`. `-op`, `2·op` and the Marshak mix
+`0.3·X + 0.7·Y` re-normalise it into fresh objects whose role is the join of the bare tensor product's `None`: role
+`None` at α ∈ {0, 0.5} and in the mix, `BOUNDARY` at α = 1; HEAD gave `BOUNDARY` in all six readings
+(`S2_review/qa_probes/role_probe.py`). The same holds for `A_AA.system_role = A` under `-A_AA`. No production reader
+decides on either role today, so no gate reddened. Not covered by `vv-principles` #28 (a guard on optional metadata)
+or #33 (one fact, two jobs): the population is every `obj.<attr> = …` stamp on an operator the algebra may rebuild.
