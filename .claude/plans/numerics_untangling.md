@@ -80,7 +80,7 @@ Glosses are summaries. When a ruling's exact wording matters, read it at its sou
 - **55.** A block or system role lives on the LEAVES: the site that builds an atom stamps it, and every composite derives its role by the join; the zero map a combination mints inherits the join of the cancelled terms' roles (rests on 23; the S2 review's F1).
 - **56.** A multiplier refuses a space without labelled axes rather than guess which axes its coefficient spans (rests on 9's space-first reading; the S2 review).
 - **57.** The two disagreeing seed paths of a scaled inverse (αA)⁻¹ move to S4, which owns how the Strategy realises an inverse (rests on 20).
-- State: 23 and 50–57 are **in flight** (S2, branch `refactor/s2-linear-combination`).
+- State: `[LANDED 4e5ee36b]` (S2). Owed from here: 57 and the seed paths to S4; the fused atoms' assembly note to S3.
 
 ### G. After the algebra: assembly, the inverse family, the Strategy
 - **24.** Assembly is a homomorphism out of the algebra: each leaf returns its raw matrix, and `[Σ cᵢTᵢ] = Σ cᵢ[Tᵢ]` folds over the terms (rests on 23). **Owed** as S3. It removes G0's PENDING edge `("assembled_operator","operator")`.
@@ -976,7 +976,7 @@ Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
   - The fold subtracts at −1 and accumulates in place only into a buffer it owns. `[M]` peak 3.0086× against the 4.0× ceiling of `test_p3_peak_allocation_per_dof`.
   - `ScheduledInvertibleOperator.expansion()` is the flattened `L + C − B_lower`.
 
-**S2 written, reviewed** (2026-10-20). The main agent wrote the production carve with checkpoints. The test-architect re-baselined 46 test files and one fixture (110 log lines: RE-POSE 77, INVERTED 12, DEMOTED 11, DEAD 4; `scratch/numerics_untangling/packages/S2_rebaseline_log.md`). The archivist wrote the theory pages and minted 11 labels, which 35 gate rows now `verifies`.
+**S2 merged @ `4e5ee36b`** (2026-10-20). The main agent wrote the production carve with checkpoints. The test-architect re-baselined 46 test files and one fixture (110 log lines: RE-POSE 77, INVERTED 12, DEMOTED 11, DEAD 4; `scratch/numerics_untangling/packages/S2_rebaseline_log.md`). The archivist wrote the theory pages and minted 11 labels, which 35 gate rows now `verifies`.
 - `[M]` The mutation battery on the landed code: 39 of 39 rows reddened by at least one arm, none blind (`S2_rebase/mutation_battery_landed.md`). Rows c40–c43 were added at review, each with its own reddening mutation.
 - `[M]` The bit probe, run by qa and by the test-architect independently: 55 SAME, 5 refused alike, 10 MOVED, all `homogeneous_A2g_n2n`, at most 8.8e-16 relative (ruling 54). The S_N loss `A_AA` and every pencil `at(σ)`, forward and adjoint, are SAME.
 - **A latent defect, fixed in S2 by the user's ruling:** on an LD carrier the collision multiplier broadcast σ over the ordinate axis only, so `C.apply` refused alone; the `L + C` fusion had hidden it. `_broadcast_axes` reads the axes σ does not span by label (ruling 56 for the label-less case).
@@ -998,4 +998,4 @@ Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
   - `[M]` Sphinx `-W` exit 0; `dead_references` 0 of 68, with a planted `ScaledOperator` reference read as 1.
   - The LD defect is catalogued as ERR-119, caught by 3 decorated LD tests; the DD rows are its controls. The re-dropped defect reddens exactly the LD rows and the refusal row.
 
-⏸ **Next:** merge S2, push, watch CI, and record the merge hash here and in the history rows. Then S3, S4 and S6 in series. S7's design waits on the user (the PG-degenerate ruling is owed). qa F2 goes to S6; the census interleaves.
+⏸ **Next:** S3, S4 and S6 in series. S7's design waits on the user (the PG-degenerate ruling is owed). qa F2 goes to S6; the census interleaves.
