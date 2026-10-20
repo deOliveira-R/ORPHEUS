@@ -794,3 +794,146 @@ class TestTierTwoEquivalence:
         # resolution chain is what this probe actually reaches.
         with pytest.raises(TypeError, match="neither"):
             MultiplicationOperator.from_mesh(cf, _Meshless())
+
+
+# The LD rows catch ERR-119 (σ broadcast over the leading ordinate axis only);
+# the DD rows are its controls, green under the re-dropped bug, so they carry
+# no marker.
+# The LD rows catch ERR-119 (each reds under the leading-axis-only broadcast);
+# the DD rows are the controls (green under it). They are separate test
+# functions because the catches marker must be a DECORATOR for the graph to
+# read it (a pytest.param mark is invisible to the error index).
+_LD_CASES = ("ld_slab_2g", "ld_2d_2g")
+_DD_CASES = ("dd_slab_2g", "dd_cart2d_2g")
+
+
+class TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan:
+    r"""``M[σ]`` is constant over every bulk axis σ does not span (S2, 2026-10-20).
+
+    A cross section spans the energy and spatial axes, so on a
+    linear-discontinuous bulk ``(N, ng, *spatial, n_moments)`` the multiply
+    is :math:`(σψ)_{n,g,\mathbf c,k} = σ_{g,\mathbf c}\,ψ_{n,g,\mathbf c,k}`:
+    the cell-constant σ multiplies each spatial moment alike. Until S2 the
+    engine broadcast over the LEADING ordinate axis only, so ``M[σ]`` refused
+    an LD carrier outright (``DiagonalOperator(broadcast_axes=(0,)) expects a
+    rank-4 coefficient for a 5-D carrier``). Nothing reached it while ``L + C``
+    fused into the sweep atom, whose own walk applies σ; once ``+`` stopped
+    fusing (numerics_untangling.md ruling 52) the plain ``L + C`` applies C by
+    itself. The DD rows are the controls: their bulk has no moment axis.
+    """
+
+    @staticmethod
+    def _cases():
+        from tests.gates.sn.operators.test_g_adjoint_reciprocity import (
+            _make_cart2d,
+            _make_ld_2d,
+            _make_ld_slab,
+            _make_slab,
+        )
+
+        return {
+            "ld_slab_2g": _make_ld_slab,
+            "ld_2d_2g": _make_ld_2d,
+            "dd_slab_2g": _make_slab,
+            "dd_cart2d_2g": _make_cart2d,
+        }
+
+    @pytest.mark.catches("ERR-119")
+    @pytest.mark.parametrize("case", _LD_CASES)
+    def test_the_multiply_is_sigma_expanded_on_the_ordinate_and_moment_axes(self, case):
+        """The LD rows of :meth:`_multiply_is_sigma_expanded`."""
+        self._multiply_is_sigma_expanded(case)
+
+    @pytest.mark.parametrize("case", _DD_CASES)
+    def test_the_multiply_is_sigma_expanded_on_the_ordinate_axis_dd_control(self, case):
+        """The DD controls of :meth:`_multiply_is_sigma_expanded`."""
+        self._multiply_is_sigma_expanded(case)
+
+    def _multiply_is_sigma_expanded(self, case):
+        """``M[σ]ψ`` equals σ expanded BY HAND on the ordinate axis (and the
+        trailing moment axis of an LD bulk) times ψ, bit for bit. Mutation:
+        broadcast σ over the leading axis only, and the LD rows refuse."""
+        from tests.gates.sn.operators.test_g_adjoint_reciprocity import _random_composite
+
+        sn, sig = self._cases()[case](ng=2)
+        C = MultiplicationOperator.from_mesh(sig, sn)
+        psi = _random_composite(sn, np.random.default_rng(2026))
+        values = np.asarray(psi.interior.values)
+        has_moment_axis = values.ndim == sig.ndim + 2
+        expanded = sig[None, ..., None] if has_moment_axis else sig[None]
+        assert has_moment_axis == case.startswith("ld"), "the fixture is not the shape it names"
+        np.testing.assert_array_equal(
+            np.asarray(C.apply(psi).interior.values), expanded * values,
+        )
+
+    @pytest.mark.catches("ERR-119")
+    @pytest.mark.parametrize("case", _LD_CASES)
+    def test_the_plain_sum_applies_like_the_sweep_atom(self, case):
+        """The LD rows of :meth:`_plain_sum_applies_like_the_sweep_atom`."""
+        self._plain_sum_applies_like_the_sweep_atom(case)
+
+    @pytest.mark.parametrize("case", _DD_CASES)
+    def test_the_plain_sum_applies_like_the_sweep_atom_dd_control(self, case):
+        """The DD controls of :meth:`_plain_sum_applies_like_the_sweep_atom`."""
+        self._plain_sum_applies_like_the_sweep_atom(case)
+
+    def _plain_sum_applies_like_the_sweep_atom(self, case):
+        r"""``(L + C)ψ``, the plain combination, equals the sweep atom's own
+        ``M(σ)ψ`` to ``8ε`` relative. `[M]` 2026-10-20: ≤ 2.3e-16 over three
+        seeds on each of these four fixtures; the two differ only by the
+        affine-in-σ association ``L ψ + σψ`` against the walk's one fused
+        emission. The atom is the independent side: its σ enters through the
+        loss representation's walk, never through this multiplier."""
+        from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
+        from tests.gates.sn.operators.test_g_adjoint_reciprocity import _random_composite
+
+        sn, sig = self._cases()[case](ng=2)
+        L = StreamingOperator.pose(sn)
+        C = MultiplicationOperator.from_mesh(sig, sn)
+        psi = _random_composite(sn, np.random.default_rng(7))
+        plain = np.asarray((L + C).apply(psi).interior.values)
+        fused = np.asarray(StreamingCollisionOperator(L, C).apply(psi).interior.values)
+        scale = float(np.max(np.abs(fused)))
+        assert scale > 0.0
+        assert float(np.max(np.abs(plain - fused))) <= 8.0 * np.finfo(float).eps * scale
+
+    @pytest.mark.catches("ERR-119")
+    def test_the_assembled_diagonal_reads_the_same_broadcast(self):
+        """The LD row of :meth:`_assembled_diagonal_reads_the_same_broadcast`."""
+        self._assembled_diagonal_reads_the_same_broadcast("ld_slab_2g")
+
+    def test_the_assembled_diagonal_reads_the_same_broadcast_dd_control(self):
+        """The DD control of :meth:`_assembled_diagonal_reads_the_same_broadcast`."""
+        self._assembled_diagonal_reads_the_same_broadcast("dd_cart2d_2g")
+
+    def _assembled_diagonal_reads_the_same_broadcast(self, case):
+        """``M[σ].assemble()`` emits σ expanded on the SAME axes the engine
+        multiplies on, so the assembled bulk block reproduces ``apply``'s bulk
+        bit for bit (the trace rows are the multiplier's zero)."""
+        from tests.gates.sn.operators.test_g_adjoint_reciprocity import _random_composite
+
+        sn, sig = self._cases()[case](ng=2)
+        C = MultiplicationOperator.from_mesh(sig, sn)
+        psi = _random_composite(sn, np.random.default_rng(11))
+        bulk = np.asarray(psi.interior.values)
+        n_bulk = bulk.size
+        matrix = C.assemble().matrix.tocsr()[:n_bulk, :n_bulk]
+        np.testing.assert_array_equal(
+            (matrix @ bulk.ravel()).reshape(bulk.shape),
+            np.asarray(C.apply(psi).interior.values),
+        )
+
+    def test_a_space_without_labelled_axes_is_refused(self):
+        """A bulk space built without labelled axes cannot say which axes σ
+        spans, so the multiplier refuses it rather than guess a position (the
+        user's ruling, 2026-10-20). Positive control beside it: the same
+        values on the axis-built bulk construct."""
+        from orpheus.numerics.space import FunctionSpace
+
+        sn = _slab_mesh()
+        sigma = _positive_sigma(sn)
+        cf = CrossSectionField(values=sigma, space=sn.bulk_space)
+        MultiplicationOperator(coefficient=cf, domain=sn.bulk_space, codomain=sn.bulk_space)
+        unlabelled = FunctionSpace("s2_unlabelled_bulk", sn.bulk_space.shape)
+        with pytest.raises(TypeError, match="not built from labelled axes"):
+            MultiplicationOperator(coefficient=cf, domain=unlabelled, codomain=unlabelled)

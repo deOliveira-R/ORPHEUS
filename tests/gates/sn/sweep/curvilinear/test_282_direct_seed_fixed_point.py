@@ -30,6 +30,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
@@ -85,7 +86,7 @@ def _operator(coord: CoordSystem, nx: int, *, sigma: float, ng: int = 2):
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.3 * g)) for g in range(ng)],
         axis=0,
     )
-    return sn, StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
+    return sn, StreamingCollisionOperator(StreamingOperator.pose(sn), MultiplicationOperator.from_mesh(sig_t, sn))
 
 
 def _random_source(sn, rng, ng: int = 2):
@@ -277,7 +278,7 @@ def test_civ_pure_absorber_sphere_cold_solve_exact():
         [np.full(sn.spatial_shape, 0.8 * (1.0 + 0.3 * g)) for g in range(2)],
         axis=0,
     )
-    A = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
+    A = StreamingCollisionOperator(StreamingOperator.pose(sn), MultiplicationOperator.from_mesh(sig_t, sn))
     rng = np.random.default_rng(4)
     bvals, b, q_half = _random_source(sn, rng)
     sol, flux = _joint_solve(A, sn, b, q_half)

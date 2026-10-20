@@ -312,7 +312,7 @@ sole bridge. The canonical SN-realised representation per law.
   :math:`\phi_\Gamma = 0`: albedo-family member :math:`\mathcal{A} =
   -1` in the partial-current basis (:math:`J^- = -J^+`), deliberately
   outside the sub-Markov :math:`[0, 1]` range. The diffusion realizer
-  maps it to ``ScaledOperator(-1, IdentityOperator)``; the SN realizer
+  maps it to ``−I`` (the one-term combination ``(−1)·I``); the SN realizer
   REFUSES it (a negative angular inflow is unrepresentable — use
   :class:`VacuumInflow` for the physical zero-incoming law).
 
@@ -355,14 +355,13 @@ tree (Issue #186 / B3 + β2, 2026-05-11):
     ms = SNMethodSpace.for_face(...)
     marshak_op = realize_recursively(marshak_law, ms, SNBoundaryRealizer())
     # marshak_op is:
-    #   OperatorSum(ScaledOperator(0.3, PermutationOperator(...)),
-    #               ScaledOperator(0.7, IsotropicEmission @ PartialCurrent))
+    #   the combination 0.3·PermutationOperator(...)
+    #                 + 0.7·(IsotropicEmission @ PartialCurrent)
     psi_in = marshak_op.apply(psi_out)   # 1-arg LinearOperator
 
-The output is a Wave-0
-:class:`~orpheus.numerics.operator.OperatorSum` of
-:class:`~orpheus.numerics.operator.ScaledOperator` wrappers around
-realised Wave-0 primitives, consumable by the SN sweep / Krylov
+The output is the formal linear combination
+(:class:`~orpheus.numerics.operator.OperatorSum`) of the realised
+primitives, consumable by the SN sweep / Krylov
 path via the uniform 1-arg :meth:`apply`.
 
 The descriptor-tree and operator-tree algebras are **two separate
@@ -370,8 +369,8 @@ type families**: the descriptor tree
 (:class:`~orpheus.geometry.boundary.LawSum` /
 :class:`~orpheus.geometry.boundary.LawScaled` over
 :class:`BoundaryTraceLaw` leaves) carries no ``apply``; the
-operator tree (:class:`OperatorSum` / :class:`ScaledOperator` over
-:class:`LinearOperator` leaves) carries :meth:`apply`. The two
+operator (an :class:`OperatorSum` of :class:`LinearOperator` leaves)
+carries :meth:`apply`. The two
 algebras never inter-compose — mixing a :class:`LawNode` with an
 already-realised :class:`LinearOperator` via ``+`` is a static-type
 error; the caller MUST :func:`realize_recursively` the descriptor
@@ -575,8 +574,8 @@ Cross-references
 * :mod:`orpheus.numerics.operator` — Wave-0 primitives
   (:class:`PermutationOperator`, :class:`TraceRestrictionOperator`,
   :class:`IdentityOperator`, :class:`ZeroOperator`, plus the
-  :class:`OperatorSum` / :class:`ScaledOperator` composers that
-  appear in the *operator* tree).
+  :class:`OperatorSum` combination that appears on the *operator*
+  side).
 * :mod:`._composition` — :class:`LawSum` / :class:`LawScaled` /
   :data:`LawNode` composers that appear in the *descriptor* tree
   (Issue #186 / B3 + β2).
@@ -590,8 +589,8 @@ Cross-references
   :func:`realize_recursively` walker, the **type transformer**
   from a descriptor tree
   (``BoundaryTraceLaw | LawSum | LawScaled``) to an operator tree
-  (Wave-0 :class:`OperatorSum` / :class:`ScaledOperator` around
-  realised 1-arg :class:`LinearOperator` leaves).
+  (the :class:`OperatorSum` combination of realised 1-arg
+  :class:`LinearOperator` leaves).
 
 
 References

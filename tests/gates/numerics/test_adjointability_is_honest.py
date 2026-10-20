@@ -227,14 +227,15 @@ def _sn_composite(sn, seed: int = 2026):
 
 
 def _lc(sn, sig_t):
-    from orpheus.sn.operators.streaming import StreamingOperator
+    from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
     from orpheus.transport.operators.multiplication_operator import (
         MultiplicationOperator,
     )
 
-    return StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
+    # S2 (ruling 52): ``+`` never fuses; the sweep atom is built explicitly.
+    return StreamingCollisionOperator(StreamingOperator.pose(sn), MultiplicationOperator.from_mesh(
         sig_t, sn,
-    )
+    ))
 
 
 def _source_like(sn, sig_t, seed: int):
@@ -284,10 +285,10 @@ def _inverse_of_scaled_product() -> _Posed:
     no native transposed solve; the product reaches it through each factor's
     canonical inverse (the elegance review: it read not adjointable while
     ``(2D)⁻¹`` read adjointable)."""
-    from orpheus.numerics.operator import ScaledOperator
-
     D = DiagonalOperator(np.array([2.0, -0.5, 4.0]))
-    return _Posed((D @ ScaledOperator(2.0, D)).inverse(), np.array([1.0, 3.0, -2.0]))
+    # S2 (D7): the scalar leaves the word, so ``D @ (2D)`` is the one-term
+    # combination 2·(D D); its inverse is ½·(D D)⁻¹, the row's subject.
+    return _Posed((D @ (2.0 * D)).inverse(), np.array([1.0, 3.0, -2.0]))
 
 
 def _fission_dyad_tensor() -> _Posed:
@@ -581,10 +582,10 @@ def _sn_inverse_of_product() -> _Posed:
 
 
 def _sn_green() -> _Posed:
-    r"""``GreenOperator((L + C) − S)`` on the het 2-G slab.
+    r"""``GreenOperator(L + C, S)`` (the named split, since S2) on the het 2-G slab.
 
     Witness ``((L+C) − S)⁻ᴴ = ((L+C)ᴴ − Sᴴ)⁻¹``: the sum law, then the Green
-    splitting of the adjoint sum (its leading term inverts by the swap law
+    of the adjoint split ``GreenOperator((L+C)ᴴ, Sᴴ)`` (its implicit part inverts by the swap law
     onto the 1-D reverse sweep). The witness is INDEPENDENT of the row's
     ``.H``: that is the base ``♯ ∘ G.dual() ∘ ♭``, the Green of the DUAL sum
     between the Riesz legs. Until the revision of 2026-10-18 the Green
@@ -592,7 +593,7 @@ def _sn_green() -> _Posed:
     then agreed with it to exactly 0.0, a tautology (the elegance review).
     """
     sn, sig_t, lc, S, op = _green_case()
-    adjoint = GreenOperator(lc.H - S.H, max_iter=4000, tol=_GREEN_TOL)
+    adjoint = GreenOperator(lc.H, S.H, max_iter=4000, tol=_GREEN_TOL)
     # Both ends are source → flux, so the adjoint's input is source-classed.
     # No row threads a seed: the Green's cold start is its first Neumann
     # partial sum, in the iterate's own class.
@@ -603,13 +604,13 @@ def _sn_green() -> _Posed:
 
 
 def _green_case():
-    r"""``GreenOperator((L + C) − S)`` on the het 2-G slab, with its pose."""
+    r"""``GreenOperator(L + C, S)`` on the het 2-G slab, with its pose."""
     from tests.gates.sn.operators import test_g_adjoint_reciprocity as G
 
     sn, _, S = G._full_loss_case(CoordSystem.CARTESIAN, 2)
     sig_t = np.asarray(sn.mat_xs.total_cross_section_field.values, dtype=float)
     lc = _lc(sn, sig_t)
-    return sn, sig_t, lc, S, GreenOperator(lc - S, max_iter=4000, tol=_GREEN_TOL)
+    return sn, sig_t, lc, S, GreenOperator(lc, S, max_iter=4000, tol=_GREEN_TOL)
 
 
 def _sn_green_composed() -> _Posed:
@@ -746,7 +747,7 @@ def _sn_green_cart2d() -> _Posed:
 
     sn, _, S = G._full_loss_case_cart2d()
     sig_t = np.asarray(sn.mat_xs.total_cross_section_field.values, dtype=float)
-    op = GreenOperator(_lc(sn, sig_t) - S, max_iter=4000, tol=_GREEN_TOL)
+    op = GreenOperator(_lc(sn, sig_t), S, max_iter=4000, tol=_GREEN_TOL)
     return _Posed(op, _source_like(sn, sig_t, 13), rtol=_GREEN_RTOL)
 
 
@@ -1068,8 +1069,6 @@ def test_a_converged_first_partial_sum_is_returned_unswept() -> None:
     the whole apply, as it was when the driver started from zero (`[M]`
     2026-10-18: 1 solve old, 2 without the check)."""
     from orpheus.numerics.elementary_operators import PermutationOperator
-    from orpheus.numerics.operator import ScaledOperator
-
     calls = [0]
 
     class _CountingDiagonal(DiagonalOperator):
@@ -1078,8 +1077,8 @@ def test_a_converged_first_partial_sum_is_returned_unswept() -> None:
             return super().solve(b_vec)
 
     D = _CountingDiagonal(np.array([2.0, 3.0, 4.0, 5.0]))
-    gain = ScaledOperator(3e-12, PermutationOperator(np.array([1, 2, 3, 0])))
-    green = GreenOperator(D - gain, max_iter=10, tol=1e-10)
+    gain = 3e-12 * PermutationOperator(np.array([1, 2, 3, 0]))
+    green = GreenOperator(D, gain, max_iter=10, tol=1e-10)
     green.apply(np.array([1.0, -2.0, 0.5, 3.0]))
     if calls[0] != 1:
         pytest.fail(f"a converged first partial sum cost {calls[0]} preconditioner solves, expected 1")

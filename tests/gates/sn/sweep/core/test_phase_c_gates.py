@@ -46,6 +46,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
@@ -258,7 +259,7 @@ def test_apply_linearity_under_sweep_frame(geom):
         problem, sig_t = _make_cylindrical_sn_mesh()
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(sig_t, problem)
-    op = _joint_op(problem, L + C)   # B.2d: the joint M on the carrying pair
+    op = _joint_op(problem, StreamingCollisionOperator(L, C))   # B.2d: the joint M on the carrying pair
     psi1 = _build_composite(problem, _random_bulk(problem, rng))
     psi2 = _build_composite(problem, _random_bulk(problem, rng))
     c = 1.7
@@ -383,7 +384,7 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
     sig_t = np.full_like(sig_t, sigma_t_value)
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(sig_t, problem)
-    op = L + C
+    op = StreamingCollisionOperator(L, C)
     psi_state = _flat_psi_composite(problem, ng=problem.ng)
     result = op.apply(psi_state)
     result_bulk = result.interior.values
@@ -452,7 +453,7 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
         )
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(sig_t, problem)
-    op = _joint_op(problem, L + C)   # B.2d: the joint M on the carrying pair
+    op = _joint_op(problem, StreamingCollisionOperator(L, C))   # B.2d: the joint M on the carrying pair
     n_trace = int(problem.angular_trace.layout.total_size)
     # #282 route (a): a RANDOM ψ½ block (not the edge-extrap default) so the
     # augmented seed rows are independently exercised — the Euclidean
@@ -517,7 +518,7 @@ def test_apply_face_fluxes_match_sweep_recurrence_spherical():
     problem, sig_t = _make_spherical_sn_mesh(nx=6, R=1.0, quad_name="gl4")
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(sig_t, problem)
-    op = _joint_op(problem, L + C)   # B.2d: the joint M on the carrying pair
+    op = _joint_op(problem, StreamingCollisionOperator(L, C))   # B.2d: the joint M on the carrying pair
 
     # Use a deterministic, structured input so the residual is
     # predictable.
@@ -573,7 +574,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(sig_t, problem)
-    op = L + C
+    op = StreamingCollisionOperator(L, C)
 
     # Linearity is enough to characterize the BC respond-only-to-outflow
     # property. apply(0) MUST be 0 even with vacuum BC. If the BC
@@ -616,7 +617,7 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
     problem, sig_t = _make_spherical_sn_mesh(nx=8, R=1.0, quad_name="gl4")
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(sig_t, problem)
-    op = L + C
+    op = StreamingCollisionOperator(L, C)
     # #282 route (a): pass the seed leaf UNIFORMLY (the R12a predicate
     # allocates it iff the mesh carries levels — here the sphere does).
     state_zero = TimedFullField.zeros(
@@ -755,7 +756,7 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
     )
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(sig_t, problem)
-    op = _joint_op(problem, L + C)   # B.2d: the joint M on the carrying pair
+    op = _joint_op(problem, StreamingCollisionOperator(L, C))   # B.2d: the joint M on the carrying pair
     rng = np.random.default_rng(seed=137)
     psi_bulk = _random_bulk(problem, rng)
     psi_state = _build_composite(problem, psi_bulk)  # zero boundary

@@ -3065,7 +3065,7 @@ them.  Trust ``git``, not this column.
        ``A.H.inverse()`` (#226)** — the composition surfaces now carry
        **precise static return types**, closing the taxonomy's
        type-legibility charter:
-       :meth:`ScaledOperator.inverse() <orpheus.numerics.operator.ScaledOperator.inverse>`
+       ``ScaledOperator.inverse()`` (retired at S2, 2026-10-20)
        is parametrised on the **swapped carriers**
        ``ScaledOperator[Codomain, Domain]`` (an inverse maps the
        forward's codomain back to its domain), joining the sum / scaled
@@ -3352,8 +3352,8 @@ them.  Trust ``git``, not this column.
        :math:`M=(L+C)-B_{\rm lower}` is
        reified as
        :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
-       (via :meth:`StreamingCollisionOperator.__sub__
-       <orpheus.sn.operators.streaming.StreamingCollisionOperator.__sub__>`), with
+       (via ``StreamingCollisionOperator.__sub__``, retired at S2,
+       2026-10-20, when ``-`` stopped fusing), with
        :math:`B_{\rm lower}` the schedule-split half
        (:meth:`SNBoundaryOperator.split
        <orpheus.sn.operators.boundary.SNBoundaryOperator.split>` /

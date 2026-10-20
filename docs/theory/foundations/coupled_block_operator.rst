@@ -894,8 +894,9 @@ off-diagonals differ in sign — a trap worth spelling out:
 The :math:`(A,B)` seed is **positive** (its ``apply`` already emits the
 seed's term of the fused bulk residual row — the loss sign is *internal*
 to the operator, matching the in-sweep placement it wraps); the
-:math:`(B,A)` emission is **negated** (a
-:class:`~orpheus.numerics.operator.ScaledOperator` — the emission is a
+:math:`(B,A)` emission is **negated** (the one-term combination
+:math:`(-1)\,\text{Emission}`, an
+:class:`~orpheus.numerics.operator.OperatorSum` — the emission is a
 gain, so the ray equation :math:`(A_{BB} - B_b)\psi_B -
 \text{Emission}\,\psi_A = q_B` carries the minus).
 

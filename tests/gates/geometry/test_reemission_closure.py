@@ -104,7 +104,7 @@ from orpheus.geometry.boundary import (
     ZeroFluxBoundary,
 )
 from orpheus.numerics.operator import ZeroMorphism, ZeroOperator
-from orpheus.numerics.operator import IdentityOperator, ScaledOperator, adjointable
+from orpheus.numerics.operator import IdentityOperator, OperatorSum, adjointable
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.angular_trace_space import build_omega_dot_n
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
@@ -149,11 +149,14 @@ _FIXTURES = [
      _FOUR_FACES),
 ]
 
-#: The three amplitude regimes are three DIFFERENT production branches:
-#: ``_narrowed_zero_operator`` (α=0), ``ScaledOperator`` (0<α<1) and the bare
-#: tensor product (α=1). A gate that covers only the middle one leaves the two
-#: fast paths untested — which is exactly how the pre-B3.4b albedo arm kept two
-#: un-narrowed endomorphisms alive at α ∈ {0, 1}.
+#: The three amplitude regimes were three DIFFERENT production branches until
+#: S2 (``_narrowed_zero_operator`` at α=0, ``ScaledOperator`` for 0<α<1, the
+#: bare tensor product at α=1); since S2 they are ONE spelling, ``α·(K_ω ⊗ I)``,
+#: whose α=0 and α=1 members the algebra normalises (to the bound
+#: ``ZeroMorphism`` and to ``K_ω ⊗ I`` itself). The three amplitudes stay the
+#: rows: the two ends are where a normalisation defect would show — which is
+#: exactly how the pre-B3.4b albedo arm kept two un-narrowed endomorphisms
+#: alive at α ∈ {0, 1}.
 _ALPHAS = [0.0, 0.3, 1.0]
 
 
@@ -219,7 +222,7 @@ class TestEquivalenceTheorems:
         The mirror :class:`ReflectiveBoundary` is a symmetry and has no
         amplitude, so the wall's sibling is the mirror scaled by α, applied
         here to the mirror's OUTPUT (one multiplication per element, the
-        same one the wall's ``ScaledOperator`` performs, hence
+        same one the wall's one-term ``α·(K_ω ⊗ I)`` combination performs, hence
         ``array_equal``). At α = 1 the row compares the perfect wall with the
         mirror (equal matrices, different laws); at α = 0 the wall is the
         narrowed zero map; at 0.3 it is the attenuated kernel. Until the
@@ -937,7 +940,7 @@ class TestDiffusionIsUnmovedAndClosureBlind:
         "alpha,expected_type,expected",
         [
             (0.0, ZeroOperator, [0.0, 0.0]),
-            (0.5, ScaledOperator, [0.5, 1.0]),
+            (0.5, OperatorSum, [0.5, 1.0]),  # α·I, the one-term combination (S2)
             (1.0, IdentityOperator, [1.0, 2.0]),
         ],
     )
@@ -1053,19 +1056,22 @@ class TestZeroAmplitudeRealizesTheNarrowedZeroMap:
         assert image.shape == (int(space.outflow_indices.size), 4, 2)
         np.testing.assert_array_equal(image, 0.0)
 
-    def test_negative_control_the_scaled_path_still_refuses_a_zero_scalar(
+    def test_the_numerics_layer_owns_the_zero_of_a_scaled_operator(
         self, law_id, build_law,
     ) -> None:
-        """The α=0 answer comes from the REALIZER's routing, not from a change
-        in the numerics layer.
-
-        Without this leg, the tests above would also pass if someone had
-        "fixed" ``ScaledOperator`` to accept 0.0 — a different, much wider
-        change with its own blast radius.
+        """INVERTED at S2, by design (this row's own former docstring said S2
+        would). Until S2 the α=0 answer came from the REALIZER's routing
+        (``_narrowed_zero_operator``) and the numerics layer refused
+        ``ScaledOperator(0.0, ·)``. Since S2 the zero is the algebra's
+        (design D6, Q8): ``0·A`` is the zero map, so the realizer spells the
+        α=0 member as ``0·(K_ω ⊗ I)`` like every other amplitude, and the rows
+        above now witness the ALGEBRA's zero on the narrowed spaces. This row
+        pins the numerics half: a spaceless pointwise operand's zero is the
+        pointwise ``ZeroOperator()``; a bound operand's is ``ZeroMorphism`` on
+        its own spaces (``test_linear_combination.py`` c09, c38).
         """
         del law_id, build_law
-        with pytest.raises(ValueError, match="zero scalar"):
-            ScaledOperator(0.0, IdentityOperator())
+        assert isinstance(0.0 * IdentityOperator(), ZeroOperator)
 
 
 # ═══════════════════════════════════════════════════════════════════════

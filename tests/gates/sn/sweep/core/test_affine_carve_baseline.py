@@ -85,6 +85,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
@@ -327,14 +328,14 @@ class TestAffineCarveMatvecBaseline:
         L = StreamingOperator.pose(problem)
         C = MultiplicationOperator.from_mesh(sig_t, problem)
         if seed is None:
-            out = (L + C).apply(psi)
+            out = (StreamingCollisionOperator(L, C)).apply(psi)
         else:
             # step 6: the joint row-A action rides THE GRID.
             from orpheus.numerics.coupled_system import CoupledField
 
             from tests.gates.sn._test_helpers import joint_m_grid
 
-            grid, _space = joint_m_grid(problem, L + C)
+            grid, _space = joint_m_grid(problem, StreamingCollisionOperator(L, C))
             out = grid.apply(
                 CoupledField(systems=(psi, seed)),
             ).systems[0]

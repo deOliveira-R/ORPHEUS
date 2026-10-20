@@ -40,7 +40,7 @@ from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
-from orpheus.sn.operators.streaming import StreamingOperator
+from orpheus.sn.operators.streaming import StreamingOperator, StreamingCollisionOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.radial_characteristic_field import RadialCharacteristicField
@@ -150,10 +150,10 @@ _MESHES = {
 
 def _loss(problem: SNProblem):
     mat_xs = problem.mat_xs
-    return StreamingOperator.pose(problem) + MultiplicationOperator(
+    return StreamingCollisionOperator(StreamingOperator.pose(problem), MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
         domain=problem.full_field_space, codomain=problem.full_field_space,
-    )
+    ))  # S2: the atom built explicitly (ruling 52)
 
 
 def _fresh(problem: SNProblem) -> FullField:

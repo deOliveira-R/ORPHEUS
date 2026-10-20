@@ -38,6 +38,8 @@ from __future__ import annotations
 
 import pytest
 
+from orpheus.sn.operators.scheduled_invertible import ScheduledInvertibleOperator
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from tests.gates.sn._test_helpers import cart2d_2g_nonsquare, het_operands
@@ -79,7 +81,7 @@ def test_apply_and_solve_share_one_representation_instance(monkeypatch):
     sig_t, psi = het_operands(sn)[:2]
     L = StreamingOperator.pose(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)
-    A = L + C
+    A = StreamingCollisionOperator(L, C)  # S2: the atom built explicitly (ruling 52)
 
     _ = L.apply(psi)
     _ = A.solve(psi)
@@ -148,8 +150,10 @@ def test_scheduled_solve_runs_the_operators_instance(monkeypatch):
     sig_t, psi = het_operands(sn)[:2]
     L = StreamingOperator.pose(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)
-    A = L + C
-    M = A - SNBoundaryOperator(sn).split(SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))).lower
+    A = StreamingCollisionOperator(L, C)  # S2: the atoms built explicitly (ruling 52)
+    M = ScheduledInvertibleOperator(
+        A, SNBoundaryOperator(sn).split(SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))).lower,
+    )
 
     _ = M.solve(psi)
 

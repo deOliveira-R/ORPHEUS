@@ -114,7 +114,7 @@ from orpheus.numerics import frame_faces
 from orpheus.numerics.axis_marginal import AxisRetractionOperator
 
 if TYPE_CHECKING:
-    from orpheus.numerics.operator import LinearOperator, OperatorProduct
+    from orpheus.numerics.operator import LinearOperator
     from orpheus.transport.frames.harmonic_frame import (
         HarmonicAnalysisOperator,
         HarmonicFrame,
@@ -146,7 +146,7 @@ class AngularEnd:
         return cast(AngularFlux, bulk).integrate_angular()
 
     @staticmethod
-    def conjugate(lift: "AngularLift", operator: "LinearOperator") -> "OperatorProduct":
+    def conjugate(lift: "AngularLift", operator: "LinearOperator") -> "LinearOperator":
         # R ∘ A ∘ M — the frame's production composition.
         return frame_faces.conjugate(lift.frame, operator)
 
@@ -171,9 +171,9 @@ class MomentEnd:
         )
 
     @staticmethod
-    def conjugate(lift: "AngularLift", operator: "LinearOperator") -> "OperatorProduct":
+    def conjugate(lift: "AngularLift", operator: "LinearOperator") -> "LinearOperator":
         # R ∘ A — M already applied; conjugating would double-project.
-        return cast("OperatorProduct", frame_faces.reconstruct_after(lift.frame, operator))
+        return frame_faces.reconstruct_after(lift.frame, operator)
 
     @staticmethod
     def cotangent(lift: "AngularLift", values: np.ndarray) -> BulkField:
@@ -251,7 +251,7 @@ class AngularLift(CompositeBound, Generic[EnergyT]):
         """The datum's ENERGY binding, endomorphic on ``scalar_space``."""
 
     @abstractmethod
-    def _frame_form(self) -> "OperatorProduct":
+    def _frame_form(self) -> "LinearOperator":
         r"""The whole action as ONE frame-conjugated product (pre-:math:`/W`)
         — the transpose's spelling."""
 
@@ -459,8 +459,10 @@ class AngularLift(CompositeBound, Generic[EnergyT]):
         )
 
     def _interior_transpose(self, bulk: BulkField) -> BulkField:
+        # The dual arrow of the frame form, ``(R Λ M)ᵀ = Mᵀ Λᵀ Rᵀ``: its
+        # construction refuses (MissingAdjoint) a factor with no transpose.
         values = (
-            np.asarray(self._frame_form().apply_transpose(np.asarray(bulk.values)))
+            np.asarray(self._frame_form().dual().apply(np.asarray(bulk.values)))
             / self.total_weight
         )
         return self._end.cotangent(self, values)

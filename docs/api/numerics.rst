@@ -157,14 +157,19 @@ consumers landed May 2026):
   :math:`(A \otimes B)^* = A^* \otimes B^*`,
   :math:`(A \otimes B) \circ (C \otimes D) = (A \circ C) \otimes
   (B \circ D)`. See :ref:`tensorial-framing`.
-* :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
-  — :math:`\sum_k A_k \otimes B_k \otimes \cdots`; the §15.2
-  *aspirational* canonical scattering / streaming form. **Zero
-  production consumers** today; see :ref:`tensor-network-decomposition`
-  for why (the MA-Q1 master condition: coupled physics falls back to
-  :class:`OperatorSum` over bespoke leaves, not SOTP).
-* :class:`~orpheus.numerics.operator.OperatorSum` — the additive
-  composer :math:`A + B`. Wave T promoted this to load-bearing
+* :math:`\sum_k A_k \otimes B_k \otimes \cdots`, the §15.2
+  *aspirational* canonical scattering / streaming form, is an
+  :class:`~orpheus.numerics.operator.OperatorSum` whose words are
+  :class:`~orpheus.numerics.operator.TensorProductOperator`\ s; it has no
+  named type. The class ``SumOfTensorProductsOperator`` that carried it
+  (zero production consumers) retired at package S2 (2026-10-20); whether
+  separability earns its own type is #260. See
+  :ref:`tensor-network-decomposition` for why coupled physics falls back to
+  a combination over bespoke leaves (the MA-Q1 master condition).
+* :class:`~orpheus.numerics.operator.OperatorSum` — the formal linear
+  combination :math:`\sum_i c_i w_i` of operator words (unordered for
+  equality, insertion-ordered for the floating-point fold; a one-term
+  :math:`\alpha A` is one too, and :math:`1\cdot A` is :math:`A`). Wave T promoted this to load-bearing
   status (T.3 scattering kernel; the T.4 per-direction streaming split
   was retired in #238 — the fused matvec walks both directions in one
   pass); see :ref:`tensor-network-shape-table`.
@@ -198,7 +203,8 @@ Consumer matrix for tensor-product primitives (post Wave T)
 The table below lists the production consumers as of Wave T close-out
 (May 2026). The full architectural narrative — including the MA-Q1
 master condition that decides between :class:`TensorProductOperator`,
-:class:`SumOfTensorProductsOperator`, and
+a sum of tensor products (the retired ``SumOfTensorProductsOperator``;
+since S2 an :class:`OperatorSum` of tensor-product words), and
 :class:`OperatorSum`-of-bespoke-leaves — is at
 :ref:`tensor-network-decomposition`.
 
@@ -220,7 +226,7 @@ master condition that decides between :class:`TensorProductOperator`,
      - Six clean-TP production instances. The MA-Q1 master condition
        is satisfied: each consumer factors as disjoint per-axis
        operations.
-   * - :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
+   * - ``SumOfTensorProductsOperator`` (retired at S2, 2026-10-20)
      - 0
      - (no production consumers)
      - The §15.2 SOTP form is aspirational; Wave T T.3 (scattering)

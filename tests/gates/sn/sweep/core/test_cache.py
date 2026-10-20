@@ -30,6 +30,7 @@ from dataclasses import FrozenInstanceError
 import numpy as np
 import pytest
 
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
@@ -874,7 +875,7 @@ def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
         rhs.interior.values[...] = 1.0
         for _ in range(2):
             L = StreamingOperator.pose(problem)
-            (L + MultiplicationOperator.from_mesh(sig, problem)).solve(rhs)
+            StreamingCollisionOperator(L, MultiplicationOperator.from_mesh(sig, problem)).solve(rhs)
         assert counts["builds"] == 1, (
             f"two posed operators over ONE hub built Stratum 1 "
             f"{counts['builds']}x — the intern's lifetime is the hub's, "

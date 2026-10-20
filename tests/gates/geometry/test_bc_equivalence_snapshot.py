@@ -615,8 +615,8 @@ class TestMixed30Spec70WhiteLS4Snapshot:
 
     Each leaf is realized independently against the SAME face-ful method space
     and the composition is an
-    :class:`~orpheus.numerics.operator.OperatorSum` of
-    :class:`~orpheus.numerics.operator.ScaledOperator` wrappers — stated once,
+    :class:`~orpheus.numerics.operator.OperatorSum` over the realized leaves
+    with the law's coefficients (since S2) — stated once,
     in the case registry, so the generator and this harness cannot describe
     different mixtures.
 

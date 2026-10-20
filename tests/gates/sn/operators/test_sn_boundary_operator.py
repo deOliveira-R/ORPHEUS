@@ -569,7 +569,7 @@ class TestTheFaceActionIsCOMPOSED:
             def _face_domains(self):
                 return {"xmin": "xmax", "xmax": "xmin"}
 
-        with pytest.raises(IncompatibleOperatorComposition, match="A.domain"):
+        with pytest.raises(IncompatibleOperatorComposition, match="OperatorProduct requires each factor's domain"):  # S2 n-ary wording
             _BWithSwappedDomains(sn).apply(_random_state(sn))
 
     def test_the_UNSWAPPED_map_composes(self) -> None:
@@ -607,7 +607,7 @@ class TestTheFaceActionIsCOMPOSED:
             trace.inflow_space("xmin")
         )
         # ...and the wrong one cannot be formed.
-        with pytest.raises(IncompatibleOperatorComposition, match="A.domain"):
+        with pytest.raises(IncompatibleOperatorComposition, match="OperatorProduct requires each factor's domain"):  # S2 n-ary wording
             _ = law @ trace.inflow_restriction("xmin")
 
     @pytest.mark.parametrize("case_id", list(_CASES))

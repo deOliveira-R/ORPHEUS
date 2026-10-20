@@ -303,9 +303,10 @@ _LAWS = {
     # campaign's "the xfail set IS the todo list" mechanism silently stops
     # working for exactly them.
     #
-    # All three amplitudes are kept: they are three DIFFERENT production
-    # branches (``_narrowed_zero_operator`` / ``ScaledOperator`` / the bare
-    # tensor product), and the α=0 row is the only place in this module that
+    # All three amplitudes are kept: until S2 they were three DIFFERENT
+    # production branches (``_narrowed_zero_operator`` / ``ScaledOperator`` /
+    # the bare tensor product); since S2 one spelling ``α·(K⊗I)`` normalised
+    # at both ends, and the α=0 row is the only place in this module that
     # reaches the narrowed zero map.
     "albedo_specular_0": AlbedoBoundary(0.0, SpecularReturn(axis="x")),
     "albedo_specular_1": AlbedoBoundary(1.0, SpecularReturn(axis="x")),

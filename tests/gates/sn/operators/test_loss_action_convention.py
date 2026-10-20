@@ -54,6 +54,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
@@ -179,7 +180,7 @@ def test_pure_L_plus_C_recovers_loss_action_het(case):
     lpc = rep.loss_action(sig_t, psi)
     lpsi = L.apply(psi)
     cpsi = C.apply(psi)
-    composite = (L + C).apply(psi)          # StreamingCollisionOperator.apply
+    composite = StreamingCollisionOperator(L, C).apply(psi)  # the atom's own apply (S2: explicit)
 
     # non-vacuous guard: C·ψ must be non-trivial (else the pin is degenerate).
     if float(np.max(np.abs(cpsi.interior.values))) < 1e-6:

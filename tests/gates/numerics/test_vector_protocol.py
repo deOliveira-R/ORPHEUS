@@ -108,7 +108,7 @@ def test_no_scalar_mul_rejected() -> None:
     Guards the correctness fix that the algebra's scalar multiplication is
     ``scalar * vector`` (``__rmul__``), not ``vector * scalar``
     (``__mul__``): a carrier that cannot be left-multiplied by a scalar
-    cannot flow through ``ScaledOperator`` / ``ZeroOperator``.
+    cannot flow through a scaled term of a combination (``α·A``) / ``ZeroOperator``.
     """
 
     class _NoScalarMul:

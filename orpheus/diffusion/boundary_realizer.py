@@ -64,7 +64,7 @@ Law                              𝒜        Realized operator
 ``ReflectiveBoundary``           ``1``    ``IdentityOperator`` (a symmetry)
 ``WhiteBoundary(α)``             ``α``    ``IdentityOperator`` (α=1) / ``α·I``
 ``AlbedoBoundary(α)``            ``α``    ``Zero`` (α=0) / ``I`` (α=1) / ``α·I``
-``ZeroFluxBoundary``             ``−1``   ``ScaledOperator(-1, IdentityOperator)``
+``ZeroFluxBoundary``             ``−1``   ``−I`` (the one-term ``(−1)·I``)
 ``PeriodicBoundary``             —        REFUSED (needs the opposite-face wrap)
 ``PrescribedInflow``             —        REFUSED (affine source, not an operator)
 ===============================  =======  =========================================
@@ -173,7 +173,7 @@ def _albedo_operator(albedo: float) -> LinearOperator:
     :math:`\mathcal{A} = 0` collapses to the structural
     :class:`ZeroOperator`, :math:`\mathcal{A} = 1` to the structural
     :class:`IdentityOperator`, anything else to
-    ``ScaledOperator(𝒜, IdentityOperator)``. The operator is
+    ``𝒜 · IdentityOperator()`` (the one-term combination). The operator is
     face-slot-shape-agnostic — a scalar multiple of the identity on
     the ``(ng, *face_spatial)`` outflow data, whatever the face.
     """

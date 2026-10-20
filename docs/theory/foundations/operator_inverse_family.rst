@@ -38,8 +38,8 @@ inverse itself and follows it through four distinct realizations:
 - the **solver builds / driver applies** split — the posing layer builds
   :math:`A^{-1}` once and the iteration primitive *applies* it
   (:ref:`inverse-application-driver`);
-- the **Green operator**, the preconditioned-splitting sum inverse and the
-  first *iterative* member of the family (:ref:`green-operator`);
+- the **Green operator**, the inverse of a named split :math:`M - N` and
+  the first *iterative* member of the family (:ref:`green-operator`);
 - the **dense materialising inverse** — ``as_matrix`` out of the operator
   category, factored once into a
   :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
@@ -306,8 +306,9 @@ the canonical seeded ``apply`` (the #285 ``TypeError`` repro flips to
 *accepted* — the solve path never threaded seeds either, so behavior is
 unchanged) and **strengthens the involution to object identity**
 (``(A@B).inverse().inverse() is (A@B)``, where the reversed-product spelling
-rebuilt fresh objects). The factors stay reachable as ``.inner.a`` /
-``.inner.b``.
+rebuilt fresh objects). The factors stay reachable as ``.inner.factors``
+(the flattened word, since package S2; the binary ``.inner.a`` /
+``.inner.b`` retired with it).
 
 **Two kinds of inverse.** The closure exposes a clean split in what
 ``.inverse()`` returns across the whole algebra:
@@ -331,7 +332,8 @@ rebuilt fresh objects). The factors stay reachable as ``.inner.a`` /
    * - **Algebra-closed** (first-class forwards)
      - :class:`~orpheus.numerics.elementary_operators.PermutationOperator` (inverse *is*
        a permutation), :class:`~orpheus.numerics.operator.IdentityOperator`
-       (self-inverse), :class:`~orpheus.numerics.operator.ScaledOperator`
+       (self-inverse), the one-term
+       :class:`~orpheus.numerics.operator.OperatorSum` :math:`\alpha L`
        (:math:`(\alpha L)^{-1}=\alpha^{-1}L^{-1}`)
      - a first-class **forward** operator in the same closed structure — the
        *other* kind of inverse, deliberately left **unwrapped** (a
@@ -430,8 +432,8 @@ from the pyright ratchet (152 → 148).
 
 .. _green-operator:
 
-The Green operator — the preconditioned-splitting sum inverse
-=============================================================
+The Green operator — the inverse of a named split
+==================================================
 
 Steps 1–3 delivered the *exact/direct* inverse family: the leaf
 :class:`~orpheus.numerics.operator.InverseOperator` (a pointwise division)
@@ -439,11 +441,37 @@ and the schedule-triangular
 :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` (the WDD sweep
 as :math:`(L+C)^{-1}`), both invertible in a single pass. **Step 4 adds the
 first *iterative* member** — the
-:class:`~orpheus.numerics.green_operator.GreenOperator`, returned by
-:meth:`OperatorSum.inverse <orpheus.numerics.operator.OperatorSum.inverse>`
-— and with it the ``OperatorSum`` invertibility contract that routes to it.
-It is the discrete Green's function of a general operator *sum*: the object
-whose columns are the flux responses to unit point sources.
+:class:`~orpheus.numerics.green_operator.GreenOperator`, built from a named
+split :math:`A = M - N` as ``GreenOperator(M, N)``. It is the discrete
+Green's function of the split operator: the object whose columns are the
+flux responses to unit point sources.
+
+.. math::
+   :label: green-split-inverse
+
+   \texttt{GreenOperator}(M, N) \;=\; (M - N)^{-1},
+   \qquad M \text{ invertible},
+   \qquad x \;\leftarrow\; M^{-1}\bigl(q + N x\bigr) .
+
+A sum has no inverse of its own (:eq:`combination-inverse`): the
+combination ``(L + C) - S`` reports ``is_invertible = False`` in every
+spelling order, and its ``inverse()`` raises
+:class:`~orpheus.numerics.operator.NotInvertible` naming
+``GreenOperator(M, N)``. The inverse of a sum exists only once someone has
+said which part is implicit, and that choice is the Strategy's
+(``Splitting.from_schedule`` labels the loss terms), never the spelling's
+(ruling 50 of ``.claude/plans/numerics_untangling.md``). ``inner`` is the
+combination ``M - N`` itself, so ``G.inverse()`` returns it, and it equals
+the sum spelled apart: ``GreenOperator(lc, S).inverse() == (lc - S)``.
+:math:`M` must be invertible, and the constructor refuses a non-invertible
+:math:`M` with ``NotInvertible`` naming its type.
+
+.. implements:: green-split-inverse
+   :by: orpheus.numerics.green_operator.GreenOperator
+
+   **Implemented by** the class: the constructor's guard on :math:`M`, the
+   forward ``inner = M - N``, the preconditioner :math:`M`'s own
+   ``.inverse()``, and the gains :math:`N`'s terms.
 
 
 The convergent :math:`A`-preconditioned splitting
@@ -456,10 +484,11 @@ from the bulk blocks :math:`L`, :math:`C`, but exactly what the boundary
 block :math:`B` has: :ref:`the scoped statement <smw-low-rank-exception>`,
 Issue #300), and —
 unlike the schedule-triangular ``(L+C)`` — there is no substitution order
-that solves it in one pass. What a sum *does* have, when its **leading**
-term :math:`A` is invertible, is a convergent **splitting**. Write the sum
-as :math:`A - B` (gains carried with their signs) and precondition by
-:math:`A^{-1}`:
+that solves it in one pass. What an operator *does* have, once it is
+**split** as :math:`A - B` with an invertible implicit part :math:`A` (the
+:math:`M` of :eq:`green-split-inverse`, the gains carried with their
+signs in :math:`B`, the :math:`N`), is a convergent iteration.
+Precondition by :math:`A^{-1}`:
 
 .. math::
    :label: green-neumann-series
@@ -555,11 +584,12 @@ have. Round-trip alone (:math:`A^{-1}(Ax)=x`) earns only the generic name;
    ``.H`` Hilbert adjoint :math:`G^{\dagger} = \mathcal G^{-1}
    G^{\mathsf T}\mathcal G` carrying the angular Gram metric. That
    adjoint exists on the object: ``G.dual()`` is the Green of the dual
-   sum, ``G.H`` is the base's ``♯ ∘ G.dual() ∘ ♭``, and by the law
-   :math:`((A - B)^{-1})^{*} = (A^{*} - B^{*})^{-1}` it equals the Green of
-   the adjoint sum, which the honesty gate builds as its independent
-   witness (:ref:`operator-adjoint-two-questions`). Both need the head's
-   inverse to transpose, which on S\ :sub:`N` is the 1-D reverse scan; on
+   split, ``GreenOperator(M.dual(), N.dual())``, ``G.H`` is the base's
+   ``♯ ∘ G.dual() ∘ ♭``, and by the law
+   :math:`((M - N)^{-1})^{*} = (M^{*} - N^{*})^{-1}` it equals the Green of
+   the adjoint split, which the honesty gate builds as its independent
+   witness (:ref:`operator-adjoint-two-questions`). Both need the implicit
+   part's inverse to transpose, which on S\ :sub:`N` is the 1-D reverse scan; on
    a multi-dimensional mesh the reverse scan is not realised
    (`#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_; the deferral ledger of
    :ref:`loss-rep-orientation-two-frames`), so there
@@ -583,86 +613,108 @@ Green wraps the driver — it re-implements nothing
 :class:`~orpheus.numerics.iteration.SourceIteration` — the **same**
 Richardson driver the SN solver and
 :class:`~orpheus.numerics.iteration.KEigenvalue` consume directly. At
-construction it derives the splitting **once, from the sum's structure**:
+construction it reads the splitting **once, from the named split**:
 
-* the **left-spine head** becomes the preconditioner :math:`A^{-1}`,
+* the implicit part :math:`M` becomes the preconditioner :math:`M^{-1}`,
   through *its own* structure-keyed ``.inverse()`` — the WDD
-  :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` for an
-  ``(L+C)`` head, a leaf
+  :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` for the
+  sweep-invertible atom
+  :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
+  (:math:`L + C`, built by its owner), a leaf
   :class:`~orpheus.numerics.operator.InverseOperator` for a value-bearing
-  head;
-* every remaining term becomes a **negated gain** of the driver (the
-  ``A - S`` spelling arrives as ``ScaledOperator(-1, S)``; the gain is
-  :math:`S` itself, un-wrapped so the driver holds the *named* operator).
+  :math:`M`;
+* the **terms** of the lagged part :math:`N` become the driver's gains, in
+  :math:`N`'s insertion order, each :math:`c_i w_i` (a coefficient 1 hands
+  the word itself, so the driver holds the *named* operator). So
+  ``GreenOperator(M, S + F)`` hands the driver ``(S, F)`` and associates
+  :math:`(q + S\psi) + F\psi`, exactly as a hand-built
+  ``SourceIteration(M⁻¹, S, F)`` does; one combined gain would associate
+  :math:`q + (S\psi + F\psi)` (the S2 spec's finding 10).
 
 It then hands these to ``SourceIteration`` and re-implements no iteration
-math of its own. The left spine is flattened by walking **exact**
-``OperatorSum`` nodes only: the fused
-:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` is a structural
-*leaf* (its sum-ness is an MRO fact, its identity a fused operator with a
-direct inverse), so ``((L+C) - S)`` flattens to preconditioner ``(L+C)`` +
-gain ``[S]`` — never dissolving the ``(L+C)`` into its own summands. A
-GMRES-realized Green (with
-:class:`~orpheus.numerics.iteration.KrylovAcceleration` as the engine) is a
-future realization *strategy* of this same object, not a sibling type.
+math of its own. The atom is one term: ``GreenOperator(lc, S)`` with ``lc``
+the :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
+never dissolves :math:`L + C` into its own legs. A GMRES-realized Green
+(with :class:`~orpheus.numerics.iteration.KrylovAcceleration` as the
+engine) is a future realization *strategy* of this same object, not a
+sibling type.
 
 
-The ordering ruling — four edges of one canonical order
--------------------------------------------------------
+The split is named, never read off a spelling
+---------------------------------------------
 
-Operand **spelling** selects the algorithm — the #261 canonical-ordering
-rule, extended to the sum inverse. The four edges:
+Which part of a loss is implicit decides the algorithm, so it is a choice
+someone makes, and the type records it. The edges, as gated on the
+heterogeneous 2-group vacuum slab of
+``tests/gates/sn/operators/test_green_operator_sn.py``:
 
-.. list-table:: How a sum's spelling routes its inverse
+.. list-table:: How a split routes its inverse
    :header-rows: 1
-   :widths: 20 26 54
+   :widths: 26 26 48
 
    * - Spelling
-     - ``.inverse()`` builds
+     - Inverse
      - Behaviour
-   * - ``L + C``
-     - :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
-     - The fusion dispatch on
-       :meth:`StreamingOperator.__add__ <orpheus.sn.operators.streaming.StreamingOperator.__add__>`
-       (streaming.py:510, "the canonical and only ordering") returns the
-       :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
-       specialisation, whose ``.inverse()`` override (→ the direct sweep)
-       **shadows the generic Green by MRO** (type-as-structure, §11.1).
-   * - ``A_loss = (L+C) - S``
-     - :class:`~orpheus.numerics.green_operator.GreenOperator`
-     - Leading ``(L+C)`` invertible → the physical splitting: preconditioner
-       the sweep, gain :math:`S`. Converges (:math:`c<1`); does **not**
-       raise.
-   * - ``C + L``
-     - :class:`~orpheus.numerics.green_operator.GreenOperator`
-     - A *legal* spelling whose leading term ``C`` happens to be invertible,
-       so a Green **constructs** — the algebra cannot read
-       :math:`\rho(C^{-1}L) > 1`. Its collision-preconditioned Richardson
-       **diverges**, and ``apply`` raises
-       :class:`~orpheus.numerics.green_operator.ConvergenceFailure`
-       **loudly**. Same math as ``L + C``, different algorithm by spelling —
-       never a silent wrong answer (Cardinal Rule 1).
-   * - ``(-S) + A``
+   * - ``build_streaming_collision(problem, mat_xs)``, the atom
+       :math:`L + C`
+     - ``lc.inverse()``, a
+       :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
+     - The direct sweep, carried by the atom.
+   * - ``L + C`` or ``C + L``, the plain combination (equal)
+     - none
+     - ``is_invertible`` is ``False``; ``inverse()`` raises
+       ``NotInvertible`` naming ``GreenOperator(M, N)``.
+   * - ``A_loss = lc - S``, and ``(-S) + lc`` (the same combination)
+     - none of its own; ``GreenOperator(lc, S)``
+     - The physical splitting: preconditioner the sweep, gain :math:`S`.
+       Converges (:math:`c < 1`), and ``GreenOperator(lc, S).inverse() ==
+       A_loss``.
+   * - ``GreenOperator(C, -L)``
+     - a Green that constructs
+     - A legal split whose implicit part happens to be invertible — the
+       algebra cannot read :math:`\rho(C^{-1}L) > 1`. Its
+       collision-preconditioned Richardson **diverges**, and ``apply``
+       raises :class:`~orpheus.numerics.green_operator.ConvergenceFailure`
+       **loudly**. Same operator as the physical split, a different
+       algorithm by the choice of :math:`M` — never a silent wrong answer
+       (Cardinal Rule 1).
+   * - ``GreenOperator(-S, ...)``
      - *(refused)*
-     - The left-spine head :math:`-S` is not invertible; the factory raises
-       :class:`~orpheus.numerics.operator.NotInvertible` at
-       **construction**, naming the canonical ordering (spell the invertible
-       operator first, ``A - S``).
+     - :math:`-S` is not invertible; the constructor raises
+       ``NotInvertible`` at **construction**.
 
-The keying predicate is honest about its scope.
-:attr:`OperatorSum.is_invertible <orpheus.numerics.operator.OperatorSum.is_invertible>`
-returns ``self.a.is_invertible`` — the *leading* term — and therefore reads
-"**leading-term-preconditionable at this operand order**", **not**
-spelling-independent mathematical invertibility (verification spec §18.B).
-For ``(-S) + A`` the operator :math:`A - S` *is* mathematically invertible,
-yet the predicate reports ``False`` because :math:`-S` is spelled first.
-This is acceptable precisely because the #261 rule already makes operand
-order semantically load-bearing, no production consumer relies on the
-spelling-independent meaning, and the refusal is **loud**. Since carve
-P4 there is no parallel ``CAP_SOLVE`` tag to keep in lockstep:
-``is_invertible`` is the *single* advertisement, and the keystone v2
-faithfulness contract (:ref:`capability-set-semantics`) pins that
-``.inverse()`` returns exactly when ``is_invertible`` is ``True``.
+``is_invertible`` on a combination is now spelling-independent: a sum of
+two or more terms is never invertible by itself, whatever operand order
+spelled it, and the keystone faithfulness contract
+(:ref:`capability-set-semantics`) still pins that ``.inverse()`` returns
+exactly when ``is_invertible`` is ``True``.
+
+.. dropdown:: First got wrong — the spelling chose the algorithm (until 2026-10-20)
+   :color: muted
+
+   From step 4 until package S2, a sum's inverse was keyed on its operand
+   ORDER (the #261 canonical-ordering rule extended to the sum inverse):
+   ``OperatorSum.is_invertible`` returned ``self.a.is_invertible``, the
+   first-spelled term, and ``OperatorSum.inverse()`` built a
+   ``GreenOperator`` whose preconditioner was the left-spine head, its
+   other terms the gains (an ``A - S`` spelling arrived as
+   ``ScaledOperator(-1, S)`` and was un-wrapped). The four edges were:
+   ``L + C`` fused by the type test in ``StreamingOperator.__add__`` and
+   inverted by the sweep; ``(L+C) - S`` built the physical Green; ``C + L``
+   missed the fusion, built a Green with the collision head and diverged
+   loudly; ``(-S) + A`` refused at construction, naming the canonical
+   ordering. The predicate therefore read "leading-term-preconditionable at
+   this operand order", not mathematical invertibility (verification spec
+   §18.B), and that was accepted because #261 already made order
+   load-bearing.
+
+   It could not survive the formal linear combination: an unordered sum
+   has no head. `[M]` the S2 census: no production path used it (the
+   left-spine walk ran 52 times, all from tests; every production inverse
+   of a loss goes through ``Splitting.implicit.inverse()``), and 5 tests
+   pinned it, three on the message fragment "canonical ordering". Ruling
+   50 moved the split into the constructor, ``GreenOperator(M, N)``, and
+   ruling 52 removed the fusion that made ``L + C`` and ``C + L`` differ.
 
 
 The promise — the TRUE residual, driven not merely checked
@@ -720,7 +772,7 @@ increment-check would have shipped as a silent wrong answer.
 Green versus the k-eigenvalue inner — normal form versus inexact relaxation
 ---------------------------------------------------------------------------
 
-``K = A_loss.inverse() @ F`` is the **normal form** of the k-eigenvalue
+``K = GreenOperator(M, N) @ F`` is the **normal form** of the k-eigenvalue
 problem: the eigen-operator whose dominant eigenvalue is :math:`k`. But
 production power iteration **deliberately does not** build this exact
 ``GreenOperator`` — it keeps consuming
@@ -734,12 +786,14 @@ converged-or-raise promise, and conflating them would either over-solve the
 inner (wasted matvecs) or import Green's hard raise into a loop that
 legitimately runs partial solves. So
 :class:`~orpheus.numerics.iteration.KEigenvalue` was examined and
-**deliberately not rewired** to ``A_loss.inverse() @ F``; the normal form is
+**deliberately not rewired** to ``GreenOperator(M, N) @ F``; the normal form is
 the *concept*, the inexact inner is its production *realization*.
 
 Green's consumers today are the invariant gates (see
 :ref:`green-verification`). The S\ :sub:`N` Krylov preconditioner is not
-one of them: it is the direct sweep inverse, ``(L + C).inverse()``,
+one of them: it is the direct sweep inverse, ``lc.inverse()`` of the
+sweep-invertible atom :math:`L + C` (the plain combination ``L + C`` has no
+inverse),
 a :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` (or the
 coupled block substitution on a carrying mesh), applied to each GMRES
 residual (:ref:`sn-krylov-sweep-preconditioner`). The production
@@ -794,7 +848,7 @@ transpose exists and the adjoint is posed
 (:ref:`operator-adjoint-two-questions`). Two siblings override the law:
 :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
 (the ``trans=1`` backsolve on its own LU factors) and ``GreenOperator``
-(its dual is the Green of the dual sum, since a sum has no transposed
+(its dual is the Green of the dual split, since a sum has no transposed
 solve of its own; its ``.H`` is the base's).
 
 
@@ -840,17 +894,22 @@ deliberately excluded as evidence.
        which resolves the #284 source-subspace caveat — sweep inverses are
        exact on the source subspace, so the exact solution *is* ``x_tc`` with
        no dense-LU trace mismatch. Plus **driver bit-identity** vs the
-       hand-built ``SourceIteration(sweep, S)``, and the four ordering-ruling
-       edges end-to-end.
+       hand-built ``SourceIteration(sweep, S)`` (``array_equal``; the
+       lagged part's terms ride as separate gains), and the edges of the
+       split table above end-to-end: the plain sum refuses an inverse in
+       both spelling orders, and the collision-preconditioned split
+       ``GreenOperator(C, -L)`` raises ``ConvergenceFailure``.
 
 The config discipline is Mode-9: the L1 slab is **heterogeneous, ≥2-group,
 vacuum** — a reflective isotropic box would null the
 streaming↔scattering redistribution the Neumann series expands, and 1-group
 is blind to a scattering-matrix transpose (Mode 6). The teeth are
-**14 mutations verified** (2026-07-02): 12 bite their named gates
+**14 mutations verified** (2026-07-02, on the pre-S2 left-spine Green;
+the test module records that they re-run at the S2 review): 12 bite their
+named gates
 (sign/swap/flatten/tol/increment/seed/order/…), and 2 are designed-green
-controls — the always-wrap ``_negated`` no-op (proving the gain-unwrap is
-pure deforestation) and the **M-GRN-SEED blindness proof** (a dropped
+controls — the always-wrap ``_negated`` no-op (a helper retired at S2;
+it proved the gain-unwrap was pure deforestation) and the **M-GRN-SEED blindness proof** (a dropped
 driver-start reddens Green's own Mode-11 seed spy while the landed step-3
 spy and every value gate stay green, proving the step-3 spy is structurally
 blind to Green's driver-start threading). The pyright ratchet held exactly
@@ -1010,9 +1069,10 @@ LU back-solve (below), not a sparse form.
 ``A.inverse()`` is a **structure-keyed factory** (taxonomy §13): the
 concrete subclass names the mathematical *object* the inverse is, never the
 algorithm. A schedule-triangular forward returns the direct-substitution
-:class:`~orpheus.sn.operators.sweep_operator.SweepOperator`; a general sum
-with an invertible leading term returns the preconditioned-splitting
-:class:`~orpheus.numerics.green_operator.GreenOperator`; a value-bearing
+:class:`~orpheus.sn.operators.sweep_operator.SweepOperator`; a sum of two
+or more terms has no inverse of its own, and the preconditioned-splitting
+:class:`~orpheus.numerics.green_operator.GreenOperator` is built from its
+named split, ``GreenOperator(M, N)``; a value-bearing
 leaf returns the pointwise
 :class:`~orpheus.numerics.operator.InverseOperator`.
 :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator` is
@@ -1151,12 +1211,13 @@ apply time:
 the taxonomy §3 ``strategy=`` override seam realized *honestly* — not a flag
 on ``.inverse()`` but an explicit construction by a consumer who knows the
 problem is small (**the type IS the strategy choice**). The witness is a sum
-whose **leading term is not invertible**: the canonical motivating form is
-the SN :math:`(-S)+(L+C)`, which
-:class:`~orpheus.numerics.green_operator.GreenOperator` **refuses at
-construction** (left-spine head :math:`-S` non-invertible, canonical-ordering
-:class:`~orpheus.numerics.operator.NotInvertible`) yet which materializes
-to a perfectly invertible matrix. Because the real :math:`(-S)+(L+C)` is a
+whose only spelled split has a **non-invertible implicit part**: the
+motivating form is the SN :math:`(-S)+(L+C)`, which as a sum has no
+inverse of its own (:eq:`combination-inverse`), and whose split with
+:math:`M = -S` :class:`~orpheus.numerics.green_operator.GreenOperator`
+**refuses at construction**
+(:class:`~orpheus.numerics.operator.NotInvertible`), yet which
+materializes to a perfectly invertible matrix. Because the real :math:`(-S)+(L+C)` is a
 ``FullField`` carrier — **out of ``as_matrix``'s ndarray scope** (the
 honest-scope note below) — the gate proves the identical refusal/inversion
 asymmetry on the realizable ndarray analog :math:`(-S_{\rm ao})+D` (an
@@ -1219,10 +1280,11 @@ bullet). The consumers, from latent to landed:
   solver now composes ``K = MatrixInverseOperator(loss) @ production`` and
   eigendecomposes ``K.as_matrix()``, making it the **first production
   consumer** of the class. It constructs the matrix inverse *explicitly*
-  rather than via the structure-keyed ``loss.inverse()`` — which, reading the
-  sum :math:`C - K_{\rm iso}` (invertible leading term), would return the
-  iterative :class:`~orpheus.numerics.green_operator.GreenOperator` splitting
-  — the direct-realization strategy encoded as a type. With the operator
+  rather than through an iterative inverse: the loss
+  :math:`C - K_{\rm iso}` is a combination with no inverse of its own, and
+  its iterative inverse would be the Green of a named split,
+  ``GreenOperator(C, K_iso)`` — the direct-realization strategy encoded as
+  a type. With the operator
   spelling live, ``direct_eigenvalue`` has **zero production consumers**,
   retained as the ``(A, F)``-posed sibling engine and the RQI test oracle.
   See :ref:`direct-eigensolve-solve`.
@@ -1400,12 +1462,14 @@ conjunction over its legs:
    [A\,B] = [A]\,[B], \qquad
    [\alpha L] = \alpha\,[L],
 
-realised respectively by the carrier's own CSR **addition**
-(:class:`~orpheus.numerics.operator.OperatorSum`), CSR **matmul**
-(:class:`~orpheus.numerics.operator.OperatorProduct`), and scalar
-**multiply** (:class:`~orpheus.numerics.operator.ScaledOperator`). A sum
-or product is assemblable iff **both** legs are; a scaled operator iff
-its operand is; and the eager :class:`~orpheus.numerics.operator.MissingAssembly`
+realised by the carrier's own CSR **addition** and scalar **multiply**
+over the terms of a combination
+(:class:`~orpheus.numerics.operator.OperatorSum`, folded left in insertion
+order, :math:`[\sum_i c_i w_i] = \sum_i c_i [w_i]`), and CSR **matmul**
+over the factors of a word
+(:class:`~orpheus.numerics.operator.OperatorProduct`,
+:math:`[A_1\cdots A_n] = [A_1]\cdots[A_n]`). A combination is
+assemblable iff **every** term is, a word iff every factor is; and the eager :class:`~orpheus.numerics.operator.MissingAssembly`
 guard-narrows the legs (Design C) before any operand call. The
 :class:`~orpheus.numerics.operator.TensorProductOperator` law would be
 :math:`[A\otimes B] = [A]\otimes[B]` (a :func:`scipy.sparse.kron`), but

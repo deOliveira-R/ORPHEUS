@@ -10,8 +10,8 @@ What P2 does (the SUT this file gates)
 --------------------------------------
 
 1. Two ``FrameBase`` methods:
-     ``conjugate(frame, A)         -> R ∘ A ∘ M``   (OperatorProduct(R, OperatorProduct(A, M)))
-     ``reconstruct_after(frame, A) -> R ∘ A``        (OperatorProduct(R, A))
+     ``conjugate(frame, A)         -> R ∘ A ∘ M``   (the word ``R @ A @ M``, factors (R, A, M))
+     ``reconstruct_after(frame, A) -> R ∘ A``        (the word ``R @ A``)
 2. ``LegendreMomentTransfer`` gets REAL spaces
      (``domain == codomain == basis_space(frame)``), retiring the
      ``cast(LinearOperator, …)`` at ``scattering.py:663``.
@@ -197,13 +197,13 @@ class TestLegendreMomentTransferHasRealSpaces:
 
         IMPORTANT (design note, surfaced at spec-write time): the OUTER
         ``S.kernel`` already reports real ``domain``/``codomain`` TODAY —
-        ``OperatorProduct(R, OperatorProduct(Λ, M)).domain`` reads ``M.domain``
+        ``(R @ Λ @ M).domain`` reads ``M.domain``
         (the measure_space) and ``.codomain`` reads ``R.codomain``, NEITHER of
         which is Λ. So an outer-product domain/codomain check does NOT gate the
         cast removal — it is green pre-carve.
 
         The fact that genuinely changes is the INNER product
-        ``OperatorProduct(Λ, M).codomain``, which reads ``Λ.codomain``: ``None``
+        ``(Λ @ M).codomain``, which reads ``Λ.codomain``: ``None``
         pre-carve (Λ unparametrised), ``basis_space(frame)`` post-carve. This
         row reads that inner codomain and demands it be real — so it is RED
         until Λ gets spaces. Build the inner product explicitly (mirrors the
@@ -214,10 +214,10 @@ class TestLegendreMomentTransferHasRealSpaces:
         lam = LegendreMomentTransfer.on_frame(
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
-        inner = OperatorProduct(lam, frame_faces.FrameAnalysis.of(frame))
+        inner = lam @ frame_faces.FrameAnalysis.of(frame)  # S2: the word via @
         require(
             inner.codomain is not None,
-            "P2: OperatorProduct(Λ, M).codomain must be Λ's real codomain "
+            "P2: (Λ @ M).codomain must be Λ's real codomain "
             "(== basis_space(frame)), not None. It is None pre-carve because Λ "
             "is unparametrised; the carve gives Λ real spaces so the cast at "
             "scattering.py:663 retires.",
@@ -246,7 +246,7 @@ class TestLegendreMomentTransferHasRealSpaces:
 
 
 class TestFrameConjugateEqualsRLambdaM:
-    """``conjugate(frame, A) == OperatorProduct(R, OperatorProduct(A, M))``."""
+    """``conjugate(frame, A) == R @ A @ M``, the flattened word (R, A, M)."""
 
     def test_conjugate_equals_manual_R_A_M_nesting(self, solver_p1_het):
         """conjugate(Λ).apply(ψ) == R(Λ(M·ψ)) on a non-isotropic reference ψ.
@@ -273,7 +273,7 @@ class TestFrameConjugateEqualsRLambdaM:
             via_conjugate, manual,
             err_msg="P2: conjugate(frame, Λ).apply(ψ) must equal the manual "
             "R(Λ(M·ψ)) nesting BIT-IDENTICALLY — conjugate composes "
-            "OperatorProduct(R, OperatorProduct(Λ, M)). A mismatch means the "
+            "the word R @ Λ @ M. A mismatch means the "
             "factor order (M↔R swap) or composition is wrong.",
         )
 
@@ -290,7 +290,7 @@ class TestFrameConjugateEqualsRLambdaM:
 
 
 class TestFrameReconstructAfterEqualsRLambda:
-    """``reconstruct_after(frame, A) == OperatorProduct(R, A)`` (M already applied)."""
+    """``reconstruct_after(frame, A) == R @ A`` (M already applied)."""
 
     def test_reconstruct_after_equals_manual_R_A(self, solver_p1_het):
         """reconstruct_after(Λ).apply(φ) == R(Λ·φ) on a moment-tensor input φ.
@@ -314,7 +314,7 @@ class TestFrameReconstructAfterEqualsRLambda:
         np.testing.assert_array_equal(
             via_recon_after, manual,
             err_msg="P2: reconstruct_after(frame, Λ).apply(φ) must equal R(Λ·φ) "
-            "BIT-IDENTICALLY — reconstruct_after composes OperatorProduct(R, Λ). "
+            "BIT-IDENTICALLY — reconstruct_after composes the word R @ Λ. "
             "It must NOT re-apply M (the moments are already M·ψ).",
         )
 

@@ -68,7 +68,7 @@ from orpheus.numerics.outcome import EigenOutcome, Measured
 if TYPE_CHECKING:
     from orpheus.numerics.pencil import OperatorPencil
     from orpheus.numerics.posing import EigenPosing
-    from orpheus.numerics.operator import OperatorProduct, OperatorSum
+    from orpheus.numerics.operator import LinearOperator
 
 
 # ---------------------------------------------------------------------------
@@ -357,7 +357,7 @@ class HomogeneousProblem:
         return IsotropicN2N(self.n2n.at_order(0), domain=self.space, codomain=self.space)
 
     @cached_property
-    def isotropic_transfer(self) -> "OperatorSum":
+    def isotropic_transfer(self) -> "LinearOperator":
         r""":math:`K_\mathrm{iso} = \Sigma_{s0}^T + 2\Sigma_2^T`."""
         return self.isotropic_scattering + self.isotropic_n2n
 
@@ -382,7 +382,7 @@ class HomogeneousProblem:
         return EigenPosing(self.pencil, K_MAP)
 
     @cached_property
-    def loss(self) -> "OperatorSum":
+    def loss(self) -> "LinearOperator":
         r"""The loss operator :math:`A = C - K_\mathrm{iso}` for an infinite medium.
 
         Streaming :math:`L` is identically zero in an infinite medium and
@@ -393,8 +393,12 @@ class HomogeneousProblem:
         whose constructor materializes it through the operator's own
         :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix` (the
         shape derives from the threaded domain) and LU-factors it once.
-        Every arm poses on :attr:`space`, so the ``OperatorSum`` guard
-        VALIDATES the sum instead of skipping it.
+        Every arm poses on :attr:`space`, so the combination's agreement law
+        VALIDATES the spaces instead of skipping them. The terms flatten:
+        ``C − K_iso`` is the three-term combination ``C − S − 2Σ₂ᵀ`` (K_iso
+        keeps its name as the property above; only its parentheses go), so the
+        loss applies as ``(Cx − Sx) − 2Σ₂ᵀx`` (numerics_untangling.md ruling
+        54).
         """
         return self.collision - self.isotropic_transfer
 

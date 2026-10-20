@@ -238,7 +238,7 @@ def _loss(sn, slope: float = 0.4):
     """
     sig_t = np.stack(
         [np.full(sn.spatial_shape, 1.0 + slope * g) for g in range(sn.ng)], 0)
-    return StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
+    return StreamingCollisionOperator(StreamingOperator.pose(sn), MultiplicationOperator.from_mesh(sig_t, sn))
 
 
 def _template(sn):
@@ -2591,9 +2591,15 @@ class TestCoupledLift:
         S = snf_solver.problem.system.factors.scattering
         emission_block = _labelled(snf_system).explicit[0].blocks[1][0]
         kernel = getattr(emission_block, "emission_kernel", None)
+        # S2 (T-priv re-pose): the kernel is a formal combination; its terms
+        # are compared by LEAF identity and coefficient, order-free (the
+        # private ``_a``/``_b`` slots and their spelling order are gone).
+        n2n_leaf = snf_solver.problem.system.factors.n2n.isotropic_energy
+        terms = getattr(kernel, "terms", ())
         if not (isinstance(emission_block, RadialCharacteristicEmission)
-                and getattr(kernel, "_a", None) is S.isotropic_energy
-                and getattr(kernel, "_b", None) is snf_solver.problem.system.factors.n2n.isotropic_energy):
+                and len(terms) == 2
+                and {(id(w), c) for c, w in terms}
+                == {(id(S.isotropic_energy), 1.0), (id(n2n_leaf), 1.0)}):
             pytest.fail("the gain grid's (B,A) block is not EXACTLY the scatter "
                         "A_BA over the solver-composed K_iso "
                         "(S.isotropic_energy + N2N.isotropic_energy, leaf identity) — the "
@@ -3056,9 +3062,13 @@ class TestSystemRoleLattice:
         # OperatorSum joins its summands, the G-adjoint preserves. A_AB is
         # σ-independent, so a sphere instance is cheap; it carries COUPLED, so
         # both a sum with itself and its adjoint stay COUPLED.
-        a_ab = RadialCharacteristicSeeding(_sphere())
-        assert (a_ab + a_ab).system_role is SystemRole.COUPLED   # OperatorSum join
-        assert (2.0 * a_ab).system_role is SystemRole.COUPLED    # ScaledOperator passthrough
+        sph = _sphere()
+        a_ab = RadialCharacteristicSeeding(sph)
+        # Two DISTINCT objects: since S2 ``a_ab + a_ab`` collects to 2·a_ab
+        # (one term) and exercises no join.
+        a_ab2 = RadialCharacteristicSeeding(sph)
+        assert (a_ab + a_ab2).system_role is SystemRole.COUPLED  # OperatorSum join
+        assert (2.0 * a_ab).system_role is SystemRole.COUPLED    # one-term combination passthrough
         assert a_ab.H.system_role is SystemRole.COUPLED          # AdjointOperator passthrough
 
 

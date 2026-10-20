@@ -36,8 +36,9 @@ ability is a per-axis THREE-LAYER surface (#226, Design C):
 * a **predicate** (:attr:`~LinearOperator.is_invertible` /
   :attr:`~LinearOperator.is_adjointable`) — the runtime,
   instance-accurate truth, reading structure AND values (a
-  zero-coefficient multiplier reports ``False``; a sum reports its
-  leading term), recursive on composites;
+  zero-coefficient multiplier reports ``False``; a sum of two or more
+  terms reports ``False``, its inverse being named by its split),
+  recursive on composites;
 * an **operator-returning method** (``inverse()`` / :attr:`~LinearOperator.H`)
   — the canonical act; ``.H`` lives on the base (one generic wrapper
   realization exists) and refuses EAGERLY (:class:`MissingAdjoint`),
@@ -67,7 +68,9 @@ surface is METHOD ABSENCE, not an advertising flag. See
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
+from collections.abc import Hashable, Iterable
 from enum import Enum
+from functools import cached_property, reduce
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -116,40 +119,8 @@ if TYPE_CHECKING:
 # ``typing.TypeVar(default=…)`` requires-python ``>=3.13``.
 Domain = TypeVar("Domain", bound=Vector)  # operator input carrier
 Codomain = TypeVar("Codomain", bound=Vector, default=Domain)  # operator output carrier
-Cmid = TypeVar("Cmid", bound=Vector)  # OperatorProduct intermediate carrier
 D2 = TypeVar("D2", bound=Vector)  # __matmul__ other-operand domain
-
-# Composition-leg type parameters (C4 F1 — the composition wrappers are
-# generic over their LEG types, so a named composition subclass carries its
-# legs' identities at the type level and its accessors need no casts:
-# ``StreamingCollisionOperator = OperatorSum[FF, FF, StreamingOperator,
-# MultiplicationOperator]`` reads ``self.a`` as a ``StreamingOperator``).
-# COVARIANT because a pinned composition must upcast to the defaulted
-# spelling (``StreamingOperator.__add__`` returns ``StreamingCollisionOperator``
-# where the base dunder contract says ``OperatorSum[Domain, Codomain]``) —
-# which is also why the legs are read-only properties over ``Final``
-# storage: covariance is sound only without a setter. PEP-696 defaults
-# keep every existing ``OperatorSum[D, C]`` / bare spelling valid.
-SummandA = TypeVar(
-    "SummandA", bound="LinearOperator", covariant=True,
-    default="LinearOperator[Domain, Codomain]",
-)
-SummandB = TypeVar(
-    "SummandB", bound="LinearOperator", covariant=True,
-    default="LinearOperator[Domain, Codomain]",
-)
-FactorA = TypeVar(  # A of ``A @ B`` — maps the intermediate to the output
-    "FactorA", bound="LinearOperator", covariant=True,
-    default="LinearOperator[Any, Codomain]",
-)
-FactorB = TypeVar(  # B of ``A @ B`` — maps the input to the intermediate
-    "FactorB", bound="LinearOperator", covariant=True,
-    default="LinearOperator[Domain, Any]",
-)
-ScaledOperand = TypeVar(
-    "ScaledOperand", bound="LinearOperator", covariant=True,
-    default="LinearOperator[Domain, Codomain]",
-)
+_Word = TypeVar("_Word")  # a term of the left fold (an operator, narrowed or not)
 
 __all__ = [
     "LinearOperator",
@@ -176,10 +147,12 @@ __all__ = [
     "InverseWrapMixin",
     "OperatorSum",
     "OperatorProduct",
+    "linear_combination",
+    "composition",
+    "FusedAtom",
     "AdjointOperator",
     "RieszLowerOperator",
     "RieszRaiseOperator",
-    "ScaledOperator",
     "IdentityOperator",
     "PointwiseOperator",
     "InverseMetricOperator",
@@ -400,6 +373,67 @@ def _agreed_space(
     return agreed
 
 
+class _Identity:
+    r"""An operator compared by OBJECT IDENTITY, never by its own ``__eq__``.
+
+    The free vector space is the free vector space on operator OBJECTS (ruling
+    23, design D2): two separately built ``L`` stay two terms, because whether
+    two different objects are the same operator is a question the algebra
+    cannot answer. Keying on this wrapper is what keeps an atom's ``__eq__``
+    out of the algebra — so an atom with ``__hash__ = None`` (the mutable
+    dataclass ``StreamingOperator``) sums, compares and collects like any
+    other.
+    """
+
+    __slots__ = ("operator",)
+
+    def __init__(self, operator: object) -> None:
+        self.operator = operator
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _Identity) and other.operator is self.operator
+
+    def __hash__(self) -> int:
+        return id(self.operator)
+
+
+def _algebra_key(op: object) -> Hashable:
+    r"""The key by which the algebra collects and compares ``op``.
+
+    An atom is keyed by its identity (:class:`_Identity`). A formal arrow (the
+    adjoint, the dual, the inverse) is keyed by its kind and its inner's key,
+    so ``A.H == A.H`` across two builds although each ``.H`` mints a fresh
+    wrapper (ruling 53's spec, Q5; memoisation was rejected). A combination
+    or a word is keyed by its structure. The keyed classes are exactly the
+    :class:`_KeyedEquality` ones, each declaring its key; every other operator,
+    nominal or structural, is an atom.
+    """
+    return op._algebra_key() if isinstance(op, _KeyedEquality) else _Identity(op)
+
+
+class _KeyedEquality:
+    r"""Equality and hashing by :func:`_algebra_key` — the formal objects.
+
+    Mixed into the classes whose identity is their structure: the
+    combination, the word and the three formal arrows. An atom inherits
+    ``object``'s identity equality, which is the same relation the key reads.
+    """
+
+    __slots__ = ()
+
+    @abstractmethod
+    def _algebra_key(self) -> Hashable:
+        """The structural key: the kind, and the keys of the parts."""
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, _KeyedEquality):
+            return NotImplemented
+        return _algebra_key(self) == _algebra_key(other)
+
+    def __hash__(self) -> int:
+        return hash(_algebra_key(self))
+
+
 class _BlockRoleMeta(type):
     r"""Metaclass making ``isinstance(op, BulkOperator)`` read ``op.block_role``.
 
@@ -482,8 +516,8 @@ class NotInvertible(TypeError):
     :meth:`inverse` overrides (and the inverse-family constructors) when
     the operator's :attr:`~LinearOperator.is_invertible` is ``False`` —
     the VALUE-dependent arm of the two-kinds split. A zero-coefficient
-    :class:`~orpheus.numerics.elementary_operators.DiagonalOperator`, a sum whose leading term is not
-    invertible, a product with a singular factor: the TYPE supports
+    :class:`~orpheus.numerics.elementary_operators.DiagonalOperator`, a sum of two or more terms
+    (whose inverse is named by its split), a product with a singular factor: the TYPE supports
     inversion, this INSTANCE refuses, at construction of the inverse and
     never mid-iteration. (The STRUCTURAL arm — :class:`~orpheus.numerics.operator.ZeroOperator`,
     masks, source dyads, for which no inverse exists mathematically —
@@ -601,9 +635,10 @@ class LinearOperator(Protocol[Domain, Codomain]):
     source of truth for what an operator can do is the operator's own
     structure and values, read through the predicates.
 
-    Composition operators (:class:`OperatorSum`, :class:`OperatorProduct`,
-    :class:`ScaledOperator`) are wired through ``__add__``, ``__sub__``,
-    ``__mul__`` (scalar), and ``__matmul__`` (operator product) so the
+    The two composites are wired through the dunders: ``+``, ``-``, unary
+    ``-``, ``α *`` and ``/ α`` mint the formal linear combination
+    (:func:`linear_combination`, an :class:`OperatorSum`), and ``@`` the
+    flattened word (:func:`composition`, an :class:`OperatorProduct`), so the
     typical algebra of the Boltzmann transport equation,
     :math:`(L + C - S - B)`, can be built with the natural Python syntax.
     The composites derive their predicates recursively per the closure
@@ -636,8 +671,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
     #: as a field (it became a string and the ClassVar heuristic missed
     #: it). The annotation HERE is a **plain instance attribute** (NOT
     #: ``ClassVar``) precisely because the composers
-    #: (:class:`OperatorSum` / :class:`ScaledOperator` /
-    #: :class:`AdjointOperator`) and the
+    #: (:class:`OperatorSum` / :class:`AdjointOperator`) and the
     #: :func:`~orpheus.geometry.boundary.stamp_boundary_role` stamp assign
     #: ``self.block_role`` per-instance (the role is DERIVED from operands,
     #: not fixed by the class). A ``ClassVar`` would (correctly) reject
@@ -652,8 +686,8 @@ class LinearOperator(Protocol[Domain, Codomain]):
     #: :attr:`block_role` (which refines the bulk↔boundary structure *within*
     #: System A). ``None`` for every operator outside the ψ½ two-system
     #: decomposition. Derived through composition exactly as :attr:`block_role`
-    #: is — the passthrough (:class:`AdjointOperator`, :class:`ScaledOperator`)
-    #: and the :func:`_join_system_roles` union (:class:`OperatorSum`).
+    #: is — the passthrough (:class:`AdjointOperator`) and the
+    #: :func:`_join_system_roles` union over the terms (:class:`OperatorSum`).
     system_role: Optional[SystemRole] = None
 
     @property
@@ -719,7 +753,8 @@ class LinearOperator(Protocol[Domain, Codomain]):
         ``isinstance(op, SupportsInverse)`` — which
         sees only class-level method presence — this property reads the
         operator's actual structure and values, so it correctly reports a
-        sum with a non-invertible LEADING term as non-invertible and a
+        one-term combination :math:`cA` as invertible exactly when :math:`A`
+        is, a sum of two or more terms as non-invertible, and a
         zero-coefficient
         :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
         as singular (``min|f| = 0``). Composites derive it recursively from
@@ -773,8 +808,9 @@ class LinearOperator(Protocol[Domain, Codomain]):
         calls ``block.solve_transpose``), and the inverse family
         (:class:`InverseWrapMixin`) from its forward's transpose. A sum has
         none: its inverse is a Green, whose transpose is the Green of the
-        dual sum. A :class:`ScaledOperator` has none either; a native one is
-        owed when a scaled block first sits on a coupled grid's diagonal.
+        dual sum. A one-term combination :math:`cA` has none either; a native
+        one is owed when a scaled block first sits on a coupled grid's
+        diagonal.
         """
         return False
 
@@ -865,68 +901,54 @@ class LinearOperator(Protocol[Domain, Codomain]):
     # the composer constructors, which enforce the capability-closure laws.
     # ------------------------------------------------------------------
 
-    def __add__(
-        self, other: "LinearOperator[Domain, Codomain]",
-    ) -> "OperatorSum[Domain, Codomain]":
-        return OperatorSum(self, other)
-
-    def __radd__(
-        self, other: "LinearOperator[Domain, Codomain]",
-    ) -> "OperatorSum[Domain, Codomain]":
-        return OperatorSum(other, self)
-
-    def __sub__(
-        self, other: "LinearOperator[Domain, Codomain]",
-    ) -> "OperatorSum[Domain, Codomain]":
-        return OperatorSum(self, ScaledOperator(-1.0, other))
-
-    def __rsub__(
-        self, other: "LinearOperator[Domain, Codomain]",
-    ) -> "OperatorSum[Domain, Codomain]":
-        return OperatorSum(other, ScaledOperator(-1.0, self))
-
-    def __mul__(self, other: float) -> "ScaledOperator[Domain, Codomain]":
-        if not isinstance(other, (int, float, np.floating, np.integer)):
+    def __add__(self, other: "LinearOperator[Domain, Codomain]") -> "LinearOperator[Domain, Codomain]":
+        if _is_scalar(other):
             return NotImplemented
-        return ScaledOperator(float(other), self)
+        return linear_combination(((1.0, self), (1.0, other)))
 
-    def __rmul__(self, other: float) -> "ScaledOperator[Domain, Codomain]":
+    def __radd__(self, other: "LinearOperator[Domain, Codomain]") -> "LinearOperator[Domain, Codomain]":
+        # The scalar 0 is the zero of ``sum(operators)``'s start value: absorbed.
+        if _is_scalar(other):
+            return self if other == 0 else NotImplemented
+        return linear_combination(((1.0, other), (1.0, self)))
+
+    def __sub__(self, other: "LinearOperator[Domain, Codomain]") -> "LinearOperator[Domain, Codomain]":
+        if _is_scalar(other):
+            return NotImplemented
+        return linear_combination(((1.0, self), (-1.0, other)))
+
+    def __rsub__(self, other: "LinearOperator[Domain, Codomain]") -> "LinearOperator[Domain, Codomain]":
+        if _is_scalar(other):
+            return NotImplemented
+        return linear_combination(((1.0, other), (-1.0, self)))
+
+    def __mul__(self, other: float) -> "LinearOperator[Domain, Codomain]":
+        if not _is_scalar(other):
+            return NotImplemented
+        return linear_combination(((float(other), self),))
+
+    def __rmul__(self, other: float) -> "LinearOperator[Domain, Codomain]":
         return self.__mul__(other)
 
-    def __neg__(self) -> "ScaledOperator[Domain, Codomain]":
-        r"""Unary minus: return :math:`-A` as ``ScaledOperator(-1.0, A)``.
+    def __neg__(self) -> "LinearOperator[Domain, Codomain]":
+        r"""Unary minus: :math:`-A`, the one-term combination :math:`(-1)A`."""
+        return linear_combination(((-1.0, self),))
 
-        Pythonic completion of the ``__sub__`` family — when ``A - B``
-        works (which ``__sub__`` already provides via the ``A +
-        ScaledOperator(-1.0, B)`` rewrite) Python's arithmetic
-        convention is that ``-A`` should also work (adjoint-flux sign
-        flips, residual corrections ``-L @ delta``, Jacobi splitting).
-        """
-        return ScaledOperator(-1.0, self)
-
-    def __truediv__(self, scalar: float) -> "ScaledOperator[Domain, Codomain]":
+    def __truediv__(self, scalar: float) -> "LinearOperator[Domain, Codomain]":
         r"""Scalar division: ``A / α`` is ``(1/α) * A``.
 
         Reads more naturally than the reciprocal-multiply form
         ``(1.0 / α) * A`` — eigenvalue/Krylov normalisation
-        (``F / k_eff``), homogenisation averages.
-
-        Raises :class:`TypeError` if ``scalar`` is not numeric.
-        Division by zero raises :class:`ZeroDivisionError` per the
-        standard Python convention (handled by ``1.0 / scalar``).
+        (``F / k_eff``), homogenisation averages. Division by zero raises
+        :class:`ZeroDivisionError` per the standard Python convention.
         """
-        if not isinstance(scalar, (int, float, np.floating, np.integer)):
+        if not _is_scalar(scalar):
             return NotImplemented
-        return ScaledOperator(1.0 / float(scalar), self)
+        return linear_combination(((1.0 / float(scalar), self),))
 
-    def __matmul__(
-        self, other: "LinearOperator[D2, Domain]",
-    ) -> "OperatorProduct[D2, Codomain]":
-        # ``self`` (Domain → Codomain) ∘ ``other`` (D2 → Domain): the
-        # intermediate carrier is ``self``'s domain ``Domain`` =
-        # ``other``'s codomain — captured as ``OperatorProduct``'s
-        # ``Cmid``, giving the honest ``D2 → Codomain``.
-        return OperatorProduct(self, other)
+    def __matmul__(self, other: "LinearOperator[D2, Domain]") -> "LinearOperator[D2, Codomain]":
+        # ``self`` (Domain → Codomain) ∘ ``other`` (D2 → Domain) is D2 → Codomain.
+        return composition(self, other)
 
     def __and__(self, other: "LinearOperator[Domain]") -> "TensorProductOperator":
         r"""Return :math:`A \otimes B` — the per-axis tensor-product operator.
@@ -1587,7 +1609,7 @@ class RieszRaiseOperator(LinearOperator[Domain, Domain], Generic[Domain]):
         return True
 
 
-class _DualOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):
+class _DualOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):
     r"""The dual arrow :math:`A^{\mathsf T} : W^* \to V^*` — the
     representation transpose with honest dual-space bookkeeping.
 
@@ -1615,6 +1637,10 @@ class _DualOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain])
 
     def __init__(self, inner: "SupportsAdjoint[Domain, Codomain]") -> None:
         self.inner: Final = inner
+
+    def _algebra_key(self) -> Hashable:
+        # A formal arrow is its kind and its inner (ruling 53's spec, Q5).
+        return ("dual", _algebra_key(self.inner))
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -1685,7 +1711,7 @@ class _DualOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain])
         return self.inner.adjoint().dual()  # type: ignore[return-value]
 
 
-class AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):
+class AdjointOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):
     r"""The Hilbert-adjoint ARROW :math:`A^{*} : W \to V` — first-class.
 
     Public since CS4c step 1 (the dagger-arrow promotion, R2 ruling —
@@ -1806,6 +1832,10 @@ class AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain
             else IdentityOperator()
         )
 
+    def _algebra_key(self) -> Hashable:
+        # A formal arrow is its kind and its inner (ruling 53's spec, Q5).
+        return ("adjoint", _algebra_key(self.inner))
+
     @property
     def domain(self) -> Optional["FunctionSpace"]:
         # Adjoint of A: V → W is A.H: W → V — domain swaps with inner.codomain.
@@ -1918,599 +1948,732 @@ class AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain
         return inner_inverse.H
 
 
-class OperatorSum(
-    LinearOperator[Domain, Codomain],
-    Generic[Domain, Codomain, SummandA, SummandB],
-):
-    r"""Sum of two linear operators: :math:`(A + B)\,x = A\,x + B\,x`.
+# ───────────────────────────────────────────────────────────────────────
+# The free algebra: a sum is a formal linear combination, a product a word
+# ───────────────────────────────────────────────────────────────────────
+#
+# The operators V → W form a real vector space, and under composition a
+# monoid. The two composites realise exactly those structures and nothing
+# more (numerics_untangling.md ruling 23, package S2):
+#
+#   OperatorSum     = {word ↦ coefficient}   unordered; empty = the zero map
+#   OperatorProduct = (f₁, …, fₙ), n ≥ 2     ordered; no factor a product
+#   a word          = an atom, or a product
+#
+# The laws of the free vector space (associativity, commutativity, collection
+# of like terms, scalar distributivity, 0·A = 0, A − A = 0) and of the free
+# monoid (associativity) are EQUALITIES OF THE REPRESENTATION: the two
+# constructors below normalise, so ``(A + B) + C`` and ``A + (B + C)`` are the
+# same combination and ``(AB)C`` and ``A(BC)`` the same word. Composition is
+# NOT distributed over a sum — ``A(B + C)`` stays a word whose second factor
+# is a sum — because distributing changes the cost of ``apply`` (two
+# applications of ``A``), and ruling 23 claims only the abelian-group laws and
+# scalar distributivity.
 
-    Generic over its SUMMAND types: a named composition subclass
-    pins them — ``StreamingCollisionOperator = OperatorSum["FullField",
-    "FullField", StreamingOperator, MultiplicationOperator]`` — so its
-    leg accessors are typed by construction, no casts. The PEP-696
-    defaults (``LinearOperator[Domain, Codomain]``) keep every
-    ``OperatorSum[D, C]`` / bare spelling valid; the legs are covariant,
-    read-only properties so a pinned composition upcasts to the
-    defaulted spelling (the ``__add__`` contract).
 
-    Structural closure laws (realized in the method bodies; the
-    predicates are the matching advertisements):
+def _is_scalar(value: object) -> bool:
+    """A real scalar the algebra multiplies by (``bool`` excluded)."""
+    return isinstance(value, (int, float, np.floating, np.integer)) and not isinstance(value, bool)
 
-    * ``apply`` requires **both** operands to act — guarded eagerly at
-      construction (``TypeError``), never at the first call.
-    * Invertibility does NOT propagate operand-wise: there is no
-      algorithm for :math:`(A + B)^{-1}` from :math:`A^{-1}` and
-      :math:`B^{-1}` alone — Sherman–Morrison–Woodbury applies only
-      under low-rank structure (which the boundary block B has — rank
-      ≤ N/2 per face, Issue #300 — and the bulk C, L do not).  What a
-      sum DOES have, when its LEADING
-      (left-spine head) term is invertible, is a
-      preconditioned-SPLITTING inverse: :meth:`inverse` returns a
-      :class:`~orpheus.numerics.green_operator.GreenOperator` iterating
-      :math:`x_{n+1} = A^{-1}(q - B\,x_n)`.  A generic sum carries no
-      ``solve`` verb — solving with it IS applying that inverse OBJECT
-      (the sweep-invertible ``(L+C)`` subclass overrides with its own
-      direct-sweep ``solve``).  See :attr:`is_invertible` for the
-      canonical-ordering contract.
-    * ``apply_transpose`` requires **both** operands to transpose
-      (:math:`(A + B)^T = A^T + B^T`) — guarded in the verb body with
-      :class:`MissingAdjoint`; :attr:`is_adjointable` is the recursion.
 
-    Raises
-    ------
-    TypeError
-        If either operand has no callable ``apply`` at construction
-        time. Catch the failure here, not at the first ``apply`` call,
-        so downstream Krylov consumers don't see a stub failure
-        mid-iteration.
+def _capability_refusal(
+    subject: str, requirement: str, law: str, parts: "Iterable[object]", predicate: str,
+) -> str:
+    r"""The one refusal message of a composite capability law: the law, and each part's predicate.
+
+    A composite has a capability exactly when every term or factor has it;
+    the refusal names the law that needs it and reads the predicate off each
+    part, so the part that lacks it is in the message.
+    """
+    readings = ", ".join(f"{type(part).__name__}.{predicate}={getattr(part, predicate)}" for part in parts)
+    return f"{subject} requires {requirement} ({law}); {readings}."
+
+
+def _require_apply(op: object, owner: str) -> None:
+    # Eager, at composition: a term that cannot act is refused HERE, never at
+    # the first ``apply`` inside a Krylov iteration.
+    if not callable(getattr(op, "apply", None)):
+        raise TypeError(
+            f"{owner} requires apply on every operand; {type(op).__name__} "
+            f"lacks 'apply'."
+        )
+
+
+def _ends(op: object) -> "tuple[Optional[FunctionSpace], Optional[FunctionSpace]]":
+    """The (domain, codomain) an operand declares; ``None`` where it declares none."""
+    return getattr(op, "domain", None), getattr(op, "codomain", None)
+
+
+def linear_combination(terms: "Iterable[tuple[float, LinearOperator]]") -> "LinearOperator":
+    r"""Return :math:`\sum_i c_i A_i`, normalised — the one constructor of a sum.
+
+    Every ``+``, ``-``, unary ``-``, ``α *`` and ``/ α`` routes here. The
+    result is normalised, so each law of the free vector space is an
+    equality of what this returns:
+
+    * an operand that is itself an :class:`OperatorSum` is FLATTENED, its
+      coefficients scaled (associativity; ``α(A + B) = αA + αB``);
+    * terms with the same :func:`_algebra_key` COLLECT, their coefficients
+      added (``A + A = 2A``; ``(α + β)A = αA + βA``), in first-insertion
+      order;
+    * a zero coefficient drops its term, and a zero operand
+      (:class:`ZeroMorphism`, :class:`ZeroOperator`) is ABSORBED; each still
+      contributes its spaces;
+    * no surviving term is the zero map: :class:`ZeroMorphism` on the agreed
+      spaces, or the pointwise :class:`ZeroOperator` when every operand was
+      pointwise (spaceless by law); with an unbound non-pointwise operand
+      the zero cannot be minted and the construction refuses;
+    * one surviving term ``1·A`` whose own ends are the combination's is
+      ``A`` itself (``(A + B) − B is A``; ``1·A is A``).
+
+    Every operand that ENTERS contributes its spaces to the agreement law
+    (:func:`_agreed_space`), whether it survives as a term, cancels, is an
+    absorbed zero, or is a flattened inner sum: ``A − A`` must still know it
+    is the zero map ``V → W``, or it could not mint its :class:`ZeroMorphism`.
+
+    The coefficients are floats, so the collection is exact only where the
+    float arithmetic is: ``0.1A + 0.2A − 0.3A`` leaves ``5.55e-17·A``, not the
+    zero. That is recorded (``test_linear_combination.py`` c05), never hidden
+    behind a tolerance in ``__eq__``.
+    """
+    words: list[tuple[float, LinearOperator]] = []
+    carriers: list[object] = []
+    entered: list[object] = []
+    for coefficient, op in terms:
+        _require_apply(op, "OperatorSum")
+        c = float(coefficient)
+        carriers.append(op)
+        if isinstance(op, OperatorSum):
+            entered.extend(w for _, w in op.terms)
+            if c != 0.0:
+                words.extend((c * ci, wi) for ci, wi in op.terms)
+            continue
+        entered.append(op)
+        if c != 0.0 and not isinstance(op, (ZeroMorphism, ZeroOperator)):
+            words.append((c, op))
+    collected: dict[Hashable, list] = {}
+    for c, w in words:
+        slot = collected.get(key := _algebra_key(w))
+        if slot is None:
+            collected[key] = [c, w]
+        else:
+            slot[0] += c
+    surviving = tuple((c, w) for c, w in collected.values() if c != 0.0)
+    agreed_domain = _agreed_space(tuple(carriers), "domain", "OperatorSum")
+    agreed_codomain = _agreed_space(tuple(carriers), "codomain", "OperatorSum")
+    if not surviving:
+        return _zero_of(entered, agreed_domain, agreed_codomain)
+    if len(surviving) == 1:
+        c, w = surviving[0]
+        if c == 1.0 and _ends(w) == (agreed_domain, agreed_codomain):
+            return w
+    return OperatorSum(surviving, domain=agreed_domain, codomain=agreed_codomain)
+
+
+def _zero_of(
+    entered: list[object],
+    domain: Optional["FunctionSpace"],
+    codomain: Optional["FunctionSpace"],
+) -> "LinearOperator":
+    r"""The zero map of a combination whose every term cancelled or was zero.
+
+    :class:`ZeroMorphism` on the agreed spaces; the pointwise
+    :class:`ZeroOperator` when every operand was pointwise (an endomorphism at
+    every space, by the family law, so it needs none); otherwise a refusal.
+
+    SCOPE-BOUNDARY[guard] machinery: every operator end a space, so that a
+    non-pointwise operator always brings both (numerics_untangling.md ruling
+    26, case (1)). ruling: the S2 gate spec's Q3, the orchestrator, 2026-10-20
+    (the plan's calls under ruling 51). revisit: when every end is bound, this
+    refusal cannot fire.
+    """
+    if domain is not None and codomain is not None:
+        zero: LinearOperator = ZeroMorphism(domain=domain, codomain=codomain)
+    elif all(isinstance(op, PointwiseOperator) for op in entered):
+        zero = ZeroOperator()
+    else:
+        raise ValueError(
+            f"OperatorSum: the zero combination of "
+            f"{', '.join(sorted({type(op).__name__ for op in entered}))} has no "
+            f"bound spaces, so its ZeroMorphism cannot be minted. Bind the "
+            f"operator's domain and codomain (a declared scope edge: every "
+            f"operator end a space is ruling 26, not yet built)."
+        )
+    # The zero of a combination touches the blocks and systems its cancelled
+    # terms touched: ``0·B`` of a boundary law is still a boundary-block map
+    # (the role lives on the leaves and every composite derives it, the
+    # user's ruling of 2026-10-20).
+    if entered:
+        zero.block_role = reduce(_join_block_roles, (getattr(op, "block_role", None) for op in entered))
+        zero.system_role = reduce(_join_system_roles, (getattr(op, "system_role", None) for op in entered))
+    return zero
+
+
+class OperatorSum(_KeyedEquality, LinearOperator[Domain, Codomain]):
+    r"""A formal linear combination :math:`\sum_i c_i\,w_i` of operator words.
+
+    The element of the free vector space on operator words, :math:`V \to W`:
+    :attr:`terms` holds the ``(coefficient, word)`` pairs, each word an atom
+    or an :class:`OperatorProduct`, never a sum, never zero, no two with the
+    same :func:`_algebra_key`. Equality and the hash read the MULTISET of
+    terms and the ends (``A + B == B + A``); the insertion order is kept only
+    for the floating-point fold of :meth:`apply`.
+
+    Minted by :func:`linear_combination` — every ``+``, ``-``, ``α *`` routes
+    there — which normalises; constructing the class directly is reserved to
+    that function (its terms must already be collected).
+
+    Every capability is the linear law over the terms, read once:
+
+    * :meth:`apply` :math:`= \sum_i c_i\,w_i(x)`, a LEFT FOLD in insertion
+      order, so a left-nested spelling ``((A − S) − N) − B`` applies as
+      ``((Ax − Sx) − Nx) − Bx``, bit for bit what the binary sum computed.
+      The fold multiplies only where :math:`c \ne \pm 1` (a −1 is a
+      subtraction, bit-identical to adding :math:`(-1)\,w(x)`), and it
+      accumulates in place into a buffer it allocated itself, never into an
+      operand's output (``test_composition_cost.py`` holds the allocation at
+      ≤ 4 vectors per degree of freedom);
+    * :meth:`apply_transpose`, :meth:`dual`, :meth:`assemble`,
+      :attr:`is_adjointable`, :attr:`block_role`, :attr:`system_role`: the
+      fold of the terms' own;
+    * :attr:`is_invertible`: only a ONE-term combination with an invertible
+      word, :math:`(cA)^{-1} = c^{-1}A^{-1}`. A sum of two or more terms has
+      no inverse of its own (ruling 50): its inverse is named by its
+      splitting, :class:`~orpheus.numerics.green_operator.GreenOperator`
+      ``(M, N)`` for :math:`A = M - N`.
+
+    The Hilbert adjoint is the base's :math:`\sharp \circ \text{dual} \circ
+    \flat`, taken ONCE at the combination's ends, with the dual distributed
+    over the terms (ruling 53's precise form). The literal distribution
+    :math:`\sum_i c_i\,w_i^{*}` is a theorem only where every term is bound
+    to a non-degenerate metric: a spaceless pointwise term on a dense metric
+    misses reciprocity by 1.26e-3 under it (#625), which the once-at-the-ends
+    form does not.
     """
 
-    def __init__(self, a: SummandA, b: SummandB) -> None:
-        if not callable(getattr(a, "apply", None)):
-            raise TypeError(
-                f"OperatorSum requires apply on both operands; left "
-                f"operand {type(a).__name__} lacks 'apply'."
-            )
-        if not callable(getattr(b, "apply", None)):
-            raise TypeError(
-                f"OperatorSum requires apply on both operands; right "
-                f"operand {type(b).__name__} lacks 'apply'."
-            )
-        # Domain/codomain agreement, eager (skipped per-operand when one
-        # lacks function-space metadata — backward-compatible with operators
-        # that pre-date Issue 9.6). The law is :func:`_agreed_space`, shared
-        # with the other commutative composite (the tensor product): a sum
-        # commutes, so its spaces are what its summands AGREE on, never a
-        # function of which one was written first.
-        _agreed_space((a, b), "domain", "OperatorSum")
-        _agreed_space((a, b), "codomain", "OperatorSum")
-        self._a: Final = a
-        self._b: Final = b
-        # Block role DERIVED from the operands: the sum touches the union
-        # of the blocks its summands touch, so ``(L+C)`` and the whole
-        # ``(L+C-S-F-B)`` loss carry FULL by construction (no hand-stamp).
-        self.block_role = _join_block_roles(
-            getattr(a, "block_role", None), getattr(b, "block_role", None),
+    def __init__(
+        self,
+        terms: "tuple[tuple[float, LinearOperator], ...]",
+        *,
+        domain: Optional["FunctionSpace"],
+        codomain: Optional["FunctionSpace"],
+    ) -> None:
+        self._terms: Final = terms
+        self._domain: Final = domain
+        self._codomain: Final = codomain
+        # Roles DERIVED from the terms: the sum touches the union of the blocks
+        # (systems) its terms touch, so ``(L + C − S − F − B)`` carries FULL by
+        # construction, whatever order it was spelled in.
+        self.block_role = reduce(
+            _join_block_roles, (getattr(w, "block_role", None) for _, w in terms),
         )
-        # System role DERIVED the same way — the sum touches the union of the
-        # systems its summands touch (``A ⊔ B = COUPLED``); the two-system
-        # analogue of the block-role join.
-        self.system_role = _join_system_roles(
-            getattr(a, "system_role", None), getattr(b, "system_role", None),
+        self.system_role = reduce(
+            _join_system_roles, (getattr(w, "system_role", None) for _, w in terms),
         )
 
     @property
-    def a(self) -> SummandA:
-        """The left summand (read-only — covariant leg typing)."""
-        return self._a
-
-    @property
-    def b(self) -> SummandB:
-        """The right summand (read-only — covariant leg typing)."""
-        return self._b
+    def terms(self) -> "tuple[tuple[float, LinearOperator], ...]":
+        """The ``(coefficient, word)`` pairs, in first-insertion order."""
+        return self._terms
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
-        # The summands agreed at construction, so "the agreed one" and "the
-        # first that speaks" coincide — but only the former is the LAW, and
-        # spelling it twice is how the two drift.
-        return _agreed_space((self.a, self.b), "domain", "OperatorSum")
+        return self._domain
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        return _agreed_space((self.a, self.b), "codomain", "OperatorSum")
+        return self._codomain
 
-    def apply(self, x: Domain, /) -> Codomain:
-        return self.a.apply(x) + self.b.apply(x)
+    def _algebra_key(self) -> Hashable:
+        return (
+            "+",
+            frozenset((_algebra_key(w), c) for c, w in self._terms),
+            self._domain,
+            self._codomain,
+        )
 
-    def apply_transpose(self, x: Codomain, /) -> Domain:
-        # (A+B)^T = A^T + B^T — the guard-narrow licenses the operand
-        # calls (Design C: the runtime check IS the static permission).
-        if not adjointable(self.a) or not adjointable(self.b):
-            raise MissingAdjoint(
-                f"OperatorSum.apply_transpose requires both summands to "
-                f"transpose ((A+B)^T = A^T + B^T); got "
-                f"{type(self.a).__name__} / {type(self.b).__name__} with "
-                f"is_adjointable {self.a.is_adjointable} / "
-                f"{self.b.is_adjointable}."
+    def apply(self, x: Domain, /, *args: Any, **kwargs: Any) -> Codomain:
+        if len(self._terms) == 1:
+            return self._apply_scaled(x, *args, **kwargs)
+        if args or kwargs:
+            raise TypeError(
+                f"OperatorSum.apply: a combination of {len(self._terms)} terms "
+                f"takes one operand; got the extra arguments "
+                f"{args!r} {sorted(kwargs)!r}."
             )
-        return self.a.apply_transpose(x) + self.b.apply_transpose(x)
+        return _left_fold(self._terms, lambda w: w.apply(x))
+
+    def _apply_scaled(self, x: Domain, /, *args: Any, **kwargs: Any) -> Codomain:
+        r"""The one-term action :math:`c\,w(x)`, its extra arguments forwarded.
+
+        A seed ``initial_guess`` lives in the OUTPUT space of :math:`c\,w`, so
+        the word's own solve is seeded with it divided by :math:`c`:
+        :math:`(\alpha A)^{-1} = \alpha^{-1}A^{-1}` seeds :math:`A^{-1}` with
+        :math:`\alpha x_0` (the S2 spec's Q4; its witness is c30).
+        """
+        c, w = self._terms[0]
+        seed = kwargs.get("initial_guess")
+        if seed is not None:
+            kwargs = {**kwargs, "initial_guess": seed / c}
+        return c * w.apply(x, *args, **kwargs)
+
+    def _adjointable_terms(self, verb: str) -> "tuple[tuple[float, SupportsAdjoint], ...]":
+        # The checked bridge, once per call: (Σ cᵢwᵢ)ᵀ = Σ cᵢwᵢᵀ needs every term's.
+        terms = tuple((c, w) for c, w in self._terms if adjointable(w))
+        if len(terms) != len(self._terms):
+            raise MissingAdjoint(_capability_refusal(
+                f"OperatorSum.{verb}", "every term to transpose", "(Σ cᵢwᵢ)ᵀ = Σ cᵢwᵢᵀ",
+                (w for _, w in self._terms), "is_adjointable",
+            ))
+        return terms
+
+    def apply_transpose(self, y: Codomain, /, *args: Any, **kwargs: Any) -> Domain:
+        terms = self._adjointable_terms("apply_transpose")
+        if len(terms) == 1:
+            c, w = terms[0]
+            seed = kwargs.get("initial_guess")
+            if seed is not None:  # the seed lives in the output of cAᵀ, as in apply
+                kwargs = {**kwargs, "initial_guess": seed / c}
+            return c * w.apply_transpose(y, *args, **kwargs)
+        if args or kwargs:
+            raise TypeError(
+                "OperatorSum.apply_transpose: a combination of two or more "
+                "terms takes one operand."
+            )
+        return _left_fold(terms, lambda w: w.apply_transpose(y))
 
     @property
     def is_adjointable(self) -> bool:
-        # (A+B)^T = A^T + B^T (the law in :meth:`apply_transpose`) — the
-        # sum is adjointable iff BOTH summands are.
-        return self.a.is_adjointable and self.b.is_adjointable
+        return all(w.is_adjointable for _, w in self._terms)
 
     @property
     def is_metric_free_adjoint(self) -> bool:
-        # A sum of metric-free operators is metric-free (derived).
-        return (
-            self.a.is_metric_free_adjoint and self.b.is_metric_free_adjoint
-        )
+        # A combination of metric-free operators is metric-free (derived).
+        return all(w.is_metric_free_adjoint for _, w in self._terms)
+
+    def dual(self) -> "LinearOperator[Codomain, Domain]":
+        r"""Return :math:`(\sum_i c_i w_i)^{\mathsf T} = \sum_i c_i w_i^{\mathsf T}`.
+
+        The dual distributes over the terms exactly, with no metric anywhere
+        (ruling 53). The combination of the duals carries the dual spaces of
+        this one's ends through the absorbed zero map between them, so a sum
+        whose every term is spaceless keeps the spaces an absorbed zero gave
+        it.
+        """
+        dual_terms: list[tuple[float, LinearOperator]] = [
+            (c, w.dual()) for c, w in self._adjointable_terms("dual")
+        ]
+        if self._domain is not None and self._codomain is not None:
+            dual_terms.append(
+                (1.0, ZeroMorphism(domain=self._codomain.dual(), codomain=self._domain.dual()))
+            )
+        return linear_combination(dual_terms)
 
     @property
     def is_invertible(self) -> bool:
-        r"""``True`` iff the LEADING (left-spine head) term is invertible.
+        r"""``True`` iff this is ONE term :math:`cA` with :math:`A` invertible.
 
-        There is no operand-wise law for a sum's inverse — but a sum
-        whose leading term :math:`A` is invertible CAN produce its
-        inverse OPERATOR: the preconditioned-splitting
-        :class:`~orpheus.numerics.green_operator.GreenOperator`
-        (:math:`x_{n+1} = A^{-1}(q - B\,x_n)`).
-        The recursion ``self.a.is_invertible`` designates the left-spine
-        head as the splitting's preconditioner — the CANONICAL-ORDERING
-        contract: spell the invertible operator FIRST (``A - S``,
-        mirroring the ``L + C`` fusion rule of
-        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.__add__`,
-        #261).  Whether the splitting CONVERGES is a spectral
-        (value-level) property no construction-time predicate can read —
-        a divergent split raises
-        :class:`~orpheus.numerics.green_operator.ConvergenceFailure`
-        loudly at apply time, never a silent wrong answer.  (The
-        sweep-invertible
-        :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
-        subclass shadows this by MRO with its own ``True`` +
-        direct-sweep :meth:`inverse` — the type-as-structure dispatch.)
+        :math:`(cA)^{-1} = c^{-1}A^{-1}` is algebra-closed. A sum of two or
+        more terms has no inverse of its own (ruling 50): there is no
+        algorithm for :math:`(A + B)^{-1}` from the terms, and the
+        preconditioned splitting that does invert it needs a SPLIT the sum
+        does not carry — which term is implicit is the Strategy's choice,
+        never the spelling's.
         """
-        return self.a.is_invertible
+        return len(self._terms) == 1 and self._terms[0][1].is_invertible
 
     def inverse(self) -> "LinearOperator[Codomain, Domain]":
-        r"""Return the preconditioned-splitting inverse — a
-        :class:`~orpheus.numerics.green_operator.GreenOperator`.
-
-        The annotation is the factory's honest STATIC face — "an inverse
-        operator on the swapped spaces" — because subclass overrides
-        return their own structure's inverse (the sweep-invertible
-        composite returns a ``SweepOperator``; type-as-structure) and the
-        family members are siblings, not a hierarchy.
-
-        Late import: ``green_operator`` is a LEAF module wrapping the
-        iteration drivers, which import THIS module — the same one-way
-        late-import pattern as
-        :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.inverse`
-        → ``SweepOperator``.
-        """
-        from orpheus.numerics.green_operator import GreenOperator
-
-        return GreenOperator(self)
-
-    # NO ``solve`` on a generic sum: its inverse action is DRIVER-realized
-    # (the GreenOperator), not a substrate verb — solving is
-    # ``.inverse().apply(b)``. The sweep-invertible ``(L+C)`` subclass
-    # overrides with its own direct sweep ``solve`` (streaming.py).
+        r"""Return :math:`(cA)^{-1} = c^{-1}A^{-1}`, or refuse a true sum."""
+        if len(self._terms) != 1:
+            raise NotInvertible(
+                f"OperatorSum.inverse: a sum of {len(self._terms)} terms has no "
+                f"inverse of its own. Name its splitting A = M − N and build "
+                f"GreenOperator(M, N) (numerics_untangling.md ruling 50)."
+            )
+        c, w = self._terms[0]
+        if not invertible(w):
+            raise NotInvertible(
+                f"OperatorSum.inverse: (cA)^{{-1}} = c^{{-1}}A^{{-1}} needs an "
+                f"invertible A; {type(w).__name__}.is_invertible is False."
+            )
+        return linear_combination(((1.0 / c, w.inverse()),))
 
     @property
     def is_assemblable(self) -> bool:
-        # [A+B] = [A] + [B] (the law in :meth:`assemble`) — the sum
-        # assembles iff BOTH summands emit.
-        return self.a.is_assemblable and self.b.is_assemblable
+        return all(w.is_assemblable for _, w in self._terms)
 
     def assemble(self) -> "SparseAssembledOperator":
-        r"""Return :math:`[A+B] = [A] + [B]` — the additive homomorphism law.
+        r"""Return :math:`[\sum_i c_i w_i] = \sum_i c_i [w_i]` — the additive homomorphism.
 
-        The assembly functor is additive-monoidal (the ``as_matrix``
-        docstring's ``Op → Mat``, sparse carrier): a sum's structural
-        emission is the SPARSE SUM of its summands' emissions —
-        realized by the carrier's own CSR addition, never a re-walk of
-        the stencils. The guard-narrow licenses the operand calls
-        (Design C) and raises the assembly-axis refusal eagerly.
+        The structural emission is the carrier's own sparse arithmetic over
+        the terms' emissions, folded in insertion order.
         """
-        if not assemblable(self.a) or not assemblable(self.b):
-            raise MissingAssembly(
-                f"OperatorSum.assemble requires both summands to emit "
-                f"([A+B] = [A] + [B]); got {type(self.a).__name__} / "
-                f"{type(self.b).__name__} with is_assemblable "
-                f"{self.a.is_assemblable} / {self.b.is_assemblable}."
-            )
+        terms = tuple((c, w) for c, w in self._terms if assemblable(w))
+        if len(terms) != len(self._terms):
+            raise MissingAssembly(_capability_refusal(
+                "OperatorSum.assemble", "every term to emit", "[Σ cᵢwᵢ] = Σ cᵢ[wᵢ]",
+                (w for _, w in self._terms), "is_assemblable",
+            ))
         from orpheus.numerics.assembled_operator import SparseAssembledOperator
 
         return SparseAssembledOperator(
-            self.a.assemble().matrix + self.b.assemble().matrix,
-            domain=self.domain,
-            codomain=self.codomain,
+            _left_fold(terms, lambda w: w.assemble().matrix, in_place=False),
+            domain=self._domain,
+            codomain=self._codomain,
         )
 
+    def __repr__(self) -> str:
+        return "(" + " + ".join(f"{c!r}·{w!r}" for c, w in self._terms) + ")"
 
-class OperatorProduct(
-    LinearOperator[Domain, Codomain],
-    Generic[Domain, Codomain, FactorA, FactorB],
-):
-    r"""Composition of two linear operators: :math:`(A\,B)\,x = A(B\,x)`.
 
-    Generic over its FACTOR types (as :class:`OperatorSum` over
-    its summands): a named composition pins them — ``WindowedSweep =
-    OperatorProduct["FullField", "TimedFullField", BulkAnalysisOperator,
-    SweepOperator]`` — so its factor accessors are typed by
-    construction. The PEP-696 defaults keep ``OperatorProduct[D, C]``
-    valid; the legs are covariant read-only properties. The
-    intermediate-space coupling (``A.domain == B.codomain``) is the
-    RUNTIME guard below — the leg parameters do not re-encode it.
+def _left_fold(
+    terms: "tuple[tuple[float, _Word], ...]",
+    act: "Callable[[_Word], Any]",
+    *,
+    in_place: bool = True,
+) -> Any:
+    r"""The left fold :math:`((c_1 a_1 + c_2 a_2) + c_3 a_3) + \cdots`, :math:`a_i = \mathrm{act}(w_i)`.
 
-    Structural closure laws (method bodies; predicates advertise):
+    The rounding of every multi-term action is fixed here, once: the left
+    association in insertion order; after the first term a coefficient
+    :math:`\pm 1` is applied as an addition or a subtraction (no multiply, no
+    negated temporary), any other coefficient multiplied in; the first term
+    is multiplied by its coefficient unless that is 1. The accumulator is mutated only once it
+    is a value the fold's own arithmetic produced, never an operand's output
+    (which may be the operand's input, or a buffer the operand keeps), so the
+    remaining terms accumulate into it in place. In place is taken only
+    where it is the out-of-place result exactly (:func:`_accumulates_in_place`),
+    so the fold's VALUE never depends on the optimisation; ``in_place=False``
+    is for a carrier whose in-place operators are not its out-of-place ones
+    (the sparse matrices of :meth:`OperatorSum.assemble`).
+    """
+    iterator = iter(terms)
+    c, w = next(iterator)
+    accumulator = act(w)
+    owned = c != 1.0
+    if owned:
+        accumulator = c * accumulator
+    for c, w in iterator:
+        value = act(w)
+        if owned and in_place and _accumulates_in_place(accumulator, value):
+            if c == -1.0:
+                accumulator -= value
+            else:
+                accumulator += value if c == 1.0 else c * value
+        else:
+            accumulator = (
+                accumulator - value if c == -1.0
+                else accumulator + (value if c == 1.0 else c * value)
+            )
+            owned = True
+        del value
+    return accumulator
 
-    * ``apply`` requires **both** operands (function composition) —
-      guarded eagerly at construction (``TypeError``).
-    * Invertibility propagates iff **both** factors are invertible,
-      with the order reversed: :math:`(A\,B)^{-1} = B^{-1}\,A^{-1}`.
-      The product IS a wrap-delegate conformer — :meth:`solve` is its
-      native realization verb, re-routed through the factors' CANONICAL
-      surface (``.inverse().apply``) so factor kinds whose own
-      ``solve`` retired (algebra-closed permutations/scalings, Green-
-      invertible sums) compose without one.
-    * ``apply_transpose`` requires **both**, order reversed
-      (:math:`(A\,B)^T = B^T\,A^T`) — :class:`MissingAdjoint` in the
-      verb body; :attr:`is_adjointable` is the recursion.
 
-    Raises
-    ------
-    TypeError
-        If either operand has no callable ``apply`` at construction.
+def _accumulates_in_place(accumulator: Any, value: Any) -> bool:
+    r"""Whether ``accumulator += value`` is ``accumulator + value``, exactly.
+
+    NumPy's in-place operators keep the accumulator's shape and dtype, so they
+    differ from the out-of-place sum when a later term broadcasts wider or
+    promotes the dtype (`[M]` the S2 qa review: a wider broadcast raises, a
+    float32 accumulator silently stays float32). A typed carrier with no
+    in-place operator falls back to the out-of-place one, which is exact.
+    """
+    if not (isinstance(accumulator, np.ndarray) and isinstance(value, np.ndarray)):
+        return not isinstance(accumulator, np.ndarray)
+    return (
+        np.result_type(accumulator, value) == accumulator.dtype
+        and np.broadcast_shapes(accumulator.shape, value.shape) == accumulator.shape
+    )
+
+
+def composition(*operators: "LinearOperator") -> "LinearOperator":
+    r"""Return :math:`A_1 A_2 \cdots A_n`, normalised — the one constructor of a word.
+
+    Every ``@`` routes here. An operand that is an :class:`OperatorProduct`
+    is FLATTENED (associativity: ``(AB)C`` and ``A(BC)`` are one word), and
+    a one-term combination :math:`cW` gives its coefficient to the result
+    and its word to the factors (:math:`A(\alpha B) = \alpha(AB)`) when the
+    word carries the combination's ends (a spaceless word whose spaces an
+    absorbed zero supplied stays one factor, ends and all). A sum of
+    two or more terms is ONE factor: composition is not distributed. An
+    :class:`IdentityOperator` factor is kept, because dropping it would
+    change what :attr:`OperatorProduct.domain` infers through a pointwise
+    neighbour, and the unit law is not claimed.
+    """
+    coefficient = 1.0
+    factors: list[LinearOperator] = []
+    for op in operators:
+        _require_apply(op, "OperatorProduct")
+        # A one-term combination gives up its coefficient only when its word
+        # carries the combination's own ends (the collapse test of
+        # :func:`linear_combination`); a word that is spaceless where the
+        # combination is bound stays inside it, so its ends are not lost.
+        if isinstance(op, OperatorSum) and len(op.terms) == 1 and _ends(op.terms[0][1]) == _ends(op):
+            c, op = op.terms[0]
+            coefficient *= c
+        if isinstance(op, OperatorProduct):
+            factors.extend(op.factors)
+        else:
+            factors.append(op)
+    word = factors[0] if len(factors) == 1 else OperatorProduct(tuple(factors))
+    return word if coefficient == 1.0 else linear_combination(((coefficient, word),))
+
+
+class OperatorProduct(_KeyedEquality, LinearOperator[Domain, Codomain]):
+    r"""A word :math:`A_1 A_2 \cdots A_n` of operators, :math:`n \ge 2`.
+
+    The element of the free monoid: :attr:`factors` holds the factors left
+    to right, no factor a product, no factor a one-term combination (its
+    coefficient moved to the enclosing combination). Equality and the hash
+    read the tuple of the factors' keys. Minted by :func:`composition` —
+    every ``@`` routes there.
+
+    The ends: :attr:`domain` is the rightmost factor's that speaks, and
+    :attr:`codomain` the leftmost's, a spaceless :class:`PointwiseOperator`
+    passing its neighbour's through (it acts at its operand's space). The
+    adjacent-ends law is checked at construction through the same
+    pass-through, so ``A @ D @ B`` with ``D`` pointwise checks ``A`` against
+    ``B``.
+
+    Laws, as folds over the factors:
+
+    * :meth:`apply`: right to left, :math:`A_1(A_2(\cdots A_n x))`;
+    * :meth:`solve`: :math:`A_n^{-1} \cdots A_1^{-1}`, through each factor's
+      canonical surface ``.inverse().apply``; :meth:`inverse` wraps it as
+      :class:`InverseOperator`;
+    * :meth:`apply_transpose`: left to right,
+      :math:`A_n^{\mathsf T}(\cdots A_1^{\mathsf T} y)`; :meth:`dual` the
+      reversed word of the factors' duals;
+    * :meth:`assemble`: the product of the factors' emissions.
+
+    The Hilbert adjoint is the base's, taken ONCE at the word's ends (ruling
+    53's precise form). The reversed word of the factors' adjoints
+    :math:`A_n^{*} \cdots A_1^{*}` inserts :math:`\flat \sharp = G G^{+}` at
+    every middle space, a projector where the middle metric is singular
+    (the S\ :sub:`N` partial-current trace until S6): 6.4e-2 off
+    reciprocity on such a middle, which the once-at-the-ends form is not.
     """
 
-    def __init__(self, a: FactorA, b: FactorB) -> None:
-        # ``A @ B``: ``B`` maps the input ``V`` to the intermediate,
-        # ``A`` maps the intermediate to the output ``W`` — so the
-        # product is honestly ``V → W``, the intermediate guarded below.
-        if not callable(getattr(a, "apply", None)):
-            raise TypeError(
-                f"OperatorProduct requires apply on both operands; "
-                f"left operand {type(a).__name__} lacks 'apply'."
-            )
-        if not callable(getattr(b, "apply", None)):
-            raise TypeError(
-                f"OperatorProduct requires apply on both operands; "
-                f"right operand {type(b).__name__} lacks 'apply'."
-            )
-        # Domain/codomain compatibility check for ``A @ B``: A.domain
-        # must equal B.codomain. Skipped when either is None.
-        a_dom = getattr(a, "domain", None)
-        b_cod = getattr(b, "codomain", None)
-        if (
-            a_dom is not None and b_cod is not None and a_dom != b_cod
-        ):
-            raise IncompatibleOperatorComposition(
-                f"OperatorProduct A @ B requires A.domain == B.codomain; "
-                f"got A.domain={a_dom!r}, B.codomain={b_cod!r}."
-            )
-        self._a: Final = a
-        self._b: Final = b
+    def __init__(self, factors: "tuple[LinearOperator, ...]") -> None:
+        self._factors: Final = factors
+        # The adjacent-ends law, right to left, a spaceless pointwise factor
+        # passing its operand's space through.
+        passing = getattr(factors[-1], "codomain", None)
+        for left in reversed(factors[:-1]):
+            if isinstance(left, PointwiseOperator):
+                continue
+            left_domain = getattr(left, "domain", None)
+            if left_domain is not None and passing is not None and left_domain != passing:
+                raise IncompatibleOperatorComposition(
+                    f"OperatorProduct requires each factor's domain to equal "
+                    f"the codomain of the factors to its right; "
+                    f"{type(left).__name__} declares domain {left_domain!r} "
+                    f"against {passing!r}."
+                )
+            passing = getattr(left, "codomain", None)
 
     @property
-    def a(self) -> FactorA:
-        """The left factor ``A`` of ``A @ B`` (read-only — covariant leg)."""
-        return self._a
-
-    @property
-    def b(self) -> FactorB:
-        """The right factor ``B`` of ``A @ B`` (read-only — covariant leg)."""
-        return self._b
+    def factors(self) -> "tuple[LinearOperator, ...]":
+        """The factors, left to right (``A @ B`` is ``(A, B)``)."""
+        return self._factors
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
-        # A @ B: input space is B.domain — with the pointwise-conforming
-        # arm (S4-amendment): a PointwiseOperator B acts AT its operand's
-        # space, so the product's input space is whatever A consumes.
-        d = getattr(self.b, "domain", None)
-        if d is None and isinstance(self.b, PointwiseOperator):
-            return getattr(self.a, "domain", None)
-        return d
+        for factor in reversed(self._factors):
+            if not isinstance(factor, PointwiseOperator):
+                return getattr(factor, "domain", None)
+        return None
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        # A @ B: output space is A.codomain — with the pointwise-conforming
-        # arm (S4-amendment): a PointwiseOperator A emits at its operand's
-        # space, which is B's output space.
-        c = getattr(self.a, "codomain", None)
-        if c is None and isinstance(self.a, PointwiseOperator):
-            return getattr(self.b, "codomain", None)
-        return c
+        for factor in self._factors:
+            if not isinstance(factor, PointwiseOperator):
+                return getattr(factor, "codomain", None)
+        return None
+
+    def _algebra_key(self) -> Hashable:
+        return ("@",) + tuple(_algebra_key(f) for f in self._factors)
 
     def apply(self, x: Domain, /) -> Codomain:
-        return self.a.apply(self.b.apply(x))
+        value: Any = x
+        for factor in reversed(self._factors):
+            value = factor.apply(value)
+        return value
 
-    def solve(self, b_vec: Codomain) -> Domain:
-        r"""Solve :math:`(AB)\,x = b` — :math:`B^{-1}(A^{-1}\,b)`, factor-wise.
+    def solve(self, b: Codomain, /) -> Domain:
+        r"""Solve :math:`(A_1 \cdots A_n)\,x = b` as :math:`A_n^{-1}(\cdots A_1^{-1} b)`."""
+        if not self.is_invertible:
+            raise NotInvertible(_capability_refusal(
+                "OperatorProduct.solve", "every factor to be invertible",
+                "(A₁…Aₙ)⁻¹ = Aₙ⁻¹…A₁⁻¹", self._factors, "is_invertible",
+            ))
+        value: Any = b
+        for factor in self._factors:
+            value = cast("SupportsInverse", factor).inverse().apply(value)
+        return value
 
-        The product's native realization verb (the wrap-delegate family
-        wraps it: :meth:`inverse` returns ``InverseOperator(self)`` whose
-        ``apply`` delegates here). The recursion goes
-        through each factor's CANONICAL surface — ``.inverse().apply`` —
-        not a factor ``solve``: bit-identical for every factor kind (the
-        inverse objects delegate to the same realizations) and total
-        over the kinds whose own ``solve`` retired (a permutation's
-        inverse is a first-class forward; a Green-invertible sum's is
-        the GreenOperator). The guard-narrow licenses the calls and
-        raises the value-dependent refusal eagerly.
-        """
-        if not invertible(self.a) or not invertible(self.b):
+    def _adjointable_factors(self, verb: str) -> "tuple[SupportsAdjoint, ...]":
+        # The checked bridge, once per call: (A₁…Aₙ)ᵀ needs every factor's.
+        factors = tuple(f for f in self._factors if adjointable(f))
+        if len(factors) != len(self._factors):
+            raise MissingAdjoint(_capability_refusal(
+                f"OperatorProduct.{verb}", "every factor to transpose",
+                "(A₁…Aₙ)ᵀ = Aₙᵀ…A₁ᵀ", self._factors, "is_adjointable",
+            ))
+        return factors
+
+    def apply_transpose(self, y: Codomain, /) -> Domain:
+        value: Any = y
+        for factor in self._adjointable_factors("apply_transpose"):
+            value = factor.apply_transpose(value)
+        return value
+
+    def solve_transpose(self, y: Domain, /) -> Codomain:
+        r"""Solve :math:`(A_1 \cdots A_n)^{\mathsf T} x = y` as :math:`A_1^{-\mathsf T}(\cdots A_n^{-\mathsf T} y)`."""
+        if not self.is_transpose_invertible:
             raise NotInvertible(
-                f"OperatorProduct.solve requires both factors to be "
-                f"invertible ((AB)^{{-1}} = B^{{-1}}A^{{-1}}); got "
-                f"{type(self.a).__name__} / {type(self.b).__name__} with "
-                f"is_invertible {self.a.is_invertible} / "
-                f"{self.b.is_invertible}."
+                "OperatorProduct.solve_transpose requires every factor's "
+                "inverse to transpose ((A₁…Aₙ)⁻ᵀ = A₁⁻ᵀ…Aₙ⁻ᵀ); "
+                + ", ".join(type(f).__name__ for f in self._factors)
+                + "."
             )
-        return self.b.inverse().apply(self.a.inverse().apply(b_vec))
-
-    def apply_transpose(self, x: Codomain, /) -> Domain:
-        # (AB)^T = B^T A^T — the guard-narrow licenses the operand calls.
-        if not adjointable(self.a) or not adjointable(self.b):
-            raise MissingAdjoint(
-                f"OperatorProduct.apply_transpose requires both factors "
-                f"to transpose ((AB)^T = B^T A^T); got "
-                f"{type(self.a).__name__} / {type(self.b).__name__} with "
-                f"is_adjointable {self.a.is_adjointable} / "
-                f"{self.b.is_adjointable}."
-            )
-        return self.b.apply_transpose(self.a.apply_transpose(x))
-
-    def solve_transpose(self, y: Domain) -> Codomain:
-        r"""Solve :math:`(AB)^{\mathsf T} x = y` — :math:`(A^{-1})^{\mathsf T}(B^{-1})^{\mathsf T} y`, factor-wise.
-
-        :math:`(AB)^{\mathsf T} = B^{\mathsf T}A^{\mathsf T}`, so its inverse
-        applies :math:`B`'s inverse transposed first, then :math:`A`'s. The
-        transposed sibling of :meth:`solve`, through the same canonical
-        surface (each factor's ``.inverse()``, here its ``apply_transpose``),
-        so it is total over the factor kinds whose inverse is a first-class
-        forward (a scaled operator, a permutation) or a Green. Gated by
-        :attr:`is_transpose_invertible`.
-        """
-        a, b = self.a, self.b
-        if invertible(a) and invertible(b):
-            a_inverse, b_inverse = a.inverse(), b.inverse()
-            if adjointable(a_inverse) and adjointable(b_inverse):
-                return a_inverse.apply_transpose(b_inverse.apply_transpose(y))
-        raise NotInvertible(
-            f"OperatorProduct.solve_transpose requires both factors' "
-            f"inverses to transpose ((AB)^{{-T}} = A^{{-T}} B^{{-T}}); got "
-            f"{type(a).__name__} / {type(b).__name__}."
-        )
+        value: Any = y
+        for factor in reversed(self._factors):
+            inverse = cast("SupportsInverse", factor).inverse()
+            if not adjointable(inverse):  # excluded by is_transpose_invertible above
+                raise NotInvertible(f"{type(factor).__name__}'s inverse has no transpose.")
+            value = inverse.apply_transpose(value)
+        return value
 
     @property
     def is_invertible(self) -> bool:
-        # (AB)^{-1} = B^{-1} A^{-1} (the law in :meth:`solve`) — the product
-        # is invertible iff BOTH factors are.
-        return self.a.is_invertible and self.b.is_invertible
+        return all(f.is_invertible for f in self._factors)
 
     @property
     def is_transpose_invertible(self) -> bool:
-        # (AB)^{-T} = A^{-T} B^{-T} (the law in :meth:`solve_transpose`).
-        return _inverse_transposes(self.a) and _inverse_transposes(self.b)
+        return all(_inverse_transposes(f) for f in self._factors)
 
     def inverse(self) -> "InverseOperator":
-        r"""Return :math:`(AB)^{-1}` — the generic family member wrapping this product.
+        r"""Return :math:`(A_1 \cdots A_n)^{-1}`, the generic family member wrapping this word.
 
-        The functoriality law :math:`(AB)^{-1} = B^{-1}A^{-1}` holds
-        BEHAVIORALLY through the wrapper: ``inverse().apply(q)`` delegates
-        to this product's own :meth:`solve` ``= b.solve(a.solve(q))``.
-        What the family wrapper adds is the CONTRACT (#285): a raw
-        ``OperatorProduct`` of inverses carries no ``initial_guess``
-        keyword, so a driver seeding it raised ``TypeError`` at iteration
-        time; :class:`InverseOperator` carries the family's canonical
-        seeded ``apply`` (accept-and-ignore — the solve path never
-        threaded seeds either, so behavior is unchanged) and every
-        ``.inverse()`` in the system now returns a seeded-apply
-        conformer. The involution is object identity —
-        ``(A@B).inverse().inverse() is (A@B)`` via the mixin. The factors
-        stay reachable as ``.inner.a`` / ``.inner.b``.
-
-        (Contrast the ALGEBRA-CLOSED inverses — a
-        :class:`~orpheus.numerics.elementary_operators.PermutationOperator`'s inverse IS a permutation, an
-        :class:`IdentityOperator` is self-inverse, a
-        :class:`ScaledOperator`'s is a scaled inverse: those inverses
-        are first-class FORWARD operators in their own closed structure,
-        the other kind of inverse, and stay unwrapped.)
+        ``inverse().apply(q)`` delegates to :meth:`solve`; the wrapper adds
+        the family's seeded-apply contract (#285) and the object-identity
+        involution. (The ALGEBRA-CLOSED inverses — a permutation's, the
+        identity's, a one-term combination's — are first-class forward
+        operators in their own structure and stay unwrapped.)
         """
         if not self.is_invertible:
-            raise NotInvertible(
-                "OperatorProduct.inverse requires both factors to be "
-                "invertible ((AB)^{-1} = B^{-1}A^{-1})."
-            )
+            raise NotInvertible(_capability_refusal(
+                "OperatorProduct.inverse", "every factor to be invertible",
+                "(A₁…Aₙ)⁻¹ = Aₙ⁻¹…A₁⁻¹", self._factors, "is_invertible",
+            ))
         return InverseOperator(self)
 
     @property
     def is_adjointable(self) -> bool:
-        # (AB)^T = B^T A^T (the law in :meth:`apply_transpose`) — adjointable
-        # iff BOTH factors are.
-        return self.a.is_adjointable and self.b.is_adjointable
+        return all(f.is_adjointable for f in self._factors)
 
     @property
     def is_metric_free_adjoint(self) -> bool:
-        # A product of metric-free operators is metric-free (derived).
-        return (
-            self.a.is_metric_free_adjoint and self.b.is_metric_free_adjoint
-        )
+        # A word of metric-free operators is metric-free (derived).
+        return all(f.is_metric_free_adjoint for f in self._factors)
+
+    def dual(self) -> "LinearOperator[Codomain, Domain]":
+        r"""Return :math:`(A_1 \cdots A_n)^{\mathsf T} = A_n^{\mathsf T} \cdots A_1^{\mathsf T}`, exact (ruling 53)."""
+        return composition(*(f.dual() for f in reversed(self._adjointable_factors("dual"))))
 
     @property
     def is_assemblable(self) -> bool:
-        # [AB] = [A] @ [B] (the law in :meth:`assemble`) — the product
-        # assembles iff BOTH factors emit.
-        return self.a.is_assemblable and self.b.is_assemblable
+        return all(f.is_assemblable for f in self._factors)
 
     def assemble(self) -> "SparseAssembledOperator":
-        r"""Return :math:`[AB] = [A]\,[B]` — the multiplicative homomorphism law.
-
-        The composition's structural emission is the SPARSE PRODUCT of
-        its factors' emissions (dimension compatibility enforced by the
-        carrier's own matmul). Same eager guard-narrow discipline as
-        :meth:`OperatorSum.assemble`.
-        """
-        if not assemblable(self.a) or not assemblable(self.b):
-            raise MissingAssembly(
-                f"OperatorProduct.assemble requires both factors to emit "
-                f"([AB] = [A][B]); got {type(self.a).__name__} / "
-                f"{type(self.b).__name__} with is_assemblable "
-                f"{self.a.is_assemblable} / {self.b.is_assemblable}."
-            )
+        r"""Return :math:`[A_1 \cdots A_n] = [A_1] \cdots [A_n]` — the multiplicative homomorphism."""
+        factors = tuple(f for f in self._factors if assemblable(f))
+        if len(factors) != len(self._factors):
+            raise MissingAssembly(_capability_refusal(
+                "OperatorProduct.assemble", "every factor to emit",
+                "[A₁…Aₙ] = [A₁]…[Aₙ]", self._factors, "is_assemblable",
+            ))
         from orpheus.numerics.assembled_operator import SparseAssembledOperator
 
         return SparseAssembledOperator(
-            self.a.assemble().matrix @ self.b.assemble().matrix,
+            reduce(lambda m, f: m @ f.assemble().matrix, factors[1:], factors[0].assemble().matrix),
             domain=self.domain,
             codomain=self.codomain,
         )
 
+    def __repr__(self) -> str:
+        return "(" + " @ ".join(repr(f) for f in self._factors) + ")"
 
-class ScaledOperator(
-    LinearOperator[Domain, Codomain],
-    Generic[Domain, Codomain, ScaledOperand],
-):
-    r"""Scalar multiple of a linear operator: :math:`(\alpha L)\,x = \alpha\,(L\,x)`.
 
-    Generic over its OPERAND type (as the other composition
-    wrappers over their legs): ``ScaledOperator["FullField",
-    "FullField", SNMaskedBoundaryOperator]`` reads ``.op`` as the masked
-    boundary leaf — the ``-1·B_lower`` leg of the G-S splitting needs no
-    cast. The PEP-696 default keeps ``ScaledOperator[D, C]`` valid; the
-    operand is a covariant read-only property.
+class FusedAtom(LinearOperator[Domain, Codomain]):
+    r"""An atom that realises an algebraic expression with an action of its own.
 
-    Scaling (:math:`\alpha \neq 0`, caught at composition time) passes
-    both structural axes through unchanged: the operand's
-    invertibility/adjointability ARE the scaled operator's, and the
-    algebra is closed — :meth:`inverse` is a
-    :class:`ScaledOperator` (:math:`(\alpha L)^{-1} = (1/\alpha)L^{-1}`)
-    and the transpose scales (:math:`(\alpha L)^T = \alpha L^T`). No
-    ``solve`` verb: an algebra-closed inverse is a first-class forward,
-    so solving is ``.inverse().apply(b)``.
+    The free algebra never fuses (numerics_untangling.md ruling 52): ``+`` and
+    ``@`` build combinations and words, never a realisation chosen by a type
+    test on the operands. Where a method needs an expression realised by a
+    faster or direct action — the WDD sweep for :math:`L + C`, the scheduled
+    forward substitution for :math:`L + C - B_{\rm lower}`, the moment-emitting
+    sweep for :math:`P\,A^{-1}` — its OWNER builds an atom carrying that action,
+    and the atom states the expression it realises as :meth:`expansion`.
+
+    Everything the atom does not realise itself is its expansion's, read from
+    ONE cached expansion: the ends, the transpose (through the expansion's
+    dual arrow), the adjointability and metric-freeness, the assembly, and the
+    block and system roles (:meth:`_adopt_expansion_roles`, called by each
+    atom's constructor once its legs are set). A subclass overrides a face
+    only where it has a realisation of its own (the sweep atom's
+    :math:`M(\sigma)^{\mathsf T}`), so a capability its expansion gains — an
+    assemblable leaf, at package S3 — reaches the atom with no edit here.
     """
 
-    def __init__(self, scalar: float, op: ScaledOperand) -> None:
-        if not callable(getattr(op, "apply", None)):
-            raise TypeError(
-                f"ScaledOperator requires apply on its operand; "
-                f"{type(op).__name__} lacks 'apply'."
-            )
-        if scalar == 0.0:
-            # SCOPE-BOUNDARY[guard] machinery: S2's formal linear combination,
-            # where 0·A is ZeroMorphism(A.domain, A.codomain). ruling: the user,
-            # 2026-10-19, the zero belongs to the algebra (numerics_untangling.md,
-            # wave 4). revisit: when S2 lands. Until then 0·A refuses rather
-            # than return a scaled operand that is not structurally zero.
-            raise ValueError(
-                "ScaledOperator with zero scalar is degenerate; construct "
-                "the zero explicitly: ZeroMorphism(A.domain, A.codomain), "
-                "or ZeroOperator for an endomorphism."
-            )
-        self.scalar = float(scalar)
-        self._op: Final = op
-        # Scaling preserves which blocks the action touches.
-        self.block_role = getattr(op, "block_role", None)
-        # Scaling preserves which systems the action touches, too.
-        self.system_role = getattr(op, "system_role", None)
+    @abstractmethod
+    def expansion(self) -> "LinearOperator[Domain, Codomain]":
+        """The plain combination or word this atom realises."""
 
-    @property
-    def op(self) -> ScaledOperand:
-        """The scaled operand ``L`` (read-only — covariant leg typing)."""
-        return self._op
+    @cached_property
+    def _expanded(self) -> "LinearOperator[Domain, Codomain]":
+        return self.expansion()
+
+    def _adopt_expansion_roles(self) -> None:
+        # The blocks and systems the realised expression touches.
+        self.block_role = getattr(self._expanded, "block_role", None)
+        self.system_role = getattr(self._expanded, "system_role", None)
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
-        return getattr(self.op, "domain", None)
+        return self._expanded.domain
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        return getattr(self.op, "codomain", None)
+        return self._expanded.codomain
 
-    def apply(self, x: Domain, /, *extra, **kwextra) -> Codomain:
-        return self.scalar * self.op.apply(x, *extra, **kwextra)
-
-    # NO ``solve``: the inverse is ALGEBRA-CLOSED —
-    # :meth:`inverse` returns the first-class forward
-    # ``ScaledOperator(1/α, op.inverse())`` — so there is no wrapped
-    # realization verb to keep; solving is ``.inverse().apply(b)``.
-
-    def apply_transpose(self, x: Codomain, /, *extra, **kwextra) -> Domain:
-        # (αL)^T = α L^T — the guard-narrow licenses the operand call.
-        if not adjointable(self.op):
-            raise MissingAdjoint(
-                f"ScaledOperator.apply_transpose requires an adjointable "
-                f"operand ((αL)^T = αL^T); {type(self.op).__name__}."
-                f"is_adjointable is False."
-            )
-        return self.scalar * self.op.apply_transpose(x, *extra, **kwextra)
-
-    @property
-    def is_invertible(self) -> bool:
-        # (αL)^{-1} = (1/α) L^{-1} — α ≠ 0 is enforced at construction, so
-        # the scaled operator is invertible iff the operand is.
-        return self.op.is_invertible
-
-    def inverse(self) -> "ScaledOperator[Codomain, Domain]":
-        r"""Return :math:`(\alpha L)^{-1} = (1/\alpha)\,L^{-1}`.
-
-        The natural structural inverse: a scaled operator's inverse IS a
-        scaled operator — on the SWAPPED carriers (an inverse maps the
-        forward's codomain back to its domain), so the return type is
-        ``ScaledOperator[Codomain, Domain]``. ``1/α`` is exact whenever
-        ``α`` is a power of two
-        (the dominant −1.0 case); the action is bit-identical to
-        :meth:`solve` given the operand's own ``inverse().apply ≡ solve``
-        identity (both spell ``(1/α) * op_solve(b)``).
-        """
-        if not invertible(self.op):
-            raise NotInvertible(
-                "ScaledOperator.inverse requires an invertible operand "
-                "((αL)^{-1} = (1/α)L^{-1})."
-            )
-        return ScaledOperator(1.0 / self.scalar, self.op.inverse())
+    def apply_transpose(self, y: Codomain, /) -> Domain:
+        # The expansion's dual arrow; its construction refuses (MissingAdjoint)
+        # an expression with a part that does not transpose.
+        return self._expanded.dual().apply(y)
 
     @property
     def is_adjointable(self) -> bool:
-        # (αL)^T = α L^T — scaling preserves adjointability.
-        return self.op.is_adjointable
+        return self._expanded.is_adjointable
 
     @property
     def is_metric_free_adjoint(self) -> bool:
-        # A real scalar is a multiplier — scaling preserves metric-freeness.
-        return self.op.is_metric_free_adjoint
+        return self._expanded.is_metric_free_adjoint
 
     @property
     def is_assemblable(self) -> bool:
-        # [αL] = α[L] (the law in :meth:`assemble`) — scaling preserves
-        # assemblability.
-        return self.op.is_assemblable
+        return self._expanded.is_assemblable
 
     def assemble(self) -> "SparseAssembledOperator":
-        r"""Return :math:`[\alpha L] = \alpha\,[L]` — the scalar homomorphism law.
-
-        The scaled emission is the carrier's own scalar multiply of the
-        operand's emission. Same eager guard-narrow discipline as the
-        other composer laws.
-        """
-        if not assemblable(self.op):
+        expanded = self._expanded
+        if not assemblable(expanded):
             raise MissingAssembly(
-                f"ScaledOperator.assemble requires an assemblable operand "
-                f"([αL] = α[L]); {type(self.op).__name__}.is_assemblable "
-                f"is False."
+                f"{type(self).__name__}.assemble: its expansion "
+                f"{type(expanded).__name__} does not emit an assembly."
             )
-        from orpheus.numerics.assembled_operator import SparseAssembledOperator
-
-        return SparseAssembledOperator(
-            self.scalar * self.op.assemble().matrix,
-            domain=self.domain,
-            codomain=self.codomain,
-        )
+        return expanded.assemble()
 
 
 class PointwiseOperator(LinearOperator[Domain, Domain]):
@@ -2770,8 +2933,8 @@ class _WrappedForward(Protocol):
     :class:`_InvertibleForward`;
     :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` to the
     schedule-triangular union;
-    :class:`~orpheus.numerics.green_operator.GreenOperator` to
-    :class:`OperatorSum`; ``MatrixInverseOperator`` to
+    :class:`~orpheus.numerics.green_operator.GreenOperator` to the
+    difference :math:`M - N` of its split; ``MatrixInverseOperator`` to
     :class:`LinearOperator` (its guard needs :meth:`~LinearOperator.as_matrix`).
     """
 
@@ -2868,8 +3031,8 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
 
     (This wrap-delegate family is ONE of two kinds of inverse in the
     algebra: ALGEBRA-CLOSED structures invert into themselves — a
-    permutation's inverse IS a permutation, a scaled operator's a scaled
-    operator — and stay unwrapped as first-class forwards. The canonical
+    permutation's inverse IS a permutation, a one-term combination's a
+    one-term combination — and stay unwrapped as first-class forwards. The canonical
     statement of the split lives on :meth:`OperatorProduct.inverse`.)
     """
 
@@ -2958,7 +3121,7 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
         return bool(getattr(self.inner, "is_metric_free_adjoint", False))
 
 
-class InverseOperator(InverseWrapMixin[_InvertibleForward], LinearOperator):
+class InverseOperator(_KeyedEquality, InverseWrapMixin[_InvertibleForward], LinearOperator):
     r"""The inverse operator :math:`A^{-1}` of a solve-backed leaf, in operator form.
 
     The GENERIC member of the #226 inverse family — the name is earned by
@@ -2970,8 +3133,8 @@ class InverseOperator(InverseWrapMixin[_InvertibleForward], LinearOperator):
     distinguishing invariant get their own named types
     (:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` for the
     triangular sweep;
-    :class:`~orpheus.numerics.green_operator.GreenOperator` for the
-    preconditioned-splitting sum;
+    :class:`~orpheus.numerics.green_operator.GreenOperator` for a named
+    split :math:`M - N`;
     :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
     for the dense direct factorization) — this class serves any
     solve-backed forward with NO more specific named inverse: the
@@ -3007,6 +3170,10 @@ class InverseOperator(InverseWrapMixin[_InvertibleForward], LinearOperator):
                 f"{type(inner).__name__}.is_invertible is False."
             )
         super().__init__(inner)
+
+    def _algebra_key(self) -> Hashable:
+        # A formal arrow is its kind and its inner (ruling 53's spec, Q5).
+        return ("inverse", _algebra_key(self.inner))
 
     def apply(self, x: Any, /, *, initial_guess: Any | None = None) -> Any:
         r"""Return :math:`A^{-1}\,x` — the leaf's own ``solve`` (bit-identical).

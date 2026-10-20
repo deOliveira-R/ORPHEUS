@@ -10,7 +10,7 @@ from .measure import (
     DiscreteMeasure,
     DiscreteMeasurePartition,
 )
-from .elementary_operators import DiagonalOperator, RankOneOperator, SumOfTensorProductsOperator, outer
+from .elementary_operators import DiagonalOperator, RankOneOperator, outer
 from .operator import (
     ZeroMorphism,
     ZeroOperator,
@@ -20,7 +20,6 @@ from .operator import (
     NotInvertible,
     OperatorProduct,
     OperatorSum,
-    ScaledOperator,
     SupportsAdjoint,
     SupportsInverse,
     TensorProductOperator,
@@ -69,11 +68,9 @@ __all__ = [
     "ProductionRateSolver",
     "R_co",
     "RankOneOperator",
-    "ScaledOperator",
     "SourceIteration",
     "SphericalHarmonicBasis",
     "SubgroupOfO3",
-    "SumOfTensorProductsOperator",
     "SupportsAdjoint",
     "SupportsInverse",
     "SystemField",

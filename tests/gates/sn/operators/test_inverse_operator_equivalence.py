@@ -44,8 +44,8 @@ def _build(case_builder):
     """Return ``(sn, A=L+C StreamingCollisionOperator, b=rhs source)`` for a removal case."""
     sn = case_builder(ng=2, bc="vacuum")
     _, sig_r = _removal_sigmas(sn, seed=2026)
-    A = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_r, sn)
-    assert isinstance(A, StreamingCollisionOperator)  # L + C dispatches to the resolvent
+    # S2 (ruling 52): ``+`` never fuses; the resolvent atom is built explicitly.
+    A = StreamingCollisionOperator(StreamingOperator.pose(sn), MultiplicationOperator.from_mesh(sig_r, sn))
     b = _random_state(sn, seed=11)
     return sn, A, b
 

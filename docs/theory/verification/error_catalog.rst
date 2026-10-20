@@ -11520,3 +11520,96 @@ older entries classify against.
    **Lesson.** ⭐ **A flag that a parameter decides is a property of the
    built object, never a field of the family: read it off the thing you
    already hold.**
+
+.. error-entry:: ERR-119
+   :title: The transport multiplier broadcast σ over the leading ordinate axis only, so on a linear-discontinuous bulk C refused to apply alone; it hid because L + C always fused into the sweep atom, which applies σ through its own walk
+
+   **Status:** ✅ **FIXED 2026-10-20 — numerics untangling, S2 (branch
+   ``refactor/s2-linear-combination``).** The multiplier reads the axes its
+   coefficient does not span by label off the bound spaces, and refuses a
+   space built without labelled axes (ruling 56 of
+   ``.claude/plans/numerics_untangling.md``).
+
+   **Module:** ``transport``
+   (``orpheus/transport/operators/multiplication_operator.py``, the
+   ``MultiplicationOperator`` engine and its assembled diagonal).
+
+   **Failure mode:** **#6 (convention drift).** The definition site of the
+   angular bulk layout, ``(N, ng, *spatial, n_moments)`` on a
+   linear-discontinuous (LD) mesh, puts an axis the cross section does not
+   span AFTER the axes it spans. The usage site, the multiplier, encoded the
+   older layout ``(N, ng, *spatial)``, in which every axis σ does not span is
+   in front of the axes it spans. The arithmetic was not missing a factor
+   (mode #3) and no index was off by one (mode #5): one statement about which
+   axes σ is constant over held for the diamond-difference (DD) layout and was
+   false for the LD layout, which is the shape of mode #6.
+
+   **The defect.** ``MultiplicationOperator`` built its ``DiagonalOperator``
+   engine with ``broadcast_axes=(0,)``: it expanded the per-cell, per-group
+   σ over the ordinate axis and nowhere else. For a cell-constant σ the LD
+   collision is moment-wise, :math:`(\sigma\psi)_k = \sigma\,\psi_k` for each
+   spatial moment :math:`k`, so σ must also be constant over the trailing
+   ``spatial_moment`` axis. On an LD bulk the engine refused at once:
+   ``ValueError: DiagonalOperator(broadcast_axes=(0,)) expects a rank-4
+   coefficient for a 5-D carrier; got rank-3 coefficient of shape (2, 4, 3)``
+   (2-D LD, two groups). The assembled form, ``_bulk_assembly``, expanded σ
+   with ``np.broadcast_to(values, bulk_shape)``, which PREPENDS axes, so on an
+   LD bulk it would have placed σ on the wrong axes or refused the same way.
+
+   **How it hid.** Nothing applied C by itself on an LD bulk. The sum
+   ``L + C`` fused into ``StreamingCollisionOperator``, the sweep atom, whose
+   walk applies σ through the loss representation and never calls the
+   multiplier's engine. Production builds that fused atom, so the defect was
+   latent in production; the multiplier's own gates ran on DD fixtures, whose
+   bulk has no moment axis, where "broadcast over the leading axis" and
+   "broadcast over every axis σ does not span" are the same tuple. It surfaced
+   when S2 (ruling 52 of ``.claude/plans/numerics_untangling.md``) stopped
+   ``+`` from fusing, so a plain ``L + C`` applied C on its own.
+
+   **Fix.** ``_broadcast_axes(bulk, coefficient)`` reads, BY LABEL, the bulk
+   axes absent from the coefficient's space (the ordinate axis and the
+   ``spatial_moment`` axis), counting every array dimension of a
+   multi-dimensional axis (a 2-D spatial mesh is one axis of two dimensions).
+   The engine and the assembled diagonal both read that one tuple, so the two
+   faces of the multiplier cannot disagree on the broadcast. A space without
+   labelled axes is refused with a ``TypeError`` rather than guessed
+   positionally.
+
+   **Catching tests.** In
+   ``tests/gates/transport/test_multiplication_operator.py``, class
+   ``TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan``, the five LD rows
+   carry ``@pytest.mark.catches("ERR-119")``:
+
+   - ``test_the_multiply_is_sigma_expanded_on_the_ordinate_and_moment_axes[ld_slab_2g]``
+     and ``[ld_2d_2g]``: ``C.apply`` against σ expanded by hand, bit for bit;
+   - ``test_the_plain_sum_applies_like_the_sweep_atom[ld_slab_2g]`` and
+     ``[ld_2d_2g]``: the plain ``(L + C)ψ`` against the sweep atom's fused
+     ``M(σ)ψ`` to ``8ε`` relative (the atom is the independent side: its σ
+     enters through the walk, never through this multiplier);
+   - ``test_the_assembled_diagonal_reads_the_same_broadcast[ld_slab_2g]``:
+     the assembled bulk block against ``apply``, bit for bit.
+
+   `[M]` 2026-10-20, ``python -O -m pytest`` on the class (11 rows), with
+   ``_broadcast_axes`` monkeypatched in-process at ``pytest_configure``.
+   Re-drop A, the original ``(0,)``: the four ``apply`` rows red with the
+   ``DiagonalOperator`` rank message quoted above, and the assembled row reds
+   with a numpy broadcast error. Re-drop B, every leading axis,
+   ``tuple(range(len(bulk.shape) - coefficient.values.ndim))``: the same five
+   rows red, with numpy broadcast errors. Under both, the five DD rows (the
+   controls, no moment axis) stay green. The sixth red under both,
+   ``test_a_space_without_labelled_axes_is_refused``, reds because the
+   re-drop removes the refusal, a different claim (ruling 56), so it carries
+   no marker.
+
+   **Cross-reference.** **ERR-062** is the same defect class one layer down:
+   the LD matvec's pure-z arm in the loss representation multiplied σ into a
+   moment-valued probe without the trailing-axis reshape its sweep twin
+   already had. There the fix single-sourced the reshape between two twins;
+   here the multiplier now reads which axes σ spans from the spaces instead
+   of assuming their positions.
+
+   **Lesson.** A coefficient's broadcast is a statement about which axes it
+   spans, so read it by label off the bound spaces: a positional tuple is
+   right only for the layout it was written against, and a fused path that
+   never calls the operator alone hides the error until the fusion is taken
+   away.

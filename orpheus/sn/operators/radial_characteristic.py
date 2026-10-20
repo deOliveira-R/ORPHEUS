@@ -195,8 +195,9 @@ class _EmissionKernel(Protocol):
     ``apply_transpose`` — that is a runtime capability of *adjointable* operators
     only (#276 P3). ``A_BA`` needs BOTH directions, so it types its
     kernel by the capability it consumes. Satisfied by the solver-composed
-    ``K_iso`` (``S.isotropic_energy + N2N.isotropic_energy`` — an ``OperatorSum``
-    of the two cached energy bindings, CS4c §14.1) and the fission
+    ``K_iso`` (``S.isotropic_energy + N2N.isotropic_energy`` — the
+    combination of the two cached energy bindings, CS4c §14.1, narrowed
+    through :func:`~orpheus.numerics.operator.adjointable`) and the fission
     ``kernel`` (the rank-1 ``χ ⊗ νΣf`` dyad).
     """
 

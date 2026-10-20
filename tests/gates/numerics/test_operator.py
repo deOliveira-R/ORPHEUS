@@ -25,7 +25,6 @@ from orpheus.numerics.operator import (
     NotInvertible,
     OperatorProduct,
     OperatorSum,
-    ScaledOperator,
 )
 
 pytestmark = pytest.mark.foundation
@@ -113,6 +112,16 @@ def matrix_full(rng, n_dim):
 
 
 @pytest.fixture
+def matrix_full_b(rng, n_dim):
+    """A SECOND full-capability operator, a distinct object: since S2 a sum
+    collects terms by object identity, so ``A + A`` is the one term ``2A`` and
+    a two-term law needs two objects."""
+    M = rng.standard_normal((n_dim, n_dim))
+    M += n_dim * np.eye(n_dim)
+    return MatrixOperator(M, can_solve=True, can_transpose=True)
+
+
+@pytest.fixture
 def matrix_apply_only(rng, n_dim):
     """An operator advertising only apply (e.g. a scattering source)."""
     M = rng.standard_normal((n_dim, n_dim))
@@ -145,39 +154,32 @@ def test_identity_and_zero_are_linear_operators():
 
 
 def test_sum_composes_with_both_applying(matrix_full, matrix_apply_only):
-    s = OperatorSum(matrix_full, matrix_apply_only)  # eager guard accepts
+    s = matrix_full + matrix_apply_only  # eager guard accepts
     assert callable(getattr(s, "apply", None))
 
 
-def test_sum_solve_rides_the_leading_term(matrix_full, matrix_apply_only):
-    """Solve on a sum rides its LEADING term — order-sensitively.
+def test_a_two_term_sum_has_no_inverse_of_its_own(matrix_full, matrix_apply_only):
+    """A sum of two terms has no inverse of its own, in either spelling order.
 
-    There is still no OPERAND-WISE algorithm for ``(A+B)^{-1}`` from
-    ``A^{-1}``/``B^{-1}`` — but since #226 step 4 a sum whose left-spine
-    head is invertible carries the preconditioned-splitting
-    :class:`GreenOperator` inverse — invertibility rides the leading
-    term, order-sensitively. REWIRED at carve P4: the old
-    "solve never propagates" pin predated step 4 and survived only
-    because the fixture's ``is_invertible`` was a stale ``False``.
+    RE-POSED at S2 (numerics_untangling.md ruling 50): until S2 the sum's
+    LEADING term made it "invertible" through a preconditioned-splitting
+    Green (the canonical-ordering contract). An unordered combination has no
+    head; the inverse of ``A = M − N`` is ``GreenOperator(M, N)``, built from
+    the named split.
     """
-    from orpheus.numerics.green_operator import GreenOperator
-
-    s = OperatorSum(matrix_full, matrix_apply_only)
-    assert s.is_invertible is True
-    assert type(s.inverse()) is GreenOperator
-    # The SAME operands reversed: a non-invertible head has no
-    # designated preconditioner — the ordering contract refuses.
-    s_reversed = OperatorSum(matrix_apply_only, matrix_full)
-    assert s_reversed.is_invertible is False
+    for s in (matrix_full + matrix_apply_only, matrix_apply_only + matrix_full):
+        assert s.is_invertible is False
+        with pytest.raises(NotInvertible, match="GreenOperator\\(M, N\\)"):
+            s.inverse()
 
 
-def test_sum_transpose_propagates_with_both(matrix_full):
-    s = OperatorSum(matrix_full, matrix_full)
+def test_sum_transpose_propagates_with_both(matrix_full, matrix_full_b):
+    s = matrix_full + matrix_full_b
     assert s.is_adjointable is True
 
 
 def test_sum_transpose_drops_when_one_lacks(matrix_full, matrix_apply_only):
-    s = OperatorSum(matrix_full, matrix_apply_only)
+    s = matrix_full + matrix_apply_only
     assert s.is_adjointable is False
 
 
@@ -187,51 +189,57 @@ def test_sum_transpose_drops_when_one_lacks(matrix_full, matrix_apply_only):
 
 
 def test_product_composes_with_both_applying(matrix_full, matrix_apply_only):
-    p = OperatorProduct(matrix_full, matrix_apply_only)  # eager guard accepts
+    p = matrix_full @ matrix_apply_only  # eager guard accepts
     assert callable(getattr(p, "apply", None))
 
 
 def test_product_invertible_with_both(matrix_full):
-    p = OperatorProduct(matrix_full, matrix_full)
+    p = matrix_full @ matrix_full
     assert p.is_invertible is True
 
 
 def test_product_not_invertible_when_one_factor_is_not(
     matrix_full, matrix_apply_only, vector
 ):
-    p = OperatorProduct(matrix_full, matrix_apply_only)
+    p = matrix_full @ matrix_apply_only
     assert p.is_invertible is False
-    with pytest.raises(NotInvertible, match="both factors"):
+    # S2: the n-ary word names the failing factor (was "both factors").
+    with pytest.raises(NotInvertible, match="MatrixOperator.is_invertible=False"):
         p.solve(vector)  # the kept verb refuses eagerly (value arm)
-    with pytest.raises(NotInvertible, match="both factors"):
+    with pytest.raises(NotInvertible, match="every factor"):
         p.inverse()
 
 
 def test_product_transpose_propagates_with_both(matrix_full):
-    p = OperatorProduct(matrix_full, matrix_full)
+    p = matrix_full @ matrix_full
     assert p.is_adjointable is True
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Structural-predicate propagation — ScaledOperator
+# Structural-predicate propagation — a scaled operator (``αA``, the
+# one-term combination since S2; ``ScaledOperator`` retired, ruling 51)
 # ───────────────────────────────────────────────────────────────────────
 
 
 def test_scaled_preserves_both_axes(matrix_full):
-    s = ScaledOperator(2.5, matrix_full)
+    s = 2.5 * matrix_full
     # Scalar multiplication (α≠0) is unitary on both structural axes.
     assert s.is_invertible == matrix_full.is_invertible
     assert s.is_adjointable == matrix_full.is_adjointable
 
 
 def test_scaled_apply_only_stays_apply_only(matrix_apply_only):
-    s = ScaledOperator(0.5, matrix_apply_only)
+    s = 0.5 * matrix_apply_only
     assert not s.is_invertible and not s.is_adjointable
 
 
-def test_scaled_zero_scalar_rejected(matrix_full):
-    with pytest.raises(ValueError, match="ZeroOperator"):
-        ScaledOperator(0.0, matrix_full)
+def test_zero_scalar_on_an_unbound_operator_refuses_naming_it(matrix_full):
+    """INVERTED at S2: ``0·A`` is the zero map ``ZeroMorphism(A.domain,
+    A.codomain)`` (design D6), so it no longer refuses for a BOUND ``A``
+    (``test_linear_combination.py`` c09). This unbound double cannot mint
+    its zero, and refuses naming its type."""
+    with pytest.raises(ValueError, match="zero combination of MatrixOperator"):
+        _ = 0.0 * matrix_full
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -295,24 +303,30 @@ class NoApplyOperator:
 
 def test_sum_rejects_missing_apply_at_composition(matrix_full):
     bad = NoApplyOperator()
-    with pytest.raises(TypeError, match="apply"):
-        OperatorSum(matrix_full, bad)
-    with pytest.raises(TypeError, match="apply"):
-        OperatorSum(bad, matrix_full)
+    with pytest.raises(TypeError, match="OperatorSum requires apply on every operand"):
+        _ = matrix_full + bad  # type: ignore[operator]
+    with pytest.raises(TypeError, match="OperatorSum requires apply on every operand"):
+        _ = bad + matrix_full  # type: ignore[operator]
 
 
 def test_product_rejects_missing_apply_at_composition(matrix_full):
     bad = NoApplyOperator()
-    with pytest.raises(TypeError, match="apply"):
-        OperatorProduct(matrix_full, bad)
-    with pytest.raises(TypeError, match="apply"):
-        OperatorProduct(bad, matrix_full)
+    with pytest.raises(TypeError, match="OperatorProduct requires apply on every operand"):
+        _ = matrix_full @ bad  # type: ignore[operator]
+    # A left operand with no ``apply`` has no ``@`` to dispatch on; the
+    # public constructor ``composition`` carries the guard for it.
+    from orpheus.numerics.operator import composition
+
+    with pytest.raises(TypeError, match="OperatorProduct requires apply on every operand"):
+        composition(bad, matrix_full)  # type: ignore[arg-type]
 
 
 def test_scaled_rejects_missing_apply_at_composition():
+    from orpheus.numerics.operator import linear_combination
+
     bad = NoApplyOperator()
-    with pytest.raises(TypeError, match="apply"):
-        ScaledOperator(2.0, bad)
+    with pytest.raises(TypeError, match="OperatorSum requires apply on every operand"):
+        linear_combination([(2.0, bad)])  # type: ignore[list-item]
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -321,38 +335,38 @@ def test_scaled_rejects_missing_apply_at_composition():
 
 
 def test_sum_apply_matches_dense(matrix_full, matrix_apply_only, vector):
-    s = OperatorSum(matrix_full, matrix_apply_only)
+    s = matrix_full + matrix_apply_only
     expected = matrix_full.matrix @ vector + matrix_apply_only.matrix @ vector
     np.testing.assert_allclose(s.apply(vector), expected, rtol=1e-12)
 
 
 def test_product_apply_matches_dense(matrix_full, matrix_apply_only, vector):
-    p = OperatorProduct(matrix_full, matrix_apply_only)
+    p = matrix_full @ matrix_apply_only
     expected = matrix_full.matrix @ (matrix_apply_only.matrix @ vector)
     np.testing.assert_allclose(p.apply(vector), expected, rtol=1e-12)
 
 
 def test_product_solve_reverses_order(matrix_full, vector):
     """Verify (AB)^{-1} = B^{-1} A^{-1}."""
-    p = OperatorProduct(matrix_full, matrix_full)
+    p = matrix_full @ matrix_full
     composed = matrix_full.matrix @ matrix_full.matrix
     expected = np.linalg.solve(composed, vector)
     np.testing.assert_allclose(p.solve(vector), expected, rtol=1e-10)
 
 
 def test_scaled_apply_matches_dense(matrix_full, vector):
-    s = ScaledOperator(2.5, matrix_full)
+    s = 2.5 * matrix_full
     expected = 2.5 * (matrix_full.matrix @ vector)
     np.testing.assert_allclose(s.apply(vector), expected, rtol=1e-12)
 
 
 def test_scaled_inverse_divides(matrix_full, vector):
-    """(αL)^{-1} = (1/α) L^{-1} — rewired at carve P4: ScaledOperator.solve
-    retired (the inverse is ALGEBRA-CLOSED), solving is .inverse().apply."""
-    s = ScaledOperator(2.5, matrix_full)
+    """(αL)^{-1} = (1/α) L^{-1} — the inverse is ALGEBRA-CLOSED (carve P4;
+    since S2 the one-term combination's), solving is .inverse().apply."""
+    s = 2.5 * matrix_full
     expected = (1.0 / 2.5) * np.linalg.solve(matrix_full.matrix, vector)
     np.testing.assert_allclose(s.inverse().apply(vector), expected, rtol=1e-10)
-    assert not hasattr(ScaledOperator, "solve")  # the retirement pin
+    assert not hasattr(s, "solve")  # the retirement pin
 
 
 def test_identity_apply(vector):
@@ -365,16 +379,16 @@ def test_zero_apply(vector):
     )
 
 
-def test_transpose_distributes_over_sum(matrix_full, vector):
-    """(A + B)^T x = A^T x + B^T x."""
-    s = OperatorSum(matrix_full, matrix_full)
-    expected = (matrix_full.matrix.T @ vector) + (matrix_full.matrix.T @ vector)
+def test_transpose_distributes_over_sum(matrix_full, matrix_full_b, vector):
+    """(A + B)^T x = A^T x + B^T x (two distinct objects: S2 collects A + A)."""
+    s = matrix_full + matrix_full_b
+    expected = (matrix_full.matrix.T @ vector) + (matrix_full_b.matrix.T @ vector)
     np.testing.assert_allclose(s.apply_transpose(vector), expected, rtol=1e-12)
 
 
 def test_transpose_reverses_product(matrix_full, vector):
     """(A B)^T x = B^T A^T x."""
-    p = OperatorProduct(matrix_full, matrix_full)
+    p = matrix_full @ matrix_full
     expected = matrix_full.matrix.T @ (matrix_full.matrix.T @ vector)
     np.testing.assert_allclose(p.apply_transpose(vector), expected, rtol=1e-12)
 
@@ -384,28 +398,30 @@ def test_transpose_reverses_product(matrix_full, vector):
 # ───────────────────────────────────────────────────────────────────────
 
 
-def test_dunder_add_returns_sum(matrix_full):
-    s = matrix_full + matrix_full
+def test_dunder_add_returns_sum(matrix_full, matrix_full_b):
+    s = matrix_full + matrix_full_b
     assert isinstance(s, OperatorSum)
+    assert [w for _, w in s.terms] == [matrix_full, matrix_full_b]
 
 
-def test_dunder_sub_returns_sum_with_negation(matrix_full, vector):
-    """A - B == A + (-1) * B."""
-    s = matrix_full - matrix_full
-    expected = matrix_full.matrix @ vector - matrix_full.matrix @ vector
+def test_dunder_sub_returns_sum_with_negation(matrix_full, matrix_full_b, vector):
+    """A - B == A + (-1) * B (distinct objects: S2 cancels A - A)."""
+    s = matrix_full - matrix_full_b
+    assert [c for c, _ in s.terms] == [1.0, -1.0]
+    expected = matrix_full.matrix @ vector - matrix_full_b.matrix @ vector
     np.testing.assert_allclose(s.apply(vector), expected, atol=1e-12)
 
 
 def test_dunder_mul_scalar_returns_scaled(matrix_full):
     s = 3.0 * matrix_full
-    assert isinstance(s, ScaledOperator)
-    assert s.scalar == 3.0
+    assert isinstance(s, OperatorSum)
+    assert s.terms == ((3.0, matrix_full),)
 
 
 def test_dunder_rmul_scalar_returns_scaled(matrix_full):
     s = matrix_full * 3.0
-    assert isinstance(s, ScaledOperator)
-    assert s.scalar == 3.0
+    assert isinstance(s, OperatorSum)
+    assert s.terms == ((3.0, matrix_full),)
 
 
 def test_dunder_matmul_returns_product(matrix_full):
@@ -414,20 +430,21 @@ def test_dunder_matmul_returns_product(matrix_full):
 
 
 def test_dunder_neg_returns_scaled_minus_one(matrix_full, vector):
-    """``-A`` returns ``ScaledOperator(-1.0, A)``. Issue #185."""
+    """``-A`` returns the one-term combination ``(-1)·A``. Issue #185 (S2)."""
     neg = -matrix_full
-    assert isinstance(neg, ScaledOperator)
-    assert neg.scalar == -1.0
+    assert isinstance(neg, OperatorSum)
+    assert neg.terms == ((-1.0, matrix_full),)
     # Value check: ``(-A) x == -(A x)``.
     np.testing.assert_allclose(
         neg.apply(vector), -matrix_full.apply(vector), atol=1e-12,
     )
 
 
-def test_dunder_neg_composes_with_subtraction(matrix_full, vector):
-    """``A + (-B)`` is value-equivalent to ``A - B``. Issue #185."""
-    a_plus_neg_b = matrix_full + (-matrix_full)
-    a_minus_b = matrix_full - matrix_full
+def test_dunder_neg_composes_with_subtraction(matrix_full, matrix_full_b, vector):
+    """``A + (-B)`` is ``A - B``: equal as combinations since S2, and in value. Issue #185."""
+    a_plus_neg_b = matrix_full + (-matrix_full_b)
+    a_minus_b = matrix_full - matrix_full_b
+    assert a_plus_neg_b == a_minus_b
     np.testing.assert_allclose(
         a_plus_neg_b.apply(vector),
         a_minus_b.apply(vector),
@@ -436,10 +453,10 @@ def test_dunder_neg_composes_with_subtraction(matrix_full, vector):
 
 
 def test_dunder_truediv_returns_scaled_reciprocal(matrix_full, vector):
-    """``A / α`` returns ``ScaledOperator(1/α, A)``. Issue #185."""
+    """``A / α`` returns the one-term combination ``(1/α)·A``. Issue #185 (S2)."""
     halved = matrix_full / 2.0
-    assert isinstance(halved, ScaledOperator)
-    assert halved.scalar == 0.5
+    assert isinstance(halved, OperatorSum)
+    assert halved.terms == ((0.5, matrix_full),)
     # Value check: ``(A / α) x == (A x) / α``.
     np.testing.assert_allclose(
         halved.apply(vector), matrix_full.apply(vector) / 2.0, atol=1e-12,
@@ -458,7 +475,7 @@ def test_dunder_truediv_rejects_non_numeric(matrix_full):
         matrix_full / "two"  # type: ignore[operator]
 
 
-def test_transport_eigenvalue_algebra_smoke(matrix_full, matrix_apply_only):
+def test_transport_eigenvalue_algebra_smoke(matrix_full, matrix_apply_only, rng, n_dim):
     """Smoke test the (L - S - F) ψ algebra without dispatching it.
 
     Build the natural transport operator expression with the algebra
@@ -468,12 +485,13 @@ def test_transport_eigenvalue_algebra_smoke(matrix_full, matrix_apply_only):
     """
     L = matrix_full
     S = matrix_apply_only
-    F = matrix_apply_only
+    # A DISTINCT F (S2: ``S`` reused would collect to ``L − 2S``).
+    F = MatrixOperator(rng.standard_normal((n_dim, n_dim)))
     op = L - S - F
-    # The invertibility RIDES the invertible leading loss term: the
-    # transport normal form (L - S - F)^{-1} IS the preconditioned
-    # splitting (#226 step 4; rewired at carve P4).
-    assert op.is_invertible is True
+    assert [c for c, _ in op.terms] == [1.0, -1.0, -1.0]
+    # S2 (ruling 50): a sum has no inverse of its own; the transport
+    # normal form's inverse is the Green of the NAMED split M = L, N = S + F.
+    assert op.is_invertible is False
     x = np.ones(L.matrix.shape[0])
     expected = L.matrix @ x - S.matrix @ x - F.matrix @ x
     np.testing.assert_allclose(op.apply(x), expected, rtol=1e-12)
@@ -689,7 +707,7 @@ def test_product_rejects_incompatible_inner_space():
     A = _SpacedMatrixOperator(M, W, V)  # A: W → V
     B = _SpacedMatrixOperator(M, V, Z)  # B: V → Z; codomain Z != A.domain W
     with pytest.raises(
-        IncompatibleOperatorComposition, match="A @ B|domain|codomain",
+        IncompatibleOperatorComposition, match="OperatorProduct requires each factor's domain",
     ):
         _ = A @ B
 
@@ -715,7 +733,7 @@ def test_composition_skips_check_when_either_is_none(matrix_full):
     operator must not raise — the composition compatibility check
     only fires when BOTH operators carry function spaces.
     """
-    sum_ok = matrix_full + matrix_full
+    sum_ok = matrix_full + matrix_full  # collects to 2A (S2); still no space check
     assert sum_ok is not None
     prod_ok = matrix_full @ matrix_full
     assert prod_ok is not None
@@ -783,7 +801,7 @@ def test_product_solve_reroute_executes_and_matches_dense(monkeypatch):
     re-route. (i)/(iv) live in the factor-kind matrix below.
     """
     q, D1, _, P3, _ = _reroute_fixtures()
-    prod = OperatorProduct(D1, P3)  # NON-COMMUTING (config-blindness §0.6)
+    prod = D1 @ P3  # NON-COMMUTING (config-blindness §0.6)
 
     calls: list[int] = []
     real = OperatorProduct.solve
@@ -816,23 +834,31 @@ def test_product_solve_reroute_inherits_the_precarve_baseline():
     np.testing.assert_array_equal(q, baseline["q"])  # fixture drift guard
 
     direct_rows = {
-        "diag": OperatorProduct(D2, D1),
-        "permutation": OperatorProduct(D1, P3),
-        "scaled": OperatorProduct(ScaledOperator(2.5, D2), D1),
-        "identity": OperatorProduct(IdentityOperator(), D1),
+        "diag": D2 @ D1,
+        "permutation": D1 @ P3,
+        # S2 (D7): the scalar leaves the word, so ``(2.5·D2) @ D1`` is the
+        # one-term combination 2.5·(D2 D1), solved through its algebra-closed
+        # inverse (1/2.5)·(D2 D1)⁻¹. `[M]` 2026-10-20: still bit-identical to
+        # the pre-carve baseline (dyadic-free, but the diagonal solves round
+        # identically here) — so the row stays array_equal.
+        "scaled": (2.5 * D2) @ D1,
+        "identity": IdentityOperator() @ D1,
     }
     for name, prod in direct_rows.items():
         np.testing.assert_array_equal(
-            prod.solve(q), baseline[name],
+            prod.inverse().apply(q), baseline[name],
             err_msg=f"factor-kind row {name!r} drifted from the pre-carve baseline",
         )
-    # The Green-factor row: an Identity-headed sum — the factor whose own
-    # solve retired; its inverse is the GreenOperator (this row also
-    # end-to-end pins the algebra-closed-head seeding fix in
-    # seeded_inverse, which this exact fixture exposed).
-    green_prod = OperatorProduct(IdentityOperator() + DS, D1)
+    # The Green-factor row. RE-POSED at S2: an identity-headed SUM has no
+    # inverse of its own (ruling 50), so the factor is the Green of its
+    # named split, M = I, N = −DS, followed by D1⁻¹ — the same value the
+    # pre-carve ``(I + DS) @ D1`` solve produced (this row also end-to-end
+    # pins the algebra-closed-head seeding fix in seeded_inverse: M = I).
+    from orpheus.numerics.green_operator import GreenOperator
+
+    green = GreenOperator(IdentityOperator(), -1.0 * DS)
     np.testing.assert_allclose(
-        green_prod.solve(q), baseline["sum_green"], rtol=1e-8, atol=0.0,
+        D1.inverse().apply(green.apply(q)), baseline["sum_green"], rtol=1e-8, atol=0.0,
     )
 
 

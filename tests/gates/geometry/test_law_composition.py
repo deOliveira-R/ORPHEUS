@@ -22,8 +22,10 @@ These tests pin:
   method-blind walker; its home since #290 P7b, with the leaf
   realizer — here :class:`SNBoundaryRealizer` — passed explicitly)
   transforms a descriptor tree into an operator tree:
-  - The output type family matches the input (LawSum → OperatorSum,
-    LawScaled → ScaledOperator, leaf → realized 1-arg LinearOperator).
+  - The realised operator is the law tree's image in the operator algebra:
+    LawSum and LawScaled realise through ``+`` and ``α·`` to one formal linear
+    combination over the realised leaves (an ``OperatorSum``, flattened and
+    with the scalars distributed, since S2), a leaf to a 1-arg LinearOperator.
   - The realised tree's ``apply(psi)`` matches the explicit pointwise
     weighted sum of leaf realisations applied independently.
   - Nested composition is walked depth-first.
@@ -50,7 +52,7 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
     realize_recursively,
 )
-from orpheus.numerics.operator import OperatorSum, ScaledOperator
+from orpheus.numerics.operator import OperatorSum
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
@@ -254,14 +256,16 @@ def test_realize_recursively_leaf_dispatches_to_sn_realizer() -> None:
 
 @pytest.mark.foundation
 def test_realize_recursively_lawscaled_wraps_in_scaled_operator() -> None:
-    """``LawScaled(α, leaf)`` realises to ``ScaledOperator(α, realised_leaf)``."""
+    """``LawScaled(α, leaf)`` realises to the one-term combination
+    ``α · realised_leaf`` (S2: ``ScaledOperator`` retired, ruling 51)."""
     quad = Quadrature.gauss_legendre(8)
     ms = face_method_space(quad, face="xmax")   # B3.2: the leaf needs a face
     spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
     tree = 0.5 * spec
     op = realize_recursively(tree, ms, SNBoundaryRealizer())
-    assert isinstance(op, ScaledOperator)
-    assert op.scalar == 0.5
+    assert isinstance(op, OperatorSum)
+    [(coefficient, _leaf)] = op.terms
+    assert coefficient == 0.5
     # The inner is the realised leaf (PermutationOperator at α=1).
     rng = np.random.default_rng(1)
     psi = rng.standard_normal((ms.outflow_indices.size, 2))
@@ -273,7 +277,8 @@ def test_realize_recursively_lawscaled_wraps_in_scaled_operator() -> None:
 
 @pytest.mark.foundation
 def test_realize_recursively_lawsum_returns_operator_sum() -> None:
-    """``LawSum(a, b)`` realises to ``OperatorSum(realise(a), realise(b))``."""
+    """``LawSum(a, b)`` realises to ``realise(a) + realise(b)``: one combination
+    whose terms are the realised leaves with the law's coefficients (S2)."""
     quad = Quadrature.lebedev(17)
     ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
     spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
@@ -281,10 +286,8 @@ def test_realize_recursively_lawsum_returns_operator_sum() -> None:
     tree = 0.3 * spec + 0.7 * white
     op = realize_recursively(tree, ms, SNBoundaryRealizer())
     assert isinstance(op, OperatorSum)
-    assert isinstance(op.a, ScaledOperator)
-    assert isinstance(op.b, ScaledOperator)
-    assert op.a.scalar == 0.3
-    assert op.b.scalar == 0.7
+    assert [c for c, _ in op.terms] == [0.3, 0.7]
+    assert not any(isinstance(w, OperatorSum) for _, w in op.terms)
 
 
 @pytest.mark.l1
@@ -324,8 +327,11 @@ def test_realize_recursively_walks_nested_depth_first() -> None:
     """``0.5 * (0.3 * spec + 0.7 * white)`` walks depth-first.
 
     The outer ``LawScaled(0.5, ...)`` wraps a ``LawSum``; each summand
-    is a ``LawScaled`` around a leaf. The realised tree mirrors the
-    structure with Wave-0 composers.
+    is a ``LawScaled`` around a leaf. RE-POSED at S2: the realised operator
+    is the law's image in the free vector space, FLATTENED with the scalar
+    DISTRIBUTED — the terms {spec: 0.5·0.3, white: 0.5·0.7}, never a nested
+    tree (``α(A + B) = αA + αB``, ruling 23). 0.5 is dyadic, so the
+    coefficients are the exact products.
     """
     quad = Quadrature.lebedev(17)
     ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
@@ -333,14 +339,9 @@ def test_realize_recursively_walks_nested_depth_first() -> None:
     white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     tree = 0.5 * (0.3 * spec + 0.7 * white)
     op = realize_recursively(tree, ms, SNBoundaryRealizer())
-    assert isinstance(op, ScaledOperator)
-    assert op.scalar == 0.5
-    inner_sum = op.op
-    assert isinstance(inner_sum, OperatorSum)
-    assert isinstance(inner_sum.a, ScaledOperator)
-    assert isinstance(inner_sum.b, ScaledOperator)
-    assert inner_sum.a.scalar == 0.3
-    assert inner_sum.b.scalar == 0.7
+    assert isinstance(op, OperatorSum)
+    assert [c for c, _ in op.terms] == [0.5 * 0.3, 0.5 * 0.7]
+    assert not any(isinstance(w, OperatorSum) for _, w in op.terms)
 
 
 @pytest.mark.l1

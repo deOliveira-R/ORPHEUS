@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19272**
+Total tests collected: **19327**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1870, 9.7%
-   L1, 2753, 14.3%
+   L0, 1913, 9.9%
+   L1, 2753, 14.2%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14527, 75.4%
+   foundation, 14539, 75.2%
    unmarked, 37, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19156
+   explicit, 19211
    class-name, 46
    func-name, 0
    case, 33
@@ -448,6 +448,7 @@ Module × level grid
    numerics/test_iteration_record, 0, 0, 0, 0, 136, 4
    numerics/test_legendre_basis, 0, 0, 0, 0, 34, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
+   numerics/test_linear_combination, 46, 0, 0, 0, 0, 0
    numerics/test_manifold, 0, 0, 0, 0, 245, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 17, 0, 0, 48, 0
@@ -459,7 +460,7 @@ Module × level grid
    numerics/test_observable, 0, 0, 0, 0, 50, 0
    numerics/test_one_real_parser, 0, 0, 0, 0, 20, 0
    numerics/test_operator, 0, 0, 0, 0, 59, 0
-   numerics/test_operator_capability_predicates, 0, 0, 0, 0, 26, 0
+   numerics/test_operator_capability_predicates, 0, 0, 0, 0, 27, 0
    numerics/test_operator_protocols, 0, 0, 0, 0, 16, 0
    numerics/test_outcome, 0, 0, 0, 0, 18, 0
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
@@ -494,7 +495,7 @@ Module × level grid
    numerics/test_symmetry, 0, 0, 0, 0, 215, 2
    numerics/test_symmetry_exactness, 0, 0, 0, 0, 30, 0
    numerics/test_tensor_product_metric_is_factored, 0, 0, 0, 0, 10, 0
-   numerics/test_tensor_product_operator, 35, 0, 0, 0, 0, 0
+   numerics/test_tensor_product_operator, 32, 0, 0, 0, 0, 0
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 16, 0
    numerics/test_traced_memo_clients, 0, 0, 0, 0, 15, 0
    numerics/test_traced_memo_compiled_bytes, 0, 0, 0, 0, 17, 0
@@ -679,7 +680,7 @@ Module × level grid
    transport/test_material_mesh, 0, 0, 0, 0, 9, 0
    transport/test_material_mesh_admission, 0, 0, 0, 0, 13, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
-   transport/test_multiplication_operator, 0, 0, 0, 0, 25, 0
+   transport/test_multiplication_operator, 0, 0, 0, 0, 36, 0
    transport/test_n2n_multiplicity_census, 0, 0, 0, 0, 2, 0
    transport/test_no_carrier_dispatch, 0, 0, 0, 0, 15, 0
    transport/test_radial_characteristic_field, 0, 0, 0, 0, 21, 0
@@ -871,6 +872,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``bare-slab-diffusion-equation``, 7
    ``bare-slab-eigenfunction``, 7
    ``bare-slab-keff``, 7
+   ``composite-adjoint-at-the-ends``, 7
    ``dd-null-sawtooth``, 7
    ``diffusion-M-matrix``, 7
    ``diffusion-back-substitution``, 7
@@ -893,6 +895,8 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``bar-psi``, 6
    ``boyd-eq-45``, 6
    ``characteristic-ode``, 6
+   ``combination-left-fold``, 6
+   ``combination-zero-and-unit``, 6
    ``dd-cartesian-2d``, 6
    ``geometry-measure-density``, 6
    ``kin-kernel-special-values``, 6
@@ -902,6 +906,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``singular-eigenfunction-eq54``, 6
    ``sn-space-angle-separability``, 6
    ``characteristic-one-group-bound``, 5
+   ``combination-scalar-laws``, 5
    ``cp-outer-integral-antiderivative``, 5
    ``en-kernel-special-values``, 5
    ``geometry-crossing-order``, 5
@@ -916,9 +921,12 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``streaming-equilibrium``, 5
    ``xs-interp``, 5
    ``bc-single-delivery``, 4
+   ``combination-inverse``, 4
+   ``combination-normal-form``, 4
    ``dd-slab-scalar``, 4
    ``en-kernel-integral``, 4
    ``folded-level-arc``, 4
+   ``fused-atom-expansion``, 4
    ``hebert-3-434``, 4
    ``hebert-3-435``, 4
    ``loss-rep-LpC``, 4
@@ -936,6 +944,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
    ``sn-mms-nonvacuum-qext``, 4
+   ``word-normal-form``, 4
    ``characteristic-door-pairing``, 3
    ``characteristic-door-reciprocity``, 3
    ``characteristic-door-response``, 3
@@ -964,6 +973,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-kernel-mirror-blindness``, 3
    ``sn-mms-nonvacuum-qext-mg``, 3
    ``sn-space-angle-cross-term``, 3
+   ``combination-dual-distributes``, 2
    ``cp-second-difference-operator``, 2
    ``diffusion-mms``, 2
    ``harmonic-moment-projection``, 2
@@ -1006,6 +1016,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``sn-mms-spherical-psi``, 2
    ``sn-mms-spherical-qext``, 2
    ``spaces-adjoint-riesz-composition``, 2
+   ``word-reversal-laws``, 2
    ``addition-theorem``, 1
    ``branching``, 1
    ``characteristic-door-lifts``, 1
@@ -1022,6 +1033,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``gendf-mf6-yield``, 1
    ``geometry-cauchy-mean-chord``, 1
    ``geometry-radial-coordinate``, 1
+   ``green-split-inverse``, 1
    ``harmonic-discrete-orthogonality``, 1
    ``hebert-3-323``, 1
    ``ld-cartesian-2d-bilinear-coeffs``, 1

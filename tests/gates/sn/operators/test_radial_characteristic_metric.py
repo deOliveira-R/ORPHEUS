@@ -61,7 +61,7 @@ from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
-from orpheus.sn.operators.streaming import StreamingOperator
+from orpheus.sn.operators.streaming import StreamingOperator, StreamingCollisionOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -120,7 +120,7 @@ def _build_sphere(nx: int, ng: int, sigma: float):
     sn = SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, 0.4 * sigma, ng)})
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.3 * g)) for g in range(ng)], axis=0)
-    return sn, StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
+    return sn, StreamingCollisionOperator(StreamingOperator.pose(sn), MultiplicationOperator.from_mesh(sig_t, sn))
 
 
 def _joint_M(sn, LC):

@@ -35,8 +35,8 @@ EXACT forward substitution for :math:`M` — so ``M.solve`` round-trips
 ``apply = (L+C)ψ`` with ``solve = (L+C−B_lower)⁻¹`` — inverses of DIFFERENT
 operators (the §17 falsifier-3 round-trip defect was O(1): 2.667).  Here the
 forward and the inverse are the two faces of the ONE reified :math:`M`:
-``apply`` is the honest :class:`~orpheus.numerics.operator.OperatorSum` leaf
-sum ``(L+C).apply + (−1)·B_lower.apply``, and ``inverse()`` returns a genuine
+``apply`` is ``(L+C).apply − B_lower.apply``, the sweep atom's own action
+minus the lower half, and ``inverse()`` returns a genuine
 :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` on ``self``.  The
 lagged half rides the DRIVER as the ordinary external gain
 ``(S, B_upper)`` — structurally congruent with the Jacobi path's ``(S, B)``,
@@ -45,20 +45,22 @@ The Jacobi schedule is the degenerate member (``B_lower = 0``,
 ``M = L+C``) — production never constructs it (the factory returns the plain
 :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` there).
 
-**Construction** — the canonical spelling is the operator algebra
+**Construction** — explicit, by the owner that needs the scheduled sweep
+(the :class:`~orpheus.sn.splitting.Splitting`, when the schedule labels
+``B_lower`` implicit):
 
 .. code-block:: python
 
     lower, upper = B.split(SweepSchedule.gauss_seidel(
         problem.ndim, problem.quad.octants, reflective_faces(problem),
     ))
-    M = (L + C) - lower            # → ScheduledInvertibleOperator
-    gains = (S, upper)             # the lagged complement, driver-side
+    M = ScheduledInvertibleOperator(sco, lower)   # its expansion: L + C − B_lower
+    gains = (S, upper)                            # the lagged complement, driver-side
 
-(the dispatch lives on
-:meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.__sub__`, mirroring
-the ``L + C`` fusion precedent).  The mask carries the schedule it was
-derived from, so a foreign schedule cannot be paired with a mismatched mask.
+``sco - lower`` is the plain two-term combination: ``-`` never fuses (ruling
+52), so the realisation is chosen where ruling 20 puts it, at the Strategy.
+The mask carries the schedule it was derived from, so a foreign schedule
+cannot be paired with a mismatched mask.
 
 **Substrate, not a twin.**  ``solve`` delegates to the ONE
 ``StreamingCollisionOperator._solve_timed_full_field`` body with the schedule and the
@@ -71,12 +73,9 @@ plumbing twin of the operator's solve body — retired into this delegation.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
-from orpheus.numerics.operator import (
-    OperatorSum,
-    ScaledOperator,
-)
+from orpheus.numerics.operator import FusedAtom, LinearOperator
 
 from .boundary import SNMaskedBoundaryOperator
 from .streaming import StreamingCollisionOperator
@@ -98,22 +97,21 @@ if TYPE_CHECKING:
 __all__ = ["ScheduledInvertibleOperator"]
 
 
-class ScheduledInvertibleOperator(
-    OperatorSum[
-        "FullField", "FullField",
-        StreamingCollisionOperator,
-        ScaledOperator["FullField", "FullField", SNMaskedBoundaryOperator],
-    ],
-):
-    r"""Sweep-invertible schedule-folded composite :math:`M = (L+C-B_{\rm lower})`.
+class ScheduledInvertibleOperator(FusedAtom["FullField"]):
+    r"""The sweep-invertible schedule-folded atom :math:`M = (L+C-B_{\rm lower})`.
 
-    An honest :class:`~orpheus.numerics.operator.OperatorSum` over the leaves
-    ``((L+C), ScaledOperator(-1, B_lower))`` — :meth:`apply` is the inherited
-    leaf sum — that carries the schedule-triangular solve identity the
-    generic sum cannot: the octant-group forward substitution IS the inverse
-    algorithm for this specific composite, exactly the way the WDD sweep is
-    for :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` (whose
-    shape this deliberately mirrors).
+    An atom with two named legs, :attr:`invertible` (the
+    :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
+    :math:`L+C`) and :attr:`lower` (:math:`B_{\rm lower}`), whose algebraic
+    content is :meth:`expansion`, the plain combination
+    :math:`L + C - B_{\rm lower}` flattened over the original atoms (ruling
+    52). It carries the schedule-triangular solve identity a combination
+    cannot: the octant-group forward substitution IS the inverse algorithm
+    for this specific operator, exactly the way the WDD sweep is for
+    :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` (whose
+    shape this deliberately mirrors). :meth:`apply` is
+    ``invertible.apply − lower.apply``, the sweep atom's own action, so the
+    forward and the scheduled sweep invert each other at machine precision.
     """
 
     def __init__(
@@ -140,21 +138,31 @@ class ScheduledInvertibleOperator(
                 "the boundary mask must act on the same mesh instance "
                 "(mesh-identity invariant)."
             )
-        super().__init__(invertible, ScaledOperator(-1.0, lower))
+        #: :math:`L + C`, the sweep atom whose walk the schedule re-orders.
+        self.invertible: Final = invertible
+        #: :math:`B_{\rm lower}`, the boundary couplings realized in-sweep.
+        self.lower: Final = lower
+        # The roles of the expansion L + C − B_lower (FULL).
+        self._adopt_expansion_roles()
         # The scheduled forward substitution IS this composite's inverse —
 
-    # ── Convenience accessors ─────────────────────────────────────────
+    def expansion(self) -> "LinearOperator[FullField]":
+        r"""The plain combination :math:`L + C - B_{\rm lower}` this atom realises.
 
-    @property
-    def invertible(self) -> "StreamingCollisionOperator":
-        """The sweep-invertible operand :math:`(L+C)` (alias for ``self.a``)."""
-        return self.a
+        Flattened over the ORIGINAL atoms (the streaming and collision legs of
+        :attr:`invertible`, and :attr:`lower`), never over the sweep atom: an
+        expansion is algebraic content, and one holding a realisation would
+        refer back to a realisation (the S2 spec, finding 9).
+        """
+        return self.invertible.expansion() - self.lower
 
-    @property
-    def lower(self) -> "SNMaskedBoundaryOperator":
-        r"""The strictly-lower boundary half :math:`B_{\rm lower}` (the masked
-        leaf inside the ``ScaledOperator(-1, ·)`` operand ``self.b``)."""
-        return self.b.op
+    def apply(self, psi: "FullField") -> "FullField":
+        r""":math:`M\psi = (L+C)\psi - B_{\rm lower}\psi`, the sweep atom's own action minus the lower half."""
+        return self.invertible.apply(psi) - self.lower.apply(psi)
+
+    def apply_transpose(self, phi: "FullField") -> "FullField":
+        r""":math:`M^{\mathsf T}\phi = (L+C)^{\mathsf T}\phi - B_{\rm lower}^{\mathsf T}\phi`."""
+        return self.invertible.apply_transpose(phi) - self.lower.apply_transpose(phi)
 
     @property
     def schedule(self) -> "SweepSchedule":

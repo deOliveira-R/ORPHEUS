@@ -43,8 +43,8 @@ are NOT uniform — the two off-diagonals differ, a trap worth spelling out:
   already emits the seed's term of the fused bulk residual row
   (``−numer_seed/V`` — the loss sign is INTERNAL to the operator, matching
   the in-sweep placement it wraps).
-* ``(B,A) = −RadialCharacteristicEmission`` — NEGATED (a
-  :class:`~orpheus.numerics.operator.ScaledOperator`): the emission is a
+* ``(B,A) = −RadialCharacteristicEmission`` — NEGATED (the one-term
+  combination :math:`(-1)\,E`): the emission is a
   GAIN (the driver lags ``+A_BA·ψ`` on the rhs), so the loss row carries
   the minus — the ray equation is ``(A_BB − B_b)·ψ_B − Emission·ψ_A = q_B``.
 * ``(B,B) = A_BB − B_b`` — System B's self-block: the radial
@@ -185,7 +185,7 @@ from orpheus.numerics.coupled_system import (
     CoupledSpace,
     SystemRestrictionOperator,
 )
-from orpheus.numerics.operator import LinearOperator, SystemRole
+from orpheus.numerics.operator import LinearOperator, MissingAdjoint, SystemRole, adjointable
 from orpheus.sn.operators.boundary import (
     RadialCharacteristicBoundaryOperator,
     SNBoundaryOperator,
@@ -196,7 +196,7 @@ from orpheus.sn.operators.radial_characteristic import (
     RadialCharacteristicOperator,
     RadialCharacteristicSeeding,
 )
-from orpheus.sn.operators.streaming import StreamingOperator
+from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
 from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
@@ -210,7 +210,6 @@ from orpheus.transport.radial_characteristic_field import (
 if TYPE_CHECKING:
     from orpheus.sn.problem import SNProblem
     from orpheus.transport.operators.fission import FissionOperator
-    from orpheus.sn.operators.streaming import StreamingCollisionOperator
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 __all__ = [
@@ -391,7 +390,8 @@ class SNLossFactors:
 
     ``streaming_collision`` is the fused sweepable composite :math:`L + C`
     (:func:`build_streaming_collision` — the one LC spelling; its legs
-    ``.a`` = the σ-free streaming leaf, ``.b`` = the collision diagonal),
+    ``.streaming`` = the σ-free streaming leaf, ``.diagonal`` = the
+    collision diagonal),
     ``scattering``/``n2n`` the two transfer gains bound on the full field
     at the hub's retained order, ``boundary`` the System-A trace boundary
     :math:`B_a` — the ONE operator the boundary-Gauss-Seidel schedule
@@ -538,9 +538,11 @@ def build_streaming_collision(
 
     ``L`` is the σ-free :class:`~orpheus.sn.operators.streaming.StreamingOperator`
     (#257 S8b) and ``C = M[σ_t]`` the collision diagonal from the typed
-    ``total_cross_section_field`` accessor; the ``+`` fuses them to the
-    :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` whose
-    ``solve`` is the WDD sweep.
+    ``total_cross_section_field`` accessor, built as the
+    :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` atom
+    whose ``solve`` is the WDD sweep. This builder is the atom's owner: ``+``
+    never fuses (numerics_untangling.md ruling 52), so ``L + C`` elsewhere is
+    the plain combination, which has no inverse of its own.
 
     Single source of truth (Cardinal Rule 2): :func:`build_within_group_system`
     and both :class:`~orpheus.sn.solver.SNSolver` binding legs (``__init__`` +
@@ -550,10 +552,13 @@ def build_streaming_collision(
     σ-variant hub (``with_cross_sections``) owns its own ``mat_xs`` and calls
     this builder afresh — nothing is rebound in place.
     """
-    return StreamingOperator.pose(problem) + MultiplicationOperator(
-        coefficient=mat_xs.total_cross_section_field,
-        domain=problem.full_field_space,
-        codomain=problem.full_field_space,
+    return StreamingCollisionOperator(
+        StreamingOperator.pose(problem),
+        MultiplicationOperator(
+            coefficient=mat_xs.total_cross_section_field,
+            domain=problem.full_field_space,
+            codomain=problem.full_field_space,
+        ),
     )
 
 
@@ -572,10 +577,11 @@ def build_within_group_system(
       (#257 S8b: the streaming leaf reads no σ).
     * ``C = M[σ_t]`` — the collision diagonal from the typed
       ``total_cross_section_field`` accessor (#257 S3b / #261); the
-      composite ``full_field_space`` lets the ``L + C`` OperatorSum guard
-      validate the build. ``L + C`` fuses to the
-      :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` — the
-      invertible composite whose ``solve`` is the WDD sweep.
+      composite ``full_field_space`` lets the agreement law of the expansion
+      ``L + C`` validate the build. :func:`build_streaming_collision` builds
+      the :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
+      atom — the invertible operator whose ``solve`` is the WDD sweep (``+``
+      never fuses: numerics_untangling.md ruling 52).
     * ``S`` — the bulk scattering gain (producer-side ``/W`` normalisation
       inside ``S.apply``; no consumer-side rescale), minted here at the
       hub's retained ``scattering_order`` — the ONE mint since step 2 C3b
@@ -644,10 +650,16 @@ def build_within_group_system(
     B_a = SNBoundaryOperator(problem)
     # The ONE fission operator — the hub's, never minted here (R-cc6 (ii)).
     F = problem.fission
-    A_AA = LC - S - N2N - B_a
     # C-fwd explicit stamp: System membership is the composition context's
     # fact — the model-generic members' honest None would poison the join.
-    A_AA.system_role = SystemRole.A
+    # The role lives on the LEAVES (the user's ruling, 2026-10-20, S2 review
+    # F1): each System-A leaf built here is stamped, and every composite over
+    # them (A_AA, its negation, the Splitting's grids) derives System A by the
+    # join. A stamp on the composite was lost whenever the algebra rebuilt it
+    # from its terms (``(−A_AA).system_role`` read None).
+    for leaf in (LC, S, N2N, B_a):
+        leaf.system_role = SystemRole.A
+    A_AA = LC - S - N2N - B_a
 
     # P2 presence predicate = System B's member space itself (the grid needs
     # exactly it; presence-coextensive with the unified engine carrier, and
@@ -686,9 +698,16 @@ def build_within_group_system(
     assert reduced is not None  # carrying ⇒ 1-D ⇒ minted by the ctor; narrowing only
     # K_iso composed HERE (the §14.1 grouping): the P0 energy binding of
     # S's own datum + the (n,2n) energy binding — the solver-side sum
-    # that replaced ``S.isotropic_kernel``.
+    # that replaced ``S.isotropic_kernel``. A_BA consumes both directions,
+    # so the sum is narrowed through the checked bridge.
+    k_iso = S.isotropic_energy + N2N.isotropic_energy
+    if not adjointable(k_iso):
+        raise MissingAdjoint(
+            "build_within_group_system: the ray emission's K_iso = S₀ + 2Σ₂ᵀ "
+            "has no transpose; both energy bindings must be adjointable."
+        )
     emission = RadialCharacteristicEmission(
-        S.isotropic_energy + N2N.isotropic_energy,
+        k_iso,
         field_space=member_space,
         full_field_space=full_field_space,
         angular_bulk_space=problem.angular_bulk_space,

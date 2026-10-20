@@ -1419,21 +1419,26 @@ applying a sum of linear maps is the sum of the applications:
 .. implements:: apply-distributes
    :by: orpheus.numerics.operator.OperatorSum.apply
 
-   **Implemented by** ``return self.a.apply(x) + self.b.apply(x)`` —
-   "applying a sum of linear maps is the sum of the applications" as a body,
-   not as a claim.
+   **Implemented by** the left fold over the terms,
+   :eq:`combination-left-fold` — "applying a sum of linear maps is the sum
+   of the applications" as a body, not as a claim. (Until package S2,
+   2026-10-20, the body was the binary ``a.apply(x) + b.apply(x)``; the
+   fold reproduces it bit for bit on every left-nested spelling.)
 
-   ⚠ The declaration deliberately names the **generic** sum, and only it. On
-   the very instance this equation is written for, :math:`(L+C)`, the
-   shipped path does **not** execute :math:`L\psi + C\psi`:
-   :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
-   *overrides* ``apply`` and computes ``loss_representation.loss_action(σ,
-   ψ)`` in a single walk. The inherited leaf-sum is value-equal to it only
-   through the forward-direction affine-in-:math:`\sigma` coincidence of
-   :eq:`streaming-action-pure-l` — so on the composite, distributivity holds
-   by **theorem**, not by code path, and extending this declaration to
-   ``StreamingCollisionOperator.apply`` would assert a route the tree does
-   not take.
+   ⚠ The declaration deliberately names the **generic** sum, and only it.
+   Since S2 the plain combination ``L + C`` does execute
+   :math:`L\psi + C\psi`. The sweep-invertible atom built by its owner,
+   :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`,
+   does **not**: its own ``apply`` computes
+   ``loss_representation.loss_action(σ, ψ)`` in a single walk. Its
+   expansion's leaf sum is value-equal to it only through the
+   forward-direction affine-in-:math:`\sigma` coincidence of
+   :eq:`streaming-action-pure-l` (`[M]` 2026-10-20, at most 2.3e-16
+   relative on the LD and DD fixtures of
+   ``TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan``) — so on the
+   atom, distributivity holds by **theorem**, not by code path, and
+   extending this declaration to ``StreamingCollisionOperator.apply`` would
+   assert a route the tree does not take.
 
 Inversion does **not** distribute:
 
@@ -1981,8 +1986,9 @@ narrowing to its ``Supports*`` protocol
   ``isinstance`` check — which sees only class-level method presence — it
   reads the operator's actual structure AND values: a zero-coefficient
   :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
-  reports ``is_invertible = False``; a sum reports its *leading* term
-  (the left-spine head — :ref:`green-operator`); a composite derives its
+  reports ``is_invertible = False``; a combination of two or more terms
+  reports ``False`` in every spelling order, since it has no inverse of
+  its own (:eq:`combination-inverse`); a composite derives its
   value recursively from the operands, never a cached registry. The
   default is ``False`` — an operator is invertible or adjointable only by
   explicit override.
@@ -2025,8 +2031,10 @@ kinds:
        the call site); at runtime the attribute is simply absent.
    * - **Value-dependent**
      - *This TYPE supports inversion, this INSTANCE refuses* — a
-       zero-coefficient diagonal, a sum with a non-invertible leading
-       term, a product with a singular factor.
+       zero-coefficient diagonal, a combination of two or more terms
+       (whose inverse is named by its split, ``GreenOperator(M, N)``), a
+       one-term combination of a non-invertible word, a product with a
+       singular factor.
      - ``inverse()`` **is declared** and raises
        :class:`~orpheus.numerics.operator.NotInvertible` **eagerly**, at
        construction of the inverse and never mid-iteration.
@@ -2049,11 +2057,10 @@ The value-dependent operators are
 :class:`~orpheus.numerics.elementary_operators.DiagonalOperator`,
 :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
 and the composers when their invertibility fails a value test
-(:class:`~orpheus.numerics.operator.OperatorSum` with a non-invertible
-head, :class:`~orpheus.numerics.operator.OperatorProduct` with a
-singular factor,
-:class:`~orpheus.numerics.operator.ScaledOperator` of a non-invertible
-operand). They *always* declare ``inverse()`` (the type *can* invert),
+(:class:`~orpheus.numerics.operator.OperatorSum` of two or more terms,
+or of one term whose word is not invertible;
+:class:`~orpheus.numerics.operator.OperatorProduct` with a singular
+factor). They *always* declare ``inverse()`` (the type *can* invert),
 and refuse loudly and eagerly when the specific values do not permit it.
 
 .. _typeguard-bridge:
@@ -2188,16 +2195,18 @@ machinery.
 
 **Deleted** (the algebra-closed and driver-realized kinds):
 
-- :class:`~orpheus.numerics.operator.OperatorSum` — a generic sum's
-  inverse action is driver-realized by the
+- :class:`~orpheus.numerics.operator.OperatorSum` — a combination of two
+  or more terms has no inverse of its own (:eq:`combination-inverse`); the
+  inverse of a split :math:`M - N` is driver-realized by the
   :class:`~orpheus.numerics.green_operator.GreenOperator` (the
-  preconditioned splitting), not a substrate verb. (The
-  sweep-invertible ``(L+C)``
-  :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` subclass
-  keeps its own direct-sweep ``solve`` — that IS a native realization.)
+  preconditioned splitting), not a substrate verb. A one-term combination
+  :math:`cA` is algebra-closed (next bullet). The sweep-invertible atom
+  :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`,
+  whose expansion is :math:`L + C`, keeps its own direct-sweep ``solve`` —
+  that IS a native realization.
 - :class:`~orpheus.numerics.operator.IdentityOperator`,
-  :class:`~orpheus.numerics.elementary_operators.PermutationOperator`,
-  :class:`~orpheus.numerics.operator.ScaledOperator`,
+  :class:`~orpheus.numerics.elementary_operators.PermutationOperator`, the
+  one-term :class:`~orpheus.numerics.operator.OperatorSum` :math:`cA`,
   :class:`~orpheus.numerics.operator.TensorProductOperator` — the
   **algebra-closed** kinds, whose inverse is itself a first-class
   *forward* operator (a permutation's inverse is a permutation, a
@@ -2225,18 +2234,19 @@ the sweep composites, the mixin's un-invert, and
 .. math::
    :label: product-solve-reroute
 
-   (A\,B)^{-1} b
+   (A_1 A_2 \cdots A_n)^{-1} b
    \;=\;
-   B^{-1}\bigl(A^{-1} b\bigr)
-   \;=\;
-   \texttt{self.b.inverse().apply(self.a.inverse().apply(b))} .
+   A_n^{-1}\Bigl(\cdots A_2^{-1}\bigl(A_1^{-1} b\bigr)\Bigr) ,
+
+each :math:`A_i^{-1}` applied as ``A_i.inverse().apply``.
 
 .. implements:: product-solve-reroute
    :by: orpheus.numerics.operator.OperatorProduct.solve
 
-   **Implemented by** the equation transcribed: ``return
-   self.b.inverse().apply(self.a.inverse().apply(b_vec))``. The reversal of
-   factor order *is* the whole content, and it is executed rather than
+   **Implemented by** the equation transcribed: a loop over
+   :attr:`~orpheus.numerics.operator.OperatorProduct.factors` from left to
+   right, ``value = factor.inverse().apply(value)``. The reversal of factor
+   order *is* the whole content, and it is executed rather than
    asserted. Note the recursion goes through each factor's canonical
    ``.inverse().apply`` surface and not through a factor ``solve`` — which
    is what makes the re-route total over the kinds whose own ``solve``
@@ -2244,11 +2254,17 @@ the sweep composites, the mixin's un-invert, and
 
 The re-route is **bit-identical per factor kind** — each inverse object
 delegates to the same realization the factor's own ``solve`` used to —
-AND **total over the solve-retired kinds**: a permutation / scaling /
-Green-invertible-sum factor, whose own ``solve`` Design B deleted, now
-composes through its ``.inverse().apply`` (a permutation's inverse is a
-first-class forward; a sum-in-a-product works via its
-:class:`~orpheus.numerics.green_operator.GreenOperator`). The re-route is
+AND **total over the solve-retired kinds**: a permutation factor, whose
+own ``solve`` Design B deleted, composes through its ``.inverse().apply``
+(a permutation's inverse is a first-class forward), and a scalar inside a
+word moves out to the coefficient (:eq:`word-normal-form`), so
+``(2.5·D2) @ D1`` is the one-term combination :math:`2.5\,(D_2 D_1)`,
+solved as :math:`2.5^{-1}(D_2 D_1)^{-1}` (`[M]` 2026-10-20, the test's own
+note: still bit-identical to the pre-carve baseline). A factor that is a
+combination of two or more terms is not invertible, so a word holding one
+is not; the baseline's sum-factor row is re-posed on the Green of the
+named split, ``GreenOperator(I, −DS)`` followed by :math:`D_1^{-1}`, at the
+driver's tolerance. The re-route is
 gated at spec §40 by a structurally-independent dense
 ``np.linalg.solve(as_matrix, q)`` anchor plus a five-row factor-kind
 matrix against a pre-carve baseline snapshot — with a Mode-11
@@ -2367,8 +2383,470 @@ false horns dissolve because the two phenomena were never one.
 Composition algebra
 ===================
 
-The composers in :mod:`orpheus.numerics.operator` implement the
-following closure laws:
+The operators between two fixed spaces :math:`V \to W` form a real vector
+space :math:`\mathcal L(V, W)`, and under composition they form a monoid
+(associative, with the identity as unit, not commutative). Package S2 of the
+numerics untangling (2026-10-20; rulings 23 and 50–54 of
+``.claude/plans/numerics_untangling.md``) made the two composites of
+:mod:`orpheus.numerics.operator` realise exactly those two structures and
+nothing more:
+
+* :class:`~orpheus.numerics.operator.OperatorSum` is a **formal linear
+  combination**, an element of the free vector space on operator words: a
+  finite map :math:`w \mapsto c_w` from words to non-zero real
+  coefficients. It is unordered for equality and for hashing, and it keeps
+  the order in which its terms were first inserted for one purpose only,
+  the floating-point fold of ``apply``. Its terms are read through
+  :attr:`~orpheus.numerics.operator.OperatorSum.terms`, a tuple of
+  ``(coefficient, word)`` pairs.
+* :class:`~orpheus.numerics.operator.OperatorProduct` is a **word**, an
+  element of the free monoid: a flattened tuple of :math:`n \ge 2` factors,
+  read through :attr:`~orpheus.numerics.operator.OperatorProduct.factors`
+  (left to right, so ``A @ B`` is ``(A, B)``).
+* A **word** is an atom or a product. An **atom** is any operator that is
+  neither a sum nor a product: a leaf such as the collision multiplier, a
+  fused atom such as the sweep-invertible
+  :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`, or a
+  formal arrow (an adjoint, a dual, an inverse).
+
+Every ``+``, ``-``, unary ``-``, ``α *`` and ``/ α`` routes through one
+constructor, :func:`~orpheus.numerics.operator.linear_combination`, and
+every ``@`` through one constructor,
+:func:`~orpheus.numerics.operator.composition`. Both **normalise** what they
+return, so each law below is an equality of the representation (``==``
+between the two spellings is ``True``), not a theorem about values that a
+test has to approximate.
+
+The combination: its normal form and its laws
+---------------------------------------------
+
+The normal form of a combination is
+
+.. math::
+   :label: combination-normal-form
+
+   A \;=\; \sum_{w \in \mathcal W} c_w\, w ,
+   \qquad c_w \in \mathbb R \setminus \{0\},
+   \qquad
+   A + B = B + A, \quad (A + B) + C = A + (B + C),
+
+with :math:`\mathcal W` a finite set of words, no word a sum, no word the
+zero map, and no two words with the same key (below). The abelian-group
+laws hold as equality because :func:`~orpheus.numerics.operator.linear_combination`
+**flattens** an operand that is itself a combination (its terms enter with
+their coefficients scaled) and the equality reads the multiset of terms.
+So ``(A + B) + C`` and ``A + (B + C)`` are one three-term combination, and
+``A + B == B + A`` with equal hashes.
+
+.. implements:: combination-normal-form
+   :by: orpheus.numerics.operator.linear_combination
+
+   **Implemented by** the constructor: it flattens a combination operand,
+   collects the terms by their key in first-insertion order, drops a zero
+   coefficient and absorbs a zero operand, and only then mints the
+   :class:`~orpheus.numerics.operator.OperatorSum`.
+
+.. implements:: combination-normal-form
+   :by: orpheus.numerics.operator.OperatorSum
+
+   **Implemented by** the class's equality and hash, which read the frozen
+   set of ``(key, coefficient)`` pairs and the two ends, never the order.
+
+The scalar laws are the collection of like terms:
+
+.. math::
+   :label: combination-scalar-laws
+
+   \alpha\,(A + B) \;=\; \alpha A + \alpha B,
+   \qquad
+   (\alpha + \beta)\,A \;=\; \alpha A + \beta A,
+   \qquad
+   A + A \;=\; 2A .
+
+Two terms **collect** when their words have the same key, and the key is
+the algebra's own (``_algebra_key`` in :mod:`orpheus.numerics.operator`):
+
+* an atom is keyed by its **object identity**, never by its own
+  ``__eq__``. The free vector space here is the free vector space on
+  operator OBJECTS: two separately built collision multipliers stay two
+  terms, because whether two different objects are the same operator is a
+  question the algebra cannot answer. It also keeps an atom's ``__eq__``
+  out of the algebra, so the mutable dataclass
+  :class:`~orpheus.sn.operators.streaming.StreamingOperator`, whose
+  ``__hash__`` is ``None``, sums, compares and collects like any other atom;
+* a **formal arrow** (:class:`~orpheus.numerics.operator.AdjointOperator`,
+  the dual arrow, :class:`~orpheus.numerics.operator.InverseOperator`) is
+  keyed by its kind and its inner's key. ``A.H`` mints a fresh wrapper on
+  every call (``A.H is A.H`` is ``False``), yet ``A.H == A.H`` is ``True``
+  and ``A.H + A.H`` collects to ``2·A.H``. Memoising the wrappers was the
+  rejected alternative: it would make equality depend on a cache;
+* a combination is keyed by its structure (the frozen set of
+  ``(key, coefficient)`` pairs and its ends), and a word by the tuple of
+  its factors' keys.
+
+.. implements:: combination-scalar-laws
+   :by: orpheus.numerics.operator.linear_combination
+
+   **Implemented by** the collection loop of the constructor, which adds the
+   coefficients of terms whose keys are equal.
+
+The zero and the unit are laws of the same constructor:
+
+.. math::
+   :label: combination-zero-and-unit
+
+   0 \cdot A \;=\; A - A \;=\; 0_{V \to W},
+   \qquad
+   A + 0 \;=\; A,
+   \qquad
+   1 \cdot A \;=\; A .
+
+* Every zero is **absorbed**: a zero coefficient drops its term, and a zero
+  operand (:class:`~orpheus.numerics.operator.ZeroMorphism`,
+  :class:`~orpheus.numerics.operator.ZeroOperator`, and the scalar ``0``
+  that starts ``sum(operators)``) contributes no term.
+* A term that cancels and an absorbed zero still **contribute their ends**
+  to the agreement of spaces. That is what lets ``A - A`` know that it is
+  the zero map :math:`V \to W` and mint
+  :class:`~orpheus.numerics.operator.ZeroMorphism` on those spaces. (The
+  test-architect's prototype found this law: without it ``A - A`` had no
+  spaces.)
+* When every operand was a spaceless
+  :class:`~orpheus.numerics.operator.PointwiseOperator`, the zero is the
+  pointwise :class:`~orpheus.numerics.operator.ZeroOperator`, which is an
+  endomorphism at every space by the family law: ``0 · IdentityOperator()``
+  is ``ZeroOperator()``. With a non-pointwise operand that declares no
+  spaces, the zero cannot be minted and the constructor refuses, naming
+  the operand types. That refusal is a declared edge
+  (``SCOPE-BOUNDARY[guard]`` on ``_zero_of``): it cannot fire once every
+  operator end is a space, which is package S6.
+* A combination of **one** term with coefficient 1 whose own ends are the
+  combination's **is** that word: ``1·A is A``, ``-(-A) is A``,
+  ``(A + B) - B is B``, ``A + ZeroOperator() is A``.
+
+.. implements:: combination-zero-and-unit
+   :by: orpheus.numerics.operator.linear_combination
+
+   **Implemented by** the absorption branch and the one-term collapse at
+   the end of the constructor.
+
+.. implements:: combination-zero-and-unit
+   :by: orpheus.numerics.operator._zero_of
+
+   **Implemented by** the choice of zero: ``ZeroMorphism`` on the agreed
+   spaces, ``ZeroOperator()`` when every operand was pointwise, a refusal
+   otherwise.
+
+Applying a combination is a **left fold** over its terms, in insertion
+order:
+
+.. math::
+   :label: combination-left-fold
+
+   \Bigl(\sum_{i=1}^{n} c_i w_i\Bigr) x
+   \;=\;
+   \Bigl(\bigl(c_1 w_1 x + c_2 w_2 x\bigr) + c_3 w_3 x\Bigr) + \cdots + c_n w_n x .
+
+The fold fixes the rounding of every multi-term action in one place. A
+coefficient :math:`\pm 1` is applied as an addition or a subtraction (no
+multiply and no negated temporary), so ``a - b`` is bit for bit
+``a + (-1)·b``, and a left-nested spelling ``((A - S) - N) - B`` applies as
+``((Ax - Sx) - Nx) - Bx``, bit for bit what the binary sum before S2
+computed. The accumulator is mutated in place only once it is a value the
+fold's own arithmetic produced, never an operand's output (which may be the
+operand's input, or a buffer the operand keeps). That in-place
+accumulation is what holds the allocation contract of
+``tests/gates/sn/architecture/test_composition_cost.py::test_p3_peak_allocation_per_dof``
+(peak at most 4 vectors per degree of freedom): `[M]` 2026-10-20, the
+test-architect's prototype measured, on the 2-D Cartesian loss, 3.0102×
+before S2, 4.0078× and 4.9985× for two out-of-place folds, and 3.0086× for
+the owned in-place fold that shipped (``scratch/numerics_untangling/packages/S2_gate_spec.md`` finding 17).
+
+.. implements:: combination-left-fold
+   :by: orpheus.numerics.operator.OperatorSum.apply
+
+   **Implemented by** the method, which hands the terms to the fold; a
+   one-term combination instead forwards its extra arguments (see
+   :eq:`combination-inverse`).
+
+.. implements:: combination-left-fold
+   :by: orpheus.numerics.operator._left_fold
+
+   **Implemented by** the fold itself, shared by ``apply``,
+   ``apply_transpose`` and ``assemble`` (the last with ``in_place=False``,
+   because a sparse matrix's in-place operators are not its out-of-place
+   ones).
+
+The transpose, and the dual arrow, distribute over the terms exactly, with
+no metric anywhere:
+
+.. math::
+   :label: combination-dual-distributes
+
+   \Bigl(\sum_i c_i w_i\Bigr)^{\mathsf T} \;=\; \sum_i c_i\, w_i^{\mathsf T} .
+
+``OperatorSum.apply_transpose`` is the left fold of the terms' transposes,
+and ``OperatorSum.dual()`` is the combination of the terms' dual arrows,
+carrying the dual spaces of the sum's own ends (so a sum whose every term
+is spaceless keeps the spaces an absorbed zero gave it). The Hilbert
+adjoint does **not** distribute in the same way; it is taken once at the
+combination's ends, :eq:`composite-adjoint-at-the-ends` on
+:doc:`/theory/foundations/operator_adjoint`, where the failed
+distribution is recorded with its two measurements.
+
+.. implements:: combination-dual-distributes
+   :by: orpheus.numerics.operator.OperatorSum.dual
+
+   **Implemented by** the method, which rebuilds the combination over
+   ``w.dual()`` with the coefficients unchanged.
+
+.. implements:: combination-dual-distributes
+   :by: orpheus.numerics.operator.OperatorSum.apply_transpose
+
+   **Implemented by** the left fold of the terms' ``apply_transpose``.
+
+A combination is invertible only when it is **one** term:
+
+.. math::
+   :label: combination-inverse
+
+   (c\,A)^{-1} \;=\; c^{-1} A^{-1},
+   \qquad
+   \Bigl(\sum_{i=1}^{n} c_i w_i\Bigr)^{-1}
+   \text{ has no formula in the } w_i^{-1} \text{ for } n \ge 2 .
+
+The one-term inverse is algebra-closed: ``(2A).inverse() == 0.5 *
+A.inverse()``. A seed travels with it: ``initial_guess`` lives in the output
+space of :math:`cA`, so the word's own solve is seeded with it divided by
+:math:`c`, and :math:`(\alpha A)^{-1}` seeds :math:`A^{-1}` with
+:math:`\alpha x_0` (the S2 spec's Q4). The drivers never reach this path,
+because ``seeded_inverse`` wraps an algebra-closed inverse in an exact
+apply that drops the seed; only a direct ``.apply(b, initial_guess=…)``
+sees it.
+
+A sum of two or more terms has **no inverse of its own** (ruling 50):
+``is_invertible`` is ``False`` in every spelling order, and ``inverse()``
+raises :class:`~orpheus.numerics.operator.NotInvertible` with the message
+*"Name its splitting A = M − N and build GreenOperator(M, N)"*. Inversion
+does not distribute (:eq:`solve-does-not-distribute`), and the
+preconditioned splitting that does invert a sum needs a SPLIT, which term
+is implicit, that the sum does not carry: which part is implicit is the
+Strategy's choice, never the spelling's. The inverse of :math:`A = M - N`
+is :class:`~orpheus.numerics.green_operator.GreenOperator`\ ``(M, N)``
+(:ref:`green-operator`).
+
+.. implements:: combination-inverse
+   :by: orpheus.numerics.operator.OperatorSum.inverse
+
+   **Implemented by** the method: the one-term inverse, or the refusal.
+
+.. implements:: combination-inverse
+   :by: orpheus.numerics.operator.OperatorSum._apply_scaled
+
+   **Implemented by** the one-term action, which forwards the extra
+   arguments and divides the seed by the coefficient.
+
+The word: its normal form and its laws
+--------------------------------------
+
+.. math::
+   :label: word-normal-form
+
+   (A B) C \;=\; A (B C) \;=\; (A, B, C),
+   \qquad
+   A(\alpha B) \;=\; (\alpha A) B \;=\; \alpha\,(A B) .
+
+:func:`~orpheus.numerics.operator.composition` flattens a product operand
+(associativity), and moves the coefficient of a one-term combination out
+of the word into an enclosing one-term combination. Three things it does
+not do, each by decision:
+
+* It does **not distribute** composition over a sum: ``A @ (B + C)`` stays
+  a word whose second factor is a sum. Distributing would change the cost
+  of ``apply`` (two applications of :math:`A` instead of one), and ruling
+  23 claims only the abelian-group laws and scalar distributivity.
+* It does **not drop** an :class:`~orpheus.numerics.operator.IdentityOperator`
+  factor: ``A @ I`` is the word ``(A, I)``. Dropping it would change what
+  the word's ends infer through a pointwise neighbour, and the unit law of
+  the monoid is not claimed.
+* It does not collect powers: ``A @ A`` is the word ``(A, A)``.
+
+A word applies right to left, :math:`A_1(A_2(\cdots A_n x))`. Its ends are
+read from the factors that declare a space: the domain from the rightmost
+non-pointwise factor, the codomain from the leftmost; a spaceless
+:class:`~orpheus.numerics.operator.PointwiseOperator` passes its
+neighbour's space through, and the adjacent-ends law is checked at
+construction through the same pass-through.
+
+.. implements:: word-normal-form
+   :by: orpheus.numerics.operator.composition
+
+   **Implemented by** the constructor: the flattening loop and the
+   coefficient hoist.
+
+.. implements:: word-normal-form
+   :by: orpheus.numerics.operator.OperatorProduct
+
+   **Implemented by** the class: its equality reads the tuple of its
+   factors' keys, and its constructor checks the adjacent ends.
+
+The inverse and the transpose of a word are its factors' in reverse order:
+
+.. math::
+   :label: word-reversal-laws
+
+   (A_1 A_2 \cdots A_n)^{-1} \;=\; A_n^{-1} \cdots A_2^{-1} A_1^{-1},
+   \qquad
+   (A_1 A_2 \cdots A_n)^{\mathsf T} \;=\; A_n^{\mathsf T} \cdots A_2^{\mathsf T} A_1^{\mathsf T} .
+
+``OperatorProduct.solve`` runs :math:`A_1^{-1}` first, through each
+factor's canonical ``.inverse().apply`` (:eq:`product-solve-reroute`), and
+``inverse()`` wraps the word in
+:class:`~orpheus.numerics.operator.InverseOperator`. ``apply_transpose``
+runs :math:`A_1^{\mathsf T}` first, and ``dual()`` is the reversed word of
+the factors' dual arrows, exactly (ruling 53). A word holding a sum of two
+or more terms is not invertible, because that factor is not.
+
+.. implements:: word-reversal-laws
+   :by: orpheus.numerics.operator.OperatorProduct.solve
+
+   **Implemented by** the left-to-right loop over the factors' inverses.
+
+.. implements:: word-reversal-laws
+   :by: orpheus.numerics.operator.OperatorProduct.dual
+
+   **Implemented by** the composition of the factors' dual arrows in
+   reverse order; ``apply_transpose`` runs the same order on arrays.
+
+Fused atoms: a realisation is chosen by its owner, never by a spelling
+------------------------------------------------------------------------
+
+``+``, ``-`` and ``@`` **never fuse** (ruling 52). Three operators carry an
+inverse algorithm that no combination or word has, and each is an
+**atom**: it has named legs, its own capabilities, and one method,
+``expansion()``, that returns the plain combination or word it realises.
+
+.. math::
+   :label: fused-atom-expansion
+
+   \mathrm{expansion}\bigl(\mathrm{SCO}(L, C)\bigr) = L + C,
+   \qquad
+   \mathrm{expansion}\bigl(\mathrm{SIO}(\mathrm{SCO}, B_{\rm lower})\bigr)
+   = L + C - B_{\rm lower},
+   \qquad
+   \mathrm{expansion}\bigl(\mathrm{WS}(P, A^{-1})\bigr) = P A^{-1} .
+
+.. list-table:: The three fused atoms
+   :header-rows: 1
+   :widths: 24 18 28 30
+
+   * - Atom
+     - Legs
+     - What it carries that its expansion does not
+     - Built by (its one owner)
+   * - :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
+       (SCO)
+     - ``streaming``, ``diagonal``
+     - ``inverse()`` is the WDD sweep
+       (:class:`~orpheus.sn.operators.sweep_operator.SweepOperator`);
+       ``apply`` is the loss representation's one-walk
+       :math:`M(\sigma)\psi`
+     - :func:`~orpheus.sn.coupled_system.build_streaming_collision`
+   * - :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
+       (SIO)
+     - ``invertible``, ``lower``
+     - ``inverse()`` is the octant-group forward substitution
+     - :class:`~orpheus.sn.splitting.Splitting`, when the schedule labels
+       :math:`B_{\rm lower}` implicit (``_sweep_realization``)
+   * - :class:`~orpheus.sn.operators.windowing.WindowedSweep` (WS)
+     - ``p``, ``sweep``
+     - ``apply`` is the moment-emitting sweep, which never builds the
+       per-ordinate intermediate
+     - ``_maybe_window`` in :mod:`orpheus.sn.solver`
+
+The SIO expansion is flattened over the **original** atoms,
+:math:`L + C - B_{\rm lower}` with coefficients :math:`1, 1, -1`, never
+:math:`\mathrm{SCO} - B_{\rm lower}`: an expansion is algebraic content, and
+one that held a fused atom would refer back to a realisation (the S2 spec's
+finding 9). The generic algebra treats a fused atom as one term:
+``sco - S`` is a two-term combination whose first word is the atom, and its
+block role is the fold over its terms, ``FULL`` in every spelling order.
+
+.. implements:: fused-atom-expansion
+   :by: orpheus.sn.operators.streaming.StreamingCollisionOperator.expansion
+
+   **Implemented by** ``self.streaming + self.diagonal``.
+
+.. implements:: fused-atom-expansion
+   :by: orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator.expansion
+
+   **Implemented by** ``self.invertible.expansion() - self.lower``.
+
+.. implements:: fused-atom-expansion
+   :by: orpheus.sn.operators.windowing.WindowedSweep.expansion
+
+   **Implemented by** ``self.p @ self.sweep``.
+
+.. dropdown:: First got wrong — the realisation chosen by a dunder (until 2026-10-20)
+   :color: muted
+
+   Until S2 each fused class
+   subclassed the binary node it specialised, and each was chosen by a type
+   test inside a dunder: ``StreamingOperator.__add__`` returned the SCO when
+   its right operand was a ``MultiplicationOperator``,
+   ``StreamingCollisionOperator.__sub__`` returned the SIO for a masked
+   boundary half, and ``BulkAnalysisOperator.__matmul__`` returned the WS for a
+   sweep right factor. Two defects followed. (1) The fusion was
+   one-directional: ``L + C`` fused and ``C + L`` did not, because Python asks
+   the LEFT operand's ``__add__`` first and the transport-level multiplier may
+   not import an S\ :sub:`N` class (the layer order). ``C + L`` then built a
+   generic sum whose head-preconditioned inverse diverged. No ``__radd__`` can
+   repair this: ``C + L`` returns a combination from
+   ``MultiplicationOperator.__add__`` before ``StreamingOperator.__radd__`` is
+   asked. (2) The realisation, which inverse algorithm runs, was chosen by the
+   spelling, where ruling 20 puts it at the Strategy. The alternative
+   considered, a registry keyed on the set of atom types that the combination
+   would consult on every ``+``, was rejected (design D4 option (b)): it makes
+   the generic sum read a realisation table on every addition. `[M]` the S2
+   census (``scratch/numerics_untangling/packages/S2_gate_spec.md`` §4, a spy over 12 804 passing tests): each
+   dunder had exactly one production site (``build_streaming_collision``,
+   ``Splitting``'s fold, ``_maybe_window``), and 78 test sites, 75 of them
+   ``L + C``. ``L + C`` is now the plain combination everywhere, equal to
+   ``C + L``, and it has no inverse of its own.
+
+**The multiplier broadcasts over every axis its coefficient does not
+span.** The plain ``L + C`` applies the collision multiplier
+:math:`C = M[\sigma]` by itself, where the fused atom applies
+:math:`\sigma` inside its walk. So
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+must act on every bulk the sweep acts on, including the
+linear-discontinuous carrier :math:`(N, n_g, \text{spatial},
+n_{\rm moments})`: its engine broadcasts the coefficient over every bulk
+axis the coefficient does not span, read by label off the bound space
+(``_broadcast_axes``): the ordinate axis, and on an LD bulk the trailing
+spatial-moment axis, where the cell-constant :math:`\sigma` multiplies each
+moment alike, :math:`(\sigma\psi)_k = \sigma\,\psi_k`. Its gate is
+``tests/gates/transport/test_multiplication_operator.py::TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan``
+(10 rows over the LD slab, the LD 2-D, the DD slab and the DD 2-D
+fixtures, 2 groups each; the DD rows are the controls, whose bulk has no
+moment axis): the multiply equals :math:`\sigma` expanded by hand, the
+plain sum equals the atom's own action to :math:`8\varepsilon` relative
+(`[M]` 2026-10-20 in the test's docstring: at most 2.3e-16 over three seeds
+on each fixture), and the assembled diagonal reads the same broadcast bit
+for bit.
+
+.. dropdown:: First got wrong — a defect the fusion hid (until 2026-10-20)
+   :color: muted
+
+   The engine broadcast :math:`\sigma` over the LEADING ordinate axis
+   only, so ``M[σ]`` refused an LD carrier outright. Nothing reached it
+   while ``L + C`` fused into the sweep atom, whose walk applies
+   :math:`\sigma` itself; once ``+`` stopped fusing, the plain ``L + C``
+   reached it, and S2 fixed it at the root (the broadcast read by label)
+   rather than re-fusing.
+
+The capability table
+--------------------
 
 .. list-table::
    :header-rows: 1
@@ -2376,43 +2854,41 @@ following closure laws:
 
    * - Composer
      - ``apply``
-     - ``solve``
+     - ``inverse`` / ``solve``
      - ``apply_transpose``
-   * - :class:`~orpheus.numerics.operator.OperatorSum`
-       (:math:`A + B`)
-     - Both must have ``apply``.
-     - **Does not propagate.** No general algorithm exists for
-       :math:`(A + B)^{-1}` from :math:`A^{-1}, B^{-1}`
-       (Sherman-Morrison-Woodbury applies only under low-rank
-       structure — which the boundary block :math:`B` HAS, unlike
-       the bulk :math:`C`, :math:`L`;
-       :ref:`the scoped statement <smw-low-rank-exception>`).
-     - Both must have ``apply_transpose``;
-       :math:`(A + B)^T = A^T + B^T`.
-   * - :class:`~orpheus.numerics.operator.OperatorProduct`
-       (:math:`A\,B`)
-     - Both must have ``apply`` (function composition).
-     - Both must have ``solve``, **applied in REVERSE order**:
-       :math:`(A\,B)^{-1} = B^{-1}\,A^{-1}`.
-     - Both must have ``apply_transpose``, applied in REVERSE order:
-       :math:`(A\,B)^T = B^T\,A^T`.
-   * - :class:`~orpheus.numerics.operator.ScaledOperator`
-       (:math:`\alpha\,L`)
-     - Always preserved.
-     - Preserved with division:
-       :math:`(\alpha L)^{-1} = (1/\alpha)\,L^{-1}`. Zero scalar is
-       rejected — use :class:`ZeroOperator` instead.
-     - Preserved (scalars commute with transpose).
+   * - :class:`~orpheus.numerics.operator.OperatorSum`,
+       :math:`\sum_i c_i w_i`
+     - Every term must have ``apply`` (refused at construction otherwise);
+       the left fold :eq:`combination-left-fold`.
+     - One term: :math:`(cA)^{-1} = c^{-1}A^{-1}`. Two or more terms:
+       **none** (:eq:`combination-inverse`); no general algorithm exists
+       for :math:`(A + B)^{-1}` from :math:`A^{-1}, B^{-1}`
+       (Sherman-Morrison-Woodbury applies only under low-rank structure —
+       which the boundary block :math:`B` HAS, unlike the bulk :math:`C`,
+       :math:`L`; :ref:`the scoped statement <smw-low-rank-exception>`).
+       The inverse of a split :math:`M - N` is
+       ``GreenOperator(M, N)``.
+     - Every term must have ``apply_transpose``;
+       :eq:`combination-dual-distributes`.
+   * - :class:`~orpheus.numerics.operator.OperatorProduct`,
+       :math:`A_1 \cdots A_n`
+     - Every factor must have ``apply``; right to left.
+     - Every factor invertible; :math:`A_n^{-1}\cdots A_1^{-1}`
+       (:eq:`word-reversal-laws`), wrapped as
+       :class:`~orpheus.numerics.operator.InverseOperator`.
+     - Every factor must have ``apply_transpose``; reversed.
    * - :class:`~orpheus.numerics.operator.IdentityOperator`
        (:math:`I`)
      - Trivially yes.
-     - ``solve`` is the same code path as ``apply``:
-       :math:`I^{-1} = I`.
+     - ``inverse()`` returns the same instance: :math:`I^{-1} = I`.
      - Trivially yes: :math:`I^T = I`.
    * - :class:`~orpheus.numerics.operator.ZeroOperator`
-       (:math:`0`)
-     - Trivially yes (returns ``np.zeros_like(x)``).
-     - **Does not propagate.** The zero operator is not invertible.
+       (:math:`0`, pointwise) and
+       :class:`~orpheus.numerics.operator.ZeroMorphism`
+       (:math:`0_{V\to W}`)
+     - Trivially yes (returns the zero of the codomain).
+     - **None.** The zero map is not invertible, and neither class
+       declares ``inverse()``.
      - Trivially yes (returns zero).
 
 The closure rules above are advertised by the recursive
@@ -2422,13 +2898,112 @@ predicates and enforced by **eager guards** at composition time (an
 ``apply`` mismatch raises ``TypeError``, a non-adjointable ``.H`` raises
 :class:`~orpheus.numerics.operator.MissingAdjoint`, a value-dependent
 ``inverse()`` raises :class:`~orpheus.numerics.operator.NotInvertible`),
-never mid-iteration. A generic
-:class:`~orpheus.numerics.operator.OperatorSum` carries no ``solve``
-verb at all (Design B): solving with it IS applying its inverse object,
-``.inverse().apply`` (the
-:class:`~orpheus.numerics.green_operator.GreenOperator` splitting), so a
-downstream consumer that spells :math:`L = A + 0` and asks for its
-inverse action cannot silently receive :math:`A^{-1} + 0^{-1}`.
+never mid-iteration. A combination carries no ``solve`` verb at all
+(Design B): solving with it IS applying its inverse object,
+``.inverse().apply``, which exists for one term and is refused for two or
+more. Because the zero is absorbed, ``A + 0`` is ``A`` itself, so a
+consumer that spells :math:`L = A + 0` and asks for its inverse receives
+:math:`A^{-1}`, never :math:`A^{-1} + 0^{-1}`.
+
+Gotchas
+-------
+
+* **Collection is exact only where the coefficient arithmetic is.** The
+  coefficients are floats, and ``__eq__`` carries no tolerance (no
+  ``Fraction`` either). On dyadic coefficients the laws are exact; on
+  others they are not: `[M]` 2026-10-20, ``0.1·A + 0.2·A − 0.3·A`` is the
+  one-term combination :math:`5.551115123125783\times10^{-17}\cdot A`, not
+  the zero, and ``(0.1A + 0.2A) + 0.3A != 0.1A + (0.2A + 0.3A)``. This is
+  recorded as a RECORD row of the gate file (c05), not hidden.
+* **Identity, not value, decides collection.** ``I = IdentityOperator();
+  I - I`` is ``ZeroOperator()``, but ``IdentityOperator() -
+  IdentityOperator()`` (two instances) is a two-term combination (`[M]`
+  2026-10-20). The same holds for two separately built ``L``.
+* **A collapse can hand back a shared atom.** ``(A + B) - B is B``.
+  Production stamps roles after construction
+  (``A_AA.system_role = SystemRole.A`` in
+  :mod:`orpheus.sn.coupled_system`, ``head.system_role`` in
+  :mod:`orpheus.sn.splitting`); on a collapsed combination such a stamp
+  would mutate that leaf for every holder. `[R]` safe today (the stamped
+  combinations have several terms); derive a role from the terms rather
+  than stamp a new one (the S2 spec's finding 8).
+* **The dunders' static return type is the base type.** ``a + b`` can
+  return an atom, a zero or a combination, and ``a @ b`` a word or a
+  one-term combination, so each is annotated ``LinearOperator``. No
+  automated gate runs pyright on ``tests/`` (the ratchet checks
+  ``orpheus/`` only), so the ``assert_type`` pins in the typed-apply test
+  module are a hand check.
+* **Hashing a posing hashes its operators.** A pencil whose ``lhs``
+  collapsed to an unhashable atom (``StreamingOperator``) raises on
+  ``hash(pencil)``. `[M]` the S2 census: 0 pencil ``==`` or ``hash``
+  events; a rider, not a defect.
+* **Flattening moves bits where a named sum was right-nested.** The
+  homogeneous loss :math:`C - K_{\rm iso}` with
+  :math:`K_{\rm iso} = S + 2\Sigma_2^{\mathsf T}` (a named property) now
+  folds as :math:`(Cx - Sx) - 2\Sigma_2^{\mathsf T}x`, where before S2 it
+  was :math:`Cx - (Sx + 2\Sigma_2^{\mathsf T}x)`. The library mixtures
+  carry :math:`\Sigma_2 = 0` and move nothing; the frozen coda record
+  ``homo_2eg_n2n`` moved at :math:`A_{00}` by 1 ulp and was re-baselined,
+  that row alone, under the three principled-equivalence conditions of
+  ``vv-principles`` (ruling 54: the intermediates are named terms, the
+  raw-mixture reference class is the independent anchor and stays green
+  unchanged, the drift is one more level of addition). Keeping
+  :math:`K_{\rm iso}` an atom so the bytes stay was rejected: it re-welds
+  what ruling 52 removed. The S\ :sub:`N` loss
+  ``LC − S − N2N − B_a`` is left-nested and does not move.
+
+.. dropdown:: First got wrong — what S2 retired, and why (2026-10-20)
+   :color: muted
+
+   * ``ScaledOperator`` (ruling 51). :math:`\alpha A` is the one-term
+     combination; its algebra-closed inverse :math:`(\alpha A)^{-1} =
+     \alpha^{-1}A^{-1}` moved with it. Its constructor refused a zero scalar
+     as degenerate, which is why :math:`0\cdot A` was unspellable before S2
+     (the pencil's :math:`\sigma = 0` member and the boundary realizer's
+     :math:`\alpha = 0` branch both worked around it); the zero is now the
+     empty combination.
+   * The binary node accessors ``.a`` / ``.b`` on sums and products, and
+     ``ScaledOperator``'s ``.scalar`` / ``.op``: the n-ary ``terms`` and
+     ``factors`` replace them.
+   * The sum's **head contract**: ``OperatorSum.is_invertible`` read the
+     first-spelled term, and ``OperatorSum.inverse`` built a
+     ``GreenOperator`` whose preconditioner was that head, so the spelling
+     chose the algorithm (``(-S) + A`` refused, ``C + L`` diverged). An
+     unordered sum has no head, so the contract could not survive in any
+     form. `[M]` the S2 census: production never used it (the left-spine
+     walk ran 52 times, all from tests; every production inverse of a loss
+     goes through ``Splitting.implicit.inverse()``), and 5 tests pinned it.
+     Its replacement is the named split (:ref:`green-operator`).
+   * ``SumOfTensorProductsOperator`` (design D8): an ordered :math:`n`-term
+     sum of tensor products that summed its summands by hand, with no
+     production consumer. A sum of tensor products is now a combination whose
+     words are :class:`~orpheus.numerics.operator.TensorProductOperator`;
+     whether separability earns its own type is #260.
+
+Numerical evidence
+------------------
+
+* ``tests/gates/numerics/test_linear_combination.py``
+  (``foundation``; 39 functions, 40 rows, each declaring the rows it rests
+  on): `[M]` 2026-10-20 on the worktree, 40 of 40 pass, with the 10 LD
+  broadcast rows beside them (50 of 50, ``python -O -m pytest``). On the
+  tree before S2, 29 of the 40 were red and 11 green; the 11 green rows
+  are the contracts the carve had to keep (the fold, the word's
+  application order, the reciprocity rows).
+* The mutation battery, `[M]` 2026-10-20 by the test-architect on a
+  prototype of the ruled design (``scratch/numerics_untangling/packages/S2_gates/battery/``): 33 arms, a
+  positive control that reddens 15 rows, and every one of the 35 modelled
+  rows reddened by at least one arm. The four S\ :sub:`N` atom rows (c32 to
+  c35) have no prototype arm; their mutation is named in the spec.
+* The bit-identity instrument (``scratch/numerics_untangling/packages/S2_gates/s2_bit_probe.py``; seven
+  fixtures, 70 entries): on the prototype, 55 entries SAME and the 10
+  ``homogeneous_A2g_n2n`` entries MOVED by at most 8.8e-16 relative (the
+  right-nested :math:`C - K_{\rm iso}` above, on a fixture with a
+  manufactured :math:`\Sigma_2`); a right-fold control arm moved 20. The
+  S\ :sub:`N` loss's fold order is invisible on every library fixture
+  (:math:`N_{2n}` applies as zero and :math:`S`, :math:`B_a` have disjoint
+  supports), so a bit claim about it is made on the manufactured
+  (n,2n) slab, where the wrong fold moves 1.4e-16.
 
 When a composed within-group operator meets the Krylov accelerator's
 :mod:`scipy.sparse.linalg` interface, the ORPHEUS↔scipy boundary is
@@ -2747,14 +3322,16 @@ CS4c step 2 superseded with the mandatory kw-only write-once
 :class:`~orpheus.transport.operators.bound_operator.BoundOperator`) and
 the bare-array
 :meth:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator.from_mesh`
-constructor, the subclass added nothing the base lacked. The ``L + C``
-dispatch that assembles the bundled
-:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` lives **one-directionally**
-on :meth:`~orpheus.sn.operators.streaming.StreamingOperator.__add__` (keyed on the
-``MultiplicationOperator`` base type): ``L + C`` is the canonical (and
-only) ordering, because the ``numerics ↛ transport ↛ sn`` layer order
-forbids a transport-level multiplier from dispatching back onto an ``sn``
-operator (that would be a ``transport → sn`` upward import).
+constructor, the subclass added nothing the base lacked. ``L + C`` is
+the plain combination in either spelling order (``L + C == C + L``); the
+sweep-invertible atom
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` is
+built explicitly by its one owner,
+:func:`~orpheus.sn.coupled_system.build_streaming_collision`, and no
+dunder fuses (:ref:`composition-algebra`, "Fused atoms"). The multiplier
+broadcasts its coefficient over every bulk axis the coefficient does not
+span, read by label off the bound space: the ordinate axis, and the
+spatial-moment axis of a linear-discontinuous bulk.
 
 The multiplier-algebra laws
 ---------------------------
@@ -3712,16 +4289,15 @@ P_\ell \otimes \Sigma_{c,\ell}` with :math:`y_S = 1`,
    1-D rule's head is FLAT and has no :math:`m` axis: the projector
    :math:`P_\ell` is ``head.degree_block(l)``, not a hard-coded
    ``[l, :2l+1]`` (:ref:`spaces-moment-head`). Lifting that shape up to the **full** kernel
-   :math:`R\circ\Lambda\circ M` was **considered and rejected**. A
-   :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator` would
+   :math:`R\circ\Lambda\circ M` was **considered and rejected**. A sum of
+   tensor products (a combination whose words are
+   :class:`~orpheus.numerics.operator.TensorProductOperator`) would
    require :math:`R` and :math:`M` to be tensor-product *factors* on
    independent axes, but they are rank-changing einsums that mix the
    ordinate and harmonic-coefficient axes — they are *not* valid
-   tensor-product factors. Expressing the kernel as a
-   ``SumOfTensorProductsOperator`` would be a re-derivation of the
-   moment redistribution, not a re-presentation of the existing one;
-   that path is tracked as the un-orphaning of
-   :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator` on
+   tensor-product factors. Expressing the kernel as such a sum would be a
+   re-derivation of the moment redistribution, not a re-presentation of
+   the existing one; whether a separable sum earns its own type is
    #260. The :math:`1/W` per-ordinate normalisation lives *outside* the
    kernel (the kernel is the redistribution, not the :term:`quadrature`
    weighting).
@@ -4470,7 +5046,7 @@ already pins to 0 ULP.
        \Lambda \circ M)` — the vertical 1-morphism :math:`\Lambda`
        **conjugated by the horizontal adjoint pair** :math:`M`/:math:`R`.
        Realised as :func:`conjugate(frame, Λ) <orpheus.numerics.frame_faces.conjugate>`
-       :math:`=` ``OperatorProduct(R, OperatorProduct(Λ, M))``.
+       :math:`=` the word ``R @ Λ @ M`` (factors ``(R, Λ, M)``).
      - The 2-cell fills the square: it is the canonical conjugation of a
        vertical morphism by the horizontal frame. The role change stays
        **localized at** :math:`\Lambda` (:math:`M`/:math:`R` preserve
@@ -5200,9 +5776,8 @@ tracks is the *relocation* itself and the CP / MoC carrier unification.
    0-ULP de-risk). Scattering cross-check:
    ``tests/gates/sn/operators/test_scattering_kernel_crosscheck.py`` (the
    :math:`S.\mathrm{kernel}.\mathrm{apply} \equiv R\circ\Lambda\circ M`
-   0-ULP equivalence). Deferred follow-up: #260
-   (:class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
-   un-orphaning).
+   0-ULP equivalence). Deferred follow-up: #260 (whether a separable sum
+   of tensor products earns its own type).
 
 
 .. _tensorial-framing:
@@ -5227,9 +5802,10 @@ factor naturally as a **tensor product** of per-axis operators:
 
      **Nothing implements this** — the factorization is exhibited to show the
      structure, and no production path takes it. :math:`[M]` 2026-08-18:
-     :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator` has
-     **zero** consumers outside its own definition module and the package
-     re-export, so nothing in ``orpheus/`` ever assembles
+     the named type it would have used (``SumOfTensorProductsOperator``,
+     retired at package S2 on 2026-10-20) had **zero** consumers outside
+     its own definition module and the package re-export, so nothing in
+     ``orpheus/`` ever assembled
      :math:`L = D_x \otimes \Omega_x \otimes I_g + D_y \otimes \Omega_y
      \otimes I_g`. Production streams by marching
      (:eq:`loss-rep-scanmarch-solve-affine`). ⚠ Contrast the sibling
@@ -5298,8 +5874,8 @@ factor naturally as a **tensor product** of per-axis operators:
      This equation is a statement about **moment space**, and as such it
      *is* realized. The full per-ordinate scattering operator
      :math:`S = \tfrac{1}{W}(R\circ\Lambda\circ M)` has **no** such form:
-     a :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
-     would need :math:`R` and :math:`M` to be tensor-product factors on
+     a sum of tensor products would need :math:`R` and :math:`M` to be
+     tensor-product factors on
      independent axes, and they are rank-changing einsums that *mix* the
      ordinate and harmonic-coefficient axes. That lift was considered and
      rejected — see the note in :ref:`integral-kernel-category` and #260.
@@ -5318,9 +5894,10 @@ factor naturally as a **tensor product** of per-axis operators:
 .. vv-status: scattering-as-tensor-product-sum documented
 
 These canonical forms motivate the
-:class:`~orpheus.numerics.operator.TensorProductOperator` and
-:class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
-types. The user's architectural correction that drove their
+:class:`~orpheus.numerics.operator.TensorProductOperator` type, and a sum
+of them is a formal linear combination
+(:class:`~orpheus.numerics.operator.OperatorSum`) whose words are tensor
+products. The user's architectural correction that drove their
 introduction:
 
   *"Is there any tensorial machinery to be brought in support of
@@ -5618,13 +6195,11 @@ could write. The advantage of the operator-algebra layer is in the
    algebra without the dense matrix.
 
 
-SumOfTensorProductsOperator
----------------------------
+Sums of tensor products
+-----------------------
 
-When several tensor products are summed,
-:class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
-provides the §15.2 canonical scattering / streaming form's named
-type:
+When several tensor products are summed, the result is the §15.2
+canonical scattering / streaming form:
 
 .. math::
    :label: sum-of-tensor-products
@@ -5633,15 +6208,28 @@ type:
 
 .. vv-status: sum-of-tensor-products documented
 
-Algebraically just :class:`OperatorSum` over
-:class:`TensorProductOperator` summands, but exposed as a named
-class so the §15.2 invariants
-(:meth:`assert_separable` — every summand is a tensor product;
-shared-axis-factor refactoring; future TT-compression entry point
-per §15.3) carry a load-bearing type signal. The
-:meth:`assert_separable` method is currently a contract-validator
-(separability is enforced at construction); it is a hook for
-future invariant checks.
+It is a formal linear combination (:ref:`composition-algebra`) whose words
+are :class:`~orpheus.numerics.operator.TensorProductOperator` instances,
+spelled ``(A & B & C) + (A2 & B2 & C2)``; its laws, its transpose and its
+spaces are the combination's, with no separate implementation. There is no
+named type for it: whether separability (every word a tensor product,
+shared-axis-factor refactoring, the TT-compression entry point of §15.3)
+earns one is #260. Its gates are
+``TestSumOfTensorProductsSpaces`` and the §15.2 algebra rows of
+:file:`tests/gates/numerics/test_tensor_product_operator.py`, re-posed on
+the combination.
+
+.. dropdown:: The retired named type (until 2026-10-20)
+   :color: muted
+
+   ``SumOfTensorProductsOperator`` was an ordered :math:`n`-term sum of
+   tensor products that summed its summands' actions by hand and called a
+   private agreement helper of the operator module, so the sum's algebra
+   (its adjoint law, its capability intersection) was not inherited, and
+   its ``assert_separable`` validated what its constructor already
+   enforced. It had no production consumer. Package S2 of the numerics
+   untangling (design D8) retired it and re-pointed its 8 tests at the
+   combination.
 
 
 Tensor product as the inverse of partition
@@ -6835,12 +7423,13 @@ in its own docstring rather than leaving it as an assumption a later
 problem silently breaks.  Three checkable consequences:
 
 * :meth:`at(0) <orpheus.numerics.pencil.OperatorPencil.at>` returns the
-  ``lhs`` **object itself**, by identity — not a scaled copy.  This is
-  not a micro-optimisation: ``[M]`` the algebra REFUSES a zero scaling
-  outright (``ValueError: ScaledOperator with zero scalar is degenerate;
-  use ZeroOperator explicitly``), so the :math:`\sigma = 0` member cannot
-  be spelled as a scaling at all, and the gate that pins the identity
-  reds by *raising* rather than by comparing.
+  ``lhs`` **object itself**, by identity — not a rebuilt copy.  The
+  algebra absorbs the zero (:eq:`combination-zero-and-unit`), so
+  ``lhs - 0 * rhs`` EQUALS ``lhs`` as a combination; but when ``lhs`` is a
+  combination of several terms, the normalising constructor rebuilds it
+  from its terms, and the result is equal without being the same object.
+  The :math:`\sigma = 0` branch keeps it the same object, which is what
+  the identity gate pins.
 * :math:`\mathcal{A}(\sigma)` is the affine combination
   :math:`A - \sigma M` — ``[M]`` ``array_equal``, :math:`\max|\Delta| =
   0` in matrix form at :math:`\sigma \in \{0.5,\, 1,\, 1.875,\, 2\}`.
@@ -8436,11 +9025,10 @@ falsehood at ``confidence = 1.0``.
        guessing engine attaches unrelated ones.
    * - :eq:`streaming-as-tensor-product-sum`
      - Canonical form, deliberately not realized
-     - :math:`[M]` its named type
-       :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
-       has **zero** production consumers: grepping ``orpheus/`` returns
-       only its own class definition and guard messages, two
-       ``numerics/__init__`` export lines, and one docstring mention.
+     - Nothing in ``orpheus/`` builds the streaming operator as a sum of
+       tensor products (`[M]` 2026-08-18: the named type then provided
+       for it, ``SumOfTensorProductsOperator``, had zero production
+       consumers; it retired at package S2, 2026-10-20).
        Streaming is realized as a sequential walk, and
        :doc:`/theory/foundations/operator_tensor_network` records why it
        resists a clean factorisation.
@@ -8595,6 +9183,24 @@ the cheapest tell.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-20
+     - **A sum is a formal linear combination, a product a flattened
+       word** (package S2 of the numerics untangling; rulings 23 and
+       50–54). ``OperatorSum`` is ``{word ↦ coefficient}``, unordered for
+       equality and insertion-ordered only for the left fold of ``apply``;
+       ``OperatorProduct`` is a flattened word of :math:`n \ge 2` factors.
+       ``ScaledOperator`` and ``SumOfTensorProductsOperator`` retired into
+       the combination; every zero is absorbed, so :math:`0\cdot A` is the
+       zero map. A sum of two or more terms has no inverse of its own: its
+       inverse is named by its split, ``GreenOperator(M, N)``, and the
+       left-spine head contract retired. ``+``, ``-`` and ``@`` never
+       fuse: the three fused composites are atoms with an ``expansion()``,
+       built by their owners. The dual distributes over terms and factors;
+       the Hilbert adjoint is taken once at the composite's ends. Pinned
+       by ``tests/gates/numerics/test_linear_combination.py``. See
+       :ref:`composition-algebra`.
+     - #617, #625
+     - *(in development)* branch ``refactor/s2-linear-combination``
    * - 2026-10-18
      - **The adjointability flag asks one question, and** ``.H`` **asks
        two.** ``is_adjointable`` had answered both "a Euclidean transpose

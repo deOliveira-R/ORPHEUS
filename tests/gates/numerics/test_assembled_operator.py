@@ -31,9 +31,6 @@ from orpheus.numerics.operator import (
     IdentityOperator,
     MatrixTooLarge,
     MissingAssembly,
-    OperatorProduct,
-    OperatorSum,
-    ScaledOperator,
     assemblable,
 )
 
@@ -142,13 +139,13 @@ class TestAssemblyAxis:
     @pytest.mark.verifies("matrix-functor-homomorphism")
     def test_sum_law(self) -> None:
         a, b = _leaf_a(), _leaf_b()
-        assembled = OperatorSum(a, b).assemble()
+        assembled = (a + b).assemble()
         np.testing.assert_array_equal(
             assembled.as_matrix(), a.as_matrix() + b.as_matrix()
         )
 
     def test_difference_via_the_dunder(self) -> None:
-        # ``A - B`` routes through Sum(A, Scaled(-1, B)) — the composed
+        # ``A - B`` is the combination {A: 1, B: −1} (S2) — the composed
         # law [A] + (-1)[B], byte-equal to dense subtraction on exact
         # dyadic values.
         a, b = _leaf_a(), _leaf_b()
@@ -160,7 +157,7 @@ class TestAssemblyAxis:
     @pytest.mark.verifies("matrix-functor-homomorphism")
     def test_product_law(self) -> None:
         a, b = _leaf_a(), _leaf_b()
-        assembled = OperatorProduct(a, b).assemble()
+        assembled = (a @ b).assemble()
         np.testing.assert_array_equal(
             assembled.as_matrix(), a.as_matrix() @ b.as_matrix()
         )
@@ -168,30 +165,32 @@ class TestAssemblyAxis:
     @pytest.mark.verifies("matrix-functor-homomorphism")
     def test_scaled_law(self) -> None:
         a = _leaf_a()
-        assembled = ScaledOperator(-0.5, a).assemble()
+        assembled = (-0.5 * a).assemble()
         np.testing.assert_array_equal(
             assembled.as_matrix(), -0.5 * a.as_matrix()
         )
 
     def test_composite_predicates_recurse(self) -> None:
         a, b = _leaf_a(), _leaf_b()
-        assert OperatorSum(a, b).is_assemblable
-        assert OperatorProduct(a, b).is_assemblable
-        assert ScaledOperator(2.0, a).is_assemblable
+        assert (a + b).is_assemblable
+        assert (a @ b).is_assemblable
+        assert (2.0 * a).is_assemblable
         # One non-emitting leg poisons the composite (the intersection
         # law, like the adjoint axis).
-        assert not OperatorSum(a, IdentityOperator()).is_assemblable
-        assert not OperatorProduct(IdentityOperator(), b).is_assemblable
-        assert not ScaledOperator(2.0, IdentityOperator()).is_assemblable
+        assert not (a + IdentityOperator()).is_assemblable
+        assert not (IdentityOperator() @ b).is_assemblable
+        assert not (2.0 * IdentityOperator()).is_assemblable
 
     def test_missing_assembly_refusals(self) -> None:
         a = _leaf_a()
-        with pytest.raises(MissingAssembly, match="both summands"):
-            OperatorSum(a, IdentityOperator()).assemble()
-        with pytest.raises(MissingAssembly, match="both factors"):
-            OperatorProduct(IdentityOperator(), a).assemble()
-        with pytest.raises(MissingAssembly, match="assemblable operand"):
-            ScaledOperator(3.0, IdentityOperator()).assemble()
+        # S2: n-ary wording ("every term", "every factor"); the scaled
+        # operator is the one-term combination, refused as a sum.
+        with pytest.raises(MissingAssembly, match="OperatorSum.assemble requires every term"):
+            (a + IdentityOperator()).assemble()
+        with pytest.raises(MissingAssembly, match="OperatorProduct.assemble requires every factor"):
+            (IdentityOperator() @ a).assemble()
+        with pytest.raises(MissingAssembly, match="OperatorSum.assemble requires every term"):
+            (3.0 * IdentityOperator()).assemble()
 
     def test_assembly_is_structure_only(self, monkeypatch) -> None:
         # L16's negative test: with every leaf ``apply`` disabled, the
@@ -204,7 +203,7 @@ class TestAssemblyAxis:
 
         monkeypatch.setattr(a, "apply", _boom)
         monkeypatch.setattr(b, "apply", _boom)
-        assembled = OperatorSum(a, b).assemble()
+        assembled = (a + b).assemble()
         assert assembled.shape == (3, 3)
 
 
@@ -218,7 +217,7 @@ class TestAsMatrixDelegation:
         # summation, so the two pathways are EXACTLY equal. (The
         # physics-emitter pins at nulp live with the emitters.)
         a, b = _leaf_a(), _leaf_b()
-        composed = OperatorSum(a, ScaledOperator(2.0, b))
+        composed = a + 2.0 * b
         via_delegation = composed.as_matrix(basis_shape=(3,))
         via_probing = composed._as_matrix_by_probing((3,))
         np.testing.assert_array_equal(via_delegation, via_probing)
@@ -234,7 +233,7 @@ class TestAsMatrixDelegation:
     def test_delegation_honors_the_size_gate(self) -> None:
         a = _leaf_a()
         with pytest.raises(MatrixTooLarge):
-            OperatorSum(a, _leaf_b()).as_matrix(
+            (a + _leaf_b()).as_matrix(
                 basis_shape=(3,), max_dimension=2
             )
 

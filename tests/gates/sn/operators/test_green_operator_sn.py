@@ -2,16 +2,17 @@ r"""GreenOperator L1 SN gates — ``A_loss = (L+C) − S`` on a heterogeneous 2G
 VACUUM slab (taxonomy §12 step 4; verification spec PART III §21.2/§22/§24.4).
 
 **What is pinned.**  The generic sum inverse on the REAL transport operators:
-``((L+C) − S).inverse()`` is a
-:class:`~orpheus.numerics.green_operator.GreenOperator` whose derived
+``GreenOperator(L+C, S)`` (the Green of the named split, since S2) is a
+:class:`~orpheus.numerics.green_operator.GreenOperator` whose
 splitting is EXACTLY the canonical within-group source iteration —
 preconditioner = the WDD sweep ``(L+C)⁻¹``, gain = ``S`` — proven by (a) the
 G-Neumann multiple-scattering expansion :math:`\sum_k ((L+C)^{-1}S)^k
 (L+C)^{-1} q` converging to ``green.apply(q)`` with the geometric tail ratio
 of the physical scattering ratio (§17 falsifier-5, run as a permanent gate),
 (b) an operator-level MANUFACTURED anchor (exact, structurally independent
-of the iteration), and (c) BIT-IDENTITY of the auto-derived driver against
-the hand-assembled ``SourceIteration(sweep, S)``.
+of the iteration), and (c) the WIRING of the split into the driver: the
+Green's driver is bit-identical to the hand-assembled
+``SourceIteration(sweep, S)``.
 
 **Config (Mode-9 discipline, spec §21.2):** heterogeneous (two materials,
 distinct σ_t and ASYMMETRIC 2G scattering blocks) VACUUM slab — a reflective
@@ -35,17 +36,16 @@ always warm-starts with a flux-typed state; these gates do the same
 (``TimedFullField.zeros(interior=AngularFlux, …)``).  This is the DRIVER's
 pre-existing typing boundary, inherited by Green — not a step-4 novelty.
 
-**Ordering-ruling edges (§22.1):** ``(L+C)`` → ``SweepOperator`` (the MRO
-shadow — the fused type owns the DIRECT inverse); ``A_loss`` → Green,
-converges; ``C + L`` (legal spelling, invertible leading collision term) →
-Green constructs, its collision-preconditioned Richardson DIVERGES →
-:class:`ConvergenceFailure`, never a silent wrong answer; ``(−S) + (L+C)``
-→ refused at construction naming the canonical ordering.
+**Ordering-ruling edges (§22.1), re-posed at S2 (rulings 50, 52):** the
+fused ``(L+C)`` atom (built explicitly; ``+`` never fuses) → ``SweepOperator``;
+the plain sum ``A_loss`` has no inverse of its own, and ``GreenOperator(L+C,
+S)`` inverts it and converges; ``(−S) + (L+C)`` IS ``A_loss``; ``C + L`` is
+``L + C``, and the collision-preconditioned split ``GreenOperator(C, −L)``
+DIVERGES → :class:`ConvergenceFailure`, never a silent wrong answer.
 
-**Teeth (spec §25, mutation-verified 2026-07-02):** M-GRN-FLATTEN (flatten
-through the ``StreamingCollisionOperator`` subclass → the leading term becomes the
-bare non-invertible ``L`` → the ``A_loss`` gates RED at construction);
-M-GRN-SIGN/SWAP RED the anchor + Neumann; M-GRN-TOL REDs the ``C+L`` raise.
+**Teeth (spec §25, mutation-verified 2026-07-02 on the pre-S2 left-spine
+Green; they re-run at the S2 review):** M-GRN-SIGN/SWAP RED the anchor +
+Neumann; M-GRN-TOL REDs the divergent-split raise.
 """
 from __future__ import annotations
 
@@ -61,7 +61,6 @@ from orpheus.numerics.iteration import SourceIteration, seeded_inverse
 from orpheus.numerics.operator import (
     NotInvertible,
     OperatorSum,
-    ScaledOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -115,8 +114,11 @@ def _operators():
     """``(sn, L+C fused, S, A_loss = (L+C) − S)`` on the het slab."""
     sn = _het_scattering_slab()
     mat_xs = sn.mat_xs
-    lc = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
-        mat_xs.total_cross_section, sn,
+    # S2 (ruling 52): ``+`` never fuses; the sweep-invertible atom is built
+    # explicitly, as its production owner (build_streaming_collision) does.
+    lc = StreamingCollisionOperator(
+        StreamingOperator.pose(sn),
+        MultiplicationOperator.from_mesh(mat_xs.total_cross_section, sn),
     )
     S = ScatteringOperator.from_solver_data(
         mat_xs=mat_xs, scattering_order=0, space=sn.full_field_space,
@@ -149,8 +151,7 @@ def test_g_neumann_l1_expansion_and_manufactured_anchor():
     the splitting is not the physical one)."""
     sn, lc, S, a_loss = _operators()
     x_tc, q = _manufactured(sn, lc, a_loss)
-    green = a_loss.inverse()
-    assert isinstance(green, GreenOperator)
+    green = GreenOperator(lc, S)  # the named split M = L+C, N = S (S2, ruling 50)
     psi = green.apply(q, initial_guess=_flux_zeros(sn))
 
     # rtol + atol: the promise is a NORM statement (true residual), so
@@ -183,16 +184,22 @@ def test_g_neumann_l1_expansion_and_manufactured_anchor():
 
 
 def test_green_driver_bit_identical_to_hand_source_iteration():
-    """The flatten derivation reproduces the CANONICAL within-group SI —
-    ``green._driver(budget)`` ≡ hand-built ``SourceIteration(sweep, S)`` BIT-
-    identically.  Pinned at the DRIVER grain: ``green.apply`` adds the
-    true-residual refinement layer on top (spec §18.A), so the promise
-    surface may legitimately run extra steps; the derivation — which
-    preconditioner, which gains, in what form — is what this gate owns
-    (its anchor for "was right" is the manufactured gate above)."""
+    """The WIRING of the named split into the driver, not a value.
+
+    ``GreenOperator(L+C, S)._driver(budget)`` ≡ the hand-built
+    ``SourceIteration(seeded_inverse(L+C), S)`` BIT-identically. Both sides
+    are the SAME ``SourceIteration`` construction over the same objects, so
+    this row cannot say whether that iteration's answer is right; it pins
+    which preconditioner and which gains the Green hands the driver, in what
+    form (N's terms as separate gains, since S2), at the DRIVER grain
+    (``green.apply`` adds the true-residual refinement layer on top, spec
+    §18.A). The VALUE is carried by
+    ``test_g_neumann_l1_expansion_and_manufactured_anchor``: the Green's
+    answer against the exact manufactured solution ``x_tc`` and against the
+    Neumann partial sums."""
     sn, lc, S, a_loss = _operators()
     _, q = _manufactured(sn, lc, a_loss)
-    green = GreenOperator(a_loss, max_iter=1000, tol=_TOL)
+    green = GreenOperator(lc, S, max_iter=1000, tol=_TOL)
     hand = SourceIteration(
         seeded_inverse(lc), S, max_iter=1000, tol=_TOL,
     )
@@ -200,53 +207,53 @@ def test_green_driver_bit_identical_to_hand_source_iteration():
     ref, _ = hand.solve(q, initial_guess=_flux_zeros(sn))
     np.testing.assert_array_equal(
         got.interior.values, ref.interior.values,
-        err_msg="auto-derived splitting ≠ the canonical hand-built SI",
+        err_msg="the Green's driver wiring ≠ the canonical hand-built SI",
     )
 
 
 def test_ordering_dispatch_sweep_vs_green():
-    """§22.1/§24.4 — the operand spelling selects the algorithm, keyed by
-    TYPE: the fused ``(L+C)`` owns the DIRECT sweep (its ``.inverse()``
-    override shadows the generic sum's by MRO); the plain sums route to
-    the iterative Green."""
-    _, lc, _s_unused, a_loss = _operators()
-    del _s_unused
+    """§22.1/§24.4, RE-POSED at S2 (rulings 50, 52): the fused ``(L+C)`` atom
+    owns the DIRECT sweep; the plain sum ``(L+C) − S`` has no inverse of its
+    own, and the Green of its named split ``M = L+C, N = S`` inverts it."""
+    _, lc, S, a_loss = _operators()
     assert isinstance(lc, StreamingCollisionOperator)
-    assert type(lc.inverse()) is SweepOperator      # the MRO shadow holds
-    assert type(a_loss) is OperatorSum              # −S broke the fusion
-    assert type(a_loss.inverse()) is GreenOperator  # generic arm → Green
-    assert a_loss.inverse().inverse() is a_loss     # involution, object id
+    assert type(lc.inverse()) is SweepOperator      # the atom's own sweep
+    assert type(a_loss) is OperatorSum
+    with pytest.raises(NotInvertible, match="GreenOperator\\(M, N\\)"):
+        a_loss.inverse()
+    green = GreenOperator(lc, S)
+    assert green.inverse() is green.inner           # involution, object id
+    assert green.inverse() == a_loss                # equal to the sum spelled apart
 
 
-def test_minus_s_plus_lc_refuses_with_canonical_ordering_message():
-    """§22.3 — ``(−S) + (L+C)`` spells the non-invertible term first; the
-    factory refuses at construction naming the canonical ordering (the
-    §18.B contract pin: ``is_invertible`` reads the LEADING term)."""
-    _, lc, S, _ = _operators()
-    backwards = ScaledOperator(-1.0, S) + lc
+def test_minus_s_plus_lc_is_the_same_sum_and_refuses_alike():
+    """§22.3, INVERTED at S2: until S2 ``(−S) + (L+C)`` refused naming the
+    canonical ordering (``is_invertible`` read the LEADING term). An
+    unordered sum has no head: ``(−S) + (L+C)`` IS ``(L+C) − S``, equal as
+    combinations, and both refuse an inverse of their own alike."""
+    _, lc, S, a_loss = _operators()
+    backwards = -S + lc
+    assert backwards == a_loss
     assert backwards.is_invertible is False
-    with pytest.raises(NotInvertible, match="canonical ordering"):
+    with pytest.raises(NotInvertible, match="GreenOperator\\(M, N\\)"):
         backwards.inverse()
 
 
-def test_c_plus_l_trap_constructs_then_fails_loudly():
-    """§22.2, the order-dependent strategy trap on the REAL operators:
-    ``C + L`` is the same math as ``L + C`` but the spelling misses the
-    fusion dispatch (it lives on ``StreamingOperator.__add__``, #261) —
-    the plain sum's leading term ``C`` IS invertible, so a Green
-    CONSTRUCTS (the algebra cannot know ρ(C⁻¹L) > 1)… and its
-    collision-preconditioned Richardson fails LOUDLY at apply.  Never a
-    silent wrong answer — the ruling's whole point."""
+def test_collision_preconditioned_split_fails_loudly():
+    """§22.2, RE-POSED at S2: the order-dependent TRAP is gone — ``C + L`` is
+    the same plain sum as ``L + C`` (ruling 52), with no inverse. The
+    physics it guarded survives as a split someone must NAME: ``M = C``,
+    ``N = −L`` is a legal split whose collision-preconditioned Richardson
+    diverges (ρ(C⁻¹L) > 1) and fails LOUDLY at apply, never a silent wrong
+    answer."""
     sn, lc, S, a_loss = _operators()
     mat_xs = sn.mat_xs
     C = MultiplicationOperator.from_mesh(mat_xs.total_cross_section, sn)
     L = StreamingOperator.pose(sn)
-    cl = C + L
-    assert type(cl) is OperatorSum          # no fusion on this spelling
-    assert cl.is_invertible is True         # leading C invertible — constructs
-    assert isinstance(cl.inverse(), GreenOperator)
+    assert C + L == L + C                    # order-free (was the trap's door)
+    assert (C + L).is_invertible is False
     _, q = _manufactured(sn, lc, a_loss)
     with pytest.raises(ConvergenceFailure):
-        GreenOperator(cl, max_iter=8, tol=_TOL).apply(
+        GreenOperator(C, -1.0 * L, max_iter=8, tol=_TOL).apply(
             q, initial_guess=_flux_zeros(sn),
         )

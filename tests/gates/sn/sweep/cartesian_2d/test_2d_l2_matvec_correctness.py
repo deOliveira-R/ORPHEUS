@@ -36,6 +36,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
@@ -207,7 +208,9 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
 
     L = StreamingOperator.pose(mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, mesh)
-    A = L + C
+    # S2: the fused ATOM's own apply (``+`` never fuses, ruling 52); the plain
+    # sum's apply IS ``L.apply + C.apply`` and would make this row a tautology.
+    A = StreamingCollisionOperator(L, C)
 
     sum_out = A.apply(state)
     sep_out = L.apply(state).interior.values + C.apply(state).interior.values
@@ -303,7 +306,7 @@ def test_2d_matvec_linearity_random_state() -> None:
 
     L = StreamingOperator.pose(mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, mesh)
-    A = L + C
+    A = StreamingCollisionOperator(L, C)  # S2: the atom's own apply (ruling 52)
 
     rng = np.random.default_rng(seed=20260528)
     u = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=mesh.full_field_space)

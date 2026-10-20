@@ -370,7 +370,7 @@ def test_matrix_inverse_operator_apply_is_on_the_homogeneous_call_path(monkeypat
 @pytest.mark.verifies("resolvent-object-gate")
 def test_K_operator_as_matrix_is_the_resolvent():
     """The genuinely-new step-5b structural element:
-    ``OperatorProduct(MatrixInverseOperator(A), F).as_matrix()`` == the
+    ``(MatrixInverseOperator(A) @ F).as_matrix()`` == the
     resolvent ``A⁻¹F``.
 
     Reference ``np.linalg.solve(A_dense, F_dense)`` — a DIFFERENT primitive

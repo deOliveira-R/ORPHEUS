@@ -118,9 +118,9 @@ def test_predicates_delegate_to_inner():
 
 def test_composes_with_operator_algebra():
     """The shim is a first-class :class:`LinearOperator` — it inherits
-    the algebra dunders from :class:`LinearOperator`. ``shim + shim``
-    builds an :class:`OperatorSum`; ``2.0 * shim`` builds a
-    :class:`ScaledOperator`.
+    the algebra dunders from :class:`LinearOperator`. ``shim + shim2``
+    builds an :class:`OperatorSum`; ``2.0 * shim`` builds the one-term
+    combination (an :class:`OperatorSum` since S2).
     """
     inner = IdentityOperator()
     shim = _BoundBoundaryOperator(inner, AlbedoBoundary(albedo=1.0))
@@ -128,8 +128,10 @@ def test_composes_with_operator_algebra():
     # scalar multiplication via __mul__
     scaled = 2.0 * shim
     np.testing.assert_array_equal(scaled.apply(psi), 2.0 * psi)
-    # sum via __add__ — note OperatorSum.apply forwards 1-arg only
-    summed = shim + shim
+    # sum via __add__ — two DISTINCT shims (since S2 ``shim + shim`` collects
+    # to the one term 2·shim); a combination of two terms forwards 1-arg only
+    shim2 = _BoundBoundaryOperator(IdentityOperator(), AlbedoBoundary(albedo=1.0))
+    summed = shim + shim2
     np.testing.assert_array_equal(summed.apply(psi), 2.0 * psi)
 
 

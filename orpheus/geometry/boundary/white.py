@@ -66,7 +66,7 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
     :math:`\Gamma_+ \to \Gamma_-` (**B3.4a**):
     ``(IsotropicEmissionOperator(...) @ PartialCurrentOperator(...)) & IdentityOperator()``
     (α=1 fast path) or that tensor product wrapped in a
-    ``ScaledOperator(α, ...)`` (α ≠ 1). Realising needs a **face** —
+    one-term combination ``α·(...)`` (α ≠ 1). Realising needs a **face** —
     the law's domain is that face's :math:`\Gamma_+`, which a
     quadrature alone cannot name, so ``SNMethodSpace.minimal`` raises:
 

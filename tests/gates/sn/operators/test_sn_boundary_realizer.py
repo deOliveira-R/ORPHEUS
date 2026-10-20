@@ -47,7 +47,7 @@ from orpheus.numerics.elementary_operators import PermutationOperator
 from orpheus.numerics.operator import ZeroMorphism
 from orpheus.numerics.operator import (
     IdentityOperator,
-    ScaledOperator,
+    OperatorSum,
     TensorProductOperator,
 )
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
@@ -55,6 +55,14 @@ from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 from tests._harness.references import mirror_partner_indices
 from tests.gates.sn._test_helpers import face_method_space, face_trace
+
+
+def _scaled_parts(op):
+    """The ``(α, word)`` of a scaled operator — since S2 the one-term
+    ``OperatorSum`` (``ScaledOperator`` retired, ruling 51)."""
+    assert isinstance(op, OperatorSum), f"expected α·word, got {type(op).__name__}"
+    [(alpha, word)] = op.terms
+    return alpha, word
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -339,20 +347,21 @@ class TestRealizeReflective:
         )
 
     def test_specular_partial_albedo_returns_scaled_tensor_product(self):
-        """At α≠1 the specular wall's dispatch returns ``ScaledOperator(α,
-        TP)`` where TP is the 2-factor :class:`TensorProductOperator` from
-        D-B+1 (the mirror's own bare TP, scaled)."""
+        """At α≠1 the specular wall realizes to ``α·TP`` (the one-term
+        combination since S2) where TP is the 2-factor
+        :class:`TensorProductOperator` from D-B+1 (the mirror's own bare TP,
+        scaled)."""
         quad = Quadrature.level_symmetric(4)
         bc = AlbedoBoundary(0.5, SpecularReturn(axis="x"))
         space = face_method_space(quad, face="xmin")
         op = SNBoundaryRealizer().realize(bc, space)
-        assert isinstance(op, ScaledOperator)
-        assert op.scalar == 0.5
-        assert isinstance(op.op, TensorProductOperator)
-        assert len(op.op.ops) == 2
-        assert isinstance(op.op.ops[0], PermutationOperator)
-        assert isinstance(op.op.ops[1], IdentityOperator)
-        assert op.op.ops[0].perm.size == space.outflow_indices.size < quad.n_ordinates
+        alpha, tp = _scaled_parts(op)
+        assert alpha == 0.5
+        assert isinstance(tp, TensorProductOperator)
+        assert len(tp.ops) == 2
+        assert isinstance(tp.ops[0], PermutationOperator)
+        assert isinstance(tp.ops[1], IdentityOperator)
+        assert tp.ops[0].perm.size == space.outflow_indices.size < quad.n_ordinates
 
     def test_an_uncertified_mirror_is_refused_at_realize_with_the_pairing_diagnosis(
         self,
@@ -508,18 +517,18 @@ class TestRealizeWhite:
         assert_lambertian_kernel(op.ops[0], space, quad)
 
     def test_white_partial_albedo_returns_scaled_tensor_product(self):
-        """At α≠1 the dispatch returns ``ScaledOperator(α, TP)`` where
-        TP is the 2-factor :class:`TensorProductOperator`."""
+        """At α≠1 the dispatch returns ``α·TP`` (the one-term combination
+        since S2) where TP is the 2-factor :class:`TensorProductOperator`."""
         quad = Quadrature.lebedev(17)
         bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.3)
         space = face_method_space(quad, face="xmax")
         op = SNBoundaryRealizer().realize(bc, space)
-        assert isinstance(op, ScaledOperator)
-        assert op.scalar == 0.3
-        assert isinstance(op.op, TensorProductOperator)
-        assert len(op.op.ops) == 2
-        assert isinstance(op.op.ops[1], IdentityOperator)
-        assert_lambertian_kernel(op.op.ops[0], space, quad)
+        alpha, tp = _scaled_parts(op)
+        assert alpha == 0.3
+        assert isinstance(tp, TensorProductOperator)
+        assert len(tp.ops) == 2
+        assert isinstance(tp.ops[1], IdentityOperator)
+        assert_lambertian_kernel(tp.ops[0], space, quad)
 
     def test_white_partial_albedo_matches_albedo_times_angular_average(self):
         r"""At α=0.3 the realized op output equals
@@ -529,7 +538,7 @@ class TestRealizeWhite:
         Wave-1 :class:`AngularAverageOperator` primitive (the
         structurally-independent reference; its body is verified in
         ``tests/gates/sn/operators/test_angular_average_operator.py``).
-        ``ScaledOperator(0.3, ...).apply`` multiplies the inner
+        ``(0.3·TP).apply`` multiplies the inner
         output by 0.3 from the outside; the hand-computed
         ``0.3 * ref.apply(psi)`` may differ by one ULP under
         IEEE-754 FP-non-associativity. ``nulp=4`` is the safe floor
@@ -697,17 +706,22 @@ class TestRealizeAlbedo:
         The claim SURVIVES the narrowing and changes shape: pre-B3.4b this was
         an endomorphism of the whole face slot; now it emits ``|Γ₋|`` rows.
         Note this branch could not be reached AT ALL before B3.4b for the
-        sibling laws — ``ScaledOperator`` refuses a zero scalar, so
+        sibling laws — ``ScaledOperator`` refused a zero scalar, so
         ``ReflectiveBoundary(axis, 0.0)`` (the attenuated mirror, retired in
         the reflective cleanup) and ``WhiteBoundary(…, 0.0)`` were legal laws
         that died in the numerics layer. The fold into
-        ``_attenuated_kernel_operator`` fixed all four routes at once.
+        ``_attenuated_kernel_operator`` fixed all four routes at once. Since
+        S2 the α=0 member is the ALGEBRA's zero, ``0·(K_ω ⊗ I)``, minted on the
+        kernel's bound spaces: the pin is on its type and its two spaces,
+        never on which builder produced it.
         """
         space = self._space()
         op = SNBoundaryRealizer().realize(
             AlbedoBoundary(0.0, SpecularReturn(axis="x")), space,
         )
         assert isinstance(op, ZeroMorphism)
+        assert op.domain.shape[0] == space.outflow_indices.size
+        assert op.codomain.shape[0] == space.inflow_indices.size
         psi = np.arange(space.outflow_indices.size * 4, dtype=float).reshape(
             space.outflow_indices.size, 4,
         )
@@ -719,8 +733,8 @@ class TestRealizeAlbedo:
         r"""α=1 → the bare 2-factor TP of the closure's kernel.
 
         Pre-B3.4b this returned a bare ``IdentityOperator`` — the spelling
-        that made the law an endomorphism. The α=1 fast path survives (no
-        ``ScaledOperator`` wrapper) but the inner factor is now the closure's
+        that made the law an endomorphism. The α=1 member is the bare product
+        (since S2 the algebra's collapse ``1·w is w``, no wrapper) but the inner factor is now the closure's
         angular kernel, so the operator carries the pairing instead of
         asserting there is none.
         """
@@ -738,10 +752,10 @@ class TestRealizeAlbedo:
         assert op.apply(psi).shape == (space.inflow_indices.size, 4)
 
     def test_albedo_half_realizes_to_scaled_tensor_product(self):
-        r"""α ∉ {0,1} → ``ScaledOperator(α, kernel & I)``.
+        r"""α ∉ {0,1} → ``α·(kernel & I)``, the one-term combination (S2).
 
-        The SHAPE claim the pre-B3.4b row made is intact — a ``ScaledOperator``
-        wrapping a 2-factor TP, the §16A.10 ``B = G_patch ⊗ K_ω ⊗ K_g``
+        The SHAPE claim the pre-B3.4b row made is intact — a scaled
+        2-factor TP, the §16A.10 ``B = G_patch ⊗ K_ω ⊗ K_g``
         algebra kept type-visible. What changed is the inner factor: an
         ``IdentityOperator`` (no pairing) became the closure's angular kernel.
         """
@@ -749,12 +763,12 @@ class TestRealizeAlbedo:
         op = SNBoundaryRealizer().realize(
             AlbedoBoundary(0.5, SpecularReturn(axis="x")), space,
         )
-        assert isinstance(op, ScaledOperator)
-        assert op.scalar == 0.5
-        assert isinstance(op.op, TensorProductOperator)
-        assert len(op.op.ops) == 2
-        assert isinstance(op.op.ops[0], PermutationOperator)
-        assert isinstance(op.op.ops[1], IdentityOperator)
+        alpha, tp = _scaled_parts(op)
+        assert alpha == 0.5
+        assert isinstance(tp, TensorProductOperator)
+        assert len(tp.ops) == 2
+        assert isinstance(tp.ops[0], PermutationOperator)
+        assert isinstance(tp.ops[1], IdentityOperator)
 
     def test_the_diffuse_closure_realizes_to_the_lambertian_kernel(self):
         """The OTHER closure reaches the OTHER shared body.
@@ -767,8 +781,8 @@ class TestRealizeAlbedo:
             AlbedoBoundary(0.5, IsotropicReturn(axis="x", outward_sign=+1)),
             space,
         )
-        assert isinstance(op, ScaledOperator)
-        assert isinstance(op.op, TensorProductOperator)
+        _, tp = _scaled_parts(op)
+        assert isinstance(tp, TensorProductOperator)
 
     def test_the_bare_spelling_is_refused_by_the_ALBEDO_ARM_not_the_face_guard(
         self,
@@ -911,7 +925,7 @@ class TestRealizePeriodic:
 #
 # The ``MixedBoundaryOperator`` composer was removed in Wave 11; the
 # realizer no longer dispatches on a "mixed" type.  Rank-N compositions
-# are now built via Wave-0 ``OperatorSum``/``ScaledOperator`` algebra
+# are now built via the operator algebra's ``+``/``α·`` (``OperatorSum``)
 # over already-realised leaves; the tree-walking helper
 # :func:`orpheus.geometry.boundary.realize_recursively` realises a
 # ``BoundaryTraceLaw``-rooted expression by recursing through the

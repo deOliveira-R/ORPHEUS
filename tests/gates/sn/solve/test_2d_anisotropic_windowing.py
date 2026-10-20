@@ -303,7 +303,11 @@ def _windowed_product_and_oracle_operands(
     # projection, not a test-local one.
     from orpheus.sn.operators.windowing import BulkAnalysisOperator
 
-    product = BulkAnalysisOperator(S.flux_analysis, problem.full_field_space) @ base.inverse()
+    # S2 (ruling 52): ``@`` never fuses; the windowed atom is built explicitly,
+    # as its production owner ``_maybe_window`` does.
+    from orpheus.sn.operators.windowing import WindowedSweep
+
+    product = WindowedSweep(BulkAnalysisOperator(S.flux_analysis, problem.full_field_space), base.inverse())
 
     # A representative per-ordinate source (seeded random ⇒ strong, deterministic
     # ℓ≥1 content in the swept ψ; the projection-order equivalence is
@@ -317,7 +321,8 @@ def _windowed_product_and_oracle_operands(
     def oracle_fn():
         # ORACLE (the fuller view, DEFORESTED): flat post-projection (the
         # frame's analysis face) of the full-angular sweep — structurally the
-        # inherited ``OperatorProduct.apply`` body, spelled independently.
+        # atom's ``expansion().apply`` (the word P @ A⁻¹ applied factor by
+        # factor), spelled independently of it.
         return np.asarray(
             frame_faces.FrameAnalysis.of(S.frame).apply(base.solve(rhs).interior.values),
             dtype=np.float64,

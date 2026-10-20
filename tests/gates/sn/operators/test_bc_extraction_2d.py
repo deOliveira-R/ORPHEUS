@@ -54,6 +54,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
@@ -209,7 +210,9 @@ class TestVacuum2DBitIdentity:
             # streaming_action is O(1)-relative and trips this assert long
             # before the bytes are frozen — the re-baseline is NOT
             # self-referential ("freeze whatever pure-L emits") by construction.
-            composite = (L + MultiplicationOperator.from_mesh(sig_t, problem)).apply(state)
+            # S2: the fused atom's apply (the plain ``L + C`` sum would make the
+            # structural ground ``composite − σψ`` equal ``L.apply`` by construction).
+            composite = StreamingCollisionOperator(L, MultiplicationOperator.from_mesh(sig_t, problem)).apply(state)
             structural_ground = (
                 composite.interior.values - sig_t[None] * state.interior.values
             )

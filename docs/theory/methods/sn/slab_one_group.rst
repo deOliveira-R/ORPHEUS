@@ -180,9 +180,10 @@ operator algebra :math:`A = L + C - S - N_{2n} - B`
 :math:`A\,\psi = \tfrac{1}{k} F\,\psi`. In ORPHEUS the equation is a
 single Python expression composed from
 :class:`~orpheus.numerics.operator.LinearOperator` objects; the
-composers (:class:`~orpheus.numerics.operator.OperatorSum`,
-:class:`~orpheus.numerics.operator.OperatorProduct`,
-:class:`~orpheus.numerics.operator.ScaledOperator`) compute
+composers (:class:`~orpheus.numerics.operator.OperatorSum`, the formal
+linear combination, which also carries a scaled operator as its one-term
+case, and :class:`~orpheus.numerics.operator.OperatorProduct`, the
+flattened word) compute
 :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
 :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
 recursively from the constituents per the closure laws (see

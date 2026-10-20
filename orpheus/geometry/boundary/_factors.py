@@ -536,7 +536,7 @@ class BoundaryResponseKernel(Protocol):
     :class:`~orpheus.geometry.boundary.ZeroFluxBoundary` is expressible here but
     sits outside the sub-Markov range, at :math:`\mathcal{A} = -1` in the
     partial-current basis — which is exactly what the diffusion realizer builds
-    (``ScaledOperator(-1.0, IdentityOperator)``). Note the distinction: its
+    (``−I``, the one-term combination ``(−1)·I``). Note the distinction: its
     *realization* is affine, while its *posing* — :math:`\phi_\Gamma = 0`, i.e.
     :math:`A_-\gamma_- + A_+\gamma_+ = 0` — is a **relation**, a tier above the
     affine trace law (Grand Report v3; issue **#177**). Populating the factor is

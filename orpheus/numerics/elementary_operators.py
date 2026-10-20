@@ -10,14 +10,17 @@ INSTANCES built on that algebra and which the algebra itself does not need:
 - the structural index maps :class:`PermutationOperator` and
   :class:`TraceRestrictionOperator`, with their shared extent check
   :func:`checked_space_extent`;
-- the sum of tensor products :class:`SumOfTensorProductsOperator`;
 - the pointwise multiplier :class:`DiagonalOperator`;
 - the rank-one dyad :class:`RankOneOperator` and its constructor :func:`outer`.
 
 In the concept order of :mod:`orpheus.numerics` this module sits one step
 downstream of ``operator``: it imports the algebra, and the algebra never
 imports it (``tests/gates/numerics/test_concept_order.py``). The definitions
-moved here verbatim from ``operator.py``; behaviour is unchanged.
+moved here verbatim from ``operator.py``; behaviour is unchanged. The sum of
+tensor products that lived here retired at package S2: a sum of tensor
+products is an :class:`~orpheus.numerics.operator.OperatorSum` whose words
+are :class:`~orpheus.numerics.operator.TensorProductOperator` (#260 decides
+whether separability earns its own type).
 
 The zero maps :class:`~orpheus.numerics.operator.ZeroOperator` and
 :class:`~orpheus.numerics.operator.ZeroMorphism` moved here too, and went
@@ -41,7 +44,6 @@ from orpheus.numerics.operator import (
     NotInvertible,
     PointwiseOperator,
     TensorProductOperator,
-    _agreed_space,
     adjointable,
 )
 from orpheus.numerics.vector import Vector
@@ -57,7 +59,6 @@ __all__ = [
     "DiagonalOperator",
     "RankOneOperator",
     "outer",
-    "SumOfTensorProductsOperator",
 ]
 
 
@@ -559,124 +560,6 @@ class TraceRestrictionOperator(LinearOperator):
     @property
     def is_adjointable(self) -> bool:
         return True
-
-
-class SumOfTensorProductsOperator(LinearOperator):
-    r"""Sum of tensor products :math:`\sum_k A_k \otimes B_k \otimes \cdots`.
-
-    The §15.2 / §15A.2 canonical form for scattering and streaming in
-    the operator-algebra view:
-
-    * **Streaming** (§15.1):
-      :math:`L = D_x \otimes \Omega_x \otimes I_g + D_y \otimes \Omega_y \otimes I_g`.
-    * **Scattering** (§15.2):
-      :math:`S = \sum_\ell P_\ell \otimes \Sigma_{s,\ell}` (per-:math:`\ell`
-      block-diagonal on moment space).
-
-    Algebraically just :class:`~orpheus.numerics.operator.OperatorSum` over
-    :class:`~orpheus.numerics.operator.TensorProductOperator` summands, but exposed as a named
-    type because the structure carries V&V invariants worth checking
-    explicitly:
-
-    * Each summand IS a :class:`~orpheus.numerics.operator.TensorProductOperator` —
-      :meth:`assert_separable`.
-    * (Future) common-axis factorisation — when many summands share
-      an axis-factor, refactoring saves work.
-
-    Parameters
-    ----------
-    summands : tuple of TensorProductOperator
-        The tensor-product summands. Each MUST be a
-        :class:`~orpheus.numerics.operator.TensorProductOperator`; mixing in non-separable
-        operators makes the type label misleading.
-
-    Notes
-    -----
-
-    It is NOT an :class:`~orpheus.numerics.operator.OperatorSum`: it
-    subclasses :class:`~orpheus.numerics.operator.LinearOperator` and sums
-    its summands' actions itself, so the sum's algebra (its adjoint law,
-    its capability intersection) is not inherited. `[M]` 2026-10-19: no
-    production code constructs it (#260 tracks expressing scattering's
-    :math:`\sum_\ell P_\ell \otimes \Sigma_{s,\ell}` through it). It
-    becomes a refinement of the sum when package S2 makes ``OperatorSum``
-    a formal linear combination (numerics-untangling plan); its private
-    import of ``operator._agreed_space`` is the mark of that: it is a
-    composite, not a leaf.
-    """
-
-    def __init__(self, summands: tuple) -> None:
-        if len(summands) < 1:
-            raise ValueError(
-                "SumOfTensorProductsOperator requires at least one summand"
-            )
-        for s in summands:
-            if not isinstance(s, TensorProductOperator):
-                raise TypeError(
-                    f"SumOfTensorProductsOperator summands must be "
-                    f"TensorProductOperator instances; got {type(s).__name__}. "
-                    f"Use OperatorSum for general operator addition."
-                )
-        self.summands: tuple = tuple(summands)
-        # A sum of tensor products is a sum: same agreement law as
-        # :class:`~orpheus.numerics.operator.OperatorSum`, one spelling (G6.3 step 8.0).
-        _agreed_space(self.summands, "domain", "SumOfTensorProductsOperator")
-        _agreed_space(self.summands, "codomain", "SumOfTensorProductsOperator")
-
-    @property
-    def domain(self) -> Optional["FunctionSpace"]:
-        """The space the summands agree on — see :func:`~orpheus.numerics.operator._agreed_space`."""
-        return _agreed_space(self.summands, "domain", "SumOfTensorProductsOperator")
-
-    @property
-    def codomain(self) -> Optional["FunctionSpace"]:
-        """The space the summands agree on — see :func:`~orpheus.numerics.operator._agreed_space`."""
-        return _agreed_space(self.summands, "codomain", "SumOfTensorProductsOperator")
-
-    def apply(self, x: np.ndarray) -> np.ndarray:
-        out = self.summands[0].apply(x)
-        for s in self.summands[1:]:
-            out = out + s.apply(x)
-        return out
-
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
-        for s in self.summands:
-            if not adjointable(s):
-                raise MissingAdjoint(
-                    f"SumOfTensorProductsOperator.apply_transpose requires "
-                    f"every summand to transpose; "
-                    f"{type(s).__name__}.is_adjointable is False."
-                )
-        out = self.summands[0].apply_transpose(x)
-        for s in self.summands[1:]:
-            out = out + s.apply_transpose(x)
-        return out
-
-    def assert_separable(self) -> None:
-        """Assert every summand is a :class:`~orpheus.numerics.operator.TensorProductOperator`.
-
-        Holds by construction (the constructor enforces it), so this
-        method is a no-op contract-validator. Useful as documentation
-        and as a hook for subclasses or future invariant checks.
-        """
-        for s in self.summands:
-            if not isinstance(s, TensorProductOperator):
-                raise AssertionError(
-                    f"SumOfTensorProductsOperator summand is not "
-                    f"separable: {type(s).__name__}"
-                )
-
-    @property
-    def is_adjointable(self) -> bool:
-        # ∑ A_k⊗B_k transposes summand-wise — adjointable iff every summand
-        # is. (Solve does not propagate through sums, so is_invertible
-        # inherits the base ``False``.)
-        return all(s.is_adjointable for s in self.summands)
-
-    @property
-    def is_metric_free_adjoint(self) -> bool:
-        # Summand-wise, like the transpose (derived).
-        return all(s.is_metric_free_adjoint for s in self.summands)
 
 
 class DiagonalOperator(PointwiseOperator):

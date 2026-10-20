@@ -51,6 +51,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.derivations.continuous.mms.sn import (
     build_spherical_anisotropic_mms_case,
 )
@@ -108,14 +109,14 @@ def _lc_apply_on_psi_ref(case, nc: int):
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(sigma_t, problem)
     if seed_leg is None:
-        lc_psi = (L + C).apply(psi_ref).interior.values     # (N, ng, nx)
+        lc_psi = (StreamingCollisionOperator(L, C)).apply(psi_ref).interior.values     # (N, ng, nx)
     else:
         # step 6: the joint row-A action rides THE GRID (presence structural).
         from orpheus.numerics.coupled_system import CoupledField
 
         from tests.gates.sn._test_helpers import joint_m_grid
 
-        grid, _space = joint_m_grid(problem, L + C)
+        grid, _space = joint_m_grid(problem, StreamingCollisionOperator(L, C))
         lc_psi = grid.apply(
             CoupledField(systems=(psi_ref, seed_leg)),
         ).systems[0].interior.values                        # (N, ng, nx)

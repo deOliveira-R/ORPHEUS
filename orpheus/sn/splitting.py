@@ -63,8 +63,10 @@ side (``ψ ← M⁻¹(q + N·ψ)``).  The two shipped labellings:
   \{L+C, B_{\rm lower}\}`, :math:`\mathcal E = \{S, N_{2n}, B_{\rm upper}\}`
   (#226 §17 W2).  The absorbed piece rides the derivation as the reified
   forward :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
-  ``(L+C) − B_lower`` (the domain's own ``−`` dispatch — its ``solve`` is
-  the octant-group forward substitution), which is RULED to retire with
+  (its expansion ``L + C − B_lower``; its ``solve`` the octant-group
+  forward substitution), built HERE, by the owner that needs the sweep
+  realisation (``−`` never fuses: numerics_untangling.md ruling 52), which
+  is RULED to retire with
   the partition phase (P5, *"retire, don't rename"*): :attr:`Splitting.implicit`
   is annotated by the CAPABILITY it must carry (an invertible operator),
   never by that class, so the retirement touches no signature here.
@@ -123,7 +125,7 @@ What is NOT here (forward-looking, by ruling)
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import cached_property, reduce
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
@@ -131,10 +133,11 @@ import numpy as np
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
 from orpheus.numerics.operator import (
     LinearOperator,
-    ScaledOperator,
     SupportsInverse,
-    SystemRole,
 )
+from orpheus.sn.operators.boundary import SNMaskedBoundaryOperator
+from orpheus.sn.operators.scheduled_invertible import ScheduledInvertibleOperator
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
@@ -159,10 +162,9 @@ class LossTerm:
     ``N`` keeps its ``−1`` (and ``N`` flips it, so gains are positive on the
     right-hand side); a gain absorbed into ``M`` (``B_lower`` under
     Gauss-Seidel) is subtracted there.  Carrying the sign beside the
-    operator — rather than as a ``ScaledOperator(-1, ·)`` wrapper — is what
-    keeps the derivation on the domain's own algebra: ``(L+C) − B_lower``
-    dispatches to the sweep-invertible scheduled composite, which a wrapped
-    ``+ (−B_lower)`` would not.
+    operator — rather than folded into a coefficient — is what lets the
+    Splitting read its implicit part as the sweepable structure plus the
+    absorbed boundary half, and build the scheduled atom that realises it.
     """
 
     operator: "LinearOperator"
@@ -344,12 +346,11 @@ class Splitting:
             return cast(
                 "SupportsInverse[Any, Any]", self._grid(self.implicit_pieces, negate=False),
             )
-        # The fold opens with the sweepable structure and only ever subtracts
-        # a boundary piece through the domain's own dispatch, so the result
+        # The realisation is chosen here, by the owner (ruling 52): the result
         # carries ``inverse()`` by construction — the CAPABILITY the
         # annotation names (never a class: the scheduled composite retires
         # with the partition phase without touching this signature).
-        return cast("SupportsInverse[Any, Any]", _signed_fold(self.implicit_pieces))
+        return cast("SupportsInverse[Any, Any]", _sweep_realization(self.implicit_pieces))
 
     @cached_property
     def explicit(self) -> "tuple[LinearOperator, ...]":
@@ -412,42 +413,61 @@ class Splitting:
         blocks: list[list[LinearOperator | None]] = [
             [slots.get((i, j)) for j in range(n)] for i in range(n)
         ]
-        # C-fwd explicit stamp: System membership is the composition context's
-        # fact — the model-generic members' honest None would poison the join.
-        head = blocks[0][0]
-        if head is not None:
-            head.system_role = SystemRole.A
+        # System membership is stamped on the System-A LEAVES where they are
+        # built (``build_within_group_system``), so the (0, 0) slot derives it
+        # by the join, whatever the algebra rebuilt.
         return CoupledOperator(blocks, domain=space, codomain=space)
 
 
 def _as_loss_term(term: LossTerm) -> "LinearOperator":
     """The term as it enters ``A`` (and ``M``): the operator, or its negation."""
-    return term.operator if term.sign > 0 else ScaledOperator(-1.0, term.operator)
+    return term.operator if term.sign > 0 else -term.operator
 
 
 def _as_gain(term: LossTerm) -> "LinearOperator":
     """The term as it enters ``N = M − A`` (a right-hand-side gain): a ``−``
     term of the loss is the operator itself; a ``+`` term is negated."""
-    return term.operator if term.sign < 0 else ScaledOperator(-1.0, term.operator)
+    return term.operator if term.sign < 0 else -term.operator
 
 
-def _signed_fold(terms: "tuple[LossTerm, ...]") -> "LinearOperator":
-    r"""``Σ s_k T_k`` through the operator algebra — the first term starts the
-    sum (so a single term IS that operator, identity preserved), every
-    further term is added or subtracted per its sign (the domain's own
-    ``−`` dispatch: ``(L+C) − B_lower`` is the scheduled composite)."""
+def _sweep_realization(terms: "tuple[LossTerm, ...]") -> "LinearOperator":
+    r"""The seedless implicit part ``M``, realised by the sweep that inverts it.
+
+    ``M`` is the sweepable structure :math:`L + C` (the
+    :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`, whose
+    inverse is the WDD sweep), alone under Jacobi, or with the strictly-lower
+    boundary half absorbed under boundary Gauss-Seidel: then the
+    :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
+    ``(L+C, B_lower)``, whose inverse is the octant-group forward
+    substitution. The algebra's ``−`` never chooses that realisation (ruling
+    52); this owner does, from the labelling. Any other implicit set has no
+    sweep that inverts it, and is refused.
+    """
     if not terms:
         raise ValueError("Splitting: the implicit part must carry at least one term.")
-    first, *rest = terms
+    first, *absorbed = terms
     if first.sign < 0:
         raise ValueError(
             "Splitting: the implicit part opens with the sweepable structure "
             f"(a + term); got a gain ({type(first.operator).__name__}) first."
         )
-    return reduce(
-        lambda acc, t: acc + t.operator if t.sign > 0 else acc - t.operator,
-        rest,
-        first.operator,
+    if not absorbed:
+        return first.operator
+    if (
+        len(absorbed) == 1
+        and absorbed[0].sign < 0
+        and isinstance(first.operator, StreamingCollisionOperator)
+        and isinstance(absorbed[0].operator, SNMaskedBoundaryOperator)
+    ):
+        return ScheduledInvertibleOperator(first.operator, absorbed[0].operator)
+    raise ValueError(
+        "Splitting: no sweep realises the implicit part "
+        + " ".join(
+            f"{'+' if term.sign > 0 else '−'} {type(term.operator).__name__}"
+            for term in terms
+        )
+        + "; a seedless M is L + C, or L + C − B_lower under boundary "
+        "Gauss-Seidel."
     )
 
 

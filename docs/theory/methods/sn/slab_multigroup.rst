@@ -1333,8 +1333,11 @@ that picks among them — is documented once, in
 records only the SN-specific consumption:
 
 * the sweep-invertible :math:`(L+C)`
-  (:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`)
-  **shadows the factory by MRO**: ``(L+C).inverse()`` returns the
+  (:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`,
+  an atom built explicitly by
+  :func:`~orpheus.sn.coupled_system.build_streaming_collision`; the plain
+  combination ``L + C`` has no inverse of its own since package S2)
+  carries its own: ``(L+C).inverse()`` returns the
   direct triangular
   :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` — the
   WDD sweep of :doc:`slab_one_group`, reached as an operator;

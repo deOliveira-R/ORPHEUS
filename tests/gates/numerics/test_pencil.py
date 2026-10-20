@@ -66,7 +66,7 @@ class TestLawTheEndsLaw:
 
 class TestLawTheAffineFamily:
     def test_law_at_zero_is_the_lhs(self) -> None:
-        """``[M]`` a mutation reds by RAISING (``ScaledOperator(0.0, ·)`` is refused) — paired with the affine row."""
+        """``[M]`` the short-circuit ``at(0.0) is lhs`` (until S2 a mutation also red by RAISING, ``ScaledOperator(0.0, ·)`` being refused; since S2 ``0·rhs`` is the zero map and ``lhs − 0`` would be ``lhs`` again) — paired with the affine row."""
         _, pencil = _zero_d()
         _require(pencil.at(0.0) is pencil.lhs, "at(0) must be the lhs object itself")
 

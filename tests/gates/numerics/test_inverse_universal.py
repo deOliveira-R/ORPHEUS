@@ -29,7 +29,7 @@ from orpheus.numerics.operator import (
     InverseOperator,
     NotInvertible,
     OperatorProduct,
-    ScaledOperator,
+    OperatorSum,
     TensorProductOperator,
 )
 
@@ -61,7 +61,7 @@ def _rows():
         ("permutation", perm, lambda q: np.take(q, np.argsort(_P7)), _X7, 0),
         (
             "scaled_diagonal",
-            ScaledOperator(_ALPHA, diag),
+            _ALPHA * diag,
             lambda q: q / (_ALPHA * _C7),
             _X7,
             4,
@@ -71,7 +71,7 @@ def _rows():
             # inverse MUST reverse (P⁻¹ then... i.e. P⁻¹(D⁻¹ q)); a
             # commuting pair would hide the M-INV-ORDER swap (§12.6).
             "diag_at_perm",
-            OperatorProduct(diag, perm),
+            diag @ perm,
             lambda q: np.take(q / _C7, np.argsort(_P7)),
             _X7,
             2,
@@ -120,8 +120,9 @@ def test_i1_inverse_apply_is_solve_bit_identical(name, A, closed, x, nulp):
             A.inverse().apply(x), A.solve(x), err_msg=f"{name}: inverse ≢ solve"
         )
     else:
+        # S2: the scaled operator is the one-term ``OperatorSum`` (ruling 51).
         assert type(A) in (
-            IdentityOperator, PermutationOperator, ScaledOperator,
+            IdentityOperator, PermutationOperator, OperatorSum,
             TensorProductOperator,
         ), f"{name}: unexpected solve-less advertiser"
 
@@ -130,7 +131,7 @@ def test_i1_inverse_apply_is_solve_bit_identical(name, A, closed, x, nulp):
 def test_i2_scaled():
     """(αA)⁻¹ = (1/α)·A⁻¹ as an action equality (§12.2)."""
     D = DiagonalOperator(_C7)
-    lhs = ScaledOperator(_ALPHA, D).inverse().apply(_X7)
+    lhs = (_ALPHA * D).inverse().apply(_X7)
     rhs = (1.0 / _ALPHA) * D.inverse().apply(_X7)
     np.testing.assert_array_almost_equal_nulp(lhs, rhs, nulp=2)
 
@@ -138,7 +139,7 @@ def test_i2_scaled():
 def test_i2_product_reversed():
     """(AB)⁻¹ = B⁻¹A⁻¹ on a NON-commuting pair (§12.2 — order-swap teeth)."""
     D, P = DiagonalOperator(_C7), PermutationOperator(_P7)
-    lhs = OperatorProduct(D, P).inverse().apply(_X7)
+    lhs = (D @ P).inverse().apply(_X7)
     rhs = P.inverse().apply(D.inverse().apply(_X7))
     np.testing.assert_array_almost_equal_nulp(lhs, rhs, nulp=2)
 
@@ -149,10 +150,14 @@ def test_i2_involution_per_type():
     assert D.inverse().inverse() is D  # InverseOperator: OBJECT identity
     P = PermutationOperator(_P7)
     np.testing.assert_array_equal(P.inverse().inverse().perm, P.perm)  # exact
-    sc = ScaledOperator(_ALPHA, D)
+    sc = _ALPHA * D
     np.testing.assert_array_almost_equal_nulp(  # Scaled: action (1/(1/α))
         sc.inverse().inverse().apply(_X7), sc.apply(_X7), nulp=4
     )
+    # S2: the scaled inverse is the one-term combination (1/α)·D⁻¹, whose
+    # inverse is (1/(1/α))·D = α·D exactly for α = −2.5 (1/(1/α) rounds back),
+    # equal as combinations: the inverse arrow is keyed by its inner (Q5).
+    assert sc.inverse().inverse() == sc
     I = IdentityOperator()
     assert I.inverse() is I
 
@@ -165,9 +170,7 @@ def test_singular_diagonal_inverse_raises():
 
 def test_product_with_singular_factor_inverse_raises():
     with pytest.raises(NotInvertible, match="invertible"):
-        OperatorProduct(
-            DiagonalOperator(np.array([1.0, 0.0, 2.0])), IdentityOperator()
-        ).inverse()
+        (DiagonalOperator(np.array([1.0, 0.0, 2.0])) @ IdentityOperator()).inverse()
 
 
 def test_inverse_operator_ctor_guards_singular_inner():
@@ -175,17 +178,28 @@ def test_inverse_operator_ctor_guards_singular_inner():
         InverseOperator(DiagonalOperator(np.array([1.0, 0.0])))
 
 
-def test_sum_inverse_dispatches_to_green():
-    """The step-4 factory arm (§24.4): a PLAIN sum with an invertible
-    leading term dispatches ``.inverse()`` to the preconditioned-splitting
-    ``GreenOperator`` — completing the structure-keyed factory table the
-    rows above pin for the leaves/composites (taxonomy §3)."""
+def test_a_sum_has_no_inverse_its_split_has_a_green():
+    """The step-4 factory arm, RE-POSED at S2 (ruling 50): a sum of two terms
+    has no inverse of its own (the left-spine head that designated the
+    preconditioner is gone), and the Green of its NAMED split ``A = M − N``
+    inverts it — the value anchored on the dense LU, not on the Green's
+    own forward."""
     from orpheus.numerics.green_operator import GreenOperator
 
-    s = DiagonalOperator(_C7) - ScaledOperator(0.25, PermutationOperator(_P7))
-    inv = s.inverse()
-    assert type(inv) is GreenOperator
-    assert inv.inverse() is s  # the involution, by object identity
+    D, N = DiagonalOperator(_C7), 0.25 * PermutationOperator(_P7)
+    s = D - N
+    with pytest.raises(NotInvertible, match="GreenOperator\\(M, N\\)"):
+        s.inverse()
+    green = GreenOperator(D, N)
+    assert green.inverse() == s  # the involution: the forward IS M − N
+    dense = np.diag(_C7) - 0.25 * np.eye(7)[_P7]
+    ref = np.linalg.solve(dense, _X7)
+    # The Green's promise is a NORM residual, so the band is normalised by
+    # the solution's scale, not componentwise (a small entry carries the
+    # whole vector's absolute error).
+    np.testing.assert_allclose(
+        green.apply(_X7), ref, rtol=0.0, atol=10 * green.tol * float(np.max(np.abs(ref))),
+    )
 
 
 def test_matrix_inverse_operator_universal_roundtrip():
@@ -244,7 +258,11 @@ def test_algebra_closed_inverses_unchanged():
     (documented in ``OperatorProduct.inverse``; not gated for seed)."""
     assert type(PermutationOperator(_P7).inverse()) is PermutationOperator
     assert type(IdentityOperator().inverse()) is IdentityOperator
-    assert type(ScaledOperator(2.0, DiagonalOperator(_C7)).inverse()) is ScaledOperator
+    # S2: (2D)⁻¹ is the one-term combination ½·D⁻¹ (ruling 51), equal to the
+    # same combination spelled directly (the inverse arrow keyed by its inner).
+    scaled = 2.0 * DiagonalOperator(_C7)
+    assert type(scaled.inverse()) is OperatorSum
+    assert scaled.inverse() == 0.5 * scaled.terms[0][1].inverse()
 
 
 def test_bound_shim_forwards_inverse():

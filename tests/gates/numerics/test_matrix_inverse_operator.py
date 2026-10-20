@@ -36,7 +36,6 @@ from orpheus.numerics.operator import (
     LinearOperator,
     MatrixTooLarge,
     NotInvertible,
-    ScaledOperator,
 )
 from orpheus.numerics.space import FunctionSpace
 from dataclasses import replace
@@ -422,9 +421,9 @@ def test_minv_materialise_at_machine_grain_with_green_contrast():
     # as_matrix — n driver solves at driver-tol, NOT machine grain.
     from orpheus.numerics.green_operator import GreenOperator
 
-    sum_op = A - ScaledOperator(0.3, PermutationOperator(_P4))
-    green = sum_op.inverse()
-    assert isinstance(green, GreenOperator)  # the §24.4 dispatch narrow
+    N = 0.3 * PermutationOperator(_P4)
+    sum_op = A - N
+    green = GreenOperator(A, N)  # S2: the Green of the named split (ruling 50)
     green_resid = np.abs(
         green.as_matrix(basis_shape=(4,)) @ sum_op.as_matrix(basis_shape=(4,))
         - np.eye(4)
@@ -526,9 +525,11 @@ def test_matrix_inverts_what_green_refuses():
     witness; ndarray analog of (−S)+(L+C), §27.B — the FullField original
     is the motivation, this split the realisable proof).
 
-    The sum's LEFT-SPINE HEAD ``ScaledOperator(−1, S_ao)`` is non-invertible
-    (S_ao is apply-only), so the STRUCTURAL factory refuses — Green's
-    splitting has no preconditioner. The MATRIX realization reads VALUES:
+    RE-POSED at S2 (ruling 50): a sum has no inverse of its own, and the
+    split that makes ``−S_ao`` the implicit part has no preconditioner
+    (S_ao is apply-only), so the STRUCTURAL route refuses twice: the sum's
+    ``.inverse()`` and ``GreenOperator(−S_ao, −D)``. (Until S2 the refusal
+    read the sum's LEFT-SPINE HEAD, "canonical ordering".) The MATRIX realization reads VALUES:
     ``D − S_ao`` is non-singular (S_ao strictly-superdiagonal nilpotent ⇒
     det = ∏c), and the dense strategy inverts it, anchored on the
     structurally-independent hand matrix.
@@ -538,8 +539,12 @@ def test_matrix_inverts_what_green_refuses():
     D = DiagonalOperator(_C4)
     sum_op = (-1.0 * S_ao) + D
     assert not sum_op.is_invertible
-    with pytest.raises(NotInvertible, match="canonical ordering"):
-        sum_op.inverse()  # Green REFUSES (leading term not invertible)
+    from orpheus.numerics.green_operator import GreenOperator
+
+    with pytest.raises(NotInvertible, match="GreenOperator\\(M, N\\)"):
+        sum_op.inverse()  # a sum has no inverse of its own
+    with pytest.raises(NotInvertible, match="invertible implicit part M"):
+        GreenOperator(-1.0 * S_ao, -1.0 * D)  # this split has no preconditioner
     minv = MatrixInverseOperator(sum_op, basis_shape=(4,))
     q = _RNG.standard_normal(4)
     A_hand = np.diag(_C4) - _off_diagonal_nilpotent(4)

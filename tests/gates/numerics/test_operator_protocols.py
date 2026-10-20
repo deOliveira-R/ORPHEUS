@@ -25,7 +25,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.elementary_operators import DiagonalOperator, SumOfTensorProductsOperator
+from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.operator import ZeroOperator
 from orpheus.numerics.operator import (
     BlockRole,
@@ -135,7 +135,9 @@ class TestGenericOperatorsAreUnclassified:
         assert ZeroOperator().block_role is None
 
     def test_operator_sum_is_unclassified_at_O1(self) -> None:
-        s = IdentityOperator() + ZeroOperator()
+        # S2: ``I + ZeroOperator()`` absorbs the zero and IS ``I``; a two-term
+        # sum of two unclassified pointwise atoms keeps the subject.
+        s = IdentityOperator() + DiagonalOperator(np.ones(3))
         assert isinstance(s, OperatorSum)
         assert s.block_role is None
         assert not isinstance(s, BulkOperator)
@@ -162,11 +164,14 @@ class TestGenericOperatorsAreUnclassified:
         assert not isinstance(tp, BoundaryOperator)
 
     def test_sum_of_tensor_products_is_unclassified_by_default(self) -> None:
+        # S2 (D8): SumOfTensorProductsOperator retired; the sum of two tensor
+        # products is the combination, and its role is the join of None's.
         d0 = DiagonalOperator(np.ones(3), axis=0)
         d1 = DiagonalOperator(np.ones(4), axis=1)
         tp_a = TensorProductOperator((d0, d1))
         tp_b = TensorProductOperator((d0, d1))
-        sotp = SumOfTensorProductsOperator((tp_a, tp_b))
+        sotp = tp_a + tp_b
+        assert isinstance(sotp, OperatorSum) and len(sotp.terms) == 2
         assert sotp.block_role is None
         assert not isinstance(sotp, BulkOperator)
         assert not isinstance(sotp, FullOperator)

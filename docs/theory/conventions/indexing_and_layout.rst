@@ -1200,10 +1200,12 @@ implemented by six leaf operators, each conforming to
 :class:`~orpheus.numerics.operator.LinearOperator` with
 ``apply(psi: AngularFlux) -> AngularFlux`` under the typed contract.
 The algebra closes because every operand agrees on the
-:class:`AngularFlux` domain — :class:`OperatorSum` distributes
-:math:`a.\text{apply}(\psi) + b.\text{apply}(\psi)` element-wise,
-and :class:`ScaledOperator` carries the :math:`1/k` (or :math:`-1`)
-scale through the same algebra.
+:class:`AngularFlux` domain — :class:`OperatorSum`, the formal linear
+combination :math:`\sum_i c_i w_i`, applies as the left fold
+:math:`\sum_i c_i\,w_i(\psi)` element-wise, and the same combination
+carries the :math:`1/k` (or :math:`-1`) scale as a coefficient (a scaled
+operator is the one-term combination; the former ``ScaledOperator``
+retired at package S2, 2026-10-20).
 
 .. list-table:: Operator leaves
    :header-rows: 1

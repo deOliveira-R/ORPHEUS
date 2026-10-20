@@ -668,7 +668,7 @@ class SNBoundaryOperator(LinearOperator):
                 # unreachable-in-practice because :attr:`is_adjointable`
                 # gates the composite eagerly, but the per-face raise keeps
                 # the refusal loud if a caller bypasses the predicate.
-                if not adjointable(law):
+                if not adjointable(face_action):
                     raise MissingAdjoint(
                         f"SNBoundaryOperator.apply_transpose: face {face!r} "
                         f"law {type(law).__name__} has no Euclidean "

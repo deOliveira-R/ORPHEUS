@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**118 entries · 381 catching tests · 2 uncaught · 5 dormant.**
+**119 entries · 384 catching tests · 2 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-119` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-119")`.
+Append a `.. error-entry:: ERR-120` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-120")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -167,3 +167,4 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-116 | 3 |  | A traced-memo entry pinned its file-system inputs (a data file's bytes, a probed path's presenc… |
 | ERR-117 | 2 |  | One adjointability predicate answered two questions, "a Euclidean transpose is coded" and "the… |
 | ERR-118 | 1 |  | The quadrature registry typed "positive weights" on the Lebedev family, and the selector return… |
+| ERR-119 | 3 |  | The transport multiplier broadcast σ over the leading ordinate axis only, so on a linear-discon… |

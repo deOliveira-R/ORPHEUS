@@ -12,18 +12,19 @@ specialisation of :class:`~orpheus.numerics.operator.OperatorSum` that
 carries ``.solve`` as the forward substitution on the operator's ONE
 ``loss_representation`` instance (S6.5, #222).
 
-The dispatch is symmetric: ``L + C`` and ``C + L`` both produce an
-``StreamingCollisionOperator`` (with the streaming operand stored first via the
-canonical ``OperatorSum`` ordering).
+Since S2 (ruling 52) ``+`` never fuses: ``L + C`` and ``C + L`` are the same
+plain :class:`~orpheus.numerics.operator.OperatorSum` with no inverse of its
+own, and the sweep-invertible atom is built explicitly,
+``StreamingCollisionOperator(L, C)``, by its owner
+(``build_streaming_collision``); ``expansion()`` returns ``L + C``.
 
 Tests pin:
 
-* Dispatch — ``L + C`` and ``C + L`` both return StreamingCollisionOperator;
-  ``L + L``, ``C + C``, and ``L + S`` (where S is a scattering operator)
-  fall through to generic OperatorSum.
-* Predicates — ``is_invertible`` True (the sweep identity); the parent
-  generic OperatorSum built on the same operands is NOT invertible
-  (its leading term L is not).
+* No dispatch — ``L + C`` is a plain sum (the fused atom is explicit);
+  ``L + ZeroOperator()`` is ``L`` (the zero is absorbed).
+* Predicates — ``is_invertible`` True (the sweep identity); the plain
+  OperatorSum on the same operands is NOT invertible (a sum has no
+  inverse of its own, ruling 50).
 * Invariants — mesh-identity required; negative sigma rejected.
 * Apply equivalence — StreamingCollisionOperator.apply matches the inherited
   OperatorSum action (L.apply + C.apply, bit-exact).
@@ -129,17 +130,22 @@ def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
 
 
 class TestDispatch:
-    def test_streaming_plus_collision_returns_invertible(self) -> None:
-        """``L + C`` returns :class:`StreamingCollisionOperator` via dispatch."""
+    def test_streaming_plus_collision_is_a_plain_sum_the_atom_is_explicit(self) -> None:
+        """INVERTED at S2 (ruling 52): ``L + C`` no longer dispatches to
+        :class:`StreamingCollisionOperator`; it is the plain sum, equal to
+        ``C + L``, and the explicit atom's ``expansion()`` is that sum."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         L = StreamingOperator.pose(sn)
         C = MultiplicationOperator.from_mesh(sigma_t, sn)
 
         composite = L + C
-        assert isinstance(composite, StreamingCollisionOperator)
-        assert composite.streaming is L
-        assert composite.diagonal is C
+        assert type(composite) is OperatorSum
+        assert composite == C + L
+        atom = StreamingCollisionOperator(L, C)
+        assert atom.streaming is L
+        assert atom.diagonal is C
+        assert atom.expansion() == composite
 
     def test_explicit_construction_with_sigma_r(self) -> None:
         """Explicit ctor accepts a CollisionOperator built with σ_r ≠ σ_t."""
@@ -156,17 +162,14 @@ class TestDispatch:
         assert invertible.diagonal is C_r
         np.testing.assert_array_equal(invertible.sigma, sigma_r)
 
-    def test_streaming_plus_zero_operator_falls_through(self) -> None:
-        """Non-Collision RHS falls back to generic OperatorSum."""
+    def test_streaming_plus_zero_operator_is_streaming(self) -> None:
+        """INVERTED at S2 (Q3): the zero is absorbed, so ``L + 0`` IS ``L``
+        (``ZeroOperator()`` is spaceless and contributes no ends)."""
         from orpheus.numerics.operator import ZeroOperator
         sn = _slab_mesh()
-        sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         L = StreamingOperator.pose(sn)
-        Z = ZeroOperator()
 
-        composite = L + Z
-        assert isinstance(composite, OperatorSum)
-        assert not isinstance(composite, StreamingCollisionOperator)
+        assert (L + ZeroOperator()) is L
 
 
 # ── Capabilities and invariants ─────────────────────────────────────────
@@ -188,19 +191,14 @@ class TestCapabilitiesAndInvariants:
     def test_parent_operator_sum_not_invertible(self) -> None:
         r"""Plain :class:`OperatorSum` on ``(L, C)`` is NOT invertible.
 
-        ``is_invertible`` on a generic sum reads the LEADING term (the
-        Green/Neumann factorization ``(A+B)⁻¹`` needs ``A⁻¹``); here the
-        leading ``L`` is rank-deficient, so the plain sum reports False.
-        Only :class:`StreamingCollisionOperator` carries the SN-specific sweep
-        identity at the type level.
+        Since S2 a sum of two or more terms has no inverse of its own in any
+        order (ruling 50). Only :class:`StreamingCollisionOperator` carries
+        the SN-specific sweep identity at the type level.
         """
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        # Explicitly construct via the parent class to bypass dispatch.
-        plain = OperatorSum(
-            StreamingOperator.pose(sn),
-            MultiplicationOperator.from_mesh(sigma_t, sn),
-        )
+        plain = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sigma_t, sn)
+        assert type(plain) is OperatorSum
         assert callable(getattr(plain, "apply", None))
         assert not plain.is_invertible
 
@@ -277,7 +275,7 @@ class TestApply:
         sigma_t = np.full((sn.ng, *sn.spatial_shape), 0.8)
         L = StreamingOperator.pose(sn)
         C = MultiplicationOperator.from_mesh(sigma_t, sn)
-        invertible = L + C
+        invertible = StreamingCollisionOperator(L, C)  # S2: explicit atom
 
         state = _random_state(sn, seed=7)
 
@@ -305,8 +303,11 @@ class TestSolve:
         """``StreamingCollisionOperator.solve`` returns a :class:`TimedFullField` on slab."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingCollisionOperator(
+            StreamingOperator.pose(sn),
+            MultiplicationOperator.from_mesh(
             sigma_t, sn,
+            ),
         )
 
         rhs = _const_state(sn, value=1.0)
@@ -321,8 +322,11 @@ class TestSolve:
         """``rhs.history_depth`` propagates to the returned composite."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingCollisionOperator(
+            StreamingOperator.pose(sn),
+            MultiplicationOperator.from_mesh(
             sigma_t, sn,
+            ),
         )
 
         rhs = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space, history_depth=5)
@@ -333,8 +337,11 @@ class TestSolve:
         """The composite-flux contract is mandatory — bare ndarray rejected."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingCollisionOperator(
+            StreamingOperator.pose(sn),
+            MultiplicationOperator.from_mesh(
             sigma_t, sn,
+            ),
         )
         with pytest.raises(TypeError):
             invertible.solve(np.zeros(10))
@@ -364,8 +371,11 @@ class TestSolve:
     def test_solve_rejects_mismatched_content(self) -> None:
         sn1 = _slab_mesh()
         sigma_t1 = np.ones((sn1.ng, *sn1.spatial_shape))
-        invertible = StreamingOperator.pose(sn1) + MultiplicationOperator.from_mesh(
+        invertible = StreamingCollisionOperator(
+            StreamingOperator.pose(sn1),
+            MultiplicationOperator.from_mesh(
             sigma_t1, sn1,
+            ),
         )
         rhs = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux,
@@ -397,8 +407,11 @@ class TestSolve:
         """
         sn = _slab_mesh(nx=8, n_ord=4, ng=1)
         sigma_t = np.full((sn.ng, *sn.spatial_shape), 1.5)
-        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingCollisionOperator(
+            StreamingOperator.pose(sn),
+            MultiplicationOperator.from_mesh(
             sigma_t, sn,
+            ),
         )
 
         N, ng, nx = sn.quad.n_ordinates, sn.ng, sn.nx
@@ -433,8 +446,11 @@ class TestSolve:
         (the q½ source read + the flux carrier filled in place)."""
         sn = _sphere_mesh(nx=8, n_ord=4, ng=1)
         sigma_t = np.full((sn.ng, *sn.spatial_shape), 1.0)
-        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingCollisionOperator(
+            StreamingOperator.pose(sn),
+            MultiplicationOperator.from_mesh(
             sigma_t, sn,
+            ),
         )
 
         # step 6: the joint solve is THE GRID's substitution (presence
@@ -495,8 +511,11 @@ class TestSolve:
         """
         sn = _slab_mesh(nx=4, n_ord=4, ng=1)
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingCollisionOperator(
+            StreamingOperator.pose(sn),
+            MultiplicationOperator.from_mesh(
             sigma_t, sn,
+            ),
         )
 
         sum_w = float(sn.quad.weights.sum())
@@ -573,8 +592,11 @@ class TestSolveTimedFullField:
         """
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingCollisionOperator(
+            StreamingOperator.pose(sn),
+            MultiplicationOperator.from_mesh(
             sigma_t, sn,
+            ),
         )
 
         # Build rhs with a non-zero boundary trace (the inflow source) —
@@ -626,8 +648,11 @@ class TestSolveTimedFullField:
         """``rhs.history_depth`` propagates through the composite branch."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingCollisionOperator(
+            StreamingOperator.pose(sn),
+            MultiplicationOperator.from_mesh(
             sigma_t, sn,
+            ),
         )
 
         for depth in (1, 2, 4):
@@ -638,8 +663,11 @@ class TestSolveTimedFullField:
     def test_rejects_mismatched_content_on_rhs(self) -> None:
         sn1 = _slab_mesh()
         sigma_t1 = np.ones((sn1.ng, *sn1.spatial_shape))
-        invertible = StreamingOperator.pose(sn1) + MultiplicationOperator.from_mesh(
+        invertible = StreamingCollisionOperator(
+            StreamingOperator.pose(sn1),
+            MultiplicationOperator.from_mesh(
             sigma_t1, sn1,
+            ),
         )
         rhs = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux,
@@ -654,8 +682,11 @@ class TestSolveTimedFullField:
         have certified it — vv #17's per-arm discipline)."""
         sn1 = _slab_mesh()
         sigma_t1 = np.ones((sn1.ng, *sn1.spatial_shape))
-        invertible = StreamingOperator.pose(sn1) + MultiplicationOperator.from_mesh(
+        invertible = StreamingCollisionOperator(
+            StreamingOperator.pose(sn1),
+            MultiplicationOperator.from_mesh(
             sigma_t1, sn1,
+            ),
         )
         b = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux,
@@ -853,7 +884,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         sigma_t = solver.problem.mat_xs.total_cross_section
         L_leaf = StreamingOperator.pose(problem)
         C_t = MultiplicationOperator.from_mesh(sigma_t, problem)
-        LC = L_leaf + C_t
+        LC = StreamingCollisionOperator(L_leaf, C_t)  # S2: explicit atom (ruling 52)
 
         # Build composite ψ=1.  No need for legacy AngularFlux at all
         # on this path.
@@ -942,7 +973,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         sigma_t = solver.problem.mat_xs.total_cross_section
         L_leaf = StreamingOperator.pose(problem)
         C_t = MultiplicationOperator.from_mesh(sigma_t, problem)
-        LC = L_leaf + C_t
+        LC = StreamingCollisionOperator(L_leaf, C_t)  # S2: explicit atom (ruling 52)
 
         # Per-ordinate uniform source — 2-block carrier; on a carrying mesh
         # (sphere) the TRUE q½ SOURCE rides the walk's EXPLICIT

@@ -65,7 +65,6 @@ from orpheus.numerics.operator import (
     LinearOperator,
     OperatorProduct,
     OperatorSum,
-    ScaledOperator,
     SupportsAdjoint,
     SupportsInverse,
     TensorProductOperator,
@@ -279,15 +278,13 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
     Load-bearing for the D-H.1b operator-algebra type-uniformity claim:
     every leaf operator (L, C, S, F) accepts :class:`TimedFullField`
     input and returns :class:`TimedFullField` output, so the composed
-    :class:`~orpheus.numerics.operator.OperatorSum` tree's inherited
-    ``apply`` (``a.apply(x) + b.apply(x)``) type-checks at every node.
+    :class:`~orpheus.numerics.operator.OperatorSum`'s ``apply`` (the left
+    fold ``c₁w₁(x) + c₂w₂(x) + …``) type-checks at every term.
 
-    ``L + C`` dispatches to :class:`StreamingCollisionOperator` (subclass of
-    OperatorSum); subsequent ``-S - F`` chain through the generic
-    LinearOperator's ``__sub__`` → ``OperatorSum(self,
-    ScaledOperator(other, -1))``.  The ``-1`` scaling propagates via
-    :meth:`TimedFullField.__mul__` (which propagates to bulk +
-    boundary members).  All four leaves carry their TimedFullField
+    Since S2 ``L + C - S - F`` is ONE formal linear combination with
+    coefficients (1, 1, −1, −1) (``+`` never fuses, ruling 52); the ``−1``
+    terms are subtracted by the fold, and a non-unit coefficient would
+    propagate via :meth:`TimedFullField.__mul__` (bulk + boundary members).  All four leaves carry their TimedFullField
     branches as of D-H.1b.3..6.
     """
     sn = builder()
@@ -413,10 +410,11 @@ def _c6_static_typing_pins(
     ⚠ **Adjudicated by hand, not by any gate** (#452): the project's pyright
     ratchet analyses ``orpheus/`` only, so nothing runs this file's pins.
     `[M]` 2026-09-05, ``npx pyright tests/gates/sn/operators/test_operators_apply_typed.py``:
-    the four rows below are clean; **1 pre-existing error** elsewhere in this
-    file (the ``scaled.inverse()`` pin — a ``ScaledOperator`` third-parameter
-    inference mismatch, untouched by CS4c step 5) is tracked in #452 with the
-    remedy (a ratchet over the typing-pin files).
+    the four rows below are clean. `[M]` 2026-10-20 (S2, pyright from a
+    scratch config with a deliberately wrong probe file as its positive
+    control): the whole file reads 0 errors — the former ``scaled.inverse()``
+    error left with ``ScaledOperator``; #452 (a ratchet over the typing-pin
+    files) still stands.
     """
     # ⛔ COLLAPSED (CS4c step 5, R-1/R-3): the per-carrier ``@overload``
     # surface is GONE because the runtime dispatch is gone. A composite
@@ -621,9 +619,11 @@ def _typeguard_bridge_narrowing_static_pins(
 # The COMPOSITION-ALGEBRA RETURN-TYPE laws (carve P5, taxonomy §12
 # step-6 tail; verification spec §9 "P5" + §2.2).  Every composition
 # surface of the algebra declares the PRECISE structure it returns —
-# ``+`` an :class:`OperatorSum`, ``*`` a :class:`ScaledOperator`, ``@``
-# an :class:`OperatorProduct` with the intermediate carrier solved
-# away, ``.H`` the carrier SWAP — and every ``.inverse()`` declares
+# RE-POSED at S2 (spec §1 finding 7): ``+``, ``-``, ``*``, ``/`` and ``@``
+# normalise (a collapse returns an atom, a cancellation a zero map, a
+# scalar leaves a word), so their honest static face is the BASE type
+# ``LinearOperator[D, C]`` with the intermediate carrier of ``@`` solved
+# away; ``.H`` the carrier SWAP — and every ``.inverse()`` declares
 # which of the TWO inverse kinds it returns (the canonical statement
 # lives on :meth:`OperatorProduct.inverse`): ALGEBRA-CLOSED structures
 # invert into themselves as first-class forwards (scaled → scaled on
@@ -634,8 +634,8 @@ def _typeguard_bridge_narrowing_static_pins(
 # ``LinearOperator[Codomain, Domain]``, because its subclass overrides
 # return sibling kinds — Sweep/Green — not a hierarchy).  These pins
 # make each law a pyright-checked fact; un-parametrizing a composed
-# return annotation (e.g. ``ScaledOperator.inverse() ->
-# "ScaledOperator"``, dropping the swap — M-SCALED-BARE) reddens the
+# return annotation (e.g. ``OperatorSum.inverse() ->
+# "LinearOperator"``, dropping the swap — M-SCALED-BARE) reddens the
 # matching pin via reportAssertTypeFailure.  Pyright-only, never run
 # (no ``test_`` prefix).  NOTE the honest boundary: pins parametrize
 # only surfaces the algebra PROMISES today — the bare-generic leaves
@@ -653,7 +653,7 @@ def _composition_algebra_return_type_static_pins(
     a2: LinearOperator[ScalarFlux, AngularFlux],
     b: LinearOperator[TimedFullField, ScalarFlux],
     endo: LinearOperator[TimedFullField, TimedFullField],
-    scaled: ScaledOperator[ScalarFlux, AngularFlux],
+    scaled: OperatorSum[ScalarFlux, AngularFlux],
     product: OperatorProduct[TimedFullField, AngularFlux],
     a_sum: OperatorSum[ScalarFlux, AngularFlux],
     identity: IdentityOperator[ScalarFlux],
@@ -671,14 +671,14 @@ def _composition_algebra_return_type_static_pins(
     ``tensor``, …) carry no swap to see.
     """
     # ── the composition constructors carry the honest parametrization ──
-    assert_type(a + a2, OperatorSum[ScalarFlux, AngularFlux])
-    assert_type(a - a2, OperatorSum[ScalarFlux, AngularFlux])
-    assert_type(2.0 * a, ScaledOperator[ScalarFlux, AngularFlux])
-    assert_type(-a, ScaledOperator[ScalarFlux, AngularFlux])
-    assert_type(a / 2.0, ScaledOperator[ScalarFlux, AngularFlux])
+    assert_type(a + a2, LinearOperator[ScalarFlux, AngularFlux])
+    assert_type(a - a2, LinearOperator[ScalarFlux, AngularFlux])
+    assert_type(2.0 * a, LinearOperator[ScalarFlux, AngularFlux])
+    assert_type(-a, LinearOperator[ScalarFlux, AngularFlux])
+    assert_type(a / 2.0, LinearOperator[ScalarFlux, AngularFlux])
     # ``a @ b``: the intermediate carrier (ScalarFlux) is solved away —
     # the product is honestly ``TimedFullField → AngularFlux``.
-    assert_type(a @ b, OperatorProduct[TimedFullField, AngularFlux])
+    assert_type(a @ b, LinearOperator[TimedFullField, AngularFlux])
     # ``.H`` / ``.adjoint()``: the carrier SWAP, at the base's honest face.
     assert_type(a.H, LinearOperator[AngularFlux, ScalarFlux])
     assert_type(a.adjoint(), LinearOperator[AngularFlux, ScalarFlux])
@@ -686,23 +686,22 @@ def _composition_algebra_return_type_static_pins(
     assert_type(endo**3, LinearOperator[TimedFullField, TimedFullField])
 
     # ── the inverse return-type laws: which KIND, on swapped carriers ──
-    # ALGEBRA-CLOSED: the inverse is a first-class forward of the same
-    # structure — the scaled inverse carries the swap in its parameters.
-    assert_type(scaled.inverse(), ScaledOperator[AngularFlux, ScalarFlux])
+    # ALGEBRA-CLOSED: the inverse is a first-class forward — the scaled
+    # inverse (a one-term combination since S2) carries the swap.
+    assert_type(scaled.inverse(), LinearOperator[AngularFlux, ScalarFlux])
     assert_type(identity.inverse(), IdentityOperator[ScalarFlux])
     assert_type(perm.inverse(), PermutationOperator)
     assert_type(tensor.inverse(), TensorProductOperator)
     # WRAP-DELEGATE: solve-backed structures return a family member.
     assert_type(product.inverse(), InverseOperator)
     assert_type(diag.inverse(), InverseOperator)
-    # A generic sum's inverse is DRIVER-realized; the annotation is the
-    # deliberately-loose family face (its subclass overrides return
-    # sibling kinds — SweepOperator, GreenOperator — not a hierarchy),
-    # so the pin asserts exactly that loose face, on swapped carriers.
+    # A sum's inverse (since S2 only a one-term combination has one; a
+    # true sum refuses, ruling 50) is the loose family face, on swapped
+    # carriers.
     assert_type(a_sum.inverse(), LinearOperator[AngularFlux, ScalarFlux])
 
     # ── the involution is typed per sibling through the mixin's
     # ``_ForwardT`` — ``(A⁻¹)⁻¹`` returns the wrapped FORWARD's type
     # (object identity, taxonomy §13 I2), not a re-wrapped inverse. ──
-    assert_type(green.inverse(), OperatorSum)
+    assert_type(green.inverse(), LinearOperator)  # the forward M − N (S2)
     assert_type(matrix_inv.inverse(), LinearOperator)

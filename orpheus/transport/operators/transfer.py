@@ -97,7 +97,6 @@ from orpheus.transport.frames import (
 from orpheus.numerics.operator import (
     BlockRole,
     LinearOperator,
-    OperatorProduct,
 )
 
 # Runtime imports of the field leaves — the moment factor's typed arms
@@ -493,7 +492,7 @@ class TransferOperator(AngularLift[IsotropicTransfer]):
             self.transfer.at_order(0), domain=scalar_space, codomain=scalar_space,
         )
 
-    def _frame_form(self) -> OperatorProduct:
+    def _frame_form(self) -> LinearOperator:
         return self.full_transfer_kernel
 
     @classmethod
@@ -588,8 +587,8 @@ class TransferOperator(AngularLift[IsotropicTransfer]):
         on THIS binding's domain.
 
         On the angular end :math:`R \circ \Lambda_{\ell\ge 1} \circ M` — the
-        frame conjugation ``conjugate(frame, Λ)`` ``= OperatorProduct(R,
-        OperatorProduct(Λ, M))``, so ``kernel.apply(ψ.values) = R(Λ(M ψ))``;
+        frame conjugation ``conjugate(frame, Λ)``, the word ``R @ Λ @ M``
+        (factors ``(R, Λ, M)``), so ``kernel.apply(ψ.values) = R(Λ(M ψ))``;
         on the moment end :math:`R \circ \Lambda_{\ell\ge 1}` (the operand
         is already :math:`M\psi`). The factors:
 
@@ -635,7 +634,7 @@ class TransferOperator(AngularLift[IsotropicTransfer]):
         return self._end.conjugate(self, self._moment_transfer(skip_l0=True))
 
     @cached_property
-    def full_transfer_kernel(self) -> OperatorProduct:
+    def full_transfer_kernel(self) -> LinearOperator:
         r"""The FULL emission kernel :math:`R\circ\Lambda_{\ell\ge 0}\circ M`
         (:math:`R\circ\Lambda_{\ell\ge 0}` on the moment end).
 

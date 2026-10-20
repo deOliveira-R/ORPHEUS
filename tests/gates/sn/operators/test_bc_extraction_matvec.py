@@ -126,7 +126,7 @@ from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
-from orpheus.sn.operators.streaming import StreamingOperator
+from orpheus.sn.operators.streaming import StreamingOperator, StreamingCollisionOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -240,7 +240,7 @@ def _LpC_apply(problem: SNProblem, state: TimedFullField, sigma_t: np.ndarray) -
     from tests.gates.sn._test_helpers import _LC_matvec
 
     return _LC_matvec(
-        state, sigma_t, problem=problem, LC=(L + C),
+        state, sigma_t, problem=problem, LC=StreamingCollisionOperator(L, C),
         radial_characteristic_flux=seed_leg,
     )
 

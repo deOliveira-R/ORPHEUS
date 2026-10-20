@@ -37,10 +37,9 @@ This module carries the three method-agnostic pieces of that seam:
 * :func:`realize_recursively` — the **rank-N composition walker**,
   the sole type transformer from a descriptor tree
   (:class:`BoundaryTraceLaw` leaves under :class:`LawSum` /
-  :class:`LawScaled` composers) to an operator tree
-  (:class:`~orpheus.numerics.operator.OperatorSum` /
-  :class:`~orpheus.numerics.operator.ScaledOperator` around realized
-  1-arg leaves). Method-blind: the leaf realizer is a REQUIRED
+  :class:`LawScaled` composers) to an operator: the formal linear
+  combination (:class:`~orpheus.numerics.operator.OperatorSum`) of the
+  realized 1-arg leaves. Method-blind: the leaf realizer is a REQUIRED
   parameter — geometry knows the walk, never the method.
 
 The registry that used to live here (a historical note)
@@ -75,7 +74,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol, TypeVar, runtime_checkable
 
-from orpheus.numerics.operator import BlockRole, OperatorSum, ScaledOperator
+from orpheus.numerics.operator import BlockRole
 
 from ._base import BoundaryTraceLaw
 from ._composition import LawScaled, LawSum
@@ -116,7 +115,7 @@ def stamp_boundary_role(op: "LinearOperator") -> "LinearOperator":
     outflow trace to the inflow trace with no bulk action (Issue #208 /
     Wave O). The role lives on the INSTANCE (the realized op is a generic
     numerics primitive — :class:`TensorProductOperator`,
-    :class:`ScaledOperator`, :class:`IdentityOperator`, … — that plays
+    :class:`OperatorSum`, :class:`IdentityOperator`, … — that plays
     the BOUNDARY role only in this realization context), so it is stamped
     at the producer sites — the functional method realizers
     (:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`,
@@ -220,7 +219,7 @@ class BoundaryRealizer(Protocol[MethodSpaceT_contra]):
 # ``tests/gates/geometry/test_law_composition.py``. Moved here from
 # ``orpheus.sn.boundary`` at #290 P7b, when the second functional
 # realizer (diffusion, #290 P3) made the walk's realizer-genericity
-# real: the walk (LawSum/LawScaled → OperatorSum/ScaledOperator) is
+# real: the walk (LawSum/LawScaled → + and α·, the operator algebra's own) is
 # method-blind, and the leaf realizer is the caller's to supply.
 # ─────────────────────────────────────────────────────────────────────
 
@@ -237,11 +236,13 @@ def realize_recursively(
     internal nodes are
     :class:`~orpheus.geometry.boundary._composition.LawSum` /
     :class:`~orpheus.geometry.boundary._composition.LawScaled`. The
-    output tree has the same shape with
-    :class:`~orpheus.numerics.operator.OperatorSum` /
-    :class:`~orpheus.numerics.operator.ScaledOperator` composers and
-    1-arg :class:`~orpheus.numerics.operator.LinearOperator` leaves
-    realised by ``realizer``.
+    walk is a homomorphism: ``LawSum`` maps to the operator ``+`` and
+    ``LawScaled`` to the scalar ``α·``, over 1-arg
+    :class:`~orpheus.numerics.operator.LinearOperator` leaves realised by
+    ``realizer``. The output is therefore the NORMALISED formal linear
+    combination (:class:`~orpheus.numerics.operator.OperatorSum`) of the
+    realised leaves: a nested law ``0.5·(0.3·X + 0.7·Y)`` realises as
+    ``0.15·X + 0.35·Y``, and the law tree's shape is not kept.
 
     This is the ONLY function that transforms a descriptor into an
     operator. The §16A.3 three-layer split is type-checkable through
@@ -307,7 +308,7 @@ def realize_recursively(
             + 0.7 * WhiteBoundary(axis="x", outward_sign=+1)
         )
         realised = realize_recursively(law, ms, SNBoundaryRealizer())
-        # OperatorSum of ScaledOperators around realised leaves.
+        # The combination 0.3·(realised albedo) + 0.7·(realised white).
 
     The same tree under the diffusion realizer (every leaf collapses
     to its albedo-family scalar on the partial-current trace)::
@@ -324,15 +325,13 @@ def realize_recursively(
         return realizer.realize(node, method_space)
 
     if isinstance(node, LawScaled):
-        # Recurse on the inner descriptor, wrap with ScaledOperator.
-        inner_op = realize_recursively(node.inner, method_space, realizer)
-        return ScaledOperator(node.scalar, inner_op)
+        return node.scalar * realize_recursively(node.inner, method_space, realizer)
 
     if isinstance(node, LawSum):
-        # Recurse on both operands, reassemble via OperatorSum.
-        a_op = realize_recursively(node.a, method_space, realizer)
-        b_op = realize_recursively(node.b, method_space, realizer)
-        return OperatorSum(a_op, b_op)
+        return (
+            realize_recursively(node.a, method_space, realizer)
+            + realize_recursively(node.b, method_space, realizer)
+        )
 
     raise TypeError(
         f"realize_recursively expected BoundaryTraceLaw | LawSum | "

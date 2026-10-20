@@ -48,7 +48,7 @@ from orpheus.sn.loss_representation import (
 )
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.boundary import SNBoundaryOperator
-from orpheus.sn.operators.streaming import StreamingOperator
+from orpheus.sn.operators.streaming import StreamingOperator, StreamingCollisionOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.full_field import FullField
@@ -86,7 +86,7 @@ def _slab(scheme=None, ng: int = 2):
 
 
 def _lc(sn, sig_t):
-    return StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
+    return StreamingCollisionOperator(StreamingOperator.pose(sn), MultiplicationOperator.from_mesh(sig_t, sn))
 
 
 def _ld2d_mesh() -> SNProblem:

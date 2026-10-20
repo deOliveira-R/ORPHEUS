@@ -60,7 +60,7 @@ class ZeroFluxBoundary(BoundaryTraceLaw, key="zero_flux"):
     Realization
     -----------
     * **Diffusion** — :math:`\mathcal{A} = -1`, i.e.
-      ``ScaledOperator(-1, IdentityOperator)`` on the outflow trace
+      ``−I`` (the one-term combination ``(−1)·I``) on the outflow trace
       (:class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`).
     * **SN** — REFUSED
       (:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
@@ -120,6 +120,6 @@ class ZeroFluxBoundary(BoundaryTraceLaw, key="zero_flux"):
         :math:`J^- = -J^+` is what makes :math:`\phi_\Gamma = 0`, and it is why
         SN refuses this law: a negative angular inflow is unrepresentable in a
         non-negative :math:`\psi`. The value is the diffusion realizer's
-        ``ScaledOperator(-1.0, IdentityOperator)`` scalar, named.
+        ``(−1)·I`` scalar, named.
         """
         return ScalarResponse(-1.0)

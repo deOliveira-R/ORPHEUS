@@ -985,9 +985,10 @@ def _maybe_window(
     windowed product (``coding-elegance`` Pattern 7 — the convention lives in
     one place, shared by the eigenvalue and fixed-source SI drivers):
     genuinely 2-D Cartesian holds the SI iterate as harmonic moments via the
-    typed composition ``P @ A.inverse()`` (#226 §17 W1) — the ``@`` dispatch
-    on a :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` right
-    factor fuses to :class:`~orpheus.sn.operators.windowing.WindowedSweep`;
+    typed composition ``P @ A.inverse()`` (#226 §17 W1), built here as its
+    fused realisation :class:`~orpheus.sn.operators.windowing.WindowedSweep`
+    (``@`` never fuses: numerics_untangling.md ruling 52, so this factory is
+    the atom's owner);
     curvilinear (1-D) stays full-angular — the Morel–Montry Carlson seed
     reads the previous per-ordinate iterate at ``μ=−1`` (lesson L21), which
     the moment tensor does not carry.  ``P`` is sourced from the scattering
@@ -1001,10 +1002,13 @@ def _maybe_window(
     emission is a 2-D kernel; ``FullFieldWavefront`` refuses moment mode).
     """
     if problem.is_cartesian and problem.ndim == 2:
-        from .operators.windowing import BulkAnalysisOperator
+        from .operators.windowing import BulkAnalysisOperator, WindowedSweep
 
         return (
-            BulkAnalysisOperator(scattering_op.flux_analysis, problem.full_field_space) @ sweep,
+            WindowedSweep(
+                BulkAnalysisOperator(scattering_op.flux_analysis, problem.full_field_space),
+                sweep,
+            ),
             True,
         )
     return sweep, False

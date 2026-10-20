@@ -76,8 +76,6 @@ PENDING: dict[tuple[str, str], str] = {
     ("spaces", "basis"): "S7",
     # S3: assembly is a homomorphism downstream of the algebra (ruling 24)
     ("assembled_operator", "operator"): "S3",
-    # S4: a sum's inverse is InverseOperator(sum), realised by the Strategy (ruling 20)
-    ("green_operator", "operator"): "S4",
 }
 
 

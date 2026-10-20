@@ -41,7 +41,7 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.angular.closure import MorelMontryAngularSweep
 from orpheus.sn.problem import SNProblem
-from orpheus.sn.operators.streaming import StreamingOperator
+from orpheus.sn.operators.streaming import StreamingOperator, StreamingCollisionOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.operators.multiplication_operator import (
@@ -104,7 +104,7 @@ def _het_rhs(sn: SNProblem) -> TimedFullField:
 def _drive(sn: SNProblem, L: StreamingOperator) -> np.ndarray:
     """``(L + C).solve(rhs)`` from THIS operator — no internal re-posing."""
     C = MultiplicationOperator.from_mesh(_het_sigma(sn), sn)
-    psi = (L + C).solve(_het_rhs(sn))
+    psi = StreamingCollisionOperator(L, C).solve(_het_rhs(sn))  # S2: explicit atom
     return np.asarray(psi.interior.values).copy()
 
 
@@ -272,7 +272,7 @@ def test_hub_route_reads_only_space_facts(factory, do_matvec):
     if do_matvec:
         C = MultiplicationOperator.from_mesh(_het_sigma(sn), sn)
         state = _het_rhs(sn)
-        applied = (L + C).apply(state)
+        applied = StreamingCollisionOperator(L, C).apply(state)  # S2: the atom
         assert applied.interior.values.shape == state.interior.values.shape
 
     bad_scheme = set(scheme_reads) - _ALLOWED_HUB_SCHEME_READS

@@ -172,7 +172,7 @@ def test_matrix_inverse_of_2g_loss_composed_with_4g_fission_is_REFUSED() -> None
         mat_xs=mat_4g, space=mat_4g.mesh.bulk_space,
     )
     with pytest.raises(
-        IncompatibleOperatorComposition, match=r"A\.domain == B\.codomain"
+        IncompatibleOperatorComposition, match="OperatorProduct requires each factor's domain"
     ):
         _ = MatrixInverseOperator(loss_2g) @ f_4g
 

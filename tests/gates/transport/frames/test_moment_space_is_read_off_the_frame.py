@@ -180,10 +180,11 @@ def _mat_xs(nx: int = 4):
 
 
 def _inner_factor_domain_name(kernel: OperatorProduct) -> str:
-    """``conjugate(frame, X)`` is ``R ∘ (X ∘ M)``; the domain of ``X`` is the end under test."""
-    inner = kernel.b
-    assert isinstance(inner, OperatorProduct)
-    domain = inner.a.domain
+    """``conjugate(frame, X)`` is the flattened word ``(R, X, M)`` (S2, D7);
+    the domain of ``X``, the middle factor, is the end under test."""
+    factors = kernel.factors
+    assert len(factors) == 3
+    domain = factors[1].domain
     assert domain is not None
     return domain.name
 
@@ -263,7 +264,7 @@ def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() ->
     stale = LegendreMomentTransfer(
         S.transfer, skip_l0=False, domain=minted, codomain=minted,
     )
-    with pytest.raises(IncompatibleOperatorComposition, match=r"A\.domain == B\.codomain"):
+    with pytest.raises(IncompatibleOperatorComposition, match="OperatorProduct requires each factor's domain"):
         frame_faces.conjugate(S.flux_analysis.frame, stale)
 
 

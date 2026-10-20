@@ -1015,18 +1015,22 @@ same transfer would have moved the residual by :math:`2\lvert T_k x
 \rvert` — i.e. the operation that a later ρ-policy phase needs as its
 elementary move would have been unsafe by default.
 
-*The derivation stays on the domain's own algebra.*  A term is stored as
-``(operator, sign)`` rather than pre-wrapped in a
-:class:`~orpheus.numerics.operator.ScaledOperator` with coefficient
-:math:`-1`, because the fold must be able to spell
-:math:`(L+C) - B_{\rm lower}` as a *subtraction*.  That expression
-dispatches, through
-:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`'s
-own ``__sub__``, to the sweep-invertible scheduled composite whose
-``solve`` is the octant-group forward substitution.  An equivalent
-``+ (-B_lower)`` would compose a generic
-:class:`~orpheus.numerics.operator.OperatorSum` instead, and the result
-would not be invertible by a sweep.
+*The Splitting chooses the realisation, not the spelling.*  A term is
+stored as ``(operator, sign)`` rather than folded into a coefficient,
+because the Splitting reads its implicit part as the sweepable structure
+plus the absorbed boundary half and builds the atom that realises it:
+``Splitting._sweep_realization`` returns the
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` alone
+under Jacobi, or
+:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`\
+``(L+C, B_lower)``, whose ``solve`` is the octant-group forward
+substitution, under boundary Gauss-Seidel, and refuses any other implicit
+set.  The algebra's ``-`` never makes that choice: since package S2
+(2026-10-20, numerics_untangling.md ruling 52) ``(L+C) - B_lower`` and
+``+ (-B_lower)`` are the same plain
+:class:`~orpheus.numerics.operator.OperatorSum`, which has no inverse of
+its own.  Until S2 the subtraction dispatched through a type test inside
+``StreamingCollisionOperator.__sub__``, and the ``+`` spelling missed it.
 
 *Shape symmetry holds where it must.*  The design rule "a block cannot
 move from :math:`M` to :math:`N` if :math:`M` and :math:`N` have

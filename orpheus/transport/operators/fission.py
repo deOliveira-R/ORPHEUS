@@ -123,7 +123,7 @@ from orpheus.transport.operators.isotropic_transfer import IsotropicFission
 from orpheus.transport.operators.lift import interior_space_of
 
 if TYPE_CHECKING:
-    from orpheus.numerics.operator import OperatorProduct, TensorProductOperator
+    from orpheus.numerics.operator import LinearOperator, TensorProductOperator
     from orpheus.numerics.spaces.moment_head import MomentHead
     from orpheus.transport.material_field import FissionMaterialField
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
@@ -249,7 +249,7 @@ class FissionOperator(AngularLift[IsotropicFission]):
             self.fission, domain=scalar_space, codomain=scalar_space,
         )
 
-    def _frame_form(self) -> "OperatorProduct":
+    def _frame_form(self) -> "LinearOperator":
         return self.full_fission_kernel
 
     @classmethod
@@ -302,7 +302,7 @@ class FissionOperator(AngularLift[IsotropicFission]):
         return self.isotropic_energy.production_rate
 
     @cached_property
-    def full_fission_kernel(self) -> "OperatorProduct":
+    def full_fission_kernel(self) -> "LinearOperator":
         r"""The frame form :math:`R_0\,F_0\,M_0` (:math:`R_0\,F_0` on the
         moment end) — fission's whole action as ONE conjugated product
         (the transfer family's

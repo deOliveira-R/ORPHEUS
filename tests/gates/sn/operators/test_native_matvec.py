@@ -77,6 +77,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
@@ -565,4 +566,4 @@ class TestTypeContract:
         L_op = StreamingOperator.pose(problem)
         C_op = MultiplicationOperator.from_mesh(sigma_t, problem)
         with pytest.raises(TypeError, match="TimedFullField"):
-            (L_op + C_op).apply(psi_bare)
+            StreamingCollisionOperator(L_op, C_op).apply(psi_bare)  # S2: the atom

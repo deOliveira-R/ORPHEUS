@@ -55,7 +55,7 @@ from orpheus.numerics.frame import FrameBase, GalerkinFrame
 from orpheus.numerics.instance_cache import cached_on
 from orpheus.numerics.manifold import Manifold, Quotient, Sphere
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
-from orpheus.numerics.operator import LinearOperator, NotInvertible, OperatorProduct
+from orpheus.numerics.operator import LinearOperator, NotInvertible
 from orpheus.numerics.projection import AnalysisOperator, ReconstructionOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
@@ -577,14 +577,15 @@ class FrameReconstruction(ReconstructionOperator):
 # ── composed operators (the "define Frame, compose, done" production path) ──
 
 
-def conjugate(frame: FrameBase, operator: LinearOperator, /) -> OperatorProduct:
+def conjugate(frame: FrameBase, operator: LinearOperator, /) -> LinearOperator:
     r"""Frame-conjugate a coefficient-space operator: :math:`R \circ A \circ M`.
 
     THE production composition for a method whose action is "project to
     coefficients, act there, reconstruct" — e.g. SN anisotropic scattering
     :math:`S_{\ell\ge 1} = R\,\Lambda\,M` (the per-ordinate redistribution). Returns
-    the typed :class:`~orpheus.numerics.operator.OperatorProduct`
-    ``OperatorProduct(R, OperatorProduct(A, M))``, whose
+    the :class:`~orpheus.numerics.operator.OperatorProduct` word
+    ``R @ A @ M`` (factors ``(R, A, M)``; a scaled ``A = cΛ`` gives the
+    one-term combination ``c·(R @ Λ @ M)``, the coefficient moved out), whose
     :meth:`~orpheus.numerics.operator.OperatorProduct.apply` is ``R(A(M·x))`` — the
     SAME numpy chain a hand-rolled ``reconstruction.apply(A.apply(analysis.apply(x)))``
     runs, now ONE named operator (Cardinal Rule 2: the composition IS the production
@@ -608,9 +609,7 @@ def conjugate(frame: FrameBase, operator: LinearOperator, /) -> OperatorProduct:
     (:func:`basis_space`); the :class:`OperatorProduct` space-compatibility guard
     enforces it (an endomorphism on the coefficient space when ``test == trial``).
     """
-    return OperatorProduct(
-        FrameReconstruction.of(frame), OperatorProduct(operator, FrameAnalysis.of(frame)),
-    )
+    return FrameReconstruction.of(frame) @ operator @ FrameAnalysis.of(frame)
 
 
 def reconstruct_after(frame: FrameBase, operator: LinearOperator, /) -> LinearOperator:
@@ -619,11 +618,11 @@ def reconstruct_after(frame: FrameBase, operator: LinearOperator, /) -> LinearOp
     The :func:`conjugate` sub-operator for inputs ALREADY in coefficient space (the
     analysis :math:`M` already applied) — e.g. the angular-windowed SN moment
     iterate, whose bulk IS :math:`M\psi`, so only :math:`R\,\Lambda` remains.
-    Returns ``OperatorProduct(R, A)`` (``apply`` = ``R(A·c)``). Wiring a windowed
+    Returns the word ``R @ A`` (``apply`` = ``R(A·c)``). Wiring a windowed
     consumer to :func:`conjugate` instead would erroneously re-apply :math:`M` (a
     double-projection).
     """
-    return OperatorProduct(FrameReconstruction.of(frame), operator)
+    return FrameReconstruction.of(frame) @ operator
 
 
 # ── the coefficient-extraction verb (homogenise / condense) ──────────

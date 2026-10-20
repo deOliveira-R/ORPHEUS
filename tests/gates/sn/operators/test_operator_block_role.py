@@ -117,8 +117,9 @@ class TestFullLeaves:
     def test_invertible_L_plus_C_is_full(self) -> None:
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        composite = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sigma_t, sn)
-        assert isinstance(composite, StreamingCollisionOperator)
+        composite = StreamingCollisionOperator(  # S2: the atom built explicitly
+            StreamingOperator.pose(sn), MultiplicationOperator.from_mesh(sigma_t, sn),
+        )
         assert composite.block_role is BlockRole.FULL
         assert isinstance(composite, FullOperator)
         assert not isinstance(composite, BulkOperator)
@@ -152,8 +153,8 @@ def _boundary_method_space(n_ord: int = 4) -> SNMethodSpace:
 
 # Every LINEAR boundary law + a representative amplitude per kind. Each
 # realizes to a BOUNDARY-block operator (``A_ss`` only). albedo=0/1 hit the
-# Zero/Identity fast paths; α∉{0,1} hits the ScaledOperator path — all three
-# must carry the role.
+# Zero/Identity ends; α∉{0,1} the scaled term ``α·(K⊗I)`` (one spelling since
+# S2, normalised at both ends) — all three must carry the role.
 _LINEAR_LAWS = {
     "vacuum": VacuumInflow(),
     "reflective_albedo1": ReflectiveBoundary(axis="x"),
@@ -180,7 +181,7 @@ _LINEAR_LAWS = {
     # production branches — and this file is where the realized TYPE claim
     # lives, so the α=0 row now pins ``ZeroOperator`` (the narrowed zero map
     # B3.4b opened) rather than the retired full-face one. The 0.7 row is the
-    # only specular row with α ∉ {0, 1} (the ``ScaledOperator`` branch); it
+    # only specular row with α ∉ {0, 1} (the scaled ``α·(K⊗I)`` term); it
     # was the attenuated mirror ``reflective_albedo07`` until the reflective
     # cleanup made the mirror amplitude-free.
     "albedo_specular_0": AlbedoBoundary(0.0, SpecularReturn(axis=_FACE_AXIS)),
@@ -287,7 +288,7 @@ class TestBoundaryLeaves:
 
 
 class TestComposerRoleDerivation:
-    """``OperatorSum`` / ``ScaledOperator`` / ``AdjointOperator`` DERIVE the
+    """``OperatorSum`` (incl. the one-term ``α·A``) / ``AdjointOperator`` DERIVE the
     block role from their operands — no hand-stamp (4.5 twin-path retirement).
 
     The role of a SUM is the union of the blocks its summands touch
@@ -314,9 +315,11 @@ class TestComposerRoleDerivation:
     def test_sum_join_is_union_of_blocks(self) -> None:
         sn = _slab_mesh()
         L, C, B = self._ops(sn)
-        # BULK ⊔ BULK = BULK (C + C)
-        assert (C + C).block_role is BlockRole.BULK
-        # FULL ⊔ BULK = FULL (L + C — the StreamingCollisionOperator, derived not stamped)
+        # BULK ⊔ BULK = BULK (C + C′): two DISTINCT objects — since S2 ``C + C``
+        # collects to the one term 2C and exercises no join.
+        C2 = MultiplicationOperator.from_mesh(np.ones((sn.ng, *sn.spatial_shape)), sn)
+        assert (C + C2).block_role is BlockRole.BULK
+        # FULL ⊔ BULK = FULL (L + C, the plain sum since S2; derived not stamped)
         assert (L + C).block_role is BlockRole.FULL
         # BULK ⊔ BOUNDARY = FULL (the discriminating mixed join)
         assert (C - B).block_role is BlockRole.FULL

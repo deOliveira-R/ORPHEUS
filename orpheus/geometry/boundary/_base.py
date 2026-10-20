@@ -211,7 +211,7 @@ class BoundaryTraceLaw(ContentIdentity, RegistryMixin, ABC):
         # Still NOT callable. Realize the tree (the walker is
         # method-blind — pass the method's own realizer):
         op_tree = realize_recursively(composed, ms, SNBoundaryRealizer())
-        # op_tree is OperatorSum(ScaledOperator(0.3, ...), ...).
+        # op_tree is the combination 0.3·(...) + 0.7·(...).
 
     Registry
     --------

@@ -202,17 +202,14 @@ class TestRealizedPrescribedInflowCapabilities:
 class TestLossMinusBoundaryCompositeCapabilities:
     r"""The within-group loss with its boundary sibling, ``L + C − B``.
 
-    ``L + C`` dispatches to :class:`StreamingCollisionOperator` and advertises
-    ``solve`` (the DIRECT sweep); subtracting the boundary operator ``B``
-    breaks that dispatch, so the result is a generic
-    :class:`OperatorSum` — which, since #226 taxonomy step 4, is
-    GREEN-invertible: the leading term (the fused ``L+C``) is invertible,
-    so :meth:`inverse` derives the preconditioned-splitting
-    :class:`~orpheus.numerics.green_operator.GreenOperator` (the
-    boundary-Jacobi iteration, typed); as a generic sum it carries NO
-    ``solve`` verb (carve P4 — solving is the inverse OBJECT's apply).
-    The pin is WHICH inverse the spelling selects — sweep for the fused
-    composite, Green for the generic sum — plus the ``apply`` survival.
+    The fused :class:`StreamingCollisionOperator` atom (built explicitly
+    since S2; ``+`` never fuses, ruling 52) advertises ``solve`` (the DIRECT
+    sweep). Subtracting the boundary operator ``B`` gives a plain
+    :class:`OperatorSum`, which has no inverse of its own and no ``solve``
+    verb (ruling 50); its inverse is the Green of the NAMED split,
+    ``GreenOperator(L+C, B)`` (the boundary-Jacobi iteration, typed). The
+    pin is WHICH inverse each object has — the sweep for the atom, none for
+    the sum, the Green for the split — plus the ``apply`` survival.
     It still exercises :attr:`SNBoundaryOperator.is_adjointable` through
     a composition — the existing ``(L + C)`` invertible test does not
     cover the ``−B`` arm (verification plan GAP-2)."""
@@ -223,7 +220,9 @@ class TestLossMinusBoundaryCompositeCapabilities:
         L = StreamingOperator.pose(sn)
         C = MultiplicationOperator.from_mesh(sigma_t, sn)
         B = SNBoundaryOperator(sn)
-        return L, C, B, L + C - B
+        # S2 (ruling 52): the fused atom is built explicitly, so the
+        # composite is (L+C) − B over the sweep-invertible atom, as before.
+        return L, C, B, StreamingCollisionOperator(L, C) - B
 
     def test_boundary_operator_exposes_apply(self) -> None:
         # Precondition for the composite to construct (RC 2 — the eager
@@ -232,32 +231,35 @@ class TestLossMinusBoundaryCompositeCapabilities:
         assert callable(getattr(B, "apply", None))
 
     def test_l_plus_c_is_invertible(self) -> None:
-        # The contrast case: (L + C) is sweep-invertible (StreamingCollisionOperator).
+        # The contrast case: the (L + C) ATOM is sweep-invertible; since S2
+        # (ruling 52) the plain sum ``L + C`` is not — the atom is explicit.
         L, C, _, _ = self._loss_minus_boundary()
-        lc = L + C
-        assert isinstance(lc, StreamingCollisionOperator)
+        lc = StreamingCollisionOperator(L, C)
         assert lc.is_invertible is True
+        assert (L + C).is_invertible is False
 
-    def test_composite_is_green_invertible_without_solve(self) -> None:
-        # MIGRATED (#226 step 4; rewired carve P4): the generic sum HAS an
-        # inverse — the Green splitting keyed on its invertible leading
-        # term — and, as a generic sum, NO solve verb of its own (Design
-        # B: the sweep subclass keeps its override; solving with a plain
-        # OperatorSum is the inverse OBJECT's apply).
+    def test_composite_has_no_inverse_its_split_has_a_green(self) -> None:
+        # INVERTED at S2 (ruling 50): a sum has no inverse of its own (the
+        # leading-term rule is gone) and no solve verb; the Green of the
+        # NAMED split M = (L+C), N = B inverts it.
         from orpheus.numerics.green_operator import GreenOperator
-        from orpheus.numerics.operator import OperatorSum
+        from orpheus.numerics.operator import NotInvertible, OperatorSum
 
-        *_, composite = self._loss_minus_boundary()
-        assert composite.is_invertible is True
-        assert type(composite.inverse()) is GreenOperator
+        L, C, B, composite = self._loss_minus_boundary()
+        assert composite.is_invertible is False
+        with pytest.raises(NotInvertible, match="GreenOperator\\(M, N\\)"):
+            composite.inverse()
         assert "solve" not in OperatorSum.__dict__
+        lc = next(w for _, w in composite.terms if isinstance(w, StreamingCollisionOperator))
+        green = GreenOperator(lc, B)
+        assert green.inverse() == composite
 
     def test_composite_transpose_follows_closure_law(self) -> None:
         # is_adjointable propagates iff every operand is. This pins that
         # B's recursive-predicate contribution survives the join (so a
         # re-typing that altered B's adjointability would red here).
         L, C, B, composite = self._loss_minus_boundary()
-        both_adjointable = (L + C).is_adjointable and B.is_adjointable
+        both_adjointable = StreamingCollisionOperator(L, C).is_adjointable and B.is_adjointable
         assert composite.is_adjointable == both_adjointable
 
 
@@ -363,8 +365,9 @@ class TestPredicateFaithfulness:
         L = StreamingOperator.pose(sn)
         assert L.is_adjointable is True and L.is_invertible is False
         C_ok = MultiplicationOperator.from_mesh(np.ones(spatial), sn)
-        assert (L + C_ok).is_invertible is True
-        assert (L + C_ok).is_adjointable is True
+        lc = StreamingCollisionOperator(L, C_ok)  # S2: the atom (ruling 52)
+        assert lc.is_invertible is True
+        assert lc.is_adjointable is True
 
     def test_boundary_law_wrapper_delegates_predicates(self) -> None:
         """The ``_BoundBoundaryOperator`` wrapper delegates ``is_*`` to its inner
@@ -388,8 +391,9 @@ class TestPredicateFaithfulness:
         VERIFIED against the live fixture (probe 2026-07-02): the vacuum
         face-law shims declare the forwarded ``inverse()`` and their
         guard raises ``NotInvertible`` (VALUE arm); ``L`` and ``B`` are
-        the structural arm; the sweep-invertible ``(L+C)`` and the plain
-        Green-invertible ``(L+C-B)`` both return.
+        the structural arm; the sweep-invertible ``(L+C)`` atom and the Green
+        of the split ``M = L+C, N = B`` return, while the plain sum
+        ``(L+C) − B`` refuses (since S2, ruling 50).
         """
         sn = _slab_mesh(ng=2)
         spatial = (sn.ng, *sn.spatial_shape)
@@ -399,14 +403,16 @@ class TestPredicateFaithfulness:
         sigma_singular[0, 0] = 0.0
         C_singular = MultiplicationOperator.from_mesh(sigma_singular, sn)
         B = SNBoundaryOperator(sn)
+        lc = StreamingCollisionOperator(L, C)  # S2: the atom, built explicitly
         rows = [
             (L, False, True, STRUCTURAL_ABSENT),
             (C, True, True, INVERTIBLE),
             (C_singular, False, True, VALUE_RAISE),
-            (L + C, True, True, INVERTIBLE),        # sweep-invertible
-            (L + C - B, True, True, INVERTIBLE),    # plain sum → Green
+            (lc, True, True, INVERTIBLE),           # sweep-invertible
+            (lc - B, False, True, VALUE_RAISE),     # S2: a sum has no inverse of its own
+            (GreenOperator(lc, B), True, True, INVERTIBLE),  # the Green of the split
             (B, False, True, STRUCTURAL_ABSENT),
-            ((L + C).inverse(), True, True, INVERTIBLE),   # SweepOperator (#280 2.5c: adj)
+            (lc.inverse(), True, True, INVERTIBLE),   # SweepOperator (#280 2.5c: adj)
         ]
         # The realized face-law wrappers: forwarded inverse() + guard.
         rows += [
@@ -439,29 +445,27 @@ class TestPredicateFaithfulness:
             )
 
     def test_sweep_vs_green_inverse_keyed_by_type(self) -> None:
-        """``(L+C)`` is the ONE sweep-invertible OperatorSum — its
-        ``.inverse()`` override (→ direct :class:`SweepOperator`) shadows
-        the generic sum's by MRO.  Subtracting ``B`` breaks the fused
-        dispatch: the composite is a PLAIN sum whose inverse is the
-        ITERATIVE :class:`GreenOperator` over the sweep-preconditioned
-        splitting (#226 step 4's ordering ruling — the operand spelling
-        selects the algorithm, and the fused type wins where it exists).
-
-        MIGRATED from ``test_streaming_collision_operator_is_the_sole_invertible_
-        sum`` (pre-step-4: ``composite.is_invertible is False`` — "no
-        general (A+B)⁻¹").  The sum now HAS a general inverse; what
-        ``(L+C)`` remains sole owner of is the DIRECT sweep.
+        """RE-POSED at S2 (rulings 50, 52): the ``(L+C)`` ATOM (built
+        explicitly; ``+`` never fuses) owns the DIRECT sweep, its
+        ``.inverse()`` a :class:`SweepOperator`. The plain sum ``(L+C) − B``
+        has no inverse of its own; the ITERATIVE :class:`GreenOperator` of
+        the NAMED split ``M = L+C, N = B`` inverts it. (Until S2 the operand
+        spelling selected the algorithm: ``L + C`` fused by dispatch, and the
+        sum's inverse was the Green keyed on its leading term.)
         """
+        from orpheus.numerics.operator import NotInvertible
+
         sn = _slab_mesh(ng=2)
         L = StreamingOperator.pose(sn)
         C = MultiplicationOperator.from_mesh(np.ones((sn.ng, *sn.spatial_shape)), sn)
-        lc = L + C
-        assert isinstance(lc, StreamingCollisionOperator)
+        lc = StreamingCollisionOperator(L, C)
         assert lc.is_invertible is True and lc.is_adjointable is True
-        assert isinstance(lc.inverse(), SweepOperator)  # the MRO shadow
-        composite = lc - SNBoundaryOperator(sn)
-        assert type(composite) is OperatorSum  # the fused dispatch broke
-        assert composite.is_invertible is True  # leading term (L+C) invertible
-        green = composite.inverse()
-        assert isinstance(green, GreenOperator)  # the generic arm → Green
-        assert green.inverse() is composite  # object-identity involution
+        assert isinstance(lc.inverse(), SweepOperator)  # the atom's own sweep
+        B = SNBoundaryOperator(sn)
+        composite = lc - B
+        assert type(composite) is OperatorSum
+        with pytest.raises(NotInvertible, match="GreenOperator\\(M, N\\)"):
+            composite.inverse()
+        green = GreenOperator(lc, B)
+        assert green.inverse() is green.inner      # object-identity involution
+        assert green.inverse() == composite        # equal to the sum spelled apart

@@ -1,8 +1,9 @@
 r"""GreenOperator L0 gates — taxonomy §12 step 4 (#226; verification spec
 PART III §20–§23).
 
-**What is pinned.** The preconditioned-splitting inverse of a general
-operator sum: ``(D − N).inverse()`` is a
+**What is pinned.** The preconditioned-splitting inverse of a NAMED split
+``A = D − N``: ``GreenOperator(D, N)`` (since S2, ruling 50; until S2 the
+sum's ``.inverse()`` derived the split from its left spine) is a
 :class:`~orpheus.numerics.green_operator.GreenOperator` whose ``apply``
 returns :math:`(D-N)^{-1}q` with TRUE relative residual below ``tol`` —
 verified against the structurally-independent dense LU
@@ -26,10 +27,9 @@ is pinned TIGHTLY, not to a 5% band.
 
 **Tolerance discipline (spec §20.0):** Green is ITERATIVE — its gates
 assert at ``SAFETY × tol`` (driver-tol rule, lessons L7), NOT nulp; the one
-row that breaks the §12.0 count-the-ops rule.  ``OperatorSum.solve`` was
-DELETED at carve P4 (a generic sum's inverse action IS the GreenOperator;
-solving is spelled ``sum.inverse().apply(b)``), so no solve-vs-inverse
-tautology remains to (not) assert; the mixin back-half ``green.solve``
+row that breaks the §12.0 count-the-ops rule.  A sum has no inverse
+of its own since S2 (ruling 50: its inverse is the Green of a NAMED split),
+so no solve-vs-inverse tautology remains to (not) assert; the mixin back-half ``green.solve``
 (the un-invert face) is what the back-half gate pins.
 
 **ConvergenceFailure teeth** (spec §18.A + §22.2): the promise reads the
@@ -43,7 +43,8 @@ blind).
 
 **Teeth (spec §25, mutation-verified 2026-07-02, in-process patches):**
 M-GRN-SIGN (gain sign `+t`) REDs the anchor + G-Neumann; M-GRN-SWAP
-(precond↔gain) REDs the anchor; M-GRN-TOL (promise check deleted) REDs the
+(precond↔gain) REDs the anchor (the teeth were measured on the pre-S2
+left-spine Green; they re-run at the S2 review); M-GRN-TOL (promise check deleted) REDs the
 divergence gate; M-GRN-INCREMENT (increment instead of true residual) REDs
 the near-critical gate; M-GRN-SEED (drop ``initial_guess`` to the driver
 start) REDs ONLY the §23 spy here — the landed §14 spy is BLIND to it;
@@ -61,7 +62,7 @@ from orpheus.numerics.green_operator import ConvergenceFailure, GreenOperator
 from orpheus.numerics.iteration import SourceIteration
 from orpheus.numerics.elementary_operators import DiagonalOperator, PermutationOperator
 from orpheus.numerics.operator import ZeroOperator
-from orpheus.numerics.operator import NotInvertible, ScaledOperator
+from orpheus.numerics.operator import NotInvertible
 
 pytestmark = pytest.mark.foundation
 
@@ -83,27 +84,27 @@ def _perm_matrix(perm: np.ndarray) -> np.ndarray:
 
 
 def _split():
-    """``A = D − αP`` (leading invertible diagonal, non-symmetric gain)."""
+    """``A = D − αP``: the implicit part ``D`` (an invertible diagonal), the
+    lagged part ``N = αP`` (non-symmetric), the forward ``A`` and its dense
+    matrix."""
     D = DiagonalOperator(_D_DIAG)
-    N = ScaledOperator(_ALPHA, PermutationOperator(_P4))
+    N = _ALPHA * PermutationOperator(_P4)
     A = D - N
     A_dense = np.diag(_D_DIAG) - _ALPHA * _perm_matrix(_P4)
-    return A, A_dense
+    return D, N, A, A_dense
 
 
-def _green_of(A) -> GreenOperator:
-    """``A.inverse()`` narrowed — the §24.4 factory-dispatch pin at every use."""
-    green = A.inverse()
-    assert isinstance(green, GreenOperator)  # plain sum → Green (not Sweep)
-    return green
+def _green_of(M, N, **budget) -> GreenOperator:
+    """The Green of the named split ``A = M − N`` (S2, ruling 50)."""
+    return GreenOperator(M, N, **budget)
 
 
 def test_g_i1_roundtrip_anchor_and_kernel_columns():
     """G-I1 both ways at driver tol + the dense-LU anchor, INCLUDING the
     δ_j basis (G-kernel fold: ``G.apply(δ_j)`` = column j of the inverse =
     the unit-point-source response)."""
-    A, A_dense = _split()
-    green = _green_of(A)
+    D, N, A, A_dense = _split()
+    green = _green_of(D, N)
     x = _RNG.standard_normal(4)
     np.testing.assert_allclose(
         green.apply(A.apply(x)), x, rtol=_SAFETY * green.tol,
@@ -123,9 +124,13 @@ def test_g_i1_roundtrip_anchor_and_kernel_columns():
 
 
 def test_g_i2_involution_object_identity():
-    """``(G)⁻¹`` is the SUM ITSELF, by object identity (mixin back-half)."""
-    A, _ = _split()
-    assert A.inverse().inverse() is A
+    """``(G)⁻¹`` is the Green's forward ``M − N`` by object identity (mixin
+    back-half), and EQUAL to the sum spelled separately (S2: the forward is
+    the combination the Green builds from its split, compared by its key)."""
+    D, N, A, _ = _split()
+    green = _green_of(D, N)
+    assert green.inverse() is green.inner
+    assert green.inverse() == A
 
 
 def test_back_half_solve_is_the_forward_matvec():
@@ -136,8 +141,8 @@ def test_back_half_solve_is_the_forward_matvec():
     ``OperatorSum.solve`` itself is retired, carve P4).  One sibling suffices:
     the line is single-sourced on the mixin, so a delegation bug here is
     a bug on all three (M-MIXIN-CODOM/solve teeth)."""
-    A, A_dense = _split()
-    green = _green_of(A)
+    D, N, _, A_dense = _split()
+    green = _green_of(D, N)
     x = _RNG.standard_normal(4)
     np.testing.assert_allclose(
         green.solve(x), A_dense @ x, rtol=1e-12,
@@ -152,10 +157,10 @@ def test_g_neumann_partial_sums():
     4-step geometric decay :math:`\\rho = \\alpha/(\\prod d_i)^{1/4}` (the
     permutation's spectrum makes per-step norms rotate, so the pin is the
     exact 4-cycle contraction, not a fuzzy successive-ratio band)."""
-    A, A_dense = _split()
-    green = _green_of(A)
+    D, N, _, A_dense = _split()
+    green = _green_of(D, N)
     D_inv = DiagonalOperator(_D_DIAG).inverse()
-    N = ScaledOperator(_ALPHA, PermutationOperator(_P4))
+    N = _ALPHA * PermutationOperator(_P4)  # rebuilt independently of the Green's
 
     term = D_inv.apply(_Q)          # k = 0
     acc = term.copy()
@@ -187,11 +192,9 @@ def test_g_reciprocity_euclidean_transposed_operands():
     (αP)ᵀ = αP⁻¹, the argsort permutation) — not ``.H`` (#280).  Pins the
     split derivation on a DIFFERENT operand config without a second dense
     oracle; ``A`` is non-symmetric so the identity is not vacuous."""
-    A, _ = _split()
-    A_T = DiagonalOperator(_D_DIAG) - ScaledOperator(
-        _ALPHA, PermutationOperator(np.argsort(_P4)),
-    )
-    gA, gAT = _green_of(A), _green_of(A_T)
+    D, N, _, _ = _split()
+    N_T = _ALPHA * PermutationOperator(np.argsort(_P4))
+    gA, gAT = _green_of(D, N), _green_of(DiagonalOperator(_D_DIAG), N_T)
     for seed in (1, 2, 3):
         rng = np.random.default_rng(seed)
         phi1, phi2 = rng.standard_normal(4), rng.standard_normal(4)
@@ -203,21 +206,22 @@ def test_g_reciprocity_euclidean_transposed_operands():
         )
 
 
-def test_three_term_left_spine_flatten():
-    """``(D − N₁) − N₂`` flattens to precond D + gains [N₁, N₂] — anchored
-    against the 3-term dense LU (the M-GRN-FLATTEN L0 leg)."""
+def test_three_term_split_hands_each_lagged_term_as_a_gain():
+    """``GreenOperator(D, N₁ + N₂)``: the lagged part's TERMS ride as the
+    driver's gains, in N's insertion order — anchored against the 3-term
+    dense LU. RE-POSED at S2 from the left-spine flatten of ``(D − N₁) − N₂``
+    (the walk is gone, ruling 50)."""
     D = DiagonalOperator(_D_DIAG)
-    N1 = ScaledOperator(1.0, PermutationOperator(_P4))
+    N1 = PermutationOperator(_P4)
     N2 = DiagonalOperator(np.full(4, 0.5))
-    A = (D - N1) - N2
     A_dense = (
         np.diag(_D_DIAG) - _perm_matrix(_P4) - np.diag(np.full(4, 0.5))
     )
-    green = _green_of(A)
+    green = _green_of(D, N1 + N2)
     np.testing.assert_allclose(
         green.apply(_Q), np.linalg.solve(A_dense, _Q),
         rtol=_SAFETY * green.tol,
-        err_msg="3-term left-spine flatten produced the wrong splitting",
+        err_msg="the 3-term split (N's terms as the gains) produced the wrong Green",
     )
 
 
@@ -226,13 +230,13 @@ def test_divergent_split_raises_loudly_convergent_control_does_not():
     :class:`ConvergenceFailure`; the convergent control MUST NOT raise (a
     bare raises-gate with no control is Mode-10 blind)."""
     D = DiagonalOperator(_D_DIAG)
-    div = D + ScaledOperator(8.0, PermutationOperator(_P4))  # ρ ≈ 1.49
+    # A = D + 8P, i.e. the split M = D, N = −8P (ρ ≈ 1.49).
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
         with pytest.raises(ConvergenceFailure, match="residual"):
-            GreenOperator(div, max_iter=200).apply(_Q)
-    conv, _ = _split()
-    _green_of(conv).apply(_Q)  # control: no raise
+            GreenOperator(D, -8.0 * PermutationOperator(_P4), max_iter=200).apply(_Q)
+    Dc, Nc, _, _ = _split()
+    _green_of(Dc, Nc).apply(_Q)  # control: no raise
 
 
 def test_near_critical_increment_lies_true_residual_governs():
@@ -265,9 +269,9 @@ def test_near_critical_increment_lies_true_residual_governs():
     # warm second pass MEETS the promise at ~930 — better delivery, not a
     # missing raise.)
     with pytest.raises(ConvergenceFailure, match="TRUE relative residual"):
-        GreenOperator(D - N, max_iter=200, tol=1e-4).apply(q)
+        GreenOperator(D, N, max_iter=200, tol=1e-4).apply(q)
 
-    psi = GreenOperator(D - N, max_iter=5000, tol=1e-4).apply(q)
+    psi = GreenOperator(D, N, max_iter=5000, tol=1e-4).apply(q)
     true_res = np.linalg.norm(A_dense @ psi - q) / np.linalg.norm(q)
     assert true_res < 1e-4, (
         f"refinement returned with the promise unmet: {true_res:.3e}"
@@ -284,8 +288,8 @@ def test_green_threads_initial_guess_to_driver_start(monkeypatch):
     per-iterate threading inside the driver) is BLIND to this drop, and a
     warm start is value-invisible (the converged answer is
     seed-independent), so this spy is the only catcher (M-GRN-SEED)."""
-    A, _ = _split()
-    green = _green_of(A)
+    D, N, _, _ = _split()
+    green = _green_of(D, N)
     x0 = _RNG.standard_normal(4)
     seen = []
     real_solve = SourceIteration.solve
@@ -304,17 +308,18 @@ def test_green_threads_initial_guess_to_driver_start(monkeypatch):
     )
 
 
-def test_leading_non_invertible_refuses_at_construction():
-    """§22.3: the canonical-ordering refusal — a sum whose LEADING term is
-    not invertible cannot designate a preconditioner; the message names the
-    canonical spelling (the §18.B contract pin)."""
-    with pytest.raises(NotInvertible, match="canonical ordering"):
-        (ZeroOperator() + DiagonalOperator(_D_DIAG)).inverse()
+def test_a_non_invertible_implicit_part_refuses_at_construction():
+    """§22.3, RE-POSED at S2: a split whose IMPLICIT part is not invertible
+    cannot be the preconditioner; ``GreenOperator`` refuses at construction
+    naming the part's type. (Until S2 the refusal read the sum's leading
+    term, "canonical ordering"; ``ZeroOperator() + D`` is now ``D`` itself.)"""
+    with pytest.raises(NotInvertible, match="invertible implicit part M.*ZeroOperator"):
+        GreenOperator(ZeroOperator(), DiagonalOperator(_D_DIAG))
 
 
 def test_tol_zero_is_unsatisfiable():
     """``tol=0`` demands an exact iterative inverse — always raises (the
     documented edge; a silent best-effort return would be a wrong answer)."""
-    A, _ = _split()
+    D, N, _, _ = _split()
     with pytest.raises(ConvergenceFailure):
-        GreenOperator(A, max_iter=50, tol=0.0).apply(_Q)
+        GreenOperator(D, N, max_iter=50, tol=0.0).apply(_Q)

@@ -77,7 +77,7 @@ from orpheus.geometry.boundary import (
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
-from orpheus.sn.operators.streaming import StreamingOperator
+from orpheus.sn.operators.streaming import StreamingOperator, StreamingCollisionOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -483,7 +483,7 @@ def _loss_operator(sn: SNProblem, sig_t: np.ndarray):
     L = StreamingOperator.pose(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)
     B = SNBoundaryOperator(sn)
-    return L + C - B
+    return StreamingCollisionOperator(L, C) - B  # S2: the atom built explicitly
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -859,9 +859,9 @@ def _full_loss_case(
     # coupled grid, whose full block ``.H`` reciprocity is G-c2.5
     # (``test_psi_half_coupling::TestCoupledBuilder``); a FullField-summable
     # fused spelling is unrepresentable since the eviction.
-    A = (
-        StreamingOperator.pose(sn)
-        + MultiplicationOperator.from_mesh(sig_t, sn)
+    A = StreamingCollisionOperator(
+        StreamingOperator.pose(sn),
+        MultiplicationOperator.from_mesh(sig_t, sn),
     ) - S - SNBoundaryOperator(sn)
     return sn, A, S
 
@@ -900,9 +900,9 @@ def _full_loss_case_cart2d():
     sig_t = np.asarray(
         sn.mat_xs.total_cross_section_field.values, dtype=float
     )
-    A = (
-        StreamingOperator.pose(sn)
-        + MultiplicationOperator.from_mesh(sig_t, sn)
+    A = StreamingCollisionOperator(
+        StreamingOperator.pose(sn),
+        MultiplicationOperator.from_mesh(sig_t, sn),
     ) - S - SNBoundaryOperator(sn)
     return sn, A, S
 

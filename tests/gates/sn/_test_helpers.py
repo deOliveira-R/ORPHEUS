@@ -541,6 +541,7 @@ def legacy_proxy_matvec(
     )
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.sn.operators.streaming import (
+        StreamingCollisionOperator,
         StreamingOperator,
     )
     from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -582,7 +583,7 @@ def legacy_proxy_matvec(
     L_op = StreamingOperator.pose(problem)
     C_op = MultiplicationOperator.from_mesh(sigma_t, problem)
     result = _LC_matvec(
-        composite, sigma_t, problem=problem, LC=(L_op + C_op),
+        composite, sigma_t, problem=problem, LC=StreamingCollisionOperator(L_op, C_op),
         radial_characteristic_flux=radial_characteristic,
     )
     return result.interior.values
@@ -644,7 +645,7 @@ def _LC_matvec(
     :meth:`apply` — the migration target for tests that previously
     called the deleted helper directly.
     """
-    from orpheus.sn.operators.streaming import StreamingOperator
+    from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
     from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
     # CS4b S4: fields no longer carry the mesh — the caller passes the
     # carrier (required unless a pre-built LC is injected AND the call is
@@ -654,7 +655,8 @@ def _LC_matvec(
     if LC is None:
         L = StreamingOperator.pose(problem)
         C = MultiplicationOperator.from_mesh(sigma_t, problem)
-        LC = L + C
+        # S2 (ruling 52): ``+`` never fuses; the atom is built explicitly.
+        LC = StreamingCollisionOperator(L, C)
     if radial_characteristic_flux is None:
         return LC.apply(psi)
     from orpheus.numerics.coupled_system import CoupledField
@@ -787,7 +789,7 @@ def sweep_once(source, sig_t, problem, boundary_flux):
     in-out buffer contract exactly.
     """
     from orpheus.numerics.coupled_system import CoupledField
-    from orpheus.sn.operators.streaming import StreamingOperator
+    from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
     from orpheus.transport.operators.multiplication_operator import (
         MultiplicationOperator,
     )
@@ -797,8 +799,9 @@ def sweep_once(source, sig_t, problem, boundary_flux):
     from orpheus.transport.source_sinks import AngularBoundarySourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
-    LC = StreamingOperator.pose(problem) + MultiplicationOperator.from_mesh(
-        sig_t, problem,
+    LC = StreamingCollisionOperator(  # S2: built explicitly (ruling 52)
+        StreamingOperator.pose(problem),
+        MultiplicationOperator.from_mesh(sig_t, problem),
     )
     rhs = TimedFullField(
         interior=source,
@@ -834,7 +837,7 @@ def joint_m_grid(problem: "SNProblem", LC):
     The ONE test-fixture spelling of the joint resolvent (the successor of
     the retired ``CoupledInvertibleOperator`` fused bridge, deleted at
     step-5d): the march re-uses the SAME σ_t field object the ``LC`` sum's
-    multiplication member carries (``LC.b.coefficient`` — mesh-identity
+    multiplication member carries (``LC.diagonal.coefficient`` — mesh-identity
     intact, no reconstruction), exactly as ``build_within_group_system``
     shares one field between ``C`` and the march. ``grid.solve`` is the
     numerics block back-substitution, ``grid.inverse()`` the
@@ -848,7 +851,7 @@ def joint_m_grid(problem: "SNProblem", LC):
     space = CoupledSpace.from_systems(
         (problem.full_field_space, problem.radial_characteristic_field_space),
     )
-    march = rc_march(problem, LC.b.coefficient)
+    march = rc_march(problem, LC.diagonal.coefficient)
     grid = CoupledOperator(
         [[LC, RadialCharacteristicSeeding(problem)], [None, march]],
         domain=space, codomain=space,

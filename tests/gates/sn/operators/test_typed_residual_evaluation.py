@@ -276,7 +276,7 @@ def test_mis_spaced_scattering_reds_the_residual_composition():
     shared law :func:`~orpheus.numerics.operator._agreed_space` (the tensor
     product needed the same rule, and two transcriptions of one invariant is
     how they drift). So the innermost frame is now ``_agreed_space`` and
-    ``OperatorSum.__init__`` is its CALLER — both asserted below, which is
+    (since S2) ``linear_combination``, the sum's one constructor, is its CALLER — both asserted below, which is
     strictly stronger than the single frame this row used to pin: the shared
     helper alone could have been reached on behalf of any composite, and the
     ``owner`` prefix in the message plus the caller frame say it was the sum."""
@@ -303,11 +303,14 @@ def test_mis_spaced_scattering_reds_the_residual_composition():
         raise AssertionError(
             f"raise not from numerics/operator.py: {innermost.path}"
         )
+    # S2: the sum's one constructor is ``linear_combination`` (every ``+``
+    # and ``-`` routes there), so it is the caller frame now; the ``owner``
+    # prefix "OperatorSum" in the matched message says it ran for the sum.
     caller = ei.traceback[-2].frame.code
-    if caller.raw.co_qualname != "OperatorSum.__init__":
+    if caller.raw.co_qualname != "linear_combination":
         raise AssertionError(
             f"the shared law was invoked from {caller.raw.co_qualname}, not "
-            "OperatorSum.__init__ — this row pins the SUM's guard, and the "
+            "linear_combination — this row pins the SUM's guard, and the "
             "helper is reachable on behalf of the tensor product too"
         )
 
@@ -319,7 +322,7 @@ def test_mis_spaced_collision_reds_the_production_loss_build():
     ``StreamingCollisionOperator(L, C)`` (the ``L + C`` build, run on EVERY within-group
     solve — SI / Krylov / eigenvalue). Giving ``C`` a real space flips that
     guard from silently-skipped to live; mis-naming ``C``'s space reds the
-    ``L + C`` build itself — the teeth on the converging path, which the
+    explicit ``StreamingCollisionOperator(L, C)`` build itself — the teeth on the converging path, which the
     test-only residual composition (the ``- S`` arm) cannot reach."""
     solver, _LC, _S, _B = _slab_2g_het_triple()
     problem = solver.problem
@@ -327,14 +330,20 @@ def test_mis_spaced_collision_reds_the_production_loss_build():
     wrong = FullFieldSpace(name="full_field_TYPO", shape=ffs.shape)
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(solver.problem.mat_xs.total_cross_section_field, problem)
-    _ = L + C  # POSITIVE control — correctly-spaced L + C composes
+    # S2 (ruling 52): the production build is the EXPLICIT atom
+    # ``StreamingCollisionOperator(L, C)`` (``build_streaming_collision``),
+    # no longer the fused ``+``; `[M]` 2026-10-20 the atom still refuses a
+    # mis-spaced C through the sum's agreement law (its expansion ``L + C``).
+    from orpheus.sn.operators.streaming import StreamingCollisionOperator
+
+    _ = StreamingCollisionOperator(L, C)  # POSITIVE control — correctly-spaced
     with mock.patch.object(type(C), "domain", property(lambda self: wrong)), \
          mock.patch.object(type(C), "codomain", property(lambda self: wrong)):
         with pytest.raises(
             IncompatibleOperatorComposition,
             match="OperatorSum requires equal domains",
         ):
-            _ = L + C
+            _ = StreamingCollisionOperator(L, C)
 
 
 # ── G-d2.4 / G-d2.5 (B.2d d2) — the split ψ½ Residual mint + the coupled

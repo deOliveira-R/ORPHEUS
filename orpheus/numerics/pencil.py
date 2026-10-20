@@ -15,8 +15,9 @@ splitting of the Problem's factors; diffusion/homogeneous:
 invalidates a factorisation the Strategy holds).
 
 **Degree contract.** The family is AFFINE in :math:`\sigma` — ``at`` is linear,
-``at(0)`` is the ``lhs`` object itself (``[M]`` ``ScaledOperator(0.0, ·)`` is
-refused by the algebra, so the σ = 0 member cannot be spelled as a scaling), and
+``at(0)`` is the ``lhs`` object itself (the algebra absorbs ``0·M``, so
+``lhs − 0·M`` EQUALS ``lhs`` as a combination; the σ = 0 branch keeps it the same
+object, which a combination rebuilt from its terms is not), and
 ``at(σ + τ) − at(σ) == −τ·M`` as operators (bit-identically in matrix form; the
 APPLIED form differs at the 1e-14 level — ``[M]`` 144/200 draws — because the
 two sums associate differently).  A delayed-neutron α problem is RATIONAL in α;

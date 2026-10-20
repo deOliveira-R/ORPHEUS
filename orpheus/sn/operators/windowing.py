@@ -25,36 +25,32 @@ so the composite honestly makes no round-trip promise (``is_invertible`` is
 ``False``, by the product closure laws).
 
 **Fusion is an evaluation strategy, not a new operator.**
-:class:`WindowedSweep` is the composition itself (an
-:class:`~orpheus.numerics.operator.OperatorProduct` subclass) whose
-:meth:`~WindowedSweep.apply` DEFORESTS the intermediate: instead of
-materializing the full per-ordinate angular field and then projecting
-(``P.apply(A_inv.apply(rhs))`` — the inherited base body, retained verbatim
-as the fuller-view verification oracle), it runs the sweep in the
+:class:`WindowedSweep` is an atom whose :meth:`~WindowedSweep.expansion` is the
+plain word ``P @ A⁻¹`` and whose :meth:`~WindowedSweep.apply` DEFORESTS the
+intermediate: instead of materializing the full per-ordinate angular field and
+then projecting (``P.apply(A_inv.apply(rhs))`` — the expansion's own
+``apply``, the fuller view the windowed-≡-post-projection gate spells
+independently), it runs the sweep in the
 substrate's MOMENT-emit mode (``_SweepEmit`` accumulating per anti-diagonal),
 so the ``(N, ng, nx, ny)`` intermediate is never built (the ~3× linear
 peak-memory win).  The two evaluations differ only in the ordinate-sum
 reduction order ⇒ principled-equivalence within the scale-relative
 ``4·N·eps`` bound (the windowed-≡-post-projection gate).
 
-The ``@`` spelling builds the fused object:
-:meth:`BulkAnalysisOperator.__matmul__` dispatches on a
-:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` right factor —
-mirroring the ``L + C`` fusion precedent — so ``P @ A.inverse()`` IS the
-windowed path.  The solver's ``_maybe_window`` is the factory; the former
-public ``solve_moments`` cross-reach (three sites) retired into this one
+The fused object is built EXPLICITLY, ``WindowedSweep(P, A.inverse())``, by
+its one owner, the solver's ``_maybe_window`` factory; ``P @ A.inverse()`` is
+the plain word, because ``@`` never fuses (numerics_untangling.md ruling 52:
+a fusion chosen by a type test inside a dunder is a realisation chosen by a
+spelling, and the realisation is the Strategy's). The former public
+``solve_moments`` cross-reach (three sites) retired into this one
 composition.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, cast, overload
+from typing import TYPE_CHECKING, Final, Optional, cast
 
-from orpheus.numerics.operator import (
-    D2,
-    LinearOperator,
-    OperatorProduct,
-)
+from orpheus.numerics.operator import FusedAtom, LinearOperator
 
 from .sweep_operator import SweepOperator
 
@@ -165,48 +161,24 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
         # on the trace always transposes).
         return self.face.is_adjointable
 
-    @overload
-    def __matmul__(self, other: "SweepOperator") -> "WindowedSweep": ...
-    @overload
-    def __matmul__(
-        self, other: "LinearOperator[D2, FullField]",
-    ) -> "OperatorProduct[D2, TimedFullField]": ...
-    def __matmul__(self, other):
-        r"""``P @ A.inverse()`` — the windowed composition, FUSED.
-
-        Dispatches a :class:`SweepOperator` right factor to
-        :class:`WindowedSweep` (whose ``apply`` evaluates through the
-        substrate's moment emit); any other operand falls through to the
-        generic :class:`~orpheus.numerics.operator.OperatorProduct`.
-        The typed ``@overload`` spells the fusion rule (C4, as
-        ``StreamingOperator.__add__``). Mirrors the ``L + C`` fusion
-        precedent (#261: one-directional dispatch on the specific leaf).
-        """
-        if isinstance(other, SweepOperator):
-            return WindowedSweep(self, other)
-        return super().__matmul__(other)
-
     def __repr__(self) -> str:
         return f"BulkAnalysisOperator({self.face!r})"
 
 
-class WindowedSweep(
-    OperatorProduct[
-        "FullField", "TimedFullField", BulkAnalysisOperator, SweepOperator,
-    ],
-):
+class WindowedSweep(FusedAtom["FullField", "TimedFullField"]):
     r"""The fused evaluation of ``P @ A.inverse()`` — same morphism, deforested.
 
-    :meth:`apply` overrides the inherited factor-by-factor body with the
-    substrate moment emit: the sweep accumulates ``w·Y·ψ`` per anti-diagonal
-    (``_SweepEmit`` MOMENT mode), so the full per-ordinate intermediate is
-    never materialized.  The inherited
-    :meth:`OperatorProduct.apply <orpheus.numerics.operator.OperatorProduct.apply>`
-    body — ``P.apply(A⁻¹.apply(rhs))`` — is the fuller-view verification
-    ORACLE (the windowed-≡-post-projection gate calls it unbound), retained
-    per the aggressive-retirement oracle exception.  Everything else
-    (spaces, the honest ``is_invertible = False`` from the
-    coisometry factor) is the generic product's.
+    An atom with two named legs, :attr:`p` and :attr:`sweep`, whose algebraic
+    content is :meth:`expansion`, the plain word ``P @ A⁻¹`` (ruling 52).
+    :meth:`apply` is the substrate moment emit: the sweep accumulates
+    ``w·Y·ψ`` per anti-diagonal (``_SweepEmit`` MOMENT mode), so the full
+    per-ordinate intermediate is never materialized. The expansion's own
+    ``apply`` — ``P.apply(A⁻¹.apply(rhs))`` — is the fuller view; the
+    windowed-≡-post-projection gate
+    (``tests/gates/sn/solve/test_2d_anisotropic_windowing.py``) spells that
+    oracle independently, as the flat analysis of the full-angular sweep. The spaces, the transpose and the
+    honest ``is_invertible = False`` (the coisometry factor) are the
+    expansion's.
 
     2-D Cartesian only, by construction: the moment emit is a 2-D kernel and
     the solver's ``_maybe_window`` gate (``is_cartesian and ndim == 2``) is
@@ -232,17 +204,14 @@ class WindowedSweep(
                 "must act on the same composite space (space-content "
                 "invariant)."
             )
-        super().__init__(p, sweep)
+        #: The analysis factor ``P``.
+        self.p: Final = p
+        #: The inverse factor ``A⁻¹``.
+        self.sweep: Final = sweep
 
-    @property
-    def p(self) -> "BulkAnalysisOperator":
-        """The analysis factor ``P`` (alias for ``self.a``)."""
-        return self.a
-
-    @property
-    def sweep(self) -> "SweepOperator":
-        """The inverse factor ``A⁻¹`` (alias for ``self.b``)."""
-        return self.b
+    def expansion(self) -> "LinearOperator[FullField, TimedFullField]":
+        r"""The plain word ``P @ A⁻¹`` this atom evaluates fused (ruling 52)."""
+        return self.p @ self.sweep
 
     def apply(
         self, rhs: "FullField", *,
@@ -253,8 +222,8 @@ class WindowedSweep(
         Routes to the forward operator's uniform private solve surface with
         ``moment_frame`` set — the ONE moment-emitting entry (the former
         ``solve_moments`` cross-reach retired here).  Principled-equivalent
-        (≤ scale-relative ``4·N·eps``) to the inherited deforested body,
-        which remains the verification oracle.
+        (≤ scale-relative ``4·N·eps``) to the expansion's ``apply``, the
+        fuller view the windowed-≡-post-projection gate spells independently.
 
         ``initial_guess`` is the inverse family's canonical driver
         signature, accepted and unused here: the multi-D Cartesian
@@ -273,4 +242,4 @@ class WindowedSweep(
         )
 
     def __repr__(self) -> str:
-        return f"WindowedSweep({self.a!r} @ {self.b!r})"
+        return f"WindowedSweep({self.p!r} @ {self.sweep!r})"

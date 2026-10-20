@@ -384,14 +384,7 @@ def _narrowed_zero_operator(
     return ZeroMorphism(domain=domain, codomain=codomain)
 
 
-def _attenuated_kernel_operator(
-    k_omega: "LinearOperator",
-    alpha: float,
-    *,
-    method_space: "SNMethodSpace",
-    gamma_out: "TraceRestrictionOperator",
-    law_key: str,
-) -> "LinearOperator":
+def _attenuated_kernel_operator(k_omega: "LinearOperator", alpha: float) -> "LinearOperator":
     r"""``α · (K_ω ⊗ K_g)``, stamped :attr:`BlockRole.BOUNDARY`.
 
     The §16A.10 BC decomposition is ``B = G_patch ⊗ K_omega ⊗ K_g``; every
@@ -403,52 +396,41 @@ def _attenuated_kernel_operator(
     arm, and B3.4b's two albedo closures would have made four transcriptions of
     it. All four kernel routes end here instead.
 
-    The three amplitude regimes, and why the ends are not merely optimizations
-    ------------------------------------------------------------------------
+    The three amplitude regimes are the algebra's, not branches
+    -----------------------------------------------------------
 
-    * :math:`\alpha = 1` returns the bare tensor product, so the fold reduces
-      to the angular kernel's own action with no ``ScaledOperator`` wrapper.
-      A convenience.
-    * :math:`\alpha = 0` returns :func:`_narrowed_zero_operator`, because a
-      surface that returns nothing IS a vacuum — the same object, honestly
-      typed, with a working transpose. **Not** a convenience: the general path
-      cannot express it, since
-      :class:`~orpheus.numerics.operator.ScaledOperator` refuses a zero scalar
-      as degenerate. Before B3.4b that refusal was reachable —
-      ``WhiteBoundary(..., 0.0)`` and the then-attenuated mirror
-      ``ReflectiveBoundary(axis, 0.0)`` were legal laws (:math:`\alpha = 0`
-      satisfies every invariant, including sub-Markov) and both died in the
-      numerics layer with a message about operator degeneracy rather than
-      realizing the boundary they describe. The mirror lost its amplitude on
-      2026-10-01 (a symmetry has none); the partial specular wall is
-      ``AlbedoBoundary(alpha, SpecularReturn(axis))``, whose zero end lands
-      here.
-      Folding the four routes into one body is what made that visible, and one
-      answer fixes all four.
-    * :math:`0 < \alpha < 1` takes the scaled path.
+    The formal linear combination (package S2, 2026-10-20) makes each end a
+    law of the representation: :math:`1 \cdot X` IS :math:`X` (the one-term
+    collapse), so :math:`\alpha = 1` is the bare tensor product; and
+    :math:`0 \cdot X` IS the zero map on :math:`X`'s spaces (zero absorption),
+    so :math:`\alpha = 0` is the
+    :class:`~orpheus.numerics.operator.ZeroMorphism`
+    :math:`\Gamma_+ \to \Gamma_-` — a surface that returns nothing IS a
+    vacuum, the same object, honestly typed, with a working transpose. Until
+    S2 the realizer branched three ways on :math:`\alpha`, because the retired
+    ``ScaledOperator`` refused a zero scalar as degenerate; that refusal was
+    reachable before B3.4b (``WhiteBoundary(..., 0.0)`` and the then-attenuated
+    mirror died in the numerics layer with a message about operator
+    degeneracy rather than realizing the boundary they describe). `[M]`
+    2026-10-20, a probe wrapping this function over the geometry and S\ :sub:`N`
+    operator gates: in 1619 of 1619 calls (the albedo, periodic, reflective
+    and white routes) ``0 · (K_ω ⊗ I)`` was a ZeroMorphism with exactly the
+    spaces the dedicated vacuum builder :func:`_narrowed_zero_operator` binds.
 
-    .. note::
-
-       At :math:`\alpha = 0` the caller has already built ``k_omega`` and this
-       function discards it. That is deliberate, and it is not the
-       compute-then-discard pattern this campaign removes: what is kept is the
-       **construction's validation**, not its value. Building the specular
-       kernel runs the domain space's ``Γ₊.to_local`` (G6.5), which refuses a
-       mirror that sends an inflow
-       ordinate outside :math:`\Gamma_+` (ERR-045 at realization). Skipping it
-       would make *realizability itself* depend on the amplitude — a law that
-       refuses at :math:`\alpha = 0.001` and is accepted at :math:`\alpha = 0`
-       — and a declared-but-unrealizable pairing is a nonsense declaration at
-       every amplitude.
+    The kernel is built at every amplitude, :math:`\alpha = 0` included, and
+    that is the point: what the construction keeps is its **validation**.
+    Building the specular kernel runs the domain space's ``Γ₊.to_local``
+    (G6.5), which refuses a mirror that sends an inflow ordinate outside
+    :math:`\Gamma_+` (ERR-045 at realization). Skipping it at :math:`\alpha =
+    0` would make *realizability itself* depend on the amplitude — a law that
+    refuses at :math:`\alpha = 0.001` and is accepted at :math:`\alpha = 0` —
+    and a declared-but-unrealizable pairing is a nonsense declaration at every
+    amplitude.
     """
-    if alpha == 0.0:
-        return stamp_boundary_role(
-            _narrowed_zero_operator(method_space, gamma_out, law_key=law_key)
-        )
-    base = k_omega & IdentityOperator()  # 2-factor TensorProductOperator
-    if alpha == 1.0:
-        return stamp_boundary_role(base)
-    return stamp_boundary_role(float(alpha) * base)
+    # The role lives on the LEAF (the user's ruling, 2026-10-20): the kernel is
+    # stamped, and α · kernel derives BOUNDARY by the join — at α = 0 the zero
+    # map inherits the cancelled kernel's role (linear_combination).
+    return float(alpha) * stamp_boundary_role(k_omega & IdentityOperator())
 
 
 def _deck_kernel(
@@ -766,7 +748,7 @@ class SNBoundaryRealizer:
 
         The concrete return is always a :class:`LinearOperator`
         subclass (a generic numerics primitive —
-        :class:`TensorProductOperator` / :class:`ScaledOperator` /
+        :class:`TensorProductOperator` / :class:`OperatorSum` /
         :class:`~orpheus.numerics.operator.ZeroOperator` / …); the narrower mixin type
         (vs the bare :class:`LinearOperator` Protocol) lets the
         :func:`~orpheus.geometry.boundary.stamp_boundary_role`
@@ -920,7 +902,6 @@ class SNBoundaryRealizer:
                     ),
                 ),
                 law.response_kernel.amplitude,
-                method_space=method_space, gamma_out=gamma_out, law_key="reflective",
             )
 
         if isinstance(law, WhiteBoundary):
@@ -939,7 +920,6 @@ class SNBoundaryRealizer:
                     law_key="white",
                 ),
                 law.albedo,
-                method_space=method_space, gamma_out=gamma_out, law_key="white",
             )
 
         if isinstance(law, AlbedoBoundary):
@@ -971,8 +951,6 @@ class SNBoundaryRealizer:
                         ),
                     ),
                     kernel.amplitude,
-                    method_space=method_space, gamma_out=gamma_out,
-                    law_key="albedo",
                 )
             if isinstance(kernel, LambertianReemission):
                 return _attenuated_kernel_operator(
@@ -982,8 +960,6 @@ class SNBoundaryRealizer:
                         law_key="albedo",
                     ),
                     kernel.amplitude,
-                    method_space=method_space, gamma_out=gamma_out,
-                    law_key="albedo",
                 )
             if isinstance(kernel, ScalarResponse) and kernel.is_zero:
                 # α = 0 is NOT under-determined — nothing returns, so no
@@ -1100,8 +1076,6 @@ class SNBoundaryRealizer:
                     ),
                 ),
                 law.response_kernel.amplitude,
-                method_space=method_space, gamma_out=gamma_out_partner,
-                law_key="periodic",
             )
 
         if isinstance(law, PrescribedInflow):
@@ -1145,7 +1119,7 @@ class SNBoundaryRealizer:
             f"ReflectiveBoundary, WhiteBoundary, "
             f"AlbedoBoundary, PeriodicBoundary, "
             f"PrescribedInflow. For rank-N compositions built via "
-            f"Wave-0 OperatorSum/ScaledOperator algebra over "
+            f"the operator algebra's + and α· over "
             f"BoundaryTraceLaw leaves, use "
             f"orpheus.geometry.boundary.realize_recursively with "
             f"realizer=SNBoundaryRealizer().",

@@ -269,6 +269,23 @@ class TestTheOperatorAssemblyIsByteStableAcrossTheCoda:
     Pairs with the REFERENCE class above per the two-anchor template: a
     frozen record says *something moved*, the raw-mixture reference says
     *which side is right*.
+
+    **Re-baselined once, 2026-10-20, by S2 under ruling 54** (the user's
+    ruling (a) on Q7; ``numerics_untangling.md``). The never-regenerate guard
+    above was for the coda carve; it still holds for every other byte. S2
+    made a sum a formal linear combination, flattened, so the homogeneous
+    loss ``C − K_iso`` (``K_iso = S + 2Σ₂ᵀ``, still a named cached property)
+    is now folded as ``(C − S) − 2Σ₂ᵀ`` instead of ``C − (S + 2Σ₂ᵀ)``. `[M]`
+    exactly ONE entry of the 16 recorded arrays moved:
+    ``homo_2eg_n2n.A[0,0]``, from 0.15200000000000008 (bytes
+    ``def97e6abc74c33f``) to 0.1520000000000001 (bytes ``dff97e6abc74c33f``),
+    1 ulp. The new value is the CLOSER one to the exact rational value of
+    the stored inputs (Σ_t = 0.6220000000000001, Σ_s0 = 0.45, Σ₂ = 0.01:
+    |new − exact| = 1.04e-17 against 1.73e-17 for the old), and the
+    raw-mixture REFERENCE class stayed green unchanged. Only that case's
+    ``A_b64`` was rewritten (the JSON differs from its predecessor in that one
+    key of 32). Evidence: ``scratch/numerics_untangling/packages/S2_rebase/``
+    (``coda_probe.py``, ``coda_anchor.py``).
     """
 
     @pytest.mark.parametrize("case", _CASE_IDS)

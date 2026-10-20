@@ -6,7 +6,8 @@ Depth B step D-B (load-bearing). Pins the grand-report §6.1 / §15
 tensor-product algebra at the L1 layer; consumed by Wave T (see
 ``.claude/plans/wave_t_tensor_network.md``) to type the codomains of
 the boundary-realizer, fission, scattering, and streaming operators
-that are rewired to ``TensorProductOperator`` / ``SumOfTensorProductsOperator``.
+that are rewired to ``TensorProductOperator`` and sums of them (``SumOfTensorProductsOperator``
+until S2, now an ``OperatorSum`` of tensor products).
 
 The invariants tested below are the type-system gates Wave T will
 exercise — associativity of ``*``, shape composition, inner-product

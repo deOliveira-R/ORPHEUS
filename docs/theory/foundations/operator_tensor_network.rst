@@ -30,7 +30,7 @@ of the S\ :sub:`N` transport operators: *which* algebraic shape each
 operator leaf actually takes once it is lifted out of a procedural,
 single-axis numpy body into the operator-algebra types
 (:class:`~orpheus.numerics.operator.TensorProductOperator`,
-:class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`,
+``SumOfTensorProductsOperator``,
 :class:`~orpheus.numerics.operator.OperatorSum`) developed in
 :doc:`/theory/foundations/operator_algebra`. The headline result is that
 **no single uniform tensor-product factorisation across space, angle and
@@ -61,7 +61,7 @@ streaming — from procedural single-axis numpy bodies into the
 operator-algebra types documented in
 :doc:`/theory/foundations/operator_algebra`
 (:class:`~orpheus.numerics.operator.TensorProductOperator`,
-:class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`,
+``SumOfTensorProductsOperator``,
 :class:`~orpheus.numerics.operator.OperatorSum`). The migration is
 the consumer side of the Wave-0 + Depth B D-B infrastructure
 (:class:`~orpheus.numerics.operator.TensorProductOperator` shipped at
@@ -75,12 +75,27 @@ A_\omega^{(k)} \otimes A_g^{(k)}` aspiration of Grand Report v3
 §15-§16A. The shipped state is **five algebraically distinct shapes**,
 chosen per operator by what the underlying physics actually couples.
 Future agents who assume "all SN operators are
-:class:`SumOfTensorProductsOperator`" — including Wave O
+``SumOfTensorProductsOperator``" — including Wave O
 (`Issue #208 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_)
 operator-role typing — will be wrong. This section names the master
 condition that decides the shape, catalogues which shape each operator
 uses, and documents the architectural rationale for the per-direction
 streaming split.
+
+.. note::
+
+   **2026-10-20, package S2 of the numerics untangling:** the class
+   ``SumOfTensorProductsOperator`` this section names is retired. It had
+   zero production consumers, and it summed its summands by hand beside
+   the algebra's own sum. A sum of tensor products is now an
+   :class:`~orpheus.numerics.operator.OperatorSum`, the formal linear
+   combination, whose words are
+   :class:`~orpheus.numerics.operator.TensorProductOperator`\ s; whether
+   separability earns its own type is #260. The section's argument stands
+   with "SOTP" read as that shape: the MA-Q1 master condition decides
+   whether an operator is a sum of tensor-product words or a combination
+   over bespoke leaves. Mentions of the class below are spelled as
+   literals, because the class no longer exists.
 
 
 Key Facts
@@ -102,7 +117,7 @@ Key Facts
 
   .. epigraph::
 
-     :class:`SumOfTensorProductsOperator` (SOTP) requires Cartesian-
+     ``SumOfTensorProductsOperator`` (SOTP) requires Cartesian-
      product per-axis decomposition: every summand factors as a
      product of independent per-axis operations. *Coupled physics* —
      per-material XS lookup that ties group to spatial cell,
@@ -112,7 +127,7 @@ Key Facts
      summands, **NOT** SOTP.
 
 - **Zero production consumers** of
-  :class:`SumOfTensorProductsOperator`. The §15.2 SOTP form is
+  ``SumOfTensorProductsOperator``. The §15.2 SOTP form is
   contradicted by the actual coupling structure of scattering (T.3)
   and streaming (T.4). Only T.1 (BC realizers) and T.2 (fission rank-1)
   cleanly admit the clean tensor-product factorisation.
@@ -311,7 +326,7 @@ of these operators.
 When the physics violates the right-hand side — and three of the four
 Wave-T-touched operators do — the algebraic home is
 :class:`OperatorSum` over :class:`LinearOperator` summands, NOT
-:class:`SumOfTensorProductsOperator`. The §15.2 target form is
+``SumOfTensorProductsOperator``. The §15.2 target form is
 *aspirational* in the grand report; Wave T documents that the actual
 coupling structure of multigroup transport with per-material
 cross-sections does not admit it for scattering and streaming.
@@ -792,7 +807,7 @@ lower-triangular sweeps over a single axis with ordinate- and
 material-dependent coefficients, and **both run inside the same fused
 walk**, sequentially nested: the outer loop is the spatial sweep, and at
 each spatial cell the inner M-M thread advances the angular half-grid.
-That nesting is precisely what a :class:`SumOfTensorProductsOperator`
+That nesting is precisely what a ``SumOfTensorProductsOperator``
 cannot express — a sum of per-axis tensor factors is a flat algebraic
 form with no notion of one axis's recurrence running *inside* another's.
 
@@ -1006,9 +1021,14 @@ Wave T's verification chain combines three independent grounds:
 4. **Algebraic-identity gates** (new in Wave T). Each touched
    operator passes the algebra contracts:
 
-   - :meth:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator.assert_separable`
-     passes on every TP-shaped operator (BC realizers, fission). The
-     method's home is the SUM-of-tensor-products operator, not the bare
+   - ``SumOfTensorProductsOperator.assert_separable``
+     passed on every TP-shaped operator (BC realizers, fission). ⛔ The
+     method retired with its class at package S2 (2026-10-20); a sum of
+     tensor products is now an
+     :class:`~orpheus.numerics.operator.OperatorSum` whose words are
+     :class:`~orpheus.numerics.operator.TensorProductOperator`\ s, and
+     whether separability earns a typed predicate again is #260. The
+     method's home was the SUM-of-tensor-products operator, not the bare
      :class:`~orpheus.numerics.operator.TensorProductOperator`: a single
      tensor product is the one-term case of the sum, and the separability
      contract is stated once, on the type that can hold either. It stays
@@ -1040,7 +1060,7 @@ Wave T's verification chain combines three independent grounds:
    no per-leaf construction cost.)
 
 
-What :class:`SumOfTensorProductsOperator` was supposed to do — and didn't
+What ``SumOfTensorProductsOperator`` was supposed to do — and didn't
 -------------------------------------------------------------------------
 
 Grand Report v3 §15.2 (lines 2046-2086) names the canonical scattering
@@ -1123,7 +1143,7 @@ Cross-references
 - **Code anchors**:
 
   - :class:`orpheus.numerics.operator.TensorProductOperator`,
-    :class:`orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`,
+    ``SumOfTensorProductsOperator`` (retired at S2, 2026-10-20),
     :class:`orpheus.numerics.operator.OperatorSum`,
     :class:`orpheus.numerics.elementary_operators.RankOneOperator`,
     :class:`orpheus.numerics.operator.IdentityOperator`,

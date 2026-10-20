@@ -22,9 +22,9 @@ is realized by walking the descriptor tree via
 :func:`~orpheus.geometry.boundary.realize_recursively` (the
 method-blind walker in :mod:`._realizer`; the method's realizer is
 passed explicitly), which turns each leaf into a 1-arg Wave-0
-:class:`LinearOperator` and re-assembles them under Wave-0
-:class:`~orpheus.numerics.operator.OperatorSum` /
-:class:`~orpheus.numerics.operator.ScaledOperator` composers. The
+:class:`LinearOperator` and re-assembles them through the operator
+algebra's own ``+`` and ``α·`` (the formal linear combination,
+:class:`~orpheus.numerics.operator.OperatorSum`). The
 descriptor → operator transformation is the **only** place an
 unrealized law becomes callable.
 

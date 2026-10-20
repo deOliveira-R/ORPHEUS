@@ -395,7 +395,7 @@ def test_the_inverse_family_reads_one_transposed_solve_predicate():
     The law :math:`(A^{-1})^{\mathsf T} = (A^{\mathsf T})^{-1}`, read through one
     predicate (:attr:`~orpheus.numerics.operator.LinearOperator.is_transpose_invertible`,
     2026-10-18). On the 1-D slab ``(L+C)`` realises the reverse scan, so the
-    sweep, the generic ``InverseOperator`` and the Green of ``(L+C) − B`` are
+    sweep, the generic ``InverseOperator`` and the Green of the split ``M = L+C, N = B`` are
     all adjointable. Re-posed from ``test_predicate_flip_is_surgical``, which
     pinned ``InverseOperator`` and ``GreenOperator`` non-adjointable "(no
     reverse-scan)": on this slab the reverse scan exists, so that premise was
@@ -414,7 +414,7 @@ def test_the_inverse_family_reads_one_transposed_solve_predicate():
             f"type={type(sweep).__name__}, is_adjointable={sweep.is_adjointable}"
         )
 
-    green = (A - SNBoundaryOperator(sn)).inverse()
+    green = GreenOperator(A, SNBoundaryOperator(sn))  # S2: the Green of the named split (ruling 50)
     if not (isinstance(green, GreenOperator) and green.is_adjointable is True):
         pytest.fail(
             f"GreenOperator over a transpose-invertible head must be adjointable: "

@@ -34,12 +34,11 @@ factor it once (LU), and every :meth:`apply` is a direct backsolve.
 
 **Values, not structure — the guard difference.** The constructor
 deliberately does NOT require ``inner.is_invertible``. That predicate is
-STRUCTURAL — it reads the operand tree (a sum is preconditionable only at
-the canonical spelling with an invertible LEADING term). The matrix
-realization reads VALUES: ``(−S) + (L+C)`` — which
-:class:`~orpheus.numerics.green_operator.GreenOperator` refuses at
-construction because its left-spine head is not invertible — materializes
-to a perfectly invertible matrix, and THIS class inverts it. That is the
+STRUCTURAL — it reads the operand tree (a sum of two or more terms is
+never invertible by itself: its inverse is named by its split, ruling 50 of
+numerics_untangling.md). The matrix realization reads VALUES: ``(L+C) − S``,
+a sum the algebra will not invert, materializes to a perfectly invertible
+matrix, and THIS class inverts it. That is the
 taxonomy §3 ``strategy=`` override seam realized honestly: not a flag on
 ``.inverse()`` but an explicit construction by a consumer who knows the
 problem is small (the type IS the strategy choice). The guards that

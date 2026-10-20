@@ -10,9 +10,10 @@ equation :math:`A_{\\rm wg} = L + C - S_{\\rm foldable}`:
   :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
   — diagonal in position, group, and direction; #261 retired the former
   ``CollisionOperator`` thin subclass).
-* :class:`StreamingCollisionOperator` — the sweep-invertible specialisation
-  :math:`(L + C)` returned by ``L + C``; ``is_invertible=True``
-  via the WDD sweep.
+* :class:`StreamingCollisionOperator` — the sweep-invertible atom whose
+  expansion is :math:`L + C`, built explicitly by the owner that needs the
+  sweep (``build_streaming_collision``); ``is_invertible=True`` via the WDD
+  sweep. ``L + C`` itself is the plain combination (ruling 52).
 
 All three operators consume and emit
 :class:`~orpheus.transport.timed_full_field.TimedFullField` — the
@@ -73,7 +74,7 @@ Three geometries are supported:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, Final
 
 import numpy as np
 
@@ -81,8 +82,8 @@ from functools import cached_property
 
 from orpheus.numerics.operator import (
     BlockRole,
+    FusedAtom,
     LinearOperator,
-    OperatorSum,
 )
 
 from orpheus.numerics.quadrature import Quadrature
@@ -108,10 +109,8 @@ if TYPE_CHECKING:
     )
     from ..loss_representation.sweep_schedule import SweepSchedule
     from ..loss_representation import LossRepresentation
-    # Type-only (the runtime constructions are late imports inside ``inverse``
-    # / ``__sub__`` to break the operator <-> composite import cycles).
-    from .boundary import SNMaskedBoundaryOperator
-    from .scheduled_invertible import ScheduledInvertibleOperator
+    # Type-only (the runtime construction is a late import inside ``inverse``
+    # to break the operator <-> inverse import cycle).
     from .sweep_operator import SweepOperator
 
 __all__ = [
@@ -178,10 +177,11 @@ class StreamingOperator(LinearOperator["FullField"]):
     Pure streaming alone is **not
     invertible** (the streaming operator is rank-deficient without a
     collision term to make the within-group cell balance non-singular).
-    The ``solve`` capability appears at the
-    :class:`~orpheus.numerics.operator.OperatorSum` level: ``(L + C
-    - S_foldable).solve(q)`` would route to the within-group sweep via a
-    σ_r fusion hook — but ⚠ that σ_r-sweep is exact ONLY for isotropic flux
+    The ``solve`` capability is the
+    :class:`StreamingCollisionOperator` atom's (the plain ``L + C`` has
+    none); a σ_r-folded variant ``StreamingCollisionOperator(L, M[σ_r])``
+    would route the within-group sweep through the removal cross-section —
+    but ⚠ that σ_r-sweep is exact ONLY for isotropic flux
     (it removes the diagonal-in-angle ``Σ_s0·I``, not the isotropic-projection
     ``Σ_s0·P_iso``); wiring it as a within-group accelerator ships 46–56 %
     errors on anisotropic problems (issue #215; the stable+correct fold is
@@ -413,51 +413,14 @@ class StreamingOperator(LinearOperator["FullField"]):
             self.problem, self.spatial_closure, self.angular_closure,
         )
 
-    # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
-
-    @overload
-    def __add__(self, other: "MultiplicationOperator") -> "StreamingCollisionOperator": ...
-    @overload
-    def __add__(
-        self, other: "LinearOperator[FullField]",
-    ) -> "OperatorSum[FullField, FullField]": ...
-    def __add__(
-        self, other: "LinearOperator[FullField]",
-    ) -> "OperatorSum[FullField, FullField]":
-        r"""Compose :math:`L + X`.
-
-        When ``X`` is a
-        :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
-        (the collision diagonal :math:`C = M[\sigma_t]`), returns the
-        sweep-invertible specialisation :class:`StreamingCollisionOperator`
-        carrying the algebraic identity :math:`(L + C)^{-1} \approx
-        \text{WDD sweep}` — the typed ``@overload`` spells the fusion
-        rule, so ``L + C`` reads as a ``StreamingCollisionOperator`` statically
-        (C4: the covariant summand legs make the specialisation
-        assignable to the generic contract).  Otherwise falls through to
-        the generic :class:`OperatorSum` via the mixin.
-
-        #261: ``L + C`` is the canonical (and only) ordering — the dispatch
-        lives here on the SN-specific streaming leaf, because the
-        transport-level multiplier cannot dispatch back onto ``StreamingOperator``
-        (that would be a ``transport → sn`` upward import).
-        """
-        if isinstance(other, MultiplicationOperator):
-            return StreamingCollisionOperator(self, other)
-        return super().__add__(other)
-
 
 # ─────────────────────────────────────────────────────────────────────────
 # StreamingCollisionOperator — sweep-invertible composite (L + C)
 # ─────────────────────────────────────────────────────────────────────────
 
 
-class StreamingCollisionOperator(
-    OperatorSum[
-        "FullField", "FullField", "StreamingOperator", "MultiplicationOperator",
-    ],
-):
-    r"""Sweep-invertible composite :math:`L + C` carrying ``.solve`` = WDD sweep.
+class StreamingCollisionOperator(FusedAtom["FullField"]):
+    r"""The sweep-invertible atom :math:`L + C`, carrying ``.solve`` = the WDD sweep.
 
     The SN-specific algebraic identity
 
@@ -466,57 +429,44 @@ class StreamingCollisionOperator(
         (L_{\rm streaming} + C_{\rm diagonal})^{-1} \;\approx\;
         \text{WDD sweep}
 
-    has no generic ``(A+B)^{-1}`` formula — a plain :class:`OperatorSum`
-    can only invert ITERATIVELY (the preconditioned-splitting
-    :class:`~orpheus.numerics.green_operator.GreenOperator` its generic
-    ``.inverse()`` returns).  The WDD sweep IS the DIRECT inverse algorithm
-    for this specific composite — the algebraic foundation of the entire SN
-    method (Lewis & Miller §3.2; Adams & Larsen 2002 §III) — and this
-    subclass's ``.inverse()`` override
-    (→ :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`) shadows
-    the generic Green by MRO (the type IS the structure).  :meth:`apply` /
-    :meth:`apply_transpose` OVERRIDE the :class:`OperatorSum` leaf-sum to
-    return the within-group loss :math:`(L+C)\psi = M(\sigma)\psi` (and its
-    transpose) DIRECTLY via :attr:`loss_representation`, single-sourcing
-    :math:`\sigma` from the diagonal — the SAME :math:`\sigma` ``solve``
-    threads into the WDD sweep, so matvec, adjoint, and sweep are three
-    actions of ONE operator (L21).
+    has no generic ``(A+B)^{-1}`` formula — the plain combination ``L + C``
+    (an :class:`~orpheus.numerics.operator.OperatorSum`) has no inverse of
+    its own (ruling 50).  The WDD sweep IS the DIRECT inverse algorithm for
+    this specific operator — the algebraic foundation of the entire SN
+    method (Lewis & Miller §3.2; Adams & Larsen 2002 §III) — so this atom
+    carries it: ``.inverse()`` is the
+    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`.
+    :meth:`apply` / :meth:`apply_transpose` return the within-group loss
+    :math:`(L+C)\psi = M(\sigma)\psi` (and its transpose) DIRECTLY via
+    :attr:`loss_representation`, single-sourcing :math:`\sigma` from the
+    diagonal — the SAME :math:`\sigma` ``solve`` threads into the WDD
+    sweep, so matvec, adjoint, and sweep are three actions of ONE operator
+    (L21).
 
-    Construction
-    ============
-
-    Two equivalent paths:
-
-    * **Operator algebra dispatch** — ``L + C`` where ``L`` is a
-      :class:`StreamingOperator` and ``C`` is the collision multiplier
-      :math:`M[\sigma_t]`
-      (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
-      returns this class automatically.  ``L + C`` is the canonical (and
-      only) ordering: the dispatch lives one-directionally on
-      :meth:`StreamingOperator.__add__`, because a transport-level
-      multiplier cannot dispatch back onto an ``sn`` operator (#261).  The
-      composite reads as math.
-    * **Explicit construction** — ``StreamingCollisionOperator(L, C)``.  Useful
-      when composing variants such as
-      ``StreamingCollisionOperator(L_leaf, MultiplicationOperator.from_mesh(σ_r, mesh))``
-      where
-      ``σ_r = σ_t - Σ_{s,0}^{g→g}`` is the removal cross-section that
-      lets one fold the within-group self-scatter into the diagonal
-      collision term (Adams & Larsen 2002 §III; tracked by issue
-      `#575 <https://github.com/deOliveira-R/ORPHEUS/issues/575>`_).
-
-    The two paths produce structurally identical objects — the choice
-    only changes the call-site readability.
+    **An atom, not a sum (ruling 52).**  Its two legs are named fields
+    (:attr:`streaming`, :attr:`diagonal`), and its algebraic content is one
+    method, :meth:`expansion`, the plain combination ``L + C`` it realises.
+    The generic algebra treats it as one term: ``sco − S`` is a two-term
+    combination whose first word is this atom.  It is built EXPLICITLY by
+    the owner that needs the sweep realisation
+    (:func:`~orpheus.sn.coupled_system.build_streaming_collision`, "the ONE
+    LC spelling"); ``L + C`` never fuses, because a fusion chosen by a type
+    test inside ``+`` fused one spelling order and not the other (``L + C``
+    fused, ``C + L`` did not), and the realisation is the Strategy's choice,
+    not the spelling's (ruling 20).  A variant is constructed the same way:
+    ``StreamingCollisionOperator(L_leaf, MultiplicationOperator.from_mesh(σ_r, mesh))``
+    with ``σ_r = σ_t - Σ_{s,0}^{g→g}``, the removal cross-section that folds
+    the within-group self-scatter into the diagonal (Adams & Larsen 2002
+    §III; issue
+    `#575 <https://github.com/deOliveira-R/ORPHEUS/issues/575>`_).
 
     Capability set
     ==============
 
-    ``is_invertible=True`` — adds
-    ``solve`` (the WDD sweep) to the parent :class:`OperatorSum`'s set;
-    ``apply_transpose`` propagates by the :class:`OperatorSum` closure
-    law (both :math:`L` and :math:`C` advertise it) and is OVERRIDDEN to
-    the composite's own :math:`M(\sigma)^{\mathsf T}` action (Wave O #208 /
-    #240 Step B).  The adjoint matvec is complete on the registered
+    ``is_invertible=True`` (``solve`` is the WDD sweep);
+    ``apply_transpose`` is the atom's own :math:`M(\sigma)^{\mathsf T}`
+    action (Wave O #208 / #240 Step B), present because both legs
+    transpose.  The adjoint matvec is complete on the registered
     scheme × representation grid since #310 C4 (multi-D Cartesian DD) /
     C5 (LD-2D); an unregistered-kernel scheme still raises typed —
     never a silent wrong answer.
@@ -593,7 +543,7 @@ class StreamingCollisionOperator(
         # Mesh-identity invariant (#261 re-anchor): the WDD sweep threads the
         # diagonal's σ against the STREAMING geometry, so the two must act on
         # the SAME mesh object — geometric consistency, strictly stronger than
-        # the (name, shape) shape-equality the OperatorSum composition guard
+        # the (name, shape) shape-equality the expansion's agreement law
         # checks. The diagonal multiplier is mesh-free; its mesh is carried by
         # its CrossSectionField coefficient.
         if diagonal.coefficient.space != streaming.problem.bulk_space:
@@ -615,18 +565,21 @@ class StreamingCollisionOperator(
                 f"negative, the multi-group cross-section set is "
                 f"physically inconsistent."
             )
-        super().__init__(streaming, diagonal)
-        # block_role is now DERIVED by OperatorSum.__init__ (Wave O / O.2b 4.5):
-        # join(L=FULL, C=BULK) = FULL. The former hand-stamp here was the
-        # twin-path retired in 4.5 — the role is carried by construction.
+        #: :math:`L = \Omega\cdot\nabla + \text{angular redistribution}`.
+        self.streaming: Final = streaming
+        #: :math:`C = M[\sigma]`, the diagonal multiplier the sweep pairs with L.
+        self.diagonal: Final = diagonal
+        # The roles of the expansion L + C: join(L=FULL, C=BULK) = FULL.
+        self._adopt_expansion_roles()
+
+    def expansion(self) -> "LinearOperator[FullField]":
+        r"""The plain combination :math:`L + C` this atom realises (ruling 52)."""
+        return self.streaming + self.diagonal
 
     @property
     def is_invertible(self) -> bool:
         # (L+C) is sweep-invertible: the WDD forward-substitution sweep IS its
-        # inverse operator (in
-        # __init__). This is the SOLE invertible OperatorSum — the base
-        # OperatorSum.is_invertible is False. is_adjointable inherits the
-        # OperatorSum a∧b law (both L and C advertise apply_transpose).
+        # inverse operator (:meth:`inverse`).
         return True
 
     @property
@@ -637,16 +590,6 @@ class StreamingCollisionOperator(
         return self.is_adjointable and self.loss_representation.has_transpose_sweep
 
     # ── Convenience accessors ─────────────────────────────────────────
-
-    @property
-    def streaming(self) -> "StreamingOperator":
-        """The streaming operand (alias for ``self.a``)."""
-        return self.a
-
-    @property
-    def diagonal(self) -> "MultiplicationOperator":
-        """The diagonal-multiplier operand :math:`C = M[\\sigma]` (alias for ``self.b``)."""
-        return self.b
 
     @property
     def loss_representation(self) -> "LossRepresentation":
@@ -698,10 +641,10 @@ class StreamingCollisionOperator(
         diagonal :math:`\sigma` (``self.sigma`` — the SAME array :meth:`solve`
         threads into the WDD sweep); the representation's :meth:`loss_action`
         returns the full within-group loss :math:`M(\sigma)\psi` directly.
-        This OVERRIDES the inherited leaf-sum :meth:`OperatorSum.apply`, which
-        is value-equal only by the forward-direction affine-in-:math:`\sigma`
-        coincidence — the override single-sources :math:`\sigma` from the
-        diagonal (Pattern 2), removing that latent coupling.
+        The expansion's leaf sum :math:`L\psi + C\psi` is value-equal only by
+        the forward-direction affine-in-:math:`\sigma` coincidence; this
+        action single-sources :math:`\sigma` from the diagonal (Pattern 2),
+        removing that latent coupling.
 
         On a carrying mesh this IS the ray-decoupled ``(A,A)`` block action
         (step 6 — presence is structural): the joint ``M`` matvec is the
@@ -719,8 +662,8 @@ class StreamingCollisionOperator(
         The adjoint sibling of :meth:`apply` (#240 Phase 2 Step B): the
         representation's :meth:`loss_action_transpose` realises
         :math:`(L+C)^{\mathsf T}\phi = M(\sigma)^{\mathsf T}\phi` directly with
-        THIS composite's diagonal :math:`\sigma`, overriding the inherited
-        :meth:`OperatorSum.apply_transpose` leaf sum.  Complete on the
+        THIS composite's diagonal :math:`\sigma`, not the expansion's leaf
+        sum.  Complete on the
         registered grid since #310 C4/C5 (the multi-D Cartesian reverses,
         DD and LD); an unregistered-kernel scheme still raises typed —
         never a silent wrong answer.
@@ -737,44 +680,6 @@ class StreamingCollisionOperator(
             phi, mesh=self.problem, context="StreamingCollisionOperator.apply_transpose",
         )
         return self.loss_representation.loss_action_transpose(self.sigma, phi)
-
-    # ── Algebra dispatch — schedule-folded composite (#226 step 2) ────
-
-    @overload
-    def __sub__(
-        self, other: "SNMaskedBoundaryOperator",
-    ) -> "ScheduledInvertibleOperator": ...
-    @overload
-    def __sub__(
-        self, other: "LinearOperator[FullField]",
-    ) -> "OperatorSum[FullField, FullField]": ...
-    def __sub__(
-        self, other: "LinearOperator[FullField]",
-    ) -> "OperatorSum[FullField, FullField]":
-        r"""Compose :math:`(L+C) - X`.
-
-        When ``X`` is the strictly-lower boundary half ``B_lower`` (an
-        :class:`~orpheus.sn.operators.boundary.SNMaskedBoundaryOperator`
-        from :meth:`~orpheus.sn.operators.boundary.SNBoundaryOperator.split`),
-        returns the sweep-invertible schedule-folded specialisation
-        :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
-        — the reified splitting matrix :math:`M = (L+C-B_{\rm lower})` whose
-        ``solve`` is the octant-group forward substitution (§17 W2).
-        The typed ``@overload`` spells the fusion rule (C4, as
-        :meth:`StreamingOperator.__add__`).
-        Otherwise falls through to the generic difference via the mixin.
-
-        ``(L+C) - B_lower`` is the canonical spelling — the dispatch lives
-        here on the SN composite, mirroring :meth:`StreamingOperator.__add__`
-        (#261: one-directional, the operand cannot dispatch back).
-        """
-        from .boundary import SNMaskedBoundaryOperator
-
-        if isinstance(other, SNMaskedBoundaryOperator):
-            from .scheduled_invertible import ScheduledInvertibleOperator
-
-            return ScheduledInvertibleOperator(self, other)
-        return super().__sub__(other)
 
     # ── solve: WDD sweep ─────────────────────────────────────────────
 

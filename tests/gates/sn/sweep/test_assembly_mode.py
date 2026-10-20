@@ -131,13 +131,17 @@ _MESH_BUILDERS = {"slab": _slab_mesh, "cartesian_2d": _cartesian_2d_mesh}
 
 
 def _loss(problem: SNProblem):
-    """The production within-group resolvent ``L + C`` (the solver's own
-    spelling — StreamingOperator + M[σ_t] on the composite space)."""
+    """The production within-group resolvent ``L + C`` — the atom
+    ``StreamingCollisionOperator(StreamingOperator, M[σ_t])`` on the composite
+    space, built explicitly as ``build_streaming_collision`` does (S2: ``+``
+    never fuses, ruling 52)."""
+    from orpheus.sn.operators.streaming import StreamingCollisionOperator
+
     mat_xs = problem.mat_xs
-    return StreamingOperator.pose(problem) + MultiplicationOperator(
+    return StreamingCollisionOperator(StreamingOperator.pose(problem), MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
         domain=problem.full_field_space, codomain=problem.full_field_space,
-    )
+    ))
 
 
 def _bulk_impulse_state(problem: SNProblem, n: int, g: int, x: np.ndarray):

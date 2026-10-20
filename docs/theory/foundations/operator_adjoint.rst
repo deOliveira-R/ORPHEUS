@@ -503,9 +503,9 @@ by any leaf's domain**. Two mechanisms.
 reading :math:`G` off the **wrapped operator's** ``domain`` /
 ``codomain``. When the wrapped operator is the *sum* :math:`(L+C-B)`,
 that is the sum's composite ``full_field_space`` (the
-:class:`~orpheus.numerics.operator.OperatorSum` ``domain`` is the
-first-non-``None`` of its operands — now redundant, since all operands
-agree on the same composite). The adjoint therefore applies the metric
+:class:`~orpheus.numerics.operator.OperatorSum` ``domain`` is the space its
+terms agree on, checked at construction).
+:eq:`composite-adjoint-at-the-ends` is the general statement. The adjoint therefore applies the metric
 **once on the composite**:
 
 .. (vv-status rationale) The sum-conjugation distribution
@@ -591,6 +591,125 @@ the *forward* composition guard).
    ``F`` handled at the eigenvalue / DSA **outer** layer (where the
    adjoint posing row daggers :math:`M = F` as :math:`M^{\dagger}`; see
    :ref:`eigenvalue-posing`), not via a within-group composite adjoint.
+
+
+.. _operator-adjoint-composites:
+
+The adjoint of a composite is taken once, at its ends
+-----------------------------------------------------
+
+A sum is a formal linear combination and a product a flattened word
+(:ref:`composition-algebra`). Their **dual arrows** distribute over the
+terms and the factors exactly, with no metric anywhere
+(:eq:`combination-dual-distributes`, :eq:`word-reversal-laws`). Their
+**Hilbert adjoints** do not distribute; each is the base's
+``♯ ∘ dual ∘ ♭``, taken once, at the composite's own ends:
+
+.. math::
+   :label: composite-adjoint-at-the-ends
+
+   \Bigl(\sum_i c_i w_i\Bigr)^{*}
+   \;=\; \sharp_V \circ \Bigl(\sum_i c_i\, w_i^{\mathsf T}\Bigr) \circ \flat_W ,
+   \qquad
+   (A_1 \cdots A_n)^{*}
+   \;=\; \sharp_V \circ A_n^{\mathsf T} \cdots A_1^{\mathsf T} \circ \flat_W ,
+
+for a combination or a word :math:`V \to W` (ruling 53 of
+``.claude/plans/numerics_untangling.md``, in its precise form). The
+metric enters twice, at the two ends, and never at a term or a middle
+space. This is the :eq:`g-adjoint-sum-conjugation` statement made general:
+the conjugation by :math:`G^{-1}(\cdot)^{\mathsf T}G` is applied to the
+whole composite. ``(A + B).H`` and ``(A @ B).H`` are therefore one
+:class:`~orpheus.numerics.operator.AdjointOperator` over the composite, and
+its involution is an object identity: ``S.H.H is S`` holds on a
+combination as on a leaf (`[M]` 2026-10-20, the archivist's probe on the
+worktree). Two adjoints built separately compare equal, ``A.H == A.H``,
+because a formal arrow is keyed by its kind and its inner
+(:ref:`composition-algebra`).
+
+.. implements:: composite-adjoint-at-the-ends
+   :by: orpheus.numerics.operator.AdjointOperator
+
+   **Implemented by** the class: its three legs, built at construction,
+   are ``RieszRaiseOperator(inner.domain)``, the dual arrow of the whole
+   inner, and ``RieszLowerOperator(inner.codomain)``; the dual arrow's
+   action is the inner's ``apply_transpose``, which on a combination is
+   the left fold of the terms' transposes and on a word the reversed
+   chain of the factors'.
+
+**Why not distribute the adjoint.** The two literal distributions,
+
+.. math::
+
+   \Bigl(\sum_i c_i w_i\Bigr)^{*} \;\overset{?}{=}\; \sum_i c_i\, w_i^{*},
+   \qquad
+   (A B)^{*} \;\overset{?}{=}\; B^{*} A^{*},
+
+are theorems only when every term, and every middle space of a word, is
+bound to a **non-degenerate** metric. Two cases in the tree break that,
+and in each the distributed form is wrong while the once-at-the-ends form
+is exact:
+
+#. **A term with no spaces on a dense metric.** A
+   :class:`~orpheus.numerics.operator.PointwiseOperator` declares no
+   spaces, and its ``adjoint()`` returns itself, which is correct only
+   for a metric with which it commutes (a diagonal one). On the
+   exact-binary dense metric of ``test_dense_metric.py``, with :math:`A`
+   bound and :math:`D` the pointwise ``DiagonalOperator([1, 2, 3])``, the
+   reciprocity :math:`\langle (D + A)x, y\rangle = \langle x, (D+A)^{*}
+   y\rangle` holds to 2.1e-16 relative on the once-at-the-ends route and
+   misses by **1.26e-3** under :math:`D^{*} + A^{*}`.
+#. **A word through a singular middle metric.** :math:`B^{*} A^{*}`
+   inserts :math:`\flat_U \sharp_U = G_U G_U^{+}` at the middle space
+   :math:`U`, which is a projector, not the identity, when :math:`G_U` is
+   singular (the S\ :sub:`N` partial-current trace's tangential slots,
+   the section on the singular trace metric, below). With middle
+   weights :math:`[1, 0, 2]` the whole-word route is exact (relative
+   error 0.0) and the distributed route misses by **6.4e-2**.
+
+`[M]` 2026-10-20, re-run by the archivist on the landed worktree code
+from outside the repository, the test-architect's two probes
+``scratch/numerics_untangling/packages/S2_gates/probes/p1_pointwise_dense.py``
+(the first case: 2.10e-16 against 1.2615e-3) and
+``p2_word_adjoint_singular_middle.py`` beside it (the second: 0.0 against
+6.36e-2). Even on a non-singular middle the
+word's distributed form moves bits: the carrying sphere's
+``pencil.H.at(2.5)`` moved 1.8e-19 relative under it, because the sphere's
+fission operator is the word ``CoupledOperator @ SystemRestrictionOperator``
+(the S2 spec's finding 2).
+
+Both distributed forms become theorems everywhere once every degenerate
+metric is replaced by its live subspace, ruling 26, package S6
+(`#617 <https://github.com/deOliveira-R/ORPHEUS/issues/617>`_); the
+pointwise adjoint on a dense metric is
+`#625 <https://github.com/deOliveira-R/ORPHEUS/issues/625>`_, whose
+production reach is zero (`[M]` the S2 spec: 8 calls of
+``PointwiseOperator.adjoint``, all from tests, over 12 814 passing tests,
+and no production composite on a dense space holds a pointwise term). A
+guard refusing the composite adjoint until S6 was considered and rejected:
+it would refuse an adjoint that is well posed.
+
+The gates, in ``tests/gates/numerics/test_linear_combination.py``: c21
+(the sum's dual distributes; ``S.H`` is bit for bit
+:math:`\sharp(2A^{\mathsf T}\flat y + (-0.5)B^{\mathsf T}\flat y)`; the
+theorem :math:`S^{*} \approx 2A^{*} - 0.5B^{*}` in value on non-degenerate
+spaces), c22 (the word's), c24 (reciprocity of a sum on two weighted
+spaces), c25 (the first case above), c36 (the second), c26 (the
+involution) and c37 (the carrying sphere's ``pencil.H.at(2.5)`` is bit for
+bit the once-at-the-ends route over 16 seeds; one seed was not enough,
+because the moved bits depend on the draw).
+
+.. dropdown:: First got wrong — the adjoint distributed by the design (2026-10-20)
+   :color: muted
+
+   The S2 design (D5) wrote ``(Σ cᵢwᵢ).H = Σ cᵢwᵢ.H`` and
+   ``(A₁…Aₙ).H = Aₙ.H … A₁.H``, and expected ``A.H.H`` on a sum to become a
+   new object equal to ``A``. The test-architect's two probes above
+   refuted both distributions before any code was written, and the
+   orchestrator's reading of ruling 53 became the precise form: the DUAL
+   distributes, the ADJOINT is taken once at the ends. Under that form
+   today's whole-composite adjoint was already exact, so its bits did not
+   move, and ``A.H.H is A`` survived on sums.
 
 
 .. _operator-adjoint-two-questions:
@@ -737,7 +856,7 @@ forward (``InverseWrapMixin.is_metric_free_adjoint``), and an
      - refuses
      - refuses
      - the 2-D sweeps (no reverse scan, `#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_), the 2-D coupled
-       substitution, the Green over a 2-D head, the DSA correction
+       substitution, the Green over a 2-D implicit part, the DSA correction
    * - ``False``
      - ``False``
      - refuses
@@ -809,10 +928,9 @@ it is invertible and its inverse transposes (the private
 factor whose inverse is a first-class forward, a scaled operator or a
 permutation, therefore qualifies although it has no native transposed
 solve: `[M]` 2026-10-19, the gate row ``(D @ 2D)⁻¹`` over an unbound
-diagonal opens both doors. :class:`~orpheus.numerics.operator.ScaledOperator`
-itself has no native ``solve_transpose``; one is owed when a scaled block
-first sits on a coupled grid's diagonal, which reads the native
-predicate.
+diagonal opens both doors. A one-term combination :math:`cA` itself has
+no native ``solve_transpose``; one is owed when a scaled block first sits
+on a coupled grid's diagonal, which reads the native predicate.
 
 Neither of the forward's other two flags answers the third question. A
 multi-dimensional :math:`(L+C)` transposes its **action** (the
@@ -834,36 +952,36 @@ slab and the product-quadrature cylinder (``CumprodScan``) both read
 same predicate per diagonal block; a ``callable(solve_transpose)`` test
 would pass a 2-D block whose method raises.
 
-The Green of the transposed sum
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The Green of the transposed split
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The :class:`~orpheus.numerics.green_operator.GreenOperator`
-:math:`G = (A - B)^{-1}` is realised by a splitting iteration, so it has
-no transposed solve to delegate to, and it overrides the mixin. Both of
-its transposes are Greens of the transposed sum:
+:math:`G = (M - N)^{-1}` of a named split (:eq:`green-split-inverse`) is
+realised by a splitting iteration, so it has no transposed solve to
+delegate to, and it overrides the mixin. Both of its transposes are
+Greens of the transposed split:
 
 .. math::
 
-   \bigl((A - B)^{-1}\bigr)^{*} \;=\; (A^{*} - B^{*})^{-1},
+   \bigl((M - N)^{-1}\bigr)^{*} \;=\; (M^{*} - N^{*})^{-1},
    \qquad
-   \bigl((A - B)^{-1}\bigr)^{\mathsf T} \;=\; (A^{\mathsf T} - B^{\mathsf T})^{-1} .
+   \bigl((M - N)^{-1}\bigr)^{\mathsf T} \;=\; (M^{\mathsf T} - N^{\mathsf T})^{-1} .
 
-The code builds only the second. ``GreenOperator.dual()`` takes the
-dual arrow of each signed left-spine term, head first, sums them, and
-wraps the sum in a new ``GreenOperator`` with the same budget and
-tolerance; ``apply_transpose`` is ``dual().apply``. The dual records the
+The code builds only the second. ``GreenOperator.dual()`` is
+``GreenOperator(M.dual(), N.dual())``, the Green of the two parts' dual
+arrows, with the same budget and tolerance; ``apply_transpose`` is ``dual().apply``. The dual records the
 Green it is the dual of, so ``G.dual().dual() is G`` (the involution as
 object identity, `[M]` 2026-10-19 on the gate's slab Green). The
-transposed Green's preconditioner is its head's inverse,
-:math:`(A^{\mathsf T})^{-1} = (A^{-1})^{\mathsf T}`, so it exists exactly
-where the head's inverse transposes. Hence ``GreenOperator.is_adjointable``
-is: every term transposes, and the dual of the head is invertible.
+transposed Green's preconditioner is the implicit part's dual inverse,
+:math:`(M^{\mathsf T})^{-1} = (M^{-1})^{\mathsf T}`, so it exists exactly
+where :math:`M`'s inverse transposes. Hence ``GreenOperator.is_adjointable``
+is: both parts transpose, and the dual of :math:`M` is invertible.
 
 The Green does **not** override the Hilbert adjoint. ``G.H`` is the
 base's ``♯ ∘ G.dual() ∘ ♭`` through the one door, posed by the Green's own
-ends. The first identity, :math:`((A - B)^{-1})^{*} = (A^{*} - B^{*})^{-1}`,
+ends. The first identity, :math:`((M - N)^{-1})^{*} = (M^{*} - N^{*})^{-1}`,
 still holds, and it is what the honesty gate uses as its **independent**
-witness for the Green row: a Green built over the terms' ``.H``, compared
+witness for the Green row: a Green built over the parts' ``.H``, compared
 with ``G.H`` by reciprocity. When the Green carried an ``adjoint()``
 override built from that same formula, the witness was the override's
 own body, a tautology that agreed to exactly ``0.0``.

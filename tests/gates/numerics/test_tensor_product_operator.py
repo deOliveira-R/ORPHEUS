@@ -1,5 +1,6 @@
-r"""Tests for :class:`TensorProductOperator` and
-:class:`SumOfTensorProductsOperator`.
+r"""Tests for :class:`TensorProductOperator` and the sum of tensor products
+(an :class:`~orpheus.numerics.operator.OperatorSum` whose words are tensor
+products since S2, design D8; ``SumOfTensorProductsOperator`` retired).
 
 The Grand Report v3 §6.3 / §15.1 / §15.2 introduce the tensor-product
 algebra :math:`A \otimes B \otimes C` for axis-aligned operators. The
@@ -23,7 +24,8 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.functional import InnerProductFunctional
-from orpheus.numerics.elementary_operators import DiagonalOperator, PermutationOperator, RankOneOperator, SumOfTensorProductsOperator, outer
+from orpheus.numerics.elementary_operators import DiagonalOperator, PermutationOperator, RankOneOperator, outer
+from orpheus.numerics.operator import OperatorSum
 from orpheus.numerics.operator import ZeroOperator
 from orpheus.numerics.operator import (
     IdentityOperator,
@@ -294,41 +296,46 @@ class TestTensorProductSpaces:
 
 @pytest.mark.l0
 class TestSumOfTensorProductsSpaces:
-    """L0: a sum of tensor products is a SUM — same agreement law."""
+    """L0: a sum of tensor products is a SUM — same agreement law (since S2
+    it is the combination itself, D8)."""
 
     def test_the_summands_supply_the_spaces(self):
-        S = SumOfTensorProductsOperator(
-            (_bound_swap(_V, _W) & IdentityOperator(),
-             _bound_swap(_V, _W) & IdentityOperator())
+        S = (_bound_swap(_V, _W) & IdentityOperator()) + (
+            _bound_swap(_V, _W) & IdentityOperator()
         )
         assert S.domain is _V and S.codomain is _W
 
     def test_disagreeing_summands_are_refused(self):
         with pytest.raises(
             IncompatibleOperatorComposition,
-            match="SumOfTensorProductsOperator requires equal codomains",
+            match="OperatorSum requires equal codomains",
         ):
-            SumOfTensorProductsOperator(
-                (_bound_swap(_V, _W) & IdentityOperator(),
-                 _bound_swap(_V, _V) & IdentityOperator())
+            _ = (_bound_swap(_V, _W) & IdentityOperator()) + (
+                _bound_swap(_V, _V) & IdentityOperator()
             )
 
 
 # ─────────────────────────────────────────────────────────────────────
-# SumOfTensorProductsOperator
+# The sum of tensor products (an OperatorSum of TensorProductOperator words)
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.l0
 class TestSumOfTensorProducts:
-    """L0: §15.2 sum-of-tensor-products algebra."""
+    """L0: §15.2 sum-of-tensor-products algebra, on the combination (D8).
+
+    Retired with the class: ``assert_separable`` (a re-check of a
+    constructor guard), the non-tensor-summand refusal (the combination
+    admits any word) and the empty-list refusal (the empty combination is
+    the zero map, ``test_linear_combination.py`` c09)."""
 
     def test_sum_of_two_separable_terms(self):
         D_a = DiagonalOperator(np.array([2.0, 3.0]), axis=0)
         D_b = DiagonalOperator(np.array([5.0, 7.0]), axis=1)
         D_c = DiagonalOperator(np.array([11.0, 13.0]), axis=0)
         D_d = DiagonalOperator(np.array([17.0, 19.0]), axis=1)
-        S = SumOfTensorProductsOperator((D_a & D_b, D_c & D_d))
+        S = (D_a & D_b) + (D_c & D_d)
+        assert isinstance(S, OperatorSum)
         x = np.ones((2, 2))
         expected = (
             np.outer(D_a.weights, D_b.weights)
@@ -336,38 +343,27 @@ class TestSumOfTensorProducts:
         )
         np.testing.assert_allclose(S.apply(x), expected, rtol=1e-15)
 
-    def test_assert_separable_passes_when_constructed_legally(self):
-        D_a = DiagonalOperator(np.array([1.0]))
-        D_b = DiagonalOperator(np.array([1.0]))
-        S = SumOfTensorProductsOperator((D_a & D_b,))
-        S.assert_separable()  # no exception
-
-    def test_constructor_rejects_non_tensor_summand(self):
-        with pytest.raises(TypeError, match="must be"):
-            SumOfTensorProductsOperator((IdentityOperator(),))
-
     def test_not_invertible_no_solve(self):
-        """A sum of tensor products is not invertible (sum-of-inverses !=
-        inverse-of-sum; ``is_invertible`` inherits the base ``False``), and
-        the ``solve`` verb does not exist anywhere on the type (carve P4)."""
-        D_a = DiagonalOperator(np.array([1.0]))
-        D_b = DiagonalOperator(np.array([1.0]))
-        S = SumOfTensorProductsOperator((D_a & D_b,))
+        """A sum of two tensor products is not invertible (sum-of-inverses !=
+        inverse-of-sum) and carries no ``solve``; since S2 its ``inverse()``
+        exists and refuses (ruling 50: name the split)."""
+        D_a = DiagonalOperator(np.array([1.0, 2.0]), axis=0)
+        D_b = DiagonalOperator(np.array([3.0, 4.0]), axis=1)
+        S = (D_a & D_b) + (D_b & D_a)
         assert not S.is_invertible
-        assert not hasattr(S, "solve")  # never existed post carve P4
-        assert not hasattr(S, "inverse")  # structural refusal is static
+        assert not hasattr(S, "solve")
+        with pytest.raises(NotInvertible, match="GreenOperator\\(M, N\\)"):
+            S.inverse()
 
     def test_apply_transpose_propagates(self):
         D_a = DiagonalOperator(np.array([2.0, 3.0]), axis=0)
         D_b = DiagonalOperator(np.array([5.0, 7.0]), axis=1)
-        S = SumOfTensorProductsOperator((D_a & D_b,))
+        D_c = DiagonalOperator(np.array([11.0, 13.0]), axis=0)
+        # TWO terms: since S2 a one-term sum IS its tensor product (collapse).
+        S = (D_a & D_b) + (D_c & D_b)
         x = np.ones((2, 2))
         # Diagonals are self-adjoint
         np.testing.assert_array_equal(S.apply_transpose(x), S.apply(x))
-
-    def test_empty_summand_list_rejected(self):
-        with pytest.raises(ValueError, match="at least one"):
-            SumOfTensorProductsOperator(())
 
 
 # ─────────────────────────────────────────────────────────────────────

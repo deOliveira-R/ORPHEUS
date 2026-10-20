@@ -40,6 +40,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.sn.operators.scheduled_invertible import ScheduledInvertibleOperator
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
@@ -87,12 +89,14 @@ def _reified(bc: str = "reflective", *, seed: int = 7):
     """
     sn = _cart2d(nx=4, ny=5, ng=2, bc=bc)
     _, sig_r = _removal_sigmas(sn, seed=seed)
-    LC = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_r, sn)
+    LC = StreamingCollisionOperator(StreamingOperator.pose(sn), MultiplicationOperator.from_mesh(sig_r, sn))
     B = SNBoundaryOperator(sn)
     schedule = SweepSchedule.gauss_seidel(
         sn.ndim, sn.quad.octants, reflective_faces(sn))
     parts = B.split(schedule)
-    return sn, LC, B, schedule, parts, LC - parts.lower
+    # S2 (ruling 52): ``−`` never fuses; the reified splitting matrix is built
+    # explicitly, as ``Splitting`` builds its implicit part.
+    return sn, LC, B, schedule, parts, ScheduledInvertibleOperator(LC, parts.lower)
 
 
 def _consistent_state(sn, LC, *, seed: int):

@@ -7,8 +7,9 @@ algebra by what they produce:
   (the :class:`~orpheus.numerics.operator.LinearOperator` surface
   ``apply(x: V) -> V``);
 * a **Kernel** integrates a field against a measure on one or more axes
-  (the :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`
-  scattering / fission form — still field → field, but nonlocal);
+  (the scattering / fission form, a sum of tensor products
+  :math:`\sum_\ell P_\ell \otimes \Sigma_{s,\ell}` — still field → field,
+  but nonlocal);
 * a **Functional** maps a field to a **scalar** (or, fiberwise over
   space, to a scalar-field) — the surface this module names.
 

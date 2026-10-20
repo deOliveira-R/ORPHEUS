@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import pytest
 
+from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from tests.gates.sn._test_helpers import cart2d_2g_nonsquare, het_operands
@@ -58,7 +59,7 @@ def test_sweep_and_loss_action_hit_one_octant_walk(monkeypatch):
     sig_t, psi = het_operands(sn)[:2]
     L = StreamingOperator.pose(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)
-    A = L + C
+    A = StreamingCollisionOperator(L, C)  # S2: the atom built explicitly (ruling 52)
 
     # (1) the MATVEC direction routes through the shared walk:
     hits.clear()

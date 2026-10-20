@@ -352,15 +352,15 @@ class TestSumCapabilities:
     def test_sum_advertises_solve_via_invertible_dispatch(
         self, name, builder,
     ):
-        r"""``L + C`` dispatches to StreamingCollisionOperator and is invertible."""
+        r"""The ``L + C`` ATOM is invertible; since S2 (ruling 52) the plain sum
+        ``L + C`` no longer dispatches to it and has no inverse of its own."""
         from orpheus.sn.operators.streaming import StreamingCollisionOperator
         problem = builder()
         sig_t = _sig_t_uniform(problem)
         L = StreamingOperator.pose(problem)
         C = MultiplicationOperator.from_mesh(sig_t, problem)
-        A = L + C
-        assert isinstance(A, StreamingCollisionOperator)
-        assert A.is_invertible
+        assert StreamingCollisionOperator(L, C).is_invertible
+        assert not (L + C).is_invertible
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -536,16 +536,16 @@ class TestOperatorAlgebraCompositionUnderTimedFullField:
 
     Load-bearing for the post-D-H.1b operator algebra: all four
     operators must accept TimedFullField input and return
-    TimedFullField output for ``OperatorSum.apply`` (which evaluates
-    ``self.a.apply(x) + self.b.apply(x)``) to type-check at every
-    composition step.
+    TimedFullField output for ``OperatorSum.apply`` (the left fold
+    ``c₁w₁(x) + c₂w₂(x) + …`` over the terms, since S2) to type-check at
+    every term.
     """
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_LC_apply_composite(self, name, builder):
         """``(L + C).apply(state)`` returns a TIMELESS FullField.
 
-        ``L + C`` dispatches to :class:`StreamingCollisionOperator`; its
+        The ``(L + C)`` atom (built explicitly since S2, ruling 52); its
         :meth:`apply` evaluates the representation ``loss_action``.  #257 S8a —
         the matvec leaf is a base arrow ``FullField -> FullField`` (the comonad
         lives on the driver), so the output is the TIMELESS FullField
@@ -558,7 +558,8 @@ class TestOperatorAlgebraCompositionUnderTimedFullField:
         sig_t = _sig_t_uniform(problem)
         L = StreamingOperator.pose(problem)
         C = MultiplicationOperator.from_mesh(sig_t, problem)
-        A = L + C
+        from orpheus.sn.operators.streaming import StreamingCollisionOperator
+        A = StreamingCollisionOperator(L, C)
         state = _random_composite(problem, seed=191)
 
         out = A.apply(state)

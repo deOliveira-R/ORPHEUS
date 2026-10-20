@@ -3990,20 +3990,22 @@ composed with an inverse**.
 Fusion is an evaluation strategy, not a new operator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The composition itself is
-:class:`~orpheus.sn.operators.windowing.WindowedSweep` (an
-:class:`~orpheus.numerics.operator.OperatorProduct` subclass), spelled by
-the operator algebra ``P @ A.inverse()`` — the
-:meth:`BulkAnalysisOperator.__matmul__ <orpheus.sn.operators.windowing.BulkAnalysisOperator.__matmul__>`
-dispatch recognises a :class:`SweepOperator` right factor and returns the
-fused product (mirroring the ``L + C`` fusion precedent, #261: the
-dispatch is one-directional on the specific leaf).
+The fused evaluation is
+:class:`~orpheus.sn.operators.windowing.WindowedSweep`, an atom with two
+named legs (``p`` and ``sweep``) whose ``expansion()`` is the plain word
+``P @ A.inverse()``. It is built explicitly, ``WindowedSweep(P,
+A.inverse())``, by its one owner, the solver's ``_maybe_window`` factory:
+since package S2 (2026-10-20, numerics_untangling.md ruling 52) ``@``
+never fuses, so ``P @ A.inverse()`` is the plain
+:class:`~orpheus.numerics.operator.OperatorProduct`. (Until S2 a type test
+inside ``BulkAnalysisOperator.__matmul__`` returned the fused object for
+a sweep right factor, mirroring the then-``L + C`` fusion.)
 :meth:`WindowedSweep.apply <orpheus.sn.operators.windowing.WindowedSweep.apply>`
-overrides the inherited factor-by-factor body with the substrate's
+replaces the word's factor-by-factor body with the substrate's
 MOMENT-emit mode (the per-anti-diagonal accumulation of :ref:`Phase 5c
 <sn-angular-windowing-in-sweep-accumulation>`), so the
 :math:`(N, n_g, n_x, n_y)` full-angular intermediate is **never
-materialized** (the ~3× linear peak-memory win). The **inherited**
+materialized** (the ~3× linear peak-memory win). The expansion's own
 :meth:`OperatorProduct.apply <orpheus.numerics.operator.OperatorProduct.apply>`
 body — ``P.apply(A⁻¹.apply(rhs))``, which *does* materialize the
 intermediate — is retained verbatim as the **fuller-view verification
@@ -5228,9 +5230,12 @@ refuted in :ref:`sn-boundary-gs-not-regular`):
 
 The reified :math:`M`
 (:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`)
-is an honest :class:`~orpheus.numerics.operator.OperatorSum` over the
-leaves :math:`\{(L+C),\,-B_{\rm lower}\}`, so its ``apply`` is the leaf
-sum :math:`(L+C)\psi - B_{\rm lower}\psi` and its ``inverse()`` returns a
+is an atom with two named legs, ``invertible`` (:math:`L+C`) and
+``lower`` (:math:`B_{\rm lower}`), whose ``expansion()`` is the plain
+combination :math:`L + C - B_{\rm lower}` over the original atoms (since
+package S2, 2026-10-20; it was an
+:class:`~orpheus.numerics.operator.OperatorSum` subclass before), so its
+``apply`` is :math:`(L+C)\psi - B_{\rm lower}\psi` and its ``inverse()`` returns a
 genuine :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` on
 :math:`M` — the two faces of **one** operator, the way :math:`A` and
 :math:`A.H` are.  Because the scheduled walk (the same uniform

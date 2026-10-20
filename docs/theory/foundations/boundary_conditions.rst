@@ -86,10 +86,9 @@ Key Facts
   :func:`~orpheus.geometry.boundary.realize_recursively` type
   transformer (method-blind, in ``geometry/boundary/`` since #290
   P7b; the leaf realizer is a required argument) walks it once per
-  face and emits an operator tree of
-  :class:`~orpheus.numerics.operator.OperatorSum` /
-  :class:`~orpheus.numerics.operator.ScaledOperator` composers around
-  realised 1-arg leaves. See :ref:`bc-trace-law-descriptor-model` and
+  face and emits the formal linear combination
+  (:class:`~orpheus.numerics.operator.OperatorSum`) of the realised 1-arg
+  leaves. See :ref:`bc-trace-law-descriptor-model` and
   :ref:`bc-rank-n-algebra`. There is no dedicated
   ``MixedBoundaryOperator`` class (retired Wave 11); there is also no
   ``apply`` method on the raw law (retired Issue #186, B3 + β2).
@@ -1277,9 +1276,9 @@ in tier 1; a Lambertian is "simple" and lands in tier 2.
 
    .. code-block:: text
 
-      AlbedoBoundary(0.4)                        -> ScaledOperator(0.4)
-      AlbedoBoundary(0.4, SpecularReturn("x"))   -> ScaledOperator(0.4)
-      AlbedoBoundary(0.4, IsotropicReturn(...))  -> ScaledOperator(0.4)
+      AlbedoBoundary(0.4)                        -> 0.4 · IdentityOperator()
+      AlbedoBoundary(0.4, SpecularReturn("x"))   -> 0.4 · IdentityOperator()
+      AlbedoBoundary(0.4, IsotropicReturn(...))  -> 0.4 · IdentityOperator()
 
    Three distinct laws, one image. The closure is not *ignored* by the
    diffusion realizer — it is **annihilated by** :math:`\Pi`, exactly as
@@ -1394,7 +1393,8 @@ the taxonomy invisible. Each shipped guard now names its axis in-place.
        :math:`\psi \ge 0`, which admits no negative angular inflow
        (:math:`\psi \ge 0 \Rightarrow J^\pm \ge 0`). Diffusion realizes
        the very same law without difficulty, as
-       ``ScaledOperator(-1.0, IdentityOperator())``.
+       ``-IdentityOperator()`` (the one-term combination
+       :math:`(-1)\,I`).
 
 Note the shape of that table: on the topological axis diffusion refuses
 what SN accepts, and on the state-cone axis SN refuses what diffusion
@@ -2002,7 +2002,7 @@ instead; it is realizable only on a scalar trace):
      - :math:`\alpha P` — the reflective body at its own
        :math:`\alpha`
      - :math:`0`
-     - ``ScaledOperator(α, <that TP>)``
+     - ``α · <that TP>`` (the one-term combination)
    * - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
      - the identity on the local index, fed the **partner** face's
        :math:`\Gamma_+`
@@ -4985,7 +4985,7 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        — is gone. The law's declared ``axis`` / ``outward_sign`` is
        cross-checked against the installation face's :math:`\Gamma_+`
        (index SETS, not sizes) before construction.
-     - ``ScaledOperator(α, <that TP>)``
+     - ``α · <that TP>`` (the one-term combination)
    * - :class:`AlbedoBoundary(α, SpecularReturn(a))` — **narrowed**
        (B3.4b)
      - the reflective row's body (``_deck_kernel``, shared with
@@ -4993,13 +4993,13 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        mirror ``ReflectiveBoundary(a)``'s matrix (bitwise; the gate is
        ``TestEquivalenceTheorems::test_specular_closure_equals_reflective``);
        α = 1 gives the bare TP, α = 0 the narrowed zero map
-     - ``ScaledOperator(α, <that TP>)``
+     - ``α · <that TP>`` (the one-term combination)
    * - :class:`AlbedoBoundary(α, IsotropicReturn(a, s))` — **narrowed**
        (B3.4b)
      - the white row's body (``_checked_angular_average``), so the law
        is ``WhiteBoundary(a, s, α)`` as a matrix; α = 0 gives the
        narrowed zero map
-     - ``ScaledOperator(α, <that TP>)``
+     - ``α · <that TP>`` (the one-term combination)
    * - :class:`AlbedoBoundary(α)`, closure-free — **refused**
        (``BoundaryError``, B3.4b)
      - — (:math:`R = \alpha I` is an endomorphism of :math:`\Gamma_+`
@@ -5078,9 +5078,10 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
    :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature × face in the
    tree, so read the *declared spaces*, not the output shape.
 
-The mirror, which has no amplitude, and the α = 1.0 fast paths of the
-white and albedo laws return the **bare** primitive (no
-``ScaledOperator`` wrap). This is load-bearing for bit-identity:
+The mirror, which has no amplitude, and the α = 1.0 white and albedo
+laws return the **bare** primitive: :math:`1\cdot X` IS :math:`X` by the
+combination's one-term collapse (:eq:`combination-zero-and-unit`), so no
+coefficient is multiplied in. This is load-bearing for bit-identity:
 without it, the mirror
 :class:`~orpheus.geometry.boundary.ReflectiveBoundary` (pre-refactor
 ``SpecularBoundaryOperator(axis="x", albedo=1.0)``) would shift by
@@ -5929,31 +5930,29 @@ mirror is a symmetry of the domain and is refused as an operand
    assert not hasattr(marshak_law, "apply")
 
    # Realize the tree at one face. realize_recursively walks
-   # LawSum / LawScaled / leaf-law nodes and emits the matching
-   # Wave-0 operator-tree composers around realized 1-arg leaves.
+   # LawSum / LawScaled / leaf-law nodes and maps them to the operator
+   # algebra's + and α· over the realized 1-arg leaves.
    # The walker is method-blind — pass the method's own realizer.
    ms = SNMethodSpace.for_face(...)
    marshak_op = realize_recursively(marshak_law, ms, SNBoundaryRealizer())
-   # marshak_op is (MEASURED — each leaf is the 2-factor tensor
-   # product the realizer emits, not the bare angular primitive;
-   # white's angular factor is the G6.3 two-link chain):
-   #   OperatorSum(
-   #       ScaledOperator(0.3, PermutationOperator(...) & IdentityOperator()),
-   #       ScaledOperator(0.7, (IsotropicEmissionOperator(...)
-   #                            @ PartialCurrentOperator(...))
-   #                           & IdentityOperator()),
-   #   )
+   # marshak_op is (MEASURED 2026-10-20 — the formal linear combination
+   # of the realized leaves, each the 2-factor tensor product the realizer
+   # emits; white's angular factor is the G6.3 two-link chain):
+   #   OperatorSum with terms (coefficient, word):
+   #       (0.3, PermutationOperator(...) & IdentityOperator()),
+   #       (0.7, (IsotropicEmissionOperator(...)
+   #              @ PartialCurrentOperator(...))
+   #             & IdentityOperator()),
    psi_in = marshak_op.apply(psi_out)   # 1-arg; psi_out is Γ₊-shaped
 
-The output is a Wave-0
-:class:`~orpheus.numerics.operator.OperatorSum` of
-:class:`~orpheus.numerics.operator.ScaledOperator`-wrapped Wave-0
-primitives, consumable by the SN sweep / Krylov path via the
-uniform 1-arg :meth:`apply`. The descriptor-tree algebra and the
+The output is the formal linear combination
+(:class:`~orpheus.numerics.operator.OperatorSum`) of the realized
+primitives, with the law's coefficients, consumable by the SN sweep /
+Krylov path via the uniform 1-arg :meth:`apply`. The descriptor-tree algebra and the
 operator-tree algebra are **separate type families**: the
 descriptor tree is built with ``LawXxx`` nodes that have **no**
-``apply``; the operator tree is built with ``OperatorXxx`` nodes
-that **do** have ``apply``. The two families never inter-compose —
+``apply``; the operator is built with the operator algebra, whose
+composites **do** have ``apply``. The two families never inter-compose —
 mixing a :class:`LawNode` with an already-realized
 :class:`~orpheus.numerics.operator.LinearOperator` via ``+`` is a
 type error; the user MUST call :func:`realize_recursively` first.
@@ -5966,12 +5965,16 @@ Closed-algebra guarantees
   ``LawScaled(α * β, x)`` at construction time. The intermediate
   ``LawScaled`` nesting never appears at rest, which keeps the tree
   shallow under repeated scalar multiplication.
-* **No associativity flattening on sums.** ``(a + b) + c`` is
+* **No associativity flattening on law sums.** ``(a + b) + c`` is
   :class:`LawSum(LawSum(a, b), c)`, distinct from
-  :class:`LawSum(a, LawSum(b, c))`. The walker treats both shapes
-  identically — the realized output is the same Wave-0 operator
-  algebra value up to floating-point non-associativity in the
-  final sum.
+  :class:`LawSum(a, LawSum(b, c))`. The OPERATOR flattens: both shapes
+  realize to one three-term combination with the terms in the same
+  insertion order, so they apply bit for bit alike (`[M]` 2026-10-20, a
+  three-leaf tree on Lebedev-17: terms ``[0.3, 0.5, 0.1]`` from both
+  shapes, ``array_equal``). The two realized combinations are not ``==``
+  to each other, because each realization mints its own leaf objects and
+  the algebra collects by object identity
+  (:ref:`composition-algebra`).
 * **Subtraction rewrites via :class:`LawScaled(-1, ...)`.** The
   unary ``-`` operator and the binary ``-`` operator both produce
   trees containing only :class:`LawSum` / :class:`LawScaled`
@@ -6001,7 +6004,7 @@ no access to.
 :class:`BoundaryTraceLaw` inherited the Wave-0 operator-algebra
 dunders from :class:`~orpheus.numerics.operator.LinearOperator`,
 so writing ``0.3 * spec + 0.7 * white`` directly produced an
-:class:`OperatorSum` of :class:`ScaledOperator`-wrapped raw
+:class:`OperatorSum` of ``ScaledOperator``-wrapped raw
 :class:`BoundaryTraceLaw` leaves (NOT realized). The
 :func:`realize_recursively` walker then traversed the Wave-0
 composer tree, realized each leaf, and emitted a parallel
@@ -6018,9 +6021,11 @@ realization" but at the cost of conflating two type families.
 
 **β2 (this scope, Issue #186 / B3 + β2)** — separates the two
 type families explicitly: :class:`LawSum` / :class:`LawScaled` for
-the descriptor tree (no :meth:`apply`); :class:`OperatorSum` /
-:class:`ScaledOperator` for the operator tree (with
-:meth:`apply`). The static type system enforces "you cannot call
+the descriptor tree (no :meth:`apply`); the operator algebra's
+composites for the operator (with :meth:`apply`; since package S2,
+2026-10-20, the formal linear combination
+:class:`~orpheus.numerics.operator.OperatorSum`, where at β2 it was the
+binary ``OperatorSum`` / ``ScaledOperator`` tree). The static type system enforces "you cannot call
 this until it's realized" — :class:`LawSum` has no :meth:`apply`
 method on the class, so the linter flags ``tree.apply(...)``
 without running the program. The ergonomic of "the same ``+``"
@@ -6030,8 +6035,8 @@ reader (and the type checker) which algebra is in effect.
 
 The reference-image harness verifies that the Marshak case
 ``0.3 * spec + 0.7 * white`` survived the β2 transition: the realized
-``OperatorSum(ScaledOperator, ScaledOperator)`` reduction tree
-reproduces the derived convex combination
+combination ``0.3·X + 0.7·Y`` (until S2 the binary
+``OperatorSum(ScaledOperator, ScaledOperator)`` tree) reproduces the derived convex combination
 :math:`0.3\,R_{\text{spec}} + 0.7\,R_{\text{diff}}` inside the
 reduction-order bound, because the operator-tree shape after
 :func:`realize_recursively` is algebraically identical. (Until the
@@ -6047,12 +6052,43 @@ The ``realize_recursively`` walker — a descriptor → operator type transforme
 
 :func:`~orpheus.geometry.boundary.realize_recursively` is the
 **type transformer** from the descriptor-tree algebra
-(``BoundaryTraceLaw | LawSum | LawScaled``) to the operator-tree
-algebra (``LinearOperator`` with
-:class:`~orpheus.numerics.operator.OperatorSum` /
-:class:`~orpheus.numerics.operator.ScaledOperator` composers
-around realized 1-arg leaves). Calling it is the **only** path
-from a non-callable descriptor to a callable operator.
+(``BoundaryTraceLaw | LawSum | LawScaled``) to the operator algebra
+(``LinearOperator``). Calling it is the **only** path from a
+non-callable descriptor to a callable operator.
+
+**The walk is a homomorphism into the operator algebra.** A leaf law
+maps to its realization by the method's realizer, ``LawSum`` maps to the
+operator ``+`` and ``LawScaled`` to the scalar ``α·``:
+
+.. math::
+
+   \mathcal R(\ell) = \texttt{realizer.realize}(\ell),
+   \qquad
+   \mathcal R(a + b) = \mathcal R(a) + \mathcal R(b),
+   \qquad
+   \mathcal R(\alpha\,a) = \alpha\,\mathcal R(a) .
+
+Because the operator ``+`` and ``α·`` build the **normalised** formal
+linear combination (:ref:`composition-algebra`), the output is a
+combination of the realized leaves, flattened, with the scalars
+distributed, and **the law tree's shape is not kept**: the nested law
+``0.5 · (0.3·X + 0.7·Y)`` realizes as the two-term combination
+``0.15·X + 0.35·Y`` (`[M]` 2026-10-20, Lebedev-17 at the ``xmax`` face:
+terms ``(0.15, …), (0.35, …)``; the dyadic 0.5 makes the products
+exact), ``0.5 · X`` as the one-term combination ``0.5·X``, and a bare
+leaf as the realized leaf itself. The law tree is the descriptor's
+business; the operator only needs its value, and two law trees that
+differ only by association realize to combinations that apply bit for
+bit alike (:ref:`bc-rank-n-algebra`). The leaf realizer's own amplitude
+law obeys the same algebra: the S\ :sub:`N` realizer's
+``_attenuated_kernel_operator`` returns ``α · (K_ω ⊗ I)`` at every
+amplitude, which is the bare tensor product at :math:`\alpha = 1` (the
+one-term collapse) and the zero map
+:math:`\Gamma_+ \to \Gamma_-` at :math:`\alpha = 0` (zero
+absorption), with no branch on :math:`\alpha` (`[M]` 2026-10-20 by the
+orchestrator, a probe over the geometry and S\ :sub:`N` operator gates:
+in 1619 of 1619 calls, ``0 · (K_ω ⊗ I)`` was a ``ZeroMorphism`` with
+exactly the spaces the dedicated vacuum builder binds).
 
 The dispatch is exhaustive on the descriptor-tree node types:
 
@@ -6068,14 +6104,14 @@ The dispatch is exhaustive on the descriptor-tree node types:
            # is method-blind (#290 P7b; it names no method's realizer).
            return realizer.realize(node, method_space)
        if isinstance(node, LawScaled):
-           # Scalar-times-law: wrap the realized inner in ScaledOperator.
-           inner_op = realize_recursively(node.inner, method_space, realizer)
-           return ScaledOperator(node.scalar, inner_op)
+           # The scalar of the operator algebra (a one-term combination).
+           return node.scalar * realize_recursively(node.inner, method_space, realizer)
        if isinstance(node, LawSum):
-           # Sum: realize each side, wrap in OperatorSum.
-           a_op = realize_recursively(node.a, method_space, realizer)
-           b_op = realize_recursively(node.b, method_space, realizer)
-           return OperatorSum(a_op, b_op)
+           # The + of the operator algebra (flattens, collects).
+           return (
+               realize_recursively(node.a, method_space, realizer)
+               + realize_recursively(node.b, method_space, realizer)
+           )
        raise TypeError(
            f"realize_recursively expected BoundaryTraceLaw | LawSum | "
            f"LawScaled, got {type(node).__name__}."
@@ -6101,15 +6137,14 @@ Usage on the descriptor tree:
    # Realize once, at face resolution time — the walker is
    # method-blind, so the method's realizer is passed explicitly.
    realized = realize_recursively(law, method_space, SNBoundaryRealizer())
-   # realized is (MEASURED — each leaf is the 2-factor tensor product
-   # the realizer emits, not the bare angular primitive; white's
-   # angular factor is the G6.3 two-link chain):
-   #   OperatorSum(
-   #       ScaledOperator(0.3, PermutationOperator(...) & IdentityOperator()),
-   #       ScaledOperator(0.7, (IsotropicEmissionOperator(...)
-   #                            @ PartialCurrentOperator(...))
-   #                           & IdentityOperator()),
-   #   )
+   # realized is (MEASURED 2026-10-20 — the formal linear combination of
+   # the realized leaves, each the 2-factor tensor product the realizer
+   # emits; white's angular factor is the G6.3 two-link chain):
+   #   OperatorSum with terms (coefficient, word):
+   #       (0.3, PermutationOperator(...) & IdentityOperator()),
+   #       (0.7, (IsotropicEmissionOperator(...)
+   #              @ PartialCurrentOperator(...))
+   #             & IdentityOperator()),
    psi_in = realized.apply(psi_out)   # 1-arg; psi_out is Γ₊-shaped
 
 Type-system contract
@@ -6120,12 +6155,10 @@ The walker's input is intentionally narrow:
 * :class:`BoundaryTraceLaw` instances and the two descriptor-tree
   composer dataclasses (:class:`LawSum`, :class:`LawScaled`) are
   the only valid node shapes.
-* Wave-0 operator-tree composers
+* Operator-algebra composites
   (:class:`~orpheus.numerics.operator.OperatorProduct`,
   :class:`~orpheus.numerics.operator.TensorProductOperator`,
-  :class:`~orpheus.numerics.elementary_operators.SumOfTensorProductsOperator`,
-  :class:`~orpheus.numerics.operator.OperatorSum`,
-  :class:`~orpheus.numerics.operator.ScaledOperator`) are **not**
+  :class:`~orpheus.numerics.operator.OperatorSum`) are **not**
   recognized — they belong to the operator tree, not the
   descriptor tree, so they should never appear in the realizer's
   input.
@@ -6140,8 +6173,8 @@ the walker's type signature from "any Wave-0 composer tree with
 The dispatch table shrank from five Wave-0 composers + leaf to
 three descriptor types + leaf (counting the leaf as the same
 :class:`BoundaryTraceLaw` branch). The eliminated branches
-(:class:`OperatorProduct`, :class:`TensorProductOperator`,
-:class:`SumOfTensorProductsOperator`) handle operator composition
+(``OperatorProduct``, ``TensorProductOperator``,
+``SumOfTensorProductsOperator``, the last retired at package S2) handle operator composition
 patterns that have no descriptor-tree analog — they were dead
 dispatch paths once :class:`LawSum` / :class:`LawScaled` replaced
 the in-tree Wave-0 algebra. Removing them clarified the walker's
@@ -6583,7 +6616,7 @@ not landed as a final state). Keep
 :class:`LinearOperator` inheritance on
 :class:`BoundaryTraceLaw` and drop only the abstract
 :meth:`apply`. Rank-N composition would then build an
-:class:`OperatorSum` of :class:`ScaledOperator`-wrapped *unrealized*
+:class:`OperatorSum` of ``ScaledOperator``-wrapped *unrealized*
 laws, and :func:`realize_recursively` would walk the resulting
 Wave-0 composer tree. This β1 form was **algebraically equivalent**
 to β2 but conflated two type families: the
@@ -6870,8 +6903,8 @@ structural, not optimistic: a gather introduces no re-association and
 an α-fold is one multiplication of the same two floats, so the
 predicted drift is EXACTLY zero — a tolerance there would admit the
 failure mode the row exists to catch. (Before the re-anchoring these
-rows carried ``nulp ≤ 4``, on a reasoning about the ``ScaledOperator``
-wrapper's extra rounding step. That reasoning is right about the extra
+rows carried ``nulp ≤ 4``, on a reasoning about the then
+``ScaledOperator`` wrapper's extra rounding step. That reasoning is right about the extra
 rounding and wrong about its effect: the reference performs the same
 multiplication, so both sides round identically.)
 
@@ -8470,6 +8503,21 @@ branch; trust ``git`` over this table for merge status.
      - Milestone
      - Issue
      - Where
+   * - 2026-10-20
+     - **The walk is a homomorphism into the operator algebra, and the
+       S\ :sub:`N` amplitude law has no branch.** With package S2 of the
+       numerics untangling, ``+`` and ``α·`` build the normalised formal
+       linear combination, so :func:`~orpheus.geometry.boundary.realize_recursively`
+       maps ``LawSum`` to ``+`` and ``LawScaled`` to ``α·`` and no longer
+       keeps the law tree's shape (``0.5·(0.3X + 0.7Y)`` realizes as
+       ``0.15X + 0.35Y``). The S\ :sub:`N` realizer's three α-regimes
+       became one expression, ``α · (K_ω ⊗ I)``: :math:`0\cdot X` is the
+       zero map and :math:`1\cdot X` is :math:`X` (`[M]` 1619 of 1619
+       calls). ``ScaledOperator``, whose zero-scalar refusal forced the
+       :math:`\alpha = 0` branch, retired. See
+       :ref:`bc-realize-recursively`.
+     - —
+     - *(in development)* branch ``refactor/s2-linear-combination``
    * - 2026-10-01
      - **The mirror carries no amplitude, and a deck law is not an
        operand.** ``ReflectiveBoundary`` lost its ``albedo`` parameter,

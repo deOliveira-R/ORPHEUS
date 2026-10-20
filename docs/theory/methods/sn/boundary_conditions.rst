@@ -464,7 +464,7 @@ laws:
    tree = 0.3 * spec + 0.7 * white            # LawSum of LawScaled
    # The walker is method-blind: pass the method's own realizer.
    op = realize_recursively(tree, method_space, SNBoundaryRealizer())
-   psi_in = op.apply(psi_out)                 # OperatorSum of ScaledOperator
+   psi_in = op.apply(psi_out)                 # the combination 0.3·X + 0.7·Y
 
 See :ref:`bc-rank-n-algebra` for the closed algebra and the
 :ref:`bc-realize-recursively` walker that lowers a descriptor
@@ -555,8 +555,10 @@ at :ref:`bc-sweep-cycle`.
      - 1 (fast path)
    * - ``"reflective"``
      -
-     - ``α * <that TP>``
-       (:class:`~orpheus.numerics.operator.ScaledOperator`)
+     - ``α * <that TP>`` (the one-term
+       :class:`~orpheus.numerics.operator.OperatorSum`; :math:`\alpha = 0`
+       is the zero map, a :class:`~orpheus.numerics.operator.ZeroMorphism`,
+       since S2)
      - α ≠ 1
    * - ``"white"`` — **narrowed** :math:`\Gamma_+ \to \Gamma_-` (B3.4a),
        **factored** (G6.3 step 3b)
