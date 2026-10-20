@@ -101,7 +101,7 @@ class TestG1GeneratorIsProvenanceNotIdentity:
         q = Quadrature.gauss_legendre(4)
         minted = Axis.of_quadrature(q, "angular")
         bare = Axis(
-            "angular", (q.N,), weights=np.asarray(q.weights, float),
+            "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
             kind=BasisKind.NODAL,
         )
         _require(
@@ -140,7 +140,7 @@ class TestG3MintFidelity:
     the weight VALUES (``q.weights`` is ``measure.weights``, which is
     what ``Axis.of_measure`` reads). What this gate genuinely pins
     is the THREADING — label, shape spelling (``(n_points,)`` vs
-    ``(quad.N,)``: same value, different producer chain), ``kind``, the
+    ``(quad.n_ordinates,)``: same value, different producer chain), ``kind``, the
     ``weights=`` wiring, and that ``replace`` preserves the canonicalized
     bytes. The independent anchor for the weight VALUES is the
     quadrature weight-sum / moment-exactness suite
@@ -154,11 +154,11 @@ class TestG3MintFidelity:
         q = factory()
         minted = Axis.of_quadrature(q, "angular")
         literal = Axis(
-            "angular", (q.N,), weights=np.asarray(q.weights, float),
+            "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
             kind=BasisKind.NODAL,
         )
         _require(minted.label == literal.label == "angular", f"{name}: label")
-        _require(minted.shape == literal.shape == (q.N,), f"{name}: shape")
+        _require(minted.shape == literal.shape == (q.n_ordinates,), f"{name}: shape")
         # the MODAL mutation's catcher:
         _require(minted.kind is BasisKind.NODAL, f"{name}: kind must be NODAL")
         _require(
@@ -243,7 +243,7 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
             .axis("angular")
             .generator_as(Quadrature, consumer="G4 gate")
         )
-        _require(g.N == q.N, f"{name}: N")
+        _require(g.n_ordinates == q.n_ordinates, f"{name}: N")
         npt.assert_array_equal(g.weights, q.weights, err_msg=f"{name}: weights")
         _require(
             g.level_structure is q.level_structure,
@@ -332,7 +332,7 @@ class TestG5GeneratorAsIsTheOneRefusalHome:
     def test_a_generator_less_axis_refuses_with_both_names(self):
         q = Quadrature.gauss_legendre(4)
         bare = Axis(
-            "angular", (q.N,), weights=np.asarray(q.weights, float),
+            "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
             kind=BasisKind.NODAL,
         )
         with pytest.raises(ValueError, match="angular"):
@@ -362,7 +362,7 @@ class TestG5GeneratorAsIsTheOneRefusalHome:
         either can never match the other's raise."""
         q = Quadrature.gauss_legendre(4)
         bare = Axis(
-            "angular", (q.N,), weights=np.asarray(q.weights, float),
+            "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
             kind=BasisKind.NODAL,
         )
         try:

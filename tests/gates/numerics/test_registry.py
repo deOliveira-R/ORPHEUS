@@ -35,6 +35,7 @@ from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE, pushforwa
 from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE, Quotient
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import (
+    Quadrature,
     GEOMETRY_ANGULAR_SYMMETRY,
     AngularSymmetry,
     QuadratureSelectionError,
@@ -198,7 +199,7 @@ def test_geometry_angular_symmetry_table() -> None:
 )
 def test_gl1d_invert(target: int, expected_n: int) -> None:
     params = _gl1d_invert(target)
-    assert params == {"n": expected_n}
+    assert params == {"n_ordinates": expected_n}
 
 
 @pytest.mark.foundation
@@ -275,8 +276,8 @@ def _gauss_chebyshev_spec() -> QuadratureSpec:
     """
     return QuadratureSpec(
         name="GaussChebyshev1D",
-        factory=lambda n: _on_slab(CHEBYSHEV_T.gauss(n)),
-        parameters={"n": int},
+        factory=lambda n_ordinates: Quadrature(measure=_on_slab(CHEBYSHEV_T.gauss(n_ordinates)), level_structure=None),
+        parameters={"n_ordinates": int},
         degree_of_exactness_for=_gl1d_invert,   # same deg = 2n - 1
         positive_weights=True,
         axis_aligned=True,
@@ -321,7 +322,7 @@ def test_gauss_chebyshev_clears_every_stage_except_the_reference() -> None:
     built for.
     """
     slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
-    gc = _gauss_chebyshev_spec().build({"n": 4})
+    gc = _gauss_chebyshev_spec().build({"n_ordinates": 4}).measure
 
     assert slab.admits_domain(gc), "premise: stage 0 must admit it"
     assert slab.admits_symmetry(gc), "premise: stage 1 must admit it"
@@ -369,7 +370,8 @@ def test_a_rule_exact_against_the_wrong_measure_is_refused() -> None:
     both = [_gauss_chebyshev_spec()] + [
         s for s in quadrature_registry if s.name == "GaussLegendre1D"
     ]
-    measure, log = select_quadrature("slab", target_degree=5, registry=both)
+    quadrature, log = select_quadrature("slab", target_degree=5, registry=both)
+    measure = quadrature.measure
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "GaussLegendre1D"
     assert "GaussChebyshev1D" in {name for name, _ in log.rejected}
@@ -403,8 +405,8 @@ def test_a_rule_with_no_exactness_claim_at_all_is_refused() -> None:
     """
     claimless = QuadratureSpec(
         name="ClaimlessGL",
-        factory=lambda n: replace(_on_slab(LEGENDRE.gauss(n)), exactness=None),
-        parameters={"n": int},
+        factory=lambda n_ordinates: Quadrature(measure=replace(_on_slab(LEGENDRE.gauss(n_ordinates)), exactness=None), level_structure=None),
+        parameters={"n_ordinates": int},
         degree_of_exactness_for=_gl1d_invert,
         positive_weights=True,
         axis_aligned=True,
@@ -412,7 +414,7 @@ def test_a_rule_with_no_exactness_claim_at_all_is_refused() -> None:
         half_range_clean=True,
     )
     # It clears every other stage: same nodes, same support, same symmetry.
-    probe = claimless.build({"n": 4})
+    probe = claimless.build({"n_ordinates": 4}).measure
     slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
     assert slab.admits_domain(probe) and slab.admits_symmetry(probe)
     assert probe.exactness is None
@@ -452,9 +454,9 @@ def test_an_inversion_that_over_promises_is_caught_not_trusted() -> None:
     """
     lying = QuadratureSpec(
         name="OverPromisingGL",
-        factory=lambda n: _on_slab(LEGENDRE.gauss(n)),
-        parameters={"n": int},
-        degree_of_exactness_for=lambda _target: {"n": 1},
+        factory=lambda n_ordinates: Quadrature(measure=_on_slab(LEGENDRE.gauss(n_ordinates)), level_structure=None),
+        parameters={"n_ordinates": int},
+        degree_of_exactness_for=lambda _target: {"n_ordinates": 1},
         positive_weights=True,
         axis_aligned=True,
         level_structured=False,
@@ -472,7 +474,8 @@ def test_an_inversion_that_over_promises_is_caught_not_trusted() -> None:
 
     # And the honest twin passes, so the gate is not just refusing everything.
     honest = replace(lying, name="HonestGL", degree_of_exactness_for=_gl1d_invert)
-    measure, log = select_quadrature("slab", target_degree=5, registry=[honest])
+    quadrature, log = select_quadrature("slab", target_degree=5, registry=[honest])
+    measure = quadrature.measure
     assert log.chosen_spec is not None and log.chosen_spec.name == "HonestGL"
     assert measure.exactness is not None
     assert measure.exactness.degree >= 5
@@ -506,7 +509,7 @@ def test_every_registered_rule_speaks_one_of_the_two_reference_measures(
     for spec in quadrature_registry:
         params = spec.degree_of_exactness_for(5)
         assert params is not None
-        claim = spec.build(params).exactness
+        claim = spec.build(params).measure.exactness
         assert claim is not None, (
             f"{spec.name} carries no exactness claim, so no query can ever "
             f"establish that its degree is against the right measure"
@@ -756,12 +759,13 @@ def test_product_invert() -> None:
 def test_select_slab_returns_gauss_legendre() -> None:
     """A slab discretises S^2/SO(2) = [-1,1], so GL1D is the only rule
     on the right domain — the three S^2 rules fail stage 0."""
-    measure, log = select_quadrature("slab", target_degree=15)
+    quadrature, log = select_quadrature("slab", target_degree=15)
+    measure = quadrature.measure
 
     assert isinstance(measure, DiscreteMeasure)
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "GaussLegendre1D"
-    assert log.chosen_parameters == {"n": 8}
+    assert log.chosen_parameters == {"n_ordinates": 8}
     assert measure.n_points == 8
     assert measure.degree_of_exactness == 15
     assert measure.invariance_group == SubgroupOfO3.Mirror("x")
@@ -781,11 +785,12 @@ def test_select_sphere_returns_gauss_legendre() -> None:
 
     The spent half is not free here: its fiber action reappears in the
     curvilinear sweep as the angular-redistribution alpha term."""
-    measure, log = select_quadrature("sphere", target_degree=15)
+    quadrature, log = select_quadrature("sphere", target_degree=15)
+    measure = quadrature.measure
 
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "GaussLegendre1D"
-    assert log.chosen_parameters == {"n": 8}
+    assert log.chosen_parameters == {"n_ordinates": 8}
     assert measure.degree_of_exactness == 15
 
 
@@ -798,9 +803,10 @@ def test_select_cylinder_with_level_structured_returns_product() -> None:
     planes at 0 and pi/2, and D_{n h} carries them at k*pi/n, so
     ``n_phi`` even is exactly the admissibility condition.
     """
-    measure, log = select_quadrature(
+    quadrature, log = select_quadrature(
         "cylinder", target_degree=5, level_structured=True
     )
+    measure = quadrature.measure
 
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "ProductQuadrature"
@@ -892,7 +898,8 @@ def test_the_winner_really_is_the_argmin_over_the_survivors(
     survivor's inversion is non-``None`` — but they are not evidence about
     the minimisation.
     """
-    measure, log = select_quadrature(geometry, target_degree=5)
+    quadrature, log = select_quadrature(geometry, target_degree=5)
+    measure = quadrature.measure
     rejected_names = {name for name, _ in log.rejected}
     survivors = [s for s in quadrature_registry if s.name not in rejected_names]
     assert survivors, f"{geometry}: nothing survived, so there is no argmin"
@@ -902,7 +909,7 @@ def test_the_winner_really_is_the_argmin_over_the_survivors(
         assert params is not None, (
             f"{spec.name} survived stage 2 but its inversion returns None"
         )
-        assert measure.n_points <= spec.build(params).n_points, (
+        assert measure.n_points <= spec.build(params).measure.n_points, (
             f"{geometry}: {log.chosen_spec.name if log.chosen_spec else '?'} "
             f"was returned with {measure.n_points} nodes, but {spec.name} "
             f"survived every stage with fewer"
@@ -925,7 +932,8 @@ def test_select_cartesian2d_prefers_lebedev_over_ls_sn() -> None:
     table over-claimed :math:`O_h`: that demands the x<->z exchange,
     never a symmetry of a z-uniform problem.
     """
-    measure, log = select_quadrature("cartesian2d", target_degree=5)
+    quadrature, log = select_quadrature("cartesian2d", target_degree=5)
+    measure = quadrature.measure
 
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "LebedevSphere"
@@ -951,9 +959,10 @@ def test_log_records_geometry_metadata() -> None:
     """The :class:`SelectionLog` must carry the geometry, group, target
     degree, and requested flags from the call so consumers can render
     the decision."""
-    measure, log = select_quadrature(
+    quadrature, log = select_quadrature(
         "cylinder", target_degree=4, level_structured=True
     )
+    measure = quadrature.measure
     assert log.geometry == "cylinder"
     assert log.angular_symmetry == AngularSymmetry(
         spent=SubgroupOfO3.Trivial,
@@ -1026,11 +1035,13 @@ def test_dont_care_flags_dont_filter() -> None:
     """Passing a flag with value ``False`` must NOT filter rules — only
     ``True`` constrains."""
     # No flag request: any structural set is accepted.
-    measure_a, _ = select_quadrature("slab", target_degree=15)
+    measure_a_quadrature, _ = select_quadrature("slab", target_degree=15)
+    measure_a = measure_a_quadrature.measure
     # axis_aligned=False (don't care): same answer.
-    measure_b, _ = select_quadrature(
+    measure_b_quadrature, _ = select_quadrature(
         "slab", target_degree=15, axis_aligned=False
     )
+    measure_b = measure_b_quadrature.measure
     assert measure_a.n_points == measure_b.n_points
 
 
@@ -1189,9 +1200,10 @@ def test_registry_override_success_path() -> None:
     only_lebedev = [
         s for s in quadrature_registry if s.name == "LebedevSphere"
     ]
-    measure, log = select_quadrature(
+    quadrature, log = select_quadrature(
         "cartesian2d", target_degree=5, registry=only_lebedev
     )
+    measure = quadrature.measure
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "LebedevSphere"
     assert measure.invariance_group == SubgroupOfO3.OctahedralOh
@@ -1260,10 +1272,10 @@ def test_the_two_stages_are_independent_and_both_load_bearing() -> None:
 
     lebedev = next(
         s for s in quadrature_registry if s.name == "LebedevSphere"
-    ).build({"order": 5})
+    ).build({"order": 5}).measure
     odd_product = next(
         s for s in quadrature_registry if s.name == "ProductQuadrature"
-    ).build({"n_mu": 3, "n_phi": 5})
+    ).build({"n_mu": 3, "n_phi": 5}).measure
 
     # Symmetry alone would let an S^2 rule serve a 1-D slab.
     assert slab.admits_symmetry(lebedev)
@@ -1288,7 +1300,7 @@ def test_owed_symmetry_selects_by_azimuthal_parity() -> None:
         s for s in quadrature_registry if s.name == "ProductQuadrature"
     )
     for n_phi in range(2, 10):
-        measure = product.build({"n_mu": 3, "n_phi": n_phi})
+        measure = product.build({"n_mu": 3, "n_phi": n_phi}).measure
         assert cylinder.admits_symmetry(measure) == (n_phi % 2 == 0), (
             f"n_phi={n_phi}: parity is the discriminator"
         )
@@ -1321,7 +1333,7 @@ def test_selector_asks_the_nodes_not_the_declared_tag() -> None:
     slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
     gl = next(
         s for s in quadrature_registry if s.name == "GaussLegendre1D"
-    ).build({"n": 8})
+    ).build({"n_ordinates": 8}).measure
 
     # The honest declaration and the nodes now agree — no trap left here.
     declared = gl.invariance_group
@@ -1481,10 +1493,11 @@ def test_selection_still_lands_on_GaussLegendre1D_over_the_stabiliser_orbit_spac
     kept comparing charts would still choose GL1D and would print the old
     name, so the choice alone is not a discriminating observation.
     """
-    measure, log = select_quadrature(geometry, target_degree=5)
+    quadrature, log = select_quadrature(geometry, target_degree=5)
+    measure = quadrature.measure
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "GaussLegendre1D"
-    assert log.chosen_parameters == {"n": 4}
+    assert log.chosen_parameters == {"n_ordinates": 4}
     assert measure.support == SPHERE.quotient(SubgroupOfO3.O2("x"))
     assert measure.invariance_group == SubgroupOfO3.Mirror("x")
 
@@ -1743,14 +1756,14 @@ class TestTheSelectorIsUNMOVEDByTheCarve:
     """
 
     _EXPECTED = {
-        ("slab", 1): ("GaussLegendre1D", {"n": 2}, 2),
-        ("slab", 3): ("GaussLegendre1D", {"n": 2}, 2),
-        ("slab", 5): ("GaussLegendre1D", {"n": 4}, 4),
-        ("slab", 7): ("GaussLegendre1D", {"n": 4}, 4),
-        ("sphere", 1): ("GaussLegendre1D", {"n": 2}, 2),
-        ("sphere", 3): ("GaussLegendre1D", {"n": 2}, 2),
-        ("sphere", 5): ("GaussLegendre1D", {"n": 4}, 4),
-        ("sphere", 7): ("GaussLegendre1D", {"n": 4}, 4),
+        ("slab", 1): ("GaussLegendre1D", {"n_ordinates": 2}, 2),
+        ("slab", 3): ("GaussLegendre1D", {"n_ordinates": 2}, 2),
+        ("slab", 5): ("GaussLegendre1D", {"n_ordinates": 4}, 4),
+        ("slab", 7): ("GaussLegendre1D", {"n_ordinates": 4}, 4),
+        ("sphere", 1): ("GaussLegendre1D", {"n_ordinates": 2}, 2),
+        ("sphere", 3): ("GaussLegendre1D", {"n_ordinates": 2}, 2),
+        ("sphere", 5): ("GaussLegendre1D", {"n_ordinates": 4}, 4),
+        ("sphere", 7): ("GaussLegendre1D", {"n_ordinates": 4}, 4),
         ("cylinder", 1): ("ProductQuadrature", {"n_mu": 1, "n_phi": 2}, 2),
         ("cylinder", 3): ("LebedevSphere", {"order": 3}, 6),
         ("cylinder", 5): ("LebedevSphere", {"order": 5}, 14),
@@ -1768,7 +1781,8 @@ class TestTheSelectorIsUNMOVEDByTheCarve:
 
         geometry, degree = key
         name, params, n_points = self._EXPECTED[key]
-        measure, log = select_quadrature(geometry, degree)
+        quadrature, log = select_quadrature(geometry, degree)
+        measure = quadrature.measure
         assert log.chosen_spec.name == name
         assert log.chosen_parameters == params
         assert measure.n_points == n_points
@@ -1782,5 +1796,5 @@ class TestTheSelectorIsUNMOVEDByTheCarve:
         for spec in quadrature_registry:
             params = spec.degree_of_exactness_for(5)
             assert params is not None
-            supports.add(spec.build(params).support.name)
+            supports.add(spec.build(params).measure.support.name)
         assert "S^2/sigma_y" not in supports

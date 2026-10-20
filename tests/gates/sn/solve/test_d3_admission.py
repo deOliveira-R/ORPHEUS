@@ -172,7 +172,7 @@ def test_d3_pure_absorber_per_ordinate_psi_exact() -> None:
     Q_g = np.array([1.0, 0.5])
     W = float(np.sum(quad.weights))
     q = np.broadcast_to(
-        (Q_g / W)[None, :, None, None, None], (quad.N, 2, 3, 4, 5),
+        (Q_g / W)[None, :, None, None, None], (quad.n_ordinates, 2, 3, 4, 5),
     ).copy()
 
     sol = solve_sn_fixed_source(
@@ -212,7 +212,7 @@ def test_d3_scattering_infinite_medium_matches_multigroup_balance() -> None:
     Q_g = np.array([1.0, 0.5])
     W = float(np.sum(quad.weights))
     q = np.broadcast_to(
-        (Q_g / W)[None, :, None, None, None], (quad.N, 2, 3, 4, 5),
+        (Q_g / W)[None, :, None, None, None], (quad.n_ordinates, 2, 3, 4, 5),
     ).copy()
 
     sol = solve_sn_fixed_source(

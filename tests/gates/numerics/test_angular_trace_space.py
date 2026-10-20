@@ -71,15 +71,15 @@ def _cartesian2d_layout(N: int, ng: int, nx: int, ny: int) -> FaceLayout:
 
 def _trace_2d(quad, nx: int = 3, ny: int = 3, ng: int = 1) -> AngularTraceSpace:
     return AngularTraceSpace.from_quadrature_and_layout(
-        quad, _cartesian2d_layout(quad.N, ng, nx, ny),
+        quad, _cartesian2d_layout(quad.n_ordinates, ng, nx, ny),
     )
 
 
 def _trace_1d(coord: CoordSystem, quad, ng: int = 1) -> AngularTraceSpace:
     if coord is CoordSystem.CARTESIAN:
-        layout = _slab_layout(quad.N, ng)
+        layout = _slab_layout(quad.n_ordinates, ng)
     else:
-        layout = _curvilinear_layout(quad.N, ng)
+        layout = _curvilinear_layout(quad.n_ordinates, ng)
     return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
 
@@ -107,7 +107,7 @@ def test_shape_is_whole_boundary_flat_total_size():
     quad = Quadrature.lebedev(11)
     space = _trace_2d(quad, nx=3, ny=3, ng=2)
     # 4 faces: 2 x-faces (N*ng*ny) + 2 y-faces (N*ng*nx).
-    expected = 2 * quad.N * 2 * 3 + 2 * quad.N * 2 * 3
+    expected = 2 * quad.n_ordinates * 2 * 3 + 2 * quad.n_ordinates * 2 * 3
     assert space.shape == (expected,)
     assert space.layout.total_size == expected
 
@@ -118,7 +118,7 @@ def test_face_names_track_layout_order():
     quad = Quadrature.lebedev(11)
     space = _trace_2d(quad)
     assert space.face_names == ("xmin", "xmax", "ymin", "ymax")
-    assert space.omega_dot_n.shape == (4, quad.N)
+    assert space.omega_dot_n.shape == (4, quad.n_ordinates)
 
 
 @pytest.mark.l0
@@ -226,7 +226,7 @@ def test_inflow_xor_outflow_complementary_for_gl_1d():
         inflow = set(space.inflow_indices_for_face(face).tolist())
         outflow = set(space.outflow_indices_for_face(face).tolist())
         assert inflow.isdisjoint(outflow)
-        assert inflow | outflow == set(range(quad.N))
+        assert inflow | outflow == set(range(quad.n_ordinates))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -291,7 +291,7 @@ def test_unknown_face_in_layout_raises():
     # C5.3 (#225): "zmin" is a KNOWN face (the normal table derives
     # from AXIS_NAMES and carries all six axis-aligned faces) — the
     # unknown-face probe needs a name outside the axis world.
-    bad = FaceLayout.from_named_shapes([("wmin", (quad.N, 1))])
+    bad = FaceLayout.from_named_shapes([("wmin", (quad.n_ordinates, 1))])
     with pytest.raises(ValueError, match="Unknown face name"):
         AngularTraceSpace.from_quadrature_and_layout(quad, bad)
 
@@ -502,7 +502,7 @@ def test_omega_dot_n_zmax_is_plus_mu_z():
     """C5-G10: the zmax row is exactly +mu_z, zmin exactly −mu_z."""
     quad = Quadrature.level_symmetric(sn_order=4)
     layout = FaceLayout.from_named_shapes([
-        ("zmin", (quad.N, 1)), ("zmax", (quad.N, 1)),
+        ("zmin", (quad.n_ordinates, 1)), ("zmax", (quad.n_ordinates, 1)),
     ])
     trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
     np.testing.assert_array_equal(trace.omega_dot_n[0], -np.asarray(quad.mu_z))
@@ -520,7 +520,7 @@ def test_omega_dot_n_all_six_faces_distinct_axes():
     quad = Quadrature.level_symmetric(sn_order=4)
     faces = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
     layout = FaceLayout.from_named_shapes(
-        [(f, (quad.N, 1)) for f in faces],
+        [(f, (quad.n_ordinates, 1)) for f in faces],
     )
     trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
     mu = [np.asarray(quad.mu_x), np.asarray(quad.mu_y), np.asarray(quad.mu_z)]
@@ -547,6 +547,6 @@ def test_z_face_on_two_cosine_quadrature_fails_loud():
     """
     quad = Quadrature.gauss_legendre(8)
     np.testing.assert_array_equal(np.asarray(quad.mu_z), 0.0)  # non-vacuity
-    layout = FaceLayout.from_named_shapes([("zmin", (quad.N, 1))])
+    layout = FaceLayout.from_named_shapes([("zmin", (quad.n_ordinates, 1))])
     with pytest.raises(ValueError, match="rank-mismatch"):
         AngularTraceSpace.from_quadrature_and_layout(quad, layout)

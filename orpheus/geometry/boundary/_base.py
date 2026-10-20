@@ -467,7 +467,7 @@ class BoundaryTraceLaw(ContentIdentity, RegistryMixin, ABC):
         # ⭐ P6 — the PRESENCE PROBE IS GONE, and with it the way out of this
         # check. It used to open:
         #
-        #     probe = self.source.evaluate((int(quadrature.N),))
+        #     probe = self.source.evaluate((int(quadrature.n_ordinates),))
         #     if not np.any(probe):
         #         return
         #

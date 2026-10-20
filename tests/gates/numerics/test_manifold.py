@@ -841,11 +841,11 @@ class TestManifoldMap:
         self,
     ) -> None:
         from orpheus.numerics.manifold import ManifoldMap
-        from orpheus.numerics.measure import gauss_legendre
+        from orpheus.numerics.generating_measure import LEGENDRE
 
         phi = ManifoldMap(COSINE_INTERVAL, UNIT_INTERVAL, lambda x: 0.5 * (x + 1.0))
         psi = ManifoldMap(UNIT_INTERVAL, UNIT_INTERVAL, lambda x: x * x)
-        mu = gauss_legendre(5)
+        mu = LEGENDRE.gauss(5)
 
         at_once = mu.pushforward(psi @ phi)
         stepwise = mu.pushforward(phi).pushforward(psi)
@@ -2977,7 +2977,7 @@ class TestR4OrbitBarycentresIsOneConceptOnBothWidths:
 
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         reference = mirror_partner_indices(quad, "y")
-        np.testing.assert_array_equal(reference, np.arange(quad.N))
+        np.testing.assert_array_equal(reference, np.arange(quad.n_ordinates))
 
         kernel = quad.measure.permutation_under(RigidMotion.reflection(normal=_R4_I3[1]), atol=1e-9)
         assert kernel is not None

@@ -140,13 +140,13 @@ class TestLevelStructure:
         """Level indices must cover all ordinates exactly once."""
         quad = Quadrature.level_symmetric(order)
         all_idx = np.sort(np.concatenate(quad.level_indices))
-        np.testing.assert_array_equal(all_idx, np.arange(quad.N))
+        np.testing.assert_array_equal(all_idx, np.arange(quad.n_ordinates))
 
     @pytest.mark.parametrize("n_mu,n_phi", [(4, 4), (8, 8)])
     def test_product_indices_partition(self, n_mu, n_phi):
         quad = Quadrature.product(n_mu, n_phi)
         all_idx = np.sort(np.concatenate(quad.level_indices))
-        np.testing.assert_array_equal(all_idx, np.arange(quad.N))
+        np.testing.assert_array_equal(all_idx, np.arange(quad.n_ordinates))
 
     def test_product_level_mu_match(self):
         """On each level, all ordinates must share the same μ_z value."""
@@ -192,7 +192,7 @@ class TestReflectionIndices:
         quad = factory(**kwargs)
         for axis in (0, 1, 2):
             ref = _mirror_pi(quad, axis)
-            np.testing.assert_array_equal(ref[ref], np.arange(quad.N),
+            np.testing.assert_array_equal(ref[ref], np.arange(quad.n_ordinates),
                                           err_msg=f"axis-{axis} mirror not involution")
 
 
@@ -325,7 +325,7 @@ class TestL0TermVerification:
 
         if coord == CoordSystem.SPHERICAL:
             alpha = reduced.angular.alpha_per_level[0]
-            for n in range(quad.N):
+            for n in range(quad.n_ordinates):
                 streaming = quad.mu_x[n] * dA * psi0
                 alpha_diff = alpha[n + 1] - alpha[n]
                 redist = (dA / quad.weights[n]) * alpha_diff * psi0

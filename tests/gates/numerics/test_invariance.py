@@ -1005,7 +1005,8 @@ class TestR2SelectionIsUnchanged:
             key = f"{geometry}|{degree}"
             want = dict(baseline[key])
             want["rejected"] = sorted(stage_of(r) for r in want["rejected"])
-            measure, log = select_quadrature(geometry, degree)
+            quadrature, log = select_quadrature(geometry, degree)
+            measure = quadrature.measure
             got = {
                 "chosen": log.chosen_spec.name if log.chosen_spec else None,
                 "parameters": dict(log.chosen_parameters or {}),

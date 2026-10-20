@@ -255,7 +255,7 @@ class AngularMeasure(Protocol):
         ...
 
     @property
-    def N(self) -> int:
+    def n_ordinates(self) -> int:
         """Number of ordinates."""
         ...
 

@@ -197,7 +197,8 @@ def test_b2_stage_0_refuses_the_chart_level_rule_and_the_wrong_axis(
 def test_b3_the_selector_still_hands_the_slab_its_declared_rule() -> None:
     """End to end: selection for a slab returns a measure on the slab's
     orbit space, with the reference the geometry asks for."""
-    measure, log = select_quadrature("slab", target_degree=7)
+    quadrature, log = select_quadrature("slab", target_degree=7)
+    measure = quadrature.measure
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "GaussLegendre1D"
     assert measure.support == SPHERE.quotient(SubgroupOfO3.O2("x"))

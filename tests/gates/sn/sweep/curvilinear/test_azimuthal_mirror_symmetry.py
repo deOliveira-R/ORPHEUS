@@ -93,7 +93,7 @@ def test_y_mirror_pairing_is_the_xi_mirror_involution(n_phi):
     """
     quad = Quadrature.product(n_mu=4, n_phi=n_phi)
     partner = _mirror_pairing(quad, "y")
-    np.testing.assert_array_equal(partner[partner], np.arange(quad.N))
+    np.testing.assert_array_equal(partner[partner], np.arange(quad.n_ordinates))
     np.testing.assert_allclose(quad.eta[partner], quad.eta, atol=1e-15)
     np.testing.assert_allclose(quad.mu_z[partner], quad.mu_z, atol=1e-15)
     np.testing.assert_allclose(quad.xi[partner], -quad.xi, atol=1e-15)
@@ -109,5 +109,5 @@ def test_slab_quadrature_has_a_trivial_xi_mirror_control():
     """
     quad = Quadrature.gauss_legendre(8)
     np.testing.assert_array_equal(
-        _mirror_pairing(quad, "y"), np.arange(quad.N)
+        _mirror_pairing(quad, "y"), np.arange(quad.n_ordinates)
     )

@@ -250,7 +250,7 @@ def _build_2d():
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     sum_w = float(quad.weights.sum())
-    q_ext = np.full((quad.N, 2, nx, ny), 1.0 / sum_w)
+    q_ext = np.full((quad.n_ordinates, 2, nx, ny), 1.0 / sum_w)
     return {2: fuel, 0: mod}, mesh, quad, q_ext
 
 
@@ -264,7 +264,7 @@ def _build_slab():
     )).partition(CellsByCount.uniform_width(nx // 2)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     sum_w = float(quad.weights.sum())
-    q_ext = np.full((quad.N, 2, nx), 1.0 / sum_w)
+    q_ext = np.full((quad.n_ordinates, 2, nx), 1.0 / sum_w)
     return {2: fuel, 0: mod}, mesh, quad, q_ext
 
 

@@ -98,7 +98,7 @@ def _build_config():
     quad = Quadrature.level_symmetric(sn_order=4)
     sum_w = float(quad.weights.sum())
     # Per-ordinate density (producer-side /W projection, R-1 Step 4 A1).
-    q_ext = np.full((quad.N, 2, nx, ny), 1.0 / sum_w)
+    q_ext = np.full((quad.n_ordinates, 2, nx, ny), 1.0 / sum_w)
     kwargs = dict(
         scattering_order=1, inner_solver="source_iteration",
         max_inner=3000, inner_tol=1e-12,
@@ -415,7 +415,7 @@ def test_2d_windowed_product_equals_post_projection():
     # inflate on the small-magnitude ℓ≥1 block — see the docstring).
     scale = float(np.abs(oracle).max())
     rel_drift = float(np.abs(sut - oracle).max() / scale)
-    bound = 4 * quad.N * float(np.finfo(np.float64).eps)
+    bound = 4 * quad.n_ordinates * float(np.finfo(np.float64).eps)
     if not (rel_drift <= bound):
         raise AssertionError(
             f"in-sweep moment accumulation drifts {rel_drift:.2e} (relative to "
@@ -491,7 +491,7 @@ def test_2d_windowed_product_over_gauss_seidel_M_equals_post_projection():
     # bound as the Jacobi gate — only the reduction order may differ).
     scale = float(np.abs(oracle).max())
     rel_drift = float(np.abs(sut - oracle).max() / scale)
-    bound = 4 * quad.N * float(np.finfo(np.float64).eps)
+    bound = 4 * quad.n_ordinates * float(np.finfo(np.float64).eps)
     if not (rel_drift <= bound):
         raise AssertionError(
             f"windowed×G-S: in-sweep moment accumulation drifts "
@@ -526,7 +526,7 @@ def test_mutation_dropped_higher_moments_redden(monkeypatch):
     )
     sut = np.asarray(product.apply(rhs).interior.values, dtype=np.float64)
     oracle = oracle_fn()
-    bound = 4 * quad.N * float(np.finfo(np.float64).eps)
+    bound = 4 * quad.n_ordinates * float(np.finfo(np.float64).eps)
     rel_drift = float(np.abs(sut - oracle).max() / np.abs(oracle).max())
     if rel_drift <= bound:
         pytest.fail(
@@ -542,7 +542,7 @@ def test_mutation_dropped_higher_moments_redden(monkeypatch):
     sut0 = np.asarray(product0.apply(rhs0).interior.values, dtype=np.float64)
     oracle0 = oracle_fn0()
     rel_drift0 = float(np.abs(sut0 - oracle0).max() / np.abs(oracle0).max())
-    if rel_drift0 > 4 * quad0.N * float(np.finfo(np.float64).eps):
+    if rel_drift0 > 4 * quad0.n_ordinates * float(np.finfo(np.float64).eps):
         pytest.fail(
             f"P0 control unexpectedly red ({rel_drift0:.2e}) — the Mode-7 "
             "witness is broken (the mutation should be a no-op at L=0)"

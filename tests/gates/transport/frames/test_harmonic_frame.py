@@ -86,7 +86,7 @@ def _frame(m: SNProblem, L: int = _L) -> HarmonicFrame:
 
 def _angular_values(m: SNProblem, seed: int) -> np.ndarray:
     rng = np.random.default_rng(seed)
-    return rng.standard_normal((m.quad.N, m.ng, *m.spatial_shape))
+    return rng.standard_normal((m.quad.n_ordinates, m.ng, *m.spatial_shape))
 
 
 def _head(m: SNProblem, L: int = _L):
@@ -239,7 +239,7 @@ class TestMint:
         from orpheus.numerics.space import FunctionSpace
 
         m = _slab_mesh()
-        shape_only = FunctionSpace("bare", (m.quad.N, m.ng, *m.spatial_shape))
+        shape_only = FunctionSpace("bare", (m.quad.n_ordinates, m.ng, *m.spatial_shape))
         with pytest.raises(TypeError, match="axis-built"):
             _frame(m).flux_analysis_on(shape_only)
 

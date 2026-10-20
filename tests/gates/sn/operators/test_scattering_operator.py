@@ -67,13 +67,13 @@ class _StubQuad:
     """
 
     def __init__(self, *, N: int, weights: np.ndarray) -> None:
-        self.N = N
+        self.n_ordinates = N
         self.weights = np.asarray(weights)
 
     def spherical_harmonics(self, L: int) -> np.ndarray:
         # Only called when scattering_order > 0; synthetic tests
         # below pass scattering_order=0 or =1 with anisotropy unused.
-        return np.zeros((self.N, L + 1, 2 * L + 1))
+        return np.zeros((self.n_ordinates, L + 1, 2 * L + 1))
 
 
 def _widened_scalar_space(problem, trailing):
@@ -224,7 +224,7 @@ class TestProtocolCompliance:
     def test_apply_accepts_psi_shape(self, solver_2g_p0):
         """apply(psi) must accept typed AngularFlux ``(N, ng, nx, ny)`` (D-I.2)."""
         op = solver_2g_p0.problem.system.factors.scattering
-        N = solver_2g_p0.problem.quad.N
+        N = solver_2g_p0.problem.quad.n_ordinates
         psi_values = np.ones((N, solver_2g_p0.ng, *solver_2g_p0.problem.spatial_shape))
         psi = AngularFlux(values=psi_values, space=solver_2g_p0.problem.angular_bulk_space)
         # CS4c step 5: the gain is composite-bound; the bulk action rides a
@@ -383,7 +383,7 @@ class TestAnisotropicScatteringExtraction:
     def test_isotropic_flux_zero_aniso_source(self, solver_2g_p1):
         """Isotropic ψ_n = const for every ordinate => P1+ Galerkin moments = 0."""
         op = solver_2g_p1.problem.system.factors.scattering
-        N = solver_2g_p1.problem.quad.N
+        N = solver_2g_p1.problem.quad.n_ordinates
         psi_iso_values = np.ones((N, solver_2g_p1.ng, *solver_2g_p1.problem.spatial_shape))
         psi_iso = AngularFlux(values=psi_iso_values, space=solver_2g_p1.problem.angular_bulk_space)
         Q_aniso = op._redistribute_ordinates(psi_iso)
@@ -420,7 +420,7 @@ class TestApplySemantics:
         D-I.2: typed AngularFlux carrier → AngularSourceSink output.
         """
         op = solver_2g_p0.problem.system.factors.scattering
-        N = solver_2g_p0.problem.quad.N
+        N = solver_2g_p0.problem.quad.n_ordinates
         (nx, ny), ng = solver_2g_p0.problem.spatial_shape, solver_2g_p0.ng
 
         np.random.seed(5)
@@ -445,7 +445,7 @@ class TestApplySemantics:
     def test_apply_zero_psi_returns_zero(self, solver_2g_p0):
         """ψ = 0 => S·ψ = 0 (linearity guard)."""
         op = solver_2g_p0.problem.system.factors.scattering
-        N = solver_2g_p0.problem.quad.N
+        N = solver_2g_p0.problem.quad.n_ordinates
         psi_values = np.zeros((N, solver_2g_p0.ng, *solver_2g_p0.problem.spatial_shape))
         psi = AngularFlux(values=psi_values, space=solver_2g_p0.problem.angular_bulk_space)
         out = bulk_apply(op, psi)
@@ -463,7 +463,7 @@ class TestApplySemantics:
         ``test_declared_law_is_linear.py``). ``op.apply`` stays on flux
         states (its domain — S guards it, rejecting a non-flux input)."""
         op = solver_2g_p0.problem.system.factors.scattering
-        N = solver_2g_p0.problem.quad.N
+        N = solver_2g_p0.problem.quad.n_ordinates
         (nx, ny), ng = solver_2g_p0.problem.spatial_shape, solver_2g_p0.ng
         m = solver_2g_p0.problem
 
@@ -520,7 +520,7 @@ class TestProducerSideNormalisation:
         """
         solver = solver_2g_p0
         op = solver.problem.system.factors.scattering
-        N = solver.problem.quad.N
+        N = solver.problem.quad.n_ordinates
         (nx, ny), ng = solver.problem.spatial_shape, solver.ng
 
         c = 0.37
@@ -959,7 +959,7 @@ class TestAlgebraicIdentity:
         """
         op = solver_2g_p0.problem.system.factors.scattering
         assert op.legendre_order == 0
-        N = solver_2g_p0.problem.quad.N
+        N = solver_2g_p0.problem.quad.n_ordinates
         np.random.seed(42)
         psi_values = np.random.rand(N, solver_2g_p0.ng, *solver_2g_p0.problem.spatial_shape) + 0.1
         psi = AngularFlux(values=psi_values, space=solver_2g_p0.problem.angular_bulk_space)
@@ -968,7 +968,7 @@ class TestAlgebraicIdentity:
     def test_identity_p0_only_uniform_psi(self, solver_2g_p0):
         """Case 1b — uniform ψ probes the diagonal isolation path."""
         op = solver_2g_p0.problem.system.factors.scattering
-        N = solver_2g_p0.problem.quad.N
+        N = solver_2g_p0.problem.quad.n_ordinates
         psi_values = np.ones((N, solver_2g_p0.ng, *solver_2g_p0.problem.spatial_shape))
         psi = AngularFlux(values=psi_values, space=solver_2g_p0.problem.angular_bulk_space)
         self._check_identity(op, psi)
@@ -977,7 +977,7 @@ class TestAlgebraicIdentity:
         """Case 2 — scattering_order >= 1 (with non-zero P1 block)."""
         op = solver_2g_p1_n2n.problem.system.factors.scattering
         assert op.legendre_order >= 1
-        N = solver_2g_p1_n2n.problem.quad.N
+        N = solver_2g_p1_n2n.problem.quad.n_ordinates
         np.random.seed(101)
         psi_values = np.random.rand(N, solver_2g_p1_n2n.ng, *solver_2g_p1_n2n.problem.spatial_shape) + 0.1
         psi = AngularFlux(values=psi_values, space=solver_2g_p1_n2n.problem.angular_bulk_space)
@@ -995,7 +995,7 @@ class TestAlgebraicIdentity:
             np.any(k.p0 != 0.0) for k in n2n_field.per_material.values()
         )
         assert any_nonzero_n2n, "fixture must carry non-zero (n,2n)"
-        N = solver_2g_p1_n2n.problem.quad.N
+        N = solver_2g_p1_n2n.problem.quad.n_ordinates
         np.random.seed(202)
         psi_values = np.random.rand(N, solver_2g_p1_n2n.ng, *solver_2g_p1_n2n.problem.spatial_shape) + 0.1
         psi = AngularFlux(values=psi_values, space=solver_2g_p1_n2n.problem.angular_bulk_space)
@@ -1011,7 +1011,7 @@ class TestAlgebraicIdentity:
             off = p0 - np.diag(diag)
             assert np.any(diag != 0.0)
             assert np.any(off != 0.0)
-        N = solver_2g_p1_n2n.problem.quad.N
+        N = solver_2g_p1_n2n.problem.quad.n_ordinates
         np.random.seed(303)
         psi_values = np.random.rand(N, solver_2g_p1_n2n.ng, *solver_2g_p1_n2n.problem.spatial_shape) + 0.1
         psi = AngularFlux(values=psi_values, space=solver_2g_p1_n2n.problem.angular_bulk_space)
@@ -1037,7 +1037,7 @@ class TestAlgebraicIdentity:
         solver = SNSolver(SNProblem(mesh, quad, {0: mix}))
         op = solver.problem.system.factors.scattering
 
-        N = solver.problem.quad.N
+        N = solver.problem.quad.n_ordinates
         np.random.seed(404)
         # D-I.2: typed AngularFlux carrier.
         psi_values = np.random.rand(N, solver.ng, nx, ny) + 0.1
@@ -1375,7 +1375,7 @@ class TestAnisoMomentSourcePath:
         """Mirror `_capture_pre_t3_snapshots.py::_make_psi`."""
         from orpheus.transport.fields.angular_flux import AngularFlux
 
-        N = solver.quad.N
+        N = solver.quad.n_ordinates
         ng = solver.ng
         nx, ny = solver.problem.spatial_shape
         rng = np.random.default_rng(seed)
@@ -1522,7 +1522,7 @@ class TestAnisoMomentSourcePath:
         op = op_p1
         problem = solver_2g_p1_n2n.problem
         rng = np.random.default_rng(20260530)
-        N = solver_2g_p1_n2n.problem.quad.N
+        N = solver_2g_p1_n2n.problem.quad.n_ordinates
         psi_values = rng.uniform(
             0.05, 1.0,
             size=(
@@ -1609,7 +1609,7 @@ class TestAnisoMomentSourcePath:
         op_p3 = solver_p3.problem.system.factors.scattering
 
         rng = np.random.default_rng(20260530 + 2)
-        psi_p3 = AngularFlux(values=rng.uniform(0.05, 1.0, size=(quad.N, 2, nx, ny)), space=solver_p3.problem.angular_bulk_space)
+        psi_p3 = AngularFlux(values=rng.uniform(0.05, 1.0, size=(quad.n_ordinates, 2, nx, ny)), space=solver_p3.problem.angular_bulk_space)
         L = 3
         moments_values = frame_faces.FrameAnalysis.of(op_p3.frame).apply(psi_p3.values)
         assert op_p3.legendre_order == L

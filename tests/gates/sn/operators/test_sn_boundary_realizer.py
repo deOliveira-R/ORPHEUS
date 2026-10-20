@@ -75,13 +75,13 @@ def assert_lambertian_kernel(kernel, space, quad) -> None:
     ⭐ **The load-bearing leg is the SIZE one**, and B3.4a's docstring says why:
     *"without it a revert to the full-face kernel would keep every structural
     claim here green."* It is re-posed as a **behavioural** pair — the kernel
-    ACCEPTS ``|Γ₊|`` rows and REFUSES ``quad.N`` — which is strictly stronger
+    ACCEPTS ``|Γ₊|`` rows and REFUSES ``quad.n_ordinates`` — which is strictly stronger
     than reading an attribute, because it holds for any future spelling and
     cannot be satisfied by an operator that merely reports the right number.
     """
     n_out = int(space.outflow_indices.size)
     n_in = int(space.inflow_indices.size)
-    assert n_out < quad.N, (
+    assert n_out < quad.n_ordinates, (
         "fixture no longer exercises the narrowing — Γ₊ is the whole face"
     )
 
@@ -90,7 +90,7 @@ def assert_lambertian_kernel(kernel, space, quad) -> None:
         f"the realized Lambertian emits {out.shape} on Γ₋ of size {n_in}"
     )
     with pytest.raises(ValueError):
-        kernel.apply(np.ones((quad.N,)))
+        kernel.apply(np.ones((quad.n_ordinates,)))
 
 
 def lambertian_reference(quad, axis, sign, psi_out, space):
@@ -151,7 +151,7 @@ class TestRealizeVacuum:
         inflow_indices = space.inflow_indices
         outflow_indices = space.outflow_indices
         rng = np.random.default_rng(42)
-        psi = rng.uniform(0.5, 2.0, size=(quad.N, 4, 2))
+        psi = rng.uniform(0.5, 2.0, size=(quad.n_ordinates, 4, 2))
         realizer = SNBoundaryRealizer()
         op = realizer.realize(VacuumInflow(), space)
         out = op.apply(psi[outflow_indices])
@@ -165,7 +165,7 @@ class TestRealizeVacuum:
         # (measured true for EVERY quadrature × face in the tree), so the shape
         # check above cannot distinguish Γ₊ → Γ₋ from Γ₊ → Γ₊ — vv Mode 12.
         # A full-face input must not produce a full-face image.
-        assert op.apply(psi).shape[0] != quad.N, (
+        assert op.apply(psi).shape[0] != quad.n_ordinates, (
             "vacuum emitted a full-face image — it is still an endomorphism "
             "of the whole face slot, not the zero map Γ₊ → Γ₋."
         )
@@ -182,7 +182,7 @@ class TestRealizeVacuum:
         np.testing.assert_array_equal(
             space.inflow_indices, np.flatnonzero(quad.mu_y < -1e-12),
         )
-        psi = np.arange(quad.N * 3, dtype=float).reshape(quad.N, 3)
+        psi = np.arange(quad.n_ordinates * 3, dtype=float).reshape(quad.n_ordinates, 3)
         op = SNBoundaryRealizer().realize(VacuumInflow(), space)
         out = op.apply(psi[space.outflow_indices])
         assert out.shape == (space.inflow_indices.size, 3)
@@ -279,7 +279,7 @@ class TestRealizeReflective:
         space = face_method_space(quad, face="xmin")
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(7)
-        psi = rng.uniform(-1.0, 1.0, size=(quad.N, 5, 3))
+        psi = rng.uniform(-1.0, 1.0, size=(quad.n_ordinates, 5, 3))
         expected = psi[mirror_partner_indices(quad, "x")][space.inflow_indices]
         np.testing.assert_array_equal(
             op.apply(psi[space.outflow_indices]), expected,
@@ -298,7 +298,7 @@ class TestRealizeReflective:
         ``B = G_patch ⊗ K_omega ⊗ K_g`` algebra type-visible.
 
         **B3.2** adds the size leg: the permutation's length is
-        :math:`|\Gamma_+|`, not ``quad.N``. That single assertion is what makes
+        :math:`|\Gamma_+|`, not ``quad.n_ordinates``. That single assertion is what makes
         the narrowing TYPE-VISIBLE on this object — without it, a revert to the
         full-``N`` permutation would keep every structural claim here green.
         """
@@ -310,10 +310,10 @@ class TestRealizeReflective:
         assert len(op.ops) == 2
         assert isinstance(op.ops[0], PermutationOperator)
         assert isinstance(op.ops[1], IdentityOperator)
-        assert op.ops[0].perm.size == space.outflow_indices.size < quad.N, (
+        assert op.ops[0].perm.size == space.outflow_indices.size < quad.n_ordinates, (
             f"the realized permutation has {op.ops[0].perm.size} entries; the "
             f"narrowed law acts on Γ₊ ({space.outflow_indices.size} of "
-            f"{quad.N} ordinates)."
+            f"{quad.n_ordinates} ordinates)."
         )
 
     def test_specular_partial_albedo_matches_hand_computed(self):
@@ -332,7 +332,7 @@ class TestRealizeReflective:
         space = face_method_space(quad, face="xmin")
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(9)
-        psi = rng.uniform(-1.0, 1.0, size=(quad.N, 5))
+        psi = rng.uniform(-1.0, 1.0, size=(quad.n_ordinates, 5))
         expected = 0.7 * psi[mirror_partner_indices(quad, "x")][space.inflow_indices]
         np.testing.assert_array_equal(
             op.apply(psi[space.outflow_indices]), expected,
@@ -352,7 +352,7 @@ class TestRealizeReflective:
         assert len(op.op.ops) == 2
         assert isinstance(op.op.ops[0], PermutationOperator)
         assert isinstance(op.op.ops[1], IdentityOperator)
-        assert op.op.ops[0].perm.size == space.outflow_indices.size < quad.N
+        assert op.op.ops[0].perm.size == space.outflow_indices.size < quad.n_ordinates
 
     def test_an_uncertified_mirror_is_refused_at_realize_with_the_pairing_diagnosis(
         self,
@@ -471,7 +471,7 @@ class TestRealizeWhite:
         space = face_method_space(quad, face="xmax")
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(123)
-        psi = rng.uniform(0.0, 2.0, size=(quad.N, 5, 3))
+        psi = rng.uniform(0.0, 2.0, size=(quad.n_ordinates, 5, 3))
         psi_out = psi[space.outflow_indices]
         got = op.apply(psi_out)
         assert got.shape == (space.inflow_indices.size, 5, 3), (
@@ -494,7 +494,7 @@ class TestRealizeWhite:
         bit-identity at the apply level is preserved.
 
         **B3.4a** adds the size leg, mirroring the specular sibling: the
-        kernel's DOMAIN is :math:`|\Gamma_+|`, not ``quad.N``. Without it a
+        kernel's DOMAIN is :math:`|\Gamma_+|`, not ``quad.n_ordinates``. Without it a
         revert to the full-face kernel would keep every structural claim
         here green.
         """
@@ -540,7 +540,7 @@ class TestRealizeWhite:
         space = face_method_space(quad, face="xmax")
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(11)
-        psi = rng.uniform(0.0, 2.0, size=(quad.N, 4))
+        psi = rng.uniform(0.0, 2.0, size=(quad.n_ordinates, 4))
         psi_out = psi[space.outflow_indices]
         expected = 0.3 * lambertian_reference(quad, "x", +1, psi_out, space)
         np.testing.assert_array_almost_equal_nulp(
@@ -864,7 +864,7 @@ class TestRealizePeriodic:
         assert op.domain == trace.outflow_space("xmax")
         assert op.codomain == trace.inflow_space("xmin")
         n_domain = np.asarray(space.outflow_indices).size
-        assert n_domain != quad.N, (
+        assert n_domain != quad.n_ordinates, (
             "the probe must be narrower than the full face, or the shape "
             "cannot distinguish a narrowed law from an endomorphism"
         )

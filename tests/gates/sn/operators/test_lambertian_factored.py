@@ -59,7 +59,7 @@ class _Lambertian:
     def __init__(self, quad_name: str, ng: int = 3, face: str = "xmin") -> None:
         quad = _QUADRATURES[quad_name]()
         layout = FaceLayout.from_named_shapes(
-            [("xmin", (int(quad.N), ng)), ("xmax", (int(quad.N), ng))]
+            [("xmin", (int(quad.n_ordinates), ng)), ("xmax", (int(quad.n_ordinates), ng))]
         )
         self.trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
         self.face = face

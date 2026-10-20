@@ -454,7 +454,7 @@ def _random_composite(
     System B's ``G_sd = V_cell`` gauge is the grid ``.H`` gate
     (``test_psi_half_coupling::TestCoupledBuilder``).
     """
-    N, ng = sn.quad.N, sn.ng
+    N, ng = sn.quad.n_ordinates, sn.ng
     per_axis = sn.scheme.spatial_basis_per_axis
     if per_axis > 1:
         # A multi-moment closure (LD): the bulk carries the trailing 2^d
@@ -933,7 +933,7 @@ def _one_hot_group_composite(
     the trace blocks are group-diagonal and fully covered by the random-φ
     row above.
     """
-    N, ng = sn.quad.N, sn.ng
+    N, ng = sn.quad.n_ordinates, sn.ng
     bulk_vals = np.zeros((N, ng, *sn.spatial_shape))
     bulk_vals[:, g] = rng.standard_normal((N, *sn.spatial_shape))
     boundary = AngularBoundaryFlux(
@@ -1092,7 +1092,7 @@ def _tangential_kernel_mask(sn: SNProblem) -> np.ndarray:
     ``Ω·n`` on that face is EXACTLY ``0.0``. Face rows of ``omega_dot_n``
     follow ``layout.faces`` order.
     """
-    n_bulk = sn.quad.N * sn.ng * int(np.prod(sn.spatial_shape))
+    n_bulk = sn.quad.n_ordinates * sn.ng * int(np.prod(sn.spatial_shape))
     layout = sn.angular_trace.layout
     omega_dot_n = np.asarray(sn.angular_trace.omega_dot_n)
     trace = np.zeros(int(layout.total_size), dtype=bool)
@@ -1107,7 +1107,7 @@ def _tangential_kernel_mask(sn: SNProblem) -> np.ndarray:
 def _zero_composite(sn: SNProblem) -> TimedFullField:
     return TimedFullField(
         interior=AngularFlux(
-            values=np.zeros((sn.quad.N, sn.ng, *sn.spatial_shape)),
+            values=np.zeros((sn.quad.n_ordinates, sn.ng, *sn.spatial_shape)),
             space=sn.angular_bulk_space,
         ),
         boundary=AngularBoundaryFlux(

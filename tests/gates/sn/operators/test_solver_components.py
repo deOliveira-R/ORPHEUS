@@ -463,7 +463,7 @@ class TestTransportSweep:
 
         ang, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.problem), solver.problem.mat_xs.total_cross_section, solver.problem, AngularBoundaryFlux.zeros(solver.problem.angular_trace))
 
-        assert ang.shape == (quad.N, solver.ng, *problem.spatial_shape)
+        assert ang.shape == (quad.n_ordinates, solver.ng, *problem.spatial_shape)
         assert phi.shape == (solver.ng, *problem.spatial_shape)
 
 
@@ -479,7 +479,7 @@ class TestQuadratureWeightConservation:
         ang, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.problem), solver.problem.mat_xs.total_cross_section, solver.problem, AngularBoundaryFlux.zeros(solver.problem.angular_trace))
 
         phi_manual = np.zeros_like(phi)
-        for n in range(quad.N):
+        for n in range(quad.n_ordinates):
             phi_manual += quad.weights[n] * ang[n]
 
         np.testing.assert_allclose(phi, phi_manual, rtol=1e-14,
@@ -492,7 +492,7 @@ class TestQuadratureWeightConservation:
 
         ang, _ = sweep_once(AngularSourceSink.from_isotropic(Q, solver.problem), solver.problem.mat_xs.total_cross_section, solver.problem, AngularBoundaryFlux.zeros(solver.problem.angular_trace))
 
-        for n in range(quad.N):
+        for n in range(quad.n_ordinates):
             if abs(quad.mu_x[n]) < 1e-15 and abs(quad.mu_y[n]) < 1e-15:
                 assert np.all(ang[n] > 0), (
                     f"Z-directed ordinate {n} has zero angular flux"
@@ -619,7 +619,7 @@ class TestAnisotropicScattering:
         """Y[L<=1] must be bit-identical to the legacy hardcoded values."""
         quad = Quadrature.lebedev(order=17)
         Y = frame_faces.angular_frame(quad, 1).table
-        np.testing.assert_array_equal(Y[:, 0, 0], np.ones(quad.N))
+        np.testing.assert_array_equal(Y[:, 0, 0], np.ones(quad.n_ordinates))
         np.testing.assert_array_equal(Y[:, 1, 0], quad.mu_z)  # m = -1
         np.testing.assert_array_equal(Y[:, 1, 1], quad.mu_x)  # m =  0
         np.testing.assert_array_equal(Y[:, 1, 2], quad.mu_y)  # m = +1
@@ -632,7 +632,7 @@ class TestAnisotropicScattering:
         quad = Quadrature.lebedev(order=17)
         L = 3
         Y = frame_faces.angular_frame(quad, L).table
-        N = quad.N
+        N = quad.n_ordinates
         rng = np.random.default_rng(seed=0)
         pairs = rng.choice(N, size=(20, 2), replace=True)
         for i, j in pairs:
@@ -687,7 +687,7 @@ class TestAnisotropicScattering:
         quad = Quadrature.lebedev(order=17)
         solver = SNSolver(SNProblem(mesh, quad, {0: mix}, scattering_order=1))
 
-        N = quad.N
+        N = quad.n_ordinates
         angular = AngularFlux(
             values=np.ones((N, solver.ng, 2, 2)),
             space=solver.problem.angular_bulk_space,

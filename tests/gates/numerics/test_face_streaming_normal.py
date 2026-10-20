@@ -58,7 +58,7 @@ def _inline_partial_current(space: AngularTraceSpace, quad: Quadrature) -> np.nd
 
 def _slab(quad: Quadrature, ng: int = 2) -> AngularTraceSpace:
     layout = FaceLayout.from_named_shapes(
-        [("xmin", (quad.N, ng)), ("xmax", (quad.N, ng))]
+        [("xmin", (quad.n_ordinates, ng)), ("xmax", (quad.n_ordinates, ng))]
     )
     return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 

@@ -90,7 +90,7 @@ def _uniform_source(quad, cells, Q_g=(1.0, 0.5)):
     W = float(np.sum(quad.weights))
     return np.broadcast_to(
         (np.asarray(Q_g) / W)[None, :, *([None] * len(cells))],
-        (quad.N, 2, *cells),
+        (quad.n_ordinates, 2, *cells),
     ).copy()
 
 
@@ -982,7 +982,7 @@ def _tiny_slab_inputs():
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     source = np.broadcast_to(
         (np.array([1.0, 0.5]) / float(np.sum(quad.weights)))[None, :, None],
-        (quad.N, 2, 4),
+        (quad.n_ordinates, 2, 4),
     ).copy()
     return axes, quad, source
 

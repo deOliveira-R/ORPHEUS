@@ -152,7 +152,7 @@ def _carrying_sphere():
 
 
 def _uniform_source(quadrature: Quadrature, ng: int, nx: int) -> np.ndarray:
-    return np.ones((quadrature.N, ng, nx))
+    return np.ones((quadrature.n_ordinates, ng, nx))
 
 
 # ═══════════════════════════════════════════════════════════════════════

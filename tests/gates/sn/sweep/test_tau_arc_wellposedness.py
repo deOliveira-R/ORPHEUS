@@ -198,7 +198,7 @@ def test_the_cylinder_cannot_violate_P3_once_its_arc_is_MONOTONE():
     bad_sphere = SimpleNamespace(
         mu_x=np.array([-0.9, -0.1, 0.1, 0.9]),
         weights=np.array([0.1, 0.1, 0.1, 0.1]),   # sum 0.4 != 2 -> cells tiny
-        N=4,
+        n_ordinates=4,
     )
     with pytest.raises(ValueError, match="outside its own angular cell"):
         morel_montry_tau_per_level(bad_sphere, CoordSystem.SPHERICAL)

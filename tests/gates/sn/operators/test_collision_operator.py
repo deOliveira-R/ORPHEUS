@@ -92,7 +92,7 @@ def _random_state(
     Issue #208).
     """
     rng = np.random.default_rng(seed)
-    N = problem.quad.N
+    N = problem.quad.n_ordinates
     state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     return replace(
         state,

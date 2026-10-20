@@ -106,7 +106,7 @@ def _solve(d: int, s: float):
     mesh, shape = _mesh(d)
     W = float(np.sum(quad.weights))
     q = np.broadcast_to(
-        (_Q_G / W).reshape(1, 2, *([1] * len(shape))), (quad.N, 2, *shape),
+        (_Q_G / W).reshape(1, 2, *([1] * len(shape))), (quad.n_ordinates, 2, *shape),
     ).copy()
     sol = solve_sn_fixed_source(
         {0: _absorber(sig)}, mesh, quad, external_source=q,

@@ -192,7 +192,7 @@ class _Lambertian:
 def _trace(quad: Quadrature, faces) -> AngularTraceSpace:
     """The production trace space over ``faces``, one slot of ``_NG`` groups."""
     layout = FaceLayout.from_named_shapes(
-        [(f, (int(quad.N), _NG)) for f in faces]
+        [(f, (int(quad.n_ordinates), _NG)) for f in faces]
     )
     return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
@@ -287,9 +287,9 @@ class TestTheDomainIsGammaPlus:
         )
         assert lam.gamma_plus.shape[0] == outflow.size
         assert lam.gamma_minus.shape[0] == inflow.size
-        assert 0 < outflow.size < quad.N and 0 < inflow.size < quad.N, (
+        assert 0 < outflow.size < quad.n_ordinates and 0 < inflow.size < quad.n_ordinates, (
             f"half-traces {outflow.size}/{inflow.size} are not strictly inside "
-            f"the {quad.N}-ordinate face slot — a full-N domain would be the "
+            f"the {quad.n_ordinates}-ordinate face slot — a full-N domain would be the "
             f"retired welded shape."
         )
         # The endpoints know WHICH face they are: `FunctionSpace.__eq__` is
@@ -791,9 +791,9 @@ class TestShapeContract:
         quad = Quadrature.lebedev(5)  # N = 14
         lam = _one_face(quad, "xmax")
         n_plus = lam.gamma_plus.shape[0]
-        assert n_plus < quad.N  # activation: the two shapes differ
+        assert n_plus < quad.n_ordinates  # activation: the two shapes differ
 
-        for n_rows in (int(quad.N), n_plus + 1):
+        for n_rows in (int(quad.n_ordinates), n_plus + 1):
             with pytest.raises(ValueError, match=r"expected \|Γ₊\|"):
                 lam.R.apply(np.ones((n_rows, _NG)))
 

@@ -272,7 +272,7 @@ def _composite(solver, seed):
     """Random angular FullField (bulk AND trace random, ANGLE-VARYING bulk)."""
     sn = solver.problem
     rng = np.random.default_rng(seed)
-    bulk = AngularFlux(values=rng.uniform(0.05, 1.0, size=(sn.quad.N, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space)
+    bulk = AngularFlux(values=rng.uniform(0.05, 1.0, size=(sn.quad.n_ordinates, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space)
     trace = AngularBoundaryFlux(
         values=rng.uniform(0.05, 1.0, size=int(sn.angular_trace.layout.total_size)),
         space=sn.angular_trace,

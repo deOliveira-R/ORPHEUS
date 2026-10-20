@@ -218,7 +218,7 @@ class TestA1PresenceR12a:
         bulk ⊕ trace sum on EVERY mesh — the sphere's seed DOFs live on
         System B's OWN member space, never as a third block here."""
         for sn in (_sphere(), _slab()):
-            n_interior = sn.quad.N * sn.ng * 4
+            n_interior = sn.quad.n_ordinates * sn.ng * 4
             n_trace = sn.angular_trace.shape[0]
             np.testing.assert_array_equal(
                 sn.full_field_space.shape, (n_interior + n_trace,),

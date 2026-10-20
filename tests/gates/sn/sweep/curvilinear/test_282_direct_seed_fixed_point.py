@@ -94,7 +94,7 @@ def _random_source(sn, rng, ng: int = 2):
     leaf is ``None`` on the slab — since Q5.6.3 the folded cylinder
     CARRIES, so slab is the only seedless geometry here — B.2d: the legs
     are EXPLICIT kwargs)."""
-    N, nx = sn.quad.N, sn.nx
+    N, nx = sn.quad.n_ordinates, sn.nx
     bvals = rng.standard_normal((N, ng, nx))
     # source_from_angular returns None on a non-carrying mesh (slab).
     q_half = RadialCharacteristicField.source_from_angular(bvals, sn)
@@ -107,7 +107,7 @@ def _random_source(sn, rng, ng: int = 2):
 
 def _random_iterate(sn, rng, ng: int = 2):
     """A random 2-block flux composite (an ``initial_guess``)."""
-    N, nx = sn.quad.N, sn.nx
+    N, nx = sn.quad.n_ordinates, sn.nx
     return FullField(
         interior=AngularFlux(values=rng.standard_normal((N, ng, nx)), space=sn.angular_bulk_space),
         boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
@@ -249,7 +249,7 @@ def test_ciii_coarse_sphere_fixed_source_finite_positive():
         StructuredGeometry.sphere((0.0, 8.0), (0,), outer=BC("vacuum")),
     ).partition(CellsByCount.uniform_width(nx)).mesh
     materials = {0: _mixture(1.0, 0.5, ng=2)}
-    source = np.ones((Quadrature.gauss_legendre(8).N, 2, nx))
+    source = np.ones((Quadrature.gauss_legendre(8).n_ordinates, 2, nx))
     for driver in ("source_iteration", "krylov"):
         sol = solve_sn_fixed_source(
             materials, mesh, Quadrature.gauss_legendre(8), source,
@@ -376,7 +376,7 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
     def _random_pair():
         # NONZERO ψ_B — activates the V_cell metric AND the A_BB self-rows.
         psi_a = FullField(
-            interior=AngularFlux(values=rng.standard_normal((sn.quad.N, sn.ng, sn.nx)), space=sn.angular_bulk_space),
+            interior=AngularFlux(values=rng.standard_normal((sn.quad.n_ordinates, sn.ng, sn.nx)), space=sn.angular_bulk_space),
             boundary=AngularBoundaryFlux(
                 values=rng.standard_normal(n_trace),
                 space=sn.angular_trace,

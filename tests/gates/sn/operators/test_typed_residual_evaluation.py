@@ -98,7 +98,7 @@ def test_from_balance_mints_residual_with_correct_type_units_space():
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     problem = SNProblem(mesh, quad, {0: fuel})
     rng = np.random.default_rng(208)
-    shape = (quad.N, problem.ng, *problem.spatial_shape)
+    shape = (quad.n_ordinates, problem.ng, *problem.spatial_shape)
     a_psi = AngularSourceSink(values=rng.standard_normal(shape), space=problem.angular_bulk_space)
     q = AngularSourceSink(values=rng.standard_normal(shape), space=problem.angular_bulk_space)
     r = AngularResidual.from_balance(lhs=a_psi, rhs=q)  # POSITIVE
@@ -434,7 +434,7 @@ class TestSplitRayResidualMint:
         )
 
         sn = _tiny_sphere_2g()
-        q_np = np.ones((sn.quad.N, sn.ng, sn.nx))
+        q_np = np.ones((sn.quad.n_ordinates, sn.ng, sn.nx))
         tol = 1e-12
         sol = solve_sn_fixed_source(
             {0: get_mixture("A", "2g")}, sn.mesh,
@@ -502,7 +502,7 @@ class TestSplitRayResidualMint:
             sn, solver.problem.mat_xs,
         )
         q_pair = _build_fixed_source_rhs(
-            np.ones((sn.quad.N, sn.ng, sn.nx)), sn,
+            np.ones((sn.quad.n_ordinates, sn.ng, sn.nx)), sn,
         )
         psi_pair = _coupled_flux_state(
             TimedFullField.zeros(
@@ -537,7 +537,7 @@ class TestSolutionRayMember:
         sol = solve_sn_fixed_source(
             {0: get_mixture("A", "2g")}, sn.mesh,
             Quadrature.gauss_legendre(4),
-            np.ones((sn.quad.N, sn.ng, sn.nx)),
+            np.ones((sn.quad.n_ordinates, sn.ng, sn.nx)),
             inner_solver="source_iteration", inner_schedule="jacobi",
             max_inner=4000, inner_tol=1e-10,
         )
@@ -582,7 +582,7 @@ class TestSolutionRayMember:
         sn = _tiny_sphere_2g()
         sol_c = solve_sn_fixed_source(
             {0: fuel}, sn.mesh, Quadrature.gauss_legendre(4),
-            np.ones((sn.quad.N, sn.ng, sn.nx)),
+            np.ones((sn.quad.n_ordinates, sn.ng, sn.nx)),
             inner_solver="source_iteration", inner_schedule="jacobi",
             max_inner=2000, inner_tol=1e-8,
         )

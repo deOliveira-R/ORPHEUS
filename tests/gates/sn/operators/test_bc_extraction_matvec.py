@@ -206,7 +206,7 @@ def _random_state(problem: SNProblem, seed: int, *, zero_boundary: bool = True) 
     pre-carve defect from the post-carve raw outflow.
     """
     ng = 1
-    N = problem.quad.N
+    N = problem.quad.n_ordinates
     rng = np.random.default_rng(seed)
     boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
     if not zero_boundary:
@@ -537,7 +537,7 @@ class TestStreamingEquilibriumValue:
         the extracted seed makes cell-0 the largest-magnitude cell.
         """
         problem = _build_sn_mesh(geometry, bc="vacuum", n_cells=8)
-        ng, N = 1, problem.quad.N
+        ng, N = 1, problem.quad.n_ordinates
         nx = problem.nx
         flat = np.ones((N, ng, *problem.spatial_shape))
         state = TimedFullField(
@@ -629,7 +629,7 @@ class TestLFullReadsInflow:
         XPASS, so the marker is removed — O.4a.2 Commit 2.)
         """
         problem = _build_sn_mesh(geometry, bc="reflective")
-        ng, N = 1, problem.quad.N
+        ng, N = 1, problem.quad.n_ordinates
         sigma_t = np.full((ng, *problem.spatial_shape), 2.0)
         rng = np.random.default_rng(3)
         bulk = rng.standard_normal((N, ng, *problem.spatial_shape))
@@ -688,7 +688,7 @@ class TestLFullOutflowDefectKept:
         ``out_B.outflow − out_A.outflow == A.outflow``.
         """
         problem = _build_sn_mesh(geometry, bc="reflective")
-        ng, N = 1, problem.quad.N
+        ng, N = 1, problem.quad.n_ordinates
         sigma_t = np.full((ng, *problem.spatial_shape), 2.0)
         state = _random_state(problem, seed=5, zero_boundary=False)
         out = _LpC_apply(problem, state, sigma_t)
@@ -756,7 +756,7 @@ class TestVacuumBoundaryDefectKept:
         fill shifts the output by exactly ``−Δ`` (the ``−ψ.outflow`` term).
         """
         problem = _build_sn_mesh(geometry, bc="vacuum")
-        ng, N = 1, problem.quad.N
+        ng, N = 1, problem.quad.n_ordinates
         sigma_t = np.full((ng, *problem.spatial_shape), 2.0)
         rng = np.random.default_rng(9)
         bulk = rng.standard_normal((N, ng, *problem.spatial_shape))

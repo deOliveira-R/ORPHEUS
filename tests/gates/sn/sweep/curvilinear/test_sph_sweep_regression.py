@@ -76,7 +76,7 @@ class TestAlphaCoefficients:
         reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         alpha = reduced.angular.alpha_per_level[0]
-        for n in range(quad.N):
+        for n in range(quad.n_ordinates):
             expected = alpha[n] - quad.weights[n] * quad.mu_x[n]
             np.testing.assert_allclose(alpha[n + 1], expected, rtol=1e-14)
 
@@ -94,7 +94,7 @@ class TestAlphaCoefficients:
         reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         alpha = reduced.angular.alpha_per_level[0]
-        N = quad.N
+        N = quad.n_ordinates
         for k in range(N + 1):
             np.testing.assert_allclose(
                 alpha[k], alpha[N - k], atol=1e-14,

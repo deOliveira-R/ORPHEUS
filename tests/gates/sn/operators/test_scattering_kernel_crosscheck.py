@@ -127,7 +127,7 @@ def solver_p1_het():
 
 def _aniso_psi(solver, seed=20260620):
     """A non-isotropic angular flux (so ℓ≥1 moments are non-zero)."""
-    N = solver.quad.N
+    N = solver.quad.n_ordinates
     ng = solver.ng
     nx, ny = solver.problem.spatial_shape
     rng = np.random.default_rng(seed)
@@ -246,7 +246,7 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
         psi = _aniso_psi(solver_p1_het)
         kernel = require_scattering_kernel_property(op)
         out = np.asarray(kernel.apply(psi.values))
-        N = solver_p1_het.quad.N
+        N = solver_p1_het.quad.n_ordinates
         ng = solver_p1_het.ng
         nx, ny = solver_p1_het.problem.spatial_shape
         require(

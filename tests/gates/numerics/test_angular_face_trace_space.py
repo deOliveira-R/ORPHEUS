@@ -80,7 +80,7 @@ def _trace(name: str, ng: int = 2) -> AngularTraceSpace:
     """
     quad = _QUADRATURES[name]()
     layout = FaceLayout.from_named_shapes(
-        [("xmin", (int(quad.N), ng)), ("xmax", (int(quad.N), ng))]
+        [("xmin", (int(quad.n_ordinates), ng)), ("xmax", (int(quad.n_ordinates), ng))]
     )
     return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
@@ -416,7 +416,7 @@ def _trace_2d(quad_name: str, ng: int = 2) -> AngularTraceSpace:
     cannot distinguish "collapse axis 0" from "keep exactly one trailing axis".
     """
     quad = _QUADRATURES[quad_name]()
-    n = int(quad.N)
+    n = int(quad.n_ordinates)
     return AngularTraceSpace.from_quadrature_and_layout(
         quad,
         FaceLayout.from_named_shapes(

@@ -90,7 +90,7 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     # ψ_ref,n = A(r)/W — isotropic per ordinate, zero boundary (vacuum).
     A = case.phi_exact(mesh.centers)
     W = float(problem.quad.weights.sum())
-    vals = np.zeros((problem.quad.N, problem.ng, *problem.spatial_shape))
+    vals = np.zeros((problem.quad.n_ordinates, problem.ng, *problem.spatial_shape))
     vals[:, 0, :] = (A / W)[None, :]
     zero = TimedFullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,

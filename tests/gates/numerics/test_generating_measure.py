@@ -255,8 +255,8 @@ def test_the_weighted_claim_is_not_an_unweighted_claim() -> None:
 
     # And the constructed measures SAY which is which, which is the
     # whole point of carrying the generating measure.
-    assert CHEBYSHEV_T.gauss(n).generating_measure == CHEBYSHEV_T
-    assert LEGENDRE.gauss(n).generating_measure == LEGENDRE
+    assert CHEBYSHEV_T.gauss(n).exactness.reference == CHEBYSHEV_T
+    assert LEGENDRE.gauss(n).exactness.reference == LEGENDRE
     assert CHEBYSHEV_T.gauss(n).degree_of_exactness == 2 * n - 1
     assert LEGENDRE.gauss(n).degree_of_exactness == 2 * n - 1
 
@@ -475,7 +475,7 @@ def test_generated_rule_carries_its_measure_and_degree() -> None:
     for _, measure in ALL_FAMILIES:
         for n in (1, 4, 7):
             rule = measure.gauss(n)
-            assert rule.generating_measure == measure
+            assert rule.exactness.reference == measure
             assert rule.degree_of_exactness == 2 * n - 1
             assert rule.support == measure.support
 

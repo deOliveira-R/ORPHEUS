@@ -98,7 +98,7 @@ def _moment_shape(m: SNProblem, L: int) -> tuple[int, ...]:
 def _make_flux(leaf: str, m: SNProblem, rng: np.random.Generator) -> Field:
     """A flux leaf with DISTINCT random values (NOT flat — Mode-9)."""
     if leaf == "angular":
-        return AngularFlux(values=rng.standard_normal((m.quad.N, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
+        return AngularFlux(values=rng.standard_normal((m.quad.n_ordinates, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
     if leaf == "scalar":
         return ScalarFlux(values=rng.standard_normal((m.ng, *m.spatial_shape)), space=m.bulk_space)
     if leaf == "moment":

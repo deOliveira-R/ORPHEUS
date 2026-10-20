@@ -125,7 +125,7 @@ def test_homogeneous_streaming_equilibrium_sphere(
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    N = quad.N
+    N = quad.n_ordinates
     nx = mesh.N
     ng = 1
     # R-1 Step 4 A1 — ``external_source`` is per-ordinate density
@@ -228,7 +228,7 @@ def test_homogeneous_streaming_equilibrium_cylinder(
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     quad = Quadrature.folded_product(n_mu=n_mu, n_phi=4)
-    N = quad.N
+    N = quad.n_ordinates
     nx = mesh.N
     ng = 1
     # R-1 Step 4 A1 — per-ordinate density (1 / sum_w).
@@ -294,7 +294,7 @@ def test_pomraning_pole_isotropy_sphere(inner_solver: str) -> None:
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(40)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    N = quad.N
+    N = quad.n_ordinates
     nx = mesh.N
     ng = 1
     # R-1 Step 4 A1 — per-ordinate density (1 / sum_w).

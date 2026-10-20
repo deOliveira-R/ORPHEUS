@@ -65,7 +65,7 @@ def _solve(xmin_declaration, inner: str = "source_iteration") -> np.ndarray:
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(_NX)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=_N_ORD)
-    source = np.ones((quad.N, _NG, len(mesh.centers)))
+    source = np.ones((quad.n_ordinates, _NG, len(mesh.centers)))
     solution = solve_sn_fixed_source(
         placeholder_materials(ng=_NG), mesh, quad, source,
         inner_solver=inner,

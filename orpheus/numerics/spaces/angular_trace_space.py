@@ -251,7 +251,7 @@ def build_omega_dot_n(
     function derives from the face name alone — a second, independently
     sourced encoding of the same orientation.
     """
-    n_ord = int(quadrature.N)
+    n_ord = int(quadrature.n_ordinates)
     omega_dot_n = np.zeros((len(faces), n_ord), dtype=float)
     for f_idx, face in enumerate(faces):
         axis, sign = face_normal(face)

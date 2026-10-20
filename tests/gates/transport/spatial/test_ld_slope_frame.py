@@ -64,7 +64,7 @@ def test_ld_slope_moment_global_frame_consistency() -> None:
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(8)
-    Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()
+    Q = np.ones((quad.n_ordinates, 1, nx)) / quad.weights.sum()
     ld = solve_sn_fixed_source(
         materials, mesh, quad, Q, scheme=LinearDiscontinuous(),
         inner_solver="krylov",

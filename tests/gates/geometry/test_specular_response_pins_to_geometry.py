@@ -91,7 +91,7 @@ def _directions(quad) -> np.ndarray:
     former as a coordinate array silently makes a 4-dimensional ambient space.)
     """
     return np.column_stack([
-        np.zeros(quad.N) if getattr(quad, a, None) is None
+        np.zeros(quad.n_ordinates) if getattr(quad, a, None) is None
         else np.asarray(getattr(quad, a), dtype=float)
         for a in ("mu_x", "mu_y", "mu_z")
     ])
@@ -168,4 +168,4 @@ def test_the_geometric_permutation_is_an_involution(case):
     """
     quad = _CASES[case][0]()
     induced, _ = _geometric_permutation(quad, _CASES[case][1])
-    np.testing.assert_array_equal(induced[induced], np.arange(quad.N))
+    np.testing.assert_array_equal(induced[induced], np.arange(quad.n_ordinates))

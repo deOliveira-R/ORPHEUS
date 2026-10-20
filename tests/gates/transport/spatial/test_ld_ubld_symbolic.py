@@ -136,7 +136,7 @@ class TestOracleId1Reduction:
         ).mesh
         quad = Quadrature.gauss_legendre(4)
         op = slab_streaming(mesh, quad)
-        cell_idx, direction_idx = 2, quad.N - 1     # most-positive ordinate
+        cell_idx, direction_idx = 2, quad.n_ordinates - 1     # most-positive ordinate
         st = op.streaming_terms(cell_idx, direction_idx)
         _require(
             st.abs_mu is not None and st.volume is not None,

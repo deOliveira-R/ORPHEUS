@@ -109,7 +109,7 @@ def test_vacuum_bc_realizes_to_the_zero_map_onto_gamma_minus() -> None:
     the codomain shape, asserted below.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    psi_out = np.random.default_rng(0).standard_normal((quad.N, 3))
+    psi_out = np.random.default_rng(0).standard_normal((quad.n_ordinates, 3))
     bc = VacuumInflow()
     inflow, outflow = _half_traces(quad)
 
@@ -141,7 +141,7 @@ def test_specular_bc_indexes_through_reflection_partner() -> None:
     pairing error can cancel against the reference.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    psi_out = np.arange(quad.N * 2, dtype=float).reshape(quad.N, 2)
+    psi_out = np.arange(quad.n_ordinates * 2, dtype=float).reshape(quad.n_ordinates, 2)
     bc = ReflectiveBoundary(axis="x")
     ref = mirror_partner_indices(quad, "x")
     inflow, outflow = _half_traces(quad)
@@ -186,7 +186,7 @@ def test_specular_bc_axis_y_on_lebedev() -> None:
     restricted to its :math:`\\Gamma_-`.
     """
     quad = Quadrature.lebedev(order=9)
-    psi_out = np.random.default_rng(1).standard_normal((quad.N, 2))
+    psi_out = np.random.default_rng(1).standard_normal((quad.n_ordinates, 2))
     bc = ReflectiveBoundary(axis="y")
     space = face_method_space(
         quad, face="ymax", faces=("xmin", "xmax", "ymin", "ymax"),
@@ -395,7 +395,7 @@ def test_white_bc_4_point_quadrature_hand_computed() -> None:
         pytest.fail(f"the docstring value is not the published-table mean {float(published)!r}")
 
     with pytest.raises(ValueError, match=r"expected \|Γ₊\|"):
-        op.apply(np.full((quad.N, 1), 7.0))
+        op.apply(np.full((quad.n_ordinates, 1), 7.0))
 
 
 @pytest.mark.foundation
@@ -642,7 +642,7 @@ def test_albedo_bc_scales_the_flux_its_CLOSURE_pairs() -> None:
     coincide and this row would prove nothing (MEASURED 2026-08-01).
     """
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    psi_full = np.random.default_rng(6).standard_normal((quad.N, 2))
+    psi_full = np.random.default_rng(6).standard_normal((quad.n_ordinates, 2))
     inflow, outflow = _half_traces(quad)
     bc = AlbedoBoundary(0.5, SpecularReturn(axis="x"))
 
@@ -676,7 +676,7 @@ def test_albedo_zero_and_vacuum_are_THE_SAME_narrowed_zero_map() -> None:
     genuine two-space zero map from an endomorphic ``0.0 * x`` echo.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    psi_full = np.random.default_rng(7).standard_normal((quad.N, 2))
+    psi_full = np.random.default_rng(7).standard_normal((quad.n_ordinates, 2))
     inflow, outflow = _half_traces(quad)
     probe = psi_full[outflow]
 

@@ -399,7 +399,7 @@ def _one_cell_sweep_maps(scheme, d: int):
             for moment in range(per_face):
                 flux = AngularBoundaryFlux.zeros(problem.angular_trace)
                 flux.face_view(f"{_AXES[a]}min")[n].reshape(ng, per_face)[group, moment] = 1.0
-                representation.sweep(np.zeros((q.N, ng) + (1,) * d + cell_moments), stratum, flux)
+                representation.sweep(np.zeros((q.n_ordinates, ng) + (1,) * d + cell_moments), stratum, flux)
                 columns.append(np.concatenate([
                     flux.face_view(f"{_AXES[b]}max")[n].reshape(ng, per_face)[group] for b in range(d)
                 ]))

@@ -140,16 +140,16 @@ measure**, and the measure is this one:
    \qquad \text{for all } \deg q \le 2n-1.
 
 The weight function is *in the integral*, not in the quadrature. Before
-2026-08-02 ``gauss_legendre`` and ``gauss_chebyshev`` both shipped
+2026-08-02 the Gauss-Legendre and Gauss-Chebyshev constructors both shipped
 ``degree_of_exactness = 2n-1`` in the same field meaning different
 things — Chebyshev's docstring said so in prose while the type erased
 it. `[M]` at :math:`n=4`, :math:`q(x)=x^6`: the Chebyshev rule
 reproduces :math:`\int q (1-x^2)^{-1/2} dx` to machine precision and
 misses the *unweighted* integral by **0.696**.
 
-Hence :attr:`~orpheus.numerics.measure.DiscreteMeasure.generating_measure`:
-a rule built from its measure carries that measure, so its exactness
-claim states what it is about. This is ``coding-elegance`` Pattern 4
+Hence :attr:`~orpheus.numerics.measure.DiscreteMeasure.exactness`:
+a rule built from its measure carries that measure as the claim's
+``reference``, so its exactness claim states what it is about. This is ``coding-elegance`` Pattern 4
 applied to quadrature — **a rule built from its measure cannot lie about
 its exactness space**, because the exactness follows from the
 construction rather than being an integer someone typed.
@@ -391,7 +391,7 @@ class GeneratingMeasure:
         two constructions are computed separately, so their agreement stays
         a cross-check rather than a cache read.
 
-        The returned measure carries ``generating_measure=self``, so its
+        The returned measure carries ``self`` as its claim's ``reference``, so its
         ``degree_of_exactness = 2n - 1`` states which integral it is
         exact for. For a weighted family that matters: the claim is
         about :math:`\int q\,w\,dx`, never about :math:`\int q\,dx`.

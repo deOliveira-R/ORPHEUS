@@ -142,7 +142,7 @@ class TestExternalSourcePerOrdContract:
         # Random per-ord source.
         rng = np.random.default_rng(seed=42)
         external_source = rng.standard_normal(
-            (quad.N, problem.ng, *problem.spatial_shape),
+            (quad.n_ordinates, problem.ng, *problem.spatial_shape),
         )
 
         captured: list[np.ndarray] = []
@@ -298,7 +298,7 @@ class TestReturnTypeContract:
         assert isinstance(state, TimedFullField)
         # Sphere has xmax face only (no xmin face; pole at r=0).
         assert "xmax" in state.boundary.layout.faces
-        assert state.boundary.face_view("xmax").shape == (quad.N, 1)
+        assert state.boundary.face_view("xmax").shape == (quad.n_ordinates, 1)
         assert "xmin" not in state.boundary.layout.faces  # sphere has no inner face
 
 

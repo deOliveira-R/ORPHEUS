@@ -97,7 +97,7 @@ def test_q1_1_canonical_accessors_read_through_measure() -> None:
     q = Quadrature.lebedev(17)
     assert q.nodes is q.measure.nodes
     assert q.weights is q.measure.weights
-    assert q.N == q.measure.n_points
+    assert q.n_ordinates == q.measure.n_points
     assert q.n_ordinates == q.measure.n_points
     assert q.dim == q.measure.dim
 
@@ -105,7 +105,7 @@ def test_q1_1_canonical_accessors_read_through_measure() -> None:
 def test_q1_2_n_equals_n_ordinates() -> None:
     """``N`` and ``n_ordinates`` are aliases; both equal n_points."""
     q = Quadrature.gauss_legendre(8)
-    assert q.N == q.n_ordinates == q.measure.n_points == 8
+    assert q.n_ordinates == q.n_ordinates == q.measure.n_points == 8
 
 
 # ─── Q2: Dim-agnostic axis_cosines ──────────────────────────────────────
@@ -127,7 +127,7 @@ def test_q2_1_axis_cosines_1d_scalar_measure() -> None:
     for i in (1, 2):
         with pytest.raises(ValueError, match="has no answer"):
             q.axis_cosines(i)
-        np.testing.assert_array_equal(q.mean_axis_cosine(i), np.zeros(q.N))
+        np.testing.assert_array_equal(q.mean_axis_cosine(i), np.zeros(q.n_ordinates))
 
 
 def test_q2_2_axis_cosines_multidim_measure() -> None:
@@ -158,8 +158,8 @@ def test_q3_1_mu_x_mu_y_mu_z_are_property_views() -> None:
 def test_q3_2_mu_y_mu_z_zeros_for_slab() -> None:
     """Slab GL1D: mu_y == mu_z == 0 by 1-D structure."""
     q = Quadrature.gauss_legendre(8)
-    np.testing.assert_array_equal(q.mu_y, np.zeros(q.N))
-    np.testing.assert_array_equal(q.mu_z, np.zeros(q.N))
+    np.testing.assert_array_equal(q.mu_y, np.zeros(q.n_ordinates))
+    np.testing.assert_array_equal(q.mu_z, np.zeros(q.n_ordinates))
 
 
 def test_q3_3_cylindrical_eta_xi_aliases_agree_with_mu_x_mu_y() -> None:
@@ -209,7 +209,7 @@ def test_q4_2_mirror_permutation_is_an_involution() -> None:
             pi = q.ordinate_permutation(_mirror(axis))
             assert pi is not None
             ref = pi.indices
-            np.testing.assert_array_equal(ref[ref], np.arange(q.N))
+            np.testing.assert_array_equal(ref[ref], np.arange(q.n_ordinates))
 
 
 def test_q4_3_gl1d_x_mirror_is_index_reversal() -> None:
@@ -299,7 +299,7 @@ def test_q4_5_every_derived_mirror_permutation_really_is_its_reflection(
         available.append(axis)
         ref = pi.indices
         np.testing.assert_array_equal(
-            ref[ref], np.arange(q.N), err_msg=f"{name} axis {axis}: not an involution",
+            ref[ref], np.arange(q.n_ordinates), err_msg=f"{name} axis {axis}: not an involution",
         )
         np.testing.assert_array_equal(
             q.weights[ref], q.weights,
@@ -397,7 +397,7 @@ def test_q5_1_spherical_harmonics_shape() -> None:
     """spherical_harmonics(L) returns shape (N, L+1, 2L+1)."""
     q = Quadrature.lebedev(17)
     Y = frame_faces.angular_frame(q, 2).table
-    assert Y.shape == (q.N, 3, 5)
+    assert Y.shape == (q.n_ordinates, 3, 5)
 
 
 def test_q5_2_spherical_harmonics_l0_constant() -> None:
@@ -425,7 +425,7 @@ def test_q6_1_octants_partition_is_disjoint() -> None:
     """Every ordinate appears in exactly one octant entry."""
     q = Quadrature.lebedev(17)
     all_indices = np.concatenate([part.indices for part in q.octants])
-    assert sorted(all_indices.tolist()) == list(range(q.N))
+    assert sorted(all_indices.tolist()) == list(range(q.n_ordinates))
 
 
 def test_q6_2_octants_preserve_total_mass() -> None:
@@ -615,7 +615,7 @@ def test_q8_4_the_1d_rule_ROUTES_its_own_measure_and_binds_the_legendre_basis(
     assert frame.basis.invariance_group == q.measure.quotient_group
 
     # 3 — the flat table: the fabricated slots are UNSPELLABLE
-    assert frame.table.shape == (q.N, 3)
+    assert frame.table.shape == (q.n_ordinates, 3)
     assert frame.basis.space.shape == (3,)
 
     # …and the forged construction the fiction used is GONE from production:
@@ -742,7 +742,7 @@ def test_q9_4_an_axis_outside_R3_is_a_DIFFERENT_refusal() -> None:
     refusal it is, so the two cannot be confused at a call site.
     """
     q = Quadrature.gauss_legendre(8)
-    np.testing.assert_array_equal(q.mean_axis_cosine(2), np.zeros(q.N))  # suppressed
+    np.testing.assert_array_equal(q.mean_axis_cosine(2), np.zeros(q.n_ordinates))  # suppressed
     with pytest.raises(ValueError, match="no axis 3 to average over"):
         q.mean_axis_cosine(3)
     with pytest.raises(ValueError, match="non-negative|no axis"):
@@ -761,8 +761,8 @@ def test_q9_5_the_flow_consumers_still_read_zero_on_a_suppressed_axis() -> None:
     """
     q = Quadrature.gauss_legendre(8)
     np.testing.assert_array_equal(q.mu_x, q.measure.nodes)
-    np.testing.assert_array_equal(q.mu_y, np.zeros(q.N))
-    np.testing.assert_array_equal(q.mu_z, np.zeros(q.N))
+    np.testing.assert_array_equal(q.mu_y, np.zeros(q.n_ordinates))
+    np.testing.assert_array_equal(q.mu_z, np.zeros(q.n_ordinates))
     leb = Quadrature.lebedev(17)
     for name, i in (("mu_x", 0), ("mu_y", 1), ("mu_z", 2)):
         np.testing.assert_array_equal(getattr(leb, name), leb.measure.nodes[:, i])

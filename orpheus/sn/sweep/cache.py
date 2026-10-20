@@ -268,7 +268,7 @@ class StreamingCoefficientCache:
         from orpheus.geometry import CoordSystem  # local import: cyclic risk
 
         quad = problem.quad
-        N = quad.N
+        N = quad.n_ordinates
         nx = problem.nx
         if not problem.is_1d:
             # A domain/admission contract, not type-narrowing — a bare

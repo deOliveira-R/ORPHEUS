@@ -746,18 +746,30 @@ predicate and on a randomised generic predicate.
 1-D primitive constructors
 ==========================
 
-The module ships three 1-D primitives:
+The 1-D rules a reader meets first are:
 
-- :func:`~orpheus.numerics.measure.gauss_legendre`
-  ``(n)`` — Gauss-Legendre on :math:`[-1, 1]`, exact to algebraic
-  degree :math:`2n - 1` **against** ``legendre``; weights sum to 2.
-- :func:`~orpheus.numerics.measure.gauss_chebyshev`
-  ``(n)`` — Gauss-Chebyshev (first kind) on :math:`[-1, 1]`, exact to
-  algebraic degree :math:`2n - 1` **against** ``chebyshev_t``, whose
-  weight is :math:`(1 - x^2)^{-1/2}`; weights sum to :math:`\pi`.
+- ``LEGENDRE.gauss(n)``
+  (:meth:`~orpheus.numerics.generating_measure.GeneratingMeasure.gauss`
+  on :data:`~orpheus.numerics.generating_measure.LEGENDRE`) —
+  Gauss-Legendre on :math:`[-1, 1]`, exact to algebraic degree
+  :math:`2n - 1` **against** ``legendre``; weights sum to 2.
+- ``CHEBYSHEV_T.gauss(n)``
+  (the same method on
+  :data:`~orpheus.numerics.generating_measure.CHEBYSHEV_T`) —
+  Gauss-Chebyshev (first kind) on :math:`[-1, 1]`, exact to algebraic
+  degree :math:`2n - 1` **against** ``chebyshev_t``, whose weight is
+  :math:`(1 - x^2)^{-1/2}`; weights sum to :math:`\pi`.
 - :func:`~orpheus.numerics.measure.equispaced`
   ``(a, b, n)`` — midpoint rule on :math:`[a, b]`, exact to algebraic
   degree 1 against ``uniform([a,b])``; weights sum to :math:`b - a`.
+
+The module once also shipped ``gauss_legendre(n)`` and
+``gauss_chebyshev(n)`` as functions; each was the one-line body
+``LEGENDRE.gauss(n)`` / ``CHEBYSHEV_T.gauss(n)`` under a second name, with
+no production caller, and both were retired (2026-10-19, ruling 12 of
+the numerics untangling) so that a generating measure is the one place a
+Gauss rule is made. ``equispaced`` stays: it is the only non-Gauss rule on
+an interval, and the measure-algebra tests use it as their fixture.
 
 .. important::
 
@@ -776,7 +788,7 @@ The module ships three 1-D primitives:
    does not say which.
 
 Higher-dimensional rules are built by composition. The tensor product
-``gauss_legendre(n_mu) * equispaced(0.0, 2*np.pi, n_phi)`` gives a rule
+``LEGENDRE.gauss(n_mu) * equispaced(0.0, 2*np.pi, n_phi)`` gives a rule
 on the **parameter rectangle**
 :math:`(\mu, \varphi) \in [-1,1] \times [0, 2\pi)` — the standard
 polar-azimuthal split.
@@ -826,9 +838,9 @@ Hermite) and the affine remap
 Production reaches the Legendre family through
 :func:`~orpheus.numerics.quadrature.rules_1d.gauss_legendre_on_mu`, and every
 Gauss–Legendre, product or folded angular quadrature carries its
-Gauss–Legendre factor through it. :func:`~orpheus.numerics.measure.gauss_legendre`
-is the same rule under a second name (its body is ``LEGENDRE.gauss(n)``), and
-only tests call it. No production code reaches the other families.
+Gauss–Legendre factor through it. ``LEGENDRE.gauss(n)`` is that one construction; the module-level
+``measure.gauss_legendre`` that once repeated it under a second name is
+retired. No production code reaches the other families.
 
 **Why the floats are not the textbook's.**  A measure
 :math:`d\lambda = w(x)\,dx` fixes monic orthogonal polynomials obeying
@@ -1593,7 +1605,9 @@ count of *executable* ``1e-13`` constants falls **9 → 3**, and the three
 survivors are each a different window with its own name:
 ``WEIGHT_ATOL``'s own definition, ``directional._REFLECTION_ATOL`` (the
 ordinate-permutation weight window, documented as the same number and
-deliberately re-declared where it is consumed) and
+re-declared where it was consumed; retired 2026-10-19, so
+``Quadrature.ordinate_permutation`` now takes ``permutation_under``'s
+``WEIGHT_ATOL`` default and the window has one name) and
 ``rules_product.spherical_product``'s ``atol`` default (a *composition*
 tolerance, not an invariance one). ⚠ Both
 windows are ABSOLUTE: for a rule whose weights are :math:`O(10^{-3})` the
@@ -1816,8 +1830,8 @@ always names its stage — points at the paragraph that explains it.
    orthogonal system **and** on degree while being exact against the
    wrong thing. That is not hypothetical, and this page's own two
    :ref:`1-D primitives <1-d-primitive-constructors>` are the witness:
-   ``[M]`` :func:`~orpheus.numerics.measure.gauss_legendre` and
-   :func:`~orpheus.numerics.measure.gauss_chebyshev` at :math:`n = 4`
+   ``[M]`` ``LEGENDRE.gauss(4)`` and
+   ``CHEBYSHEV_T.gauss(4)`` (:math:`n = 4`)
    agree on all three (support :math:`[-1,1]`, system ``ALGEBRAIC``,
    degree 7) and differ on the **unweighted**
    :math:`\int_{-1}^{1} x^6 \, dx` — a monomial comfortably inside that
@@ -2492,9 +2506,9 @@ shipped rule's ``support`` happens to be parameter-independent, so it
 *could* have been a field — but since stage 1 forces the build anyway,
 the selector reads every such fact off the one constructed object: the
 support, the computed invariance group, the exactness claim, **and the
-node count stage 4 sorts on**. The winning candidate's measure is then
+node count stage 4 sorts on**. The winning candidate's quadrature is then
 carried forward rather than rebuilt. There is therefore exactly one
-construction of the measure the selector returns, and no second,
+construction of the quadrature the selector returns, and no second,
 divergence-capable one — the same single-source argument that makes the
 spec carry no invariance group and no parallel node-count formula.
 
@@ -2729,7 +2743,7 @@ The four canonical happy-path selections:
   2026-09-03) —
   ``domain mismatch: geometry 'slab' discretises S^2/O2_x, but the
   rule's nodes live on S^2, and S^2/O2_x has no descent arrow onto it``
-  — leaving GL1D (n=8 → degree 15, 8
+  — leaving GL1D (n_ordinates=8 → degree 15, 8
   nodes), whose own measure `[M]` declares ``support=S^2/O2_x``.
   ⭐ The message names **one** clause, the one that actually bit; the
   same rejection for a cylinder is the OTHER clause and says so:
@@ -2769,6 +2783,48 @@ The four canonical happy-path selections:
   *valid candidates that lost*, not rejections — their names are
   absent from ``log.rejected``.
 
+One rule list (ruling 32, 2026-10-19)
+-------------------------------------
+
+The registry holds the rule list :class:`~orpheus.numerics.quadrature.directional.Quadrature`
+already has, not a second one. Each :class:`~orpheus.numerics.quadrature.registry.QuadratureSpec`'s
+``factory`` is the classmethod (``Quadrature.gauss_legendre``, ``.lebedev``,
+``.level_symmetric``, ``.product``), ``QuadratureSpec.build`` returns the
+:class:`~orpheus.numerics.quadrature.directional.Quadrature` (its level
+structure rides with it; the old ``build`` unpacked ``(measure, LevelStructure)``
+to a bare measure and dropped the structure), and
+:func:`~orpheus.numerics.quadrature.registry.select_quadrature` returns
+``(Quadrature, SelectionLog)``. The selector reads ``quadrature.measure`` where it
+asks the domain, symmetry and exactness questions. The Gauss-Legendre
+parameter is spelled ``n_ordinates`` in the spec, as in the classmethod
+(it was ``n``).
+
+``[M]`` 2026-10-19, ``tests/gates/numerics/test_registry_rule_list.py``: for each of the four
+entries over every parameter set the degree inversion returns for targets
+0 to 21 (plus the buildable orders it never picks), the classmethod's
+``.measure`` equals the measure the module rule function it wraps builds,
+bit for bit (``np.array_equal`` on nodes and weights; ``==`` on support,
+invariance group and exactness claim), and the inversion is the cheapest
+set that meets the target (the built rule's ``degree_of_exactness`` is at
+least the target and the next smaller set's is below it). The same file
+pins that each ``factory`` IS the classmethod. A one-ulp weight change, a
+wrong polar axis, an inversion that under-promises and one that
+over-promises each turn it red (in-process mutations, 2026-10-19).
+
+⛔ ``Quadrature.folded_product`` is **not** registered. The brief was to
+derive its degree inversion from the built rule, and `[M]` the built rule
+carries no degree: for every ``(n_mu, n_phi)`` in
+``{1,2,3,4,8} x {2,4,6,8,16}``, ``Quadrature.folded_product(n_mu,
+n_phi).measure.exactness`` is ``None``, because ``DiscreteMeasure.quotient``
+drops the claim when the quotient's reference measure (Lebesgue on
+``S^2/sigma_y``) has no ``ReferenceMeasure`` realization. A registered spec
+would be refused at stage 2 ("the rule carries no exactness claim") on every
+geometry, and typing the parent product's degree onto it would be a table
+that asserts nothing about the built rule. The prerequisite is that
+reference measure; the guard
+``TestTheSelectorIsUNMOVEDByTheCarve::test_the_fold_is_not_registered_so_no_selection_reaches_it``
+is the pin that stays until then.
+
 Explainability log
 ------------------
 
@@ -2779,7 +2835,7 @@ the full decision provenance:
 
 .. code-block:: python
 
-   measure, log = select_quadrature("cartesian2d", target_degree=5)
+   quadrature, log = select_quadrature("cartesian2d", target_degree=5)
    print(log.summary())
    # select_quadrature(geometry='cartesian2d', target_degree=5)
    # -> LebedevSphere({'order': 5}) [1 rejected]

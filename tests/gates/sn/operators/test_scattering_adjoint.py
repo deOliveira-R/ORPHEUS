@@ -105,7 +105,7 @@ def _ld_solver_het(order: int, nx: int = 4, ny: int = 3) -> SNSolver:
 
 def _ld_flux(solver: SNSolver, seed: int = 123) -> AngularFlux:
     """Random LD :class:`AngularFlux` — trailing ``2^d = 4`` φ̂-moment axis."""
-    N = solver.quad.N
+    N = solver.quad.n_ordinates
     nx, ny = solver.problem.spatial_shape
     vals = np.random.default_rng(seed).uniform(
         0.05, 1.0, size=(N, solver.ng, nx, ny, 4),
@@ -219,7 +219,7 @@ class TestKernelTranspose:
         """
         op = solver_p1_het.problem.system.factors.scattering
         nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
-        N = solver_p1_het.problem.quad.N
+        N = solver_p1_het.problem.quad.n_ordinates
         kernel = op.kernel
         rng = np.random.default_rng(5)
         psi = rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny))
@@ -316,7 +316,7 @@ class TestFullScatterKernel:
         op = solver_p1_het.problem.system.factors.scattering
         nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
         W = op.total_weight
-        psi = AngularFlux(values=np.random.default_rng(10).uniform(0.05, 1.0, size=(solver_p1_het.problem.quad.N, solver_p1_het.ng, nx, ny)), space=solver_p1_het.problem.angular_bulk_space)
+        psi = AngularFlux(values=np.random.default_rng(10).uniform(0.05, 1.0, size=(solver_p1_het.problem.quad.n_ordinates, solver_p1_het.ng, nx, ny)), space=solver_p1_het.problem.angular_bulk_space)
         candidate = self._full_kernel(op).apply(psi.values) / W
         # CS4c step 5: the gain is composite-bound; the bulk action rides a
         # zero-trace composite (the trace the lift itself emits back).
@@ -337,7 +337,7 @@ class TestFullScatterKernel:
         """
         op = solver_p1_het.problem.system.factors.scattering
         nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
-        N = solver_p1_het.problem.quad.N
+        N = solver_p1_het.problem.quad.n_ordinates
         fk = self._full_kernel(op)
         rng = np.random.default_rng(11)
         psi = rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny, *trailing))
@@ -367,7 +367,7 @@ class TestFullScatterKernel:
         """
         op = solver_p1_het.problem.system.factors.scattering
         nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
-        N = solver_p1_het.problem.quad.N
+        N = solver_p1_het.problem.quad.n_ordinates
         W = op.total_weight
         chi = np.random.default_rng(13).uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny))
         np.testing.assert_allclose(
@@ -393,7 +393,7 @@ class TestFullScatterKernel:
         """
         op = solver_p1_het.problem.system.factors.scattering
         nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
-        N = solver_p1_het.problem.quad.N
+        N = solver_p1_het.problem.quad.n_ordinates
         rng = np.random.default_rng(12)
         psi = AngularFlux(values=rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny)), space=solver_p1_het.problem.angular_bulk_space)
         chi = rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny))

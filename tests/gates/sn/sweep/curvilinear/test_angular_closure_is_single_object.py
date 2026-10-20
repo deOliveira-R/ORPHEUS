@@ -63,7 +63,7 @@ def _cylinder_mesh(n_phi: int) -> SNProblem:
 def _run_one_sweep(problem: SNProblem) -> None:
     rng = np.random.default_rng(20260828)
     sig_t = rng.uniform(0.3, 3.0, size=(_NG, *problem.spatial_shape))
-    q_values = rng.standard_normal((problem.quad.N, _NG, *problem.spatial_shape))
+    q_values = rng.standard_normal((problem.quad.n_ordinates, _NG, *problem.spatial_shape))
     source = AngularSourceSink(values=q_values, space=problem.angular_bulk_space)
     boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
     sweep_once(source, sig_t, problem, boundary)

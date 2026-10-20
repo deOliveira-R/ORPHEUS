@@ -383,7 +383,7 @@ class TestSpecularAgainstAnIndependentExpression:
         x = _probe(space)
 
         perm = mirror_partner_indices(quad, axis)
-        full = np.zeros((int(quad.N),) + x.shape[1:], dtype=x.dtype)
+        full = np.zeros((int(quad.n_ordinates),) + x.shape[1:], dtype=x.dtype)
         full[outflow] = x
         expected = alpha * full[perm[inflow]]
 

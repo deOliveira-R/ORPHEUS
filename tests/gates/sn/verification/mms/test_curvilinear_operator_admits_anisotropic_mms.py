@@ -76,7 +76,7 @@ def _lc_apply_on_psi_ref(case, nc: int):
     r = mesh.centers                                   # (nx,)
     mu = case.quadrature.mu_x                           # (N,)
     W = float(case.quadrature.weights.sum())
-    N = case.quadrature.N
+    N = case.quadrature.n_ordinates
     nx = mesh.N
     ng = 1
 

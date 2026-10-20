@@ -643,7 +643,7 @@ class TestSweepEntryDelegatesToStrategy:
 
         selected = type(default_for(problem, problem.scheme, problem.angular_closure)).__name__
         calls = {"sweep": 0}
-        N, ng = problem.quad.N, problem.ng
+        N, ng = problem.quad.n_ordinates, problem.ng
         spatial = problem.spatial_shape
 
         class _SpyStrategy:

@@ -26,7 +26,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.measure import BundleMeasure, DiscreteMeasure, equispaced, gauss_chebyshev, gauss_legendre
+from orpheus.numerics.measure import BundleMeasure, DiscreteMeasure, equispaced
+from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE
 from orpheus.numerics.manifold import (
     COSINE_INTERVAL,
     IndexSet,
@@ -56,7 +57,7 @@ def test_gauss_legendre_polynomial_exactness(n: int) -> None:
     :math:`\int_{-1}^{1} x^k \, dx = \frac{1 - (-1)^{k+1}}{k + 1}`,
     which is :math:`2/(k+1)` for even :math:`k` and 0 for odd.
     """
-    rule = gauss_legendre(n)
+    rule = LEGENDRE.gauss(n)
     # The rule advertises its degree of exactness; the test asserts
     # the advertised claim.
     assert rule.degree_of_exactness == 2 * n - 1
@@ -90,7 +91,7 @@ def test_gauss_chebyshev_polynomial_exactness(n: int) -> None:
 
     where :math:`k!!` is the double factorial.
     """
-    rule = gauss_chebyshev(n)
+    rule = CHEBYSHEV_T.gauss(n)
     assert rule.degree_of_exactness == 2 * n - 1
 
     for k in range(2 * n):
@@ -121,7 +122,7 @@ def test_gauss_legendre_weight_sum_is_two() -> None:
     """:math:`\\sum_i w_i = 2` for any :math:`n` — the integral of
     the constant function 1 on :math:`[-1, 1]`."""
     for n in (1, 2, 4, 8, 16, 32):
-        rule = gauss_legendre(n)
+        rule = LEGENDRE.gauss(n)
         assert np.isclose(rule.weights.sum(), 2.0, atol=1e-14)
 
 
@@ -132,7 +133,7 @@ def test_gauss_chebyshev_weight_sum_is_pi() -> None:
     integral of the constant function 1 on :math:`[-1, 1]` against
     :math:`(1 - x^2)^{-1/2}`."""
     for n in (1, 2, 4, 8, 16, 32):
-        rule = gauss_chebyshev(n)
+        rule = CHEBYSHEV_T.gauss(n)
         assert np.isclose(rule.weights.sum(), np.pi, atol=1e-14)
 
 
@@ -144,7 +145,7 @@ def test_gauss_chebyshev_weight_sum_is_pi() -> None:
 @pytest.mark.foundation
 def test_n_points_property() -> None:
     """``n_points`` reads ``len(weights)``."""
-    rule = gauss_legendre(7)
+    rule = LEGENDRE.gauss(7)
     assert rule.n_points == 7
     assert rule.n_points == rule.weights.shape[0]
 
@@ -152,10 +153,10 @@ def test_n_points_property() -> None:
 @pytest.mark.foundation
 def test_dim_property_1d_and_2d() -> None:
     """``dim`` is 1 for ``(N,)`` nodes, 2 for ``(N, 2)`` nodes."""
-    one_d = gauss_legendre(5)
+    one_d = LEGENDRE.gauss(5)
     assert one_d.dim == 1
 
-    two_d = gauss_legendre(3) * gauss_legendre(2)
+    two_d = LEGENDRE.gauss(3) * LEGENDRE.gauss(2)
     assert two_d.dim == 2
 
 
@@ -163,7 +164,7 @@ def test_dim_property_1d_and_2d() -> None:
 def test_integrate_vector_valued_integrand() -> None:
     """For a vector-valued ``f`` returning ``(N, k)``, the result
     contracts the leading axis and has shape ``(k,)``."""
-    rule = gauss_legendre(8)
+    rule = LEGENDRE.gauss(8)
     # Vector integrand: returns (1, x, x^2) at each node.
     result = rule.integrate(lambda x: np.stack([np.ones_like(x), x, x ** 2], axis=1))
     expected = np.array([2.0, 0.0, 2.0 / 3.0])
@@ -176,8 +177,8 @@ def test_tensor_product_structure() -> None:
     """``μ * ν`` produces ``(n1*n2, d1+d2)`` nodes and
     outer-producted weights, in ``ij``-meshgrid order (outer loop μ,
     inner loop ν)."""
-    a = gauss_legendre(3)
-    b = gauss_legendre(4)
+    a = LEGENDRE.gauss(3)
+    b = LEGENDRE.gauss(4)
     p = a * b
     assert p.n_points == 12
     assert p.nodes.shape == (12, 2)
@@ -196,8 +197,8 @@ def test_tensor_product_separable_integrand_factors() -> None:
     :math:`\int f \, d(\mu \otimes \nu) = (\int g \, d\mu)(\int h \,
     d\nu)`. This is the discrete Fubini-Tonelli identity and is the
     key test from the spec."""
-    a = gauss_legendre(3)
-    b = gauss_legendre(4)
+    a = LEGENDRE.gauss(3)
+    b = LEGENDRE.gauss(4)
     p = a * b
 
     # f(x, y) = x * y; ∫_-1^1 x dx = 0, so the product integral is 0.
@@ -219,8 +220,8 @@ def test_tensor_product_separable_integrand_factors() -> None:
 def test_tensor_product_metadata_propagation() -> None:
     """``space`` concatenates with ``×``; ``degree_of_exactness`` is
     the min of the two factors; ``invariance_group`` is dropped."""
-    a = gauss_legendre(3)  # dx = 5
-    b = gauss_legendre(4)  # dx = 7
+    a = LEGENDRE.gauss(3)  # dx = 5
+    b = LEGENDRE.gauss(4)  # dx = 7
     p = a * b
     assert p.support == COSINE_INTERVAL * COSINE_INTERVAL
     assert p.degree_of_exactness == 5
@@ -242,7 +243,7 @@ def test_direct_sum_concatenates_on_shared_space() -> None:
 @pytest.mark.foundation
 def test_direct_sum_rejects_mismatched_spaces() -> None:
     """``μ + ν`` raises ``ValueError`` on mismatched spaces."""
-    a = gauss_legendre(3)
+    a = LEGENDRE.gauss(3)
     b = equispaced(0.0, 1.0, 3)
     with pytest.raises(ValueError, match="equal spaces"):
         _ = a + b
@@ -259,7 +260,7 @@ def test_direct_sum_composite_quadrature() -> None:
     """
     # Build N-point GL on [-1, 0] and [0, 1] via pushforward, then
     # direct-sum on the common space "[-1,1]".
-    base_left = gauss_legendre(4).pushforward(
+    base_left = LEGENDRE.gauss(4).pushforward(
         ManifoldMap(COSINE_INTERVAL, COSINE_INTERVAL, lambda x: 0.5 * (x - 1.0)),
     )
     # The pushforward x -> (x-1)/2 maps [-1,1] to [-1, 0]. The Jacobian
@@ -270,7 +271,7 @@ def test_direct_sum_composite_quadrature() -> None:
         weights=base_left.weights * 0.5,
         support=base_left.support,
     )
-    base_right = gauss_legendre(4).pushforward(
+    base_right = LEGENDRE.gauss(4).pushforward(
         ManifoldMap(COSINE_INTERVAL, COSINE_INTERVAL, lambda x: 0.5 * (x + 1.0)),
     )
     base_right = DiscreteMeasure(
@@ -319,7 +320,7 @@ def test_pushforward_invertible_map_change_of_variables() -> None:
 def test_pushforward_drops_metadata() -> None:
     """Pushforward drops ``invariance_group`` and
     ``degree_of_exactness`` (φ may not preserve either)."""
-    base = gauss_legendre(5).with_metadata(invariance_group=SubgroupOfO3.O3)
+    base = LEGENDRE.gauss(5).with_metadata(invariance_group=SubgroupOfO3.O3)
     assert base.invariance_group == SubgroupOfO3.O3
     assert base.degree_of_exactness == 9
     pushed = base.pushforward(
@@ -348,7 +349,7 @@ def test_pushforward_READS_its_target_off_the_map_and_refuses_a_map_out_of_elsew
     map out of the WRONG point set (the same numbers on a different
     manifold), and the retired call-site spelling of a target.
     """
-    base = gauss_legendre(3)  # on COSINE_INTERVAL
+    base = LEGENDRE.gauss(3)  # on COSINE_INTERVAL
     shift = ManifoldMap(COSINE_INTERVAL, Interval(0.0, 2.0), lambda x: x + 1.0)
 
     pushed = base.pushforward(shift)
@@ -371,7 +372,7 @@ def test_pushforward_READS_its_target_off_the_map_and_refuses_a_map_out_of_elsew
 def test_restrict_to_positive_subset() -> None:
     """``gauss_legendre(10).restrict(x > 0)`` keeps the 5 positive
     nodes (GL with even N has nodes symmetric about zero)."""
-    rule = gauss_legendre(10)
+    rule = LEGENDRE.gauss(10)
     positive = rule.restrict(lambda x: x > 0)
     assert positive.n_points == 5
     assert np.all(positive.nodes > 0)
@@ -383,7 +384,7 @@ def test_restrict_drops_metadata() -> None:
     """Restriction drops ``invariance_group`` and
     ``degree_of_exactness`` (the restricted rule is not a Gauss
     rule on the cut domain)."""
-    rule = gauss_legendre(8).with_metadata(invariance_group=SubgroupOfO3.O3)
+    rule = LEGENDRE.gauss(8).with_metadata(invariance_group=SubgroupOfO3.O3)
     half = rule.restrict(lambda x: x >= 0)
     assert half.invariance_group is None
     assert half.degree_of_exactness is None
@@ -392,7 +393,7 @@ def test_restrict_drops_metadata() -> None:
 @pytest.mark.foundation
 def test_restrict_invalid_predicate_shape_raises() -> None:
     """Restriction predicate must return ``(N,)``-shaped boolean."""
-    rule = gauss_legendre(4)
+    rule = LEGENDRE.gauss(4)
     with pytest.raises(ValueError, match="predicate"):
         _ = rule.restrict(lambda x: np.array([[True, False], [True, True]]))
 
@@ -424,7 +425,7 @@ def test_construction_invariants() -> None:
 def test_with_metadata_returns_new_instance() -> None:
     """``with_metadata`` returns a new frozen instance with selected
     fields updated; the original is unchanged."""
-    base = gauss_legendre(3)
+    base = LEGENDRE.gauss(3)
     tagged = base.with_metadata(invariance_group=SubgroupOfO3.O3)
     assert tagged.invariance_group == SubgroupOfO3.O3
     assert base.invariance_group is None
@@ -448,7 +449,7 @@ def test_bundle_measure_separable_smoke() -> None:
     but this smoke test exercises the disintegration plumbing that
     MoC will rely on in Wave 2.
     """
-    base = gauss_legendre(6)
+    base = LEGENDRE.gauss(6)
 
     # Trivial fiber: same measure for every base point.
     fiber_template = equispaced(0.0, 1.0, 50)
@@ -479,7 +480,7 @@ def test_bundle_measure_varying_fiber() -> None:
     explicit nested computation. This pins the per-base-point
     dispatch path used by MoC ray-bundle quadratures.
     """
-    base = gauss_legendre(4)
+    base = LEGENDRE.gauss(4)
 
     # Fiber on [0, b+2] with 30 midpoint nodes — depends on b.
     def fiber_factory(b: np.ndarray) -> DiscreteMeasure:
@@ -544,9 +545,9 @@ def test_equispaced_invalid_args_raise() -> None:
 def test_constructor_invalid_args_raise() -> None:
     """1-D primitive constructors reject ``n < 1``."""
     with pytest.raises(ValueError, match="n >= 1"):
-        gauss_legendre(0)
+        LEGENDRE.gauss(0)
     with pytest.raises(ValueError, match="n >= 1"):
-        gauss_chebyshev(0)
+        CHEBYSHEV_T.gauss(0)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -557,7 +558,7 @@ def test_constructor_invalid_args_raise() -> None:
 @pytest.mark.foundation
 def test_call_aliases_integrate() -> None:
     """``mu(f)`` is the same as ``mu.integrate(f)`` for callables."""
-    rule = gauss_legendre(8)
+    rule = LEGENDRE.gauss(8)
     result_call = rule(lambda x: x ** 2)
     result_int = rule.integrate(lambda x: x ** 2)
     assert np.isclose(result_call, result_int, atol=1e-14)
@@ -570,7 +571,7 @@ def test_integrate_accepts_array_overload() -> None:
     Load-bearing for ``mesh.volume_measure(scalar_flux)`` at
     production integration sites where the values are pre-computed.
     """
-    rule = gauss_legendre(8)
+    rule = LEGENDRE.gauss(8)
     values = np.cos(rule.nodes)
     result = rule.integrate(values)
     expected = np.dot(rule.weights, values)
@@ -580,7 +581,7 @@ def test_integrate_accepts_array_overload() -> None:
 @pytest.mark.foundation
 def test_integrate_array_overload_matches_callable() -> None:
     """Array overload returns the same value as the callable form."""
-    rule = gauss_legendre(8)
+    rule = LEGENDRE.gauss(8)
     f = lambda x: np.cos(x)
     result_callable = rule.integrate(f)
     result_array = rule.integrate(f(rule.nodes))
@@ -590,7 +591,7 @@ def test_integrate_array_overload_matches_callable() -> None:
 @pytest.mark.foundation
 def test_call_accepts_array() -> None:
     """``mu(values)`` (call) also accepts pre-evaluated arrays."""
-    rule = gauss_legendre(8)
+    rule = LEGENDRE.gauss(8)
     values = np.cos(rule.nodes)
     result = rule(values)
     expected = np.dot(rule.weights, values)
@@ -600,7 +601,7 @@ def test_call_accepts_array() -> None:
 @pytest.mark.foundation
 def test_iter_yields_node_weight_pairs() -> None:
     """``iter(mu)`` yields (node, weight) tuples in order."""
-    rule = gauss_legendre(4)
+    rule = LEGENDRE.gauss(4)
     pairs = list(iter(rule))
     assert len(pairs) == 4
     for i, (node, weight) in enumerate(pairs):
@@ -610,13 +611,13 @@ def test_iter_yields_node_weight_pairs() -> None:
 
 @pytest.mark.foundation
 def test_len_equals_n_points() -> None:
-    rule = gauss_legendre(7)
+    rule = LEGENDRE.gauss(7)
     assert len(rule) == rule.n_points == 7
 
 
 @pytest.mark.foundation
 def test_getitem_returns_node_weight_tuple() -> None:
-    rule = gauss_legendre(5)
+    rule = LEGENDRE.gauss(5)
     node, weight = rule[2]
     assert node == rule.nodes[2]
     assert weight == rule.weights[2]
@@ -624,7 +625,7 @@ def test_getitem_returns_node_weight_tuple() -> None:
 
 @pytest.mark.foundation
 def test_repr_smoke() -> None:
-    rule = gauss_legendre(8)
+    rule = LEGENDRE.gauss(8)
     r = repr(rule)
     assert "DiscreteMeasure" in r
     assert "n_points=8" in r
@@ -633,7 +634,7 @@ def test_repr_smoke() -> None:
 @pytest.mark.foundation
 def test_repr_with_invariance_group() -> None:
     """repr surfaces invariance_group when set."""
-    rule = gauss_legendre(8).with_metadata(invariance_group=SubgroupOfO3.Mirror("z"))
+    rule = LEGENDRE.gauss(8).with_metadata(invariance_group=SubgroupOfO3.Mirror("z"))
     r = repr(rule)
     assert "invariance_group" in r
     assert "SubgroupOfO3.Mirror('z')" in r  # the typed group's repr, incl. its PLANE
@@ -1029,7 +1030,7 @@ def test_quotient_tags_the_orbifold_support_and_drops_both_claims() -> None:
 # The exactness claim is relative to a measure
 # ---------------------------------------------------------------------------
 #
-# `degree_of_exactness` states a degree; `generating_measure` states what
+# `degree_of_exactness` states a degree; `exactness.reference` states what
 # integral that degree is about. Combining rules that reference DIFFERENT
 # measures produces a rule exact against neither, so it may claim neither's
 # degree. Before 2026-08-02 it claimed both.
@@ -1059,10 +1060,10 @@ def test_mixed_reference_product_claims_the_PRODUCT_measure() -> None:
 
     from orpheus.numerics.exactness import ProductMeasure
 
-    gl, gc = gauss_legendre(4), gauss_chebyshev(4)
+    gl, gc = LEGENDRE.gauss(4), CHEBYSHEV_T.gauss(4)
     assert gl.degree_of_exactness == 7
     assert gc.degree_of_exactness == 7
-    assert gl.generating_measure != gc.generating_measure
+    assert gl.exactness.reference != gc.exactness.reference
 
     product = gl * gc
     claim = product.exactness
@@ -1113,12 +1114,12 @@ def test_product_keeps_a_claim_where_the_direct_sum_does_not() -> None:
     half-claim: it kept a degree while dropping the reference, so nothing
     could notice the sum is a rule for twice the measure.
     """
-    p = gauss_legendre(3) * gauss_legendre(4)
+    p = LEGENDRE.gauss(3) * LEGENDRE.gauss(4)
     assert p.exactness is not None
     assert p.exactness.degree == 5
     assert p.exactness.reference.name == "legendre ⊗ legendre"
 
-    s = gauss_legendre(3) + gauss_legendre(4)
+    s = LEGENDRE.gauss(3) + LEGENDRE.gauss(4)
     assert s.exactness is None
     assert s.degree_of_exactness is None
     # The measurement that shows why: the sum integrates 1 to 4, not 2.
@@ -1151,33 +1152,32 @@ def test_a_rule_with_no_reference_has_NO_claim_at_all() -> None:
     )
     assert a.exactness is None and b.exactness is None
     assert a.degree_of_exactness is None
-    assert a.generating_measure is None and b.generating_measure is None
     assert (a * b).exactness is None
     assert (a + b).exactness is None
 
 
 @pytest.mark.foundation
 def test_composites_name_no_generating_measure() -> None:
-    """A composite is not a Golub-Welsch product, so ``generating_measure``
-    is ``None`` — but for two different reasons, and the difference is the
-    point.
+    """A composite is not a Golub-Welsch product, so its claim's reference
+    is not a ``GeneratingMeasure`` — but for two different reasons, and the
+    difference is the point.
 
     * a **product**'s reference IS named — ``legendre ⊗ legendre`` — it
       is simply a ``ProductMeasure``, which no three-term recurrence
-      generates, so the narrower view reports ``None``;
+      generates, so the reference is not a ``GeneratingMeasure``;
     * a **direct sum** carries no claim at all (its reference would be
       :math:`\\lambda_1 + \\lambda_2`).
     """
     from orpheus.numerics.exactness import ProductMeasure
+    from orpheus.numerics.generating_measure import GeneratingMeasure
 
-    p = gauss_legendre(3) * gauss_legendre(4)
-    assert p.generating_measure is None
+    p = LEGENDRE.gauss(3) * LEGENDRE.gauss(4)
     assert p.exactness is not None
+    assert not isinstance(p.exactness.reference, GeneratingMeasure)
     assert isinstance(p.exactness.reference, ProductMeasure)
     assert p.exactness.reference.name == "legendre ⊗ legendre"
 
-    s = gauss_legendre(3) + gauss_legendre(4)
-    assert s.generating_measure is None
+    s = LEGENDRE.gauss(3) + LEGENDRE.gauss(4)
     assert s.exactness is None
 
 
@@ -1187,8 +1187,8 @@ def test_gauss_rules_carry_the_measure_that_built_them() -> None:
     output records which measure it is exact against."""
     from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE
 
-    assert gauss_legendre(5).generating_measure == LEGENDRE
-    assert gauss_chebyshev(5).generating_measure == CHEBYSHEV_T
+    assert LEGENDRE.gauss(5).exactness.reference == LEGENDRE
+    assert CHEBYSHEV_T.gauss(5).exactness.reference == CHEBYSHEV_T
 
 
 @pytest.mark.foundation
@@ -1197,11 +1197,11 @@ def test_consolidate_preserves_the_generating_measure() -> None:
     so the reference measure survives — same reason the degree does."""
     from orpheus.numerics.generating_measure import LEGENDRE
 
-    rule = gauss_legendre(4)
+    rule = LEGENDRE.gauss(4)
     doubled = rule + rule  # every atom coincides with its twin
     merged = doubled.consolidate()
     assert merged.n_points == rule.n_points
     # The direct sum dropped the tag (its reference is the union), but
     # a rule that HAS one keeps it through consolidate.
     tagged = rule.consolidate()
-    assert tagged.generating_measure == LEGENDRE
+    assert tagged.exactness.reference == LEGENDRE

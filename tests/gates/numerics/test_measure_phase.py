@@ -15,7 +15,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.measure import DiscreteMeasure, gauss_chebyshev, gauss_legendre
+from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE
 from orpheus.numerics.manifold import SPHERE, Quotient, RealSpace
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.symmetry import SubgroupOfO3
@@ -104,7 +105,7 @@ def test_a_measure_on_R_d_has_spatial_phase(d):
 # ── the per-category seam: undetermined factors raise ─────────────────────
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("make", [lambda: gauss_legendre(5), lambda: gauss_chebyshev(4)])
+@pytest.mark.parametrize("make", [lambda: LEGENDRE.gauss(5), lambda: CHEBYSHEV_T.gauss(4)])
 def test_untagged_generic_rule_phase_raises(make):
     """A bare generic 1-D rule (no symmetry group, no spatial tag) has no
     determined phase — a slab μ-interval is geometrically indistinguishable

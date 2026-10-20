@@ -87,7 +87,7 @@ class TestQuotientLift:
         full = Quadrature.lebedev(17)
         folded = full.quotient(_MIRROR_Y)
         assert folded.level_structure is None
-        assert folded.N < full.N
+        assert folded.n_ordinates < full.n_ordinates
         np.testing.assert_allclose(
             folded.weights.sum(), 4.0 * np.pi, rtol=1e-14
         )
@@ -149,7 +149,7 @@ class TestFoldedProduct:
     def test_count_and_mass(self):
         """One representative per orbit; the orbit weight is the whole 2w."""
         quad = Quadrature.folded_product(4, 8)
-        assert quad.N == 4 * 8 // 2
+        assert quad.n_ordinates == 4 * 8 // 2
         assert len(quad.level_indices) == 4
         assert float(quad.weights.sum()) == 4.0 * np.pi  # bit-exact
 
@@ -171,7 +171,7 @@ class TestFoldedProduct:
             "map cannot be derived on this rule"
         )
         np.testing.assert_array_equal(
-            pi.indices[pi.indices], np.arange(quad.N)
+            pi.indices[pi.indices], np.arange(quad.n_ordinates)
         )
 
 
@@ -194,7 +194,7 @@ class TestFoldedHarmonics:
         garbage channel is structurally closed."""
         fold = Quadrature.folded_product(4, 8)
         Y = frame_faces.angular_frame(fold, 2).table
-        M = np.einsum("n,nlm->lm", fold.weights, np.ones(fold.N)[:, None, None] * Y)
+        M = np.einsum("n,nlm->lm", fold.weights, np.ones(fold.n_ordinates)[:, None, None] * Y)
         np.testing.assert_allclose(M[0, 0], 4.0 * np.pi, rtol=1e-14)
         M_rest = M.copy()
         M_rest[0, 0] = 0.0
@@ -262,7 +262,7 @@ class TestFoldedHarmonics:
         ξ-carrier slot bit-zero."""
         fold = Quadrature.folded_product(4, 8)
         frame = frame_faces.angular_frame(fold, 1)
-        moments = frame_faces.FrameAnalysis.of(frame).apply(np.ones(fold.N))
+        moments = frame_faces.FrameAnalysis.of(frame).apply(np.ones(fold.n_ordinates))
         assert moments.shape == (2, 3)
         np.testing.assert_allclose(moments[0, 0], 4.0 * np.pi, rtol=1e-14)
         assert float(moments[1, 2]) == 0.0      # the garbage carrier

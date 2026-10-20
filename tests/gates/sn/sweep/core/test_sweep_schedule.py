@@ -112,7 +112,7 @@ def test_jacobi_is_one_group_no_reflect_slab():
     assert sched.kind == "jacobi"
     assert len(sched.groups) == 1
     assert sched.groups[0].reflect_faces == ()
-    assert _all_indices(sched) == list(range(sn.quad.N))
+    assert _all_indices(sched) == list(range(sn.quad.n_ordinates))
 
 
 def test_jacobi_is_one_group_no_reflect_box():
@@ -123,7 +123,7 @@ def test_jacobi_is_one_group_no_reflect_box():
     sched = SweepSchedule.jacobi(sn.ndim, sn.quad.octants)
     assert len(sched.groups) == 1
     assert sched.groups[0].reflect_faces == ()
-    assert _all_indices(sched) == list(range(sn.quad.N))
+    assert _all_indices(sched) == list(range(sn.quad.n_ordinates))
 
 
 # ─── G-S slab (single-axis 2-cycle) ──────────────────────────────────
@@ -260,6 +260,6 @@ def test_jacobi_and_gs_sweep_identical_ordinates():
         face_laws={"xmin": BC.reflective, "xmax": BC.reflective,
                    "ymin": BC.reflective, "ymax": BC.reflective},
     )
-    full = list(range(sn.quad.N))
+    full = list(range(sn.quad.n_ordinates))
     assert _all_indices(SweepSchedule.jacobi(sn.ndim, sn.quad.octants)) == full
     assert _all_indices(SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))) == full

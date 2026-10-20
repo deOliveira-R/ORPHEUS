@@ -821,7 +821,7 @@ def test_p4_fixture_fingerprint_matches_the_baseline() -> None:
     _, x = _posed_apply(problem)
     measured = {
         "n_cells": int(np.prod(problem.spatial_shape)),
-        "n_ordinates": int(problem.quad.N),
+        "n_ordinates": int(problem.quad.n_ordinates),
         "n_groups": int(problem.ng),
         # Materials as the OPERATORS resolve them (the typed per-material
         # index map), not as the raw ``mat_map`` declares them — a region

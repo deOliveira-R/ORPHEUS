@@ -208,7 +208,7 @@ def _march(sn: SNProblem) -> _Marched:
         pytest.fail("the fixture built no Mesh1D — nothing to solve")
     solution = solve_sn_fixed_source(
         sn.materials, mesh, sn.quad,
-        external_source=np.ones((sn.quad.N, 2, sn.nx)),
+        external_source=np.ones((sn.quad.n_ordinates, 2, sn.nx)),
         inner_tol=1e-12,
     )
     if not solution.converged():

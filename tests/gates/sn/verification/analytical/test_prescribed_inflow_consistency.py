@@ -92,7 +92,7 @@ def _prescribed_inflow_source(
     slot is zero (the affine-BC inhomogeneous term ``q`` pushed to the
     RHS).  Bulk source is zero — the inflow alone drives the interior.
     """
-    N, ng = sn.quad.N, sn.ng
+    N, ng = sn.quad.n_ordinates, sn.ng
     bulk_vals = np.zeros((N, ng, *sn.spatial_shape))
     bss = AngularBoundarySourceSink.zeros(sn.angular_trace)
     inflow = sn.angular_trace.inflow_indices_for_face(face)
@@ -196,7 +196,7 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
         system.factors.streaming_collision, system.factors.scattering,
         system.factors.n2n, system.factors.boundary,
     )  # the record's factors, by role
-    n_dof = quad.N * sn.ng * int(np.prod(sn.spatial_shape)) + int(sn.angular_trace.layout.total_size)
+    n_dof = quad.n_ordinates * sn.ng * int(np.prod(sn.spatial_shape)) + int(sn.angular_trace.layout.total_size)
 
     face = "xmin"
     q_ext = _prescribed_inflow_source(sn, psi_in=psi_in, face=face)

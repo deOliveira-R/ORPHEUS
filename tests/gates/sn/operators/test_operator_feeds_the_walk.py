@@ -268,7 +268,7 @@ def test_hub_route_reads_only_space_facts(factory, do_matvec):
     scheme_reads.clear()
 
     out = _drive(sn, L)
-    assert out.shape[0] == sn.quad.N  # the drive ran
+    assert out.shape[0] == sn.quad.n_ordinates  # the drive ran
     if do_matvec:
         C = MultiplicationOperator.from_mesh(_het_sigma(sn), sn)
         state = _het_rhs(sn)

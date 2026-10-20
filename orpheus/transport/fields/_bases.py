@@ -649,7 +649,7 @@ class AngularField(BulkField):
         return AxisRetractionOperator.of(self.space, "angular").apply(self.values)
 
     @property
-    def N(self) -> int:  # noqa: N802 — matches Quadrature.N
+    def N(self) -> int:  # noqa: N802 — the S_N ordinate count; Quadrature spells it n_ordinates
         r"""Number of angular ordinates — the space's leading angular axis.
 
         CS4b S3: sizing is space data; the axis order convention

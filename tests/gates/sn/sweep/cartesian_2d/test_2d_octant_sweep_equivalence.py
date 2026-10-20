@@ -353,7 +353,7 @@ def combine_source(inputs: "OctantEquivalenceInputs") -> np.ndarray:
     C-contiguous so the sweep's per-octant slicing is view-clean.
     """
     sum_w = float(inputs.problem.quad.weights.sum())
-    N = inputs.problem.quad.N
+    N = inputs.problem.quad.n_ordinates
     ng, nx, ny = inputs.Q.shape
     iso_broadcast = np.broadcast_to(inputs.Q[None, :, :, :], (N, ng, nx, ny))
     if inputs.aniso_source is not None:
@@ -675,7 +675,7 @@ def _case_5_q_aniso() -> OctantEquivalenceInputs:
     )
     Q = np.transpose(Q_legacy, (2, 0, 1)).copy()  # (ng, nx, ny)
     # Q_aniso legacy shape (N, nx, ny, ng) → principled (N, ng, nx, ny).
-    N = problem.quad.N
+    N = problem.quad.n_ordinates
     mu_x = problem.quad.mu_x[:, None, None, None]
     mu_y = problem.quad.mu_y[:, None, None, None]
     Q_aniso_legacy = (
@@ -1047,7 +1047,7 @@ def test_2d_octant_sweep_closed_form_anchor() -> None:
         inputs.materials, inputs.problem.mesh, inputs.problem.quad,
         external_source=np.broadcast_to(
             (inputs.Q / sum_w)[None, ...],
-            (inputs.problem.quad.N, *inputs.Q.shape),
+            (inputs.problem.quad.n_ordinates, *inputs.Q.shape),
         ).copy(),
         scattering_order=0,
         # Wave O #208 O.4b E1/E2: the 2-D sweep is now BARE — the reflective

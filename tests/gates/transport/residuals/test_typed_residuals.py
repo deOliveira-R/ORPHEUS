@@ -85,7 +85,7 @@ def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNProblem:
 
 
 def _ang_shape(m: SNProblem) -> tuple[int, ...]:
-    return (m.quad.N, m.ng, *m.spatial_shape)
+    return (m.quad.n_ordinates, m.ng, *m.spatial_shape)
 
 
 def _sca_shape(m: SNProblem) -> tuple[int, ...]:
@@ -110,12 +110,12 @@ class TestAngularResidual:
         m = _slab_mesh()
         r = AngularResidual(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
         assert r.values.shape == _ang_shape(m)
-        assert (r.N, r.ng) == (m.quad.N, m.ng)
+        assert (r.N, r.ng) == (m.quad.n_ordinates, m.ng)
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
         m = _slab_mesh()
         with pytest.raises(ValueError, match="AngularResidual.*does not match"):
-            AngularResidual(values=np.zeros((m.quad.N + 1, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
+            AngularResidual(values=np.zeros((m.quad.n_ordinates + 1, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
 
     def test_within_class_add_sub_closed(self) -> None:
         m = _slab_mesh()

@@ -43,7 +43,7 @@ def _slab(L: float, right: str = "vacuum"):
 
 
 def _uniform_source(quad, ng, nx):
-    return np.ones((quad.N, ng, nx))
+    return np.ones((quad.n_ordinates, ng, nx))
 
 
 @pytest.mark.parametrize("L,k_ref,budget", [(2.0, 0.435195214, None), (4.0, 0.907457573, 6000)],

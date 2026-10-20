@@ -125,7 +125,7 @@ class TestConstructionInherited:
 
     def test_from_face_arrays_slab(self, Leaf) -> None:
         m = _slab_mesh()
-        N = m.quad.N
+        N = m.quad.n_ordinates
         bf = Leaf.from_face_arrays(
             m, {"xmin": np.full((N, 2), 1.0), "xmax": np.full((N, 2), 2.0)},
         )
@@ -135,7 +135,7 @@ class TestConstructionInherited:
 
     def test_from_face_arrays_2d(self, Leaf) -> None:
         m = _cartesian_2d_mesh(nx=3, ny=2, ng=2)
-        N = m.quad.N
+        N = m.quad.n_ordinates
         bf = Leaf.from_face_arrays(m, {
             "xmin": np.full((N, 2, 2), 1.0),
             "xmax": np.full((N, 2, 2), 2.0),
@@ -261,7 +261,7 @@ class TestCrossClassRejectionSharedSpace:
 class TestPrescribedInflowGenerator:
     def test_inflow_written_outflow_masked_absent_face_vacuum(self) -> None:
         m = _slab_mesh(nx=5, ng=2)
-        N = m.quad.N
+        N = m.quad.n_ordinates
         mu = m.quad.mu_x
         # Full (N, ng) slot with EVERY ordinate non-zero on purpose: the
         # generator MUST mask the outflow ordinates back to zero.
@@ -281,7 +281,7 @@ class TestPrescribedInflowGenerator:
 
     def test_sphere_single_face(self) -> None:
         m = _sphere_mesh()
-        N = m.quad.N
+        N = m.quad.n_ordinates
         vals = np.full((N, 2), 3.0)
         bss = AngularBoundarySourceSink.prescribed_inflow(m, {"xmax": vals})
         inflow = m.angular_trace.inflow_indices_for_face("xmax")
@@ -292,13 +292,13 @@ class TestPrescribedInflowGenerator:
 
     def test_unknown_face_raises(self) -> None:
         m = _slab_mesh()
-        N = m.quad.N
+        N = m.quad.n_ordinates
         with pytest.raises(ValueError, match="not a"):
             AngularBoundarySourceSink.prescribed_inflow(m, {"nope": np.zeros((N, 2))})
 
     def test_shape_mismatch_raises(self) -> None:
         m = _slab_mesh(ng=2)
-        N = m.quad.N
+        N = m.quad.n_ordinates
         with pytest.raises(ValueError, match="shape"):
             AngularBoundarySourceSink.prescribed_inflow(m, {"xmin": np.zeros((N, 1))})
 

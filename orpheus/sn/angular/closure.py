@@ -1193,7 +1193,7 @@ def angular_cell_edges_per_level(
     """
     if coord is CoordSystem.SPHERICAL:
         w = quad.weights
-        N = quad.N
+        N = quad.n_ordinates
         mu_edge = np.zeros(N + 1)
         mu_edge[0] = -1.0
         for n in range(N):

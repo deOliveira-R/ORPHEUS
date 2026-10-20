@@ -369,7 +369,7 @@ class TestEveryLawsDomain:
         n_in, n_out = space.inflow_indices.size, space.outflow_indices.size
         # Fixture non-vacuity, OUTSIDE the claim: if the face were degenerate
         # (|Γ₋| == N) Leg B could never fail and the row would be theatre.
-        assert 0 < n_in < quad.N and 0 < n_out < quad.N
+        assert 0 < n_in < quad.n_ordinates and 0 < n_out < quad.n_ordinates
 
         op = SNBoundaryRealizer().realize(law, space)
         image = op.apply(np.ones((n_out, 3)))
@@ -383,12 +383,12 @@ class TestEveryLawsDomain:
         # turns a dead gate green).
         try:
             full_rows: "int | None" = int(
-                np.asarray(op.apply(np.ones((quad.N, 3)))).shape[0]
+                np.asarray(op.apply(np.ones((quad.n_ordinates, 3)))).shape[0]
             )
         except (ValueError, IndexError):
             full_rows = None  # refused the input — the stronger outcome
-        assert full_rows != quad.N, (
-            f"{law_id}: realized law emits {quad.N} rows for a full-face "
+        assert full_rows != quad.n_ordinates, (
+            f"{law_id}: realized law emits {quad.n_ordinates} rows for a full-face "
             f"input — it is an ENDOMORPHISM of the whole face slot, not a "
             f"Γ₊ -> Γ₋ map. (|Γ₊| == |Γ₋| here, so the shape leg above cannot "
             f"see this — vv Mode 12.)"

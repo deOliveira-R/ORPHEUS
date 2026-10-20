@@ -253,7 +253,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 2,
   "parameters": {
-   "n": 2
+   "n_ordinates": 2
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -265,7 +265,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 6,
   "parameters": {
-   "n": 6
+   "n_ordinates": 6
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -277,7 +277,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 8,
   "parameters": {
-   "n": 8
+   "n_ordinates": 8
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -289,7 +289,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 10,
   "parameters": {
-   "n": 10
+   "n_ordinates": 10
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -301,7 +301,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 2,
   "parameters": {
-   "n": 2
+   "n_ordinates": 2
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -313,7 +313,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 2,
   "parameters": {
-   "n": 2
+   "n_ordinates": 2
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -325,7 +325,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 4,
   "parameters": {
-   "n": 4
+   "n_ordinates": 4
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -337,7 +337,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 4,
   "parameters": {
-   "n": 4
+   "n_ordinates": 4
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -349,7 +349,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 4,
   "parameters": {
-   "n": 4
+   "n_ordinates": 4
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -361,7 +361,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 4,
   "parameters": {
-   "n": 4
+   "n_ordinates": 4
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -373,7 +373,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 6,
   "parameters": {
-   "n": 6
+   "n_ordinates": 6
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -385,7 +385,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 6,
   "parameters": {
-   "n": 6
+   "n_ordinates": 6
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -397,7 +397,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 2,
   "parameters": {
-   "n": 2
+   "n_ordinates": 2
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -409,7 +409,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 6,
   "parameters": {
-   "n": 6
+   "n_ordinates": 6
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -421,7 +421,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 8,
   "parameters": {
-   "n": 8
+   "n_ordinates": 8
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -433,7 +433,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 10,
   "parameters": {
-   "n": 10
+   "n_ordinates": 10
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -445,7 +445,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 2,
   "parameters": {
-   "n": 2
+   "n_ordinates": 2
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -457,7 +457,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 2,
   "parameters": {
-   "n": 2
+   "n_ordinates": 2
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -469,7 +469,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 4,
   "parameters": {
-   "n": 4
+   "n_ordinates": 4
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -481,7 +481,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 4,
   "parameters": {
-   "n": 4
+   "n_ordinates": 4
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -493,7 +493,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 4,
   "parameters": {
-   "n": 4
+   "n_ordinates": 4
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -505,7 +505,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 4,
   "parameters": {
-   "n": 4
+   "n_ordinates": 4
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -517,7 +517,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 6,
   "parameters": {
-   "n": 6
+   "n_ordinates": 6
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
@@ -529,7 +529,7 @@
   "chosen": "GaussLegendre1D",
   "n_points": 6,
   "parameters": {
-   "n": 6
+   "n_ordinates": 6
   },
   "rejected": [
    "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",

@@ -149,7 +149,7 @@ def build_p3_solver() -> SNSolver:
 
 def _make_psi(solver: SNSolver, seed: int) -> AngularFlux:
     rng = np.random.default_rng(seed)
-    N = solver.quad.N
+    N = solver.quad.n_ordinates
     ng = solver.ng
     nx, ny = solver.problem.spatial_shape
     psi_values = rng.uniform(0.05, 1.0, size=(N, ng, nx, ny))

@@ -258,7 +258,7 @@ def test_ld2d_stress_branch2_matches_branch1_source():
                 for g_from in range(ng)
             )
             sig_s_eff_g = in_scatter_g / A_g[g]
-            for n in range(case.quadrature.N):
+            for n in range(case.quadrature.n_ordinates):
                 mxn = float(case.quadrature.mu_x[n])
                 myn = float(case.quadrature.mu_y[n])
                 q_sym = cg * float(Q_fn(

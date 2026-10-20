@@ -147,15 +147,6 @@ def _octant_sign_predicate(nodes: np.ndarray) -> np.ndarray:
     return out
 
 
-#: Weight-match tolerance for certifying an ordinate permutation. Passed to
-#: :meth:`~orpheus.numerics.measure.DiscreteMeasure.permutation_under`, which compares
-#: weights at this window and positions at
-#: :data:`~orpheus.numerics.invariance._NODE_WINDOW_FACTOR` times it — the
-#: same two windows the measure-level orbit certification uses, because it
-#: IS that certification, asked of one motion.
-_REFLECTION_ATOL = 1e-13
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # Quadrature — the single directional-quadrature class
 # ═══════════════════════════════════════════════════════════════════════
@@ -252,13 +243,6 @@ class Quadrature:
     @property
     def n_ordinates(self) -> int:
         """Number of ordinates :math:`N`."""
-        return self.measure.n_points
-
-    @property
-    def N(self) -> int:  # noqa: N802  — SN convention
-        """Alias for :attr:`n_ordinates`. Matches the :math:`N` of
-        :math:`S_N` nomenclature; kept for the load-bearing 1-letter
-        reading at hot-loop call sites."""
         return self.measure.n_points
 
     @property
@@ -531,9 +515,7 @@ class Quadrature:
         motion3 = (
             motion if motion.dimension == 3 else motion.embedded_in(3)
         )
-        return self.measure.permutation_under(
-            motion3.linear_part, atol=_REFLECTION_ATOL,
-        )
+        return self.measure.permutation_under(motion3.linear_part)
 
     # ────────────────────────────────────────────────────────────
     # The fold — quotient by a symmetry subgroup (Q5.6)

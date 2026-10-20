@@ -430,7 +430,7 @@ class TestApplyAdmission:
         rng = np.random.default_rng(seed)
         return FullField(
             interior=AngularFlux(values=rng.standard_normal(
-                    (problem.quad.N, problem.ng, *problem.spatial_shape)
+                    (problem.quad.n_ordinates, problem.ng, *problem.spatial_shape)
                 ), space=problem.angular_bulk_space),
             boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
         )

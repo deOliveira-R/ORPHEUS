@@ -128,7 +128,7 @@ def solver_p1_het():
 
 
 def _aniso_psi(solver, seed=20260624):
-    N, ng = solver.quad.N, solver.ng
+    N, ng = solver.quad.n_ordinates, solver.ng
     nx, ny = solver.problem.spatial_shape
     rng = np.random.default_rng(seed)
     return AngularFlux(values=rng.uniform(0.05, 1.0, size=(N, ng, nx, ny)), space=solver.problem.angular_bulk_space)
@@ -410,7 +410,7 @@ class TestProductionApplyEqualsComposedOperator:
         phi = psi.integrate_angular()
         ng = solver_p1_het.ng
         nx, ny = problem.spatial_shape
-        N = problem.quad.N
+        N = problem.quad.n_ordinates
         iso = np.zeros((ng, nx, ny))
         # The P0 emission in place through the channel FIELD's verb (the
         # operator-level seam ``add_iso_source`` retired at #448): ndarray Q,

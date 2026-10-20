@@ -896,7 +896,7 @@ def _sn_composite_triple():
         mat_xs=solver.problem.mat_xs, space=sn.full_field_space,
     )
     guess = FullField(
-        interior=AngularFlux(values=np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space),
+        interior=AngularFlux(values=np.ones((sn.quad.n_ordinates, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space),
         boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
     )
     return float(ref.outcome.keff), splitting.implicit, S_total, F_composite, guess, mix
