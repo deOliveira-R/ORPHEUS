@@ -8517,7 +8517,7 @@ branch; trust ``git`` over this table for merge status.
        :math:`\alpha = 0` branch, retired. See
        :ref:`bc-realize-recursively`.
      - —
-     - *(in development)* branch ``refactor/s2-linear-combination``
+     - ``[LANDED 4e5ee36b]``
    * - 2026-10-01
      - **The mirror carries no amplitude, and a deck law is not an
        operand.** ``ReflectiveBoundary`` lost its ``albedo`` parameter,

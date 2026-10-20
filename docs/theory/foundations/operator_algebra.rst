@@ -9200,7 +9200,7 @@ the cheapest tell.
        by ``tests/gates/numerics/test_linear_combination.py``. See
        :ref:`composition-algebra`.
      - #617, #625
-     - *(in development)* branch ``refactor/s2-linear-combination``
+     - ``[LANDED 4e5ee36b]``
    * - 2026-10-18
      - **The adjointability flag asks one question, and** ``.H`` **asks
        two.** ``is_adjointable`` had answered both "a Euclidean transpose

@@ -11524,8 +11524,7 @@ older entries classify against.
 .. error-entry:: ERR-119
    :title: The transport multiplier broadcast σ over the leading ordinate axis only, so on a linear-discontinuous bulk C refused to apply alone; it hid because L + C always fused into the sweep atom, which applies σ through its own walk
 
-   **Status:** ✅ **FIXED 2026-10-20 — numerics untangling, S2 (branch
-   ``refactor/s2-linear-combination``).** The multiplier reads the axes its
+   **Status:** ✅ **FIXED 2026-10-20 — numerics untangling, S2 (``[LANDED 4e5ee36b]``).** The multiplier reads the axes its
    coefficient does not span by label off the bound spaces, and refuses a
    space built without labelled axes (ruling 56 of
    ``.claude/plans/numerics_untangling.md``).
