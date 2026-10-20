@@ -9213,7 +9213,7 @@ the cheapest tell.
        ``tests/gates/numerics/test_assembly_functor.py`` and the
        concept-order gate. See :ref:`operator-algebra-assembly-axis`.
      - —
-     - *(in development)* branch ``refactor/s3-assembly-homomorphism``
+     - ``[LANDED 6f256ea6]``
    * - 2026-10-20
      - **A sum is a formal linear combination, a product a flattened
        word** (package S2 of the numerics untangling; rulings 23 and
