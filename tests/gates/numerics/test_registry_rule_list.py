@@ -100,8 +100,8 @@ def test_the_registry_names_are_the_rules_this_test_knows():
 @pytest.mark.parametrize("name", sorted(_CLASSMETHOD))
 def test_the_factory_is_the_quadrature_classmethod(name):
     factory = _SPECS[name].factory
-    assert factory.__self__ is Quadrature
-    assert factory.__func__ is getattr(Quadrature, _CLASSMETHOD[name]).__func__
+    # a bound classmethod equals another iff it binds the same function to the same class
+    assert factory == getattr(Quadrature, _CLASSMETHOD[name])
 
 
 @pytest.mark.foundation
