@@ -53,6 +53,15 @@ APPLY=matvec) as "the same operator viewed two ways" → **add the third row**
 
 ## Page 2 — the numerics "new capability axis" (the operator-algebra page)
 
+> **Superseded in part (2026-10-20, numerics untangling S3, rulings 24/60-62).** The
+> "delegation ruling" and the "anti-tautology discipline" below describe the 2b design,
+> now RETIRED: `as_matrix` is the probe alone, structural assembly is a separate
+> downstream algorithm (`dense`/`assemble` in `assembled_operator`), so the two are
+> compared directly and no retained private probe exists. The composer laws moved out
+> of the composites into one functor. Live page: `operator_inverse_family.rst`
+> `operator-algebra-assembly-axis`. The recipe's reusable part (separate the
+> representation from the algorithm; a sentinel on the consumer route) stands.
+
 Place right after the existing Mat-functor / materialising-functor section (the
 assembly axis is its natural extension). Cover, as H2s:
 

@@ -59,6 +59,7 @@ Merge status comes from git and GitHub, never from this list (`process-disciplin
 - **Numerics untangling S1 (the lift, the axis owns its unit; W3 spec)** — 2026-10-19 `scratch/numerics_untangling/packages/S1_gate_spec.md`, drafts + model battery `.../S1_gates/`. On resume: the rulings F1/F3; re-run the arms on the landed module. → **`L116`**
 - **Numerics untangling S5 (invariance as a composition; W3 spec)** — 2026-10-19 `scratch/numerics_untangling/packages/S5_gate_spec.md`; baseline JSON + generator + draft `test_invariance_composition.py` in worktree `s5`; prototype + 38-arm battery `.../S5_gates/`. On resume: confirm landed; re-run the arms on the real module. → **`L117`**
 - **Numerics untangling S2 (formal linear combination; W3 spec)** — 2026-10-20 `scratch/numerics_untangling/packages/S2_gate_spec.md`; draft `tests/gates/numerics/test_linear_combination.py` in worktree `s2`; prototype + 33-arm battery + spies + bit probe `.../S2_gates/`. Re-baseline written 2026-10-20 (`S2_rebaseline_log.md`, 0 red). On resume: re-run the arms on the landed code.
+- **Numerics untangling S3 (assembly functor; W3)** — spec + landed §7 `scratch/numerics_untangling/packages/S3_gate_spec.md`; gates `tests/gates/numerics/test_assembly_functor.py` (25 rows) + 14 re-baselined files, uncommitted 2026-10-20; battery `S3_gates/battery/` 18/18 arms red; LU 176/176 unmoved. On resume: confirm landed.
 - Everything else is merged; the record is the SN theory page's development history and the archive.
 
 ## 3. Durable reference (reusable verification-design recipes)
