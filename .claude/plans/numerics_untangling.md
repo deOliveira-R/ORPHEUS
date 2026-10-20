@@ -12,6 +12,83 @@ The `numerics` layer holds the mathematics every method rests on: axes, discrete
 
 > "3. It's fine that the SN is essentially a big blob depending on SNProblem *for now*. This is a fairly strong indication that we have not been diligent enough with our rule of "__init__ constructor being the raw constructor for testing and class methods the specialized constructors that receive convenient arguments that needs unravelling", so we need to revit it in its own campaign. Untangling the numerics layer is a pretty good start."
 
+## The rulings by dependence (read this first; the ledger below is the chronological record)
+
+The rulings are numbered in the order they were given. They depend on each other in the concept order, which is not that order, so this index regroups them. Each group is one concept of the order (G0's `TIERS`, `tests/gates/numerics/test_concept_order.py`), upstream first. Inside a group a ruling comes after the rulings it rests on. A ruling's text lives once, in the ledger or in its wave's section; this index holds a one-line gloss, what the ruling rests on (`rests on`), and its state:
+- `[LANDED <hash>]`: the code is on `main`;
+- **in flight**: being built now;
+- **owed**: ruled, not yet built;
+- **open**: a question still to be ruled.
+
+Glosses are summaries. When a ruling's exact wording matters, read it at its source.
+
+**How to use it mid-implementation:** before changing a concept, read its group and every group above it that its rulings rest on. A ruling that rests on an **owed** one cannot be built before it, unless its own text says how it stands in meanwhile (for example ruling 53 on degenerate metrics before S6).
+
+### P. How the campaign works (no concept dependence; they govern every group)
+- **3.** The test DAG's sub-cones are the code's ontology, so the concept order and the base of the verification cone are one object.
+- **14.** The code is never the oracle. What SHOULD be is argued from the mathematics, the ontology and elegance.
+- **19.** The order is derived from what is joined to what (rests on 3), never ruled edge by edge. The import cycles were the signal.
+- **1.** The knot is settled before the verification census. **2.** The raw-`__init__` rule is its own campaign (#611), applied here where an edge breaks it.
+- **28.** Split execution: M packages are delegated; for an S package the main agent writes the design, the user rules, and the main agent writes the code with checkpoints. **29.** The census interleaves, upstream first. **30.** No compatibility re-exports.
+- **5.** The operator module is cut, not the concepts. This is the cut's charter, `[LANDED e60330d2]` with M7.
+
+### A. Symmetry and the G-space (the support of a measure)
+- **9.** Test both readings and think broadly. It produced 13.
+- **13.** The support carries the group action; the measure contributes only equality up to relabelling; no `DiscreteMeasure` subtypes (rests on 9).
+- **43.** The action is typed by an abstract `GSpace(Manifold)` (rests on 13). **48** amends it: point identity (`coordinates`) is on every `Manifold`.
+- **47.** A motion acts on M iff g(M) = M, one law, no special case (rests on 43).
+- **46.** A total G-space verb `ambient_points` (rests on 43).
+- **42.** The invariance verbs stay on the measure as compositions, and `invariance.py` is deleted (rests on 13, 43, 47).
+- **44.** The bare-interval tests are re-posed on S²/O2_x (rests on 42, 43).
+- **49.** The measure's two support guards are elegance debt, #624: the machinery owed is a measure typed by its support (rests on 42).
+- State: `[LANDED 7621fc5f]` (S5). Owed from here: #624.
+
+### B. The measures: recurrence, discrete measure, quadrature
+- E′ finding "Gauss is not a join" (no ruling number): the recurrence is upstream of both kinds of measure. `[LANDED 2071c98e]` (M1).
+- **31.** The orbit space's reference measure is `pushforward_reference`, in `generating_measure` (rests on A's quotients). `[LANDED 659a4656]` (M2).
+- **21.** A quadrature is a discrete measure with a fibration; its cached frames are a cache, not part of the concept. It sits before the axis.
+- **8** then **12.** The quadrature part of the measure family is cleaned (rests on 21). **32** is the surviving rule list, Quadrature's classmethods; amended: `folded_product` is not registered. **33.** One name per level. `[LANDED e60330d2]` (M6).
+
+### C. The frame (the join of basis and measure)
+- **16.** A frame is the sampling map of a basis on a measure, with its dual. The choice of measure and basis fixes the representation; their fineness fixes the resolution.
+- **22.** The Gram datum is the frame, at the join of measure and basis, upstream of the axis (rests on 16, 19). Its faces are chain steps after the operator.
+- **17.** Every axis carries the pullback of its factor's own measure; "integrates order L" is tightness against the continuum metric (rests on 16, 22). Standard S_N stays; Galerkin quadrature is open as #613.
+- **34.** The frame's faces are downstream constructors, `FrameAnalysis.of(frame)` and its siblings (rests on 22). `[LANDED 1ecbc64a]` (M3).
+- **open, owed at S7:** the Galerkin test-space predicate, `isinstance(frame, GalerkinFrame)` against `frame.test is frame.basis`; they differ on `PetrovGalerkinFrame(b, m, b)` (the PG-degenerate ruling).
+
+### D. The axis
+- **4.** The axis comes after what defines it; its generator is kept as provenance. **22** names the generator: an axis is a forgetful image of its measure or its frame (rests on B and C).
+- **open:** the forgetful-map concept (ruling 4's "until a forgetful-map concept is chosen"). No issue yet.
+- **7** then **11.** `mass_matrix` retires onto the frame's Gram; the axis receives its generator; mints move to the axis side (rests on 22). **35** splits it: M4a and M4b `[LANDED cac6d401, 4e1f2182]`; the coefficient space of a basis and the sampled space of a measure are **S7, owed** (G0 PENDING: `("space","basis")`, `("space","measure")`, `("spaces","basis")`).
+- **6** then **10.** The space holds the operators extracted from the frame, not the frame; the axis marginalises itself, modal and nodal alike (rests on 17, 22). **36** refines 10: the axis owns its unit u, not the covector. **37.** The unit u is minted with the axis. **38.** The section divides by the correctly rounded mass. **39.** The unit is content on modal axes only. **40.** A modal axis is minted with its unit. **41.** The axis kind is the closed sum `NODAL | Modal(unit)` (rests on 39, 40). `[LANDED 659a4656]` (S1).
+- **15** then **18.** The curvilinear LD refusal is machinery not yet built; curvilinear LD gets a Gauss-nodal spatial axis (rests on 17). **Owed** as #612.
+
+### E. The space, the metric, the dual and the adjoint's posedness
+- **25.** Whether the adjoint belongs with the algebra waits on whether it is always posed (rests on 22's metric chain). Settled by 26.
+- **26.** A degenerate metric is replaced by its live subspace, and the dual space carries G⁻¹, so the adjoint is posed everywhere; the adjoint, the dual and the Riesz operators stay with the algebra (rests on 25). **Owed** as S6 (#617).
+- **27.** The lying adjointability flags are fixed, pinned by one honesty gate (rests on 25's census). `[LANDED 31f14c93]`.
+
+### F. The operator algebra (the sum, the product, the zero)
+- **45.** The zero belongs to the algebra: `ZeroOperator` and `ZeroMorphism` live in `operator.py`, and `0·A` refuses until S2. `[LANDED 126cf514]`.
+- **23.** A sum is a formal linear combination of terms, unordered; a product is a flattened ordered word (rests on 19 and on L(V, W) being a vector space).
+- **50.** A sum's inverse is named by its split: `GreenOperator(M, N)` for A = M − N, and a sum of two or more terms has no inverse of its own (rests on 23, and on 20 below, whose first half it brings forward).
+- **51.** `ScaledOperator` retires into the combination; `{A: 1}` collapses to A (rests on 23, 45).
+- **52.** `+` never fuses; the fused sweep composites become atoms, built explicitly by their owner (rests on 23, and on 20's "the realisation is chosen by the Strategy").
+- **53.** The adjoint distributes over the composites (rests on 23, 26, 27). Its precise form, the orchestrator's reading of 53 from the S2 gate spec's measurements (`[M]` probes `p1_pointwise_dense.py`, `p2_word_adjoint_singular_middle.py`): the DUAL distributes over every sum and word, exactly and with no metric; the ADJOINT is ♯ ∘ dual ∘ ♭, taken once at the composite's ends. `Σ cᵢ wᵢ.H` and `B.H @ A.H` are theorems only where every term and every middle space has a non-degenerate metric, so they hold everywhere only after S6 (26). Today's whole-composite adjoint is exactly this form, so its bits do not move.
+- The orchestrator's calls inside 51–53 (S2 gate spec, 2026-10-20): terms collect by object identity; the formal arrows (adjoint, dual, inverse) collect by (kind, the inner's key, the ends); float coefficients are not exact, and that is recorded, not hidden by a tolerance; every zero is absorbed, including the scalar 0 for `sum()`; `(αA)⁻¹` seeds its inner solve with α·x₀.
+- State: 23 and 50–53 are **in flight** (S2, branch `refactor/s2-linear-combination`).
+
+### G. After the algebra: assembly, the inverse family, the Strategy
+- **24.** Assembly is a homomorphism out of the algebra: each leaf returns its raw matrix, and `[Σ cᵢTᵢ] = Σ cᵢ[Tᵢ]` folds over the terms (rests on 23). **Owed** as S3. It removes G0's PENDING edge `("assembled_operator","operator")`.
+- **20.** The inverse is formal: a sum's inverse is `InverseOperator(sum)`, realised by the Strategy's splitting and driver; `InverseOperator` keeps its name (rests on 23). Its first half is in S2 (ruling 50). Its second half is **owed** as S4: the Strategy's driver realises `InverseOperator(sum)`, and Green's adjoint becomes Green of the inner adjoint. That second half rests on 53. The S2 commit removes G0's PENDING edge `("green_operator","operator")`.
+
+### What this order says to build next
+Every ruling in A to D has landed except S7 (35's second half, with C's open predicate) and #612, #613, #624. What is owed is in E, F and G, and the dependences fix the sequence:
+1. **S2** (F: 23, 50–53). It rests only on landed rulings, plus 26 where its own text says how it stands until S6.
+2. **S3** (24) and **S4** (20's second half). Both rest on S2's combination. S4 also rests on 53.
+3. **S6** (26). After it, 53's distributed forms hold everywhere.
+4. **S7** (35's second half, and C's open predicate, which needs the user's ruling first).
+
 ## Rulings ledger
 
 1. **The knot is settled before the verification census** (the user, 2026-10-18). The census goes by layer from the base (verification-tree ruling 5), and `numerics` is the base.
@@ -885,6 +962,7 @@ Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
   - **51. `ScaledOperator` retires into the combination.** `αA` is the one-term combination; `{A: 1}` collapses to `A`; `(αA)⁻¹ = α⁻¹A⁻¹` stays algebra-closed.
   - **52. `+` never fuses.** The three type-dispatching dunders are deleted. The fused composites (`StreamingCollisionOperator`, `ScheduledInvertibleOperator`, `WindowedSweep`) become atoms with named legs and an `expansion()`, built explicitly by the owner that needs the sweep (the Splitting's implicit part, the loss representation).
   - **53. The adjoint distributes.** `(Σ cᵢwᵢ).H = Σ cᵢwᵢ.H`, and a word's adjoint is reversed. `A.H.H` on a sum is a new object equal to `A`; a leaf keeps `is`.
+    - **Its precise form** (the orchestrator, 2026-10-20, from the S2 gate spec's measurements): the dual distributes over every sum and word, and the adjoint is ♯ ∘ dual ∘ ♭ taken once at the composite's ends. The literal `Σ cᵢ wᵢ.H` misses reciprocity by 1.26e-3 when a term has no spaces (a pointwise term on a dense metric), and `B.H @ A.H` misses by 6.4e-2 when the middle space's metric is singular (`[M]` `scratch/numerics_untangling/packages/S2_gates/probes/p1_pointwise_dense.py`, `p2_word_adjoint_singular_middle.py`). Those two forms are theorems where every metric involved is non-degenerate, which is everywhere after S6.
   - Taken as recommended, with no objection: terms collect by object identity (D2), the zero is the empty combination (D6), a product keeps identity factors (D7), and `SumOfTensorProductsOperator` retires with its 8 tests re-pointed (D8).
 
 ⏸ **Next:** the test-architect's S2 verification spec (`scratch/numerics_untangling/packages/S2_gate_spec.md`), then the code in worktree `.claude/worktrees/s2`, branch `refactor/s2-linear-combination`, with checkpoints. Then S3, S4 and S6 in series. S7's design waits on the user (the PG-degenerate ruling is owed). qa F2 goes to S6; the census interleaves.
