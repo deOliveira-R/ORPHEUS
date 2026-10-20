@@ -858,3 +858,23 @@ Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
   - `folded_product`'s registration waits on the S²/σ_y reference measure. #370 carries it, with a wave-4 status comment.
 - Elegance S2 was done instead of filed: `QuadratureSpec.parameters`, a second copy of the classmethod's signature, retired at `52c9253d`. That closes #371.
 - `[M]` The wide run on `c27830f5` passed all 17 suites (`scratch/numerics_untangling/packages/wave4_wide/summary.txt`; numerics 4879, sn 3834, derivations 3098 passed). The fixes were ff-merged onto `refactor/eprime-wave4` at `52c9253d`, and the touched suites were re-run (`wave4_fix/summary.txt`).
+
+**M6 and M7 landed on `main` at `e60330d2`** (2026-10-19). `[M]` The wide run passed all 17 suites, and CI succeeded.
+
+**S5 written** (2026-10-19; branch `refactor/s5-invariance-composition`, code `553ecea8`, docs uncommitted when this was written). The main agent wrote it with two checkpoints, under rulings 42-47.
+- **The review rulings** (the user, 2026-10-19, the recommended option each time):
+  - **48.** Point identity (`coordinates`) is on `Manifold`, not only `GSpace`, which amends ruling 43. `relabelling_to` is group-free and works on every support.
+  - **49.** The measure's two support guards (`_gspace`, `_acted_on_in`) are tagged `ELEGANCE-DEBT[guard] #624`. The machinery is a measure typed by its support.
+  - Checkpoint 1: `quotient` moved from `Manifold` to `GSpace`, a Quotient's base is a `GSpace`, and `candidate_groups(points, *, atol)` takes its window as a required argument.
+- **The elegance blockers, both fixed, each with a witness that reddens under its defect** (`[M]` an in-process mutation of each, one red each):
+  - B1 is ruling 48.
+  - B2: the refusal is a typed closed sum, `OutOfDimension | DoesNotMap | DoesNotNormalise`, behind one door, `GSpace.refusal`. It replaces an `except ValueError`, which read an internal bug as "not a symmetry".
+- **The elegance concerns, done:** `RigidMotion.preserves` and `permutation_preserving` are retired; `Quotient.acting_dimension` reads its base's; the refusal contract is documented per kind.
+- `[M]` **qa: ready.** The compositions match the deleted kernel term by term. 9 of 9 mutation arms red, the positive control 653 reds. The 104-rule record is blind to the weight leg; its witnesses are the synthetic relabelling rows and the LS8 1e-9 control.
+- `[M]` **Tests:** `test_invariance_composition.py` has 1079 rows and 43 mutation arms, none blind. The touched suites passed 2436 of 2436 after the fixes.
+- **Performance** (`[M]` min of 15 runs): the composition is faster than the old kernel, for example `ordinate_permutation` 0.28 → 0.16 ms and `symmetry_groups` on Lebedev-17 102 → 56 ms.
+- **Issues filed:** #620 (the `AngularMeasure` Protocol), #621 (`AngularField.N`), #622 (the chart μ-rule's phase rests on an O(3) tag that S5 made uncheckable), #623 (`Interval(-inf, inf)` against `RealSpace(1)`), #624 (a measure typed by its support).
+
+- `[M]` **The wide run on `553ecea8` passed all 17 suites** (`scratch/numerics_untangling/packages/s5_wide/summary.txt`; numerics 5955, sn 3834, derivations 3098, root 612 passed). Sphinx `-W` is clean; `dead_references` reads 0, and reads 1 with a planted retired name (`induced_action`) as its positive control.
+
+⏸ **Next:** S2, S3, S4 and S6 in series. S7's design waits on the user (the PG-degenerate ruling is owed). qa F2 goes to S6; the census interleaves.
