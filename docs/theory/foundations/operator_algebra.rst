@@ -9202,10 +9202,11 @@ the cheapest tell.
      - Architectural milestone
      - Issue
      - Where
-   * - 2026-10-21 *(in development)*
+   * - 2026-10-21
      - **The dual space carries the inverse Riesz form, and a degenerate
        metric is a quotient** (package S6 of the numerics untangling,
-       commits S6a and S6b; rulings 26, 74, 75, 76 and 80). S6a: a metric
+       halves S6a and S6b, landed as one commit; rulings 26, 74, 75, 76
+       and 80). S6a: a metric
        has a dual, :meth:`HilbertMetric.dual
        <orpheus.numerics.metric.HilbertMetric.dual>`, the face swap
        :class:`~orpheus.numerics.metric.DualMetric` (bit-identical,
@@ -9237,7 +9238,7 @@ the cheapest tell.
        ``tests/gates/sn/operators/test_quotient_adjoint_sn.py``. See
        :ref:`spaces-dual-space` and :ref:`spaces-quotient`.
      - #617, #625
-     - branch ``refactor/s6-dual-metric``
+     - ``[LANDED ff06d5ab]``
    * - 2026-10-21
      - **The Strategy mints the Green, and the Green owns its
        realisation** (package S4 of the numerics untangling; rulings
