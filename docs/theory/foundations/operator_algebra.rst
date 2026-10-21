@@ -9196,7 +9196,7 @@ the cheapest tell.
      - Architectural milestone
      - Issue
      - Where
-   * - *(in development)*
+   * - 2026-10-21
      - **The Strategy mints the Green, and the Green owns its
        realisation** (package S4 of the numerics untangling; rulings
        65–70). ``Splitting.green(realisation, extra_gains=…)`` mints
@@ -9223,7 +9223,7 @@ the cheapest tell.
        ``tests/gates/sn/solve/test_strategy_mints_green_sn.py``. See
        :ref:`green-strategy-mints`.
      - —
-     - branch ``refactor/s4-strategy-mints-green``
+     - ``[LANDED fb034da3]``
    * - 2026-10-20
      - **Assembly is a homomorphism out of the algebra, downstream of it**
        (package S3 of the numerics untangling; rulings 24 and 60–62). The

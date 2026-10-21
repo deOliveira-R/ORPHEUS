@@ -2259,7 +2259,7 @@ trust ``git`` over this table for merge status.
      - Architectural milestone
      - Issue
      - Where
-   * - *(in development)*
+   * - 2026-10-21
      - **The Strategy mints the Green, and the Green owns its
        realisation** (package S4 of the numerics untangling; rulings
        65–70). ``Splitting.green(realisation, extra_gains=…)`` mints
@@ -2286,4 +2286,4 @@ trust ``git`` over this table for merge status.
        ``tests/gates/sn/solve/test_strategy_mints_green_sn.py``. See
        :ref:`green-strategy-mints`.
      - —
-     - branch ``refactor/s4-strategy-mints-green``
+     - ``[LANDED fb034da3]``
