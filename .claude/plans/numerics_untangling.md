@@ -1076,4 +1076,6 @@ Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
 - `[M]` The wide run `-m "not slow"` (2026-10-21, `-O`, serial): 19 007 passed, 0 failed, 261 skipped, 59 xfailed (1 h 13 min). pyright: 0 errors besides a planted probe. Sphinx `-W` clean. `dead_references`: 0, with a planted `_ends_give_riesz_legs` reference read back as 1 dead.
 - **Follow-ups filed:** #632 (memoise `A.dual()` per operator); #633 (a dual arrow does not swap its carrier's role, for S6c); #634 (DenseMetric's inverse-face admission is too tight for legal Grams and too loose for non-Moore–Penrose inverses). The composite-covariance finding (elegance F7) is added to #631, for S7.
 
-⏸ **Next:** merge S6 (a, b); then S7 under rulings 58, 63 (as amended by 72), 64, 71 and 73, fixing #631 (with F7's composite identity key); then S6c (ruling 77; #633).
+**S6 (a, b) merged @ `ff06d5ab`** (2026-10-21, closing #617 and #625); the operator-algebra history row is stamped landed.
+
+⏸ **Next:** S7 under rulings 58, 63 (as amended by 72), 64, 71 and 73, fixing #631 (with F7's composite identity key); then S6c (ruling 77; #633).
