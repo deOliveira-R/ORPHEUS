@@ -76,5 +76,6 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Adjointability flag semantics](adjointability_flag_semantics.md) — one flag, "transpose coded"; multi-D sweep True-but-raises; folded L=4 fails kernel condition.
 - [Assembly axis shape](assembly_axis_shape.md) — 4 composite laws not 3; one route consumer; spy recipe (pre-S3).
 - [Green + sum-inverse seams](green_and_sum_inverse_seams.md) — no production Green; seed dropped by family; .H witness tautology.
+- [S6 dual metric + degeneracy census](s6_dual_metric_degeneracy_census.md) — composite duals Euclidean; V*==V on axes; degeneracy silent pinv.
 - [Operator composite algebra seam](operator_composite_algebra_seam.md) — the pre-S2 shape at 7621fc5f (dunders minted ~99%, operand-type fusion); S2 retired the fusion.
 - [S6b/S6c census facts](s6bc_census_facts.md) — PG superclasses Galerkin; SN leaves annihilate ker G; dual head fails MomentHead.
