@@ -1047,4 +1047,6 @@ Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
 
 **S7 pre-design census** (2026-10-21, `scratch/numerics_untangling/packages/S7_census/report.md`) answered items (a)–(d) of ruling 63. The user ruled 71–73 on it.
 
-⏸ **Next:** merge S4; then S6; then S7 under rulings 58, 63 (as amended by 72), 64, 71 and 73.
+**S4 merged @ `fb034da3`** (2026-10-21); the theory pages' history rows are stamped landed.
+
+⏸ **Next:** S6 in a new worktree from `main` (ruling 53's distributed adjoint form everywhere; qa F2 from wave 3; ruling 66's G.H revisited there), then S7 under rulings 58, 63 (as amended by 72), 64, 71 and 73, fixing #631.
