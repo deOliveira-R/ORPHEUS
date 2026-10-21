@@ -596,8 +596,13 @@ class DiagonalOperator(PointwiseOperator):
       delegates to. Spell it
       ``DiagonalOperator(sigma, broadcast_axes=(0,))``.
 
-    Self-adjoint by construction (real-valued coefficient), so
-    :meth:`apply_transpose` is the same code path as :meth:`apply`.
+    Its Euclidean transpose is itself (a real-valued coefficient), so
+    :meth:`apply_transpose` is the same code path as :meth:`apply`. Its
+    HILBERT adjoint is itself only under a diagonal metric: a field
+    multiplier does not commute with a dense metric (issue #625), and a
+    spaceless member has no metric to take the adjoint against, so its
+    ``.H`` refuses (:class:`~orpheus.numerics.operator.PointwiseOperator`);
+    inside a composite with bound ends the composite's adjoint is posed.
     Invertible iff every coefficient entry is non-zero — the
     VALUE-dependent arm of the split: :meth:`inverse` is declared and
     :meth:`solve` divides, both refusing eagerly
@@ -762,7 +767,7 @@ class DiagonalOperator(PointwiseOperator):
         return self._broadcast(x_arr.ndim) * x_arr
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
-        # Real-valued diagonal is self-adjoint.
+        # A real-valued diagonal is its own transpose.
         return self.apply(x)
 
     def solve(self, b_vec: np.ndarray) -> np.ndarray:

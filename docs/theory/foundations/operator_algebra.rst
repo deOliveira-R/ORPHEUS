@@ -415,10 +415,10 @@ Key Facts
   construction**, never silently goes Euclidean. ``is_adjointable``
   answers only whether a Euclidean transpose is coded (it gates
   ``.dual()``); ``.H`` also needs both ends to give Riesz legs,
-  :func:`~orpheus.numerics.operator.posed`, the reader of the type's
-  ``is_adjoint_posed`` (at the base: both ends declared and not a
-  ``DualSpace``, or metric-free; a dual arrow is posed iff its inner
-  is), and exists iff both hold. See
+  :func:`~orpheus.numerics.operator.posed` (both ends declared spaces,
+  primal or dual, since a dual space carries the inverse form
+  :math:`G^{+}`; or the operator is metric-free), and exists iff both
+  hold. See
   :ref:`g-adjoint` and :ref:`operator-adjoint-two-questions`.
 
 - The :class:`~orpheus.numerics.operator.LinearOperator` Protocol
@@ -651,9 +651,14 @@ ends, and none of them can be spelled without them:
    operator has no Hilbert adjoint at all:
    :class:`~orpheus.numerics.operator.AdjointOperator` refuses it with
    :class:`~orpheus.numerics.operator.MissingAdjoint`. The one exemption
-   is the metric-free stratum, a pointwise multiplier and compositions of
-   such, whose Euclidean transpose is its Hilbert adjoint under every
-   diagonal metric (:attr:`~orpheus.numerics.operator.LinearOperator.is_metric_free_adjoint`).
+   is the metric-free stratum, the constant multipliers :math:`cI`
+   (:class:`~orpheus.numerics.operator.ConstantMultiplier`) and
+   compositions of such, which commute with every metric, so their
+   Euclidean transpose is their Hilbert adjoint on any space
+   (:attr:`~orpheus.numerics.operator.LinearOperator.is_metric_free_adjoint`).
+   A field multiplier commutes only with a diagonal metric, so it is not
+   exempt (`#625 <https://github.com/deOliveira-R/ORPHEUS/issues/625>`_,
+   :ref:`operator-adjoint-two-questions`).
 #. **Composition is type-checked by the ends.** ``A @ B`` requires
    ``A.domain == B.codomain`` and a sum requires its operands' ends to
    agree, and both refuse a mismatch at construction with
@@ -1975,12 +1980,12 @@ solve** — has exactly three layers, and each layer carries the truth it
 The transpose axis's two methods answer different questions.
 ``.dual()``, the dual arrow :math:`A^{\mathsf T}`, needs only the
 predicate. ``.H``, the Hilbert adjoint :math:`\sharp \circ A^{\mathsf T}
-\circ \flat`, also needs :func:`~orpheus.numerics.operator.posed`, the
-reader of the recursive predicate
-:attr:`~orpheus.numerics.operator.LinearOperator.is_adjoint_posed`: at
-the base, both ends declared and neither a ``DualSpace``, or a
-metric-free operator; the dual arrow overrides it with its inner's,
-since :math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}`.
+\circ \flat`, also needs :func:`~orpheus.numerics.operator.posed`, which
+reads only the ends and the metric-free flag: both ends declared spaces
+(a dual space carries :math:`G^{+}`, so a dual arrow is posed by its own
+ends), or a metric-free operator. The dagger–dual commutation
+:math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}` is then a gated law,
+not an override (:ref:`spaces-dual-space`).
 The three predicates have checked bridges, ``invertible``,
 ``adjointable`` and ``transpose_invertible``, each a ``TypeGuard``
 narrowing to its ``Supports*`` protocol
@@ -2523,7 +2528,8 @@ The zero and the unit are laws of the same constructor:
   spaces, the zero cannot be minted and the constructor refuses, naming
   the operand types. That refusal is a declared edge
   (``SCOPE-BOUNDARY[guard]`` on ``_zero_of``): it cannot fire once every
-  operator end is a space, which is package S6.
+  operator end is a space (ruling 26's case (1) in
+  ``.claude/plans/numerics_untangling.md``), which is not yet built.
 * A combination of **one** term with coefficient 1 whose own ends are the
   combination's **is** that word: ``1·A is A``, ``-(-A) is A``,
   ``(A + B) - B is B``, ``A + ZeroOperator() is A``.
@@ -9196,6 +9202,42 @@ the cheapest tell.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-21 *(in development)*
+     - **The dual space carries the inverse Riesz form, and a degenerate
+       metric is a quotient** (package S6 of the numerics untangling,
+       commits S6a and S6b; rulings 26, 74, 75, 76 and 80). S6a: a metric
+       has a dual, :meth:`HilbertMetric.dual
+       <orpheus.numerics.metric.HilbertMetric.dual>`, the face swap
+       :class:`~orpheus.numerics.metric.DualMetric` (bit-identical,
+       cached, an involution by ``is``; a ``FactoredMetric`` duals its
+       blocks). ``DualSpace`` carries :math:`G^{+}` through its primal,
+       copies nothing, refuses a mismatched shape or a metric source of
+       its own, and never equals its primal, so the composition guard
+       refuses ``R @ R.dual()``. ``V.dual()`` is memoised per space (one
+       slab adjoint solve minted 5 645 duals before, 2 after); a
+       full-field, coupled or tensor-product space's dual is the composite
+       of its members' duals, and the product builder resolves each
+       factor's metric once. The Riesz legs admit dual spaces
+       (:math:`\flat^{*} = \sharp`) and ``posed`` reads only the ends and
+       the metric-free flag; both ``is_adjoint_posed`` definitions,
+       ``_DualOperator.adjoint`` and ``AdjointOperator.dual`` retired, and
+       the dagger–dual commutation is a gated law. Only the constant
+       multipliers (``ConstantMultiplier``: ``IdentityOperator``,
+       ``ZeroOperator``) are metric-free; a field multiplier commutes only
+       with a diagonal metric, so a spaceless ``DiagonalOperator.H``
+       refuses (#625). S6b: ``HilbertMetric.rank(shape)``,
+       ``FunctionSpace.rank`` (a composite sums its members') and
+       ``FunctionSpace.project_live`` :math:`= G^{+}G`; today's adjoint is
+       already the quotient adjoint (87 of 87 production rows map the
+       kernel into the kernel), and its laws are gated modulo the kernel.
+       No production number moves. Pinned by
+       ``tests/gates/numerics/test_dual_metric.py``,
+       ``tests/gates/sn/operators/test_dual_metric_sn.py``,
+       ``tests/gates/numerics/test_quotient_metric.py`` and
+       ``tests/gates/sn/operators/test_quotient_adjoint_sn.py``. See
+       :ref:`spaces-dual-space` and :ref:`spaces-quotient`.
+     - #617, #625
+     - branch ``refactor/s6-dual-metric``
    * - 2026-10-21
      - **The Strategy mints the Green, and the Green owns its
        realisation** (package S4 of the numerics untangling; rulings

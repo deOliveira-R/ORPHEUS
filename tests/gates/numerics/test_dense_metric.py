@@ -351,17 +351,28 @@ class TestDenseMetricPropagation:
             f"(the dense factor was dropped or mis-positioned)",
         )
 
-    def test_the_dual_of_a_dense_metric_space_carries_the_same_pairing(self):
-        """C2 — L²-Riesz: the dual carries the SAME metric as the primal.
-        [M] the pre-repair ``DualSpace.of`` read the plain Euclidean
-        pairing on a dense-metric primal (4.5 where the primal reads
-        23.3-class values); battery arm M7 is the revert."""
+    def test_the_dual_of_a_dense_metric_space_carries_the_inverse_pairing(self):
+        """C2 — the dual carries the inverse Riesz form (S6a, ruling 26,
+        #617): ``⟨x, y⟩_{V*} = xᵀ G⁺ y``, read off the primal's stored
+        inverse face bit for bit, and equal to the pairing of the raises
+        ``⟨G⁺x, G⁺y⟩_V``. Until S6a this row pinned the dual's pairing
+        EQUAL to the primal's (23.25): the dual carried G. (The pre-P7
+        defect it was born from, a Euclidean dual reading 4.5, is a third
+        state; both old states red here.)"""
         v = FunctionSpace("V", (3,), metric=DenseMetric(_G_LITERAL))
         dual = v.dual()
+        inv = np.linalg.pinv(_G_LITERAL, hermitian=True, rcond=1e-12)
+        got = dual.inner_product(_X, _Y)
         _require(
-            dual.inner_product(_X, _Y) == v.inner_product(_X, _Y) == 23.25,
-            "the dual's pairing must equal the primal's",
+            got == float(np.sum((inv @ _X) * _Y)),
+            f"the dual's pairing {got!r} is not xᵀG⁺y off the stored inverse face",
         )
+        raised = v.inner_product(inv @ _X, inv @ _Y)
+        _require(
+            abs(got - raised) <= 64 * np.finfo(float).eps * max(1.0, abs(got)),
+            f"⟨x,y⟩_V* = {got!r} vs ⟨G⁺x, G⁺y⟩_V = {raised!r}",
+        )
+        _require(got != 23.25, "the dual pairs in G (the pre-S6a state)")
 
 
 class TestPairingSpelling:

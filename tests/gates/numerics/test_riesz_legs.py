@@ -35,9 +35,10 @@ witnesses predate it: ``test_factored_adjoint_identity``,
 * **G-H4** — arrow bookkeeping and the dagger laws as object identities:
   ``A.H.H is A``, ``A.dual().dual() is A``, the dual arrow's ends are the
   swapped duals, the dagger–dual square commutes bitwise, and the legs
-  REFUSE a ``DualSpace`` (the measured G² trap: `[M]`
-  ``lower_{V*}(lower_V(x)) = G²x = [0.25, 4, 16]`` for ``w = [.5, 2, 4]``)
-  — the wrong composition is unspellable, not silently wrong.
+  ADMIT a ``DualSpace``, which carries the inverse form G⁻¹ (S6a, ruling
+  26): ``lower_{V*}(lower_V(x)) = x``. Until S6a the legs refused a dual
+  space, because the dual then carried G and the double lowering read
+  ``G²x = [0.25, 4, 16]`` for ``w = [.5, 2, 4]`` (the G² trap).
 * **G-A1 (theorem legs)** — ``apply`` bit-identical to the pre-leg inline
   formula, and ``apply_transpose`` bit-identical to the hand-built
   :math:`(A^{*})^{\mathsf T} = G_W\,A\,G_V^{+}` (#375's closure). Any
@@ -231,10 +232,13 @@ def test_dagger_and_dual_involutions_are_object_identities():
 
 
 def test_the_dagger_dual_square_commutes_bitwise():
-    """``(A.dual()).H == (A.H).dual()`` — the commutation that keeps the
-    Riesz legs primal-only (a dual-side Hilbert adjoint never needs legs
-    on dual spaces). Bit-identity: both routes execute the same three
-    delegations in the same order."""
+    """``(A.dual()).H == (A.H).dual()`` — a LAW since S6a, with two routes:
+    the left side is the base sandwich ``♯_{W*} ∘ A ∘ ♭_{V*}`` over the dual
+    metrics, the right side the transpose of the primal adjoint
+    ``♭_W ∘ A ∘ ♯_V``. Bit-identity holds because a dual metric is its
+    primal with the faces swapped, so the two routes run the same three
+    delegations in the same order. (Until S6a ``_DualOperator.adjoint``
+    returned the right side, and this row compared one route with itself.)"""
     A = _Rect()
     probe = np.array([0.9, -1.2, 0.3])
     np.testing.assert_array_equal(
@@ -242,18 +246,19 @@ def test_the_dagger_dual_square_commutes_bitwise():
     )
 
 
-def test_the_legs_refuse_a_dual_space():
-    """The G² trap is UNSPELLABLE: ``DualSpace`` carries its primal's
-    metric (L²-Riesz, P7 S2), so a leg on ``V*`` would apply ``G`` where
-    the honest dual-side map applies ``G⁻¹`` (`[M]` the double-lower
-    reads ``G²x = [0.25, 4, 16]`` for ``w = [.5, 2, 4]``). Both legs,
-    both spellings (direct class + through a dual's primal detour)."""
+def test_the_legs_admit_a_dual_space():
+    """The G² trap is gone (S6a, ruling 26): ``V*`` carries ``G⁻¹``, so
+    ``♭_{V*}`` applies ``G⁻¹`` and the double lowering is the identity,
+    exactly, on the power-of-two weights ``w = [.5, 2, 4]`` (`[M]` with
+    ``V*`` carrying ``G`` it read ``G²x = [0.25, 4, 16]``). Until S6a both
+    legs refused a ``DualSpace`` (``TypeError: PRIMAL space only``)."""
     V = _v()
     dual = V.dual()
-    with pytest.raises(TypeError, match="PRIMAL space only"):
-        RieszLowerOperator(dual)
-    with pytest.raises(TypeError, match="PRIMAL space only"):
-        RieszRaiseOperator(dual)
+    low_d, high_d = RieszLowerOperator(dual), RieszRaiseOperator(dual)
+    assert low_d.domain == dual and low_d.codomain == V
+    assert high_d.domain == V and high_d.codomain == dual
+    x = np.ones(3)
+    np.testing.assert_array_equal(low_d.apply(RieszLowerOperator(V).apply(x)), x)
     # positive leg (vv #11): the primal constructs both, ends correct.
     low, high = RieszLowerOperator(V), RieszRaiseOperator(V)
     assert low.domain == V and isinstance(low.codomain, DualSpace)

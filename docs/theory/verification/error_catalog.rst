@@ -11384,8 +11384,9 @@ older entries classify against.
    **Root cause.** The adjoint :math:`A^{*} = \sharp_V A^{\mathsf T}
    \flat_W` is a composition of three arrows. The middle one, the dual
    arrow, exists iff ``apply_transpose`` is coded; the two outer ones,
-   the Riesz legs, exist iff both ends are declared spaces that are not a
-   ``DualSpace`` (or the operator is metric-free). A boolean that must
+   the Riesz legs, exist iff both ends are declared spaces (at the time,
+   spaces that were not a ``DualSpace``, which then carried the primal's
+   metric), or the operator is metric-free. A boolean that must
    answer both is wrong wherever they differ, and the inverse family adds
    a third fact, the transposed solve :math:`(A^{\mathsf T})^{-1}`, which
    neither answers: a 2-D :math:`(L+C)` transposes its action and has no
@@ -11441,10 +11442,13 @@ older entries classify against.
 
    **Fix.** Two predicates for two questions: ``is_adjointable`` answers
    "a Euclidean transpose is coded" and gates ``.dual()``;
-   ``is_adjoint_posed`` (read by ``posed``) answers "the adjoint is
-   posed" and is the adjoint door's one reading, at the base "both ends
+   ``is_adjoint_posed`` (read by ``posed``) answered "the adjoint is
+   posed" and was the adjoint door's one reading, at the base "both ends
    give Riesz legs", on the dual arrow "the inner is posed"; ``.H``
-   exists iff both hold. A first version read posing off the ends only
+   exists iff both hold. (Since 2026-10-21, package S6a, that flag is
+   retired: a dual space carries :math:`G^{+}`, so a dual arrow's own
+   ends give Riesz legs, and ``posed`` reads only the ends and the
+   metric-free flag.) A first version read posing off the ends only
    and called every dual arrow unposed while its ``.H`` opened (`[M]`
    qa, 2026-10-18: 52 of 308 census rows). A third forward capability,
    ``is_transpose_invertible`` / ``solve_transpose``, carries the inverse

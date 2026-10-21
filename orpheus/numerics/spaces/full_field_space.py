@@ -262,6 +262,19 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
             trace_space=trace_space,
         )
 
+    def _make_dual(self) -> "FullFieldSpace":
+        r"""The dual of a direct sum is the direct sum of the duals:
+        :math:`(V_{\rm bulk} \oplus V_{\rm trace})^* = V_{\rm bulk}^* \oplus V_{\rm trace}^*`
+        (biproduct duality; numerics_untangling.md rulings 26 and 75). Each
+        block then carries its own inverse Riesz form, so the composite's
+        metric verbs dispatch to the member duals. `[M]` 2026-10-21, the S6
+        census: before, the dual of a composite was a :class:`DualSpace`
+        that copied no block metric and read Euclidean (the slab full-field
+        metric moved a probe by 20.0, its dual by 0.0).
+        """
+        interior_space, trace_space = self._require_blocks()
+        return FullFieldSpace.from_blocks(interior_space.dual(), trace_space.dual())
+
     # ------------------------------------------------------------------
     # Direct-sum metric dispatch (per-block, on a composite field)
     # ------------------------------------------------------------------
@@ -343,6 +356,12 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
             interior_space.apply_inverse_metric(x.interior.values),
             trace_space.apply_inverse_metric(x.boundary.values),
         )
+
+    @property
+    def rank(self) -> int:
+        r"""A direct sum's rank is the sum of its blocks' ranks."""
+        interior_space, trace_space = self._require_blocks()
+        return interior_space.rank + trace_space.rank
 
     def inner_product(self, x: CompositeField, y: CompositeField) -> float:
         r"""Return the direct-sum inner product

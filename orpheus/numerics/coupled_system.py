@@ -552,6 +552,19 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
             dual_zeros_factory=dual_zeros,
         )
 
+    def _make_dual(self) -> "CoupledSpace":
+        r"""The dual of a coupled space is the coupled space of the member
+        duals (biproduct duality; numerics_untangling.md rulings 26 and 75).
+
+        The zero factories swap: the cotangent zero of this space is the zero
+        of its dual, and this space's zero is its dual's cotangent zero.
+        """
+        return CoupledSpace.from_systems(
+            tuple(s.dual() for s in self.systems),
+            zeros=self.dual_zeros_factory,
+            dual_zeros=self.zeros_factory,
+        )
+
     def zeros(self) -> "CoupledField":
         r"""Mint this space's ZERO element — a fresh zero :class:`CoupledField`.
 
@@ -675,6 +688,11 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
                 s.apply_inverse_metric(m) for s, m in zip(members, x.systems)
             ),
         )
+
+    @property
+    def rank(self) -> int:
+        r"""A coupled space's rank is the sum of its member systems' ranks."""
+        return sum(s.rank for s in self.systems)
 
     def inner_product(self, x: "CoupledField", y: "CoupledField") -> float:
         r"""The direct-sum inner product

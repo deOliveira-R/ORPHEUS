@@ -35,8 +35,11 @@ literally true:
   (composition of two multipliers is the multiplier of the product;
   the algebra of coefficients embeds as the algebra of diagonal
   operators);
-* **``*`` (self-adjoint for real f)** — :math:`M[f]^{*} = M[\bar f] =
-  M[f]` for a real-valued coefficient, so ``M.H == M``;
+* **``*`` (self-adjoint for real f on** :math:`L^2(\mu)` **)** —
+  :math:`M[f]^{*} = M[\bar f] = M[f]` for a real-valued coefficient on a
+  space whose metric is a measure (diagonal), so ``M.H == M`` there; on a
+  dense-metric space the adjoint is the sandwich at the bound ends
+  (issue #625);
 * **spectrum** — :math:`\mathrm{spec}(M[f]) = \mathrm{ess\,range}(f)`,
   so :math:`M[f]` is invertible **iff** :math:`f` is
   bounded away from zero (:math:`\min|f| > 0`); its inverse is
@@ -344,16 +347,14 @@ class MultiplicationOperator(BoundOperator):
 
     @property
     def is_metric_free_adjoint(self) -> bool:
-        r"""``True`` — M[f] is a real multiplier, so its Hilbert adjoint is
-        metric-free (the module docstring's self-adjointness law: pointwise
-        multiplication commutes with every diagonal metric). A BOUND class
-        can carry the metric-free predicate: bound-ness says where it acts,
-        metric-freeness says its adjoint needs no sandwich. (Until CS4c
-        step 2 this also exempted the then-legal SPACE-LESS ``M`` from the
-        S4-amendment's unbound-``.H`` refusal; with the ends mandatory
-        that exemption arm is unreachable from this class — the Riesz
-        legs always execute, and commute.)"""
-        return True
+        r"""``False`` — M[f] is a FIELD multiplier, which commutes with a
+        diagonal metric but not with a dense one (issue #625), so its
+        Hilbert adjoint is the sandwich at its bound ends, posed by those
+        ends. Until 2026-10-21 this read ``True`` on the diagonal-only
+        argument; the flag only short-circuited :func:`posed`, since the
+        ends are mandatory and the Riesz legs always ran, so no value
+        moves."""
+        return False
 
     # ── The assembly mode (stencil-assembly 2b) ────────────────────────
 

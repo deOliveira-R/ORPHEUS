@@ -43,9 +43,10 @@ comparing hashes, and pins the eq⟹hash implication in the only direction that
 is a law.
 
 ⛔ **Deliberately absent: "≠ across subclasses with equal ``(name, shape)``".**
-MEASURED today: a hand-built ``DualSpace(name="X", shape=(4,), primal=…)``
-compares EQUAL to ``FunctionSpace("X", (4,))``, and so does a
-``TensorProductSpace`` with the same derived name.  That is a behaviour the
+MEASURED at the flip: a hand-built ``DualSpace(name="X", shape=(4,), primal=…)``
+compared EQUAL to ``FunctionSpace("X", (4,))`` (since S6a, ruling 75, a dual
+never equals a primal: ``tests/gates/numerics/test_dual_metric.py`` S4), and so
+does a ``TensorProductSpace`` with the same derived name.  That is a behaviour the
 carve *introduces*; asserting it here would ship a red. (The flip landed
 without that tightening — ruling O-3, 2026-09-07: 134 test sites mint by
 literal name and compare across classes — so it stays absent. What the flip

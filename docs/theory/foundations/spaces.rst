@@ -2657,8 +2657,9 @@ ORPHEUS's choice and not Lee's:
    array, bitwise). The raising half's Moore-Penrose behaviour is pinned
    by G-H1's singular row (a 1/G raising leg reddens it and nothing else
    in the module), which is the witness of spaces-riesz-round-trip below
-   and carries no marker. The dual-space refusal (G-H4) stays green
-   under a leg mutation, so it carries no marker either.
+   and carries no marker. The dual-space admission row (G-H4,
+   test_the_legs_admit_a_dual_space) reads the dual metric, not a leg's
+   arithmetic, so it carries no marker either.
 
 .. math::
    :label: spaces-riesz-lower-raise
@@ -2698,41 +2699,42 @@ pairing, :math:`\langle \flat x, y\rangle = y^{\mathsf T} G x =
 
 Three facts about the dual end are load-bearing:
 
-- **The dual space carries the same metric.** Under the L²-Riesz
-  identification :math:`V^{*}` has :math:`V`'s shape and metric; what
-  distinguishes it is its type
-  (:class:`~orpheus.numerics.space.DualSpace`, reached by
-  :meth:`~orpheus.numerics.space.FunctionSpace.dual`), a covariance tag
-  that lets a composition chain tell a vector from a functional. Its
-  consequence is the next fact.
-- **The legs live on the primal space only.** Because :math:`V^{*}`
-  carries :math:`G` and not :math:`G^{-1}`, a lowering leg built on
-  :math:`V^{*}` would apply :math:`G` where the honest dual-side map
-  applies :math:`G^{-1}`, and ``lower(lower(x))`` would read
-  :math:`G^{2}x` (for :math:`w = [0.5, 2, 4]` and :math:`x = \mathbf 1`
-  that is :math:`[0.25, 4, 16]`, where the double Riesz map must return
-  :math:`x`). Both leg constructors therefore REFUSE a ``DualSpace`` with
-  a ``TypeError``, so the wrong composition cannot be spelled. A Hilbert
-  adjoint on the dual side routes through the dagger–dual commutation
-  :math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}` instead
-  (``A.dual().H`` equals ``A.H.dual()``: two distinct objects whose
-  actions agree bitwise, test G-H4).
-- **Each leg is its own transpose.** Every shipped metric realization is
-  symmetric (a diagonal weight, or a
-  :class:`~orpheus.numerics.metric.DenseMetric` admitted only through its
-  symmetry guard, or a :class:`~orpheus.numerics.metric.FactoredMetric`
-  built from such factors), so :math:`\flat^{\mathsf T} = \flat` and
+- **The dual space carries the inverse form.** :math:`V^{*}` has
+  :math:`V`'s coordinates and the inverse Riesz form :math:`G^{+}` as its
+  metric, :math:`\langle f, g\rangle_{V^{*}} = f^{\mathsf T} G^{+} g`
+  (:ref:`spaces-dual-space`). That is the pairing the Riesz map induces on
+  the dual: :math:`\langle \flat x, \flat y\rangle_{V^{*}} = x^{\mathsf
+  T} G G^{+} G y = \langle x, y\rangle_V`. It is a distinct space,
+  ``V.dual() != V``, so a composition chain tells a vector from a
+  functional.
+- **The legs are posed on every space, primal or dual.** On :math:`V^{*}`
+  the lowering leg :math:`\flat_{V^{*}} : V^{*} \to V^{**} = V` applies
+  :math:`G^{+}` and the raising leg :math:`\sharp_{V^{*}}` applies
+  :math:`G`, so the double lowering is the identity on the metric's range:
+  for :math:`w = [0.5, 2, 4]` and :math:`x = \mathbf 1`,
+  ``RieszLowerOperator(V.dual()).apply(RieszLowerOperator(V).apply(x))``
+  returns :math:`x` exactly (`[M]` 2026-10-21, the archivist's probe on
+  the S6 worktree; gate G-H4, ``test_the_legs_admit_a_dual_space``, and
+  ``test_dual_metric.py`` L1 and L2).
+- **Each leg is its own transpose, and the adjoint of the lowering leg is
+  the raising leg.** Every shipped metric realization is symmetric (a
+  diagonal weight, or a :class:`~orpheus.numerics.metric.DenseMetric`
+  admitted only through its symmetry guard, or a
+  :class:`~orpheus.numerics.metric.FactoredMetric` built from such
+  factors), so :math:`\flat^{\mathsf T} = \flat` and
   :math:`\sharp^{\mathsf T} = \sharp` under the reflexive identification
   :math:`V^{**} = V`, and both legs report
   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`, so
-  their ``.dual()`` runs. Their ``.H`` does not: each leg has a
-  ``DualSpace`` end, so its adjoint is not
-  :func:`~orpheus.numerics.operator.posed` (the previous fact), and the
-  adjoint door refuses with
-  :class:`~orpheus.numerics.operator.MissingAdjoint`
-  (:ref:`operator-adjoint-two-questions`). The repair, a dual space
-  carrying :math:`G^{-1}`, is
-  `#617 <https://github.com/deOliveira-R/ORPHEUS/issues/617>`_.
+  their ``.dual()`` runs. Both ends of a leg are declared spaces, so its
+  adjoint is :func:`~orpheus.numerics.operator.posed`, and the Hilbert
+  adjoint is the law :math:`\flat_V^{*} = \sharp_V`. With
+  :math:`W = V^{*}` in :eq:`spaces-adjoint-riesz-composition`,
+  :math:`\flat_V^{*} = \sharp_V \circ \flat_V^{\mathsf T} \circ
+  \flat_{V^{*}} = G^{+}\,G\,G^{+} = G^{+}` (the second Penrose
+  condition), which is what ``RieszRaiseOperator(V)`` applies (`[M]` 2026-10-21: on the weights
+  above ``RieszLowerOperator(V).H.apply(y)`` equals
+  ``RieszRaiseOperator(V).apply(y)`` to the printed digits; gate
+  ``test_dual_metric.py`` L3, by reciprocity).
 
 The round trip, and the Moore–Penrose choice on the kernel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2747,14 +2749,16 @@ legs then does not return the identity. From the third and fourth Penrose condit
 
 .. (vv-status rationale) An identity of the pseudo-inverse, not a solver
    claim: G⁺G is the orthogonal projector onto range(G) for any symmetric
-   G (Penrose conditions 1, 2 and 4). Case 1 of the vv-status-documented
-   taxonomy: a declared no-implementation identity (below), since no
-   production code forms ♯∘♭. Its measurement is
+   G (Penrose conditions 1, 2 and 4). Implemented by
+   FunctionSpace.project_live (S6b, ruling 74), which forms exactly
+   apply_inverse_metric(apply_metric(x)). Its measurement is
    tests/gates/numerics/test_riesz_legs.py G-H1: identity on a strictly
    positive metric (the positivity precondition asserted), the
    kernel-zeroing projector on a singular diagonal one, and non-finite
    values refused. [M] 2026-09-22 a 1/G raising leg reddens exactly the
-   singular row, 1 of the module's 11 tests.
+   singular row, 1 of the module's 11 tests. The projector's own gates are
+   tests/gates/numerics/test_quotient_metric.py B3, B3b and B4 (♯∘♭ = P
+   bitwise).
 .. vv-status: spaces-riesz-round-trip documented
 
 .. math::
@@ -2762,13 +2766,16 @@ legs then does not return the identity. From the third and fourth Penrose condit
 
    \sharp_V \circ \flat_V \;=\; G^{+} G \;=\; P_{\operatorname{range}(G)} ,
 
-.. no-implementation:: spaces-riesz-round-trip
-   :kind: identity
+.. implements:: spaces-riesz-round-trip
+   :by: orpheus.numerics.space.FunctionSpace.project_live
 
-   **Nothing implements this.** No production code forms
-   :math:`\sharp\circ\flat`; the composite adjoint uses the legs in the
-   other order around an operator (below). The identity is what makes the
-   legs *honest* on a singular metric, and it is measured by G-H1.
+   **Implemented by** the live projector, whose body is
+   ``self.apply_inverse_metric(self.apply_metric(x))``: the round trip of
+   the two legs' arithmetic, read through the space so a composite applies
+   it block by block (:ref:`spaces-quotient`). The composite adjoint uses
+   the legs in the other order around an operator (below). The identity
+   is what makes the legs *honest* on a singular metric, and it is
+   measured by G-H1.
 
 the orthogonal projector onto the range of :math:`G`. It is the identity
 exactly when :math:`G` is strictly positive. On a diagonal metric with
@@ -3004,9 +3011,12 @@ the operator algebra needs from them, for four reasons:
    refuses it at construction with
    :class:`~orpheus.numerics.operator.MissingAdjoint`, rather than
    silently applying the Euclidean transpose under the adjoint's name.
-   The only exemption is the metric-free stratum (a pointwise multiplier
-   commutes with every diagonal metric), whose missing end becomes an
-   :class:`~orpheus.numerics.operator.IdentityOperator` leg. This is why
+   The only exemption is the metric-free stratum (a constant multiplier
+   :math:`cI` commutes with every metric,
+   :class:`~orpheus.numerics.operator.ConstantMultiplier`), whose missing
+   end becomes an :class:`~orpheus.numerics.operator.IdentityOperator`
+   leg. A field multiplier commutes only with a diagonal metric and is not
+   exempt (`#625 <https://github.com/deOliveira-R/ORPHEUS/issues/625>`_). This is why
    the adjoint requires a **bound operator** (:ref:`bound-operator`).
 
 **Where it is realised.** The two legs are operators built from a space,
@@ -3025,6 +3035,236 @@ numerics untangling (2026-10-19), when the space lost its operator
 imports. The landing of the legs (CS4c steps 1–2, commits ``68a9c9f3``
 and ``733d96f3``) is recorded in the S\ :sub:`N` development history
 (:ref:`sn-development-history`).
+
+.. _spaces-dual-space:
+
+The dual space: the covectors, carrying the inverse form
+--------------------------------------------------------
+
+:math:`V^{*}` is the space of linear functionals on :math:`V`. In
+coordinates a functional is an array of :math:`V`'s shape, so the dual has
+the primal's coordinates; what makes it a different space is its metric.
+The Riesz map :math:`\flat = G` is an isometry from :math:`V` onto its
+dual exactly when the dual pairs functionals through the inverse form,
+
+.. math::
+
+   \langle f, g\rangle_{V^{*}} \;=\; f^{\mathsf T}\,G^{+}\,g ,
+   \qquad
+   \langle \flat x, \flat y\rangle_{V^{*}}
+   \;=\; x^{\mathsf T} G\,G^{+} G\, y \;=\; \langle x, y\rangle_V ,
+
+with :math:`G^{+}` the Moore–Penrose pseudo-inverse
+(:ref:`spaces-riesz-legs`; :math:`G G^{+} G = G` is the first Penrose
+condition, so the isometry holds on a singular metric too). ORPHEUS spells
+this as two objects, one per side of the metric/space split.
+
+**The metric of the dual.** :meth:`HilbertMetric.dual
+<orpheus.numerics.metric.HilbertMetric.dual>` returns a
+:class:`~orpheus.numerics.metric.DualMetric`, the primal metric with its
+two faces swapped: its ``apply`` is the primal's ``apply_inverse`` and its
+``apply_inverse`` the primal's ``apply``. Every realization already stores
+both faces (a :class:`~orpheus.numerics.metric.DiagonalMetric` its weights
+and their masked reciprocal, a :class:`~orpheus.numerics.metric.DenseMetric`
+:math:`G` and the stored ``pinv(G, hermitian=True)``), so the dual
+computes no new inverse and its arithmetic is the primal's, bit for bit.
+That is why the dual is one wrapper over every realization rather than a
+``DiagonalMetric(1/w)``: the reciprocal re-inverted differs from the
+masked reciprocal in the last bit, and :math:`1/(1/w) \ne w` in floating
+point. The dual is cached per metric object and is an involution by object
+identity, ``m.dual().dual() is m``, because :math:`(G^{+})^{+} = G` for a
+symmetric positive semi-definite form. A
+:class:`~orpheus.numerics.metric.FactoredMetric` duals each block,
+:math:`(G_1\otimes G_2)^{+} = G_1^{+}\otimes G_2^{+}`, so the dual of a
+product metric stays a positioned product whose entries are the blocks'
+:class:`~orpheus.numerics.metric.DualMetric`\ s. Gates:
+``tests/gates/numerics/test_dual_metric.py`` M1, M1b (the face swap and
+its positioned block form, bitwise), M2 (the involution), M3 (a dense dual
+computes no inverse: a spy on ``pinv`` counts zero calls) and M4 (the
+pairing keeps its one spelling, :ref:`spaces-metric-one-spelling`).
+
+**The dual of a leaf space.** :meth:`FunctionSpace.dual
+<orpheus.numerics.space.FunctionSpace.dual>` of a leaf space is a
+:class:`~orpheus.numerics.space.DualSpace` whose content IS its primal.
+It copies no axes, weights or metric object: its resolved metric is the
+primal's resolved metric's ``.dual()``, read per call through the primal.
+Its constructor refuses a shape that is not the primal's and any metric
+source of its own (``ValueError``), since such a dual would disagree with
+its primal. `[M]` 2026-10-21, the archivist's probe on the S6 worktree: on
+the dense fixture of ``test_dense_metric.py`` (the exact-binary
+:math:`G = [[2, 0.5, 0], [0.5, 1, 0.25], [0, 0.25, 4]]`) and
+:math:`x = \mathbf 1`, the primal pairs :math:`\langle x, x\rangle_V = 8.5`
+and the dual :math:`\langle x, x\rangle_{V^{*}} = 1.3`, which is
+:math:`x^{\mathsf T}G^{+}x` to the last two bits. Gates: S1 (the dual
+reads the inverse metric bitwise), S2, S2b and S2c (the dual pairing is
+the pairing of the raises, against an exact rational inverse on the dense
+fixture), S3 and R4 (the primal is the content; the refusals).
+
+**V\* is not V** (ruling 75 of ``.claude/plans/numerics_untangling.md``).
+A dual space equals another dual space iff their primals are equal, and it
+never equals a primal space, in either order of the comparison:
+``V.dual() == V`` is ``False`` and ``V == V.dual()`` is ``False``, and
+``hash(V.dual())`` is ``hash(("dual", V))``. Covariance is therefore part
+of a space's identity, and the composition guard refuses a covector where
+a vector is expected: ``R @ R.dual()`` and a sum joining :math:`V` and
+:math:`V^{*}` raise
+:class:`~orpheus.numerics.operator.IncompatibleOperatorComposition`
+(gates S4, S5, G1, G2).
+
+**One dual per space.** The dual is a function of the space alone, so
+``V.dual()`` is memoised on the space: ``V.dual() is V.dual()``, and
+``V.dual().dual() is V`` (the involution :math:`V^{**} = V`, by object
+identity). ``DualSpace.of(V)`` is the same object as ``V.dual()``. The
+memo is what bounds the dual arrows' cost: an adjoint solve rebuilds its
+dual arrows on every matvec (``OperatorProduct.dual`` rebuilds a word's
+dual word each call, `#632 <https://github.com/deOliveira-R/ORPHEUS/issues/632>`_),
+and each arrow asks for its ends' duals. `[M]` 2026-10-21, the S6a
+verification spec's probe p1 (``solve_sn_adjoint`` on the 3-region 2-group
+slab, GL-8, 40 cells): without the memo one solve minted 5 645
+``DualSpace``\ s, and 10 965 at tight tolerances, every one from a dual
+arrow's ``domain`` or ``codomain``; with it, 2 (the duals of the interior
+and the trace block). The gate is ``test_dual_metric_sn.py`` K2: the mint
+count is the same at two tolerance settings that run different numbers of
+outer iterations, and is bounded by the number of distinct primals.
+
+**The dual of a composite is the composite of the duals.** Duality is
+additive on a direct sum and multiplicative on a tensor product, so a
+composite space's dual is built from its members' duals rather than
+wrapped as a :class:`~orpheus.numerics.space.DualSpace` (which would have
+no member metrics to read, and would pair Euclidean):
+
+.. math::
+
+   (V_{\rm bulk} \oplus V_{\rm trace})^{*} = V_{\rm bulk}^{*} \oplus V_{\rm trace}^{*},
+   \qquad
+   (V \otimes W)^{*} = V^{*} \otimes W^{*} .
+
+:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` duals
+its interior and trace blocks;
+:class:`~orpheus.numerics.coupled_system.CoupledSpace` duals its systems
+and swaps its two zero factories, since this space's cotangent zero is
+the zero of its dual; :class:`~orpheus.numerics.space.TensorProductSpace`
+duals its factors. Each override is the one hook ``_make_dual``, and the
+memo and the involution are the base's. The composite's metric verbs then
+dispatch to the member duals' inverse forms. `[M]` 2026-10-21, the archivist's
+probe: for :math:`V` with weights :math:`[0.5, 2, 4]`, :math:`W` with
+weights :math:`[3, 5]` and :math:`x = \mathbf 1`,
+``(V * W).dual() == V.dual() * W.dual()`` and its pairing reads
+:math:`1.4\overline{6} = \sum_{ij} w_{V,i}^{-1} w_{W,j}^{-1}`. Gates:
+``test_dual_metric_sn.py`` C1 (a composite dual reads the member inverse
+metrics), C2 (it is the biproduct of the member duals), R2b
+(``DualSpace.of`` on the coupled carrier and its full-field member is the
+composite dual).
+
+The tensor product resolves each factor's metric once, through the factor's
+own resolution (an axis-built factor's per-axis entries, a metric object,
+a dense-slot leaf's weights, a dual's inverse form). A dual factor carries
+no ``axes``, ``metric`` or weights of its own, so a builder that read
+those raw fields would see it as Euclidean: `[M]` 2026-10-21, the S6a
+elegance review's probe P3, on ``V.dual() * W`` the pairing read
+``385.0`` where :math:`G^{+}\otimes w` gives ``163.25``, before the
+builder was changed to read each factor's resolved metric (gate
+``test_dual_metric.py`` R1).
+
+**The dagger–dual square commutes, as a law.** With every dual space
+carrying its inverse form, the dual arrow
+:math:`A^{\mathsf T} : W^{*} \to V^{*}` is a bound operator whose ends
+give Riesz legs, and its Hilbert adjoint is the base composition
+:eq:`spaces-adjoint-riesz-composition` over those ends,
+:math:`(A^{\mathsf T})^{*} = \sharp_{W^{*}} A \,\flat_{V^{*}} = G_W A G_V^{+}`.
+The transpose of the primal adjoint is the same matrix,
+:math:`(A^{*})^{\mathsf T} = (G_V^{+} A^{\mathsf T} G_W)^{\mathsf T} =
+G_W A G_V^{+}`, since both metrics are symmetric. The two are computed by
+different routes (the base sandwich on the dual arrow, and the primal
+adjoint's ``.dual()``) and agree bitwise, because a dual metric is its
+primal with the faces swapped and the two routes run the same three
+delegations in the same order. Gates: ``test_dual_metric.py`` D2 and
+``test_dual_metric_sn.py`` C3 (bitwise on the S\ :sub:`N` carrier), R5
+(reciprocity of the dual of a sum in the dual end metrics), and
+``test_riesz_legs.py``'s dagger–dual row. D1 asserts that neither the dual
+arrow nor the adjoint arrow defines a route of its own (``adjoint`` is not
+in ``vars(_DualOperator)``, ``dual`` is not in ``vars(AdjointOperator)``).
+
+.. warning::
+
+   **A dual arrow does not swap its carrier's role.** For
+   :math:`S` : flux :math:`\to` source, ``S.dual()`` is typed
+   :math:`W^{*} \to V^{*}` but its action still accepts a flux-classed
+   field and returns a source-classed one, so ``S.dual().H`` cannot take
+   ``S.dual()``'s own output. Covariance is typed on spaces, not yet on the
+   carriers (`#633 <https://github.com/deOliveira-R/ORPHEUS/issues/633>`_).
+   A test of a dual arrow samples the class its ``apply`` admits.
+
+.. _spaces-quotient:
+
+A degenerate metric is a quotient: rank and the live projector
+--------------------------------------------------------------
+
+A metric with a kernel (the S\ :sub:`N` trace's tangential ordinates,
+where :math:`|\Omega\cdot\hat n| = 0`; dead moment-head slots; a
+rank-deficient Parseval head) is an inner product on the quotient
+:math:`V / \ker G`, not on :math:`V`. ORPHEUS keeps the coordinates and
+lets the metric carry its kernel (ruling 74): the tangential values stay
+where the sweep and the reflections read them, and no shape changes at any
+trace, full-field or coupled carrier. `[M]` the S6 census
+(``scratch/numerics_untangling/packages/S6_census/report.md``): 3 380 of
+62 432 spaces built over the numerics and ``sn/operators`` suites have a
+degenerate metric, in those three families.
+
+Two readings make the quotient explicit:
+
+- :meth:`HilbertMetric.rank(shape) <orpheus.numerics.metric.HilbertMetric.rank>`
+  is the dimension of :math:`V/\ker G` on elements of ``shape``. A diagonal
+  metric counts its nonzero broadcast weights; a dense metric uses
+  ``matrix_rank`` at the same cutoff its stored pseudo-inverse uses, so the
+  rank counts exactly the directions :math:`G^{+}` inverts; a factored
+  metric multiplies its block ranks (a Euclidean block is full rank); a
+  dual metric has its primal's rank, since :math:`G^{+}` and :math:`G`
+  share their range. :attr:`FunctionSpace.rank
+  <orpheus.numerics.space.FunctionSpace.rank>` reads its metric (the
+  element size when the space is Euclidean), and a direct sum or a coupled
+  space sums its members' ranks.
+- :meth:`FunctionSpace.project_live <orpheus.numerics.space.FunctionSpace.project_live>`
+  is :math:`P = G^{+}G` (:eq:`spaces-riesz-round-trip`), the orthogonal
+  projector onto :math:`\operatorname{range} G = (\ker G)^{\perp}`. It is
+  the identity on a non-degenerate space and zeroes the kernel
+  coordinates of a diagonal degenerate one: for weights :math:`[1, 0, 2]`
+  the rank is 2 and :math:`P\mathbf 1 = [1, 0, 1]` (`[M]` 2026-10-21, the
+  archivist's probe). Two elements are the same element of the quotient
+  iff their live projections agree, which is how a law that holds modulo
+  the kernel is stated and gated.
+
+**The adjoint is the quotient adjoint.** By the kernel condition
+(:ref:`the kernel condition <spaces-adjoint-kernel-condition>`), reciprocity holds on every
+:math:`x` iff the operator maps :math:`\ker G_V` into :math:`\ker G_W`.
+`[M]` 2026-10-21, ruling 80 (``scratch/numerics_untangling/packages/S6bc_census/``,
+probes ``p2_kernel.py`` and ``p3_leaves.py``): on the cylinder
+``folded_product(2, 6)``, the sphere GL-7 and the slab GL-7, the
+kernel-to-live block of every production S\ :sub:`N` operator is exactly
+``0.0``, on 87 of 87 rows (the reflective and vacuum boundary, streaming,
+scattering, :math:`N_{2n}`, fission, the radial-characteristic blocks and
+the sweep); a control boundary operator that feeds a tangential slot into
+a live one reads ``0.70``. Production ``.H`` equals
+:math:`P_V A^{*} P_W` to :math:`2.1\times10^{-16}`. The adjoint laws are
+therefore stated modulo the kernel:
+
+- ``A.H.H is A`` is a choice of representative on :math:`V/\ker G`. On the
+  cylinder sweep the double adjoint computed out differs from :math:`A` by
+  0.519, all of it on the kernel-to-kernel block (the sweep passes the
+  tangential slots through as the identity), so the two agree after
+  projection.
+- Reciprocity, :math:`\flat^{*} = \sharp` and ``M @ M.inverse()`` are
+  gated in the G-seminorm, never component by component on the kernel:
+  :math:`M M^{-1} q = P q`, and :math:`M M^{-1} e_k = 0` on every dead
+  slot :math:`k`.
+
+Gates: ``tests/gates/numerics/test_quotient_metric.py`` (B1 the metric
+rank against hand counts, B2 a Parseval head's rank against the sampled
+harmonic rank, B3 and B3b the projector, B4 the round trip, B5 the
+retraction closed form against the sandwich modulo the kernel) and
+``tests/gates/sn/operators/test_quotient_adjoint_sn.py`` (T1 the trace
+rank is the non-tangential count, K80 every degenerate-ended leaf maps
+the kernel into the kernel, A1 to A3 the sweep's laws on the quotient).
 
 .. _spaces-metric-propagation:
 
@@ -3050,8 +3290,10 @@ to a plausible-looking value, with no error and no warning):
        dense-metric space read the **plain Euclidean** pairing.
        `[M]` on the ``test_dense_metric`` fixture the dual read
        :math:`4.5` where the primal reads :math:`23.25`
-     - threads the metric object (L²-Riesz: the dual carries the SAME
-       metric), so both read :math:`23.25`
+     - reads the primal's metric object through the primal, dualised:
+       the dual carries the inverse form :math:`G^{+}`
+       (:ref:`spaces-dual-space`), so it reads
+       :math:`x^{\mathsf T}G^{+}x`, never a copy and never Euclidean
    * - :meth:`TensorProductSpace.from_factors
        <orpheus.numerics.space.TensorProductSpace.from_factors>`
        (the legacy ``*``)

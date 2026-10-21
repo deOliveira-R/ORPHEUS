@@ -143,7 +143,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Optional
+from functools import cached_property
+from typing import Optional, Protocol, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -152,6 +153,7 @@ __all__ = [
     "HilbertMetric",
     "DiagonalMetric",
     "DenseMetric",
+    "DualMetric",
     "FactoredMetric",
 ]
 
@@ -282,6 +284,22 @@ def _broadcast_leading(w: NDArray, target_ndim: int) -> NDArray:
     return w.reshape(w.shape + (1,) * (target_ndim - w.ndim))
 
 
+class PositionedMetric(Protocol):
+    r"""A metric that applies to ONE interior index block of an element — the
+    positioned leaf form a :class:`FactoredMetric` composes
+    (:class:`DiagonalMetric`, :class:`DenseMetric`, and the
+    :class:`DualMetric` of either)."""
+
+    def apply_block(
+        self,
+        x: NDArray,
+        *,
+        start: int,
+        block_shape: tuple[int, ...],
+        inverse: bool,
+    ) -> NDArray: ...
+
+
 class HilbertMetric(ABC):
     r"""A symmetric positive-semi-definite bilinear form, as an object.
 
@@ -297,7 +315,26 @@ class HilbertMetric(ABC):
       **final in spirit**: realizations inherit it so the pairing
       arithmetic has exactly one spelling (see the module docstring's
       bit-identity note).
+    * :meth:`dual` — the metric of the dual space :math:`V^*`, the inverse
+      Riesz form :math:`G^{+}` (:class:`DualMetric`, numerics_untangling.md
+      ruling 26), built once per metric object.
     """
+
+    def dual(self) -> "HilbertMetric":
+        r"""Return the metric of :math:`V^*`: this one with its two faces swapped.
+
+        :math:`\langle \phi, \chi\rangle_{V^*} = \langle G^{+}\phi, \chi\rangle`,
+        so the dual's forward face is this metric's inverse face and its
+        inverse face is this forward face (:math:`(G^{+})^{+} = G` for a
+        symmetric positive semi-definite form). Nothing is re-inverted, so
+        the dual's arithmetic is bit-for-bit this metric's. Cached, and an
+        involution by object identity: ``m.dual().dual() is m``.
+        """
+        return self._dual
+
+    @cached_property
+    def _dual(self) -> "HilbertMetric":
+        return DualMetric(self)
 
     @abstractmethod
     def apply(self, x: NDArray) -> NDArray:
@@ -310,6 +347,15 @@ class HilbertMetric(ABC):
     @abstractmethod
     def validate_for(self, shape: tuple[int, ...]) -> None:
         r"""Raise if this metric cannot serve a space of element ``shape``."""
+
+    @abstractmethod
+    def rank(self, shape: tuple[int, ...]) -> int:
+        r"""The rank of the form on elements of ``shape``: the dimension of
+        :math:`V / \ker G`, the space the inner product is non-degenerate on
+        (numerics_untangling.md ruling 74). A degenerate metric (rank below
+        the element size: the tangential trace slots, dead moment-head
+        slots, a rank-deficient Parseval head) is an inner product on that
+        quotient, and the adjoint is posed there."""
 
     def pairing(self, x: NDArray, y: NDArray) -> float:
         r"""Return :math:`\langle x, y\rangle = \sum (Gx) \odot y` — the one spelling."""
@@ -339,6 +385,10 @@ class DiagonalMetric(HilbertMetric):
         wb = _broadcast_leading(self.weights, np.ndim(x))
         nonzero = wb != 0.0
         return np.where(nonzero, x / np.where(nonzero, wb, 1.0), 0.0)
+
+    def rank(self, shape: tuple[int, ...]) -> int:
+        w = _broadcast_leading(self.weights, len(shape))
+        return int(np.count_nonzero(np.broadcast_to(w, shape)))
 
     def validate_for(self, shape: tuple[int, ...]) -> None:
         # The legacy dense-array contract: any array broadcast-compatible
@@ -486,6 +536,18 @@ class DenseMetric(HilbertMetric):
         assert inv is not None  # established by __post_init__; narrowing only
         return self._matmul_leading(inv, x)
 
+    def rank(self, shape: tuple[int, ...]) -> int:
+        # Read off the STORED faces, never a second eigen-solve: G⁺G is the
+        # orthogonal projector onto range G, and a projector's trace is its
+        # rank, so the count is exactly the directions the inverse face
+        # inverts (`[M]` 2026-10-21, the S6b qa review: a separate
+        # ``matrix_rank`` disagreed with ``pinv`` at a tie on the cutoff).
+        inv = self.inverse_matrix
+        assert inv is not None  # established by __post_init__; narrowing only
+        rank = int(round(float(np.trace(inv @ self.matrix))))
+        size = int(np.prod(shape)) if shape else 1
+        return rank * (size // self.dim)
+
     def validate_for(self, shape: tuple[int, ...]) -> None:
         size = int(np.prod(shape)) if shape else 1
         if size != self.dim:
@@ -543,7 +605,7 @@ class FactoredMetric(HilbertMetric):
     """
 
     entries: tuple[
-        tuple[tuple[int, ...], "DiagonalMetric | DenseMetric | None"], ...
+        tuple[tuple[int, ...], "PositionedMetric | None"], ...
     ]
 
     def __post_init__(self) -> None:
@@ -574,6 +636,39 @@ class FactoredMetric(HilbertMetric):
     def apply_inverse(self, x: NDArray) -> NDArray:
         return self._walk(x, inverse=True)
 
+    @cached_property
+    def _dual(self) -> "HilbertMetric":
+        r"""The dual of a tensor product is the product of the block duals,
+        :math:`(G_1 \otimes G_2)^{+} = G_1^{+} \otimes G_2^{+}`, so a dual
+        factored metric stays a positioned product that a tensor product of
+        spaces can flatten into its own entries. The involution by object
+        identity is seeded on the dual."""
+        dual = FactoredMetric(tuple(
+            (
+                block_shape,
+                # A positioned leaf's dual is a DualMetric, itself positioned.
+                None if factor is None
+                else cast(PositionedMetric, cast(HilbertMetric, factor).dual()),
+            )
+            for block_shape, factor in self.entries
+        ))
+        vars(dual)["_dual"] = self
+        return dual
+
+    def rank(self, shape: tuple[int, ...]) -> int:
+        r"""The rank of a tensor product is the product of the block ranks
+        (a Euclidean block is full rank)."""
+        rank = 1
+        blocks = 1
+        for block_shape, factor in self.entries:
+            size = int(np.prod(block_shape)) if block_shape else 1
+            blocks *= size
+            rank *= size if factor is None else cast(HilbertMetric, factor).rank(block_shape)
+        # Trailing element axes beyond the blocks multiply the rank, as they
+        # do for a leading-aligned diagonal or dense metric.
+        size = int(np.prod(shape)) if shape else 1
+        return rank * (size // blocks)
+
     def validate_for(self, shape: tuple[int, ...]) -> None:
         concat: tuple[int, ...] = ()
         for block_shape, _ in self.entries:
@@ -583,3 +678,63 @@ class FactoredMetric(HilbertMetric):
                 f"FactoredMetric blocks {concat} do not concatenate to the "
                 f"space shape {shape}."
             )
+
+
+class DualMetric(HilbertMetric):
+    r"""The metric of a dual space :math:`V^*`: a primal metric with its two faces swapped.
+
+    :math:`V^*`'s inner product is the inverse Riesz form,
+    :math:`\langle \phi, \chi\rangle_{V^*} = \langle G^{+}\phi, \chi\rangle`
+    (numerics_untangling.md ruling 26, issue #617). Every realization
+    already stores both faces of its form (a diagonal metric its weights and
+    their masked reciprocal; a dense one :math:`G` and :math:`G^{+}`; a
+    factored one each block's two faces), so the dual is the same object
+    read the other way round: :meth:`apply` is the primal's
+    :meth:`~HilbertMetric.apply_inverse`, :meth:`apply_inverse` the primal's
+    :meth:`~HilbertMetric.apply`, and :meth:`apply_block` the primal's
+    block with the face flipped. One definition for every realization, and
+    the arithmetic is bit-for-bit the primal's: a dual never re-inverts
+    (``DiagonalMetric(1/w)`` would differ from the masked reciprocal in the
+    last bit, and :math:`1/(1/w) \ne w`).
+
+    Built by :meth:`HilbertMetric.dual`, never directly; its own
+    :meth:`dual` is the primal, by object identity.
+    """
+
+    def __init__(self, primal: HilbertMetric) -> None:
+        #: The metric of :math:`V` whose inverse form this is.
+        self.primal = primal
+
+    def dual(self) -> HilbertMetric:
+        return self.primal  # (G⁺)⁺ = G, the involution by object identity
+
+    def apply(self, x: NDArray) -> NDArray:
+        return self.primal.apply_inverse(x)
+
+    def apply_inverse(self, x: NDArray) -> NDArray:
+        return self.primal.apply(x)
+
+    def validate_for(self, shape: tuple[int, ...]) -> None:
+        self.primal.validate_for(shape)
+
+    def rank(self, shape: tuple[int, ...]) -> int:
+        return self.primal.rank(shape)  # G⁺ and G share their range
+
+    def apply_block(
+        self,
+        x: NDArray,
+        *,
+        start: int,
+        block_shape: tuple[int, ...],
+        inverse: bool,
+    ) -> NDArray:
+        r"""The positioned form :class:`FactoredMetric` composes: the primal's
+        block with its face flipped."""
+        # A DualMetric sits in a factored entry only over a positioned leaf
+        # (FactoredMetric.dual distributes over its blocks).
+        return cast(PositionedMetric, self.primal).apply_block(
+            x, start=start, block_shape=block_shape, inverse=not inverse,
+        )
+
+    def __repr__(self) -> str:
+        return f"DualMetric({self.primal!r})"

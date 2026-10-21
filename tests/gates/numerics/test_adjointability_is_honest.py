@@ -7,8 +7,9 @@ in both directions, over a registry of operators the tree's own fixtures build.
   it gates :meth:`~orpheus.numerics.operator.LinearOperator.dual`, the dual
   arrow :math:`A^{\mathsf T}`.
 * :func:`~orpheus.numerics.operator.posed` answers *both ends' metrics give
-  Riesz legs*: an unbound end, or a ``DualSpace`` end (the G² trap of ruling
-  26), leaves the Hilbert adjoint unposed, unless it is metric-free.
+  Riesz legs*: an unbound end leaves the Hilbert adjoint unposed, unless it
+  is metric-free. (Until S6a a ``DualSpace`` end did too, the G² trap of
+  ruling 26; a dual space now carries G⁻¹ and its legs exist.)
 
 :attr:`~orpheus.numerics.operator.LinearOperator.H` = ``♯ ∘ dual ∘ ♭`` needs both.
 One flag answering both questions was the defect of the first fix: a rank-one
@@ -277,9 +278,11 @@ def _sparse_assembled_bound() -> _Posed:
 
 
 def _inverse_of_diagonal() -> _Posed:
-    r"""``D⁻¹`` of an unbound diagonal: metric-free, so ``.H`` is posed with no
-    spaces, and its transpose is the diagonal's transposed solve (qa F4: that
-    solve had no catcher)."""
+    r"""``D⁻¹`` of an unbound diagonal: its transpose ``.dual()`` is the
+    diagonal's transposed solve (qa F4: that solve had no catcher), and its
+    ``.H`` refuses as unbound, because a field multiplier is not metric-free
+    (S6a review, #625: it commutes only with diagonal metrics). Until the
+    review this row's ``.H`` opened."""
     return _Posed(DiagonalOperator(np.array([2.0, -0.5, 4.0])).inverse(), np.array([1.0, 3.0, -2.0]))
 
 
@@ -287,7 +290,8 @@ def _inverse_of_scaled_product() -> _Posed:
     r"""``(D @ 2D)⁻¹``: a product whose factor is a scaled operator, which has
     no native transposed solve; the product reaches it through each factor's
     canonical inverse (the elegance review: it read not adjointable while
-    ``(2D)⁻¹`` read adjointable)."""
+    ``(2D)⁻¹`` read adjointable). Its ``.H`` refuses as unbound since the S6a
+    review (a word of field multipliers is not metric-free, #625)."""
     D = DiagonalOperator(np.array([2.0, -0.5, 4.0]))
     # S2 (D7): the scalar leaves the word, so ``D @ (2D)`` is the one-term
     # combination 2·(D D); its inverse is ½·(D D)⁻¹, the row's subject.
@@ -541,9 +545,13 @@ def _sn_coupled_substitution(case: str) -> Callable[[], _Posed]:
 def _sn_inverse_of_leaf() -> _Posed:
     r"""``InverseOperator(C)`` of the pointwise collision leaf.
 
-    Witness ``(C⁻¹)ᴴ = (Cᴴ)⁻¹ = C⁻¹``: ``C`` is a real multiplier, metric-free
-    (``Cᴴ = C`` in every diagonal metric), so its inverse is self-adjoint.
+    Witness ``(C⁻¹)ᴴ = (Cᴴ)⁻¹ = C⁻¹``: ``C`` is a real field multiplier BOUND
+    to the slab's spaces, whose metrics are diagonal, so ``Cᴴ = C`` there and
+    its inverse is self-adjoint. (Since the S6a review ``C`` is not
+    metric-free: a field multiplier commutes only with diagonal metrics, #625;
+    the precondition is now the diagonal ends, asserted below.)
     """
+    from orpheus.numerics.metric import DiagonalMetric, FactoredMetric
     from orpheus.numerics.operator import InverseOperator
     from orpheus.transport.operators.multiplication_operator import (
         MultiplicationOperator,
@@ -551,8 +559,11 @@ def _sn_inverse_of_leaf() -> _Posed:
 
     sn, sig_t = _sn("slab_2g")
     C = MultiplicationOperator.from_mesh(sig_t, sn)
-    if not C.is_metric_free_adjoint:
-        raise RuntimeError("fixture drift: C is no longer metric-free")
+    for end in (C.domain, C.codomain):
+        m = getattr(end, "_resolved_metric", "absent")
+        blocks = [f for _, f in m.entries] if isinstance(m, FactoredMetric) else [m]
+        if not all(f is None or isinstance(f, DiagonalMetric) for f in blocks):
+            raise RuntimeError(f"fixture drift: C's end {end!r} is not diagonal-metric")
     op = C.inverse()
     if type(op) is not InverseOperator:
         raise RuntimeError(f"fixture drift: C.inverse() is {type(op).__name__}")
@@ -716,29 +727,26 @@ def _sn_coupled_substitution_carrying() -> _Posed:
     )
 
 
-def _dual_pairing(primal: Any) -> Callable[[Any, Any], float]:
-    r"""``⟨a, b⟩`` on the dual of ``primal`` in its honest metric :math:`G^{-1}`
-    (a ``DualSpace`` carries :math:`G`, #617), so a dual arrow's ``.H`` is
-    checked in the metric its law ``(Aᵀ)ᴴ = (Aᴴ)ᵀ`` holds in."""
-    return lambda a, b: float(_flat(a) @ _flat(primal.apply_inverse_metric(b)))
-
-
 def _sn_sweep_dual() -> _Posed:
-    r"""``((L+C)⁻¹)ᵀ``, the dual arrow of the slab sweep: its ends are
-    ``DualSpace``\ s, yet its ``.H`` is posed by the dagger–dual commutation
-    (qa, 2026-10-18: 52 of 308 census rows were dual arrows whose ``.H``
-    opened while the end-reading predicate said unposed)."""
+    r"""``((L+C)⁻¹)ᵀ``, the dual arrow of the slab sweep: its ends are the
+    duals of composite (bulk ⊕ trace) spaces, and its ``.H`` is the base door
+    over them. The reciprocity reads the operator's OWN end metrics, i.e. the
+    composite duals' inverse forms (S6a: a composite's dual is the composite
+    of its members' duals). Until S6a this row paired through a hand-built
+    ``G⁻¹`` because the composite dual was Euclidean (census: the dual metric
+    moved a sample by 0.0); `[M]` 2026-10-21 the row reds when the composite
+    dual is restored to a member-less ``DualSpace``."""
     sn, sig_t = _sn("slab_2g")
     sweep = _lc(sn, sig_t).inverse()
     x = _sn_composite(sn)
     return _Posed(
         sweep.dual(), x, y=_source_like(sn, sig_t, 12),
-        pair_v=_dual_pairing(sweep.codomain), pair_w=_dual_pairing(sweep.domain),
     )
 
 
 def _riesz_lower_dual() -> _Posed:
-    r"""``♭ᵀ``: the dual arrow of an unposed operator stays unposed."""
+    r"""``♭ᵀ``: the dual arrow of the lowering leg; posed since S6a (its
+    ``.H`` opens, test_dual_metric H1)."""
     return _Posed(RieszLowerOperator(_V).dual(), np.array([1.0, -2.0, 0.5]))
 
 
@@ -1055,15 +1063,25 @@ def test_the_inverse_swaps_the_forwards_transpose_verbs(index: int) -> None:
         pytest.fail(f"[{name}] solve_transpose ≠ the forward's apply_transpose (max |Δ| {np.max(np.abs(got - ref)):.2e})")
 
 
-def test_the_inverse_of_a_multiplier_is_a_metric_free_adjoint() -> None:
-    r"""``(D⁻¹)ᴴ = D⁻¹`` on unbound ends: the inverse inherits the forward's
-    metric-free adjoint, so ``.H`` is posed with no spaces and equals the
-    dense ``diag(1/d)`` exactly."""
+def test_the_inverse_of_a_multiplier_inherits_its_adjoint_posing() -> None:
+    r"""The inverse inherits the forward's adjoint posing. A constant
+    multiplier is metric-free, so ``(I⁻¹)ᴴ`` is posed with no spaces; a
+    spaceless FIELD multiplier is not (S6a review, #625), so ``(D⁻¹)ᴴ``
+    refuses as unbound while its transpose ``(D⁻¹).dual()`` is ``diag(1/d)``
+    exactly. Until the review this row asserted ``(D⁻¹)ᴴ = diag(1/d)`` on
+    unbound ends, the metric-free reading of a field multiplier."""
+    from orpheus.numerics.operator import IdentityOperator
+
     d = np.array([2.0, -0.5, 4.0])
     y = np.array([1.0, 3.0, -2.0])
-    got = DiagonalOperator(d).inverse().H.apply(y)
+    if not np.array_equal(IdentityOperator().inverse().H.apply(y), y):
+        pytest.fail("(I⁻¹)ᴴ is not the identity")
+    inv = DiagonalOperator(d).inverse()
+    with pytest.raises(MissingAdjoint, match="UNBOUND"):
+        _ = inv.H
+    got = inv.dual().apply(y)
     if not np.array_equal(got, y / d):
-        pytest.fail(f"(D⁻¹)ᴴ y = {got}, expected diag(1/d) y = {y / d}")
+        pytest.fail(f"(D⁻¹)ᵀ y = {got}, expected diag(1/d) y = {y / d}")
 
 
 def test_a_converged_first_partial_sum_is_returned_unswept() -> None:

@@ -135,8 +135,8 @@ where the Riesz legs :math:`\flat` and :math:`\sharp` are defined).
      ``.H`` **construction** — it never silently goes Euclidean.
    - ``.H`` **asks two questions**: a Euclidean transpose is coded
      (``is_adjointable``, which gates ``.dual()``), and both ends give
-     Riesz legs (:func:`~orpheus.numerics.operator.posed`: declared, not
-     a ``DualSpace``, or metric-free). ``.H`` exists iff both hold
+     Riesz legs (:func:`~orpheus.numerics.operator.posed`: declared
+     spaces, primal or dual, or metric-free). ``.H`` exists iff both hold
      (:ref:`operator-adjoint-two-questions`). (The
      **Supersession note below** records the retirement of an earlier
      ``S`` / ``F`` no-``apply_transpose`` mechanism that predated the
@@ -553,7 +553,7 @@ non-adjointable operand reports
 ``= False``, and its :attr:`~orpheus.numerics.operator.LinearOperator.H`
 raises :class:`~orpheus.numerics.operator.MissingAdjoint` **eagerly at
 construction** — never silently Euclidean. An operator whose ends give
-no Riesz legs (an unbound end, a ``DualSpace`` end) is refused at the
+no Riesz legs (an unbound end) is refused at the
 same door by the second question,
 :func:`~orpheus.numerics.operator.posed`
 (:ref:`operator-adjoint-two-questions`). This is
@@ -652,13 +652,18 @@ is exact:
 
 #. **A term with no spaces on a dense metric.** A
    :class:`~orpheus.numerics.operator.PointwiseOperator` declares no
-   spaces, and its ``adjoint()`` returns itself, which is correct only
-   for a metric with which it commutes (a diagonal one). On the
-   exact-binary dense metric of ``test_dense_metric.py``, with :math:`A`
-   bound and :math:`D` the pointwise ``DiagonalOperator([1, 2, 3])``, the
-   reciprocity :math:`\langle (D + A)x, y\rangle = \langle x, (D+A)^{*}
-   y\rangle` holds to 2.1e-16 relative on the once-at-the-ends route and
-   misses by **1.26e-3** under :math:`D^{*} + A^{*}`.
+   spaces. A field multiplier
+   (:class:`~orpheus.numerics.elementary_operators.DiagonalOperator`)
+   commutes with a diagonal metric and not with a dense one, so reading
+   its adjoint as itself is correct only on a diagonal metric; a spaceless
+   field multiplier therefore has no ``.H`` of its own (it refuses as
+   unbound, :ref:`operator-adjoint-two-questions`). On the exact-binary
+   dense metric of ``test_dense_metric.py``, with :math:`A` bound and
+   :math:`D` the pointwise ``DiagonalOperator([1, 2, 3])``, the reciprocity
+   :math:`\langle (D + A)x, y\rangle = \langle x, (D+A)^{*} y\rangle`
+   holds to 2.1e-16 relative on the once-at-the-ends route and misses by
+   **1.26e-3** under :math:`D + A^{*}`, the distribution with
+   :math:`D^{*}` read as :math:`D`.
 #. **A word through a singular middle metric.** :math:`B^{*} A^{*}`
    inserts :math:`\flat_U \sharp_U = G_U G_U^{+}` at the middle space
    :math:`U`, which is a projector, not the identity, when :math:`G_U` is
@@ -678,16 +683,16 @@ word's distributed form moves bits: the carrying sphere's
 fission operator is the word ``CoupledOperator @ SystemRestrictionOperator``
 (the S2 spec's finding 2).
 
-Both distributed forms become theorems everywhere once every degenerate
-metric is replaced by its live subspace, ruling 26, package S6
-(`#617 <https://github.com/deOliveira-R/ORPHEUS/issues/617>`_); the
-pointwise adjoint on a dense metric is
-`#625 <https://github.com/deOliveira-R/ORPHEUS/issues/625>`_, whose
-production reach is zero (`[M]` the S2 spec: 8 calls of
-``PointwiseOperator.adjoint``, all from tests, over 12 814 passing tests,
-and no production composite on a dense space holds a pointwise term). A
-guard refusing the composite adjoint until S6 was considered and rejected:
-it would refuse an adjoint that is well posed.
+The second case is a law modulo the kernel: :math:`\flat_U \sharp_U` is
+the live projector of :math:`U` (:ref:`spaces-quotient`), so
+:math:`B^{*}A^{*}` and :math:`(AB)^{*}` agree on the quotient whenever
+:math:`A` maps :math:`\ker G_U` into the kernel of its codomain, which
+every production S\ :sub:`N` operator does (ruling 80, 87 of 87 rows).
+The first case is not a law at all for a field multiplier on a dense
+metric: :math:`D^{*} = G^{+} D G \ne D` there
+(`#625 <https://github.com/deOliveira-R/ORPHEUS/issues/625>`_). The code
+keeps the composite's adjoint at its ends either way, so neither case
+reaches a value.
 
 The gates, in ``tests/gates/numerics/test_linear_combination.py``: c21
 (the sum's dual distributes; ``S.H`` is bit for bit
@@ -739,26 +744,22 @@ questions**, and the code answers each with its own predicate.
    this instance. It gates
    :meth:`~orpheus.numerics.operator.LinearOperator.dual`, which returns
    the dual arrow as an operator.
-2. **Is the Hilbert adjoint posed?**
-   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjoint_posed` is a
-   predicate on the type, read by the free function
-   :func:`~orpheus.numerics.operator.posed`. At the base it is ``True``
-   iff both ends are declared spaces whose metrics give Riesz legs
-   (neither end is ``None`` and neither is a
-   :class:`~orpheus.numerics.space.DualSpace`), or the operator's adjoint
-   needs no metric
-   (:attr:`~orpheus.numerics.operator.LinearOperator.is_metric_free_adjoint`).
-   A type whose adjoint is a law over other objects overrides it: the
-   dual arrow :math:`A^{\mathsf T}`, whose adjoint is the dagger–dual
-   commutation :math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}`, is
-   posed iff :math:`A` is, whatever its own ``DualSpace`` ends.
+2. **Is the Hilbert adjoint posed?** The free function
+   :func:`~orpheus.numerics.operator.posed` reads two things and nothing
+   else: it is ``True`` iff the operator's adjoint needs no metric
+   (:attr:`~orpheus.numerics.operator.LinearOperator.is_metric_free_adjoint`),
+   or both ends are declared spaces. A declared space always gives Riesz
+   legs, a dual space included, because a dual space carries the inverse
+   form :math:`G^{+}` (:ref:`spaces-dual-space`). No class overrides the
+   posing: the dual arrow :math:`A^{\mathsf T}` is posed by its own dual
+   ends, and its adjoint is the base composition over them.
 
 ``.H`` = ``♯ ∘ dual ∘ ♭`` exists **iff both hold**. The one door is
 :class:`~orpheus.numerics.operator.AdjointOperator`: ``op.H`` refuses
 eagerly, at construction, with
 :class:`~orpheus.numerics.operator.MissingAdjoint` when either answer is
-no, and its message names which (``is UNBOUND`` for a missing end,
-``has a DualSpace end`` for a dual end, or the missing transpose).
+no, and its message names which (``is UNBOUND`` for a missing end, or
+the missing transpose).
 
 Why the dual arrow needs no posing, and the adjoint does
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -794,38 +795,83 @@ the Euclidean transpose under the adjoint's name: the silent reduction
 this page's opening section records for the S\ :sub:`N` composite before
 R5. The door refuses instead.
 
-A ``DualSpace`` end is the second refusal, and it is the subtler one
-(the **G² trap**). A :class:`~orpheus.numerics.space.DualSpace` carries
-its primal's metric :math:`G`, which is the L²-Riesz identification; the
-inner product that the Riesz map induces on the dual is
-:math:`\langle f, g\rangle_{V^{*}} = f^{\mathsf T} G^{-1} g`, so a leg
-built on :math:`V^{*}` would apply :math:`G` where :math:`G^{-1}` is
-required, and :math:`\flat(\flat x)` would read :math:`G^{2}x`. Both leg
-constructors refuse a ``DualSpace`` for that reason
-(:ref:`spaces-riesz-legs`). The two legs themselves, :math:`\flat : V \to
-V^{*}` and :math:`\sharp : V^{*} \to V`, each have a ``DualSpace`` end:
-their transpose is coded (a symmetric :math:`G` is its own transpose, so
-``.dual()`` runs), and their adjoint is not posed, so ``.H`` refuses.
-The repair, a dual space that carries :math:`G^{-1}`, after which
-:math:`\flat^{*} = \sharp` holds as a law, is `#617 <https://github.com/deOliveira-R/ORPHEUS/issues/617>`_. On the dual
-side today, a Hilbert adjoint routes through the dagger–dual
-commutation :math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}`
-on the primal operator, and that is what the dual arrow's own posing
-predicate reads: ``A.dual()`` has ``DualSpace`` ends and is posed exactly
-when ``A`` is, so ``A.dual().H`` opens for a posed ``A`` and refuses for
-an unposed one (the dual of a Riesz leg).
+A dual end needs no refusal. A dual space carries the inverse Riesz form,
+:math:`\langle f, g\rangle_{V^{*}} = f^{\mathsf T} G^{+} g`
+(:ref:`spaces-dual-space`), so its legs are the inverse maps of the
+primal's: :math:`\flat_{V^{*}}` applies :math:`G^{+}` and
+:math:`\sharp_{V^{*}}` applies :math:`G`. The two Riesz legs themselves,
+:math:`\flat : V \to V^{*}` and :math:`\sharp : V^{*} \to V`, are
+therefore posed, and their adjoints are each other,
+:math:`\flat_V^{*} = G^{+} G\, G^{+} = G^{+} = \sharp_V`. The dual arrow
+:math:`A^{\mathsf T} : W^{*} \to V^{*}` is posed by its own ends, and its
+adjoint, the base composition over them, is
+:math:`\sharp_{W^{*}} A\, \flat_{V^{*}} = G_W A G_V^{+}`, the transpose of
+the primal adjoint :math:`G_V^{+} A^{\mathsf T} G_W`. The dagger–dual
+commutation :math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}` is thus a
+theorem of the definitions, computed by two routes and gated as a law
+(``tests/gates/numerics/test_dual_metric.py`` D2 and
+``tests/gates/sn/operators/test_dual_metric_sn.py`` C3, bitwise), never a
+second route of the code.
+
+.. dropdown:: First got wrong — the dual space carried the primal's metric (until 2026-10-21)
+   :color: muted
+
+   Until package S6a of the numerics untangling a ``DualSpace`` threaded
+   its primal's metric :math:`G` (the "L²-Riesz identification"), where
+   the dual side needs :math:`G^{+}`. A lowering leg on :math:`V^{*}`
+   would then have applied :math:`G` twice (the **G² trap**: `[M]`
+   2026-08-30, ``lower_{V*}(lower_V(x)) = [0.25, 4, 16]`` for
+   :math:`w = [0.5, 2, 4]` and :math:`x = \mathbf 1`). The design worked
+   around the wrong metric instead of fixing it: both leg constructors
+   refused a ``DualSpace``, the posing predicate refused a ``DualSpace``
+   end, so the legs' own ``.H`` refused, and a dual-side adjoint was routed
+   through the commutation as an override, ``_DualOperator.adjoint``
+   returning ``self.inner.adjoint().dual()``, with a per-type flag
+   ``is_adjoint_posed`` that the dual arrow overrode with its inner's.
+   Nothing then computed the commutation's left side independently, so the
+   gate that compared the two sides compared one route with itself. The
+   composite duals were worse than wrong-metric: a ``DualSpace`` over a
+   ``FullFieldSpace`` carried no member metrics and paired Euclidean (`[M]`
+   the S6 census, a probe the full-field metric moved by 20.0 moved its
+   dual by 0.0), and an axis-built space compared equal to its dual, so
+   the composition guard accepted ``R @ R.dual()``. S6a gave the dual its
+   own metric (#617), and the refusals, the override, the flag and the
+   duplicate ``AdjointOperator.dual`` retired with the reason for them.
 
 The metric-free exception is a short computation. If :math:`A` commutes
-with every diagonal metric (a pointwise multiplier does), then for
-diagonal :math:`G_V = G_W = G`,
-:math:`G^{-1} A^{\mathsf T} G = A^{\mathsf T} G^{-1} G = A^{\mathsf T}`:
-the adjoint is the transpose whatever the metric, so it is posed with no
-ends at all. The inverse of such an operator commutes with every
-diagonal metric too, so the inverse family inherits the flag from its
-forward (``InverseWrapMixin.is_metric_free_adjoint``), and an
-:class:`~orpheus.numerics.operator.InverseOperator` over an unbound
-:class:`~orpheus.numerics.elementary_operators.DiagonalOperator` has a working
-``.H``.
+with every metric, then for any :math:`G_V = G_W = G`,
+:math:`G^{+} A^{\mathsf T} G = A^{\mathsf T} G^{+} G = A^{\mathsf T}` on
+the metric's range: the adjoint is the transpose whatever the metric, so
+it is posed with no ends at all. The operators that commute with every
+metric are the constant multipliers :math:`cI`, and those are the
+metric-free family,
+:class:`~orpheus.numerics.operator.ConstantMultiplier`
+(:class:`~orpheus.numerics.operator.IdentityOperator`,
+:class:`~orpheus.numerics.operator.ZeroOperator`), whose ``adjoint()``
+returns the operator itself; :class:`~orpheus.numerics.operator.ZeroMorphism`
+(the swapped zero map) is metric-free too, and a composite of metric-free
+operands is metric-free. A field multiplier is not:
+:class:`~orpheus.numerics.elementary_operators.DiagonalOperator` and
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+commute with a diagonal metric and not with a dense one. `[M]` 2026-10-20
+(#625, probe ``scratch/numerics_untangling/packages/S2_gates/probes/p1_pointwise_dense.py``):
+on the exact-binary dense metric of ``test_dense_metric.py`` and
+:math:`D = \mathrm{diag}(1, 2, 3)`,
+:math:`\langle Dx, y\rangle_G = -3.7240` against
+:math:`\langle x, Dy\rangle_G = -3.7187`, a relative miss of
+:math:`1.4\times10^{-3}`. So a spaceless field multiplier's ``.H``
+refuses as unbound, its transpose stays available as ``.dual()``, and a
+bound one (``MultiplicationOperator`` always has its ends) takes the
+sandwich at those ends, which on the shipped diagonal metrics returns the
+multiplier's own values. The inverse family inherits the flag from its
+forward (``InverseWrapMixin.is_metric_free_adjoint``), since the inverse
+of a constant multiplier is one: ``IdentityOperator().inverse().H`` is
+posed with no spaces, and an :class:`~orpheus.numerics.operator.InverseOperator`
+over an unbound :class:`~orpheus.numerics.elementary_operators.DiagonalOperator`
+refuses ``.H`` and opens ``.dual()``. Gates: ``test_dual_metric.py`` Q1 (a
+bound composite with a pointwise term on a dense metric), Q2 (a constant
+multiplier is its own adjoint on any metric), Q2b (a field multiplier has
+no spaceless adjoint).
 
 .. list-table:: The four states of the two predicates, and the two doors
    :header-rows: 1
@@ -842,15 +888,17 @@ forward (``InverseWrapMixin.is_metric_free_adjoint``), and an
      - opens
      - the S\ :sub:`N` loss leaves and sums, the 1-D sweeps (DD, LD, the
        product-quadrature cylinder) and the dual arrow of the slab sweep,
-       the fission composite, the frame faces, the inverses (one of them
-       over a product with a scaled factor), the 1-D Green
+       the fission composite, the frame faces, the bound inverses, the
+       1-D Green, the two Riesz legs and the dual arrow of the lowering
+       leg
    * - ``True``
      - ``False``
      - opens
      - refuses
-     - the Riesz legs (a ``DualSpace`` end) and the dual arrow of one of
-       them; the rank-one dyad :func:`~orpheus.numerics.elementary_operators.outer`
-       and the tensor product it builds, whose ends are ``None``
+     - the rank-one dyad :func:`~orpheus.numerics.elementary_operators.outer`
+       and the tensor product it builds, the inverse of an unbound
+       diagonal and the inverse of :math:`D\,(2D)` over it: every one has
+       ``None`` ends and is not metric-free
    * - ``False``
      - ``True``
      - refuses
@@ -863,11 +911,15 @@ forward (``InverseWrapMixin.is_metric_free_adjoint``), and an
      - refuses
      - no registry row
 
-`[M]` 2026-10-19, the 51 rows of
-``tests/gates/numerics/test_adjointability_is_honest.py``'s registry,
-built and probed one by one (both doors applied to a codomain sample):
-35 rows open both doors, 5 open ``.dual()`` and refuse ``.H``, 9 refuse
-both, and 2 read ``True``, ``True`` while ``.H.apply`` fails. The last 2
+`[M]` 2026-10-21, the 51 rows of
+``tests/gates/numerics/test_adjointability_is_honest.py``'s registry
+built on the S6 worktree and their two predicates read (the archivist's
+probe): 38 rows read ``True``, ``True``, 4 read ``True``, ``False`` and 9
+read ``False``, ``True``. Of the 38, 2 read ``True``, ``True`` while
+``.H.apply`` fails. The S6a change moved the 3 Riesz-leg rows from
+``True``, ``False`` to ``True``, ``True`` and the 2 unbound field-multiplier
+inverses the other way (the gate's door-by-door measurement of
+2026-10-19 read 35, 5, 9 and 2 before it). The last 2
 (the assembled diffusion leakage and the diffusion resolvent) and 4 of
 the 9 (the diffusion leaf operators, whose
 transpose the assembled matrix realises while their flag reads
@@ -928,7 +980,8 @@ it is invertible and its inverse transposes (the private
 factor whose inverse is a first-class forward, a scaled operator or a
 permutation, therefore qualifies although it has no native transposed
 solve: `[M]` 2026-10-19, the gate row ``(D @ 2D)⁻¹`` over an unbound
-diagonal opens both doors. A one-term combination :math:`cA` itself has
+diagonal opens ``.dual()`` (its ``.H`` refuses as unbound, because a field
+multiplier is not metric-free). A one-term combination :math:`cA` itself has
 no native ``solve_transpose``; one is owed when a scaled block first sits
 on a coupled grid's diagonal, which reads the native predicate.
 
@@ -980,7 +1033,9 @@ is: both parts transpose, and the dual of :math:`M` is invertible.
 The Green does **not** override the Hilbert adjoint. ``G.H`` is the
 base's ``♯ ∘ G.dual() ∘ ♭`` through the one door, posed by the Green's own
 ends. The first identity, :math:`((M - N)^{-1})^{*} = (M^{*} - N^{*})^{-1}`,
-still holds, and it is what the honesty gate uses as its **independent**
+holds as a theorem modulo the kernel of a degenerate end metric (ruling
+76 of ``.claude/plans/numerics_untangling.md``; :ref:`spaces-quotient`),
+and it is what the honesty gate uses as its **independent**
 witness for the Green row: a Green built over the parts' ``.H``, compared
 with ``G.H`` by reciprocity. When the Green carried an ``adjoint()``
 override built from that same formula, the witness was the override's
@@ -1084,8 +1139,11 @@ Gotchas
    :math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}`: `[M]` 2026-10-18,
    qa's census, 52 of 308 rows were dual arrows whose ``.H`` opened while
    the end-reading predicate said unposed. Posing became a predicate on
-   the type, ``is_adjoint_posed``, which the dual arrow overrides with its
-   inner's.
+   the type, ``is_adjoint_posed``, which the dual arrow overrode with its
+   inner's. Both definitions retired on 2026-10-21 (S6a), when the dual
+   space came to carry :math:`G^{+}`: the dual arrow's ends then give Riesz
+   legs of their own, and ``posed`` reads only the ends and the
+   metric-free flag.
 
 The honesty gate, ``tests/gates/numerics/test_adjointability_is_honest.py``
 (``foundation``), pins both directions over the registry.

@@ -400,21 +400,23 @@ def test_has_coordinate_cone_is_None_on_a_legacy_space() -> None:
     )
 
 
-def test_dual_of_an_axis_built_space_keeps_the_measure() -> None:
-    """The dual carries the SAME metric as the primal (L²-Riesz) — for an
-    axis-built primal that means the axes record threads through
-    ``dual()``; dropping it would silently strip the measure from every
-    adjoint built against the dual."""
+def test_dual_of_an_axis_built_space_reads_the_measure_through_its_primal() -> None:
+    """The dual of an axis-built space carries the inverse form G⁻¹ (S6a,
+    ruling 26): it holds no axes record of its own (the primal is its
+    content), so the measure reaches it through ``primal``, and its metric
+    divides by the axis weights. Until S6a the dual threaded the axes record
+    and applied G; that was the "dual carries G" this row pinned."""
     w = np.array([2.0, 4.0])
     space = FunctionSpace.of_axes(
         Axis("a", (2,), weights=w, kind=BasisKind.NODAL)
     )
     dual = space.dual()
-    _require(dual.axes == space.axes, "dual() must thread the axes record")
+    _require(dual.axes is None, "the dual must not copy the axes record")
+    _require(getattr(dual, "primal", None) is space, "the dual's primal must be the space")
     x = np.array([1.0, 1.0])
     _require(
-        bool(np.array_equal(dual.apply_metric(x), w)),
-        "the dual's metric must equal the primal's",
+        bool(np.array_equal(dual.apply_metric(x), x / w)),
+        "the dual's metric must be the primal's inverse form",
     )
 
 

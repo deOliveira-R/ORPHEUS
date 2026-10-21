@@ -680,9 +680,10 @@ def test_c24_sum_adjoint_reciprocity_on_weighted_spaces():
 @pytest.mark.verifies("composite-adjoint-at-the-ends")
 @pytest.mark.rests_on(_HERE + "::test_c24_sum_adjoint_reciprocity_on_weighted_spaces")
 def test_c25_spaceless_term_adjoint_is_taken_at_the_combinations_spaces():
-    """Q1's witness. On ``VD`` (a dense, non-diagonal metric) a pointwise
-    ``D`` has ``D.H is D``, which is NOT its adjoint there; inside ``D + A``
-    its adjoint must be taken at the combination's spaces. `[M]` 2026-10-20
+    """Q1's witness. ``D`` is spaceless: it acts on coordinates, where
+    ``D.H is D`` is a theorem (#625, narrowed at S6a). Inside ``D + A`` on
+    ``VD`` (a dense, non-diagonal metric) the adjoint is taken at the
+    combination's spaces, never through the term's own ``.H``. `[M]` 2026-10-20
     (probe ``S2_gates/probes/p1_pointwise_dense.py``): today's whole-sum
     route holds to 2.1e-16 relative, the naive ``D.H + A.H`` misses by
     1.26e-3. Green today; red under ADJ_NAIVE."""

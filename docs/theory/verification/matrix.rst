@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19440**
+Total tests collected: **19595**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1913, 9.8%
-   L1, 2758, 14.2%
+   L1, 2758, 14.1%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14647, 75.3%
+   foundation, 14802, 75.5%
    unmarked, 37, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19324
+   explicit, 19479
    class-name, 46
    func-name, 0
    case, 33
@@ -419,6 +419,7 @@ Module × level grid
    numerics/test_dense_metric, 0, 0, 0, 0, 14, 0
    numerics/test_descent, 0, 0, 0, 0, 20, 0
    numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
+   numerics/test_dual_metric, 0, 0, 0, 0, 85, 0
    numerics/test_eigenvalue, 0, 39, 0, 0, 0, 0
    numerics/test_enclosure, 0, 0, 0, 0, 38, 0
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 4, 0
@@ -471,6 +472,7 @@ Module × level grid
    numerics/test_power_iteration_record, 0, 0, 0, 0, 30, 0
    numerics/test_quadrature_directional, 0, 0, 0, 0, 78, 0
    numerics/test_question, 0, 0, 0, 0, 66, 0
+   numerics/test_quotient_metric, 0, 0, 0, 0, 32, 0
    numerics/test_registry, 0, 0, 0, 0, 111, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
    numerics/test_registry_rule_list, 0, 0, 0, 0, 12, 1
@@ -522,6 +524,7 @@ Module × level grid
    operators/test_collision_operator, 0, 0, 0, 0, 54, 0
    operators/test_deck_kernel, 0, 60, 0, 0, 0, 0
    operators/test_declared_law_is_linear, 0, 0, 0, 0, 15, 0
+   operators/test_dual_metric_sn, 0, 0, 0, 0, 16, 0
    operators/test_fission_adjoint, 0, 0, 0, 0, 13, 0
    operators/test_fission_adjoint_route, 0, 0, 0, 0, 4, 0
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
@@ -551,6 +554,7 @@ Module × level grid
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
    operators/test_psi_half_coupling, 0, 2, 0, 0, 89, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
+   operators/test_quotient_adjoint_sn, 0, 0, 0, 0, 22, 0
    operators/test_radial_characteristic_cylinder_arm, 5, 0, 0, 0, 0, 0
    operators/test_radial_characteristic_metric, 0, 0, 0, 0, 19, 0
    operators/test_ray_operator, 0, 6, 0, 0, 0, 0

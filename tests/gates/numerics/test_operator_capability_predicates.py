@@ -160,9 +160,11 @@ def test_product_predicates_recursive_and_faithful():
 
 def test_scaled_and_adjoint_predicates_faithful():
     """Scaling (α≠0) passes the predicates through. Two adjoint regimes
-    since the S4-amendment's pointwise family: a POINTWISE member's ``.H``
-    is itself (metric-free self-adjointness — the wrapper is never built,
-    so the #280-deferred wrapper branches dissolve for the family), while
+    since the S4-amendment's pointwise family: a CONSTANT multiplier's ``.H``
+    is itself (``cI`` commutes with every metric; the wrapper is never
+    built), while a spaceless FIELD multiplier has no Hilbert adjoint of its
+    own (#625, S6a review: it commutes only with diagonal metrics, so its
+    ``.H`` refuses as unbound and its transpose is ``.dual()``), while
     the generic ``AdjointOperator`` wrapper — pinned here by direct
     construction — keeps its CONDITIONAL swap law (#280 2.5c): False for
     this inner because the bound leaf's inverse (``InverseOperator``) is
@@ -176,9 +178,15 @@ def test_scaled_and_adjoint_predicates_faithful():
     sc = 2.0 * DiagonalOperator(_C)
     assert sc.is_invertible is True and sc.is_adjointable is True
 
+    from orpheus.numerics.operator import IdentityOperator, MissingAdjoint
+
+    i = IdentityOperator()
+    assert i.H is i  # the constant-multiplier law: no wrapper, full predicates
+    assert i.H.is_invertible is True and i.H.is_adjointable is True
     d = DiagonalOperator(_C)
-    assert d.H is d  # the pointwise family law: no wrapper, full predicates
-    assert d.H.is_invertible is True and d.H.is_adjointable is True
+    assert d.is_adjointable is True  # the transpose is coded ...
+    with pytest.raises(MissingAdjoint, match="UNBOUND"):
+        _ = d.H  # ... but a spaceless field multiplier's Hilbert adjoint is not posed
 
     leaf = _BoundDiagonalLeaf(_C)
     adj = AdjointOperator(leaf)  # the generic wrapper

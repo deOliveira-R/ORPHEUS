@@ -308,8 +308,12 @@ transpose, and no driver module spells a transpose (0 of 24
 ``apply_transpose`` call sites, 2026-09-21). The adjoint needs both
 ends, which is why it exists only for a **bound operator**, one
 constructed with its domain and codomain declared
-(:ref:`bound-operator`), with one exemption: the metric-free pointwise
-stratum, whose transpose needs no metric.
+(:ref:`bound-operator`), with one exemption: the constant multipliers
+:math:`cI`, which commute with every metric, so their transpose is their
+adjoint on any space. The dual space :math:`V^{*}` carries the inverse
+Riesz form :math:`G^{+}` and is distinct from :math:`V`
+(:ref:`spaces-dual-space`), and a degenerate metric is an inner product on
+the quotient :math:`V/\ker G` (:ref:`spaces-quotient`).
 
 
 Symmetry and quotient

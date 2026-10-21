@@ -1253,8 +1253,8 @@ a capability of the forward beside ``is_invertible`` and
 ``solve_transpose`` is the forward's ``apply_transpose`` and its
 ``is_transpose_invertible`` is the forward's ``is_adjointable``. The
 mixin also passes the forward's ``is_metric_free_adjoint`` through, since
-an operator that commutes with every diagonal metric has an inverse that
-does too. ``.H`` itself stays the base's ``♯ ∘ dual ∘ ♭``, built when the
+an operator that commutes with every metric (a constant multiplier
+:math:`cI`) has an inverse that does too. ``.H`` itself stays the base's ``♯ ∘ dual ∘ ♭``, built when the
 transpose exists and the adjoint is posed
 (:ref:`operator-adjoint-two-questions`). Two siblings override the law:
 :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`

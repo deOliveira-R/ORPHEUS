@@ -815,40 +815,20 @@ class LinearOperator(Protocol[Domain, Codomain]):
         return False
 
     @property
-    def is_adjoint_posed(self) -> bool:
-        r"""Whether this operator's Hilbert adjoint :math:`A^{*}` is POSED (read through :func:`posed`).
-
-        The second transpose question beside :attr:`is_adjointable`, and like
-        every predicate here computed from structure, overridden where a
-        class's adjoint is a law rather than the base door. The base answer:
-        both ends' metrics give Riesz legs, i.e. both ends are declared and
-        neither is a :class:`~orpheus.numerics.space.DualSpace` (the G² trap,
-        ``numerics_untangling.md`` ruling 26), or the adjoint needs no metric
-        (:attr:`is_metric_free_adjoint`). :class:`_DualOperator` overrides it:
-        its adjoint is the dagger–dual commutation
-        :math:`(A^{\mathsf T})^{*} = (A^{*})^{\mathsf T}`, posed exactly when
-        its inner's is, whatever its own (dual) ends.
-        """
-        return _ends_give_riesz_legs(self)
-
-    @property
     def is_metric_free_adjoint(self) -> bool:
         r"""Whether this operator's Hilbert adjoint needs NO metric — i.e.
-        its Euclidean transpose IS its Hilbert adjoint in every shipped
-        (diagonal) inner product.
+        it equals its own Euclidean transpose under EVERY inner product.
 
-        ``True`` exactly on the pointwise/multiplier stratum and its
-        compositions: a real multiplier commutes with every diagonal
-        metric, and sums/products/scalings of metric-free operators stay
-        metric-free (for a composite only the END metrics enter the
-        adjoint sandwich — interior metrics cancel — so all-metric-free
-        composites keep the Euclidean identity). The S4-amendment's
-        unbound-``.H`` refusal reads this: an UNBOUND operator may take
-        ``.H`` iff this is ``True``, because then and only then is the
-        Euclidean fallback the honest answer rather than the R2 hazard.
-        Default ``False``; :class:`PointwiseOperator` overrides ``True``;
-        composites derive recursively (the module's predicate
-        discipline — computed from operands, never cached).
+        ``True`` on the constant multipliers :math:`cI`
+        (:class:`ConstantMultiplier`), which commute with every metric, and
+        on the bound classes whose adjoint is a metric-free law
+        (:class:`ZeroMorphism`'s swapped zero); composites derive it
+        recursively (the module's predicate discipline — computed from
+        operands, never cached). A field multiplier is NOT metric-free: it
+        commutes only with diagonal metrics (issue #625). The adjoint door
+        reads this: an UNBOUND operator may take ``.H`` iff this is
+        ``True``, because then and only then is the transpose the honest
+        answer rather than the R2 hazard. Default ``False``.
         """
         return False
 
@@ -1042,7 +1022,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
         MissingAdjoint
             **Eagerly, here at construction** when this operator is not
             :attr:`is_adjointable`, or when its adjoint is not
-            :func:`posed` (an unbound end, a ``DualSpace`` end; the
+            :func:`posed` (an unbound end; the
             refusal is :class:`AdjointOperator`'s) — a wrapper that
             could only fail at its first ``.apply`` is the broken-stub
             anti-pattern this module refuses. The :func:`adjointable`
@@ -1355,33 +1335,19 @@ def transpose_invertible(
 def posed(op: "LinearOperator[Domain, Codomain]") -> bool:
     r"""Whether ``op``'s Hilbert adjoint :math:`A^{*} = \sharp_V A^{\mathsf T} \flat_W` is POSED.
 
-    The free-function reader of :attr:`~LinearOperator.is_adjoint_posed`,
-    beside :func:`adjointable` (which answers only whether a Euclidean
-    transpose is coded, so ``.dual()`` runs): ``.H`` exists iff both hold.
-    The adjoint is defined by the two inner products, so at the base it is
-    posed exactly when the Riesz legs of both ends exist: both ends are
-    declared, and neither is a :class:`~orpheus.numerics.space.DualSpace`
-    (which carries its primal's metric :math:`G` where the dual side needs
-    :math:`G^{-1}`, so the legs refuse it: the G² trap,
-    ``numerics_untangling.md`` ruling 26). An operator whose adjoint needs no
-    metric (:attr:`~LinearOperator.is_metric_free_adjoint`) is posed whatever
-    its ends, and the dual arrow is posed when its inner is (its adjoint is
-    the dagger–dual commutation). The adjoint door (:class:`AdjointOperator`)
-    reads this one predicate. An operand typed only by a narrower protocol
-    that does not carry the attribute is judged by its ends.
+    The free-function reader beside :func:`adjointable` (which answers only
+    whether a Euclidean transpose is coded, so ``.dual()`` runs): ``.H``
+    exists iff both hold. The adjoint is defined by the two inner products,
+    so it is posed exactly when the Riesz legs of both ends exist: both ends
+    are declared spaces, primal or dual alike (a dual space carries the
+    inverse Riesz form, numerics_untangling.md ruling 26), or the operator's
+    adjoint needs no metric (:attr:`~LinearOperator.is_metric_free_adjoint`).
+    The adjoint door (:class:`AdjointOperator`) reads this one predicate.
     """
-    is_posed = getattr(op, "is_adjoint_posed", None)
-    return _ends_give_riesz_legs(op) if is_posed is None else bool(is_posed)
-
-
-def _ends_give_riesz_legs(op: Any) -> bool:
-    r"""The base posing: metric-free, or both ends declared primal spaces."""
-    from orpheus.numerics.space import DualSpace
-
     if getattr(op, "is_metric_free_adjoint", False):
         return True
     ends = (getattr(op, "domain", None), getattr(op, "codomain", None))
-    return all(end is not None and not isinstance(end, DualSpace) for end in ends)
+    return all(end is not None for end in ends)
 
 
 def _inverse_transposes(op: "LinearOperator[Domain, Codomain]") -> bool:
@@ -1425,16 +1391,15 @@ class RieszLowerOperator(LinearOperator[Domain, Domain], Generic[Domain]):
     Constructed by :class:`~orpheus.numerics.operator.RieszLowerOperator`
     and by :class:`AdjointOperator` (whose codomain-side factor this is).
 
-    ⛔ **PRIMAL spaces only.** A :class:`~orpheus.numerics.space.DualSpace`
-    deliberately carries its PRIMAL's metric (L²-Riesz threading, P7 S2),
-    so a lowering leg built on ``V*`` would apply ``G`` where the honest
-    dual-side map applies ``G⁻¹`` — the measured ``G²`` trap
-    (`[M]` 2026-08-30: ``lower_{V*}(lower_V(x)) = [0.25, 4, 16]`` for
-    ``w = [0.5, 2, 4]``, where the double-Riesz involution must return
-    ``x``). The constructor REFUSES a dual space, making the wrong
-    composition unspellable; dual-side adjoints route through the
-    dagger–dual commutation ``(A.dual()).H = (A.H).dual()`` instead
-    (:meth:`_DualOperator.adjoint`).
+    **On a dual space** the leg is the inverse map: a
+    :class:`~orpheus.numerics.space.DualSpace` carries the inverse Riesz form
+    :math:`G^{+}` (numerics_untangling.md ruling 26, issue #617), so
+    ``RieszLowerOperator(V*)`` : :math:`V^* \to V^{**} = V` applies
+    :math:`G^{+}`, and ``lower_{V*}(lower_V(x))`` is :math:`x` on the
+    metric's range. Until 2026-10-21 a dual space carried :math:`G` itself,
+    so this composition applied :math:`G^2` (`[M]` 2026-08-30:
+    ``[0.25, 4, 16]`` for ``w = [0.5, 2, 4]``) and the constructor refused
+    dual spaces.
 
     ``apply_transpose`` is ``apply``: every shipped metric realization is
     symmetric (a diagonal weight; a :class:`DenseMetric` admitted only
@@ -1443,18 +1408,6 @@ class RieszLowerOperator(LinearOperator[Domain, Domain], Generic[Domain]):
     """
 
     def __init__(self, space: "FunctionSpace") -> None:
-        from orpheus.numerics.space import DualSpace
-
-        if isinstance(space, DualSpace):
-            raise TypeError(
-                f"RieszLowerOperator on a DualSpace ({space.name!r}) — the "
-                f"Riesz legs live on the PRIMAL space only. A DualSpace "
-                f"carries its primal's metric (L²-Riesz), so ♭ on V* would "
-                f"apply G where the dual-side map needs G⁻¹ (the G² trap). "
-                f"Build the legs on the primal (RieszLowerOperator(V), "
-                f"RieszRaiseOperator(V)), or use the "
-                f"dagger–dual commutation (A.dual()).H = (A.H).dual()."
-            )
         self.space: Final = space
 
     @property
@@ -1475,11 +1428,8 @@ class RieszLowerOperator(LinearOperator[Domain, Domain], Generic[Domain]):
     @property
     def is_adjointable(self) -> bool:
         # The transpose is coded (``apply_transpose``: a symmetric G is its
-        # own transpose), so ``.dual()`` runs. ``.H`` is not POSED
-        # (:func:`posed`): the codomain is a ``DualSpace``, which carries the
-        # primal's G where the dual side needs G⁻¹, so the adjoint door
-        # refuses it until the dual-metric repair (``numerics_untangling.md``
-        # ruling 26) makes it the law ♭ᴴ = ♯.
+        # own transpose), so ``.dual()`` runs, and ``.H`` is posed on both
+        # ends (the codomain V* carries G⁺, ruling 26): the law ♭ᴴ = ♯.
         return True
 
 
@@ -1503,21 +1453,12 @@ class RieszRaiseOperator(LinearOperator[Domain, Domain], Generic[Domain]):
     round-trip trace defect ``2.87``; every strictly-positive fixture
     reads ``≤ 4.4e-16``).
 
-    Same primal-only refusal, same symmetric-transpose identity, and the
-    same construction sites as :class:`RieszLowerOperator` (its exact
-    mirror — the domain-side factor of :class:`AdjointOperator`).
+    The same symmetric-transpose identity and the same construction sites as
+    :class:`RieszLowerOperator` (its exact mirror — the domain-side factor of
+    :class:`AdjointOperator`); on a dual space it applies :math:`G`.
     """
 
     def __init__(self, space: "FunctionSpace") -> None:
-        from orpheus.numerics.space import DualSpace
-
-        if isinstance(space, DualSpace):
-            raise TypeError(
-                f"RieszRaiseOperator on a DualSpace ({space.name!r}) — the "
-                f"Riesz legs live on the PRIMAL space only (see "
-                f"RieszLowerOperator: the G² trap). Compose the primal's "
-                f"legs, or use (A.dual()).H = (A.H).dual()."
-            )
         self.space: Final = space
 
     @property
@@ -1537,8 +1478,8 @@ class RieszRaiseOperator(LinearOperator[Domain, Domain], Generic[Domain]):
 
     @property
     def is_adjointable(self) -> bool:
-        # As for ♭ (:class:`RieszLowerOperator`): the transpose is coded;
-        # ``.H`` is not posed on the ``DualSpace`` domain (ruling 26).
+        # As for ♭ (:class:`RieszLowerOperator`): the transpose is coded,
+        # and ``.H`` is posed on both ends (ruling 26): ♯ᴴ = ♭.
         return True
 
 
@@ -1562,10 +1503,10 @@ class _DualOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[Do
       inner: object identity);
     * transpose of the dual is the inner's action —
       :meth:`apply_transpose` delegates to ``inner.apply``;
-    * dagger–dual commutation — ``(A.dual()).H = (A.H).dual()``
-      (:meth:`adjoint` routes there), which is what makes a dual-side
-      Hilbert adjoint expressible WITHOUT Riesz legs on dual spaces
-      (those are refused — the G² trap).
+    * dagger–dual commutation — ``(A.dual()).H = (A.H).dual()``, a theorem
+      once each dual space carries the inverse Riesz form (ruling 26): the
+      dual arrow's adjoint is the base sandwich on its dual ends, and the
+      commutation is gated as a law, not taken as a second route.
     """
 
     def __init__(self, inner: "SupportsAdjoint[Domain, Codomain]") -> None:
@@ -1596,12 +1537,6 @@ class _DualOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[Do
     def is_adjointable(self) -> bool:
         return True
 
-    @property
-    def is_adjoint_posed(self) -> bool:
-        # (Aᵀ)* = (A*)ᵀ (:meth:`adjoint`): posed iff the inner's adjoint is,
-        # whatever the dual ends this arrow carries.
-        return posed(self.inner)
-
     def dual(self) -> "LinearOperator[Domain, Codomain]":
         # Involution as OBJECT IDENTITY: (Aᵀ)ᵀ = A.
         return self.inner  # type: ignore[return-value]
@@ -1629,20 +1564,6 @@ class _DualOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[Do
                 f"invertible and its inverse adjointable."
             )
         return self.inner.inverse().dual()
-
-    def adjoint(self) -> "LinearOperator[Domain, Codomain]":
-        r"""The dagger–dual commutation: ``(A.dual()).H = (A.H).dual()``.
-
-        A dual arrow's Hilbert adjoint under the honest dual metrics
-        (``G⁻¹`` on each dual space) is `[M]`-checkably the dual of the
-        primal adjoint: :math:`(A^{\mathsf T})^{*} = G_W A G_V^{+} =
-        ((A^{*})^{\mathsf T})`. Routing through the primal side keeps the
-        Riesz legs primal-only (their constructors refuse dual spaces)
-        rather than teaching :class:`~orpheus.numerics.space.DualSpace` a
-        second metric.
-        """
-        return self.inner.adjoint().dual()  # type: ignore[return-value]
-
 
 class AdjointOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):
     r"""The Hilbert-adjoint ARROW :math:`A^{*} : W \to V` — first-class.
@@ -1714,27 +1635,15 @@ class AdjointOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[
         # own broken-stub-refusing style. The metric-free families never
         # reach this constructor: a PointwiseOperator's adjoint() returns
         # itself, ZeroMorphism's the swapped zero map.
-        from orpheus.numerics.space import DualSpace
-
-        # The door reads ONE predicate, :func:`posed`, whose second refusal
-        # is a ``DualSpace`` end (the G² trap: the legs refuse it, ruling 26).
+        # The door reads ONE predicate, :func:`posed`.
         if not posed(inner):
-            if isinstance(inner.domain, DualSpace) or isinstance(inner.codomain, DualSpace):
-                raise MissingAdjoint(
-                    f"{type(inner).__name__} has a DualSpace end — its Hilbert "
-                    f"adjoint needs the dual space's own metric G⁻¹, which a "
-                    f"DualSpace does not carry yet (it carries the primal's "
-                    f"G; numerics_untangling.md ruling 26). Use .dual() for "
-                    f"the transpose, or the dagger–dual commutation "
-                    f"(A.dual()).H = (A.H).dual() on the primal operator."
-                )
             raise MissingAdjoint(
                 f"{type(inner).__name__} is UNBOUND (domain/codomain "
                 f"None) — the Hilbert adjoint needs the two spaces' "
                 f"metrics; declare both, or use apply_transpose for the "
-                f"bare representation transpose. (A space-polymorphic "
-                f"multiplier belongs in PointwiseOperator, whose adjoint "
-                f"is metric-free.)"
+                f"bare representation transpose. (A constant multiplier, "
+                f"ConstantMultiplier, is metric-free; a field multiplier "
+                f"needs the space whose metric it meets.)"
             )
         self.inner = inner
         # The G-adjoint transposes the 2×2 block matrix (A_bs ↔ A_sb^T),
@@ -1821,14 +1730,6 @@ class AdjointOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[
         transpose raised.)
         """
         return self.inner  # type: ignore[return-value]
-
-    def dual(self) -> "LinearOperator[Domain, Codomain]":
-        r"""``(A.H).dual() = (A.dual()).H`` — the dagger–dual commutation,
-        routed as the adjoint of the dual (see
-        :meth:`_DualOperator.adjoint`, the other direction of the same
-        square). Spelled here to keep the two spellings one object family
-        rather than a generic :class:`_DualOperator` over an adjoint."""
-        return _DualOperator(self)  # type: ignore[return-value]
 
     @property
     def is_invertible(self) -> bool:
@@ -2596,13 +2497,22 @@ class PointwiseOperator(LinearOperator[Domain, Domain]):
       law unchanged ("an operand that declares nothing contributes
       nothing" — :func:`_agreed_space`): a pointwise operand CONFORMS to
       its neighbours' space, which is precisely its naturality.
-    * **The Hilbert adjoint is metric-free:** ``A.H is A``. A real
-      multiplier commutes with every diagonal metric (pointwise
-      multiplications commute), so the metric sandwich cancels
-      identically and :meth:`adjoint` returns ``self`` — algebra-closed,
-      no :class:`AdjointOperator` wrapper, no spaces needed. This is
-      what makes the family's exemption from the unbound-``.H`` refusal
-      exact rather than permissive. (Real coefficients throughout —
+    * **The transpose is the operator:** ``A.dual()`` acts as ``A``
+      (each output entry depends only on the same input entry), so every
+      member is adjointable in the Euclidean sense.
+    * **The Hilbert adjoint needs a metric only for a FIELD.** A constant
+      multiplier :math:`cI` commutes with every metric
+      (:math:`G\,(cI) = (cI)\,G`), so its Hilbert adjoint is itself on any
+      space, with no spaces needed: :class:`ConstantMultiplier`
+      (:class:`IdentityOperator`, :class:`ZeroOperator`) is metric-free and
+      ``A.H is A``. A field multiplier
+      (:class:`~orpheus.numerics.elementary_operators.DiagonalOperator`)
+      commutes only with DIAGONAL metrics, so on a dense-metric space its
+      Hilbert adjoint is :math:`G^{+} D G \ne D` (`[M]` issue #625: a
+      1.4e-3 reciprocity miss on a 3×3 dense metric); a spaceless member has
+      no metric to take it against, so its ``.H`` refuses, and it meets a
+      metric only inside a composite whose bound ends pose the adjoint
+      (numerics_untangling.md ruling 53). (Real coefficients throughout —
       the complexification thread revisits at Campaign 2's resolvent.)
 
     The boundary of the family is the commutation theorem, not
@@ -2627,27 +2537,36 @@ class PointwiseOperator(LinearOperator[Domain, Domain]):
 
     @property
     def is_adjointable(self) -> bool:
-        return True  # every real multiplier is self-adjoint (class law)
+        return True  # the Euclidean transpose of a real multiplier is itself
+
+
+class ConstantMultiplier(PointwiseOperator[Domain]):
+    r"""Multiplication by a constant :math:`c`, the scalar multiples of the
+    identity: the pointwise members whose Hilbert adjoint needs no metric.
+
+    :math:`cI` commutes with every metric, :math:`G\,(cI) = (cI)\,G`, so the
+    sandwich :math:`\sharp\,(cI)^{\mathsf T}\,\flat = G^{+}cG = cI` on the
+    metric's range, on any space, and the adjoint is the operator itself:
+    ``A.H is A``, algebra-closed, with no spaces needed (issue #625: the
+    law holds for constants, not for a field).
+    """
 
     @property
     def is_metric_free_adjoint(self) -> bool:
-        return True  # the family law — commutes with every diagonal metric
+        return True  # cI commutes with every metric
 
-    def adjoint(self) -> "PointwiseOperator[Domain]":
-        r"""``A^* = A`` — a real multiplier commutes with every diagonal
-        metric, so the Hilbert adjoint IS the operator, in every shipped
-        inner product. Algebra-closed (returns ``self``); the generic
-        metric-sandwich wrapper is never built for a pointwise member."""
+    def adjoint(self) -> "ConstantMultiplier[Domain]":
+        r"""``(cI)^* = cI`` — this very instance."""
         return self
 
 
-class IdentityOperator(PointwiseOperator[Domain]):
+class IdentityOperator(ConstantMultiplier[Domain]):
     r"""The identity operator :math:`I\,x = x` — multiplication by ``1``,
     the pointwise family's unit (:class:`PointwiseOperator`).
 
     Both axes hold trivially — :math:`I^{-1} = I` and :math:`I^* = I` —
     and both are ALGEBRA-CLOSED: :meth:`inverse` and the inherited
-    pointwise :meth:`~PointwiseOperator.adjoint` each return this very
+    :meth:`~ConstantMultiplier.adjoint` each return this very
     instance, so there is no ``solve`` verb to keep (solving with the
     identity IS applying its inverse, itself).
     """
@@ -2669,7 +2588,7 @@ class IdentityOperator(PointwiseOperator[Domain]):
 
 
 
-class ZeroOperator(PointwiseOperator[Domain]):
+class ZeroOperator(ConstantMultiplier[Domain]):
     r"""The ENDOMORPHIC zero :math:`0\,x = 0` — multiplication by ``0``,
     the pointwise family's absorbing element (:class:`PointwiseOperator`).
 
@@ -2678,8 +2597,8 @@ class ZeroOperator(PointwiseOperator[Domain]):
     which is correct precisely because a pointwise member is an
     endomorphism there (``domain == codomain == the operand's space``,
     by the family law). ``apply_transpose`` is the same map
-    (:math:`0^{\mathsf T} = 0`), and the inherited pointwise
-    :meth:`~PointwiseOperator.adjoint` returns ``self``.
+    (:math:`0^{\mathsf T} = 0`), and the inherited
+    :meth:`~ConstantMultiplier.adjoint` returns ``self``.
 
     STRUCTURALLY non-invertible — the singular map par excellence — so it
     declares no ``inverse()`` at all: misuse is a static error, the

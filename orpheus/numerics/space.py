@@ -68,6 +68,7 @@ References
 
 from __future__ import annotations
 
+from functools import cached_property
 from dataclasses import dataclass, field, replace
 from typing import Any, Generic, Optional, TypeVar
 
@@ -79,8 +80,10 @@ from .content import name_digest
 from .metric import (
     DenseMetric,
     DiagonalMetric,
+    DualMetric,
     FactoredMetric,
     HilbertMetric,
+    PositionedMetric,
 )
 
 
@@ -314,6 +317,14 @@ class FunctionSpace(Generic[Carrier]):
             return NotImplemented
         if other is self:
             return True
+        # Covariance is identity (numerics_untangling.md ruling 75): a dual
+        # space V* is never its primal V, whatever their shapes and axes.
+        if isinstance(other, DualSpace) or isinstance(self, DualSpace):
+            return (
+                isinstance(self, DualSpace)
+                and isinstance(other, DualSpace)
+                and self.primal == other.primal
+            )
         # The identity flip (structural ``__eq__``, CS4c step 6, 2026-09-07):
         # an axis-built space IS its axis tuple. ``Axis.__eq__`` compares
         # (type, label, shape, kind, weights bytes) — never ``generator`` —
@@ -491,7 +502,7 @@ class FunctionSpace(Generic[Carrier]):
         """
         assert self.axes is not None  # narrowing only: callers are axis-built
         if isinstance(self.metric, FactoredMetric):
-            return tuple(form for _, form in self.metric.entries)
+            return _overlay_leaf_forms(self.metric)
         return (None,) * len(self.axes)
 
     def _axis_block(self, k: int) -> DiagonalMetric | DenseMetric | None:
@@ -681,6 +692,34 @@ class FunctionSpace(Generic[Carrier]):
         return m.apply_inverse(x)
 
     @property
+    def rank(self) -> int:
+        r"""The dimension of :math:`V / \ker G`, on which this space's inner
+        product is non-degenerate (numerics_untangling.md ruling 74): the
+        element size when the metric is non-degenerate (or Euclidean), less
+        when it has a kernel (the tangential trace slots, dead moment-head
+        slots, a rank-deficient Parseval head). The adjoint is posed on the
+        quotient, so its laws hold modulo the kernel."""
+        metric = self._resolved_metric
+        if metric is None:
+            return int(np.prod(self.shape)) if self.shape else 1
+        return metric.rank(self.shape)
+
+    def project_live(self, x: Carrier) -> Carrier:
+        r"""The G-orthogonal projector onto the live part, :math:`P = G^{+}G`.
+
+        :math:`P` is the orthogonal projector onto :math:`\operatorname{range} G
+        = (\ker G)^{\perp}`; it is the identity on a non-degenerate space (to
+        rounding: `[M]` at most 2.7e-16 relative, the two metric faces applied
+        in turn) and zeroes the kernel coordinates of a degenerate one. Two elements are
+        the same element of the quotient :math:`V / \ker G` iff their live
+        projections agree, which is how an adjoint law that holds modulo the
+        kernel is stated and gated (ruling 74; e.g. ``A.H.H`` and ``A`` agree
+        after the codomain's projection). One definition for every space: the
+        composites' block-wise metric verbs make it block-wise.
+        """
+        return self.apply_inverse_metric(self.apply_metric(x))
+
+    @property
     def _resolved_metric(self) -> Optional[HilbertMetric]:
         r"""The metric SOURCE resolved to its realization, PER CALL.
 
@@ -761,30 +800,65 @@ class FunctionSpace(Generic[Carrier]):
         return TensorProductSpace.from_factors(self_factors + other_factors)
 
     def dual(self) -> "FunctionSpace":
-        r"""Return the dual space :math:`V^*`.
+        r"""Return the dual space :math:`V^*`, the space of covectors on this one.
 
-        Under L²-Riesz identification (the standard ORPHEUS setting
-        where every :class:`FunctionSpace` carries an inner product),
-        :math:`V^*` is isomorphic to :math:`V` itself with a covariance
-        tag for bra-ket-style composition tracking. The dual carries
-        the same shape, weights, and units as the primal; its
-        ``primal`` attribute holds a reference back.
+        :math:`V^*` has this space's coordinates and the inverse Riesz form
+        :math:`G^{+}` as its metric (numerics_untangling.md ruling 26, issue
+        #617), and it is a distinct space: ``V.dual() != V`` (ruling 75), so
+        the composition guard refuses a covector where a vector is expected.
+        A leaf's dual is a :class:`DualSpace`; a composite's is the composite
+        of its members' duals (biproduct duality, :meth:`_make_dual`).
+
+        Memoised per space, since the dual is a function of the space alone:
+        ``V.dual() is V.dual()``, and ``V.dual().dual() is V`` (the
+        involution :math:`V^{**} = V`, by object identity). `[M]` 2026-10-21,
+        the S6a spec: one slab adjoint solve minted 5 645 DualSpaces (10 965
+        at tight tolerances) from the dual arrows each matvec rebuilds; the
+        memo bounds the count by the distinct spaces asked for.
 
         The return type is :class:`FunctionSpace`, not :class:`DualSpace`,
         because ``dual`` is reflexive: applied to a :class:`DualSpace` it
-        returns the primal (:math:`V^{**} = V`), which is any space.
-
-        Used by the Hilbert-adjoint machinery
-        (:meth:`~orpheus.numerics.operator.LinearOperator.adjoint`,
-        ``A.H``) to track which spaces are codomain-sourced vs
-        domain-sourced through operator composition.
+        returns the primal, which is any space, and a composite's dual is a
+        composite.
         """
-        return DualSpace.of(self)
+        return self._dual
+
+    @cached_property
+    def _dual(self) -> "FunctionSpace":
+        dual = self._make_dual()
+        # The involution as object identity: the dual's own dual is this
+        # space, seeded on the dual unless it already knows its dual (a
+        # DualSpace's dual is its primal, never overwritten).
+        dual.__dict__.setdefault("_dual", self)
+        return dual
+
+    def _make_dual(self) -> "FunctionSpace":
+        r"""Build :math:`V^*` (called once per space, by :meth:`dual`)."""
+        return DualSpace(name=f"{self.name}*", shape=self.shape, primal=self)
 
 
 # ---------------------------------------------------------------------------
 # Tensor-product and dual space (Depth B step D-B)
 # ---------------------------------------------------------------------------
+
+
+def _overlay_leaf_forms(
+    overlay: FactoredMetric,
+) -> tuple[DiagonalMetric | DenseMetric | None, ...]:
+    r"""The forms of an axis-built space's positioned OVERLAY: leaf metrics
+    only (the overlay guard admits a diagonal or dense form per axis, never a
+    dual's inverse form, which lives on a :class:`DualSpace` that has no
+    axes)."""
+    forms: list[DiagonalMetric | DenseMetric | None] = []
+    for _, form in overlay.entries:
+        if form is None or isinstance(form, (DiagonalMetric, DenseMetric)):
+            forms.append(form)
+        else:
+            raise TypeError(
+                f"an axis-built space's overlay holds diagonal or dense forms "
+                f"only, got {type(form).__name__}"
+            )
+    return tuple(forms)
 
 
 def _axis_entries(
@@ -817,7 +891,7 @@ def _axis_entries(
     forms: tuple[DiagonalMetric | DenseMetric | None, ...] = (
         (None,) * len(axes)
         if not isinstance(positioned, FactoredMetric)
-        else tuple(form for _, form in positioned.entries)
+        else _overlay_leaf_forms(positioned)
     )
     return [
         (
@@ -917,7 +991,7 @@ def _positioned_forms(
     exactly the entries its factors derive (item 6.2c-i).
     """
     entries: list[
-        tuple[tuple[int, ...], DiagonalMetric | DenseMetric | None]
+        tuple[tuple[int, ...], PositionedMetric | None]
     ] = []
     for f in factors:
         assert f.axes is not None  # narrowing only: the caller's arm
@@ -972,42 +1046,31 @@ def _tensor_product_factored_metric(
     ``tests/gates/numerics/test_tensor_product_metric_is_factored.py``.
     """
     entries: list[
-        tuple[tuple[int, ...], DiagonalMetric | DenseMetric | None]
+        tuple[tuple[int, ...], "PositionedMetric | None"]
     ] = []
     for f in factors:
-        m = f.metric
-        if f.axes is not None:
-            # Per AXIS, never per factor: an axis-built factor's measure
-            # stays exactly where the axis doctrine put it, its positioned
-            # overlay of forms merged in (the same entries the factor
-            # DERIVES for itself — one spelling).
-            entries.extend(_axis_entries(f.axes, m))
-        elif m is not None:
-            if isinstance(m, FactoredMetric):
-                entries.extend(m.entries)
-            elif isinstance(m, (DiagonalMetric, DenseMetric)):
-                entries.append((f.shape, m))
-            else:
-                # Type-narrowing refusal: the positioned application is
-                # defined on the leaf realizations; anything else would
-                # die one call later with a worse message.
-                raise TypeError(
-                    f"a tensor product can position only diagonal/dense "
-                    f"factor metrics, got {type(m).__name__}"
-                )
-        elif f.inner_product_weights is not None:
-            entries.append(
-                (
-                    f.shape,
-                    DiagonalMetric(
-                        np.ascontiguousarray(
-                            np.broadcast_to(f.inner_product_weights, f.shape)
-                        )
-                    ),
-                )
-            )
-        else:
+        # ONE metric resolution: the factor's own (an axis-built factor's
+        # per-axis entries with its overlay; a metric object; a dense-slot
+        # leaf's DiagonalMetric; a dual space's inverse form), never its raw
+        # fields read a second time here (Pattern 7: until 2026-10-21 this
+        # loop re-read ``axes``/``metric``/``inner_product_weights`` and so
+        # read a dual factor, which carries none of them, as Euclidean).
+        m = f._resolved_metric
+        if m is None:
             entries.append((f.shape, None))
+        elif isinstance(m, FactoredMetric):
+            # A product of products is one product.
+            entries.extend(m.entries)
+        elif isinstance(m, (DiagonalMetric, DenseMetric, DualMetric)):
+            entries.append((f.shape, m))
+        else:
+            # Type-narrowing refusal: the positioned application is
+            # defined on the leaf realizations; anything else would
+            # die one call later with a worse message.
+            raise TypeError(
+                f"a tensor product can position only diagonal/dense "
+                f"factor metrics or their duals, got {type(m).__name__}"
+            )
     if all(entry is None for _, entry in entries):
         return None
     return FactoredMetric(tuple(entries))
@@ -1183,33 +1246,32 @@ class TensorProductSpace(FunctionSpace):
             factors=factors,
         )
 
+    def _make_dual(self) -> "FunctionSpace":
+        r"""The dual of a tensor product is the product of the duals,
+        :math:`(V \otimes W)^* = V^* \otimes W^*`, each factor carrying its
+        own inverse form (numerics_untangling.md rulings 26 and 75)."""
+        return TensorProductSpace.from_factors(tuple(f.dual() for f in self.factors))
+
     def __repr__(self) -> str:
         return f"TensorProductSpace({self.name!r}, shape={self.shape})"
 
 
 @dataclass(frozen=True)
 class DualSpace(FunctionSpace):
-    r"""The dual :math:`V^*` of a :class:`FunctionSpace`.
+    r"""The dual :math:`V^*` of a leaf :class:`FunctionSpace`: its covectors.
 
-    Under L²-Riesz identification (the standard ORPHEUS setting where
-    every :class:`FunctionSpace` carries an inner product),
-    :math:`V^*` is isomorphic to :math:`V` itself but carries a
-    covariance tag that the operator-algebra layer reads through to
-    track which spaces participate as bras vs. kets in composition
-    chains. The dual carries the same ``shape`` and
-    ``inner_product_weights`` as the primal; the ``primal`` field is
-    the introspection link.
+    :math:`V^*` has the primal's coordinates and carries the inverse Riesz
+    form :math:`G^{+}` as its metric (numerics_untangling.md ruling 26,
+    issue #617): its metric is the primal's metric read the other way round
+    (:meth:`~orpheus.numerics.metric.HilbertMetric.dual`), never a copy of
+    :math:`G`, so the Riesz legs are posed on it and
+    :math:`\langle \phi, \chi\rangle_{V^*} = \langle \sharp\phi, \sharp\chi\rangle_V`.
+    Its content IS its primal: it copies no weights, axes or metric object,
+    and it equals another dual iff their primals are equal, and never equals
+    a primal space (ruling 75).
 
-    Used by the Hilbert-adjoint machinery
-    (:meth:`~orpheus.numerics.operator.LinearOperator.adjoint`,
-    ``A.H``) — taking ``A.H`` swaps domain ↔ codomain AND flips both
-    to their duals, so the adjoint's domain is the original's codomain
-    dual.
-
-    Notes
-    -----
-    ``V.dual().dual() == V`` is enforced by :meth:`of` recognising a
-    :class:`DualSpace` argument and returning its primal (idempotency).
+    Built only through :meth:`FunctionSpace.dual` (memoised per space), whose
+    :meth:`of` constructor it keeps; ``V.dual().dual() is V``.
 
     Parameters
     ----------
@@ -1221,41 +1283,60 @@ class DualSpace(FunctionSpace):
     # kw_only sidesteps the inherited-defaults field-ordering rule.
     primal: "FunctionSpace" = field(kw_only=True, compare=False, repr=False)
 
-    # ── Equality / hashing inherited from FunctionSpace ───────────────
-    #
-    # Same rationale as :class:`TensorProductSpace.__eq__` — auto-
-    # generated dataclass __eq__ would compare ndarray weights and raise
-    # "truth value ambiguous". Explicit delegation to FunctionSpace.
+    # The covariance-aware identity lives in :meth:`FunctionSpace.__eq__`
+    # (ruling 75); the auto-generated dataclass __eq__ would compare ndarray
+    # weights, so the delegation is explicit.
 
     def __eq__(self, other: object) -> bool:
         return FunctionSpace.__eq__(self, other)
 
     def __hash__(self) -> int:
-        return FunctionSpace.__hash__(self)
+        return hash(("dual", self.primal))
+
+    def __post_init__(self) -> None:
+        # Its content IS its primal: a dual carries the primal's shape and no
+        # metric source of its own (the inverse form is read through the
+        # primal), so a dual that disagrees with its primal is an illegal
+        # state.
+        if self.shape != self.primal.shape:
+            raise ValueError(
+                f"DualSpace {self.name!r}: shape {self.shape} is not its "
+                f"primal's {self.primal.shape}."
+            )
+        if (
+            self.axes is not None
+            or self.metric is not None
+            or self.inner_product_weights is not None
+        ):
+            raise ValueError(
+                f"DualSpace {self.name!r} carries a metric source of its own; "
+                f"a dual's metric is its primal's inverse form, read through "
+                f"the primal."
+            )
+        super().__post_init__()
 
     @classmethod
     def of(cls, primal: "FunctionSpace") -> "FunctionSpace":
-        r"""Construct the dual of ``primal``.
+        r"""The dual of ``primal``: :meth:`FunctionSpace.dual`, memoised.
 
-        Idempotent: ``of(of(V)) == V`` (returns the primal of a passed
-        :class:`DualSpace`, never wraps twice).
+        Idempotent: ``of(of(V)) is V``. A composite's dual is the composite
+        of its members' duals, never a :class:`DualSpace` over it.
         """
-        if isinstance(primal, DualSpace):
-            return primal.primal
-        return cls(
-            name=f"{primal.name}*",
-            shape=primal.shape,
-            inner_product_weights=primal.inner_product_weights,
-            # The dual carries the SAME metric as the primal (L²-Riesz),
-            # so an axis-built primal's dual threads the axes record —
-            # dropping it would silently strip the measure (CS1) — and a
-            # metric OBJECT threads too (P7 S2): [M] before this line the
-            # dual of a dense-metric space read the plain Euclidean
-            # pairing (4.5 where the primal reads 23.3).
-            axes=primal.axes,
-            metric=primal.metric,
-            primal=primal,
-        )
+        return primal.dual()
+
+    def _make_dual(self) -> "FunctionSpace":
+        return self.primal  # V** = V
+
+    @property
+    def _resolved_metric(self) -> Optional[HilbertMetric]:
+        r"""The inverse Riesz form: the primal's resolved metric, dualised.
+
+        Read per call through the primal, so a battery that mutates the
+        primal's weight field in place reaches the dual too (the reason
+        :meth:`FunctionSpace._resolved_metric` is not cached).
+        """
+        metric = self.primal._resolved_metric
+        return None if metric is None else metric.dual()
 
     def __repr__(self) -> str:
         return f"DualSpace({self.name!r}, shape={self.shape})"

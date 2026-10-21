@@ -231,17 +231,23 @@ def test_dual_idempotent():
 
 
 @pytest.mark.foundation
-def test_dual_preserves_weights():
-    """The L²-Riesz dual carries the same inner-product weights as the primal.
+def test_the_dual_carries_the_inverse_weights():
+    """The dual carries the inverse Riesz form G⁻¹ (S6a, ruling 26, #617),
+    read through its primal: it copies no weights of its own, and its metric
+    divides by w, bit for bit the primal's masked reciprocal. Until S6a this
+    row pinned the opposite (``dual.inner_product_weights == w``, the dual
+    carrying G).
 
     Units are NOT a space property (View-G, issues #205 / #207) — they
     live on the field role-leaf, so there is nothing unit-like for the
-    dual to preserve here.
+    dual to carry here.
     """
     w = np.array([1.0, 2.0, 3.0])
     a = FunctionSpace(name="X", shape=(3,), inner_product_weights=w)
     a_dual = a.dual()
-    np.testing.assert_array_equal(a_dual.inner_product_weights, w)
+    assert a_dual.inner_product_weights is None
+    x = np.array([1.0, 1.0, 1.0])
+    np.testing.assert_array_equal(a_dual.apply_metric(x), x / w)
 
 
 # ─────────────────────────────────────────────────────────────────────
