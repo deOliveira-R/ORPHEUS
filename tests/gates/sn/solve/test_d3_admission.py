@@ -48,7 +48,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.mesh import AxisMesh
 from orpheus.sn.solver import (
     _as_problem,
-    _maybe_window,
+    _angular_representation,
     solve_sn,
     solve_sn_fixed_source,
 )
@@ -308,8 +308,11 @@ def test_d3_real_mesh_window_passthrough_and_gs_admissible() -> None:
     scattering_stub = type(
         "S", (), {"quadrature": quad, "scattering_order": 0},
     )()
-    wrapped, windowed = _maybe_window(base, scattering_stub, sn)
-    np.testing.assert_equal(windowed, False)
+    from orpheus.numerics.iteration import NATIVE
+
+    representation = _angular_representation(scattering_stub, sn)
+    wrapped = representation.precondition(base)
+    np.testing.assert_equal(representation is NATIVE, True)
     np.testing.assert_equal(wrapped is base, True)
 
     # The G-S labelling REIFIES the splitting (#226 step 2; a Strategy VALUE

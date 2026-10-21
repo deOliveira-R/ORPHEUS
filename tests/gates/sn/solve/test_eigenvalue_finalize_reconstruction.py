@@ -20,9 +20,10 @@ moment did not reproduce the ``scalar_flux`` shipped beside it.
 falsely accuses.  The defect is named by the five RETIRED symbols above,
 which grep to nothing, and that is the point.
 
-**Since the carve** the finalize is ONE
-:func:`~orpheus.numerics.iteration.fixed_point_step` of the same map the
-inner solves drive, taken from ``SNSolver._inner`` — the same ``M``, the same
+**Since the carve** the finalize is ONE step of the same map the inner
+solves drive (``fixed_point_step`` at #448; since S4, ruling 69, the Green's
+own verb :meth:`~orpheus.numerics.green_operator.GreenOperator.step`), taken
+from ``SNSolver._inner`` — the same Green, so the same ``M``, the same
 gains ``(S, N₂ₙ, B)``, the same ``q_ext`` builder
 (``_eigenvalue_driver_source``) — so the source the reconstruction sees IS
 the source the iteration converged against, by construction.  **Every row in
@@ -300,7 +301,7 @@ DECLARED BLIND — what this file CANNOT see
   measures the defect where it IS live.
 * the fixed-source entries.  Their windowed reconstruction already builds
   ``q + Σ gains·ψ`` — since the carve through the very same
-  ``fixed_point_step``; ``tests/gates/sn/solve/
+  splitting map (``GreenOperator.step`` since S4); ``tests/gates/sn/solve/
   test_2d_anisotropic_windowing.py`` is the standing gate there.
 
 ────────────────────────────────────────────────────────────────────────────
@@ -879,7 +880,8 @@ class TestTheReturnedTrace:
     a trace gate here, because the finalize SET the inflow by hand
     (``_reflect_outflow_into_inflow`` + ``prescribed_inflow``) and the law
     held by construction.  The carve took the memo's **option B**: the
-    finalize is now one ``fixed_point_step`` and the reflective coupling
+    finalize is now one step of the splitting map (``GreenOperator.step``
+    since S4) and the reflective coupling
     arrives as the ``B`` gain, so ``inflow == B·outflow`` on the returned
     trace became a real fixed-point CLAIM about the solve rather than a
     tautology about an assignment.  This class is that claim.
@@ -995,7 +997,7 @@ class TestTheReturnedTrace:
             f"{arm_id}[L={order}]: the RETURNED trace does not satisfy its "
             f"own reflective law — max|ψ.inflow − (B·ψ)|_inflow| / max|ψ| = "
             f"{residual:.4e} > band {_BAND:.1e}.  Since #448 the finalize is "
-            f"one fixed_point_step and B arrives as a GAIN, so this identity "
+            f"one GreenOperator.step and B arrives as a GAIN, so this identity "
             f"is a property of the returned object, not of a hand-written "
             f"assignment: a red here means the reconstruction delivered a "
             f"trace the boundary condition does not close on."
@@ -1041,8 +1043,8 @@ class TestTheReturnedRayMember:
     ``G1`` is a System-A BULK identity and ``TestTheReturnedTrace`` a
     System-A TRACE one; ``Solution.radial_characteristic`` — the marched
     half-angle flux a carrying mesh's coupled solve produces — was in
-    neither's reach.  Since #448 the finalize is one ``fixed_point_step``
-    through the COUPLED ``M``, so the ray member comes out of
+    neither's reach.  Since #448 the finalize is one step of the splitting
+    map (``GreenOperator.step`` since S4) through the COUPLED ``M``, so the ray member comes out of
     ``_system_b_member(final_state)`` rather than being carried over from
     the iterate: it is reconstructed like everything else, and it owes the
     same claim.
@@ -1265,8 +1267,8 @@ class TestTheGaussSeidelArmPosesItsOwnSplitting:
     ):
         """G-S poses a DIFFERENT ``M`` and a DIFFERENT ``B`` gain than Jacobi.
 
-        The finalize applies ``inner.splitting.implicit.inverse()`` with
-        ``inner.driven_gains`` — so the *object* the reconstruction runs through is
+        The finalize is ``inner.green.step`` — ``M``'s seeded inverse with the
+        Green's driven gains — so the *object* the reconstruction runs through is
         what this row pins.  `[M]` Jacobi gives
         ``StreamingCollisionOperator`` + ``SNBoundaryOperator``; G-S gives
         ``ScheduledInvertibleOperator`` + ``SNMaskedBoundaryOperator``.
@@ -1284,8 +1286,8 @@ class TestTheGaussSeidelArmPosesItsOwnSplitting:
             "cart2d and cart2d_gs pose the SAME implicit operator — the "
             "schedule knob stopped selecting, so the pair is inflation."
         )
-        gs_gains = [type(g).__name__ for g in gs.driven_gains]
-        jac_gains = [type(g).__name__ for g in jacobi.driven_gains]
+        gs_gains = [type(g).__name__ for g in gs.green.driven_gains]
+        jac_gains = [type(g).__name__ for g in jacobi.green.driven_gains]
         assert gs_gains != jac_gains, (
             f"cart2d and cart2d_gs drive the SAME gains ({gs_gains}) — the "
             f"G-S split of B did not happen."

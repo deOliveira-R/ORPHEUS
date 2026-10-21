@@ -1062,13 +1062,17 @@ preconditioner is the sweep, :math:`P = M^{-1} = (L+C)^{-1}`.  On this
 page :math:`P` always names the GMRES preconditioner and :math:`M` the
 splitting's implicit member (:math:`A = M - N`); scipy's documentation
 calls the preconditioner ``M``, and this page does not.  The one site
-that states :math:`P` is ``orpheus.sn.solver._within_group_krylov``: it
-passes ``LC.inverse()``, the inverse of the splitting's implicit member,
-and, when a corrector is posed (the fixed-source entry with
-``acceleration="dsa"``), ``(IdentityOperator() + corrector) @
-LC.inverse()``, which is :eq:`sn-dsa-krylov-preconditioner`.  Both are
-operators, built by the operator algebra and handed to
-:class:`~orpheus.numerics.iteration.KrylovAcceleration` as its
+that states :math:`P` is ``orpheus.sn.solver._within_group_green_krylov``:
+it builds ``splitting.implicit.inverse()``, the inverse of the splitting's
+implicit member, and, when a corrector is posed (the fixed-source entry
+with ``acceleration="dsa"``), ``(IdentityOperator() + corrector) @
+splitting.implicit.inverse()``, which is
+:eq:`sn-dsa-krylov-preconditioner`.  Both are operators, built by the
+operator algebra and handed to the
+:class:`~orpheus.numerics.green_operator.Krylov` realisation of the
+Strategy's Green, ``splitting.green(Krylov(P, restart=n_dof))``
+(:ref:`green-strategy-mints`); the Green's relaxation face builds
+:class:`~orpheus.numerics.iteration.KrylovAcceleration` with it as the
 ``preconditioner`` argument, which the driver keeps as a public
 attribute.  There is one definition of the sweep preconditioner and the
 DSA posture is a second factor on it, not a second preconditioner.

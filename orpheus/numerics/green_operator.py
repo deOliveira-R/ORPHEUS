@@ -38,27 +38,40 @@ the algorithm: a Richardson-realized Green and a Krylov-realized Green are
 the SAME Green operator (which is why ``KrylovInverseOperator`` was rejected
 as a name — "Krylov" names the orthogonal realization axis).
 
-**Green WRAPS the driver; the drivers stay public primitives (taxonomy
-§11.2, Pattern 5).**  The application engine is
-:class:`~orpheus.numerics.iteration.SourceIteration` — the SAME Richardson
-driver the SN solver and :class:`~orpheus.numerics.iteration.KEigenvalue`
-consume directly.  This class reads the splitting off the named split
-(the implicit part → preconditioner via its own structure-keyed
-``.inverse()`` — the WDD :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
+**The Strategy mints the Green, and the Green owns its realisation
+(numerics_untangling.md rulings 65 and 68).**  How :math:`(M-N)^{-1}` is
+iterated is a value the Strategy chooses and hands in: :class:`Richardson`
+(the preconditioned source iteration: the representation its iterate lives
+in and an optional corrector, its preconditioner DERIVED from :math:`M`'s
+own inverse through that representation, ruling 70) or :class:`Krylov`
+(GMRES with a free left preconditioner). Without one, the Green is realised as the plain
+Richardson iteration preconditioned by :math:`M`'s own structure-keyed
+inverse (the WDD :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
 for ``(L+C)``, an :class:`~orpheus.numerics.operator.InverseOperator` for a
-value leaf — the lagged part's terms → gains) and hands it to the driver;
-it re-implements NOTHING.  A GMRES-realized Green
-(:class:`~orpheus.numerics.iteration.KrylovAcceleration` as the engine) is a
-future realization STRATEGY of this same object, not a sibling type.
+value leaf). The realisation builds the PUBLIC drivers,
+:class:`~orpheus.numerics.iteration.SourceIteration` and
+:class:`~orpheus.numerics.iteration.KrylovAcceleration`; this class
+re-implements none of their mathematics (taxonomy §11.2, Pattern 5).
 
-Note the two contracts are deliberately different: the k-eigenvalue path
-keeps consuming the driver DIRECTLY (a warm-started, budget-bounded inner
-RELAXATION — partial convergence is by design in nested iteration), while
-``GreenOperator`` promises the CONVERGED :math:`A^{-1}q` or a loud
-:class:`ConvergenceFailure`.  ``K = A_loss.inverse() @ F`` is the normal
-FORM of the k-problem; production power iteration replaces the exact
-:math:`G` with the inexact warm-started inner — classic inexact power
-iteration, spelled at the driver layer.
+The Green has three faces, and the realisation is constructed in one
+place, :meth:`GreenOperator.driver`:
+
+* :meth:`~GreenOperator.apply`, the PROMISE: the converged
+  :math:`A^{-1}q` or a loud :class:`ConvergenceFailure`;
+* :meth:`~GreenOperator.driver`, the RELAXATION: the best-effort driver
+  under a budget, whose ``solve`` returns the iterate with its
+  :class:`~orpheus.numerics.convergence.IterationRecord`. The S\ :sub:`N`
+  within-group solves and the k-eigenvalue inner read this face: a
+  non-converged exit there is legal and made audible by the record, and the
+  k-eigenvalue inner runs partial warm-started solves by design (inexact
+  power iteration);
+* :meth:`~GreenOperator.step`, the SPLITTING MAP
+  :math:`G(\psi) = M^{-1}(q + N\psi)` applied once (ruling 69), which
+  reconstructs the solution from a converged iterate.
+
+``K = A_loss.inverse() @ F`` is the normal FORM of the k-problem;
+production power iteration replaces the exact :math:`G` with the inexact
+warm-started relaxation of the same Green.
 
 **The split is named, never read off a spelling (numerics_untangling.md
 ruling 50).**  A sum is a formal linear combination with no order
@@ -88,6 +101,13 @@ Until ruling 50 the sum's left-spine head was the designated preconditioner
 ``OperatorSum.inverse`` built this class), so the spelling chose the
 algorithm; an unordered sum cannot carry that contract.
 
+**The driven gains are derived, never handed in.**  A realisation carries
+no gains of its own. The Green derives them from :math:`N`'s terms through
+the realisation's representation (the identity, or the 2-D angular-moment
+window, which re-binds each angular lift to read a moment iterate), so a
+driven gain that is not a representative of a term of :math:`N` cannot be
+spelled.
+
 **Seed semantics (§38 application context; taxonomy §11.3).**
 ``apply(q, initial_guess=x₀)`` threads the seed as the splitting
 iteration's START — a genuine consumer (contrast
@@ -116,9 +136,18 @@ trace rows included.
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import Any, cast
 
-from orpheus.numerics.iteration import SourceIteration, _l2_norm, seeded_inverse
+from orpheus.numerics.iteration import (
+    NATIVE,
+    KrylovAcceleration,
+    Representation,
+    SourceIteration,
+    SupportsSeededApply,
+    _l2_norm,
+    lagged_source,
+    seeded_inverse,
+)
 from orpheus.numerics.operator import (
     InverseWrapMixin,
     LinearOperator,
@@ -131,6 +160,8 @@ from orpheus.numerics.operator import (
 __all__ = [
     "ConvergenceFailure",
     "GreenOperator",
+    "Krylov",
+    "Richardson",
 ]
 
 
@@ -162,6 +193,91 @@ class ConvergenceFailure(RuntimeError):
     """
 
 
+class Richardson:
+    r"""Realise a Green :math:`(M - N)^{-1}` as the preconditioned source
+    iteration :math:`\psi \leftarrow P\,(q + N\psi)`, with an optional
+    synthetic-acceleration corrector on the increment.
+
+    The Strategy chooses the :class:`~orpheus.numerics.iteration.Representation`
+    the iterate lives in and the corrector, nothing else: the preconditioner
+    :math:`P` is DERIVED from the Green's own :math:`M^{-1}` through the
+    representation (:math:`M^{-1}` itself natively; the windowed product
+    :math:`\mathcal P\,M^{-1}` on the 2-D angular-moment window), and the
+    gains from :math:`N`'s terms. So a source iteration over another split's
+    inverse, which converges silently to the wrong answer, cannot be
+    spelled (numerics_untangling.md ruling 70; `[M]` 2026-10-21, the S4
+    elegance review: a free preconditioner of another split's diagonal gave
+    a driver record "converged" 15.5 % off :math:`(D - N)^{-1}q`).
+    """
+
+    def __init__(
+        self,
+        *,
+        representation: Representation = NATIVE,
+        corrector: "LinearOperator | None" = None,
+    ) -> None:
+        self.representation = representation
+        self.corrector = corrector
+
+    def preconditioner_of(self, green: "GreenOperator") -> SupportsSeededApply[Any]:
+        r""":math:`P`, derived from the Green's :math:`M^{-1}` through the representation."""
+        return self.representation.precondition(green.implicit_inverse)
+
+    def driver(
+        self, green: "GreenOperator", *, max_iter: int, tol: float, budget_name: str,
+    ) -> SourceIteration[Any]:
+        r"""The source-iteration driver of ``green`` under this realisation."""
+        # A Richardson Green's preconditioner is this realisation's own
+        # ``preconditioner_of(green)``, a seeded apply by its return type.
+        return SourceIteration(
+            cast(SupportsSeededApply[Any], green.preconditioner), *green.driven_gains,
+            max_iter=max_iter, tol=tol, corrector=self.corrector,
+            budget_name=budget_name,
+        )
+
+    def __repr__(self) -> str:
+        return f"Richardson(representation={self.representation!r}, corrector={self.corrector!r})"
+
+
+class Krylov:
+    r"""Realise a Green :math:`(M - N)^{-1}` as GMRES on :math:`M - N` with a
+    left preconditioner.
+
+    A GMRES left preconditioner is mathematically free (it moves the
+    trajectory, never the converged fixed point), so it is the Strategy's
+    to hand in: the sweep :math:`M^{-1}`, or the transport-corrected
+    :math:`(I + \mathcal C)\,M^{-1}`. GMRES iterates in the split's own
+    space, so the representation is
+    :data:`~orpheus.numerics.iteration.NATIVE`. ``restart`` is sized by the
+    Strategy to the full state the driver ravels (ERR-053).
+    """
+
+    representation: Representation = NATIVE
+
+    def __init__(self, preconditioner: LinearOperator, *, restart: int) -> None:
+        self.left_preconditioner = preconditioner
+        self.restart = int(restart)
+
+    def preconditioner_of(self, green: "GreenOperator") -> LinearOperator:
+        r"""The left preconditioner the Strategy handed in."""
+        del green  # free: it moves the trajectory, not the fixed point
+        return self.left_preconditioner
+
+    def driver(
+        self, green: "GreenOperator", *, max_iter: int, tol: float, budget_name: str,
+    ) -> KrylovAcceleration[Any]:
+        r"""The GMRES driver on :math:`M - \sum_i g_i` of ``green``."""
+        return KrylovAcceleration(
+            green.implicit, *green.driven_gains,
+            preconditioner=self.left_preconditioner,
+            tol=tol, max_iter=max_iter, restart=self.restart,
+            budget_name=budget_name,
+        )
+
+    def __repr__(self) -> str:
+        return f"Krylov({self.left_preconditioner!r}, restart={self.restart})"
+
+
 class GreenOperator(InverseWrapMixin[LinearOperator], LinearOperator):
     r"""The inverse operator :math:`(M - N)^{-1}` of a split operator, realized
     as the convergent :math:`M`-preconditioned splitting.
@@ -172,17 +288,20 @@ class GreenOperator(InverseWrapMixin[LinearOperator], LinearOperator):
     :meth:`inverse` returns it (the object-identity involution of the
     family).
 
-    The splitting is fixed at construction (never re-derived per apply): the
-    preconditioner is :math:`M`'s own structure-keyed ``.inverse()`` (the
-    sweep for the S\ :sub:`N` implicit part, an
-    :class:`~orpheus.numerics.operator.InverseOperator` for a value leaf),
-    and the driver's gains are :math:`N`'s TERMS, in :math:`N`'s insertion
-    order (each ``cᵢwᵢ``), so ``GreenOperator(A, S + F)`` hands the driver
+    The splitting and its realisation are fixed at construction (never
+    re-derived per apply). The realisation is the Strategy's value
+    (:class:`Richardson` or :class:`Krylov`); without one it is the
+    Richardson iteration preconditioned by :math:`M`'s own structure-keyed
+    ``.inverse()``. The driven gains are :math:`N`'s TERMS, in :math:`N`'s
+    insertion order (each ``cᵢwᵢ``), each read through the realisation's
+    representation, so ``GreenOperator(A, S + F)`` hands the driver
     ``(S, F)`` and associates :math:`(q + S\psi) + F\psi` exactly as a hand
     ``SourceIteration(A⁻¹, S, F)`` does.
 
     :meth:`apply` returns the CONVERGED :math:`(M - N)^{-1}q` or raises
-    :class:`ConvergenceFailure` — never a silent partial iterate.  The
+    :class:`ConvergenceFailure` — never a silent partial iterate;
+    :meth:`driver` is the best-effort relaxation the drivers' consumers
+    read, and :meth:`step` the splitting map applied once.  The
     wrap-delegate back-half (domain↔codomain swap / ``solve`` = the forward's
     matvec / object-identity involution ``inverse() → inner``) is inherited
     from :class:`~orpheus.numerics.operator.InverseWrapMixin`.
@@ -206,6 +325,10 @@ class GreenOperator(InverseWrapMixin[LinearOperator], LinearOperator):
         It becomes the preconditioner through its OWN ``.inverse()``.
     lagged : LinearOperator
         :math:`N`, the lagged part; its terms are the driver's gains.
+    realisation : Richardson or Krylov, optional
+        How the Strategy iterates :math:`(M - N)^{-1}` (rulings 65 and 68).
+        ``None`` (the default) realises the plain Richardson iteration
+        preconditioned by ``seeded_inverse(M)``.
     max_iter : int, optional
         TOTAL splitting-step budget across :meth:`apply`'s refinement
         loop (default ``1000``).  Exhausting it with the promise unmet
@@ -230,6 +353,7 @@ class GreenOperator(InverseWrapMixin[LinearOperator], LinearOperator):
         implicit: LinearOperator,
         lagged: LinearOperator,
         *,
+        realisation: "Richardson | Krylov | None" = None,
         max_iter: int = 1000,
         tol: float = 1e-8,
     ) -> None:
@@ -252,24 +376,90 @@ class GreenOperator(InverseWrapMixin[LinearOperator], LinearOperator):
         self.tol = float(tol)
         #: TOTAL splitting-step budget across the refinement loop.
         self.max_iter = int(max_iter)
-        # The splitting, fixed ONCE: x_{n+1} = M⁻¹(q + Σ gains·x_n), the gains
-        # N's terms — handed to the SAME Richardson driver the solvers consume
-        # (§11.2: wrap, never re-implement).
-        self._preconditioner = seeded_inverse(implicit)
-        self._gains = (
-            tuple(c * w if c != 1.0 else w for c, w in lagged.terms)
+        #: :math:`M`'s canonical seeded inverse, built ONCE: the splitting
+        #: map :meth:`step` applies it, and a Richardson realisation derives
+        #: its preconditioner from it. A singular ``M`` refuses here, from
+        #: its own ``.inverse()`` builder.
+        self.implicit_inverse = seeded_inverse(implicit)
+        #: How (M − N)⁻¹ is iterated: the Strategy's value, or the plain
+        #: Richardson iteration preconditioned by ``implicit_inverse``.
+        self.realisation: "Richardson | Krylov" = (
+            Richardson() if realisation is None else realisation
+        )
+        representation = self.realisation.representation
+        #: The driven gains: N's terms (each cᵢwᵢ, in insertion order), each
+        #: WORD read through the realisation's representation and then
+        #: scaled — derived, never handed in, so each is a representative of
+        #: a term of N by construction (a scaled lift is re-bound too).
+        self.driven_gains: tuple[LinearOperator, ...] = (
+            tuple(
+                representation.rebind(w) if c == 1.0 else c * representation.rebind(w)
+                for c, w in lagged.terms
+            )
             if isinstance(lagged, OperatorSum)
-            else (lagged,)
+            else (representation.rebind(lagged),)
+        )
+        #: The source iteration's preconditioner, or GMRES's left one: the
+        #: realisation's, derived from ``implicit_inverse`` for Richardson.
+        self.preconditioner = self.realisation.preconditioner_of(self)
+
+    def driver(
+        self, *, max_iter: int, tol: float, budget_name: str = "max_iter",
+    ) -> "SourceIteration[Any] | KrylovAcceleration[Any]":
+        r"""The RELAXATION face: this Green's best-effort driver under a
+        budget of ``max_iter`` passes and stopping tolerance ``tol``.
+
+        Its ``solve(q, initial_guess=…)`` returns the iterate and its
+        :class:`~orpheus.numerics.convergence.IterationRecord`; a
+        non-converged exit is legal there and reported by the record, never
+        raised (the promise belongs to :meth:`apply`). ``budget_name`` is
+        the caller's name for the budget, which a convergence warning
+        names. This is the ONE construction site of the realisation's
+        driver (ruling 68): :meth:`apply`, the S\ :sub:`N` within-group
+        solves and the k-eigenvalue inner all read it.
+        """
+        return self.realisation.driver(
+            self, max_iter=max_iter, tol=tol, budget_name=budget_name,
         )
 
-    def _driver(self, budget: int) -> SourceIteration[Any]:
-        r"""The Richardson driver of this splitting, allowed ``budget`` passes.
+    def step(self, q: Any, iterate: Any) -> Any:
+        r"""The splitting map :math:`G(\psi) = M^{-1}(q + N\psi)` applied ONCE,
+        seeded by the iterate it is evaluated at (ruling 69).
 
-        Built per refinement call so the TOTAL budget is exact: each call
-        receives what the earlier calls (and a cold start's first partial
-        sum) left. Construction stores references only.
+        The right-hand side is the one spelling
+        :func:`~orpheus.numerics.iteration.lagged_source` with the driven
+        gains, and :math:`M^{-1}` is :math:`M`'s canonical seeded inverse,
+        never the realisation's preconditioner. At a fixed point
+        :math:`G(\psi^*) = \psi^*`, so applied once to a converged iterate
+        the map RECONSTRUCTS that iterate through :math:`M`'s own inverse,
+        which need not be the representative the iteration ran: after a
+        moment-windowed solve the un-windowed sweep turns the moment iterate
+        back into per-ordinate ψ, and after a power iteration the CONVERGED
+        eigenvalue's fission source makes the returned flux solve the
+        equation the caller is told about (k, φ) to the inverse's own
+        residual. The seed carries the curvilinear ψ½ seed and the
+        reflective partner trace. This is the ONE spelling of *reconstruct
+        from a converged iterate*: until #448 the eigenvalue finalize rebuilt
+        fission + P0 scattering + P0 (n,2n) by hand, and `[M]` at
+        ``scattering_order = 2`` on a 421-group slab the returned ψ missed
+        the converged iterate by 8.8e-2 and its own moments missed the
+        reported φ by 3.4e-2, while this map reproduces the iterate to
+        1.2e-10.
         """
-        return SourceIteration(self._preconditioner, *self._gains, max_iter=budget, tol=self.tol)
+        return self.implicit_inverse.apply(
+            lagged_source(q, self.driven_gains, iterate), initial_guess=iterate,
+        )
+
+    def solution(self, q: Any, iterate: Any) -> Any:
+        r"""The iterate read in the split's own space — the solution
+        :math:`(M - N)^{-1}q` it represents.
+
+        Natively the iterate IS the solution; under another representation
+        (the 2-D angular-moment window) it is reconstructed by one
+        :meth:`step`, :math:`M`'s own inverse turning the moments back into
+        per-ordinate ψ. The representation decides, never a flag beside it.
+        """
+        return self.realisation.representation.reconstruct(self.step, q, iterate)
 
     def _true_relative_residual(self, psi: Any, q: Any) -> float:
         r"""The PROMISE metric :math:`\lVert(M-N)\,\psi - q\rVert / \lVert q\rVert`.
@@ -319,18 +509,24 @@ class GreenOperator(InverseWrapMixin[LinearOperator], LinearOperator):
         """
         # A cold start's first partial sum is checked before it is driven,
         # as the driver checks its own first iterate; a handed-in seed is
-        # driven first.
+        # driven first. Both live in the iterate's representation: the first
+        # partial sum is the preconditioner applied to q (M⁻¹q for the
+        # default realisation), and a seed, a state of the split's own space
+        # (an earlier answer), is analysed into the representation.
+        representation = self.realisation.representation
         cold = initial_guess is None
-        psi: Any = self._preconditioner.apply(q) if cold else initial_guess
+        psi: Any = (
+            self.preconditioner.apply(q) if cold else representation.analyse(initial_guess)
+        )
         steps = int(cold)
         record = None
         while True:
             if not cold:
                 # Only what the earlier passes left of the TOTAL budget: the
                 # promise test below raises before the budget can be spent.
-                psi, record = self._driver(self.max_iter - steps).solve(
-                    q, initial_guess=psi,
-                )
+                psi, record = self.driver(
+                    max_iter=self.max_iter - steps, tol=self.tol,
+                ).solve(q, initial_guess=psi)
                 # The driver's OWN pass count, not its trajectory length —
                 # the two differ by one for SourceIteration (#340 F10), and
                 # this loop's budget is spent in passes.  ``max(_, 1)``
@@ -339,7 +535,8 @@ class GreenOperator(InverseWrapMixin[LinearOperator], LinearOperator):
                 # spin forever.
                 steps += max(record.n_iterations, 1)
             cold = False
-            true_res = self._true_relative_residual(psi, q)
+            solution = self.solution(q, psi)
+            true_res = self._true_relative_residual(solution, q)
             # NaN-safe promise test (spelled "converged", never "above
             # tol"): a hard-divergent split overflows the iterate — or,
             # sharper, overflows the driver's stopping DENOMINATOR ‖ψ‖ to
@@ -349,7 +546,7 @@ class GreenOperator(InverseWrapMixin[LinearOperator], LinearOperator):
             # true residual of that iterate is huge/non-finite, so the
             # promise test catches both shapes.
             if true_res < self.tol:
-                return psi
+                return solution
             if steps >= self.max_iter or not math.isfinite(true_res):
                 criterion = None if record is None else record.binding_criterion
                 increment = (
@@ -381,8 +578,10 @@ class GreenOperator(InverseWrapMixin[LinearOperator], LinearOperator):
     def dual(self) -> "GreenOperator":
         r"""Return :math:`((M - N)^{-1})^{\mathsf T} = (M^{\mathsf T} - N^{\mathsf T})^{-1}`, the Green of the dual split.
 
-        Both parts' dual arrows, with the same budget; the preconditioner is
-        the dual arrow's swap law :math:`(M^{\mathsf T})^{-1} =
+        Both parts' dual arrows, with the same budget, realised by the
+        default Richardson iteration (a Strategy's realisation is of the
+        forward split and is not transposed); the preconditioner is the dual
+        arrow's swap law :math:`(M^{\mathsf T})^{-1} =
         (M^{-1})^{\mathsf T}`. The Hilbert adjoint is NOT overridden:
         ``.H`` is the base's ``♯ ∘ dual ∘ ♭`` over this dual, through the
         one door that reads :func:`~orpheus.numerics.operator.posed`.
@@ -409,5 +608,6 @@ class GreenOperator(InverseWrapMixin[LinearOperator], LinearOperator):
     def __repr__(self) -> str:
         return (
             f"GreenOperator({self.implicit!r}, {self.lagged!r}, "
+            f"realisation={self.realisation!r}, "
             f"max_iter={self.max_iter}, tol={self.tol})"
         )

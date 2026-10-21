@@ -379,11 +379,16 @@ inverts only the implicit part: ``implicit.inverse()`` is the sweep
 (:class:`~orpheus.sn.operators.sweep_operator.SweepOperator`) or the block
 back-substitution on a carrying mesh
 (:class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`),
-and the driver only applies it:
+and the driver only applies it. The inverse of the split itself,
+:math:`(M - N)^{-1}`, is minted by the Strategy as a
+:class:`~orpheus.numerics.green_operator.GreenOperator` with the
+realisation it chose (``Splitting.green``; :ref:`green-strategy-mints`):
+its relaxation face builds the driver, so
 :class:`~orpheus.numerics.iteration.SourceIteration` runs
-:math:`\psi \leftarrow M^{-1}(q + N\psi)` with the residual stop, and
+:math:`\psi \leftarrow M^{-1}(q + N\psi)` with the residual stop under a
+:class:`~orpheus.numerics.green_operator.Richardson` realisation, and
 :class:`~orpheus.numerics.iteration.KrylovAcceleration` hands the matvec to
-GMRES. The eigen resolvent :math:`A^{-1}F` of :eq:`eigen-resolvent` is
+GMRES under a :class:`~orpheus.numerics.green_operator.Krylov` one. The eigen resolvent :math:`A^{-1}F` of :eq:`eigen-resolvent` is
 never formed; the iteration realises it. One outer loop serves every
 iterative family, :func:`~orpheus.numerics.eigenvalue.power_iteration` over
 the :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol; the
@@ -521,6 +526,9 @@ The concept table
    * - Resolvent
      - :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`, :class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`
      - :eq:`eigen-resolvent`
+   * - Green of a split; realisation; representation
+     - :class:`~orpheus.numerics.green_operator.GreenOperator`, :class:`~orpheus.numerics.green_operator.Richardson`, :class:`~orpheus.numerics.green_operator.Krylov`, :class:`~orpheus.numerics.iteration.Representation`
+     - :ref:`green-strategy-mints`, :ref:`green-realisations`
    * - Iteration; outer loop
      - :class:`~orpheus.numerics.iteration.SourceIteration`, :class:`~orpheus.numerics.iteration.KrylovAcceleration`, :func:`~orpheus.numerics.eigenvalue.power_iteration`
      - :ref:`eigenvalue-posing`

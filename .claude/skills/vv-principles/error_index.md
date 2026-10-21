@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**119 entries · 384 catching tests · 2 uncaught · 5 dormant.**
+**119 entries · 385 catching tests · 2 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -101,7 +101,7 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-050 | 3 |  | Silent preconditioner fallback breaks stateful-inverse contract — KrylovAcceleration(preconditi… |
 | ERR-051 | 1 |  | GalerkinProjection.assert_galerkin_idempotency asserted :math:\Pi R = I instead of :math:\Pi R… |
 | ERR-052 | 1 |  | Power iteration without per-step flux renormalisation: subcritical cases underflow to denormali… |
-| ERR-053 | 5 |  | Hardcoded GMRES restart=min(50, full_size) clamp + discarded scipy info flag silently truncate… |
+| ERR-053 | 6 |  | Hardcoded GMRES restart=min(50, full_size) clamp + discarded scipy info flag silently truncate… |
 | ERR-054 | 1 |  | ordinate_scan Blelloch closed-form cumprod_a · (psi_0 + cumsum(b/cumprod_a)) produces NaN when… |
 | ERR-055 | 2 |  | Curvilinear sweep regression tests fed sig_t / Q in the obsolete (nx, ng, ny) layout after the… |
 | ERR-056 | 8 |  | Octant-group Gauss-Seidel schedule reflected a boundary face after only the FIRST octant group… |

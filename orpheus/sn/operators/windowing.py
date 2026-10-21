@@ -38,7 +38,7 @@ reduction order ⇒ principled-equivalence within the scale-relative
 ``4·N·eps`` bound (the windowed-≡-post-projection gate).
 
 The fused object is built EXPLICITLY, ``WindowedSweep(P, A.inverse())``, by
-its one owner, the solver's ``_maybe_window`` factory; ``P @ A.inverse()`` is
+its one owner, the :class:`AngularMomentWindow` (gated by the solver's ``_angular_representation``); ``P @ A.inverse()`` is
 the plain word, because ``@`` never fuses (numerics_untangling.md ruling 52:
 a fusion chosen by a type test inside a dunder is a realisation chosen by a
 spelling, and the realisation is the Strategy's). The former public
@@ -51,6 +51,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Final, Optional, cast
 
 from orpheus.numerics.operator import FusedAtom, LinearOperator
+from orpheus.transport.operators.angular_lift import AngularLift
 
 from .sweep_operator import SweepOperator
 
@@ -64,7 +65,7 @@ if TYPE_CHECKING:
     from orpheus.transport.timed_full_field import TimedFullField
 
 
-__all__ = ["BulkAnalysisOperator", "WindowedSweep"]
+__all__ = ["AngularMomentWindow", "BulkAnalysisOperator", "WindowedSweep"]
 
 
 class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
@@ -181,7 +182,7 @@ class WindowedSweep(FusedAtom["FullField", "TimedFullField"]):
     expansion's.
 
     2-D Cartesian only, by construction: the moment emit is a 2-D kernel and
-    the solver's ``_maybe_window`` gate (``is_cartesian and ndim == 2``) is
+    the solver's ``_angular_representation`` gate (``is_cartesian and ndim == 2``) is
     the single production factory.
     """
 
@@ -243,3 +244,49 @@ class WindowedSweep(FusedAtom["FullField", "TimedFullField"]):
 
     def __repr__(self) -> str:
         return f"WindowedSweep({self.p!r} @ {self.sweep!r})"
+
+
+class AngularMomentWindow:
+    r"""The 2-D Cartesian source iteration's representation: the iterate is
+    held as harmonic moments, the codomain of the analysis factor
+    :math:`\mathcal P` (numerics_untangling.md rulings 68 and 70).
+
+    The :class:`~orpheus.numerics.iteration.Representation` of a windowed
+    :class:`~orpheus.numerics.green_operator.Richardson` realisation, built
+    from the ONE thing the window adds, the analysis factor
+    :math:`\mathcal P` (a :class:`BulkAnalysisOperator` over the scattering
+    operator's own minted flux-analysis face, F-1). Every consequence is
+    derived from it, so the windowed sweep and the moment-bound gains can
+    no longer be chosen apart:
+
+    * the preconditioner is the windowed product :math:`\mathcal P\,M^{-1}`,
+      the fused :class:`WindowedSweep` over :math:`M`'s own inverse;
+    * an angular lift among the gains is RE-BOUND on the moment iterate
+      (:meth:`~orpheus.transport.operators.angular_lift.AngularLift.on_moment_domain`:
+      the same datum and faces as the record's angular binding, the
+      domain's interior the analysis face's codomain); every other gain
+      (the boundary gain, or its Gauss-Seidel upper part, reads the trace)
+      is the term as it is (CS4c step 5);
+    * a per-ordinate state (a seed) is analysed by :math:`\mathcal P`;
+    * the iterate is read back as per-ordinate ψ by one splitting step
+      through :math:`M`'s own un-windowed inverse.
+    """
+
+    def __init__(self, analysis: BulkAnalysisOperator) -> None:
+        #: The analysis factor :math:`\mathcal P` the iterate lives behind.
+        self.analysis: Final = analysis
+
+    def precondition(self, implicit_inverse: "SweepOperator") -> WindowedSweep:
+        return WindowedSweep(self.analysis, implicit_inverse)
+
+    def rebind(self, gain: LinearOperator) -> LinearOperator:
+        return gain.on_moment_domain() if isinstance(gain, AngularLift) else gain
+
+    def analyse(self, state: "FullField") -> "TimedFullField":
+        return self.analysis.apply(state)
+
+    def reconstruct(self, step, q, iterate):
+        return step(q, iterate)
+
+    def __repr__(self) -> str:
+        return "AngularMomentWindow()"

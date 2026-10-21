@@ -401,6 +401,7 @@ def _sphere_daggered_run(problem):
     orders below the 1e-7 gate.
     """
     from orpheus.numerics.coupled_system import CoupledField
+    from orpheus.numerics.green_operator import GreenOperator
     from orpheus.numerics.iteration import KEigenvalue
     from orpheus.numerics.pencil import OperatorPencil
     from orpheus.numerics.posing import K_MAP, EigenPosing
@@ -413,7 +414,7 @@ def _sphere_daggered_run(problem):
             "coupled System-A ⊕ System-B space."
         )
     ke = KEigenvalue(
-        EigenPosing(OperatorPencil(implicit_operator.H - gain.H, F_posed.H), K_MAP), implicit_operator.H, gain.H,
+        EigenPosing(OperatorPencil(implicit_operator.H - gain.H, F_posed.H), K_MAP), GreenOperator(implicit_operator.H, gain.H),
         max_outer=800, keff_tol=1e-10, flux_tol=1e-9,
         max_inner=800, inner_tol=1e-11,
     )

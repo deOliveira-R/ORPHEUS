@@ -25,9 +25,9 @@ The eigenvalue machinery is layered so the algorithm is **method-agnostic**
   :math:`A_{\rm loss} = L+C-S-B`, :math:`M = F`, :math:`k = \mu`.  The
   **adjoint row is LIVE** (#276 A4/A5): the daggered posing
   :math:`A_{\rm loss}^\dagger \psi^* = \frac{1}{k} F^\dagger \psi^*` is
-  realized purely by DAGGER-ing the triple —
-  ``KEigenvalue((L+C).H, (S+B).H, F.H)`` (the daggered RESOLVENT, gain,
-  and fission; the loss dagger is formed inside) — and runs through THIS SAME loop
+  realized purely by DAGGER-ing the split — ``KEigenvalue(posing.H(),
+  GreenOperator((L+C).H, (S+B).H))`` (the daggered posing and the Green of
+  the daggered split, whose relaxation is the inner) — and runs through THIS SAME loop
   unchanged (:func:`~orpheus.sn.solver.solve_sn_adjoint` is the SN
   entry; :math:`k^\dagger = k` is an exact algebraic identity, and the
   daggered vector is certified by the defining-law residual rows —

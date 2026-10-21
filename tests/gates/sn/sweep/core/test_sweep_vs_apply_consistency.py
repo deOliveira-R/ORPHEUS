@@ -120,7 +120,7 @@ def test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere():
     No longer a catcher of ERR-053 (the ``catches`` marker was removed on
     2026-10-05): since #200 the sweep-preconditioned Krylov solve needs
     fewer than 50 GMRES steps here, so the ``restart=min(50, n_dof)`` clamp
-    re-dropped into ``_within_group_krylov`` leaves this row green (``[M]``
+    re-dropped into the Krylov Green's restart leaves this row green (``[M]``
     qa 2026-10-04, ``scratch/reference_architecture/p3/qa200/
     m1_restart50_full.log``, and 2026-10-05, ``.../gates200b/
     arm53_*.log``). ERR-053's value catcher is

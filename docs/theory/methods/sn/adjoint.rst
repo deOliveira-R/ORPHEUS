@@ -1998,11 +1998,16 @@ The adjoint poses the HUB's daggered PENCIL, on one carrier
 
 Since 2026-09-14 (the consumers campaign's step 2, C3b-2)
 :class:`~orpheus.numerics.iteration.KEigenvalue` takes a **question**
-rather than a triple: ``KEigenvalue(posing, implicit, explicit, …)``,
-where ``posing`` is an :class:`~orpheus.numerics.posing.EigenPosing` over
-an :class:`~orpheus.numerics.pencil.OperatorPencil` and the two operators
-are what the inner :class:`~orpheus.numerics.iteration.SourceIteration`
-resolves with.
+rather than a triple: ``KEigenvalue(posing, green, …)``, where ``posing``
+is an :class:`~orpheus.numerics.posing.EigenPosing` over an
+:class:`~orpheus.numerics.pencil.OperatorPencil` and ``green`` is the
+Strategy's :class:`~orpheus.numerics.green_operator.GreenOperator` of the
+loss split, whose relaxation face
+(:meth:`~orpheus.numerics.green_operator.GreenOperator.driver`) is the
+inner solve (:ref:`green-strategy-mints`).  Until package S4 of the numerics
+untangling the inner was given as the operator pair itself,
+``KEigenvalue(posing, implicit, explicit, …)``, and ``KEigenvalue`` built
+its own inner ``SourceIteration`` from it.
 
 **Since 2026-09-17 (step 3, unit U2 — GitHub #467) the question it takes
 is the HUB's, on both arms**, and the adjoint entry reads:
@@ -2012,7 +2017,8 @@ is the HUB's, on both arms**, and the adjoint entry reads:
    implicit, gain, _production, template, splitting = _adjoint_posing_parts(problem)
    ke = KEigenvalue(
        problem.eigen_posing.H(),          # NULLARY — k† = k needs no datum
-       implicit.H, gain.H, ...,
+       GreenOperator(implicit.H, gain.H), # the Green of the ADJOINT split
+       ...,
    )
 
 One daggered posing per Problem, spelled by asking the hub for the dagger

@@ -1227,19 +1227,22 @@ directly (predicate + verb), not a capability tag:
   arrives already inverted, so an apply-only object is legitimate by
   design (#226 taxonomy step 3).  A missing ``apply`` raises
   ``TypeError`` at construction.
-* :class:`KEigenvalue` poses the ``(A, S, F)`` triple: ``A`` MUST report
+* :class:`KEigenvalue` takes the eigen-posing over the pencil
+  :math:`(A - S, F)` and the Strategy's Green of the loss split,
+  ``KEigenvalue(posing, green)``; its inner solve is the Green's
+  relaxation face (:ref:`green-strategy-mints`).  The implicit part
+  ``A`` MUST report
   :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`
-  ``= True`` — the posing layer builds :math:`A^{-1}` via
-  :func:`~orpheus.numerics.iteration.seeded_inverse`, and a
-  non-invertible ``A`` raises
-  :class:`~orpheus.numerics.operator.NotInvertible`.  ``S`` / ``F`` MUST
-  provide ``apply`` (pass
+  ``= True``, and that obligation is the Green's: a non-invertible ``A``
+  raises :class:`~orpheus.numerics.operator.NotInvertible` when
+  ``GreenOperator(A, S)`` is constructed, before any ``KEigenvalue``
+  exists.  ``S`` / ``F`` MUST provide ``apply`` (pass
   :class:`~orpheus.numerics.operator.ZeroOperator` for the
   scattering- / fission-free case).
 
 Constructor failure raises ``TypeError`` (a missing ``apply``) or
 :class:`~orpheus.numerics.operator.NotInvertible` (a non-invertible
-``A`` where the posing layer needs its inverse), naming the operand at
+``A``, refused by the Green's constructor), naming the operand at
 fault.
 
 Forward hook: FEAST and beyond

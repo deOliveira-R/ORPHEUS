@@ -2221,7 +2221,9 @@ class OperatorSum(_KeyedEquality, LinearOperator[Domain, Codomain]):
             raise NotInvertible(
                 f"OperatorSum.inverse: a sum of {len(self._terms)} terms has no "
                 f"inverse of its own. Name its splitting A = M − N and build "
-                f"GreenOperator(M, N) (numerics_untangling.md ruling 50)."
+                f"GreenOperator(M, N) (numerics_untangling.md ruling 50); a "
+                f"Strategy mints it from its splitting, which in S_N is "
+                f"Splitting.green (ruling 65)."
             )
         c, w = self._terms[0]
         if not invertible(w):

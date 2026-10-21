@@ -38,7 +38,8 @@ harness below with one of two Krylov drivers:
    the production contract until #200) converges to the analytical ``k_inf``
    on slab, sphere and cylinder: the typed Krylov matvec path, with no
    preconditioner to confound it.
-2. **The production driver** (``orpheus.sn.solver._within_group_krylov``,
+2. **The production driver** (the driver of the Krylov Green
+   ``orpheus.sn.solver._within_group_green_krylov`` mints,
    #200: the sweep) converges to ``k_inf`` on slab, sphere and cylinder: the
    curvilinear limitation this file once recorded was healed by the direct
    curvilinear inverse (#282, #280), so the sweep is a correct
@@ -126,10 +127,17 @@ def _unpreconditioned_krylov(LC, *gains, n_dof: int, max_iter: int, tol: float):
 
 
 def _production_krylov(LC, *gains, n_dof: int, max_iter: int, tol: float):
-    """The within-group GMRES the production driver builds (#200: the sweep preconditions it)."""
-    from orpheus.sn.solver import _within_group_krylov
+    """The within-group GMRES the production Green drives (#200: the sweep preconditions it), on the split
+    ``LC − Σ gains`` this harness hands it."""
+    from functools import reduce
+    from operator import add
 
-    return _within_group_krylov(LC, *gains, n_dof=n_dof, max_iter=max_iter, tol=tol)
+    from orpheus.numerics.green_operator import GreenOperator
+    from orpheus.numerics.green_operator import Krylov
+
+    return GreenOperator(
+        LC, reduce(add, gains), realisation=Krylov(LC.inverse(), restart=n_dof),
+    ).driver(max_iter=max_iter, tol=tol, budget_name="max_inner")
 
 
 def _krylov_power_iteration_kinf(
@@ -143,8 +151,8 @@ def _krylov_power_iteration_kinf(
     Replicates the production ``SNSolver._solve_krylov`` typed contract
     (R-1 Step 4 A1 producer-side normalisation; R-1 Step D
     KrylovAcceleration on the typed operator triple) but takes the
-    within-group Krylov driver as a parameter, with the signature of
-    ``orpheus.sn.solver._within_group_krylov``:
+    within-group Krylov driver as a parameter, ``(LC, *gains, n_dof,
+    max_iter, tol) -> KrylovAcceleration``:
     :func:`_unpreconditioned_krylov` or :func:`_production_krylov`.
     """
     from orpheus.sn.coupled_system import (
@@ -262,7 +270,7 @@ def test_identity_preconditioner_recovers_kinf(coord: str) -> None:
 )
 def test_production_preconditioner_recovers_kinf(coord: str) -> None:
     r"""#200's acceptance on an independent reference: the production
-    preconditioned Krylov (the sweep, built by ``_within_group_krylov``)
+    preconditioned Krylov (the sweep, the Krylov Green's preconditioner)
     recovers the analytical ``k_inf`` (closed form, 2 groups, reflective
     faces, so the boundary block is live) to the same ``rtol < 1e-8`` as
     the unpreconditioned arm, on slab, sphere and cylinder. A preconditioner
@@ -470,7 +478,7 @@ def test_g_d3_3_production_sites_size_restart_from_the_coupled_ravel(
 @pytest.mark.catches("ERR-053")
 def test_g_d3_3_site_gate_has_teeth(monkeypatch) -> None:
     r"""The stall-deficit tooth: force the d1-era bulk-only ``n_dof``
-    through the ONE production helper (``_within_group_krylov``) — the
+    through the ONE production helper (``_within_group_green_krylov``) — the
     captured restart then lands EXACTLY at the bulk-only count and
     mismatches the coupled ravel, proving the site gate above reds on a
     formula revert (the capture is live, not vacuous)."""
@@ -479,13 +487,12 @@ def test_g_d3_3_site_gate_has_teeth(monkeypatch) -> None:
     materials, mesh, quad, sn = _carrying_sphere_case()
     expected, bulk_only = _expected_coupled_restart(sn)
 
-    orig_wgk = solver_mod._within_group_krylov
+    orig_wgk = solver_mod._within_group_green_krylov
 
-    def _bulk_only_wgk(LC, *gains, n_dof, max_iter, tol, corrector=None):
-        return orig_wgk(LC, *gains, n_dof=bulk_only, max_iter=max_iter,
-                        tol=tol, corrector=corrector)
+    def _bulk_only_wgk(splitting, *, n_dof, corrector=None):
+        return orig_wgk(splitting, n_dof=bulk_only, corrector=corrector)
 
-    monkeypatch.setattr(solver_mod, "_within_group_krylov", _bulk_only_wgk)
+    monkeypatch.setattr(solver_mod, "_within_group_green_krylov", _bulk_only_wgk)
     captured = _install_restart_spy(monkeypatch)
 
     solver_mod.solve_sn_fixed_source(

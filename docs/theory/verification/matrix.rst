@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19380**
+Total tests collected: **19440**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1913, 9.9%
-   L1, 2753, 14.2%
+   L0, 1913, 9.8%
+   L1, 2758, 14.2%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14592, 75.3%
+   foundation, 14647, 75.3%
    unmarked, 37, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19264
+   explicit, 19324
    class-name, 46
    func-name, 0
    case, 33
@@ -429,7 +429,7 @@ Module × level grid
    numerics/test_factored_adjoint_identity, 13, 0, 0, 0, 0, 0
    numerics/test_family_convergence_contract, 0, 0, 0, 0, 41, 0
    numerics/test_field, 0, 0, 0, 0, 31, 0
-   numerics/test_fixed_point_step, 0, 0, 0, 0, 8, 0
+   numerics/test_fixed_point_step, 0, 0, 0, 0, 9, 0
    numerics/test_flux_vector_algebra, 0, 0, 0, 0, 26, 0
    numerics/test_frame, 0, 18, 0, 0, 46, 5
    numerics/test_full_field_space, 0, 0, 0, 0, 7, 0
@@ -491,6 +491,7 @@ Module × level grid
    numerics/test_spatial_moment_tail_is_the_schemes_axis, 0, 0, 0, 0, 12, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 7, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
+   numerics/test_strategy_mints_green, 0, 0, 0, 0, 16, 0
    numerics/test_symbolic_steps, 0, 0, 0, 0, 5, 0
    numerics/test_symbolic_without_values, 0, 0, 0, 0, 2, 0
    numerics/test_symmetry, 0, 0, 0, 0, 215, 2
@@ -631,6 +632,7 @@ Module × level grid
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
    solve/test_sn_adjoint_certification, 0, 13, 0, 0, 2, 0
    solve/test_sn_adjoint_entries, 0, 13, 0, 0, 0, 0
+   solve/test_strategy_mints_green_sn, 0, 5, 0, 0, 38, 0
    solve/test_subcritical_multiplying_source, 0, 8, 0, 0, 0, 0
    solve/test_windowed_si_diagnostic_trajectory, 0, 0, 0, 0, 6, 0
    spatial/test_affine_closure, 0, 0, 0, 0, 5, 0
@@ -1114,7 +1116,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **591** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **593** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1321,7 +1323,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``gap-conductance``
 - ``gas-pressure``
 - ``gendf-mf6-yield-per-order``
+- ``green-krylov-fixed-point``
 - ``green-neumann-series``
+- ``green-richardson-fixed-point``
 - ``green-scattering-ratio-bound``
 - ``green-splitting-iteration``
 - ``green-true-residual``

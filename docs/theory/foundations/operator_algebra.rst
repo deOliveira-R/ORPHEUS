@@ -2623,10 +2623,11 @@ The one-term inverse is algebra-closed: ``(2A).inverse() == 0.5 *
 A.inverse()``. A seed travels with it: ``initial_guess`` lives in the output
 space of :math:`cA`, so the word's own solve is seeded with it divided by
 :math:`c`, and :math:`(\alpha A)^{-1}` seeds :math:`A^{-1}` with
-:math:`\alpha x_0` (the S2 spec's Q4). The drivers never reach this path,
-because ``seeded_inverse`` wraps an algebra-closed inverse in an exact
-apply that drops the seed; only a direct ``.apply(b, initial_guess=…)``
-sees it.
+:math:`\alpha x_0` (the S2 spec's Q4). The drivers obey the same law:
+``seeded_inverse`` returns a one-term inverse over a seed-accepting word
+as it is, so the driver slot and the direct
+``.apply(b, initial_guess=…)`` share this one seed law (ruling 67;
+:ref:`green-seed-law`).
 
 A sum of two or more terms has **no inverse of its own** (ruling 50):
 ``is_invertible`` is ``False`` in every spelling order, and ``inverse()``
@@ -2766,7 +2767,9 @@ inverse algorithm that no combination or word has, and each is an
      - ``p``, ``sweep``
      - ``apply`` is the moment-emitting sweep, which never builds the
        per-ordinate intermediate
-     - ``_maybe_window`` in :mod:`orpheus.sn.solver`
+     - :class:`~orpheus.sn.operators.windowing.AngularMomentWindow`
+       (``precondition``), selected by ``_angular_representation`` in
+       :mod:`orpheus.sn.solver`
 
 The SIO expansion is flattened over the **original** atoms,
 :math:`L + C - B_{\rm lower}` with coefficients :math:`1, 1, -1`, never
@@ -7733,8 +7736,10 @@ factor-order family inside the shared spectrum's stabiliser
    *which* of them needed its own commit and *why* is part of the design
    record.
 
-   * :class:`~orpheus.numerics.iteration.KEigenvalue` **now consumes the
-     posing**: ``KEigenvalue(posing, implicit, explicit, …)``, with
+   * :class:`~orpheus.numerics.iteration.KEigenvalue` **consumed the
+     posing** from then on: ``KEigenvalue(posing, implicit, explicit, …)``
+     (the operator pair became the Strategy's Green at package S4, so the
+     signature is ``KEigenvalue(posing, green, …)``), with
      :meth:`~orpheus.numerics.iteration.KEigenvalue.compute_keff` =
      ``posing.rayleigh(ψ, w=1)`` and the other two estimators reading
      ``posing.pencil.rhs``.  It needed its own commit for the reason the
@@ -9160,6 +9165,8 @@ postings that build its right-hand side.
 
 
 
+.. _operator-algebra-history:
+
 Development history
 ===================
 
@@ -9189,6 +9196,34 @@ the cheapest tell.
      - Architectural milestone
      - Issue
      - Where
+   * - *(in development)*
+     - **The Strategy mints the Green, and the Green owns its
+       realisation** (package S4 of the numerics untangling; rulings
+       65–70). ``Splitting.green(realisation, extra_gains=…)`` mints
+       ``GreenOperator(M, N, realisation=…)``, and every production
+       within-group solve, the ``KEigenvalue`` inner and the adjoint
+       entries read that Green instead of a hand-built
+       ``SourceIteration(seeded_inverse(M), N)`` or ``KrylovAcceleration``.
+       The Green has three faces: ``apply`` the promise, ``driver`` the
+       relaxation (constructed in one place, and ``apply`` is written over
+       it), ``step`` the splitting map, which retired the free function
+       ``fixed_point_step``. The realisation is a value:
+       ``Richardson(*, representation, corrector)`` derives its
+       preconditioner from :math:`M^{-1}` through the ``Representation``
+       (four maps: ``precondition``, ``rebind``, ``analyse``,
+       ``reconstruct``; the 2-D window is ``AngularMomentWindow``, which
+       replaced ``_maybe_window``), and ``Krylov(P, restart)`` keeps a free
+       left preconditioner. The driven gains are derived from :math:`N`'s
+       terms, a scaled lift re-bound then scaled. ``KEigenvalue(posing,
+       implicit, explicit)`` became ``KEigenvalue(posing, green)``.
+       ``seeded_inverse`` keys on one predicate, ``accepts_seed``, so a
+       scaled inverse obeys one seed law in the driver slot and on its
+       direct face. ``G.H`` stays the base ``♯ ∘ dual ∘ ♭``. Pinned by
+       ``tests/gates/numerics/test_strategy_mints_green.py`` and
+       ``tests/gates/sn/solve/test_strategy_mints_green_sn.py``. See
+       :ref:`green-strategy-mints`.
+     - —
+     - branch ``refactor/s4-strategy-mints-green``
    * - 2026-10-20
      - **Assembly is a homomorphism out of the algebra, downstream of it**
        (package S3 of the numerics untangling; rulings 24 and 60–62). The

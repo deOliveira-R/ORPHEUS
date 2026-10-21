@@ -17,7 +17,7 @@ Marks ``l1`` — a convergence-rate claim, pillar = closed-form (:math:`\rho=c`)
 eigenvalue / flux-shape claim; :math:`\rho=c` is flux-shape-independent by
 design (the ≥2G mandate guards eigenvalue/flux-shape claims, which this makes
 neither). Builds the SI via the production single-source builders
-(``build_within_group_system`` / ``_within_group_si``) — no construction duplicated.
+(``build_within_group_system`` / ``_within_group_green_si``) — no construction duplicated.
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.splitting import Splitting, resolve_schedule
-from orpheus.sn.solver import SNSolver, _within_group_si
+from orpheus.sn.solver import SNSolver, _within_group_green_si
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
@@ -75,10 +75,10 @@ def _run_si(c: float, **kw):
     system = build_within_group_system(
         problem, solver.problem.mat_xs,
     )
-    si, _base, _gains, windowed = _within_group_si(
+    green, windowed = _within_group_green_si(
         Splitting.from_schedule(system, solver.schedule), problem,
-        max_iter=600, tol=1e-12,
     )
+    si = green.driver(max_iter=600, tol=1e-12, budget_name="max_inner")
     # 1-D slab never windows (windowing is 2-D Cartesian) → interior=AngularFlux.
     if windowed:
         raise AssertionError("homogeneous slab should not window the SI iterate")

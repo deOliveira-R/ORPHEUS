@@ -16,7 +16,7 @@ twin of two already-verified paths — the live 2-D *eigenvalue* Krylov
 inner (:meth:`SNSolver._solve_krylov`) and the geometry-agnostic 2-D
 *fixed-source SI* path — sharing the identical operator triple
 (:func:`~orpheus.sn.coupled_system.build_within_group_system`) and Krylov driver
-(:func:`_within_group_krylov`), differing only in ``q_ext``.
+(the Krylov Green ``_within_group_green_krylov`` mints), differing only in ``q_ext``.
 
 Two legs (vv-principles §three-pillars):
 

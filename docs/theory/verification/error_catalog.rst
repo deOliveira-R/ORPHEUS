@@ -4792,8 +4792,9 @@ older entries classify against.
 
    2. ``test_production_preconditioner_recovers_kinf`` — parametrised
       over {slab, sphere, cylinder}.  The production driver's
-      preconditioner, the sweep (#200, ``LC.inverse()`` stated by
-      ``orpheus.sn.solver._within_group_krylov``), converges to the
+      preconditioner, the sweep (#200, ``splitting.implicit.inverse()``
+      stated by ``orpheus.sn.solver._within_group_green_krylov`` as the
+      left preconditioner of the Green's ``Krylov`` realisation), converges to the
       analytical ``k_inf`` at rtol < 1e-8 on every coordinate system.
       Its ``[slab]`` row is the **structural-fix sentinel** for the
       silent-fallback bug class: slab is the geometry where
@@ -7792,9 +7793,11 @@ older entries classify against.
    source-iteration step).  :func:`~orpheus.sn.solver.solve_sn` now
    reconstructs the returned flux by evaluating the splitting iteration's
    own map once, at the converged iterate, with the converged fission
-   source — :func:`~orpheus.numerics.iteration.fixed_point_step` through
-   the :class:`~orpheus.sn.solver.InnerSolve` record the last within-group
-   solve left behind — so the source the reconstruction sees IS the source
+   source — the splitting map
+   :meth:`GreenOperator.step <orpheus.numerics.green_operator.GreenOperator.step>`
+   of the Green the :class:`~orpheus.sn.solver.InnerSolve` record of the
+   last within-group solve carries (the free function ``fixed_point_step``
+   until package S4 of the numerics untangling) — so the source the reconstruction sees IS the source
    the iteration converged against, by construction rather than by
    agreement.
 

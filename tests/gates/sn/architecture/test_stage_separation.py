@@ -74,7 +74,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.sn.solver import _within_group_krylov, _within_group_si
+from orpheus.sn.solver import _within_group_green_krylov, _within_group_green_si
 from tests.gates.sn.architecture._config import (
     cart2d_seedless,
     isotropic_slab,
@@ -170,9 +170,10 @@ def test_driver_consumes_the_records_own_splitting(build_mesh, inner_schedule):
     """
     problem = build_mesh()
     splitting = splitting_for(problem, inner_schedule)
-    _si, driver_implicit, driver_gains, windowed = _within_group_si(
-        splitting, problem, max_iter=2, tol=1e-10,
-    )
+    green, windowed = _within_group_green_si(splitting, problem)
+    driver_implicit, driver_gains = green.implicit, green.driver(
+        max_iter=2, tol=1e-10, budget_name="max_inner",
+    ).gains
 
     if driver_implicit is not splitting.implicit:
         pytest.fail(
@@ -212,8 +213,8 @@ def test_krylov_driver_consumes_the_records_own_splitting(build_mesh):
     r"""The Krylov driver is **green on both arms** — the twin is SI-specific.
 
     This is the second control leg, and it carries a positive architectural
-    claim: ``_within_group_krylov`` is handed ``(splitting.implicit,
-    *splitting.explicit)`` — the Jacobi value's members — and stores them
+    claim: the Krylov Green the Strategy mints (``_within_group_green_krylov``)
+    hands GMRES ``(splitting.implicit, *splitting.explicit)`` — the Jacobi value's members — and stores them
     verbatim, so R7 was never a property of "within-group solves" but
     specifically of the SI schedule path.  If this row ever REDs, the defect
     has spread.
@@ -221,10 +222,9 @@ def test_krylov_driver_consumes_the_records_own_splitting(build_mesh):
     problem = build_mesh()
     splitting = splitting_for(problem, "jacobi")
     state = random_state(splitting.system, seed=_SEED)
-    krylov = _within_group_krylov(
-        splitting.implicit, *splitting.explicit,
-        n_dof=int(state.to_flat().size), max_iter=2, tol=1e-10,
-    )
+    krylov = _within_group_green_krylov(
+        splitting, n_dof=int(state.to_flat().size),
+    ).driver(max_iter=2, tol=1e-10, budget_name="max_inner")
     if krylov.A is not splitting.implicit:
         pytest.fail(
             "the Krylov driver's operator is not the value's implicit "

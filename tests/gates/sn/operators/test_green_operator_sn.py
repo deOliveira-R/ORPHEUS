@@ -186,7 +186,7 @@ def test_g_neumann_l1_expansion_and_manufactured_anchor():
 def test_green_driver_bit_identical_to_hand_source_iteration():
     """The WIRING of the named split into the driver, not a value.
 
-    ``GreenOperator(L+C, S)._driver(budget)`` ≡ the hand-built
+    ``GreenOperator(L+C, S).driver(max_iter=budget, tol=…)`` ≡ the hand-built
     ``SourceIteration(seeded_inverse(L+C), S)`` BIT-identically. Both sides
     are the SAME ``SourceIteration`` construction over the same objects, so
     this row cannot say whether that iteration's answer is right; it pins
@@ -203,7 +203,7 @@ def test_green_driver_bit_identical_to_hand_source_iteration():
     hand = SourceIteration(
         seeded_inverse(lc), S, max_iter=1000, tol=_TOL,
     )
-    got, _ = green._driver(1000).solve(q, initial_guess=_flux_zeros(sn))
+    got, _ = green.driver(max_iter=1000, tol=_TOL).solve(q, initial_guess=_flux_zeros(sn))
     ref, _ = hand.solve(q, initial_guess=_flux_zeros(sn))
     np.testing.assert_array_equal(
         got.interior.values, ref.interior.values,

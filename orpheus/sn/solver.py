@@ -75,8 +75,8 @@ from .coupled_system import (
     _system_b_member,
 )
 from .splitting import Splitting, resolve_schedule
-from orpheus.transport.operators.angular_lift import AngularLift
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
+from orpheus.numerics.green_operator import GreenOperator
 from orpheus.transport.radial_characteristic_field import (
     RadialCharacteristicField,
 )
@@ -104,6 +104,7 @@ if TYPE_CHECKING:
     # boundary/iteration modules are one-way late imports here).
     from orpheus.numerics.iteration import (
         KrylovAcceleration,
+        Representation,
         SourceIteration,
         SupportsSeededApply,
     )
@@ -903,30 +904,28 @@ def _bare_loss_arm(system: "WithinGroupSystem") -> "LinearOperator":
     return arm
 
 
-def _within_group_krylov(
-    LC: "SupportsInverse[Any, Any]", *gains: "LinearOperator",
-    n_dof: int, max_iter: int, tol: float,
+def _within_group_green_krylov(
+    splitting: "Splitting", *, n_dof: int,
     corrector: "LinearOperator | None" = None,
-) -> "KrylovAcceleration[Any]":
-    r"""GMRES driver on the within-group system ``(M − N)·ψ = q``.
+) -> "GreenOperator":
+    r"""The Strategy's GMRES-realised Green of the within-group splitting
+    ``(M − N)⁻¹`` (numerics_untangling.md rulings 65 and 68).
 
-    Single source of truth (Cardinal Rule 2 / Phase 1 R2) for the
-    :class:`~orpheus.numerics.iteration.KrylovAcceleration` construction shared
-    by the eigenvalue (:meth:`SNSolver._solve_krylov`) and fixed-source
-    (:func:`_solve_fixed_source_krylov`) Krylov paths — they previously built
-    byte-identical instances.  The call sites pass the
-    :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record's splitting:
-    ``LC`` is ``M`` (the fused ``(L+C)`` seedless; the triangular
+    Single source of truth (Cardinal Rule 2 / Phase 1 R2) for the Krylov
+    realisation shared by the eigenvalue (:meth:`SNSolver._solve_krylov`)
+    and fixed-source (:func:`_solve_fixed_source_krylov`) Krylov paths,
+    which read its relaxation face ``green.driver(...)``. The splitting is
+    the :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record's:
+    ``M`` is the fused ``(L+C)`` seedless, the triangular
     :class:`~orpheus.numerics.coupled_system.CoupledOperator` grid
-    ``[[LC, Seeding], [None, march]]`` on a carrying mesh — step 5, the
-    block matvec) and ``*gains`` is ``N`` (the ``(S, B_a)`` pair seedless;
-    the ONE coupled gain grid carrying); the matvec is
-    ``M.apply − Σ Nᵢ.apply``.
+    ``[[LC, Seeding], [None, march]]`` on a carrying mesh (step 5, the block
+    matvec); ``N`` is the ``(S, B_a)`` pair seedless and the ONE coupled gain
+    grid carrying; the matvec is ``M.apply − Σ Nᵢ.apply``.
 
     The left preconditioner is an operator stated here, the one place it is
     chosen (``KrylovAcceleration`` has no default: the user's ruling,
     2026-10-04). Without a ``corrector`` it is the sweep,
-    :math:`M^{-1} = (L+C)^{-1}` (``LC.inverse()``, issue #200): it
+    :math:`M^{-1} = (L+C)^{-1}` (``M.inverse()``, issue #200): it
     reads the residual's boundary block as well as its cells, which is what
     makes it the block inverse of the typed state rather than a rank-deficient
     map (a sweep that drops the boundary block is still linear, and converges
@@ -957,41 +956,35 @@ def _within_group_krylov(
     legacy ``min(50, …)`` clamp left GMRES structurally truncated on any
     mesh with ``n_dof > 50`` (ERR-053).
     """
-    from orpheus.numerics.iteration import KrylovAcceleration
+    from orpheus.numerics.green_operator import Krylov
     from orpheus.numerics.operator import IdentityOperator
 
-    sweep = LC.inverse()
+    sweep = splitting.implicit.inverse()
     preconditioner = (
         sweep if corrector is None else (IdentityOperator() + corrector) @ sweep
     )
-    return KrylovAcceleration(
-        LC, *gains,
-        preconditioner=preconditioner,
-        tol=tol, max_iter=max_iter,
-        restart=n_dof,
-        budget_name="max_inner",
-    )
+    return splitting.green(Krylov(preconditioner, restart=n_dof))
 
 
-def _maybe_window(
-    sweep: "SweepOperator", scattering_op: "ScatteringOperator",
-    problem: "SNProblem",
-) -> "tuple[WindowedSweep | SweepOperator, bool]":
-    r"""Phase 5a — compose the 2-D Cartesian angular-windowing product over
-    ``sweep`` (the inverse operator ``A.inverse()``), else passthrough.
-    Returns ``(step, windowed)``.
+def _angular_representation(
+    scattering_op: "ScatteringOperator", problem: "SNProblem",
+) -> "Representation":
+    r"""Phase 5a — the representation the source iteration's iterate lives in:
+    the 2-D Cartesian angular-moment window, else the split's own space.
 
-    The SINGLE site of the windowing-eligibility gate AND the factory of the
-    windowed product (``coding-elegance`` Pattern 7 — the convention lives in
-    one place, shared by the eigenvalue and fixed-source SI drivers):
-    genuinely 2-D Cartesian holds the SI iterate as harmonic moments via the
-    typed composition ``P @ A.inverse()`` (#226 §17 W1), built here as its
-    fused realisation :class:`~orpheus.sn.operators.windowing.WindowedSweep`
-    (``@`` never fuses: numerics_untangling.md ruling 52, so this factory is
-    the atom's owner);
-    curvilinear (1-D) stays full-angular — the Morel–Montry Carlson seed
-    reads the previous per-ordinate iterate at ``μ=−1`` (lesson L21), which
-    the moment tensor does not carry.  ``P`` is sourced from the scattering
+    The SINGLE site of the windowing-eligibility gate (``coding-elegance``
+    Pattern 7 — the convention lives in one place, shared by the eigenvalue
+    and fixed-source SI paths): genuinely 2-D Cartesian holds the SI iterate
+    as harmonic moments, through the analysis factor
+    :math:`\mathcal P` from which the
+    :class:`~orpheus.sn.operators.windowing.AngularMomentWindow` derives the
+    windowed preconditioner :math:`\mathcal P\,M^{-1}` (#226 §17 W1; the
+    fused :class:`~orpheus.sn.operators.windowing.WindowedSweep`, whose owner
+    the window is, since ``@`` never fuses: numerics_untangling.md ruling 52)
+    and the moment-bound gains (ruling 70); curvilinear (1-D) stays
+    full-angular — the Morel–Montry Carlson seed reads the previous
+    per-ordinate iterate at ``μ=−1`` (lesson L21), which the moment tensor
+    does not carry.  :math:`\mathcal P` is sourced from the scattering
     operator's own MINTED flux-analysis face (F-1) ⇒ the stored moments
     match ``S``'s internal projection term-for-term.
 
@@ -1001,17 +994,15 @@ def _maybe_window(
     have silently moment-windowed a 3-D solve (the in-sweep moment
     emission is a 2-D kernel; ``FullFieldWavefront`` refuses moment mode).
     """
-    if problem.is_cartesian and problem.ndim == 2:
-        from .operators.windowing import BulkAnalysisOperator, WindowedSweep
+    from orpheus.numerics.iteration import NATIVE
 
-        return (
-            WindowedSweep(
-                BulkAnalysisOperator(scattering_op.flux_analysis, problem.full_field_space),
-                sweep,
-            ),
-            True,
+    if problem.is_cartesian and problem.ndim == 2:
+        from .operators.windowing import AngularMomentWindow, BulkAnalysisOperator
+
+        return AngularMomentWindow(
+            BulkAnalysisOperator(scattering_op.flux_analysis, problem.full_field_space),
         )
-    return sweep, False
+    return NATIVE
 
 
 def _windowed_cold_start(scattering_op, problem, *, history_depth):
@@ -1172,25 +1163,24 @@ class InnerSolve(NamedTuple):
     r"""What the LAST within-group solve left behind — the posed
     :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record (the
     Problem's face: the loss and its factors, ORIGINAL), the
-    :class:`~orpheus.sn.splitting.Splitting` value the driver ran (the
-    Strategy's face: the operators AS USED — its ``implicit`` is the forward
-    ``M`` whose inverse was applied, un-windowed), the gains it actually
-    DROVE each step (the value's ``explicit`` pieces, moment-bound when the
-    SI iterate was windowed; the coupled gain grid when carrying — the
-    lowering's face, kept beside the value because the finalize applies
-    exactly these), and the converged iterate itself (System A's bulk ⊕
-    trace, paired with System B's ψ½ member on a carrying mesh — B.2d).
-    The O-3 query contract, in one record: ``system`` answers the original
-    operators, ``splitting`` the modified ones.
+    :class:`~orpheus.sn.splitting.Splitting` value (the Strategy's face: the
+    operators AS USED), the Green that splitting minted and whose relaxation
+    the driver ran (its ``implicit`` the forward ``M``, its driven gains the
+    value's ``explicit`` pieces read through the realisation's
+    representation: moment-bound when the SI iterate was windowed, the
+    coupled gain grid when carrying), and the converged iterate itself
+    (System A's bulk ⊕ trace, paired with System B's ψ½ member on a carrying
+    mesh — B.2d). The O-3 query contract, in one record: ``system`` answers
+    the original operators, ``splitting`` and ``green`` the modified ones.
 
     Written by both eigenvalue inner solves as ``SNSolver._inner`` (``None``
     before the first inner solve — the truthful type of a state that does
     not exist yet), read as the next inner's warm start, by ``compute_keff``'s
     leakage term (the converged trace), and by the finalize
     (:func:`solve_sn`), which evaluates the SAME map once more —
-    :func:`~orpheus.numerics.iteration.fixed_point_step` on the converged
-    iterate with the converged fission source — through the operators the
-    iteration actually converged against.  The record IS the history (#340
+    :meth:`~orpheus.numerics.green_operator.GreenOperator.step` of the same
+    Green on the converged iterate with the converged fission source —
+    through the operators the iteration actually converged against.  The record IS the history (#340
     N2b-ii): nothing re-selects a splitting the inner already chose, so the
     reconstruction cannot drift from the iteration (#448), and the four
     members travel as one fact — they are written at one site and never
@@ -1199,7 +1189,7 @@ class InnerSolve(NamedTuple):
 
     system: "WithinGroupSystem"
     splitting: "Splitting"
-    driven_gains: "tuple[LinearOperator, ...]"
+    green: "GreenOperator"
     iterate: "TimedFullField | CoupledField"
 
 
@@ -1214,8 +1204,8 @@ def _eigenvalue_driver_source(
     inner (:meth:`SNSolver._solve_source_iteration`), the Krylov inner
     (:meth:`SNSolver._solve_krylov`) and the finalize (:func:`solve_sn`,
     which reconstructs the returned flux by ONE
-    :func:`~orpheus.numerics.iteration.fixed_point_step` from the converged
-    iterate).  What the drivers converge against IS what the finalize
+    :meth:`~orpheus.numerics.green_operator.GreenOperator.step` from the
+    converged iterate).  What the drivers converge against IS what the finalize
     rebuilds from, by construction — #448 was exactly that drift (the
     finalize hand-built a P0-only source of its own).
 
@@ -1259,21 +1249,23 @@ def _eigenvalue_driver_source(
     )
 
 
-def _within_group_si(
+def _within_group_green_si(
     splitting: "Splitting",
-    problem: "SNProblem", *, max_iter: int, tol: float,
+    problem: "SNProblem", *,
     corrector: "LinearOperator | None" = None,
     extra_gains: "tuple[LinearOperator, ...]" = (),
-) -> "tuple[SourceIteration[Any], SupportsInverse[Any, Any], tuple[LinearOperator, ...], bool]":
-    r"""SourceIteration driver on a splitting ``A = M − N`` of the within-group
-    system — the Strategy VALUE, consumed as it is.
+) -> "tuple[GreenOperator, bool]":
+    r"""The Strategy's source-iteration-realised Green of a splitting
+    ``A = M − N`` of the within-group system (numerics_untangling.md rulings
+    65 and 68) — the Strategy VALUE, consumed as it is.
 
     Single source of truth (Cardinal Rule 2 / Phase 1 R1) for the
-    :class:`~orpheus.numerics.iteration.SourceIteration` construction shared by
-    the eigenvalue (:meth:`SNSolver._solve_source_iteration`) and fixed-source
-    (:func:`_solve_fixed_source_si`) paths — the SI sibling of
-    :func:`_within_group_krylov` (both inner methods have ONE construction
-    helper consumed by their eigenvalue + fixed-source sites). Consumes a
+    :class:`~orpheus.numerics.green_operator.Richardson` realisation shared by the
+    eigenvalue (:meth:`SNSolver._solve_source_iteration`) and fixed-source
+    (:func:`_solve_fixed_source_si`) paths, which read its relaxation face
+    ``green.driver(...)`` — the SI sibling of
+    :func:`_within_group_green_krylov` (both inner methods have ONE Green
+    minted for their eigenvalue + fixed-source sites). Consumes a
     :class:`~orpheus.sn.splitting.Splitting` — the labelled terms of the
     Problem's loss and the ``M``/``N`` they derive, minted from the posed
     record by the ONE labelling site
@@ -1283,6 +1275,7 @@ def _within_group_si(
     operator/strategy campaign is gone by construction: the driver runs the
     objects the value carries).
 
+    ``extra_gains`` enter ``N`` (:meth:`~orpheus.sn.splitting.Splitting.green`).
     Two structurally-dispatched arms (B.2d DP-seedless — the coupled
     carrier appears exactly where System B exists):
 
@@ -1299,31 +1292,21 @@ def _within_group_si(
     * **seedless**: the value's ``M`` (``L+C``, or the scheduled composite
       ``(L+C) − B_lower`` under boundary Gauss-Seidel) inverted — the
       :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` — and the
-      Phase-5a angular-windowing composition (:func:`_maybe_window` —
+      Phase-5a angular-windowing composition (:func:`_angular_representation` —
       2-D Cartesian holds the iterate as harmonic moments via
-      ``P @ A.inverse()``); the lagged pieces applied one by one.
+      ``P @ A.inverse()``, the representation
+      :class:`~orpheus.sn.operators.windowing.AngularMomentWindow`, through
+      which the Green re-binds the angular lifts among the gains on the
+      moment iterate); the lagged pieces applied one by one.
 
-    Returns ``(si, implicit, driven_gains, windowed)``:
-
-    * ``si`` — the :class:`SourceIteration` primitive;
-    * ``implicit`` — the value's un-inverted FORWARD ``M`` (both finalizes
-      need it for the one-shot full-angular reconstruction of
-      ``Solution.angular_flux`` — the fixed-source windowed arm directly,
-      the eigenvalue finalize through the :class:`InnerSolve` record
-      the inner solve leaves beside its iterate);
-    * ``driven_gains`` — the lagged pieces ``N`` actually driven: the
-      value's ``explicit`` pieces, the angular lifts among them RE-BOUND on
-      the moment iterate when windowed (CS4c step 5: the same datum and
-      faces as the record's angular bindings, the domain's interior the
-      analysis face's codomain — each binding acts through the body its
-      ends select, and the moment operand is admitted by ITS operator
-      instead of being dispatched on by the angular one; the boundary gain,
-      or its G-S upper part, reads the trace and stays), the other half of
-      that reconstruction (:func:`~orpheus.numerics.iteration.fixed_point_step`);
-    * ``windowed`` — whether the iterate is the moment representation (2-D
-      Cartesian) vs full-angular (curvilinear / 1-D).
+    Returns ``(green, windowed)``: the Green, whose ``step`` is the one-shot
+    full-angular reconstruction both finalizes apply (through ``M``'s own
+    un-windowed inverse and the driven gains), and whether its iterate is
+    the moment representation (2-D Cartesian) vs full-angular (curvilinear /
+    1-D).
     """
-    from orpheus.numerics.iteration import SourceIteration
+    from orpheus.numerics.green_operator import Richardson
+    from orpheus.numerics.iteration import NATIVE
 
     if splitting.system.is_coupled:
         # The ψ½ coupled block-native arm (B.2d): the value's splitting IS
@@ -1333,47 +1316,28 @@ def _within_group_si(
         # at DSALowOrderSystem.from_problem before this builder runs.
         if corrector is not None:
             raise NotImplementedError(
-                "_within_group_si: a synthetic-acceleration corrector on "
+                "_within_group_green_si: a synthetic-acceleration corrector on "
                 "the coupled (curvilinear) arm has no stability theory "
                 "(#282); the DSA admission should have refused upstream."
             )
-        # The block back-substitution IS the seeded resolvent (both faces
-        # written at one site — the cast states what the value's
-        # capability annotation cannot: WHICH inverse the coupled grid mints).
-        gains = (*splitting.explicit, *extra_gains)
-        si = SourceIteration(
-            cast("SupportsSeededApply[Any]", splitting.implicit.inverse()),
-            *gains,
-            max_iter=max_iter, tol=tol, budget_name="max_inner",
-        )
-        return si, splitting.implicit, gains, False
+        # The block back-substitution IS M's own seeded inverse, so the
+        # coupled arm is the default realisation: M⁻¹ = the joint sweep,
+        # derived by the Green (ruling 70).
+        return splitting.green(extra_gains=extra_gains), False
     # Seedless: the value's ``M`` inverts to the WDD sweep (the plain
     # composite) or the octant-group forward substitution (the scheduled
-    # composite) — a SweepOperator either way, which is what the windowing
-    # product fuses onto.
-    step, windowed = _maybe_window(
-        cast("SweepOperator", splitting.implicit.inverse()),
-        splitting.system.factors.scattering, problem,
-    )
-    all_gains = (*splitting.explicit, *extra_gains)
-    gains = (
-        tuple(
-            gain.on_moment_domain() if isinstance(gain, AngularLift) else gain
-            for gain in all_gains
-        )
-        if windowed else all_gains
-    )
+    # composite) — a SweepOperator either way, which is what the windowed
+    # product fuses onto when the representation is the moment window.
+    representation = _angular_representation(splitting.system.factors.scattering, problem)
+    windowed = representation is not NATIVE
     if corrector is not None and windowed:
         raise NotImplementedError(
-            "_within_group_si: the DSA corrector consumes the full-"
+            "_within_group_green_si: the DSA corrector consumes the full-"
             "angular increment; the 2-D moment-windowed iterate is "
             "outside the arm-1 admission (the corner-moment follow-up)."
         )
-    si = SourceIteration(
-        step, *gains, max_iter=max_iter, tol=tol, corrector=corrector,
-        budget_name="max_inner",
-    )
-    return si, splitting.implicit, gains, windowed
+    realisation = Richardson(representation=representation, corrector=corrector)
+    return splitting.green(realisation, extra_gains=extra_gains), windowed
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1442,7 +1406,7 @@ class SNSolver:
         self.inner_solver = inner_solver
         # SI BOUNDARY splitting for the eigenvalue inner (#218 — the eigenvalue
         # SI now CAN reach the boundary-Gauss-Seidel accelerator the
-        # fixed-source path got in Phase 3, via the shared ``_within_group_si``
+        # fixed-source path got in Phase 3, via the shared ``_within_group_green_si``
         # builder; validated SI(G-S)≡Krylov≡k_inf).  DEFAULT stays ``"jacobi"``:
         # the eigenvalue inner is warm-started (the G-S rate benefit is modest
         # there), and a schedule change shifts the converged k_eff by ~inner_tol
@@ -2009,12 +1973,12 @@ class SNSolver:
         # ``#218``: the eigenvalue inner honours ``self.inner_schedule``
         # (default boundary-G-S on 2-D Cartesian; the coupled arm and 1-D
         # fall to Jacobi structurally).  Phase-5a angular-windowing folds
-        # in via :func:`_maybe_window` inside the SI builder. ──────────
+        # in via :func:`_angular_representation` inside the SI builder. ──────────
         system = self.problem.system  # the Problem's posed record, built ONCE per hub (R-cc6 (iii))
         splitting = Splitting.from_schedule(system, self.schedule)
-        si, _base, _gains, windowed = _within_group_si(
-            splitting, self.problem,
-            max_iter=self.max_inner, tol=self.inner_tol,
+        green, windowed = _within_group_green_si(splitting, self.problem)
+        si = green.driver(
+            max_iter=self.max_inner, tol=self.inner_tol, budget_name="max_inner",
         )
         # B.2d DP-seedless: the coupled pair appears exactly where System B
         # exists; the seedless paths (windowed 2-D, G-S) stay fused.
@@ -2078,7 +2042,7 @@ class SNSolver:
         # What this solve DROVE and what it converged to, as ONE record —
         # the next inner's warm start; the finalize evaluates the same map
         # once more on it (#448).
-        self._inner = InnerSolve(system, splitting, _gains, psi_typed)
+        self._inner = InnerSolve(system, splitting, green, psi_typed)
 
         # Scalar flux for the eigenvalue outer's contract.  Windowed: the
         # ℓ=0 moment IS the scalar flux (Y_0^0 = 1 ⇒ bit-identical to
@@ -2134,7 +2098,7 @@ class SNSolver:
         composite ``L + C`` returns an
         :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` (R-1 Step C);
         its inverse IS the WDD sweep, which preconditions GMRES
-        (:func:`_within_group_krylov`, issue #200).
+        (:func:`_within_group_green_krylov`, issue #200).
 
         The within-group fission ``F`` is zero — the fission source
         comes in as the external ``q_{\rm ext}`` per the eigenvalue
@@ -2161,7 +2125,7 @@ class SNSolver:
 
         # ── Build the within-group system (single source of truth —
         # :func:`~orpheus.sn.coupled_system.build_within_group_system` /
-        # ``_within_group_krylov``; shared with the SI and fixed-source
+        # ``_within_group_green_krylov``; shared with the SI and fixed-source
         # paths; the cached scattering operator injects through the cache
         # seam). ──────────────────────────────────────────────────────
         system = self.problem.system  # the Problem's posed record, built ONCE per hub (R-cc6 (iii))
@@ -2201,10 +2165,11 @@ class SNSolver:
         # count is HONEST since B.2d, no dead padding).  A bulk-sized
         # restart re-truncates GMRES on the trace+seed DOFs (the sphere
         # Krylov stall).  Size it from the state the driver ravels.
-        krylov = _within_group_krylov(
-            splitting.implicit, *splitting.explicit,
-            n_dof=int(initial_guess.to_flat().size),
-            max_iter=self.max_inner, tol=self.inner_tol,
+        green = _within_group_green_krylov(
+            splitting, n_dof=int(initial_guess.to_flat().size),
+        )
+        krylov = green.driver(
+            max_iter=self.max_inner, tol=self.inner_tol, budget_name="max_inner",
         )
 
         q_driver = _eigenvalue_driver_source(
@@ -2232,7 +2197,7 @@ class SNSolver:
         # What this solve DROVE and what it converged to, as ONE record —
         # GMRES on ``(M − N)ψ = q`` with the record's own splitting; the
         # finalize evaluates ``M⁻¹(q + N·ψ)`` once on it (#448).
-        self._inner = InnerSolve(system, splitting, splitting.explicit, psi_typed)
+        self._inner = InnerSolve(system, splitting, green, psi_typed)
 
         # Reduce angular → scalar flux for the eigenvalue outer's contract.
         # The parse reifies the driver-template contract (the solve echoes
@@ -2320,7 +2285,7 @@ def solve_sn(
     inner_schedule : {"jacobi", "gauss_seidel"}
         Boundary splitting for the ``source_iteration`` inner (#218 — the
         eigenvalue inner CAN now reach the same boundary-G-S accelerator the
-        fixed-source path got in Phase 3, via the shared ``_within_group_si``
+        fixed-source path got in Phase 3, via the shared ``_within_group_green_si``
         builder; validated SI(G-S)≡Krylov≡closed-form k_inf).  ``"jacobi"``
         (default) lags the reflective boundary ``B`` as an external gain;
         ``"gauss_seidel"`` (opt-in) folds ``B`` into an octant-group forward
@@ -2392,7 +2357,8 @@ def solve_sn(
     # (``inner.splitting.implicit`` is the un-wrapped forward ``M``), which is what
     # turns a moment iterate back into per-ordinate ψ — the fixed-source
     # windowed arm's spelling (:func:`_solve_fixed_source_si`), now the one
-    # body :func:`~orpheus.numerics.iteration.fixed_point_step`.
+    # map :meth:`~orpheus.numerics.green_operator.GreenOperator.step` of the
+    # Green the last inner solve drove (ruling 69).
     #
     # ⛔ Until #448 this block hand-built the source as fission + P0
     # scattering + P0 (n,2n) and lifted it isotropically — the ℓ ≥ 1 half of
@@ -2411,8 +2377,6 @@ def solve_sn(
     # arm — the pre-carve battery's M5), so its removal moves nothing a
     # value gate can witness; the trace's correctness is pinned by the
     # wrong-``B`` arm (M5b) instead.
-    from orpheus.numerics.iteration import fixed_point_step
-
     inner = solver._inner
     if inner is None:
         # Reachable: ``max_outer=0`` runs the power loop zero times (`[M]`
@@ -2426,14 +2390,7 @@ def solve_sn(
     # The SYSTEM is kept, not just its splitting: the #340 N6b exit balance
     # below needs its LOSS arm (``L+C−S−N₂ₙ−B``).
     final_system = inner.system
-    # The inverse's static type is the UNION of the three resolvent classes
-    # while the iterate's is the union of the two state carriers, and the
-    # correlation between them (coupled ↔ coupled) is not expressible
-    # without a seeded-inverse Protocol (#453) — the cast states that the
-    # record pairs them by construction (both written at one site).
-    final_state = fixed_point_step(
-        cast("SupportsSeededApply[Any]", inner.splitting.implicit.inverse()),
-        inner.driven_gains,
+    final_state = inner.green.step(
         _eigenvalue_driver_source(
             solver.compute_fission_source(scalar_flux, keff), problem,
             context="solve_sn finalize",
@@ -2736,7 +2693,7 @@ def solve_sn_adjoint(
     # Jacobi splitting, lifted to the 1×1 grid on a seedless mesh.
     ke = KEigenvalue(
         problem.eigen_posing.H(),
-        implicit_operator.H, gain.H,
+        GreenOperator(implicit_operator.H, gain.H),
         max_outer=max_outer, keff_tol=keff_tol, flux_tol=flux_tol,
         max_inner=max_inner, inner_tol=inner_tol,
     )
@@ -2840,8 +2797,9 @@ def solve_sn_adjoint_fixed_source(
     the detector-importance problem: :math:`\psi^*(\vec r, \Omega, g)` is
     the expected detector response per unit neutron introduced at phase-
     space point :math:`(\vec r, \Omega, g)`.  Solved by the daggered
-    within-group :class:`~orpheus.numerics.iteration.SourceIteration`
-    (``seeded_inverse(A.H)`` + the daggered gain) — the exact transpose
+    within-group splitting's Green, ``GreenOperator(M.H, N.H)``, through its
+    relaxation face (the source iteration preconditioned by
+    ``seeded_inverse(M.H)``, the daggered gain lagged) — the exact transpose
     of the forward fixed-source system; no adjoint-specific solver code.
 
     Signature mirrors :func:`solve_sn_fixed_source` (the forward
@@ -2909,7 +2867,6 @@ def solve_sn_adjoint_fixed_source(
         )
     implicit_operator, gain, _F, template, splitting = _adjoint_posing_parts(problem)
 
-    from orpheus.numerics.iteration import SourceIteration, seeded_inverse
     from orpheus.transport.source_sinks import (
         AngularBoundarySourceSink,
         AngularSourceSink,
@@ -2945,8 +2902,9 @@ def solve_sn_adjoint_fixed_source(
             boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
         )
 
-    si = SourceIteration(
-        seeded_inverse(implicit_operator.H), gain.H,
+    # The Strategy mints the Green of the ADJOINT SPLIT (M†, N†): its own
+    # value, not the forward Green's ``.H`` (ruling 66).
+    si = GreenOperator(implicit_operator.H, gain.H).driver(
         max_iter=max_inner, tol=inner_tol, budget_name="max_inner",
     )
     # Flux-classed zero start (the template) — the daggered iterate is an
@@ -3657,7 +3615,7 @@ def _solve_fixed_source_si(
     ``B·ψ.outflow`` through ``rhs.boundary`` which the bare ``(L + C).solve``
     sweep reads as the inflow seed (single source of truth — Cardinal Rule 2).
     No production path sets inflow slots by hand any more: since #448 the
-    eigenvalue finalize is one :func:`~orpheus.numerics.iteration.fixed_point_step`
+    eigenvalue finalize is one :meth:`~orpheus.numerics.green_operator.GreenOperator.step`
     of this same map (``B`` a gain there too); the octant-restricted
     Gauss-Seidel resolvent completes its lagged rows additively through
     :meth:`~orpheus.sn.operators.boundary.SNMaskedBoundaryOperator.reflect_rows_inplace`,
@@ -3697,19 +3655,18 @@ def _solve_fixed_source_si(
 
     # ── Build the within-group system + SI via the SHARED builders (single
     # source of truth — :func:`~orpheus.sn.coupled_system.build_within_group_system`
-    # / :func:`_within_group_si`; identical construction to the eigenvalue
+    # / :func:`_within_group_green_si`; identical construction to the eigenvalue
     # inner).  ``inner_schedule`` selects Jacobi vs boundary-G-S; the SI
-    # builder folds in the Phase-5a angular-windowing.  ``base_implicit``
-    # (un-wrapped) + ``gains`` are kept for the final full-angular
-    # reconstruction below. ────────────────────────────────────────────
+    # builder folds in the Phase-5a angular-windowing.  The Green is kept
+    # for the final full-angular reconstruction below (its ``step``). ───────
     system = problem.system  # the Problem's posed record (R-cc6 (iii))
     splitting = Splitting.from_schedule(
         system, resolve_schedule(problem, inner_schedule),
     )
-    si, base_implicit, gains, windowed = _within_group_si(
-        splitting, problem, max_iter=max_inner, tol=inner_tol, extra_gains=extra_gains,
-        corrector=corrector,
+    green, windowed = _within_group_green_si(
+        splitting, problem, extra_gains=extra_gains, corrector=corrector,
     )
+    si = green.driver(max_iter=max_inner, tol=inner_tol, budget_name="max_inner")
     coupled = system.is_coupled
 
     # Cold-start iterate (x0 = zeros).  Fixed-source is a single solve — no
@@ -3778,33 +3735,16 @@ def _solve_fixed_source_si(
     # ``psi_typed.boundary`` — no legacy ``solver._boundary_flux`` writeback).
     # Windowed: ``psi_typed.interior`` is the moment iterate, so reconstruct the
     # full angular with ONE application of the splitting map — the converged
-    # source ``q + Σ gains·ψ`` through the UN-wrapped base resolvent, the one
-    # body :func:`~orpheus.numerics.iteration.fixed_point_step` the eigenvalue
-    # finalize evaluates too (#448).  Bit-identical to the un-windowed
+    # source ``q + Σ gains·ψ`` through ``M``'s own UN-windowed inverse, the one
+    # map :meth:`~orpheus.numerics.green_operator.GreenOperator.step` the
+    # eigenvalue finalize evaluates too (#448).  Bit-identical to the un-windowed
     # converged ψ: S/B consume the moments == the full angular's moments
     # (de-risk proven), so the source is the same, and one sweep of the
     # converged source reproduces the converged iterate by the fixed point.
-    if windowed:
-        # Windowed ⟹ 2-D Cartesian ⟹ seedless (R12a): the iterate is the
-        # fused composite (``psi_full IS psi_typed`` here) and the resolvent
-        # is never the coupled bridge — the parse states the structural
-        # fact loudly instead of assuming it.
-        if isinstance(base_implicit, CoupledOperator):
-            raise TypeError(
-                "windowed reconstruction reached a coupled resolvent — "
-                "structurally unreachable (windowing is 2-D Cartesian, "
-                "seedless; the coupled arm never windows)."
-            )
-        from orpheus.numerics.iteration import fixed_point_step
-
-        angular_out = fixed_point_step(
-            cast("SupportsSeededApply[Any]", base_implicit.inverse()),
-            gains, q_a_ext, psi_full,
-        )
-    else:
-        # Un-windowed: the (re-fused) converged iterate IS the full
-        # per-ordinate angular flux.
-        angular_out = psi_full
+    # The Green's representation decides: the un-windowed iterate IS the
+    # full per-ordinate angular flux, and a windowed one is reconstructed by
+    # the one step (windowed ⟹ 2-D Cartesian ⟹ seedless, R12a).
+    angular_out = green.solution(q_a_ext, psi_full)
     # Scalar flux from the RETURNED full angular flux → the Solution is exactly
     # self-consistent (``scalar == ∫ angular dΩ``), matching the un-windowed
     # contract.  (For the un-windowed path ``angular_out`` IS ``psi_typed``, so
@@ -3870,7 +3810,7 @@ def _solve_fixed_source_krylov(
     on typed :class:`~orpheus.transport.fields.angular_flux.AngularFlux`.  The
     composite ``L + C`` returns an
     :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`; its inverse
-    IS the WDD sweep, which preconditions GMRES (:func:`_within_group_krylov`,
+    IS the WDD sweep, which preconditions GMRES (:func:`_within_group_green_krylov`,
     issue #200).
 
     The outer Picard wrap on the scattering source dissolves at G1:
@@ -3888,7 +3828,7 @@ def _solve_fixed_source_krylov(
     Krylov inner :meth:`SNSolver._solve_krylov`: identical within-group
     system (:func:`~orpheus.sn.coupled_system.build_within_group_system`)
     and identical :class:`~orpheus.numerics.iteration.KrylovAcceleration`
-    driver (:func:`_within_group_krylov`), differing ONLY in ``q_ext`` (the
+    driver (:func:`_within_group_green_krylov`'s Green), differing ONLY in ``q_ext`` (the
     external source here vs the fission source there) — and the twin of the
     geometry-agnostic 2-D fixed-source SI path.  Verified: the converged
     per-ordinate flux hits the closed-form streaming equilibrium ``q/Σ_t``
@@ -3934,7 +3874,7 @@ def _solve_fixed_source_krylov(
 
     # ── Build the within-group system + Krylov driver (single source of
     # truth — :func:`~orpheus.sn.coupled_system.build_within_group_system` /
-    # ``_within_group_krylov``; shared with the eigenvalue Krylov + SI
+    # ``_within_group_green_krylov``; shared with the eigenvalue Krylov + SI
     # paths; the cached scattering operator injects through the cache
     # seam). ──────────────────────────────────────────────────────────
     # ERR-053 (#282 route (a)): ``restart`` MUST cover the FULL ravel —
@@ -3952,12 +3892,9 @@ def _solve_fixed_source_krylov(
         # The coupled pair is born native (B.2d): the flux template pairs
         # with a zero ψ_B; ``q_ext_composite`` is already the coupled rhs.
         krylov_cold_start = _coupled_flux_state(krylov_cold_start, problem)
-    krylov = _within_group_krylov(
-        splitting.implicit, *splitting.explicit,
-        n_dof=int(krylov_cold_start.to_flat().size),
-        max_iter=max_inner, tol=inner_tol,
-        corrector=corrector,
-    )
+    krylov = _within_group_green_krylov(
+        splitting, n_dof=int(krylov_cold_start.to_flat().size), corrector=corrector,
+    ).driver(max_iter=max_inner, tol=inner_tol, budget_name="max_inner")
 
     psi_typed, record = krylov.solve(
         q_ext_composite, initial_guess=krylov_cold_start,

@@ -1236,8 +1236,8 @@ def reflect_outflow_into_inflow(boundary_flux, problem: "SNProblem") -> None:
     coupling as the ``B`` gain of every within-group driver (Wave O O.2a —
     since B.2d the :func:`~orpheus.sn.coupled_system.build_within_group_system`
     record's ``explicit_gains``), and since #448 the eigenvalue finalize is
-    one :func:`~orpheus.numerics.iteration.fixed_point_step` of that same
-    map, so no production path sets inflow slots by hand any more.  The
+    one step of that same map (``GreenOperator.step`` since S4,
+    ``fixed_point_step`` before), so no production path sets inflow slots by hand any more.  The
     sweep-tier gates that drive ``sweep_once`` / ``_sweep_jacobi`` in a loop
     (the 2-D octant equivalence suite, the curvilinear sweep regressions,
     the ng=2 layout guard, the iteration primitive's SN fixture) still need

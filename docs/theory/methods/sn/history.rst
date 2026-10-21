@@ -1581,7 +1581,7 @@ them.  Trust ``git``, not this column.
        iterate — and it un-windows a moment iterate for free, because the
        identity does not care which right-inverse of :math:`M` is used.
        Two new named objects carry it:
-       :func:`~orpheus.numerics.iteration.fixed_point_step` /
+       ``fixed_point_step`` /
        :func:`~orpheus.numerics.iteration.lagged_source` (the map and its
        rhs, named once and shared with
        :meth:`SourceIteration.solve <orpheus.numerics.iteration.SourceIteration.solve>`)
@@ -3315,7 +3315,7 @@ them.  Trust ``git``, not this column.
        driver checks ``CAP_APPLY`` only and an apply-only step operator (the
        coisometry-factored windowed product) is accepted by design. The
        transitional ``_MomentWindowedResolvent`` adapter dissolved;
-       :func:`_maybe_window <orpheus.sn.solver._maybe_window>` is now the
+       ``_maybe_window`` became the
        product factory. :class:`~orpheus.numerics.iteration.KEigenvalue`
        guards ``A.is_invertible`` at construction and builds the inner step
        via the single-source

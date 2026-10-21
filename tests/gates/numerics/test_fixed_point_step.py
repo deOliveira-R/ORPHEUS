@@ -1,8 +1,11 @@
-r"""Foundation gates for the two splitting-iteration primitives — #448.
+r"""Foundation gates for the splitting iteration's map — #448, S4.
 
-``lagged_source`` and ``fixed_point_step`` entered
-``orpheus.numerics.iteration.__all__`` with the #448 carve, as the ONE
-spelling of the map every SN driver iterates:
+``lagged_source`` (in ``orpheus.numerics.iteration.__all__`` since the #448
+carve) and the splitting map :meth:`GreenOperator.step
+<orpheus.numerics.green_operator.GreenOperator.step>` (since S4, ruling 69:
+the free function ``fixed_point_step`` that held it from #448 retired onto the
+Green, the split's own verb) are the ONE spelling of the map every SN driver
+iterates:
 
 .. math::
 
@@ -11,14 +14,14 @@ spelling of the map every SN driver iterates:
 
 ``SourceIteration.solve`` composes ``lagged_source`` to convergence; the SN
 eigenvalue finalize and the windowed fixed-source finalize evaluate
-``fixed_point_step`` **once** on a converged iterate, which is what makes the
+``GreenOperator.step`` **once** on a converged iterate, which is what makes the
 returned flux solve the equation the caller is told about.  Before #448 the
 eigenvalue finalize hand-rolled that source and the twin drifted — the whole
 of ERR-083.
 
 ⛔ **They had ZERO direct call sites in ``tests/`` when they landed** (qa F-6).
 Every gate on them was end-to-end, through an SN solve, so the primitives'
-own contract — what ``lagged_source`` returns, what ``fixed_point_step``
+own contract — what ``lagged_source`` returns, what the step
 composes, that the iterate is threaded as ``initial_guess`` — was pinned only
 by the answer of a 20-cell transport solve.  This module is the term tier.
 
@@ -41,7 +44,12 @@ row                                       kind           reference
                                                          that returns its argument
 ``…the_iterate_is_threaded_as_a_seed``    CONTRACT       a recording double
 ``…source_iteration_drives_the_same…``    SINGLE-SOURCE  a spy on the shared body
+``…the_step_assembles_through_the_same…`` SINGLE-SOURCE  the same spy, on ``step``
 ========================================  =============  ==========================
+
+The step rows run on ``GreenOperator(M, N₁ + N₂).step``: the Green derives its
+driven gains from N's terms (``(N₁, N₂)``, in order) and applies M's own
+seeded inverse.
 
 ⚠ **What the third row buys and the second does not.**  Row 2's reference
 (``inv(M) @ rhs``) is *procedurally* independent of the SUT's route
@@ -65,12 +73,12 @@ import numpy as np
 import pytest
 
 from orpheus.numerics import iteration as _iteration
+from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.iteration import (
     SourceIteration,
-    fixed_point_step,
     lagged_source,
 )
-from orpheus.numerics.operator import InverseOperator, LinearOperator
+from orpheus.numerics.operator import InverseOperator, InverseWrapMixin, LinearOperator
 
 if TYPE_CHECKING:  # the annotation only — no runtime import cost
     from orpheus.numerics.space import FunctionSpace
@@ -131,6 +139,36 @@ class _RecordingInverse:
     def apply(self, x: Any, /, *, initial_guess: Any | None = None) -> Any:
         self.calls.append((np.array(x, dtype=float, copy=True), initial_guess))
         return self.inner.solve(x)
+
+
+class _RecordingWrapInverse(InverseWrapMixin, LinearOperator):
+    """The recording double as a WRAP-DELEGATE member: the only kind of inverse
+    a Green hands its seed to (``accepts_seed``, ruling 67), so the step's
+    seed is observable on it."""
+
+    def __init__(self, inner: _Matrix) -> None:
+        super().__init__(inner)
+        self.calls: list[tuple[np.ndarray, object]] = []
+
+    def apply(self, x: Any, /, *, initial_guess: Any | None = None) -> Any:
+        self.calls.append((np.array(x, dtype=float, copy=True), initial_guess))
+        return self.inner.solve(x)
+
+
+class _SpiedMatrix(_Matrix):
+    """``M`` whose ``inverse()`` is the recording wrap member."""
+
+    def __init__(self, matrix: np.ndarray) -> None:
+        super().__init__(matrix)
+        self.spy = _RecordingWrapInverse(self)
+
+    def inverse(self) -> "_RecordingWrapInverse":  # type: ignore[override]  # the recording double IS M's inverse here
+        return self.spy
+
+
+def _green(m: _Matrix, gains: "tuple[_Matrix, _Matrix]") -> GreenOperator:
+    """The Green of the split ``A = M − (N₁ + N₂)``."""
+    return GreenOperator(m, gains[0] + gains[1])
 
 
 @pytest.fixture
@@ -210,11 +248,11 @@ def test_lagged_source_does_not_mutate_its_arguments(parts):
 
 
 # ══════════════════════════════════════════════════════════════════════
-# fixed_point_step
+# GreenOperator.step — the splitting map (ruling 69)
 # ══════════════════════════════════════════════════════════════════════
 
 @pytest.mark.foundation
-def test_fixed_point_step_is_the_inverse_of_the_lagged_source(parts):
+def test_the_step_is_the_inverse_of_the_lagged_source(parts):
     r"""``G(ψ) == M⁻¹ (q + Σ Nᵢψ)`` — the COMPOSITION.
 
     See the module docstring: the reference here is procedurally, not
@@ -226,9 +264,9 @@ def test_fixed_point_step_is_the_inverse_of_the_lagged_source(parts):
     rhs = q + gains[0].matrix @ psi + gains[1].matrix @ psi
     expected = np.linalg.inv(m.matrix) @ rhs
     np.testing.assert_allclose(
-        fixed_point_step(m.inverse(), gains, q, psi), expected,
+        _green(m, gains).step(q, psi), expected,
         rtol=1e-12, atol=0.0,
-        err_msg="fixed_point_step is not M⁻¹ applied to the lagged source",
+        err_msg="GreenOperator.step is not M⁻¹ applied to the lagged source",
     )
 
 
@@ -249,7 +287,7 @@ def test_a_fixed_point_of_the_split_equation_is_a_fixed_point_of_the_step(
     a = m.matrix - gains[0].matrix - gains[1].matrix
     psi_star = np.linalg.solve(a, q)
     np.testing.assert_allclose(
-        fixed_point_step(m.inverse(), gains, q, psi_star), psi_star,
+        _green(m, gains).step(q, psi_star), psi_star,
         rtol=1e-11, atol=1e-13,
         err_msg=(
             "one step from the fixed point of (M − ΣN)ψ = q did not return "
@@ -263,7 +301,7 @@ def test_a_fixed_point_of_the_split_equation_is_a_fixed_point_of_the_step(
 def test_the_step_MOVES_a_non_fixed_point(parts):
     """vv #19: the row above is green for a step that returns its argument.
 
-    A ``fixed_point_step`` implemented as ``return psi`` satisfies
+    A ``step`` implemented as ``return psi`` satisfies
     ``G(ψ*) == ψ*`` perfectly.  This is the negative leg that makes the
     positive one informative: away from the fixed point the map must move
     the iterate by a margin far above the tolerance the row above uses.
@@ -275,7 +313,7 @@ def test_the_step_MOVES_a_non_fixed_point(parts):
         "the fixture's ψ happens to BE the fixed point — this row and the "
         "one above would then make the same assertion."
     )
-    moved = fixed_point_step(m.inverse(), gains, q, psi)
+    moved = _green(m, gains).step(q, psi)
     rel = float(np.max(np.abs(moved - psi)) / np.max(np.abs(psi)))
     assert rel > 1e-3, (
         f"the step moved a non-fixed point by only {rel:.3e} — it is not "
@@ -295,12 +333,13 @@ def test_the_iterate_is_threaded_as_the_initial_guess(parts):
     claim about the route cannot be gated by asserting the output).
     """
     m, gains, q, psi = parts
-    spy = _RecordingInverse(m)
-    fixed_point_step(spy, gains, q, psi)
+    spied = _SpiedMatrix(m.matrix)
+    spy = spied.spy
+    _green(spied, gains).step(q, psi)
     assert len(spy.calls) == 1, f"expected one apply, got {len(spy.calls)}"
     handed_rhs, guess = spy.calls[0]
     assert guess is psi, (
-        "fixed_point_step did not thread the iterate as initial_guess — the "
+        "GreenOperator.step did not thread the iterate as initial_guess — the "
         "curvilinear ψ½ seed and the reflective partner trace travel through "
         "that argument, so a dropped kwarg is a silent seed loss."
     )
@@ -361,3 +400,34 @@ def test_source_iteration_drives_the_same_lagged_source(parts, monkeypatch):
             "source, which is the drift #448 was."
         ),
     )
+
+
+@pytest.mark.foundation
+def test_the_step_assembles_its_source_through_the_same_body(parts, monkeypatch):
+    r"""``GreenOperator.step``'s rhs IS ``lagged_source``'s (S4 spec G3d).
+
+    The other half of the #448 single-source sentence: the finalize's map and
+    the loop share ONE rhs body, so a ``step`` that inlines the accumulation
+    (a twin) reddens here. One call per step, on the step's own arguments.
+    """
+    m, gains, q, psi = parts
+    seen: list[np.ndarray] = []
+    original = _iteration.lagged_source
+
+    def recording(q_ext, gs, x):
+        out = original(q_ext, gs, x)
+        seen.append(np.array(out, dtype=float, copy=True))
+        return out
+
+    # The Green imports the body by name, so the spy rebinds it in both
+    # namespaces (and the row would read 0 calls if only one were patched).
+    from orpheus.numerics import green_operator as _green_module
+
+    monkeypatch.setattr(_iteration, "lagged_source", recording)
+    monkeypatch.setattr(_green_module, "lagged_source", recording)
+    _green(m, gains).step(q, psi)
+    assert len(seen) == 1, (
+        f"GreenOperator.step assembled its rhs through lagged_source "
+        f"{len(seen)}× — the finalize's map no longer shares the loop's body."
+    )
+    np.testing.assert_allclose(seen[0], original(q, gains, psi), rtol=1e-14, atol=0.0)

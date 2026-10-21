@@ -8,7 +8,8 @@ kernel; ``FullFieldWavefront`` refuses moment mode) — a corrupted-
 iterate failure with no loud signal on the G-S path. These pins hold
 the gate functions to the genuine conditions:
 
-* ``_maybe_window`` → wrap ONLY at ``is_cartesian and ndim == 2``;
+* ``_angular_representation`` → the angular-moment window (whose
+  ``precondition`` wraps the sweep) ONLY at ``is_cartesian and ndim == 2``;
 * ``resolve_schedule`` G-S → ``is_cartesian and not is_1d``
   (multi-D; the schedule + scheduled sweep are d-generic since C3 —
   d=3 G-S FP-invariance is value-gated by the C5.5 Mode-9 box).
@@ -36,7 +37,8 @@ from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.sn.operators.windowing import WindowedSweep
-from orpheus.sn.solver import _maybe_window
+from orpheus.numerics.iteration import NATIVE
+from orpheus.sn.solver import _angular_representation
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics import frame_faces
 
@@ -45,7 +47,7 @@ pytestmark = [pytest.mark.foundation]
 
 class _BaseResolvent:
     """Minimal forward stand-in whose ``.inverse()`` is what the caller
-    hands to ``_maybe_window``.  #226 step 3: ``_maybe_window`` receives
+    hands to the representation's ``precondition``.  #226 step 3: it receives
     the INVERSE (a real :class:`SweepOperator`) and either composes the
     typed product ``P @ A.inverse()`` (2-D Cartesian) or passes it
     through — so the stub carries an ``inverse()`` returning a real
@@ -81,7 +83,7 @@ def _fake_mesh(*, is_cartesian: bool, ndim: int) -> SimpleNamespace:
 
 
 def _scattering_stub():
-    # F-1: _maybe_window reads ONLY scattering_op.flux_analysis (the MINTED
+    # F-1: _angular_representation reads ONLY scattering_op.flux_analysis (the MINTED
     # face the windowed product's P factor is built from); the surrogate
     # honours exactly the surface the factory + BulkAnalysisOperator
     # constructor consume — ``.codomain`` (the posed moment bulk) and
@@ -96,10 +98,17 @@ def _scattering_stub():
     )
 
 
+def _window(sweep, scattering_op, mesh):
+    """The representation the gate selects, and the preconditioner it derives
+    from the sweep (S4 ruling 70: the retired windowing factory's two outputs)."""
+    representation = _angular_representation(scattering_op, mesh)
+    return representation.precondition(sweep), representation is not NATIVE
+
+
 def test_2d_cartesian_windows() -> None:
     mesh = _fake_mesh(is_cartesian=True, ndim=2)
     sweep = _BaseResolvent(mesh).inverse()
-    step, windowed = _maybe_window(sweep, _scattering_stub(), mesh)
+    step, windowed = _window(sweep, _scattering_stub(), mesh)
     np.testing.assert_equal(windowed, True)
     if not isinstance(step, WindowedSweep):
         pytest.fail(
@@ -127,10 +136,10 @@ def test_non_2d_passthrough(is_cartesian: bool, ndim: int, label: str) -> None:
     """
     mesh = _fake_mesh(is_cartesian=is_cartesian, ndim=ndim)
     sweep = _BaseResolvent(mesh).inverse()
-    step, windowed = _maybe_window(sweep, _scattering_stub(), mesh)
+    step, windowed = _window(sweep, _scattering_stub(), mesh)
     np.testing.assert_equal(windowed, False)
     if step is not sweep:
         pytest.fail(
-            f"{label}: _maybe_window must pass the inverse operator "
+            f"{label}: the native representation must pass the inverse operator "
             f"through unwrapped (got {type(step).__name__})"
         )

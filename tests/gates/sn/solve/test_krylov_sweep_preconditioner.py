@@ -1,6 +1,7 @@
 r"""The within-group Krylov solve preconditioned by the sweep (#200): its acceptance gates.
 
-Since #200, :func:`orpheus.sn.solver._within_group_krylov` hands GMRES the
+Since #200 the Krylov Green the Strategy mints (``orpheus.sn.solver._within_group_green_krylov``,
+since S4; ``_within_group_krylov`` before) hands GMRES the
 sweep, the operator ``LC.inverse()`` (the exact inverse of the within-group
 ``M`` of the splitting, block back-substitution on a carrying mesh), as its
 left preconditioner when no DSA corrector is posed; before, it handed it the
@@ -89,13 +90,13 @@ _GEOMS = GEOMS
 
 def _production_krylov(geom: str) -> tuple[Any, Any, Any]:
     """``(problem, M, Krylov)`` for ``geom``: the within-group splitting as the solver builds it, and the
-    ``KrylovAcceleration`` the production driver ``_within_group_krylov`` builds on it (no corrector: the
-    posture #200 changed)."""
+    ``KrylovAcceleration`` the driver of the Krylov Green ``_within_group_green_krylov`` mints on it (no
+    corrector: the posture #200 changed)."""
     problem = MESHES[geom]()
     system = problem.system
     splitting = Splitting.from_schedule(system, resolve_schedule(problem, "jacobi"))
-    krylov = sn_solver._within_group_krylov(
-        splitting.implicit, *splitting.explicit, n_dof=1, max_iter=1, tol=1e-12,
+    krylov = sn_solver._within_group_green_krylov(splitting, n_dof=1).driver(
+        max_iter=1, tol=1e-12, budget_name="max_inner",
     )
     return problem, splitting.implicit, krylov
 
@@ -212,19 +213,39 @@ def _problem(body: str, n: int):
     return dict(aba_materials()), aba_uniform_width_mesh(CoordSystem.CYLINDRICAL, n), Quadrature.folded_product(n_mu=4, n_phi=8)
 
 
-def _identity_driver(*args, **kwargs):
-    """``_within_group_krylov`` with its preconditioner replaced by the identity: the unpreconditioned solve."""
-    krylov = _honest_driver(*args, **kwargs)
-    krylov.preconditioner = IdentityOperator()
-    return krylov
+#: How many Greens the identity swap minted (the activation leg of the fixed-point row: a swap the solver
+#: never calls leaves that row green by construction).
+_IDENTITY_MINTS: list[int] = []
 
 
-_honest_driver = sn_solver._within_group_krylov
+def _identity_driver(splitting: Any, *, n_dof: int, corrector: Any = None) -> Any:
+    """The production Krylov Green with its realisation's preconditioner replaced by the identity: the
+    unpreconditioned solve of the same split."""
+    from orpheus.numerics.green_operator import GreenOperator
+    from orpheus.numerics.green_operator import Krylov
+
+    honest = _honest_driver(splitting, n_dof=n_dof, corrector=corrector)
+    _IDENTITY_MINTS.append(n_dof)
+    return GreenOperator(
+        honest.implicit, honest.lagged, realisation=Krylov(IdentityOperator(), restart=n_dof),
+        max_iter=honest.max_iter, tol=honest.tol,
+    )
+
+
+#: The production Krylov Green builder, captured by the row BEFORE it swaps in the identity (a module-level read
+#: would kill this module's collection the day the helper is renamed, as S4 did; a call-time read after the swap
+#: would recurse into the swap).
+_HONEST: list[Any] = []
+
+
+def _honest_driver(splitting: Any, *, n_dof: int, corrector: Any = None) -> Any:
+    """The production Krylov Green, through the builder the row captured before its swap."""
+    return _HONEST[-1](splitting, n_dof=n_dof, corrector=corrector)
 
 
 def _krylov_solve(body: str, n: int):
     """The Krylov eigenvalue solve of :func:`_problem` at the gates' tolerances, through whatever driver
-    ``sn_solver._within_group_krylov`` currently names (the fixed-point row swaps in the identity)."""
+    ``sn_solver._within_group_green_krylov`` currently names (the fixed-point row swaps in the identity)."""
     materials, mesh, quadrature = _problem(body, n)
     return sn_solver.solve_sn(materials, mesh, quadrature, inner_solver="krylov", max_outer=500, max_inner=500,
                               keff_tol=_KEFF_TOL, inner_tol=_INNER_TOL)
@@ -252,8 +273,11 @@ def test_p200_2_the_fixed_point_is_the_unpreconditioned_one(body: str, monkeypat
     and 0.52 (``krylov200/battery/boundary_drop.log``). Against the identity itself the row is green by
     construction: the rate row is what tells the two apart."""
     preconditioned = _production_solve(body, 10)
-    monkeypatch.setattr(sn_solver, "_within_group_krylov", _identity_driver)
+    _HONEST.append(sn_solver._within_group_green_krylov)
+    monkeypatch.setattr(sn_solver, "_within_group_green_krylov", _identity_driver)
+    _IDENTITY_MINTS.clear()
     unpreconditioned = _krylov_solve(body, 10)
+    assert _IDENTITY_MINTS, f"{body}: the identity swap was never called — this row compares a solve with itself"
     k_p, k_u = float(preconditioned.outcome.keff), float(unpreconditioned.outcome.keff)
     assert abs(k_p - k_u) <= _FIXED_POINT_RTOL * k_u, f"{body}: k {k_p!r} against {k_u!r}"
     phi_p, phi_u = _gauged_flux(preconditioned), _gauged_flux(unpreconditioned)
@@ -339,13 +363,14 @@ def test_p200_4_a_dsa_source_iteration_step_is_richardson_on_the_krylov_precondi
     corrector = DSACorrection.from_problem(problem)
     q, psi_n = random_source_composite(problem, seed=7), random_composite(problem, seed=11)
 
-    source_iteration, *_ = sn_solver._within_group_si(splitting, problem, max_iter=1, tol=0.0, corrector=corrector)
+    si_green, _ = sn_solver._within_group_green_si(splitting, problem, corrector=corrector)
+    source_iteration = si_green.driver(max_iter=1, tol=0.0, budget_name="max_inner")
     step, record = source_iteration.solve(q, initial_guess=psi_n)
     assert record.iterations_run == 1, f"{geom}: expected one corrected step, ran {record.iterations_run}"
 
-    preconditioner = sn_solver._within_group_krylov(
-        implicit, *gains, n_dof=1, max_iter=1, tol=1e-12, corrector=corrector,
-    ).preconditioner
+    preconditioner = sn_solver._within_group_green_krylov(
+        splitting, n_dof=1, corrector=corrector,
+    ).driver(max_iter=1, tol=1e-12, budget_name="max_inner").preconditioner
     residual = q - implicit.apply(psi_n)
     for gain in gains:
         residual = residual + gain.apply(psi_n)

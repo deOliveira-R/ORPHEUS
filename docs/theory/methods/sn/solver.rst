@@ -185,8 +185,13 @@ against the record it was minted from
 :math:`\text{Driver}(M^{-1},\,*\text{gains})` (Wave O step
 O.2a — the transitional :math:`S + B` fold is retired; see
 :ref:`bc-extraction-variadic-driver` in :doc:`/theory/foundations/boundary_conditions`).
-:func:`_within_group_krylov` wraps the matching
-:class:`~orpheus.numerics.iteration.KrylovAcceleration` — and the posed
+The value mints the inverse it names,
+:meth:`Splitting.green <orpheus.sn.splitting.Splitting.green>`, the
+:class:`~orpheus.numerics.green_operator.GreenOperator` of
+:math:`M - N` realised as the Strategy chose
+(:ref:`green-strategy-mints`): :func:`_within_group_green_si` mints the
+source-iteration Green and :func:`_within_group_green_krylov` the GMRES
+one, and every driver is that Green's relaxation face — and the posed
 record is shared verbatim across the eigenvalue source-iteration
 inner (:meth:`SNSolver._solve_source_iteration`), the eigenvalue Krylov
 inner (:meth:`SNSolver._solve_krylov`), and both fixed-source paths,
@@ -277,11 +282,14 @@ The within-group inner solve consumes the primitives directly
 :class:`~orpheus.numerics.iteration.SourceIteration` /
 :class:`~orpheus.numerics.iteration.KrylovAcceleration` primitive — not
 a verbatim replica of its loop.
-:meth:`SNSolver._solve_source_iteration` constructs a
-:class:`SourceIteration` from the :func:`~orpheus.sn.coupled_system.build_within_group_system` SSoT and
-runs it; :meth:`SNSolver._solve_krylov` constructs a
-:class:`KrylovAcceleration` from :func:`_within_group_krylov` and runs
-that.  The Layer-3 resolvent of the SN row in the
+:meth:`SNSolver._solve_source_iteration` mints the source-iteration Green
+of the :func:`~orpheus.sn.coupled_system.build_within_group_system`
+SSoT's splitting (:func:`_within_group_green_si`) and runs the
+:class:`SourceIteration` its relaxation face
+:meth:`~orpheus.numerics.green_operator.GreenOperator.driver` builds;
+:meth:`SNSolver._solve_krylov` does the same with the GMRES Green of
+:func:`_within_group_green_krylov`, whose relaxation face is a
+:class:`KrylovAcceleration` (:ref:`green-strategy-mints`).  The Layer-3 resolvent of the SN row in the
 :ref:`eigenvalue-posing` architecture is exactly these primitive
 instances.
 
@@ -1722,7 +1730,8 @@ What is deferred, and why
        structural blocker.
 
        ✅ **DISCHARGED 2026-09-14** — ``KEigenvalue(posing, implicit,
-       explicit, …)`` takes the question, and ``compute_keff`` is
+       explicit, …)`` took the question (since package S4,
+       ``KEigenvalue(posing, green, …)``), and ``compute_keff`` is
        ``posing.rayleigh(ψ, w=1)``.  The re-baseline was the priced one:
        the loss is applied ONCE, and ``[M]`` the adjoint :math:`k` drifted
        :math:`1.22\times10^{-15}` (~5 ulp).
@@ -2578,10 +2587,13 @@ What the unit's SECOND commit landed
    :ref:`sn-sigma-bound-once-at-the-operator`, and is not repeated here.
 
 **1 —** :class:`~orpheus.numerics.iteration.KEigenvalue` **consumes the
-posing.**  The signature is now ``KEigenvalue(posing, implicit,
+posing.**  The signature became ``KEigenvalue(posing, implicit,
 explicit, …)``: the *question* and the *Strategy's* two operators, where
 it used to take an operator triple ``(A, S, F)`` and re-derive the
-question from the argument order.  The three estimators read the pencil
+question from the argument order.  (Package S4 of the numerics
+untangling replaced the operator pair with the Strategy's Green of the
+loss split: the signature is ``KEigenvalue(posing, green, …)``, and the
+inner solve is the Green's relaxation face, :ref:`green-strategy-mints`.)  The three estimators read the pencil
 the posing carries —
 :meth:`~orpheus.numerics.iteration.KEigenvalue.compute_fission_source`
 and
@@ -2779,7 +2791,9 @@ pure fixed-source path uses and adds :math:`F` to the lagged side:
    M\,\psi_{n+1} \;=\; N\,\psi_n \;+\; F\,\psi_n \;+\; q ,
 
 which is
-:func:`~orpheus.sn.solver._within_group_si`'s ``extra_gains=`` channel —
+:func:`~orpheus.sn.solver._within_group_green_si`'s ``extra_gains=``
+channel, the lagged part of the Green that
+:meth:`Splitting.green <orpheus.sn.splitting.Splitting.green>` mints —
 the same door the eigenvalue finalize's gain list uses, so no new
 iteration body exists.  ``[M]`` the gain is posed on the **arm's own
 carrier**: ``system.production`` on a carrying (curvilinear, seed-bearing)
@@ -3015,14 +3029,16 @@ which is the source-iteration bullet above written once.  At a fixed point
 :math:`G(\psi^\star) = \psi^\star`, so applying :math:`G` **once** to a
 converged iterate returns that iterate — and that is the whole
 reconstruction.  Nothing is re-solved, nothing is re-selected: the
-finalize reads :math:`M`, :math:`\{N_i\}` and :math:`\psi_{\rm conv}` off
-the :class:`~orpheus.sn.solver.InnerSolve` record the last within-group
-solve left behind — ``splitting.implicit`` and the ``driven_gains`` the
-driver actually applied — and evaluates
-:func:`~orpheus.numerics.iteration.fixed_point_step` on them.  That
-record carries **both faces of the O-3 query contract** in one object:
+finalize reads the Green and :math:`\psi_{\rm conv}` off the
+:class:`~orpheus.sn.solver.InnerSolve` record the last within-group
+solve left behind — the Green whose relaxation the driver ran, carrying
+:math:`M` and the ``driven_gains`` the driver actually applied — and
+evaluates its splitting map
+:meth:`GreenOperator.step <orpheus.numerics.green_operator.GreenOperator.step>`
+on the converged iterate (:ref:`green-strategy-mints`).  That record
+carries **both faces of the O-3 query contract** in one object:
 ``system`` answers with the Problem's operators as POSED, ``splitting``
-with the Strategy's operators as USED
+and ``green`` with the Strategy's operators as USED
 (:ref:`sn-splitting-is-a-strategy-value`).
 
 Two things the identity :math:`G(\psi^\star) = \psi^\star` buys are worth

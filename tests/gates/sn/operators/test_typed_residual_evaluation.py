@@ -38,7 +38,7 @@ from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.splitting import Splitting
 from orpheus.sn.solver import (
     SNSolver,
-    _within_group_si,
+    _within_group_green_si,
     boundary_vs_interior_split,
     evaluate_residual,
 )
@@ -67,10 +67,10 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
     system = build_within_group_system(
         problem, solver.problem.mat_xs,
     )
-    si, _base, _gains, windowed = _within_group_si(
+    green, windowed = _within_group_green_si(
         Splitting.from_schedule(system, solver.schedule), problem,
-        max_iter=600, tol=1e-12,
     )
+    si = green.driver(max_iter=600, tol=1e-12, budget_name="max_inner")
     if windowed:
         raise AssertionError("1-D slab must not window")
     q_ext = TimedFullField(

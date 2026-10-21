@@ -959,11 +959,13 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
         AND every diagonal block invertible with a native ``solve`` verb.
 
         The ``solve`` conjunct keeps the substitution honestly DIRECT: an
-        invertible-by-splitting diagonal (an ``OperatorSum`` whose
-        ``inverse()`` is the ITERATIVE Green splitting — no ``solve`` verb)
-        must not silently smuggle an inner iteration into
-        "block-triangular direct"; such a grid falls through to the
-        materialized-LU route or refuses.
+        invertible diagonal with no ``solve`` verb (a one-term combination
+        :math:`cA`, whose inverse is algebra-closed) must not silently
+        smuggle an indirect inverse into "block-triangular direct"; such a
+        grid falls through to the materialized-LU route or refuses. A
+        diagonal that is a sum of two or more terms is not invertible at all
+        (its inverse is the Green of a split the Strategy names,
+        numerics_untangling.md ruling 65).
         """
         if self._triangular_orientation() is None:
             return False

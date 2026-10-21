@@ -134,8 +134,8 @@ from orpheus.sn.solver import (
     _build_fixed_source_rhs,
     _coupled_flux_state,
     _unwindowed_cold_start,
-    _within_group_krylov,
-    _within_group_si,
+    _within_group_green_krylov,
+    _within_group_green_si,
 )
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.numerics.iteration import SourceIteration
@@ -3824,7 +3824,13 @@ class TestWithinGroupSystem:
         r"""CONTROL (ordering hazard 5): the seedless record arm is a PURE
         re-package — the production slab SI converges BIT-IDENTICAL
         (array_equal) to the hand-built ``SourceIteration(L+C⁻¹, S, B_a)``
-        on the same rhs. A drift here is a bug, never principled-equiv."""
+        on the same rhs. A drift here is a bug, never principled-equiv.
+
+        PROMOTED at S4: production now runs this solve through the Green the
+        Strategy mints (``Splitting.green`` → ``GreenOperator.driver``), while
+        the right-hand side stays a hand-built ``SourceIteration``, so the row
+        also pins that the Green's default realisation hands the driver the
+        same preconditioner and the same gains, in order, as the hand route."""
         slab = SNProblem(
             Mesher(StructuredGeometry.slab(
                 (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
@@ -3863,8 +3869,8 @@ class TestWithinGroupSystem:
         solver = SNSolver(sn)
         system = build_within_group_system(
             sn, solver.problem.mat_xs)
-        si, *_ = _within_group_si(
-            _labelled(system), sn, max_iter=60, tol=1e-10)
+        green, _ = _within_group_green_si(_labelled(system), sn)
+        si = green.driver(max_iter=60, tol=1e-10, budget_name="max_inner")
         q_pair = _build_fixed_source_rhs(
             np.ones((sn.quad.n_ordinates, sn.ng, sn.nx)), sn)  # coupled on carrying
         if not isinstance(q_pair, CoupledField):
@@ -3910,9 +3916,8 @@ class TestWithinGroupSystem:
         if padded_d1 - n_dof != n_seed:
             pytest.fail(f"Δ(padded − honest) = {padded_d1 - n_dof} ≠ n_seed = "
                         f"{n_seed} — the dead padding did not dissolve exactly")
-        krylov = _within_group_krylov(
-            _labelled(system).implicit, *_labelled(system).explicit,
-            n_dof=n_dof, max_iter=5, tol=1e-3)
+        krylov = _within_group_green_krylov(_labelled(system), n_dof=n_dof).driver(
+            max_iter=5, tol=1e-3, budget_name="max_inner")
         if krylov.restart != n_dof:
             pytest.fail(f"restart = {krylov.restart} ≠ n_dof = {n_dof} — "
                         f"ERR-053 re-opened at the coupled seam")

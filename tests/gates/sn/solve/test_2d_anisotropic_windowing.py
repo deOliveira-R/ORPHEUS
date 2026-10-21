@@ -299,12 +299,12 @@ def _windowed_product_and_oracle_operands(
     # flux-analysis face on the bulk ⊕ identity on the trace, composed with
     # the sweep inverse, FUSED through the substrate's moment emit.
     # ``S.flux_analysis`` is the SAME minted object the driver's factory
-    # (``_maybe_window``) injects, so the SUT exercises the production
+    # (``_angular_representation``'s window) injects, so the SUT exercises the production
     # projection, not a test-local one.
     from orpheus.sn.operators.windowing import BulkAnalysisOperator
 
     # S2 (ruling 52): ``@`` never fuses; the windowed atom is built explicitly,
-    # as its production owner ``_maybe_window`` does.
+    # as its production owner, the ``AngularMomentWindow``, does.
     from orpheus.sn.operators.windowing import WindowedSweep
 
     product = WindowedSweep(BulkAnalysisOperator(S.flux_analysis, problem.full_field_space), base.inverse())

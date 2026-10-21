@@ -38,7 +38,8 @@ grounds that unpreconditioned GMRES on the sphere pole "exceeds the
 block-inverse face preconditioner) would re-enable it.
 
 That exclusion was **retired as healed**, and #200 was not what healed it:
-:func:`orpheus.sn.solver._within_group_krylov` ran GMRES with an explicit
+the SN Krylov builder (``_within_group_krylov``, since S4
+:func:`orpheus.sn.solver._within_group_green_krylov`) ran GMRES with an explicit
 identity preconditioner until #200 made the sweep its preconditioner on
 2026-10-04, eight weeks later. What cured the stall is the GMRES
 ``restart``-sizing lineage, in two steps, neither of them #200:

@@ -944,7 +944,7 @@ def test_c35_scheduled_and_windowed_atoms_expand_to_their_algebra():
     sweep).expansion() == p @ sweep`` (a plain word), on the production
     Gauss-Seidel windowed config; ``p @ sweep`` itself no longer fuses, so the
     windowed atom is built explicitly (by the shared helper, as its owner,
-    the solver's ``_maybe_window``, does). First red today: no ``expansion``; ``@`` fuses."""
+    the solver's ``AngularMomentWindow``, does). First red today: no ``expansion``; ``@`` fuses."""
     from orpheus.sn.operators.scheduled_invertible import ScheduledInvertibleOperator
     from orpheus.sn.operators.windowing import BulkAnalysisOperator, WindowedSweep
     from tests.gates.sn.solve.test_2d_anisotropic_windowing import (

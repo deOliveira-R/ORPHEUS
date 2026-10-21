@@ -212,7 +212,7 @@ def test_one_full_restart_cycle_solves_a_diffusive_infinite_medium() -> None:
     and the consistency row stay green under it). Here the scattering ratio is near 1 on a slab 100 mean free paths
     thick, and the honest solve needs 56 steps (``[M]`` 2026-10-05,
     ``scratch/reference_architecture/p3/gates200b/probe_value53b.log``): relative error 4.9e-13 in one cycle. With
-    the clamp re-dropped into ``_within_group_krylov`` the cycle stops at 50 steps, scipy returns ``info = 1`` and
+    the clamp re-dropped into the Krylov Green's ``restart`` (``_within_group_green_krylov``) the cycle stops at 50 steps, scipy returns ``info = 1`` and
     the flux is off by 1.3e-3, four orders above :data:`_DIFFUSIVE_RTOL`; with the discarded ``info`` added (the
     defect's second half) the GMRES warning is gone and the value leg still reds. Under the default cycle budget
     the clamp converges after 280 steps to 2.2e-9 (inside the tolerance), so the value moves only when the budget

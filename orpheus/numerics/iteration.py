@@ -170,6 +170,7 @@ from .operator import (
     InverseWrapMixin,
     LinearOperator,
     NotInvertible,
+    OperatorSum,
     invertible,
 )
 from .vector import V
@@ -180,7 +181,10 @@ __all__ = [
     "SupportsSeededApply",
     "KrylovAcceleration",
     "KEigenvalue",
-    "fixed_point_step",
+    "NATIVE",
+    "Representation",
+    "SupportsRelaxation",
+    "accepts_seed",
     "lagged_source",
     "seeded_inverse",
 ]
@@ -218,27 +222,33 @@ class SupportsSeededApply(Protocol[V]):
 
 
 class _SeededExactApply:
-    r"""Adapt an ALGEBRA-CLOSED inverse to the driver's seeded contract.
+    r"""Adapt a SEEDLESS algebra-closed inverse to the driver's seeded contract.
 
     The two-kinds split (taxonomy §12 step 5, canonical statement on
     :meth:`~orpheus.numerics.operator.OperatorProduct.inverse`): the
     wrap-delegate family carries the canonical seeded ``apply``
     structurally, but an algebra-closed inverse — a permutation's inverse
     IS a permutation, the identity is self-inverse, a scaled operator's
-    is a scaled operator — is a first-class FORWARD whose ``apply`` is
-    the plain positional signature.  Placed in a seeded slot (the Green
-    splitting's preconditioner, a warm-started Richardson step) it must
-    accept the driver's uniformly-threaded ``initial_guess`` — and these
-    inverses are EXACT, so the seed carries no information: accept and
-    drop, the same seed-independence the M-direct invariant pins on
+    is a scaled operator — is a first-class FORWARD.  The ones whose
+    ``apply`` has no seed slot (:func:`accepts_seed` is ``False``: the
+    identity, a permutation, a scaled identity) must still accept the
+    driver's uniformly-threaded ``initial_guess`` in a seeded slot (the Green
+    splitting's preconditioner, a warm-started Richardson step), and they
+    are EXACT, so the seed carries no information: accept and drop, the same
+    seed-independence the M-direct invariant pins on
     :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`.
+    An algebra-closed inverse that DOES accept a seed (a scaled inverse
+    :math:`(\alpha A)^{-1} = \alpha^{-1}A^{-1}` over a seeded :math:`A^{-1}`)
+    never reaches this adapter: :func:`seeded_inverse` returns it as it is,
+    so its one seed law (the word is seeded with :math:`\alpha x_0`) holds in
+    the driver slot exactly as on its direct face (ruling 67).
     """
 
     def __init__(self, exact_inverse: LinearOperator) -> None:
         self._exact_inverse = exact_inverse
 
     def apply(self, rhs: Any, /, *, initial_guess: Any | None = None) -> Any:
-        del initial_guess  # exact algebra-closed inverse — nothing to seed
+        del initial_guess  # an exact inverse with no seed slot — nothing to seed
         return self._exact_inverse.apply(rhs)
 
 
@@ -255,6 +265,29 @@ def _wrap_delegate_member(inv: "LinearOperator") -> "TypeGuard[SupportsSeededApp
     return isinstance(inv, InverseWrapMixin)
 
 
+def accepts_seed(inv: "LinearOperator") -> "TypeGuard[SupportsSeededApply[Any]]":
+    r"""Whether this inverse's ``apply`` takes the driver's seed — the ONE
+    definition of the capability :func:`seeded_inverse` keys on (ruling 67).
+
+    Two members, by structure:
+
+    * a wrap-delegate inverse (:class:`~orpheus.numerics.operator.InverseWrapMixin`),
+      whose abstract ``apply`` declares the seeded keyword (#285);
+    * a one-term combination :math:`c\,w` whose word accepts a seed: its
+      ``apply`` forwards the seed to the word as :math:`x_0 / c`, the one
+      seed law of a scaled inverse (``OperatorSum._apply_scaled``).
+
+    Every other algebra-closed inverse (the identity, a permutation, a
+    scaled identity :math:`(2I)^{-1} = \tfrac12 I`) has the plain positional
+    ``apply`` and refuses the keyword.
+    """
+    if _wrap_delegate_member(inv):
+        return True
+    if isinstance(inv, OperatorSum) and len(inv.terms) == 1:
+        return accepts_seed(inv.terms[0][1])
+    return False
+
+
 def seeded_inverse(A: "LinearOperator") -> "SupportsSeededApply[Any]":
     r"""Build ``A.inverse()`` conforming to the driver's seeded contract —
     the ONE home of the inverse→driver adaptation.  PUBLIC since #276 A4:
@@ -264,17 +297,19 @@ def seeded_inverse(A: "LinearOperator") -> "SupportsSeededApply[Any]":
     had already been importing the underscore name cross-module.
 
     Two kinds of inverse arrive here (taxonomy §12 step 5), keyed by the
-    STRUCTURAL family membership, never a signature probe:
+    ONE capability predicate :func:`accepts_seed`, never a signature probe:
 
-    * **wrap-delegate members** (:class:`~orpheus.numerics.operator.InverseWrapMixin`
-      siblings — ``SweepOperator``/``InverseOperator``/``GreenOperator``/
-      ``MatrixInverseOperator``): the abstract mixin ``apply`` declares
-      the seeded keyword, so conformance holds by construction (#285) —
-      returned as-is;
-    * **algebra-closed inverses** (identity → itself, permutation →
-      permutation, scaled → scaled, tensor-product → factor-wise): plain
-      forwards with no seed slot — wrapped in :class:`_SeededExactApply`
-      (accept-and-drop; an exact inverse has nothing to seed).
+    * **seed-accepting inverses** — the wrap-delegate members
+      (``SweepOperator``/``InverseOperator``/``GreenOperator``/
+      ``MatrixInverseOperator``), and a scaled inverse over one of them,
+      which seeds its word with :math:`\alpha x_0` — returned as they are,
+      so a scaled inverse obeys one seed law in the driver slot and on its
+      direct face (ruling 67);
+    * **seedless algebra-closed inverses** (identity → itself, permutation
+      → permutation, a scaled identity, tensor-product → factor-wise):
+      plain forwards with no seed slot — wrapped in
+      :class:`_SeededExactApply` (accept-and-drop; an exact inverse has
+      nothing to seed).
 
     The :func:`~orpheus.numerics.operator.invertible` guard is the
     checked narrowing bridge (Design C): the runtime predicate check IS
@@ -286,8 +321,8 @@ def seeded_inverse(A: "LinearOperator") -> "SupportsSeededApply[Any]":
             f"{type(A).__name__}.is_invertible is False."
         )
     inv = A.inverse()
-    if _wrap_delegate_member(inv):
-        return inv  # canonical seeded apply, structurally (#285)
+    if accepts_seed(inv):
+        return inv  # the canonical seeded apply (#285; ruling 67)
     return _SeededExactApply(inv)
 
 
@@ -422,44 +457,14 @@ def lagged_source(
     convergence and reads the increment ``rhs_{n−1} − rhs_n`` as its free
     equation residual — which is WHY the assembly is a separate body from
     the inverse apply: the stop inspects the rhs BEFORE the sweep it would
-    trigger, so on a break no sweep is wasted.  :func:`fixed_point_step` is
-    this assembly followed by the inverse — the map evaluated once.
+    trigger, so on a break no sweep is wasted.
+    :meth:`~orpheus.numerics.green_operator.GreenOperator.step` is this
+    assembly followed by the inverse — the map evaluated once.
     """
     rhs = q_ext
     for g in gains:
         rhs = rhs + g.apply(psi)
     return rhs
-
-
-def fixed_point_step(
-    inverse: "SupportsSeededApply[V]",
-    gains: "Sequence[LinearOperator]",
-    q_ext: V,
-    psi: V,
-) -> V:
-    r"""One application of the splitting iteration's map
-    :math:`G(\psi) = M^{-1}\,(q + N\,\psi)` — the ``M⁻¹`` apply seeded by the
-    iterate it is evaluated at (the canonical seeded-apply signature; the
-    curvilinear ψ½ seed and the reflective partner trace travel through
-    ``initial_guess``).
-
-    At a fixed point :math:`G(\psi^*) = \psi^*`, so applied ONCE to a
-    converged iterate it RECONSTRUCTS that iterate through whatever
-    representative of ``M⁻¹`` it is handed — which need not be the one the
-    iteration ran.  The SN finalizes use exactly that freedom: after a
-    moment-windowed inner solve they hand it the UN-windowed full-angular
-    sweep, so a moment iterate comes back as per-ordinate ψ; after a power
-    iteration they hand it the CONVERGED eigenvalue's fission source, so
-    the returned flux solves the equation the caller is told about (k, φ)
-    to the inverse's own residual.  This is the ONE spelling of
-    *reconstruct from a converged iterate*.  A finalize that hand-rolls the
-    source instead is a twin path, and the twin drifts: until #448 the
-    eigenvalue finalize rebuilt fission + P0 scattering + P0 (n,2n) by hand
-    — `[M]` at ``scattering_order = 2`` on a 421-group slab the returned ψ
-    missed the converged iterate by 8.8e-2 and its own moments missed the
-    reported φ by 3.4e-2, while this step reproduces the iterate to 1.2e-10.
-    """
-    return inverse.apply(lagged_source(q_ext, gains, psi), initial_guess=psi)
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -754,8 +759,9 @@ class SourceIteration(Generic[V]):
             # The RHS of the fixed-point step: the external source plus
             # every lagged coupling ``g·ψ_n`` (for SN within-group:
             # ``S·ψ + N₂ₙ·ψ + B·ψ``) — the ONE body :func:`lagged_source`,
-            # shared with :func:`fixed_point_step` (the map the SN finalizes
-            # evaluate once to reconstruct from a converged iterate).  The
+            # shared with :meth:`~orpheus.numerics.green_operator.GreenOperator.step`
+            # (the map the SN finalizes evaluate once to reconstruct from a
+            # converged iterate).  The
             # gains are LinearOperators; their ``.apply`` contracts are the
             # only thing this loop touches.
             rhs = lagged_source(q_ext, self.gains, psi)
@@ -900,7 +906,7 @@ class KrylovAcceleration(Generic[V]):
 
     For SN the within-group builder passes :math:`(L+C)^{-1}`, or
     :math:`(I + \mathcal{C})(L+C)^{-1}` with a synthetic-acceleration
-    corrector :math:`\mathcal{C}` (``orpheus.sn.solver._within_group_krylov``).
+    corrector :math:`\mathcal{C}` (``orpheus.sn.solver._within_group_green_krylov``).
 
     Parameters
     ----------
@@ -940,7 +946,7 @@ class KrylovAcceleration(Generic[V]):
     restart : int, optional
         GMRES restart length — the Arnoldi steps ONE ``max_iter`` unit
         buys.  Default ``50``.  Clamped to ``n`` at :meth:`solve` time, and
-        the SN caller passes ``n_dof`` (``_within_group_krylov``, the
+        the SN caller passes ``n_dof`` (``_within_group_green_krylov``, the
         ERR-053 fix), so on that path one cycle admits the FULL problem dimension
         and ``max_iter`` effectively never binds.
 
@@ -1250,6 +1256,76 @@ class KrylovAcceleration(Generic[V]):
 
 
 # ───────────────────────────────────────────────────────────────────────
+# The realisation of a split inverse — how (M − N)⁻¹ is iterated
+# ───────────────────────────────────────────────────────────────────────
+
+
+class Representation(Protocol):
+    r"""The space a source iteration's iterate lives in, relative to the
+    split's own space (numerics_untangling.md rulings 68 and 70).
+
+    The iterate of :math:`\psi \leftarrow P\,(q + N\psi)` lives in the
+    codomain of :math:`P`. The representation states everything that follows
+    from that one choice, so no two of them can be paired wrongly:
+
+    * :meth:`precondition` — :math:`P` from :math:`M`'s own inverse (the
+      split's inverse, or an analysis of it);
+    * :meth:`rebind` — a lagged gain re-bound to read the iterate there;
+    * :meth:`analyse` — a state of the split's own space carried into the
+      representation (a seed);
+    * :meth:`reconstruct` — the iterate read back in the split's own space,
+      through the splitting map ``step`` when the spaces differ.
+    """
+
+    def precondition(self, implicit_inverse: Any) -> "SupportsSeededApply[Any]": ...
+
+    def rebind(self, gain: LinearOperator) -> LinearOperator: ...
+
+    def analyse(self, state: Any) -> Any: ...
+
+    def reconstruct(self, step: Any, q: Any, iterate: Any) -> Any: ...
+
+
+class _Native:
+    r"""The split's own space: :math:`P = M^{-1}`, every gain and every
+    state as it is."""
+
+    def precondition(self, implicit_inverse: Any) -> "SupportsSeededApply[Any]":
+        return implicit_inverse
+
+    def rebind(self, gain: LinearOperator) -> LinearOperator:
+        return gain
+
+    def analyse(self, state: Any) -> Any:
+        return state
+
+    def reconstruct(self, step: Any, q: Any, iterate: Any) -> Any:
+        del step, q  # the iterate already lives in the split's own space
+        return iterate
+
+    def __repr__(self) -> str:
+        return "NATIVE"
+
+
+#: The identity representation: the iterate lives in the split's own space.
+NATIVE: Representation = _Native()
+
+
+class SupportsRelaxation(Protocol):
+    r"""A split inverse's relaxation face: the best-effort driver of
+    :math:`(M - N)^{-1}` under a budget (ruling 68).
+
+    :class:`~orpheus.numerics.green_operator.GreenOperator` is the member;
+    the protocol lets :class:`KEigenvalue` hold one without importing the
+    module above it (the concept-order gate).
+    """
+
+    def driver(
+        self, *, max_iter: int, tol: float, budget_name: str = ...,
+    ) -> "SourceIteration[Any] | KrylovAcceleration[Any]": ...
+
+
+# ───────────────────────────────────────────────────────────────────────
 # KEigenvalue
 # ───────────────────────────────────────────────────────────────────────
 
@@ -1257,8 +1333,8 @@ class KrylovAcceleration(Generic[V]):
 class KEigenvalue(Generic[V]):
     r"""The k-eigenvalue problem :math:`(A - S)\,\psi = F\psi/k` — an
     :class:`~orpheus.numerics.posing.EigenPosing` over the pencil
-    :math:`(A - S,\; F)` plus the Strategy's ``(implicit, explicit)`` pair for
-    the inner iteration — solved by the canonical ``power_iteration`` loop.
+    :math:`(A - S,\; F)` plus the Strategy's Green of the loss for the inner
+    iteration — solved by the canonical ``power_iteration`` loop.
 
     ``KEigenvalue`` is the **posing-consuming realization** of the
     method-agnostic
@@ -1266,8 +1342,8 @@ class KEigenvalue(Generic[V]):
     Layer-2 k-posing :math:`A_{\rm loss} = A - S`, :math:`M = F`,
     :math:`k = \mu`): it exposes the boundary methods
     (``compute_fission_source`` :math:`= F\psi/k`; ``solve_fixed_source``
-    = the inner :class:`SourceIteration` realization of
-    :math:`(A - S)^{-1}`, warm-started; the keff / production estimators;
+    = the Green's relaxation face, the best-effort warm-started driver of
+    :math:`(A - S)^{-1}`; the keff / production estimators;
     ``converged``) and **delegates the outer loop** to
     :func:`~orpheus.numerics.eigenvalue.power_iteration` — the SINGLE
     power-iteration loop in the codebase (Cardinal Rule 2).  It is ONE
@@ -1276,9 +1352,8 @@ class KEigenvalue(Generic[V]):
     :ref:`eigenvalue-posing` for the full layered architecture.
 
     Each outer step (run by ``power_iteration``) builds the fission source
-    :math:`q_n = F\,\psi_n/k_n`, then drives the inner
-    :class:`SourceIteration` with operator triple :math:`(A, S, 0)` and
-    external source :math:`q_n`:
+    :math:`q_n = F\,\psi_n/k_n`, then drives the Green's relaxation of the
+    split :math:`A - S` on the external source :math:`q_n`:
 
     .. math::
 
@@ -1304,13 +1379,15 @@ class KEigenvalue(Generic[V]):
         — the pencil's own balance functional (step 2 C3b-2).  ``rhs`` is
         non-trivial for an eigenvalue solve (without fission the spectrum is
         empty).
-    implicit, explicit : LinearOperator
-        The Strategy's splitting of the loss for the inner iteration:
-        ``implicit`` (the FORWARD invertible part) MUST be invertible
-        (:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`) —
-        this layer builds its inverse once and hands it to the inner
-        :class:`SourceIteration`, which only APPLIES it (#226 taxonomy step
-        3); ``explicit`` (the lagged gain) must expose ``apply``.
+    green : SupportsRelaxation
+        The Strategy's Green of the loss split :math:`A - S`
+        (:class:`~orpheus.numerics.green_operator.GreenOperator`, ruling 65).
+        The inner solve is its RELAXATION face, ``green.driver(...)``, under
+        this solver's ``max_inner`` and ``inner_tol``: a warm-started,
+        budget-bounded inner whose partial convergence is by design (nested
+        iteration), never the Green's converged-or-raise ``apply`` (ruling
+        68). The invertibility of the implicit part is the Green's
+        construction obligation.
     max_outer : int, optional
         Maximum outer (power) iterations.  Default ``500``.
     keff_tol, flux_tol : float, optional
@@ -1347,11 +1424,9 @@ class KEigenvalue(Generic[V]):
 
     Raises
     ------
-    NotInvertible
-        At construction when ``A`` is not invertible (this posing layer
-        builds ``A.inverse()``).
     TypeError
-        Apply-guard conditions as :class:`SourceIteration`.
+        Apply-guard conditions as :class:`SourceIteration`, and ``F``
+        without ``apply``.
     NotImplementedError
         If ``eigenvalue_method`` is not ``"power"`` — the FEAST hook
         is reserved for a future wave.
@@ -1360,8 +1435,7 @@ class KEigenvalue(Generic[V]):
     def __init__(
         self,
         posing: "EigenPosing[V]",
-        implicit: LinearOperator,
-        explicit: LinearOperator,
+        green: SupportsRelaxation,
         *,
         max_outer: int = 500,
         keff_tol: float = 1e-7,
@@ -1378,21 +1452,8 @@ class KEigenvalue(Generic[V]):
                 f"methods are a forward hook reserved for a future wave."
             )
 
-        # Construct-time validation of A happens HERE (the posing layer
-        # builds the inverse — taxonomy step 3): a non-invertible A must
-        # fail with a domain message, not an AttributeError from a
-        # missing ``.inverse``.  S's apply-guard stays deferred to
-        # the inner SourceIteration (one source of truth).
-        if not implicit.is_invertible:
-            raise NotInvertible(
-                f"KEigenvalue requires an INVERTIBLE A — the inner "
-                f"SourceIteration applies A.inverse() each step; "
-                f"{type(implicit).__name__}.is_invertible is False."
-            )
-
         self.posing = posing
-        self.implicit = implicit
-        self.explicit = explicit
+        self.green = green
         self.max_outer = int(max_outer)
         self.keff_tol = float(keff_tol)
         self.flux_tol = float(flux_tol)
@@ -1412,21 +1473,15 @@ class KEigenvalue(Generic[V]):
         #: THIS attribute honest for anyone reading it directly.
         self.inner_records: list[IterationRecord] = []
 
-        # Build the inner fixed-source step ONCE: the SOLVER (this posing
-        # layer) builds the inverse operator, the driver applies it (#226
-        # taxonomy step 3).  Its single coupling gain is the scattering
-        # ``S`` — the within-group fission is zero at the inner level
-        # because F·ψ/k is the EXTERNAL source the outer power iteration
-        # feeds in, NOT a within-group fixed-point term.  Constructing it
-        # here validates S's apply at construction time, NEVER
-        # mid-iteration.  The seeded-apply narrow (and its SCOPE — the
-        # reachable inverses, not the whole family) is single-sourced on
-        # :func:`seeded_inverse`; the ``is_invertible`` guard above is
-        # its runtime precondition.
-        self._inner = SourceIteration(
-            seeded_inverse(self.implicit), self.explicit,
-            max_iter=self.max_inner, tol=self.inner_tol,
-            budget_name="max_inner",
+        # The inner fixed-source step, built ONCE through the Green's
+        # relaxation face (ruling 68: the realisation is constructed in one
+        # place, the Green). Its gains are the lagged part — the
+        # within-group fission is zero at the inner level because F·ψ/k is
+        # the EXTERNAL source the outer power iteration feeds in, NOT a
+        # within-group fixed-point term. Constructing it here validates the
+        # gains' apply at construction time, NEVER mid-iteration.
+        self._inner = green.driver(
+            max_iter=self.max_inner, tol=self.inner_tol, budget_name="max_inner",
         )
         # F (the outer eigen-operator F·ψ) needs apply.
         if not callable(getattr(self.posing.pencil.rhs, "apply", None)):

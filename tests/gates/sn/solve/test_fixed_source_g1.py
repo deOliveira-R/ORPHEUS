@@ -107,7 +107,7 @@ def _cylinder_reflective(nx: int = 10, radius: float = 2.0) -> tuple:
 # that guard — the path is now the geometry-agnostic structural twin of
 # the live 2-D eigenvalue Krylov inner (:meth:`SNSolver._solve_krylov`)
 # and the 2-D fixed-source SI path (same ``build_within_group_system`` +
-# ``_within_group_krylov``, differing only in ``q_ext``).  The pin is
+# ``_within_group_green_krylov``, differing only in ``q_ext``).  The pin is
 # INVERTED into a positive correctness pin —
 # ``tests/gates/sn/solve/test_fixed_source_2d_equivalence.py`` (NEW-1: the
 # closed-form Q/Σ_t leg + the SI≡Krylov twin).

@@ -165,12 +165,16 @@ def test_a_two_term_sum_has_no_inverse_of_its_own(matrix_full, matrix_apply_only
     LEADING term made it "invertible" through a preconditioned-splitting
     Green (the canonical-ordering contract). An unordered combination has no
     head; the inverse of ``A = M − N`` is ``GreenOperator(M, N)``, built from
-    the named split.
+    the named split. Since S4 (ruling 65) the refusal also names WHO builds it:
+    the Strategy, ``Splitting.green`` in S_N (the second fragment).
     """
     for s in (matrix_full + matrix_apply_only, matrix_apply_only + matrix_full):
         assert s.is_invertible is False
-        with pytest.raises(NotInvertible, match="GreenOperator\\(M, N\\)"):
+        with pytest.raises(NotInvertible, match="GreenOperator\\(M, N\\)") as refused:
             s.inverse()
+        assert "Splitting.green" in str(refused.value), (
+            "the refusal no longer names the Strategy route (ruling 65)"
+        )
 
 
 def test_sum_transpose_propagates_with_both(matrix_full, matrix_full_b):

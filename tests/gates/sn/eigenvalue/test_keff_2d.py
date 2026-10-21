@@ -581,7 +581,7 @@ class TestSIKrylov2DEquivalence:
         rate differs), so the outer power iteration converges to the same
         eigenvalue.  The eigenvalue inner being unable to reach the G-S
         accelerator (which the fixed-source path got in Phase 3) was the #218
-        gap; the shared ``_within_group_si`` builder + ``inner_schedule``
+        gap; the shared ``_within_group_green_si`` builder + ``inner_schedule``
         plumbing close it.  G-S stays OPT-IN (default Jacobi) — a schedule
         change shifts the converged k_eff by ~inner_tol (the inner SI stops at
         a slightly different point, NOT keff_tol-tight), which is why the

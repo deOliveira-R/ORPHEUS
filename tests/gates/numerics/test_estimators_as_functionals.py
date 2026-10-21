@@ -39,6 +39,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.iteration import KEigenvalue
 from orpheus.numerics.pencil import OperatorPencil
 from orpheus.numerics.posing import K_MAP, EigenPosing
@@ -115,7 +116,7 @@ class TestHardwiredEstimatorArithmetic:
         inline. 0 ULP expected — same ``np.sum`` over the same array.
         """
         A, S, F, psi = _synthetic_triple()
-        ke = KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S)
+        ke = KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), GreenOperator(A, S))
         got = ke.compute_production_rate(psi)
         ref = float(np.sum(F.apply(psi)))  # F = diag(2,1,0.5); ψ=(1,2,4)
         # = 2·1 + 1·2 + 0.5·4 = 6.0
@@ -136,7 +137,7 @@ class TestHardwiredEstimatorArithmetic:
         k = 6.0/(41−1.4) = 6.0/39.6.
         """
         A, S, F, psi = _synthetic_triple()
-        ke = KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S)
+        ke = KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), GreenOperator(A, S))
         got = ke.compute_keff(psi)
         num = float(np.sum(F.apply(psi)))
         den = float(np.sum((A - S).apply(psi)))
@@ -149,7 +150,7 @@ class TestHardwiredEstimatorArithmetic:
     def test_keff_with_zero_S_unchanged(self):
         """The ``S = ZeroOperator`` path (the KEigenvalue default posture)."""
         A, _, F, psi = _synthetic_triple()
-        ke = KEigenvalue(EigenPosing(OperatorPencil(A - ZeroOperator(), F), K_MAP), A, ZeroOperator())
+        ke = KEigenvalue(EigenPosing(OperatorPencil(A - ZeroOperator(), F), K_MAP), GreenOperator(A, ZeroOperator()))
         got = ke.compute_keff(psi)
         num = float(np.sum(F.apply(psi)))
         den = float(np.sum(A.apply(psi)))  # Σ(Sψ)=0
@@ -165,6 +166,6 @@ class TestHardwiredEstimatorArithmetic:
         """
         A, S, F, _ = _synthetic_triple()
         with pytest.raises(TypeError):
-            KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S, keff_estimator=lambda a, s, f, p: 1.0)
+            KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), GreenOperator(A, S), keff_estimator=lambda a, s, f, p: 1.0)
         with pytest.raises(TypeError):
-            KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S, production_estimator=lambda a, s, f, p: 1.0)
+            KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), GreenOperator(A, S), production_estimator=lambda a, s, f, p: 1.0)

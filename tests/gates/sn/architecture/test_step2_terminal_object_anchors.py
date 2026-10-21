@@ -310,7 +310,7 @@ def _splitting_image(
     """``(M − ΣN_i)·x`` for the Strategy value ``schedule`` labels.
 
     Stated on the ANGULAR bindings (the value's ``implicit``/``explicit``
-    directly, not ``_within_group_si``): the law is about the OPERATORS, and
+    directly, not ``_within_group_green_si``): the law is about the OPERATORS, and
     the 2-D driver's moment re-binding is a separate claim that
     ``test_stage_separation.py`` already owns.
     """

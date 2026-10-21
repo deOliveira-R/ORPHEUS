@@ -117,20 +117,24 @@ What is NOT here (forward-looking, by ruling)
   shift ``−(1/k)·F`` as an explicit term (P4.3) — all consume the
   assignment this value carries, not the products it derives;
 * the window (the 2-D moment re-binding of the lagged lifts) — a lowering
-  of the EXPLICIT pieces the SI driver performs one by one
-  (:func:`orpheus.sn.solver._within_group_si`), which is why they stay
+  of the EXPLICIT pieces the Green performs one by one, through its
+  realisation's representation
+  (:class:`~orpheus.sn.operators.windowing.AngularMomentWindow`, minted by
+  :func:`orpheus.sn.solver._within_group_green_si`), which is why they stay
   addressable as pieces rather than one fused operator (P3's gain grid on
   both arms is a derivation from this same primitive).
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import cached_property
+from functools import cached_property, reduce
+from operator import add
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
+from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.operator import (
     LinearOperator,
     SupportsInverse,
@@ -140,6 +144,7 @@ from orpheus.sn.operators.scheduled_invertible import ScheduledInvertibleOperato
 from orpheus.sn.operators.streaming import StreamingCollisionOperator
 
 if TYPE_CHECKING:
+    from orpheus.numerics.green_operator import Krylov, Richardson
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.coupled_system import WithinGroupSystem
     from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
@@ -365,6 +370,30 @@ class Splitting:
         if self.system.is_coupled:
             return (self._grid(self.explicit_pieces, negate=True),)
         return tuple(_as_gain(term) for term in self.explicit_pieces)
+
+    # ── the inverse it names ───────────────────────────────────────────
+    def green(
+        self,
+        realisation: "Richardson | Krylov | None" = None,
+        *,
+        extra_gains: "tuple[LinearOperator, ...]" = (),
+    ) -> GreenOperator:
+        r"""Mint the Green :math:`(M - N)^{-1}` of this splitting, realised as
+        the Strategy chose (numerics_untangling.md rulings 65 and 68).
+
+        A sum of two or more terms has no inverse of its own; this value
+        names the split, so it is where the inverse of the loss is minted.
+        ``N`` is the lagged gains :attr:`explicit` followed by
+        ``extra_gains`` (the multiplying-source production enters ``N``
+        here, never beside it), summed in that order so the Green's driven
+        gains are these same operators, read through the realisation's
+        representation. ``realisation`` is the Strategy's choice of
+        iteration (:class:`~orpheus.numerics.green_operator.Richardson` or
+        :class:`~orpheus.numerics.green_operator.Krylov`); ``None`` is the plain
+        Richardson iteration preconditioned by ``M``'s own inverse.
+        """
+        lagged = reduce(add, (*self.explicit, *extra_gains))
+        return GreenOperator(self.implicit, lagged, realisation=realisation)
 
     # ── the law ────────────────────────────────────────────────────────
     def law_residual(self, state: "CoupledField") -> np.ndarray:

@@ -38,8 +38,9 @@ inverse itself and follows it through four distinct realizations:
 - the **solver builds / driver applies** split — the posing layer builds
   :math:`A^{-1}` once and the iteration primitive *applies* it
   (:ref:`inverse-application-driver`);
-- the **Green operator**, the inverse of a named split :math:`M - N` and
-  the first *iterative* member of the family (:ref:`green-operator`);
+- the **Green operator**, the inverse of a named split :math:`M - N`,
+  minted by the Strategy with the realisation it chose, and the first
+  *iterative* member of the family (:ref:`green-operator`);
 - the **dense materialising inverse** — ``as_matrix`` out of the operator
   category, factored once into a
   :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
@@ -82,10 +83,16 @@ the inverse *once*, and the iteration primitive
    \qquad
    A_{\rm inv} \;=\; A^{-1}\ \text{(built by the solver)} .
 
-Concretely :func:`_within_group_si <orpheus.sn.solver._within_group_si>`
-does ``step, windowed = _maybe_window(base_resolvent.inverse(), S,
-problem)`` and hands ``step`` to the ``SourceIteration`` constructor as
-its **first argument** ``A_inv``. This closes the #226 steps-1–3 arc: the
+Concretely, the S\ :sub:`N` source iteration's ``A_inv`` is the
+preconditioner of the Strategy's Green: the
+:class:`~orpheus.numerics.green_operator.GreenOperator` builds
+:math:`M^{-1}` once, its
+:class:`~orpheus.numerics.green_operator.Richardson` realisation derives
+the step operator from it (the sweep itself, or the windowed product
+``P @ M.inverse()`` on 2-D Cartesian), and the Green's relaxation face
+hands that step operator to the ``SourceIteration`` constructor as its
+**first argument** (:ref:`green-strategy-mints`). This closes the #226
+steps-1–3 arc: the
 duck-typed "resolvent" — the object whose ``apply`` and ``solve`` inverted
 *different* operators — is **fully dissolved**. Nothing in the driver is a
 resolvent any more; there is a forward operator (built by the solver,
@@ -245,7 +252,7 @@ the underscore name):
        if not invertible(A):                     # the guard lives HERE
            raise NotInvertible(...)
        inv = A.inverse()
-       if _wrap_delegate_member(inv):            # TypeGuard on the family
+       if accepts_seed(inv):                     # TypeGuard: the ONE capability
            return inv                            # canonical seeded apply
        return _SeededExactApply(inv)             # accept-and-drop wrapper
 
@@ -257,20 +264,25 @@ own :func:`~orpheus.numerics.operator.invertible` check and raises
 that makes the call sound. Second, **there is no** ``cast``: both
 narrowings are checked bridges (Design C) — ``invertible`` is a
 ``TypeGuard`` whose runtime predicate *is* the static permission for the
-``.inverse()`` call, and ``_wrap_delegate_member`` is a ``TypeGuard``
-``isinstance`` on :class:`~orpheus.numerics.operator.InverseWrapMixin`
-membership, i.e. type-as-structure dispatch on the two-kinds split rather
-than a signature probe. The algebra-closed branch wraps in
-``_SeededExactApply``, which accepts and drops the seed — an exact
-inverse has nothing to seed.
+``.inverse()`` call, and
+:func:`~orpheus.numerics.iteration.accepts_seed` is a ``TypeGuard`` that
+reads the inverse's structure, never its signature: a wrap-delegate
+member (``isinstance`` on
+:class:`~orpheus.numerics.operator.InverseWrapMixin`), or a one-term
+combination :math:`c\,w` whose word accepts a seed. The seedless branch
+wraps in ``_SeededExactApply``, which accepts and drops the seed. That
+branch is reached only by an exact inverse whose ``apply`` has no seed
+slot (the identity, a permutation, a scaled identity), and only there is
+"an exact inverse has nothing to seed" the whole truth; a scaled inverse
+over a seeded word keeps its own seed law (:ref:`green-seed-law`).
 
-:class:`~orpheus.numerics.iteration.KEigenvalue` (inner
-:class:`~orpheus.numerics.iteration.SourceIteration`),
-:class:`~orpheus.numerics.iteration.KrylovAcceleration` (default
-preconditioner), the
-:class:`~orpheus.numerics.green_operator.GreenOperator` builder and the
-adjoint fixed-source entry all route through it, so the narrowing — and
-its guard — is single-sourced.
+Since package S4 of the numerics untangling the one production caller is
+the :class:`~orpheus.numerics.green_operator.GreenOperator` constructor,
+which builds :math:`M^{-1}` once as ``implicit_inverse``; every driver
+that applies an inverse is built through a Green, so the narrowing (and
+its guard) is single-sourced (`[M]` 2026-10-21, ``git grep -n
+"seeded_inverse(" -- orpheus`` in the S4 worktree: 1 call outside
+docstrings, ``green_operator.py``).
 
 When step 3 shipped, ``_seeded_inverse`` narrowed to the seeded-apply
 signature only for the inverses the posing layers here actually reach —
@@ -355,12 +367,14 @@ sibling, the ``as_matrix`` functor, and the two-error-class boundary at
 
 The two eigenvalue-outer consumers pose the inverse explicitly:
 
-* :class:`~orpheus.numerics.iteration.KEigenvalue` guards
-  ``A.is_invertible`` **at construction** (a non-invertible :math:`A`
-  raises :class:`~orpheus.numerics.operator.NotInvertible` with a
-  domain message, not an ``AttributeError`` mid-iteration) and builds its
-  inner :class:`~orpheus.numerics.iteration.SourceIteration` step via
-  :func:`~orpheus.numerics.iteration.seeded_inverse`.
+* :class:`~orpheus.numerics.iteration.KEigenvalue` takes the Strategy's
+  Green of the loss split, ``KEigenvalue(posing, green, …)``, and builds
+  its inner once through the Green's relaxation face,
+  ``green.driver(max_iter=max_inner, tol=inner_tol)``
+  (:ref:`green-three-faces`). The invertibility of :math:`A` is the
+  Green's construction obligation: a non-invertible implicit part raises
+  :class:`~orpheus.numerics.operator.NotInvertible` when the Green is
+  built, before ``KEigenvalue`` exists.
 * :class:`~orpheus.numerics.iteration.KrylovAcceleration` keeps the
   **forward** :math:`A` (its GMRES matvec is
   :math:`A\cdot - \sum_i g_i\cdot`) and takes its left preconditioner
@@ -472,8 +486,10 @@ the sum spelled apart: ``GreenOperator(lc, S).inverse() == (lc - S)``.
    :by: orpheus.numerics.green_operator.GreenOperator
 
    **Implemented by** the class: the constructor's guard on :math:`M`, the
-   forward ``inner = M - N``, the preconditioner :math:`M`'s own
-   ``.inverse()``, and the gains :math:`N`'s terms.
+   forward ``inner = M - N``, :math:`M`'s own seeded inverse built once
+   (``implicit_inverse``), from which a Richardson realisation derives its
+   preconditioner, and the driven gains derived from :math:`N`'s terms
+   (:ref:`green-realisations`).
 
 
 The convergent :math:`A`-preconditioned splitting
@@ -607,41 +623,6 @@ GMRES-realized Green are the *same* Green operator — which is why
 names the orthogonal *realization* axis, not the object.
 
 
-Green wraps the driver — it re-implements nothing
--------------------------------------------------
-
-``GreenOperator`` is a thin wrapper over a driver, not a new solver
-(taxonomy §11.2, Pattern 5). Its application engine is
-:class:`~orpheus.numerics.iteration.SourceIteration` — the **same**
-Richardson driver the SN solver and
-:class:`~orpheus.numerics.iteration.KEigenvalue` consume directly. At
-construction it reads the splitting **once, from the named split**:
-
-* the implicit part :math:`M` becomes the preconditioner :math:`M^{-1}`,
-  through *its own* structure-keyed ``.inverse()`` — the WDD
-  :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` for the
-  sweep-invertible atom
-  :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
-  (:math:`L + C`, built by its owner), a leaf
-  :class:`~orpheus.numerics.operator.InverseOperator` for a value-bearing
-  :math:`M`;
-* the **terms** of the lagged part :math:`N` become the driver's gains, in
-  :math:`N`'s insertion order, each :math:`c_i w_i` (a coefficient 1 hands
-  the word itself, so the driver holds the *named* operator). So
-  ``GreenOperator(M, S + F)`` hands the driver ``(S, F)`` and associates
-  :math:`(q + S\psi) + F\psi`, exactly as a hand-built
-  ``SourceIteration(M⁻¹, S, F)`` does; one combined gain would associate
-  :math:`q + (S\psi + F\psi)` (the S2 spec's finding 10).
-
-It then hands these to ``SourceIteration`` and re-implements no iteration
-math of its own. The atom is one term: ``GreenOperator(lc, S)`` with ``lc``
-the :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
-never dissolves :math:`L + C` into its own legs. A GMRES-realized Green
-(with :class:`~orpheus.numerics.iteration.KrylovAcceleration` as the
-engine) is a future realization *strategy* of this same object, not a
-sibling type.
-
-
 The split is named, never read off a spelling
 ---------------------------------------------
 
@@ -719,6 +700,440 @@ exactly when ``is_invertible`` is ``True``.
    ruling 52 removed the fusion that made ``L + C`` and ``C + L`` differ.
 
 
+.. _green-strategy-mints:
+
+The Strategy mints the Green
+----------------------------
+
+A sum of two or more terms has no inverse of its own
+(:eq:`combination-inverse`), so the inverse of the within-group loss
+exists only where a split has been named, and the split is the
+Strategy's (ruling 65 of ``.claude/plans/numerics_untangling.md``). The
+S\ :sub:`N` Strategy value is :class:`~orpheus.sn.splitting.Splitting`:
+``Splitting.from_schedule`` labels each loss term implicit or explicit,
+and the value derives :math:`M` (``implicit``) and the lagged pieces
+:math:`N_i` (``explicit``) from the labels
+(:ref:`sn-splitting-is-a-strategy-value`). The value then mints the
+inverse it names, through one verb:
+``Splitting.green(realisation, extra_gains=…)``
+(:meth:`~orpheus.sn.splitting.Splitting.green`) returns
+``GreenOperator(implicit, N, realisation=realisation)``, where :math:`N`
+is the sum of the ``explicit`` pieces followed by ``extra_gains`` (the
+multiplying-source production, which enters :math:`N` here and never
+beside it). ``A.inverse()`` on the loss itself keeps refusing, and its
+:class:`~orpheus.numerics.operator.NotInvertible` message names both
+routes: ``GreenOperator(M, N)``, and in S\ :sub:`N` ``Splitting.green``.
+An inverse with no Strategy in scope is therefore unspellable.
+
+Every production solve of the within-group problem reads the Green the
+Strategy minted, never a driver built beside it:
+
+.. list-table:: Who reads the Strategy's Green in S\ :sub:`N` production
+   :header-rows: 1
+   :widths: 34 30 36
+
+   * - Site
+     - Green
+     - Face read
+   * - eigenvalue source-iteration inner
+       (``SNSolver._solve_source_iteration``) and the fixed-source
+       source-iteration solve (``_solve_fixed_source_si``)
+     - ``_within_group_green_si``: a
+       :class:`~orpheus.numerics.green_operator.Richardson` Green
+     - ``green.driver(...)``
+   * - eigenvalue Krylov inner (``SNSolver._solve_krylov``) and the
+       fixed-source Krylov solve (``_solve_fixed_source_krylov``)
+     - ``_within_group_green_krylov``: a
+       :class:`~orpheus.numerics.green_operator.Krylov` Green
+     - ``green.driver(...)``
+   * - the eigenvalue finalize (:func:`~orpheus.sn.solver.solve_sn`)
+     - the Green the last inner drove, read off the
+       :class:`~orpheus.sn.solver.InnerSolve` record
+     - ``green.step(q_F, ψ)`` (:ref:`sn-finalize-one-step`)
+   * - the fixed-source finalize
+     - the same Green as its solve
+     - ``green.solution(q, ψ)``
+   * - ``solve_sn_adjoint``, through
+       :class:`~orpheus.numerics.iteration.KEigenvalue`
+     - ``GreenOperator(M.H, N.H)``, the Green of the ADJOINT split
+     - ``green.driver(...)``, built once by ``KEigenvalue``
+   * - ``solve_sn_adjoint_fixed_source``
+     - ``GreenOperator(M.H, N.H)``
+     - ``green.driver(...)``
+
+The adjoint entries mint the Green of the daggered split
+:math:`(M^{*}, N^{*})` from the Strategy's own daggered parts; they do not
+take ``.H`` of the forward Green (:ref:`green-adjoint-stays-base`).
+Before package S4 the six driver sites each built ``SourceIteration(
+seeded_inverse(M), N)`` or a ``KrylovAcceleration`` by hand, while the
+``GreenOperator`` class had 1 production construction, its own ``dual``
+(`[M]` the S4 census, 2026-10-20: 28 ``GreenOperator(`` call sites, 27 of
+them in tests). The tree then held two realisations of one inverse, and
+only the hand-wired one ran.
+
+The S4 carve moved no production value: `[M]` the test-architect's
+baseline of 26 production configurations (k, :math:`\phi`, :math:`\psi`
+and the inner records) is bit-identical before and after
+(``tests/gates/sn/solve/test_strategy_mints_green_sn.py``, docstring).
+Because a value gate cannot see which route ran, the route is pinned by
+counting spies (``test_g1a_every_production_driver_is_built_by_a_green``,
+``test_g1b_every_finalize_is_one_step_of_the_green_the_last_inner_drove``)
+and by an AST gate that the retired spellings are gone
+(``test_g1c_the_retired_spellings_are_gone``).
+
+
+.. _green-three-faces:
+
+Three faces: the promise, the relaxation, the splitting map
+-----------------------------------------------------------
+
+The Green and its consumers keep two different contracts, and the Green
+carries both as faces of one object (ruling 68), plus a third verb that
+is not an inverse at all (ruling 69):
+
+.. list-table:: The faces of ``GreenOperator``
+   :header-rows: 1
+   :widths: 24 40 36
+
+   * - Face
+     - Contract
+     - Consumers
+   * - :meth:`~orpheus.numerics.green_operator.GreenOperator.apply`,
+       the PROMISE
+     - the converged :math:`(M-N)^{-1}q`, with true relative residual below
+       ``tol`` (:eq:`green-true-residual`), or a loud
+       :class:`~orpheus.numerics.green_operator.ConvergenceFailure`
+     - composites holding a Green, the invariant gates
+   * - :meth:`~orpheus.numerics.green_operator.GreenOperator.driver`,
+       the RELAXATION
+     - a best-effort driver under a budget ``max_iter`` and a stopping
+       tolerance ``tol``; its ``solve(q, initial_guess=…)`` returns the
+       iterate and its :class:`~orpheus.numerics.convergence.IterationRecord`.
+       A non-converged exit is legal and audible, never raised
+     - the four within-group solve sites, the ``KEigenvalue`` inner, the
+       adjoint fixed-source solve
+   * - :meth:`~orpheus.numerics.green_operator.GreenOperator.step`,
+       the SPLITTING MAP
+     - :math:`G(\psi) = M^{-1}(q + N\psi)` applied ONCE, seeded by
+       :math:`\psi`, through :math:`M`'s canonical seeded inverse
+     - the two finalizes (reconstruction from a converged iterate)
+
+The relaxation is constructed in one place: ``driver`` delegates to the
+realisation, and ``apply``'s refinement loop is written over
+``self.driver(...)``. So the promise is the relaxation run until the true
+residual is met, and no second construction of the driver exists to
+drift.
+
+**Why the k-eigenvalue inner reads the relaxation and not the promise.**
+``K = GreenOperator(M, N) @ F`` is the normal FORM of the k-eigenvalue
+problem, the eigen-operator whose dominant eigenvalue is :math:`k`. Power
+iteration does not need :math:`K` exactly at each outer step: the inner
+solve need only be converged enough that the outer dominant-eigenvector
+direction is accurate, and warm-starting each inner from the previous
+outer iterate amortises its cost (inexact power iteration). Partial
+convergence there is by design. Reading ``apply`` would either over-solve
+every inner (the promise drives to ``tol`` on the equation residual) or
+import the promise's hard raise into a loop that legitimately runs
+budget-bounded solves. So :class:`~orpheus.numerics.iteration.KEigenvalue`
+holds the Green, ``KEigenvalue(posing, green, …)``, and builds its inner
+once as ``green.driver(max_iter=max_inner, tol=inner_tol)``. The normal
+form is the concept; the warm-started relaxation of the same Green is its
+production realization. ``KEigenvalue`` types the Green as
+:class:`~orpheus.numerics.iteration.SupportsRelaxation`, a protocol with
+one member, so that ``iteration`` does not import ``green_operator``,
+which sits above it in the concept order.
+
+**The splitting map is a verb of the split, not an inverse.** At a fixed
+point :math:`G(\psi^{\star}) = \psi^{\star}`, so one application of
+:math:`G` to a converged iterate returns it, which is the whole
+reconstruction the finalizes need. ``step`` uses :math:`M`'s canonical
+seeded inverse (``implicit_inverse``, built once by the constructor) and
+never the realisation's preconditioner: after a moment-windowed solve the
+un-windowed sweep turns the moment iterate back into per-ordinate
+:math:`\psi`, and after a power iteration the finalize hands it the
+CONVERGED eigenvalue's fission source, so the returned flux solves the
+equation the caller is told about. Its right-hand side is the one
+spelling :func:`~orpheus.numerics.iteration.lagged_source` with the
+driven gains, the same body the source iteration evaluates each pass.
+The seed carries the curvilinear :math:`\psi_{1/2}` seed and the
+reflective partner trace. ``solution(q, ψ)`` is the iterate read back in
+the split's own space: natively the iterate itself, under the moment
+window one ``step`` (:ref:`green-realisations`); the representation
+decides, never a flag beside it. Until package S4 the map was the free
+function ``fixed_point_step(inverse, gains, q, ψ)``, which took the
+inverse and the gains as two separate arguments a caller could pair
+wrongly.
+
+
+.. _green-realisations:
+
+The realisation is a value: Richardson and Krylov
+-------------------------------------------------
+
+How :math:`(M - N)^{-1}` is iterated is a value the Strategy chooses and
+hands to the Green (ruling 68): a
+:class:`~orpheus.numerics.green_operator.Richardson` or a
+:class:`~orpheus.numerics.green_operator.Krylov`, both in
+:mod:`orpheus.numerics.green_operator`. A Richardson Green and a Krylov
+Green of one split are the SAME operator (:ref:`green-operator`); the
+realisation chooses the algorithm, and the two build the public drivers
+:class:`~orpheus.numerics.iteration.SourceIteration` and
+:class:`~orpheus.numerics.iteration.KrylovAcceleration`, so the Green
+re-implements no iteration mathematics (taxonomy §11.2, Pattern 5).
+``GreenOperator(M, N)`` with no realisation is ``Richardson()``, the plain
+source iteration preconditioned by :math:`M^{-1}`.
+
+**Richardson's preconditioner is derived, because it fixes the answer.**
+The source iteration with a preconditioner :math:`P` is
+:math:`\psi_{n+1} = P(q + N\psi_n)`. If :math:`P` is invertible its fixed
+point satisfies :math:`P^{-1}\psi^{\star} = q + N\psi^{\star}`, that is
+
+.. math::
+   :label: green-richardson-fixed-point
+
+   \psi^{\star} \;=\; \bigl(P^{-1} - N\bigr)^{-1} q ,
+   \qquad\text{so}\qquad
+   \psi^{\star} = (M - N)^{-1}q \ \ \forall q
+   \iff P = M^{-1} .
+
+.. (vv-status rationale) A two-line algebraic identity on the fixed point
+   of the preconditioned source iteration; the S4 gates
+   test_g9a_richardson_accepts_no_preconditioner and
+   test_g9b_the_native_richardson_iterates_with_m_s_own_inverse pin the
+   design consequence (no free P), not the identity.
+.. vv-status: green-richardson-fixed-point documented
+
+A Richardson preconditioner is therefore not a free parameter of the
+iteration: it is the implicit part of a split, and a Richardson
+realisation handed another split's inverse silently computes that
+other split's Green. The design of S4 first took :math:`P` as a free
+argument, ``Richardson(preconditioner, representation)``, and the
+elegance review measured the consequence: `[M]` 2026-10-21,
+``GreenOperator(D, N, realisation=Richardson(seeded_inverse(D2)))`` gave a
+driver record reading "converged" after 30 iterations while the iterate
+was 15.5 % off :math:`(D - N)^{-1}q`; ``apply`` raised
+:class:`~orpheus.numerics.green_operator.ConvergenceFailure`, but the six
+production sites read the driver face, which stays silent
+(``scratch/numerics_untangling/packages/S4_review/elegance.md``, attack 1).
+Ruling 70 removed the argument: the Green builds :math:`M^{-1}` once
+(``implicit_inverse``), and ``Richardson(*, representation, corrector)``
+derives :math:`P` from it through the representation, so a source
+iteration over another split's inverse cannot be spelled. Every one of
+the 3 production Richardson preconditioners before the ruling was already
+a function of :math:`M` alone (the seeded inverse, the sweep, or the
+windowed sweep), so nothing in production lost a capability.
+
+**Krylov's preconditioner is free, because it does not.** GMRES with a
+left preconditioner :math:`P` minimises :math:`\lVert P(q - (M-N)x)\rVert`
+over a Krylov space of :math:`P(M - N)`. At convergence the preconditioned
+residual vanishes, and for a nonsingular :math:`P`
+
+.. math::
+   :label: green-krylov-fixed-point
+
+   P\bigl(q - (M - N)x^{\star}\bigr) = 0
+   \;\Longrightarrow\;
+   x^{\star} = (M - N)^{-1} q ,
+
+.. (vv-status rationale) The left-preconditioned GMRES solution is
+   independent of the nonsingular preconditioner; the gate that P moves
+   the trajectory and never the converged fixed point is D4 of the
+   Krylov-preconditioner suite (tests/gates/sn/solve/test_krylov_sweep_preconditioner.py).
+.. vv-status: green-krylov-fixed-point documented
+
+whatever :math:`P` is: the preconditioner moves the trajectory (the
+Krylov space, hence the iteration count) and never the answer. So
+``Krylov(P, restart=…)`` takes :math:`P` as the Strategy's free choice:
+the sweep :math:`M^{-1}`, or the DSA-corrected
+:math:`(I + \mathcal C)M^{-1}` (:ref:`sn-krylov-sweep-preconditioner`).
+GMRES iterates in the split's own space, so a Krylov realisation's
+representation is ``NATIVE``. ``restart`` is sized by the Strategy to
+the full state the driver ravels (ERR-053).
+
+**The representation is the space the iterate lives in.**
+:class:`~orpheus.numerics.iteration.Representation` is a protocol of four
+maps, all consequences of one choice, so no two of them can be paired
+wrongly:
+
+.. list-table:: The four maps of a ``Representation``
+   :header-rows: 1
+   :widths: 18 32 50
+
+   * - Map
+     - ``NATIVE`` (the split's own space)
+     - :class:`~orpheus.sn.operators.windowing.AngularMomentWindow`
+       (2-D Cartesian S\ :sub:`N`)
+   * - ``precondition(M⁻¹)``
+     - :math:`P = M^{-1}`
+     - :math:`P = \mathcal P\,M^{-1}`, the fused
+       :class:`~orpheus.sn.operators.windowing.WindowedSweep`
+   * - ``rebind(g)``
+     - the gain as it is
+     - an angular lift re-bound on the moment iterate
+       (``on_moment_domain()``); any other gain (the boundary gain, or
+       its Gauss-Seidel upper part, which reads the trace) as it is
+   * - ``analyse(state)``
+     - the state as it is
+     - :math:`\mathcal P` applied to a per-ordinate state (a seed)
+   * - ``reconstruct(step, q, ψ̂)``
+     - the iterate as it is
+     - one splitting step, ``step(q, ψ̂)``, through :math:`M`'s own
+       un-windowed inverse
+
+The window holds exactly one datum, the analysis factor :math:`\mathcal P`
+(a :class:`~orpheus.sn.operators.windowing.BulkAnalysisOperator` over the
+scattering operator's own flux-analysis face), and derives the rest. Why
+the windowed iteration computes the same Green: write
+:math:`\tilde N` for the re-bound gains. Each angular lift reads the
+per-ordinate flux only through the moments :math:`\mathcal P` keeps, and
+the boundary gain reads the trace, which the windowed iterate carries
+un-reduced, so :math:`\tilde N\mathcal P = N` on the states the
+iteration produces. Then the windowed iterate is the analysis of the
+native one, step for step: if :math:`\hat\psi_n = \mathcal P\psi_n`,
+
+.. math::
+
+   \hat\psi_{n+1}
+   = \mathcal P M^{-1}\bigl(q + \tilde N\hat\psi_n\bigr)
+   = \mathcal P M^{-1}\bigl(q + N\psi_n\bigr)
+   = \mathcal P\psi_{n+1},
+
+and at the fixed point :math:`M^{-1}(q + \tilde N\hat\psi^{\star}) =
+M^{-1}(q + N\psi^{\star}) = \psi^{\star}`, which is ``reconstruct``: one
+``step``. The solver chooses the representation at one site,
+``_angular_representation`` in :mod:`orpheus.sn.solver`, on the genuine
+condition ``is_cartesian and ndim == 2``; curvilinear meshes stay native
+because the Morel–Montry Carlson seed reads the per-ordinate iterate at
+:math:`\mu = -1`, which the moment tensor does not carry
+(:ref:`sn-angular-windowing-geometry-restriction`). Before ruling 70 the
+windowed sweep and the representation were chosen apart (the
+``_maybe_window`` factory returned the sweep, and a bool beside it picked
+the representation), so a windowed sweep with ``NATIVE``, or a plain
+sweep with the window, could both be spelled (the elegance review,
+attack 2).
+
+**The driven gains are derived, scaled terms included.** A realisation
+carries no gains. The Green reads :math:`N`'s terms
+:math:`c_i w_i` in insertion order and drives
+:math:`c_i\cdot\mathrm{rebind}(w_i)` (the word itself when
+:math:`c_i = 1`), so every driven gain is a representative of a term of
+:math:`N` by construction (the orchestrator's ruling on the S4 spec's Q3,
+2026-10-20). The terms stay separate gains: ``GreenOperator(M, S + F)``
+drives ``(S, F)`` and associates :math:`(q + S\psi) + F\psi`, exactly as
+a hand-built ``SourceIteration(M⁻¹, S, F)`` does, where one combined
+gain would associate :math:`q + (S\psi + F\psi)` (the S2 spec's finding
+10). The rebind is applied to the WORD and the coefficient
+outside it: a scaled lift :math:`c\,S` is an
+:class:`~orpheus.numerics.operator.OperatorSum`, not an
+:class:`~orpheus.transport.operators.angular_lift.AngularLift`, so
+re-binding the scaled term misses the lift and the windowed driver feeds
+a moment iterate to a per-ordinate binding. `[M]` the elegance review
+(attack 5) found ``rebind(c * w)`` in the first S4 draft; `[M]`
+2026-10-21, the archivist's probe on the 2-D heterogeneous
+:math:`P_1` two-group fixture (``_cartesian_2d_p1_aniso_het_si``,
+Jacobi): with :math:`N = 0.9\,S + N_{2n} + B` the windowed driver now
+runs its 3 budgeted passes, where the review's probe raised
+``TypeError`` from the scattering binding. Gated by
+``test_g2d_a_scaled_angular_lift_is_rebound_then_scaled``.
+
+.. important::
+
+   **Gotcha — a Green's budget counts different units per
+   realisation.** ``apply`` spends its ``max_iter``, the TOTAL budget, in driver passes,
+   counting the cold start :math:`P q` as one. A Richardson pass is one
+   splitting step; a Krylov pass is one GMRES restart cycle of up to
+   ``restart`` Arnoldi steps. `[M]` 2026-10-21 (qa's
+   ``S4_review/q1_paths.py`` re-run on the S4 worktree; 12-dof dense
+   split, ``tol = 1e-12``): ``max_iter = 2`` with ``restart = 12``
+   converged after 11 Arnoldi steps in one cycle, while the Richardson
+   control at ``max_iter = 3`` ran 2 steps. A budget sized for one
+   realisation is not a budget for the other. Giving the budget one unit
+   is `#629 <https://github.com/deOliveira-R/ORPHEUS/issues/629>`_.
+
+.. important::
+
+   **Gotcha — the dual of a Strategy's Green is realised by the default
+   Richardson.** ``G.dual()`` builds ``GreenOperator(M.dual(), N.dual())``
+   with the same budget and no realisation: a Strategy's realisation is a
+   choice for the forward split and is not transposed. So a Krylov Green
+   whose split does not contract has a dual that diverges. `[M]`
+   2026-10-21 (qa's ``S4_review/q1b_dual.py`` re-run on the S4 worktree:
+   a 4×4 diagonal :math:`M` with a reversal-permutation :math:`N` scaled by
+   6, :math:`\rho(M^{-1}N) = 1.90`): the forward Krylov Green converges to
+   1.4e-15 relative, and ``dual().apply`` and ``apply_transpose`` both raise
+   :class:`~orpheus.numerics.green_operator.ConvergenceFailure` (loudly,
+   never a wrong answer). Gated by
+   ``test_g9e_the_dual_of_a_strategy_green_carries_no_forward_realisation``.
+   Transposing a Krylov realisation where its preconditioner transposes is
+   `#629 <https://github.com/deOliveira-R/ORPHEUS/issues/629>`_.
+
+
+.. _green-seed-law:
+
+One seed law for a scaled inverse
+---------------------------------
+
+A one-term combination is invertible, :math:`(\alpha A)^{-1} =
+\alpha^{-1}A^{-1}` (:eq:`combination-inverse`), and the inverse is a
+first-class forward, the combination :math:`c\,w` with
+:math:`c = \alpha^{-1}` and :math:`w = A^{-1}`. Its seed has one law
+(ruling 67): ``initial_guess`` :math:`x_0` guesses the output
+:math:`y = \alpha^{-1}A^{-1}b`, so the word's own output
+:math:`A^{-1}b = \alpha y` is seeded with :math:`\alpha x_0`. The one-term
+``apply`` forwards :math:`x_0 / c` to the word
+(``OperatorSum._apply_scaled``), which is that law, and the transpose
+face :math:`((\alpha A)^{-1})^{\mathsf T} = \alpha^{-1}(A^{-1})^{\mathsf T}`
+obeys it too.
+
+Before package S4 a driver never saw this law:
+:func:`~orpheus.numerics.iteration.seeded_inverse` keyed on
+wrap-delegate membership alone, so a scaled inverse fell into the
+seedless branch and ``_SeededExactApply`` dropped the seed, while the same
+object's direct ``apply`` honoured it. One object had two seed paths
+that disagreed. Ruling 67 keys ``seeded_inverse`` on ONE capability
+predicate, :func:`~orpheus.numerics.iteration.accepts_seed`: a
+wrap-delegate member accepts a seed, a one-term combination accepts one
+exactly when its word does, and nothing else does. A scaled inverse over a
+seeded word is returned as it is, and its law holds in the driver slot as
+on its direct face. `[M]` qa's probe (``S4_review/q1c_seed.log``,
+2026-10-21):
+
+.. list-table:: ``accepts_seed`` on the algebra-closed inverses
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - Inverse
+     - Type
+     - ``accepts_seed``
+   * - :math:`D^{-1}` (diagonal leaf)
+     - ``InverseOperator``
+     - ``True``
+   * - :math:`(2D)^{-1}`, :math:`(-D)^{-1}`, :math:`(2\,D D)^{-1}`
+     - ``OperatorSum`` (one term)
+     - ``True``
+   * - :math:`I^{-1}`
+     - ``IdentityOperator``
+     - ``False``
+   * - :math:`(2I)^{-1}`
+     - ``OperatorSum`` (one term)
+     - ``False``, so ``seeded_inverse`` wraps it in ``_SeededExactApply``
+
+So the sentence "an exact inverse has nothing to seed" is true of a
+SEEDLESS word only. It is the whole story for the identity, a
+permutation and a scaled identity; it is false for a scaled inverse over
+the curvilinear sweep, whose Carlson closure reads the seed's
+:math:`\mu = -1` flux, so a dropped seed there would be a wrong-fixed-point
+defect rather than a rate change (`[R]`: no production site builds a
+scaled inverse over the sweep today, which is why the old drop was
+silent). The forward face, the transpose face
+and the driver slot are each pinned by a gate with a reddening mutation
+(``tests/gates/numerics/test_strategy_mints_green.py``,
+``test_g4a`` to ``test_g4f``). `[M]` the S4 gate spec's finding F3: the
+26-configuration production baseline is value-blind to the driver-slot
+seed, which is why those gates record the seeds an exact inverse is handed
+rather than comparing values.
+
+
 The promise — the TRUE residual, driven not merely checked
 ----------------------------------------------------------
 
@@ -771,38 +1186,32 @@ increment. This is exactly the "what was tried and failed" material a naive
 increment-check would have shipped as a silent wrong answer.
 
 
-Green versus the k-eigenvalue inner — normal form versus inexact relaxation
----------------------------------------------------------------------------
+.. _green-adjoint-stays-base:
 
-``K = GreenOperator(M, N) @ F`` is the **normal form** of the k-eigenvalue
-problem: the eigen-operator whose dominant eigenvalue is :math:`k`. But
-production power iteration **deliberately does not** build this exact
-``GreenOperator`` — it keeps consuming
-:class:`~orpheus.numerics.iteration.SourceIteration` directly, as a
-**warm-started, budget-bounded inner relaxation**. That partial convergence
-is *by design* in nested iteration (classic inexact power iteration): the
-inner need only be converged enough that the *outer* dominant-eigenvector
-direction is accurate, and warm-starting from the previous outer iterate
-amortises the cost. This is a **different contract** from Green's
-converged-or-raise promise, and conflating them would either over-solve the
-inner (wasted matvecs) or import Green's hard raise into a loop that
-legitimately runs partial solves. So
-:class:`~orpheus.numerics.iteration.KEigenvalue` was examined and
-**deliberately not rewired** to ``GreenOperator(M, N) @ F``; the normal form is
-the *concept*, the inexact inner is its production *realization*.
+Why ``G.H`` stays the base
+--------------------------
 
-Green's consumers today are the invariant gates (see
-:ref:`green-verification`). The S\ :sub:`N` Krylov preconditioner is not
-one of them: it is the direct sweep inverse, ``lc.inverse()`` of the
-sweep-invertible atom :math:`L + C` (the plain combination ``L + C`` has no
-inverse),
-a :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` (or the
-coupled block substitution on a carrying mesh), applied to each GMRES
-residual (:ref:`sn-krylov-sweep-preconditioner`). The production
-consumers Green is designed for are a diffusion ``.inverse()`` realized as
-a CG-preconditioned Green (the taxonomy's *negative control* — an
-iterative inverse with no sweep) and explicit normal-form spellings of
-the k-problem; neither is built.
+The Euclidean transpose of a Green is the Green of the dual split,
+:math:`((M - N)^{-1})^{\mathsf T} = (M^{\mathsf T} - N^{\mathsf T})^{-1}`,
+which :meth:`~orpheus.numerics.green_operator.GreenOperator.dual` builds
+exactly. The Hilbert adjoint is the base's ``♯ ∘ dual ∘ ♭`` over that
+dual, and S4 does not override it (ruling 66, until package S6), for two
+reasons. First, the tempting override ``GreenOperator(self.inner.H)``
+cannot be built: a Green needs a split, and the split cannot be read back
+off ``(M - N).H``, which is a formal sum with no implicit part. Second,
+the distributed form ``GreenOperator(M.H, N.H)`` is the honesty gate's
+independent witness (``_sn_green`` in
+``tests/gates/numerics/test_adjointability_is_honest.py``): an override of
+that form was removed on 2026-10-18, because the witness then agreed with
+``.H`` to exactly 0.0, a tautology. The law
+:math:`((M - N)^{-1})^{*} = (M^{*} - N^{*})^{-1}` holds and is checked; it
+is not a second route to ``.H``. That is also why the adjoint entries of
+:ref:`green-strategy-mints` mint ``GreenOperator(M.H, N.H)`` from the
+Strategy's daggered parts: the Green of the adjoint split is the
+Strategy's value, not the forward Green's ``.H``. Ruling 53's distributed
+adjoint is revisited at S6, where it holds everywhere. Gated by
+``test_g6a_green_does_not_override_its_adjoint`` and
+``test_g6b_no_production_green_is_built_on_daggered_parts_outside_the_strategy``.
 
 
 The wrap-delegate mixin — extracted at the third sibling
@@ -901,6 +1310,22 @@ deliberately excluded as evidence.
        split table above end-to-end: the plain sum refuses an inverse in
        both spelling orders, and the collision-preconditioned split
        ``GreenOperator(C, -L)`` raises ``ConvergenceFailure``.
+   * - ``test_strategy_mints_green.py`` (numerics) and
+       ``test_strategy_mints_green_sn.py`` (S\ :sub:`N`), package S4
+     - The ROUTE: counting spies that every production driver is built by
+       ``GreenOperator.driver`` and every finalize is one ``step`` of the
+       Green the last inner drove, and an AST gate that ``fixed_point_step``
+       and the hand-built drivers are gone (G1). The driven gains are
+       :math:`N`'s terms through the representation, a scaled lift
+       re-bound then scaled (G2). ``step`` is one application of the
+       splitting map, seeded by the iterate, and reproduces a converged one
+       (G3). The seed law of a scaled inverse on the forward face, the
+       transpose face and the driver slot, keyed by ``accepts_seed`` (G4).
+       The promise over a Krylov realisation, converged or raised, and
+       written over the relaxation (G5). ``G.H`` not overridden (G6).
+       ``KEigenvalue``'s inner built through the Green's driver (G7).
+       Richardson accepts no preconditioner and derives it from :math:`M`;
+       a Krylov Green's preconditioner is the Strategy's (G9).
 
 The config discipline is Mode-9: the L1 slab is **heterogeneous, ≥2-group,
 vacuum** — a reflective isotropic box would null the
@@ -1810,3 +2235,55 @@ values, not of the two algorithms.
    separated them: ``as_matrix`` is the probe, ``dense`` the assembly, the
    consumer chooses, and the private hook retired because ``as_matrix``
    itself is the independent algorithm.
+
+
+.. _operator-inverse-family-history:
+
+Development history
+===================
+
+A reverse-chronological (latest first) changelog of the architectural
+milestones of the inverse family. The table opens at package S4; the
+family's earlier milestones (the #226 taxonomy steps, the wrap-delegate
+mixin, the named split of package S2, the assembly functor of package
+S3) are rows of :ref:`the operator algebra's history
+<operator-algebra-history>`. Entries marked *(in development)* live on an
+unmerged feature branch and have no landed merge-to-``main`` hash yet;
+trust ``git`` over this table for merge status.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 50 12 28
+
+   * - When
+     - Architectural milestone
+     - Issue
+     - Where
+   * - *(in development)*
+     - **The Strategy mints the Green, and the Green owns its
+       realisation** (package S4 of the numerics untangling; rulings
+       65–70). ``Splitting.green(realisation, extra_gains=…)`` mints
+       ``GreenOperator(M, N, realisation=…)``, and every production
+       within-group solve, the ``KEigenvalue`` inner and the adjoint
+       entries read that Green instead of a hand-built
+       ``SourceIteration(seeded_inverse(M), N)`` or ``KrylovAcceleration``.
+       The Green has three faces: ``apply`` the promise, ``driver`` the
+       relaxation (constructed in one place, and ``apply`` is written over
+       it), ``step`` the splitting map, which retired the free function
+       ``fixed_point_step``. The realisation is a value:
+       ``Richardson(*, representation, corrector)`` derives its
+       preconditioner from :math:`M^{-1}` through the ``Representation``
+       (four maps: ``precondition``, ``rebind``, ``analyse``,
+       ``reconstruct``; the 2-D window is ``AngularMomentWindow``, which
+       replaced ``_maybe_window``), and ``Krylov(P, restart)`` keeps a free
+       left preconditioner. The driven gains are derived from :math:`N`'s
+       terms, a scaled lift re-bound then scaled. ``KEigenvalue(posing,
+       implicit, explicit)`` became ``KEigenvalue(posing, green)``.
+       ``seeded_inverse`` keys on one predicate, ``accepts_seed``, so a
+       scaled inverse obeys one seed law in the driver slot and on its
+       direct face. ``G.H`` stays the base ``♯ ∘ dual ∘ ♭``. Pinned by
+       ``tests/gates/numerics/test_strategy_mints_green.py`` and
+       ``tests/gates/sn/solve/test_strategy_mints_green_sn.py``. See
+       :ref:`green-strategy-mints`.
+     - —
+     - branch ``refactor/s4-strategy-mints-green``

@@ -8112,8 +8112,11 @@ only in a regime where the wrong gate is *accidentally* satisfied). Two
 gates inside the SN source-iteration driver keyed on
 ``problem.reduced is None``:
 
-* the **moment-windowing** gate (:meth:`_maybe_window
-  <orpheus.sn.solver>`), which decides whether the SI iterate is held
+* the **moment-windowing** gate (then ``_maybe_window``; since package
+  S4 of the numerics untangling the solver's ``_angular_representation``,
+  which returns the
+  :class:`~orpheus.sn.operators.windowing.AngularMomentWindow`
+  representation on the gate), which decides whether the SI iterate is held
   as compact harmonic moments rather than the full angular flux; and
 * the **Gauss–Seidel splitting** selector — then the solver-private
   ``_select_si_splitting``, since 2026-09-13 the schedule resolution
@@ -8144,7 +8147,8 @@ C5.4 retargets both gates to the **genuine** dimensionality predicate:
    * - Gate
      - Pre-C5.4 (coincidence proxy)
      - Post-C5.4 (genuine condition)
-   * - Moment windowing (``_maybe_window``)
+   * - Moment windowing (then ``_maybe_window``; now
+       ``_angular_representation``)
      - ``reduced is None``
      - ``is_cartesian and ndim == 2`` — the genuine
        windowing-eligibility condition (the 2-D moment kernel's exact

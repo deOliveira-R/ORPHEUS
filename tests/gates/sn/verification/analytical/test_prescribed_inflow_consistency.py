@@ -42,7 +42,8 @@ mesh would override).
 See:
 - ``.claude/skills/vv-principles/SKILL.md`` (Mode 9 — splitting invariance).
 - :func:`orpheus.sn.coupled_system.build_within_group_system` / ``Splitting.from_schedule``
-  / ``_within_group_krylov`` — the operator triple + splittings under test.
+  / ``GreenOperator`` with a ``Krylov`` realisation — the operator triple +
+  splittings under test.
 """
 from __future__ import annotations
 
@@ -58,10 +59,9 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.splitting import Splitting, resolve_schedule
-from orpheus.sn.solver import (
-    SNSolver,
-    _within_group_krylov,
-)
+from orpheus.numerics.green_operator import GreenOperator
+from orpheus.numerics.green_operator import Krylov
+from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
@@ -218,8 +218,11 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
         q_ext, initial_guess=_flux_zero(sn),
     )
 
-    # Krylov: matvec (L+C−S−B), identity precond, full restart.
-    kr = _within_group_krylov(LC, S, B, n_dof=n_dof, max_iter=500, tol=1e-13)
+    # Krylov: the Green of the split (L+C) − (S+B) realised by GMRES on the
+    # matvec (L+C−S−B), left-preconditioned by the sweep (L+C)⁻¹, full restart.
+    kr = GreenOperator(
+        LC, S + B, realisation=Krylov(LC.inverse(), restart=n_dof),
+    ).driver(max_iter=500, tol=1e-13)
     psi_k, _ = kr.solve(q_ext, initial_guess=_flux_zero(sn))
 
     # PRECONDITION 2 — the inflow non-trivially drives the interior

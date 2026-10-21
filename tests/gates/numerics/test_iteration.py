@@ -33,6 +33,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
+from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.iteration import (
     KEigenvalue,
     KrylovAcceleration,
@@ -498,7 +499,7 @@ def test_keigenvalue_recovers_dominant_eigenvalue(rng):
 
     initial = np.ones(n)
     ke = KEigenvalue(
-        EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S,
+        EigenPosing(OperatorPencil(A - S, F), K_MAP), GreenOperator(A, S),
         max_outer=500, keff_tol=1e-12, flux_tol=1e-12,
         max_inner=500, inner_tol=1e-14,
     )
@@ -591,15 +592,16 @@ def test_invertibility_obligation_lives_at_the_inverse_builder():
 
 @pytest.mark.foundation
 def test_keigenvalue_requires_invertible_A():
-    """KEigenvalue (the posing layer that BUILDS A.inverse()) guards
-    invertibility at construction with a domain message — not an
-    AttributeError from a missing ``.inverse`` (#226 step 3)."""
+    """KEigenvalue's invertibility obligation is its Green's (S4, ruling 68):
+    the Green the Strategy hands it refuses a non-invertible implicit part at
+    construction with a domain message, before any KEigenvalue exists — not an
+    AttributeError from a missing ``.inverse`` (#226 step 3). Until S4
+    KEigenvalue held the split itself and raised its own ``INVERTIBLE``."""
     A = MatrixOperator(np.eye(2), can_solve=False)
     S = MatrixOperator(np.eye(2))
-    F = MatrixOperator(np.eye(2))
 
-    with pytest.raises(NotInvertible, match="INVERTIBLE"):
-        KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S)
+    with pytest.raises(NotInvertible, match="invertible implicit part M"):
+        GreenOperator(A, S)
 
 
 @pytest.mark.foundation
@@ -610,7 +612,7 @@ def test_keigenvalue_rejects_non_power_method():
     F = MatrixOperator(np.eye(2))
 
     with pytest.raises(NotImplementedError, match="FEAST"):
-        KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S, eigenvalue_method="feast")
+        KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), GreenOperator(A, S), eigenvalue_method="feast")
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -801,7 +803,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     initial = np.ones((ng, *problem.spatial_shape))
 
     ke = KEigenvalue(
-        EigenPosing(OperatorPencil(A_adapt - S_adapt, F_adapt), K_MAP), A_adapt, S_adapt,
+        EigenPosing(OperatorPencil(A_adapt - S_adapt, F_adapt), K_MAP), GreenOperator(A_adapt, S_adapt),
         max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
         max_inner=500, inner_tol=1e-10,
     )
@@ -907,7 +909,7 @@ def _sn_composite_triple():
 def test_keigenvalue_honest_composite_triple_matches_solve_sn():
     r"""#276 A4 activation CONTROL: the honest typed-composite triple.
 
-    ``KEigenvalue(LC, S+B_a, F)`` on :class:`FullField` composites — the
+    ``KEigenvalue(posing, GreenOperator(LC, S+B_a))`` on :class:`FullField` composites — the
     production operators, NO adapter shims — converges to ``solve_sn``'s
     eigenvalue, asserted on KEigenvalue's OWN hardwired Rayleigh estimator
     (on-contract for the first time: ``A.apply`` is the TRUE composite
@@ -919,7 +921,7 @@ def test_keigenvalue_honest_composite_triple_matches_solve_sn():
     """
     ref_keff, LC, S_total, F, guess, _mix = _sn_composite_triple()
     ke = KEigenvalue(
-        EigenPosing(OperatorPencil(LC - S_total, F), K_MAP), LC, S_total,
+        EigenPosing(OperatorPencil(LC - S_total, F), K_MAP), GreenOperator(LC, S_total),
         max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
         max_inner=500, inner_tol=1e-10,
     )
@@ -941,7 +943,7 @@ def test_keigenvalue_honest_composite_triple_matches_solve_sn():
 
 @pytest.mark.l1
 def test_keigenvalue_daggered_triple_adjoint_smoke():
-    r"""#276 A4 activation: ``KEigenvalue(LC.H, (S+B_a).H, F.H)`` — the
+    r"""#276 A4 activation: ``KEigenvalue(posing†, GreenOperator(LC.H, (S+B_a).H))`` — the
     daggered posing through the UNCHANGED ``power_iteration``.
 
     The adjoint eigenproblem ``A_loss† ψ* = F† ψ*/k`` posed purely by
@@ -969,7 +971,7 @@ def test_keigenvalue_daggered_triple_adjoint_smoke():
 
     ref_keff, LC, S_total, F, guess, mix = _sn_composite_triple()
     ke_adj = KEigenvalue(
-        EigenPosing(OperatorPencil(LC.H - S_total.H, F.H), K_MAP), LC.H, S_total.H,
+        EigenPosing(OperatorPencil(LC.H - S_total.H, F.H), K_MAP), GreenOperator(LC.H, S_total.H),
         max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
         max_inner=500, inner_tol=1e-10,
     )

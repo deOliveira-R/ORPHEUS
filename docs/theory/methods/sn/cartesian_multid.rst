@@ -3182,12 +3182,15 @@ would have silently moment-windowed a 3-D solve — vv Mode 9): the
 curvilinear meshes carry a non-``None`` ``reduced`` moment-reduction
 descriptor and are excluded, and so is 3-D Cartesian (the in-sweep
 moment emit is a 2-D kernel). The windowed product ``P @ A.inverse()``
-(retyped in :ref:`windowing-retyped` below) — which the SI driver now
-holds and applies **directly**, the ``_maybe_window`` factory returning
-the plain sweep off that gate (#226 taxonomy step 3,
-:ref:`inverse-application-driver`) — is therefore **never even
-constructed** off the 2-D-Cartesian gate, so there is no illegal state
-to mistype.
+(retyped in :ref:`windowing-retyped` below) — which the SI driver
+holds and applies **directly** (#226 taxonomy step 3,
+:ref:`inverse-application-driver`) — is built only by the
+:class:`~orpheus.sn.operators.windowing.AngularMomentWindow`
+representation, and the solver's ``_angular_representation`` returns
+that representation on the gate and the split's own space
+(``NATIVE``) off it (:ref:`green-strategy-mints`).  The windowed product
+is therefore **never even constructed** off the 2-D-Cartesian gate, so
+there is no illegal state to mistype.
 
 The restriction is **interior-bulk-only** in a second sense: the
 interior-cochain biproduct :eq:`wavefront-cochain-biproduct`
@@ -3354,15 +3357,20 @@ persistent-storage win.
 Implementation map
 -------------------
 
-* The solver's :func:`_maybe_window <orpheus.sn.solver._maybe_window>`
+* The solver's
+  :func:`_angular_representation <orpheus.sn.solver._angular_representation>`
+  returns the :class:`~orpheus.sn.operators.windowing.AngularMomentWindow`
+  representation, which holds the analysis factor :math:`P` and from it
   builds the typed windowed composition ``P @ A.inverse()`` — the
   :class:`~orpheus.sn.operators.windowing.WindowedSweep` — over the
   swept composite :math:`A`'s inverse (the Jacobi
   :math:`(L+C)^{-1}`, or the reified splitting matrix :math:`M^{-1}`,
   :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
-  — see :ref:`si-gauss-seidel-reification`)
-  and hands it to the :class:`~orpheus.numerics.iteration.SourceIteration`
-  driver, which **applies** it directly (#226 taxonomy step 3 —
+  — see :ref:`si-gauss-seidel-reification`).  The Green derives its
+  preconditioner through the representation (:ref:`green-strategy-mints`)
+  and its relaxation face hands it to the
+  :class:`~orpheus.numerics.iteration.SourceIteration` driver, which
+  **applies** it directly (#226 taxonomy step 3 —
   :ref:`inverse-application-driver`; the transitional
   ``_MomentWindowedResolvent`` ``.solve`` adapter that once wrapped it is
   gone). Its analysis factor :math:`P` is sourced from the scattering
@@ -3385,7 +3393,10 @@ Implementation map
   (:func:`~orpheus.sn.solver.solve_sn_fixed_source`'s SI path) adds a
   **one-shot** full-angular reconstruction for ``Solution.angular_flux``
   — it re-evaluates the converged source ``q + Σ gains·ψ`` once through
-  the *un-wrapped* base resolvent (``base_resolvent.solve(...)``).
+  the *un-wrapped* sweep, :math:`M`'s own inverse
+  (:meth:`GreenOperator.solution <orpheus.numerics.green_operator.GreenOperator.solution>`,
+  which the window representation reads as one
+  :meth:`~orpheus.numerics.green_operator.GreenOperator.step`).
   Fixed-source must return the full per-ordinate field, and because
   :math:`S`/:math:`B` consume the moments *equal* the full angular's
   moments (de-risk proven), the reconstructed source is the same and one
@@ -3801,10 +3812,10 @@ Honest scope — what 5c does and does NOT do
      point — ``[M]`` 8.776e-02 from the converged iterate on a 421-group
      fixture at :math:`L = 2`, and the self-consistency gate this bullet
      cites did not exist on the eigenvalue path.  Both entries now
-     evaluate the ONE body
-     :func:`~orpheus.numerics.iteration.fixed_point_step`
-     (:ref:`sn-finalize-one-step`), so the sentence is true of both for
-     the first time.
+     evaluate the ONE body, the splitting map
+     :meth:`GreenOperator.step <orpheus.numerics.green_operator.GreenOperator.step>`
+     (``fixed_point_step`` until package S4;
+     :ref:`sn-finalize-one-step`), so the sentence is true of both.
    * **Krylov, 1-D, and curvilinear stay full-angular.** Krylov iterates
      the full bulk vector (no moment sub-iterate); the curvilinear
      Morel–Montry Carlson coupled-pole seed reads the per-ordinate
@@ -3994,7 +4005,9 @@ The fused evaluation is
 :class:`~orpheus.sn.operators.windowing.WindowedSweep`, an atom with two
 named legs (``p`` and ``sweep``) whose ``expansion()`` is the plain word
 ``P @ A.inverse()``. It is built explicitly, ``WindowedSweep(P,
-A.inverse())``, by its one owner, the solver's ``_maybe_window`` factory:
+A.inverse())``, by its one owner, the
+:class:`~orpheus.sn.operators.windowing.AngularMomentWindow`
+representation (:ref:`green-strategy-mints`):
 since package S2 (2026-10-20, numerics_untangling.md ruling 52) ``@``
 never fuses, so ``P @ A.inverse()`` is the plain
 :class:`~orpheus.numerics.operator.OperatorProduct`. (Until S2 a type test

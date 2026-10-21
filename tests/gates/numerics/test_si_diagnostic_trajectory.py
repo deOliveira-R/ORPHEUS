@@ -112,7 +112,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.splitting import Splitting, resolve_schedule
-from orpheus.sn.solver import SNSolver, _within_group_si
+from orpheus.sn.solver import SNSolver, _within_group_green_si
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import (
@@ -224,7 +224,7 @@ def _build_solver() -> SNSolver:
 def _run_si():
     """Run the within-group SI through the PRODUCTION single-source builders.
 
-    ``build_within_group_system`` + ``_within_group_si`` are the same two
+    ``build_within_group_system`` + ``_within_group_green_si`` are the same two
     builders the production fixed-source and eigenvalue paths call
     (``solver.py:1058``) — no SI construction is duplicated here.
 
@@ -238,10 +238,10 @@ def _run_si():
     system = build_within_group_system(
         problem, solver.problem.mat_xs,
     )
-    si, _base, _gains, windowed = _within_group_si(
+    green, windowed = _within_group_green_si(
         Splitting.from_schedule(system, solver.schedule), problem,
-        max_iter=_MAX_ITER, tol=_TOL,
     )
+    si = green.driver(max_iter=_MAX_ITER, tol=_TOL, budget_name="max_inner")
     if windowed:
         raise AssertionError(
             "the 1-D slab windowed the SI iterate — windowing is 2-D Cartesian, "
@@ -421,10 +421,10 @@ def _replay_final_increment():
     system = build_within_group_system(
         problem, solver.problem.mat_xs,
     )
-    si, _base, _gains, _windowed = _within_group_si(
+    green, _windowed = _within_group_green_si(
         Splitting.from_schedule(system, solver.schedule), problem,
-        max_iter=_MAX_ITER, tol=_TOL,
     )
+    si = green.driver(max_iter=_MAX_ITER, tol=_TOL, budget_name="max_inner")
     q_ext = TimedFullField(
         interior=AngularSourceSink.from_isotropic(
             np.ones((problem.ng, *problem.spatial_shape)), problem,
