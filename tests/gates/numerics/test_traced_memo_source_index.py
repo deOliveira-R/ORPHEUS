@@ -703,7 +703,8 @@ def test_b14_the_index_and_the_memos_own_source_are_no_dependency_of_a_run(tmp_p
     parent = next(f for f in api.entry_files(tmp_path / "cache") if api.entry_function(f).endswith(":outer"))
     record = api.read_entry(parent)
     sources = os.path.realpath(REPO / ".cache" / "sources")
-    memo_sources = {os.path.realpath(REPO / "orpheus" / d / f) for d, f in (("numerics", "traced_memo.py"), ("numerics", "_traced_memo_boot.py"), ("values", "content.py"))}
+    memo_sources = {os.path.realpath(path) for path in api.name("_MEMO_SOURCES")}
+    assert len(memo_sources) == 3 and all(os.path.isfile(path) for path in memo_sources), memo_sources
     paths = [p for kind in ("DataPin", "PresencePin", "ListingPin") for p, *_ in api.manifest_rows(record, kind)]
     assert not [p for p in paths if os.path.realpath(p).startswith(sources)], paths
     data = [p for p, *_ in api.manifest_rows(record, "DataPin")]

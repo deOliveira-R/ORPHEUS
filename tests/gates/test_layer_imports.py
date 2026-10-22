@@ -370,6 +370,8 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         # the question values (S7.13) and the one real-number parser (#559).
         "orpheus.numerics.mesh_free_function",
         "orpheus.numerics.question",
+        "orpheus.values",
+        "orpheus.values.content",
         "orpheus.values.scalars",
         # #405 P1 step 8 (S8.3): the specification and its keys.
         "orpheus.specification",
@@ -400,6 +402,22 @@ def test_entry_point_imports_in_a_fresh_interpreter(entry: str) -> None:
     assert result.returncode == 0, (
         f"`import {entry}` failed in a fresh interpreter:\n{result.stderr}"
     )
+
+
+@pytest.mark.foundation
+def test_values_loads_nothing_else_of_orpheus_in_a_fresh_interpreter() -> None:
+    """Ruling 6 at run time: a cold ``import orpheus.values.content`` loads only ``orpheus`` and
+    ``orpheus.values``. The AST row above cannot see an ``importlib`` call or an import a module's
+    code performs when it runs; this one reads ``sys.modules`` after the import, so it can. The
+    loaded set must contain the module imported (the instrument's control), and nothing outside
+    the package (``[M]`` 2026-10-22: 4 modules; 64 when the encoder lived in numerics)."""
+    probe = "import sys, orpheus.values.content; print(*sorted(m for m in sys.modules if m.split('.')[0] == 'orpheus'))"
+    result = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, cwd=ORPHEUS_ROOT.parent)
+    assert result.returncode == 0, result.stderr
+    loaded = set(result.stdout.split())
+    assert "orpheus.values.content" in loaded, loaded
+    outside = sorted(m for m in loaded if m != "orpheus" and m.split(".")[1] != "values")
+    assert not outside, f"importing orpheus.values.content loaded modules outside orpheus.values: {outside}"
 
 
 # ---------------------------------------------------------------------------

@@ -106,7 +106,7 @@ def _forked_calls(monkeypatch) -> list[int]:
 #: The memo's own sources. Their pins on a DefPin are the memo's machinery, which the MemoPin already pins by
 #: bytes; which of them a manifest holds depends on which process ran it (a template's job loop, a loader that
 #: found its bytecode cached or wrote it), so E1 and E8 compare manifests without them, and say so.
-_MEMO_FILES = ("orpheus/numerics/traced_memo.py", "orpheus/numerics/_traced_memo_boot.py", "orpheus/values/content.py")
+_MEMO_FILES = tuple(path.relative_to(REPO).as_posix() for path in api.name("_MEMO_SOURCES"))
 
 
 def _pins(entry: Path) -> set[tuple]:

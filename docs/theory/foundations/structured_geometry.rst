@@ -2431,7 +2431,7 @@ value that could be constructed. The parsers, each a ``ValueError``
 naming the field or parameter:
 
 * :func:`~orpheus.values.scalars.parse_real`, the one definition of
-  "a real number" at L1 for every layer that admits numbers
+  "a real number" in :mod:`orpheus.values` for every layer that admits numbers
   (:ref:`structured-geometry-one-real-parser`): it refuses ``bool`` and
   every non-real type (``TypeError``), NaN (``ValueError``, its message
   fragment ``is NaN, which is not a number``) and an integer a double
@@ -2467,8 +2467,8 @@ fold once, in :func:`~orpheus.values.scalars.canonical_real`.
 
 .. _structured-geometry-one-real-parser:
 
-One definition of a real number, at L1
---------------------------------------
+One definition of a real number, at the bottom of the package graph
+-------------------------------------------------------------------
 
 Every value a key covers admits numbers: a boundary law's albedo, a
 geometry's breakpoints, a mesh's edges, a mixture's cross sections, a
@@ -2477,10 +2477,14 @@ admission must agree with the encoder on what a number *is*, or a value
 that constructs could carry bits the digest does not describe. That
 agreement is one module, :mod:`orpheus.values.scalars`, which imports
 nothing from ``orpheus`` and sits below the encoder that uses it (#559).
-It moved from ``orpheus/geometry/scalars.py`` to ``numerics``, the
-lowest layer whose vocabulary suffices, because the encoder (L1) needed
-it and may not import the input layer; the geometry and the mesh import
-L1, which the layer rule allows (:ref:`architecture-layering`).
+It moved twice, each time to the lowest layer whose vocabulary suffices.
+First from ``orpheus/geometry/scalars.py`` to ``orpheus.numerics`` (#559,
+2026-10-02), because the encoder, then in ``numerics``, needed it and may
+not import the input layer. Then, with the encoder, to
+:mod:`orpheus.values` (layer DAG ruling 6, 2026-10-22): a value type is a
+set with an equality, the parser is the set and the encoder the equality,
+and every package admits values, so both sit below every package and
+import nothing from ``orpheus`` (:ref:`architecture-layering`).
 
 **The rule** is written once, in
 :func:`~orpheus.values.scalars.canonical_real`: NaN is refused (it is
@@ -2543,13 +2547,12 @@ the one beneath it:
      - the geometry's and the mesh's other inputs, each over the parsers
        above
 
-`[M]` this pass, 13 production modules import the module (a ``git
-grep`` of ``orpheus.values.scalars import`` under ``orpheus/``, its
-known member ``content.py`` found): six boundary-law modules and
-``structured_geometry.py`` in ``geometry``; ``partition.py`` and
-``structured.py`` in ``mesh``; ``mixture.py`` in ``data``; and
-``content.py``, ``mesh_free_function.py`` and ``question.py`` in
-``numerics``.
+`[M]` 2026-10-22, 27 production modules import the module (``git grep -l
+'orpheus.values.scalars import' -- orpheus``, its known member
+``values/content.py`` found): 10 in ``geometry``, 5 in ``reference``, 4 in
+``numerics``, 2 each in ``data``, ``mesh`` and ``derivations``, 1 in
+``specification`` and ``content.py`` in ``values``. (At #559, on
+2026-10-02, the same grep found 13.)
 
 **Why the encoder admits** ``bool`` **and the parsers refuse it.** The
 two answer different questions. The encoder digests a value that already
@@ -2957,7 +2960,7 @@ shape is part of the content. ``n_regions`` and ``n_groups`` read the
 shape.
 
 The finite-real check is :func:`~orpheus.values.scalars.parse_finite_reals`,
-the one definition of "a finite, canonical real" at L1 (#559), which the
+the one definition of "a finite, canonical real" in :mod:`orpheus.values` (#559), which the
 geometry, the mesh, the data layer and the content encoder share
 (:ref:`structured-geometry-one-real-parser`).
 
@@ -3426,7 +3429,7 @@ drives, or the importance of a detector. The first two fields are the
 chapters above; this chapter is the third. The module
 :mod:`orpheus.numerics.question` holds three question values and two
 mode values, and it landed as step 7 of the campaign's first phase on
-2026-10-02, with its prerequisite, one definition of a real number at L1
+2026-10-02, with its prerequisite, one definition of a real number
 (#559, :ref:`structured-geometry-one-real-parser`):
 
 - :class:`~orpheus.numerics.question.Eigen` ``(parameter, point, mode, gauge)``,
@@ -6025,7 +6028,8 @@ trust ``git`` over this table for merge status.
        2026-09-25 cases ``Eigen(k)``, ``Eigen(c)``, ``FixedSource(σ)`` and
        ``CriticalParameter``, each with a forward and an adjoint, were
        retired before any was built. ``orpheus/geometry/scalars.py``
-       moved to :mod:`orpheus.values.scalars` (no shim) and became the
+       moved to ``orpheus.numerics.scalars`` (no shim; since 2026-10-22
+       :mod:`orpheus.values.scalars`) and became the
        one conversion the parsers, the encoder and ``Mixture`` make; the
        frozen encoder refuses a ``MappingProxyType`` part. Records:
        :ref:`structured-geometry-question-values`,
@@ -6054,7 +6058,8 @@ trust ``git`` over this table for merge status.
      - ``61f82a18`` on ``main``
    * - 2026-10-02
      - **Equality and hash are content, through one encoder.**
-       :mod:`orpheus.values.content` landed: ``encode``,
+       ``orpheus.numerics.content`` landed (since 2026-10-22
+       :mod:`orpheus.values.content`): ``encode``,
        ``content_digest`` (blake2b-256), ``ContentlessError`` and the
        ``ContentIdentity`` mixin, with a schema tag per class (the
        user's ruling of 2026-10-01: a key covers the schema, so an
