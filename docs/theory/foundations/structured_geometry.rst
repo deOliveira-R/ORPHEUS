@@ -2060,9 +2060,9 @@ ruling of 2026-10-02: the digest follows ``==``.
      - the encoded elements, sorted
      - iteration order is not content
    * - ``Enum`` member
-     - its class's qualified name and its member name, without the
-       module (the schema tag below gives the reason; checked before
-       the scalars, since an ``IntEnum`` member is an ``int``)
+     - its class's type name (the schema tag, below) and its member
+       name (checked before the scalars, since an ``IntEnum`` member is
+       an ``int``)
      - two enumerations with a member of one name are different values;
        ``CoordSystem.SPHERICAL`` is not the string ``"spherical"``
    * - a :class:`~orpheus.numerics.content.ContentIdentity` value, or
@@ -2090,12 +2090,12 @@ ruling of 2026-10-02: the digest follows ``==``.
        (``eq=False``), a mutable dataclass or an object array has no
        content a persistent key can carry
 
-**One limitation, by design.** The schema tag names a class by its
-qualified name, so two classes defined under one name (inside one
-function on two calls, or in two modules) share a tag. A class defined
-inside a function is therefore not a persistent type; nothing in the
-package defines one, and a gate holds the package's content-keyed
-classes to distinct qualified names (the schema tag, below).
+**One limitation, by design.** A key names a class by its type name
+(the schema tag, below), so two classes defined under one name (inside
+one function, on two calls; or two ``orpheus`` classes in two modules)
+share it. A class defined inside a function is therefore not a
+persistent type; nothing in the package defines one, and a gate holds
+the package's nameable classes to distinct qualified names.
 
 .. code-block:: python
 
@@ -2158,49 +2158,71 @@ The schema tag: a key covers the class's schema
 -----------------------------------------------
 
 An object encodes as its schema tag followed by its parts. The tag is
-the text ``<qualname>|v<version>|<part names>``: the class's qualified
-name, its ``__content_version__`` (a class attribute, 1 unless the class
-raises it) and the names of its parts in order. `[M]` 2026-10-22 the tag
-of a ``BC`` reads ``BC|v1|kind,params``. Adding, removing, renaming or
-reordering a part, raising the version, and renaming the class each
-change every digest of that class.
+the text ``<type name>|v<version>|<part names>``: the class's type name
+(the rule below), its ``__content_version__`` (a class attribute, 1
+unless the class raises it) and the names of its parts in order. `[M]`
+2026-10-22 the tag of a ``BC`` reads ``BC|v1|kind,params``. Adding,
+removing, renaming or reordering a part, raising the version, and
+renaming the class each change every digest of that class.
 
-**Moving a class to another module changes none of its digests** (layer
-DAG ruling 10, 2026-10-22). A value's identity is its type and its
-parts, and the file its class is defined in is neither, so neither the
-tag nor an ``Enum`` member's encoding carries ``__module__``. Before the
-ruling the tag read ``<module>.<qualname>|...``, and every carve that
-re-homed a file between packages (the layer-DAG campaign moves whole
-modules) re-keyed every cached value holding its classes for no change
-in content. The price is that the qualified name is now the class's
-whole name in the key, so two content-keyed classes sharing one would
-share a tag. ``tests/gates/numerics/test_content_identity_relocation.py``
-holds both halves: one source imported as two modules from two files
-encodes alike under ``encode``, ``content_digest`` and ``encode_exact``
-(with a field value, a part name, a version bump and an enum member as
-negative controls), and no two content-keyed classes of ``orpheus``
-(every ``ContentIdentity`` subclass, ``Enum`` and frozen dataclass of
-the 391 modules ``pkgutil.walk_packages`` imports) share a qualified
-name. `[M]` 2026-10-22: 414 such classes, 0 shared; over all 697
-``orpheus`` classes 3 qualified names are shared (``DerivationError``,
-``THParams``, ``THResult``, none content-keyed), which is the gate's
-positive control. The gate's first red is the tree before the ruling:
-every relocation leg reds, and an in-process mutation that puts the
-module back into the tag, or into the ``Enum`` branch, reds the same
-three legs.
+**A type's name inside a key is one rule** (layer DAG ruling 10,
+2026-10-22). One helper, ``_type_name`` in
+:mod:`orpheus.numerics.content`, spells it at all five places a key
+names a type: the schema tag, an ``Enum`` member, and the exact
+encoder's container, subclass and sparse tags (the exact encoder keys
+the reference cache's memo arguments). A type whose module is
+``orpheus`` or lies under it is named by its ``__qualname__`` alone; any
+other type by ``module:qualname``.
 
-The exact encoder of the reference cache keeps the module in its three
-type tags (a container subclass, a ``str``, ``bytes`` or ``ndarray``
-subclass, a sparse format). Those tags also name FOREIGN types (a numpy
-masked array, a scipy sparse format, a standard-library ``NamedTuple``),
-which no uniqueness gate can enumerate, so a qualified name alone there
-would be an unguarded collision; and the memo key they feed already
-carries the memoised function's ``module:qualname``, so dropping the
-module there would buy no relocation invariance. The row
-``test_a_foreign_like_subclass_keeps_its_module_in_the_exact_key`` pins
-the asymmetry: two ``str`` (and two ``int``) subclasses of one qualified
-name in two modules key differently, and a mutation that drops the
-module from the subclass tag reds it.
+* **An ``orpheus`` type is named without its module**, because a value's
+  identity is its type and its parts, and the file its class is defined
+  in is neither. Before the ruling every key carried the module, so
+  every carve that re-homed a file between packages (the layer-DAG
+  campaign moves whole modules) re-keyed every cached value holding its
+  classes for no change in content: `[M]` qa measured relocating
+  ``EmissionSpectrum``, an ``orpheus`` ``ndarray`` subclass, move its
+  exact key while the schema tag alone had dropped the module. The
+  price is that the qualified name is then the class's whole name in
+  the key, so a gate holds the package's nameable classes to distinct
+  qualified names.
+* **A foreign type keeps its module**, because no gate can enumerate
+  foreign types. Without it a foreign ``Enum`` or frozen dataclass
+  sharing a qualified name with an ``orpheus`` one, in a memo argument,
+  would share its key, and the cache could serve one call another's
+  answer. The colon keeps the two spellings apart: a qualified name
+  never holds one, so a nested ``orpheus`` name ``A.B`` cannot meet a
+  foreign class ``B`` of a module ``A``.
+
+``tests/gates/numerics/test_content_identity_relocation.py`` holds the
+rule:
+
+* relocation: one source (a frozen dataclass, a ``ContentIdentity``
+  subclass, an ``Enum``, a ``NamedTuple``, a ``str`` and an ``int``
+  subclass, a scipy sparse subclass) imported as two modules under
+  ``orpheus.`` encodes alike under ``encode``, ``content_digest`` and
+  ``encode_exact``, with a field value, a part name, a version bump and
+  an enum member as negative controls;
+* foreign types: the same source imported as two modules outside
+  ``orpheus`` keys apart, one row per kind;
+* uniqueness: no two nameable ``orpheus`` classes share a qualified
+  name. The population is every class of the 391 modules
+  ``pkgutil.walk_packages`` imports under ``orpheus`` that some encoder
+  names: a ``ContentIdentity`` subclass, an ``Enum``, a frozen
+  dataclass, or a subclass of ``str``, ``bytes``, ``int``, ``float``,
+  ``ndarray``, a builtin container (a ``NamedTuple`` included) or a
+  scipy sparse base. `[M]` 2026-10-22: 447 such classes (334 frozen
+  dataclasses, 62 ``ContentIdentity``, 18 ``Enum``, 33 builtin
+  subclasses), 0 shared. Over all 697 ``orpheus`` classes 3 qualified
+  names are shared (``DerivationError``, ``THParams``, ``THResult``,
+  none nameable), which is the gate's positive control, beside a
+  synthetic pair.
+
+`[M]` 2026-10-22, the mutation battery, in-process and one site at a
+time: putting the module back reds a row at each of the five sites;
+taking it away reds a row at the schema tag, the ``Enum`` branch, the
+subclass tag and the sparse tag. Taking it away at the container tag
+alone reds nothing, and cannot: a container whose type is not its
+builtin base also carries the subclass tag, which names the type again.
 
 This implements the user's ruling of 2026-10-01 on #405: the cache key
 covers the schema of every persisted class, so an entry written under an
@@ -2236,12 +2258,12 @@ Three consequences follow, each a rule for whoever changes a class.
   new convention for an existing part is not, and only the version says
   it.
 * **Renaming a content class invalidates every cached entry that
-  holds it; moving it does not.** The tag carries the qualified name
-  and not the module, so a pure move between modules keeps the digests
-  while a rename changes them. A rename is a cache miss and a
-  recomputation, never a wrong answer. A new class whose qualified name
-  an existing content class already holds is refused by the uniqueness
-  gate above; rename one of the two.
+  holds it; moving it within ``orpheus`` does not.** The key carries
+  an ``orpheus`` class's qualified name and not its module, so a pure
+  move between modules keeps the digests while a rename changes them.
+  A rename is a cache miss and a recomputation, never a wrong answer.
+  A new class whose qualified name an existing nameable class already
+  holds is refused by the uniqueness gate above; rename one of the two.
 * **The tag separates classes with no parts.** ``VacuumInflow`` and
   ``ZeroFluxBoundary`` have no fields, so their parts are the same empty
   sequence and only the class name distinguishes them; `[M]` the
@@ -2742,11 +2764,12 @@ fixes added rows, and their run of record is the full suite.
        from it or a declared override, a dataclass is ``eq=False`` and
        frozen, and every concrete content class has a roster entry)
    * - ``tests/gates/numerics/test_content_identity_relocation.py``
-     - 12
-     - relocation invariance (one source, two modules, three encoders)
-       with four negative controls; no two content-keyed ``orpheus``
-       classes share a qualified name, with two positive controls; the
-       exact encoder's foreign type tags keep the module
+     - 17
+     - the type-name rule: an ``orpheus`` class relocated between two
+       modules keeps every key (three encoders, four negative
+       controls); a foreign same-qualname pair keys apart at every
+       site; no two nameable ``orpheus`` classes share a qualified
+       name, with two positive controls
    * - ``tests/gates/numerics/test_content_identity_axis.py``
      - 32
      - the ``Axis`` family: equal content is one value, a moved part
@@ -2788,9 +2811,11 @@ within the step: ``FrozenMapping`` changed the schema of the geometry's
 ``BC`` parameters and of ``Materials``, so those two digests moved, while
 mixture A's did not. It was re-pinned again on 2026-10-22, with the
 question (S7.12), specification (S8.5) and observable records, when the
-schema tag dropped the module (layer DAG ruling 10): all 14 pins moved,
-and `[M]` the old tag swapped back in-process reproduces each of the 14
-old pins byte for byte, so the tag is the only cause. The three values are
+schema tag and the ``Enum`` encoding dropped the module of an
+``orpheus`` type (layer DAG ruling 10): all 14 pins moved. `[M]` the old
+schema tag and the old ``Enum`` encoding swapped back in-process together
+reproduce each of the 14 old pins byte for byte, so those two are the
+only cause; the tag alone reproduces 11 of the 14. The three values are
 the 2-group mixture A of ``xs_library``, a hollow sphere of three
 intervals with an albedo specular inner law and a vacuum outer law, and
 a ``Materials`` of the 2-group mixtures A and B. Every cache key of the

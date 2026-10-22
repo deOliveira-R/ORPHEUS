@@ -307,14 +307,13 @@ class TestS54EncoderCanonicalForms:
 _MODULE_A = "tests.gates.numerics._schema_a"
 
 
-def _schema_class(qualname: str, fields: tuple[str, ...], *, version: int = 1,
-                  module: str = _MODULE_A, mixin: bool = True) -> type:
-    """A frozen dataclass named ``module.qualname`` with float ``fields``."""
+def _schema_class(qualname: str, fields: tuple[str, ...], *, version: int = 1, mixin: bool = True) -> type:
+    """A frozen dataclass ``qualname`` of the synthetic module ``_MODULE_A``, with float ``fields``."""
     namespace: dict[str, Any] = {
         # Real types, not strings: a string annotation sends ``dataclass`` to
-        # ``sys.modules[module]``, which a synthetic module name is not in.
+        # ``sys.modules[_MODULE_A]``, which a synthetic module name is not in.
         "__annotations__": {name: float for name in fields},
-        "__module__": module, "__qualname__": qualname,
+        "__module__": _MODULE_A, "__qualname__": qualname,
     }
     if mixin:
         namespace["__content_version__"] = version
@@ -568,8 +567,9 @@ def test_s5_6_one_encoder_is_the_only_route(monkeypatch: pytest.MonkeyPatch) -> 
 #: built from literals and IEEE-exact arithmetic (mixture A is ``xs_library``
 #: literals; no libm or LAPACK output enters), so the pin is platform-free (AP38).
 _PIN_AFTER_5B = "PIN-AFTER-5B"
-# Re-pinned 2026-10-22 (layer DAG ruling 10): the schema tag dropped the module, so every pin moved; the old
-# _schema_tag swapped back in-process reproduces each old pin byte for byte (the commit body lists old -> new).
+# Re-pinned 2026-10-22 (layer DAG ruling 10): the schema tag and the Enum encoding dropped the module of an orpheus
+# type, so every pin moved; the old _schema_tag and the old Enum encoding swapped back in-process together reproduce
+# each old pin byte for byte (the tag alone reproduces 11 of the 14; the commit body lists old -> new).
 _PINNED: dict[str, str] = {
     "mixture A 2g": "905ce741c85384eefb289905ea4dbd8591499002889a16b1e481e73992d845e6",
     "hollow sphere, three intervals": "eea5d62ff8358518121150967a123297983afabf811228b8b4ff0cf8fd9b36c9",

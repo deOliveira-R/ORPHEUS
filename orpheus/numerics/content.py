@@ -44,14 +44,13 @@ injective).
 ``list`` carry different tags (``(1,) != [1]``); a ``Mapping`` is ordered by
 its encoded keys, so insertion order is never content; a ``str`` key and an
 ``int`` key stay distinct (``"1" != 1``). An ``Enum`` member is its
-class's qualified name and its name (the module is not in it, for the reason
-the schema tag gives).
+class's type name (below) and its name.
 
 **An object is its schema and its parts.** A :class:`ContentIdentity` value,
 and any frozen dataclass whose own equality is by value (``eq=True``),
 encodes as its SCHEMA TAG followed by its parts, the dataclass fields with
 ``compare=True`` unless the class says otherwise. The tag is the class's
-``__qualname__``, its ``__content_version__`` (a ``ClassVar[int]``, default 1)
+type name (below), its ``__content_version__`` (a ``ClassVar[int]``, default 1)
 and the ordered names of its parts. So adding, removing or renaming a field,
 bumping the version (for a change in what a field MEANS), and renaming the
 class all change every digest of that class. That is the user's ruling of
@@ -61,15 +60,23 @@ the schema once for every class and every future carve. A field that is not
 content (provenance, a derived quantity) is declared ``field(compare=False)``,
 the one spelling of "not content".
 
-**Moving a class to another module keeps its digests** (layer DAG ruling 10,
-2026-10-22). A value's identity is its type and its parts, and the file its
-class lives in is neither, so the tag carries no ``__module__``: a re-homing of
-a class between packages re-keys nothing. The qualified name is then the
-class's whole name in the key, and two content-keyed classes of ``orpheus``
-sharing one would share a tag; the gate
-``tests/gates/numerics/test_content_identity_relocation.py`` refuses that over
-every ``ContentIdentity`` subclass, frozen dataclass and ``Enum`` the package
-defines (414 of them, 0 sharing a qualname, on 2026-10-22).
+**A type's name inside a key is one rule** (:func:`_type_name`, layer DAG
+ruling 10, 2026-10-22), used at all five places a key names a type: the schema
+tag, an ``Enum`` member, and the exact encoder's container, subclass and sparse
+tags. A type of ``orpheus`` is named by its ``__qualname__`` alone; any other
+type by ``module:qualname``. A value's identity is its type and its parts, and
+the file its class lives in is neither, so moving an ``orpheus`` class between
+modules (the layer-DAG carves move whole files) keeps every digest and every
+exact key that names it. The qualified name is then the class's whole name in
+the key, so the gate ``tests/gates/numerics/test_content_identity_relocation.py``
+holds the package's nameable classes to distinct qualified names: every
+``ContentIdentity`` subclass, frozen dataclass and ``Enum``, and every subclass
+of ``str``, ``bytes``, ``int``, ``float``, ``ndarray``, a builtin container or
+a scipy sparse type that ``orpheus`` defines. A foreign type keeps its module,
+because no gate can enumerate foreign types: without it a foreign ``Enum`` or
+frozen dataclass sharing a qualified name with an ``orpheus`` one would share
+its key. The colon keeps the two spellings apart, since a qualified name never
+holds one.
 
 **A part of an object is immutable.** A list, a dict, a set, a writeable
 array or a sparse matrix whose arrays are writeable is refused as a part (it
@@ -88,11 +95,11 @@ by identity (``eq=False``), a mutable dataclass, an object array. A
 :class:`ContentIdentity` value holding one has no digest; it is equal only to
 itself, and it is unhashable.
 
-**One limitation, by design.** The schema tag names a class by its
-qualified name, so two classes defined under one name (in one function, on
-two calls, or in two modules) share a tag. A class defined inside a function
-is therefore not a persistent type, nothing in the package defines one, and
-the uniqueness gate above holds the package's classes to distinct names.
+**One limitation, by design.** A key names a class by its type name, so two
+classes defined under one name (in one function, on two calls; or two
+``orpheus`` classes in two modules) share it. A class defined inside a function
+is therefore not a persistent type, nothing in the package defines one, and the
+uniqueness gate above holds the package's classes to distinct names.
 
 This module imports only :mod:`orpheus.numerics.scalars` (the one definition
 of a real number, itself a leaf), so the data, geometry, mesh and numerics
@@ -212,13 +219,10 @@ class _Exactly:
     array's mask is state; a state with no content identity, such as the type a masked array keeps, is
     refused with its path).
 
-    The three type tags this encoder adds (:meth:`container`, :meth:`subclass` and :meth:`sparse`) keep the
-    MODULE beside the qualified name, unlike the schema tag, for two reasons. They name FOREIGN types too (a
-    numpy masked array, a scipy sparse format, a standard-library ``NamedTuple`` or ``str`` subclass), which no
-    uniqueness gate can enumerate, so a qualified name alone there would be an unguarded collision. And the
-    memo key these encodings feed already carries the memoised function's ``module:qualname``, so dropping the
-    module here would buy no relocation invariance. The row
-    ``test_a_foreign_like_subclass_keeps_its_module_in_the_exact_key`` pins the asymmetry."""
+    The three type tags this encoder adds (:meth:`container`, :meth:`subclass` and :meth:`sparse`) name their
+    type by :func:`_type_name`, as the schema tag does: an ``orpheus`` type by its qualified name, a foreign
+    one (a numpy masked array, a scipy sparse format, a standard-library ``NamedTuple``) by
+    ``module:qualname``."""
 
     def real(self, value: Any, path: str) -> bytes:
         if isinstance(value, np.generic):
@@ -247,7 +251,7 @@ class _Exactly:
             )
         base = next(b for b in (tuple, list, dict, frozenset, set) if isinstance(value, b)) if not isinstance(value, Mapping) else dict
         state = self.subclass(value, base, "") if kind is not base and not isinstance(value, Mapping) else b""
-        return _chunk(tag, _chunk(b"y", f"{kind.__module__}.{kind.__qualname__}".encode()) + state + body)
+        return _chunk(tag, _chunk(b"y", _type_name(kind).encode()) + state + body)
 
     def elements(self, encoded: list[bytes]) -> list[bytes]:
         """A set's elements, ordered by their encodings, as content identity orders them.
@@ -273,7 +277,7 @@ class _Exactly:
             for slot in getattr(klass, "__slots__", ()):
                 if slot not in ("__dict__", "__weakref__") and hasattr(value, slot):
                     state[slot] = getattr(value, slot)
-        return _chunk(b"y", f"{cls.__module__}.{cls.__qualname__}".encode()) + _encode(state, f"{path}<state>", False, self)
+        return _chunk(b"y", _type_name(cls).encode()) + _encode(state, f"{path}<state>", False, self)
 
     def sparse(self, value: Any, path: str) -> bytes:
         stored = {name: getattr(value, name) for name in ("data", "indices", "indptr", "row", "col", "offsets")
@@ -281,7 +285,7 @@ class _Exactly:
         if "data" not in stored:
             raise ContentlessError(f"{path}: a {value.format} sparse matrix stores no arrays an exact key can read")
         kind = type(value)
-        body = _chunk(b"y", f"{kind.__module__}.{kind.__qualname__}|{value.format}|{value.shape}".encode()) + b"".join(
+        body = _chunk(b"y", f"{_type_name(kind)}|{value.format}|{value.shape}".encode()) + b"".join(
             _chunk(b"k", name.encode()) + _array(array, f"{path}.{name}", False, self) for name, array in stored.items()
         )
         return _chunk(b"C", body)
@@ -321,10 +325,20 @@ def _sparse(value: Any, path: str, frozen: bool, leaves: _Leaves = _BY_EQUALITY)
     return leaves.sparse(value, path)
 
 
+def _type_name(cls: type) -> str:
+    """A type's name inside a key: an ``orpheus`` type by its qualified name (the uniqueness gate makes it
+    unique, and a move between modules keeps it), any other type by ``module:qualname`` (no gate can enumerate
+    foreign types). The module docstring gives the rule; it is the one spelling at all five sites."""
+    module = cls.__module__
+    if module == "orpheus" or module.startswith("orpheus."):
+        return cls.__qualname__
+    return f"{module}:{cls.__qualname__}"
+
+
 def _schema_tag(cls: type, names: tuple[str, ...]) -> bytes:
-    """The qualified name, the content version and the ordered part names: not the module (module docstring)."""
+    """The type name, the content version and the ordered part names."""
     version = getattr(cls, "__content_version__", 1)
-    text = f"{cls.__qualname__}|v{version}|" + ",".join(names)
+    text = f"{_type_name(cls)}|v{version}|" + ",".join(names)
     return _chunk(b"h", text.encode())
 
 
@@ -360,8 +374,7 @@ def _encode(value: Any, path: str, frozen: bool, leaves: _Leaves = _BY_EQUALITY)
     if value is None:
         return _chunk(b"N", b"")
     if isinstance(value, enum.Enum):
-        cls = type(value)
-        return _chunk(b"E", f"{cls.__qualname__}.{value.name}".encode())
+        return _chunk(b"E", f"{_type_name(type(value))}.{value.name}".encode())
     if isinstance(value, (bool, int, float, np.bool_, np.integer, np.floating)):
         return leaves.real(value, path)
     if isinstance(value, str):

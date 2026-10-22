@@ -194,8 +194,9 @@ def test_r3_5_digests_and_hashes_are_seed_stable() -> None:
 
 
 _PIN_AFTER_LANDING = "pin after landing"
-# Re-pinned 2026-10-22 (layer DAG ruling 10): the schema tag dropped the module, so every pin moved; the old
-# _schema_tag swapped back in-process reproduces each old pin byte for byte (the commit body lists old -> new).
+# Re-pinned 2026-10-22 (layer DAG ruling 10): the schema tag and the Enum encoding dropped the module of an orpheus
+# type, so every pin moved; the old _schema_tag and the old Enum encoding swapped back in-process together reproduce
+# each old pin byte for byte (the tag alone reproduces 11 of the 14; the commit body lists old -> new).
 _PINNED: dict[str, str] = {
     "flux integral of a table": "d29d27b5df9a933260c8fc517676e9120589b94ea2b10779808de93fa2cd24e5",  # pinned 2026-10-03 at landing, re-pinned 2026-10-22
     "eigenvalue": "3890e6d1487771536d732971b03aa6b9a9cb507f105256b370c775601397f156",  # pinned 2026-10-03 at landing, re-pinned 2026-10-22
