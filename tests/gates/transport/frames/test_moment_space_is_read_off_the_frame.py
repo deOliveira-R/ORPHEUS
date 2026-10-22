@@ -54,6 +54,8 @@ mutation-proven; no physics claim rides here.
 """
 from __future__ import annotations
 
+from orpheus.numerics.basis.legendre_basis import LegendreBasis
+
 from dataclasses import dataclass, replace
 
 import numpy as np
@@ -71,8 +73,6 @@ from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import IncompatibleOperatorComposition, OperatorProduct
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
-from orpheus.numerics.spaces.legendre_space import LegendreSpace
-from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.frames import HarmonicFrame
@@ -86,22 +86,28 @@ from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation
 
-_MUTANT_NAME = "mutated_moment_space"
+#: The foreign twin's one content change: its analysis (and so the dressed
+#: head's unit, the moments of 1) and its continuum Gram are scaled by this.
+_MUTANT_SCALE = 2.0
 _SIGS0 = np.array([[0.20, 0.00], [0.05, 0.18]])
 _SIGS1 = np.array([[0.02, 0.00], [0.01, 0.015]])
 _SIG2 = np.array([[0.00, 0.03], [0.01, 0.00]])
 
 
-# ── the FOREIGN truncated basis: carries L and a renamed space, is NOT an SH subclass ──
+# ── the FOREIGN truncated basis: carries L and a moved content, is NOT an SH subclass ──
 
 
 @dataclass(frozen=True)
 class _ForeignTruncatedBasis(Basis):
-    """The same functions as the rule's OWN basis, delegated — with a RENAMED
-    coefficient space, and NOT a ``SphericalHarmonicBasis`` subclass. It
-    carries a truncation order, which is the ONE thing the door asks for;
-    its renamed space is ``(name, shape)``-unequal to the honest mint, which
-    is what the route gate reads.
+    """The same functions as the rule's OWN basis, delegated — with its
+    analysis and its continuum Gram scaled by ``_MUTANT_SCALE``, and NOT a
+    ``SphericalHarmonicBasis`` subclass. It carries a truncation order, which
+    is the ONE thing the door asks for. Its coefficient spaces, the continuum
+    one (:meth:`FunctionSpace.of_basis`) and the frame-dressed one, are
+    CONTENT-unequal to the honest ones (the weights, and the dressed head's
+    unit, the moments of 1), which is what the route gate reads. Until S7 the
+    twin renamed its space instead; since S7 a space is its content and a
+    basis names no space.
 
     ⛔ **The parent is a FIELD since 2026-09-02 (#429).** It used to hard-code
     ``SphericalHarmonicBasis(L)``, hence ``domain = SPHERE`` — and the frame's
@@ -140,7 +146,7 @@ class _ForeignTruncatedBasis(Basis):
         return self._parent().synthesize(coefficients, table)
 
     def analyze(self, values, table, weights, /):
-        return self._parent().analyze(values, table, weights)
+        return _MUTANT_SCALE * self._parent().analyze(values, table, weights)
 
     def analyze_transpose(self, coefficients, table, weights, /):
         return self._parent().analyze_transpose(coefficients, table, weights)
@@ -160,8 +166,12 @@ class _ForeignTruncatedBasis(Basis):
         return self._parent().domain
 
     @property
-    def space(self) -> FunctionSpace:
-        return replace(self._parent().space, name=_MUTANT_NAME)
+    def layout(self):
+        return self._parent().layout
+
+    @property
+    def coefficient_weights(self):
+        return _MUTANT_SCALE * self._parent().coefficient_weights
 
 
 def _slab(nx: int = 4, n_ord: int = 4, ng: int = 2) -> SNProblem:
@@ -179,14 +189,14 @@ def _mat_xs(nx: int = 4):
     )
 
 
-def _inner_factor_domain_name(kernel: OperatorProduct) -> str:
+def _inner_factor_domain(kernel: OperatorProduct) -> FunctionSpace:
     """``conjugate(frame, X)`` is the flattened word ``(R, X, M)`` (S2, D7);
     the domain of ``X``, the middle factor, is the end under test."""
     factors = kernel.factors
     assert len(factors) == 3
     domain = factors[1].domain
     assert domain is not None
-    return domain.name
+    return domain
 
 
 def _bind_foreign(sn: SNProblem, L: int) -> HarmonicFrame:
@@ -202,8 +212,18 @@ def _bind_foreign(sn: SNProblem, L: int) -> HarmonicFrame:
         _ForeignTruncatedBasis.like(honest.basis), honest.measure,
     )
     frame = HarmonicFrame.for_space(sn.angular_bulk_space, L)
-    assert frame.basis.space.name == _MUTANT_NAME, "the route through for_space did not reach the foreign frame"
+    assert isinstance(frame.basis, _ForeignTruncatedBasis), "the route through for_space did not reach the foreign frame"
     return frame
+
+
+def _foreign_head(sn: SNProblem, L: int) -> FunctionSpace:
+    """The foreign frame's dressed head at ``L``, and a check that it is not the honest one."""
+    head = frame_faces.basis_space(HarmonicFrame.for_space(sn.angular_bulk_space, L))
+    honest = frame_faces.basis_space(GalerkinFrame(
+        frame_faces.angular_frame(sn.quad, L).basis.parent, frame_faces.angular_frame(sn.quad, L).measure,
+    ))
+    assert head != honest, "the foreign twin must be CONTENT-distinct from the honest head"
+    return head
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -215,7 +235,7 @@ def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() ->
     """Every producer that used to mint ``SphericalHarmonicSpace.from_L(L)``
     now reads the frame's basis: with a FOREIGN basis bound, the
     scattering, fission and (n,2n) kernels COMPOSE (a reverted producer
-    would fail the ``(name, shape)`` guard), the moment field's head is the
+    would fail the composition guard), the moment field's head is the
     foreign space, and the tier-2 mints take the basis, not the integer."""
     sn = _slab()
     L = 1
@@ -226,41 +246,43 @@ def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() ->
 
     S = ScatteringOperator.from_solver_data(mat_xs=mat, space=composite, scattering_order=L)
     lam = S._moment_transfer(skip_l0=False)
-    assert lam.domain.name == _MUTANT_NAME and lam.codomain.name == _MUTANT_NAME
+    head, head0 = _foreign_head(sn, L), _foreign_head(sn, 0)
+    assert lam.domain == head and lam.codomain == head
     assert S.full_transfer_kernel is not None      # R∘Λ∘M composes on the foreign ends
     assert S.kernel is not None
 
     F = FissionOperator.from_solver_data(mat_xs=mat, space=composite)
-    assert _inner_factor_domain_name(F.full_fission_kernel) == _MUTANT_NAME   # R∘(F₀∘M)
+    assert _inner_factor_domain(F.full_fission_kernel) == head0   # R∘(F₀∘M)
 
     N = N2NOperator.from_solver_data(mat_xs=mat, space=composite, scattering_order=L)
-    assert _inner_factor_domain_name(N.full_transfer_kernel) == _MUTANT_NAME
+    assert _inner_factor_domain(N.full_transfer_kernel) == head
 
     field = HarmonicMomentFlux.zeros_for_problem_and_L(sn, L)
     assert isinstance(field.space, TensorProductSpace)
-    assert field.space.factors[0].name == _MUTANT_NAME
-    # truncation stays in the head's OWN family, one order down — the head
-    # keeps its IDENTITY (name) and only its order moves; a truncate that
-    # re-minted the family from an integer would hand back the default name
+    assert field.space.factors[0] == head
+    # truncation stays in the head's OWN family, one order down — re-minted
+    # through the head's origin (the foreign frame); a truncate that re-minted
+    # the family from an integer would hand back the honest head
     truncated = field.truncate(0).space
     assert isinstance(truncated, TensorProductSpace)
     # the truncated head keeps its own FAMILY's L = 0 layout — ``(1, 1)`` for
     # the rectangular harmonics, ``(1,)`` for the flat Legendre family the
     # slab now binds. Read off the honest head, so this line cannot drift.
-    assert truncated.factors[0].shape == frame_faces.angular_frame(sn.quad, 0).basis.space.shape
-    assert truncated.factors[0].name == _MUTANT_NAME
+    assert truncated.factors[0].shape == FunctionSpace.of_basis(frame_faces.angular_frame(sn.quad, 0).basis).shape
+    assert truncated.factors[0] == head0
 
     foreign = _ForeignTruncatedBasis.like(frame_faces.angular_frame(sn.quad, L).basis)
+    assert FunctionSpace.of_basis(foreign) != FunctionSpace.of_basis(foreign.parent)
     assert LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(mat), foreign,
-        ).domain.name == _MUTANT_NAME
+        ).domain == FunctionSpace.of_basis(foreign)
     assert LegendreMomentTransfer.on_basis(
             TransferMaterialField.n2n(mat), foreign, skip_l0=False,
-        ).codomain.name == _MUTANT_NAME
+        ).codomain == FunctionSpace.of_basis(foreign)
 
     # the negative leg: an end minted from L alone does NOT compose with the
     # foreign frame — this is the red every reverted producer produces
-    minted = SphericalHarmonicSpace.from_L(L)
+    minted = FunctionSpace.of_basis(SphericalHarmonicBasis(L=L))
     stale = LegendreMomentTransfer(
         S.transfer, skip_l0=False, domain=minted, codomain=minted,
     )
@@ -324,12 +346,12 @@ def test_the_tree_binds_the_frames_parseval_space_and_not_the_continuum_head(lab
     from orpheus.numerics.basis.spherical_harmonic_basis import MirrorEvenSphericalHarmonicBasis
 
     if label.startswith("gauss_legendre"):
-        continuum = LegendreSpace.from_L(L, "x")
+        continuum = FunctionSpace.of_basis(LegendreBasis(L=L, axis="x"))
     elif label.startswith("folded_product"):
-        continuum = MirrorEvenSphericalHarmonicBasis(L=L, mirror_axis=1).space
+        continuum = FunctionSpace.of_basis(MirrorEvenSphericalHarmonicBasis(L=L, mirror_axis=1))
     else:
-        continuum = SphericalHarmonicSpace.from_L(L)
-    assert frame.basis.space == continuum, "the basis's own space IS the continuum mint"
+        continuum = FunctionSpace.of_basis(SphericalHarmonicBasis(L=L))
+    assert FunctionSpace.of_basis(frame.basis) == continuum, "the basis's own space IS the continuum mint"
     assert dressed.name == continuum.name and dressed.shape == continuum.shape
     assert dressed != continuum and continuum != dressed, (
         "the dressed head and the continuum head must be two spaces — the metric is the identity"
@@ -370,7 +392,7 @@ def test_the_operator_ends_carry_the_frames_parseval_space_not_the_continuum_one
     ends = S._moment_transfer(skip_l0=False).domain
     frame = frame_faces.angular_frame(sn.quad, L)
     assert ends == frame_faces.basis_space(frame)
-    assert ends != frame.basis.space
+    assert ends != FunctionSpace.of_basis(frame.basis)
     hub_space = sn.moment_space(L)
     assert isinstance(hub_space, TensorProductSpace)
     hub_head = hub_space.factors[0]
@@ -381,7 +403,7 @@ def test_the_operator_ends_carry_the_frames_parseval_space_not_the_continuum_one
     # reciprocal of the discrete Gram's diagonal — (2l+1)/2 on a GL rule
     # exact through degree L, i.e. NOT the continuum 4π/(2l+1)
     np.testing.assert_allclose(measure, 1.0 / np.diagonal(frame.discrete_gram), rtol=1e-12)
-    cont = _head_measure(frame.basis.space)
+    cont = _head_measure(FunctionSpace.of_basis(frame.basis))
     assert cont is not None
     np.testing.assert_array_equal(np.asarray(cont).reshape(-1), 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0))
     assert not np.array_equal(measure, cont)

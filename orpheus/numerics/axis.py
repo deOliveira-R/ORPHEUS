@@ -32,7 +32,7 @@ The slots, precisely
   ============================  =====================  ==================  =================
   :class:`FromMeasure` (μ)      ``NODAL``              ``μ.support``       ``μ.nodes``
   :class:`FromQuadrature` (q)   ``NODAL``              ``q.measure``'s     ``q.measure``'s
-  :class:`FromBasis` (b, u)     ``Modal(u)``           ``b.domain``        none
+  :class:`FromBasis` (b)        its layout's kind      ``b.domain``        none
   :class:`FromFrame` (f)        ``Modal(Φᵀw)``         ``f.basis.domain``  none
   :class:`Declared` (k)         ``k``                  none                none
   ============================  =====================  ==================  =================
@@ -45,7 +45,7 @@ The slots, precisely
   be imported here: the energy axes (their content is their edges), the
   homogeneous one-point axis, the rank-``d`` spatial arm (contract G6b) and
   the LD scheme's spatial-moment axis (``Modal(e₀)``; ruling 82).
-* ``kind``, ``support``, ``nodes`` — **derived from the origin**, never
+* ``kind``, ``support``, ``nodes``, ``layout`` — **derived from the origin**, never
   passed: :attr:`Axis.kind` is the closed sum ``BasisKind.NODAL |``
   :class:`Modal` ``(unit)`` (ruling 41), so ``Axis(kind=NODAL,
   generator=basis)``, a nodal axis claiming a spectral generator, is
@@ -53,8 +53,13 @@ The slots, precisely
   positivity is meaningful); ``MODAL`` factors do not (a spectral
   coefficient may be negative for a positive function), and the modal arm
   CARRIES the factor's unit. ``support`` is the manifold the factor's
-  coordinates live on and ``nodes`` the atoms a nodal factor samples, read
-  read-only.
+  coordinates live on, ``nodes`` the atoms a nodal factor samples (stored
+  read-only), and ``layout`` how a basis indexes its coefficients (ruling
+  81, :mod:`orpheus.numerics.coefficient_layout`): ``None`` on a sampled or
+  declared axis, the basis's own layout on a ``FromBasis`` / ``FromFrame``
+  head. The one generic coefficient axis is this class; the family is its
+  layout and a Legendre head's spent axis is its domain (until S7 two
+  subclasses, ``HarmonicAxis`` and ``LegendreAxis``, carried them).
 * :attr:`Axis.unit` (read from the kind) — the coordinates of the
   constant function :math:`1` in this factor's own representation (ruling
   37: minted with the axis, by whatever mints it, like the weights). On a
@@ -94,7 +99,7 @@ Identity — what fixes the factor's space (ruling 71)
 ====================================================
 
 Equality and hash compare the content ``(type, label, shape, weights,
-kind, support, nodes)`` plus each subclass's own fields, never object
+kind, support, nodes, layout)`` plus each subclass's own fields, never object
 identity and never the origin. A nodal axis is therefore fixed by its
 support, its atoms, its measure and its label; a modal one by its domain,
 its kind (with the unit), its measure and its label. Two consequences
@@ -132,6 +137,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
+from .coefficient_layout import CellLayout, CoefficientLayout, HarmonicLayout, LegendreLayout, ModeLayout
 from .content import ContentIdentity
 
 if TYPE_CHECKING:
@@ -139,7 +145,7 @@ if TYPE_CHECKING:
 
     from orpheus.data.energy_grid import EnergyGrid
     from orpheus.data.macro_xs.mixture import Mixture
-    from orpheus.numerics.basis.base import Basis
+    from orpheus.numerics.basis.base import Basis, TruncatedBasis
     from orpheus.numerics.frame import FrameBase
     from orpheus.numerics.manifold import Manifold
     from orpheus.numerics.measure import DiscreteMeasure
@@ -194,18 +200,24 @@ class Modal(ContentIdentity):
     constant function :math:`1` in its representation (rulings 37, 40 and
     41), so a modal factor that cannot integrate is unrepresentable. The
     unit is stored canonicalized (``u + 0.0``), copied and read-only, and
-    must be finite and nonzero; its shape is checked against the axis's
-    shape by the axis.
+    must be finite; its shape is checked against the axis's shape by the
+    axis. A ZERO unit is legal (the user's ruling, 2026-10-21, at S7; it
+    amends ruling 41's "nonzero"): it is the honest unit of a factor whose
+    span is orthogonal to the constants (the loss-kernel gauge's kernel
+    modes), and the marginal over that factor integrates every field to 0,
+    which is what each of its functions integrates to. A family whose span
+    contains :math:`1` mints its unit nonzero by construction (:math:`e_0`,
+    or the frame's moments of 1).
     """
 
     unit: NDArray
 
     def __post_init__(self) -> None:
         u = np.ascontiguousarray(self.unit, dtype=float)
-        if not bool(np.isfinite(u).all()) or not bool(u.any()):
+        if not bool(np.isfinite(u).all()):
             raise ValueError(
-                f"a modal unit must be finite and nonzero (the coordinates of "
-                f"the constant function 1); got {u!r}"
+                f"a modal unit must be finite (the coordinates of the constant "
+                f"function 1); got {u!r}"
             )
         u = u + 0.0
         u.setflags(write=False)
@@ -278,6 +290,10 @@ class Declared:
     def nodes(self) -> None:
         return None
 
+    @property
+    def layout(self) -> None:
+        return None
+
 
 @dataclass(frozen=True, eq=False)
 class FromMeasure:
@@ -297,6 +313,10 @@ class FromMeasure:
     @property
     def nodes(self) -> NDArray:
         return self.measure.nodes
+
+    @property
+    def layout(self) -> None:
+        return None
 
 
 @dataclass(frozen=True, eq=False)
@@ -326,19 +346,37 @@ class FromQuadrature:
     def nodes(self) -> NDArray:
         return self.quadrature.measure.nodes
 
+    @property
+    def layout(self) -> None:
+        return None
+
 
 @dataclass(frozen=True, eq=False)
 class FromBasis:
-    r"""The origin of a basis's continuum coefficient axis: ``Modal(unit)`` on
-    the basis's domain, where ``unit`` is the coefficients of the constant
-    function :math:`1` in the basis (ruling 37), stated by the mint."""
+    r"""The origin of a basis's continuum coefficient axis, on the basis's
+    domain, indexed by its layout (ruling 81).
 
-    basis: Basis
-    unit: NDArray
+    The kind is the layout's to say, one ``match``: a cell layout indexes
+    cell values (``NODAL``, a coordinate cone, unit ones); a degree or a mode
+    layout indexes spectral coefficients, ``Modal`` with the coefficients of
+    the constant function :math:`1` as its unit (ruling 37).
+    """
+
+    basis: Basis | TruncatedBasis
 
     @property
     def kind(self) -> AxisKind:
-        return Modal(self.unit)
+        match self.basis.layout:
+            case CellLayout():
+                return BasisKind.NODAL
+            case HarmonicLayout() | LegendreLayout() | ModeLayout() as coefficients:
+                return Modal(coefficients.unit)
+            case layout:
+                raise TypeError(
+                    f"FromBasis: {type(self.basis).__name__} carries "
+                    f"{type(layout).__name__}, which is not a coefficient "
+                    f"layout (orpheus.numerics.coefficient_layout)"
+                )
 
     @property
     def support(self) -> Manifold:
@@ -347,6 +385,10 @@ class FromBasis:
     @property
     def nodes(self) -> None:
         return None
+
+    @property
+    def layout(self) -> CoefficientLayout:
+        return self.basis.layout
 
 
 @dataclass(frozen=True, eq=False)
@@ -367,7 +409,13 @@ class FromFrame:
     @property
     def kind(self) -> AxisKind:
         f = self.frame
-        return Modal(np.asarray(f.basis.analyze(np.ones(f.measure.n_points), f.table, f.measure.weights)))
+        match f.basis.layout:
+            case ModeLayout() as modes:
+                # a mode basis DECLARES its unit (a computed Phi^T w is
+                # round-off where the span is orthogonal to the constants)
+                return Modal(modes.unit)
+            case _:
+                return Modal(np.asarray(f.basis.analyze(np.ones(f.measure.n_points), f.table, f.measure.weights)))
 
     @property
     def support(self) -> Manifold:
@@ -376,6 +424,10 @@ class FromFrame:
     @property
     def nodes(self) -> None:
         return None
+
+    @property
+    def layout(self) -> CoefficientLayout:
+        return self.frame.basis.layout
 
 
 #: What minted an axis, the closed sum of its five arms (ruling 64).
@@ -432,11 +484,12 @@ class Axis(ContentIdentity):
     kind: AxisKind = field(init=False)
     support: Manifold | None = field(init=False, repr=False)
     nodes: NDArray | None = field(init=False, repr=False)
+    layout: CoefficientLayout | None = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         shape = tuple(int(n) for n in self.shape)
         object.__setattr__(self, "shape", shape)
-        if not isinstance(self.origin, (FromMeasure, FromQuadrature, FromBasis, FromFrame, Declared)):
+        if not isinstance(self.origin, Origin):
             raise TypeError(
                 f"axis '{self.label}': origin must be one of FromMeasure, "
                 f"FromQuadrature, FromBasis, FromFrame, Declared; got {self.origin!r}"
@@ -445,6 +498,13 @@ class Axis(ContentIdentity):
         kind.unit_over(shape)  # a modal unit over another shape is refused
         object.__setattr__(self, "kind", kind)
         object.__setattr__(self, "support", self.origin.support)
+        layout = self.origin.layout
+        if layout is not None and layout.shape != shape:
+            raise ValueError(
+                f"axis '{self.label}': the basis's layout indexes shape "
+                f"{layout.shape}, not the axis shape {shape}"
+            )
+        object.__setattr__(self, "layout", layout)
         if len(shape) < 1:
             raise ValueError(
                 f"an Axis needs rank >= 1, got shape {shape!r} — a rank-0 "
@@ -526,6 +586,19 @@ class Axis(ContentIdentity):
         """
         measure = quadrature.measure
         return Axis(label, (measure.n_points,), weights=measure.weights, origin=FromQuadrature(quadrature))
+
+
+    @classmethod
+    def of_basis(cls, basis: Basis | TruncatedBasis) -> Axis:
+        r"""The coefficient axis a basis spans: indexed by its layout, measured
+        by its continuum Gram (``None`` for a measure-free basis), on its domain
+        (ruling 81). The one generic coefficient axis: the family is the
+        layout, the spent axis of a Legendre basis is the domain
+        :math:`S^2/O(2)_a`, and no family subclass exists. A frame re-dresses
+        it with the discrete Parseval inverse
+        (:func:`~orpheus.numerics.frame_faces.basis_space`)."""
+        layout = basis.layout
+        return Axis(layout.label, layout.shape, weights=basis.coefficient_weights, origin=FromBasis(basis))
 
 
 def quadrature_refusal(axis: Axis, consumer: str) -> ValueError:
@@ -686,72 +759,3 @@ class EnergyAxis(Axis):
         ):
             return cls.from_grid(mats[0].energy_grid)
         return cls.synthetic(mats[0].ng)
-
-
-
-@dataclass(frozen=True, eq=False)
-class HarmonicAxis(Axis):
-    r"""The angular MOMENT factor of the real spherical-harmonic family — the
-    rectangular ``(L+1, 2L+1)`` coefficient table of
-    :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`
-    (the addition-theorem-shifted ``[l + m]`` column, zero-padded outside
-    :math:`|m| \le \ell`), ``MODAL`` — a spectral coefficient may be negative
-    for a positive function, so the factor carries no coordinate cone
-    (CS4c step 6 item 6.2c-ii, ruled 2026-09-07/08).
-
-    **The measure IS the head's metric.** Minted by the BASIS
-    (:meth:`SphericalHarmonicSpace.from_L
-    <orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace.from_L>`)
-    the weights are the CONTINUUM Gram :math:`4\pi/(2\ell+1)` broadcast to
-    the padded layout; re-dressed by a FRAME
-    (:func:`~orpheus.numerics.frame_faces.basis_space`) they are the
-    Parseval inverse of the discrete Gram's diagonal — or ``None`` with the
-    matrix pseudo-inverse POSITIONED on the space's derived metric object
-    when that Gram is dense (item 6.2c-i) — and the frame becomes the
-    axis's :attr:`generator`, the object that can re-dress the head at
-    another order (:func:`~orpheus.numerics.spaces.moment_head.truncated_head`).
-
-    **Identity** is the class plus ``(label, shape, kind, weights)``: the
-    family is the class, the order is the shape, and — since the identity
-    flip (CS4c step 6, 2026-09-07) — the METRIC enters the identity through
-    the weights, so a frame-dressed head and a continuum head of the same
-    order are two spaces (the metric-blind ``(name, shape)`` seam that let
-    them pass for one is gone; the tree carries ONE moment space per
-    carrier, the frame's, ruling R-6.2c-1).
-    """
-
-
-@dataclass(frozen=True, eq=False)
-class LegendreAxis(Axis):
-    r"""The angular MOMENT factor of the Legendre family on
-    :math:`S^2/O(2)_a` — the FLAT ``(L+1,)`` coefficient axis of
-    :class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis` (one
-    coefficient per degree: the trivial isotypic component of
-    :math:`O(2)_a` is one-dimensional in every degree), ``MODAL``.
-
-    Everything :class:`HarmonicAxis` says about the measure and the
-    generator holds here; what this family ADDS to the identity is the
-    axis of the spent stabiliser, ``spent_axis`` — `[M]` 2026-09-08 (the
-    6.2c verification round, hazard H-10): ``LegendreSpace.from_L(1, "x")``
-    and ``from_L(1, "z")`` carry ``array_equal`` weights and one shape, so
-    a family-generic identity would COLLAPSE two physically different
-    spaces (the tree carries two poles). The spent axis is therefore part
-    of the content (a field), exactly as an :class:`EnergyAxis` carries its
-    group edges.
-
-    Parameters
-    ----------
-    spent_axis : str
-        Keyword-only. The axis of the spent :math:`O(2)_a` stabiliser —
-        ``"x"``, ``"y"`` or ``"z"``.
-    """
-
-    spent_axis: str = field(kw_only=True)
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        if self.spent_axis not in ("x", "y", "z"):
-            raise ValueError(
-                f"LegendreAxis: spent_axis must be x/y/z, got {self.spent_axis!r}."
-            )
-

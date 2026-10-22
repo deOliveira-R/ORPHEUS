@@ -168,8 +168,8 @@ class TestG1UnitIsTheConstant:
         r = _rng(11).standard_normal((64, 3))
         r /= np.linalg.norm(r, axis=1)[:, None]
         L = ax.shape[0] - 1
-        if len(ax.shape) == 1:  # Legendre about the spent axis
-            spent = {"x": 0, "y": 1, "z": 2}[ax.spent_axis]
+        if len(ax.shape) == 1:  # Legendre about the spent axis: the head's domain S^2/O2_a (S7)
+            spent = ax.support.by.rotation_axis
             f = legendre_table(L, r[:, spent]) @ u
         else:
             f = real_sh_table(L, r).reshape(64, -1) @ u.ravel()
@@ -214,7 +214,7 @@ class TestG2Integration:
         dirs, wq = sphere_rule()
         L = ax.shape[0] - 1
         if len(ax.shape) == 1:
-            f = legendre_table(L, dirs[:, {"x": 0, "y": 1, "z": 2}[ax.spent_axis]]) @ c
+            f = legendre_table(L, dirs[:, ax.support.by.rotation_axis]) @ c
         else:
             f = real_sh_table(L, dirs).reshape(dirs.shape[0], -1) @ c.ravel()
         integral = math.fsum(wq * f)
@@ -470,29 +470,28 @@ class TestG6Refusals:
     def test_zero_mass_refuses_the_section_only(self, which):
         """⟨m,u⟩ = 0: no section; the retraction stays legal. The modal leg is new (a head whose
         metric vanishes on the constant); first red before S1 (0457f113): TypeError (MODAL)."""
-        from orpheus.numerics.axis import Axis, BasisKind, FromBasis, LegendreAxis
+        from orpheus.numerics.axis import Axis, BasisKind, FromBasis
         from orpheus.numerics.basis.legendre_basis import LegendreBasis
         from orpheus.numerics.space import FunctionSpace
 
         if which == "nodal signed":
             V, label = resolve("zero-mass signed", "angular")
         else:
-            head = LegendreAxis("legendre", (3,), weights=np.array([0.0, 1.0, 1.0]),
-                                origin=FromBasis(LegendreBasis(L=2, axis="z"), np.array([1.0, 0.0, 0.0])),
-                                spent_axis="z")
+            head = Axis("legendre", (3,), weights=np.array([0.0, 1.0, 1.0]),
+                        origin=FromBasis(LegendreBasis(L=2, axis="z")))
             V, label = FunctionSpace.of_axes(head, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL))), "legendre"
         AxisRetractionOperator.of(V, label)
         with pytest.raises(ValueError, match="zero total weight"):
             AxisSectionOperator.of(V, label)
 
-    @pytest.mark.parametrize("leg", ["a string kind", "a zero unit", "a unit over another shape"])
+    @pytest.mark.parametrize("leg", ["a string kind", "a non-finite unit", "a unit over another shape"])
     def test_a_modal_kind_carries_its_unit_or_is_refused(self, leg):
         """Rulings 40 and 41: the kind is the closed sum ``BasisKind.NODAL |
         Modal(unit)``, so a modal factor without its unit cannot be spelled.
         What is left to refuse at construction, one leg each so one red cannot
         mask another: a kind that is neither arm (a string, the pre-S1 test
         spelling the S1 review caught), a unit that cannot be the constant's
-        coordinates (zero), and a unit over another shape, here through
+        coordinates (non-finite; a zero unit is legal since S7), and a unit over another shape, here through
         ``replace`` on a nodal axis."""
         import dataclasses
 
@@ -501,9 +500,11 @@ class TestG6Refusals:
         if leg == "a string kind":
             with pytest.raises(TypeError, match="kind must be BasisKind.NODAL or Modal"):
                 Declared("nodal")  # pyright: ignore[reportArgumentType]
-        elif leg == "a zero unit":
-            with pytest.raises(ValueError, match="finite and nonzero"):
-                Modal(np.zeros(2))
+        elif leg == "a non-finite unit":
+            # Re-posed at S7 (the user's ruling, 2026-10-21): a zero unit is
+            # legal (a span orthogonal to the constants); a non-finite one is not.
+            with pytest.raises(ValueError, match="must be finite"):
+                Modal(np.array([np.nan, 0.0]))
         else:
             nodal = Axis("moment", (2,), weights=np.array([1.0, 3.0]), origin=Declared(BasisKind.NODAL))
             with pytest.raises(ValueError, match="must live over exactly the axis shape"):

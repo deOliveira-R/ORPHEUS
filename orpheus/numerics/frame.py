@@ -21,7 +21,7 @@ one diagonal away from; it lives one level below the faces.
 The pairing fixes BOTH spaces:
 
 * the **basis** is the synthesis (**trial**) side — fixes the codomain
-  (:func:`~orpheus.numerics.frame_faces.basis_space` ``= basis.space`` dressed with
+  (:func:`~orpheus.numerics.frame_faces.basis_space` ``= FunctionSpace.of_basis(basis)`` dressed with
   the frame's **Parseval metric**, the inverse of the discrete trial Gram — a
   property of the *pairing*, not of the basis alone);
 * the **measure** fixes the domain — :func:`~orpheus.numerics.frame_faces.measure_space`,

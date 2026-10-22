@@ -64,7 +64,7 @@ from orpheus.geometry import BC, CoordSystem
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
-from orpheus.numerics.spaces.moment_head import MomentHead
+from orpheus.numerics.spaces.moment_head import head_layout, moment_head_axis
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.transport.frames import HarmonicFrame
@@ -127,8 +127,17 @@ def _is_moment_space(space: object) -> bool:
     return (
         isinstance(space, TensorProductSpace)
         and bool(space.factors)
-        and isinstance(space.factors[0], MomentHead)
+        and _is_head(space.factors[0])
     )
+
+
+def _is_head(space) -> bool:
+    """A moment head, read through the one door (S7; until then ``isinstance(MomentHead)``)."""
+    try:
+        moment_head_axis(space)
+    except TypeError:
+        return False
+    return True
 
 
 @pytest.fixture(scope="module")
@@ -197,7 +206,7 @@ def test_the_recorded_trajectory_was_taken_under_the_PARSEVAL_head_metric() -> N
     space = problem.moment_space(_L)
     assert isinstance(space, TensorProductSpace) and _is_moment_space(space)
     head = space.factors[0]
-    assert isinstance(head, MomentHead)
+    assert _is_head(head)
     assert head.inner_product_weights is None and head.metric is None
     assert head.axes is not None and len(head.axes) == 1
     frame = frame_faces.angular_frame(problem.quad, _L)
@@ -291,7 +300,7 @@ def test_the_pin_discriminates_the_head_metric_choice() -> None:
     assert dressed_space == frame_faces.basis_space(frame) * problem.bulk_space, (
         "the hub's space IS the frame's dressed product — one space, two owners (O-5)"
     )
-    continuum_space = frame.basis.space * problem.bulk_space   # the loser, as the negative control
+    continuum_space = FunctionSpace.of_basis(frame.basis) * problem.bulk_space   # the loser, as the negative control
     assert continuum_space.shape == dressed_space.shape
     assert continuum_space != dressed_space, (
         "the two candidates are two SPACES since 6.2c-ii — the metric-blind seam is gone"
@@ -301,8 +310,7 @@ def test_the_pin_discriminates_the_head_metric_choice() -> None:
     x = rng.standard_normal(dressed_space.shape)
     # zero the |m| > l padding, as every real moment field has
     assert isinstance(dressed_space, TensorProductSpace)
-    head = dressed_space.factors[0]
-    assert isinstance(head, MomentHead)
+    head = head_layout(dressed_space.factors[0])
     mask = np.zeros(head.shape, dtype=bool)
     for l in range(_L + 1):
         mask[head.degree_block(l)] = True

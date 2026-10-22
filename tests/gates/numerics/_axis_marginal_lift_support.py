@@ -11,6 +11,9 @@ Schmidt semi-normalised, no Condon-Shortley phase), built on
 """
 from __future__ import annotations
 
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.numerics.basis.legendre_basis import LegendreBasis
+
 
 from functools import cache
 from math import factorial
@@ -73,9 +76,6 @@ def _cells():
 
 def head_products():
     """Frame-dressed and continuum heads, each times energy(2) x spatial(5)."""
-    from orpheus.numerics.spaces.legendre_space import LegendreSpace
-    from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
-
     cells = FunctionSpace.of_axes(*_cells())
     heads = {
         "folded(4,4) frame L2": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.folded_product(4, 4), 2)),
@@ -83,8 +83,8 @@ def head_products():
         "product(4,8) frame L4": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.product(4, 8), 4)),
         "lebedev7 frame L3": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.lebedev(order=7), 3)),
         "GL8 frame L3": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.gauss_legendre(n_ordinates=8), 3)),
-        "continuum SH L3": SphericalHarmonicSpace.from_L(3),
-        "continuum Legendre L3 z": LegendreSpace.from_L(3, "z"),
+        "continuum SH L3": FunctionSpace.of_basis(SphericalHarmonicBasis(L=3)),
+        "continuum Legendre L3 z": FunctionSpace.of_basis(LegendreBasis(L=3, axis="z")),
     }
     return {k: h * cells for k, h in heads.items()} | {f"{k} [head alone]": h for k, h in heads.items()}
 

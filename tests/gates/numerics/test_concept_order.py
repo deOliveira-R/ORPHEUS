@@ -38,7 +38,8 @@ TIERS: tuple[tuple[str, ...], ...] = (
     ("face_layout", "gauge", "instance_cache", "metric", "moment_layout", "recurrence",
      "registry", "roots_of_unity", "scalars", "units", "vector"),
     ("content", "symmetry"),
-    ("_traced_memo_boot", "enclosure", "manifold", "mesh_free_function"),
+    # the coefficient layouts are content values a basis carries (ruling 81)
+    ("_traced_memo_boot", "coefficient_layout", "enclosure", "manifold", "mesh_free_function"),
     ("traced_memo",),
     ("basis", "exactness", "observable", "question"),
     ("measure",),
@@ -71,11 +72,7 @@ RANK: dict[str, int] = {m: i for i, tier in enumerate(TIERS) for m in tier}
 EXEMPT: frozenset[tuple[str, str]] = frozenset({("traced_memo", "_traced_memo_boot")})
 
 # (imported module, importing module) -> the plan package that removes the edge.
-PENDING: dict[tuple[str, str], str] = {
-    # S7: the coefficient space of a basis and the sampled space of a measure (ruling 35)
-    ("space", "basis"): "S7",
-    ("spaces", "basis"): "S7",
-}
+PENDING: dict[tuple[str, str], str] = {}
 
 
 def _node(path: pathlib.Path, root: pathlib.Path) -> str:

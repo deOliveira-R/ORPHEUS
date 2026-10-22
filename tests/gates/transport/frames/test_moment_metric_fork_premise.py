@@ -64,6 +64,8 @@ no eigenvalue claim rides here.
 
 from __future__ import annotations
 
+from orpheus.numerics.space import FunctionSpace
+
 import numpy as np
 import pytest
 
@@ -163,7 +165,7 @@ def test_the_two_moment_heads_are_UNEQUAL_and_the_dressed_one_is_the_frames(labe
     handing back the continuum head where the dressed one is bound.
     """
     frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(_RULES[label](), L))
-    continuum, dressed = frame.basis.space, frame_faces.basis_space(frame)
+    continuum, dressed = FunctionSpace.of_basis(frame.basis), frame_faces.basis_space(frame)
 
     assert continuum != dressed and dressed != continuum, "the metric is the identity now"
     assert continuum.name == dressed.name and continuum.shape == dressed.shape
@@ -258,7 +260,7 @@ def test_parseval_holds_under_the_dressed_metric_and_FAILS_under_the_continuum_o
         err_msg="the dressed (Parseval) metric must make analysis an isometry",
     )
     # the NEGATIVE control: the same pairing under the continuum Gram
-    ratio = float(frame.basis.space.inner_product(phi, phi)) / float(energy)
+    ratio = float(FunctionSpace.of_basis(frame.basis).inner_product(phi, phi)) / float(energy)
     assert ratio > 3.0, (
         f"the continuum metric must be measurably NOT the Parseval one; "
         f"ratio={ratio:.4f}"
@@ -297,7 +299,7 @@ def test_the_lambda_adjoint_is_the_transpose_on_PHYSICAL_moments_under_both_metr
     psi = rng.standard_normal((n_nodes, _NG, _NX, 1))
     phi = np.asarray(frame_faces.FrameAnalysis.of(frame).apply(psi))
 
-    for name, space in (("continuum", frame.basis.space), ("dressed", frame_faces.basis_space(frame))):
+    for name, space in (("continuum", FunctionSpace.of_basis(frame.basis)), ("dressed", frame_faces.basis_space(frame))):
         gap = _adjoint_gap(space, transfer, L, phi)
         assert gap < 1e-12, f"{name} end moved Λ.H off Λᵀ on a physical moment: {gap:.3e}"
 
@@ -326,8 +328,8 @@ def test_the_dressed_adjoint_moves_ONLY_off_the_range_of_analysis() -> None:
     for label, L in movers:
         frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(_RULES[label](), L))
         transfer = _transfer(L)
-        x = rng.standard_normal(frame.basis.space.shape + (_NG, _NX, 1))
-        continuum_gap = _adjoint_gap(frame.basis.space, transfer, L, x)
+        x = rng.standard_normal(FunctionSpace.of_basis(frame.basis).shape + (_NG, _NX, 1))
+        continuum_gap = _adjoint_gap(FunctionSpace.of_basis(frame.basis), transfer, L, x)
         dressed_gap = _adjoint_gap(frame_faces.basis_space(frame), transfer, L, x)
         assert continuum_gap < 1e-12, (
             f"{label} L={L}: the continuum end must be transpose-exact off-range too"

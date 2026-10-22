@@ -88,16 +88,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.basis.base import Basis, GramStructure
+from orpheus.numerics.coefficient_layout import CellLayout
 from orpheus.numerics.manifold import Manifold, ambient_dim
-
-if TYPE_CHECKING:
-    from orpheus.numerics.space import FunctionSpace
 
 
 __all__ = ["IndicatorBasis"]
@@ -314,8 +311,15 @@ class IndicatorBasis(Basis):
         return np.einsum("nR,n...->R...", table, values)
 
     @property
-    def space(self) -> "FunctionSpace":
-        r"""The coarse coefficient :class:`FunctionSpace`, shape ``(n_cells,)``.
+    def layout(self) -> CellLayout:
+        r"""One coefficient per coarse cell, flat ``(n_cells,)``, carrying the
+        partition's edges (ruling 81; the cells are the partition's atoms, so
+        two partitions with shifted edges index two spaces, ruling 71)."""
+        return CellLayout(self.edges_per_axis)
+
+    @property
+    def coefficient_weights(self) -> None:
+        r"""``None``: the coarse coefficient space is the COUNTING measure.
 
         Euclidean (no intrinsic metric): the indicator basis is **measure-free**,
         so its Gram :math:`\mathrm{diag}(m_R)` exists only against a bound measure
@@ -329,8 +333,4 @@ class IndicatorBasis(Basis):
         :meth:`~orpheus.numerics.frame_faces.CrossGramInverse.of`, via
         :func:`dataclasses.replace`).
         """
-        from orpheus.numerics.space import FunctionSpace
-
-        return FunctionSpace(
-            name=f"L2[coarse_cells({self.domain.name})]", shape=(self.n_cells,),
-        )
+        return None

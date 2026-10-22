@@ -117,16 +117,11 @@ def _blocks_of(space: "FunctionSpace", *, owner: str) -> tuple["FunctionSpace", 
     A composite binding's end is a block-bearing
     :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`; a
     plain space carries no blocks and refuses loudly, naming the owner.
-    (The space's own :meth:`FullFieldSpace._require_blocks` guards the
-    bare-constructor footgun with a ``RuntimeError``; this tier's refusal
-    is a ``TypeError`` because here the defect is a binding on the WRONG
-    KIND of space, and the message names the operator.)
+    (A composite always carries both blocks since S7: they are required
+    fields. This tier's refusal is a ``TypeError`` because the defect is a
+    binding on the WRONG KIND of space, and the message names the operator.)
     """
-    if (
-        not isinstance(space, FullFieldSpace)
-        or space.interior_space is None
-        or space.trace_space is None
-    ):
+    if not isinstance(space, FullFieldSpace):
         raise TypeError(
             f"{owner} binds the composite FullFieldSpace (bulk ⊕ trace) — "
             f"this end carries no block spaces to size the bulk action; got "

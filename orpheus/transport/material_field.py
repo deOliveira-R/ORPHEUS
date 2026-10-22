@@ -55,7 +55,7 @@ import numpy as np
 from orpheus.transport.kernels import FissionKernel, TransferKernel
 
 if TYPE_CHECKING:
-    from orpheus.numerics.spaces.moment_head import MomentHead
+    from orpheus.numerics.coefficient_layout import DegreeLayout
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 __all__ = [
@@ -173,14 +173,14 @@ _BLOCK_CONTRACTION: dict[tuple[int, bool], str] = {
 }
 
 
-def _block_contraction(head: "MomentHead", *, transposed: bool) -> str:
+def _block_contraction(head: "DegreeLayout", *, transposed: bool) -> str:
     """The einsum spec for one degree block of a moments tensor with this head."""
     rank = len(head.shape)
     try:
         return _BLOCK_CONTRACTION[(rank, transposed)]
     except KeyError:
         raise NotImplementedError(
-            f"moment verbs: an angular head of rank {rank} ({head.name!r}) "
+            f"moment verbs: an angular head of rank {rank} ({head!r}) "
             f"has no block contraction; the shipped heads are rank 2 (the "
             f"real harmonics) and rank 1 (the Legendre basis)."
         ) from None
@@ -316,7 +316,7 @@ class TransferMaterialField(MaterialField[TransferKernel]):
     # ── moment-carrier verbs (the frame-conjugated Λ) ─────────────────
 
     def _moment_blocks(
-        self, moments: np.ndarray, *, skip_l0: bool, head: "MomentHead", spec: str,
+        self, moments: np.ndarray, *, skip_l0: bool, head: "DegreeLayout", spec: str,
     ) -> np.ndarray:
         r"""The per-ℓ block-diagonal group contraction shared by the two
         moment verbs (the former ``apply_legendre_scattering_moments``
@@ -325,7 +325,7 @@ class TransferMaterialField(MaterialField[TransferKernel]):
         channel's yield.
 
         The moments tensor's leading axes are the angular HEAD's
-        (:class:`~orpheus.numerics.spaces.moment_head.MomentHead`): the
+        (:mod:`~orpheus.numerics.coefficient_layout`): the
         rectangular ``(L+1, 2L+1)`` of the real harmonics, or the flat
         ``(L+1,)`` of the Legendre basis on a 1-D rule (#429, 2026-09-02).
         The head says which index tuple is the degree-:math:`\ell` block
@@ -345,7 +345,7 @@ class TransferMaterialField(MaterialField[TransferKernel]):
             raise ValueError(
                 f"TransferMaterialField moment verb: the moments tensor "
                 f"{moments.shape} must lead with the angular head "
-                f"{tuple(head.shape)} of {head.name!r} followed by the "
+                f"{tuple(head.shape)} of {head!r} followed by the "
                 f"{ng}-group axis (this field is at order {L}); bring the "
                 f"field to the operator's order and hand the operator's own "
                 f"head — a rectangular tensor offered with a flat head would "
@@ -366,7 +366,7 @@ class TransferMaterialField(MaterialField[TransferKernel]):
         return out
 
     def moment_source(
-        self, moments: np.ndarray, *, skip_l0: bool, head: "MomentHead",
+        self, moments: np.ndarray, *, skip_l0: bool, head: "DegreeLayout",
     ) -> np.ndarray:
         r"""Apply the per-ℓ block-diagonal redistribution :math:`\Lambda`
         to a moment field (the former ``apply_legendre_scattering_moments``
@@ -382,7 +382,7 @@ class TransferMaterialField(MaterialField[TransferKernel]):
         )
 
     def moment_source_transpose(
-        self, moments: np.ndarray, *, skip_l0: bool, head: "MomentHead",
+        self, moments: np.ndarray, *, skip_l0: bool, head: "DegreeLayout",
     ) -> np.ndarray:
         r"""Apply :math:`\Lambda^{T}` — the per-ℓ group-transpose twin of
         :meth:`moment_source` (sink-group contraction ``gf``)."""

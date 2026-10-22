@@ -76,7 +76,7 @@ from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 
 if TYPE_CHECKING:
     from orpheus.numerics.manifold import Manifold
-    from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.coefficient_layout import CellLayout
 
 
 __all__ = ["WeightedIndicatorBasis"]
@@ -189,15 +189,17 @@ class WeightedIndicatorBasis(Basis):
         return self.indicator.domain
 
     @property
-    def space(self) -> "FunctionSpace":
-        r"""The coarse coefficient :class:`FunctionSpace` — the trial's, shape ``(n_cells,)``.
+    def layout(self) -> "CellLayout":
+        r"""The trial indicator's layout: the test and trial span the SAME coarse
+        cells (one effective material per coarse cell), so the coefficient
+        space is the trial's; the Petrov-Galerkin distinction is the
+        *analysis* weighting, not the coefficient layout."""
+        return self.indicator.layout
 
-        The test and trial span the SAME coarse cells (one effective material per
-        coarse cell), so the coefficient space is the trial indicator's; the
-        Petrov-Galerkin distinction is the *analysis* weighting, not the coefficient
-        layout.
-        """
-        return self.indicator.space
+    @property
+    def coefficient_weights(self) -> None:
+        r"""The trial indicator's: ``None``, the counting measure."""
+        return self.indicator.coefficient_weights
 
     # ── Synthesis side: no consumer (the PG reconstruction is trial-side) ──
     def synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:

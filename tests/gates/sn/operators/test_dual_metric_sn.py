@@ -115,7 +115,7 @@ def test_C2_the_composite_dual_is_the_biproduct_of_member_duals(name):
     for s, sd in zip(V.systems, Vd.systems, strict=True):
         _require(sd == s.dual(), f"member dual mismatch on {s.name}")
         if isinstance(s, FullFieldSpace):
-            si, st = s._require_blocks()
+            si, st = s.interior_space, s.trace_space
             if not isinstance(sd, FullFieldSpace):
                 pytest.fail(f"the full-field dual is a {type(sd).__name__}")
             _require(sd.interior_space == si.dual() and sd.trace_space == st.dual(),

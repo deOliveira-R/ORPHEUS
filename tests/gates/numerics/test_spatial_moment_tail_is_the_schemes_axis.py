@@ -43,8 +43,8 @@ from orpheus.numerics.moment_layout import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
-from orpheus.numerics.spaces.legendre_space import LegendreSpace
-from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
+from orpheus.numerics.coefficient_layout import HarmonicLayout
+from orpheus.numerics.spaces.moment_head import head_layout
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields import HarmonicMomentFlux
 from orpheus.transport.fields._bases import BulkField
@@ -176,14 +176,13 @@ def test_width_one_appends_nothing_and_the_policy_lives_in_the_layout_module() -
     # a DD carrier mints no moment axis, so a widened request is refused by the scheme
     with pytest.raises(NotImplementedError, match="no moment axis"):
         sn.moment_space(1, spatial_moments=2)
-    # find_factor REFUSES an absent factor type (a structural KeyError, never a
-    # silent None — Pattern 4); the retired tail test was this claim's only
-    # witness, so it lives here now: the sphere rule's head is the harmonic
-    # family, and the Legendre family is absent from the product.
+    # the sphere rule's head is the harmonic family (since S7 read off the
+    # head axis's layout; until then ``find_factor`` on the family class),
+    # and no other factor of the product is a moment head (the door refuses).
     assert isinstance(space, TensorProductSpace)
-    with pytest.raises(KeyError):
-        space.find_factor(LegendreSpace)
-    assert isinstance(space.find_factor(SphericalHarmonicSpace), SphericalHarmonicSpace)
+    assert isinstance(head_layout(space.factors[0]), HarmonicLayout)
+    with pytest.raises(TypeError, match="is not a moment head"):
+        head_layout(space.factors[1])
 
 
 @pytest.mark.parametrize("label", list(_LD), ids=list(_LD))

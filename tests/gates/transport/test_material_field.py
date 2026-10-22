@@ -19,6 +19,10 @@ Three tiers, deliberately separated:
 """
 from __future__ import annotations
 
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.numerics.basis.legendre_basis import LegendreBasis
+from orpheus.numerics.space import FunctionSpace
+
 from dataclasses import dataclass
 
 import numpy as np
@@ -96,7 +100,7 @@ def _moments(sm=0, seed=3, nx=_NX):
 
 
 def _head(rank: int = 2):
-    r"""The angular HEAD to hand a moment verb (#429 tracker 2.5).
+    r"""The angular HEAD's layout to hand a moment verb (#429 tracker 2.5; the layout since S7).
 
     A moments tensor's leading axes ARE the head's, and which head a
     consumer holds is read off its frame — the rectangular ``(L+1, 2L+1)``
@@ -110,15 +114,9 @@ def _head(rank: int = 2):
     fixtures, ``rank=1`` in :class:`TestFlatAngularHead`), so neither
     layout is certified by the other.
     """
-    from orpheus.numerics.spaces.legendre_space import LegendreSpace
-    from orpheus.numerics.spaces.spherical_harmonic_space import (
-        SphericalHarmonicSpace,
-    )
-
-    return (
-        SphericalHarmonicSpace.from_L(_L) if rank == 2
-        else LegendreSpace.from_L(_L, "x")
-    )
+    # Since S7 the verbs take the head's LAYOUT (ruling 81), read here off the
+    # basis the head is spanned by.
+    return (SphericalHarmonicBasis(L=_L) if rank == 2 else LegendreBasis(L=_L, axis="x")).layout
 
 
 def _flat_moments(sm=0, seed=3, nx=_NX):

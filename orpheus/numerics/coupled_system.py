@@ -489,9 +489,9 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
         ``as_matrix`` "honest scope" note).
     """
 
-    systems: tuple[FunctionSpace, ...] = field(
-        default=(), repr=False, compare=False,
-    )
+    # Required and non-empty (a coupled space without members is an illegal
+    # state, S7; refused in __post_init__); kw_only for the field order.
+    systems: tuple[FunctionSpace, ...] = field(kw_only=True, repr=False, compare=False)
     zeros_factory: Optional[Callable[[], "CoupledField"]] = field(
         default=None, repr=False, compare=False,
     )
@@ -600,27 +600,18 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
         self._check_arity(minted)
         return minted
 
-    def _require_systems(self) -> tuple[FunctionSpace, ...]:
-        r"""Return the member spaces, guarding the bare-constructor footgun.
-
-        The ``systems`` field defaults to ``()`` (the ``compare=False``
-        dataclass-field convention), so a space built via the bare constructor
-        instead of :meth:`from_systems` would dispatch to nothing and silently
-        no-op. Fail at the boundary with intent (parse-don't-validate; the
-        :meth:`FullFieldSpace._require_blocks` precedent).
-        """
+    def __post_init__(self) -> None:
+        super().__post_init__()
         if len(self.systems) == 0:
-            raise RuntimeError(
-                "CoupledSpace has no member spaces; build it via "
-                "CoupledSpace.from_systems((space_1, …, space_N)), not the "
-                "bare dataclass constructor."
+            raise ValueError(
+                "CoupledSpace needs at least one member space; build it via "
+                "CoupledSpace.from_systems((space_1, …, space_N))."
             )
-        return self.systems
 
     @property
     def n_systems(self) -> int:
         r"""The number of coupled systems (the block arity)."""
-        return len(self._require_systems())
+        return len(self.systems)
 
     @property
     def system_slices(self) -> tuple[slice, ...]:
@@ -635,7 +626,7 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
         :mod:`orpheus.numerics.assembled_operator`): the block structure
         provides the offsets, nothing more is reified.
         """
-        members = self._require_systems()
+        members = self.systems
         slices = []
         start = 0
         for s in members:
@@ -647,7 +638,7 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
     # ── Direct-sum metric dispatch (member-wise, on a CoupledField) ────
 
     def _check_arity(self, x: "CoupledField") -> tuple[FunctionSpace, ...]:
-        members = self._require_systems()
+        members = self.systems
         if x.n_systems != len(members):
             raise ValueError(
                 f"CoupledSpace: the coupled field carries {x.n_systems} "
@@ -760,8 +751,8 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
         domain: "CoupledSpace",
         codomain: "CoupledSpace",
     ) -> None:
-        domain_members = domain._require_systems()
-        codomain_members = codomain._require_systems()
+        domain_members = domain.systems
+        codomain_members = codomain.systems
         grid = tuple(tuple(row) for row in blocks)
         n_rows, n_cols = len(codomain_members), len(domain_members)
         if len(grid) != n_rows:
@@ -1416,7 +1407,7 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
     """
 
     def __init__(self, space: "CoupledSpace", *, system: int) -> None:
-        members = space._require_systems()
+        members = space.systems
         if not 0 <= system < len(members):
             raise ValueError(
                 f"SystemRestrictionOperator: system index {system} out of "
@@ -1468,7 +1459,7 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
                 f"SystemRestrictionOperator.apply expects a CoupledField; "
                 f"got {type(x).__name__}."
             )
-        n = len(self._space._require_systems())
+        n = len(self._space.systems)
         if len(x.systems) != n:
             raise ValueError(
                 f"SystemRestrictionOperator.apply: iterate couples "

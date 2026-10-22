@@ -23,6 +23,8 @@ Levels: foundation (object identities; no physics reference).
 """
 from __future__ import annotations
 
+from orpheus.numerics.space import FunctionSpace
+
 import re
 
 import numpy as np
@@ -451,7 +453,7 @@ class TestApplyAdmission:
         L = 1
         # the angular head is READ off the frame (#429): the slab's is FLAT.
         shape = (
-            *frame_faces.angular_frame(problem.quad, L).basis.space.shape,
+            *FunctionSpace.of_basis(frame_faces.angular_frame(problem.quad, L).basis).shape,
             problem.ng,
             *problem.spatial_shape,
         )

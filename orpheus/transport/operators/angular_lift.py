@@ -382,7 +382,7 @@ class AngularLift(CompositeBound, Generic[EnergyT]):
         end.
         """
         domain = self.domain
-        if not isinstance(domain, FullFieldSpace) or domain.trace_space is None:
+        if not isinstance(domain, FullFieldSpace):
             raise TypeError(
                 f"{type(self).__name__}.on_moment_domain: the bound domain "
                 f"carries no trace block to pair with the moment interior."

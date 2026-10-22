@@ -289,7 +289,7 @@ class MaterialMesh:
     # ── identity (consumers campaign step 1 — R-cc3 / R-cc8 / O-6) ────────
     #
     # ONE definition, at the data tier, EXTENDED by the method meshes exactly
-    # as ``EnergyAxis``/``LegendreAxis`` extend ``Axis.content_parts``:
+    # as ``EnergyAxis`` extends ``Axis.content_parts``:
     #
     # * ``_contractibility_key`` — may two solutions' FIELDS be paired? The
     #   geometry (every axis: edges, boundary-law tags, labels, chart), the

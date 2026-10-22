@@ -325,8 +325,10 @@ def _dressed(
     r"""Install a FRAME-owned metric on a basis's coefficient space — the
     one spelling of the F-0 dressing (:func:`basis_space`).
 
-    On an AXIS-BUILT coefficient space (a harmonic family's head, CS4c
-    step 6 item 6.2c-ii) the metric lives where the axis doctrine put it:
+    Every coefficient space is AXIS-BUILT (the harmonic heads since CS4c
+    step 6 item 6.2c-ii, the indicator families' since S7:
+    :meth:`FunctionSpace.of_basis <orpheus.numerics.space.FunctionSpace.of_basis>`),
+    so the metric lives where the axis doctrine put it:
     a diagonal dressing RE-WEIGHTS the head axis (the measure IS the
     metric), a dense one empties the axis's measure and POSITIONS the form
     on the space's derived metric object (item 6.2c-i) — and in both the
@@ -336,19 +338,17 @@ def _dressed(
     the head's :attr:`~orpheus.numerics.axis.Axis.unit`: a dressed head holds
     COVARIANT moments, so the coordinates of the constant function there are
     its moments :math:`u = \Phi^{\mathsf T} w`, not the basis's coefficient
-    :math:`e_0` (ruling 37). On an axes-less
-    space (the indicator bases' coefficient spaces — CS2 axis-ifies them) the
-    legacy slots carry it, exactly as before.
+    :math:`e_0` (ruling 37). On a coarse indicator head those moments are the
+    cell masses, so the dressed head is ``Modal(masses)`` (ruling 83, until
+    S6c moves the moments to the dual).
     """
     if diagonal is None and dense is None:
         raise ValueError("_dressed: a dressing installs a diagonal or a dense form")
     axes = space.axes
-    if axes is None:
-        return replace(space, inner_product_weights=diagonal, metric=dense)
-    if len(axes) != 1:
+    if axes is None or len(axes) != 1:
         raise NotImplementedError(
             f"a frame dresses a single-axis coefficient space; "
-            f"{space.name!r} carries {len(axes)} axes."
+            f"{space.name!r} carries axes={axes!r}."
         )
     axis = axes[0]
     if dense is not None:
@@ -372,7 +372,7 @@ def _dressed(
 def basis_space(frame: FrameBase) -> FunctionSpace:
     r"""The codomain — the trial coefficient space, carrying the PARSEVAL metric.
 
-    ``basis.space`` dressed with the inverse of the discrete trial Gram's
+    ``FunctionSpace.of_basis(basis)`` dressed with the inverse of the discrete trial Gram's
     diagonal (zero on dead slots). The analysis face's outputs are the
     COVARIANT moments :math:`\varphi = G c` of a band-limited field
     :math:`S_0 c`, so the inner product that makes analysis an isometry
@@ -433,7 +433,7 @@ def basis_space(frame: FrameBase) -> FunctionSpace:
 
     ⭐ Since CS4c step 6 item 6.2c-ii (2026-09-08) the dressing is
     VISIBLE to equality: the head is axis-built and its measure enters
-    the identity, so ``basis_space(frame) != basis.space`` (`[M]` 0 of 33
+    the identity, so ``basis_space(frame) != FunctionSpace.of_basis(basis)`` (`[M]` 0 of 33
     shipped (rule, L) rows equal), the frame becomes the head axis's
     generator, and the tree binds THIS space everywhere the moment
     space is spelled (ruling R-6.2c-1) — the metric-blind seam that
@@ -444,7 +444,7 @@ def basis_space(frame: FrameBase) -> FunctionSpace:
 
 def _parseval_dressed(frame: FrameBase) -> FunctionSpace:
     r"""The trial coefficient space dressed with the Parseval metric (see :func:`basis_space`)."""
-    space = frame.basis.space
+    space = FunctionSpace.of_basis(frame.basis)
     if frame.discrete_gram_structure is not GramStructure.DIAGONAL:
         # DENSE verdict (P7): the Parseval metric exists — it is just
         # not diagonal. Install the matrix pseudo-inverse of the
@@ -473,10 +473,11 @@ def test_space(frame: FrameBase) -> FunctionSpace:
     single-discipline frame the hierarchy replaced), whatever class spelled
     the frame — a :class:`~orpheus.numerics.frame.GalerkinFrame` or a
     Petrov–Galerkin frame handed its own trial basis as its test. A distinct
-    test basis reads its own coefficient space, ``frame.test.space``.
+    test basis reads its own coefficient space,
+    :meth:`FunctionSpace.of_basis(frame.test) <orpheus.numerics.space.FunctionSpace.of_basis>`.
     """
     return cached_on(frame, _SLOT, "test_space",
-        lambda: basis_space(frame) if frame.test is frame.basis else frame.test.space,
+        lambda: basis_space(frame) if frame.test is frame.basis else FunctionSpace.of_basis(frame.test),
     )
 
 

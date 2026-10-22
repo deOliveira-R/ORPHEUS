@@ -99,7 +99,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, ClassVar, Optional, Protocol
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 
 import numpy as np
 
@@ -191,18 +191,15 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
     count is the honest two-system sum, never a padded third block.
     """
 
-    interior_space: Optional[FunctionSpace] = field(
-        default=None, repr=False, compare=False,
-    )
-    trace_space: Optional[FunctionSpace] = field(
-        default=None, repr=False, compare=False,
-    )
+    # Required (a composite without its blocks is an illegal state, S7);
+    # kw_only sidesteps the inherited-defaults field-ordering rule.
+    interior_space: FunctionSpace = field(kw_only=True, repr=False, compare=False)
+    trace_space: FunctionSpace = field(kw_only=True, repr=False, compare=False)
 
     def identity_key(self) -> tuple[Any, ...]:
         """A direct sum is the keys of its two blocks (F7: the composite of
         two duals is not the composite of two spaces named like them)."""
-        interior, trace = self._require_blocks()
-        return ("full_field", interior.identity_key(), trace.identity_key())
+        return ("full_field", self.interior_space.identity_key(), self.trace_space.identity_key())
 
     def __repr__(self) -> str:
         return f"FullFieldSpace({self.name!r}, shape={self.shape})"
@@ -265,30 +262,12 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         that copied no block metric and read Euclidean (the slab full-field
         metric moved a probe by 20.0, its dual by 0.0).
         """
-        interior_space, trace_space = self._require_blocks()
+        interior_space, trace_space = self.interior_space, self.trace_space
         return FullFieldSpace.from_blocks(interior_space.dual(), trace_space.dual())
 
     # ------------------------------------------------------------------
     # Direct-sum metric dispatch (per-block, on a composite field)
     # ------------------------------------------------------------------
-
-    def _require_blocks(self) -> tuple[FunctionSpace, FunctionSpace]:
-        r"""Return the ``(interior_space, trace_space)`` pair, guarding the bare-constructor footgun.
-
-        The ``interior_space`` / ``trace_space`` fields default to ``None`` (the
-        ``compare=False`` dataclass-field convention), so a composite built via
-        the bare constructor instead of :meth:`from_blocks` would
-        ``AttributeError`` deep inside the adjoint path. Fail at the boundary
-        with intent instead (parse-don't-validate), and return the narrowed
-        non-``None`` pair so callers bind locals that type cleanly.
-        """
-        if self.interior_space is None or self.trace_space is None:
-            raise RuntimeError(
-                "FullFieldSpace has no block spaces; build it via "
-                "FullFieldSpace.from_blocks(interior_space, trace_space) (or "
-                "SNProblem.full_field_space), not the bare dataclass constructor."
-            )
-        return self.interior_space, self.trace_space
 
     @staticmethod
     def _rebuild(
@@ -328,7 +307,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         the SPD state metric ``G_sd = V_cell`` and the corner block by its
         trace metric — the family-blind dispatch needs no third arm.)
         """
-        interior_space, trace_space = self._require_blocks()
+        interior_space, trace_space = self.interior_space, self.trace_space
         return self._rebuild(
             x,
             interior_space.apply_metric(x.interior.values),
@@ -343,7 +322,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         (zero on the tangential null space ``|Ω·n| = 0``). Delegated per
         block.
         """
-        interior_space, trace_space = self._require_blocks()
+        interior_space, trace_space = self.interior_space, self.trace_space
         return self._rebuild(
             x,
             interior_space.apply_inverse_metric(x.interior.values),
@@ -353,7 +332,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
     @property
     def rank(self) -> int:
         r"""A direct sum's rank is the sum of its blocks' ranks."""
-        interior_space, trace_space = self._require_blocks()
+        interior_space, trace_space = self.interior_space, self.trace_space
         return interior_space.rank + trace_space.rank
 
     def inner_product(self, x: CompositeField, y: CompositeField) -> float:
@@ -361,7 +340,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         :math:`\langle x, y\rangle_G = \langle x_{\rm bulk}, y_{\rm bulk}\rangle_{G_{\rm bulk}}
         + \langle x_{\rm trace}, y_{\rm trace}\rangle_{G_{\rm trace}}`.
         """
-        interior_space, trace_space = self._require_blocks()
+        interior_space, trace_space = self.interior_space, self.trace_space
         return (
             interior_space.inner_product(x.interior.values, y.interior.values)
             + trace_space.inner_product(

@@ -40,6 +40,8 @@ echoing whatever the production spelling happens to be.
 
 from __future__ import annotations
 
+from orpheus.numerics.space import FunctionSpace
+
 from fractions import Fraction
 
 import mpmath
@@ -56,7 +58,6 @@ from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBas
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.manifold import SPHERE
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.spaces.legendre_space import LegendreSpace
 from orpheus.numerics.symmetry import SubgroupOfO3
 
 pytestmark = [pytest.mark.foundation]
@@ -342,8 +343,8 @@ def test_the_basis_states_its_orbit_space_and_its_spent_group() -> None:
         basis = LegendreBasis(L=2, axis=axis)
         assert basis.domain == SPHERE.quotient(SubgroupOfO3.O2(axis))
         assert basis.invariance_group == SubgroupOfO3.O2(axis)
-        assert basis.space == LegendreSpace.from_L(2, axis)
-        assert basis.space.shape == (3,)
+        assert FunctionSpace.of_basis(basis) == FunctionSpace.of_basis(LegendreBasis(L=2, axis=axis))
+        assert FunctionSpace.of_basis(basis).shape == (3,)
 
     with pytest.raises(ValueError, match="axis must be x/y/z"):
         LegendreBasis(L=1, axis="w")
@@ -648,17 +649,18 @@ def test_the_space_name_is_READ_off_the_basis_domain_not_spelled_a_second_time()
     for axis in ("x", "y", "z"):
         for L in (0, 2, 4):
             basis = LegendreBasis(L=L, axis=axis)
-            space = LegendreSpace.from_L(L, axis)
-            assert space.name == f"legendre_space({basis.domain.name})"
-            assert space.name == f"legendre_space(S^2/O2_{axis})"
+            space = FunctionSpace.of_basis(LegendreBasis(L=L, axis=axis))
+            # since S7 the head axis carries the domain as its support
+            # (ruling 71); until then the space's NAME carried it
+            assert space.axes is not None and space.axes[0].support == basis.domain
+            assert space.axes[0].support == SPHERE.quotient(SubgroupOfO3.O2(axis))
             assert space.shape == (L + 1,)
-            assert space.spent_axis == axis
-            assert basis.space == space
+            assert FunctionSpace.of_basis(basis) == space
 
-    # three axes, three DISTINCT spaces at one shape — the reason the name
+    # three axes, three DISTINCT spaces at one shape — the reason the head
     # carries the entry at all.
-    spaces = [LegendreSpace.from_L(2, a) for a in ("x", "y", "z")]
-    assert len({s.name for s in spaces}) == 3
+    spaces = [FunctionSpace.of_basis(LegendreBasis(L=2, axis=a)) for a in ("x", "y", "z")]
+    assert len(set(spaces)) == 3
     assert len({s.shape for s in spaces}) == 1
 
 
@@ -669,7 +671,7 @@ def test_moving_the_basis_DOMAIN_moves_the_space_name(
     proves it is named.
 
     Re-pointing ``LegendreBasis.domain`` at a DIFFERENT catalogue entry must
-    move ``LegendreSpace.from_L``'s name, because the name is read from it.
+    move the head axis's support, because the support is read from it (S7; until then the space's name).
     The control is the unpatched call in the same test: it reads the honest
     name, so a patch that silently failed to install would not be mistaken
     for a passing gate (`vv-principles` #17 — the harness lies before the
@@ -680,8 +682,8 @@ def test_moving_the_basis_DOMAIN_moves_the_space_name(
     frozen dataclass and would read as "the name does not follow the
     domain".
     """
-    honest = LegendreSpace.from_L(2, "x")
-    assert honest.name == "legendre_space(S^2/O2_x)"
+    honest = FunctionSpace.of_basis(LegendreBasis(L=2, axis="x"))
+    assert honest.axes is not None and honest.axes[0].support == SPHERE.quotient(SubgroupOfO3.O2("x"))
 
     decoy = SPHERE.quotient(SubgroupOfO3.O2("z"))
     assert decoy.name == "S^2/O2_z"
@@ -689,9 +691,9 @@ def test_moving_the_basis_DOMAIN_moves_the_space_name(
         LegendreBasis, "domain", property(lambda self: decoy), raising=True
     )
     assert LegendreBasis(L=2, axis="x").domain is decoy   # the patch installed
-    moved = LegendreSpace.from_L(2, "x")
-    assert moved.name == "legendre_space(S^2/O2_z)", moved.name
-    assert moved.name != honest.name
-    # shape and the spent-axis field are NOT read off the domain, so they
-    # must be unmoved — which pins that the patch changed one thing.
-    assert moved.shape == honest.shape and moved.spent_axis == honest.spent_axis
+    moved = FunctionSpace.of_basis(LegendreBasis(L=2, axis="x"))
+    assert moved.axes is not None and moved.axes[0].support is decoy
+    assert moved != honest
+    # the shape and the layout are NOT read off the domain, so they must be
+    # unmoved — which pins that the patch changed one thing.
+    assert moved.shape == honest.shape and moved.axes[0].layout == honest.axes[0].layout

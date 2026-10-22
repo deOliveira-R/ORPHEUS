@@ -23,6 +23,9 @@ constructed on the same frame faces.
 
 from __future__ import annotations
 
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.numerics.space import FunctionSpace
+
 import numpy as np
 import pytest
 
@@ -51,7 +54,8 @@ from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.metric import _DENSE_METRIC_RCOND, DenseMetric, FactoredMetric
 from orpheus.numerics.operator import NotInvertible
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
-from orpheus.numerics.spaces import SphericalHarmonicSpace
+from orpheus.numerics.coefficient_layout import HarmonicLayout
+from orpheus.numerics.spaces import head_layout
 from tests._harness.predicates import (
     STRUCTURAL_ABSENT,
     assert_inverse_adjoint_contract,
@@ -168,13 +172,13 @@ def test_basis_space_is_the_spherical_harmonic_space(sh_frame):
     # re-DRESSED with the Parseval measure (its head axis re-weighted, the
     # frame its generator), so since the identity flip (CS4c step 6, item
     # 6.2c-ii) it is a DIFFERENT space from the continuum mint, same family,
-    # same order, same name; the Frame caches it and shares it across the faces.
-    assert isinstance(frame_faces.basis_space(frame), SphericalHarmonicSpace)
-    assert frame_faces.basis_space(frame).L == L and frame_faces.basis_space(frame).shape == (L + 1, 2 * L + 1)
-    assert frame_faces.basis_space(frame).name == frame.basis.space.name == SphericalHarmonicSpace.from_L(L).name
-    assert frame_faces.basis_space(frame) != frame.basis.space
-    assert frame_faces.basis_space(frame) != SphericalHarmonicSpace.from_L(L)
-    assert frame.basis.space == SphericalHarmonicSpace.from_L(L)
+    # same order (since S7 one layout, read off the head axis); the Frame caches
+    # it and shares it across the faces.
+    assert head_layout(frame_faces.basis_space(frame)) == HarmonicLayout(L)
+    assert frame_faces.basis_space(frame).shape == (L + 1, 2 * L + 1)
+    assert frame_faces.basis_space(frame) != FunctionSpace.of_basis(frame.basis)
+    assert frame_faces.basis_space(frame) != FunctionSpace.of_basis(SphericalHarmonicBasis(L=L))
+    assert FunctionSpace.of_basis(frame.basis) == FunctionSpace.of_basis(SphericalHarmonicBasis(L=L))
     assert frame_faces.basis_space(frame).axes is not None and frame_faces.basis_space(frame).axes[0].origin.frame is frame
     # the analysis codomain / reconstruction domain are that same space
     assert frame_faces.FrameAnalysis.of(frame).codomain is frame_faces.basis_space(frame)
@@ -683,7 +687,7 @@ def test_parseval_dressing_installed_on_diagonal_frames(make_frame):
     """
     frame = make_frame()
     assert frame.discrete_gram_structure is GramStructure.DIAGONAL
-    diag = np.diagonal(frame.discrete_gram).reshape(frame.basis.space.shape)
+    diag = np.diagonal(frame.discrete_gram).reshape(FunctionSpace.of_basis(frame.basis).shape)
     live = diag > 0.0
     metric = _dressed_measure(frame)
     assert metric is not None
@@ -789,7 +793,7 @@ def test_parseval_reds_under_the_pre_repair_continuum_metric():
     wrong-structure reading discriminates loaded from blind).
     """
     frame = frame_faces.angular_frame(Quadrature.level_symmetric(4), 1)
-    undressed = SphericalHarmonicSpace.from_L(1)
+    undressed = FunctionSpace.of_basis(SphericalHarmonicBasis(L=1))
     # frame_faces builds each face once into the frame's private "_frame_faces"
     # slot — pre-seeding it IS the pre-repair frame; no production code is
     # touched and nothing needs undoing.
@@ -852,7 +856,7 @@ def test_the_slab_frame_is_DIAGONAL_after_the_err080_repair():
     assert np.linalg.matrix_rank(gram) == 3
 
     # the fabricated slots are UNSPELLABLE — not zeroed, absent
-    assert frame.basis.space.shape == (3,)
+    assert FunctionSpace.of_basis(frame.basis).shape == (3,)
     with pytest.raises(IndexError):
         _ = gram[2, 3]
 
@@ -930,8 +934,9 @@ def test_indicator_frame_parseval_metric_is_the_inverse_region_mass():
         [0.0, 2.0, 4.0, 5.0], [0.5, 1.5, 2.5, 3.5], [1.0, 1.0, 2.0, 1.0],
     )  # R2 = [4, 5] is empty
     assert frame.discrete_gram_structure is GramStructure.DIAGONAL
+    # axis-built since S7 (the indicator head, ruling 81): the measure is the head axis's
     np.testing.assert_allclose(
-        frame_faces.basis_space(frame).inner_product_weights, [0.5, 1.0 / 3.0, 0.0],
+        frame_faces.basis_space(frame).axes[0].weights, [0.5, 1.0 / 3.0, 0.0],
     )
     f = np.array([10.0, 10.0, 30.0, 30.0])  # constant per region — band-limited
     phi = frame_faces.FrameAnalysis.of(frame).apply(f)
@@ -957,7 +962,7 @@ def test_overlap_frame_measures_dense_while_declaring_partition_of_unity():
     frame = _overlap_frame()
     assert frame.basis.gram_structure is GramStructure.PARTITION_OF_UNITY  # declared
     assert frame.discrete_gram_structure is GramStructure.DENSE    # measured
-    assert isinstance(frame_faces.basis_space(frame).metric, DenseMetric)       # dressed (P7)
+    assert isinstance(frame_faces.basis_space(frame)._overlay_forms()[0], DenseMetric)  # dressed (P7), positioned on the head axis (S7)
     assert frame_faces.basis_space(frame).inner_product_weights is None         # ≠ Euclidean
     np.testing.assert_allclose(
         frame_faces.project(frame, np.array([2.0, 4.0, 6.0])), [8.0 / 3.0, 16.0 / 3.0],
@@ -982,7 +987,6 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
     the arrow's ends, its diagonal and its value on the pre-seeded
     dense-dressed frame (the same idiom as the pre-repair-metric red gate).
     """
-    from dataclasses import replace as _replace
 
     from orpheus.numerics.frame_faces import CrossGramInverse
     from orpheus.numerics.metric import DenseMetric
@@ -997,9 +1001,9 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
         nodes=np.array([0.0, 0.5, 1.0]), weights=np.ones(3), support=RealSpace(1),
     )
     frame = GalerkinFrame(ob, measure)
-    dressed = _replace(
-        frame.basis.space,
-        metric=DenseMetric.inverse_of(frame.discrete_gram),
+    # axis-built since S7: the dense form is POSITIONED over the head axis
+    dressed = FunctionSpace.of_basis(frame.basis)._with_overlay(
+        (DenseMetric.inverse_of(frame.discrete_gram),),
     )
     vars(frame)["_frame_faces"] = {"basis_space": dressed}  # pre-seed the frame_faces cache
     assert frame_faces.test_space(frame) is dressed  # the Galerkin identity holds on the seed
@@ -1054,7 +1058,7 @@ def _dressed_measure(frame) -> np.ndarray | None:
 
 def _continuum_measure(frame) -> np.ndarray:
     """The basis's own CONTINUUM Gram — the head axis's measure on ``basis.space`` (axis-built since item 6.2c-ii)."""
-    space = frame.basis.space
+    space = FunctionSpace.of_basis(frame.basis)
     measure = space.axes[0].weights if space.axes is not None else space.inner_product_weights
     assert measure is not None
     return np.asarray(measure)
@@ -1342,14 +1346,14 @@ def test_the_dressing_lands_parseval_on_the_production_anisotropic_frame():
     frame = frame_faces.angular_frame(Quadrature.product(4, 4), 2)
     assert frame.discrete_gram_structure is GramStructure.DENSE
     rng = np.random.default_rng(1234)
-    c = rng.standard_normal(frame.basis.space.shape)
+    c = rng.standard_normal(FunctionSpace.of_basis(frame.basis).shape)
     psi = frame.basis.synthesize(c, frame.table)
     phi = frame_faces.FrameAnalysis.of(frame).apply(psi)
     norm_w = frame_faces.measure_space(frame).inner_product(psi, psi)
     assert frame_faces.basis_space(frame).inner_product(phi, phi) / norm_w == pytest.approx(
         1.0, rel=1e-12
     )
-    pre_repair = frame.basis.space.inner_product(phi, phi) / norm_w
+    pre_repair = FunctionSpace.of_basis(frame.basis).inner_product(phi, phi) / norm_w
     assert pre_repair > 10.0, f"pre-repair metric read {pre_repair:.4f}"
 
 

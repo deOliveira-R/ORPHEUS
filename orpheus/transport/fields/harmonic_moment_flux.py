@@ -39,7 +39,7 @@ D-E Field-inheritance migration:
   :math:`\mathrm{<angular\ head>}(L) \otimes
   \mathrm{CellGroupSpace}(ng, nx, ny)`, the head being the coefficient
   space of the basis the mesh's quadrature frame bound at :math:`L`
-  (:math:`\mathrm{SphericalHarmonicSpace}(L)` on a full-sphere rule;
+  (the spherical-harmonic head of order :math:`L` on a full-sphere rule;
   READ off the frame since #429 tracker 2.5, never minted from
   :math:`L`) — the **first
   TensorProductSpace consumer in a typed Field** (D-B's L1 primitive
@@ -51,7 +51,7 @@ D-E Field-inheritance migration:
 * The ``L`` parameter is encoded in ``space.shape`` (and queryable via
   the composition-tree walk per Issue #207); the redundant ``L`` field
   is kept as a top-level attribute for ergonomic access — equivalent
-  to the head factor's own ``L`` (``self.space.factors[0].L``) but avoiding
+  to the head's layout order (``head_layout(self.space.factors[0]).L``) but avoiding
   the traversal at hot-path read sites.
 * Introduces :meth:`from_problem_and_L` for ergonomic 3-arg construction
   (the kw_only constructor requires explicit ``space``; the classmethod
@@ -96,8 +96,8 @@ References
   flux.
 * Depth B plan §3.3, §6 step D-E.
 * Issue #207 — architectural pattern: composition queries traverse the
-  tensor-product tree; the head factor's own ``L`` (``space.factors[0].L``)
-  is the composition-aware way to read the truncation order.
+  tensor-product tree; the head's layout order
+  (``head_layout(space.factors[0]).L``, since S7) is the composition-aware way to read the truncation order.
 * Issue #197 PR-TYPED-4 — original typed-wrapper introduction (now
   superseded by this Field-inheriting form).
 """
@@ -134,7 +134,7 @@ class HarmonicMomentFlux(MomentField):
         :class:`TensorProductSpace` of the form
         :math:`\mathrm{<angular\ head>}(L) \otimes
         \mathrm{CellGroupSpace}` — the head READ off the mesh's quadrature
-        frame (:math:`\mathrm{SphericalHarmonicSpace}(L)` on a
+        frame (the spherical-harmonic head of order :math:`L` on a
         full-sphere rule). Construction via
         :meth:`from_problem_and_L` is the canonical path; direct kw-only
         construction is for callers that already hold a constructed
@@ -156,7 +156,7 @@ class HarmonicMomentFlux(MomentField):
     The :meth:`_check_partner` override adds the SN-specific
     mesh-identity check on top of Field's class-and-space gate. The
     ``L`` match is implicit via the space check (different ``L`` values
-    produce different ``SphericalHarmonicSpace`` shapes, so different
+    produce different head shapes, so different
     ``space`` instances) but checked explicitly in :meth:`_check_partner`
     for a clearer error message at the L-mismatch site.
 
@@ -189,7 +189,7 @@ class HarmonicMomentFlux(MomentField):
                 f"HarmonicMomentFlux.l_block: l={l} out of range "
                 f"[0, {self.L}]"
             )
-        return self.values[self.head.degree_block(l)]
+        return self.values[self.head_layout.degree_block(l)]
 
     def isotropic_part(self) -> "HarmonicMomentFlux":
         r"""Return the :math:`\ell = 0` (isotropic) projection.
@@ -198,7 +198,7 @@ class HarmonicMomentFlux(MomentField):
         Used by the foldable-vs-residual scattering split when the
         consumer wants the :math:`P_0` content alone.
         """
-        iso = self.head.isotropic_slot
+        iso = self.head_layout.isotropic_slot
         out = np.zeros_like(self.values)
         out[iso] = self.values[iso]
         return HarmonicMomentFlux(
@@ -218,7 +218,7 @@ class HarmonicMomentFlux(MomentField):
         :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`.
         """
         out = self.values.copy()
-        out[self.head.isotropic_slot] = 0.0
+        out[self.head_layout.isotropic_slot] = 0.0
         return HarmonicMomentFlux(
             values=out, space=self.space, L=self.L,
             spatial_moments=self.spatial_moments,
@@ -265,7 +265,7 @@ class HarmonicMomentFlux(MomentField):
         # widened field that factor is the carrier's widened bulk carrying
         # the scheme's mass-weighted moment axis (item 6.2c-iii), so the
         # widened self-derive is honest too.
-        iso = self.head.isotropic_slot
+        iso = self.head_layout.isotropic_slot
         if space is not None:
             return ScalarFlux(values=self.values[iso].copy(), space=space)
         assert isinstance(self.space, TensorProductSpace)  # type-narrowing
@@ -290,7 +290,7 @@ class HarmonicMomentFlux(MomentField):
 
         The truncated space is a structural edit of the CURRENT space:
         the angular head factor is asked for ITS OWN family one order
-        down (``head.truncated(L_new)`` — a spherical-harmonic head
+        down (``truncated_head(head, L_new)`` — a spherical-harmonic head
         truncates to a spherical-harmonic head, a Legendre head to a
         Legendre head; #429 tracker 2.5, never re-minted from an integer)
         and every remaining factor (the cell-group bulk, carrying the
@@ -317,10 +317,11 @@ class HarmonicMomentFlux(MomentField):
         from operator import mul
 
         from orpheus.numerics.space import TensorProductSpace
+        from orpheus.numerics.spaces.moment_head import truncated_head
 
         assert isinstance(self.space, TensorProductSpace)  # type-narrowing
         head = self.head
-        new_head = head.truncated(L_new)
+        new_head = truncated_head(head, L_new)
         # CS4b: the trailing dims are the space's own shape contract
         # (everything after the head's axes — ng, spatial, and the optional
         # moment tail), and the kept block is the head's own leading corner

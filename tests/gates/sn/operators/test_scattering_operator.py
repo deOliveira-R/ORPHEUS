@@ -38,7 +38,6 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
-from orpheus.numerics.spaces.moment_head import MomentHead
 from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.operators.isotropic_transfer import (
@@ -1572,7 +1571,7 @@ class TestAnisoMomentSourcePath:
         # truncation (== 1 on this fixture, asserted below).
         assert op_p1.legendre_order == L
         out = op_p1.transfer.moment_source(
-            moments_values, skip_l0=False, head=op_p1.frame.basis.space,
+            moments_values, skip_l0=False, head=op_p1.frame.basis.layout,
         )
         expected = self._load_snapshot()["p1_apply_legendre_scattering_moments"]
         np.testing.assert_array_equal(out, expected)
@@ -1613,8 +1612,7 @@ class TestAnisoMomentSourcePath:
         L = 3
         moments_values = frame_faces.FrameAnalysis.of(op_p3.frame).apply(psi_p3.values)
         assert op_p3.legendre_order == L
-        head = op_p3.frame.basis.space
-        assert isinstance(head, MomentHead)
+        head = op_p3.frame.basis.layout
         out = op_p3.transfer.moment_source(
             moments_values, skip_l0=False, head=head,
         )

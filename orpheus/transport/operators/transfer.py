@@ -88,7 +88,7 @@ import numpy as np
 
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.basis.base import TruncatedBasis
-from orpheus.numerics.spaces.moment_head import MomentHead
+from orpheus.numerics.spaces.moment_head import head_layout
 from orpheus.transport.frames import (
     HarmonicAnalysisOperator,
     HarmonicFrame,
@@ -119,6 +119,7 @@ from orpheus.transport.operators.lift import interior_space_of
 from orpheus.numerics import frame_faces
 
 if TYPE_CHECKING:
+    from orpheus.numerics.coefficient_layout import DegreeLayout
     from orpheus.numerics.frame import FrameBase
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
@@ -126,15 +127,9 @@ if TYPE_CHECKING:
 __all__ = ["LegendreMomentTransfer", "TransferOperator"]
 
 
-def _moment_head_of(space: "FunctionSpace | None", owner: str) -> MomentHead:
-    """Narrow a moment operator's end to the MomentHead surface, loudly."""
-    if not isinstance(space, MomentHead):
-        raise TypeError(
-            f"{owner}: the moment ends must be an angular HEAD space "
-            f"(SphericalHarmonicSpace or LegendreSpace); got "
-            f"{type(space).__name__}."
-        )
-    return space
+def _moment_head_of(space: "FunctionSpace | None", owner: str) -> "DegreeLayout":
+    """The degree layout of a moment operator's end, through the one door (refusing loudly)."""
+    return head_layout(space, owner=owner)
 
 
 @dataclass(eq=False)
@@ -219,7 +214,7 @@ class LegendreMomentTransfer(BoundOperator):
     ) -> "LegendreMomentTransfer":
         r"""Tier-2 mint: bring a channel's field to the basis's order and
         bind the endomorphic ends on the BASIS's own coefficient space
-        (``basis.space`` supplying both — the endomorphism sugar lives
+        (``FunctionSpace.of_basis(basis)`` supplying both — the endomorphism sugar lives
         HERE, never on the exact ctor). The basis names the FAMILY (#429
         tracker 2.5: an integer cannot say which — full harmonics on a
         sphere rule, Legendre on a 1-D rule), so the ends are that basis's
@@ -228,7 +223,7 @@ class LegendreMomentTransfer(BoundOperator):
         the frame's Parseval-dressed ``basis_space`` through the exact
         ctor (:meth:`TransferOperator._moment_transfer`), the ONE moment
         space the tree carries since CS4c step 6 item 6.2c-ii."""
-        ends = basis.space
+        ends = FunctionSpace.of_basis(basis)
         return cls(
             transfer.at_order(basis.L),
             skip_l0=skip_l0,
@@ -265,7 +260,7 @@ class LegendreMomentTransfer(BoundOperator):
         )
 
     @property
-    def _head(self) -> MomentHead:
+    def _head(self) -> "DegreeLayout":
         r"""The angular HEAD the moment verbs read the layout from — this
         operator's own domain (the bound frame's coefficient space)."""
         return _moment_head_of(self.domain, type(self).__name__)

@@ -72,7 +72,8 @@ from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 
-from orpheus.numerics.axis import EnergyAxis
+from orpheus.numerics.axis import EnergyAxis, FromBasis
+from orpheus.numerics.coefficient_layout import CellLayout
 from orpheus.numerics.instance_cache import cached_on
 from orpheus.numerics.operator import LinearOperator
 
@@ -450,6 +451,18 @@ def _mint(space: "FunctionSpace", axis_label: str) -> _AxisMarginal:
             f"condensation: use EnergyGrid.overlap_to / the Petrov-Galerkin "
             f"condensation frame, not a drop-form marginal."
         )
+    match axis.origin:
+        case FromBasis(basis) if isinstance(basis.layout, CellLayout):
+            raise TypeError(
+                f"axis marginal: axis {axis_label!r} of {space!r} is a "
+                f"partition's raw coefficient head, which is MEASURE-FREE: its "
+                f"cells carry volume only against the fine measure a frame binds "
+                f"(a spherical shell is 4πr²Δr, a coarse group counts its fine "
+                f"groups). Integrate the frame's dressed head "
+                f"(frame_faces.basis_space(frame)), whose unit is the cell masses."
+            )
+        case _:
+            pass
     if len(axes) == 1:
         raise ValueError(
             f"axis marginal: {space!r} has only the {axis_label!r} axis — its "
@@ -473,6 +486,13 @@ def _mint(space: "FunctionSpace", axis_label: str) -> _AxisMarginal:
     flat_unit = unit.ravel()
     flat_covector = covector.ravel()
     mass = math.fsum(flat_covector * flat_unit)
+    # The mass is ZERO when it is round-off of its own terms' scale (a signed
+    # measure or a modal head whose span is orthogonal to the constants): a
+    # section dividing by a 1e-33 mass would amplify by 1e17, not refuse
+    # (`[M]` S7 qa F1, the gauge's pre-declaration units).
+    scale = math.fsum(np.abs(flat_covector * flat_unit))
+    if abs(mass) <= 64.0 * np.finfo(float).eps * scale:
+        mass = 0.0
 
     retraction = AxisRetractionOperator(
         full_space=space, marginal_space=marginal_space,

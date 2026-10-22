@@ -33,9 +33,8 @@ from typing import Any
 import numpy as np
 import pytest
 
-from orpheus.numerics.axis import (
-    Axis, BasisKind, Declared, EnergyAxis, FromMeasure, HarmonicAxis, LegendreAxis, Modal,
-)
+from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis, FromMeasure, Modal
+from orpheus.numerics.coefficient_layout import CellLayout, HarmonicLayout, LegendreLayout, ModeLayout
 from orpheus.numerics.content import FrozenMapping
 from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
@@ -75,18 +74,6 @@ def _energy(**kw) -> EnergyAxis:
 _E0 = np.array([1.0, 0.0])
 
 
-def _harmonic(**kw) -> HarmonicAxis:
-    base: dict[str, Any] = dict(label="angular", shape=(2,), weights=_W, origin=Declared(Modal(_E0)))
-    return HarmonicAxis(**(base | kw))
-
-
-def _legendre(**kw) -> LegendreAxis:
-    base: dict[str, Any] = dict(
-        label="angular", shape=(2,), weights=_W, origin=Declared(Modal(_E0)), spent_axis="z",
-    )
-    return LegendreAxis(**(base | kw))
-
-
 def _read_only(array: np.ndarray) -> np.ndarray:
     array.flags.writeable = False
     return array
@@ -106,6 +93,9 @@ def _origin_legs(build) -> dict:
     return {
         "support": (leg("minted from a spatial measure", lambda: build(origin=FromMeasure(_measure())), "nodes"),),
         "nodes": (leg("atoms forged", lambda: _forged(build(), "nodes", _read_only(np.array([0.25, 0.75])))),),
+        # No lawful two-index sampled or declared axis carries a layout (only a
+        # basis's coefficient axis does); the leg forges it.
+        "layout": (leg("layout forged", lambda: _forged(build(), "layout", LegendreLayout(1))),),
     }
 
 
@@ -136,10 +126,11 @@ def _base_legs(build) -> dict:
         "weights": (leg("one weight", lambda: build(weights=np.array([0.5, 2.5]))),),
         "support": (leg("support forged", lambda: _forged(build(), "support", RealSpace(1))),),
         "nodes": (leg("atoms forged", lambda: _forged(build(), "nodes", _read_only(np.array([0.25, 0.75])))),),
+        "layout": (leg("layout forged", lambda: _forged(build(), "layout", LegendreLayout(1))),),
     }
 
 
-_PARTS = ("label", "shape", "weights", "kind", "support", "nodes")
+_PARTS = ("label", "shape", "weights", "kind", "support", "nodes", "layout")
 
 _AXIS = Entry(
     cls=Axis, base=_axis, parts=_PARTS,
@@ -169,24 +160,43 @@ _ENERGY = Entry(
         "weights": (leg("weights forged", lambda: _forged(_energy(), "weights", _read_only(np.array([0.5, 1.5])))),),
         "support": (leg("support forged", lambda: _forged(_energy(), "support", RealSpace(1))),),
         "nodes": (leg("atoms forged", lambda: _forged(_energy(), "nodes", _read_only(np.array([0.25, 0.75])))),),
+        "layout": (leg("layout forged", lambda: _forged(_energy(), "layout", LegendreLayout(1))),),
         "edges": (leg("a group edge", lambda: _energy(edges=np.array([1.0, 2.5, 3.0]))),),
     },
     pairs=(("two builds", _energy, _energy),),
 )
 
-_HARMONIC = Entry(
-    cls=HarmonicAxis, base=_harmonic, parts=_PARTS,
-    perturb=_base_legs(_harmonic),
-    pairs=(("two builds", _harmonic, _harmonic),),
+_HARMONIC_LAYOUT = Entry(
+    cls=HarmonicLayout, base=lambda: HarmonicLayout(2), parts=("L",),
+    perturb={"L": (leg("another order", lambda: HarmonicLayout(3)),)},
+    pairs=(("two builds", lambda: HarmonicLayout(2), lambda: HarmonicLayout(2)),),
 )
 
-_LEGENDRE = Entry(
-    cls=LegendreAxis, base=_legendre,
-    parts=_PARTS + ("spent_axis",),
-    perturb=_base_legs(_legendre) | {
-        "spent_axis": (leg("the other pole", lambda: _legendre(spent_axis="x")),),
+_LEGENDRE_LAYOUT = Entry(
+    cls=LegendreLayout, base=lambda: LegendreLayout(2), parts=("L",),
+    perturb={"L": (leg("another order", lambda: LegendreLayout(3)),)},
+    pairs=(("two builds", lambda: LegendreLayout(2), lambda: LegendreLayout(2)),),
+)
+
+_CELL_LAYOUT = Entry(
+    cls=CellLayout, base=lambda: CellLayout((np.array([0.0, 1.0, 2.0]),)), parts=("edges",),
+    perturb={"edges": (
+        leg("shifted edges, equal widths (H2b)", lambda: CellLayout((np.array([1.0, 2.0, 3.0]),))),
+        leg("one interior edge", lambda: CellLayout((np.array([0.0, 0.5, 2.0]),))),
+    )},
+    pairs=(
+        ("two builds", lambda: CellLayout((np.array([0.0, 1.0, 2.0]),)), lambda: CellLayout((np.array([0.0, 1.0, 2.0]),))),
+        ("edges as ints vs floats", lambda: CellLayout((np.array([0, 1, 2]),)), lambda: CellLayout((np.array([0.0, 1.0, 2.0]),))),
+    ),
+)
+
+_MODE_LAYOUT = Entry(
+    cls=ModeLayout, base=lambda: ModeLayout(np.array([0.5, 0.0]), "modes"), parts=("unit", "label"),
+    perturb={
+        "unit": (leg("another constant projection", lambda: ModeLayout(np.array([0.5, 0.25]), "modes")),),
+        "label": (leg("another family", lambda: ModeLayout(np.array([0.5, 0.0]), "other")),),
     },
-    pairs=(("two builds", _legendre, _legendre),),
+    pairs=(("two builds", lambda: ModeLayout(np.array([0.5, 0.0]), "modes"), lambda: ModeLayout(np.array([0.5, 0.0]), "modes")),),
 )
 
 _MODAL = Entry(
@@ -215,7 +225,9 @@ _FROZEN_MAPPING = Entry(
     ),
 )
 
-ROSTER: tuple[Entry, ...] = (_AXIS, _ENERGY, _HARMONIC, _LEGENDRE, _MODAL, _FROZEN_MAPPING)
+ROSTER: tuple[Entry, ...] = (
+    _AXIS, _ENERGY, _MODAL, _HARMONIC_LAYOUT, _LEGENDRE_LAYOUT, _CELL_LAYOUT, _MODE_LAYOUT, _FROZEN_MAPPING,
+)
 
 
 @pytest.mark.parametrize("entry", ROSTER, ids=lambda e: e.id)

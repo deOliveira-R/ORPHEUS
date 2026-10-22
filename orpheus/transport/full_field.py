@@ -243,13 +243,6 @@ class Composite(Generic[Interior, Boundary]):
         """
         interior_space = space.interior_space
         trace_space = space.trace_space
-        if interior_space is None or trace_space is None:
-            raise ValueError(
-                f"{cls.__name__}.zeros: the composite space must carry BOTH "
-                f"block spaces (interior_space / trace_space) — a zero "
-                f"composite is an element of the full direct sum; got "
-                f"{space!r}."
-            )
         return cls(
             interior=interior.zeros(interior_space),
             boundary=boundary.zeros(trace_space),

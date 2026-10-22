@@ -19,7 +19,7 @@ import pytest
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.spaces import SphericalHarmonicSpace
+from orpheus.numerics.space import FunctionSpace
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.frames.harmonic_frame import HarmonicFrame
 from orpheus.transport.kernels import N2N_MULTIPLICITY, FissionKernel, TransferKernel
@@ -109,7 +109,7 @@ class TestSFamilyTierTwoEquivalence:
 
     def test_moment_pair_from_material_xs_equals_the_exact_ctor(self):
         mat_xs = _mat_xs()
-        sh = SphericalHarmonicSpace.from_L(1)
+        sh = FunctionSpace.of_basis(SphericalHarmonicBasis(L=1))
         rich = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )

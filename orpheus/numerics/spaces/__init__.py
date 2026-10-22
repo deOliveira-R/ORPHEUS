@@ -5,9 +5,11 @@ The base :class:`~orpheus.numerics.space.FunctionSpace` lives in
 subclasses that carry domain-specific metadata beyond
 ``(name, shape, inner_product_weights)``:
 
-* :class:`SphericalHarmonicSpace` (P1.2) — moment-space carrier for SH
-  coefficients with the ``MomentMassMatrix`` diagonal already broadcast
-  to the storage layout.
+* :mod:`~orpheus.numerics.spaces.moment_head` — the one door a moment
+  head is read through, :func:`moment_head_axis` (its layout, since S7 a
+  value the basis carries; the head space is the generic
+  :meth:`~orpheus.numerics.space.FunctionSpace.of_basis` space, and the
+  ``SphericalHarmonicSpace`` / ``LegendreSpace`` classes retired).
 
 * :class:`AngularTraceSpace` (#205 / #201 unification) — the single
   whole-boundary trace function space. Carries the :class:`FaceLayout`
@@ -50,11 +52,7 @@ References
 from __future__ import annotations
 
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-from orpheus.numerics.spaces.legendre_space import LegendreSpace
-from orpheus.numerics.spaces.moment_head import MomentHead
-from orpheus.numerics.spaces.spherical_harmonic_space import (
-    SphericalHarmonicSpace,
-)
+from orpheus.numerics.spaces.moment_head import head_layout, moment_head_axis, truncated_head
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.numerics.spaces.angular_trace_space import (
     AngularFaceTraceSpace,
@@ -66,9 +64,9 @@ __all__ = [
     "AngularFaceTraceSpace",
     "AngularTraceSpace",
     "FullFieldSpace",
-    "LegendreSpace",
-    "MomentHead",
     "ScalarTraceSpace",
-    "SphericalHarmonicSpace",
     "TraceRole",
+    "head_layout",
+    "moment_head_axis",
+    "truncated_head",
 ]

@@ -28,7 +28,8 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
-from orpheus.numerics.spaces.moment_head import MomentHead
+from orpheus.numerics.coefficient_layout import DegreeLayout, HarmonicLayout, LegendreLayout
+from orpheus.numerics.spaces.moment_head import head_layout, truncated_head
 from orpheus.transport.material_field import TransferMaterialField
 from orpheus.numerics import frame_faces
 
@@ -80,11 +81,10 @@ def _head_shape(problem: SNProblem, L: int) -> tuple[int, ...]:
     return _head_of(problem, L).shape
 
 
-def _head_of(problem: SNProblem, L: int) -> MomentHead:
-    """The angular head OBJECT — the surface that says where the isotropic slot and each degree block live."""
-    head = frame_faces.basis_space(frame_faces.angular_frame(problem.quad, L))   # the frame's Parseval-dressed head — the ONE moment space (6.2c-ii)
-    assert isinstance(head, MomentHead)
-    return head
+def _head_of(problem: SNProblem, L: int) -> DegreeLayout:
+    """The angular head's LAYOUT — the value that says where the isotropic slot and each degree block live (S7: read off the head axis)."""
+    # the frame's Parseval-dressed head — the ONE moment space (6.2c-ii)
+    return head_layout(frame_faces.basis_space(frame_faces.angular_frame(problem.quad, L)))
 
 
 def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNProblem:
@@ -166,42 +166,31 @@ class TestHarmonicMomentFluxConstruction:
     ) -> None:
         r"""D-E invariant: the field's ``space`` is ``<angular head> ⊗ cells``.
 
-        ⛔ **RE-KEYED 2026-09-02 (#429).** The head used to be asserted as a
-        :class:`SphericalHarmonicSpace` unconditionally. **Two** families now
-        ship, and which one a field carries is READ off the frame the
-        quadrature bound: the rectangular harmonics on a sphere rule, the
-        FLAT :class:`LegendreSpace` on a 1-D rule's :math:`S^2/O(2)_x`. Both
-        rows are asserted below, because a gate keyed on one family would
-        certify the other by accident.
-
-        The moment-axis structure stays type-visible through the composition
-        tree (Issue #207): ``phi.space.factors[0].L == phi.L`` on both.
+        ⛔ **RE-KEYED 2026-09-02 (#429).** The head used to be asserted as the
+        spherical-harmonic family unconditionally. **Two** families ship, and
+        which one a field carries is READ off the frame the quadrature bound:
+        the rectangular harmonics on a sphere rule, the FLAT Legendre head on
+        a 1-D rule's :math:`S^2/O(2)_x`. Both rows are asserted below, because
+        a gate keyed on one family would certify the other by accident. Since
+        S7 the family is the head axis's LAYOUT (ruling 81), not a space class.
         """
         from orpheus.numerics.space import FunctionSpace, TensorProductSpace
-        from orpheus.numerics.spaces.legendre_space import LegendreSpace
-        from orpheus.numerics.spaces.spherical_harmonic_space import (
-            SphericalHarmonicSpace,
-        )
 
         L = 2
-        for mesh, family, head_shape in (
-            (_slab_mesh(), LegendreSpace, (L + 1,)),
-            (_2d_mesh(ng=1), SphericalHarmonicSpace, (L + 1, 2 * L + 1)),
+        for mesh, family in (
+            (_slab_mesh(), LegendreLayout(L)),
+            (_2d_mesh(ng=1), HarmonicLayout(L)),
         ):
             phi = HarmonicMomentFlux.zeros_for_problem_and_L(mesh, L=L)
             assert isinstance(phi.space, TensorProductSpace)
             assert len(phi.space.factors) == 2
 
             head = phi.space.factors[0]
-            assert isinstance(head, family), (
+            assert head_layout(head) == family, (
                 f"{type(frame_faces.angular_frame(mesh.quad, L).basis).__name__} should induce "
-                f"a {family.__name__} head; got {type(head).__name__}"
+                f"the {family!r} head; got {head_layout(head)!r}"
             )
-            # …and whichever family it is, it satisfies the ONE surface every
-            # consumer reads (the structural Protocol, not the class).
-            assert isinstance(head, MomentHead)
-            assert head.L == L
-            assert head.shape == head_shape
+            assert head.shape == family.shape
             assert head is phi.head
 
             cells = phi.space.factors[1]
@@ -220,7 +209,7 @@ class TestHarmonicMomentFluxSlicing:
         m = _slab_mesh()
         L = 2
         phi = HarmonicMomentFlux.zeros_for_problem_and_L(m, L)
-        head = phi.head
+        head = phi.head_layout
         for l in range(L + 1):
             block = phi.l_block(l)
             # the block's own leading extent is the HEAD's degree block —
@@ -237,7 +226,7 @@ class TestHarmonicMomentFluxSlicing:
             (*_head_shape(m, L), m.ng, *m.spatial_shape),
         )
         phi = HarmonicMomentFlux.from_problem_and_L(vals, m, L)
-        head = phi.head
+        head = phi.head_layout
         for l in range(L + 1):
             np.testing.assert_array_equal(
                 phi.l_block(l), vals[head.degree_block(l)],
@@ -260,7 +249,7 @@ class TestHarmonicMomentFluxSlicing:
         )
         phi = HarmonicMomentFlux.from_problem_and_L(vals, m, L)
         iso = phi.isotropic_part()
-        head = phi.head
+        head = phi.head_layout
         assert isinstance(iso, HarmonicMomentFlux)
         assert iso.L == L
         # the isotropic slot is preserved — its INDEX is the head's to say
@@ -290,7 +279,7 @@ class TestHarmonicMomentFluxSlicing:
         )
         phi = HarmonicMomentFlux.from_problem_and_L(vals, m, L)
         aniso = phi.anisotropic_part()
-        head = phi.head
+        head = phi.head_layout
         assert isinstance(aniso, HarmonicMomentFlux)
         # the isotropic slot is zeroed…
         np.testing.assert_array_equal(aniso.values[head.isotropic_slot], 0.0)
@@ -360,7 +349,7 @@ class TestHarmonicMomentFluxScalarFlux:
         sf = phi.scalar_flux()
         assert isinstance(sf, ScalarFlux)
         assert sf.values.shape == (m.ng, *m.spatial_shape)
-        np.testing.assert_array_equal(sf.values, vals[phi.head.isotropic_slot])
+        np.testing.assert_array_equal(sf.values, vals[phi.head_layout.isotropic_slot])
 
     def test_scalar_flux_agrees_with_integrate_angular(self) -> None:
         """``M(\\psi).scalar_flux() == \\psi.integrate_angular()``.
@@ -413,9 +402,9 @@ class TestHarmonicMomentFluxTruncate:
             )
             # ⭐ and the truncated head stays in the SAME family — a flat
             # head truncates to a flat head, a rectangular one to a
-            # rectangular one (``MomentHead.truncated`` is the family's own
+            # rectangular one (``truncated_head`` re-mints through the head's origin,
             # verb, not a shape literal).
-            assert trunc.head == phi.head.truncated(L_new)
+            assert trunc.head == truncated_head(phi.head, L_new)
             # For each ℓ ≤ L_new, the (ℓ, m) entries inside |m|≤ℓ
             # match the source.
             for l in range(L_new + 1):
@@ -777,7 +766,7 @@ class TestRankOneAngularHead:
 
         # equality, not identity: the frame re-dresses the head per access and
         # LegendreSpace compares structurally (its axis) like every FunctionSpace.
-        assert phi.head == head
+        assert phi.head_layout == head
         assert phi.ng == mesh.ng
         np.testing.assert_array_equal(phi.scalar_flux().values, vals[0])
         np.testing.assert_array_equal(phi.isotropic_part().values[0], vals[0])

@@ -28,6 +28,8 @@ the F-0 physics relation re-pinned through the transport seam.
 """
 from __future__ import annotations
 
+from orpheus.numerics.space import FunctionSpace
+
 import numpy as np
 import pytest
 
@@ -38,7 +40,6 @@ from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
@@ -91,7 +92,7 @@ def _angular_values(m: SNProblem, seed: int) -> np.ndarray:
 
 def _head(m: SNProblem, L: int = _L):
     """The angular head this mesh's frame induces — the SINGLE source of the layout (#429)."""
-    return frame_faces.angular_frame(m.quad, L).basis.space
+    return FunctionSpace.of_basis(frame_faces.angular_frame(m.quad, L).basis)
 
 
 def _moment_values(m: SNProblem, seed: int, L: int = _L) -> np.ndarray:
@@ -232,8 +233,7 @@ class TestMint:
         from orpheus.numerics.space import TensorProductSpace
 
         assert isinstance(face.codomain, TensorProductSpace)
-        sh = face.codomain.find_factor(SphericalHarmonicSpace)
-        assert sh is frame_faces.basis_space(frame)
+        assert face.codomain.factors[0] is frame_faces.basis_space(frame)
 
     def test_mint_refuses_a_shape_only_angular_space(self) -> None:
         from orpheus.numerics.space import FunctionSpace

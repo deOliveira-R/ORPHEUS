@@ -50,6 +50,9 @@ surface); no physics claim rides here.
 
 from __future__ import annotations
 
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.numerics.basis.legendre_basis import LegendreBasis
+
 from collections.abc import Callable
 from dataclasses import replace
 
@@ -60,9 +63,8 @@ from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.metric import DenseMetric, FactoredMetric
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
-from orpheus.numerics.spaces.legendre_space import LegendreSpace
-from orpheus.numerics.spaces.moment_head import MomentHead
-from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
+from orpheus.numerics.coefficient_layout import HarmonicLayout, LegendreLayout
+from orpheus.numerics.spaces.moment_head import head_layout, moment_head_axis, truncated_head
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Modal
 
@@ -75,11 +77,9 @@ _HARMONIC_AXIS_LABEL = "harmonic"
 #    and the RETIRED dense-slot twin, re-built here as the comparison oracle ──
 
 
-#: The two shipped head families.  Typed as their union so the ``MomentHead``
-#: members (``L``, ``truncated``, ``degree_block``) resolve statically —
-#: ``FunctionSpace`` alone does not carry them (``coding-elegance`` #19: find
-#: the principled spelling before reaching for ``# type: ignore``).
-Head = SphericalHarmonicSpace | LegendreSpace
+#: A head is a plain axis-built space since S7 (ruling 81); its layout is read
+#: through :func:`head_layout`, not off a family class.
+Head = FunctionSpace
 
 
 def _dense_slot_twin[T: Head](head: T) -> T:
@@ -87,10 +87,9 @@ def _dense_slot_twin[T: Head](head: T) -> T:
     ``inner_product_weights`` slot, no axes (what ``from_L`` minted until CS4c
     step 6 item 6.2c-ii, 2026-09-08).
 
-    ``replace`` preserves every other subclass field (``L``, and
-    ``LegendreSpace.spent_axis``), so the only thing that moves is WHERE the
-    measure lives — the twin is the independent oracle for the bit-identity
-    rows and the name-built partner for the identity rows.
+    ``replace`` keeps the name and shape, so the only thing that moves is
+    WHERE the measure lives — the twin is the independent oracle for the
+    bit-identity rows and the name-built partner for the identity rows.
     """
     assert head.axes is not None and len(head.axes) == 1, "a production head is single-axis"
     w = head.axes[0].weights
@@ -113,14 +112,14 @@ def _bulk(ng: int = 2, spatial: tuple[int, ...] = (4, 3)) -> FunctionSpace:
 
 
 _HEADS: dict[str, Callable[[], Head]] = {
-    "sh_L0": lambda: SphericalHarmonicSpace.from_L(0),
-    "sh_L1": lambda: SphericalHarmonicSpace.from_L(1),
-    "sh_L2": lambda: SphericalHarmonicSpace.from_L(2),
-    "sh_L3": lambda: SphericalHarmonicSpace.from_L(3),
-    "legendre_L0": lambda: LegendreSpace.from_L(0, "x"),
-    "legendre_L1": lambda: LegendreSpace.from_L(1, "x"),
-    "legendre_L2": lambda: LegendreSpace.from_L(2, "x"),
-    "legendre_L3_z": lambda: LegendreSpace.from_L(3, "z"),
+    "sh_L0": lambda: FunctionSpace.of_basis(SphericalHarmonicBasis(L=0)),
+    "sh_L1": lambda: FunctionSpace.of_basis(SphericalHarmonicBasis(L=1)),
+    "sh_L2": lambda: FunctionSpace.of_basis(SphericalHarmonicBasis(L=2)),
+    "sh_L3": lambda: FunctionSpace.of_basis(SphericalHarmonicBasis(L=3)),
+    "legendre_L0": lambda: FunctionSpace.of_basis(LegendreBasis(L=0, axis="x")),
+    "legendre_L1": lambda: FunctionSpace.of_basis(LegendreBasis(L=1, axis="x")),
+    "legendre_L2": lambda: FunctionSpace.of_basis(LegendreBasis(L=2, axis="x")),
+    "legendre_L3_z": lambda: FunctionSpace.of_basis(LegendreBasis(L=3, axis="z")),
 }
 
 
@@ -209,7 +208,7 @@ def test_no_reachable_array_on_the_axis_product_is_state_sized() -> None:
     shapes ``(3, 5)``, ``(2,)``, ``(4, 3)`` the product's index set has 360
     entries and NO array the space can reach has that size.
     """
-    head = SphericalHarmonicSpace.from_L(2)
+    head = FunctionSpace.of_basis(SphericalHarmonicBasis(L=2))
     product = head * _bulk()
     assert product.axes is not None
     n = int(np.prod(product.shape))
@@ -245,43 +244,41 @@ def test_the_axis_route_never_densifies_a_large_product() -> None:
 
 @pytest.mark.parametrize("label", sorted(_HEADS))
 def test_the_moment_head_surface_survives(label: str) -> None:
-    r"""An axis-built head is still a :class:`MomentHead`, with the same layout.
+    r"""An axis-built head answers the moment-head reads through the one door,
+    with its basis's layout (S7, ruling 81: the layout is a value the basis
+    carries and the head axis reads it).
 
-    The head keeps its CLASS (``replace`` on a frozen dataclass), so the five
-    production narrowing sites — ``_moment_head_of`` (`transfer.py:128`),
-    ``fission.py:177``, ``_bases.py:817``, ``_block_contraction``
-    (`material_field.py:176`, keyed on ``len(head.shape)``) and
-    ``material_field.py:360`` (``head.degree_block``) — read the same answers.
+    The production readers — ``_moment_head_of`` (``transfer.py``),
+    ``FissionMomentOperator._head``, the field's ``head_layout``,
+    ``_block_contraction`` (keyed on ``len(head.shape)``) and the per-degree
+    contraction (``head.degree_block``) — read :func:`head_layout`. The retired
+    name-built twin carries no axis, so the door refuses it.
 
-    Reddens under: minting the head as a bare ``FunctionSpace.of_axes(...)``
-    (the design alternative §6 O-4 rejects) — the protocol members vanish.
+    Reddens under: minting the head as a ``Declared`` axis (no layout).
     """
     axis_head = _HEADS[label]()
-    head = _dense_slot_twin(axis_head)
-    assert isinstance(axis_head, MomentHead)
-    assert axis_head.L == head.L
-    assert axis_head.shape == head.shape
-    assert axis_head.name == head.name
-    assert axis_head.isotropic_slot == head.isotropic_slot
-    for l in range(head.L + 1):
-        assert axis_head.degree_block(l) == head.degree_block(l)
+    layout = head_layout(axis_head)
+    assert layout == moment_head_axis(axis_head).origin.basis.layout
+    assert layout.shape == axis_head.shape
+    with pytest.raises(TypeError, match="is not a moment head"):
+        head_layout(_dense_slot_twin(axis_head))
 
 
 @pytest.mark.parametrize("label", sorted(_HEADS))
 def test_the_product_still_exposes_its_head_as_factor_zero(label: str) -> None:
-    r"""``factors[0]`` and ``find_factor`` survive the axis-threading arm.
+    r"""``factors[0]`` survives the axis-threading arm.
 
     ``TensorProductSpace.from_factors`` stores ``factors`` on BOTH arms, so
-    the tree query the moment carriers rely on (``space.factors[0].L``,
-    ``find_factor(<head class>)``) is untouched — the head-shaped worry
-    only arises if the mint moves from ``head * bulk`` to ``of_axes(...)``.
+    the tree query the moment carriers rely on (``head_layout(space.factors[0])``)
+    is untouched — the head-shaped worry only arises if the mint moves from
+    ``head * bulk`` to ``of_axes(...)``. (``find_factor`` retired at S7 with
+    the head classes it was the typed bridge to.)
     """
     axis_head = _axis_built(_HEADS[label]())
     product = axis_head * _bulk()
     assert isinstance(product, TensorProductSpace)
     assert product.factors[0] is axis_head
-    assert isinstance(product.factors[0], MomentHead)
-    assert product.find_factor(type(axis_head)) is axis_head
+    assert head_layout(product.factors[0]) == head_layout(axis_head)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -325,9 +322,9 @@ def test_the_metric_enters_the_identity_once_the_head_is_axis_built(L: int) -> N
     before the head could be axis-built. The tree binds the dressed one.
     """
     frame = frame_faces.angular_frame(Quadrature.lebedev(11), L)
-    continuum = frame.basis.space
+    continuum = FunctionSpace.of_basis(frame.basis)
     dressed = frame_faces.basis_space(frame)
-    assert isinstance(continuum, SphericalHarmonicSpace) and isinstance(dressed, SphericalHarmonicSpace)
+    assert head_layout(continuum) == head_layout(dressed) == HarmonicLayout(L)
     assert continuum.axes is not None and dressed.axes is not None
     assert not np.array_equal(
         np.asarray(continuum.axes[0].weights), np.asarray(dressed.axes[0].weights),
@@ -355,13 +352,13 @@ def test_truncated_re_mints_through_the_generator_and_KEEPS_the_axes(label: str)
     what comes back.
     """
     head = _HEADS[label]()
-    if head.L == 0:
+    L = head_layout(head).L
+    if L == 0:
         pytest.skip("L = 0 has no lower order to truncate to")
-    lower = head.truncated(head.L - 1)
-    assert isinstance(lower, MomentHead)
-    assert lower.axes is not None, "truncated() keeps the axes (re-mints through the generator)"
-    assert lower.L == head.L - 1 and lower.name == head.name
-    minted = type(head).from_L(head.L - 1, head.spent_axis) if isinstance(head, LegendreSpace) else type(head).from_L(head.L - 1)
+    lower = truncated_head(head, L - 1)
+    assert lower.axes is not None, "truncated_head keeps the axes (re-mints through the origin)"
+    assert head_layout(lower) == type(head_layout(head))(L - 1)
+    minted = FunctionSpace.of_basis(moment_head_axis(head).origin.basis.at_order(L - 1))
     assert lower == minted
     assert lower != _dense_slot_twin(minted)
     assert minted.axes is not None
@@ -380,13 +377,11 @@ def test_a_frame_dressed_head_truncates_to_the_frames_dressed_head_at_the_lower_
     quad = _RULES[label]()
     L = 2
     dressed = frame_faces.basis_space(frame_faces.angular_frame(quad, L))
-    assert isinstance(dressed, MomentHead)
     assert dressed.axes is not None and dressed.axes[0].origin.frame is frame_faces.angular_frame(quad, L)
-    lower = dressed.truncated(L - 1)
-    assert isinstance(lower, MomentHead)
-    assert lower.axes is not None and lower.L == L - 1 and lower.name == dressed.name
+    lower = truncated_head(dressed, L - 1)
+    assert lower.axes is not None and head_layout(lower) == type(head_layout(dressed))(L - 1)
     assert lower == frame_faces.basis_space(frame_faces.angular_frame(quad, L - 1))
-    assert lower != frame_faces.angular_frame(quad, L - 1).basis.space
+    assert lower != FunctionSpace.of_basis(frame_faces.angular_frame(quad, L - 1).basis)
     assert lower.axes[0].origin.frame == frame_faces.angular_frame(quad, L - 1)
 
 
@@ -444,7 +439,7 @@ def test_the_cone_answer_flips_from_unanswerable_to_refusing() -> None:
     ``orpheus/`` and 35 test calls, none on a moment field), so the flip is
     predicted inert — battery arm ``C1`` measures it rather than asserting it.
     """
-    axis_head = SphericalHarmonicSpace.from_L(1)
+    axis_head = FunctionSpace.of_basis(SphericalHarmonicBasis(L=1))
     head = _dense_slot_twin(axis_head)            # the retired spelling answered None
     assert head.has_coordinate_cone is None
     assert axis_head.has_coordinate_cone is False
@@ -472,7 +467,7 @@ def test_the_production_head_of_every_family_is_axis_buildable(label: str, L: in
     r"""The head a shipped rule's frame actually binds — built through the
     production chain, not hand-minted (``vv`` #28: build the operand).
 
-    Both heads are covered: the **continuum** head (``frame.basis.space``,
+    Both heads are covered: the **continuum** head (``FunctionSpace.of_basis(frame.basis)``,
     the basis its generator) and the frame's **dressed** head
     (``basis_space(frame)``, the frame its generator) — each axis-built, each
     bit-identical to its own retired dense-slot twin on the metric verbs; on
@@ -485,13 +480,13 @@ def test_the_production_head_of_every_family_is_axis_buildable(label: str, L: in
 
     frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(_RULES[label](), L))
     rng = np.random.default_rng(11)
-    for head, (arm, generator) in ((frame.basis.space, ("basis", frame.basis)), (frame_faces.basis_space(frame), ("frame", frame))):
-        assert isinstance(head, (SphericalHarmonicSpace, LegendreSpace)), (
+    for head, (arm, generator) in ((FunctionSpace.of_basis(frame.basis), ("basis", frame.basis)), (frame_faces.basis_space(frame), ("frame", frame))):
+        assert head_layout(head) in (HarmonicLayout(L), LegendreLayout(L)), (
             "every shipped rule binds one of the two head families"
         )
         assert head.axes is not None and head.inner_product_weights is None
         assert getattr(head.axes[0].origin, arm) is generator
-        assert isinstance(head, MomentHead) and head.L == L
+        assert head_layout(head).L == L
         if head.axes[0].weights is None:
             assert frame.discrete_gram_structure is GramStructure.DENSE and head is frame_faces.basis_space(frame)
             assert isinstance(head.metric, FactoredMetric)

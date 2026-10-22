@@ -493,10 +493,14 @@ class TestCoupledSpace:
         with pytest.raises(ValueError, match="at least one member space"):
             CoupledSpace.from_systems(())
 
-    def test_bare_constructor_footgun_guard(self) -> None:
-        bare = CoupledSpace(name="coupled(?)", shape=(5,))
-        with pytest.raises(RuntimeError, match="from_systems"):
-            _ = bare.n_systems
+    def test_a_coupled_space_cannot_be_built_without_its_members(self) -> None:
+        """Since S7 the members are a required field (the bare-constructor
+        footgun guard retired): omitting them is a TypeError, an empty tuple
+        is refused at construction."""
+        with pytest.raises(TypeError, match="systems"):
+            CoupledSpace(name="coupled(?)", shape=(5,))  # type: ignore[call-arg]
+        with pytest.raises(ValueError, match="at least one member space"):
+            CoupledSpace(name="coupled(?)", shape=(5,), systems=())
 
     def test_system_slices_are_the_local_to_global_offsets(self) -> None:
         # The scoped LocalToGlobalMap: the slice table IS the to_flat layout.
@@ -1367,7 +1371,7 @@ class TestSystemRestriction:
         apply selects member i as the legitimate 1-member coupling."""
         space, r = _restriction_pair()
         assert r.domain is space
-        assert tuple(r.codomain._require_systems()) == (_SP_A,)
+        assert tuple(r.codomain.systems) == (_SP_A,)
         x = CoupledField(
             systems=(
                 _AlphaField(values=np.array([1.0, 2.0, 3.0])),

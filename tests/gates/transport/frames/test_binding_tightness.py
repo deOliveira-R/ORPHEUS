@@ -45,6 +45,8 @@ point values.
 """
 from __future__ import annotations
 
+from orpheus.numerics.space import FunctionSpace
+
 import numpy as np
 import pytest
 
@@ -232,8 +234,8 @@ def _bind(frame, per_l):
     M, R = _faces(frame)
     # the per-degree eigenvalue is broadcast over the HEAD's own degree
     # blocks (rectangular: 2l+1 slots per degree; flat: one), read off the
-    # basis's coefficient space rather than from a layout literal.
-    head = frame.basis.space
+    # basis's layout (S7) rather than from a layout literal.
+    head = frame.basis.layout
     lam_table = np.zeros(head.shape)
     for l in range(head.L + 1):
         lam_table[head.degree_block(l)] = per_l[l]

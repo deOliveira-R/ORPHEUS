@@ -65,7 +65,7 @@ def test_P5_the_hub_and_the_frame_derive_one_space_by_equality_and_each_owner_by
     # the head both owners hold is the frame's Parseval-dressed one
     assert isinstance(hub, TensorProductSpace)
     assert hub.factors[0] == frame_faces.basis_space(frame)
-    assert hub.factors[0] != frame.basis.space, "the continuum head is another space"
+    assert hub.factors[0] != FunctionSpace.of_basis(frame.basis), "the continuum head is another space"
 
 
 @pytest.mark.parametrize("geometry", list(_GEOMETRIES), ids=list(_GEOMETRIES))

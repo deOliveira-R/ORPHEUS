@@ -368,6 +368,6 @@ def test_R58_a_petrov_galerkin_frame_whose_test_is_its_basis_gets_the_dressed_te
     b, m = SphericalHarmonicBasis(L=2), Quadrature.product(4, 8).measure
     pg = PetrovGalerkinFrame(b, m, b)
     _one(ff.test_space(pg), ff.basis_space(pg), "test_space(PG(b, m, b)) vs basis_space")
-    assert not (ff.test_space(pg) == b.space), "TODAY's undressed answer"
+    assert not (ff.test_space(pg) == FunctionSpace.of_basis(b)), "the pre-S7 undressed answer"
     g = GalerkinFrame(b, m)
     _one(ff.test_space(g), ff.basis_space(g), "control: the Galerkin frame")

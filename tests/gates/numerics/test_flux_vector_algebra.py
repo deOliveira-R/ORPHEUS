@@ -39,6 +39,8 @@ mesh fixtures and have the flip pinned in their own modules
 """
 from __future__ import annotations
 
+from orpheus.numerics.space import FunctionSpace
+
 import numpy as np
 import pytest
 
@@ -92,7 +94,7 @@ def rng() -> np.random.Generator:
 
 def _moment_shape(m: SNProblem, L: int) -> tuple[int, ...]:
     """``<angular head> ⊗ (ng, *spatial)`` — the head is read off the frame (#429)."""
-    return (*frame_faces.angular_frame(m.quad, L).basis.space.shape, m.ng, *m.spatial_shape)
+    return (*FunctionSpace.of_basis(frame_faces.angular_frame(m.quad, L).basis).shape, m.ng, *m.spatial_shape)
 
 
 def _make_flux(leaf: str, m: SNProblem, rng: np.random.Generator) -> Field:

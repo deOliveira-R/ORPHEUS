@@ -115,7 +115,7 @@ from orpheus.numerics.spaces.radial_characteristic_space import (
 from orpheus.numerics.axis_marginal import AxisRetractionOperator
 
 if TYPE_CHECKING:
-    from orpheus.numerics.spaces.moment_head import MomentHead
+    from orpheus.numerics.coefficient_layout import DegreeLayout
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
     from orpheus.numerics.face_layout import FaceLayout
     from orpheus.sn.problem import SNProblem
@@ -778,15 +778,15 @@ class MomentField(BulkField):
     # ── Metadata read-through (the axes-less family's own ng) ────────
 
     @property
-    def head(self) -> "MomentHead":
-        r"""The angular HEAD factor of this field's space — the family that
-        says which index tuple is the isotropic slot, which selects a degree
-        block, and how many leading axes it owns (#429, 2026-09-02:
+    def head(self) -> "FunctionSpace":
+        r"""The angular HEAD factor of this field's space — one axis whose
+        layout says which index tuple is the isotropic slot, which selects a
+        degree block, and how many leading axes it owns (#429, 2026-09-02:
         ``(L+1, 2L+1)`` for the real harmonics, ``(L+1,)`` for the Legendre
         basis a 1-D rule binds). Every layout read on the carrier goes
-        through it; none assumes the rectangular family."""
+        through :attr:`head_layout`; none assumes the rectangular family."""
         from orpheus.numerics.space import TensorProductSpace
-        from orpheus.numerics.spaces.moment_head import MomentHead
+        from orpheus.numerics.spaces.moment_head import moment_head_axis
 
         if not isinstance(self.space, TensorProductSpace):
             raise TypeError(
@@ -795,13 +795,17 @@ class MomentField(BulkField):
                 f"{type(self.space).__name__}."
             )
         head = self.space.factors[0]
-        if not isinstance(head, MomentHead):
-            raise TypeError(
-                f"{type(self).__name__}: the leading factor {head.name!r} "
-                f"is not an angular head (no isotropic slot / degree block "
-                f"surface)."
-            )
+        moment_head_axis(head, owner=type(self).__name__)  # refuses a non-head, naming this field
         return head
+
+    @property
+    def head_layout(self) -> "DegreeLayout":
+        r"""The degree layout of the angular head (ruling 81): the isotropic
+        slot, the degree blocks, the head's rank — read through the one door,
+        :func:`~orpheus.numerics.spaces.moment_head.head_layout`."""
+        from orpheus.numerics.spaces.moment_head import head_layout
+
+        return head_layout(self.head, owner=type(self).__name__)
 
     @property
     def ng(self) -> int:
@@ -856,8 +860,8 @@ class MomentField(BulkField):
         ``L``), the cell-group factor the carrier's cached scalar bulk
         (campaign 1 CS4b: one mint, metric-carrying), ONE object per
         ``(L, width)`` per carrier; the moment-axis structure is
-        type-visible through the composition tree (queryable via
-        ``space.find_factor(...)`` per Issue #207).
+        type-visible through the composition tree (``space.factors[0]``, its
+        layout read through :func:`~orpheus.numerics.spaces.moment_head.head_layout`; Issue #207).
 
         ``spatial_moments`` (default ``1``, byte-identical #240 D5b-S3-A0)
         optionally widens the cell-group factor by the scheme's own

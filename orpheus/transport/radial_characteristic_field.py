@@ -178,11 +178,6 @@ class RadialCharacteristicField(
                 f"System B's blocks are spelled absent, never zero-DOF "
                 f"fields."
             )
-        if space.interior_space is None or space.trace_space is None:
-            raise ValueError(
-                f"{context}: the ψ½ member space must carry BOTH blocks "
-                f"(interior_space / trace_space); got {space!r}."
-            )
         return space.interior_space, space.trace_space
 
     @classmethod

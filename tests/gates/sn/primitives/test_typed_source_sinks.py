@@ -12,6 +12,8 @@ physics claims.
 """
 from __future__ import annotations
 
+from orpheus.numerics.space import FunctionSpace
+
 import numpy as np
 import pytest
 
@@ -401,7 +403,7 @@ def _moment_shape(m: SNProblem, L: int) -> tuple[int, ...]:
     :math:`S^2/O(2)_x` — one coefficient per degree, because the trivial
     isotypic component of :math:`SO(2)` is one-dimensional in every degree.
     """
-    return (*frame_faces.angular_frame(m.quad, L).basis.space.shape, m.ng, *m.spatial_shape)
+    return (*FunctionSpace.of_basis(frame_faces.angular_frame(m.quad, L).basis).shape, m.ng, *m.spatial_shape)
 
 
 class TestHarmonicMomentSourceSink:

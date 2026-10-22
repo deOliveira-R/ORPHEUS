@@ -105,12 +105,10 @@ from scipy.special import lpmv
 from orpheus.numerics.basis.legendre_basis import legendre_table
 
 from orpheus.numerics.basis.base import Basis, GramStructure
+from orpheus.numerics.coefficient_layout import HarmonicLayout
 
 if TYPE_CHECKING:
     from orpheus.numerics.manifold import Manifold, Quotient
-    from orpheus.numerics.spaces.spherical_harmonic_space import (
-        SphericalHarmonicSpace,
-    )
 
 
 __all__ = ["MirrorEvenSphericalHarmonicBasis", "SphericalHarmonicBasis"]
@@ -377,23 +375,21 @@ class SphericalHarmonicBasis(Basis):
         return SPHERE
 
     @property
-    def space(self) -> "SphericalHarmonicSpace":
-        r"""The :class:`SphericalHarmonicSpace` of degree :math:`L` this basis spans.
+    def layout(self) -> HarmonicLayout:
+        r"""The rectangular ``(L+1, 2L+1)`` table, the ``[l + m]`` column
+        shifted by the addition theorem (ruling 81). The σ-even restriction
+        keeps it: its dead columns are zero, not absent."""
+        return HarmonicLayout(self.L)
 
-        Axis-built (CS4c step 6 item 6.2c-ii): one
-        :class:`~orpheus.numerics.axis.HarmonicAxis` whose measure is the
-        continuum Gram :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))` on the
-        padded layout, this basis its generator. The spherical-harmonic
-        :class:`~orpheus.numerics.frame.GalerkinFrame` re-dresses it with the
-        discrete Parseval inverse (:func:`~orpheus.numerics.frame_faces.basis_space`)
-        — that dressed head is the moment space the tree binds. Lazy import:
-        ``SphericalHarmonicSpace`` imports this basis, so a top-level import
-        would cycle.
-        """
-        from orpheus.numerics.spaces.spherical_harmonic_space import (
-            SphericalHarmonicSpace,
-        )
-        return SphericalHarmonicSpace.for_basis(self)
+    @property
+    def coefficient_weights(self) -> NDArray:
+        r"""The continuum Gram :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))` on
+        the padded table (zero outside :math:`|m| \le \ell`). The
+        spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`
+        re-dresses it with the discrete Parseval inverse
+        (:func:`~orpheus.numerics.frame_faces.basis_space`), and that dressed
+        head is the moment space the tree binds."""
+        return self.layout.spread(self.metric_per_ell)
 
     def at_order(self, L_new: int, /) -> "SphericalHarmonicBasis":
         r"""This family (the same class — the σ-even restriction stays σ-even)

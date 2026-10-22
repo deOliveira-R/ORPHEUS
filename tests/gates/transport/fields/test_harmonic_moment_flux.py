@@ -40,7 +40,8 @@ from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.spatial import LinearDiscontinuous
 from tests.gates.sn._test_helpers import placeholder_materials
-from orpheus.numerics.spaces.moment_head import MomentHead
+from orpheus.numerics.coefficient_layout import DegreeLayout
+from orpheus.numerics.spaces.moment_head import head_layout
 from orpheus.numerics import frame_faces
 
 pytestmark = [pytest.mark.foundation]
@@ -81,11 +82,9 @@ def _sn(family: str = "flat") -> SNProblem:
     return SNProblem(mesh, quadrature, placeholder_materials(ng=_NG), scheme=LinearDiscontinuous())
 
 
-def _head(sn: SNProblem, L: int = _L) -> MomentHead:
-    """The angular head this mesh's frame induces — the single source of the layout (the frame's Parseval-dressed head, item 6.2c-ii)."""
-    head = frame_faces.basis_space(frame_faces.angular_frame(sn.quad, L))
-    assert isinstance(head, MomentHead)
-    return head
+def _head(sn: SNProblem, L: int = _L) -> DegreeLayout:
+    """The layout of the angular head this mesh's frame induces — read off the frame's Parseval-dressed head (item 6.2c-ii) through the one door (S7)."""
+    return head_layout(frame_faces.basis_space(frame_faces.angular_frame(sn.quad, L)))
 
 
 def _field(sn: SNProblem, spatial_moments: int, seed: int) -> HarmonicMomentFlux:

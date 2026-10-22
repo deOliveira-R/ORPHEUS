@@ -844,3 +844,39 @@ def test_each_blocks_frame_names_ONE_manifold_on_both_halves(
             f"measure induced {axes[0].support!r}. One frame, two "
             f"manifolds."
         )
+
+
+@pytest.mark.parametrize("label,cells,bcs,kwargs", _SINGULAR, ids=[row[0] for row in _SINGULAR])
+def test_the_kernel_modes_are_orthogonal_to_the_constants(label, cells, bcs, kwargs) -> None:
+    r"""The WITNESS of the declared zero unit (S7; the user's ruling, 2026-10-21).
+
+    :class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelBasis` declares its
+    coefficient axis's unit zero: the kernel modes are orthogonal to the
+    constants, :math:`\Phi^{\mathsf T} G\,1 = 0`. A computed unit would be
+    round-off (`[M]` S7 reviews: at most 1.8e-16 of its scale on 102 blocks,
+    exactly 0.0 on only 12), and the unit is identity content, so the zero is
+    declared rather than computed and this row holds the claim to the shipped
+    blocks: on every block of every singular fixture,
+    :math:`|\Phi^{\mathsf T} G 1| \le 64\,\varepsilon\,\|\Phi\|\,\|G 1\|`.
+    The general proof is owed: #636.
+
+    Reddens under: a gauge whose modes are not orthogonal to the constants
+    (e.g. a block table with a constant column appended), against which the
+    declared zero would be false.
+    """
+    gauge = LossKernelGauge.for_mesh(_mesh(cells, bcs, **kwargs))
+    assert gauge.blocks, f"{label}: no blocks — the fixture is not singular"
+    eps = np.finfo(float).eps
+    for block in gauge.blocks:
+        axes = block.gather.codomain.axes
+        assert axes is not None
+        table = block.basis.table
+        g = np.ones(table.shape[0]) if axes[0].weights is None else np.asarray(axes[0].weights)
+        moments = table.T @ g
+        bound = 64.0 * eps * np.linalg.norm(table) * np.linalg.norm(g)
+        assert np.all(np.abs(moments) <= bound), (
+            f"{label}: block {block.basis.orbit}/g{block.basis.group}: |Φᵀ G 1| = "
+            f"{np.max(np.abs(moments)):.3e} exceeds {bound:.3e} — the declared zero unit is false here"
+        )
+        unit = block.basis.layout.unit
+        assert not np.any(unit), "the declared unit is exactly zero"

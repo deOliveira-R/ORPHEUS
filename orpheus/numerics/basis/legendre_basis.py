@@ -87,10 +87,10 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.basis.base import Basis, GramStructure
+from orpheus.numerics.coefficient_layout import LegendreLayout
 
 if TYPE_CHECKING:
     from orpheus.numerics.manifold import Manifold, Quotient
-    from orpheus.numerics.spaces.legendre_space import LegendreSpace
 
 
 __all__ = ["LegendreBasis", "legendre_table"]
@@ -267,11 +267,16 @@ class LegendreBasis(Basis):
         return SPHERE.quotient(SubgroupOfO3.O2(self.axis))
 
     @property
-    def space(self) -> "LegendreSpace":
-        r"""The :class:`~orpheus.numerics.spaces.legendre_space.LegendreSpace` of degree :math:`L` this basis spans (lazy import: the space imports this basis)."""
-        from orpheus.numerics.spaces.legendre_space import LegendreSpace
+    def layout(self) -> LegendreLayout:
+        r"""The flat ``(L+1,)`` row, one coefficient per degree (ruling 81). The
+        spent axis is not here: it is the :attr:`domain`, :math:`S^2/O(2)_a`,
+        which the coefficient axis keeps as its support (ruling 71)."""
+        return LegendreLayout(self.L)
 
-        return LegendreSpace.for_basis(self)
+    @property
+    def coefficient_weights(self) -> NDArray:
+        r"""The continuum Gram diagonal per degree, :attr:`metric_per_ell`."""
+        return self.layout.spread(self.metric_per_ell)
 
     def at_order(self, L_new: int, /) -> "LegendreBasis":
         r"""This family about the same spent axis, cut at degree ``L_new``."""

@@ -123,8 +123,8 @@ from orpheus.transport.operators.isotropic_transfer import IsotropicFission
 from orpheus.transport.operators.lift import interior_space_of
 
 if TYPE_CHECKING:
+    from orpheus.numerics.coefficient_layout import DegreeLayout
     from orpheus.numerics.operator import LinearOperator, TensorProductOperator
-    from orpheus.numerics.spaces.moment_head import MomentHead
     from orpheus.transport.material_field import FissionMaterialField
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.transport.reaction_rate_functional import ReactionRateFunctional
@@ -170,16 +170,11 @@ class FissionMomentOperator(BoundOperator):
         return True
 
     @property
-    def _head(self) -> "MomentHead":
-        r"""The angular HEAD (this operator's domain) — which index tuple is the :math:`\ell = 0` slot is ITS to say (#429)."""
-        from orpheus.numerics.spaces.moment_head import MomentHead
+    def _head(self) -> "DegreeLayout":
+        r"""The layout of the angular HEAD (this operator's domain) — which index tuple is the :math:`\ell = 0` slot is ITS to say (#429), read through the one door."""
+        from orpheus.numerics.spaces.moment_head import head_layout
 
-        if not isinstance(self.domain, MomentHead):
-            raise TypeError(
-                f"FissionMomentOperator: the moment ends must be an angular "
-                f"HEAD space; got {type(self.domain).__name__}."
-            )
-        return self.domain
+        return head_layout(self.domain, owner="FissionMomentOperator")
 
     def _admit(self, moments: np.ndarray) -> None:
         head = self._head
@@ -188,7 +183,7 @@ class FissionMomentOperator(BoundOperator):
             raise ValueError(
                 f"FissionMomentOperator acts on L=0 moment tensors whose "
                 f"leading axes are the head {tuple(head.shape)} of "
-                f"{head.name!r} (then ng, *spatial); got shape {moments.shape}"
+                f"{head!r} (then ng, *spatial); got shape {moments.shape}"
             )
 
     def apply(self, moments: np.ndarray) -> np.ndarray:

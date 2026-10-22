@@ -87,6 +87,7 @@ from .metric import (
 )
 
 if TYPE_CHECKING:
+    from .basis.base import Basis, TruncatedBasis
     from .measure import DiscreteMeasure
 
 
@@ -369,6 +370,20 @@ class FunctionSpace(Generic[Carrier]):
         return cls.of_axes(Axis.of_measure(measure, label))
 
     @classmethod
+    def of_basis(cls, basis: Basis | TruncatedBasis) -> "FunctionSpace":
+        r"""The coefficient space a basis spans: one axis, indexed by its layout.
+
+        The space over :meth:`Axis.of_basis <orpheus.numerics.axis.Axis.of_basis>`
+        (ruling 81): the layout, the continuum Gram and the domain are the
+        basis's, read with no space import on the basis side. Its identity is
+        that axis's content, so two families on two domains (the harmonics on
+        :math:`S^2` and their σ-even restriction on :math:`S^2/\sigma_y`) and
+        two partitions with different edges span two spaces (#631 pairs 3
+        and 4). Replaced each basis's own ``space`` property at S7.
+        """
+        return cls.of_axes(Axis.of_basis(basis))
+
+    @classmethod
     def of_axes(cls, *axes: Axis) -> "FunctionSpace":
         r"""Compose a space as the ordered product of its axes.
 
@@ -618,7 +633,7 @@ class FunctionSpace(Generic[Carrier]):
 
         * non-square shapes — :meth:`inner_product` raised
           ``ValueError`` while :meth:`apply_metric` worked. `[M]`
-          ``SphericalHarmonicSpace.from_L(3)`` on its PRODUCTION layout
+          the degree-3 spherical-harmonic head on its PRODUCTION layout
           ``(L+1, 2L+1, ng, *spatial)`` did exactly this.
         * square shapes — both succeeded and **silently disagreed**
           (`[M]` 456 vs 552 on a ``(3, 3)`` probe), which is the
@@ -1132,7 +1147,8 @@ class TensorProductSpace(FunctionSpace):
         :meth:`__mul__` flattening edge cases.
     """
 
-    factors: tuple["FunctionSpace", ...] = field(default=(), compare=False, repr=False)
+    # Required (a non-axis product IS its factors' keys; S7): kw_only for the field order.
+    factors: tuple["FunctionSpace", ...] = field(kw_only=True, compare=False, repr=False)
 
     def identity_key(self) -> tuple[Any, ...]:
         """An axis-built product is its axes (the ``of_axes`` mint of them is
@@ -1140,52 +1156,6 @@ class TensorProductSpace(FunctionSpace):
         if self.axes is not None:
             return super().identity_key()
         return ("tensor", tuple(f.identity_key() for f in self.factors))
-
-    def find_factor[T: "FunctionSpace"](self, factor_type: type[T]) -> T:
-        r"""Return the (first) tensor factor that is an instance of ``factor_type``.
-
-        The tree query the moment-carrier fields rely on to recover their
-        typed factor from a composed space — e.g.
-        ``space.find_factor(SphericalHarmonicSpace).L`` (on a full-sphere
-        rule; the head factor's own ``L`` in general) recovers the
-        angular truncation order, and
-        ``space.find_factor(LegendreSpace).spent_axis`` the fold's spent
-        axis — without the consumer having to know the factor's position
-        in the product (issue #207). The factories
-        compose factors in a fixed order, but consumers query by TYPE, not
-        index, so the layout can change without breaking the query.
-
-        Parameters
-        ----------
-        factor_type : type[T]
-            The :class:`FunctionSpace` subclass to search for among
-            :attr:`factors`. The return is typed AS this class (generic),
-            so ``find_factor(SphericalHarmonicSpace).L`` /
-            ``find_factor(LegendreSpace).spent_axis`` type-resolve — the
-            method's reason to exist is the typed bridge from a composed
-            space back to its factor's metadata.
-
-        Returns
-        -------
-        T
-            The first factor that ``isinstance(factor, factor_type)``, typed
-            as ``factor_type``.
-
-        Raises
-        ------
-        KeyError
-            If no factor matches ``factor_type`` — an explicit failure
-            (the query is a structural assertion: the caller believes the
-            composed space carries this factor).
-        """
-        for f in self.factors:
-            if isinstance(f, factor_type):
-                return f
-        raise KeyError(
-            f"TensorProductSpace {self.name!r} has no factor of type "
-            f"{factor_type.__name__}; factors are "
-            f"{[type(f).__name__ for f in self.factors]!r}."
-        )
 
     @classmethod
     def from_factors(

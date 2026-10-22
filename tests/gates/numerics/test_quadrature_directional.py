@@ -26,6 +26,8 @@ Q7.x — Level structure: cylindrical-compatible (LS, product) carry
 
 from __future__ import annotations
 
+from orpheus.numerics.space import FunctionSpace
+
 import numpy as np
 import pytest
 
@@ -618,7 +620,7 @@ def test_q8_4_the_1d_rule_ROUTES_its_own_measure_and_binds_the_legendre_basis(
 
     # 3 — the flat table: the fabricated slots are UNSPELLABLE
     assert frame.table.shape == (q.n_ordinates, 3)
-    assert frame.basis.space.shape == (3,)
+    assert FunctionSpace.of_basis(frame.basis).shape == (3,)
 
     # …and the forged construction the fiction used is GONE from production:
     # no shipped call rebuilds a padded (mu, 0, 0) measure on S^2.

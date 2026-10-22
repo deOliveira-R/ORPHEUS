@@ -213,6 +213,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.basis import Basis, GramStructure
+from orpheus.numerics.coefficient_layout import ModeLayout
 from orpheus.numerics.face_layout import face_normal
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.manifold import IndexSet, Manifold
@@ -694,9 +695,21 @@ class LossKernelBasis(Basis):
     table
         ``(n_block_dofs, n_modes)``, :math:`G`-orthonormal by construction.
     orbit, group
-        The block's identity — carried so the coefficient space can be named
-        distinguishably (two blocks' coefficient spaces must not compare equal,
-        or an operator-composition guard would accept a mismatched pair).
+        The block's identity — its :attr:`domain`, the index set the
+        coefficient axis keeps as its support, so two blocks' coefficient
+        spaces never compare equal (an operator-composition guard would
+        otherwise accept a mismatched pair).
+
+    The coefficient axis's unit (the coordinates of the constant function's
+    :math:`G`-orthogonal projection onto the span, ruling 37) is ZERO, DECLARED:
+    the kernel modes are orthogonal to the constants. `[M]` S7, 2026-10-21 (the
+    elegance and qa reviews): :math:`|\Phi^{\mathsf T} G\,1|` is at most
+    1.8e-16 of its scale on every one of 102 blocks over six reflective boxes,
+    exactly 0.0 on only 12 of them, so a computed unit would be round-off and
+    the coefficient space's identity would hang on arithmetic order (#631's
+    fifth defect class). The user ruled the declared zero (2026-10-21);
+    ``test_loss_kernel_gauge.py`` witnesses the orthogonality on every shipped
+    singular block, and its proof is owed (#636).
     """
 
     table: NDArray
@@ -785,12 +798,15 @@ class LossKernelBasis(Basis):
         return IndexSet(label=f"sn_trace_orbit{self.orbit}_g{self.group}")
 
     @property
-    def space(self) -> FunctionSpace:
-        """The coefficient space, named by the block it belongs to."""
-        return FunctionSpace(
-            name=f"loss_kernel_coeff[orbit{self.orbit}_g{self.group}]",
-            shape=(self.table.shape[1],),
-        )
+    def layout(self) -> ModeLayout:
+        """One amplitude per kernel mode; the unit is the declared zero (the
+        modes are orthogonal to the constants: see the class docstring)."""
+        return ModeLayout(np.zeros(self.table.shape[1]), "loss_kernel_modes")
+
+    @property
+    def coefficient_weights(self) -> None:
+        """``None``: the modes are :math:`G`-orthonormal, so the Gram is :math:`I`."""
+        return None
 
 
 # ─────────────────────────────────────────────────────────────────────

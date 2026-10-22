@@ -84,7 +84,7 @@ from orpheus.numerics.manifold import Manifold, Quotient, Sphere
 from orpheus.numerics.symmetry import SubgroupOfO3
 
 if TYPE_CHECKING:
-    from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.coefficient_layout import CoefficientLayout, DegreeLayout
 
 
 __all__ = ["Basis", "GramStructure", "TruncatedBasis"]
@@ -132,7 +132,8 @@ class TruncatedBasis(Protocol):
     at a degree*, and every consumer that spells "the coefficient space of
     order :math:`L`" — an operator's endomorphic ends, a moment field's
     angular head, a frame's mint — reads it off such a basis
-    (:attr:`space`), never mints it from the integer. The family the frame
+    (:meth:`FunctionSpace.of_basis <orpheus.numerics.space.FunctionSpace.of_basis>`
+    over its :attr:`layout`), never mints it from the integer. The family the frame
     binds is DERIVED from the point set its measure lives on
     (``frame_faces._harmonic_basis``, behind
     :func:`~orpheus.numerics.frame_faces.angular_frame`),
@@ -159,8 +160,18 @@ class TruncatedBasis(Protocol):
         ...
 
     @property
-    def space(self) -> "FunctionSpace":
-        """The coefficient space this truncated family spans."""
+    def layout(self) -> "DegreeLayout":
+        """The degree layout of this family's coefficients (ruling 81)."""
+        ...
+
+    @property
+    def domain(self) -> Manifold:
+        """The manifold the family's functions are defined on."""
+        ...
+
+    @property
+    def coefficient_weights(self) -> "NDArray | None":
+        """The family's continuum Gram diagonal over its layout (the coefficient axis's measure)."""
         ...
 
     def at_order(self, L_new: int, /) -> "TruncatedBasis":
@@ -292,19 +303,18 @@ class Basis(ABC):
         source is: :math:`Y_\ell^m : S^2 \to \mathbb R` takes a POINT of
         :math:`S^2`. This is that source.
 
-        ⚠ Not to be confused with :attr:`space`, which is the other end of a
-        different arrow. There are three levels and the two properties name two
-        of them:
+        ⚠ Not to be confused with the coefficient space, which is the other end
+        of a different arrow. There are three levels:
 
         =====================================  ==========================
         level                                  named by
         =====================================  ==========================
         the manifold :math:`M`                 :attr:`domain` (here)
         fields on :math:`M`, discretized       ``FunctionSpace.of_measure``
-        coefficients :math:`\mathbb R^K`       :attr:`space`
+        coefficients :math:`\mathbb R^K`       ``FunctionSpace.of_basis``
         =====================================  ==========================
 
-        So :attr:`space` answers *what do these live in*; :attr:`domain`
+        So the coefficient space answers *what do these live in*; :attr:`domain`
         answers *what do these eat*. The distinction is not academic — it is
         what makes a space name falsifiable. Before this property existed, an
         :class:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis` over
@@ -409,23 +419,35 @@ class Basis(ABC):
 
     @property
     @abstractmethod
-    def space(self) -> "FunctionSpace":
-        r"""The coefficient :class:`FunctionSpace` this basis spans.
+    def layout(self) -> "CoefficientLayout":
+        r"""How this basis indexes its coefficients (ruling 81): a value from
+        :mod:`orpheus.numerics.coefficient_layout`.
 
-        A harmonic family's space is AXIS-BUILT (CS4c step 6 item 6.2c-ii):
-        one MODAL head axis carrying the basis's CONTINUUM Gram as its
-        measure, this basis its generator. A measure-free basis like the
-        indicators carries no metric at all. The frame's codomain
-        (:func:`~orpheus.numerics.frame_faces.basis_space`) re-DRESSES
-        that space with the discrete PARSEVAL inverse (the head axis
-        re-weighted, the frame its generator) — the dressed space, not this
-        one, is the ONE moment space the tree binds (the operator ends, the
-        moment fields, the Hilbert-adjoint machinery — ruling R-6.2c-1,
-        2026-09-08); this space's own metric stays the continuum /
-        cross-Gram vocabulary of ``project``/``gram``. The
-        basis owns exactly one space (the nodal/domain space comes from the
-        measure), so the unqualified name is unambiguous — matching the
-        ``Field.space`` convention. The :class:`FrameBase` re-exposes it provenance-
-        qualified as ``basis_space(frame)`` (beside ``measure_space(frame)``).
+        The coefficient space a basis spans is
+        :meth:`FunctionSpace.of_basis(basis) <orpheus.numerics.space.FunctionSpace.of_basis>`,
+        the space over the one generic coefficient axis
+        (:meth:`Axis.of_basis <orpheus.numerics.axis.Axis.of_basis>`), which
+        reads this layout, :attr:`coefficient_weights` and :attr:`domain`. The
+        basis names no space itself: ``basis`` ranks below ``space`` in the
+        numerics concept order (until S7 each family returned its own space
+        class from a ``space`` property, through a lazy upward import). A
+        harmonic family's layout has degree structure (the moment head's
+        isotropic slot and degree blocks); an indicator family's is one cell
+        per coefficient. The frame's codomain
+        (:func:`~orpheus.numerics.frame_faces.basis_space`) re-DRESSES the
+        basis's space with the discrete PARSEVAL inverse, and that dressed
+        space, not the basis's own, is the ONE moment space the tree binds
+        (ruling R-6.2c-1, 2026-09-08).
         """
+        ...
+
+    @property
+    @abstractmethod
+    def coefficient_weights(self) -> "NDArray | None":
+        r"""The basis's CONTINUUM Gram diagonal over its :attr:`layout`'s shape
+        (zero on padding), or ``None`` for a measure-free basis (the indicator
+        families, whose Gram exists only against a bound measure). It is the
+        measure of the basis's own coefficient axis, the cross-Gram vocabulary
+        of ``project``/``gram``; a frame re-dresses it with the discrete
+        Parseval inverse."""
         ...

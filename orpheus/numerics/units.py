@@ -165,7 +165,7 @@ ANGULAR_FLUX_UNITS: Unit = UREG.Unit("1/(cm**2 * s * sr)")
 #: ``1/(cm²·s)`` — areal angle-integrated flux. Scalar flux and the harmonic
 #: moments (a moment is angle-integrated; the ``sr`` of ``dΩ`` cancels, and
 #: the ``ℓ=0`` moment IS the scalar flux — verified against the
-#: ``SphericalHarmonicSpace`` no-prefactor convention).
+#: spherical-harmonic basis's no-prefactor convention).
 SCALAR_FLUX_UNITS: Unit = UREG.Unit("1/(cm**2 * s)")
 
 #: ``1/(cm³·s·sr)`` — volumetric per-solid-angle rate density. Per-ordinate
