@@ -471,7 +471,12 @@ class DenseMetric(HilbertMetric):
     """
 
     matrix: NDArray
-    inverse_matrix: Optional[NDArray] = field(default=None)
+    # Derived from ``matrix`` (the pseudo-inverse of a symmetric form is
+    # unique), so not content: a form supplied with its exact inverse face and
+    # the same form inverting itself are ONE metric, and a positioned overlay's
+    # identity must not read the round-off between the two faces (S7, the
+    # archivist's finding on the dense-dressed head; ``test_axis_identity.py`` I5c).
+    inverse_matrix: Optional[NDArray] = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
         m = np.asarray(self.matrix, dtype=float)

@@ -128,6 +128,22 @@ def test_I5_a_dense_overlay_is_part_of_the_identity():
     _separated(s1, base, "a dense overlay vs the bare head")
 
 
+def test_I5c_a_dense_form_is_its_matrix_not_its_inverse_face():
+    """The inverse face is derived from the matrix, so it is not content: the production dense head
+    (whose frame supplies the exact inverse face) and the same axes re-dressed with ``DenseMetric(G)``
+    (which pseudo-inverts) are ONE space. [M] before the fix (the S7 archivist, 2026-10-22): unequal,
+    with array_equal matrices, the digests differing in the inverse face's round-off."""
+    f = ff.angular_frame(Quadrature.folded_product(n_mu=2, n_phi=4), 2)
+    bs = ff.basis_space(f)
+    form = bs._overlay_forms()[0]
+    assert isinstance(form, DenseMetric)
+    G = np.array(form.matrix)
+    rebuilt = FunctionSpace.of_axes(*bs.axes)._with_overlay((DenseMetric(G.copy()),))
+    assert not np.array_equal(np.asarray(form.inverse_matrix), np.asarray(rebuilt._overlay_forms()[0].inverse_matrix)), \
+        "PREMISE: the two inverse faces differ in round-off"
+    _one(bs, rebuilt, "one dense form, its inverse supplied vs derived")
+
+
 def test_I5b_the_production_dense_head_carries_its_overlay_in_its_identity():
     """Pair 5 on a production head: ``basis_space`` of a DENSE-Gram frame (folded_product(2, 4), L = 2),
     re-dressed with twice its form, is a different space; re-dressed with its own form, the same."""

@@ -700,6 +700,8 @@ class LossKernelBasis(Basis):
         spaces never compare equal (an operator-composition guard would
         otherwise accept a mismatched pair).
 
+    Notes
+    -----
     The coefficient axis's unit (the coordinates of the constant function's
     :math:`G`-orthogonal projection onto the span, ruling 37) is ZERO, DECLARED:
     the kernel modes are orthogonal to the constants. `[M]` S7, 2026-10-21 (the
