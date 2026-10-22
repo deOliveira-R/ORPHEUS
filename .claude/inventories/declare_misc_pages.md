@@ -1,5 +1,8 @@
 # `implements` declaration candidates — 17 equations across 9 theory pages
 
+> **Paths moved after this snapshot (layer DAG, 2026-10-22; `.claude/plans/layer_dag.md` ruling 14c):** `orpheus.transport.source_sinks.*` is now `orpheus.transport.fields.*` (same class names); `RadialCharacteristicField.source_from_angular` is now the function `orpheus.sn.operators.radial_characteristic.radial_characteristic_source_from_angular`. The symbols below are spelled as they were at the snapshot's tree; re-resolve each before declaring an `implements` from it.
+
+
 Derived from the tree at HEAD `a1c90aac` (2026-08-18), branch `main`.
 **Does NOT use** `.claude/inventories/implements_declaration_inventory.md` (refuted on
 this population). Every symbol below was resolved against `.nexus/graph.db` with the

@@ -1,5 +1,8 @@
 # `implements` declaration findings — the 17 SN-page equation labels (138 coverage claims)
 
+> **Paths moved after this snapshot (layer DAG, 2026-10-22; `.claude/plans/layer_dag.md` ruling 14c):** `orpheus.transport.source_sinks.*` is now `orpheus.transport.fields.*` (same class names); `RadialCharacteristicField.source_from_angular` is now the function `orpheus.sn.operators.radial_characteristic.radial_characteristic_source_from_angular`. The symbols below are spelled as they were at the snapshot's tree; re-resolve each before declaring an `implements` from it.
+
+
 ⚠ **Brief arithmetic note**: the dispatch said "16 equations / 130 claims"; its own table
 lists **17** labels across 9 pages, and their claim counts sum to **138**. All 17 are
 covered below. (`dd-slab-scalar` 4 + `dd-curvilinear-scalar` 13 + `dd-cylindrical-degenerate` 1
