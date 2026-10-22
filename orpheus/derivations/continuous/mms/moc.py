@@ -80,6 +80,18 @@ The resulting scalar-flux error converges at
 :math:`\mathcal{O}(h^{2})` in the FSR linear dimension (with
 fixed track spacing and angular quadrature).
 
+What this module does not do
+----------------------------
+
+It poses no MoC problem: the track mesh that :func:`mms_sweep` walks is
+built by the test that pairs the two,
+``tests/gates/moc/test_mms.py``, from the case's declarations
+(``pitch``, ``n_azi``, ``n_polar``, ``ray_spacing``). A closed
+reference imports no production machinery (the reference-insulation
+gate in ``tests/gates/test_layer_imports.py``); the reference supplies
+the declarations as plain data, and the translation into a production
+object lives on the test side (layer DAG P4b, 2026-10-22).
+
 .. seealso::
 
    - :doc:`/theory/methods/method_of_characteristics` — MMS verification section
@@ -91,11 +103,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-
-from orpheus.geometry import BC, StructuredGeometry
-from orpheus.mesh import CellEdges, Mesher
-from orpheus.moc.geometry import MOCMesh
-from orpheus.moc.quadrature import MOCQuadrature
 
 from ...common.continuous_reference import (
     ContinuousReferenceSolution,
@@ -183,8 +190,12 @@ class MOCPinCellMMSCase:
             * np.sin(np.pi * self._r2(x, y) / R2)
         )
 
-    def phi_ref_fsr_average(self, moc_mesh: MOCMesh) -> np.ndarray:
+    def phi_ref_fsr_average(self, edges: np.ndarray) -> np.ndarray:
         r"""Volume-averaged :math:`\langle\phi\rangle_i` per FSR.
+
+        ``edges`` are the radial edges of the FSRs, ``len(edges) - 1``
+        of them: the inner cells are annuli, and the last cell is the
+        square border outside its inner radius.
 
         For inner annuli the integral is analytical:
 
@@ -196,8 +207,7 @@ class MOCPinCellMMSCase:
 
         The outermost (square-border) FSR uses Cartesian quadrature.
         """
-        nr = moc_mesh.n_regions
-        edges = moc_mesh.mesh.edges
+        nr = len(edges) - 1
         R2 = self._R ** 2
         A = self.amplitude
         averages = np.empty(nr)
@@ -247,7 +257,7 @@ class MOCPinCellMMSCase:
         return averages
 
 
-def mms_sweep(case: MOCPinCellMMSCase, moc_mesh: MOCMesh) -> np.ndarray:
+def mms_sweep(case: MOCPinCellMMSCase, moc_mesh) -> np.ndarray:
     r"""Per-characteristic MMS sweep returning scalar flux per FSR.
 
     Single-pass transport sweep with per-segment manufactured sources.
@@ -268,6 +278,15 @@ def mms_sweep(case: MOCPinCellMMSCase, moc_mesh: MOCMesh) -> np.ndarray:
     Only the transport correction :math:`\delta\phi_i` comes from the
     sweep — this is the term that carries the flat-source
     :math:`\mathcal{O}(h^{2})` error.
+
+    ``moc_mesh`` is the traced track mesh the caller posed (the MoC
+    method's ``MOCMesh``; this module names no production type). The
+    sweep reads ``quad`` (``n_azi``, ``phi``, ``omega_azi``,
+    ``n_polar``, ``sin_polar``, ``omega_polar``), ``tracks`` and
+    ``tracks_per_azi`` (each track's ``entry_point``, ``exit_point``
+    and ``segments``, each segment's ``length`` and ``region_id``),
+    ``effective_spacing(a)``, ``n_regions``, ``region_areas`` and the
+    radial ``mesh.edges``.
     """
     quad = moc_mesh.quad
     nr = moc_mesh.n_regions
@@ -363,7 +382,7 @@ def mms_sweep(case: MOCPinCellMMSCase, moc_mesh: MOCMesh) -> np.ndarray:
                     dpsi = (psi_in - q_seg_val) * one_minus_exp
                     delta_phi[seg.region_id] += weight * dpsi
 
-    phi_ref_avg = case.phi_ref_fsr_average(moc_mesh)
+    phi_ref_avg = case.phi_ref_fsr_average(moc_mesh.mesh.edges)
     areas = moc_mesh.region_areas
     phi = phi_ref_avg + delta_phi / (areas * sig_t)
 
@@ -397,29 +416,6 @@ def build_moc_mms_case(
         n_polar=n_polar,
         ray_spacing=ray_spacing,
     )
-
-
-def build_moc_mesh(case: MOCPinCellMMSCase, n_annuli: int) -> MOCMesh:
-    """Build an MOCMesh with ``n_annuli + 1`` FSRs.
-
-    The inner ``n_annuli`` regions are equal-area annuli inside
-    the inscribed circle (radius P/2).  The outermost Mesh1D cell
-    spans to the WS outer edge (the square-border FSR).
-    """
-    P = case.pitch
-    ws_r = P / np.sqrt(np.pi)
-    r_inscribed = P / 2.0
-    area_inscribed = np.pi * r_inscribed ** 2
-    area_per_annulus = area_inscribed / n_annuli
-    radii = [np.sqrt(k * area_per_annulus / np.pi) for k in range(1, n_annuli + 1)]
-    edges = np.array([0.0] + radii + [ws_r])
-    # One material; the equal-area annuli and the square-border cell are the
-    # irregularity the case needs, written out. MoC reads the outer law
-    # only, and it is reflective (the lattice cell).
-    geometry = StructuredGeometry.cylinder((0.0, ws_r), (0,), outer=BC("reflective"))
-    mesh = Mesher(geometry).partition(CellEdges(edges)).mesh
-    quad = MOCQuadrature.create(n_azi=case.n_azi, n_polar=case.n_polar)
-    return MOCMesh(mesh, quad, ray_spacing=case.ray_spacing)
 
 
 # ── Phase-0 ContinuousReferenceSolution wrapper ───────────────────────

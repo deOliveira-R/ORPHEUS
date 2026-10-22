@@ -414,24 +414,22 @@ retired, and a leg in ``_FORBIDDEN_LEGS`` witnesses that a
   them. Every entry carries a ``RETIRE_IN_P3_FOLLOWUP`` comment naming
   its retirement trigger.
 
-  The whitelist holds two ``derivations/`` edges into L2 and L3:
+  The whitelist holds one ``derivations/`` edge into L2:
 
   .. code-block:: python
 
      WHITELIST: frozenset[tuple[str, str]] = frozenset({
-         # RETIRE_IN_P3_FOLLOWUP — MMS source uses MOCMesh / MOCQuadrature
-         ("derivations/continuous/mms/moc.py", "moc"),
          # RETIRE_IN_P3_FOLLOWUP — the non-vacuum MMS reference lazily builds
          # its prescribed-inflow source from transport vocabulary
          ("derivations/continuous/mms/sn.py", "transport"),
      })
 
-  Each entry is a reference module that poses a production problem (a
+  The entry is a reference module that poses a production problem (a
   manufactured-solution harness for a method): it uses production as a
-  black box, NOT to share algebra. These are categorically
-  different from algebra-sharing imports (which would be structurally
+  black box, NOT to share algebra. This is categorically
+  different from an algebra-sharing import (which would be structurally
   contaminating per :doc:`/theory/verification/index`). The retirement
-  trigger for each is the module's migration to a method-side test
+  trigger is the module's migration to a method-side test
   or to an external benchmark harness.
 
   A third row, ``("derivations/continuous/sood_registry/builders.py",
@@ -442,6 +440,19 @@ retired, and a leg in ``_FORBIDDEN_LEGS`` witnesses that a
   ``to_geometry()`` and its ``materials``, and a consumer meshes the
   geometry itself. ``test_every_exemption_row_names_a_live_edge`` (below)
   keeps a row from outliving its edge.
+
+  The row ``("derivations/continuous/mms/moc.py", "moc")``, the second
+  of the two rows the whitelist held until then, was retired by layer DAG P4b (2026-10-22). The MoC manufactured-solution
+  module built the production track mesh (``MOCMesh`` over an
+  ``MOCQuadrature``) for its one test; that builder, ``build_moc_mesh``,
+  moved into the test, ``tests/gates/moc/test_mms.py``, and the reference
+  keeps only the case's declarations in plain data (pitch, quadrature
+  orders, ray spacing), the closed ansatz and the standalone sweep, whose
+  track-mesh argument it reads without naming its type. Since the
+  continuous-reference walk imports every ``orpheus.derivations`` module,
+  the import had also loaded ``orpheus.moc`` into every consumer of the
+  registry; ``test_loading_the_reference_registry_loads_no_moc_module``
+  now reads ``sys.modules`` in a fresh interpreter to keep it out.
 
 
 .. _architecture-reference-insulation:
@@ -541,20 +552,24 @@ and ``derivations/common/`` (the user's ruling on the gate's scope,
 * ``derivations/discrete/`` is outside the two roots. Its modules are
   algebras of record of a production discretization, so their subject is
   a production object and they follow production's changes by nature:
-  :mod:`orpheus.derivations.discrete.sn.balance` imported
-  the roots of unity from numerics on purpose (since layer DAG WP-B,
-  2026-10-22, the module is :mod:`orpheus.geometry.roots_of_unity`, which a
-  closed reference may import too).
-* Two modules under the roots build production objects and are exempt
-  by name, each entry of ``_REFERENCE_INSULATION_EXEMPT`` carrying its
-  reason in the gate. The two manufactured-solution harnesses pose a
-  production method: ``derivations/continuous/mms/sn.py`` imports
+  :mod:`orpheus.derivations.discrete.sn.balance` imports the roots of
+  unity on purpose (since layer DAG WP-B, 2026-10-22, the module is
+  :mod:`orpheus.geometry.roots_of_unity`; the move does not widen what a
+  closed reference may import, so the insulation gate refuses
+  :mod:`orpheus.geometry.roots_of_unity`, :mod:`orpheus.geometry.symmetry`
+  and :mod:`orpheus.geometry.manifold` under the two roots by name).
+* One module under the roots builds production objects and is exempt
+  by name, its entry of ``_REFERENCE_INSULATION_EXEMPT`` carrying its
+  reason in the gate. The S\ :sub:`N` manufactured-solution harness poses
+  a production method: ``derivations/continuous/mms/sn.py`` imports
   :mod:`orpheus.mesh`, :mod:`orpheus.transport` and the production
   :mod:`orpheus.numerics.quadrature` and
-  :mod:`orpheus.numerics.moment_layout` to pose S\ :sub:`N` problems, and
-  ``derivations/continuous/mms/moc.py`` imports :mod:`orpheus.mesh` and
-  :mod:`orpheus.moc`. The transport and method imports of these two are
-  also entries of the layer linter's ``WHITELIST`` above.
+  :mod:`orpheus.numerics.moment_layout` to pose S\ :sub:`N` problems. Its
+  transport import is also the entry of the layer linter's ``WHITELIST``
+  above. ``derivations/continuous/mms/moc.py`` was the second exempt
+  module until layer DAG P4b (2026-10-22), when its MoC problem posing
+  moved to its test; since then it imports nothing from :mod:`orpheus.mesh`
+  or :mod:`orpheus.moc`.
 
 **The deliberate twins.** A primitive both branches need exists once on
 each side of the line: the Perron–Frobenius extraction is

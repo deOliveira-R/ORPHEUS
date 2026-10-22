@@ -106,9 +106,6 @@ FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
 
 WHITELIST: frozenset[tuple[str, str]] = frozenset(
     {
-        # RETIRE_IN_P3_FOLLOWUP — MMS source uses MOCMesh / MOCQuadrature
-        # at module level; move to test side or import only L2 primitives.
-        ("derivations/continuous/mms/moc.py", "moc"),
         # RETIRE_IN_P3_FOLLOWUP — the non-vacuum MMS reference lazily builds
         # its prescribed-inflow source from transport vocabulary
         # (AngularBoundarySourceSink / AngularSourceSink / TimedFullField) inside
@@ -515,6 +512,37 @@ def test_values_loads_nothing_else_of_orpheus_in_a_fresh_interpreter() -> None:
     assert not outside, f"importing orpheus.values.content loaded modules outside orpheus.values: {outside}"
 
 
+_REGISTRY_MOC_PROBE = (
+    "import sys\n"
+    "from orpheus.derivations import reference_values\n"
+    "reference_values.continuous_all_names()\n"
+    "{control}"
+    "print(*sorted(m for m in sys.modules if m == 'orpheus.moc' or m.startswith('orpheus.moc.')))\n"
+)
+
+
+def _moc_modules_after_loading_the_registry(control: str = "") -> list[str]:
+    result = subprocess.run(
+        [sys.executable, "-c", _REGISTRY_MOC_PROBE.format(control=control)],
+        capture_output=True, text=True, cwd=ORPHEUS_ROOT.parent,
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout.split()
+
+
+@pytest.mark.foundation
+def test_loading_the_reference_registry_loads_no_moc_module() -> None:
+    """Layer DAG P4b at run time: the continuous-reference walk imports every
+    ``orpheus.derivations`` module, so a reference that imported the MoC method
+    loaded it into every consumer of the registry (``[M]`` 2026-10-22, before
+    the move: ``orpheus.moc`` and four submodules). The control imports
+    ``orpheus.moc`` after the walk in the same probe and requires it seen, so
+    an empty reading is the tree's, not a broken probe's."""
+    assert "orpheus.moc" in _moc_modules_after_loading_the_registry("import orpheus.moc\n")
+    loaded = _moc_modules_after_loading_the_registry()
+    assert not loaded, f"loading the continuous-reference registry loaded the MoC method: {loaded}"
+
+
 # ---------------------------------------------------------------------------
 # The linter's own law, on synthetic sources
 # ---------------------------------------------------------------------------
@@ -546,12 +574,14 @@ _FORBIDDEN_LEGS = [
     ("mesh/x.py", "from orpheus.specification import Specification\n", "mesh → specification"),
     # A lazy L0 -> L3 import: a function-body import is an edge like any other.
     ("derivations/x.py", "def f():\n    from orpheus.cp.solver import CPParams\n", "derivations → cp"),
-    # The retired WHITELIST row: re-adding it turns this red.
+    # The retired WHITELIST rows: re-adding either turns its leg red.
     (
         "derivations/continuous/sood_registry/builders.py",
         "def f():\n    from orpheus.cp.solver import CPParams\n",
         "derivations → cp",
     ),
+    # Layer DAG P4b (2026-10-22): the MoC MMS reference poses no MoC problem.
+    ("derivations/continuous/mms/moc.py", "from orpheus.moc.geometry import MOCMesh\n", "derivations → moc"),
     # layer_dag.md P2: numerics names nothing in data, guarded or not, and L1
     # has no TYPE_CHECKING tolerance at all.
     ("numerics/x.py", "from orpheus.data.energy_grid import EnergyGrid\n", "numerics → data"),
@@ -729,16 +759,16 @@ _CLOSED_REFERENCE_ROOTS: tuple[str, ...] = ("derivations/continuous/", "derivati
 REFERENCE_FORBIDDEN_PACKAGES: frozenset[str] = MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES
 
 # Exempt by name, with the reason (the user's rulings on the gate's scope,
-# 2026-10-06): these two MMS harnesses pose a production method, so their
-# subject is a production object and they follow production's changes by
-# nature. (The Sood registry's builder module, exempt until layer DAG P4 of
-# 2026-10-22, was deleted with its entry.)
+# 2026-10-06): the SN MMS harness poses a production method, so its subject is
+# a production object and it follows production's changes by nature. (The Sood
+# registry's builder module, exempt until layer DAG P4 of 2026-10-22, was
+# deleted with its entry. The MoC MMS module, exempt until layer DAG P4b of
+# 2026-10-22, gave its problem posing to its test, `tests/gates/moc/test_mms.py`.)
 # `derivations/discrete/` is outside the roots for the same reason (an algebra
 # of record of a production discretization).
 _REFERENCE_INSULATION_EXEMPT: frozenset[str] = frozenset(
     {
         "derivations/continuous/mms/sn.py",  # the MMS harness that poses SN problems
-        "derivations/continuous/mms/moc.py",  # the MMS harness that poses MoC problems
     }
 )
 
@@ -858,7 +888,7 @@ _INSULATION_ADMITTED_LEGS = [
     ("derivations/continuous/mms/sn.py", "from orpheus.numerics.quadrature import Quadrature\n"),
     ("derivations/discrete/sn/x.py", "from orpheus.numerics.eigenvalue import dominant_eigenpair\n"),
     ("derivations/common/x.py", "import numpy as np\nimport scipy.linalg\n"),
-    ("derivations/continuous/mms/moc.py", "from orpheus.moc.geometry import MOCMesh\n"),
+    ("derivations/continuous/mms/sn.py", "from orpheus.mesh import Mesh1D\n"),
     ("derivations/common/x.py", "from orpheus.geometry import StructuredGeometry\nfrom orpheus.data.materials import Materials\n"),
     ("derivations/common/x.py", "from orpheus.specification import Specification\nfrom orpheus.reference import ReferenceSolution\n"),
 ]
@@ -872,6 +902,8 @@ _INSULATION_REFUSED_PRODUCTION_LEGS = [
     ("derivations/common/x.py", "from ...sn.problem import SNProblem\n"),
     # The retired Sood builder: re-adding its exempt entry turns this red.
     ("derivations/continuous/sood_registry/builders.py", "from orpheus.cp import CPParams\n"),
+    # The retired MoC MMS exemption (layer DAG P4b): the same.
+    ("derivations/continuous/mms/moc.py", "from orpheus.moc.geometry import MOCMesh\n"),
 ]
 
 

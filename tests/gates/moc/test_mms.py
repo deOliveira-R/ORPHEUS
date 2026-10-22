@@ -9,6 +9,11 @@ The MMS sweep uses per-segment manufactured sources along each
 characteristic — the streaming residual is angle-dependent and
 cannot be represented by an isotropic per-FSR external source.
 See :mod:`orpheus.derivations.continuous.mms.moc` for the full derivation.
+
+The reference declares the case in plain data and imports nothing from
+the MoC method; this test poses the production track mesh from those
+declarations (``build_moc_mesh``, moved here from the reference by
+layer DAG P4b, 2026-10-22).
 """
 
 from __future__ import annotations
@@ -17,10 +22,14 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.mms.moc import (
+    MOCPinCellMMSCase,
     build_moc_mms_case,
-    build_moc_mesh,
     mms_sweep,
 )
+from orpheus.geometry import BC, StructuredGeometry
+from orpheus.mesh import CellEdges, Mesher
+from orpheus.moc.geometry import MOCMesh
+from orpheus.moc.quadrature import MOCQuadrature
 
 
 pytestmark = [pytest.mark.l1, pytest.mark.verifies(
@@ -30,6 +39,29 @@ pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "moc-mms-psi-ref",
     "moc-mms-qext",
 )]
+
+
+def build_moc_mesh(case: MOCPinCellMMSCase, n_annuli: int) -> MOCMesh:
+    """Pose the MoC track mesh with ``n_annuli + 1`` FSRs for ``case``.
+
+    The inner ``n_annuli`` regions are equal-area annuli inside
+    the inscribed circle (radius P/2).  The outermost Mesh1D cell
+    spans to the WS outer edge (the square-border FSR).
+    """
+    P = case.pitch
+    ws_r = P / np.sqrt(np.pi)
+    r_inscribed = P / 2.0
+    area_inscribed = np.pi * r_inscribed ** 2
+    area_per_annulus = area_inscribed / n_annuli
+    radii = [np.sqrt(k * area_per_annulus / np.pi) for k in range(1, n_annuli + 1)]
+    edges = np.array([0.0] + radii + [ws_r])
+    # One material; the equal-area annuli and the square-border cell are the
+    # irregularity the case needs, written out. MoC reads the outer law
+    # only, and it is reflective (the lattice cell).
+    geometry = StructuredGeometry.cylinder((0.0, ws_r), (0,), outer=BC("reflective"))
+    mesh = Mesher(geometry).partition(CellEdges(edges)).mesh
+    quad = MOCQuadrature.create(n_azi=case.n_azi, n_polar=case.n_polar)
+    return MOCMesh(mesh, quad, ray_spacing=case.ray_spacing)
 
 
 def _fsr_l2(err: np.ndarray, areas: np.ndarray) -> float:
@@ -61,7 +93,7 @@ def test_moc_mms_converges_second_order():
     for n_ann in n_annuli_list:
         moc_mesh = build_moc_mesh(case, n_ann)
         phi_solver = mms_sweep(case, moc_mesh)
-        phi_ref = case.phi_ref_fsr_average(moc_mesh)
+        phi_ref = case.phi_ref_fsr_average(moc_mesh.mesh.edges)
         err_vec = phi_solver - phi_ref
         nr = moc_mesh.n_regions
         inner = slice(0, nr - 1)

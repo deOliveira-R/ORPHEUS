@@ -465,8 +465,12 @@ Implementation
 --------------
 
 - :mod:`orpheus.derivations.continuous.mms.moc` — MMS case, standalone sweep,
-  continuous-reference registration
-- ``tests/gates/moc/test_mms.py`` — L1 convergence consumer test
+  continuous-reference registration; it imports nothing from the MoC
+  method
+- ``tests/gates/moc/test_mms.py`` — L1 convergence consumer test; it
+  poses the production track mesh (``build_moc_mesh``) from the case's
+  declarations and hands it to the sweep (since 2026-10-22; before, the
+  reference module built it)
 - The outermost FSR (square-border region) is excluded from the
   convergence measurement because its complex geometry has a fixed
   track-sampling error that does not converge with FSR refinement.
