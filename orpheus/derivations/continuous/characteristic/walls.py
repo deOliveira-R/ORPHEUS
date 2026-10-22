@@ -53,7 +53,7 @@ from orpheus.geometry.boundary import (
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.structured_geometry import StructuredGeometry
-from orpheus.numerics.scalars import parse_real
+from orpheus.values.scalars import parse_real
 
 
 

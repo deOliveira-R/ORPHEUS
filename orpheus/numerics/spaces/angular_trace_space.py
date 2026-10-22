@@ -464,7 +464,7 @@ class AngularTraceSpace(FunctionSpace):
         # a law changes neither DOFs nor Gram (laws are operator data).
         # The one content encoder (#405 P1 step 5), shared by every space
         # name; it type-tags and length-prefixes each part.
-        from orpheus.numerics.content import name_digest
+        from orpheus.values.content import name_digest
 
         digest = name_digest((
             layout.structure,

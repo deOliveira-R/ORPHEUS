@@ -562,31 +562,6 @@ table, is :ref:`spaces-collapse-pair` and :ref:`spaces-axis-unit`.
 .. automodule:: orpheus.numerics.axis_marginal
    :members: AxisRetractionOperator, AxisSectionOperator, AxisPullbackOperator
 
-Content identity — :mod:`orpheus.numerics.content`, the one encoder
-behind every persistent key and every content ``==`` and ``hash``. Its
-module docstring is the design record; the theory, with the canonical
-form of each kind of value and its reason, the schema tag, the two
-refusals and the gates, is :ref:`structured-geometry-content-identity`.
-
-.. py:module:: orpheus.numerics.content
-
-.. autofunction:: orpheus.numerics.content.encode
-
-.. autofunction:: orpheus.numerics.content.encode_exact
-
-.. autofunction:: orpheus.numerics.content.content_digest
-
-.. autofunction:: orpheus.numerics.content.name_digest
-
-.. autoexception:: orpheus.numerics.content.ContentlessError
-
-.. autoclass:: orpheus.numerics.content.ContentIdentity
-   :members: content_parts, content_digest
-
-.. autoclass:: orpheus.numerics.content.FrozenMapping
-
-.. autofunction:: orpheus.numerics.content.constructor_arguments
-
 The traced memo — :mod:`orpheus.numerics.traced_memo`, a pure function of
 content-identified arguments memoised on disk under ``.cache/references/``
 and keyed on what ran: on a miss the call is generated in a fresh
@@ -598,7 +573,7 @@ every file it reads or probes and every directory it lists
 and a lookup validates the manifest against the checkout without importing
 or running anything, reading again only what changed on disk since the
 process last read it (:class:`~orpheus.numerics._traced_memo_boot.Kept`). The key is
-:func:`~orpheus.numerics.content.encode_exact` of the function, its
+:func:`~orpheus.values.content.encode_exact` of the function, its
 signature-bound arguments and the platform tag. The theory, with why the
 identity of a generator is its recorded execution, why a miss runs in a
 fresh process, each pin kind and what it guards, the payload, the bypass,
@@ -710,17 +685,6 @@ problem is decided by the specification,
 .. autodata:: orpheus.numerics.observable.Linear
 
 .. autodata:: orpheus.numerics.observable.Observable
-
-Scalars — :mod:`orpheus.numerics.scalars`, the one definition of "a real
-number" that the content encoder, the data layer, the geometry, the mesh
-and the numerics values all parse through: NaN refused, ``-0.0`` made
-``+0.0``, an integer beyond :math:`2^{53}` and an overflow refused with
-their key. It was ``orpheus.geometry.scalars`` until #559. The theory,
-with what each function adds and why the encoder admits ``bool`` while
-the parsers refuse it, is :ref:`structured-geometry-one-real-parser`.
-
-.. automodule:: orpheus.numerics.scalars
-   :members:
 
 .. automodule:: orpheus.numerics.convergence
    :members:

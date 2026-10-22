@@ -93,9 +93,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Union
 
-from orpheus.numerics.content import ContentIdentity
+from orpheus.values.content import ContentIdentity
 
-from orpheus.numerics.scalars import parse_real
+from orpheus.values.scalars import parse_real
 
 if TYPE_CHECKING:
     from ._base import BoundaryTraceLaw

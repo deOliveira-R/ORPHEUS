@@ -5304,7 +5304,7 @@ mesher carries it onto the mesh's first face:
 The :class:`~orpheus.geometry.boundary.BC` dataclass is a thin wrapper
 ``BC(kind: str, params: Mapping[str, float])`` with no SN-specific
 knowledge; its parameters are stored as a
-:class:`~orpheus.numerics.content.FrozenMapping` of real numbers, and its
+:class:`~orpheus.values.content.FrozenMapping` of real numbers, and its
 equality and hash are its content
 (:ref:`structured-geometry-content-identity`). The
 mesh is method-agnostic.

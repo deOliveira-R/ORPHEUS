@@ -533,7 +533,7 @@ Equality and hashing read the structural content, never object identity
 and never a subset of the fields: the digest of *(type, label, shape,
 weights, kind, support, nodes, layout)* plus each subclass's own fields,
 through the one content encoder
-(:class:`~orpheus.numerics.content.ContentIdentity`). Each part is there
+(:class:`~orpheus.values.content.ContentIdentity`). Each part is there
 because some pair of factors differs in it and nothing else, and each such
 pair is two spaces:
 
@@ -703,7 +703,7 @@ what that derivation is FOR.
 the name deterministically and injectively from the axes' structural
 content — a length-prefixed, type-tagged content digest, never Python's
 ``hash()``, so it is stable across processes. The digest is
-:func:`~orpheus.numerics.content.name_digest` over the tuple of axes,
+:func:`~orpheus.values.content.name_digest` over the tuple of axes,
 the first 8 bytes of the one content encoder's digest in hexadecimal
 (:ref:`structured-geometry-content-identity`).
 
@@ -1513,7 +1513,7 @@ is a mutable dataclass and a
 :class:`~orpheus.numerics.measure.DiscreteMeasure` holds writeable arrays,
 so admitting either as a part would make equality fall back to identity,
 make ``hash`` raise ``TypeError`` and make the name mint raise
-:class:`~orpheus.numerics.content.ContentlessError` (`[M]` 2026-10-02). The
+:class:`~orpheus.values.content.ContentlessError` (`[M]` 2026-10-02). The
 ruling does not rest on the third fact: an origin with a content encoding
 would still be excluded.
 
@@ -6198,7 +6198,7 @@ status.
      - **The axis and every space-name digest move onto the one content
        encoder** (#405 P1 step 5). :class:`~orpheus.numerics.axis.Axis`
        takes its ``==`` and ``hash`` from
-       :class:`~orpheus.numerics.content.ContentIdentity` over its
+       :class:`~orpheus.values.content.ContentIdentity` over its
        dataclass fields (``label``, ``shape``, ``weights``, ``kind``, the
        generator declared ``compare=False``), which replace
        the hand-written ``_identity_key`` tuple and the private
@@ -6207,7 +6207,7 @@ status.
        without its module). ``FunctionSpace.of_axes``, the three trace
        spaces' name mints and ``FullFieldSpace.from_blocks``, four
        encoders with no type tags or length prefixes, call
-       :func:`~orpheus.numerics.content.name_digest`, the one 8-byte
+       :func:`~orpheus.values.content.name_digest`, the one 8-byte
        space-name digest, and the trace spaces read their layout's
        content through ``FaceLayout.structure``. The
        generator exclusion is answered a third time: an inclusion now

@@ -32,7 +32,7 @@ from typing import Any
 
 import pytest
 
-from orpheus.numerics.content import content_digest
+from orpheus.values.content import content_digest
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,

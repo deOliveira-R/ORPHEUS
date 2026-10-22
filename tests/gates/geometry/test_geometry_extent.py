@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import GeometryExtent
-from orpheus.numerics.content import ContentIdentity
+from orpheus.values.content import ContentIdentity
 from tests.gates._content_identity_helpers import require
 from tests.gates.specification._fixtures import slab2, slab3_repeated
 

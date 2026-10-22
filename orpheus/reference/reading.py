@@ -37,9 +37,9 @@ from fractions import Fraction
 from typing import TypeAlias, final
 
 from orpheus.data.citation import Citation
-from orpheus.numerics.content import ContentIdentity, content_digest
+from orpheus.values.content import ContentIdentity, content_digest
 from orpheus.numerics.enclosure import Enclosure
-from orpheus.numerics.scalars import parse_finite_real, parse_member
+from orpheus.values.scalars import parse_finite_real, parse_member
 
 __all__ = ["Printed", "ReferenceReading", "Uncertified"]
 

@@ -14,8 +14,8 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 from orpheus.data.emission_spectrum import enforce_emission_spectrum
-from orpheus.numerics.content import ContentIdentity
-from orpheus.numerics.scalars import canonical_reals
+from orpheus.values.content import ContentIdentity
+from orpheus.values.scalars import canonical_reals
 from orpheus.data.micro_xs.isotope import NG, Isotope
 from .interpolation import interp_sig_s, interp_xs_field
 from .sigma_zeros import solve_sigma_zeros
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 def _read_only_dense(values, where: str) -> np.ndarray:
     """A read-only canonical float COPY of ``values`` — a Mixture field is a value, not a view.
 
-    The entries pass through :func:`~orpheus.numerics.scalars.canonical_reals`
+    The entries pass through :func:`~orpheus.values.scalars.canonical_reals`
     (NaN refused naming ``where`` and the entry, ``-0.0`` made ``+0.0``): NaN
     is not a cross section, nor equal to itself (#405 P1 step 5; one rule, #559).
     """
@@ -85,12 +85,12 @@ class Mixture(ContentIdentity):
     carrying equal content compare ``==`` and hash equal, whatever objects
     they are, so a Problem generated from a saved-and-reloaded mixture is
     the SAME problem. Since #405 P1 step 5 (2026-10-02) the identity is
-    the one content encoder's (:class:`~orpheus.numerics.content.ContentIdentity`):
+    the one content encoder's (:class:`~orpheus.values.content.ContentIdentity`):
     the digest of every field by value, so ``-0.0`` equals ``+0.0``, a
     sparse block is the matrix and not its storage (an explicitly stored
     zero equals its absence), and NaN is refused at construction, naming
     the field. The digest is computed once per object and cached by
-    :class:`~orpheus.numerics.content.ContentIdentity` — `[M]` building the former key cost ~1 ms
+    :class:`~orpheus.values.content.ContentIdentity` — `[M]` building the former key cost ~1 ms
     on 421-group data and the SN geometry cache reads a problem's hash
     6–10× per solve, so a live key would be a measurable regression that
     no 2-group gate sees. A cached digest is sound only because nothing

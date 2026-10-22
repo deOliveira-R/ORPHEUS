@@ -58,8 +58,8 @@ from typing import TYPE_CHECKING, Any, TypeAlias, assert_never, cast, get_args
 
 import numpy as np
 
-from orpheus.numerics.content import ContentIdentity
-from orpheus.numerics.scalars import parse_member, parse_finite_reals
+from orpheus.values.content import ContentIdentity
+from orpheus.values.scalars import parse_member, parse_finite_reals
 
 if TYPE_CHECKING:
     import sympy

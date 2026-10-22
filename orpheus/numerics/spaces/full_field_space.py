@@ -103,7 +103,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 
 import numpy as np
 
-from orpheus.numerics.content import name_digest
+from orpheus.values.content import name_digest
 from orpheus.numerics.space import FunctionSpace
 
 if TYPE_CHECKING:

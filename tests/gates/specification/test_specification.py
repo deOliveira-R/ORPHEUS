@@ -41,7 +41,7 @@ from orpheus.data.materials import InconsistentMaterialsError, Materials
 from orpheus.geometry import BC, CoordSystem, GeometryExtent, StructuredGeometry
 from orpheus.geometry.boundary import PrescribedInflow
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.numerics.content import ContentlessError
+from orpheus.values.content import ContentlessError
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.question import Eigen, FixedSource, Nearest, Response
 from orpheus.specification import (

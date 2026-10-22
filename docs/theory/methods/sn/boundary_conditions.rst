@@ -33,7 +33,7 @@ an already-typed boundary law, and ``None`` is refused everywhere.
   or ``"white"``.
 - ``params`` --- optional parameters, given as any mapping from name
   (a ``str``) to real number (e.g. ``{"albedo": 0.7}``) and stored as a
-  :class:`~orpheus.numerics.content.FrozenMapping`; a value that is not
+  :class:`~orpheus.values.content.FrozenMapping`; a value that is not
   a real number, or is NaN, is refused at construction. The stored
   mapping is never equal to a plain ``dict``: compare
   ``dict(bc.params)``.

@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 
-from orpheus.numerics.scalars import parse_real
+from orpheus.values.scalars import parse_real
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     # Typed against the SHARED base, not SN's AngularFaceTraceSpace: diffusion's

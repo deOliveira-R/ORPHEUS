@@ -46,7 +46,7 @@ jobs:
       # RECORD row pins three digests on the macOS host; the seed-stability
       # row spawns two interpreters. ~5 s.
       - name: The content digests are the same bytes on this platform, under -O
-        run: .venv/bin/python -O -m pytest tests/gates/numerics/test_content_identity.py tests/gates/numerics/test_content_identity_axis.py tests/gates/data/test_content_identity_data.py tests/gates/geometry/test_content_identity_geometry.py tests/gates/mesh/test_content_identity_mesh.py -q
+        run: .venv/bin/python -O -m pytest tests/gates/values/test_content_identity.py tests/gates/numerics/test_content_identity_axis.py tests/gates/data/test_content_identity_data.py tests/gates/geometry/test_content_identity_geometry.py tests/gates/mesh/test_content_identity_mesh.py -q
       # The tapes (orpheus/data/micro_xs/*.GXS, 13 files, 411 MB) are the
       # repository's Git LFS objects; the checkout above leaves their pointer
       # files, whose text carries each tape's object id, so hashing them keys

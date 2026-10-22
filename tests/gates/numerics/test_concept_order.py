@@ -36,8 +36,8 @@ NUMERICS = pathlib.Path(__file__).resolve().parents[3] / "orpheus" / "numerics"
 TIERS: tuple[tuple[str, ...], ...] = (
     # primitives, and the orthogonal-polynomial recurrence (upstream of both measures)
     ("face_layout", "gauge", "instance_cache", "metric", "moment_layout", "recurrence",
-     "registry", "roots_of_unity", "scalars", "units", "vector"),
-    ("content", "symmetry"),
+     "registry", "roots_of_unity", "units", "vector"),
+    ("symmetry",),
     # the coefficient layouts are content values a basis carries (ruling 81)
     ("_traced_memo_boot", "coefficient_layout", "enclosure", "manifold", "mesh_free_function"),
     ("traced_memo",),

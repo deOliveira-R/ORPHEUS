@@ -415,7 +415,7 @@ class TestTheWrapConstructor:
         ``test_boundary_factors.py`` compares against with ``==``.
 
         Not free: :class:`RigidMotion` compares by its content
-        (:class:`~orpheus.numerics.content.ContentIdentity`, exact on both
+        (:class:`~orpheus.values.content.ContentIdentity`, exact on both
         parts). Two separately-constructed unit translations are
         bit-identical, so the equality holds — and a wrap along a DIFFERENT
         axis must not.

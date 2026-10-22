@@ -21,8 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from orpheus.numerics.content import ContentIdentity
-from orpheus.numerics.scalars import parse_integer
+from orpheus.values.content import ContentIdentity
+from orpheus.values.scalars import parse_integer
 
 if TYPE_CHECKING:
     from orpheus.geometry.structured_geometry import StructuredGeometry

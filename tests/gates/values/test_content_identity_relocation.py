@@ -1,7 +1,7 @@
 r"""A type's name inside a key: an ``orpheus`` type by its qualname, any other by ``module:qualname`` (layer DAG ruling 10).
 
 A value's identity is its type and its parts; the module a class is defined in is neither. So
-:func:`orpheus.numerics.content._type_name`, the one spelling of a type's name inside a key, names a type of
+:func:`orpheus.values.content._type_name`, the one spelling of a type's name inside a key, names a type of
 ``orpheus`` by its ``__qualname__`` and any other type by ``module:qualname``; it is used at all five sites a key
 names a type (the schema tag, an ``Enum`` member, and the exact encoder's container, subclass and sparse tags).
 Three gates:
@@ -59,12 +59,12 @@ import pytest
 import scipy.sparse as sp
 
 import orpheus
-from orpheus.numerics.content import ContentIdentity, content_digest, encode, encode_exact
+from orpheus.values.content import ContentIdentity, content_digest, encode, encode_exact
 from tests.gates._content_identity_helpers import require
 
 pytestmark = pytest.mark.foundation
 
-_HERE = "tests/gates/numerics/test_content_identity_relocation.py"
+_HERE = "tests/gates/values/test_content_identity_relocation.py"
 
 #: Two module names under ``orpheus`` (the rule names their types by qualname) and two outside it.
 _ORPHEUS_A, _ORPHEUS_B = "orpheus._wp0_relocation_a", "orpheus._wp0_relocation_b"
@@ -84,7 +84,7 @@ from typing import NamedTuple
 
 import scipy.sparse as sp
 
-from orpheus.numerics.content import ContentIdentity
+from orpheus.values.content import ContentIdentity
 
 
 class Shade(enum.Enum):

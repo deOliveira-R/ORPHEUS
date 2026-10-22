@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
-from orpheus.numerics.content import ContentIdentity
+from orpheus.values.content import ContentIdentity
 
 from ._base import BoundaryTraceLaw
 from ._factors import ScalarResponse, SelfPairedDeck

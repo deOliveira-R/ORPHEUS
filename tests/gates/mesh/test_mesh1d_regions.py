@@ -38,7 +38,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import AxisCoord, AxisMesh, CellsByCount, Mesh1D, Mesher, RadialAxisMesh
-from orpheus.numerics.content import content_digest
+from orpheus.values.content import content_digest
 
 pytestmark = pytest.mark.foundation
 

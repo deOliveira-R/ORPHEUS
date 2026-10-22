@@ -596,7 +596,7 @@ reference package, and the conftest imports the same type, so the
 marker's parser, the lock and the standing share one definition. The
 value's module imports nothing from ``pytest``: ``from_mark`` reads a
 marker only through its ``args`` and ``kwargs`` fields. It does import
-the content encoder, :mod:`orpheus.numerics.content`, because a
+the content encoder, :mod:`orpheus.values.content`, because a
 ``Withdrawal`` is a content value: the standing is part of the content
 of the values that carry it, so a ruling changes their identity, and a
 cache entry keyed on the old identity misses.

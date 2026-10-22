@@ -121,7 +121,7 @@ Key facts
   generating process, which knows the bytes of the memo it ran, writes
   one (the section "The source index" below).
 * **The key is exact, finer than content equality.** It is
-  :func:`~orpheus.numerics.content.encode_exact` of the function's
+  :func:`~orpheus.values.content.encode_exact` of the function's
   identity, its signature-bound arguments (defaults applied, each declared
   canonical form put in) and the platform tag. ``8`` and ``8.0``, ``-0.0``
   and ``0.0``, an integer array and its float twin are different keys,
@@ -370,8 +370,8 @@ the derivation's ``__post_init__``) were absent from the record; in the
 positive control, which constructs the derivation inside the process, 7 of
 7 were present. So every dataclass crosses through its constructor
 (``_ConstructorPickler`` rebuilds it from
-:func:`~orpheus.numerics.content.constructor_arguments`, and a
-:class:`~orpheus.numerics.content.ContentIdentity` value already pickles
+:func:`~orpheus.values.content.constructor_arguments`, and a
+:class:`~orpheus.values.content.ContentIdentity` value already pickles
 that way), and its construction runs, and is recorded, in the generating
 process. The pickle is safe in this direction: the parent wrote it and the
 child is our own process. The pickle ban applies to what is read back from
@@ -569,12 +569,12 @@ rejected because it is unsound for a parameter where a list and a tuple
 mean different things.
 
 **Exact against content equality** (the user's ruling of 2026-10-04,
-Q2). The content encoder :func:`~orpheus.numerics.content.encode` follows
+Q2). The content encoder :func:`~orpheus.values.content.encode` follows
 ``==`` by the user's ruling of 2026-10-02
 (:ref:`structured-geometry-content-identity`): two values that are the
 same physics are one value. A function can still tell such values apart,
 so a key that followed ``==`` could serve one call another call's answer.
-:func:`~orpheus.numerics.content.encode_exact` is the same walk of the
+:func:`~orpheus.values.content.encode_exact` is the same walk of the
 value (an object is still its schema and its parts, a mapping is still
 ordered by its encoded keys) with an exact leaf policy: every scalar with
 its type and its bits, every array with its dtype and its bytes.
@@ -633,12 +633,12 @@ be served the entry of ``Spec(8)`` when ``Spec`` is a frozen dataclass,
 and ``sign(-0.0)`` must not be served the entry of ``sign(0.0)``. So the
 exact policy rides the content encoder's own walk, one walk with two
 policies (``_Exactly`` beside ``_ByEquality`` in
-:mod:`orpheus.numerics.content`), rather than a second, shallower
+:mod:`orpheus.values.content`), rather than a second, shallower
 description of the arguments (review finding qa 4). The exact policy
 decides more than the leaves:
 
 * **an object is its constructor form**,
-  :func:`~orpheus.numerics.content.constructor_arguments` (or the
+  :func:`~orpheus.values.content.constructor_arguments` (or the
   arguments of its ``__reduce__``), which is exactly what the generating
   process receives, since every argument crosses through its
   constructor. A field declared ``compare=False`` that the constructor
@@ -646,7 +646,7 @@ decides more than the leaves:
 * **a container carries its concrete type**: a ``NamedTuple`` is not the
   plain tuple of its values;
 * **a mapping keeps its order**:
-  :class:`~orpheus.numerics.content.FrozenMapping` documents its iteration
+  :class:`~orpheus.values.content.FrozenMapping` documents its iteration
   order as behaviour, so a function can read it;
 * **a sparse matrix is its format and its stored arrays**, explicit zeros
   included;
@@ -692,11 +692,11 @@ decides more than the leaves:
   ``csr_matrix`` is not a ``csr_array``), and one that stores no arrays (a
   ``dok_matrix``) is refused;
 * **a mapping other than** ``dict`` **and**
-  :class:`~orpheus.numerics.content.FrozenMapping` **is refused**: a
+  :class:`~orpheus.values.content.FrozenMapping` **is refused**: a
   ``defaultdict`` holds a factory beside its items;
 * **a dataclass with an** ``InitVar`` **is refused**: its constructor
   takes a value it does not keep, so it has no constructor form.
-  :func:`~orpheus.numerics.content.constructor_arguments` refuses it, which
+  :func:`~orpheus.values.content.constructor_arguments` refuses it, which
   also refuses it at the process boundary and in the payload.
 
 The content policy is unchanged by all of this: every content digest is
@@ -1143,7 +1143,7 @@ stops, so its own writing code is never in the record. Without a pin on
 its own source, an entry written by a memo with a codec defect would stay
 a ``Hit`` after the defect was fixed (review finding qa 8). The pin covers
 the memo's two source files and ``content.py``, whose
-:func:`~orpheus.numerics.content.constructor_arguments` the write path
+:func:`~orpheus.values.content.constructor_arguments` the write path
 runs; an edit to any of them makes every entry stale. In a generating
 process the pin is the digest of the bytes the pinned-source loader
 compiled those three files from (``_RUNNING_MEMO_DIGEST``, computed once
@@ -2367,7 +2367,7 @@ by ``GalerkinSystem.groups``, so the solve's generation reads each block
 as a child entry and a point reading pins the same block keys. It is the
 first client whose arguments are geometry: it needed
 ``PanelBasis``, ``ConcentricPartition`` and ``RigidMotion`` to become
-:class:`~orpheus.numerics.content.ContentIdentity` values, and it declares
+:class:`~orpheus.values.content.ContentIdentity` values, and it declares
 two canonical forms, ``sigma_t`` and ``support``, each the function the
 body itself calls first, so a served block and one computed under
 ``bypass()`` (which passes the raw arguments) are one value. Its point is
@@ -2600,7 +2600,7 @@ by machinery that exists, and concept 2 memoises nothing new.
 ``GalerkinSystem.point_flux`` cannot be a client: ``GalerkinSystem`` is a
 ``dataclass(frozen=True, eq=False)``, compared by identity, so it has no
 content, and the content encoder refuses it with ``ContentlessError``
-(``orpheus.numerics.content``; the scoping's census). A test-side memo of
+(``orpheus.values.content``; the scoping's census). A test-side memo of
 ``_given`` would encode (its arguments are tuples, a string and a float),
 but it would be a second spelling of the door, and it would put a hit or a
 miss on the fast sphere and slab rows, which take milliseconds in process.

@@ -3,7 +3,7 @@ r"""Content identity of the ``Axis`` family (#405 P1 step 5, the 5a move).
 ``Axis`` carried a hand-written ``_identity_key`` tuple and a private
 ``_structural_bytes`` encoder (scalars by ``repr``, so ``1 != 1.0``) until
 step 5 moved it onto the one content encoder,
-:class:`~orpheus.numerics.content.ContentIdentity`. Its parts are its
+:class:`~orpheus.values.content.ContentIdentity`. Its parts are its
 dataclass fields: ``origin`` is provenance, not identity (the module
 docstring's slot table, ruling of 2026-08-20; the origin replaced the
 ``generator`` slot at S7 of the numerics untangling), so it is declared
@@ -16,13 +16,13 @@ its unit and a nodal one's carries nothing new (every nodal digest is the one
 it was before the unit existed). The modal entries' ``kind`` part therefore
 has a leg that moves only the unit.
 
-The roster also holds :class:`~orpheus.numerics.content.FrozenMapping`, the
+The roster also holds :class:`~orpheus.values.content.FrozenMapping`, the
 one frozen mapping value the content types hold (``Materials``, ``BC``
 params, ``FaceLaws``).
 
 The S5.2, S5.3 and pickle rows run the shared checkers of
 ``tests/gates/_content_identity_helpers.py`` over this roster; S5.9's
-population row (``tests/gates/numerics/test_content_identity.py``) reads it,
+population row (``tests/gates/values/test_content_identity.py``) reads it,
 so an ``Axis`` subclass added without an entry reds there.
 """
 
@@ -35,7 +35,7 @@ import pytest
 
 from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis, FromMeasure, Modal
 from orpheus.numerics.coefficient_layout import CellLayout, HarmonicLayout, LegendreLayout, ModeLayout
-from orpheus.numerics.content import FrozenMapping
+from orpheus.values.content import FrozenMapping
 from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from tests.gates._content_identity_helpers import (

@@ -4,10 +4,10 @@ parts, the law algebra, ``StructuredGeometry`` (#405 P1 step 5).
 Spec: ``.claude/plans/reference_p1_spec.md`` §1.5, the geometry legs of S5.2,
 S5.3 and S5.4, and S5.5 (a law with no content refuses the digest and is equal
 only to itself). The encoder and the mixin are gated in
-``tests/gates/numerics/test_content_identity.py``.
+``tests/gates/values/test_content_identity.py``.
 
 First red, measured on ``main`` ``1dc31163``: the module fails to import
-(``orpheus.numerics.content`` does not exist). With the encoder alone added,
+(``orpheus.values.content`` does not exist). With the encoder alone added,
 the rows red on the legacy behaviour each rejects: ``hash(BC.vacuum)`` raises
 ``TypeError: unhashable type: 'dict'``; ``BC.params`` is a mutable dict, the
 shared constants' included; ``hash(StructuredGeometry(...))`` raises when a
@@ -41,7 +41,7 @@ from orpheus.geometry.boundary import (
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.content import ContentlessError, content_digest, encode_exact
+from orpheus.values.content import ContentlessError, content_digest, encode_exact
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,
@@ -58,7 +58,7 @@ from tests.gates._content_identity_helpers import (
 pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/geometry/test_content_identity_geometry.py"
-_ENCODER = "tests/gates/numerics/test_content_identity.py"
+_ENCODER = "tests/gates/values/test_content_identity.py"
 _S51 = f"{_ENCODER}::test_s5_1_digests_and_hashes_are_seed_stable"
 _S54 = f"{_ENCODER}::TestS54EncoderCanonicalForms"
 
@@ -229,7 +229,7 @@ _GEOMETRY = Entry(
 
 # ── C1 (#405 P3 step 2c): paste into tests/gates/geometry/test_content_identity_geometry.py ──────────────────────
 # Imports to add: from orpheus.geometry.chart import Chart; from orpheus.geometry.chord import ConcentricPartition;
-#                 from orpheus.geometry.transformation import RigidMotion; from orpheus.numerics.content import encode_exact
+#                 from orpheus.geometry.transformation import RigidMotion; from orpheus.values.content import encode_exact
 # and the two entries appended to ROSTER: (..., _GEOMETRY, _RIGID_MOTION, _PARTITION).
 
 _Q90 = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])            # a quarter turn about z, exact

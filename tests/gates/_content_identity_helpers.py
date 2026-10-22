@@ -5,13 +5,13 @@ Not a test module (no ``test_`` prefix). Each owning tree (``tests/gates/data``,
 :class:`Entry` values, one per type whose identity is its content, and runs
 the per-type legs of S5.2 (equal content: equal ``==``, ``hash`` and digest)
 and S5.3 (a change to any part changes the digest) through the checkers here.
-``tests/gates/numerics/test_content_identity.py`` imports the three rosters for
+``tests/gates/values/test_content_identity.py`` imports the three rosters for
 the population gate S5.9 and the route gate S5.6.
 
 The population is the TYPE, never a hand list (spec S5.3, ``instrument-doctrine``
 X2 STRUCTURAL-DENOMINATOR): an entry declares its expected part names, the gate
 reads the part names off the production instance (``content_parts()`` for a
-:class:`~orpheus.numerics.content.ContentIdentity`, the ``compare=True``
+:class:`~orpheus.values.content.ContentIdentity`, the ``compare=True``
 dataclass fields otherwise) and requires the perturbation table to cover
 exactly them. A part added later reds S5.3 until it is perturbed.
 """
@@ -24,7 +24,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from orpheus.numerics.content import ContentIdentity, content_digest, encode
+from orpheus.values.content import ContentIdentity, content_digest, encode
 
 #: One perturbation: (leg id, builder of a value differing from the base in
 #: this part, the OTHER parts the leg is allowed to move because a

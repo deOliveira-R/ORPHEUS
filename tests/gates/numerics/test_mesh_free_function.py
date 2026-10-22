@@ -353,7 +353,7 @@ def test_s6_21_the_module_imports_no_geometry() -> None:
         for node in ast.walk(tree) if isinstance(node, (ast.Import, ast.ImportFrom))
         for alias in node.names
     ]
-    if "orpheus.numerics.content" not in imported:
+    if "orpheus.values.content" not in imported:
         pytest.fail(f"activation: the AST pass did not see the module's known import; it saw {imported}")
     if any(str(name).startswith("orpheus.geometry") for name in imported):
         pytest.fail(f"the module imports geometry: {imported}")

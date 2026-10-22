@@ -105,10 +105,10 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from orpheus.numerics.content import ContentIdentity
+from orpheus.values.content import ContentIdentity
 
 from .coord import CoordSystem
-from orpheus.numerics.scalars import parse_entries, parse_integer, parse_positions, parse_positive_real, parse_real
+from orpheus.values.scalars import parse_entries, parse_integer, parse_positions, parse_positive_real, parse_real
 from .boundary import BC
 
 if TYPE_CHECKING:
@@ -157,7 +157,7 @@ class StructuredGeometry(ContentIdentity):
     **The geometry never interprets a law.** Each method's mesh resolves
     what a tag means through its own admission table.
 
-    **Identity is content** (:class:`~orpheus.numerics.content.ContentIdentity`,
+    **Identity is content** (:class:`~orpheus.values.content.ContentIdentity`,
     #405 P1 step 5, 2026-10-02): two geometries with equal coordinate
     systems, breakpoints, material ids and laws are equal and hash alike in
     every process, so a reference cache can key on one. Until then a

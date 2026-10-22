@@ -35,6 +35,7 @@ principles, harness, and the auto-generated V&V matrix — lives at
    :maxdepth: 2
    :caption: API Reference
 
+   api/values
    api/numerics
    api/transport
    api/data

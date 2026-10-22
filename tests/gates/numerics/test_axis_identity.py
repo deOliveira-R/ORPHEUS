@@ -19,7 +19,7 @@ import orpheus
 from orpheus.numerics import axis as axis_mod
 from orpheus.numerics import frame_faces as ff
 from orpheus.numerics.axis import Declared, Axis, BasisKind, Modal
-from orpheus.numerics.content import content_digest
+from orpheus.values.content import content_digest
 from orpheus.numerics.frame import GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.manifold import Quotient
 from orpheus.numerics.metric import DenseMetric

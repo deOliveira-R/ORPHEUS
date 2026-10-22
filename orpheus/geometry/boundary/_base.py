@@ -54,7 +54,7 @@ from typing import TYPE_CHECKING, ClassVar, Optional
 
 import numpy as np
 
-from orpheus.numerics.content import ContentIdentity
+from orpheus.values.content import ContentIdentity
 from orpheus.numerics.registry import RegistryMixin
 
 from ._source import InflowSourceSpec, NoSource

@@ -35,8 +35,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from orpheus.numerics.content import ContentIdentity
-from orpheus.numerics.scalars import parse_integer
+from orpheus.values.content import ContentIdentity
+from orpheus.values.scalars import parse_integer
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture

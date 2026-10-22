@@ -317,7 +317,7 @@ def test_r7_7_the_verdicts_are_returned_values_not_stored_ones() -> None:
     dataclasses and NOT ``ContentIdentity`` (no cache keys them); the verdicts
     ``floor_holds``, ``agrees`` and ``holds`` are DERIVED properties, not
     fields; two calls return two objects."""
-    from orpheus.numerics.content import ContentIdentity
+    from orpheus.values.content import ContentIdentity
 
     for name, derived in (("VerificationCertificate", ("floor_holds", "agrees")), ("OrderVerification", ("holds",))):
         cls: type = s5.c(s7.VERIFICATION, name)
@@ -856,7 +856,7 @@ def test_r7_18_the_comparison_is_returned_not_stored_and_is_not_a_certificate() 
     readings ``init=False``, read at construction); ``agrees`` is a derived
     property, not a field, and it has no floor; two calls return two
     objects."""
-    from orpheus.numerics.content import ContentIdentity
+    from orpheus.values.content import ContentIdentity
 
     cls: type = s5.c(s7.VERIFICATION, "UncertifiedComparison")
     params = getattr(cls, "__dataclass_params__", None)

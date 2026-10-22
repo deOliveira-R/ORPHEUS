@@ -132,8 +132,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from orpheus.numerics.content import ContentIdentity
-from orpheus.numerics.scalars import canonical_reals
+from orpheus.values.content import ContentIdentity
+from orpheus.values.scalars import canonical_reals
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from numpy.typing import ArrayLike
@@ -342,7 +342,7 @@ class RigidMotion(ContentIdentity):
     which take the *geometric* data that determines the element rather than
     its matrix.
 
-    **Identity is content** (:class:`~orpheus.numerics.content.ContentIdentity`):
+    **Identity is content** (:class:`~orpheus.values.content.ContentIdentity`):
     equality is exact on both parts, ``-0.0`` equal to ``0.0``, and the hash is
     the same in every process. Both parts are read-only copies of what the
     caller passed.

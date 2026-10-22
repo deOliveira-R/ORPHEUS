@@ -13,9 +13,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import ClassVar
 
-from orpheus.numerics.content import ContentIdentity, FrozenMapping
+from orpheus.values.content import ContentIdentity, FrozenMapping
 
-from orpheus.numerics.scalars import parse_real
+from orpheus.values.scalars import parse_real
 
 __all__ = ["BC"]
 
@@ -38,8 +38,8 @@ class BC(ContentIdentity):
     params : Mapping[str, float]
         Optional numeric parameters (e.g. ``{"albedo": 0.7}``), real numbers
         (NaN refused). Stored as a
-        :class:`~orpheus.numerics.content.FrozenMapping`: a tag is a VALUE with content identity
-        (:class:`~orpheus.numerics.content.ContentIdentity`, #405 P1 step 5,
+        :class:`~orpheus.values.content.FrozenMapping`: a tag is a VALUE with content identity
+        (:class:`~orpheus.values.content.ContentIdentity`, #405 P1 step 5,
         2026-10-02), equal and hashing alike whatever the parameters'
         order, and ``{"albedo": 1}`` is ``{"albedo": 1.0}``. Until then the
         dict stayed mutable after construction, even on the shared

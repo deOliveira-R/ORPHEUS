@@ -97,7 +97,7 @@ def test_r3_1_the_observable_set_is_closed() -> None:
     those four; one value of each reaches its own ``case``; a foreign value
     (a string, the class ``FluxIntegral`` itself, a ``RegionwiseConstant``)
     reaches ``case _``; every value is an instance of the union alias."""
-    from orpheus.numerics.content import ContentIdentity
+    from orpheus.values.content import ContentIdentity
 
     m = _mod()
     members = {c.__name__ for c in typing.get_args(m.Observable)}

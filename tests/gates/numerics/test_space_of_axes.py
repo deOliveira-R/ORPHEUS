@@ -128,7 +128,7 @@ def test_of_axes_name_is_BLIND_to_the_generator() -> None:
     ``__eq__`` reads the axis content directly through ``Axis.__eq__``, so
     provenance stays out of the identity at both tiers for one reason.
     The name digest encodes ``Axis.content_parts`` through the one content
-    encoder (``orpheus.numerics.content``, #405 P1 step 5; a private
+    encoder (``orpheus.values.content``, #405 P1 step 5; a private
     ``_structural_bytes`` over an ``_identity_key`` tuple until then),
     which excludes ``Axis.generator``; this gate is the observable
     statement of that, at the tier where an inclusion would do damage.

@@ -4,10 +4,10 @@ Spec: ``.claude/plans/reference_p1_spec.md`` §1.5, gates S5.2 (equal content
 gives equal ``==``, ``hash`` and digest), S5.3 (a change to any part changes
 the digest, quantified over the parts the production instance reports) and
 the data legs of S5.4 (signed zero canonicalised, NaN refused). The encoder
-and the mixin are gated in ``tests/gates/numerics/test_content_identity.py``.
+and the mixin are gated in ``tests/gates/values/test_content_identity.py``.
 
 First red, measured on ``main`` ``1dc31163`` (spec §1.5, "First reds"): the
-module fails to import (``orpheus.numerics.content`` does not exist). With the
+module fails to import (``orpheus.values.content`` does not exist). With the
 encoder alone added to that tree, the rows below red on the legacy behaviour
 each one rejects: ``Materials`` twins unequal (``eq=False``); ``Materials``
 unpicklable (it holds a ``mappingproxy``); a ``Mixture`` whose ``SigL`` is
@@ -27,7 +27,7 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.materials import Materials
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.numerics.content import content_digest
+from orpheus.values.content import content_digest
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,
@@ -45,7 +45,7 @@ from tests.gates.data.test_mixture_identity_anchors import _perturb
 pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/data/test_content_identity_data.py"
-_ENCODER = "tests/gates/numerics/test_content_identity.py"
+_ENCODER = "tests/gates/values/test_content_identity.py"
 _S51 = f"{_ENCODER}::test_s5_1_digests_and_hashes_are_seed_stable"
 _S54 = f"{_ENCODER}::TestS54EncoderCanonicalForms"
 

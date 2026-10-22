@@ -36,7 +36,7 @@ pure evaluation.
 **The same problem.** Construction refuses a claim the specification cannot
 pose, and an anchor whose specification is not this one (qa of step 5, F2).
 
-Not :class:`~orpheus.numerics.content.ContentIdentity` yet: P3 keys a
+Not :class:`~orpheus.values.content.ContentIdentity` yet: P3 keys a
 reference by its derivation's execution trace, so until then two reference
 solutions are equal only if they are the same object.
 """
@@ -48,7 +48,7 @@ from typing import Protocol, TypeAlias, assert_never, final, get_args, runtime_c
 
 from orpheus.numerics.enclosure import Enclosure, common_part
 from orpheus.numerics.observable import Eigenvalue, Linear, Observable, Ratio
-from orpheus.numerics.scalars import parse_member
+from orpheus.values.scalars import parse_member
 from orpheus.reference.certificate import DerivedBound, Establishment, Exact, ReferenceCertificate
 from orpheus.reference.reading import Uncertified
 from orpheus.specification.specification import Specification, admit_observable

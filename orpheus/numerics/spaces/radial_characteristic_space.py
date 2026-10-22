@@ -411,7 +411,7 @@ class _RadialCharacteristicSubSpace(FunctionSpace):
         # EQUAL spaces; a different level set, grid, or metric refuses.
         # The one content encoder (#405 P1 step 5), shared by every space
         # name.
-        from orpheus.numerics.content import name_digest
+        from orpheus.values.content import name_digest
 
         metric = np.concatenate(metric_pieces)
         digest = name_digest((

@@ -391,7 +391,7 @@ _SPACE_FAMILY = (
 #: (``HarmonicAxis`` / ``LegendreAxis``) inherit ``Axis.__eq__`` and add none.
 #: Re-measured at #405 P1 step 5 (2026-10-02): ``Axis``'s hand-written
 #: ``__eq__``/``__hash__`` retired onto the one content encoder's
-#: ``ContentIdentity`` (``orpheus/numerics/content.py``, outside this census's
+#: ``ContentIdentity`` (``orpheus/values/content.py``, outside this census's
 #: files), so EIGHT sites over seven files, the same SEVEN one-liners.
 # Re-baselined at S7 (the carve this RECORD announced; F7 of the S6a review):
 # the space family's identity is ONE key, ``FunctionSpace.identity_key``, and

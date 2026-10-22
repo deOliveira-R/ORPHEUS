@@ -372,7 +372,7 @@ def test_r1_8_the_module_is_numerics() -> None:
     loads (``{geometry, numerics}``, ``[M]`` 2026-10-03) and no SymPy. (b) By
     AST, every ``orpheus`` import in the module (module-level, local,
     ``TYPE_CHECKING``) is under ``orpheus.numerics``; activation: the import
-    of ``orpheus.numerics.content`` is seen."""
+    of ``orpheus.values.content`` is seen."""
     import ast
 
     env = {**os.environ, "PYTHONPATH": str(_ROOT)}
@@ -391,7 +391,7 @@ def test_r1_8_the_module_is_numerics() -> None:
         elif isinstance(node, ast.Import):
             ours.extend(alias.name for alias in node.names)
     ours = [m for m in ours if m.startswith("orpheus")]
-    require("orpheus.numerics.content" in ours, f"activation: the content import is not seen in {ours}")
+    require("orpheus.values.content" in ours, f"activation: the content import is not seen in {ours}")
     outside = [m for m in ours if not m.startswith("orpheus.numerics")]
     require(not outside, f"imports outside numerics: {outside}")
 

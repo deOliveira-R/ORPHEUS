@@ -89,7 +89,7 @@ The package is input-tier: it imports :mod:`orpheus.specification`,
 :mod:`orpheus.numerics`, :mod:`orpheus.data` and :mod:`orpheus.geometry`
 and nothing above them, and :mod:`orpheus.derivations` imports it, never
 the converse (:ref:`architecture-layering`). Every value in it is a
-:class:`~orpheus.numerics.content.ContentIdentity`, admitted at
+:class:`~orpheus.values.content.ContentIdentity`, admitted at
 construction, so two spellings of one value are one value and can key a
 cache (the reference solution excepted: it is rebuilt where it is
 asked for, and what phase P3 caches is its derivation's evaluation). The

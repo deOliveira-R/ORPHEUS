@@ -1,7 +1,7 @@
 r"""Content identity of the question values (#405 P1 step 7, S7.9-S7.12).
 
 Specified by the test-architect (2026-10-02). Its ``ROSTER`` joins the union
-in ``tests/gates/numerics/test_content_identity.py`` (S5.6's route gate reads
+in ``tests/gates/values/test_content_identity.py`` (S5.6's route gate reads
 it; S5.9 walks ``orpheus.numerics`` and reds while a class has no roster
 entry, ``[M]`` 2026-10-02 on the prototype).
 
@@ -23,7 +23,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from orpheus.numerics.content import FrozenMapping, content_digest
+from orpheus.values.content import FrozenMapping, content_digest
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.question import Eigen, FixedSource, Fundamental, Nearest, Response
 from tests.gates._content_identity_helpers import (
@@ -42,7 +42,7 @@ from tests.gates._content_identity_helpers import (
 pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/numerics/test_content_identity_question.py"
-_CI = "tests/gates/numerics/test_content_identity.py"
+_CI = "tests/gates/values/test_content_identity.py"
 _MF = "tests/gates/numerics/test_content_identity_mesh_free.py"
 _ROOT = Path(__file__).resolve().parents[3]
 

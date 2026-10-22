@@ -33,7 +33,7 @@ partitions with equal widths and shifted edges index two coefficient spaces.
 with no degree structure (the loss-kernel gauge's kernel modes); its unit is
 supplied by the basis and may be zero.
 
-The layouts are content values (:class:`~orpheus.numerics.content.ContentIdentity`):
+The layouts are content values (:class:`~orpheus.values.content.ContentIdentity`):
 two layouts are equal iff of one class with equal parts.
 """
 
@@ -44,7 +44,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from .content import ContentIdentity
+from orpheus.values.content import ContentIdentity
 
 __all__ = ["CellLayout", "CoefficientLayout", "DegreeLayout", "HarmonicLayout", "LegendreLayout", "ModeLayout"]
 

@@ -1,6 +1,8 @@
 """Import-linter: enforce the L0 / L1 / (input) / L2 / L3 layer contract.
 
 Layers (per plan §P3.0):
+  (values) (values/)   — what a value is and when two values are the same
+                         (layer_dag.md ruling 6); imports nothing from orpheus.
   L0  (derivations/)   — Branch-1 references (SymPy / mpmath);
                          beside L1 and the input layer, below L2: it
                          may import numerics, geometry, mesh and data.
@@ -42,6 +44,9 @@ import pytest
 ORPHEUS_ROOT = pathlib.Path(__file__).resolve().parents[2] / "orpheus"
 
 # Layer assignment.
+# Layer DAG ruling 6: what a value is (the admitted reals) and when two values are
+# the same (content identity); the lowest package, importing nothing from orpheus.
+VALUES_PACKAGES: frozenset[str] = frozenset({"values"})
 L0_PACKAGES: frozenset[str] = frozenset({"derivations"})
 INPUT_PACKAGES: frozenset[str] = frozenset({"geometry", "data"})
 MESH_PACKAGES: frozenset[str] = frozenset({"mesh"})
@@ -70,7 +75,15 @@ L3_PACKAGES: frozenset[str] = frozenset(
     }
 )
 
+#: Every top-level name under ``orpheus/``: its packages and its modules (``plotting``).
+ORPHEUS_TOP_LEVEL: frozenset[str] = frozenset(
+    path.stem if path.suffix == ".py" else path.name
+    for path in ORPHEUS_ROOT.iterdir()
+    if (path.is_dir() and (path / "__init__.py").is_file()) or (path.suffix == ".py" and path.name != "__init__.py")
+)
+
 FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
+    "values": ORPHEUS_TOP_LEVEL - VALUES_PACKAGES,
     "numerics": DATA_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
     "geometry": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
     "data": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
@@ -230,6 +243,17 @@ def test_no_forbidden_imports(module_path: pathlib.Path) -> None:
     assert not violations, "\n".join(violations)
 
 
+@pytest.mark.foundation
+@pytest.mark.parametrize("target", ["orpheus.numerics.space", "orpheus.geometry.chart", "orpheus.plotting"])
+def test_values_imports_nothing_from_orpheus(target: str) -> None:
+    """Ruling 6: ``values`` is the bottom of the package graph. A values module importing any other
+    orpheus package or module is a violation; the row reads it on a synthetic source, so the gate's
+    red exists in the tree (X1), and ``ORPHEUS_TOP_LEVEL`` is checked to hold the names it must."""
+    assert {"numerics", "geometry", "plotting", "values"} <= ORPHEUS_TOP_LEVEL, sorted(ORPHEUS_TOP_LEVEL)
+    violations = _check_source(pathlib.PurePosixPath("values/probe.py"), f"import {target}\n")
+    assert violations and "forbidden: values" in violations[0], violations
+
+
 # ---------------------------------------------------------------------------
 # The numerics -> geometry back-edge, and the discipline that makes it safe
 # ---------------------------------------------------------------------------
@@ -346,7 +370,7 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         # the question values (S7.13) and the one real-number parser (#559).
         "orpheus.numerics.mesh_free_function",
         "orpheus.numerics.question",
-        "orpheus.numerics.scalars",
+        "orpheus.values.scalars",
         # #405 P1 step 8 (S8.3): the specification and its keys.
         "orpheus.specification",
         "orpheus.data.cells",
@@ -568,21 +592,18 @@ def test_the_operator_algebra_predicate_admits_each_other_shape(rel: str, source
 # changes as production grows, so churn must stay in production. A reference
 # under `derivations/continuous/` or `derivations/common/` imports from
 # `orpheus.numerics` only the vocabulary it shares with its consumers (the
-# question, the observables, the answer function, content identity, the
-# traced memo, and the scalar parsers that define the values content
-# identity encodes); its mathematics is the reference kernel's
+# question, the observables, the answer function and the traced memo); content
+# identity and the scalar parsers are `orpheus.values`, below every package, so
+# a reference imports them freely; its mathematics is the reference kernel's
 # (`orpheus/derivations/common/dense_pencil.py`, `quadrature.py`), on numpy,
 # scipy and mpmath. A change to this set is a contract change.
 #
-# `scalars` joined at #405 P3 step 2c (C1): a reference normalises a key
-# argument at its definition site with the rule the content encoder applies
-# (`canonical_reals`, `parse_real`), so the key and the stored value agree.
-# The module is a leaf importing nothing from `orpheus`, and `content` already
-# imports it; it parses (NaN refused, -0.0 made +0.0) and computes nothing a
-# reference's value depends on.
+# `content` and `scalars` were members until layer DAG ruling 6 (2026-10-22)
+# moved them to `orpheus.values`; a reference still normalises a key argument
+# with the rule the content encoder applies (#405 P3 step 2c, C1).
 
 REFERENCE_INTERFACE_NUMERICS: frozenset[str] = frozenset(
-    {"question", "observable", "mesh_free_function", "content", "scalars", "traced_memo"}
+    {"question", "observable", "mesh_free_function", "traced_memo"}
 )
 
 _CLOSED_REFERENCE_ROOTS: tuple[str, ...] = ("derivations/continuous/", "derivations/common/")

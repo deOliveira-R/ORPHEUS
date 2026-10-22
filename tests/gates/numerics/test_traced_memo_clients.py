@@ -430,7 +430,7 @@ _GAUGE_DRIVER = textwrap.dedent('''
     import os, sys
     repo, cache = sys.argv[1:3]
     sys.path.insert(0, repo)
-    from orpheus.numerics import content
+    from orpheus.values import content
     if os.environ.get("ARM") == "iteration-order":
         content._Exactly.elements = lambda self, encoded: encoded     # the pre-fix spelling, in the parent only
     from tests.gates.derivations.test_characteristic_reference import _K, _TINY, _hetero_sphere

@@ -3,7 +3,7 @@ r"""Content identity of the specification and its keys (#405 P1 step 8: S8.2, S8
 Specified by the test-architect (2026-10-02, ``.claude/plans/reference_p1_spec.md``
 §1.8). Its ``ROSTER`` (``Specification``, ``CellCoefficient``,
 ``GeometryExtent``) joins the union in
-``tests/gates/numerics/test_content_identity.py``, whose ``_PACKAGES`` gains
+``tests/gates/values/test_content_identity.py``, whose ``_PACKAGES`` gains
 ``"orpheus.specification"`` in the same change. ``[M]`` on the prototype, the
 roster union removed: with the package walked, S5.9 reds naming all three
 classes; without the walk it names only ``CellCoefficient`` and
@@ -33,7 +33,7 @@ import sympy as sp
 from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.materials import Materials
 from orpheus.geometry import BC, GeometryExtent, StructuredGeometry
-from orpheus.numerics.content import FrozenMapping, content_digest
+from orpheus.values.content import FrozenMapping, content_digest
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.question import Eigen, FixedSource, Fundamental, Nearest, Response
 from orpheus.specification import GeometrySpecification, InfiniteMediumSpecification
@@ -54,7 +54,7 @@ from tests.gates.specification._fixtures import fuel, moderator, slab2
 pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/specification/test_content_identity_specification.py"
-_CI = "tests/gates/numerics/test_content_identity.py"
+_CI = "tests/gates/values/test_content_identity.py"
 _QCI = "tests/gates/numerics/test_content_identity_question.py"
 _SPEC = "tests/gates/specification/test_specification.py"
 _ROOT = Path(__file__).resolve().parents[3]

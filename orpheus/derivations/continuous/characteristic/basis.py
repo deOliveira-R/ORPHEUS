@@ -49,7 +49,7 @@ from scipy.linalg import block_diag
 
 from orpheus.derivations.common.quadrature import composite_gauss_legendre, gauss_legendre
 from orpheus.geometry.chord import ConcentricPartition
-from orpheus.numerics.content import ContentIdentity
+from orpheus.values.content import ContentIdentity
 
 from .grading import graded_ends
 
@@ -92,7 +92,7 @@ class PanelBasis(ContentIdentity):
     Built by :meth:`of`. Node :math:`i` is the :math:`m`-th Gauss-Legendre point
     of panel :math:`P`, :math:`i = P(p + 1) + m`.
 
-    **Identity is content** (:class:`~orpheus.numerics.content.ContentIdentity`):
+    **Identity is content** (:class:`~orpheus.values.content.ContentIdentity`):
     two bases on equal partitions at one degree are one basis, so a reference
     stage memoised on a basis keys on what it is, not on which object it is.
 

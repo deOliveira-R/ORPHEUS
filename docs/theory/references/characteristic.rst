@@ -6103,7 +6103,7 @@ the solve's. The reading at a point adds no field: its rule over the
 lines through the point takes the transport resolution's ``line_points``,
 and its traversals the same derived rule along each line as the blocks
 (the user's ruling of 2026-10-08). ``Resolution`` and ``TransportResolution`` are
-:class:`~orpheus.numerics.content.ContentIdentity` values, as the
+:class:`~orpheus.values.content.ContentIdentity` values, as the
 derivation is: its content is its two fields, and the cross sections,
 the basis and the system are derived from them.
 
@@ -6305,12 +6305,12 @@ content identity and one spelling per value:
 - :class:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis`,
   :class:`~orpheus.geometry.chord.ConcentricPartition` and
   :class:`~orpheus.geometry.transformation.RigidMotion` (the partition's
-  pose) are :class:`~orpheus.numerics.content.ContentIdentity` values:
+  pose) are :class:`~orpheus.values.content.ContentIdentity` values:
   equality and hash by content digest, the same in every process
   (:ref:`structured-geometry-content-identity`). A rigid motion stores
   read-only float64 copies of its two parts, refuses a non-finite part,
   and, like the partition's breakpoints, folds ``-0.0`` onto ``0.0``
-  through :func:`~orpheus.numerics.scalars.canonical_reals`; the exact key
+  through :func:`~orpheus.values.scalars.canonical_reals`; the exact key
   separates the two zeros (a function can tell them apart), so without
   the fold one motion would key twice (``RigidMotion.inversion(3)`` is
   ``-I``, with ``-0.0`` off the diagonal). A basis's degree and
@@ -6318,7 +6318,7 @@ content identity and one spelling per value:
   ``line_points`` are normalised by ``operator.index``, and a
   :class:`~orpheus.derivations.continuous.characteristic.walls.Wall`
   normalises its indices by ``operator.index`` and its amplitudes by
-  :func:`~orpheus.numerics.scalars.parse_real`, so ``np.int64(3)`` and
+  :func:`~orpheus.values.scalars.parse_real`, so ``np.int64(3)`` and
   ``3``, or a wall written with ``0`` and ``1`` and one written with
   ``0.0`` and ``1.0``, are one key.
 - ``sigma_t`` and ``support`` take declared canonical forms,
@@ -6483,7 +6483,7 @@ The content identity of the three types is gated in
 one memo key; a motion's read-only arrays; the non-finite refusal; one
 equality for a motion), in ``test_characteristic_reference.py`` (the
 basis's parts, its derived state outside its content) and by the content
-roster gate S5.9 (``tests/gates/numerics/test_content_identity.py``).
+roster gate S5.9 (``tests/gates/values/test_content_identity.py``).
 Each row's first red is an arm of the battery in
 ``scratch/characteristic_architecture/p3/c1/gate_spec.md`` §6, re-run on
 the carve before the elegance review's re-pose

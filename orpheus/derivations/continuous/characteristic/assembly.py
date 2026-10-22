@@ -81,8 +81,8 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from orpheus.geometry.chart import LineShape
-from orpheus.numerics.content import ContentIdentity
-from orpheus.numerics.scalars import canonical_reals
+from orpheus.values.content import ContentIdentity
+from orpheus.values.scalars import canonical_reals
 from orpheus.numerics.traced_memo import traced_memo
 
 from .basis import PanelBasis

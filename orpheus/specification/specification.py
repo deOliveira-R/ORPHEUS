@@ -2,7 +2,7 @@ r"""The reference specification (#405 P1 step 8).
 
 A specification is the QUESTION a reference answers, never an answer. It is
 the key the reference cache stores under, so it is a content value
-(:class:`~orpheus.numerics.content.ContentIdentity`), and the layer of the
+(:class:`~orpheus.values.content.ContentIdentity`), and the layer of the
 posing filtration it is posed at is its TYPE:
 
 * :class:`InfiniteMediumSpecification` is posed on the materials layer alone:
@@ -67,11 +67,11 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.materials import Materials
 from orpheus.geometry.extent import GeometryExtent
 from orpheus.geometry.structured_geometry import StructuredGeometry
-from orpheus.numerics.content import ContentIdentity, FrozenMapping, content_digest
+from orpheus.values.content import ContentIdentity, FrozenMapping, content_digest
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Observable, PointValue, Ratio
 from orpheus.numerics.question import Eigen, FixedSource, Question, Response
-from orpheus.numerics.scalars import parse_integer
+from orpheus.values.scalars import parse_integer
 
 if TYPE_CHECKING:
     import sympy

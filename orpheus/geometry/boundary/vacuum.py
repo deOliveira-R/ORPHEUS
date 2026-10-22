@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from orpheus.numerics.content import ContentIdentity
+from orpheus.values.content import ContentIdentity
 
 from ._base import BoundaryTraceLaw
 from ._factors import SelfPairedDeck, ScalarResponse

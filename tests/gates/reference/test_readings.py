@@ -44,7 +44,7 @@ from typing import Any
 import pytest
 
 from orpheus.data.citation import Citation
-from orpheus.numerics.content import content_digest
+from orpheus.values.content import content_digest
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,
@@ -405,7 +405,7 @@ _SEED_SCRIPT = """
 from orpheus.numerics.enclosure import Enclosure
 from orpheus.reference.reading import Printed, Uncertified
 from orpheus.data.citation import Citation
-from orpheus.numerics.content import content_digest
+from orpheus.values.content import content_digest
 import orpheus.reference.reading as m
 print(m.__file__)
 for v in (Enclosure(1.25, 0.5), Enclosure(1.0, 0.0) / Enclosure(3.0, 0.0),
@@ -422,7 +422,7 @@ def _seed_run(seed: str) -> list[str]:
     return out.stdout.strip().splitlines()
 
 
-@pytest.mark.rests_on("tests/gates/numerics/test_content_identity.py::test_s5_1_digests_and_hashes_are_seed_stable")
+@pytest.mark.rests_on("tests/gates/values/test_content_identity.py::test_s5_1_digests_and_hashes_are_seed_stable")
 def test_r1_19_digests_and_hashes_are_seed_stable() -> None:
     """``PYTHONHASHSEED`` 1 and 2 print the same four digests and hashes (a
     ``str`` part, the printed text, is where a salted hash would leak); the
@@ -500,7 +500,7 @@ def test_r1_20_the_type_is_a_frozen_final_content_value_without_an_enclosure() -
     (assignment raises), a ``ContentIdentity``; and it has NO ``enclosure``
     (an uncertified value guarantees nothing, so no consumer can read it as an
     enclosure: the ruling's "the weaker claim is visible in code")."""
-    from orpheus.numerics.content import ContentIdentity
+    from orpheus.values.content import ContentIdentity
 
     cls = _reading().Uncertified
     names = tuple(f.name for f in dataclasses.fields(cls))

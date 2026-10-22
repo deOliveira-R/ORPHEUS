@@ -43,7 +43,7 @@ Key facts
   its boundary laws, the ``BC`` tags, the mesh, its ``FaceLaws``, the
   mixtures and the ``Materials`` declaration all derive ``==`` and
   ``hash`` from one content digest,
-  :func:`~orpheus.numerics.content.content_digest` (blake2b-256 of a
+  :func:`~orpheus.values.content.content_digest` (blake2b-256 of a
   type-tagged, length-prefixed encoding), so two values that are the
   same physics are equal and hash alike in every process and on every
   platform, which is what a persistent cache key needs. A real scalar is
@@ -805,7 +805,7 @@ body has an inner face asks ``"xmin" in mesh.face_laws``.
 
 **The value.** :class:`~orpheus.mesh.face_laws.FaceLaws` is a frozen,
 ordered, picklable mapping from face name to law, a subclass of
-:class:`~orpheus.numerics.content.FrozenMapping`. A mesh is given its
+:class:`~orpheus.values.content.FrozenMapping`. A mesh is given its
 laws as any mapping keyed by face name, and builds the value with
 ``FaceLaws.over(inventory, laws, where, coord)``, which refuses, each
 with a keyed message:
@@ -1917,7 +1917,7 @@ Every value a reference question is posed from (the mixtures and the
 ``Materials`` declaration, the geometry with its boundary laws, the
 mesh with its face laws) derives its equality and its hash from one
 content digest. The digest is computed by one encoder,
-:mod:`orpheus.numerics.content`, whose module docstring is the design
+:mod:`orpheus.values.content`, whose module docstring is the design
 record; this section states the problem it solves, the canonical form
 of each kind of value with its reason, the schema tag, the two
 refusals, what the encoder replaced and the gates that hold it. It
@@ -2000,11 +2000,11 @@ apart, because they are one computation.
 The canonical forms, each with its reason
 -----------------------------------------
 
-:func:`~orpheus.numerics.content.encode` turns a value into bytes,
+:func:`~orpheus.values.content.encode` turns a value into bytes,
 recursively. Every chunk carries a one-byte type tag and an 8-byte
 length, so no two different values share a byte stream: the encoding is
 injective on the values it admits, and ``("a", "b")`` and ``("ab",)``
-cannot collide. :func:`~orpheus.numerics.content.content_digest` is the
+cannot collide. :func:`~orpheus.values.content.content_digest` is the
 blake2b digest of those bytes, 32 bytes (256 bits), wide enough that a
 collision between two specifications is not a failure mode the cache
 considers. The canonical form of each kind of value follows Python's
@@ -2065,7 +2065,7 @@ ruling of 2026-10-02: the digest follows ``==``.
        an ``int``)
      - two enumerations with a member of one name are different values;
        ``CoordSystem.SPHERICAL`` is not the string ``"spherical"``
-   * - a :class:`~orpheus.numerics.content.ContentIdentity` value, or
+   * - a :class:`~orpheus.values.content.ContentIdentity` value, or
        a frozen dataclass whose own equality is by value (``eq=True``)
      - the schema tag (next section), then its parts in schema order:
        the dataclass fields with ``compare=True`` unless the class says
@@ -2076,15 +2076,15 @@ ruling of 2026-10-02: the digest follows ``==``.
    * - a mutable part inside an object: a ``list``, a ``dict``, a
        ``set``, a writeable array, a sparse matrix with writeable arrays
      - refused with
-       :class:`~orpheus.numerics.content.ContentlessError`
+       :class:`~orpheus.values.content.ContentlessError`
      - the part could change after its owner was keyed, under a cached
        digest; a ``tuple``, a ``frozenset``, a
-       :class:`~orpheus.numerics.content.FrozenMapping` and a read-only
+       :class:`~orpheus.values.content.FrozenMapping` and a read-only
        array are admitted. A value handed to ``content_digest`` directly
        is not a part and is not held to this
    * - anything else
      - refused with
-       :class:`~orpheus.numerics.content.ContentlessError`, naming the
+       :class:`~orpheus.values.content.ContentlessError`, naming the
        path from the root value
      - a function, a plain object, a dataclass compared by identity
        (``eq=False``), a mutable dataclass or an object array has no
@@ -2105,7 +2105,7 @@ the package's nameable classes to distinct qualified names.
 
    from orpheus.geometry import BC, CoordSystem, StructuredGeometry
    from orpheus.geometry.boundary import AlbedoBoundary, VacuumInflow
-   from orpheus.numerics.content import ContentlessError, content_digest, encode
+   from orpheus.values.content import ContentlessError, content_digest, encode
 
    # A real scalar is its value: the digest follows ==.
    assert BC("albedo", {"albedo": 1}) == BC("albedo", {"albedo": 1.0})
@@ -2167,7 +2167,7 @@ renaming the class each change every digest of that class.
 
 **A type's name inside a key is one rule** (layer DAG ruling 10,
 2026-10-22). One helper, ``_type_name`` in
-:mod:`orpheus.numerics.content`, spells it at all five places a key
+:mod:`orpheus.values.content`, spells it at all five places a key
 names a type: the schema tag, an ``Enum`` member, and the exact
 encoder's container, subclass and sparse tags (the exact encoder keys
 the reference cache's memo arguments). A type whose module is
@@ -2193,7 +2193,7 @@ other type by ``module:qualname``.
   never holds one, so a nested ``orpheus`` name ``A.B`` cannot meet a
   foreign class ``B`` of a module ``A``.
 
-``tests/gates/numerics/test_content_identity_relocation.py`` holds the
+``tests/gates/values/test_content_identity_relocation.py`` holds the
 rule:
 
 * relocation: one source (a frozen dataclass, a ``ContentIdentity``
@@ -2277,7 +2277,7 @@ Three consequences follow, each a rule for whoever changes a class.
 Equality and hash are the digest
 --------------------------------
 
-:class:`~orpheus.numerics.content.ContentIdentity` is the mixin that
+:class:`~orpheus.values.content.ContentIdentity` is the mixin that
 turns the digest into ``==`` and ``hash``. A class takes it in one of
 two ways: as a frozen dataclass declared ``eq=False`` (so the generated
 ``__eq__`` and ``__hash__`` cannot shadow the mixin's), whose parts are
@@ -2399,7 +2399,7 @@ The two refusals: no content, and NaN
 -------------------------------------
 
 **A value with no content is refused, never guessed.** The encoder
-raises :class:`~orpheus.numerics.content.ContentlessError` (a
+raises :class:`~orpheus.values.content.ContentlessError` (a
 ``TypeError``) on a part it cannot encode, and the message names the
 path from the root value, for example
 ``_WithGeneratorInKey.generator: Quadrature is a mutable dataclass,
@@ -2430,13 +2430,13 @@ where the value is made, and ``==`` and ``hash`` never meet a NaN on a
 value that could be constructed. The parsers, each a ``ValueError``
 naming the field or parameter:
 
-* :func:`~orpheus.numerics.scalars.parse_real`, the one definition of
+* :func:`~orpheus.values.scalars.parse_real`, the one definition of
   "a real number" at L1 for every layer that admits numbers
   (:ref:`structured-geometry-one-real-parser`): it refuses ``bool`` and
   every non-real type (``TypeError``), NaN (``ValueError``, its message
   fragment ``is NaN, which is not a number``) and an integer a double
   cannot carry, passes infinities (a caller needing a finite value asks
-  :func:`~orpheus.numerics.scalars.parse_finite_real`), and returns
+  :func:`~orpheus.values.scalars.parse_finite_real`), and returns
   ``+0.0`` for ``-0.0``;
 * ``BC`` parameters: each name must be a ``str`` and each value goes
   through ``parse_real``, so a ``str`` or ``bool`` value is a
@@ -2454,7 +2454,7 @@ naming the field or parameter:
   ``[[1.0]]``, is refused, as in ``Mesh1D``;
 * every array of a ``Mixture``: the dense fields, the stored values of
   every sparse Legendre block and the energy grid through
-  :func:`~orpheus.numerics.scalars.canonical_reals`, the message naming
+  :func:`~orpheus.values.scalars.canonical_reals`, the message naming
   the field and the entry (since ``1fde7b59``; a loop of its own before),
   and ``chi`` through the emission-spectrum law.
 
@@ -2463,7 +2463,7 @@ The encoder refuses NaN too, as the backstop for a bare value handed to
 the parsers' message. Signed zero is canonicalised at both places for the
 same reason: the parsers store ``+0.0`` where ``-0.0`` was given, and the
 encoder maps ``-0.0`` to ``+0.0`` whatever it receives; both spell the
-fold once, in :func:`~orpheus.numerics.scalars.canonical_real`.
+fold once, in :func:`~orpheus.values.scalars.canonical_real`.
 
 .. _structured-geometry-one-real-parser:
 
@@ -2475,7 +2475,7 @@ geometry's breakpoints, a mesh's edges, a mixture's cross sections, a
 table's entries, a question's offsets, and the encoder itself. Each
 admission must agree with the encoder on what a number *is*, or a value
 that constructs could carry bits the digest does not describe. That
-agreement is one module, :mod:`orpheus.numerics.scalars`, which imports
+agreement is one module, :mod:`orpheus.values.scalars`, which imports
 nothing from ``orpheus`` and sits below the encoder that uses it (#559).
 It moved from ``orpheus/geometry/scalars.py`` to ``numerics``, the
 lowest layer whose vocabulary suffices, because the encoder (L1) needed
@@ -2483,11 +2483,11 @@ it and may not import the input layer; the geometry and the mesh import
 L1, which the layer rule allows (:ref:`architecture-layering`).
 
 **The rule** is written once, in
-:func:`~orpheus.numerics.scalars.canonical_real`: NaN is refused (it is
+:func:`~orpheus.values.scalars.canonical_real`: NaN is refused (it is
 not a number, and not equal to itself, so a value holding one has no
 content equality), and ``-0.0`` becomes ``+0.0`` (they compare equal, so
 they are one value). **The conversion** every admitting site makes is
-:func:`~orpheus.numerics.scalars.exact_double`: the double that carries
+:func:`~orpheus.values.scalars.exact_double`: the double that carries
 a real scalar exactly as ``==`` sees it, which is the rule plus two
 refusals,
 
@@ -2510,7 +2510,7 @@ Infinities are real and pass both functions; a caller that needs a
 finite value asks for it (below). The functions, each adding one thing to
 the one beneath it:
 
-.. list-table:: The parsers of :mod:`orpheus.numerics.scalars`
+.. list-table:: The parsers of :mod:`orpheus.values.scalars`
    :header-rows: 1
    :widths: 26 74
 
@@ -2544,7 +2544,7 @@ the one beneath it:
        above
 
 `[M]` this pass, 13 production modules import the module (a ``git
-grep`` of ``orpheus.numerics.scalars import`` under ``orpheus/``, its
+grep`` of ``orpheus.values.scalars import`` under ``orpheus/``, its
 known member ``content.py`` found): six boundary-law modules and
 ``structured_geometry.py`` in ``geometry``; ``partition.py`` and
 ``structured.py`` in ``mesh``; ``mixture.py`` in ``data``; and
@@ -2580,7 +2580,7 @@ NaN refusal, ``Mixture``'s own loop ("holds NaN, which is not a cross
 section"), outside the witness's vocabulary; ``1fde7b59`` passed every
 field of a mixture through ``canonical_reals`` and retired the loop.
 
-**The witness**, ``tests/gates/numerics/test_one_real_parser.py``,
+**The witness**, ``tests/gates/values/test_one_real_parser.py``,
 keeps the copies from coming back (X4: the mechanism that keeps several
 admitting sites equal needs a test that fails when one diverges). `[M]`
 this pass, 20 rows, 20 passed under ``-O``:
@@ -2617,7 +2617,7 @@ this pass, 20 rows, 20 passed under ``-O``:
    that stores an array uncopied. The mapping analogue was closed in
    ``8122abc6``: a ``MappingProxyType`` part is refused, since it is a
    view over a ``dict`` its caller may still hold, and
-   :class:`~orpheus.numerics.content.FrozenMapping` encodes its own items
+   :class:`~orpheus.values.content.FrozenMapping` encodes its own items
    through a private view over storage only it holds, byte for byte as
    before (the RECORD pins did not move). The strict array check (a view
    refused unless it owns its data) reddens at least 19 owners, measured
@@ -2631,7 +2631,7 @@ What goes through the encoder, and what it replaced
 Every space-name digest goes through the encoder: ``FunctionSpace.of_axes``, the
 angular and scalar trace spaces, the two radial characteristic spaces
 and ``FullFieldSpace.from_blocks`` each pass a tuple of their parts to
-:func:`~orpheus.numerics.content.name_digest`, the one 8-byte space-name
+:func:`~orpheus.values.content.name_digest`, the one 8-byte space-name
 digest (the first 8 bytes of ``content_digest``, in hexadecimal), and the
 three trace spaces read their face layout's content through
 ``FaceLayout.structure``, the layout's ``(key, offset, size)`` triples; the
@@ -2649,7 +2649,7 @@ one process and are never persisted are outside it too:
 ``SNProblem`` extension of them, and ``Quadrature._identity_key``.
 A rigid motion, a :class:`~orpheus.geometry.chord.ConcentricPartition`
 and the characteristic reference's ``PanelBasis`` are inside it, as
-:class:`~orpheus.numerics.content.ContentIdentity` values, because the
+:class:`~orpheus.values.content.ContentIdentity` values, because the
 reference's transport block is memoised on them
 (:ref:`characteristic-block-memo`); the rigid motion's own bytes key,
 ``RigidMotion._exact_key``, retired onto the encoder when they joined
@@ -2747,7 +2747,7 @@ fixes added rows, and their run of record is the full suite.
    * - File
      - Rows at the first pass
      - What it holds
-   * - ``tests/gates/numerics/test_content_identity.py``
+   * - ``tests/gates/values/test_content_identity.py``
      - 45
      - the encoder and the type population: seed stability (S5.1:
        digests, hashes and a space name printed by two interpreters
@@ -2763,7 +2763,7 @@ fixes added rows, and their run of record is the full suite.
        content class takes ``__hash__`` from the mixin and ``__eq__``
        from it or a declared override, a dataclass is ``eq=False`` and
        frozen, and every concrete content class has a roster entry)
-   * - ``tests/gates/numerics/test_content_identity_relocation.py``
+   * - ``tests/gates/values/test_content_identity_relocation.py``
      - 17
      - the type-name rule: an ``orpheus`` class relocated between two
        modules keeps every key (three encoders, four negative
@@ -2956,7 +2956,7 @@ an integer table equals its float twin, and a ``(2, 3)`` and a
 shape is part of the content. ``n_regions`` and ``n_groups`` read the
 shape.
 
-The finite-real check is :func:`~orpheus.numerics.scalars.parse_finite_reals`,
+The finite-real check is :func:`~orpheus.values.scalars.parse_finite_reals`,
 the one definition of "a finite, canonical real" at L1 (#559), which the
 geometry, the mesh, the data layer and the content encoder share
 (:ref:`structured-geometry-one-real-parser`).
@@ -3346,7 +3346,7 @@ rows.
        the non-values, real scalar admission, the parse whitelist; S6.17
        the version as content and the RECORD pin; S6.21 the lazy import
        and no geometry import (by AST, with a positive control on the
-       module's own ``orpheus.numerics.content`` import)
+       module's own ``orpheus.values.content`` import)
    * - ``tests/gates/numerics/test_content_identity_mesh_free.py``
      - 14
      - S6.9 and S6.16: both types join the content rosters (equal content
@@ -3607,9 +3607,9 @@ derives no default either: its question is required.
 ``_admit_key``: it must be hashable, and the question's digest is then
 taken at construction, which refuses a key with no content (a function,
 a dataclass compared by identity) with
-:class:`~orpheus.numerics.content.ContentlessError` naming
+:class:`~orpheus.values.content.ContentlessError` naming
 ``Eigen.parameter``. A string, an integer, a tuple and a
-:class:`~orpheus.numerics.content.FrozenMapping` are admitted (S7.6). The
+:class:`~orpheus.values.content.FrozenMapping` are admitted (S7.6). The
 hashability check was added by the review: on ``31a2dc46`` the parameter
 was checked only by taking the digest, and the encoder admitted a
 ``MappingProxyType`` and a read-only view of a writeable array, so
@@ -3633,7 +3633,7 @@ not a coordinate").
 The point: offsets by key, and why a zero offset is kept
 --------------------------------------------------------
 
-``point`` is a :class:`~orpheus.numerics.content.FrozenMapping` from a
+``point`` is a :class:`~orpheus.values.content.FrozenMapping` from a
 parameter key to its **offset from the physical value** (the user's
 ruling 2 of 2026-10-02). The empty mapping is the physical point and the
 default of all three kinds, and a caller's ``dict`` is frozen at the
@@ -3651,7 +3651,7 @@ along :math:`p`, and the derived question "the source problem at the
 critical point" is ``FixedSource(q, x.moved(p, σ))``.
 
 Every offset is parsed by
-:func:`~orpheus.numerics.scalars.parse_finite_real`, so the point obeys
+:func:`~orpheus.values.scalars.parse_finite_real`, so the point obeys
 the one real-number rule: a NaN or an infinite offset is a
 ``ValueError`` and a string, a complex or a ``bool`` offset a
 ``TypeError``, each message naming the key (``the offset of 'boron' is
@@ -3884,7 +3884,7 @@ Content identity, admitted eagerly
 ----------------------------------
 
 Every value is a frozen dataclass declared ``eq=False`` that takes
-``==`` and ``hash`` from :class:`~orpheus.numerics.content.ContentIdentity`
+``==`` and ``hash`` from :class:`~orpheus.values.content.ContentIdentity`
 (:ref:`structured-geometry-content-identity-mixin`). The parts are the
 fields: ``Eigen`` (``parameter``, ``point``, ``mode``), ``FixedSource``
 (``source``, ``point``), ``Response`` (``detector``, ``point``),
@@ -4525,7 +4525,7 @@ the earlier parses leave for the digest to refuse is the boundary-law
 payload: a geometry whose law holds a function, such as
 :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow`
 built from a callable, is refused with
-:class:`~orpheus.numerics.content.ContentlessError` naming
+:class:`~orpheus.values.content.ContentlessError` naming
 ``GeometrySpecification.geometry`` (S8.1 ``contentless_geometry``).
 
 .. warning::
@@ -6025,7 +6025,7 @@ trust ``git`` over this table for merge status.
        2026-09-25 cases ``Eigen(k)``, ``Eigen(c)``, ``FixedSource(σ)`` and
        ``CriticalParameter``, each with a forward and an adjoint, were
        retired before any was built. ``orpheus/geometry/scalars.py``
-       moved to :mod:`orpheus.numerics.scalars` (no shim) and became the
+       moved to :mod:`orpheus.values.scalars` (no shim) and became the
        one conversion the parsers, the encoder and ``Mixture`` make; the
        frozen encoder refuses a ``MappingProxyType`` part. Records:
        :ref:`structured-geometry-question-values`,
@@ -6054,7 +6054,7 @@ trust ``git`` over this table for merge status.
      - ``61f82a18`` on ``main``
    * - 2026-10-02
      - **Equality and hash are content, through one encoder.**
-       :mod:`orpheus.numerics.content` landed: ``encode``,
+       :mod:`orpheus.values.content` landed: ``encode``,
        ``content_digest`` (blake2b-256), ``ContentlessError`` and the
        ``ContentIdentity`` mixin, with a schema tag per class (the
        user's ruling of 2026-10-01: a key covers the schema, so an

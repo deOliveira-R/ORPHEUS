@@ -2,7 +2,7 @@ r"""Parsers for scalar and array inputs: one definition of "a real number".
 
 One definition each of "a real number", "a finite real number", "an
 integer" and "a positive quantity", shared by every layer that admits
-numbers: the content encoder (:mod:`orpheus.numerics.content`), the
+numbers: the content encoder (:mod:`orpheus.values.content`), the
 mesh-free functions and question values of ``orpheus.numerics``, the
 geometry and the mesh.
 

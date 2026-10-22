@@ -4,10 +4,10 @@ r"""Content identity of the mesh layer: ``FaceLaws``, ``CellEdges``, ``Mesh1D``,
 Spec: ``.claude/plans/reference_p1_spec.md`` §1.5, the mesh legs of S5.2 and
 S5.3, and S5.10 (``Mesh2D``: read-only copied arrays with signed zero
 canonicalised, ``==`` on twins, ``hash``). The encoder and the mixin are gated
-in ``tests/gates/numerics/test_content_identity.py``.
+in ``tests/gates/values/test_content_identity.py``.
 
 First red, measured on ``main`` ``1dc31163``: the module fails to import
-(``orpheus.numerics.content`` does not exist). With the encoder alone added,
+(``orpheus.values.content`` does not exist). With the encoder alone added,
 the rows red on the legacy behaviour each rejects: ``hash(FaceLaws)`` raises
 (``Mapping`` defines ``__eq__``); ``FaceLaws == dict`` is True; ``hash(Mesh1D)``
 raises (its hand-written ``__eq__`` nulls ``__hash__``); ``Mesh2D == Mesh2D``
@@ -25,7 +25,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.geometry.boundary import AlbedoBoundary, ReflectiveBoundary, VacuumInflow
 from orpheus.mesh import CellEdges, CellsByCount, FaceLaws, Mesh1D, Mesh2D, Mesher
-from orpheus.numerics.content import content_digest
+from orpheus.values.content import content_digest
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,
@@ -42,7 +42,7 @@ from tests.gates._content_identity_helpers import (
 pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/mesh/test_content_identity_mesh.py"
-_ENCODER = "tests/gates/numerics/test_content_identity.py"
+_ENCODER = "tests/gates/values/test_content_identity.py"
 _S51 = f"{_ENCODER}::test_s5_1_digests_and_hashes_are_seed_stable"
 _S54 = f"{_ENCODER}::TestS54EncoderCanonicalForms"
 

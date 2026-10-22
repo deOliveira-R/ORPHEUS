@@ -36,9 +36,9 @@ from orpheus.geometry.coord import (
     compute_areas_1d,
     compute_volumes_2d,
 )
-from orpheus.numerics.scalars import parse_entries, parse_index, parse_integer, parse_positions
+from orpheus.values.scalars import parse_entries, parse_index, parse_integer, parse_positions
 from orpheus.mesh.face_laws import FaceLaws, face_inventory
-from orpheus.numerics.content import ContentIdentity
+from orpheus.values.content import ContentIdentity
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
 
 
@@ -113,7 +113,7 @@ class Mesh1D(ContentIdentity):
 
     Notes
     -----
-    **Identity is content** (:class:`~orpheus.numerics.content.ContentIdentity`,
+    **Identity is content** (:class:`~orpheus.values.content.ContentIdentity`,
     #405 P1 step 5, 2026-10-02): the coordinate system, edges, volumes,
     region labels, the region → material map and the face laws (the
     material ASSIGNMENT, never the materials' data), so two meshes with the same cells, labels, map and laws
@@ -428,7 +428,7 @@ class Mesh2D(ContentIdentity):
     Notes
     -----
     **A value with content identity**, as :class:`Mesh1D`
-    (:class:`~orpheus.numerics.content.ContentIdentity`, #405 P1 step 5,
+    (:class:`~orpheus.values.content.ContentIdentity`, #405 P1 step 5,
     2026-10-02): the arrays are stored as read-only copies, ``-0.0``
     canonicalised, and two meshes with equal edges, material map, laws and
     coordinate system are equal and hash alike. Until then the constructor

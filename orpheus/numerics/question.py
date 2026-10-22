@@ -36,7 +36,7 @@ a source rate, the retraction's adjoint for a detector) is picked by the
 question that holds it.
 
 **Content identity.** Every value is a
-:class:`~orpheus.numerics.content.ContentIdentity`, admitted EAGERLY: an
+:class:`~orpheus.values.content.ContentIdentity`, admitted EAGERLY: an
 undigestable key or a non-finite offset is refused by the constructor, never
 first by ``hash``.
 
@@ -52,9 +52,9 @@ from collections.abc import Hashable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, TypeAlias, get_args
 
-from orpheus.numerics.content import ContentIdentity, ContentlessError, FrozenMapping, content_digest
+from orpheus.values.content import ContentIdentity, ContentlessError, FrozenMapping, content_digest
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, parse_mesh_free_function
-from orpheus.numerics.scalars import parse_finite_real, parse_member
+from orpheus.values.scalars import parse_finite_real, parse_member
 
 
 

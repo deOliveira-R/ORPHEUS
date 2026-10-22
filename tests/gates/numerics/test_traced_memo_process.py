@@ -165,14 +165,14 @@ def test_m3_8_the_child_is_born_clean_and_imports_from_the_parents_path(package,
     """M3.8: the package root is on this process's ``sys.path`` only (not ``PYTHONPATH``, not the working
     directory), and the child still imports it: it inherits the path, so a worktree parent never spawns a
     main-tree child (lessons L99). The entry's manifest holds the generator module's skeleton and
-    ``orpheus/numerics/content.py``'s: tracing began before the first first-party import."""
+    ``orpheus/values/content.py``'s: tracing began before the first first-party import."""
     assert str(package.root) not in os.environ.get("PYTHONPATH", "") and os.getcwd() != str(package.root)
     alpha = package.module("alpha")
     alpha.generate(1.5)
     (entry,) = _entry_files(tmp_path)
     modules = {rel for rel, _ in api.manifest_rows(api.read_entry(entry), "ModulePin")}
     assert package.relpath("alpha") in modules, modules
-    assert "orpheus/numerics/content.py" in modules, sorted(modules)[:10]
+    assert "orpheus/values/content.py" in modules, sorted(modules)[:10]
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')

@@ -48,7 +48,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.numerics.axis import EnergyAxis
-from orpheus.numerics.content import ContentIdentity, FrozenMapping
+from orpheus.values.content import ContentIdentity, FrozenMapping
 
 if TYPE_CHECKING:
     from collections.abc import ItemsView, KeysView, ValuesView
@@ -73,7 +73,7 @@ class Materials(ContentIdentity):
     r"""The materials of THIS problem — ``{id → Mixture}``, a declaration.
 
     A frozen VALUE with content identity
-    (:class:`~orpheus.numerics.content.ContentIdentity`, #405 P1 step 5,
+    (:class:`~orpheus.values.content.ContentIdentity`, #405 P1 step 5,
     2026-10-02): two declarations of equal mixtures under equal ids are
     equal and hash alike, whatever objects they are and in whatever order
     the ids were written, so a reference cache can key on a declaration.
@@ -81,7 +81,7 @@ class Materials(ContentIdentity):
     pickled (it held a read-only proxy). The ids are coerced to ``int`` at
     admission (an ``np.int64`` id is the same id; a ``bool`` is refused),
     and the mapping is stored as a
-    :class:`~orpheus.numerics.content.FrozenMapping`, keeping the declared
+    :class:`~orpheus.values.content.FrozenMapping`, keeping the declared
     order (iteration order is behaviour, :meth:`restrict` documents it; it
     is not content), so the declaration cannot be mutated after the fact —
     later stages may safely hold it, and it pickles.

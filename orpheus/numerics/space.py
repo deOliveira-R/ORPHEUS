@@ -76,7 +76,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .axis import Axis, BasisKind
-from .content import content_digest, name_digest
+from orpheus.values.content import content_digest, name_digest
 from .metric import (
     DenseMetric,
     DiagonalMetric,

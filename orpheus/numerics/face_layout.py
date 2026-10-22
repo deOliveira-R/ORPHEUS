@@ -357,7 +357,7 @@ class FaceLayout(Generic[K]):
         r"""``(key, offset, flat size)`` per slot, in buffer order.
 
         The layout's structural content: what a trace space's name digest
-        reads through :func:`~orpheus.numerics.content.name_digest` (#405 P1
+        reads through :func:`~orpheus.values.content.name_digest` (#405 P1
         step 5). A tuple, because the slot ORDER is the buffer's order and so
         is content, where a mapping's order would not be.
         """

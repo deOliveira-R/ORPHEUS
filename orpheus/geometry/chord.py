@@ -63,8 +63,8 @@ import numpy as np
 from orpheus.geometry.chart import AxialImage, Chart, RadialImage, half_chord
 from orpheus.geometry.line import Line
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.content import ContentIdentity
-from orpheus.numerics.scalars import canonical_reals
+from orpheus.values.content import ContentIdentity
+from orpheus.values.scalars import canonical_reals
 
 if TYPE_CHECKING:
     from orpheus.geometry.structured_geometry import StructuredGeometry
@@ -76,7 +76,7 @@ __all__ = ["Chord", "ConcentricPartition", "Crossings", "Rays", "Transits", "reg
 class ConcentricPartition(ContentIdentity):
     r"""The level sets :math:`c = r_0 < r_1 < \dots < r_n` of a chart, posed in space.
 
-    **Identity is content** (:class:`~orpheus.numerics.content.ContentIdentity`):
+    **Identity is content** (:class:`~orpheus.values.content.ContentIdentity`):
     the chart, the breakpoints and the pose.
 
     Attributes

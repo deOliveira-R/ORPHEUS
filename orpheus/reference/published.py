@@ -36,9 +36,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, TypeAlias, final, get_args
 
-from orpheus.numerics.content import ContentIdentity, FrozenMapping, content_digest
+from orpheus.values.content import ContentIdentity, FrozenMapping, content_digest
 from orpheus.numerics.observable import Observable
-from orpheus.numerics.scalars import parse_member
+from orpheus.values.scalars import parse_member
 from orpheus.reference.reading import Printed
 from orpheus.reference.withdrawal import Withdrawal
 from orpheus.specification import Specification, admit_observable

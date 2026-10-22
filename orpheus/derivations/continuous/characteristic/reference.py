@@ -90,7 +90,7 @@ import numpy as np
 from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.derivations.common.eigenvalue import production_emission
 from orpheus.geometry.chord import ConcentricPartition
-from orpheus.numerics.content import ContentIdentity
+from orpheus.values.content import ContentIdentity
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Linear, PointValue
 from orpheus.numerics.question import Eigen, FixedSource, Fundamental, Nearest, Response

@@ -53,8 +53,8 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 import numpy as np
 
 from orpheus.geometry.coord import CoordSystem, MeasureCoordinate
-from orpheus.numerics.content import ContentIdentity
-from orpheus.numerics.scalars import (
+from orpheus.values.content import ContentIdentity
+from orpheus.values.scalars import (
     parse_integer,
     parse_positions,
     parse_positive_integer,

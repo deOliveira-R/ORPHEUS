@@ -141,7 +141,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .coefficient_layout import CellLayout, CoefficientLayout, HarmonicLayout, LegendreLayout, ModeLayout
-from .content import ContentIdentity
+from orpheus.values.content import ContentIdentity
 
 if TYPE_CHECKING:
     from orpheus.numerics.basis.base import Basis, TruncatedBasis
@@ -467,7 +467,7 @@ class Axis(ContentIdentity):
     Frozen and hashable with **structural equality per subclass**:
     ``__eq__``/``__hash__`` read the content digest of ``(type, label,
     shape, weights, kind, support, nodes)``
-    (:class:`~orpheus.numerics.content.ContentIdentity`); subclasses extend
+    (:class:`~orpheus.values.content.ContentIdentity`); subclasses extend
     the content by declaring fields. The class check keeps an
     ``EnergyAxis`` and a field-identical generic ``Axis`` unequal.
     ``dataclasses.replace(axis, origin=...)`` re-derives the kind, support

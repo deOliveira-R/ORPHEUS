@@ -80,7 +80,7 @@ __all__ = ["MaterialMesh"]
 
 def _law_key(law) -> object:
     """A boundary law's key: the law itself, whose equality and hash are its
-    content (:class:`~orpheus.numerics.content.ContentIdentity`, for a
+    content (:class:`~orpheus.values.content.ContentIdentity`, for a
     :class:`~orpheus.geometry.boundary.BC` tag and every trace law since #405
     P1 step 5; a tag keyed by ``("BC", kind, sorted params)`` until then,
     since it could not be hashed). A law with no content identity (a

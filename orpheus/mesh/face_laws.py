@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.geometry.coord import CoordSystem
-from orpheus.numerics.content import FrozenMapping
+from orpheus.values.content import FrozenMapping
 from orpheus.geometry.structured_geometry import parse_boundary_law
 from orpheus.mesh.axis import FaceLabel
 
@@ -74,7 +74,7 @@ class FaceLaws(FrozenMapping[str, "BC | BoundaryTraceLaw"]):
 
     Built by :meth:`over`, which checks the declaration against the mesh's
     :func:`face_inventory`. Iteration yields the face names in inventory
-    order. A :class:`~orpheus.numerics.content.FrozenMapping`, so equality
+    order. A :class:`~orpheus.values.content.FrozenMapping`, so equality
     and hash are content identity (#405 P1 step 5, 2026-10-02): the same
     faces carrying equal laws, whatever the order. Until then equality was a
     ``Mapping``'s, so a ``FaceLaws`` was equal to a plain ``dict`` of the

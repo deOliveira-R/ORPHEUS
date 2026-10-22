@@ -71,7 +71,7 @@ from orpheus.specification.specification import GeometrySpecification, InfiniteM
 from tests.gates._content_identity_helpers import (
     Entry, check_equal_pair, check_perturbation, check_pickle, check_population, leg, pair_ids, param_id, perturbation_ids,
 )
-from orpheus.numerics.content import content_digest, encode_exact
+from orpheus.values.content import content_digest, encode_exact
 from tests.gates.derivations.test_characteristic_system import (
     _ABS, _ADJ_ABSORBER, _ADJ_FUEL, _ADJ_REFLECTOR, _MIRROR, _N2N, _PU2, _SELF_ONLY, _UP2N, _URRB, _VACUUM,
     _fission_by_hand, _scattering_by_hand, _walls, _zero_d,
@@ -1195,7 +1195,7 @@ def _resolution_with(**changes: Any) -> Resolution:
 
 # ── C1 (#405 P3 step 2c): paste into tests/gates/derivations/test_characteristic_reference.py ─────────────────
 # The PanelBasis entry joins ROSTER; the two rows follow the C1 rows of the roster. Imports to add: pickle;
-# from orpheus.numerics.content import content_digest, encode_exact; from orpheus.geometry.chart import Chart;
+# from orpheus.values.content import content_digest, encode_exact; from orpheus.geometry.chart import Chart;
 # from orpheus.geometry.chord import ConcentricPartition; from orpheus.geometry.transformation import RigidMotion.
 
 _PB_REGIONS = (0.0, 0.5, 1.5, 2.0)

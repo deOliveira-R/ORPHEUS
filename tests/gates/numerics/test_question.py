@@ -36,7 +36,7 @@ import numpy as np
 import pytest
 
 import orpheus.numerics.question as question_module
-from orpheus.numerics.content import ContentIdentity, ContentlessError, FrozenMapping
+from orpheus.values.content import ContentIdentity, ContentlessError, FrozenMapping
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.question import (
     Eigen,
@@ -53,7 +53,7 @@ pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/numerics/test_question.py"
 _MF = "tests/gates/numerics/test_mesh_free_function.py"
-_CI = "tests/gates/numerics/test_content_identity.py"
+_CI = "tests/gates/values/test_content_identity.py"
 _ROOT = Path(__file__).resolve().parents[3]
 
 #: An opaque parameter key: numerics never reads what it names (ruling 5).
@@ -352,7 +352,7 @@ def test_s7_7_the_mode_is_a_mode_value(mode) -> None:
                                    lambda **kw: Response(_table(), **kw)], ids=["eigen", "fixed_source", "response"])
 def test_s7_8_the_default_point_is_the_physical_point(build) -> None:
     """The default point is the empty mapping, an instance of THE
-    ``orpheus.numerics.content.FrozenMapping`` (no second frozen-mapping type),
+    ``orpheus.values.content.FrozenMapping`` (no second frozen-mapping type),
     and the explicit spellings (``{}``, ``FrozenMapping()``) are one value
     with it, digest-equal."""
     implicit = build()
@@ -453,6 +453,6 @@ def test_s7_13_the_module_imports_only_numerics() -> None:
     L1, below the input layer and the transport vocabulary (ruling 5). The
     activation leg: the known import of ``content`` is seen."""
     imported = _orpheus_imports(Path(question_module.__file__).read_text())
-    require("orpheus.numerics.content" in imported, f"activation: the AST saw {imported}")
+    require("orpheus.values.content" in imported, f"activation: the AST saw {imported}")
     above = [n for n in imported if not n.startswith("orpheus.numerics")]
     require(not above, f"the module imports above L1: {above}")

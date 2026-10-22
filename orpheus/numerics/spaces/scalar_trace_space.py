@@ -157,7 +157,7 @@ class ScalarTraceSpace(FunctionSpace):
         # whatever their interiors; a moved boundary face or changed area
         # mints an UNEQUAL one). The one content encoder (#405 P1 step 5),
         # as ``AngularTraceSpace.for_layout``.
-        from orpheus.numerics.content import name_digest
+        from orpheus.values.content import name_digest
 
         digest = name_digest((
             layout.structure,

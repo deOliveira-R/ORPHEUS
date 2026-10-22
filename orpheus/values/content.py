@@ -68,7 +68,7 @@ type by ``module:qualname``. A value's identity is its type and its parts, and
 the file its class lives in is neither, so moving an ``orpheus`` class between
 modules (the layer-DAG carves move whole files) keeps every digest and every
 exact key that names it. The qualified name is then the class's whole name in
-the key, so the gate ``tests/gates/numerics/test_content_identity_relocation.py``
+the key, so the gate ``tests/gates/values/test_content_identity_relocation.py``
 holds the package's nameable classes to distinct qualified names: every
 ``ContentIdentity`` subclass, frozen dataclass and ``Enum``, and every subclass
 of ``str``, ``bytes``, ``int``, ``float``, ``ndarray``, a builtin container or
@@ -101,7 +101,7 @@ classes defined under one name (in one function, on two calls; or two
 is therefore not a persistent type, nothing in the package defines one, and the
 uniqueness gate above holds the package's classes to distinct names.
 
-This module imports only :mod:`orpheus.numerics.scalars` (the one definition
+This module imports only :mod:`orpheus.values.scalars` (the one definition
 of a real number, itself a leaf), so the data, geometry, mesh and numerics
 layers all use it with no new layer edge.
 """
@@ -118,7 +118,7 @@ from typing import Any, ClassVar, Generic, TypeVar
 
 import numpy as np
 
-from orpheus.numerics.scalars import canonical_reals, exact_double
+from orpheus.values.scalars import canonical_reals, exact_double
 
 __all__ = [
     "ContentIdentity",

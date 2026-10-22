@@ -37,8 +37,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from fractions import Fraction
 
-from orpheus.numerics.content import ContentIdentity, content_digest
-from orpheus.numerics.scalars import parse_finite_real
+from orpheus.values.content import ContentIdentity, content_digest
+from orpheus.values.scalars import parse_finite_real
 
 __all__ = ["Enclosure", "common_part"]
 

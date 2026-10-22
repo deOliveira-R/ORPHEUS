@@ -57,7 +57,7 @@ never again inside each answer's ``read``.
 arm.
 
 **Content identity.** Every observable is a
-:class:`~orpheus.numerics.content.ContentIdentity` admitted eagerly, so two
+:class:`~orpheus.values.content.ContentIdentity` admitted eagerly, so two
 spellings of one observable are one value and an observable can key a cache.
 """
 
@@ -67,9 +67,9 @@ from dataclasses import dataclass
 from collections.abc import Callable
 from typing import Any, Protocol, TypeAlias, final, get_args
 
-from orpheus.numerics.content import ContentIdentity, content_digest
+from orpheus.values.content import ContentIdentity, content_digest
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, Symbolic, parse_mesh_free_function
-from orpheus.numerics.scalars import parse_finite_real, parse_index, parse_member
+from orpheus.values.scalars import parse_finite_real, parse_index, parse_member
 
 __all__ = ["Eigenvalue", "FluxIntegral", "Linear", "Observable", "PointValue", "Ratio"]
 

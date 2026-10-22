@@ -100,6 +100,10 @@ the layers below it):
    * - **L1** mathematics
      - functional analysis, linear algebra, measure theory; no neutrons
      - :mod:`orpheus.numerics`
+   * - **(values)**
+     - what a value is (the admitted reals) and when two values are the
+       same (content identity); imports nothing from ``orpheus``
+     - :mod:`orpheus.values`
    * - **L0** references
      - Branch-1 analytical / SymPy / mpmath references; the one exception
        to the top-to-bottom order: it may import L1 and the input layer
@@ -326,6 +330,10 @@ The forbidden-edge dictionary is:
 .. code-block:: python
 
    FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
+       # The values package is the bottom of the graph: it imports
+       # nothing from orpheus (layer_dag.md ruling 6).
+       "values": ORPHEUS_TOP_LEVEL - VALUES_PACKAGES,
+
        # L1 imports nothing above itself; data sits strictly above it
        # (layer_dag.md P2). Geometry is still admitted, pending P1.
        "numerics": DATA_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES
@@ -483,7 +491,13 @@ consumers: it receives a question, it is read through observables, it is
 keyed and memoised by content. That vocabulary is shared, so it is
 imported; what is computed is not. The allowlist is the set
 ``REFERENCE_INTERFACE_NUMERICS`` in :file:`tests/gates/test_layer_imports.py`,
-six submodules of :mod:`orpheus.numerics`:
+four submodules of :mod:`orpheus.numerics`. Content identity and the scalar
+parsers were members until layer DAG ruling 6 (2026-10-22) moved them to
+:mod:`orpheus.values`, below every package, which every reference imports
+freely; a reference still normalises a memo key's argument at its definition
+site with :func:`~orpheus.values.scalars.canonical_reals` or
+:func:`~orpheus.values.scalars.parse_real`, the rule the content encoder
+applies, so the key and the stored value agree (#405 P3 step 2c, C1).
 
 .. list-table::
    :header-rows: 1
@@ -501,17 +515,6 @@ six submodules of :mod:`orpheus.numerics`:
    * - :mod:`orpheus.numerics.mesh_free_function`
      - the mesh-free functions a specification states (a per-region table,
        a symbolic function)
-   * - ``orpheus.numerics.content``
-     - content identity, the one encoder of a persistent key
-   * - :mod:`orpheus.numerics.scalars`
-     - the one definition of a real number, an integer and a finite real
-       that the content encoder applies (:func:`~orpheus.numerics.scalars.canonical_reals`,
-       :func:`~orpheus.numerics.scalars.parse_real`); a reference normalises
-       a memo key's argument at its definition site with it, so the key and
-       the stored value agree (#405 P3 step 2c, C1). It parses and computes
-       nothing: NaN is refused and ``-0.0`` becomes ``+0.0``, which ``==``
-       already identifies. It imports nothing from ``orpheus``, and
-       ``content`` already imports it.
    * - :mod:`orpheus.numerics.traced_memo`
      - the traced memo, a pure function of content memoised on disk
 

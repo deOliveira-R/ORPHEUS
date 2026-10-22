@@ -409,12 +409,12 @@ Module × level grid
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 11, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
    numerics/test_concept_order, 0, 0, 0, 0, 0, 4
-   numerics/test_content_identity, 0, 0, 0, 0, 45, 0
+   values/test_content_identity, 0, 0, 0, 0, 45, 0
    numerics/test_content_identity_axis, 0, 0, 0, 0, 56, 0
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
    numerics/test_content_identity_observable, 0, 0, 0, 0, 26, 0
    numerics/test_content_identity_question, 0, 0, 0, 0, 52, 0
-   numerics/test_content_identity_relocation, 0, 0, 0, 0, 17, 0
+   values/test_content_identity_relocation, 0, 0, 0, 0, 17, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 91, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_dense_metric, 0, 0, 0, 0, 14, 0
@@ -462,7 +462,7 @@ Module × level grid
    numerics/test_mesh_free_function, 0, 0, 0, 0, 54, 0
    numerics/test_moment_head_axis_built_premise, 0, 0, 0, 0, 81, 0
    numerics/test_observable, 0, 0, 0, 0, 50, 0
-   numerics/test_one_real_parser, 0, 0, 0, 0, 20, 0
+   values/test_one_real_parser, 0, 0, 0, 0, 20, 0
    numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 27, 0
    numerics/test_operator_protocols, 0, 0, 0, 0, 16, 0

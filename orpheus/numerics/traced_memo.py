@@ -8,7 +8,7 @@ and the entry keeps the :class:`Manifest` of that run beside the answer.
 
 * **The key** is the digest of the function's identity, its signature-bound arguments (defaults applied,
   each declared canonical form put in) and the platform tag, all through
-  :func:`~orpheus.numerics.content.encode_exact`: the arguments' content walked exactly, every leaf with its
+  :func:`~orpheus.values.content.encode_exact`: the arguments' content walked exactly, every leaf with its
   type and bits. Content equality follows ``==`` (``8 == 8.0``, ``-0.0 == 0.0``), and a function can tell
   those apart, so a key that followed ``==`` could serve one call another's answer.
 * **The manifest** is a set of :data:`Pin`\ s, each able to say whether the checkout still matches it:
@@ -100,7 +100,8 @@ from orpheus.numerics._traced_memo_boot import (
     CACHE, CONTENT, FORK_MEASURED, LISTING, Kept, Witness, PRESENCE, Observation, Recording, _read_frame, _write_frame, digest as _digest, file_digest as _file_digest, listing_digest as _listing_digest, presence as _presence, frame, note_child,
     spawning, unrecorded, write_atomically,
 )
-from orpheus.numerics.content import ContentIdentity, _rebuild, constructor_arguments, encode_exact
+from orpheus.values import content as _content
+from orpheus.values.content import ContentIdentity, _rebuild, constructor_arguments, encode_exact
 
 __all__ = [
     "Absent", "ChildPin", "Corrupt", "DataPin", "DefPin", "DistributionPin", "EnvironmentPin", "Hit", "InterpreterPin", "PresencePin",
@@ -538,9 +539,12 @@ def fork_platform() -> tuple[str, str, str]:
 # ── the manifest ────────────────────────────────────────────────────────────────────────────────────
 
 #: The memo's own source and the code its write path runs after the recording stops (the payload's
-#: constructor form is :func:`~orpheus.numerics.content.constructor_arguments`): an edit to any of it makes
+#: constructor form is :func:`~orpheus.values.content.constructor_arguments`): an edit to any of it makes
 #: every entry stale (qa finding 8, and its second review, 2026-10-04).
-_MEMO_SOURCES = tuple(Path(__file__).resolve().with_name(name) for name in ("traced_memo.py", "_traced_memo_boot.py", "content.py"))
+_MEMO_SOURCES = (
+    *(Path(__file__).resolve().with_name(name) for name in ("traced_memo.py", "_traced_memo_boot.py")),
+    Path(_content.__file__).resolve(),
+)
 
 #: The programs a run may start, each pinned by its executable's bytes: queries whose answer the machine fixes.
 #: ``uname`` is run by ``platform.processor()`` during the imports of the P3 clients (``[M]`` 2026-10-04); it is

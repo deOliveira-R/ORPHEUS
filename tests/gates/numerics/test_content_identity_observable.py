@@ -2,7 +2,7 @@ r"""Content identity of the observables (#405 P2 step 3, R3.4-R3.5).
 
 Specified by the test-architect (2026-10-03, ``.claude/plans/reference_p2_spec.md``
 §1.3). Its ``ROSTER`` joins the union in
-``tests/gates/numerics/test_content_identity.py`` (S5.9 walks
+``tests/gates/values/test_content_identity.py`` (S5.9 walks
 ``orpheus.numerics`` and reds while a content class has no roster entry;
 S5.6's route gate then covers the four types).
 
@@ -25,7 +25,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from orpheus.numerics.content import content_digest
+from orpheus.values.content import content_digest
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from tests.gates._content_identity_helpers import (
     Entry,
@@ -162,7 +162,7 @@ def test_r3_4_a_ratio_is_ordered_and_kinds_never_merge() -> None:
 _SEED_SCRIPT = """
 import numpy as np
 import orpheus.numerics.observable as m
-from orpheus.numerics.content import content_digest
+from orpheus.values.content import content_digest
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 t = RegionwiseConstant(np.array([[1.5, 0.25], [0.0, 3.0]]))
 f = m.FluxIntegral(t)
@@ -181,7 +181,7 @@ def _seed_run(seed: str) -> list[str]:
     return out.stdout.strip().splitlines()
 
 
-@pytest.mark.rests_on("tests/gates/numerics/test_content_identity.py::test_s5_1_digests_and_hashes_are_seed_stable")
+@pytest.mark.rests_on("tests/gates/values/test_content_identity.py::test_s5_1_digests_and_hashes_are_seed_stable")
 def test_r3_5_digests_and_hashes_are_seed_stable() -> None:
     """``PYTHONHASHSEED`` 1 and 2 print the same six digests and hashes (a
     regionwise and a symbolic weight, the eigenvalue, a point value, a ratio,

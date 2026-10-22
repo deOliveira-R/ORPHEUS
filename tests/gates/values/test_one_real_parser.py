@@ -1,9 +1,9 @@
 r"""One definition of "a real number" at L1 (#559).
 
 The rule, NaN refused and ``-0.0`` made ``+0.0``, is
-:func:`orpheus.numerics.scalars.canonical_real`, and the conversion every
+:func:`orpheus.values.scalars.canonical_real`, and the conversion every
 admitting site makes, the rule plus the 2**53 and overflow refusals, is
-:func:`~orpheus.numerics.scalars.exact_double` (``canonical_reals``
+:func:`~orpheus.values.scalars.exact_double` (``canonical_reals``
 entrywise, which the encoder's array and sparse paths call). Before #559 it was spelled
 three times: the content encoder's private ``_real``, the geometry layer's
 ``parse_real``, and ``RegionwiseConstant``'s inline parse. This file is the
@@ -30,9 +30,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from orpheus.numerics.content import encode
+from orpheus.values.content import encode
 from orpheus.numerics.mesh_free_function import RegionwiseConstant
-from orpheus.numerics.scalars import canonical_real, parse_finite_real, parse_finite_reals, parse_real
+from orpheus.values.scalars import canonical_real, parse_finite_real, parse_finite_reals, parse_real
 
 pytestmark = pytest.mark.foundation
 
@@ -75,16 +75,16 @@ def test_no_other_raise_names_nan() -> None:
                 )
                 if "NaN" in text:
                     sites.append(f"{path.relative_to(_ROOT)}:{node.lineno}")
-    if not any(site.startswith("orpheus/numerics/scalars.py:") for site in sites):
+    if not any(site.startswith("orpheus/values/scalars.py:") for site in sites):
         pytest.fail(f"activation: the AST pass did not find scalars.py's raise; it found {sites}")
-    outside = [site for site in sites if not site.startswith("orpheus/numerics/scalars.py:")]
+    outside = [site for site in sites if not site.startswith("orpheus/values/scalars.py:")]
     if outside:
         pytest.fail(f"a NaN refusal outside the one parser: {outside}")
 
 
 def test_the_nan_refusal_is_written_once() -> None:
     sites = _sites_writing_the_fragment()
-    if not any(site.startswith("orpheus/numerics/scalars.py:") for site in sites):
+    if not any(site.startswith("orpheus/values/scalars.py:") for site in sites):
         pytest.fail(f"activation: the AST pass did not find the fragment in scalars.py; it found {sites}")
     if len(sites) != 1:
         pytest.fail(f"the NaN refusal is spelled at {len(sites)} sites, not 1: {sites}")
@@ -158,7 +158,7 @@ def test_a_bool_entry_is_refused_by_every_parse(admit) -> None:
     ids=["parse_real_2**53+1", "encode_2**53+1", "encode_array_2**53+1", "parse_real_10**400", "parse_real_overflow"],
 )
 def test_the_parsers_and_the_encoder_agree_on_what_a_double_carries(admit, error, fragment: str) -> None:
-    """One conversion, :func:`~orpheus.numerics.scalars.exact_double`: an
+    """One conversion, :func:`~orpheus.values.scalars.exact_double`: an
     integer a double would round is refused by the parsers as by the encoder,
     and an overflow is a keyed refusal. First red (``[M]`` 2026-10-02, qa of
     step 7): ``parse_real(2**53 + 1)`` stored ``2**53`` silently while the

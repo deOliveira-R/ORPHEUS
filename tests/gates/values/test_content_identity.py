@@ -26,7 +26,7 @@ The per-type legs of S5.2, S5.3 and S5.4 live in the owning trees
 (``tests/gates/{data,geometry,mesh}/test_content_identity_*.py``).
 
 First red, measured on ``main`` ``1dc31163``: collection fails with
-``ModuleNotFoundError: No module named 'orpheus.numerics.content'``.
+``ModuleNotFoundError: No module named 'orpheus.values.content'``.
 """
 
 from __future__ import annotations
@@ -49,8 +49,8 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-import orpheus.numerics.content as content_module
-from orpheus.numerics.content import ContentIdentity, ContentlessError, content_digest, encode
+import orpheus.values.content as content_module
+from orpheus.values.content import ContentIdentity, ContentlessError, content_digest, encode
 from orpheus.numerics.axis import Declared, Modal
 from tests.gates._content_identity_helpers import Entry, require
 from tests.gates.data.test_content_identity_data import ROSTER as DATA_ROSTER
@@ -69,7 +69,7 @@ from tests.gates.derivations.test_characteristic_reference import ROSTER as CHAR
 
 pytestmark = pytest.mark.foundation
 
-_HERE = "tests/gates/numerics/test_content_identity.py"
+_HERE = "tests/gates/values/test_content_identity.py"
 _ROOT = Path(__file__).resolve().parents[3]
 ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER + QUESTION_ROSTER + SPECIFICATION_ROSTER + ENCLOSURE_ROSTER + READING_ROSTER + OBSERVABLE_ROSTER + PUBLISHED_ROSTER + CERTIFICATE_ROSTER + CHARACTERISTIC_ROSTER
 
@@ -88,7 +88,7 @@ _SEED_SCRIPT = textwrap.dedent(
     from orpheus.geometry.boundary import AlbedoBoundary, IsotropicReturn
     from orpheus.mesh import Mesh2D
     from orpheus.numerics.axis import EnergyAxis
-    from orpheus.numerics.content import content_digest
+    from orpheus.values.content import content_digest
     from orpheus.numerics.space import FunctionSpace
 
     from orpheus.derivations.continuous.characteristic import PanelBasis
@@ -283,7 +283,7 @@ class TestS54EncoderCanonicalForms:
         that encodes byte-identically (the RECORD pins did not move)."""
         from types import MappingProxyType
 
-        from orpheus.numerics.content import FrozenMapping
+        from orpheus.values.content import FrozenMapping
 
         @dataclasses.dataclass(frozen=True, eq=False)
         class _HoldsAView(ContentIdentity):

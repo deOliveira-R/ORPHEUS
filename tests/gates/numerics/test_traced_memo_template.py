@@ -106,7 +106,7 @@ def _forked_calls(monkeypatch) -> list[int]:
 #: The memo's own sources. Their pins on a DefPin are the memo's machinery, which the MemoPin already pins by
 #: bytes; which of them a manifest holds depends on which process ran it (a template's job loop, a loader that
 #: found its bytecode cached or wrote it), so E1 and E8 compare manifests without them, and say so.
-_MEMO_FILES = ("orpheus/numerics/traced_memo.py", "orpheus/numerics/_traced_memo_boot.py", "orpheus/numerics/content.py")
+_MEMO_FILES = ("orpheus/numerics/traced_memo.py", "orpheus/numerics/_traced_memo_boot.py", "orpheus/values/content.py")
 
 
 def _pins(entry: Path) -> set[tuple]:
@@ -179,7 +179,7 @@ from pathlib import Path
 from orpheus.numerics import traced_memo as tm
 import e3_fixture.m as m
 assert tm._forks_here()
-content = Path({tree!r}) / "orpheus" / "numerics" / "content.py"
+content = Path({tree!r}) / "orpheus" / "values" / "content.py"
 with tm.cache_root({cache!r}):
     first = m.read_probe(1.0)
     pid = tm._SLOT.template.process.pid
@@ -215,12 +215,12 @@ def test_e3_an_edit_to_a_module_the_template_imported_is_run_new(tmp_path, old, 
     tree = tmp_path / "tree"
     shutil.copytree(REPO / "orpheus", tree / "orpheus",
                     ignore=lambda d, names: [n for n in names if n == "__pycache__" or (not n.endswith(".py") and not (Path(d) / n).is_dir())])
-    content = tree / "orpheus" / "numerics" / "content.py"
+    content = tree / "orpheus" / "values" / "content.py"
     content.write_text(content.read_text() + _E3_PROBE)
     (tree / "e3_fixture").mkdir()
     (tree / "e3_fixture" / "__init__.py").write_text("")
     (tree / "e3_fixture" / "m.py").write_text(textwrap.dedent('''
-        from orpheus.numerics import content
+        from orpheus.values import content
         from orpheus.numerics.traced_memo import traced_memo
 
 
@@ -555,7 +555,7 @@ E9_VALUE = float(_e9_pathlib.Path(__file__).with_name("e9_value.txt").read_text(
 @needs_fork
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_template.py::test_e3_an_edit_to_a_module_the_template_imported_is_run_new')
 def test_e9_a_data_file_the_templates_imports_read_is_read_new(tmp_path):
-    """E9: on a copy of the package's Python files, a module the TEMPLATE imports (``orpheus.numerics.content`` of
+    """E9: on a copy of the package's Python files, a module the TEMPLATE imports (``orpheus.values.content`` of
     the copy) reads a first-party data file at import into a module constant, and a memoised function returns
     it. After one miss the data file is edited; the next miss (another key) returns the NEW value, from another
     template: the first answered a refusal (``_Refused``) naming the data file, because its imports read a state
@@ -566,14 +566,14 @@ def test_e9_a_data_file_the_templates_imports_read_is_read_new(tmp_path):
     tree = tmp_path / "tree"
     shutil.copytree(REPO / "orpheus", tree / "orpheus",
                     ignore=lambda d, names: [n for n in names if n == "__pycache__" or (not n.endswith(".py") and not (Path(d) / n).is_dir())])
-    content = tree / "orpheus" / "numerics" / "content.py"
+    content = tree / "orpheus" / "values" / "content.py"
     content.write_text(content.read_text() + _E9_TABLE_READ)
     table = tree / "orpheus" / "numerics" / "e9_value.txt"
     table.write_text("1.0")
     (tree / "e9_fixture").mkdir()
     (tree / "e9_fixture" / "__init__.py").write_text("")
     (tree / "e9_fixture" / "m.py").write_text(textwrap.dedent('''
-        from orpheus.numerics import content
+        from orpheus.values import content
         from orpheus.numerics.traced_memo import traced_memo
 
 
@@ -790,7 +790,7 @@ def test_s4_a_fresh_template_that_refuses_makes_the_process_spawn_from_then_on(t
     tree = tmp_path / "tree"
     shutil.copytree(REPO / "orpheus", tree / "orpheus",
                     ignore=lambda d, names: [n for n in names if n == "__pycache__" or (not n.endswith(".py") and not (Path(d) / n).is_dir())])
-    content = tree / "orpheus" / "numerics" / "content.py"
+    content = tree / "orpheus" / "values" / "content.py"
     content.write_text(content.read_text() + _S4_THREAD)
     (tree / "s4_fixture").mkdir()
     (tree / "s4_fixture" / "__init__.py").write_text("")

@@ -52,11 +52,11 @@ from fractions import Fraction
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, TypeAlias, cast, final, get_args
 
-from orpheus.numerics.content import ContentIdentity, FrozenMapping, content_digest
+from orpheus.values.content import ContentIdentity, FrozenMapping, content_digest
 from orpheus.numerics.enclosure import Enclosure, common_part
 from orpheus.numerics.mesh_free_function import parse_srepr
 from orpheus.numerics.observable import Observable
-from orpheus.numerics.scalars import parse_finite_real, parse_member, parse_positive_real, parse_text
+from orpheus.values.scalars import parse_finite_real, parse_member, parse_positive_real, parse_text
 from orpheus.reference.published import Current, PublishedSolution, Standing
 from orpheus.reference.withdrawal import Withdrawal
 

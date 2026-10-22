@@ -30,7 +30,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol, final
 
-from orpheus.numerics.content import ContentIdentity, content_digest
+from orpheus.values.content import ContentIdentity, content_digest
 
 __all__ = ["Withdrawal"]
 

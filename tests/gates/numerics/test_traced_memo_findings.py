@@ -493,7 +493,7 @@ def test_r1_the_key_is_exact_all_the_way_up(make):
     ''')
     import scipy.sparse as sp
 
-    from orpheus.numerics.content import ContentlessError, FrozenMapping
+    from orpheus.values.content import ContentlessError, FrozenMapping
 
     m = package.module()
     key = m.anything.key
@@ -632,8 +632,11 @@ def test_q5_absence_probed_by_exists_is_a_dependency(make):
 def test_q8_the_memo_pin_covers_the_write_path():
     """Finding 8, its second half: the payload's constructor form (``content.constructor_arguments``) runs
     on the write path after the recording stops, so the memo's pin covers ``content.py`` too."""
-    names = {path.name for path in api.name("_MEMO_SOURCES")}
+    sources = api.name("_MEMO_SOURCES")
+    names = {path.name for path in sources}
     assert names == {"traced_memo.py", "_traced_memo_boot.py", "content.py"}, names
+    # A pin on a path that does not exist pins nothing: each source is the file the memo runs.
+    assert all(path.is_file() for path in sources), sources
 
 
 def test_q10_a_reader_never_sees_a_half_written_entry(tmp_path):
@@ -727,7 +730,7 @@ def test_k_the_exact_key_cases_of_the_third_review():
 
     import scipy.sparse as sp
 
-    from orpheus.numerics.content import ContentlessError, encode_exact
+    from orpheus.values.content import ContentlessError, encode_exact
 
     def key(value):
         return encode_exact(value)
@@ -815,7 +818,7 @@ def test_u_a_program_named_uname_is_not_admitted_by_its_name(make, tmp_path, mon
 _SEED_PROBE = textwrap.dedent('''
     import hashlib, os, sys
     sys.path.insert(0, sys.argv[1])
-    from orpheus.numerics import content
+    from orpheus.values import content
     if os.environ.get("ARM") == "iteration-order":
         content._Exactly.elements = lambda self, encoded: encoded     # the pre-fix spelling, in this process
     strings = frozenset(f"cell-{i}" for i in range(64))

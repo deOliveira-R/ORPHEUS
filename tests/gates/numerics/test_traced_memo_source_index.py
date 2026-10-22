@@ -703,7 +703,7 @@ def test_b14_the_index_and_the_memos_own_source_are_no_dependency_of_a_run(tmp_p
     parent = next(f for f in api.entry_files(tmp_path / "cache") if api.entry_function(f).endswith(":outer"))
     record = api.read_entry(parent)
     sources = os.path.realpath(REPO / ".cache" / "sources")
-    memo_sources = {os.path.realpath(REPO / "orpheus" / "numerics" / f) for f in ("traced_memo.py", "_traced_memo_boot.py", "content.py")}
+    memo_sources = {os.path.realpath(REPO / "orpheus" / d / f) for d, f in (("numerics", "traced_memo.py"), ("numerics", "_traced_memo_boot.py"), ("values", "content.py"))}
     paths = [p for kind in ("DataPin", "PresencePin", "ListingPin") for p, *_ in api.manifest_rows(record, kind)]
     assert not [p for p in paths if os.path.realpath(p).startswith(sources)], paths
     data = [p for p, *_ in api.manifest_rows(record, "DataPin")]
@@ -827,11 +827,16 @@ def test_b17_old_memo_code_cannot_write_an_index_under_new_codes_name(tmp_path):
 
     tree = tmp_path / "tree"
     package = tree / "orpheus" / "numerics"
+    values = tree / "orpheus" / "values"
     package.mkdir(parents=True)
+    values.mkdir()
     (tree / "orpheus" / "__init__.py").write_text("")
     (package / "__init__.py").write_text("")
-    for name in ("traced_memo.py", "_traced_memo_boot.py", "content.py", "scalars.py"):
+    (values / "__init__.py").write_text("")
+    for name in ("traced_memo.py", "_traced_memo_boot.py"):
         shutil.copy2(REPO / "orpheus" / "numerics" / name, package)
+    for name in ("content.py", "scalars.py"):
+        shutil.copy2(REPO / "orpheus" / "values" / name, values)
     memo_file = package / "traced_memo.py"
     old, new = b"isinstance(first.value.value, str)", b"isinstance(first.value.value, int)"
     source = memo_file.read_bytes()
