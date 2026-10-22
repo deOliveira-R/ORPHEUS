@@ -194,11 +194,13 @@ def test_r3_5_digests_and_hashes_are_seed_stable() -> None:
 
 
 _PIN_AFTER_LANDING = "pin after landing"
+# Re-pinned 2026-10-22 (layer DAG ruling 10): the schema tag dropped the module, so every pin moved; the old
+# _schema_tag swapped back in-process reproduces each old pin byte for byte (the commit body lists old -> new).
 _PINNED: dict[str, str] = {
-    "flux integral of a table": "24c25dfbe46136af67720f38b891ab450d72c6b3b0bd5619697b36ff182a033a",  # pinned 2026-10-03 at landing
-    "eigenvalue": "344afce0a7478f8f83fa0f179987b067df0bbcd83430aace6be94e80df338d1e",  # pinned 2026-10-03 at landing
-    "point value": "cff6ea6dfc995c344ca4cc27f892e4284d5217031b132e2975c5781888dee720",  # pinned 2026-10-03 at landing
-    "ratio of a flux integral to a point value": "c5e2a64cb1b15d4980fdfafcbb0a20afe661ccb1f9822a80e1ba235db2708691",  # pinned 2026-10-03 at landing
+    "flux integral of a table": "d29d27b5df9a933260c8fc517676e9120589b94ea2b10779808de93fa2cd24e5",  # pinned 2026-10-03 at landing, re-pinned 2026-10-22
+    "eigenvalue": "3890e6d1487771536d732971b03aa6b9a9cb507f105256b370c775601397f156",  # pinned 2026-10-03 at landing, re-pinned 2026-10-22
+    "point value": "bf3fc8cf1a50abd66e93b4f66ee071a2a561444dea604d716cdd1c2246d0b264",  # pinned 2026-10-03 at landing, re-pinned 2026-10-22
+    "ratio of a flux integral to a point value": "7141bcc1df221da39e87e066604a0e0f2111e432fce13a2c90603a192a39ace5",  # pinned 2026-10-03 at landing, re-pinned 2026-10-22
 }
 
 

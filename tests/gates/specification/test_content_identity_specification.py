@@ -328,11 +328,13 @@ _PIN_AFTER_LANDING = "pin after landing"
 # (``InfiniteMediumSpecification`` / ``GeometrySpecification``, user ruling "The
 # infinite medium is the point in phase space") and ``CellCoefficient`` gained
 # ``channels_in_every_material``; both schema tags moved, so both pins moved.
+# Re-pinned 2026-10-22 (layer DAG ruling 10): the schema tag dropped the module, so every pin moved; the old
+# _schema_tag swapped back in-process reproduces each old pin byte for byte (the commit body lists old -> new).
 _PINNED: dict[str, str] = {
     # Re-pinned 2026-10-08: Eigen gained its declared gauge (the user's ruling), which the specification's
     # canonical question writes in (the default production, resolved); the fixed-source pin did not move.
-    "k infinite medium": "6eb99bfc997eca9114e9b62a3d59124067d28374eefd88ba7ed1bf4349528007",
-    "fixed source slab": "737d57afd4df1d4f9a63d0bcf963acbe7404bb8102fbbf70fab6f00d3bdd6366",
+    "k infinite medium": "53a6189aec3ad48cccbf4bac8d5bd7d992ae8d62b49742d06a775dc212367322",
+    "fixed source slab": "329513d24177065062c92e9ace6deffb305d7dbb9c47a5a0e6e84eee0da46df0",
 }
 
 

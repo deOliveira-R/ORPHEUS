@@ -267,14 +267,16 @@ def test_s7_11_digests_and_hashes_are_seed_stable() -> None:
 # ── S7.12: RECORD, the bytes ─────────────────────────────────────────────────
 
 _PIN_AFTER_LANDING = "pin after landing"
+# Re-pinned 2026-10-22 (layer DAG ruling 10): the schema tag dropped the module, so every pin moved; the old
+# _schema_tag swapped back in-process reproduces each old pin byte for byte (the commit body lists old -> new).
 _PINNED: dict[str, str] = {
     # Re-pinned 2026-10-08: Eigen gained its declared gauge (the user's ruling), so both eigen digests moved;
     # the fixed-source and response pins did not (the schema change is the eigen question's alone).
-    "eigen at the physical point": "9210f0d67975327b242a16108c22f99c1eb03e37aa819f7e7e314e46d7c0369b",
-    "eigen offset nearest": "ba789fbf9c571e006d0905742a1cdc7f5ece4032c2dd66125bf4348a5f9ed47b",
-    "eigen with a declared gauge": "25b80062841d48b96f1f5c9c377d1375d672f15f430510f0c3cb1df79e297b0d",
-    "fixed source table": "5278ab77706178e70dfe4afb0d329df10dc1916eb7b6e29b3ce381e344e40fae",
-    "response table": "18e27725dbf70e77ae723d64b3fd4f42c766e591bd74e81afcfcdd0099ede33b",
+    "eigen at the physical point": "09db26cb2b8c601faaf7a1ce14ecee34ff30f6644bd4ca75b329054d0fe42922",
+    "eigen offset nearest": "85e8d21174e01ff23ec3f27fe8f9aa7abe208e04c1119e672b78675add36af96",
+    "eigen with a declared gauge": "f9924ccfab84fd66f97f4a9626ccabba3ae2aab105f922c4b52ef0045959319a",
+    "fixed source table": "60190b8ba39f3ef7c98b976d4bfbf1e14d051ec63d94eba0e04b5e2647dec585",
+    "response table": "8200ec94c59b1859064491f04df835fcb285c2ed93a68cddfe93474306a7d81c",
 }
 
 

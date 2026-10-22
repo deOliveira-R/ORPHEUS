@@ -14,7 +14,10 @@ gates on the ENCODER and on the type POPULATION:
   the three trace spaces, the full-field direct sum);
 * S5.7 — the RECORD fingerprint (pinned after 5b);
 * S5.8 — the schema tag (ruling of 2026-10-01): a field added, renamed or
-  reordered, a version bump, a class moved or renamed, each changes the digest;
+  reordered, a version bump, a class renamed, each changes the digest; a class
+  MOVED to another module does not (layer DAG ruling 10, 2026-10-22: the
+  relocation and qualname-uniqueness gates are
+  ``test_content_identity_relocation.py``);
 * S5.9 — conformance: every ``ContentIdentity`` class takes ``__eq__`` and
   ``__hash__`` from the mixin (or a declared override), is ``eq=False`` if a
   dataclass, and has a roster entry (the population S5.3 quantifies over).
@@ -301,7 +304,7 @@ class TestS54EncoderCanonicalForms:
 # S5.8 — the schema tag
 # ═════════════════════════════════════════════════════════════════════════════
 
-_MODULE_A, _MODULE_B = "tests.gates.numerics._schema_a", "tests.gates.numerics._schema_b"
+_MODULE_A = "tests.gates.numerics._schema_a"
 
 
 def _schema_class(qualname: str, fields: tuple[str, ...], *, version: int = 1,
@@ -341,7 +344,6 @@ class TestS58Schema:
             pytest.param(lambda: _schema_class("Point", ("x", "y")), {"x": 1.0, "y": 0.0}, id="a_field_added"),
             pytest.param(lambda: _schema_class("Point", ("z",)), {"z": 1.0}, id="a_field_renamed"),
             pytest.param(lambda: _schema_class("Point", ("x",), version=2), {"x": 1.0}, id="the_version_bumped"),
-            pytest.param(lambda: _schema_class("Point", ("x",), module=_MODULE_B), {"x": 1.0}, id="the_class_moved"),
             pytest.param(lambda: _schema_class("Spot", ("x",)), {"x": 1.0}, id="the_class_renamed"),
         ],
     )
@@ -566,10 +568,12 @@ def test_s5_6_one_encoder_is_the_only_route(monkeypatch: pytest.MonkeyPatch) -> 
 #: built from literals and IEEE-exact arithmetic (mixture A is ``xs_library``
 #: literals; no libm or LAPACK output enters), so the pin is platform-free (AP38).
 _PIN_AFTER_5B = "PIN-AFTER-5B"
+# Re-pinned 2026-10-22 (layer DAG ruling 10): the schema tag dropped the module, so every pin moved; the old
+# _schema_tag swapped back in-process reproduces each old pin byte for byte (the commit body lists old -> new).
 _PINNED: dict[str, str] = {
-    "mixture A 2g": "016a3c66cc2169eaa3e6dd8a090909de7cabb95bcbc04bee5e03bd8f9779f48f",
-    "hollow sphere, three intervals": "4c4b7298d06faa05c80dcdce74612a113a24694d798e3a6401f050936fb6ee6a",
-    "materials of two mixtures": "343e62741213b34e1b615fb0f5f110adbc83dd5bf85936594c3124e95281d946",
+    "mixture A 2g": "905ce741c85384eefb289905ea4dbd8591499002889a16b1e481e73992d845e6",
+    "hollow sphere, three intervals": "eea5d62ff8358518121150967a123297983afabf811228b8b4ff0cf8fd9b36c9",
+    "materials of two mixtures": "3ae54bab38bf8af73ec713740aa69963d2b86aa73ae8b489b6e63b0eae6f34e6",
 }
 
 

@@ -44,21 +44,32 @@ injective).
 ``list`` carry different tags (``(1,) != [1]``); a ``Mapping`` is ordered by
 its encoded keys, so insertion order is never content; a ``str`` key and an
 ``int`` key stay distinct (``"1" != 1``). An ``Enum`` member is its
-module-qualified class and its name.
+class's qualified name and its name (the module is not in it, for the reason
+the schema tag gives).
 
 **An object is its schema and its parts.** A :class:`ContentIdentity` value,
 and any frozen dataclass whose own equality is by value (``eq=True``),
 encodes as its SCHEMA TAG followed by its parts, the dataclass fields with
 ``compare=True`` unless the class says otherwise. The tag is the class's
-``__module__.__qualname__``, its ``__content_version__`` (a ``ClassVar[int]``,
-default 1) and the ordered names of its parts. So adding, removing or
-renaming a field, bumping the version (for a change in what a field MEANS),
-and moving or renaming the class all change every digest of that class. That
-is the user's ruling of 2026-10-01 (#405): a cache entry keyed under an older
-schema misses, it never loads; there is no per-class ``__setstate__`` guard,
-because the key covers the schema once for every class and every future
-carve. A field that is not content (provenance, a derived quantity) is
-declared ``field(compare=False)``, the one spelling of "not content".
+``__qualname__``, its ``__content_version__`` (a ``ClassVar[int]``, default 1)
+and the ordered names of its parts. So adding, removing or renaming a field,
+bumping the version (for a change in what a field MEANS), and renaming the
+class all change every digest of that class. That is the user's ruling of
+2026-10-01 (#405): a cache entry keyed under an older schema misses, it never
+loads; there is no per-class ``__setstate__`` guard, because the key covers
+the schema once for every class and every future carve. A field that is not
+content (provenance, a derived quantity) is declared ``field(compare=False)``,
+the one spelling of "not content".
+
+**Moving a class to another module keeps its digests** (layer DAG ruling 10,
+2026-10-22). A value's identity is its type and its parts, and the file its
+class lives in is neither, so the tag carries no ``__module__``: a re-homing of
+a class between packages re-keys nothing. The qualified name is then the
+class's whole name in the key, and two content-keyed classes of ``orpheus``
+sharing one would share a tag; the gate
+``tests/gates/numerics/test_content_identity_relocation.py`` refuses that over
+every ``ContentIdentity`` subclass, frozen dataclass and ``Enum`` the package
+defines (414 of them, 0 sharing a qualname, on 2026-10-22).
 
 **A part of an object is immutable.** A list, a dict, a set, a writeable
 array or a sparse matrix whose arrays are writeable is refused as a part (it
@@ -77,10 +88,11 @@ by identity (``eq=False``), a mutable dataclass, an object array. A
 :class:`ContentIdentity` value holding one has no digest; it is equal only to
 itself, and it is unhashable.
 
-**One limitation, by design.** The schema tag names a class by its module
-and qualified name, so two classes defined under one name (in one function,
-on two calls) share a tag. A class defined inside a function is therefore
-not a persistent type, and nothing in the package defines one.
+**One limitation, by design.** The schema tag names a class by its
+qualified name, so two classes defined under one name (in one function, on
+two calls, or in two modules) share a tag. A class defined inside a function
+is therefore not a persistent type, nothing in the package defines one, and
+the uniqueness gate above holds the package's classes to distinct names.
 
 This module imports only :mod:`orpheus.numerics.scalars` (the one definition
 of a real number, itself a leaf), so the data, geometry, mesh and numerics
@@ -198,7 +210,15 @@ class _Exactly:
     behaviour), while a set is ordered by its elements' encodings (its iteration order follows the hash seed); a sparse matrix is its format and its stored arrays (explicit zeros included); a subclass of
     ``str``, ``bytes`` or ``ndarray`` is its type and its own instance state beside its bytes (a masked
     array's mask is state; a state with no content identity, such as the type a masked array keeps, is
-    refused with its path)."""
+    refused with its path).
+
+    The three type tags this encoder adds (:meth:`container`, :meth:`subclass` and :meth:`sparse`) keep the
+    MODULE beside the qualified name, unlike the schema tag, for two reasons. They name FOREIGN types too (a
+    numpy masked array, a scipy sparse format, a standard-library ``NamedTuple`` or ``str`` subclass), which no
+    uniqueness gate can enumerate, so a qualified name alone there would be an unguarded collision. And the
+    memo key these encodings feed already carries the memoised function's ``module:qualname``, so dropping the
+    module here would buy no relocation invariance. The row
+    ``test_a_foreign_like_subclass_keeps_its_module_in_the_exact_key`` pins the asymmetry."""
 
     def real(self, value: Any, path: str) -> bytes:
         if isinstance(value, np.generic):
@@ -302,9 +322,9 @@ def _sparse(value: Any, path: str, frozen: bool, leaves: _Leaves = _BY_EQUALITY)
 
 
 def _schema_tag(cls: type, names: tuple[str, ...]) -> bytes:
-    """``module.qualname``, the content version and the ordered part names."""
+    """The qualified name, the content version and the ordered part names: not the module (module docstring)."""
     version = getattr(cls, "__content_version__", 1)
-    text = f"{cls.__module__}.{cls.__qualname__}|v{version}|" + ",".join(names)
+    text = f"{cls.__qualname__}|v{version}|" + ",".join(names)
     return _chunk(b"h", text.encode())
 
 
@@ -341,9 +361,7 @@ def _encode(value: Any, path: str, frozen: bool, leaves: _Leaves = _BY_EQUALITY)
         return _chunk(b"N", b"")
     if isinstance(value, enum.Enum):
         cls = type(value)
-        return _chunk(
-            b"E", f"{cls.__module__}.{cls.__qualname__}.{value.name}".encode()
-        )
+        return _chunk(b"E", f"{cls.__qualname__}.{value.name}".encode())
     if isinstance(value, (bool, int, float, np.bool_, np.integer, np.floating)):
         return leaves.real(value, path)
     if isinstance(value, str):
