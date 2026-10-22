@@ -38,6 +38,8 @@ pinned by an exact self-reference, not a literature value.
 """
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import copy
 import functools
 from typing import NamedTuple
@@ -240,10 +242,10 @@ class TestReportedKeffIsThePosedEigenvalue:
             _mesh([(0, 8.0, 40)], BC.reflective, CoordSystem.CARTESIAN),
         )
         production = IntegratedReactionRate(
-            solver.problem.mat_xs.fission_production_field
+            CrossSectionField.fission_production_of(solver.problem.mat_xs)
         ).evaluate(phi)
         absorption = IntegratedReactionRate(
-            solver.problem.mat_xs.absorption_cross_section_field
+            CrossSectionField.absorption_of(solver.problem.mat_xs)
         ).evaluate(phi)
         assert keff == production / absorption, (
             f"reflective Σ₂=0 reported k={keff!r} must be BITWISE the "
@@ -434,7 +436,7 @@ class TestGateTeeth:
         def old_convention_keff(self, flux_distribution):
             production = self.compute_production_rate(flux_distribution)
             absorption = IntegratedReactionRate(
-                self.problem.mat_xs.absorption_cross_section_field
+                CrossSectionField.absorption_of(self.problem.mat_xs)
             ).evaluate(flux_distribution)
             return production / absorption
 
@@ -585,10 +587,10 @@ def _partial_return_eigenpair(shape: str, left, right) -> _Eigenpair:
         _FUEL_MODERATOR, _posed_mesh(shape, left, right), quadrature=quadrature,
     )
     production = IntegratedReactionRate(
-        solver.problem.mat_xs.fission_production_field
+        CrossSectionField.fission_production_of(solver.problem.mat_xs)
     ).evaluate(phi)
     absorption = IntegratedReactionRate(
-        solver.problem.mat_xs.absorption_cross_section_field
+        CrossSectionField.absorption_of(solver.problem.mat_xs)
     ).evaluate(phi)
     return _Eigenpair(
         float(keff), float(_map_ratio_kstar(solver, phi)),

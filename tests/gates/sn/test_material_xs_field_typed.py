@@ -1,10 +1,11 @@
-r"""foundation — MaterialXSField typed CrossSectionField accessors (#257 S2).
+r"""foundation — the CrossSectionField views of a MaterialXSField (#257 S2).
 
-The per-cell σ_t / σ_a / νΣ_f views, wrapped as the typed
-:class:`~orpheus.transport.fields.cross_section_field.CrossSectionField` — the
+The per-cell σ_t / σ_a / νΣ_f of a carrier, wrapped as the typed
+:class:`~orpheus.transport.fields.cross_section_field.CrossSectionField` by its
+classmethods ``total_of`` / ``absorption_of`` / ``fission_production_of`` — the
 field side of the operator promotion ``C = M[σ_t]`` (#257 §5.7). Pins:
 
-* each typed accessor returns a ``CrossSectionField`` on the mesh, units 1/cm;
+* each typed view returns a ``CrossSectionField`` on the mesh, units 1/cm;
 * ``.values`` IS the SAME cached ndarray as the raw view (zero-copy — a typed
   lens, NOT a second representation; bit-identical by identity, not equality);
 * shape ``== (ng, *spatial)``, bound to the mesh;
@@ -40,12 +41,12 @@ def _mat_xs(nx: int = 4, ng: int = 2) -> tuple[MaterialXSField, SNProblem]:
     return MaterialXSField.from_mesh(problem), problem
 
 
-#: (typed accessor name, raw ndarray accessor name) for the three macroscopic
+#: (typed view constructor, raw ndarray accessor name) for the three macroscopic
 #: cross sections that promote to a multiplication operator.
 ACCESSORS = [
-    ("total_cross_section_field", "total_cross_section"),
-    ("absorption_cross_section_field", "absorption_cross_section"),
-    ("fission_production_field", "fission_production"),
+    (CrossSectionField.total_of, "total_cross_section"),
+    (CrossSectionField.absorption_of, "absorption_cross_section"),
+    (CrossSectionField.fission_production_of, "fission_production"),
 ]
 
 
@@ -53,7 +54,7 @@ class TestTypedCrossSectionAccessors:
     @pytest.mark.parametrize("typed, _raw", ACCESSORS)
     def test_returns_cross_section_field_in_inverse_cm(self, typed, _raw) -> None:
         mat_xs, _ = _mat_xs()
-        field = getattr(mat_xs, typed)
+        field = typed(mat_xs)
         assert isinstance(field, CrossSectionField)
         assert field.UNITS == CROSS_SECTION_UNITS
 
@@ -62,14 +63,14 @@ class TestTypedCrossSectionAccessors:
         """Zero-copy: the typed field wraps the SAME ndarray as the raw view
         (bit-identical by identity — a typed lens, not a second copy)."""
         mat_xs, _ = _mat_xs()
-        field = getattr(mat_xs, typed)
+        field = typed(mat_xs)
         raw_view = getattr(mat_xs, raw)
         assert field.values is raw_view
 
     @pytest.mark.parametrize("typed, _raw", ACCESSORS)
     def test_shape_and_mesh_binding(self, typed, _raw) -> None:
         mat_xs, problem = _mat_xs()
-        field = getattr(mat_xs, typed)
+        field = typed(mat_xs)
         assert field.values.shape == (problem.ng, *problem.spatial_shape)
         assert field.space is problem.bulk_space
 

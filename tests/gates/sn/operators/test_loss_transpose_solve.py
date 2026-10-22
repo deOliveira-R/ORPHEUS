@@ -31,6 +31,8 @@ is the main-agent keystone the reverse-scan commit rides on.
 """
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import numpy as np
 import pytest
 from scipy.linalg import solve_triangular
@@ -151,7 +153,7 @@ _MESHES = {
 def _loss(problem: SNProblem):
     mat_xs = problem.mat_xs
     return StreamingCollisionOperator(StreamingOperator.pose(problem), MultiplicationOperator(
-        coefficient=mat_xs.total_cross_section_field,
+        coefficient=CrossSectionField.total_of(mat_xs),
         domain=problem.full_field_space, codomain=problem.full_field_space,
     ))  # S2: the atom built explicitly (ruling 52)
 

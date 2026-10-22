@@ -24,6 +24,8 @@ object identities, no physics reference involved).
 """
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import numpy as np
 import pytest
 
@@ -99,7 +101,7 @@ class TestParentTie:
     def test_edge_eliminated_parent_matches_assembled_blocks(self, slab):
         h = np.diff(np.asarray(slab.mesh.edges, float))
         sigma_t = np.asarray(
-            slab.mat_xs.total_cross_section_field.values, float
+            CrossSectionField.total_of(slab.mat_xs).values, float
         )  # (ng, K)
         mu = np.asarray(slab.quad.mu_x, float)
 
@@ -130,7 +132,7 @@ class TestRealizedLowOrderSystem:
     def data(self, slab):
         h = np.diff(np.asarray(slab.mesh.edges, float))
         xs = slab.mat_xs
-        sigma_t = np.asarray(xs.total_cross_section_field.values, float)
+        sigma_t = np.asarray(CrossSectionField.total_of(xs).values, float)
         fold = xs.foldable_sigma()  # {mid: (ng,)}
         mat_ids = np.asarray(slab.mesh.mat_ids, int).ravel()
         sig_s0_gg = np.stack(

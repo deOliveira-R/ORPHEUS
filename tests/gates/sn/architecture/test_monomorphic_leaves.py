@@ -197,6 +197,8 @@ No theory ``:label:``, no ``verifies(...)`` (the verifies⊥level doctrine).
 """
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import inspect
 from typing import TYPE_CHECKING
 
@@ -483,7 +485,7 @@ def _leaf_set(problem: SNProblem) -> "dict[str, LinearOperator]":
     return {
         "L": StreamingOperator.pose(problem),
         "C": MultiplicationOperator(
-            coefficient=mat_xs.total_cross_section_field,
+            coefficient=CrossSectionField.total_of(mat_xs),
             domain=problem.full_field_space, codomain=problem.full_field_space,
         ),
         "S": ScatteringOperator.from_solver_data(
@@ -1175,7 +1177,7 @@ def test_leaf_without_a_space_refuses_construction(leaf):
     mat_xs = unit_cell_carrier({0: mixture}).mat_xs
     builders = {
         "C": lambda: MultiplicationOperator(  # type: ignore[call-arg]
-            coefficient=mat_xs.total_cross_section_field,  # deliberate:
+            coefficient=CrossSectionField.total_of(mat_xs),  # deliberate:
             # the space-less mint IS the probe (must raise since CS4c)
         ),
         "S": lambda: ScatteringOperator.from_solver_data(  # type: ignore[call-arg]

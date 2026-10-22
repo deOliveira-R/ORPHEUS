@@ -138,6 +138,8 @@ Verification (the P5 gates, ``tests/gates/diffusion/test_solver.py``)
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 from dataclasses import dataclass
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast
@@ -236,7 +238,7 @@ class DiffusionSolver:
         space = mesh.full_field_space
         self.leakage = LeakageOperator(mesh)
         collision = MultiplicationOperator(
-            self.mat_xs.total_cross_section_field, domain=space, codomain=space,
+            CrossSectionField.total_of(self.mat_xs), domain=space, codomain=space,
         )
         # The full K_iso pair (loss-side (n,2n) — module docstring);
         # IsotropicN2N contributes exactly zero on a Σ₂-free mixture. The
@@ -351,7 +353,7 @@ class DiffusionSolver:
         (n,2n) is loss-side here (module docstring)."""
         psi = self.unflatten(flux_distribution)
         return IntegratedReactionRate(
-            self.mat_xs.fission_production_field
+            CrossSectionField.fission_production_of(self.mat_xs)
         ).evaluate(psi.interior.values)
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:

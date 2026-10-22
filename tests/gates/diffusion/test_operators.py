@@ -40,6 +40,8 @@ layout (ng=2, nx=4): bulk ``g*nx + i`` → indices 0–7; trace xmin slot
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import numpy as np
 import pytest
 
@@ -185,7 +187,7 @@ def _loss(mesh, mat_xs):
     """Assemble A = L + C − S − B; B reads the mesh's own realized laws."""
     ffs = mesh.full_field_space
     L = LeakageOperator(mesh)
-    C = MultiplicationOperator(mat_xs.total_cross_section_field, domain=ffs, codomain=ffs)
+    C = MultiplicationOperator(CrossSectionField.total_of(mat_xs), domain=ffs, codomain=ffs)
     # The energy binding is PLAIN-bound on the scalar bulk and LIFTED onto
     # the composite (CS4c step 5, R-4) — the diffusion solver's own spelling.
     S = BulkLift(
@@ -349,7 +351,7 @@ class TestStencilGate:
         mesh, mat_xs, template, albedos = _config_setup("zero_flux/zero_flux")
         ffs = mesh.full_field_space
         wrong_C = MultiplicationOperator(
-            mat_xs.absorption_cross_section_field, domain=ffs, codomain=ffs,
+            CrossSectionField.absorption_of(mat_xs), domain=ffs, codomain=ffs,
         )
         A = (
             LeakageOperator(mesh) + wrong_C
@@ -403,7 +405,7 @@ class TestFamilyLaws:
         cancellation theorem: removal is DERIVED, never an input."""
         ffs = mesh.full_field_space
         CS = (
-            MultiplicationOperator(mat_xs.total_cross_section_field, domain=ffs, codomain=ffs)
+            MultiplicationOperator(CrossSectionField.total_of(mat_xs), domain=ffs, codomain=ffs)
             - BulkLift(
                 IsotropicScattering.from_material_xs(mat_xs, space=mesh.bulk_space),
                 domain=ffs, codomain=ffs,
@@ -669,7 +671,7 @@ class TestSharedOperatorScalarArms:
     def test_multiplication_scalar_apply_and_solve(self, mesh, mat_xs, flux):
         space = mesh.full_field_space
         C = MultiplicationOperator(
-            mat_xs.total_cross_section_field, domain=space, codomain=space,
+            CrossSectionField.total_of(mat_xs), domain=space, codomain=space,
         )
         out = C.apply(flux)
         assert isinstance(out.interior, ScalarSourceSink)
@@ -799,7 +801,7 @@ class TestAssemblyMode:
             "L": LeakageOperator(mesh),
             "B": DiffusionBoundaryOperator(mesh),
             "C": MultiplicationOperator(
-                mat_xs.total_cross_section_field, domain=ffs, codomain=ffs,
+                CrossSectionField.total_of(mat_xs), domain=ffs, codomain=ffs,
             ),
             # the energy bindings assemble on their plain ends; the lift
             # embeds the emission in the composite layout (G5.6 — owed for
@@ -961,7 +963,7 @@ class TestAssemblyMode:
         assemblable and its emission's matvec reproduces its ``apply`` on
         a bare array of the bound shape (0 ULP for the diagonal, the L16
         CSR band for the block-diagonal energy pair)."""
-        coef = mat_xs.total_cross_section_field
+        coef = CrossSectionField.total_of(mat_xs)
         x = np.random.default_rng(3).random(coef.values.shape) + 0.5
         n = x.size
         for op, rtol in (

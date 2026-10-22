@@ -3322,8 +3322,9 @@ After §5.7,
 :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
 stores **only** a :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
 (the cone-typed coefficient of #257 S1), sourced through the typed
-:meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.total_cross_section_field`
-accessor (#257 S2). The operator's *identity* is its coefficient field;
+:meth:`~orpheus.transport.fields.cross_section_field.CrossSectionField.total_of`
+view of the carrier (#257 S2; until the layer DAG round 3 a
+``MaterialXSField`` property). The operator's *identity* is its coefficient field;
 the action follows from the embedding. The collision leaf is now a
 **plain** :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
 carrying :math:`\sigma_t` as its coefficient — :math:`C = M[\sigma_t]` is
@@ -3625,8 +3626,8 @@ contraction, the integrated rate adds the spatial measure on top of it.
 The coefficient side is the cone-typed
 :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
 (#257 S1) carrying :math:`\Sigma_x` through the typed
-:meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.fission_production_field`
-accessor (#257 S2) for production, or the absorption accessor for
+:meth:`~orpheus.transport.fields.cross_section_field.CrossSectionField.fission_production_of`
+view of the carrier (#257 S2) for production, or ``absorption_of`` for
 :math:`\Sigma_a`.
 
 .. _integrated-reaction-rate-keff:

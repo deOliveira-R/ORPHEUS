@@ -26,6 +26,8 @@ of ``test_assembled_operator.py`` cannot see it).
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import ast
 import pathlib
 import re
@@ -584,7 +586,7 @@ class TestMatrixInverseFactorsDense:
         ffs = mesh.full_field_space
         loss = (
             LeakageOperator(mesh)
-            + MultiplicationOperator(mat_xs.absorption_cross_section_field, domain=ffs, codomain=ffs)
+            + MultiplicationOperator(CrossSectionField.absorption_of(mat_xs), domain=ffs, codomain=ffs)
             - BulkLift(IsotropicScattering.from_material_xs(mat_xs, space=mesh.bulk_space), domain=ffs, codomain=ffs)
             - DiffusionBoundaryOperator(mesh)
         )
@@ -676,7 +678,7 @@ def _registry() -> dict[str, "Any"]:
         return {
             "L": LeakageOperator(mesh),
             "B": DiffusionBoundaryOperator(mesh),
-            "C": MultiplicationOperator(mat_xs.total_cross_section_field, domain=ffs, codomain=ffs),
+            "C": MultiplicationOperator(CrossSectionField.total_of(mat_xs), domain=ffs, codomain=ffs),
             "S_plain": S,
             "N2N_plain": IsotropicN2N.from_material_xs(mat_xs, space=mesh.bulk_space),
             "S_lift": BulkLift(S, domain=ffs, codomain=ffs),

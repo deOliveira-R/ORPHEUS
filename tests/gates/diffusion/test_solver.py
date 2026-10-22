@@ -27,6 +27,8 @@ Conventions: ``.claude/plans/diffusion_crosswalk.md``.
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import numpy as np
 import pytest
 
@@ -319,10 +321,10 @@ class TestBalanceAndOrdering:
         mat_xs = material_mesh.mat_xs
         phi = result.flux.interior.values
         production = IntegratedReactionRate(
-            mat_xs.fission_production_field
+            CrossSectionField.fission_production_of(mat_xs)
         ).evaluate(phi)
         absorption = IntegratedReactionRate(
-            mat_xs.absorption_cross_section_field
+            CrossSectionField.absorption_of(mat_xs)
         ).evaluate(phi)
 
         trace = result.flux.boundary

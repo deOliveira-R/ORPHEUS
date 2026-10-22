@@ -2,7 +2,7 @@ r"""#257 S6 — Spec B: the fission ``production_rate`` reproduces ``F.apply`` b
 
 S6 adds a ``production_rate`` property to :class:`FissionOperator` →
 the :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
-over ``νΣf`` (the S2 accessor ``mat_xs.fission_production_field``; the
+over ``νΣf`` (the S2 view ``CrossSectionField.fission_production_of(mat_xs)``; the
 original S5 ``ProductionRateFunctional`` was retired — the reaction-rate
 functional generalises it). With ``kernel`` (already present since Wave T)
 the operator becomes an ``IntegralKernelOperator``. The matvec arms are
@@ -226,7 +226,7 @@ class TestProductionRateReproducesApply:
         Reads the functional's value at a known flux and confirms the
         density equals ``Σ_g νΣf_g · φ_g`` (the production cross section),
         NOT some other cross section — pins that S6 wired the
-        ``mat_xs.fission_production_field`` accessor into the property.
+        ``CrossSectionField.fission_production_of(mat_xs)`` view into the property.
         """
         op = solver_4g.problem.fission.isotropic_energy
         ng = solver_4g.ng
@@ -239,7 +239,7 @@ class TestProductionRateReproducesApply:
         np.testing.assert_array_equal(
             density, expected,
             err_msg="production_rate.evaluate must contract νΣf against φ "
-            "over groups (the fission_production_field accessor). It did "
+            "over groups (the CrossSectionField.fission_production_of view). It did "
             "not match Σ_g νΣf_g·φ_g — wrong cross section wired in.",
         )
 

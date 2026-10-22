@@ -112,6 +112,8 @@ References
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -262,7 +264,7 @@ class DSALowOrderSystem:
         h = np.asarray(problem.axis_widths[0], dtype=float)
         mat_xs = problem.mat_xs
         sigma_t = np.asarray(
-            mat_xs.total_cross_section_field.values, dtype=float
+            CrossSectionField.total_of(mat_xs).values, dtype=float
         )  # (ng, K)
         ng = sigma_t.shape[0]
 

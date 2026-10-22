@@ -825,8 +825,8 @@ _OPEN_INTRA_PACKAGE_CYCLES: dict[str, frozenset[frozenset[str]]] = {
     "sn": frozenset({frozenset({
         "angular", "boundary", "coupled_system", "loss_representation", "mesh", "operators", "problem", "sweep",
     })}),
-    # The role grid split over two packages, and the cross-section views on the mesh side.
-    "transport": frozenset({frozenset({"fields", "mesh", "source_sinks"})}),
+    # The role grid split over two packages (the source/sink half imports its flux partner).
+    "transport": frozenset({frozenset({"fields", "source_sinks"})}),
 }
 
 

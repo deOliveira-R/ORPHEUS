@@ -176,6 +176,8 @@ References
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -538,7 +540,7 @@ def build_streaming_collision(
 
     ``L`` is the σ-free :class:`~orpheus.sn.operators.streaming.StreamingOperator`
     (#257 S8b) and ``C = M[σ_t]`` the collision diagonal from the typed
-    ``total_cross_section_field`` accessor, built as the
+    ``CrossSectionField.total_of(mat_xs)`` view, built as the
     :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` atom
     whose ``solve`` is the WDD sweep. This builder is the atom's owner: ``+``
     never fuses (numerics_untangling.md ruling 52), so ``L + C`` elsewhere is
@@ -555,7 +557,7 @@ def build_streaming_collision(
     return StreamingCollisionOperator(
         StreamingOperator.pose(problem),
         MultiplicationOperator(
-            coefficient=mat_xs.total_cross_section_field,
+            coefficient=CrossSectionField.total_of(mat_xs),
             domain=problem.full_field_space,
             codomain=problem.full_field_space,
         ),
@@ -576,7 +578,7 @@ def build_within_group_system(
     * ``L`` — the σ-free :class:`~orpheus.sn.operators.streaming.StreamingOperator`
       (#257 S8b: the streaming leaf reads no σ).
     * ``C = M[σ_t]`` — the collision diagonal from the typed
-      ``total_cross_section_field`` accessor (#257 S3b / #261); the
+      ``CrossSectionField.total_of(mat_xs)`` view (#257 S3b / #261); the
       composite ``full_field_space`` lets the agreement law of the expansion
       ``L + C`` validate the build. :func:`build_streaming_collision` builds
       the :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
@@ -720,7 +722,7 @@ def build_within_group_system(
     )
     march = RadialCharacteristicOperator(
         member_space,
-        mat_xs.total_cross_section_field,
+        CrossSectionField.total_of(mat_xs),
         bulk_space=problem.bulk_space,
         dr=problem.axis_widths[0],
         start_cosines=march_start_cosines(

@@ -22,6 +22,8 @@ the G1.5 carrier-mutation leg cannot pollute a shared object.
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import ast
 import dataclasses
 import inspect
@@ -645,7 +647,7 @@ def _bind(operator_key: str, binding: str):
     }
     if operator_key == "C":
         return MultiplicationOperator(
-            coefficient=mat_xs.total_cross_section_field, domain=space, codomain=space,
+            coefficient=CrossSectionField.total_of(mat_xs), domain=space, codomain=space,
         )
     if operator_key in energy:
         return energy[operator_key].from_material_xs(mat_xs, space=space)
@@ -903,7 +905,7 @@ def test_energy_conformity_guard_three_rows():
     wrong_space = carrier_4g.bulk_space
     per_site = {
         "MultiplicationOperator": lambda: MultiplicationOperator(
-            coefficient=mat_2g.total_cross_section_field, domain=wrong_space, codomain=wrong_space,
+            coefficient=CrossSectionField.total_of(mat_2g), domain=wrong_space, codomain=wrong_space,
         ),
         "IsotropicScattering": lambda: IsotropicScattering.from_material_xs(
             mat_2g, space=wrong_space,

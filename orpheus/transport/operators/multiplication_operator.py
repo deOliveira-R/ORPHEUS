@@ -415,7 +415,7 @@ class MultiplicationOperator(BoundOperator):
         — wrapped into a
         :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
         on ``mesh.bulk_space``, exactly as the production
-        ``mat_xs.total_cross_section_field`` accessor builds it — or an
+        ``CrossSectionField.total_of(mat_xs)`` view builds it — or an
         already-typed :class:`CrossSectionField` (passed straight through).
         ``space`` is the optional composite
         :class:`~orpheus.numerics.space.FunctionSpace` for the composition

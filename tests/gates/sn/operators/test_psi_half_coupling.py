@@ -3298,7 +3298,7 @@ class TestCoupledBuilder:
                 [[grid.blocks[0][0], grid.blocks[1][0]],
                  [grid.blocks[0][1], grid.blocks[1][1]]],
                 domain=space, codomain=space)
-        a_bb_alone = rc_march(sn, mat_xs.total_cross_section_field)
+        a_bb_alone = rc_march(sn, CrossSectionField.total_of(mat_xs))
         dropped = CoupledOperator(
             [[grid.blocks[0][0], grid.blocks[0][1]],
              [grid.blocks[1][0], a_bb_alone]],

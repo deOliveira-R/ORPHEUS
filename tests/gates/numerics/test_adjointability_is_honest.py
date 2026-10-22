@@ -57,6 +57,8 @@ is fixed. The witness route of each leg-2 row is in its parametrize id
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
@@ -622,7 +624,7 @@ def _green_case():
     from tests.gates.sn.operators import test_g_adjoint_reciprocity as G
 
     sn, _, S = G._full_loss_case(CoordSystem.CARTESIAN, 2)
-    sig_t = np.asarray(sn.mat_xs.total_cross_section_field.values, dtype=float)
+    sig_t = np.asarray(CrossSectionField.total_of(sn.mat_xs).values, dtype=float)
     lc = _lc(sn, sig_t)
     return sn, sig_t, lc, S, GreenOperator(lc, S, max_iter=4000, tol=_GREEN_TOL)
 
@@ -757,7 +759,7 @@ def _sn_green_cart2d() -> _Posed:
     from tests.gates.sn.operators import test_g_adjoint_reciprocity as G
 
     sn, _, S = G._full_loss_case_cart2d()
-    sig_t = np.asarray(sn.mat_xs.total_cross_section_field.values, dtype=float)
+    sig_t = np.asarray(CrossSectionField.total_of(sn.mat_xs).values, dtype=float)
     op = GreenOperator(_lc(sn, sig_t), S, max_iter=4000, tol=_GREEN_TOL)
     return _Posed(op, _source_like(sn, sig_t, 13), rtol=_GREEN_RTOL)
 

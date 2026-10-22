@@ -55,6 +55,8 @@ arrives.
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import numpy as np
 import pytest
 from scipy.linalg import solve_triangular
@@ -139,7 +141,7 @@ def _loss(problem: SNProblem):
 
     mat_xs = problem.mat_xs
     return StreamingCollisionOperator(StreamingOperator.pose(problem), MultiplicationOperator(
-        coefficient=mat_xs.total_cross_section_field,
+        coefficient=CrossSectionField.total_of(mat_xs),
         domain=problem.full_field_space, codomain=problem.full_field_space,
     ))
 
@@ -287,7 +289,7 @@ def test_streaming_only_block_differs_by_the_collision_diagonal():
     fold rounding — the two denominators are separate left folds)."""
     problem = _slab_mesh()
     sigma_t = np.asarray(
-        problem.mat_xs.total_cross_section_field.values
+        CrossSectionField.total_of(problem.mat_xs).values
     )
     for n in (0, 3):
         with_c = assemble_ordinate_blocks(problem, n)

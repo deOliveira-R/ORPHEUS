@@ -33,6 +33,8 @@ taken verbatim: no entry point supplies a default law.
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
@@ -1615,7 +1617,7 @@ class SNSolver:
         :math:`1/k`; the (n,2n) gain sits on the net-removal side there.
         """
         fission = IntegratedReactionRate(
-            self.problem.mat_xs.fission_production_field
+            CrossSectionField.fission_production_of(self.problem.mat_xs)
         ).evaluate(flux_distribution)
         n2n_rate = np.zeros(self.ng)
         self.problem.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
@@ -1668,10 +1670,10 @@ class SNSolver:
         spectral diagnostics (not on the keff path).
         """
         production = IntegratedReactionRate(
-            self.problem.mat_xs.fission_production_field
+            CrossSectionField.fission_production_of(self.problem.mat_xs)
         ).evaluate(flux_distribution)
         absorption = IntegratedReactionRate(
-            self.problem.mat_xs.absorption_cross_section_field
+            CrossSectionField.absorption_of(self.problem.mat_xs)
         ).evaluate(flux_distribution)
         emission_n2n = np.zeros(self.ng)
         self.problem.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
@@ -1787,7 +1789,7 @@ class SNSolver:
                 )
             rate += float(np.sum(net_current * face_area))
         reference = IntegratedReactionRate(
-            self.problem.mat_xs.fission_production_field
+            CrossSectionField.fission_production_of(self.problem.mat_xs)
         ).evaluate(phi_of_trace)
         if reference <= 0.0:
             raise RuntimeError(

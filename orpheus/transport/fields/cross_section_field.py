@@ -63,11 +63,14 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from orpheus.numerics.units import CROSS_SECTION_UNITS, Unit
 from orpheus.transport.fields._bases import ScalarField
 from orpheus.transport.fields._coefficient_role import CoefficientRole
+
+if TYPE_CHECKING:
+    from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 __all__ = ["CrossSectionField"]
 
@@ -110,3 +113,34 @@ class CrossSectionField(CoefficientRole, ScalarField):
     #: (:data:`~orpheus.numerics.units.CROSS_SECTION_UNITS`). Metadata, not the
     #: arithmetic gate. See :mod:`orpheus.numerics.units`.
     UNITS: ClassVar[Unit] = CROSS_SECTION_UNITS
+
+    # ── The typed per-cell views of a carrier (#257 S2) ──────────────────
+    #
+    # The field side of the operator promotion C = M[σ_t] (#257 §5.7): each
+    # macroscopic cross section of a MaterialXSField, wrapped as a
+    # CrossSectionField on the carrier's bulk space. Each wraps the SAME cached
+    # ndarray as the carrier's raw view (``.values is`` the raw array:
+    # bit-identical, zero copy), so it is a typed lens, NOT a second
+    # representation. The views live on the field (they were MaterialXSField
+    # properties until the layer DAG round 3) so that the mesh package names
+    # no field type: the carrier is the input, the field is the codomain.
+    #
+    # All three σ are typed for SYMMETRY even though only σ_t (collision) and
+    # νΣ_f (fission) have production consumers: the wrap is one pattern, and a
+    # two-typed-one-raw surface would invite a future σ_a consumer to
+    # open-code the wrap inline (a single-source violation). Do NOT delete
+    # ``absorption_of`` as "unused".
+    @classmethod
+    def total_of(cls, xs: "MaterialXSField") -> "CrossSectionField":
+        r""":math:`\Sigma_t` of ``xs`` as a typed field (1/cm)."""
+        return cls(values=xs.total_cross_section, space=xs.mesh.bulk_space)
+
+    @classmethod
+    def absorption_of(cls, xs: "MaterialXSField") -> "CrossSectionField":
+        r""":math:`\Sigma_a` of ``xs`` as a typed field (1/cm)."""
+        return cls(values=xs.absorption_cross_section, space=xs.mesh.bulk_space)
+
+    @classmethod
+    def fission_production_of(cls, xs: "MaterialXSField") -> "CrossSectionField":
+        r""":math:`\nu\Sigma_f` of ``xs`` as a typed field (1/cm)."""
+        return cls(values=xs.fission_production, space=xs.mesh.bulk_space)

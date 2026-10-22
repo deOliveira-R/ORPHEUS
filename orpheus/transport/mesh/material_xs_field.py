@@ -88,7 +88,6 @@ from typing import Literal, TYPE_CHECKING
 import numpy as np
 
 from orpheus.data.cell_xs import assemble_cell_xs
-from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.numerics import frame_faces
 
 if TYPE_CHECKING:
@@ -578,40 +577,6 @@ class MaterialXSField:
         self._sig_a_cell = xs.sig_a.T.reshape(ng, *spatial)
         self._sig_p_cell = xs.sig_p.T.reshape(ng, *spatial)
         self._chi_cell = xs.chi.T.reshape(ng, *spatial)
-
-    # ── Typed per-cell views (the CrossSectionField promotion, #257 S2) ──
-    #
-    # The field side of the operator promotion C = M[σ_t] (#257 §5.7): each
-    # macroscopic cross section, wrapped as the typed
-    # :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
-    # (units 1/cm; physical cross sections, so cone-valued — but the cone is a
-    # property, NOT a per-field invariant: a signed σ−σ′ is still a valid
-    # CrossSectionField). These wrap the SAME cached ndarray as the raw views
-    # above (``.values is`` the raw array — bit-identical, zero copy), so they
-    # are a pure-additive typed lens, NOT a second representation. The raw
-    # ndarray views remain the live consumer path; the typed accessors are the
-    # migration target the S3 ``MultiplicationOperator`` reads from.
-    #
-    # All three σ are typed for SYMMETRY even though only σ_t (S3 collision) and
-    # νΣ_f (S6 fission) have near-term consumers: the wrap is one proven pattern
-    # (its rule-of-two is met in-diff), and a two-typed-one-raw surface would
-    # invite a future σ_a consumer to open-code the wrap inline (a single-source
-    # violation). Do NOT delete ``absorption_cross_section_field`` as "unused".
-
-    @property
-    def total_cross_section_field(self) -> CrossSectionField:
-        r""":math:`\Sigma_t` as a typed :class:`CrossSectionField` (1/cm)."""
-        return CrossSectionField(values=self.total_cross_section, space=self.mesh.bulk_space)
-
-    @property
-    def absorption_cross_section_field(self) -> CrossSectionField:
-        r""":math:`\Sigma_a` as a typed :class:`CrossSectionField` (1/cm)."""
-        return CrossSectionField(values=self.absorption_cross_section, space=self.mesh.bulk_space)
-
-    @property
-    def fission_production_field(self) -> CrossSectionField:
-        r""":math:`\nu\Sigma_f` as a typed :class:`CrossSectionField` (1/cm)."""
-        return CrossSectionField(values=self.fission_production, space=self.mesh.bulk_space)
 
     # ── Per-material accessors (source of truth) ─────────────────────
 

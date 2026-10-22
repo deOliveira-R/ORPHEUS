@@ -74,6 +74,8 @@ This file is the multi-D sibling of ``test_one_dim_loop_walk.py`` (spec
 """
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import ast
 import inspect
 import textwrap
@@ -539,7 +541,7 @@ def test_assembled_mt_2d_per_ordinate_block():
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
     sigma = np.asarray(
-        sn.mat_xs.total_cross_section_field.values, float,
+        CrossSectionField.total_of(sn.mat_xs).values, float,
     )
     rep = FullFieldWavefront.pose(sn)
     rng = np.random.default_rng(20260729)
@@ -941,7 +943,7 @@ def test_ld_2d_assembled_mt_per_ordinate_block():
     source the assembly reads."""
     sn = _ld2d_probe_mesh()
     sigma = np.asarray(
-        sn.mat_xs.total_cross_section_field.values, float,
+        CrossSectionField.total_of(sn.mat_xs).values, float,
     )
     rep = FullFieldWavefront.pose(sn)
     rng = np.random.default_rng(20260815)

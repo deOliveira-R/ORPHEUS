@@ -103,6 +103,8 @@ alone (the walk's ``Q/Σ_t`` short-circuit in matrix form).
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 from typing import TYPE_CHECKING, Iterator
 
 import numpy as np
@@ -329,7 +331,7 @@ def assemble_ordinate_blocks(
 
     # ── The raw data every mode shares ────────────────────────────────
     sigma_t = np.asarray(
-        problem.mat_xs.total_cross_section_field.values, float,
+        CrossSectionField.total_of(problem.mat_xs).values, float,
     )                                                   # (ng, *spatial)
     ng = sigma_t.shape[0]
     reaction_flat = (

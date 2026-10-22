@@ -22,6 +22,8 @@ Three legs:
 """
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import numpy as np
 import pytest
 
@@ -271,7 +273,7 @@ class TestN2NActivationInProductionRate:
         flux = np.random.default_rng(3).uniform(0.1, 1.0, size=(ng, nx, ny))
 
         fission_only = IntegratedReactionRate(
-            solver.problem.mat_xs.fission_production_field
+            CrossSectionField.fission_production_of(solver.problem.mat_xs)
         ).evaluate(flux)
         total = solver.compute_production_rate(flux)
         require(

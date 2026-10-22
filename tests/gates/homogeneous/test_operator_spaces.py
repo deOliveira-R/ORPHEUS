@@ -16,6 +16,8 @@ invariants of the posing, so ``foundation``, never ``verifies(...)``.
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import dataclasses
 
 import numpy as np
@@ -126,7 +128,7 @@ def test_every_homogeneous_operator_reports_the_same_space(
     K = inverse @ production
     operators = {
         "C": MultiplicationOperator(
-            coefficient=mat_xs.total_cross_section_field, domain=space, codomain=space,
+            coefficient=CrossSectionField.total_of(mat_xs), domain=space, codomain=space,
         ),
         "IsoS": IsotropicScattering.from_material_xs(mat_xs, space=space),
         "IsoN2N": IsotropicN2N.from_material_xs(mat_xs, space=space),
@@ -149,10 +151,10 @@ def test_two_group_and_four_group_sum_is_REFUSED() -> None:
     established provenance fragment (the ``_agreed_space`` pins' shared
     vocabulary — do not invent new wording)."""
     c_2g = MultiplicationOperator.from_mesh(
-        _mat_xs("2g").total_cross_section_field, _mat_xs("2g").mesh,
+        CrossSectionField.total_of(_mat_xs("2g")), _mat_xs("2g").mesh,
     )
     c_4g = MultiplicationOperator.from_mesh(
-        _mat_xs("4g").total_cross_section_field, _mat_xs("4g").mesh,
+        CrossSectionField.total_of(_mat_xs("4g")), _mat_xs("4g").mesh,
     )
     _require(
         c_2g.domain is not None and c_4g.domain is not None,
@@ -204,7 +206,7 @@ def test_H_is_bit_identical_to_the_pre_CS1_euclidean_transpose() -> None:
     # SAME threaded build read through apply_transpose — bit-identical to
     # the retired bare spelling (apply_transpose never touched a metric).
     loss_bare = MultiplicationOperator(
-        coefficient=mat_xs.total_cross_section_field,
+        coefficient=CrossSectionField.total_of(mat_xs),
         domain=posed, codomain=posed,
     ) - (
         IsotropicScattering.from_material_xs(mat_xs, space=posed)
@@ -247,7 +249,7 @@ def test_H_MOVES_under_a_per_group_weighted_axis() -> None:
         Axis("spatial", (1,), origin=Declared(BasisKind.NODAL)),
     )
     collision = MultiplicationOperator.from_mesh(
-        mat_xs.total_cross_section_field, mat_xs.mesh, space=weighted_space,
+        CrossSectionField.total_of(mat_xs), mat_xs.mesh, space=weighted_space,
     )
     k_iso = IsotropicScattering.from_material_xs(mat_xs, space=weighted_space) + IsotropicN2N.from_material_xs(
         mat_xs, space=weighted_space,
@@ -304,11 +306,11 @@ def test_plain_multiplier_assembles_its_own_diagonal() -> None:
     ``apply`` on a bare array of the bound shape."""
     mat_xs = _mat_xs("2g")
     collision = MultiplicationOperator.from_mesh(
-        mat_xs.total_cross_section_field, mat_xs.mesh,
+        CrossSectionField.total_of(mat_xs), mat_xs.mesh,
     )
     _require(collision.domain is not None, "precondition lost: C is unbound")
     _require(collision.is_assemblable, "the plain multiplier must be assemblable")
-    sigma_t = np.asarray(mat_xs.total_cross_section_field.values)
+    sigma_t = np.asarray(CrossSectionField.total_of(mat_xs).values)
     emitted = assemble(collision)
     _require(
         bool(np.array_equal(emitted.as_matrix(), np.diag(sigma_t.ravel()))),
@@ -586,7 +588,7 @@ def test_adjoint_equals_transpose_on_the_minted_space() -> None:
     space = _pose_space(mix)
     operators = {
         "C": MultiplicationOperator(
-            coefficient=mat_xs.total_cross_section_field, domain=space, codomain=space,
+            coefficient=CrossSectionField.total_of(mat_xs), domain=space, codomain=space,
         ),
         "IsoS": IsotropicScattering.from_material_xs(mat_xs, space=space),
         "IsoN2N": IsotropicN2N.from_material_xs(mat_xs, space=space),

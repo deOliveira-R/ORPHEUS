@@ -39,6 +39,8 @@ canonical ORPHEUS invocation is ``-O``, which strips bare ``assert``).
 """
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import numpy as np
 import pytest
 
@@ -138,7 +140,7 @@ def test_c5a_matvec_leaves_emit_timeless_full_field(coord: str) -> None:
     problem = solver.problem
 
     L = StreamingOperator.pose(problem)
-    C = MultiplicationOperator.from_mesh(solver.problem.mat_xs.total_cross_section_field, problem)
+    C = MultiplicationOperator.from_mesh(CrossSectionField.total_of(solver.problem.mat_xs), problem)
     S = solver.problem.system.factors.scattering
     # CS4c step 4: the composite (FullField) arm lives on the ANGULAR
     # fission binding; the hub's fission.isotropic_energy is the scalar
@@ -176,7 +178,7 @@ def test_c5a_apply_transpose_emits_timeless_full_field(coord: str) -> None:
     problem = solver.problem
 
     L = StreamingOperator.pose(problem)
-    C = MultiplicationOperator.from_mesh(solver.problem.mat_xs.total_cross_section_field, problem)
+    C = MultiplicationOperator.from_mesh(CrossSectionField.total_of(solver.problem.mat_xs), problem)
     B = SNBoundaryOperator(problem)
 
     state = _timed_random_state(problem, history_depth=3, seed=23)

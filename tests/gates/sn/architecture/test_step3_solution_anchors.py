@@ -70,6 +70,8 @@ level doctrine).
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import dataclasses
 import functools
 import typing
@@ -432,7 +434,7 @@ class TestRecordTheFourProductionRateFunctionals:
         total = solver.compute_production_rate(phi)
         fission_only = float(
             IntegratedReactionRate(
-                problem.mat_xs.fission_production_field
+                CrossSectionField.fission_production_of(problem.mat_xs)
             ).evaluate(phi)
         )
         _require(
@@ -461,7 +463,7 @@ class TestRecordTheFourProductionRateFunctionals:
         total = solver.compute_production_rate(phi)
         fission_only = float(
             IntegratedReactionRate(
-                problem.mat_xs.fission_production_field
+                CrossSectionField.fission_production_of(problem.mat_xs)
             ).evaluate(phi)
         )
         relative = abs(total - fission_only) / abs(total)

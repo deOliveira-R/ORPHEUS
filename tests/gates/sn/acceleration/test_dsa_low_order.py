@@ -23,6 +23,8 @@ Levels: foundation (object identities; no physics reference).
 """
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 from orpheus.numerics.space import FunctionSpace
 
 import re
@@ -86,7 +88,7 @@ def _reference_inputs(problem: SNProblem):
     are what the tie discriminates)."""
     h = np.diff(np.asarray(getattr(problem.mesh, "edges"), float))
     xs = problem.mat_xs
-    sigma_t = np.asarray(xs.total_cross_section_field.values, float)
+    sigma_t = np.asarray(CrossSectionField.total_of(xs).values, float)
     ng = sigma_t.shape[0]
     mat_ids = np.asarray(problem.mat_map, int).ravel()
     fold = xs.foldable_sigma()

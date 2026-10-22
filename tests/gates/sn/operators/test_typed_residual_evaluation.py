@@ -20,6 +20,8 @@ Marks: ``foundation`` for the mint-guard + split + relative_to invariants;
 """
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 from unittest import mock
 
 import numpy as np
@@ -334,7 +336,7 @@ def test_mis_spaced_collision_reds_the_production_loss_build():
     # shape is spelled through a wrong block (a renamed bulk leaf).
     wrong = FullFieldSpace.from_blocks(FunctionSpace("bulk_TYPO", ffs.interior_space.shape), ffs.trace_space)
     L = StreamingOperator.pose(problem)
-    C = MultiplicationOperator.from_mesh(solver.problem.mat_xs.total_cross_section_field, problem)
+    C = MultiplicationOperator.from_mesh(CrossSectionField.total_of(solver.problem.mat_xs), problem)
     # S2 (ruling 52): the production build is the EXPLICIT atom
     # ``StreamingCollisionOperator(L, C)`` (``build_streaming_collision``),
     # no longer the fused ``+``; `[M]` 2026-10-20 the atom still refuses a

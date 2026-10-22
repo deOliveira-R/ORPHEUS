@@ -99,7 +99,7 @@ mesh-identity invariant — σ_t and the operator march the SAME radial widths �
 is enforced at construction (Pattern 4; the sibling
 :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` guards its
 diagonal coefficient the same way). Step 4 sources it from the solver's
-macroscopic XS as ``mat_xs.total_cross_section_field``.
+macroscopic XS as ``CrossSectionField.total_of(mat_xs)``.
 
 References
 ==========

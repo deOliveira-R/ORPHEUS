@@ -60,6 +60,8 @@ References
 
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import numpy as np
 import pytest
 
@@ -852,7 +854,7 @@ def _full_loss_case(
     sn = SNProblem(mesh, quad, mixtures, scattering_order=order)
     S = SNSolver(sn).problem.system.factors.scattering
     sig_t = np.asarray(
-        sn.mat_xs.total_cross_section_field.values, dtype=float
+        CrossSectionField.total_of(sn.mat_xs).values, dtype=float
     )
     # B.2d: this is System A's (A,A) block ``L + C − S − B_a`` on the honest
     # 2-block composite — the coupling blocks (A_AB/A_BA/B_b) live on the
@@ -898,7 +900,7 @@ def _full_loss_case_cart2d():
     sn = SNProblem(mesh, Quadrature.level_symmetric(4), mixtures, scattering_order=0)
     S = SNSolver(sn).problem.system.factors.scattering
     sig_t = np.asarray(
-        sn.mat_xs.total_cross_section_field.values, dtype=float
+        CrossSectionField.total_of(sn.mat_xs).values, dtype=float
     )
     A = StreamingCollisionOperator(
         StreamingOperator.pose(sn),

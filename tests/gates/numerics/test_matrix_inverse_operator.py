@@ -26,6 +26,8 @@ M-MINV-SEED-CONSUME).
 """
 from __future__ import annotations
 
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+
 import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
@@ -220,7 +222,7 @@ def test_as_matrix_energy_leaves_vs_storage_oracle():
         )
     # The OperatorSum path — C − K_iso materialises as the fused storage oracle.
     loss = MultiplicationOperator.from_mesh(
-        mat_xs.total_cross_section_field, mat_xs.mesh,
+        CrossSectionField.total_of(mat_xs), mat_xs.mesh,
     ) - (
         IsotropicScattering.from_material_xs(
             mat_xs, space=mat_xs.mesh.bulk_space,
@@ -292,7 +294,7 @@ def test_as_matrix_equals_retired_as_dense_loop():
     mat_xs = unit_cell_carrier({0: mix}).mat_xs
     ng = mix.ng
     loss = MultiplicationOperator.from_mesh(
-        mat_xs.total_cross_section_field, mat_xs.mesh,
+        CrossSectionField.total_of(mat_xs), mat_xs.mesh,
     ) - (
         IsotropicScattering.from_material_xs(
             mat_xs, space=mat_xs.mesh.bulk_space,
