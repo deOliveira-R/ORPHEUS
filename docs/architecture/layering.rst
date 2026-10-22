@@ -112,9 +112,17 @@ A few notes the table is too compact to capture:
   it provides primitive types that the layers above it consume.
   Geometries, meshes and nuclear-data structures are inputs in the same
   sense that a function argument is an input — they cross every layer
-  boundary but carry no algorithmic knowledge. The linter does not
-  forbid :mod:`orpheus.numerics` an edge to :mod:`orpheus.geometry` or
-  :mod:`orpheus.data`; it does forbid one to :mod:`orpheus.mesh`.
+  boundary but carry no algorithmic knowledge. The linter forbids
+  :mod:`orpheus.numerics` an edge to :mod:`orpheus.data`, guarded or not
+  (layer_dag.md P2, 2026-10: the energy axis is minted from its edges by
+  :meth:`~orpheus.numerics.axis.EnergyAxis.of_edges`, and the views that
+  read nuclear data as an axis, :meth:`EnergyGrid.as_axis
+  <orpheus.data.energy_grid.EnergyGrid.as_axis>` and
+  :func:`~orpheus.data.materials.energy_axis_of`, live in data), and one
+  to :mod:`orpheus.mesh`. It still admits the edge to
+  :mod:`orpheus.geometry`: :mod:`orpheus.numerics.symmetry` imports
+  :mod:`orpheus.geometry.transformation` at runtime, an edge pending
+  layer_dag.md P1.
 
 * The input layer has one internal order: :mod:`orpheus.mesh` sits
   **above** :mod:`orpheus.geometry`. A mesh is an overlay on a geometry
@@ -318,20 +326,26 @@ The forbidden-edge dictionary is:
 .. code-block:: python
 
    FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
-       # L1 imports nothing above itself.
-       "numerics": MESH_PACKAGES | SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+       # L1 imports nothing above itself; data sits strictly above it
+       # (layer_dag.md P2). Geometry is still admitted, pending P1.
+       "numerics": DATA_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES
+                   | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
 
-       # Geometry and data never import the mesh overlay or the
-       # specification above them.
-       "geometry": MESH_PACKAGES | SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-       "data":     MESH_PACKAGES | SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+       # Geometry and data never import the mesh overlay, the
+       # specification or the reference package above them.
+       "geometry": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+       "data":     MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
 
        # The mesh imports geometry, data and L1, never the specification,
-       # L2 or L3.
-       "mesh": SPECIFICATION_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+       # the reference package, L2 or L3.
+       "mesh": SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
 
        # The specification imports data, geometry and L1 only.
-       "specification": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES,
+       "specification": MESH_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES,
+
+       # The reference package sits above the specification, below
+       # transport, L3 and derivations.
+       "reference": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES,
 
        # L2 imports L1 + inputs only.
        "transport": L3_PACKAGES,
@@ -359,12 +373,16 @@ The linter ships with two tolerances:
 **TYPE_CHECKING exemption.**
 
   Imports inside an ``if TYPE_CHECKING:`` block do not create a runtime
-  edge — they exist only for static type checkers (mypy, pyright). An L1
-  or L2 module may legitimately import an L3 type *inside* a
-  ``TYPE_CHECKING`` block when the type appears only in a string-quoted
-  annotation. The linter's ``ast`` walker recognizes ``TYPE_CHECKING``
-  guards and skips imports inside them when the source layer is L1 or
-  L2.
+  edge — they exist only for static type checkers (mypy, pyright). An L2
+  module may import an L3 type *inside* a ``TYPE_CHECKING`` block when
+  the type appears only in a string-quoted annotation. The linter's
+  ``ast`` walker recognizes ``TYPE_CHECKING`` guards and skips an import
+  inside one only when the source layer is L2 and the target is L3; no
+  other guarded edge is tolerated, and :mod:`orpheus.numerics` (L1) has
+  no tolerance at all (layer_dag.md P2 narrowed it, 2026-10: until then
+  the code skipped a guarded import from L1 or L2 into ANY forbidden
+  target, wider than this paragraph said). layer_dag.md P3 retires the
+  surviving L2 tolerance.
 
 **WHITELIST.**
 

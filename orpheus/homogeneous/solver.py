@@ -47,7 +47,8 @@ from typing import TYPE_CHECKING, assert_never
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis
+from orpheus.data.materials import energy_axis_of
+from orpheus.numerics.axis import Axis, BasisKind, Declared
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.fields.cross_section_field import CrossSectionField
@@ -178,7 +179,7 @@ def _pose_space(mix: Mixture) -> FunctionSpace:
 
     Minted from the MIXTURE — the problem's own physics — never read off
     a carrier (CS4a K2): the energy axis goes through the ONE energy-arm
-    rule (:meth:`~orpheus.numerics.axis.EnergyAxis.from_materials`, the
+    rule (:func:`~orpheus.data.materials.energy_axis_of`, the
     same rule ``MaterialMesh.bulk_space`` routes through, so the two
     spellings cannot diverge), and the spatial factor is the explicit
     quotient point with the COUNTING weight (``weights=None`` — the
@@ -205,7 +206,7 @@ def _pose_space(mix: Mixture) -> FunctionSpace:
     contract those ratios depend on.
     """
     return FunctionSpace.of_axes(
-        EnergyAxis.from_materials([mix]),
+        energy_axis_of([mix]),
         # The one-cell counting axis is honestly generator-less (CS5):
         # the infinite-medium pose has no mesh, so no spatial measure
         # object exists to name — ``Declared`` IS the record (ruling 82).

@@ -46,6 +46,7 @@ import numpy as np
 import pytest
 
 from orpheus.data.energy_grid import EnergyGrid, InverseEnergySpectrum
+from orpheus.numerics.axis import EnergyAxis
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.manifold import HALF_LINE
 
@@ -241,6 +242,35 @@ class TestEnergyGridGeometry:
             g.representative_energy, [np.sqrt(1000.0), np.sqrt(10.0)], rtol=1e-12,
         )
         np.testing.assert_array_less(g.representative_energy, 0.5 * (upper + lower))
+
+
+class TestEnergyGridAsAxis:
+    """``EnergyGrid.as_axis`` — the grid seen as the energy factor of a
+    function space (layer_dag.md P2: the view lives here in data, over the
+    numerics constructor ``EnergyAxis.of_edges``, which names nothing in data)."""
+
+    _GRID = EnergyGrid(np.array([2.0e7, 1.0e5, 1.0e-3]))
+
+    def test_as_axis_is_the_axis_of_the_grid_edges(self) -> None:
+        axis = self._GRID.as_axis()
+        if axis != EnergyAxis.of_edges(self._GRID.edges):
+            pytest.fail(f"as_axis {axis!r} is not EnergyAxis.of_edges(grid.edges)")
+        if axis == EnergyAxis.synthetic(self._GRID.n_groups):
+            pytest.fail("as_axis dropped the edges: it equals the synthetic axis")
+
+    def test_as_axis_shape_is_the_group_count(self) -> None:
+        if self._GRID.as_axis().shape != (self._GRID.n_groups,):
+            pytest.fail(f"as_axis shape {self._GRID.as_axis().shape} != ({self._GRID.n_groups},)")
+
+    def test_as_axis_copies_the_edges_and_stores_them_read_only(self) -> None:
+        edges = self._GRID.as_axis().edges
+        if edges is None:
+            pytest.fail("as_axis carries no edges")
+        np.testing.assert_array_equal(edges, self._GRID.edges)
+        if np.shares_memory(edges, self._GRID.edges):
+            pytest.fail("as_axis aliases the grid's edge buffer")
+        if edges.flags.writeable:
+            pytest.fail("as_axis edges are writeable")
 
 
 # ══════════════════════════════════════════════════════════════════════

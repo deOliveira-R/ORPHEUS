@@ -73,6 +73,8 @@ lived in ``orpheus.transport.mesh.material_mesh`` until #405 P1 step 8.
 
 .. autoexception:: orpheus.data.materials.InconsistentMaterialsError
 
+.. autofunction:: orpheus.data.materials.energy_axis_of
+
 Cells and channels
 ------------------
 

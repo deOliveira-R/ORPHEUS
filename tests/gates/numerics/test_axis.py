@@ -26,7 +26,6 @@ import dataclasses
 import numpy as np
 import pytest
 
-from orpheus.data.energy_grid import EnergyGrid
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.axis import Modal
@@ -133,7 +132,7 @@ def test_energy_axis_equality_is_edges_CONTENT_not_grid_identity() -> None:
         mix.energy_grid == mix.energy_grid   -> False
         np.array_equal(a.edges, b.edges)     -> True
 
-    If ``from_grid`` compared by grid identity, two ``bulk_space`` mints
+    If ``EnergyGrid.as_axis`` compared by grid identity, two ``bulk_space`` mints
     from ONE mixture would be UNEQUAL spaces and ``_agreed_space`` would
     raise inside a legitimate homogeneous solve. This is the cheapest
     gate in the battery with an end-to-end consequence.
@@ -142,7 +141,7 @@ def test_energy_axis_equality_is_edges_CONTENT_not_grid_identity() -> None:
     grid_a, grid_b = mix.energy_grid, mix.energy_grid
     _require(grid_a is not grid_b, "precondition lost: energy_grid now caches")
     _require(grid_a != grid_b, "precondition lost: EnergyGrid gained value equality")
-    axis_a, axis_b = EnergyAxis.from_grid(grid_a), EnergyAxis.from_grid(grid_b)
+    axis_a, axis_b = grid_a.as_axis(), grid_b.as_axis()
     _require(axis_a == axis_b, f"{axis_a!r} != {axis_b!r} — identity leaked from the grid")
     _require(hash(axis_a) == hash(axis_b), "equal axes must hash equal")
 
@@ -157,10 +156,10 @@ def test_synthetic_equality_is_ng_only() -> None:
     _require(EnergyAxis.synthetic(2) != EnergyAxis.synthetic(3), "ng differs => unequal")
 
 
-def test_synthetic_and_from_grid_at_the_same_ng_are_UNEQUAL() -> None:
+def test_synthetic_and_of_edges_at_the_same_ng_are_UNEQUAL() -> None:
     r"""A5 ⭐ — the sharp pair: same ``ng``, same shape, different axes.
 
-    ``synthetic(2)`` and ``from_grid(<2-group edges>)`` describe the same
+    ``synthetic(2)`` and ``of_edges(<2-group edges>)`` describe the same
     INDEX SET and different PARTITIONS. Q2 rules identity = ``ng`` + edges
     CONTENT, so they must differ; if identity collapsed to ``ng`` the
     derived space NAME would collide and the axes tuples would compare
@@ -169,7 +168,7 @@ def test_synthetic_and_from_grid_at_the_same_ng_are_UNEQUAL() -> None:
     different spaces would compare equal and compose silently either way.
     """
     synthetic = EnergyAxis.synthetic(2)
-    gridded = EnergyAxis.from_grid(EnergyGrid(_EDGES_2G))
+    gridded = EnergyAxis.of_edges(_EDGES_2G)
     _require(synthetic.shape == gridded.shape, "precondition: same index set")
     _require(synthetic != gridded, "identity collapsed to ng — the partition was dropped")
 
@@ -179,12 +178,12 @@ def test_energy_axis_hash_agrees_with_eq() -> None:
     ``dict`` with exactly the expected cardinality."""
     mix = dataclasses.replace(get_mixture("A", "2g"), eg=_EDGES_2G)
     population = [
-        EnergyAxis.from_grid(mix.energy_grid),
-        EnergyAxis.from_grid(mix.energy_grid),  # equal to the previous (A3)
+        mix.energy_grid.as_axis(),
+        mix.energy_grid.as_axis(),  # equal to the previous (A3)
         EnergyAxis.synthetic(2),
         EnergyAxis.synthetic(2),  # equal to the previous (A4)
         EnergyAxis.synthetic(3),
-        EnergyAxis.from_grid(EnergyGrid(np.array([2.0e7, 1.0, 1.0e-5]))),
+        EnergyAxis.of_edges(np.array([2.0e7, 1.0, 1.0e-5])),
     ]
     distinct = {population[0], population[2], population[4], population[5]}
     _require(
@@ -202,10 +201,18 @@ def test_axis_is_immune_to_mutation_of_the_source_array() -> None:
     ndarray, so the caller's array is live. A hashable value object that
     aliases a mutable buffer is an illegal state: its ``__hash__`` silently
     changes after it has been stored in a dict.
+
+    The energy leg mints through ``EnergyAxis.of_edges`` directly, so no
+    grid stands between the caller's buffer and the axis: ``of_edges``
+    reads the buffer with ``np.asarray`` (an alias, not a copy, for a
+    contiguous float array), and the axis's own defensive copy in
+    ``__post_init__`` is the sole guard on the path. (Through the old
+    ``EnergyGrid`` route the guard was the same: the grid's
+    ``np.ascontiguousarray`` also aliases such a buffer.)
     """
     edges = _EDGES_2G.copy()
-    axis_before = EnergyAxis.from_grid(EnergyGrid(edges))
-    reference = EnergyAxis.from_grid(EnergyGrid(_EDGES_2G))
+    axis_before = EnergyAxis.of_edges(edges)
+    reference = EnergyAxis.of_edges(_EDGES_2G)
     hash_before = hash(axis_before)
     edges[0] = 9.9e9  # mutate the caller's buffer
     _require(hash(axis_before) == hash_before, "hash moved under source mutation")
@@ -216,6 +223,35 @@ def test_axis_is_immune_to_mutation_of_the_source_array() -> None:
     weighted_ref = Axis("x", (2,), weights=np.array([2.0, 5.0]), origin=Declared(BasisKind.NODAL))
     weights_src[0] = 7.0
     _require(weighted == weighted_ref, "weights identity moved under source mutation")
+
+
+def test_the_data_reading_constructors_are_retired_from_the_numerics_axis() -> None:
+    """layer_dag.md P2 — the numerics axis names nothing in data.
+
+    ``EnergyAxis.from_grid`` (read an ``EnergyGrid``) and
+    ``EnergyAxis.from_materials`` (the energy-arm rule over ``Mixture``)
+    were re-homed to data as ``EnergyGrid.as_axis`` and
+    ``orpheus.data.materials.energy_axis_of``; their return here would put
+    the ``numerics -> data`` edge back.
+    """
+    for retired in ("from_grid", "from_materials"):
+        _require(not hasattr(EnergyAxis, retired), f"EnergyAxis.{retired} is back")
+
+
+def test_of_edges_derives_the_group_count_and_the_label() -> None:
+    """``of_edges`` takes CONTENT alone: ng = len(edges) - 1, label "energy"."""
+    axis = EnergyAxis.of_edges(_EDGES_2G)
+    _require(
+        axis == EnergyAxis("energy", (2,), edges=_EDGES_2G),
+        f"of_edges did not derive ng and the label: {axis!r}",
+    )
+
+
+@pytest.mark.parametrize("edges", [np.array([1.0]), np.array([[2.0, 1.0], [1.0, 0.5]])], ids=["one-edge", "rank-2"])
+def test_of_edges_refuses_fewer_than_two_edges_or_a_non_vector(edges: np.ndarray) -> None:
+    """A single boundary bounds no group; a rank-2 array is no edge vector."""
+    with pytest.raises(ValueError, match="of_edges needs a 1-D array"):
+        EnergyAxis.of_edges(edges)
 
 
 def test_rank_zero_shape_is_refused() -> None:

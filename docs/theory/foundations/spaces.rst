@@ -558,7 +558,7 @@ pair is two spaces:
 - an :class:`~orpheus.numerics.axis.EnergyAxis` never equals a generic
   :class:`~orpheus.numerics.axis.Axis` carrying the same field tuple (the
   class is a part), and ``EnergyAxis.synthetic(2)`` never equals
-  ``EnergyAxis.from_grid(grid_2g)``: same index set, no partition data, a
+  ``EnergyAxis.of_edges(edges_2g)``: same index set, no partition data, a
   different axis.
 
 The **origin is not a part** (:ref:`spaces-generator-identity-exclusion`):
@@ -1764,9 +1764,14 @@ construction**, with a message that states the reason; a deliberately
 non-physical weighted toy must use a generic
 :class:`~orpheus.numerics.axis.Axis`, which is exactly what the
 ``.H``-sensitivity control in the CS1 battery does. Both constructors —
-:meth:`EnergyAxis.from_grid <orpheus.numerics.axis.EnergyAxis.from_grid>`
+:meth:`EnergyAxis.of_edges <orpheus.numerics.axis.EnergyAxis.of_edges>`
 and :meth:`EnergyAxis.synthetic
 <orpheus.numerics.axis.EnergyAxis.synthetic>` — mint ``weights=None``.
+``of_edges`` takes the boundary energies alone, so the numerics axis names
+nothing in the data layer; a group structure is read as an axis by its own
+view, :meth:`EnergyGrid.as_axis <orpheus.data.energy_grid.EnergyGrid.as_axis>`,
+which lives in data beside the grid's measure and basis views (layer_dag.md
+P2, 2026-10).
 The axis is also ``NODAL`` and rank-1 by construction, both refused
 otherwise.
 
@@ -6481,7 +6486,8 @@ status.
        collapses to ``None``, :math:`-0.0` normalized, non-finite
        refused, signed weights deliberately legal) and
        :class:`~orpheus.numerics.axis.EnergyAxis`
-       (``from_grid`` / ``synthetic``; identity = :math:`n_g` + edges
+       (``from_grid`` / ``synthetic``, since layer_dag.md P2 ``of_edges`` /
+       ``EnergyGrid.as_axis``; identity = :math:`n_g` + edges
        CONTENT; weighted axes refused by the counting-measure theorem).
        :meth:`FunctionSpace.of_axes
        <orpheus.numerics.space.FunctionSpace.of_axes>` composes a space
@@ -6543,8 +6549,8 @@ status.
 
    - ``tests/gates/numerics/test_axis.py`` — the intrinsic laws of the axis
      concept: rank, measure canonicalization, the refusals, structural
-     identity per subclass, and the ``synthetic`` / ``from_grid``
-     inequality.
+     identity per subclass, and the ``synthetic`` / ``of_edges`` (until
+     layer_dag.md P2, ``from_grid``) inequality.
    - ``tests/gates/numerics/test_space_of_axes.py`` — composition: shape
      concatenation, the per-axis metric against an independently built
      reference, the no-densification proof, the derived name's
@@ -6556,7 +6562,7 @@ status.
    - ``tests/gates/homogeneous/test_operator_spaces.py`` — the positive floor
      (all five homogeneous operators plus :math:`K` report the SAME
      space), the refusal witnesses (a 2g-vs-4g sum; :math:`M^{-1}(2g)
-     \circ F(4g)`), the energy arm's ``from_grid``-vs-``synthetic``
+     \circ F(4g)`), the energy arm's gridded-vs-``synthetic``
      discrimination, and the ``.H`` **loaded/blind pair** required by
      ``vv-principles`` anti-pattern #19 — a bit-identity leg for the
      shipped scalar-metric case, paired with a deliberately

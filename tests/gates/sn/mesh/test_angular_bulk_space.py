@@ -99,7 +99,7 @@ class TestG11AxisTuple:
 
     def test_energy_and_spatial_arms_are_bulk_space_axes_verbatim(self):
         """The scalar arms are REUSED objects, not respelled twins — the
-        energy-arm rule (``EnergyAxis.from_materials``) is spelled exactly
+        energy-arm rule (``energy_axis_of``) is spelled exactly
         once, in ``bulk_space`` (Pattern 2)."""
         sn = _slab()
         scalar_axes = sn.bulk_space.axes

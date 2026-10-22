@@ -92,14 +92,12 @@ def test_of_axes_name_is_INJECTIVE_on_structural_content() -> None:
     The population deliberately contains two SAME-SHAPE pairs, where shape
     carries no information and only the name can discriminate:
 
-    * ``synthetic(2)`` vs ``from_grid(<2-group edges>)``  (A5)
+    * ``synthetic(2)`` vs ``of_edges(<2-group edges>)``  (A5)
     * spatial point with weight ``1.0`` vs weight ``2.0``  (A12 / B9)
     """
-    from orpheus.data.energy_grid import EnergyGrid
-
     tuples: list[tuple[Axis, ...]] = [
         (EnergyAxis.synthetic(2), _point()),
-        (EnergyAxis.from_grid(EnergyGrid(_EDGES_2G)), _point()),  # same shapes
+        (EnergyAxis.of_edges(_EDGES_2G), _point()),  # same shapes
         (EnergyAxis.synthetic(2), Axis("spatial", (1,), weights=np.array([2.0]), origin=Declared(BasisKind.NODAL))),  # same shapes
         (EnergyAxis.synthetic(3), _point()),
         (EnergyAxis.synthetic(2),),

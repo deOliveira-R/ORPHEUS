@@ -56,7 +56,7 @@ term                    cases      the row that would go vacuous without it
 :math:`2\Sigma_2^{T}`   1 of 8     the loss reference's (n,2n) leg
 group-coupled           6 of 8     the loss reference's off-diagonal leg
 :math:`\Sigma_{s0}`     (1g nulls it)
-``eg``-bearing energy   1 of 8     the ``from_grid`` energy arm
+``eg``-bearing energy   1 of 8     the gridded (``as_axis``) energy arm
 :math:`P_1` present     3 of 8     the ``at_order(0)`` truncation
 ``ng > 1``              6 of 8     the fission dyad's DIRECTION
                                    (:math:`\chi\otimes\nu\Sigma_f` vs its

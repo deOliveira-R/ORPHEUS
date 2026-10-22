@@ -1818,8 +1818,7 @@ is minted from it and from nothing else.
    :func:`~orpheus.homogeneous.solver._pose_space` mints
    :math:`V_E \otimes V_{\rm pt}` from the **mixture** — the energy axis
    through the one energy-arm rule
-   (:meth:`EnergyAxis.from_materials
-   <orpheus.numerics.axis.EnergyAxis.from_materials>`, the same rule
+   (:func:`~orpheus.data.materials.energy_axis_of`, the same rule
    :attr:`MaterialMesh.bulk_space
    <orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`
    routes through, so the two spellings cannot diverge) tensored with
@@ -3471,10 +3470,11 @@ hash, and ``git`` outranks this column.
        A companion gate makes the retirement *unspellable* rather than
        merely done (``not hasattr(cls, "from_materials")`` over
        ``MaterialMesh`` / ``SNProblem`` / ``DiffusionMesh``); the homonym
-       :meth:`EnergyAxis.from_materials
-       <orpheus.numerics.axis.EnergyAxis.from_materials>` — a different
+       ``EnergyAxis.from_materials`` — a different
        object, and the one energy-arm rule both spellings of the pose
-       route through — survives untouched.  Test fixtures that had used
+       route through — survives untouched (re-homed to data as
+       ``orpheus.data.materials.energy_axis_of`` at layer_dag.md P2,
+       2026-10).  Test fixtures that had used
        the fabricated carrier for convenience moved to ONE shared home,
        a **genuine** unit-width one-cell ``Mesh1D`` carrier, `[M]`
        like-for-like on every read surface the migrated sites touch.

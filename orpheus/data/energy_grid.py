@@ -11,6 +11,12 @@ energy analogue of a coarse :class:`~orpheus.mesh.structured.Mesh1D`, and — ex
 * :meth:`EnergyGrid.as_basis` → an :class:`~orpheus.numerics.basis.IndicatorBasis`, the
   **target** view (the axis you project TO), symmetric with ``Mesh1D.indicator_basis``.
 
+Beside the two frame views it yields the function-space factor itself:
+:meth:`EnergyGrid.as_axis` → an :class:`~orpheus.numerics.axis.EnergyAxis`, the axis
+minted from the grid's edges (the numerics constructor
+:meth:`~orpheus.numerics.axis.EnergyAxis.of_edges` takes content alone and names
+nothing in data, so the view lives here, above it).
+
 The group-structure **mismatch treatment** — when the source and target grids do not
 align — is the *binary* :meth:`EnergyGrid.overlap_to` (it reads BOTH grids' edges, so it
 cannot be a unary view): ``coarse.as_basis()`` (nested, one-hot) ⊂
@@ -87,6 +93,7 @@ from typing import Protocol, runtime_checkable
 import numpy as np
 from numpy.typing import NDArray
 
+from orpheus.numerics.axis import EnergyAxis
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.basis.overlap_basis import OverlapBasis
 from orpheus.numerics.manifold import EnergyGroups
@@ -234,6 +241,23 @@ class EnergyGrid:
             edges_per_axis=(index_edges,),
             partition_of=EnergyGroups(self.n_groups),
         )
+
+    def as_axis(self) -> EnergyAxis:
+        r"""The grid seen as the energy factor of a function space.
+
+        Returns :meth:`EnergyAxis.of_edges(self.edges)
+        <orpheus.numerics.axis.EnergyAxis.of_edges>`: ``n_groups`` group cells whose
+        boundary energies are the axis's content. The axis's identity is ``ng`` plus
+        the edges' BYTES, never this grid's identity: an :class:`EnergyGrid` is
+        ``eq=False`` and :attr:`~orpheus.data.macro_xs.mixture.Mixture.energy_grid`
+        mints a FRESH grid per access, so two views of one mixture's grid must, and
+        do, give equal axes. The axis copies the edges and stores them read-only, so
+        no later write to this grid's array can move the axis's hash. This view is
+        the production route to a gridded axis: it keeps the grid's strictly
+        descending, non-negative invariant (checked once, at
+        construction) on the path, and the axis does not re-check it.
+        """
+        return EnergyAxis.of_edges(self.edges)
 
     def overlap_to(
         self, coarse: "EnergyGrid", /, within_group: "WithinGroupSpectrum | None" = None,

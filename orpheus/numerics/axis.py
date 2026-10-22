@@ -120,10 +120,13 @@ field tuple. This identity is what ``FunctionSpace.of_axes`` derives
 *space names* from, and what a space's identity key reads on an
 axis-built space (``FunctionSpace.identity_key``).
 
-Layering note: this module is model-independent numerics. It consumes an
-:class:`~orpheus.data.energy_grid.EnergyGrid` only through its surface
-(``edges``, ``n_groups``) under ``TYPE_CHECKING`` — the runtime
-dependency direction stays ``data → numerics``. The generating objects
+Layering note: this module is model-independent numerics and names
+nothing in ``orpheus.data``, not even for typing (the layer gate forbids
+``numerics → data``, guarded or not). The energy axis is minted from its
+CONTENT, its boundary energies (:meth:`EnergyAxis.of_edges`); the views
+that read a nuclear-data object as an axis live above, in data: the grid's
+axis view is ``EnergyGrid.as_axis`` and the energy-arm rule over a set of
+mixtures is ``orpheus.data.materials.energy_axis_of``. The generating objects
 (measure, quadrature, basis, frame) rank below the axis in the numerics
 concept order and are read only through their attributes.
 """
@@ -141,10 +144,6 @@ from .coefficient_layout import CellLayout, CoefficientLayout, HarmonicLayout, L
 from .content import ContentIdentity
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
-    from orpheus.data.energy_grid import EnergyGrid
-    from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.numerics.basis.base import Basis, TruncatedBasis
     from orpheus.numerics.frame import FrameBase
     from orpheus.numerics.manifold import Manifold
@@ -623,8 +622,8 @@ def quadrature_refusal(axis: Axis, consumer: str) -> ValueError:
 class EnergyAxis(Axis):
     r"""The multigroup energy factor — a 1-D mesh in energy.
 
-    **The faces reading.** An :class:`~orpheus.data.energy_grid.EnergyGrid`
-    is a one-dimensional MESH in energy: the group boundaries are its
+    **The faces reading.** A multigroup group structure (the data layer's
+    ``EnergyGrid``) is a one-dimensional MESH in energy: the group boundaries are its
     FACES, the groups are its CELLS, and condensation is the mesh-overlap
     map (``EnergyGrid.overlap_to`` — fractional re-binning, fine → coarse
     only). The one-group member is the one-CELL energy mesh — its edges
@@ -654,18 +653,20 @@ class EnergyAxis(Axis):
     under the counting pairing. This axis records the group structure
     those morphisms will consume.
 
-    **Identity (ruled Q2): ng + edges CONTENT.** ``from_grid`` axes carry
-    the boundary energies; equality reads their BYTES, never
-    ``EnergyGrid`` object identity — ``Mixture.energy_grid`` mints a
-    FRESH ``eq=False`` grid per access, so two mints from one mixture
-    must (and do) yield equal axes. ``synthetic(ng)`` axes carry no
-    edges; identity is ``ng`` alone, and a synthetic axis NEVER equals a
-    ``from_grid`` axis of the same ``ng`` (same index set, different
-    partition — different axis).
+    **Identity (ruled Q2): ng + edges CONTENT.** ``of_edges`` axes carry
+    the boundary energies; equality reads their BYTES, never the identity
+    of whatever object produced them (a group structure in the data layer
+    is an ``eq=False`` value minted fresh per access, so two mints from
+    one producer must, and do, yield equal axes). ``synthetic(ng)`` axes
+    carry no edges; identity is ``ng`` alone, and a synthetic axis NEVER
+    equals an ``of_edges`` axis of the same ``ng`` (same index set,
+    different partition — different axis).
 
     Edges follow the canonical fast-first convention (strictly
-    DESCENDING, group 0 = fastest; ``EnergyGrid`` refuses anything
-    else — the invariant is checked there, once, not re-checked here).
+    DESCENDING, group 0 = fastest). The invariant is the data layer's
+    group-structure contract, checked there once, at construction, and
+    not re-checked here; the production route to a gridded axis is the
+    grid's own view, ``EnergyGrid.as_axis``.
     """
 
     edges: NDArray | None = field(default=None, kw_only=True, repr=False)
@@ -701,15 +702,25 @@ class EnergyAxis(Axis):
                 )
 
     @classmethod
-    def from_grid(cls, grid: "EnergyGrid") -> "EnergyAxis":
-        """The axis of a real group structure — identity = ng + edges bytes.
+    def of_edges(cls, edges: NDArray) -> "EnergyAxis":
+        """The axis of a real group structure, minted from its boundary
+        energies — identity = ng + edges bytes.
 
-        Axis-from-mesh: symmetric with the (CS2) ``SpatialAxis.from_mesh``
-        generator. Consumes the grid's surface only (``edges``,
-        ``n_groups``); the descending-edges invariant is the grid's own
-        construction contract.
+        The ``ng + 1`` edges are the axis's CONTENT, not a generating
+        object, so the origin stays the class's fixed ``Declared`` arm; the
+        group count is derived (``len(edges) - 1``) and the label is fixed
+        at ``"energy"``, so neither a count mismatch nor a label twin is
+        spellable. Monotonicity is NOT re-checked: it is the group
+        structure's contract, checked once where that structure is built
+        (the production route is the grid's view, ``EnergyGrid.as_axis``).
         """
-        return cls("energy", (grid.n_groups,), edges=grid.edges)
+        edges = np.asarray(edges, dtype=float)
+        if edges.ndim != 1 or edges.shape[0] < 2:
+            raise ValueError(
+                f"EnergyAxis.of_edges needs a 1-D array of >= 2 group "
+                f"boundaries; got shape {edges.shape}"
+            )
+        return cls("energy", (edges.shape[0] - 1,), edges=edges)
 
     @classmethod
     def synthetic(cls, ng: int) -> "EnergyAxis":
@@ -718,44 +729,7 @@ class EnergyAxis(Axis):
         The honest spelling for fixtures/libraries that declare a group
         COUNT with no boundary energies (every shipped ``get_mixture``
         pair has ``eg is None``). Deliberately UNEQUAL to any
-        ``from_grid`` axis of the same ``ng``: same index set, no
+        ``of_edges`` axis of the same ``ng``: same index set, no
         partition data — a different axis.
         """
         return cls("energy", (int(ng),), edges=None)
-
-    @classmethod
-    def from_materials(cls, materials: "Iterable[Mixture]") -> "EnergyAxis":
-        """THE energy-arm rule, in its one home (hoisted at CS4a K1).
-
-        Content-equal ``eg`` edges across ALL the given materials ⟹
-        :meth:`from_grid` on the first one's grid; any absent or
-        differing edge set ⟹ :meth:`synthetic` on the first one's
-        ``ng``. Refuses an empty iterable (no material, no axis).
-
-        The CALLER chooses the denominator, and that choice is part of
-        the rule's meaning: a carrier passes exactly its REACHABLE
-        materials (the leak principle — a spectator entry with
-        ``eg=None`` must not flip the axis identity of a problem it
-        does not touch), and the homogeneous pose passes its one
-        mixture. Both spellings of the energy arm
-        (``MaterialMesh.bulk_space`` and the mixture-minted homogeneous
-        space) route through here, so they cannot diverge — the second
-        spelling this hoist exists to make unspellable.
-
-        Consumes the materials' surface only (``eg``, ``energy_grid``,
-        ``ng``) under ``TYPE_CHECKING`` — the module's layering note
-        applies unchanged.
-        """
-        mats = list(materials)
-        if not mats:
-            raise ValueError(
-                "EnergyAxis.from_materials needs at least one material "
-                "(an empty carrier has no energy structure to read)"
-            )
-        egs = [m.eg for m in mats]
-        present = [eg for eg in egs if eg is not None]
-        if len(present) == len(egs) and all(
-            np.array_equal(eg, present[0]) for eg in present[1:]
-        ):
-            return cls.from_grid(mats[0].energy_grid)
-        return cls.synthetic(mats[0].ng)

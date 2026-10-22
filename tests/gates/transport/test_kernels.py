@@ -33,6 +33,7 @@ import pytest
 import orpheus.transport.kernels as kernels_module
 from orpheus.data.energy_grid import EnergyGrid
 from orpheus.data.macro_xs.mixture import Mixture
+from orpheus.data.materials import energy_axis_of
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.numerics.axis import EnergyAxis
 from orpheus.transport.kernels import FissionKernel, TransferKernel
@@ -368,7 +369,7 @@ def test_kernel_does_not_alias_the_carrier_cache():
 
 
 # ═════════════════════════════════════════════════════════════════════════
-# G1.6 — the hoisted energy-arm rule (one home: EnergyAxis.from_materials)
+# G1.6 — the hoisted energy-arm rule (one home: orpheus.data.materials.energy_axis_of)
 # ═════════════════════════════════════════════════════════════════════════
 
 _EDGES_2G = np.array([2.0e7, 1.0e5, 1.0e-3])  # descending, fast-first
@@ -379,21 +380,21 @@ def test_energy_arm_all_absent_is_synthetic(region, ng_key):
     """**G1.6** (all-absent, 12 witnesses) — ``eg=None`` everywhere ⟹ synthetic."""
     mixture = get_mixture(region, ng_key)
     assert mixture.eg is None  # the row's own precondition, asserted
-    axis = EnergyAxis.from_materials([mixture])
+    axis = energy_axis_of([mixture])
     assert axis == EnergyAxis.synthetic(mixture.ng)
     assert axis.edges is None
 
 
-def test_energy_arm_content_equal_edges_is_from_grid():
-    """**G1.6** (the ONE from_grid witness) — content-equal edges ⟹ the grid axis.
+def test_energy_arm_content_equal_edges_is_the_grid_axis():
+    """**G1.6** (the ONE grid-axis witness) — content-equal edges ⟹ the grid axis.
 
     Equality is content (edges BYTES), never object identity: the two
     materials carry separately-constructed edge arrays.
     """
     first = dataclasses.replace(_asymmetric_fissile_2g(), eg=_EDGES_2G)
     second = dataclasses.replace(_second_fissile_2g(), eg=_EDGES_2G.copy())
-    axis = EnergyAxis.from_materials([first, second])
-    assert axis == EnergyAxis.from_grid(EnergyGrid(_EDGES_2G))
+    axis = energy_axis_of([first, second])
+    assert axis == EnergyGrid(_EDGES_2G).as_axis()
     assert axis.edges is not None
     assert axis != EnergyAxis.synthetic(2)
 
@@ -410,14 +411,14 @@ def test_energy_arm_differing_or_mixed_edges_are_synthetic():
     )
     absent = _symmetric_2g()
 
-    differing = EnergyAxis.from_materials([with_edges, other_edges])
+    differing = energy_axis_of([with_edges, other_edges])
     assert differing == EnergyAxis.synthetic(2)
 
-    mixed = EnergyAxis.from_materials([with_edges, absent])
+    mixed = energy_axis_of([with_edges, absent])
     assert mixed == EnergyAxis.synthetic(2)
 
     with pytest.raises(ValueError, match="at least one material"):
-        EnergyAxis.from_materials([])
+        energy_axis_of([])
 
 
 def test_bulk_space_energy_arm_reads_only_reachable_materials():
@@ -436,7 +437,7 @@ def test_bulk_space_energy_arm_reads_only_reachable_materials():
     carrier = unit_cell_carrier({0: with_edges, 1: spectator})
     axes = carrier.bulk_space.axes
     assert axes is not None
-    assert axes[0] == EnergyAxis.from_grid(EnergyGrid(_EDGES_2G))
+    assert axes[0] == EnergyGrid(_EDGES_2G).as_axis()
 
 
 # ═════════════════════════════════════════════════════════════════════════

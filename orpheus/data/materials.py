@@ -19,10 +19,13 @@ What this class deliberately does NOT carry:
   never reads a scalar ``ng`` at all, it unionizes). The future per-kind
   consistency checks (GENDF / PENDF / collapsed) land with the data-layer
   overhaul, not here.
-* **No energy-axis preview.** The coherence law lives wholly in the mint
-  (:meth:`~orpheus.numerics.axis.EnergyAxis.from_materials`, called at
-  the consuming stage over the *reachable* set); a preview that does not
-  exist cannot disagree with the law. Admission refuses only
+* **No energy-axis preview.** The coherence law lives wholly in the mint,
+  :func:`energy_axis_of`, a function in THIS module over a caller-chosen
+  ``Iterable[Mixture]``, called at the consuming stage over the
+  *reachable* set. It is deliberately not a ``Materials`` method: a
+  method on the declaration would read every declared entry, unassigned
+  spectators included, so the declaration still has no preview, and a
+  preview that does not exist cannot disagree with the law. Admission refuses only
   assignment-independent defects (the empty declaration) — a
   cross-material refusal here would let a declared-but-unassigned
   spectator flip admissibility, violating the leak principle.
@@ -42,6 +45,9 @@ from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import numpy as np
+
+from orpheus.numerics.axis import EnergyAxis
 from orpheus.numerics.content import ContentIdentity, FrozenMapping
 
 if TYPE_CHECKING:
@@ -49,7 +55,7 @@ if TYPE_CHECKING:
 
     from orpheus.data.macro_xs.mixture import Mixture
 
-__all__ = ["InconsistentMaterialsError", "Materials"]
+__all__ = ["InconsistentMaterialsError", "Materials", "energy_axis_of"]
 
 
 class InconsistentMaterialsError(ValueError):
@@ -208,3 +214,41 @@ class Materials(ContentIdentity):
                 f"{sorted(set(wanted))})."
             )
         return Materials({i: self.mixtures[i] for i in wanted})
+
+
+def energy_axis_of(materials: Iterable[Mixture]) -> EnergyAxis:
+    """The energy axis of these materials — THE energy-arm rule, in its one home.
+
+    Content-equal ``eg`` edges across ALL the given materials ⟹ the first
+    one's grid seen as an axis (:meth:`~orpheus.data.energy_grid.EnergyGrid.as_axis`,
+    so the edges pass through the grid's descending, non-negative check); any
+    absent or differing edge set ⟹
+    :meth:`~orpheus.numerics.axis.EnergyAxis.synthetic` on the first one's
+    ``ng``. Refuses an empty iterable (no material, no axis).
+
+    The CALLER chooses the denominator, and that choice is part of the
+    rule's meaning: a carrier passes exactly its REACHABLE materials (the
+    leak principle — a spectator entry with ``eg=None`` must not flip the
+    axis identity of a problem it does not touch), and the homogeneous pose
+    passes its one mixture. Both spellings of the energy arm
+    (``MaterialMesh.bulk_space`` and the mixture-minted homogeneous space)
+    route through here, so they cannot diverge — the second spelling this
+    rule's single home (hoisted at CS4a K1, re-homed from numerics to data
+    at layer_dag.md P2) exists to make unspellable. Its vocabulary is the
+    mixture's (``eg``, ``energy_grid``, ``ng``), which is why it lives in
+    data, the lowest layer whose words suffice, and not on the numerics
+    axis.
+    """
+    mats = list(materials)
+    if not mats:
+        raise ValueError(
+            "energy_axis_of needs at least one material "
+            "(an empty carrier has no energy structure to read)"
+        )
+    egs = [m.eg for m in mats]
+    present = [eg for eg in egs if eg is not None]
+    if len(present) == len(egs) and all(
+        np.array_equal(eg, present[0]) for eg in present[1:]
+    ):
+        return mats[0].energy_grid.as_axis()
+    return EnergyAxis.synthetic(mats[0].ng)

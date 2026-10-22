@@ -51,14 +51,14 @@ from collections.abc import Mapping
 
 import numpy as np
 
-from orpheus.data.materials import Materials
+from orpheus.data.materials import Materials, energy_axis_of
 from orpheus.mesh import Mesh1D, Mesh2D
 # The SPACE-FACTOR axis vocabulary (campaign 1, CS1) — aliased because this
 # module's own ``Axis1D``/``self.axes`` are GEOMETRIC axes (a different
 # concept; the naming coordination is the Q3 rename issue).
 from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.axis import Axis as SpaceFactorAxis
-from orpheus.numerics.axis import BasisKind, Declared, EnergyAxis
+from orpheus.numerics.axis import BasisKind, Declared
 from orpheus.numerics.space import FunctionSpace
 from orpheus.mesh import (
     RadialAxisMesh,
@@ -548,9 +548,9 @@ class MaterialMesh:
         (``Materials ⊋ reachable``), and a spectator with
         ``eg=None`` must not flip the axis identity of a problem it does
         not touch). The reachable set then goes through the ONE energy-arm
-        rule, :meth:`~orpheus.numerics.axis.EnergyAxis.from_materials`
-        (hoisted there at CS4a K1 so the mixture-minted homogeneous space
-        and this property cannot spell the rule twice). Deterministic per
+        rule, :func:`~orpheus.data.materials.energy_axis_of` (hoisted at
+        CS4a K1, re-homed to data at layer_dag.md P2, so the mixture-minted
+        homogeneous space and this property cannot spell the rule twice). Deterministic per
         carrier; deliberately NO new construction-time refusal — grid
         coherence across materials is a per-data-kind consistency
         concern (the data-layer overhaul, charter R22), and the mint's
@@ -562,7 +562,7 @@ class MaterialMesh:
         reachable = self.materials.restrict(
             sorted(int(i) for i in np.unique(self.mat_map))
         )
-        energy = EnergyAxis.from_materials(reachable.values())
+        energy = energy_axis_of(reachable.values())
         if len(self.spatial_shape) == 1:
             # The carrier's volume measure generates the spatial axis
             # (CS5, user ruling: "the mesh is able to generate a Discrete

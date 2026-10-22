@@ -21,6 +21,7 @@ import dataclasses
 import numpy as np
 import pytest
 
+from orpheus.data.materials import energy_axis_of
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.homogeneous.solver import HomogeneousProblem, _pose_space
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
@@ -79,7 +80,7 @@ def _fused_loss_matrix(mat_xs) -> np.ndarray:
 
 
 @pytest.mark.parametrize("groups", ["2g", "4g"])
-@pytest.mark.parametrize("with_eg", [False, True], ids=["synthetic", "from_grid"])
+@pytest.mark.parametrize("with_eg", [False, True], ids=["synthetic", "gridded"])
 def test_every_homogeneous_operator_reports_the_same_space(
     groups: str, with_eg: bool
 ) -> None:
@@ -273,13 +274,13 @@ def test_H_MOVES_under_a_per_group_weighted_axis() -> None:
     )
 
 
-def test_bulk_space_energy_arm_distinguishes_from_grid_from_synthetic() -> None:
+def test_bulk_space_energy_arm_distinguishes_gridded_from_synthetic() -> None:
     r"""D6 ⭐ — the SAME mixture with and without ``eg`` mints UNEQUAL
     spaces (F1's production witness, and B2's injectivity in production:
     same shape, different partition ⟹ different name ⟹ different space).
 
     Since CS4a K1 the energy arm DELEGATES to the one shared rule
-    (``EnergyAxis.from_materials`` — gated at its own home,
+    (``orpheus.data.materials.energy_axis_of`` — gated at its own home,
     ``tests/gates/transport/test_kernels.py``); this row is kept as the
     carrier-level delegation proof.
     """
@@ -373,7 +374,7 @@ def test_minted_space_and_a_unit_cell_carriers_bulk_space_share_their_arms() -> 
 
     ``_pose_space(mix)`` and a unit-cell carrier's ``bulk_space``
     must mint ``==`` spaces: both route the energy arm through the ONE
-    rule (``EnergyAxis.from_materials``) and both canonicalize the
+    rule (``orpheus.data.materials.energy_axis_of``) and both canonicalize the
     quotient point to the counting weight, so a divergence means a
     second spelling of either arm has appeared — exactly what the K1
     hoist exists to make unspellable. Denominator honesty (CS4a-R
@@ -496,7 +497,7 @@ def test_the_space_measure_is_consulted(monkeypatch) -> None:
 
     def weighted_pose(m):
         return FunctionSpace.of_axes(
-            EnergyAxis.from_materials([m]),
+            energy_axis_of([m]),
             Axis(
                 "spatial", (1,), weights=np.array([2.0]),
                 origin=Declared(BasisKind.NODAL),

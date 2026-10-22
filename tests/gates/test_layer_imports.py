@@ -16,11 +16,14 @@ Layers (per plan §P3.0):
   L4  (plotting.py)    — orchestration; consumes everything.
 
 Imports flow only L3 -> L2 -> L1 (and L3 -> L0 references, and any
-layer -> input). Forbidden edges raise the parametrised test.
+layer above the input layer -> input). L1 imports no input package except
+geometry, an edge pending layer_dag.md P1; numerics -> data is forbidden
+(layer_dag.md P2). Forbidden edges raise the parametrised test.
 
 Tolerances:
-  - TYPE_CHECKING imports of L3-only types inside L1/L2 modules are
-    permitted (string annotations don't create runtime edges).
+  - TYPE_CHECKING imports of L3-only types inside L2 modules are
+    permitted (string annotations don't create runtime edges); P3 of
+    layer_dag.md retires this tolerance. L1 has no tolerance.
   - WHITELIST entries cover transitional exemptions retired by
     later Phase 3 steps; each whitelist entry carries a comment
     naming its retirement trigger.
@@ -49,6 +52,8 @@ SPECIFICATION_PACKAGES: frozenset[str] = frozenset({"specification"})
 # the certificates); above the specification, below transport, L3 and derivations,
 # which writes reference solutions and so may import it.
 REFERENCE_PACKAGES: frozenset[str] = frozenset({"reference"})
+# P2 (layer_dag.md ruling 2): data sits strictly above numerics; numerics names nothing in data.
+DATA_PACKAGES: frozenset[str] = frozenset({"data"})
 L2_PACKAGES: frozenset[str] = frozenset({"transport"})
 L3_PACKAGES: frozenset[str] = frozenset(
     {
@@ -66,7 +71,7 @@ L3_PACKAGES: frozenset[str] = frozenset(
 )
 
 FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
-    "numerics": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+    "numerics": DATA_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
     "geometry": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
     "data": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
     "mesh": SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
@@ -180,8 +185,8 @@ def _check_source(
         tgt_pkg = module_name.split(".")[1]
         if tgt_pkg not in forbidden:
             continue
-        # TYPE_CHECKING tolerance: L1/L2 importing L3 names for typing.
-        if is_tc and src_pkg in (L1_PACKAGES | L2_PACKAGES):
+        # TYPE_CHECKING tolerance: an L2 module naming L3 types for typing (P3 retires it).
+        if is_tc and src_pkg in L2_PACKAGES and tgt_pkg in L3_PACKAGES:
             continue
         if (rel_str, tgt_pkg) in whitelist:
             continue
@@ -383,6 +388,19 @@ _FORBIDDEN_LEGS = [
         "def f():\n    from orpheus.cp.solver import CPParams\n",
         "derivations → cp",
     ),
+    # layer_dag.md P2: numerics names nothing in data, guarded or not, and L1
+    # has no TYPE_CHECKING tolerance at all.
+    ("numerics/x.py", "from orpheus.data.energy_grid import EnergyGrid\n", "numerics → data"),
+    (
+        "numerics/x.py",
+        "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.data.macro_xs.mixture import Mixture\n",
+        "numerics → data",
+    ),
+    (
+        "numerics/x.py",
+        "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.sn.problem import SNProblem\n",
+        "numerics → sn",
+    ),
 ]
 
 _ADMITTED_LEGS = [
@@ -397,6 +415,10 @@ _ADMITTED_LEGS = [
     ("derivations/x.py", "from orpheus.specification import Specification\n"),
     ("transport/x.py", "from orpheus.specification import Specification\n"),
     ("sn/x.py", "from orpheus.specification import Specification\n"),
+    # layer_dag.md P2: the energy arm's view and rule live in data, over the numerics axis.
+    ("data/x.py", "from orpheus.numerics.axis import EnergyAxis\n"),
+    # The surviving L2 tolerance; P3 of layer_dag.md flips this leg to forbidden.
+    ("transport/x.py", "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.sn.problem import SNProblem\n"),
 ]
 
 

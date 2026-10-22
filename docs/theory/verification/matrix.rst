@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19653**
+Total tests collected: **19666**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2758, 14.0%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14854, 75.6%
+   foundation, 14867, 75.6%
    unmarked, 43, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19531
+   explicit, 19544
    class-name, 46
    func-name, 0
    case, 33
@@ -151,7 +151,7 @@ Module × level grid
    data/test_content_identity_data, 0, 0, 0, 0, 38, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_emission_spectrum, 0, 0, 0, 0, 15, 0
-   data/test_energy_grid, 0, 0, 0, 0, 28, 0
+   data/test_energy_grid, 0, 0, 0, 0, 31, 0
    data/test_gendf_canonical_order, 0, 0, 0, 0, 7, 0
    data/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
    data/test_hdf5_store, 0, 0, 0, 0, 13, 0
@@ -269,7 +269,7 @@ Module × level grid
    derivations/test_sn_mms_nonvacuum_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_sood2003_to_geometry, 0, 0, 0, 0, 77, 0
    derivations/test_sood_registry_cache, 0, 0, 0, 0, 15, 0
-   derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 103, 0
+   derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 107, 0
    derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
    derivations/test_sood_registry_wide_kinf, 0, 0, 0, 0, 49, 0
    derivations/test_xs_library_validation, 0, 0, 0, 0, 2, 0
@@ -402,7 +402,7 @@ Module × level grid
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
    numerics/test_assembly_functor, 0, 0, 0, 0, 53, 0
-   numerics/test_axis, 0, 0, 0, 0, 15, 0
+   numerics/test_axis, 0, 0, 0, 0, 19, 0
    numerics/test_axis_generator, 0, 0, 0, 0, 48, 0
    numerics/test_axis_identity, 0, 0, 0, 0, 24, 0
    numerics/test_axis_marginal, 0, 0, 0, 0, 22, 0
@@ -667,7 +667,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 476, 0
+   test_layer_imports, 0, 0, 0, 0, 478, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0

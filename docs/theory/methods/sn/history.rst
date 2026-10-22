@@ -2305,8 +2305,8 @@ them.  Trust ``git``, not this column.
        pad honest — the *solver's* clamp on this row's date, the
        PROBLEM's since 2026-09-12, applied once at construction.)  The
        energy arm gets ONE rule,
-       :meth:`EnergyAxis.from_materials
-       <orpheus.numerics.axis.EnergyAxis.from_materials>`, which
+       ``EnergyAxis.from_materials`` (re-homed to data as
+       ``orpheus.data.materials.energy_axis_of`` at layer_dag.md P2), which
        :attr:`MaterialMesh.bulk_space
        <orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`
        reads.  On the operator side the pose is minted FROM the mixture,
