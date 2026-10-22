@@ -1091,4 +1091,6 @@ Integrated on `refactor/eprime-wave2` and fast-forwarded to `main`.
 
 **S7a committed** (`47e7bfaa`, worktree branch `refactor/s7-axis-identity`); **S7b written**, reviewed (qa and elegance, both reports in their hand-backs; probes under `scratch/numerics_untangling/packages/S7_review/`), review fixes applied; rulings 85–89 recorded. Follow-ups filed: #635, #636, #637, #638, #639. Kept against the elegance review: the five `case FromQuadrature` sites (ruling 64; a shared helper would re-mint `generator_as`).
 
-⏸ **Next:** the S7b wide run, the S7b commit, the docs pass (archivist; the elegance census `S7_review/elegance/retire_grep.out`, the four `implements` directives in `spherical_harmonics.rst`, `conceptual_view.rst:157`), Sphinx `-W`, `dead_references`, merge, CI, close #631. Then the sub-cone measurement (ruling 89, `verification_tree_refinement.md`).
+**S7 (a, b) merged @ `e80ec738`** (2026-10-22, closing #631): S7a `47e7bfaa`, S7b `ac6c6558`, the dense form's inverse face out of identity `96ec89fd` (the archivist's finding; gate I5c), docs `56b3ef92` (Sphinx `-E -W` clean; `dead_references` 0 of 68 with a planted control). Wide run on S7b: 19 065 passed, 0 failed. The test-architect confirmed 47 of 47 rows landed with teeth (every arm reddens its named rows). The numerics concept order has 0 violations (ruling 89).
+
+⏸ **Next:** this campaign's concept order is done. The sub-cone measurement on `numerics` (`verification_tree_refinement.md` ruling 30) and the layer DAG (`layer_dag.md`) carry the work. S6c (#633) is on the DAG backlog.

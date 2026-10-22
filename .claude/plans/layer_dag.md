@@ -12,6 +12,7 @@ Each package is a well-bounded concept set: it defines its objects from the pack
    - Reading: the rigid-motion group and its actions (`geometry/transformation.py`), the symmetry groups and the supports they act on are geometry; numerics (measures, quadratures, bases, frames, spaces, operators) imports them. A boundary in geometry is a DECLARATION; the one boundary concept that belongs to geometry itself is the deck-transformation type (a reflective or periodic face is a group element acting on the domain, so it shapes the symmetry). Boundary LAWS that build operators from quadratures and function spaces are above numerics and leave geometry.
 2. **EnergyGrid stays in `data` provisionally** (the user, 2026-10-22). Candidate for later: the `EnergyGrid` class declared in numerics (it is a partition of the energy line whose measure is a `DiscreteMeasure`), and `data` importing it to instantiate the well-known grids (ORNL, SHEM, XMAS, WIMS), which are data. On the backlog; "organizing the graph is more important for now."
 3. **Break the cycles that cross layer interfaces first, in parallel worktrees where the files are disjoint** (the user, 2026-10-22).
+4. **Architecture E is P1's vehicle** (the user, 2026-10-22): "We can do that, and make E part of the plan (at least the part that breaks the edges that crossed between modules)." E is the boundary-law ontology's ruled design (`boundary_law_ontology.md`, fourth to tenth exchanges; #551): deck transformations (`DeckTransformation`: `MirrorDeck`, `TranslationDeck`, `RotationDeck`, `GlideDeck`) are geometry, declared beside the coordinate system; every other face carries an integer boundary tag, propagated like a material id; the responses (`BoundaryCondition`: `VacuumBoundary`, `AlbedoBoundary(α, SpecularReturn)`, white, inflow; a perfect specular wall is a response, a mirror is a deck) bind at the method (`SNDiscretization(material_mesh, boundary_conditions)`), above numerics, where the method's admission query answers. Its earlier sequencing after #405 (the harness cache, for cadence) is lifted for the part that breaks the cross-package edges; #405 stays on the backlog.
 
 ## Measured state (`[M]` 2026-10-22, the S7 worktree, `scratchpad/layer_census.py` and `iface_names.py`; AST over `orpheus/`, top-level + lazy + `TYPE_CHECKING` imports)
 
@@ -28,10 +29,37 @@ Intra-layer cycles (module grain, subpackages as nodes): geometry none; mesh {`a
 
 ## Proposals (the orchestrator's, `[R]`, open to the user)
 
-- **P1 — geometry ↔ numerics** (ruling 1 settles the direction). geometry = the group core (`transformation`), the point groups (`numerics/symmetry.py` moves down), the supports (`numerics/manifold.py`'s G-spaces and quotients move down), the shapes (`chart`, `chord`, `line`, `coord`, `extent`), and the boundary DECLARATIONS with the deck-transformation type; the primitives (`scalars`, `content`, `face_layout`, …) form a base package under geometry; the boundary laws move above numerics. Owed before the ruling on the split: the boundary-package measurement (dispatched 2026-10-22).
+- **The P1 measurement** (`[M]` 2026-10-22, the explorer, `scratch/layer_dag/p1_boundary/`, AST over 92 modules, cycle search controlled by the known `traced_memo` pair): **no import cycle crosses geometry and numerics at MODULE grain**, with or without lazy and typing imports; the package cycle exists only through the two packages' eager `__init__` (counting those: one cycle of 32 modules, 19 geometry and 13 numerics; importing `orpheus.numerics.scalars` alone loads 63 orpheus modules, all 17 boundary modules included). Geometry's 73 public items in 25 modules: 8 deck transformation (`transformation` ×5, `BoundaryGeometryMap`, `SelfPairedDeck`, `PairedDeck`), 47 declaration (26 shapes, `BC`, the law-sum algebra, 7 response kernels, 3 inflow sources, the periodic/vacuum/zero-flux/prescribed laws, 3 parameter errors), 4 mixed (`BoundaryTraceLaw`, `AlbedoBoundary`, `ReflectiveBoundary`, `WhiteBoundary`: declarations carrying `assert_*(quadrature)` certification), 14 law/realization (`stamp_boundary_role`, `realize_recursively`, `BoundaryRealizer`, `_BoundBoundaryOperator`, the 4 `assert_specular_pairing_*`, 6 certification errors). All 5 geometry → `numerics.quadrature` edges are `TYPE_CHECKING` annotations on certification methods: no declaration needs a quadrature (ruling 1 confirmed). `numerics/symmetry.py` and `numerics/manifold.py` import only tier 0–1 numerics plus `geometry.transformation` (they can move down; blast radius 168 import statements in 106 file entries, 13 string paths, 3 gates; `manifold` also holds `EnergyGroups`, `ENERGY`, `IndexSet`, `Product`, which are not geometry). The primitives geometry needs (`scalars`, `content`, `face_layout`, `registry`, `roots_of_unity`) are closed and import nothing above them, but sit inside the eagerly-imported `orpheus.numerics`. Under E (ruling 4) the responses, the kernels, the certification and the realization leave geometry together, which dissolves both resisting edges (`parse_boundary_law`'s `isinstance(law, BoundaryTraceLaw)` becomes tag parsing; the reflective law's `_specular` methods leave with the law, which becomes a `MirrorDeck`).
+- **P1 — geometry ↔ numerics** (ruling 1 settles the direction; ruling 4 names the vehicle). geometry = the group core (`transformation`), the point groups (`numerics/symmetry.py` moves down), the supports (`numerics/manifold.py`'s G-spaces and quotients move down), the shapes (`chart`, `chord`, `line`, `coord`, `extent`), and the boundary DECLARATIONS with the deck-transformation type; the primitives (`scalars`, `content`, `face_layout`, …) form a base package under geometry; the boundary laws move above numerics. Owed before the ruling on the split: the boundary-package measurement (dispatched 2026-10-22).
 - **P2 — the energy arm** (ruling 2). `EnergyAxis.from_grid(grid)` becomes `EnergyAxis.of_edges(edges)`; `from_materials` (the reachable-materials rule, which reads `Mixture.eg`) moves to `data`. Numerics then names nothing in data.
 - **P3 — transport naming method types**, and **P4 — the `sood_registry` retirement**: as above, each its own worktree.
 
 ## ⏸ Next
 
-S7 merges first (the numerics knot). Then the sub-cone measurement on numerics (`verification_tree_refinement.md` ruling 30) and, in parallel worktrees from the merged `main`, P2, P3, P4; P1 after the boundary measurement and the user's ruling on the split.
+S7 merged @ `e80ec738`. Next: the sub-cone measurement on numerics (`verification_tree_refinement.md` ruling 30); in parallel worktrees from `main`: P2 (the energy arm), P3 (transport naming method types), P4 (`sood_registry`); P1 as architecture E's cross-package part, designed first (the primitives base: its own package or a lazy `numerics/__init__`, an open question for the user; the response kernels' home under E).
+
+## ⏸ COMPACTION POINT — 2026-10-22
+
+**State.**
+- `main` `e80ec738` is pushed, and S7 is merged (#631 closed). Its CI `gates` run 39742166668 was in progress at this point. Check it with `gh run view 39742166668 --json status,conclusion`.
+- The local branch `docs/s7-landed`, in the main checkout, holds two commits that are NOT yet merged:
+  - the plan commit (S7 merged; this plan's ruling 4 and P1 measurement; the boundary-law pointer);
+  - after it, the docs commit that stamps the S7 history rows `[LANDED e80ec738]` in `spaces.rst` and `operator_algebra.rst`.
+  - Once CI is green: `git switch main && git merge --ff-only docs/s7-landed && git push origin main`, watch CI, then delete the branch. The docs commit heads the push, never the plan commit.
+- The S7 worktree `.claude/worktrees/s7` (branch `refactor/s7-axis-identity`) is fully merged. It can be removed with `git worktree remove` and its branch deleted.
+
+**Next, in order.**
+1. **The sub-cone measurement on `numerics`.** Sources: `verification_tree_refinement.md`, ruling 30 and "Sub-cones: the measurement"; S8's cone store comes first, with its positive controls. Read the result as an ontology instrument.
+2. **In parallel worktrees cut from `main`:**
+   - P2, the energy arm: `EnergyAxis.of_edges`, with `from_materials` moved to `data`;
+   - P3, transport naming the sn and diffusion types;
+   - P4, the `sood_registry` retirement.
+3. **P1, architecture E's cross-package part (ruling 4).** Two user questions are still open:
+   - is the primitives base its own package, or does `numerics/__init__` become lazy?
+   - where do the response kernels live under E?
+   - Design comes before code. E's design record is `boundary_law_ontology.md`, the fourth to tenth exchanges, plus `scratch/boundary_ontology/orbifold_architecture_round2.md`.
+
+**Read before acting:**
+- this plan's rulings and measured state;
+- `verification_tree_refinement.md`, rulings 30 and 31 and "The DAG backlog";
+- for P1, the census probes in `scratch/layer_dag/p1_boundary/` and `scratch/layer_dag/layer_census.py` and `iface_names.py` (run: `python <script> <repo root>` from outside the repo).

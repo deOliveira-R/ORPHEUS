@@ -274,3 +274,7 @@ Review:
 Issues: #551 (architecture E, which retires the guard), #552 (one base amplitude check).
 
 **Next:** #405 P1 step 5, content identity (`.claude/plans/reference_cache.md`, its 2026-10-01 notes). Architecture E follows #405.
+
+## Architecture E joins the layer DAG (2026-10-22)
+
+The user ruled (`layer_dag.md` ruling 4): E is the vehicle that breaks the geometry ↔ numerics package cycle, at least its cross-package part, and its sequencing after #405 is lifted for that part. The measurement that motivated it is in `layer_dag.md` ("The P1 measurement"). This plan stays the record of E's design; `layer_dag.md` carries its execution.
