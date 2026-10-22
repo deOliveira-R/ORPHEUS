@@ -9256,7 +9256,7 @@ the cheapest tell.
        pre-S7 design record of the provenance slot and the head classes
        is the function-spaces page at ``dd17f678``.
      - #631, #636
-     - ``[LANDED pending]`` (S7a ``47e7bfaa``, S7b ``ac6c6558``)
+     - ``[LANDED e80ec738]`` (S7a ``47e7bfaa``, S7b ``ac6c6558``, the inverse-face fix ``96ec89fd``, docs ``56b3ef92``)
    * - 2026-10-21
      - **The dual space carries the inverse Riesz form, and a degenerate
        metric is a quotient** (package S6 of the numerics untangling,

@@ -6137,7 +6137,7 @@ status.
        :ref:`spaces-identity-key` and :ref:`spaces-moment-head`; the full
        record is the row of :ref:`operator-algebra-history`.
      - #631
-     - ``[LANDED pending]`` (S7a ``47e7bfaa``, S7b ``ac6c6558``)
+     - ``[LANDED e80ec738]`` (S7a ``47e7bfaa``, S7b ``ac6c6558``, the inverse-face fix ``96ec89fd``, docs ``56b3ef92``)
    * - 2026-10-19
      - **The axis owns its unit, and the marginal is built from it**
        (numerics untangling, package S1; rulings 36 to 41). Every axis
