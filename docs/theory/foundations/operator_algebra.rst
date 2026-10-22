@@ -6427,7 +6427,7 @@ The full treatment — the §15.2 :math:`G_\alpha` geometric realisation
 primitives (permutation, mask, average, wrap, source; the law→primitive
 map), the rank-N Marshak / partial-current **descriptor-tree algebra**
 (``LawSum`` / ``LawScaled`` realised by
-:func:`~orpheus.geometry.boundary.realize_recursively`), and the
+:func:`~orpheus.transport.boundary_realization.realize_recursively`), and the
 load-bearing **descriptor-tree vs operator-tree** type separation
 ("mixing the two algebras is a type error") — is documented on the
 boundary-condition page: see the :ref:`extraction narrative

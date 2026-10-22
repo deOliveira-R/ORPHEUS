@@ -59,8 +59,15 @@ Internal — not re-exported
 This module is internal to the SN-side wiring at
 ``SNProblem.realize_boundary_law`` (the SN arm of the #290 P7b
 ``TransportMethod`` hook). It is NOT re-exported from
-:mod:`orpheus.geometry.boundary` because no consumer outside that
+:mod:`orpheus.sn.boundary` because no consumer outside that
 construction site should wrap operators in this shim.
+
+Until layer-DAG unit WP-E1 (``.claude/plans/layer_dag.md`` ruling 7)
+this module was ``orpheus.geometry.boundary._bound_compat``. It wraps
+an operator (:mod:`orpheus.numerics.operator`) and its one production
+consumer is :mod:`orpheus.sn.problem`, so its home is the SN boundary
+package: a geometry module that subclasses ``LinearOperator`` made the
+declarative geometry layer import the operator algebra at runtime.
 
 References
 ----------
@@ -93,7 +100,7 @@ from orpheus.numerics.operator import (
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
 
-    from ._base import BoundaryTraceLaw
+    from orpheus.geometry.boundary import BoundaryTraceLaw
 
 
 __all__ = ["_BoundBoundaryOperator"]

@@ -18,7 +18,7 @@ These tests pin:
     invariant).
 
 * **L1 / realisation** —
-  :func:`~orpheus.geometry.boundary.realize_recursively` (the
+  :func:`~orpheus.transport.boundary_realization.realize_recursively` (the
   method-blind walker; its home since #290 P7b, with the leaf
   realizer — here :class:`SNBoundaryRealizer` — passed explicitly)
   transforms a descriptor tree into an operator tree:
@@ -50,8 +50,8 @@ from orpheus.geometry.boundary import (
     SpecularReturn,
     VacuumInflow,
     WhiteBoundary,
-    realize_recursively,
 )
+from orpheus.transport.boundary_realization import realize_recursively
 from orpheus.numerics.operator import OperatorSum
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace

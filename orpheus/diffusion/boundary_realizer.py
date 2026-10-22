@@ -29,7 +29,7 @@ then *albedo scalar → operator* (the structure-keyed collapse
 mirroring the SN realizer's ``AlbedoBoundary`` branch). The realized
 operator maps the outflow half of a face slot to the inflow half; it
 is stamped :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` via
-:func:`~orpheus.geometry.boundary.stamp_boundary_role` (the ``A_ss``
+:func:`~orpheus.transport.boundary_realization.stamp_boundary_role` (the ``A_ss``
 leaf of the composite state, consumed by the P4
 ``DiffusionBoundaryOperator`` assembly).
 
@@ -124,7 +124,7 @@ Refusals
 Rank-N composition (Marshak mixes, partial reflection) goes through
 the descriptor-tree walker with this realizer at the leaves::
 
-    from orpheus.geometry.boundary import realize_recursively
+    from orpheus.transport.boundary_realization import realize_recursively
     op = realize_recursively(
         0.3 * AlbedoBoundary(1.0, SpecularReturn("x"))
         + 0.7 * AlbedoBoundary(albedo=0.5),
@@ -133,8 +133,9 @@ the descriptor-tree walker with this realizer at the leaves::
     )
 
 (The walker generalized over leaf realizers at #290 P3 and moved to
-its method-blind home in ``geometry/boundary/`` at the #290 P7b
-``TransportMethod`` mint.)
+a method-blind home in ``geometry/boundary/`` at the #290 P7b
+``TransportMethod`` mint, and to
+:mod:`orpheus.transport.boundary_realization` at layer-DAG WP-E1.)
 
 References
 ----------
@@ -155,8 +156,8 @@ from orpheus.geometry.boundary import (
     BoundaryTraceLaw,
     PairedDeck,
     PrescribedInflow,
-    stamp_boundary_role,
 )
+from orpheus.transport.boundary_realization import stamp_boundary_role
 from orpheus.numerics.operator import ZeroOperator
 from orpheus.numerics.operator import IdentityOperator, LinearOperator
 
@@ -214,7 +215,7 @@ class DiffusionBoundaryRealizer:
         rank-1 albedo family reads nothing from ``method_space``
         (mirroring SN's albedo branch — a
         :meth:`DiffusionMethodSpace.minimal` suffices); the parameter
-        is the uniform :class:`~orpheus.geometry.boundary.BoundaryRealizer`
+        is the uniform :class:`~orpheus.transport.boundary_realization.BoundaryRealizer`
         Protocol surface the P4/P5 wiring threads per-face spaces
         through.
         """
@@ -267,8 +268,8 @@ class DiffusionBoundaryRealizer:
                 f"(𝒜=0, Marshak), ReflectiveBoundary (𝒜=1), WhiteBoundary "
                 f"(𝒜=α, P1-coincident with a specular wall), AlbedoBoundary "
                 f"(𝒜=α), ZeroFluxBoundary (𝒜=−1). For rank-N compositions use "
-                f"orpheus.geometry.boundary.realize_recursively with "
-                f"realizer=DiffusionBoundaryRealizer().",
+                f"orpheus.transport.boundary_realization.realize_recursively "
+                f"with realizer=DiffusionBoundaryRealizer().",
                 law=type(law).__name__,
             )
         response = law.response_kernel

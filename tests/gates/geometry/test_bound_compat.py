@@ -51,7 +51,7 @@ from orpheus.geometry.boundary import (
     SelfPairedDeck,
     VacuumInflow,
 )
-from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
+from orpheus.sn.boundary.bound_compat import _BoundBoundaryOperator
 from orpheus.numerics.elementary_operators import PermutationOperator
 from orpheus.numerics.operator import ZeroOperator
 from orpheus.numerics.operator import IdentityOperator
@@ -221,15 +221,25 @@ def test_shim_remains_hashable():
 
 def test_shim_is_not_re_exported_from_package():
     """The shim is internal to the SN-side wiring — it MUST NOT appear
-    in :mod:`orpheus.geometry.boundary`'s public surface, since no
+    in :mod:`orpheus.sn.boundary`'s public surface, since no
     consumer outside ``SNProblem.realize_boundary_law`` has a legitimate
     reason to wrap operators in it. Pinning the lack of re-export
     prevents accidental promotion to public API.
-    """
-    import orpheus.geometry.boundary as boundary_pkg
 
-    assert "_BoundBoundaryOperator" not in getattr(boundary_pkg, "__all__", [])
-    assert not hasattr(boundary_pkg, "_BoundBoundaryOperator")
+    Layer-DAG WP-E1 moved the module out of geometry
+    (``orpheus.geometry.boundary._bound_compat`` to
+    :mod:`orpheus.sn.boundary.bound_compat`), with no shim left behind:
+    the old path does not import and geometry names the class nowhere.
+    """
+    import importlib.util
+
+    import orpheus.geometry.boundary as geometry_boundary
+    import orpheus.sn.boundary as sn_boundary
+
+    for package in (sn_boundary, geometry_boundary):
+        assert "_BoundBoundaryOperator" not in getattr(package, "__all__", [])
+        assert not hasattr(package, "_BoundBoundaryOperator")
+    assert importlib.util.find_spec("orpheus.geometry.boundary._bound_compat") is None
 
 
 def test_constructor_signature_is_inner_plus_law():

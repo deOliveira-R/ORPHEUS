@@ -3,9 +3,19 @@ r"""The realization seam: BoundaryRealizer Protocol + the rank-N walker.
 Per Grand Report v3 §16A.3 lines 2841–2860, the third layer of the
 boundary architecture (after trace structure + physical law) is the
 **method realisation**: a per-transport-method strategy that turns a
-BC descriptor (:class:`BoundaryTraceLaw`) into a
-:class:`~orpheus.numerics.operator.LinearOperator` consumable by that
-method's sweep / solver.
+BC descriptor (:class:`~orpheus.geometry.boundary.BoundaryTraceLaw`)
+into a :class:`~orpheus.numerics.operator.LinearOperator` consumable
+by that method's sweep / solver.
+
+Why this module is transport's (layer-DAG unit WP-E1,
+``.claude/plans/layer_dag.md`` ruling 7): realization BUILDS operators
+(:mod:`orpheus.numerics.operator`) on a method space, which is
+transport vocabulary every method shares, while the descriptors it
+reads are declarations and stay in :mod:`orpheus.geometry.boundary`.
+Until WP-E1 this module was ``orpheus.geometry.boundary._realizer``,
+and it made geometry import the operator algebra at runtime. The
+dependency now points one way: transport reads the declarations;
+geometry imports nothing from here.
 
 The three-layer split matters because the same physical law (vacuum,
 specular reflection, white, …) is realized by **structurally
@@ -36,11 +46,13 @@ This module carries the three method-agnostic pieces of that seam:
   :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY`.
 * :func:`realize_recursively` — the **rank-N composition walker**,
   the sole type transformer from a descriptor tree
-  (:class:`BoundaryTraceLaw` leaves under :class:`LawSum` /
-  :class:`LawScaled` composers) to an operator: the formal linear
+  (:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` leaves under
+  :class:`~orpheus.geometry.boundary.LawSum` /
+  :class:`~orpheus.geometry.boundary.LawScaled` composers) to an operator: the formal linear
   combination (:class:`~orpheus.numerics.operator.OperatorSum`) of the
   realized 1-arg leaves. Method-blind: the leaf realizer is a REQUIRED
-  parameter — geometry knows the walk, never the method.
+  parameter — this module knows the walk, never the method (transport
+  may not import a method package; ``tests/gates/test_layer_imports.py``).
 
 The registry that used to live here (a historical note)
 =======================================================
@@ -56,8 +68,9 @@ arm calls its own realizer directly, and the walker takes the realizer
 as an argument). The string indirection carried registration-timing
 hazards (a fresh process's empty registry, masked in-suite by
 process-global state) for zero payoff; dissolving it deleted the
-hazard class. The walker moved here from ``orpheus.sn.boundary``
-in the same carve — see :mod:`orpheus.transport.method` for the
+hazard class. The walker moved from ``orpheus.sn.boundary``
+to ``orpheus.geometry.boundary._realizer`` in the same carve, and from
+there to this module at layer-DAG WP-E1 — see :mod:`orpheus.transport.method` for the
 ``TransportMethod`` Protocol minted over the method-meshes.
 
 References
@@ -76,13 +89,11 @@ from typing import TYPE_CHECKING, Protocol, TypeVar, runtime_checkable
 
 from orpheus.numerics.operator import BlockRole
 
-from ._base import BoundaryTraceLaw
-from ._composition import LawScaled, LawSum
+from orpheus.geometry.boundary import BoundaryTraceLaw, LawScaled, LawSum
 
 if TYPE_CHECKING:
+    from orpheus.geometry.boundary import LawNode
     from orpheus.numerics.operator import LinearOperator
-
-    from ._composition import LawNode
 
 
 __all__ = [
@@ -94,9 +105,9 @@ __all__ = [
 #: The method space a realizer consumes. CONTRAVARIANT because it appears
 #: only in parameter position (``realize(law, method_space)``): a realizer
 #: accepting a WIDER space stands in wherever a narrower one is required.
-#: Unbound on purpose — geometry does not know the method spaces (they live
-#: in ``orpheus.sn`` / ``orpheus.diffusion``), and a bound here would invert
-#: the dependency the P7b move established.
+#: Unbound on purpose — transport does not know the method spaces (they live
+#: in ``orpheus.sn`` / ``orpheus.diffusion``, which transport may not
+#: import), and a bound here would invert the layer order.
 MethodSpaceT_contra = TypeVar("MethodSpaceT_contra", contravariant=True)
 
 #: The same space at function scope, where variance does not apply. Its job
@@ -216,8 +227,9 @@ class BoundaryRealizer(Protocol[MethodSpaceT_contra]):
 # ``realize_boundary_law`` → its realizer); this walker is the rank-N
 # composition entry point (the Marshak ``0.3·Reflective + 0.7·White``
 # partial-current BC), exercised by the law-composition wall
-# ``tests/gates/geometry/test_law_composition.py``. Moved here from
-# ``orpheus.sn.boundary`` at #290 P7b, when the second functional
+# ``tests/gates/geometry/test_law_composition.py``. Moved out of
+# ``orpheus.sn.boundary`` at #290 P7b (into geometry; into transport at
+# layer-DAG WP-E1), when the second functional
 # realizer (diffusion, #290 P3) made the walk's realizer-genericity
 # real: the walk (LawSum/LawScaled → + and α·, the operator algebra's own) is
 # method-blind, and the leaf realizer is the caller's to supply.
@@ -263,11 +275,11 @@ def realize_recursively(
         :class:`~orpheus.sn.mesh.method_space.SNMethodSpace` for the
         SN realizer,
         :class:`~orpheus.diffusion.method_space.DiffusionMethodSpace`
-        for the diffusion realizer. Geometry stays method-blind — the
-        walker never inspects it.
+        for the diffusion realizer. The walker stays method-blind — it
+        never inspects it.
     realizer
         The leaf realizer (a :class:`BoundaryRealizer`). REQUIRED:
-        there is no method-agnostic default — geometry does not know
+        there is no method-agnostic default — transport does not know
         the methods. (The pre-P7b SN default died with the walker's
         move out of ``orpheus.sn``.)
 
@@ -291,8 +303,9 @@ def realize_recursively(
     Realise the standard Marshak mixed boundary for SN::
 
         from orpheus.geometry.boundary import (
-            AlbedoBoundary, SpecularReturn, WhiteBoundary, realize_recursively,
+            AlbedoBoundary, SpecularReturn, WhiteBoundary,
         )
+        from orpheus.transport.boundary_realization import realize_recursively
         from orpheus.sn.boundary.realizer import SNBoundaryRealizer
         from orpheus.sn.mesh.method_space import SNMethodSpace
         from orpheus.numerics.quadrature import Quadrature

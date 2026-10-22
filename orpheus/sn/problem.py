@@ -29,7 +29,7 @@ from orpheus.geometry.boundary import (
     ReflectiveBoundary,
     VacuumInflow,
 )
-from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
+from orpheus.sn.boundary.bound_compat import _BoundBoundaryOperator
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.sn.angular.redistribution import angular_redistribution
 from orpheus.transport.method import resolve_boundary_conditions

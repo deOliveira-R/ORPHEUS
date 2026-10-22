@@ -38,7 +38,7 @@ Construction
 
 The per-face boundary laws already live on the
 :class:`~orpheus.sn.problem.SNProblem` in the face-name-keyed ``bc`` dict
-(each entry a :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
+(each entry a :class:`~orpheus.sn.boundary.bound_compat._BoundBoundaryOperator`
 wrapping a realized law that carries :attr:`BlockRole.BOUNDARY`). The whole-trace
 ``B`` is the block composition over the mesh's true boundary faces: for each
 face present in the trace it applies that face's law, reading the half-trace of

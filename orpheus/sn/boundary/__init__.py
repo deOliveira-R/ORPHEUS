@@ -12,13 +12,19 @@ The L3 layer that turns a geometry-declared
   links of the factored Lambertian (white / diffuse-albedo BC).
   (``IncomingSourceOperator``, which realized prescribed inflow, lived there
   until **P3** — 2026-08-05 — and was retired onto the zero morphism.)
+* :mod:`~orpheus.sn.boundary.bound_compat` — ``_BoundBoundaryOperator``,
+  the realized law paired with its descriptor, which
+  ``SNProblem.realize_boundary_law`` stores in ``problem.bc``. Internal:
+  not re-exported here. (It was ``orpheus.geometry.boundary._bound_compat``
+  until layer-DAG unit WP-E1.)
 
 This seam was one of the two recorded witnesses of the
 :class:`~orpheus.transport.method.TransportMethod` Protocol (the other:
 the homogenization method-layer in
 :mod:`orpheus.transport.mesh.material_mesh`) — minted at #290 P7b when
 the second method's realizer shipped. The rank-N composition walker
-moved to :func:`orpheus.geometry.boundary.realize_recursively`
+moved to geometry and, at layer-DAG unit WP-E1, to
+:func:`orpheus.transport.boundary_realization.realize_recursively`
 (method-blind; pass ``realizer=SNBoundaryRealizer()``), and the Wave-5
 realizer registry dissolved (you hold the method-mesh → you have its
 realizer). Mirrors the role-keyed layout of :mod:`orpheus.transport`.

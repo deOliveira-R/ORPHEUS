@@ -64,8 +64,8 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
     WhiteBoundary,
     ZeroFluxBoundary,
-    realize_recursively,
 )
+from orpheus.transport.boundary_realization import realize_recursively
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from tests.gates.sn._test_helpers import face_method_space

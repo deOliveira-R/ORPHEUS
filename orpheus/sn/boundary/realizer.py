@@ -134,8 +134,9 @@ Wave 11 removed the ``MixedBoundaryOperator`` composer from the
 dispatch table. Rank-N compositions are now expressed via Wave-0
 ``OperatorSum``-algebra over already-realised leaves; the walker for
 ``BoundaryTraceLaw``-rooted expression trees is the method-blind
-:func:`~orpheus.geometry.boundary.realize_recursively` (moved to
-``geometry/boundary/`` at #290 P7b — pass
+:func:`~orpheus.transport.boundary_realization.realize_recursively`
+(moved to ``geometry/boundary/`` at #290 P7b and to ``transport/`` at
+layer-DAG WP-E1 — pass
 ``realizer=SNBoundaryRealizer()`` at the leaves).
 
 References
@@ -169,8 +170,8 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
     WhiteBoundary,
     ZeroFluxBoundary,
-    stamp_boundary_role,
 )
+from orpheus.transport.boundary_realization import stamp_boundary_role
 from orpheus.numerics.face_layout import AXIS_NAMES, face_name
 from orpheus.numerics.spaces.angular_trace_space import (
     TANGENTIAL_EPS,
@@ -751,7 +752,7 @@ class SNBoundaryRealizer:
         :class:`TensorProductOperator` / :class:`OperatorSum` /
         :class:`~orpheus.numerics.operator.ZeroOperator` / …); the narrower mixin type
         (vs the bare :class:`LinearOperator` Protocol) lets the
-        :func:`~orpheus.geometry.boundary.stamp_boundary_role`
+        :func:`~orpheus.transport.boundary_realization.stamp_boundary_role`
         ``block_role`` instance-stamp type-check and keeps the
         realized-law primitives assignable nominally rather than
         through the (invariant) Protocol.
@@ -1121,8 +1122,8 @@ class SNBoundaryRealizer:
             f"PrescribedInflow. For rank-N compositions built via "
             f"the operator algebra's + and α· over "
             f"BoundaryTraceLaw leaves, use "
-            f"orpheus.geometry.boundary.realize_recursively with "
-            f"realizer=SNBoundaryRealizer().",
+            f"orpheus.transport.boundary_realization.realize_recursively "
+            f"with realizer=SNBoundaryRealizer().",
             law=type(law).__name__,
         )
 
@@ -1130,8 +1131,9 @@ class SNBoundaryRealizer:
 # The rank-N composition walker (``realize_recursively``) lived here
 # until #290 P7b. With the second functional realizer shipped
 # (diffusion, #290 P3) the walk's realizer-genericity became real and
-# the walker moved to its method-blind home,
-# :func:`orpheus.geometry.boundary.realize_recursively` — the leaf
+# the walker moved to a method-blind home, ``geometry/boundary/``, and
+# at layer-DAG WP-E1 to
+# :func:`orpheus.transport.boundary_realization.realize_recursively` — the leaf
 # realizer is now a REQUIRED argument (``SNBoundaryRealizer()`` for the
 # SN path). Single BCs never routed through it: ``SNProblem``'s
 # ``realize_boundary_law`` arm (the ``TransportMethod`` hook) calls

@@ -92,15 +92,16 @@ descriptor** with no callable interface. Rank-N composition uses
 the descriptor-tree algebra
 (:class:`~orpheus.geometry.boundary.LawSum` /
 :class:`~orpheus.geometry.boundary.LawScaled`) with
-:func:`~orpheus.geometry.boundary.realize_recursively` as the
+:func:`~orpheus.transport.boundary_realization.realize_recursively` as the
 sole descriptor→operator type transformer. See
 :ref:`bc-trace-law-descriptor-model` for the design rationale.
 
 The resolved BCs at ``problem.bc["xmin"]`` etc. expose the uniform
 1-arg contract through the
-:class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
-shim — internal to the package, not in
-:attr:`orpheus.geometry.boundary.__all__`. Post Issue #186 the
+:class:`~orpheus.sn.boundary.bound_compat._BoundBoundaryOperator`
+shim — internal to :mod:`orpheus.sn.boundary`, not re-exported by
+it (until layer-DAG unit WP-E1 it lived in geometry as
+``orpheus.geometry.boundary._bound_compat``). Post Issue #186 the
 shim is a **strict 1-arg passthrough** (extra args raise
 :class:`TypeError`); since campaign phase **B2.0** it carries the
 originating **law** itself, so a resolved BC can be asked what its law
@@ -665,7 +666,7 @@ own :class:`~orpheus.mesh.axis.FaceLabel` —
 ``AXIS_NAMES[label.axis_index]`` — so the partner is correct at any
 dimension by construction (C4 / #220; see
 :ref:`bc-face-name-latent-d3-bug`). The
-:class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
+:class:`~orpheus.sn.boundary.bound_compat._BoundBoundaryOperator`
 shim pairs the result back with the law it was realized from; its
 ``kind`` tag reads that law's registry key, serving the
 ``problem.bc["xmin"] == "vacuum"`` string-equality surface.

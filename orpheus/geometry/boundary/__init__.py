@@ -158,7 +158,9 @@ The §16A.3 decomposition splits this map into three concrete layers:
    default survives only so a stub law is detectable as unpopulated.
    Method-agnostic.
 3. **Method realisation** —
-   :class:`~orpheus.geometry.boundary.BoundaryRealizer` Protocol +
+   :class:`~orpheus.transport.boundary_realization.BoundaryRealizer`
+   Protocol (transport vocabulary, not geometry's: realization builds
+   operators on a method space, and this package only declares) +
    two functional implementations
    (:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` and, since
    #290 P3 / issue #182,
@@ -328,16 +330,18 @@ Rank-N (Marshak, partial-current) boundary conditions are
 :class:`~orpheus.geometry.boundary._composition.LawSum` /
 :class:`~orpheus.geometry.boundary._composition.LawScaled` nodes —
 pure descriptor structures with **no** ``apply`` method. The
-:func:`realize_recursively` walker (in :mod:`._realizer` since
-#290 P7b; method-blind — the leaf realizer is the caller's) is
+:func:`~orpheus.transport.boundary_realization.realize_recursively`
+walker (in :mod:`orpheus.transport.boundary_realization`; method-blind
+— the leaf realizer is the caller's) is
 the **sole** type transformer from descriptor tree to operator
 tree (Issue #186 / B3 + β2, 2026-05-11):
 
 .. code-block:: python
 
     from orpheus.geometry.boundary import (
-        AlbedoBoundary, SpecularReturn, WhiteBoundary, realize_recursively,
+        AlbedoBoundary, SpecularReturn, WhiteBoundary,
     )
+    from orpheus.transport.boundary_realization import realize_recursively
     from orpheus.sn.boundary.realizer import SNBoundaryRealizer
     from orpheus.sn.mesh.method_space import SNMethodSpace
 
@@ -373,7 +377,8 @@ operator (an :class:`OperatorSum` of :class:`LinearOperator` leaves)
 carries :meth:`apply`. The two
 algebras never inter-compose — mixing a :class:`LawNode` with an
 already-realised :class:`LinearOperator` via ``+`` is a static-type
-error; the caller MUST :func:`realize_recursively` the descriptor
+error; the caller MUST
+:func:`~orpheus.transport.boundary_realization.realize_recursively` the descriptor
 tree first. The static type checker enforces this distinction —
 no runtime contract is needed.
 
@@ -414,11 +419,12 @@ composition dataclasses introduced in Issue #186:
   folding** (``α * (β * x) → (α β) * x`` at construction).
 * :data:`LawNode` — type alias
   ``Union[BoundaryTraceLaw, LawSum, LawScaled]``, the input type
-  of :func:`realize_recursively`.
+  of :func:`~orpheus.transport.boundary_realization.realize_recursively`.
 
 All three are re-exported below for downstream consumers. None
 has an :meth:`apply` method — the descriptor tree becomes
-callable only after :func:`realize_recursively`. See
+callable only after
+:func:`~orpheus.transport.boundary_realization.realize_recursively`. See
 :mod:`._composition` for the algebra closure details.
 
 
@@ -476,7 +482,8 @@ firing under the right conditions.
 Cross-method realizers: two functional, and no stubs
 ====================================================
 
-The :class:`BoundaryRealizer` Protocol has exactly two
+The :class:`~orpheus.transport.boundary_realization.BoundaryRealizer`
+Protocol has exactly two
 implementations —
 :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` (angular:
 per-ordinate masks / permutations / averages) and
@@ -494,8 +501,9 @@ nothing.
 
 The "unify after two instances" trigger fired at the second
 functional realizer (#290 P3): the shared surface turned out to be
-the :class:`BoundaryRealizer` Protocol itself plus the
-:func:`stamp_boundary_role` helper — no ``BoundaryRealizerBase`` ABC
+the :class:`~orpheus.transport.boundary_realization.BoundaryRealizer`
+Protocol itself plus the
+:func:`~orpheus.transport.boundary_realization.stamp_boundary_role` helper — no ``BoundaryRealizerBase`` ABC
 is warranted (the two realize bodies share no algorithm, only the
 contract). The genuinely shared *machinery* — the descriptor-tree
 walker generalised over realizers and a typed ``MethodSpace``
@@ -516,17 +524,6 @@ Package layout (Wave 4 source-layout split, post-#186 descriptor cleanup)
   (Wave 3 / ERR-040..ERR-047).
 * :mod:`_source` -- :class:`InflowSourceSpec` Protocol +
   :class:`NoSource` + :class:`ConstantInflowSource` (Wave 3).
-* :mod:`_realizer` -- the realization seam: :class:`BoundaryRealizer`
-  Protocol + :func:`stamp_boundary_role` + the
-  :func:`realize_recursively` rank-N walker (Wave 5; the walker moved
-  in from ``orpheus.sn.boundary`` and the Wave-5
-  ``BoundaryRealizerRegistry`` dissolved at #290 P7b).
-* :mod:`_bound_compat` -- ``_BoundBoundaryOperator`` shim wrapping
-  the realised operator with a ``kind`` string tag (Wave 8
-  introduced; Wave 9 added curvilinear bound-quadrature path,
-  retired Issue #176 / C176.1; Issue #186 / C-B3.4 dropped the
-  ``*_extra, **_kw`` swallow). Now a **strict 1-arg** passthrough.
-  **Internal** — not in this module's :attr:`__all__`.
 * :mod:`vacuum` -- :class:`VacuumInflow`.
 * :mod:`reflective` -- :class:`ReflectiveBoundary`.
 * :mod:`white` -- :class:`WhiteBoundary`.
@@ -534,6 +531,17 @@ Package layout (Wave 4 source-layout split, post-#186 descriptor cleanup)
 * :mod:`albedo` -- :class:`AlbedoBoundary`.
 * :mod:`prescribed_inflow` -- :class:`PrescribedInflow` (Wave 7).
 * :mod:`zero_flux` -- :class:`ZeroFluxBoundary` (#290 P3).
+
+The realization seam left this package at layer-DAG unit WP-E1
+(``.claude/plans/layer_dag.md`` ruling 7): the
+:class:`~orpheus.transport.boundary_realization.BoundaryRealizer`
+Protocol, the role stamp and the rank-N walker were ``_realizer`` here
+and are now :mod:`orpheus.transport.boundary_realization`; the SN
+shim ``_BoundBoundaryOperator`` was ``_bound_compat`` here and is now
+:mod:`orpheus.sn.boundary.bound_compat`. Both build operators
+(:mod:`orpheus.numerics.operator`), which a declarative package does
+not: no module of this package imports the operator algebra at
+runtime, and ``tests/gates/test_layer_imports.py`` gates it.
 
 The pre-Wave-7 ``mixed.py`` submodule (carrying the now-retired
 ``MixedBoundaryOperator``) was **deleted in Wave 11**; the registry
@@ -585,8 +593,9 @@ Cross-references
 * :mod:`orpheus.sn.boundary.realizer` —
   :class:`SNBoundaryRealizer` (functional realizer dispatching by
   ``isinstance``; the leaf descriptor → operator transformer).
-* :mod:`._realizer` —
-  :func:`realize_recursively` walker, the **type transformer**
+* :mod:`orpheus.transport.boundary_realization` —
+  :func:`~orpheus.transport.boundary_realization.realize_recursively`
+  walker, the **type transformer**
   from a descriptor tree
   (``BoundaryTraceLaw | LawSum | LawScaled``) to an operator tree
   (the :class:`OperatorSum` combination of realised 1-arg
@@ -632,8 +641,8 @@ from ._base import BoundaryTraceLaw, law_permutes_ordinates
 # Issue #186 (B3 + β2) -- descriptor-tree composition. LawSum / LawScaled
 # form a closed algebra over BoundaryTraceLaw | LawSum | LawScaled, used
 # for rank-N boundary composition (e.g. ``0.3 * spec + 0.7 * white``).
-# Realised to a Wave-0 operator tree via :func:`realize_recursively`
-# (in ._realizer since #290 P7b).
+# Realised to a Wave-0 operator tree by the walker in
+# ``orpheus.transport.boundary_realization`` (layer DAG WP-E1).
 # ---------------------------------------------------------------------------
 
 from ._composition import LawNode, LawScaled, LawSum
@@ -671,18 +680,6 @@ from ._errors import (
 # ---------------------------------------------------------------------------
 
 from ._source import InflowSourceSpec, ConstantInflowSource, NoSource
-
-# ---------------------------------------------------------------------------
-# The realization seam (Wave 5 Protocol + role stamp; the rank-N walker
-# moved in from ``orpheus.sn.boundary`` and the Wave-5 registry
-# dissolved at #290 P7b).
-# ---------------------------------------------------------------------------
-
-from ._realizer import (
-    BoundaryRealizer,
-    realize_recursively,
-    stamp_boundary_role,
-)
 
 # ---------------------------------------------------------------------------
 # Concrete BCs -- split into per-BC submodules in Wave 4, renamed to
@@ -765,10 +762,6 @@ __all__ = [
     "InflowSourceSpec",
     "ConstantInflowSource",
     "NoSource",
-    # The realization seam: Protocol + rank-N walker + role stamp
-    "BoundaryRealizer",
-    "realize_recursively",
-    "stamp_boundary_role",
     # Concrete BCs (Wave 7 canonical names + the #290 P3 addition)
     "AlbedoBoundary",
     "PeriodicBoundary",

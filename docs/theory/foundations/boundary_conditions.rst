@@ -83,7 +83,7 @@ Key Facts
   :class:`~orpheus.geometry.boundary.LawScaled` nodes — a closed
   algebra over ``BoundaryTraceLaw | LawSum | LawScaled``. The tree is
   a **pure descriptor** with no ``apply`` method; the
-  :func:`~orpheus.geometry.boundary.realize_recursively` type
+  :func:`~orpheus.transport.boundary_realization.realize_recursively` type
   transformer (method-blind, in ``geometry/boundary/`` since #290
   P7b; the leaf realizer is a required argument) walks it once per
   face and emits the formal linear combination
@@ -2763,7 +2763,7 @@ NOT a fence.** ``[M]`` and stated plainly because a reader will
 otherwise assume it is load-bearing: ``_face_laws`` never filtered on
 ``block_role``, so the stamp's presence or absence changes **nothing**
 about :math:`B`'s behaviour. Making
-:func:`~orpheus.geometry.boundary.stamp_boundary_role` a no-op for
+:func:`~orpheus.transport.boundary_realization.stamp_boundary_role` a no-op for
 prescribed inflow reddens the direct stamp assertions and no numerical
 gate — the stamp claim needs its own assertion, and a value gate
 structurally cannot supply one. What the stamp *does* do is describe a
@@ -2898,7 +2898,7 @@ describes the physics at the boundary but is **not** by itself
 ready for consumption by a transport sweep. The conversion from
 method-agnostic law to method-specific
 :class:`~orpheus.numerics.operator.LinearOperator` is the job of a
-:class:`~orpheus.geometry.boundary.BoundaryRealizer`. Each transport
+:class:`~orpheus.transport.boundary_realization.BoundaryRealizer`. Each transport
 method that has adopted the unified BC architecture (SN; diffusion
 since #290 P3) ships one realizer class, owned by its method-mesh:
 the mesh's ``realize_boundary_law`` arm — the per-method hook of the
@@ -4664,7 +4664,7 @@ partial-current boundaries are rank-N via the
 **descriptor-tree algebra** on the unrealised laws (:class:`LawSum`
 / :class:`LawScaled` over :class:`BoundaryTraceLaw` leaves) —
 realised once per face by
-:func:`~orpheus.geometry.boundary.realize_recursively`; see
+:func:`~orpheus.transport.boundary_realization.realize_recursively`; see
 :ref:`bc-rank-n-algebra` below. Every one of these kernels is
 **trace-sized** — tiny against the bulk dimension — which is
 exactly the low-rank/structured shape a Woodbury boundary closure
@@ -4891,9 +4891,12 @@ certifies a cyclic configuration as acyclic.
 Realizer (``BoundaryRealizer`` Protocol + ``SNBoundaryRealizer``)
 =================================================================
 
-The :class:`~orpheus.geometry.boundary.BoundaryRealizer` Protocol is
+The :class:`~orpheus.transport.boundary_realization.BoundaryRealizer` Protocol is
 ``@runtime_checkable`` and lives at
-:mod:`orpheus.geometry.boundary._realizer`. Its contract is one
+:mod:`orpheus.transport.boundary_realization` (until layer-DAG unit
+WP-E1 it was ``orpheus.geometry.boundary._realizer``; realization
+builds operators on a method space, which is transport vocabulary, and
+geometry only declares). Its contract is one
 attribute and one method:
 
 .. code-block:: python
@@ -5501,7 +5504,7 @@ Every ``SNProblem.bc[<face>]`` entry carries a uniform 1-arg
 2-arg to 1-arg; C4 / #220 re-keyed the per-attribute ``bc_<face>``
 surface to the face-name-keyed :attr:`~SNProblem.bc` dict — see
 :ref:`bc-face-name-carve`). Post Issue #186 / C-B3.4 the
-:class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
+:class:`~orpheus.sn.boundary.bound_compat._BoundBoundaryOperator`
 shim is a **strict 1-arg passthrough**; campaign phase **B2.0** made
 what it passes through *both* faces of the realization:
 
@@ -5553,7 +5556,7 @@ strict 1-arg.
 
 .. code-block:: python
 
-   from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
+   from orpheus.sn.boundary.bound_compat import _BoundBoundaryOperator
 
    return _BoundBoundaryOperator(realized, law)
 
@@ -5876,7 +5879,7 @@ The :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` algebra
 dunders (``+``, ``-``, ``*``, ``/``, unary ``-``) return
 :class:`~orpheus.geometry.boundary.LawSum` /
 :class:`~orpheus.geometry.boundary.LawScaled` instances, never
-operators. The :func:`~orpheus.geometry.boundary.realize_recursively`
+operators. The :func:`~orpheus.transport.boundary_realization.realize_recursively`
 type transformer (method-blind since #290 P7b — the leaf realizer is
 an explicit argument) is the **sole** path from descriptor tree to
 operator tree.
@@ -5910,8 +5913,8 @@ mirror is a symmetry of the domain and is refused as an operand
    from orpheus.geometry.boundary import (
        AlbedoBoundary, LawScaled, LawSum,
        SpecularReturn, WhiteBoundary,
-       realize_recursively,
    )
+   from orpheus.transport.boundary_realization import realize_recursively
    from orpheus.sn.boundary.realizer import SNBoundaryRealizer
    from orpheus.sn.mesh.method_space import SNMethodSpace
 
@@ -6050,7 +6053,7 @@ realized output matched the β1-era *recorded* output; see
 The ``realize_recursively`` walker — a descriptor → operator type transformer
 =============================================================================
 
-:func:`~orpheus.geometry.boundary.realize_recursively` is the
+:func:`~orpheus.transport.boundary_realization.realize_recursively` is the
 **type transformer** from the descriptor-tree algebra
 (``BoundaryTraceLaw | LawSum | LawScaled``) to the operator algebra
 (``LinearOperator``). Calling it is the **only** path from a
@@ -6122,8 +6125,9 @@ Usage on the descriptor tree:
 .. code-block:: python
 
    from orpheus.geometry.boundary import (
-       AlbedoBoundary, SpecularReturn, WhiteBoundary, realize_recursively,
+       AlbedoBoundary, SpecularReturn, WhiteBoundary,
    )
+   from orpheus.transport.boundary_realization import realize_recursively
    from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 
    # Build the descriptor tree (the specular leaf is a response; the
@@ -6184,9 +6188,9 @@ algebras, nothing more.
 Placement — the deferral that fired at the second method
 --------------------------------------------------------
 
-The walker lives in :mod:`orpheus.geometry.boundary` (the
-``_realizer`` module — the realization seam, next to the
-:class:`~orpheus.geometry.boundary.BoundaryRealizer` Protocol it
+The walker lives in :mod:`orpheus.transport.boundary_realization`
+(the realization seam, next to the
+:class:`~orpheus.transport.boundary_realization.BoundaryRealizer` Protocol it
 dispatches through), and it is **method-blind**: the leaf realizer
 is a REQUIRED argument, and ``method_space`` is threaded verbatim to
 that realizer without inspection. It is *not* on the production
@@ -6230,10 +6234,26 @@ user ruling: the method-mesh IS the method's behavior carrier, not a
 stateless singleton), the twin per-mesh ``_resolve_bcs`` loops
 collapsed into the ONE shared
 :func:`~orpheus.transport.method.resolve_boundary_conditions` body,
-and the walker moved here with an explicit-realizer signature. Only
+and the walker moved to geometry's boundary package with an
+explicit-realizer signature. Only
 the **leaf** dispatch was ever method-bound; the **composer**
 dispatch (:class:`LawSum` / :class:`LawScaled` → operator composers)
 survived the move byte-identically, exactly as recorded.
+
+The second move was a layering correction, not a deferral firing.
+The realization builds operators (:mod:`orpheus.numerics.operator`)
+on a method space, and geometry is declarative: a geometry module that
+imports the operator algebra at runtime is one of the edges of the
+``{geometry, numerics}`` package cycle (numerics reads geometry's
+rigid motions and groups). Layer-DAG unit WP-E1
+(``.claude/plans/layer_dag.md`` ruling 7) therefore moved the seam
+(the Protocol, the role stamp and the walker) to
+:mod:`orpheus.transport.boundary_realization`, the lowest layer whose
+vocabulary defines it, and the SN shim ``_BoundBoundaryOperator`` to
+:mod:`orpheus.sn.boundary.bound_compat`, beside its one production
+consumer ``SNProblem``. No shim or re-export was left in geometry, and
+``tests/gates/test_layer_imports.py`` refuses a runtime import of
+:mod:`orpheus.numerics.operator` by any geometry module.
 
 
 .. _bc-vacuum-semantic-correction:
@@ -6692,8 +6712,9 @@ For descriptor-tree composition:
 .. code-block:: python
 
    from orpheus.geometry.boundary import (
-       AlbedoBoundary, SpecularReturn, WhiteBoundary, realize_recursively,
+       AlbedoBoundary, SpecularReturn, WhiteBoundary,
    )
+   from orpheus.transport.boundary_realization import realize_recursively
 
    # The leaves are responses: a mirror cannot be scaled or mixed.
    tree = 0.3 * AlbedoBoundary(1.0, SpecularReturn("x")) + 0.7 * WhiteBoundary(
@@ -8391,7 +8412,7 @@ re-attempt them:
    method #2: the diffusion realizer (#290 P3) chose a DIFFERENT
    shape (law → albedo scalar → structure-keyed collapse, not an
    isinstance ladder over per-law primitives), and the structural
-   :class:`~orpheus.geometry.boundary.BoundaryRealizer` Protocol
+   :class:`~orpheus.transport.boundary_realization.BoundaryRealizer` Protocol
    remains the only shared contract — no ABC was ever needed.
 4. **Adding ``face`` to ``VacuumInflow``'s constructor for
    semantic correctness on the standalone-apply path.** Option (b)
@@ -8511,7 +8532,7 @@ branch; trust ``git`` over this table for merge status.
      - **The walk is a homomorphism into the operator algebra, and the
        S\ :sub:`N` amplitude law has no branch.** With package S2 of the
        numerics untangling, ``+`` and ``α·`` build the normalised formal
-       linear combination, so :func:`~orpheus.geometry.boundary.realize_recursively`
+       linear combination, so :func:`~orpheus.transport.boundary_realization.realize_recursively`
        maps ``LawSum`` to ``+`` and ``LawScaled`` to ``α·`` and no longer
        keeps the law tree's shape (``0.5·(0.3X + 0.7Y)`` realizes as
        ``0.15X + 0.35Y``). The S\ :sub:`N` realizer's three α-regimes

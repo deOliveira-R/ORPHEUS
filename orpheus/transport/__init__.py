@@ -54,6 +54,10 @@ Method-facing structure:
   cluster.
 * :mod:`orpheus.transport.method` — ``TransportMethod``, the Protocol over
   the method-mesh layer.
+* :mod:`orpheus.transport.boundary_realization` — the realization seam:
+  the ``BoundaryRealizer`` Protocol every method realizer satisfies, the
+  ``BlockRole.BOUNDARY`` stamp, and the rank-N walker from a boundary-law
+  descriptor tree to an operator (moved from geometry at layer-DAG WP-E1).
 * :mod:`orpheus.transport.spatial` — method-generic spatial discretization
   schemes (the per-cell closure layer).
 

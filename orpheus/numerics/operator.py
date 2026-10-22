@@ -478,7 +478,7 @@ class BoundaryOperator(metaclass=_BlockRoleMeta):
     :meth:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer.realize`
     (the albedo family incl. zero-flux, #290) — carry
     :attr:`BlockRole.BOUNDARY` via
-    :func:`~orpheus.geometry.boundary.stamp_boundary_role`.
+    :func:`~orpheus.transport.boundary_realization.stamp_boundary_role`.
 
     **EVERY realizable law is stamped, prescribed inflow included** (P3,
     2026-08-05). Until P3 this docstring named it as the one exception,
@@ -672,7 +672,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
     #: it). The annotation HERE is a **plain instance attribute** (NOT
     #: ``ClassVar``) precisely because the composers
     #: (:class:`OperatorSum` / :class:`AdjointOperator`) and the
-    #: :func:`~orpheus.geometry.boundary.stamp_boundary_role` stamp assign
+    #: :func:`~orpheus.transport.boundary_realization.stamp_boundary_role` stamp assign
     #: ``self.block_role`` per-instance (the role is DERIVED from operands,
     #: not fixed by the class). A ``ClassVar`` would (correctly) reject
     #: that instance assignment. This base is not a ``@dataclass``, so the

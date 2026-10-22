@@ -299,6 +299,10 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         # importing geometry (whose boundary package now holds `BC`) and
         # numerics; each moved module, and the boundary package, cold.
         "orpheus.geometry.boundary",
+        # Layer DAG WP-E1 (ruling 7): the realization seam left geometry for
+        # transport, and the SN shim for sn; each new home, cold.
+        "orpheus.transport.boundary_realization",
+        "orpheus.sn.boundary.bound_compat",
         "orpheus.mesh",
         "orpheus.mesh.structured",
         "orpheus.mesh.factories",
@@ -405,6 +409,11 @@ _FORBIDDEN_LEGS = [
     # Layer DAG P3: a TYPE_CHECKING import is an edge like any other.
     ("transport/x.py", "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.sn.problem import SNProblem\n", "transport → sn"),
     ("numerics/x.py", "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.transport.mesh.material_mesh import MaterialMesh\n", "numerics → transport"),
+    # Layer DAG WP-E1 (ruling 7): the realization seam is transport's, and a
+    # geometry module that reached for it again would re-weld the declaration
+    # to its realization.
+    ("geometry/boundary/x.py", "from orpheus.transport.boundary_realization import BoundaryRealizer\n", "geometry → transport"),
+    ("geometry/boundary/x.py", "from orpheus.sn.boundary.bound_compat import _BoundBoundaryOperator\n", "geometry → sn"),
 ]
 
 _ADMITTED_LEGS = [
@@ -422,6 +431,11 @@ _ADMITTED_LEGS = [
     # layer_dag.md P2: the energy arm's view and rule live in data, over the numerics axis.
     ("data/x.py", "from orpheus.numerics.axis import EnergyAxis\n"),
     ("sn/x.py", "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.transport.mesh.material_mesh import MaterialMesh\n"),
+    # Layer DAG WP-E1: the realization reads the declarations, and both
+    # method realizers read the realization.
+    ("transport/x.py", "from orpheus.geometry.boundary import BoundaryTraceLaw, LawScaled, LawSum\n"),
+    ("sn/x.py", "from orpheus.transport.boundary_realization import stamp_boundary_role\n"),
+    ("diffusion/x.py", "from orpheus.transport.boundary_realization import stamp_boundary_role\n"),
 ]
 
 
@@ -436,6 +450,92 @@ def test_the_linter_refuses_each_forbidden_edge(rel: str, source: str, edge: str
 @pytest.mark.parametrize(("rel", "source"), _ADMITTED_LEGS)
 def test_the_linter_admits_each_allowed_edge(rel: str, source: str) -> None:
     assert _check_source(pathlib.PurePosixPath(rel), source) == []
+
+
+# ---------------------------------------------------------------------------
+# Geometry declares; it never builds an operator
+# ---------------------------------------------------------------------------
+#
+# Layer DAG ruling 1 (the user, 2026-10-22): geometry is declarative. A
+# geometry module that imports the operator algebra at runtime is a module
+# that BUILDS operators, which is realization, and realization is transport's
+# (ruling 7). The package-level gate cannot see this: geometry -> numerics is
+# an admitted edge, and `numerics.operator` is one numerics submodule among
+# many. Until WP-E1 two geometry modules did it, `boundary/_realizer.py` (the
+# realization seam) and `boundary/_bound_compat.py` (the SN shim, a
+# `LinearOperator` subclass); both moved out, and this gate is their
+# retirement's witness. A TYPE_CHECKING import of the operator TYPES stays
+# admitted: a declaration may say in an annotation what it is realized to
+# (`BoundaryTraceLaw.realize -> LinearOperator`) without importing the
+# algebra at runtime.
+
+_OPERATOR_ALGEBRA = "orpheus.numerics.operator"
+
+
+def _runtime_operator_algebra_imports(
+    rel: pathlib.PurePosixPath, src: str,
+) -> list[str]:
+    """The runtime imports of the operator algebra in one module's source.
+
+    A function-body (lazy) import is a runtime import; only a
+    ``TYPE_CHECKING``-guarded one is not.
+    """
+    return [
+        module_name
+        for module_name, is_tc in _imports_of_source(rel, src)
+        if not is_tc
+        and (module_name == _OPERATOR_ALGEBRA or module_name.startswith(_OPERATOR_ALGEBRA + "."))
+    ]
+
+
+@pytest.mark.foundation
+def test_no_geometry_module_imports_the_operator_algebra_at_runtime() -> None:
+    geometry_root = ORPHEUS_ROOT / "geometry"
+    modules = sorted(_iter_python_modules(geometry_root))
+    # The denominator is stated, so an empty walk cannot read as a clean tree.
+    assert len(modules) > 0, f"no modules under {geometry_root}"
+    offenders = [
+        f"{module_path.relative_to(ORPHEUS_ROOT)} imports {target}"
+        for module_path in modules
+        for target in _runtime_operator_algebra_imports(
+            pathlib.PurePosixPath(module_path.relative_to(ORPHEUS_ROOT).as_posix()),
+            module_path.read_text(encoding="utf-8"),
+        )
+    ]
+    assert not offenders, (
+        "geometry is declarative (layer DAG rulings 1 and 7): no geometry "
+        "module imports orpheus.numerics.operator at runtime; a realization "
+        "belongs in orpheus.transport.boundary_realization or a method "
+        "package:\n" + "\n".join(offenders)
+    )
+
+
+_OPERATOR_ALGEBRA_REFUSED_LEGS = [
+    ("geometry/boundary/x.py", "from orpheus.numerics.operator import BlockRole\n"),
+    ("geometry/boundary/x.py", "def f():\n    from orpheus.numerics.operator import LinearOperator\n"),
+    ("geometry/boundary/x.py", "import orpheus.numerics.operator\n"),
+]
+
+_OPERATOR_ALGEBRA_ADMITTED_LEGS = [
+    (
+        "geometry/boundary/x.py",
+        "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.numerics.operator import LinearOperator\n",
+    ),
+    ("geometry/boundary/x.py", "from orpheus.numerics.operator_names import X\n"),
+    ("geometry/boundary/x.py", "from orpheus.numerics.measure import DiscreteMeasure\n"),
+]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("rel", "source"), _OPERATOR_ALGEBRA_REFUSED_LEGS)
+def test_the_operator_algebra_predicate_refuses_each_runtime_shape(rel: str, source: str) -> None:
+    assert _runtime_operator_algebra_imports(pathlib.PurePosixPath(rel), source) == [_OPERATOR_ALGEBRA]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("rel", "source"), _OPERATOR_ALGEBRA_ADMITTED_LEGS)
+def test_the_operator_algebra_predicate_admits_each_other_shape(rel: str, source: str) -> None:
+    assert _runtime_operator_algebra_imports(pathlib.PurePosixPath(rel), source) == []
 
 
 # ---------------------------------------------------------------------------

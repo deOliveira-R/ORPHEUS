@@ -209,7 +209,8 @@ class BoundaryTraceLaw(ContentIdentity, RegistryMixin, ABC):
         # PeriodicBoundary) is a symmetry and is refused as an operand
         # composed is LawSum(LawScaled(0.3, ...), LawScaled(0.7, ...))
         # Still NOT callable. Realize the tree (the walker is
-        # method-blind — pass the method's own realizer):
+        # method-blind — pass the method's own realizer; it lives in
+        # orpheus.transport.boundary_realization):
         op_tree = realize_recursively(composed, ms, SNBoundaryRealizer())
         # op_tree is the combination 0.3·(...) + 0.7·(...).
 
@@ -602,7 +603,8 @@ class BoundaryTraceLaw(ContentIdentity, RegistryMixin, ABC):
         realizer when the method space's ``method_name`` is known,
         but no current production caller routes through this hook —
         each method-mesh's ``realize_boundary_law`` arm invokes its
-        own realizer directly (or :func:`realize_recursively` with an
+        own realizer directly (or
+        :func:`~orpheus.transport.boundary_realization.realize_recursively` with an
         explicit realizer for rank-N composition).
         """
         raise NotImplementedError(

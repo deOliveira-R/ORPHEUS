@@ -41,7 +41,6 @@ from orpheus.geometry import BC, StructuredGeometry
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryError,
-    BoundaryRealizer,
     PeriodicBoundary,
     PrescribedInflow,
     ReflectiveBoundary,
@@ -49,8 +48,8 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
     WhiteBoundary,
     ZeroFluxBoundary,
-    realize_recursively,
 )
+from orpheus.transport.boundary_realization import BoundaryRealizer, realize_recursively
 from orpheus.numerics.operator import ZeroOperator
 from orpheus.numerics.operator import BlockRole, BoundaryOperator, IdentityOperator
 from orpheus.mesh import CellsByCount, Mesher

@@ -34,7 +34,6 @@ import pytest
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryError,
-    BoundaryRealizer,
     IsotropicReturn,
     PeriodicBoundary,
     ReflectiveBoundary,
@@ -43,6 +42,7 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
     WhiteBoundary,
 )
+from orpheus.transport.boundary_realization import BoundaryRealizer
 from orpheus.numerics.elementary_operators import PermutationOperator
 from orpheus.numerics.operator import ZeroMorphism
 from orpheus.numerics.operator import (
@@ -927,7 +927,7 @@ class TestRealizePeriodic:
 # realizer no longer dispatches on a "mixed" type.  Rank-N compositions
 # are now built via the operator algebra's ``+``/``α·`` (``OperatorSum``)
 # over already-realised leaves; the tree-walking helper
-# :func:`orpheus.geometry.boundary.realize_recursively` realises a
+# :func:`orpheus.transport.boundary_realization.realize_recursively` realises a
 # ``BoundaryTraceLaw``-rooted expression by recursing through the
 # Wave-0 composers (its tests live in
 # ``tests/gates/geometry/test_law_composition.py``).

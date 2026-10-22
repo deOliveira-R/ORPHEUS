@@ -19,8 +19,9 @@ The §15.2 sum-of-tensor-products form
 spelled :math:`R` until B1, which collided with that type.)
 
 is realized by walking the descriptor tree via
-:func:`~orpheus.geometry.boundary.realize_recursively` (the
-method-blind walker in :mod:`._realizer`; the method's realizer is
+:func:`~orpheus.transport.boundary_realization.realize_recursively` (the
+method-blind walker in :mod:`orpheus.transport.boundary_realization`,
+which reads this module and is never read by it; the method's realizer is
 passed explicitly), which turns each leaf into a 1-arg Wave-0
 :class:`LinearOperator` and re-assembles them through the operator
 algebra's own ``+`` and ``α·`` (the formal linear combination,
@@ -68,14 +69,14 @@ is evaluated. The induction holds because the check sits in the constructor,
 which every construction route reaches (the dunders, the direct constructors,
 ``dataclasses.replace``, ``sum`` and ``functools.reduce``), and not in the
 dunders. A child that is not a law at all is admitted here and refused later,
-by :func:`~orpheus.geometry.boundary.realize_recursively`; a route that skips
+by :func:`~orpheus.transport.boundary_realization.realize_recursively`; a route that skips
 construction (``object.__new__``, a pickle written before this check) skips
 the check.
 
 Mixing :class:`LawNode` instances with already-realized
 :class:`~orpheus.numerics.operator.LinearOperator` instances is
 **not** supported: callers MUST realize the descriptor tree first
-(via :func:`realize_recursively`) before composing with Wave-0
+(via :func:`~orpheus.transport.boundary_realization.realize_recursively`) before composing with Wave-0
 operator-tree composers.
 
 References

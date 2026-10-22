@@ -22,7 +22,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
-from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
+from orpheus.sn.boundary.bound_compat import _BoundBoundaryOperator
 from orpheus.numerics.elementary_operators import DiagonalOperator, PermutationOperator
 from orpheus.numerics.operator import (
     IdentityOperator,
