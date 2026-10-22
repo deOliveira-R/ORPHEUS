@@ -41,12 +41,9 @@ S7 merged @ `e80ec738`. Next: the sub-cone measurement on numerics (`verificatio
 ## ⏸ COMPACTION POINT — 2026-10-22
 
 **State.**
-- `main` `e80ec738` is pushed, and S7 is merged (#631 closed). Its CI `gates` run 39742166668 was in progress at this point. Check it with `gh run view 39742166668 --json status,conclusion`.
-- The local branch `docs/s7-landed`, in the main checkout, holds two commits that are NOT yet merged:
-  - the plan commit (S7 merged; this plan's ruling 4 and P1 measurement; the boundary-law pointer);
-  - after it, the docs commit that stamps the S7 history rows `[LANDED e80ec738]` in `spaces.rst` and `operator_algebra.rst`.
-  - Once CI is green: `git switch main && git merge --ff-only docs/s7-landed && git push origin main`, watch CI, then delete the branch. The docs commit heads the push, never the plan commit.
-- The S7 worktree `.claude/worktrees/s7` (branch `refactor/s7-axis-identity`) is fully merged. It can be removed with `git worktree remove` and its branch deleted.
+- S7 is merged and pushed (`e80ec738`, #631 closed; CI `gates` green). The landing stamps and this plan's rulings are pushed at `497be3cf`; its CI run 39742912609 was in progress at this point.
+- This compaction note's own commit sits on `main` LOCALLY, unpushed: a plan commit never heads a push, so the next code or docs push carries it.
+- The S7 worktree `.claude/worktrees/s7` (branch `refactor/s7-axis-identity`) is fully merged; remove it with `git worktree remove .claude/worktrees/s7` and delete the branch.
 
 **Next, in order.**
 1. **The sub-cone measurement on `numerics`.** Sources: `verification_tree_refinement.md`, ruling 30 and "Sub-cones: the measurement"; S8's cone store comes first, with its positive controls. Read the result as an ontology instrument.
