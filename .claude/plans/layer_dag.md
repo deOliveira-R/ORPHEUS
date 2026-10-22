@@ -115,3 +115,9 @@ S7 merged @ `e80ec738`. Next: the sub-cone measurement on numerics (`verificatio
 2. P1 waves, from that tip (memo `scratch/layer_dag/p1_design/synthesis.md` §5): WP-E1 is done; WP-0 is done (as ruling 13). Wave 1's WP-A (the primitives package) waits on the user's NAME for the package (ruling 6); WP-B (symmetry, roots_of_unity, the geometric half of manifold, the face crosswalk) follows WP-A; the responses package (ruling 7) waits on its NAME; arm T (ruling 9) last.
 3. The sn intra-package cycle (8 members) and diffusion's triangle: diagnose before designing.
 
+### Landed after the morning compaction point (2026-10-22)
+
+- Rounds 2 and 3 are on `main` at `48348f6e` (the full suite 19118 passed, 0 failed; CI run 39796436309 green). Round 4 is on `main` at `5e47d445` (the full suite 19118 passed, 0 failed; CI run 39804289548 green): `DiffusionMethodSpace` drops its unread `mesh` field, which broke diffusion's only module cycle; two dead `TYPE_CHECKING` imports in sn go, and the sn cycle shrinks from 8 members to 5. Diagnosis: `scratch/layer_dag/round4/intra_sn_diffusion.md`.
+- Every worktree and branch of the night is removed; the explorer's memory is committed (`48348f6e`).
+- **Open for the user:** the two package names (rulings 6, 7); the sn hub's last cycle, which is the discretization/posing weld: (a) carve `system`, `pencil`, `eigen_posing`, `source_posing` and `loss_kernel_gauge` onto an object that holds the hub (a slice of #529), or (b) a subclass split. Every ruling under ruling 5 (6-15) awaits confirmation or reversal.
+
