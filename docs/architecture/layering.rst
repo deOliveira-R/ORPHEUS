@@ -374,28 +374,34 @@ The linter ships with two tolerances:
   them. Every entry carries a ``RETIRE_IN_P3_FOLLOWUP`` comment naming
   its retirement trigger.
 
-  The whitelist holds three ``derivations/`` edges into L2 and L3:
+  The whitelist holds two ``derivations/`` edges into L2 and L3:
 
   .. code-block:: python
 
      WHITELIST: frozenset[tuple[str, str]] = frozenset({
          # RETIRE_IN_P3_FOLLOWUP — MMS source uses MOCMesh / MOCQuadrature
          ("derivations/continuous/mms/moc.py", "moc"),
-         # RETIRE_IN_P3_FOLLOWUP — sood_registry lazy-imports CPParams
-         ("derivations/continuous/sood_registry/builders.py", "cp"),
          # RETIRE_IN_P3_FOLLOWUP — the non-vacuum MMS reference lazily builds
          # its prescribed-inflow source from transport vocabulary
          ("derivations/continuous/mms/sn.py", "transport"),
      })
 
-  Each entry is a reference module that poses or builds a production
-  problem (a manufactured-solution harness for a method, the Sood
-  registry's collision-probability builder): it uses production as a
+  Each entry is a reference module that poses a production problem (a
+  manufactured-solution harness for a method): it uses production as a
   black box, NOT to share algebra. These are categorically
   different from algebra-sharing imports (which would be structurally
   contaminating per :doc:`/theory/verification/index`). The retirement
   trigger for each is the module's migration to a method-side test
   or to an external benchmark harness.
+
+  A third row, ``("derivations/continuous/sood_registry/builders.py",
+  "cp")``, was retired by layer DAG P4 (2026-10-22) with the module it
+  exempted: its lazy import of ``CPParams`` was the only edge closing the
+  package cycle between ``cp`` and ``derivations``, and the function it
+  served had no caller. A Sood case's interface to production is its
+  ``to_geometry()`` and its ``materials``, and a consumer meshes the
+  geometry itself. ``test_every_exemption_row_names_a_live_edge`` (below)
+  keeps a row from outliving its edge.
 
 
 .. _architecture-reference-insulation:
@@ -502,7 +508,7 @@ and ``derivations/common/`` (the user's ruling on the gate's scope,
   a production object and they follow production's changes by nature:
   :mod:`orpheus.derivations.discrete.sn.balance` imports
   :mod:`orpheus.numerics.roots_of_unity` on purpose.
-* Three modules under the roots build production objects and are exempt
+* Two modules under the roots build production objects and are exempt
   by name, each entry of ``_REFERENCE_INSULATION_EXEMPT`` carrying its
   reason in the gate. The two manufactured-solution harnesses pose a
   production method: ``derivations/continuous/mms/sn.py`` imports
@@ -510,11 +516,8 @@ and ``derivations/common/`` (the user's ruling on the gate's scope,
   :mod:`orpheus.numerics.quadrature` and
   :mod:`orpheus.numerics.moment_layout` to pose S\ :sub:`N` problems, and
   ``derivations/continuous/mms/moc.py`` imports :mod:`orpheus.mesh` and
-  :mod:`orpheus.moc`. ``derivations/continuous/sood_registry/builders.py``
-  builds production collision-probability problems, importing
-  :mod:`orpheus.mesh` twice and ``orpheus.cp.solver`` once. The transport
-  and method imports of these three are also entries of the layer
-  linter's ``WHITELIST`` above.
+  :mod:`orpheus.moc`. The transport and method imports of these two are
+  also entries of the layer linter's ``WHITELIST`` above.
 
 **The deliberate twins.** A primitive both branches need exists once on
 each side of the line: the Perron–Frobenius extraction is
@@ -528,7 +531,8 @@ the two.
 
 **The gate.** :file:`tests/gates/test_layer_imports.py`, section "The
 closed references import only the interface vocabulary of numerics",
-four ``foundation`` tests:
+four ``foundation`` tests, and a fifth in the section "Every exemption
+row names a live edge":
 
 * ``test_closed_references_import_only_the_numerics_interface`` walks every
   module under ``orpheus/derivations/``, keeps those under the two roots
@@ -541,21 +545,32 @@ four ``foundation`` tests:
   ``__import__``. Unlike the layer linter's L1/L2 tolerance, an import
   inside ``if TYPE_CHECKING:`` is refused here: a reference has no reason
   to name a production type even for a type checker.
-* ``test_reference_insulation_refuses_each_import_shape`` feeds seven
+* ``test_reference_insulation_refuses_each_import_shape`` feeds nine
   synthetic sources, one per import shape (absolute, ``import a.b.c``,
-  relative, function-body, ``TYPE_CHECKING``, the bare package, and
-  ``importlib.import_module``), and requires exactly one numerics
-  violation from each.
-* ``test_reference_insulation_refuses_production_machinery`` feeds four:
+  relative, function-body, ``TYPE_CHECKING``, the bare package by
+  ``from orpheus.numerics import``, ``importlib.import_module``, and the
+  package as a name, absolute and relative), and requires exactly one
+  numerics violation from each.
+* ``test_reference_insulation_refuses_production_machinery`` feeds six:
   an absolute import of the mesh, a function-body import from the
-  transport layer, a method package, and a relative import of a method
-  package, and requires exactly one production-machinery violation from
+  transport layer, a method package, the mesh package as a name, a
+  relative import of a method package, and a method import from the path
+  of the retired Sood builder (re-adding its exemption turns that leg
+  red), and requires exactly one production-machinery violation from
   each.
 * ``test_reference_insulation_admits_the_interface_and_the_exempt``
-  requires no violation from eight sources: two interface imports, an
-  exempt harness, a module under ``derivations/discrete/``, numpy with
-  scipy, the exempt Sood builder importing a method, the geometry with the
-  data, and the specification with the reference package.
+  requires no violation from nine sources: three interface imports, an
+  exempt harness importing a production quadrature, a module under
+  ``derivations/discrete/``, numpy with scipy, an exempt MMS harness
+  importing a method, the geometry with the data, and the specification
+  with the reference package.
+* ``test_every_exemption_row_names_a_live_edge`` removes each
+  ``WHITELIST`` row and each ``_REFERENCE_INSULATION_EXEMPT`` entry in
+  turn and requires the named file to exist and to redden the predicate
+  the row exempts (2 of 2 rows and 2 of 2 entries live after P4). Its
+  first red is the tree of P4 with the Sood builder deleted and its two
+  rows not yet retired: it reports both as naming a file that does not
+  exist.
 
 Its first red is the tree before the reference kernel landed. `[M]`
 2026-10-06: the gate's own predicate, run on
@@ -572,7 +587,12 @@ same day, ``git grep`` over the import lines of ``orpheus/derivations``,
 the Sood builder without its exemption (`[M]` 2026-10-06, the gate's
 predicate run with the entry removed): two violations for
 :mod:`orpheus.mesh` and one for ``orpheus.cp.solver``; on the tree with the
-exemption the whole gate returns none.
+exemption the whole gate returns none. P4 (2026-10-22) deleted the
+builder and retired both rows; the first red is the recreated module's
+function-body ``CPParams`` import, refused by both tree-wide tests
+(``test_no_forbidden_imports`` with "forbidden: derivations → cp", and
+``test_closed_references_import_only_the_numerics_interface`` with "never
+imports production machinery").
 
 **A change to the allowlist is a contract change.** The interface
 vocabulary is itself a channel through which production churn can reach a
@@ -621,8 +641,9 @@ converged on the contract *before* the linter landed (the discipline
 had been enforced by earlier waves of refactoring); the P3.1 commit
 only made the contract executable. Three ``derivations/`` whitelist
 entries were the entirety of the violations across 243 Python modules:
-the two still listed for the MoC harness and the Sood builder, and the
-diffusion cases' benchmark cross-check, since retired; the S\ :sub:`N`
+the MoC harness's, still listed; the Sood builder's, retired by layer
+DAG P4 (2026-10-22); and the diffusion cases' benchmark cross-check,
+since retired; the S\ :sub:`N`
 harness's entry came later.
 
 The earlier waves that converged on the contract:

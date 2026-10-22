@@ -18,17 +18,28 @@ precision remain unbuilt — tracked in issue #305).
 
 Test classification:
 
-* :func:`test_*_consumable_by_*` — ``foundation``-tagged structural
-  invariants of the registry / extractor interface.
-* :func:`test_PUa_1_0_IN_kinf_consumable_by_kinf_homogeneous` —
-  ``foundation`` smoke that the existing transfer-matrix k_inf
-  reference solver can consume the new registry directly and
-  reproduces the published value.
-* :func:`test_*_smoke_via_solve_cp` /
-  :func:`test_*_smoke_via_solve_sn` — ``l1`` smoke that production
-  solvers accept the registry's mesh + materials. These are slow
-  (full power iteration) and run with ``@pytest.mark.slow`` so the
-  default ``foundation`` collection skips them.
+* :func:`test_case_materials_is_dict_of_mixture`,
+  :func:`test_case_geometry_kind_well_formed` and
+  :func:`test_case_geometry_matches_expected` — ``foundation`` shape
+  invariants of the registry's case interface.
+* :func:`test_PUa_1_0_IN_extractor_matches_published_xs` and
+  :func:`test_PU_2_0_IN_extractor_matches_published_xs` —
+  ``foundation`` round-trip of the published cross sections through
+  the :class:`Mixture`.
+* :func:`test_kinf_homogeneous_consumes_registry_case_directly` —
+  ``foundation`` smoke that the transfer-matrix k_inf reference solver
+  consumes the registry directly and reproduces the published value.
+* :func:`test_solve_cp_accepts_registry_sphere_case` /
+  :func:`test_solve_sn_accepts_registry_slab_case` — ``l1`` smoke that
+  production solvers accept the case's ``materials`` and a mesh the
+  test builds from ``to_geometry()``. These are slow (full power
+  iteration) and run with ``@pytest.mark.slow`` so the default
+  ``foundation`` collection skips them.
+
+The registry's geometry is gated in
+``tests/gates/derivations/test_sood2003_to_geometry.py``, and the
+geometry-to-mesh map in ``tests/gates/mesh/test_mesher.py``: meshing a
+case is the consumer's choice, so the registry exports no mesh builder.
 """
 from __future__ import annotations
 
@@ -44,12 +55,7 @@ from orpheus.derivations.continuous.sood_registry import (
     UA_1_0_SL_STUB,
     UA_1_0_SP_STUB,
     La13511Case,
-    build_materials,
-    build_mesh,
 )
-from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry import BC
-from orpheus.mesh import Mesh1D
 
 
 def _xs_from_mixture(mix: Mixture):
@@ -159,75 +165,6 @@ def test_PU_2_0_IN_extractor_matches_published_xs() -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Foundation: mesh template build conventions
-# ═══════════════════════════════════════════════════════════════════
-
-
-def _critical_dimension_cm(case: La13511Case) -> float:
-    """Derive the critical dimension in cm from the case.
-
-    ``cm = mfp / Σ_t``, with mfp from :attr:`La13511Truth.critical_dimension_mfp`
-    and Σ_t from the primary mixture's group-0 SigT.
-    """
-    return float(case.truth.critical_dimension_mfp) / float(case.materials[0].SigT[0])
-
-
-@pytest.mark.foundation
-def test_slab_mesh_builds_full_symmetric_domain() -> None:
-    r"""Slab mesh covers the FULL symmetric slab :math:`[0, 2a]`.
-
-    F_N convention: ``truth.critical_dimension_mfp`` corresponds to the
-    half-thickness :math:`a`; in cm this is
-    :math:`a_{\rm cm} = a_{\rm mfp} / \Sigma_t`. The constructed mesh
-    covers ``[0, 2a_{cm}]`` with vacuum BCs at both ends — matching
-    the F_N vs Variant α slab xverif test convention.
-    """
-    case = UA_1_0_SL_STUB
-    mesh = build_mesh(case, n_cells=16)
-    assert mesh.coord == CoordSystem.CARTESIAN
-    expected_total = 2.0 * _critical_dimension_cm(case)
-    assert mesh.total_width == pytest.approx(expected_total, abs=1e-12)
-    assert dict(mesh.face_laws) == {"xmin": BC.vacuum, "xmax": BC.vacuum}
-    assert mesh.N == 16
-
-
-@pytest.mark.foundation
-def test_sphere_mesh_builds_radial_domain_with_reflective_centre() -> None:
-    """Sphere mesh covers ``[0, R]``; centreline reflective is implicit.
-
-    A solid sphere has one boundary face, the outer surface: the
-    centre at the coordinate origin is an interior point and carries
-    no law (the centreline reflection is each method's own symmetry
-    condition, not a declared law).
-    """
-    case = UA_1_0_SP_STUB
-    mesh = build_mesh(case, n_cells=24)
-    assert mesh.coord == CoordSystem.SPHERICAL
-    assert mesh.total_width == pytest.approx(_critical_dimension_cm(case), abs=1e-12)
-    assert mesh.boundary_points == (mesh.total_width,)  # the centre carries no law
-    assert dict(mesh.face_laws) == {"xmax": BC.vacuum}
-
-
-@pytest.mark.foundation
-def test_cylinder_mesh_builds_radial_domain_with_reflective_axis() -> None:
-    """Cylinder mesh covers ``[0, R]``; axis reflective is implicit."""
-    case = SOOD2003_CASES["Ua-1-0-CY"]
-    mesh = build_mesh(case, n_cells=20)
-    assert mesh.coord == CoordSystem.CYLINDRICAL
-    assert mesh.total_width == pytest.approx(_critical_dimension_cm(case), abs=1e-12)
-    assert mesh.boundary_points == (mesh.total_width,)  # the axis carries no law
-    assert dict(mesh.face_laws) == {"xmax": BC.vacuum}
-
-
-@pytest.mark.foundation
-def test_infinite_geometry_kind_raises_on_build() -> None:
-    """build_mesh on infinite-medium case raises ValueError."""
-    for case in (PUA_1_0_IN, PU_2_0_IN):
-        with pytest.raises(ValueError, match="infinite"):
-            build_mesh(case)
-
-
-# ═══════════════════════════════════════════════════════════════════
 # Foundation: registry-side production-protocol round-trip via
 # transfer-matrix k_inf reference solver
 # ═══════════════════════════════════════════════════════════════════
@@ -282,10 +219,11 @@ def test_solve_cp_accepts_registry_sphere_case() -> None:
     import math
 
     from orpheus.cp.solver import CPParams, solve_cp
+    from orpheus.mesh import CellsByCount, Mesher
 
     case = UA_1_0_SP_STUB
-    materials = build_materials(case)
-    mesh = build_mesh(case, n_cells=32)
+    materials = case.materials
+    mesh = Mesher(case.to_geometry()).partition(CellsByCount.uniform_volume(32)).mesh
     params = CPParams(max_outer=50, keff_tol=1e-4, flux_tol=1e-3)
 
     result = solve_cp(materials, mesh, params)
@@ -310,11 +248,12 @@ def test_solve_sn_accepts_registry_slab_case() -> None:
     import math
 
     from orpheus.numerics.quadrature import Quadrature
+    from orpheus.mesh import CellsByCount, Mesher
     from orpheus.sn.solver import solve_sn
 
     case = UA_1_0_SL_STUB
-    materials = build_materials(case)
-    mesh = build_mesh(case, n_cells=32)
+    materials = case.materials
+    mesh = Mesher(case.to_geometry()).partition(CellsByCount.uniform_volume(32)).mesh
     quadrature = Quadrature.gauss_legendre(n_ordinates=16)
 
     result = solve_sn(

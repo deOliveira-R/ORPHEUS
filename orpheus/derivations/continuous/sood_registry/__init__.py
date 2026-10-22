@@ -43,8 +43,6 @@ Module layout
   the 2003 edition.
 * :mod:`.atalay1997` — the 6 Atalay 1997 reflected-slab cases.
 * :mod:`.case` — the case schema both are built on.
-* :mod:`.builders` — case → ``(materials, mesh, params)`` helpers
-  for production-solver consumers.
 
 References
 ----------
@@ -131,7 +129,6 @@ from .atalay1997 import (
     ATALAY_SLAB_C130_R050_F010,
     ATALAY_SLAB_C130_R075_F0,
 )
-from .builders import build_cp_params, build_materials, build_mesh
 from .cache import SoodResultCache, cache_info, clear_cache, sood_cache
 
 __all__ = [
@@ -198,10 +195,6 @@ __all__ = [
     "WIDE_SLICE_STUBS",
     # Top-level registry
     "SOOD2003_CASES",
-    # Builders / extractors
-    "build_materials",
-    "build_mesh",
-    "build_cp_params",
     # Cache (Phase B4)
     "SoodResultCache",
     "sood_cache",

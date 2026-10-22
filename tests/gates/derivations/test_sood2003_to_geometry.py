@@ -178,7 +178,7 @@ def test_infinite_to_geometry_raises_with_kinf_pointer() -> None:
 @pytest.mark.foundation
 def test_infinite_2g_to_geometry_raises() -> None:
     """2G infinite case (``PU-2-0-IN``) also raises."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="infinite"):
         PU_2_0_IN.to_geometry()
 
 

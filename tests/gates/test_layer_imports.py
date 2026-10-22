@@ -91,9 +91,6 @@ WHITELIST: frozenset[tuple[str, str]] = frozenset(
         # RETIRE_IN_P3_FOLLOWUP — MMS source uses MOCMesh / MOCQuadrature
         # at module level; move to test side or import only L2 primitives.
         ("derivations/continuous/mms/moc.py", "moc"),
-        # RETIRE_IN_P3_FOLLOWUP — sood_registry lazy-imports CPParams
-        # inside a function body to avoid CP transitive deps at import time.
-        ("derivations/continuous/sood_registry/builders.py", "cp"),
         # RETIRE_IN_P3_FOLLOWUP — the non-vacuum MMS reference lazily builds
         # its prescribed-inflow source from transport vocabulary
         # (AngularBoundarySourceSink / AngularSourceSink / TimedFullField) inside
@@ -163,8 +160,14 @@ def _imports_of_source(
     return results
 
 
-def _check_source(rel: pathlib.PurePosixPath, src: str) -> list[str]:
-    """The layer violations of one module's source, ``rel`` relative to ``orpheus/``."""
+def _check_source(
+    rel: pathlib.PurePosixPath, src: str, whitelist: frozenset[tuple[str, str]] = WHITELIST,
+) -> list[str]:
+    """The layer violations of one module's source, ``rel`` relative to ``orpheus/``.
+
+    ``whitelist`` is the exemption set read; the vacuous-row guard passes the
+    set minus one row to ask whether that row still names a live edge.
+    """
     src_pkg = _top_level_package(rel)
     if src_pkg not in FORBIDDEN_EDGES:
         return []
@@ -180,7 +183,7 @@ def _check_source(rel: pathlib.PurePosixPath, src: str) -> list[str]:
         # TYPE_CHECKING tolerance: L1/L2 importing L3 names for typing.
         if is_tc and src_pkg in (L1_PACKAGES | L2_PACKAGES):
             continue
-        if (rel_str, tgt_pkg) in WHITELIST:
+        if (rel_str, tgt_pkg) in whitelist:
             continue
         violations.append(
             f"{rel} imports {module_name} "
@@ -372,6 +375,14 @@ _FORBIDDEN_LEGS = [
     ("geometry/x.py", "from orpheus.specification import Specification\n", "geometry → specification"),
     ("numerics/x.py", "from orpheus.specification import Specification\n", "numerics → specification"),
     ("mesh/x.py", "from orpheus.specification import Specification\n", "mesh → specification"),
+    # A lazy L0 -> L3 import: a function-body import is an edge like any other.
+    ("derivations/x.py", "def f():\n    from orpheus.cp.solver import CPParams\n", "derivations → cp"),
+    # The retired WHITELIST row: re-adding it turns this red.
+    (
+        "derivations/continuous/sood_registry/builders.py",
+        "def f():\n    from orpheus.cp.solver import CPParams\n",
+        "derivations → cp",
+    ),
 ]
 
 _ADMITTED_LEGS = [
@@ -439,15 +450,16 @@ _CLOSED_REFERENCE_ROOTS: tuple[str, ...] = ("derivations/continuous/", "derivati
 REFERENCE_FORBIDDEN_PACKAGES: frozenset[str] = MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES
 
 # Exempt by name, with the reason (the user's rulings on the gate's scope,
-# 2026-10-06): these modules pose a production method, so their subject is a
-# production object and they follow production's changes by nature.
+# 2026-10-06): these two MMS harnesses pose a production method, so their
+# subject is a production object and they follow production's changes by
+# nature. (The Sood registry's builder module, exempt until layer DAG P4 of
+# 2026-10-22, was deleted with its entry.)
 # `derivations/discrete/` is outside the roots for the same reason (an algebra
 # of record of a production discretization).
 _REFERENCE_INSULATION_EXEMPT: frozenset[str] = frozenset(
     {
         "derivations/continuous/mms/sn.py",  # the MMS harness that poses SN problems
         "derivations/continuous/mms/moc.py",  # the MMS harness that poses MoC problems
-        "derivations/continuous/sood_registry/builders.py",  # builds production CP problems
     }
 )
 
@@ -502,10 +514,16 @@ def _dynamic_imports(src: str) -> list[str]:
     return names
 
 
-def _reference_insulation_violations(rel: pathlib.PurePosixPath, src: str) -> list[str]:
-    """The non-interface `numerics` imports of one closed-reference module."""
+def _reference_insulation_violations(
+    rel: pathlib.PurePosixPath, src: str, exempt: frozenset[str] = _REFERENCE_INSULATION_EXEMPT,
+) -> list[str]:
+    """The non-interface `numerics` imports of one closed-reference module.
+
+    ``exempt`` is the exemption set read; the vacuous-row guard passes the set
+    minus one entry to ask whether that entry still exempts a live import.
+    """
     rel_str = rel.as_posix()
-    if not rel_str.startswith(_CLOSED_REFERENCE_ROOTS) or rel_str in _REFERENCE_INSULATION_EXEMPT:
+    if not rel_str.startswith(_CLOSED_REFERENCE_ROOTS) or rel_str in exempt:
         return []
     imported = _imported_targets(rel, src) + _dynamic_imports(src)
     violations: list[str] = []
@@ -558,7 +576,7 @@ _INSULATION_ADMITTED_LEGS = [
     ("derivations/continuous/mms/sn.py", "from orpheus.numerics.quadrature import Quadrature\n"),
     ("derivations/discrete/sn/x.py", "from orpheus.numerics.roots_of_unity import roots_of_unity\n"),
     ("derivations/common/x.py", "import numpy as np\nimport scipy.linalg\n"),
-    ("derivations/continuous/sood_registry/builders.py", "from orpheus.cp import CPParams\n"),
+    ("derivations/continuous/mms/moc.py", "from orpheus.moc.geometry import MOCMesh\n"),
     ("derivations/common/x.py", "from orpheus.geometry import StructuredGeometry\nfrom orpheus.data.materials import Materials\n"),
     ("derivations/common/x.py", "from orpheus.specification import Specification\nfrom orpheus.reference import ReferenceSolution\n"),
 ]
@@ -570,6 +588,8 @@ _INSULATION_REFUSED_PRODUCTION_LEGS = [
     ("derivations/continuous/x/y.py", "from orpheus.cp import CPParams\n"),
     ("derivations/continuous/x/y.py", "from orpheus import mesh\n"),
     ("derivations/common/x.py", "from ...sn.problem import SNProblem\n"),
+    # The retired Sood builder: re-adding its exempt entry turns this red.
+    ("derivations/continuous/sood_registry/builders.py", "from orpheus.cp import CPParams\n"),
 ]
 
 
@@ -591,3 +611,40 @@ def test_reference_insulation_refuses_production_machinery(rel: str, source: str
 @pytest.mark.parametrize(("rel", "source"), _INSULATION_ADMITTED_LEGS)
 def test_reference_insulation_admits_the_interface_and_the_exempt(rel: str, source: str) -> None:
     assert _reference_insulation_violations(pathlib.PurePosixPath(rel), source) == []
+
+
+# ---------------------------------------------------------------------------
+# Every exemption row names a live edge
+# ---------------------------------------------------------------------------
+#
+# An exemption that outlives its edge is a hole with no witness: a WHITELIST
+# row for a deleted module, or an insulation exemption for a module that no
+# longer imports production machinery, admits the next import spelled there
+# while every other test stays green. Each row is checked by removing it alone
+# and requiring its own module to redden the predicate it exempts. Layer DAG
+# P4 (2026-10-22), whose deletion of the Sood builders left two such rows.
+
+
+@pytest.mark.foundation
+def test_every_exemption_row_names_a_live_edge() -> None:
+    stale: list[str] = []
+    for rel, pkg in sorted(WHITELIST):
+        path = ORPHEUS_ROOT / rel
+        if not path.is_file():
+            stale.append(f"WHITELIST row {(rel, pkg)}: {rel} does not exist")
+            continue
+        violations = _check_source(
+            pathlib.PurePosixPath(rel), path.read_text(encoding="utf-8"), WHITELIST - {(rel, pkg)},
+        )
+        if not any(v.endswith(f" → {pkg})") for v in violations):
+            stale.append(f"WHITELIST row {(rel, pkg)}: {rel} imports nothing from orpheus.{pkg}")
+    for rel in sorted(_REFERENCE_INSULATION_EXEMPT):
+        path = ORPHEUS_ROOT / rel
+        if not path.is_file():
+            stale.append(f"insulation exemption {rel!r}: the file does not exist")
+            continue
+        if not _reference_insulation_violations(
+            pathlib.PurePosixPath(rel), path.read_text(encoding="utf-8"), _REFERENCE_INSULATION_EXEMPT - {rel},
+        ):
+            stale.append(f"insulation exemption {rel!r}: the module imports nothing the exemption admits")
+    assert not stale, "stale exemption rows:\n" + "\n".join(stale)

@@ -249,9 +249,9 @@ class La13511Case:
             raise ValueError(
                 f"Case {self.case_id!r}: truth.critical_dimension_mfp "
                 f"is None — to_geometry() requires a published critical "
-                f"dimension. (Multi-region cases without a single "
-                f"published scalar are handled by sibling registry "
-                f"builders, not by this method.)"
+                f"dimension. (A case without a single published "
+                f"critical dimension needs its geometry built by its "
+                f"consumer.)"
             )
 
         # cm = mfp / Σ_t (group 0 — the primary group's total XS sets

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19654**
+Total tests collected: **19653**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2758, 14.0%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14855, 75.6%
+   foundation, 14854, 75.6%
    unmarked, 43, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19532
+   explicit, 19531
    class-name, 46
    func-name, 0
    case, 33
@@ -269,7 +269,7 @@ Module × level grid
    derivations/test_sn_mms_nonvacuum_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_sood2003_to_geometry, 0, 0, 0, 0, 77, 0
    derivations/test_sood_registry_cache, 0, 0, 0, 0, 15, 0
-   derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 107, 0
+   derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 103, 0
    derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
    derivations/test_sood_registry_wide_kinf, 0, 0, 0, 0, 49, 0
    derivations/test_xs_library_validation, 0, 0, 0, 0, 2, 0
@@ -667,7 +667,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 473, 0
+   test_layer_imports, 0, 0, 0, 0, 476, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0

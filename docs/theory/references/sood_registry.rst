@@ -100,10 +100,9 @@ load-bearing reasons:
 The registry decouples the two: the case lives in
 :mod:`sood_registry`, the method lives in its own module
 (:mod:`fn_method`, :mod:`singular_eigenfunction`, etc.), and the
-adapter functions
-(:func:`build_materials`,
-:func:`build_mesh`, :func:`build_cp_params`) bridge the two (reference
-solvers read cross sections directly off the shared
+case's ``to_geometry()`` and ``materials`` are the bridge, and meshing
+is the consumer's choice (reference solvers read cross sections
+directly off the shared
 :class:`~orpheus.data.macro_xs.mixture.Mixture`). Adding
 a sixth method to verify against an existing case requires only the
 method's own implementation and a new test file consuming
@@ -459,14 +458,15 @@ the materials dict and a built mesh:
 
 .. code-block:: python
 
-   from orpheus.derivations.continuous.sood_registry import (
-       SOOD2003_CASES, build_materials, build_mesh,
-   )
+   from orpheus.derivations.continuous.sood_registry import SOOD2003_CASES
    from orpheus.cp.solver import solve_cp
+   from orpheus.mesh import CellsByCount, Mesher
 
    case = SOOD2003_CASES["Ua-1-0-SL"]
-   materials = build_materials(case)        # -> dict[int, Mixture]
-   mesh = build_mesh(case, n_cells=64)      # -> Mesh1D
+   materials = case.materials               # -> dict[int, Mixture]
+   mesh = Mesher(case.to_geometry()).partition(
+       CellsByCount.uniform_volume(64)
+   ).mesh                                   # -> Mesh1D
    result = solve_cp(materials, mesh, ...)
    # cross-check against case.truth.k_eff_or_kinf
 
@@ -1043,8 +1043,8 @@ The current registry has two registries side-by-side:
 :class:`SOOD2003_CASES` (Sood/Forster/Parsons 2003) and the Atalay
 catalogue (Atalay 1997). Both share the same case schema
 (:class:`La13511Case`, from ``sood_registry/case.py``, whose name keeps
-the 1999 report's number until P4 retires it) and both feed the same consumer adapter functions
-(:func:`build_materials`, :func:`build_mesh`) and the shared
+the 1999 report's number until P4 retires it) and both expose the same
+``to_geometry()`` / ``materials`` interface and the shared
 :class:`~orpheus.data.macro_xs.mixture.Mixture` API.
 
 The architectural pattern this surfaces — **method-agnostic case
