@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19666**
+Total tests collected: **19671**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1913, 9.7%
-   L1, 2758, 14.0%
+   L1, 2762, 14.0%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14867, 75.6%
+   foundation, 14868, 75.6%
    unmarked, 43, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19544
+   explicit, 19549
    class-name, 46
    func-name, 0
    case, 33
@@ -269,7 +269,7 @@ Module × level grid
    derivations/test_sn_mms_nonvacuum_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_sood2003_to_geometry, 0, 0, 0, 0, 77, 0
    derivations/test_sood_registry_cache, 0, 0, 0, 0, 15, 0
-   derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 107, 0
+   derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 103, 0
    derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
    derivations/test_sood_registry_wide_kinf, 0, 0, 0, 0, 49, 0
    derivations/test_xs_library_validation, 0, 0, 0, 0, 2, 0
@@ -358,7 +358,7 @@ Module × level grid
    mesh/test_dropped_laws_are_refused, 0, 0, 0, 0, 19, 0
    mesh/test_hollow_inner_law, 0, 0, 0, 0, 13, 0
    mesh/test_hub_and_frame_agree_on_the_moment_space, 0, 0, 0, 0, 36, 0
-   mesh/test_hub_owns_the_moment_space, 0, 0, 0, 0, 11, 0
+   mesh/test_hub_owns_the_moment_space, 0, 0, 0, 0, 12, 0
    mesh/test_mesh1d, 0, 0, 0, 0, 62, 0
    mesh/test_mesh1d_cell_integrals, 0, 0, 0, 0, 25, 0
    mesh/test_mesh1d_regions, 0, 0, 0, 0, 31, 0
@@ -667,7 +667,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 478, 0
+   test_layer_imports, 0, 0, 0, 0, 483, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -676,7 +676,7 @@ Module × level grid
    tools/test_test_durations, 0, 0, 0, 0, 10, 0
    tools/test_write_guards, 0, 0, 0, 0, 22, 0
    transport/test_angular_lift, 0, 0, 0, 0, 18, 0
-   transport/test_boundary_source_from_specs, 0, 12, 0, 0, 0, 0
+   transport/test_boundary_source_from_specs, 0, 16, 0, 0, 0, 0
    transport/test_bulk_lift, 0, 0, 0, 0, 20, 0
    transport/test_composite, 0, 0, 0, 0, 15, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0
@@ -687,7 +687,7 @@ Module × level grid
    transport/test_kernels, 0, 0, 0, 0, 88, 0
    transport/test_material_field, 0, 0, 0, 0, 46, 0
    transport/test_material_mesh, 0, 0, 0, 0, 9, 0
-   transport/test_material_mesh_admission, 0, 0, 0, 0, 13, 0
+   transport/test_material_mesh_admission, 0, 0, 0, 0, 12, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 36, 0
    transport/test_n2n_multiplicity_census, 0, 0, 0, 0, 2, 0

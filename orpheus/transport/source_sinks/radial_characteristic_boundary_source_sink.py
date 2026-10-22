@@ -56,8 +56,6 @@ class RadialCharacteristicBoundarySourceSink(RadialCharacteristicBoundaryField, 
         The R12a-keyed boundary space (canonically
         ``mesh.radial_characteristic_boundary_space``) carrying the layout and
         the ``G = V(r = R)`` corner gauge.
-    mesh : SNProblem
-        The SN phase-space carrier (the cross-mesh-arithmetic guard).
     """
 
     #: Trace-like corner datum — ``1/(cm²·s·sr)``,

@@ -242,6 +242,7 @@ class EnergyGrid:
             partition_of=EnergyGroups(self.n_groups),
         )
 
+    # ── The function-space view (the energy factor of a space of axes) ─────
     def as_axis(self) -> EnergyAxis:
         r"""The grid seen as the energy factor of a function space.
 

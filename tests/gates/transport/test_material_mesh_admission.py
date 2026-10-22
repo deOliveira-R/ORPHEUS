@@ -29,10 +29,10 @@ it owes a witness) — a positive control (the d=3 carrier constructs with
 ``mesh is None``) and the d=1 / d=2 axis-native constructions that
 synthesize their adapter.
 R1 — the retirement is UNSPELLABLE: no class in the carrier hierarchy
-has a ``from_materials``. The energy-arm rule that once shared the name
-(``EnergyAxis.from_materials``) now lives at
-``orpheus.data.materials.energy_axis_of`` (layer_dag.md P2; gated at
-``test_kernels.py``) and SURVIVES.
+has a ``from_materials``. (The energy-arm rule that once shared the name,
+``EnergyAxis.from_materials``, is now ``orpheus.data.materials.energy_axis_of``,
+gated at ``test_kernels.py``; with the homonym gone there is no name left to
+confuse, so this file no longer pins it.)
 """
 
 from __future__ import annotations
@@ -43,7 +43,6 @@ import pytest
 from orpheus.diffusion import DiffusionMesh
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
-from orpheus.data.materials import energy_axis_of
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.mesh import AxisMesh
@@ -190,15 +189,6 @@ class TestR1TheFactoryIsUnspellable:
                 not hasattr(cls, "from_materials"),
                 f"{cls.__name__}.from_materials exists — the fabricated carrier's factory is back",
             )
-
-    def test_the_energy_arm_rule_survives(self):
-        """The energy-arm rule (hoisted at CS4a K1 as the homonym
-        ``EnergyAxis.from_materials``; re-homed at layer_dag.md P2) now lives
-        at ``orpheus.data.materials.energy_axis_of``, gated at
-        ``test_kernels.py`` — the carrier factory's retirement must not have
-        taken it."""
-        axis = energy_axis_of(placeholder_materials(ng=2).values())
-        _require(axis.shape == (2,), "energy_axis_of must still mint the energy axis")
 
     def test_nothing_in_the_tree_can_build_a_mesh_less_one_d_carrier(self):
         """The retired arms' precondition, stated as the singleton law's

@@ -249,7 +249,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         Parameters
         ----------
         problem : MaterialMesh
-            The SN phase-space carrier; ``mesh.angular_trace`` supplies the
+            The material mesh; ``problem.angular_trace`` supplies the
             trace: its
             :class:`~orpheus.numerics.face_layout.FaceLayout` and the
             per-face inflow ordinate index sets
@@ -351,7 +351,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         Parameters
         ----------
         problem : MaterialMesh
-            The SN phase-space carrier; ``mesh.angular_trace`` supplies the
+            The material mesh; ``problem.angular_trace`` supplies the
             trace: its layout and the per-face inflow ordinate index sets.
         face_specs : Mapping[str, InflowSourceSpec]
             ``{face_name: spec}``. Faces absent from the mapping are vacuum
@@ -412,7 +412,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
     def from_problem_laws(cls, problem: "MaterialMesh") -> "AngularBoundarySourceSink":
         r"""⭐ The DECLARED boundary conditions' :math:`q` — the user's path.
 
-        Reads each face's realized law (``mesh.bc[face].law``) and materialises
+        Reads each face's realized law (``problem.bc[face].law``) and materialises
         the inflow source of every
         :class:`~orpheus.geometry.boundary.PrescribedInflow` among them. Faces
         carrying any other law contribute nothing: vacuum, reflective, white,

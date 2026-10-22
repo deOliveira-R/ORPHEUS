@@ -31,7 +31,6 @@ import numpy as np
 import pytest
 
 import orpheus.transport.kernels as kernels_module
-from orpheus.data.energy_grid import EnergyGrid
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.materials import energy_axis_of
 from orpheus.derivations.common.xs_library import get_mixture
@@ -394,7 +393,7 @@ def test_energy_arm_content_equal_edges_is_the_grid_axis():
     first = dataclasses.replace(_asymmetric_fissile_2g(), eg=_EDGES_2G)
     second = dataclasses.replace(_second_fissile_2g(), eg=_EDGES_2G.copy())
     axis = energy_axis_of([first, second])
-    assert axis == EnergyGrid(_EDGES_2G).as_axis()
+    assert axis == EnergyAxis.of_edges(_EDGES_2G)
     assert axis.edges is not None
     assert axis != EnergyAxis.synthetic(2)
 
@@ -437,7 +436,10 @@ def test_bulk_space_energy_arm_reads_only_reachable_materials():
     carrier = unit_cell_carrier({0: with_edges, 1: spectator})
     axes = carrier.bulk_space.axes
     assert axes is not None
-    assert axes[0] == EnergyGrid(_EDGES_2G).as_axis()
+    # The reference is minted by the numerics constructor, not through the data
+    # view production uses, and the gridded/synthetic split is asserted on its own.
+    assert axes[0] == EnergyAxis.of_edges(_EDGES_2G)
+    assert axes[0] != EnergyAxis.synthetic(2)
 
 
 # ═════════════════════════════════════════════════════════════════════════

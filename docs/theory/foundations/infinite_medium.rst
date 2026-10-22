@@ -3472,9 +3472,9 @@ hash, and ``git`` outranks this column.
        ``MaterialMesh`` / ``SNProblem`` / ``DiffusionMesh``); the homonym
        ``EnergyAxis.from_materials`` — a different
        object, and the one energy-arm rule both spellings of the pose
-       route through — survives untouched (re-homed to data as
-       ``orpheus.data.materials.energy_axis_of`` at layer_dag.md P2,
-       2026-10).  Test fixtures that had used
+       route through — survived that retirement untouched (and was
+       re-homed to data as ``orpheus.data.materials.energy_axis_of`` at
+       layer_dag.md P2, 2026-10).  Test fixtures that had used
        the fabricated carrier for convenience moved to ONE shared home,
        a **genuine** unit-width one-cell ``Mesh1D`` carrier, `[M]`
        like-for-like on every read surface the migrated sites touch.

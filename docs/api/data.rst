@@ -126,6 +126,13 @@ halves of a discrete frame — :meth:`~orpheus.data.energy_grid.EnergyGrid.as_me
 view, project *to*) — plus the irreducibly binary
 :meth:`~orpheus.data.energy_grid.EnergyGrid.overlap_to` mismatch factory
 (the non-nested fractional :class:`~orpheus.numerics.basis.OverlapBasis`).
+A third view, :meth:`~orpheus.data.energy_grid.EnergyGrid.as_axis`, is not a
+frame half: it reads the grid as the energy factor of a function space, an
+:class:`~orpheus.numerics.axis.EnergyAxis` whose content is the grid's
+boundary energies, minted by the numerics constructor
+:meth:`~orpheus.numerics.axis.EnergyAxis.of_edges`. It lives here, in
+``data``, because the grid is data vocabulary and ``numerics`` names nothing
+in ``data`` (layer DAG P2).
 The condensation is **data-native**: the grid, the overlap factory, and
 the Petrov-Galerkin frame all live in ``data`` / ``numerics``, with no
 transport dependency. There is no ``GroupCondensation`` /

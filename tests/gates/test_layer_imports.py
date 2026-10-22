@@ -166,20 +166,24 @@ def _imports_of_source(
 
 
 def _check_source(
-    rel: pathlib.PurePosixPath, src: str, whitelist: frozenset[tuple[str, str]] = WHITELIST,
+    rel: pathlib.PurePosixPath, src: str, whitelist: frozenset[tuple[str, str]] | None = None,
 ) -> list[str]:
     """The layer violations of one module's source, ``rel`` relative to ``orpheus/``.
 
     ``whitelist`` is the exemption set read; the vacuous-row guard passes the
-    set minus one row to ask whether that row still names a live edge.
+    set minus one row to ask whether that row still names a live edge. The
+    default ``None`` reads the module's ``WHITELIST`` at CALL time, so a probe
+    that rebinds ``WHITELIST`` reaches every caller.
     """
+    if whitelist is None:
+        whitelist = WHITELIST
     src_pkg = _top_level_package(rel)
     if src_pkg not in FORBIDDEN_EDGES:
         return []
     forbidden = FORBIDDEN_EDGES[src_pkg]
     rel_str = rel.as_posix()
     violations: list[str] = []
-    for module_name, is_tc in _imports_of_source(rel, src):
+    for module_name, _is_tc in _imports_of_source(rel, src):
         if not module_name.startswith("orpheus."):
             continue
         tgt_pkg = module_name.split(".")[1]
@@ -536,13 +540,16 @@ def _dynamic_imports(src: str) -> list[str]:
 
 
 def _reference_insulation_violations(
-    rel: pathlib.PurePosixPath, src: str, exempt: frozenset[str] = _REFERENCE_INSULATION_EXEMPT,
+    rel: pathlib.PurePosixPath, src: str, exempt: frozenset[str] | None = None,
 ) -> list[str]:
     """The non-interface `numerics` imports of one closed-reference module.
 
     ``exempt`` is the exemption set read; the vacuous-row guard passes the set
-    minus one entry to ask whether that entry still exempts a live import.
+    minus one entry to ask whether that entry still exempts a live import. The
+    default ``None`` reads ``_REFERENCE_INSULATION_EXEMPT`` at CALL time.
     """
+    if exempt is None:
+        exempt = _REFERENCE_INSULATION_EXEMPT
     rel_str = rel.as_posix()
     if not rel_str.startswith(_CLOSED_REFERENCE_ROOTS) or rel_str in exempt:
         return []

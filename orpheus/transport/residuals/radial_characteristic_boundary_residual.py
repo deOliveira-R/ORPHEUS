@@ -43,8 +43,6 @@ class RadialCharacteristicBoundaryResidual(RadialCharacteristicBoundaryField):
     space : RadialCharacteristicBoundarySpace
         The R12a-keyed boundary space (canonically
         ``mesh.radial_characteristic_boundary_space``).
-    mesh : SNProblem
-        The SN phase-space carrier (the cross-mesh-arithmetic guard).
     """
 
     #: Trace-like corner rows — ``1/(cm²·s·sr)``,
