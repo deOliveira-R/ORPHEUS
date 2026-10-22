@@ -380,7 +380,7 @@ def test_r1_8_the_module_is_numerics() -> None:
     require(out.returncode == 0, out.stderr)
     file, packages, sympy_loaded = out.stdout.strip().splitlines()
     require(file.startswith(str(_ROOT)), f"the subprocess imported {file} (L22)")
-    require(packages == "['geometry', 'numerics']", f"loaded orpheus packages {packages}")
+    require(packages == "['geometry', 'numerics', 'values']", f"loaded orpheus packages {packages}")
     require(sympy_loaded == "False", "the module loads SymPy")
     module_file = importlib.import_module(_MODULE).__file__
     require(module_file is not None, "the module has no file")
@@ -392,7 +392,7 @@ def test_r1_8_the_module_is_numerics() -> None:
             ours.extend(alias.name for alias in node.names)
     ours = [m for m in ours if m.startswith("orpheus")]
     require("orpheus.values.content" in ours, f"activation: the content import is not seen in {ours}")
-    outside = [m for m in ours if not m.startswith("orpheus.numerics")]
+    outside = [m for m in ours if not m.startswith(("orpheus.numerics", "orpheus.values"))]
     require(not outside, f"imports outside numerics: {outside}")
 
 

@@ -469,7 +469,7 @@ def test_r7_10_the_verbs_import_no_method() -> None:
     require(file.startswith(str(_ROOT)), f"the subprocess imported {file} (L22)")
     loaded = set(ast.literal_eval(packages))
     require("reference" in loaded, f"activation: {loaded}")
-    allowed = {"reference", "specification", "numerics", "data", "geometry"}
+    allowed = {"reference", "specification", "numerics", "data", "geometry", "values"}
     require(loaded <= allowed, f"loads {sorted(loaded - allowed)}")
 
 

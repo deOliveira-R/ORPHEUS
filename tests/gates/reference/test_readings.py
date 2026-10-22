@@ -345,11 +345,11 @@ def test_r1_17_estimated_is_not_built_and_measured_is_defined_once() -> None:
 # ═════════════════════════════════════════════════════════════════════════════
 
 #: The packages ``orpheus.reference`` may import (the orchestrator's Q4 ruling).
-_REFERENCE_MAY_IMPORT = {"reference", "specification", "numerics", "data", "geometry"}
+_REFERENCE_MAY_IMPORT = {"reference", "specification", "numerics", "data", "geometry", "values"}
 #: The packages it must not import, each of which the linter must list.
 _REFERENCE_MUST_NOT = {"mesh", "transport", "derivations", "sn", "diffusion", "homogeneous", "cp", "moc", "mc"}
 #: The packages below it, which must not import it.
-_BELOW_REFERENCE = ("numerics", "geometry", "data", "mesh", "specification")
+_BELOW_REFERENCE = ("values", "numerics", "geometry", "data", "mesh", "specification")
 
 
 def test_r1_18_the_package_is_registered_with_the_linter() -> None:

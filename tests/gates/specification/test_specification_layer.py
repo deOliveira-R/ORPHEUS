@@ -77,7 +77,7 @@ def test_s8_3_the_package_imports_only_data_geometry_numerics() -> None:
     package = _ROOT / "orpheus" / "specification"
     modules = sorted(package.rglob("*.py"))
     require(modules, "activation: the package has no module")
-    allowed = ("orpheus.data", "orpheus.geometry", "orpheus.numerics", "orpheus.specification")
+    allowed = ("orpheus.data", "orpheus.geometry", "orpheus.numerics", "orpheus.specification", "orpheus.values")
     stray: list[str] = []
     for path in modules:
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):

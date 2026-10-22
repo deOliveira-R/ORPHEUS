@@ -568,7 +568,7 @@ def test_e9_a_data_file_the_templates_imports_read_is_read_new(tmp_path):
                     ignore=lambda d, names: [n for n in names if n == "__pycache__" or (not n.endswith(".py") and not (Path(d) / n).is_dir())])
     content = tree / "orpheus" / "values" / "content.py"
     content.write_text(content.read_text() + _E9_TABLE_READ)
-    table = tree / "orpheus" / "numerics" / "e9_value.txt"
+    table = content.with_name("e9_value.txt")
     table.write_text("1.0")
     (tree / "e9_fixture").mkdir()
     (tree / "e9_fixture" / "__init__.py").write_text("")

@@ -388,7 +388,7 @@ def test_r3_6_the_module_is_numerics() -> None:
     require(out.returncode == 0, out.stderr)
     file, packages, sympy_loaded = out.stdout.strip().splitlines()
     require(file.startswith(str(_ROOT)), f"the subprocess imported {file} (L22)")
-    require(packages == "['geometry', 'numerics']", f"loaded orpheus packages {packages}")
+    require(packages == "['geometry', 'numerics', 'values']", f"loaded orpheus packages {packages}")
     require(sympy_loaded == "False", "building the values loads SymPy")
     module_file = _mod().__file__
     require(module_file is not None, "the module has no file")
@@ -400,7 +400,7 @@ def test_r3_6_the_module_is_numerics() -> None:
             imported.extend(alias.name for alias in node.names)
     ours = [m for m in imported if m.startswith("orpheus")]
     require("orpheus.numerics.mesh_free_function" in ours, f"activation: the mesh-free import is not seen in {ours}")
-    outside = [m for m in ours if not m.startswith("orpheus.numerics")]
+    outside = [m for m in ours if not m.startswith(("orpheus.numerics", "orpheus.values"))]
     require(not outside, f"imports outside numerics: {outside}")
     from tests.gates import test_layer_imports as lint
 

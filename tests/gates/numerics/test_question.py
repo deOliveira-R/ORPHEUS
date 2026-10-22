@@ -430,7 +430,7 @@ def test_s7_13_the_module_loads_nothing_above_the_numerics_tier() -> None:
     load)."""
     file, tops, sympy = _cold("orpheus.numerics.question")
     require(file.startswith(str(_ROOT)), f"the subprocess imported {file} (L22)")
-    require(tops <= {"numerics", "geometry"}, f"the question module loads {sorted(tops)}")
+    require(tops <= {"numerics", "geometry", "values"}, f"the question module loads {sorted(tops)}")
     require("numerics" in tops, "activation: numerics not loaded")
     require(not sympy, "building a question with a table loaded SymPy")
     _, control, _ = _cold("orpheus.sn.problem")
@@ -454,5 +454,5 @@ def test_s7_13_the_module_imports_only_numerics() -> None:
     activation leg: the known import of ``content`` is seen."""
     imported = _orpheus_imports(Path(question_module.__file__).read_text())
     require("orpheus.values.content" in imported, f"activation: the AST saw {imported}")
-    above = [n for n in imported if not n.startswith("orpheus.numerics")]
+    above = [n for n in imported if not n.startswith(("orpheus.numerics", "orpheus.values"))]
     require(not above, f"the module imports above L1: {above}")
