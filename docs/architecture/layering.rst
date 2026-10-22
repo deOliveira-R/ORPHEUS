@@ -414,22 +414,18 @@ retired, and a leg in ``_FORBIDDEN_LEGS`` witnesses that a
   them. Every entry carries a ``RETIRE_IN_P3_FOLLOWUP`` comment naming
   its retirement trigger.
 
-  The whitelist holds one ``derivations/`` edge into L2:
+  The whitelist is empty since layer DAG P4b and P4c (2026-10-22):
 
   .. code-block:: python
 
-     WHITELIST: frozenset[tuple[str, str]] = frozenset({
-         # RETIRE_IN_P3_FOLLOWUP — the non-vacuum MMS reference lazily builds
-         # its prescribed-inflow source from transport vocabulary
-         ("derivations/continuous/mms/sn.py", "transport"),
-     })
+     WHITELIST: frozenset[tuple[str, str]] = frozenset()
 
-  The entry is a reference module that poses a production problem (a
-  manufactured-solution harness for a method): it uses production as a
-  black box, NOT to share algebra. This is categorically
+  Each of its last two rows was a reference module that posed a production
+  problem (a manufactured-solution harness for a method): it used production
+  as a black box, NOT to share algebra. That is categorically
   different from an algebra-sharing import (which would be structurally
   contaminating per :doc:`/theory/verification/index`). The retirement
-  trigger is the module's migration to a method-side test
+  trigger was the module's migration to a method-side test
   or to an external benchmark harness.
 
   A third row, ``("derivations/continuous/sood_registry/builders.py",
@@ -457,6 +453,22 @@ retired, and a leg in ``_FORBIDDEN_LEGS`` witnesses that a
   the import had also loaded ``orpheus.moc`` into every consumer of the
   registry; ``test_loading_the_reference_registry_loads_no_moc_module``
   now reads ``sys.modules`` in a fresh interpreter to keep it out.
+
+  The other row, ``("derivations/continuous/mms/sn.py", "transport")``, was
+  retired by layer DAG P4c (2026-10-22). The non-vacuum S\ :sub:`N`
+  manufactured-solution cases had wrapped their closed inflow trace into
+  an :class:`~orpheus.transport.fields.AngularBoundarySourceSink` inside
+  function bodies, and the module carried a bundler
+  (``build_nonvacuum_fixed_source``) into a
+  :class:`~orpheus.transport.timed_full_field.TimedFullField`. Each case
+  now declares the trace in plain data
+  (``inflow_face_values(mesh, n_face_moments)``, a ``{face: values}``
+  dict), and the translation into production lives with the tests that
+  pair a case with a solve (``mms_prescribed_inflow`` and
+  ``build_nonvacuum_fixed_source`` in ``tests/gates/sn/_test_helpers.py``).
+  Moving the bundler into ``transport`` instead was refused: transport
+  would then name a manufactured-solution case protocol, a verification
+  concept in production.
 
 
 .. _architecture-reference-insulation:
@@ -565,12 +577,12 @@ and ``derivations/common/`` (the user's ruling on the gate's scope,
 * One module under the roots builds production objects and is exempt
   by name, its entry of ``_REFERENCE_INSULATION_EXEMPT`` carrying its
   reason in the gate. The S\ :sub:`N` manufactured-solution harness poses
-  a production method: ``derivations/continuous/mms/sn.py`` imports
-  :mod:`orpheus.mesh`, :mod:`orpheus.transport` and the production
+  production meshes: ``derivations/continuous/mms/sn.py`` imports
+  :mod:`orpheus.mesh` and the production
   :mod:`orpheus.numerics.quadrature` and
-  :mod:`orpheus.numerics.moment_layout` to pose S\ :sub:`N` problems. Its
-  transport import is also the entry of the layer linter's ``WHITELIST``
-  above. ``derivations/continuous/mms/moc.py`` was the second exempt
+  :mod:`orpheus.numerics.moment_layout` to pose S\ :sub:`N` meshes (it
+  imports nothing from :mod:`orpheus.transport` since layer DAG P4c,
+  2026-10-22). ``derivations/continuous/mms/moc.py`` was the second exempt
   module until layer DAG P4b (2026-10-22), when its MoC problem posing
   moved to its test; since then it imports nothing from :mod:`orpheus.mesh`
   or :mod:`orpheus.moc`.

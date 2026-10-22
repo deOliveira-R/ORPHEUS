@@ -42,7 +42,6 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.derivations.continuous.mms.sn import (
     build_2d_cartesian_heterogeneous_mms_case,
     build_2d_cartesian_ld_stress_mms_case,
-    build_nonvacuum_fixed_source,
 )
 from orpheus.geometry import BC, CoordSystem
 from orpheus.mesh import Mesh2D
@@ -57,6 +56,8 @@ from orpheus.sn.loss_representation import (
 )
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+
+from tests.gates.sn._test_helpers import build_nonvacuum_fixed_source, mms_prescribed_inflow
 
 from tests.gates.sn._test_helpers import volume_weighted_l2
 
@@ -473,7 +474,7 @@ def test_ld_2d_stress_two_paths_ffw_equals_mfw():
         pytest.fail("expected the 2-D LD default rep to be MovingFrontierWindow")
 
     # Non-vanishing prescribed inflow → a seeded AngularBoundaryFlux on both legs.
-    bss = case.prescribed_inflow(sn)
+    bss = mms_prescribed_inflow(case, sn)
     bf_win = AngularBoundaryFlux.zeros(sn.angular_trace)
     bf_full = AngularBoundaryFlux.zeros(sn.angular_trace)
     bf_win.values[...] = bss.values
@@ -701,7 +702,7 @@ def _moment_resolved_rhs(case, sn, mesh, *, moment_source=None):
     Qm = _project_external_source(case, mesh) if moment_source is None else moment_source
     return TimedFullField(
         interior=AngularSourceSink(values=Qm, space=sn.angular_trial_space),
-        boundary=case.prescribed_inflow(sn),
+        boundary=mms_prescribed_inflow(case, sn),
     )
 
 
@@ -1134,7 +1135,7 @@ def test_face_projection_slot0_is_transverse_cell_average():
     coordinate.  They differ by O(h²).  Pin that slot-0 equals an INDEPENDENT
     fine-quadrature (q_nodes=12) transverse cell average to ~1e-8 (so the
     projector is doing genuine averaging) — and do NOT cross-check slot-0
-    against ``case.prescribed_inflow`` (centre eval, which differs by O(h²)).
+    against the DD/Step ``case.inflow_face_values`` (centre eval, which differs by O(h²)).
     ``-O``-safe."""
     case = build_2d_cartesian_ld_stress_mms_case()
     mesh = case.build_mesh(8)
@@ -1277,7 +1278,7 @@ def _solve_with_boundary_slope(case, nc, *, slope_sign):
     from ``_face_transverse_buffers`` (slot 0 = the trace scalar/centre, slot 1 =
     ``slope_sign × projected slope``) so the diagnostic's average-only vs
     average+slope distinction is preserved INDEPENDENT of production's
-    ``case.prescribed_inflow`` (which, since #257 S9, emits the real slope on an
+    ``case.inflow_face_values`` (which, since #257 S9, emits the real slope on an
     LD mesh — this helper must NOT inherit that, it is the controlled toggle).
     L11: the slope is built by ``_face_transverse_buffers`` → ``leggauss`` only
     (never ``_inflow_to_moments``).  The moment-resolved boundary is materialised
@@ -1301,7 +1302,7 @@ def _solve_with_boundary_slope(case, nc, *, slope_sign):
         if slope_sign is None:
             # Average-only: a SCALAR inflow (N, ng, n_t) — the producer seeds
             # slot 0, slope stays zero.  Built test-side so it stays average-only
-            # regardless of the production prescribed_inflow's S9 slope honesty.
+            # regardless of the case's inflow_face_values S9 slope honesty.
             face_values[face] = centre
         else:
             # Moment-resolved (N, ng, n_t, 2): slot 0 = centre, slot 1 =
@@ -1402,21 +1403,22 @@ def test_ld_2d_boundary_slope_threaded_through_inflow_to_moments():
 
     # ── #257 S9 GATE B — the PRODUCTION producer leg (closes the Mode-11
     # producer-blindness the #251 surrogate had).  The MMS case's own
-    # `prescribed_inflow` now EMITS a moment-resolved slot; its SLOT-1 (on the
+    # `inflow_face_values` now EMITS a moment-resolved slot (wrapped into the
+    # production boundary source by `mms_prescribed_inflow`); its SLOT-1 (on the
     # inflow ordinates) must match the structurally-independent leggauss
     # reference at MACHINE PRECISION (the producer stamp).  The #251 gate above
     # pinned the CONSUMER (`_inflow_to_moments`) against a test-built slot; this
-    # leg pins the PRODUCER (`case.prescribed_inflow`) — together they close the
+    # leg pins the PRODUCER (`case.inflow_face_values`) — together they close the
     # producer→consumer chain.  L11: the reference is `_face_transverse_buffers`
     # → leggauss only, NEVER `case._project_inflow_to_face_moments`.
-    bss = case.prescribed_inflow(sn)              # the PRODUCTION boundary source
+    bss = mms_prescribed_inflow(case, sn)              # the PRODUCTION boundary source
     for face in ("xmin", "xmax", "ymin", "ymax"):
         view = bss.face_view(face)                # (N, ng, n_t, 2)
         _, slope_ref = bufs[face]                 # (N, ng, n_t), leggauss
         inflow_face = sn.angular_trace.inflow_indices_for_face(face)
         np.testing.assert_array_equal(
             view[inflow_face, ..., 1], slope_ref[inflow_face],
-            err_msg=f"the PRODUCTION case.prescribed_inflow did NOT emit the "
+            err_msg=f"the PRODUCTION case.inflow_face_values did NOT emit the "
             f"projected transverse face-slope (slot-1) on face {face!r} — the "
             f"producer dropped the slope (the #257 S9 production change is not "
             f"in effect, or the projector drifted from the leggauss reference)",

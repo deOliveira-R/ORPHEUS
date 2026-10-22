@@ -282,11 +282,13 @@ def test_ld2d_stress_prescribed_inflow_is_nonvanishing():
     from orpheus.sn.problem import SNProblem
     from orpheus.transport.spatial import LinearDiscontinuous
 
+    from tests.gates.sn._test_helpers import mms_prescribed_inflow
+
     case = build_2d_cartesian_ld_stress_mms_case()
     mesh = case.build_mesh(8)
     mats = case.build_materials(mesh)
     sn = SNProblem(mesh, case.quadrature, mats, scheme=LinearDiscontinuous())
-    bss = case.prescribed_inflow(sn)
+    bss = mms_prescribed_inflow(case, sn)
     max_abs = float(np.max(np.abs(bss.values)))
     if max_abs < 1e-3:
         pytest.fail(

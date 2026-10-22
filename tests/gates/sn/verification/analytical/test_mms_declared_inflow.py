@@ -5,7 +5,8 @@ record `scratch/p4_mms_design.md`. Sibling to ``test_mms_prescribed_inflow.py``,
 which stays — the two together are the two-route claim:
 
 * **the sibling** hands ``solve_sn_fixed_source`` a composite
-  ``q = q_bulk ⊕ q_∂`` built by ``case.prescribed_inflow(sn)``. That is the
+  ``q = q_bulk ⊕ q_∂`` whose boundary leg is ``mms_prescribed_inflow(case, sn)``
+  (the test-side wrap of the case's plain-data inflow trace). That is the
   **channel tier**, and it deliberately bypasses the law tier
   (``docs/theory/verification/sn.rst`` says so).
 * **this module** declares ``PrescribedInflow(source=<manufactured spec>)`` on
@@ -56,7 +57,7 @@ from orpheus.geometry.boundary import PrescribedInflow
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields import AngularBoundarySourceSink
-from tests.gates.sn._test_helpers import volume_weighted_l2
+from tests.gates.sn._test_helpers import mms_prescribed_inflow, volume_weighted_l2
 
 pytestmark = pytest.mark.l1
 
@@ -363,7 +364,7 @@ def test_it_converges_to_the_manufactured_value_not_merely_at_a_rate() -> None:
 
 
 def test_the_declared_and_supplied_channels_are_one_float_program() -> None:
-    r"""⭐ ``from_problem_laws(declared)`` is BIT-identical to ``case.prescribed_inflow``.
+    r"""⭐ ``from_problem_laws(declared)`` is BIT-identical to ``mms_prescribed_inflow(case, sn)``.
 
     The law tier and the channel tier must not merely agree — they must be the
     same computation, since the declaration's only job is to reach the same
@@ -386,7 +387,7 @@ def test_the_declared_and_supplied_channels_are_one_float_program() -> None:
     sn = SNProblem(mesh, case.quadrature, case.materials)
 
     declared = AngularBoundarySourceSink.from_problem_laws(sn)
-    supplied = case.prescribed_inflow(SNProblem(mesh0, case.quadrature, case.materials))
+    supplied = mms_prescribed_inflow(case, SNProblem(mesh0, case.quadrature, case.materials))
 
     for face, _ in _faces(case):
         rows = np.asarray(sn.angular_trace.inflow_indices_for_face(face))

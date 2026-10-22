@@ -78,11 +78,8 @@ if TYPE_CHECKING:
     # ``sympy`` is imported lazily inside each symbolic builder (keeps the
     # heavy symbolic dependency off the module-load path); this type-only
     # alias makes the ``"sp.Expr"`` signature annotations resolvable without
-    # eagerly importing it. ``TimedFullField`` is likewise a return-type-only
-    # reference (constructed via its own lazy import at the call site).
+    # eagerly importing it.
     import sympy as sp
-
-    from orpheus.transport.timed_full_field import TimedFullField
 
 
 _VACUUM_FACES_2D = {face: BC("vacuum") for face in ("xmin", "xmax", "ymin", "ymax")}
@@ -1179,7 +1176,7 @@ The BOUNDARY transverse-face-slope (**Leg B**, **#251**) is now CARRIED end to
 end: the boundary trace ``mesh.angular_trace`` carries the :math:`2^{d-1}`
 transverse-moment axis (LD), ``_inflow_to_moments`` threads the projected
 transverse face-slope onto slot-1, and — since **#257 S9** — this case's
-:meth:`~SN2DCartesianLDStressMMSCase.prescribed_inflow` itself EMITS the
+:meth:`~SN2DCartesianLDStressMMSCase.inflow_face_values` itself EMITS the
 moment-resolved slot (``_project_inflow_to_face_moments`` projects the
 manufactured inflow trace onto the bare transverse Legendre moments
 ``[bar, slope]``; DD/Step keeps the byte-identical scalar trace).
@@ -1383,7 +1380,7 @@ class SN2DCartesianLDStressMMSCase:
     ``tests/gates/sn/verification/mms/test_mms_ld_2d.py``).  The BOUNDARY
     transverse-face-slope (**Leg B, #251**) is now CARRIED end to end (the trace
     is moment-resolved, the cochain consumes slot-1) and — since **#257 S9** —
-    :meth:`prescribed_inflow` EMITS the projected transverse face-slope (its
+    :meth:`inflow_face_values` EMITS the projected transverse face-slope (its
     converged-flux contribution is SUB-FLOOR; the AVERAGE moment delivers O(h²)
     at the boundary — the coherent promise, locked by
     ``test_ld_2d_boundary_promise.py``).
@@ -1393,8 +1390,8 @@ class SN2DCartesianLDStressMMSCase:
     :func:`_default_hetero_2d_xs_functions` (heterogeneous, :math:`\Sigma_a>0`,
     2G asymmetric downscatter).  The domain is NON-SQUARE (:math:`L_x \neq
     L_y`) — the x↔y-swap defence.  The mesh BCs are VACUUM; the non-vanishing
-    inflow trace is injected via :meth:`prescribed_inflow` (the ``q.boundary``
-    slot), NOT a mesh BC — exactly the :class:`SNSlabNonVacuumMMSCase` posture
+    inflow trace is injected through :meth:`inflow_face_values` (the
+    ``q.boundary`` slot, wrapped by the pairing test), NOT a mesh BC — exactly the :class:`SNSlabNonVacuumMMSCase` posture
     lifted to 2-D.
     """
 
@@ -1572,9 +1569,21 @@ class SN2DCartesianLDStressMMSCase:
         Q /= sum_w
         return Q
 
-    def prescribed_inflow(self, problem):
-        r"""The ``q.boundary`` prescribed-inflow term (a
-        :class:`~orpheus.transport.fields.AngularBoundarySourceSink`).
+    def inflow_face_values(
+        self, mesh: Mesh2D, n_face_moments: int,
+    ) -> dict[str, np.ndarray]:
+        r"""The manufactured inflow trace on each domain face, as plain arrays.
+
+        Returns ``{face: values}`` for the four faces of the box: the closed
+        face-trace :math:`\gamma_-\psi` of the manufactured angular flux,
+        sampled on ``mesh``'s transverse cells at the closure width
+        ``n_face_moments`` (the per-face transverse moment count,
+        :func:`~orpheus.numerics.moment_layout.face_moment_count` of the
+        scheme the paired solve runs). These two inputs are all a face sample
+        depends on, so the reference reads no production problem: the wrap of
+        these values into the solver's boundary source lives with the test
+        that pairs this case with a solve (since 2026-10-22; the ruling that a
+        reference declares in plain data and never imports production).
 
         For each domain face and group :math:`g`, the inflow ordinate slots
         carry :math:`\gamma_-\psi = \psi_{n,g}(x_{\rm face}, \mu_n)/W`, the
@@ -1582,36 +1591,26 @@ class SN2DCartesianLDStressMMSCase:
         trace is NON-zero on all four edges — the boundary closure is stressed
         at the FACE-AVERAGE moment.
 
-        **Moment honesty (#257 S9).**  When the mesh is moment-resolved (the
-        bilinear UBLD Linear-Discontinuous closure, ``face_moment_count > 1``),
+        **Moment honesty (#257 S9).**  When the closure is moment-resolved (the
+        bilinear UBLD Linear-Discontinuous closure, ``n_face_moments > 1``),
         the inflow trace varies transversely ALONG each face, so this builds the
-        FULL transverse moment slot ``(N, ng, n_t, face_moment_count)`` — slot 0
+        FULL transverse moment slot ``(N, ng, n_t, n_face_moments)`` — slot 0
         the transverse cell AVERAGE, slot 1 the bare transverse :math:`P_1`
-        slope — and feeds it to the producer's full-slot branch
-        (:meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`).
+        slope — which the boundary-source producer's full-slot branch consumes.
         The slope is genuinely consumed by the LD boundary closure (its
         converged-flux contribution is sub-floor — a representation refinement,
-        not a deficiency repair; see the theory page).  When the mesh is a
-        cell-average closure (DD/Step, ``face_moment_count == 1``) it builds the
-        SCALAR per-face trace ``(N, ng, n_t)`` exactly as before — byte-identical
-        (the producer's scalar branch seeds slot 0, no moment axis exists).
+        not a deficiency repair; see the theory page).  When the closure is a
+        cell-average one (DD/Step, ``n_face_moments == 1``) it builds the
+        SCALAR per-face trace ``(N, ng, n_t)`` (the producer's scalar branch
+        seeds slot 0, no moment axis exists).
 
-        Materialised via the ergonomic
-        :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
-        generator (full ``(N, ng, n_face[, face_moment_count])`` per face; the
-        generator keeps only the inflow ordinates).
+        Every ordinate is filled (full ``(N, ng, n_t[, n_face_moments])`` per
+        face); the producer keeps only the inflow ordinates.
         """
-        from orpheus.numerics.moment_layout import face_moment_count
-        from orpheus.transport.fields import AngularBoundarySourceSink
-
-        n_face_moments = face_moment_count(
-            problem.scheme.spatial_basis_per_axis, problem.ndim,
-        )
         W = float(self.quadrature.weights.sum())
         mu_x = self.quadrature.mu_x
         mu_y = self.quadrature.mu_y
         ng = self.n_groups
-        mesh = problem.mesh
         cx = mesh.centers_x
         cy = mesh.centers_y
         ex = mesh.edges_x
@@ -1657,7 +1656,7 @@ class SN2DCartesianLDStressMMSCase:
                 face_values[face] = self._project_inflow_to_face_moments(
                     const_axis, const_val, t_edges, n_face_moments,
                 )
-        return AngularBoundarySourceSink.prescribed_inflow(problem, face_values)
+        return face_values
 
     def _project_inflow_to_face_moments(
         self, const_axis, const_val, t_edges, n_face_moments,
@@ -3219,8 +3218,9 @@ class SNSlabNonVacuumMMSCase:
     in-scatter source is :math:`(\Sigma_s^\top \phi)_g`).  An ASYMMETRIC
     downscatter-only matrix keeps the ERR-002 transpose hazard live.
 
-    The mesh BCs are VACUUM — the prescribed inflow is injected via
-    :meth:`prescribed_inflow` (the ``q.boundary`` slot), NOT a mesh BC.
+    The mesh BCs are VACUUM — the prescribed inflow is injected through
+    :meth:`inflow_face_values` (the ``q.boundary`` slot, wrapped by the
+    pairing test), NOT a mesh BC.
     The Branch-2 numerical :meth:`external_source` is bit-equal to the
     lambdified Branch-1 SymPy (:func:`derive_nonvacuum_slab_mms`) on the
     1g shape.
@@ -3353,21 +3353,25 @@ class SNSlabNonVacuumMMSCase:
         Q /= sum_w
         return Q
 
-    def prescribed_inflow(self, problem):
-        r"""The ``q.boundary`` prescribed-inflow term — a
-        :class:`~orpheus.transport.fields.AngularBoundarySourceSink`.
+    def inflow_face_values(
+        self, mesh: Mesh1D, n_face_moments: int,
+    ) -> dict[str, np.ndarray]:
+        r"""The manufactured inflow trace on each slab face, as plain arrays.
 
-        For each boundary face and group :math:`g`, the inflow ordinate
-        slots carry :math:`\gamma_-\psi = \psi_{n,g}(x_{\rm face}, \mu_n)/W
+        For each boundary face and group :math:`g`, the ordinate slots
+        carry :math:`\gamma_-\psi = \psi_{n,g}(x_{\rm face}, \mu_n)/W
         = (A_g(x_{\rm face}) + \mu_n B_g(x_{\rm face}))/W` (the affine-BC
         inhomogeneous term :math:`q`); both slab faces carry inflow because
-        :math:`a_0>0`. Materialised via the ergonomic
-        :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
-        generator (full ``(N, ng)`` per face; the generator keeps only the
-        inflow ordinates).
-        """
-        from orpheus.transport.fields import AngularBoundarySourceSink
+        :math:`a_0>0`. Every ordinate is filled (full ``(N, ng)`` per face);
+        the boundary-source producer keeps only the inflow ordinates.
 
+        The signature is the one every non-vacuum case shares (see
+        :meth:`SN2DCartesianLDStressMMSCase.inflow_face_values`): a 1-D face
+        is a point, so neither ``mesh`` nor ``n_face_moments`` (always 1 in
+        1-D) changes the sample. The wrap of these values into the solver's
+        boundary source lives with the test that pairs this case with a solve
+        (since 2026-10-22).
+        """
         W = float(self.quadrature.weights.sum())
         mu = self.quadrature.mu_x
         ng = self.n_groups
@@ -3378,7 +3382,7 @@ class SNSlabNonVacuumMMSCase:
             for g in range(ng):
                 vals[:, g] = (self.A(x_face, g) + mu * self.B(x_face, g)) / W
             face_values[face] = vals
-        return AngularBoundarySourceSink.prescribed_inflow(problem, face_values)
+        return face_values
 
 def build_slab_nonvacuum_mms_case(
     sigma_t: float = 1.0,
@@ -3623,26 +3627,30 @@ class SNSphericalNonVacuumMMSCase:
              + removal_iso + removal_aniso) / sum_w    # (N, nx)
         return Q[:, None, :]                     # (N, 1, nx, 1)
 
-    def prescribed_inflow(self, problem):
-        r"""The ``q.boundary`` prescribed-inflow at r=R — a
-        :class:`~orpheus.transport.fields.AngularBoundarySourceSink`.
+    def inflow_face_values(
+        self, mesh: Mesh1D, n_face_moments: int,
+    ) -> dict[str, np.ndarray]:
+        r"""The manufactured inflow trace on the r=R face, as plain arrays.
 
         The r=R face's inflow ordinate slots (μ<0) carry
         :math:`\gamma_-\psi = (A(R) + \mu_n B(R))/W`; r=0 is the symmetry
-        BC, not a face. Materialised via the ergonomic
-        :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
-        generator (full ``(N, 1)``; the generator keeps only the inflow
-        ordinates).
-        """
-        from orpheus.transport.fields import AngularBoundarySourceSink
+        BC, not a face. Every ordinate is filled (full ``(N, 1)``); the
+        boundary-source producer keeps only the inflow ordinates.
 
+        The signature is the one every non-vacuum case shares (see
+        :meth:`SN2DCartesianLDStressMMSCase.inflow_face_values`): a 1-D face
+        is a point, so neither ``mesh`` nor ``n_face_moments`` (always 1 in
+        1-D) changes the sample. The wrap of these values into the solver's
+        boundary source lives with the test that pairs this case with a solve
+        (since 2026-10-22).
+        """
         W = float(self.quadrature.weights.sum())
         mu = self.quadrature.mu_x
         R = self.radius
         A_R = float(self.A(np.array([R]))[0])
         B_R = float(self.B(np.array([R]))[0])
         vals = ((A_R + mu * B_R) / W)[:, None]        # (N, ng=1)
-        return AngularBoundarySourceSink.prescribed_inflow(problem, {"xmax": vals})
+        return {"xmax": vals}
 
 def build_sphere_nonvacuum_mms_case(
     sigma_t: float = 1.0,
@@ -3677,31 +3685,6 @@ def build_sphere_nonvacuum_mms_case(
         materials=materials,
         mat_id=mat_id,
         quadrature=quadrature,
-    )
-
-
-def build_nonvacuum_fixed_source(case, problem) -> "TimedFullField":
-    r"""The composite fixed-source RHS :math:`q = q_{\rm bulk} \oplus q_\partial`
-    for a non-vacuum MMS ``case``.
-
-    Bundles the manufactured bulk source (``case.external_source(mesh)``) and
-    the prescribed-inflow boundary (``case.prescribed_inflow(problem)``) into
-    the single :class:`~orpheus.transport.timed_full_field.TimedFullField`
-    that :func:`~orpheus.sn.solver.solve_sn_fixed_source` consumes — the
-    ergonomic one-call non-vacuum source (no manual operator-triple bypass).
-
-    Generic over the ``(external_source(mesh), prescribed_inflow(problem))``
-    protocol: ONE definition shared by every non-vacuum case
-    (:class:`SNSlabNonVacuumMMSCase`, :class:`SNSphericalNonVacuumMMSCase`),
-    rather than a per-case method twin (Cardinal Rule 2). ``problem.mesh``
-    supplies the underlying mesh for the bulk source.
-    """
-    from orpheus.transport.fields import AngularSourceSink
-    from orpheus.transport.timed_full_field import TimedFullField
-
-    return TimedFullField(
-        interior=AngularSourceSink(values=case.external_source(problem.mesh), space=problem.angular_bulk_space),
-        boundary=case.prescribed_inflow(problem),
     )
 
 

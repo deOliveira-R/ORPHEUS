@@ -2885,7 +2885,8 @@ centre-vs-average.  A dedicated foundation sub-gate
 (``test_face_projection_slot0_is_transverse_cell_average``) pins that the
 projector's slot 0 IS the average — cross-checked against an *independent*
 fine-quadrature transverse cell average, NOT against the cell-centre
-``case.prescribed_inflow`` (which would falsely fail by :math:`O(h^2)`).
+DD/Step trace of ``case.inflow_face_values`` (which would falsely fail by
+:math:`O(h^2)`).
 
 The face projector is structurally independent of production (L11): it evaluates
 :math:`\int \psi_{\rm face}\,P_k` with
@@ -3850,9 +3851,11 @@ Non-vacuum prescribed-inflow MMS
      The 4.6 MMS no longer assembles the within-group operator triple
      by hand: :func:`~orpheus.sn.solver.solve_sn_fixed_source` accepts
      a :class:`~orpheus.transport.timed_full_field.TimedFullField`
-     composite source, so each case bundles its manufactured bulk and
-     prescribed-inflow boundary into one ``case.fixed_source(sn)``
-     call. The migration off the operator-triple bypass *is* the
+     composite source, so each case's manufactured bulk and
+     prescribed-inflow boundary are bundled into one composite by a single
+     call (since 2026-10-22 the test-side
+     ``build_nonvacuum_fixed_source(case, sn)`` of
+     ``tests/gates/sn/_test_helpers.py``). The migration off the operator-triple bypass *is* the
      retirement (retirement = test migration).
    - **The load-bearing assertion is the converged VALUE, not the
      rate.** Per the ``vv-principles`` skill anti-pattern #5 (rate is
@@ -4315,12 +4318,14 @@ source form — the full **composite source** ``q = q_bulk ⊕ q_∂``
 represented by a
 :class:`~orpheus.transport.timed_full_field.TimedFullField` (see
 :ref:`sn-composite-fixed-source` for the API in full). Each case now
-bundles its manufactured bulk (:meth:`external_source`) and its
-prescribed-inflow boundary (:meth:`prescribed_inflow`) into one
-``case.fixed_source(sn)`` and passes it straight to the public solver::
+declares its manufactured bulk (:meth:`external_source`) and its
+closed inflow trace (:meth:`inflow_face_values`, a plain ``{face: values}``
+dict), and the test-side helper ``build_nonvacuum_fixed_source(case, sn)``
+(``tests/gates/sn/_test_helpers.py``) bundles them into one composite that
+goes straight to the public solver::
 
     result = solve_sn_fixed_source(
-        materials, mesh, case.quadrature, case.fixed_source(sn),
+        materials, mesh, case.quadrature, build_nonvacuum_fixed_source(case, sn),
         max_inner=1000, inner_tol=1e-13,
     )
 
@@ -4612,9 +4617,14 @@ Following the ``algebra-of-record`` discipline:
   and
   :func:`~orpheus.derivations.continuous.mms.sn.build_sphere_nonvacuum_mms_case`)
   evaluate the closed-form source per ordinate using vectorised numpy.
-  Each carries a ``prescribed_inflow(sn)`` method returning the
-  ``q.boundary`` :class:`~orpheus.transport.fields.AngularBoundarySourceSink`,
-  and a ``fixed_source(sn)`` bundler returning the composite
+  Each carries an ``inflow_face_values(mesh, n_face_moments)`` method
+  returning the closed inflow trace as a plain ``{face: values}`` dict; the
+  reference imports nothing from transport. The translation into
+  production lives on the test side (since 2026-10-22, layer DAG P4c):
+  ``mms_prescribed_inflow(case, sn)`` in ``tests/gates/sn/_test_helpers.py``
+  wraps the trace into the ``q.boundary``
+  :class:`~orpheus.transport.fields.AngularBoundarySourceSink`, and
+  ``build_nonvacuum_fixed_source(case, sn)`` beside it returns the composite
   ``q = q_bulk ⊕ q_∂``
   :class:`~orpheus.transport.timed_full_field.TimedFullField` the public
   solver consumes (see :ref:`sn-composite-fixed-source`).

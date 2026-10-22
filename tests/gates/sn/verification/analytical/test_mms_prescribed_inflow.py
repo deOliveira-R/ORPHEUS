@@ -11,7 +11,8 @@ These rows drive the PUBLIC composite-source API:
 ``solve_sn_fixed_source`` accepts the composite ``q = q_bulk ⊕ q_∂`` (a
 :class:`~orpheus.transport.timed_full_field.TimedFullField`), so the
 non-vacuum prescribed inflow is supplied as
-``case.fixed_source(sn).boundary`` — a
+``build_nonvacuum_fixed_source(case, sn).boundary`` (the test-side helper in
+``tests/gates/sn/_test_helpers.py``) — a
 :class:`~orpheus.transport.fields.AngularBoundarySourceSink` built by the
 ergonomic ``AngularBoundarySourceSink.prescribed_inflow`` generator. The
 affine-BC inhomogeneous term ``q`` is consumed by ``(L+C).solve`` as the
@@ -48,7 +49,6 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.mms.sn import (
-    build_nonvacuum_fixed_source,
     build_slab_2g_nonvacuum_mms_case,
     build_slab_nonvacuum_mms_case,
     build_sphere_nonvacuum_mms_case,
@@ -56,7 +56,7 @@ from orpheus.derivations.continuous.mms.sn import (
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 
-from tests.gates.sn._test_helpers import volume_weighted_l2
+from tests.gates.sn._test_helpers import build_nonvacuum_fixed_source, volume_weighted_l2
 
 
 # ── shared solve helper (the PUBLIC composite-source API) ────────────
@@ -65,7 +65,7 @@ from tests.gates.sn._test_helpers import volume_weighted_l2
 def _solve(case, n_cells: int, *, g: int = 0):
     r"""Solve the non-vacuum fixed-source problem via the PUBLIC composite
     API: :func:`~orpheus.sn.solve_sn_fixed_source` consuming
-    ``case.fixed_source(sn)`` — the bulk ⊕ prescribed-inflow
+    ``build_nonvacuum_fixed_source(case, sn)`` — the bulk ⊕ prescribed-inflow
     :class:`~orpheus.transport.timed_full_field.TimedFullField`.
 
     This is the migration off the operator-triple bypass (the public API

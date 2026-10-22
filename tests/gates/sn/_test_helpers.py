@@ -1298,3 +1298,46 @@ def mixture_from_transport_data(sigma_t, sigma_s, nu_sigma_f, chi):
     sig_c = sigma_t - sig_s.sum(axis=1) - nu_sig_f
     return make_mixture(sig_t=sigma_t, sig_c=sig_c, sig_f=nu_sig_f.copy(), nu=np.ones_like(nu_sig_f),
                         chi=np.asarray(chi, dtype=float), sig_s=sig_s)
+
+
+def mms_prescribed_inflow(case, problem: "SNProblem"):
+    r"""The prescribed-inflow boundary source :math:`q_\partial` of a non-vacuum MMS ``case`` on ``problem``.
+
+    The reference declares its closed inflow trace in plain data
+    (``case.inflow_face_values(mesh, n_face_moments)``, a ``{face: values}`` dict) and never
+    imports production; the translation into the solver's
+    :class:`~orpheus.transport.fields.AngularBoundarySourceSink` lives here, beside the tests that
+    pair the case with a solve (the user's ruling of 2026-10-22; layer DAG P4c). The closure width
+    is read from the scheme the problem was posed with, so a DD/Step problem receives the scalar
+    face trace and an LD problem the moment-resolved slot.
+    """
+    from orpheus.numerics.moment_layout import face_moment_count
+    from orpheus.transport.fields import AngularBoundarySourceSink
+
+    n_face_moments = face_moment_count(problem.scheme.spatial_basis_per_axis, problem.ndim)
+    return AngularBoundarySourceSink.prescribed_inflow(
+        problem, case.inflow_face_values(problem.mesh, n_face_moments),
+    )
+
+
+def build_nonvacuum_fixed_source(case, problem: "SNProblem") -> "TimedFullField":
+    r"""The composite fixed-source right-hand side :math:`q = q_{\rm bulk} \oplus q_\partial` of a non-vacuum MMS ``case``.
+
+    Bundles the manufactured bulk source (``case.external_source(problem.mesh)``) and the
+    prescribed inflow (:func:`mms_prescribed_inflow`) into the one
+    :class:`~orpheus.transport.timed_full_field.TimedFullField` that
+    :func:`~orpheus.sn.solver.solve_sn_fixed_source` consumes. One definition shared by every
+    non-vacuum case (the slab, the sphere and the 2-D LD stress box), generic over the
+    ``(external_source(mesh), inflow_face_values(mesh, n_face_moments))`` protocol. It lived in
+    ``orpheus.derivations.continuous.mms.sn`` until 2026-10-22, when the reference stopped
+    importing transport (layer DAG P4c).
+    """
+    from orpheus.transport.fields import AngularSourceSink
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    return TimedFullField(
+        interior=AngularSourceSink(
+            values=case.external_source(problem.mesh), space=problem.angular_bulk_space,
+        ),
+        boundary=mms_prescribed_inflow(case, problem),
+    )

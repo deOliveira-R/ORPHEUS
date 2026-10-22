@@ -104,15 +104,9 @@ FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
     "derivations": L2_PACKAGES | L3_PACKAGES,
 }
 
-WHITELIST: frozenset[tuple[str, str]] = frozenset(
-    {
-        # RETIRE_IN_P3_FOLLOWUP — the non-vacuum MMS reference lazily builds
-        # its prescribed-inflow source from transport vocabulary
-        # (AngularBoundarySourceSink / AngularSourceSink / TimedFullField) inside
-        # function bodies; move to the test side or import only L2 primitives.
-        ("derivations/continuous/mms/sn.py", "transport"),
-    }
-)
+# Empty since layer DAG P4b and P4c (2026-10-22): the two MMS harnesses pose no
+# production problem from derivations/ any more. A new row needs its retirement trigger.
+WHITELIST: frozenset[tuple[str, str]] = frozenset()
 
 
 def _iter_python_modules(root: pathlib.Path) -> Iterable[pathlib.Path]:
