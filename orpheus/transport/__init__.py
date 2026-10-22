@@ -24,9 +24,8 @@ of 13 until 2026-08-03; an inventory that silently goes stale reads as
 
 Carriers and their algebra:
 
-* :mod:`orpheus.transport.fields` — typed flux fields, each inheriting
-  from :class:`~orpheus.numerics.field.Field`.
-* :mod:`orpheus.transport.fields` — typed source/sink fields.
+* :mod:`orpheus.transport.fields` — typed flux and source/sink fields,
+  each inheriting from :class:`~orpheus.numerics.field.Field`.
 * :mod:`orpheus.transport.residuals` — typed transport residuals.
 * (``orpheus.transport.displacements`` — the displacement siblings of the
   affine field algebra — RETIRED at campaign 1 CS3, 2026-08-19: flux lives

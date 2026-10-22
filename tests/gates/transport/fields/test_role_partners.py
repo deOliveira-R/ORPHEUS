@@ -127,6 +127,35 @@ def test_a_residual_or_coefficient_has_no_partner_and_says_so(name):
         cls.role()
 
 
+_PACKAGE_ONLY_PROBE = """
+from orpheus.transport.fields._bases import RolePair
+import orpheus.transport.fields
+
+def walk(cls):
+    for sub in cls.__subclasses__():
+        yield sub
+        yield from walk(sub)
+
+halves = {c.__name__ for c in walk(RolePair) if "_role_partners" in vars(c)}
+print(len(halves))
+"""
+
+
+def test_importing_only_the_package_registers_every_pair():
+    """The package-level claim the fields ``__init__`` and the RolePair
+    docstring make — the map is complete whenever the package is — checked
+    in a fresh interpreter that imports ONLY ``orpheus.transport.fields``
+    (the walk above imports every module, so it cannot see a leaf the
+    ``__init__`` forgot). 7 pairs, 14 registered halves."""
+    import subprocess
+    import sys
+
+    out = subprocess.run(
+        [sys.executable, "-c", _PACKAGE_ONLY_PROBE], capture_output=True, text=True, check=True
+    ).stdout.split()
+    assert out == [str(2 * len(_SOURCE_SINK))], out
+
+
 def test_a_second_source_sink_for_one_flux_is_refused_at_class_creation():
     r"""The bijection is enforced at import time, not validated later."""
     from orpheus.transport.fields.scalar_flux import ScalarFlux

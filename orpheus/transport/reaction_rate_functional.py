@@ -86,10 +86,11 @@ class ReactionRateFunctional(InnerProductFunctional):
 
     Build with the production cross section for the fission emission density
     (``ReactionRateFunctional(CrossSectionField.fission_production_of(mat_xs))``) or with the
-    absorption cross section for the absorption rate. The fission operator
-    builds it fresh per access (read-through to a depleting / feedback-updated
-    :class:`MaterialXSField`), so a snapshot of ``cross_section.values`` as the
-    base weight is faithful.
+    absorption cross section for the absorption rate. The weight is a
+    snapshot of ``cross_section.values`` at construction: build the
+    functional again after a depletion or feedback update. (The fission
+    operator's own production rate is a separate, cached gather; the two
+    sources of per-cell νΣ_f are #648.)
 
     Parameters
     ----------

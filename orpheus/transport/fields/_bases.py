@@ -40,7 +40,7 @@ provides the *locus + family* axes as ABCs; the *role* leaves
          │   │                    the FullField boundary-slot discriminator (the pole is NOT one)
          │   ├─ AngularBoundaryField (ABC)   an SNProblem-carried AngularTraceSpace (mesh.angular_trace)
          │   │   ├─ AngularBoundaryFlux          role leaf  (flux)
-         │   │   ├─ AngularBoundarySourceSink    role leaf  (source; B.3 — orpheus.transport.fields)
+         │   │   ├─ AngularBoundarySourceSink    role leaf  (source)
          │   │   ├─ AngularBoundaryResidual      role leaf  (residual; B.3 — orpheus.transport.residuals)
          │   └─ ScalarBoundaryField (ABC)    ScalarTraceSpace (DiffusionMesh.scalar_trace; #290 P2/P7a)
          │       ├─ ScalarBoundaryFlux           role leaf  (flux — the per-face (J⁺, J⁻) pair)
@@ -180,8 +180,9 @@ class RolePair:
     leaf already imports its flux partner for its named compositions
     (``from_isotropic``, ``from_balance``), while the flux leaves import no
     source/sink. Both halves live in :mod:`orpheus.transport.fields`, whose
-    package init imports every leaf, so the map is complete whenever the
-    package is.
+    package init imports every leaf that declares a pair, so the map is
+    complete whenever the package is (``test_role_partners.py`` checks it
+    from a fresh interpreter that imports only the package).
 
     Consumers:
 

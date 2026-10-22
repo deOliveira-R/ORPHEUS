@@ -138,8 +138,6 @@ Verification (the P5 gates, ``tests/gates/diffusion/test_solver.py``)
 
 from __future__ import annotations
 
-from orpheus.transport.fields.cross_section_field import CrossSectionField
-
 from dataclasses import dataclass
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast
@@ -157,6 +155,7 @@ from orpheus.numerics.convergence import (
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField

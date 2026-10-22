@@ -103,8 +103,6 @@ alone (the walk's ``Q/Σ_t`` short-circuit in matrix form).
 
 from __future__ import annotations
 
-from orpheus.transport.fields.cross_section_field import CrossSectionField
-
 from typing import TYPE_CHECKING, Iterator
 
 import numpy as np
@@ -121,6 +119,7 @@ from orpheus.sn.loss_representation.sweep_graph import (
     SweepDependencyGraph,
 )
 from orpheus.sn.loss_representation.sweep_schedule import _octant_sweep
+from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.spatial._ubld import octant_moment_frame_signs
 
 if TYPE_CHECKING:

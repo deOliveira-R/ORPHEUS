@@ -125,11 +125,9 @@ class CrossSectionField(CoefficientRole, ScalarField):
     # properties until the layer DAG round 3) so that the mesh package names
     # no field type: the carrier is the input, the field is the codomain.
     #
-    # All three σ are typed for SYMMETRY even though only σ_t (collision) and
-    # νΣ_f (fission) have production consumers: the wrap is one pattern, and a
-    # two-typed-one-raw surface would invite a future σ_a consumer to
-    # open-code the wrap inline (a single-source violation). Do NOT delete
-    # ``absorption_of`` as "unused".
+    # All three σ are typed: σ_t (collision), σ_a (the SN solver's absorption
+    # rate) and νΣ_f (fission production) each have a production consumer, and
+    # the wrap is one pattern for all three.
     @classmethod
     def total_of(cls, xs: "MaterialXSField") -> "CrossSectionField":
         r""":math:`\Sigma_t` of ``xs`` as a typed field (1/cm)."""

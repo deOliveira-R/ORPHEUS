@@ -33,8 +33,6 @@ taken verbatim: no entry point supplies a default law.
 
 from __future__ import annotations
 
-from orpheus.transport.fields.cross_section_field import CrossSectionField
-
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
@@ -72,6 +70,7 @@ from orpheus.numerics.outcome import (
     NotYet,
     SourceOutcome,
 )
+from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .coupled_system import (
     WithinGroupSystem,

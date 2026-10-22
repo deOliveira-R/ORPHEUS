@@ -176,8 +176,6 @@ References
 
 from __future__ import annotations
 
-from orpheus.transport.fields.cross_section_field import CrossSectionField
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -199,6 +197,7 @@ from orpheus.sn.operators.radial_characteristic import (
     RadialCharacteristicSeeding,
 )
 from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
+from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,

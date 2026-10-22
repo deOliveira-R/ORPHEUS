@@ -112,8 +112,6 @@ References
 
 from __future__ import annotations
 
-from orpheus.transport.fields.cross_section_field import CrossSectionField
-
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -126,6 +124,7 @@ from orpheus.geometry.boundary import (
 )
 from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.axis_marginal import AxisSectionOperator
+from orpheus.transport.fields.cross_section_field import CrossSectionField
 
 if TYPE_CHECKING:
     from orpheus.numerics.quadrature.directional import Quadrature

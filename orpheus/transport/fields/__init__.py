@@ -8,11 +8,12 @@ verbatim; concrete subclasses add construction factories and
 diagnostics tailored to their physical role.
 
 This package holds both halves of every role pair: the flux leaves and the
-source/sink leaves (folded in from the former ``transport/source_sinks``
-package at the layer DAG round 3). Importing it imports every leaf that
-declares a pair, so the flux ↔ source/sink map of
+source/sink leaves. Importing it imports every leaf that declares a pair, so
+the flux ↔ source/sink map of
 :class:`~orpheus.transport.fields._bases.RolePair` is complete whenever the
-package is.
+package is. The pairs themselves are the registry's, not a list here:
+:class:`~orpheus.transport.fields._bases.RolePair` holds them and
+``tests/gates/transport/fields/test_role_partners.py`` enumerates them.
 
 Migration sequence (Depth B plan §6, with the as-built outcome):
 
@@ -50,23 +51,6 @@ might align. Cross-class same-units operations (e.g. combining an
 isotropic source/sink with a per-ordinate one) go through the canonical
 subspace-containment injection or a NAMED composition factory, not an
 ad-hoc cross-class dunder.
-
-Role grid (field vocabulary, issues #205 / #201): the **source/sink**
-column —
-
-* bulk: :class:`ScalarSourceSink`, :class:`AngularSourceSink`,
-  :class:`HarmonicMomentSourceSink` (the moment-space source/sink — the
-  output of :math:`\Lambda` in the anisotropic in-scatter
-  :math:`R\,\Lambda\,M`, completing the moment row of the
-  ``(angular ⊗ moment) × (flux ⊗ source)`` carrier grid);
-* boundary: :class:`AngularBoundarySourceSink`
-  (the prescribed-inflow :math:`q` of the affine boundary law,
-  materialised as a stored field on the trace — distinct from the
-  geometry-layer :class:`InflowSourceSpec` *generator* it was renamed
-  away from; see :mod:`orpheus.transport.fields.angular_boundary_source_sink`)
-  and :class:`ScalarBoundarySourceSink` (the scalar-family sibling on
-  the ``(J⁺, J⁻)`` trace — every scalar-composite operator's ``.apply``
-  output boundary, #290 P4).
 
 Interior face access — NO per-face type
 ========================================
