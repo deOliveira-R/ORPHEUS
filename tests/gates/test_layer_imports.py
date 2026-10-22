@@ -299,6 +299,41 @@ def test_the_points_and_the_group_action_are_geometry() -> None:
     assert (ORPHEUS_ROOT / "geometry" / "roots_of_unity.py").is_file()
 
 
+_INDEX_SET = "orpheus.numerics.index_set"
+
+
+def _geometry_imports_of_the_index_sets(rel: pathlib.PurePosixPath, src: str) -> list[str]:
+    """The targets of ``src`` naming the finite index sets' module, every import kind."""
+    return [t for t in _imported_targets(rel, src) if t == _INDEX_SET or t.startswith(_INDEX_SET + ".")]
+
+
+@pytest.mark.foundation
+def test_geometry_never_imports_the_finite_index_sets() -> None:
+    """Ruling 8: the ``Manifold`` closed sum's geometric members name no numerics member.
+
+    ``IndexSet`` and ``EnergyGroups`` subclass geometry's ``Manifold`` from
+    :mod:`orpheus.numerics.index_set`, the allowed direction; each member answers
+    ``ambient_dim`` itself, so no geometry module needs the index sets at any import
+    kind. The predicate is checked first on the three shapes it must refuse (X1)."""
+    probe = pathlib.PurePosixPath("geometry/probe.py")
+    for src in (
+        "from orpheus.numerics.index_set import IndexSet\n",
+        "def f():\n    from orpheus.numerics.index_set import ENERGY\n",
+        "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    import orpheus.numerics.index_set\n",
+        "from orpheus.numerics import index_set\n",
+    ):
+        assert _geometry_imports_of_the_index_sets(probe, src), src
+    offenders = [
+        f"{path.relative_to(ORPHEUS_ROOT)}: {target}"
+        for path in _iter_python_modules(ORPHEUS_ROOT / "geometry")
+        for target in _geometry_imports_of_the_index_sets(
+            pathlib.PurePosixPath(path.relative_to(ORPHEUS_ROOT).as_posix()),
+            path.read_text(encoding="utf-8"),
+        )
+    ]
+    assert not offenders, offenders
+
+
 # ---------------------------------------------------------------------------
 # The numerics -> geometry back-edge, and the discipline that makes it safe
 # ---------------------------------------------------------------------------
