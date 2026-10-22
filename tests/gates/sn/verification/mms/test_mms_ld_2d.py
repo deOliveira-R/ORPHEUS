@@ -1411,14 +1411,14 @@ def test_ld_2d_boundary_slope_threaded_through_inflow_to_moments():
     # leg pins the PRODUCER (`case.inflow_face_values`) — together they close the
     # producer→consumer chain.  L11: the reference is `_face_transverse_buffers`
     # → leggauss only, NEVER `case._project_inflow_to_face_moments`.
-    bss = mms_prescribed_inflow(case, sn)              # the PRODUCTION boundary source
+    bss = mms_prescribed_inflow(case, sn)         # the production boundary source
     for face in ("xmin", "xmax", "ymin", "ymax"):
         view = bss.face_view(face)                # (N, ng, n_t, 2)
         _, slope_ref = bufs[face]                 # (N, ng, n_t), leggauss
         inflow_face = sn.angular_trace.inflow_indices_for_face(face)
         np.testing.assert_array_equal(
             view[inflow_face, ..., 1], slope_ref[inflow_face],
-            err_msg=f"the PRODUCTION case.inflow_face_values did NOT emit the "
+            err_msg=f"the MMS case's inflow_face_values did NOT emit the "
             f"projected transverse face-slope (slot-1) on face {face!r} — the "
             f"producer dropped the slope (the #257 S9 production change is not "
             f"in effect, or the projector drifted from the leggauss reference)",
