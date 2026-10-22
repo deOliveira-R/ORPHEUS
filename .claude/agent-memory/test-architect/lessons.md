@@ -238,6 +238,10 @@ only the ORPHEUS mechanisms they do not name.
   `module.__file__` first. Refines `code-search`'s "run a probe script from outside the repository".
   And a battery reading `^FAILED (\S+)` collapses whitespace-bearing parametrize ids: mint ids without
   spaces and check `len(set)` against the summary count. → `L99`
+- **⛔ A draft gate under the main repo's `scratch/` runs against the MAIN tree whatever `PYTHONPATH` says** (the
+  main `pyproject.toml`'s `pythonpath = ["."]` wins): stage it in the worktree with a `test_where` row, or run a copy
+  from outside the repository with `-c /dev/null`. And the discriminator for one content field is a pair differing in
+  that field ONLY. Refines `L99`. → `L118`
 - **⚠ After adding a field to a type, grep the tests for REFLECTION walkers**
   (`vars(`, `asdict`, `fields(`) — a walker over arbitrary objects sweeps the
   new field's arrays into an unrelated count and reddens for the wrong reason.

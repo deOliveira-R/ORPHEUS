@@ -11824,3 +11824,21 @@ calculus: measure the unit cost a recommendation multiplies before using a relay
 - Battery mechanics: an arm "no bijection" that builds a `Permutation` from a nearest-neighbour map does not bite (the
   constructor refuses a non-bijection); and `match="dimension"` stayed green with the dimension check removed because
   numpy's matmul shape error says "core dimension". Pin a refusal's OWN phrase.
+
+## L118 — numerics untangling S7 (axis identity, #631): drafts under scratch/ test the main tree; gating a shared worktree read-only (2026-10-21/22)
+
+- A draft test file at `scratch/.../test_*.py`, run with `PYTHONPATH=<worktree>` and `--rootdir=<worktree>`, imported
+  `orpheus` from the MAIN checkout: pytest took the main `pyproject.toml` as inifile and its `pythonpath = ["."]`
+  prepends the main root. `[M]` an ImportError path named `/ORPHEUS/orpheus/...`. Stage drafts in the worktree's
+  `tests/` with a `test_where` row, or run a copy from a directory OUTSIDE the repository with `-c /dev/null`.
+- A measure-space label keyed on `phase` met a production `IndexSet` support (the loss-kernel gauge, 1184 reads)
+  that `phase` refuses; a runtime spy on `DiscreteMeasure.space` found it in one 10-second run, before the ruling.
+- A weights-blind identity arm stays green on a pair whose NODES also differ (LS(4) vs product(3,8)): the
+  discriminator for a content field is a pair differing in that field ONLY (one node set, weights x2).
+- Read-only verification in a worktree another agent is editing: `PYTHONDONTWRITEBYTECODE=1`,
+  `-p no:cacheprovider`, single files serially after `pgrep -f pytest`, and a `git status --porcelain | md5`
+  before/after as the witness that nothing was written. Textual arms on a classmethod: dedent
+  `inspect.getsource(func)`, `str.replace` each fragment exactly once (else Uninstallable), exec in the module's
+  globals, `setattr` the resulting classmethod on the LIVE class; all three S7 arms bit on the first run.
+- A field made content by a dataclass `compare` flag can be blinded in-process by flipping `field.compare` and
+  clearing `content._DIGESTS` (L101's cache): the edges-blind arm on `CellLayout` reddened exactly H2 and H2b.
