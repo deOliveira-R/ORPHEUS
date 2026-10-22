@@ -12,7 +12,8 @@ carrier parse the step-5 census counted 12 times across three verbs.
 declared partner map (the ``ClassVar`` the leaves set) against the
 population derived by a runtime ``__subclasses__`` walk after importing
 EVERY module of ``transport/{fields,residuals}`` explicitly.
-⚠ `[M]` 2026-09-04: importing only the three package ``__init__``s
+⚠ `[M]` 2026-09-04: importing only the package ``__init__``s (three then,
+two since the layer DAG round 3 fold of ``source_sinks`` into ``fields``)
 yields **19** leaves — ``AngularBoundaryFlux`` is not re-exported — so
 the walk imports the modules, and that member is the positive control.
 
