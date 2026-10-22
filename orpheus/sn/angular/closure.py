@@ -183,8 +183,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from orpheus.numerics.axis import Axis
     from orpheus.transport.fields._bases import RadialCharacteristicInteriorField
 
-    from ..problem import SNProblem
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # AngularClosureBase — concrete ABC with self-registration
@@ -1613,12 +1611,18 @@ class MorelMontryAngularSweep(
 
     Parameters
     ----------
-    problem : SNProblem
-        The mesh + quadrature + materials bundle this strategy binds to
-        (REQUIRED — the family's ``cls(problem)`` construction contract).
-        M-M precomputes α-dome, ΔA/w, τ, c_in, c_out, level partition,
-        μ_x, weights, Δr at construction; the strategy methods read these
-        from ``self`` (no M-M data through arguments).  Tests that need the
+    angular : AngularRedistribution
+        The member-independent angular factor (the α-dome and the
+        starting direction), the family's construction contract
+        (:meth:`AngularClosureBase.__init__`).
+    pairing : numpy.ndarray
+        The spatial factor, ``(nx, n_mom, n_thread)``; a single moment.
+    angular_axis : Axis
+        The angular space factor, whose generator is the quadrature.
+
+    M-M precomputes α-dome, ΔA/w, τ, c_in, c_out, level partition, μ_x,
+    weights, Δr at construction; the strategy methods read these from
+    ``self`` (no M-M data through arguments).  Tests that need the
         recurrence under hand-built coefficient arrays use the module-level
         :func:`compute_psi_half_per_level` (same kernel, all data via
         arguments).
@@ -2200,12 +2204,13 @@ class IdentityAngularClosure(AngularClosureBase, key="identity_angular_closure")
 
     Parameters
     ----------
-    problem : SNProblem
-        Bound to the mesh so consumers have one uniform construction
-        pattern.  Identity reads only the ordinate count off the angular
-        factor's measure to size its zero-contribution returns; the
-        ``level_indices`` attribute is the trivial single-level
-        partition ``(arange(N),)``.
+    angular, pairing, angular_axis
+        The family's construction contract
+        (:meth:`AngularClosureBase.__init__`), taken so every member is
+        built one way.  Identity reads only the ordinate count, through
+        the quadrature the angular axis carries, to size its
+        zero-contribution returns; the ``level_indices`` attribute is the
+        trivial single-level partition ``(arange(N),)``.
     """
 
     is_linear: ClassVar[bool] = True

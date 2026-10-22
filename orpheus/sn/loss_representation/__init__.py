@@ -191,7 +191,6 @@ if TYPE_CHECKING:
 
     from ..angular.closure import AngularClosureBase
     from ..problem import SNProblem
-    from ..operators.streaming import StreamingOperator
     from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
     from .sweep_schedule import OctantSweep, OctantSweepGroup
 

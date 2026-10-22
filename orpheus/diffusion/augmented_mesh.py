@@ -316,7 +316,7 @@ class DiffusionMesh(MaterialMesh):
         outflow partial current (1-arg ``apply`` — consumed by
         :class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`).
         """
-        method_space = DiffusionMethodSpace.for_face(mesh=self, face=face)
+        method_space = DiffusionMethodSpace.for_face(trace=self.scalar_trace, face=face)
         return DiffusionBoundaryRealizer().realize(law, method_space)
 
     # ── The method layer's spaces ──────────────────────────────────────

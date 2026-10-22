@@ -813,18 +813,16 @@ def test_every_exemption_row_names_a_live_edge() -> None:
 #
 # The cycles still open are listed EXACTLY: a new cycle is red, and a listed
 # cycle that no longer exists is red too (the row is retired with the cycle).
-# [M] 2026-10-22 (layer DAG round 2): the mesh {axis, face_laws, structured}
-# and data {macro_xs, materials} cycles were broken; these remain.
+# [M] 2026-10-22 (layer DAG rounds 2-4): the mesh, data, transport and
+# diffusion cycles were broken, and the sn cycle shrank from 8 members to 5;
+# these remain.
 
 _OPEN_INTRA_PACKAGE_CYCLES: dict[str, frozenset[frozenset[str]]] = {
-    # The method-space / boundary-realizer / augmented-mesh triangle.
-    "diffusion": frozenset({frozenset({"augmented_mesh", "boundary_realizer", "method_space"})}),
     # The traced-memo boot pair (numerics_untangling.md: by design, a bootstrap).
     "numerics": frozenset({frozenset({"_traced_memo_boot", "traced_memo"})}),
-    # The SN hub and its operator, sweep and boundary packages.
-    "sn": frozenset({frozenset({
-        "angular", "boundary", "coupled_system", "loss_representation", "mesh", "operators", "problem", "sweep",
-    })}),
+    # The SN hub caches values built from above it (`system`, the loss-kernel
+    # gauge): the discretization welded to the posing layer (#529).
+    "sn": frozenset({frozenset({"coupled_system", "loss_representation", "operators", "problem", "sweep"})}),
 }
 
 

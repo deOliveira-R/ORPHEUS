@@ -41,7 +41,7 @@ What the Protocol deliberately does NOT contain
   carrier). The asymmetry is honest; forcing a common signature would
   fabricate parameters. The Protocol is **instance surface only**.
 * **Method-space construction.** ``SNMethodSpace.for_face(mesh,
-  quadrature, face, trace)`` vs ``DiffusionMethodSpace.for_face(mesh,
+  quadrature, face, trace)`` vs ``DiffusionMethodSpace.for_face(trace,
   face)`` — non-unifiable for the same reason. The per-method
   :meth:`~TransportMethod.realize_boundary_law` hook subsumes it: the
   method space is an implementation detail *inside* each arm.

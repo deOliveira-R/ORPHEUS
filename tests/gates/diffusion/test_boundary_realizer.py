@@ -422,23 +422,24 @@ class TestDiffusionMethodSpace:
 
     def test_minimal_is_metadata_free(self):
         ms = DiffusionMethodSpace.minimal()
-        assert ms.mesh is None and ms.face is None and ms.trace is None
+        assert ms.face is None and ms.trace is None
 
-    def test_for_face_reads_the_mesh_trace(self):
-        """#290 P7a: for_face reads the trace OFF the mesh — the single
-        source; the stored trace IS the mesh's cached scalar trace."""
+    def test_for_face_stores_the_mesh_trace(self):
+        """#290 P7a: the stored trace IS the trace passed in (the mesh's
+        cached scalar trace, the single source), and the method space
+        holds no mesh."""
         mesh = self._mesh()
-        ms = DiffusionMethodSpace.for_face(mesh=mesh, face="xmax")
+        ms = DiffusionMethodSpace.for_face(trace=mesh.scalar_trace, face="xmax")
         assert ms.face == "xmax"
         assert ms.trace is mesh.scalar_trace
-        assert ms.mesh is mesh
+        assert not hasattr(ms, "mesh")
 
     def test_for_face_validates_face_against_trace_inventory(self):
         """A method space for a nonexistent face is unrepresentable —
         the mirror of SN's for_face deriving (and thereby validating)
         per-face indices from its trace."""
         with pytest.raises(ValueError, match="ymax"):
-            DiffusionMethodSpace.for_face(mesh=self._mesh(), face="ymax")
+            DiffusionMethodSpace.for_face(trace=self._mesh().scalar_trace, face="ymax")
 
     def test_frozen(self):
         ms = DiffusionMethodSpace.minimal()
