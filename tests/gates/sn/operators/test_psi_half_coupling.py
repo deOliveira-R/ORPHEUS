@@ -80,6 +80,7 @@ from orpheus.sn.operators.radial_characteristic import (
     RadialCharacteristicOperator,
     RadialCharacteristicReconstruction,
     RadialCharacteristicSeeding,
+    radial_characteristic_source_from_angular,
 )
 import orpheus.numerics.spaces.radial_characteristic_space as _rcs_mod
 # Campaign step 4c (THE LIFT): the Fold ``RadialCharacteristicReconstruction``
@@ -2473,10 +2474,7 @@ class TestCoupledLift:
         makes the emission — hence the seed — identically zero, a VACUOUS gate).
 
         Tooth (½ → 0.6 fold): :meth:`test_L1F_fission_seed_value_has_teeth`."""
-        from orpheus.sn.solver import (
-            _radial_characteristic_fission_seed,
-            _radial_characteristic_source_from_per_ordinate,
-        )
+        from orpheus.sn.solver import _radial_characteristic_fission_seed
         snf = _fissile_sphere()
         F = SNSolver(snf).problem.fission.isotropic_energy
         psi = _random_composite(snf, np.random.default_rng(140))
@@ -2491,7 +2489,7 @@ class TestCoupledLift:
             err_msg="_radial_characteristic_fission_seed ≠ the direct moments-fold "
                     "(_ba_oldloop_reference) — the F seed is not the ℓ=0 fold.")
         # (b) principled-equiv (~ULP) to the RETIRED per-ordinate round-trip.
-        old = _radial_characteristic_source_from_per_ordinate(
+        old = radial_characteristic_source_from_angular(
             AngularSourceSink.from_isotropic(emission, snf).values, snf).to_flat()
         # Budget: measured ~9-16 ULP on this config (maxabs 5.6e-16, maxrel 1.9e-15);
         # nulp=32 gives headroom for the removed per-ordinate ·w reassociation (the
@@ -2616,7 +2614,6 @@ class TestCoupledLift:
         reds a reverted migration, and (b) a GLOBAL fold counter would NOT (it stays
         > 0 from scatter) — the fission-specific delta is WHY the sentinel has teeth
         (Mode 11). This tooth bakes the refutation of the brief's literal design in."""
-        from orpheus.sn.solver import _radial_characteristic_source_from_per_ordinate
         snf = _fissile_sphere()
         fold = {"n": 0}
         real_fold = RadialCharacteristicReconstruction.apply
@@ -2632,7 +2629,7 @@ class TestCoupledLift:
 
         def bypass_seam(fission_source, problem):
             before = fold["n"]
-            out = _radial_characteristic_source_from_per_ordinate(
+            out = radial_characteristic_source_from_angular(
                 AngularSourceSink.from_isotropic(fission_source, problem).values,
                 problem)
             seam["n"] += 1
@@ -4073,7 +4070,7 @@ class TestPrescribedCornerDatum:
     (step 7 — the d3 regression's fast wiring catcher; ERR-069).
 
     The inflow-corner law has three arms (see
-    :meth:`RadialCharacteristicField.source_from_angular`): vacuum ⇒ 0,
+    :func:`~orpheus.sn.operators.radial_characteristic.radial_characteristic_source_from_angular`): vacuum ⇒ 0,
     reflective ⇒ the ``B_b`` gain arm, prescribed ⇒ the SOURCE's own trace
     datum at the most-inward ``xmax`` ordinate. The d3 carve wired only the
     first two; the sphere prescribed-inflow MMS converged to a wrong fixed

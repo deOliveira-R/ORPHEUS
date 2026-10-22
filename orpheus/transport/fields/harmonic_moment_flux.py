@@ -44,8 +44,6 @@ D-E Field-inheritance migration:
   :math:`L`) — the **first
   TensorProductSpace consumer in a typed Field** (D-B's L1 primitive
   is now load-bearing).
-* Keeps ``mesh: SNProblem`` as an additive field under ``TYPE_CHECKING``
-  (same pattern as :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`).
 * Preserves the mesh-identity strict semantic via a
   :meth:`_check_partner` override.
 * The ``L`` parameter is encoded in ``space.shape`` (and queryable via
@@ -139,8 +137,6 @@ class HarmonicMomentFlux(MomentField):
         :meth:`from_problem_and_L` is the canonical path; direct kw-only
         construction is for callers that already hold a constructed
         space.
-    mesh : SNProblem
-        The SN phase-space carrier.
     L : int
         Maximum harmonic order retained. Determines the leading two
         axes' sizes: ``values.shape[:2] == (L+1, 2L+1)``. Encoded in

@@ -56,6 +56,9 @@ from orpheus.numerics.convergence import (
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.face_layout import face_normal
 from orpheus.sn.operators.loss_kernel_gauge import gauge_freedom, warn_if_gauge_freedom
+from orpheus.sn.operators.radial_characteristic import (
+    radial_characteristic_source_from_angular,
+)
 from orpheus.numerics.gauge import ScaleGauge
 from orpheus.numerics.posing import SourcePosing
 from orpheus.numerics.outcome import (
@@ -111,9 +114,6 @@ if TYPE_CHECKING:
     from orpheus.numerics.operator import LinearOperator
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
-    from orpheus.transport.source_sinks.angular_boundary_source_sink import (
-        AngularBoundarySourceSink,
-    )
     from .operators.boundary import SNBoundaryOperator
     from .operators.streaming import StreamingCollisionOperator
     from .operators.sweep_operator import SweepOperator
@@ -1052,39 +1052,6 @@ def _unwindowed_cold_start(problem, *, history_depth):
     )
 
 
-def _radial_characteristic_source_from_per_ordinate(
-    per_ordinate_values: "np.ndarray", problem,
-    *, boundary_trace: "AngularBoundarySourceSink | None" = None,
-) -> "RadialCharacteristicField | None":
-    r"""Fold a PER-ORDINATE source to its q½ composite —
-    :meth:`RadialCharacteristicField.source_from_angular` (Legendre-project
-    the per-ordinate source to moments, then fold at :math:`\mu=\pm 1`).
-
-    The PER-ORDINATE typed entry to the one fold kernel
-    (:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`),
-    used where the source is genuinely per-ordinate (possibly anisotropic):
-    the fixed-source rhs external source (:func:`_build_fixed_source_rhs`, its
-    ONE caller since #448 — the eigenvalue finalize's total-source fold
-    retired when the finalize became one step of the driven iteration, whose
-    ψ½ member arrives as the fission seed). The eigenvalue FISSION q½ seed uses the
-    MOMENTS entry :func:`_radial_characteristic_fission_seed` instead (its ℓ=0
-    emission is already a moment, so the direct fold skips this factory's
-    per-ordinate round-trip). Both bottom out in the SAME kernel — no twin, a
-    different typed input.
-
-    ``boundary_trace`` (step 7, the prescribed-corner arm): the SAME source
-    composite's boundary member, forwarded so the factory can deliver the
-    prescribed-inflow r = R corner datum to System B's given-data slot —
-    see the factory's three-arm inflow-corner law. Pass it wherever the
-    per-ordinate source HAS a boundary member (the fixed-source rhs);
-    omit for boundary-free folds (cold starts, reconstructions whose
-    corner is populated separately from the converged state).
-    """
-    return RadialCharacteristicField.source_from_angular(
-        per_ordinate_values, problem, boundary_trace=boundary_trace,
-    )
-
-
 def _radial_characteristic_fission_seed(
     fission_source: "np.ndarray", problem,
 ) -> "RadialCharacteristicField | None":
@@ -1146,7 +1113,8 @@ def _coupled_source_state(
     r"""Pair a System-A SOURCE composite with its q½ System-B member.
 
     The coupled rhs birth on a carrying mesh: ``q_half`` is the q½ fold
-    composite (:func:`_radial_characteristic_source_from_per_ordinate` /
+    composite
+    (:func:`~orpheus.sn.operators.radial_characteristic.radial_characteristic_source_from_angular` /
     :func:`_radial_characteristic_fission_seed`) — System B's member,
     paired directly. ``None`` refuses loudly — a carrying mesh's rhs MUST
     carry the true q½ (the direct ψ½ solve consumes it).
@@ -3136,7 +3104,7 @@ def _build_fixed_source_rhs(
         # the source channel (the factory's three-arm inflow-corner law —
         # the step-7 regression fix; zero for vacuum/reflective rhs, so
         # those paths stay byte-identical).
-        seed_src = _radial_characteristic_source_from_per_ordinate(
+        seed_src = radial_characteristic_source_from_angular(
             bulk_values, problem, boundary_trace=boundary,
         )
     return _coupled_source_state(

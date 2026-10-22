@@ -38,7 +38,7 @@ provides the *locus + family* axes as ABCs; the *role* leaves
          │                        (spatial |Ω·n̂|·w; pole V_cell), never on this ABC (ERR-067).
          ├─ BoundaryField (ABC, FaceField[str])   SPATIAL faces (keyed by name) + from_face_arrays;
          │   │                    the FullField boundary-slot discriminator (the pole is NOT one)
-         │   ├─ AngularBoundaryField (ABC)   mesh: SNProblem + AngularTraceSpace (mesh.angular_trace)
+         │   ├─ AngularBoundaryField (ABC)   an SNProblem-carried AngularTraceSpace (mesh.angular_trace)
          │   │   ├─ AngularBoundaryFlux          role leaf  (flux)
          │   │   ├─ AngularBoundarySourceSink    role leaf  (source; B.3 — orpheus.transport.source_sinks)
          │   │   ├─ AngularBoundaryResidual      role leaf  (residual; B.3 — orpheus.transport.residuals)
@@ -116,9 +116,7 @@ from orpheus.numerics.axis_marginal import AxisRetractionOperator
 
 if TYPE_CHECKING:
     from orpheus.numerics.coefficient_layout import DegreeLayout
-    from orpheus.diffusion.augmented_mesh import DiffusionMesh
     from orpheus.numerics.face_layout import FaceLayout
-    from orpheus.sn.problem import SNProblem
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
@@ -592,10 +590,8 @@ class AngularField(BulkField):
     """
 
     @classmethod
-    def _space_for_problem(  # type: ignore[override] — the family narrows its
-        # carrier (SNProblem), the same #267 covariant-override doctrine as the
-        # ``mesh`` field above; every caller passes this family's carrier.
-        cls, problem: "SNProblem", *, spatial_moments: int = 1,
+    def _space_for_problem(
+        cls, mesh: "MaterialMesh", *, spatial_moments: int = 1,
     ) -> FunctionSpace:
         r"""The leaf's :class:`FunctionSpace` for ``mesh``.
 
@@ -613,10 +609,19 @@ class AngularField(BulkField):
         default ``1`` the space IS the cached instance; at ``> 1`` the
         scheme-owned MODAL moment axis is composed on (see
         :meth:`BulkField.compose_spatial_moments`).
+
+        A carrier that owns no angular bulk space (a transport
+        ``MaterialMesh`` alone, or a ``DiffusionMesh`` — no quadrature)
+        cannot host an angular field, and says so (:class:`TypeError`).
         """
-        return cls.compose_spatial_moments(
-            problem.angular_bulk_space, problem, spatial_moments,
-        )
+        if not isinstance(mesh, _CarriesAngularBulkSpace):
+            raise TypeError(
+                f"an angular field's space is READ off the SN carrier that owns it "
+                f"(SNProblem.angular_bulk_space), and {type(mesh).__name__} carries no "
+                f"quadrature and owns no angular bulk space; build the field on the SN "
+                f"phase-space carrier (an SNProblem)."
+            )
+        return cls.compose_spatial_moments(mesh.angular_bulk_space, mesh, spatial_moments)
 
     def _integrate_angular_values(self) -> "NDArray":
         r"""The ONE moment-0 reduction body :math:`\sum_n w_n\,(\cdot)_n`.
@@ -702,6 +707,15 @@ class ScalarField(BulkField):
         return cls.compose_spatial_moments(
             mesh.bulk_space, mesh, spatial_moments,
         )
+
+
+@runtime_checkable
+class _CarriesAngularBulkSpace(Protocol):
+    """A carrier that OWNS the angular bulk space — the SN hub's cached
+    :attr:`~orpheus.sn.problem.SNProblem.angular_bulk_space` (campaign 1 CS4b)."""
+
+    @property
+    def angular_bulk_space(self) -> FunctionSpace: ...
 
 
 @runtime_checkable
@@ -845,7 +859,7 @@ class MomentField(BulkField):
 
     @classmethod
     def from_problem_and_L(
-        cls, values: NDArray, problem: "SNProblem", L: int, *, spatial_moments: int = 1,
+        cls, values: NDArray, problem: "MaterialMesh", L: int, *, spatial_moments: int = 1,
     ):
         r"""Construct from raw values + mesh + L on the carrier's own
         moment space.
@@ -918,7 +932,7 @@ class MomentField(BulkField):
 
     @classmethod
     def zeros_for_problem_and_L(
-        cls, problem: "SNProblem", L: int, *, spatial_moments: int = 1,
+        cls, problem: "MaterialMesh", L: int, *, spatial_moments: int = 1,
     ):
         r"""Construct a zero moment field at order ``L`` sized to ``mesh`` (B.5.A).
 
@@ -1007,8 +1021,8 @@ class FaceField(RolePair, Field, Generic[K]):
         r"""Return ``mesh``'s cached face space for this family.
 
         The single hook the factories construct through: the spatial
-        families read ``mesh.angular_trace`` (raising on the trace-less 2-D
-        cylindrical mesh) / ``mesh.scalar_trace`` (a :class:`DiffusionMesh`
+        families read ``mesh.angular_trace`` (raising on a carrier that owns
+        no angular trace, i.e. not an SN carrier) / ``mesh.scalar_trace`` (a :class:`DiffusionMesh`
         member, raising on a bare MaterialMesh — #290 P7a); the
         starting-direction family reads the split ψ½ mesh spaces
         (R12a-keyed). MUST return a layout-bearing space or raise
@@ -1198,8 +1212,8 @@ class AngularBoundaryField(BoundaryField):
     Abstract — instantiate a role leaf.
     """
 
-    # The static twin of the __post_init__ isinstance gate below (the
-    # ``mesh: SNProblem`` covariant-narrowing idiom): an angular boundary
+    # The static twin of the __post_init__ isinstance gate below (a
+    # covariant narrowing of the base ``space`` field): an angular boundary
     # field's space IS the quadrature-coupled AngularTraceSpace, so
     # consumers of its atoms (``omega_dot_n``, the face layout, the
     # partial-current metric) type-check without re-narrowing.
@@ -1228,10 +1242,11 @@ class AngularBoundaryField(BoundaryField):
         space = getattr(mesh, "angular_trace", None)
         if space is None:
             raise ValueError(
-                f"{cls.__name__}: mesh has no AngularTraceSpace (mesh.angular_trace is "
-                f"None — only trace-less 2-D cylindrical meshes, which "
-                f"have no SN sweep, hit this). A boundary field cannot "
-                f"be built without a boundary trace."
+                f"{cls.__name__}: {type(mesh).__name__} owns no angular trace "
+                f"(mesh.angular_trace) — only the SN phase-space carrier binds a "
+                f"quadrature and mints the AngularTraceSpace (every SNProblem carries "
+                f"one, C5.3). Build the field on an SNProblem "
+                f"(SNProblem.from_material_mesh promotes a MaterialMesh)."
             )
         return space
 

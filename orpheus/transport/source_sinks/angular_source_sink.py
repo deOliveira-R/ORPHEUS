@@ -71,7 +71,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.numerics.axis_marginal import AxisSectionOperator
 
 if TYPE_CHECKING:
-    from orpheus.sn.problem import SNProblem
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
 __all__ = ["AngularSourceSink"]
@@ -139,7 +139,7 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
 
     @classmethod
     def from_isotropic(
-        cls, iso_values: NDArray, problem: "SNProblem",
+        cls, iso_values: NDArray, problem: "MaterialMesh",
     ) -> "AngularSourceSink":
         r"""Project an iso scalar source :math:`Q(\vec r, g)` to per-ordinate.
 
@@ -164,13 +164,21 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
         ----------
         iso_values : NDArray
             Iso scalar source, shape ``(ng, nx, ny)``.
-        mesh : SNProblem
-            Phase-space carrier.
+        problem : MaterialMesh
+            The angular phase-space carrier (an SNProblem); must own an
+            angular bulk space.
 
         Returns
         -------
         AngularSourceSink
             Per-ordinate source with ``Q/sum_w`` broadcast across N.
+
+        Raises
+        ------
+        ValueError
+            If ``iso_values`` is not shaped ``(ng, *spatial)``.
+        TypeError
+            If the carrier owns no angular bulk space (not an SN carrier).
 
         See also
         --------

@@ -43,8 +43,6 @@ class RadialCharacteristicBoundaryFlux(RadialCharacteristicBoundaryField):
         The R12a-keyed boundary space (canonically
         ``mesh.radial_characteristic_boundary_space``) carrying the layout and
         the ``G = V(r = R)`` corner gauge.
-    mesh : SNProblem
-        The SN phase-space carrier (the cross-mesh-arithmetic guard).
     """
 
     #: ψ½ IS an angular flux (evaluated at the μ = ±1 ray) — ``1/(cm²·s·sr)``.

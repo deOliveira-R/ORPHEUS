@@ -105,8 +105,6 @@ class AngularBoundaryFlux(AngularBoundaryField):
         per-geometry :class:`~orpheus.numerics.face_layout.FaceLayout`.
         Canonically the mesh's cached
         :attr:`~orpheus.sn.problem.SNProblem.angular_trace`.
-    mesh : SNProblem
-        The SN phase-space carrier (the cross-mesh-arithmetic guard).
 
     Notes
     -----

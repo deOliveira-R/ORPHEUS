@@ -37,6 +37,9 @@ from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
+from orpheus.sn.operators.radial_characteristic import (
+    radial_characteristic_source_from_angular,
+)
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -97,8 +100,8 @@ def _random_source(sn, rng, ng: int = 2):
     are EXPLICIT kwargs)."""
     N, nx = sn.quad.n_ordinates, sn.nx
     bvals = rng.standard_normal((N, ng, nx))
-    # source_from_angular returns None on a non-carrying mesh (slab).
-    q_half = RadialCharacteristicField.source_from_angular(bvals, sn)
+    # radial_characteristic_source_from_angular returns None on a non-carrying mesh (slab).
+    q_half = radial_characteristic_source_from_angular(bvals, sn)
     b = FullField(
         interior=AngularSourceSink(values=bvals, space=sn.angular_bulk_space),
         boundary=AngularBoundarySourceSink.zeros(sn.angular_trace),

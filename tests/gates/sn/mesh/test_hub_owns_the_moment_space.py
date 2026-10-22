@@ -102,6 +102,45 @@ def test_g2_4b_a_carrier_that_owns_no_moment_space_is_refused_by_name():
         HarmonicMomentFlux.zeros_for_problem_and_L(_NoHub(), 0)  # type: ignore[arg-type]
 
 
+def test_g2_4c_a_carrier_that_owns_no_angular_bulk_space_is_refused_by_name():
+    """The angular sibling of g2_4b (layer-DAG P3): the angular field family
+    READS ``SNProblem.angular_bulk_space`` through a transport-side Protocol
+    gate, so transport names no method type. A bare ``MaterialMesh`` and a
+    ``DiffusionMesh`` (a method-mesh, but no quadrature) are both refused by
+    name, through the ergonomic producer entry and the family's space hook;
+    the SN carrier is admitted and handed its OWN cached space (the control:
+    the gate admits the carrier it exists for).
+    """
+    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.diffusion.augmented_mesh import DiffusionMesh
+    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
+    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.sn.problem import SNProblem
+    from orpheus.transport.fields.angular_flux import AngularFlux
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+    from orpheus.transport.source_sinks import AngularSourceSink
+
+    mm = MaterialMesh(
+        Mesher(StructuredGeometry.from_homogeneous(10.0, BC("reflective")))
+        .partition(CellsByCount.uniform_width(4)).mesh,
+        {0: get_mixture("A", "2g")},
+    )
+    dm = DiffusionMesh.from_material_mesh(mm)
+    iso = np.zeros((mm.ng, *mm.spatial_shape))
+    for carrier in (mm, dm):
+        with pytest.raises(TypeError, match="owns no angular bulk space"):
+            AngularSourceSink.from_isotropic(iso, carrier)
+        with pytest.raises(TypeError, match="owns no angular bulk space"):
+            AngularFlux._space_for_problem(carrier)
+
+    sn = SNProblem.from_material_mesh(mm, Quadrature.gauss_legendre(n_ordinates=4))
+    if AngularFlux._space_for_problem(sn) is not sn.angular_bulk_space:
+        pytest.fail("CONTROL: the SN carrier was not handed its own cached angular bulk space")
+    if AngularSourceSink.from_isotropic(iso, sn).space is not sn.angular_bulk_space:
+        pytest.fail("CONTROL: from_isotropic on the SN carrier did not land on its angular bulk space")
+
+
 def _windowed_driver(max_inner: int):
     """ONE 2-D Cartesian windowed SI solve (the probe fixture the pre-carve
     counts were measured on): level_symmetric(4), 4×3 cells, ng=2, L=1,

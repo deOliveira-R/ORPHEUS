@@ -138,6 +138,8 @@ from orpheus.sn.sweep.psi_half_angle_seed import (
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
+    from numpy.typing import NDArray
+
     from orpheus.geometry import CoordSystem
     from orpheus.sn.mesh.reduced_operator import ReducedStreamingOperator
     from orpheus.numerics.quadrature.directional import Quadrature
@@ -148,6 +150,9 @@ if TYPE_CHECKING:
     from orpheus.transport.full_field import FullField
     from orpheus.transport.radial_characteristic_field import (
         RadialCharacteristicField,
+    )
+    from orpheus.transport.source_sinks.angular_boundary_source_sink import (
+        AngularBoundarySourceSink,
     )
 
 
@@ -211,6 +216,7 @@ __all__ = [
     "RadialCharacteristicSeeding",
     "RadialCharacteristicReconstruction",
     "RadialCharacteristicEmission",
+    "radial_characteristic_source_from_angular",
 ]
 
 
@@ -1042,7 +1048,7 @@ class RadialCharacteristicReconstruction(LinearOperator):
     isotropic :math:`\ell = 0` emission (``n_moments = 1``), and the fold
     accepts any order so the anisotropic reach is testable before it is needed.
     (The distinct
-    :meth:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField.source_from_angular`
+    :func:`radial_characteristic_source_from_angular`
     data-factory folds a *per-ordinate* source through the SAME kernel after a
     Legendre projection — a different typed input, not a twin.)
 
@@ -1273,6 +1279,210 @@ class RadialCharacteristicReconstruction(LinearOperator):
             f"n_moments={self.n_moments}, levels={self._ray_space.levels}, "
             f"ng={self._ray_space.ng}, nx={self._ray_space.nx})"
         )
+
+
+def radial_characteristic_source_from_angular(
+    angular_source_values: "NDArray", problem: "SNProblem",
+    *, boundary_trace: "AngularBoundarySourceSink | None" = None,
+) -> "RadialCharacteristicField | None":
+    r"""Fold a per-ordinate volumetric source into its q½ composite.
+
+    The ONE per-ordinate source-side birth factory of #282 route (a)
+    (Pattern 2 — the fixed-source rhs routes through here; the eigenvalue
+    fission seed takes the moments entry, see Notes): ``None`` on a
+    non-carrying mesh; on a carrying mesh
+    (1-D curvilinear, R12a) the starting-direction legs receive the
+    value of the source AT the level's start ray, synthesized from
+    the level's own orthogonal analysis — one shape, two families:
+
+    * **SPHERE** (the polar interval): the Hébert Eq. 3.432 Legendre
+      fold at :math:`\mu = \pm 1` (the R14 full :math:`(-1)^\ell`
+      fold),
+
+      .. math::
+
+         \bar q_{1/2}(\mu = \pm 1)
+           \;=\; \sum_\ell \tfrac{2\ell+1}{2}\,q_\ell\,(\pm 1)^\ell,
+         \qquad
+         q_\ell(r) \;=\; \sum_n w_n\,P_\ell(\mu_n)\,q_n(r),
+
+      via the R14 helper
+      (:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`).
+    * **FOLDED CYLINDER** (the arc, Q5.6): the same analysis-synthesis
+      in the arc's OWN Gauss family — the staggered arc is
+      Gauss–Chebyshev-1 in :math:`x = \cos\omega = \eta/\sin\theta_p`
+      (T25), so the endpoint synthesis uses
+      :math:`T_k(\pm 1) = (\pm 1)^k` with the weight-free GC1
+      discrete-orthogonality analysis
+      :math:`c_k = \tfrac{2 - \delta_{k0}}{M}\sum_n T_k(x_n)\,q_n`.
+      `[M]` the sphere's Legendre fold run on these levels produced
+      seed values of −0.58 / +3.72 on a flat unit problem (an 82 %
+      solution error, Mode-12-masked in every two-spelling test);
+      the arc fold restores the flat L0 to 2.8e-13.
+    The full fold is REQUIRED for an anisotropic source: even an
+    isotropic trial flux :math:`\psi = A(r)` streams to a
+    :math:`\mu`-linear source :math:`q = \mu A'(r) + \sigma_t A(r)`,
+    whose value at :math:`\mu = -1` is :math:`\sigma_t A - A'` — the
+    :math:`\ell = 1` term carries the :math:`-A'` that an
+    :math:`\ell = 0`-only fold drops (which floored the anisotropic
+    curvilinear MMS; #282 route (a)).  For an isotropic source the
+    higher moments vanish and the fold collapses to
+    :math:`\tfrac12 q_0` bit-exactly (so the isotropic eigenvalue /
+    fixed-source paths are unchanged).
+
+    **The inflow-corner law has THREE arms**, one per BC family of the
+    outer face — each datum enters through its own system channel:
+
+    * **vacuum** ⇒ 0 (this factory's zero corners, no trace supplied);
+    * **reflective** ⇒ the ``B_b`` corner GAIN arm — iterate-dependent,
+      added into the SI rhs by the splitting's :math:`N` (never here);
+    * **prescribed inflow** ⇒ the SOURCE's own given datum, delivered
+      HERE via ``boundary_trace``: the seed equation's r = R Dirichlet
+      is :math:`\bar\psi_{1/2}(R) = \psi_{\rm in}(\mu=-1, R)`, and the
+      composite rhs's boundary member carries :math:`\psi_{\rm in}` at
+      the quadrature nodes, so each carrying level's inflow corner
+      receives the trace's MOST-INWARD-ordinate ``xmax`` value — the
+      nearest-node proxy for :math:`\mu = -1` (the pre-#282-route-(a)
+      ``bc_outer_value = inflow[most_inward]`` datum, restored through
+      the source channel; its :math:`O(\Delta\mu)` error sits below the
+      #229 angular floor that governs every curvilinear gate; a
+      half-range Legendre fold to :math:`\mu = -1` is the named
+      upgrade seam if a sub-floor consumer ever appears).
+
+    Omitting ``boundary_trace`` (or passing a zero trace — every
+    vacuum/reflective rhs) leaves the corners zero, byte-identical to
+    the pre-widening factory. The regression this arm closes: the d3
+    carve dropped the prescribed-corner datum when it retired the
+    lagged ``bc_outer_value`` read, and the sphere prescribed-inflow
+    MMS converged to a wrong fixed point (L2 ≈ 0.21 vs the 2.4e-3
+    floor) until step 7 restored it.
+
+    Parameters
+    ----------
+    angular_source_values : NDArray
+        The per-ordinate source in principled 1-D ``(N, ng, nx)``
+        layout (carrying meshes are 1-D curvilinear).
+    problem : SNProblem
+        The phase-space carrier (its
+        ``radial_characteristic_field_space`` is the R12a presence
+        predicate; its ``angular_closure.level_indices`` give each
+        level's ordinate bundle for the per-level moment integration).
+    boundary_trace : trace source-sink, optional
+        The SAME composite rhs's boundary member (an
+        ``AngularBoundarySourceSink`` — duck-typed on ``face_view``):
+        the prescribed-inflow given data whose ``xmax`` face feeds the
+        inflow corners as above. ``None`` (the default) for callers
+        whose source carries no boundary member (cold starts, the
+        eigen fission seed).
+
+    Notes
+    -----
+    The PER-ORDINATE typed entry to the one fold kernel
+    (:func:`~orpheus.numerics.spaces.radial_characteristic_space.fold_moments_to_radial_characteristic`),
+    used where the source is genuinely per-ordinate (possibly anisotropic):
+    the fixed-source rhs external source
+    (:func:`orpheus.sn.solver._build_fixed_source_rhs`, its ONE production
+    caller since #448 — the eigenvalue finalize's total-source fold retired
+    when the finalize became one step of the driven iteration, whose ψ½
+    member arrives as the fission seed). The eigenvalue FISSION q½ seed uses
+    the MOMENTS entry :func:`orpheus.sn.solver._radial_characteristic_fission_seed`
+    instead (its ℓ=0 emission is already a moment, so the direct fold
+    through :class:`RadialCharacteristicReconstruction` skips this
+    function's per-ordinate round-trip). Both bottom out in the SAME kernel
+    — no twin, a different typed input.
+
+    Pass ``boundary_trace`` wherever the per-ordinate source HAS a boundary
+    member (the fixed-source rhs); omit it for boundary-free folds (cold
+    starts, reconstructions whose corner is populated separately from the
+    converged state).
+
+    Moved from ``RadialCharacteristicField.source_from_angular`` (transport)
+    at layer-DAG P3, absorbing the solver's per-ordinate wrapper: the fold
+    reads the SN quadrature's μ-level structure, which is SN vocabulary.
+    """
+    from orpheus.geometry import CoordSystem
+    from orpheus.transport.radial_characteristic_field import (
+        RadialCharacteristicField,
+    )
+
+    if problem.radial_characteristic_field_space is None:
+        return None
+    vals = np.asarray(angular_source_values)
+    if vals.ndim != 3:
+        raise ValueError(
+            "radial_characteristic_source_from_angular expects "
+            f"the principled 1-D (N, ng, nx) per-ordinate layout; got "
+            f"shape {vals.shape} (carrying meshes are 1-D curvilinear, "
+            f"R12a)."
+        )
+    mu = problem.quad.mu_x
+    weights = problem.quad.weights
+    level_indices = problem.angular_closure.level_indices
+    arc_family = problem.coord is CoordSystem.CYLINDRICAL
+    seed = RadialCharacteristicField.source_zeros(problem.radial_characteristic_field_space)
+    for p in seed.interior.space.levels:
+        ords = np.asarray(level_indices[p])
+        mu_p = mu[ords]
+        q_p = vals[ords]                                  # (M_p, ng, nx)
+        if arc_family:
+            # The ARC family (Q5.6): a folded level's nodes are the
+            # Gauss-Chebyshev-1 angles in x = cos ω = η/sinθ_p (T25 —
+            # the staggered arc IS the GC1 rule), so the source's value
+            # at the start ray ω = π (x = −1) is the level's
+            # trigonometric interpolant synthesized at the endpoint —
+            # the exact arc analogue of the sphere's Legendre fold,
+            # with T_k(±1) = (±1)^k in place of P_ℓ(±1) = (±1)^ℓ and
+            # the GC1 discrete orthogonality
+            # Σ_n T_j(x_n) T_k(x_n) = (M/2)(1+δ_{k0}) δ_{jk}
+            # making the analysis weight-free:
+            # c_k = (2 − δ_{k0})/M · Σ_n T_k(x_n) q_n.  For a level-
+            # constant source c_0 = q and the fold returns q exactly.
+            mu_z0 = float(problem.quad.mu_z[ords[0]])
+            sin_theta = float(np.sqrt(1.0 - mu_z0 * mu_z0))
+            x_p = mu_p / sin_theta
+            cheb = np.polynomial.chebyshev.chebvander(
+                x_p, ords.size - 1
+            )
+            coeffs = np.einsum("nk,ngx->kgx", cheb, q_p) * (
+                2.0 / ords.size
+            )
+            coeffs[0] *= 0.5
+            k = np.arange(ords.size)
+            for sign in (-1, +1):
+                seed.interior.cells(p, sign)[...] = np.einsum(
+                    "k,kgx->gx", np.float64(sign) ** k, coeffs
+                )
+        else:
+            w_p = weights[ords]
+            # Legendre moments of the source over the level's μ-nodes:
+            # q_ℓ = Σ_n w_n P_ℓ(μ_n) q_n, ℓ = 0 … M_p−1 (the full
+            # angular content the level resolves; the fold reconstructs
+            # q(μ=±1)).
+            legendre = np.polynomial.legendre.legvander(
+                mu_p, ords.size - 1
+            )
+            moments = np.einsum("n,nl,ngx->lgx", w_p, legendre, q_p)
+            for sign in (-1, +1):
+                seed.interior.cells(p, sign)[...] = (
+                    fold_moments_to_radial_characteristic(moments, sign)
+                )
+    if boundary_trace is not None:
+        # The prescribed-inflow corner arm (three-arm law above): the
+        # r = R inward-leg Dirichlet datum per carrying level = the
+        # trace's most-inward (most negative μ) ordinate on the outer
+        # face. Carrying meshes are 1-D curvilinear (R12a), whose one
+        # boundary face is "xmax" (the pole r = 0 is not a face).
+        inflow_at_outer = np.asarray(boundary_trace.face_view("xmax"))
+        for p in seed.interior.space.levels:
+            ords = np.asarray(level_indices[p])
+            # ords is stored eta-ascending (the level's SORT
+            # CONTRACT), so the most-inward member IS ords[0] — the
+            # one tie-break spelling. (An argmin re-derivation here
+            # was #326's "second independent tie-break": equivalent
+            # only by argmin's first-min convention.)
+            most_inward = ords[0]
+            seed.boundary.corner(p, -1)[...] = inflow_at_outer[most_inward, :]
+    return seed
 
 
 class RadialCharacteristicEmission(LinearOperator):

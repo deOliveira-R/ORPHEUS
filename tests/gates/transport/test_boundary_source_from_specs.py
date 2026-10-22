@@ -235,3 +235,40 @@ class TestTheTwoRoutesAgreeByConstruction:
             "the ramp collapsed to a constant — this row's whole purpose is a "
             "spec that DISCRIMINATES row order, so a constant makes it blind"
         )
+
+
+class TestTheTraceDoorsRefuseANonSNCarrier:
+    r"""Layer-DAG P3: the boundary-source factories type their carrier as the
+    transport ``MaterialMesh`` and READ what they need through transport's own
+    doors — ``TransportMethod.bc`` (a runtime ``isinstance``) and
+    ``_face_space_of`` (``mesh.angular_trace``) — so transport names no method
+    type. Each door refuses a carrier that lacks its surface, by name; the SN
+    carrier passes both (the control)."""
+
+    @staticmethod
+    def _material_mesh():
+        from orpheus.transport.mesh.material_mesh import MaterialMesh
+
+        geom = StructuredGeometry.from_homogeneous(2.0, BC.vacuum)
+        mesh = Mesher(geom).partition(CellsByCount.uniform_volume(4)).mesh
+        return MaterialMesh(mesh, placeholder_materials(ng=2))
+
+    def test_a_bare_material_mesh_is_not_a_method_mesh(self):
+        with pytest.raises(TypeError, match="TransportMethod.bc"):
+            AngularBoundarySourceSink.from_problem_laws(self._material_mesh())
+
+    def test_a_diffusion_mesh_owns_no_angular_trace(self):
+        from orpheus.diffusion.augmented_mesh import DiffusionMesh
+
+        with pytest.raises(ValueError, match="owns no angular trace"):
+            AngularBoundarySourceSink.from_problem_laws(DiffusionMesh.from_material_mesh(_slab()))
+
+    def test_prescribed_inflow_on_a_bare_material_mesh_names_the_missing_trace(self):
+        with pytest.raises(ValueError, match="owns no angular trace"):
+            AngularBoundarySourceSink.prescribed_inflow(self._material_mesh(), {})
+
+    def test_control_the_sn_carrier_passes_both_doors(self):
+        sn = _slab()
+        q = AngularBoundarySourceSink.from_problem_laws(sn)
+        if q.space is not sn.angular_trace:
+            pytest.fail("CONTROL: the SN carrier's declared q is not on its own angular trace")

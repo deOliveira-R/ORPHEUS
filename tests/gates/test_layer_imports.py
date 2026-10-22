@@ -21,9 +21,10 @@ geometry, an edge pending layer_dag.md P1; numerics -> data is forbidden
 (layer_dag.md P2). Forbidden edges raise the parametrised test.
 
 Tolerances:
-  - TYPE_CHECKING imports of L3-only types inside L2 modules are
-    permitted (string annotations don't create runtime edges); P3 of
-    layer_dag.md retires this tolerance. L1 has no tolerance.
+  - TYPE_CHECKING imports are edges like any other (retired at layer-DAG
+    P3: 7 of 7 tolerated imports were transport -> sn/diffusion, 3 of them
+    dead, 0 from numerics; a typing-only import of a method type from L2
+    was a concept in the wrong layer).
   - WHITELIST entries cover transitional exemptions retired by
     later Phase 3 steps; each whitelist entry carries a comment
     naming its retirement trigger.
@@ -42,7 +43,6 @@ ORPHEUS_ROOT = pathlib.Path(__file__).resolve().parents[2] / "orpheus"
 
 # Layer assignment.
 L0_PACKAGES: frozenset[str] = frozenset({"derivations"})
-L1_PACKAGES: frozenset[str] = frozenset({"numerics"})
 INPUT_PACKAGES: frozenset[str] = frozenset({"geometry", "data"})
 MESH_PACKAGES: frozenset[str] = frozenset({"mesh"})
 # #405 P1 step 8: the specification composes materials, geometry and a question;
@@ -184,9 +184,6 @@ def _check_source(
             continue
         tgt_pkg = module_name.split(".")[1]
         if tgt_pkg not in forbidden:
-            continue
-        # TYPE_CHECKING tolerance: an L2 module naming L3 types for typing (P3 retires it).
-        if is_tc and src_pkg in L2_PACKAGES and tgt_pkg in L3_PACKAGES:
             continue
         if (rel_str, tgt_pkg) in whitelist:
             continue
@@ -401,6 +398,9 @@ _FORBIDDEN_LEGS = [
         "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.sn.problem import SNProblem\n",
         "numerics → sn",
     ),
+    # Layer DAG P3: a TYPE_CHECKING import is an edge like any other.
+    ("transport/x.py", "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.sn.problem import SNProblem\n", "transport → sn"),
+    ("numerics/x.py", "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.transport.mesh.material_mesh import MaterialMesh\n", "numerics → transport"),
 ]
 
 _ADMITTED_LEGS = [
@@ -417,8 +417,7 @@ _ADMITTED_LEGS = [
     ("sn/x.py", "from orpheus.specification import Specification\n"),
     # layer_dag.md P2: the energy arm's view and rule live in data, over the numerics axis.
     ("data/x.py", "from orpheus.numerics.axis import EnergyAxis\n"),
-    # The surviving L2 tolerance; P3 of layer_dag.md flips this leg to forbidden.
-    ("transport/x.py", "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.sn.problem import SNProblem\n"),
+    ("sn/x.py", "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.transport.mesh.material_mesh import MaterialMesh\n"),
 ]
 
 

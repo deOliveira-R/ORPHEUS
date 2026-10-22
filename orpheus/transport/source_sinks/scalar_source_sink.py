@@ -79,7 +79,6 @@ from orpheus.transport.fields._bases import ScalarField
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 if TYPE_CHECKING:
-    from orpheus.sn.problem import SNProblem
     from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
 
 

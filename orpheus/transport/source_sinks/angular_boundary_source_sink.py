@@ -149,6 +149,7 @@ from orpheus.numerics.moment_layout import AVERAGE_MOMENT
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import AngularBoundaryField
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.method import TransportMethod
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -156,8 +157,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from orpheus.geometry.boundary._source import InflowSourceSpec
-
-    from orpheus.sn.problem import SNProblem
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
 __all__ = ["AngularBoundarySourceSink"]
@@ -177,8 +177,6 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
         (canonically ``mesh.angular_trace``), carrying the per-geometry
         :class:`~orpheus.numerics.face_layout.FaceLayout`.
-    mesh : SNProblem
-        The SN phase-space carrier (cross-mesh-arithmetic guard).
 
     Notes
     -----
@@ -211,7 +209,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
     @classmethod
     def prescribed_inflow(
         cls,
-        problem: "SNProblem",
+        problem: "MaterialMesh",
         face_values: "Mapping[str, NDArray]",
     ) -> "AngularBoundarySourceSink":
         r"""Build a prescribed-inflow source :math:`q` from per-face values.
@@ -250,8 +248,9 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
 
         Parameters
         ----------
-        mesh : SNProblem
+        problem : MaterialMesh
             The SN phase-space carrier; ``mesh.angular_trace`` supplies the
+            trace: its
             :class:`~orpheus.numerics.face_layout.FaceLayout` and the
             per-face inflow ordinate index sets
             (:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`).
@@ -271,19 +270,12 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         Raises
         ------
         ValueError
-            If ``mesh.angular_trace is None`` (a trace-less 2-D cylindrical mesh,
-            which has no SN sweep); if a key is not a face of the layout;
+            If the carrier owns no angular trace (not an SN carrier); if a key is not a face of the layout;
             or if a per-face array shape does not match the ``(N, ng)``
             layout slot.
         """
-        trace = problem.angular_trace
-        if trace is None:
-            raise ValueError(
-                f"{cls.__name__}.prescribed_inflow: mesh has no AngularTraceSpace "
-                f"(mesh.angular_trace is None — trace-less 2-D cylindrical). A "
-                f"boundary source cannot be built without a trace."
-            )
-        bss = cls.zeros(cls._face_space_of(problem))
+        trace = cls._face_space_of(problem)
+        bss = cls.zeros(trace)
         known = set(trace.layout.faces.keys())
         for face, values in face_values.items():
             if face not in known:
@@ -323,7 +315,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
     @classmethod
     def from_specs(
         cls,
-        problem: "SNProblem",
+        problem: "MaterialMesh",
         face_specs: "Mapping[str, InflowSourceSpec]",
     ) -> "AngularBoundarySourceSink":
         r"""Materialise lazy :class:`InflowSourceSpec` **recipes** onto the trace.
@@ -358,9 +350,9 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
 
         Parameters
         ----------
-        mesh : SNProblem
+        problem : MaterialMesh
             The SN phase-space carrier; ``mesh.angular_trace`` supplies the
-            layout and the per-face inflow ordinate index sets.
+            trace: its layout and the per-face inflow ordinate index sets.
         face_specs : Mapping[str, InflowSourceSpec]
             ``{face_name: spec}``. Faces absent from the mapping are vacuum
             (all-zero), matching :meth:`prescribed_inflow`.
@@ -374,19 +366,13 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         Raises
         ------
         ValueError
-            If ``mesh.angular_trace is None``; if a key is not a face of the
-            layout; or if a spec returns an array of the wrong shape (the
+            If the carrier owns no angular trace (not an SN carrier); if a key
+            is not a face of the layout; or if a spec returns an array of the wrong shape (the
             :class:`InflowSourceSpec` contract's one invariant).
         """
-        trace = problem.angular_trace
-        if trace is None:
-            raise ValueError(
-                f"{cls.__name__}.from_specs: mesh has no AngularTraceSpace "
-                f"(mesh.angular_trace is None — trace-less 2-D cylindrical). A "
-                f"boundary source cannot be built without a trace."
-            )
+        trace = cls._face_space_of(problem)
         known = set(trace.layout.faces.keys())
-        template = cls.zeros(cls._face_space_of(problem))
+        template = cls.zeros(trace)
         face_values: "dict[str, NDArray]" = {}
         for face, spec in face_specs.items():
             if face not in known:
@@ -423,7 +409,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         return cls.prescribed_inflow(problem, face_values)
 
     @classmethod
-    def from_problem_laws(cls, problem: "SNProblem") -> "AngularBoundarySourceSink":
+    def from_problem_laws(cls, problem: "MaterialMesh") -> "AngularBoundarySourceSink":
         r"""⭐ The DECLARED boundary conditions' :math:`q` — the user's path.
 
         Reads each face's realized law (``mesh.bc[face].law``) and materialises
@@ -461,6 +447,13 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
            is about registering ``prescribed_inflow`` as a tag *kind* for the
            constant case.
 
+        Parameters
+        ----------
+        problem : MaterialMesh
+            The SN phase-space carrier: a method-mesh
+            (:class:`~orpheus.transport.method.TransportMethod`, whose
+            ``bc`` holds the realized laws) that owns an angular trace.
+
         Returns
         -------
         AngularBoundarySourceSink
@@ -470,18 +463,21 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
 
         Raises
         ------
+        TypeError
+            If the carrier is not a method-mesh (TransportMethod): a bare
+            ``MaterialMesh`` is data and carries no realized laws.
         ValueError
-            If ``mesh.angular_trace is None`` (trace-less 2-D cylindrical).
+            If the carrier owns no angular trace (not an SN carrier).
         """
         from orpheus.geometry.boundary import PrescribedInflow
 
-        trace = problem.angular_trace
-        if trace is None:
-            raise ValueError(
-                f"{cls.__name__}.from_problem_laws: mesh has no AngularTraceSpace "
-                f"(mesh.angular_trace is None — trace-less 2-D cylindrical). A "
-                f"boundary source cannot be built without a trace."
+        if not isinstance(problem, TransportMethod):
+            raise TypeError(
+                f"{cls.__name__}.from_problem_laws reads the realized boundary laws "
+                f"(TransportMethod.bc) of a method-mesh; {type(problem).__name__} is not "
+                f"one (a bare MaterialMesh is data — promote it: SNProblem.from_material_mesh)."
             )
+        trace = cls._face_space_of(problem)
         specs = {}
         for face in trace.layout.faces:
             law = getattr(problem.bc[face], "law", None)

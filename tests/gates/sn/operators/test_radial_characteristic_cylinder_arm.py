@@ -52,6 +52,7 @@ from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.radial_characteristic import (
     RadialCharacteristicOperator,
+    radial_characteristic_source_from_angular,
 )
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.radial_characteristic_field import (
@@ -138,7 +139,7 @@ def test_source_fold_is_the_arc_endpoint_synthesis():
             a[None, :] + b[None, :] * x[:, None] + c2[None, :] * t2[:, None]
         )
 
-    seed = RadialCharacteristicField.source_from_angular(vals, sn)
+    seed = radial_characteristic_source_from_angular(vals, sn)
     assert seed is not None
     for p in seed.interior.space.levels:
         np.testing.assert_allclose(

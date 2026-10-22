@@ -50,7 +50,6 @@ from orpheus.transport.fields._bases import AngularField
 from orpheus.numerics.axis_marginal import AxisRetractionOperator
 
 if TYPE_CHECKING:
-    from orpheus.sn.problem import SNProblem
     from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 

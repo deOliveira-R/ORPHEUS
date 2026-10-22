@@ -789,12 +789,12 @@ def sweep_once(source, sig_t, problem, boundary_flux):
     in-out buffer contract exactly.
     """
     from orpheus.numerics.coupled_system import CoupledField
+    from orpheus.sn.operators.radial_characteristic import (
+        radial_characteristic_source_from_angular,
+    )
     from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
     from orpheus.transport.operators.multiplication_operator import (
         MultiplicationOperator,
-    )
-    from orpheus.transport.radial_characteristic_field import (
-        RadialCharacteristicField,
     )
     from orpheus.transport.source_sinks import AngularBoundarySourceSink
     from orpheus.transport.timed_full_field import TimedFullField
@@ -816,7 +816,7 @@ def sweep_once(source, sig_t, problem, boundary_flux):
         history_depth=2,
     )
     if problem.radial_characteristic_field_space is not None:
-        q_half = RadialCharacteristicField.source_from_angular(
+        q_half = radial_characteristic_source_from_angular(
             np.asarray(source.values), problem,
         )
         grid, _space = joint_m_grid(problem, LC)

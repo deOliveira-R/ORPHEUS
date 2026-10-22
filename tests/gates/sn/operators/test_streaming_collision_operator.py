@@ -49,6 +49,9 @@ from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.operator import OperatorSum
 from orpheus.sn.problem import SNProblem
+from orpheus.sn.operators.radial_characteristic import (
+    radial_characteristic_source_from_angular,
+)
 from orpheus.sn.operators.streaming import (
     StreamingCollisionOperator,
     StreamingOperator,
@@ -475,7 +478,7 @@ class TestSolve:
         grid, _space = joint_m_grid(sn, invertible)
         state = grid.solve(CoupledField(systems=(
             q,
-            RadialCharacteristicField.source_from_angular(q_values, sn),
+            radial_characteristic_source_from_angular(q_values, sn),
         )))
         psi = state.systems[0]
         assert isinstance(psi, TimedFullField)
@@ -1000,7 +1003,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         )
         carrying = problem.radial_characteristic_field_space is not None
         q_half = (
-            RadialCharacteristicField.source_from_angular(
+            radial_characteristic_source_from_angular(
                 q_per_ord, problem,
             )
             if carrying else None

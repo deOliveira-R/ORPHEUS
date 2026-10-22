@@ -368,21 +368,28 @@ claim.
 Tolerances
 ----------
 
-The linter ships with two tolerances:
+The linter ships with one tolerance, the WHITELIST below. An import inside
+an ``if TYPE_CHECKING:`` block is an edge like any other.
 
-**TYPE_CHECKING exemption.**
-
-  Imports inside an ``if TYPE_CHECKING:`` block do not create a runtime
-  edge — they exist only for static type checkers (mypy, pyright). An L2
-  module may import an L3 type *inside* a ``TYPE_CHECKING`` block when
-  the type appears only in a string-quoted annotation. The linter's
-  ``ast`` walker recognizes ``TYPE_CHECKING`` guards and skips an import
-  inside one only when the source layer is L2 and the target is L3; no
-  other guarded edge is tolerated, and :mod:`orpheus.numerics` (L1) has
-  no tolerance at all (layer_dag.md P2 narrowed it, 2026-10: until then
-  the code skipped a guarded import from L1 or L2 into ANY forbidden
-  target, wider than this paragraph said). layer_dag.md P3 retires the
-  surviving L2 tolerance.
+**The retired TYPE_CHECKING exemption (layer-DAG P3).** Until P3 the
+linter skipped a ``TYPE_CHECKING``-guarded import when the source layer
+was L1 or L2 (layer-DAG P2 first narrowed it to an L2 source and an L3
+target, when it removed the two guarded ``numerics`` → ``data`` imports), on the argument that a typing-only import creates no runtime
+edge. The census at retirement (`[M]` 2026-10-22, over the 393 modules of
+``orpheus/``, with the gate's own import walker) found 7 tolerated imports
+in 6 files: all 7 were ``transport`` naming ``sn`` or ``diffusion`` types,
+3 of them were dead (imported and never used), and 0 came from
+``numerics``. The other 4 typed a transport factory's carrier as
+``SNProblem`` where it read only transport vocabulary (a ``MaterialMesh``
+member, a surface a transport Protocol names, the ``angular_trace`` door),
+or sat on an SN algorithm living in L2 (the per-ordinate q½ source fold,
+moved to :mod:`orpheus.sn.operators.radial_characteristic`). The runtime
+argument was true and beside the point: a layer is a set of concepts, and
+an L2 annotation naming a method type says that the L2 concept depends on
+the method's. The exemption hid exactly those misplaced concepts, so it is
+retired, and a leg in ``_FORBIDDEN_LEGS`` witnesses that a
+``TYPE_CHECKING`` import from ``transport`` into ``sn`` (and from
+``numerics`` into ``transport``) is refused.
 
 **WHITELIST.**
 
@@ -560,7 +567,7 @@ row names a live edge":
   package itself; the two refusals carry different messages. It reads
   imports with the same ``ast`` walker as the layer linter, plus the
   string-literal argument of ``importlib.import_module`` and
-  ``__import__``. Unlike the layer linter's L1/L2 tolerance, an import
+  ``__import__``. As in the layer linter since layer-DAG P3, an import
   inside ``if TYPE_CHECKING:`` is refused here: a reference has no reason
   to name a production type even for a type checker.
 * ``test_reference_insulation_refuses_each_import_shape`` feeds nine

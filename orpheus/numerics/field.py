@@ -25,7 +25,8 @@ consolidation.
 It lives at L1 because it knows nothing about transport: it is just
 "values + space + algebra". The mesh-bound transport types (AngularFlux,
 etc.) lift this ABC at L2 (``orpheus/transport/fields/...``) by adding
-their domain-specific fields (e.g. ``mesh: SNProblem``, ``boundary``).
+their domain-specific narrowings (e.g. the angular boundary family's
+``space: AngularTraceSpace``).
 
 Dimensional enforcement under View-G
 ====================================

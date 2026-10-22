@@ -6364,11 +6364,12 @@ the exact 1-D addition-theorem weight :math:`(2\ell+1)/2` with
 :math:`P_\ell(\pm 1) = (\pm 1)^\ell` — this is Eq. :eq:`hebert-3-432-source`
 kept at **full order**, not collapsed to :math:`L = 0`.  The single q½
 fold factory
-:meth:`RadialCharacteristicField.source_from_angular <orpheus.transport.radial_characteristic_field.RadialCharacteristicField.source_from_angular>`
-folds every moment the level resolves; the solver cold-start, the
-fixed-source right-hand side, and the within-group joint march (the
-System-B q½ source fed to the resolvent grid) all route through
-it (Pattern 2 — the :math:`P_1(-1)` sign is spelled **once**).
+:func:`radial_characteristic_source_from_angular <orpheus.sn.operators.radial_characteristic.radial_characteristic_source_from_angular>`
+folds every moment the level resolves; the fixed-source right-hand side's
+System-B q½ source (fed to the within-group resolvent grid) routes through
+it, and the eigenvalue fission seed reaches the same fold kernel through
+:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicReconstruction`
+(Pattern 2 — the :math:`P_1(-1)` sign is spelled **once**).
 
 **The full fold is load-bearing, and this is the subtle part.**  It is
 tempting to fold only :math:`\ell = 0` (the apply matvec's isotropic

@@ -5596,7 +5596,7 @@ older entries classify against.
 
 
    **Date:** introduced 2026-07-04 (``a29ab2df``, #282 route (a) d3 — the direct starting-direction seed); caught + fixed 2026-07-13 (coupled-block campaign step 7, ``1a5e5dc5``) by the tier's FIRST patient slow run since d3.
-   **Module:** ``sn`` (``solver._build_fixed_source_rhs``) / ``transport`` (``RadialCharacteristicField.source_from_angular``).
+   **Module:** ``sn`` (``solver._build_fixed_source_rhs``) / ``sn`` (``operators.radial_characteristic.radial_characteristic_source_from_angular``; at the fix it was the ``transport`` classmethod ``RadialCharacteristicField.source_from_angular``, moved to ``sn`` at layer-DAG P3).
    **Class:** Mode 9 (verified only in the degenerate/coincident regime) compounded by a slow-marked-only catcher — five not-slow walls (6371, 6388, 6385, …) ran green over the wrong fixed point.
 
    **What happened.** Pre-d3, the lagged seed march started its r=R inward
@@ -5627,7 +5627,8 @@ older entries classify against.
 
    **Fix.** (``1a5e5dc5``) The inflow-corner law completed to THREE arms,
    each datum through its own system channel:
-   ``source_from_angular(..., boundary_trace=)`` — the SAME composite rhs's
+   ``source_from_angular(..., boundary_trace=)`` (today
+   ``radial_characteristic_source_from_angular``) — the SAME composite rhs's
    boundary member — populates each carrying level's inflow corner with
    the trace's most-inward ``xmax`` row (the pre-d3 proxy restored through
    the source channel; the half-range Legendre fold to μ=−1 is the named
