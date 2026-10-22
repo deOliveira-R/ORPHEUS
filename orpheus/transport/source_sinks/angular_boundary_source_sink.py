@@ -471,6 +471,10 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         """
         from orpheus.geometry.boundary import PrescribedInflow
 
+        # SCOPE-BOUNDARY[guard] (#643) machinery: a typed method carrier (the
+        # Problem concept, no shared type yet) that transport can name without importing
+        # a method, so this refusal becomes static.
+        # ruling: layer_dag.md ruling 11, 2026-10-22. revisit: that type lands.
         if not isinstance(problem, TransportMethod):
             raise TypeError(
                 f"{cls.__name__}.from_problem_laws reads the realized boundary laws "

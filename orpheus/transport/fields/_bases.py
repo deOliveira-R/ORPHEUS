@@ -614,6 +614,10 @@ class AngularField(BulkField):
         ``MaterialMesh`` alone, or a ``DiffusionMesh`` — no quadrature)
         cannot host an angular field, and says so (:class:`TypeError`).
         """
+        # SCOPE-BOUNDARY[guard] (#643) machinery: a typed method carrier (the
+        # Problem concept, no shared type yet) whose angular bulk space is a typed
+        # member, so this refusal becomes static.
+        # ruling: layer_dag.md ruling 11, 2026-10-22. revisit: that type lands.
         if not isinstance(mesh, _CarriesAngularBulkSpace):
             raise TypeError(
                 f"an angular field's space is READ off the SN carrier that owns it "
@@ -914,6 +918,10 @@ class MomentField(BulkField):
         alone — no quadrature, no angular head to read) cannot host a
         moment field, and says so.
         """
+        # SCOPE-BOUNDARY[guard] (#643) machinery: a typed method carrier (the
+        # Problem concept, no shared type yet) whose moment space is a typed member, so
+        # this refusal becomes static.
+        # ruling: layer_dag.md ruling 11, 2026-10-22. revisit: that type lands.
         if not isinstance(mesh, _CarriesMomentSpace):
             raise TypeError(
                 f"a moment field's space is READ off the SN carrier that "
