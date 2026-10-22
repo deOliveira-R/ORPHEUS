@@ -85,6 +85,7 @@ define it, and imports flow only from more knowledge to less;
 
 | layer | packages | knows |
 |---|---|---|
+| values | `values/` | what a value is (the admitted reals) and when two values are the same (content identity); the bottom layer, importing nothing from `orpheus` |
 | L0 | `derivations/` | symbolic and high-precision references (Branch 1); below L2, may import `numerics/`, `geometry/`, `mesh/`, `data/` |
 | L1 | `numerics/` | mathematics only: spaces, measures, quadrature, operators; no neutrons |
 | input | `geometry/`, `mesh/`, `data/` | shapes and boundary conditions; the mesh, an overlay on the geometry that imports it and is never imported by it; nuclear data |
