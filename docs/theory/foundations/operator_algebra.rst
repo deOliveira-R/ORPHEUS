@@ -137,11 +137,11 @@ Key Facts
   boundary-consistency residual to zero. See :ref:`bc-extraction`.
 
 - **Every operator's** ``.apply`` **output boundary is a**
-  :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
+  :class:`~orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink`
   (Issue #208), completing
   the boundary half of the operator-output "dimensional-sin" carve (the
   bulk half — ``.apply.bulk`` →
-  :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`).
+  :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`).
   The governing principle: an operator output
   is :math:`A\psi` — a **source/sink**, NOT a residual; the residual
   arises ONLY from an explicit :meth:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual.from_balance`
@@ -966,9 +966,9 @@ interior is required to be one of them:
 
 The transposes' cotangents follow the same selection: on the angular end
 the cotangent is an
-:class:`~orpheus.transport.source_sinks.AngularSourceSink`, on the moment
+:class:`~orpheus.transport.fields.AngularSourceSink`, on the moment
 end a
-:class:`~orpheus.transport.source_sinks.HarmonicMomentSourceSink`.
+:class:`~orpheus.transport.fields.HarmonicMomentSourceSink`.
 
 **Why this is not a refactor of a working thing.** Before the step the
 windowed SI driver handed a *moment* composite to an operator bound
@@ -1068,9 +1068,12 @@ validated): a second source/sink naming an already-partnered flux is a
 afterwards. The source/sink side declares because the dependency already
 runs that way — the source/sink leaves import the flux leaves for their
 named compositions (``from_isotropic``, ``from_balance``) and the flux
-leaves import no source/sink — and :mod:`orpheus.transport.fields`
-completes the registration with a bare ``import`` of
-:mod:`orpheus.transport.source_sinks` at its tail.
+leaves import no source/sink. Both halves live in
+:mod:`orpheus.transport.fields` (the source/sink leaves were folded in from
+the former ``transport/source_sinks`` package at the layer DAG round 3,
+which closed the module cycle the two-package split had made), and its
+package init imports every leaf, so the map is complete whenever the
+package is.
 
 Three consumers, and the third is the one that removes the parses:
 
@@ -1086,8 +1089,8 @@ Three consumers, and the third is the one that removes the parses:
   this is the parse the step-5 census counted **12 times** across three
   verbs.
 
-`[M]` 2026-09-04, measured at runtime over the loaded
-:mod:`orpheus.transport.fields` + :mod:`orpheus.transport.source_sinks` +
+`[M]` 2026-09-04, re-measured 2026-10-22 after the fold, at runtime over
+the loaded :mod:`orpheus.transport.fields` +
 :mod:`orpheus.transport.residuals` (30 classes on the mixin): **7 declared
 pairs**, and **16** carriers with no partner.
 
@@ -3373,7 +3376,7 @@ in ``tests/gates/transport/test_multiplication_operator.py`` on a discriminating
      - The zero coefficient is the zero operator — but its codomain is a
        **source**, not a flux: collision turns flux into a reaction rate,
        so ``M[0].apply`` emits a zeroed
-       :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`.
+       :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`.
    * - **Linearity**
      - :math:`M[af + bg] = a\,M[f] + b\,M[g]`
      - :math:`M` is linear in the coefficient (the embedding is a vector-
@@ -4806,7 +4809,7 @@ moment) and the role (flux ↔ source). The four leaves and three edges:
        angle-integrated, so the :math:`\ell=0` block **is** the scalar
        flux exactly).
    * - bottom-right leaf
-     - :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+     - :class:`~orpheus.transport.fields.harmonic_moment_source_sink.HarmonicMomentSourceSink`
        (bare ``MomentField``)
      - The **scattered in-scatter source** moments — the output of
        :math:`\Lambda`. A *rate density*, so it adds vectorially
@@ -4815,7 +4818,7 @@ moment) and the role (flux ↔ source). The four leaves and three edges:
        gave the flux→source role change a *home* (before it, the role
        change leaked to the scattering consumer as a raw ``np.ndarray``).
    * - bottom-left leaf
-     - :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+     - :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
        (bare)
      - The per-ordinate in-scatter source :math:`Q_n(\vec r, g)` the
        sweep consumes — the bottom of the chain.
@@ -4899,7 +4902,7 @@ role transition itself is the carriers' declared partnership
    (:ref:`cs4c-ends-select-the-body`). It spells the composite explicitly
    on the typed carriers: ``self._moment_transfer(skip_l0=True).apply(...)``
    maps flux moments to a typed
-   :class:`~orpheus.transport.source_sinks.HarmonicMomentSourceSink` (the
+   :class:`~orpheus.transport.fields.HarmonicMomentSourceSink` (the
    role-changing edge, in the signature), then
    ``self.source_reconstruction.apply(emitted) / self.total_weight``
    synthesises the per-ordinate source on the face's own bound codomain.
@@ -5028,7 +5031,7 @@ already pins to 0 ULP.
      - The grid cells :math:`(\text{Representation}, \text{Role})` — the
        :math:`\approx 4 \times 4` leaf types
        (:class:`~orpheus.transport.fields.angular_flux.AngularFlux`,
-       :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`,
+       :class:`~orpheus.transport.fields.harmonic_moment_source_sink.HarmonicMomentSourceSink`,
        …), each a 2-line MI binding ``Leaf(RoleMixin, RepBase)``.
      - There is **no cell-by-cell duplication** — each leaf is the
        intersection of one role mixin and one representation base. The
@@ -5435,9 +5438,9 @@ roles. Most cells are realised as a concrete leaf; two are *deliberately*
 empty, for reasons that are themselves part of the architecture (an empty
 cell that is principled tells a future session "do not mint this", which is
 as load-bearing as a populated one). The census below is the live state of
-:mod:`orpheus.transport.fields`,
-:mod:`orpheus.transport.source_sinks`,
-:mod:`orpheus.transport.residuals` (the fourth package,
+:mod:`orpheus.transport.fields` (the flux and the source/sink leaves; a
+separate ``transport/source_sinks/`` package was folded into it at the layer
+DAG round 3) and :mod:`orpheus.transport.residuals` (a further package,
 ``transport/displacements/``, retired at campaign-1 CS3 —
 :ref:`cone-role-grid`).
 
@@ -5452,19 +5455,19 @@ as load-bearing as a populated one). The census below is the live state of
      - **Residual**
    * - **Angular**
      - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-     - :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+     - :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
      - :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
    * - **Moment**
      - :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-     - :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+     - :class:`~orpheus.transport.fields.harmonic_moment_source_sink.HarmonicMomentSourceSink`
      - — *(principled hole, below)*
    * - **Scalar**
      - :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
-     - :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+     - :class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`
      - :class:`~orpheus.transport.residuals.scalar_residual.ScalarResidual`
    * - **Trace**
      - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-     - :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
+     - :class:`~orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink`
      - :class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`
 
 ⭐ **The flux → source/sink edge of each row is now DECLARED, once, on the
@@ -5496,10 +5499,10 @@ The role axis carries no behaviour, and that is the type-vs-property rule
 :class:`~orpheus.transport.fields.angular_flux.AngularFlux`'s MRO is
 ``AngularField → BulkField → Field → ABC``, with the algebra inherited
 whole. The only leaf on the grid that overrides an additive dunder is
-:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`,
+:class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`,
 and what it overrides is *cross-representation*, not cross-role: it
 accepts a
-:class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+:class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`
 partner and applies the canonical subspace-containment injection before
 adding (the refined #207 exception; Issue #288 records that this is
 statically unspellable against Field's ``(T, T) -> T``).
@@ -5554,8 +5557,8 @@ Two cells are deliberately empty, and both absences are designed.
 
 * **The** ``iso + aniso → AngularSourceSink`` **source injection is a
   hand-rolled Representation traversal inside a dunder, and it is
-  endorsed.** :meth:`AngularSourceSink.__add__ <orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.__add__>`
-  accepts a :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+  endorsed.** :meth:`AngularSourceSink.__add__ <orpheus.transport.fields.angular_source_sink.AngularSourceSink.__add__>`
+  accepts a :class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`
   partner and applies the **canonical subspace-containment injection**: a
   scalar (isotropic) source lives in the subspace of the per-ordinate
   (angular) source where every ordinate carries the same value, and the
@@ -5596,7 +5599,7 @@ Two cells are deliberately empty, and both absences are designed.
   ⚠ **This dunder is the PULLBACK, not the section — and this bullet
   said otherwise until 2026-08-24.** It read *"it is single-sourced
   through*
-  :meth:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic`\ *"*,
+  :meth:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink.from_isotropic`\ *"*,
   which is false at HEAD and is the exact confusion the two-arrow
   design exists to prevent: `[M]` the dunder's body is
   ``self.values[None] + other.values`` — the **plain** broadcast
@@ -5647,7 +5650,7 @@ The argument is five obstructions, each fatal on its own.
        role-dependent. First, `[M]` the Source role owns a
        *cross-representation* ``__add__``
        (:meth:`AngularSourceSink.__add__
-       <orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.__add__>`
+       <orpheus.transport.fields.angular_source_sink.AngularSourceSink.__add__>`
        accepts a ``ScalarSourceSink`` partner and injects it by
        subspace containment) that no other role has; a single ``__add__``
        body shared across ``Carrier[Rep, Flux]`` and
@@ -9630,8 +9633,8 @@ the cheapest tell.
    * - 2026-06-03
      - **The boundary law** :math:`B` **becomes a first-class sibling
        operator** and every operator's ``.apply`` output is typed as a
-       *source/sink* (the bulk → :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`,
-       the boundary → :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`),
+       *source/sink* (the bulk → :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`,
+       the boundary → :class:`~orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink`),
        completing the operator-output role typing
        (:ref:`bc-extraction-operator-output-typing`).
      - #208

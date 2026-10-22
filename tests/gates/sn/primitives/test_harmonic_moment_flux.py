@@ -557,7 +557,7 @@ class TestRLambdaMRoundTrip:
         from orpheus.derivations.common.xs_library import get_mixture
         from orpheus.transport.operators.scattering import ScatteringOperator
         from orpheus.sn.solver import SNSolver
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
         mix = get_mixture("A", "2g")
         if len(mix.SigS) < 2:
             pytest.skip("No P1 data in test mixture")
@@ -600,7 +600,7 @@ class TestRLambdaMRoundTrip:
         from orpheus.derivations.common.xs_library import get_mixture
         from orpheus.transport.operators.transfer import LegendreMomentTransfer
         from orpheus.sn.solver import SNSolver
-        from orpheus.transport.source_sinks import HarmonicMomentSourceSink
+        from orpheus.transport.fields import HarmonicMomentSourceSink
         mix = get_mixture("A", "2g")
         if len(mix.SigS) < 2:
             pytest.skip("No P1 data in test mixture")

@@ -49,7 +49,7 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 from orpheus.transport.radial_characteristic_field import (
     RadialCharacteristicField,
 )
-from orpheus.transport.source_sinks import (
+from orpheus.transport.fields import (
     AngularBoundarySourceSink,
     AngularSourceSink,
 )

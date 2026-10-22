@@ -6015,8 +6015,8 @@ identity lives on the members):
        :math:`r = R` corner)
      - the carrier promotion (2.5d d1)
    * - **source/sink** —
-       :class:`~orpheus.transport.source_sinks.radial_characteristic_interior_source_sink.RadialCharacteristicInteriorSourceSink`
-       ⊕ :class:`~orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink.RadialCharacteristicBoundarySourceSink`
+       :class:`~orpheus.transport.fields.radial_characteristic_interior_source_sink.RadialCharacteristicInteriorSourceSink`
+       ⊕ :class:`~orpheus.transport.fields.radial_characteristic_boundary_source_sink.RadialCharacteristicBoundarySourceSink`
      - the q½ source block :math:`\bar q_{1/2}` (the fold below) and any
        operator ``.apply`` output on the seed rows
      - the augmented source composite

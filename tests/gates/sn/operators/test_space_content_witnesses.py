@@ -44,7 +44,7 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
-from orpheus.transport.source_sinks import (
+from orpheus.transport.fields import (
     AngularBoundarySourceSink,
     AngularSourceSink,
 )

@@ -76,7 +76,7 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn._test_helpers import placeholder_materials
 

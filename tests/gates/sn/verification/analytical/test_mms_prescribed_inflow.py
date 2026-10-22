@@ -12,7 +12,7 @@ These rows drive the PUBLIC composite-source API:
 :class:`~orpheus.transport.timed_full_field.TimedFullField`), so the
 non-vacuum prescribed inflow is supplied as
 ``case.fixed_source(sn).boundary`` — a
-:class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink` built by the
+:class:`~orpheus.transport.fields.AngularBoundarySourceSink` built by the
 ergonomic ``AngularBoundarySourceSink.prescribed_inflow`` generator. The
 affine-BC inhomogeneous term ``q`` is consumed by ``(L+C).solve`` as the
 sweep inflow seed.  (These rows originally drove the ``(L+C),S,B``

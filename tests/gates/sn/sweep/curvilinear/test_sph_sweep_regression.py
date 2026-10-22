@@ -115,7 +115,7 @@ class TestSphericalSweepRegression:
         the spherical sweep source term.
         """
         from tests.gates.sn._test_helpers import reflect_outflow_into_inflow, sweep_once
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
 
         mesh = _homogeneous_mesh(10, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
@@ -146,7 +146,7 @@ class TestSphericalSweepRegression:
         instead of |α| at the innermost cell where A=0.
         """
         from tests.gates.sn._test_helpers import reflect_outflow_into_inflow, sweep_once
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)

@@ -64,7 +64,7 @@ from orpheus.numerics.green_operator import Krylov
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
+from orpheus.transport.fields import AngularSourceSink, AngularBoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 
 

@@ -48,7 +48,7 @@ from orpheus.transport.frames import (
     HarmonicFrame,
     HarmonicReconstructionOperator,
 )
-from orpheus.transport.source_sinks import (
+from orpheus.transport.fields import (
     AngularSourceSink,
     HarmonicMomentSourceSink,
 )

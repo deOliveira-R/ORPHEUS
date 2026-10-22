@@ -168,7 +168,7 @@ Key Facts
   so **vacuum and prescribed inflow differ only in** :math:`q`
   (:eq:`bc-prescribed-zero-linear-factor`). The source travels the
   typed boundary-source channel —
-  :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`,
+  :class:`~orpheus.transport.fields.AngularBoundarySourceSink`,
   the boundary leaf of the composite :math:`q = q_{\rm bulk} \oplus
   q_\partial` — and :func:`~orpheus.sn.solver._build_fixed_source_rhs`
   is its single construction point for both inner solvers. Until P3 this
@@ -1564,7 +1564,7 @@ own:
        :math:`\Gamma_-` was left to erase. That operator itself retired
        at **P3**, and the spec is now evaluated at the same
        :math:`|\Gamma_-|` shape one tier out, by
-       :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_specs`
+       :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_specs`
        — see :ref:`bc-affine-source-channel`
    * - ``IncomingOrdinateMaskTensor`` (**retired**)
      - :math:`I - \iota_- \circ \gamma_-`
@@ -1795,7 +1795,7 @@ unreachable on the realize path.
    2026-08-05), so this paragraph is history — but the *typing* half of
    it survives verbatim one tier out. The spec is still evaluated at
    exactly ``(|Γ₋|,) + trailing``, now by
-   :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_specs`
+   :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_specs`
    on the way into the boundary-source channel, and ERR-047 is still
    closed by the type rather than by an erasure. What B3.4a could not
    see is that the operator was ALSO affine — it returned :math:`q`
@@ -2064,7 +2064,7 @@ realized through :meth:`SNProblem.realize_boundary_law
    is a spatially uniform isotropic
    :math:`Q = 1` through
    :meth:`AngularSourceSink.from_isotropic
-   <orpheus.transport.source_sinks.AngularSourceSink.from_isotropic>`,
+   <orpheus.transport.fields.AngularSourceSink.from_isotropic>`,
    identical on every leg of every comparison (gotcha 1 below explains
    why that matters), and ``inner_tol = 1e-13`` unless a row says
    otherwise. **Not** the campaign's ``placeholder_materials`` slab:
@@ -2100,7 +2100,7 @@ Where :math:`q` travels instead — the composite source
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The typed :math:`q` is
-:class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink` —
+:class:`~orpheus.transport.fields.AngularBoundarySourceSink` —
 the *eager, whole-boundary, hub-bound* snapshot of the inflow,
 packed into the unified
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
@@ -2143,14 +2143,14 @@ way the helper normalises to :eq:`bc-composite-source`.
 The path from a declared law to a packed snapshot is a **ladder**, each
 rung delegating to the next so the packing rule is stated exactly once:
 
-.. list-table:: The recipe → snapshot ladder on :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`
+.. list-table:: The recipe → snapshot ladder on :class:`~orpheus.transport.fields.AngularBoundarySourceSink`
    :header-rows: 1
    :widths: 30 44 26
 
    * - rung
      - takes the source in the form …
      - delegates to
-   * - :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_problem_laws`
+   * - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_problem_laws`
      - **the form the problem holds** — a boundary condition someone
        declared. Reads every face's ``mesh.bc[face].law`` and
        materialises the
@@ -2158,12 +2158,12 @@ rung delegating to the next so the packing rule is stated exactly once:
        among them; every other law contributes nothing because its
        whole content is :math:`L`
      - ``from_specs``
-   * - :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_specs`
+   * - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_specs`
      - **a lazy per-face recipe** — a mapping ``{face:
        InflowSourceSpec}``, each evaluated at that face's
        :math:`(|\Gamma_-(f)|,) + \text{trailing}` shape
      - ``prescribed_inflow``
-   * - :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
+   * - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
      - **known per-face arrays** — writes the **inflow** ordinate slots
        of the named faces and leaves every other slot zero (a
        prescribed source's outflow rows are physically meaningless, so
@@ -2232,16 +2232,16 @@ convergence
    :by: orpheus.sn.solver._build_fixed_source_rhs
 
 .. implements:: bc-single-delivery
-   :by: orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink
+   :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink
 
 .. implements:: bc-single-delivery
-   :by: orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink.from_problem_laws
+   :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink.from_problem_laws
 
 .. implements:: bc-single-delivery
-   :by: orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink.from_specs
+   :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink.from_specs
 
 .. implements:: bc-single-delivery
-   :by: orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink.prescribed_inflow
+   :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink.prescribed_inflow
 
 Three failure directions are distinguishable in one reading of that
 equation, with no reference solver and no discretization dependence:
@@ -2555,10 +2555,10 @@ There are two user-visible ways to put flux into :math:`\Gamma_-`:
 
 1. **Declare the law** — install
    :class:`~orpheus.geometry.boundary.PrescribedInflow` on a face and
-   let :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_problem_laws`
+   let :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_problem_laws`
    find it. This is the user path.
 2. **Supply** :math:`q_\partial` **directly** — build the source with
-   :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
+   :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
    and pass the composite. This is what the existing non-vacuum
    manufactured-solution coverage does, deliberately bypassing the law
    tier.
@@ -2611,7 +2611,7 @@ only precondition is that last one — the declared spec must *evaluate*
 to the same floats the hand-built slot was filled with, which holds by
 construction for a constant source compared against a constant slot,
 and is exactly the property
-:meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_specs`
+:meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_specs`
 was built to guarantee (it evaluates at the same shape the inline path
 asked for).
 
@@ -2725,11 +2725,11 @@ reads as a boundary difference.**
 :func:`~orpheus.sn.solver._build_fixed_source_rhs` accepts either a
 per-ordinate ``(N, ng, *spatial)`` array *or* a composite whose bulk
 leaf is an
-:class:`~orpheus.transport.source_sinks.AngularSourceSink`. The two are
+:class:`~orpheus.transport.fields.AngularSourceSink`. The two are
 **not** interchangeable spellings of one source. The array form is
 already a per-ordinate density :math:`Q_n`, while
 :meth:`AngularSourceSink.from_isotropic
-<orpheus.transport.source_sinks.AngularSourceSink.from_isotropic>`
+<orpheus.transport.fields.AngularSourceSink.from_isotropic>`
 takes a *scalar* :math:`Q(\vec r, g)` and applies the
 :math:`1/\sum_n w_n` projection at the producer boundary (Pattern 7).
 So the same-looking pair of spellings differs by exactly the
@@ -3601,7 +3601,7 @@ then discarded the (zero) bulk output.  ``reflect_into_inflow`` removed
 that probe: it took a bare
 :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
 trace and returned the boundary-only
-:class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
+:class:`~orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink`
 directly.  The saving was real for a *whole-trace* caller — and by 2026-09-07
 there was none: the only trace-shaped consumer left was the sweep-tier gates'
 inter-sweep reflect, which the masked verb serves through the Jacobi split's
@@ -3755,7 +3755,7 @@ Cartesian eigenvalue problem solves through **both** inner solvers:
 
 The two inners are identical except for that driver. Both build the
 same composite right-hand side
-(:meth:`AngularSourceSink.from_isotropic <orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic>`
+(:meth:`AngularSourceSink.from_isotropic <orpheus.transport.fields.angular_source_sink.AngularSourceSink.from_isotropic>`
 bulk + ``AngularBoundarySourceSink.zeros(problem.angular_trace)``
 boundary inside a
 :class:`~orpheus.transport.timed_full_field.TimedFullField`), the same
@@ -3949,11 +3949,11 @@ Wave O step B.5.2 (`Issue #208
 ``6ef5063``, 2026-06-03) retyped every SN operator's ``.apply`` output
 ``.boundary`` from
 :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` to
-:class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
+:class:`~orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink`
 — the *source/sink* role leaf. This completes the **boundary** half of
 the B.5 operator-output "dimensional-sin" carve; the **bulk** half
 (``.apply.bulk`` →
-:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`)
+:class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`)
 landed earlier in commit ``f400743``. The two halves make the boundary
 role grid a clean parallel of the bulk.
 
@@ -3966,14 +3966,14 @@ role grid a clean parallel of the bulk.
      - ``.solve`` (swept solution trace)
      - ``from_balance`` (the defect)
    * - **bulk** (:math:`V_{\rm bulk}`)
-     - :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+     - :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
        (``f400743``)
      - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
      - :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
        (consumed by :func:`~orpheus.sn.solver.evaluate_residual`,
        O.2 — :ref:`affine-typed-residual`)
    * - **boundary** (:math:`V_{\rm inflow} \oplus V_{\rm outflow}`)
-     - :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
+     - :class:`~orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink`
        (``6ef5063``, B.5.2)
      - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
      - :class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`
@@ -5050,7 +5050,7 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
        ``(|Γ₋|,) + psi_out.shape[1:]`` — an AFFINE map in a linear slot,
        measured :math:`\lVert B(0) \rVert_\infty = 2.5` at
        :math:`q = 2.5`; the spec is now evaluated at that same shape by
-       :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_specs`
+       :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_specs`
        one tier out. The dense inflow **mask** had already dissolved
        with the codomain at B3.4a, so :math:`q \in \Gamma_-` holds by
        TYPING rather than by an erasure (ERR-047), exactly as vacuum's

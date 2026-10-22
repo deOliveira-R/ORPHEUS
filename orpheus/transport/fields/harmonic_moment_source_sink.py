@@ -18,7 +18,7 @@ threads through this type: :math:`\Lambda` (Legendre moment scattering
 :math:`\Sigma_{s,\ell}`) maps a :class:`HarmonicMomentFlux` to a
 :class:`HarmonicMomentSourceSink` — the **sole role-changing edge** of the
 grid — and :math:`R` reconstructs it to an
-:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`,
+:class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`,
 role preserved. Before this leaf the flux→source role change had nowhere to
 live and leaked to the scattering consumer as a raw ``np.ndarray``.
 
@@ -56,10 +56,10 @@ Units (rate density, not flux)
 
 :math:`[1/(\mathrm{cm^3 \cdot s})]` —
 :data:`~orpheus.numerics.units.SCALAR_RATE_UNITS`, the angle-integrated rate
-shared with :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+shared with :class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`
 (the ``ℓ=0`` moment of a moment source IS a scalar source). This is the
 ``1/sr`` difference from the per-ordinate
-:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+:class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
 (:data:`~orpheus.numerics.units.ANGULAR_RATE_UNITS`): a moment is
 angle-integrated, the quadrature weights carry the ``sr`` that cancels.
 Same units, different class — the gate is class identity, not units.
@@ -143,7 +143,7 @@ class HarmonicMomentSourceSink(MomentField, flux=HarmonicMomentFlux):
 
     #: Dimensional identity: angle-integrated rate density ``1/(cm³·s)`` —
     #: :data:`~orpheus.numerics.units.SCALAR_RATE_UNITS`, shared with
-    #: :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+    #: :class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`
     #: (the ``ℓ=0`` moment source IS a scalar source). Metadata, not the
     #: gate (class identity is).
     UNITS: ClassVar[Unit] = SCALAR_RATE_UNITS

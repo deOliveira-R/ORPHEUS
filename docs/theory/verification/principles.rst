@@ -1009,7 +1009,7 @@ affine boundary law is
    \gamma_-\psi \;=\; L\,\gamma_+\psi \;+\; q ,
 
 and a manufactured-solution driver needs a non-zero :math:`q`. Supplying
-it as :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
+it as :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
 straight into a composite source verifies the *channel* — the RHS carries
 it, the sweep consumes it — while saying nothing about whether **declaring**
 a :class:`~orpheus.geometry.boundary.PrescribedInflow` produces it. It did

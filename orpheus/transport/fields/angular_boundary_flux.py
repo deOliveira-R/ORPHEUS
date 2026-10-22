@@ -58,7 +58,7 @@ contract, the :attr:`layout` property, :meth:`face_view`, and the
 :meth:`from_face_arrays` packer — moved up
 to the :class:`~orpheus.transport.fields._bases.AngularBoundaryField` storage
 base. ``AngularBoundaryFlux`` is the *flux* role leaf; ``AngularBoundarySourceSink``
-(``orpheus.transport.source_sinks``) and ``AngularBoundaryResidual``
+(``orpheus.transport.fields``) and ``AngularBoundaryResidual``
 (``orpheus.transport.residuals``) joined it under ``AngularBoundaryField`` in B.3.
 
 References

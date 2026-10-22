@@ -35,10 +35,10 @@ from orpheus.transport.fields.radial_characteristic_boundary_flux import (
 from orpheus.transport.fields.radial_characteristic_interior_flux import (
     RadialCharacteristicInteriorFlux,
 )
-from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
+from orpheus.transport.fields.radial_characteristic_boundary_source_sink import (
     RadialCharacteristicBoundarySourceSink,
 )
-from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
+from orpheus.transport.fields.radial_characteristic_interior_source_sink import (
     RadialCharacteristicInteriorSourceSink,
 )
 from tests.gates.sn._test_helpers import placeholder_materials

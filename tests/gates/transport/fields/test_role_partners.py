@@ -11,7 +11,7 @@ carrier parse the step-5 census counted 12 times across three verbs.
 **Two sources, two filters** (the 2026-08-19 countermeasure): the
 declared partner map (the ``ClassVar`` the leaves set) against the
 population derived by a runtime ``__subclasses__`` walk after importing
-EVERY module of ``transport/{fields,source_sinks,residuals}`` explicitly.
+EVERY module of ``transport/{fields,residuals}`` explicitly.
 ⚠ `[M]` 2026-09-04: importing only the three package ``__init__``s
 yields **19** leaves — ``AngularBoundaryFlux`` is not re-exported — so
 the walk imports the modules, and that member is the positive control.
@@ -41,7 +41,6 @@ pytestmark = pytest.mark.foundation
 
 _PACKAGES = (
     "orpheus.transport.fields",
-    "orpheus.transport.source_sinks",
     "orpheus.transport.residuals",
 )
 
@@ -147,7 +146,7 @@ class TestIntoRole:
 
     def test_scalar_round_trip_carries_space_and_values(self):
         from orpheus.transport.fields.scalar_flux import ScalarFlux
-        from orpheus.transport.source_sinks import ScalarSourceSink
+        from orpheus.transport.fields import ScalarSourceSink
 
         space = FunctionSpace(name="scalar", shape=(2, 3))
         phi = ScalarFlux(values=np.arange(6.0).reshape(2, 3), space=space)
@@ -163,7 +162,7 @@ class TestIntoRole:
     def test_moment_family_fields_ride_across(self):
         r"""``L`` and ``spatial_moments`` are carried via ``dataclasses.fields``."""
         from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
-        from orpheus.transport.source_sinks import HarmonicMomentSourceSink
+        from orpheus.transport.fields import HarmonicMomentSourceSink
 
         space = FunctionSpace(name="moments", shape=(2, 3, 2, 4))
         m = HarmonicMomentFlux(values=np.zeros((2, 3, 2, 4)), space=space, L=1)

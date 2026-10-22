@@ -42,7 +42,7 @@ from orpheus.numerics.axis_marginal import AxisPullbackOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import _as_problem, solve_sn_adjoint_fixed_source
 from orpheus.transport.full_field import FullField
-from orpheus.transport.source_sinks import AngularBoundarySourceSink, AngularSourceSink
+from orpheus.transport.fields import AngularBoundarySourceSink, AngularSourceSink
 
 pytestmark = pytest.mark.l1
 

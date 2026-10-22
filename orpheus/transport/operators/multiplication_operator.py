@@ -58,7 +58,7 @@ the ``L + C → StreamingCollisionOperator`` sweep dispatch lives on the SN-spec
 a transport multiplier cannot dispatch back onto an ``sn`` operator.)
 The collision rate :math:`\sigma_t\,\psi` turns a flux into a *source*
 (a collision-rate density), so :meth:`apply` emits an
-:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+:class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
 codomain (units gain
 :data:`~orpheus.numerics.units.ANGULAR_FLUX_UNITS` ×
 :data:`~orpheus.numerics.units.CROSS_SECTION_UNITS` =

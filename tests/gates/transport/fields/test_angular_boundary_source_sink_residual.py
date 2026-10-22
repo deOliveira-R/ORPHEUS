@@ -1,5 +1,5 @@
 r"""Foundation tests for the B.3 boundary role leaves
-:class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink` and
+:class:`~orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink` and
 :class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`.
 
 These complete the ``{Boundary}×{Source,Residual}`` cells of the field
@@ -45,7 +45,7 @@ from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields._bases import AngularBoundaryField
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.residuals import AngularBoundaryResidual
-from orpheus.transport.source_sinks import AngularBoundarySourceSink
+from orpheus.transport.fields import AngularBoundarySourceSink
 
 from tests.gates.sn._test_helpers import placeholder_materials
 

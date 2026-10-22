@@ -106,7 +106,7 @@ from orpheus.numerics.operator import (
 from orpheus.transport.fields._bases import BulkField
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
-from orpheus.transport.source_sinks import (
+from orpheus.transport.fields import (
     AngularSourceSink,
     HarmonicMomentSourceSink,
 )
@@ -308,7 +308,7 @@ class LegendreMomentTransfer(BoundOperator):
             Typed
             :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
             → typed
-            :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+            :class:`~orpheus.transport.fields.harmonic_moment_source_sink.HarmonicMomentSourceSink`
             (the emitted moment SOURCE) with matching ``L`` / ``mesh`` /
             spatial-moment width.  Bare ndarray → ndarray (the endomorphic
             moment-space view the :math:`R\circ\Lambda\circ M`
@@ -362,7 +362,7 @@ class LegendreMomentTransfer(BoundOperator):
         ``docs/theory/methods/sn/adjoint.rst §sn-scattering-adjoint-source``.
 
         Typed
-        :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+        :class:`~orpheus.transport.fields.harmonic_moment_source_sink.HarmonicMomentSourceSink`
         → :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
         (the explicit role reversal); bare ndarray → ndarray (the endomorphic
         moment-space view the ``OperatorProduct.apply_transpose`` chain composes on).

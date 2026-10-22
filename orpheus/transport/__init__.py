@@ -26,7 +26,7 @@ Carriers and their algebra:
 
 * :mod:`orpheus.transport.fields` — typed flux fields, each inheriting
   from :class:`~orpheus.numerics.field.Field`.
-* :mod:`orpheus.transport.source_sinks` — typed source/sink fields.
+* :mod:`orpheus.transport.fields` — typed source/sink fields.
 * :mod:`orpheus.transport.residuals` — typed transport residuals.
 * (``orpheus.transport.displacements`` — the displacement siblings of the
   affine field algebra — RETIRED at campaign 1 CS3, 2026-08-19: flux lives

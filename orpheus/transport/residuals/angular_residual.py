@@ -10,7 +10,7 @@ operator is applied to a flux and the right-hand source is subtracted:
 
 Same storage shape as
 :class:`~orpheus.transport.fields.angular_flux.AngularFlux` and
-:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+:class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
 (``(N, ng, nx, ny)``), but a structurally distinct physical quantity:
 it is the *defect* of the balance, not a flux and not an external
 source.
@@ -30,7 +30,7 @@ erases the distinctions physics makes and is the bug surface this role
 grid removes.
 
 :class:`AngularResidual` and
-:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink` share
+:class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink` share
 a dimensional signature (both rate densities,
 :math:`1/(\mathrm{cm^3 \cdot s \cdot sr \cdot eV})`) — yet they are
 DIFFERENT classes. Field's Layer-1 class-identity gate
@@ -108,7 +108,7 @@ class AngularResidual(AngularField):
     carries no residual-specific behaviour beyond its class identity —
     which is exactly what Field's Layer-1 gate uses to keep residual
     arithmetic from silently mixing with
-    :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+    :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
     (same shape AND same units) or
     :class:`~orpheus.transport.fields.angular_flux.AngularFlux` (same
     shape, different units). Same-class arithmetic is closed.
@@ -143,7 +143,7 @@ class AngularResidual(AngularField):
             r_n \;=\; \bigl[(L + C - S - F)\,\psi\bigr]_n \;-\; q_n ,
 
         formed as ``lhs − rhs`` from two same-class
-        :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+        :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
         operands — the operator output :math:`(L+C-S-F)\psi` (``lhs``) and
         the external source :math:`q` (``rhs``). The role transition (source
         operands → residual result) is what distinguishes this from a bare

@@ -55,7 +55,7 @@ from orpheus.transport.residuals import (
     AngularBoundaryResidual,
     ScalarResidual,
 )
-from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink, ScalarSourceSink
+from orpheus.transport.fields import AngularSourceSink, AngularBoundarySourceSink, ScalarSourceSink
 
 from tests.gates.sn._test_helpers import placeholder_materials
 

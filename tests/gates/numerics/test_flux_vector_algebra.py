@@ -301,7 +301,7 @@ def test_cross_class_still_refuses(mesh, rng):
     ``test_typed_source_sinks`` contrast row re-poses onto).
     """
     psi = _make_flux("angular", mesh, rng)
-    from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
+    from orpheus.transport.fields.angular_source_sink import AngularSourceSink
 
     src = AngularSourceSink.zeros(mesh.angular_bulk_space)
     with pytest.raises(TypeError):

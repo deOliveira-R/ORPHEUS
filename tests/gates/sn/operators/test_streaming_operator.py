@@ -387,7 +387,7 @@ class TestCompositeInvariants:
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_returns_timeless_full_field(self, name, builder):
         from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         problem = builder()
@@ -488,7 +488,7 @@ class TestCompositeInvariants:
             AngularFlux,
         )
         from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         mesh = Mesh2D(

@@ -520,10 +520,10 @@ def _zero_full_field_dual(problem: "SNProblem") -> "FullField":
     :meth:`CoupledSpace.dual_zeros` — the cotangent twin of the
     :func:`_zero_full_field` seam.
     """
-    from orpheus.transport.source_sinks.angular_boundary_source_sink import (
+    from orpheus.transport.fields.angular_boundary_source_sink import (
         AngularBoundarySourceSink,
     )
-    from orpheus.transport.source_sinks.angular_source_sink import (
+    from orpheus.transport.fields.angular_source_sink import (
         AngularSourceSink,
     )
 

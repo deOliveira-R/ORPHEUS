@@ -525,7 +525,7 @@ class TestMultiGroupMultiRegionSpherical:
         the origin.  With the fix, the range should be bounded.
         """
         from tests.gates.sn._test_helpers import reflect_outflow_into_inflow, sweep_once
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
         from tests.gates.sn._test_helpers import placeholder_materials
 
         mesh = _homogeneous_mesh(40, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)

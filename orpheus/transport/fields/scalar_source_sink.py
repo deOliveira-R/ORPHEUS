@@ -16,8 +16,8 @@ dedup); renamed ``IsotropicSource`` → ``ScalarSource`` (B.2, hard
 rename, no shim) to complete the ``{Angular, Scalar} × {Flux, Source,
 Residual}`` role grid; then ``ScalarSource`` → ``ScalarSourceSink``
 (B.5, source/sink role rename — the leaf holds both production *sources*
-and operator-loss *sinks*; see :mod:`orpheus.transport.source_sinks`). The cross-class arithmetic
-with :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+and operator-loss *sinks*; see :mod:`orpheus.transport.fields`). The cross-class arithmetic
+with :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
 is **PRESERVED** — the refined Issue #207 principle (recorded in the
 conversation 2026-05-27) permits cross-class dunders when there is a
 canonical subspace-containment relation between the operands' spaces.
@@ -79,7 +79,7 @@ from orpheus.transport.fields._bases import ScalarField
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 if TYPE_CHECKING:
-    from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
+    from orpheus.transport.fields.angular_source_sink import AngularSourceSink
 
 
 __all__ = ["ScalarSourceSink"]
@@ -142,7 +142,7 @@ class ScalarSourceSink(ScalarField, flux=ScalarFlux):
         ``(T, T) -> T`` contract — the containment exception is a
         principled LSP violation the type system cannot carry (#288).
         """
-        from orpheus.transport.source_sinks.angular_source_sink import (
+        from orpheus.transport.fields.angular_source_sink import (
             AngularSourceSink,
         )
         if isinstance(other, AngularSourceSink):
@@ -175,7 +175,7 @@ class ScalarSourceSink(ScalarField, flux=ScalarFlux):
         ``AngularSourceSink.__add__(ScalarSourceSink)`` returns
         NotImplemented. Delegates to :meth:`__add__` (commutative).
         """
-        from orpheus.transport.source_sinks.angular_source_sink import (
+        from orpheus.transport.fields.angular_source_sink import (
             AngularSourceSink,
         )
         if isinstance(other, AngularSourceSink):

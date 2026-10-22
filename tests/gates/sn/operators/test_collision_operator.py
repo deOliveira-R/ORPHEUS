@@ -42,7 +42,7 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.full_field import FullField
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux

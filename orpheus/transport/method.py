@@ -70,7 +70,7 @@ type ``OpT`` (SN: the ``_BoundBoundaryOperator`` kind-tagged shim;
 diffusion: a bare :class:`~orpheus.numerics.operator.LinearOperator`).
 The first generic consumer,
 :meth:`AngularBoundarySourceSink.from_problem_laws
-<orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink.from_problem_laws>`,
+<orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink.from_problem_laws>`,
 narrows a ``MaterialMesh`` to a method-mesh with a runtime ``isinstance``
 against this Protocol before reading ``bc`` (layer-DAG P3: an L2 module
 imports no method type, not even under ``TYPE_CHECKING``).

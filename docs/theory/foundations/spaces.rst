@@ -4422,7 +4422,7 @@ along the axis times the marginal field, with no metric in it:
    :by: py:method:orpheus.numerics.axis_marginal.AxisRetractionOperator.adjoint
 
 .. implements:: spaces-collapse-adjoint-is-pullback
-   :by: py:method:orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink.__add__
+   :by: py:method:orpheus.transport.fields.scalar_source_sink.ScalarSourceSink.__add__
 
 So :math:`(R, R^{\dagger}) = (\pi_*, \pi^{*})` is the discrete
 realization of the fibre-integration / pullback adjunction, and the
@@ -4482,14 +4482,14 @@ division is the third arrow:
    supplies the mass, summed correctly rounded; the canonical
    producer-side consumer re-spells nothing: since CS4b S6.2
    :meth:`AngularSourceSink.from_isotropic
-   <orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic>`
+   <orpheus.transport.fields.angular_source_sink.AngularSourceSink.from_isotropic>`
    IS this ``apply`` on the angular axis.
 
 .. implements:: spaces-collapse-section
    :by: py:function:orpheus.numerics.axis_marginal._mint
 
 .. implements:: spaces-collapse-section
-   :by: py:method:orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic
+   :by: py:method:orpheus.transport.fields.angular_source_sink.AngularSourceSink.from_isotropic
 
 The three identities in :eq:`spaces-collapse-section` follow in one line
 each: :math:`R E \varphi = (m^{\mathsf T}u)\,\varphi/\langle m,u\rangle =
@@ -4868,7 +4868,7 @@ ways an angle-integrated quantity enters phase space, and the quantity's
   :math:`R\,q = Q`. Every bulk isotropic source in S\ :sub:`N` already
   does this
   (:meth:`AngularSourceSink.from_isotropic
-  <orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic>`
+  <orpheus.transport.fields.angular_source_sink.AngularSourceSink.from_isotropic>`
   is :math:`E`'s ``apply``).
 - **A detector response** :math:`\Sigma_d(\vec r, g)` is the functional
   :math:`\psi \mapsto \langle\Sigma_d, R\psi\rangle_{V'}`, the reaction

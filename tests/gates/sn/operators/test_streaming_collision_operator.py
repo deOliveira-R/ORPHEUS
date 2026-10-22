@@ -461,7 +461,7 @@ class TestSolve:
         # rhs is SOURCE-role (the substitution's ``q_A − Seeding·ψ_B``
         # member algebra is role-honest).
         from orpheus.numerics.coupled_system import CoupledField
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             AngularBoundarySourceSink,
             AngularSourceSink,
         )
@@ -990,7 +990,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         q_per_ord = np.full((N, ng, *problem.spatial_shape), q_iso / sum_w)
         # SOURCE-role rhs (step 6 — the grid substitution's member algebra
         # is role-honest; the driver's rhs is source-typed too).
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             AngularBoundarySourceSink,
             AngularSourceSink,
         )

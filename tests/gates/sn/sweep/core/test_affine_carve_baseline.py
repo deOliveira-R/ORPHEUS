@@ -94,7 +94,7 @@ from tests.gates.sn._test_helpers import sweep_once
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 from tests.gates.sn._test_helpers import (
     SN_TESTS_ROOT,
     het_operands,

@@ -35,7 +35,7 @@ from tests.gates.sn._test_helpers import material_xs_from_raw
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.axis import Declared, Axis, BasisKind
@@ -568,7 +568,7 @@ class TestCompositeInvariants:
             AngularFlux,
         )
         from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         problem = solver_2g_p0.problem
@@ -1326,7 +1326,7 @@ class TestAnisoMomentSourcePath:
         would never enter this seam.
         """
         from orpheus.transport.frames import HarmonicReconstructionOperator
-        from orpheus.transport.source_sinks import HarmonicMomentSourceSink
+        from orpheus.transport.fields import HarmonicMomentSourceSink
 
         calls = {"n": 0}
         original = HarmonicReconstructionOperator.apply

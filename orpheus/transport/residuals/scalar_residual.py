@@ -12,7 +12,7 @@ residual** — the scalar reduction of
 the per-cell-per-group defect of the balance after the angular
 quadrature contraction. Same storage shape as
 :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` and
-:class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+:class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`
 (``(ng, nx, ny)``), but a structurally distinct physical quantity: the
 residual of an equation, not a flux and not an external source.
 
@@ -20,7 +20,7 @@ Why a distinct class
 ====================
 
 :class:`ScalarResidual` and
-:class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink` share a
+:class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink` share a
 dimensional signature (both rate densities,
 :math:`1/(\mathrm{cm^3 \cdot s \cdot eV})`) — yet they are DIFFERENT
 classes. Field's Layer-1 class-identity gate
@@ -86,7 +86,7 @@ class ScalarResidual(ScalarField):
     :class:`~orpheus.transport.fields._bases.BulkField`. The leaf
     carries no residual-specific behaviour beyond its class identity,
     which keeps residual arithmetic from silently mixing with
-    :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+    :class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`
     (same shape AND same units) or
     :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` (same
     shape, different units). Same-class arithmetic is closed.
@@ -112,7 +112,7 @@ class ScalarResidual(ScalarField):
         The residual leaf's bespoke factory: the scalar (angle-integrated)
         transport-balance defect ``r = lhs − rhs``, formed from two
         same-class
-        :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+        :class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`
         operands. See :meth:`~orpheus.numerics.field.Field._from_balance` for
         the three guards (same-class operands, ``sr``-exact units, same space
         + mesh) and why the result lands on the ``"scalar_residual"`` space.

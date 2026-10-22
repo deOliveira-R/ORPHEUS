@@ -73,7 +73,7 @@ class RadialCharacteristicInteriorResidual(RadialCharacteristicInteriorField):
         r"""The interior ψ½ balance defect ``r½ = (A·ψ)½ − q½`` (cells legs).
 
         ``lhs`` is the coupled loss grid's B-row interior member (a
-        :class:`~orpheus.transport.source_sinks.radial_characteristic_interior_source_sink.RadialCharacteristicInteriorSourceSink`),
+        :class:`~orpheus.transport.fields.radial_characteristic_interior_source_sink.RadialCharacteristicInteriorSourceSink`),
         ``rhs`` the coupled source's q½ interior member — the same three
         guards (same-class operands, units-exact, same space + mesh) as the
         bulk/boundary ``from_balance`` factories, via

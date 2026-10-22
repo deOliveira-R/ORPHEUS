@@ -40,7 +40,7 @@ provides the *locus + family* axes as ABCs; the *role* leaves
          │   │                    the FullField boundary-slot discriminator (the pole is NOT one)
          │   ├─ AngularBoundaryField (ABC)   an SNProblem-carried AngularTraceSpace (mesh.angular_trace)
          │   │   ├─ AngularBoundaryFlux          role leaf  (flux)
-         │   │   ├─ AngularBoundarySourceSink    role leaf  (source; B.3 — orpheus.transport.source_sinks)
+         │   │   ├─ AngularBoundarySourceSink    role leaf  (source; B.3 — orpheus.transport.fields)
          │   │   ├─ AngularBoundaryResidual      role leaf  (residual; B.3 — orpheus.transport.residuals)
          │   └─ ScalarBoundaryField (ABC)    ScalarTraceSpace (DiffusionMesh.scalar_trace; #290 P2/P7a)
          │       ├─ ScalarBoundaryFlux           role leaf  (flux — the per-face (J⁺, J⁻) pair)
@@ -177,12 +177,11 @@ class RolePair:
     is refused at import time, and neither half can be re-pointed later
     (``coding-elegance`` Pattern 4 — the illegal state is unspellable,
     not validated). Why the source/sink side declares: the source/sink
-    leaves already import the flux leaves for their named compositions
-    (``from_isotropic``, ``from_balance``); the flux leaves import no
-    source/sink, so the dependency runs one way and the package init of
-    :mod:`orpheus.transport.fields` completes the registration by
-    importing :mod:`orpheus.transport.source_sinks` at its tail (a bare
-    ``import``, never a name — see that file).
+    leaf already imports its flux partner for its named compositions
+    (``from_isotropic``, ``from_balance``), while the flux leaves import no
+    source/sink. Both halves live in :mod:`orpheus.transport.fields`, whose
+    package init imports every leaf, so the map is complete whenever the
+    package is.
 
     Consumers:
 
@@ -742,7 +741,7 @@ class MomentField(BulkField):
     The storage base for the moment role leaves —
     :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
     (the moment-space flux state) and
-    :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+    :class:`~orpheus.transport.fields.harmonic_moment_source_sink.HarmonicMomentSourceSink`
     (the bare source/sink). It carries the construction machinery the two
     share: the ``L`` truncation-order + ``spatial_moments`` fields, the
     ``(L+1, 2L+1, ng, *spatial[, …])`` shape contract (validated by
@@ -1324,8 +1323,8 @@ class ScalarBoundaryField(BoundaryField):
 # as the spatial domain splits into BulkField (interior) and BoundaryField
 # (boundary). They are FaceField SIBLINGS, not parent/child of each other,
 # and each keys by (level, sign) on its own split space. The concrete role
-# leaves (…Flux state / …SourceSink emission) live in fields/ and
-# source_sinks/ (the …Displacement increment family retired at CS3). The historical
+# leaves (…Flux state / …SourceSink emission) live in fields/ (the
+# …Displacement increment family retired at CS3). The historical
 # UNIFIED base (cells ⊕ corner interleaved on one
 # FaceField[(level, sign, part)] buffer) retired at 4e, when the fused
 # (L+C) walk went split-native — System B's composite, which took the

@@ -747,7 +747,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
             # R-1 Step 4 A1: single per-ordinate source carrier.
             # ``rhs`` is bare ndarray (ng, nx, ny) — wrap via the
             # canonical iso → per-ord factory at the adapter boundary.
-            from orpheus.transport.source_sinks import AngularSourceSink
+            from orpheus.transport.fields import AngularSourceSink
             source = AngularSourceSink.from_isotropic(rhs, problem)
             # Wave O (#208) O.4a.2 — the bare ``transport_sweep`` no longer
             # re-applies the reflective BC at entry; drive the −B coupling

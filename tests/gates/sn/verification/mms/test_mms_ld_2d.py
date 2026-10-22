@@ -695,7 +695,7 @@ def _moment_resolved_rhs(case, sn, mesh, *, moment_source=None):
     moment source is computed by the structurally-independent projector
     (:func:`_project_external_source` → ``leggauss`` only); pass an explicit
     ``moment_source`` to override (the mutation controls flip a slope row)."""
-    from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.fields import AngularSourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
     Qm = _project_external_source(case, mesh) if moment_source is None else moment_source
@@ -1282,12 +1282,12 @@ def _solve_with_boundary_slope(case, nc, *, slope_sign):
     L11: the slope is built by ``_face_transverse_buffers`` → ``leggauss`` only
     (never ``_inflow_to_moments``).  The moment-resolved boundary is materialised
     by the public
-    :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`,
+    :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`,
     bundled with the manufactured bulk source, and solved by the public
     ``solve_sn_fixed_source`` — so it drives the production moment-resolved trace
     END-TO-END (the sweep consumes slot-1, the capture stores the outflow
     moments).  Returns ``(scalar_flux_values, mesh)``."""
-    from orpheus.transport.source_sinks import (
+    from orpheus.transport.fields import (
         AngularSourceSink, AngularBoundarySourceSink,
     )
     from orpheus.transport.timed_full_field import TimedFullField
@@ -1484,7 +1484,7 @@ def test_ld_2d_boundary_slope_sign_mutation_reddens():
 
     PUBLIC-API-DRIVEN (the #251 production trace landed): the helper
     ``_solve_with_boundary_slope`` builds a moment-resolved
-    :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
+    :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
     (slot-1 = ±projected slope) and solves via the public
     ``solve_sn_fixed_source`` — so it exercises the production moment-resolved
     boundary trace END-TO-END (the producer stamp AND the cochain consumer).  This

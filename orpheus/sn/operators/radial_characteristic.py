@@ -151,7 +151,7 @@ if TYPE_CHECKING:
     from orpheus.transport.radial_characteristic_field import (
         RadialCharacteristicField,
     )
-    from orpheus.transport.source_sinks.angular_boundary_source_sink import (
+    from orpheus.transport.fields.angular_boundary_source_sink import (
         AngularBoundarySourceSink,
     )
 
@@ -414,10 +414,10 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         from orpheus.transport.radial_characteristic_field import (
             RadialCharacteristicField,
         )
-        from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
+        from orpheus.transport.fields.radial_characteristic_boundary_source_sink import (
             RadialCharacteristicBoundarySourceSink,
         )
-        from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
+        from orpheus.transport.fields.radial_characteristic_interior_source_sink import (
             RadialCharacteristicInteriorSourceSink,
         )
 
@@ -458,10 +458,10 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         from orpheus.transport.radial_characteristic_field import (
             RadialCharacteristicField,
         )
-        from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
+        from orpheus.transport.fields.radial_characteristic_boundary_source_sink import (
             RadialCharacteristicBoundarySourceSink,
         )
-        from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
+        from orpheus.transport.fields.radial_characteristic_interior_source_sink import (
             RadialCharacteristicInteriorSourceSink,
         )
 
@@ -547,7 +547,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         from orpheus.transport.radial_characteristic_field import (
             RadialCharacteristicField,
         )
-        from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
+        from orpheus.transport.fields.radial_characteristic_interior_source_sink import (
             RadialCharacteristicInteriorSourceSink,
         )
 
@@ -882,10 +882,10 @@ class RadialCharacteristicSeeding(
         from orpheus.transport.radial_characteristic_field import (
             RadialCharacteristicField,
         )
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             AngularBoundarySourceSink,
         )
-        from orpheus.transport.source_sinks.angular_source_sink import (
+        from orpheus.transport.fields.angular_source_sink import (
             AngularSourceSink,
         )
 
@@ -1740,7 +1740,7 @@ class RadialCharacteristicEmission(LinearOperator):
         from orpheus.transport.radial_characteristic_field import (
             RadialCharacteristicField,
         )
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             AngularBoundarySourceSink,
             AngularSourceSink,
         )

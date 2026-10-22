@@ -290,7 +290,7 @@ class TestCompositeInvariants:
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         problem = solver_2g.problem

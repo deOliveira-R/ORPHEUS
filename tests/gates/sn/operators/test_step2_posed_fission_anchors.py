@@ -75,7 +75,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_transfer import IsotropicFission
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 
 pytestmark = pytest.mark.foundation
 

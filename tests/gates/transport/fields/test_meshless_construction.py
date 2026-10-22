@@ -45,7 +45,7 @@ from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.residuals import AngularResidual
-from orpheus.transport.source_sinks import AngularSourceSink, ScalarSourceSink
+from orpheus.transport.fields import AngularSourceSink, ScalarSourceSink
 from tests.gates.sn._test_helpers import placeholder_materials
 
 pytestmark = [pytest.mark.foundation]
@@ -145,16 +145,16 @@ class TestG51SugarTierRetired:
         from orpheus.transport.fields.radial_characteristic_boundary_flux import (
             RadialCharacteristicBoundaryFlux,
         )
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             AngularBoundarySourceSink,
             AngularSourceSink,
             ScalarBoundarySourceSink,
             ScalarSourceSink,
         )
-        from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
+        from orpheus.transport.fields.radial_characteristic_interior_source_sink import (
             RadialCharacteristicInteriorSourceSink,
         )
-        from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
+        from orpheus.transport.fields.radial_characteristic_boundary_source_sink import (
             RadialCharacteristicBoundarySourceSink,
         )
         from orpheus.transport.residuals import (

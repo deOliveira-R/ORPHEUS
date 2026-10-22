@@ -52,7 +52,7 @@ from orpheus.transport.operators.isotropic_transfer import (
 )
 from orpheus.transport.operators.n2n import N2NOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 from orpheus.numerics.axis_marginal import AxisRetractionOperator
 
 pytestmark = pytest.mark.foundation

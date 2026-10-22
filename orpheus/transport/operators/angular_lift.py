@@ -105,7 +105,7 @@ from orpheus.transport.operators.lift import (
     admit_composite,
     lift_bulk_action,
 )
-from orpheus.transport.source_sinks import (
+from orpheus.transport.fields import (
     AngularSourceSink,
     HarmonicMomentSourceSink,
     ScalarSourceSink,

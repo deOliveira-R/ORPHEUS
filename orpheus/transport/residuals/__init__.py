@@ -25,9 +25,9 @@ family; #290 P2.5)::
                            (Displacement retired at campaign 1 CS3 — flux
                            lives in V; differences are same-typed)
 
-       flux     →  orpheus.transport.fields         (…Flux)
-       source   →  orpheus.transport.source_sinks   (…SourceSink)
-       residual →  orpheus.transport.residuals      (…Residual)
+       flux     →  orpheus.transport.fields      (…Flux)
+       source   →  orpheus.transport.fields      (…SourceSink)
+       residual →  orpheus.transport.residuals   (…Residual)
 
     bulk leaves here: AngularResidual, ScalarResidual;
     boundary leaf: AngularBoundaryResidual;

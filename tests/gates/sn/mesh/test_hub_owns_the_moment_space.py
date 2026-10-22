@@ -119,7 +119,7 @@ def test_g2_4c_a_carrier_that_owns_no_angular_bulk_space_is_refused_by_name():
     from orpheus.sn.problem import SNProblem
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.mesh.material_mesh import MaterialMesh
-    from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.fields import AngularSourceSink
 
     mm = MaterialMesh(
         Mesher(StructuredGeometry.from_homogeneous(10.0, BC("reflective")))

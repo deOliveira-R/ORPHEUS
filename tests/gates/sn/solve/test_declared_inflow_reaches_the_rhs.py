@@ -45,7 +45,7 @@ from orpheus.geometry.boundary import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import _build_fixed_source_rhs
-from orpheus.transport.source_sinks import AngularBoundarySourceSink
+from orpheus.transport.fields import AngularBoundarySourceSink
 from tests.gates.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.l1
@@ -180,7 +180,7 @@ class TestTheSourceCannotBeSpecifiedTwice:
             _slab(), "xmin",
             PrescribedInflow(source=ConstantInflowSource(value=_VALUE)),
         )
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         inflow_rows = sn.angular_trace.inflow_indices_for_face("xmin")
@@ -211,7 +211,7 @@ class TestTheSourceCannotBeSpecifiedTwice:
         MMS and every other direct-supply consumer.
         """
         sn = _slab()  # all vacuum — nothing declared
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         inflow_rows = sn.angular_trace.inflow_indices_for_face("xmin")
@@ -272,7 +272,7 @@ def _composite(sn: SNProblem, *, boundary_value: float = 0.0,
     the boundary channel (measured: ``φ[0] = 3.083`` vs ``2.480``, which cost a
     probe). Always routing through this helper makes that trap unspellable.
     """
-    from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.fields import AngularSourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
     slot = np.zeros(

@@ -5,7 +5,7 @@ field that sits between :class:`~orpheus.transport.fields.angular_flux.AngularFl
 and the scattering operator :math:`\Lambda` as the natural data carrier
 of the :math:`R \cdot \Lambda \cdot M \cdot \psi` Galerkin pipeline. Its
 **flux**-role sibling on the source/sink side is
-:class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+:class:`~orpheus.transport.fields.harmonic_moment_source_sink.HarmonicMomentSourceSink`
 (:math:`\Lambda` maps one to the other — the role-changing edge of the
 ``(angular ⊗ moment) × (flux ⊗ source)`` carrier grid).
 

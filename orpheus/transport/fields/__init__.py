@@ -7,17 +7,66 @@ fields (``mesh``, ``boundary``, …). The dunder algebra is inherited
 verbatim; concrete subclasses add construction factories and
 diagnostics tailored to their physical role.
 
+This package holds both halves of every role pair: the flux leaves and the
+source/sink leaves (folded in from the former ``transport/source_sinks``
+package at the layer DAG round 3). Importing it imports every leaf that
+declares a pair, so the flux ↔ source/sink map of
+:class:`~orpheus.transport.fields._bases.RolePair` is complete whenever the
+package is.
+
 Migration sequence (Depth B plan §6, with the as-built outcome):
 
 * D-D — :class:`ScalarFlux` (simplest case).
 * D-E — :class:`HarmonicMomentFlux` (cleanest gap).
 * D-F — :class:`AngularSourceSink` / :class:`AngularBoundarySourceSink`
-  (the source/sink role leaves; see ``orpheus.transport.source_sinks``).
+  (the source/sink role leaves; they live in this package, below).
 * D-G — :class:`AngularBoundaryFlux` (the boundary trace cochain
   :math:`C^1_\partial`, on a
   :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`).
 * D-H — :class:`AngularFlux` (the phase-space directional flux, on the
   ``TimedFullField`` composite).
+
+Why ``SourceSink`` (not ``Source``)
+===================================
+
+A **source** (production: external :math:`q_{\rm ext}`, in-scattering
+:math:`S\psi`, fission :math:`F\psi`) and a **sink** (loss: an operator
+output such as the streaming+collision rate :math:`L\psi`) are *the same
+physical quantity with opposite sign* — a signed rate-density term in the
+balance :math:`L\psi + C\psi - S\psi - F\psi = q`. They share one
+dimensional signature (:data:`~orpheus.numerics.units.ANGULAR_RATE_UNITS`
+/ :data:`~orpheus.numerics.units.SCALAR_RATE_UNITS` in the bulk; flux
+units on the trace) and one storage shape, and they add freely. So the
+role is one leaf, and the name says so: ``SourceSink``. (The original
+``Source`` name read as production-only and hid that operator ``.apply``
+outputs — sinks — land in the *same* type; the rename, B.5, removes that
+confusion at the signature level.)
+
+These are Field-shaped objects with DIFFERENT physical units than
+fluxes. Per Issue #207's architectural principle and Depth B plan §3.6,
+cross-class arithmetic between a source/sink and a flux is forbidden by
+the Field ABC's Layer 1 class-identity gate — even when shape and units
+might align. Cross-class same-units operations (e.g. combining an
+isotropic source/sink with a per-ordinate one) go through the canonical
+subspace-containment injection or a NAMED composition factory, not an
+ad-hoc cross-class dunder.
+
+Role grid (field vocabulary, issues #205 / #201): the **source/sink**
+column —
+
+* bulk: :class:`ScalarSourceSink`, :class:`AngularSourceSink`,
+  :class:`HarmonicMomentSourceSink` (the moment-space source/sink — the
+  output of :math:`\Lambda` in the anisotropic in-scatter
+  :math:`R\,\Lambda\,M`, completing the moment row of the
+  ``(angular ⊗ moment) × (flux ⊗ source)`` carrier grid);
+* boundary: :class:`AngularBoundarySourceSink`
+  (the prescribed-inflow :math:`q` of the affine boundary law,
+  materialised as a stored field on the trace — distinct from the
+  geometry-layer :class:`InflowSourceSpec` *generator* it was renamed
+  away from; see :mod:`orpheus.transport.fields.angular_boundary_source_sink`)
+  and :class:`ScalarBoundarySourceSink` (the scalar-family sibling on
+  the ``(J⁺, J⁻)`` trace — every scalar-composite operator's ``.apply``
+  output boundary, #290 P4).
 
 Interior face access — NO per-face type
 ========================================
@@ -56,6 +105,21 @@ from orpheus.transport.fields.radial_characteristic_interior_flux import (
 from orpheus.transport.fields.radial_characteristic_boundary_flux import (
     RadialCharacteristicBoundaryFlux,
 )
+from orpheus.transport.fields.scalar_source_sink import ScalarSourceSink
+from orpheus.transport.fields.angular_source_sink import AngularSourceSink
+from orpheus.transport.fields.angular_boundary_source_sink import AngularBoundarySourceSink
+from orpheus.transport.fields.scalar_boundary_source_sink import (
+    ScalarBoundarySourceSink,
+)
+from orpheus.transport.fields.harmonic_moment_source_sink import (
+    HarmonicMomentSourceSink,
+)
+from orpheus.transport.fields.radial_characteristic_interior_source_sink import (
+    RadialCharacteristicInteriorSourceSink,
+)
+from orpheus.transport.fields.radial_characteristic_boundary_source_sink import (
+    RadialCharacteristicBoundarySourceSink,
+)
 
 __all__ = [
     "CrossSectionField",
@@ -64,15 +128,11 @@ __all__ = [
     "ScalarFlux",
     "RadialCharacteristicInteriorFlux",
     "RadialCharacteristicBoundaryFlux",
+    "ScalarSourceSink",
+    "AngularSourceSink",
+    "AngularBoundarySourceSink",
+    "ScalarBoundarySourceSink",
+    "HarmonicMomentSourceSink",
+    "RadialCharacteristicInteriorSourceSink",
+    "RadialCharacteristicBoundarySourceSink",
 ]
-
-# The role-pair registration (CS4c step 5, R-2): each source/sink leaf
-# declares its flux partner on its class statement, so the pair map is
-# complete only once the source/sink modules have been imported. Import
-# them here, at the tail, as a BARE module import — a named import
-# (``from orpheus.transport.source_sinks import …``) would fail on the
-# partially-initialised package when a source/sink module is what
-# triggered THIS package's init (its ``fields._bases`` import runs this
-# file first). The flux leaves import no source/sink, so the dependency
-# runs one way and this line closes it without a cycle.
-import orpheus.transport.source_sinks  # noqa: E402,F401

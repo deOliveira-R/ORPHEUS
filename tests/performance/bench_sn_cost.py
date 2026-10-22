@@ -25,7 +25,7 @@ from orpheus.sn.loss_representation import CumprodScan, FullFieldWavefront
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 
 
 def _graded_edges(length: float, n_cells: int, *, ratio: float) -> np.ndarray:

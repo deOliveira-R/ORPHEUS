@@ -50,7 +50,7 @@ class TestCylindricalSweepRegression:
     def test_single_sweep_all_finite(self):
         """A single sweep must produce finite fluxes."""
         from tests.gates.sn._test_helpers import reflect_outflow_into_inflow, sweep_once
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
@@ -159,7 +159,7 @@ class TestAzimuthalRedistribution:
         must vanish for each cell because α[0] = α[M] = 0.
         """
         from tests.gates.sn._test_helpers import reflect_outflow_into_inflow, sweep_once
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
 
         mix = get_mixture("A", "1g")
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
@@ -190,7 +190,7 @@ class TestAzimuthalRedistribution:
     def test_single_cell_uniform_source_equilibrium(self):
         """Two-cell 1G pure absorber with uniform source → φ = Q/Σ_t."""
         from tests.gates.sn._test_helpers import reflect_outflow_into_inflow, sweep_once
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
 
         mesh = _homogeneous_mesh(2, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)

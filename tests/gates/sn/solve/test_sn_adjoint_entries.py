@@ -292,7 +292,7 @@ class TestSolveSnAdjointFixedSource:
         retraction's adjoint R† (the pullback, a plain broadcast).
         """
         from orpheus.sn.problem import SNProblem
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             AngularBoundarySourceSink,
             AngularSourceSink,
         )
@@ -558,7 +558,7 @@ def _dense_scattering(quad, order: int, *, transposed: bool = False):
     flattened."""
     from orpheus.sn.problem import SNProblem
     from orpheus.transport.fields.angular_flux import AngularFlux
-    from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.fields import AngularSourceSink
     from tests.gates.sn.operators._composite_operand import bulk_apply
 
     mats, mesh = _rung_slab(transposed=transposed)

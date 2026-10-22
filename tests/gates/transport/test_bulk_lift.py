@@ -55,7 +55,7 @@ from orpheus.transport.operators.lift import (
     embed_bulk_assembly,
     lift_bulk_action,
 )
-from orpheus.transport.source_sinks import (
+from orpheus.transport.fields import (
     ScalarBoundarySourceSink,
     ScalarSourceSink,
 )

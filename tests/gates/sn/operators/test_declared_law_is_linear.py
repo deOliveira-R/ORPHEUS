@@ -128,7 +128,7 @@ from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.source_sinks import AngularBoundarySourceSink
+from orpheus.transport.fields import AngularBoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 
 pytestmark = [pytest.mark.foundation]

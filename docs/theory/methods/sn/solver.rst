@@ -3105,7 +3105,7 @@ eigenvalue right-hand side is built once, by
 sites — the SI inner, the Krylov inner, and this finalize).  Its System-A
 member is the fission source lifted per-ordinate through
 :meth:`AngularSourceSink.from_isotropic
-<orpheus.transport.source_sinks.AngularSourceSink.from_isotropic>` with a
+<orpheus.transport.fields.AngularSourceSink.from_isotropic>` with a
 **zero** external boundary; its System-B member is the :math:`\ell = 0`
 fold of the **fission source alone** as the :math:`\psi_{1/2}` march's
 entry (#282 route (a)).  The seed folds fission alone because the coupled

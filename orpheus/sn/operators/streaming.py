@@ -103,7 +103,7 @@ if TYPE_CHECKING:
     from ..angular.closure import AngularClosureBase
     from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
     from orpheus.numerics.frame import FrameBase
-    from orpheus.transport.source_sinks import (
+    from orpheus.transport.fields import (
         AngularSourceSink,
         ScalarSourceSink,
     )

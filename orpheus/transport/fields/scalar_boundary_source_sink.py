@@ -5,7 +5,7 @@ The *source/sink* role leaf of the SCALAR boundary family
 at #290 P4 when the first operator codomain demanded it (the
 consumer-driven discipline recorded at P2: "source-sink / residual role
 siblings only as operator codomains require"). It mirrors
-:class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
+:class:`~orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink`
 one-for-one on the scalar trace:
 
 * every scalar-composite operator's ``.apply`` output boundary IS a

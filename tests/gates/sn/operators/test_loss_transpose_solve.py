@@ -190,7 +190,7 @@ def _seed_cot(problem: SNProblem, values=None):
 def _fresh_source(problem: SNProblem) -> FullField:
     """A zero SOURCE-role composite — the codomain-side cotangent carrier
     the grid's transposed surfaces consume (role-honest member algebra)."""
-    from orpheus.transport.source_sinks import (
+    from orpheus.transport.fields import (
         AngularBoundarySourceSink,
         AngularSourceSink,
     )

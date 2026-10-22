@@ -83,7 +83,7 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import _LC_matvec
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
+from orpheus.transport.fields import AngularSourceSink, AngularBoundarySourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.radial_characteristic_field import RadialCharacteristicField
 from orpheus.transport.full_field import FullField

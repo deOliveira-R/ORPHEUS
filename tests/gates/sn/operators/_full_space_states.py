@@ -147,7 +147,7 @@ def zero_source_composite(problem: SNProblem) -> FullField:
     substitution computes ``q_A − Seeding·ψ_B`` — cross-role arithmetic
     is forbidden by the typed fields, so a flux-role rhs raises at the
     block boundary (#289-F2)."""
-    from orpheus.transport.source_sinks import (
+    from orpheus.transport.fields import (
         AngularBoundarySourceSink,
         AngularSourceSink,
     )
@@ -196,7 +196,7 @@ def random_source_composite(problem: SNProblem, seed: int) -> FullField:
     """The SOURCE-role sibling of :func:`random_composite`: a random right-hand side with the bulk and every trace
     row populated, in the role a fixed-point step's lagged source ``q + N ψ`` carries (the typed fields refuse a
     flux-role ``q`` there)."""
-    from orpheus.transport.source_sinks import AngularBoundarySourceSink, AngularSourceSink
+    from orpheus.transport.fields import AngularBoundarySourceSink, AngularSourceSink
 
     rng = np.random.default_rng(seed)
     interior = AngularSourceSink(

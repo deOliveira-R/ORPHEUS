@@ -288,7 +288,7 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
     """
     from orpheus.numerics.iteration import SourceIteration
     from orpheus.sn.coupled_system import build_within_group_system
-    from orpheus.transport.source_sinks import (
+    from orpheus.transport.fields import (
         AngularSourceSink,
         AngularBoundarySourceSink,
     )

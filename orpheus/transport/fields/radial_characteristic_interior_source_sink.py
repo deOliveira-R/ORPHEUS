@@ -7,7 +7,7 @@ coupling operators onto it). The per-``(level, sign)`` cells blocks ``(ng, nx)``
 carry the within-group emission :math:`\bar q_{1/2}` folded to the starting
 direction (ruling R14: the full :math:`(-1)^\ell` Legendre fold) — a volumetric
 rate density, exactly like the bulk
-:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`.
+:class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`.
 This is the block ``A_BA``
 (:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`,
 the ``Fold ∘ K ∘ integrate`` emission) writes.
@@ -16,7 +16,7 @@ The split DISSOLVES the retired unified leaf's (the single-buffer
 ``RadialCharacteristicSourceSink``, deleted at 4e — its module is gone)
 documented corner-units deviation: each locus leaf now declares its own honest
 dimensional identity (cells = volumetric rate here; the corner datum lives on
-:class:`~orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink.RadialCharacteristicBoundarySourceSink`
+:class:`~orpheus.transport.fields.radial_characteristic_boundary_source_sink.RadialCharacteristicBoundarySourceSink`
 with flux units, the trace convention).
 
 Storage, validation, the ``cells(level, sign)`` view, and the shared

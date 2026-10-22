@@ -176,13 +176,13 @@ from orpheus.transport.full_field import FullField
 from orpheus.transport.radial_characteristic_field import (
     RadialCharacteristicField,
 )
-from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
+from orpheus.transport.fields.radial_characteristic_boundary_source_sink import (
     RadialCharacteristicBoundarySourceSink,
 )
-from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
+from orpheus.transport.fields.radial_characteristic_interior_source_sink import (
     RadialCharacteristicInteriorSourceSink,
 )
-from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
+from orpheus.transport.fields.angular_source_sink import AngularSourceSink
 from orpheus.derivations.common.xs_library import make_mixture
 from tests.gates.sn.operators._composite_operand import bulk_apply
 
@@ -2180,7 +2180,7 @@ class TestCoupledLift:
         psi = _random_composite(sn, rng)
 
         from orpheus.transport.full_field import FullField as _FF
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             AngularBoundarySourceSink, AngularSourceSink,
         )
 
@@ -4088,7 +4088,7 @@ class TestPrescribedCornerDatum:
         the nearest-node proxy for ψ_in(μ=−1), the pre-d3
         ``bc_outer_value`` datum restored through the source channel. The
         outflow corner stays zero (the defect row, R13)."""
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             AngularBoundarySourceSink,
             AngularSourceSink,
         )

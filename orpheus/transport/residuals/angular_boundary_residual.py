@@ -12,7 +12,7 @@ stored as a field on the unified
 ``(layout.total_size,)`` buffer). It is the *residual* role leaf of
 :class:`~orpheus.transport.fields._bases.AngularBoundaryField`, sibling to
 :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` (flux)
-and :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
+and :class:`~orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink`
 (source).
 
 Consumer: the named balance, NOT an operator output (B.5.2)
@@ -28,7 +28,7 @@ residual. Accordingly, every SN operator's ``.apply`` boundary
 (``StreamingOperator`` non-zero; ``Collision`` / ``Scattering`` /
 ``Fission`` / :class:`SNBoundaryOperator` zero-or-coupling) is the
 *source/sink* role leaf
-:class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
+:class:`~orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink`
 (mirroring the bulk's ``AngularSourceSink``). The GMRES flat residual
 ``b − Aψ`` is formed internally on the raveled vector (via
 :meth:`TimedFullField.to_flat`) and is never typed as a field.

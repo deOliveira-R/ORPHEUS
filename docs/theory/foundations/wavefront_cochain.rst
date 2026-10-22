@@ -365,7 +365,7 @@ Phase 5 adds the **face** locus row:
      - persistent (the iterate)
      - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
        / :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
-     - :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+     - :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
      - :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
        (minted, O.2 consumer)
    * - **face — interior**
@@ -380,7 +380,7 @@ Phase 5 adds the **face** locus row:
        (1-cochain :math:`C^1_\partial`)
      - persistent (carries the iterate trace)
      - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-     - :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
+     - :class:`~orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink`
        (B.5.2)
      - :class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`
        (minted, O.2 consumer)

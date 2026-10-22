@@ -41,7 +41,7 @@ import numpy as np
 
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from orpheus.numerics.field import Field
@@ -89,7 +89,7 @@ def transpose_values(op, values) -> np.ndarray:
     r"""``opᵀ`` on a RAW cotangent array — the bucket-(c) wrap, values in / out.
 
     The cotangent of a composite-bound gain is a composite too: an
-    :class:`~orpheus.transport.source_sinks.AngularSourceSink` on the operator's
+    :class:`~orpheus.transport.fields.AngularSourceSink` on the operator's
     own CODOMAIN interior plus the zero trace. Returns the emitted interior's
     raw values, so a caller that only wants the arithmetic keeps its arithmetic.
     """

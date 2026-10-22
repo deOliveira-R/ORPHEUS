@@ -43,10 +43,10 @@ from orpheus.transport.full_field import Composite, FullField
 from orpheus.transport.radial_characteristic_field import (
     RadialCharacteristicField,
 )
-from orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink import (
+from orpheus.transport.fields.radial_characteristic_boundary_source_sink import (
     RadialCharacteristicBoundarySourceSink,
 )
-from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink import (
+from orpheus.transport.fields.radial_characteristic_interior_source_sink import (
     RadialCharacteristicInteriorSourceSink,
 )
 from tests.gates.sn._test_helpers import placeholder_materials

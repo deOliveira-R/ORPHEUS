@@ -81,7 +81,7 @@ from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 
 
 # NOTE: NO module-level ``pytestmark = pytest.mark.l1``.  This file mixes

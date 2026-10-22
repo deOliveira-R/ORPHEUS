@@ -21,7 +21,7 @@ from orpheus.geometry import BC
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn
-from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
+from orpheus.transport.fields import ScalarSourceSink, AngularSourceSink
 from tests.gates.sn._test_helpers import reflect_outflow_into_inflow, sweep_once
 from tests.gates.sn._test_helpers import SN_TESTS_ROOT
 from tests.gates.sn._independent_dd_sweep import (

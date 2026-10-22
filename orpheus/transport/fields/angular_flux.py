@@ -78,7 +78,7 @@ class AngularFlux(AngularField):
     Field's Layer 1 class-identity gate rejects cross-class arithmetic
     with :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
     (different shape, different physical kind), with
-    :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+    :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
     (same shape, different physical kind — source vs flux), and with
     any other Field subclass. Same-class arithmetic is closed.
 

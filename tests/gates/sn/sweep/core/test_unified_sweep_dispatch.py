@@ -63,7 +63,7 @@ from orpheus.sn.loss_representation import (
     default_for,
 )
 from tests.gates.sn._test_helpers import placeholder_materials
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 

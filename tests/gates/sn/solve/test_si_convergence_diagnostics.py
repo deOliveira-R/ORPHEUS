@@ -35,7 +35,7 @@ from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.sn.solver import SNSolver, _within_group_green_si
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
+from orpheus.transport.fields import AngularSourceSink, AngularBoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 
 

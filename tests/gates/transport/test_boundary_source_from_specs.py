@@ -4,9 +4,9 @@ Phase **P1** of `.claude/plans/archive/affine_boundary_source_channel.md`. The a
 boundary law is :math:`\gamma_-\psi = L\,\gamma_+\psi + q`, and there are two
 routes to :math:`q`, related as *recipe → snapshot* rather than as duplicates:
 
-* :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
+* :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
   — the **known-per-face-array** route, already shipped;
-* :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_specs`
+* :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_specs`
   — the **lazy-recipe** route built here, materialising per-face
   :class:`~orpheus.geometry.boundary._source.InflowSourceSpec` generators onto
   the trace.
@@ -43,7 +43,7 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.geometry.boundary import ConstantInflowSource, NoSource
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
-from orpheus.transport.source_sinks import AngularBoundarySourceSink
+from orpheus.transport.fields import AngularBoundarySourceSink
 from tests.gates.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.l1

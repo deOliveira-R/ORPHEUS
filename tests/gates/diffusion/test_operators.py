@@ -76,7 +76,7 @@ from orpheus.transport.operators.lift import BulkLift
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
-from orpheus.transport.source_sinks import (
+from orpheus.transport.fields import (
     ScalarBoundarySourceSink,
     ScalarSourceSink,
 )

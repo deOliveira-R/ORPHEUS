@@ -89,8 +89,8 @@ from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.projection import AnalysisOperator, ReconstructionOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
-from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
-from orpheus.transport.source_sinks.harmonic_moment_source_sink import (
+from orpheus.transport.fields.angular_source_sink import AngularSourceSink
+from orpheus.transport.fields.harmonic_moment_source_sink import (
     HarmonicMomentSourceSink,
 )
 from orpheus.numerics import frame_faces

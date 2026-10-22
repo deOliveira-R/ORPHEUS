@@ -796,7 +796,7 @@ def sweep_once(source, sig_t, problem, boundary_flux):
     from orpheus.transport.operators.multiplication_operator import (
         MultiplicationOperator,
     )
-    from orpheus.transport.source_sinks import AngularBoundarySourceSink
+    from orpheus.transport.fields import AngularBoundarySourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
     LC = StreamingCollisionOperator(  # S2: built explicitly (ruling 52)

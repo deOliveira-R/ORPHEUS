@@ -72,7 +72,7 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 from tests.gates.sn._test_helpers import placeholder_materials
 
 

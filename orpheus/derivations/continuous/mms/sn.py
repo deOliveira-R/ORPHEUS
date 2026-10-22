@@ -1574,7 +1574,7 @@ class SN2DCartesianLDStressMMSCase:
 
     def prescribed_inflow(self, problem):
         r"""The ``q.boundary`` prescribed-inflow term (a
-        :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`).
+        :class:`~orpheus.transport.fields.AngularBoundarySourceSink`).
 
         For each domain face and group :math:`g`, the inflow ordinate slots
         carry :math:`\gamma_-\psi = \psi_{n,g}(x_{\rm face}, \mu_n)/W`, the
@@ -1588,7 +1588,7 @@ class SN2DCartesianLDStressMMSCase:
         FULL transverse moment slot ``(N, ng, n_t, face_moment_count)`` — slot 0
         the transverse cell AVERAGE, slot 1 the bare transverse :math:`P_1`
         slope — and feeds it to the producer's full-slot branch
-        (:meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`).
+        (:meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`).
         The slope is genuinely consumed by the LD boundary closure (its
         converged-flux contribution is sub-floor — a representation refinement,
         not a deficiency repair; see the theory page).  When the mesh is a
@@ -1597,12 +1597,12 @@ class SN2DCartesianLDStressMMSCase:
         (the producer's scalar branch seeds slot 0, no moment axis exists).
 
         Materialised via the ergonomic
-        :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
+        :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
         generator (full ``(N, ng, n_face[, face_moment_count])`` per face; the
         generator keeps only the inflow ordinates).
         """
         from orpheus.numerics.moment_layout import face_moment_count
-        from orpheus.transport.source_sinks import AngularBoundarySourceSink
+        from orpheus.transport.fields import AngularBoundarySourceSink
 
         n_face_moments = face_moment_count(
             problem.scheme.spatial_basis_per_axis, problem.ndim,
@@ -3355,18 +3355,18 @@ class SNSlabNonVacuumMMSCase:
 
     def prescribed_inflow(self, problem):
         r"""The ``q.boundary`` prescribed-inflow term — a
-        :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`.
+        :class:`~orpheus.transport.fields.AngularBoundarySourceSink`.
 
         For each boundary face and group :math:`g`, the inflow ordinate
         slots carry :math:`\gamma_-\psi = \psi_{n,g}(x_{\rm face}, \mu_n)/W
         = (A_g(x_{\rm face}) + \mu_n B_g(x_{\rm face}))/W` (the affine-BC
         inhomogeneous term :math:`q`); both slab faces carry inflow because
         :math:`a_0>0`. Materialised via the ergonomic
-        :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
+        :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
         generator (full ``(N, ng)`` per face; the generator keeps only the
         inflow ordinates).
         """
-        from orpheus.transport.source_sinks import AngularBoundarySourceSink
+        from orpheus.transport.fields import AngularBoundarySourceSink
 
         W = float(self.quadrature.weights.sum())
         mu = self.quadrature.mu_x
@@ -3625,16 +3625,16 @@ class SNSphericalNonVacuumMMSCase:
 
     def prescribed_inflow(self, problem):
         r"""The ``q.boundary`` prescribed-inflow at r=R — a
-        :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`.
+        :class:`~orpheus.transport.fields.AngularBoundarySourceSink`.
 
         The r=R face's inflow ordinate slots (μ<0) carry
         :math:`\gamma_-\psi = (A(R) + \mu_n B(R))/W`; r=0 is the symmetry
         BC, not a face. Materialised via the ergonomic
-        :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
+        :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
         generator (full ``(N, 1)``; the generator keeps only the inflow
         ordinates).
         """
-        from orpheus.transport.source_sinks import AngularBoundarySourceSink
+        from orpheus.transport.fields import AngularBoundarySourceSink
 
         W = float(self.quadrature.weights.sum())
         mu = self.quadrature.mu_x
@@ -3696,7 +3696,7 @@ def build_nonvacuum_fixed_source(case, problem) -> "TimedFullField":
     rather than a per-case method twin (Cardinal Rule 2). ``problem.mesh``
     supplies the underlying mesh for the bulk source.
     """
-    from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.fields import AngularSourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
     return TimedFullField(

@@ -80,7 +80,7 @@ from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
-from orpheus.transport.source_sinks import (
+from orpheus.transport.fields import (
     AngularBoundarySourceSink,
     AngularSourceSink,
 )

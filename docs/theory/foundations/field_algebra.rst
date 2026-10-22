@@ -186,7 +186,7 @@ operator :math:`A = L + C - S - N_{2n} - B`:
    * - **Rate-density**
      - :math:`1/(\mathrm{cm^3 \cdot s \cdot sr})`
      - —
-     - :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+     - :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
        :math:`q`, :math:`A\psi`; and
        :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
        :math:`r`
@@ -1057,7 +1057,7 @@ leaves named ``<Family><Role>`` (bulk) or ``<Family>Boundary<Role>``
      - Residual (defect)
    * - **Angular**
      - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-     - :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+     - :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
      - :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
    * - **Scalar**
      - :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
@@ -1070,7 +1070,7 @@ leaves named ``<Family><Role>`` (bulk) or ``<Family>Boundary<Role>``
        moment space is never the subject of one)*
    * - **Boundary**
      - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-     - :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
+     - :class:`~orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink`
      - :class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`
 
 .. note::
@@ -1099,10 +1099,10 @@ because it is easy to carry the old sentence forward.** As of CS3:
   ``AngularField → BulkField → Field → ABC``, and it defines neither
   ``__add__`` nor ``__sub__``. The flux role's arithmetic *is* the
   inherited vector algebra.
-- :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+- :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
   **does** define its own ``__add__`` — the canonical
   subspace-containment injection that accepts a
-  :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+  :class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`
   partner and broadcasts the isotropic operand across the
   :math:`\hat\Omega` axis before adding (the refined #207 exception;
   statically unspellable against Field's ``(T, T) -> T``, which is

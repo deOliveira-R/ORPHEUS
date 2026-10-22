@@ -1179,7 +1179,7 @@ def _eigenvalue_driver_source(
     finalize hand-built a P0-only source of its own).
 
     * bulk — the per-ordinate density via the canonical
-      :meth:`~orpheus.transport.source_sinks.AngularSourceSink.from_isotropic`
+      :meth:`~orpheus.transport.fields.AngularSourceSink.from_isotropic`
       factory (the ``/W`` projection at the factory boundary — Pattern 7
       producer-side normalisation; the legacy ``(fission_source /
       sum_w)[None]`` broadcast is GONE);
@@ -1196,7 +1196,7 @@ def _eigenvalue_driver_source(
       ``B_b`` blocks), so the seed folds the fission source alone, exactly
       as the inner solves pass it.
     """
-    from orpheus.transport.source_sinks import (
+    from orpheus.transport.fields import (
         AngularBoundarySourceSink,
         AngularSourceSink,
     )
@@ -2836,7 +2836,7 @@ def solve_sn_adjoint_fixed_source(
         )
     implicit_operator, gain, _F, template, splitting = _adjoint_posing_parts(problem)
 
-    from orpheus.transport.source_sinks import (
+    from orpheus.transport.fields import (
         AngularBoundarySourceSink,
         AngularSourceSink,
     )
@@ -2927,8 +2927,8 @@ def _build_fixed_source_rhs(
 
     A fixed-source problem's RHS is the composite source
     :class:`~orpheus.transport.timed_full_field.TimedFullField` — a bulk
-    :class:`~orpheus.transport.source_sinks.AngularSourceSink` paired with a
-    boundary :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`
+    :class:`~orpheus.transport.fields.AngularSourceSink` paired with a
+    boundary :class:`~orpheus.transport.fields.AngularBoundarySourceSink`
     (the prescribed inflow :math:`q` of the affine BC
     :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`) — paired, on a
     carrying mesh (B.2d), with System B's q½ member into the coupled
@@ -2969,7 +2969,7 @@ def _build_fixed_source_rhs(
       System B's member values re-home onto the fold slot exactly (the
       caller controls the true q½ instead of the ℓ = 0 fold default).
     """
-    from orpheus.transport.source_sinks import (
+    from orpheus.transport.fields import (
         AngularSourceSink,
         AngularBoundarySourceSink,
     )
@@ -3206,19 +3206,19 @@ def solve_sn_fixed_source(
           with no boundary source term (the faces are closed by the
           mesh's declared laws alone). Callers with an iso scalar source
           :math:`Q(\vec r, g)` should project to per-ordinate via
-          :meth:`~orpheus.transport.source_sinks.AngularSourceSink.from_isotropic`
+          :meth:`~orpheus.transport.fields.AngularSourceSink.from_isotropic`
           before passing (the :math:`1/W` projection lives at the producer
           boundary per Pattern 7). The sweep does NOT apply ``/W``
           internally. Issue #196 PR-INDEX-5: principled layout (``g`` axis
           after ``N``).
         * :class:`~orpheus.transport.timed_full_field.TimedFullField` — the
           full **composite** source ``q = q_bulk ⊕ q_∂`` (a bulk
-          :class:`~orpheus.transport.source_sinks.AngularSourceSink` paired
+          :class:`~orpheus.transport.fields.AngularSourceSink` paired
           with a boundary
-          :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`). This
+          :class:`~orpheus.transport.fields.AngularBoundarySourceSink`). This
           is how a **non-vacuum prescribed inflow** is supplied — build the
           boundary via
-          :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
+          :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
           (the affine-BC inhomogeneous term :math:`q`, consumed by the sweep
           as the inflow seed). The array form is exactly the
           bulk-only special case of this composite (``q_∂ = 0``).

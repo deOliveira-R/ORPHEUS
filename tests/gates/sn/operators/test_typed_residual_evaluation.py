@@ -48,7 +48,7 @@ from orpheus.sn.solver import (
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.residuals import AngularResidual
-from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
+from orpheus.transport.fields import AngularSourceSink, AngularBoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 
 
@@ -378,7 +378,7 @@ class TestSplitRayResidualMint:
         from orpheus.transport.residuals import (
             RadialCharacteristicInteriorResidual,
         )
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             RadialCharacteristicInteriorSourceSink,
         )
         from orpheus.transport.fields.radial_characteristic_interior_flux import (
@@ -407,7 +407,7 @@ class TestSplitRayResidualMint:
         from orpheus.transport.residuals import (
             RadialCharacteristicBoundaryResidual,
         )
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             RadialCharacteristicBoundarySourceSink,
         )
         from orpheus.transport.fields.radial_characteristic_boundary_flux import (

@@ -1611,7 +1611,7 @@ mix and only a genuinely different space refuses):
      - Families that live there
      - What it is
    * - :attr:`~orpheus.sn.problem.SNProblem.angular_bulk_space`
-     - :class:`AngularFlux`, :class:`~orpheus.transport.source_sinks.AngularSourceSink`,
+     - :class:`AngularFlux`, :class:`~orpheus.transport.fields.AngularSourceSink`,
        the angular residual
      - the per-ordinate bulk phase space, the ordered axis product
        :math:`V_\Omega \otimes V_E \otimes V_r` with the quadrature
@@ -1623,14 +1623,14 @@ mix and only a genuinely different space refuses):
      - :attr:`angular_bulk_space` extended by the scheme's MODAL moment
        axis (below).  Byte-identical to it for the slopeless closures
    * - :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`
-     - :class:`ScalarFlux`, :class:`~orpheus.transport.source_sinks.ScalarSourceSink`,
+     - :class:`ScalarFlux`, :class:`~orpheus.transport.fields.ScalarSourceSink`,
        the scalar residual
      - the scalar bulk :math:`V_E \otimes V_r` — literally
        :attr:`angular_bulk_space` minus axis 0, which is why the angular
        retract cannot disagree with it on the shared factors
    * - :attr:`~orpheus.sn.problem.SNProblem.angular_trace`
      - :class:`AngularBoundaryFlux`,
-       :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`
+       :class:`~orpheus.transport.fields.AngularBoundarySourceSink`
      - the FLAT per-face trace buffer under the
        :math:`\lvert\hat\Omega\cdot\hat n\rvert\,w_n` partial-current
        metric
@@ -1661,7 +1661,7 @@ normalized lift back. Both are memoized on the space, so
 <orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular>`
 and
 :meth:`AngularSourceSink.from_isotropic
-<orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic>`
+<orpheus.transport.fields.angular_source_sink.AngularSourceSink.from_isotropic>`
 are one ``apply`` each rather than two hand-written kernels that could
 drift from the mints they connect. ⚠ They are DIFFERENT arrows — the
 adjoint of the retraction is the *plain* broadcast, the section divides
@@ -1843,11 +1843,11 @@ that wrap the right-hand side of the transport equation
 :math:`A\,\psi = q`, with the loss composite
 :math:`A = L + C - S - N_{2n} - B`:
 
-* :class:`~orpheus.transport.source_sinks.ScalarSourceSink` — the isotropic
+* :class:`~orpheus.transport.fields.ScalarSourceSink` — the isotropic
   volumetric source :math:`Q(\vec r, g)`, shape ``(ng, nx, ny)``.
   Aggregates per-group P0 in-scatter, (n,2n), and fission
   contributions that every ordinate sees identically.
-* :class:`~orpheus.transport.source_sinks.AngularSourceSink` — the per-ordinate
+* :class:`~orpheus.transport.fields.AngularSourceSink` — the per-ordinate
   source :math:`Q^{\rm aniso}(\vec r, \hat\Omega_n, g)`, shape
   ``(N, ng, nx, ny)``.  Carries the :math:`P_\ell \ge 1` Galerkin
   reconstruction contribution plus any MMS-style external source.
@@ -1867,7 +1867,7 @@ that wrap the right-hand side of the transport equation
    * The decision to keep ``sig_t`` as bare ndarray (static-parameter
      quantities don't need typed wrappers — Issue #197 plan).
 
-   Source module: :mod:`orpheus.transport.source_sinks`.
+   Source module: :mod:`orpheus.transport.fields`.
    Foundation tests:
    :file:`tests/gates/sn/primitives/test_typed_source_sinks.py` (37 cases).
    Closeout memo:
@@ -1877,9 +1877,9 @@ The load-bearing dunder
 -----------------------
 
 The cross-type
-:meth:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink.__add__`
+:meth:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink.__add__`
 accepting an
-:class:`~orpheus.transport.source_sinks.AngularSourceSink` partner is
+:class:`~orpheus.transport.fields.AngularSourceSink` partner is
 the load-bearing pattern of PR-TYPED-3.  It replaces the procedural
 broadcast-and-copy pattern with a single algebraic line::
 
@@ -1898,7 +1898,7 @@ value); the caller spells the algebra.  The cross-class dunder is
 **preserved** under the refined Issue #207 principle (cross-class
 arithmetic is permitted when there is a canonical subspace-containment
 relation between the operands' spaces) — see the
-:mod:`orpheus.transport.source_sinks` module docstrings.
+:mod:`orpheus.transport.fields` module docstrings.
 
 Zero-source allocation
 ----------------------
@@ -2004,11 +2004,11 @@ tier ladder below.
 * **The lifted gain** — :meth:`TransferOperator.apply
   <orpheus.transport.operators.transfer.TransferOperator.apply>`: the
   composite ``FullField`` in, composite out, whose **interior leaf is an**
-  :class:`~orpheus.transport.source_sinks.AngularSourceSink` and whose
+  :class:`~orpheus.transport.fields.AngularSourceSink` and whose
   trace leaf is the zero source/sink (a collision gain is volumetric).
   The interior is the producer-side combine
   :math:`(\text{iso}/W) + \text{aniso}`: the :math:`\ell = 0` part as a
-  :class:`~orpheus.transport.source_sinks.ScalarSourceSink` from the
+  :class:`~orpheus.transport.fields.ScalarSourceSink` from the
   energy binding, the :math:`\ell \ge 1` part from the
   construction-selected redistribution body.  The type chain is preserved
   for :math:`N_{2n}` exactly as for :math:`S`, since #426 step 2 made them

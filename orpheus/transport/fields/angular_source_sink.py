@@ -18,8 +18,8 @@ live there); renamed ``PerOrdinateSource`` → ``AngularSource`` (B.2, hard
 rename, no shim) to complete the ``{Angular, Scalar} × {Flux, Source,
 Residual}`` role grid; then ``AngularSource`` → ``AngularSourceSink``
 (B.5, source/sink role rename — the leaf holds both production *sources*
-and operator-loss *sinks*; see :mod:`orpheus.transport.source_sinks`). The cross-class arithmetic
-with :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+and operator-loss *sinks*; see :mod:`orpheus.transport.fields`). The cross-class arithmetic
+with :class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`
 is **PRESERVED** — the refined Issue #207 principle (recorded in the
 conversation 2026-05-27) permits cross-class dunders when there is a
 canonical subspace-containment relation. :class:`ScalarSourceSink`
@@ -127,7 +127,7 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
         :meth:`ScalarSourceSink.__add__` (the containment exception is
         statically unspellable against Field's ``(T, T) -> T``; #288).
         """
-        from orpheus.transport.source_sinks.scalar_source_sink import ScalarSourceSink
+        from orpheus.transport.fields.scalar_source_sink import ScalarSourceSink
         if isinstance(other, ScalarSourceSink):
             # Delegate to ScalarSourceSink.__add__ — Pattern 2 (single
             # source of truth for the broadcast-and-add).

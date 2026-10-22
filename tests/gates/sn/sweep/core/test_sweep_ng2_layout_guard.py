@@ -38,7 +38,7 @@ from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import reflect_outflow_into_inflow, sweep_once
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 pytestmark = [pytest.mark.foundation, pytest.mark.catches("ERR-055")]

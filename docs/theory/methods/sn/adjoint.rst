@@ -1733,9 +1733,9 @@ either.
    bare-``ndarray`` transpose arm on them, and no per-carrier family of
    transposes.  The cotangent lands on the **domain's** interior in that
    end's own source/sink class: an
-   :class:`~orpheus.transport.source_sinks.AngularSourceSink` for an
+   :class:`~orpheus.transport.fields.AngularSourceSink` for an
    angular-end binding, a
-   :class:`~orpheus.transport.source_sinks.HarmonicMomentSourceSink` for
+   :class:`~orpheus.transport.fields.HarmonicMomentSourceSink` for
    a moment-end one; the trace is the implicit zero (a volumetric gain's
    transpose is volumetric), emitted in the SOURCE role through the one
    lift verb.  `[M]` on a GL8 slab: ``F.apply_transpose(FullField)``

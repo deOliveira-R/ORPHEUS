@@ -61,7 +61,7 @@ class RadialCharacteristicBoundaryResidual(RadialCharacteristicBoundaryField):
         r"""The corner ψ½ balance defect ``r½ = (A·ψ)½ − q½`` (corner slots).
 
         ``lhs`` is the coupled loss grid's B-row boundary member (a
-        :class:`~orpheus.transport.source_sinks.radial_characteristic_boundary_source_sink.RadialCharacteristicBoundarySourceSink`),
+        :class:`~orpheus.transport.fields.radial_characteristic_boundary_source_sink.RadialCharacteristicBoundarySourceSink`),
         ``rhs`` the coupled source's q½ boundary member — the same three
         guards as every ``from_balance`` factory, via
         :meth:`~orpheus.numerics.field.Field._from_balance`.

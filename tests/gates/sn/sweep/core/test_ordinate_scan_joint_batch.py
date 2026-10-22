@@ -31,7 +31,7 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn import loss_representation as sweep_module
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 from tests.gates.sn._test_helpers import sweep_once
 from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux

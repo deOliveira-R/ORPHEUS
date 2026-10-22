@@ -2306,7 +2306,7 @@ call sites.
    import :data:`~orpheus.numerics.moment_layout.AVERAGE_MOMENT` and
    read it at **10** sites (``sn/loss_representation`` 5, ``sn/solver``
    2, and one each in ``transport/spatial/linear_discontinuous``,
-   ``transport/source_sinks/angular_boundary_source_sink`` and
+   ``transport/fields/angular_boundary_source_sink`` and
    ``derivations/continuous/mms/sn``), and ``average_moment_index``
    appears **nowhere** in the tree.  The convention did not move — only
    the spelling of who hands it out.
@@ -3087,7 +3087,7 @@ the change.
    **The moment-end route takes the explicit typed edges.** Its body is
    ``self.source_reconstruction.apply(Λ.apply(φ)) / self.total_weight``:
    :math:`\Lambda` materialises a typed
-   :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+   :class:`~orpheus.transport.fields.harmonic_moment_source_sink.HarmonicMomentSourceSink`
    (the role-changing edge of the carrier grid,
    :ref:`scattering-carrier-grid`), which the retained :math:`R` face
    then reconstructs to an :class:`AngularSourceSink` on its own bound

@@ -21,7 +21,7 @@ from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.transport.source_sinks import (
+from orpheus.transport.fields import (
     ScalarSourceSink,
     AngularSourceSink,
     HarmonicMomentSourceSink,

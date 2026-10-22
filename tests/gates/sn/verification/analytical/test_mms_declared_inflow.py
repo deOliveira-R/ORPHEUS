@@ -55,7 +55,7 @@ from orpheus.derivations.continuous.mms.sn import (
 from orpheus.geometry.boundary import PrescribedInflow
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
-from orpheus.transport.source_sinks import AngularBoundarySourceSink
+from orpheus.transport.fields import AngularBoundarySourceSink
 from tests.gates.sn._test_helpers import volume_weighted_l2
 
 pytestmark = pytest.mark.l1

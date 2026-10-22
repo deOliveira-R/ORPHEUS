@@ -183,7 +183,7 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.full_field import FullField
-    from orpheus.transport.source_sinks import (
+    from orpheus.transport.fields import (
         AngularSourceSink,
         AngularBoundarySourceSink,
     )
@@ -1310,7 +1310,7 @@ class _OctantWalk:
         subtracting (Resolution A as the σ-free reading, #257 S8b).
         """
         from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             AngularSourceSink, AngularBoundarySourceSink,
         )
 
@@ -1432,7 +1432,7 @@ class _OctantWalk:
         mirror of ``apply`` — not a subtraction).
         """
         from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             AngularSourceSink, AngularBoundarySourceSink,
         )
 
@@ -3313,7 +3313,7 @@ class _OneDimScanWalk:
         :meth:`~orpheus.numerics.coupled_system.CoupledOperator.apply`.
         """
         from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.fields import AngularSourceSink
         m_cell, m_boundary = self._apply_walk(sigma, psi)
         # The matvec output carries the trailing 2^d spatial-moment axis at a
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
@@ -3373,7 +3373,7 @@ class _OneDimScanWalk:
         diagonal ``self.sigma``) — the frame never reads it off an operator
         handle.
         """
-        from orpheus.transport.source_sinks import AngularBoundarySourceSink
+        from orpheus.transport.fields import AngularBoundarySourceSink
         from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
 
         problem = self.problem
@@ -3728,7 +3728,7 @@ class _OneDimScanWalk:
         negative control.
         """
         from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
+        from orpheus.transport.fields import AngularSourceSink, AngularBoundarySourceSink
         from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
 
         problem = self.problem
@@ -4676,7 +4676,7 @@ class _OneDimScanWalk:
         the face-source folds), gated by the SAME derived
         ``has_transpose_kernel`` trait the reverse walk checks.
         """
-        from orpheus.transport.source_sinks import AngularBoundarySourceSink
+        from orpheus.transport.fields import AngularBoundarySourceSink
 
         quad = self.problem.quad
         N = quad.n_ordinates

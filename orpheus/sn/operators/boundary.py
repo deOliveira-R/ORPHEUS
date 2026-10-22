@@ -95,7 +95,7 @@ if TYPE_CHECKING:
     from orpheus.transport.radial_characteristic_field import (
         RadialCharacteristicField,
     )
-    from orpheus.transport.source_sinks import (
+    from orpheus.transport.fields import (
         AngularBoundarySourceSink,
         RadialCharacteristicBoundarySourceSink,
     )
@@ -199,7 +199,7 @@ def _zero_bulk_source(problem: "SNProblem"):
     different type on a different space, so there is no shared zero-bulk
     concept for the two blocks to have a single source OF.
     """
-    from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.fields import AngularSourceSink
 
     return AngularSourceSink.zeros(problem.angular_trial_space)
 
@@ -462,7 +462,7 @@ class SNBoundaryOperator(LinearOperator):
         r"""Core ``A_ss`` action on the trace ALONE — apply each face's law
         (``method`` ∈ {apply, apply_transpose}) to that face's slot, project onto
         the codomain row, and return a boundary-only
-        :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`.
+        :class:`~orpheus.transport.fields.AngularBoundarySourceSink`.
 
         ``B`` is the ``A_ss`` block ``V_outflow → V_inflow``, and **since
         campaign phase B3.2 the realized per-face law is typed that way too**:
@@ -567,7 +567,7 @@ class SNBoundaryOperator(LinearOperator):
         ``reflect_inflow_inplace`` (the pre-#448 bare-sweep inflow seed, 0
         production callers since) retired at CS4c step 6 item 6.5.
         """
-        from orpheus.transport.source_sinks import AngularBoundarySourceSink
+        from orpheus.transport.fields import AngularBoundarySourceSink
 
         # Single mesh source (mesh-identity invariant — see class docstring):
         # the output buffers, the trace selectors, and ``_face_laws`` ALL read
@@ -976,7 +976,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         unscaled, exact for :math:`\alpha = 1` and wrong for a typed partial
         reflector, which re-emitted its full outflow at the corner (ERR-094).
         """
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             RadialCharacteristicBoundarySourceSink,
         )
 
@@ -1022,7 +1022,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         from orpheus.transport.radial_characteristic_field import (
             RadialCharacteristicField,
         )
-        from orpheus.transport.source_sinks import (
+        from orpheus.transport.fields import (
             RadialCharacteristicInteriorSourceSink,
         )
 

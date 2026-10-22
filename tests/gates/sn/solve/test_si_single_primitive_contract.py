@@ -52,7 +52,7 @@ from orpheus.sn.operators.radial_characteristic import RadialCharacteristicEmiss
 from orpheus.numerics.operator import BlockRole, SystemRole
 from orpheus.numerics import iteration as _iteration
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields import AngularSourceSink
 
 pytestmark = pytest.mark.foundation
 

@@ -66,7 +66,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.frames.harmonic_frame import HarmonicFrame
 from orpheus.transport.operators.fission import FissionOperator
-from orpheus.transport.source_sinks import (
+from orpheus.transport.fields import (
     AngularSourceSink,
     HarmonicMomentSourceSink,
 )

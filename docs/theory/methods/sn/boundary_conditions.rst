@@ -328,7 +328,7 @@ primitives are, with each law's affine factors alongside:
        problem has no external inflow), but **yes**
        ``solve_sn_fixed_source`` since campaign phase P2′ — the
        declared source is read by
-       :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_problem_laws`
+       :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_problem_laws`
        and delivered through the boundary-source channel
        (:ref:`bc-affine-source-channel`)
 
@@ -625,7 +625,7 @@ at :ref:`bc-sweep-cycle`.
        :math:`q` travels the boundary-source channel
        (:ref:`bc-affine-source-channel`), assembled from the declared
        law by
-       :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_problem_laws`.
+       :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_problem_laws`.
        Until **P3** this arm returned an ``IncomingSourceOperator``
        whose ``apply`` ignored the outgoing flux and asked the source
        spec to fill ``(|Γ₋|,) + psi_out.shape[1:]`` — affine, in a
