@@ -21,6 +21,10 @@ sections to the cells is the transport layer's
 * :mod:`~orpheus.mesh.axis`: the per-axis primitives (:class:`AxisMesh`,
   :class:`RadialAxisMesh`, :class:`AxisCoord`) whose tensor product is a
   structured phase-space mesh, and the pure shape functions on axis tuples.
+* :mod:`~orpheus.mesh.legacy_adapter`: the translation between an axis tuple
+  and a structured mesh (:func:`axes_from_legacy_mesh`,
+  :func:`legacy_mesh_from_axes`), above both; it retires with the legacy-mesh
+  consumers.
 
 Meshes read from external meshers (unstructured) will live here too.
 """
@@ -33,15 +37,14 @@ from orpheus.mesh.axis import (
     AxisMesh,
     FaceLabel,
     RadialAxisMesh,
-    axes_from_legacy_mesh,
     coord_system,
     face_labels,
     face_outflow_ordinates,
     face_shape,
-    legacy_mesh_from_axes,
     n_unknowns_flat,
     spatial_shape,
 )
+from orpheus.mesh.legacy_adapter import axes_from_legacy_mesh, legacy_mesh_from_axes
 from orpheus.mesh.factories import pwr_pin_2d
 from orpheus.mesh.partition import (
     CellEdges,

@@ -253,7 +253,7 @@ def test_r7b2_0_6_legacy_adapter_labels_material_runs() -> None:
     """``legacy_mesh_from_axes`` has no geometry, only a material per cell. It labels each maximal run of
     one material as its own region: the finest partition the material map determines that never
     merges two disjoint pieces (labelling by material id would fuse A|B|A's regions 0 and 2)."""
-    from orpheus.mesh.axis import legacy_mesh_from_axes
+    from orpheus.mesh.legacy_adapter import legacy_mesh_from_axes
 
     axis = AxisMesh(edges=np.linspace(0.0, 3.0, 7), bc_low=BC.reflective, bc_high=BC.vacuum)
     mesh = legacy_mesh_from_axes((axis,), mat_map=np.array([0, 0, 1, 1, 0, 0]))

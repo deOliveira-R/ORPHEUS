@@ -307,6 +307,9 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         "orpheus.mesh.structured",
         "orpheus.mesh.factories",
         "orpheus.mesh.axis",
+        # the layer-DAG campaign: the legacy-mesh adapter left the axis
+        # module for its own, above axis and structured.
+        "orpheus.mesh.legacy_adapter",
         "orpheus.sn.solver",
         # step 2 of the consumers campaign (2026-09-13): the Strategy value
         # module — solver -> splitting -> operators/loss_representation, no

@@ -10,7 +10,7 @@ material map, from which the material ID of each cell is derived), cell
 volumes and face areas, and the boundary declaration on each face. Solvers receive a
 mesh and build mutable, method-specific state on top of it.
 
-The package holds six modules:
+The package holds seven modules:
 
 * :mod:`orpheus.mesh.structured`: the structured meshes
   :class:`~orpheus.mesh.structured.Mesh1D` and
@@ -39,8 +39,12 @@ The package holds six modules:
   :class:`~orpheus.mesh.axis.FaceLabel`) whose tensor product is a
   structured phase-space mesh, and the pure shape functions on tuples of
   axes.
+* :mod:`orpheus.mesh.legacy_adapter`: the translation between a tuple of
+  axes and a structured mesh
+  (:func:`~orpheus.mesh.legacy_adapter.axes_from_legacy_mesh`,
+  :func:`~orpheus.mesh.legacy_adapter.legacy_mesh_from_axes`).
 
-Every public name of the six modules is exported from
+Every public name of the seven modules is exported from
 :mod:`orpheus.mesh` itself (``from orpheus.mesh import Mesher,
 CellsByCount``); :mod:`orpheus.geometry` and :mod:`orpheus.transport.mesh`
 do not export them.
@@ -352,14 +356,33 @@ The shape algebra is a set of pure functions on a tuple of axes
 :func:`~orpheus.mesh.axis.n_unknowns_flat`,
 :func:`~orpheus.mesh.axis.coord_system`), so a gate can exercise it on a
 synthetic axis tuple without building a full phase space.
-:func:`~orpheus.mesh.axis.axes_from_legacy_mesh` and
-:func:`~orpheus.mesh.axis.legacy_mesh_from_axes` convert between an
-axis tuple and a :class:`~orpheus.mesh.structured.Mesh1D` or
-:class:`~orpheus.mesh.structured.Mesh2D`. The architectural narrative,
-the axis tuple as the key of the dimension-agnostic face inventory, is
-in :doc:`/theory/foundations/boundary_conditions`.
+The architectural narrative, the axis tuple as the key of the
+dimension-agnostic face inventory, is in
+:doc:`/theory/foundations/boundary_conditions`.
 
 .. automodule:: orpheus.mesh.axis
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+
+The legacy-mesh adapter
+-----------------------
+
+:func:`~orpheus.mesh.legacy_adapter.axes_from_legacy_mesh` and
+:func:`~orpheus.mesh.legacy_adapter.legacy_mesh_from_axes` convert between
+a tuple of axes and a :class:`~orpheus.mesh.structured.Mesh1D` or
+:class:`~orpheus.mesh.structured.Mesh2D`. The adapter knows both the axis
+primitive and the structured mesh, so its module
+:mod:`orpheus.mesh.legacy_adapter` imports :mod:`orpheus.mesh.axis` and
+:mod:`orpheus.mesh.structured` and is imported by neither; the mesh
+package's module imports form a directed acyclic graph
+(``tests/gates/mesh/test_module_layout.py``). The adapter retires with
+the consumers still reading the legacy ``SNProblem.mesh`` (C5.2-C5.5,
+#225), and retiring it is deleting the module.
+
+.. automodule:: orpheus.mesh.legacy_adapter
    :members:
    :undoc-members:
    :show-inheritance:

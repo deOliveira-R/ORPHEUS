@@ -1283,7 +1283,7 @@ mesh itself and comes before any law is read.
      - a hollow cylinder or sphere whose inner law is not
        ``reflective``
      - ``_refuse_an_inner_law_the_radial_axis_drops``
-       (``orpheus/mesh/axis.py``), #511
+       (``orpheus/mesh/legacy_adapter.py``), #511
    * - CP
      - the outer law; on a slab the left face is always a mirror (the
        kernel's image term), which a reflective left law declares

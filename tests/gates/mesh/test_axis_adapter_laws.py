@@ -3,7 +3,7 @@ r"""The face laws of the adapter mesh ``SNProblem.from_axes`` synthesizes (P1 st
 ``SNProblem.from_axes`` stores the caller's axes and builds a legacy
 :class:`~orpheus.mesh.Mesh1D` ADAPTER for the consumers still reading
 ``problem.mesh``. A mesh refuses ``None`` on a face, so the adapter carries
-the laws SN computes (``orpheus/mesh/axis.py::_face_laws_of_axis``), which are:
+the laws SN computes (``orpheus/mesh/legacy_adapter.py::_face_laws_of_axis``), which are:
 
 * the declared laws of the axis, carried as given (the undeclared-law arm,
   ``ELEGANCE-DEBT[guard]`` #405, retired at P1 step 3c: an axis cannot be
@@ -141,7 +141,7 @@ class TestTheAxisLaws:
 
 
 def _round_trip(axes):
-    from orpheus.mesh.axis import axes_from_legacy_mesh, legacy_mesh_from_axes
+    from orpheus.mesh.legacy_adapter import axes_from_legacy_mesh, legacy_mesh_from_axes
 
     return axes_from_legacy_mesh(legacy_mesh_from_axes(axes))
 

@@ -2,7 +2,7 @@
 
 The radial axis (:class:`~orpheus.mesh.axis.RadialAxisMesh`) has one law
 slot, the outer surface, so the declared inner law of a hollow cylinder or
-sphere was dropped by :func:`~orpheus.mesh.axis.axes_from_legacy_mesh` and
+sphere was dropped by :func:`~orpheus.mesh.legacy_adapter.axes_from_legacy_mesh` and
 every method built on the axes (SN, diffusion) computed a reflective cavity
 instead, silently: before the guard, an inner vacuum and an inner reflective
 law gave bit-identical SN fluxes on a cylinder and a sphere with
