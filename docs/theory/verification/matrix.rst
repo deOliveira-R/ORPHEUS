@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19671**
+Total tests collected: **19706**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2762, 14.0%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14868, 75.6%
+   foundation, 14903, 75.6%
    unmarked, 43, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19549
+   explicit, 19584
    class-name, 46
    func-name, 0
    case, 33
@@ -295,7 +295,7 @@ Module × level grid
    fields/test_field_space_identity, 0, 0, 0, 0, 9, 0
    fields/test_harmonic_moment_flux, 0, 0, 0, 0, 26, 0
    fields/test_meshless_construction, 0, 0, 0, 0, 8, 0
-   fields/test_role_partners, 0, 0, 0, 0, 22, 0
+   fields/test_role_partners, 0, 0, 0, 0, 23, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
    frames/test_binding_tightness, 0, 0, 0, 0, 20, 0
    frames/test_frame_mints_refuse_a_moment_space, 0, 0, 0, 0, 4, 0
@@ -306,11 +306,10 @@ Module × level grid
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 50, 0, 0, 5, 0
-   geometry/test_bound_compat, 12, 0, 0, 0, 0, 0
    geometry/test_boundary, 0, 0, 0, 0, 26, 0
    geometry/test_boundary_factor_consumers, 0, 0, 0, 0, 13, 0
    geometry/test_boundary_factors, 0, 0, 0, 0, 50, 0
-   geometry/test_boundary_trace_law, 0, 0, 0, 0, 14, 0
+   geometry/test_boundary_trace_law, 0, 0, 0, 0, 13, 0
    geometry/test_chart, 4, 0, 0, 0, 18, 0
    geometry/test_chart_directions, 61, 0, 0, 0, 18, 0
    geometry/test_chord, 53, 0, 0, 0, 30, 0
@@ -410,11 +409,12 @@ Module × level grid
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 11, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
    numerics/test_concept_order, 0, 0, 0, 0, 0, 4
-   numerics/test_content_identity, 0, 0, 0, 0, 46, 0
+   numerics/test_content_identity, 0, 0, 0, 0, 45, 0
    numerics/test_content_identity_axis, 0, 0, 0, 0, 56, 0
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
    numerics/test_content_identity_observable, 0, 0, 0, 0, 26, 0
    numerics/test_content_identity_question, 0, 0, 0, 0, 52, 0
+   numerics/test_content_identity_relocation, 0, 0, 0, 0, 17, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 91, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_dense_metric, 0, 0, 0, 0, 14, 0
@@ -520,6 +520,7 @@ Module × level grid
    operators/test_b3_domain_narrowing, 0, 0, 0, 0, 30, 0
    operators/test_bc_extraction_2d, 2, 3, 0, 0, 3, 0
    operators/test_bc_extraction_matvec, 3, 0, 0, 0, 30, 0
+   operators/test_bound_compat, 12, 0, 0, 0, 0, 0
    operators/test_boundary_carrier_admission, 0, 0, 0, 0, 18, 0
    operators/test_boundary_conditions, 0, 0, 0, 0, 13, 0
    operators/test_capability_survival, 0, 0, 0, 0, 12, 0
@@ -667,7 +668,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 483, 0
+   test_layer_imports, 0, 0, 0, 0, 502, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
