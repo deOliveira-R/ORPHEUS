@@ -28,10 +28,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.manifold import REAL_LINE, SPHERE
+from orpheus.geometry.manifold import REAL_LINE, SPHERE
 from orpheus.numerics.measure import DiscreteMeasure, DiscreteMeasurePartition
 from orpheus.numerics.quadrature import lebedev_sphere
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 
 @pytest.mark.l0

@@ -48,7 +48,7 @@ import pytest
 from orpheus.data.energy_grid import EnergyGrid, InverseEnergySpectrum
 from orpheus.numerics.axis import EnergyAxis
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
-from orpheus.numerics.manifold import HALF_LINE
+from orpheus.geometry.manifold import HALF_LINE
 
 pytestmark = pytest.mark.foundation
 

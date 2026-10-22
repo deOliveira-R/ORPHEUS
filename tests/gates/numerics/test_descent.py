@@ -48,9 +48,10 @@ from orpheus.numerics.basis.spherical_harmonic_basis import (
     MirrorEvenSphericalHarmonicBasis,
     SphericalHarmonicBasis,
 )
-from orpheus.numerics.manifold import CIRCLE, ENERGY, SPHERE
+from orpheus.geometry.manifold import CIRCLE, SPHERE
+from orpheus.numerics.index_set import ENERGY
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 pytestmark = [pytest.mark.foundation]
 

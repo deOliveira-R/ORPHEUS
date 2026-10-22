@@ -72,7 +72,7 @@ from orpheus.numerics.outcome import Measured
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
-from orpheus.numerics.face_layout import face_normal
+from orpheus.geometry.faces import face_normal
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solver as solver_module
 from orpheus.sn.operators.loss_kernel_gauge import (

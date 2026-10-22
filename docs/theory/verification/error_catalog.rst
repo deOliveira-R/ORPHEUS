@@ -5934,7 +5934,7 @@ older entries classify against.
 
    ⭐ **The live defence, since 2026-09-03 (#434 R1), is one method.**
    That criterion is now spelled once, as :meth:`IdentityComponent.fixes
-   <orpheus.numerics.symmetry.IdentityComponent.fixes>`: the condition
+   <orpheus.geometry.symmetry.IdentityComponent.fixes>`: the condition
    :math:`Xp = 0` for every generator :math:`X` of the identity
    component and every node :math:`p`, which reads *"on the axis"* for a
    torus (:math:`|\hat a \times p| = 0` is the distance from the axis)
@@ -6020,7 +6020,7 @@ older entries classify against.
    ``symmetry._identity_component_normalises``, a five-arm dispatch of
    which `[M]` one arm was invoked exactly ONCE across 670 tests.
    :meth:`IdentityComponent.normalises
-   <orpheus.numerics.symmetry.IdentityComponent.normalises>` replaces
+   <orpheus.geometry.symmetry.IdentityComponent.normalises>` replaces
    it with the criterion :math:`[X, \mathfrak h] \subseteq \mathfrak h`
    and :math:`X - \mathrm{Ad}_s X \in \mathfrak h` for every generator
    :math:`X` and every coset representative :math:`s` of :math:`H`,
@@ -6915,12 +6915,12 @@ older entries classify against.
      forward. The defect is unchanged.** Tracker 2.3 gave the point-set
      layer arrows; 3.1 gives the catalogue **entry** the one arrow it
      owns, :math:`\pi : M \to M/H`.
-     :attr:`~orpheus.numerics.manifold.Quotient.orbit_coordinates`
+     :attr:`~orpheus.geometry.manifold.Quotient.orbit_coordinates`
      stores the quotient map's action on the base's ambient coordinates
      (for :math:`S^2/O(2)_a` it is the single surviving invariant
      :math:`p_1 = \Omega\cdot\hat e_a`) and
      :attr:`Quotient.quotient_map
-     <orpheus.numerics.manifold.Quotient.quotient_map>` derives the typed
+     <orpheus.geometry.manifold.Quotient.quotient_map>` derives the typed
      arrow, whose **codomain is the entry** and never the
      ``realization``. `[M]` 2026-09-02 the map is
      :math:`H`-invariant bit-exactly with a negative leg,
@@ -6937,7 +6937,7 @@ older entries classify against.
      point of :math:`S^2`. Now that every entry's lift is that same
      projector, the one-sentence restatement covers the whole catalogue
      rather than one family, and the type that refuses it is
-     :attr:`~orpheus.numerics.manifold.Quotient.lift_codomain`: a field,
+     :attr:`~orpheus.geometry.manifold.Quotient.lift_codomain`: a field,
      read by the consumer, rather than a literal a call site asserts
      (:ref:`manifold-lift`).
 
@@ -6973,7 +6973,7 @@ older entries classify against.
      <orpheus.numerics.basis.legendre_basis.LegendreBasis.evaluate>`
      (pulling a full-sphere rule's directions back to :math:`\mu`) and by
      :class:`~orpheus.numerics.basis.descent.Descent`, and
-     :func:`~orpheus.numerics.manifold.quotient_onto` returns it as the
+     :func:`~orpheus.geometry.manifold.quotient_onto` returns it as the
      frame's G0 arrow. ⚠ Nor does 3.1 supply a **section**: `[M]`
      ``fundamental_domain`` is still ``None`` on every
      :math:`S^2/O(2)_a` entry, deliberately, because a section is a
@@ -6985,15 +6985,15 @@ older entries classify against.
 
      ✅ **Progress 2026-09-02 (tracker 2.3) — the forged map now has ONE
      honest typed spelling, and this entry gets a one-sentence
-     statement.** :class:`~orpheus.numerics.manifold.ManifoldMap` gives
+     statement.** :class:`~orpheus.geometry.manifold.ManifoldMap` gives
      the point-set layer its **arrows**: a frozen value carrying
      ``domain``, ``codomain`` and ``apply``, so a map's target is a
      *field* rather than something a call site asserts. Three arrows
      were typed, and one of them is exactly this defect's:
-     :func:`~orpheus.numerics.manifold.barycentre`, the orbit-barycentre
+     :func:`~orpheus.geometry.manifold.barycentre`, the orbit-barycentre
      map :math:`\mu \mapsto \mu\,\hat e_a` out of
      :math:`S^2/O(2)_a`, whose codomain is
-     :class:`~orpheus.numerics.manifold.Ball`\ ``(3)`` — because
+     :class:`~orpheus.geometry.manifold.Ball`\ ``(3)`` — because
      :math:`1 - \lVert\mu\hat e_a\rVert^2 = 1 - \mu^2 = \tfrac14\det P`,
      the squared orbit radius, so the image lies ON :math:`S^2` only at
      the two poles and strictly inside the ball elsewhere.
@@ -7010,12 +7010,12 @@ older entries classify against.
      spelling of the same map, ``_embedded_nodes`` (in ``symmetry`` when
      this was measured, in ``orpheus.numerics.invariance`` since #434 R2
      on 2026-09-03), READ
-     :func:`~orpheus.numerics.manifold.barycentre` from that step on
+     :func:`~orpheus.geometry.manifold.barycentre` from that step on
      (`[M]` bit-identical on 12 rows), so the Pattern-2 twin was
      collapsed and only the forgery remained. ⚠ Since #429 tracker 2.2b
      (2026-09-02) that read goes one hop further, through the entry's
      own :attr:`Quotient.lift
-     <orpheus.numerics.manifold.Quotient.lift>` — and since #434 R4
+     <orpheus.geometry.manifold.Quotient.lift>` — and since #434 R4
      (2026-09-03) that lift is a stored **field** rather than a branch
      on the group's tag, and it is the barycentre on **every**
      catalogued entry rather than on the axial family alone: one
@@ -7027,7 +7027,7 @@ older entries classify against.
      it. `[M]` the identity is unmoved across both steps:
      ``array_equal`` on the same 12 rows, on a pinned pre-change tree,
      on the 2.2b tree and after R4 alike; and the ENTRY POINT is now
-     :meth:`~orpheus.numerics.manifold.Quotient.orbit_barycentres`,
+     :meth:`~orpheus.geometry.manifold.Quotient.orbit_barycentres`,
      renamed from ``ambient_representatives`` because on the ambient
      width it no longer passes points through as representatives — it
      projects them, which is what makes the name true on both arms
@@ -7282,7 +7282,7 @@ older entries classify against.
      LANDED 2026-09-02 (tracker 2.2)** — and it is one predicate rather
      than the containment this bullet anticipated: the frame demands that
      a quotient map ``measure.support -> basis.domain`` EXIST
-     (:func:`~orpheus.numerics.manifold.quotient_onto`), which subsumes
+     (:func:`~orpheus.geometry.manifold.quotient_onto`), which subsumes
      the containment as its :math:`K \subseteq H` arm and additionally
      admits the two pairings a bare containment test cannot express
      (:ref:`frame-g0-descent-arrow`); and
@@ -7294,9 +7294,9 @@ older entries classify against.
      a real ``raise`` naming the count of off-sphere rows and pointing at
      the Legendre basis. ⭐ The first two both need
      an object for the point set, which the tree did not have — ✅ it does now
-     (:mod:`orpheus.numerics.manifold`, minted 2026-08-31 and wired
+     (:mod:`orpheus.geometry.manifold`, minted 2026-08-31 and wired
      2026-09-01), so what remains is the REFUSAL, not the vocabulary: the
-     :class:`~orpheus.numerics.manifold.Manifold` type minted 2026-08-31
+     :class:`~orpheus.geometry.manifold.Manifold` type minted 2026-08-31
      supplies the membership predicate that refuses the forgery at
      construction (``[M]`` ``Sphere().contains`` on this very measure) and
      the three-level argument for why a ``FunctionSpace`` cannot BE the
@@ -7498,7 +7498,7 @@ older entries classify against.
    :math:`H \subseteq \Gamma K` on the group :math:`H` the rule's
    support was folded by
    (:meth:`SubgroupOfO3.is_subset_of_product
-   <orpheus.numerics.symmetry.SubgroupOfO3.is_subset_of_product>`,
+   <orpheus.geometry.symmetry.SubgroupOfO3.is_subset_of_product>`,
    derived at :ref:`manifold-coverage-by-a-product-section`). `[M]`
    2026-09-03 the cylinder reads :math:`(\{e\},\ D_{1h},\ D_{2h})` and
    the plane :math:`(\{e\},\ \sigma_z,\ D_{2h})`, so the

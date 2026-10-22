@@ -23,7 +23,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.basis import IndicatorBasis, WeightedIndicatorBasis
-from orpheus.numerics.manifold import RealSpace
+from orpheus.geometry.manifold import RealSpace
 
 pytestmark = [pytest.mark.foundation]
 

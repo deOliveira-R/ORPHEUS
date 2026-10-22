@@ -34,7 +34,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.manifold import SPHERE
+from orpheus.geometry.manifold import SPHERE
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.measure import DiscreteMeasure
@@ -47,7 +47,7 @@ from orpheus.numerics.quadrature.rules_circle import (
 )
 from orpheus.numerics.quadrature.rules_product import spherical_product
 from orpheus.numerics.quadrature.rules_sphere import LevelStructure
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.angular.closure import (
     MarchStart,

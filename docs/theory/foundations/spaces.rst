@@ -309,7 +309,7 @@ read off the origin at construction (``kind``, ``support``, ``nodes``,
        the loss-kernel gauge's modes (rulings 86 and 87). The marginal over
        the axis integrates against :math:`m = G_k u` (:ref:`spaces-axis-unit`).
    * - ``support``
-     - a :class:`~orpheus.numerics.manifold.Manifold`, or ``None``; read
+     - a :class:`~orpheus.geometry.manifold.Manifold`, or ``None``; read
        from the origin
      - The manifold the factor's coordinates live on: a measure's support
        (:math:`S^2`, the orbit space :math:`S^2/O(2)_x`, a real line), a
@@ -5956,10 +5956,10 @@ taken.
        energy-grid basis, an index partition calling itself spatial, and
        ``==``/hash-equal to a same-sized spatial space — and now derives
        ``f"L2[coarse_cells({self.domain.name})]"`` from a
-       :class:`~orpheus.numerics.manifold.Manifold` the caller declares.
+       :class:`~orpheus.geometry.manifold.Manifold` the caller declares.
        ⚠ **What remains is that the SPACE records only the string.**
        `[M]` both producers now interpolate a typed
-       :class:`~orpheus.numerics.manifold.Manifold` — ``measure.py:371``
+       :class:`~orpheus.geometry.manifold.Manifold` — ``measure.py:371``
        is ``f"L2[{self.support.name}]"`` since tracker 2.0c retyped
        ``support``, and the indicator basis is the line above — but a
        ``FunctionSpace`` still holds the resulting *name*, so the two

@@ -34,7 +34,7 @@ carries the volume measure — inheriting would conflate the two roles); instead
 mesh *yields* this view, via ``mesh.indicator_basis()``, symmetric with how it
 already yields ``mesh.volume_measure``.  The basis itself is **geometry-free**: it
 holds the per-axis edge arrays and the
-:class:`~orpheus.numerics.manifold.Manifold` they partition — a point set, not a
+:class:`~orpheus.geometry.manifold.Manifold` they partition — a point set, not a
 geometry — so :mod:`orpheus.numerics` stays free of any :mod:`orpheus.geometry`
 dependency.  (Why the manifold is a *required* field and not derived: see the
 class's "Geometry-free is not manifold-free" note.)
@@ -94,7 +94,7 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.coefficient_layout import CellLayout
-from orpheus.numerics.manifold import Manifold, ambient_dim
+from orpheus.geometry.manifold import Manifold
 
 
 __all__ = ["IndicatorBasis"]
@@ -114,9 +114,9 @@ class IndicatorBasis(Basis):
         length-1 tuple ``(edges,)``.  Held as arrays (not a mesh) so the basis
         is geometry-free.
     partition_of : Manifold
-        The manifold these edges partition — :class:`~orpheus.numerics.manifold.RealSpace`
-        for a spatial mesh, :class:`~orpheus.numerics.manifold.EnergyGroups` for a
-        group structure, :class:`~orpheus.numerics.manifold.IndexSet` for a bare
+        The manifold these edges partition — :class:`~orpheus.geometry.manifold.RealSpace`
+        for a spatial mesh, :class:`~orpheus.numerics.index_set.EnergyGroups` for a
+        group structure, :class:`~orpheus.numerics.index_set.IndexSet` for a bare
         index axis.  **Required**, because the edge arrays cannot say it: an
         energy-group partition and a spatial-cell partition are the same array of
         floats and are not the same basis.  Read back through :attr:`domain`.
@@ -132,7 +132,7 @@ class IndicatorBasis(Basis):
     ----------------------------------
     Holding edge ARRAYS rather than a mesh keeps :mod:`orpheus.numerics` free of
     any geometry dependency, and that is still true — a
-    :class:`~orpheus.numerics.manifold.Manifold` is a point-set, not a geometry.
+    :class:`~orpheus.geometry.manifold.Manifold` is a point-set, not a geometry.
     What the array-only design lost was the basis's *identity*, and it lost it
     silently: before ``partition_of`` existed this class named its coefficient
     space ``f"L2[coarse_cells_R{ndim}]"``, asserting a SPATIAL manifold whatever
@@ -152,20 +152,20 @@ class IndicatorBasis(Basis):
 
         A ``d``-axis tensor partition partitions a manifold whose points carry
         ``d`` coordinates, so ``ndim`` and
-        :func:`~orpheus.numerics.manifold.ambient_dim` must agree.  This is what
+        :attr:`~orpheus.geometry.manifold.Manifold.ambient_dim` must agree.  This is what
         stops a 2-axis spatial partition from claiming the energy axis.
 
         ⚠ Deliberately the AMBIENT width and not a
-        :meth:`~orpheus.numerics.manifold.Manifold.contains` check on the cell
+        :meth:`~orpheus.geometry.manifold.Manifold.contains` check on the cell
         centres, which reads stronger and is wrong: `[M]` the single-region
         index partition ``[-0.5, n - 0.5]`` that ``frame.py``'s axis marginal
         ships has centre :math:`(n-1)/2`, not an integer, and
-        :class:`~orpheus.numerics.manifold.IndexSet` admits only integers — so
+        :class:`~orpheus.numerics.index_set.IndexSet` admits only integers — so
         the stronger invariant refuses a correct production caller.  A partition
         is a partition of the manifold, not a set of points ON it
         (``vv-principles`` #16: never assert tighter than the type promises).
         """
-        width = ambient_dim(self.partition_of)
+        width = self.partition_of.ambient_dim
         if self.ndim != width:
             raise ValueError(
                 f"IndicatorBasis has {self.ndim} partition axis/axes but "

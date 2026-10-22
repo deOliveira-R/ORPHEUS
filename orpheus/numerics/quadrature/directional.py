@@ -92,7 +92,7 @@ import numpy as np
 
 from orpheus.numerics.measure import DiscreteMeasure, DiscreteMeasurePartition
 from orpheus.numerics.measure import WEIGHT_ATOL
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 if TYPE_CHECKING:
     from orpheus.geometry.transformation import Permutation, RigidMotion
@@ -116,7 +116,7 @@ _OCTANT_SIGN_EPS = 1e-15
 #: names a real axis this rule has quotiented away (mean zero, a genuine
 #: answer), while ``i >= 3`` names no axis at all. Matches the width of the
 #: base's ambient space every orbit-space entry lifts into
-#: (:meth:`~orpheus.numerics.manifold.Quotient.orbit_barycentres`).
+#: (:meth:`~orpheus.geometry.manifold.Quotient.orbit_barycentres`).
 _DIRECTION_AMBIENT_DIM = 3
 
 
@@ -472,7 +472,7 @@ class Quadrature:
           (#429 tracker 2.2b, 2026-09-02): a polar marginal's :math:`\mu`
           is carried to the base through the entry's lift and acted on
           through the entry's
-          :meth:`~orpheus.numerics.manifold.GSpace.action`, a
+          :meth:`~orpheus.geometry.manifold.GSpace.action`, a
           fold's REPRESENTATIVES likewise (so :math:`\sigma_y` on a
           :math:`\sigma_y`-folded rule is the IDENTITY permutation of the
           stored ordinates — it acts trivially on the orbit space — where

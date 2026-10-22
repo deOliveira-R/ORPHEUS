@@ -135,7 +135,7 @@ from ..sweep.scan import (
     ordinate_scan_transpose,
 )
 from ..sweep.cache import CollisionCache, StreamingCoefficientCache
-from orpheus.numerics.face_layout import face_name, face_opposite
+from orpheus.geometry.faces import face_name, face_opposite
 from .sweep_graph import (
     OctantLabel,
     SweepDependencyGraph,

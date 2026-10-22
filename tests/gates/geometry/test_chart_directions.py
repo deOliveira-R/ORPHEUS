@@ -35,7 +35,7 @@ from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.line import Line
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 _EPS = np.finfo(float).eps
 _HERE = "tests/gates/geometry/test_chart_directions.py::"

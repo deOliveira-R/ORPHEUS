@@ -314,7 +314,8 @@ class TestTheEmptyNamespacePackageIsNotAModule:
 class TestTheTwoHalvesOfTheInterlock:
     """``#:`` scanning and ``self.X: T`` resolution are one change, not two.
 
-    ``orpheus/numerics/face_layout.py:89`` cites
+    ``orpheus/geometry/faces.py`` (the ``AXIS_NAMES`` block; ``numerics/face_layout.py``
+    until layer DAG WP-B, 2026-10-22) cites
     ``:attr:`SNProblem.bc <…augmented_mesh.SNProblem.bc>``` from inside a ``#:``
     attribute-comment block, and ``SNProblem`` sets ``self.bc: dict[...] = ...``
     in ``__init__`` — which PEP 526 records **nowhere** at runtime. So widening
@@ -327,13 +328,13 @@ class TestTheTwoHalvesOfTheInterlock:
 
     def test_the_attribute_comment_block_is_scanned_at_all(self) -> None:
         """Half one: ``ast`` discards comments, so this needs ``tokenize``."""
-        path = REPO_ROOT / "orpheus" / "numerics" / "face_layout.py"
+        path = REPO_ROOT / "orpheus" / "geometry" / "faces.py"
         carrying = [b for b in iter_text_blocks(path) if self.CITATION in b.text]
         assert carrying, (
             "the `#:` block citing SNProblem.bc is not being scanned — "
             "168 roles of attribute-comment prose have gone un-gated again."
         )
-        assert carrying[0].namespaces == ("orpheus.numerics.face_layout",)
+        assert carrying[0].namespaces == ("orpheus.geometry.faces",)
 
     def test_a_self_annotation_resolves(self) -> None:
         """Half two, and the reason it cannot be left to ``getattr``."""

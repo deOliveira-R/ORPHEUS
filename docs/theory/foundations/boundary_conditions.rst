@@ -8073,7 +8073,7 @@ and a gate-only ``mesh`` parameter on the trace factory.
 ``trace_space._FACE_NORMALS`` was a hand-listed **four-entry**
 transcription (``xmin`` / ``xmax`` / ``ymin`` / ``ymax``) — it had no
 ``zmin`` / ``zmax`` rows, the silent :math:`d = 3` blocker. C5.3
-derives the table from :data:`~orpheus.numerics.face_layout.AXIS_NAMES`
+derives the table from :data:`~orpheus.geometry.faces.AXIS_NAMES`
 so every axis-aligned face (all **six** at :math:`d = 3`) is present by
 construction: face ``"{axis}min"`` has outward normal
 :math:`-\hat e_{\text{axis}}`, face ``"{axis}max"`` has :math:`+\hat

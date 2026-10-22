@@ -1,4 +1,4 @@
-r"""Foundation tests for :mod:`orpheus.numerics.manifold`.
+r"""Foundation tests for :mod:`orpheus.geometry.manifold`.
 
 Every test here is tagged ``foundation``: the assertions verify the
 intrinsic laws of the manifold type — dimension additivity, membership,
@@ -58,11 +58,9 @@ import dataclasses
 import numpy as np
 import pytest
 
-from orpheus.numerics.manifold import (
-    ambient_dim,
+from orpheus.geometry.manifold import (
     CIRCLE,
     COSINE_INTERVAL,
-    ENERGY,
     HALF_LINE,
     REAL_LINE,
     Ball,
@@ -70,8 +68,6 @@ from orpheus.numerics.manifold import (
     SPHERE,
     UNIT_INTERVAL,
     Circle,
-    EnergyGroups,
-    IndexSet,
     Interval,
     Manifold,
     Product,
@@ -82,14 +78,15 @@ from orpheus.numerics.manifold import (
     _coordinate_chart,
     quotient_onto,
 )
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.numerics.index_set import ENERGY, EnergyGroups, IndexSet
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 # 2.2b gates (test-architect, 2026-09-02) — the draft's imports, verbatim
 import numpy as np
 import pytest
 
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.manifold import (
+from orpheus.geometry.manifold import (
     COSINE_INTERVAL,
     SPHERE,
     Ball,
@@ -104,7 +101,7 @@ from orpheus.numerics.quadrature.rules_1d import (
     gauss_legendre_on_mu,
     gauss_legendre_on_polar_orbit,
 )
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 pytestmark = pytest.mark.foundation
 
@@ -667,7 +664,7 @@ class TestTheSigmaYFoldIsExpressibleAndDiscriminating:
         """Three catalogue keys, one procedure — it reads the axis off
         the group.  A per-axis copy would be three places for the same
         math to drift."""
-        from orpheus.numerics.manifold import _ORBIT_CATALOGUE
+        from orpheus.geometry.manifold import _ORBIT_CATALOGUE
 
         builders = {
             _ORBIT_CATALOGUE[(Sphere, f"sigma_{a}")] for a in "xyz"
@@ -707,7 +704,7 @@ class TestTheTwoCoordinateSystemsMustAgree:
         ``scratch/_r4_probe10.py``: the half-meridian input passes the
         dimension law, 2 − 0 = 2, and is refused by this clause verbatim).
         """
-        from orpheus.numerics.manifold import Quotient, _coordinate_chart
+        from orpheus.geometry.manifold import Quotient, _coordinate_chart
 
         half_meridian = FundamentalDomain(
             SPHERE, ((0.0, 1.0, 0.0), (0.0, -1.0, 0.0)), "y=0"
@@ -762,10 +759,18 @@ def test_every_variant_is_reachable_from_this_modules_list():
     six members, so ``__subclasses__()`` (direct children only) no longer
     reaches them: the walk is RECURSIVE and keeps the CONCRETE classes, so the
     population stays "every constructible variant".
+
+    Since layer DAG WP-B (2026-10-22) the members live in two modules: the
+    geometric ones in :mod:`orpheus.geometry.manifold`, the finite index sets in
+    :mod:`orpheus.numerics.index_set`. Both are the closed sum's homes, and the
+    walk keeps the concrete classes of either.
     """
     import inspect
 
-    from orpheus.numerics import manifold as mod
+    from orpheus.geometry import manifold as mod
+    from orpheus.numerics import index_set
+
+    homes = {mod.__name__, index_set.__name__}
 
     def _walk(cls):
         for sub in cls.__subclasses__():
@@ -775,8 +780,9 @@ def test_every_variant_is_reachable_from_this_modules_list():
     declared = {
         c.__name__
         for c in _walk(Manifold)
-        if c.__module__ == mod.__name__ and not inspect.isabstract(c)
+        if c.__module__ in homes and not inspect.isabstract(c)
     }
+    assert {"IndexSet", "Sphere"} <= declared  # both homes reached
     assert {"Sphere", "Quotient", "EnergyGroups"} <= declared  # both levels reached
     exercised = {type(m).__name__ for m in _ALL} | {"Quotient"}
     assert declared == exercised, (
@@ -788,9 +794,11 @@ def test_every_variant_is_reachable_from_this_modules_list():
 def test_ambient_dimension_is_defined_for_every_variant():
     """``ambient_dim`` decides how many columns ``contains`` consumes.
 
-    Its ``match`` is deliberately exhaustive with a raising fallthrough,
-    so a new member that forgets it fails loudly rather than silently
-    mis-splitting a product's coordinates.
+    An abstract property of :class:`Manifold` since layer DAG WP-B
+    (2026-10-22): every member answers it, and a member that forgets it cannot
+    be instantiated (the row below this one). Until then it was a module-level
+    ``match`` with a raising fallthrough, which named every member, the numerics
+    index sets included.
 
     Public since #429 tracker 2.1 (it was ``_ambient``): an
     :class:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis` asks it
@@ -798,9 +806,86 @@ def test_ambient_dimension_is_defined_for_every_variant():
     axis per coordinate of the manifold it partitions.
     """
     for m in _ALL:
-        assert ambient_dim(m) >= 1
-    assert ambient_dim(SPHERE.quotient(SubgroupOfO3.O2("x"))) == 1
-    assert ambient_dim(SPHERE * CIRCLE) == 5
+        assert m.ambient_dim >= 1
+    assert SPHERE.quotient(SubgroupOfO3.O2("x")).ambient_dim == 1
+    assert (SPHERE * CIRCLE).ambient_dim == 5
+
+
+class TestAmbientDimensionLaws:
+    """The laws each member's ``ambient_dim`` answers (ruling 8 of ``layer_dag.md``).
+
+    The widths of the atoms are pinned against their defining equations' column
+    counts; the three composite laws (additive on a product, the base's on a
+    fundamental domain, the realization's on a quotient) are asserted over every
+    atom, so an override that answers a constant fails here.
+    """
+
+    _ATOMS = {
+        SPHERE: 3,
+        CIRCLE: 2,
+        COSINE_INTERVAL: 1,
+        REAL_LINE: 1,
+        RealSpace(1): 1,
+        RealSpace(3): 3,
+        Ball(2): 2,
+        ENERGY: 1,
+        EnergyGroups(4): 1,
+        IndexSet("angular", 8): 1,
+    }
+
+    def test_each_atom_answers_its_column_count(self) -> None:
+        for m, width in self._ATOMS.items():
+            assert m.ambient_dim == width, (m.name, m.ambient_dim, width)
+
+    def test_the_product_is_additive(self) -> None:
+        atoms = list(self._ATOMS)
+        for left in atoms:
+            for right in atoms:
+                assert (left * right).ambient_dim == left.ambient_dim + right.ambient_dim
+        # associative because additive: the nesting does not change the width
+        assert ((SPHERE * ENERGY) * CIRCLE).ambient_dim == (SPHERE * (ENERGY * CIRCLE)).ambient_dim == 6
+
+    def test_the_fundamental_domain_keeps_its_bases_columns(self) -> None:
+        domain = FundamentalDomain(SPHERE, ((0.0, 1.0, 0.0),), "y>=0")
+        assert domain.ambient_dim == SPHERE.ambient_dim == 3
+        assert domain.dim == SPHERE.dim  # a half-space cut keeps the topological dimension too
+
+    def test_a_quotient_answers_its_realizations_columns(self) -> None:
+        # the catalogued sphere quotients: the axial stabilisers and the mirrors
+        for group in (SubgroupOfO3.O2("x"), SubgroupOfO3.O2("z"), SubgroupOfO3.Mirror("y")):
+            q = SPHERE.quotient(group)
+            assert q.ambient_dim == q.realization.ambient_dim
+            assert q.acting_dimension == SPHERE.ambient_dim  # the motions act through the base
+        assert SPHERE.quotient(SubgroupOfO3.O2("x")).ambient_dim == 1
+
+    def test_a_member_without_the_property_cannot_be_instantiated(self) -> None:
+        """Positive control for the abstractness: a member that answers every other
+        abstract member but not ``ambient_dim`` is refused at construction."""
+        import dataclasses as _dc
+
+        @_dc.dataclass(frozen=True)
+        class Forgetful(Manifold):
+            @property
+            def dim(self) -> int:
+                return 0
+
+            @property
+            def name(self) -> str:
+                return "forgetful"
+
+            def contains(self, points) -> bool:
+                return True
+
+        with pytest.raises(TypeError, match="ambient_dim"):
+            Forgetful()
+
+        @_dc.dataclass(frozen=True)
+        class Complete(Forgetful):
+            @property
+            def ambient_dim(self) -> int:
+                return 1
+
+        assert Complete().ambient_dim == 1  # the same class, completed, constructs
 
 
 # ---------------------------------------------------------------------------
@@ -825,7 +910,7 @@ class TestManifoldMap:
     """
 
     def test_a_map_is_a_frozen_value_with_two_endpoints(self) -> None:
-        from orpheus.numerics.manifold import ManifoldMap
+        from orpheus.geometry.manifold import ManifoldMap
 
         double = ManifoldMap(COSINE_INTERVAL, Interval(-2.0, 2.0), lambda x: 2.0 * x)
         assert double.domain == COSINE_INTERVAL
@@ -835,7 +920,7 @@ class TestManifoldMap:
             double.codomain = SPHERE  # type: ignore[misc]
 
     def test_composition_requires_matching_endpoints(self) -> None:
-        from orpheus.numerics.manifold import ManifoldMap
+        from orpheus.geometry.manifold import ManifoldMap
 
         phi = ManifoldMap(COSINE_INTERVAL, UNIT_INTERVAL, lambda x: 0.5 * (x + 1.0))
         psi = ManifoldMap(UNIT_INTERVAL, UNIT_INTERVAL, lambda x: x * x)
@@ -852,7 +937,7 @@ class TestManifoldMap:
     def test_functoriality_the_pushforward_of_a_composite_is_the_composite_of_pushforwards(
         self,
     ) -> None:
-        from orpheus.numerics.manifold import ManifoldMap
+        from orpheus.geometry.manifold import ManifoldMap
         from orpheus.numerics.generating_measure import LEGENDRE
 
         phi = ManifoldMap(COSINE_INTERVAL, UNIT_INTERVAL, lambda x: 0.5 * (x + 1.0))
@@ -869,7 +954,8 @@ class TestManifoldMap:
     def test_archimedes_lands_on_the_sphere_and_collapses_the_fibre_at_the_poles(
         self, axis: str
     ) -> None:
-        from orpheus.numerics.manifold import AXIS_INDEX, archimedes
+        from orpheus.geometry.faces import AXIS_INDEX
+        from orpheus.geometry.manifold import archimedes
 
         chart = archimedes(axis)
         assert chart.domain == COSINE_INTERVAL * CIRCLE
@@ -895,7 +981,7 @@ class TestManifoldMap:
         r""":eq:`product-mu-phi-cosines`: :math:`\mu_x = \sin\theta\cos\varphi`,
         :math:`\mu_y = \sin\theta\sin\varphi`, :math:`\mu_z = \mu` — spelled
         by hand, and bit-identical to the chart."""
-        from orpheus.numerics.manifold import archimedes
+        from orpheus.geometry.manifold import archimedes
 
         mu = np.array([-0.9, -0.3, 0.0, 0.4, 0.75])
         phi = np.array([0.3, 1.1, 2.9, 4.0, 5.5])
@@ -911,7 +997,8 @@ class TestManifoldMap:
     def test_barycentre_lands_in_the_ball_and_on_the_sphere_only_at_the_poles(
         self, axis: str
     ) -> None:
-        from orpheus.numerics.manifold import AXIS_INDEX, barycentre
+        from orpheus.geometry.faces import AXIS_INDEX
+        from orpheus.geometry.manifold import barycentre
 
         orbit_space = SPHERE.quotient(SubgroupOfO3.O2(axis))
         centre = barycentre(orbit_space)
@@ -938,7 +1025,7 @@ class TestManifoldMap:
         for a point set that is not an orbit space at all; the widened
         positive side over all entries is
         ``TestR4TheLiftIsADerivationOutputNotATagBranch``."""
-        from orpheus.numerics.manifold import barycentre
+        from orpheus.geometry.manifold import barycentre
 
         for entry in (
             SPHERE.quotient(SubgroupOfO3.O2("x")),
@@ -960,7 +1047,7 @@ class TestManifoldMap:
         motion-preservation check embed a polar marginal through; since
         2.3 it is this map, so the two cannot drift.
         """
-        from orpheus.numerics.manifold import barycentre
+        from orpheus.geometry.manifold import barycentre
         from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_polar_orbit
 
         rule = gauss_legendre_on_polar_orbit(8, axis)
@@ -1023,7 +1110,7 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
     ) -> None:
         """Codomain = the entry itself, never its chart codomain — the
         distinction tracker 2.4 made refusable, now carried by the map."""
-        from orpheus.numerics.manifold import ManifoldMap
+        from orpheus.geometry.manifold import ManifoldMap
 
         q = SPHERE.quotient(SubgroupOfO3.O2(axis))
         pi = q.quotient_map
@@ -1076,12 +1163,12 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         two must agree on random directions — bit-exactly, since every
         surviving invariant of the shipped entries is a coordinate
         function.  The convention pinned here: the realization's
-        coordinates are the FIRST ``ambient_dim(realization)`` generators,
+        coordinates are the FIRST ``realization.ambient_dim`` generators,
         each written as ``p_i - (invariant in x, y, z)`` (or the bare
         coordinate for the trivial entry)."""
         sp = pytest.importorskip("sympy")
         q = SPHERE.quotient(group)
-        k = ambient_dim(q.realization)
+        k = q.realization.ambient_dim
         # Each generator is written `slot - invariant(ambient)`, the slot
         # being the ONE symbol it depends on with derivative exactly 1 — or
         # a bare ambient coordinate (the trivial entry).  Found structurally,
@@ -1113,7 +1200,7 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         r""":math:`\pi_a \circ \varphi_a = \mathrm{pr}_1` — the arrow on the
         other side of the Archimedes parametrisation, composed through the
         typed ``@`` so the endpoints are checked too."""
-        from orpheus.numerics.manifold import archimedes
+        from orpheus.geometry.manifold import archimedes
         from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
 
         q = SPHERE.quotient(SubgroupOfO3.O2(axis))
@@ -1132,7 +1219,8 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         r""":math:`\beta_a \circ \pi_a : \Omega \mapsto (\Omega \cdot \hat e_a)
         \hat e_a` — the orbit's centre, and the ERR-080 forgery's honest
         spelling: a point of the ball, on the sphere only at the poles."""
-        from orpheus.numerics.manifold import AXIS_INDEX, barycentre
+        from orpheus.geometry.faces import AXIS_INDEX
+        from orpheus.geometry.manifold import barycentre
 
         q = SPHERE.quotient(SubgroupOfO3.O2(axis))
         composite = barycentre(q) @ q.quotient_map
@@ -1387,7 +1475,7 @@ class TestDescendingSlots:
         and why it asserts the blindness at low :math:`L` explicitly rather
         than only the catch at high :math:`L`.
         """
-        import orpheus.numerics.symmetry as symmetry
+        import orpheus.geometry.symmetry as symmetry
         from orpheus.numerics.basis.spherical_harmonic_basis import (
             SphericalHarmonicBasis,
         )
@@ -1659,7 +1747,7 @@ class TestTheOrbitSpaceIsNamedByItsStabiliser:
         and Archimedes' hat-box measure (``LEGENDRE``) as its pushforward
         reference."""
         from orpheus.numerics.generating_measure import LEGENDRE, pushforward_reference
-        from orpheus.numerics.manifold import AXIS_INDEX
+        from orpheus.geometry.faces import AXIS_INDEX
 
         stabiliser = SubgroupOfO3.O2(axis)
         entry = SPHERE.quotient(stabiliser)
@@ -1865,7 +1953,7 @@ class TestTheOrbitSpaceIsNamedByItsStabiliser:
         the ``NotImplementedError`` for an uncatalogued group advertised them
         as entries.
         """
-        from orpheus.numerics.manifold import _ORBIT_CATALOGUE
+        from orpheus.geometry.manifold import _ORBIT_CATALOGUE
 
         names = sorted(g for _, g in _ORBIT_CATALOGUE)
         assert names == ["O2_x", "O2_y", "O2_z", "sigma_x", "sigma_y", "sigma_z"]
@@ -2081,7 +2169,7 @@ def _disk_points() -> np.ndarray:
 
 
 def _closed(group: SubgroupOfO3) -> list[RigidMotion]:
-    from orpheus.numerics.symmetry import _group_elements
+    from orpheus.geometry.symmetry import _group_elements
 
     elems = _group_elements(group._tag)
     assert elems is not None
@@ -2339,7 +2427,7 @@ def _r4_forged(kind: str) -> dict:
     else:
         # S^2/sigma_x: 2 - 0 = 2, offered a 1-dimensional realization.
         group, realization, columns = SubgroupOfO3.Mirror("x"), COSINE_INTERVAL, 1
-    select, embed = _coordinate_chart(columns, ambient_dim(SPHERE))
+    select, embed = _coordinate_chart(columns, SPHERE.ambient_dim)
     return {
         "base": SPHERE, "by": group, "realization": realization,
         "orbit_coordinates": select,
@@ -2358,7 +2446,7 @@ def _r4_hand_built_octahedral() -> dict:
     polynomials (#435) — and the row asserts only that the FIELD is read, never
     that the chart is the derivation's.
     """
-    select, embed = _coordinate_chart([0, 1], ambient_dim(SPHERE))
+    select, embed = _coordinate_chart([0, 1], SPHERE.ambient_dim)
     return {
         "base": SPHERE, "by": SubgroupOfO3.OctahedralOh, "realization": Ball(2),
         "orbit_coordinates": select,
@@ -2398,7 +2486,7 @@ class TestR4TheCoordinateChartPairIsTheReynoldsProjector:
     def test_embed_after_select_is_the_reynolds_projector(self, label: str) -> None:
         entry = _r4_entry(label)
         columns = _r4_columns_of(entry)
-        select, embed = _coordinate_chart(columns, ambient_dim(entry.base))
+        select, embed = _coordinate_chart(columns, entry.base.ambient_dim)
         points = _r4_sphere_points()
         projector = _r4_reynolds_projector(entry.by)
 
@@ -2426,7 +2514,7 @@ class TestR4TheCoordinateChartPairIsTheReynoldsProjector:
         """
         entry = _r4_entry(label)
         select, _ = _coordinate_chart(
-            _r4_columns_of(entry), ambient_dim(entry.base),
+            _r4_columns_of(entry), entry.base.ambient_dim,
         )
         points = _r4_sphere_points()
         np.testing.assert_array_equal(
@@ -2444,7 +2532,7 @@ class TestR4TheCoordinateChartPairIsTheReynoldsProjector:
         the diagonality PREMISE the bit tier rests on."""
         entry = _r4_entry(label)
         select, embed = _coordinate_chart(
-            _r4_columns_of(entry), ambient_dim(entry.base),
+            _r4_columns_of(entry), entry.base.ambient_dim,
         )
 
         def apply(points: np.ndarray) -> np.ndarray:
@@ -2504,7 +2592,7 @@ def _r4_columns_of(entry: Quotient) -> int | list[int]:
         return group.rotation_axis
     if group.mirror_axis is not None:
         return [i for i in range(3) if i != group.mirror_axis]
-    return list(range(ambient_dim(entry.base)))
+    return list(range(entry.base.ambient_dim))
 
 
 # =====================================================================
@@ -2837,7 +2925,7 @@ class TestR4AnOrbitSpacesDimensionIsATheorem:
 
         # (b) the fd gate ALONE — the law reads 2 − 0 = 2 == Ball(2).dim ✓, and
         #     the half-meridian's ANTIPODAL PAIR drops it to dim 1.
-        select, embed = _coordinate_chart([0, 2], ambient_dim(SPHERE))
+        select, embed = _coordinate_chart([0, 2], SPHERE.ambient_dim)
         half_meridian = FundamentalDomain(
             SPHERE, ((0.0, 1.0, 0.0), (0.0, -1.0, 0.0)), "y=0",
         )
@@ -2852,7 +2940,7 @@ class TestR4AnOrbitSpacesDimensionIsATheorem:
 
         # (c) the ORDER, on the input that violates both
         hemisphere = FundamentalDomain(SPHERE, ((0.0, 1.0, 0.0),), "y>=0")
-        select1, embed1 = _coordinate_chart(1, ambient_dim(SPHERE))
+        select1, embed1 = _coordinate_chart(1, SPHERE.ambient_dim)
         with pytest.raises(ValueError) as both:
             Quotient(
                 base=SPHERE, by=SubgroupOfO3.Mirror("y"),
@@ -3028,7 +3116,7 @@ class TestR4TheLiftIsADerivationOutputNotATagBranch:
             )
             assert field.default_factory is dataclasses.MISSING
 
-        select, _ = _coordinate_chart(0, ambient_dim(SPHERE))
+        select, _ = _coordinate_chart(0, SPHERE.ambient_dim)
         with pytest.raises(TypeError):
             Quotient(  # type: ignore[call-arg]
                 base=SPHERE, by=SubgroupOfO3.O2("x"),
@@ -3148,7 +3236,7 @@ class TestR4TheHemisphereSectionIsRetiredAndItsRefusalHasAHome:
 
     @pytest.mark.foundation
     def test_the_symbol_is_gone(self) -> None:
-        from orpheus.numerics import manifold
+        from orpheus.geometry import manifold
 
         assert not hasattr(manifold, "_hemisphere_section"), (
             "the hemisphere section still ships — its sqrt, its literal and "
@@ -3338,7 +3426,7 @@ class TestR4TheDimensionLawIsAMaximumOverTheProbeSet:
 
     @pytest.mark.foundation
     def test_a_probe_row_on_the_axis_does_not_invert_the_law(self, monkeypatch) -> None:
-        from orpheus.numerics import manifold as mod
+        from orpheus.geometry import manifold as mod
 
         poisoned = np.array(mod._GENERIC_SPHERE_PROBE, copy=True)
         poisoned[0] = np.array([0.0, 0.0, 1.0])  # ON the z-axis: an O(2)_z orbit of dimension 0

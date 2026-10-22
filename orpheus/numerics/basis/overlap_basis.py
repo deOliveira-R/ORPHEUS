@@ -36,7 +36,7 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.basis.base import GramStructure
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
-from orpheus.numerics.manifold import Manifold
+from orpheus.geometry.manifold import Manifold
 
 __all__ = ["OverlapBasis"]
 

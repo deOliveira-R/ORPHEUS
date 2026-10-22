@@ -225,8 +225,8 @@ centre the origin.
 orbit spaces on the unit sphere of directions,
 :math:`S^2/H` for a closed subgroup :math:`H` of :math:`O(3)`
 (:ref:`manifold-orbit-space`;
-:class:`~orpheus.numerics.symmetry.SubgroupOfO3`,
-:class:`~orpheus.numerics.manifold.Quotient`). The chart is their spatial
+:class:`~orpheus.geometry.symmetry.SubgroupOfO3`,
+:class:`~orpheus.geometry.manifold.Quotient`). The chart is their spatial
 twin: the same construction (a group, its orbit map, the strata where the
 isotropy jumps) applied to positions under a subgroup of :math:`E(3)`. The
 two are tied: the isotropy of a generic point under :math:`G_c` is the
@@ -249,10 +249,10 @@ group and the boundary laws that read them.
 
 **The import edges.** :mod:`orpheus.geometry.chart` imports
 :mod:`orpheus.geometry.coord`, :mod:`orpheus.geometry.transformation` and
-``orpheus.numerics.symmetry`` (for :class:`~orpheus.numerics.symmetry.SubgroupOfO3`
+``orpheus.geometry.symmetry`` (for :class:`~orpheus.geometry.symmetry.SubgroupOfO3`
 and its realization); :mod:`orpheus.geometry.line` imports the
 transformation module; :mod:`orpheus.geometry.chord` imports the chart,
-the line and the transformation module. ``orpheus.numerics.symmetry``
+the line and the transformation module. ``orpheus.geometry.symmetry``
 itself imports ``orpheus.geometry.transformation``, the package cycle
 documented in ``tests/gates/test_layer_imports.py``; the chart imports
 submodules by their full names, which is the form that file admits.
@@ -314,7 +314,7 @@ discarded columns, and
 
 which is what :meth:`Chart.contains <orpheus.geometry.chart.Chart.contains>`
 computes: :math:`Q \in L` by the group's realization (the same
-:class:`~orpheus.numerics.symmetry.SubgroupOfO3` machinery that decides
+:class:`~orpheus.geometry.symmetry.SubgroupOfO3` machinery that decides
 directional symmetry), the translation by its kept entries. Per chart:
 
 .. list-table:: The three groups and their orbit spaces
@@ -663,7 +663,7 @@ characteristic from :math:`x` along :math:`\Omega` is the line through
 <orpheus.geometry.chord.Chord.lengths_beyond>` reads a chord from a start
 parameter on. A direction is a point of the unit sphere, the manifold the
 angular quadratures' ordinates live on
-(:class:`~orpheus.numerics.manifold.Sphere`); the kernel holds it as the
+(:class:`~orpheus.geometry.manifold.Sphere`); the kernel holds it as the
 array of its Cartesian components.
 
 The direction is refused, never renormalised
@@ -2790,7 +2790,7 @@ The four shapes are written by hand in ``DirectionDomain.shape`` and
 ``DirectionDomain.stabiliser``, under a ``SCOPE-BOUNDARY[guard]`` tag. The
 machinery that would derive them is the point-isotropy computation
 :math:`L \cap \mathrm{Stab}(x)` and the orbit-space catalogue of
-``orpheus.numerics.manifold`` (:ref:`manifold-orbit-space`), which has
+``orpheus.geometry.manifold`` (:ref:`manifold-orbit-space`), which has
 :math:`S^2/O(2)_a` but no :math:`S^2/D_{1h}`. The entry was not built: the
 catalogue's lift is the orbit barycentre, the Reynolds projection onto the
 group's fixed subspace, which is a right inverse of the quotient map only
@@ -3399,7 +3399,7 @@ them.
      - Every consumer is batched (quadratures ``(N, 3)``, a thousand to
        a million oracle samples, MoC tracks), so a per-object value
        forces a Python loop; the values are arrays, and a direction is a
-       point of the existing :class:`~orpheus.numerics.manifold.Sphere`.
+       point of the existing :class:`~orpheus.geometry.manifold.Sphere`.
    * - Exterior codes as negative integers (:math:`-1` for the inner
        exterior, :math:`-2` for the outer)
      - Numpy reads a negative index as "count from the end", so the

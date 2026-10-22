@@ -37,7 +37,7 @@ from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.frame import GalerkinFrame
-from orpheus.numerics.manifold import RealSpace
+from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem

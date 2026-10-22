@@ -37,8 +37,8 @@ geometry table's
 names the same group; stage 0 of quadrature selection compares the two.
 Until 2026-08-03 the spent group was carried in the invariance TAG; see
 the note at :func:`gauss_legendre_on_mu`'s return statement for why that
-had to move, :class:`~orpheus.numerics.symmetry.SO2` for why the
-group now names its axis, and :class:`~orpheus.numerics.symmetry.O2` for
+had to move, :class:`~orpheus.geometry.symmetry.SO2` for why the
+group now names its axis, and :class:`~orpheus.geometry.symmetry.O2` for
 why the entry is named by the stabiliser rather than the rotation half.
 
 There is **no adapter class** in between — ``Quadrature`` is one type
@@ -58,8 +58,8 @@ from ..measure import (
     DiscreteMeasure,
 )
 from ..generating_measure import LEGENDRE
-from ..manifold import SPHERE
-from ..symmetry import SubgroupOfO3
+from orpheus.geometry.manifold import SPHERE
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 
 def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:

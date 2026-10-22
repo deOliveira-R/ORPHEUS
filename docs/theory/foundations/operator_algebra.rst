@@ -691,7 +691,7 @@ flip, an arm the docstring records as empty since CS4c step 6 item 6.4
 (2026-09-07). `[M]` 2026-09-22, by AST over ``orpheus/`` excluding
 ``derivations/``: 55 classes declare ``domain``, and 9 of them are not
 operators (the eight ``Basis`` classes and
-:class:`~orpheus.numerics.manifold.ManifoldMap`, whose ``domain`` is a
+:class:`~orpheus.geometry.manifold.ManifoldMap`, whose ``domain`` is a
 manifold, a homonym); of the 46 operator-family classes, 18 annotate it
 non-``Optional`` and 28 annotate it ``Optional`` (the base itself,
 :class:`~orpheus.numerics.operator.PointwiseOperator`, nine composers and

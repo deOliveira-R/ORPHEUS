@@ -80,21 +80,13 @@ from orpheus.numerics.basis import (
 from orpheus.numerics.basis.spherical_harmonic_basis import (
     MirrorEvenSphericalHarmonicBasis,
 )
-from orpheus.numerics.manifold import (
-    ENERGY,
-    SPHERE,
-    EnergyGroups,
-    IndexSet,
-    Manifold,
-    Quotient,
-    RealSpace,
-    ambient_dim,
-)
+from orpheus.numerics.index_set import ENERGY, EnergyGroups, IndexSet
+from orpheus.geometry.manifold import SPHERE, Manifold, Quotient, RealSpace
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.sn.operators.loss_kernel_gauge import LossKernelBasis
 from orpheus.numerics import frame_faces
 
@@ -245,7 +237,7 @@ def test_d4_a_partition_must_have_one_axis_per_coordinate() -> None:
     cannot pass by refusing everything.
 
     ⚠ The invariant is the AMBIENT width, NOT
-    :meth:`~orpheus.numerics.manifold.Manifold.contains` on the cell centres.
+    :meth:`~orpheus.geometry.manifold.Manifold.contains` on the cell centres.
     The stronger check reads better and is wrong: `[M]` the single-region index
     partition ``[-0.5, n-0.5]`` that ``frame.py``'s axis marginal ships has
     centre :math:`(n-1)/2`, not an integer, and ``IndexSet`` admits only
@@ -260,7 +252,7 @@ def test_d4_a_partition_must_have_one_axis_per_coordinate() -> None:
     ]
     for edges, manifold in ok:
         basis = IndicatorBasis(edges, manifold)
-        assert ambient_dim(basis.domain) == basis.ndim
+        assert basis.domain.ambient_dim == basis.ndim
 
     with pytest.raises(ValueError, match="partition axis"):
         IndicatorBasis((np.array([0.0, 1.0]), np.array([0.0, 1.0])), ENERGY)

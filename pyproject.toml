@@ -26,7 +26,7 @@ dependencies = [
     "gmpy2>=2.3",
     "scipy>=1.14",
     # Symbolic phase-space functions (numerics.mesh_free_function) and the
-    # Gauss-Legendre nodes (numerics.manifold) import it at run time. Listed
+    # Gauss-Legendre nodes (geometry.manifold) import it at run time. Listed
     # only in the test and docs extras before 2026-10-02.
     "sympy>=1.13",
     "matplotlib>=3.8",

@@ -51,8 +51,8 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.measure import DiscreteMeasure
-from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.manifold import COSINE_INTERVAL, SPHERE
+from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.frames.harmonic_frame import HarmonicFrame
 from orpheus.numerics import frame_faces

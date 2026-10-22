@@ -17,7 +17,7 @@ The construction under test
 ---------------------------
 
 Both azimuthal families are built from
-:func:`~orpheus.numerics.roots_of_unity.roots_of_unity` — the SAME
+:func:`~orpheus.geometry.roots_of_unity.roots_of_unity` — the SAME
 generator the azimuthal *rules* are built from — rather than from
 :func:`numpy.cos` of an angle:
 
@@ -56,7 +56,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.quadrature import product_mu_phi
-from orpheus.numerics.symmetry import _cyclic_ops, _vertical_mirrors
+from orpheus.geometry.symmetry import _cyclic_ops, _vertical_mirrors
 
 pytestmark = pytest.mark.foundation
 
@@ -167,7 +167,7 @@ def test_mirrors_are_exactly_as_accurate_as_the_rotations(n_phi: int) -> None:
     signed diagonal, so composing with it is a column sign flip that
     introduces no round-off — and the rule's own node set is carried by
     :math:`\sigma_0` exactly (that is the mirror guarantee
-    :func:`~orpheus.numerics.roots_of_unity.roots_of_unity` exists to
+    :func:`~orpheus.geometry.roots_of_unity.roots_of_unity` exists to
     provide). The mirror residual is therefore the rotation residual,
     reindexed.
 

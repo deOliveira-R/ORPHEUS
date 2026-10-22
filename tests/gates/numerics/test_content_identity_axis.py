@@ -36,7 +36,7 @@ import pytest
 from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis, FromMeasure, Modal
 from orpheus.numerics.coefficient_layout import CellLayout, HarmonicLayout, LegendreLayout, ModeLayout
 from orpheus.values.content import FrozenMapping
-from orpheus.numerics.manifold import RealSpace
+from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from tests.gates._content_identity_helpers import (
     Entry,

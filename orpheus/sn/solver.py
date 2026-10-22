@@ -53,7 +53,7 @@ from orpheus.numerics.convergence import (
     warn_if_unconverged,
 )
 from orpheus.numerics.eigenvalue import power_iteration
-from orpheus.numerics.face_layout import face_normal
+from orpheus.geometry.faces import face_normal
 from orpheus.sn.operators.loss_kernel_gauge import gauge_freedom, warn_if_gauge_freedom
 from orpheus.sn.operators.radial_characteristic import (
     radial_characteristic_source_from_angular,

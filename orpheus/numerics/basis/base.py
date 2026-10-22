@@ -80,8 +80,8 @@ from typing import TYPE_CHECKING, Protocol, final, runtime_checkable
 
 from numpy.typing import NDArray
 
-from orpheus.numerics.manifold import Manifold, Quotient, Sphere
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.manifold import Manifold, Quotient, Sphere
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 if TYPE_CHECKING:
     from orpheus.numerics.coefficient_layout import CoefficientLayout, DegreeLayout
@@ -297,7 +297,7 @@ class Basis(ABC):
     @property
     @abstractmethod
     def domain(self) -> Manifold:
-        r"""The :class:`~orpheus.numerics.manifold.Manifold` these functions EAT.
+        r"""The :class:`~orpheus.geometry.manifold.Manifold` these functions EAT.
 
         A basis function is a **map**, and a map is not defined until its
         source is: :math:`Y_\ell^m : S^2 \to \mathbb R` takes a POINT of
@@ -350,7 +350,7 @@ class Basis(ABC):
         orbit space :math:`M/H` is, pulled back to :math:`M`, exactly an
         :math:`H`-invariant function — that is what a function on a quotient
         *is* — so the group is already in :attr:`domain`, as
-        :attr:`Quotient.by <orpheus.numerics.manifold.Quotient.by>`, and a
+        :attr:`Quotient.by <orpheus.geometry.manifold.Quotient.by>`, and a
         second slot for it would be a second home for one fact, kept in
         agreement by hand. (#429 tracker 2.1b, 2026-09-01: the tracker asked
         for a FIELD answered by six subclasses; the phase opener found the
@@ -359,14 +359,14 @@ class Basis(ABC):
 
         Three answers, by the TYPE of :attr:`domain`:
 
-        * a :class:`~orpheus.numerics.manifold.Quotient` of the sphere — the
+        * a :class:`~orpheus.geometry.manifold.Quotient` of the sphere — the
           group it was quotiented BY. The σ-even sub-basis
           (:class:`~orpheus.numerics.basis.spherical_harmonic_basis.MirrorEvenSphericalHarmonicBasis`)
           answers ``Mirror(axis)``; the Legendre basis on
           :math:`S^2/O(2)_a` (tracker 3.4) answers ``O2(a)`` — the FULL
           stabiliser, since the entry is named by it (#432).
-        * the :class:`~orpheus.numerics.manifold.Sphere` itself —
-          :attr:`SubgroupOfO3.Trivial <orpheus.numerics.symmetry.SubgroupOfO3.Trivial>`.
+        * the :class:`~orpheus.geometry.manifold.Sphere` itself —
+          :attr:`SubgroupOfO3.Trivial <orpheus.geometry.symmetry.SubgroupOfO3.Trivial>`.
           :math:`O(3)` acts on the domain and the basis has spent none of it:
           the full degree-:math:`L` real harmonics have no common symmetry.
         * anything else — ``None``. No subgroup of :math:`O(3)` acts on a
@@ -403,7 +403,7 @@ class Basis(ABC):
         `[M]` 2026-09-01: the fold's two halves read ONE object —
         ``folded_product(4, 8).measure.quotient_group`` and its frame basis's
         ``invariance_group`` are both ``Mirror('y')``, the ``by`` of the one
-        memoised :class:`~orpheus.numerics.manifold.Quotient` — while the
+        memoised :class:`~orpheus.geometry.manifold.Quotient` — while the
         slab's rule (``S^2/O2_x``, spent ``O2('x')``) against the
         full-sphere harmonics (``Trivial``) reads ``Trivial ⊇ O2('x')``
         **False**: ERR-080's pairing is a lattice verdict now, and nothing

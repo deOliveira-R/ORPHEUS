@@ -367,7 +367,7 @@ def verify_alpha_closure():
     # (#325 repointed production off linspace+cos; the algebra of
     # record must ride the SAME generator or its grid drifts a ULP
     # away from the object it derives).
-    from orpheus.numerics.roots_of_unity import roots_of_unity
+    from orpheus.geometry.roots_of_unity import roots_of_unity
 
     for n_phi in [8, 16]:
         cos_phi, _sin_phi = roots_of_unity(np.arange(n_phi), n_phi)

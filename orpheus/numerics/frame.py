@@ -110,7 +110,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.basis.base import Basis, GramStructure, TruncatedBasis
-from orpheus.numerics.manifold import ManifoldMap, quotient_onto
+from orpheus.geometry.manifold import ManifoldMap, quotient_onto
 from orpheus.numerics.measure import DiscreteMeasure
 
 
@@ -135,7 +135,7 @@ def _descent_arrow(basis: Basis, measure: DiscreteMeasure, role: str) -> Manifol
     ``measure.support``; that is well-posed iff the functions can be
     evaluated at the rule's nodes, i.e. iff a quotient map
     ``measure.support -> basis.domain`` EXISTS
-    (:func:`~orpheus.numerics.manifold.quotient_onto`: equality, the entry's
+    (:func:`~orpheus.geometry.manifold.quotient_onto`: equality, the entry's
     own map, or the induced :math:`M/K \to M/H` for :math:`K \subseteq H`).
     The frame's table is the basis pulled back along that arrow. ONE
     predicate (user-ruled 2026-09-02, #429 tracker 2.2): it refuses the Part

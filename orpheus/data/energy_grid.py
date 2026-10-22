@@ -96,7 +96,7 @@ from numpy.typing import NDArray
 from orpheus.numerics.axis import EnergyAxis
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.basis.overlap_basis import OverlapBasis
-from orpheus.numerics.manifold import EnergyGroups
+from orpheus.numerics.index_set import EnergyGroups
 from orpheus.numerics.measure import DiscreteMeasure
 
 __all__ = [

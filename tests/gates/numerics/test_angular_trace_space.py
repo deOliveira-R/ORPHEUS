@@ -485,7 +485,7 @@ def test_face_normals_z_derived_from_axis_names():
     own laws — round-trip, involution — live in ``tests/gates/numerics/
     test_face_layout.py``); what moved is where the answer comes from.
     """
-    from orpheus.numerics.face_layout import face_normal
+    from orpheus.geometry.faces import face_normal
 
     expected = {
         "xmin": (0, -1), "xmax": (0, +1),

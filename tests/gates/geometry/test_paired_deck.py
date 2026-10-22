@@ -70,7 +70,7 @@ from orpheus.geometry.boundary import (
 )
 from orpheus.geometry.boundary._errors import BoundaryError
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.face_layout import AXIS_NAMES, face_opposite
+from orpheus.geometry.faces import AXIS_NAMES, face_opposite
 
 pytestmark = pytest.mark.foundation
 
@@ -444,7 +444,7 @@ class TestDomainFaceNamesThePartner:
     def test_the_partner_is_the_OPPOSITE_face_on_axis(self, axis: str) -> None:
         r"""``domain_face(f) == face_opposite(f)`` for both on-axis faces.
 
-        The reference is :func:`~orpheus.numerics.face_layout.face_opposite`,
+        The reference is :func:`~orpheus.geometry.faces.face_opposite`,
         the tree's single home for that convention — so this row pins the
         DERIVATION (translation ⟹ opposite face) rather than re-spelling a
         name table that could drift from it.

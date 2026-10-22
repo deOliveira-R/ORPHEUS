@@ -54,7 +54,7 @@ group elements' raw matrices with scipy's assignment solver.
 
    Issue #325 named **two** halves for closing this gap, and BOTH are
    done: the :math:`\phi` grid is
-   :mod:`~orpheus.numerics.roots_of_unity`-generated (2026-08-02), and
+   :mod:`~orpheus.geometry.roots_of_unity`-generated (2026-08-02), and
    the **checker's** own :math:`C_n` operators consume the SAME
    generator (``symmetry._cyclic_ops`` builds each rotation from an
    exact circle point, and the :math:`\sigma_v` mirrors are the coset
@@ -110,8 +110,8 @@ from ..exactness import (
     OrthogonalSystem,
 )
 from ..measure import DiscreteMeasure
-from orpheus.numerics.manifold import CIRCLE, COSINE_INTERVAL, archimedes
-from ..symmetry import SubgroupOfO3
+from orpheus.geometry.manifold import CIRCLE, COSINE_INTERVAL, archimedes
+from orpheus.geometry.symmetry import SubgroupOfO3
 from .rules_1d import gauss_legendre_on_mu
 from .rules_circle import NODE_ALIGNED, periodic_trapezoid
 from .rules_sphere import LevelStructure, PolarInvariant
@@ -331,7 +331,7 @@ def spherical_product(
     function composes the factors' *claims* through the product theorem;
     this one composes their *measures* through the embedding
     :eq:`product-mu-phi-cosines` — the typed chart
-    :func:`~orpheus.numerics.manifold.archimedes` — as
+    :func:`~orpheus.geometry.manifold.archimedes` — as
     ``(polar * azimuthal).pushforward(archimedes("z"))``, so the result's
     support is the chart's codomain and the tensor product is the
     measure's own :meth:`~orpheus.numerics.measure.DiscreteMeasure.__mul__`
@@ -387,7 +387,7 @@ def spherical_product(
         claim (e.g.
         :func:`~orpheus.numerics.quadrature.rules_1d.gauss_legendre_on_mu`).
     azimuthal : DiscreteMeasure
-        A circle rule on :data:`~orpheus.numerics.manifold.CIRCLE`,
+        A circle rule on :data:`~orpheus.geometry.manifold.CIRCLE`,
         nodes shape ``(n_phi, 2)`` of unit points
         :math:`(\cos\varphi, \sin\varphi)`, carrying a TRIGONOMETRIC
         exactness claim (e.g.
@@ -400,7 +400,7 @@ def spherical_product(
     Returns
     -------
     DiscreteMeasure
-        Nodes shape ``(n_mu * n_phi, 3)`` on :data:`~orpheus.numerics.manifold.SPHERE`
+        Nodes shape ``(n_mu * n_phi, 3)`` on :data:`~orpheus.geometry.manifold.SPHERE`
         — DERIVED as the Archimedes chart's codomain, never declared —
         with derived ``invariance_group`` and ``exactness``.
     LevelStructure

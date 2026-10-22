@@ -21,9 +21,9 @@ binds — the basis a frame on THIS orbit space carries is DERIVED from the
 entry, never chosen at the call site.
 
 Which slots of a basis on the base descend is the ENTRY's question
-(:meth:`Quotient.descending_slots <orpheus.numerics.manifold.Quotient.descending_slots>`,
+(:meth:`Quotient.descending_slots <orpheus.geometry.manifold.Quotient.descending_slots>`,
 user-ruled 2026-09-02): a function descends iff it is constant on the fibres
-of the entry's own :attr:`~orpheus.numerics.manifold.Quotient.quotient_map`,
+of the entry's own :attr:`~orpheus.geometry.manifold.Quotient.quotient_map`,
 sampled at generic base points and their images under the group's generic
 elements. This class reads it.
 
@@ -55,8 +55,8 @@ from orpheus.numerics.basis.spherical_harmonic_basis import (
     MirrorEvenSphericalHarmonicBasis,
     SphericalHarmonicBasis,
 )
-from orpheus.numerics.manifold import Quotient, SPHERE
-from orpheus.numerics.symmetry import AXIS_LETTER
+from orpheus.geometry.manifold import Quotient, SPHERE
+from orpheus.geometry.faces import AXIS_NAMES
 
 __all__ = ["Descent"]
 
@@ -124,7 +124,7 @@ class Descent:
         axis = by.rotation_axis
         if axis is not None:
             L = _truncation_order(self.parent)
-            return LegendreBasis(L=L, axis=AXIS_LETTER[axis])
+            return LegendreBasis(L=L, axis=AXIS_NAMES[axis])
         if self.entry.base == self.entry.realization and by.is_trivial:
             return self.parent
         return None
@@ -189,10 +189,10 @@ class Descent:
         hold).
         """
         axis = self.entry.by.rotation_axis
-        if axis is not None and AXIS_LETTER[axis] != _HARMONIC_POLAR_AXIS:
+        if axis is not None and AXIS_NAMES[axis] != _HARMONIC_POLAR_AXIS:
             raise NotImplementedError(
                 f"Descent.upstairs_columns: the real harmonics' polar axis is "
-                f"{_HARMONIC_POLAR_AXIS!r}; about {AXIS_LETTER[axis]!r} the "
+                f"{_HARMONIC_POLAR_AXIS!r}; about {AXIS_NAMES[axis]!r} the "
                 f"{self.entry.by.name}-invariant subspace is not a set of slots (it spreads "
                 f"over several from l >= 2). The downstairs face is "
                 f"available at every axis; an upstairs face there needs a "

@@ -29,7 +29,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-from orpheus.numerics.manifold import RealSpace
+from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.axis import Axis, BasisKind, Declared, FromMeasure, FromQuadrature, quadrature_refusal
 from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.numerics.space import FunctionSpace

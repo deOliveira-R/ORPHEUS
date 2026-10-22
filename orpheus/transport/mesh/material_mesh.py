@@ -56,7 +56,7 @@ from orpheus.mesh import Mesh1D, Mesh2D
 # The SPACE-FACTOR axis vocabulary (campaign 1, CS1) — aliased because this
 # module's own ``Axis1D``/``self.axes`` are GEOMETRIC axes (a different
 # concept; the naming coordination is the Q3 rename issue).
-from orpheus.numerics.manifold import RealSpace
+from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.axis import Axis as SpaceFactorAxis
 from orpheus.numerics.axis import BasisKind, Declared
 from orpheus.numerics.space import FunctionSpace

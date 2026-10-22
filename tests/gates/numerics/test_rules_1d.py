@@ -23,10 +23,10 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.measure import DiscreteMeasure
-from orpheus.numerics.manifold import COSINE_INTERVAL
+from orpheus.geometry.manifold import COSINE_INTERVAL
 from orpheus.numerics.quadrature import gauss_legendre_on_mu
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 
 # ---------------------------------------------------------------------------

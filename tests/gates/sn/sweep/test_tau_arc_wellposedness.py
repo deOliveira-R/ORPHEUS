@@ -58,7 +58,7 @@ from orpheus.numerics.quadrature import (
     periodic_trapezoid,
     spherical_product,
 )
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.sn.angular.closure import morel_montry_tau_per_level
 from tests.gates.sn._test_helpers import seam_quad
 

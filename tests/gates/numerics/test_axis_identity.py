@@ -21,7 +21,7 @@ from orpheus.numerics import frame_faces as ff
 from orpheus.numerics.axis import Declared, Axis, BasisKind, Modal
 from orpheus.values.content import content_digest
 from orpheus.numerics.frame import GalerkinFrame, PetrovGalerkinFrame
-from orpheus.numerics.manifold import Quotient
+from orpheus.geometry.manifold import Quotient
 from orpheus.numerics.metric import DenseMetric
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_polar_orbit
@@ -184,7 +184,7 @@ def test_LB_ii_the_frame_measure_space_is_the_sn_angular_space():
 
 def test_LB_iii_a_spatial_frame_measure_axis_is_labelled_spatial():
     from orpheus.numerics.basis.indicator_basis import IndicatorBasis
-    from orpheus.numerics.manifold import RealSpace
+    from orpheus.geometry.manifold import RealSpace
     from orpheus.numerics.measure import DiscreteMeasure
     basis = IndicatorBasis((np.array([0.0, 1.0, 2.0]),), RealSpace(1))
     m = DiscreteMeasure(nodes=np.array([0.25, 0.75, 1.25, 1.75]), weights=np.full(4, 0.5), support=RealSpace(1))
@@ -218,7 +218,7 @@ def test_LB_v_axis_label_refuses_a_support_with_no_role():
     """(v) ``DiscreteMeasure.axis_label`` refuses a support that is none of sphere/orbit space,
     RealSpace, EnergyGroups, IndexSet, naming the support. A bare Interval with no O(3) tag is the
     witness (a rule on ``Interval(-1, 1)`` spelled as a spatial interval)."""
-    from orpheus.numerics.manifold import Interval
+    from orpheus.geometry.manifold import Interval
     from orpheus.numerics.measure import DiscreteMeasure
     m = DiscreteMeasure(nodes=np.array([-0.5, 0.5]), weights=np.array([1.0, 1.0]), support=Interval(-1.0, 1.0))
     if m.invariance_group is not None:

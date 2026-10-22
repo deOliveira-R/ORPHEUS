@@ -65,8 +65,8 @@ import numpy as np
 
 from ..exactness import UNIFORM_ON_SPHERE, ExactnessClaim
 from ..measure import DiscreteMeasure
-from orpheus.numerics.manifold import SPHERE
-from ..symmetry import SubgroupOfO3
+from orpheus.geometry.manifold import SPHERE
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 
 # ---------------------------------------------------------------------------

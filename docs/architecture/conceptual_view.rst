@@ -152,9 +152,9 @@ The objects on an axis — measure, basis, frame, cone
 
 A **discrete measure** :math:`\mu = \sum_i w_i \delta_{x_i}`
 (:eq:`discrete-measure-definition`) carries nodes, weights, a typed
-support :class:`~orpheus.numerics.manifold.Manifold` and an invariance
+support :class:`~orpheus.geometry.manifold.Manifold` and an invariance
 group; tensor product, direct sum, pushforward along a typed
-:class:`~orpheus.numerics.manifold.ManifoldMap`, restriction, partition
+:class:`~orpheus.geometry.manifold.ManifoldMap`, restriction, partition
 and quotient are its verbs (:class:`~orpheus.numerics.measure.DiscreteMeasure`).
 A quadrature wraps one such measure and mints the angular axis and the
 angular frame from it (:class:`~orpheus.numerics.quadrature.directional.Quadrature`).
@@ -335,8 +335,8 @@ Symmetry and quotient
 
 A **symmetry group** is realised, never tabulated
 (:ref:`manifold-realization`;
-:class:`~orpheus.numerics.symmetry.SubgroupOfO3` with its computed
-:class:`~orpheus.numerics.symmetry.Realization`, the identity component
+:class:`~orpheus.geometry.symmetry.SubgroupOfO3` with its computed
+:class:`~orpheus.geometry.symmetry.Realization`, the identity component
 plus one representative per component): containment, the normaliser and
 the connected part's fixed set are each one computation. Whether a
 measure is invariant is the measure's question
@@ -347,14 +347,14 @@ and its invariance cannot disagree. The support must be a **G-space**,
 one of the families a rigid motion acts on, and the action is one law:
 :math:`g` acts iff :math:`g(M) = M` (:ref:`manifold-gspace`,
 :eq:`manifold-gspace-action-law`;
-:class:`~orpheus.numerics.manifold.GSpace`); energy groups, an index set
+:class:`~orpheus.geometry.manifold.GSpace`); energy groups, an index set
 and a product are not G-spaces and refuse the question. Every invariance
 verb is a composition of the measure's pushforward with that action
 through one group-free relabelling (:eq:`manifold-invariance-composition`,
 :ref:`discrete-measure-invariance-module`;
 :meth:`~orpheus.numerics.measure.DiscreteMeasure.relabelling_to`). An **orbit space** is named by its stabiliser, one spelling
 (:ref:`manifold-orbit-space`, :ref:`manifold-orbit-space-stabiliser`,
-:ref:`manifold-quotient-map`; :class:`~orpheus.numerics.manifold.Quotient`,
+:ref:`manifold-quotient-map`; :class:`~orpheus.geometry.manifold.Quotient`,
 :meth:`~orpheus.numerics.measure.DiscreteMeasure.quotient`), and the lift
 from the orbit space back to the ambient measure is the Reynolds projector
 :math:`P_H`, the orbit barycentre, which is not a section
@@ -455,7 +455,7 @@ The concept table
      - :class:`~orpheus.numerics.space.FunctionSpace` (its :meth:`~orpheus.numerics.space.FunctionSpace.identity_key`, :meth:`~orpheus.numerics.space.FunctionSpace.of_measure`, :meth:`~orpheus.numerics.space.FunctionSpace.of_basis`), :class:`~orpheus.numerics.axis.Axis`, :class:`~orpheus.numerics.axis.BasisKind`, :class:`~orpheus.numerics.axis.Modal`, the origin arms :class:`~orpheus.numerics.axis.FromMeasure`, :class:`~orpheus.numerics.axis.FromQuadrature`, :class:`~orpheus.numerics.axis.FromBasis`, :class:`~orpheus.numerics.axis.FromFrame`, :class:`~orpheus.numerics.axis.Declared`; :mod:`orpheus.numerics.coefficient_layout`
      - :ref:`spaces-the-axis`, :eq:`spaces-axis-product`, :ref:`spaces-axis-origin`, :ref:`spaces-axis-identity`, :ref:`spaces-identity-key`, :ref:`spaces-moment-head`
    * - Discrete measure; manifold; quadrature
-     - :class:`~orpheus.numerics.measure.DiscreteMeasure`, :class:`~orpheus.numerics.manifold.Manifold`, :class:`~orpheus.numerics.quadrature.directional.Quadrature`
+     - :class:`~orpheus.numerics.measure.DiscreteMeasure`, :class:`~orpheus.geometry.manifold.Manifold`, :class:`~orpheus.numerics.quadrature.directional.Quadrature`
      - :eq:`discrete-measure-definition`
    * - Basis
      - :class:`~orpheus.numerics.basis.base.Basis`, :class:`~orpheus.numerics.basis.base.GramStructure`. On the reference side of the branch line, which imports none of these (:ref:`architecture-reference-insulation`): :class:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis`, discontinuous nodal Lagrange panels over a body's orbit coordinate, graded toward walls and interfaces and even (polynomials in :math:`c^2`) on the panel touching a singular stratum, with its Gram matrix in the chart's volume measure, whose density is the kernel's :meth:`Chart.measure_density <orpheus.geometry.chart.Chart.measure_density>`, the derivative of :meth:`CoordSystem.measure <orpheus.geometry.coord.CoordSystem.measure>`'s one definition. No production basis is nodal Lagrange, so it has no twin.
@@ -503,10 +503,10 @@ The concept table
      - :class:`~orpheus.numerics.operator.AdjointOperator`, :meth:`~orpheus.numerics.operator.LinearOperator.dual`
      - :ref:`g-adjoint`, :eq:`g-adjoint-definition`, :eq:`spaces-adjoint-riesz-composition`, :ref:`spaces-metric-propagation`
    * - Symmetry group; invariance
-     - :class:`~orpheus.numerics.symmetry.SubgroupOfO3`; :class:`~orpheus.numerics.manifold.GSpace` (its :meth:`~orpheus.numerics.manifold.GSpace.action`); :meth:`~orpheus.numerics.measure.DiscreteMeasure.relabelling_to` and the invariance verbs on :class:`~orpheus.numerics.measure.DiscreteMeasure`
+     - :class:`~orpheus.geometry.symmetry.SubgroupOfO3`; :class:`~orpheus.geometry.manifold.GSpace` (its :meth:`~orpheus.geometry.manifold.GSpace.action`); :meth:`~orpheus.numerics.measure.DiscreteMeasure.relabelling_to` and the invariance verbs on :class:`~orpheus.numerics.measure.DiscreteMeasure`
      - :ref:`manifold-realization`, :eq:`discrete-measure-g-invariance`, :ref:`manifold-gspace`, :eq:`manifold-invariance-composition`
    * - Orbit space; quotient; descent
-     - :class:`~orpheus.numerics.manifold.Quotient`, :class:`~orpheus.numerics.basis.descent.Descent`
+     - :class:`~orpheus.geometry.manifold.Quotient`, :class:`~orpheus.numerics.basis.descent.Descent`
      - :ref:`manifold-orbit-space`, :ref:`manifold-orbit-space-stabiliser`, :ref:`manifold-quotient-map`, :ref:`manifold-reynolds-projector-section`, :ref:`manifold-descent`
    * - Chart (a coordinate system's orbit map and symmetry group); singular stratum; the measure's density (the area of a level set)
      - :class:`~orpheus.geometry.chart.Chart` (derived from its kept columns and its linear group), :class:`~orpheus.geometry.chart.SingularStratum`; a line's image :class:`~orpheus.geometry.chart.RadialImage`, :class:`~orpheus.geometry.chart.AxialImage`; :meth:`CoordSystem.measure_density <orpheus.geometry.coord.CoordSystem.measure_density>` (read through :meth:`Chart.measure_density <orpheus.geometry.chart.Chart.measure_density>`)

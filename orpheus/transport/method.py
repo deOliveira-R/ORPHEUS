@@ -123,9 +123,9 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
 )
 from orpheus.numerics.operator import LinearOperator
-from orpheus.numerics.face_layout import face_normal
+from orpheus.geometry.faces import face_normal
 from orpheus.mesh import face_labels
-from orpheus.numerics.face_layout import AXIS_NAMES
+from orpheus.geometry.faces import AXIS_NAMES
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

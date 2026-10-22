@@ -142,11 +142,8 @@ from typing import TYPE_CHECKING, Literal
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.face_layout import (
-    AXIS_NAMES,
-    face_normal,
-    face_streaming_normal,
-)
+from orpheus.geometry.faces import AXIS_NAMES, face_normal
+from orpheus.numerics.face_layout import face_streaming_normal
 from orpheus.numerics.space import FunctionSpace
 
 if TYPE_CHECKING:
@@ -187,7 +184,7 @@ TANGENTIAL_EPS: float = 4.0 * np.finfo(np.float64).eps
 
 
 # The face → outward-normal parse is
-# :func:`~orpheus.numerics.face_layout.face_normal`: it returns the
+# :func:`~orpheus.geometry.faces.face_normal`: it returns the
 # ``(axis_index, sign)`` pair with ``axis_index`` selecting
 # ``(mu_x, mu_y, mu_z)[axis_index]`` and ``sign`` the outward-normal sign (±1),
 # so the signed projection is ``Ω · n = sign * mu[axis]``. One parse serves
@@ -196,7 +193,7 @@ TANGENTIAL_EPS: float = 4.0 * np.finfo(np.float64).eps
 # 3-D Cartesian all six.
 #
 # C5.3 (#225) derived the local ``_FACE_NORMALS`` table from
-# :data:`~orpheus.numerics.face_layout.AXIS_NAMES`, killing a hand-listed
+# :data:`~orpheus.geometry.faces.AXIS_NAMES`, killing a hand-listed
 # 4-face transcription that silently lacked the z faces. Campaign phase
 # **B3.4c** finished the job: the ``min``/``max`` ↔ sign half of the
 # convention was still transcribed here AND at four other sites, so the table

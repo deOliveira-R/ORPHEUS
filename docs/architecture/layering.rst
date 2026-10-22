@@ -123,10 +123,17 @@ A few notes the table is too compact to capture:
   read nuclear data as an axis, :meth:`EnergyGrid.as_axis
   <orpheus.data.energy_grid.EnergyGrid.as_axis>` and
   :func:`~orpheus.data.materials.energy_axis_of`, live in data), and one
-  to :mod:`orpheus.mesh`. It still admits the edge to
-  :mod:`orpheus.geometry`: :mod:`orpheus.numerics.symmetry` imports
-  :mod:`orpheus.geometry.transformation` at runtime, an edge pending
-  layer_dag.md P1.
+  to :mod:`orpheus.mesh`. It admits the edge to :mod:`orpheus.geometry`,
+  and that edge is the intended direction (layer_dag.md ruling 1): the
+  point groups (:mod:`orpheus.geometry.symmetry`), the point sets they act
+  on (:mod:`orpheus.geometry.manifold`) and the face naming
+  (:mod:`orpheus.geometry.faces`) are geometry, and numerics' measures,
+  quadratures and bases import them. Until layer DAG WP-B (2026-10-22) the
+  first two were numerics modules importing
+  :mod:`orpheus.geometry.transformation`. The reverse edges, geometry's
+  boundary laws importing numerics, are what keeps
+  {geometry, numerics} a package cycle, pending layer_dag.md P1's boundary
+  carve.
 
 * The input layer has one internal order: :mod:`orpheus.mesh` sits
   **above** :mod:`orpheus.geometry`. A mesh is an overlay on a geometry
@@ -534,8 +541,10 @@ and ``derivations/common/`` (the user's ruling on the gate's scope,
 * ``derivations/discrete/`` is outside the two roots. Its modules are
   algebras of record of a production discretization, so their subject is
   a production object and they follow production's changes by nature:
-  :mod:`orpheus.derivations.discrete.sn.balance` imports
-  :mod:`orpheus.numerics.roots_of_unity` on purpose.
+  :mod:`orpheus.derivations.discrete.sn.balance` imported
+  the roots of unity from numerics on purpose (since layer DAG WP-B,
+  2026-10-22, the module is :mod:`orpheus.geometry.roots_of_unity`, which a
+  closed reference may import too).
 * Two modules under the roots build production objects and are exempt
   by name, each entry of ``_REFERENCE_INSULATION_EXEMPT`` carrying its
   reason in the gate. The two manufactured-solution harnesses pose a

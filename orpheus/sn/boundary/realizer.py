@@ -172,7 +172,7 @@ from orpheus.geometry.boundary import (
     ZeroFluxBoundary,
 )
 from orpheus.transport.boundary_realization import stamp_boundary_role
-from orpheus.numerics.face_layout import AXIS_NAMES, face_name
+from orpheus.geometry.faces import AXIS_NAMES, face_name
 from orpheus.numerics.spaces.angular_trace_space import (
     TANGENTIAL_EPS,
     AngularFaceTraceSpace,

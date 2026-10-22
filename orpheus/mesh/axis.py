@@ -71,11 +71,11 @@ class AxisCoord(StrEnum):
 #: Spatial axis names, positional-by-axis — the same axis order as
 #: :attr:`SNProblem.axes`, ``OctantLabel.signs``, and the per-axis kernel
 #: tuples. Re-exported from its C5.3 home
-#: :data:`orpheus.numerics.face_layout.AXIS_NAMES` (moved down so the
+#: :data:`orpheus.geometry.faces.AXIS_NAMES` (moved down so the
 #: geometry-blind trace space shares the crosswalk without an sn-ward
 #: import); SN consumers keep importing it from here, next to the axis
 #: primitives it names.
-from orpheus.numerics.face_layout import AXIS_NAMES  # noqa: E402
+from orpheus.geometry.faces import AXIS_NAMES  # noqa: E402
 
 #: Canonical ``FaceLabel.endpoint`` → face-name suffix crosswalk. A
 #: solid radial axis's single ``"outer"`` endpoint renders as the

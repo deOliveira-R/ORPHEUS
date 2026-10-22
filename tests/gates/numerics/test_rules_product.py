@@ -16,11 +16,11 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.measure import DiscreteMeasure
-from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE
+from orpheus.geometry.manifold import COSINE_INTERVAL, SPHERE
 from orpheus.numerics.quadrature import product_mu_phi
 from orpheus.numerics.quadrature.rules_sphere import LevelStructure
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +228,7 @@ def test_e4_the_theorem_refuses_the_wrong_systems() -> None:
     from orpheus.numerics.exactness import ExactnessClaim, UniformMeasure
     from orpheus.numerics.exactness import OrthogonalSystem as OS
     from orpheus.numerics.generating_measure import LEGENDRE
-    from orpheus.numerics.manifold import CIRCLE
+    from orpheus.geometry.manifold import CIRCLE
     from orpheus.numerics.measure import equispaced
     from orpheus.numerics.quadrature.rules_product import (
         spherical_product_claim,
@@ -493,7 +493,7 @@ def test_an_interval_rule_as_the_fiber_is_refused_by_its_space() -> None:
 def test_off_circle_fiber_nodes_are_refused() -> None:
     """Non-unit circle nodes would embed to direction cosines with
     ||Omega|| != 1 — refused at the door."""
-    from orpheus.numerics.manifold import CIRCLE
+    from orpheus.geometry.manifold import CIRCLE
     from orpheus.numerics.quadrature import (
         NODE_ALIGNED,
         gauss_legendre_on_mu,
@@ -541,7 +541,7 @@ def test_the_product_rule_is_the_tensor_product_pushed_along_the_archimedes_char
     done-when asks for: the support is the chart's codomain, not a copy of
     it.
     """
-    from orpheus.numerics.manifold import archimedes
+    from orpheus.geometry.manifold import archimedes
     from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
     from orpheus.numerics.quadrature.rules_circle import NODE_ALIGNED, periodic_trapezoid
 

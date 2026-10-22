@@ -10,6 +10,18 @@
   :class:`BC` and the typed boundary laws. Boundaries are defined at the
   geometry.
 * :mod:`~orpheus.geometry.transformation`: rigid motions and permutations.
+* :mod:`~orpheus.geometry.symmetry`: the closed subgroups of :math:`O(3)`,
+  realized; :mod:`~orpheus.geometry.roots_of_unity`, the exact realization of
+  :math:`C_n` they generate.
+* :mod:`~orpheus.geometry.manifold`: the point sets the groups act on (the
+  :class:`~orpheus.geometry.manifold.Manifold` closed sum, its G-spaces and
+  orbit spaces), which numerics' measures are supported on.
+* :mod:`~orpheus.geometry.faces`: the axis letters and the boundary-face
+  naming bijection.
+
+The last three moved down from :mod:`orpheus.numerics` at layer DAG WP-B
+(2026-10-22): numerics imports the points and the group action, never the
+reverse.
 
 The mesh is an overlay on the geometry and lives in its own package,
 :mod:`orpheus.mesh`, which imports this one and never the reverse:

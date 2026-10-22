@@ -38,7 +38,7 @@ from the pair:
   of the direction's kept components.
 
 This is the spatial twin of
-:class:`~orpheus.numerics.symmetry.SubgroupOfO3` on directions, and the
+:class:`~orpheus.geometry.symmetry.SubgroupOfO3` on directions, and the
 1-D part of the ``Chart`` of the boundary-law ontology's architecture E
 (#551, the pair (coordinate system, kept coordinates)), pulled forward for
 the geometric kernel seed by the user's rulings of 2026-10-05
@@ -58,7 +58,7 @@ import numpy as np
 
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 if TYPE_CHECKING:
     from orpheus.geometry.line import Line

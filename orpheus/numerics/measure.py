@@ -35,7 +35,7 @@ named factories) composes 1-D rules into 2-D / :math:`S^2` rules
 - **Pushforward** ``μ.pushforward(φ)``. Image measure
   :math:`\varphi_* \mu` under a typed map
   :math:`\varphi : \mathcal{X} \to \mathcal{Y}`
-  (a :class:`~orpheus.numerics.manifold.ManifoldMap`, whose codomain
+  (a :class:`~orpheus.geometry.manifold.ManifoldMap`, whose codomain
   is where the image lives). The change-of-variables
   identity holds verbatim:
   :math:`\int g \, d(\varphi_* \mu) = \int g \circ \varphi \, d\mu`.
@@ -93,19 +93,17 @@ import numpy as np
 # the order is the fresh-interpreter gate in ``tests/gates/test_layer_imports.py``
 # and ``tests/gates/numerics/test_concept_order.py``.
 from orpheus.geometry.transformation import permutation_between
-from orpheus.numerics.symmetry import (
+from orpheus.geometry.symmetry import (
     OrbitCertificate,
     SubgroupOfO3,
     candidate_groups,
     maximal_satisfying,
 )
-from orpheus.numerics.manifold import (
+from orpheus.geometry.manifold import (
     COSINE_INTERVAL,
     DoesNotMap,
     DoesNotNormalise,
-    EnergyGroups,
     GSpace,
-    IndexSet,
     Interval,
     Manifold,
     ManifoldMap,
@@ -114,6 +112,7 @@ from orpheus.numerics.manifold import (
     RealSpace,
     Sphere,
 )
+from orpheus.numerics.index_set import EnergyGroups, IndexSet
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -138,12 +137,12 @@ if TYPE_CHECKING:
 # ⭐ That note was answered rather than overruled. The objection was to
 # *generics* — a phantom type parameter, erased at runtime, buying nothing;
 # it is still correct. What ships instead is a closed sum of ORDINARY VALUES
-# (:mod:`orpheus.numerics.manifold`), so the "stitching" the comment describes
+# (:mod:`orpheus.geometry.manifold`), so the "stitching" the comment describes
 # is now :meth:`Manifold.__mul__` returning a ``Product`` that can answer
 # ``dim`` and ``contains``, at no runtime cost and with no generics.
 #
 # ``Space = str`` was retired 2026-09-01 (#429 tracker 2.0c): a measure now
-# names the point set it lives on with a :class:`~orpheus.numerics.manifold.Manifold`,
+# names the point set it lives on with a :class:`~orpheus.geometry.manifold.Manifold`,
 # so ``support`` carries the object's structure — its dimension, its membership
 # predicate, its quotient and product algebra — instead of a tag that only a
 # reader could interpret. The six ``SPACE_*`` string constants below retired
@@ -156,13 +155,13 @@ if TYPE_CHECKING:
 # outlived the tag it was written for, and is now carried by the type. The tag
 # was ``"[0,2π)"`` until 2026-08-02, which made it assert a COORDINATE; the
 # load-bearing consequence is that the periodic trapezoid's nodes are the roots
-# of unity as POINTS (:func:`~orpheus.numerics.roots_of_unity.roots_of_unity`),
+# of unity as POINTS (:func:`~orpheus.geometry.roots_of_unity.roots_of_unity`),
 # because only in that representation is an on-axis node exactly ``0.0`` — an
 # angle chart would have re-introduced the very rounding
-# :mod:`~orpheus.numerics.roots_of_unity` exists to remove. Uniform measure on
+# :mod:`~orpheus.geometry.roots_of_unity` exists to remove. Uniform measure on
 # S^1 has mass 2π, on S^2 mass 4π — one family, one rule. That is now
-# :class:`~orpheus.numerics.manifold.Circle` and
-# :class:`~orpheus.numerics.manifold.Sphere`, which cannot be spelled as a chart.
+# :class:`~orpheus.geometry.manifold.Circle` and
+# :class:`~orpheus.geometry.manifold.Sphere`, which cannot be spelled as a chart.
 
 # The physical FACTOR of transport phase space (position × direction × energy)
 # a measure discretises. A closed enumeration — there are exactly these factors
@@ -247,7 +246,7 @@ class DiscreteMeasure:
     support : Manifold
         The **point set the atoms live on** — :class:`Sphere`,
         :class:`Interval`, :class:`RealSpace`, an orbit space
-        :class:`Quotient`, … (:mod:`orpheus.numerics.manifold`).
+        :class:`Quotient`, … (:mod:`orpheus.geometry.manifold`).
 
         It is an OBJECT, not a tag, and three things are derived from it that
         a string could only assert: :attr:`phase` (which factor of transport
@@ -267,7 +266,7 @@ class DiscreteMeasure:
         The maximal subgroup of :math:`O(3)` under which the measure is
         invariant (its nodes permute among themselves with weights
         preserved), as a typed
-        :class:`~orpheus.numerics.symmetry.SubgroupOfO3` — e.g.
+        :class:`~orpheus.geometry.symmetry.SubgroupOfO3` — e.g.
         ``SubgroupOfO3.OctahedralOh`` for a Lebedev cubature,
         ``SubgroupOfO3.Dnh(n_phi)`` for a product rule, ``SubgroupOfO3.Mirror('x')``
         for the slab's polar marginal — never a continuous group for a finite
@@ -342,7 +341,7 @@ class DiscreteMeasure:
     - ``μ + ν`` — direct sum on a shared space; raises ``ValueError``
       if ``μ.support != ν.support``.
     - ``μ.pushforward(φ)`` — image measure under a typed map ``φ``
-      (:class:`~orpheus.numerics.manifold.ManifoldMap`), on
+      (:class:`~orpheus.geometry.manifold.ManifoldMap`), on
       ``φ.codomain``; refused unless ``φ.domain == μ.support``. Weights
       are preserved; nodes become ``φ(nodes)``. The Jacobian of ``φ`` is
       the **caller's responsibility**: this is the φ-image semantics,
@@ -411,7 +410,7 @@ class DiscreteMeasure:
         space is labelled by that factor (:attr:`phase`: ``"angular"``,
         ``"spatial"``, ``"energy"``), so a frame's measure space over a
         quadrature IS the SN angular space over the same rule. A measure on
-        an :class:`~orpheus.numerics.manifold.IndexSet` discretises no factor
+        an :class:`~orpheus.numerics.index_set.IndexSet` discretises no factor
         of phase space (the loss-kernel gauge's per-orbit trace sets), so it
         is labelled by the set's own name, which is what distinguishes one
         such set from another. Anything else is refused by :attr:`phase`,
@@ -1001,7 +1000,7 @@ class DiscreteMeasure:
 
         A rule built on a manifold :math:`C` is a rule on every orbit
         space :math:`M/H` whose chart codomain
-        (:attr:`~orpheus.numerics.manifold.Quotient.realization`) is
+        (:attr:`~orpheus.geometry.manifold.Quotient.realization`) is
         :math:`C`: same points, same weights — only what the measure
         KNOWS about its support changes, from "an interval" to "the polar
         marginal of a sphere, about this axis". It is how the slab says
@@ -1053,7 +1052,7 @@ class DiscreteMeasure:
         this measure's atom :math:`\pi(i)`, or ``None`` if no bijection exists.
 
         Two atoms are equal when their points are equal in the support's
-        :meth:`~orpheus.numerics.manifold.Manifold.coordinates` (the point
+        :meth:`~orpheus.geometry.manifold.Manifold.coordinates` (the point
         identity: two representatives of one orbit are one point of a
         quotient) to the NODE window, :data:`_NODE_WINDOW_FACTOR` times
         ``atol``, and their weights to ``atol``.  The match is
@@ -1197,15 +1196,15 @@ class DiscreteMeasure:
            (:attr:`quotient_group`; the trivial group on a bare G-space), else
            it does not act on :math:`M/H` at all
            (:meth:`SubgroupOfO3.normalises
-           <orpheus.numerics.symmetry.SubgroupOfO3.normalises>`, exact through
+           <orpheus.geometry.symmetry.SubgroupOfO3.normalises>`, exact through
            the Lie algebra) — ``False``.
         2. A CONTINUOUS :math:`G` is decided exactly through its realization:
            the identity component :math:`G^0` has connected orbits, and a
            connected orbit inside a finite set is a point, so :math:`G^0` must
            FIX every node's ambient point
-           (:meth:`~orpheus.numerics.manifold.GSpace.ambient_points`, the orbit
+           (:meth:`~orpheus.geometry.manifold.GSpace.ambient_points`, the orbit
            barycentre on a quotient; :meth:`IdentityComponent.fixes
-           <orpheus.numerics.symmetry.IdentityComponent.fixes>` — the
+           <orpheus.geometry.symmetry.IdentityComponent.fixes>` — the
            axis-support / origin rule of ERR-072, stated once), at the NODE
            window.  Exact on the barycentre because the chart is injective on
            orbits, so :math:`G^0` fixes :math:`P_H p` iff it fixes :math:`[p]`.
@@ -1287,9 +1286,9 @@ class DiscreteMeasure:
         r"""The maximal expressible groups leaving this measure invariant — its
         symmetry, computed from the nodes, never declared.
 
-        The lattice walk (:func:`~orpheus.numerics.symmetry.maximal_satisfying`)
+        The lattice walk (:func:`~orpheus.geometry.symmetry.maximal_satisfying`)
         with :meth:`is_invariant_under` as its predicate, over
-        :func:`~orpheus.numerics.symmetry.candidate_groups` of the atoms'
+        :func:`~orpheus.geometry.symmetry.candidate_groups` of the atoms'
         ambient points.  Several incomparable maxima can survive (a rule may
         carry both a rotation group and a reflection with neither inside the
         other); the true :math:`\mathrm{Sym}(\mu)` is the group they GENERATE,

@@ -81,7 +81,7 @@ def _mutated_from_quadrature(mut: str):
     Transcribed from ``orpheus/sn/boundary/angular.py`` at B3.4a so each
     mutation is a one-line difference; the mutation points are marked ``# MUT``.
     """
-    from orpheus.numerics.face_layout import AXIS_NAMES
+    from orpheus.geometry.faces import AXIS_NAMES
     from orpheus.numerics.spaces.angular_trace_space import (
         TANGENTIAL_EPS,
         build_omega_dot_n,

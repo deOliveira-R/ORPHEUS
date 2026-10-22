@@ -41,7 +41,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-from orpheus.numerics.manifold import IndexSet
+from orpheus.numerics.index_set import IndexSet
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellEdges, Mesher
 from orpheus.numerics.axis import Declared, Axis, BasisKind
@@ -367,7 +367,7 @@ class TestFrameInduction:
         compares two spellings, not one object with itself)."""
         from orpheus.numerics.basis.indicator_basis import IndicatorBasis
         from orpheus.numerics.frame import GalerkinFrame
-        from orpheus.numerics.manifold import IndexSet
+        from orpheus.numerics.index_set import IndexSet
         from orpheus.numerics.measure import DiscreteMeasure
 
         n = _W_ANG.shape[0]

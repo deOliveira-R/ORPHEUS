@@ -68,7 +68,7 @@ from orpheus.numerics.quadrature.rules_circle import (
     STAGGERED,
     periodic_trapezoid,
 )
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 COMMIT = "c27830f5"
 OUT = pathlib.Path(__file__).with_name("s5_invariance_baseline.json")

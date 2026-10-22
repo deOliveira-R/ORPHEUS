@@ -39,13 +39,13 @@ def _legendre(L, axis):
 
 def _indicator(edges):
     from orpheus.numerics.basis.indicator_basis import IndicatorBasis
-    from orpheus.numerics.manifold import RealSpace
+    from orpheus.geometry.manifold import RealSpace
     return IndicatorBasis((np.asarray(edges, float),), RealSpace(1))
 
 
 def _cell_measure(edges, per_cell=2):
     """``per_cell`` equal-weight midpoint atoms per cell: the measure an indicator frame pairs with."""
-    from orpheus.numerics.manifold import RealSpace
+    from orpheus.geometry.manifold import RealSpace
     from orpheus.numerics.measure import DiscreteMeasure
     e = np.asarray(edges, float)
     nodes, weights = [], []

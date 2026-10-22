@@ -30,7 +30,7 @@ import pytest
 
 from orpheus.numerics.exactness import OrthogonalSystem
 from orpheus.numerics.measure import DiscreteMeasure, equispaced
-from orpheus.numerics.manifold import CIRCLE
+from orpheus.geometry.manifold import CIRCLE
 from orpheus.numerics.quadrature.rules_circle import (
     NODE_ALIGNED,
     STAGGERED,

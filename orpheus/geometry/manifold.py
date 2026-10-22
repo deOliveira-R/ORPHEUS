@@ -32,16 +32,18 @@ consequences, all measured, and all of them the reason this type exists:
   both shipped, naming one quotient and unequal under ``==``.
 
 The type is a **closed sum**: a small frozen variant set, with the
-operations every manifold answers (:attr:`dim`, :meth:`contains`,
-:meth:`__mul__`, :attr:`name`) on the base, and the operations only a
+operations every manifold answers (:attr:`dim`, :attr:`ambient_dim`,
+:meth:`contains`, :meth:`__mul__`, :attr:`name`) on the base, and the operations only a
 *quotient* can answer on :class:`Quotient` alone.  A sphere has no syzygy
 ideal, and under this shape it cannot be asked for one.
 
 ⚠ **The import direction is** ``manifold -> symmetry`` **, at module scope,
 since R2 of #434 (2026-09-03).**  A :class:`Quotient` is a manifold and a
-group, so this module imports :class:`~orpheus.numerics.symmetry.SubgroupOfO3`
-(and the axis table) like any other dependency; ``symmetry`` imports only
-:mod:`orpheus.geometry.transformation`.  Until R2 the direction ran the other
+group, so this module imports :class:`~orpheus.geometry.symmetry.SubgroupOfO3`
+like any other dependency (and, since layer DAG WP-B of 2026-10-22, the axis
+table from :mod:`orpheus.geometry.faces`, its one home); ``symmetry`` imports
+only :mod:`orpheus.geometry.transformation`, the axis table and the roots of
+unity.  Until R2 the direction ran the other
 way — ``symmetry`` held the invariance kernel and therefore imported
 ``measure``, which imports this module, so a module-scope ``manifold ->
 symmetry`` edge closed a cycle and the group could be referenced here only
@@ -75,6 +77,18 @@ rigid motion acts on (:class:`Sphere`, :class:`Ball`, :class:`Circle`,
 rule the base states for quotients — an operation lives on the families that
 answer it — applied to the action: an energy-group index set has no action,
 and asking it for one is a type error rather than a zero-padded answer.
+
+**The members live in two modules** (layer DAG WP-B, 2026-10-22, ruling 8 of
+``.claude/plans/layer_dag.md``).  The base and every geometric member are this
+module, in geometry: a point set and the rigid motions acting on it are
+statements about the domain, which numerics (measures, quadratures, bases)
+imports.  The two finite index sets, :class:`~orpheus.numerics.index_set.IndexSet`
+and :class:`~orpheus.numerics.index_set.EnergyGroups`, are the support of a
+counting measure and stay in numerics (:mod:`orpheus.numerics.index_set`), which
+subclasses this base across the boundary, the allowed direction.  This module
+names neither: each member answers :attr:`Manifold.ambient_dim` itself, where
+until WP-B a module-level ``match`` named every member, the index sets included.
+Until 2026-10-22 this module was ``orpheus/numerics/manifold.py``.
 """
 
 from __future__ import annotations
@@ -88,7 +102,8 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from orpheus.numerics.symmetry import AXIS_INDEX, AXIS_LETTER, SubgroupOfO3
+from orpheus.geometry.faces import AXIS_INDEX, AXIS_NAMES
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 if TYPE_CHECKING:  # RigidMotion is annotation-only here (transformation
     # imports no numerics, so that is a choice, not a cycle)
@@ -107,8 +122,6 @@ __all__ = [
     "Circle",
     "Interval",
     "RealSpace",
-    "EnergyGroups",
-    "IndexSet",
     "Product",
     "Quotient",
     "SPHERE",
@@ -117,8 +130,6 @@ __all__ = [
     "COSINE_INTERVAL",
     "HALF_LINE",
     "REAL_LINE",
-    "ENERGY",
-    "ambient_dim",
     "ManifoldMap",
     "archimedes",
     "barycentre",
@@ -143,7 +154,8 @@ class Manifold(ABC):
     asking a sphere for a quotient's syzygy ideal is a type error rather
     than a ``None``.
 
-    Subclassing outside this module is not supported: the set is closed
+    Subclassing outside this module and :mod:`orpheus.numerics.index_set`
+    (the finite index sets) is not supported: the set is closed
     so that a new operation can be checked against every member.
     """
 
@@ -151,6 +163,28 @@ class Manifold(ABC):
     @abstractmethod
     def dim(self) -> int:
         """Topological dimension of the manifold."""
+        ...
+
+    @property
+    @abstractmethod
+    def ambient_dim(self) -> int:
+        r"""Ambient coordinate count: how many columns a point of this manifold occupies.
+
+        The *embedding* width, distinct from :attr:`dim` (the *topological*
+        dimension): :class:`Sphere` is a 2-manifold carried in 3 columns, and
+        :class:`~orpheus.numerics.index_set.EnergyGroups` is 0-dimensional
+        carried in 1. Both numbers are real and neither derives from the other,
+        which is why this is a separate question rather than an arithmetic on
+        :attr:`dim`.
+
+        Abstract, so every member answers it: a member that forgets it cannot be
+        instantiated. The laws: additive on :class:`Product`, the base's on
+        :class:`FundamentalDomain`, the realization's on :class:`Quotient`.
+        Until layer DAG WP-B (2026-10-22) this was a module-level ``match``
+        naming every member, the index sets included; that match was the one
+        place the geometric members named the numerics ones, and the property
+        dissolved it (ruling 8 of ``.claude/plans/layer_dag.md``).
+        """
         ...
 
     @property
@@ -299,7 +333,7 @@ class GSpace(Manifold):
             the gap, so a fresh session can pick it up.
         ValueError
             When ``group`` is not the orbit space's STABILISER
-            (:attr:`~orpheus.numerics.symmetry.SubgroupOfO3.orbit_stabiliser`)
+            (:attr:`~orpheus.geometry.symmetry.SubgroupOfO3.orbit_stabiliser`)
             — the largest subgroup with its orbits.  A smaller orbit-equivalent
             group names the same point set, so it is not a second entry
             but a second spelling, and it is refused with the theorem
@@ -327,7 +361,7 @@ class GSpace(Manifold):
     @property
     def acting_dimension(self) -> int:
         """The :math:`d` of the rigid motions in :math:`E(d)` asked to act here."""
-        return ambient_dim(self)
+        return self.ambient_dim
 
     @abstractmethod
     def _refusal(self, motion: "RigidMotion") -> "DoesNotMap | DoesNotNormalise | None":
@@ -449,6 +483,10 @@ class Sphere(GSpace):
         return 2
 
     @property
+    def ambient_dim(self) -> int:
+        return 3
+
+    @property
     def name(self) -> str:
         return "S^2"
 
@@ -478,6 +516,10 @@ class Circle(GSpace):
     @property
     def dim(self) -> int:
         return 1
+
+    @property
+    def ambient_dim(self) -> int:
+        return 2
 
     @property
     def name(self) -> str:
@@ -524,6 +566,10 @@ class Interval(GSpace):
 
     @property
     def dim(self) -> int:
+        return 1
+
+    @property
+    def ambient_dim(self) -> int:
         return 1
 
     @property
@@ -588,6 +634,10 @@ class RealSpace(GSpace):
         return self.d
 
     @property
+    def ambient_dim(self) -> int:
+        return self.d
+
+    @property
     def name(self) -> str:
         return f"spatial_R{self.d}"
 
@@ -599,74 +649,6 @@ class RealSpace(GSpace):
     def _refusal(self, motion: "RigidMotion") -> DoesNotMap | None:
         r"""Every motion of :math:`E(d)` maps :math:`\mathbb{R}^d` onto itself."""
         return None
-
-
-# ---------------------------------------------------------------------------
-# Discrete members — a finite index set carries no geometry
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class IndexSet(Manifold):
-    r"""A finite index set — ``n`` points with no metric structure.
-
-    Two shipped sites minted this concept under incompatible spellings:
-    ``frame.py``'s ``f"index({axis_label})"`` and
-    ``loss_kernel_gauge.py``'s ``f"sn_trace_orbit{orbit}_g{group}"``,
-    whose "points" are trace DOF indices cast to float.  They are one
-    family; ``label`` is what distinguishes the instances.
-
-    ``n`` is optional: a label alone identifies the set, and the
-    cardinality is often the measure's own ``n_points``.
-    """
-
-    label: str
-    n: int | None = None
-
-    @property
-    def dim(self) -> int:
-        return 0
-
-    @property
-    def name(self) -> str:
-        return f"index({self.label})"
-
-    def contains(self, points: ArrayLike) -> bool:
-        arr = self._as_points(points, 1)[:, 0]
-        if not np.all(arr == np.floor(arr)):
-            return False
-        if self.n is None:
-            return bool(np.all(arr >= 0))
-        return bool(np.all((arr >= 0) & (arr < self.n)))
-
-
-@dataclass(frozen=True)
-class EnergyGroups(Manifold):
-    r"""The multigroup energy axis — a counting set of ``ng`` groups.
-
-    Distinct from a bare :class:`IndexSet` because the measure's PHASE
-    depends on it: an energy group index and any other integer-noded
-    counting rule are indistinguishable from their nodes alone, which is
-    exactly why the tag had to supply the physical identity.
-    """
-
-    ng: int | None = None
-
-    @property
-    def dim(self) -> int:
-        return 0
-
-    @property
-    def name(self) -> str:
-        return "energy"
-
-    def contains(self, points: ArrayLike) -> bool:
-        arr = self._as_points(points, 1)[:, 0]
-        if not np.all(arr == np.floor(arr)):
-            return False
-        if self.ng is None:
-            return bool(np.all(arr >= 0))
-        return bool(np.all((arr >= 0) & (arr < self.ng)))
 
 
 # ---------------------------------------------------------------------------
@@ -686,16 +668,21 @@ class Product(Manifold):
         return self.left.dim + self.right.dim
 
     @property
+    def ambient_dim(self) -> int:
+        """Additive: the factors' columns, concatenated."""
+        return self.left.ambient_dim + self.right.ambient_dim
+
+    @property
     def name(self) -> str:
         return f"{self.left.name} × {self.right.name}"
 
     def contains(self, points: ArrayLike) -> bool:
         arr = np.atleast_2d(np.asarray(points, dtype=float))
-        split = ambient_dim(self.left)
-        if arr.shape[1] != split + ambient_dim(self.right):
+        split = self.left.ambient_dim
+        if arr.shape[1] != split + self.right.ambient_dim:
             raise ValueError(
                 f"{self.name}.contains expects ambient dimension "
-                f"{split + ambient_dim(self.right)}; got shape {arr.shape}."
+                f"{split + self.right.ambient_dim}; got shape {arr.shape}."
             )
         return self.left.contains(arr[:, :split]) and self.right.contains(
             arr[:, split:]
@@ -718,6 +705,10 @@ class Ball(GSpace):
 
     @property
     def dim(self) -> int:
+        return self.d
+
+    @property
+    def ambient_dim(self) -> int:
         return self.d
 
     @property
@@ -791,11 +782,16 @@ class FundamentalDomain(Manifold):
         return self.base.dim - pairs
 
     @property
+    def ambient_dim(self) -> int:
+        """Invariant: a fundamental domain is cut from its base's columns."""
+        return self.base.ambient_dim
+
+    @property
     def name(self) -> str:
         return f"{self.base.name}|{self.label}"
 
     def contains(self, points: ArrayLike) -> bool:
-        arr = self._as_points(points, ambient_dim(self.base))
+        arr = self._as_points(points, self.base.ambient_dim)
         if not self.base.contains(arr):
             return False
         # Closed half-spaces — see the class docstring's ⛔ note on why
@@ -954,7 +950,7 @@ class Quotient(GSpace):
            M/H = \dim M - \dim(H \cdot p)` at a generic :math:`p` — the
            generic ORBIT's dimension, asked of the group over the base's
            generic points (:meth:`SubgroupOfO3.generic_orbit_dimension
-           <orpheus.numerics.symmetry.SubgroupOfO3.generic_orbit_dimension>`),
+           <orpheus.geometry.symmetry.SubgroupOfO3.generic_orbit_dimension>`),
            and NOT :math:`\dim H`: :math:`O(3)` on :math:`S^2` has
            :math:`\dim 3` and 2-dimensional orbits (the sphere is one orbit),
            :math:`SO(3)` on :math:`\mathbb{R}^3` likewise, so a law spelled
@@ -1005,12 +1001,12 @@ class Quotient(GSpace):
                 f"chart of an orbit space realizes its dimension; check the "
                 f"elimination against {self.base.name}'s own ideal."
             )
-        if ambient_dim(self.lift_codomain) != ambient_dim(self.base):
+        if self.lift_codomain.ambient_dim != self.base.ambient_dim:
             raise ValueError(
                 f"{self.name}: the lift lands in {self.base.name}'s ambient "
-                f"space ({ambient_dim(self.base)} columns), but lift_codomain "
+                f"space ({self.base.ambient_dim} columns), but lift_codomain "
                 f"{self.lift_codomain.name!r} has "
-                f"{ambient_dim(self.lift_codomain)}. A codomain a consumer "
+                f"{self.lift_codomain.ambient_dim}. A codomain a consumer "
                 f"reads to learn what it was handed must be the one the map "
                 f"actually lands in."
             )
@@ -1030,6 +1026,11 @@ class Quotient(GSpace):
     @property
     def dim(self) -> int:
         return self.realization.dim
+
+    @property
+    def ambient_dim(self) -> int:
+        """The realization's columns: the orbit space is carried in its invariant chart."""
+        return self.realization.ambient_dim
 
     @property
     def name(self) -> str:
@@ -1127,15 +1128,15 @@ class Quotient(GSpace):
         if arr.ndim == 1:
             arr = arr[:, None]
         width = arr.shape[1]
-        if width == ambient_dim(self.base):
+        if width == self.base.ambient_dim:
             chart = self.orbit_coordinates(arr)
-        elif width == ambient_dim(self.realization):
+        elif width == self.realization.ambient_dim:
             chart = arr
         else:
             raise ValueError(
                 f"{self.name}: points of width {width} are in neither the base's "
-                f"coordinates ({ambient_dim(self.base)}) nor the chart's "
-                f"({ambient_dim(self.realization)})."
+                f"coordinates ({self.base.ambient_dim}) nor the chart's "
+                f"({self.realization.ambient_dim})."
             )
         lifted = np.asarray(self.lift_coordinates(chart), dtype=float)
         return lifted if lifted.ndim == 2 else lifted[:, None]
@@ -1144,7 +1145,7 @@ class Quotient(GSpace):
     def acting_dimension(self) -> int:
         """The BASE's acting dimension: an orbit space is acted on through its
         base, so the motions are the base's, whatever the chart's width
-        (:func:`ambient_dim` of a quotient is the chart's).  Read through the
+        (:attr:`~Manifold.ambient_dim` of a quotient is the chart's).  Read through the
         base's own property, so a quotient of a quotient asks the sphere."""
         return self.base.acting_dimension
 
@@ -1209,7 +1210,7 @@ class Quotient(GSpace):
         group. So the entry asks exactly that: tabulate ``basis`` at generic
         base points and at their images under the group's GENERIC elements
         (:meth:`SubgroupOfO3.generic_images
-        <orpheus.numerics.symmetry.SubgroupOfO3.generic_images>` — every
+        <orpheus.geometry.symmetry.SubgroupOfO3.generic_images>` — every
         element of a finite group; for the axial groups :math:`SO(2)_a` /
         :math:`O(2)_a`, rotations by
         INCOMMENSURATE angles, because a sample of right angles generates
@@ -1269,15 +1270,15 @@ class Quotient(GSpace):
         width — the one place the distinction is a genuine local split
         rather than a repeated tag test.
 
-        ⚠ :func:`ambient_dim` still reports the REALIZATION's width: that is
+        ⚠ :attr:`~Manifold.ambient_dim` still reports the REALIZATION's width: that is
         the canonical coordinate for composition (a :class:`Product`
         factor must have one width).  This method is deliberately the
         wider of the two.
         """
         arr = np.atleast_1d(np.asarray(points, dtype=float))
-        chart = ambient_dim(self.realization)
+        chart = self.realization.ambient_dim
         if self.fundamental_domain is not None:
-            section = ambient_dim(self.fundamental_domain)
+            section = self.fundamental_domain.ambient_dim
             width = arr.shape[1] if arr.ndim == 2 else 1
             if width == section and section != chart:
                 return self.fundamental_domain.contains(arr)
@@ -1322,7 +1323,6 @@ COSINE_INTERVAL = Interval(-1.0, 1.0)  # replaced SPACE_INTERVAL_M11
 UNIT_INTERVAL = Interval(0.0, 1.0)  # replaced SPACE_INTERVAL_01
 HALF_LINE = Interval(0.0, float(np.inf))  # replaced SPACE_HALF_LINE
 REAL_LINE = Interval(float(-np.inf), float(np.inf))  # replaced SPACE_R
-ENERGY = EnergyGroups()
 
 
 # ---------------------------------------------------------------------------
@@ -1330,12 +1330,14 @@ ENERGY = EnergyGroups()
 # the objects of (2026-09-02, #429 tracker 2.3)
 # ---------------------------------------------------------------------------
 
-# The axis table (``AXIS_LETTER`` / ``AXIS_INDEX``) lives in
-# :mod:`orpheus.numerics.symmetry` and is imported above: it lived HERE from
+# The axis table (``AXIS_NAMES`` / ``AXIS_INDEX``) lives in
+# :mod:`orpheus.geometry.faces` and is imported above. It lived HERE from
 # 2026-09-02 to 2026-09-03 because this module could not import ``symmetry``
-# at module scope, and moved back with R2 of #434 when the import direction
-# reversed (`[M]` keeping it here under the new direction closed a 2-cycle
-# that killed 6 of 9 entry points).
+# at module scope, and moved back to ``symmetry`` (as ``AXIS_LETTER``) with R2
+# of #434 when the import direction reversed (`[M]` keeping it here under the
+# new direction closed a 2-cycle that killed 6 of 9 entry points); since layer
+# DAG WP-B (2026-10-22) it is the face naming's table, merged with the
+# point groups' transcription of it.
 
 #: Nine GENERIC unit directions — no component zero, no two related by a
 #: coordinate symmetry — the base points at which an orbit-space entry asks
@@ -1413,8 +1415,8 @@ class ManifoldMap:
         different function of direction.
     apply : callable
         The map on AMBIENT coordinates, vectorised over an
-        ``(n, ambient_dim(domain))`` array (``(n,)`` is accepted for a 1-D
-        domain) and returning ``(n, ambient_dim(codomain))``.  It is called
+        ``(n, domain.ambient_dim)`` array (``(n,)`` is accepted for a 1-D
+        domain) and returning ``(n, codomain.ambient_dim)``.  It is called
         ONCE with the whole array, so an index-based map — the orbit
         retraction ``nodes -> nodes[representative]``, a well-defined map
         on the finite node set that happens to be spelled by index — is a
@@ -1619,7 +1621,7 @@ def quotient_onto(source: Manifold, target: Manifold) -> ManifoldMap | None:
       level-symmetric rule);
     * both are quotients of one base and the group ``source`` SPENT is
       contained in the group ``target`` was quotiented BY (:math:`K \subseteq H`,
-      :meth:`SubgroupOfO3.contains <orpheus.numerics.symmetry.SubgroupOfO3.contains>`)
+      :meth:`SubgroupOfO3.contains <orpheus.geometry.symmetry.SubgroupOfO3.contains>`)
       — the induced map :math:`M/K \to M/H`, applied to the source's
       representatives (section coordinates: a folded rule's nodes are points
       of the base). ⚠ A source given in its REALIZATION's coordinates against
@@ -1749,8 +1751,9 @@ def _generic_points(base: Manifold) -> NDArray:
     :data:`_GENERIC_SPHERE_PROBE`; a flat ambient base gets four seeded
     vectors inside the unit ball (forward machinery for #440 — `[M]` no
     shipped entry reaches it); a base no continuous group acts on has none,
-    and none is asked (a finite group's orbits are points).  An exhaustive
-    ``match`` for the reason :func:`ambient_dim` is one.
+    and none is asked (a finite group's orbits are points).  A ``match`` with
+    a raising fallthrough: a base with a continuous action and no spelled probe
+    is refused by name rather than handed a plausible set.
     """
     match base:
         case Sphere():
@@ -1823,7 +1826,7 @@ def _catalogued_quotient(base: GSpace, group: SubgroupOfO3) -> Quotient:
             f"ideal I by elimination; Procesi-Schwarz P_ij = "
             f"<grad p_i, grad p_j> with P >= 0; intersect with the "
             f"ideal of {base.name}) and register it in "
-            f"orpheus/numerics/manifold.py's _ORBIT_CATALOGUE, or "
+            f"orpheus/geometry/manifold.py's _ORBIT_CATALOGUE, or "
             f"implement the derivation engine. "
             f"Catalogued today (manifold CLASS / group): "
             f"{sorted(f'{m.__name__}/{g}' for m, g in _ORBIT_CATALOGUE)}."
@@ -1848,7 +1851,7 @@ def _sphere_mod_o2(base: GSpace, group: SubgroupOfO3) -> Quotient:
     :math:`O(2)_a = \{g : g\hat e_a = \hat e_a\}` — and asking for the
     quotient by :math:`SO(2)_a` is refused with that theorem, at the
     catalogue door and at :class:`Quotient`'s construction, both reading
-    :attr:`~orpheus.numerics.symmetry.SubgroupOfO3.orbit_stabiliser`
+    :attr:`~orpheus.geometry.symmetry.SubgroupOfO3.orbit_stabiliser`
     (:func:`_assert_named_by_stabiliser`; this builder is a pure
     derivation and trusts ``group``), so one
     orbit space has one spelling (#432, 2026-09-02; until then the entry
@@ -1928,7 +1931,7 @@ def _sphere_mod_o2(base: GSpace, group: SubgroupOfO3) -> Quotient:
     # pi_a: the surviving invariant p_1 = x_a, read off the base's ambient
     # coordinates ((n,) out, the shape a polar marginal's nodes have); and its
     # lift mu -> mu e_a, the orbit barycentre.  One pair, spelled once.
-    ambient = ambient_dim(base)
+    ambient = base.ambient_dim
     chart, lift = _coordinate_chart(axis, ambient)
     return Quotient(
         base=base,
@@ -2041,7 +2044,7 @@ def _sphere_mod_mirror(base: GSpace, group: SubgroupOfO3) -> Quotient:
     # pi_a: the two surviving invariants (x_b, x_c) — the kept columns, in
     # the order the disk's coordinates (p_1, p_2) are named; and the lift
     # (x_b, x_c) -> (0, x_b, x_c), the barycentre of {p, sigma_a p}.
-    ambient = ambient_dim(base)
+    ambient = base.ambient_dim
     chart, lift = _coordinate_chart([i for i in range(ambient) if i != axis], ambient)
     return Quotient(
         base=base,
@@ -2057,7 +2060,7 @@ def _sphere_mod_mirror(base: GSpace, group: SubgroupOfO3) -> Quotient:
         fundamental_domain=FundamentalDomain(
             base=base,
             normals=(tuple(1.0 if i == axis else 0.0 for i in range(3)),),
-            label=f"{AXIS_LETTER[axis]}>=0",
+            label=f"{AXIS_NAMES[axis]}>=0",
         ),
         generators=(
             u[0] - invariants[0],
@@ -2107,7 +2110,7 @@ def _mod_trivial(base: GSpace, group: SubgroupOfO3) -> Quotient:
     """
     import sympy as sp
 
-    n = ambient_dim(base)
+    n = base.ambient_dim
     coords = sp.symbols(f"x0:{n}", real=True)
     return Quotient(
         base=base,
@@ -2163,7 +2166,7 @@ _ORBIT_CATALOGUE: dict[
 
 def _assert_named_by_stabiliser(base: Manifold, group: SubgroupOfO3) -> None:
     r"""Refuse a group that is not its own
-    :attr:`~orpheus.numerics.symmetry.SubgroupOfO3.orbit_stabiliser`.
+    :attr:`~orpheus.geometry.symmetry.SubgroupOfO3.orbit_stabiliser`.
 
     An orbit space is named by its stabiliser — the largest subgroup of
     :math:`O(3)` with its orbits.  A smaller orbit-equivalent group
@@ -2188,45 +2191,6 @@ def _assert_named_by_stabiliser(base: Manifold, group: SubgroupOfO3) -> None:
         f"have the same invariant ring, so the same orbits and ONE orbit "
         f"space. An orbit space is named by its stabiliser; spell "
         f"{stabiliser!r} (#432)."
-    )
-
-
-def ambient_dim(m: Manifold) -> int:
-    r"""Ambient coordinate count — how many columns ``m`` consumes.
-
-    The *embedding* width, distinct from :attr:`Manifold.dim` (the
-    *topological* dimension): :class:`Sphere` is a 2-manifold carried in
-    3 columns, and :class:`EnergyGroups` is 0-dimensional carried in 1.
-    Both numbers are real and neither derives from the other, which is
-    why this is a separate question rather than an arithmetic on ``dim``.
-
-    Public because a consumer OUTSIDE this module now asks it: an
-    :class:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis`
-    validates that its per-axis partition has one axis per coordinate of
-    the manifold it partitions. Kept as a module-level ``match`` rather
-    than a per-variant property so the exhaustiveness is checkable in one
-    place — adding a :class:`Manifold` member and forgetting its width
-    raises here instead of returning a plausible number.
-    """
-    match m:
-        case Sphere():
-            return 3
-        case Circle():
-            return 2
-        case Interval() | IndexSet() | EnergyGroups():
-            return 1
-        case RealSpace(d=d) | Ball(d=d):
-            return d
-        case FundamentalDomain(base=base):
-            return ambient_dim(base)
-        case Product(left=left, right=right):
-            return ambient_dim(left) + ambient_dim(right)
-        case Quotient(realization=realization):
-            return ambient_dim(realization)
-    raise NotImplementedError(
-        f"ambient dimension is undefined for {type(m).__name__}. A new "
-        f"Manifold variant must be added here — this match is deliberately "
-        f"exhaustive so that adding a member cannot silently skip it."
     )
 
 

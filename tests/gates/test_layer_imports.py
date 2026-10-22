@@ -255,12 +255,59 @@ def test_values_imports_nothing_from_orpheus(target: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# The points and the group action live in geometry (layer_dag.md rulings 1, 8)
+# ---------------------------------------------------------------------------
+#
+# The point groups (`symmetry`), the exact realization of C_n they generate
+# (`roots_of_unity`) and the point sets they act on (the `Manifold` closed sum)
+# are geometry: numerics (measures, quadratures, bases) imports them, never the
+# reverse. Until WP-B (2026-10-22) all three were numerics modules, which put
+# geometry -> numerics edges under the rigid-motion core.
+
+_GEOMETRY_OWNED_NUMERICS_STEMS: frozenset[str] = frozenset({"symmetry", "roots_of_unity"})
+
+
+def _modules_defining_class(root: pathlib.Path, name: str) -> list[str]:
+    """Every module under ``root`` whose top level defines ``class <name>`` (AST)."""
+    return sorted(
+        str(path.relative_to(ORPHEUS_ROOT))
+        for path in _iter_python_modules(root)
+        if any(
+            isinstance(node, ast.ClassDef) and node.name == name
+            for node in ast.parse(path.read_text(encoding="utf-8")).body
+        )
+    )
+
+
+@pytest.mark.foundation
+def test_the_points_and_the_group_action_are_geometry() -> None:
+    """No numerics module is the point-group or root-of-unity module, none defines the
+    ``Manifold`` ABC, and geometry holds the point groups. The class finder is checked on
+    its known member first (X1): geometry's own ``RigidMotion``."""
+    assert _modules_defining_class(ORPHEUS_ROOT / "geometry", "RigidMotion") == [
+        "geometry/transformation.py"
+    ]
+    misplaced = sorted(
+        str(p.relative_to(ORPHEUS_ROOT))
+        for p in _iter_python_modules(ORPHEUS_ROOT / "numerics")
+        if p.stem in _GEOMETRY_OWNED_NUMERICS_STEMS
+    )
+    assert not misplaced, f"geometry concepts still in numerics: {misplaced}"
+    assert _modules_defining_class(ORPHEUS_ROOT / "numerics", "Manifold") == []
+    assert _modules_defining_class(ORPHEUS_ROOT / "geometry", "Manifold") == ["geometry/manifold.py"]
+    assert (ORPHEUS_ROOT / "geometry" / "symmetry.py").is_file()
+    assert (ORPHEUS_ROOT / "geometry" / "roots_of_unity.py").is_file()
+
+
+# ---------------------------------------------------------------------------
 # The numerics -> geometry back-edge, and the discipline that makes it safe
 # ---------------------------------------------------------------------------
 #
-# `numerics/__init__.py` imports `symmetry`, and `symmetry` imports
-# `geometry.transformation` (the rigid-motion core). That is a genuine package
-# CYCLE: importing `orpheus.numerics` runs `orpheus.geometry.__init__`, which
+# `numerics/__init__.py` imports `measure`, whose supports are geometry's
+# (`geometry.manifold`, with the point groups of `geometry.symmetry`; until
+# layer DAG WP-B of 2026-10-22 `numerics/__init__` imported `symmetry` itself,
+# a numerics module importing `geometry.transformation`). That is a genuine
+# package CYCLE: importing `orpheus.numerics` runs `orpheus.geometry.__init__`, which
 # imports `orpheus.geometry.boundary`, which imports back into
 # `orpheus.numerics` — while `orpheus.numerics.__init__` is still
 # mid-execution.
@@ -286,8 +333,8 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
     `from orpheus.numerics.measure import DiscreteMeasure` is fine;
     `from orpheus.numerics import DiscreteMeasure` is not, because the second
     form is an attribute lookup that fails while `numerics/__init__` is still
-    executing — which is exactly the state it is in when `symmetry` reaches
-    across to `geometry.transformation`.
+    executing — which is exactly the state it is in when `measure` reaches
+    across to `geometry.manifold`.
     """
     offenders: list[str] = []
     for module_path in _iter_python_modules(ORPHEUS_ROOT / package):
@@ -323,13 +370,20 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
     [
         "orpheus",
         "orpheus.numerics",
-        "orpheus.numerics.symmetry",
+        "orpheus.geometry.symmetry",
+        # layer DAG WP-B (2026-10-22): the points and the group action moved
+        # down into geometry; the face naming left face_layout for geometry;
+        # the finite index sets stayed in numerics, in their own module.
+        "orpheus.geometry.faces",
+        "orpheus.geometry.roots_of_unity",
+        "orpheus.numerics.index_set",
+        "orpheus.numerics.face_layout",
         # R2 of #434 (2026-09-03): the four entries the V1 cycle killed that
         # the list above could not see — `[M]` with `manifold -> symmetry` at
         # module scope AND symmetry still importing the axis table from
         # manifold, 6 of 9 entry points died while `import orpheus` stayed
         # green (order-dependent; plan-authoring §6d).
-        "orpheus.numerics.manifold",
+        "orpheus.geometry.manifold",
         "orpheus.numerics.measure",
         # (``orpheus.numerics.invariance`` was an entry until S5, 2026-10-19,
         # which deleted the module: invariance is the measure's composition.)
@@ -761,7 +815,7 @@ _INSULATION_ADMITTED_LEGS = [
     ("derivations/common/x.py", "from orpheus.numerics import question\n"),
     ("derivations/continuous/x/y.py", "from orpheus.numerics.traced_memo import traced_memo\n"),
     ("derivations/continuous/mms/sn.py", "from orpheus.numerics.quadrature import Quadrature\n"),
-    ("derivations/discrete/sn/x.py", "from orpheus.numerics.roots_of_unity import roots_of_unity\n"),
+    ("derivations/discrete/sn/x.py", "from orpheus.numerics.eigenvalue import dominant_eigenpair\n"),
     ("derivations/common/x.py", "import numpy as np\nimport scipy.linalg\n"),
     ("derivations/continuous/mms/moc.py", "from orpheus.moc.geometry import MOCMesh\n"),
     ("derivations/common/x.py", "from orpheus.geometry import StructuredGeometry\nfrom orpheus.data.materials import Materials\n"),

@@ -93,7 +93,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.manifold import IndexSet
+from orpheus.numerics.index_set import IndexSet
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC
 from orpheus.numerics.basis import GramStructure

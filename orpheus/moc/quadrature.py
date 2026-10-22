@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from orpheus.numerics.roots_of_unity import roots_of_unity
+from orpheus.geometry.roots_of_unity import roots_of_unity
 
 # ── Tabuchi-Yamamoto tables ─────────────────────────────────────────
 # Each entry: (sin_theta, weight) for one polar angle per half-space.
@@ -77,7 +77,7 @@ class MOCQuadrature:
 
     The PRIMARY azimuthal representation is the point pair
     ``(cos_phi, sin_phi)``, generated from the group action
-    (:func:`~orpheus.numerics.roots_of_unity.roots_of_unity` at the
+    (:func:`~orpheus.geometry.roots_of_unity.roots_of_unity` at the
     rational :math:`(2k+1)/(4n)` of a full turn) rather than by
     evaluating trig on stored angles — so the dihedral symmetry is
     EXACT on floats: the azimuthal mirror :math:`\varphi \to \pi -

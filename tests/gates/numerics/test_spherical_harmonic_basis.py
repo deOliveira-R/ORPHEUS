@@ -28,10 +28,10 @@ from orpheus.numerics.basis.spherical_harmonic_basis import (
     SphericalHarmonicBasis,
 )
 from orpheus.numerics.frame import GalerkinFrame
-from orpheus.numerics.manifold import SPHERE
+from orpheus.geometry.manifold import SPHERE
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 
 def _unit(directions: np.ndarray) -> np.ndarray:

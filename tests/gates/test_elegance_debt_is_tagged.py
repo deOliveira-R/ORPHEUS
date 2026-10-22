@@ -178,7 +178,7 @@ def test_every_scope_boundary_names_its_machinery_ruling_and_revisit_condition()
     catalogue's door, non-vacuity), and every one names the machinery that
     would derive the refused property, the ruling, and what would overturn it."""
     sites, violations = _boundary_guards()
-    if not any("numerics/manifold.py" in s for s in sites):
+    if not any("geometry/manifold.py" in s for s in sites):
         pytest.fail("the orbit catalogue's door carries no SCOPE-BOUNDARY[guard] token; the ledger's known member is missing")
     if violations:
         pytest.fail("SCOPE-BOUNDARY[guard] ledger violations:\n  " + "\n  ".join(violations))

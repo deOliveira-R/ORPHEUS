@@ -32,7 +32,7 @@ import pytest
 
 from orpheus.numerics.exactness import UNIFORM_ON_SPHERE
 from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE, pushforward_reference
-from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE, Quotient
+from orpheus.geometry.manifold import COSINE_INTERVAL, SPHERE, Quotient
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import (
     Quadrature,
@@ -53,14 +53,14 @@ from orpheus.numerics.quadrature.registry import (
     _product_invert,
     _registry,
 )
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 # 2.2b gates (test-architect, 2026-09-02) — the draft's imports, verbatim
 import numpy as np
 import pytest
 
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.manifold import (
+from orpheus.geometry.manifold import (
     COSINE_INTERVAL,
     SPHERE,
     Ball,
@@ -75,7 +75,7 @@ from orpheus.numerics.quadrature.rules_1d import (
     gauss_legendre_on_mu,
     gauss_legendre_on_polar_orbit,
 )
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 
 # ---------------------------------------------------------------------------
@@ -1366,7 +1366,7 @@ def test_the_reference_is_READ_off_the_catalogue_entry() -> None:
     RAISES naming the missing work (``plan-authoring`` §6c: the gate lands
     with its witness — a constructed geometry spending a mirror).
     """
-    from orpheus.numerics.manifold import Quotient
+    from orpheus.geometry.manifold import Quotient
 
     slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
     assert isinstance(slab.support, Quotient)

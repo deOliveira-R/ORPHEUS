@@ -1,4 +1,4 @@
-r"""Intrinsic-property gates for :func:`orpheus.numerics.roots_of_unity.roots_of_unity`.
+r"""Intrinsic-property gates for :func:`orpheus.geometry.roots_of_unity.roots_of_unity`.
 
 This module tests the primitive's **defining laws**, not its usage — the
 project standard for any math-bearing type (see the ``test-architect``
@@ -44,7 +44,7 @@ catcher: :func:`test_no_negative_zero`, written on :func:`numpy.signbit`.
 
 See Also
 --------
-:mod:`orpheus.numerics.roots_of_unity`
+:mod:`orpheus.geometry.roots_of_unity`
     The construction and its two integer-decided fixed points.
 """
 from __future__ import annotations
@@ -52,7 +52,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.roots_of_unity import _SQRT_HALF, roots_of_unity
+from orpheus.geometry.roots_of_unity import _SQRT_HALF, roots_of_unity
 
 pytestmark = pytest.mark.foundation
 

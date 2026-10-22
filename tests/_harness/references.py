@@ -32,7 +32,7 @@ import numpy as np
 
 #: Axis letter → direction-cosine column. Deliberately a local literal
 #: rather than an import of the production convention home
-#: (``face_layout.AXIS_NAMES``): the reference must stay readable as
+#: (``orpheus.geometry.faces.AXIS_NAMES``): the reference must stay readable as
 #: self-contained numpy, and a convention drift between the two IS a
 #: defect these gates should surface, not absorb.
 _AXIS_INDEX = {"x": 0, "y": 1, "z": 2}

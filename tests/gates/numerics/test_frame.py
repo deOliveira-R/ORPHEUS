@@ -47,8 +47,8 @@ from orpheus.numerics.basis.legendre_basis import LegendreBasis
 from orpheus.numerics.basis.spherical_harmonic_basis import (
     MirrorEvenSphericalHarmonicBasis,
 )
-from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE, RealSpace
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.manifold import COSINE_INTERVAL, SPHERE, RealSpace
+from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.metric import _DENSE_METRIC_RCOND, DenseMetric, FactoredMetric

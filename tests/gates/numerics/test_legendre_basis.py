@@ -56,9 +56,9 @@ from scipy.special import eval_legendre, lpmv
 from orpheus.numerics.basis.legendre_basis import LegendreBasis, legendre_table
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import GalerkinFrame
-from orpheus.numerics.manifold import SPHERE
+from orpheus.geometry.manifold import SPHERE
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 pytestmark = [pytest.mark.foundation]
 

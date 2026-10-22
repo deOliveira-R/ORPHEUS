@@ -112,8 +112,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol, runtime_checkable
 
-from orpheus.numerics.manifold import Manifold
-from orpheus.numerics.manifold import CIRCLE, SPHERE
+from orpheus.geometry.manifold import Manifold
+from orpheus.geometry.manifold import CIRCLE, SPHERE
 
 
 class OrthogonalSystem(Enum):

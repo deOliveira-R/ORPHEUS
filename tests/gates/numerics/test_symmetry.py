@@ -1,4 +1,4 @@
-r"""Foundation tests for :mod:`orpheus.numerics.symmetry`.
+r"""Foundation tests for :mod:`orpheus.geometry.symmetry`.
 
 Every test here is tagged ``foundation`` because the assertions verify
 software invariants of the static :math:`O(3)`-subgroup lattice and the
@@ -29,9 +29,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE
+from orpheus.geometry.manifold import COSINE_INTERVAL, SPHERE
 from orpheus.numerics.measure import DiscreteMeasure
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics.quadrature import Quadrature
 
 # 2.2b gates (test-architect, 2026-09-02) — the draft's imports, verbatim
@@ -42,7 +42,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.manifold import (
+from orpheus.geometry.manifold import (
     COSINE_INTERVAL,
     SPHERE,
     Ball,
@@ -57,9 +57,9 @@ from orpheus.numerics.quadrature.rules_1d import (
     gauss_legendre_on_mu,
     gauss_legendre_on_polar_orbit,
 )
-from orpheus.numerics.symmetry import (IdentityComponent, Realization, SubgroupOfO3, _ELEMENT_ATOL,)
+from orpheus.geometry.symmetry import IdentityComponent, Realization, SubgroupOfO3, _ELEMENT_ATOL
 from orpheus.numerics.measure import WEIGHT_ATOL, _node_window
-from orpheus.numerics.symmetry import candidate_groups
+from orpheus.geometry.symmetry import candidate_groups
 
 
 # ============================================================================
@@ -584,7 +584,7 @@ def test_so2_verdict_is_not_a_function_of_n_phi_mod_4() -> None:
 def _icosahedron_vertices() -> np.ndarray:
     r"""The 12 icosahedron vertices, built from the golden ratio.
 
-    Constructed here rather than from :mod:`~orpheus.numerics.symmetry`'s own
+    Constructed here rather than from :mod:`~orpheus.geometry.symmetry`'s own
     operator tables, so the fixture is structurally independent of the module
     under test (``vv-principles`` L11).
     """
@@ -803,7 +803,7 @@ def test_realized_group_orders_are_textbook() -> None:
     wrong in the same direction and silently. Orders are the cheapest
     independent check: |D_nh| = 4n, |O_h| = 48, |I_h| = 120.
     """
-    from orpheus.numerics.symmetry import _close_group, _realized_ops
+    from orpheus.geometry.symmetry import _close_group, _realized_ops
 
     expected = {
         "Trivial": (SubgroupOfO3.Trivial, 1),
@@ -855,7 +855,7 @@ def test_computed_containment_obeys_the_order_relation_laws() -> None:
     A computed lattice can be checked against the laws an order relation
     must satisfy; a hand-written one cannot be checked at all.
     """
-    from orpheus.numerics.symmetry import _close_group, _realized_ops
+    from orpheus.geometry.symmetry import _close_group, _realized_ops
 
     finite = [
         SubgroupOfO3.Trivial, SubgroupOfO3.Mirror("z"),
@@ -1273,7 +1273,7 @@ def test_orbit_stabilizer_theorem_holds_on_every_certificate() -> None:
     independently re-checks the bijection requirement (ERR-073) on every
     element rather than only on the duplicate-node witness.
     """
-    from orpheus.numerics.symmetry import (_close_group, _realized_ops,)
+    from orpheus.geometry.symmetry import _close_group, _realized_ops
 
     for name, q in _cert_rules():
         mu = _measure_from_sphere_quad(q)
@@ -1317,7 +1317,7 @@ def test_a_mirror_is_improper_so_it_is_not_inside_the_rotation_groups() -> None:
     distinction is the reason the two spellings exist, and it is exactly
     what the false edge erased.
     """
-    from orpheus.numerics.symmetry import _close_group, _realized_ops
+    from orpheus.geometry.symmetry import _close_group, _realized_ops
 
     dets = [
         M.determinant
@@ -1935,7 +1935,7 @@ def test_the_whole_spellable_lattice_obeys_the_order_relation_laws() -> None:
     it — 484 ``contains`` calls rather than 10648, which is what makes the
     triple loop affordable (`[M]` 0.43 s for the matrix before R1's memo).
     """
-    from orpheus.numerics.symmetry import _group_elements
+    from orpheus.geometry.symmetry import _group_elements
 
     n = len(_SPELLABLE)
     assert n == 22, f"the spellable set moved: {n} members"
@@ -2020,7 +2020,7 @@ def test_O2_invariance_is_axis_support_and_needs_NO_mu_reflection(
     ``True`` on all three axes. The symmetric leg is the CONTROL that keeps
     the agreement from being the trivial "everything is True".
     """
-    from orpheus.numerics.manifold import SPHERE
+    from orpheus.geometry.manifold import SPHERE
 
     entry = SPHERE.quotient(SubgroupOfO3.O2(axis))
     weights = np.full(4, 0.5)
@@ -2155,7 +2155,7 @@ def test_generic_images_of_the_stabiliser_carry_BOTH_components(
     so a future angle added to the sample does not red this row for the
     wrong reason.
     """
-    from orpheus.numerics.symmetry import _INCOMMENSURATE_ANGLES
+    from orpheus.geometry.symmetry import _INCOMMENSURATE_ANGLES
 
     points = _generic_directions()
     m = len(_INCOMMENSURATE_ANGLES)
@@ -2196,7 +2196,7 @@ def test_every_generic_image_of_the_stabiliser_FIXES_THE_AXIS(axis: str) -> None
     and ``2.0`` is what the mutation actually produces.
     """
     from orpheus.geometry.transformation import RigidMotion
-    from orpheus.numerics.symmetry import _axis_vector
+    from orpheus.geometry.symmetry import _axis_vector
 
     e_a = _axis_vector(axis)
     images = SubgroupOfO3.O2(axis).generic_images(e_a.reshape(1, 3))
@@ -2897,7 +2897,7 @@ class TestOrbitCertificateAndInvarianceNowAnswerDifferentQuestions:
         None`` must answer the same — except for the continuous groups, which
         have no finite realization to permute anything with.
         """
-        from orpheus.numerics.symmetry import _realized_ops
+        from orpheus.geometry.symmetry import _realized_ops
 
         m = Quadrature.folded_product(4, 8).measure
         checked = 0
@@ -2968,7 +2968,7 @@ def _closed(group: SubgroupOfO3) -> list[RigidMotion]:
     """The group's realized ELEMENTS (the closure), for the brute-force
     conjugation controls above — the draft defined it beside the manifold
     gates; the symmetry gates need it too."""
-    from orpheus.numerics.symmetry import _group_elements
+    from orpheus.geometry.symmetry import _group_elements
 
     elems = _group_elements(group._tag)
     assert elems is not None
@@ -3928,7 +3928,7 @@ class TestR1TheTrivialGroupHasExactlyOneSpelling:
         predicate with ``is``; that leg would be a FALSE RED against a correct
         implementation, and the claim that matters is value identity.
         """
-        from orpheus.numerics.symmetry import Cn as CnTag
+        from orpheus.geometry.symmetry import Cn as CnTag
 
         trivial = SubgroupOfO3.Trivial
         for spelling in (SubgroupOfO3.Cn(1), SubgroupOfO3(CnTag(1))):

@@ -58,7 +58,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.face_layout import face_normal
+from orpheus.geometry.faces import face_normal
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.operators.loss_kernel_gauge import predicted_kernel_dimension
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous

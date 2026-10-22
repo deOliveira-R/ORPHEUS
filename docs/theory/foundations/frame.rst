@@ -4952,10 +4952,10 @@ rule's point set to the basis's:
    **admissible iff a quotient map** ``measure.support -> basis.domain``
    **EXISTS; and the frame's table is the basis pulled back along it.**
 
-:func:`~orpheus.numerics.manifold.quotient_onto` returns that arrow or
+:func:`~orpheus.geometry.manifold.quotient_onto` returns that arrow or
 ``None``. Three cases are honest: the identity (equality is the special
 case :math:`K = H`), the entry's own
-:attr:`~orpheus.numerics.manifold.Quotient.quotient_map` when the target
+:attr:`~orpheus.geometry.manifold.Quotient.quotient_map` when the target
 is a quotient of the source, and the induced :math:`M/K \to M/H` when
 both are quotients of one base with :math:`K \subseteq H`.
 
@@ -4964,7 +4964,7 @@ both are quotients of one base with :math:`K \subseteq H`.
 :meth:`AngularSymmetry.admits_domain
 <orpheus.numerics.quadrature.registry.AngularSymmetry.admits_domain>`'s
 support EQUALITY with the same
-:func:`~orpheus.numerics.manifold.quotient_onto` question, plus a
+:func:`~orpheus.geometry.manifold.quotient_onto` question, plus a
 containment on the group a rule's orbit space was quotiented by — which
 #434 R3 (2026-09-03) re-posed against what the geometry's solution keeps
 UNSPENT rather than what a reflecting face is owed
@@ -5064,7 +5064,7 @@ told what to do rather than what happened.
       nothing shipped reaches it. Tracked at* **#432**.
 
    ✅ **#432 landed 2026-09-02.** The missing member ships as
-   :class:`~orpheus.numerics.symmetry.O2`, the pointwise stabiliser of
+   :class:`~orpheus.geometry.symmetry.O2`, the pointwise stabiliser of
    the axis, and an orbit space is now NAMED by its stabiliser — so
    ``invariance_group``, still derived from the domain, is the full
    :math:`O(2)_x` the warning already knew the functions had

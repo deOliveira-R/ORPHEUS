@@ -85,7 +85,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.geometry.boundary import law_permutes_ordinates
-from orpheus.numerics.face_layout import face_name
+from orpheus.geometry.faces import face_name
 from .sweep_graph import OctantLabel
 
 if TYPE_CHECKING:

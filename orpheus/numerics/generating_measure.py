@@ -209,7 +209,7 @@ from .recurrence import (
     laguerre_recurrence,
     legendre_recurrence,
 )
-from orpheus.numerics.manifold import (
+from orpheus.geometry.manifold import (
     COSINE_INTERVAL,
     HALF_LINE,
     Interval,
@@ -797,7 +797,7 @@ def pushforward_reference(orbit_space: Quotient) -> ReferenceMeasure | None:
       pushforward along the identity is Lebesgue on the BASE, whose
       orthogonal system (spherical harmonics on :math:`S^2`, Fourier on
       :math:`S^1`, polynomials on an interval) is a property of the base that
-      :class:`~orpheus.numerics.manifold.Manifold` does not carry.
+      :class:`~orpheus.geometry.manifold.Manifold` does not carry.
 
     ``None`` keeps one meaning: no shipped ``ReferenceMeasure`` spells this
     pushforward.  Every other (base, group) pair is refused, so an

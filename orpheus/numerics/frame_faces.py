@@ -53,7 +53,7 @@ from orpheus.numerics.basis.descent import Descent
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import FrameBase, GalerkinFrame
 from orpheus.numerics.instance_cache import cached_on
-from orpheus.numerics.manifold import Manifold, Quotient, Sphere
+from orpheus.geometry.manifold import Manifold, Quotient, Sphere
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
 from orpheus.numerics.operator import LinearOperator, NotInvertible
 from orpheus.numerics.projection import AnalysisOperator, ReconstructionOperator

@@ -20,9 +20,7 @@ from orpheus.geometry.boundary._factors import (
     IdentityMap, SpatialWrap, SpecularMirror,
 )
 from orpheus.geometry.mesh import Mesh1D
-from orpheus.numerics.face_layout import (
-    AXIS_NAMES, FACE_NAMES, face_name, face_normal, face_opposite,
-)
+from orpheus.geometry.faces import AXIS_NAMES, FACE_NAMES, face_name, face_normal, face_opposite
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.augmented_mesh import SNMesh

@@ -76,7 +76,7 @@ from orpheus.geometry.boundary import (
 )
 from orpheus.geometry.boundary._errors import ReflectionNotInvolutiveError
 from orpheus.geometry.transformation import Permutation
-from orpheus.numerics.face_layout import AXIS_NAMES
+from orpheus.geometry.faces import AXIS_NAMES
 from orpheus.numerics.quadrature import Quadrature
 # B3.4a: the prescribed-inflow legs below realize through the SN realizer
 # (they already imported ``SNBoundaryRealizer`` in-body), and a narrowed law

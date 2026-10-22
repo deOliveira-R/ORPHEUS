@@ -28,7 +28,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.manifold import UNIT_INTERVAL
+from orpheus.geometry.manifold import UNIT_INTERVAL
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.operator import (

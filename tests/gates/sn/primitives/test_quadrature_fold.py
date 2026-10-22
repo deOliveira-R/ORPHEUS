@@ -34,7 +34,7 @@ from orpheus.numerics.quadrature import (
     periodic_trapezoid,
     spherical_product,
 )
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.geometry import CoordSystem
 from orpheus.sn.angular.closure import (
     march_start_structure_per_level,

@@ -28,7 +28,7 @@ import pytest
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 _EPS = np.finfo(float).eps
 _SLAB, _CYL, _SPH = (Chart(c) for c in (CoordSystem.CARTESIAN, CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL))

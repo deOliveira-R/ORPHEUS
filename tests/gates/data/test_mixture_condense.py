@@ -37,7 +37,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.energy_grid import EnergyGrid, InverseEnergySpectrum
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.numerics.manifold import EnergyGroups
+from orpheus.numerics.index_set import EnergyGroups
 from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation

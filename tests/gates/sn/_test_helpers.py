@@ -1067,13 +1067,13 @@ def _product_rule_with_ordering(tie_break: str, *, exact_nodes: bool):
     regime measurable rather than merely asserted.
     """
     from orpheus.numerics.exactness import UNIFORM_ON_SPHERE, ExactnessClaim
-    from orpheus.numerics.manifold import SPHERE
+    from orpheus.geometry.manifold import SPHERE
     from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.quadrature.rules_sphere import (
         LevelStructure,
         PolarInvariant,
     )
-    from orpheus.numerics.symmetry import SubgroupOfO3
+    from orpheus.geometry.symmetry import SubgroupOfO3
 
     if tie_break not in PRODUCT_LEVEL_ORDERINGS:
         raise ValueError(
@@ -1084,7 +1084,7 @@ def _product_rule_with_ordering(tie_break: str, *, exact_nodes: bool):
     def build(n_mu: int, n_phi: int):
         mu_gl, w_gl = np.polynomial.legendre.leggauss(n_mu)
         if exact_nodes:
-            from orpheus.numerics.roots_of_unity import roots_of_unity
+            from orpheus.geometry.roots_of_unity import roots_of_unity
             cos_phi, sin_phi = roots_of_unity(np.arange(n_phi), n_phi)
         else:
             phi = np.linspace(0.0, 2.0 * np.pi, n_phi, endpoint=False)
@@ -1185,7 +1185,7 @@ def seam_quad(n_mu: int, n_phi: int, shift, *, folded: bool):
         periodic_trapezoid,
         spherical_product,
     )
-    from orpheus.numerics.symmetry import SubgroupOfO3
+    from orpheus.geometry.symmetry import SubgroupOfO3
 
     measure, structure = spherical_product(
         gauss_legendre_on_mu(n_mu), periodic_trapezoid(n_phi, shift=shift)

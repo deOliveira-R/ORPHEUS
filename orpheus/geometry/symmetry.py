@@ -50,7 +50,7 @@ Whether a MEASURE is invariant under a group is the measure's question, and
 it lives with the measure: :meth:`DiscreteMeasure.is_invariant_under
 <orpheus.numerics.measure.DiscreteMeasure.is_invariant_under>` and its siblings
 are compositions of the measure's own pushforward with its support's
-:meth:`~orpheus.numerics.manifold.GSpace.action` (S5 of the numerics
+:meth:`~orpheus.geometry.manifold.GSpace.action` (S5 of the numerics
 untangling, 2026-10-19).  What is a statement about a GROUP acting on a POINT
 SET, and needs nothing from a measure, lives here: the realized action of a
 finite group on a point set (:class:`OrbitCertificate`), the candidate groups a
@@ -61,7 +61,7 @@ Between R2 of #434 (2026-09-03) and S5 those lived in a separate
 ``invariance`` module, above ``measure``, which imported it back: a cycle the
 concept-order gate held as pending.  This module imports
 :mod:`orpheus.geometry.transformation` and, inside ``numerics``, only
-:mod:`~orpheus.numerics.roots_of_unity` — itself a numpy-only leaf (`[M]`
+:mod:`~orpheus.geometry.roots_of_unity` — itself a numpy-only leaf (`[M]`
 2026-09-03: its imports are ``numpy`` and ``numpy.typing``), and it must STAY
 one, because the day it imports ``measure`` or ``manifold`` this module
 re-acquires a cycle: a group is a group.
@@ -111,21 +111,9 @@ from orpheus.geometry.transformation import (
     close_group as _close_rigid_motions,
 )
 
+from .faces import AXIS_INDEX, AXIS_NAMES
 from .roots_of_unity import roots_of_unity
 
-#: The ambient coordinate an axis label names.  :math:`\mathbb{R}^3`'s axes
-#: are the convention every realization below is built in (principal axis
-#: along z, vertex on x), and the manifold module reads it — the direction
-#: the runtime import graph runs since R2 of #434 (``manifold -> symmetry``;
-#: until then it ran the other way and the table lived in ``manifold``, and
-#: `[M]` re-importing it from there under the new direction closed a 2-cycle
-#: that killed 6 of 9 entry points).  The mirror family names its plane by
-#: the NORMAL, so ``AXIS_INDEX["x"]`` selects the normal of :math:`\sigma_x`
-#: as well as the axis of :math:`SO(2)_x` and :math:`O(2)_x`.
-AXIS_LETTER: tuple[str, str, str] = ("x", "y", "z")
-#: The inverse, ``AXIS_INDEX[AXIS_LETTER[i]] == i`` — one spelling of the
-#: convention, DERIVED from the letters so the two cannot disagree.
-AXIS_INDEX: dict[str, int] = {a: i for i, a in enumerate(AXIS_LETTER)}
 
 #: The absolute tolerance under which two realized operators, or a vector and
 #: its image, are the same ELEMENT — the one band for every element-level
@@ -295,7 +283,7 @@ class Mirror:
     axis: str
 
     def __post_init__(self) -> None:  # pragma: no cover - guard
-        if self.axis not in ("x", "y", "z"):
+        if self.axis not in AXIS_NAMES:
             raise ValueError(
                 f"Mirror requires axis in x/y/z, got {self.axis!r}. The "
                 f"axis names the mirror's NORMAL; there is no unnamed "
@@ -355,7 +343,7 @@ class SO2:
     axis: str
 
     def __post_init__(self) -> None:  # pragma: no cover - guard
-        if self.axis not in ("x", "y", "z"):
+        if self.axis not in AXIS_NAMES:
             raise ValueError(
                 f"SO2 requires axis in x/y/z, got {self.axis!r}. The axis "
                 f"names the rotation axis; there is no unnamed axial "
@@ -398,7 +386,7 @@ class O2:
     catalogue entry :math:`S^2/O(2)_a` records THIS group
     (``manifold._sphere_mod_o2``; asking for the quotient by
     :math:`SO(2)_a` is refused with the theorem, at the catalogue door and
-    at :class:`~orpheus.numerics.manifold.Quotient`'s construction, both
+    at :class:`~orpheus.geometry.manifold.Quotient`'s construction, both
     reading :attr:`SubgroupOfO3.orbit_stabiliser`). A basis on that
     entry — the Legendre polynomials :math:`P_\ell(\mu)` — therefore
     declares the FULL group its functions have, and the frame's lattice
@@ -440,7 +428,7 @@ class O2:
     axis: str
 
     def __post_init__(self) -> None:  # pragma: no cover - guard
-        if self.axis not in ("x", "y", "z"):
+        if self.axis not in AXIS_NAMES:
             raise ValueError(
                 f"O2 requires axis in x/y/z, got {self.axis!r}. The axis "
                 f"names the axis the group fixes; there is no unnamed "
@@ -488,7 +476,7 @@ class SubgroupOfO3:
     the measure module into this one's imports).
 
     A frozen value type, like every tag it wraps and every
-    :class:`~orpheus.numerics.manifold.Manifold` that carries one as a field:
+    :class:`~orpheus.geometry.manifold.Manifold` that carries one as a field:
     `[M]` 2026-09-02, with a writable slot, ``g._tag = …`` succeeded and moved
     ``hash(quotient)`` from under three memos keyed on it.
     """
@@ -578,7 +566,7 @@ class SubgroupOfO3:
         derivation (``manifold._sphere_mod_o2`` needs the invariant
         coordinate) and the orbit barycentre of a polar marginal
         (:meth:`Quotient.ambient_points
-        <orpheus.numerics.manifold.Quotient.ambient_points>` puts :math:`\mu`
+        <orpheus.geometry.manifold.Quotient.ambient_points>` puts :math:`\mu`
         on THIS axis) read off it.
         """
         tag = self._tag
@@ -599,7 +587,7 @@ class SubgroupOfO3:
         representative per connected component (:class:`Realization`),
         derived from the tag once (:func:`_realize`) and cached.  Every
         predicate on this class is a computation on it.  ⚠ Not to be confused
-        with :attr:`~orpheus.numerics.manifold.Quotient.realization`, which
+        with :attr:`~orpheus.geometry.manifold.Quotient.realization`, which
         is the MANIFOLD an orbit space is (``Ball(2)`` for
         :math:`S^2/\sigma_y`): a group's realization is its structure, an
         orbit space's is its shape."""
@@ -623,7 +611,7 @@ class SubgroupOfO3:
         (:meth:`IdentityComponent.orbit_dimension`; the coset representatives
         move orbits without changing their dimension).  ⚠ NOT :attr:`dim`:
         :math:`O(3)` has :math:`\dim 3` and 2-dimensional orbits on
-        :math:`S^2`.  The one surface :mod:`~orpheus.numerics.manifold`'s
+        :math:`S^2`.  The one surface :mod:`~orpheus.geometry.manifold`'s
         dimension law reads."""
         return self.realization.component.orbit_dimension(points)
 
@@ -637,7 +625,7 @@ class SubgroupOfO3:
         :math:`S^2/H` is keyed on the LARGEST such group, and asking for
         the quotient by a smaller orbit-equivalent one is refused with this
         answer — at construction, by
-        :class:`~orpheus.numerics.manifold.Quotient`, and at the catalogue
+        :class:`~orpheus.geometry.manifold.Quotient`, and at the catalogue
         door (#432, 2026-09-02).  Well-defined: the elements of
         :math:`O(3)` carrying every :math:`H`-orbit onto itself form a group
         containing :math:`H` with the same orbits, and every group with
@@ -874,7 +862,7 @@ class SubgroupOfO3:
         when it normalises :math:`H`; then :math:`[p] \mapsto [g\,p]` is a
         function of the orbit and :math:`g` acts on :math:`M/H`
         (:meth:`GSpace.action
-        <orpheus.numerics.manifold.GSpace.action>`). Otherwise
+        <orpheus.geometry.manifold.GSpace.action>`). Otherwise
         the image of an orbit depends on the representative and there is
         no action to speak of. Decided EXACTLY, family by family:
 
@@ -948,7 +936,7 @@ class SubgroupOfO3:
         invisible because it had zero readers; the two places that needed the
         component destructured a private helper instead.  Now it is what the
         realization says, and the dimension law on
-        :class:`~orpheus.numerics.manifold.Quotient` reads it.
+        :class:`~orpheus.geometry.manifold.Quotient` reads it.
         """
         component = self.realization.component
         if component.dim == 0:
@@ -962,7 +950,7 @@ class SubgroupOfO3:
 
         The surface an orbit-space entry's isotypic probe needs
         (:meth:`Quotient.descending_slots
-        <orpheus.numerics.manifold.Quotient.descending_slots>`, #429 tracker
+        <orpheus.geometry.manifold.Quotient.descending_slots>`, #429 tracker
         3.4): a function is constant on the group's orbits iff it agrees at
         every point with its value at every image. For a FINITE group the
         generic set is every element (the memoised closure of the
@@ -1063,7 +1051,7 @@ def _letter_of(axis: np.ndarray) -> str:
     letters.  A group about a non-coordinate axis has no named member yet,
     and this is where that refusal lives.
     """
-    for i, letter in enumerate(AXIS_LETTER):
+    for i, letter in enumerate(AXIS_NAMES):
         if abs(abs(float(axis[i])) - 1.0) <= _ELEMENT_ATOL:
             return letter
     raise NotImplementedError(
@@ -1077,7 +1065,7 @@ def _perpendicular_letter(axis: str) -> str:
     vertical mirror representing :math:`O(2)_a`'s improper coset.  Any plane
     containing the axis generates that coset; a coordinate mirror is a
     bit-exact signed diagonal."""
-    return next(b for b in AXIS_LETTER if b != axis)
+    return next(b for b in AXIS_NAMES if b != axis)
 
 
 def _in_span(generators: "tuple[np.ndarray, ...]", matrix: np.ndarray, atol: float) -> bool:
@@ -1283,7 +1271,7 @@ class IdentityComponent:
         the same tolerance that validates this component's own ``dim``
         (:meth:`__post_init__`), so the two rank questions cannot answer
         differently.  What an orbit space's dimension law subtracts
-        (:class:`~orpheus.numerics.manifold.Quotient`): `[D]` a torus on
+        (:class:`~orpheus.geometry.manifold.Quotient`): `[D]` a torus on
         :math:`S^2` has 1-dimensional orbits, :math:`SO(3)` 2-dimensional ones
         (the sphere is one orbit), :math:`SO(3)` on :math:`\mathbb{R}^3` also
         2 (so :math:`\mathbb{R}^3/SO(3)` is one-dimensional).
@@ -1486,7 +1474,7 @@ def _realize(tag) -> Realization:
             (identity, sigma_h, sigma_v, sigma_h @ sigma_v),
         )
     if tag is _NamedSubgroup.SO3 or tag is _NamedSubgroup.O3:
-        so3 = IdentityComponent(tuple(_skew(_axis_vector(a)) for a in AXIS_LETTER))
+        so3 = IdentityComponent(tuple(_skew(_axis_vector(a)) for a in AXIS_NAMES))
         representatives = (
             (identity,) if tag is _NamedSubgroup.SO3
             else (identity, RigidMotion.inversion(3))
@@ -1547,7 +1535,7 @@ def _cyclic_ops(n: int) -> list[RigidMotion]:
     r""":math:`C_n`: the ``n`` proper rotations about the z-axis.
 
     The angles are the :math:`n`-th roots of unity, taken from
-    :func:`~orpheus.numerics.roots_of_unity.roots_of_unity` as exact points
+    :func:`~orpheus.geometry.roots_of_unity.roots_of_unity` as exact points
     on the circle rather than recomputed from :math:`\theta_k = 2\pi k/n`
     through :func:`numpy.cos`. Two reasons, and the second is the
     structural one:
@@ -1897,7 +1885,7 @@ def candidate_groups(points: np.ndarray, *, atol: float) -> tuple[SubgroupOfO3, 
     divisor of the points' distinct-azimuth count (see
     :func:`_distinct_azimuths` for why divisors suffice).  ``points`` are
     AMBIENT points — a measure hands its support's
-    :meth:`~orpheus.numerics.manifold.GSpace.ambient_points`, the orbit
+    :meth:`~orpheus.geometry.manifold.GSpace.ambient_points`, the orbit
     barycentres on a quotient (ruling 46), never the stored width: until R2
     of #434 this branched on ``measure.nodes.shape[1]``, so ONE fold had two
     candidate sets by spelling (`[M]` 20 names at ambient width, 15 at chart
@@ -1918,18 +1906,18 @@ def candidate_groups(points: np.ndarray, *, atol: float) -> tuple[SubgroupOfO3, 
     # the distinct-azimuth divisor bound to stay finite) it needs no bound
     # at all, and unlike the retired parameter-free Z2 it offers the walk
     # all three planes instead of silently only sigma_z.
-    named += [SubgroupOfO3.Mirror(a) for a in ("x", "y", "z")]
+    named += [SubgroupOfO3.Mirror(a) for a in AXIS_NAMES]
     # And all three axial rotation groups, for the same reason: offering
     # only z (what the retired bare SO2 amounted to) made every x-pole
     # rule — the slab's own polar marginal — read as carrying no
     # continuous symmetry at all.
-    named += [SubgroupOfO3.SO2(a) for a in ("x", "y", "z")]
+    named += [SubgroupOfO3.SO2(a) for a in AXIS_NAMES]
     # And the three stabilisers O(2)_a above them (#432, 2026-09-02).
     # Finite-vs-finite the walk never sees them as equal, and on a polar
     # marginal they are what is MAXIMAL: the slab's rule reports O(2)_x
     # (with its μ → −μ mirror σ_x beside it, since σ_x flips the axis and
     # so lies in neither) where it used to stop at the rotations.
-    named += [SubgroupOfO3.O2(a) for a in ("x", "y", "z")]
+    named += [SubgroupOfO3.O2(a) for a in AXIS_NAMES]
     n_az = _distinct_azimuths(np.asarray(points, dtype=float), atol)
     families: list[SubgroupOfO3] = []
     for d in (d for d in range(1, n_az + 1) if n_az % d == 0) if n_az else (1,):
@@ -2020,8 +2008,6 @@ def maximal_satisfying(
 
 
 __all__ = [
-    "AXIS_INDEX",
-    "AXIS_LETTER",
     "IdentityComponent",
     "OrbitCertificate",
     "Realization",

@@ -33,7 +33,7 @@ import numpy as np
 import pytest
 from scipy.special import gammaln, roots_chebyu, roots_jacobi
 
-from orpheus.numerics.manifold import UNIT_INTERVAL
+from orpheus.geometry.manifold import UNIT_INTERVAL
 from orpheus.numerics.generating_measure import (
     CHEBYSHEV_T,
     CHEBYSHEV_U,
@@ -654,7 +654,7 @@ def test_symmetric_measures_give_EXACTLY_symmetric_rules(
     symmetric that closure is integer index arithmetic rather than a
     tolerance question — which is the whole thrust of the Sigma /
     invariance-group machinery in
-    :mod:`orpheus.numerics.symmetry`.
+    :mod:`orpheus.geometry.symmetry`.
     """
     rule = measure.gauss(n)
     np.testing.assert_array_equal(rule.nodes, -rule.nodes[::-1])

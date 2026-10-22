@@ -146,7 +146,7 @@ from orpheus.values.content import ContentIdentity
 if TYPE_CHECKING:
     from orpheus.numerics.basis.base import Basis, TruncatedBasis
     from orpheus.numerics.frame import FrameBase
-    from orpheus.numerics.manifold import Manifold
+    from orpheus.geometry.manifold import Manifold
     from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.quadrature.directional import Quadrature
 

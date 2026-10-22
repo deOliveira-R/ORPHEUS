@@ -75,7 +75,7 @@ from orpheus.numerics.basis.base import Basis
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 
 if TYPE_CHECKING:
-    from orpheus.numerics.manifold import Manifold
+    from orpheus.geometry.manifold import Manifold
     from orpheus.numerics.coefficient_layout import CellLayout
 
 

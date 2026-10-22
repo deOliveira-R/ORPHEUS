@@ -767,8 +767,8 @@ measure of the basis's one coefficient axis. It equals
       vocabulary to say what the padding *is*. The map
       :math:`\mu \mapsto \mu\,\hat e_a` is the **orbit barycentre**,
       typed as
-      :func:`~orpheus.numerics.manifold.barycentre` with codomain
-      :class:`~orpheus.numerics.manifold.Ball`\ ``(3)`` — because
+      :func:`~orpheus.geometry.manifold.barycentre` with codomain
+      :class:`~orpheus.geometry.manifold.Ball`\ ``(3)`` — because
       :math:`1 - \lVert\mu\hat e_a\rVert^2 = 1-\mu^2 = \tfrac14\det P`,
       the same squared orbit radius as above. So ERR-080's level-1 half
       is *that map with a forged codomain*, and `[M]` the forged nodes
@@ -1055,7 +1055,7 @@ systems (:ref:`manifold-two-coordinate-systems`): the realization's —
 ``(N,)`` or ``(N, 1)`` values of :math:`\mu`, which is a 1-D rule's own
 node array — and the base's, ``(N, 3)`` unit directions, pulled back
 along the entry's
-:attr:`~orpheus.numerics.manifold.Quotient.quotient_map`. Anything else
+:attr:`~orpheus.geometry.manifold.Quotient.quotient_map`. Anything else
 is refused naming both.
 
 ⭐ The second arm is a capability, not plumbing: it makes

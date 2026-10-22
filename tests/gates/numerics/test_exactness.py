@@ -38,8 +38,8 @@ from orpheus.numerics.generating_measure import (
     LEGENDRE,
     jacobi,
 )
-from orpheus.numerics.manifold import Manifold
-from orpheus.numerics.manifold import CIRCLE, COSINE_INTERVAL
+from orpheus.geometry.manifold import Manifold
+from orpheus.geometry.manifold import CIRCLE, COSINE_INTERVAL
 
 pytestmark = [pytest.mark.foundation]
 

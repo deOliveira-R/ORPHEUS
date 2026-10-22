@@ -28,16 +28,16 @@ import pytest
 
 from orpheus.numerics.measure import BundleMeasure, DiscreteMeasure, equispaced
 from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE
-from orpheus.numerics.manifold import (
+from orpheus.geometry.manifold import (
     COSINE_INTERVAL,
-    IndexSet,
     Interval,
     ManifoldMap,
     REAL_LINE,
     SPHERE,
     UNIT_INTERVAL,
 )
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.numerics.index_set import IndexSet
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 
 # ============================================================================
@@ -340,7 +340,7 @@ def test_pushforward_READS_its_target_off_the_map_and_refuses_a_map_out_of_elsew
     ``f"φ_*({self.support})"`` — and this test pinned that name.  Tracker
     2.0c made the caller NAME the target (this test then pinned the refusal
     of a bare callable).  Tracker 2.3 (2026-09-02) makes the map CARRY it —
-    a :class:`~orpheus.numerics.manifold.ManifoldMap` with ``domain`` and
+    a :class:`~orpheus.geometry.manifold.ManifoldMap` with ``domain`` and
     ``codomain`` — so the target cannot be forged at the call site at all:
     ERR-080 is the barycentre map applied with its codomain declared as
     :math:`S^2`, and through this verb that sentence has no spelling.
@@ -695,7 +695,7 @@ def test_consolidate_preserves_the_claims_pushforward_drops() -> None:
     """
     from orpheus.numerics.exactness import ExactnessClaim
     from orpheus.numerics.generating_measure import LEGENDRE
-    from orpheus.numerics.symmetry import SubgroupOfO3
+    from orpheus.geometry.symmetry import SubgroupOfO3
 
     mu = DiscreteMeasure(
         nodes=np.array([-1.0, 0.0, 0.0, 1.0]),

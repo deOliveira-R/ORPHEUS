@@ -39,10 +39,10 @@ from orpheus.geometry.boundary._errors import (
 from orpheus.geometry.boundary._specular import (
     assert_specular_pairing_maps_inflow_to_outflow,
 )
-from orpheus.numerics import manifold as man
+from orpheus.geometry import manifold as man
 from orpheus.numerics import measure as mea
-from orpheus.numerics import symmetry as sym
-from orpheus.numerics.symmetry import _distinct_azimuths, _maximal
+from orpheus.geometry import symmetry as sym
+from orpheus.geometry.symmetry import _distinct_azimuths, _maximal
 
 # S5 (2026-10-19): ``orpheus.numerics.invariance`` is deleted. Its kernel is the
 # measure's composition, the lattice and the candidates live in ``symmetry``, the
@@ -57,14 +57,16 @@ def _embedded(measure):
 def candidate_groups(measure):
     """``symmetry.candidate_groups`` on the measure's ambient points at the old default window."""
     return sym.candidate_groups(_embedded(measure), atol=mea._node_window(mea.WEIGHT_ATOL))
-from orpheus.numerics.manifold import SPHERE, Quotient
+from orpheus.geometry.manifold import SPHERE, Quotient
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature.directional import Quadrature
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 from tests.gates.numerics import NUMERICS_DATA
 
 ORPHEUS_ROOT = pathlib.Path(__file__).resolve().parents[3]
 _NUMERICS = ORPHEUS_ROOT / "orpheus" / "numerics"
+# The point groups and the manifold moved to geometry at layer DAG WP-B (2026-10-22).
+_GEOMETRY = ORPHEUS_ROOT / "orpheus" / "geometry"
 
 # ===========================================================================
 # Helpers — every one `_r2`-prefixed, every rule built INSIDE a test body
@@ -335,11 +337,11 @@ class TestR2ImportGraph:
         allowed — they are erased at runtime — so the check reads module-scope
         ``Import``/``ImportFrom`` nodes only.
         """
-        targets = _r2_module_scope_imports(_NUMERICS / "symmetry.py")
+        targets = _r2_module_scope_imports(_GEOMETRY / "symmetry.py")
         forbidden = [
             t for t in targets
             if t.lstrip(".") in ("manifold", "measure",
-                                 "orpheus.numerics.manifold",
+                                 "orpheus.geometry.manifold",
                                  "orpheus.numerics.measure")
         ]
         assert not forbidden, (
@@ -368,8 +370,8 @@ class TestR2ImportGraph:
         cycle_targets = {"symmetry", "manifold", "measure", "invariance"}
         offenders: list[str] = []
         # ``invariance.py`` left the list at S5: the module is deleted.
-        for name in ("measure.py", "manifold.py", "symmetry.py"):
-            path = _NUMERICS / name
+        for path in (_NUMERICS / "measure.py", _GEOMETRY / "manifold.py", _GEOMETRY / "symmetry.py"):
+            name = path.name
             for lineno, target in _r2_deferred_imports(path):
                 tail = target.lstrip(".").split(".")[-1]
                 if tail in cycle_targets:

@@ -38,7 +38,7 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
-from orpheus.numerics.manifold import SPHERE, Quotient, quotient_onto
+from orpheus.geometry.manifold import SPHERE, Quotient, quotient_onto
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.numerics.quadrature.registry import (
@@ -46,7 +46,7 @@ from orpheus.numerics.quadrature.registry import (
     AngularSymmetry,
     select_quadrature,
 )
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.sn.solver import solve_sn_fixed_source
 from tests.gates.numerics import NUMERICS_DATA
 
@@ -889,7 +889,7 @@ class TestR3RetiredNames:
 
     @pytest.mark.foundation
     def test_e1_spent_group_is_absent_from_manifold(self) -> None:
-        import orpheus.numerics.manifold as manifold
+        import orpheus.geometry.manifold as manifold
 
         assert not hasattr(manifold, "spent_group")
         assert "spent_group" not in manifold.__all__

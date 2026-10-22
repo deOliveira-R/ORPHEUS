@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.measure import DiscreteMeasure
-from orpheus.numerics.manifold import SPHERE
+from orpheus.geometry.manifold import SPHERE
 from orpheus.numerics.quadrature import (
     NODE_ALIGNED,
     STAGGERED,
@@ -32,7 +32,7 @@ from orpheus.numerics.quadrature import (
     spherical_product,
 )
 from orpheus.numerics.quadrature.rules_sphere import LevelStructure
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +244,7 @@ def test_level_symmetric_quadratic_isotropy() -> None:
 
 def _oh_exactness(nodes: "np.ndarray") -> "tuple[float, int, int]":
     """(worst landing distance, #operators exact, #operators) over O_h."""
-    from orpheus.numerics.symmetry import SubgroupOfO3, _realized_ops
+    from orpheus.geometry.symmetry import SubgroupOfO3, _realized_ops
 
     ops = _realized_ops(SubgroupOfO3.OctahedralOh._tag)
     assert ops is not None and len(ops) == 48

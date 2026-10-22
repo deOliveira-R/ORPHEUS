@@ -13,7 +13,7 @@ from its foot.
 A ray is a line with a starting parameter (a backward characteristic is the
 line with :math:`-\Omega`); it is not a separate type. A direction is a
 point of the unit sphere, the manifold the angular quadratures'
-ordinates live on (:class:`~orpheus.numerics.manifold.Sphere`); here it is
+ordinates live on (:class:`~orpheus.geometry.manifold.Sphere`); here it is
 held as the array of its Cartesian components.
 
 Every value is batch-shaped: a :class:`Line` holds ``(..., 3)`` arrays, one

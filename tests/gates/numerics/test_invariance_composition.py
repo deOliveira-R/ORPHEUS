@@ -55,21 +55,19 @@ from scipy.optimize import linear_sum_assignment
 from orpheus.geometry.boundary import PairedDeck, SelfPairedDeck
 from orpheus.geometry.boundary._factors import _mirror_motion
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.manifold import (
+from orpheus.geometry.manifold import (
     CIRCLE,
     COSINE_INTERVAL,
-    ENERGY,
     HALF_LINE,
     REAL_LINE,
     SPHERE,
     UNIT_INTERVAL,
     Ball,
-    EnergyGroups,
-    IndexSet,
     Interval,
     Quotient,
     RealSpace,
 )
+from orpheus.numerics.index_set import ENERGY, EnergyGroups, IndexSet
 from orpheus.numerics.measure import DiscreteMeasure, equispaced
 from orpheus.numerics.quadrature import Quadrature, quadrature_registry
 from orpheus.numerics.quadrature.rules_1d import (
@@ -77,7 +75,7 @@ from orpheus.numerics.quadrature.rules_1d import (
     gauss_legendre_on_polar_orbit,
 )
 from orpheus.numerics.quadrature.rules_circle import NODE_ALIGNED, STAGGERED, periodic_trapezoid
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 pytestmark = pytest.mark.foundation
 
@@ -346,7 +344,7 @@ class TestTheNonGSpaceSupportsAreRefused:
 
     @pytest.mark.parametrize("case", ["energy", "index", "product", "fundamental_domain"])
     def test_the_support_has_no_action_verb(self, case):
-        gspace = _api("orpheus.numerics.manifold.GSpace")
+        gspace = _api("orpheus.geometry.manifold.GSpace")
         support = self._measure(case).support
         assert not isinstance(support, gspace)
         assert not hasattr(support, "action")
@@ -374,7 +372,7 @@ class TestTheGSpaceFamily:
     @pytest.mark.parametrize("member", ["sphere", "ball", "real_1", "real_2", "real_3",
                                         "circle", "interval", "quotient"])
     def test_the_six_families_are_G_spaces(self, member):
-        gspace = _api("orpheus.numerics.manifold.GSpace")
+        gspace = _api("orpheus.geometry.manifold.GSpace")
         support = {
             "sphere": SPHERE, "ball": Ball(3), "real_1": RealSpace(1), "real_2": RealSpace(2),
             "real_3": RealSpace(3), "circle": CIRCLE, "interval": COSINE_INTERVAL,
@@ -964,7 +962,7 @@ def _independent_maximal(true_names: set[str], cands: list[SubgroupOfO3]) -> set
     ("Trivial",),
 ])
 def test_maximal_satisfying_returns_the_maximal_elements(true_names):
-    maximal_satisfying = _api("orpheus.numerics.symmetry.maximal_satisfying")
+    maximal_satisfying = _api("orpheus.geometry.symmetry.maximal_satisfying")
     cands = [_groups()[n] for n in _LATTICE]
     truth = set(true_names)
     for method in ("walk", "bruteforce"):
@@ -979,7 +977,7 @@ def test_walk_and_bruteforce_agree_on_a_predicate_that_is_NOT_downward_closed():
     agreement is therefore no evidence of downward closure; that law has its own gate
     (``test_symmetry.py::test_invariance_is_downward_closed``). This row pins the fact so
     nobody re-credits the agreement."""
-    maximal_satisfying = _api("orpheus.numerics.symmetry.maximal_satisfying")
+    maximal_satisfying = _api("orpheus.geometry.symmetry.maximal_satisfying")
     cands = [_groups()[n] for n in _LATTICE]
     pred = lambda g: g.name in ("D_4h", "C_2")  # noqa: E731 — C_2 true, D_2h false: not an ideal
     walk = {g.name for g in maximal_satisfying(pred, cands, method="walk")}
@@ -1005,7 +1003,7 @@ def test_the_record_is_downward_closed(label):
 def test_candidate_groups_reads_ambient_points():
     """``symmetry.candidate_groups(points)`` on the ambient barycentres equals the record
     on every answered rule."""
-    candidate_groups = _api("orpheus.numerics.symmetry.candidate_groups")
+    candidate_groups = _api("orpheus.geometry.symmetry.candidate_groups")
     # the node window the measure asks at: symmetry sits below the measure that
     # owns it, so the window is the caller's to state (orchestrator, 2026-10-19)
     window = _api("orpheus.numerics.measure.WEIGHT_ATOL") * 100.0
@@ -1026,12 +1024,12 @@ def test_the_invariance_module_is_deleted():
 
 
 @pytest.mark.parametrize("dotted", [
-    "orpheus.numerics.symmetry.OrbitCertificate",
-    "orpheus.numerics.symmetry.maximal_satisfying",
-    "orpheus.numerics.symmetry.maximal_subgroups",
-    "orpheus.numerics.symmetry.candidate_groups",
+    "orpheus.geometry.symmetry.OrbitCertificate",
+    "orpheus.geometry.symmetry.maximal_satisfying",
+    "orpheus.geometry.symmetry.maximal_subgroups",
+    "orpheus.geometry.symmetry.candidate_groups",
     "orpheus.numerics.measure.WEIGHT_ATOL",
-    "orpheus.numerics.manifold.GSpace",
+    "orpheus.geometry.manifold.GSpace",
 ])
 def test_each_piece_lives_where_the_design_puts_it(dotted):
     _api(dotted)

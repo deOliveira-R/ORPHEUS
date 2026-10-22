@@ -2,14 +2,14 @@ r"""Foundation gates for :mod:`orpheus.geometry.transformation` — campaign ste
 
 The 42 gates of the G2 verification plan (``scratch/g2_verification_plan.md``),
 written against **pure mathematics**, never against
-:mod:`orpheus.numerics.symmetry`. That prohibition is the whole reason G2 runs
+:mod:`orpheus.geometry.symmetry`. That prohibition is the whole reason G2 runs
 before G7 (test migration): once the primitive is verified against
 domain-independent ground truth, a system-under-test and its oracle both using
 it is not contamination — independence lives in the INPUT ASSEMBLY, not in the
 shared routine. Verified against ``symmetry.py`` instead, the tree would lose
 its independent check silently.
 
-**Forbidden references in this file** (grep-checkable): ``numerics.symmetry``,
+**Forbidden references in this file** (grep-checkable): ``geometry.symmetry``,
 ``_rotation_z``, ``_reflections``, ``_orbit_closure``, ``_close_group``,
 ``Quadrature``, ``DiscreteMeasure``, ``roots_of_unity``. The G3 bit-identity
 gate ("the migration is a no-op") is a *different* claim and belongs in a
@@ -126,7 +126,7 @@ def _weighted_permutation(g: RigidMotion, points: ArrayLike, weights: ArrayLike)
     Until S5 it was ``RigidMotion.preserves``, a second door with a one-array
     weight leg (the gate spec's finding F1).  The node window is ``_TOL_MATCH``
     (the measure's node window is 100 times its weight window)."""
-    from orpheus.numerics.manifold import RealSpace
+    from orpheus.geometry.manifold import RealSpace
     from orpheus.numerics.measure import DiscreteMeasure
 
     pts = np.asarray(points, dtype=float)

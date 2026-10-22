@@ -338,7 +338,7 @@ class Mesh1D(ContentIdentity):
         # import :mod:`orpheus.mesh.structured`, but the inverse
         # direction would force every consumer of mesh.py to bring
         # in the measure module.
-        from orpheus.numerics.manifold import RealSpace
+        from orpheus.geometry.manifold import RealSpace
         from orpheus.numerics.measure import DiscreteMeasure
         return DiscreteMeasure(
             nodes=self.centers,
@@ -370,7 +370,7 @@ class Mesh1D(ContentIdentity):
         # Local import — same circular-dependency avoidance as
         # :attr:`volume_measure` (numerics does not import geometry).
         from orpheus.numerics.basis.indicator_basis import IndicatorBasis
-        from orpheus.numerics.manifold import RealSpace
+        from orpheus.geometry.manifold import RealSpace
         return IndicatorBasis(
             edges_per_axis=(np.asarray(self.edges, dtype=float),),
             partition_of=RealSpace(1),
@@ -538,7 +538,7 @@ class Mesh2D(ContentIdentity):
         --------
         :meth:`Mesh1D.volume_measure` — the 1-D analogue.
         """
-        from orpheus.numerics.manifold import RealSpace
+        from orpheus.geometry.manifold import RealSpace
         from orpheus.numerics.measure import DiscreteMeasure
         cx = self.centers_x
         cy = self.centers_y
@@ -570,7 +570,7 @@ class Mesh2D(ContentIdentity):
         ``mat_map.ravel()``) — the same flat-cell ordering in any dimension.
         """
         from orpheus.numerics.basis.indicator_basis import IndicatorBasis
-        from orpheus.numerics.manifold import RealSpace
+        from orpheus.geometry.manifold import RealSpace
         return IndicatorBasis(
             edges_per_axis=(
                 np.asarray(self.edges_x, dtype=float),

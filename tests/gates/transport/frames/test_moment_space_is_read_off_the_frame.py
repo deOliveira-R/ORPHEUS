@@ -68,7 +68,7 @@ from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.metric import DenseMetric, FactoredMetric
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import GalerkinFrame
-from orpheus.numerics.manifold import SPHERE, Manifold, RealSpace
+from orpheus.geometry.manifold import SPHERE, Manifold, RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import IncompatibleOperatorComposition, OperatorProduct
 from orpheus.numerics.quadrature import Quadrature

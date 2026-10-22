@@ -38,13 +38,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.numerics.manifold import (
-    COSINE_INTERVAL,
-    SPHERE,
-    UNIT_INTERVAL,
-    Interval,
-    Quotient,
-)
+from orpheus.geometry.manifold import COSINE_INTERVAL, SPHERE, UNIT_INTERVAL, Interval, Quotient
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.quadrature import (
@@ -54,7 +48,7 @@ from orpheus.numerics.quadrature import (
     select_quadrature,
 )
 from orpheus.numerics.quadrature.registry import GEOMETRY_ANGULAR_SYMMETRY
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 
 _AXES = ("x", "y", "z")
 
@@ -305,7 +299,7 @@ def test_d2_the_catalogue_memoises_and_the_orbit_space_is_hashable() -> None:
     assert a is b
     assert hash(a) == hash(b)
     # a fresh, un-memoised derivation agrees with the recorded one
-    from orpheus.numerics.manifold import _sphere_mod_o2
+    from orpheus.geometry.manifold import _sphere_mod_o2
 
     fresh = _sphere_mod_o2(SPHERE, SubgroupOfO3.O2("x"))
     assert fresh is not a and fresh == a and hash(fresh) == hash(a)

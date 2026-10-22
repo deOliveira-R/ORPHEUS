@@ -214,9 +214,10 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.basis import Basis, GramStructure
 from orpheus.numerics.coefficient_layout import ModeLayout
-from orpheus.numerics.face_layout import face_normal
+from orpheus.geometry.faces import face_normal
 from orpheus.numerics.frame import GalerkinFrame
-from orpheus.numerics.manifold import IndexSet, Manifold
+from orpheus.numerics.index_set import IndexSet
+from orpheus.geometry.manifold import Manifold
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.outcome import Evidence, Measured
 from orpheus.numerics.elementary_operators import TraceRestrictionOperator
@@ -786,7 +787,7 @@ class LossKernelBasis(Basis):
         There is nothing to evaluate AT a point here (:meth:`evaluate` returns
         a precomputed table), so the "points" are the block's own trace DOF
         indices — a finite set with no metric structure, which is exactly
-        :class:`~orpheus.numerics.manifold.IndexSet`.
+        :class:`~orpheus.numerics.index_set.IndexSet`.
 
         ⭐ Built from the same ``f"sn_trace_orbit{orbit}_g{group}"`` label the
         block's :class:`~orpheus.numerics.measure.DiscreteMeasure` already

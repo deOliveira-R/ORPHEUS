@@ -33,7 +33,7 @@ lived in ``sn.spatial._ubld`` and ``SpatialMomentSpace`` reached UP into
 over a layering inversion (a ``numerics`` space depending on the SN
 package). Relocating here removes the deferral and the inversion; the
 SN module re-exports these names downward (the
-:data:`orpheus.numerics.face_layout.AXIS_NAMES` precedent) so SN
+:data:`orpheus.geometry.faces.AXIS_NAMES` precedent) so SN
 consumers keep importing them next to the UBLD primitives they name.
 
 This module is leaf — no ``orpheus`` imports (numpy enters only under

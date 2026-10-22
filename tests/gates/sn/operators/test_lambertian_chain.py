@@ -62,7 +62,8 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.numerics.face_layout import FaceLayout, face_opposite
+from orpheus.numerics.face_layout import FaceLayout
+from orpheus.geometry.faces import face_opposite
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
 from orpheus.numerics.spaces.angular_trace_space import (
@@ -112,7 +113,7 @@ def _axis_and_sign(face: str) -> tuple[str, int]:
 
     ``…max`` is the upper face (outward normal :math:`+\hat e_{\rm axis}`),
     ``…min`` the lower. This is the convention the production renderer
-    :func:`~orpheus.numerics.face_layout.face_name` implements; writing it
+    :func:`~orpheus.geometry.faces.face_name` implements; writing it
     out here is what keeps the references below independent of it, so a flip
     reddens rather than cancels (the ERR-041 threat class).
     """

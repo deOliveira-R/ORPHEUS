@@ -108,7 +108,7 @@ from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.coefficient_layout import HarmonicLayout
 
 if TYPE_CHECKING:
-    from orpheus.numerics.manifold import Manifold, Quotient
+    from orpheus.geometry.manifold import Manifold, Quotient
 
 
 __all__ = ["MirrorEvenSphericalHarmonicBasis", "SphericalHarmonicBasis"]
@@ -370,7 +370,7 @@ class SphericalHarmonicBasis(Basis):
         refusal IS wired into :meth:`evaluate` (#429 tracker 0.6), and the
         frame's G0 refuses the pairing one level up.
         """
-        from orpheus.numerics.manifold import SPHERE
+        from orpheus.geometry.manifold import SPHERE
 
         return SPHERE
 
@@ -426,7 +426,7 @@ class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
     The per-slot parity is **DERIVED**, never hand-listed — and since
     2026-09-02 (#429 tracker 3.4, user-ruled) it is derived by the
     ENTRY: :meth:`Quotient.descending_slots
-    <orpheus.numerics.manifold.Quotient.descending_slots>` asks which
+    <orpheus.geometry.manifold.Quotient.descending_slots>` asks which
     slots of the parent are constant on the fibres of the fold's own
     quotient map (σ-even = constant on the orbit :math:`\{\Omega,
     \sigma\Omega\}`), the same probe :class:`~orpheus.numerics.basis.descent.Descent`
@@ -467,7 +467,7 @@ class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
         :math:`\sigma_a\Omega` (that is what σ-even MEANS).  A function
         constant on the orbits of :math:`H` is a function on :math:`M/H`.
 
-        Derived through :meth:`~orpheus.numerics.manifold.GSpace.quotient`
+        Derived through :meth:`~orpheus.geometry.manifold.GSpace.quotient`
         rather than tagged, so it is the *same* object the folded measure
         carries — `[M]` ``S^2/sigma_y``, matching the support a
         ``folded_product`` rule's angular frame reports.  ⭐ That agreement is
@@ -476,10 +476,11 @@ class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
         indistinguishable, and the G0 well-posedness gate the plan has carried
         since it was written had no operands to compare.
         """
-        from orpheus.numerics.manifold import SPHERE
-        from orpheus.numerics.symmetry import AXIS_LETTER, SubgroupOfO3
+        from orpheus.geometry.manifold import SPHERE
+        from orpheus.geometry.faces import AXIS_NAMES
+        from orpheus.geometry.symmetry import SubgroupOfO3
 
-        return SPHERE.quotient(SubgroupOfO3.Mirror(AXIS_LETTER[self.mirror_axis]))
+        return SPHERE.quotient(SubgroupOfO3.Mirror(AXIS_NAMES[self.mirror_axis]))
 
     @cached_property
     def even_slot_mask(self) -> NDArray:
@@ -488,7 +489,7 @@ class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
         READ off the fold's catalogue entry — the slots of the parent
         harmonics that DESCEND to :math:`S^2/\sigma_a` (constant on the
         fibres of its quotient map; :meth:`Quotient.descending_slots
-        <orpheus.numerics.manifold.Quotient.descending_slots>`). Padding
+        <orpheus.geometry.manifold.Quotient.descending_slots>`). Padding
         slots (:math:`|m| > \ell`, identically zero) descend vacuously and
         stay unmasked — inert, the parent already zeroes them.
         """

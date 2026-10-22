@@ -73,7 +73,7 @@ Both coordinate systems of the orbit space are accepted by :meth:`evaluate`:
 the realization's (``(N,)`` / ``(N, 1)`` values of :math:`\mu` — the slab
 rule's own nodes) and the base's (``(N, 3)`` unit directions — a full-sphere
 rule, pulled back along the entry's
-:attr:`~orpheus.numerics.manifold.Quotient.quotient_map`, so
+:attr:`~orpheus.geometry.manifold.Quotient.quotient_map`, so
 :math:`P_\ell(\Omega\cdot\hat e_a)` is a legitimate basis on a Lebedev or
 level-symmetric rule — user-ruled 2026-09-02).
 """
@@ -86,11 +86,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
+from orpheus.geometry.faces import AXIS_NAMES
 from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.coefficient_layout import LegendreLayout
 
 if TYPE_CHECKING:
-    from orpheus.numerics.manifold import Manifold, Quotient
+    from orpheus.geometry.manifold import Manifold, Quotient
 
 
 __all__ = ["LegendreBasis", "legendre_table"]
@@ -158,7 +159,7 @@ class LegendreBasis(Basis):
             raise ValueError(
                 f"LegendreBasis: L must be non-negative, got L={self.L}"
             )
-        if self.axis not in ("x", "y", "z"):
+        if self.axis not in AXIS_NAMES:
             raise ValueError(
                 f"LegendreBasis: axis must be x/y/z, got {self.axis!r}."
             )
@@ -261,8 +262,8 @@ class LegendreBasis(Basis):
     @property
     def domain(self) -> "Quotient":
         r"""The catalogue entry :math:`S^2/O(2)_a` — a Legendre polynomial eats an ORBIT of the axis's stabiliser, a constant-:math:`\mu` circle."""
-        from orpheus.numerics.manifold import SPHERE
-        from orpheus.numerics.symmetry import SubgroupOfO3
+        from orpheus.geometry.manifold import SPHERE
+        from orpheus.geometry.symmetry import SubgroupOfO3
 
         return SPHERE.quotient(SubgroupOfO3.O2(self.axis))
 

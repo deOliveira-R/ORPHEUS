@@ -22,7 +22,7 @@ order:
    :math:`H_Q \subseteq \Gamma_{\text{geom}} K_{\text{geom}}`, with
    :math:`\Gamma` the finite UNSPENT symmetry
    (:meth:`SubgroupOfO3.is_subset_of_product
-   <orpheus.numerics.symmetry.SubgroupOfO3.is_subset_of_product>`). A slab
+   <orpheus.geometry.symmetry.SubgroupOfO3.is_subset_of_product>`). A slab
    integrates :math:`\phi` out analytically and wants a :math:`\mu`-marginal
    on :math:`[-1,1]`; a cylinder retains both angular degrees of freedom and
    wants :math:`S^2` or its :math:`\sigma_y` / :math:`\sigma_z` fold; a
@@ -362,8 +362,8 @@ import numpy as np
 from ..exactness import UNIFORM_ON_SPHERE, ReferenceMeasure
 from ..generating_measure import pushforward_reference
 from ..measure import DiscreteMeasure
-from orpheus.numerics.manifold import SPHERE, Manifold, Quotient, quotient_onto
-from ..symmetry import SubgroupOfO3
+from orpheus.geometry.manifold import SPHERE, Manifold, Quotient, quotient_onto
+from orpheus.geometry.symmetry import SubgroupOfO3
 from .directional import Quadrature
 
 
@@ -1049,14 +1049,14 @@ class AngularSymmetry:
 
         Two conditions, both read off the lattice and neither declared: the
         descent arrow :math:`S^2/K \to X` onto the rule's support must EXIST
-        (:func:`~orpheus.numerics.manifold.quotient_onto` — the same arrow
+        (:func:`~orpheus.geometry.manifold.quotient_onto` — the same arrow
         a frame's G0 reads, of which equality is the identity case), AND
         the group :math:`H` the rule's support was quotiented by
         (:attr:`DiscreteMeasure.quotient_group
         <orpheus.numerics.measure.DiscreteMeasure.quotient_group>`,
         :math:`\{e\}` for a bare rule) must lie in :math:`\Gamma K`
         (:meth:`SubgroupOfO3.is_subset_of_product
-        <orpheus.numerics.symmetry.SubgroupOfO3.is_subset_of_product>`):
+        <orpheus.geometry.symmetry.SubgroupOfO3.is_subset_of_product>`):
         a fold may spend only what the solution has.  Total — every
         (rule, geometry) pair answers, no arm raises.
 

@@ -333,7 +333,7 @@ import numpy as np
 
 from orpheus.values.scalars import parse_integer, parse_real
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.numerics.face_layout import AXIS_NAMES, face_normal, face_opposite
+from orpheus.geometry.faces import AXIS_NAMES, face_normal, face_opposite
 
 
 __all__ = [
@@ -607,7 +607,7 @@ def _mirror_motion(axis: str, dimension: int) -> RigidMotion:
     that folded their realizations into one kernel at B3.4b).
 
     The axis letter is resolved against
-    :data:`~orpheus.numerics.face_layout.AXIS_NAMES` — the single home of
+    :data:`~orpheus.geometry.faces.AXIS_NAMES` — the single home of
     that convention — and refused HERE rather than at realization, so a
     mis-named axis cannot be constructed and then fail late somewhere
     holding a quadrature.
@@ -945,7 +945,7 @@ class PairedDeck:
         the map that axis was naming all along, now as a motion.
 
         The axis letter is resolved against
-        :data:`~orpheus.numerics.face_layout.AXIS_NAMES` — the single home
+        :data:`~orpheus.geometry.faces.AXIS_NAMES` — the single home
         of that convention — and refused HERE rather than at realization,
         the same closure :meth:`SelfPairedDeck.mirror` applies: a mis-named
         axis cannot be constructed and then fail late somewhere holding a

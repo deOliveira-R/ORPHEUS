@@ -423,7 +423,7 @@ segment order.
    :math:`\varphi_m = 2\pi\,(2m-1)/(4N_\varphi)` — the upper half of
    the STAGGERED periodic trapezoid on :math:`2N_\varphi` points — so
    ``MOCQuadrature`` stores :math:`(\cos\varphi_m, \sin\varphi_m)`
-   produced by :func:`~orpheus.numerics.roots_of_unity.roots_of_unity`
+   produced by :func:`~orpheus.geometry.roots_of_unity.roots_of_unity`
    (octant fold + integer-arithmetic fixed points) and the ray tracer
    consumes the stored points.  Consequences, all bit-exact rather
    than to rounding: the azimuthal mirror

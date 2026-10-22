@@ -85,7 +85,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from orpheus.numerics.face_layout import AXIS_NAMES
+from orpheus.geometry.faces import AXIS_NAMES
 from orpheus.numerics.spaces.angular_trace_space import TANGENTIAL_EPS
 
 from ._factors import _mirror_motion
@@ -157,7 +157,7 @@ def _axis_cosines(quadrature: "Quadrature", axis: str) -> "np.ndarray":
 
     ``AXIS_NAMES.index`` rather than a local ``{"x": 0, ...}`` literal: the
     name→column correspondence has ONE home
-    (:data:`~orpheus.numerics.face_layout.AXIS_NAMES`), and a second spelling
+    (:data:`~orpheus.geometry.faces.AXIS_NAMES`), and a second spelling
     of it is a twin waiting to disagree.
 
     ⭐ ``mean_axis_cosine``, not ``axis_cosines`` (phase 0.2): this feeds the
@@ -295,8 +295,8 @@ def assert_specular_pairing_maps_inflow_to_outflow(
         # support's TYPE and of the group's containment predicate — no
         # duck-typed group and no tag read, so a group that merely CONTAINS
         # the mirror (D_2h, O_h) is diagnosed the same way.
-        from orpheus.numerics.manifold import Quotient
-        from orpheus.numerics.symmetry import SubgroupOfO3
+        from orpheus.geometry.manifold import Quotient
+        from orpheus.geometry.symmetry import SubgroupOfO3
 
         support = quadrature.measure.support
         folded = isinstance(support, Quotient) and support.by.contains(

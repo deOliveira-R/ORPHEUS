@@ -17,9 +17,9 @@ import pytest
 
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE
-from orpheus.numerics.manifold import SPHERE, Quotient, RealSpace
+from orpheus.geometry.manifold import SPHERE, Quotient, RealSpace
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics import frame_faces
 
 
@@ -54,7 +54,7 @@ def test_angular_phase_survives_stripping_the_symmetry_group():
     only angular route was ``invariance_group is not None``.  ``"S^2"`` was an
     inert string that no branch consulted.
 
-    Typing ``support`` makes :class:`~orpheus.numerics.manifold.Sphere` a
+    Typing ``support`` makes :class:`~orpheus.geometry.manifold.Sphere` a
     *reason*: the direction variable lives on the sphere, so a measure on one
     is angular whether or not the rule happens to be closed under a subgroup.
     That is what lets the shipped fold answer at all —

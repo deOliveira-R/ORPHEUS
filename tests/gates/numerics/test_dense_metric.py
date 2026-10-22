@@ -20,7 +20,7 @@ import pytest
 
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
 from orpheus.numerics.frame import GalerkinFrame
-from orpheus.numerics.manifold import SPHERE
+from orpheus.geometry.manifold import SPHERE
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.metric import (
     _DENSE_METRIC_RCOND,
@@ -30,7 +30,7 @@ from orpheus.numerics.metric import (
 )
 from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation

@@ -22,15 +22,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.face_layout import (
-    AXIS_NAMES,
-    FACE_NAMES,
-    FaceLayout,
-    FaceSlot,
-    face_name,
-    face_normal,
-    face_opposite,
-)
+from orpheus.geometry.faces import AXIS_NAMES, FACE_NAMES, face_name, face_normal, face_opposite
+from orpheus.numerics.face_layout import FaceLayout, FaceSlot
 
 
 pytestmark = [pytest.mark.foundation]

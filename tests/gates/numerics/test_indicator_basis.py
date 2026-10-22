@@ -33,7 +33,7 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.axis import Axis
 from orpheus.numerics.basis import Basis, IndicatorBasis
 from orpheus.numerics.frame import GalerkinFrame
-from orpheus.numerics.manifold import RealSpace
+from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.space import FunctionSpace
 

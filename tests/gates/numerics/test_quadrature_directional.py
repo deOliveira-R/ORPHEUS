@@ -31,9 +31,9 @@ from orpheus.numerics.space import FunctionSpace
 import numpy as np
 import pytest
 
-from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
-from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE
+from orpheus.geometry.manifold import COSINE_INTERVAL, SPHERE
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import LevelStructure, Quadrature

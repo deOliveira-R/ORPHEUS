@@ -296,7 +296,7 @@ def permutation_between(
     The point-set half of :meth:`RigidMotion.permutes`, on its own because
     an ACTION is not always an isometry of the ambient space: the action
     an isometry INDUCES on an orbit space (:meth:`GSpace.action
-    <orpheus.numerics.manifold.GSpace.action>` on a quotient) maps chart points
+    <orpheus.geometry.manifold.GSpace.action>` on a quotient) maps chart points
     to chart points through the quotient map, and asking whether it
     permutes a weighted node set is this same question with the images
     supplied rather than computed. Two guards, and the second is the one
