@@ -46,7 +46,7 @@ reads cross sections through this single source; its accessors
    survives as a solver-side *read* of the same hub property — a
    homonym, not the retired attribute.)
 
-The producer :func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs`
+The producer :func:`~orpheus.data.cell_xs.assemble_cell_xs`
 emits the flat ``(N_cells, ng)`` shape (CP also consumes that flat
 shape --- the producer is *unchanged* by the SN migration).  The
 :ref:`cell-flattening invariant <sn-cell-flattening-invariant>` is the
@@ -78,7 +78,7 @@ Per-material vs per-cell cross sections
 per-mixture as shape ``(ng,)`` (group-only).  The per-cell views on the
 hub's ``mat_xs`` are shape ``(ng, nx, ny)`` --- group first, then
 spatial.  The bridge is
-:func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs`, which lifts the
+:func:`~orpheus.data.cell_xs.assemble_cell_xs`, which lifts the
 per-mixture group-only array to the per-cell flat shape
 ``(N_cells, ng)``; the
 :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`

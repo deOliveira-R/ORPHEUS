@@ -42,7 +42,7 @@ from orpheus.transport.kernels import N2N_MULTIPLICITY
 from scipy.special import expn
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.data.macro_xs.cell_xs import CellXS, assemble_cell_xs
+from orpheus.data.cell_xs import CellXS, assemble_cell_xs
 from orpheus.derivations.common.kernels import chord_half_lengths
 from orpheus.derivations.common.quadrature import composite_gauss_legendre
 from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel

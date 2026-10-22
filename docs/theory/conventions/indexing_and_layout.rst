@@ -349,7 +349,7 @@ consumers campaign's step 2 (2026-09-13) the per-cell :math:`\sigma_t`
 is :attr:`MaterialMesh.sigma_t_cell
 <orpheus.transport.mesh.material_mesh.MaterialMesh.sigma_t_cell>` — derived
 once at construction from the materials through the ONE per-cell assembler
-:func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs`, in exactly the
+:func:`~orpheus.data.cell_xs.assemble_cell_xs`, in exactly the
 ``.T.reshape`` spelling :eq:`sn-cell-flatten-roundtrip` states:
 
 .. code-block:: python
@@ -498,7 +498,7 @@ The six PRs
        ``sig_t / sig_a / sig_p / chi`` from ``(nx, ny, ng)`` to
        ``(ng, nx, ny)`` via
        ``xs.<field>.T.reshape(ng, nx, ny)`` at ``__init__``.
-       Producer :func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs`
+       Producer :func:`~orpheus.data.cell_xs.assemble_cell_xs`
        **unchanged** (CP no-regression guaranteed by construction).
        PR-INDEX-2 transient bridges removed; new transients added at
        :meth:`FissionOperator.apply` legacy return contract and
@@ -1462,7 +1462,7 @@ lives in scattered docstrings.
    flux_tol, max_inner, inner_tol, inner_schedule)`` and the solver
    carries no ``sig_*`` / ``chi`` attribute at all; the per-cell cross
    sections live on
-   :class:`~orpheus.data.macro_xs.cell_xs.CellXS`, whose arrays are
+   :class:`~orpheus.data.cell_xs.CellXS`, whose arrays are
    **cell-major** ``(nc, ng)`` — a different priority order from the
    row's claim. Reconciling that row needs a trace of how the SN path
    reshapes ``CellXS`` into the sweep's layout, which this audit did

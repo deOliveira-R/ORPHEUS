@@ -2382,9 +2382,9 @@ Cross sections flow through two layers:
    scattering :math:`\Sigs{}` (``SigS[0]``) and (n,2n) :math:`\Sigma_2`
    (``Sig2``).
 
-2. :class:`~data.macro_xs.cell_xs.CellXS` --- per-cell on the mesh:
+2. :class:`~orpheus.data.cell_xs.CellXS` --- per-cell on the mesh:
    ``(N_cells, ng)`` arrays mapped from materials by
-   :func:`~data.macro_xs.cell_xs.assemble_cell_xs` using ``mat_ids``.
+   :func:`~orpheus.data.cell_xs.assemble_cell_xs` using ``mat_ids``.
 
 **Indexing:** ``xs.sig_t[i, g]`` is the total macroscopic cross section
 in spatial cell :math:`i` and energy group :math:`g`.  Group 0 = fastest

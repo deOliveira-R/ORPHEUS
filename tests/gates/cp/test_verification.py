@@ -42,7 +42,7 @@ def _two_region_mesh(coord, *, outers=(0.5, 1.0), n_cells=(1, 1)):
 
 from orpheus.cp.solver import CPMesh, CPParams, CPSolver, solve_cp
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.data.macro_xs.cell_xs import CellXS, assemble_cell_xs
+from orpheus.data.cell_xs import CellXS, assemble_cell_xs
 
 # File-level verifies — every test in this file exercises the CP matrix
 # pipeline end-to-end (from first-flight kernel through the discretised

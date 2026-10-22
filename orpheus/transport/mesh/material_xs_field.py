@@ -87,7 +87,7 @@ from typing import Literal, TYPE_CHECKING
 
 import numpy as np
 
-from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
+from orpheus.data.cell_xs import assemble_cell_xs
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.numerics import frame_faces
 
@@ -129,7 +129,7 @@ class MaterialXSField:
     cell-grid layout, e.g. the streaming/collision algebra).
 
     The per-cell views (``total_cross_section`` etc.) are CACHED on
-    first access via :func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs`;
+    first access via :func:`~orpheus.data.cell_xs.assemble_cell_xs`;
     the per-material side carries the source of truth.
 
     Parameters
@@ -477,7 +477,7 @@ class MaterialXSField:
         r""":math:`\sigma_t` per-cell view, shape ``(ng, nx, ny)``.
 
         Units: ``1/cm`` per energy group.  Built lazily on first
-        access via :func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs`
+        access via :func:`~orpheus.data.cell_xs.assemble_cell_xs`
         with a ``.T.reshape(ng, nx, ny)`` to the principled layout
         (Issue #196 PR-INDEX-3).  Cached.
         """

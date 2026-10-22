@@ -586,7 +586,7 @@ them.  Trust ``git``, not this column.
        :math:`\sigma_t` is that Problem's **datum** —
        ``MaterialMesh.sigma_t_cell``, always present, derived at
        construction through
-       :func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs` and
+       :func:`~orpheus.data.cell_xs.assemble_cell_xs` and
        replaced by
        :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.with_cross_sections`,
        which returns a **new Problem**.  No override flag, no ``None``,

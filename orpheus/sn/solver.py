@@ -43,7 +43,6 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast
 import numpy as np
 from scipy.sparse.linalg import gmres
 
-from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC
 from orpheus.mesh import Mesh1D, Mesh2D

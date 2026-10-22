@@ -555,7 +555,7 @@ class Mesh2D(ContentIdentity):
     def mat_ids(self) -> np.ndarray:
         """Flat material-ID array, shape (Nx*Ny,).
 
-        Compatible with :func:`data.macro_xs.cell_xs.assemble_cell_xs`.
+        Compatible with :func:`~orpheus.data.cell_xs.assemble_cell_xs`.
         """
         return self.mat_map.ravel()
 

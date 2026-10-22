@@ -3,7 +3,7 @@ sub-step C3a (O-5/O-6, 2026-09-13).
 
 ``MaterialMesh.sigma_t_cell`` is the per-cell :math:`\sigma_t` in the principled
 ``(ng, *spatial)`` layout: derived from the materials by default through the ONE
-per-cell assembler (:func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs`) and
+per-cell assembler (:func:`~orpheus.data.cell_xs.assemble_cell_xs`) and
 REPLACED by :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.with_cross_sections`
 — a NEW Problem (another ``_identity_key``) over the SAME phase space (the same
 ``_contractibility_key``, so ``same_phase_space`` holds and fields pair).  The
@@ -24,7 +24,7 @@ import weakref
 import numpy as np
 import pytest
 
-from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
+from orpheus.data.cell_xs import assemble_cell_xs
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher

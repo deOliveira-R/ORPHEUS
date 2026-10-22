@@ -1947,7 +1947,7 @@ What the override reaches, and what it does not
 symmetric: ``total_cross_section`` **reads the hub's datum**, while
 :math:`\sigma_a`, :math:`\nu\Sigma_f` and :math:`\chi` are still gathered
 lazily from the materials through
-:func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs`.  ``[M]`` on a
+:func:`~orpheus.data.cell_xs.assemble_cell_xs`.  ``[M]`` on a
 :math:`\times 3` variant the first moves and the other three are
 ``array_equal`` to the base — which is the gate
 ``test_law_the_override_moves_sigma_t_and_NOTHING_else``.

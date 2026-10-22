@@ -40,7 +40,7 @@ import numpy as np
 import pytest
 
 from orpheus.cp.solver import CPMesh, CPParams, solve_cp
-from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
+from orpheus.data.cell_xs import assemble_cell_xs
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.derivations.continuous.flat_source_cp import geometry as fsg
 from orpheus.geometry import BC, CoordSystem

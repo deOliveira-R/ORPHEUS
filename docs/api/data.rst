@@ -41,14 +41,6 @@ Mixture
    :undoc-members:
    :show-inheritance:
 
-Cell Cross Sections
--------------------
-
-.. automodule:: orpheus.data.macro_xs.cell_xs
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 The declaration: ``Materials``
 ------------------------------
 
@@ -74,6 +66,24 @@ lived in ``orpheus.transport.mesh.material_mesh`` until #405 P1 step 8.
 .. autoexception:: orpheus.data.materials.InconsistentMaterialsError
 
 .. autofunction:: orpheus.data.materials.energy_axis_of
+
+Cell cross sections
+-------------------
+
+:func:`~orpheus.data.cell_xs.assemble_cell_xs` pulls the declaration
+back along the material map of a spatial mesh (``mat_ids``, one material
+id per mesh cell) into :class:`~orpheus.data.cell_xs.CellXS` arrays of
+shape ``(N_cells, ng)``. "Cell" here is a spatial mesh cell, not the
+``(material id, Channel)`` cell of the next section. It consumes a :class:`~orpheus.data.materials.Materials`,
+so it lives beside the declaration and not in ``macro_xs``, the package
+of the declaration's element type ``Mixture`` (the layer DAG campaign
+moved it out of ``orpheus.data.macro_xs`` to break the module cycle
+between the two).
+
+.. automodule:: orpheus.data.cell_xs
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Cells and channels
 ------------------

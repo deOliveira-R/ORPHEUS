@@ -119,7 +119,8 @@ orpheus/
         face_layout.py       Boundary face-layout descriptor
     data/
         micro_xs/            421-group microscopic XS (GENDF/HDF5), Isotope dataclass
-        macro_xs/            Mixture, CellXS, recipes, self-shielding
+        macro_xs/            Mixture, recipes, self-shielding
+        cell_xs.py           CellXS: per-cell XS pulled back along the material map
         materials/           MATPRO correlations + water/steam properties
     geometry/                Mesh1D/Mesh2D, coordinate systems, factory functions
     derivations/             SymPy analytical derivations (verification truth)

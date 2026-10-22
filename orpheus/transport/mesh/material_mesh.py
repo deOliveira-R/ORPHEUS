@@ -321,11 +321,11 @@ class MaterialMesh:
         """The Problem's per-cell :math:`\\sigma_t` datum, ``(ng, *spatial)``.
 
         ``None`` derives it from the materials through the ONE per-cell
-        assembler (:func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs`);
+        assembler (:func:`~orpheus.data.cell_xs.assemble_cell_xs`);
         an explicit array is the replaced datum of a σ-variant Problem
         (:meth:`with_cross_sections`) and must carry the same layout.
         """
-        from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
+        from orpheus.data.cell_xs import assemble_cell_xs
 
         shape = (self.ng, *self.spatial_shape)
         if sigma_t_cell is None:

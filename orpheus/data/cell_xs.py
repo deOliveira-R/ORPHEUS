@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
     from orpheus.data.materials import Materials
 
-from .mixture import Mixture
+from orpheus.data.macro_xs.mixture import Mixture
 
 
 @dataclass
