@@ -175,7 +175,7 @@ def test_basis_space_is_the_spherical_harmonic_space(sh_frame):
     assert frame_faces.basis_space(frame) != frame.basis.space
     assert frame_faces.basis_space(frame) != SphericalHarmonicSpace.from_L(L)
     assert frame.basis.space == SphericalHarmonicSpace.from_L(L)
-    assert frame_faces.basis_space(frame).axes is not None and frame_faces.basis_space(frame).axes[0].generator is frame
+    assert frame_faces.basis_space(frame).axes is not None and frame_faces.basis_space(frame).axes[0].origin.frame is frame
     # the analysis codomain / reconstruction domain are that same space
     assert frame_faces.FrameAnalysis.of(frame).codomain is frame_faces.basis_space(frame)
     assert frame_faces.FrameReconstruction.of(frame).domain is frame_faces.basis_space(frame)
@@ -186,7 +186,9 @@ def test_measure_space_carries_the_quadrature_weights_as_its_metric(sh_frame):
     frame, _ = sh_frame
     ms = frame_faces.measure_space(frame)
     assert ms.shape == (frame.measure.weights.shape[0],)
-    np.testing.assert_array_equal(ms.inner_product_weights, frame.measure.weights)
+    # axis-built since S7 (ruling 63): the weights are the measure axis's own
+    assert ms.axes is not None and ms.inner_product_weights is None
+    np.testing.assert_array_equal(ms.axes[0].weights, frame.measure.weights)
     # analysis domain / reconstruction codomain are that same space
     assert frame_faces.FrameAnalysis.of(frame).domain is ms
     assert frame_faces.FrameReconstruction.of(frame).codomain is ms

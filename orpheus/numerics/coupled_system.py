@@ -440,7 +440,7 @@ class CoupledField:
 # ───────────────────────────────────────────────────────────────────────
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class CoupledSpace(FunctionSpace["CoupledField"]):
     r"""The N-system direct sum :math:`V = V_1 \oplus \cdots \oplus V_N`.
 
@@ -457,10 +457,11 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
     THESE methods, so the composite metric ``G = diag(G_1, …, G_N)`` is
     applied per member by the spaces that own each ``G_i``.
 
-    Identity is the inherited ``(name, shape)`` tuple with the name derived
-    from the members (``"coupled(a ⊕ b)"`` — the
-    :class:`~orpheus.numerics.space.TensorProductSpace` naming precedent) and
-    ``shape`` the flat direct-sum dimension.
+    Identity is the ordered keys of the member systems
+    (:meth:`CoupledSpace.identity_key`, since S7 of the numerics untangling);
+    the name, derived from the members (``"coupled(a ⊕ b)"`` — the
+    :class:`~orpheus.numerics.space.TensorProductSpace` naming precedent), is
+    a readable label, and ``shape`` the flat direct-sum dimension.
 
     Parameters
     ----------
@@ -498,18 +499,10 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
         default=None, repr=False, compare=False,
     )
 
-    # ── Equality / hashing inherited from FunctionSpace ───────────────
-    #
-    # Same rationale as TensorProductSpace / FullFieldSpace: the frozen
-    # dataclass would regenerate __eq__ over every field (including the
-    # ndarray weights slot); explicit delegation restores the (name, shape)
-    # identity convention. ``systems`` is already compare=False.
-
-    def __eq__(self, other: object) -> bool:
-        return FunctionSpace.__eq__(self, other)
-
-    def __hash__(self) -> int:
-        return FunctionSpace.__hash__(self)
+    def identity_key(self) -> tuple[Any, ...]:
+        """A coupled system space is the ordered keys of its member systems
+        (F7: a member's NAME carries no covariance, its key does)."""
+        return ("coupled", tuple(s.identity_key() for s in self.systems))
 
     def __repr__(self) -> str:
         return f"CoupledSpace({self.name!r}, shape={self.shape})"

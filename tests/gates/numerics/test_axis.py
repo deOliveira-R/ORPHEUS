@@ -28,7 +28,7 @@ import pytest
 
 from orpheus.data.energy_grid import EnergyGrid
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
+from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.axis import Modal
 
 pytestmark = pytest.mark.foundation
@@ -52,7 +52,7 @@ def test_axis_is_frozen() -> None:
     change after it has been used as a dict key or compared inside a
     space's ``__eq__``.
     """
-    ax = Axis("x", (3,), kind=BasisKind.NODAL)
+    ax = Axis("x", (3,), origin=Declared(BasisKind.NODAL))
     with pytest.raises(dataclasses.FrozenInstanceError):
         ax.label = "y"  # type: ignore[misc]
 
@@ -67,8 +67,8 @@ def test_weights_none_is_the_counting_measure() -> None:
     identity), and no consumer can ever observe two spellings of the
     identity metric.
     """
-    none_spelled = Axis("x", (3,), kind=BasisKind.NODAL)
-    ones_spelled = Axis("x", (3,), weights=np.ones(3), kind=BasisKind.NODAL)
+    none_spelled = Axis("x", (3,), origin=Declared(BasisKind.NODAL))
+    ones_spelled = Axis("x", (3,), weights=np.ones(3), origin=Declared(BasisKind.NODAL))
     _require(none_spelled.weights is None, "None spelling must store None")
     _require(
         ones_spelled.weights is None,
@@ -88,8 +88,8 @@ def test_weights_are_stored_canonically_and_read_only() -> None:
     name digest and the hash read these bytes), and the stored array
     refuses in-place writes.
     """
-    neg_zero = Axis("x", (2,), weights=np.array([-0.0, 2.0]), kind=BasisKind.NODAL)
-    pos_zero = Axis("x", (2,), weights=np.array([0.0, 2.0]), kind=BasisKind.NODAL)
+    neg_zero = Axis("x", (2,), weights=np.array([-0.0, 2.0]), origin=Declared(BasisKind.NODAL))
+    pos_zero = Axis("x", (2,), weights=np.array([0.0, 2.0]), origin=Declared(BasisKind.NODAL))
     _require(
         neg_zero == pos_zero and hash(neg_zero) == hash(pos_zero),
         "-0.0 and +0.0 spell ONE measure and must be ONE identity",
@@ -113,9 +113,9 @@ def test_non_finite_weights_are_refused() -> None:
     """
     for bad in (np.array([np.nan, 1.0]), np.array([np.inf, 1.0])):
         with pytest.raises(ValueError, match="finite"):
-            Axis("x", (2,), weights=bad, kind=BasisKind.NODAL)
+            Axis("x", (2,), weights=bad, origin=Declared(BasisKind.NODAL))
     # The signed-weight door stays OPEN (the anti-claim of the guard):
-    signed = Axis("x", (2,), weights=np.array([-0.5, 1.5]), kind=BasisKind.NODAL)
+    signed = Axis("x", (2,), weights=np.array([-0.5, 1.5]), origin=Declared(BasisKind.NODAL))
     w = signed.weights
     assert w is not None
     _require(bool(w[0] == -0.5), "signed weights are legal (quadrature axes)")
@@ -212,8 +212,8 @@ def test_axis_is_immune_to_mutation_of_the_source_array() -> None:
     _require(axis_before == reference, "equality moved under source mutation")
 
     weights_src = np.array([2.0, 5.0])
-    weighted = Axis("x", (2,), weights=weights_src, kind=BasisKind.NODAL)
-    weighted_ref = Axis("x", (2,), weights=np.array([2.0, 5.0]), kind=BasisKind.NODAL)
+    weighted = Axis("x", (2,), weights=weights_src, origin=Declared(BasisKind.NODAL))
+    weighted_ref = Axis("x", (2,), weights=np.array([2.0, 5.0]), origin=Declared(BasisKind.NODAL))
     weights_src[0] = 7.0
     _require(weighted == weighted_ref, "weights identity moved under source mutation")
 
@@ -222,13 +222,13 @@ def test_rank_zero_shape_is_refused() -> None:
     """A8 — rank >= 1 is a construction invariant, refused with a typed
     error (not a bare ``assert`` — ``-O`` would strip that in production)."""
     with pytest.raises(ValueError, match="rank"):
-        Axis("x", (), kind=BasisKind.NODAL)
+        Axis("x", (), origin=Declared(BasisKind.NODAL))
 
 
 def test_weights_shape_must_match_shape() -> None:
     """A9 — the factor measure lives over exactly ``shape``."""
     with pytest.raises(ValueError, match="shape"):
-        Axis("x", (3,), weights=np.ones(4) * 2.0, kind=BasisKind.NODAL)
+        Axis("x", (3,), weights=np.ones(4) * 2.0, origin=Declared(BasisKind.NODAL))
 
 
 def test_basis_kind_participates_in_identity() -> None:
@@ -238,8 +238,8 @@ def test_basis_kind_participates_in_identity() -> None:
     space and a nodal space would compare equal and the CS1 step-4 cone
     refusal would be reachable through the wrong space.
     """
-    nodal = Axis("x", (3,), kind=BasisKind.NODAL)
-    modal = Axis("x", (3,), kind=Modal(np.eye(3)[0]))
+    nodal = Axis("x", (3,), origin=Declared(BasisKind.NODAL))
+    modal = Axis("x", (3,), origin=Declared(Modal(np.eye(3)[0])))
     _require(nodal != modal, "basis kind must participate in identity")
 
 
@@ -253,7 +253,7 @@ def test_identity_is_structural_PER_SUBCLASS() -> None:
     bare ``Axis`` — which is exactly the design decision this pins.
     """
     energy = EnergyAxis.synthetic(2)
-    generic = Axis("energy", (2,), kind=BasisKind.NODAL)
+    generic = Axis("energy", (2,), origin=Declared(BasisKind.NODAL))
     _require(energy != generic, "subclass identity collapsed (EnergyAxis == Axis)")
     _require(generic != energy, "subclass identity must be symmetric")
 
@@ -268,9 +268,9 @@ def test_weights_are_part_of_identity() -> None:
     on a one-cell space (a scalar metric commutes with everything), so
     identity is the only instrument that can carry it.
     """
-    counting = Axis("spatial", (1,), kind=BasisKind.NODAL)  # quotient point, weight 1
-    one_cell = Axis("spatial", (1,), weights=np.array([2.0]), kind=BasisKind.NODAL)
-    other_cell = Axis("spatial", (1,), weights=np.array([3.0]), kind=BasisKind.NODAL)
+    counting = Axis("spatial", (1,), origin=Declared(BasisKind.NODAL))  # quotient point, weight 1
+    one_cell = Axis("spatial", (1,), weights=np.array([2.0]), origin=Declared(BasisKind.NODAL))
+    other_cell = Axis("spatial", (1,), weights=np.array([3.0]), origin=Declared(BasisKind.NODAL))
     _require(counting != one_cell, "V != 1 must differ from the quotient point")
     _require(one_cell != other_cell, "different measures must be different axes")
 
@@ -286,10 +286,12 @@ def test_energy_axis_refuses_weights_and_modal_kind() -> None:
     IS the counting measure.
     """
     with pytest.raises(ValueError, match="[Cc]ounting|theorem"):
-        EnergyAxis("energy", (2,), weights=np.array([2.0, 5.0]), kind=BasisKind.NODAL)
-    with pytest.raises(ValueError, match="NODAL"):
-        EnergyAxis("energy", (2,), kind=Modal(np.eye(2)[0]))
-    ones_spelled = EnergyAxis("energy", (2,), weights=np.ones(2), kind=BasisKind.NODAL)
+        EnergyAxis("energy", (2,), weights=np.array([2.0, 5.0]))
+    # NODAL by construction: the kind is fixed by the class, so a modal
+    # energy axis is not refused but unspellable (S7, ruling 82).
+    with pytest.raises(TypeError, match="origin"):
+        EnergyAxis("energy", (2,), origin=Declared(Modal(np.eye(2)[0])))  # pyright: ignore[reportCallIssue]
+    ones_spelled = EnergyAxis("energy", (2,), weights=np.ones(2))
     _require(
         ones_spelled == EnergyAxis.synthetic(2),
         "ones-spelled counting EnergyAxis must canonicalize to the synthetic axis",

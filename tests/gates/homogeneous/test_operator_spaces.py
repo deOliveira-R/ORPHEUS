@@ -23,7 +23,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.homogeneous.solver import HomogeneousProblem, _pose_space
-from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
+from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.assembled_operator import MissingAssembly, assemble
 from orpheus.numerics.operator import IncompatibleOperatorComposition
@@ -242,8 +242,8 @@ def test_H_MOVES_under_a_per_group_weighted_axis() -> None:
     mat_xs = _mat_xs("2g")
     w_energy = np.array([2.0, 5.0])
     weighted_space = FunctionSpace.of_axes(
-        Axis("energy", (2,), weights=w_energy, kind=BasisKind.NODAL),
-        Axis("spatial", (1,), kind=BasisKind.NODAL),
+        Axis("energy", (2,), weights=w_energy, origin=Declared(BasisKind.NODAL)),
+        Axis("spatial", (1,), origin=Declared(BasisKind.NODAL)),
     )
     collision = MultiplicationOperator.from_mesh(
         mat_xs.total_cross_section_field, mat_xs.mesh, space=weighted_space,
@@ -350,8 +350,20 @@ def _all_d5_mixtures():
     return mixture_cases()
 
 
-def test_minted_space_equals_a_genuine_unit_cell_carriers_bulk_space() -> None:
-    r"""**G2.1** ⭐ — the space-identity bridge, on all 8 D5 cases — RE-KEYED
+def test_minted_space_and_a_unit_cell_carriers_bulk_space_share_their_arms() -> None:
+    r"""**G2.1** ⭐ — the space-identity bridge, on all 8 D5 cases.
+
+    ⛔ RE-POSED at S7 (the user's ruling, 2026-10-21: "distinct; collapse is a
+    map"). Ruling 71 makes a sampled axis's atoms content, so the one-cell
+    carrier's spatial factor (one atom at the cell centre on ℝ, weight 1) and
+    the pose's quotient point (a counting point with no atoms) are two
+    spaces: isometric, not equal. The collapse ℝ → {*} is a pushforward, an
+    operator, not an identity. What the bridge keeps is the no-second-spelling
+    law per arm: the ENERGY axes are one axis, and the spatial factors carry
+    one measure (the counting weight), so the ``volumes ×2`` arm still reds
+    here. Until S7 the row asserted ``minted == carrier_space``.
+
+    The history below is the row's until S7. It was RE-KEYED
     at the CS4c coda (C1) to a GENUINE unit-width one-cell ``Mesh1D``
     carrier (the fabricated ``from_materials`` carrier retires at C2; the
     ruling said retire this gate, and the verification plan measured that
@@ -383,10 +395,21 @@ def test_minted_space_equals_a_genuine_unit_cell_carriers_bulk_space() -> None:
         carrier_space = unit_cell_carrier({0: mix}).bulk_space  # type: ignore[dict-item]
         _require(minted is not carrier_space, f"{name}: precondition lost")
         _require(
-            minted == carrier_space,
-            f"{name}: the mixture-minted space != the carrier's bulk_space "
-            f"— a second spelling of the energy arm or the quotient point "
-            f"has appeared",
+            minted.axis("energy") == carrier_space.axis("energy"),
+            f"{name}: the mixture-minted energy axis != the carrier's "
+            f"— a second spelling of the energy arm has appeared",
+        )
+        point, cell = minted.axis("spatial"), carrier_space.axis("spatial")
+        _require(
+            point.shape == cell.shape == (1,) and point.weights is None and cell.weights is None,
+            f"{name}: the quotient point and the unit cell must carry one "
+            f"measure, the counting weight — a second spelling of the "
+            f"quotient point's measure has appeared",
+        )
+        _require(
+            point.nodes is None and cell.nodes is not None and minted != carrier_space,
+            f"{name}: the unit cell's atom must keep it a different space "
+            f"from the quotient point (ruling 71; collapse is a map)",
         )
 
 
@@ -476,7 +499,7 @@ def test_the_space_measure_is_consulted(monkeypatch) -> None:
             EnergyAxis.from_materials([m]),
             Axis(
                 "spatial", (1,), weights=np.array([2.0]),
-                kind=BasisKind.NODAL,
+                origin=Declared(BasisKind.NODAL),
             ),
         )
 

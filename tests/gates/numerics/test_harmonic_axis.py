@@ -40,7 +40,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.legendre_space import LegendreSpace
 from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
 from orpheus.numerics import frame_faces
-from orpheus.numerics.axis import Modal
+from orpheus.numerics.axis import Declared, FromBasis, FromFrame, Modal
 
 pytestmark = pytest.mark.foundation
 
@@ -81,8 +81,8 @@ def test_a_family_generic_axis_would_collapse_the_two_poles() -> None:
     ``x`` from ``z``. The subclass's extended identity key is what separates
     them."""
     ax_x, ax_z = _head_axis(LegendreSpace.from_L(1, "x")), _head_axis(LegendreSpace.from_L(1, "z"))
-    plain_x = Axis(ax_x.label, ax_x.shape, ax_x.weights, kind=ax_x.kind)
-    plain_z = Axis(ax_z.label, ax_z.shape, ax_z.weights, kind=ax_z.kind)
+    plain_x = Axis(ax_x.label, ax_x.shape, ax_x.weights, origin=Declared(ax_x.kind))
+    plain_z = Axis(ax_z.label, ax_z.shape, ax_z.weights, origin=Declared(ax_z.kind))
     assert plain_x == plain_z, "the generic identity is blind to the spent axis — that is the collapse"
     assert ax_x != ax_z
     # and a LegendreAxis is never equal to a plain Axis wearing its slots
@@ -91,7 +91,7 @@ def test_a_family_generic_axis_would_collapse_the_two_poles() -> None:
 
 def test_the_legendre_axis_refuses_an_unknown_spent_axis() -> None:
     with pytest.raises(ValueError, match="spent_axis must be x/y/z"):
-        LegendreAxis("legendre", (2,), None, kind=Modal(np.eye(2)[0]), spent_axis="w")
+        LegendreAxis("legendre", (2,), None, origin=Declared(Modal(np.eye(2)[0])), spent_axis="w")
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -114,17 +114,18 @@ def test_the_basis_minted_head_axis_carries_the_continuum_gram_and_the_basis(L: 
     for ell in range(L + 1):
         np.testing.assert_allclose(w[ell, : 2 * ell + 1], per_ell[ell], rtol=1e-15)
         np.testing.assert_array_equal(w[ell, 2 * ell + 1 :], 0.0)
-    basis = ax.generator_as(Basis, consumer="test")
+    assert isinstance(ax.origin, FromBasis)
+    basis = ax.origin.basis
     assert isinstance(basis, SphericalHarmonicBasis) and isinstance(basis, TruncatedBasis) and basis.L == L
-    with pytest.raises(ValueError, match="needs the generating Quadrature"):
-        ax.generator_as(Quadrature, consumer="the-asker")
+    assert ax.support == basis.domain
 
     leg = LegendreSpace.from_L(L, "z")
     lax = _head_axis(leg)
     assert isinstance(lax, LegendreAxis) and isinstance(lax.kind, Modal) and lax.shape == (L + 1,)
     assert lax.weights is not None
     np.testing.assert_allclose(lax.weights, per_ell, rtol=1e-15)
-    lbasis = lax.generator_as(Basis, consumer="test")
+    assert isinstance(lax.origin, FromBasis)
+    lbasis = lax.origin.basis
     assert isinstance(lbasis, LegendreBasis) and lbasis.axis == "z" and lbasis.L == L
     # the space's metric verbs read the axis's measure — the head has no other source
     assert sh.inner_product_weights is None and sh.metric is None
@@ -148,11 +149,7 @@ def test_the_frame_dressed_head_axis_carries_the_parseval_measure_and_the_frame(
     ax = _head_axis(dressed)
     cont = _head_axis(frame.basis.space)
     assert type(ax) is type(cont) and isinstance(ax.kind, Modal) and ax.shape == cont.shape
-    assert ax.generator_as(GalerkinFrame, consumer="test") is frame
-    with pytest.raises(ValueError, match="needs the generating Basis"):
-        ax.generator_as(Basis, consumer="the-asker")
-    with pytest.raises(ValueError, match="needs the generating Quadrature"):
-        ax.generator_as(Quadrature, consumer="the-asker")
+    assert isinstance(ax.origin, FromFrame) and ax.origin.frame is frame
     assert ax.weights is not None and cont.weights is not None
     diag = np.diagonal(frame.discrete_gram).reshape(ax.shape)
     live = diag > 0.0
@@ -167,6 +164,6 @@ def test_the_harmonic_axis_is_never_a_plain_axis_wearing_its_slots() -> None:
     different axis (the identity is *what kind of generator produced this
     factor*), so a hand-built head can never pass for the family's."""
     ax = _head_axis(SphericalHarmonicSpace.from_L(1))
-    plain = Axis(ax.label, ax.shape, ax.weights, kind=ax.kind)
+    plain = Axis(ax.label, ax.shape, ax.weights, origin=Declared(ax.kind))
     assert ax != plain and plain != ax
     assert hash(ax) != hash(plain) or ax != plain

@@ -28,7 +28,7 @@ import numpy.testing as npt
 import pytest
 
 from orpheus.numerics import frame_faces
-from orpheus.numerics.axis import Modal
+from orpheus.numerics.axis import Declared, Modal
 from orpheus.numerics.axis_marginal import AxisPullbackOperator, AxisRetractionOperator, AxisSectionOperator
 from tests.gates.numerics._axis_marginal_lift_support import (
     COEFFICIENT_HEAD_ROWS,
@@ -108,12 +108,13 @@ def _independent_table(frame, L):
 
 
 def _head_frame(V):
-    from orpheus.numerics.frame import FrameBase
+    from orpheus.numerics.axis import FromFrame
 
-    gen = V.axes[0].generator
-    if not isinstance(gen, FrameBase):
-        pytest.fail(f"precondition: {V.axes[0].label!r} is not frame-generated (generator {type(gen).__name__})")
-    return gen
+    match V.axes[0].origin:
+        case FromFrame(frame):
+            return frame
+        case origin:
+            pytest.fail(f"precondition: {V.axes[0].label!r} is not frame-generated (origin {type(origin).__name__})")
 
 
 def _head_L(V):
@@ -251,10 +252,10 @@ class TestG2Integration:
         V, label = resolve(name, label)
         ax = V.axis(label)
         E = AxisSectionOperator.of(V, label)
-        gen = ax.generator
-        from orpheus.numerics.frame import FrameBase
+        from orpheus.numerics.axis import FromFrame
 
-        mass = math.fsum(np.asarray(gen.measure.weights, float)) if isinstance(gen, FrameBase) else 4.0 * math.pi
+        origin = ax.origin
+        mass = math.fsum(np.asarray(origin.frame.measure.weights, float)) if isinstance(origin, FromFrame) else 4.0 * math.pi
         npt.assert_allclose(E.mass, mass, rtol=8 * _EPS)
 
 
@@ -324,8 +325,8 @@ class TestG3Reciprocity:
         from orpheus.numerics.metric import DenseMetric
         from orpheus.numerics.space import FunctionSpace
 
-        a = Axis("angular", (2,), weights=np.array([0.5, 1.5]), kind=BasisKind.NODAL)
-        b = Axis("spatial", (3,), kind=BasisKind.NODAL)
+        a = Axis("angular", (2,), weights=np.array([0.5, 1.5]), origin=Declared(BasisKind.NODAL))
+        b = Axis("spatial", (3,), origin=Declared(BasisKind.NODAL))
         with pytest.raises(ValueError, match="DERIVED from its axes"):
             FunctionSpace("np", (2, 3), axes=(a, b), metric=DenseMetric(np.eye(6) + 0.1))
 
@@ -408,7 +409,7 @@ def test_g5_the_nodal_mass_is_correctly_rounded(rule):
     from orpheus.numerics.space import FunctionSpace
 
     w = np.asarray(_RULES[rule]().weights, float)
-    V = FunctionSpace.of_axes(Axis("angular", w.shape, weights=w, kind=BasisKind.NODAL), Axis("x", (3,), kind=BasisKind.NODAL))
+    V = FunctionSpace.of_axes(Axis("angular", w.shape, weights=w, origin=Declared(BasisKind.NODAL)), Axis("x", (3,), origin=Declared(BasisKind.NODAL)))
     npt.assert_array_equal(AxisSectionOperator.of(V, "angular").mass, math.fsum(w))
 
 
@@ -418,7 +419,7 @@ class TestG6Refusals:
     def _cells(self):
         from orpheus.numerics.axis import Axis, BasisKind
 
-        return Axis("spatial", (5,), weights=np.array([0.2, 0.3, 0.4, 0.7, 1.4]), kind=BasisKind.NODAL)
+        return Axis("spatial", (5,), weights=np.array([0.2, 0.3, 0.4, 0.7, 1.4]), origin=Declared(BasisKind.NODAL))
 
     def test_the_energy_axis_refuses_toward_condensation(self):
         from orpheus.numerics.axis import EnergyAxis
@@ -448,7 +449,7 @@ class TestG6Refusals:
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.numerics.space import FunctionSpace
 
-        V = (FunctionSpace.of_axes(Axis("angular", (4,), weights=np.array([0.3, 0.7, 0.5, 0.5]), kind=BasisKind.NODAL))
+        V = (FunctionSpace.of_axes(Axis("angular", (4,), weights=np.array([0.3, 0.7, 0.5, 0.5]), origin=Declared(BasisKind.NODAL)))
              if which == "nodal" else frame_faces.basis_space(frame_faces.angular_frame(Quadrature.folded_product(4, 4), 2)))
         assert V.axes is not None  # narrowing only: both members are axis-built
         with pytest.raises(ValueError, match="bare scalar"):
@@ -469,16 +470,17 @@ class TestG6Refusals:
     def test_zero_mass_refuses_the_section_only(self, which):
         """⟨m,u⟩ = 0: no section; the retraction stays legal. The modal leg is new (a head whose
         metric vanishes on the constant); first red before S1 (0457f113): TypeError (MODAL)."""
-        from orpheus.numerics.axis import Axis, BasisKind, LegendreAxis
+        from orpheus.numerics.axis import Axis, BasisKind, FromBasis, LegendreAxis
         from orpheus.numerics.basis.legendre_basis import LegendreBasis
         from orpheus.numerics.space import FunctionSpace
 
         if which == "nodal signed":
             V, label = resolve("zero-mass signed", "angular")
         else:
-            head = LegendreAxis("legendre", (3,), weights=np.array([0.0, 1.0, 1.0]), kind=Modal(np.array([1.0, 0.0, 0.0])),
-                                spent_axis="z", generator=LegendreBasis(L=2, axis="z"))
-            V, label = FunctionSpace.of_axes(head, Axis("spatial", (3,), kind=BasisKind.NODAL)), "legendre"
+            head = LegendreAxis("legendre", (3,), weights=np.array([0.0, 1.0, 1.0]),
+                                origin=FromBasis(LegendreBasis(L=2, axis="z"), np.array([1.0, 0.0, 0.0])),
+                                spent_axis="z")
+            V, label = FunctionSpace.of_axes(head, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL))), "legendre"
         AxisRetractionOperator.of(V, label)
         with pytest.raises(ValueError, match="zero total weight"):
             AxisSectionOperator.of(V, label)
@@ -498,14 +500,14 @@ class TestG6Refusals:
 
         if leg == "a string kind":
             with pytest.raises(TypeError, match="kind must be BasisKind.NODAL or Modal"):
-                Axis("moment", (2,), kind="nodal")  # pyright: ignore[reportArgumentType]
+                Declared("nodal")  # pyright: ignore[reportArgumentType]
         elif leg == "a zero unit":
             with pytest.raises(ValueError, match="finite and nonzero"):
                 Modal(np.zeros(2))
         else:
-            nodal = Axis("moment", (2,), weights=np.array([1.0, 3.0]), kind=BasisKind.NODAL)
+            nodal = Axis("moment", (2,), weights=np.array([1.0, 3.0]), origin=Declared(BasisKind.NODAL))
             with pytest.raises(ValueError, match="must live over exactly the axis shape"):
-                dataclasses.replace(nodal, kind=Modal(np.eye(3)[0]))
+                dataclasses.replace(nodal, origin=Declared(Modal(np.eye(3)[0])))
 
     def test_wrong_shapes_refuse_both_directions(self):
         V, _ = resolve("synthetic nodal", "angular")

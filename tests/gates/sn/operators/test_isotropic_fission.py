@@ -39,6 +39,7 @@ from orpheus.geometry import BC
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.operators.isotropic_transfer import IsotropicFission
+from orpheus.numerics.axis import Declared
 
 pytestmark = pytest.mark.foundation
 
@@ -280,9 +281,9 @@ class TestAdmission:
 
         mat_xs = _mat_xs()
         wrong = FunctionSpace.of_axes(
-            Axis("energy", (_NG + 1,), kind=BasisKind.NODAL),
-            Axis("x", (_NX,), kind=BasisKind.NODAL),
-            Axis("y", (1,), kind=BasisKind.NODAL),
+            Axis("energy", (_NG + 1,), origin=Declared(BasisKind.NODAL)),
+            Axis("x", (_NX,), origin=Declared(BasisKind.NODAL)),
+            Axis("y", (1,), origin=Declared(BasisKind.NODAL)),
         )
         with pytest.raises((TypeError, ValueError)):
             IsotropicFission.from_material_xs(mat_xs, space=wrong)
@@ -293,10 +294,10 @@ class TestAdmission:
 
         mat_xs = _mat_xs()
         angularish = FunctionSpace.of_axes(
-            Axis("angle", (8,), kind=BasisKind.NODAL),
-            Axis("energy", (_NG,), kind=BasisKind.NODAL),
-            Axis("x", (_NX,), kind=BasisKind.NODAL),
-            Axis("y", (1,), kind=BasisKind.NODAL),
+            Axis("angle", (8,), origin=Declared(BasisKind.NODAL)),
+            Axis("energy", (_NG,), origin=Declared(BasisKind.NODAL)),
+            Axis("x", (_NX,), origin=Declared(BasisKind.NODAL)),
+            Axis("y", (1,), origin=Declared(BasisKind.NODAL)),
         )
         with pytest.raises(TypeError, match="ANGULAR binding"):
             IsotropicFission.from_material_xs(mat_xs, space=angularish)

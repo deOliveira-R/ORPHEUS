@@ -823,7 +823,8 @@ def test_each_blocks_frame_names_ONE_manifold_on_both_halves(
     the *basis*'s half and no gate reached the production *measure*'s.
 
     The observable path is the block's own operator wiring: the gather's
-    codomain IS ``measure.space``, whose name is ``L2[{support.name}]``. So
+    codomain IS the frame's measure space, one axis whose support is the
+    measure's and whose label is the index set's name (S7, ruling 63). So
     this compares the two halves through production plumbing rather than by
     re-reading the constructor. `[M]` the mutation now reddens every row.
 
@@ -836,9 +837,10 @@ def test_each_blocks_frame_names_ONE_manifold_on_both_halves(
         domain = block.basis.domain
         assert isinstance(domain, IndexSet)
         assert block.gather.codomain is not None
-        assert block.gather.codomain.name == f"L2[{domain.name}]", (
+        axes = block.gather.codomain.axes
+        assert axes is not None and axes[0].support == domain and axes[0].label == domain.name, (
             f"{label}: block {block.basis.orbit}/g{block.basis.group} — the "
             f"basis says its functions live on {domain.name!r} while its "
-            f"measure induced {block.gather.codomain.name!r}. One frame, two "
+            f"measure induced {axes[0].support!r}. One frame, two "
             f"manifolds."
         )

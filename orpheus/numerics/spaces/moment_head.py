@@ -96,6 +96,7 @@ def truncated_head(head: "FunctionSpace", L_new: int, /) -> "FunctionSpace":
     mints at ``L_new`` (structurally equal — ruling O-5), never on a
     second-metric twin.
     """
+    from orpheus.numerics.axis import FromBasis, FromFrame
     from orpheus.numerics.basis.base import TruncatedBasis
     from orpheus.numerics import frame_faces
     from orpheus.numerics.frame import GalerkinFrame
@@ -116,17 +117,16 @@ def truncated_head(head: "FunctionSpace", L_new: int, /) -> "FunctionSpace":
             f"truncated_head: a moment head is a single-axis space; "
             f"{head!r} carries axes={axes!r}."
         )
-    generator = axes[0].generator
-    if isinstance(generator, GalerkinFrame):
-        lower = frame_faces.basis_space(generator.at_order(L_new))
-    elif isinstance(generator, TruncatedBasis):
-        lower = generator.at_order(L_new).space
-    else:
-        got = type(generator).__name__ if generator is not None else "None"
-        raise ValueError(
-            f"truncated_head: the head axis of {head.name!r} was minted "
-            f"through neither a truncated basis nor a Galerkin frame "
-            f"(generator={got}), so nothing can re-mint the family at "
-            f"L_new={L_new}."
-        )
+    match axes[0].origin:
+        case FromFrame(GalerkinFrame() as frame):
+            lower = frame_faces.basis_space(frame.at_order(L_new))
+        case FromBasis(TruncatedBasis() as basis):
+            lower = basis.at_order(L_new).space
+        case origin:
+            raise ValueError(
+                f"truncated_head: the head axis of {head.name!r} was minted "
+                f"through neither a truncated basis nor a Galerkin frame "
+                f"(origin={type(origin).__name__}), so nothing can re-mint "
+                f"the family at L_new={L_new}."
+            )
     return replace(lower, name=head.name)

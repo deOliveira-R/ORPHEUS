@@ -362,6 +362,15 @@ class HilbertMetric(ABC):
         return float(np.sum(self.apply(x) * y))
 
 
+def _frozen_copy(array: NDArray) -> NDArray:
+    r"""A read-only copy: a metric is a frozen value, and a positioned form is
+    space content (``FunctionSpace.identity_key`` digests it), so its arrays
+    cannot be moved after the space is keyed."""
+    out = np.array(array, dtype=float)
+    out.setflags(write=False)
+    return out
+
+
 @dataclass(frozen=True)
 class DiagonalMetric(HilbertMetric):
     r"""The Hadamard realization: a diagonal weight array, leading-aligned.
@@ -377,6 +386,9 @@ class DiagonalMetric(HilbertMetric):
     """
 
     weights: NDArray
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "weights", _frozen_copy(self.weights))
 
     def apply(self, x: NDArray) -> NDArray:
         return _broadcast_leading(self.weights, np.ndim(x)) * x
@@ -478,12 +490,12 @@ class DenseMetric(HilbertMetric):
                 f"{scale:.3e}. An asymmetric form is not an inner product — "
                 f"symmetrize at the producer."
             )
-        object.__setattr__(self, "matrix", m)
+        object.__setattr__(self, "matrix", _frozen_copy(m))
         if self.inverse_matrix is None:
             inv = np.linalg.pinv(
                 m, hermitian=True, rcond=_DENSE_METRIC_RCOND
             )
-            object.__setattr__(self, "inverse_matrix", inv)
+            object.__setattr__(self, "inverse_matrix", _frozen_copy(inv))
         else:
             inv = np.asarray(self.inverse_matrix, dtype=float)
             if inv.shape != m.shape:
@@ -499,7 +511,7 @@ class DenseMetric(HilbertMetric):
                     f"{_DENSE_METRIC_PENROSE_RTOL:.0e} of the matrix scale "
                     f"{scale:.3e} (the Penrose identity fails)."
                 )
-            object.__setattr__(self, "inverse_matrix", inv)
+            object.__setattr__(self, "inverse_matrix", _frozen_copy(inv))
 
     @classmethod
     def inverse_of(cls, gram: NDArray) -> "DenseMetric":

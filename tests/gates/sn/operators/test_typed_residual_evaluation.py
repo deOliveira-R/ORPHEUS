@@ -30,6 +30,7 @@ from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import FullFieldSpace
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
@@ -284,7 +285,9 @@ def test_mis_spaced_scattering_reds_the_residual_composition():
     ffs = solver.problem.full_field_space
     # Right shape, WRONG name — the discriminating mis-composition. Patch the
     # CLASS property in-process (auto-reverts; never a real edit / git checkout).
-    wrong = FullFieldSpace(name="full_field_TYPO", shape=ffs.shape)
+    # Since S7 a composite IS its blocks' keys, so a wrong space of the right
+    # shape is spelled through a wrong block (a renamed bulk leaf).
+    wrong = FullFieldSpace.from_blocks(FunctionSpace("bulk_TYPO", ffs.interior_space.shape), ffs.trace_space)
     with mock.patch.object(type(S), "domain", property(lambda self: wrong)), \
          mock.patch.object(type(S), "codomain", property(lambda self: wrong)):
         with pytest.raises(
@@ -327,7 +330,9 @@ def test_mis_spaced_collision_reds_the_production_loss_build():
     solver, _LC, _S, _B = _slab_2g_het_triple()
     problem = solver.problem
     ffs = problem.full_field_space
-    wrong = FullFieldSpace(name="full_field_TYPO", shape=ffs.shape)
+    # Since S7 a composite IS its blocks' keys, so a wrong space of the right
+    # shape is spelled through a wrong block (a renamed bulk leaf).
+    wrong = FullFieldSpace.from_blocks(FunctionSpace("bulk_TYPO", ffs.interior_space.shape), ffs.trace_space)
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(solver.problem.mat_xs.total_cross_section_field, problem)
     # S2 (ruling 52): the production build is the EXPLICIT atom

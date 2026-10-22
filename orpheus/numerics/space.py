@@ -70,13 +70,13 @@ from __future__ import annotations
 
 from functools import cached_property
 from dataclasses import dataclass, field, replace
-from typing import Any, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
 
 from .axis import Axis, BasisKind
-from .content import name_digest
+from .content import content_digest, name_digest
 from .metric import (
     DenseMetric,
     DiagonalMetric,
@@ -85,6 +85,9 @@ from .metric import (
     HilbertMetric,
     PositionedMetric,
 )
+
+if TYPE_CHECKING:
+    from .measure import DiscreteMeasure
 
 
 __all__ = [
@@ -106,7 +109,7 @@ __all__ = [
 Carrier = TypeVar("Carrier", default=Any)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class FunctionSpace(Generic[Carrier]):
     r"""A finite-dimensional vector space of discrete fields.
 
@@ -190,60 +193,51 @@ class FunctionSpace(Generic[Carrier]):
     unit weight and a genuine one-cell mesh with :math:`V \neq 1` are
     DIFFERENT spaces; the old reading "two copies of :math:`\mathbb{R}^n`
     are 'the same' space regardless of which inner product is installed"
-    is OVERTURNED). The realization, per class: an **axis-built** space
-    compares and hashes by its ``axes`` tuple directly (``Axis.__eq__``
-    is structural and excludes provenance), so an all-axes ``*`` product
-    and the :meth:`of_axes` mint of the same axes are one space, and an
-    axis-built space is never equal to a hand-named space wearing its
-    label. An **axes-less** space keeps the nominal ``(name, shape)``
-    identity, and what that means depends on the name: the digest-named
-    composites and traces
-    (:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`,
-    the two trace spaces, the two radial-characteristic sub-spaces —
-    five classes, four digest-folding factories) fold their content into
-    the name, so ``(name, shape)`` IS content identity there (CS4b S3);
-    the family-tagged heads
-    (:class:`~orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace`
-    — ``'spherical_harmonic_space'`` is a tag, not a digest —
-    :class:`~orpheus.numerics.spaces.legendre_space.LegendreSpace`, and the
-    retired ``SpatialMomentSpace``)
-    carried only their family and, through ``shape``, their truncation
-    order — deliberately metric-blind, which is what let a frame's
-    Parseval-dressed head still equal the field's continuum head (the
-    admission seam CS4c step 6 items 6.2b/6.2c re-posed: since 6.2c-ii the
-    two harmonic heads are axis-built and the tree binds the frame's; since
-    6.2c-iii the spatial-moment tail is the scheme's axis); a hand-built legacy space carries whatever
-    its author wrote.
-    Until the flip the same doctrine flowed through a BRIDGE: identity
-    was ``(name, shape)`` for every space and :meth:`of_axes` derived the
-    name injectively from the axes' content. The derived name survives
-    as the readable label, as what keeps ``repr`` and guard messages
-    content-distinguishing, and as the identity carrier of the axes-less
-    composites that fold member names; its injectivity is no longer
-    load-bearing for ``==`` on axis-built spaces.
+    is OVERTURNED). The realization is ONE key, :meth:`identity_key`, from
+    which ``==`` and ``hash`` derive in this class only (S7 of the numerics
+    untangling, #631; until then twelve subclasses carried their own pair):
+
+    * an **axis-built** space is its ``axes`` tuple (``Axis.__eq__`` reads
+      the axis content, support and atoms included, and never the origin;
+      ruling 71) together with the dense forms POSITIONED over it, so an
+      all-axes ``*`` product and the :meth:`of_axes` mint of the same axes
+      are one space, a dense-dressed head and the same axes under another
+      Gram are two, and an axis-built space is never equal to a hand-named
+      one wearing its label;
+    * an **axes-less leaf** is its class, name and shape: the trace spaces
+      and the radial-characteristic sub-spaces fold their content into a
+      digest name (CS4b S3), so that triple IS content identity there, and
+      the class keeps a hand-built space wearing such a name from passing
+      for one; a hand-built legacy space carries whatever its author wrote;
+    * a **dual**, a non-axis **tensor product**, a **direct sum**
+      (:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`) and
+      a **coupled system** are their members' keys, tagged, so covariance
+      travels into a composite (F7 of the S6a review: until S7 a composite
+      folded its members' NAMES, and ``from_blocks(a, b).dual()`` equalled
+      ``from_blocks(a*, b*)``).
+
+    Until the identity flip (CS4c step 6) the doctrine flowed through a
+    BRIDGE: identity was ``(name, shape)`` for every space and
+    :meth:`of_axes` derived the name injectively from the axes' content. The
+    derived name survives as the readable label and as what keeps ``repr``
+    and guard messages content-distinguishing.
     """
 
     name: str
     shape: tuple[int, ...]
-    # Metadata, NOT identity (see class docstring): on an axes-less space
-    # identity is (name, shape) — two such spaces with the same (name, shape)
-    # are equal regardless of the installed dense metric (the leaf classes
-    # derive their names from content); on an axis-built space the measures
-    # live ON the axes, so they enter the identity through ``axes`` and this
-    # slot is ``None``. ``compare=False`` keeps the weights out of the
-    # dataclass-generated ``__eq__``/``__hash__`` of subclasses (e.g.
-    # ``AngularTraceSpace``, ``SphericalHarmonicSpace``) that regenerate them — an
-    # array-valued metric would otherwise make ``==`` raise on the ambiguous
-    # element-wise truth value. The base class's manual ``__eq__`` already
-    # ignores it; this makes every subclass agree by construction.
+    # Metadata, NOT identity (see class docstring): on an axes-less leaf the
+    # key is (class, name, shape), so two such spaces are equal regardless of
+    # the installed dense weights (the leaf classes derive their names from
+    # content); on an axis-built space the measures live ON the axes, so they
+    # enter the identity through ``axes`` and this slot is ``None``.
+    # ``compare=False`` keeps an array out of the content of any dataclass
+    # that would read the fields.
     inner_product_weights: Optional[NDArray] = field(
         default=None, repr=False, compare=False,
     )
-    # The axis-composition generator record (campaign 1, CS1) — THE
-    # identity of an axis-built space since the identity flip (CS4c step
-    # 6): ``__eq__``/``__hash__`` read it directly (``compare=False`` only
-    # keeps a subclass's generated ``__eq__`` from re-deriving equality
-    # over every field, same rationale as the weights above) — and
+    # The axis-composition record (campaign 1, CS1) — the identity of an
+    # axis-built space (with the positioned overlay; :meth:`identity_key`)
+    # since the identity flip (CS4c step 6) — and
     # LOAD-BEARING for the metric: when present, the factor measures live
     # per axis and the metric is DERIVED from them as one FactoredMetric
     # (never densified; item 6.2c-i retired the inline per-axis loop).
@@ -312,42 +306,43 @@ class FunctionSpace(Generic[Carrier]):
                 f"the concatenation {concat} of its axes' shapes"
             )
 
+    def identity_key(self) -> tuple[Any, ...]:
+        r"""The content that IS this space: the one definition of its identity.
+
+        ``==`` and ``hash`` derive from it here, in the base class only, so no
+        member of the family re-states equality (#631, finding F7 of the S6a
+        review). A tagged tuple per kind of space:
+
+        * axis-built — ``("axes", axes, overlay)``: the axis tuple (its
+          content, ruling 71) and the content digests of the dense forms
+          POSITIONED over it (``None`` where an axis carries none), so a
+          dense-dressed head and the same axes with another Gram are two
+          spaces;
+        * axes-less leaf — ``("named", class, name, shape)``: the
+          factory-built leaves (the two trace spaces, the two
+          radial-characteristic spaces) fold their content into a digest
+          name, and the class keeps a hand-built space wearing such a name
+          from passing for one;
+        * a dual, a non-axis tensor product, a direct sum and a coupled
+          system override this with their members' keys, tagged.
+        """
+        if self.axes is not None:
+            return ("axes", self.axes, tuple(
+                None if form is None else content_digest(form) for form in self._overlay_forms()
+            ))
+        return ("named", type(self), self.name, self.shape)
+
+    @cached_property
+    def _identity(self) -> tuple[Any, ...]:
+        return self.identity_key()
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, FunctionSpace):
             return NotImplemented
-        if other is self:
-            return True
-        # Covariance is identity (numerics_untangling.md ruling 75): a dual
-        # space V* is never its primal V, whatever their shapes and axes.
-        if isinstance(other, DualSpace) or isinstance(self, DualSpace):
-            return (
-                isinstance(self, DualSpace)
-                and isinstance(other, DualSpace)
-                and self.primal == other.primal
-            )
-        # The identity flip (structural ``__eq__``, CS4c step 6, 2026-09-07):
-        # an axis-built space IS its axis tuple. ``Axis.__eq__`` compares
-        # (type, label, shape, kind, weights bytes) — never ``generator`` —
-        # so two mints agree iff their axes' content agrees, and the derived
-        # name stops being the carrier of that fact. An axis-built space is
-        # never the same space as a hand-named one wearing its label; two
-        # axes-less spaces keep the nominal ``(name, shape)`` identity —
-        # content identity where the factory folds content into the name
-        # (the composites and traces, CS4b S3). The family-tagged heads
-        # are all axis-built now (the two harmonic heads since 6.2c-ii;
-        # the spatial-moment tail is the scheme's axis since 6.2c-iii).
-        if self.axes is not None or other.axes is not None:
-            if self.axes is None or other.axes is None:
-                return False
-            return self.axes == other.axes
-        return self.name == other.name and self.shape == other.shape
+        return other is self or self._identity == other._identity
 
     def __hash__(self) -> int:
-        # Consistent with ``__eq__`` by construction: the structural arm
-        # hashes the axes tuple it compares, the nominal arm ``(name, shape)``.
-        if self.axes is not None:
-            return hash(self.axes)
-        return hash((self.name, self.shape))
+        return hash(self._identity)
 
     def __repr__(self) -> str:
         return f"FunctionSpace({self.name!r}, shape={self.shape})"
@@ -355,6 +350,23 @@ class FunctionSpace(Generic[Carrier]):
     # ------------------------------------------------------------------
     # Axis composition (campaign 1, CS1)
     # ------------------------------------------------------------------
+
+    @classmethod
+    def of_measure(cls, measure: DiscreteMeasure, label: str) -> "FunctionSpace":
+        r"""The discrete :math:`L^2(\mu)` space a measure samples: one axis.
+
+        A discrete measure :math:`\mu = \sum_n w_n \delta_{x_n}` induces the
+        space of its sampled values, per-node arrays under
+        :math:`\langle f, g\rangle_\mu = \sum_n w_n f_n g_n` (the weights ARE
+        the metric). It is the space over :meth:`Axis.of_measure
+        <orpheus.numerics.axis.Axis.of_measure>`, so its identity is the
+        axis's content (support, atoms, weights, label; ruling 71) and the
+        measure space of a frame over a quadrature IS the SN angular space
+        over the same rule (ruling 63). The label is the caller's: the role
+        the factor plays, which a caller holding only the measure reads off
+        :attr:`~orpheus.numerics.measure.DiscreteMeasure.axis_label`.
+        """
+        return cls.of_axes(Axis.of_measure(measure, label))
 
     @classmethod
     def of_axes(cls, *axes: Axis) -> "FunctionSpace":
@@ -1076,7 +1088,7 @@ def _tensor_product_factored_metric(
     return FactoredMetric(tuple(entries))
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class TensorProductSpace(FunctionSpace):
     r"""A function space that decomposes as
     :math:`V = V_1 \otimes V_2 \otimes \cdots \otimes V_k`.
@@ -1102,15 +1114,14 @@ class TensorProductSpace(FunctionSpace):
 
     Notes
     -----
-    The class is **frozen**. Identity is the inherited
-    ``(name, shape)`` tuple, where ``name`` and
-    ``shape`` are derived from the factors. Two
+    The class is **frozen**. Identity is :meth:`identity_key`: an
+    all-axes product is its axes (one space with the :meth:`of_axes` mint of
+    them); otherwise it is the ordered keys of its ``factors``. Two
     :class:`TensorProductSpace` instances with the same factor sequence
     compare equal even if reached via different composition paths.
 
-    The ``factors`` field is metadata that supports introspection (e.g.,
-    operator-algebra factor matching for ``(A & B) ∘ (C & D)`` rewriting)
-    and is not part of the identity.
+    The ``factors`` field also supports introspection (e.g.,
+    operator-algebra factor matching for ``(A & B) ∘ (C & D)`` rewriting).
 
     Parameters
     ----------
@@ -1123,21 +1134,12 @@ class TensorProductSpace(FunctionSpace):
 
     factors: tuple["FunctionSpace", ...] = field(default=(), compare=False, repr=False)
 
-    # ── Equality / hashing inherited from FunctionSpace ───────────────
-    #
-    # The @dataclass(frozen=True) decorator would otherwise auto-generate
-    # __eq__ that compares every field — including the ndarray
-    # ``inner_product_weights`` which raises "truth value ambiguous" at
-    # use time. Explicit delegation restores the base identity (the ``axes``
-    # tuple when axis-built, ``(name, shape)`` otherwise — one body, eight
-    # delegating names across the space family). ``factors`` is already
-    # excluded from compare via the field-level ``compare=False``.
-
-    def __eq__(self, other: object) -> bool:
-        return FunctionSpace.__eq__(self, other)
-
-    def __hash__(self) -> int:
-        return FunctionSpace.__hash__(self)
+    def identity_key(self) -> tuple[Any, ...]:
+        """An axis-built product is its axes (the ``of_axes`` mint of them is
+        one space); otherwise the ordered keys of its factors."""
+        if self.axes is not None:
+            return super().identity_key()
+        return ("tensor", tuple(f.identity_key() for f in self.factors))
 
     def find_factor[T: "FunctionSpace"](self, factor_type: type[T]) -> T:
         r"""Return the (first) tensor factor that is an instance of ``factor_type``.
@@ -1256,7 +1258,7 @@ class TensorProductSpace(FunctionSpace):
         return f"TensorProductSpace({self.name!r}, shape={self.shape})"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class DualSpace(FunctionSpace):
     r"""The dual :math:`V^*` of a leaf :class:`FunctionSpace`: its covectors.
 
@@ -1283,15 +1285,11 @@ class DualSpace(FunctionSpace):
     # kw_only sidesteps the inherited-defaults field-ordering rule.
     primal: "FunctionSpace" = field(kw_only=True, compare=False, repr=False)
 
-    # The covariance-aware identity lives in :meth:`FunctionSpace.__eq__`
-    # (ruling 75); the auto-generated dataclass __eq__ would compare ndarray
-    # weights, so the delegation is explicit.
-
-    def __eq__(self, other: object) -> bool:
-        return FunctionSpace.__eq__(self, other)
-
-    def __hash__(self) -> int:
-        return hash(("dual", self.primal))
+    def identity_key(self) -> tuple[Any, ...]:
+        """Covariance is identity (ruling 75): a dual is tagged and keyed by
+        its primal, so it equals another dual iff their primals are equal and
+        never equals a primal space."""
+        return ("dual", self.primal.identity_key())
 
     def __post_init__(self) -> None:
         # Its content IS its primal: a dual carries the primal's shape and no

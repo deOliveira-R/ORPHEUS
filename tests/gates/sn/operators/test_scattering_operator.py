@@ -39,7 +39,7 @@ from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.spaces.moment_head import MomentHead
-from orpheus.numerics.axis import Axis, BasisKind
+from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.operators.isotropic_transfer import (
     IsotropicN2N,
@@ -90,7 +90,7 @@ def _widened_scalar_space(problem, trailing):
         return bulk
     return FunctionSpace.of_axes(
         *bulk.axes,
-        Axis("spatial_moments", tuple(trailing), kind=BasisKind.NODAL),
+        Axis("spatial_moments", tuple(trailing), origin=Declared(BasisKind.NODAL)),
     )
 
 

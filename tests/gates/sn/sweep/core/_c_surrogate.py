@@ -166,7 +166,7 @@ def mm_constants_for_ordinate(
     # owned by the two-mints-agree gate and K1's control leg, not here.
     from orpheus.numerics.quadrature.directional import Quadrature
 
-    quad = op.angular_axis.generator_as(Quadrature, consumer="_c_surrogate oracle")
+    quad = op.angular_axis.origin.quadrature
 
     if op.mesh.coord is CoordSystem.SPHERICAL:
         # Production τ, named at the call site (2026-08-12): the L0 wrapper

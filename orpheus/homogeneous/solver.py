@@ -47,7 +47,7 @@ from typing import TYPE_CHECKING, assert_never
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
+from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.fields.cross_section_field import CrossSectionField
@@ -208,8 +208,8 @@ def _pose_space(mix: Mixture) -> FunctionSpace:
         EnergyAxis.from_materials([mix]),
         # The one-cell counting axis is honestly generator-less (CS5):
         # the infinite-medium pose has no mesh, so no spatial measure
-        # object exists to name — ``generator=None`` IS the record.
-        Axis("spatial", (1,), kind=BasisKind.NODAL),
+        # object exists to name — ``Declared`` IS the record (ruling 82).
+        Axis("spatial", (1,), origin=Declared(BasisKind.NODAL)),
     )
 
 

@@ -56,7 +56,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.numerics.axis import Axis, BasisKind
+from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.metric import DenseMetric, FactoredMetric
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
@@ -107,8 +107,8 @@ def _axis_built[T: Head](head: T) -> T:
 def _bulk(ng: int = 2, spatial: tuple[int, ...] = (4, 3)) -> FunctionSpace:
     """An axis-built cell group, as every SN carrier's ``bulk_space`` is."""
     return FunctionSpace.of_axes(
-        Axis("energy", (ng,), None, kind=BasisKind.NODAL),
-        Axis("spatial", spatial, np.full(spatial, 0.5), kind=BasisKind.NODAL),
+        Axis("energy", (ng,), None, origin=Declared(BasisKind.NODAL)),
+        Axis("spatial", spatial, np.full(spatial, 0.5), origin=Declared(BasisKind.NODAL)),
     )
 
 
@@ -228,8 +228,8 @@ def test_the_axis_route_never_densifies_a_large_product() -> None:
     weights (32 000 B), the outer product would be 4 000 000 entries (32 MB).
     """
     w = np.linspace(0.5, 1.5, 2000)
-    a = Axis("a", (2000,), w, kind=BasisKind.NODAL)
-    b = Axis("b", (2000,), w, kind=BasisKind.NODAL)
+    a = Axis("a", (2000,), w, origin=Declared(BasisKind.NODAL))
+    b = Axis("b", (2000,), w, origin=Declared(BasisKind.NODAL))
     space = FunctionSpace.of_axes(a, b)
     assert space.inner_product_weights is None and space.metric is None
     assert a.weights is not None and b.weights is not None
@@ -365,7 +365,7 @@ def test_truncated_re_mints_through_the_generator_and_KEEPS_the_axes(label: str)
     assert lower == minted
     assert lower != _dense_slot_twin(minted)
     assert minted.axes is not None
-    assert lower.axes[0].generator == minted.axes[0].generator
+    assert lower.axes[0].origin.basis == minted.axes[0].origin.basis
 
 
 @pytest.mark.parametrize("label", ["gauss_legendre(8)", "lebedev(11)", "folded_product(4,8)"])
@@ -381,13 +381,13 @@ def test_a_frame_dressed_head_truncates_to_the_frames_dressed_head_at_the_lower_
     L = 2
     dressed = frame_faces.basis_space(frame_faces.angular_frame(quad, L))
     assert isinstance(dressed, MomentHead)
-    assert dressed.axes is not None and dressed.axes[0].generator is frame_faces.angular_frame(quad, L)
+    assert dressed.axes is not None and dressed.axes[0].origin.frame is frame_faces.angular_frame(quad, L)
     lower = dressed.truncated(L - 1)
     assert isinstance(lower, MomentHead)
     assert lower.axes is not None and lower.L == L - 1 and lower.name == dressed.name
     assert lower == frame_faces.basis_space(frame_faces.angular_frame(quad, L - 1))
     assert lower != frame_faces.angular_frame(quad, L - 1).basis.space
-    assert lower.axes[0].generator == frame_faces.angular_frame(quad, L - 1)
+    assert lower.axes[0].origin.frame == frame_faces.angular_frame(quad, L - 1)
 
 
 def test_a_dense_gram_lives_positioned_on_the_axis_built_heads_own_object() -> None:
@@ -410,7 +410,7 @@ def test_a_dense_gram_lives_positioned_on_the_axis_built_heads_own_object() -> N
 
     G = np.eye(3) + 0.25
     dense = DenseMetric.inverse_of(G)
-    axis = Axis(_HARMONIC_AXIS_LABEL, (3,), None, kind=Modal(np.eye(3)[0]))
+    axis = Axis(_HARMONIC_AXIS_LABEL, (3,), None, origin=Declared(Modal(np.eye(3)[0])))
     with pytest.raises(ValueError, match="positioned over them"):
         FunctionSpace(name="probe", shape=(3,), axes=(axis,), metric=dense)
     head = FunctionSpace(
@@ -485,12 +485,12 @@ def test_the_production_head_of_every_family_is_axis_buildable(label: str, L: in
 
     frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(_RULES[label](), L))
     rng = np.random.default_rng(11)
-    for head, generator in ((frame.basis.space, frame.basis), (frame_faces.basis_space(frame), frame)):
+    for head, (arm, generator) in ((frame.basis.space, ("basis", frame.basis)), (frame_faces.basis_space(frame), ("frame", frame))):
         assert isinstance(head, (SphericalHarmonicSpace, LegendreSpace)), (
             "every shipped rule binds one of the two head families"
         )
         assert head.axes is not None and head.inner_product_weights is None
-        assert head.axes[0].generator is generator
+        assert getattr(head.axes[0].origin, arm) is generator
         assert isinstance(head, MomentHead) and head.L == L
         if head.axes[0].weights is None:
             assert frame.discrete_gram_structure is GramStructure.DENSE and head is frame_faces.basis_space(frame)

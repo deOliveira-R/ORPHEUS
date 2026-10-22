@@ -201,7 +201,7 @@ def test_the_recorded_trajectory_was_taken_under_the_PARSEVAL_head_metric() -> N
     assert head.inner_product_weights is None and head.metric is None
     assert head.axes is not None and len(head.axes) == 1
     frame = frame_faces.angular_frame(problem.quad, _L)
-    assert head.axes[0].generator is frame
+    assert head.axes[0].origin.frame is frame
     weights = head.axes[0].weights
     assert weights is not None
     live = np.asarray(weights) > 0.0

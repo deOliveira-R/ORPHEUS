@@ -55,7 +55,7 @@ from orpheus.numerics.space import FunctionSpace
 __all__ = ["ScalarTraceSpace"]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class ScalarTraceSpace(FunctionSpace):
     r"""Boundary space of per-face ``(J⁺, J⁻)`` partial-current pairs.
 
@@ -170,17 +170,6 @@ class ScalarTraceSpace(FunctionSpace):
             layout=layout,
         )
 
-    # ── Identity (mirror AngularTraceSpace / FullFieldSpace) ─────────────────
-    #
-    # @dataclass(frozen=True) would regenerate __eq__/__hash__ over the
-    # fields; explicit delegation restores the (name, shape) identity
-    # convention. ``layout`` is already excluded via ``compare=False``.
-
-    def __eq__(self, other: object) -> bool:
-        return FunctionSpace.__eq__(self, other)
-
-    def __hash__(self) -> int:
-        return FunctionSpace.__hash__(self)
 
     def __repr__(self) -> str:
         return f"ScalarTraceSpace({self.name!r}, shape={self.shape})"

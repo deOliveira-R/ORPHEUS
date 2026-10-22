@@ -1,17 +1,21 @@
 r"""Space-factor axes — the generators of axis-composed function spaces.
 
 An **axis** is one tensor factor of a function space: the value object
-recording *(index shape, factor measure, basis kind)* as its structural
-identity, plus — since CS5 — *generator provenance* (which object minted
-it), deliberately outside that identity.
+recording what fixes that factor's coordinate space — its index shape, its
+measure, its kind, and the manifold and atoms it was sampled from — together
+with its **origin**, the object that minted it, which is provenance and
+deliberately outside that identity.
 Spaces are ordered products of axes (``FunctionSpace.of_axes``); the axis is
 the unit the composition machinery reasons about — partitions, collapses,
 frames, and (later) ⊕-lifts act **per axis**, never on an anonymous
 position of a monolithic shape tuple.
 
-The six slots, precisely
-========================
+The slots, precisely
+====================
 
+* ``label`` — the factor's role (``"angular"``, ``"spatial"``,
+  ``"energy"``, …). Two factors that agree on everything else and play
+  different roles are different axes.
 * ``shape`` — the index set of this factor, rank ≥ 1. Rank > 1 is
   admissible (a spherical-harmonic axis is ``(L+1, 2L+1)``; a rank-``d``
   spatial axis is a legal design choice for CS2).
@@ -20,31 +24,37 @@ The six slots, precisely
   has no "unbound" state, so the two-state ambiguity of the legacy
   ``FunctionSpace.inner_product_weights`` (``None`` = "no canonical
   quadrature" *or* "Euclidean") cannot arise on this type.
-* ``kind`` — a closed sum, ``BasisKind.NODAL`` or :class:`Modal`
-  ``(unit)`` (ruling 41). ``NODAL`` factors carry a coordinate cone
-  (per-component positivity is meaningful); ``MODAL`` factors do not (a
-  spectral coefficient may be negative for a positive function), and the
-  modal arm CARRIES the factor's unit, so a modal kind without a unit, or a
-  unit that disagrees with the kind, cannot be constructed.
-* ``generator`` — **provenance, never identity** (CS5): the object that
-  minted this axis — a :class:`~orpheus.numerics.measure.DiscreteMeasure`
-  or :class:`~orpheus.numerics.quadrature.directional.Quadrature` for
-  NODAL factors, a :class:`~orpheus.numerics.basis.base.Basis` for MODAL
-  ones — or, on a moment HEAD a frame has dressed with its Parseval
-  metric, the :class:`~orpheus.numerics.frame.FrameBase` that dressed it
-  (the Stage-2 generator: the pairing basis ⊗ measure induces the
-  coefficient space's metric, and only the frame can re-dress the head at
-  another order; CS4c step 6 item 6.2c-ii) — or ``None`` where no
-  generator object exists (the counting axis). An axis is a **forgetful
-  map** from its generator (it keeps the
-  weights and drops the nodes); the accessor lets a consumer recover the
-  un-forgotten data (direction cosines, level structure) THROUGH the
-  space instead of being handed the generator separately. Deliberately
-  EXCLUDED from the content (``field(compare=False)``): two axes with identical
-  structural content are the same axis whatever instance produced them,
-  so content-equal but distinct-instance generators (the #403 hazard)
-  never reach axis equality — and never perturb the ``of_axes``
-  space-name digest, whose injectivity rides the same key.
+* ``origin`` — **provenance, never identity**: a closed sum of five arms
+  (ruling 64 of the numerics untangling), read by exhaustive ``match``:
+
+  ============================  =====================  ==================  =================
+  arm                           kind it implies        ``support``         ``nodes``
+  ============================  =====================  ==================  =================
+  :class:`FromMeasure` (μ)      ``NODAL``              ``μ.support``       ``μ.nodes``
+  :class:`FromQuadrature` (q)   ``NODAL``              ``q.measure``'s     ``q.measure``'s
+  :class:`FromBasis` (b, u)     ``Modal(u)``           ``b.domain``        none
+  :class:`FromFrame` (f)        ``Modal(Φᵀw)``         ``f.basis.domain``  none
+  :class:`Declared` (k)         ``k``                  none                none
+  ============================  =====================  ==================  =================
+
+  The generating object rides inside its arm so a consumer can recover
+  what the axis forgot (direction cosines, the level fibration, the frame
+  that can re-dress a head at another order) by matching the arm, and a
+  consumer that needs a quadrature names that need in its own refusal.
+  ``Declared`` is the honest arm where no generating object exists or may
+  be imported here: the energy axes (their content is their edges), the
+  homogeneous one-point axis, the rank-``d`` spatial arm (contract G6b) and
+  the LD scheme's spatial-moment axis (``Modal(e₀)``; ruling 82).
+* ``kind``, ``support``, ``nodes`` — **derived from the origin**, never
+  passed: :attr:`Axis.kind` is the closed sum ``BasisKind.NODAL |``
+  :class:`Modal` ``(unit)`` (ruling 41), so ``Axis(kind=NODAL,
+  generator=basis)``, a nodal axis claiming a spectral generator, is
+  unspellable. ``NODAL`` factors carry a coordinate cone (per-component
+  positivity is meaningful); ``MODAL`` factors do not (a spectral
+  coefficient may be negative for a positive function), and the modal arm
+  CARRIES the factor's unit. ``support`` is the manifold the factor's
+  coordinates live on and ``nodes`` the atoms a nodal factor samples, read
+  read-only.
 * :attr:`Axis.unit` (read from the kind) — the coordinates of the
   constant function :math:`1` in this factor's own representation (ruling
   37: minted with the axis, by whatever mints it, like the weights). On a
@@ -56,12 +66,7 @@ The six slots, precisely
   coordinates are covariant moments), :math:`e_0` on the LD scheme's
   spatial-moment axis. The marginal over the axis integrates against the
   covector :math:`m = G_k\,u` (the axis's metric block applied to the
-  unit; :mod:`orpheus.numerics.axis_marginal`). The unit is content on a
-  modal factor only (ruling 39), and that holds by the type: the kind is
-  content, the ``NODAL`` enum member carries nothing, and ``Modal`` carries
-  the unit, which records the variance of the coordinates (coefficients or
-  moments) that the weights alone do not fix.
-* identity — **structural, per subclass** (see below).
+  unit; :mod:`orpheus.numerics.axis_marginal`).
 
 Canonical storage — one spelling per measure (ruled 2026-08-20)
 ===============================================================
@@ -77,7 +82,7 @@ Two construction rulings make the measure's identity unambiguous:
   ``-0.0`` and ``+0.0`` are one measure and must be one identity/byte
   pattern; the addition also guarantees a defensive copy, so mutating the
   caller's array can never move an axis's hash after it has been used as
-  a dict key.
+  a dict key. The atoms are stored the same way.
 
 Non-finite weights are **refused** (a measure's weights are finite
 numbers). There is deliberately **no non-negativity guard**: CS2's
@@ -85,31 +90,44 @@ quadrature axes legally carry signed weights (e.g. level-symmetric
 families with negative weights), and the axis is the wrong layer to
 outlaw them.
 
-Identity — structural per subclass, from day one
-================================================
+Identity — what fixes the factor's space (ruling 71)
+====================================================
 
-Equality and hash compare the *structural content* — ``(type, label,
-shape, kind, weights bytes)`` plus each subclass's own identity data —
-never object identity and never a subset. Two axes that differ only in
-measure are **different axes** (the collapse doctrine's "a genuine
-one-cell slab keeps its axis with weight V ≠ 1, distinguished from the
-quotient point by measure"); an :class:`EnergyAxis` never equals a
-generic :class:`Axis` carrying the same field tuple. This identity is
-what ``FunctionSpace.of_axes`` derives *space names* from, and — since the
-identity flip (CS4c step 6, 2026-09-07) — what ``FunctionSpace.__eq__`` reads
-DIRECTLY on an axis-built space: axis identity IS space identity there.
+Equality and hash compare the content ``(type, label, shape, weights,
+kind, support, nodes)`` plus each subclass's own fields, never object
+identity and never the origin. A nodal axis is therefore fixed by its
+support, its atoms, its measure and its label; a modal one by its domain,
+its kind (with the unit), its measure and its label. Two consequences
+#631 measured:
+
+* two rules with equal weights and different directions
+  (``level_symmetric(4)`` against ``product(2, 12)``) are two axes, and the
+  same μ-rule about two poles (``gauss_legendre_on_polar_orbit(8, "x")``
+  against ``(8, "z")``) is two axes, separated by the support alone;
+* the origin is provenance: ``Axis.of_quadrature(q)`` and
+  ``Axis.of_measure(q.measure, "angular")`` are one axis.
+
+Two axes that differ only in measure are **different axes** (the collapse
+doctrine's "a genuine one-cell slab keeps its axis with weight V ≠ 1,
+distinguished from the quotient point by measure"); an
+:class:`EnergyAxis` never equals a generic :class:`Axis` carrying the same
+field tuple. This identity is what ``FunctionSpace.of_axes`` derives
+*space names* from, and what a space's identity key reads on an
+axis-built space (``FunctionSpace.identity_key``).
 
 Layering note: this module is model-independent numerics. It consumes an
 :class:`~orpheus.data.energy_grid.EnergyGrid` only through its surface
 (``edges``, ``n_groups``) under ``TYPE_CHECKING`` — the runtime
-dependency direction stays ``data → numerics``.
+dependency direction stays ``data → numerics``. The generating objects
+(measure, quadrature, basis, frame) rank below the axis in the numerics
+concept order and are read only through their attributes.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from enum import Enum, unique
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
@@ -123,13 +141,24 @@ if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.numerics.basis.base import Basis
     from orpheus.numerics.frame import FrameBase
+    from orpheus.numerics.manifold import Manifold
     from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.quadrature.directional import Quadrature
 
-__all__ = ["Axis", "AxisKind", "BasisKind", "EnergyAxis", "Modal"]
+__all__ = [
+    "Axis",
+    "AxisKind",
+    "BasisKind",
+    "Declared",
+    "EnergyAxis",
+    "FromBasis",
+    "FromFrame",
+    "FromMeasure",
+    "FromQuadrature",
+    "Modal",
+    "Origin",
+]
 
-#: The generator kinds :meth:`Axis.generator_as` can narrow to.
-_G = TypeVar("_G")
 
 
 @unique
@@ -196,6 +225,163 @@ class Modal(ContentIdentity):
 AxisKind = BasisKind | Modal
 
 
+
+
+# ---------------------------------------------------------------------------
+# The origin — what minted an axis (ruling 64)
+# ---------------------------------------------------------------------------
+#
+# Each arm answers the three reads an axis derives its content from: the kind,
+# the manifold the coordinates live on, and the atoms a nodal factor samples.
+# An arm holding a generating object compares that object by IDENTITY
+# (``eq=False``): the arm is provenance, and the content it answers is
+# compared on the axis, where it is copied and read-only. ``Declared`` holds
+# only a kind, so it is a value.
+
+
+def _read_only(array: NDArray) -> NDArray:
+    out = np.asarray(array, dtype=float) + 0.0
+    out.setflags(write=False)
+    return out
+
+
+@dataclass(frozen=True)
+class Declared:
+    r"""The origin of an axis no generating object minted: the kind is declared.
+
+    Used where the content is complete without atoms — the energy axes
+    (their edges are their content), the homogeneous one-point axis, the
+    rank-``d`` spatial arm (contract G6b: no rank-``d`` measure-to-axis
+    pairing exists yet) and the LD scheme's spatial-moment axis, which is
+    ``Modal(e₀)`` and whose generator, the scheme, lives in the transport
+    layer (ruling 82).
+    """
+
+    declared: AxisKind
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.declared, (BasisKind, Modal)):
+            raise TypeError(
+                f"Declared: the kind must be BasisKind.NODAL or Modal(unit), "
+                f"got {self.declared!r}"
+            )
+
+    @property
+    def kind(self) -> AxisKind:
+        return self.declared
+
+    @property
+    def support(self) -> None:
+        return None
+
+    @property
+    def nodes(self) -> None:
+        return None
+
+
+@dataclass(frozen=True, eq=False)
+class FromMeasure:
+    r"""The origin of the axis a discrete measure samples: ``NODAL``, on the
+    measure's support, at its atoms."""
+
+    measure: DiscreteMeasure
+
+    @property
+    def kind(self) -> AxisKind:
+        return BasisKind.NODAL
+
+    @property
+    def support(self) -> Manifold:
+        return self.measure.support
+
+    @property
+    def nodes(self) -> NDArray:
+        return self.measure.nodes
+
+
+@dataclass(frozen=True, eq=False)
+class FromQuadrature:
+    r"""The origin of the angular axis a directional quadrature samples.
+
+    The content is the rule's measure's (``NODAL``, its support, its
+    atoms), so ``FromQuadrature(q)`` and ``FromMeasure(q.measure)`` mint one
+    axis. The arm exists because the measure alone does not answer what the
+    angular consumers recover through the space: the direction cosines and
+    the level fibration (``level_indices``) live on the quadrature.
+    ⚠ A LIVE REFERENCE: ``Quadrature`` is a mutable dataclass; the axis's
+    own copies of the weights and atoms are the authoritative content.
+    """
+
+    quadrature: Quadrature
+
+    @property
+    def kind(self) -> AxisKind:
+        return BasisKind.NODAL
+
+    @property
+    def support(self) -> Manifold:
+        return self.quadrature.measure.support
+
+    @property
+    def nodes(self) -> NDArray:
+        return self.quadrature.measure.nodes
+
+
+@dataclass(frozen=True, eq=False)
+class FromBasis:
+    r"""The origin of a basis's continuum coefficient axis: ``Modal(unit)`` on
+    the basis's domain, where ``unit`` is the coefficients of the constant
+    function :math:`1` in the basis (ruling 37), stated by the mint."""
+
+    basis: Basis
+    unit: NDArray
+
+    @property
+    def kind(self) -> AxisKind:
+        return Modal(self.unit)
+
+    @property
+    def support(self) -> Manifold:
+        return self.basis.domain
+
+    @property
+    def nodes(self) -> None:
+        return None
+
+
+@dataclass(frozen=True, eq=False)
+class FromFrame:
+    r"""The origin of a moment head a frame has dressed with its Parseval metric.
+
+    The head holds COVARIANT moments :math:`\varphi = \Phi^{\mathsf T} W
+    \psi`, so the coordinates of the constant function there are its
+    moments, :math:`u = \Phi^{\mathsf T} w`, the trial basis's analysis of
+    :math:`1` (ruling 37), not the basis's coefficient :math:`e_0`. The
+    frame is the Stage-2 generator: the pairing basis ⊗ measure induces the
+    head's metric, and only the frame can re-dress the head at another order
+    (:meth:`~orpheus.numerics.frame.GalerkinFrame.at_order`).
+    """
+
+    frame: FrameBase
+
+    @property
+    def kind(self) -> AxisKind:
+        f = self.frame
+        return Modal(np.asarray(f.basis.analyze(np.ones(f.measure.n_points), f.table, f.measure.weights)))
+
+    @property
+    def support(self) -> Manifold:
+        return self.frame.basis.domain
+
+    @property
+    def nodes(self) -> None:
+        return None
+
+
+#: What minted an axis, the closed sum of its five arms (ruling 64).
+Origin = FromMeasure | FromQuadrature | FromBasis | FromFrame | Declared
+
+
 @dataclass(frozen=True, eq=False)
 class Axis(ContentIdentity):
     r"""One tensor factor of a function space — a frozen value object.
@@ -216,60 +402,61 @@ class Axis(ContentIdentity):
         canonicalized (``w + 0.0``, killing ``-0.0``), defensively
         copied, read-only. Non-finite entries are refused; signed
         weights are legal (quadrature families need them).
-    kind : AxisKind
-        Keyword-only, no default — the basis character is physics and
-        must be spelled at every mint: ``BasisKind.NODAL``, or
-        ``Modal(unit)`` carrying the coordinates of the constant function
-        (the module docstring's slot table). Any other value is refused.
-    generator : DiscreteMeasure | Basis | Quadrature | FrameBase | None, default None
-        Keyword-only provenance: the object that minted this axis (see
-        the module docstring's slot table). NOT part of the identity —
-        equality, hash and the ``of_axes`` name digest ignore it. Prefer
-        minting through the generator (``Axis.of_measure(measure, label)`` /
-        ``Axis.of_quadrature(quad, label)``) over passing this by hand: a
-        generator-minted axis cannot forget its provenance, and its
-        ``kind`` is implied by the generator's type (a measure mints
-        NODAL — its components are point values with a coordinate cone).
-        ⚠ A LIVE REFERENCE, not a snapshot: ``Quadrature`` is a mutable
-        dataclass, so ``axis.generator.weights`` can be moved under the
-        axis while the axis's own ``weights`` copy (read-only, hashed)
-        cannot — the axis's copy is the authoritative factor measure.
+    origin : Origin
+        Keyword-only, no default: what minted the axis (the module
+        docstring's table). The kind, the support and the atoms are read
+        from it, so the basis character is spelled at every mint and
+        cannot disagree with the generator. NOT part of the identity.
+        Prefer the generator mints (``Axis.of_measure(measure, label)`` /
+        ``Axis.of_quadrature(quad)``); spell ``origin=Declared(kind)`` only
+        where no generating object exists.
 
     Notes
     -----
     Frozen and hashable with **structural equality per subclass**:
     ``__eq__``/``__hash__`` read the content digest of ``(type, label,
-    shape, weights, kind)``
+    shape, weights, kind, support, nodes)``
     (:class:`~orpheus.numerics.content.ContentIdentity`); subclasses extend
-    the content by declaring fields. The class check keeps an ``EnergyAxis`` and a field-identical generic
-    ``Axis`` unequal (the identity is *what kind of generator produced
-    this factor*, not a bag of fields).
+    the content by declaring fields. The class check keeps an
+    ``EnergyAxis`` and a field-identical generic ``Axis`` unequal.
+    ``dataclasses.replace(axis, origin=...)`` re-derives the kind, support
+    and atoms, so a re-dressing cannot keep a stale kind.
     """
 
     label: str
     shape: tuple[int, ...]
     weights: NDArray | None = field(default=None, repr=False)
-    kind: AxisKind = field(kw_only=True)
     # Provenance is not identity: ``compare=False`` is the content encoder's
     # one spelling of "not content" (#405 P1 step 5).
-    generator: DiscreteMeasure | Basis | Quadrature | FrameBase | None = field(
-        default=None, kw_only=True, repr=False, compare=False
-    )
+    origin: Origin = field(kw_only=True, repr=False, compare=False)
+    kind: AxisKind = field(init=False)
+    support: Manifold | None = field(init=False, repr=False)
+    nodes: NDArray | None = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         shape = tuple(int(n) for n in self.shape)
         object.__setattr__(self, "shape", shape)
-        if not isinstance(self.kind, (BasisKind, Modal)):
+        if not isinstance(self.origin, (FromMeasure, FromQuadrature, FromBasis, FromFrame, Declared)):
             raise TypeError(
-                f"axis '{self.label}': kind must be BasisKind.NODAL or "
-                f"Modal(unit), got {self.kind!r}"
+                f"axis '{self.label}': origin must be one of FromMeasure, "
+                f"FromQuadrature, FromBasis, FromFrame, Declared; got {self.origin!r}"
             )
-        self.kind.unit_over(shape)  # a modal unit over another shape is refused
+        kind = self.origin.kind
+        kind.unit_over(shape)  # a modal unit over another shape is refused
+        object.__setattr__(self, "kind", kind)
+        object.__setattr__(self, "support", self.origin.support)
         if len(shape) < 1:
             raise ValueError(
                 f"an Axis needs rank >= 1, got shape {shape!r} — a rank-0 "
                 f"factor has no index set to measure"
             )
+        nodes = self.origin.nodes
+        if nodes is not None and np.shape(nodes)[0] != int(np.prod(shape)):
+            raise ValueError(
+                f"axis '{self.label}': a sampled axis has one atom per index; "
+                f"{np.shape(nodes)[0]} atoms against shape {shape}"
+            )
+        object.__setattr__(self, "nodes", None if nodes is None else _read_only(nodes))
         if self.weights is not None:
             w = np.ascontiguousarray(self.weights, dtype=float)
             if w.shape != shape:
@@ -289,9 +476,7 @@ class Axis(ContentIdentity):
                 # ``+ 0.0`` canonicalizes -0.0 -> +0.0 AND forces a fresh
                 # allocation (defensive copy even when the input was
                 # already a contiguous float array).
-                w = w + 0.0
-                w.setflags(write=False)
-                object.__setattr__(self, "weights", w)
+                object.__setattr__(self, "weights", _read_only(w))
 
     @property
     def unit(self) -> NDArray:
@@ -300,77 +485,28 @@ class Axis(ContentIdentity):
         :class:`Modal` one."""
         return self.kind.unit_over(self.shape)
 
-    def generator_as(self, kind: type[_G], *, consumer: str) -> _G:
-        r"""The generator, NARROWED to the type ``consumer`` needs — or a
-        refusal naming both parties.
-
-        The one home of the generator-less refusal (P4-remainder G5): a
-        consumer that must recover forgotten data (direction cosines, the
-        level fibration) calls this instead of touching
-        :attr:`generator` bare, because the bare union cannot answer the
-        reads (a :class:`~orpheus.numerics.measure.DiscreteMeasure` has
-        no ``mu_x``) and a bare ``None`` dereference names neither the
-        axis nor the asker. ``consumer`` is the caller's own name; the
-        message pins BOTH, so a refusal is diagnosable from the text
-        alone.
-
-        Raises
-        ------
-        ValueError
-            If the axis carries no generator of ``kind`` — i.e. it was
-            not minted through one (``Axis.of_measure(...)`` /
-            ``Axis.of_quadrature(...)``).
-        """
-        g = self.generator
-        if not isinstance(g, kind):
-            got = type(g).__name__ if g is not None else "None"
-            raise ValueError(
-                f"axis '{self.label}': {consumer} needs the generating "
-                f"{kind.__name__}, but this axis was not minted through "
-                f"one (generator={got}). Mint the axis via its generator "
-                f"(e.g. Axis.of_quadrature(quad)) so consumers can recover what the "
-                f"axis forgot."
-            )
-        return g
-
     @classmethod
-    def of_measure(cls, measure: "DiscreteMeasure", label: str) -> "Axis":
-        r"""The space-factor axis a discrete measure generates.
+    def of_measure(cls, measure: DiscreteMeasure, label: str) -> Axis:
+        r"""The space-factor axis a discrete measure samples.
 
-        The axis receives its generator: a nodal axis is the **forgetful
-        image** of a discrete measure (it keeps the weights and drops the
-        nodes), so the axis is downstream of the measure and the mint
-        lives here, on the axis side. The returned axis carries
-        ``generator=measure`` (provenance, excluded from axis identity),
-        which makes the forgetting recoverable: a consumer reads the
-        un-forgotten data through the space instead of being handed the
-        measure separately (CS5).
+        A nodal axis is the image of a discrete measure: its weights are the
+        measure's, and its content keeps the support and the atoms (ruling
+        71), so two measures with equal weights and different atoms, or the
+        same atoms on two manifolds, mint two axes. The measure itself rides
+        in :class:`FromMeasure` as provenance.
 
-        ``kind`` is NOT a parameter: a discrete measure's samples are
-        point values with a coordinate cone, so the generator's type
-        implies :attr:`BasisKind.NODAL` and the "nodal basis carrying no
-        nodes" mis-declaration is unspellable on this path. (A MODAL axis
-        is minted from its :class:`~orpheus.numerics.basis.base.Basis`,
-        not from a measure.)
-
-        This reads only the measure's attributes (``n_points``,
-        ``weights``), so the module takes no runtime import of
+        ``kind`` is NOT a parameter: a discrete measure's samples are point
+        values with a coordinate cone, so the origin implies
+        :attr:`BasisKind.NODAL`. This reads only the measure's attributes,
+        so the module takes no runtime import of
         :mod:`orpheus.numerics.measure`.
         """
-        return Axis(
-            label,
-            (measure.n_points,),
-            weights=measure.weights,
-            kind=BasisKind.NODAL,
-            generator=measure,
-        )
+        return Axis(label, (measure.n_points,), weights=measure.weights, origin=FromMeasure(measure))
 
     @classmethod
-    def of_quadrature(
-        cls, quadrature: "Quadrature", label: str = "angular"
-    ) -> "Axis":
-        r"""The angular space-factor axis a directional quadrature
-        generates, with THAT rule as its generator.
+    def of_quadrature(cls, quadrature: Quadrature, label: str = "angular") -> Axis:
+        r"""The angular space-factor axis a directional quadrature samples,
+        with THAT rule as its origin.
 
         The label DEFAULTS: a directional quadrature is the angular
         generator, so its axis's role is intrinsic, and defaulting the
@@ -378,23 +514,36 @@ class Axis(ContentIdentity):
         P4-remainder's second-mint hazard). Pass a label only for a
         deliberately re-labelled factor.
 
-        Delegates the structural mint to :meth:`of_measure` (one home for
-        the shape/weights logic) and upgrades the provenance to the
-        quadrature via ``dataclasses.replace``, which re-runs the axis's
-        construction canonicalization, so the upgrade cannot bypass an
-        invariant.
-
-        The quadrature, not the bare measure, is the angular axis's
-        generator because the measure alone does not answer everything
-        the axis forgot: ``level_indices`` lives on the
+        The content is the rule's measure's, so this is the axis
+        ``of_measure(quadrature.measure, label)`` mints; the origin is the
+        quadrature because the measure alone does not answer everything the
+        axis forgot: ``level_indices`` lives on the
         :class:`~orpheus.numerics.quadrature.directional.LevelStructure`
         side-channel, carried by the quadrature. A consumer recovering the
-        angular geometry through the space (``axis.generator.mu_x`` /
-        ``.eta`` / ``.mu_z`` / ``.level_indices``) gets the whole
-        generator, not a projection of it ([M] 2026-08-29, CS5 ground memo
-        section L).
+        angular geometry through the space matches
+        ``case FromQuadrature(quadrature)`` and gets the whole rule, not a
+        projection of it ([M] 2026-08-29, CS5 ground memo section L).
         """
-        return replace(Axis.of_measure(quadrature.measure, label), generator=quadrature)
+        measure = quadrature.measure
+        return Axis(label, (measure.n_points,), weights=measure.weights, origin=FromQuadrature(quadrature))
+
+
+def quadrature_refusal(axis: Axis, consumer: str) -> ValueError:
+    r"""The refusal a consumer raises when it needs the generating quadrature
+    and ``axis`` was not minted through one.
+
+    The consumers that recover the angular geometry through the space (the
+    direction cosines, the level fibration) match ``case
+    FromQuadrature(quadrature)`` themselves; this is the one spelling of
+    their other arm, so the message names both the axis and the asker and a
+    refusal is diagnosable from the text alone (P4-remainder G5).
+    """
+    return ValueError(
+        f"axis '{axis.label}': {consumer} needs the generating Quadrature, "
+        f"but this axis was minted through {type(axis.origin).__name__}, not "
+        f"FromQuadrature. Mint the axis via Axis.of_quadrature(quad) so "
+        f"consumers can recover what the axis forgot."
+    )
 
 
 @dataclass(frozen=True, eq=False)
@@ -447,6 +596,9 @@ class EnergyAxis(Axis):
     """
 
     edges: NDArray | None = field(default=None, kw_only=True, repr=False)
+    #: Fixed, not a parameter: groups are the CELLS of a 1-D energy mesh, so
+    #: the factor is NODAL with no atoms (its edges are its content; ruling 82).
+    origin: Origin = field(default=Declared(BasisKind.NODAL), init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -457,12 +609,6 @@ class EnergyAxis(Axis):
                 "(group integrals x group averages pair without widths). "
                 "For a deliberately non-physical weighted toy, use a "
                 "generic Axis."
-            )
-        if self.kind is not BasisKind.NODAL:
-            raise ValueError(
-                "an EnergyAxis is NODAL by construction: groups are the "
-                "CELLS of a 1-D energy mesh (components are per-group "
-                "integrals, not spectral coefficients)"
             )
         if len(self.shape) != 1:
             raise ValueError(
@@ -490,7 +636,7 @@ class EnergyAxis(Axis):
         ``n_groups``); the descending-edges invariant is the grid's own
         construction contract.
         """
-        return cls("energy", (grid.n_groups,), kind=BasisKind.NODAL, edges=grid.edges)
+        return cls("energy", (grid.n_groups,), edges=grid.edges)
 
     @classmethod
     def synthetic(cls, ng: int) -> "EnergyAxis":
@@ -502,7 +648,7 @@ class EnergyAxis(Axis):
         ``from_grid`` axis of the same ``ng``: same index set, no
         partition data — a different axis.
         """
-        return cls("energy", (int(ng),), kind=BasisKind.NODAL, edges=None)
+        return cls("energy", (int(ng),), edges=None)
 
     @classmethod
     def from_materials(cls, materials: "Iterable[Mixture]") -> "EnergyAxis":

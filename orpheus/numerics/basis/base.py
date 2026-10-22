@@ -300,7 +300,7 @@ class Basis(ABC):
         level                                  named by
         =====================================  ==========================
         the manifold :math:`M`                 :attr:`domain` (here)
-        fields on :math:`M`, discretized       ``measure.space``
+        fields on :math:`M`, discretized       ``FunctionSpace.of_measure``
         coefficients :math:`\mathbb R^K`       :attr:`space`
         =====================================  ==========================
 

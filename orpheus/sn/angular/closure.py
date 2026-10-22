@@ -175,7 +175,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import numpy as np
 
 from orpheus.geometry import CoordSystem
-from orpheus.numerics.quadrature.directional import Quadrature
+from orpheus.numerics.axis import FromQuadrature, quadrature_refusal
 from orpheus.sn.angular.redistribution import AngularRedistribution
 from orpheus.numerics.registry import RegistryMixin
 
@@ -259,9 +259,10 @@ class AngularClosureBase(RegistryMixin, ABC):
       its reverse-mode adjoint).
     * ``__init__`` constructible as ``cls(angular, pairing, angular_axis)``
       — the family construction contract (abstract below): every closure
-      binds its two tensor factors plus the generator-stamped angular
+      binds its two tensor factors plus the quadrature-minted angular
       space factor at construction (the P4-remainder binding — the mints
-      recover the quadrature THROUGH the axis, ``generator_as``, instead
+      recover the quadrature THROUGH the axis's origin,
+      ``case FromQuadrature(quad)``, instead
       of through the retired ``AngularRedistribution.quadrature``
       courier), and the SNProblem default-closure dispatch instantiates
       through this signature
@@ -380,9 +381,9 @@ class AngularClosureBase(RegistryMixin, ABC):
           :math:`\alpha`-dome and the starting direction), shared by
           every member;
         * ``pairing`` — the SPATIAL factor, ``(nx, n_mom, n_thread)``;
-        * ``angular_axis`` — the generator-stamped angular space factor
-          (CS5): the mint recovers the quadrature THROUGH it
-          (``generator_as``), the P4-remainder binding that retired the
+        * ``angular_axis`` — the quadrature-minted angular space factor
+          (CS5): the mint recovers the quadrature THROUGH its origin
+          (``case FromQuadrature(quad)``), the P4-remainder binding that retired the
           ``AngularRedistribution.quadrature`` courier.
 
         What each member adds on top is its own :math:`\tau` and the
@@ -1672,9 +1673,11 @@ class MorelMontryAngularSweep(
         # stored-but-unread field is dead weight, not provenance.)
 
         coord = angular.coord
-        quad = angular_axis.generator_as(
-            Quadrature, consumer="MorelMontryAngularSweep"
-        )
+        match angular_axis.origin:
+            case FromQuadrature(quad):
+                pass
+            case _:
+                raise quadrature_refusal(angular_axis, "MorelMontryAngularSweep")
         N = int(np.asarray(quad.mu_x).size)
         # The single-moment contraction: today's per-cell spatial factor
         # is the one entry of a (1, 1) pairing — ΔA_i.
@@ -2231,13 +2234,11 @@ class IdentityAngularClosure(AngularClosureBase, key="identity_angular_closure")
         # through the space factor like every other mint read.
         _require_single_moment_pairing(pairing, type(self).__name__)
         self._angular = angular   # provenance; read through ``angular``
-        self._N: int = int(
-            np.asarray(
-                angular_axis.generator_as(
-                    Quadrature, consumer="IdentityAngularClosure"
-                ).mu_x
-            ).size
-        )
+        match angular_axis.origin:
+            case FromQuadrature(quad):
+                self._N: int = int(np.asarray(quad.mu_x).size)
+            case _:
+                raise quadrature_refusal(angular_axis, "IdentityAngularClosure")
         # Trivial single-level partition: every ordinate in one level.
         self.level_indices = (np.arange(self._N),)
         # Neutral M-M closure constants per level — Cartesian carries no

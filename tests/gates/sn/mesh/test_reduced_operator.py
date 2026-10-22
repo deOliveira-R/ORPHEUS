@@ -97,7 +97,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.transport.spatial.scheme import StreamingTerms
-from orpheus.numerics.axis import Axis
+from orpheus.numerics.axis import Declared, Axis
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.mesh.reduced_operator import (
@@ -725,9 +725,10 @@ def _scale_decoy(quad):
     `redistribution.py`) refuses only the ROLL (it breaks the pairing to
     ±0.3); negated/reversed nodes PASS the dome (±5.6e-17) and die one
     tier later at the closure's P3 τ ∈ [0,1] guard (`closure.py`).
-    Scaling preserves both. Weight-preserving ⟹ the decoy axis is
-    IDENTITY-EQUAL to the true one (the space cannot see it) while every
-    nonzero |cosine| moves.
+    Scaling preserves both. Until S7 the decoy axis was IDENTITY-EQUAL to the
+    true one (weight-preserving, and the axis forgot its atoms); since S7
+    (ruling 71, #631 pair 2) the atoms are content, so the space SEES the
+    decoy, and the route legs below stand on their own.
     """
     import dataclasses as _dc
 
@@ -799,7 +800,7 @@ class TestP4RemTheProducerBindsTheAxis:
         r = sn.reduced
         assert r is not None
         assert r.angular_axis == sn.angular_bulk_space.axis("angular")
-        assert r.angular_axis.generator is sn.quad
+        assert r.angular_axis.origin.quadrature is sn.quad
         assert r.angular_axis is r.angular_axis  # field, not per-access mint
 
     @pytest.mark.foundation
@@ -834,7 +835,7 @@ class TestP4RemTheProducerBindsTheAxis:
         # observable consequence (the closure's ordinate count followed
         # the axis's generator).
         assert Axis.of_quadrature(sn.quad) == sn.angular_bulk_space.axis("angular")
-        assert Axis.of_quadrature(sn.quad).generator is sn.quad
+        assert Axis.of_quadrature(sn.quad).origin.quadrature is sn.quad
         from orpheus.sn.angular.closure import IdentityAngularClosure
 
         closure = sn.angular_closure
@@ -874,7 +875,7 @@ class TestP4RemTheProducerBindsTheAxis:
         quad = Quadrature.gauss_legendre(4)
         bare = Axis(
             "angular", (quad.n_ordinates,),
-            weights=np.asarray(quad.weights, float), kind=BasisKind.NODAL,
+            weights=np.asarray(quad.weights, float), origin=Declared(BasisKind.NODAL),
         )
         op = ReducedStreamingOperator(
             mesh=_slab_mesh(),
@@ -924,9 +925,9 @@ class TestP4RemTheProducerBindsTheAxis:
         op_decoy = ReducedStreamingOperator(
             mesh=mesh, angular=ar_true, angular_axis=Axis.of_quadrature(decoy)
         )
-        # leg 3: the decoy is INVISIBLE to space identity
-        assert Axis.of_quadrature(quad) == Axis.of_quadrature(decoy)
-        assert hash(Axis.of_quadrature(quad)) == hash(Axis.of_quadrature(decoy))
+        # leg 3, inverted at S7 (ruling 71): the decoy moves the atoms, so the
+        # space identity SEES it (until S7 it could not, #631 pair 2)
+        assert Axis.of_quadrature(quad) != Axis.of_quadrature(decoy)
         # leg 4: the AR was NOT reached (nothing on it to reach — the
         # discriminating power comes from the axis alone)
         assert op_decoy.angular is ar_true

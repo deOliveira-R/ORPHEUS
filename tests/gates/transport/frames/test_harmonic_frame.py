@@ -54,7 +54,7 @@ from orpheus.transport.source_sinks import (
 
 from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.numerics import frame_faces
-from orpheus.numerics.axis import BasisKind
+from orpheus.numerics.axis import Declared, BasisKind
 
 pytestmark = pytest.mark.foundation
 
@@ -549,8 +549,8 @@ class TestHubInterning:
         from orpheus.numerics.space import FunctionSpace
 
         bare = FunctionSpace.of_axes(
-            Axis(label="angular", shape=(4,), kind=BasisKind.NODAL),
-            Axis(label="energy", shape=(2,), kind=BasisKind.NODAL),
+            Axis(label="angular", shape=(4,), origin=Declared(BasisKind.NODAL)),
+            Axis(label="energy", shape=(2,), origin=Declared(BasisKind.NODAL)),
         )
         with pytest.raises(ValueError, match="HarmonicFrame.for_space"):
             HarmonicFrame.for_space(bare, _L)

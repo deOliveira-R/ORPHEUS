@@ -47,7 +47,7 @@ from dataclasses import dataclass, replace
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.axis import Modal
+from orpheus.numerics.axis import FromFrame
 from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.basis.descent import Descent
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
@@ -330,14 +330,13 @@ def _dressed(
     a diagonal dressing RE-WEIGHTS the head axis (the measure IS the
     metric), a dense one empties the axis's measure and POSITIONS the form
     on the space's derived metric object (item 6.2c-i) — and in both the
-    frame becomes the axis's :attr:`~orpheus.numerics.axis.Axis.generator`,
-    the object that can re-dress the head at another order
-    (:meth:`~orpheus.numerics.frame.GalerkinFrame.at_order`). The dressing
-    also re-mints the head's :attr:`~orpheus.numerics.axis.Axis.unit`: a
-    dressed head holds COVARIANT moments :math:`\varphi = \Phi^{\mathsf T} W
-    \psi`, so the coordinates of the constant function there are its
-    moments, :math:`u = \Phi^{\mathsf T} w` (the trial basis's analysis of
-    :math:`1`, ruling 37), not the basis's coefficient :math:`e_0`. On an axes-less
+    axis's origin becomes :class:`~orpheus.numerics.axis.FromFrame`, which
+    holds the object that can re-dress the head at another order
+    (:meth:`~orpheus.numerics.frame.GalerkinFrame.at_order`) and re-derives
+    the head's :attr:`~orpheus.numerics.axis.Axis.unit`: a dressed head holds
+    COVARIANT moments, so the coordinates of the constant function there are
+    its moments :math:`u = \Phi^{\mathsf T} w`, not the basis's coefficient
+    :math:`e_0` (ruling 37). On an axes-less
     space (the indicator bases' coefficient spaces — CS2 axis-ifies them) the
     legacy slots carry it, exactly as before.
     """
@@ -352,13 +351,10 @@ def _dressed(
             f"{space.name!r} carries {len(axes)} axes."
         )
     axis = axes[0]
-    unit = np.asarray(frame.basis.analyze(
-        np.ones(frame.measure.n_points), frame.table, frame.measure.weights,
-    )).reshape(axis.shape)
     if dense is not None:
         return replace(
             space,
-            axes=(replace(axis, weights=None, generator=frame, kind=Modal(unit)),),
+            axes=(replace(axis, weights=None, origin=FromFrame(frame)),),
             inner_product_weights=None,
             metric=FactoredMetric(((axis.shape, dense),)),
         )
@@ -366,7 +362,7 @@ def _dressed(
     return replace(
         space,
         axes=(replace(
-            axis, weights=np.asarray(diagonal).reshape(axis.shape), generator=frame, kind=Modal(unit),
+            axis, weights=np.asarray(diagonal).reshape(axis.shape), origin=FromFrame(frame),
         ),),
         inner_product_weights=None,
         metric=None,
@@ -468,28 +464,35 @@ def _parseval_dressed(frame: FrameBase) -> FunctionSpace:
 
 
 def test_space(frame: FrameBase) -> FunctionSpace:
-    r"""The analysis codomain — the test basis's coefficient space (``= test.space``).
+    r"""The analysis codomain — the test basis's coefficient space.
 
-    A :class:`~orpheus.numerics.frame.GalerkinFrame` reuses :func:`basis_space`
-    (``test is trial`` ⟹ the same cached space object, preserving the
-    analysis-codomain ``is`` identity of the single-discipline frame the
-    hierarchy replaced). Every other frame, a Petrov–Galerkin frame with an
-    explicit test basis included, reads ``frame.test.space``.
+    The predicate is the frame's data, ``frame.test is frame.basis`` (ruling
+    58): when the test basis IS the trial basis, the analysis codomain is the
+    trial coefficient space the frame dressed, :func:`basis_space` (the same
+    cached object, preserving the analysis-codomain ``is`` identity of the
+    single-discipline frame the hierarchy replaced), whatever class spelled
+    the frame — a :class:`~orpheus.numerics.frame.GalerkinFrame` or a
+    Petrov–Galerkin frame handed its own trial basis as its test. A distinct
+    test basis reads its own coefficient space, ``frame.test.space``.
     """
-    # S7 settles this: a PetrovGalerkinFrame with test_basis IS basis gets test.space (undressed), a GalerkinFrame the dressed basis_space.
     return cached_on(frame, _SLOT, "test_space",
-        lambda: basis_space(frame) if isinstance(frame, GalerkinFrame) else frame.test.space,
+        lambda: basis_space(frame) if frame.test is frame.basis else frame.test.space,
     )
 
 
 def measure_space(frame: FrameBase) -> FunctionSpace:
     r"""The domain — the measure's induced discrete-:math:`L^2` space.
 
-    Read straight off :attr:`DiscreteMeasure.space` (per-node values with the
-    quadrature weights as the metric): the measure OWNS its domain space,
-    symmetric with the basis owning its codomain — neither is fabricated here.
+    :meth:`FunctionSpace.of_measure
+    <orpheus.numerics.space.FunctionSpace.of_measure>` over the frame's
+    measure, labelled with the measure's own
+    :attr:`~orpheus.numerics.measure.DiscreteMeasure.axis_label` (per-node
+    values with the quadrature weights as the metric). On a directional rule
+    this IS the SN angular space over the same rule (rulings 63 and 71).
     """
-    return cached_on(frame, _SLOT, "measure_space", lambda: frame.measure.space)
+    return cached_on(frame, _SLOT, "measure_space",
+        lambda: FunctionSpace.of_measure(frame.measure, frame.measure.axis_label),
+    )
 
 
 @dataclass(frozen=True)

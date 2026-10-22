@@ -24,7 +24,7 @@ import numpy as np
 import pytest
 
 from tests.gates.sn._test_helpers import material_xs_from_raw
-from orpheus.numerics.axis import Axis, BasisKind
+from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.operators.isotropic_transfer import (
     IsotropicScattering,
@@ -83,7 +83,7 @@ def _space(mat, spatial_moments=0):
         return bulk
     return FunctionSpace.of_axes(
         *bulk.axes,
-        Axis("spatial_moments", (spatial_moments,), kind=BasisKind.NODAL),
+        Axis("spatial_moments", (spatial_moments,), origin=Declared(BasisKind.NODAL)),
     )
 
 

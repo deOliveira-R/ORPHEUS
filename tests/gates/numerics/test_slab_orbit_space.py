@@ -46,6 +46,7 @@ from orpheus.numerics.manifold import (
     Quotient,
 )
 from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.quadrature import (
     Quadrature,
     gauss_legendre_on_mu,
@@ -90,17 +91,22 @@ def test_a1_a_slab_angular_space_is_not_a_spatial_space_on_its_chart(
     """
     angular = Quadrature.gauss_legendre(n).measure
     spatial = _spatial_rule_on(Interval(-1.0, 1.0), n)
+    # Since S7 (ruling 63) the sampled space is minted on the space side with
+    # an explicit label: a bare Interval has no phase (``axis_label`` refuses
+    # it, ``test_axis_identity.py`` LB-v), so the spatial rule's role is passed.
+    a_space = FunctionSpace.of_measure(angular, "angular")
+    s_space = FunctionSpace.of_measure(spatial, "spatial")
 
-    assert angular.space.shape == spatial.space.shape == (n,)
-    assert angular.space != spatial.space
-    assert len({angular.space, spatial.space}) == 2   # separation through the container
-    assert angular.space.name == f"L2[S^2/O2_x]"
-    assert spatial.space.name == "L2[[-1,1]]"
+    assert a_space.shape == s_space.shape == (n,)
+    assert a_space != s_space
+    assert len({a_space, s_space}) == 2   # separation through the container
+    assert a_space.axes is not None and a_space.axes[0].support == SPHERE.quotient(SubgroupOfO3.O2("x"))
+    assert s_space.axes is not None and s_space.axes[0].support == Interval(-1.0, 1.0)
 
-    # positive control: role, not shape, is the discriminator
+    # positive control: two mints of one spatial rule are one space
     other_spatial = _spatial_rule_on(Interval(-1.0, 1.0), n)
-    assert spatial.space == other_spatial.space
-    assert hash(spatial.space) == hash(other_spatial.space)
+    assert s_space == FunctionSpace.of_measure(other_spatial, "spatial")
+    assert hash(s_space) == hash(FunctionSpace.of_measure(other_spatial, "spatial"))
 
 
 @pytest.mark.foundation
@@ -202,7 +208,9 @@ def test_b3_the_selector_still_hands_the_slab_its_declared_rule() -> None:
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "GaussLegendre1D"
     assert measure.support == SPHERE.quotient(SubgroupOfO3.O2("x"))
-    assert measure.space.name == "L2[S^2/O2_x]"
+    space = FunctionSpace.of_measure(measure, measure.axis_label)
+    assert space.axes is not None and space.axes[0].label == "angular"
+    assert space.axes[0].support == SPHERE.quotient(SubgroupOfO3.O2("x"))
     assert measure.exactness is not None
     assert measure.exactness.reference == GEOMETRY_ANGULAR_SYMMETRY["slab"].reference
 

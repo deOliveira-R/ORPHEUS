@@ -41,7 +41,7 @@ import pytest
 
 from orpheus.numerics.field import Field
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.axis import Modal
+from orpheus.numerics.axis import Declared, Modal
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -458,7 +458,7 @@ def _axis_field(values, kind):
     arr = np.asarray(values, dtype=float)
     if kind == "modal":
         kind = Modal(np.eye(arr.size)[0].reshape(arr.shape))
-    space = FunctionSpace.of_axes(Axis("p", arr.shape, kind=kind))
+    space = FunctionSpace.of_axes(Axis("p", arr.shape, origin=Declared(kind)))
     return _DummyField(values=arr, space=space), BasisKind
 
 

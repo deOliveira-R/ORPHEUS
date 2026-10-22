@@ -61,7 +61,7 @@ import pathlib
 import numpy as np
 import pytest
 
-from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
+from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis, FromMeasure
 from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
 from orpheus.numerics.space import DualSpace, FunctionSpace, TensorProductSpace
 
@@ -80,12 +80,12 @@ def _spatial(weights: "list[float] | None") -> Axis:
         label="spatial",
         shape=(3,),
         weights=None if weights is None else np.asarray(weights, dtype=float),
-        kind=BasisKind.NODAL,
+        origin=Declared(BasisKind.NODAL),
     )
 
 
 def _energy(ng: int = 2) -> EnergyAxis:
-    return EnergyAxis(label="energy", shape=(ng,), kind=BasisKind.NODAL)
+    return EnergyAxis(label="energy", shape=(ng,))
 
 
 _W = [1.0, 2.0, 3.0]
@@ -172,8 +172,8 @@ def test_g1_1c_a_different_measure_on_one_axis_makes_a_different_space():
 def test_g1_1d_axis_ORDER_is_part_of_the_identity():
     """Two axes of the same shape, composed in the two orders, are different
     spaces — the total shape is identical, so only the ORDER discriminates."""
-    u = Axis(label="u", shape=(2,), weights=None, kind=BasisKind.NODAL)
-    v = Axis(label="v", shape=(2,), weights=None, kind=BasisKind.NODAL)
+    u = Axis(label="u", shape=(2,), weights=None, origin=Declared(BasisKind.NODAL))
+    v = Axis(label="v", shape=(2,), weights=None, origin=Declared(BasisKind.NODAL))
     a = FunctionSpace.of_axes(u, v)
     b = FunctionSpace.of_axes(v, u)
     if a.shape != b.shape:
@@ -298,13 +298,13 @@ def test_g1_5_a_discrete_measure_cannot_be_compared_but_an_axis_can():
 
     a = Axis(
         label="mu", shape=(4,), weights=measure.weights,
-        kind=BasisKind.NODAL, generator=measure,
+        origin=FromMeasure(measure),
     )
     b = Axis(
         label="mu", shape=(4,), weights=np.array(measure.weights, copy=True),
-        kind=BasisKind.NODAL, generator=gauss_legendre_on_mu(4),
+        origin=FromMeasure(gauss_legendre_on_mu(4)),
     )
-    if a.generator is b.generator:
+    if a.origin.measure is b.origin.measure:
         pytest.fail("CONTROL INVALID: both axes carry the SAME measure object")
     if not (a == b):
         pytest.fail(
@@ -395,8 +395,11 @@ _SPACE_FAMILY = (
 #: ``__eq__``/``__hash__`` retired onto the one content encoder's
 #: ``ContentIdentity`` (``orpheus/numerics/content.py``, outside this census's
 #: files), so EIGHT sites over seven files, the same SEVEN one-liners.
-_EXPECTED_EQ_SITES = 8
-_EXPECTED_DELEGATIONS = 7       # the seven SUBCLASS one-liners (base + Axis excluded)
+# Re-baselined at S7 (the carve this RECORD announced; F7 of the S6a review):
+# the space family's identity is ONE key, ``FunctionSpace.identity_key``, and
+# ``__eq__`` is defined once, on the base; was 8 sites and 7 delegations.
+_EXPECTED_EQ_SITES = 1
+_EXPECTED_DELEGATIONS = 0
 
 
 def _repo_root() -> pathlib.Path:

@@ -58,7 +58,7 @@ from orpheus.mesh import Mesh1D, Mesh2D
 # concept; the naming coordination is the Q3 rename issue).
 from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.axis import Axis as SpaceFactorAxis
-from orpheus.numerics.axis import BasisKind, EnergyAxis
+from orpheus.numerics.axis import BasisKind, Declared, EnergyAxis
 from orpheus.numerics.space import FunctionSpace
 from orpheus.mesh import (
     RadialAxisMesh,
@@ -520,12 +520,15 @@ class MaterialMesh:
           poses on (``HomogeneousProblem.space``: Energy ⊗ a counting
           point, shape ``(ng, 1)``) — is minted from the Mixture, not from
           a carrier, since the CS4c coda. A genuine UNIT-width one-cell
-          mesh reaches the same space through this formula: ``[M]`` its
+          mesh carries the same measure through this formula: ``[M]`` its
           volumes are ``[1.0]``, so the spatial factor canonicalizes to
           the COUNTING weight — the normalized "per unit volume" density
-          convention (collapse doctrine, clause 1) — and its
-          ``bulk_space`` is ``==`` the pose (G2.1 pins it). Until the
-          coda a fabricated ``from_materials`` carrier played this role.
+          convention (collapse doctrine, clause 1). It is NOT the pose's
+          space: its spatial axis keeps its atom, the cell centre on ℝ
+          (ruling 71), so the two are isometric and distinct, and the
+          collapse ℝ → {*} is a map, not an identity (the user's ruling,
+          2026-10-21, at S7; G2.1 pins the shared arms). Until the coda a
+          fabricated ``from_materials`` carrier played this role.
         * **A genuine one-cell mesh of width ≠ 1** keeps ``V ≠ 1`` BY THE
           DATA — distinguished from the quotient point by MEASURE, hence
           (through the derived name) by space identity. ⚠ Provably
@@ -580,7 +583,7 @@ class MaterialMesh:
                 "spatial",
                 self.spatial_shape,
                 weights=self.volumes,
-                kind=BasisKind.NODAL,
+                origin=Declared(BasisKind.NODAL),
             )
         return FunctionSpace.of_axes(energy, spatial)
 

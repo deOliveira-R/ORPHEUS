@@ -4,9 +4,11 @@ r"""Content identity of the ``Axis`` family (#405 P1 step 5, the 5a move).
 ``_structural_bytes`` encoder (scalars by ``repr``, so ``1 != 1.0``) until
 step 5 moved it onto the one content encoder,
 :class:`~orpheus.numerics.content.ContentIdentity`. Its parts are its
-dataclass fields: ``generator`` is provenance, not identity (the module
-docstring's slot table, ruling of 2026-08-20), so it is declared
-``field(compare=False)``, the encoder's one spelling of "not content". The
+dataclass fields: ``origin`` is provenance, not identity (the module
+docstring's slot table, ruling of 2026-08-20; the origin replaced the
+``generator`` slot at S7 of the numerics untangling), so it is declared
+``field(compare=False)``, the encoder's one spelling of "not content", while
+the kind, the support and the atoms it derives are parts (ruling 71). The
 unit (the coordinates of the constant function, numerics-untangling rulings
 39 and 41) is content on a MODAL axis only, and by the type: the kind is
 ``BasisKind.NODAL`` or ``Modal(unit)``, so a modal axis's ``kind`` part carries
@@ -31,8 +33,12 @@ from typing import Any
 import numpy as np
 import pytest
 
-from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis, HarmonicAxis, LegendreAxis, Modal
+from orpheus.numerics.axis import (
+    Axis, BasisKind, Declared, EnergyAxis, FromMeasure, HarmonicAxis, LegendreAxis, Modal,
+)
 from orpheus.numerics.content import FrozenMapping
+from orpheus.numerics.manifold import RealSpace
+from orpheus.numerics.measure import DiscreteMeasure
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,
@@ -48,15 +54,21 @@ from tests.gates._content_identity_helpers import (
 pytestmark = pytest.mark.foundation
 
 _W = np.array([0.5, 1.5])
+_NODAL = Declared(BasisKind.NODAL)
+
+
+def _measure(nodes=(0.25, 0.75)) -> DiscreteMeasure:
+    """A two-atom spatial measure with the roster's weights."""
+    return DiscreteMeasure(nodes=np.array(nodes), weights=_W.copy(), support=RealSpace(1))
 
 
 def _axis(**kw) -> Axis:
-    base: dict[str, Any] = dict(label="spatial", shape=(2,), weights=_W, kind=BasisKind.NODAL)
+    base: dict[str, Any] = dict(label="spatial", shape=(2,), weights=_W, origin=_NODAL)
     return Axis(**(base | kw))
 
 
 def _energy(**kw) -> EnergyAxis:
-    base: dict[str, Any] = dict(label="energy", shape=(2,), kind=BasisKind.NODAL, edges=np.array([1.0, 2.0, 3.0]))
+    base: dict[str, Any] = dict(label="energy", shape=(2,), edges=np.array([1.0, 2.0, 3.0]))
     return EnergyAxis(**(base | kw))
 
 
@@ -64,13 +76,13 @@ _E0 = np.array([1.0, 0.0])
 
 
 def _harmonic(**kw) -> HarmonicAxis:
-    base: dict[str, Any] = dict(label="angular", shape=(2,), weights=_W, kind=Modal(_E0))
+    base: dict[str, Any] = dict(label="angular", shape=(2,), weights=_W, origin=Declared(Modal(_E0)))
     return HarmonicAxis(**(base | kw))
 
 
 def _legendre(**kw) -> LegendreAxis:
     base: dict[str, Any] = dict(
-        label="angular", shape=(2,), weights=_W, kind=Modal(_E0), spent_axis="z",
+        label="angular", shape=(2,), weights=_W, origin=Declared(Modal(_E0)), spent_axis="z",
     )
     return LegendreAxis(**(base | kw))
 
@@ -86,69 +98,91 @@ def _forged(value, name: str, part):
     return value
 
 
+def _origin_legs(build) -> dict:
+    """The legs of the two parts the origin derives beside the kind (ruling 71).
+    The support leg mints the axis lawfully from a measure, which brings the
+    atoms with it; no lawful axis has atoms without a support, so the atoms leg
+    forges the field on a built instance to witness that the encoder reads it."""
+    return {
+        "support": (leg("minted from a spatial measure", lambda: build(origin=FromMeasure(_measure())), "nodes"),),
+        "nodes": (leg("atoms forged", lambda: _forged(build(), "nodes", _read_only(np.array([0.25, 0.75])))),),
+    }
+
+
 def _base_legs(build) -> dict:
     """A leg per base part, for any member's builder (the shape leg moves the
     weights with it, since the weights live on the shape; on a modal member it
     moves the kind too, since the unit lives on the shape). The kind leg mints
-    the other kind lawfully; a modal member has a second kind leg that moves
-    only the unit."""
+    the other kind lawfully through the declared origin; a modal member has a
+    second kind leg that moves only the unit."""
     if build().kind is BasisKind.NODAL:
         return {
             "label": (leg("another role", lambda: build(label="other")),),
             "shape": (leg("another shape", lambda: build(shape=(3,), weights=np.array([0.5, 1.5, 2.0])), "weights"),),
-            "kind": (leg("the other kind", lambda: build(kind=Modal(_E0))),),
+            "kind": (leg("the other kind", lambda: build(origin=Declared(Modal(_E0)))),),
             "weights": (leg("one weight", lambda: build(weights=np.array([0.5, 2.5]))),),
-        }
+        } | _origin_legs(build)
     return {
         "label": (leg("another role", lambda: build(label="other")),),
         "shape": (leg(
             "another shape",
-            lambda: build(shape=(3,), weights=np.array([0.5, 1.5, 2.0]), kind=Modal(np.array([1.0, 0.0, 0.0]))),
+            lambda: build(shape=(3,), weights=np.array([0.5, 1.5, 2.0]), origin=Declared(Modal(np.array([1.0, 0.0, 0.0])))),
             "weights", "kind",
         ),),
         "kind": (
-            leg("the other kind", lambda: build(kind=BasisKind.NODAL)),
-            leg("the moments of one, not e0", lambda: build(kind=Modal(np.array([2.0, 0.0])))),
+            leg("the other kind", lambda: build(origin=_NODAL)),
+            leg("the moments of one, not e0", lambda: build(origin=Declared(Modal(np.array([2.0, 0.0]))))),
         ),
         "weights": (leg("one weight", lambda: build(weights=np.array([0.5, 2.5]))),),
+        "support": (leg("support forged", lambda: _forged(build(), "support", RealSpace(1))),),
+        "nodes": (leg("atoms forged", lambda: _forged(build(), "nodes", _read_only(np.array([0.25, 0.75])))),),
     }
 
 
+_PARTS = ("label", "shape", "weights", "kind", "support", "nodes")
+
 _AXIS = Entry(
-    cls=Axis, base=_axis, parts=("label", "shape", "weights", "kind"),
+    cls=Axis, base=_axis, parts=_PARTS,
     perturb=_base_legs(_axis),
     pairs=(
         ("two builds", _axis, _axis),
         ("weights as ints vs floats", lambda: _axis(weights=np.array([2, 3])),
          lambda: _axis(weights=np.array([2.0, 3.0]))),
-        ("a generator is not content", _axis, lambda: _axis(generator=object())),
+        ("an origin is provenance: two content-equal measures",
+         lambda: _axis(origin=FromMeasure(_measure())), lambda: _axis(origin=FromMeasure(_measure()))),
+        ("an origin is provenance: a measure and its axis mint",
+         lambda: _axis(origin=FromMeasure(_measure())), lambda: Axis.of_measure(_measure(), "spatial")),
     ),
 )
 
 _ENERGY = Entry(
-    cls=EnergyAxis, base=_energy, parts=("label", "shape", "weights", "kind", "edges"),
-    perturb=_base_legs(_energy) | {
+    cls=EnergyAxis, base=_energy, parts=_PARTS + ("edges",),
+    perturb={
+        "label": (leg("another role", lambda: _energy(label="other")),),
         "shape": (leg("another shape", lambda: _energy(shape=(3,), edges=np.array([1.0, 2.0, 3.0, 4.0])), "edges"),),
-        # An EnergyAxis is NODAL with the counting measure BY CONSTRUCTION, so
-        # no constructible instance differs in ``kind`` or ``weights``; the
-        # legs forge the field on a built instance to witness that the
-        # encoder still reads the part (it is content, inherited from Axis).
+        # An EnergyAxis is Declared(NODAL) with the counting measure BY
+        # CONSTRUCTION (it takes no origin), so no constructible instance
+        # differs in ``kind``, ``weights``, ``support`` or ``nodes``; the legs
+        # forge the field on a built instance to witness that the encoder
+        # still reads the part (it is content, inherited from Axis).
         "kind": (leg("kind forged", lambda: _forged(_energy(), "kind", Modal(np.array([1.0, 0.0])))),),
         "weights": (leg("weights forged", lambda: _forged(_energy(), "weights", _read_only(np.array([0.5, 1.5])))),),
+        "support": (leg("support forged", lambda: _forged(_energy(), "support", RealSpace(1))),),
+        "nodes": (leg("atoms forged", lambda: _forged(_energy(), "nodes", _read_only(np.array([0.25, 0.75])))),),
         "edges": (leg("a group edge", lambda: _energy(edges=np.array([1.0, 2.5, 3.0]))),),
     },
     pairs=(("two builds", _energy, _energy),),
 )
 
 _HARMONIC = Entry(
-    cls=HarmonicAxis, base=_harmonic, parts=("label", "shape", "weights", "kind"),
+    cls=HarmonicAxis, base=_harmonic, parts=_PARTS,
     perturb=_base_legs(_harmonic),
     pairs=(("two builds", _harmonic, _harmonic),),
 )
 
 _LEGENDRE = Entry(
     cls=LegendreAxis, base=_legendre,
-    parts=("label", "shape", "weights", "kind", "spent_axis"),
+    parts=_PARTS + ("spent_axis",),
     perturb=_base_legs(_legendre) | {
         "spent_axis": (leg("the other pole", lambda: _legendre(spent_axis="x")),),
     },

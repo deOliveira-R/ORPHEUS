@@ -27,7 +27,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from orpheus.numerics.axis import LegendreAxis, Modal
+from orpheus.numerics.axis import FromBasis, LegendreAxis
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.moment_head import truncated_head
@@ -35,7 +35,7 @@ from orpheus.numerics.spaces.moment_head import truncated_head
 __all__ = ["LegendreSpace"]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class LegendreSpace(FunctionSpace):
     r"""Function space of Legendre moment coefficients up to degree :math:`L` on :math:`S^2/O(2)_a`.
 
@@ -88,18 +88,13 @@ class LegendreSpace(FunctionSpace):
                 f"per degree — the flat head)."
             )
 
-    def __eq__(self, other: object) -> bool:
-        return FunctionSpace.__eq__(self, other)
-
-    def __hash__(self) -> int:
-        return FunctionSpace.__hash__(self)
 
     @classmethod
     def for_basis(cls, basis: LegendreBasis) -> "LegendreSpace":
         r"""The coefficient space ``basis`` spans — THE mint of the Legendre
         head (CS4c step 6 item 6.2c-ii): one :class:`~orpheus.numerics.axis.LegendreAxis`
         carrying the basis's continuum Gram and its spent axis, ``basis``
-        itself as the axis's generator. :attr:`LegendreBasis.space`
+        itself as the axis's origin (``FromBasis``). :attr:`LegendreBasis.space`
         delegates here; :meth:`from_L` is the ``(L, axis)`` sugar.
         """
         L = basis.L
@@ -111,8 +106,7 @@ class LegendreSpace(FunctionSpace):
             "legendre",
             (L + 1,),
             basis.metric_per_ell,
-            kind=Modal(unit),
-            generator=basis,
+            origin=FromBasis(basis, unit),
             spent_axis=basis.axis,
         )
         return cls(

@@ -156,7 +156,7 @@ class Manifold(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
-        """Display name, used in messages and in ``L2[...]`` space names.
+        """Display name, used in messages and in space names.
 
         The names reproduce the retired ``SPACE_*`` string tags exactly,
         so the migration off ``Space = str`` does not silently re-word
@@ -914,17 +914,25 @@ class Quotient(GSpace):
     #: Minimal generators of the invariant ring, as SymPy expressions in
     #: the ambient coordinates.  ``()`` is a legal value only for the
     #: trivial group.
-    generators: tuple[Any, ...] = ()
+    #:
+    #: The four SymPy fields below and :attr:`singular_stratum` are excluded
+    #: from equality, hashing and the content digest: they are the
+    #: derivation's OUTPUT from ``(base, by)``, which the comparison already
+    #: covers, and a SymPy expression has no content encoding, so while they
+    #: were compared an axis on an orbit space could not be keyed at all
+    #: (S7 of the numerics untangling, ruling 71: the support is axis
+    #: content). The theorems in ``__post_init__`` still read them.
+    generators: tuple[Any, ...] = field(default=(), compare=False)
     #: Generators of the syzygy ideal ``I = ker(R[y] -> R[x])``.  Empty
     #: when the invariants are algebraically independent.
-    syzygy: tuple[Any, ...] = ()
+    syzygy: tuple[Any, ...] = field(default=(), compare=False)
     #: ``P_ij = <grad p_i, grad p_j>`` re-expressed in the invariants —
     #: the Procesi–Schwarz matrix whose ``P >= 0`` locus cuts out the
     #: orbit space's inequalities.
-    gram: Any | None = None
+    gram: Any | None = field(default=None, compare=False)
     #: ``det P``.  Its vanishing locus IS the orbit-space boundary, and
     #: it is the squared orbit radius.
-    det_gram: Any | None = None
+    det_gram: Any | None = field(default=None, compare=False)
     #: ``"hand"`` for an entry derived once by a human, ``"engine"`` once
     #: the derivation engine populates it.  A MIXED state is expressible
     #: on purpose: an incremental engine rollout is exactly that, and
@@ -1294,8 +1302,9 @@ class Quotient(GSpace):
     #: recovering it needs the BASE's own ideal (``det P = 4 p_2`` becomes
     #: ``4(1 - mu^2)`` only after substituting ``p_1^2 + p_2 = 1``), and a
     #: :class:`Quotient` does not carry that ideal.  So the type cannot
-    #: recompute it, which is exactly when storing is right.
-    singular_stratum: Any | None = None
+    #: recompute it, which is exactly when storing is right.  Excluded from
+    #: equality like :attr:`generators`: it is fixed by ``(base, by)``.
+    singular_stratum: Any | None = field(default=None, compare=False)
 
 
 # ---------------------------------------------------------------------------

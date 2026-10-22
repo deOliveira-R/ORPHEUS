@@ -105,6 +105,7 @@ from orpheus.numerics.manifold import (
     DoesNotNormalise,
     EnergyGroups,
     GSpace,
+    IndexSet,
     Interval,
     Manifold,
     ManifoldMap,
@@ -118,10 +119,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from orpheus.geometry.transformation import Permutation, RigidMotion
 
-    # ``space`` imports FROM this module (a function space is built on a
-    # measure), so the arrow runs one way and the annotation is a forward
-    # reference.
-    from orpheus.numerics.space import FunctionSpace
     # ``exactness`` does not import this module (it imports only
     # ``manifold``), so this import need not be typing-only.
     from orpheus.numerics.exactness import ExactnessClaim
@@ -254,15 +251,18 @@ class DiscreteMeasure:
 
         It is an OBJECT, not a tag, and three things are derived from it that
         a string could only assert: :attr:`phase` (which factor of transport
-        phase space this discretises) reads its TYPE; :attr:`space`'s name
-        reads its :attr:`~Manifold.name`; and :meth:`quotient` folds onto
+        phase space this discretises) reads its TYPE; the sampled axis
+        carries it as content (ruling 71); and :meth:`quotient` folds onto
         ``support.quotient(G)`` — the catalogue's orbit space, not a
         fabricated one. Direct sum requires equal supports and the tensor
         product multiplies them, both through the manifold's own algebra.
 
         NOTE: this is the *continuous support*, distinct from the induced
-        *discrete function space* :attr:`space` (the operator-algebra domain)
-        and from the physical :attr:`phase` (angular/spatial/energy).
+        *discrete function space*
+        :meth:`FunctionSpace.of_measure(self, label)
+        <orpheus.numerics.space.FunctionSpace.of_measure>` (the
+        operator-algebra domain) and from the physical :attr:`phase`
+        (angular/spatial/energy).
     invariance_group : SubgroupOfO3 | None, optional
         The maximal subgroup of :math:`O(3)` under which the measure is
         invariant (its nodes permute among themselves with weights
@@ -399,33 +399,27 @@ class DiscreteMeasure:
         return int(self.nodes.shape[1])
 
     @property
-    def space(self) -> "FunctionSpace":
-        r"""The induced discrete-:math:`L^2` :class:`FunctionSpace` — the domain.
+    def axis_label(self) -> str:
+        r"""The label of the axis this measure samples: its phase, or, for a
+        finite index set, the set's own name.
 
-        A discrete measure :math:`\mu = \sum_n w_n \delta_{x_n}` induces an
-        :math:`L^2(\mu)` space of sampled values: per-node arrays of shape
-        ``(N,)`` under the inner product
-        :math:`\langle f, g\rangle_\mu = \sum_n w_n f_n g_n` (the weights ARE
-        the metric). This is the operator-algebra **domain** a
-        :class:`~orpheus.numerics.frame.FrameBase` reads — mirroring the way a
-        :class:`~orpheus.numerics.basis.Basis` owns its coefficient
-        :attr:`~orpheus.numerics.basis.Basis.space` (the codomain): the measure
-        owns its sampled-value space, so the ``(domain, codomain)`` pair is
-        symmetric and neither is fabricated ad-hoc by the binder.
-
-        Distinct from :attr:`support` (the *continuous* measurable space the
-        nodes live on, a :class:`~orpheus.numerics.manifold.Manifold`) — this is
-        the *discrete* function space.
-        Lazy import (``FunctionSpace`` is a higher-level construct; mirrors
-        :attr:`SphericalHarmonicBasis.space`'s lazy import).
+        The sampled space of a measure is
+        :meth:`FunctionSpace.of_measure(measure, label)
+        <orpheus.numerics.space.FunctionSpace.of_measure>`, one axis minted
+        from the measure (ruling 63); this is the label a caller that knows
+        only the measure passes. A measure discretising a factor of phase
+        space is labelled by that factor (:attr:`phase`: ``"angular"``,
+        ``"spatial"``, ``"energy"``), so a frame's measure space over a
+        quadrature IS the SN angular space over the same rule. A measure on
+        an :class:`~orpheus.numerics.manifold.IndexSet` discretises no factor
+        of phase space (the loss-kernel gauge's per-orbit trace sets), so it
+        is labelled by the set's own name, which is what distinguishes one
+        such set from another. Anything else is refused by :attr:`phase`,
+        naming the support.
         """
-        from orpheus.numerics.space import FunctionSpace
-
-        return FunctionSpace(
-            name=f"L2[{self.support.name}]",
-            shape=(self.n_points,),
-            inner_product_weights=self.weights,
-        )
+        if isinstance(self.support, IndexSet):
+            return self.support.name
+        return self.phase
 
     @property
     def quotient_group(self) -> "SubgroupOfO3 | None":

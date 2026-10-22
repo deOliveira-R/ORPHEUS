@@ -552,15 +552,18 @@ def test_q8_3_the_fold_keeps_its_quotient_tag_all_the_way_to_the_frame() -> None
     size of the one its nodes cover.
 
     This is the one row of the carve that is NOT bit-identical in its tag:
-    ``measure_space(frame)`` moves ``L2[S^2]`` → ``L2[S^2/sigma_y]``.
+    ``measure_space(frame)`` moves ``L2[S^2]`` → ``L2[S^2/sigma_y]`` (read since
+    S7 off the measure axis's support, ruling 71, where it had been the name).
     """
     q = Quadrature.folded_product(n_mu=4, n_phi=8)
     assert q.measure.support == SPHERE.quotient(SubgroupOfO3.Mirror("y"))
     assert frame_faces.angular_frame(q, 2).measure.support == SPHERE.quotient(SubgroupOfO3.Mirror("y"))
-    assert frame_faces.measure_space(frame_faces.angular_frame(q, 2)).name == "L2[S^2/sigma_y]"
+    folded = frame_faces.measure_space(frame_faces.angular_frame(q, 2)).axes
+    assert folded is not None and folded[0].support == SPHERE.quotient(SubgroupOfO3.Mirror("y"))
     # …and an UNfolded sibling of the same family still says S^2, so the
     # assertion above is discriminating rather than a tautology on the tag.
-    assert frame_faces.measure_space(frame_faces.angular_frame(Quadrature.product(n_mu=4, n_phi=8), 2)).name == "L2[S^2]"
+    unfolded = frame_faces.measure_space(frame_faces.angular_frame(Quadrature.product(n_mu=4, n_phi=8), 2)).axes
+    assert unfolded is not None and unfolded[0].support == SPHERE
 
 
 @pytest.mark.parametrize(

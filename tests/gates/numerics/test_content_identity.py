@@ -48,7 +48,7 @@ from scipy.sparse import csr_matrix
 
 import orpheus.numerics.content as content_module
 from orpheus.numerics.content import ContentIdentity, ContentlessError, content_digest, encode
-from orpheus.numerics.axis import Modal
+from orpheus.numerics.axis import Declared, Modal
 from tests.gates._content_identity_helpers import Entry, require
 from tests.gates.data.test_content_identity_data import ROSTER as DATA_ROSTER
 from tests.gates.geometry.test_content_identity_geometry import ROSTER as GEOMETRY_ROSTER
@@ -476,7 +476,7 @@ def _space_names() -> dict[str, Callable[[], str]]:
     levels, cell_volumes = (0, 2, 5), np.array([1.5, 2.5, 3.5, 4.5])
     return {
         "of_axes": lambda: FunctionSpace.of_axes(
-            EnergyAxis.synthetic(2), Axis("harmonic", (3,), kind=Modal(np.eye(3)[0]))).name,
+            EnergyAxis.synthetic(2), Axis("harmonic", (3,), origin=Declared(Modal(np.eye(3)[0])))).name,
         "angular trace": lambda: angular().name,
         "scalar trace": lambda: scalar().name,
         "radial interior": lambda: RadialCharacteristicInteriorSpace.for_levels(

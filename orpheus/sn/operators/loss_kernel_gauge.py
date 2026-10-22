@@ -1192,7 +1192,7 @@ class LossKernelGauge(LinearOperator):
                 blocks.append(_GaugeBlock(
                     gather=TraceRestrictionOperator(
                         indices, n_total=n_trace,
-                        domain=trace_space, codomain=measure.space),
+                        domain=trace_space, codomain=frame_faces.measure_space(frame)),
                     projector=frame_faces.conjugate(frame, frame_faces.CrossGramInverse.of(frame)),
                     basis=basis,
                 ))

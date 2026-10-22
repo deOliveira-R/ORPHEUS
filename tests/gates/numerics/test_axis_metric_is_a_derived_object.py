@@ -44,7 +44,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
+from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.axis import Modal
@@ -90,9 +90,9 @@ def _synthetic_axes() -> tuple[Axis, ...]:
     spatial axis — every shape the realization must position."""
     head_w = np.array([[4.0 * np.pi, 0.0, 0.0], [4.0 * np.pi / 3.0] * 3])
     return (
-        Axis(label="harmonic_probe", shape=(2, 3), weights=head_w, kind=Modal(np.eye(1, 6)[0].reshape(2, 3))),
-        EnergyAxis(label="energy", shape=(2,), kind=BasisKind.NODAL),
-        Axis(label="spatial", shape=(4,), weights=np.array([0.5, 1.0, 1.5, 2.0]), kind=BasisKind.NODAL),
+        Axis(label="harmonic_probe", shape=(2, 3), weights=head_w, origin=Declared(Modal(np.eye(1, 6)[0].reshape(2, 3)))),
+        EnergyAxis(label="energy", shape=(2,)),
+        Axis(label="spatial", shape=(4,), weights=np.array([0.5, 1.0, 1.5, 2.0]), origin=Declared(BasisKind.NODAL)),
     )
 
 
@@ -128,8 +128,8 @@ def test_an_all_counting_space_derives_no_object():
     """Every axis counting ⟹ no metric object at all (the Euclidean default,
     no allocation) and the verbs are the identity."""
     space = FunctionSpace.of_axes(
-        EnergyAxis(label="energy", shape=(3,), kind=BasisKind.NODAL),
-        Axis(label="spatial", shape=(2,), kind=BasisKind.NODAL),
+        EnergyAxis(label="energy", shape=(3,)),
+        Axis(label="spatial", shape=(2,), origin=Declared(BasisKind.NODAL)),
     )
     if space._resolved_metric is not None:
         pytest.fail("an all-counting axis-built space derived a metric object")
@@ -167,8 +167,8 @@ def _dense_gram_on_the_head() -> tuple[tuple[Axis, ...], np.ndarray]:
     """Axes whose head block carries NO diagonal measure (a dense Gram has
     none) plus a symmetric positive-definite 6×6 form for that block."""
     axes = (
-        Axis(label="harmonic_probe", shape=(2, 3), kind=Modal(np.eye(1, 6)[0].reshape(2, 3))),
-        Axis(label="spatial", shape=(4,), weights=np.array([0.5, 1.0, 1.5, 2.0]), kind=BasisKind.NODAL),
+        Axis(label="harmonic_probe", shape=(2, 3), origin=Declared(Modal(np.eye(1, 6)[0].reshape(2, 3)))),
+        Axis(label="spatial", shape=(4,), weights=np.array([0.5, 1.0, 1.5, 2.0]), origin=Declared(BasisKind.NODAL)),
     )
     rng = np.random.default_rng(11)
     a = rng.standard_normal((6, 6))
@@ -227,7 +227,7 @@ def test_a_product_of_axis_built_factors_carries_the_overlay_beside_its_axes():
         metric=FactoredMetric((((2, 3), DenseMetric(gram)),)),
     )
     bulk = FunctionSpace.of_axes(
-        EnergyAxis(label="energy", shape=(2,), kind=BasisKind.NODAL), axes[1],
+        EnergyAxis(label="energy", shape=(2,)), axes[1],
     )
     product = head * bulk
     assert product.axes is not None and len(product.axes) == 3

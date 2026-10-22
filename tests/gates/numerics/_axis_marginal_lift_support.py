@@ -23,7 +23,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics import frame_faces
-from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
+from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 
@@ -68,7 +68,7 @@ _W_SPA = np.array([0.2, 0.3, 0.4, 0.7, 1.4])
 
 
 def _cells():
-    return (EnergyAxis.synthetic(2), Axis("spatial", (5,), weights=_W_SPA, kind=BasisKind.NODAL))
+    return (EnergyAxis.synthetic(2), Axis("spatial", (5,), weights=_W_SPA, origin=Declared(BasisKind.NODAL)))
 
 
 def head_products():
@@ -92,13 +92,13 @@ def head_products():
 def synthetic():
     return {
         "synthetic nodal": FunctionSpace.of_axes(
-            Axis("angular", (4,), weights=np.array([0.3, 0.7, 0.5, 0.5]), kind=BasisKind.NODAL),
-            Axis("energy", (2,), kind=BasisKind.NODAL),
-            Axis("spatial", (5,), weights=_W_SPA, kind=BasisKind.NODAL),
+            Axis("angular", (4,), weights=np.array([0.3, 0.7, 0.5, 0.5]), origin=Declared(BasisKind.NODAL)),
+            Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
+            Axis("spatial", (5,), weights=_W_SPA, origin=Declared(BasisKind.NODAL)),
         ),
         "zero-mass signed": FunctionSpace.of_axes(
-            Axis("angular", (2,), weights=np.array([1.0, -1.0]), kind=BasisKind.NODAL),
-            Axis("spatial", (3,), kind=BasisKind.NODAL),
+            Axis("angular", (2,), weights=np.array([1.0, -1.0]), origin=Declared(BasisKind.NODAL)),
+            Axis("spatial", (3,), origin=Declared(BasisKind.NODAL)),
         ),
     }
 
@@ -106,8 +106,8 @@ def synthetic():
 def zero_weight_nodal():
     """A nodal axis with one zero weight (legal: signed and zero weights are admitted)."""
     return FunctionSpace.of_axes(
-        Axis("angular", (3,), weights=np.array([0.5, 0.0, 1.5]), kind=BasisKind.NODAL),
-        Axis("spatial", (4,), weights=np.array([1.0, 2.0, 0.5, 0.25]), kind=BasisKind.NODAL),
+        Axis("angular", (3,), weights=np.array([0.5, 0.0, 1.5]), origin=Declared(BasisKind.NODAL)),
+        Axis("spatial", (4,), weights=np.array([1.0, 2.0, 0.5, 0.25]), origin=Declared(BasisKind.NODAL)),
     )
 
 
@@ -120,12 +120,12 @@ def dense_form_spaces():
     """D1, D2, D3 of tests/gates/numerics/test_retraction_adjoint_is_the_pullback.py, verbatim."""
     from orpheus.numerics.metric import DenseMetric, FactoredMetric
 
-    ang = Axis("angular", (4,), weights=np.array([0.3, 0.9, 0.5, 0.3]), kind=BasisKind.NODAL)
-    spa = Axis("spatial", (5,), weights=np.array([1.0, 2.0, 0.5, 0.25, 3.0]), kind=BasisKind.NODAL)
-    mom = Axis("moment", (3,), kind=BasisKind.NODAL)
+    ang = Axis("angular", (4,), weights=np.array([0.3, 0.9, 0.5, 0.3]), origin=Declared(BasisKind.NODAL))
+    spa = Axis("spatial", (5,), weights=np.array([1.0, 2.0, 0.5, 0.25, 3.0]), origin=Declared(BasisKind.NODAL))
+    mom = Axis("moment", (3,), origin=Declared(BasisKind.NODAL))
     d1 = FunctionSpace("d1", (4, 5, 3), axes=(ang, spa, mom),
                        metric=FactoredMetric((((4,), None), ((5,), None), ((3,), DenseMetric(_spd(3, 1))))))
-    d2 = FunctionSpace("d2", (4, 5), axes=(Axis("angular", (4,), kind=BasisKind.NODAL), spa),
+    d2 = FunctionSpace("d2", (4, 5), axes=(Axis("angular", (4,), origin=Declared(BasisKind.NODAL)), spa),
                        metric=FactoredMetric((((4,), DenseMetric(_spd(4, 2))), ((5,), None))))
     head = FunctionSpace("h", (3,), axes=(mom,), metric=FactoredMetric((((3,), DenseMetric(_spd(3, 3))),)))
     d3 = FunctionSpace.of_axes(ang, spa) * head

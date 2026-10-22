@@ -67,17 +67,19 @@ when it calls ``space.apply_metric(y)`` on a composite field.
 Identity
 ========
 
-Identity is the inherited ``(name, shape)`` tuple, with ``name =
-"full_field"`` and ``shape = (n_interior + n_trace,)`` (the flat direct-sum
-dimension). The name is method-agnostic (P4.5 W-D de-SN-ified it from the
-former ``"sn_full_field"``: the operators that advertise it — :math:`C`,
-:math:`S`, :math:`F` — are cross-method, not SN-specific). The block spaces
-are ``compare=False`` leaf metadata — two composites over meshes of the same
-total dimension compare equal, so the
+Identity is the keys of the two blocks,
+``("full_field", interior.identity_key(), trace.identity_key())``
+(:meth:`FullFieldSpace.identity_key`, since S7 of the numerics untangling;
+until then the inherited ``(name, shape)`` pair over a name folded from the
+members' NAMES, which carry no covariance: finding F7 of the S6a review,
+``from_blocks(a, b).dual() == from_blocks(a*, b*)``). ``shape`` is the flat
+direct-sum dimension ``(n_interior + n_trace,)``, and the name is a readable
+label (method-agnostic since P4.5 W-D: the operators that advertise it —
+:math:`C`, :math:`S`, :math:`F` — are cross-method). The
 :class:`~orpheus.numerics.operator.OperatorSum` composition guard accepts the
-full within-group loss ``L + C - S - B``: every bulk operand (:math:`L`,
-:math:`C`, :math:`S`) and the boundary :math:`B` reports the SAME composite
-domain. (P4.5 W-D gave :math:`C`/:math:`S`/:math:`F` real spaces; before that
+full within-group loss ``L + C - S - B`` because every bulk operand
+(:math:`L`, :math:`C`, :math:`S`) and the boundary :math:`B` reports the SAME
+composite domain. (P4.5 W-D gave :math:`C`/:math:`S`/:math:`F` real spaces; before that
 only :math:`L`/:math:`B` did, and the guard silently skipped the
 ``None``-spaced summands.)
 
@@ -149,7 +151,7 @@ class CompositeField(Protocol):
     ) -> "CompositeField": ...
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class FullFieldSpace(FunctionSpace[CompositeField]):
     r"""Direct sum :math:`V_{\rm bulk} \oplus V_{\rm trace}` with a per-block metric.
 
@@ -196,19 +198,11 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         default=None, repr=False, compare=False,
     )
 
-    # ── Equality / hashing inherited from FunctionSpace ───────────────
-    #
-    # Same rationale as :class:`AngularTraceSpace` / :class:`TensorProductSpace`:
-    # the @dataclass(frozen=True) decorator would otherwise auto-generate
-    # an __eq__ / __hash__ over the fields; explicit delegation restores
-    # the (name, shape) identity convention. The block fields are already
-    # excluded via ``compare=False``.
-
-    def __eq__(self, other: object) -> bool:
-        return FunctionSpace.__eq__(self, other)
-
-    def __hash__(self) -> int:
-        return FunctionSpace.__hash__(self)
+    def identity_key(self) -> tuple[Any, ...]:
+        """A direct sum is the keys of its two blocks (F7: the composite of
+        two duals is not the composite of two spaces named like them)."""
+        interior, trace = self._require_blocks()
+        return ("full_field", interior.identity_key(), trace.identity_key())
 
     def __repr__(self) -> str:
         return f"FullFieldSpace({self.name!r}, shape={self.shape})"
@@ -228,15 +222,15 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
 
         **The name is derived from the members (CS4b S4 — the F4 ruling),
         exactly as ``of_axes`` derives a product's name from its factors:**
-        ``full_field#<digest>`` folds each member's ``(name, shape)`` pair,
-        so the composite's inherited ``(name, shape)`` identity is
-        precisely as content-keyed as its members' — a direct sum of
-        content-digest-named mints compares by content (twin carriers
-        EQUAL, volumes/quadrature/family differences UNEQUAL), and a
-        direct sum of hand-built raw spaces compares by whatever their
-        names carry, the family convention everywhere else. This is what
-        retired the R2 block-blindness (a bare ``"full_field"`` name made
-        any two composites of equal flat dimension identical).
+        ``full_field#<digest>`` folds each member's ``(name, shape)`` pair.
+        Since S7 the name is a readable label only: the composite's
+        identity is its members' keys (:meth:`identity_key`), so a direct
+        sum compares exactly as its blocks do, covariance included (twin
+        carriers EQUAL, volumes/quadrature/family differences UNEQUAL, a
+        dual's block never equal to a primal's). The digest name retired the
+        R2 block-blindness (a bare ``"full_field"`` name made any two
+        composites of equal flat dimension identical) while names were the
+        identity.
 
         The retired ``name=`` role parameter is deliberate, not lost:
         role is CLASS identity (G2.3) — System B's ψ½ composite is
@@ -249,9 +243,8 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         """
         n_interior = int(np.prod(interior_space.shape))
         n_trace = int(np.prod(trace_space.shape))
-        # The blocks' identity is (name, shape), the FunctionSpace
-        # convention; folded through the one content encoder (#405 P1
-        # step 5) rather than a text join.
+        # The readable label: the blocks' (name, shape) folded through the
+        # one content encoder (#405 P1 step 5). Identity is identity_key.
         digest = name_digest(tuple(
             (s.name, s.shape) for s in (interior_space, trace_space)
         ))

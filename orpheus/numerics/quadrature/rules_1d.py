@@ -23,9 +23,10 @@ the angular-spaces campaign, #429, 2026-09-01):
   is what the SN slab solver consumes, through
   :meth:`~orpheus.numerics.quadrature.Quadrature.gauss_legendre`, and
   what the quadrature registry's ``GaussLegendre1D`` spec builds — so
-  its space is ``L2[S^2/O2_x]``, not ``L2[[-1,1]]``, and it can no
-  longer be confused with an 8-node SPATIAL rule on the same interval
-  (`[M]` the two were ``==`` and hash-equal before this).
+  its sampled space lives on ``S^2/O2_x``, not on ``[-1,1]`` (the support
+  is axis content since S7, ruling 71), and it can no longer be confused
+  with an 8-node SPATIAL rule on the same interval (`[M]` the two were
+  ``==`` and hash-equal before this).
 
 The group the polar marginal was quotiented **by** — the stabiliser
 :math:`O(2)_a` of the axis, whose rotation half's fiber action is the
@@ -170,7 +171,8 @@ def gauss_legendre_on_polar_orbit(n: int, axis: str) -> DiscreteMeasure:
     its :math:`m = 0` members.
 
     What the declaration buys, and it is a repair rather than wiring:
-    the measure's space is ``L2[S^2/O2_x]``, so it no longer compares
+    the measure's sampled space lives on ``S^2/O2_x`` (the support is axis
+    content since S7, ruling 71), so it no longer compares
     equal to a spatial rule on :math:`[-1, 1]` with the same node count
     (`[M]` 2026-09-01: an 8-node slab angular space and an 8-node spatial
     space were ``==`` AND hash-equal, 2.1's energy/spatial collision one

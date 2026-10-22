@@ -42,7 +42,7 @@ import pytest
 
 from orpheus.numerics import frame_faces
 from orpheus.numerics import operator as op_mod
-from orpheus.numerics.axis import Axis, BasisKind
+from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, DualMetric, FactoredMetric
 from orpheus.numerics.operator import (
@@ -114,7 +114,7 @@ def _leaf_spaces():
         "named_weights": FunctionSpace("s6a_V", (3,), inner_product_weights=_W_POS),
         "named_singular": FunctionSpace("s6a_Vs", (4,), inner_product_weights=_W_SING),
         "dense": FunctionSpace("s6a_VD", (3,), metric=DenseMetric(_G)),
-        "of_axes": FunctionSpace.of_axes(Axis("a", (2,), weights=w, kind=BasisKind.NODAL)),
+        "of_axes": FunctionSpace.of_axes(Axis("a", (2,), weights=w, origin=Declared(BasisKind.NODAL))),
         "basis_space_gl8_L2": frame_faces.basis_space(
             frame_faces.angular_frame(Quadrature.gauss_legendre(8), 2)
         ),
@@ -703,8 +703,8 @@ def _r_factors(kind):
     if kind == "named":
         return (FunctionSpace("s6a_Ra", (2,), inner_product_weights=_RA),
                 FunctionSpace("s6a_Rb", (3,), inner_product_weights=_RB))
-    return (FunctionSpace.of_axes(Axis("ra", (2,), weights=_RA, kind=BasisKind.NODAL)),
-            FunctionSpace.of_axes(Axis("rb", (3,), weights=_RB, kind=BasisKind.NODAL)))
+    return (FunctionSpace.of_axes(Axis("ra", (2,), weights=_RA, origin=Declared(BasisKind.NODAL))),
+            FunctionSpace.of_axes(Axis("rb", (3,), weights=_RB, origin=Declared(BasisKind.NODAL))))
 
 
 @pytest.mark.parametrize("kind", ["named", "axes"])

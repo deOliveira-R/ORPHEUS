@@ -1,11 +1,15 @@
-r"""CS5 — an axis can name the generator that made it (the provenance doctrine).
+r"""CS5 — an axis can name the object that minted it (the provenance doctrine).
 
 One doctrine, one file (the ``test_space_of_axes.py`` file-level-doctrine
-precedent): an :class:`~orpheus.numerics.axis.Axis` is a **forgetful map**
-from its generator — it keeps the weights and drops the nodes — and since
-CS5 (2026-08-29) the mint routes THROUGH the generator
-(``Axis.of_measure(measure, label)`` / ``Axis.of_quadrature(quad, label)``), which records itself as
-``Axis.generator``: provenance, **never identity**.
+precedent): since CS5 (2026-08-29) the mint routes THROUGH the generating
+object (``Axis.of_measure(measure, label)`` / ``Axis.of_quadrature(quad,
+label)``), which records itself on the axis: provenance, **never identity**.
+Since S7 of the numerics untangling (ruling 64) the record is
+``Axis.origin``, a closed sum (``FromMeasure``, ``FromQuadrature``,
+``FromBasis``, ``FromFrame``, ``Declared``) read by ``match``, and the axis
+keeps its support and atoms as content (ruling 71), so an axis is no longer
+a forgetful image of its measure: what the origin adds is only what the
+measure cannot answer (the level fibration).
 
 The gates here are the landed machinery's ONLY witnesses — ``[M]`` a
 three-arm in-process mutation battery over the 184-test anchor set found
@@ -26,7 +30,7 @@ import numpy.testing as npt
 import pytest
 
 from orpheus.numerics.manifold import RealSpace
-from orpheus.numerics.axis import Axis, BasisKind
+from orpheus.numerics.axis import Axis, BasisKind, Declared, FromMeasure, FromQuadrature, quadrature_refusal
 from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.numerics.space import FunctionSpace
 
@@ -40,7 +44,7 @@ def _require(condition: bool, message: str) -> None:
 
 def _point() -> Axis:
     """The quotient spatial point (counting weight — the density convention)."""
-    return Axis("spatial", (1,), kind=BasisKind.NODAL)
+    return Axis("spatial", (1,), origin=Declared(BasisKind.NODAL))
 
 
 # The shipped angular family — EXHAUSTIVE by construction, not a ladder
@@ -96,19 +100,24 @@ class TestG1GeneratorIsProvenanceNotIdentity:
         _require(hash(a1) == hash(a2), f"{name}: hash must agree with eq")
         _require(len({a1, a2}) == 1, f"{name}: one axis, one set member")
 
-    def test_a_generator_ful_axis_equals_the_generator_LESS_one(self):
-        """G1b — the accessor is additive: adding provenance moves nothing."""
+    def test_the_origin_arm_is_provenance_and_the_atoms_are_content(self):
+        """G1b — re-posed at S7 (ruling 71; until then "a generator-ful axis
+        equals the generator-LESS one", which INVERTED). The arm is
+        provenance: a quadrature and its measure mint one axis. The atoms are
+        content: the same weights declared with no atoms are another axis."""
         q = Quadrature.gauss_legendre(4)
         minted = Axis.of_quadrature(q, "angular")
+        through_measure = Axis.of_measure(q.measure, "angular")
+        _require(
+            minted == through_measure and hash(minted) == hash(through_measure),
+            "FromQuadrature(q) and FromMeasure(q.measure) must mint one axis",
+        )
+        _require(len({minted, through_measure}) == 1, "one axis, one set member")
         bare = Axis(
             "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
-            kind=BasisKind.NODAL,
+            origin=Declared(BasisKind.NODAL),
         )
-        _require(
-            minted == bare and hash(minted) == hash(bare),
-            "a generator-ful axis must equal the same axis without one",
-        )
-        _require(len({minted, bare}) == 1, "one axis, one set member")
+        _require(not (minted == bare), "an atomless axis must not pass for the sampled one")
 
     def test_the_exclusion_is_a_RULING_and_the_measure_leg_still_bites(self):
         """G1c ⭐ — WHY the generator stays out of the key, restated 2026-09-12.
@@ -155,7 +164,7 @@ class TestG3MintFidelity:
         minted = Axis.of_quadrature(q, "angular")
         literal = Axis(
             "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
-            kind=BasisKind.NODAL,
+            origin=Declared(BasisKind.NODAL),
         )
         _require(minted.label == literal.label == "angular", f"{name}: label")
         _require(minted.shape == literal.shape == (q.n_ordinates,), f"{name}: shape")
@@ -178,10 +187,22 @@ class TestG3MintFidelity:
             )
         # the drop-the-upgrade mutation's catcher:
         _require(
-            minted.generator is q,
-            f"{name}: the generator is the QUADRATURE, not the measure "
-            f"(got {type(minted.generator).__name__})",
+            isinstance(minted.origin, FromQuadrature) and minted.origin.quadrature is q,
+            f"{name}: the origin is the QUADRATURE, not the measure "
+            f"(got {type(minted.origin).__name__})",
         )
+        # the atoms and the support are the rule's (ruling 71)
+        npt.assert_array_equal(minted.nodes, q.measure.nodes, err_msg=f"{name}: atoms")
+        _require(minted.support == q.measure.support, f"{name}: support")
+
+
+def _quadrature_through(space: FunctionSpace) -> Quadrature:
+    """The quadrature recovered THROUGH a space: its angular axis's origin."""
+    match space.axis("angular").origin:
+        case FromQuadrature(quadrature):
+            return quadrature
+        case origin:
+            pytest.fail(f"the angular axis was minted through {type(origin).__name__}")
 
 
 class TestG4TheFourNamesAnswerThroughTheSpace:
@@ -199,8 +220,7 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
     def test_direction_cosines_answer_through_the_space(self, name, factory, attr):
         q = factory()
         space = FunctionSpace.of_axes(Axis.of_quadrature(q, "angular"), _point())
-        g = space.axis("angular").generator
-        assert g is not None
+        g = _quadrature_through(space)
         npt.assert_array_equal(
             getattr(g, attr), getattr(q, attr),
             err_msg=f"{name}.{attr} lost through the space",
@@ -217,11 +237,7 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
         is that ruling's witness.
         """
         q = factory()
-        g = (
-            FunctionSpace.of_axes(Axis.of_quadrature(q, "angular"), _point())
-            .axis("angular")
-            .generator_as(Quadrature, consumer="G4 gate")
-        )
+        g = _quadrature_through(FunctionSpace.of_axes(Axis.of_quadrature(q, "angular"), _point()))
         got, want = g.level_indices, q.level_indices
         _require(len(got) == len(want), f"{name}: level count")
         for k, (a, b) in enumerate(zip(got, want)):
@@ -238,11 +254,7 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
         P4-remainder re-point never finds a name this contract lacks.
         """
         q = factory()
-        g = (
-            FunctionSpace.of_axes(Axis.of_quadrature(q, "angular"), _point())
-            .axis("angular")
-            .generator_as(Quadrature, consumer="G4 gate")
-        )
+        g = _quadrature_through(FunctionSpace.of_axes(Axis.of_quadrature(q, "angular"), _point()))
         _require(g.n_ordinates == q.n_ordinates, f"{name}: N")
         npt.assert_array_equal(g.weights, q.weights, err_msg=f"{name}: weights")
         _require(
@@ -262,7 +274,8 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
         q = Quadrature.level_symmetric(4)
         measure_axis = Axis.of_measure(q.measure, "angular")
         _require(
-            not hasattr(measure_axis.generator, "level_indices"),
+            isinstance(measure_axis.origin, FromMeasure)
+            and not hasattr(measure_axis.origin.measure, "level_indices"),
             "a DiscreteMeasure must NOT answer level_indices — if it "
             "starts to, Axis.of_quadrature's raison d'etre changed and this "
             "design must be re-ruled",
@@ -270,9 +283,9 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
 
 
 class TestG8TheMintIsASectionOfTheForgetfulMap:
-    """G8 ⭐ — the intrinsic law: for every generator-ful axis ``a``,
-    ``Axis.of_<generator>(a.generator, a.label) == a`` (the mint is a SECTION of the
-    forgetful map, so the forgetting is recoverable).
+    """G8 ⭐ — the intrinsic law: for every axis ``a`` minted from a measure or
+    a quadrature, re-minting from its origin's object gives ``a`` back (the mint
+    is a SECTION, so what the axis keeps is recoverable).
 
     ⚠ Scoped honestly: the law ranges over GENERATOR-FUL axes only. A
     generator-less axis (the homogeneous counting point, every
@@ -290,11 +303,12 @@ class TestG8TheMintIsASectionOfTheForgetfulMap:
     @pytest.mark.parametrize("name,factory", _RULES)
     def test_angular_round_trip(self, name, factory):
         a = Axis.of_quadrature(factory(), "angular")
-        g = a.generator_as(Quadrature, consumer="G8 gate")
+        g = _quadrature_through(FunctionSpace.of_axes(a))
         _require(Axis.of_quadrature(g, a.label) == a, f"{name}: not a section")
+        again = Axis.of_quadrature(g, a.label).origin
         _require(
-            Axis.of_quadrature(g, a.label).generator is g,
-            f"{name}: the round-trip must preserve the generator itself",
+            isinstance(again, FromQuadrature) and again.quadrature is g,
+            f"{name}: the round-trip must preserve the quadrature itself",
         )
 
     def test_measure_round_trip(self):
@@ -307,54 +321,44 @@ class TestG8TheMintIsASectionOfTheForgetfulMap:
             support=RealSpace(1),
         )
         a = Axis.of_measure(m, "spatial")
-        _require(a.generator is m, "the mint must record its generator")
+        _require(isinstance(a.origin, FromMeasure) and a.origin.measure is m, "the mint must record its measure")
         _require(Axis.of_measure(m, a.label) == a, "measure mint: not a section")
 
 
-class TestG5GeneratorAsIsTheOneRefusalHome:
-    """P4-remainder G5 — the typed narrow with the by-name refusal.
-
-    The accessor is load-bearing, not decorative: the bare union cannot
-    answer the consumers' reads (a DiscreteMeasure has no ``mu_x`` /
-    ``level_indices``), so every re-pointed read narrows here — one home,
-    and the consumer's own name rides into the message. Per-consumer
-    refusal rows live beside their consumers
+class TestG5TheQuadratureRefusalIsOneSpelling:
+    """P4-remainder G5, re-posed at S7: each consumer that needs the generating
+    quadrature matches ``case FromQuadrature(quadrature)`` itself, and its other
+    arm raises :func:`~orpheus.numerics.axis.quadrature_refusal`, the one
+    spelling of the message, naming the axis, the asker and the origin it got.
+    Per-consumer refusal rows live beside their consumers
     (``tests/gates/sn/mesh/test_reduced_operator.py``,
-    ``tests/gates/sn/sweep/curvilinear/test_angular_closure.py``).
+    ``tests/gates/sn/sweep/curvilinear/test_angular_closure.py``); the census of
+    the ``case FromQuadrature`` sites is ``test_axis_identity.py`` O3 (it
+    replaced G5_6b's ``generator_as`` call-site census).
     """
 
-    def test_the_narrow_returns_the_generator_itself(self):
-        """G5.1's Axis-tier half — positive first (vv #11)."""
-        q = Quadrature.gauss_legendre(4)
-        a = Axis.of_quadrature(q)
-        assert a.generator_as(Quadrature, consumer="test") is q
-
-    def test_a_generator_less_axis_refuses_with_both_names(self):
+    def test_a_declared_axis_is_refused_with_both_names(self):
         q = Quadrature.gauss_legendre(4)
         bare = Axis(
             "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
-            kind=BasisKind.NODAL,
+            origin=Declared(BasisKind.NODAL),
         )
-        with pytest.raises(ValueError, match="angular"):
-            bare.generator_as(Quadrature, consumer="somebody")
-        with pytest.raises(ValueError, match="somebody"):
-            bare.generator_as(Quadrature, consumer="somebody")
-        with pytest.raises(ValueError, match="minted through"):
-            bare.generator_as(Quadrature, consumer="somebody")
+        message = str(quadrature_refusal(bare, "somebody"))
+        for fragment in ("angular", "somebody", "minted through", "Declared"):
+            _require(fragment in message, f"the refusal must carry {fragment!r}: {message}")
 
-    def test_a_wrong_KIND_generator_refuses_too(self):
-        """A measure-minted axis narrowed to Quadrature refuses — the
-        narrow is a type claim, not a None check (parse, don't validate).
-        The message names what it got."""
+    def test_a_measure_minted_axis_is_refused_naming_its_origin(self):
+        """A measure-minted axis is not a quadrature-minted one — the
+        consumers' match is a type claim, not a None check (parse, don't
+        validate). The message names what it got."""
         from orpheus.numerics.measure import DiscreteMeasure
 
         m = DiscreteMeasure(
             nodes=np.array([0.5, 1.5]), weights=np.array([0.4, 0.6]),
             support=RealSpace(1),
         )
-        a = Axis.of_measure(m, "spatial")
-        with pytest.raises(ValueError, match="DiscreteMeasure"):
-            a.generator_as(Quadrature, consumer="test")
+        _require("FromMeasure" in str(quadrature_refusal(Axis.of_measure(m, "spatial"), "test")),
+                 "the refusal must name the origin it got")
 
     def test_fragment_disjointness_with_the_space_refusal(self):
         """G5.4 (L43c) — the neighbouring refusal on the same consumer
@@ -363,92 +367,15 @@ class TestG5GeneratorAsIsTheOneRefusalHome:
         q = Quadrature.gauss_legendre(4)
         bare = Axis(
             "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
-            kind=BasisKind.NODAL,
+            origin=Declared(BasisKind.NODAL),
         )
-        try:
-            bare.generator_as(Quadrature, consumer="x")
-        except ValueError as e:
-            assert "axis lookup:" not in str(e)
-        else:  # pragma: no cover
-            pytest.fail("must refuse")
+        _require("axis lookup:" not in str(quadrature_refusal(bare, "x")), "fragments must be disjoint")
 
-    def test_G5_6a_the_shipped_generator_less_axes_ARE_generator_less(self):
-        """The inventory row: the honest-None sites answer None and the
-        accessor WOULD bite them — proof the guard has teeth wherever it
-        is wired. (Shelf life: the MODAL moment axis retires from this
-        list when §5.5 item 3 lands; the counting point and every
-        EnergyAxis remain.)"""
+    def test_G5_6a_the_shipped_atomless_axes_are_Declared(self):
+        """The inventory row: the counting point and every EnergyAxis are
+        ``Declared`` (ruling 82), so a quadrature consumer handed one refuses."""
         from orpheus.numerics.axis import EnergyAxis
 
-        counting = Axis("spatial", (1,), kind=BasisKind.NODAL)
-        energy = EnergyAxis.synthetic(3)
-        for ax in (counting, energy):
-            assert ax.generator is None
-            with pytest.raises(ValueError, match="minted through"):
-                ax.generator_as(Quadrature, consumer="inventory")
-
-    def test_G5_6b_the_call_site_set_is_the_declared_consumer_set(self):
-        """The 'not on their path' row (AST, the tree's own idiom): the
-        accessor's production call sites are exactly the declared
-        consumers — it reds the moment someone wires the refusal onto a
-        path a shipped generator-less axis travels (the homogeneous
-        pose, the energy family, the MODAL moment axis)."""
-        import ast
-        import pathlib
-
-        declared = {
-            ("orpheus/sn/mesh/reduced_operator.py", "streaming_terms"),
-            ("orpheus/sn/angular/closure.py", "__init__"),  # MM + Identity
-            # CS4c §14.4 — the blessed frame chain's one production hop:
-            # space → angular axis → generator_as(Quadrature) → interned
-            # angular_frame(L).  Every frame consumer (S, F, windowing)
-            # reaches the quadrature THROUGH this classmethod, so the
-            # refusal fires only where a space genuinely lost its
-            # generator (a hand-built axis fed to a frame mint).
-            ("orpheus/transport/frames/harmonic_frame.py", "for_space"),
-            # CS4c step 6 item 6.2c-ii (hazard H-6): the moment-codomain
-            # derivation refuses a MOMENT space by the same channel — a
-            # moment space is axis-built too since then, so the axes-less
-            # refusal no longer catches it; its leading axis is a MODAL head
-            # whose generator is a basis or a frame, never the quadrature.
-            ("orpheus/transport/frames/harmonic_frame.py", "moment_space_on"),
-            # (An n2n.py from_solver_data entry lived here §14.1–§16.4:
-            # the tier-2 mint recovered bare WEIGHTS through this channel
-            # until CS4c step 4's harmonization retired the weights field
-            # — the frame now arrives through for_space above, so the
-            # site DISSOLVED and this gate caught the stale declaration
-            # at the step-4 exit gate, exactly as designed.)
-        }
-        found = set()
-        for f in pathlib.Path("orpheus").rglob("*.py"):
-            tree = ast.parse(f.read_text())
-            encl: dict[int, str] = {}
-
-            def walk(node, name):
-                if isinstance(
-                    node, (ast.FunctionDef, ast.AsyncFunctionDef)
-                ):
-                    name = node.name
-                    for line in range(
-                        node.lineno, (node.end_lineno or node.lineno) + 1
-                    ):
-                        encl.setdefault(line, name)
-                for ch in ast.iter_child_nodes(node):
-                    walk(ch, name)
-
-            walk(tree, "<module>")
-            for n in ast.walk(tree):
-                if (
-                    isinstance(n, ast.Attribute)
-                    and n.attr == "generator_as"
-                ):
-                    found.add(
-                        (str(f), encl.get(n.lineno, "<module>"))
-                    )
-        assert found == declared, (
-            f"generator_as call-site set drifted:\n"
-            f"  extra: {sorted(found - declared)}\n"
-            f"  missing: {sorted(declared - found)}\n"
-            f"a new consumer is fine — declare it here; a consumer on a "
-            f"generator-less production path is not."
-        )
+        for ax in (Axis("spatial", (1,), origin=Declared(BasisKind.NODAL)), EnergyAxis.synthetic(3)):
+            _require(isinstance(ax.origin, Declared), f"{ax.label}: not Declared")
+            _require(ax.support is None and ax.nodes is None, f"{ax.label}: an atomless axis has no atoms")

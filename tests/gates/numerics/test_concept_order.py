@@ -74,7 +74,6 @@ EXEMPT: frozenset[tuple[str, str]] = frozenset({("traced_memo", "_traced_memo_bo
 PENDING: dict[tuple[str, str], str] = {
     # S7: the coefficient space of a basis and the sampled space of a measure (ruling 35)
     ("space", "basis"): "S7",
-    ("space", "measure"): "S7",
     ("spaces", "basis"): "S7",
 }
 

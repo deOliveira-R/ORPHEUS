@@ -410,9 +410,8 @@ class HarmonicFrame(GalerkinFrame):
         r"""THE blessed frame chain (CS4c §14.4) — the one spelling every
         consumer uses to reach the shared angular frame from a space.
 
-        ``angular_space → leading (angular) axis →``
-        :meth:`Axis.generator_as <orpheus.numerics.axis.Axis.generator_as>`
-        ``(Quadrature) →``
+        ``angular_space → leading (angular) axis → its origin``
+        :class:`~orpheus.numerics.axis.FromQuadrature` ``(quadrature) →``
         :func:`angular_frame
         <orpheus.numerics.frame_faces.angular_frame>`
         ``(L) →`` :meth:`from_galerkin` — every hop single-sourced, both
@@ -429,19 +428,20 @@ class HarmonicFrame(GalerkinFrame):
         L : int
             The spherical-harmonic truncation order of the wanted frame.
         """
-        from orpheus.numerics.quadrature.directional import Quadrature
+        from orpheus.numerics.axis import FromQuadrature, quadrature_refusal
 
         axes = angular_space.axes
         if axes is None:
             raise TypeError(
                 "HarmonicFrame.for_space: the angular field space must be "
                 "axis-built (an S2 per-ordinate space); a shape-only space "
-                "carries no generator channel to reach the quadrature."
+                "carries no origin to reach the quadrature."
             )
-        quadrature = axes[0].generator_as(
-            Quadrature, consumer="HarmonicFrame.for_space",
-        )
-        return cls.from_galerkin(frame_faces.angular_frame(quadrature, L))
+        match axes[0].origin:
+            case FromQuadrature(quadrature):
+                return cls.from_galerkin(frame_faces.angular_frame(quadrature, L))
+            case _:
+                raise quadrature_refusal(axes[0], "HarmonicFrame.for_space")
 
     # ── the moment-codomain derivation (the PUBLIC single source) ─────
 
@@ -464,7 +464,7 @@ class HarmonicFrame(GalerkinFrame):
         Runs once per mint: the derivation direction is moment = f(angular,
         L), never the reverse.
         """
-        from orpheus.numerics.quadrature.directional import Quadrature
+        from orpheus.numerics.axis import FromQuadrature, quadrature_refusal
         from orpheus.numerics.space import FunctionSpace
 
         axes = angular_space.axes
@@ -480,7 +480,11 @@ class HarmonicFrame(GalerkinFrame):
         # (its leading axis is a MODAL head minted by a basis or a frame),
         # so the axes-less refusal above no longer catches it; this does,
         # by name (hazard H-6: a guard must not silently lose its subject).
-        axes[0].generator_as(Quadrature, consumer="HarmonicFrame.moment_space_on")
+        match axes[0].origin:
+            case FromQuadrature():
+                pass
+            case _:
+                raise quadrature_refusal(axes[0], "HarmonicFrame.moment_space_on")
         # The cell group is the angular space's OWN axes — energy, spatial
         # and, on a widened iterate, the scheme's mass-weighted spatial-
         # moment axis (CS4c step 6 item 6.2c-iii: ONE spelling of the

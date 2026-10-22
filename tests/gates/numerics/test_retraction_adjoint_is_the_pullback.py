@@ -44,7 +44,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.numerics.axis import Axis, BasisKind
+from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.metric import DenseMetric, FactoredMetric
 from orpheus.numerics.axis_marginal import AxisPullbackOperator, AxisRetractionOperator
 from orpheus.numerics.operator import AdjointOperator
@@ -65,9 +65,9 @@ def _spd(n: int, seed: int) -> np.ndarray:
 
 _W_ANG = np.array([0.3, 0.9, 0.5, 0.3])
 _W_SPA = np.array([1.0, 2.0, 0.5, 0.25, 3.0])
-_ANG = Axis("angular", (4,), weights=_W_ANG, kind=BasisKind.NODAL)
-_SPA = Axis("spatial", (5,), weights=_W_SPA, kind=BasisKind.NODAL)
-_MOM = Axis("moment", (3,), kind=BasisKind.NODAL)
+_ANG = Axis("angular", (4,), weights=_W_ANG, origin=Declared(BasisKind.NODAL))
+_SPA = Axis("spatial", (5,), weights=_W_SPA, origin=Declared(BasisKind.NODAL))
+_MOM = Axis("moment", (3,), origin=Declared(BasisKind.NODAL))
 
 
 def _d1() -> FunctionSpace:
@@ -81,7 +81,7 @@ def _d1() -> FunctionSpace:
 def _d2() -> FunctionSpace:
     """A dense form on the COLLAPSED axis itself (a measure-less angular axis)."""
     return FunctionSpace(
-        "d2", (4, 5), axes=(Axis("angular", (4,), kind=BasisKind.NODAL), _SPA),
+        "d2", (4, 5), axes=(Axis("angular", (4,), origin=Declared(BasisKind.NODAL)), _SPA),
         metric=FactoredMetric((((4,), DenseMetric(_spd(4, 2))), ((5,), None))),
     )
 
@@ -107,9 +107,9 @@ def _population() -> dict[str, FunctionSpace]:
     ).mesh
     spaces = {
         "synthetic": FunctionSpace.of_axes(
-            Axis("angular", (4,), weights=np.array([0.2, 0.8, 0.8, 0.2]), kind=BasisKind.NODAL),
-            Axis("energy", (2,), kind=BasisKind.NODAL),
-            Axis("spatial", (5,), weights=np.array([0.2, 0.3, 0.4, 0.7, 1.4]), kind=BasisKind.NODAL),
+            Axis("angular", (4,), weights=np.array([0.2, 0.8, 0.8, 0.2]), origin=Declared(BasisKind.NODAL)),
+            Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
+            Axis("spatial", (5,), weights=np.array([0.2, 0.3, 0.4, 0.7, 1.4]), origin=Declared(BasisKind.NODAL)),
         ),
     }
     for n in (5, 8, 16):
@@ -266,7 +266,7 @@ def test_the_axis_verbs_keep_the_positioned_forms() -> None:
     without = D1.without_axis("angular")
     if not isinstance(without.metric, FactoredMetric) or not isinstance(without.metric.entries[1][1], DenseMetric):
         pytest.fail("without_axis dropped the kept axis's dense form")
-    tail = Axis("tail", (2,), kind=BasisKind.NODAL)
+    tail = Axis("tail", (2,), origin=Declared(BasisKind.NODAL))
     widened = without.with_axis(tail)
     forms = [form for _, form in widened.metric.entries] if isinstance(widened.metric, FactoredMetric) else []
     if not (len(forms) == 3 and isinstance(forms[1], DenseMetric) and forms[2] is None):

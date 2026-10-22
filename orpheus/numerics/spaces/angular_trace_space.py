@@ -322,7 +322,7 @@ def _build_trace_metric_weights(
 # ─────────────────────────────────────────────────────────────────────
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class AngularTraceSpace(FunctionSpace):
     r"""The boundary-trace function space (View-G, role-agnostic).
 
@@ -768,7 +768,7 @@ def _face_space_name(face: str, role: "TraceRole") -> str:
     return f"angular_trace[{face}:{role}]"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class AngularFaceTraceSpace(FunctionSpace):
     r"""One directional tier of the boundary trace at ONE face.
 

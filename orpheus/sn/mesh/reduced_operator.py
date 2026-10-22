@@ -206,7 +206,7 @@ import numpy as np
 
 from orpheus.geometry.coord import CoordSystem
 from orpheus.mesh import Mesh1D
-from orpheus.numerics.axis import Axis
+from orpheus.numerics.axis import Axis, FromQuadrature, quadrature_refusal
 from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.sn.angular.redistribution import (
@@ -310,13 +310,14 @@ class ReducedStreamingOperator:
     element (zero dome, diameter-ray start), which is what let the
     per-coordinate ``Optional`` union die."""
     angular_axis: Axis
-    """The generator-stamped angular space FACTOR (CS5) — the producer's
+    """The quadrature-minted angular space FACTOR (CS5) — the producer's
     binding to the space (P4-remainder, 2026-08-29). The factories mint it
-    from the quadrature they are handed (``Axis.of_quadrature(quadrature)``), so it
-    carries the quadrature as :attr:`~orpheus.numerics.axis.Axis.generator`
-    and :meth:`streaming_terms` recovers the direction cosines and the
-    level fibration THROUGH it (``generator_as`` — the typed narrow with
-    the by-name refusal) instead of through a courier field on the
+    from the quadrature they are handed (``Axis.of_quadrature(quadrature)``), so
+    its origin is :class:`~orpheus.numerics.axis.FromQuadrature` and
+    :meth:`streaming_terms` recovers the direction cosines and the level
+    fibration THROUGH it (``case FromQuadrature(quad)``, the other arm
+    refusing by name through :func:`~orpheus.numerics.axis.quadrature_refusal`)
+    instead of through a courier field on the
     angular factor. The retired courier
     (``AngularRedistribution.quadrature``, dead 2026-08-29) was the §4ter
     weld: "the class needs the MEASURE and is handed the REDISTRIBUTION"."""
@@ -513,9 +514,11 @@ class ReducedStreamingOperator:
         # The binding read (P4-remainder): the angular geometry comes
         # THROUGH the space factor — one typed narrow per packet, both
         # reads off the recovered generator.
-        quad = self.angular_axis.generator_as(
-            Quadrature, consumer="streaming_terms"
-        )
+        match self.angular_axis.origin:
+            case FromQuadrature(quad):
+                pass
+            case _:
+                raise quadrature_refusal(self.angular_axis, "streaming_terms")
         if self.mesh.coord is CoordSystem.CYLINDRICAL:
             if mu_level_idx is None:
                 raise ValueError(

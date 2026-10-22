@@ -168,8 +168,8 @@ def test_the_two_moment_heads_are_UNEQUAL_and_the_dressed_one_is_the_frames(labe
     assert continuum != dressed and dressed != continuum, "the metric is the identity now"
     assert continuum.name == dressed.name and continuum.shape == dressed.shape
     assert continuum.axes is not None and dressed.axes is not None
-    assert continuum.axes[0].generator is frame.basis
-    assert dressed.axes[0].generator is frame
+    assert continuum.axes[0].origin.basis is frame.basis
+    assert dressed.axes[0].origin.frame is frame
     assert continuum.inner_product_weights is None and dressed.inner_product_weights is None
 
     cont = _head_measure(continuum)

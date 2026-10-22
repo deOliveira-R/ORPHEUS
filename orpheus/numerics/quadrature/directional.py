@@ -646,8 +646,8 @@ class Quadrature:
 
         The measure DECLARES its orbit space (tracker 2.4, 2026-09-01):
         its support is ``SPHERE.quotient(SubgroupOfO3.O2("x"))`` — the
-        stabiliser of the axis, since #432 — and its space is
-        ``L2[S^2/O2_x]``, so it cannot be mistaken for a
+        stabiliser of the axis, since #432 — and its sampled axis carries
+        that support as content (ruling 71), so it cannot be mistaken for a
         spatial rule on the same interval — see
         :func:`~orpheus.numerics.quadrature.rules_1d.gauss_legendre_on_polar_orbit`.
 

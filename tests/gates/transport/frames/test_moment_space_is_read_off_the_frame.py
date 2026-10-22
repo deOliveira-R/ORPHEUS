@@ -317,18 +317,25 @@ def test_the_tree_binds_the_frames_parseval_space_and_not_the_continuum_head(lab
     dressed = frame_faces.basis_space(frame)
     # ⛔ RE-KEYED 2026-09-02 (#429): the family to compare against is the one
     # the rule's ORBIT SPACE carries — a 1-D rule's frame binds the flat
-    # Legendre head, a sphere rule's the rectangular harmonics.
-    continuum = (
-        LegendreSpace.from_L(L, "x") if label.startswith("gauss_legendre")
-        else SphericalHarmonicSpace.from_L(L)
-    )
+    # Legendre head, a sphere rule's the rectangular harmonics. ⛔ RE-KEYED at
+    # S7 (ruling 71, #631 pair 3): the folded rule's head is the MIRROR-EVEN
+    # family on S²/σ_y, which the head axis's domain now separates from the
+    # plain harmonics on S² (until S7 the two compared equal).
+    from orpheus.numerics.basis.spherical_harmonic_basis import MirrorEvenSphericalHarmonicBasis
+
+    if label.startswith("gauss_legendre"):
+        continuum = LegendreSpace.from_L(L, "x")
+    elif label.startswith("folded_product"):
+        continuum = MirrorEvenSphericalHarmonicBasis(L=L, mirror_axis=1).space
+    else:
+        continuum = SphericalHarmonicSpace.from_L(L)
     assert frame.basis.space == continuum, "the basis's own space IS the continuum mint"
     assert dressed.name == continuum.name and dressed.shape == continuum.shape
     assert dressed != continuum and continuum != dressed, (
         "the dressed head and the continuum head must be two spaces — the metric is the identity"
     )
     assert dressed.axes is not None and len(dressed.axes) == 1
-    assert dressed.axes[0].generator is frame, "the frame dresses the head and becomes its generator"
+    assert dressed.axes[0].origin.frame is frame, "the frame dresses the head and becomes its origin"
     assert dressed.inner_product_weights is None
     diag = np.diagonal(frame.discrete_gram).reshape(dressed.shape)
     live = diag > 0.0

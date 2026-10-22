@@ -24,7 +24,7 @@ import sys
 import numpy as np
 import pytest
 
-from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
+from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.axis import Modal
 
@@ -41,7 +41,7 @@ def _require(condition: bool, message: str) -> None:
 
 def _point() -> Axis:
     """The quotient spatial point (counting weight — the density convention)."""
-    return Axis("spatial", (1,), kind=BasisKind.NODAL)
+    return Axis("spatial", (1,), origin=Declared(BasisKind.NODAL))
 
 
 def _reachable_arrays(space: FunctionSpace) -> list[np.ndarray]:
@@ -68,7 +68,7 @@ def test_of_axes_shape_is_the_concatenation() -> None:
     """
     space = FunctionSpace.of_axes(
         EnergyAxis.synthetic(2),
-        Axis("harmonic", (3, 5), kind=Modal(np.eye(1, 15)[0].reshape(3, 5))),
+        Axis("harmonic", (3, 5), origin=Declared(Modal(np.eye(1, 15)[0].reshape(3, 5)))),
         _point(),
     )
     _require(space.shape == (2, 3, 5, 1), f"shape {space.shape} != (2, 3, 5, 1)")
@@ -100,10 +100,10 @@ def test_of_axes_name_is_INJECTIVE_on_structural_content() -> None:
     tuples: list[tuple[Axis, ...]] = [
         (EnergyAxis.synthetic(2), _point()),
         (EnergyAxis.from_grid(EnergyGrid(_EDGES_2G)), _point()),  # same shapes
-        (EnergyAxis.synthetic(2), Axis("spatial", (1,), weights=np.array([2.0]), kind=BasisKind.NODAL)),  # same shapes
+        (EnergyAxis.synthetic(2), Axis("spatial", (1,), weights=np.array([2.0]), origin=Declared(BasisKind.NODAL))),  # same shapes
         (EnergyAxis.synthetic(3), _point()),
         (EnergyAxis.synthetic(2),),
-        (EnergyAxis.synthetic(2), Axis("spatial", (1,), kind=Modal(np.eye(1)[0]))),  # kind differs
+        (EnergyAxis.synthetic(2), Axis("spatial", (1,), origin=Declared(Modal(np.eye(1)[0])))),  # kind differs
     ]
     spaces = [FunctionSpace.of_axes(*t) for t in tuples]
     names = {s.name for s in spaces}
@@ -119,6 +119,11 @@ def test_of_axes_name_is_INJECTIVE_on_structural_content() -> None:
 
 def test_of_axes_name_is_BLIND_to_the_generator() -> None:
     """B12 (CS5) — provenance never perturbs the identity bridge.
+
+    Re-posed at S7 (ruling 71): the comparison partner was a ``Declared``
+    literal with the rule's weights, which since S7 is another axis (it has no
+    atoms); provenance is now witnessed by the two origins of one content, a
+    quadrature and its measure.
 
     Until the identity flip (CS4c step 6) space identity was ``(name,
     shape)`` and the derived name WAS the identity; since the flip
@@ -143,10 +148,7 @@ def test_of_axes_name_is_BLIND_to_the_generator() -> None:
 
     q = Quadrature.gauss_legendre(4)
     minted = Axis.of_quadrature(q, "angular")
-    literal = Axis(
-        "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
-        kind=BasisKind.NODAL,
-    )
+    literal = Axis.of_measure(q.measure, "angular")
     s_m = FunctionSpace.of_axes(minted)
     s_l = FunctionSpace.of_axes(literal)
     _require(s_m.name == s_l.name, f"digest moved: {s_m.name!r} != {s_l.name!r}")
@@ -170,10 +172,10 @@ def test_of_axes_name_is_deterministic_across_processes() -> None:
     _require(space.name == twin.name, "same content, two constructions, one name")
 
     snippet = (
-        "from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis\n"
+        "from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis\n"
         "from orpheus.numerics.space import FunctionSpace\n"
         "s = FunctionSpace.of_axes(EnergyAxis.synthetic(2), "
-        "Axis('spatial', (1,), kind=BasisKind.NODAL))\n"
+        "Axis('spatial', (1,), origin=Declared(BasisKind.NODAL)))\n"
         "print(s.name)\n"
     )
     import os
@@ -214,8 +216,8 @@ def test_of_axes_never_densifies_the_metric() -> None:
     w_a = np.linspace(0.5, 4.0, n)
     w_b = np.linspace(0.25, 8.0, n)
     space = FunctionSpace.of_axes(
-        Axis("a", (n,), weights=w_a, kind=BasisKind.NODAL),
-        Axis("b", (n,), weights=w_b, kind=BasisKind.NODAL),
+        Axis("a", (n,), weights=w_a, origin=Declared(BasisKind.NODAL)),
+        Axis("b", (n,), weights=w_b, origin=Declared(BasisKind.NODAL)),
     )
     # Leg 1: structural.
     _require(space.inner_product_weights is None, "dense slot populated")
@@ -259,8 +261,8 @@ def test_per_axis_metric_equals_an_INDEPENDENT_broadcast_reference() -> None:
     w_a = np.array([2.0, 4.0, 8.0])
     w_b = np.array([0.5, 1.0, 2.0, 4.0])
     space = FunctionSpace.of_axes(
-        Axis("a", (3,), weights=w_a, kind=BasisKind.NODAL),
-        Axis("b", (4,), weights=w_b, kind=BasisKind.NODAL),
+        Axis("a", (3,), weights=w_a, origin=Declared(BasisKind.NODAL)),
+        Axis("b", (4,), weights=w_b, origin=Declared(BasisKind.NODAL)),
     )
     rng = np.random.default_rng(42)
     x = rng.standard_normal((3, 4))
@@ -301,8 +303,8 @@ def test_metric_and_inner_product_agree_on_a_NONSQUARE_axis_space() -> None:
     w_a = np.array([2.0, 4.0, 8.0])
     w_b = np.array([0.5, 1.0, 2.0, 4.0])
     space = FunctionSpace.of_axes(
-        Axis("a", (3,), weights=w_a, kind=BasisKind.NODAL),
-        Axis("b", (4,), weights=w_b, kind=BasisKind.NODAL),
+        Axis("a", (3,), weights=w_a, origin=Declared(BasisKind.NODAL)),
+        Axis("b", (4,), weights=w_b, origin=Declared(BasisKind.NODAL)),
     )
     rng = np.random.default_rng(3)
     x = rng.standard_normal((3, 4))
@@ -331,7 +333,7 @@ def test_mul_threads_axes_and_does_not_fabricate_them() -> None:
     Euclidean would be a value bug wearing a representation label).
     """
     a = FunctionSpace.of_axes(EnergyAxis.synthetic(2), _point())
-    b = FunctionSpace.of_axes(Axis("x", (3,), kind=BasisKind.NODAL))
+    b = FunctionSpace.of_axes(Axis("x", (3,), origin=Declared(BasisKind.NODAL)))
     product = a * b
     a_axes, b_axes = a.axes, b.axes
     assert a_axes is not None and b_axes is not None
@@ -349,7 +351,7 @@ def test_mul_threads_axes_and_does_not_fabricate_them() -> None:
     # FACTORED (CS4c step 6 item 6.2a): no dense slot, and the applied metric
     # is the outer product it never stores.
     weighted = FunctionSpace.of_axes(
-        Axis("w", (2,), weights=np.array([2.0, 4.0]), kind=BasisKind.NODAL)
+        Axis("w", (2,), weights=np.array([2.0, 4.0]), origin=Declared(BasisKind.NODAL))
     )
     mixed = weighted * legacy
     _require(mixed.axes is None, "mixed product must not carry a partial axes record")
@@ -378,8 +380,8 @@ def test_has_coordinate_cone_follows_the_basis_kinds(
 ) -> None:
     """B8a — all-nodal ⟹ True, any-modal ⟹ False."""
     space = FunctionSpace.of_axes(
-        Axis("p", (2,), kind=Modal(np.eye(2)[0]) if kinds[0] == "modal" else kinds[0]),
-        Axis("q", (3,), kind=Modal(np.eye(3)[0]) if kinds[1] == "modal" else kinds[1]),
+        Axis("p", (2,), origin=Declared(Modal(np.eye(2)[0]) if kinds[0] == "modal" else kinds[0])),
+        Axis("q", (3,), origin=Declared(Modal(np.eye(3)[0]) if kinds[1] == "modal" else kinds[1])),
     )
     _require(
         space.has_coordinate_cone is expected,
@@ -408,7 +410,7 @@ def test_dual_of_an_axis_built_space_reads_the_measure_through_its_primal() -> N
     and applied G; that was the "dual carries G" this row pinned."""
     w = np.array([2.0, 4.0])
     space = FunctionSpace.of_axes(
-        Axis("a", (2,), weights=w, kind=BasisKind.NODAL)
+        Axis("a", (2,), weights=w, origin=Declared(BasisKind.NODAL))
     )
     dual = space.dual()
     _require(dual.axes is None, "the dual must not copy the axes record")
@@ -543,29 +545,24 @@ def test_the_spatial_axis_is_minted_through_the_carriers_own_measure() -> None:
     )
     space = carrier.bulk_space
     sp_ax = space.axis("spatial")
-    g = sp_ax.generator
-    _require(g is not None, "the rank-1 spatial axis must carry its measure")
-    assert g is not None
+    g = sp_ax.origin.measure  # the rank-1 spatial axis carries its measure
     npt = np.testing
     npt.assert_array_equal(g.weights, np.array([1.0, 2.0, 3.0]),
                            err_msg="volumes, hand-derived")
     npt.assert_array_equal(g.nodes, np.array([0.5, 2.0, 4.5]),
                            err_msg="centres, hand-derived")
+    # The atoms are content (S7, ruling 71): the axis keeps the centres and
+    # the line they lie on, so the volumes declared with no atoms are another
+    # axis (until S7 the two were one).
+    npt.assert_array_equal(sp_ax.nodes, np.array([0.5, 2.0, 4.5]), err_msg="centres, hand-derived")
+    _require(sp_ax.support == g.support, "the support is the measure's")
     literal = Axis(
         "spatial", carrier.spatial_shape, weights=carrier.volumes,
-        kind=BasisKind.NODAL,
+        origin=Declared(BasisKind.NODAL),
     )
-    _require(sp_ax == literal, "minted spatial axis != today's literal")
-    _require(
-        FunctionSpace.of_axes(literal).name == FunctionSpace.of_axes(sp_ax).name,
-        "the spatial digest moved",
-    )
+    _require(not (sp_ax == literal), "an atomless literal must not pass for the sampled axis")
     # G8-spatial — the section law on the rank-1 arm (the law's domain):
-    _require(
-        Axis.of_measure(
-            sp_ax.generator_as(DiscreteMeasure, consumer="G8 spatial leg"),
-            sp_ax.label,
-        ) == sp_ax, "spatial mint: not a section")
+    _require(Axis.of_measure(g, sp_ax.label) == sp_ax, "spatial mint: not a section")
 
 
 def test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT() -> None:
@@ -596,8 +593,8 @@ def test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT() -> None:
     sp_ax = sn.bulk_space.axis("spatial")
     _require(sp_ax.shape == (2, 3, 2), f"fixture rank moved: {sp_ax.shape}")
     _require(
-        sp_ax.generator is None,
-        "the rank-d arm must stay generator-less until CS2 mints the "
+        isinstance(sp_ax.origin, Declared) and sp_ax.nodes is None,
+        "the rank-d arm must stay Declared until CS2 mints the "
         "rank-d measure→axis pairing (inverting this is a deliberate act)",
     )
 
@@ -631,7 +628,7 @@ def test_axis_built_construction_guards() -> None:
     shape must BE the axes' concatenation — both are construction bugs
     when violated, so both raise typed errors.
     """
-    ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), kind=BasisKind.NODAL)
+    ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), origin=Declared(BasisKind.NODAL))
     with pytest.raises(ValueError, match="one metric source"):
         FunctionSpace(
             "bad", (2,), inner_product_weights=np.array([1.0, 2.0]), axes=(ax,)
@@ -658,7 +655,7 @@ class TestThreeSourceExclusivity:
         from orpheus.numerics.metric import DenseMetric
 
         x = np.array([1.0, 2.0])
-        ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), kind=BasisKind.NODAL)
+        ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), origin=Declared(BasisKind.NODAL))
         by_axes = FunctionSpace.of_axes(ax)
         _require(
             bool(np.array_equal(by_axes.apply_metric(x), [2.0, 8.0])),
@@ -692,13 +689,13 @@ class TestThreeSourceExclusivity:
         refused ("one metric source only")."""
         from orpheus.numerics.metric import DenseMetric, FactoredMetric
 
-        ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), kind=BasisKind.NODAL)
+        ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), origin=Declared(BasisKind.NODAL))
         dense = DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]]))
         with pytest.raises(ValueError, match="positioned over them"):
             FunctionSpace("bad", (2,), axes=(ax,), metric=dense)
         with pytest.raises(ValueError, match="two metric sources on one block"):
             FunctionSpace("bad", (2,), axes=(ax,), metric=FactoredMetric((((2,), dense),)))
-        counting = Axis("a", (2,), kind=BasisKind.NODAL)
+        counting = Axis("a", (2,), origin=Declared(BasisKind.NODAL))
         admitted = FunctionSpace(
             "good", (2,), axes=(counting,), metric=FactoredMetric((((2,), dense),)),
         )
@@ -730,8 +727,8 @@ class TestAxisAccessor:
     """
 
     def test_returns_the_tuple_member_identically(self) -> None:
-        eg = EnergyAxis("energy", (2,), kind=BasisKind.NODAL, edges=_EDGES_2G)
-        sp = Axis("spatial", (3, 4), kind=BasisKind.NODAL)
+        eg = EnergyAxis("energy", (2,), edges=_EDGES_2G)
+        sp = Axis("spatial", (3, 4), origin=Declared(BasisKind.NODAL))
         space = FunctionSpace.of_axes(eg, sp)
         _require(space.axis("energy") is eg, "energy axis must be the member itself")
         _require(space.axis("spatial") is sp, "spatial axis must be the member itself")
@@ -739,14 +736,14 @@ class TestAxisAccessor:
         _require(space.axis("spatial").shape == (3, 4), "spatial shape reads off the axis")
 
     def test_unknown_label_refuses_naming_the_inventory(self) -> None:
-        space = FunctionSpace.of_axes(_point(), Axis("angular", (4,), kind=BasisKind.NODAL))
+        space = FunctionSpace.of_axes(_point(), Axis("angular", (4,), origin=Declared(BasisKind.NODAL)))
         with pytest.raises(ValueError, match="names 0 axes"):
             space.axis("energy")
 
     def test_duplicate_label_refuses(self) -> None:
         space = FunctionSpace.of_axes(
-            Axis("a", (2,), kind=BasisKind.NODAL),
-            Axis("a", (3,), kind=BasisKind.NODAL),
+            Axis("a", (2,), origin=Declared(BasisKind.NODAL)),
+            Axis("a", (3,), origin=Declared(BasisKind.NODAL)),
         )
         with pytest.raises(ValueError, match="names 2 axes"):
             space.axis("a")

@@ -320,7 +320,7 @@ def _radial_characteristic_legs(
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class _RadialCharacteristicSubSpace(FunctionSpace):
     r"""Shared base of the two SPLIT ψ½ spaces (interior cells / boundary corner).
 
@@ -364,12 +364,6 @@ class _RadialCharacteristicSubSpace(FunctionSpace):
         kw_only=True, compare=False, repr=False,
     )
 
-    # ── Equality / hashing inherited from FunctionSpace ───────────────
-    def __eq__(self, other: object) -> bool:
-        return FunctionSpace.__eq__(self, other)
-
-    def __hash__(self) -> int:
-        return FunctionSpace.__hash__(self)
 
     def __repr__(self) -> str:
         return (
@@ -472,7 +466,7 @@ class _RadialCharacteristicSubSpace(FunctionSpace):
         return slot.slice_view(buffer)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class RadialCharacteristicInteriorSpace(_RadialCharacteristicSubSpace):
     r"""The ψ½ interior (``cells``) space — System B's interior block.
 
@@ -487,7 +481,7 @@ class RadialCharacteristicInteriorSpace(_RadialCharacteristicSubSpace):
     _SPACE_NAME: ClassVar[str] = "radial_characteristic_interior"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class RadialCharacteristicBoundarySpace(_RadialCharacteristicSubSpace):
     r"""The ψ½ boundary (``corner``) space — System B's boundary block.
 
