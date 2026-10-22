@@ -6039,7 +6039,7 @@ it is the thing to hold on to when reading either.
    * - ``Quotient.quotient_map``
      - the entry
      - the ``realization``'s — the **invariants**
-     - ``ambient_dim(realization)`` (1 for :math:`S^2/O(2)_a`,
+     - ``realization.ambient_dim`` (1 for :math:`S^2/O(2)_a`,
        2 for the disk)
    * - the retraction inside
        :meth:`DiscreteMeasure.quotient
@@ -10038,8 +10038,11 @@ population against the module's own exercised list (recursive since S5:
 a direct ``Manifold.__subclasses__()`` read stops at ``GSpace`` and misses
 six members),
 so a member added to the module but not to the tests fails **there**;
-``test_ambient_dimension_is_defined_for_every_variant`` walks every
-shipped variant through the exhaustive ``match``. The benefit of a
+``test_ambient_dimension_is_defined_for_every_variant`` asserts that
+every shipped variant answers the abstract ``ambient_dim`` property, and
+its neighbour shows that a member without the property is refused at
+construction (until layer DAG WP-B, 2026-10-22, ``ambient_dim`` was a
+module-level function whose exhaustive ``match`` named every variant). The benefit of a
 closed sum is that an operation can be checked against every member,
 and that benefit is only real if the member list is itself pinned.
 

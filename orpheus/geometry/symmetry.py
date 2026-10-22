@@ -59,12 +59,13 @@ the subgroup lattice that returns the maximal members satisfying a
 downward-closed predicate (:func:`maximal_satisfying`, :func:`maximal_subgroups`).
 Between R2 of #434 (2026-09-03) and S5 those lived in a separate
 ``invariance`` module, above ``measure``, which imported it back: a cycle the
-concept-order gate held as pending.  This module imports
-:mod:`orpheus.geometry.transformation` and, inside ``numerics``, only
-:mod:`~orpheus.geometry.roots_of_unity` — itself a numpy-only leaf (`[M]`
-2026-09-03: its imports are ``numpy`` and ``numpy.typing``), and it must STAY
-one, because the day it imports ``measure`` or ``manifold`` this module
-re-acquires a cycle: a group is a group.
+concept-order gate held as pending.  This module imports, from orpheus, only
+:mod:`orpheus.geometry.transformation`, :mod:`orpheus.geometry.faces` (the axis
+letters; it imports nothing from orpheus) and
+:mod:`~orpheus.geometry.roots_of_unity` — a numpy-only leaf (`[M]`
+2026-10-22: its imports are ``numpy`` and ``numpy.typing``), and it must STAY
+one, because the day it imports ``numerics.measure`` or ``geometry.manifold``
+this module re-acquires a cycle: a group is a group.
 
 References
 ----------

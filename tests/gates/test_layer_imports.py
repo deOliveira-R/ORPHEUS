@@ -264,7 +264,9 @@ def test_values_imports_nothing_from_orpheus(target: str) -> None:
 # reverse. Until WP-B (2026-10-22) all three were numerics modules, which put
 # geometry -> numerics edges under the rigid-motion core.
 
-_GEOMETRY_OWNED_NUMERICS_STEMS: frozenset[str] = frozenset({"symmetry", "roots_of_unity"})
+# `manifold` is in the set although the numerics half kept a module of its own
+# (`index_set`): a numerics module of that stem could only be a re-export shim.
+_GEOMETRY_OWNED_NUMERICS_STEMS: frozenset[str] = frozenset({"symmetry", "roots_of_unity", "manifold"})
 
 
 def _modules_defining_class(root: pathlib.Path, name: str) -> list[str]:
@@ -281,7 +283,8 @@ def _modules_defining_class(root: pathlib.Path, name: str) -> list[str]:
 
 @pytest.mark.foundation
 def test_the_points_and_the_group_action_are_geometry() -> None:
-    """No numerics module is the point-group or root-of-unity module, none defines the
+    """No numerics module is the point-group, root-of-unity or manifold module (a
+    re-export shim of the old path included), none defines the
     ``Manifold`` ABC, and geometry holds the point groups. The class finder is checked on
     its known member first (X1): geometry's own ``RigidMotion``."""
     assert _modules_defining_class(ORPHEUS_ROOT / "geometry", "RigidMotion") == [
@@ -304,7 +307,8 @@ _INDEX_SET = "orpheus.numerics.index_set"
 
 def _geometry_imports_of_the_index_sets(rel: pathlib.PurePosixPath, src: str) -> list[str]:
     """The targets of ``src`` naming the finite index sets' module, every import kind."""
-    return [t for t in _imported_targets(rel, src) if t == _INDEX_SET or t.startswith(_INDEX_SET + ".")]
+    targets = _imported_targets(rel, src) + _dynamic_imports(src)
+    return [t for t in targets if t == _INDEX_SET or t.startswith(_INDEX_SET + ".")]
 
 
 @pytest.mark.foundation
@@ -314,13 +318,15 @@ def test_geometry_never_imports_the_finite_index_sets() -> None:
     ``IndexSet`` and ``EnergyGroups`` subclass geometry's ``Manifold`` from
     :mod:`orpheus.numerics.index_set`, the allowed direction; each member answers
     ``ambient_dim`` itself, so no geometry module needs the index sets at any import
-    kind. The predicate is checked first on the three shapes it must refuse (X1)."""
+    kind, a string literal handed to ``importlib.import_module`` included. The predicate
+    is checked first on the five shapes it must refuse (X1)."""
     probe = pathlib.PurePosixPath("geometry/probe.py")
     for src in (
         "from orpheus.numerics.index_set import IndexSet\n",
         "def f():\n    from orpheus.numerics.index_set import ENERGY\n",
         "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    import orpheus.numerics.index_set\n",
         "from orpheus.numerics import index_set\n",
+        "import importlib\ndef f():\n    return importlib.import_module('orpheus.numerics.index_set')\n",
     ):
         assert _geometry_imports_of_the_index_sets(probe, src), src
     offenders = [

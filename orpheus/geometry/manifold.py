@@ -106,7 +106,8 @@ from orpheus.geometry.faces import AXIS_INDEX, AXIS_NAMES
 from orpheus.geometry.symmetry import SubgroupOfO3
 
 if TYPE_CHECKING:  # RigidMotion is annotation-only here (transformation
-    # imports no numerics, so that is a choice, not a cycle)
+    # imports only orpheus.values and symmetry already loads it, so a runtime
+    # import would close no cycle: the guard is a choice)
     from orpheus.geometry.transformation import RigidMotion
 
 __all__ = [
@@ -264,8 +265,9 @@ class GSpace(Manifold):
     a measure ON its support, so the support must say how :math:`g` moves its
     points.  The families that can say it are the members of this class:
     :class:`Sphere`, :class:`Ball`, :class:`Circle`, :class:`Interval`,
-    :class:`RealSpace` and :class:`Quotient`.  :class:`EnergyGroups`,
-    :class:`IndexSet`, :class:`Product` and :class:`FundamentalDomain` are not
+    :class:`RealSpace` and :class:`Quotient`.
+    :class:`~orpheus.numerics.index_set.EnergyGroups`,
+    :class:`~orpheus.numerics.index_set.IndexSet`, :class:`Product` and :class:`FundamentalDomain` are not
     G-spaces and carry no :meth:`action` at all — asking a group index set how a
     reflection moves it is a type error, not a ``None`` (the base class's rule;
     ruling 43 of the numerics untangling, 2026-10-19).  Until then
@@ -1896,8 +1898,9 @@ def _sphere_mod_o2(base: GSpace, group: SubgroupOfO3) -> Quotient:
     theorem, ``LEGENDRE``) is the measure layer's:
     :func:`~orpheus.numerics.generating_measure.pushforward_reference`.
 
-    SymPy is imported lazily: it costs ~250 ms and nothing else in
-    :mod:`orpheus.numerics` needs it, so a session that never asks for a
+    SymPy is imported lazily: it costs ~250 ms and no module of
+    :mod:`orpheus.geometry` imports it at module scope (`[M]` 2026-10-22: its
+    3 imports there are function-local, in this module), so a session that never asks for a
     quotient never pays for it — and :meth:`GSpace.quotient` memoises,
     so a session that asks pays the derivation once.
     """

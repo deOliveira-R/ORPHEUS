@@ -11,7 +11,8 @@ It is geometry (layer DAG WP-B, 2026-10-22, ruling 1 of
 coordinate axis are statements about the domain, and need no measure. Until
 2026-10-22 these names lived in ``orpheus/numerics/face_layout.py`` beside the
 flat-buffer descriptor and the streaming-normal measure, which stay in numerics
-(:mod:`orpheus.numerics.face_layout`) and import the names from here.
+(:mod:`orpheus.numerics.face_layout`). That measure half is generic in its face
+key and does not import these names: it never reads them.
 
 :data:`AXIS_NAMES` is the ONE spelling of :math:`\mathbb{R}^3`'s axis letters
 in the tree. The point groups (:mod:`orpheus.geometry.symmetry`) read it to name
@@ -156,8 +157,8 @@ def face_normal(face: str) -> tuple[int, int]:
     for suffix, sign in _FACE_SUFFIX_SIGN.items():
         if face.endswith(suffix):
             stem = face[: -len(suffix)]
-            if stem in AXIS_NAMES:
-                return AXIS_NAMES.index(stem), sign
+            if stem in AXIS_INDEX:
+                return AXIS_INDEX[stem], sign
     raise ValueError(
         f"Unknown face name {face!r}; valid faces are {sorted(FACE_NAMES)}"
     )

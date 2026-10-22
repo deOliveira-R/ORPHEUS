@@ -8085,8 +8085,13 @@ import from the ``numerics`` layer, ``AXIS_NAMES`` **moved down** to
 :mod:`orpheus.numerics.face_layout` — the home of
 :class:`~orpheus.numerics.face_layout.FaceLayout`, keeper of the face
 string-name world. :mod:`orpheus.mesh.axis` re-exports it, so SN consumers
-are unchanged; the trace space (a ``numerics`` leaf) now reads it
-without depending on ``sn``.
+are unchanged; the trace space (a ``numerics`` leaf) then read it
+without depending on ``sn``. Since layer DAG WP-B (2026-10-22) the naming half
+of that crosswalk (``AXIS_NAMES``, ``face_name``, ``face_normal``,
+``face_opposite``) lives in :mod:`orpheus.geometry.faces`: a face's name and
+normal are statements about the domain and need no measure, so geometry is
+their home, and :mod:`~orpheus.numerics.face_layout` keeps only the
+flat-buffer descriptor and the streaming-normal measure.
 
 **The trace factory is geometry-blind.** The mesh parameter on the old
 ``from_mesh_and_quadrature`` factory was **gate-only** — its single use

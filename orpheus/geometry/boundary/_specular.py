@@ -85,7 +85,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from orpheus.geometry.faces import AXIS_NAMES
+from orpheus.geometry.faces import AXIS_INDEX
 from orpheus.numerics.spaces.angular_trace_space import TANGENTIAL_EPS
 
 from ._factors import _mirror_motion
@@ -155,10 +155,11 @@ _MEASURE_RTOL: float = 1e-12
 def _axis_cosines(quadrature: "Quadrature", axis: str) -> "np.ndarray":
     r"""The ordinates' orbit-mean direction cosines along ``axis``.
 
-    ``AXIS_NAMES.index`` rather than a local ``{"x": 0, ...}`` literal: the
+    ``AXIS_INDEX`` rather than a local ``{"x": 0, ...}`` literal: the
     name→column correspondence has ONE home
-    (:data:`~orpheus.geometry.faces.AXIS_NAMES`), and a second spelling
-    of it is a twin waiting to disagree.
+    (:data:`~orpheus.geometry.faces.AXIS_NAMES`, whose inverse
+    :data:`~orpheus.geometry.faces.AXIS_INDEX` is derived from it), and a
+    second spelling of it is a twin waiting to disagree.
 
     ⭐ ``mean_axis_cosine``, not ``axis_cosines`` (phase 0.2): this feeds the
     cosine measure :math:`w\lvert\mu_a\rvert` on a face, which is a **flux**
@@ -167,7 +168,7 @@ def _axis_cosines(quadrature: "Quadrature", axis: str) -> "np.ndarray":
     records this site reading a suppressed axis 5 times, so the distinction is
     live here rather than theoretical.
     """
-    return quadrature.mean_axis_cosine(AXIS_NAMES.index(axis))
+    return quadrature.mean_axis_cosine(AXIS_INDEX[axis])
 
 
 def assert_specular_pairing_measure_preserving(

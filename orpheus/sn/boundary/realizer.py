@@ -172,7 +172,7 @@ from orpheus.geometry.boundary import (
     ZeroFluxBoundary,
 )
 from orpheus.transport.boundary_realization import stamp_boundary_role
-from orpheus.geometry.faces import AXIS_NAMES, face_name
+from orpheus.geometry.faces import AXIS_INDEX, face_name
 from orpheus.numerics.spaces.angular_trace_space import (
     TANGENTIAL_EPS,
     AngularFaceTraceSpace,
@@ -675,7 +675,7 @@ def _checked_angular_average(
     transpose the welded form withheld. `[M]` bit-identical to the predecessor
     on every shipped quadrature.
     """
-    declared_face = face_name(AXIS_NAMES.index(axis), outward_sign)
+    declared_face = face_name(AXIS_INDEX[axis], outward_sign)
     omega_dot_n = build_omega_dot_n(quadrature, (declared_face,))[0]
     declared_outflow = np.flatnonzero(omega_dot_n > +TANGENTIAL_EPS)
     if not np.array_equal(declared_outflow, gamma_out.indices):

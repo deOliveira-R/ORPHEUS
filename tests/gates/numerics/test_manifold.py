@@ -846,9 +846,19 @@ class TestAmbientDimensionLaws:
         assert ((SPHERE * ENERGY) * CIRCLE).ambient_dim == (SPHERE * (ENERGY * CIRCLE)).ambient_dim == 6
 
     def test_the_fundamental_domain_keeps_its_bases_columns(self) -> None:
-        domain = FundamentalDomain(SPHERE, ((0.0, 1.0, 0.0),), "y>=0")
-        assert domain.ambient_dim == SPHERE.ambient_dim == 3
-        assert domain.dim == SPHERE.dim  # a half-space cut keeps the topological dimension too
+        # bases of widths 3, 2 and 1, so a constant answer coincides with at most one
+        cuts = (
+            FundamentalDomain(SPHERE, ((0.0, 1.0, 0.0),), "y>=0"),
+            FundamentalDomain(CIRCLE, ((1.0, 0.0),), "x>=0"),
+            FundamentalDomain(COSINE_INTERVAL, ((1.0,),), "mu>=0"),
+        )
+        assert sorted({d.base.ambient_dim for d in cuts}) == [1, 2, 3]
+        for domain in cuts:
+            assert domain.ambient_dim == domain.base.ambient_dim, domain.name
+            assert domain.dim == domain.base.dim  # a half-space cut keeps the topological dimension
+        # the trivial quotient M/{e}: an empty cut admits any base, of every width in the table
+        for base, width in self._ATOMS.items():
+            assert FundamentalDomain(base, (), "all").ambient_dim == width, base.name
 
     def test_a_quotient_answers_its_realizations_columns(self) -> None:
         # the catalogued sphere quotients: the axial stabilisers and the mirrors

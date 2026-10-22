@@ -333,7 +333,7 @@ import numpy as np
 
 from orpheus.values.scalars import parse_integer, parse_real
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.geometry.faces import AXIS_NAMES, face_normal, face_opposite
+from orpheus.geometry.faces import AXIS_INDEX, AXIS_NAMES, face_normal, face_opposite
 
 
 __all__ = [
@@ -606,15 +606,16 @@ def _mirror_motion(axis: str, dimension: int) -> RigidMotion:
     resolutions agreeing (G6.3 step 7; the same single-sourcing argument
     that folded their realizations into one kernel at B3.4b).
 
-    The axis letter is resolved against
+    The axis letter is resolved through
+    :data:`~orpheus.geometry.faces.AXIS_INDEX`, the inverse derived from
     :data:`~orpheus.geometry.faces.AXIS_NAMES` — the single home of
     that convention — and refused HERE rather than at realization, so a
     mis-named axis cannot be constructed and then fail late somewhere
     holding a quadrature.
     """
     try:
-        index = AXIS_NAMES.index(axis)
-    except ValueError:
+        index = AXIS_INDEX[axis]
+    except KeyError:
         raise ValueError(
             f"axis must be one of {AXIS_NAMES}, got {axis!r}. The mirror "
             f"names the plane's NORMAL; validating here is what keeps a "
@@ -944,7 +945,8 @@ class PairedDeck:
         carried any field beyond its axis (issue #183): this constructor is
         the map that axis was naming all along, now as a motion.
 
-        The axis letter is resolved against
+        The axis letter is resolved through
+        :data:`~orpheus.geometry.faces.AXIS_INDEX`, the inverse derived from
         :data:`~orpheus.geometry.faces.AXIS_NAMES` — the single home
         of that convention — and refused HERE rather than at realization,
         the same closure :meth:`SelfPairedDeck.mirror` applies: a mis-named
@@ -952,8 +954,8 @@ class PairedDeck:
         quadrature.
         """
         try:
-            index = AXIS_NAMES.index(axis)
-        except ValueError:
+            index = AXIS_INDEX[axis]
+        except KeyError:
             raise ValueError(
                 f"axis must be one of {AXIS_NAMES}, got {axis!r}. The wrap "
                 f"names the direction of the identifying translation; "
