@@ -1319,6 +1319,7 @@ def radial_characteristic_source_from_angular(
       seed values of −0.58 / +3.72 on a flat unit problem (an 82 %
       solution error, Mode-12-masked in every two-spelling test);
       the arc fold restores the flat L0 to 2.8e-13.
+
     The full fold is REQUIRED for an anisotropic source: even an
     isotropic trial flux :math:`\psi = A(r)` streams to a
     :math:`\mu`-linear source :math:`q = \mu A'(r) + \sigma_t A(r)`,
