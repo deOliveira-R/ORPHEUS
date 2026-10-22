@@ -14,6 +14,8 @@ Each package is a well-bounded concept set: it defines its objects from the pack
 3. **Break the cycles that cross layer interfaces first, in parallel worktrees where the files are disjoint** (the user, 2026-10-22).
 4. **Architecture E is P1's vehicle** (the user, 2026-10-22): "We can do that, and make E part of the plan (at least the part that breaks the edges that crossed between modules)." E is the boundary-law ontology's ruled design (`boundary_law_ontology.md`, fourth to tenth exchanges; #551): deck transformations (`DeckTransformation`: `MirrorDeck`, `TranslationDeck`, `RotationDeck`, `GlideDeck`) are geometry, declared beside the coordinate system; every other face carries an integer boundary tag, propagated like a material id; the responses (`BoundaryCondition`: `VacuumBoundary`, `AlbedoBoundary(α, SpecularReturn)`, white, inflow; a perfect specular wall is a response, a mirror is a deck) bind at the method (`SNDiscretization(material_mesh, boundary_conditions)`), above numerics, where the method's admission query answers. Its earlier sequencing after #405 (the harness cache, for cadence) is lifted for the part that breaks the cross-package edges; #405 stays on the backlog.
 
+5. **Overnight, the orchestrator decides, with the Fable advisor** (the user, 2026-10-22, before sleeping): "During our re-organization, in pretty much all choices we took it was the one you recommended. I think we will be fine with coding. Just prepare for context compaction, and after compaction the Fable advisor will be available. Then you 2 can take what you consider to be the best decisions overnight." And: "As usual, decisions should be grounded in correctness of the mathematical concepts and machinery, and effort is just a measure of how long it takes for us to get there." So the open questions (P1's primitives home and response-kernel home, a shared Problem type if P3 needs one, the layer-table change) are decided by the orchestrator with the advisor's review, recorded here as rulings marked "orchestrator + advisor, under ruling 5", and reported in the morning for the user to confirm or reverse.
+
 ## Measured state (`[M]` 2026-10-22, the S7 worktree, `scratchpad/layer_census.py` and `iface_names.py`; AST over `orpheus/`, top-level + lazy + `TYPE_CHECKING` imports)
 
 Cross-layer cycles (package grain):
@@ -60,3 +62,25 @@ S7 merged @ `e80ec738`. Next: the sub-cone measurement on numerics (`verificatio
 - this plan's rulings and measured state;
 - `verification_tree_refinement.md`, rulings 30 and 31 and "The DAG backlog";
 - for P1, the census probes in `scratch/layer_dag/p1_boundary/` and `scratch/layer_dag/layer_census.py` and `iface_names.py` (run: `python <script> <repo root>` from outside the repo).
+
+## ⏸ COMPACTION POINT — 2026-10-22, night (round 1 running)
+
+**State.**
+- `main` = `f672a2d5` locally (one plan commit ahead of `origin/main`; CI green on `497be3cf`). This compaction note is a further plan commit on `main`, unpushed. The S7 worktree is removed.
+- **Workflow `wf_321d7cf8-ff5` (background, task `whtwtu6k0`) is running round 1.** Script: `~/.claude/projects/-Users-rodrigo-git-nuclear-ORPHEUS/54d619d4-06ec-4f9f-b3c1-bc030bf79384/workflows/scripts/layer-dag-round-1-wf_321d7cf8-ff5.js`; transcript dir `.../subagents/workflows/wf_321d7cf8-ff5` (its `journal.jsonl` holds each agent's return). It runs:
+  - P2, P3, P4: design (explorer) → adversarial review (cross-domain-attacker) → implementation in an isolated worktree on branches `refactor/layer-dag-p2-energy-arm`, `refactor/layer-dag-p3-transport-method-agnostic`, `refactor/layer-dag-p4-sood-registry` → qa. A unit whose design needs a user ruling stops after design.
+  - P1: three proposals (lenses ontology, import-mechanics, consumer) → cross-domain attack + elegance review → one synthesis memo. No code.
+  - Intra-layer diagnosis: mesh {axis, face_laws, structured}, data {macro_xs, materials}, transport {fields, source_sinks}. Read-only.
+  - Sub-cone re-measurement on numerics (test-architect) into `scratch/verification_tree/subcones_s7/` against the MAIN checkout.
+
+**Overnight protocol (the advisor's review, adopted; ruling 5 gives the decisions to the orchestrator and the advisor).**
+1. Do not touch `orpheus/` in the main checkout (no merge, no checkout of code) until the sub-cone capture's log shows its `END` line; the capture measures the main checkout. Integrate in a separate worktree meanwhile.
+2. Integration: stack P4 first, then P2 rebased onto it, then P3. All three edit `tests/gates/test_layer_imports.py`: combine the edits and re-run the gate after each rebase. Check each branch exists with commits (an isolated worktree with no commits is auto-removed).
+3. Bar before any fast-forward of `main`, at the stacked tip: the full suite `-m "not slow"`, serial, in the background (timeout 7200000); pyright with the planted-probe protocol; Sphinx `-W` after deleting `docs/_generated/vv_audit.json`; `dead_references` with `use_workspace` set to the integration worktree and a planted positive control (mandatory for P2's rename). After the push, watch CI; if red and not fixable in one cycle, revert the range.
+4. Review checks the qa briefs may miss:
+   - P2's first red must be a TYPE_CHECKING import of `orpheus.data` from numerics: the gate's tolerance (`is_tc and src_pkg in L1|L2`) skips EVERY forbidden typing edge from L1/L2, so the tolerance must narrow, or the gate has no teeth for exactly the edge P2 removes.
+   - Read whether `EnergyGrid` is a `DiscreteMeasure`; if so, the numerics-side spelling is the S7 constructor `of_measure`, not an `of_edges(ndarray)` that strips the measure to a bare array.
+   - P3: the shared Problem concept, if needed, is decided under ruling 5 with the advisor, by what the sites actually read.
+5. P1: decide Q1–Q4 under ruling 5 with the advisor, from the synthesis memo; save the memo under `scratch/layer_dag/p1_design/` and into this plan. Evidence for Q1: an inject-and-run probe in a scratch worktree, a lazy `numerics/__init__`, counting the modules `import orpheus.numerics.scalars` loads (63 today). Then P1's work packages may start in worktrees.
+6. Intra-layer: the transport cycle waits for P3 (shared files); mesh and data follow in their own worktrees after the cross-layer units land (ruling 3).
+7. Morning: one report (an artifact or a file sent to the user) and a new compaction point here: what merged (hashes, CI), what sits on branches and why, every decision taken under ruling 5 with its argument, so the user can confirm or reverse.
