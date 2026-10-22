@@ -84,8 +84,9 @@ Key Facts
   algebra over ``BoundaryTraceLaw | LawSum | LawScaled``. The tree is
   a **pure descriptor** with no ``apply`` method; the
   :func:`~orpheus.transport.boundary_realization.realize_recursively` type
-  transformer (method-blind, in ``geometry/boundary/`` since #290
-  P7b; the leaf realizer is a required argument) walks it once per
+  transformer (method-blind; in :mod:`orpheus.transport.boundary_realization`
+  since layer-DAG WP-E1, in ``geometry/boundary/`` from #290 P7b until
+  then; the leaf realizer is a required argument) walks it once per
   face and emits the formal linear combination
   (:class:`~orpheus.numerics.operator.OperatorSum`) of the realised 1-arg
   leaves. See :ref:`bc-trace-law-descriptor-model` and

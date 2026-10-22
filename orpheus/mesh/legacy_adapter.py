@@ -11,19 +11,21 @@ synthesizes for the consumers still reading ``SNProblem.mesh``.
 The adapter knows both the axis primitive (:mod:`orpheus.mesh.axis`) and the
 structured mesh (:mod:`orpheus.mesh.structured`), so it carries more knowledge
 than either and lives above both: it imports the two, and neither imports it.
-It sat in :mod:`orpheus.mesh.axis` until the layer-DAG campaign
-(``.claude/plans/layer_dag.md``), where its function-local import of the
-structured mesh closed the cycle ``axis -> structured -> face_laws -> axis``.
-The adapter narrows and retires with the legacy-mesh consumers (C5.2-C5.5,
-#225); retiring it is deleting this module.
+It sat in :mod:`orpheus.mesh.axis` until the layer-DAG campaign (2026-10),
+where its function-local import of the structured mesh closed the cycle
+``axis -> structured -> face_laws -> axis`` (the criterion:
+``docs/architecture/layering.rst``). Each half retires when its consumers
+read axes (#646): :func:`legacy_mesh_from_axes` when no consumer reads
+``SNProblem.mesh`` at d <= 2, :func:`axes_from_legacy_mesh` when the
+``Mesh1D``/``Mesh2D`` entry surfaces are axis-native. Retiring both is
+deleting this module.
 """
 
 from __future__ import annotations
 
 import numpy as np
 
-from orpheus.geometry import CoordSystem
-from orpheus.geometry.boundary import BC
+from orpheus.geometry import BC, CoordSystem
 from orpheus.mesh.axis import (
     Axis1D,
     AxisCoord,

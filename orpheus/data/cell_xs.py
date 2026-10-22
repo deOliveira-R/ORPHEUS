@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.data.materials import Materials
 
-from orpheus.data.macro_xs.mixture import Mixture
 
 
 @dataclass

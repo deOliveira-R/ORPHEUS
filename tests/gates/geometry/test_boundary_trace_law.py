@@ -258,22 +258,6 @@ def test_assert_invariants_default_behaviour() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# realize hook
-# ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.foundation
-def test_realize_default_raises_not_implemented() -> None:
-    """The base ``realize`` default raises :class:`NotImplementedError`,
-    directing callers to a method-specific realizer
-    (e.g. :class:`SNBoundaryRealizer.realize`) or
-    :func:`realize_recursively` for descriptor trees."""
-    law = _StubLaw()
-    with pytest.raises(NotImplementedError, match="method-specific realizer"):
-        law.realize(method_space=None)
-
-
-# ─────────────────────────────────────────────────────────────────────
 # Registry contracts
 # ─────────────────────────────────────────────────────────────────────
 

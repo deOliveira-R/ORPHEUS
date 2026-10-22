@@ -377,10 +377,12 @@ a tuple of axes and a :class:`~orpheus.mesh.structured.Mesh1D` or
 primitive and the structured mesh, so its module
 :mod:`orpheus.mesh.legacy_adapter` imports :mod:`orpheus.mesh.axis` and
 :mod:`orpheus.mesh.structured` and is imported by neither; the mesh
-package's module imports form a directed acyclic graph
-(``tests/gates/mesh/test_module_layout.py``). The adapter retires with
-the consumers still reading the legacy ``SNProblem.mesh`` (C5.2-C5.5,
-#225), and retiring it is deleting the module.
+package's module imports form a directed acyclic graph (the
+intra-package cycle gate in ``tests/gates/test_layer_imports.py``). Each
+half retires when its consumers read axes (#646): the axes-to-mesh half
+when no consumer reads the legacy ``SNProblem.mesh`` at d ≤ 2, the
+mesh-to-axes half when the ``Mesh1D``/``Mesh2D`` entry surfaces are
+axis-native; retiring both is deleting the module.
 
 .. automodule:: orpheus.mesh.legacy_adapter
    :members:

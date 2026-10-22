@@ -133,6 +133,15 @@ def _absolute_module(rel_path: pathlib.PurePosixPath, node: ast.ImportFrom) -> s
     return ".".join((*base, node.module) if node.module else base)
 
 
+def _is_orpheus_module(dotted: str) -> bool:
+    """Whether ``dotted`` names a module or package file under ``orpheus/``."""
+    parts = dotted.split(".")
+    if parts[0] != "orpheus" or len(parts) < 2:
+        return False
+    path = ORPHEUS_ROOT.joinpath(*parts[1:])
+    return path.with_suffix(".py").is_file() or (path / "__init__.py").is_file()
+
+
 def _imports_of_source(
     rel_path: pathlib.PurePosixPath, src: str,
 ) -> list[tuple[str, bool]]:
@@ -154,7 +163,15 @@ def _imports_of_source(
         if isinstance(node, ast.ImportFrom):
             module = _absolute_module(rel_path, node)
             if module:
-                results.append((module, in_tc))
+                # A name that is itself a module (`from orpheus import sn`,
+                # `from orpheus.numerics import operator`) is an edge to THAT
+                # module; recording only `node.module` would let the package
+                # root stand in for it and hide the edge.
+                submodules = [f"{module}.{a.name}" for a in node.names if _is_orpheus_module(f"{module}.{a.name}")]
+                other_names = len(submodules) < len(node.names)
+                if other_names or not submodules:
+                    results.append((module, in_tc))
+                results.extend((name, in_tc) for name in submodules)
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 results.append((alias.name, in_tc))
@@ -379,6 +396,8 @@ _FORBIDDEN_LEGS = [
     # A relative import climbing out of the package: `from ..transport`
     # in `orpheus/mesh/x.py` reads `orpheus.transport`.
     ("mesh/x.py", "from ..transport import fields\n", "mesh → transport"),
+    # A package named as an imported name off the root: `from orpheus import sn`.
+    ("transport/x.py", "from orpheus import sn\n", "transport → sn"),
     # #405 P1 step 8 (S8.3): the tempting spelling of the group-count rule.
     ("specification/x.py", "from orpheus.transport.mesh import MaterialMesh\n", "specification → transport"),
     ("specification/x.py", "from orpheus.mesh import Mesher\n", "specification → mesh"),
@@ -460,39 +479,35 @@ def test_the_linter_admits_each_allowed_edge(rel: str, source: str) -> None:
 # ---------------------------------------------------------------------------
 #
 # Layer DAG ruling 1 (the user, 2026-10-22): geometry is declarative. A
-# geometry module that imports the operator algebra at runtime is a module
-# that BUILDS operators, which is realization, and realization is transport's
+# geometry module that imports the operator algebra is a module that BUILDS
+# or names operators, which is realization, and realization is transport's
 # (ruling 7). The package-level gate cannot see this: geometry -> numerics is
 # an admitted edge, and `numerics.operator` is one numerics submodule among
 # many. Until WP-E1 two geometry modules did it, `boundary/_realizer.py` (the
 # realization seam) and `boundary/_bound_compat.py` (the SN shim, a
 # `LinearOperator` subclass); both moved out, and this gate is their
-# retirement's witness. A TYPE_CHECKING import of the operator TYPES stays
-# admitted: a declaration may say in an annotation what it is realized to
-# (`BoundaryTraceLaw.realize -> LinearOperator`) without importing the
-# algebra at runtime.
+# retirement's witness. A TYPE_CHECKING import is refused too: the last one,
+# `BoundaryTraceLaw.realize -> LinearOperator`, was a hook with 0 overrides
+# and 0 callers that only raised, and it retired with WP-E1's review (a
+# declaration does not know what it is realized to; the realizer does).
 
 _OPERATOR_ALGEBRA = "orpheus.numerics.operator"
 
 
-def _runtime_operator_algebra_imports(
+def _operator_algebra_imports(
     rel: pathlib.PurePosixPath, src: str,
 ) -> list[str]:
-    """The runtime imports of the operator algebra in one module's source.
-
-    A function-body (lazy) import is a runtime import; only a
-    ``TYPE_CHECKING``-guarded one is not.
-    """
+    """The imports of the operator algebra in one module's source, at every
+    import kind (top level, function body, ``TYPE_CHECKING``)."""
     return [
         module_name
-        for module_name, is_tc in _imports_of_source(rel, src)
-        if not is_tc
-        and (module_name == _OPERATOR_ALGEBRA or module_name.startswith(_OPERATOR_ALGEBRA + "."))
+        for module_name, _is_tc in _imports_of_source(rel, src)
+        if module_name == _OPERATOR_ALGEBRA or module_name.startswith(_OPERATOR_ALGEBRA + ".")
     ]
 
 
 @pytest.mark.foundation
-def test_no_geometry_module_imports_the_operator_algebra_at_runtime() -> None:
+def test_no_geometry_module_imports_the_operator_algebra() -> None:
     geometry_root = ORPHEUS_ROOT / "geometry"
     modules = sorted(_iter_python_modules(geometry_root))
     # The denominator is stated, so an empty walk cannot read as a clean tree.
@@ -500,14 +515,14 @@ def test_no_geometry_module_imports_the_operator_algebra_at_runtime() -> None:
     offenders = [
         f"{module_path.relative_to(ORPHEUS_ROOT)} imports {target}"
         for module_path in modules
-        for target in _runtime_operator_algebra_imports(
+        for target in _operator_algebra_imports(
             pathlib.PurePosixPath(module_path.relative_to(ORPHEUS_ROOT).as_posix()),
             module_path.read_text(encoding="utf-8"),
         )
     ]
     assert not offenders, (
         "geometry is declarative (layer DAG rulings 1 and 7): no geometry "
-        "module imports orpheus.numerics.operator at runtime; a realization "
+        "module imports orpheus.numerics.operator, at any import kind; a realization "
         "belongs in orpheus.transport.boundary_realization or a method "
         "package:\n" + "\n".join(offenders)
     )
@@ -517,13 +532,15 @@ _OPERATOR_ALGEBRA_REFUSED_LEGS = [
     ("geometry/boundary/x.py", "from orpheus.numerics.operator import BlockRole\n"),
     ("geometry/boundary/x.py", "def f():\n    from orpheus.numerics.operator import LinearOperator\n"),
     ("geometry/boundary/x.py", "import orpheus.numerics.operator\n"),
-]
-
-_OPERATOR_ALGEBRA_ADMITTED_LEGS = [
+    # The module named as an imported name, not as the `from` path.
+    ("geometry/boundary/x.py", "from orpheus.numerics import operator\n"),
     (
         "geometry/boundary/x.py",
         "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.numerics.operator import LinearOperator\n",
     ),
+]
+
+_OPERATOR_ALGEBRA_ADMITTED_LEGS = [
     ("geometry/boundary/x.py", "from orpheus.numerics.operator_names import X\n"),
     ("geometry/boundary/x.py", "from orpheus.numerics.measure import DiscreteMeasure\n"),
 ]
@@ -532,13 +549,13 @@ _OPERATOR_ALGEBRA_ADMITTED_LEGS = [
 @pytest.mark.foundation
 @pytest.mark.parametrize(("rel", "source"), _OPERATOR_ALGEBRA_REFUSED_LEGS)
 def test_the_operator_algebra_predicate_refuses_each_runtime_shape(rel: str, source: str) -> None:
-    assert _runtime_operator_algebra_imports(pathlib.PurePosixPath(rel), source) == [_OPERATOR_ALGEBRA]
+    assert _operator_algebra_imports(pathlib.PurePosixPath(rel), source) == [_OPERATOR_ALGEBRA]
 
 
 @pytest.mark.foundation
 @pytest.mark.parametrize(("rel", "source"), _OPERATOR_ALGEBRA_ADMITTED_LEGS)
 def test_the_operator_algebra_predicate_admits_each_other_shape(rel: str, source: str) -> None:
-    assert _runtime_operator_algebra_imports(pathlib.PurePosixPath(rel), source) == []
+    assert _operator_algebra_imports(pathlib.PurePosixPath(rel), source) == []
 
 
 # ---------------------------------------------------------------------------
@@ -779,3 +796,137 @@ def test_every_exemption_row_names_a_live_edge() -> None:
         ):
             stale.append(f"insulation exemption {rel!r}: the module imports nothing the exemption admits")
     assert not stale, "stale exemption rows:\n" + "\n".join(stale)
+
+
+# ---------------------------------------------------------------------------
+# Inside a package, the module graph is a DAG (the open cycles are listed)
+# ---------------------------------------------------------------------------
+#
+# The package linter above sees edges BETWEEN packages; a cycle between two
+# modules of one package is invisible to it. Inside a package the same law
+# holds: a module imports only modules whose vocabulary is smaller, so the
+# graph of the package's direct children (its modules and subpackages) is
+# acyclic at every import kind (top level, function body, TYPE_CHECKING). A
+# cycle is a concept in the wrong module. An import of the package facade
+# itself (`from orpheus.mesh import X` inside `orpheus/mesh/`) is resolved
+# through the facade's own imports, so it cannot hide an edge.
+#
+# The cycles still open are listed EXACTLY: a new cycle is red, and a listed
+# cycle that no longer exists is red too (the row is retired with the cycle).
+# [M] 2026-10-22 (layer DAG round 2): the mesh {axis, face_laws, structured}
+# and data {macro_xs, materials} cycles were broken; these remain.
+
+_OPEN_INTRA_PACKAGE_CYCLES: dict[str, frozenset[frozenset[str]]] = {
+    # The method-space / boundary-realizer / augmented-mesh triangle.
+    "diffusion": frozenset({frozenset({"augmented_mesh", "boundary_realizer", "method_space"})}),
+    # The traced-memo boot pair (numerics_untangling.md: by design, a bootstrap).
+    "numerics": frozenset({frozenset({"_traced_memo_boot", "traced_memo"})}),
+    # The SN hub and its operator, sweep and boundary packages.
+    "sn": frozenset({frozenset({
+        "angular", "boundary", "coupled_system", "loss_representation", "mesh", "operators", "problem", "sweep",
+    })}),
+    # The role grid split over two packages, and the cross-section views on the mesh side.
+    "transport": frozenset({frozenset({"fields", "mesh", "source_sinks"})}),
+}
+
+
+def _package_children(package_dir: pathlib.Path) -> set[str]:
+    modules = {p.stem for p in package_dir.glob("*.py") if p.stem != "__init__"}
+    subpackages = {p.name for p in package_dir.iterdir() if (p / "__init__.py").is_file()}
+    return modules | subpackages
+
+
+def _intra_package_graph(package_dir: pathlib.Path) -> dict[str, set[str]]:
+    """The import graph of one package's direct children, at every import kind."""
+    package = package_dir.name
+    children = _package_children(package_dir)
+
+    def targets(path: pathlib.Path) -> tuple[set[str], bool]:
+        rel = pathlib.PurePosixPath(path.relative_to(ORPHEUS_ROOT).as_posix())
+        found: set[str] = set()
+        facade = False
+        for module_name, _is_tc in _imports_of_source(rel, path.read_text(encoding="utf-8")):
+            parts = module_name.split(".")
+            if parts[:2] != ["orpheus", package]:
+                continue
+            if len(parts) == 2:
+                facade = True
+            elif parts[2] in children:
+                found.add(parts[2])
+        return found, facade
+
+    facade_targets, _ = targets(package_dir / "__init__.py")
+    graph: dict[str, set[str]] = {child: set() for child in children}
+    for path in package_dir.rglob("*.py"):
+        rel_parts = path.relative_to(package_dir).with_suffix("").parts
+        if rel_parts == ("__init__",):
+            continue
+        child = rel_parts[0]
+        found, facade = targets(path)
+        if facade:
+            found |= facade_targets
+        graph[child] |= found - {child}
+    return graph
+
+
+def _cycles(graph: dict[str, set[str]]) -> frozenset[frozenset[str]]:
+    """The strongly connected components of ``graph`` with more than one node."""
+    index: dict[str, int] = {}
+    low: dict[str, int] = {}
+    stack: list[str] = []
+    on_stack: set[str] = set()
+    found: set[frozenset[str]] = set()
+
+    def visit(node: str) -> None:
+        index[node] = low[node] = len(index)
+        stack.append(node)
+        on_stack.add(node)
+        for nxt in sorted(graph[node]):
+            if nxt not in index:
+                visit(nxt)
+                low[node] = min(low[node], low[nxt])
+            elif nxt in on_stack:
+                low[node] = min(low[node], index[nxt])
+        if low[node] == index[node]:
+            component = set()
+            while True:
+                member = stack.pop()
+                on_stack.discard(member)
+                component.add(member)
+                if member == node:
+                    break
+            if len(component) > 1:
+                found.add(frozenset(component))
+
+    for node in sorted(graph):
+        if node not in index:
+            visit(node)
+    return frozenset(found)
+
+
+@pytest.mark.foundation
+def test_the_cycle_finder_finds_a_planted_cycle() -> None:
+    """Positive control for the predicate the tree scan runs."""
+    graph = {"axis": {"structured"}, "structured": {"face_laws"}, "face_laws": {"axis"}, "leaf": set()}
+    assert _cycles(graph) == frozenset({frozenset({"axis", "structured", "face_laws"})})
+    assert _cycles({"a": {"b"}, "b": set()}) == frozenset()
+
+
+@pytest.mark.foundation
+def test_every_package_module_graph_is_acyclic_but_the_listed_cycles() -> None:
+    packages = sorted(p for p in ORPHEUS_ROOT.iterdir() if (p / "__init__.py").is_file())
+    # The denominator is stated, so an empty walk cannot read as a clean tree.
+    assert len(packages) > 10, [p.name for p in packages]
+    new: list[str] = []
+    stale: list[str] = []
+    for package_dir in packages:
+        found = _cycles(_intra_package_graph(package_dir))
+        listed = _OPEN_INTRA_PACKAGE_CYCLES.get(package_dir.name, frozenset())
+        new += [f"{package_dir.name}: {sorted(c)}" for c in found - listed]
+        stale += [f"{package_dir.name}: {sorted(c)}" for c in listed - found]
+    assert not new, (
+        "a module cycle inside a package (a concept sits in the wrong module): " + "; ".join(new)
+    )
+    assert not stale, (
+        "a listed open cycle no longer exists; retire its _OPEN_INTRA_PACKAGE_CYCLES row: " + "; ".join(stale)
+    )

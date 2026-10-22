@@ -50,7 +50,7 @@ References
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 import numpy as np
 
@@ -60,7 +60,6 @@ from orpheus.numerics.registry import RegistryMixin
 from ._source import InflowSourceSpec, NoSource
 
 if TYPE_CHECKING:
-    from orpheus.numerics.operator import LinearOperator
     from orpheus.numerics.quadrature import Quadrature
 
     from ._composition import LawNode, LawScaled, LawSum
@@ -180,7 +179,7 @@ class BoundaryTraceLaw(ContentIdentity, RegistryMixin, ABC):
     :meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`),
     and Issue #186 cleanup (B3 + β2) makes this a type-level
     constraint: there is no abstract ``apply`` method to satisfy,
-    nor :class:`LinearOperator` inheritance to inherit one
+    nor :class:`~orpheus.numerics.operator.LinearOperator` inheritance to inherit one
     from. Calling ``law.apply(psi)`` raises ``AttributeError`` at
     runtime; type checkers flag it statically.
 
@@ -580,36 +579,3 @@ class BoundaryTraceLaw(ContentIdentity, RegistryMixin, ABC):
         self.assert_geometry_map_measure_preserving(quadrature)
         self.assert_response_positive_if_declared()
         self.assert_source_is_placeable(inflow_indices)
-
-    # ------------------------------------------------------------------
-    # Method realisation hook -- guidance raise; the realizers are the
-    # bridge (each owned by its method-mesh since #290 P7b).
-    # ------------------------------------------------------------------
-
-    def realize(self, method_space: Any) -> "LinearOperator":
-        r"""Realise this law against a method-specific space.
-
-        The default body raises :class:`NotImplementedError`. The
-        canonical realisation path is via a method-specific realizer:
-
-        .. code-block:: python
-
-            from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-            from orpheus.sn.mesh.method_space import SNMethodSpace
-            op = SNBoundaryRealizer().realize(law, SNMethodSpace.minimal(quad))
-            psi_in = op.apply(psi_out)   # 1-arg LinearOperator
-
-        Concrete laws MAY override to delegate to a specific
-        realizer when the method space's ``method_name`` is known,
-        but no current production caller routes through this hook —
-        each method-mesh's ``realize_boundary_law`` arm invokes its
-        own realizer directly (or
-        :func:`~orpheus.transport.boundary_realization.realize_recursively` with an
-        explicit realizer for rank-N composition).
-        """
-        raise NotImplementedError(
-            f"{type(self).__name__}.realize: route through a "
-            "method-specific realizer (e.g. "
-            "SNBoundaryRealizer().realize(law, method_space)) or "
-            "use realize_recursively for descriptor trees."
-        )

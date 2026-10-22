@@ -19,7 +19,8 @@ These tests pin:
 
 * **L1 / realisation** —
   :func:`~orpheus.transport.boundary_realization.realize_recursively` (the
-  method-blind walker; its home since #290 P7b, with the leaf
+  method-blind walker; its home since layer-DAG WP-E1, in geometry/boundary/
+  from #290 P7b until then, with the leaf
   realizer — here :class:`SNBoundaryRealizer` — passed explicitly)
   transforms a descriptor tree into an operator tree:
   - The realised operator is the law tree's image in the operator algebra:
