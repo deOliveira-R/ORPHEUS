@@ -40,11 +40,22 @@ distinguishes its variants.
    frame instance and returned as the same object afterwards (the value is
    stored in the frame's instance ``__dict__``, as ``cached_property``
    did), which the identity of a Galerkin frame's analysis codomain with its
-   reconstruction domain relies on. One recorded inconsistency, for the
-   space-valued faces' own package to settle: a Galerkin frame's
-   ``test_space`` is its Parseval-dressed ``basis_space``, while a
-   Petrov-Galerkin frame whose test basis *is* its trial basis reads the
-   undressed ``test.space``.
+   reconstruction domain relies on. The analysis codomain is decided by
+   the frame's data, not its class (ruling 58 of the numerics
+   untangling): ``test_space(frame)`` is the Parseval-dressed
+   ``basis_space(frame)`` when ``frame.test is frame.basis``, whatever
+   class spelled the frame, and the test basis's own coefficient space,
+   :meth:`FunctionSpace.of_basis(frame.test)
+   <orpheus.numerics.space.FunctionSpace.of_basis>`, otherwise. Until S7
+   the predicate was ``isinstance(frame, GalerkinFrame)``, so a
+   Petrov-Galerkin frame handed its own trial basis as its test read the
+   undressed space (gate ``tests/gates/numerics/test_axis_identity.py``
+   R58). ``measure_space(frame)`` is :meth:`FunctionSpace.of_measure
+   <orpheus.numerics.space.FunctionSpace.of_measure>` of the frame's
+   measure under the measure's own
+   :attr:`~orpheus.numerics.measure.DiscreteMeasure.axis_label`, so on a
+   directional rule it IS the :math:`S_N` angular space over the same rule
+   (:ref:`spaces-identity-key`).
 
 The page is organised **general case first**. The Petrov-Galerkin frame
 (test :math:`\ne` trial) is the general object; the Galerkin frame (test
@@ -351,18 +362,21 @@ Key Facts
   folded one, the Legendre basis on :math:`S^2/O(2)_a` on a 1-D one.
   `[M]` 2026-09-02 the angular moment space had **eight** homes (one
   basis + seven ``from_L(L)`` re-mints) and now has one. ⚠ Two spellings
-  live on a frame and they are different objects: ``basis.space``
-  carries the CONTINUUM Gram :math:`g_C` and is the basis's own
-  coefficient space; ``basis_space`` carries the Parseval metric
+  live on a frame and they are different objects:
+  :meth:`FunctionSpace.of_basis(frame.basis)
+  <orpheus.numerics.space.FunctionSpace.of_basis>` carries the CONTINUUM
+  Gram :math:`g_C` and is the basis's own coefficient space (spelled
+  ``basis.space`` until S7 of the numerics untangling);
+  ``basis_space`` carries the Parseval metric
   :math:`G^{-1}` — a positioned :math:`G^{+}` where the discrete Gram is
   dense — and is the ANALYSIS FACE's codomain
   (:ref:`frame-parseval-metric`). ⛔ Until CS4c step 6 item 6.2c-ii
   (2026-09-08) this bullet ended *"``==`` cannot tell them apart"* and
   called the continuum one *"the end an* :math:`\ell`\ *-diagonal operator
   wants"*. Both halves are now false. The harmonic heads are AXIS-BUILT,
-  so the measure is part of the identity: `[M]` over the 33 shipped
-  (rule, :math:`L`) rows ``basis_space(frame) == frame.basis.space`` is
-  **0 of 33** (it was 33 of 33). And ruling **R-6.2c-1** binds the ONE
+  so the measure is part of the identity: `[M]` 2026-09-08, over the 33
+  shipped (rule, :math:`L`) rows the dressed head equals the basis's own
+  head on **0 of 33** (it was 33 of 33). And ruling **R-6.2c-1** binds the ONE
   moment space the tree carries — the carrier's cached mint, every
   moment field, every operator end — to ``basis_space``, because *the
   carrier's norm is the field's energy*
@@ -4126,19 +4140,20 @@ The defect: eight homes for one space
 `[M]` 2026-09-02, ``git grep -n "SphericalHarmonicSpace.from_L" HEAD --
 orpheus/`` over the pre-step tree returns **13** lines, of which **8 are
 executable calls** and 5 are docstring mentions. So the angular
-coefficient space had **eight** homes. One is legitimate —
-:attr:`SphericalHarmonicBasis.space
-<orpheus.numerics.basis.SphericalHarmonicBasis.space>`, where a basis
+coefficient space had **eight** homes. One was legitimate — the basis's
+own ``space`` property (``SphericalHarmonicBasis.space``, retired at S7 of
+the numerics untangling in favour of :meth:`FunctionSpace.of_basis
+<orpheus.numerics.space.FunctionSpace.of_basis>`), where a basis
 answers *what do my coefficients live in?* — and **seven** were production
 consumers re-minting it from the integer :math:`L`:
 
-.. list-table:: `[M]` The seven re-mint sites, at the pre-2.5 tree
+.. list-table:: `[M]` The seven re-mint sites, at the pre-2.5 tree, and what tracker 2.5 made each read
    :header-rows: 1
    :widths: 40 34 26
 
    * - Site
      - What it was minting
-     - Now reads
+     - Read from tracker 2.5 (2026-09-02)
    * - ``LegendreMomentScattering.from_material_xs``
      - the endomorphic ends of :math:`\Lambda`
      - ``basis.space`` (the tier-2 classmethod takes the basis)
@@ -4160,7 +4175,17 @@ consumers re-minting it from the integer :math:`L`:
        ``frame_faces.angular_frame(mesh.quad, L).basis.space``
    * - ``HarmonicMomentFlux.truncate``
      - the head of the truncated space
-     - ``head.truncated(L_new)`` — the head's OWN family
+     - ``head.truncated(L_new)`` — the head's OWN family (a method of
+       the head classes that retired at S7; today
+       :func:`truncated_head(head, L_new)
+       <orpheus.numerics.spaces.moment_head.truncated_head>`)
+
+The third column is the tracker-2.5 reading. Since item 6.2c-ii
+(2026-09-08) every row reads the frame's Parseval-dressed
+:func:`basis_space(frame) <orpheus.numerics.frame_faces.basis_space>`
+instead of the basis's continuum head (the next sub-subsection), and since
+S7 the basis's continuum head is spelled :meth:`FunctionSpace.of_basis(basis)
+<orpheus.numerics.space.FunctionSpace.of_basis>`; there is no ``basis.space``.
 
 .. note:: **2026-09-07, CS4c step 6 item 6.2b — the field row's "now reads"
    is one hop longer, because the PRODUCT moved to the hub.** Tracker 2.5
@@ -4173,7 +4198,7 @@ consumers re-minting it from the integer :math:`L`:
    moment family is now entirely a set of CONSUMERS of it — the factories
    (``from_problem_and_L``, ``zeros_for_problem_and_L``), the ``space_on``
    admission reference, and the sweep's iterate wrap all hold the SAME
-   instance (``is``, not merely ``==``). The head is still read off the
+   instance (``is``, not merely ``==``). The head was still read off the
    frame at ``frame_faces.angular_frame(quad, L).basis.space``, so the row's third
    column stays true one hop in; what changed is *who owns the product*.
    `[M]` until 6.2b the field-side mint ran **113 of the 118** ``*``
@@ -4210,13 +4235,13 @@ tree; tracker 2.5 removes it before the repair, not with it.
 the basis's own ``space`` property — and the other five are docstring
 mentions. (``SphericalHarmonicSpace.truncated`` called
 ``type(self).from_L`` inside the space's own module, which is where a
-family is *entitled* to name itself; since 2026-09-08 it delegates to
-:func:`~orpheus.numerics.spaces.moment_head.truncated_head`, which re-mints
-through the head axis's generator instead — see the truncation paragraph
-below.)
+family is *entitled* to name itself; from 2026-09-08 it delegated to
+:func:`~orpheus.numerics.spaces.moment_head.truncated_head`, and since S7
+the class is gone and ``truncated_head`` is the one verb, re-minting
+through the head axis's origin — see the truncation paragraph below.)
 
-Which space, though — ``basis.space`` or ``basis_space``?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Which space, though — the basis's own head or ``basis_space``?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. important::
 
@@ -4234,8 +4259,11 @@ Which space, though — ``basis.space`` or ``basis_space``?
    (:eq:`frame-parseval-isometry`), not a convention.
 
 A frame carries **two** spellings of the coefficient space and they are
-different objects. The basis's own
-:attr:`Basis.space <orpheus.numerics.basis.Basis.space>` carries the
+different objects. The basis's own head,
+:meth:`FunctionSpace.of_basis(basis)
+<orpheus.numerics.space.FunctionSpace.of_basis>` (spelled ``basis.space``
+until S7 of the numerics untangling, and so in the dated records below),
+carries the
 **continuum** Gram :math:`g_C = 4\pi/(2\ell+1)`
 (:eq:`sh-space-metric`); the frame's
 :func:`~orpheus.numerics.frame_faces.basis_space` **replaces** that
@@ -4421,11 +4449,11 @@ the wrong-structure one).
    ⛔ **Row 4 is HISTORY since CS4c step 6 item 6.2c-ii (2026-09-08).**
    The numbers above are unchanged as a record of the 2026-09-02 tree, and
    rows 1–3 still reproduce; row 4 does not. Both harmonic heads became
-   AXIS-BUILT — one
-   :class:`~orpheus.numerics.axis.HarmonicAxis` (rectangular) or
-   :class:`~orpheus.numerics.axis.LegendreAxis` (flat) whose MEASURE is
-   the head's metric — and an axis-built space's identity IS its axis
-   tuple, weights bytes included (:ref:`spaces-identity-bridge`). So the
+   AXIS-BUILT — one head axis, rectangular or flat (the subclasses
+   ``HarmonicAxis`` and ``LegendreAxis`` then, one generic axis carrying a
+   coefficient layout since S7), whose MEASURE is the head's metric — and
+   an axis-built space's identity IS its axis tuple, weights bytes
+   included (:ref:`spaces-identity-key`). So the
    metric entered the identity and the two heads separated: `[M]`
    re-measured for this page on the same 33 rows,
    ``basis_space(frame) == frame.basis.space`` is **0 of 33**, and every
@@ -4444,7 +4472,7 @@ ratio is
 
 .. math::
 
-   \frac{(\texttt{basis\_space})_{\ell}}{(\texttt{basis.space})_{\ell}}
+   \frac{(\texttt{basis\_space})_{\ell}}{(\texttt{of\_basis(basis)})_{\ell}}
    \;=\; \Bigl(\frac{2\ell+1}{4\pi}\Bigr)^{2}
    \;=\; 6.332574\times10^{-3},\;
          5.699317\times10^{-2},\;
@@ -4708,11 +4736,14 @@ deliberately leaves the ruling open.
 
 Item **6.2c-ii** decided it, and closed it in the direction the two
 paragraphs above left open. The mechanism is that the harmonic heads
-became **axis-built**: each carries ONE MODAL head axis
-(:class:`~orpheus.numerics.axis.HarmonicAxis` for the rectangular family,
-:class:`~orpheus.numerics.axis.LegendreAxis` for the flat one) whose
-MEASURE *is* the head's metric, and an axis-built space's identity is its
-axis tuple — weights bytes included. So the metric stopped being invisible
+became **axis-built**: each carries ONE MODAL head axis, rectangular for
+the harmonic family and flat for the Legendre one (two axis subclasses at
+6.2c-ii; since S7 one generic axis whose
+:class:`~orpheus.numerics.coefficient_layout.HarmonicLayout` or
+:class:`~orpheus.numerics.coefficient_layout.LegendreLayout` is a content
+part), whose MEASURE *is* the head's metric, and an axis-built space's
+identity is its axis tuple — weights bytes included
+(:ref:`spaces-identity-key`). So the metric stopped being invisible
 to ``==``, the two heads stopped being interchangeable, and one of them
 had to be chosen. Ruling **R-6.2c-1** chose the frame's dressed one.
 
@@ -4731,16 +4762,16 @@ What that changes, stated as the tree now reads:
        :class:`~orpheus.numerics.metric.DenseMetric` :math:`G^{+}` where
        the discrete Gram is dense
    * - who owns the head
-     - the basis (``basis.space``)
+     - the basis (``basis.space``, today ``FunctionSpace.of_basis(basis)``)
      - the FRAME (``basis_space``) — and the frame is the head axis's
-       :attr:`~orpheus.numerics.axis.Axis.generator`, the object that can
-       re-dress it at another order
+       origin, ``FromFrame(frame)``, the object that can re-dress it at
+       another order
    * - hub vs. face codomain
      - ``==`` (metric-blind), metric-different
      - ``==`` and metric-IDENTICAL — one space, two owners (ruling O-5);
        ``is`` *within* each owner, ``==`` *across* them, because the frame
        cannot see the carrier
-   * - ``head == basis.space``
+   * - ``head ==`` the basis's own head
      - ``True`` (`[M]` 33 / 33)
      - ``False`` (`[M]` 0 / 33) — the continuum head survives only as the
        basis's own coefficient space
@@ -4769,9 +4800,10 @@ space by testing ``axes is None`` — which happened to catch a MOMENT space
 too, because a moment space was axes-less. Once the head is axis-built a
 moment space HAS axes, so the old guard silently lost its subject: `[M]`
 handed one, it returned a plausible-looking product instead of raising.
-The refusal is now keyed on the generator channel — the leading axis must
-narrow to a :class:`~orpheus.numerics.quadrature.directional.Quadrature`
-— so it names its subject again. This is the standing lesson that a guard
+The refusal is keyed on the axis's origin — the leading axis must match
+``case FromQuadrature()``, and any other arm raises
+:func:`~orpheus.numerics.axis.quadrature_refusal` — so it names its
+subject again. This is the standing lesson that a guard
 must be re-derived, not merely re-read, when the thing it inspects changes
 shape.
 
@@ -4804,28 +4836,25 @@ Truncation is the same rule applied to a *lower* order.
 :meth:`HarmonicMomentFlux.truncate
 <orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.truncate>`
 asks the current head for **its own family** one order down
-(``head.truncated(L_new)``, a second small Protocol) and slices the kept
-block by the new head's own shape, so a spherical-harmonic head truncates
-to a spherical-harmonic head and a Legendre head to a Legendre head. The
-implementation on
-:meth:`SphericalHarmonicSpace.truncated
-<orpheus.numerics.spaces.SphericalHarmonicSpace.truncated>` delegates to
-:func:`~orpheus.numerics.spaces.moment_head.truncated_head`, which re-mints
-the family at ``L_new`` under **this** head's own name, so identity
-survives the order change; a head that had been renamed cannot be handed
-back the default name, which is the tell of an integer mint.
+(:func:`truncated_head(head, L_new)
+<orpheus.numerics.spaces.moment_head.truncated_head>`) and slices the
+kept block by the new head's own shape, so a spherical-harmonic head
+truncates to a spherical-harmonic head and a Legendre head to a Legendre
+head. ``truncated_head`` re-mints through the head axis's origin, so the
+truncated head is the space the same frame (or basis) mints at ``L_new``.
 
-⛔ **That delegation is item 6.2c-ii's, and it replaced a
-``from_L(L_new)`` call — a change of MECHANISM, not of spelling (ruling
-O-3: re-mint AND re-axis, never slice).** Once the head carries its metric
+⛔ **The re-mint is item 6.2c-ii's, and it replaced a ``from_L(L_new)``
+call — a change of MECHANISM, not of spelling (ruling O-3: re-mint AND
+re-axis, never slice).** It was a method of the head classes,
+``head.truncated(L_new)``, until S7 retired the classes; the function is
+the one verb now. Once the head carries its metric
 as an axis MEASURE, "the same family one order down" stops being a pure
 function of :math:`L`: the metric belongs to whichever object DRESSED the
 head, and only that object can re-derive it at the new order.
 :func:`~orpheus.numerics.spaces.moment_head.truncated_head` therefore
-dispatches on the head axis's
-:attr:`~orpheus.numerics.axis.Axis.generator` — a
+matches the head axis's origin — ``FromBasis`` of a
 :class:`~orpheus.numerics.basis.base.TruncatedBasis` re-spans the continuum
-family and hands back ITS space; a
+family and hands back ITS ``of_basis`` space; ``FromFrame`` of a
 :class:`~orpheus.numerics.frame.GalerkinFrame` re-poses itself through
 :meth:`~orpheus.numerics.frame.GalerkinFrame.at_order` and hands back its
 dressed space at that order. ⚠ And a *slice* of the parent's dressing is
@@ -5094,18 +5123,25 @@ G0 admits two basis families onto angular frames, and they have
 different coefficient LAYOUTS. The real harmonics' space is the
 rectangular :math:`(L+1, 2L+1)` table with the addition-theorem-shifted
 :math:`[\ell + m]` column and zero padding outside :math:`|m| \le \ell`;
-:class:`~orpheus.numerics.spaces.legendre_space.LegendreSpace` is
-**FLAT**, :math:`(L+1,)`, one coefficient per degree. A moment field's
-space is ``<head> ⊗ cells`` either way, so the *rank* of the leading
-factor is now a variable.
+the Legendre basis's space is **FLAT**, :math:`(L+1,)`, one coefficient
+per degree. A moment field's space is ``<head> ⊗ cells`` either way, so
+the *rank* of the leading factor is a variable.
 
-:class:`~orpheus.numerics.spaces.moment_head.MomentHead` is the
-``runtime_checkable`` ``Protocol`` that makes the layout the head's to
-say: ``L``, ``shape``, ``isotropic_slot``, ``degree_block(l)`` and
-``truncated(L_new)``. Both space classes satisfy it structurally, and a
-consumer holding ``space.factors[0]`` narrows with ``isinstance`` — the
-same key-on-what-it-declares idiom as
-:class:`~orpheus.numerics.basis.base.TruncatedBasis` on the basis side.
+The layout is a value the basis carries
+(:attr:`Basis.layout <orpheus.numerics.basis.base.Basis.layout>`:
+:class:`~orpheus.numerics.coefficient_layout.HarmonicLayout` or
+:class:`~orpheus.numerics.coefficient_layout.LegendreLayout`), and the
+head's one axis carries it as a content part (ruling 81). It says ``L``,
+``shape``, ``isotropic_slot``, ``degree_block(l)``, ``unit`` and
+``spread``, and a consumer holding ``space.factors[0]`` reads it through
+one door, :func:`~orpheus.numerics.spaces.moment_head.head_layout` (over
+:func:`~orpheus.numerics.spaces.moment_head.moment_head_axis`, which
+refuses a space that is not a moment head, naming it and the asker). From
+#429 (2026-09-02) to S7 of the numerics untangling (2026-10-22) the layout
+lived on two space classes, ``SphericalHarmonicSpace`` and
+``LegendreSpace``, behind a ``runtime_checkable`` ``MomentHead`` protocol
+that four production ``isinstance`` doors narrowed on
+(:ref:`spaces-moment-head`).
 
 ⛔ **Why it is a repair and not decoration: on a flat head the old reads
 returned the wrong array and raised NOTHING.** Every carrier read that
@@ -5119,8 +5155,8 @@ at a hard-coded index 2), ``zeros_for_problem_and_L``, and — the one no
 census had listed — the material field's per-degree group contraction,
 which spelled the :math:`m` axis into its ``einsum`` spec
 (``"mfc...,fg->mgc..."``) and its slicing. That last one would have
-contracted the GROUP axis as if it were :math:`m`. All of them now read
-the head:
+contracted the GROUP axis as if it were :math:`m`. All of them read the
+layout:
 
 .. list-table:: What the head says, per family
    :header-rows: 1
@@ -5298,9 +5334,11 @@ the guard was guarding.
        codomain, where a covariant moment lands
    * - ``codomain``
      - :func:`~orpheus.numerics.frame_faces.basis_space` — the
-       reconstruction domain, the trial coefficient space. One space on a
-       :class:`~orpheus.numerics.frame.GalerkinFrame`, two on a
-       :class:`~orpheus.numerics.frame.PetrovGalerkinFrame`
+       reconstruction domain, the trial coefficient space. One space when
+       ``frame.test is frame.basis`` (every
+       :class:`~orpheus.numerics.frame.GalerkinFrame`), two on a
+       :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` with a distinct
+       test basis
    * - ``diagonal``
      - the probe :math:`(MR\,\mathbf 1)` — the cross Gram's row sums, in
        the analysis codomain's layout
@@ -5336,8 +5374,8 @@ A frame can re-pose itself at another order
 returns THIS frame over the same measure with its trial family cut at
 ``L_new``: same class, same measure, the trial basis's own
 :meth:`~orpheus.numerics.basis.base.TruncatedBasis.at_order`. It exists
-because the frame is the head's :attr:`generator
-<orpheus.numerics.axis.Axis.generator>` (:ref:`frame-the-one-moment-space`)
+because the frame is the head axis's origin, ``FromFrame(frame)``
+(:ref:`frame-the-one-moment-space`)
 and a head must be re-dressable at every order — the metric is the frame's
 to install, and the discrete Gram's verdict can change with :math:`L`
 (:ref:`frame-moment-space-single-home`, the truncation paragraph). It
@@ -6553,8 +6591,8 @@ on* ``Axis.weights``); the inline ``_apply_axes_weights`` loop retired into
 :meth:`DiagonalMetric.apply_block
 <orpheus.numerics.metric.DiagonalMetric.apply_block>`, bit-identically.
 **6.2c-ii** then made both harmonic heads axis-built — one
-:class:`~orpheus.numerics.axis.HarmonicAxis` or
-:class:`~orpheus.numerics.axis.LegendreAxis`, ``MODAL``, whose measure IS
+``HarmonicAxis`` or
+``LegendreAxis``, ``MODAL``, whose measure IS
 the head's metric — which puts the metric into the identity and forces the
 fork. Ruled: the ONE moment space carries **Parseval**, so the carrier's
 cached mint, every moment field, every operator end and the frame's own

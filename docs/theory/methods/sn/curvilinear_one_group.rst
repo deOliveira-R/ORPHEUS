@@ -490,7 +490,8 @@ the two factors.**  The **spatial** one is
 :math:`1/w_n`, the measure's own weight, recovered through the operator's
 bound angular axis —
 :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.angular_axis`,
-whose :attr:`~orpheus.numerics.axis.Axis.generator` is the quadrature.
+whose origin is the quadrature, ``FromQuadrature(quad)``
+(:attr:`Axis.origin <orpheus.numerics.axis.Axis.origin>`).
 (The ``AngularRedistribution.quadrature`` courier that used to carry it
 retired at the P4-remainder, 2026-08-29 — the angular factor is pure
 α data now.)

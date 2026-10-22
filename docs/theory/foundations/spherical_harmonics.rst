@@ -331,7 +331,7 @@ real :math:`Y_\ell^m` satisfy the **discrete** orthogonality
    :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.metric_per_ell
 
 .. implements:: real-sh-discrete-orthogonality
-   :by: orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.coefficient_weights
 
 This identity is the discretised form of the continuous orthogonality
 on :math:`L^2(S^2)`. Combined with the addition theorem
@@ -423,9 +423,13 @@ lives in exactly ONE place in the codebase.
           the SH codomain.
         - :math:`\Pi^* = S_0` — the naked synthesis, no factor.
       * - **Continuum Gram** :math:`g_C = 4\pi/(2\ell+1)`
-        - :meth:`SphericalHarmonicSpace.from_L
-          <orpheus.numerics.spaces.SphericalHarmonicSpace.from_L>`
-          (:eq:`sh-space-metric`) — the ``project``/``gram``
+        - The basis's own coefficient space,
+          :meth:`FunctionSpace.of_basis(basis)
+          <orpheus.numerics.space.FunctionSpace.of_basis>`, whose one
+          head axis carries
+          :attr:`SphericalHarmonicBasis.coefficient_weights
+          <orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.coefficient_weights>`
+          as its measure (:eq:`sh-space-metric`) — the ``project``/``gram``
           cross-Gram vocabulary.
         - :math:`\Pi^* = g_C \cdot S_0`. ⛔ **What the frame exposed
           before F-0** — the wrong side for covariant moments.
@@ -478,21 +482,23 @@ lives in exactly ONE place in the codebase.
   (:attr:`FrameBase.discrete_gram
   <orpheus.numerics.frame.FrameBase.discrete_gram>`), carried on the
   analysis face's codomain (the frame's ``basis_space``) as its metric.
-  That codomain is a
-  :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace` — but the
-  *frame-dressed* copy, not the one
-  :meth:`~orpheus.numerics.spaces.SphericalHarmonicSpace.from_L`
-  builds: ``from_L`` carries the CONTINUUM Gram
-  :math:`g_C` (:eq:`sh-space-metric`) and
+  That codomain is a harmonic coefficient space — one axis indexed by
+  the rectangular :class:`~orpheus.numerics.coefficient_layout.HarmonicLayout`
+  — but the *frame-dressed* copy, not the basis's own
+  :meth:`FunctionSpace.of_basis(basis)
+  <orpheus.numerics.space.FunctionSpace.of_basis>`: the basis's space
+  carries the CONTINUUM Gram :math:`g_C` (:eq:`sh-space-metric`) and
   :func:`basis_space <orpheus.numerics.frame_faces.basis_space>` REPLACES it with
-  :math:`G^{-1}`. ⚠ Since item 6.2c-ii (2026-09-08) the space is
-  AXIS-BUILT and the metric lives on its single ``MODAL`` head axis as
-  that axis's MEASURE — so *replaces* now means "re-weights the head
-  axis" (or, on a ``DENSE`` frame, "empties the axis's measure and
-  positions :math:`G^{+}` on the space's derived metric object"), and the
-  two copies are structurally UNEQUAL rather than ``(name,
-  shape)``-equal: `[M]` ``basis_space(frame) == frame.basis.space`` is 0
-  of 33 shipped (rule, :math:`L`) rows
+  :math:`G^{-1}`. The space is AXIS-BUILT and the metric lives on its
+  single ``MODAL`` head axis as that axis's MEASURE, so *replaces* means
+  "re-weights the head axis" (or, on a ``DENSE`` frame, "empties the
+  axis's measure and positions :math:`G^{+}` on the space's derived
+  metric object"), and the two copies are structurally UNEQUAL: their
+  head axes differ in measure, and in origin-derived kind (the dressed
+  head's unit is the moments :math:`\Phi^{\mathsf T} w` of the constant
+  function, the basis's is :math:`e_0`). `[M]` 2026-09-08, when the
+  basis's space was still spelled ``basis.space``: the two compared
+  unequal on 33 of 33 shipped (rule, :math:`L`) rows
   (:ref:`spaces-moment-head-axis-built`). The general statement, and the
   SH collapse of it:
 
@@ -593,7 +599,7 @@ property of *this* basis-measure pairing, not of frames in general
    :by: orpheus.numerics.operator.AdjointOperator.apply
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
-   :by: orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace
+   :by: orpheus.numerics.frame_faces.basis_space
 
 * :math:`R = (2\ell+1) \cdot S_0 = W \cdot G^{-1} \cdot S_0
   = W \cdot \Pi^*` — the addition-theorem reconstruction, exposed by the frame's
@@ -602,8 +608,9 @@ property of *this* basis-measure pairing, not of frames in general
   which reads the :math:`(2\ell+1)` factor live from
   :attr:`SphericalHarmonicBasis.addition_theorem_factor
   <orpheus.numerics.basis.SphericalHarmonicBasis.addition_theorem_factor>`
-  (re-exposed on the coefficient space as
-  :attr:`SphericalHarmonicSpace.addition_theorem_factor`).
+  (until S7 of the numerics untangling it was re-exposed on a
+  coefficient-space class, ``SphericalHarmonicSpace``, which retired;
+  the factor is read off the basis only).
 
 .. math::
    :label: sh-addition-theorem-reconstruction
@@ -626,9 +633,13 @@ The continuum metric :math:`g_C`
 
 The metric :math:`g_C` is the single source of truth for the SH
 **convention**; it is the continuum Gram of the no-prefactor
-harmonics, it lives on :class:`SphericalHarmonicSpace` as built by
-:meth:`~orpheus.numerics.spaces.SphericalHarmonicSpace.from_L`, and
-it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
+harmonics, the basis carries it as
+:attr:`SphericalHarmonicBasis.coefficient_weights
+<orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.coefficient_weights>`,
+and :meth:`FunctionSpace.of_basis(basis)
+<orpheus.numerics.space.FunctionSpace.of_basis>` installs it as the
+measure of the basis's one coefficient axis. It equals
+:math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
 
 .. math::
    :label: sh-space-metric
@@ -641,19 +652,23 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.metric_per_ell
 
    **Implemented by** 3 sites — the formula
-   (``SphericalHarmonicBasis.metric_per_ell``), its broadcast into the
-   padded ``(L+1, 2L+1)`` storage layout (``_padded_metric_tensor``),
-   and the constructor that installs it on the space
-   (``SphericalHarmonicSpace.from_L``). Declared at F-0 (2026-08-23),
-   when ``metric_per_ell`` left
+   (``SphericalHarmonicBasis.metric_per_ell``), its broadcast over each
+   degree's live columns of the padded ``(L+1, 2L+1)`` table, zero on the
+   padding (``HarmonicLayout.spread``), and the basis property that
+   composes the two and that ``FunctionSpace.of_basis`` installs as the
+   head axis's measure (``SphericalHarmonicBasis.coefficient_weights``).
+   Declared at F-0 (2026-08-23), when ``metric_per_ell`` left
    :eq:`hilbert-adjoint-equals-metric-times-S0`: the continuum Gram is
-   this equation's subject, not the adjoint's factor.
+   this equation's subject, not the adjoint's factor. Until S7 of the
+   numerics untangling (2026-10-22) the broadcast and the install were
+   ``_padded_metric_tensor`` and ``SphericalHarmonicSpace.from_L`` in a
+   module that retired with its class (:ref:`spaces-moment-head`).
 
 .. implements:: sh-space-metric
-   :by: orpheus.numerics.spaces.spherical_harmonic_space._padded_metric_tensor
+   :by: orpheus.numerics.coefficient_layout.HarmonicLayout.spread
 
 .. implements:: sh-space-metric
-   :by: orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace.from_L
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.coefficient_weights
 
 .. warning::
 

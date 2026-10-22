@@ -1441,10 +1441,10 @@ lives in scattered docstrings.
    ``level_symmetric(8)`` and ``folded_product(4,8)`` give
    ``(3, 5, 1, 4)``. Read every ``(L+1, 2L+1, …)`` shape on this page as
    *the shape on a rule that binds the spherical harmonics*. The layout
-   is now the head's to say —
-   :class:`~orpheus.numerics.spaces.moment_head.MomentHead`'s
-   ``isotropic_slot`` / ``degree_block`` / ``shape`` — and a consumer
-   READS it (:ref:`spaces-moment-head`).
+   is the head's to say — the coefficient layout its one axis carries
+   (``isotropic_slot`` / ``degree_block`` / ``shape``, read through
+   :func:`~orpheus.numerics.spaces.moment_head.head_layout`) — and a
+   consumer READS it (:ref:`spaces-moment-head`).
 
 .. note:: **Two rows above were re-homed, one is still stale
    (audit 2026-08-09).** The flux rows used to read

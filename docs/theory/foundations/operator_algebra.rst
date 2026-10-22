@@ -4298,9 +4298,10 @@ P_\ell \otimes \Sigma_{c,\ell}` with :math:`y_S = 1`,
    what :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`
    *is*. ⚠ Since 2026-09-02 (#429 / ERR-080) its per-:math:`\ell` block
    contraction is selected by the RANK of the operator's angular head
-   (:class:`~orpheus.numerics.spaces.moment_head.MomentHead`), because a
+   (its coefficient layout, read through
+   :func:`~orpheus.numerics.spaces.moment_head.head_layout`), because a
    1-D rule's head is FLAT and has no :math:`m` axis: the projector
-   :math:`P_\ell` is ``head.degree_block(l)``, not a hard-coded
+   :math:`P_\ell` is ``layout.degree_block(l)``, not a hard-coded
    ``[l, :2l+1]`` (:ref:`spaces-moment-head`). Lifting that shape up to the **full** kernel
    :math:`R\circ\Lambda\circ M` was **considered and rejected**. A sum of
    tensor products (a combination whose words are
@@ -4402,7 +4403,7 @@ through one body, at one order, into one interned frame.  The blessed chain is o
 .. code-block:: text
 
    composite space → .interior_space → axes[0]
-                   → axis.generator_as(Quadrature)      (the CS5 channel)
+                   → case FromQuadrature(quad): axis.origin  (the origin channel)
                    → frame_faces.angular_frame(Quadrature, L)        (interned per (rule, L))
                    → HarmonicFrame.from_galerkin(...)   (interned on the upstream frame)
 
@@ -5350,7 +5351,8 @@ the carrier verbs.
    quadrature chooses propagates by construction. ⚠ Which of the frame's
    two coefficient spellings they read moved on 2026-09-08 (CS4c step 6
    item 6.2c-ii, ruling R-6.2c-1): tracker 2.5 bound the basis's continuum
-   ``basis.space``, and the tree now binds the frame's Parseval-dressed
+   head (``basis.space`` then, ``FunctionSpace.of_basis(basis)`` since
+   S7), and the tree now binds the frame's Parseval-dressed
    ``basis_space`` — ONE moment space, whose norm is the field's energy.
    See :ref:`frame-moment-space-single-home` for the eight-homes census
    and the ``basis.space``-vs-``basis_space`` fork with its measurements,
@@ -9202,6 +9204,59 @@ the cheapest tell.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-22
+     - **An axis is identified by what fixes its space, and a space by
+       one key** (package S7 of the numerics untangling, halves S7a and
+       S7b, landed as one merge; rulings 58, 63, 64, 71, 81 to 88).
+       S7a: ``Axis.generator`` and its narrowing accessor
+       ``generator_as`` became :attr:`Axis.origin
+       <orpheus.numerics.axis.Axis.origin>`, the closed sum
+       ``FromMeasure | FromQuadrature | FromBasis | FromFrame |
+       Declared`` read by exhaustive ``match``, from which the axis
+       derives its kind, its support, its atoms and its coefficient
+       layout; ``Axis(kind=...)`` is gone, and the five quadrature
+       consumers refuse any other arm through
+       :func:`~orpheus.numerics.axis.quadrature_refusal`. The axis content
+       gained the support and the atoms (a nodal axis is fixed by its
+       manifold, atoms, measure and label), and
+       :meth:`FunctionSpace.identity_key
+       <orpheus.numerics.space.FunctionSpace.identity_key>` became the one
+       definition of space ``==`` and ``hash`` (axes plus the dense
+       overlay's matrix; a named leaf's class, name and shape; a
+       composite's members' keys), retiring 12 subclass equality pairs.
+       ``FunctionSpace.of_measure(measure, label)`` and
+       ``DiscreteMeasure.axis_label`` replaced ``DiscreteMeasure.space``,
+       so a frame's measure space IS the :math:`S_N` angular space over
+       the same rule; ``test_space`` reads ``frame.test is frame.basis``
+       (ruling 58); ``Quotient``'s SymPy fields left its comparison so an
+       orbit-space support can be keyed. S7b: each basis carries its
+       coefficient layout (:mod:`orpheus.numerics.coefficient_layout`:
+       ``HarmonicLayout``, ``LegendreLayout``, ``CellLayout``,
+       ``ModeLayout``) and its continuum Gram ``coefficient_weights``;
+       :meth:`FunctionSpace.of_basis
+       <orpheus.numerics.space.FunctionSpace.of_basis>` over the one
+       generic coefficient axis replaced ``Basis.space``, so
+       ``SphericalHarmonicSpace``, ``LegendreSpace``, ``HarmonicAxis``,
+       ``LegendreAxis`` (with ``spent_axis``), the ``MomentHead`` protocol,
+       ``TensorProductSpace.find_factor`` and ``_padded_metric_tensor``
+       retired, and the four head doors read
+       :func:`~orpheus.numerics.spaces.moment_head.moment_head_axis` /
+       :func:`~orpheus.numerics.spaces.moment_head.head_layout`. The
+       user's rulings in implementation: a zero modal unit is legal
+       (86), the loss-kernel gauge's unit is declared zero with a witness
+       gate (87, proof owed in #636), a partition's raw coefficient head is
+       measure-free and its marginal refuses (88), and a unit cell and the
+       quotient point are distinct spaces related by a map (85). The six
+       measured identity collisions of #631 separate; `[M]` the no-move
+       baseline (100 cases) differs in 0 of 100. Pinned by
+       ``tests/gates/numerics/test_axis_identity.py`` and
+       ``tests/gates/numerics/test_heads_on_the_axis.py``. See
+       :ref:`spaces-axis-origin`, :ref:`spaces-axis-identity`,
+       :ref:`spaces-identity-key` and :ref:`spaces-moment-head`; the
+       pre-S7 design record of the provenance slot and the head classes
+       is the function-spaces page at ``dd17f678``.
+     - #631, #636
+     - ``[LANDED pending]`` (S7a ``47e7bfaa``, S7b ``ac6c6558``)
    * - 2026-10-21
      - **The dual space carries the inverse Riesz form, and a degenerate
        metric is a quotient** (package S6 of the numerics untangling,

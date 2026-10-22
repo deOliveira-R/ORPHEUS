@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19595**
+Total tests collected: **19654**
 
 V&V level distribution
 ----------------------
@@ -18,12 +18,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1913, 9.8%
-   L1, 2758, 14.1%
+   L0, 1913, 9.7%
+   L1, 2758, 14.0%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14802, 75.5%
-   unmarked, 37, 0.2%
+   foundation, 14855, 75.6%
+   unmarked, 43, 0.2%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19479
+   explicit, 19532
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 37
+   unmarked, 43
 
 Module × level grid
 -------------------
@@ -403,14 +403,15 @@ Module × level grid
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
    numerics/test_assembly_functor, 0, 0, 0, 0, 53, 0
    numerics/test_axis, 0, 0, 0, 0, 15, 0
-   numerics/test_axis_generator, 0, 0, 0, 0, 50, 0
+   numerics/test_axis_generator, 0, 0, 0, 0, 48, 0
+   numerics/test_axis_identity, 0, 0, 0, 0, 24, 0
    numerics/test_axis_marginal, 0, 0, 0, 0, 22, 0
    numerics/test_axis_marginal_lift, 0, 0, 0, 0, 316, 0
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 11, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
    numerics/test_concept_order, 0, 0, 0, 0, 0, 4
    numerics/test_content_identity, 0, 0, 0, 0, 46, 0
-   numerics/test_content_identity_axis, 0, 0, 0, 0, 47, 0
+   numerics/test_content_identity_axis, 0, 0, 0, 0, 56, 0
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
    numerics/test_content_identity_observable, 0, 0, 0, 0, 26, 0
    numerics/test_content_identity_question, 0, 0, 0, 0, 52, 0
@@ -439,7 +440,8 @@ Module × level grid
    numerics/test_gauss_rules_correctly_rounded, 0, 234, 0, 0, 43, 0
    numerics/test_generating_measure, 0, 78, 0, 0, 181, 0
    numerics/test_green_operator, 0, 0, 0, 0, 11, 0
-   numerics/test_harmonic_axis, 0, 0, 0, 0, 11, 0
+   numerics/test_harmonic_axis, 0, 0, 0, 0, 10, 0
+   numerics/test_heads_on_the_axis, 0, 0, 0, 0, 24, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
    numerics/test_invariance, 0, 0, 0, 0, 114, 0
@@ -541,7 +543,7 @@ Module × level grid
    operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 20, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
-   operators/test_loss_kernel_gauge, 0, 0, 0, 0, 57, 0
+   operators/test_loss_kernel_gauge, 0, 0, 0, 0, 57, 6
    operators/test_loss_nullspace_reflective_box, 0, 0, 0, 0, 12, 0
    operators/test_loss_transpose_solve, 0, 0, 0, 0, 16, 0
    operators/test_moment_domain_binding, 0, 0, 0, 0, 14, 0
@@ -665,7 +667,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 474, 0
+   test_layer_imports, 0, 0, 0, 0, 473, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -1765,7 +1767,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**37 tests** have no V&V level marker.
+**43 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1778,6 +1780,7 @@ taxonomy.
    :widths: 60, 10
 
    ``tests/gates/numerics/test_riesz_legs.py``, 8
+   ``tests/gates/sn/operators/test_loss_kernel_gauge.py``, 6
    ``tests/gates/numerics/test_frame.py``, 5
    ``tests/gates/sn/operators/test_sn_boundary_realizer.py``, 5
    ``tests/gates/geometry/test_kernel_corroboration.py``, 4

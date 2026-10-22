@@ -3470,11 +3470,15 @@ older entries classify against.
    prevented. The :math:`(2\ell+1)` literal lives in exactly one place:
    ``SphericalHarmonicBasis.addition_theorem_factor``; the :math:`g_C =
    \mathrm{diag}(4\pi/(2\ell+1))` metric on
-   ``SphericalHarmonicSpace.inner_product_weights``. ⚠ That last slot
-   name is history: since CS4c step 6 item 6.2c-ii (2026-09-08) the space
-   is AXIS-BUILT and :math:`g_C` is the MEASURE of its single
-   :class:`~orpheus.numerics.axis.HarmonicAxis`;
-   ``inner_product_weights`` is ``None`` there.
+   ``SphericalHarmonicSpace.inner_product_weights``. ⚠ That last home
+   is history: CS4c step 6 item 6.2c-ii (2026-09-08) made the space
+   AXIS-BUILT, with :math:`g_C` the MEASURE of its single head axis, and
+   S7 of the numerics untangling (2026-10-22) retired the class: :math:`g_C`
+   is :attr:`SphericalHarmonicBasis.coefficient_weights
+   <orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.coefficient_weights>`,
+   which :meth:`FunctionSpace.of_basis
+   <orpheus.numerics.space.FunctionSpace.of_basis>` installs as the measure
+   of the basis's one coefficient axis.
 
    The Wave 0 test ``TestApplyTransposeIsWWeightedAdjoint`` was renamed to
    ``TestApplyTransposeIsRepresentationTranspose`` (still
@@ -6867,7 +6871,9 @@ older entries classify against.
      ⟹ **What that buys ERR-080 is a clean landing surface for the
      repair, and nothing else.** Both doors now demand the
      :class:`~orpheus.numerics.basis.base.TruncatedBasis` *surface*
-     (``L`` + ``space``) rather than a class, and every one of the seven
+     (``L`` + ``space`` then; ``L``, ``layout``, ``domain``,
+     ``coefficient_weights`` and ``at_order`` since S7) rather than a
+     class, and every one of the seven
      sites READS ``frame.basis.space``, so the family a quadrature
      chooses propagates by construction. `[M]` 2026-09-02 over 33 rows
      (the eleven shipped ``Quadrature`` constructions ×

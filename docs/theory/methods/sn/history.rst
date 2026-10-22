@@ -1000,9 +1000,9 @@ them.  Trust ``git``, not this column.
        ``_admit`` waved both through on ``operand.space != space``.
        **(2) Why it had to be decided now.**  Making the heads AXIS-BUILT
        — one ``MODAL``
-       :class:`~orpheus.numerics.axis.HarmonicAxis` (rectangular
+       ``HarmonicAxis`` (rectangular
        :math:`(L+1, 2L+1)`) or
-       :class:`~orpheus.numerics.axis.LegendreAxis` (flat
+       ``LegendreAxis`` (flat
        :math:`(L+1,)`, carrying its spent :math:`O(2)_a` axis in the
        identity) whose MEASURE *is* the head's metric — puts the metric
        into the identity, so the two heads stop being interchangeable and

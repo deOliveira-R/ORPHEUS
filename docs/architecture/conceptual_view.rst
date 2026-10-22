@@ -34,10 +34,16 @@ the flux maps it to a flux value. An **operator** is a map *space →
 space*. The organising object of the codebase is therefore the **space
 with labelled axes**, and nothing fundamental requires a mesh object. A
 space is the ordered product of its axes (:eq:`spaces-axis-product`,
-:ref:`spaces-the-axis`); an axis is the value object *(shape, factor
-measure, basis kind)* plus a ``generator`` slot that is provenance and
-deliberately excluded from identity (:ref:`spaces-axis-generator`), so
-metric differences imply space differences. Realising a law or a kernel
+:ref:`spaces-the-axis`); an axis is identified by what fixes its
+factor's space, *(label, shape, factor measure, kind, support, atoms,
+coefficient layout)*, all of it derived from its **origin**, the closed
+sum ``FromMeasure | FromQuadrature | FromBasis | FromFrame | Declared``
+that records what minted it and is provenance, never identity
+(:ref:`spaces-axis-generator`). A space's identity is one key,
+:meth:`~orpheus.numerics.space.FunctionSpace.identity_key`, read off its
+axes (and any dense form positioned over them) or off its members
+(:ref:`spaces-identity-key`), so metric differences, atom differences and
+domain differences all imply space differences. Realising a law or a kernel
 means binding it to a space, a domain and a codomain
 (:ref:`bound-operator`): that binding is what makes its properties
 concrete, and it is why the adjoint below is a composition and not a
@@ -152,11 +158,19 @@ group; tensor product, direct sum, pushforward along a typed
 and quotient are its verbs (:class:`~orpheus.numerics.measure.DiscreteMeasure`).
 A quadrature wraps one such measure and mints the angular axis and the
 angular frame from it (:class:`~orpheus.numerics.quadrature.directional.Quadrature`).
-An axis is the measure's forgetful image: the weights are kept, the nodes
-dropped, and the axis is nodal; a **basis** of the harmonic family
-mints modal axes (:class:`~orpheus.numerics.axis.HarmonicAxis`,
-:class:`~orpheus.numerics.axis.LegendreAxis`;
-:ref:`spaces-moment-head-axis-built`). The energy axis is a
+The space a measure samples is :math:`L^2(\mu)`,
+:meth:`FunctionSpace.of_measure(measure, label)
+<orpheus.numerics.space.FunctionSpace.of_measure>`: one nodal axis that
+keeps the weights, the atoms and the manifold they lie on. A **basis**
+spans a coefficient space, :meth:`FunctionSpace.of_basis(basis)
+<orpheus.numerics.space.FunctionSpace.of_basis>`: one axis on the basis's
+domain, indexed by the coefficient layout the basis carries
+(:mod:`orpheus.numerics.coefficient_layout`: the rectangular harmonic
+table, the flat Legendre row, one coefficient per cell of a partition, or
+a row of computed modes) and measured by its continuum Gram, modal for a
+spectral family and nodal for a partition
+(:ref:`spaces-moment-head-axis-built`). There is one generic coefficient
+axis; the family is its layout, not a subclass. The energy axis is a
 one-dimensional mesh in energy whose one-cell limit persists
 (:ref:`spaces-counting-measure-theorem`, :ref:`spaces-energy-grid-is-a-mesh`;
 :class:`~orpheus.numerics.axis.EnergyAxis`). A basis, the choice-free
@@ -437,9 +451,9 @@ The concept table
    * - Concept
      - Class or function
      - Defined at
-   * - Space, axis, basis kind
-     - :class:`~orpheus.numerics.space.FunctionSpace`, :class:`~orpheus.numerics.axis.Axis`, :class:`~orpheus.numerics.axis.BasisKind`
-     - :ref:`spaces-the-axis`, :eq:`spaces-axis-product`, :ref:`spaces-axis-generator`
+   * - Space, axis, basis kind, origin, coefficient layout
+     - :class:`~orpheus.numerics.space.FunctionSpace` (its :meth:`~orpheus.numerics.space.FunctionSpace.identity_key`, :meth:`~orpheus.numerics.space.FunctionSpace.of_measure`, :meth:`~orpheus.numerics.space.FunctionSpace.of_basis`), :class:`~orpheus.numerics.axis.Axis`, :class:`~orpheus.numerics.axis.BasisKind`, :class:`~orpheus.numerics.axis.Modal`, the origin arms :class:`~orpheus.numerics.axis.FromMeasure`, :class:`~orpheus.numerics.axis.FromQuadrature`, :class:`~orpheus.numerics.axis.FromBasis`, :class:`~orpheus.numerics.axis.FromFrame`, :class:`~orpheus.numerics.axis.Declared`; :mod:`orpheus.numerics.coefficient_layout`
+     - :ref:`spaces-the-axis`, :eq:`spaces-axis-product`, :ref:`spaces-axis-origin`, :ref:`spaces-axis-identity`, :ref:`spaces-identity-key`, :ref:`spaces-moment-head`
    * - Discrete measure; manifold; quadrature
      - :class:`~orpheus.numerics.measure.DiscreteMeasure`, :class:`~orpheus.numerics.manifold.Manifold`, :class:`~orpheus.numerics.quadrature.directional.Quadrature`
      - :eq:`discrete-measure-definition`
@@ -631,7 +645,7 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   (#310), whose issue is closed.
 - **Restriction siblings share no base** by ruling ("no consumer treats
   any restriction generically yet"); the rank-d spatial axis is
-  generator-less (a gated contract); there is no ``Cone`` class, no
+  ``Declared`` and carries no atoms (a gated contract, G6b); there is no ``Cone`` class, no
   embedding operator and no affine operator, each by ruling and so not
   debt.
 - **The tagged guards**: ``ELEGANCE-DEBT[guard]`` occurs six times

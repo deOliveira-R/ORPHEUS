@@ -3365,24 +3365,24 @@ it:
 :meth:`Axis.of_quadrature(quad, label)
 <orpheus.numerics.axis.Axis.of_quadrature>` returns the
 angular :class:`~orpheus.numerics.axis.Axis` — the space factor whose
-measure is this rule's weights — carrying **this rule** as its
-:attr:`~orpheus.numerics.axis.Axis.generator`.
+measure is this rule's weights and whose content keeps the rule's
+directions and its support (ruling 71) — carrying **this rule** as its
+origin, ``FromQuadrature(quad)`` (:attr:`Axis.origin
+<orpheus.numerics.axis.Axis.origin>`).
 
 Three properties of the accessor are decisions rather than details, and
 each one is load-bearing:
 
-#. **It delegates the structural mint and upgrades only the
-   provenance.** The shape/weights/``kind`` logic lives once, in
-   :meth:`Axis.of_measure
-   <orpheus.numerics.axis.Axis.of_measure>`; ``Axis.of_quadrature``
-   calls it and then re-points the generator with
-   ``dataclasses.replace``. There is no second copy of the mint to drift
-   — the Pattern-2 single-source rule applied to a two-tier accessor.
-   Because ``replace`` re-runs the axis's ``__post_init__``, the upgrade
-   cannot bypass a construction invariant: the all-ones collapse, the
-   :math:`-0.0` normalization and the read-only weights flag all survive
-   it, and that survival is asserted rather than assumed.
-#. **The generator is the rule, not the wrapped measure** — and that
+#. **Its content is the measure's; only the provenance differs.**
+   ``Axis.of_quadrature(q)`` and :meth:`Axis.of_measure(q.measure,
+   "angular") <orpheus.numerics.axis.Axis.of_measure>` mint one axis:
+   both pass the measure's shape and weights to the one constructor, and
+   the kind, support and atoms are read off the origin, whose
+   ``FromQuadrature`` and ``FromMeasure`` arms answer them from the same
+   measure. The constructor's ``__post_init__`` holds every invariant:
+   the all-ones collapse, the :math:`-0.0` normalization and the
+   read-only weights and atoms.
+#. **The origin is the rule, not the wrapped measure** — and that
    is the opposite of what the layering instinct suggests. The measure is the lower object, but it is also the
    quadrature *minus its side-channels*: ``level_indices`` is carried by
    :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`,
@@ -3391,20 +3391,21 @@ each one is load-bearing:
    needs. The refutation is developed at
    :ref:`spaces-generator-why-quadrature`.
 #. ``kind`` **is not a parameter.** A quadrature's components are point
-   values on the sphere, so the generator's type implies ``NODAL`` and
-   the mis-declaration "a nodal basis carrying no nodes" is unspellable
-   on this path.
+   values on the sphere, so the ``FromQuadrature`` arm implies ``NODAL``
+   and an axis claiming another kind beside its origin cannot be spelled.
 
 The consumer-facing consequence is that a caller holding an
 axis-composed space no longer needs the rule handed to it separately:
-``space.axis("angular").generator`` answers ``mu_x`` / ``eta`` /
-``mu_z`` / ``level_indices`` and the rest of the ordinate surface. ⚠ The
-generator is a **live reference** — a
+``match space.axis("angular").origin`` with ``case
+FromQuadrature(quad)`` recovers ``mu_x`` / ``eta`` / ``mu_z`` /
+``level_indices`` and the rest of the ordinate surface, and any other arm
+is refused through :func:`~orpheus.numerics.axis.quadrature_refusal`.
+⚠ The rule inside the origin is a **live reference** — a
 :class:`~orpheus.numerics.quadrature.directional.Quadrature` is a
-mutable dataclass — whereas the axis's own ``weights`` are a read-only
-defensive copy. Read the generator for what the axis forgot; read the
-axis for the factor measure of record
-(:ref:`spaces-axis-generator`).
+mutable dataclass — whereas the axis's own ``weights`` and ``nodes`` are
+read-only defensive copies. Read the origin for what the axis does not
+keep (the level fibration); read the axis for the factor measure and the
+atoms of record (:ref:`spaces-axis-origin`).
 
 The bit-identical contract
 --------------------------

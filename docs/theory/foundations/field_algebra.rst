@@ -772,8 +772,8 @@ axis-built — so production reaches only the* ``True`` *and* ``None``
 *arms. … It becomes production-reachable when CS2 mints the harmonic
 axis."* CS4c step 6 item 6.2c-ii minted it instead, for the metric's sake
 rather than CS2's: both moment heads carry ONE ``MODAL`` head axis
-(:class:`~orpheus.numerics.axis.HarmonicAxis` /
-:class:`~orpheus.numerics.axis.LegendreAxis`), so every moment space
+(two family subclasses then; since S7 of the numerics untangling one
+generic axis carrying the basis's coefficient layout), so every moment space
 answers ``False`` and every moment field's ``cone_violations`` is
 refused. `[M]` 2026-09-08, on the 33 shipped (rule, :math:`L`) frames:
 ``has_coordinate_cone`` is ``False`` on 33 of 33 (previously ``None`` on
@@ -977,7 +977,9 @@ Three readings, and each is a design decision made visible:
    phase CS5 the angular axis of
    :attr:`~orpheus.sn.problem.SNProblem.angular_bulk_space`
    carries its own :class:`~orpheus.numerics.quadrature.directional.Quadrature`
-   as an :attr:`~orpheus.numerics.axis.Axis.generator`, and two twin
+   as its provenance (the ``generator`` slot then, the origin
+   ``FromQuadrature(quad)`` since S7, :attr:`Axis.origin
+   <orpheus.numerics.axis.Axis.origin>`), and two twin
    carriers hold **different rule instances** (`[M]` ``a.quad is not
    b.quad``). *(Written 2026-08-29, and preserved:)* "Had provenance
    been admitted to the axis identity key, the top row would have

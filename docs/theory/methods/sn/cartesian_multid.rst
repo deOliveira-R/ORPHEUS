@@ -1598,7 +1598,11 @@ direction.*  Projecting the per-ordinate angular flux
 the typed home of which is
 :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
 on the space
-:math:`\mathrm{SphericalHarmonicSpace}(L) \otimes \mathrm{CellGroupSpace}`.
+:math:`\mathcal{H}_L \otimes \mathrm{CellGroupSpace}`, where
+:math:`\mathcal{H}_L` is the harmonic coefficient space of order
+:math:`L`: one axis indexed by the rectangular
+:class:`~orpheus.numerics.coefficient_layout.HarmonicLayout`
+:math:`(L+1, 2L+1)` (:ref:`spaces-moment-head`).
 The angular moment is a **replacement representation** of the angular flux:
 a calculation holds EITHER the per-ordinate field
 :math:`\psi` of shape :math:`(N, ng, *\text{spatial})` OR its harmonic
@@ -1675,14 +1679,14 @@ The two notions are summarised in the contrast table:
      - :math:`(\text{per\_axis})^d`
      - —
    * - Typed home
-     - the head space's ``MODAL``
-       :class:`~orpheus.numerics.axis.HarmonicAxis` (on a folded / 1-D
-       rule, :class:`~orpheus.numerics.axis.LegendreAxis`)
+     - the head space's one ``Modal`` axis, indexed by a
+       :class:`~orpheus.numerics.coefficient_layout.HarmonicLayout` (on a
+       1-D rule, a :class:`~orpheus.numerics.coefficient_layout.LegendreLayout`)
      - the scheme's ``MODAL`` ``spatial_moment``
        :class:`~orpheus.numerics.axis.Axis`
      - both ``MODAL`` axes of one axis-built space (both were
        ``FunctionSpace`` subclasses until 2026-09-08 — items 6.2c-ii
-       and 6.2c-iii)
+       and 6.2c-iii; the head was an axis subclass until S7)
    * - Role on the flux
      - **replacement** (hold :math:`\psi` OR :math:`\phi_\ell^m`)
      - **additional** (rides on either)
@@ -1715,7 +1719,7 @@ cell/group space,
 .. math::
    :label: two-moment-carrier-space
 
-   \mathrm{SphericalHarmonicSpace}(L)
+   \mathcal{H}_L
    \;\otimes\;
    \mathrm{CellGroupSpace}(ng, *\text{spatial})
    \;\otimes\;
@@ -1730,8 +1734,8 @@ cell/group space,
 
    **The first factor is named for this chapter's setting, not by
    construction.** A :math:`d \ge 2` Cartesian Problem carries a full-sphere
-   angular rule, so the angular head genuinely *is* a
-   :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`. In general
+   angular rule, so the angular head genuinely *is* the harmonic
+   coefficient space :math:`\mathcal{H}_L`. In general
    the head is *the coefficient space of the basis the Problem's quadrature
    bound at* :math:`L`, READ off the frame
    (:eq:`moment-space-read-off-the-frame`,
@@ -2098,8 +2102,8 @@ The typed-field-space half of S3-A (the half the scattering-lift TODO above
 flagged as a hard prerequisite).  The within-cell tensor-Legendre DG moment
 axis — how :math:`\psi` varies in space WITHIN a cell — is a
 first-class typed factor, the **spatial** sibling of the **angular**
-head (:class:`~orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace`
-on a full-sphere rule).
+head (the harmonic coefficient space :math:`\mathcal{H}_L` on a
+full-sphere rule).
 The two "moment" notions are ORTHOGONAL axes (angular harmonics over
 direction :math:`\Omega` vs spatial Legendre over within-cell position
 :math:`x`); naming each as its own typed factor keeps the distinction
@@ -2142,11 +2146,12 @@ factor does.
    :meth:`BulkField.spatial_moments_per_axis_of
    <orpheus.transport.fields._bases.BulkField.spatial_moments_per_axis_of>`
    reads off the space.
-   :meth:`~orpheus.numerics.space.TensorProductSpace.find_factor` itself
-   stays, still minted by this step, still the typed bridge from a
-   composed space back to a factor's metadata; its surviving queries are
-   the harmonic head's :math:`L` and the Legendre head's spent axis.
-   Both spellings answer the same question — *what is the moment width?*
+   ``TensorProductSpace.find_factor``, minted by this step as the typed
+   bridge from a composed space back to a factor's metadata, retired at
+   S7 of the numerics untangling: its last queries, the harmonic head's
+   :math:`L` and the Legendre head's spent axis, read the head's layout
+   (:func:`~orpheus.numerics.spaces.moment_head.head_layout`) and its
+   domain. Both spellings answer the same question — *what is the moment width?*
    — off the SPACE, never off a threaded integer, which is the ruling
    this section exists to record.
 
@@ -2214,8 +2219,8 @@ field legal:
        angular/spatial collision is dispelled at the type level
    * - Precedent
      - none — a one-off convention
-     - the EXACT mold of the angular
-       :class:`SphericalHarmonicSpace` factor (one architecture, two axes)
+     - the EXACT mold of the angular harmonic head (one architecture,
+       two axes)
 
 .. note::
 
@@ -2236,10 +2241,11 @@ field legal:
    so the moment field's norm is its energy on the tail as well as on
    the head. That is why the class could not simply be renamed.
 
-The typed factor is the same pattern the angular moment already uses: the
-harmonic factor is a :class:`SphericalHarmonicSpace` whose ``L`` is recovered
-by ``space.find_factor(SphericalHarmonicSpace).L``, NOT a bare integer
-threaded through the API.  Minting the spatial sibling keeps the two axes
+The typed factor is the same pattern the angular moment uses: the
+harmonic head's ``L`` is recovered from the space,
+``head_layout(space.factors[0]).L``
+(:func:`~orpheus.numerics.spaces.moment_head.head_layout`), NOT a bare
+integer threaded through the API.  Minting the spatial sibling keeps the two axes
 *symmetric* — the orthogonal-factor framing of :ref:`two-moment-axes` is then
 literally how the carrier space is built (:eq:`two-moment-carrier-space`).
 
@@ -2250,19 +2256,17 @@ literally how the carrier space is built (:eq:`two-moment-carrier-space`).
    :class:`HarmonicMomentFlux` docstrings (issue #207) but had never been
    IMPLEMENTED — three docstrings referenced a method that did not exist.  The
    spatial-moment work needed exactly this composition-tree query, so
-   :meth:`~orpheus.numerics.space.TensorProductSpace.find_factor` was minted
+   ``TensorProductSpace.find_factor`` was minted
    now: it returns the first tensor factor that ``isinstance(factor, T)`` and
    raises :exc:`KeyError` if absent (a structural assertion — the caller
    believes the composed space carries the factor — not a silent ``None``,
    Pattern 4).  Both moment factors (angular and spatial) were then
    queryable by type, and the latent broken claim in the docstrings was
-   made true.  ⛔ Half of that is now history: item 6.2c-iii retired the
-   spatial factor into an axis, so the SPATIAL width is read by label
-   rather than by ``find_factor``.  The method itself is untouched and
-   still live — the angular head is still a tensor factor, and
-   ``find_factor(SphericalHarmonicSpace).L`` still answers (`[M]`
-   2026-09-08, a widened 2-D LD moment product's factors are
-   ``[SphericalHarmonicSpace, FunctionSpace]``).
+   made true.  ⛔ That is now history in both halves: item 6.2c-iii
+   (2026-09-08) retired the spatial factor into an axis read by label, and
+   S7 of the numerics untangling (2026-10-22) retired the head classes and
+   ``find_factor`` with them, so the angular head's order is read off its
+   layout (:func:`~orpheus.numerics.spaces.moment_head.head_layout`).
 
 The Kronecker moment ordering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2456,7 +2460,7 @@ assertion), in two test modules:
    module, ``tests/gates/numerics/test_spatial_moment_space.py``, which pinned
    the ``SpatialMomentSpace`` class: the
    :math:`(\text{per\_axis})^d` size law, the
-   :meth:`~orpheus.numerics.space.TensorProductSpace.find_factor`
+   ``TensorProductSpace.find_factor``
    round-trip, the composition shape, the ``per_axis == 1`` no-widening
    case, and ``average_moment_index`` :math:`==`
    :data:`~orpheus.numerics.moment_layout.AVERAGE_MOMENT`.  Item
@@ -2468,7 +2472,9 @@ assertion), in two test modules:
    new module, the composition shape lives in both field-space modules,
    and the slot-0 identity is now the constant itself, imported
    directly by every consumer.  The head's ``find_factor`` round-trip
-   survives in ``tests/gates/numerics/test_moment_head_axis_built_premise.py``.
+   survived in ``tests/gates/numerics/test_moment_head_axis_built_premise.py``
+   until S7 of the numerics untangling retired ``find_factor``; that
+   module now records the retirement.
 
 The design record (the angular-vs-spatial distinction, the FP resolution) is
 ``.claude/plans/issue_240_d5b_s3_crosswalk.md``; the closeout is

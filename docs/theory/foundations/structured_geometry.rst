@@ -2285,12 +2285,19 @@ runtime:
        from face name to law, so the order of the faces is not content
    * - ``CellEdges``
      - ``edges``
-   * - ``Axis``, ``EnergyAxis``, ``HarmonicAxis``, ``LegendreAxis``
+   * - ``Axis``, ``EnergyAxis``
      - their dataclass fields: ``label``, ``shape``, ``weights``,
-       ``kind``; ``EnergyAxis`` adds ``edges`` and ``LegendreAxis`` adds
-       ``spent_axis``. The ``generator`` is declared
-       ``field(compare=False)``: provenance, not content
-       (:ref:`spaces-generator-identity-exclusion`)
+       ``kind``, ``support``, ``nodes``, ``layout`` (the last four derived
+       from the origin; ruling 71); ``EnergyAxis`` adds ``edges``. The
+       ``origin`` is declared ``field(compare=False)``: provenance, not
+       content (:ref:`spaces-generator-identity-exclusion`). Until S7 of
+       the numerics untangling two family subclasses, ``HarmonicAxis`` and
+       ``LegendreAxis`` (with ``spent_axis``), stood here; the layout part
+       replaced them
+   * - ``Modal``, the coefficient layouts
+     - ``Modal``: its ``unit``. ``HarmonicLayout`` and ``LegendreLayout``:
+       ``L``; ``CellLayout``: the per-axis ``edges``; ``ModeLayout``: the
+       declared ``unit`` and the ``label``
    * - ``FrozenMapping``
      - one part, ``items``: its (key, value) pairs, order-free. It keeps
        the declared order for iteration, is frozen and picklable, and is
@@ -2333,8 +2340,9 @@ raises :class:`~orpheus.numerics.content.ContentlessError` (a
 ``TypeError``) on a part it cannot encode, and the message names the
 path from the root value, for example
 ``_WithGeneratorInKey.generator: Quadrature is a mutable dataclass,
-whose content can change after it is keyed`` (`[M]`, the recipe of
-:ref:`spaces-generator-identity-third-answer`). A content-identity value
+whose content can change after it is keyed`` (`[M]` 2026-10-02, a
+throwaway ``Axis`` subclass admitting its provenance into the content,
+:ref:`spaces-generator-identity-exclusion`). A content-identity value
 holding such a part has no digest. It is then equal only to itself
 (identity is the honest equality of a value with no content) and it is
 unhashable, because an identity hash would let it into a persistent
