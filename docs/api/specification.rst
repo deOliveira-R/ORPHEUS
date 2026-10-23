@@ -55,3 +55,14 @@ deferred and the gates, is :ref:`structured-geometry-specification`.
 .. autodata:: orpheus.specification.specification.Coordinate
 
 .. autofunction:: orpheus.specification.specification.admit_observable
+
+The reference's wall is plain data:
+:class:`~orpheus.specification.exterior.WallAmplitudes` holds the two
+coordinates :math:`(s, d)` of a wall's linear part, the specular and the
+diffuse return fractions, in the triangle of sub-Markov walls
+(:math:`s, d \ge 0`, :math:`s + d \le 1`). A wall with both coordinates
+positive, a prescribed inflow and a zero-flux wall are not stated by the
+reference vocabulary yet; widening it is #650.
+
+.. automodule:: orpheus.specification.exterior
+   :members:

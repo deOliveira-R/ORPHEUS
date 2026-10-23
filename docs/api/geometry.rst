@@ -373,6 +373,36 @@ the theory page resolve to links.
    :members:
    :show-inheritance:
 
+Decks and the colouring symmetry
+--------------------------------
+
+A boundary face is either glued to a face of the same domain by a rigid
+motion, a *deck transformation*, or it is a *response* face, declared by
+an integer tag whose meaning the transport method supplies. The decks are a
+closed sum type, :data:`~orpheus.geometry.deck.DeckTransformation`, of
+:class:`~orpheus.geometry.deck.MirrorDeck` and
+:class:`~orpheus.geometry.deck.TranslationDeck`; the other four isometry
+classes are named, with the machinery that mints each, in
+:data:`~orpheus.geometry.deck.DEFERRED_DECKS`. A deck carries no fields:
+the face supplies the plane and the partner, and
+:func:`~orpheus.geometry.deck.pairing_of` derives the
+:class:`~orpheus.geometry.deck.FacePairing` a realizer reads.
+
+:func:`~orpheus.geometry.colouring.colouring_symmetry` computes the
+symmetry of a slab's material partition with its face roles: the face
+isometries that map the breakpoints onto themselves (each compared by the
+one convention :func:`~orpheus.geometry.chart.coordinates_agree`, 64 ulp at
+the partition's scale), the material ids exactly and the face roles onto
+equal roles.
+
+.. automodule:: orpheus.geometry.deck
+   :members:
+   :show-inheritance:
+
+.. automodule:: orpheus.geometry.colouring
+   :members:
+   :show-inheritance:
+
 Rigid motions and permutations
 ------------------------------
 
