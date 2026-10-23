@@ -55,7 +55,7 @@ import numpy as np
 import pytest
 
 from orpheus.sn.operators.streaming import StreamingCollisionOperator
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -65,6 +65,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
 
 pytestmark = [
     pytest.mark.foundation,
@@ -78,7 +79,7 @@ pytestmark = [
 def _slab_2g(nx: int = 5) -> SNProblem:
     """1-D slab, reflective, 2G (CumprodScan → M_spatial._compute_LpC)."""
     geom = StructuredGeometry.slab(
-        (0.0, 2.0), (0,), left=BC("reflective"), right=BC("reflective"),
+        (0.0, 2.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2))
@@ -92,11 +93,11 @@ def _cart2d_2g(nx: int = 4, ny: int = 5) -> SNProblem:
         edges_y=np.linspace(0.0, 2.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2))

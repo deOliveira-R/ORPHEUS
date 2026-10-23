@@ -102,10 +102,17 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import compute_macro_xs
 from orpheus.data.micro_xs import load_isotope
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.l2, pytest.mark.catches("ERR-082")]
 
@@ -180,7 +187,7 @@ def mesh():
         coord=CoordSystem.CARTESIAN,
         thicknesses=(3.0, 4.0, 3.0),
         mat_ids=(1, 0, 1),
-        boundaries=(BC.vacuum, BC.vacuum),
+        face_roles=(0, 0),
     )
     return Mesher(geom).partition((
         CellsByCount.uniform_volume(12),
@@ -218,7 +225,7 @@ def _solve(materials, mesh, quadrature, order: int) -> float:
             materials, mesh, quadrature,
             scattering_order=order,
             keff_tol=_KEFF_TOL, flux_tol=_FLUX_TOL,
-            inner_tol=_INNER_TOL, max_outer=_MAX_OUTER,
+            inner_tol=_INNER_TOL, max_outer=_MAX_OUTER, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
     if not sol.record.fully_converged:
         pytest.fail(

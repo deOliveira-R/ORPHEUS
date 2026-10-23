@@ -48,7 +48,7 @@ import functools
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.operators import streaming as sn_op
 from orpheus.sn import solve_sn
@@ -71,6 +71,13 @@ from tests.gates.sn.verification.analytical._aba_reference import (
     awaits_cylinder_bound,
     verify_cylinder_k,
 )
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -81,9 +88,9 @@ from tests.gates.sn.verification.analytical._aba_reference import (
 def _build_cyl(n_cells: int, quad) -> SNProblem:
     """Build a homogeneous reflective hollow cylinder mesh."""
     mesh = Mesher(StructuredGeometry.cylinder(
-        (0.1, 1.0), (0,), inner=BC("reflective"), outer=BC("reflective"),
+        (0.1, 1.0), (0,), inner=0, outer=0,
     )).partition(CellsByCount.uniform_width(n_cells)).mesh
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _bc_fill_outer(psi_view: np.ndarray, problem: SNProblem) -> np.ndarray:
@@ -390,7 +397,7 @@ def _unified_cylinder_solution():
         quadrature=Quadrature.folded_product(n_mu=4, n_phi=8),
         inner_solver="krylov",
         max_outer=200, keff_tol=1e-7, flux_tol=1e-7,
-        max_inner=200, inner_tol=1e-9,
+        max_inner=200, inner_tol=1e-9, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -466,7 +473,7 @@ def test_unified_cylinder_l1_homogeneous_kinf_2g() -> None:
 
     nx = 20
     mesh = Mesher(
-        StructuredGeometry.cylinder((0.0, 2.0), (0,), outer=BC("reflective")),
+        StructuredGeometry.cylinder((0.0, 2.0), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
 
@@ -476,7 +483,7 @@ def test_unified_cylinder_l1_homogeneous_kinf_2g() -> None:
             quadrature=quad,
             inner_solver="krylov",
             max_outer=200, keff_tol=1e-9, flux_tol=1e-8,
-            max_inner=200, inner_tol=1e-10,
+            max_inner=200, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
 
     rel = abs(sol.outcome.keff - k_analytical) / k_analytical

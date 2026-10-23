@@ -16,11 +16,18 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByMaxWidth, EqualWidth, Mesh1D, Mesher
 from orpheus.data.materials import InconsistentMaterialsError
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -40,7 +47,7 @@ def _slab_mesh(
 ) -> Mesh1D:
     """A vacuum slab over ``[0, 1]`` in cells of width 1/4, one material per interval."""
     return Mesher(StructuredGeometry.slab(
-        breakpoints, mat_ids, left=BC("vacuum"), right=BC("vacuum"),
+        breakpoints, mat_ids, left=0, right=0,
     )).partition(CellsByMaxWidth(0.25, EqualWidth())).mesh
 
 
@@ -49,17 +56,17 @@ def test_materials_required_positional_arg() -> None:
     mesh = _slab_mesh()
     quad = Quadrature.gauss_legendre(4)
     with pytest.raises(TypeError, match="materials"):
-        SNProblem(mesh, quad)
+        SNProblem(mesh, quad, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def test_ng_property_returns_uniform_ng() -> None:
     """Criterion 3: SNProblem.ng returns the materials' uniform ng."""
     mesh = _slab_mesh()
     quad = Quadrature.gauss_legendre(4)
-    problem = SNProblem(mesh, quad, {0: _mix(ng=2)})
+    problem = SNProblem(mesh, quad, {0: _mix(ng=2)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     assert problem.ng == 2
 
-    sn_mesh4 = SNProblem(mesh, quad, {0: _mix(ng=4)})
+    sn_mesh4 = SNProblem(mesh, quad, {0: _mix(ng=4)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     assert sn_mesh4.ng == 4
 
 
@@ -69,7 +76,7 @@ def test_inconsistent_ng_raises_inconsistent_materials_error() -> None:
     quad = Quadrature.gauss_legendre(4)
     materials = {0: _mix(ng=2), 1: _mix(ng=4)}
     with pytest.raises(InconsistentMaterialsError, match="uniform ng"):
-        SNProblem(mesh, quad, materials)
+        SNProblem(mesh, quad, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def test_missing_material_id_raises_value_error() -> None:
@@ -78,14 +85,14 @@ def test_missing_material_id_raises_value_error() -> None:
     quad = Quadrature.gauss_legendre(4)
     # Only id 0 is present; id 1 used in mat_ids triggers the validation.
     with pytest.raises(ValueError, match=r"material ids \[1\]"):
-        SNProblem(mesh, quad, {0: _mix(ng=2)})
+        SNProblem(mesh, quad, {0: _mix(ng=2)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def test_empty_materials_raises_value_error() -> None:
     mesh = _slab_mesh()
     quad = Quadrature.gauss_legendre(4)
     with pytest.raises(ValueError, match="non-empty materials"):
-        SNProblem(mesh, quad, {})
+        SNProblem(mesh, quad, {}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def test_materials_attribute_is_dict_passed() -> None:
@@ -93,7 +100,7 @@ def test_materials_attribute_is_dict_passed() -> None:
     mesh = _slab_mesh()
     quad = Quadrature.gauss_legendre(4)
     materials = {0: _mix(ng=2)}
-    problem = SNProblem(mesh, quad, materials)
+    problem = SNProblem(mesh, quad, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     # Un-weld arc (R20/R21): parsed into the stage-1 declaration at the
     # boundary — entries identical, the mapping itself no longer aliased.
     from orpheus.data.materials import Materials

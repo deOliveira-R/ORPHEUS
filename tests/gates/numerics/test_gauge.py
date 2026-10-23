@@ -39,7 +39,6 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.homogeneous.solver import HomogeneousProblem
 from orpheus.numerics.coupled_system import CoupledField
@@ -47,6 +46,7 @@ from orpheus.numerics.gauge import KernelGauge, ScaleGauge
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import _as_problem
 from orpheus.transport.full_field import FullField
+from orpheus.geometry.deck import MirrorDeck
 
 pytestmark = pytest.mark.foundation
 
@@ -71,7 +71,7 @@ def _zero_d(fam: str = "A", ng: str = "2g"):
     return problem, phi.reshape(-1, 1)
 
 
-_R = BC("reflective")
+_R = MirrorDeck()
 _QUAD = Quadrature.level_symmetric(sn_order=4)
 
 
@@ -90,7 +90,7 @@ def _gauge_singular_hub():
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, 4), edges_y=np.linspace(0.0, 2.0, 5),
         mat_map=np.zeros((3, 4), dtype=int),
-        face_laws={"xmin": _R, "xmax": _R, "ymin": _R, "ymax": _R},
+        face_roles={"xmin": _R, "xmax": _R, "ymin": _R, "ymax": _R},
     )
     return _as_problem(mesh, _QUAD, {0: _absorber()})
 

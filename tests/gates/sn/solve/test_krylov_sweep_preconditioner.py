@@ -70,6 +70,13 @@ from tests.gates.sn.operators._full_space_states import (
 )
 from tests.gates.sn.verification.analytical._aba_reference import aba_materials, aba_uniform_width_mesh
 from tests.gates.sn.verification.analytical._case_slab_reference import case_slab_mesh
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.l1]
 
@@ -248,7 +255,7 @@ def _krylov_solve(body: str, n: int):
     ``sn_solver._within_group_green_krylov`` currently names (the fixed-point row swaps in the identity)."""
     materials, mesh, quadrature = _problem(body, n)
     return sn_solver.solve_sn(materials, mesh, quadrature, inner_solver="krylov", max_outer=500, max_inner=500,
-                              keff_tol=_KEFF_TOL, inner_tol=_INNER_TOL)
+                              keff_tol=_KEFF_TOL, inner_tol=_INNER_TOL, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 #: The production solves, cached across the fixed-point and the rate rows.
@@ -425,7 +432,7 @@ def test_p200_5_no_inner_record_reads_unconverged_when_scipy_accepted(monkeypatc
     import warnings
 
     import orpheus.numerics.iteration as iteration_mod
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
 
     calls: list[tuple[int, float]] = []
@@ -437,13 +444,13 @@ def test_p200_5_no_inner_record_reads_unconverged_when_scipy_accepted(monkeypatc
         return x, info
 
     monkeypatch.setattr(iteration_mod.spla, "gmres", spy)
-    geometry = StructuredGeometry.slab((0.0, 10.0, 20.0), (0, 1), left=BC.vacuum, right=BC.vacuum)
+    geometry = StructuredGeometry.slab((0.0, 10.0, 20.0), (0, 1), left=0, right=0)
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(2)).mesh
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         solution = sn_solver.solve_sn(
             {0: _thin_mixture(_THIN_SCALE), 1: _thin_mixture(_THIN_SCALE / 2)}, mesh, Quadrature.gauss_legendre(8),
-            inner_solver="krylov", keff_tol=1e-10, inner_tol=1e-8, max_outer=300,
+            inner_solver="krylov", keff_tol=1e-10, inner_tol=1e-8, max_outer=300, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
     inner = [child for child in solution.record.children if child.label == "inner(gmres)"]
     assert inner and len(inner) == len(calls), f"{len(inner)} inner(gmres) records against {len(calls)} gmres calls"

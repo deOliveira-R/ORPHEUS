@@ -30,11 +30,22 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration.dsa import DSACorrection
 from orpheus.sn.solver import Solution, solve_sn_fixed_source
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
+#: The role of a face by the kind string the parametrized rows speak (a vacuum face is the tag whose condition is ``_CONDITIONS``).
+_ROLES = {"vacuum": 0, "reflective": MirrorDeck()}
+
 
 pytestmark = pytest.mark.l2
 
@@ -57,7 +68,7 @@ def _solve(
     """Het 2-zone, 2G, ℓ ≥ 1 slab, S4 — the Mode-9-honest config."""
     mats = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 10.0, 20.0), (0, 1), left=BC(bc[0]), right=BC(bc[1]),
+        (0.0, 10.0, 20.0), (0, 1), left=_ROLES[bc[0]], right=_ROLES[bc[1]],
     )).partition(CellsByCount.uniform_width(20)).mesh
     return solve_sn_fixed_source(
         materials=mats,
@@ -68,7 +79,7 @@ def _solve(
         inner_tol=_TOL,
         max_inner=max_inner,
         inner_solver=inner_solver,
-        acceleration=acceleration,
+        acceleration=acceleration, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -140,12 +151,12 @@ class TestD6CorrectionVanishes:
         from orpheus.transport.timed_full_field import TimedFullField
 
         mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 10.0, 20.0), (0, 1), left=BC("reflective"), right=BC("vacuum"),
+            (0.0, 10.0, 20.0), (0, 1), left=MirrorDeck(), right=0,
         )).partition(CellsByCount.uniform_width(20)).mesh
         problem = SNProblem(
             mesh,
             Quadrature.gauss_legendre(n_ordinates=4),
-            {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+            {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         corrector = DSACorrection.from_problem(problem)
         psi = TimedFullField(

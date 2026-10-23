@@ -45,7 +45,7 @@ from typing import Any, cast
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.basis.base import TruncatedBasis
 from orpheus.numerics.quadrature import Quadrature
@@ -68,6 +68,13 @@ from tests.gates.sn.operators._composite_operand import (
     zero_trace_composite,
 )
 from orpheus.numerics import frame_faces
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -87,7 +94,7 @@ _NX, _NG, _L = 4, 2, 1
 
 def _mesh():
     geom = StructuredGeometry.slab(
-        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 1.0), (0,), left=0, right=0,
     )
     return Mesher(geom).partition(CellsByCount.uniform_width(_NX)).mesh
 
@@ -102,7 +109,7 @@ def _mat_xs(sig_s=_SIGS, sig2=_SIG2):
 
 def _solver(sig_s=_SIGS, sig2=_SIG2, order=_L):
     mat_xs = _mat_xs(sig_s=sig_s, sig2=sig2)
-    sn = SNProblem(_mesh(), Quadrature.gauss_legendre(n_ordinates=4), mat_xs.materials, scattering_order=order)
+    sn = SNProblem((_carrier1 := _mesh()), Quadrature.gauss_legendre(n_ordinates=4), mat_xs.materials, scattering_order=order, boundary_conditions=conditions_for(_carrier1, _CONDITIONS))
     # SNProblem re-derives its own mat_xs field; use the SOLVER path so the
     # operator pair is the production mint (injection-consistent).
     return SNSolver(sn), sn
@@ -369,7 +376,7 @@ class TestAdmission:
         refused at construction — the CS4c step-4 harmonization kept the
         frame's ordinates as OPERATIVE state, and this is what enforces it."""
         solver, _ = _solver()
-        other = SNProblem(_mesh(), Quadrature.gauss_legendre(n_ordinates=2), solver.problem.mat_xs.materials)
+        other = SNProblem((_carrier2 := _mesh()), Quadrature.gauss_legendre(n_ordinates=2), solver.problem.mat_xs.materials, boundary_conditions=conditions_for(_carrier2, _CONDITIONS))
         other_interior = other.full_field_space.interior_space
         assert other_interior is not None
         wrong_face = HarmonicFrame.for_space(other_interior, _L).flux_analysis_on(other_interior)
@@ -384,7 +391,7 @@ class TestAdmission:
         scalar P0 half broadcasts against the wrong ordinate count inside the
         shared combine. Both faces are admitted now."""
         solver, _ = _solver()
-        other = SNProblem(_mesh(), Quadrature.gauss_legendre(n_ordinates=8), solver.problem.mat_xs.materials)
+        other = SNProblem((_carrier3 := _mesh()), Quadrature.gauss_legendre(n_ordinates=8), solver.problem.mat_xs.materials, boundary_conditions=conditions_for(_carrier3, _CONDITIONS))
         other_interior = other.full_field_space.interior_space
         assert other_interior is not None
         wrong_face = HarmonicFrame.for_space(other_interior, _L).source_reconstruction_on(other_interior)

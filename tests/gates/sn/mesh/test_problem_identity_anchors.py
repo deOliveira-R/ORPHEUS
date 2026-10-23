@@ -55,7 +55,7 @@ import pytest
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.angular.closure import IdentityAngularClosure
@@ -63,6 +63,14 @@ from orpheus.sn.problem import SNProblem
 from orpheus.sn.solution import Solution, SolutionBase
 from orpheus.mesh import AxisMesh
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.foundation, pytest.mark.catches("ERR-084")]
 
@@ -93,22 +101,22 @@ _SHARED_QUAD = Quadrature.level_symmetric(sn_order=4)
 _SHARED_MATS = _mats()
 
 
-def _axes(d: int, cells=(3, 4, 5), extents=(1.0, 2.0, 3.0), bc=(BC.reflective, BC.reflective)):
+def _axes(d: int, cells=(3, 4, 5), extents=(1.0, 2.0, 3.0), bc=(MirrorDeck(), MirrorDeck())):
     return tuple(
-        AxisMesh(edges=np.linspace(0.0, e, n + 1), bc_low=bc[0], bc_high=bc[1])
+        AxisMesh(edges=np.linspace(0.0, e, n + 1), role_low=bc[0], role_high=bc[1])
         for e, n in list(zip(extents, cells))[:d]
     )
 
 
-def _hub(d: int = 3, *, cells=(3, 4, 5), extents=(1.0, 2.0, 3.0), bc=(BC.reflective, BC.reflective),
+def _hub(d: int = 3, *, cells=(3, 4, 5), extents=(1.0, 2.0, 3.0), bc=(MirrorDeck(), MirrorDeck()),
          quad=None, mats=None, scheme=None, mat_map=None) -> SNProblem:
     """A hub over the SHARED quadrature and materials — the spatial leg isolated."""
     return SNProblem.from_axes(
-        _axes(d, cells, extents, bc),
+        (_carrier1 := _axes(d, cells, extents, bc)),
         _SHARED_QUAD if quad is None else quad,
         _SHARED_MATS if mats is None else mats,
         mat_map=mat_map,
-        scheme=scheme,
+        scheme=scheme, boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
     )
 
 
@@ -126,7 +134,7 @@ def _hub_independent(d: int = 3, **kw) -> SNProblem:
 def _slab_two_region() -> tuple[dict[int, Mixture], Mesh1D, Quadrature]:
     """The two-region 2-group slab the order rows solve on."""
     geometry = StructuredGeometry.slab(
-        (0.0, 1.0, 2.0), (0, 1), left=BC("reflective"), right=BC("reflective"),
+        (0.0, 1.0, 2.0), (0, 1), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
     return _mats(), mesh, Quadrature.gauss_legendre(4)
@@ -135,7 +143,7 @@ def _slab_two_region() -> tuple[dict[int, Mixture], Mesh1D, Quadrature]:
 #: The closure pair's shared geometry and quadrature — shared by ``is`` so the
 #: pair isolates the CLOSURE and nothing else.
 _SPHERE_MESH = Mesher(
-    StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum")),
+    StructuredGeometry.sphere((0.0, 1.0), (0,), outer=0),
 ).partition(CellsByCount.uniform_width(4)).mesh
 _SPHERE_QUAD = Quadrature.gauss_legendre(4)
 
@@ -148,7 +156,7 @@ def _sphere(closure=None) -> SNProblem:
     CYLINDRICAL …``), so the closure witness must be built the other way
     round — a sphere carrying the Cartesian ``IdentityAngularClosure``.
     """
-    return SNProblem(_SPHERE_MESH, _SPHERE_QUAD, _SHARED_MATS, angular_closure=closure)
+    return SNProblem(_SPHERE_MESH, _SPHERE_QUAD, _SHARED_MATS, angular_closure=closure, boundary_conditions=conditions_for(_SPHERE_MESH, _CONDITIONS))
 
 
 class TestTheClosureExclusionSurvives:
@@ -224,7 +232,7 @@ class TestSamePhaseSpaceIsContractibilityByContent:
         [
             ("edges", dict(extents=(1.0, 2.0, 9.0))),
             ("cell_count", dict(cells=(3, 4, 6))),
-            ("bc_tag", dict(bc=(BC("vacuum"), BC("reflective")))),
+            ("bc_tag", dict(bc=(0, MirrorDeck()))),
             ("quadrature", dict(quad=Quadrature.level_symmetric(sn_order=6))),
             ("materials", dict(mats={0: get_mixture("A", "2g"), 1: get_mixture("C", "2g")})),
             ("scheme_type", dict(scheme=LinearDiscontinuous())),
@@ -262,8 +270,8 @@ class TestSamePhaseSpaceIsContractibilityByContent:
         and ``condense(adjoint=…)`` must proceed.
         """
         mats, mesh, quad = _slab_two_region()
-        a = SNProblem(mesh, quad, mats, scattering_order=0) 
-        b = SNProblem(mesh, quad, mats, scattering_order=3) 
+        a = SNProblem(mesh, quad, mats, scattering_order=0, boundary_conditions=conditions_for(mesh, _CONDITIONS)) 
+        b = SNProblem(mesh, quad, mats, scattering_order=3, boundary_conditions=conditions_for(mesh, _CONDITIONS)) 
         _require(a.scattering_order != b.scattering_order,
                  "activation: the two hubs must retain DIFFERENT orders")
         _require(a.same_phase_space(b), "R-cc8: the order does not move the field layout")
@@ -306,8 +314,8 @@ class TestProblemIdentityIsEveryGeneratingDatum:
         the row cannot decay into one.
         """
         mats, mesh, quad = _slab_two_region()
-        a = SNProblem(mesh, quad, mats, scattering_order=0) 
-        b = SNProblem(mesh, quad, mats, scattering_order=3) 
+        a = SNProblem(mesh, quad, mats, scattering_order=0, boundary_conditions=conditions_for(mesh, _CONDITIONS)) 
+        b = SNProblem(mesh, quad, mats, scattering_order=3, boundary_conditions=conditions_for(mesh, _CONDITIONS)) 
         _require(a.scattering_order == 0, "activation: the P0 hub retains 0") 
         _require(b.scattering_order == 1, "activation: P3 CLAMPS to 1 on this library")
         _require(not (a == b), "R-cc4: two retained orders are two problems")
@@ -367,7 +375,7 @@ class TestTheHubOwnsTheClampedOrder:
             min(len(m.SigS) for m in mats.values()) - 1 == 1,
             "activation: this expectation table assumes a P1 library",
         )
-        hub = SNProblem(mesh, quad, mats, scattering_order=requested)
+        hub = SNProblem(mesh, quad, mats, scattering_order=requested, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         _require(hub.scattering_order == retained,
                  f"request {requested} must retain {retained}")
 
@@ -403,7 +411,7 @@ class TestTheHubOwnsTheClampedOrder:
         kernels.TransferKernel.at_order = _spy
         try:
             solve_sn_adjoint(mats, mesh, quad, scattering_order=3,
-                             keff_tol=1e-9, inner_tol=1e-10, max_outer=400)
+                             keff_tol=1e-9, inner_tol=1e-10, max_outer=400, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         finally:
             kernels.TransferKernel.at_order = original
         _require(seen, "activation: the spy must observe at least one at_order call")
@@ -474,7 +482,7 @@ class TestTheInternedGeometryCacheUnderContentIdentity:
         read 2 — one table per hub under identity keys; the rejected instance
         validation would have read 6, the ping-pong.)"""
         mats, mesh, quad = _slab_two_region()
-        a, b = SNProblem(mesh, quad, mats), SNProblem(mesh, quad, mats)
+        a, b = SNProblem(mesh, quad, mats, boundary_conditions=conditions_for(mesh, _CONDITIONS)), SNProblem(mesh, quad, mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         _require(a is not b and a == b, "activation: two distinct, content-equal, live hubs")
         _require(
             self._count_builds(a, b) == 1,
@@ -489,7 +497,7 @@ class TestTheInternedGeometryCacheUnderContentIdentity:
         row exists to make impossible.
         """
         mats, mesh, quad = _slab_two_region()
-        a, b = SNProblem(mesh, quad, mats), SNProblem(mesh, quad, mats)
+        a, b = SNProblem(mesh, quad, mats, boundary_conditions=conditions_for(mesh, _CONDITIONS)), SNProblem(mesh, quad, mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         _require(a == b, "activation: the two hubs must be content-equal after the carve")
         builds = self._count_builds(a, b)
         _require(

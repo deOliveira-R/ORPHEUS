@@ -54,7 +54,7 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.green_operator import ConvergenceFailure, GreenOperator
 from orpheus.numerics.iteration import SourceIteration, seeded_inverse
@@ -75,6 +75,13 @@ from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn.operators.test_removal_form_matvec_sweep import _random_state
 from dataclasses import replace
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -100,13 +107,13 @@ def _het_scattering_slab() -> SNProblem:
         coord=CoordSystem.CARTESIAN,
         thicknesses=(1.0, 2.0),
         mat_ids=(0, 1),
-        boundaries=(BC("vacuum"), BC("vacuum")),
+        face_roles=(0, 0),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(3)).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4),
         {0: _mix([1.0, 1.5], [[0.38, 0.10], [0.05, 0.60]]),
-         1: _mix([1.2, 1.8], [[0.55, 0.03], [0.12, 0.40]])},
+         1: _mix([1.2, 1.8], [[0.55, 0.03], [0.12, 0.40]])}, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 

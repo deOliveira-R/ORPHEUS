@@ -72,10 +72,17 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.l1
 
@@ -138,11 +145,11 @@ def _build_2d_aniso_het_vacuum():
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=mat,
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
@@ -171,11 +178,11 @@ def _build_2d_het_all_reflective():
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=mat,
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
@@ -189,7 +196,7 @@ def _solve_fixed_source(builder):
     mats, mesh, quad, q = builder()
     return solve_sn_fixed_source(
         mats, mesh, quad, q, scattering_order=1,
-        inner_solver="source_iteration", max_inner=3000, inner_tol=1e-12,
+        inner_solver="source_iteration", max_inner=3000, inner_tol=1e-12, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -288,12 +295,12 @@ def test_g6_eigenvalue_hits_kinf_window():
         edges_x=np.linspace(0.0, 1.0, 3),
         edges_y=np.linspace(0.0, 1.0, 3),
         mat_map=np.zeros((2, 2), dtype=int),
-        face_laws={face: BC.reflective for face in ("xmin", "xmax", "ymin", "ymax")},
+        face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     with window_forced() as hits:
         sol = solve_sn(
             {0: mix}, mesh, Quadrature.level_symmetric(sn_order=4),
-            keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10,
+            keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
     _require_ran(hits, "sweep_interior")
     assert np.isfinite(sol.outcome.keff)
@@ -320,21 +327,21 @@ def test_g6_si_krylov_heterogeneous_window():
         edges_x=np.linspace(0.0, nx * 0.25, nx + 1),
         edges_y=np.linspace(0.0, ny * 0.25, ny + 1),
         mat_map=mat,
-        face_laws={face: BC.reflective for face in ("xmin", "xmax", "ymin", "ymax")},
+        face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     quad = Quadrature.level_symmetric(sn_order=4)
 
     with window_forced() as hits:
         sol_si = solve_sn(
             materials, mesh, quad, inner_solver="source_iteration",
-            keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10,
+            keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
     _require_ran(hits, "sweep_interior")
 
     with window_forced() as hits:
         sol_kry = solve_sn(
             materials, mesh, quad, inner_solver="krylov",
-            keff_tol=1e-12, flux_tol=1e-10, max_inner=4000, inner_tol=1e-8,
+            keff_tol=1e-12, flux_tol=1e-10, max_inner=4000, inner_tol=1e-8, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
     _require_ran(hits, "loss_action")
 

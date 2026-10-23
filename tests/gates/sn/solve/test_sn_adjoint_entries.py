@@ -50,7 +50,7 @@ from orpheus.derivations.common.eigenvalue import (
     kinf_and_adjoint_spectrum_homogeneous,
 )
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solution import AdjointSolution, Solution
@@ -63,6 +63,14 @@ from orpheus.sn.solver import (
 
 from tests.gates.sn._test_helpers import energy_spectrum, g_inner
 from orpheus.numerics import frame_faces
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+from orpheus.geometry.deck import MirrorDeck, FaceRole
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.l1
 
@@ -76,7 +84,7 @@ def _quad():
     return Quadrature.gauss_legendre(n_ordinates=8)
 
 
-def _homogeneous_2g(law: BC = BC.reflective):
+def _homogeneous_2g(law: FaceRole = MirrorDeck()):
     """The homogeneous 2G slab [0, 5], 10 cells, ``law`` on both faces
     (reflective: the infinite medium)."""
     mix = get_mixture("A", "2g")
@@ -108,11 +116,11 @@ class TestSolveSnAdjoint:
         materials, mesh, mix = _homogeneous_2g()
         fwd = solve_sn(
             materials, mesh, _quad(),
-            keff_tol=1e-9, flux_tol=1e-8, inner_tol=1e-10, max_inner=500,
+            keff_tol=1e-9, flux_tol=1e-8, inner_tol=1e-10, max_inner=500, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         adj = solve_sn_adjoint(
             materials, mesh, _quad(),
-            keff_tol=1e-9, flux_tol=1e-8, inner_tol=1e-10, max_inner=500,
+            keff_tol=1e-9, flux_tol=1e-8, inner_tol=1e-10, max_inner=500, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         k_adj, k_fwd = float(adj.outcome.keff), float(fwd.outcome.keff)
 
@@ -170,7 +178,7 @@ class TestSolveSnAdjoint:
         from orpheus.transport.timed_full_field import TimedFullField
 
         materials, mesh, _ = _homogeneous_2g()
-        adj = solve_sn_adjoint(materials, mesh, _quad())
+        adj = solve_sn_adjoint(materials, mesh, _quad(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         require(
             type(adj) is AdjointSolution,
             "solve_sn_adjoint must return the role-typed AdjointSolution "
@@ -220,7 +228,7 @@ def _het_vacuum_slab():
     r"""2-material heterogeneous VACUUM slab, asymmetric SigS (A/B 2G)."""
     mats = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 1.0, 3.0, 4.0), (0, 1, 0), left=BC.vacuum, right=BC.vacuum,
+        (0.0, 1.0, 3.0, 4.0), (0, 1, 0), left=0, right=0,
     )).partition((
         CellsByCount.uniform_width(2),
         CellsByCount.uniform_width(4),
@@ -239,13 +247,13 @@ class TestSolveSnAdjointFixedSource:
         this row covers the remaining three on the cheap fixture: the
         fixed-source entries on the vacuum slab, the eigenvalue entry on the
         reflective one.)"""
-        materials, mesh, _ = _homogeneous_2g(BC.vacuum)
-        _, reflective_mesh, _ = _homogeneous_2g(BC.reflective)
+        materials, mesh, _ = _homogeneous_2g(0)
+        _, reflective_mesh, _ = _homogeneous_2g(MirrorDeck())
         quad = _quad()
         N, ng, nx = quad.n_ordinates, 2, 10
 
         fwd_fs = solve_sn_fixed_source(
-            materials, mesh, quad, np.ones((N, ng, nx)),
+            materials, mesh, quad, np.ones((N, ng, nx)), boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         require(
             type(fwd_fs) is Solution,
@@ -253,7 +261,7 @@ class TestSolveSnAdjointFixedSource:
             "Solution leaf (A5 role axis).",
         )
         adj_fs = solve_sn_adjoint_fixed_source(
-            materials, mesh, quad, np.ones((ng, nx)),
+            materials, mesh, quad, np.ones((ng, nx)), boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         require(
             type(adj_fs) is AdjointSolution,
@@ -266,7 +274,7 @@ class TestSolveSnAdjointFixedSource:
             "SourceOutcome, no keff attribute at all) — the two "
             "discrimination axes are independent.",
         )
-        fwd_k = solve_sn(materials, reflective_mesh, quad)
+        fwd_k = solve_sn(materials, reflective_mesh, quad, boundary_conditions=conditions_for(reflective_mesh, _CONDITIONS))
         require(
             type(fwd_k) is Solution,
             "solve_sn must return exactly the forward Solution leaf "
@@ -311,7 +319,7 @@ class TestSolveSnAdjointFixedSource:
         ).copy()
         fwd = solve_sn_fixed_source(
             mats, mesh, quad, q_per_ord,
-            inner_tol=1e-12, max_inner=2000,
+            inner_tol=1e-12, max_inner=2000, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
 
         # Adjoint: thermal (g=1) detector in the RIGHT region.
@@ -319,7 +327,7 @@ class TestSolveSnAdjointFixedSource:
         sigma_d[1, 6:8] = 0.7
         adj = solve_sn_adjoint_fixed_source(
             mats, mesh, quad, sigma_d,
-            inner_tol=1e-12, max_inner=2000,
+            inner_tol=1e-12, max_inner=2000, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
 
         # The pairings, on the SAME independent G.
@@ -373,19 +381,19 @@ class TestSolveSnAdjointFixedSource:
         silently unexercised (#276 A4 scope note)."""
         mats = {0: get_mixture("A", "2g")}
         sphere = Mesher(StructuredGeometry.sphere(
-            (0.0, 3.0), (0,), outer=BC.vacuum,
+            (0.0, 3.0), (0,), outer=0,
         )).partition(CellsByCount.uniform_width(6)).mesh
         with pytest.raises(NotImplementedError, match="(?i)coupled"):
             solve_sn_adjoint_fixed_source(
                 mats, sphere, Quadrature.gauss_legendre(n_ordinates=8),
-                np.ones((2, 6)),
+                np.ones((2, 6)), boundary_conditions=conditions_for(sphere, _CONDITIONS),
             )
 
     def test_detector_shape_validation(self):
         mats, mesh = _het_vacuum_slab()
         with pytest.raises(ValueError, match="detector_response shape"):
             solve_sn_adjoint_fixed_source(
-                mats, mesh, _quad(), np.ones((3, 8)),
+                mats, mesh, _quad(), np.ones((3, 8)), boundary_conditions=conditions_for(mesh, _CONDITIONS),
             )
 
 
@@ -540,11 +548,11 @@ def _response_pair(quad, order: int):
     fwd = solve_sn_fixed_source(
         mats, mesh, quad,
         np.broadcast_to((q_iso / W)[None], (quad.n_ordinates, ng, nx)).copy(),
-        scattering_order=order, inner_tol=_RUNG_INNER_TOL, max_inner=5000,
+        scattering_order=order, inner_tol=_RUNG_INNER_TOL, max_inner=5000, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     adj = solve_sn_adjoint_fixed_source(
         mats, mesh, quad, sigma_d,
-        scattering_order=order, inner_tol=_RUNG_INNER_TOL, max_inner=5000,
+        scattering_order=order, inner_tol=_RUNG_INNER_TOL, max_inner=5000, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     V = np.diff(np.asarray(mesh.edges))
     forward = float(np.sum(V * sigma_d * np.asarray(fwd.scalar_flux.values)))
@@ -562,7 +570,7 @@ def _dense_scattering(quad, order: int, *, transposed: bool = False):
     from tests.gates.sn.operators._composite_operand import bulk_apply
 
     mats, mesh = _rung_slab(transposed=transposed)
-    problem = SNProblem(mesh, quad, mats, scattering_order=order)
+    problem = SNProblem(mesh, quad, mats, scattering_order=order, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     S = problem.system.factors.scattering
     shape = (quad.n_ordinates, 2, mesh.N)
     n = int(np.prod(shape))

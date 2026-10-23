@@ -52,7 +52,7 @@ from tests.gates.sn._test_helpers import rc_march
 
 import orpheus.sn.operators.radial_characteristic as _rc_mod
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellEdges, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -61,6 +61,13 @@ from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.radial_characteristic_field import (
     RadialCharacteristicField,
 )
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.l1
 
@@ -88,9 +95,9 @@ def _mixture(ng: int):
 
 def _sphere(edges: np.ndarray, ng: int = _NG):
     """A seed-carrying sphere (GL S4) on the given radial edges."""
-    geom = StructuredGeometry.sphere((edges[0], edges[-1]), (0,), outer=BC("vacuum"))
+    geom = StructuredGeometry.sphere((edges[0], edges[-1]), (0,), outer=0)
     mesh = Mesher(geom).partition(CellEdges(edges)).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(ng)})
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(ng)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _uniform_edges(nx: int) -> np.ndarray:

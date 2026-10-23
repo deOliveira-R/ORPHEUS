@@ -1,7 +1,7 @@
 r"""Tests for the SNProblem BC-resolution wiring (Wave 8 + C188.3 + C4 + #290 P7b).
 
-The Wave-8 SNProblem routes BC resolution through
-:class:`SNBoundaryRealizer` for every supported mesh. C4 (#220) made
+The Wave-8 SNProblem routes BC resolution through the realizer table
+(:data:`~orpheus.sn.boundary.realizer.SN_REALIZERS`, one door) for every supported mesh. C4 (#220) made
 the resolution surface dimension-generic: ONE loop over the face
 labels populates the face-name-keyed :attr:`SNProblem.bc` dict
 (``sn.bc["xmin"]`` …), whose keys equal
@@ -9,10 +9,11 @@ labels populates the face-name-keyed :attr:`SNProblem.bc` dict
 ``face_labels`` through the single-sourced
 :attr:`FaceLabel.face_name` crosswalk). Since #290 P7b that loop is
 the ONE shared ``TransportMethod`` body
-(:func:`orpheus.transport.method.resolve_boundary_conditions`), and
-``SNProblem.realize_boundary_law`` is the SN arm it dispatches. Each
-entry is a :class:`_BoundBoundaryOperator` shim wrapping the 1-arg
-realized :class:`LinearOperator`. The pre-C4 named attributes
+(:func:`orpheus.transport.method.realize_boundary`), and the SN realizer
+table is the arm it dispatches. Each entry is a typed
+:class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary` (wave 2 S2b:
+the forwarding shim of the earlier spelling is retired), whose ``inner`` is the
+1-arg realized :class:`LinearOperator`. The pre-C4 named attributes
 (``bc_xmin`` … ``bc_ymax``, ``bc_left`` / ``bc_right`` aliases,
 degenerate 1-D y-placeholders) are retired — negatives pinned below.
 
@@ -20,7 +21,7 @@ Issue #188 / C188.3: the curvilinear bypass branch in
 ``_resolve_one`` is gone. With the unified
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`'s curvilinear
 support, 1-D spherical and 1-D cylindrical meshes route through the
-SAME realizer-then-shim path as Cartesian meshes — but a solid
+SAME realizer path as Cartesian meshes — but a solid
 sphere / cylinder has only the outer (``xmax``) boundary face; the
 pole r=0 is the angular closure's regularity condition, so the
 ``bc`` dict has NO pole entry (structurally absent, not ``None``).
@@ -29,7 +30,7 @@ V&V tags
 --------
 ``@pytest.mark.l1`` — the wiring assertions are cross-implementation
 checks (Wave-5 realizer dispatch + Wave-2 trace-mask construction +
-Wave-8 shim composition produce the same observable per-face apply).
+Wave-8 composition produce the same observable per-face apply).
 
 Verification design (C4):
 ``.claude/agent-memory/test-architect/c4_snmesh_bc_dict_verification.md``.
@@ -39,10 +40,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
-from orpheus.sn.boundary.bound_compat import _BoundBoundaryOperator
+from orpheus.sn.boundary.realized_operators import ScaledOrdinatePermutation, ZeroMap
 from orpheus.numerics.elementary_operators import PermutationOperator
 from orpheus.numerics.operator import ZeroMorphism
 from orpheus.numerics.operator import (
@@ -54,6 +54,16 @@ from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from tests._harness.references import mirror_partner_indices
 from tests.gates.sn._test_helpers import local_positions, placeholder_materials
+from orpheus.geometry.deck import MirrorDeck, TranslationDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(1.0)}
+#: The table of a curved body whose faces all carry the tag 1, the unit specular wall (a curved reflector is a response, rule R2).
+_REFLECTING_CURVED = {1: WallCondition.specular(1.0)}
+
 
 
 pytestmark = pytest.mark.l1
@@ -104,7 +114,7 @@ def quad_1d():
 
 
 def test_2d_cartesian_vacuum_xmin_is_the_zero_map(quad_2d):
-    r"""Vacuum on xmin: the realized shim maps :math:`\Gamma_+ \to \Gamma_-`
+    r"""Vacuum on xmin: the realized operator maps :math:`\Gamma_+ \to \Gamma_-`
     and its whole image is zero.
 
     RE-POSED at campaign phase **B3.2** (C-1). The pre-B3.2 claim was
@@ -117,16 +127,15 @@ def test_2d_cartesian_vacuum_xmin_is_the_zero_map(quad_2d):
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
         mat_map=np.zeros((4, 3), dtype=int),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": 0,
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
-    sn = SNProblem(mesh, quad_2d, placeholder_materials())
-    assert isinstance(sn.bc["xmin"], _BoundBoundaryOperator)
-    assert isinstance(sn.bc["xmin"].law, VacuumInflow)
+    sn = SNProblem(mesh, quad_2d, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    assert isinstance(sn.bc["xmin"], ZeroMap)
 
     rng = np.random.default_rng(42)
     # S4-amendment: the probe is an HONEST Γ₊ element — (ng=1, ny=3)
@@ -143,12 +152,12 @@ def test_2d_cartesian_vacuum_xmin_is_the_zero_map(quad_2d):
 
 
 def test_2d_cartesian_reflective_ymax_returns_narrowed_permutation(quad_2d):
-    r"""Reflective on ymax: the realized shim returns ``psi[ref][inflow]``,
+    r"""Reflective on ymax: the realized operator returns ``psi[ref][inflow]``,
     the pre-B3.2 full-face gather RESTRICTED to :math:`\Gamma_-`.
 
     RE-POSED at B3.2. The reference is the pre-B3.2 full-face gather with the
     inflow rows selected — which is exactly the bit-identity claim the phase
-    makes at the mesh-wired shim — and its partner map is the independent
+    makes at the mesh-wired operator — and its partner map is the independent
     geometric reference (§7d.3), built without ``to_local`` and without any
     production pairing derivation, so neither a remap error nor a pairing
     error can cancel against it.
@@ -156,16 +165,15 @@ def test_2d_cartesian_reflective_ymax_returns_narrowed_permutation(quad_2d):
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
         mat_map=np.zeros((4, 3), dtype=int),
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
-    sn = SNProblem(mesh, quad_2d, placeholder_materials())
-    assert isinstance(sn.bc["ymax"], _BoundBoundaryOperator)
-    assert isinstance(sn.bc["ymax"].law, ReflectiveBoundary)
+    sn = SNProblem(mesh, quad_2d, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    assert isinstance(sn.bc["ymax"], ScaledOrdinatePermutation) and sn.bc["ymax"].alpha == 1.0
 
     rng = np.random.default_rng(1)
     psi = rng.standard_normal(size=(quad_2d.n_ordinates, 4, 2))
@@ -198,14 +206,14 @@ def test_2d_reflective_y_face_builds_y_axis_permutation(quad_2d):
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
         mat_map=np.zeros((4, 3), dtype=int),
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
-    sn = SNProblem(mesh, quad_2d, placeholder_materials())
+    sn = SNProblem(mesh, quad_2d, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     for face, axis, wrong_axis in (
         ("ymin", "y", "x"), ("ymax", "y", "x"), ("xmin", "x", "y"),
     ):
@@ -241,9 +249,9 @@ def test_2d_cartesian_construction_populates_trace(quad_2d):
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
         mat_map=np.zeros((4, 3), dtype=int),
-        face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
+        face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")},
     )
-    sn = SNProblem(mesh, quad_2d, placeholder_materials())
+    sn = SNProblem(mesh, quad_2d, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     assert sn._trace is not None
     assert sn._trace.face_names == ("xmin", "xmax", "ymin", "ymax")
     # xmin: inflow ordinates have mu_x > 0
@@ -259,17 +267,16 @@ def test_2d_cartesian_construction_populates_trace(quad_2d):
 
 
 def test_1d_cartesian_vacuum_right_is_the_zero_map(quad_1d):
-    r"""1-D slab with vacuum on right: the realized shim is the zero map
+    r"""1-D slab with vacuum on right: the realized operator is the zero map
     :math:`\Gamma_+ \to \Gamma_-`.
 
     RE-POSED at **B3.2** from "zeros only the inflow rows, passes the rest
     through" — see the 2-D sibling for why the pass-through claim retired.
     """
-    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=BC("reflective"), right=BC("vacuum"))
+    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=MirrorDeck(), right=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(8)).mesh
-    sn = SNProblem(mesh, quad_1d, placeholder_materials())
-    assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
-    assert isinstance(sn.bc["xmax"].law, VacuumInflow)
+    sn = SNProblem(mesh, quad_1d, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    assert isinstance(sn.bc["xmax"], ZeroMap)
 
     # S4-amendment: an honest Γ₊ element carries the declared ng=1 tail.
     psi = np.arange(quad_1d.n_ordinates, dtype=float).reshape(quad_1d.n_ordinates, 1)
@@ -298,27 +305,27 @@ def test_bc_inventory_equals_face_layout_across_geometries(quad_1d, quad_2d):
     """
     slab = SNProblem(
         Mesher(StructuredGeometry.slab(
-            (0.0, 1.0), (0,), left=BC.reflective, right=BC.reflective,
+            (0.0, 1.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
         )).partition(CellsByCount.uniform_width(4)).mesh,
         quad_1d, placeholder_materials(),
     )
     two_d = SNProblem(
-        Mesh2D(edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
+        (_carrier1 := Mesh2D(edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
                mat_map=np.zeros((4, 3), dtype=int),
-               face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")}),
-        quad_2d, placeholder_materials(),
+               face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")})),
+        quad_2d, placeholder_materials(), boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
     )
     sphere = SNProblem(
         Mesher(StructuredGeometry.sphere(
-            (0.1, 1.0), (0,), inner=BC.reflective, outer=BC.reflective,
+            (0.1, 1.0), (0,), inner=1, outer=1,
         )).partition(CellsByCount.uniform_width(5)).mesh,
-        quad_1d, placeholder_materials(),
+        quad_1d, placeholder_materials(), boundary_conditions=_REFLECTING_CURVED,
     )
     cylinder = SNProblem(
         Mesher(StructuredGeometry.cylinder(
-            (0.1, 1.0), (0,), inner=BC.reflective, outer=BC.reflective,
+            (0.1, 1.0), (0,), inner=1, outer=1,
         )).partition(CellsByCount.uniform_width(5)).mesh,
-        Quadrature.folded_product(n_mu=4, n_phi=8), placeholder_materials(),
+        Quadrature.folded_product(n_mu=4, n_phi=8), placeholder_materials(), boundary_conditions=_REFLECTING_CURVED,
     )
     expected = {
         "slab": (slab, {"xmin", "xmax"}),
@@ -336,13 +343,13 @@ def test_bc_inventory_equals_face_layout_across_geometries(quad_1d, quad_2d):
 def test_bc_dict_misses_and_retired_attributes_fail_loud(quad_1d):
     """Negatives: a face that doesn't exist is a ``KeyError`` (plain
     dict — no masking default), and the retired named attributes are
-    ``AttributeError`` (no silent ``None``-shim survives; a read-through
+    ``AttributeError`` (no silent ``None`` placeholder survives; a read-through
     ``@property`` reappearing would be a deprecation outliving its
     cycle).
     """
     slab = SNProblem(
         Mesher(StructuredGeometry.slab(
-            (0.0, 1.0), (0,), left=BC.reflective, right=BC.reflective,
+            (0.0, 1.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
         )).partition(CellsByCount.uniform_width(4)).mesh,
         quad_1d, placeholder_materials(),
     )
@@ -375,17 +382,16 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
     Cartesian ones — is what this test is for and it is unchanged; only the
     object at the end of that path moved.
     """
-    geom = StructuredGeometry.sphere((0.1, 1.0), (0,), inner=BC.reflective, outer=BC("vacuum"))
+    geom = StructuredGeometry.sphere((0.1, 1.0), (0,), inner=1, outer=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(5)).mesh
-    sn = SNProblem(mesh, quad_1d, placeholder_materials())
-    # Realizer path: shim wraps a realized 1-arg op — since B3.2 the honest
+    sn = SNProblem(mesh, quad_1d, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    # Realizer path: the entry is the realized 1-arg op — since B3.2 the honest
     # ``Γ₊ → Γ₋`` zero map (no tensor-product lift: there is no full-face
     # projector left to decompose).
-    assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
+    assert isinstance(sn.bc["xmax"], ZeroMap)
     assert isinstance(sn.bc["xmax"].inner, ZeroMorphism)
     # Issue #176 / C176.1 dropped the _quadrature attribute entirely.
     assert not hasattr(sn.bc["xmax"], "_quadrature")
-    assert isinstance(sn.bc["xmax"].law, VacuumInflow)
     # ONE boundary: no inner-face entry at the pole (C4 — structurally
     # absent, not None).
     assert set(sn.bc) == {"xmax"}
@@ -416,7 +422,7 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
     not an externally-imposed BC. So the ``bc`` dict has no pole
     entry, and only the outer reflective BC is realized. The
     :class:`ReflectiveBoundary` branch produces a
-    :class:`PermutationOperator`; the shim wraps it with no bound quadrature.
+    :class:`PermutationOperator`, carried with no bound quadrature.
 
     RE-POSED at **B3.2**: the permutation is on the REDUCED ordinate axis, so
     its table is ``local_positions(mirror_partner[inflow], outflow)`` and its
@@ -426,24 +432,23 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
     reference (§7d.3).
     """
     geom = StructuredGeometry.cylinder(
-        (0.1, 1.0), (0,), inner=BC("reflective"), outer=BC("reflective"),
+        (0.1, 1.0), (0,), inner=1, outer=1,
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(5)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    sn = SNProblem(mesh, quad, placeholder_materials())
+    sn = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     # ONE boundary: no inner-face entry at the pole (the inner-face
     # law on the mesh is ignored — the axis is the pole
     # closure's regularity condition, always symmetric by geometry).
     assert set(sn.bc) == {"xmax"}
     assert sn._trace is not None
     assert sn._trace.face_names == ("xmax",)
-    # Outer face: realizer path; shim wraps a realized 1-arg op,
+    # Outer face: realizer path; the entry is a realized 1-arg op,
     # post-T.1 lifted into ``Permutation ⊗ Identity``.
-    assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
+    assert isinstance(sn.bc["xmax"], ScaledOrdinatePermutation)
     outer_perm = _angular_factor(sn.bc["xmax"].inner)
     assert isinstance(outer_perm, PermutationOperator)
     assert not hasattr(sn.bc["xmax"], "_quadrature")
-    assert isinstance(sn.bc["xmax"].law, ReflectiveBoundary)
     inflow = sn._trace.inflow_indices_for_face("xmax")
     outflow = sn._trace.outflow_indices_for_face("xmax")
     np.testing.assert_array_equal(
@@ -452,7 +457,7 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
     )
     assert outer_perm.perm.size == outflow.size < quad.n_ordinates
 
-    # Bit-equivalence: the shim's 1-arg apply matches the
+    # Bit-equivalence: the operator's 1-arg apply matches the
     # ReflectiveBoundary semantics — ``psi[mirror_partner]`` RESTRICTED to
     # Γ₋, which is the pre-B3.2 value this face's consumer actually read.
     rng = np.random.default_rng(7)
@@ -464,23 +469,25 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Registry contract
+# The realizer table (replaces the retired registry contract)
 # ─────────────────────────────────────────────────────────────────────
+#
+# ``test_registry_contains_only_vacuum_and_reflective`` pinned ``SNProblem.BOUNDARY_OPERATOR_REGISTRY`` to
+# ``{"vacuum", "reflective"}``, "the kinds the legacy SNProblem accepted": the string registry is retired with the tag
+# vocabulary (wave 2 S2b), and its successor, the sealed realizer table ``SN_REALIZERS``, is gated where it lives
+# (``test_sn_boundary_realizer.py``: the table's membership, its unregistered-unit door, its admission rows). The "adding
+# white/periodic/albedo requires sweep-side wiring" premise is gone with it: white and the translation wrap realize to typed
+# operators the sweep schedule and the boundary operator read.
 
 
-def test_registry_contains_only_vacuum_and_reflective():
-    """The SN registry pins exactly the kinds the legacy SNProblem
-    accepted today. Adding ``white`` / ``periodic`` / ``albedo`` etc.
-    requires sweep-side wiring out of Wave 8 scope.
-    """
-    assert set(SNProblem.BOUNDARY_OPERATOR_REGISTRY) == {"vacuum", "reflective"}
+def test_a_half_declared_translation_pair_is_refused():
+    """A translation quotient is symmetric: a face glued to a partner that is not glued back is not an identification, and the
+    refusal comes before any SN object exists (the geometry's own role check, a ``DeckError``): the boundary block is never built
+    with an outflow consumed twice.
 
+    Re-posed from ``test_unknown_bc_kind_raises_valueerror`` ("'reflective'.*'vacuum'" listed the registry's two kinds when a
+    periodic tag was met), whose subject, the registry's kind list, is retired."""
+    from orpheus.geometry.deck import DeckError
 
-def test_unknown_bc_kind_raises_valueerror(quad_1d):
-    """Unsupported BC kind raises ``ValueError`` listing the supported
-    set. Pinned for the BC-resolution diagnostic contract.
-    """
-    geom = StructuredGeometry.slab((0.0, 1.0), (0,), left=BC("periodic"), right=BC.reflective)
-    mesh = Mesher(geom).partition(CellsByCount.uniform_width(4)).mesh
-    with pytest.raises(ValueError, match="'reflective'.*'vacuum'"):
-        SNProblem(mesh, quad_1d, placeholder_materials())
+    with pytest.raises(DeckError, match="partner"):
+        StructuredGeometry.slab((0.0, 1.0), (0,), left=TranslationDeck(), right=MirrorDeck())

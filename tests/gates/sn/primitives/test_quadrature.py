@@ -19,6 +19,13 @@ from orpheus.geometry import CoordSystem
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 # All quadrature tests are L0 term-verification (hand-computed weight
 # sums, moment conditions, alpha-recursion closure). TestL0TermVerification
@@ -222,15 +229,15 @@ class TestAlphaRedistribution:
     ])
     def test_alpha_dome_non_negative(self, factory, kwargs):
         """α values must form a non-negative dome on each level."""
-        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.geometry import StructuredGeometry
         from orpheus.mesh import CellsByCount, Mesher
         from orpheus.sn.problem import SNProblem
 
         quad = factory(**kwargs)
         mesh = Mesher(StructuredGeometry.cylinder(
-            (0.0, 1.0), (0,), outer=BC.reflective,
+            (0.0, 1.0), (0,), outer=0,
         )).partition(CellsByCount.uniform_width(1)).mesh
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -245,15 +252,15 @@ class TestAlphaRedistribution:
     ])
     def test_alpha_boundary_zero(self, factory, kwargs):
         """α must be zero at both dome boundaries (conservation)."""
-        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.geometry import StructuredGeometry
         from orpheus.mesh import CellsByCount, Mesher
         from orpheus.sn.problem import SNProblem
 
         quad = factory(**kwargs)
         mesh = Mesher(StructuredGeometry.cylinder(
-            (0.0, 1.0), (0,), outer=BC.reflective,
+            (0.0, 1.0), (0,), outer=0,
         )).partition(CellsByCount.uniform_width(1)).mesh
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -266,15 +273,15 @@ class TestAlphaRedistribution:
     @pytest.mark.sentinel
     def test_spherical_alpha_dome_non_negative(self):
         """Spherical α (cumsum(−w·μ)) must be non-negative for GL quadrature."""
-        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.geometry import StructuredGeometry
         from orpheus.mesh import CellsByCount, Mesher
         from orpheus.sn.problem import SNProblem
 
         quad = Quadrature.gauss_legendre(8)
         mesh = Mesher(StructuredGeometry.sphere(
-            (0.0, 1.0), (0,), outer=BC.reflective,
+            (0.0, 1.0), (0,), outer=0,
         )).partition(CellsByCount.uniform_width(1)).mesh
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -302,7 +309,7 @@ class TestL0TermVerification:
         The fundamental correctness criterion for curvilinear SN.
         The ΔA/w factor ensures exact per-ordinate cancellation.
         """
-        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+        from orpheus.geometry import CoordSystem, StructuredGeometry
         from orpheus.mesh import CellsByCount, Mesher
         from orpheus.sn.problem import SNProblem
 
@@ -315,9 +322,9 @@ class TestL0TermVerification:
             coord=coord,
             breakpoints=(0.0, 1.0),
             mat_ids=(0,),
-            boundaries=(BC.reflective,),
+            face_roles=(0,),
         )).partition(CellsByCount.uniform_volume(10)).mesh
-        sn = SNProblem(mesh, quad, placeholder_materials())
+        sn = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         reduced = sn.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         dA = reduced.delta_A
@@ -352,7 +359,7 @@ class TestL0TermVerification:
     ])
     def test_delta_A_magnitude(self, coord):
         """L0-SN-004: ΔA = A[i+1] − A[i], hand-computed for known mesh."""
-        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+        from orpheus.geometry import CoordSystem, StructuredGeometry
         from orpheus.mesh import CellsByCount, Mesher
         from orpheus.sn.problem import SNProblem
 
@@ -360,13 +367,13 @@ class TestL0TermVerification:
             coord=coord,
             breakpoints=(0.0, 1.0),
             mat_ids=(0,),
-            boundaries=(BC.reflective,),
+            face_roles=(0,),
         )).partition(CellsByCount.uniform_volume(5)).mesh
         if coord == CoordSystem.SPHERICAL:
             quad = Quadrature.gauss_legendre(4)
         else:
             quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        sn = SNProblem(mesh, quad, placeholder_materials())
+        sn = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         edges = mesh.edges
         if coord == CoordSystem.SPHERICAL:

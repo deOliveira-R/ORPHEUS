@@ -50,7 +50,6 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
@@ -64,6 +63,14 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics import frame_faces
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 # L1 — equation-level (anisotropic scattering source + 2-D streaming closure).
 pytestmark = pytest.mark.l1
@@ -88,11 +95,11 @@ def _build_config():
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=mat,
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
@@ -113,7 +120,7 @@ def _solve(scattering_order: int | None = None, inner_solver: str | None = None)
         kwargs["scattering_order"] = scattering_order
     if inner_solver is not None:
         kwargs["inner_solver"] = inner_solver
-    return solve_sn_fixed_source(materials, mesh, quad, q_ext, **kwargs)
+    return solve_sn_fixed_source(materials, mesh, quad, q_ext, **kwargs, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -277,7 +284,7 @@ def _windowed_product_and_oracle_operands(
         if scattering_order is None
         else scattering_order
     )
-    solver = SNSolver(SNProblem(mesh, quad, materials, scattering_order=L))
+    solver = SNSolver(SNProblem(mesh, quad, materials, scattering_order=L, boundary_conditions=conditions_for(mesh, _CONDITIONS)))
 
     # The within-group forward + the scattering operator — the SAME
     # operators (and the SAME schedule dispatch) the windowed SI driver

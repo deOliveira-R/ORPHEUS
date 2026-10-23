@@ -20,7 +20,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -30,6 +30,14 @@ from orpheus.sn.loss_representation.sweep_schedule import (
     reflective_faces,
 )
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.foundation]
 
@@ -39,26 +47,26 @@ def _slab(bcs: tuple, nx: int = 4, ng: int = 1) -> SNProblem:
         coord=CoordSystem.CARTESIAN,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=bcs,
+        face_roles=bcs,
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _box(
-    *, face_laws: dict[str, BC], nx: int = 4, ny: int = 4, ng: int = 1, quad=None,
+    *, face_roles: dict[str, object], nx: int = 4, ny: int = 4, ng: int = 1, quad=None,
 ) -> SNProblem:
     edges = np.linspace(0.0, 2.0, nx + 1)
     mesh = Mesh2D(
         edges_x=edges,
         edges_y=np.linspace(0.0, 2.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        face_laws=face_laws,
+        face_roles=face_roles,
     )
     if quad is None:
         quad = Quadrature.product(n_mu=2, n_phi=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _all_indices(schedule: SweepSchedule) -> list[int]:
@@ -71,19 +79,16 @@ def _all_indices(schedule: SweepSchedule) -> list[int]:
 
 
 def _reflective_faces(sn: SNProblem) -> set[str]:
-    """The reflective set, computed the way production STOPPED computing it.
+    """The reflective set, computed the way production does NOT compute it.
 
-    Campaign phase B2 repointed
-    ``sweep_schedule.reflective_faces`` from this ``== "reflective"`` tag
-    comparison onto ``bc[f].law.geometry_map.permutes_ordinates``. This helper
-    deliberately keeps the OLD spelling: every schedule assertion below is then
-    an implicit old-vs-new cross-check on real meshes, mirror-not-import in the
-    same spirit as the hand-transcribed face table underneath it. (The law-by-law
-    equivalence lives in ``tests/gates/geometry/test_boundary_factor_consumers.py``;
-    this is the on-a-real-mesh companion.)
+    Production's ``sweep_schedule.reflective_faces`` reads the realized operator's type (``permutes_ordinates`` and a unit return
+    fraction, facts derived from the response network). This helper reads the DECLARATION: a face is reflective iff its role on the
+    mesh is a mirror deck. Every schedule assertion below is then an implicit declaration-vs-realization cross-check on real meshes,
+    mirror-not-import in the same spirit as the hand-transcribed face table underneath it. (The wave 2 re-pose of the old
+    ``== "reflective"`` tag comparison: the tag is gone, the deck is the declaration.)
     """
     return {
-        f for f in sn.angular_trace.layout.faces if sn.bc[f] == "reflective"
+        f for f in sn.angular_trace.layout.faces if isinstance(sn.mesh.face_roles[f], MirrorDeck)
     }
 
 
@@ -107,7 +112,7 @@ def _expected_outgoing(label: OctantLabel) -> set[str]:
 # ─── Jacobi structure ────────────────────────────────────────────────
 
 def test_jacobi_is_one_group_no_reflect_slab():
-    sn = _slab((BC.reflective, BC.reflective))
+    sn = _slab((MirrorDeck(), MirrorDeck()))
     sched = SweepSchedule.jacobi(sn.ndim, sn.quad.octants)
     assert sched.kind == "jacobi"
     assert len(sched.groups) == 1
@@ -117,8 +122,8 @@ def test_jacobi_is_one_group_no_reflect_slab():
 
 def test_jacobi_is_one_group_no_reflect_box():
     sn = _box(
-        face_laws={"xmin": BC.reflective, "xmax": BC.reflective,
-                   "ymin": BC.reflective, "ymax": BC.reflective},
+        face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(),
+                   "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
     sched = SweepSchedule.jacobi(sn.ndim, sn.quad.octants)
     assert len(sched.groups) == 1
@@ -136,7 +141,7 @@ def test_gs_slab_reflective_specular_faces():
     schedule projects to the mesh's ``ndim``.  Before C3.6 they carried a
     phantom zero-padded second sign ``(±1, 0)`` that the walk re-truncated.
     """
-    sn = _slab((BC.reflective, BC.reflective))
+    sn = _slab((MirrorDeck(), MirrorDeck()))
     sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     assert sched.kind == "gauss_seidel"
     # one octant per group; lexicographic order puts (-1,) before (+1,).
@@ -148,7 +153,7 @@ def test_gs_slab_reflective_specular_faces():
 
 
 def test_gs_slab_vacuum_reflective_only_reflective_face_reflects():
-    sn = _slab((BC.vacuum, BC.reflective))
+    sn = _slab((0, MirrorDeck()))
     refl = _reflective_faces(sn)
     sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     for g in sched.groups:
@@ -162,7 +167,7 @@ def test_gs_slab_vacuum_reflective_only_reflective_face_reflects():
 
 
 def test_gs_slab_full_vacuum_no_reflect_anywhere():
-    sn = _slab((BC.vacuum, BC.vacuum))
+    sn = _slab((0, 0))
     sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     assert all(g.reflect_faces == () for g in sched.groups)
 
@@ -171,8 +176,8 @@ def test_gs_slab_full_vacuum_no_reflect_anywhere():
 
 def test_gs_box_all_reflective_each_octant_reflects_its_outgoing_faces():
     sn = _box(
-        face_laws={"xmin": BC.reflective, "xmax": BC.reflective,
-                   "ymin": BC.reflective, "ymax": BC.reflective},
+        face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(),
+                   "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
     sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     labels = [g.sweeps[0].label for g in sched.groups]
@@ -194,8 +199,8 @@ def test_gs_box_all_reflective_each_octant_reflects_its_outgoing_faces():
 def test_gs_box_half_reflective_no_reflect_on_vacuum_axis():
     # x reflective (both faces), y vacuum (both faces): only x faces reflect.
     sn = _box(
-        face_laws={"xmin": BC.reflective, "xmax": BC.reflective,
-                   "ymin": BC.vacuum, "ymax": BC.vacuum},
+        face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(),
+                   "ymin": 0, "ymax": 0},
     )
     sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     for g in sched.groups:
@@ -226,8 +231,8 @@ def test_gs_diagonal_quadrature_shared_face_assigned_to_last_group_only():
     quad = Quadrature.lebedev(order=17)
     sn = _box(
         quad=quad,
-        face_laws={"xmin": BC.reflective, "xmax": BC.reflective,
-                   "ymin": BC.reflective, "ymax": BC.reflective},
+        face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(),
+                   "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
     sched = SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))
     order = {g.sweeps[0].label: i for i, g in enumerate(sched.groups)}
@@ -257,8 +262,8 @@ def test_gs_diagonal_quadrature_shared_face_assigned_to_last_group_only():
 
 def test_jacobi_and_gs_sweep_identical_ordinates():
     sn = _box(
-        face_laws={"xmin": BC.reflective, "xmax": BC.reflective,
-                   "ymin": BC.reflective, "ymax": BC.reflective},
+        face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(),
+                   "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
     full = list(range(sn.quad.n_ordinates))
     assert _all_indices(SweepSchedule.jacobi(sn.ndim, sn.quad.octants)) == full

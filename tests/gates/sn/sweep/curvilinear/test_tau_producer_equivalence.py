@@ -78,7 +78,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -87,6 +87,7 @@ from orpheus.sn.angular.closure import (
     morel_montry_tau_per_level,
 )
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
 
 _EPS = float(np.finfo(float).eps)
 
@@ -396,7 +397,7 @@ def test_identity_closure_tau_is_neutral_one():
     """
     nx = 8
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 5.0), (0,), left=BC.reflective, right=BC.reflective,
+        (0.0, 5.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
     problem = SNProblem(mesh, quad, placeholder_materials())

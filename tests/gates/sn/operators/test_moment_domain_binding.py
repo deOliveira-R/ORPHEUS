@@ -55,7 +55,6 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
@@ -75,6 +74,14 @@ from tests.gates.sn.operators._composite_operand import (
     bulk_apply,
     zero_trace_composite,
 )
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -96,19 +103,18 @@ def problem() -> SNProblem:
         edges_x=np.linspace(0.0, 2.0, _NX + 1),
         edges_y=np.linspace(0.0, 1.0, _NY + 1),
         mat_map=mat,
-        face_laws={
-            "xmin": BC.vacuum,
-            "xmax": BC.vacuum,
-            "ymin": BC.reflective,
-            "ymax": BC.reflective,
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     return SNProblem(
         mesh,
         Quadrature.level_symmetric(sn_order=4),
         {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")},
-        scattering_order=_L,  # the retained order is the hub's datum (R-cc9)
-    )
+        scattering_order=_L, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 @pytest.fixture(scope="module")
@@ -484,7 +490,7 @@ class TestAdmission:
 
         other = SNProblem(
             problem.mesh, Quadrature.level_symmetric(sn_order=6),
-            problem.materials,
+            problem.materials, boundary_conditions=conditions_for(problem.mesh, _CONDITIONS),
         )
         other_interior = other.full_field_space.interior_space
         assert other_interior is not None
@@ -552,14 +558,14 @@ def _sn_mesh_with_n2n() -> SNProblem:
         edges_x=np.linspace(0.0, 2.0, _NX + 1),
         edges_y=np.linspace(0.0, 1.0, _NY + 1),
         mat_map=mat,
-        face_laws={
-            "xmin": BC.vacuum,
-            "xmax": BC.vacuum,
-            "ymin": BC.reflective,
-            "ymax": BC.reflective,
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
-    return SNProblem(mesh, Quadrature.level_symmetric(sn_order=4), {0: mix}, scattering_order=_L)
+    return SNProblem(mesh, Quadrature.level_symmetric(sn_order=4), {0: mix}, scattering_order=_L, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 class TestTheOtherLifts:

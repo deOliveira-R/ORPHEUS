@@ -31,7 +31,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
 from orpheus.sn.loss_representation.sweep_graph import OctantLabel
 from orpheus.sn.loss_representation.sweep_schedule import (
     SweepSchedule,
@@ -41,6 +40,14 @@ from orpheus.sn.loss_representation.sweep_schedule import (
 )
 
 from tests.gates.sn.sweep.core.test_sweep_schedule import _expected_outgoing
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.foundation]
 
@@ -102,12 +109,11 @@ def test_outgoing_faces_match_first_principles_table_all_octants():
 _D3_FACES = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
 
 
-#: Tag -> law, for the duck-typed mesh below. Campaign phase B2 repointed
-#: ``sweep_schedule.reflective_faces`` from ``bc[face] == "reflective"`` onto
-#: ``bc[face].law.geometry_map.permutes_ordinates``, so a bare tag STRING is no
-#: longer the consumer contract. The tag vocabulary these tests are written in
-#: is translated here, at the test's own surface.
-_LAW_FOR_TAG = {"vacuum": VacuumInflow, "reflective": ReflectiveBoundary}
+#: Tag -> whether the realized face relabels ordinates, for the duck-typed mesh below. The schedule's
+#: ``reflective_faces`` reads ``bc[face].permutes_ordinates``, a property of the realized face's TYPE (the wave-2 carve; before it
+#: the law's geometry factor, before campaign phase B2 the tag string). The tag vocabulary these tests are written in is
+#: translated here, at the test's own surface.
+_PERMUTES_FOR_TAG = {"vacuum": False, "reflective": True}
 
 
 def _fake_mesh_3d(**bcs: str) -> SimpleNamespace:
@@ -136,7 +142,7 @@ def _fake_mesh_3d(**bcs: str) -> SimpleNamespace:
         quad=SimpleNamespace(octants=octants),
         angular_trace=SimpleNamespace(layout=SimpleNamespace(faces=_D3_FACES)),
         bc={
-            face: SimpleNamespace(law=_LAW_FOR_TAG[bcs.get(face, "vacuum")]())
+            face: SimpleNamespace(permutes_ordinates=_PERMUTES_FOR_TAG[bcs.get(face, "vacuum")])
             for face in _D3_FACES
         },
     )
@@ -223,25 +229,24 @@ def test_gs_d3_schedule_from_real_mesh():
     """
     import numpy as np
     from orpheus.derivations.common.xs_library import make_mixture
-    from orpheus.geometry import BC
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.mesh import AxisMesh
     from orpheus.sn.problem import SNProblem
 
-    refl, vac = BC("reflective"), BC("vacuum")
+    refl, vac = MirrorDeck(), 0
     mix = make_mixture(
         sig_t=np.array([1.0]), sig_c=np.array([0.5]),
         sig_f=np.array([0.0]), nu=np.array([0.0]),
         chi=np.zeros(1), sig_s=np.array([[0.5]]),  # non-fissile ⇒ null χ (S10a guard)
     )
     mesh = SNProblem.from_axes(
-        (
-            AxisMesh(edges=np.linspace(0.0, 1.0, 3), bc_low=refl, bc_high=refl),
-            AxisMesh(edges=np.linspace(0.0, 1.0, 4), bc_low=vac, bc_high=vac),
-            AxisMesh(edges=np.linspace(0.0, 1.0, 5), bc_low=refl, bc_high=refl),
-        ),
+        (_carrier1 := (
+            AxisMesh(edges=np.linspace(0.0, 1.0, 3), role_low=refl, role_high=refl),
+            AxisMesh(edges=np.linspace(0.0, 1.0, 4), role_low=vac, role_high=vac),
+            AxisMesh(edges=np.linspace(0.0, 1.0, 5), role_low=refl, role_high=refl),
+        )),
         Quadrature.level_symmetric(sn_order=4),
-        {0: mix},
+        {0: mix}, boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
     )
     sched = SweepSchedule.gauss_seidel(mesh.ndim, mesh.quad.octants, reflective_faces(mesh))
     assert sched.kind == "gauss_seidel"

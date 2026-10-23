@@ -78,7 +78,7 @@ import numpy as np
 import pytest
 
 from orpheus.sn.operators.streaming import StreamingCollisionOperator
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import _LC_matvec
@@ -90,6 +90,14 @@ from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(1.0)}
+
 
 
 pytestmark = pytest.mark.foundation
@@ -100,28 +108,28 @@ pytestmark = pytest.mark.foundation
 
 def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 1) -> SNProblem:
     """1-D slab with vacuum BCs + GL N=4."""
-    geom = StructuredGeometry.slab((0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    geom = StructuredGeometry.slab((0.0, length), (0,), left=0, right=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _sphere_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNProblem:
     """1-D sphere with reflective inner / vacuum outer + GL N=4."""
-    geom = StructuredGeometry.sphere((0.0, radius), (0,), outer=BC("vacuum"))
+    geom = StructuredGeometry.sphere((0.0, radius), (0,), outer=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _cylinder_mesh(nx: int = 4, radius: float = 1.0, ng: int = 1) -> SNProblem:
     """1-D cylinder with reflective inner / vacuum outer + the folded rule."""
     geom = StructuredGeometry.cylinder(
-        (0.01, radius), (0,), inner=BC("reflective"), outer=BC("vacuum"),
+        (0.01, radius), (0,), inner=1, outer=0,
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 GEOMETRIES = [
@@ -243,11 +251,11 @@ def _make_reflective_slab(nx: int = 4, length: float = 1.0) -> SNProblem:
     needs reflective BC so the outflow at the boundary reflects back as
     inflow, nulling the net streaming on uniform ψ."""
     geom = StructuredGeometry.slab(
-        (0.0, length), (0,), left=BC("reflective"), right=BC("reflective"),
+        (0.0, length), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _make_reflective_sphere(nx: int = 4, radius: float = 1.0) -> SNProblem:
@@ -255,20 +263,20 @@ def _make_reflective_sphere(nx: int = 4, radius: float = 1.0) -> SNProblem:
     the outer BC to reflect the outflow back as inflow (so the net
     radial streaming on uniform ψ cancels).  Pole at r=0 always
     handles regularity via M-M Carlson seed."""
-    geom = StructuredGeometry.sphere((0.0, radius), (0,), outer=BC("reflective"))
+    geom = StructuredGeometry.sphere((0.0, radius), (0,), outer=1)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _make_reflective_cylinder(nx: int = 4, radius: float = 1.0) -> SNProblem:
     """Reflective outer cylinder — same flat-flux logic as sphere."""
     geom = StructuredGeometry.cylinder(
-        (0.01, radius), (0,), inner=BC("reflective"), outer=BC("reflective"),
+        (0.01, radius), (0,), inner=1, outer=1,
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # ── Pin 3: linearity ────────────────────────────────────────────────
@@ -518,18 +526,18 @@ class TestTwoDCartesianRaises:
             edges_y=np.array([0.0, 1.0, 2.0]),
             mat_map=np.zeros((2, 2), dtype=int),
             coord=CoordSystem.CARTESIAN,
-            face_laws={
-                "xmin": BC("vacuum"),
-                "xmax": BC("vacuum"),
-                "ymin": BC("vacuum"),
-                "ymax": BC("vacuum"),
+            face_roles={
+                "xmin": 0,
+                "xmax": 0,
+                "ymin": 0,
+                "ymax": 0,
             },
         )
         # A genuine-2-D quadrature is required: the y-faces need ordinates
         # with non-zero mu_y. The 1-D gauss_legendre set has mu_y=0 for
         # every ordinate, which the trace-space guard correctly rejects.
         quad = Quadrature.level_symmetric(sn_order=4)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         sigma_t = np.full((problem.ng, *problem.spatial_shape), 1.0)
         psi = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
         result = _LC_matvec(psi, sigma_t, problem=problem)

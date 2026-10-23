@@ -36,7 +36,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
@@ -53,6 +53,13 @@ from orpheus.numerics.operator import BlockRole, SystemRole
 from orpheus.numerics import iteration as _iteration
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields import AngularSourceSink
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -67,7 +74,7 @@ pytestmark = pytest.mark.foundation
 def _slab_2g_2region(n_per_region: int = 3) -> tuple:
     """1-D slab, 2 regions (fuel | moderator), 2G, vacuum BCs."""
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 1.0, 2.0), (1, 0), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 1.0, 2.0), (1, 0), left=0, right=0,
     )).partition(CellsByCount.uniform_width(n_per_region)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     materials = {1: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
@@ -83,7 +90,7 @@ def _sphere_2g_2region(n_per_region: int = 3) -> tuple:
     SAME SI primitive on a curvilinear mesh.
     """
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, 1.0, 2.0), (1, 0), outer=BC("vacuum"),
+        (0.0, 1.0, 2.0), (1, 0), outer=0,
     )).partition(CellsByCount.uniform_width(n_per_region)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     materials = {1: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
@@ -104,7 +111,7 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
     structural identity of the decomposition (mechanism, not numerics).
     """
     mesh, quad, materials = _BUILDERS[case]()
-    problem = SNProblem(mesh, quad, materials)
+    problem = SNProblem(mesh, quad, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
     # Spy: wrap SourceIteration.__init__ to record the (resolvent, *gains)
     # operands, then delegate to the real __init__ so the solve still runs.
@@ -137,7 +144,7 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
         materials=materials, mesh=mesh, quadrature=quad,
         external_source=external,
         inner_solver="source_iteration",
-        max_inner=4,
+        max_inner=4, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     assert len(captured) == 2, (
         "the fixed-source SI path must build a SourceIteration — a "

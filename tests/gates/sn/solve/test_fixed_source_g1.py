@@ -67,13 +67,20 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields import AngularSourceSink
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 
 pytestmark = [pytest.mark.l1, pytest.mark.catches("ERR-049")]
@@ -85,7 +92,7 @@ pytestmark = [pytest.mark.l1, pytest.mark.catches("ERR-049")]
 def _sphere_reflective(nx: int = 10, radius: float = 2.0) -> tuple:
     """Sphere with reflective outer BC + GL N=8."""
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, radius), (0,), outer=BC("reflective"),
+        (0.0, radius), (0,), outer=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     return mesh, quad
@@ -94,7 +101,7 @@ def _sphere_reflective(nx: int = 10, radius: float = 2.0) -> tuple:
 def _cylinder_reflective(nx: int = 10, radius: float = 2.0) -> tuple:
     """Cylinder with reflective outer BC + folded(2,4) quadrature."""
     mesh = Mesher(StructuredGeometry.cylinder(
-        (0.01, radius), (0,), inner=BC("reflective"), outer=BC("reflective"),
+        (0.01, radius), (0,), inner=0, outer=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
     return mesh, quad
@@ -138,7 +145,7 @@ class TestExternalSourcePerOrdContract:
         self, coord_builder, coord_name,
     ) -> None:
         mesh, quad = coord_builder(nx=6)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         # Random per-ord source.
         rng = np.random.default_rng(seed=42)
         external_source = rng.standard_normal(
@@ -171,7 +178,7 @@ class TestExternalSourcePerOrdContract:
                 mesh=mesh, quadrature=quad,
                 external_source=external_source,
                 inner_solver="krylov",
-                max_inner=10, inner_tol=1e-6,
+                max_inner=10, inner_tol=1e-6, boundary_conditions=conditions_for(mesh, _CONDITIONS),
             )
 
         assert len(captured) == 1, (
@@ -232,7 +239,7 @@ class TestHomogeneousReflectiveFixedPoint:
     ) -> None:
         mesh, quad = coord_builder(nx=8)
         materials = placeholder_materials()  # SigT = 1.0 by default
-        problem = SNProblem(mesh, quad, materials)
+        problem = SNProblem(mesh, quad, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         sum_w = float(quad.weights.sum())
         # Iso scalar source -> projected per-ord density.
         q_iso = 0.5
@@ -243,7 +250,7 @@ class TestHomogeneousReflectiveFixedPoint:
             materials=materials, mesh=mesh, quadrature=quad,
             external_source=src.values,
             inner_solver="krylov",
-            max_inner=200, inner_tol=1e-12,
+            max_inner=200, inner_tol=1e-12, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
 
         # SigT = 1.0; per-ord fixed point ψ_n = q_n / Σ_t = (q_iso/W) / 1.0
@@ -278,7 +285,7 @@ class TestReturnTypeContract:
     @pytest.mark.verifies("transport-cartesian")
     def test_solution_angular_flux_carries_boundary(self) -> None:
         mesh, quad = _sphere_reflective(nx=6)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         src = AngularSourceSink.from_isotropic(
             np.full((problem.ng, *problem.spatial_shape), 1.0), problem,
         )
@@ -287,7 +294,7 @@ class TestReturnTypeContract:
             mesh=mesh, quadrature=quad,
             external_source=src.values,
             inner_solver="krylov",
-            max_inner=50, inner_tol=1e-10,
+            max_inner=50, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         # D-H.1b: angular_flux is now a TimedFullField composite. The
         # boundary is the L2 AngularBoundaryFlux with flat-layout storage; the

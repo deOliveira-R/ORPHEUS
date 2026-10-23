@@ -40,7 +40,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.mesh.reduced_operator import (
     cylindrical_streaming,
@@ -54,6 +54,13 @@ from tests.gates.sn.sweep.core._c_surrogate import (
     c_from_constants,
     mm_constants_for_ordinate,
 )
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 def _assert_closure_map_matches_inline(
@@ -107,10 +114,10 @@ def test_sphere_closure_map_matches_inline():
     surrogate's cell-independence are both exercised.
     """
     mesh = Mesher(
-        StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC("vacuum")),
+        StructuredGeometry.sphere((0.0, 2.0), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(10)).mesh
     quad = Quadrature.gauss_legendre(8)
-    problem = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     op = spherical_streaming(mesh, quad)
     closure = problem.angular_closure
 
@@ -132,10 +139,10 @@ def test_multilevel_cylinder_closure_map_matches_inline():
     wrong block scatter would mis-map a whole level and reds here.
     """
     mesh = Mesher(
-        StructuredGeometry.cylinder((0.0, 1.5), (0,), outer=BC("vacuum")),
+        StructuredGeometry.cylinder((0.0, 1.5), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(8)).mesh
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
-    problem = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     op = cylindrical_streaming(mesh, quad)
     closure = problem.angular_closure
 
@@ -177,10 +184,10 @@ def test_slab_closure_map_is_neutral():
     values for slab) AND an explicit literal so a non-zero leak reds.
     """
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 1.0), (0,), left=0, right=0,
     )).partition(CellsByCount.uniform_width(5)).mesh
     quad = Quadrature.gauss_legendre(4)
-    problem = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     op = slab_streaming(mesh, quad)
     closure = problem.angular_closure
 

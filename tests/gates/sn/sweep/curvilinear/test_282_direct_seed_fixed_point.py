@@ -33,7 +33,7 @@ import pytest
 from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -53,6 +53,13 @@ from orpheus.transport.fields import (
     AngularBoundarySourceSink,
     AngularSourceSink,
 )
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.regression]
 
@@ -77,14 +84,14 @@ def _mixture(sig_t: float, sig_s: float, ng: int = 2) -> Mixture:
 def _operator(coord: CoordSystem, nx: int, *, sigma: float, ng: int = 2):
     """``A = L + C`` on a homogeneous curvilinear/slab mesh + its SNProblem."""
     mesh = Mesher(StructuredGeometry.uniform_boundary(
-        coord, (0.0, 4.0), (0,), BC("vacuum"),
+        coord, (0.0, 4.0), (0,), 0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = (
         Quadrature.folded_product(n_mu=4, n_phi=8)
         if coord is CoordSystem.CYLINDRICAL
         else Quadrature.gauss_legendre(4)
     )
-    sn = SNProblem(mesh, quad, {0: _mixture(sigma, 0.4 * sigma, ng=ng)})
+    sn = SNProblem(mesh, quad, {0: _mixture(sigma, 0.4 * sigma, ng=ng)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.3 * g)) for g in range(ng)],
         axis=0,
@@ -250,14 +257,14 @@ def test_ciii_coarse_sphere_fixed_source_finite_positive():
     robustness gate (flux-shape layer), not a precision claim."""
     nx = 16
     mesh = Mesher(
-        StructuredGeometry.sphere((0.0, 8.0), (0,), outer=BC("vacuum")),
+        StructuredGeometry.sphere((0.0, 8.0), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(nx)).mesh
     materials = {0: _mixture(1.0, 0.5, ng=2)}
     source = np.ones((Quadrature.gauss_legendre(8).n_ordinates, 2, nx))
     for driver in ("source_iteration", "krylov"):
         sol = solve_sn_fixed_source(
             materials, mesh, Quadrature.gauss_legendre(8), source,
-            inner_solver=driver,
+            inner_solver=driver, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         flux = np.asarray(sol.scalar_flux.values)
         assert np.all(np.isfinite(flux)), f"[{driver}] non-finite flux"
@@ -274,9 +281,9 @@ def test_civ_pure_absorber_sphere_cold_solve_exact():
     no SI loop to mask it); post-fix the direct solve is a genuine
     single-pass exact inverse (C(i) < 1e-11, finite + positive)."""
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, 4.0), (0,), outer=BC("vacuum"),
+        (0.0, 4.0), (0,), outer=0,
     )).partition(CellsByCount.uniform_width(4)).mesh
-    sn = SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(0.8, 0.0)})
+    sn = SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(0.8, 0.0)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     sig_t = np.stack(
         [np.full(sn.spatial_shape, 0.8 * (1.0 + 0.3 * g)) for g in range(2)],
         axis=0,

@@ -94,7 +94,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.numerics.axis import Declared, Axis
@@ -107,7 +107,15 @@ from orpheus.sn.mesh.reduced_operator import (
     spherical_streaming,
 )
 from orpheus.sn.angular.redistribution import angular_redistribution
-from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates.sn._test_helpers import placeholder_materials, reflective_role
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(1.0)}
+
 
 
 
@@ -117,19 +125,19 @@ from tests.gates.sn._test_helpers import placeholder_materials
 
 def _slab_mesh() -> Mesh1D:
     """Cartesian slab — 5-cell uniform mesh on [0, 1]."""
-    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=0, right=0)
     return Mesher(geometry).partition(CellsByCount.uniform_width(5)).mesh
 
 
 def _spherical_mesh() -> Mesh1D:
     """Spherical 5-cell mesh on [0, 1]."""
-    geometry = StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum"))
+    geometry = StructuredGeometry.sphere((0.0, 1.0), (0,), outer=0)
     return Mesher(geometry).partition(CellsByCount.uniform_width(5)).mesh
 
 
 def _cylindrical_mesh() -> Mesh1D:
     """Cylindrical 5-cell mesh on [0, 1]."""
-    geometry = StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC("vacuum"))
+    geometry = StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=0)
     return Mesher(geometry).partition(CellsByCount.uniform_width(5)).mesh
 
 
@@ -152,7 +160,7 @@ class TestSNProblemBindsSphericalFactory:
     def pair(self):
         mesh = _spherical_mesh()
         quad = Quadrature.gauss_legendre(8)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         reduced = spherical_streaming(mesh, quad)
         return problem, reduced
 
@@ -209,7 +217,7 @@ class TestSNProblemBindsSphericalFactory:
         """The routing claim is not an artefact of one quadrature order."""
         mesh = _spherical_mesh()
         quad = Quadrature.gauss_legendre(N)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         snm_reduced = problem.reduced
         assert snm_reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         reduced = spherical_streaming(mesh, quad)
@@ -243,7 +251,7 @@ class TestSNProblemBindsCylindricalFactory:
     def pair(self):
         mesh = _cylindrical_mesh()
         quad = Quadrature.folded_product(n_mu=2, n_phi=4)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         reduced = cylindrical_streaming(mesh, quad)
         return problem, reduced
 
@@ -288,7 +296,7 @@ class TestSNProblemBindsCylindricalFactory:
         """The routing claim is not an artefact of one quadrature shape."""
         mesh = _cylindrical_mesh()
         quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         snm_reduced = problem.reduced
         assert snm_reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         reduced = cylindrical_streaming(mesh, quad)
@@ -792,11 +800,11 @@ class TestP4RemTheProducerBindsTheAxis:
         from tests.gates.sn._test_helpers import placeholder_materials
 
         quad = quad_factory()
-        geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), BC("reflective"))
+        geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), reflective_role(coord, 1))
         mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
         from orpheus.sn.problem import SNProblem
 
-        sn = SNProblem(mesh, quad, placeholder_materials())
+        sn = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         r = sn.reduced
         assert r is not None
         assert r.angular_axis == sn.angular_bulk_space.axis("angular")
@@ -819,12 +827,12 @@ class TestP4RemTheProducerBindsTheAxis:
 
         axes = tuple(
             AxisMesh(edges=np.linspace(0.0, ext, n + 1),
-                     bc_low=BC.reflective, bc_high=BC.reflective)
+                     role_low=MirrorDeck(), role_high=MirrorDeck())
             for ext, n in zip((1.0, 2.0), (2, 3))
         )
         sn = SNProblem.from_axes(
             axes, Quadrature.level_symmetric(sn_order=4),
-            placeholder_materials(ng=2),
+            placeholder_materials(ng=2), boundary_conditions=conditions_for(axes, _CONDITIONS),
         )
         assert sn.reduced is None  # the arm's own premise
         # The closures consume the axis at construction and do not store
@@ -914,7 +922,7 @@ class TestP4RemTheProducerBindsTheAxis:
         cylinder 8/12 packets moved; this row pins those same counts.
         """
         quad = quad_factory()
-        geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), BC("reflective"))
+        geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), reflective_role(coord, 1))
         mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
         ar_true = angular_redistribution(quad, coord)
         decoy = _scale_decoy(quad)
@@ -981,7 +989,7 @@ class TestP4RemTheProducerBindsTheAxis:
         ``mu_x`` untouched is exactly the isolation this row needs.
         """
         quad = Quadrature.folded_product(4, 6)
-        geometry = StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC("reflective"))
+        geometry = StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=1)
         mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
         ar_true = angular_redistribution(quad, CoordSystem.CYLINDRICAL)
         decoy = _level_roll_decoy(quad)

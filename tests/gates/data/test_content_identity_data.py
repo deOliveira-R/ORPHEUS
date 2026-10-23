@@ -41,6 +41,8 @@ from tests.gates._content_identity_helpers import (
     require,
 )
 from tests.gates.data.test_mixture_identity_anchors import _perturb
+from orpheus.geometry.deck import MirrorDeck
+
 
 pytestmark = pytest.mark.foundation
 
@@ -227,13 +229,13 @@ def test_s5_2_a_material_mesh_pickles() -> None:
     ``Materials``, so it could not be pickled either (``[M]`` 1dc31163)."""
     import pickle
 
-    from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+    from orpheus.geometry import CoordSystem, StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
     geometry = StructuredGeometry(
         coord=CoordSystem.CARTESIAN, breakpoints=(0.0, 1.0, 2.0), mat_ids=(0, 3),
-        boundaries=(BC.reflective, BC.vacuum),
+        face_roles=(MirrorDeck(), 0),
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(2)).mesh
     mm = MaterialMesh(mesh, _materials())

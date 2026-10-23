@@ -26,7 +26,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.axis import BasisKind
@@ -42,6 +42,14 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.numerics.axis import Modal
 
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 def _check(cond: bool, msg: str) -> None:
@@ -61,25 +69,25 @@ def _mesh_2d(scheme):
         edges_y=np.linspace(0.0, 3.0, 5),   # ny = 4
         mat_map=np.zeros((3, 4), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     return SNProblem(
         mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2),
-        scheme=scheme,
+        scheme=scheme, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
 def _mesh_1d(scheme):
-    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=0, right=0)
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(5)).mesh     # nx = 5
     return SNProblem(
         mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2),
-        scheme=scheme,
+        scheme=scheme, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 

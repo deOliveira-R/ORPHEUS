@@ -100,7 +100,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -131,17 +134,29 @@ pytestmark = [
 
 # ── Geometry builders ───────────────────────────────────────────────────
 
+#: A face's role by the kind string the builders speak: a vacuum face is the tag 0, a reflective face a mirror deck on a Cartesian
+#: body and the tag 1 (the unit specular wall) on a curved one (rule R2).
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(1.0)}
+
+
+def _role(kind: str, *, cartesian: bool):
+    if kind == "vacuum":
+        return 0
+    if kind == "reflective":
+        return MirrorDeck() if cartesian else 1
+    raise ValueError(kind)
+
 
 def _slab(nx: int = 6, n_ord: int = 4, ng: int = 2, bc: str = "vacuum") -> SNProblem:
     geom = StructuredGeometry(
         coord=CoordSystem.CARTESIAN,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC(bc), BC(bc)),
+        face_roles=(_role(bc, cartesian=True), _role(bc, cartesian=True)),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _sphere(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNProblem:
@@ -149,7 +164,7 @@ def _sphere(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNProblem:
         coord=CoordSystem.SPHERICAL,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC(bc),),
+        face_roles=(_role(bc, cartesian=False),),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     # Gauss-Legendre, NOT level_symmetric: the 1-D spherical closure's
@@ -161,7 +176,7 @@ def _sphere(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNProblem:
     # share the τ.  Caught by the Q5.5 [0, 1] guard; issue #336 tracks
     # the refuse-or-reduce design for SNProblem(SPH) + non-μ-line rules.
     quad = Quadrature.gauss_legendre(4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _cyl(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNProblem:
@@ -169,11 +184,11 @@ def _cyl(nx: int = 6, ng: int = 2, bc: str = "vacuum") -> SNProblem:
         coord=CoordSystem.CYLINDRICAL,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC(bc),),
+        face_roles=(_role(bc, cartesian=False),),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _cart2d(nx: int = 4, ny: int = 5, ng: int = 2, bc: str = "reflective") -> SNProblem:
@@ -184,9 +199,9 @@ def _cart2d(nx: int = 4, ny: int = 5, ng: int = 2, bc: str = "reflective") -> SN
         edges_y=np.linspace(0.0, 2.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        face_laws={"xmin": BC(bc), "xmax": BC(bc), "ymin": BC(bc), "ymax": BC(bc)},
+        face_roles={face: _role(bc, cartesian=True) for face in ("xmin", "xmax", "ymin", "ymax")},
     )
-    return SNProblem(mesh, Quadrature.level_symmetric(sn_order=4), placeholder_materials(ng=ng))
+    return SNProblem(mesh, Quadrature.level_symmetric(sn_order=4), placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # Removal-form value gates: slab+sphere+cyl+2D, all ≥2G, vacuum (single solve,

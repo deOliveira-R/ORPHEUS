@@ -106,11 +106,19 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.homogeneous.solver import solve_homogeneous_infinite
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.l2]
 
@@ -174,7 +182,7 @@ def _heterogeneous_slab(n_cells_per_zone: int = 4, half_width: float = 2.0) -> M
     """
     geom = StructuredGeometry.slab(
         (0.0, half_width, 2.0 * half_width), (0, 1),
-        left=BC.reflective, right=BC.reflective,
+        left=MirrorDeck(), right=MirrorDeck(),
     )
     return Mesher(geom).partition(CellsByCount.uniform_width(n_cells_per_zone)).mesh
 
@@ -212,8 +220,8 @@ class TestSNEigenvaluePermutation:
         mesh = _heterogeneous_slab()
         quad = Quadrature.gauss_legendre(n_ordinates=8)
 
-        sol = solve_sn(materials, mesh, quad, scattering_order=0)
-        sol_rev = solve_sn(materials_rev, mesh, quad, scattering_order=0)
+        sol = solve_sn(materials, mesh, quad, scattering_order=0, boundary_conditions=conditions_for(mesh, _CONDITIONS))
+        sol_rev = solve_sn(materials_rev, mesh, quad, scattering_order=0, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         assert sol.outcome.keff is not None and sol_rev.outcome.keff is not None
 
@@ -284,7 +292,7 @@ class TestSNFixedSourcePermutation:
         # Homogeneous slab, vacuum on both faces. Uniform isotropic source,
         # group-flat so it is invariant under the group reversal.
         mesh = Mesher(
-            StructuredGeometry.slab((0.0, 4.0), (0,), left=BC.vacuum, right=BC.vacuum),
+            StructuredGeometry.slab((0.0, 4.0), (0,), left=0, right=0),
         ).partition(CellsByCount.uniform_width(8)).mesh
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         n_cells = 8
@@ -295,9 +303,9 @@ class TestSNFixedSourcePermutation:
         n_ord = quad.n_ordinates
         q = np.ones((n_ord, ng, n_cells))
 
-        sol = solve_sn_fixed_source(materials, mesh, quad, external_source=q)
+        sol = solve_sn_fixed_source(materials, mesh, quad, external_source=q, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         sol_rev = solve_sn_fixed_source(
-            materials_rev, mesh, quad, external_source=q
+            materials_rev, mesh, quad, external_source=q, boundary_conditions=conditions_for(mesh, _CONDITIONS)
         )
 
         phi = sol.scalar_flux.values        # (ng, n_cells)

@@ -27,7 +27,6 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import GalerkinFrame
@@ -35,8 +34,9 @@ from orpheus.numerics.operator import InverseMetricOperator
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics import frame_faces
+from orpheus.geometry.deck import MirrorDeck
 
-_REFLECTIVE = BC("reflective")
+_REFLECTIVE = MirrorDeck()
 
 
 def _trace_space(quadrature: Quadrature):
@@ -45,7 +45,7 @@ def _trace_space(quadrature: Quadrature):
     mesh = Mesh2D(
         edges_x=edges, edges_y=edges,
         mat_map=np.zeros((3, 3), dtype=int),
-        face_laws={
+        face_roles={
             "xmin": _REFLECTIVE,
             "xmax": _REFLECTIVE,
             "ymin": _REFLECTIVE,

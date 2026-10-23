@@ -146,12 +146,19 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.angular.closure import MorelMontryAngularSweep
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -165,10 +172,10 @@ def _two_region_2g(coord: CoordSystem, quad: Quadrature, *, nx: int) -> SNProble
     """Fuel-like A inside r < 1, moderator-like B outside, vacuum at R = 2."""
     mesh = Mesher(StructuredGeometry(
         coord=coord, breakpoints=(0.0, 1.0, 2.0), mat_ids=(0, 1),
-        boundaries=(BC("vacuum"),),
+        face_roles=(0,),
     )).partition(CellsByCount.uniform_width(nx // 2)).mesh
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    return SNProblem(mesh, quad, materials)
+    return SNProblem(mesh, quad, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _cylinder(n_phi: int, *, n_mu: int = 4, nx: int = 12) -> SNProblem:
@@ -209,7 +216,7 @@ def _march(sn: SNProblem) -> _Marched:
     solution = solve_sn_fixed_source(
         sn.materials, mesh, sn.quad,
         external_source=np.ones((sn.quad.n_ordinates, 2, sn.nx)),
-        inner_tol=1e-12,
+        inner_tol=1e-12, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     if not solution.converged():
         pytest.fail(

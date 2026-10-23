@@ -63,8 +63,10 @@ def _problem(builder: str):
     from orpheus.sn.solver import _as_problem
 
     cfg = _cfg(builder)
+    from tests.gates.sn.regression import _generate_snapshots as G
+
     return _as_problem(cfg["mesh"], cfg["quadrature"], cfg["materials"],
-                       scattering_order=cfg["scattering_order"])
+                       scattering_order=cfg["scattering_order"], boundary_conditions=G.case_conditions(cfg))
 
 
 def _splitting(problem, schedule: str = "jacobi"):
@@ -128,19 +130,20 @@ def _entry_runs() -> dict:
     """The production entries at loose budgets (the claim is the ROUTE), and the
     number of finalize steps each owes."""
     from orpheus.sn import solver as S
+    from tests.gates.sn.regression import _generate_snapshots as G
 
     slab, sph, c2d, c2dp1 = _cfg("slab"), _cfg("sphere"), _cfg("cart2d"), _cfg("cart2d_p1")
     loose = dict(max_outer=3, keff_tol=1e-3, flux_tol=1e-3, max_inner=40, inner_tol=1e-6)
 
     def eig(cfg, solver, **kw):
         return lambda: S.solve_sn(cfg["materials"], cfg["mesh"], cfg["quadrature"],
-                                  inner_solver=solver, **{**loose, **kw})
+                                  inner_solver=solver, boundary_conditions=G.case_conditions(cfg), **{**loose, **kw})
 
     def fs(cfg, solver, src, **kw):
         return lambda: S.solve_sn_fixed_source(
             materials=cfg["materials"], mesh=cfg["mesh"], quadrature=cfg["quadrature"],
             external_source=src, scattering_order=cfg["scattering_order"],
-            inner_solver=solver, max_inner=40, inner_tol=1e-6, **kw)
+            inner_solver=solver, max_inner=40, inner_tol=1e-6, boundary_conditions=G.case_conditions(cfg), **kw)
 
     ones = np.ones((8, 2, 8))
     return {
@@ -154,10 +157,10 @@ def _entry_runs() -> dict:
         "fs_si_c2d_windowed": (fs(c2dp1, "source_iteration", c2dp1["external_source"]), 1),
         "fs_kr_sphere": (fs(sph, "krylov", ones), 0),
         "adj_eig_slab": (lambda: S.solve_sn_adjoint(
-            slab["materials"], slab["mesh"], slab["quadrature"], **loose), 0),
+            slab["materials"], slab["mesh"], slab["quadrature"], boundary_conditions=G.case_conditions(slab), **loose), 0),
         "adj_fs_slab": (lambda: S.solve_sn_adjoint_fixed_source(
             slab["materials"], slab["mesh"], slab["quadrature"], np.ones((2, 8)),
-            max_inner=40, inner_tol=1e-6), 0),
+            max_inner=40, inner_tol=1e-6, boundary_conditions=G.case_conditions(slab)), 0),
     }
 
 

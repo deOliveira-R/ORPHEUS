@@ -352,7 +352,7 @@ def _population():
     from orpheus.sn.solver import _as_problem
     out = []
     for c in (G._slab_3region("2g", 6), G._cylinder_3region("2g", 4, "folded_4x6")):
-        p = _as_problem(c["mesh"], c["quadrature"], c["materials"], scattering_order=1)
+        p = _as_problem(c["mesh"], c["quadrature"], c["materials"], scattering_order=1, boundary_conditions=G.case_conditions(c))
         ffs = p.full_field_space
         out += [ffs, ffs.dual(), ffs.interior_space, ffs.interior_space.dual(), getattr(ffs, "trace_space", None), p.system.space,
                 p.moment_space(1), p.angular_bulk_space]

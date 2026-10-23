@@ -81,7 +81,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.eigenvalue import ProductionRateSolver, power_iteration
@@ -101,6 +101,16 @@ from orpheus.sn.solver import (
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+#: The roles this file's tests name by kind: the vacuum tag (declared by ``_CONDITIONS``) and the mirror deck.
+_ROLE = {"vacuum": 0, "reflective": MirrorDeck()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -138,7 +148,7 @@ def _slab(length: float = _SUBCRITICAL_LENGTH, right: str = "vacuum"):
     """
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     geometry = StructuredGeometry.slab(
-        (0.0, length / 2, length), (0, 1), left=BC("reflective"), right=BC(right),
+        (0.0, length / 2, length), (0, 1), left=MirrorDeck(), right=_ROLE[right],
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
     return materials, mesh, Quadrature.gauss_legendre(_QUAD_N)
@@ -148,7 +158,7 @@ def _carrying_sphere():
     """A CARRYING (System-B bearing) hub — the arm whose adjoint iterates on
     the coupled carrier while the seedless one iterates on a bare field."""
     materials = {0: get_mixture("A", "2g")}
-    geometry = StructuredGeometry.sphere((0.0, 3.0), (0,), outer=BC("vacuum"))
+    geometry = StructuredGeometry.sphere((0.0, 3.0), (0,), outer=0)
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(6)).mesh
     return materials, mesh, Quadrature.gauss_legendre(_QUAD_N)
 
@@ -372,7 +382,7 @@ class TestFilterTheScannersFindAPlantedMember:
 def _hub_k() -> float:
     """``[M]`` the subcritical slab's k, through the hub's own eigen solve."""
     materials, mesh, quadrature = _slab()
-    keff = solve_sn(materials, mesh, quadrature).outcome.keff
+    keff = solve_sn(materials, mesh, quadrature, boundary_conditions=conditions_for(mesh, _CONDITIONS)).outcome.keff
     if keff is None:  # pragma: no cover - the fixture is fissile by choice
         raise RuntimeError("the anchor fixture stopped being an eigenproblem")
     return float(keff)
@@ -391,7 +401,7 @@ def _multiplying_solution_truncated() -> Solution:
     return solve_sn_multiplying_source(
         materials, mesh, quadrature,
         _uniform_source(quadrature, 2, 8),
-        inner_tol=1e-12, max_inner=5,
+        inner_tol=1e-12, max_inner=5, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -425,10 +435,10 @@ class TestRecordTheFourProductionRateFunctionals:
     ) -> None:
         """RECORD — the blindness itself, stated as a measurement."""
         materials, mesh, quadrature = _slab()
-        problem = _as_problem(mesh, quadrature, materials)
+        problem = _as_problem(mesh, quadrature, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         solver = SNSolver(problem)
         phi = np.asarray(
-            solve_sn(materials, mesh, quadrature).scalar_flux.values,
+            solve_sn(materials, mesh, quadrature, boundary_conditions=conditions_for(mesh, _CONDITIONS)).scalar_flux.values,
             dtype=float,
         )
         total = solver.compute_production_rate(phi)
@@ -452,12 +462,12 @@ class TestRecordTheFourProductionRateFunctionals:
             _slab as _finalize_slab,
         )
 
-        mesh = _finalize_slab(BC.vacuum)
+        mesh = _finalize_slab(0)
         quadrature = Quadrature.gauss_legendre(n_ordinates=_QUAD_N)
-        problem = _as_problem(mesh, quadrature, _LIBRARY_N2N)
+        problem = _as_problem(mesh, quadrature, _LIBRARY_N2N, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         solver = SNSolver(problem)
         phi = np.asarray(
-            solve_sn(_LIBRARY_N2N, mesh, quadrature).scalar_flux.values,
+            solve_sn(_LIBRARY_N2N, mesh, quadrature, boundary_conditions=conditions_for(mesh, _CONDITIONS)).scalar_flux.values,
             dtype=float,
         )
         total = solver.compute_production_rate(phi)
@@ -510,7 +520,7 @@ class TestRecordNothingRecordsWhichGaugeApplied:
         """RECORD — the conventions are distinguishable by the FLUX and by
         nothing the answer carries."""
         materials, mesh, quadrature = _slab()
-        problem = _as_problem(mesh, quadrature, materials)
+        problem = _as_problem(mesh, quadrature, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         kwargs = dict(
             inner_solver="source_iteration", keff_tol=1e-10, flux_tol=1e-9,
         )
@@ -578,7 +588,7 @@ class TestRecordThePureTransportPosingIsTheLOSS:
         materials, mesh, quadrature = (
             _slab() if fixture == "slab" else _carrying_sphere()
         )
-        problem = _as_problem(mesh, quadrature, materials)
+        problem = _as_problem(mesh, quadrature, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         _require(
             problem.pencil.at(0.0) is problem.pencil.lhs,
             "pencil.at(0.0) stopped returning lhs itself — F11's identity "
@@ -601,7 +611,7 @@ class TestRecordThePureTransportPosingIsTheLOSS:
         materials, mesh, quadrature = (
             _slab() if fixture == "slab" else _carrying_sphere()
         )
-        problem = _as_problem(mesh, quadrature, materials)
+        problem = _as_problem(mesh, quadrature, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         ng, nx = 2, len(mesh.mat_ids)
         source = _build_fixed_source_rhs(
             _uniform_source(quadrature, ng, nx), problem,
@@ -677,7 +687,7 @@ class TestRuledTheKindIsTheOutcomesType:
         try:
             fixed = solve_sn_fixed_source(
                 materials, mesh, quadrature,
-                _uniform_source(quadrature, 2, 8),
+                _uniform_source(quadrature, 2, 8), boundary_conditions=conditions_for(mesh, _CONDITIONS),
             )
             evidence.append(f"type={type(fixed).__name__}")
             present = hasattr(fixed, "keff")
@@ -711,7 +721,7 @@ class TestRuledTheEigenSolutionRecordsItsGauge:
         evidence: list[str] = []
         holds = False
         try:
-            solution = solve_sn(materials, mesh, quadrature)
+            solution = solve_sn(materials, mesh, quadrature, boundary_conditions=conditions_for(mesh, _CONDITIONS))
             sections = _section_shaped_members(solution)
             evidence.append(f"{len(sections)} section-shaped member(s)")
             for section in sections:
@@ -794,7 +804,7 @@ class TestRuledBothAdjointArmsPoseTheHubsDaggeredQuestion:
         evidence: list[str] = []
         try:
             adjoint = solve_sn_adjoint(
-                materials, mesh, quadrature, keff_tol=1e-9, flux_tol=1e-8,
+                materials, mesh, quadrature, keff_tol=1e-9, flux_tol=1e-8, boundary_conditions=conditions_for(mesh, _CONDITIONS),
             )
             evidence.append(f"k_adj={adjoint.outcome.keff!r}")
         except Exception as exc:  # noqa: BLE001 — evidence, not the verdict

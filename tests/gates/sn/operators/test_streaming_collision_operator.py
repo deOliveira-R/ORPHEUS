@@ -45,7 +45,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.operator import OperatorSum
 from orpheus.sn.problem import SNProblem
@@ -63,6 +63,13 @@ from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.radial_characteristic_field import RadialCharacteristicField
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 def _random_state(
@@ -105,28 +112,28 @@ pytestmark = [pytest.mark.foundation]
 
 
 def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
-    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=BC.vacuum, right=BC.vacuum)
+    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=0, right=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     """Doubled width, same shape — the VOLUMES differ, so the carrier mints
     an UNEQUAL space (the F2 content discriminator)."""
     geom = StructuredGeometry.slab(
-        (0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 2.0), (0,), left=0, right=0,
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
-    geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC.vacuum)
+    geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # ── Dispatch via __add__ ────────────────────────────────────────────────
@@ -789,6 +796,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         )
         from orpheus.sn.problem import SNProblem
         from orpheus.sn.solver import SNSolver
+        from tests.gates.sn._test_helpers import CURVED_REFLECTIVE
 
         case = _get_continuous_case(ng_key)
         mat_id = next(iter(case.problem.materials.keys()))
@@ -796,7 +804,10 @@ class TestStreamingCollisionSolveBridgeRegression:
             coord=coord, n_cells=n_cells, length=2.0, mat_id=mat_id,
         )
         quad = _quadrature_for(coord)
-        problem = SNProblem(mesh, quad, case.problem.materials, scattering_order=0)
+        problem = SNProblem(
+            mesh, quad, case.problem.materials, scattering_order=0,
+            boundary_conditions=conditions_for(mesh, CURVED_REFLECTIVE),  # the helper's reflecting curved face is a tag
+        )
         solver = SNSolver(
             problem=problem,
             max_inner=300, inner_tol=1e-12,
@@ -1030,7 +1041,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         B_b = (
             RadialCharacteristicBoundaryOperator(
                 problem.radial_characteristic_field_space,
-                problem.bc["xmax"].law,
+                problem.bc["xmax"],
             )
             if carrying
             else None

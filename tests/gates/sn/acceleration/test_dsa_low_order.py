@@ -34,15 +34,8 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.derivations.discrete.sn import dsa as dsa_reference
-from orpheus.geometry import BC, StructuredGeometry
-from orpheus.geometry.boundary import (
-    AlbedoBoundary,
-    PrescribedInflow,
-    ReflectiveBoundary,
-    SpecularReturn,
-    VacuumInflow,
-    WhiteBoundary,
-)
+from orpheus.geometry import StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck
 from orpheus.mesh import CellEdges, CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration import DSACorrection, DSALowOrderSystem
@@ -50,11 +43,23 @@ from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis_marginal import AxisSectionOperator
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+from tests.gates.sn._test_helpers import realized_slab_faces
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(0.7)}
+
+#: The roles this file's tests are written in: the vacuum wall (tag 0), the partial specular wall of amplitude 0.7 (tag 1) and the
+#: mirror (a deck, which declares no condition).
+_ROLE = {"vacuum": 0, "partial": 1, "reflective": MirrorDeck()}
+
 
 pytestmark = pytest.mark.foundation
 
 
-def _four_cell_mesh(left: BC, right: BC):
+def _four_cell_mesh(left, right):
     """The non-uniform 4-cell slab: materials 0 | 1 | 0 on [0, 0.5, 3, 5],
     the middle region split at 1.5."""
     return Mesher(StructuredGeometry.slab(
@@ -66,20 +71,22 @@ def _four_cell_mesh(left: BC, right: BC):
     )).mesh
 
 
-def _four_cell_problem(left, right) -> SNProblem:
+def _four_cell_problem(left, right, conditions=None) -> SNProblem:
     """Heterogeneous, non-uniform 4-cell slab, S4, 2 groups (the 3a tie
     fixture — mixtures carry real P1 data, so the (23c) D is exercised
-    beyond the bare-P0 coincidence), with any declared laws, typed or
-    tagged."""
+    beyond the bare-P0 coincidence), whose faces carry the roles ``left`` and ``right`` (a deck, or a tag of ``conditions``,
+    default :data:`_CONDITIONS`)."""
+    mesh = _four_cell_mesh(left, right)
     return SNProblem(
-        _four_cell_mesh(left, right), Quadrature.gauss_legendre(n_ordinates=4),
+        mesh, Quadrature.gauss_legendre(n_ordinates=4),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        boundary_conditions=conditions_for(mesh, _CONDITIONS if conditions is None else conditions),
     )
 
 
 def _slab(left: str = "vacuum", right: str = "vacuum") -> SNProblem:
-    """The tie fixture with the laws named by their ``BC`` tags."""
-    return _four_cell_problem(BC(left), BC(right))
+    """The tie fixture with the walls named by their :data:`_ROLE` keys."""
+    return _four_cell_problem(_ROLE[left], _ROLE[right])
 
 
 def _reference_inputs(problem: SNProblem):
@@ -163,44 +170,22 @@ class TestAdmissionTeeth:
 
     @pytest.mark.parametrize(
         "unadmitted",
-        [WhiteBoundary(), AlbedoBoundary(albedo=0.3), PrescribedInflow()],
+        [WallCondition.white(), WallCondition.white(0.3), WallCondition.uniform(1.0)],
         ids=["white", "albedo", "prescribed"],
     )
     def test_unsupported_boundary_refused(self, unadmitted):
-        """The albedo/white seam guard, on a structural stub carrying the
-        admission surface (geometry, scheme, per-face laws). The stub is for
-        the bare ``AlbedoBoundary(0.3)`` row: the SN realizer refuses an
-        albedo with no re-emission closure before this guard is reached.
-        The other two are not pre-refused: a typed law reaches
-        :class:`SNProblem` whatever its tag registry lists (since
-        ``985497b5``, 2026-08-05), so this guard is the live door for a
-        white or prescribed-inflow face (``[M]`` 2026-09-30: both build an
-        ``SNProblem`` and are refused here), and for the partial specular
-        reflector of ERR-094 (:meth:`test_a_partial_specular_reflector_is_refused`).
+        """The albedo/white seam guard, on a REAL :class:`SNProblem`: a diffuse (white) wall of either amplitude and a wall that
+        carries an inflow are built by the posing path and refused here, by the realized operator's type (neither is a zero map nor an
+        ordinate-permuting face).
 
-        The stub's faces carry REAL laws. Until campaign phase B2 they were
-        ``SimpleNamespace(kind="white")`` tag surrogates, which could only
-        exercise a string comparison; the guard now reads the laws' affine
-        factors, so a surrogate would be testing a fiction. ``PrescribedInflow``
-        is in the set deliberately: its response IS zero, so the factor test
-        alone would ADMIT it and silently build a Marshak row that drops ``q``
-        — it is refused by family, and this leg is what holds that.
+        The wall that carries an inflow is in the set deliberately: its response IS zero, so the factor test alone would ADMIT it and
+        silently build a Marshak row that drops ``q``; it is refused by family (its tag is among the binding's sources), and this leg is
+        what holds that. (Until wave 2 this row ran on a structural stub of laws; the realized faces are real now, so the stub is
+        retired.)
         """
-        from types import SimpleNamespace
-
-        real = _slab()
-        stub = SimpleNamespace(
-            is_cartesian=True,
-            ndim=1,
-            mesh=real.mesh,
-            scheme=SimpleNamespace(key="diamond_difference"),
-            bc={
-                "xmin": SimpleNamespace(law=unadmitted),
-                "xmax": SimpleNamespace(law=VacuumInflow()),
-            },
-        )
+        problem = _four_cell_problem(0, 1, {0: unadmitted, 1: WallCondition.vacuum()})
         with pytest.raises(NotImplementedError, match="Marshak-albedo"):
-            DSALowOrderSystem.from_problem(stub)  # type: ignore[arg-type]
+            DSALowOrderSystem.from_problem(problem)
 
     @pytest.mark.catches("ERR-094")
     @pytest.mark.parametrize(
@@ -226,12 +211,11 @@ class TestAdmissionTeeth:
         partial reflector is the inconsistent low-order system of the
         diffusive regime.
         """
-        law = AlbedoBoundary(0.7, SpecularReturn("x"))
-        laws = {"xmin": VacuumInflow(), "xmax": VacuumInflow(), face: law}
-        problem = _four_cell_problem(laws["xmin"], laws["xmax"])
+        roles = {"xmin": _ROLE["vacuum"], "xmax": _ROLE["vacuum"], face: _ROLE["partial"]}
+        problem = _four_cell_problem(roles["xmin"], roles["xmax"])
         with pytest.raises(
             NotImplementedError,
-            match=rf"{re.escape(repr(law))}.*Marshak-albedo",
+            match=rf"{re.escape(repr(problem.bc[face]))}.*Marshak-albedo",
         ):
             DSALowOrderSystem.from_problem(problem)
 
@@ -248,20 +232,21 @@ class TestAdmissionTeeth:
 
         mesh = Mesher(StructuredGeometry.slab(
             (0.0, 5.0), (0,),
-            left=AlbedoBoundary(0.7, SpecularReturn("x")),
-            right=AlbedoBoundary(0.7, SpecularReturn("x")),
+            left=1,
+            right=1,
         )).partition(CellsByCount.uniform_width(5)).mesh
         with pytest.raises(NotImplementedError, match="Marshak-albedo"):
             solve_sn_fixed_source(
                 {0: get_mixture("A", "2g")}, mesh,
                 Quadrature.gauss_legendre(n_ordinates=4),
-                np.ones((4, 2, 5)), acceleration="dsa",
+                np.ones((4, 2, 5)), acceleration="dsa", boundary_conditions=conditions_for(mesh, _CONDITIONS),
             )
 
+    #: ``(id, the declared wall, the foundation role it must build the system of)``: a specular wall returning nothing is the vacuum
+    #: wall, and one returning everything, declared as a TAG rather than as the mirror deck, is the mirror.
     _EDGES = [
-        ("albedo-specular-0", AlbedoBoundary(0.0, SpecularReturn("x")), VacuumInflow()),
-        ("albedo-specular-1", AlbedoBoundary(1.0, SpecularReturn("x")),
-         ReflectiveBoundary("x")),
+        ("albedo-specular-0", WallCondition.specular(0.0), "vacuum"),
+        ("albedo-specular-1", WallCondition.specular(1.0), "reflective"),
     ]
 
     @pytest.mark.rests_on(
@@ -283,14 +268,10 @@ class TestAdmissionTeeth:
         carries the identity) refuses ``albedo-specular-1`` and reds it
         (``[M]`` 2026-09-30, ``scratch/boundary_ontology/battery_err094.md``).
         """
-        built = DSALowOrderSystem.from_problem(_four_cell_problem(law, law))
-        expected = DSALowOrderSystem.from_problem(
-            _four_cell_problem(foundation, foundation),
-        )
-        other = DSALowOrderSystem.from_problem(_four_cell_problem(
-            *((VacuumInflow(),) * 2 if foundation == ReflectiveBoundary("x")
-              else (ReflectiveBoundary("x"),) * 2),
-        ))
+        built = DSALowOrderSystem.from_problem(_four_cell_problem(0, 0, {0: law}))
+        expected = DSALowOrderSystem.from_problem(_four_cell_problem(_ROLE[foundation], _ROLE[foundation]))
+        opposite = "vacuum" if foundation == "reflective" else "reflective"
+        other = DSALowOrderSystem.from_problem(_four_cell_problem(_ROLE[opposite], _ROLE[opposite]))
         if np.array_equal(expected.a_low, other.a_low):
             pytest.fail("the vacuum and mirror systems coincide: the edge rows "
                         "cannot tell which foundation they reproduce")
@@ -308,12 +289,12 @@ class TestAdmissionTeeth:
             LinearDiscontinuous,
         )
 
-        mesh1d = _four_cell_mesh(BC("vacuum"), BC("vacuum"))
+        mesh1d = _four_cell_mesh(_ROLE["vacuum"], _ROLE["vacuum"])
         problem = SNProblem(
             mesh1d,
             Quadrature.gauss_legendre(n_ordinates=4),
             {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
-            scheme=LinearDiscontinuous(),
+            scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh1d, _CONDITIONS),
         )
         with pytest.raises(NotImplementedError, match="diamond"):
             DSALowOrderSystem.from_problem(problem)
@@ -324,7 +305,7 @@ class TestAdmissionTeeth:
         with pytest.raises(ValueError, match="Σw = 2"):
             DSALowOrderSystem._build(
                 h, sigma_t, sigma_s0, sigma_s1, mu, w / 2.0,
-                (VacuumInflow(), VacuumInflow()),
+                realized_slab_faces(problem.quad),
             )
 
     def test_d_positivity_guard_fires(self):
@@ -334,7 +315,7 @@ class TestAdmissionTeeth:
         with pytest.raises(ValueError, match="positive"):
             DSALowOrderSystem._build(
                 h, sigma_t, sigma_s0, bad_s1, mu, w,
-                (VacuumInflow(), VacuumInflow()),
+                realized_slab_faces(problem.quad),
             )
 
 
@@ -396,11 +377,11 @@ class TestRestrictionProlongation:
         rules. R ∘ P is nulp-tier, not bit-exact (``[M]`` 2026-09-28: max
         rel 2.2e-16 at GL8; the same re-association
         ``test_g61_retraction_of_section_is_the_identity`` records)."""
-        mesh1d = _four_cell_mesh(BC("vacuum"), BC("vacuum"))
+        mesh1d = _four_cell_mesh(_ROLE["vacuum"], _ROLE["vacuum"])
         problem = SNProblem(
             mesh1d,
             Quadrature.gauss_legendre(n_ordinates=n_ordinates),
-            {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+            {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(mesh1d, _CONDITIONS),
         )
         corr = DSACorrection.from_problem(problem)
         section = AxisSectionOperator.of(problem.angular_bulk_space, "angular")

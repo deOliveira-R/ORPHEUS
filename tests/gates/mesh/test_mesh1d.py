@@ -1,9 +1,9 @@
 r"""The bare 1-D mesh: its construction laws, its equality, its retirements (P1 step 3b).
 
-``Mesh1D(coord, edges, volumes, region_ids, region_materials, face_laws)`` is what a 1-D
+``Mesh1D(coord, edges, volumes, region_ids, region_materials, face_roles)`` is what a 1-D
 discretisation IS (the user's ruling of 2026-09-29, option A: the mesh holds
 no geometry; it knows its cells, each cell's material, and each boundary
-face's law). The mesher (:mod:`orpheus.mesh.mesher`) is the one call site that
+face's ROLE: a deck or an ``int`` tag, wave 2 S2b re-pose of the face laws). The mesher (:mod:`orpheus.mesh.mesher`) is the one call site that
 lifts a geometry onto it; this file gates the constructor itself.
 
 Gate ids (``.claude/plans/reference_p1_spec.md`` §1.3, §1.3a): S3.8 (the
@@ -29,7 +29,8 @@ import pytest
 
 import orpheus.mesh
 import orpheus.mesh.structured as structured_module
-from orpheus.geometry import BC, CoordSystem, compute_areas_1d
+from orpheus.geometry import CoordSystem, compute_areas_1d
+from orpheus.geometry.deck import MirrorDeck
 from orpheus.mesh import Mesh1D
 
 pytestmark = pytest.mark.foundation
@@ -46,7 +47,7 @@ _SPHERE = CoordSystem.SPHERICAL
 _EXPONENT = {_SLAB: 1, _CYLINDER: 2, _SPHERE: 3}
 
 
-def _mesh(coord=_SLAB, edges=(0.0, 0.5, 2.0), volumes=None, region_ids=None, region_materials=None, face_laws=None) -> Mesh1D:
+def _mesh(coord=_SLAB, edges=(0.0, 0.5, 2.0), volumes=None, region_ids=None, region_materials=None, face_roles=None) -> Mesh1D:
     """A valid mesh, with the named fields replaced; volumes default to the
     coordinate system's measure of the cells."""
     e = np.asarray(edges, dtype=float)
@@ -56,11 +57,13 @@ def _mesh(coord=_SLAB, edges=(0.0, 0.5, 2.0), volumes=None, region_ids=None, reg
         region_ids = np.zeros(len(e) - 1, dtype=int)
     if region_materials is None:
         region_materials = tuple(range(int(np.max(region_ids)) + 1)) if len(region_ids) else (0,)
-    if face_laws is None:
+    if face_roles is None:
+        # the vacuum tag is 0; a reflecting face is a mirror deck on a slab and a tag (1) on a curved body (rule R2)
         solid = isinstance(coord, CoordSystem) and coord is not _SLAB and e[0] == 0.0
-        face_laws = {"xmax": BC.vacuum} if solid else {"xmin": BC.reflective, "xmax": BC.vacuum}
+        reflective = MirrorDeck() if coord is _SLAB else 1
+        face_roles = {"xmax": 0} if solid else {"xmin": reflective, "xmax": 0}
     return Mesh1D(coord=coord, edges=edges, volumes=volumes, region_ids=region_ids, region_materials=region_materials,
-                  face_laws=face_laws)
+                  face_roles=face_roles)
 
 
 _ONE_ULP_ABOVE_ONE = float(np.nextafter(1.0, 2.0))
@@ -114,21 +117,25 @@ _REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]] = [
      ValueError, "a cell volume is positive"),
     # S3.11's material-id count and type rows moved to R7b2.0.2 (#405 P2 step 7b.2.0): the
     # mesh's labels and its region -> material map carry them (test_mesh1d_regions.py)
-    # the face laws are a mapping over the face inventory (step 3c's FaceLaws)
-    ("slab-one-law", lambda: _mesh(face_laws={"xmax": BC.vacuum}),
-     ValueError, "Mesh1D.face_laws: this cartesian mesh has the boundary faces ('xmin', 'xmax')"),
-    ("law-at-the-centre", lambda: _mesh(coord=_SPHERE, face_laws={"xmin": BC.vacuum, "xmax": BC.vacuum}),
+    # the face roles are a mapping over the face inventory (step 3c's FaceLaws, renamed FaceRoles at wave 2)
+    ("slab-one-role", lambda: _mesh(face_roles={"xmax": 0}),
+     ValueError, "Mesh1D.face_roles: this cartesian mesh has the boundary faces ('xmin', 'xmax')"),
+    ("role-at-the-centre", lambda: _mesh(coord=_SPHERE, face_roles={"xmin": 0, "xmax": 0}),
      ValueError, "the centre r = 0 of a solid spherical body is an interior point"),
-    ("hollow-one-law", lambda: _mesh(coord=_CYLINDER, edges=(0.5, 1.0, 2.0), face_laws={"xmax": BC.vacuum}),
+    ("hollow-one-role", lambda: _mesh(coord=_CYLINDER, edges=(0.5, 1.0, 2.0), face_roles={"xmax": 0}),
      ValueError, "a hollow cylindrical body has an inner surface"),
     # step 3c: the positional tuple is retired
-    ("tuple-laws", lambda: _mesh(face_laws=(BC.reflective, BC.vacuum)),
-     TypeError, "Mesh1D.face_laws is a mapping from face name to law"),
-    # S3.10: None is not a law
-    ("none-law", lambda: _mesh(face_laws={"xmin": None, "xmax": BC.vacuum}), TypeError, "None is not a boundary law"),
+    ("tuple-roles", lambda: _mesh(face_roles=(MirrorDeck(), 0)),
+     TypeError, "Mesh1D.face_roles is a mapping from face name to role"),
+    # S3.10: None is not a role
+    ("none-role", lambda: _mesh(face_roles={"xmin": None, "xmax": 0}), TypeError,
+     "a face role is a MirrorDeck, a TranslationDeck or an int tag, got None"),
     # S3.11, re-posed: the old ``bc_left`` type row
-    ("string-law", lambda: _mesh(face_laws={"xmin": "vacuum", "xmax": BC.vacuum}),
-     TypeError, "must be a BC tag or a BoundaryTraceLaw instance"),
+    ("string-role", lambda: _mesh(face_roles={"xmin": "vacuum", "xmax": 0}),
+     TypeError, "a face role is a MirrorDeck, a TranslationDeck or an int tag, got 'vacuum'"),
+    # wave 2: a reflecting curved wall is a response, never a deck (rule R2)
+    ("deck-on-a-curved-wall", lambda: _mesh(coord=_SPHERE, face_roles={"xmax": MirrorDeck()}),
+     ValueError, "a reflecting curved wall is a response; bind a specular exterior condition to a tag"),
 ]
 
 
@@ -167,14 +174,14 @@ class TestConstructionLaws:
         ],
     )
     def test_the_positive_legs(self, coord, edges, faces):
-        """A mesh at every legal boundary shape builds, its laws one per face,
+        """A mesh at every legal boundary shape builds, its roles one per face,
         the faces as written here by hand from the topology law, and the
         boundary points paired with them in order."""
         mesh = _mesh(coord=coord, edges=edges)
-        assert tuple(mesh.face_laws) == faces
+        assert tuple(mesh.face_roles) == faces
         assert mesh.boundary_points == coord.boundary_points(edges[0], edges[-1])
         assert len(mesh.boundary_points) == len(faces)
-        assert mesh.outer_law is mesh.face_laws["xmax"]
+        assert mesh.outer_role is mesh.face_roles["xmax"]
 
 
 class TestTheVolumeLaw:
@@ -235,7 +242,7 @@ class TestTheVolumeLaw:
         from orpheus.geometry import StructuredGeometry
         from orpheus.mesh import CellsByCount, Mesher
 
-        geometry = StructuredGeometry.uniform_boundary(coord, (a, b), (0,), BC.vacuum)
+        geometry = StructuredGeometry.uniform_boundary(coord, (a, b), (0,), 0)
         mesh = Mesher(geometry).partition(CellsByCount.uniform_volume(n)).mesh
         unit = np.spacing(coord.measure_constant * coord.measure_coordinate(mesh.edges[1:]))
         gap = float(np.max(np.abs(mesh.volumes - coord.measure(mesh.edges)) / unit))
@@ -273,7 +280,7 @@ class TestTheValue:
         assert a == b
         assert a != _mesh(coord=_SPHERE, volumes=_off_by(_SPHERE, (0.0, 0.5, 2.0), 1, 1.0))
         assert a != _mesh(coord=_SPHERE, region_ids=[0, 1])
-        assert a != _mesh(coord=_SPHERE, face_laws={"xmax": BC.reflective})
+        assert a != _mesh(coord=_SPHERE, face_roles={"xmax": 1})
         assert a != _mesh(coord=_SLAB, edges=(0.0, 0.5, 2.0))  # another coordinate system
         assert (a == (0.0, 0.5, 2.0)) is False
 
@@ -317,13 +324,13 @@ class TestTheValue:
         assert mesh.N == 2 and mesh.total_width == 1.5
 
     def test_with_distinct_cell_ids(self):
-        law = BC("albedo", {"albedo": 0.3})
-        mesh = _mesh(coord=_SPHERE, edges=(0.5, 0.9, 2.0), region_ids=[0, 0], region_materials=(4,), face_laws={"xmin": BC.reflective, "xmax": law})
+        role = 3
+        mesh = _mesh(coord=_SPHERE, edges=(0.5, 0.9, 2.0), region_ids=[0, 0], region_materials=(4,), face_roles={"xmin": 1, "xmax": role})
         relabelled = mesh.with_distinct_cell_ids()
         np.testing.assert_array_equal(relabelled.mat_ids, [0, 1])
         np.testing.assert_array_equal(relabelled.edges, mesh.edges)
         np.testing.assert_array_equal(relabelled.volumes, mesh.volumes)
-        assert relabelled.face_laws["xmax"] is law
+        assert relabelled.face_roles["xmax"] == role
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -339,7 +346,7 @@ class TestTheRetirements:
     ``TestTheDefaultsAreGone``."""
 
     @pytest.mark.parametrize(
-        "name", ["bc_left", "bc_right", "precomputed_volumes", "from_geometry", "boundary_faces"],
+        "name", ["bc_left", "bc_right", "precomputed_volumes", "from_geometry", "boundary_faces", "face_laws", "outer_law"],
     )
     def test_a_retired_mesh_attribute_is_gone(self, name):
         assert not hasattr(Mesh1D, name)
@@ -378,61 +385,22 @@ _SN_ENTRIES = (
 )
 
 
-class _WithAxes:
-    """A real ``SNProblem`` seen by ``resolve_boundary_conditions`` through
-    other axes, recording the faces the resolver realises a law on. A duck
-    stand-in, not a ``TransportMethod``: it is cast at the two call sites."""
-
-    def __init__(self, problem, axes):
-        self._problem = problem
-        self.axes = axes
-        self.realized: list[str] = []
-
-    def __getattr__(self, name):
-        return getattr(self._problem, name)
-
-    def realize_boundary_law(self, law, face):
-        self.realized.append(face)
-        return self._problem.realize_boundary_law(law, face)
-
-
-def _undeclared(axis, slot):
-    """A copy of ``axis`` holding ``None`` in ``slot``, built around its
-    constructor (which now refuses ``None``): the state the resolver must not
-    complete."""
-    import dataclasses
-
-    copy = object.__new__(type(axis))
-    for f in dataclasses.fields(axis):
-        object.__setattr__(copy, f.name, getattr(axis, f.name))
-    object.__setattr__(copy, slot, None)
-    return copy
-
-
 class TestTheDefaultsAreGone:
     """S3.10, step 3c (the user's ruling of 2026-09-29: ``None`` retires as a
-    boundary declaration everywhere). No entry takes a ``boundary_condition``,
-    ``_apply_default_bcs`` is gone, and ``resolve_boundary_conditions`` reads
-    the declared law with no default. Claim kind: THEOREM (the retirement's
-    witness, ``retirement-audit`` D.18).
+    boundary declaration everywhere), re-posed at wave 2 S2b. No entry takes a
+    singular ``boundary_condition`` (the declared conditions travel as the keyword
+    ``boundary_conditions``, keyed by tag), ``_apply_default_bcs`` is gone, and
+    ``realize_boundary`` completes no declaration by default. Claim kind: THEOREM
+    (the retirement's witness, ``retirement-audit`` D.18).
 
-    The resolver row's form. Construction now refuses ``None``, so the
-    resolver can only meet one if a caller builds around a constructor. The
-    gate builds exactly that state and requires the resolver to realise NO law
-    on the undeclared face and return no table: whatever it raises, it does not
-    complete the declaration. It does not require a keyed refusal there: a
-    resolver-side ``None`` check would be a second guard for a state the
-    constructors make unrepresentable (``coding-elegance`` Pattern 4, the
-    guard-is-debt rule), and the keyed refusal is gated at construction
+    The resolver rows of the earlier spelling (a ``None`` law slot built around the
+    constructor, and an AST scan for ``BC``) are re-posed below on the new
+    vocabulary; the keyed refusal of a ``None`` role is gated at construction
     (``tests/gates/mesh/test_mesh2d_face_roles.py::TestTheOneElementParser``).
-    A structural leg reads the resolver's body for any ``BC`` construction, the
-    spelling every default so far has taken (``BC("reflective")``).
 
     First reds: a ``boundary_condition`` parameter re-added to any entry (the
-    signature row); ``_apply_default_bcs`` re-added (the name row);
-    ``... .bc[label.endpoint] or BC("reflective")`` restored in the resolver
-    (both resolver rows: the face is realised and a table returned, and the
-    body constructs a ``BC``).
+    signature row); ``_apply_default_bcs`` re-added (the name row); a default
+    ``WallCondition`` constructed in ``realize_boundary`` (the structural row).
     """
 
     @pytest.mark.parametrize("name", _SN_ENTRIES)
@@ -452,46 +420,34 @@ class TestTheDefaultsAreGone:
 
         assert not hasattr(solver, "_apply_default_bcs")
 
-    @pytest.mark.parametrize("slot, face", [("bc_low", "xmin"), ("bc_high", "xmax")])
-    def test_the_resolver_completes_no_undeclared_face(self, slot, face):
-        from orpheus.derivations.common.xs_library import get_mixture
-        from orpheus.mesh import AxisMesh
-        from orpheus.numerics.quadrature import Quadrature
-        from orpheus.sn.problem import SNProblem
-        from typing import Any, cast
+    # ``test_the_resolver_completes_no_undeclared_face`` is RETIRED with its subject (wave 2 S2b). It built an axis around its
+    # constructor holding ``None`` in a law slot and required ``resolve_boundary_conditions`` to realise no law on that face. The
+    # resolver no longer reads the axes: ``realize_boundary`` reads ``method.binding``, which ``bind`` parses from the carrier's roles
+    # at construction (a ``None`` or a non-role is refused there, gated by ``TestTheOneElementParser``), so the state the row built
+    # cannot reach the realization body and a stand-in that fed it ``None`` would be testing a path no caller has. The structural
+    # leg below (the body completes nothing by default) is kept, re-spelled on the new default-fill vocabulary.
 
-        from orpheus.transport.method import TransportMethod, resolve_boundary_conditions
+    def test_the_realization_body_constructs_no_declaration(self):
+        """``realize_boundary`` spells no ``WallCondition`` and no deck: a default fill (``... or WallCondition.vacuum()``, the spelling
+        every earlier default took, in the vocabulary of the day) would construct one inside the body.
 
-        axis = AxisMesh(edges=np.array([0.0, 0.5, 2.0]), bc_low=BC.vacuum, bc_high=BC.vacuum)
-        problem = SNProblem.from_axes((axis,), Quadrature.gauss_legendre(8), {0: get_mixture("B", "2g")})
-
-        # positive control: the stand-in resolves a declared axis in full, so
-        # a refusal below is the undeclared face's, not the stand-in's
-        declared = _WithAxes(problem, (axis,))
-        table = resolve_boundary_conditions(cast("TransportMethod[Any]", declared))
-        assert set(table) == {"xmin", "xmax"} and declared.realized == ["xmin", "xmax"]
-
-        undeclared_axis = _undeclared(axis, slot)
-        assert undeclared_axis.bc[{"bc_low": "min", "bc_high": "max"}[slot]] is None  # the premise
-        undeclared = _WithAxes(problem, (undeclared_axis,))
-        with pytest.raises(Exception):
-            resolve_boundary_conditions(cast("TransportMethod[Any]", undeclared))
-        assert face not in undeclared.realized, (face, undeclared.realized)
-
-    def test_the_resolver_constructs_no_law(self):
+        The scan is run first on a planted body that does spell the default, so a zero below is a measurement and not a blind pattern."""
         import ast
         import inspect
         import textwrap
 
-        from orpheus.transport.method import resolve_boundary_conditions
+        from orpheus.transport.method import realize_boundary
 
-        tree = ast.parse(textwrap.dedent(inspect.getsource(resolve_boundary_conditions)))
-        spelled = [
-            ast.unparse(node) for node in ast.walk(tree)
-            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "BC")
-            or (isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "BC")
-        ]
-        assert spelled == [], spelled
+        names = {"WallCondition", "MirrorDeck", "TranslationDeck"}
+
+        def spelled(source: str) -> list[str]:
+            return [
+                ast.unparse(node) for node in ast.walk(ast.parse(textwrap.dedent(source)))
+                if isinstance(node, ast.Name) and node.id in names
+            ]
+
+        assert spelled("def f(b):\n    return b.get('xmin') or WallCondition.vacuum()") == ["WallCondition"]  # the positive control
+        assert spelled(inspect.getsource(realize_boundary)) == []
 
 
 # The route gate that stood here (``TestOneBoundaryLawCheck``: the geometry and

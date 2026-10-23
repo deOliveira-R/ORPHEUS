@@ -29,7 +29,7 @@ import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellEdges, Mesh2D, Mesher
 from orpheus.numerics.functional import Functional
 from orpheus.numerics.operator import LinearOperator
@@ -40,6 +40,14 @@ from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 
 from tests.gates.sn._test_helpers import placeholder_materials
 from tests.gates.transport._functional_helpers import cross_section_field, require, slab_mesh
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -52,19 +60,19 @@ def _non_uniform_slab(ng: int) -> SNProblem:
     ``∫·dV`` weighting.
     """
     edges = np.array([0.0, 0.1, 0.3, 0.6, 1.0])  # widths 0.1 / 0.2 / 0.3 / 0.4
-    geometry = StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))
+    geometry = StructuredGeometry.from_homogeneous(1.0, 0)
     mesh = Mesher(geometry).partition(CellEdges(edges)).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials(ng=ng))
+    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 def _stretched_nonuniform_slab(ng: int) -> SNProblem:
     """The non-uniform slab at doubled width — same shape, different cell
     volumes (the F2 content discriminator)."""
     edges = 2.0 * np.array([0.0, 0.1, 0.3, 0.6, 1.0])
-    geometry = StructuredGeometry.from_homogeneous(2.0, BC("vacuum"))
+    geometry = StructuredGeometry.from_homogeneous(2.0, 0)
     mesh = Mesher(geometry).partition(CellEdges(edges)).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4),
-        placeholder_materials(ng=ng),
+        placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -265,9 +273,9 @@ class TestN2NActivationInProductionRate:
         mesh = Mesh2D(
             edges_x=np.linspace(0.0, 0.8, 5), edges_y=np.linspace(0.0, 0.6, 4),
             mat_map=np.zeros((4, 3), dtype=int),
-            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
         )
-        solver = SNSolver(SNProblem(mesh, Quadrature.lebedev(order=17), {0: mat}))
+        solver = SNSolver(SNProblem(mesh, Quadrature.lebedev(order=17), {0: mat}, boundary_conditions=conditions_for(mesh, _CONDITIONS)))
         ng = solver.ng
         nx, ny = solver.problem.spatial_shape
         flux = np.random.default_rng(3).uniform(0.1, 1.0, size=(ng, nx, ny))

@@ -19,12 +19,23 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import (
     SupercriticalSourceProblem, _as_problem, solve_sn, solve_sn_fixed_source, solve_sn_multiplying_source,
 )
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
+#: A face's role by the kind string the builders speak: a vacuum face is the tag 0, a reflective face a mirror deck (Cartesian body).
+_ROLE = {"vacuum": 0, "reflective": MirrorDeck()}
+
 
 pytestmark = pytest.mark.l1
 
@@ -37,7 +48,7 @@ def _require(cond: object, msg: str) -> None:
 def _slab(L: float, right: str = "vacuum"):
     mats = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, L / 2, L), (0, 1), left=BC("reflective"), right=BC(right),
+        (0.0, L / 2, L), (0, 1), left=MirrorDeck(), right=_ROLE[right],
     )).partition(CellsByCount.uniform_width(4)).mesh
     return mats, mesh, Quadrature.gauss_legendre(8)
 
@@ -55,9 +66,9 @@ def test_the_multiplying_solve_converges_and_its_claim_check_holds(L: float, k_r
     inner is NOT a refusal, it is a budget; #340), the subcritical one fits the
     default."""
     mats, mesh, quad = _slab(L)
-    k = float(solve_sn(mats, mesh, quad).outcome.keff)
+    k = float(solve_sn(mats, mesh, quad, boundary_conditions=conditions_for(mesh, _CONDITIONS)).outcome.keff)
     _require(abs(k - k_ref) < 1e-6, f"the fixture's k moved: {k!r} vs {k_ref!r}")
-    sol = solve_sn_multiplying_source(mats, mesh, quad, _uniform_source(quad, 2, 8), inner_tol=1e-12, max_inner=budget)
+    sol = solve_sn_multiplying_source(mats, mesh, quad, _uniform_source(quad, 2, 8), inner_tol=1e-12, max_inner=budget, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     _require(sol.converged(), "the multiplying source solve must converge (k < 1)")
     # The balance ⟨1, (A − F)ψ − q⟩ is enforced by the driver's convergence
     # CLAIM CHECK (`_check_convergence_claim`, posed on the SOLVED equation:
@@ -71,8 +82,8 @@ def test_the_multiplying_solution_exceeds_the_pure_transport_one_cellwise() -> N
     """Krein–Rutman / Neumann: fission adds neutrons — ψ_mult > ψ_pure componentwise on the bulk."""
     mats, mesh, quad = _slab(4.0)
     q = _uniform_source(quad, 2, 8)
-    pure = solve_sn_fixed_source(mats, mesh, quad, q, inner_tol=1e-12)
-    mult = solve_sn_multiplying_source(mats, mesh, quad, q, inner_tol=1e-12)
+    pure = solve_sn_fixed_source(mats, mesh, quad, q, inner_tol=1e-12, boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    mult = solve_sn_multiplying_source(mats, mesh, quad, q, inner_tol=1e-12, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     phi_p = np.asarray(getattr(pure.scalar_flux, "values", pure.scalar_flux), dtype=float)
     phi_m = np.asarray(getattr(mult.scalar_flux, "values", mult.scalar_flux), dtype=float)
     _require(np.all(phi_m > phi_p), "the multiplying solution must exceed the pure-transport one cell-wise")
@@ -82,7 +93,7 @@ def test_the_multiplying_solution_exceeds_the_pure_transport_one_cellwise() -> N
 def test_a_supercritical_hub_is_REFUSED_at_the_driver() -> None:
     mats, mesh, quad = _slab(8.0, right="reflective")
     with pytest.raises(SupercriticalSourceProblem, match=r"k_eff = 1\.37"):
-        solve_sn_multiplying_source(mats, mesh, quad, _uniform_source(quad, 2, 8))
+        solve_sn_multiplying_source(mats, mesh, quad, _uniform_source(quad, 2, 8), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def test_the_composition_is_the_loss_minus_the_production() -> None:
@@ -90,7 +101,7 @@ def test_the_composition_is_the_loss_minus_the_production() -> None:
     bit-identically on a typed coupled state."""
     from orpheus.sn.problem import SNProblem
     mats, mesh, quad = _slab(2.0)
-    hub = SNProblem(mesh, quad, mats)
+    hub = SNProblem(mesh, quad, mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     rec = hub.system
     rng = np.random.default_rng(0)
     x = rec.space.zeros()
@@ -158,11 +169,11 @@ def _gauge_singular_box():
     EXCITES the kernel (``[M]`` the ledger gate's parity table)."""
     from orpheus.mesh import Mesh2D
     quadrature = Quadrature.level_symmetric(sn_order=4)
-    reflective = BC("reflective")
+    reflective = MirrorDeck()
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 1.0, 4), edges_y=np.linspace(0.0, 2.0, 5),
         mat_map=np.zeros((3, 4), dtype=int),
-        face_laws={"xmin": reflective, "xmax": reflective, "ymin": reflective, "ymax": reflective},
+        face_roles={"xmin": reflective, "xmax": reflective, "ymin": reflective, "ymax": reflective},
     )
     source = np.full((quadrature.weights.size, 2, 3, 4), 1.0 / float(quadrature.weights.sum()))
     return {0: _dilute_fissile()}, mesh, quadrature, source
@@ -177,14 +188,14 @@ def test_a_truncated_multiplying_solve_is_AUDIBLE_like_its_sibling() -> None:
     q = _uniform_source(quad, 2, 8)
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        mult = solve_sn_multiplying_source(mats, mesh, quad, q, inner_tol=1e-12, max_inner=5)
+        mult = solve_sn_multiplying_source(mats, mesh, quad, q, inner_tol=1e-12, max_inner=5, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     convergence = [w for w in caught if issubclass(w.category, ConvergenceWarning)]
     _require(len(convergence) == 1, f"the multiplying entry must warn exactly once on a truncated solve; got {len(convergence)}")
     _require(convergence[0].filename == __file__, f"the warning must blame the CALLER, not {convergence[0].filename}")
     _require(not mult.converged(), "non-vacuity: the solve was truncated")
     with warnings.catch_warnings(record=True) as sibling:
         warnings.simplefilter("always")
-        solve_sn_fixed_source(mats, mesh, quad, q, inner_tol=1e-12, max_inner=5)
+        solve_sn_fixed_source(mats, mesh, quad, q, inner_tol=1e-12, max_inner=5, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     _require(sum(issubclass(w.category, ConvergenceWarning) for w in sibling) == 1, "the sibling warns once on the same hub — the pairing that makes this row non-vacuous")
 
 
@@ -196,19 +207,19 @@ def test_a_gauge_singular_multiplying_solve_is_AUDIBLE_like_its_sibling() -> Non
     from orpheus.numerics.outcome import Measured
     from orpheus.sn.operators.loss_kernel_gauge import GaugeFreedomWarning, gauge_freedom
     mats, mesh, quad, source = _gauge_singular_box()
-    hub = _as_problem(mesh, quad, mats)
+    hub = _as_problem(mesh, quad, mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     _require(gauge_freedom(hub).present, "non-vacuity: the hub must be gauge-singular")
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         mult = solve_sn_multiplying_source(
             mats, mesh, quad, source,
-            inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
+            inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
     with warnings.catch_warnings(record=True) as sibling_caught:
         warnings.simplefilter("always")
         pure = solve_sn_fixed_source(
             mats, mesh, quad, source, inner_solver="source_iteration",
-            inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
+            inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
     _require(any(issubclass(w.category, GaugeFreedomWarning) for w in caught), "the multiplying entry must say the trace was gauge-fixed")
     _require(any(issubclass(w.category, GaugeFreedomWarning) for w in sibling_caught), "…as its sibling does on the same hub (the pairing)")

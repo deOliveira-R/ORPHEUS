@@ -13,11 +13,12 @@ from pathlib import Path
 import numpy as np
 
 from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.quadrature import GaussLegendre1D
 from orpheus.sn.solver import solve_sn
 from plotting import plot_do_convergence, plot_do_spectra
+from orpheus.geometry.deck import MirrorDeck
 
 OUTPUT = Path("results")
 
@@ -67,7 +68,7 @@ def main():
 
     # 2. Set up 1D slab geometry: fuel(5) + clad(1) + coolant(4), δ=0.2 cm
     geometry = StructuredGeometry.slab(
-        (0.0, 1.0, 1.2, 2.0), (2, 1, 0), left=BC.reflective, right=BC.reflective,
+        (0.0, 1.0, 1.2, 2.0), (2, 1, 0), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geometry).partition((
         CellsByCount.uniform_width(5),

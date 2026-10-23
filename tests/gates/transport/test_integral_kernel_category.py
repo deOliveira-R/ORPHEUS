@@ -59,7 +59,6 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.operator import (
     IdentityOperator,
@@ -82,6 +81,7 @@ from tests.gates.transport._functional_helpers import (
     cross_section_field,
 )
 from dataclasses import replace
+from orpheus.geometry.deck import MirrorDeck
 
 pytestmark = pytest.mark.foundation
 
@@ -99,7 +99,7 @@ def _uniform_2d(nx, ny, delta, mat_map):
         edges_x=np.linspace(0, nx * delta, nx + 1),
         edges_y=np.linspace(0, ny * delta, ny + 1),
         mat_map=np.asarray(mat_map, dtype=int),
-        face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+        face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
 
 

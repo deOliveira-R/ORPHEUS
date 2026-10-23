@@ -42,7 +42,7 @@ import numpy.testing as npt
 import pytest
 
 from orpheus.numerics.index_set import IndexSet
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellEdges, Mesher
 from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.quadrature import Quadrature
@@ -50,6 +50,13 @@ from orpheus.numerics.axis_marginal import AxisRetractionOperator, AxisSectionOp
 from orpheus.numerics.space import FunctionSpace
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -70,11 +77,11 @@ def _product() -> FunctionSpace:
 
 
 def _sn() -> SNProblem:
-    geometry = StructuredGeometry.slab((0.0, 3.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    geometry = StructuredGeometry.slab((0.0, 3.0), (0,), left=0, right=0)
     mesh = Mesher(geometry).partition(
         CellEdges(np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0])),
     ).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2))
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _rand(shape, seed):
@@ -447,13 +454,13 @@ class TestFrameInduction:
         from orpheus.sn.problem import SNProblem
 
         geometry = StructuredGeometry.slab(
-            (0.0, 3.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+            (0.0, 3.0), (0,), left=0, right=0,
         )
         mesh = Mesher(geometry).partition(
             CellEdges(np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0])),
         ).mesh
         sn = SNProblem(
-            mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=2),
+            mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=2), boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         E = AxisSectionOperator.of(sn.angular_bulk_space, "angular")
         sum_w = float(sn.quad.weights.sum())

@@ -78,11 +78,22 @@ from orpheus.geometry.boundary._errors import ReflectionNotInvolutiveError
 from orpheus.geometry.transformation import Permutation
 from orpheus.geometry.faces import AXIS_NAMES
 from orpheus.numerics.quadrature import Quadrature
-# B3.4a: the prescribed-inflow legs below realize through the SN realizer
-# (they already imported ``SNBoundaryRealizer`` in-body), and a narrowed law
-# needs BOTH half-traces — which ``SNMethodSpace.minimal`` cannot name. This
-# is the ONE place the face-ful method space is stood up (Pattern 2).
-from tests.gates.sn._test_helpers import face_method_space
+# RETIRED at wave 2 S2b (retirement-audit D.14 demotion check). Nine tests that ran a law through ``SNBoundaryRealizer`` (deleted by
+# the carve) are gone; the 41 rows that stay pin the law CLASSES until they retire at WF2.4. Where each deleted claim lives:
+#   the three ``test_raises_at_realize_time`` rows (ERR-044 involution, ERR-042 measure preservation, ERR-045 inflow-to-outflow on the
+#     poisoned tables) and ``test_raises_at_realize_time_on_the_albedo_route`` (the certification on the second carrier) ->
+#     ``tests/gates/numerics/test_ordinate_pairing.py`` (the certification is numerics', keyed on the quadrature and the motion; the
+#     poison fixtures ``_TableQuad`` and ``_BROKEN`` stay here until WF2.4, WF2.2 rider (a));
+#   ``TestSourceIsPlaceableInvariant.test_raises_at_realize_time`` (ERR-047, a source that cannot be sampled on the face) ->
+#     ``tests/gates/transport/test_boundary_source_from_specs.py`` (the ERR-047 marker migrated there at P3: the SN source realizer
+#     refuses a space that is not the inflow half-trace);
+#   ``TestPrescribedInflowRealizesTheZeroMap`` (4) and ``TestSNRealizerPrescribedInflowDispatch`` (3): a pure inflow realizes to the
+#     zero map, linear, source-blind, with a refused faceless space -> ``test_operator_block_role.py::TestBoundaryLeaves::
+#     test_prescribed_inflow_realizes_the_same_object_vacuum_does``, ``test_capability_survival.py::
+#     TestRealizedPrescribedInflowCapabilities``, ``test_declared_law_is_linear.py`` and ``test_sn_boundary_realizer.py::TestRealizeVacuum``;
+#   ``TestFactorAdjointabilityMatchesTheRealizedOperator`` (3 of 4): the law factors' adjointability against the realized operator's
+#     is a question about a stored string kind; the typed operator DERIVES ``is_adjointable`` from its inner operator
+#     (``RealizedBoundary.is_adjointable``), gated by ``test_capability_survival.py::test_boundary_law_wrapper_delegates_predicates``.
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -220,28 +231,6 @@ class TestReflectiveMeasurePreservingInvariant:
         with pytest.raises(BoundaryGeometryMapNotMeasurePreservingError):
             bc.assert_geometry_map_measure_preserving(mutant)  # type: ignore[arg-type]
 
-    def test_raises_at_realize_time(self, monkeypatch) -> None:
-        """The invariant is a PRODUCTION guard: the same mispaired
-        pairing poisoning the quadrature's ``ordinate_permutation``
-        (the certification's read since G6.3 step 7d — poisoning the
-        old ``reflection_partners`` table no longer reaches anything)
-        reddens ``SNBoundaryRealizer.realize`` itself (via the
-        ``assert_realizable`` certification at entry)."""
-        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-        from orpheus.sn.mesh.method_space import SNMethodSpace
-
-        quad = Quadrature.gauss_legendre(n_ordinates=8)
-        monkeypatch.setattr(
-            quad, "ordinate_permutation",
-            lambda motion: Permutation(
-                np.array([1, 0, 3, 2, 5, 4, 7, 6])
-            ),
-        )
-        with pytest.raises(BoundaryGeometryMapNotMeasurePreservingError):
-            SNBoundaryRealizer().realize(
-                ReflectiveBoundary(axis="x"),
-                SNMethodSpace.minimal(quad),
-            )
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -299,23 +288,6 @@ class TestReflectiveInflowToOutflowInvariant:
         np.testing.assert_array_equal(pi.indices, np.arange(quad.n_ordinates))
         ReflectiveBoundary(axis="y").assert_reflection_maps_inflow_to_outflow(quad)
 
-    def test_raises_at_realize_time(self, monkeypatch) -> None:
-        """Production wiring: the identity-poisoned pairing reddens
-        ``SNBoundaryRealizer.realize`` itself (injected at
-        ``ordinate_permutation``, the read since G6.3 step 7d)."""
-        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-        from orpheus.sn.mesh.method_space import SNMethodSpace
-
-        quad = Quadrature.gauss_legendre(n_ordinates=8)
-        monkeypatch.setattr(
-            quad, "ordinate_permutation",
-            lambda motion: Permutation(np.arange(quad.n_ordinates)),
-        )
-        with pytest.raises(ReflectionDidNotMapInflowToOutflowError):
-            SNBoundaryRealizer().realize(
-                ReflectiveBoundary(axis="x"),
-                SNMethodSpace.minimal(quad),
-            )
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -481,133 +453,6 @@ class TestPrescribedInflowConstruction:
         assert isinstance(bc, PrescribedInflow)
 
 
-@pytest.mark.l1
-class TestPrescribedInflowRealizesTheZeroMap:
-    r"""⭐ The realized prescribed-inflow operator carries NO source — **P3**.
-
-    The realizer realizes the LINEAR factor of the affine law
-    :math:`\gamma_-\psi = L\,\gamma_+\psi + q`, and for prescribed inflow
-    :math:`L = 0`. So the realized operator is the zero map
-    :math:`\Gamma_+ \to \Gamma_-` — literally the object vacuum realizes to —
-    and :math:`q` travels the boundary-source channel instead
-    (:meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_problem_laws`,
-    gated in ``tests/gates/sn/solve/test_declared_inflow_reaches_the_rhs.py`` and
-    ``tests/gates/transport/test_boundary_source_from_specs.py``).
-
-    ⛔ **This class is the anti-regression gate for a MEASURED double
-    delivery.** Until P3 it asserted the opposite — that ``apply`` returns
-    :math:`v` on :math:`\Gamma_-` — because the realized operator WAS the
-    source: an affine map (``A(0) = v``, ``A(2x) − 2A(x) = v``) declared as a
-    :class:`~orpheus.numerics.operator.LinearOperator`. The
-    :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` stamp it lacked was
-    believed to fence it out of the ``B`` block. It did not:
-    :attr:`~orpheus.sn.operators.boundary.SNBoundaryOperator._face_laws`
-    collects EVERY face's law with no role filter. So once P2′ wired the source
-    channel, a declared inflow reached the solve through both routes and the
-    converged flux carried it TWICE (ratio 2.000000 against the vacuum control,
-    on a slab with ``ConstantInflowSource(2.5)`` declared on ``xmin``).
-
-    These rows are what redden if any future edit puts :math:`q` back into the
-    operator. Note which claim did NOT move: ":math:`q` lands on
-    :math:`\Gamma_-` and nowhere else" (#52 / ERR-047) is still asserted — in
-    ``tests/gates/transport/test_boundary_source_from_specs.py``, against the channel
-    that now delivers it.
-    """
-
-    @staticmethod
-    def _realize(source=None, space=None):
-        """Realize prescribed inflow, optionally onto a CALLER-OWNED space.
-
-        ⚠ ``face_method_space`` builds a fresh trace per call, so two spaces
-        built here are ``==`` but never ``is``. Any row comparing bound spaces
-        by identity must pass ONE space to both realizations — which is also
-        the honest fixture, since a face has one trace.
-        """
-        from orpheus.geometry.boundary import PrescribedInflow
-        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-
-        law = PrescribedInflow() if source is None else PrescribedInflow(source=source)
-        if space is None:
-            space = face_method_space(Quadrature.lebedev(17), face="xmax")
-        return SNBoundaryRealizer().realize(law, space), space
-
-    def test_apply_emits_the_zero_of_gamma_minus(self) -> None:
-        r"""Whatever the declared source, ``apply`` returns zeros on
-        :math:`\Gamma_-` — the source is not in this operator."""
-        from orpheus.geometry.boundary import ConstantInflowSource
-
-        for source in (None, ConstantInflowSource(value=2.5)):
-            op, space = self._realize(source)
-            psi_out = np.random.default_rng(0).standard_normal(
-                (space.outflow_indices.size, 3),
-            )
-            psi_in = op.apply(psi_out)
-            assert psi_in.shape == (space.inflow_indices.size, 3)
-            np.testing.assert_array_equal(
-                psi_in, 0.0,
-                err_msg=(
-                    f"the realized operator delivered a source for {source!r} "
-                    f"— q belongs to the boundary-source channel, and an "
-                    f"operator that emits it is affine in a linear slot (the "
-                    f"P3 defect)."
-                ),
-            )
-
-    def test_the_operator_is_LINEAR_which_is_the_whole_point(self) -> None:
-        r"""``B(0) = 0``, ``B(2x) = 2B(x)``, ``B(x+y) = B(x)+B(y)``.
-
-        ⭐ The row that would have caught the P3 defect at the leaf. The
-        pre-P3 operator failed **all three** at :math:`q \neq 0`, and no gate
-        in the tree asked. Stated on the realized leaf rather than on the
-        assembled ``B`` so it attributes the failure to the law that caused it.
-        """
-        from orpheus.geometry.boundary import ConstantInflowSource
-
-        op, space = self._realize(ConstantInflowSource(value=2.5))
-        rng = np.random.default_rng(11)
-        n_out = space.outflow_indices.size
-        x = rng.standard_normal((n_out, 3))
-        y = rng.standard_normal((n_out, 3))
-        np.testing.assert_array_equal(op.apply(np.zeros_like(x)), 0.0)
-        np.testing.assert_array_equal(op.apply(2.0 * x), 2.0 * op.apply(x))
-        np.testing.assert_array_equal(
-            op.apply(x + y), op.apply(x) + op.apply(y),
-        )
-
-    def test_the_source_amplitude_is_invisible_to_this_tier(self) -> None:
-        r"""Two different :math:`q` realize to operators that agree everywhere.
-
-        The negative leg of the row above: linearity alone is satisfied by an
-        operator that read :math:`q` and happened to be linear in it. This one
-        says the tier cannot see :math:`q` at all.
-        """
-        from orpheus.geometry.boundary import ConstantInflowSource
-
-        space = face_method_space(Quadrature.lebedev(17), face="xmax")
-        quiet, _ = self._realize(ConstantInflowSource(value=0.0), space)
-        loud, _ = self._realize(ConstantInflowSource(value=1e6), space)
-        assert type(quiet) is type(loud)
-        assert quiet.domain is loud.domain
-        assert quiet.codomain is loud.codomain
-        probe = np.ones((space.outflow_indices.size, 3))
-        np.testing.assert_array_equal(quiet.apply(probe), loud.apply(probe))
-
-    def test_the_transpose_emits_the_zero_of_gamma_plus(self) -> None:
-        r"""The zero map's transpose lands in the DOMAIN, not the codomain.
-
-        NET-NEW at P3: the retired affine operator had no transpose to test
-        (``is_adjointable`` was ``False``). The replacement is adjointable, so
-        the direction its zero lands in becomes a claim — and a wrong one is
-        invisible on a face fixture, where ``|Γ₊| == |Γ₋|``. See
-        ``tests/gates/numerics/test_zero_operator_spaces.py`` for the unequal-size
-        discrimination this fixture structurally cannot make.
-        """
-        from orpheus.geometry.boundary import ConstantInflowSource
-
-        op, space = self._realize(ConstantInflowSource(value=2.5))
-        out = op.apply_transpose(np.ones((space.inflow_indices.size, 3)))
-        assert out.shape == (space.outflow_indices.size, 3)
-        np.testing.assert_array_equal(out, 0.0)
 
 
 # ``TestIncomingSourceOperator`` lived here until **P3** (2026-08-05): three
@@ -632,91 +477,6 @@ class TestPrescribedInflowRealizesTheZeroMap:
 #   which is where the unequal-size construction is reachable.
 
 
-@pytest.mark.l1
-class TestSNRealizerPrescribedInflowDispatch:
-    """:class:`SNBoundaryRealizer` dispatches
-    :class:`PrescribedInflow` to the bound, stamped **zero morphism** (P3)."""
-
-    def test_realize_returns_the_bound_zero_morphism(self) -> None:
-        r"""The realized type, its stamp, and BOTH its spaces.
-
-        RE-POSED at **P3** from ``test_realize_returns_incoming_source_operator``,
-        which asserted the affine operator and read ``op.source`` /
-        ``op.n_inflow`` off it. Neither exists now, and neither should: a
-        boundary operator that carries a source is the defect P3 removed. What
-        replaces those two reads is the pair of spaces — the operator no longer
-        stores a row COUNT, it names the two half-traces, so the claim "the
-        codomain is this face's :math:`\Gamma_-`" is checkable by identity
-        rather than by a size that could coincide.
-        """
-        from orpheus.geometry.boundary import (
-            ConstantInflowSource,
-            PrescribedInflow,
-        )
-        from orpheus.numerics.operator import ZeroMorphism
-        from orpheus.numerics.operator import BlockRole
-        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-
-        bc = PrescribedInflow(source=ConstantInflowSource(value=1.5))
-        space = face_method_space(Quadrature.lebedev(17), face="xmax")
-        op = SNBoundaryRealizer().realize(bc, space)
-
-        assert isinstance(op, ZeroMorphism)
-        assert op.block_role is BlockRole.BOUNDARY
-        # ``is`` and not ``==``: FunctionSpace equality is (name, shape), so
-        # identity is the strictly stronger claim and the two half-traces of
-        # one face have equal shapes on every reachable fixture.
-        assert op.domain is space.trace.outflow_space("xmax")
-        assert op.codomain is space.trace.inflow_space("xmax")
-
-    def test_the_sourceless_spelling_realizes_identically(self) -> None:
-        """RE-POSED from ``test_realize_with_default_no_source``, which pinned
-        ``isinstance(op.source, NoSource)``. The tier cannot see the source at
-        all now, so the honest claim is that both spellings agree — which is
-        also the statement that ``q`` is not what this dispatch produces."""
-        from orpheus.geometry.boundary import (
-            ConstantInflowSource,
-            NoSource,
-            PrescribedInflow,
-        )
-        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-
-        space = face_method_space(Quadrature.lebedev(17), face="xmax")
-        realizer = SNBoundaryRealizer()
-        bare = realizer.realize(PrescribedInflow(), space)
-        explicit = realizer.realize(PrescribedInflow(source=NoSource()), space)
-        loud = realizer.realize(
-            PrescribedInflow(source=ConstantInflowSource(value=1.5)), space,
-        )
-        for op in (explicit, loud):
-            assert type(op) is type(bare)
-            assert op.domain is bare.domain
-            assert op.codomain is bare.codomain
-            assert op.block_role is bare.block_role
-
-    def test_prescribed_inflow_on_a_faceless_space_is_refused(self) -> None:
-        r"""B3.4a negative: even the rank-0 law needs a face.
-
-        NET-NEW. Pre-B3.4a ``SNMethodSpace.minimal`` realized prescribed
-        inflow happily (an unmasked full-face ``q`` — the ERR-047 shape). The
-        law's codomain is now :math:`\Gamma_-`, which a quadrature alone
-        cannot name, so the realizer refuses; the guard shipped with no
-        negative test.
-
-        The refusal is attributed to the DOMAIN guard (``outflow_indices``),
-        which fires first: prescribed inflow ignores its input, but a law
-        that cannot name its own domain is not realized, it is guessed.
-        """
-        from orpheus.geometry.boundary import BoundaryError, PrescribedInflow
-        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-        from orpheus.sn.mesh.method_space import SNMethodSpace
-
-        quad = Quadrature.lebedev(17)
-        with pytest.raises(BoundaryError, match="outflow_indices") as excinfo:
-            SNBoundaryRealizer().realize(
-                PrescribedInflow(), SNMethodSpace.minimal(quad),
-            )
-        assert excinfo.value.law == "prescribed_inflow"
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -831,23 +591,6 @@ class TestSourceIsPlaceableInvariant:
         assert PrescribedInflow().assert_source_is_placeable(None) is None
         assert isinstance(PrescribedInflow().source, NoSource)
 
-    def test_raises_at_realize_time(self) -> None:
-        """Production wiring: realizing the nonzero source on a
-        quadrature-only method space (no inflow indices anywhere)
-        reddens ``SNBoundaryRealizer.realize`` itself — 'the realiser
-        asked to apply the source without an outflow mask' (the
-        catalog's catcher spec, verbatim)."""
-        from orpheus.geometry.boundary import (
-            ConstantInflowSource,
-            PrescribedInflow,
-        )
-        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-        from orpheus.sn.mesh.method_space import SNMethodSpace
-
-        bc = PrescribedInflow(source=ConstantInflowSource(value=2.0))
-        quad = Quadrature.lebedev(17)
-        with pytest.raises(BoundarySourceNotOnIncomingTraceError):
-            SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
 
     # ``test_delivered_q_has_no_row_off_the_incoming_trace`` and
     # ``test_codomain_size_is_the_construction_contract`` lived here until
@@ -1092,30 +835,6 @@ class TestSpecularPairingCertifiedOnBothCarriers:
         # …and the bare law likewise (no closure, no pairing).
         AlbedoBoundary(0.5).assert_realizable(mutant)  # type: ignore[arg-type]
 
-    def test_raises_at_realize_time_on_the_albedo_route(self, monkeypatch) -> None:
-        """PRODUCTION-seam leg: the certification is wired at
-        ``SNBoundaryRealizer.realize``, not only reachable by hand.
-
-        The sibling ``TestReflectiveMeasurePreservingInvariant`` proves this
-        for the reflective route; B3.4b's new route needs its own, because the
-        realizer reaches ``assert_realizable`` through a different dispatch arm.
-        """
-        from orpheus.geometry.boundary import SpecularReturn
-        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-
-        quad = Quadrature.gauss_legendre(n_ordinates=8)
-        monkeypatch.setattr(
-            quad, "ordinate_permutation",
-            lambda motion: Permutation(
-                np.array([1, 0, 3, 2, 5, 4, 7, 6])
-            ),
-        )
-        with pytest.raises(BoundaryGeometryMapNotMeasurePreservingError) as exc:
-            SNBoundaryRealizer().realize(
-                AlbedoBoundary(0.5, SpecularReturn(axis="x")),
-                face_method_space(quad, face="xmax"),
-            )
-        assert exc.value.law == "albedo"
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -1182,84 +901,7 @@ class TestFactorAdjointabilityMatchesTheRealizedOperator:
              PrescribedInflow(source=ConstantInflowSource(value=2.5))),
         ]
 
-    def test_every_law_agrees_with_its_realization(self) -> None:
-        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 
-        quad = Quadrature.level_symmetric(sn_order=6)
-        space = face_method_space(
-            quad, face="xmin", faces=("xmin", "xmax", "ymin", "ymax"),
-        )
-        realizer = SNBoundaryRealizer()
-        disagreed = {}
-        for law_id, law in self._laws():
-            declared = (
-                law.geometry_map.is_adjointable
-                and law.response_kernel.is_adjointable
-            )
-            realized = realizer.realize(law, space).is_adjointable
-            if declared != realized:
-                disagreed[law_id] = (declared, realized)
-        assert not disagreed, (
-            f"the factor tier and the realized operator disagree on "
-            f"adjointability for {disagreed} (declared, realized). Whichever "
-            f"is wrong, a consumer reading one gets an answer the other "
-            f"contradicts — which is the two-sources-of-truth B3.4c closed "
-            f"for periodic."
-        )
-
-    def test_the_agreement_comparison_DETECTS_a_disagreement(self) -> None:
-        """The agreement gate must still discriminate — proven directly.
-
-        ⛔ **This asserted ``answers == {True, False}`` over the shipped law set
-        until 2026-08-04**, on the reasoning that *"white and the diffuse albedo
-        closure supply the ``False``"*. **G6.3 step 3 made every shipped kernel
-        adjointable** by factoring the Lambertian, so the set went one-valued
-        and this gate reddened — correctly. It was doing its job: a one-valued
-        set makes the agreement above blind to a uniform flip.
-
-        But the premise it rested on — that the tree happens to contain a
-        non-adjointable law — was never something this gate controlled, and it
-        is now simply false. Re-posed onto the property actually wanted: that
-        the COMPARISON detects a disagreement when one exists. A synthetic
-        under-claimer (declaration ``False``, realization ``True``) must be
-        flagged, which is exactly the ``SpatialWrap`` drift B3.4c closed and is
-        strictly stronger than hoping the fixture set stays two-valued.
-        """
-        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-
-        class _UnderClaimingKernel:
-            """A response that DENIES the transpose its realization provides."""
-
-            def __init__(self, real):
-                self._real = real
-
-            def __getattr__(self, name):
-                return getattr(self._real, name)
-
-            @property
-            def is_adjointable(self) -> bool:
-                return False
-
-        quad = Quadrature.level_symmetric(sn_order=6)
-        space = face_method_space(
-            quad, face="xmin", faces=("xmin", "xmax", "ymin", "ymax"),
-        )
-        law = ReflectiveBoundary(axis="x")
-        realized = SNBoundaryRealizer().realize(law, space).is_adjointable
-        assert realized is True, "fixture must realize to an adjointable op"
-
-        honest = (
-            law.geometry_map.is_adjointable and law.response_kernel.is_adjointable
-        )
-        under = (
-            law.geometry_map.is_adjointable
-            and _UnderClaimingKernel(law.response_kernel).is_adjointable
-        )
-        assert honest == realized, "the honest declaration must agree"
-        assert under != realized, (
-            "an under-claiming declaration was NOT flagged — the agreement "
-            "comparison has lost its teeth and would pass a uniform flip"
-        )
 
     def test_every_shipped_kernel_is_now_adjointable(self) -> None:
         """Records the state change that emptied the ``False`` column.
@@ -1281,43 +923,3 @@ class TestFactorAdjointabilityMatchesTheRealizedOperator:
             f"{ {k: v for k, v in answers.items() if not v} }"
         )
 
-    def test_prescribed_inflow_joined_the_conjunction(self) -> None:
-        r"""⭐ The exception CLOSED at P3 — and this row predicted it.
-
-        Until P3 this test asserted the opposite: that prescribed inflow is the
-        one law where the factor conjunction fails, because its realized
-        ``IncomingSourceOperator`` declined a transpose while both factors
-        (:math:`G = \mathrm{id}`, :math:`R = 0`) are trivially adjointable. Its
-        own failure message named the condition for its own retirement —
-        *"if the affine source became adjointable, this law joins the
-        conjunction gate above instead of standing outside it."* It did:
-        P3 realizes the law's LINEAR factor, which is the zero map, and
-        :math:`0^{\mathsf T} = 0`.
-
-        So the conjunction now holds for **every** shipped law with no
-        documented exception, and this row's job inverts — it pins that the
-        exception is closed. Note the claim it does NOT make: the law is still
-        affine, and :math:`q` is still not carried by this tier. What changed is
-        that the tier stopped pretending :math:`q` was an operator.
-        """
-        from orpheus.geometry.boundary import ConstantInflowSource, PrescribedInflow
-        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-
-        quad = Quadrature.level_symmetric(sn_order=6)
-        space = face_method_space(
-            quad, face="xmin", faces=("xmin", "xmax", "ymin", "ymax"),
-        )
-        # Both spellings — a zero q and a nonzero one — because the linear
-        # factor must not depend on the source at all.
-        for law in (
-            PrescribedInflow(),
-            PrescribedInflow(source=ConstantInflowSource(value=2.5)),
-        ):
-            assert law.geometry_map.is_adjointable
-            assert law.response_kernel.is_adjointable
-            realized = SNBoundaryRealizer().realize(law, space)
-            assert realized.is_adjointable, (
-                f"the realized linear factor of {law!r} declined a transpose "
-                f"— but both its factors declare adjointable, so the "
-                f"conjunction gate above is now inconsistent with it."
-            )

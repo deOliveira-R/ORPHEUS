@@ -71,7 +71,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.sn.solver import solve_sn_adjoint
 from orpheus.numerics.quadrature import Quadrature
@@ -80,6 +80,14 @@ from orpheus.transport.operators.isotropic_transfer import (
     IsotropicN2N,
     IsotropicScattering,
 )
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -103,9 +111,9 @@ _SPHERE_K = 0.4845397047151718
 def _mesh(coord: CoordSystem) -> Mesh1D:
     """4 cells over ``[0, 5]`` — the cheapest carrying/non-carrying pair."""
     geom = (
-        StructuredGeometry.slab((0.0, 5.0), (0,), left=BC.reflective, right=BC.reflective)
+        StructuredGeometry.slab((0.0, 5.0), (0,), left=MirrorDeck(), right=MirrorDeck())
         if coord is CoordSystem.CARTESIAN
-        else StructuredGeometry.uniform_boundary(coord, (0.0, 5.0), (0,), BC("vacuum"))
+        else StructuredGeometry.uniform_boundary(coord, (0.0, 5.0), (0,), 0)
     )
     return Mesher(geom).partition(CellsByCount.uniform_width(4)).mesh
 
@@ -113,12 +121,12 @@ def _mesh(coord: CoordSystem) -> Mesh1D:
 def _solve(coord: CoordSystem):
     return solve_sn_adjoint(
         {0: get_mixture("A", "2g")},
-        _mesh(coord),
+        (_carrier1 := _mesh(coord)),
         Quadrature.gauss_legendre(n_ordinates=4),
         keff_tol=_KEFF_TOL,
         flux_tol=1e-5,
         inner_tol=1e-7,
-        max_outer=50,
+        max_outer=50, boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
     )
 
 

@@ -5,7 +5,8 @@ This module computes, for seven boundary-law cases, the incoming half-trace
 affine form :eq:`affine-bc-form`, the mirror isometry, and the Lambertian
 partial-current balance — and freezes it under
 ``tests/gates/geometry/snapshots/bc_equivalence_<case>.npz``. The companion harness
-(``tests/gates/geometry/test_bc_equivalence_snapshot.py``) re-runs each case's
+(``tests/gates/sn/architecture/test_wave2_carry.py``, which took over from the retired
+``tests/gates/geometry/test_bc_equivalence_snapshot.py`` at wave 2 S2b) re-runs each case's
 realized SN operator on every pytest invocation and asserts it reproduces the
 frozen reference at the per-case tolerance.
 

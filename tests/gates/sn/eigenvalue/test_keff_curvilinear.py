@@ -17,7 +17,7 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry import CoordSystem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver, solve_sn
@@ -26,6 +26,13 @@ from tests.gates.sn._test_helpers import (
     curvilinear_two_region_mesh as _two_region_mesh,
 )
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0), 1: WallCondition.vacuum()}
+
 
 # Cylinder and sphere carry DIFFERENT equation-coverage lists (the
 # legacy modules did too), so the verifies(...) sets are applied
@@ -87,7 +94,7 @@ def test_homogeneous_exact(case_name, quad_factory):
     mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
     quad = quad_factory()
     result = solve_sn({0: mix}, mesh, quad,
-                      max_inner=500, inner_tol=1e-10)
+                      max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
     assert abs(result.outcome.keff - case.k_inf) < 1e-6, (
         f"keff={result.outcome.keff:.8f} vs analytical={case.k_inf:.8f}"
@@ -107,7 +114,7 @@ def test_particle_balance(quad_factory):
     mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
     quad = quad_factory()
     result = solve_sn({0: mix}, mesh, quad,
-                      max_inner=500, inner_tol=1e-10)
+                      max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
     V = mesh.volumes
     flux = result.scalar_flux.values.T  # PR-INDEX-5
@@ -130,7 +137,7 @@ def test_flux_non_negative():
     mix = get_mixture("A", "1g")
     mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
+    result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
     assert np.all(result.scalar_flux.values >= 0), (
         f"Negative flux: min={result.scalar_flux.values.min():.4e}"
@@ -159,7 +166,7 @@ class TestCylinderMultiGroupMultiRegion:
         )
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         result = solve_sn(materials, mesh, quad,
-                          max_inner=500, inner_tol=1e-10)
+                          max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         assert np.isfinite(result.outcome.keff), "keff is NaN/Inf"
         assert result.outcome.keff > 0, f"keff is non-positive: {result.outcome.keff}"
@@ -182,7 +189,7 @@ class TestCylinderMultiGroupMultiRegion:
                 coord=CoordSystem.CYLINDRICAL,
             )
             result = solve_sn(materials, mesh, quad,
-                              max_inner=500, inner_tol=1e-10)
+                              max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS))
             keffs[label] = result.outcome.keff
 
         assert abs(keffs["4×8"] - keffs["8×8"]) < 0.05, (
@@ -199,7 +206,7 @@ class TestCylinderMultiGroupMultiRegion:
         mix = get_mixture("A", "4g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        problem = SNProblem(mesh, quad, {0: mix})
+        problem = SNProblem(mesh, quad, {0: mix}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         solver = SNSolver(problem, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
@@ -227,7 +234,7 @@ class TestCylinderMultiGroupMultiRegion:
         )
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         result = solve_sn(materials, mesh, quad,
-                          max_inner=500, inner_tol=1e-10)
+                          max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         flux = result.scalar_flux.values.T  # PR-INDEX-5  # (nx, ng)
         V = mesh.volumes
@@ -256,7 +263,7 @@ class TestCylinderMultiGroupMultiRegion:
             coord=CoordSystem.CYLINDRICAL,
         )
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        problem = SNProblem(mesh, quad, materials)
+        problem = SNProblem(mesh, quad, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         solver = SNSolver(problem, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
@@ -290,7 +297,7 @@ class TestCylinderMultiGroupMultiRegion:
                 coord=CoordSystem.CYLINDRICAL,
             )
             result = solve_sn(materials, mesh, quad,
-                              max_inner=500, inner_tol=1e-10)
+                              max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS))
             keffs.append(result.outcome.keff)
 
         diff_1 = abs(keffs[1] - keffs[0])
@@ -328,7 +335,7 @@ class TestSphereEigenvalue:
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
         result = solve_sn(materials, mesh, quad,
-                          max_inner=500, inner_tol=1e-10)
+                          max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         # Spherical DD has larger discretization error than Cartesian
         # due to angular redistribution coupling. 1G is exact (keff
@@ -347,7 +354,7 @@ class TestSphereEigenvalue:
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
         result = solve_sn(materials, mesh, quad,
-                          max_inner=500, inner_tol=1e-10)
+                          max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         V = mesh.volumes
         flux = result.scalar_flux.values.T  # PR-INDEX-5  # (nx, ng)
@@ -380,7 +387,7 @@ class TestSphereEigenvalue:
             quad = Quadrature.gauss_legendre(16)
             result = solve_sn(
                 materials, mesh, quad,
-                max_outer=300, max_inner=500, inner_tol=1e-10,
+                max_outer=300, max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
             )
             keffs.append(result.outcome.keff)
             drs.append(0.5 / n_per)
@@ -406,7 +413,7 @@ class TestSphereEigenvalue:
         mix = get_mixture("A", "1g")
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
+        result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         assert np.all(result.scalar_flux.values >= 0), (
             f"Negative flux: min={result.scalar_flux.values.min():.4e}"
@@ -434,7 +441,7 @@ class TestMultiGroupMultiRegionSpherical:
         )
         quad = Quadrature.gauss_legendre(8)
         result = solve_sn(materials, mesh, quad,
-                          max_inner=500, inner_tol=1e-10)
+                          max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         assert np.isfinite(result.outcome.keff), "keff is NaN/Inf"
         assert 0.1 < result.outcome.keff < 3.0, f"keff={result.outcome.keff:.4f} out of range"
@@ -445,7 +452,7 @@ class TestMultiGroupMultiRegionSpherical:
         mix = get_mixture("A", "4g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        problem = SNProblem(mesh, quad, {0: mix})
+        problem = SNProblem(mesh, quad, {0: mix}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         solver = SNSolver(problem, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
@@ -470,7 +477,7 @@ class TestMultiGroupMultiRegionSpherical:
         )
         quad = Quadrature.gauss_legendre(8)
         result = solve_sn(materials, mesh, quad,
-                          max_inner=500, inner_tol=1e-10)
+                          max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         flux = result.scalar_flux.values.T  # PR-INDEX-5
         V = mesh.volumes
@@ -498,7 +505,7 @@ class TestMultiGroupMultiRegionSpherical:
             coord=CoordSystem.SPHERICAL,
         )
         quad = Quadrature.gauss_legendre(8)
-        problem = SNProblem(mesh, quad, materials)
+        problem = SNProblem(mesh, quad, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         solver = SNSolver(problem, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
@@ -530,7 +537,7 @@ class TestMultiGroupMultiRegionSpherical:
 
         mesh = _homogeneous_mesh(40, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         sig_t = np.ones((1, *problem.spatial_shape))    # (ng, *spatial)
         Q_iso = np.ones((1, *problem.spatial_shape))    # (ng, *spatial)
@@ -561,7 +568,7 @@ class TestMultiGroupMultiRegionSpherical:
         )
         return solve_sn(
             materials, mesh, Quadrature.gauss_legendre(n_gl),
-            max_inner=500, inner_tol=1e-10,
+            max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         ).outcome.keff
 
     def test_heterogeneous_1g_spatial_convergence(self):
@@ -653,11 +660,11 @@ def _assert_si_krylov_eigenvalue_equivalence(materials, mesh, quad) -> float:
     """
     sol_si = solve_sn(
         materials, mesh, quad, inner_solver="source_iteration",
-        keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10,
+        keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     sol_kry = solve_sn(
         materials, mesh, quad, inner_solver="krylov",
-        keff_tol=1e-12, flux_tol=1e-10, max_inner=4000, inner_tol=1e-10,
+        keff_tol=1e-12, flux_tol=1e-10, max_inner=4000, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
     k_si, k_kry = sol_si.outcome.keff, sol_kry.outcome.keff
@@ -782,7 +789,7 @@ def _sphere_keff(materials, mesh, scattering_order: int) -> float:
     return solve_sn(
         materials, mesh, quad,
         scattering_order=scattering_order,
-        max_outer=300, max_inner=500, inner_tol=1e-10, keff_tol=1e-8,
+        max_outer=300, max_inner=500, inner_tol=1e-10, keff_tol=1e-8, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     ).outcome.keff
 
 
@@ -812,7 +819,7 @@ class TestSphereP1DirectionalEigenvalue:
         materials = {0: get_mixture("A", "2g"), 1: get_mixture("C", "2g")}
         mesh = _two_region_mesh(
             outers=(5.0, 10.0), mat_ids=(0, 1), n_cells=(20, 20),
-            coord=CoordSystem.SPHERICAL, bc=BC.vacuum,
+            coord=CoordSystem.SPHERICAL, role=1,
         )
         keff_p0 = _sphere_keff(materials, mesh, 0)
         keff_p1 = _sphere_keff(materials, mesh, 1)
@@ -860,7 +867,7 @@ class TestSphereP1DirectionalEigenvalue:
         for radius in (4.0, 25.0):
             mesh = _homogeneous_mesh(
                 20, radius, mat_id=0,
-                coord=CoordSystem.SPHERICAL, bc=BC.vacuum,
+                coord=CoordSystem.SPHERICAL, role=1,
             )
             deltas[radius] = (
                 _sphere_keff(materials, mesh, 0)
@@ -1007,7 +1014,7 @@ def _folded_cyl_keff(materials, mesh, quad, scattering_order: int) -> float:
     result = solve_sn(
         materials, mesh, quad,
         scattering_order=scattering_order,
-        max_outer=300, max_inner=500, inner_tol=1e-10, keff_tol=1e-8,
+        max_outer=300, max_inner=500, inner_tol=1e-10, keff_tol=1e-8, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     if result.outcome.keff is None:
         raise AssertionError(
@@ -1150,7 +1157,7 @@ class TestFoldedCylinderP1BindsTheQuotientBasis:
         materials = {0: get_mixture("A", "2g"), 1: get_mixture("C", "2g")}
         mesh = _two_region_mesh(
             outers=(5.0, 10.0), mat_ids=(0, 1), n_cells=(20, 20),
-            coord=CoordSystem.CYLINDRICAL, bc=BC.vacuum,
+            coord=CoordSystem.CYLINDRICAL, role=1,
         )
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
         keff_p0 = _folded_cyl_keff(materials, mesh, quad, 0)

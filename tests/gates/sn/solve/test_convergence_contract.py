@@ -43,7 +43,6 @@ import pytest
 from orpheus.numerics.outcome import Asserted, Measured
 
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
-from orpheus.geometry import BC
 from orpheus.numerics.convergence import (
     ESCALATION_FLAG,
     ConvergenceWarning,
@@ -57,8 +56,16 @@ from orpheus.numerics.eigenvalue import PowerIterationOutcome
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn, solve_sn_fixed_source
 from orpheus.mesh import AxisMesh
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+from orpheus.geometry.deck import MirrorDeck
 
-_REFL = BC("reflective")
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
+
+_REFL = MirrorDeck()
 
 
 def _absorber_2g():
@@ -81,7 +88,7 @@ def _d3_reflective_axes():
     by a magic number.
     """
     return tuple(
-        AxisMesh(edges=np.linspace(0.0, e, n + 1), bc_low=_REFL, bc_high=_REFL)
+        AxisMesh(edges=np.linspace(0.0, e, n + 1), role_low=_REFL, role_high=_REFL)
         for e, n in zip((1.0, 2.0, 3.0), (3, 4, 5))
     )
 
@@ -104,29 +111,29 @@ def _eigenvalue(*, max_outer: int, keff_tol: float):
     """
     return solve_sn(
         {0: get_mixture("A", "2g")},
-        tuple(
+        (_carrier1 := tuple(
             AxisMesh(edges=np.linspace(0.0, e, n + 1),
-                     bc_low=_REFL, bc_high=_REFL)
+                     role_low=_REFL, role_high=_REFL)
             for e, n in zip((2.0, 1.5), (4, 3))
-        ),
+        )),
         Quadrature.level_symmetric(sn_order=4),
-        max_outer=max_outer, keff_tol=keff_tol, inner_tol=1e-10,
+        max_outer=max_outer, keff_tol=keff_tol, inner_tol=1e-10, boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
     )
 
 
 def _fixed_source(max_inner: int, **kw):
     quad = Quadrature.level_symmetric(sn_order=4)
     return solve_sn_fixed_source(
-        {0: _absorber_2g()}, _d3_reflective_axes(), quad,
+        {0: _absorber_2g()}, (_carrier2 := _d3_reflective_axes()), quad,
         external_source=_uniform_source(quad, (3, 4, 5)),
-        inner_tol=1e-13, max_inner=max_inner, **kw,
+        inner_tol=1e-13, max_inner=max_inner, **kw, boundary_conditions=conditions_for(_carrier2, _CONDITIONS),
     )
 
 
 def _two_group_reflective_2d():
     """The cheap 2-D all-reflective box the #340 N6 tree fixtures share."""
     return tuple(
-        AxisMesh(edges=np.linspace(0.0, e, n + 1), bc_low=_REFL, bc_high=_REFL)
+        AxisMesh(edges=np.linspace(0.0, e, n + 1), role_low=_REFL, role_high=_REFL)
         for e, n in zip((2.0, 1.5), (4, 3))
     )
 
@@ -147,10 +154,10 @@ def _nested_failure_eigenvalue():
     """
     return solve_sn(
         {0: get_mixture("A", "2g")},
-        _two_group_reflective_2d(),
+        (_carrier3 := _two_group_reflective_2d()),
         Quadrature.level_symmetric(sn_order=4),
         max_outer=3, keff_tol=1e-12, flux_tol=1e-12,
-        max_inner=20, inner_tol=1e-10,
+        max_inner=20, inner_tol=1e-10, boundary_conditions=conditions_for(_carrier3, _CONDITIONS),
     )
 
 
@@ -167,10 +174,10 @@ def _starved_inner_converged_outer():
     """
     return solve_sn(
         {0: get_mixture("A", "2g")},
-        _two_group_reflective_2d(),
+        (_carrier4 := _two_group_reflective_2d()),
         Quadrature.level_symmetric(sn_order=4),
         max_outer=200, keff_tol=1e-8, flux_tol=1e-6,
-        max_inner=8, inner_tol=1e-10,
+        max_inner=8, inner_tol=1e-10, boundary_conditions=conditions_for(_carrier4, _CONDITIONS),
     )
 
 
@@ -254,9 +261,9 @@ def _sn_mesh_for_budget_probe():
     from orpheus.sn.solver import _as_problem
 
     return _as_problem(
-        (AxisMesh(edges=np.linspace(0.0, 1.0, 3), bc_low=_REFL, bc_high=_REFL),),
+        (_carrier5 := (AxisMesh(edges=np.linspace(0.0, 1.0, 3), role_low=_REFL, role_high=_REFL),)),
         Quadrature.level_symmetric(sn_order=2),
-        {0: _absorber_2g()},
+        {0: _absorber_2g()}, boundary_conditions=conditions_for(_carrier5, _CONDITIONS),
     )
 
 
@@ -977,7 +984,7 @@ def _tiny_slab_inputs():
     producer wrote, not about a warning.
     """
     axes = (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 5), bc_low=_REFL, bc_high=_REFL),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 5), role_low=_REFL, role_high=_REFL),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     source = np.broadcast_to(
@@ -991,14 +998,14 @@ def _fixed_source_slab(inner_solver: str):
     axes, quad, source = _tiny_slab_inputs()
     return solve_sn_fixed_source(
         {0: _absorber_2g()}, axes, quad, external_source=source,
-        inner_solver=inner_solver,
+        inner_solver=inner_solver, boundary_conditions=conditions_for(axes, _CONDITIONS),
     )
 
 
 def _eigenvalue_slab(inner_solver: str):
     axes, quad, _ = _tiny_slab_inputs()
     return solve_sn(
-        {0: get_mixture("A", "2g")}, axes, quad, inner_solver=inner_solver,
+        {0: get_mixture("A", "2g")}, axes, quad, inner_solver=inner_solver, boundary_conditions=conditions_for(axes, _CONDITIONS),
     )
 
 
@@ -1006,7 +1013,7 @@ def _adjoint_eigenvalue_slab():
     from orpheus.sn.solver import solve_sn_adjoint
 
     axes, quad, _ = _tiny_slab_inputs()
-    return solve_sn_adjoint({0: get_mixture("A", "2g")}, axes, quad)
+    return solve_sn_adjoint({0: get_mixture("A", "2g")}, axes, quad, boundary_conditions=conditions_for(axes, _CONDITIONS))
 
 
 def _adjoint_fixed_source_slab():
@@ -1018,7 +1025,7 @@ def _adjoint_fixed_source_slab():
     axes, quad, _ = _tiny_slab_inputs()
     return solve_sn_adjoint_fixed_source(
         {0: _absorber_2g()}, axes, quad,
-        detector_response=np.ones((2, 4)),
+        detector_response=np.ones((2, 4)), boundary_conditions=conditions_for(axes, _CONDITIONS),
     )
 
 
@@ -1032,7 +1039,7 @@ def _starved_adjoint_eigenvalue():
     axes, quad, _ = _tiny_slab_inputs()
     return solve_sn_adjoint(
         {0: get_mixture("A", "2g")}, axes, quad,
-        max_outer=2, keff_tol=1e-14,
+        max_outer=2, keff_tol=1e-14, boundary_conditions=conditions_for(axes, _CONDITIONS),
     )
 
 
@@ -1043,7 +1050,7 @@ def _starved_adjoint_fixed_source():
     return solve_sn_adjoint_fixed_source(
         {0: _absorber_2g()}, axes, quad,
         detector_response=np.ones((2, 4)),
-        max_inner=2, inner_tol=1e-13,
+        max_inner=2, inner_tol=1e-13, boundary_conditions=conditions_for(axes, _CONDITIONS),
     )
 
 
@@ -1305,7 +1312,7 @@ class TestExitBalanceDefect:
         from orpheus.geometry import StructuredGeometry
         from orpheus.mesh import CellsByCount, Mesher
 
-        geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC.reflective)
+        geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=0)
         mesh = Mesher(geom).partition(CellsByCount.uniform_volume(20)).mesh
         with pytest.warns(ConvergenceWarning) as caught:
             sol = solve_sn(
@@ -1313,7 +1320,7 @@ class TestExitBalanceDefect:
                 Quadrature.gauss_legendre(n_ordinates=8),
                 inner_solver="source_iteration",
                 max_outer=3, max_inner=4, inner_tol=1e-12,
-                keff_tol=1e-10, flux_tol=1e-9,
+                keff_tol=1e-10, flux_tol=1e-9, boundary_conditions=conditions_for(mesh, _CONDITIONS),
             )
         assert sol.problem.radial_characteristic_field_space is not None, (
             "fixture drift: this row needs a CARRYING mesh, or it is "
@@ -1447,9 +1454,9 @@ class TestTheWarningBlamesTheCallerAtEverySNEntry:
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             solve_sn_fixed_source(
-                {0: _absorber_2g()}, _d3_reflective_axes(), quad,
+                {0: _absorber_2g()}, (_carrier6 := _d3_reflective_axes()), quad,
                 external_source=_uniform_source(quad, (3, 4, 5)),
-                        inner_tol=1e-13, max_inner=2,
+                        inner_tol=1e-13, max_inner=2, boundary_conditions=conditions_for(_carrier6, _CONDITIONS),
             )
         conv = [w for w in caught
                 if issubclass(w.category, ConvergenceWarning)]

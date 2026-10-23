@@ -28,18 +28,19 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver, solve_sn
+from orpheus.geometry.deck import MirrorDeck
 
 pytestmark = pytest.mark.l0  # SN 2-D eigenvalue component checks
 
 
 def _reflective_slab_1d():
     """The 1-D homogeneous reflective slab [0, 2], 4 equal-width cells."""
-    return Mesher(StructuredGeometry.from_homogeneous(2.0, BC.reflective)).partition(
+    return Mesher(StructuredGeometry.from_homogeneous(2.0, MirrorDeck())).partition(
         CellsByCount.uniform_width(4),
     ).mesh
 
@@ -50,11 +51,11 @@ def _uniform_2d(nx, ny, delta, mat_map):
         edges_x=np.linspace(0, nx * delta, nx + 1),
         edges_y=np.linspace(0, ny * delta, ny + 1),
         mat_map=np.asarray(mat_map, dtype=int),
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
 

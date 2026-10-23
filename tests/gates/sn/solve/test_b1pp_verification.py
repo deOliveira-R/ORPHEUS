@@ -30,7 +30,7 @@ import pytest
 from scipy.sparse.linalg import LinearOperator as SciLinearOperator
 from scipy.sparse.linalg import gmres
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
@@ -45,6 +45,14 @@ from tests.gates.sn._test_helpers import (
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 # Per-test V&V level markers (see individual @pytest.mark.lN decorators).
 
@@ -56,26 +64,26 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 def _build_cylinder(nx: int, sn_order: int = 4) -> SNProblem:
     mesh = Mesher(StructuredGeometry.cylinder(
-        (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("reflective"),
+        (0.01, 2.0), (0,), inner=0, outer=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=sn_order, n_phi=2 * sn_order)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _build_sphere(nx: int, n_ord: int = 8) -> SNProblem:
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, 2.0), (0,), outer=BC("reflective"),
+        (0.0, 2.0), (0,), outer=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _build_slab(nx: int, n_ord: int = 8) -> SNProblem:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(2.0, BC("reflective"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(2.0, MirrorDeck())).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 _GEOMETRIES = [

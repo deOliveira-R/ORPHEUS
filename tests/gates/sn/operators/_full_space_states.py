@@ -28,7 +28,7 @@ from typing import Any
 import numpy as np
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
 from orpheus.numerics.quadrature import Quadrature
@@ -37,6 +37,16 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.radial_characteristic_field import RadialCharacteristicField
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+#: The roles this file's tests name by kind: the vacuum tag (declared by ``_CONDITIONS``) and the mirror deck.
+_ROLE = {"vacuum": 0, "reflective": MirrorDeck()}
+
 
 
 def mixtures():
@@ -56,7 +66,7 @@ def mixtures():
 def mesh_slab(left: str) -> SNProblem:
     geom = StructuredGeometry.slab(
         (0.0, 0.5, 3.0, 5.0, 6.0, 8.0), (0, 1, 0, 1, 0),
-        left=BC(left), right=BC("vacuum"),
+        left=_ROLE[left], right=0,
     )
     return SNProblem(
         Mesher(geom).partition((
@@ -67,7 +77,13 @@ def mesh_slab(left: str) -> SNProblem:
             CellEdges(np.array([6.0, 8.0])),
         )).mesh,
         Quadrature.gauss_legendre(n_ordinates=4),
-        mixtures(),
+        mixtures(), boundary_conditions=conditions_for(Mesher(geom).partition((
+            CellEdges(np.array([0.0, 0.5])),
+            CellEdges(np.array([0.5, 1.5, 3.0])),
+            CellEdges(np.array([3.0, 5.0])),
+            CellEdges(np.array([5.0, 6.0])),
+            CellEdges(np.array([6.0, 8.0])),
+        )).mesh, _CONDITIONS),
     )
 
 
@@ -81,15 +97,15 @@ def mesh_cart2d() -> SNProblem:
     # ``product`` rule leaves half of each face's slots tangential). Seedless,
     # so the implicit operator is the bare (L+C).
     return SNProblem(
-        Mesh2D(
+        (_carrier1 := Mesh2D(
             np.array([0.0, 0.4, 1.5, 2.0]), np.array([0.0, 0.7, 2.0]),
             np.array([[0, 1], [1, 0], [0, 0]]),
-            face_laws={"xmin": BC("reflective"), "xmax": BC("vacuum"),
-                       "ymin": BC("vacuum"), "ymax": BC("reflective")},
+            face_roles={"xmin": MirrorDeck(), "xmax": 0,
+                       "ymin": 0, "ymax": MirrorDeck()},
             coord=CoordSystem.CARTESIAN,
-        ),
+        )),
         Quadrature.level_symmetric(4),
-        mixtures(),
+        mixtures(), boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
     )
 
 
@@ -104,10 +120,12 @@ def mesh_cyl() -> SNProblem:
     # per-face membership loop on the curvilinear face set.
     return SNProblem(
         Mesher(StructuredGeometry.cylinder(
-            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
+            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=0,
         )).partition(CellsByCount.uniform_width(1)).mesh,
         Quadrature.folded_product(n_mu=4, n_phi=6),
-        mixtures(),
+        mixtures(), boundary_conditions=conditions_for(Mesher(StructuredGeometry.cylinder(
+            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=0,
+        )).partition(CellsByCount.uniform_width(1)).mesh, _CONDITIONS),
     )
 
 
@@ -119,10 +137,12 @@ def mesh_sphere() -> SNProblem:
     # covers both curvilinear arms, so both are gated here.
     return SNProblem(
         Mesher(StructuredGeometry.sphere(
-            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
+            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=0,
         )).partition(CellsByCount.uniform_width(1)).mesh,
         Quadrature.gauss_legendre(n_ordinates=4),
-        mixtures(),
+        mixtures(), boundary_conditions=conditions_for(Mesher(StructuredGeometry.sphere(
+            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=0,
+        )).partition(CellsByCount.uniform_width(1)).mesh, _CONDITIONS),
     )
 
 

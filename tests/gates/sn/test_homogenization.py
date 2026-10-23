@@ -30,10 +30,18 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
+from orpheus.geometry.deck import MirrorDeck, FaceRole
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.l0, pytest.mark.cap("solve")]
 
@@ -42,20 +50,20 @@ _FINE_EDGES = np.linspace(0.0, 4.0, 9)            # 8 fine cells
 _MAT_IDS = np.array([0, 0, 0, 1, 1, 0, 1, 1])     # heterogeneous, interleaved
 
 
-def _fine_mesh(left: BC) -> Mesh1D:
+def _fine_mesh(left: FaceRole) -> Mesh1D:
     """The 8-cell interleaved slab: its material interfaces are the breakpoints
     (3, 2, 1, 2 cells of 0, 1, 0, 1); reflective on the right, ``left`` on the left."""
     geometry = StructuredGeometry.slab(
-        (0.0, 1.5, 2.5, 3.0, 4.0), (0, 1, 0, 1), left=left, right=BC("reflective"),
+        (0.0, 1.5, 2.5, 3.0, 4.0), (0, 1, 0, 1), left=left, right=MirrorDeck(),
     )
     width = CellsByCount.uniform_width
     return Mesher(geometry).partition((width(3), width(2), width(1), width(2))).mesh
 
 
-def _coarse_mesh(breakpoints: tuple[float, ...], *, left: BC = BC("reflective")) -> Mesh1D:
+def _coarse_mesh(breakpoints: tuple[float, ...], *, left: FaceRole = MirrorDeck()) -> Mesh1D:
     """One coarse cell per interval, each its own region id (the homogenisation target)."""
     geometry = StructuredGeometry.slab(
-        breakpoints, range(len(breakpoints) - 1), left=left, right=BC("reflective"),
+        breakpoints, range(len(breakpoints) - 1), left=left, right=MirrorDeck(),
     )
     return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
 
@@ -87,9 +95,9 @@ def materials():
 
 @pytest.fixture(scope="module")
 def solution(materials):
-    fine = _fine_mesh(BC("reflective"))
+    fine = _fine_mesh(MirrorDeck())
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    return solve_sn(materials, fine, quad, scattering_order=0)
+    return solve_sn(materials, fine, quad, scattering_order=0, boundary_conditions=conditions_for(fine, _CONDITIONS))
 
 
 def _coarse_two_region():
@@ -206,7 +214,7 @@ def test_effective_xs_bracketed_by_fine_extremes(solution, materials):
 def test_identity_homogenization_recovers_per_cell_materials(solution, materials):
     """Homogenize onto the SAME fine mesh → each coarse cell is one fine cell,
     so the effective material equals that cell's original (avg over one cell)."""
-    same = _fine_mesh(BC("reflective"))
+    same = _fine_mesh(MirrorDeck())
     mm = solution.homogenize(same)
     for i in range(len(_MAT_IDS)):
         orig = materials[_MAT_IDS[i]]
@@ -220,11 +228,11 @@ def test_identity_homogenization_recovers_per_cell_materials(solution, materials
 def test_single_material_region_recovers_material(materials):
     """A coarse cell containing only material m homogenizes to m (flux cancels)."""
     # Uniform single-material fine mesh → any coarse partition gives m back.
-    fine = Mesher(StructuredGeometry.from_homogeneous(3.0, BC("reflective"))).partition(
+    fine = Mesher(StructuredGeometry.from_homogeneous(3.0, MirrorDeck())).partition(
         CellsByCount.uniform_width(6),
     ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    sol = solve_sn({0: materials[0]}, fine, quad, scattering_order=0)
+    sol = solve_sn({0: materials[0]}, fine, quad, scattering_order=0, boundary_conditions=conditions_for(fine, _CONDITIONS))
     mm = sol.homogenize(_coarse_mesh((0.0, 1.5, 3.0)))
     for mix in mm.materials.values():
         np.testing.assert_allclose(mix.SigT, materials[0].SigT, atol=1e-12)
@@ -249,11 +257,11 @@ def test_homogenization_is_flux_weighted_not_volume_weighted(materials):
     from the weight (volume-only averaging)."""
     fine = Mesher(StructuredGeometry.slab(
         (0.0, 1.0, 2.0), (0, 1),
-        left=BC("vacuum"), right=BC("reflective"),   # strong flux tilt
+        left=0, right=MirrorDeck(),   # strong flux tilt
     )).partition(CellsByCount.uniform_width(2)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    sol = solve_sn(materials, fine, quad, scattering_order=0)
-    coarse = _coarse_mesh((0.0, 2.0), left=BC("vacuum"))   # ONE region
+    sol = solve_sn(materials, fine, quad, scattering_order=0, boundary_conditions=conditions_for(fine, _CONDITIONS))
+    coarse = _coarse_mesh((0.0, 2.0), left=0)   # ONE region
     mm = sol.homogenize(coarse)
 
     phi = sol.scalar_flux.values                 # (ng, n_fine)
@@ -393,10 +401,10 @@ def tilted_pair():
     from orpheus.sn.solver import solve_sn_adjoint
 
     materials = _nonselfadjoint_materials()
-    fine = _fine_mesh(BC("vacuum"))
+    fine = _fine_mesh(0)
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    fwd = solve_sn(materials, fine, quad, scattering_order=0)
-    adj = solve_sn_adjoint(materials, fine, quad, scattering_order=0)
+    fwd = solve_sn(materials, fine, quad, scattering_order=0, boundary_conditions=conditions_for(fine, _CONDITIONS))
+    adj = solve_sn_adjoint(materials, fine, quad, scattering_order=0, boundary_conditions=conditions_for(fine, _CONDITIONS))
     return materials, fwd, adj
 
 
@@ -643,24 +651,24 @@ def test_homogenize_2d_rate_preservation(materials):
     fine = Mesh2D(
         edges_x=np.linspace(0.0, 4.0, 5), edges_y=np.linspace(0.0, 4.0, 5),
         mat_map=mat_map, coord=CoordSystem.CARTESIAN,
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": 0,
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    sol = solve_sn(materials, fine, quad, scattering_order=0)
+    sol = solve_sn(materials, fine, quad, scattering_order=0, boundary_conditions=conditions_for(fine, _CONDITIONS))
 
     coarse = Mesh2D(
         edges_x=np.array([0.0, 2.0, 4.0]), edges_y=np.array([0.0, 2.0, 4.0]),
         mat_map=np.zeros((2, 2), dtype=int), coord=CoordSystem.CARTESIAN,
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": 0,
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     mm = sol.homogenize(coarse)

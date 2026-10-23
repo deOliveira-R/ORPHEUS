@@ -37,7 +37,7 @@ from dataclasses import FrozenInstanceError
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.field import Field
 from orpheus.numerics.quadrature import Quadrature
@@ -48,6 +48,14 @@ from orpheus.transport.residuals import AngularBoundaryResidual
 from orpheus.transport.fields import AngularBoundarySourceSink
 
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.foundation]
 
@@ -59,29 +67,29 @@ NEW_BOUNDARY_LEAVES = [AngularBoundarySourceSink, AngularBoundaryResidual]
 
 
 def _slab_mesh(nx: int = 5, ng: int = 2) -> SNProblem:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _quad8_mesh(nx: int = 5, ng: int = 2) -> SNProblem:
     """GL(8) sibling of ``_slab_mesh`` — the boundary-trace CONTENT (and
     shape) differs, so the carrier mints an UNEQUAL trace space (F2)."""
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _sphere_mesh(nx: int = 5, ng: int = 2) -> SNProblem:
-    mesh = Mesher(StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.sphere((0.0, 1.0), (0,), outer=0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNProblem:
@@ -89,10 +97,10 @@ def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNProblem:
         edges_x=np.linspace(0, 1, nx + 1),
         edges_y=np.linspace(0, 1, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+        face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # ════════════════════════════════════════════════════════════════════

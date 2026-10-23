@@ -87,10 +87,12 @@ from orpheus.derivations.continuous.analytical.homogeneous import (
     derive_2g_n2n_continuous,
     derive_4g_continuous,
 )
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
+from tests.gates.sn._test_helpers import reflective_role, CURVED_REFLECTIVE
+from tests.gates._exterior import conditions_for
 
 
 pytestmark = pytest.mark.l1
@@ -138,7 +140,7 @@ def _homogeneous_mesh(coord: str, n_cells: int, length: float, mat_id: int) -> M
     to k_inf.
     """
     geom = StructuredGeometry.uniform_boundary(
-        _COORD[coord], (0.0, length), (mat_id,), BC.reflective,
+        _COORD[coord], (0.0, length), (mat_id,), reflective_role(_COORD[coord]),
     )
     return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 
@@ -216,7 +218,7 @@ def test_kinf_homogeneous(ng_key: str, coord: str, inner_solver: str) -> None:
 
     result = solve_sn(
         case.problem.materials, mesh, quadrature,
-        inner_solver=inner_solver, **_TIGHT_KW,
+        inner_solver=inner_solver, **_TIGHT_KW, boundary_conditions=conditions_for(mesh, CURVED_REFLECTIVE),
     )
 
     np.testing.assert_allclose(
@@ -272,7 +274,7 @@ def test_kinf_homogeneous_spectrum(ng_key: str, coord: str, inner_solver: str) -
     quadrature = _quadrature_for(coord)
     result = solve_sn(
         case.problem.materials, mesh, quadrature,
-        inner_solver=inner_solver, **_TIGHT_KW,
+        inner_solver=inner_solver, **_TIGHT_KW, boundary_conditions=conditions_for(mesh, CURVED_REFLECTIVE),
     )
 
     # Spatial average per group → spectrum vector (homogeneous → spatially flat).

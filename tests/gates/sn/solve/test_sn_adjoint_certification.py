@@ -68,7 +68,6 @@ from orpheus.derivations.common.eigenvalue import (
 )
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.geometry import BC
 from orpheus.geometry import StructuredGeometry
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import (
@@ -78,6 +77,14 @@ from orpheus.sn.solver import (
     solve_sn_adjoint,
 )
 from tests.gates.sn._test_helpers import energy_spectrum, g_coupled_diagonal
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 
@@ -93,14 +100,14 @@ def _quad():
 def _solve_fwd(mats, mesh):
     return solve_sn(
         mats, mesh, _quad(),
-        keff_tol=1e-9, flux_tol=1e-8, inner_tol=1e-10, max_inner=500,
+        keff_tol=1e-9, flux_tol=1e-8, inner_tol=1e-10, max_inner=500, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
 def _solve_adj(mats, mesh):
     return solve_sn_adjoint(
         mats, mesh, _quad(),
-        keff_tol=1e-9, flux_tol=1e-8, inner_tol=1e-10, max_inner=500,
+        keff_tol=1e-9, flux_tol=1e-8, inner_tol=1e-10, max_inner=500, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -115,7 +122,7 @@ def _mix_arrays(mix):
 
 def _infinite_medium(ng_key: str):
     mix = get_mixture("A", ng_key)
-    mesh = Mesher(StructuredGeometry.from_homogeneous(5.0, BC.reflective)).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(5.0, MirrorDeck())).partition(
         CellsByCount.uniform_width(10),
     ).mesh
     return {0: mix}, mesh, mix
@@ -124,7 +131,7 @@ def _infinite_medium(ng_key: str):
 def _het_slab():
     mats = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 1.0, 3.0, 4.0), (0, 1, 0), left=BC("reflective"), right=BC("reflective"),
+        (0.0, 1.0, 3.0, 4.0), (0, 1, 0), left=MirrorDeck(), right=MirrorDeck(),
     )).partition((
         CellsByCount.uniform_width(2),
         CellsByCount.uniform_width(4),
@@ -136,7 +143,7 @@ def _het_slab():
 def _sphere():
     mats = {0: get_mixture("A", "2g")}
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, 3.0), (0,), outer=BC("vacuum"),
+        (0.0, 3.0), (0,), outer=0,
     )).partition(CellsByCount.uniform_width(6)).mesh
     return mats, mesh
 
@@ -386,7 +393,7 @@ def _het_sphere():
     """
     mats = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, 1.5, 3.0), (0, 1), outer=BC("vacuum"),
+        (0.0, 1.5, 3.0), (0, 1), outer=0,
     )).partition(CellsByCount.uniform_width(3)).mesh
     return mats, mesh
 
@@ -441,7 +448,7 @@ def _sphere_dense_reference():
     from orpheus.numerics.coupled_system import CoupledField
 
     mats, mesh = _het_sphere()
-    sn = _as_problem(mesh, _quad(), mats)
+    sn = _as_problem(mesh, _quad(), mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     parts: tuple[Any, Any, Any, Any, Any] = _adjoint_posing_parts(sn)
     implicit_operator, gain, F_posed, template, _splitting = parts
     if not isinstance(template, CoupledField):
@@ -512,7 +519,7 @@ class TestP14SphereAdjointVector:
             "its transpose cannot referee the adjoint.",
         )
 
-        sn = _as_problem(mesh, _quad(), mats)
+        sn = _as_problem(mesh, _quad(), mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         k_adj, psi_star = _sphere_daggered_run(sn)
 
         # Materiality: φ* ≢ φ (normalized) — heterogeneous + vacuum makes
@@ -557,7 +564,7 @@ class TestP14SphereAdjointVector:
         mats, mesh = _het_sphere()
         k_fwd = _k(_solve_fwd(mats, mesh))
 
-        sn_mut = _as_problem(mesh, _quad(), mats)
+        sn_mut = _as_problem(mesh, _quad(), mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         ii = sn_mut.radial_characteristic_interior_space
         bb = sn_mut.radial_characteristic_boundary_space
         cspace = sn_mut.radial_characteristic_field_space
@@ -626,7 +633,7 @@ class TestP14SphereAdjointVector:
             FissionOperator, "apply_transpose",
             lambda self, chi: self.apply(chi),
         )
-        sn_mut = _as_problem(mesh, _quad(), mats)
+        sn_mut = _as_problem(mesh, _quad(), mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         k_mut, psi_mut = _sphere_daggered_run(sn_mut)
         rel_mut = _defining_law_relative_residual(
             psi_mut, k_mut, A_dense, F_dense, g_diag,

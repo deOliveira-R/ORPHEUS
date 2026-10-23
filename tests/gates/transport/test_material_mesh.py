@@ -25,7 +25,7 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.data.materials import InconsistentMaterialsError
@@ -34,6 +34,7 @@ from orpheus.transport.mesh import (
     MaterialXSField,
 )
 from orpheus.sn.problem import SNProblem
+from orpheus.geometry.deck import MirrorDeck
 
 pytestmark = pytest.mark.foundation
 
@@ -52,7 +53,7 @@ def _mix(sig_t, *, ng):
 def _two_material_mesh(ng=2):
     mats = {0: _mix([1.0, 1.5][:ng], ng=ng), 1: _mix([1.2, 1.8][:ng], ng=ng)}
     geometry = StructuredGeometry.slab(
-        (0.0, 2.0, 4.0, 5.0), (0, 1, 0), left=BC("reflective"), right=BC("reflective"),
+        (0.0, 2.0, 4.0, 5.0), (0, 1, 0), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geometry).partition((
         CellsByCount.uniform_width(2),
@@ -104,7 +105,7 @@ def test_material_mesh_builds_xs_field():
 
 def test_inconsistent_ng_raises_at_construction():
     geometry = StructuredGeometry.slab(
-        (0.0, 1.0, 2.0), (0, 1), left=BC("reflective"), right=BC("reflective"),
+        (0.0, 1.0, 2.0), (0, 1), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
     mats = {0: _mix([1.0, 1.5], ng=2), 1: _mix([1.0], ng=1)}
@@ -114,7 +115,7 @@ def test_inconsistent_ng_raises_at_construction():
 
 def test_missing_material_id_raises():
     geometry = StructuredGeometry.slab(
-        (0.0, 1.0, 2.0), (0, 7), left=BC("reflective"), right=BC("reflective"),
+        (0.0, 1.0, 2.0), (0, 7), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
     with pytest.raises(ValueError, match="references material ids"):
@@ -176,7 +177,7 @@ def test_a_materials_declaration_must_cover_every_referenced_id():
     """A cell referencing material id 0 with a declaration lacking key 0
     fails loud at construction (parse, don't validate downstream) — the
     ``Materials.restrict`` guard, witnessed on a genuine one-cell carrier."""
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("reflective"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, MirrorDeck())).partition(
         CellsByCount.uniform_width(1),
     ).mesh
     with pytest.raises(ValueError, match="references material ids"):

@@ -36,13 +36,20 @@ import numpy.testing as npt
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.axis_marginal import AxisPullbackOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import _as_problem, solve_sn_adjoint_fixed_source
 from orpheus.transport.full_field import FullField
 from orpheus.transport.fields import AngularBoundarySourceSink, AngularSourceSink
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.l1
 
@@ -52,7 +59,7 @@ def _fixture():
     a thermal detector in the right region."""
     mats = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 1.0, 3.0, 4.0), (0, 1, 0), left=BC.vacuum, right=BC.vacuum,
+        (0.0, 1.0, 3.0, 4.0), (0, 1, 0), left=0, right=0,
     )).partition((
         CellsByCount.uniform_width(2), CellsByCount.uniform_width(4), CellsByCount.uniform_width(2),
     )).mesh
@@ -62,7 +69,7 @@ def _fixture():
 
 
 def _phi_star(mats, mesh, quad, detector) -> np.ndarray:
-    adj = solve_sn_adjoint_fixed_source(mats, mesh, quad, detector, inner_tol=1e-12, max_inner=2000)
+    adj = solve_sn_adjoint_fixed_source(mats, mesh, quad, detector, inner_tol=1e-12, max_inner=2000, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     return np.asarray(adj.scalar_flux.values)
 
 
@@ -81,7 +88,7 @@ def test_s6_6_a_the_ndarray_detector_routes_through_the_pullback(monkeypatch) ->
         pytest.fail(f"an ndarray detector made {len(calls)} pullback calls, not 1")
 
     calls.clear()
-    problem = _as_problem(mesh, quad, mats)
+    problem = _as_problem(mesh, quad, mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     composite = FullField(
         interior=AngularSourceSink(
             values=np.ascontiguousarray(np.broadcast_to(sigma_d[None], (quad.n_ordinates, *sigma_d.shape))),

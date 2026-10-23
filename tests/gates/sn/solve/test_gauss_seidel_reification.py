@@ -43,7 +43,6 @@ import pytest
 from orpheus.sn.operators.scheduled_invertible import ScheduledInvertibleOperator
 from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation.sweep_schedule import (
@@ -69,6 +68,14 @@ from tests.gates.sn.operators.test_removal_form_matvec_sweep import (
     _random_state,
     _removal_sigmas,
 )
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -323,11 +330,11 @@ def test_w2_fixed_point_equivalence_diagonal_cubature():
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=mat,
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
@@ -339,10 +346,10 @@ def test_w2_fixed_point_equivalence_diagonal_cubature():
     )
     materials = {2: fuel, 0: mod}
     phi_gs = solve_sn_fixed_source(
-        materials, mesh, quad, q_ext, inner_schedule="gauss_seidel", **kwargs,
+        materials, mesh, quad, q_ext, inner_schedule="gauss_seidel", **kwargs, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     ).scalar_flux
     phi_jac = solve_sn_fixed_source(
-        materials, mesh, quad, q_ext, inner_schedule="jacobi", **kwargs,
+        materials, mesh, quad, q_ext, inner_schedule="jacobi", **kwargs, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     ).scalar_flux
     # SAFETY × conv_tol (L7): the two iterations stop within inner_tol of
     # the SAME ψ*; 50× covers the stopping-criterion slack on both sides.

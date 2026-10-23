@@ -35,7 +35,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -45,6 +45,14 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -54,22 +62,22 @@ pytestmark = pytest.mark.foundation
 
 def _build_sn_mesh(geometry: str, *, n_cells: int = 5, n_ord: int = 4) -> SNProblem:
     if geometry == "SPH":
-        geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC("reflective"))
+        geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=0)
         quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     elif geometry == "CYL":
         geom = StructuredGeometry.cylinder(
-            (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("reflective"),
+            (0.01, 2.0), (0,), inner=0, outer=0,
         )
         quad = Quadrature.folded_product(n_mu=n_ord, n_phi=2 * n_ord)
     elif geometry == "CART":
         geom = StructuredGeometry.slab(
-            (0.0, 2.0), (0,), left=BC("reflective"), right=BC("reflective"),
+            (0.0, 2.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
         )
         quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     else:
         raise ValueError(geometry)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(n_cells)).mesh
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _random_state(problem: SNProblem, *, seed: int) -> TimedFullField:

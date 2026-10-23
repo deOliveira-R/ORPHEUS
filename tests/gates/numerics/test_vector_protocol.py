@@ -22,7 +22,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.vector import V, Vector
@@ -34,15 +34,22 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.foundation]
 
 
 def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
-    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=0, right=0)
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # ───────────────────────────────────────────────────────────────────────

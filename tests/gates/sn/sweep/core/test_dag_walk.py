@@ -25,11 +25,19 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
-from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates.sn._test_helpers import placeholder_materials, reflective_role
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -41,10 +49,10 @@ from tests.gates.sn._test_helpers import placeholder_materials
 def test_dag_walk_spherical_outward_matches_per_ordinate():
     """Spherical +1 direction yields same cell sequence as any μ ≥ 0 ordinate."""
     mesh = Mesher(
-        StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC.reflective),
+        StructuredGeometry.sphere((0.0, 2.0), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(10)).mesh
     quad = Quadrature.gauss_legendre(8)
-    problem = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
     seq_by_dir = [
         v.cell_idx for v in problem.dag_walk(direction_sign=+1)
@@ -65,10 +73,10 @@ def test_dag_walk_spherical_outward_matches_per_ordinate():
 def test_dag_walk_spherical_inward_matches_per_ordinate():
     """Spherical -1 direction yields same cell sequence as any μ < 0 ordinate."""
     mesh = Mesher(
-        StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC.reflective),
+        StructuredGeometry.sphere((0.0, 2.0), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(10)).mesh
     quad = Quadrature.gauss_legendre(8)
-    problem = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
     seq_by_dir = [
         v.cell_idx for v in problem.dag_walk(direction_sign=-1)
@@ -88,10 +96,10 @@ def test_dag_walk_spherical_inward_matches_per_ordinate():
 def test_dag_walk_slab_matches_per_ordinate():
     """Slab (1-D Cartesian) sweep direction yields the same cell sequence."""
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 1.0), (0,), left=BC.reflective, right=BC.reflective,
+        (0.0, 1.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )).partition(CellsByCount.uniform_width(12)).mesh
     quad = Quadrature.gauss_legendre(6)
-    problem = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
     for sign in (+1, -1):
         seq_by_dir = [
@@ -126,9 +134,9 @@ def test_dag_walk_cell_indices_matches_dag_walk_all_geometries():
     }
     for name, (coord, quad) in geometries.items():
         mesh = Mesher(
-            StructuredGeometry.uniform_boundary(coord, (0.0, 2.0), (0,), BC.reflective),
+            StructuredGeometry.uniform_boundary(coord, (0.0, 2.0), (0,), reflective_role(coord)),
         ).partition(CellsByCount.uniform_width(10)).mesh
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         for sign in (+1, -1):
             twin = list(problem.dag_walk_cell_indices(direction_sign=sign))
             canonical = [
@@ -143,10 +151,10 @@ def test_dag_walk_cell_indices_matches_dag_walk_all_geometries():
     # Cylinder: per-μ-level, both signs (the degenerate pure-azimuthal
     # ordinates take the forward-order branch in BOTH twins by contract).
     mesh = Mesher(
-        StructuredGeometry.cylinder((0.0, 1.5), (0,), outer=BC.reflective),
+        StructuredGeometry.cylinder((0.0, 1.5), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(8)).mesh
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
-    problem = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     for level_p in range(len(quad.level_indices)):
         for sign in (+1, -1):
             twin = list(
@@ -171,10 +179,10 @@ def test_dag_walk_cell_indices_matches_dag_walk_all_geometries():
 def test_dag_walk_cylindrical_per_level_matches():
     """Cylindrical per-level direction yields same cell sequence as level ordinates."""
     mesh = Mesher(
-        StructuredGeometry.cylinder((0.0, 1.5), (0,), outer=BC.reflective),
+        StructuredGeometry.cylinder((0.0, 1.5), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(8)).mesh
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
-    problem = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
     level_indices = quad.level_indices
     for level_p in range(len(level_indices)):
@@ -215,10 +223,10 @@ def test_dag_walk_cylindrical_per_level_matches():
 @pytest.mark.foundation
 def test_dag_walk_invalid_sign_raises():
     mesh = Mesher(
-        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC.reflective),
+        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(4)
-    problem = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     with pytest.raises(ValueError, match="direction_sign"):
         list(problem.dag_walk(direction_sign=0))
     with pytest.raises(ValueError, match="direction_sign"):
@@ -228,10 +236,10 @@ def test_dag_walk_invalid_sign_raises():
 @pytest.mark.foundation
 def test_dag_walk_cylindrical_requires_level():
     mesh = Mesher(
-        StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC.reflective),
+        StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
-    problem = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     with pytest.raises(ValueError, match="mu_level_idx"):
         list(problem.dag_walk(direction_sign=+1))
 
@@ -240,10 +248,10 @@ def test_dag_walk_cylindrical_requires_level():
 def test_dag_walk_xor_signature_enforced():
     """``dag_walk`` rejects both / neither of (ordinate_idx, direction_sign)."""
     mesh = Mesher(
-        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC.reflective),
+        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(4)
-    problem = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     # Neither supplied → ValueError.
     with pytest.raises(ValueError, match="exactly one"):
         list(problem.dag_walk())

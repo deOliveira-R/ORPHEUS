@@ -57,7 +57,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -67,6 +67,13 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -115,9 +122,9 @@ def _build_sphere(nx: int, ng: int, sigma: float):
     adjoint-structure claims here are geometry/algebra facts, insensitive to the
     specific σ values.
     """
-    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=BC("vacuum"))
+    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
-    sn = SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, 0.4 * sigma, ng)})
+    sn = SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, 0.4 * sigma, ng)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.3 * g)) for g in range(ng)], axis=0)
     return sn, StreamingCollisionOperator(StreamingOperator.pose(sn), MultiplicationOperator.from_mesh(sig_t, sn))

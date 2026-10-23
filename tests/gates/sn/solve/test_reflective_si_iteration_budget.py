@@ -47,7 +47,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.convergence import default_iteration_budget
 from orpheus.numerics.quadrature import Quadrature
@@ -55,6 +55,7 @@ from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.mesh import AxisMesh
 
 from tests.gates.numerics.test_default_iteration_budget import _MEASURED_D3_ABSORBER
+from orpheus.geometry.deck import MirrorDeck
 
 pytestmark = [
     pytest.mark.l1,
@@ -83,17 +84,17 @@ def _absorber(sig: tuple[float, float]):
 
 def _mesh(d: int):
     if d == 1:
-        return Mesher(StructuredGeometry.from_homogeneous(1.0, BC.reflective)).partition(
+        return Mesher(StructuredGeometry.from_homogeneous(1.0, MirrorDeck())).partition(
             CellsByCount.uniform_width(3),
         ).mesh, (3,)
     if d == 2:
         return Mesh2D(edges_x=np.linspace(0.0, 1.0, 4),
                       edges_y=np.linspace(0.0, 2.0, 5),
                       mat_map=np.zeros((3, 4), dtype=int),
-                      face_laws={face: BC.reflective
+                      face_roles={face: MirrorDeck()
                                  for face in ("xmin", "xmax", "ymin", "ymax")}), (3, 4)
     return tuple(
-        AxisMesh(edges=np.linspace(0.0, ext, n + 1), bc_low=BC.reflective, bc_high=BC.reflective)
+        AxisMesh(edges=np.linspace(0.0, ext, n + 1), role_low=MirrorDeck(), role_high=MirrorDeck())
         for ext, n in zip((1.0, 2.0, 3.0), (3, 4, 5))
     ), (3, 4, 5)
 

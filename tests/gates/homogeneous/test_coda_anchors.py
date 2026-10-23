@@ -81,6 +81,7 @@ from orpheus.homogeneous.solver import (
 )
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.operators.isotropic_transfer import IsotropicFission
+from orpheus.geometry.deck import MirrorDeck
 
 pytestmark = pytest.mark.foundation
 
@@ -345,12 +346,12 @@ class TestNoMaterialMeshIsBuiltOnTheHomogeneousPath:
         (`vv` anti-#17: the harness lies before the code does, and it lies
         in the safe-looking direction).
         """
-        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.geometry import StructuredGeometry
         from orpheus.mesh import CellsByCount, Mesher
 
         calls = self._count(monkeypatch)
         MaterialMesh(
-            Mesher(StructuredGeometry.from_homogeneous(1.0, BC.reflective))
+            Mesher(StructuredGeometry.from_homogeneous(1.0, MirrorDeck()))
             .partition(CellsByCount.uniform_width(1)).mesh,
             {0: _d5_cases()["homo_2eg"]},
         )

@@ -33,7 +33,7 @@ from orpheus.numerics.space import FunctionSpace
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.frame import GalerkinFrame
@@ -56,6 +56,14 @@ from orpheus.transport.fields import (
 from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Declared, BasisKind
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -63,11 +71,11 @@ _L = 2
 
 
 def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNProblem:
@@ -75,10 +83,10 @@ def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNProblem:
         edges_x=np.linspace(0, 1, nx + 1),
         edges_y=np.linspace(0, 1, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+        face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _frame(m: SNProblem, L: int = _L) -> HarmonicFrame:
@@ -250,14 +258,14 @@ class TestMint:
         minted faces close the square on the SAME derived moment space."""
         from orpheus.transport.spatial import LinearDiscontinuous
 
-        mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
             CellsByCount.uniform_width(4),
         ).mesh
         m = SNProblem(
             mesh,
             Quadrature.gauss_legendre(n_ordinates=4),
             placeholder_materials(ng=2),
-            scheme=LinearDiscontinuous(),
+            scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         widened = AngularFlux.zeros(m.angular_trial_space)
         frame = _frame(m)

@@ -36,7 +36,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.angular.closure import MorelMontryAngularSweep
@@ -50,6 +50,13 @@ from orpheus.transport.operators.multiplication_operator import (
 from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(1.0)}
+
 
 pytestmark = [pytest.mark.foundation]
 
@@ -65,24 +72,24 @@ _MEMO_SLOTS = ("_geom_cache", "_pole_mirror_cache")  # _coll_cache retired at C3
 
 
 def _slab_mesh() -> SNProblem:
-    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=0, right=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(_NX)).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=_NG))
+    return SNProblem(mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=_NG), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _cylinder_mesh(n_phi: int) -> SNProblem:
     geom = StructuredGeometry.cylinder(
-        (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("vacuum"),
+        (0.01, 2.0), (0,), inner=1, outer=0,
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(_NX)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=n_phi)
-    return SNProblem(mesh, quad, placeholder_materials(ng=_NG))
+    return SNProblem(mesh, quad, placeholder_materials(ng=_NG), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _sphere_mesh() -> SNProblem:
-    geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC("vacuum"))
+    geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(_NX)).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=_NG))
+    return SNProblem(mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=_NG), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _het_sigma(sn: SNProblem) -> np.ndarray:

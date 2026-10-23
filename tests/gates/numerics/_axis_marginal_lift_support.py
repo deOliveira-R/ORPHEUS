@@ -23,12 +23,20 @@ from numpy.polynomial import legendre as npleg
 from scipy.special import lpmv
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 def _mats():
@@ -42,11 +50,11 @@ def problems():
     from orpheus.transport.spatial import LinearDiscontinuous
 
     slab = Mesher(StructuredGeometry.slab(
-        (0.0, 0.37, 1.9, 4.13), (0, 1, 0), left=BC.vacuum, right=BC.reflective,
+        (0.0, 0.37, 1.9, 4.13), (0, 1, 0), left=0, right=MirrorDeck(),
     )).partition((CellsByCount.uniform_width(3), CellsByCount.uniform_width(5), CellsByCount.uniform_width(7))).mesh
-    sph = Mesher(StructuredGeometry.sphere((0.0, 1.5, 3.0), (0, 1), outer=BC("vacuum"))).partition(
+    sph = Mesher(StructuredGeometry.sphere((0.0, 1.5, 3.0), (0, 1), outer=0)).partition(
         CellsByCount.uniform_width(3)).mesh
-    cyl = Mesher(StructuredGeometry.cylinder((0.0, 1.0, 2.5), (0, 1), outer=BC.vacuum)).partition(
+    cyl = Mesher(StructuredGeometry.cylinder((0.0, 1.0, 2.5), (0, 1), outer=0)).partition(
         (CellsByCount.uniform_width(3), CellsByCount.uniform_width(4))).mesh
     nx, ny = 4, 5
     mat_map = np.zeros((nx, ny), dtype=int)
@@ -54,16 +62,16 @@ def problems():
     xy = Mesh2D(
         edges_x=np.linspace(0.0, 2.0, nx + 1), edges_y=np.linspace(0.0, 3.0, ny + 1),
         mat_map=mat_map, coord=CoordSystem.CARTESIAN,
-        face_laws={"xmin": BC("reflective"), "xmax": BC("vacuum"), "ymin": BC("reflective"), "ymax": BC("vacuum")},
+        face_roles={"xmin": MirrorDeck(), "xmax": 0, "ymin": MirrorDeck(), "ymax": 0},
     )
     m = _mats()
     return {
-        "slab GL8": _as_problem(slab, Quadrature.gauss_legendre(n_ordinates=8), m),
-        "slab GL8 LD": _as_problem(slab, Quadrature.gauss_legendre(n_ordinates=8), m, scheme=LinearDiscontinuous()),
-        "sphere GL8": _as_problem(sph, Quadrature.gauss_legendre(n_ordinates=8), m),
-        "cylinder folded(4,8)": _as_problem(cyl, Quadrature.folded_product(4, 8), m),
-        "xy LS4": _as_problem(xy, Quadrature.level_symmetric(sn_order=4), m),
-        "xy product(4,8)": _as_problem(xy, Quadrature.product(4, 8), m),
+        "slab GL8": _as_problem(slab, Quadrature.gauss_legendre(n_ordinates=8), m, boundary_conditions=conditions_for(slab, _CONDITIONS)),
+        "slab GL8 LD": _as_problem(slab, Quadrature.gauss_legendre(n_ordinates=8), m, scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(slab, _CONDITIONS)),
+        "sphere GL8": _as_problem(sph, Quadrature.gauss_legendre(n_ordinates=8), m, boundary_conditions=conditions_for(sph, _CONDITIONS)),
+        "cylinder folded(4,8)": _as_problem(cyl, Quadrature.folded_product(4, 8), m, boundary_conditions=conditions_for(cyl, _CONDITIONS)),
+        "xy LS4": _as_problem(xy, Quadrature.level_symmetric(sn_order=4), m, boundary_conditions=conditions_for(xy, _CONDITIONS)),
+        "xy product(4,8)": _as_problem(xy, Quadrature.product(4, 8), m, boundary_conditions=conditions_for(xy, _CONDITIONS)),
     }
 
 

@@ -45,20 +45,27 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 
 def _build_sphere(n_cells: int = 5, n_ord: int = 4) -> SNProblem:
     mesh = Mesher(
-        StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC("reflective")),
+        StructuredGeometry.sphere((0.0, 2.0), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(n_cells)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _canonical_to_packed(

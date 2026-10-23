@@ -60,7 +60,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.mesh.reduced_operator import spherical_streaming
 from orpheus.numerics.quadrature import Quadrature
@@ -68,6 +68,13 @@ from orpheus.sn.solver import solve_sn
 from tests.gates.sn._test_helpers import (
     curvilinear_homogeneous_mesh as _homogeneous_mesh,
 )
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0), 1: WallCondition.vacuum()}
+
 
 
 # ── tau reconstruction (clamped + raw) from the SAME geometry ──────────
@@ -149,7 +156,7 @@ def test_flat_field_coefficient_tau_independent():
     R = 5.0
     nx = 20
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, R), (0,), outer=BC("vacuum"),
+        (0.0, R), (0,), outer=1,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(16)
     op = spherical_streaming(mesh, quad)
@@ -273,7 +280,7 @@ def test_homogeneous_reflective_sphere_iso_unchanged():
     result = solve_sn(
         {0: mix}, mesh, quad,
         max_outer=500, keff_tol=1e-12, flux_tol=1e-10,
-        max_inner=300, inner_tol=1e-10,
+        max_inner=300, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
     flux = np.asarray(result.scalar_flux.values, dtype=np.float64)  # (ng, nx)
@@ -347,7 +354,7 @@ def test_unclamped_sphere_flux_strictly_positive(groups, radius, n_ord):
     mesh = _homogeneous_mesh(40, radius, mat_id=0, coord=CoordSystem.SPHERICAL)
     quad = Quadrature.gauss_legendre(n_ord)
     result = solve_sn(
-        {0: mix}, mesh, quad, max_inner=800, inner_tol=1e-11,
+        {0: mix}, mesh, quad, max_inner=800, inner_tol=1e-11, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
     fv = np.asarray(result.scalar_flux.values, dtype=np.float64)

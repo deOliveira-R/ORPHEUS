@@ -95,7 +95,6 @@ import pytest
 
 from orpheus.numerics.index_set import IndexSet
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC
 from orpheus.numerics.basis import GramStructure
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
@@ -111,8 +110,16 @@ from orpheus.sn.solver import SNSolver, _as_problem, _unwindowed_cold_start
 from orpheus.mesh import AxisMesh
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 from orpheus.numerics import frame_faces
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
 
-_R, _V = BC("reflective"), BC("vacuum")
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
+
+_R, _V = MirrorDeck(), 0
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -143,12 +150,12 @@ def _mesh(cells, bcs, *, ng=2, quad=None, c=0.0, stretch=1.0,
           fissile=False, scheme=None):
     extents = (1.0, 2.0, 3.0)[: len(cells)]
     axes = tuple(
-        AxisMesh(edges=_graded(e, n, stretch), bc_low=lo, bc_high=hi)
+        AxisMesh(edges=_graded(e, n, stretch), role_low=lo, role_high=hi)
         for e, n, (lo, hi) in zip(extents, cells, bcs)
     )
     return _as_problem(
         axes, quad or Quadrature.level_symmetric(sn_order=4),
-        {0: _mixture(ng, c, fissile)}, scheme=scheme,
+        {0: _mixture(ng, c, fissile)}, scheme=scheme, boundary_conditions=conditions_for(axes, _CONDITIONS),
     )
 
 

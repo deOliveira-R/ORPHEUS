@@ -26,7 +26,7 @@ import pytest
 
 from orpheus.data.energy_grid import EnergyGrid
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
@@ -74,7 +74,7 @@ def problem(materials):
     forward and adjoint solves must be built from the SAME objects for
     ``same_phase_space`` to accept the pair (P6 B2; by CONTENT since 2026-09-12)."""
     fine = Mesher(StructuredGeometry.slab(
-        (0.0, 4.0), (0,), left=BC("vacuum"), right=BC("reflective"),
+        (0.0, 4.0), (0,), left=0, right=MirrorDeck(),
     )).partition(CellsByCount.uniform_width(8)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     return fine, quad
@@ -86,7 +86,7 @@ def solution(materials, problem):
     spatially non-flat, and the within-fine-group spectral spread is the
     condensation's load-bearing weight."""
     fine, quad = problem
-    return solve_sn(materials, fine, quad, scattering_order=0)
+    return solve_sn(materials, fine, quad, scattering_order=0, boundary_conditions=conditions_for(fine, _CONDITIONS))
 
 
 def _region_spectrum(solution, mat_id: int = 0) -> np.ndarray:
@@ -274,7 +274,15 @@ def test_identity_condensation_recovers_fine_material(solution, materials):
 # cache (``*.h5``) which may be absent locally.
 
 from orpheus.data.energy_grid import InverseEnergySpectrum as _IES  # noqa: E402
-from orpheus.data.group_structures.ornl import ORNL_421  # noqa: E402
+from orpheus.data.group_structures.ornl import ORNL_421
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+  # noqa: E402
 
 # Real 421-group XS recipes (the production library; *.h5 caches present
 # locally). Guard the import so the file collects if a cache is missing.
@@ -435,7 +443,7 @@ def adjoint_solution(materials, problem):
     from orpheus.sn.solver import solve_sn_adjoint
 
     fine, quad = problem
-    return solve_sn_adjoint(materials, fine, quad, scattering_order=0)
+    return solve_sn_adjoint(materials, fine, quad, scattering_order=0, boundary_conditions=conditions_for(fine, _CONDITIONS))
 
 
 def _adjoint_region_spectrum(adj, mat_id: int = 0) -> np.ndarray:

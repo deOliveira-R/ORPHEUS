@@ -47,7 +47,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
@@ -65,6 +65,14 @@ from orpheus.sn.loss_representation import (
 from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields import AngularSourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -74,28 +82,28 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 def _slab_sn_mesh(nx: int = 8, length: float = 1.0) -> SNProblem:
     """Slab SNProblem with vacuum BCs and Gauss-Legendre 1D quadrature."""
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, length), (0,), left=0, right=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _spherical_sn_mesh(nx: int = 8, radius: float = 1.0) -> SNProblem:
     """Solid spherical SNProblem with a vacuum outer surface."""
     mesh = Mesher(
-        StructuredGeometry.sphere((0.0, radius), (0,), outer=BC("vacuum")),
+        StructuredGeometry.sphere((0.0, radius), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _cylindrical_sn_mesh(nx: int = 8, radius: float = 1.0) -> SNProblem:
     """Solid cylindrical SNProblem with a vacuum outer surface."""
     mesh = Mesher(
-        StructuredGeometry.cylinder((0.0, radius), (0,), outer=BC("vacuum")),
+        StructuredGeometry.cylinder((0.0, radius), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _2d_sn_mesh(nx: int = 4, ny: int = 4) -> SNProblem:
@@ -104,15 +112,15 @@ def _2d_sn_mesh(nx: int = 4, ny: int = 4) -> SNProblem:
         edges_x=np.linspace(0.0, 1.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _2d_ld_sn_mesh(nx: int = 4, ny: int = 3) -> SNProblem:
@@ -128,16 +136,16 @@ def _2d_ld_sn_mesh(nx: int = 4, ny: int = 3) -> SNProblem:
         edges_x=np.linspace(0.0, 1.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     return SNProblem(mesh, quad, placeholder_materials(),
-                  scheme=LinearDiscontinuous())
+                  scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -238,10 +246,10 @@ class TestHonestCurvilinearSchemeSelection:
         )
         mesh = Mesher(StructuredGeometry(
             coord=coord, breakpoints=(0.0, 1.0), mat_ids=(0,),
-            boundaries=(BC("vacuum"),),
+            face_roles=(0,),
         )).partition(CellsByCount.uniform_width(8)).mesh
         kwargs = {} if scheme is None else {"scheme": scheme}
-        return SNProblem(mesh, quad, placeholder_materials(), **kwargs)
+        return SNProblem(mesh, quad, placeholder_materials(), **kwargs, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
     @pytest.mark.foundation
     @pytest.mark.parametrize(
@@ -296,11 +304,11 @@ class TestHonestCurvilinearSchemeSelection:
         """Negative control: slab-LD is UNAFFECTED — the gate excludes only
         CURVILINEAR meshes; LD on a Cartesian (slab) mesh is fully supported."""
         mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+            (0.0, 1.0), (0,), left=0, right=0,
         )).partition(CellsByCount.uniform_width(8)).mesh
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         problem = SNProblem(
-            mesh, quad, placeholder_materials(), scheme=LinearDiscontinuous(),
+            mesh, quad, placeholder_materials(), scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         strategy = default_for(problem, problem.scheme, problem.angular_closure)
         if not isinstance(strategy, CumprodScan):
@@ -398,13 +406,13 @@ class TestD3SupportsMatrix:
             chi=np.zeros(1), sig_s=np.array([[0.5]]),  # non-fissile ⇒ null χ (S10a guard)
         )
         mesh = SNProblem.from_axes(
-            (
-                AxisMesh(edges=np.linspace(0.0, 1.0, 3), bc_low=BC.reflective, bc_high=BC.reflective),
-                AxisMesh(edges=np.linspace(0.0, 1.0, 4), bc_low=BC.reflective, bc_high=BC.reflective),
-                AxisMesh(edges=np.linspace(0.0, 1.0, 5), bc_low=BC.reflective, bc_high=BC.reflective),
-            ),
+            (_carrier1 := (
+                AxisMesh(edges=np.linspace(0.0, 1.0, 3), role_low=MirrorDeck(), role_high=MirrorDeck()),
+                AxisMesh(edges=np.linspace(0.0, 1.0, 4), role_low=MirrorDeck(), role_high=MirrorDeck()),
+                AxisMesh(edges=np.linspace(0.0, 1.0, 5), role_low=MirrorDeck(), role_high=MirrorDeck()),
+            )),
             Quadrature.level_symmetric(sn_order=4),
-            {0: mix},
+            {0: mix}, boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
         )
         selected = default_for(mesh, mesh.scheme, mesh.angular_closure)
         if type(selected) is not FullFieldWavefront:
@@ -519,11 +527,11 @@ class TestD3SupportsMatrix:
             edges_x=np.linspace(0.0, 1.0, nx + 1),
             edges_y=np.linspace(0.0, 1.0, ny + 1),
             mat_map=np.zeros((nx, ny), dtype=int),
-            face_laws={
-                "xmin": BC("vacuum"),
-                "xmax": BC("vacuum"),
-                "ymin": BC("vacuum"),
-                "ymax": BC("vacuum"),
+            face_roles={
+                "xmin": 0,
+                "xmax": 0,
+                "ymin": 0,
+                "ymax": 0,
             },
         )
         quad = Quadrature.level_symmetric(sn_order=4)
@@ -531,11 +539,11 @@ class TestD3SupportsMatrix:
         Q = np.ones((N, 1, nx, ny))            # (N, ng, nx, ny) per-ordinate
         res_ld = solve_sn_fixed_source(
             {0: mix}, mesh, quad, Q,
-            scheme=LinearDiscontinuous(), max_inner=200, inner_tol=1e-10,
+            scheme=LinearDiscontinuous(), max_inner=200, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         res_dd = solve_sn_fixed_source(
             {0: mix}, mesh, quad, Q,
-            scheme=DiamondDifference(), max_inner=200, inner_tol=1e-10,
+            scheme=DiamondDifference(), max_inner=200, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         phi_ld = res_ld.scalar_flux.values
         phi_dd = res_dd.scalar_flux.values
@@ -702,10 +710,10 @@ class TestDefaultDiscretizationScheme:
         """User-passed ``scheme`` is stored on the mesh."""
         custom = DiamondDifference()  # the only strategy that ships in Wave D
         mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+            (0.0, 1.0), (0,), left=0, right=0,
         )).partition(CellsByCount.uniform_width(8)).mesh
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        problem = SNProblem(mesh, quad, placeholder_materials(), scheme=custom)
+        problem = SNProblem(mesh, quad, placeholder_materials(), scheme=custom, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         if problem.scheme is not custom:
             pytest.fail("explicit scheme was not stored on the mesh")
 

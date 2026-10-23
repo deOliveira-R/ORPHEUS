@@ -59,7 +59,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.assembled_operator import assemble
 from orpheus.numerics.elementary_operators import DiagonalOperator
@@ -79,6 +79,13 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 from orpheus.transport.fields import AngularSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -100,11 +107,11 @@ def _require(condition: bool, message: str) -> None:
 
 
 def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNProblem:
@@ -121,15 +128,15 @@ def _cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNProblem:
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _random_state(problem: SNProblem, ng: int = 2, seed: int = 42) -> TimedFullField:

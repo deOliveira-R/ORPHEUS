@@ -11,12 +11,20 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
 from tests.gates.sn.test_homogenization import _balanced_fissile
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.l2, pytest.mark.cap("solve")]
 
@@ -71,16 +79,16 @@ class TestC2ComparativeKeffOrder:
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         # One material per cell: every edge is a material interface.
         fine = Mesher(StructuredGeometry.slab(
-            self._EDGES16, self._MAT16, left=BC("vacuum"), right=BC("reflective"),
+            self._EDGES16, self._MAT16, left=0, right=MirrorDeck(),
         )).partition(CellsByCount.uniform_width(1)).mesh
-        fwd = solve_sn(mats, fine, quad, scattering_order=0)
-        adj = solve_sn_adjoint(mats, fine, quad, scattering_order=0)
+        fwd = solve_sn(mats, fine, quad, scattering_order=0, boundary_conditions=conditions_for(fine, _CONDITIONS))
+        adj = solve_sn_adjoint(mats, fine, quad, scattering_order=0, boundary_conditions=conditions_for(fine, _CONDITIONS))
         k_fine = fwd.outcome.keff
         assert k_fine is not None
 
         P = 2
         coarse = Mesher(StructuredGeometry.slab(
-            (0.0, 4.0), (0,), left=BC("vacuum"), right=BC("reflective"),
+            (0.0, 4.0), (0,), left=0, right=MirrorDeck(),
         )).partition(CellsByCount.uniform_width(P)).mesh
         gaps = {}
         for tag, mm in (
@@ -90,10 +98,10 @@ class TestC2ComparativeKeffOrder:
             # SAME-MESH replacement: the fine geometry, region-constant XS. The
             # coarse cells are the material intervals, each holding its fine cells.
             replaced = Mesher(StructuredGeometry.slab(
-                coarse.edges, range(P), left=BC("vacuum"), right=BC("reflective"),
+                coarse.edges, range(P), left=0, right=MirrorDeck(),
             )).partition(CellsByCount.uniform_width((self._EDGES16.size - 1) // P)).mesh
             k = solve_sn(dict(mm.materials), replaced, quad,
-                         scattering_order=0).outcome.keff
+                         scattering_order=0, boundary_conditions=conditions_for(replaced, _CONDITIONS)).outcome.keff
             assert k is not None
             gaps[tag] = abs(k - k_fine)
         return gaps["adj"], gaps["fwd"]

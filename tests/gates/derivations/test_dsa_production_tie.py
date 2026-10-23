@@ -31,11 +31,18 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.derivations.discrete.sn import dsa
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation.assembly import assemble_ordinate_blocks
 from orpheus.sn.problem import SNProblem
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -46,7 +53,7 @@ _RTOL = 1e-11  # sparse-order ≠ dense-order ⇒ never 0-ULP (the L16 gate valu
 def slab() -> SNProblem:
     """Heterogeneous, non-uniform 4-cell slab, S4, 2 groups, vacuum."""
     geom = StructuredGeometry.slab(
-        (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=0, right=0,
     )
     mesh1d = Mesher(geom).partition((
         CellsByCount.uniform_width(1),
@@ -55,7 +62,7 @@ def slab() -> SNProblem:
     )).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(
-        mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
+        mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(mesh1d, _CONDITIONS)
     )
 
 

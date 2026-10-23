@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.geometry.deck import MirrorDeck
 
 # The full equation-coverage list from the legacy test_cartesian module
 # is preserved verbatim on every split so no verifies(...) edge is lost.
@@ -52,7 +53,7 @@ def test_dd_per_cell_recurrence_matches_symbolic_derivation():
     """
     import sympy as sp
     from orpheus.derivations.discrete.sn.balance import derive_cumprod_recurrence
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.sn.mesh.reduced_operator import slab_streaming
     from orpheus.transport.spatial.scheme import CellVisit, UpstreamState
@@ -74,7 +75,7 @@ def test_dd_per_cell_recurrence_matches_symbolic_derivation():
 
     quad = Quadrature.gauss_legendre(4)
     geom = StructuredGeometry.slab(
-        (0.0, dx_val), (0,), left=BC.reflective, right=BC.reflective,
+        (0.0, dx_val), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(1)).mesh
     op = slab_streaming(mesh, quad)

@@ -69,13 +69,19 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 # 2-D Cartesian L2 face_view convention crosswalk: structural pins on
 # the AngularBoundaryFlux.face_view writability + unit-source convention (no
@@ -100,15 +106,15 @@ def _pure_streamer_2d_mesh(nx: int = 4, ny: int = 4) -> SNProblem:
         edges_x=np.linspace(0.0, 1.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNProblem(geom, quad, {0: get_mixture("A", "1g")})
+    return SNProblem(geom, quad, {0: get_mixture("A", "1g")}, boundary_conditions=conditions_for(geom, _CONDITIONS))
 
 
 def _zero_state_with_unit_face(
@@ -203,11 +209,11 @@ def _decay_mesh_geom(nx: int = 6, ny: int = 6) -> Mesh2D:
         edges_x=np.linspace(0.0, 3.0, nx + 1),
         edges_y=np.linspace(0.0, 3.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
         },
     )
 
@@ -238,7 +244,7 @@ def test_xmin_source_streams_in_positive_x_direction() -> None:
     res = solve_sn_fixed_source(
         materials={0: get_mixture("A", "1g")},
         mesh=geom, quadrature=quad, external_source=ext,
-        inner_solver="source_iteration", max_inner=500, inner_tol=1e-10,
+        inner_solver="source_iteration", max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(geom, _CONDITIONS),
     )
     profile_x = res.scalar_flux.values[0].sum(axis=1)  # (nx,) sum over y
 
@@ -272,7 +278,7 @@ def test_ymin_source_streams_in_positive_y_direction() -> None:
     res = solve_sn_fixed_source(
         materials={0: get_mixture("A", "1g")},
         mesh=geom, quadrature=quad, external_source=ext,
-        inner_solver="source_iteration", max_inner=500, inner_tol=1e-10,
+        inner_solver="source_iteration", max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(geom, _CONDITIONS),
     )
     profile_y = res.scalar_flux.values[0].sum(axis=0)  # (ny,) sum over x
 

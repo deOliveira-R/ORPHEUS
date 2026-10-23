@@ -26,12 +26,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.geometry.deck import MirrorDeck
 
 
 pytestmark = pytest.mark.l0
@@ -97,11 +98,11 @@ def test_for_face_derives_inflow_indices_from_trace():
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 2.0, 5), edges_y=np.linspace(0.0, 1.5, 4),
         mat_map=np.zeros((4, 3), dtype=np.int64),
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     quad = Quadrature.lebedev(17)
@@ -123,7 +124,7 @@ def test_inflow_indices_for_face_delegates_to_trace():
     without knowing about the trace-space type.
     """
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 3.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 3.0), (0,), left=0, right=0,
     )).partition(CellsByCount.uniform_width(6)).mesh
     quad = Quadrature.gauss_legendre(8)
     trace = _slab_trace(mesh, quad)

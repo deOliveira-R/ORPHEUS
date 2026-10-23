@@ -26,11 +26,19 @@ import pytest
 
 from orpheus.data.cell_xs import assemble_cell_xs
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -43,7 +51,7 @@ def _require(cond: object, msg: str) -> None:
 
 def _mesh() -> Mesh1D:
     geometry = StructuredGeometry.slab(
-        (0.0, 1.0, 2.0), (0, 1), left=BC("reflective"), right=BC("vacuum"),
+        (0.0, 1.0, 2.0), (0, 1), left=MirrorDeck(), right=0,
     )
     return Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
 
@@ -57,7 +65,7 @@ def _bare() -> MaterialMesh:
 
 
 def _sn() -> SNProblem:
-    return SNProblem(_mesh(), Quadrature.gauss_legendre(4), _mats())
+    return SNProblem((_carrier1 := _mesh()), Quadrature.gauss_legendre(4), _mats(), boundary_conditions=conditions_for(_carrier1, _CONDITIONS))
 
 
 _TIERS = pytest.mark.parametrize("build", [_bare, _sn], ids=["MaterialMesh", "SNProblem"])
@@ -162,7 +170,7 @@ class TestLawOneFieldPerProblem:
         MaterialXSField.from_mesh = classmethod(spy)  # type: ignore[method-assign]
         try:
             mats, mesh, quad = _mats(), _mesh(), Quadrature.gauss_legendre(4)
-            solve_sn(mats, mesh, quad, max_outer=3)
+            solve_sn(mats, mesh, quad, max_outer=3, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         finally:
             MaterialXSField.from_mesh = classmethod(original)  # type: ignore[method-assign]
         _require(mints, "POSITIVE CONTROL: the spy must observe at least one mint")
@@ -247,7 +255,7 @@ class TestLawTheGeometryInternUnderSigmaVariants:
         _GEOM_CACHE_INTERN.clear()
         StreamingCoefficientCache.from_mesh_and_quad = classmethod(spy)  # type: ignore[method-assign]
         try:
-            solve_sn(_mats(), _mesh(), Quadrature.gauss_legendre(4), max_outer=3)
+            solve_sn(_mats(), (_carrier2 := _mesh()), Quadrature.gauss_legendre(4), max_outer=3, boundary_conditions=conditions_for(_carrier2, _CONDITIONS))
         finally:
             StreamingCoefficientCache.from_mesh_and_quad = classmethod(original)  # type: ignore[method-assign]
         _require(builds, "POSITIVE CONTROL: the spy must observe at least one build")

@@ -15,7 +15,7 @@ morphism* — bound to :math:`\Gamma_+(f) \to \Gamma_-(f)`, stamped
 
 ⛔ **P3 fixed a LIVE bug here, not a hypothetical.** Before ``8d552395`` a
 declared ``PrescribedInflow`` realized to an *affine* operator carrying its own
-source, and :meth:`SNBoundaryOperator._face_laws` collects every face's law with
+source, and :meth:`SNBoundaryOperator._face_operators` collects every face's realized operator with
 **no** ``block_role`` filter — so it reached ``B``. Measured then: ``|B(0)| =
 2.5``; the inflow was delivered TWICE through SI (``γ₋ψ = 5.0``, ratio exactly
 ``2.000000``); and on Krylov an affine ``A(x) = A_lin(x) − c`` breaks GMRES's
@@ -118,9 +118,10 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.geometry.boundary import ConstantInflowSource, PrescribedInflow
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.problem import SNProblem
@@ -175,12 +176,13 @@ _INCREMENT_NULP = 32
 
 
 #: The declaration under test, spelled once.
-_PRESCRIBED = PrescribedInflow(source=ConstantInflowSource(value=_VALUE))
+_PRESCRIBED = WallCondition.uniform(_VALUE)
 
 
 def _slab(xmin=_PRESCRIBED, xmax=None) -> SNProblem:
-    r"""Het 2G slab, GL-8. Default: ``PrescribedInflow`` at ``xmin``, reflective
-    at ``xmax`` — the fixture every row below uses.
+    r"""Het 2G slab, GL-8. Default: the prescribed inflow (``WallCondition.uniform``) at ``xmin``, a mirror deck
+    at ``xmax`` — the fixture every row below uses. A face argument is a ``WallCondition`` (carried on its own tag, declared
+    at the solve) or a deck (carried as the face's role).
 
     ONE construction site for every mesh in this module, so a row can vary the
     declaration and nothing else. The declaration rides the **geometry**, not a
@@ -194,16 +196,25 @@ def _slab(xmin=_PRESCRIBED, xmax=None) -> SNProblem:
     """
     from orpheus.derivations.common.xs_library import get_mixture
 
+    roles: list = []
+    conditions: dict[int, WallCondition] = {}
+    for face in (xmin, MirrorDeck() if xmax is None else xmax):
+        if isinstance(face, WallCondition):
+            conditions[len(conditions)] = face
+            roles.append(len(conditions) - 1)
+        else:
+            roles.append(face)
     geom = StructuredGeometry.from_thicknesses(
         coord=CoordSystem.CARTESIAN,
         thicknesses=(1.0, 2.0),
         mat_ids=(0, 1),
-        boundaries=(xmin, BC.reflective if xmax is None else xmax),
+        face_roles=tuple(roles),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(6)).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=_N_ORD),
         {0: get_mixture("A", "2g"), 1: get_mixture("D", "2g")},
+        boundary_conditions=conditions,
     )
 
 
@@ -581,7 +592,7 @@ def test_declaring_prescribed_moves_q_and_leaves_the_operator_untouched() -> Non
 
     The sharpest statement the campaign has, and the one row here that is fully
     attributable to the prescribed declaration. Two meshes identical except for
-    the ``xmin`` declaration — ``PrescribedInflow(2.5)`` versus ``BC.vacuum`` —
+    the ``xmin`` declaration — ``WallCondition.uniform(2.5)`` versus ``WallCondition.vacuum()`` —
     must satisfy BOTH halves:
 
     * **the operators are bit-identical**: ``B`` and the whole loss grid
@@ -613,7 +624,7 @@ def test_declaring_prescribed_moves_q_and_leaves_the_operator_untouched() -> Non
     ``SNBoundaryOperator.apply`` identically on both meshes and so cancels in a
     mesh-vs-mesh comparison — correct behaviour, not a gap.)
     """
-    prescribed, vacuum = _slab(), _slab(xmin=BC.vacuum)
+    prescribed, vacuum = _slab(), _slab(xmin=WallCondition.vacuum())
 
     # Half 1 — the OPERATORS agree, at both tiers.
     psi_p, psi_v = _random_flux(prescribed, 7), _random_flux(vacuum, 7)
@@ -632,8 +643,8 @@ def test_declaring_prescribed_moves_q_and_leaves_the_operator_untouched() -> Non
     )
 
     # Half 2 — …and the SOURCES do not. Without this the row is vacuous.
-    assert AngularBoundarySourceSink.from_problem_laws(prescribed).linf == _VALUE, (
+    assert prescribed.declared_boundary_source().linf == _VALUE, (
         "the declared inflow did not reach q_∂, so half 1 above is comparing "
         "two vacuum problems and proves nothing"
     )
-    assert AngularBoundarySourceSink.from_problem_laws(vacuum).linf == 0.0
+    assert vacuum.declared_boundary_source().linf == 0.0

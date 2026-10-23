@@ -12,10 +12,11 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
+from orpheus.geometry.deck import MirrorDeck
 
 # Equation-coverage list preserved verbatim from the legacy
 # test_cartesian module so no verifies(...) edge is lost in the split.
@@ -35,7 +36,7 @@ pytestmark = pytest.mark.verifies(
 def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) -> Mesh1D:
     """Single-region Cartesian mesh helper (reflective BCs — eigenvalue convention)."""
     geom = StructuredGeometry.slab(
-        (0.0, total_width), (mat_id,), left=BC.reflective, right=BC.reflective,
+        (0.0, total_width), (mat_id,), left=MirrorDeck(), right=MirrorDeck(),
     )
     return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 
@@ -48,7 +49,7 @@ def _slab_fuel_moderator_mesh(
         coord=CoordSystem.CARTESIAN,
         thicknesses=(t_fuel, t_mod),
         mat_ids=(2, 0),
-        boundaries=(BC.reflective, BC.reflective),
+        face_roles=(MirrorDeck(), MirrorDeck()),
     )
     return Mesher(geom).partition((
         CellsByCount.uniform_volume(n_fuel),
@@ -171,7 +172,7 @@ def test_heterogeneous_absolute_keff():
 
     n_per = 320
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, H_A, H_A + H_B), (0, 1), left=BC.reflective, right=BC.reflective,
+        (0.0, H_A, H_A + H_B), (0, 1), left=MirrorDeck(), right=MirrorDeck(),
     )).partition(CellsByCount.uniform_width(n_per)).mesh
     quad = Quadrature.gauss_legendre(N_ord)
 

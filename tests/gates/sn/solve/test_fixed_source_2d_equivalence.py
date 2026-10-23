@@ -40,13 +40,21 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry import CoordSystem
 from orpheus.mesh import Mesh2D
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields import AngularSourceSink
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.l1
 
@@ -68,11 +76,11 @@ def test_2d_homogeneous_reflective_krylov_hits_q_over_sigma_t() -> None:
         edges_y=np.linspace(0.0, 2.0, 5),
         mat_map=np.zeros((4, 4), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     # Genuine 2-D Cartesian reflective box ⟹ O_h symmetry. The SN-canonical
@@ -84,7 +92,7 @@ def test_2d_homogeneous_reflective_krylov_hits_q_over_sigma_t() -> None:
     # so the swap is exact. Verified: relerr 1.05e-12 ≤ rtol 1e-10.
     quad = Quadrature.level_symmetric(sn_order=4)
     materials = placeholder_materials(ng=2)  # Σ_t = 1, Σ_s = 0, ≥2G
-    problem = SNProblem(mesh, quad, materials)
+    problem = SNProblem(mesh, quad, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     sum_w = float(quad.weights.sum())
 
     q_iso = 0.5
@@ -95,7 +103,7 @@ def test_2d_homogeneous_reflective_krylov_hits_q_over_sigma_t() -> None:
         materials=materials, mesh=mesh, quadrature=quad,
         external_source=src.values,
         inner_solver="krylov",
-        max_inner=300, inner_tol=1e-12,
+        max_inner=300, inner_tol=1e-12, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     assert result.record.converged, "2-D fixed-source Krylov did not converge"
 
@@ -132,11 +140,11 @@ def test_2d_heterogeneous_si_krylov_equivalence() -> None:
         edges_y=np.linspace(0.0, 2.0, 5),
         mat_map=mat_map,
         coord=CoordSystem.CARTESIAN,
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     # SI-vs-Krylov EQUIVALENCE on a genuine 2-D Cartesian (8×4, fuel|mod,
@@ -148,7 +156,7 @@ def test_2d_heterogeneous_si_krylov_equivalence() -> None:
     # (within rtol 1e-6 / atol 1e-8). 6.4s → ~1.4s.
     quad = Quadrature.level_symmetric(sn_order=4)
     materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
-    problem = SNProblem(mesh, quad, materials)
+    problem = SNProblem(mesh, quad, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
     Q_iso = np.ones((problem.ng, *problem.spatial_shape))
     src = AngularSourceSink.from_isotropic(Q_iso, problem)
@@ -156,6 +164,7 @@ def test_2d_heterogeneous_si_krylov_equivalence() -> None:
     common = dict(
         materials=materials, mesh=mesh, quadrature=quad,
         external_source=src.values, max_inner=500, inner_tol=1e-10,
+        boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     sol_si = solve_sn_fixed_source(inner_solver="source_iteration", **common)
     sol_kry = solve_sn_fixed_source(inner_solver="krylov", **common)

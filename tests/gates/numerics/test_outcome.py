@@ -26,7 +26,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.homogeneous.solver import HomogeneousProblem
 from orpheus.numerics.gauge import ScaleGauge
@@ -43,6 +43,14 @@ from orpheus.numerics.outcome import (
 from orpheus.numerics.posing import ALPHA_MAP, EigenPosing, SourcePosing
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import _as_problem, _build_fixed_source_rhs
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -174,16 +182,16 @@ class TestLawTheEvidenceSum:
 def _slab(length: float = 4.0):
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     geometry = StructuredGeometry.slab(
-        (0.0, length / 2, length), (0, 1), left=BC("reflective"), right=BC("vacuum"),
+        (0.0, length / 2, length), (0, 1), left=MirrorDeck(), right=0,
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
-    return _as_problem(mesh, Quadrature.gauss_legendre(8), materials)
+    return _as_problem(mesh, Quadrature.gauss_legendre(8), materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _carrying_sphere():
-    geometry = StructuredGeometry.sphere((0.0, 3.0), (0,), outer=BC("vacuum"))
+    geometry = StructuredGeometry.sphere((0.0, 3.0), (0,), outer=0)
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(6)).mesh
-    return _as_problem(mesh, Quadrature.gauss_legendre(8), {0: get_mixture("A", "2g")})
+    return _as_problem(mesh, Quadrature.gauss_legendre(8), {0: get_mixture("A", "2g")}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 class TestLawTheCoupledStateKnowsItsSpace:

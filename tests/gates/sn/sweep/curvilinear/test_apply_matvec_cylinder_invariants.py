@@ -54,12 +54,19 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 
 @pytest.mark.l0
@@ -92,11 +99,11 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
         coord=CoordSystem.CYLINDRICAL,
         breakpoints=(0.0, R),
         mat_ids=(0,),
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
-    problem = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     nx = n_cells
     ng = 1
     sig_t = np.full((ng, nx), 2.0)  # (ng, nx) — rank-d
@@ -162,7 +169,7 @@ def test_cylinder_three_way_standoff(
         coord=CoordSystem.CYLINDRICAL,
         breakpoints=(0.0, R),
         mat_ids=(0,),
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
@@ -178,11 +185,11 @@ def test_cylinder_three_way_standoff(
 
     res_si = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
-        inner_solver="source_iteration",
+        inner_solver="source_iteration", boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     res_k = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
-        inner_solver="krylov",
+        inner_solver="krylov", boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
     # D-H.1d: Solution.angular_flux is TimedFullField.

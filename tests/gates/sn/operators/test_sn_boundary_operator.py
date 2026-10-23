@@ -71,9 +71,8 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
-from orpheus.geometry.boundary import PeriodicBoundary
 from orpheus.numerics.operator import (
     BlockRole,
     BoundaryOperator,
@@ -91,8 +90,17 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields import AngularBoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck, TranslationDeck
+from orpheus.transport.boundary_conditions import WallCondition
 
 pytestmark = [pytest.mark.foundation]
+
+#: The roles this file is written in (wave 2): the tag ``0`` declared the vacuum wall; the mirror deck on a Cartesian face; the
+#: tag ``1`` declared the unit specular wall on a CURVED body's outer face (a curved reflector is a response, rule R2).
+_V = 0
+_R = MirrorDeck()
+_RC = 1
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(1.0)}
 
 
 def _sn(coord: CoordSystem, bcs: tuple, nx: int = 4, ng: int = 1) -> SNProblem:
@@ -100,7 +108,7 @@ def _sn(coord: CoordSystem, bcs: tuple, nx: int = 4, ng: int = 1) -> SNProblem:
         coord=coord,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=bcs,
+        face_roles=bcs,
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     # Cylinder's angular redistribution needs a level-structured quadrature;
@@ -110,7 +118,10 @@ def _sn(coord: CoordSystem, bcs: tuple, nx: int = 4, ng: int = 1) -> SNProblem:
         if coord is CoordSystem.CYLINDRICAL
         else Quadrature.gauss_legendre(n_ordinates=4)
     )
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(
+        mesh, quad, placeholder_materials(ng=ng),
+        boundary_conditions={tag: c for tag, c in _CONDITIONS.items() if tag in {role for role in bcs if isinstance(role, int)}},
+    )
 
 
 def _random_state(sn: SNProblem, seed: int = 7) -> TimedFullField:
@@ -129,15 +140,15 @@ def _random_state(sn: SNProblem, seed: int = 7) -> TimedFullField:
 # reflective / vacuum). Slab uses ASYMMETRIC BCs so the per-face wiring test
 # discriminates a face↔face swap.
 _CASES = {
-    "slab_vacuum_reflective": (CoordSystem.CARTESIAN, (BC.vacuum, BC.reflective)),
-    "slab_reflective_reflective": (CoordSystem.CARTESIAN, (BC.reflective, BC.reflective)),
-    "sphere_reflective": (CoordSystem.SPHERICAL, (BC.reflective,)),
+    "slab_vacuum_reflective": (CoordSystem.CARTESIAN, (_V, _R)),
+    "slab_reflective_reflective": (CoordSystem.CARTESIAN, (_R, _R)),
+    "sphere_reflective": (CoordSystem.SPHERICAL, (_RC,)),
     # MANDATORY (B3.2 / RG-2): the ONLY fixture here carrying TANGENTIAL
     # ordinates — ``product(2, 4)`` puts 4 of its 8 ordinates at
     # ``|Ω·n| ≤ ε`` on every face, so it is the sole discriminator between
     # "outside the outflow rows" and "outside Γ₋". Do not swap it for a
     # Gauss–Legendre set to make the fixture cheaper.
-    "cyl_reflective": (CoordSystem.CYLINDRICAL, (BC.reflective,)),
+    "cyl_reflective": (CoordSystem.CYLINDRICAL, (_RC,)),
 }
 
 
@@ -158,11 +169,11 @@ def _sn_2d(nx: int = 4, ny: int = 4, ng: int = 2) -> SNProblem:
         edges_x=np.linspace(0.0, 1.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=np.zeros((ny, nx), dtype=int),
-        face_laws={
-            "xmin": BC.reflective,
-            "xmax": BC.reflective,
-            "ymin": BC.reflective,
-            "ymax": BC.reflective,
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=ng))
@@ -188,7 +199,7 @@ def _scatter(rows: np.ndarray, values: np.ndarray, n_face: int) -> np.ndarray:
 
 class TestContract:
     def test_block_role_is_boundary_and_exclusive(self) -> None:
-        B = SNBoundaryOperator(_sn(CoordSystem.CARTESIAN, (BC.vacuum, BC.reflective)))
+        B = SNBoundaryOperator(_sn(CoordSystem.CARTESIAN, (_V, _R)))
         assert B.block_role is BlockRole.BOUNDARY
         assert isinstance(B, BoundaryOperator)
         assert not isinstance(B, BulkOperator)
@@ -201,7 +212,7 @@ class TestContract:
         # ``sn.full_field_space``, the SAME space L/C/S/F report (so the
         # OperatorSum guard accepts ``L + C - S - F - B``). The trace metric
         # ``B.H`` reads lives on the composite's trace block.
-        sn = _sn(CoordSystem.CARTESIAN, (BC.vacuum, BC.reflective))
+        sn = _sn(CoordSystem.CARTESIAN, (_V, _R))
         B = SNBoundaryOperator(sn)
         assert B.domain is sn.full_field_space
         assert B.codomain is sn.full_field_space
@@ -350,7 +361,7 @@ class TestApply:
     def test_block_diagonal_no_face_mixing(self) -> None:
         """A perturbation on ONE face's input slot affects ONLY that face's
         output (``B`` is block-diagonal over faces — it never mixes faces)."""
-        sn = _sn(CoordSystem.CARTESIAN, (BC.reflective, BC.reflective))
+        sn = _sn(CoordSystem.CARTESIAN, (_R, _R))
         B = SNBoundaryOperator(sn)
         psi = _random_state(sn, seed=1)
         other = _random_state(sn, seed=2)
@@ -470,7 +481,7 @@ class TestApplyTransposeCapability:
         shelf, and why it stays even though nothing shipped trips it today.
         """
 
-        sn = _sn(CoordSystem.CARTESIAN, (BC.vacuum, BC.reflective))
+        sn = _sn(CoordSystem.CARTESIAN, (_V, _R))
         _n_inflow = sn.angular_trace.inflow_indices_for_face("xmin").size
 
         class _NoTransposeLaw(LinearOperator):
@@ -484,7 +495,7 @@ class TestApplyTransposeCapability:
             # face action is now the COMPOSITION ``law @ γ₊``, and a thing that
             # is not a morphism cannot be composed (`[M]` the bare stub raised
             # ``TypeError: unsupported operand type(s) for @``). Production is
-            # unaffected — every ``_face_laws`` entry is realizer output and
+            # unaffected — every ``_face_operators`` entry is realizer output and
             # therefore already an operator — so the honest fix is to make the
             # surrogate honour the contract it is standing in for, NOT to add
             # a guard for a case the type system now covers.
@@ -507,8 +518,8 @@ class TestApplyTransposeCapability:
 
         class _BWithStubFace(SNBoundaryOperator):
             @property
-            def _face_laws(self):
-                laws = dict(super()._face_laws)
+            def _face_operators(self):
+                laws = dict(super()._face_operators)
                 laws[next(iter(laws))] = _NoTransposeLaw()
                 return laws
 
@@ -552,7 +563,7 @@ class TestTheFaceActionIsCOMPOSED:
 
     @staticmethod
     def _slab():
-        return _sn(CoordSystem.CARTESIAN, (BC.vacuum, BC.reflective))
+        return _sn(CoordSystem.CARTESIAN, (_V, _R))
 
     def test_a_wrong_face_domain_map_now_RAISES_on_apply(self) -> None:
         """⭐ The mutation, run as a gate — B3.4c re-injected at its source.
@@ -913,7 +924,7 @@ class TestFaceRestrictedReflect:
     def test_subset_reflects_only_selected_faces(self) -> None:
         """``faces=("xmax",)`` emits reflected inflow on xmax and leaves the
         unselected xmin face's inflow rows untouched (zero)."""
-        sn = _sn(CoordSystem.CARTESIAN, (BC.reflective, BC.reflective))
+        sn = _sn(CoordSystem.CARTESIAN, (_R, _R))
         boundary = _random_state(sn).boundary
         assert isinstance(boundary, AngularBoundaryFlux)
         mask = self._full_inflow_mask(sn)
@@ -944,7 +955,7 @@ class TestFaceRestrictedReflect:
         whole-trace reflect — the per-face restrictions are a clean partition
         (vv L11: catches a face↔face coupling leak that the
         reflect-only-selected test alone would miss)."""
-        sn = _sn(CoordSystem.CARTESIAN, (BC.reflective, BC.reflective))
+        sn = _sn(CoordSystem.CARTESIAN, (_R, _R))
         boundary = _random_state(sn).boundary
         assert isinstance(boundary, AngularBoundaryFlux)
         mask = self._full_inflow_mask(sn)
@@ -968,7 +979,7 @@ class TestFaceRestrictedReflect:
         into the live verb at CS4c step 6 item 6.5: until then
         ``reflect_rows_inplace`` filtered the face away silently while the
         retired trace-only verb raised."""
-        sn = _sn(CoordSystem.CARTESIAN, (BC.reflective, BC.reflective))
+        sn = _sn(CoordSystem.CARTESIAN, (_R, _R))
         boundary = _random_state(sn).boundary
         assert isinstance(boundary, AngularBoundaryFlux)
         with pytest.raises(ValueError, match="boundary faces"):
@@ -990,19 +1001,14 @@ class TestPeriodicReadsThePartnerFace:
     periodic face returned its own outflow as its inflow (MEASURED 98 %
     relative against the partner-face reference).
 
-    Periodic is not in ``SNProblem.BOUNDARY_OPERATOR_REGISTRY`` (#189), so
-    ``BC("periodic")`` refuses at parse and the law is installed through the
-    method's own ``realize_boundary_law`` hook — the same production arm the
-    tag path would reach, one step later.
+    A translation pair is declared by decks on BOTH faces (wave 2 S2b; until then periodic was outside the string registry (#189) and
+    the wrap was installed on a built problem through ``realize_boundary_law``): the realized operator's domain face is derived
+    from the deck, the same arm every mirror takes.
     """
 
     @staticmethod
     def _periodic_slab(nx: int = 4, ng: int = 1) -> SNProblem:
-        sn = _sn(CoordSystem.CARTESIAN, (BC.vacuum, BC.vacuum), nx=nx, ng=ng)
-        law = PeriodicBoundary(axis="x")
-        for face in ("xmin", "xmax"):
-            sn.bc[face] = sn.realize_boundary_law(law, face)
-        return sn
+        return _sn(CoordSystem.CARTESIAN, (TranslationDeck(), TranslationDeck()), nx=nx, ng=ng)
 
     def test_the_domain_map_is_the_off_diagonal_swap(self) -> None:
         """``_face_domains`` IS the block index — and it is the face-level
@@ -1068,11 +1074,13 @@ class TestPeriodicReadsThePartnerFace:
         face's :math:`\\Gamma_+` must feed exactly one law. Here ``xmax`` would
         feed two (its own vacuum law and ``xmin``'s wrap) while ``xmin``'s fed
         none.
+
+        Wave 2 S2b: the posing path can no longer spell this (the geometry's role check refuses a half translation pair with a
+        ``DeckError``, gated in ``test_snmesh_realizer_wiring.py``), so the row hand-installs the periodic ``xmin`` operator of
+        another problem into a vacuum one: the certification is now a guard on a mutated ``problem.bc``, not on a declaration.
         """
-        sn = _sn(CoordSystem.CARTESIAN, (BC.vacuum, BC.vacuum))
-        sn.bc["xmin"] = sn.realize_boundary_law(
-            PeriodicBoundary(axis="x"), "xmin",
-        )
+        sn = _sn(CoordSystem.CARTESIAN, (_V, _V))
+        sn.bc["xmin"] = self._periodic_slab().bc["xmin"]
         with pytest.raises(ValueError, match="not a permutation"):
             SNBoundaryOperator(sn)._face_domains
 

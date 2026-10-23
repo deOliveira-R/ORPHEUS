@@ -22,12 +22,20 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
 from orpheus.numerics.operator import AdjointOperator, OperatorProduct, OperatorSum, adjointable
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0), 1: WallCondition.vacuum()}
+
 
 pytestmark = [
     pytest.mark.foundation,
@@ -51,18 +59,18 @@ def _mesh(geom):
 
 #: the census's cases: (geometry, quadrature, number of faces carrying a trace)
 _CASES = {
-    "cyl_refl_fp26": (lambda: StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC("reflective")),
+    "cyl_refl_fp26": (lambda: StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=0),
                       lambda: Quadrature.folded_product(n_mu=2, n_phi=6), 1),
-    "cyl_vac_fp26": (lambda: StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC("vacuum")),
+    "cyl_vac_fp26": (lambda: StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=1),
                      lambda: Quadrature.folded_product(n_mu=2, n_phi=6), 1),
-    "sph_vac_gl7": (lambda: StructuredGeometry.sphere((0.0, 3.0), (0,), outer=BC("vacuum")),
+    "sph_vac_gl7": (lambda: StructuredGeometry.sphere((0.0, 3.0), (0,), outer=1),
                     lambda: Quadrature.gauss_legendre(n_ordinates=7), 1),
-    "slab_refl_gl7": (lambda: StructuredGeometry.slab((0.0, 2.0), (0,), left=BC("reflective"), right=BC("vacuum")),
+    "slab_refl_gl7": (lambda: StructuredGeometry.slab((0.0, 2.0), (0,), left=MirrorDeck(), right=1),
                       lambda: Quadrature.gauss_legendre(n_ordinates=7), 2),
     # full-rank controls
-    "cyl_refl_fp48": (lambda: StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC("reflective")),
+    "cyl_refl_fp48": (lambda: StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=0),
                       lambda: Quadrature.folded_product(n_mu=4, n_phi=8), 1),
-    "sph_vac_gl8": (lambda: StructuredGeometry.sphere((0.0, 3.0), (0,), outer=BC("vacuum")),
+    "sph_vac_gl8": (lambda: StructuredGeometry.sphere((0.0, 3.0), (0,), outer=1),
                     lambda: Quadrature.gauss_legendre(n_ordinates=8), 1),
 }
 _DEGENERATE = ["cyl_refl_fp26", "cyl_vac_fp26", "sph_vac_gl7", "slab_refl_gl7"]
@@ -73,7 +81,8 @@ def _problem(name):
 
     geom, rule, n_faces = _CASES[name]
     quad = rule()
-    problem = _as_problem(_mesh(geom()), quad, {0: get_mixture("A", "2g")})
+    mesh = _mesh(geom())
+    problem = _as_problem(mesh, quad, {0: get_mixture("A", "2g")}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     M, N, F, template, _ = _adjoint_posing_parts(problem)
     return problem, quad, n_faces, M, N, F, template
 

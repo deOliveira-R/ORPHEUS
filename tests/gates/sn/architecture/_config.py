@@ -50,7 +50,7 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
@@ -69,6 +69,14 @@ if TYPE_CHECKING:
     from orpheus.sn.coupled_system import WithinGroupSystem
     from orpheus.sn.splitting import Splitting
     from orpheus.transport.operators.scattering import ScatteringOperator
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 # ── materials ────────────────────────────────────────────────────────────
@@ -188,15 +196,15 @@ def cart2d_seedless() -> SNProblem:
         edges_y=np.linspace(0.0, 3.0, ny + 1),
         mat_map=mat_map,
         coord=CoordSystem.CARTESIAN,
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("reflective"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": 0,
+            "ymin": MirrorDeck(),
+            "ymax": 0,
         },
     )
     return SNProblem(
-        mesh, Quadrature.level_symmetric(sn_order=4), _two_region_materials(),
+        mesh, Quadrature.level_symmetric(sn_order=4), _two_region_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -210,10 +218,10 @@ def sphere_carrying() -> SNProblem:
     """
     n = 6
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, 1.5, 3.0), (0, 1), outer=BC("vacuum"),
+        (0.0, 1.5, 3.0), (0, 1), outer=0,
     )).partition(CellsByCount.uniform_width(n // 2)).mesh
     return SNProblem(
-        mesh, Quadrature.gauss_legendre(n_ordinates=8), _two_region_materials(),
+        mesh, Quadrature.gauss_legendre(n_ordinates=8), _two_region_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -221,10 +229,10 @@ def slab_seedless() -> SNProblem:
     """1-D Cartesian slab — the R7 **trap** control (G-S falls back to Jacobi)."""
     n = 8
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 2.0, 4.0), (0, 1), left=BC("reflective"), right=BC("vacuum"),
+        (0.0, 2.0, 4.0), (0, 1), left=MirrorDeck(), right=0,
     )).partition(CellsByCount.uniform_width(n // 2)).mesh
     return SNProblem(
-        mesh, Quadrature.gauss_legendre(n_ordinates=8), _two_region_materials(),
+        mesh, Quadrature.gauss_legendre(n_ordinates=8), _two_region_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -240,12 +248,12 @@ def isotropic_slab(*, c: float = 0.9, sig_t: float = 1.0, n: int = 40) -> SNProb
     ``c = 0.9`` is the #215 divergence regime (``ρ = c/(1−c) = 9`` in the
     infinite medium; ≈ 6.91 measured with leakage).
     """
-    mesh = Mesher(StructuredGeometry.from_homogeneous(4.0, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(4.0, 0)).partition(
         CellsByCount.uniform_width(n),
     ).mesh
     scatter = [[c * sig_t, 0.0], [0.0, c * sig_t]]
     mats = {0: anisotropic_mixture([sig_t, sig_t], scatter)}
-    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=8), mats)
+    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=8), mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # ── the posed record ─────────────────────────────────────────────────────

@@ -64,11 +64,18 @@ alongside.
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 # SI cylindrical pole-cell NaN regression catcher: ``regression`` flags
 # the frozen-behaviour drift gate; ``foundation`` gives it a V&V-level
@@ -90,7 +97,7 @@ def homog_cyl_2g_thick2_n20():
         coord=CoordSystem.CYLINDRICAL,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(20)).mesh
     quad = Quadrature.folded_product(n_mu=8, n_phi=16)
@@ -129,7 +136,7 @@ def test_si_returns_finite_keff(homog_cyl_2g_thick2_n20):
         materials={0: fuel}, mesh=mesh, quadrature=quad,
         inner_solver='source_iteration',
         keff_tol=1e-10, flux_tol=1e-9,
-        max_outer=3, max_inner=3,
+        max_outer=3, max_inner=3, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     assert np.isfinite(res.outcome.keff), (
         f"SI returned non-finite k_eff: {res.outcome.keff}.  Bug class: "
@@ -158,7 +165,7 @@ def test_si_agrees_with_kinf_at_resonance(homog_cyl_2g_thick2_n20):
         materials={0: fuel}, mesh=mesh, quadrature=quad,
         inner_solver='source_iteration',
         keff_tol=1e-10, flux_tol=1e-9,
-        max_outer=200, max_inner=200,
+        max_outer=200, max_inner=200, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     assert np.isfinite(res.outcome.keff), f"keff is non-finite: {res.outcome.keff}"
     assert abs(res.outcome.keff - 1.875) < 1e-5, (
@@ -184,7 +191,7 @@ def test_krylov_unaffected(homog_cyl_2g_thick2_n20):
         materials={0: fuel}, mesh=mesh, quadrature=quad,
         inner_solver='krylov',
         keff_tol=1e-10, flux_tol=1e-9,
-        max_outer=100, max_inner=100,
+        max_outer=100, max_inner=100, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     assert np.isfinite(res.outcome.keff)
     assert abs(res.outcome.keff - 1.875) < 1e-6

@@ -224,7 +224,8 @@ Key Facts
      :mod:`tests.gates.geometry.test_boundary_trace_law`,
      :mod:`tests.gates.geometry.test_bc_errors`).
    - Foundation reference-image tests
-     (:mod:`tests.gates.geometry.test_bc_equivalence_snapshot`), which
+     (:mod:`tests.gates.sn.architecture.test_wave2_carry`, which took the seven frozen
+     images over from the retired ``test_bc_equivalence_snapshot`` at wave 2 slice S2b), which
      compare each realised operator against a **frozen,
      independently-derived** reference image — see
      :ref:`bc-numerical-evidence`. Re-anchored on 2026-08-01: the
@@ -6381,8 +6382,8 @@ are:
    they agree on the inflow set and diverge on the outflow set. NEITHER is the
    live realization: since campaign phase B3.2 vacuum realizes to the zero map
    Γ₊ → Γ₋, and the live gate is the re-posed vacuum snapshot case in
-   ``tests/gates/geometry/test_bc_equivalence_snapshot.py`` (asserts Γ₋ shape + all
-   zero). Kept as the record of a contract that looked right for two campaign
+   ``tests/gates/sn/architecture/test_wave2_carry.py`` (the retired
+   ``test_bc_equivalence_snapshot.py`` asserted Γ₋ shape + all zero). Kept as the record of a contract that looked right for two campaign
    phases. An explanatory comparison, never a solver claim.
 .. vv-status: vacuum-legacy-vs-trace-correct documented
 
@@ -6734,7 +6735,8 @@ Numerical evidence
 ==================
 
 The reference-image harness
-(:mod:`tests.gates.geometry.test_bc_equivalence_snapshot`) is the widest
+(:mod:`tests.gates.sn.architecture.test_wave2_carry`, which took the seven frozen images over from the retired
+``tests/gates/geometry/test_bc_equivalence_snapshot.py`` at wave 2 slice S2b) is the widest
 mutation net in the boundary subsystem. Seven cases compare the
 realized operator against a frozen ``.npz`` image at a per-case
 tolerance.

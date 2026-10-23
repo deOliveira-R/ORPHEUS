@@ -86,7 +86,7 @@ import numpy as np
 import pytest
 
 from orpheus.sn.operators.streaming import StreamingCollisionOperator
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -101,6 +101,13 @@ from tests.gates.sn._test_helpers import (
     placeholder_materials,
 )
 from tests.gates.sn.regression._regression_assert import assert_regression
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(1.0)}
+
 
 
 pytestmark = [pytest.mark.regression, pytest.mark.foundation]
@@ -152,17 +159,17 @@ def _build_sn_mesh(geometry: str) -> SNProblem:
     mats = placeholder_materials(ng=_NG)
     if geometry == "SLB":
         mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+            (0.0, 2.0), (0,), left=0, right=0,
         )).partition(CellsByCount.uniform_width(_N_CELLS)).mesh
         quad = Quadrature.gauss_legendre(n_ordinates=_N_ORD)
     elif geometry == "SPH":
         mesh = Mesher(
-            StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC("vacuum")),
+            StructuredGeometry.sphere((0.0, 2.0), (0,), outer=0),
         ).partition(CellsByCount.uniform_width(_N_CELLS)).mesh
         quad = Quadrature.gauss_legendre(n_ordinates=_N_ORD)
     elif geometry == "CYL":
         mesh = Mesher(StructuredGeometry.cylinder(
-            (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("vacuum"),
+            (0.01, 2.0), (0,), inner=1, outer=0,
         )).partition(CellsByCount.uniform_width(_N_CELLS)).mesh
         quad = Quadrature.folded_product(n_mu=_N_ORD, n_phi=2 * _N_ORD)
     elif geometry == "CYL_DEG":
@@ -172,12 +179,12 @@ def _build_sn_mesh(geometry: str) -> SNProblem:
         # ordinates through the slow per-cell path — the sole production
         # route into ``scheme.update`` (see _GEOMS_1D note above).
         mesh = Mesher(StructuredGeometry.cylinder(
-            (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("vacuum"),
+            (0.01, 2.0), (0,), inner=1, outer=0,
         )).partition(CellsByCount.uniform_width(_N_CELLS)).mesh
         quad = Quadrature.folded_product(n_mu=_N_ORD, n_phi=6)
     else:  # pragma: no cover - guarded by parametrize
         raise ValueError(geometry)
-    return SNProblem(mesh, quad, mats)
+    return SNProblem(mesh, quad, mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _capture_or_assert(

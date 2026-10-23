@@ -19,27 +19,31 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
-from orpheus.geometry.boundary import ReflectiveBoundary
+from orpheus.geometry.deck import MirrorDeck
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import _as_problem
 from orpheus.mesh import AxisMesh
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
 
-_R = BC("reflective")
-_V = BC("vacuum")
+#: The roles this file is written in: a mirror deck is the reflective face, the tag 0 (declared the vacuum wall) the vacuum one.
+_R = MirrorDeck()
+_V = 0
+_CONDITIONS = {0: WallCondition.vacuum()}
 _EDGES = np.linspace(0.0, 1.0, 4)
 
 
-def _sn_mesh_2d(**face_laws) -> SNProblem:
+def _sn_mesh_2d(conditions=None, **face_roles) -> SNProblem:
     mesh = Mesh2D(
         edges_x=_EDGES, edges_y=_EDGES,
         mat_map=np.zeros((3, 3), dtype=int),
-        face_laws=face_laws,
+        face_roles=face_roles,
     )
     return SNProblem(
         mesh, Quadrature.level_symmetric(4), {0: get_mixture("B", "2g")},
+        boundary_conditions=conditions_for(mesh, _CONDITIONS if conditions is None else conditions),
     )
 
 
@@ -71,7 +75,7 @@ def test_a_MIXED_axis_contributes_nothing():
 
     reflective_faces = sum(
         1 for face in mesh.bc
-        if type(mesh.bc[face].law).__name__ == "ReflectiveBoundary"
+        if isinstance(mesh.binding.decks.get(face), MirrorDeck)
     )
     assert reflective_faces == 3
 
@@ -94,7 +98,7 @@ def test_TWO_mixed_axes_are_worth_zero_not_one():
 
     reflective_faces = sum(
         1 for face in mesh.bc
-        if type(mesh.bc[face].law).__name__ == "ReflectiveBoundary"
+        if isinstance(mesh.binding.decks.get(face), MirrorDeck)
     )
     assert reflective_faces == 2, "fixture drifted"
     assert reflective_faces // 2 == 1, (
@@ -112,22 +116,20 @@ def test_an_all_vacuum_box_has_none():
 
 
 @pytest.mark.foundation
-def test_a_LAW_declared_box_is_all_reflective_and_the_predicate_sees_it():
-    """The predicate reads the REALIZED law, not the tag a caller passed.
+def test_a_unit_specular_WALL_is_a_response_and_closes_no_loop():
+    """The predicate reads the DECKS of the binding, not the conditions (wave 2 S2b meaning change).
 
-    Re-posed at step 3c: the row used to build a BARE mesh, whose unset faces
-    ``resolve_boundary_conditions`` filled with ``BC("reflective")``; that
-    default is retired (every face now declares its law). What survives is the
-    half about the realized law: here every face declares the already-typed
-    :class:`~orpheus.geometry.boundary.ReflectiveBoundary` rather than the
-    ``BC`` tag, so a predicate that read the declared tag's ``kind`` would
-    miss all four faces.
+    Until wave 2 a face declared with the already-typed unit ``ReflectiveBoundary`` counted as reflective (the predicate read the
+    realized law, not the tag a caller passed). The deck/response split makes the reading sharper: a wall tagged and bound to the unit
+    specular condition returns every particle too, but it is a constitutive response and not a symmetry of the domain, so it makes no
+    axis reflective; the same four faces declared as mirror decks make both.
     """
-    problem = _sn_mesh_2d(
-        xmin=ReflectiveBoundary(axis="x"), xmax=ReflectiveBoundary(axis="x"),
-        ymin=ReflectiveBoundary(axis="y"), ymax=ReflectiveBoundary(axis="y"),
+    walls = _sn_mesh_2d(
+        {0: WallCondition.specular(1.0)}, xmin=0, xmax=0, ymin=0, ymax=0,
     )
-    assert problem.reflective_axis_pairs == problem.ndim == 2
+    decks = _sn_mesh_2d(xmin=_R, xmax=_R, ymin=_R, ymax=_R)
+    assert (walls.reflective_axis_pairs, decks.reflective_axis_pairs) == (0, decks.ndim)
+    assert decks.reflective_axis_pairs == 2
 
 
 @pytest.mark.foundation
@@ -137,7 +139,7 @@ def test_it_counts_at_three_dimensions_too():
     materials = {0: get_mixture("B", "2g")}
 
     def _axis(low, high):
-        return AxisMesh(edges=_EDGES, bc_low=low, bc_high=high)
+        return AxisMesh(edges=_EDGES, role_low=low, role_high=high)
 
     all_reflective = (_axis(_R, _R),) * 3
     problem = _as_problem(all_reflective, quadrature, materials)
@@ -146,5 +148,5 @@ def test_it_counts_at_three_dimensions_too():
 
     one_vacuum_pair = (_axis(_V, _V),) + all_reflective[1:]
     assert _as_problem(
-        one_vacuum_pair, quadrature, materials,
+        one_vacuum_pair, quadrature, materials, boundary_conditions=conditions_for(one_vacuum_pair, _CONDITIONS),
     ).reflective_axis_pairs == 2

@@ -32,7 +32,7 @@ from unittest.mock import patch
 import numpy as np
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry import CoordSystem
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import loss_representation as lr
@@ -41,6 +41,14 @@ from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 CAPABILITY = "sweep_cartesian_2d"
 
@@ -63,13 +71,13 @@ def _parse(config: str) -> tuple[int, int, int, int]:
 
 def _problem(config: str) -> tuple[SNProblem, np.ndarray, np.ndarray]:
     nx, ny, order, ng = _parse(config)
-    reflective = BC("reflective")
+    reflective = MirrorDeck()
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 2.0, nx + 1), edges_y=np.linspace(0.0, 2.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int), coord=CoordSystem.CARTESIAN,
-        face_laws={"xmin": reflective, "xmax": reflective, "ymin": reflective, "ymax": reflective},
+        face_roles={"xmin": reflective, "xmax": reflective, "ymin": reflective, "ymax": reflective},
     )
-    problem = SNProblem(mesh, Quadrature.level_symmetric(order), {0: get_mixture("A", f"{ng}g")})
+    problem = SNProblem(mesh, Quadrature.level_symmetric(order), {0: get_mixture("A", f"{ng}g")}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     rng = np.random.default_rng(7)
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))
     source = rng.uniform(0.0, 2.0, size=(problem.quad.n_ordinates, ng, nx, ny))
@@ -163,11 +171,11 @@ class FixedSourceSolve:
         self.mesh = Mesh2D(
             edges_x=np.linspace(0.0, 12.0, nx + 1), edges_y=np.linspace(0.0, 12.0, ny + 1),
             mat_map=mat,
-            face_laws={
-                "xmin": BC("vacuum"),
-                "xmax": BC("vacuum"),
-                "ymin": BC("reflective"),
-                "ymax": BC("reflective"),
+            face_roles={
+                "xmin": 0,
+                "xmax": 0,
+                "ymin": MirrorDeck(),
+                "ymax": MirrorDeck(),
             },
         )
         self.quad = Quadrature.level_symmetric(8)
@@ -178,7 +186,7 @@ class FixedSourceSolve:
         def run():
             return solve_sn_fixed_source(
                 self.materials, self.mesh, self.quad, self.source, scattering_order=1,
-                inner_solver="source_iteration", max_inner=2000, inner_tol=1e-10,
+                inner_solver="source_iteration", max_inner=2000, inner_tol=1e-10, boundary_conditions=conditions_for(self.mesh, _CONDITIONS),
             )
         if representation == "window-forced":
             with _window_forced():

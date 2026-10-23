@@ -61,7 +61,7 @@ def _sn_problem(name):
         "cyl_degenerate": lambda: dict(G._cylinder_3region("2g", 20, "folded_4x6"),
                                        quadrature=Quadrature.folded_product(n_mu=2, n_phi=6)),
     }[name]()
-    problem = _as_problem(c["mesh"], c["quadrature"], c["materials"], scattering_order=c["scattering_order"])
+    problem = _as_problem(c["mesh"], c["quadrature"], c["materials"], scattering_order=c["scattering_order"], boundary_conditions=G.case_conditions(c))
     M, N, F, template, _ = _adjoint_posing_parts(problem)
     return problem, M, template
 
@@ -168,7 +168,7 @@ def test_K2_dual_space_mints_do_not_grow_with_the_iteration_count(monkeypatch):
         c = G._slab_3region("2g", 40)
         mints.clear(); primals.clear()
         sol = solve_sn_adjoint(c["materials"], c["mesh"], c["quadrature"],
-                               keff_tol=tols[0], flux_tol=tols[1], inner_tol=tols[2])
+                               keff_tol=tols[0], flux_tol=tols[1], inner_tol=tols[2], boundary_conditions=G.case_conditions(c))
         counts.append(len(mints))
         outers.append(len(sol.outcome.trajectory))
         distinct = len({id(p) for p in primals})

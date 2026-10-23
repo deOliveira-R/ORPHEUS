@@ -70,7 +70,6 @@ from orpheus.derivations.discrete.sn.face_transmission import (
     streaming_coefficients,
     transmission_spectrum,
 )
-from orpheus.geometry import BC
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import loss_representation
 from orpheus.sn.problem import SNProblem
@@ -83,6 +82,13 @@ from orpheus.transport.spatial.scheme import (
     FaceModeDamping,
     _face_transmission_matrix,
 )
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 LABEL = "dd-face-transmission-spectrum"
 _SYM = "tests/gates/transport/spatial/test_face_transmission_symbolic.py"
@@ -374,13 +380,13 @@ def _one_cell_sweep_maps(scheme, d: int):
         sig_t=_SIGMA_T, sig_c=_SIGMA_T.copy(), sig_f=np.zeros(2), nu=np.zeros(2),
         chi=np.zeros(2), sig_s=np.zeros((2, 2)),
     )
-    vacuum = BC("vacuum")
+    vacuum = 0
     axes = tuple(
-        AxisMesh(edges=np.array([0.0, w]), bc_low=vacuum, bc_high=vacuum) for w in _WIDTHS[:d]
+        AxisMesh(edges=np.array([0.0, w]), role_low=vacuum, role_high=vacuum) for w in _WIDTHS[:d]
     )
     quadrature = Quadrature.level_symmetric(4) if d > 1 else Quadrature.gauss_legendre(n_ordinates=4)
     problem = SNProblem.from_axes(
-        axes, quadrature, {0: mixture}, mat_map=np.zeros((1,) * d, dtype=int), scheme=scheme,
+        axes, quadrature, {0: mixture}, mat_map=np.zeros((1,) * d, dtype=int), scheme=scheme, boundary_conditions=conditions_for(axes, _CONDITIONS),
     )
     representation = loss_representation.default_for(problem, problem.scheme, problem.angular_closure)
     q = problem.quad

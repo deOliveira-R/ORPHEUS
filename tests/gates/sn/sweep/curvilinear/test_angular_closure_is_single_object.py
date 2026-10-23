@@ -34,7 +34,7 @@ import numpy as np
 import pytest
 
 from orpheus.sn.operators.streaming import StreamingCollisionOperator
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -45,6 +45,13 @@ from orpheus.transport.operators.multiplication_operator import (
 )
 from orpheus.transport.fields import AngularSourceSink
 from tests.gates.sn._test_helpers import het_operands, placeholder_materials, sweep_once
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0), 1: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.foundation]
 
@@ -55,10 +62,10 @@ _N_CELLS = 8
 def _cylinder_mesh(n_phi: int) -> SNProblem:
     """Cylinder fixture; ``n_phi ≡ 2 (mod 4)`` activates the per-cell path."""
     mesh = Mesher(StructuredGeometry.cylinder(
-        (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("vacuum"),
+        (0.01, 2.0), (0,), inner=0, outer=1,
     )).partition(CellsByCount.uniform_width(_N_CELLS)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=n_phi)
-    return SNProblem(mesh, quad, placeholder_materials(ng=_NG))
+    return SNProblem(mesh, quad, placeholder_materials(ng=_NG), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _run_one_sweep(problem: SNProblem) -> None:

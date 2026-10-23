@@ -68,14 +68,8 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesh2D, Mesher
-from orpheus.geometry.boundary import (
-    BoundaryTraceLaw,
-    ConstantInflowSource,
-    PrescribedInflow,
-    WhiteBoundary,
-)
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
@@ -94,6 +88,14 @@ from tests.gates.sn._test_helpers import (
     placeholder_materials,
 )
 from dataclasses import replace
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -134,18 +136,33 @@ from dataclasses import replace
 #: The P5 declaration. The amplitude is irrelevant to every row in this module
 #: — that is the point: ``q`` is not what the realizer tier produces, so a law
 #: carrying a source must still realize to an operator that cannot see it.
-_PRESCRIBED_INFLOW = PrescribedInflow(source=ConstantInflowSource(value=2.5))
+_PRESCRIBED_INFLOW = WallCondition.uniform(2.5)
+
+
+def _declared_faces(*faces) -> tuple[tuple, dict[int, WallCondition]]:
+    """``(roles, conditions)`` of a body's faces, each a deck (its own role) or a ``WallCondition`` (carried on a fresh tag, declared at
+    the solve): the wave 2 spelling of "this face's law", one tag per condition so no symmetry claim is made that was not."""
+    roles: list = []
+    conditions: dict[int, WallCondition] = {}
+    for face in faces:
+        if isinstance(face, WallCondition):
+            conditions[len(conditions)] = face
+            roles.append(len(conditions) - 1)
+        else:
+            roles.append(face)
+    return tuple(roles), conditions
 
 
 def _make_slab(
     nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5,
-    left: "BC | BoundaryTraceLaw" = BC("reflective"),
-    right: "BC | BoundaryTraceLaw" = BC("reflective"),
+    left=MirrorDeck(),
+    right=MirrorDeck(),
 ):
     quad = Quadrature.gauss_legendre(4)
-    geom = StructuredGeometry.slab((0.0, R), (0,), left=left, right=right)
+    (role_left, role_right), conditions = _declared_faces(left, right)
+    geom = StructuredGeometry.slab((0.0, R), (0,), left=role_left, right=role_right)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
-    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions)
     # Per-group-varying σ_t so the 2g row is non-degenerate in the group axis
     # (exercises the G_bulk broadcast over ng); rank-d (ng, *spatial).
     sig_t = np.stack(
@@ -156,9 +173,9 @@ def _make_slab(
 
 def _make_sphere(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
     quad = Quadrature.gauss_legendre(4)
-    geom = StructuredGeometry.sphere((0.0, R), (0,), outer=BC("reflective"))
+    geom = StructuredGeometry.sphere((0.0, R), (0,), outer=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
-    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.5 * g)) for g in range(ng)], axis=0
     )
@@ -176,9 +193,9 @@ def _make_cyl(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
     re-captured with the swap.)
     """
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    geom = StructuredGeometry.cylinder((0.0, R), (0,), outer=BC("reflective"))
+    geom = StructuredGeometry.cylinder((0.0, R), (0,), outer=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
-    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     sig_t = np.full((ng, nx), sigma)
     return sn, sig_t
 
@@ -205,9 +222,9 @@ def _make_cyl_product(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0
     choice).
     """
     quad = Quadrature.folded_product(n_mu=2, n_phi=6)
-    geom = StructuredGeometry.cylinder((0.0, R), (0,), outer=BC("reflective"))
+    geom = StructuredGeometry.cylinder((0.0, R), (0,), outer=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
-    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.5 * g)) for g in range(ng)], axis=0
     )
@@ -229,11 +246,11 @@ def _make_ld_slab(ng: int = 2, sigma: float = 0.5):
     quad = Quadrature.gauss_legendre(4)
     edges = np.array([0.0, 0.17, 0.45, 0.62, 1.0])       # non-uniform h
     geom = StructuredGeometry.slab(
-        (0.0, 1.0), (0,), left=BC("reflective"), right=BC("reflective"),
+        (0.0, 1.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geom).partition(CellEdges(edges)).mesh
     sn = SNProblem(mesh, quad, placeholder_materials(ng=ng),
-                scheme=LinearDiscontinuous())
+                scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     nx = sn.spatial_shape[0]
     space_factor = 1.0 + 0.3 * np.arange(nx) / nx        # spatially het
     sig_t = np.stack(
@@ -265,10 +282,14 @@ _PRODUCT44_CELLS = (3, 4)
 _PRODUCT44_EXTENTS = (2.0, 3.0)
 
 
+#: The two boundary kinds the product-(4, 4) rows are parametrised over: a mirror deck, and the tag ``0`` declared the vacuum wall.
+_PRODUCT44_ROLE = {"vacuum": 0, "reflective": MirrorDeck()}
+
+
 def _cart2d_product44_problem(
-    bc: BC, materials: dict, scattering_order: int = 0,
+    kind: str, materials: dict, scattering_order: int = 0,
 ) -> SNProblem:
-    r"""2-D Cartesian DD on ``Quadrature.product(4, 4)``, one BC on all faces.
+    r"""2-D Cartesian DD on ``Quadrature.product(4, 4)``, one boundary kind (``"vacuum"`` or ``"reflective"``) on all faces.
 
     ``product(4, 4)`` puts half of its 16 ordinates on each face's tangent
     plane with a cosine that is EXACTLY ``0.0`` (every ordinate has
@@ -283,15 +304,15 @@ def _cart2d_product44_problem(
         edges_y=np.linspace(0.0, _PRODUCT44_EXTENTS[1], ny + 1),
         mat_map=(np.add.outer(np.arange(nx), np.arange(ny)) % 2).astype(int),
         coord=CoordSystem.CARTESIAN,
-        face_laws={"xmin": bc, "xmax": bc, "ymin": bc, "ymax": bc},
+        face_roles={face: _PRODUCT44_ROLE[kind] for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     return SNProblem(
         mesh, Quadrature.product(4, 4), materials,
-        scattering_order=scattering_order,
+        scattering_order=scattering_order, boundary_conditions=conditions_for(mesh, {0: WallCondition.vacuum()}),
     )
 
 
-def _make_cart2d_product44(bc: BC, ng: int = 2, sigma: float = 0.5):
+def _make_cart2d_product44(kind: str, ng: int = 2, sigma: float = 0.5):
     r"""The multi-D SINGULAR-metric reciprocity rows (#493, gate G1).
 
     Before these rows the only singular-metric case in ``_BUILDERS`` was
@@ -317,7 +338,7 @@ def _make_cart2d_product44(bc: BC, ng: int = 2, sigma: float = 0.5):
     also resolves the grazing coefficient to ``δ = 1e-13``.
     """
     sn = _cart2d_product44_problem(
-        bc, placeholder_materials(ng=ng, mat_ids=(0, 1)),
+        kind, placeholder_materials(ng=ng, mat_ids=(0, 1)),
     )
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.5 * g)) for g in range(ng)],
@@ -358,16 +379,16 @@ def _make_ld_2d(ng: int = 2, sigma: float = 0.5):
         edges_x=np.array([0.0, 0.17, 0.45, 0.62, 1.0]),
         edges_y=np.array([0.0, 0.33, 0.8, 1.4]),
         mat_map=np.zeros((4, 3), dtype=int),
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     sn = SNProblem(
         geom, Quadrature.level_symmetric(2), placeholder_materials(ng=ng),
-        scheme=LinearDiscontinuous(),
+        scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(geom, _CONDITIONS),
     )
     nx, ny = sn.spatial_shape
     space_factor = (
@@ -396,9 +417,9 @@ _BUILDERS = {
     # octant walk), ``test_full_field_space_metric_matches_independent_reference``
     # pins the singular metric's population. Stabiliser: see
     # :func:`_make_cart2d_product44`.
-    "cart2d_product44_vacuum_2g": lambda: _make_cart2d_product44(BC("vacuum")),
+    "cart2d_product44_vacuum_2g": lambda: _make_cart2d_product44("vacuum"),
     "cart2d_product44_reflective_2g": lambda: _make_cart2d_product44(
-        BC("reflective"),
+        "reflective",
     ),
     # ── P5: a DECLARED PrescribedInflow no longer poisons the block's
     # transpose. Two partner faces, because the prescribed face alone can
@@ -422,15 +443,15 @@ _BUILDERS = {
     # rows carry is that the prescribed face does not DESTROY a neighbour's
     # genuinely metric-dependent reciprocity, which needs the neighbour.
     #
-    # ⚠ ``WhiteBoundary`` is reachable here as a LAW OBJECT only. SN's
-    # ``BOUNDARY_OPERATOR_REGISTRY`` still refuses the ``BC("white")`` TAG
-    # (#189), and these rows assert reciprocity of ``B``, NOT that a white-faced
-    # SN solve is a supported configuration.
+    # ⚠ These rows assert reciprocity of ``B``, NOT that a white-faced SN solve is a
+    # supported configuration. (Until wave 2 the white face was reachable only as a
+    # law object, the tag registry refusing it (#189); it is a ``WallCondition`` on
+    # a tag now, and the diffuse chain is admitted on a Cartesian face.)
     "slab_declared_prescribed_2g": lambda: _make_slab(
         ng=2, left=_PRESCRIBED_INFLOW,
     ),
     "slab_declared_prescribed_white_2g": lambda: _make_slab(
-        ng=2, left=_PRESCRIBED_INFLOW, right=WhiteBoundary(),
+        ng=2, left=_PRESCRIBED_INFLOW, right=WallCondition.white(),
     ),
 }
 
@@ -783,7 +804,7 @@ def _mix_4g(p0: np.ndarray):
 
 def _full_loss_case(
     coord: CoordSystem, ng: int,
-    left: "BC | BoundaryTraceLaw" = BC("reflective"),
+    left=MirrorDeck(),
 ):
     r"""Het 2-material mesh + the full loss ``A = (L + C) - S - A_BA - B``.
 
@@ -817,9 +838,11 @@ def _full_loss_case(
         CellsByCount.uniform_width(2),
         CellsByCount.uniform_width(1),
     )
+    conditions: dict[int, WallCondition] = {}
     if coord is CoordSystem.CARTESIAN:
+        (role_left, role_right), conditions = _declared_faces(left, MirrorDeck())
         geom = StructuredGeometry.slab(
-            breakpoints, mat_ids, left=left, right=BC("reflective"),
+            breakpoints, mat_ids, left=role_left, right=role_right,
         )
     else:
         # A solid sphere/cylinder has ONE true face, so there is no partner to
@@ -832,15 +855,17 @@ def _full_loss_case(
         # precisely the pre-P2′ defect this whole campaign exists to close.
         # Reproducing it inside the campaign's own gates would be the joke that
         # writes itself. A comment is not a guard; this is.
-        if left != BC("reflective"):
+        if left != MirrorDeck():
             raise ValueError(
                 f"_full_loss_case: {coord.name} has one true face, so "
                 f"left={left!r} has nowhere to go and would be silently "
                 f"dropped. Declare on the outer face, or use a Cartesian case."
             )
+        # A curved body's reflecting face is a response (rule R2): the tag 0, declared the unit specular wall.
         geom = StructuredGeometry.uniform_boundary(
-            coord, breakpoints, mat_ids, BC("reflective"),
+            coord, breakpoints, mat_ids, 0,
         )
+        conditions = {0: WallCondition.specular(1.0)}
     mesh = Mesher(geom).partition(rules).mesh
     if ng == 2:
         mixtures = {
@@ -851,7 +876,7 @@ def _full_loss_case(
     else:
         mixtures = {0: _mix_4g(_P0_4G_A), 1: _mix_4g(_P0_4G_B)}
         order = 0
-    sn = SNProblem(mesh, quad, mixtures, scattering_order=order)
+    sn = SNProblem(mesh, quad, mixtures, scattering_order=order, boundary_conditions=conditions)
     S = SNSolver(sn).problem.system.factors.scattering
     sig_t = np.asarray(
         CrossSectionField.total_of(sn.mat_xs).values, dtype=float
@@ -886,18 +911,18 @@ def _full_loss_case_cart2d():
         edges_y=np.linspace(0.0, 3.0, 6),
         mat_map=np.array([[0, 1, 1, 0, 0], [1, 0, 0, 1, 0],
                           [0, 0, 1, 0, 1], [1, 0, 0, 0, 1]]),
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     mixtures = {
         0: _mix_2g(_P0_2G_A, _P1_2G_A, np.array([[0.0, 0.03], [0.01, 0.0]])),
         1: _mix_2g(_P0_2G_B, _P1_2G_B, np.array([[0.0, 0.02], [0.02, 0.0]])),
     }
-    sn = SNProblem(mesh, Quadrature.level_symmetric(4), mixtures, scattering_order=0)
+    sn = SNProblem(mesh, Quadrature.level_symmetric(4), mixtures, scattering_order=0, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     S = SNSolver(sn).problem.system.factors.scattering
     sig_t = np.asarray(
         CrossSectionField.total_of(sn.mat_xs).values, dtype=float
@@ -1169,7 +1194,7 @@ def test_tangential_trace_slots_are_a_zero_summand_of_the_loss(bc):
     block; that is the reciprocity rows' job.
     """
     sn = _cart2d_product44_problem(
-        BC(bc), _balanced_2g_mixtures(), scattering_order=1,
+        bc, _balanced_2g_mixtures(), scattering_order=1,
     )
     factors = sn.system.factors
     A = (

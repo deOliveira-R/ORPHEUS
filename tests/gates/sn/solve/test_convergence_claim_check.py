@@ -35,7 +35,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.convergence import IterationRecord, StoppingCriterion
 from orpheus.numerics.quadrature import Quadrature
@@ -49,6 +49,13 @@ from orpheus.sn.solver import ConvergenceClaimError, SNSolver
 from orpheus.transport.radial_characteristic_field import (
     RadialCharacteristicField,
 )
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -57,14 +64,14 @@ _MATERIALS = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
 
 def _mesh1d() -> Mesh1D:
     return Mesher(StructuredGeometry.sphere(
-        (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
+        (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=0,
     )).partition(CellsByCount.uniform_width(1)).mesh
 
 
 def _sphere() -> SNProblem:
     return SNProblem(
-        _mesh1d(), Quadrature.gauss_legendre(n_ordinates=4),
-        dict(_MATERIALS),
+        (_carrier1 := _mesh1d()), Quadrature.gauss_legendre(n_ordinates=4),
+        dict(_MATERIALS), boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
     )
 
 
@@ -98,8 +105,8 @@ def test_c3_in_m_lag_trips_the_claim_check_while_the_stop_stays_green(
 
     # ── CONTROL: unmutated — the claim check stays silent.
     solution = solve_sn_fixed_source(
-        dict(_MATERIALS), _mesh1d(), sn.quad, q,
-        inner_solver="source_iteration",
+        dict(_MATERIALS), (_carrier2 := _mesh1d()), sn.quad, q,
+        inner_solver="source_iteration", boundary_conditions=conditions_for(_carrier2, _CONDITIONS),
     )
     if not bool(solution.record.converged):
         pytest.fail("control leg did not converge — fixture drift")
@@ -115,14 +122,14 @@ def test_c3_in_m_lag_trips_the_claim_check_while_the_stop_stays_green(
         m.setattr(RadialCharacteristicOperator, "solve", _stale_ray)
         with pytest.raises(ConvergenceClaimError, match="lag-death"):
             solve_sn_fixed_source(
-                dict(_MATERIALS), _mesh1d(), sn.quad, q,
-                inner_solver="source_iteration",
+                dict(_MATERIALS), (_carrier4 := _mesh1d()), sn.quad, q,
+                inner_solver="source_iteration", boundary_conditions=conditions_for(_carrier4, _CONDITIONS),
             )
 
     # ── And the mutation reverted cleanly (the monkeypatch context):
     again = solve_sn_fixed_source(
-        dict(_MATERIALS), _mesh1d(), sn.quad, q,
-        inner_solver="source_iteration",
+        dict(_MATERIALS), (_carrier3 := _mesh1d()), sn.quad, q,
+        inner_solver="source_iteration", boundary_conditions=conditions_for(_carrier3, _CONDITIONS),
     )
     if not bool(again.record.converged):
         pytest.fail("post-revert leg did not converge — the mutation leaked")

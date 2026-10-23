@@ -31,7 +31,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.iteration import (
@@ -49,6 +49,7 @@ from orpheus.numerics.operator import (
     NotInvertible,
 )
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.geometry.deck import MirrorDeck
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -671,7 +672,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # ``test_solver_components.py`` uses for component checks.
     mix = get_mixture("A", "2g")
     materials = {0: mix}
-    mesh = Mesher(StructuredGeometry.from_homogeneous(5.0, BC.reflective)).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(5.0, MirrorDeck())).partition(
         CellsByCount.uniform_width(10),
     ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
@@ -857,7 +858,7 @@ def _sn_composite_triple():
 
     mix = get_mixture("A", "2g")
     materials = {0: mix}
-    mesh = Mesher(StructuredGeometry.from_homogeneous(5.0, BC.reflective)).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(5.0, MirrorDeck())).partition(
         CellsByCount.uniform_width(10),
     ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)

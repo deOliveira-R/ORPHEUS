@@ -58,14 +58,9 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesher
-from orpheus.geometry.boundary import (
-    AlbedoBoundary,
-    ReflectiveBoundary,
-    SpecularReturn,
-    WhiteBoundary,
-)
+from orpheus.sn.boundary.realized_operators import RankOneReemission
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.boundary import (
@@ -185,6 +180,17 @@ from orpheus.transport.fields.radial_characteristic_interior_source_sink import 
 from orpheus.transport.fields.angular_source_sink import AngularSourceSink
 from orpheus.derivations.common.xs_library import make_mixture
 from tests.gates.sn.operators._composite_operand import bulk_apply
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0), 1: WallCondition.vacuum()}
+#: The outer-face tag of the curved bodies below, by the kind of wall: tag 0 is the unit specular wall (a curved reflector is a
+#: response, rule R2), tag 1 the vacuum wall.
+_OUTER_TAG = {"reflective": 0, "vacuum": 1}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -209,23 +215,23 @@ def _sphere(nx: int = 5, ng: int = 2, sigma: float = 1.0, c: float = 0.4,
     corner swap — the vacuum floor never exercises that arm (``_reflect_corner``
     returns zeros for vacuum), so the ``B_b`` gates below need it.
     """
-    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=BC(bc))
+    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=_OUTER_TAG[bc])
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, c * sigma, ng)})
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, c * sigma, ng)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
-def _posed_curvilinear(coord: CoordSystem, outer_law):
+def _posed_curvilinear(coord: CoordSystem, wall: WallCondition):
     """A seed-carrying sphere (GL S4, one ray level) or folded cylinder
-    (``folded_product(4, 8)``, four ray levels) whose outer face carries the
-    typed law ``outer_law``: the partial specular laws have no ``BC`` tag."""
+    (``folded_product(4, 8)``, four ray levels) whose outer face (the tag 0) is declared the wall ``wall``: a partial specular wall
+    needs a tag (wave 2: a curved face carries a tag, never a deck)."""
     if coord is CoordSystem.SPHERICAL:
-        geometry = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=outer_law)
+        geometry = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=0)
         quadrature = Quadrature.gauss_legendre(4)
     else:
-        geometry = StructuredGeometry.cylinder((0.0, 4.0), (0,), outer=outer_law)
+        geometry = StructuredGeometry.cylinder((0.0, 4.0), (0,), outer=0)
         quadrature = Quadrature.folded_product(n_mu=4, n_phi=8)
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(5)).mesh
-    return SNProblem(mesh, quadrature, {0: _mixture(1.0, 0.4, 2)})
+    return SNProblem(mesh, quadrature, {0: _mixture(1.0, 0.4, 2)}, boundary_conditions={0: wall})
 
 
 def _loss(sn, slope: float = 0.4):
@@ -584,7 +590,7 @@ class TestBoundaryUnweld:
         reflective corner arm emits a zero corner."""
         sn = _sphere(bc="reflective")
         rng = np.random.default_rng(2)
-        block = RadialCharacteristicBoundaryOperator(sn.radial_characteristic_field_space, sn.bc["xmax"].law)
+        block = RadialCharacteristicBoundaryOperator(sn.radial_characteristic_field_space, sn.bc["xmax"])
         # The BLOCK's structural half: composite in/out, SOURCE members out.
         block_out = block.apply(
             _seed_leaf(
@@ -620,7 +626,7 @@ class TestBoundaryUnweld:
         coupled = _random_pair(sn, np.random.default_rng(3))
         out = n_grid.apply(coupled)
         B_a = SNBoundaryOperator(sn)
-        B_b = RadialCharacteristicBoundaryOperator(sn.radial_characteristic_field_space, sn.bc["xmax"].law)
+        B_b = RadialCharacteristicBoundaryOperator(sn.radial_characteristic_field_space, sn.bc["xmax"])
         # Row A's trace is exactly B_a's reflection of ψ_A.
         np.testing.assert_array_equal(
             out.systems[0].boundary.values,
@@ -639,11 +645,11 @@ class TestBoundaryUnweld:
         ``None``."""
         slab = SNProblem(
             Mesher(StructuredGeometry.slab(
-                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+                (0.0, 4.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
             )).partition(CellsByCount.uniform_width(5)).mesh,
-            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)}, boundary_conditions={})
         with pytest.raises(ValueError, match="carries no ψ½ ray"):
-            RadialCharacteristicBoundaryOperator(slab.radial_characteristic_field_space, slab.bc["xmax"].law)
+            RadialCharacteristicBoundaryOperator(slab.radial_characteristic_field_space, slab.bc["xmax"])
         # The production boundary on a seedless mesh is B_a alone.
         slab_solver = SNSolver(slab)
         slab_system = build_within_group_system(
@@ -737,7 +743,7 @@ class TestB_b_RayBoundary:
         ns = sn.radial_characteristic_field_space.shape[0]
         seed_vals = np.random.default_rng(6).standard_normal(ns)
         seed = _ray_composite(sn, seed_vals)
-        out = RadialCharacteristicBoundaryOperator(sn.radial_characteristic_field_space, sn.bc["xmax"].law).apply(seed)
+        out = RadialCharacteristicBoundaryOperator(sn.radial_characteristic_field_space, sn.bc["xmax"]).apply(seed)
         for level in sn.radial_characteristic_levels:
             np.testing.assert_array_equal(
                 out.boundary.corner(level, -1), seed.boundary.corner(level, +1),
@@ -754,7 +760,7 @@ class TestB_b_RayBoundary:
         same-direction transpose would equal ``dense(apply)`` (not its transpose)
         and — since the swap matrix is non-symmetric — red this gate."""
         sn = _sphere(bc="reflective")
-        B_b = RadialCharacteristicBoundaryOperator(sn.radial_characteristic_field_space, sn.bc["xmax"].law)
+        B_b = RadialCharacteristicBoundaryOperator(sn.radial_characteristic_field_space, sn.bc["xmax"])
         fwd = _dense_ray(B_b.apply, sn)
         T = _dense_ray(B_b.apply_transpose, sn)
         np.testing.assert_array_equal(
@@ -767,7 +773,7 @@ class TestB_b_RayBoundary:
         (a wrong-direction transpose, an asymmetric gauge) prove it is not vacuous
         — a future asymmetric gauge that reopened Mode-12 would red the gate."""
         sn = _sphere(bc="reflective")
-        B_b = RadialCharacteristicBoundaryOperator(sn.radial_characteristic_field_space, sn.bc["xmax"].law)
+        B_b = RadialCharacteristicBoundaryOperator(sn.radial_characteristic_field_space, sn.bc["xmax"])
         fwd = _dense_ray(B_b.apply, sn)
         T = _dense_ray(B_b.apply_transpose, sn)
         # The unified-layout G_sd carries the SAME numbers as System B's
@@ -804,7 +810,7 @@ class TestB_b_RayBoundary:
         sn = _sphere(bc="vacuum")
         seed_vals = np.random.default_rng(10).standard_normal(
             sn.radial_characteristic_field_space.shape[0])
-        out = RadialCharacteristicBoundaryOperator(sn.radial_characteristic_field_space, sn.bc["xmax"].law).apply(_ray_composite(sn, seed_vals))
+        out = RadialCharacteristicBoundaryOperator(sn.radial_characteristic_field_space, sn.bc["xmax"]).apply(_ray_composite(sn, seed_vals))
         np.testing.assert_array_equal(
             out.to_flat(), 0.0,
             err_msg="vacuum B_b emitted a non-zero corner (it did the reflective swap).")
@@ -840,9 +846,9 @@ class TestB_b_RayBoundary:
         level and the folded cylinder four, so the cylinder rows see a corner
         loop that stops after the first level.
 
-        The law is the specular wall ``AlbedoBoundary(α, SpecularReturn("x"))``
-        and the reference is the mirror ``ReflectiveBoundary("x")``, which
-        has no amplitude. Until the reflective cleanup the table carried a
+        The wall is ``WallCondition.specular(α)`` and the reference is the unit
+        specular wall ``WallCondition.specular(1.0)`` (a curved body's mirror is a
+        response too: wave 2 rule R2). Until the reflective cleanup the table carried a
         second spelling of the wall, ``ReflectiveBoundary("x", α)``; its rows
         were dropped (at α = 1 they compared the mirror with itself, and at
         0.7 and 0 the wall's rows here are their twins).
@@ -856,13 +862,12 @@ class TestB_b_RayBoundary:
         the cylinder rows through the slot count. (``[M]`` 2026-09-30, on the
         then 12-row table, ``scratch/boundary_ontology/battery_err094.md``.)
         """
-        law = AlbedoBoundary(alpha, SpecularReturn("x"))
-        sn = _posed_curvilinear(coord, law)
-        mirror = _posed_curvilinear(coord, ReflectiveBoundary("x"))
+        sn = _posed_curvilinear(coord, WallCondition.specular(alpha))
+        mirror = _posed_curvilinear(coord, WallCondition.specular(1.0))
         space = sn.radial_characteristic_field_space
-        B_alpha = RadialCharacteristicBoundaryOperator(space, sn.bc["xmax"].law)
+        B_alpha = RadialCharacteristicBoundaryOperator(space, sn.bc["xmax"])
         B_mirror = RadialCharacteristicBoundaryOperator(
-            mirror.radial_characteristic_field_space, mirror.bc["xmax"].law,
+            mirror.radial_characteristic_field_space, mirror.bc["xmax"],
         )
         fwd = _dense_ray(B_alpha.apply, sn)
         transpose = _dense_ray(B_alpha.apply_transpose, sn)
@@ -899,12 +904,13 @@ class TestB_b_RayBoundary:
         B2.0 note: this used to patch the shim's ``kind`` STRING, then
         (B2.1) the mesh's law slot. Since the un-weld (O-1) the law is
         CONSTRUCTION-BOUND on the operator, so the patch dance retires
-        entirely: hand the real :class:`WhiteBoundary` to the constructor
+        entirely: hand a real diffuse re-emission (:class:`RankOneReemission`) to the constructor
         — the strongest fixture of the three generations."""
         sn = _sphere(bc="reflective")
-        B_b = RadialCharacteristicBoundaryOperator(
-            sn.radial_characteristic_field_space, WhiteBoundary(),
-        )
+        # a diffuse re-emission on the sphere's outer face: the SN table refuses it AT ADMIT (#653), so the face is hand-built from
+        # the same trace the posed problem carries (the strongest fixture of the three generations).
+        white = RankOneReemission(alpha=1.0, face="xmax", trace=sn.angular_trace)
+        B_b = RadialCharacteristicBoundaryOperator(sn.radial_characteristic_field_space, white)
         seed_vals = np.random.default_rng(12).standard_normal(
             sn.radial_characteristic_field_space.shape[0])
         with pytest.raises(NotImplementedError, match="no ruled corner action yet"):
@@ -915,12 +921,12 @@ class TestB_b_RayBoundary:
         intersection: reflective + vacuum → True; the loud-deferred set → False."""
         refl = _sphere(bc="reflective")
         if not RadialCharacteristicBoundaryOperator(
-            refl.radial_characteristic_field_space, refl.bc["xmax"].law,
+            refl.radial_characteristic_field_space, refl.bc["xmax"],
         ).is_adjointable:
             pytest.fail("reflective B_b is not adjointable (the involution should be).")
         vac = _sphere(bc="vacuum")
         if not RadialCharacteristicBoundaryOperator(
-            vac.radial_characteristic_field_space, vac.bc["xmax"].law,
+            vac.radial_characteristic_field_space, vac.bc["xmax"],
         ).is_adjointable:
             pytest.fail("vacuum B_b is not adjointable (the zero map should be).")
 
@@ -973,9 +979,9 @@ def _graded_sphere(nx: int, ng: int = 2, p: float = 1.5, R: float = 4.0,
     uniform mesh ``dr[::-1] == dr`` and ``dr[k−1] == dr[k]``, so those gates are
     vv Mode-5 vacuous — the grading breaks the blind spot (§0.6)."""
     edges = R * (np.arange(nx + 1, dtype=float) / nx) ** p
-    geom = StructuredGeometry.sphere((0.0, R), (0,), outer=BC(bc))
+    geom = StructuredGeometry.sphere((0.0, R), (0,), outer=_OUTER_TAG[bc])
     mesh = Mesher(geom).partition(CellEdges(edges)).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, ng)})
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, ng)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _ray_sigma(sn, slope: float = 0.3) -> CrossSectionField:
@@ -1347,9 +1353,9 @@ class TestA_BB_RadialBVP:
         # Non-carrying CONTROL — the slab (the only admitted seedless geometry).
         slab = SNProblem(
             Mesher(StructuredGeometry.slab(
-                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+                (0.0, 4.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
             )).partition(CellsByCount.uniform_width(5)).mesh,
-            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)}, boundary_conditions={})
         if slab.radial_characteristic_field_space is not None:
             pytest.fail("the slab carries a ray space — CONTROL invalid.")
         # The seedless guard fires before σ_t is read (a valid field on the mesh).
@@ -1616,10 +1622,10 @@ def _fissile_mixture(sig_t: float, sig_s: float, ng: int):
 
 def _fissile_sphere(nx: int = 5, ng: int = 2, sigma: float = 1.0, c: float = 0.4):
     """A seed-carrying FISSILE sphere (GL S4) — the F-arm carrier (non-vacuous emission)."""
-    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=BC("vacuum"))
+    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=1)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(4),
-                  {0: _fissile_mixture(sigma, c * sigma, ng)})
+                  {0: _fissile_mixture(sigma, c * sigma, ng)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _k_iso(solver):
@@ -1896,9 +1902,9 @@ class TestA_BA_SchurFold:
         cylinder is unconstructible since the admission flip.)"""
         slab = SNProblem(
             Mesher(StructuredGeometry.slab(
-                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+                (0.0, 4.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
             )).partition(CellsByCount.uniform_width(5)).mesh,
-            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)}, boundary_conditions={})
         for tag, sn in (("slab", slab),):
             if sn.radial_characteristic_field_space is not None:
                 pytest.fail(f"{tag} carries a ray space — the non-carrying CONTROL is invalid.")
@@ -2364,9 +2370,9 @@ class TestCoupledLift:
                         "wired as a block gain.")
         slab = SNProblem(
             Mesher(StructuredGeometry.slab(
-                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+                (0.0, 4.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
             )).partition(CellsByCount.uniform_width(5)).mesh,
-            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)}, boundary_conditions={})
         slab_solver = SNSolver(slab)
         slab_system = build_within_group_system(
             slab, slab_solver.problem.mat_xs)
@@ -2565,7 +2571,7 @@ class TestCoupledLift:
             _solver_mod, "_radial_characteristic_fission_seed", seam_spy)
         # A REAL fissile-sphere eigenvalue solve (default source_iteration → the
         # eig-SI fission-seed site, solver.py:1453).
-        _solver_mod.solve_sn(snf.materials, snf.mesh, snf.quad)
+        _solver_mod.solve_sn(snf.materials, snf.mesh, snf.quad, boundary_conditions=conditions_for(snf.mesh, _CONDITIONS))
         # (i) the OUTER eigenvalue loop calls the fission seam.
         if seam["n"] <= 0:
             pytest.fail("the eigenvalue outer loop never called "
@@ -2638,7 +2644,7 @@ class TestCoupledLift:
 
         monkeypatch.setattr(
             _solver_mod, "_radial_characteristic_fission_seed", bypass_seam)
-        _solver_mod.solve_sn(snf.materials, snf.mesh, snf.quad)
+        _solver_mod.solve_sn(snf.materials, snf.mesh, snf.quad, boundary_conditions=conditions_for(snf.mesh, _CONDITIONS))
         print(f"  [L4-F tooth] reverted seed: global_fold={fold['n']} (scatter) "
               f"seam_n={seam['n']} seam_fold_delta={seam['fold_delta']}")
         # The seam still fires (the bypass IS called) …
@@ -2943,9 +2949,9 @@ class TestA_AB_SeedInjection:
         sphere."""
         slab = SNProblem(
             Mesher(StructuredGeometry.slab(
-                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+                (0.0, 4.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
             )).partition(CellsByCount.uniform_width(5)).mesh,
-            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)}, boundary_conditions={})
         if slab.radial_characteristic_field_space is not None:
             pytest.fail("the slab carries a ray space — CONTROL invalid.")
         with pytest.raises(ValueError, match="carries no starting-direction ray"):
@@ -3185,18 +3191,18 @@ class TestCoupledBuilder:
                         f"expected 2×2.")
         slab = SNProblem(
             Mesher(StructuredGeometry.slab(
-                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+                (0.0, 4.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
             )).partition(CellsByCount.uniform_width(5)).mesh,
-            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)}, boundary_conditions={})
         # Q5.6.3: the ADMITTED cylinder is folded = CARRYING, so its presence
         # row joins the sphere's 2x2 leg; the slab is the only admitted
         # 1x1 (non-carrying) geometry.
         cyl_folded = SNProblem(
             Mesher(StructuredGeometry.cylinder(
-                (0.05, 4.0), (0,), inner=BC.reflective, outer=BC("vacuum"),
+                (0.05, 4.0), (0,), inner=0, outer=1,
             )).partition(CellsByCount.uniform_width(5)).mesh,
             Quadrature.folded_product(n_mu=4, n_phi=8),
-            {0: _mixture(1.0, 0.4, 2)})
+            {0: _mixture(1.0, 0.4, 2)}, boundary_conditions=_CONDITIONS)
         op_cyl, _space_cyl = build_coupled_system(
             cyl_folded, cyl_folded.mat_xs)
         if not (op_cyl.n_rows == op_cyl.n_cols == 2):
@@ -3230,7 +3236,7 @@ class TestCoupledBuilder:
                 quadrature=slab.quad,
                 coord=CoordSystem.CARTESIAN)
         with pytest.raises(ValueError, match="carries no ψ½ ray"):
-            RadialCharacteristicBoundaryOperator(slab.radial_characteristic_field_space, slab.bc["xmax"].law)                   # B_b
+            RadialCharacteristicBoundaryOperator(slab.radial_characteristic_field_space, slab.bc["xmax"])                   # B_b
 
     # ── G-c2.3 — THE centrepiece: grid ≡ the complete fused loss ──────────
 
@@ -3428,10 +3434,10 @@ def _het_vacuum_sphere(ng: int = 2) -> SNProblem:
     isotropic box; vacuum + heterogeneity break the degenerate coincidences)."""
     mesh = curvilinear_two_region_mesh(
         outers=(2.0, 4.0), mat_ids=(0, 1), n_cells=(3, 3),
-        coord=CoordSystem.SPHERICAL, bc=BC("vacuum"),
+        coord=CoordSystem.SPHERICAL, role=1,
     )
     return SNProblem(mesh, Quadrature.gauss_legendre(4),
-                  {0: _mixture(1.0, 0.4, ng), 1: _mixture(0.5, 0.1, ng)})
+                  {0: _mixture(1.0, 0.4, ng), 1: _mixture(0.5, 0.1, ng)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # The d1-era ``_fused_reference_pieces`` (the pre-d1 fused driver rebuilt
@@ -3507,9 +3513,9 @@ class TestWithinGroupSystem:
         # Seedless: the pure re-package.
         slab = SNProblem(
             Mesher(StructuredGeometry.slab(
-                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+                (0.0, 4.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
             )).partition(CellsByCount.uniform_width(5)).mesh,
-            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)}, boundary_conditions={})
         slab_solver = SNSolver(slab)
         # C3b (2026-09-13): the record is the HUB's ONE posed record — built
         # once per Problem; the solver reads it, nothing is injected.
@@ -3619,9 +3625,9 @@ class TestWithinGroupSystem:
         now the type system plus this seedless control.)"""
         slab = SNProblem(
             Mesher(StructuredGeometry.slab(
-                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+                (0.0, 4.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
             )).partition(CellsByCount.uniform_width(5)).mesh,
-            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)}, boundary_conditions={})
         counters = {"N": 0, "M": 0}
         real_n = CoupledOperator.apply
 
@@ -3797,7 +3803,7 @@ class TestWithinGroupSystem:
             inner: solve_sn_fixed_source(
                 mats, sn.mesh, Quadrature.gauss_legendre(4), q_np,
                 inner_solver=inner, inner_schedule="jacobi",
-                max_inner=6000, inner_tol=tol)
+                max_inner=6000, inner_tol=tol, boundary_conditions=conditions_for(sn.mesh, _CONDITIONS))
             for inner in ("source_iteration", "krylov")
         }
         bar = 100.0 * tol
@@ -3830,16 +3836,16 @@ class TestWithinGroupSystem:
         same preconditioner and the same gains, in order, as the hand route."""
         slab = SNProblem(
             Mesher(StructuredGeometry.slab(
-                (0.0, 4.0), (0,), left=BC("reflective"), right=BC("reflective"),
+                (0.0, 4.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
             )).partition(CellsByCount.uniform_width(5)).mesh,
-            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
+            Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)}, boundary_conditions={})
         tol, mi = 1e-11, 3000
         q_np = np.ones((slab.quad.n_ordinates, slab.ng, slab.nx))
         sol = solve_sn_fixed_source(
             {0: _mixture(1.0, 0.4, 2)}, slab.mesh,
             Quadrature.gauss_legendre(4), q_np,
             inner_solver="source_iteration", inner_schedule="jacobi",
-            max_inner=mi, inner_tol=tol)
+            max_inner=mi, inner_tol=tol, boundary_conditions=conditions_for(slab.mesh, _CONDITIONS))
         solver = SNSolver(slab)
         system = build_within_group_system(
             slab, solver.problem.mat_xs)
@@ -3932,7 +3938,7 @@ def _pure_absorber_reflective_sphere(ng: int = 2, nx: int = 8):
     scattering (pure capture) — the Mode-6 group-swap catcher: each group's
     equilibrium ratio ``Q_g/Σ_t,g`` is distinct.
     """
-    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=BC("reflective"))
+    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     return mesh, Quadrature.gauss_legendre(4), {0: _mixture(1.3, 0.0, ng)}
 
@@ -4006,7 +4012,7 @@ class TestWithinGroupSystemAnchors:
         sol = solve_sn_fixed_source(
             materials=materials, mesh=mesh, quadrature=quad,
             external_source=q, inner_solver=inner_solver,
-            max_inner=400, inner_tol=1e-13,
+            max_inner=400, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         if not sol.record.converged:
             pytest.fail(f"[{inner_solver}] fixed-source did not converge "

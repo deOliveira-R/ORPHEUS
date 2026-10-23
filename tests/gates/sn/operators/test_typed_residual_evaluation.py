@@ -28,7 +28,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
@@ -50,6 +50,13 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.residuals import AngularResidual
 from orpheus.transport.fields import AngularSourceSink, AngularBoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
@@ -61,11 +68,11 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
     fuel = get_mixture("A", "2g")
     mod = get_mixture("B", "2g")
     geom = StructuredGeometry.slab(  # fuel | moderator split
-        (0.0, 2.0, 4.0), (2, 0), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 2.0, 4.0), (2, 0), left=0, right=0,
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx // 2)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    problem = SNProblem(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
+    problem = SNProblem(mesh, quad, {2: fuel, 0: mod}, scattering_order=1, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     solver = SNSolver(problem, inner_solver="source_iteration")
     system = build_within_group_system(
         problem, solver.problem.mat_xs,
@@ -96,10 +103,10 @@ def test_from_balance_mints_residual_with_correct_type_units_space():
     r"""[L11 paired] well-formed same-class source operands → AngularResidual
     on the ``"angular_residual"`` space; a flux operand (wrong units) RAISES."""
     fuel = get_mixture("A", "2g")
-    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=0, right=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(8)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    problem = SNProblem(mesh, quad, {0: fuel})
+    problem = SNProblem(mesh, quad, {0: fuel}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     rng = np.random.default_rng(208)
     shape = (quad.n_ordinates, problem.ng, *problem.spatial_shape)
     a_psi = AngularSourceSink(values=rng.standard_normal(shape), space=problem.angular_bulk_space)
@@ -200,11 +207,11 @@ def _slab_2g_het_triple(nx: int = 12, n_ord: int = 8):
     fuel = get_mixture("A", "2g")
     mod = get_mixture("B", "2g")
     geom = StructuredGeometry.slab(  # fuel | moderator split
-        (0.0, 2.0, 4.0), (2, 0), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 2.0, 4.0), (2, 0), left=0, right=0,
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx // 2)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    problem = SNProblem(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
+    problem = SNProblem(mesh, quad, {2: fuel, 0: mod}, scattering_order=1, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     solver = SNSolver(
         problem, inner_solver="source_iteration",
     )
@@ -359,9 +366,9 @@ def test_mis_spaced_collision_reds_the_production_loss_build():
 
 def _tiny_sphere_2g(nx: int = 5):
     fuel = get_mixture("A", "2g")
-    geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC("vacuum"))
+    geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: fuel})
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: fuel}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 @pytest.mark.foundation
@@ -456,7 +463,7 @@ class TestSplitRayResidualMint:
             {0: get_mixture("A", "2g")}, sn.mesh,
             Quadrature.gauss_legendre(4), q_np,
             inner_solver="source_iteration", inner_schedule="jacobi",
-            max_inner=6000, inner_tol=tol,
+            max_inner=6000, inner_tol=tol, boundary_conditions=conditions_for(sn.mesh, _CONDITIONS),
         )
         # Rebuild the record + the coupled states on the SOLVE's OWN mesh.
         sn_sol = sol.problem
@@ -555,7 +562,7 @@ class TestSolutionRayMember:
             Quadrature.gauss_legendre(4),
             np.ones((sn.quad.n_ordinates, sn.ng, sn.nx)),
             inner_solver="source_iteration", inner_schedule="jacobi",
-            max_inner=4000, inner_tol=1e-10,
+            max_inner=4000, inner_tol=1e-10, boundary_conditions=conditions_for(sn.mesh, _CONDITIONS),
         )
         if hasattr(sol.angular_flux, "radial_characteristic"):
             pytest.fail("Solution.angular_flux still exposes a ψ½ slot — "
@@ -575,14 +582,14 @@ class TestSolutionRayMember:
         # Seedless: the member is None…
         fuel = get_mixture("A", "2g")
         geom = StructuredGeometry.slab(
-            (0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+            (0.0, 2.0), (0,), left=0, right=0,
         )
         mesh = Mesher(geom).partition(CellsByCount.uniform_width(5)).mesh
         sol = solve_sn_fixed_source(
             {0: fuel}, mesh, Quadrature.gauss_legendre(4),
             np.ones((4, 2, 5)),
             inner_solver="source_iteration", inner_schedule="jacobi",
-            max_inner=2000, inner_tol=1e-10,
+            max_inner=2000, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         if sol.radial_characteristic is not None:
             pytest.fail("seedless Solution carries a System-B member")
@@ -600,7 +607,7 @@ class TestSolutionRayMember:
             {0: fuel}, sn.mesh, Quadrature.gauss_legendre(4),
             np.ones((sn.quad.n_ordinates, sn.ng, sn.nx)),
             inner_solver="source_iteration", inner_schedule="jacobi",
-            max_inner=2000, inner_tol=1e-8,
+            max_inner=2000, inner_tol=1e-8, boundary_conditions=conditions_for(sn.mesh, _CONDITIONS),
         )
         if sol_c.radial_characteristic is None or sol_c.state.n_systems != 2:
             pytest.fail("a carrying Solution's state must carry System B as its second member")

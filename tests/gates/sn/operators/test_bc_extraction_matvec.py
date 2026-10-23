@@ -122,7 +122,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -138,6 +138,14 @@ from tests.gates.sn._test_helpers import (
     radial_characteristic_edge_seed,
 )
 from tests.gates.sn.regression._regression_assert import assert_regression
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+from orpheus.geometry.deck import MirrorDeck
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(1.0)}
+
 
 # ─────────────────────────────────────────────────────────────────────
 # Baseline snapshot store + the --capture-baseline flag.
@@ -177,23 +185,25 @@ def _build_sn_mesh(
     Sized small (n_cells=5, n_ord=4) so each matvec runs well under a
     second.  The bit-identity / structural contracts are size-independent.
     """
-    bc_obj = BC(bc)
+    # a Cartesian face is a mirror deck when reflective; a curved face is the tag 1, the unit specular wall (rule R2)
+    cart_role = {"vacuum": 0, "reflective": MirrorDeck()}[bc]
+    curved_role = {"vacuum": 0, "reflective": 1}[bc]
     if geometry == "SLB":
-        geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=bc_obj, right=bc_obj)
+        geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=cart_role, right=cart_role)
         quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     elif geometry == "SPH":
         # r=0 is the pole (regularity, not a boundary): no law there.
-        geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=bc_obj)
+        geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=curved_role)
         quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     elif geometry == "CYL":
         geom = StructuredGeometry.cylinder(
-            (0.01, 2.0), (0,), inner=BC("reflective"), outer=bc_obj,
+            (0.01, 2.0), (0,), inner=1, outer=curved_role,
         )
         quad = Quadrature.folded_product(n_mu=n_ord, n_phi=2 * n_ord)
     else:
         raise ValueError(geometry)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(n_cells)).mesh
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _random_state(problem: SNProblem, seed: int, *, zero_boundary: bool = True) -> TimedFullField:
@@ -445,15 +455,15 @@ class TestVacuumMatvecBitIdentity:
             edges_y=np.linspace(0.0, 3.0, ny + 1),
             mat_map=np.zeros((nx, ny), dtype=int),
             coord=CoordSystem.CARTESIAN,
-            face_laws={
-                "xmin": BC("vacuum"),
-                "xmax": BC("vacuum"),
-                "ymin": BC("vacuum"),
-                "ymax": BC("vacuum"),
+            face_roles={
+                "xmin": 0,
+                "xmax": 0,
+                "ymin": 0,
+                "ymax": 0,
             },
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         # A hard assertion, NOT a skip: if the mesh ever degenerates to
         # 1-D the row must go RED, because a silently-skipped 2-D gate
         # is exactly the defect this repair removes.

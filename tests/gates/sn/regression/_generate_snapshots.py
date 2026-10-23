@@ -40,10 +40,18 @@ from typing import Callable
 import numpy as np
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0), 1: WallCondition.vacuum()}
+
 
 
 SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
@@ -63,7 +71,7 @@ def _slab_homogeneous(ng: str, n_cells: int) -> dict:
         coord=CoordSystem.CARTESIAN,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC.reflective, BC.reflective),
+        face_roles=(MirrorDeck(), MirrorDeck()),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     return dict(
@@ -81,7 +89,7 @@ def _slab_3region(ng: str, n_cells: int) -> dict:
         coord=CoordSystem.CARTESIAN,
         thicknesses=(0.5, 1.0, 0.5),
         mat_ids=(0, 1, 0),
-        boundaries=(BC.reflective, BC.reflective),
+        face_roles=(MirrorDeck(), MirrorDeck()),
     )
     # equal subdivision across regions: total cells split per outer thickness
     n_per_region = (n_cells // 4, n_cells // 2, n_cells // 4)
@@ -101,7 +109,7 @@ def _sphere_homogeneous(ng: str, n_cells: int) -> dict:
         coord=CoordSystem.SPHERICAL,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     return dict(
@@ -118,7 +126,7 @@ def _sphere_3region(ng: str, n_cells: int) -> dict:
         coord=CoordSystem.SPHERICAL,
         thicknesses=(0.5, 1.0, 0.5),
         mat_ids=(0, 1, 0),
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
     n_per_region = (n_cells // 4, n_cells // 2, n_cells // 4)
     mesh = Mesher(geom).partition(
@@ -137,7 +145,7 @@ def _cylinder_homogeneous(ng: str, n_cells: int, quad_kind: str) -> dict:
         coord=CoordSystem.CYLINDRICAL,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     if quad_kind == "folded_4x8":
@@ -161,7 +169,7 @@ def _cylinder_3region(ng: str, n_cells: int, quad_kind: str) -> dict:
         coord=CoordSystem.CYLINDRICAL,
         thicknesses=(0.5, 1.0, 0.5),
         mat_ids=(0, 1, 0),
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
     n_per_region = (n_cells // 4, n_cells // 2, n_cells // 4)
     mesh = Mesher(geom).partition(
@@ -203,7 +211,7 @@ def _slab_p1_aniso(ng: str, n_cells: int) -> dict:
         coord=CoordSystem.CARTESIAN,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC.reflective, BC.reflective),
+        face_roles=(MirrorDeck(), MirrorDeck()),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     quadrature = Quadrature.gauss_legendre(n_ordinates=n_ord)
@@ -238,7 +246,7 @@ def _sphere_p1_aniso(ng: str, n_cells: int) -> dict:
         coord=CoordSystem.SPHERICAL,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     quadrature = Quadrature.gauss_legendre(n_ordinates=n_ord)
@@ -264,11 +272,11 @@ def _cartesian_2d(ng: str, n_per_side: int) -> dict:
         edges_x=np.linspace(0.0, L, n_per_side + 1),
         edges_y=np.linspace(0.0, L, n_per_side + 1),
         mat_map=np.zeros((n_per_side, n_per_side), dtype=int),
-        face_laws={
-            "xmin": BC.reflective,
-            "xmax": BC.reflective,
-            "ymin": BC.reflective,
-            "ymax": BC.reflective,
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     return dict(
@@ -310,11 +318,11 @@ def _cartesian_2d_het_si(ng: str) -> dict:
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=mat,
-        face_laws={
-            "xmin": BC.reflective,
-            "xmax": BC.reflective,
-            "ymin": BC.reflective,
-            "ymax": BC.reflective,
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     return dict(
@@ -367,11 +375,11 @@ def _cartesian_2d_p1_aniso_het_si(ng: str) -> dict:
         mat_map=mat,
         # vacuum-x / reflective-y: the x-split + vacuum-x drives a non-flat
         # profile; reflective-y keeps the y-trace exercise (subtlety (c)).
-        face_laws={
-            "xmin": BC.vacuum,
-            "xmax": BC.vacuum,
-            "ymin": BC.reflective,
-            "ymax": BC.reflective,
+        face_roles={
+            "xmin": 1,
+            "xmax": 1,
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     quadrature = Quadrature.level_symmetric(sn_order=4)
@@ -398,7 +406,7 @@ def _slab_fixed_source(ng: str, n_cells: int) -> dict:
     L = 2.0
     n_ord = 8
     n_groups = _n_groups(ng)
-    mesh = Mesher(StructuredGeometry.from_homogeneous(L, BC.vacuum)).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(L, 1)).partition(
         CellsByCount.uniform_width(n_cells),
     ).mesh
     quadrature = Quadrature.gauss_legendre(n_ordinates=n_ord)
@@ -639,6 +647,11 @@ def run_config(cfg: dict) -> dict:
     return resolved
 
 
+def case_conditions(cfg: dict) -> dict:
+    """The exterior conditions of the tags ``cfg``'s mesh carries (this module's table): what every consumer passes as ``boundary_conditions``."""
+    return conditions_for(cfg["mesh"], _CONDITIONS)
+
+
 def run_case(cfg: dict):
     """Run the configured case (eigen or fixed-source) and return result.
 
@@ -658,7 +671,7 @@ def run_case(cfg: dict):
             kwargs["inner_solver"] = rc["inner_solver"]
         return solve_sn_fixed_source(
             cfg["materials"], cfg["mesh"], cfg["quadrature"],
-            cfg["external_source"], **kwargs,
+            cfg["external_source"], **kwargs, boundary_conditions=case_conditions(cfg),
         )
     if kind == "eigen":
         kwargs = dict(
@@ -670,7 +683,7 @@ def run_case(cfg: dict):
         if "inner_solver" in rc:
             kwargs["inner_solver"] = rc["inner_solver"]
         return solve_sn(
-            cfg["materials"], cfg["mesh"], cfg["quadrature"], **kwargs,
+            cfg["materials"], cfg["mesh"], cfg["quadrature"], **kwargs, boundary_conditions=case_conditions(cfg),
         )
     raise ValueError(f"unknown case kind: {kind!r}")
 

@@ -17,7 +17,6 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.mesh import Mesh2D
-from orpheus.geometry import BC
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn
@@ -34,6 +33,7 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from dataclasses import replace
 from orpheus.numerics import frame_faces
+from orpheus.geometry.deck import MirrorDeck
 
 pytestmark = pytest.mark.l0  # SN solver method-in-isolation component checks
 
@@ -44,7 +44,7 @@ def _uniform_2d(nx, ny, delta, mat_map):
         edges_x=np.linspace(0, nx * delta, nx + 1),
         edges_y=np.linspace(0, ny * delta, ny + 1),
         mat_map=np.asarray(mat_map, dtype=int),
-        face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
+        face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")},
     )
 
 
@@ -308,13 +308,13 @@ class TestComputeGroupRates:
         regardless of FP reduction order, mesh resolution, or quadrature.
         """
         from orpheus.derivations.common.xs_library import get_mixture
-        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.geometry import StructuredGeometry
         from orpheus.mesh import CellsByCount, Mesher
         from orpheus.numerics.quadrature import Quadrature
 
         fuel = get_mixture("A", "2g")
         geom = StructuredGeometry.slab(
-            (0.0, 2.0), (0,), left=BC.reflective, right=BC.reflective,
+            (0.0, 2.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
         )
         mesh = Mesher(geom).partition(CellsByCount.uniform_volume(20)).mesh
         result = solve_sn(

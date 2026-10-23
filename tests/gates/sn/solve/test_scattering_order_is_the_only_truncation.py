@@ -39,10 +39,17 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import compute_macro_xs
 from orpheus.data.micro_xs import load_isotope
 from orpheus.data.micro_xs.isotope import NG
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.l1
 
@@ -63,7 +70,7 @@ def _slab(refl_cm: float, core_cm: float, refl_cells: int, core_cells: int) -> M
         coord=CoordSystem.CARTESIAN,
         thicknesses=(refl_cm, core_cm, refl_cm),
         mat_ids=(1, 0, 1),
-        boundaries=(BC.vacuum, BC.vacuum),
+        face_roles=(0, 0),
     )
     return Mesher(geom).partition((
         CellsByCount.uniform_volume(refl_cells),
@@ -74,7 +81,7 @@ def _slab(refl_cm: float, core_cm: float, refl_cells: int, core_cells: int) -> M
 
 def _solve(materials, mesh, L: int, **tol):
     with contextlib.redirect_stdout(io.StringIO()):
-        sol = solve_sn(materials, mesh, Quadrature.gauss_legendre(n_ordinates=8), scattering_order=L, **tol)
+        sol = solve_sn(materials, mesh, Quadrature.gauss_legendre(n_ordinates=8), scattering_order=L, **tol, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     assert sol.record.fully_converged
     assert sol.outcome.keff is not None
     return float(sol.outcome.keff)

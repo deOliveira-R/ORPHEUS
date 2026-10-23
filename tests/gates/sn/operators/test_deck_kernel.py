@@ -1,161 +1,73 @@
-r"""One body for every deck transformation's trace arrow (step G6.3-7).
+r"""The deck arrow is the PREIMAGE of the deck's motion: the gather convention of ``ScaledOrdinatePermutation`` (step G6.3-7, re-posed at wave 2 S2b).
 
-Sibling of ``test_specular_deck_chain.py`` (the mirror's binding) and
-``test_lambertian_chain.py`` (the two-link response chain). Step 7 replaces
-``_specular_kernel``'s ``quadrature.reflection_index(axis)`` table lookup AND
-the periodic arm's unbound ``IdentityOperator() & IdentityOperator()`` with a
-single ``_deck_kernel`` that derives the arrow from the deck element's
-**rigid motion**.
+Sibling of ``test_specular_deck_chain.py`` (the mirror's binding) and ``test_lambertian_chain.py`` (the two-link response chain).
+This file gated ``_deck_kernel``, the one body every deck transformation's trace arrow realized through, which derived the arrow
+from the deck element's **rigid motion**. The carve retired that builder (decision 45: the typed operators OWN the one body of each
+builder): the arrow is now
+:class:`~orpheus.sn.boundary.realized_operators.ScaledOrdinatePermutation`, whose constructor takes the ordinate permutation
+``pi`` (the caller derives it: ``ordinate_pairing`` for a mirror, the identity for a translation wrap) and whose operator gathers
+``pi^{-1}[inflow]`` at the ordinate's position inside :math:`\Gamma_+(f')` (``_crossing``).
 
-These gates were designed against the step-7b **contract**, before the
-implementation existed, and are pinned to it rather than to what landed —
-``scratch/step7_deck_uplift_verification_plan.md`` §3.2.
-
-The contract, restated so a reader need not fetch the plan
-----------------------------------------------------------
-
-``h`` is the deck element carrying the DOMAIN face onto the INSTALLATION face,
-:math:`h(f') = f`. Invariance of :math:`\psi` under the deck group gives
+``h`` is the deck element carrying the DOMAIN face onto the INSTALLATION face, :math:`h(f') = f`. Invariance of :math:`\psi` under
+the deck group gives
 
 .. math::
 
    \gamma_-\psi|_f(\Omega) \;=\; \gamma_+\psi|_{f'}(h^{-1}\Omega),
 
-so with :meth:`~orpheus.geometry.transformation.RigidMotion.permutes`'
-convention :math:`h(x_i) = x_{\pi(i)}` the row for inflow ordinate ``j``
-gathers global ordinate :math:`\pi^{-1}(j)`, remapped into
-:math:`\Gamma_+(f')`'s local index by ``to_local``.
+so with :meth:`~orpheus.geometry.transformation.RigidMotion.permutes`' convention :math:`h(x_i) = x_{\pi(i)}` the row for inflow
+ordinate ``j`` gathers global ordinate :math:`\pi^{-1}(j)`, remapped into :math:`\Gamma_+(f')`'s local index by ``to_local``.
 
-⭐⭐ Three measured facts that shaped these gates
-------------------------------------------------
+**What this file keeps, and why only this.** Every SHIPPED deck is an involution (the mirror) or the identity (the wrap), for which
+:math:`\pi = \pi^{-1}`: the two gather conventions coincide there, and only a non-involutive pairing (a sector rotation, the
+latent #178 consumer) can tell a gather of :math:`\pi^{-1}` from one of :math:`\pi`. The rows below pose the convention on the six
+admissible 90-degree rotation fixtures, where the wrong convention is *unrealizable* rather than silently wrong, so the latent
+consumer inherits it correct. ⭐ Three measured facts shaped them (`[M]` 2026-08-07, kept):
 
-**1. The permutation is the LINEAR PART's, not the motion's.** `[M]`
-2026-08-07: :meth:`RigidMotion.permutes` applies the **affine** action
-(``on_points``), so for any deck element carrying a translation it moves the
-nodes off the sphere and returns ``None``:
+**1.** The wrong gather direction is REFUSED, not silently wrong: on all six rotation fixtures :math:`\pi^{-1}[\text{inflow}]` lands
+inside :math:`\Gamma_+(f')` and :math:`\pi[\text{inflow}]` lands outside it, so ``to_local`` raises (structural: :math:`h(\Gamma_-(f)) =
+h^2(\Gamma_+(f'))`, which equals :math:`\Gamma_+(f')` iff h is an involution). Consequence for credit: a mutation that reds by RAISING
+attributes nothing to the value rows; the discrimination is pinned by :meth:`TestTheGatherIsThePreimage.test_the_forward_gather_is_OUT_of_range`.
 
-===========================  ==============  ==============
-motion                       affine          linear part
-===========================  ==============  ==============
-mirror-x                     ``perm``        ``perm`` (equal)
-mirror-x seated at 2.5       ⛔ ``None``     ``perm``
-**wrap** ``t = ê_x``         ⛔ ``None``     ``perm`` = ``arange``
-wrap ``t = 17 ê_x``          ⛔ ``None``     ``perm`` = ``arange``
-rotation 90° about z         ``perm``        ``perm`` (equal)
-rotation 90° **seated**      ⛔ ``None``     ``perm``
-glide                        ⛔ ``None``     ``perm``
-===========================  ==============  ==============
+**2.** ``product(4,4)`` is the DEGENERATE rotation fixture: its local permutation is exactly ``arange``, like the wrap's, so a
+keystone written there is green under ``local := np.arange(n)``. The keystone runs on ``product(4,8)``; ``product(4,4)`` is kept as a
+labelled degeneracy control.
 
-Measured on ``gauss_legendre(8)`` and ``product(4,8)``. The affine spelling is
-correct **only** for a motion whose translation is exactly zero — which is
-every element :class:`SelfPairedDeck` admits (its guard forbids the affine
-part) and **no** wrap. So a kernel spelled ``motion.permutes(nodes)`` is
-correct for the specular arm and hard-fails on the one arm step 7 exists to
-build. :class:`TestThePermutationIsTheLinearParts` is that claim's gate; it is
-posed on the OBSERVABLE (the kernel is invariant under the translation), so it
-holds whichever way the fix is spelled — an inline ``RigidMotion(m.linear)`` or
-a new ``permutes_directions`` on the type.
+**3.** Tolerances per law: the witness residual :math:`\max|x_g - h^{-1}x_j|` is **exactly 0.0** for the mirror (a signed permutation is
+exact in IEEE) and the wrap, and **<= 1.11e-16** for the 90-degree rotation (``cos(pi/2)`` round-off), so the mirror and wrap rows
+assert ``array_equal`` and only the rotation rows carry ``atol = 1e-15``.
 
-**2. The wrong gather direction is REFUSED, not silently wrong.** `[M]` on all
-six admissible rotation fixtures, :math:`\pi^{-1}[\text{inflow}]` lands inside
-:math:`\Gamma_+(f')` and :math:`\pi[\text{inflow}]` lands outside it — so
-``to_local`` raises. Structural: :math:`h(\Gamma_-(f)) = h^2(\Gamma_+(f'))`,
-which equals :math:`\Gamma_+(f')` **iff h is an involution** — exactly the case
-(mirror, translation) where the two conventions coincide anyway. Consequence
-for credit: the π-mutation's red must NOT be attributed to the value row
-(a mutation that reds by RAISING has attributed nothing). The value row names
-the right answer; :meth:`TestTheGatherIsThePreimage.test_the_forward_gather_is_OUT_of_range`
-is where the discrimination is pinned.
-
-**3. ``product(4,4)`` is the DEGENERATE rotation fixture.** `[M]` its local
-permutation is exactly ``arange``, like the wrap's — so a keystone written
-there is green under ``local := np.arange(n)``. The keystone runs on
-``product(4,8)`` (``[1,2,0,4,5,3,7,8,6,10,11,9]``); ``product(4,4)`` is kept
-as an explicitly-labelled degeneracy control.
-
-Tolerances, measured per law rather than inherited
---------------------------------------------------
-
-`[M]` the witness residual :math:`\max|x_{g} - h^{-1}x_j|`: **exactly 0.0** for
-the mirror (a signed permutation is exact in IEEE) and for the wrap (its
-``on_directions`` is the identity); **≤ 1.11e-16** for the 90° rotation, whose
-matrix carries ``cos(π/2)`` round-off. So the mirror and wrap rows assert
-``array_equal`` — a tolerance there would admit the bug — and only the rotation
-rows carry ``atol``, set at ``1e-15`` from that measurement rather than at the
-kernel's own ``1e-13`` match window.
+**Retired with the builder** (demotion check): ``TestThePermutationIsTheLinearParts`` (the builder took a motion and had to read its
+LINEAR part; the realizer now never hands a translation motion to ``ordinate_permutation``: a wrap's permutation is the identity by
+construction); ``TestTheDeckKernelRefuses`` and the duplicated-node row (refusals of the motion-to-permutation matcher, owned by
+``Quadrature.ordinate_permutation`` and ``ordinate_pairing``, gated in ``tests/gates/numerics/test_ordinate_pairing.py`` and the
+quadrature tests; the table's refusal of an uncertified mirror is ``test_sn_boundary_realizer.py``); ``TestPeriodicIsBoundToThePartner`` /
+``TestPeriodicChangedNoValues`` (re-posed in ``test_sn_boundary_realizer.py::TestRealizeTranslation`` and the METRIC class);
+``test_both_deck_arms_enter_the_SAME_body`` (one class now: unspellable).
 """
 
 from __future__ import annotations
 
-import dataclasses
-
-
 import numpy as np
 import pytest
 
-from orpheus.geometry.boundary import (
-    PairedDeck,
-    PeriodicBoundary,
-    ReflectiveBoundary,
-    SelfPairedDeck,
-)
-from orpheus.geometry.boundary._errors import BoundaryError
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.face_layout import FaceLayout
-from orpheus.numerics.operator import adjointable
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
-from orpheus.sn.boundary import realizer as realizer_module
-from orpheus.sn.boundary.realizer import (
-    SNBoundaryRealizer,
-    _deck_kernel,
-    _outflow_restriction,
-)
+from orpheus.sn.boundary.realized_operators import ScaledOrdinatePermutation
 from orpheus.sn.mesh.method_space import SNMethodSpace
 
 pytestmark = pytest.mark.l1
 
 _NG = 2
 
-#: The measured witness tolerance for a rotation deck (see the module
-#: docstring). The mirror and the wrap are asserted bit-exact and never use it.
+#: The measured witness tolerance for a rotation deck (see the module docstring). The mirror and the wrap are asserted bit-exact.
 _ROTATION_ATOL = 1e-15
-
-
-# ---------------------------------------------------------------------------
-# THE ONE CALL SITE
-#
-# Every gate below calls ``_kernel``; nothing calls ``_deck_kernel`` directly,
-# so a signature change is a single edit here — the same Pattern-2 discipline
-# the production carve applies to the two deck arms.
-#
-# ``crossed_diagnosis`` is the caller-supplied semantics for an ERR-045
-# crossing. These gates never assert on its TEXT (each law's arm owns its own
-# wording); they assert that the refusal arrives as a typed ``BoundaryError``.
-# ---------------------------------------------------------------------------
-
-
-def _kernel(quadrature, method_space, gamma_out_domain, *, motion,
-            domain_face, law_key):
-    """The production deck kernel, called with a gate-owned diagnosis."""
-    return _deck_kernel(
-        quadrature, method_space, gamma_out_domain,
-        motion=motion,
-        domain_face=domain_face,
-        law_key=law_key,
-        crossed_diagnosis=(
-            f"gate fixture: {law_key} deck arrow "
-            f"{domain_face} -> {method_space.face}"
-        ),
-    )
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 
 _X_FACES = ("xmin", "xmax")
 _XY_FACES = ("xmin", "xmax", "ymin", "ymax")
+
 
 #: ``name -> (factory, layout_faces)``.
 #:
@@ -224,11 +136,20 @@ def _deck_fixture(case: str, *, face: str, domain_face: str):
     method_space = SNMethodSpace.for_face(
         quadrature=quad, face=face, trace=trace
     )
-    domain_space = SNMethodSpace.for_face(
-        quadrature=quad, face=domain_face, trace=trace
-    )
-    gamma_out = _outflow_restriction(domain_space, "deck")
+    gamma_out = trace.outflow_space(domain_face)
     return quad, trace, method_space, gamma_out, quad.measure.support.ambient_points(quad.measure.nodes)
+
+
+def _kernel(quadrature, method_space, gamma_out, *, motion, domain_face, law_key):
+    """The PermutationOperator of the deck arrow ``Gamma_+(domain_face) -> Gamma_-(method_space.face)`` of ``motion``.
+
+    THE ONE CALL SITE: the permutation is the one the motion induces on the ORDINATES (the linear part's action:
+    a translation moves no direction), and ``ScaledOrdinatePermutation`` gathers its inverse. ``gamma_out`` and ``law_key`` are
+    carried only so the rows read as they always did.
+    """
+    permutation = quadrature.ordinate_permutation(RigidMotion(motion.linear))
+    op = ScaledOrdinatePermutation(alpha=1.0, permutation=permutation, face=method_space.face, partner=domain_face, trace=method_space.trace)
+    return op.inner.ops[0]
 
 
 def _mirror(axis: str = "x") -> RigidMotion:
@@ -261,153 +182,7 @@ def _global_gather(kernel, gamma_out) -> np.ndarray:
     exact and loses nothing — it just states the claim at the tier where an
     independent reference can be written.
     """
-    return np.asarray(gamma_out.indices, dtype=np.intp)[np.asarray(kernel.perm)]
-
-
-# ============================================================================
-# I — the permutation is the LINEAR PART's  (the measured defect, §1 above)
-# ============================================================================
-
-
-class TestThePermutationIsTheLinearParts:
-    r"""⭐⭐ A deck element's action on ORDINATES ignores its translation.
-
-    :meth:`RigidMotion.on_points` and :meth:`RigidMotion.on_directions` are
-    spelled separately precisely so that applying an affine map to a direction
-    is unwriteable. :meth:`RigidMotion.permutes` is the one place that
-    re-introduces it — it matches ``on_points(x)`` against the set — and the
-    deck kernel is its first consumer whose motions carry translations.
-
-    The gates are posed on the OBSERVABLE, not on the spelling: two motions
-    with the same linear part must produce bit-identical kernels. That holds
-    for an inline ``RigidMotion(m.linear)`` and for a future
-    ``permutes_directions`` alike, and it reds for the affine spelling.
-    """
-
-    def test_the_AFFINE_spelling_refuses_the_wrap(self) -> None:
-        r"""`[M]` The reason this class exists, asserted rather than narrated.
-
-        A scope statement in the sibling module's idiom: if
-        :meth:`RigidMotion.permutes` ever starts acting on directions, this
-        row reds and the class's RATIONALE needs rewriting — not its
-        assertions, which are about the kernel.
-        """
-        quad = Quadrature.gauss_legendre(n_ordinates=8)
-        nodes = quad.measure.support.ambient_points(quad.measure.nodes)
-        wrap = PairedDeck.wrap(axis="x").motion
-        assert wrap.permutes(nodes, atol=1e-13) is None, (
-            "RigidMotion.permutes applies the AFFINE action, so a translation "
-            "moves the ordinates off the sphere. If this now returns a "
-            "permutation, `permutes` changed semantics and the deck kernel's "
-            "linear-part extraction may have become redundant"
-        )
-        linear = _linear_part(wrap).permutes(nodes, atol=1e-13)
-        assert linear is not None
-        np.testing.assert_array_equal(linear.indices, np.arange(quad.n_ordinates))
-
-    @pytest.mark.parametrize("case", ["gauss_legendre(8)", "product(4,8)"])
-    def test_a_SEATED_mirror_gives_the_same_kernel_as_an_origin_one(
-        self, case: str
-    ) -> None:
-        r"""The mirror's offset is invisible — and here it must be *invisible*,
-        not *unspellable*.
-
-        :class:`SelfPairedDeck` closes the Mode-12 offset hole by REFUSING an
-        affine element, so the mirror reaching this kernel is always
-        origin-fixing. But the kernel is shared, and its contract is the
-        general one: a seated element acts on directions exactly as its linear
-        part does. Bit-exact — a signed permutation is exact in IEEE.
-        """
-        quad, _, method_space, gamma_out, _ = _deck_fixture(
-            case, face="xmin", domain_face="xmin"
-        )
-        plain = _kernel(quad, method_space, gamma_out, motion=_mirror("x"),
-                        domain_face="xmin", law_key="reflective")
-        seated = _kernel(
-            quad, method_space, gamma_out,
-            motion=RigidMotion.reflection(normal=[1.0, 0.0, 0.0], offset=2.5),
-            domain_face="xmin", law_key="reflective",
-        )
-        np.testing.assert_array_equal(plain.perm, seated.perm)
-
-    @pytest.mark.parametrize("case", ["gauss_legendre(8)", "product(2,4)"])
-    def test_the_wrap_LENGTH_is_invisible_to_the_kernel(
-        self, case: str
-    ) -> None:
-        r"""⭐ ``t = ê_x`` and ``t = 17 ê_x`` give the same arrow, bit for bit.
-
-        This is what licenses :meth:`PairedDeck.wrap` storing a UNIT
-        translation: the physical extent is configuration, and the realization
-        provably cannot see it. Under the affine spelling BOTH calls raise, so
-        the row reds — attributed by the wrap's own error message.
-        """
-        quad, _, method_space, gamma_out, _ = _deck_fixture(
-            case, face="xmin", domain_face="xmax"
-        )
-        unit = _kernel(
-            quad, method_space, gamma_out,
-            motion=PairedDeck.wrap(axis="x").motion,
-            domain_face="xmax", law_key="periodic",
-        )
-        long = _kernel(
-            quad, method_space, gamma_out,
-            motion=RigidMotion.translation_by([17.0, 0.0, 0.0]),
-            domain_face="xmax", law_key="periodic",
-        )
-        np.testing.assert_array_equal(unit.perm, long.perm)
-        np.testing.assert_array_equal(
-            unit.perm, np.arange(unit.n),
-            err_msg=(
-                "the wrap's linear part is the identity, so its arrow is the "
-                "trivial relabelling between two DISTINCT index sets — the "
-                "local permutation must be arange"
-            ),
-        )
-
-    @pytest.mark.parametrize("case", _ROTATION_NONTRIVIAL_LOCAL)
-    def test_a_SEATED_rotation_gives_the_same_kernel(self, case: str) -> None:
-        r"""The latent #178 arm: a real sector deck is seated at the core axis.
-
-        Its linear part is what acts on angle, so seating must be invisible —
-        and on a fixture whose local permutation is NOT ``arange``, so the row
-        compares a non-trivial array rather than two identities.
-        """
-        quad, _, method_space, gamma_out, _ = _deck_fixture(
-            case, face="xmin", domain_face="ymin"
-        )
-        origin = _kernel(quad, method_space, gamma_out, motion=_rotation_90(),
-                         domain_face="ymin", law_key="sector")
-        seated = _kernel(
-            quad, method_space, gamma_out,
-            motion=_rotation_90().seated_at([1.0, 1.0, 0.0]),
-            domain_face="ymin", law_key="sector",
-        )
-        np.testing.assert_array_equal(origin.perm, seated.perm)
-        assert not np.array_equal(origin.perm, np.arange(origin.n)), (
-            f"{case} must have a NON-trivial local permutation, or this row "
-            f"compares two identities and proves nothing about seating"
-        )
-
-
-# ============================================================================
-# A — (retired) the specular arm's inheritance oracle
-#
-# ``TestTheSpecularArmInheritsTheRetiredTable`` lived here until §7d.3: a
-# one-time proof that the motion-derived arrow equalled the
-# ``reflection_index``-derived one (`[M]` bit-identical on 24/24
-# quadrature × axis pairs, including the shared product(4,5) omission).
-# It died WITH its oracle, per its own docstring — its surviving successor
-# is ``TestTheGatherIsThePreimage``'s witness-check below, which verifies
-# the claimed partner's COORDINATES instead of comparing derivations.
-# The binding claim its second row carried (Γ₊(f) → Γ₋(f), by ``is``) is
-# carried forward split by leg: the DOMAIN leg by the self-paired/paired
-# split gate at the end of this module (``mirrored.domain is
-# trace.outflow_space("xmin")``); the CODOMAIN leg rides on
-# ``TestPeriodicIsBoundToThePartner`` alone — the split gate's codomain
-# assertion is ``mirrored.codomain is realized.codomain``, which a
-# None/None regression satisfies (`[M]` qa M5: dropping ``codomain=`` in
-# the kernel reds 5 periodic rows and leaves the split gate green).
-# ============================================================================
+    return np.asarray(gamma_out.ordinate_indices, dtype=np.intp)[np.asarray(kernel.perm)]
 
 
 # ============================================================================
@@ -470,7 +245,7 @@ class TestTheGatherIsThePreimage:
         )
         kernel = _kernel(
             quad, method_space, gamma_out,
-            motion=PairedDeck.wrap(axis="x").motion,
+            motion=RigidMotion.translation_by([1.0, 0.0, 0.0]),
             domain_face="xmax", law_key="periodic",
         )
         inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
@@ -591,7 +366,7 @@ class TestTheGatherIsThePreimage:
                          domain_face="ymin", law_key="sector")
         gather = _global_gather(kernel, gamma_out)
         expected_local = np.searchsorted(
-            np.sort(np.asarray(gamma_out.indices)), gather
+            np.sort(np.asarray(gamma_out.ordinate_indices)), gather
         )
         np.testing.assert_array_equal(kernel.perm, expected_local)
         assert not np.array_equal(kernel.perm, np.arange(kernel.n)), (
@@ -660,10 +435,10 @@ class TestTheGatherIsThePreimage:
             f"motion it claims to be"
         )
         with pytest.raises(ValueError, match="are not ordinates of"):
-            gamma_out.codomain.to_local(forward)
+            gamma_out.to_local(forward)
         # …and the correct one is accepted, so the refusal above is about the
         # DIRECTION and not about the space refusing everything.
-        gamma_out.codomain.to_local(backward)
+        gamma_out.to_local(backward)
 
 
 def _parse_product(case: str) -> tuple[int, int]:
@@ -672,334 +447,3 @@ def _parse_product(case: str) -> tuple[int, int]:
     n_mu, n_phi = (int(t) for t in inner.split(","))
     return n_mu, n_phi
 
-
-# ============================================================================
-# D / H — the refusals
-# ============================================================================
-
-
-class TestTheDeckKernelRefuses:
-    r"""A motion that does not permute the ordinates must raise, attributed.
-
-    ⚠ The message this inherits is a real hazard. The retired path raised a
-    bare ``ValueError`` ("no precomputed reflection partner"), and
-    :class:`~orpheus.geometry.boundary._errors.BoundaryError` **subclasses**
-    ``ValueError`` — so a ``pytest.raises(ValueError)`` gate stays green across
-    the whole change and proves nothing. Every row here names
-    ``BoundaryError`` explicitly and matches on the message.
-    """
-
-    @pytest.mark.catches("ERR-074")
-    def test_an_UNCERTIFIED_mirror_is_refused(self) -> None:
-        r"""``product(4, 5)``: odd :math:`n_\varphi`, so :math:`\sigma_x` is
-        not a symmetry of the azimuth grid.
-
-        ERR-074's own site: the pre-2026-08-02 table returned a bare
-        nearest-neighbour ``argmin`` here, wrong by ``0.42`` in the direction
-        cosines and *still an involution*, so a self-inverse check could not
-        see it. `[M]` both the certified table and
-        :meth:`RigidMotion.permutes` now decline this axis — the refusal
-        migrates 1:1, and this row is what proves the boundary tier kept it.
-        """
-        quad, _, method_space, gamma_out, nodes = _deck_fixture(
-            "product(4,5)", face="xmin", domain_face="xmin",
-        )
-        assert _mirror("x").permutes(nodes, atol=1e-13) is None, (
-            "product(4,5) must NOT be sigma_x-closed, or this row is not the "
-            "refusal witness it claims to be — the mirror planes of a product "
-            "rule sit at k*pi/n_phi and sigma_x needs one at pi/2"
-        )
-        with pytest.raises(BoundaryError) as excinfo:
-            _kernel(quad, method_space, gamma_out, motion=_mirror("x"),
-                    domain_face="xmin", law_key="reflective")
-        assert excinfo.value.law == "reflective"
-
-    def test_a_motion_the_quadrature_is_not_CLOSED_under_is_refused(
-        self,
-    ) -> None:
-        r"""A 90° rotation on a slab quadrature: its nodes lie on the x axis,
-        so :math:`R_z` carries them off the set entirely.
-
-        A second refusal witness with a *different reason* from the row above
-        (a whole family missing, versus a parity mismatch in one grid), so a
-        single over-broad ``match=`` cannot cover both.
-        """
-        quad, _, method_space, gamma_out, _ = _deck_fixture(
-            "gauss_legendre(8)", face="xmin", domain_face="xmin"
-        )
-        with pytest.raises(BoundaryError):
-            _kernel(quad, method_space, gamma_out, motion=_rotation_90(),
-                    domain_face="xmin", law_key="sector")
-
-    def test_the_POSITIVE_control_the_same_call_succeeds(self) -> None:
-        """Without this, a kernel that refused everything would pass above."""
-        quad, _, method_space, gamma_out, _ = _deck_fixture(
-            "product(4,4)", face="xmin", domain_face="xmin"
-        )
-        kernel = _kernel(quad, method_space, gamma_out, motion=_mirror("x"),
-                         domain_face="xmin", law_key="reflective")
-        assert kernel.n == gamma_out.n_restricted
-
-    @pytest.mark.catches("ERR-073")
-    def test_a_DUPLICATED_node_makes_the_match_non_injective_and_is_refused(
-        self,
-    ) -> None:
-        r"""ERR-073's minimal witness, at the boundary tier.
-
-        Appending a bit-identical duplicate of a node and of its mirror
-        partner leaves the set closed under :math:`\sigma_x` as a *multiset*
-        and leaves the two half-traces the SAME size — `[M]` 5 and 5 on
-        ``gauss_legendre(8)`` + 2 duplicates — so the kernel's extent guard
-        cannot fire first and the refusal is attributable to bijectivity
-        alone. That is the clause a nearest-neighbour loop omits: every image
-        has *a* partner, two sources land on one target, and one node is left
-        unmatched.
-
-        No tolerance games: the duplicate is bit-identical, so a looser match
-        window cannot rescue it.
-        """
-        base = Quadrature.gauss_legendre(n_ordinates=8)
-        nodes = np.asarray(base.measure.nodes)
-        weights = np.asarray(base.measure.weights)
-        duplicated = dataclasses.replace(
-            base.measure,
-            nodes=np.concatenate([nodes, nodes[[0, 7]]]),
-            weights=np.concatenate([weights, weights[[0, 7]]]),
-        )
-        quad = Quadrature(measure=duplicated)
-        nodes3 = quad.measure.support.ambient_points(quad.measure.nodes)
-        assert _mirror("x").permutes(nodes3, atol=1e-13) is None, (
-            "the duplicated set must defeat the bijectivity clause, or this "
-            "row is not the ERR-073 witness it claims to be"
-        )
-        assert _linear_part(_mirror("x")).permutes(
-            base.measure.support.ambient_points(base.measure.nodes), atol=1e-13
-        ) is not None, "the UNduplicated control must still permute"
-
-        trace = _trace(quad, _X_FACES)
-        method_space = SNMethodSpace.for_face(
-            quadrature=quad, face="xmin", trace=trace
-        )
-        gamma_out = _outflow_restriction(method_space, "reflective")
-        inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
-        assert gamma_out.n_restricted == inflow.size, (
-            "the two half-traces must stay the same size, or the extent guard "
-            "fires first and the refusal is attributed to the wrong clause"
-        )
-        with pytest.raises(BoundaryError):
-            _kernel(quad, method_space, gamma_out, motion=_mirror("x"),
-                    domain_face="xmin", law_key="reflective")
-
-
-# ============================================================================
-# E / F — periodic, through the PUBLIC realizer
-# ============================================================================
-
-_PERIODIC_CASES = ["gauss_legendre(8)", "product(2,4)", "level_symmetric(6)",
-                   "lebedev(17)"]
-
-
-def _realized_periodic(case: str, face: str = "xmin"):
-    """``(trace, realized_operator, partner)`` via the public realizer."""
-    factory, faces = _QUADS[case]
-    quad = factory()
-    trace = _trace(quad, faces)
-    method_space = SNMethodSpace.for_face(
-        quadrature=quad, face=face, trace=trace
-    )
-    law = PeriodicBoundary(axis="x")
-    realized = SNBoundaryRealizer().realize(law, method_space)
-    return trace, realized, law.geometry_map.domain_face(face)
-
-
-class TestPeriodicIsBoundToThePartner:
-    r"""⭐ Periodic's link becomes a typed arrow — the step's stated OUTCOME.
-
-    Every other law's angular factor is already one (``PermutationOperator``,
-    ``OperatorProduct``, ``ZeroOperator``); periodic alone realized to
-    ``IdentityOperator``, an **endomorphism** :math:`V \to V` that names no
-    spaces and therefore can never be the isomorphism
-    :math:`\Gamma_+(f') \to \Gamma_-(f)` a torus wrap needs.
-
-    ⭐ These rows are the **only possible catcher** for a ``domain``↔
-    ``codomain`` swap. Measured at step 5 on the specular sibling: the swap
-    produced **0 new reds** over 1668 tests and 1252 constructions — it
-    survives the extent guard (:math:`|\Gamma_+| = |\Gamma_-|` on every shipped
-    quadrature) and changes no arithmetic. Asserted with ``is``, because
-    :meth:`FunctionSpace.__eq__` compares ``(name, shape)`` and would accept a
-    look-alike from the wrong face.
-    """
-
-    @pytest.mark.parametrize("case", _PERIODIC_CASES)
-    def test_the_law_maps_the_PARTNERS_outflow_to_this_faces_inflow(
-        self, case: str
-    ) -> None:
-        """``domain is Γ₊(partner)`` and ``codomain is Γ₋(face)``."""
-        trace, realized, partner = _realized_periodic(case)
-        assert partner == "xmax"
-        assert realized.domain is trace.outflow_space(partner), (
-            "periodic's domain is the PARTNER's outflow half — that is the "
-            "whole content of the torus quotient, and the only off-diagonal "
-            "block of B"
-        )
-        assert realized.codomain is trace.inflow_space("xmin")
-
-    def test_the_binding_is_to_the_partner_not_to_THIS_face(self) -> None:
-        r"""`[M]` :math:`\Gamma_+(\text{xmin})` and :math:`\Gamma_+(\text{xmax})`
-        have IDENTICAL shape, so no shape or extent guard can tell them apart.
-
-        This row is the load-bearing justification for binding spaces at all
-        rather than checking lengths — and it is the catcher for a partner
-        threading that quietly reverted to the installation face.
-        """
-        trace, realized, _ = _realized_periodic("gauss_legendre(8)")
-        assert realized.domain is not trace.outflow_space("xmin")
-        assert (
-            trace.outflow_space("xmin").shape
-            == trace.outflow_space("xmax").shape
-        ), (
-            "if these shapes ever differ, the cross-face claim stops being "
-            "the space check's exclusive territory — re-read this gate"
-        )
-
-    def test_the_two_ends_are_DIFFERENT_spaces(self) -> None:
-        """A wrap is an isomorphism between two spaces, never an endomorphism.
-
-        The structural statement behind the ``IdentityOperator`` retirement,
-        and it also rules out the both-ends-to-Γ₊ mis-binding, which the row
-        above cannot see.
-        """
-        _, realized, _ = _realized_periodic("gauss_legendre(8)")
-        assert realized.domain is not realized.codomain
-        assert realized.domain is not None and realized.codomain is not None
-
-
-class TestPeriodicChangedNoValues:
-    r"""The migration-inheritance keystone for the wrap.
-
-    The wrap's local permutation is ``arange`` (its linear part is the
-    identity and the two index sets coincide — `[M]` an exact set equality on
-    every shipped quadrature), so the uplift MUST be value-identical to the
-    ``IdentityOperator`` it replaces or it changed physics rather than typing.
-    """
-
-    @pytest.mark.parametrize("case", _PERIODIC_CASES)
-    def test_apply_and_transpose_are_the_identity_on_the_values(
-        self, case: str
-    ) -> None:
-        """``array_equal`` — a gather is reduction depth 0, so bit-exact."""
-        trace, realized, partner = _realized_periodic(case)
-        rng = np.random.default_rng(20260807)
-        x = rng.standard_normal(trace.outflow_space(partner).shape)
-        np.testing.assert_array_equal(realized.apply(x), x)
-        # The runtime narrowing IS the static permission (the operator
-        # module's Design C). Asserting it here is also the claim that a
-        # realized wrap HAS an honest transpose — PairedDeck declares it a
-        # theorem, and its predecessor SpatialWrap answered False.
-        assert adjointable(realized), (
-            "the realized periodic law must expose a transpose; PairedDeck "
-            "declares is_adjointable a THEOREM for a deck transformation"
-        )
-        y = rng.standard_normal(trace.inflow_space("xmin").shape)
-        np.testing.assert_array_equal(realized.apply_transpose(y), y)
-
-    def test_the_output_is_a_COPY_and_no_longer_ALIASES_the_input(
-        self,
-    ) -> None:
-        r"""⚠ The one measured behavioural difference, recorded as a contract.
-
-        `[M]` before step 7 the realized periodic law was
-        ``IdentityOperator() & IdentityOperator()`` and ``apply(x) is x`` was
-        **True**; a permutation returns a copy. Any consumer relying on
-        identity-aliasing of the periodic face changes behaviour, and the
-        campaign plan flagged it as a check-before-landing. Asserting it here
-        turns "we checked once" into a standing contract.
-        """
-        trace, realized, partner = _realized_periodic("gauss_legendre(8)")
-        x = np.arange(
-            int(np.prod(trace.outflow_space(partner).shape)), dtype=float
-        ).reshape(trace.outflow_space(partner).shape)
-        out = realized.apply(x)
-        assert out is not x, (
-            "the realized wrap must return a COPY; an aliasing output means "
-            "the IdentityOperator survived somewhere in the chain"
-        )
-        np.testing.assert_array_equal(out, x)
-
-
-# ============================================================================
-# G — ONE body
-# ============================================================================
-
-
-def test_both_deck_arms_enter_the_SAME_body(monkeypatch) -> None:
-    r"""⭐ The Pattern-2 claim of the whole step, and nothing else can see it.
-
-    A Mode-11 wrap counter: every *value* gate in this module stays green if a
-    second private ``_periodic_kernel`` is re-added beside ``_deck_kernel``,
-    because both would compute the same numbers. Only a counter on the shared
-    body distinguishes "one source" from "two agreeing sources" — and the
-    count is asserted **EXACTLY**, never ``> 0``, so a periodic arm that
-    routed around the body would read 1 instead of 2.
-    """
-    quad = Quadrature.gauss_legendre(n_ordinates=8)
-    trace = _trace(quad, _X_FACES)
-    realizer = SNBoundaryRealizer()
-
-    calls: list[str] = []
-    original = realizer_module._deck_kernel
-
-    def counting(*args, **kwargs):
-        calls.append(str(kwargs.get("law_key", "?")))
-        return original(*args, **kwargs)
-
-    monkeypatch.setattr(realizer_module, "_deck_kernel", counting)
-
-    realizer.realize(
-        ReflectiveBoundary(axis="x"),
-        SNMethodSpace.for_face(quadrature=quad, face="xmin", trace=trace),
-    )
-    assert len(calls) == 1, (
-        f"the specular arm must enter _deck_kernel exactly once; got {calls}"
-    )
-    realizer.realize(
-        PeriodicBoundary(axis="x"),
-        SNMethodSpace.for_face(quadrature=quad, face="xmax", trace=trace),
-    )
-    assert len(calls) == 2, (
-        f"the PERIODIC arm did not enter _deck_kernel — it is still realized "
-        f"by a body of its own, which is the twin path step 7 exists to "
-        f"delete. Calls seen: {calls}"
-    )
-
-
-# ============================================================================
-# The taxonomy reaches the realizer
-# ============================================================================
-
-
-def test_the_two_deck_types_realize_through_one_kernel_with_different_faces(
-) -> None:
-    r"""The self-paired / genuinely-paired split, observed at the realization.
-
-    ``SelfPairedDeck.mirror`` consumes THIS face's :math:`\Gamma_+`;
-    ``PairedDeck.wrap`` consumes the PARTNER's. One body, two faces — which is
-    the step's outcome stated at the tier a consumer sees.
-    """
-    assert SelfPairedDeck.mirror(axis="x").domain_face("xmin") == "xmin"
-    assert PairedDeck.wrap(axis="x").domain_face("xmin") == "xmax"
-
-    trace, realized, partner = _realized_periodic("gauss_legendre(8)")
-    quad = Quadrature.gauss_legendre(n_ordinates=8)
-    mirror_space = SNMethodSpace.for_face(
-        quadrature=quad, face="xmin", trace=trace
-    )
-    mirrored = SNBoundaryRealizer().realize(
-        ReflectiveBoundary(axis="x"), mirror_space
-    )
-    assert mirrored.domain is trace.outflow_space("xmin")
-    assert realized.domain is trace.outflow_space(partner)
-    assert mirrored.codomain is realized.codomain, (
-        "both laws deliver into the SAME half-trace — Γ₋(xmin) — and differ "
-        "only in which Γ₊ they consume. That is the whole taxonomy."
-    )

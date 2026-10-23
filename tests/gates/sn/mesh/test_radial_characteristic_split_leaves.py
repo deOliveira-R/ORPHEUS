@@ -24,7 +24,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -41,7 +41,8 @@ from orpheus.transport.fields.radial_characteristic_boundary_source_sink import 
 from orpheus.transport.fields.radial_characteristic_interior_source_sink import (
     RadialCharacteristicInteriorSourceSink,
 )
-from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates.sn._test_helpers import placeholder_materials, CURVED_REFLECTIVE, reflective_role
+from tests.gates._exterior import conditions_for
 
 pytestmark = pytest.mark.foundation
 
@@ -49,9 +50,9 @@ _NG, _NX = 2, 4
 
 
 def _mesh_1d(coord: CoordSystem, quad, *, nx: int = _NX, ng: int = _NG) -> SNProblem:
-    geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), BC("reflective"))
+    geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), reflective_role(coord))
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, CURVED_REFLECTIVE))
 
 
 def _sphere() -> SNProblem:

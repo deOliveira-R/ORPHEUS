@@ -27,17 +27,29 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.mesh import AxisCoord, AxisMesh, RadialAxisMesh, coord_system
 from orpheus.sn.problem import SNProblem
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.foundation]
 
 # The law every axis here declares where its subject is not the boundary: every
 # consumer resolved an undeclared face to it before step 3c (#405).
-_REFLECTIVE = BC("reflective")
+_REFLECTIVE = MirrorDeck()
+
+#: The reflective role of a CURVED body's outer face: a tag (rule R2), declared as the unit specular wall by the table ``_CURVED``.
+_REFLECTIVE_CURVED = 1
+_CURVED = {1: WallCondition.specular(1.0)}
 
 
 def _one_group_mixture():
@@ -70,24 +82,24 @@ def test_d2_metadata_byte_identical_axis_vs_legacy() -> None:
     quad = Quadrature.lebedev(17)
 
     legacy = SNProblem(
-        Mesh2D(
+        (_carrier1 := Mesh2D(
             edges_x=edges_x, edges_y=edges_y, mat_map=mat_map,
             coord=CoordSystem.CARTESIAN,
-            face_laws={
-                "xmin": BC("vacuum"),
-                "xmax": BC("vacuum"),
-                "ymin": BC("reflective"),
-                "ymax": BC("vacuum"),
+            face_roles={
+                "xmin": 0,
+                "xmax": 0,
+                "ymin": MirrorDeck(),
+                "ymax": 0,
             },
-        ),
-        quad, _MATERIALS,
+        )),
+        quad, _MATERIALS, boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
     )
     native = SNProblem.from_axes(
-        (
-            AxisMesh(edges=edges_x, bc_low=BC("vacuum"), bc_high=BC("vacuum")),
-            AxisMesh(edges=edges_y, bc_low=BC("reflective"), bc_high=BC("vacuum")),
-        ),
-        quad, _MATERIALS, mat_map=mat_map,
+        (_carrier2 := (
+            AxisMesh(edges=edges_x, role_low=0, role_high=0),
+            AxisMesh(edges=edges_y, role_low=MirrorDeck(), role_high=0),
+        )),
+        quad, _MATERIALS, mat_map=mat_map, boundary_conditions=conditions_for(_carrier2, _CONDITIONS),
     )
 
     np.testing.assert_equal(native.spatial_shape, legacy.spatial_shape)
@@ -104,7 +116,7 @@ def test_d2_metadata_byte_identical_axis_vs_legacy() -> None:
     np.testing.assert_array_equal(native.mat_map, legacy.mat_map)
     np.testing.assert_equal(sorted(native.bc), sorted(legacy.bc))
     for face in legacy.bc:
-        np.testing.assert_equal(native.bc[face].kind, legacy.bc[face].kind)
+        np.testing.assert_equal(type(native.bc[face]), type(legacy.bc[face]))
     np.testing.assert_equal(
         native.boundary_face_layout.faces.keys(),
         legacy.boundary_face_layout.faces.keys(),
@@ -116,15 +128,15 @@ def test_1d_slab_metadata_byte_identical_axis_vs_legacy() -> None:
     edges = np.linspace(0.0, 4.0, 9)
     quad = Quadrature.gauss_legendre(n_ordinates=8)
 
+    legacy_mesh = Mesher(StructuredGeometry.slab(
+        (0.0, 4.0), (0,), left=0, right=MirrorDeck(),
+    )).partition(CellsByCount.uniform_width(8)).mesh
     legacy = SNProblem(
-        Mesher(StructuredGeometry.slab(
-            (0.0, 4.0), (0,), left=BC("vacuum"), right=BC("reflective"),
-        )).partition(CellsByCount.uniform_width(8)).mesh,
-        quad, _MATERIALS,
+        legacy_mesh, quad, _MATERIALS, boundary_conditions=conditions_for(legacy_mesh, _CONDITIONS),
     )
     native = SNProblem.from_axes(
-        (AxisMesh(edges=edges, bc_low=BC("vacuum"), bc_high=BC("reflective")),),
-        quad, _MATERIALS,
+        (_carrier3 := (AxisMesh(edges=edges, role_low=0, role_high=MirrorDeck()),)),
+        quad, _MATERIALS, boundary_conditions=conditions_for(_carrier3, _CONDITIONS),
     )
 
     np.testing.assert_equal(native.spatial_shape, legacy.spatial_shape)
@@ -133,8 +145,10 @@ def test_1d_slab_metadata_byte_identical_axis_vs_legacy() -> None:
     np.testing.assert_array_equal(native.areas, legacy.areas)
     np.testing.assert_array_equal(native.mat_map, legacy.mat_map)
     np.testing.assert_equal(sorted(native.bc), ["xmax", "xmin"])
-    np.testing.assert_equal(native.bc["xmin"].kind, "vacuum")
-    np.testing.assert_equal(native.bc["xmax"].kind, "reflective")
+    np.testing.assert_equal(native.bc["xmin"].is_vacuum, True)
+    np.testing.assert_equal(
+        (native.bc["xmax"].permutes_ordinates, native.bc["xmax"].return_fraction), (True, 1.0),
+    )  # the mirror deck: a permutation returning everything
 
 
 # ─── Verbatim axes (the round-trip is gone) ──────────────────────────────
@@ -143,11 +157,11 @@ def test_1d_slab_metadata_byte_identical_axis_vs_legacy() -> None:
 def test_from_axes_stores_axes_verbatim() -> None:
     """The supplied axis OBJECTS are the mesh's axes — no re-derivation."""
     axes = (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 5), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
-        AxisMesh(edges=np.linspace(0.0, 1.0, 4), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 5), role_low=_REFLECTIVE, role_high=_REFLECTIVE),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 4), role_low=_REFLECTIVE, role_high=_REFLECTIVE),
     )
     mesh = SNProblem.from_axes(
-        axes, Quadrature.lebedev(17), _MATERIALS,
+        axes, Quadrature.lebedev(17), _MATERIALS, boundary_conditions=conditions_for(axes, _CONDITIONS),
     )
     for supplied, stored in zip(axes, mesh.axes):
         if stored is not supplied:
@@ -168,13 +182,13 @@ def test_from_axes_custom_labels_fail_loud() -> None:
     """
     axes = (
         AxisMesh(
-            edges=np.linspace(0.0, 1.0, 5), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE,
+            edges=np.linspace(0.0, 1.0, 5), role_low=_REFLECTIVE, role_high=_REFLECTIVE,
             label_low="left", label_high="right",
         ),
     )
     with pytest.raises(ValueError, match="face name"):
         SNProblem.from_axes(
-            axes, Quadrature.gauss_legendre(n_ordinates=4), _MATERIALS,
+            axes, Quadrature.gauss_legendre(n_ordinates=4), _MATERIALS, boundary_conditions=conditions_for(axes, _CONDITIONS),
         )
 
 
@@ -207,14 +221,14 @@ def test_from_axes_curvilinear_keeps_mesh1d_reduced_path(
     edges = np.linspace(0.0, 1.0, 6)
     quad = make_quad()
     native = SNProblem.from_axes(
-        (RadialAxisMesh(edges=edges, coord=coord, bc_outer=BC("vacuum")),),
-        quad, _MATERIALS,
+        (_carrier4 := (RadialAxisMesh(edges=edges, coord=coord, role_outer=0),)),
+        quad, _MATERIALS, boundary_conditions=conditions_for(_carrier4, _CONDITIONS),
     )
+    legacy_mesh = Mesher(StructuredGeometry(
+        coord=sys, breakpoints=(0.0, 1.0), mat_ids=(0,), face_roles=(0,),
+    )).partition(CellsByCount.uniform_width(5)).mesh
     legacy = SNProblem(
-        Mesher(StructuredGeometry(
-            coord=sys, breakpoints=(0.0, 1.0), mat_ids=(0,), boundaries=(BC("vacuum"),),
-        )).partition(CellsByCount.uniform_width(5)).mesh,
-        quad, _MATERIALS,
+        legacy_mesh, quad, _MATERIALS, boundary_conditions=conditions_for(legacy_mesh, _CONDITIONS),
     )
     np.testing.assert_equal(native.coord, sys)
     np.testing.assert_equal(native.coord, legacy.coord)
@@ -236,9 +250,9 @@ def test_from_axes_curvilinear_keeps_mesh1d_reduced_path(
 def _d3_axes() -> tuple:
     """nx=3, ny=4, nz=5 with distinct extents — Mode-2 asymmetry."""
     return (
-        AxisMesh(edges=np.linspace(0.0, 1.0, 4), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
-        AxisMesh(edges=np.linspace(0.0, 2.0, 5), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
-        AxisMesh(edges=np.linspace(0.0, 3.0, 6), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
+        AxisMesh(edges=np.linspace(0.0, 1.0, 4), role_low=_REFLECTIVE, role_high=_REFLECTIVE),
+        AxisMesh(edges=np.linspace(0.0, 2.0, 5), role_low=_REFLECTIVE, role_high=_REFLECTIVE),
+        AxisMesh(edges=np.linspace(0.0, 3.0, 6), role_low=_REFLECTIVE, role_high=_REFLECTIVE),
     )
 
 
@@ -249,7 +263,7 @@ def test_from_axes_d3_constructs() -> None:
     as d≤2 — mesh-adapter-free from birth (``mesh is None``).
     """
     m = SNProblem.from_axes(
-        _d3_axes(), Quadrature.level_symmetric(sn_order=4), _MATERIALS,
+        (_carrier5 := _d3_axes()), Quadrature.level_symmetric(sn_order=4), _MATERIALS, boundary_conditions=conditions_for(_carrier5, _CONDITIONS),
     )
     np.testing.assert_equal(m.ndim, 3)
     np.testing.assert_equal(m.spatial_shape, (3, 4, 5))
@@ -262,7 +276,7 @@ def test_from_axes_d3_constructs() -> None:
 def test_d3_cartesian_builds_trace_and_bc_inventory() -> None:
     """C5-G7: six faces on trace, layout, and the bc dict — one inventory."""
     m = SNProblem.from_axes(
-        _d3_axes(), Quadrature.level_symmetric(sn_order=4), _MATERIALS,
+        (_carrier6 := _d3_axes()), Quadrature.level_symmetric(sn_order=4), _MATERIALS, boundary_conditions=conditions_for(_carrier6, _CONDITIONS),
     )
     six = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
     np.testing.assert_equal(tuple(m.angular_trace.layout.faces), six)
@@ -281,7 +295,7 @@ def test_d3_volumes_cartesian_outer_product() -> None:
     """
     axes = _d3_axes()
     m = SNProblem.from_axes(
-        axes, Quadrature.level_symmetric(sn_order=4), _MATERIALS,
+        axes, Quadrature.level_symmetric(sn_order=4), _MATERIALS, boundary_conditions=conditions_for(axes, _CONDITIONS),
     )
     dx, dy, dz = (np.diff(ax.edges) for ax in axes)
     oracle = np.einsum("i,j,k->ijk", dx, dy, dz)
@@ -296,7 +310,7 @@ def test_d3_volumes_cartesian_outer_product() -> None:
 def test_volume_measure_d3_integrates_to_total_volume() -> None:
     """C5-G12: ∫ 1 dV per group equals the box volume Lx·Ly·Lz (closed form)."""
     m = SNProblem.from_axes(
-        _d3_axes(), Quadrature.level_symmetric(sn_order=4), _MATERIALS,
+        (_carrier7 := _d3_axes()), Quadrature.level_symmetric(sn_order=4), _MATERIALS, boundary_conditions=conditions_for(_carrier7, _CONDITIONS),
     )
     ones = np.ones((int(np.prod(m.spatial_shape)), m.ng))
     total = m.volume_measure(ones)
@@ -308,12 +322,12 @@ def test_volume_measure_d3_integrates_to_total_volume() -> None:
 
 def test_coord_system_primitive() -> None:
     """Single-axis maps; multi-axis all-Cartesian; mixed refuses."""
-    cart = AxisMesh(edges=np.linspace(0.0, 1.0, 3), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE)
+    cart = AxisMesh(edges=np.linspace(0.0, 1.0, 3), role_low=_REFLECTIVE, role_high=_REFLECTIVE)
     sph = RadialAxisMesh(
-        edges=np.linspace(0.0, 1.0, 3), coord=AxisCoord.RADIAL_SPHERICAL, bc_outer=_REFLECTIVE,
+        edges=np.linspace(0.0, 1.0, 3), coord=AxisCoord.RADIAL_SPHERICAL, role_outer=_REFLECTIVE_CURVED,
     )
     cyl = RadialAxisMesh(
-        edges=np.linspace(0.0, 1.0, 3), coord=AxisCoord.RADIAL_CYLINDRICAL, bc_outer=_REFLECTIVE,
+        edges=np.linspace(0.0, 1.0, 3), coord=AxisCoord.RADIAL_CYLINDRICAL, role_outer=_REFLECTIVE_CURVED,
     )
     np.testing.assert_equal(coord_system((cart,)), CoordSystem.CARTESIAN)
     np.testing.assert_equal(coord_system((sph,)), CoordSystem.SPHERICAL)
@@ -330,8 +344,8 @@ def test_coord_system_primitive() -> None:
 
 def _slab_sn() -> SNProblem:
     return SNProblem.from_axes(
-        (AxisMesh(edges=np.linspace(0.0, 4.0, 9), bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),),
-        Quadrature.gauss_legendre(n_ordinates=8), _MATERIALS,
+        (_carrier8 := (AxisMesh(edges=np.linspace(0.0, 4.0, 9), role_low=_REFLECTIVE, role_high=_REFLECTIVE),)),
+        Quadrature.gauss_legendre(n_ordinates=8), _MATERIALS, boundary_conditions=conditions_for(_carrier8, _CONDITIONS),
     )
 
 
@@ -365,11 +379,11 @@ def test_volume_measure_d2_delegates_byte_identical() -> None:
     edges_x = np.linspace(0.0, 2.0, 5)
     edges_y = np.linspace(0.0, 3.0, 8)
     sn = SNProblem.from_axes(
-        (
-            AxisMesh(edges=edges_x, bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
-            AxisMesh(edges=edges_y, bc_low=_REFLECTIVE, bc_high=_REFLECTIVE),
-        ),
-        Quadrature.lebedev(17), _MATERIALS,
+        (_carrier9 := (
+            AxisMesh(edges=edges_x, role_low=_REFLECTIVE, role_high=_REFLECTIVE),
+            AxisMesh(edges=edges_y, role_low=_REFLECTIVE, role_high=_REFLECTIVE),
+        )),
+        Quadrature.lebedev(17), _MATERIALS, boundary_conditions=conditions_for(_carrier9, _CONDITIONS),
     )
     rng = np.random.default_rng(42)
     values = rng.random((int(np.prod(sn.spatial_shape)), sn.ng))
@@ -394,14 +408,14 @@ def test_2d_cylindrical_mesh_refused_at_construction() -> None:
         edges_y=np.linspace(0.0, 1.0, 4),
         mat_map=np.zeros((3, 3), dtype=int),
         coord=CoordSystem.CYLINDRICAL,
-        face_laws={
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmax": _REFLECTIVE_CURVED,
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     with pytest.raises(NotImplementedError, match="non-Cartesian"):
-        SNProblem(mesh2d_cyl, Quadrature.lebedev(17), _MATERIALS)
+        SNProblem(mesh2d_cyl, Quadrature.lebedev(17), _MATERIALS, boundary_conditions=conditions_for(mesh2d_cyl, _CURVED))
 
 
 def test_d2_trace_builds_for_every_constructible_geometry() -> None:
@@ -409,10 +423,10 @@ def test_d2_trace_builds_for_every_constructible_geometry() -> None:
     slab = _slab_sn()
     np.testing.assert_equal(sorted(slab.angular_trace.layout.faces), ["xmax", "xmin"])
     sphere = SNProblem.from_axes(
-        (RadialAxisMesh(
+        (_carrier10 := (RadialAxisMesh(
             edges=np.linspace(0.0, 1.0, 4),
-            coord=AxisCoord.RADIAL_SPHERICAL, bc_outer=_REFLECTIVE,
-        ),),
-        Quadrature.gauss_legendre(n_ordinates=8), _MATERIALS,
+            coord=AxisCoord.RADIAL_SPHERICAL, role_outer=_REFLECTIVE_CURVED,
+        ),)),
+        Quadrature.gauss_legendre(n_ordinates=8), _MATERIALS, boundary_conditions=conditions_for(_carrier10, _CURVED),
     )
     np.testing.assert_equal(tuple(sphere.angular_trace.layout.faces), ("xmax",))

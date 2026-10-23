@@ -36,7 +36,7 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.geometry.manifold import SPHERE, Quotient, quotient_onto
 from orpheus.numerics.measure import DiscreteMeasure
@@ -49,6 +49,13 @@ from orpheus.numerics.quadrature.registry import (
 from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.sn.solver import solve_sn_fixed_source
 from tests.gates.numerics import NUMERICS_DATA
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 ORPHEUS_ROOT = pathlib.Path(__file__).resolve().parents[3]
 
@@ -616,12 +623,12 @@ def _evenness(psi: np.ndarray, perm: np.ndarray) -> float:
 @pytest.fixture(scope="module")
 def _cylinder_solution():
     quad = Quadrature.folded_product(4, 8)
-    mesh = Mesher(StructuredGeometry.cylinder((0.0, 2.0), (0,), outer=BC("vacuum")),
+    mesh = Mesher(StructuredGeometry.cylinder((0.0, 2.0), (0,), outer=0),
                   ).partition(CellsByCount.uniform_width(8)).mesh
     source = np.zeros((quad.n_ordinates, 1, 8))
     source[:, :, :4] = 1.0                     # r-ASYMMETRIC: no flat-flux nulling
     solution = solve_sn_fixed_source({0: _one_group_mixture()}, mesh, quad, source,
-                                     inner_tol=1e-13, max_inner=20_000)
+                                     inner_tol=1e-13, max_inner=20_000, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     return quad, _interior(solution)
 
 
@@ -630,29 +637,29 @@ def _plane_solution():
     quad = Quadrature.product(4, 8)
     mesh = Mesh2D(edges_x=np.linspace(0.0, 2.0, 6), edges_y=np.linspace(0.0, 1.0, 4),
                   mat_map=np.zeros((5, 3), dtype=int), coord=CoordSystem.CARTESIAN,
-                  face_laws={
-                      "xmin": BC("vacuum"),
-                      "xmax": BC("vacuum"),
-                      "ymin": BC("vacuum"),
-                      "ymax": BC("vacuum"),
+                  face_roles={
+                      "xmin": 0,
+                      "xmax": 0,
+                      "ymin": 0,
+                      "ymax": 0,
                   })
     source = np.zeros((quad.n_ordinates, 1, 5, 3))
     source[:, :, :2, :1] = 1.0                 # x- AND y-asymmetric corner source
     solution = solve_sn_fixed_source({0: _one_group_mixture()}, mesh, quad, source,
-                                     inner_tol=1e-13, max_inner=20_000)
+                                     inner_tol=1e-13, max_inner=20_000, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     return quad, _interior(solution)
 
 
 @pytest.fixture(scope="module")
 def _slab_solution():
     quad = Quadrature.gauss_legendre(8)
-    mesh = Mesher(StructuredGeometry.slab((0.0, 2.0), (0,), left=BC("vacuum"),
-                                          right=BC("vacuum")),
+    mesh = Mesher(StructuredGeometry.slab((0.0, 2.0), (0,), left=0,
+                                          right=0),
                   ).partition(CellsByCount.uniform_width(8)).mesh
     source = np.zeros((quad.n_ordinates, 1, 8))
     source[:, :, :4] = 1.0
     solution = solve_sn_fixed_source({0: _one_group_mixture()}, mesh, quad, source,
-                                     inner_tol=1e-13, max_inner=20_000)
+                                     inner_tol=1e-13, max_inner=20_000, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     return quad, _interior(solution)
 
 

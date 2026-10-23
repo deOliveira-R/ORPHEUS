@@ -40,7 +40,6 @@ trusted-library line per ``algebra-of-record``).
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from orpheus.geometry.boundary import (
@@ -52,12 +51,6 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
     WhiteBoundary,
 )
-from orpheus.transport.boundary_realization import realize_recursively
-from orpheus.numerics.operator import OperatorSum
-from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-from orpheus.sn.mesh.method_space import SNMethodSpace
-from orpheus.numerics.quadrature import Quadrature
-from tests.gates.sn._test_helpers import face_method_space
 
 #: The specular leaf of every tree below is the perfect specular wall
 #: ``AlbedoBoundary(1.0, SpecularReturn("x"))``, which realizes to the mirror's
@@ -240,138 +233,16 @@ def test_law_tree_has_no_apply() -> None:
 # ═════════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.foundation
-def test_realize_recursively_leaf_dispatches_to_sn_realizer() -> None:
-    """A bare :class:`BoundaryTraceLaw` leaf realises via the SN realiser."""
-    quad = Quadrature.gauss_legendre(8)
-    # B3.2: a reflective leaf is typed Γ₊ → Γ₋, so it needs a FACE — a
-    # faceless method space cannot name its domain.
-    ms = face_method_space(quad, face="xmax")
-    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
-    walker_op = realize_recursively(spec, ms, SNBoundaryRealizer())
-    direct_op = SNBoundaryRealizer().realize(spec, ms)
-    rng = np.random.default_rng(0)
-    psi = rng.standard_normal((ms.outflow_indices.size, 3))
-    np.testing.assert_array_equal(walker_op.apply(psi), direct_op.apply(psi))
 
 
-@pytest.mark.foundation
-def test_realize_recursively_lawscaled_wraps_in_scaled_operator() -> None:
-    """``LawScaled(α, leaf)`` realises to the one-term combination
-    ``α · realised_leaf`` (S2: ``ScaledOperator`` retired, ruling 51)."""
-    quad = Quadrature.gauss_legendre(8)
-    ms = face_method_space(quad, face="xmax")   # B3.2: the leaf needs a face
-    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
-    tree = 0.5 * spec
-    op = realize_recursively(tree, ms, SNBoundaryRealizer())
-    assert isinstance(op, OperatorSum)
-    [(coefficient, _leaf)] = op.terms
-    assert coefficient == 0.5
-    # The inner is the realised leaf (PermutationOperator at α=1).
-    rng = np.random.default_rng(1)
-    psi = rng.standard_normal((ms.outflow_indices.size, 2))
-    direct = SNBoundaryRealizer().realize(spec, ms)
-    np.testing.assert_array_almost_equal_nulp(
-        op.apply(psi), 0.5 * direct.apply(psi), nulp=4,
-    )
 
 
-@pytest.mark.foundation
-def test_realize_recursively_lawsum_returns_operator_sum() -> None:
-    """``LawSum(a, b)`` realises to ``realise(a) + realise(b)``: one combination
-    whose terms are the realised leaves with the law's coefficients (S2)."""
-    quad = Quadrature.lebedev(17)
-    ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
-    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
-    white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
-    tree = 0.3 * spec + 0.7 * white
-    op = realize_recursively(tree, ms, SNBoundaryRealizer())
-    assert isinstance(op, OperatorSum)
-    assert [c for c, _ in op.terms] == [0.3, 0.7]
-    assert not any(isinstance(w, OperatorSum) for _, w in op.terms)
 
 
-@pytest.mark.l1
-def test_realize_recursively_apply_matches_pointwise_weighted_sum() -> None:
-    """``walker(0.3*spec + 0.7*white).apply(psi)`` matches the pointwise
-    weighted sum of leaf realisations applied independently.
-
-    The pointwise sum is the structurally-independent reference (uses
-    only numpy + and *, above the trusted-library line per
-    ``algebra-of-record``). nulp=4 covers the binary-reduction FP
-    order vs the pointwise reduction.
-    """
-    quad = Quadrature.lebedev(17)
-    ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
-    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
-    white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
-    spec_realised = SNBoundaryRealizer().realize(spec, ms)
-    white_realised = SNBoundaryRealizer().realize(white, ms)
-    composed = realize_recursively(
-        0.3 * spec + 0.7 * white, ms, SNBoundaryRealizer(),
-    )
-    rng = np.random.default_rng(3)
-    # B3.2: the composed operator's domain is Γ₊ (the narrowed leaf's), so the
-    # probe lives there. Note a FULL-face probe would NOT be a valid statement
-    # of the claim: the narrowed leaf silently truncates it (the missing
-    # domain guard, RG-3b) and the mismatch would surface as a reference-side
-    # broadcast error rather than as the documented composition failure.
-    psi = rng.uniform(0.0, 2.0, size=(ms.outflow_indices.size, 5, 3))
-    expected = 0.3 * spec_realised.apply(psi) + 0.7 * white_realised.apply(psi)
-    np.testing.assert_array_almost_equal_nulp(
-        composed.apply(psi), expected, nulp=4,
-    )
 
 
-@pytest.mark.foundation
-def test_realize_recursively_walks_nested_depth_first() -> None:
-    """``0.5 * (0.3 * spec + 0.7 * white)`` walks depth-first.
-
-    The outer ``LawScaled(0.5, ...)`` wraps a ``LawSum``; each summand
-    is a ``LawScaled`` around a leaf. RE-POSED at S2: the realised operator
-    is the law's image in the free vector space, FLATTENED with the scalar
-    DISTRIBUTED — the terms {spec: 0.5·0.3, white: 0.5·0.7}, never a nested
-    tree (``α(A + B) = αA + αB``, ruling 23). 0.5 is dyadic, so the
-    coefficients are the exact products.
-    """
-    quad = Quadrature.lebedev(17)
-    ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
-    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
-    white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
-    tree = 0.5 * (0.3 * spec + 0.7 * white)
-    op = realize_recursively(tree, ms, SNBoundaryRealizer())
-    assert isinstance(op, OperatorSum)
-    assert [c for c, _ in op.terms] == [0.5 * 0.3, 0.5 * 0.7]
-    assert not any(isinstance(w, OperatorSum) for _, w in op.terms)
 
 
-@pytest.mark.l1
-def test_realize_recursively_nested_apply_matches_distributive_form() -> None:
-    """``walker(0.5 * (0.3 * spec + 0.7 * white)).apply(psi)`` matches
-    ``0.5 * (0.3 * spec_realised.apply(psi) + 0.7 * white_realised.apply(psi))``.
-
-    Verifies the walker preserves the scalar-distributes-over-sum
-    identity through depth-first recursion. ``nulp=4`` covers
-    binary-reduction FP order.
-    """
-    quad = Quadrature.lebedev(17)
-    ms = face_method_space(quad, face="xmax")   # B3.2: reflective needs a face
-    spec = AlbedoBoundary(1.0, SpecularReturn(axis="x"))
-    white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
-    spec_realised = SNBoundaryRealizer().realize(spec, ms)
-    white_realised = SNBoundaryRealizer().realize(white, ms)
-    composed = realize_recursively(
-        0.5 * (0.3 * spec + 0.7 * white), ms, SNBoundaryRealizer(),
-    )
-    rng = np.random.default_rng(5)
-    psi = rng.uniform(0.0, 2.0, size=(ms.outflow_indices.size, 4))
-    expected = 0.5 * (
-        0.3 * spec_realised.apply(psi)
-        + 0.7 * white_realised.apply(psi)
-    )
-    np.testing.assert_array_almost_equal_nulp(
-        composed.apply(psi), expected, nulp=4,
-    )
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -379,25 +250,16 @@ def test_realize_recursively_nested_apply_matches_distributive_form() -> None:
 # ═════════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.foundation
-def test_realize_recursively_raises_type_error_on_unknown_node() -> None:
-    """A node neither :class:`BoundaryTraceLaw` nor :class:`LawSum` /
-    :class:`LawScaled` raises :class:`TypeError`."""
-    quad = Quadrature.gauss_legendre(4)
-    ms = SNMethodSpace.minimal(quad)
 
-    class _NotALaw:
-        pass
+# ─────────────────────────────────────────────────────────────────────
+# RETIRED at wave 2 S2b (retirement-audit D.14 demotion check): the eight ``realize_recursively`` rows (leaf dispatch, scaled wrap,
+# sum, pointwise weighted sum, depth-first walk, nested distributive form, the unknown-node and ndarray-leaf TypeErrors) pinned the
+# tree walker ``realize_recursively`` against ``SNBoundaryRealizer``. The walker and the realizer class are deleted (the carve
+# retires the descriptor tree: a weighted mixture of walls is ONE ``WallCondition`` whose network is a sum of chains, realized by
+# the table to a ``RealizedSum``). Their claims: the leaf dispatch and the weighted sum are
+# ``tests/gates/sn/operators/test_sn_boundary_realizer.py::TestRealizeTheWeightedWalls`` (the sum of the images in the canonical
+# order, weight 1 the bare kernel and a partial weight the scaled one); distributivity and nesting are the algebra of
+# ``WallCondition`` itself, ``tests/gates/transport/test_wall_condition_algebra.py``; the TypeError rows have no subject (a
+# declaration is a typed value, not a duck-typed tree). Section 3 of this file is gone with them; the descriptor tree rows above
+# (``LawSum``/``LawScaled`` construction) stay until their classes retire at WF2.4.
 
-    with pytest.raises(TypeError, match="LawSum | LawScaled"):
-        realize_recursively(_NotALaw(), ms, SNBoundaryRealizer())  # type: ignore[arg-type]
-
-
-@pytest.mark.foundation
-def test_realize_recursively_raises_on_ndarray_leaf() -> None:
-    """A plain ndarray is not a descriptor — walker raises
-    :class:`TypeError`."""
-    quad = Quadrature.gauss_legendre(4)
-    ms = SNMethodSpace.minimal(quad)
-    with pytest.raises(TypeError, match="LawSum | LawScaled"):
-        realize_recursively(np.eye(3), ms, SNBoundaryRealizer())  # type: ignore[arg-type]

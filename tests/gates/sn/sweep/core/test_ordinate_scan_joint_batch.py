@@ -26,7 +26,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn import loss_representation as sweep_module
 from orpheus.sn.problem import SNProblem
@@ -35,13 +35,20 @@ from orpheus.transport.fields import AngularSourceSink
 from tests.gates.sn._test_helpers import sweep_once
 from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 def _slab_setup(N: int = 4, nx: int = 8, ng: int = 2):
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 1.0), (0,), left=0, right=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
-    problem = SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=N), placeholder_materials(ng=ng))
+    problem = SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=N), placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     # Issue #197 PR-TYPED-4: strict typed source.
     Q = AngularSourceSink.from_isotropic(np.full((ng, nx), 1.0), problem)
@@ -51,9 +58,9 @@ def _slab_setup(N: int = 4, nx: int = 8, ng: int = 2):
 
 def _sphere_setup(N: int = 4, nx: int = 8, ng: int = 2):
     mesh = Mesher(
-        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum")),
+        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(nx)).mesh
-    problem = SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=N), placeholder_materials(ng=ng))
+    problem = SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=N), placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     # Issue #197 PR-TYPED-4: strict typed source.
     Q = AngularSourceSink.from_isotropic(np.full((ng, nx), 1.0), problem)

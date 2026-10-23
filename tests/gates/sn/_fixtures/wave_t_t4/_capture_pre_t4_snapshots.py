@@ -64,7 +64,8 @@ sys.path.insert(0, str(_REPO_ROOT))
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
@@ -76,6 +77,13 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from dataclasses import replace
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 OUT_NPZ = Path(__file__).parent / "pre_t4_snapshots.npz"
 OUT_JSON = Path(__file__).parent / "pre_t4_walltime.json"
@@ -132,33 +140,33 @@ def _mix_2g_p1_asymmetric() -> "make_mixture":
 
 
 def _slab_mesh(
-    *, ng: int, bc_left: BC, bc_right: BC, nx: int = 20, N: int = 8,
+    *, ng: int, bc_left, bc_right, nx: int = 20, N: int = 8,
 ) -> SNProblem:
     mix = _mix_1g() if ng == 1 else _mix_2g_p1_asymmetric()
     mesh = Mesher(StructuredGeometry.slab((0.0, 4.0), (0,), left=bc_left, right=bc_right)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(N)
-    return SNProblem(mesh, quad, {0: mix})
+    return SNProblem(mesh, quad, {0: mix}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _sphere_mesh(*, ng: int, nx: int = 20, N: int = 8) -> SNProblem:
     mix = _mix_1g() if ng == 1 else _mix_2g_p1_asymmetric()
-    mesh = Mesher(StructuredGeometry.sphere((0.0, 4.0), (0,), outer=BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.sphere((0.0, 4.0), (0,), outer=0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(N)
-    return SNProblem(mesh, quad, {0: mix})
+    return SNProblem(mesh, quad, {0: mix}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _cylinder_mesh(*, ng: int, nx: int = 20, sn_order: int = 4) -> SNProblem:
     """Cylinder on the carrying folded family (μ-levels; LS until Q5.6.3)."""
     mix = _mix_1g() if ng == 1 else _mix_2g_p1_asymmetric()
-    mesh = Mesher(StructuredGeometry.cylinder((0.0, 4.0), (0,), outer=BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.cylinder((0.0, 4.0), (0,), outer=0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.folded_product(n_mu=sn_order, n_phi=2 * sn_order)
-    return SNProblem(mesh, quad, {0: mix})
+    return SNProblem(mesh, quad, {0: mix}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _cart2d_mesh(
@@ -166,15 +174,15 @@ def _cart2d_mesh(
 ) -> SNProblem:
     """2-D Cartesian — exercises the 2-D representation ``loss_action`` path (the matvec walk that since S6.3 lives on the loss representation, off the operator; ScanMarch default since S6.9)."""
     mix = _mix_1g() if ng == 1 else _mix_2g_p1_asymmetric()
-    bc = BC("reflective") if bc_kind == "specular" else BC("vacuum")
+    bc = MirrorDeck() if bc_kind == "specular" else 0
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 2.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        face_laws={"xmin": bc, "xmax": bc, "ymin": bc, "ymax": bc},
+        face_roles={"xmin": bc, "xmax": bc, "ymin": bc, "ymax": bc},
     )
     quad = Quadrature.level_symmetric(sn_order=sn_order)
-    return SNProblem(mesh, quad, {0: mix})
+    return SNProblem(mesh, quad, {0: mix}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -301,7 +309,7 @@ def _capture_perf_baseline(snapshots: dict[str, np.ndarray]) -> dict:
     """
     import platform
 
-    problem = _slab_mesh(ng=2, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+    problem = _slab_mesh(ng=2, bc_left=0, bc_right=0,
                          nx=40, N=8)
     L, C = _build_L_C(problem)
     LpC = L + C
@@ -346,12 +354,12 @@ def main() -> None:
     # ── Slab arms ─────────────────────────────────────────────────
     _capture_apply(
         "slab_1g_vacuum",
-        _slab_mesh(ng=1, bc_left=BC("vacuum"), bc_right=BC("vacuum")),
+        _slab_mesh(ng=1, bc_left=0, bc_right=0),
         seed=SEED_BASE + 1, snapshots=snapshots,
     )
     _capture_apply(
         "slab_2g_vacuum",
-        _slab_mesh(ng=2, bc_left=BC("vacuum"), bc_right=BC("vacuum")),
+        _slab_mesh(ng=2, bc_left=0, bc_right=0),
         seed=SEED_BASE + 2, snapshots=snapshots,
     )
     # Spec mandated "white BC" to catch BC convention drift; the SN
@@ -365,7 +373,7 @@ def main() -> None:
     # structurally distinct from vacuum (permutation vs incoming-mask).
     _capture_apply(
         "slab_2g_reflective",
-        _slab_mesh(ng=2, bc_left=BC("reflective"), bc_right=BC("vacuum")),
+        _slab_mesh(ng=2, bc_left=MirrorDeck(), bc_right=0),
         seed=SEED_BASE + 3, snapshots=snapshots,
     )
 
@@ -415,7 +423,7 @@ def main() -> None:
     # ── (L+C).apply for 4 geometries — verifies algebra-decomposition ─
     _capture_LpC_apply(
         "slab_2g_vacuum",
-        _slab_mesh(ng=2, bc_left=BC("vacuum"), bc_right=BC("vacuum")),
+        _slab_mesh(ng=2, bc_left=0, bc_right=0),
         seed=SEED_BASE + 41, snapshots=snapshots,
     )
     _capture_LpC_apply(
@@ -438,7 +446,7 @@ def main() -> None:
     # ── (L+C).solve for 3 geometries — verifies .solve UNTOUCHED ──
     _capture_LpC_solve(
         "slab_2g_vacuum",
-        _slab_mesh(ng=2, bc_left=BC("vacuum"), bc_right=BC("vacuum")),
+        _slab_mesh(ng=2, bc_left=0, bc_right=0),
         seed=SEED_BASE + 51, snapshots=snapshots,
     )
     _capture_LpC_solve(

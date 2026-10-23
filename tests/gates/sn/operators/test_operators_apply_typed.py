@@ -42,7 +42,7 @@ from typing import Any, assert_type, cast
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.sn.problem import SNProblem
@@ -75,6 +75,14 @@ from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.sn.operators.windowing import BulkAnalysisOperator, WindowedSweep
 from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 
 pytestmark = [pytest.mark.foundation]
@@ -90,11 +98,11 @@ def _slab_mesh(nx: int = 5, n_ord: int = 4, ng: int = 2) -> SNProblem:
         coord=CoordSystem.CARTESIAN,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC.reflective, BC.reflective),
+        face_roles=(MirrorDeck(), MirrorDeck()),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _sphere_mesh(nx: int = 5, n_ord: int = 4, ng: int = 2) -> SNProblem:
@@ -102,11 +110,11 @@ def _sphere_mesh(nx: int = 5, n_ord: int = 4, ng: int = 2) -> SNProblem:
         coord=CoordSystem.SPHERICAL,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 GEOMETRIES = [("slab", _slab_mesh), ("sphere", _sphere_mesh)]

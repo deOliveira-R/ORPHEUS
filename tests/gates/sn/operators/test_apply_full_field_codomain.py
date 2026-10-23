@@ -48,7 +48,7 @@ from orpheus.derivations.continuous.analytical.homogeneous import (
     derive_1g_continuous,
     derive_2g_continuous,
 )
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.operators.boundary import SNBoundaryOperator
@@ -60,6 +60,8 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
+from tests.gates.sn._test_helpers import CURVED_REFLECTIVE, reflective_role
+from tests.gates._exterior import conditions_for
 
 pytestmark = pytest.mark.foundation
 
@@ -81,7 +83,7 @@ def _get_continuous_case(ng_key: str):
 
 def _homogeneous_mesh(coord: str, mat_id: int) -> Mesh1D:
     geom = StructuredGeometry.uniform_boundary(
-        _COORD[coord], (0.0, 2.0), (mat_id,), BC("reflective"),
+        _COORD[coord], (0.0, 2.0), (mat_id,), reflective_role(_COORD[coord]),
     )
     return Mesher(geom).partition(CellsByCount.uniform_volume(6)).mesh
 
@@ -100,7 +102,7 @@ def _solver_for(coord: str, ng_key: str) -> tuple[SNSolver, object]:
     mat_id = next(iter(case.problem.materials.keys()))
     mesh = _homogeneous_mesh(coord, mat_id)
     quad = _quadrature_for(coord)
-    problem = _as_problem(mesh, quad, case.problem.materials)
+    problem = _as_problem(mesh, quad, case.problem.materials, boundary_conditions=conditions_for(mesh, CURVED_REFLECTIVE))
     solver = SNSolver(problem)
     return solver, case
 
@@ -257,7 +259,7 @@ def test_c5b_driver_reattach_recovers_kinf(coord: str, inner_solver: str) -> Non
         case.problem.materials, mesh, quad,
         inner_solver=inner_solver,
         max_outer=1000, keff_tol=1e-14, flux_tol=1e-12,
-        max_inner=1000, inner_tol=1e-12,
+        max_inner=1000, inner_tol=1e-12, boundary_conditions=conditions_for(mesh, CURVED_REFLECTIVE),
     )
     keff, k_ref = result.outcome.keff, case.k_eff
     if keff is None or k_ref is None:

@@ -80,10 +80,12 @@ from orpheus.derivations.continuous.analytical.homogeneous import (
     derive_2g_continuous,
     derive_4g_continuous,
 )
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
+from tests.gates.sn._test_helpers import reflective_role, CURVED_REFLECTIVE
+from tests.gates._exterior import conditions_for
 
 
 pytestmark = pytest.mark.l1
@@ -99,7 +101,7 @@ _BUILDERS = {"2eg": derive_2g_continuous, "4eg": derive_4g_continuous}
 
 def _mesh(coord: str, mat_id: int, n_cells: int = 10, length: float = 2.0) -> Mesh1D:
     geom = StructuredGeometry.uniform_boundary(
-        _COORD[coord], (0.0, length), (mat_id,), BC.reflective,
+        _COORD[coord], (0.0, length), (mat_id,), reflective_role(_COORD[coord]),
     )
     return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 
@@ -163,7 +165,7 @@ def test_inner_tol_bias_collapses_at_1e_12(coord, ng_key):
     r_loose = solve_sn(
         case.problem.materials, mesh, quad,
         max_outer=200, keff_tol=1e-10, flux_tol=1e-9,
-        max_inner=100, inner_tol=1e-9,
+        max_inner=100, inner_tol=1e-9, boundary_conditions=conditions_for(mesh, CURVED_REFLECTIVE),
     )
     r_tight = solve_sn(
         case.problem.materials, mesh, quad,
@@ -171,7 +173,7 @@ def test_inner_tol_bias_collapses_at_1e_12(coord, ng_key):
         # 420, not 300: the tight leg is the REFERENCE this test measures
         # the loose leg against, so it must actually converge.  Measured
         # worst case across the four params is 409 (#340 R2).
-        max_inner=420, inner_tol=1e-12,
+        max_inner=420, inner_tol=1e-12, boundary_conditions=conditions_for(mesh, CURVED_REFLECTIVE),
     )
 
     drift_loose = abs(r_loose.outcome.keff - case.k_eff) / case.k_eff
@@ -213,7 +215,7 @@ def test_krylov_inner_matches_tight_si(coord, ng_key):
         case.problem.materials, mesh, quad,
         inner_solver="krylov",
         max_outer=200, keff_tol=1e-10, flux_tol=1e-9,
-        max_inner=100, inner_tol=1e-9,
+        max_inner=100, inner_tol=1e-9, boundary_conditions=conditions_for(mesh, CURVED_REFLECTIVE),
     )
     drift_kr = abs(r_kr.outcome.keff - case.k_eff) / case.k_eff
     # Krylov should converge cleanly without inner-SI amplification.

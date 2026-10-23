@@ -42,7 +42,7 @@ import numpy.testing as npt
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.metric import DenseMetric, FactoredMetric
@@ -52,6 +52,14 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.sn.solver import _as_problem
 from orpheus.transport.spatial import LinearDiscontinuous
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -100,9 +108,9 @@ def _population() -> dict[str, FunctionSpace]:
     ``folded_product(4, 8)``, and the dense-form spaces D1, D2 and D3."""
     mats = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     slab = Mesher(StructuredGeometry.slab(
-        (0.0, 0.37, 1.9, 4.13), (0, 1, 0), left=BC.vacuum, right=BC.reflective,
+        (0.0, 0.37, 1.9, 4.13), (0, 1, 0), left=0, right=MirrorDeck(),
     )).partition((CellsByCount.uniform_width(3), CellsByCount.uniform_width(5), CellsByCount.uniform_width(7))).mesh
-    cyl = Mesher(StructuredGeometry.cylinder((0.0, 1.0, 2.5), (0, 1), outer=BC.vacuum)).partition(
+    cyl = Mesher(StructuredGeometry.cylinder((0.0, 1.0, 2.5), (0, 1), outer=0)).partition(
         (CellsByCount.uniform_width(3), CellsByCount.uniform_width(4)),
     ).mesh
     spaces = {
@@ -113,11 +121,10 @@ def _population() -> dict[str, FunctionSpace]:
         ),
     }
     for n in (5, 8, 16):
-        spaces[f"slab GL{n} bulk"] = _as_problem(slab, Quadrature.gauss_legendre(n_ordinates=n), mats).angular_bulk_space
+        spaces[f"slab GL{n} bulk"] = _as_problem(slab, Quadrature.gauss_legendre(n_ordinates=n), mats, boundary_conditions=conditions_for(slab, _CONDITIONS)).angular_bulk_space
     spaces["slab GL8 LD trial"] = _as_problem(
-        slab, Quadrature.gauss_legendre(n_ordinates=8), mats, scheme=LinearDiscontinuous(),
-    ).angular_trial_space
-    spaces["cylinder folded(4,8) bulk"] = _as_problem(cyl, Quadrature.folded_product(4, 8), mats).angular_bulk_space
+        slab, Quadrature.gauss_legendre(n_ordinates=8), mats, scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(slab, _CONDITIONS)).angular_trial_space
+    spaces["cylinder folded(4,8) bulk"] = _as_problem(cyl, Quadrature.folded_product(4, 8), mats, boundary_conditions=conditions_for(cyl, _CONDITIONS)).angular_bulk_space
     spaces["D1 dense form on a kept axis"] = _d1()
     spaces["D2 dense form on the collapsed axis"] = _d2()
     spaces["D3 (angular x spatial) * dense head"] = _d3()

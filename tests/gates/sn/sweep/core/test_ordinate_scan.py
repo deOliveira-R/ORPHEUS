@@ -29,7 +29,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.sn.mesh.reduced_operator import (
     cylindrical_streaming,
@@ -481,19 +481,19 @@ class TestNumericalStability:
 
 def _slab_mesh(nx: int = 5, length: float = 1.0) -> Mesh1D:
     return Mesher(StructuredGeometry.slab(
-        (0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, length), (0,), left=0, right=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
 
 
 def _spherical_mesh(nx: int = 5, radius: float = 1.0) -> Mesh1D:
     return Mesher(
-        StructuredGeometry.sphere((0.0, radius), (0,), outer=BC("vacuum")),
+        StructuredGeometry.sphere((0.0, radius), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(nx)).mesh
 
 
 def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> Mesh1D:
     return Mesher(
-        StructuredGeometry.cylinder((0.0, radius), (0,), outer=BC("vacuum")),
+        StructuredGeometry.cylinder((0.0, radius), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(nx)).mesh
 
 

@@ -33,7 +33,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -43,6 +43,13 @@ from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.numerics.coefficient_layout import DegreeLayout
 from orpheus.numerics.spaces.moment_head import head_layout
 from orpheus.numerics import frame_faces
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.foundation]
 
@@ -66,7 +73,7 @@ def _sn(family: str = "flat") -> SNProblem:
     ``"rectangular"`` — ``level_symmetric(4)``: a full-sphere rule, so the head
     is the harmonics' ``(L+1, 2L+1)``.
     """
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(_NX),
     ).mesh
     quadrature = (
@@ -79,7 +86,7 @@ def _sn(family: str = "flat") -> SNProblem:
     # angular side's rule since CS4b S4), so a widened request on a DD
     # carrier is refused rather than given a Euclidean tail. Width-1 rows
     # are scheme-blind (no tail).
-    return SNProblem(mesh, quadrature, placeholder_materials(ng=_NG), scheme=LinearDiscontinuous())
+    return SNProblem(mesh, quadrature, placeholder_materials(ng=_NG), scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _head(sn: SNProblem, L: int = _L) -> DegreeLayout:

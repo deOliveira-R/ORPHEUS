@@ -54,6 +54,13 @@ from tests.gates.sn._test_helpers import (
     make_tiny_spherical_sn_mesh,
     redistribution_via_live_path,
 )
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0), 1: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -536,17 +543,17 @@ class TestMintedScanConstants:
 
     @staticmethod
     def _mm_cylinder():
-        from orpheus.geometry import BC, StructuredGeometry
+        from orpheus.geometry import StructuredGeometry
         from orpheus.mesh import CellsByCount, Mesher
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.sn.problem import SNProblem
         from tests.gates.sn._test_helpers import placeholder_materials
 
         mesh = Mesher(StructuredGeometry.cylinder(
-            (0.01, 2.0), (0,), inner=BC("reflective"), outer=BC("vacuum"),
+            (0.01, 2.0), (0,), inner=0, outer=1,
         )).partition(CellsByCount.uniform_width(8)).mesh
         quad = Quadrature.folded_product(n_mu=4, n_phi=6)
-        sn = SNProblem(mesh, quad, placeholder_materials(ng=2))
+        sn = SNProblem(mesh, quad, placeholder_materials(ng=2), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         closure = sn.angular_closure
         assert isinstance(closure, MorelMontryAngularSweep)
         return closure

@@ -25,7 +25,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -37,6 +37,14 @@ from orpheus.sn.loss_representation import (
 )
 from orpheus.sn.loss_representation.sweep_graph import OctantLabel, SweepDependencyGraph
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+from orpheus.geometry.deck import MirrorDeck
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -46,11 +54,11 @@ def _build_2d_mesh(nx: int = 3, ny: int = 3) -> Mesh2D:
         edges_x=np.linspace(0.0, 1.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
         },
     )
 
@@ -59,8 +67,8 @@ def _build_mesh(coord: str) -> SNProblem:
     """The standard per-coordinate-system SNProblem builder."""
     if coord == "cart2d":
         return SNProblem(
-            _build_2d_mesh(3, 4), Quadrature.level_symmetric(4),
-            placeholder_materials(),
+            (_carrier1 := _build_2d_mesh(3, 4)), Quadrature.level_symmetric(4),
+            placeholder_materials(), boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
         )
     coord_sys = {
         "slab": CoordSystem.CARTESIAN,
@@ -69,18 +77,18 @@ def _build_mesh(coord: str) -> SNProblem:
     }[coord]
     # Reflective at a slab's left face; a solid body's centre carries no law.
     laws = (
-        (BC("reflective"), BC("vacuum")) if coord_sys is CoordSystem.CARTESIAN
-        else (BC("vacuum"),)
+        (MirrorDeck(), 0) if coord_sys is CoordSystem.CARTESIAN
+        else (0,)
     )
     mesh = Mesher(StructuredGeometry(
-        coord=coord_sys, breakpoints=(0.0, 1.0), mat_ids=(0,), boundaries=laws,
+        coord=coord_sys, breakpoints=(0.0, 1.0), mat_ids=(0,), face_roles=laws,
     )).partition(CellsByCount.uniform_width(3)).mesh
     quad = (
         Quadrature.gauss_legendre(8)
         if coord in ("slab", "sphere")
         else Quadrature.folded_product(n_mu=4, n_phi=8)
     )
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -318,7 +326,7 @@ class TestForShapeTypeContract:
         shape — a Lebedev-quadrature mesh consumes the SAME 4 in-plane
         octant graphs (sign_z is dropped by the in-plane projection)."""
         sn = SNProblem(
-            _build_2d_mesh(4, 4), Quadrature.lebedev(5), placeholder_materials(),
+            (_carrier2 := _build_2d_mesh(4, 4)), Quadrature.lebedev(5), placeholder_materials(), boundary_conditions=conditions_for(_carrier2, _CONDITIONS),
         )
         graphs = MovingFrontierWindow.pose(sn).sweep_graphs
         np.testing.assert_array_equal(

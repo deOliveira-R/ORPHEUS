@@ -27,7 +27,8 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
 from scipy.sparse import csr_matrix
-from orpheus.geometry import BC
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.sn import solve_sn_fixed_source
@@ -255,7 +256,7 @@ def material_xs_from_raw(
         edges_x=np.arange(nx + 1, dtype=float),
         edges_y=np.arange(ny + 1, dtype=float),
         mat_map=mat_map,
-        face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
+        face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     return MaterialXSField.from_mesh(MaterialMesh(mesh, materials))
 
@@ -349,26 +350,43 @@ def face_method_space(quadrature, face="xmax", faces=("xmin", "xmax")):
 # verification/analytical/) share ONE definition rather than each
 # carrying a copy.
 
+#: The unit specular wall a CURVED body's face takes where a Cartesian body takes a mirror deck (rule R2: a curved face carries a
+#: tag, never a deck). Tag ``0`` is the default role of the shared curvilinear builders below, and this is its table: a test that
+#: builds a curved body with the default role declares ``boundary_conditions=CURVED_REFLECTIVE`` at its solve.
+CURVED_REFLECTIVE = {0: WallCondition.specular(1.0)}
+
+
+def reflective_role(coord, tag: int = 0):
+    """A mirror deck on a Cartesian body, the tag ``tag`` (default ``0``, see :data:`CURVED_REFLECTIVE`) on a curved one.
+
+    A test whose own table maps another tag to the unit specular wall passes that tag.
+    """
+    from orpheus.geometry import CoordSystem
+
+    return MirrorDeck() if coord is CoordSystem.CARTESIAN else tag
+
+
 def curvilinear_homogeneous_mesh(
     n_cells: int,
     total_width: float,
     mat_id: int = 0,
     coord=None,
-    bc=None,
+    role=None,
 ):
     """Single-region uniform mesh in any coordinate system.
 
-    SN tests default to ``BC.reflective`` (the eigenvalue / lattice
-    convention). CP tests must override to ``BC.white`` because CP
-    only supports ``"vacuum"`` / ``"white"``.
+    SN tests default to the reflective role (the eigenvalue / lattice
+    convention): a mirror deck on a Cartesian body, tag ``0`` on a curved one,
+    whose condition is :data:`CURVED_REFLECTIVE`. Any other ``role`` (a deck, or
+    an ``int`` tag the caller declares a condition for) is taken verbatim.
     """
-    from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+    from orpheus.geometry import CoordSystem, StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     if coord is None:
         coord = CoordSystem.CARTESIAN
-    if bc is None:
-        bc = BC.reflective
-    geom = StructuredGeometry.uniform_boundary(coord, (0.0, total_width), (mat_id,), bc)
+    if role is None:
+        role = reflective_role(coord)
+    geom = StructuredGeometry.uniform_boundary(coord, (0.0, total_width), (mat_id,), role)
     return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 
 
@@ -377,14 +395,14 @@ def curvilinear_two_region_mesh(
     mat_ids,
     n_cells,
     coord,
-    bc=None,
+    role=None,
 ):
-    """Two-region mesh; ``outers`` are the regions' outer positions."""
-    from orpheus.geometry import BC, StructuredGeometry
+    """Two-region mesh; ``outers`` are the regions' outer positions (the default role as in :func:`curvilinear_homogeneous_mesh`)."""
+    from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
-    if bc is None:
-        bc = BC.reflective
-    geom = StructuredGeometry.uniform_boundary(coord, (0.0, *outers), mat_ids, bc)
+    if role is None:
+        role = reflective_role(coord)
+    geom = StructuredGeometry.uniform_boundary(coord, (0.0, *outers), mat_ids, role)
     return Mesher(geom).partition(
         tuple(CellsByCount.uniform_volume(n) for n in n_cells),
     ).mesh
@@ -409,6 +427,7 @@ def make_tiny_spherical_sn_mesh(n_cells: int = 2, sn_order: int = 2) -> "SNProbl
     )
     return SNProblem(
         mesh, Quadrature.gauss_legendre(sn_order), placeholder_materials(),
+        boundary_conditions=CURVED_REFLECTIVE,
     )
 
 
@@ -421,7 +440,7 @@ def cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> "SNProblem":
     Promoted from ``test_one_octant_walk.py`` when the S6.5
     one-instance tests became its second consumer.
     """
-    from orpheus.geometry import BC, CoordSystem
+    from orpheus.geometry import CoordSystem
     from orpheus.mesh import Mesh2D
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.problem import SNProblem
@@ -431,11 +450,11 @@ def cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> "SNProblem":
         edges_y=np.linspace(0.0, 3.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2))
@@ -1354,3 +1373,25 @@ def build_nonvacuum_fixed_source(case: NonVacuumMMSCase, problem: "SNProblem") -
         ),
         boundary=mms_prescribed_inflow(case, problem),
     )
+
+
+def realized_slab_faces(quadrature, left: str = "vacuum", right: str = "vacuum"):
+    """The realized ``(xmin, xmax)`` boundary operators of a one-cell slab on ``quadrature`` (wave 2 S2b).
+
+    ``"vacuum"`` is the tag ``0`` declared as the vacuum wall and ``"reflective"`` the mirror deck, the vocabulary the DSA rate and
+    low-order gates were written in; the faces come out of the real posing path (a throwaway one-cell ``SNProblem`` and its
+    ``bc``), so a test that feeds them to ``DSALowOrderSystem._build`` exercises the shipped realization and not a hand-built twin.
+    """
+    from orpheus.geometry import StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
+    from orpheus.sn.problem import SNProblem
+
+    role = {"vacuum": 0, "reflective": MirrorDeck()}
+    mesh = Mesher(StructuredGeometry.slab((0.0, 1.0), (0,), left=role[left], right=role[right])).partition(
+        CellsByCount.uniform_width(1),
+    ).mesh
+    problem = SNProblem(
+        mesh, quadrature, placeholder_materials(),
+        boundary_conditions={0: WallCondition.vacuum()} if 0 in (role[left], role[right]) else {},
+    )
+    return problem.bc["xmin"], problem.bc["xmax"]

@@ -66,6 +66,14 @@ import hashlib
 import os
 
 import numpy as np
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 _MUT = os.environ.get("ORPHEUS_B32", "").strip()
 
@@ -85,19 +93,19 @@ def _mutated_reflect_trace(mut: str):
         mesh = self.problem
         trace = mesh.angular_trace
         out_boundary = AngularBoundarySourceSink.zeros(mesh.angular_trace)
-        face_laws = self._face_laws
+        face_operators = self._face_operators
         if faces is not None:
-            unknown = set(faces) - set(face_laws)
+            unknown = set(faces) - set(face_operators)
             if unknown:
                 raise ValueError(
                     f"_reflect_trace: face(s) {sorted(unknown)} are not "
                     f"boundary faces of this mesh; available faces: "
-                    f"{sorted(face_laws)}."
+                    f"{sorted(face_operators)}."
                 )
-            face_laws = {f: face_laws[f] for f in faces}
+            face_operators = {f: face_operators[f] for f in faces}
         if rows is not None:
-            face_laws = {f: law for f, law in face_laws.items() if f in rows}
-        for face, law in face_laws.items():
+            face_operators = {f: law for f, law in face_operators.items() if f in rows}
+        for face, law in face_operators.items():
             face_in = boundary.face_view(face)
             gamma_out = trace.outflow_restriction(face)
             gamma_in = trace.inflow_restriction(face)
@@ -262,7 +270,7 @@ def _bite_fingerprint() -> str:
     try:
         from dataclasses import replace
 
-        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+        from orpheus.geometry import CoordSystem, StructuredGeometry
         from orpheus.mesh import CellsByCount, Mesher
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.sn.problem import SNProblem
@@ -276,10 +284,10 @@ def _bite_fingerprint() -> str:
             coord=CoordSystem.CARTESIAN,
             breakpoints=(0.0, 2.0),
             mat_ids=(0,),
-            boundaries=(BC.vacuum, BC.reflective),
+            face_roles=(0, MirrorDeck()),
         )
         mesh = Mesher(geom).partition(CellsByCount.uniform_volume(4)).mesh
-        sn = SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=1))
+        sn = SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=1), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         z = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
         )

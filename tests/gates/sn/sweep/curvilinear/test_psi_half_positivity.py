@@ -103,12 +103,19 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.angular.closure import morel_montry_tau_per_level
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -128,11 +135,11 @@ def _heterogeneous_2g_cylinder(n_phi: int, *, n_mu: int = 4, nx: int = 12):
     angular recurrence redistributes (`vv-principles` #3/#4).
     """
     mesh = Mesher(StructuredGeometry.cylinder(
-        (0.0, 1.0, 2.0), (0, 1), outer=BC("vacuum"),
+        (0.0, 1.0, 2.0), (0, 1), outer=0,
     )).partition(CellsByCount.uniform_width(nx // 2)).mesh
     quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    return SNProblem(mesh, quad, materials)
+    return SNProblem(mesh, quad, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _converged_flux(sn):
@@ -148,7 +155,7 @@ def _converged_flux(sn):
     solution = solve_sn_fixed_source(
         sn.materials, sn.mesh, sn.quad,
         external_source=np.ones((sn.quad.n_ordinates, 2, sn.nx)),
-        inner_tol=1e-12,
+        inner_tol=1e-12, boundary_conditions=conditions_for(sn.mesh, _CONDITIONS),
     )
     psi = np.asarray(solution.angular_flux.interior.values, dtype=float)
     radial_characteristic = solution.radial_characteristic

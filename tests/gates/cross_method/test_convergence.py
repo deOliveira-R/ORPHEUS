@@ -4,10 +4,11 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
+from orpheus.geometry.deck import MirrorDeck
 
 # L2 cross-solver consistency check (SN ↔ CP).
 pytestmark = [
@@ -39,7 +40,7 @@ def test_sn_approaches_cp_reference():
         coord=CoordSystem.CARTESIAN,
         thicknesses=(0.5, 0.5),
         mat_ids=(2, 0),
-        boundaries=(BC.reflective, BC.reflective),
+        face_roles=(MirrorDeck(), MirrorDeck()),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(40)).mesh
     quad = Quadrature.gauss_legendre(32)

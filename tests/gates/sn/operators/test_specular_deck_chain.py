@@ -6,10 +6,10 @@ The Lambertian is a two-link chain :math:`\Gamma_+(f) \to S(f) \to
 specular mirror is the **same structure with one link** — no separate "atomic"
 arm, just a shorter chain. The kernel returns its
 :class:`~orpheus.numerics.elementary_operators.PermutationOperator` bound
-:math:`\Gamma_+(f) \to \Gamma_-(f)`. (Since G6.3 step 7 the body is
-``_deck_kernel``, deriving the permutation from the mirror MOTION rather
-than the axis-letter table; these gates migrated with the rename and their
-claims are unchanged.)
+:math:`\Gamma_+(f) \to \Gamma_-(f)`. (Since wave 2 S2b the body is the
+inner permutation of ``ScaledOrdinatePermutation``, which derives it from the
+mirror MOTION; these gates migrated with the retirement of ``_deck_kernel`` and
+their claims are unchanged.)
 
 What these gates are FOR — the mutation measurement that shaped them
 --------------------------------------------------------------------
@@ -103,19 +103,14 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.geometry.boundary import BoundaryError, ReflectiveBoundary
+from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.elementary_operators import PermutationOperator
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
 from orpheus.geometry.boundary import SelfPairedDeck
-from orpheus.sn.boundary.realizer import (
-    SNBoundaryRealizer,
-    _deck_kernel,
-    _outflow_restriction,
-    _specular_crossed_diagnosis,
-)
+from orpheus.sn.boundary.realized_operators import ScaledOrdinatePermutation
 from orpheus.sn.mesh.method_space import SNMethodSpace
 
 pytestmark = pytest.mark.l1
@@ -142,6 +137,17 @@ _CASES: dict[str, tuple] = {
 }
 
 
+def _mirror_kernel(quad, method_space, *, axis: str, domain_face: str) -> PermutationOperator:
+    """The permutation the mirror of ``axis`` induces on the ordinates, as the realized operator gathers it: the ``PermutationOperator``
+    inside ``ScaledOrdinatePermutation(1, pi, face, partner)`` (wave 2 S2b: the typed operator owns the body that ``_deck_kernel`` did)."""
+    motion = SelfPairedDeck.mirror(axis=axis).motion
+    op = ScaledOrdinatePermutation(
+        alpha=1.0, permutation=quad.ordinate_permutation(RigidMotion(motion.linear)),
+        face=method_space.face, partner=domain_face, trace=method_space.trace,
+    )
+    return op.inner.ops[0]
+
+
 def _fixture(case: str):
     """``(quad, trace, method_space, gamma_out, P, axis, face)`` for a case."""
     factory, face, axis = _CASES[case]
@@ -153,14 +159,8 @@ def _fixture(case: str):
     method_space = SNMethodSpace.for_face(
         quadrature=quad, face=face, trace=trace
     )
-    gamma_out = _outflow_restriction(method_space, "reflective")
-    kernel = _deck_kernel(
-        quad, method_space, gamma_out,
-        motion=SelfPairedDeck.mirror(axis=axis).motion,
-        domain_face=face,
-        law_key="reflective",
-        crossed_diagnosis=_specular_crossed_diagnosis(axis, face),
-    )
+    gamma_out = trace.outflow_restriction(face)
+    kernel = _mirror_kernel(quad, method_space, axis=axis, domain_face=face)
     return quad, trace, method_space, gamma_out, kernel, axis, face
 
 
@@ -566,24 +566,14 @@ class TestTheHilbertAdjointCarriesTheMetric:
 # ─────────────────────────────────────────────────────────────────────
 
 
-def test_a_spaceless_method_space_is_REFUSED_by_the_deck_arm() -> None:
-    r"""G6.5 — the deck arm's optional-binding branch is RETIRED.
+def test_the_unbound_twin_is_the_control_of_every_refusal() -> None:
+    r"""The positive control of the module's refusals (G6.5, re-posed at wave 2 S2b).
 
-    Until G6.5 this row pinned the opposite claim ("a trace-less method
-    space yields an unbound kernel"): direct dataclass construction with
-    ``trace=None`` reached the kernel and produced a silently UNBOUND arrow
-    — same gathered rows, no composability check, ``.H`` degraded to the
-    bare Euclidean transpose (the ERR-076 shape). The pairing's local row
-    order is now the SPACE's own (``Γ₊.to_local``) and the deck arrow is
-    returned fully bound, so the spaceless path is refused with the
-    constructor advice the sibling refusals already give. (#330's tree-wide
-    optional-binding era continues at the base tier; the deck arm's
-    requirement is a LAW input — the B3.2 class — not a base mandate.)
-
-    The positive-control half the old row carried — "unbound, the square
-    composes; so the module's refusals are about the SPACES, not the
-    permutation" — re-poses below on a directly-built unbound
-    ``PermutationOperator`` carrying the bound kernel's own ``perm``.
+    Until G6.5 a trace-less method space yielded a silently UNBOUND arrow (the ERR-076 shape); G6.5 made the deck arm refuse it
+    (``BoundaryError``, "without the bound half-trace spaces"). At wave 2 the refusal is retired with its subject:
+    ``ScaledOrdinatePermutation`` carries its ``trace`` as a required field and reads both half-spaces off the trace ladder, so the
+    unbound arrow is unspellable (nothing to refuse). What stays is the control half: the SAME permutation with no spaces composes with
+    itself, so every refusal in this module is attributable to the bound spaces, never to the permutation.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     layout = FaceLayout.from_named_shapes(
@@ -593,31 +583,7 @@ def test_a_spaceless_method_space_is_REFUSED_by_the_deck_arm() -> None:
     with_trace = SNMethodSpace.for_face(
         quadrature=quad, face="xmin", trace=bound_trace
     )
-    traceless = replace(with_trace, trace=None)
-
-    gamma_out = _outflow_restriction(traceless, "reflective")
-    assert gamma_out.domain is None and gamma_out.codomain is None
-    with pytest.raises(
-        BoundaryError, match="without the bound half-trace spaces"
-    ):
-        _deck_kernel(
-            quad, traceless, gamma_out,
-            motion=SelfPairedDeck.mirror(axis="x").motion,
-            domain_face="xmin",
-            law_key="reflective",
-            crossed_diagnosis=_specular_crossed_diagnosis("x", "xmin"),
-        )
-
-    # The control, off the retired path: the SAME permutation with no
-    # spaces composes with itself — so every refusal in this module is
-    # attributable to the bound spaces, never to the permutation.
-    bound = _deck_kernel(
-        quad, with_trace, _outflow_restriction(with_trace, "reflective"),
-        motion=SelfPairedDeck.mirror(axis="x").motion,
-        domain_face="xmin",
-        law_key="reflective",
-        crossed_diagnosis=_specular_crossed_diagnosis("x", "xmin"),
-    )
+    bound = _mirror_kernel(quad, with_trace, axis="x", domain_face="xmin")
     unbound_twin = PermutationOperator(np.asarray(bound.perm).copy(), axis=0)
     assert unbound_twin.domain is None
     assert (unbound_twin @ unbound_twin).domain is None
@@ -650,8 +616,6 @@ def test_the_realized_operator_carries_the_binding() -> None:
     method_space = SNMethodSpace.for_face(
         quadrature=quad, face="xmin", trace=trace
     )
-    realized = SNBoundaryRealizer().realize(
-        ReflectiveBoundary(axis="x"), method_space
-    )
+    realized = _mirror_kernel(quad, method_space, axis="x", domain_face="xmin")
     assert realized.domain is trace.outflow_space("xmin")
     assert realized.codomain is trace.inflow_space("xmin")

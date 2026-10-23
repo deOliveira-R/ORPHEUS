@@ -42,7 +42,7 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.mesh import AxisMesh
@@ -53,15 +53,23 @@ from orpheus.sn.solver import (
     solve_sn_fixed_source,
 )
 from orpheus.sn.problem import SNProblem
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 def _d3_axes(extents=(1.0, 2.0, 3.0), cells=(3, 4, 5), bcs=None):
     """Distinct counts AND extents per axis (Mode-2 asymmetry); all-reflective
     unless ``bcs`` declares the per-axis ``(low, high)`` laws."""
-    bcs = bcs or [(BC.reflective, BC.reflective)] * 3
+    bcs = bcs or [(MirrorDeck(), MirrorDeck())] * 3
     return tuple(
         AxisMesh(
-            edges=np.linspace(0.0, ext, n + 1), bc_low=lo, bc_high=hi,
+            edges=np.linspace(0.0, ext, n + 1), role_low=lo, role_high=hi,
         )
         for ext, n, (lo, hi) in zip(extents, cells, bcs)
     )
@@ -89,26 +97,28 @@ def test_kinf_3d_equals_2d_equals_1d_homogeneous_reflective(ng_key) -> None:
 
     sol3 = solve_sn(
         materials,
-        _d3_axes(extents=(0.5, 0.75, 0.5), cells=(2, 3, 2)),
-        quad3, keff_tol=1e-10, inner_tol=1e-11,
+        (_carrier1 := _d3_axes(extents=(0.5, 0.75, 0.5), cells=(2, 3, 2))),
+        quad3, keff_tol=1e-10, inner_tol=1e-11, boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
     )
     sol2 = solve_sn(
         materials,
-        Mesh2D(
+        (_carrier2 := Mesh2D(
             edges_x=np.linspace(0.0, 0.5, 3),
             edges_y=np.linspace(0.0, 0.75, 4),
             mat_map=np.zeros((2, 3), dtype=int),
-            face_laws={face: BC.reflective for face in ("xmin", "xmax", "ymin", "ymax")},
-        ),
-        quad3, keff_tol=1e-10, inner_tol=1e-11,
+            face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")},
+        )),
+        quad3, keff_tol=1e-10, inner_tol=1e-11, boundary_conditions=conditions_for(_carrier2, _CONDITIONS),
     )
     sol1 = solve_sn(
         materials,
-        Mesher(StructuredGeometry.from_homogeneous(0.5, BC.reflective)).partition(
+        Mesher(StructuredGeometry.from_homogeneous(0.5, MirrorDeck())).partition(
             CellsByCount.uniform_width(2),
         ).mesh,
         Quadrature.gauss_legendre(n_ordinates=8),
-        keff_tol=1e-10, inner_tol=1e-11,
+        keff_tol=1e-10, inner_tol=1e-11, boundary_conditions=conditions_for(Mesher(StructuredGeometry.from_homogeneous(0.5, MirrorDeck())).partition(
+            CellsByCount.uniform_width(2),
+        ).mesh, _CONDITIONS),
     )
 
     for label, sol in (("3-D", sol3), ("2-D", sol2), ("1-D", sol1)):
@@ -179,7 +189,7 @@ def test_d3_pure_absorber_per_ordinate_psi_exact() -> None:
         {0: mix}, _d3_axes(), quad,
         external_source=q,
         inner_tol=1e-13,
-        max_inner=4000,          # [M] 1631 sweeps needed here; ~2.5x headroom
+        max_inner=4000,          # [M] 1631 sweeps needed here; ~2.5x headroom, boundary_conditions=conditions_for(_d3_axes(), _CONDITIONS)
     )
     # Read the flag BEFORE any value: an unconverged solve returns a
     # best-effort iterate that is indistinguishable from a certified one.
@@ -216,7 +226,7 @@ def test_d3_scattering_infinite_medium_matches_multigroup_balance() -> None:
     ).copy()
 
     sol = solve_sn_fixed_source(
-        {0: mix}, _d3_axes(), quad,
+        {0: mix}, (_carrier3 := _d3_axes()), quad,
         external_source=q,
         inner_tol=1e-13,
         # Same all-reflective boundary iteration as the pure-absorber gate
@@ -224,7 +234,7 @@ def test_d3_scattering_infinite_medium_matches_multigroup_balance() -> None:
         # strictly larger than that one's measured 1631 sweeps. The looser
         # rtol below was absorbing a truncated iterate; the flag check is
         # what makes a truncation loud instead of silent.
-        max_inner=4000,
+        max_inner=4000, boundary_conditions=conditions_for(_carrier3, _CONDITIONS),
     )
     np.testing.assert_equal(bool(sol.record.converged), True)
     phi = np.asarray(sol.scalar_flux.values)
@@ -258,7 +268,7 @@ def test_d3_gauss_seidel_jacobi_fixed_point_invariance() -> None:
     the reflective isotropic box is WRONG here.
     """
     quad = Quadrature.level_symmetric(sn_order=4)
-    refl, vac = BC("reflective"), BC("vacuum")
+    refl, vac = MirrorDeck(), 0
     axes = _d3_axes(
         extents=(2.0, 1.5, 1.0), cells=(5, 3, 4),
         bcs=[(refl, refl), (vac, vac), (refl, refl)],
@@ -271,7 +281,7 @@ def test_d3_gauss_seidel_jacobi_fixed_point_invariance() -> None:
         sol = solve_sn(
             materials, axes, quad,
             keff_tol=1e-10, inner_tol=1e-11, inner_schedule=schedule,
-            mat_map=mat_map,
+            mat_map=mat_map, boundary_conditions=conditions_for(axes, _CONDITIONS),
         )
         return sol.outcome.keff, np.asarray(sol.scalar_flux.values)
 
@@ -302,7 +312,7 @@ def test_d3_real_mesh_window_passthrough_and_gs_admissible() -> None:
     """
     quad = Quadrature.level_symmetric(sn_order=4)
     mats = {0: get_mixture("A", "2g")}
-    sn = SNProblem.from_axes(_d3_axes(), quad, mats)
+    sn = SNProblem.from_axes((_carrier4 := _d3_axes()), quad, mats, boundary_conditions=conditions_for(_carrier4, _CONDITIONS))
 
     base = object()
     scattering_stub = type(
@@ -347,13 +357,19 @@ def test_axes_declared_laws_are_taken_verbatim() -> None:
     entry default filled an all-undeclared tuple and left a partly declared
     one alone; an undeclared law is now refused at ``AxisMesh``).
     A mixed declaration is the input a fill or an overwrite would change."""
-    refl, vac = BC("reflective"), BC("vacuum")
+    refl, vac = MirrorDeck(), 0
     axes = _d3_axes(bcs=[(vac, refl), (refl, vac), (vac, vac)])
     problem = _as_problem(
-        axes, Quadrature.level_symmetric(sn_order=4), {0: get_mixture("A", "2g")},
+        axes, Quadrature.level_symmetric(sn_order=4), {0: get_mixture("A", "2g")}, boundary_conditions=conditions_for(axes, _CONDITIONS),
     )
+    # the declared kind of each face, read off the REALIZED operator's type (the string ``kind`` of the retired law is gone): a
+    # mirror deck realizes to a unit scaled ordinate permutation, a vacuum tag to the zero map
+    from orpheus.sn.boundary.realized_operators import ScaledOrdinatePermutation, ZeroMap
+
     np.testing.assert_equal(
-        {face: problem.bc[face].kind for face in problem.bc},
+        {face: ("vacuum" if isinstance(problem.bc[face], ZeroMap)
+                else "reflective" if isinstance(problem.bc[face], ScaledOrdinatePermutation) and problem.bc[face].alpha == 1.0
+                else type(problem.bc[face]).__name__) for face in problem.bc},
         {"xmin": "vacuum", "xmax": "reflective", "ymin": "reflective",
          "ymax": "vacuum", "zmin": "vacuum", "zmax": "vacuum"},
     )

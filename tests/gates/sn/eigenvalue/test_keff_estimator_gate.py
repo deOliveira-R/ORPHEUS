@@ -48,13 +48,10 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-from orpheus.geometry.boundary import (
-    AlbedoBoundary,
-    SpecularReturn,
-    VacuumInflow,
-    WhiteBoundary,
-)
+from orpheus.geometry import CoordSystem, StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.quadrature import Quadrature
@@ -66,13 +63,19 @@ from dataclasses import replace
 
 pytestmark = pytest.mark.foundation
 
+#: The roles this file's bodies are written in: the tag ``0`` declared the vacuum wall, and the mirror deck (Cartesian only).
+_VACUUM = 0
+_REFLECTIVE = MirrorDeck()
+_CONDITIONS = {0: WallCondition.vacuum()}
+
+
 def _mesh(regions, bc, coord):
-    """regions = [(mat_id, thickness_cm, n_cells), ...]"""
+    """regions = [(mat_id, thickness_cm, n_cells), ...]; ``bc`` is the role of every face (``_VACUUM`` or ``_REFLECTIVE``)."""
     geom = StructuredGeometry.from_thicknesses(
         coord=coord,
         thicknesses=tuple(t for _, t, _ in regions),
         mat_ids=tuple(m for m, _, _ in regions),
-        boundaries=(bc, bc) if coord is CoordSystem.CARTESIAN else (bc,),
+        face_roles=(bc, bc) if coord is CoordSystem.CARTESIAN else (bc,),
     )
     return Mesher(geom).partition(
         tuple(CellsByCount.uniform_volume(n) for *_, n in regions),
@@ -84,11 +87,12 @@ def _mesh(regions, bc, coord):
 _KEFF_TOL = 1e-9
 
 
-def _solve(materials, mesh, scattering_order=0, quadrature=None):
-    """Converged eigenpair via the production driver, solver retained."""
+def _solve(materials, mesh, scattering_order=0, quadrature=None, conditions=None):
+    """Converged eigenpair via the production driver, solver retained (``conditions``: the table of the tags ``mesh`` carries)."""
     problem = _as_problem(
         mesh, quadrature if quadrature is not None else Quadrature.gauss_legendre(8),
         materials, scattering_order=scattering_order,
+        boundary_conditions=conditions_for(mesh, _CONDITIONS if conditions is None else conditions),
     )
     solver = SNSolver(
         problem,
@@ -141,13 +145,12 @@ _D3_EDGES = (
 
 
 def _d3_vacuum_sn_mesh():
-    vac = BC("vacuum")
     axes = tuple(
-        AxisMesh(edges=e, bc_low=vac, bc_high=vac) for e in _D3_EDGES
+        AxisMesh(edges=e, role_low=_VACUUM, role_high=_VACUUM) for e in _D3_EDGES
     )
     return SNProblem.from_axes(
         axes, Quadrature.level_symmetric(sn_order=4),
-        {0: get_mixture("A", "2g")},
+        {0: get_mixture("A", "2g")}, boundary_conditions=conditions_for(axes, _CONDITIONS),
     )
 
 
@@ -184,7 +187,7 @@ class TestReportedKeffIsThePosedEigenvalue:
         """
         solver, keff, phi = _solve(
             {0: get_mixture("A", "2g")},
-            _mesh([(0, 8.0, 40)], BC.vacuum, CoordSystem.CARTESIAN),
+            _mesh([(0, 8.0, 40)], _VACUUM, CoordSystem.CARTESIAN),
         )
         k_star = _map_ratio_kstar(solver, phi)
         np.testing.assert_allclose(keff, k_star, rtol=self.RTOL)
@@ -202,7 +205,7 @@ class TestReportedKeffIsThePosedEigenvalue:
         """
         solver, keff, phi = _solve(
             {0: get_mixture("A", "2g")},
-            _mesh([(0, 4.0, 20)], BC.vacuum, CoordSystem.SPHERICAL),
+            _mesh([(0, 4.0, 20)], _VACUUM, CoordSystem.SPHERICAL),
         )
         k_star = _map_ratio_kstar(solver, phi)
         np.testing.assert_allclose(keff, k_star, rtol=self.RTOL)
@@ -239,7 +242,7 @@ class TestReportedKeffIsThePosedEigenvalue:
         """
         solver, keff, phi = _solve(
             {0: get_mixture("A", "2g")},
-            _mesh([(0, 8.0, 40)], BC.reflective, CoordSystem.CARTESIAN),
+            _mesh([(0, 8.0, 40)], _REFLECTIVE, CoordSystem.CARTESIAN),
         )
         production = IntegratedReactionRate(
             CrossSectionField.fission_production_of(solver.problem.mat_xs)
@@ -269,7 +272,7 @@ class TestReportedKeffIsThePosedEigenvalue:
         """
         solver, keff, phi = _solve(
             {0: _mixture_with_n2n()},
-            _mesh([(0, 8.0, 40)], BC.reflective, CoordSystem.CARTESIAN),
+            _mesh([(0, 8.0, 40)], _REFLECTIVE, CoordSystem.CARTESIAN),
         )
         k_star = _map_ratio_kstar(solver, phi)
         np.testing.assert_allclose(keff, k_star, rtol=self.RTOL)
@@ -327,14 +330,13 @@ class TestFaceAreaObjectPin:
         still equals the transverse width vector bitwise, so the #291
         2-D estimator arithmetic is untouched by the generalization.
         """
-        vac = BC("vacuum")
         axes = (
-            AxisMesh(edges=_D3_EDGES[0], bc_low=vac, bc_high=vac),
-            AxisMesh(edges=_D3_EDGES[1], bc_low=vac, bc_high=vac),
+            AxisMesh(edges=_D3_EDGES[0], role_low=_VACUUM, role_high=_VACUUM),
+            AxisMesh(edges=_D3_EDGES[1], role_low=_VACUUM, role_high=_VACUUM),
         )
         sn = SNProblem.from_axes(
             axes, Quadrature.level_symmetric(sn_order=4),
-            {0: get_mixture("A", "2g")},
+            {0: get_mixture("A", "2g")}, boundary_conditions=conditions_for(axes, _CONDITIONS),
         )
         solver = SNSolver(sn)
         np.testing.assert_array_equal(
@@ -366,7 +368,7 @@ class TestGateTeeth:
         # Reflective reference BEFORE mutation (clean process state).
         _, k_refl_clean, _ = _solve(
             {0: get_mixture("A", "2g")},
-            _mesh([(0, 8.0, 40)], BC.reflective, CoordSystem.CARTESIAN),
+            _mesh([(0, 8.0, 40)], _REFLECTIVE, CoordSystem.CARTESIAN),
         )
 
         with monkeypatch.context() as m:
@@ -376,7 +378,7 @@ class TestGateTeeth:
             )
             solver, k_vac_mut, phi = _solve(
                 {0: get_mixture("A", "2g")},
-                _mesh([(0, 8.0, 40)], BC.vacuum, CoordSystem.CARTESIAN),
+                _mesh([(0, 8.0, 40)], _VACUUM, CoordSystem.CARTESIAN),
             )
             k_star = _map_ratio_kstar(solver, phi)
             rel_gap = abs(k_vac_mut / k_star - 1.0)
@@ -389,7 +391,7 @@ class TestGateTeeth:
 
             _, k_refl_mut, _ = _solve(
                 {0: get_mixture("A", "2g")},
-                _mesh([(0, 8.0, 40)], BC.reflective, CoordSystem.CARTESIAN),
+                _mesh([(0, 8.0, 40)], _REFLECTIVE, CoordSystem.CARTESIAN),
             )
             assert k_refl_mut == k_refl_clean, (
                 f"reflective reported k moved under the leakage-drop "
@@ -420,7 +422,7 @@ class TestGateTeeth:
             try:
                 solver, k_mut, phi = _solve(
                     {0: get_mixture("A", "2g")},
-                    _mesh([(0, 8.0, 40)], BC.vacuum, CoordSystem.CARTESIAN),
+                    _mesh([(0, 8.0, 40)], _VACUUM, CoordSystem.CARTESIAN),
                 )
             except RuntimeError:
                 return  # the guard caught the mutant mid-iteration — RED
@@ -444,7 +446,7 @@ class TestGateTeeth:
             m.setattr(SNSolver, "compute_keff", old_convention_keff)
             solver, k_mut, phi = _solve(
                 {0: _mixture_with_n2n()},
-                _mesh([(0, 8.0, 40)], BC.reflective, CoordSystem.CARTESIAN),
+                _mesh([(0, 8.0, 40)], _REFLECTIVE, CoordSystem.CARTESIAN),
             )
             k_star = _map_ratio_kstar(solver, phi)
             assert abs(k_mut / k_star - 1.0) > 0.05, (
@@ -527,21 +529,14 @@ _THE_CORNER_ACTION = (
     "test_partial_specular_corner_is_alpha_times_the_mirror"
 )
 
-#: The two laws of a face returning the fraction ``alpha`` of its outflow:
-#: the specular return (the specular wall ``AlbedoBoundary(alpha,
-#: SpecularReturn("x"))``) and the diffuse return (``WhiteBoundary`` with an
-#: albedo), which the same predicate read as a closed face (``[M]``
-#: 2026-09-30 below). The mirror ``ReflectiveBoundary`` has no amplitude and
-#: is not a row: it is the foundation the alpha = 1 edge rests on. Until the
-#: reflective cleanup a third spelling, ``ReflectiveBoundary("x", alpha)``,
-#: realized to the specular wall's matrix and was a row of every table here.
-#: ``outward_sign`` is the face's outward normal along x, which only the
-#: diffuse return reads.
+#: The two walls of a face returning the fraction ``alpha`` of its outflow: the specular return (``WallCondition.specular(alpha)``)
+#: and the diffuse return (``WallCondition.white(alpha)``), which the same predicate read as a closed face (``[M]`` 2026-09-30
+#: below). The mirror deck has no amplitude and is not a row: it is the foundation the alpha = 1 edge rests on. (Until wave 2 the
+#: specular wall was ``AlbedoBoundary(alpha, SpecularReturn("x"))`` and the diffuse one ``WhiteBoundary("x", outward_sign, alpha)``,
+#: which needed the face's outward normal; a condition is face-agnostic, the realizer reads the face from the site.)
 _RETURN_SPELLINGS = {
-    "albedo-specular": lambda alpha, outward_sign: AlbedoBoundary(
-        alpha, SpecularReturn("x"),
-    ),
-    "white": lambda alpha, outward_sign: WhiteBoundary("x", outward_sign, alpha),
+    "albedo-specular": WallCondition.specular,
+    "white": WallCondition.white,
 }
 
 #: Fuel (mixture A) on [0, 4] cm, moderator (mixture B) on [4, 6] cm: the
@@ -550,9 +545,10 @@ _RETURN_SPELLINGS = {
 _FUEL_MODERATOR = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
 
 
-def _posed_mesh(shape: str, left, right):
-    """The three bodies of this section. ``left`` is read on the slab only;
-    the sphere and cylinder carry one face, the outer one (``right``)."""
+def _posed_mesh(shape: str):
+    """The three bodies of this section, whose faces carry the tags 0 (``left``, the slab only) and 1 (``right``: the slab's right
+    face, and the one outer face of the sphere and the cylinder)."""
+    left, right = 0, 1
     if shape == "slab":
         return Mesher(StructuredGeometry.slab(
             (0.0, 4.0, 6.0), (0, 1), left=left, right=right,
@@ -577,14 +573,14 @@ class _Eigenpair(NamedTuple):
 
 
 @functools.lru_cache(maxsize=None)
-def _partial_return_eigenpair(shape: str, left, right) -> _Eigenpair:
-    """One converged solve per posed problem, shared by the rows below."""
+def _partial_return_eigenpair(shape: str, left: WallCondition, right: WallCondition) -> _Eigenpair:
+    """One converged solve per posed problem, shared by the rows below; ``left`` and ``right`` are the conditions of the tags 0 and 1."""
     quadrature = (
         Quadrature.folded_product(n_mu=4, n_phi=8) if shape == "cylinder"
         else None
     )
     solver, keff, phi = _solve(
-        _FUEL_MODERATOR, _posed_mesh(shape, left, right), quadrature=quadrature,
+        _FUEL_MODERATOR, _posed_mesh(shape), quadrature=quadrature, conditions={0: left, 1: right},
     )
     production = IntegratedReactionRate(
         CrossSectionField.fission_production_of(solver.problem.mat_xs)
@@ -599,9 +595,9 @@ def _partial_return_eigenpair(shape: str, left, right) -> _Eigenpair:
 
 
 def _returning(shape: str, spelling: str, alpha: float) -> _Eigenpair:
-    """The eigenpair with the law ``spelling(alpha)`` on every face."""
-    law = _RETURN_SPELLINGS[spelling]
-    return _partial_return_eigenpair(shape, law(alpha, -1), law(alpha, +1))
+    """The eigenpair with the wall ``spelling(alpha)`` on every face."""
+    wall = _RETURN_SPELLINGS[spelling]
+    return _partial_return_eigenpair(shape, wall(alpha), wall(alpha))
 
 
 class TestPartialReturnLeakage:
@@ -693,8 +689,8 @@ class TestPartialReturnLeakage:
     @pytest.mark.catches("ERR-094")
     def test_two_faces_returning_different_fractions(self):
         r"""The two faces carry two walls of different amplitudes
-        (``AlbedoBoundary(0.3, SpecularReturn("x"))`` left,
-        ``AlbedoBoundary(0.7, SpecularReturn("x"))`` right) over different
+        (``WallCondition.specular(0.3)`` left,
+        ``WallCondition.specular(0.7)`` right) over different
         media, so the leakage sum must read each face's own amplitude. Until
         the reflective cleanup the left wall was spelled
         ``ReflectiveBoundary("x", 0.3)``, the same matrix (``[M]`` 2026-10-01,
@@ -702,8 +698,7 @@ class TestPartialReturnLeakage:
         ``[M]`` 2026-09-30): 1.45591 vs 0.84509 (+72 %).
         """
         pair = _partial_return_eigenpair(
-            "slab", AlbedoBoundary(0.3, SpecularReturn("x")),
-            AlbedoBoundary(0.7, SpecularReturn("x")),
+            "slab", WallCondition.specular(0.3), WallCondition.specular(0.7),
         )
         np.testing.assert_allclose(
             pair.reported_k, pair.map_ratio_k, rtol=self.RTOL,
@@ -745,7 +740,7 @@ class TestPartialReturnLeakage:
         leakage predicate counted :math:`\alpha = 0` before the fix and after
         it.
         """
-        vacuum = _partial_return_eigenpair(shape, VacuumInflow(), VacuumInflow())
+        vacuum = _partial_return_eigenpair(shape, WallCondition.vacuum(), WallCondition.vacuum())
         pair = _returning(shape, spelling, 0.0)
         np.testing.assert_allclose(
             pair.reported_k, vacuum.reported_k, rtol=self.EDGE_RTOL,

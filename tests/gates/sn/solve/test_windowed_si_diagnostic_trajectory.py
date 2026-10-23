@@ -60,7 +60,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry import CoordSystem
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
@@ -70,6 +70,14 @@ from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.transport.frames import HarmonicFrame
 from tests.gates.sn.architecture.test_monomorphic_leaves import _two_region_fissile
 from orpheus.numerics import frame_faces
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -114,11 +122,11 @@ def _mesh() -> Mesh2D:
         edges_x=np.array([0.0, 0.1, 0.35, 0.9, 1.6]),
         edges_y=np.array([0.0, 0.2, 0.5, 1.4]),
         mat_map=mat_map, coord=CoordSystem.CARTESIAN,
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("reflective"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": 0,
+            "ymin": MirrorDeck(),
+            "ymax": 0,
         },
     )
 
@@ -144,11 +152,11 @@ def _is_head(space) -> bool:
 def solved():
     """ONE 2-D windowed SI solve, shared by every row (0.6 s cold)."""
     return solve_sn_fixed_source(
-        _two_region_fissile(), _mesh(),
+        _two_region_fissile(), (_carrier1 := _mesh()),
         Quadrature.level_symmetric(sn_order=_SN_ORDER),
         np.ones((24, _NG, 4, 3)),
         scattering_order=_L, inner_tol=_INNER_TOL, max_inner=_MAX_INNER,
-        inner_schedule="jacobi",
+        inner_schedule="jacobi", boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
     )
 
 
@@ -176,11 +184,11 @@ def test_every_recorded_increment_norm_is_taken_on_the_moment_space(monkeypatch)
 
     monkeypatch.setattr(FunctionSpace, "norm", spy)
     solution = solve_sn_fixed_source(
-        _two_region_fissile(), _mesh(),
+        _two_region_fissile(), (_carrier2 := _mesh()),
         Quadrature.level_symmetric(sn_order=_SN_ORDER),
         np.ones((24, _NG, 4, 3)),
         scattering_order=_L, inner_tol=_INNER_TOL, max_inner=_MAX_INNER,
-        inner_schedule="jacobi",
+        inner_schedule="jacobi", boundary_conditions=conditions_for(_carrier2, _CONDITIONS),
     )
     record = solution.record
     assert len(calls) == len(record.increment_norms) == len(_INCREMENT_NORMS)
@@ -201,7 +209,7 @@ def test_the_recorded_trajectory_was_taken_under_the_PARSEVAL_head_metric() -> N
     live slots and 0 in the ``|m| > ℓ`` padding; the frame is its generator.
     """
     problem = SNProblem(
-        _mesh(), Quadrature.level_symmetric(sn_order=_SN_ORDER), _two_region_fissile(),
+        (_carrier3 := _mesh()), Quadrature.level_symmetric(sn_order=_SN_ORDER), _two_region_fissile(), boundary_conditions=conditions_for(_carrier3, _CONDITIONS),
     )
     space = problem.moment_space(_L)
     assert isinstance(space, TensorProductSpace) and _is_moment_space(space)
@@ -293,7 +301,7 @@ def test_the_pin_discriminates_the_head_metric_choice() -> None:
     inside the test rather than a claim in its docstring (``vv`` #19).
     """
     problem = SNProblem(
-        _mesh(), Quadrature.level_symmetric(sn_order=_SN_ORDER), _two_region_fissile(),
+        (_carrier4 := _mesh()), Quadrature.level_symmetric(sn_order=_SN_ORDER), _two_region_fissile(), boundary_conditions=conditions_for(_carrier4, _CONDITIONS),
     )
     dressed_space = problem.moment_space(_L)
     frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(problem.quad, _L))

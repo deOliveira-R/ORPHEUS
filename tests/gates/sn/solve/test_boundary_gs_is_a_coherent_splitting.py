@@ -662,7 +662,7 @@ def test_the_PUBLIC_ENTRY_returns_the_SAME_trace_under_BOTH_schedules():
     cells = (3, 4)
     quad = Quadrature.level_symmetric(sn_order=4)
     entry_axes = tuple(
-        AxisMesh(edges=np.linspace(0.0, extent, n + 1), bc_low=_R, bc_high=_R)
+        AxisMesh(edges=np.linspace(0.0, extent, n + 1), role_low=_R, role_high=_R)
         for extent, n in zip((1.0, 2.0), cells))
     source = np.full((quad.weights.size, 2) + cells,
                      1.0 / float(quad.weights.sum()))

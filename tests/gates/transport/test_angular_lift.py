@@ -35,7 +35,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
@@ -54,6 +54,13 @@ from orpheus.transport.operators.n2n import N2NOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.fields import AngularSourceSink
 from orpheus.numerics.axis_marginal import AxisRetractionOperator
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -63,10 +70,10 @@ _L1_ABS_BAND = 2.3e-16
 
 def _sn() -> SNProblem:
     materials = {0: get_mixture("A", "2g")}
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(20),
     ).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=8), materials)
+    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=8), materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _mat_xs(sn: SNProblem):

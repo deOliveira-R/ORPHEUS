@@ -22,7 +22,7 @@ right level for a structural-bug guard now that the helpers are gone.
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.sn.problem import SNProblem
 
@@ -33,12 +33,20 @@ def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) ->
         coord=CoordSystem.CARTESIAN,
         breakpoints=(0.0, total_width),
         mat_ids=(mat_id,),
-        boundaries=(BC.reflective, BC.reflective),
+        face_roles=(MirrorDeck(), MirrorDeck()),
     )
     return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import sweep_once
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 pytestmark = pytest.mark.l0  # SN sweep + SNProblem stencil regressions
 
@@ -72,7 +80,7 @@ class TestScatteringConvergence:
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_slab_mesh(20, 2.0, mat_id=0)
         quad = Quadrature.gauss_legendre(8)
-        problem = SNProblem(mesh, quad, {0: mix})
+        problem = SNProblem(mesh, quad, {0: mix}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         solver = SNSolver(problem, max_inner=500, inner_tol=1e-10)
 
         # One outer iteration: flux must remain bounded
@@ -99,10 +107,10 @@ class TestSNProblem:
         (#240) — the diamond 2 = 1/w_DD is the scheme's, applied in the cell
         kernel, NOT baked into this geometric accessor."""
         mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 0.1, 0.3, 0.6), (0, 1, 2), left=BC.reflective, right=BC.reflective,
+            (0.0, 0.1, 0.3, 0.6), (0, 1, 2), left=MirrorDeck(), right=MirrorDeck(),
         )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(4)
-        problem = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
+        problem = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         for n in range(quad.n_ordinates):
             for i in range(problem.nx):
@@ -123,13 +131,13 @@ class TestSNProblem:
             edges_x=np.linspace(0, 1, 4),
             edges_y=np.linspace(0, 0.5, 3),
             mat_map=np.zeros((3, 2), dtype=int),
-            face_laws={
-                "xmin": BC.reflective, "xmax": BC.reflective,
-                "ymin": BC.reflective, "ymax": BC.reflective,
+            face_roles={
+                "xmin": MirrorDeck(), "xmax": MirrorDeck(),
+                "ymin": MirrorDeck(), "ymax": MirrorDeck(),
             },
         )
         quad = Quadrature.lebedev(order=17)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         for a, widths in enumerate((mesh.dx, mesh.dy)):
             np.testing.assert_array_equal(
                 problem.streaming(a),
@@ -143,13 +151,13 @@ class TestSNProblem:
             edges_x=np.linspace(0, 1, 3),
             edges_y=np.linspace(0, 1, 3),
             mat_map=np.zeros((2, 2), dtype=int),
-            face_laws={
-                "xmin": BC.reflective, "xmax": BC.reflective,
-                "ymin": BC.reflective, "ymax": BC.reflective,
+            face_roles={
+                "xmin": MirrorDeck(), "xmax": MirrorDeck(),
+                "ymin": MirrorDeck(), "ymax": MirrorDeck(),
             },
         )
         problem = SNProblem(
-            mesh, Quadrature.lebedev(order=5), placeholder_materials(),
+            mesh, Quadrature.lebedev(order=5), placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         with pytest.raises(IndexError, match="out of range for ndim=2"):
             problem.streaming(2)
@@ -167,13 +175,13 @@ class TestSNProblem:
             edges_x=np.linspace(0, 1, 4),  # 3 cells, dx=1/3
             edges_y=np.linspace(0, 0.5, 3),  # 2 cells, dy=0.25
             mat_map=np.zeros((3, 2), dtype=int),
-            face_laws={
-                "xmin": BC.reflective, "xmax": BC.reflective,
-                "ymin": BC.reflective, "ymax": BC.reflective,
+            face_roles={
+                "xmin": MirrorDeck(), "xmax": MirrorDeck(),
+                "ymin": MirrorDeck(), "ymax": MirrorDeck(),
             },
         )
         quad = Quadrature.lebedev(order=17)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         sig_t = 0.5  # scalar for simplicity
         for n in range(quad.n_ordinates):
@@ -187,10 +195,10 @@ class TestSNProblem:
         """SNProblem from Mesh1D must have rank-1 (N,) shaped mat_map and volumes."""
         mesh = Mesher(StructuredGeometry.slab(
             tuple(np.linspace(0, 1, 6)), (0, 1, 2, 1, 0),
-            left=BC.reflective, right=BC.reflective,
+            left=MirrorDeck(), right=MirrorDeck(),
         )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(4)
-        problem = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
+        problem = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         assert problem.nx == 5
         assert problem.spatial_shape == (5,)
@@ -204,13 +212,13 @@ class TestSNProblem:
             edges_x=np.linspace(0, 1, 4),
             edges_y=np.linspace(0, 1, 3),
             mat_map=np.zeros((3, 2), dtype=int),
-            face_laws={
-                "xmin": BC.reflective, "xmax": BC.reflective,
-                "ymin": BC.reflective, "ymax": BC.reflective,
+            face_roles={
+                "xmin": MirrorDeck(), "xmax": MirrorDeck(),
+                "ymin": MirrorDeck(), "ymax": MirrorDeck(),
             },
         )
         quad = Quadrature.lebedev(order=17)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         assert problem.nx == 3
         assert problem.spatial_shape[1] == 2
@@ -221,21 +229,21 @@ class TestSNProblem:
     def test_cylindrical_requires_level_quadrature(self):
         """Cylindrical coords require a quadrature with level structure."""
         mesh = Mesher(StructuredGeometry.cylinder(
-            (0.0, 1.0), (0,), outer=BC.reflective,
+            (0.0, 1.0), (0,), outer=0,
         )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(4)
         with pytest.raises(ValueError, match="level structure"):
-            SNProblem(mesh, quad, placeholder_materials())
+            SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
     def test_spherical_setup(self):
         """Spherical SNProblem must precompute face areas and α coefficients."""
         from orpheus.geometry import CoordSystem
 
         mesh = Mesher(StructuredGeometry.sphere(
-            (0.0, 0.5, 1.0), (0, 1), outer=BC.reflective,
+            (0.0, 0.5, 1.0), (0, 1), outer=0,
         )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(4)
-        problem = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1)))
+        problem = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1)), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         assert problem.coord is CoordSystem.SPHERICAL
         reduced = problem.reduced
@@ -285,7 +293,7 @@ class TestSNProblem:
         # 1D with GL
         mesh_1d = _homogeneous_slab_mesh(10, 1.0, mat_id=0)
         quad_gl = Quadrature.gauss_legendre(8)
-        solver_1d = SNSolver(SNProblem(mesh_1d, quad_gl, {0: mix}), max_inner=500, inner_tol=1e-10)
+        solver_1d = SNSolver(SNProblem(mesh_1d, quad_gl, {0: mix}, boundary_conditions=conditions_for(mesh_1d, _CONDITIONS)), max_inner=500, inner_tol=1e-10)
         phi = solver_1d.initial_flux_distribution()
         keff_1d = 1.0
         for _ in range(50):
@@ -300,13 +308,13 @@ class TestSNProblem:
             edges_x=np.linspace(0, 1, 11),
             edges_y=np.array([0.0, 1.0]),
             mat_map=np.zeros((10, 1), dtype=int),
-            face_laws={
-                "xmin": BC.reflective, "xmax": BC.reflective,
-                "ymin": BC.reflective, "ymax": BC.reflective,
+            face_roles={
+                "xmin": MirrorDeck(), "xmax": MirrorDeck(),
+                "ymin": MirrorDeck(), "ymax": MirrorDeck(),
             },
         )
         quad_2d = Quadrature.product(n_mu=8, n_phi=4)
-        solver_2d = SNSolver(SNProblem(mesh_2d, quad_2d, {0: mix}), max_inner=500, inner_tol=1e-10)
+        solver_2d = SNSolver(SNProblem(mesh_2d, quad_2d, {0: mix}, boundary_conditions=conditions_for(mesh_2d, _CONDITIONS)), max_inner=500, inner_tol=1e-10)
         phi = solver_2d.initial_flux_distribution()
         keff_2d = 1.0
         for _ in range(50):

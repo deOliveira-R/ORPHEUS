@@ -29,7 +29,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry import CoordSystem
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -42,6 +42,17 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics import frame_faces
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
+#: A face's role by the kind string the builders speak: a vacuum face is the tag 0, a reflective face a mirror deck (Cartesian body).
+_ROLE = {"vacuum": 0, "reflective": MirrorDeck()}
+
 
 pytestmark = [
     pytest.mark.foundation,
@@ -82,10 +93,10 @@ def _build_mesh(nx, ny, lvl, ng, bc):
         edges_y=np.linspace(0.0, 2.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        face_laws={"xmin": BC(bc), "xmax": BC(bc), "ymin": BC(bc), "ymax": BC(bc)},
+        face_roles={"xmin": _ROLE[bc], "xmax": _ROLE[bc], "ymin": _ROLE[bc], "ymax": _ROLE[bc]},
     )
     return SNProblem(
-        mesh, Quadrature.level_symmetric(lvl), {0: get_mixture("A", f"{ng}g")}
+        mesh, Quadrature.level_symmetric(lvl), {0: get_mixture("A", f"{ng}g")}, boundary_conditions=conditions_for(mesh, _CONDITIONS)
     )
 
 

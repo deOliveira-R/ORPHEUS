@@ -66,6 +66,14 @@ import warnings
 
 import numpy as np
 import pytest
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 
 @pytest.fixture(scope="module")
@@ -87,13 +95,13 @@ def _solve_kinf(
     Returns ``Solution.keff``.
     """
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.solver import solve_sn
 
     fuel = get_mixture("A", "2g")
-    geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC.reflective)
+    geom = StructuredGeometry.sphere((0.0, 2.0), (0,), outer=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     with warnings.catch_warnings():
@@ -102,7 +110,7 @@ def _solve_kinf(
             materials={0: fuel}, mesh=mesh, quadrature=quad,
             inner_solver=inner_solver,
             keff_tol=1e-12, flux_tol=1e-10,
-            inner_tol=inner_tol,
+            inner_tol=inner_tol, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
     return float(res.outcome.keff)
 
@@ -221,7 +229,7 @@ def test_one_full_restart_cycle_solves_a_diffusive_infinite_medium() -> None:
     One group and a flat solution null every spatial and group-coupling term; the row's threat is the Krylov
     truncation, which they do not touch. The infinite-medium answer is the structurally independent reference."""
     from orpheus.derivations.common.xs_library import make_mixture
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.solver import solve_sn_fixed_source
@@ -233,7 +241,7 @@ def test_one_full_restart_cycle_solves_a_diffusive_infinite_medium() -> None:
         nu=np.array([0.0]), chi=np.array([0.0]), sig_s=np.array([[sigma_t * _DIFFUSIVE_C]]),
     )
     n_cells = 100
-    geometry = StructuredGeometry.slab((0.0, 100.0), (0,), left=BC.reflective, right=BC.reflective)
+    geometry = StructuredGeometry.slab((0.0, 100.0), (0,), left=MirrorDeck(), right=MirrorDeck())
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(n_cells)).mesh
     quadrature = Quadrature.gauss_legendre(n_ordinates=8)
     source = 1.0
@@ -242,7 +250,7 @@ def test_one_full_restart_cycle_solves_a_diffusive_infinite_medium() -> None:
         solution = solve_sn_fixed_source(
             materials={0: medium}, mesh=mesh, quadrature=quadrature,
             external_source=np.full((quadrature.n_ordinates, 1, n_cells), source),
-            inner_solver="krylov", inner_tol=_DIFFUSIVE_INNER_TOL, max_inner=1,
+            inner_solver="krylov", inner_tol=_DIFFUSIVE_INNER_TOL, max_inner=1, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
     exact = float(np.sum(quadrature.weights)) * source / sigma_a
     phi = np.asarray(solution.scalar_flux.values, dtype=float)

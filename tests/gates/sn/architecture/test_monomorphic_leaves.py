@@ -208,7 +208,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellEdges, Mesh1D, Mesher
 from orpheus.mesh import Mesh2D
 from orpheus.numerics import operator as _operator_module
@@ -231,6 +231,14 @@ from tests.gates.sn._test_helpers import g_inner
 
 if TYPE_CHECKING:
     from orpheus.numerics.operator import LinearOperator
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(1.0)}  # tag 1: the reflective outer face of a curved body (rule R2)
+
 
 pytestmark = pytest.mark.foundation
 
@@ -320,12 +328,12 @@ _NONUNIFORM_EDGES = np.array([0.0, 0.12, 0.35, 0.80, 1.30, 2.00])
 
 
 def _two_region_mesh(
-    coord: CoordSystem, edges: np.ndarray, boundaries: "tuple[BC, ...]",
+    coord: CoordSystem, edges: np.ndarray, boundaries: tuple,
 ) -> Mesh1D:
     """Materials 0 | 1 with the interface at ``edges[2]``: two cells, then three."""
     geometry = StructuredGeometry(
         coord=coord, breakpoints=(edges[0], edges[2], edges[-1]), mat_ids=(0, 1),
-        boundaries=boundaries,
+        face_roles=boundaries,
     )
     return Mesher(geometry).partition((CellEdges(edges[:3]), CellEdges(edges[2:]))).mesh
 
@@ -333,10 +341,10 @@ def _two_region_mesh(
 def _slab() -> SNProblem:
     """1-D Cartesian, non-uniform ``h``, mixed reflective/vacuum, GL S4."""
     mesh = _two_region_mesh(
-        CoordSystem.CARTESIAN, _NONUNIFORM_EDGES, (BC("reflective"), BC("vacuum")),
+        CoordSystem.CARTESIAN, _NONUNIFORM_EDGES, (MirrorDeck(), 0),
     )
     return SNProblem(
-        mesh, Quadrature.gauss_legendre(n_ordinates=4), _two_region_fissile(),
+        mesh, Quadrature.gauss_legendre(n_ordinates=4), _two_region_fissile(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -353,9 +361,9 @@ def _sphere() -> SNProblem:
 
     Reflective at ``r = R`` so ``B`` acts on a live, non-zero trace.
     """
-    mesh = _two_region_mesh(CoordSystem.SPHERICAL, _NONUNIFORM_EDGES, (BC("reflective"),))
+    mesh = _two_region_mesh(CoordSystem.SPHERICAL, _NONUNIFORM_EDGES, (1,))
     return SNProblem(
-        mesh, Quadrature.gauss_legendre(n_ordinates=4), _two_region_fissile(),
+        mesh, Quadrature.gauss_legendre(n_ordinates=4), _two_region_fissile(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -366,9 +374,9 @@ def _cylinder() -> SNProblem:
     M-10 result is not an accident of one rule's weight distribution.
     ``V_cell`` spans 160 (MEASURED); the product rule's ``mu`` weights vary.
     """
-    mesh = _two_region_mesh(CoordSystem.CYLINDRICAL, _NONUNIFORM_EDGES, (BC("reflective"),))
+    mesh = _two_region_mesh(CoordSystem.CYLINDRICAL, _NONUNIFORM_EDGES, (1,))
     return SNProblem(
-        mesh, Quadrature.folded_product(n_mu=4, n_phi=8), _two_region_fissile(),
+        mesh, Quadrature.folded_product(n_mu=4, n_phi=8), _two_region_fissile(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -385,15 +393,15 @@ def _cart2d() -> SNProblem:
         edges_x=np.array([0.0, 0.1, 0.35, 0.9, 1.6]),
         edges_y=np.array([0.0, 0.2, 0.5, 1.4]),
         mat_map=mat_map, coord=CoordSystem.CARTESIAN,
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("reflective"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": 0,
+            "ymin": MirrorDeck(),
+            "ymax": 0,
         },
     )
     return SNProblem(
-        mesh, Quadrature.level_symmetric(sn_order=4), _two_region_fissile(),
+        mesh, Quadrature.level_symmetric(sn_order=4), _two_region_fissile(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -421,10 +429,10 @@ def _flat_metric_slab() -> SNProblem:
     """
     h = 1.0 / np.sqrt(3.0)
     mesh = _two_region_mesh(
-        CoordSystem.CARTESIAN, np.arange(6) * h, (BC("reflective"), BC("reflective")),
+        CoordSystem.CARTESIAN, np.arange(6) * h, (MirrorDeck(), MirrorDeck()),
     )
     return SNProblem(
-        mesh, Quadrature.gauss_legendre(n_ordinates=2), _two_region_fissile(),
+        mesh, Quadrature.gauss_legendre(n_ordinates=2), _two_region_fissile(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 

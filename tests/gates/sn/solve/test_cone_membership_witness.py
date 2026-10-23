@@ -40,10 +40,17 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn_fixed_source
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 pytestmark = pytest.mark.foundation
@@ -64,7 +71,7 @@ def _mix() -> Mixture:
 
 
 def _solve(nx: int, width: float):
-    mesh = Mesher(StructuredGeometry.from_homogeneous(width, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(width, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=2)
@@ -73,7 +80,7 @@ def _solve(nx: int, width: float):
     # DD dome; magnitude matches the CS3 plan §5.3 freeze so the [M] numbers
     # cross-reference verbatim (min ψ = −6.399383e-01 on the thick leg).
     q[:, 0, 0] = 100.0
-    sol = solve_sn_fixed_source({0: _mix()}, mesh, quad, external_source=q)
+    sol = solve_sn_fixed_source({0: _mix()}, mesh, quad, external_source=q, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     np.testing.assert_equal(bool(sol.record.converged), True)
     return sol
 

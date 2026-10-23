@@ -76,7 +76,7 @@ from orpheus.geometry import CoordSystem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 from orpheus.sn.sweep.scan import ordinate_scan
-from tests.gates.sn._test_helpers import curvilinear_homogeneous_mesh
+from tests.gates.sn._test_helpers import CURVED_REFLECTIVE, curvilinear_homogeneous_mesh
 
 pytestmark = [pytest.mark.verifies("blelloch-1990-eq-1-5")]
 
@@ -294,7 +294,7 @@ class TestSICylinderResonance:
         )
 
         materials, mesh, quad = self._build()
-        probe = SNProblem(mesh, quad, materials)
+        probe = SNProblem(mesh, quad, materials, boundary_conditions=CURVED_REFLECTIVE)
         geom = StreamingCoefficientCache.from_mesh_and_quad(probe)
         mu = np.asarray(quad.mu_x)
         inward = np.flatnonzero(mu < 0)
@@ -327,11 +327,11 @@ class TestSICylinderResonance:
         materials, mesh, quad = self._build()
         si = solve_sn(
             materials, mesh, quad, inner_solver="source_iteration",
-            max_inner=500, inner_tol=1e-10,
+            max_inner=500, inner_tol=1e-10, boundary_conditions=CURVED_REFLECTIVE,
         )
         kr = solve_sn(
             materials, mesh, quad, inner_solver="krylov",
-            max_inner=500, inner_tol=1e-10,
+            max_inner=500, inner_tol=1e-10, boundary_conditions=CURVED_REFLECTIVE,
         )
         assert np.isfinite(si.outcome.keff) and np.isfinite(kr.outcome.keff)
         assert abs(si.outcome.keff - kr.outcome.keff) < 1e-7, (

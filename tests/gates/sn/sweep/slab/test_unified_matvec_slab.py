@@ -49,7 +49,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.operators import streaming as sn_op
 from orpheus.sn import solve_sn
@@ -58,6 +58,7 @@ from tests.gates.sn._test_helpers import mixture_from_transport_data
 from tests.gates.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -67,7 +68,7 @@ from tests.gates.sn._test_helpers import legacy_proxy_matvec, placeholder_materi
 
 def _build_slab(n_cells: int = 5, n_ord: int = 4) -> SNProblem:
     geom = StructuredGeometry.slab(
-        (0.0, 2.0), (0,), left=BC("reflective"), right=BC("reflective"),
+        (0.0, 2.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(n_cells)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
@@ -155,7 +156,7 @@ def test_unified_slab_l1_homogeneous_kinf_2g(nx: int) -> None:
     )
 
     geom = StructuredGeometry.slab(
-        (0.0, 2.0), (0,), left=BC("reflective"), right=BC("reflective"),
+        (0.0, 2.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)

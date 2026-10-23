@@ -1,127 +1,74 @@
-r"""The face laws of the adapter mesh ``SNProblem.from_axes`` synthesizes (P1 step 3b).
+r"""The face roles of the axes, and of the adapter mesh ``SNProblem.from_axes`` synthesizes (P1 step 3b/3c, re-posed at wave 2 S2b).
 
-``SNProblem.from_axes`` stores the caller's axes and builds a legacy
-:class:`~orpheus.mesh.Mesh1D` ADAPTER for the consumers still reading
-``problem.mesh``. A mesh refuses ``None`` on a face, so the adapter carries
-the laws SN computes (``orpheus/mesh/legacy_adapter.py::_face_laws_of_axis``), which are:
+``SNProblem.from_axes`` stores the caller's axes and builds a legacy :class:`~orpheus.mesh.Mesh1D` ADAPTER for the consumers still
+reading ``problem.mesh``. Before wave 2 the adapter carried the LAWS SN computed (``_face_laws_of_axis``) and synthesized a
+reflective cavity for the inner face of a hollow radial axis (``SCOPE-BOUNDARY[guard]`` #511). Both are gone: an axis declares a
+face ROLE per endpoint (a deck or an ``int`` tag), the adapter carries it verbatim, and the hollow inner face is the TAG the axis
+declares (``tests/gates/mesh/test_radial_inner_role.py``, which owns the inner-role and the synthesis claims; the two rows that
+pinned the synthesized reflective cavity are retired with it and not repeated here).
 
-* the declared laws of the axis, carried as given (the undeclared-law arm,
-  ``ELEGANCE-DEBT[guard]`` #405, retired at P1 step 3c: an axis cannot be
-  built without its laws, so there is nothing to default);
-* the inner face of a hollow radial axis, which has no law slot, is the
-  reflective cavity SN computes (``SCOPE-BOUNDARY[guard]`` #511).
+What this module keeps, re-spelled on roles:
 
-Step 3c adds the axis classes' own laws: a law is required and parsed
-(``orpheus/geometry/structured_geometry.py::parse_boundary_law``), so an
-omitted law, ``None`` and a non-law object are refused at construction;
-``with_uniform_bc`` (its one consumer was ``_apply_default_bcs``) is gone; and
-the adapter round trip ``axes_from_legacy_mesh(legacy_mesh_from_axes(axes))``
-keeps every declared law, in 1-D and 2-D.
+* ``TestTheAxisRoles``: an axis cannot be built without its roles, and a role that is not a deck or a tag is refused at
+  construction (the pre-3c classes defaulted each law to ``None`` and parsed nothing, so every refusal row is red on them); the
+  default-filling verb ``with_uniform_bc`` is gone; the declared table is the roles given, by identity;
+* ``TestTheRoundTrip``: ``axes_from_legacy_mesh(legacy_mesh_from_axes(axes))`` keeps every declared role, the same object on
+  the same endpoint, in 1-D and 2-D.
 
-Claim kind: THEOREM for each row; the reflective inner face is the void cavity
-by ``tests/gates/mesh/test_hollow_inner_law.py
-::test_a_reflective_inner_law_is_a_void_cavity``. First reds: before the split
-the adapter's hollow inner face had no witness (qa, review of step 3b); the
-pre-3c axis classes (laws defaulting to ``None``, no parse) red every
-``TestTheAxisLaws`` refusal; a swapped pair in either adapter (``bc_low`` read
-from ``xmax``, or the 2-D ``face_laws`` built with ``ymin``/``ymax`` crossed)
-reds ``TestTheRoundTrip``.
+Claim kind: THEOREM for each row. First reds: a swapped pair in either adapter (``role_low`` read from ``xmax``, or the 2-D
+``face_roles`` built with ``ymin``/``ymax`` crossed) reds ``TestTheRoundTrip``; the pre-3c axis classes red every refusal row of
+``TestTheAxisRoles``.
 """
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import AxisCoord, AxisMesh, Mesh1D, RadialAxisMesh
-from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.problem import SNProblem
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.mesh import AxisCoord, AxisMesh, RadialAxisMesh
 
 pytestmark = pytest.mark.foundation
-
-_VOID = "tests/gates/mesh/test_hollow_inner_law.py::test_a_reflective_inner_law_is_a_void_cavity"
-
-
-def _adapter(axis) -> Mesh1D:
-    """The 1-D adapter mesh ``SNProblem.from_axes`` synthesizes for ``axis``."""
-    mesh = SNProblem.from_axes((axis,), Quadrature.gauss_legendre(8), {0: get_mixture("B", "2g")}).mesh
-    if not isinstance(mesh, Mesh1D):
-        raise AssertionError(f"a 1-D axis tuple gave a {type(mesh).__name__} adapter")
-    return mesh
-
-
-@pytest.mark.rests_on(_VOID)
-@pytest.mark.parametrize("outer", [BC.vacuum, BC.reflective], ids=["vacuum", "reflective"])
-def test_a_hollow_radial_axis_gets_a_reflective_inner_face(outer):
-    axis = RadialAxisMesh(edges=np.array([0.5, 1.0, 2.0]), coord=AxisCoord.RADIAL_SPHERICAL, bc_outer=outer)
-    mesh = _adapter(axis)
-    assert mesh.coord is CoordSystem.SPHERICAL
-    assert mesh.boundary_points == (0.5, 2.0)
-    assert tuple(mesh.face_laws) == ("xmin", "xmax")
-    assert mesh.face_laws["xmin"] == BC.reflective
-    assert mesh.face_laws["xmax"] is outer
-
-
-def test_a_solid_radial_axis_gets_its_outer_law_only():
-    """The control: no inner face, so no reflective law is invented."""
-    axis = RadialAxisMesh(edges=np.array([0.0, 1.0, 2.0]), coord=AxisCoord.RADIAL_SPHERICAL, bc_outer=BC.vacuum)
-    laws = _adapter(axis).face_laws
-    assert tuple(laws) == ("xmax",) and laws["xmax"] == BC.vacuum
-
-
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Step 3c: an axis declares its laws
-# ─────────────────────────────────────────────────────────────────────
 
 _EDGES = np.array([0.0, 0.5, 2.0])
 _ONE_PARSER = (
     "tests/gates/mesh/test_mesh2d_face_roles.py::TestTheOneElementParser::"
     "test_every_declared_role_passes_the_one_parser"
 )
+_ROLE_FRAGMENT = "a face role is a MirrorDeck, a TranslationDeck or an int tag"
 
 
-class TestTheAxisLaws:
-    """The axis classes refuse an undeclared law (the pre-3c classes defaulted
-    each law to ``None`` and parsed nothing, so every refusal row is red on
-    them). The ``None`` and non-law rows of the five owners are also gated,
+class TestTheAxisRoles:
+    """The axis classes refuse an undeclared or malformed role. The ``None`` and non-role rows of the five owners are also gated,
     frame by frame, by ``TestTheOneElementParser``."""
 
-    def test_an_omitted_cartesian_law_is_refused(self):
-        with pytest.raises(TypeError, match="bc_low"):
+    def test_an_omitted_cartesian_role_is_refused(self):
+        with pytest.raises(TypeError, match="role_low"):
             AxisMesh(edges=_EDGES)  # type: ignore[call-arg]  # the refusal input
-        with pytest.raises(TypeError, match="bc_high"):
-            AxisMesh(edges=_EDGES, bc_low=BC.vacuum)  # type: ignore[call-arg]  # the refusal input
+        with pytest.raises(TypeError, match="role_high"):
+            AxisMesh(edges=_EDGES, role_low=0)  # type: ignore[call-arg]  # the refusal input
+        # control: the complete declaration builds
+        assert AxisMesh(edges=_EDGES, role_low=0, role_high=0).roles == {"min": 0, "max": 0}
 
-    def test_an_omitted_radial_law_is_refused(self):
-        with pytest.raises(TypeError, match="bc_outer"):
+    def test_an_omitted_radial_role_is_refused(self):
+        with pytest.raises(TypeError, match="role_outer"):
             RadialAxisMesh(edges=_EDGES, coord=AxisCoord.RADIAL_SPHERICAL)  # type: ignore[call-arg]  # the refusal input
+        assert RadialAxisMesh(edges=_EDGES, coord=AxisCoord.RADIAL_SPHERICAL, role_outer=0).roles == {"outer": 0}
 
     @pytest.mark.rests_on(_ONE_PARSER)
-    @pytest.mark.parametrize("slot", ["bc_low", "bc_high"])
-    @pytest.mark.parametrize(
-        "bad, fragment",
-        [(None, "None is not a boundary law"), ("vacuum", "must be a BC tag or a BoundaryTraceLaw")],
-        ids=["none", "non-law"],
-    )
-    def test_a_cartesian_law_that_is_not_a_law(self, slot, bad, fragment):
-        laws = {"bc_low": BC.vacuum, "bc_high": BC.vacuum} | {slot: bad}
-        with pytest.raises(TypeError, match=fragment) as info:
-            AxisMesh(edges=_EDGES, bc_low=laws["bc_low"], bc_high=laws["bc_high"])
+    @pytest.mark.parametrize("slot", ["role_low", "role_high"])
+    @pytest.mark.parametrize("bad", [None, "vacuum", 0.5], ids=["none", "string", "float"])
+    def test_a_cartesian_role_that_is_not_a_role(self, slot, bad):
+        roles = {"role_low": 0, "role_high": 0} | {slot: bad}
+        with pytest.raises(TypeError, match=_ROLE_FRAGMENT) as info:
+            AxisMesh(edges=_EDGES, role_low=roles["role_low"], role_high=roles["role_high"])
         assert f"AxisMesh.{slot}" in str(info.value)
 
     @pytest.mark.rests_on(_ONE_PARSER)
-    @pytest.mark.parametrize(
-        "bad, fragment",
-        [(None, "None is not a boundary law"), (0, "must be a BC tag or a BoundaryTraceLaw")],
-        ids=["none", "non-law"],
-    )
-    def test_a_radial_law_that_is_not_a_law(self, bad, fragment):
-        with pytest.raises(TypeError, match=fragment) as info:
-            RadialAxisMesh(edges=_EDGES, coord=AxisCoord.RADIAL_CYLINDRICAL, bc_outer=bad)
-        assert "RadialAxisMesh.bc_outer" in str(info.value)
+    @pytest.mark.parametrize("bad", [None, "vacuum", 0.5], ids=["none", "string", "float"])
+    def test_a_radial_role_that_is_not_a_role(self, bad):
+        with pytest.raises(TypeError, match=_ROLE_FRAGMENT) as info:
+            RadialAxisMesh(edges=_EDGES, coord=AxisCoord.RADIAL_CYLINDRICAL, role_outer=bad)
+        assert "RadialAxisMesh.role_outer" in str(info.value)
 
     def test_the_default_filling_verb_is_gone(self):
         """``with_uniform_bc`` retired with its one consumer ``_apply_default_bcs``
@@ -132,12 +79,14 @@ class TestTheAxisLaws:
         for owner in (AxisMesh, RadialAxisMesh, Axis1D):
             assert not hasattr(owner, "with_uniform_bc"), owner.__name__
 
-    def test_the_bc_table_carries_no_none(self):
-        """The declared table is the laws given, by identity."""
-        low, high = BC("albedo", {"albedo": 0.3}), BC.vacuum
-        assert AxisMesh(edges=_EDGES, bc_low=low, bc_high=high).bc == {"min": low, "max": high}
-        radial = RadialAxisMesh(edges=_EDGES, coord=AxisCoord.RADIAL_SPHERICAL, bc_outer=high)
-        assert radial.bc["outer"] is high
+    def test_the_role_table_is_the_roles_given(self):
+        """The declared table is the roles given, by identity (a deck object stays the same object; no ``None`` is ever stored)."""
+        low, high = MirrorDeck(), 7
+        axis = AxisMesh(edges=_EDGES, role_low=low, role_high=high)
+        assert axis.roles["min"] is low and axis.roles["max"] == 7
+        radial = RadialAxisMesh(edges=_EDGES, coord=AxisCoord.RADIAL_SPHERICAL, role_outer=high)
+        assert radial.roles["outer"] == 7
+        assert all(role is not None for role in (*axis.roles.values(), *radial.roles.values()))
 
 
 def _round_trip(axes):
@@ -146,21 +95,13 @@ def _round_trip(axes):
     return axes_from_legacy_mesh(legacy_mesh_from_axes(axes))
 
 
-def _typed_law():
-    from orpheus.geometry.boundary import VacuumInflow
-
-    return VacuumInflow()
-
-
 class TestTheRoundTrip:
-    """``axes_from_legacy_mesh(legacy_mesh_from_axes(axes))`` keeps every
-    declared law, the same object on the same endpoint. The laws on one tuple
-    are pairwise distinct, so a swap of two faces cannot read equal. First red:
-    a crossed pair in either adapter (e.g. the 2-D ``face_laws`` built with
-    ``ymin`` and ``ymax`` exchanged, or ``bc_low`` read from ``xmax``)."""
+    """``axes_from_legacy_mesh(legacy_mesh_from_axes(axes))`` keeps every declared role, the same object on the same endpoint. The
+    roles on one tuple are pairwise distinct, so a swap of two faces cannot read equal. First red: a crossed pair in either adapter
+    (e.g. the 2-D ``face_roles`` built with ``ymin`` and ``ymax`` exchanged, or ``role_low`` read from ``xmax``)."""
 
     @staticmethod
-    def _assert_same_laws(before, after):
+    def _assert_same_roles(before, after):
         assert len(before) == len(after)
         for k, (a, b) in enumerate(zip(before, after)):
             assert type(a) is type(b), (k, type(a), type(b))
@@ -168,27 +109,26 @@ class TestTheRoundTrip:
             assert a.coord == b.coord
             assert a.endpoints == b.endpoints
             for endpoint in a.endpoints:
-                assert b.bc[endpoint] is a.bc[endpoint], (k, endpoint, a.bc[endpoint], b.bc[endpoint])
+                assert b.roles[endpoint] == a.roles[endpoint], (k, endpoint, a.roles[endpoint], b.roles[endpoint])
 
     @pytest.mark.parametrize(
         "axis",
         [
-            pytest.param(lambda: AxisMesh(edges=_EDGES, bc_low=BC.vacuum, bc_high=BC("albedo", {"albedo": 0.3})),
-                         id="cartesian"),
-            pytest.param(lambda: RadialAxisMesh(edges=_EDGES, coord=AxisCoord.RADIAL_SPHERICAL, bc_outer=_typed_law()),
-                         id="solid-sphere"),
+            pytest.param(lambda: AxisMesh(edges=_EDGES, role_low=3, role_high=5), id="cartesian"),
+            pytest.param(lambda: AxisMesh(edges=_EDGES, role_low=MirrorDeck(), role_high=5), id="cartesian-deck"),
+            pytest.param(lambda: RadialAxisMesh(edges=_EDGES, coord=AxisCoord.RADIAL_SPHERICAL, role_outer=7), id="solid-sphere"),
             pytest.param(lambda: RadialAxisMesh(edges=np.array([0.5, 1.0, 2.0]), coord=AxisCoord.RADIAL_CYLINDRICAL,
-                                                bc_outer=BC.vacuum),
+                                                role_outer=2, role_inner=9),
                          id="hollow-cylinder"),
         ],
     )
     def test_one_dimension(self, axis):
         axes = (axis(),)
-        self._assert_same_laws(axes, _round_trip(axes))
+        self._assert_same_roles(axes, _round_trip(axes))
 
     def test_two_dimensions(self):
         axes = (
-            AxisMesh(edges=_EDGES, bc_low=BC.vacuum, bc_high=BC.reflective),
-            AxisMesh(edges=np.array([0.0, 1.0, 2.0, 3.0]), bc_low=BC("albedo", {"albedo": 0.3}), bc_high=_typed_law()),
+            AxisMesh(edges=_EDGES, role_low=3, role_high=MirrorDeck()),
+            AxisMesh(edges=np.array([0.0, 1.0, 2.0, 3.0]), role_low=5, role_high=6),
         )
-        self._assert_same_laws(axes, _round_trip(axes))
+        self._assert_same_roles(axes, _round_trip(axes))

@@ -33,13 +33,14 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import reflect_outflow_into_inflow, sweep_once
 from orpheus.transport.fields import AngularSourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.geometry.deck import MirrorDeck
 
 pytestmark = [pytest.mark.foundation, pytest.mark.catches("ERR-055")]
 
@@ -49,7 +50,7 @@ def _slab_1d(n_cells: int) -> Mesh1D:
         coord=CoordSystem.CARTESIAN,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC.reflective, BC.reflective),
+        face_roles=(MirrorDeck(), MirrorDeck()),
     )
     return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 

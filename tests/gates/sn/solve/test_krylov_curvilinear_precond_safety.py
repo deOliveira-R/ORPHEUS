@@ -96,6 +96,8 @@ sys.path.insert(
     0, str(SN_TESTS_ROOT / "verification" / "analytical"),
 )
 warnings.simplefilter("ignore")
+from tests.gates._exterior import conditions_for  # noqa: E402
+from tests.gates.sn._test_helpers import CURVED_REFLECTIVE  # noqa: E402  (the curved body's unit specular wall, declared at the solve)
 from test_kinf_homogeneous import (  # noqa: E402  (post-sys.path import)
     _get_continuous_case,
     _homogeneous_mesh,
@@ -174,7 +176,10 @@ def _krylov_power_iteration_kinf(
         coord=coord, n_cells=n_cells, length=2.0, mat_id=mat_id,
     )
     quad = _quadrature_for(coord)
-    problem = SNProblem(mesh, quad, case.problem.materials, scattering_order=0)
+    problem = SNProblem(
+        mesh, quad, case.problem.materials, scattering_order=0,
+        boundary_conditions=conditions_for(mesh, CURVED_REFLECTIVE),  # the slab's mirror deck declares no condition
+    )
 
     solver = SNSolver(
         problem=problem,
@@ -337,6 +342,7 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
     sn = SNProblem(
         mesh, Quadrature.gauss_legendre(8),
         {2: get_mixture("A", "1g"), 0: get_mixture("B", "1g")},
+        boundary_conditions=CURVED_REFLECTIVE,
     )
     bulk_only = sn.quad.n_ordinates * sn.ng * int(np.prod(sn.spatial_shape))
     # B.2d (F3 migration): the Krylov state on a carrying mesh is the COUPLED
@@ -389,7 +395,7 @@ def _carrying_sphere_case(n_cells: int = 6):
         coord="sphere", n_cells=n_cells, length=2.0, mat_id=mat_id,
     )
     quad = _quadrature_for("sphere")
-    sn = SNProblem(mesh, quad, case.problem.materials)
+    sn = SNProblem(mesh, quad, case.problem.materials, boundary_conditions=CURVED_REFLECTIVE)
     return case.problem.materials, mesh, quad, sn
 
 
@@ -454,13 +460,13 @@ def test_g_d3_3_production_sites_size_restart_from_the_coupled_ravel(
         solve_sn(
             materials, mesh, quad, inner_solver="krylov",
             max_outer=2, keff_tol=1e-3, flux_tol=1e-3,
-            max_inner=60, inner_tol=1e-8,
+            max_inner=60, inner_tol=1e-8, boundary_conditions=CURVED_REFLECTIVE,
         )
     else:
         solve_sn_fixed_source(
             materials=materials, mesh=mesh, quadrature=quad,
             external_source=np.ones((quad.n_ordinates, sn.ng, sn.nx)),
-            inner_solver="krylov", max_inner=60, inner_tol=1e-8,
+            inner_solver="krylov", max_inner=60, inner_tol=1e-8, boundary_conditions=CURVED_REFLECTIVE,
         )
 
     if not captured:
@@ -498,7 +504,7 @@ def test_g_d3_3_site_gate_has_teeth(monkeypatch) -> None:
     solver_mod.solve_sn_fixed_source(
         materials=materials, mesh=mesh, quadrature=quad,
         external_source=np.ones((quad.n_ordinates, sn.ng, sn.nx)),
-        inner_solver="krylov", max_inner=40, inner_tol=1e-6,
+        inner_solver="krylov", max_inner=40, inner_tol=1e-6, boundary_conditions=CURVED_REFLECTIVE,
     )
 
     if not captured:

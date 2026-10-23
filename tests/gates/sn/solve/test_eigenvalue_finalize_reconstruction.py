@@ -336,7 +336,7 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture, compute_macro_xs
 from orpheus.data.micro_xs import load_isotope
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.convergence import ConvergenceWarning
@@ -357,6 +357,14 @@ from tests.gates.sn._test_helpers import (
     reflect_outflow_into_inflow,
 )
 from tests.gates.sn.regression._regression_assert import assert_regression
+from orpheus.geometry.deck import MirrorDeck, FaceRole
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0), 1: WallCondition.vacuum()}
+
 
 # ── The ONE run configuration (the band reads off it; nothing hardcodes) ──
 _KEFF_TOL = 1e-10
@@ -417,13 +425,13 @@ _LIBRARY_N2N = {2: _FUEL, 0: _MOD_N2N}
 # Meshes
 # ══════════════════════════════════════════════════════════════════════
 
-def _slab(bc: BC) -> Mesh1D:
+def _slab(role: FaceRole) -> Mesh1D:
     """moderator | fuel | moderator, 20 cells."""
     geom = StructuredGeometry.from_thicknesses(
         coord=CoordSystem.CARTESIAN,
         thicknesses=(2.0, 6.0, 2.0),
         mat_ids=(0, 2, 0),
-        boundaries=(bc, bc),
+        face_roles=(role, role),
     )
     return Mesher(geom).partition((
         CellsByCount.uniform_volume(6),
@@ -432,10 +440,10 @@ def _slab(bc: BC) -> Mesh1D:
     )).mesh
 
 
-def _curvilinear(coord: CoordSystem, bc: BC) -> Mesh1D:
+def _curvilinear(coord: CoordSystem, role: FaceRole) -> Mesh1D:
     """fuel core | moderator reflector, 14 cells."""
     return curvilinear_two_region_mesh(
-        outers=(6.0, 8.0), mat_ids=(2, 0), n_cells=(8, 6), coord=coord, bc=bc,
+        outers=(6.0, 8.0), mat_ids=(2, 0), n_cells=(8, 6), coord=coord, role=role,
     )
 
 
@@ -447,11 +455,11 @@ def _cart2d() -> Mesh2D:
         edges_x=np.linspace(0.0, 10.0, 7),
         edges_y=np.linspace(0.0, 10.0, 5),
         mat_map=mat,
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": 1,
+            "xmax": 1,
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
 
@@ -480,31 +488,31 @@ class _Arm:
 
 _ARMS: dict[str, _Arm] = {
     "slab_vac": _Arm(
-        _LIBRARY, lambda: _slab(BC.vacuum),
+        _LIBRARY, lambda: _slab(1),
         lambda: Quadrature.gauss_legendre(n_ordinates=8),
         "source_iteration",
         "1-D un-windowed SI; B = 0 (the plainest reconstruction)",
     ),
     "slab_refl": _Arm(
-        _LIBRARY, lambda: _slab(BC.reflective),
+        _LIBRARY, lambda: _slab(MirrorDeck()),
         lambda: Quadrature.gauss_legendre(n_ordinates=8),
         "source_iteration",
         "1-D un-windowed SI with B != 0 — the only arms (with sphere_refl and\n         cart2d) that see a WRONG B: [M] M5b 5.207e-12 -> 2.758e-01",
     ),
     "slab_vac_n2n": _Arm(
-        _LIBRARY_N2N, lambda: _slab(BC.vacuum),
+        _LIBRARY_N2N, lambda: _slab(1),
         lambda: Quadrature.gauss_legendre(n_ordinates=8),
         "source_iteration",
         "the only FAST arm with a live l>=1 (n,2n) moment",
     ),
     "sphere_refl": _Arm(
-        _LIBRARY, lambda: _curvilinear(CoordSystem.SPHERICAL, BC.reflective),
+        _LIBRARY, lambda: _curvilinear(CoordSystem.SPHERICAL, 0),
         lambda: Quadrature.gauss_legendre(n_ordinates=8),
         "source_iteration",
         "CARRYING mesh: CoupledOperator finalize + B != 0 on the psi-half\n         corner ([M] M5b 3.164e-11 -> 2.569e-01)",
     ),
     "cylinder_vac": _Arm(
-        _LIBRARY, lambda: _curvilinear(CoordSystem.CYLINDRICAL, BC.vacuum),
+        _LIBRARY, lambda: _curvilinear(CoordSystem.CYLINDRICAL, 1),
         lambda: Quadrature.folded_product(n_mu=4, n_phi=8),
         "source_iteration",
         "CARRYING mesh with MULTI-LEVEL psi-half (folded_product)",
@@ -525,7 +533,7 @@ _ARMS: dict[str, _Arm] = {
         inner_schedule="gauss_seidel",
     ),
     "slab_krylov": _Arm(
-        _LIBRARY, lambda: _slab(BC.vacuum),
+        _LIBRARY, lambda: _slab(1),
         lambda: Quadrature.gauss_legendre(n_ordinates=8),
         "krylov",
         "the Krylov inner (full-angular iterate, no windowing)",
@@ -577,12 +585,12 @@ def _solve(arm_id: str, order: int) -> Solution:
     built: list[SNSolver] = []
     with contextlib.redirect_stdout(io.StringIO()), _capturing_solvers(built):
         sol = solve_sn(
-            arm.materials, arm.mesh(), arm.quadrature(),
+            arm.materials, (_carrier1 := arm.mesh()), arm.quadrature(),
             scattering_order=order,
             inner_solver=arm.inner_solver,
             inner_schedule=arm.inner_schedule,
             keff_tol=_KEFF_TOL, flux_tol=_FLUX_TOL,
-            inner_tol=_INNER_TOL, max_outer=_MAX_OUTER,
+            inner_tol=_INNER_TOL, max_outer=_MAX_OUTER, boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
         )
     if not sol.record.fully_converged:
         pytest.fail(
@@ -717,11 +725,11 @@ class TestTheLGe1TermIsLive:
         flat = _balanced_n2n(_MOD, _N2N_P0, 0.0)
         with contextlib.redirect_stdout(io.StringIO()):
             control = solve_sn(
-                {2: _FUEL, 0: flat}, _slab(BC.vacuum),
+                {2: _FUEL, 0: flat}, (_carrier2 := _slab(1)),
                 Quadrature.gauss_legendre(n_ordinates=8),
                 scattering_order=_L_ANISO, inner_solver="source_iteration",
                 keff_tol=_KEFF_TOL, flux_tol=_FLUX_TOL,
-                inner_tol=_INNER_TOL, max_outer=_MAX_OUTER,
+                inner_tol=_INNER_TOL, max_outer=_MAX_OUTER, boundary_conditions=conditions_for(_carrier2, _CONDITIONS),
             )
         k_sub, k_ctl = subject.outcome.keff, control.outcome.keff
         assert k_sub is not None and k_ctl is not None
@@ -1381,9 +1389,9 @@ class TestAgainstAnIndependentRoute:
 
         with contextlib.redirect_stdout(io.StringIO()):
             ref = solve_sn_fixed_source(
-                _LIBRARY, _slab(BC.vacuum), quad, q_ext,
+                _LIBRARY, (_carrier3 := _slab(1)), quad, q_ext,
                 scattering_order=order, inner_solver="source_iteration",
-                max_inner=200_000, inner_tol=_INNER_TOL / 10.0,
+                max_inner=200_000, inner_tol=_INNER_TOL / 10.0, boundary_conditions=conditions_for(_carrier3, _CONDITIONS),
             )
 
         phi_ref = np.asarray(ref.scalar_flux.values, dtype=np.float64)
@@ -1480,12 +1488,12 @@ class TestTheShippedDiagnostic:
             with contextlib.redirect_stdout(io.StringIO()):
                 with pytest.warns(ConvergenceWarning):
                     sol = solve_sn(
-                        _LIBRARY, _slab(BC.vacuum),
+                        _LIBRARY, (_carrier4 := _slab(1)),
                         Quadrature.gauss_legendre(n_ordinates=8),
                         scattering_order=order,
                         inner_solver="source_iteration",
                         keff_tol=1e-12, flux_tol=1e-12,
-                        inner_tol=_INNER_TOL, max_outer=budget,
+                        inner_tol=_INNER_TOL, max_outer=budget, boundary_conditions=conditions_for(_carrier4, _CONDITIONS),
                     )
             if sol.record.fully_converged:
                 pytest.fail(
@@ -1575,7 +1583,7 @@ def be_mesh() -> Mesh1D:
         coord=CoordSystem.CARTESIAN,
         thicknesses=(3.0, 4.0, 3.0),
         mat_ids=(1, 0, 1),
-        boundaries=(BC.vacuum, BC.vacuum),
+        face_roles=(1, 1),
     )
     return Mesher(geom).partition((
         CellsByCount.uniform_volume(12),
@@ -1613,7 +1621,7 @@ class TestOnProductionData:
                 be_library, be_mesh, Quadrature.gauss_legendre(n_ordinates=8),
                 scattering_order=order, inner_solver="source_iteration",
                 keff_tol=_BE_KEFF_TOL, flux_tol=_BE_FLUX_TOL,
-                inner_tol=_BE_INNER_TOL, max_outer=3000,
+                inner_tol=_BE_INNER_TOL, max_outer=3000, boundary_conditions=conditions_for(be_mesh, _CONDITIONS),
             )
         if not sol.record.fully_converged:
             pytest.fail(

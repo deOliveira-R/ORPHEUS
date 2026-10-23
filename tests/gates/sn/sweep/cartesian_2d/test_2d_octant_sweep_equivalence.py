@@ -160,7 +160,6 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.sn.problem import SNProblem
@@ -179,6 +178,17 @@ pytestmark = pytest.mark.l1
 
 
 from tests.gates.sn._test_helpers import SN_TESTS_ROOT
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
+#: A face's role by the kind string the builders speak: a vacuum face is the tag 0, a reflective face a mirror deck (Cartesian body).
+_ROLE = {"vacuum": 0, "reflective": MirrorDeck()}
+
 
 SNAPSHOT_DIR = SN_TESTS_ROOT / "regression" / "snapshots"
 """Snapshot location.  Snapshots are .npz files keyed by case id::
@@ -251,11 +261,11 @@ def _build_2d_mesh(
         edges_x=np.linspace(0.0, 1.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=mat_map,
-        face_laws={
-            "xmin": BC(xmin),
-            "xmax": BC(xmax),
-            "ymin": BC(ymin),
-            "ymax": BC(ymax),
+        face_roles={
+            "xmin": _ROLE[xmin],
+            "xmax": _ROLE[xmax],
+            "ymin": _ROLE[ymin],
+            "ymax": _ROLE[ymax],
         },
     )
 
@@ -292,7 +302,7 @@ def _build_sn_mesh(
         raise ValueError(f"Unknown quadrature kind: {quadrature}")
     return SNProblem(
         mesh, quad,
-        placeholder_materials(ng=ng, mat_ids=tuple(range(n_materials))),
+        placeholder_materials(ng=ng, mat_ids=tuple(range(n_materials))), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -1061,7 +1071,7 @@ def test_2d_octant_sweep_closed_form_anchor() -> None:
         # (structurally-independent closed-form anchor).  The production 2-D
         # eigenvalue path is Krylov (solves the coupled bulk⊕trace system
         # directly) and is unaffected by this SI rate change.
-        max_inner=2000, inner_tol=1e-13,
+        max_inner=2000, inner_tol=1e-13, boundary_conditions=conditions_for(inputs.problem.mesh, _CONDITIONS),
     )
 
     np.testing.assert_allclose(

@@ -47,7 +47,7 @@ from orpheus.derivations.discrete.sn.ld_ubld import (
     fin_trace_weight,
     per_cell_solve,
 )
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.mesh.reduced_operator import slab_streaming
 from orpheus.numerics.quadrature import Quadrature
@@ -131,7 +131,7 @@ class TestOracleId1Reduction:
         re-typed copy of its formula (structural-independence of the cross-check).
         """
         # Concrete slab cell + ordinate from the production factory.
-        mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
             CellsByCount.uniform_width(5),
         ).mesh
         quad = Quadrature.gauss_legendre(4)

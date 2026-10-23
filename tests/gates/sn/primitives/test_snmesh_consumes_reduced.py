@@ -50,12 +50,20 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.mesh.reduced_operator import ReducedStreamingOperator
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 
 # ---------------------------------------------------------------------------
@@ -65,26 +73,26 @@ from tests.gates.sn._test_helpers import placeholder_materials
 
 def _slab_mesh() -> SNProblem:
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 1.0), (0,), left=BC.reflective, right=BC.reflective,
+        (0.0, 1.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(4)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _sphere_mesh() -> SNProblem:
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, 1.0), (0,), outer=BC.reflective,
+        (0.0, 1.0), (0,), outer=0,
     )).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(4)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _cylinder_mesh() -> SNProblem:
     mesh = Mesher(StructuredGeometry.cylinder(
-        (0.01, 1.0), (0,), inner=BC.reflective, outer=BC.reflective,
+        (0.01, 1.0), (0,), inner=0, outer=0,
     )).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=4)
-    return SNProblem(mesh, quad, placeholder_materials())
+    return SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # ---------------------------------------------------------------------------

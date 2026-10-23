@@ -94,7 +94,7 @@ def _full_inflow_mask(operator: SNBoundaryOperator):
 
     ``SweepSchedule.jacobi`` builds ONE octant group with ``reflect_faces=()``,
     so ``lower_inflow_rows`` returns ``{}`` and ``SNBoundaryOperator.split``
-    puts EVERY inflow row of EVERY ``_face_laws`` face into ``upper``.  Nothing
+    puts EVERY inflow row of EVERY ``_face_operators`` face into ``upper``.  Nothing
     new is minted here; the mask is read off the shipped split.
     """
     mesh = operator.problem
@@ -122,7 +122,7 @@ def test_g5_2_the_jacobi_split_upper_is_the_full_inflow_mask(geometry):
     parts = _full_inflow_mask(operator)
     trace = problem.angular_trace
 
-    want = {face: trace.inflow_indices_for_face(face) for face in operator._face_laws}
+    want = {face: trace.inflow_indices_for_face(face) for face in operator._face_operators}
     if not want:
         pytest.fail(f"[{geometry}] the mesh declares no boundary face laws — row vacuous")
     if set(parts.upper.rows) != set(want):

@@ -24,15 +24,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.geometry.boundary import (
-    ConstantInflowSource,
-    PrescribedInflow,
-)
 from orpheus.transport.boundary_realization import stamp_boundary_role
 from orpheus.numerics.green_operator import GreenOperator
-from orpheus.numerics.operator import ZeroOperator
+from orpheus.numerics.operator import NotInvertible, ZeroOperator
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.numerics.operator import (
     BlockRole,
     BoundaryOperator,
@@ -41,7 +39,7 @@ from orpheus.numerics.operator import (
     OperatorSum,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+from orpheus.sn.boundary.realized_operators import ZeroMap
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.radial_characteristic import RadialCharacteristicOperator
@@ -66,12 +64,18 @@ from tests._harness.predicates import (
 )
 from tests.gates.sn._test_helpers import (
     rc_march,
-    face_method_space,
     material_xs_from_raw,
     placeholder_materials,
 )
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.transport.material_field import TransferMaterialField
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.foundation]
 
@@ -81,11 +85,11 @@ def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
         coord=CoordSystem.CARTESIAN,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC.vacuum, BC.vacuum),
+        face_roles=(0, 0),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
@@ -95,11 +99,11 @@ def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
         coord=CoordSystem.SPHERICAL,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC.vacuum,),
+        face_roles=(0,),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -177,20 +181,31 @@ class TestRealizedPrescribedInflowCapabilities:
     """
 
     def _realized(self):
-        return SNBoundaryRealizer().realize(
-            PrescribedInflow(source=ConstantInflowSource(value=2.5)),
-            face_method_space(Quadrature.gauss_legendre(n_ordinates=4)),
+        """The realized operator of a face declaring a pure inflow (a wall with no return), read off the posing path: a ``ZeroMap``
+        whose inflow is the binding's source, not the operator's."""
+        mesh = Mesher(StructuredGeometry.slab((0.0, 2.0), (0,), left=0, right=MirrorDeck())).partition(CellsByCount.uniform_volume(4)).mesh
+        sn = SNProblem(
+            mesh, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials(ng=1),
+            boundary_conditions={0: WallCondition.uniform(2.5)},
         )
+        op = sn.bc["xmin"]
+        if not isinstance(op, ZeroMap):
+            pytest.fail(f"a pure-inflow face must realize to a ZeroMap, got {type(op).__name__}")
+        return op
 
     def test_the_transpose_is_now_advertised(self) -> None:
         op = self._realized()
         assert op.is_adjointable
         assert callable(getattr(op, "apply_transpose", None))
 
-    def test_the_inverse_axis_stays_absent(self) -> None:
+    def test_the_inverse_axis_raises(self) -> None:
+        """Meaning change at wave 2 S2b: the retired zero morphism declined to declare an ``inverse()`` at all, while every realized
+        boundary operator declares one uniformly (``RealizedBoundary.inverse``, one body) that raises ``NotInvertible`` for a
+        projecting image. ``is_invertible`` stays ``False`` and the guard is the value arm of the contract."""
         op = self._realized()
         assert not op.is_invertible
-        assert not hasattr(op, "inverse")
+        with pytest.raises(NotInvertible):
+            op.inverse()
         assert callable(getattr(op, "apply", None))
 
 
@@ -308,8 +323,8 @@ class TestPredicateFaithfulness:
         C_singular = MultiplicationOperator.from_mesh(sigma_singular, sn)
         B = SNBoundaryOperator(sn)
         ops = [L, C, C_singular, L + C, L + C - B, B]
-        # The realized per-face boundary-law wrappers (_BoundBoundaryOperator):
-        # their is_* MUST delegate to the inner law, not the base default.
+        # The realized per-face boundary operators (RealizedBoundary):
+        # their is_* MUST delegate to the inner operator, not the base default.
         ops += [sn.bc[face] for face in sn.angular_trace.layout.faces]
         return ops
 
@@ -370,11 +385,11 @@ class TestPredicateFaithfulness:
         assert lc.is_adjointable is True
 
     def test_boundary_law_wrapper_delegates_predicates(self) -> None:
-        """The ``_BoundBoundaryOperator`` wrapper delegates ``is_*`` to its inner
-        realized law, NOT the base ``LinearOperator`` default. A
-        non-delegating wrapper would report a vacuum/reflective face law
-        as ``is_adjointable=False`` and silently break the ``B``
-        aggregator's ``all(law.is_adjointable …)`` rule."""
+        """A ``RealizedBoundary`` delegates ``is_*`` to its inner operator,
+        NOT the base ``LinearOperator`` default. A non-delegating operator
+        would report a vacuum/reflective face as ``is_adjointable=False``
+        and silently break the ``B`` aggregator's
+        ``all(law.is_adjointable …)`` rule."""
         sn = _slab_mesh(ng=2)
         for face in sn.angular_trace.layout.faces:
             law = sn.bc[face]
@@ -389,7 +404,7 @@ class TestPredicateFaithfulness:
         axis, eager-``.H`` on the adjoint axis, TypeGuard-bridge
         consistency) over the SN + transport advertisers. Expectations
         VERIFIED against the live fixture (probe 2026-07-02): the vacuum
-        face-law shims declare the forwarded ``inverse()`` and their
+        realized face operators declare the forwarded ``inverse()`` and their
         guard raises ``NotInvertible`` (VALUE arm); ``L`` and ``B`` are
         the structural arm; the sweep-invertible ``(L+C)`` atom and the Green
         of the split ``M = L+C, N = B`` return, while the plain sum

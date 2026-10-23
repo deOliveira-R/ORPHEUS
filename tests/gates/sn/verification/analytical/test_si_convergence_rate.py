@@ -76,12 +76,20 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.derivations.continuous.analytical.homogeneous import (
     derive_2g_continuous,
 )
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
 from orpheus.transport.fields import AngularSourceSink
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 # NOTE: NO module-level ``pytestmark = pytest.mark.l1``.  This file mixes
@@ -119,7 +127,7 @@ def _reflective_slab(mat: str, ng_key: str, nx: int = 20, length: float = 2.0):
     m = get_mixture(mat, ng_key)
     mats = {0: m}
     geom = StructuredGeometry.slab(
-        (0.0, length), (0,), left=BC.reflective, right=BC.reflective,
+        (0.0, length), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
@@ -137,7 +145,7 @@ def _vacuum_slab(mat: str, ng_key: str, nx: int = 20, length: float = 2.0):
     m = get_mixture(mat, ng_key)
     mats = {0: m}
     geom = StructuredGeometry.slab(
-        (0.0, length), (0,), left=BC.vacuum, right=BC.vacuum,
+        (0.0, length), (0,), left=0, right=0,
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
@@ -146,7 +154,7 @@ def _vacuum_slab(mat: str, ng_key: str, nx: int = 20, length: float = 2.0):
 
 def _iso_source(m, mesh, quad, mats):
     """Uniform iso scalar source -> per-ordinate (N, ng, *spatial) array."""
-    sn = SNProblem(mesh, quad, mats)
+    sn = SNProblem(mesh, quad, mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     return AngularSourceSink.from_isotropic(
         np.ones((m.ng, *sn.spatial_shape)), sn
     ).values
@@ -163,7 +171,7 @@ def _si_count(mats, mesh, quad, source, tol=_TOL, schedule="gauss_seidel"):
     sol = solve_sn_fixed_source(
         mats, mesh, quad, source,
         inner_solver="source_iteration", inner_schedule=schedule,
-        max_inner=20000, inner_tol=tol,
+        max_inner=20000, inner_tol=tol, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     assert sol.record.converged, "SI did not converge — count is meaningless"
     return sol.record.n_iterations
@@ -207,11 +215,11 @@ def test_boundary_gs_recovers_reflective_2d_si():
         return Mesh2D(
             edges_x=edges, edges_y=edges,
             mat_map=np.zeros((nx, ny), dtype=int),
-            face_laws={
-                "xmin": BC.reflective,
-                "xmax": BC.reflective,
-                "ymin": BC.reflective,
-                "ymax": BC.reflective,
+            face_roles={
+                "xmin": MirrorDeck(),
+                "xmax": MirrorDeck(),
+                "ymin": MirrorDeck(),
+                "ymax": MirrorDeck(),
             },
         )
 
@@ -220,9 +228,9 @@ def test_boundary_gs_recovers_reflective_2d_si():
 
     def _solve(schedule, solver_kind="source_iteration"):
         return solve_sn_fixed_source(
-            mats, _mesh(), quad, source,
+            mats, (_carrier1 := _mesh()), quad, source,
             inner_solver=solver_kind, inner_schedule=schedule,
-            max_inner=20000, inner_tol=_TOL,
+            max_inner=20000, inner_tol=_TOL, boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
         )
 
     sol_jac = _solve("jacobi")
@@ -316,7 +324,7 @@ def test_jacobi_si_far_above_krylov_lower_bound():
     n_si = _si_count(mats, mesh, quad, source, tol=1e-10, schedule="jacobi")
     sol_k = solve_sn_fixed_source(
         mats, mesh, quad, source,
-        inner_solver="krylov", max_inner=20000, inner_tol=1e-10,
+        inner_solver="krylov", max_inner=20000, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     n_krylov = sol_k.record.n_iterations
     assert n_si >= 1.5 * n_krylov, (
@@ -341,7 +349,7 @@ def test_recovery_preserves_kinf_2g():
     case = derive_2g_continuous()
     mat_id = next(iter(case.problem.materials.keys()))
     geom = StructuredGeometry.slab(
-        (0.0, 2.0), (mat_id,), left=BC.reflective, right=BC.reflective,
+        (0.0, 2.0), (mat_id,), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(10)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
@@ -349,7 +357,7 @@ def test_recovery_preserves_kinf_2g():
         case.problem.materials, mesh, quad,
         inner_solver="source_iteration",
         max_outer=1000, keff_tol=1e-12, flux_tol=1e-10,
-        max_inner=5000, inner_tol=1e-10,
+        max_inner=5000, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     np.testing.assert_allclose(
         sol.outcome.keff, case.k_eff, rtol=1e-10,
@@ -377,11 +385,11 @@ def test_recovery_si_matches_krylov_fixed_point_2g():
     source = _iso_source(m, mesh, quad, mats)
     sol_si = solve_sn_fixed_source(
         mats, mesh, quad, source,
-        inner_solver="source_iteration", max_inner=20000, inner_tol=1e-10,
+        inner_solver="source_iteration", max_inner=20000, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     sol_k = solve_sn_fixed_source(
         mats, mesh, quad, source,
-        inner_solver="krylov", max_inner=20000, inner_tol=1e-10,
+        inner_solver="krylov", max_inner=20000, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     phi_si = sol_si.scalar_flux.values
     phi_k = sol_k.scalar_flux.values
@@ -405,7 +413,7 @@ def test_recovery_flat_flux_balance_limit():
     source = _iso_source(m, mesh, quad, mats)
     sol = solve_sn_fixed_source(
         mats, mesh, quad, source,
-        inner_solver="source_iteration", max_inner=20000, inner_tol=1e-12,
+        inner_solver="source_iteration", max_inner=20000, inner_tol=1e-12, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     phi = sol.scalar_flux.values  # (ng, *spatial)
     # Flat across space (reflective + uniform -> spatially flat to round-off).
@@ -465,13 +473,13 @@ def test_eigenvalue_path_surfaces_total_inner_iterations():
     case = derive_2g_continuous()
     mat_id = next(iter(case.problem.materials.keys()))
     geom = StructuredGeometry.slab(
-        (0.0, 2.0), (mat_id,), left=BC.reflective, right=BC.reflective,
+        (0.0, 2.0), (mat_id,), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(10)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     sol = solve_sn(
         case.problem.materials, mesh, quad, inner_solver="source_iteration",
-        max_outer=1000, max_inner=5000, inner_tol=1e-8,
+        max_outer=1000, max_inner=5000, inner_tol=1e-8, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     total_inner = sol.record.leaf_iterations
     assert total_inner > 0, (

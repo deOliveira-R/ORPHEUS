@@ -40,7 +40,7 @@ from tests._harness.float_bounds import gamma
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellEdges, Mesher
 from orpheus.mesh import AxisCoord, AxisMesh, RadialAxisMesh
 from orpheus.numerics.axis import BasisKind, EnergyAxis
@@ -52,6 +52,14 @@ from orpheus.transport.spatial import LinearDiscontinuous
 from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.numerics.axis import Modal
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(1.0)}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -62,12 +70,12 @@ _NG = 2
 
 def _slab(*, scheme=None, ng: int = _NG) -> SNProblem:
     geometry = StructuredGeometry.slab(
-        (_EDGES[0], _EDGES[-1]), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (_EDGES[0], _EDGES[-1]), (0,), left=0, right=0,
     )
     mesh = Mesher(geometry).partition(CellEdges(_EDGES)).mesh
     kwargs = {} if scheme is None else {"scheme": scheme}
     return SNProblem(
-        mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng), **kwargs
+        mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng), **kwargs, boundary_conditions=conditions_for(mesh, _CONDITIONS)
     )
 
 
@@ -366,13 +374,13 @@ class TestG14GramEquivalenceLD:
 def _cart_axes():
     # A minimal 1-D Cartesian axis tuple (P4.6: the family consumes axes).
     return (AxisMesh(edges=np.array([0.0, 1.0]),
-                     bc_low=BC.reflective, bc_high=BC.reflective),)
+                     role_low=MirrorDeck(), role_high=MirrorDeck()),)
 
 
 def _radial_axes(kind: AxisCoord):
     # A minimal 1-D radial axis tuple of the given kind (P4.6).
     return (RadialAxisMesh(edges=np.array([0.0, 1.0]), coord=kind,
-                           bc_outer=BC.reflective),)
+                           role_outer=1),)
 
 
 class TestMomentAxisAdmission:

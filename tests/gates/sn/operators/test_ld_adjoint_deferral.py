@@ -37,7 +37,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation import (
@@ -62,6 +62,14 @@ from tests.gates.sn._test_helpers import (
     placeholder_materials,
 )
 from tests.gates.sn.operators.test_g_adjoint_reciprocity import _random_composite
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -75,10 +83,10 @@ def _slab(scheme=None, ng: int = 2):
     """Reflective 2G slab; per-group-varying σ_t (the reciprocity-file recipe)."""
     quad = Quadrature.gauss_legendre(4)
     geom = StructuredGeometry.slab(
-        (0.0, 1.0), (0,), left=BC("reflective"), right=BC("reflective"),
+        (0.0, 1.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(4)).mesh
-    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng), scheme=scheme)
+    sn = SNProblem(mesh, quad, placeholder_materials(ng=ng), scheme=scheme, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     sig_t = np.stack(
         [np.full(sn.spatial_shape, 0.5 * (1.0 + 0.5 * g)) for g in range(ng)], axis=0
     )
@@ -95,16 +103,16 @@ def _ld2d_mesh() -> SNProblem:
         edges_x=np.array([0.0, 0.5, 1.3, 2.0]),
         edges_y=np.array([0.0, 0.9, 2.0]),
         mat_map=np.zeros((3, 2), dtype=int),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
         },
     )
     return SNProblem(
         geom, Quadrature.level_symmetric(2), placeholder_materials(ng=2),
-        scheme=LinearDiscontinuous(),
+        scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(geom, _CONDITIONS),
     )
 
 

@@ -56,7 +56,6 @@ import pytest
 
 from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.operators.boundary import SNBoundaryOperator
@@ -68,6 +67,14 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields import AngularBoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn._test_helpers import SN_TESTS_ROOT
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 # ─────────────────────────────────────────────────────────────────────
 # Baseline snapshot store + the --capture-baseline flag (Gate V-2D).
@@ -97,15 +104,15 @@ def _homogeneous_reflective_2d(nx: int = 4, ny: int = 4) -> SNProblem:
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 2.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNProblem(geom, quad, {0: get_mixture("A", "2g")})
+    return SNProblem(geom, quad, {0: get_mixture("A", "2g")}, boundary_conditions=conditions_for(geom, _CONDITIONS))
 
 
 def _vacuum_2d(nx: int = 4, ny: int = 4) -> SNProblem:
@@ -114,15 +121,15 @@ def _vacuum_2d(nx: int = 4, ny: int = 4) -> SNProblem:
         edges_x=np.linspace(0.0, 1.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNProblem(geom, quad, {0: get_mixture("A", "2g")})
+    return SNProblem(geom, quad, {0: get_mixture("A", "2g")}, boundary_conditions=conditions_for(geom, _CONDITIONS))
 
 
 def _sigt_2g(problem: SNProblem) -> np.ndarray:
@@ -444,7 +451,7 @@ class TestBoundaryResidual2DDrivesToZero:
             quadrature=problem.quad,
             inner_solver="krylov",
             keff_tol=solver_tol, flux_tol=solver_tol,
-            max_outer=200, max_inner=200,
+            max_outer=200, max_inner=200, boundary_conditions=conditions_for(problem.mesh, _CONDITIONS),
         )
         # Sanity: the eigenvalue must be k_inf (Gate K's anchor) — if the solve
         # converged to a non-uniform mode the boundary balance is meaningless.

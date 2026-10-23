@@ -42,7 +42,7 @@ import pytest
 import sympy as sp
 
 from orpheus.derivations.discrete.sn import ld_ubld as sym
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.mesh.reduced_operator import slab_streaming
 from orpheus.numerics.quadrature import Quadrature
@@ -56,6 +56,7 @@ from orpheus.transport.spatial._ubld import (
     per_cell_solve,
 )
 from orpheus.transport.spatial.scheme import CellVisit, DiscretizationSchemeBase
+
 
 THETA = 1.0 / 3.0
 
@@ -365,7 +366,7 @@ class TestProductionViewsAnchoredToPrimitive:
     @staticmethod
     def _slab_cell():
         """A concrete slab cell + ordinate from the production factory."""
-        mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
             CellsByCount.uniform_width(5),
         ).mesh
         quad = Quadrature.gauss_legendre(4)

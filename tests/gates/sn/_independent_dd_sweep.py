@@ -60,7 +60,6 @@ from __future__ import annotations
 import numpy as np
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -69,6 +68,7 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields import AngularSourceSink
 
 from tests.gates.sn._test_helpers import SN_TESTS_ROOT, sweep_once
+from orpheus.geometry.deck import MirrorDeck
 
 #: The seed of the snapshot's source.  Legacy global RNG, so the bytes of
 #: ``sweep_ref_2g.npy`` reproduce.
@@ -96,7 +96,7 @@ def solver_2g_case() -> tuple[SNSolver, dict, SNProblem, Quadrature]:
         edges_x=np.linspace(0, nx * delta, nx + 1),
         edges_y=np.linspace(0, ny * delta, ny + 1),
         mat_map=mat,
-        face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
+        face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     quad = Quadrature.lebedev(order=17)
     problem = SNProblem(mesh, quad, materials)

@@ -48,13 +48,9 @@ import pytest
 
 from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.geometry.boundary import (
-    ReflectiveBoundary,
-    SelfPairedDeck,
-    VacuumInflow,
-)
+from orpheus.geometry.boundary import SelfPairedDeck
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
     StreamingOperator,
@@ -73,6 +69,16 @@ from tests.gates.sn._test_helpers import (
     placeholder_materials,
     radial_characteristic_edge_seed,
 )
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(1.0)}
+
+#: A curved body's outer face by the kind string the builders speak: the tag 0 is the vacuum, the tag 1 the unit specular wall.
+_OUTER_ROLE = {"vacuum": 0, "reflective": 1}
+
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -84,7 +90,7 @@ def _make_spherical_sn_mesh(
     nx: int = 8,
     R: float = 1.0,
     quad_name: str = "gl4",
-    bc_outer: BC | None = None,
+    bc_outer: int | None = None,
     pole_closure=None,
 ) -> tuple[SNProblem, np.ndarray]:
     """Build a homogeneous-material spherical SNProblem + sig_t array.
@@ -98,9 +104,9 @@ def _make_spherical_sn_mesh(
     else:
         raise ValueError(quad_name)
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, R), (0,), outer=bc_outer or BC("reflective"),
+        (0.0, R), (0,), outer=_OUTER_ROLE["reflective"] if bc_outer is None else bc_outer,
     )).partition(CellsByCount.uniform_width(nx)).mesh
-    problem = SNProblem(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
+    problem = SNProblem(mesh, quad, placeholder_materials(), angular_closure=pole_closure, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     return problem, sig_t
 
@@ -109,7 +115,7 @@ def _make_cylindrical_sn_mesh(
     nx: int = 8,
     R: float = 1.0,
     quad_name: str = "folded_4x8",
-    bc_outer: BC | None = None,
+    bc_outer: int | None = None,
     pole_closure=None,
 ) -> tuple[SNProblem, np.ndarray]:
     """Build a homogeneous-material cylindrical SNProblem + sig_t array.
@@ -122,9 +128,9 @@ def _make_cylindrical_sn_mesh(
     else:
         raise ValueError(quad_name)
     mesh = Mesher(StructuredGeometry.cylinder(
-        (0.0, R), (0,), outer=bc_outer or BC("reflective"),
+        (0.0, R), (0,), outer=_OUTER_ROLE["reflective"] if bc_outer is None else bc_outer,
     )).partition(CellsByCount.uniform_width(nx)).mesh
-    problem = SNProblem(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
+    problem = SNProblem(mesh, quad, placeholder_materials(), angular_closure=pole_closure, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     return problem, sig_t
 
@@ -567,10 +573,10 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     """
     nx = 6
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, 1.0), (0,), outer=BC("vacuum"),
+        (0.0, 1.0), (0,), outer=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(4)
-    problem = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(sig_t, problem)
@@ -752,7 +758,7 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
     from unittest.mock import patch
     problem, sig_t = _make_spherical_sn_mesh(
         nx=6, R=1.0, quad_name="gl4",
-        bc_outer=BC(bc_kind),
+        bc_outer=_OUTER_ROLE[bc_kind],
     )
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(sig_t, problem)
@@ -769,13 +775,16 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
 
     # Capture any BC apply calls during the matvec.
     captured_inputs: list[np.ndarray] = []
-    original_apply = problem.bc["xmax"].apply
+    # (a realized boundary is a frozen value, so the spy goes on its CLASS; the sphere has the one outer face, so every call is
+    # that face's)
+    bc_class = type(problem.bc["xmax"])
+    original_apply = bc_class.apply
 
-    def capture_apply(inp):
+    def capture_apply(self, inp):
         captured_inputs.append(np.array(inp, copy=True))
-        return original_apply(inp)
+        return original_apply(self, inp)
 
-    with patch.object(problem.bc["xmax"], "apply", side_effect=capture_apply):
+    with patch.object(bc_class, "apply", capture_apply):
         out = op.apply(psi_state)
 
     # EXTRACTION: the post-O.4a.2 matvec does NOT apply the BC — it reads

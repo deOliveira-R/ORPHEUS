@@ -17,7 +17,7 @@ from __future__ import annotations
 import numpy as np
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
@@ -26,6 +26,14 @@ from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields import AngularSourceSink
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 def _graded_edges(length: float, n_cells: int, *, ratio: float) -> np.ndarray:
@@ -56,16 +64,16 @@ class CompositionOverhead:
         mesh = Mesh2D(
             edges_x=_graded_edges(2.0, nx, ratio=1.02), edges_y=_graded_edges(3.0, ny, ratio=1.03),
             mat_map=mat_map, coord=CoordSystem.CARTESIAN,
-            face_laws={
-                "xmin": BC("reflective"),
-                "xmax": BC("vacuum"),
-                "ymin": BC("reflective"),
-                "ymax": BC("vacuum"),
+            face_roles={
+                "xmin": MirrorDeck(),
+                "xmax": 0,
+                "ymin": MirrorDeck(),
+                "ymax": 0,
             },
         )
         problem = SNProblem(
             mesh, Quadrature.level_symmetric(sn_order=4),
-            {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+            {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         record = build_within_group_system(problem, problem.mat_xs)
         self.A = record.loss
@@ -108,10 +116,10 @@ class SlabSweep:
 
     def setup(self) -> None:
         nx, ng = 160, 4
-        mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+        mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
             CellsByCount.uniform_width(nx),
         ).mesh
-        self.problem = SNProblem(mesh, Quadrature.gauss_legendre(16), {0: get_mixture("A", f"{ng}g")})
+        self.problem = SNProblem(mesh, Quadrature.gauss_legendre(16), {0: get_mixture("A", f"{ng}g")}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         self.rep = CumprodScan.pose(self.problem)
         self.stratum = self.rep.bind_sigma(np.ones((ng, nx)))
         self.source = AngularSourceSink.from_isotropic(np.ones((ng, nx)), self.problem).values
@@ -132,10 +140,10 @@ class CumprodAgainstSpine:
 
     def setup(self, representation: str) -> None:
         nx = 4096
-        mesh = Mesher(StructuredGeometry.from_homogeneous(10.0, BC("vacuum"))).partition(
+        mesh = Mesher(StructuredGeometry.from_homogeneous(10.0, 0)).partition(
             CellsByCount.uniform_width(nx),
         ).mesh
-        self.problem = SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=8), {0: get_mixture("A", "2g")})
+        self.problem = SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=8), {0: get_mixture("A", "2g")}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         rng = np.random.default_rng(99)
         sig_t = rng.uniform(0.3, 3.0, size=(self.problem.ng, nx))
         iso = rng.uniform(0.2, 1.5, size=(self.problem.ng, nx))
@@ -163,9 +171,9 @@ class SolverComponents:
         mesh = Mesh2D(
             edges_x=np.linspace(0, nx * delta, nx + 1), edges_y=np.linspace(0, ny * delta, ny + 1),
             mat_map=mat,
-            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
         )
-        problem = SNProblem(mesh, Quadrature.lebedev(order=17), {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")})
+        problem = SNProblem(mesh, Quadrature.lebedev(order=17), {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         self.solver = SNSolver(problem)
         rng = np.random.default_rng(42)
         self.phi = rng.random((self.solver.ng, *problem.spatial_shape)) + 0.1

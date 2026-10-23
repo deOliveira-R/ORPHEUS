@@ -68,7 +68,7 @@ import pytest
 from numpy.typing import NDArray
 
 from orpheus.data.energy_grid import EnergyGrid
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.basis import (
     Basis,
@@ -89,6 +89,7 @@ from orpheus.numerics.space import FunctionSpace
 from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.sn.operators.loss_kernel_gauge import LossKernelBasis
 from orpheus.numerics import frame_faces
+
 
 pytestmark = [pytest.mark.foundation]
 
@@ -330,7 +331,7 @@ def test_d6_a_frames_two_halves_name_ONE_manifold() -> None:
     a third pair rather than as an exception.
     """
     geometry = StructuredGeometry.slab(
-        (0.0, 0.5, 1.0), (0, 1), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 0.5, 1.0), (0, 1), left=0, right=0,
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
     grid = EnergyGrid(edges=np.array([2.0e7, 1.0, 1.0e-5]))

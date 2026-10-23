@@ -13,7 +13,7 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -23,6 +23,13 @@ from tests.gates.sn._test_helpers import (
     placeholder_materials,
 )
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 # Equation-coverage list preserved verbatim from the legacy
 # test_spherical module so no verifies(...) edge is lost in the split.
@@ -50,10 +57,10 @@ class TestAlphaCoefficients:
     def test_alpha_boundary_conditions(self, N):
         """α_{1/2} = 0 and α_{N+1/2} = 0 by GL antisymmetry."""
         mesh = Mesher(StructuredGeometry.sphere(
-            (0.0, 1.0), (0,), outer=BC.reflective,
+            (0.0, 1.0), (0,), outer=0,
         )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(N)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -68,10 +75,10 @@ class TestAlphaCoefficients:
         unrelated to curvilinear SN), retracted at #168 Phase B.
         """
         mesh = Mesher(StructuredGeometry.sphere(
-            (0.0, 1.0), (0,), outer=BC.reflective,
+            (0.0, 1.0), (0,), outer=0,
         )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(8)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -86,10 +93,10 @@ class TestAlphaCoefficients:
         Follows from GL symmetry (w_n = w_{N-1-n}, μ_n = -μ_{N-1-n}).
         """
         mesh = Mesher(StructuredGeometry.sphere(
-            (0.0, 1.0), (0,), outer=BC.reflective,
+            (0.0, 1.0), (0,), outer=0,
         )).partition(CellsByCount.uniform_width(1)).mesh
         quad = Quadrature.gauss_legendre(8)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -119,7 +126,7 @@ class TestSphericalSweepRegression:
 
         mesh = _homogeneous_mesh(10, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         sig_t = np.ones((1, *problem.spatial_shape))  # (ng, *spatial)
         Q_iso = np.ones((1, *problem.spatial_shape))  # (ng, *spatial)
@@ -150,7 +157,7 @@ class TestSphericalSweepRegression:
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        problem = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         sig_t = np.full((1, *problem.spatial_shape), 0.5)  # (ng, *spatial)
         Q_iso = np.ones((1, *problem.spatial_shape))       # (ng, *spatial)
@@ -167,7 +174,7 @@ class TestSphericalSweepRegression:
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        problem = SNProblem(mesh, quad, {0: mix})
+        problem = SNProblem(mesh, quad, {0: mix}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         solver = SNSolver(problem, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
@@ -189,7 +196,7 @@ class TestSphericalSweepRegression:
         mix = get_mixture("A", "1g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
+        result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         # D-H.1d: Solution.angular_flux is TimedFullField; bulk values.
         psi_center = result.angular_flux.interior.values[:, 0, 0]  # (N_ord,) for group 0
@@ -213,7 +220,7 @@ class TestSphericalBicgstab:
         quad = Quadrature.gauss_legendre(8)
         result = solve_sn({0: mix}, mesh, quad,
                           inner_solver="krylov",
-                          max_inner=2000, inner_tol=1e-6)
+                          max_inner=2000, inner_tol=1e-6, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         assert abs(result.outcome.keff - case.k_inf) < 1e-4, (
             f"BiCGSTAB keff={result.outcome.keff:.8f} vs analytical={case.k_inf:.8f}"
@@ -234,7 +241,7 @@ class TestSphericalBicgstab:
                 {0: mix}, mesh, quad,
                 inner_solver=solver_type,
                 max_inner=500 if solver_type == "SI" else 2000,
-                inner_tol=1e-10 if solver_type == "SI" else 1e-6,
+                inner_tol=1e-10 if solver_type == "SI" else 1e-6, boundary_conditions=conditions_for(mesh, _CONDITIONS),
             )
             keffs[label] = result.outcome.keff
 
@@ -257,7 +264,7 @@ class TestSphericalBicgstab:
         quad = Quadrature.gauss_legendre(8)
         result = solve_sn({0: mix}, mesh, quad,
                           inner_solver="krylov",
-                          max_inner=2000, inner_tol=1e-6)
+                          max_inner=2000, inner_tol=1e-6, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
         assert np.isfinite(result.outcome.keff), f"keff is not finite: {result.outcome.keff}"
         assert np.all(np.isfinite(result.scalar_flux.values)), "Non-finite scalar flux"

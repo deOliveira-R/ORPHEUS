@@ -61,10 +61,17 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn_fixed_source
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 
 # ── Analytical reference ───────────────────────────────────────────
@@ -121,7 +128,7 @@ def test_homogeneous_streaming_equilibrium_sphere(
         coord=CoordSystem.SPHERICAL,
         breakpoints=(0.0, _R_SPHERE),
         mat_ids=(0,),
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
@@ -136,7 +143,7 @@ def test_homogeneous_streaming_equilibrium_sphere(
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
-        inner_solver=inner_solver,
+        inner_solver=inner_solver, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     # D-H.1d: Solution.angular_flux is TimedFullField.
     psi = result.angular_flux.interior.values   # (N, ng, nx)
@@ -224,7 +231,7 @@ def test_homogeneous_streaming_equilibrium_cylinder(
         coord=CoordSystem.CYLINDRICAL,
         breakpoints=(0.0, _R_CYL),
         mat_ids=(0,),
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
     quad = Quadrature.folded_product(n_mu=n_mu, n_phi=4)
@@ -237,7 +244,7 @@ def test_homogeneous_streaming_equilibrium_cylinder(
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
-        inner_solver=inner_solver,
+        inner_solver=inner_solver, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     # D-H.1d: Solution.angular_flux is TimedFullField.
     psi = result.angular_flux.interior.values   # (N, ng, nx)
@@ -290,7 +297,7 @@ def test_pomraning_pole_isotropy_sphere(inner_solver: str) -> None:
         coord=CoordSystem.SPHERICAL,
         breakpoints=(0.0, _R_SPHERE),
         mat_ids=(0,),
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(40)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
@@ -303,7 +310,7 @@ def test_pomraning_pole_isotropy_sphere(inner_solver: str) -> None:
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
-        inner_solver=inner_solver,
+        inner_solver=inner_solver, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     # D-H.1d: Solution.angular_flux is TimedFullField.
     psi_at_pole = result.angular_flux.interior.values[:, 0, 0]   # (N,)

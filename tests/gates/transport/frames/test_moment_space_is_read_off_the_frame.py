@@ -61,7 +61,7 @@ from dataclasses import dataclass, replace
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.basis.base import Basis, GramStructure, TruncatedBasis
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
@@ -83,6 +83,7 @@ from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from orpheus.transport.material_field import TransferMaterialField
 from tests.gates.sn._test_helpers import material_xs_from_raw, placeholder_materials
 from orpheus.numerics import frame_faces
+from orpheus.geometry.deck import MirrorDeck
 
 pytestmark = pytest.mark.foundation
 
@@ -175,7 +176,7 @@ class _ForeignTruncatedBasis(Basis):
 
 
 def _slab(nx: int = 4, n_ord: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(4.0, BC("reflective"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(4.0, MirrorDeck())).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=n_ord), placeholder_materials(ng=ng))

@@ -23,14 +23,14 @@ construction equivalent to ``ScatteringOperator.block_role is
 BlockRole.BULK`` — the class-level assertion fully determines the
 instance membership, so it is not a coverage gap.
 
-The BOUNDARY role tags the realized boundary laws
-(:meth:`SNBoundaryRealizer.realize` outputs — vacuum / reflective /
-white / albedo / periodic carry :attr:`BlockRole.BOUNDARY`; the rank-0
-affine ``PrescribedInflow`` source does NOT — it is the boundary
-*source* ``q.boundary``, not a linear ``B``). Pinned in
-``TestBoundaryLeaves`` below, both on the raw realizer output and on the
-mesh-wired ``problem.bc`` entries (the ``_BoundBoundaryOperator`` shim forwards
-the inner op's role). The O.4a.1-γ tagging lands the role; O.4a.2 wires
+The BOUNDARY role tags the realized boundary operators
+(``problem.bc`` entries, the :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`
+leaves: vacuum / reflective / white / specular wall / periodic carry
+:attr:`BlockRole.BOUNDARY`, and so does a pure inflow, whose linear factor is the
+zero map: its source is ``q.boundary``, not part of ``B``). Pinned in
+``TestBoundaryLeaves`` below on the entries the posing path wires (wave 2 S2b:
+the realizer's raw output and the forwarding shim of the earlier spelling are
+the same objects now), each row posed through a real one-face-under-test slab. The O.4a.1-γ tagging lands the role; O.4a.2 wires
 ``B`` into ``(L_full + C − S − F − B)`` as a sibling of ``L``.
 """
 from __future__ import annotations
@@ -38,20 +38,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.geometry.boundary import (
-    AlbedoBoundary,
-    ConstantInflowSource,
-    IsotropicReturn,
-    NoSource,
-    PeriodicBoundary,
-    PrescribedInflow,
-    SpecularReturn,
-    ReflectiveBoundary,
-    VacuumInflow,
-    WhiteBoundary,
-)
 from orpheus.numerics.operator import (
     BlockRole,
     BoundaryOperator,
@@ -59,8 +47,6 @@ from orpheus.numerics.operator import (
     FullOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.sn.operators.boundary import SNBoundaryOperator
@@ -70,7 +56,15 @@ from orpheus.sn.operators.streaming import (
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
-from tests.gates.sn._test_helpers import face_method_space, placeholder_materials
+from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck, TranslationDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = [pytest.mark.foundation]
 
@@ -80,11 +74,11 @@ def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
         coord=CoordSystem.CARTESIAN,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC.vacuum, BC.vacuum),
+        face_roles=(0, 0),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 class TestBulkLeaves:
@@ -130,91 +124,51 @@ class TestFullLeaves:
 # ─────────────────────────────────────────────────────────────────────
 
 
-#: The face every law in this module is installed on. Named once because a
-#: law that declares its own orientation (white) must AGREE with it — see
-#: :data:`_LINEAR_LAWS`.
-_FACE = "xmin"          # ⇒ axis "x", outward normal −ê_x ⇒ outward_sign = −1
-_FACE_AXIS = "x"
-_FACE_OUTWARD_SIGN = -1
+#: The face under test of every row below: ``xmin`` of a one-slab, whose other face is its partner (the same deck for a
+#: periodic pair, a vacuum wall otherwise).
+_FACE = "xmin"
 
 
-def _boundary_method_space(n_ord: int = 4) -> SNMethodSpace:
-    r"""A method space carrying BOTH half-traces, on :data:`_FACE`.
+def _boundary_under_test(declared):
+    """The realized operator of ``xmin`` when it declares ``declared`` (a ``WallCondition``, carried on a tag, or a deck), posed
+    through a real slab: the periodic pair is declared on BOTH faces (a translation quotient is symmetric); any other face has a
+    vacuum partner."""
+    from orpheus.numerics.quadrature import Quadrature as _Q
 
-    B3.2 migration: a boundary law is typed :math:`\Gamma_+ \to \Gamma_-`, so
-    every branch needs the face's **outflow** ordinates (its domain) as well
-    as its inflow ordinates (its codomain). Since B3.4a that includes white
-    and prescribed inflow; only albedo and periodic still read ``quadrature``
-    alone (B3.4b / B3.4c).
-    """
-    quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return face_method_space(quad, face=_FACE)
+    conditions: dict[int, WallCondition] = {}
+    if isinstance(declared, WallCondition):
+        conditions[0] = declared
+        left, right = 0, 1
+        conditions[1] = WallCondition.vacuum()
+    elif isinstance(declared, TranslationDeck):
+        left = right = declared
+    else:
+        left, right = declared, 0
+        conditions[0] = WallCondition.vacuum()
+    mesh = Mesher(StructuredGeometry.slab((0.0, 2.0), (0,), left=left, right=right)).partition(CellsByCount.uniform_volume(4)).mesh
+    sn = SNProblem(mesh, _Q.gauss_legendre(n_ordinates=4), placeholder_materials(ng=1), boundary_conditions=conditions)
+    return sn.bc[_FACE]
 
 
-# Every LINEAR boundary law + a representative amplitude per kind. Each
-# realizes to a BOUNDARY-block operator (``A_ss`` only). albedo=0/1 hit the
-# Zero/Identity ends; α∉{0,1} the scaled term ``α·(K⊗I)`` (one spelling since
-# S2, normalised at both ends) — all three must carry the role.
+# Every LINEAR boundary condition + a representative amplitude per kind. Each realizes to a BOUNDARY-block operator (``A_ss`` only).
+# The amplitude 0 and 1 hit the zero map and the unit ends; the 0.7 row is the only specular row with a scaled permutation.
 _LINEAR_LAWS = {
-    "vacuum": VacuumInflow(),
-    "reflective_albedo1": ReflectiveBoundary(axis="x"),
-    # ⚠ The orientation MUST match _FACE. Until B3.4a nothing checked it, and
-    # these two rows had shipped `outward_sign=+1` (i.e. "xmax") while being
-    # installed on "xmin" — so the realized Lambertian averaged the
-    # INSTALLATION face's INFLOW hemisphere and reported nothing. B3.4a's
-    # cross-check turned that into a loud BoundaryError; sourcing the
-    # orientation from the face constant keeps the two from drifting again.
-    "white_albedo1": WhiteBoundary(
-        axis=_FACE_AXIS, outward_sign=_FACE_OUTWARD_SIGN, albedo=1.0,
-    ),
-    "white_albedo05": WhiteBoundary(
-        axis=_FACE_AXIS, outward_sign=_FACE_OUTWARD_SIGN, albedo=0.5,
-    ),
-    # ⚠ B3.4b — the 0, 1 and isotropic rows MIGRATED from the bare spelling
-    # ``AlbedoBoundary(albedo=α)``, which SN now REFUSES: with ``G = id`` and
-    # ``R = α·I`` nothing names a pairing between the two half-traces, so the
-    # law is under-determined on an angular trace. The completed spellings
-    # realize through the SAME bodies reflective/white do, which is why the
-    # role claim carries over unchanged.
-    #
-    # All three amplitudes are kept because they remain three DIFFERENT
-    # production branches — and this file is where the realized TYPE claim
-    # lives, so the α=0 row now pins ``ZeroOperator`` (the narrowed zero map
-    # B3.4b opened) rather than the retired full-face one. The 0.7 row is the
-    # only specular row with α ∉ {0, 1} (the scaled ``α·(K⊗I)`` term); it
-    # was the attenuated mirror ``reflective_albedo07`` until the reflective
-    # cleanup made the mirror amplitude-free.
-    "albedo_specular_0": AlbedoBoundary(0.0, SpecularReturn(axis=_FACE_AXIS)),
-    "albedo_specular_07": AlbedoBoundary(0.7, SpecularReturn(axis=_FACE_AXIS)),
-    "albedo_specular_1": AlbedoBoundary(1.0, SpecularReturn(axis=_FACE_AXIS)),
-    # The diffuse closure carries its own orientation, and it MUST match
-    # _FACE for the same reason white's must — see the note above; B3.4b
-    # parametrised that cross-check over both carriers.
-    "albedo_isotropic_03": AlbedoBoundary(
-        0.3, IsotropicReturn(axis=_FACE_AXIS, outward_sign=_FACE_OUTWARD_SIGN),
-    ),
-    "periodic": PeriodicBoundary(),
-    # ⭐ P3 (2026-08-05) — prescribed inflow JOINED this table. It sat outside,
-    # in a dedicated ``test_prescribed_inflow_is_not_boundary_operator`` row
-    # asserting the opposite, on the claim that the rank-0 affine source is
-    # ``q.boundary`` and not a linear boundary operator ``B``. That claim was
-    # refuted: the affine law is ``γ₋ψ = L γ₊ψ + q``, this tier realizes ``L``,
-    # and for prescribed inflow ``L = 0`` — a perfectly ordinary linear
-    # boundary operator, and the SAME object vacuum realizes to. The source
-    # travels the boundary-source channel instead.
-    #
-    # ⛔ The old exclusion was not merely a mis-labelling: because
-    # ``SNBoundaryOperator._face_laws`` applies every face's law with no role
-    # filter, the unstamped AFFINE operator reached ``B`` anyway
-    # (``|B(0)| = q``, measured), so the source was delivered through ``B``
-    # *and* through the source channel — a double count. Membership here is
-    # what makes the two channels one.
-    "prescribed_inflow": PrescribedInflow(
-        source=ConstantInflowSource(value=2.5),
-    ),
-    # …and the sourceless spelling, whose ``q`` is zero: it must realize to the
-    # same LINEAR object, since the source is not what this tier carries.
-    "prescribed_no_source": PrescribedInflow(source=NoSource()),
+    "vacuum": WallCondition.vacuum(),
+    "reflective_albedo1": MirrorDeck(),
+    "white_albedo1": WallCondition.white(1.0),
+    "white_albedo05": WallCondition.white(0.5),
+    # All three specular amplitudes are kept because they are three DIFFERENT realizations (the zero map, a scaled ordinate
+    # permutation, the unit one), and this file is where the BLOCK ROLE claim lives.
+    "albedo_specular_0": WallCondition.specular(0.0),
+    "albedo_specular_07": WallCondition.specular(0.7),
+    "albedo_specular_1": WallCondition.specular(1.0),
+    "albedo_white_03": WallCondition.white(0.3),
+    "periodic": TranslationDeck(),
+    # ⭐ P3 (2026-08-05) — prescribed inflow JOINED this table: the affine law is ``γ₋ψ = L γ₊ψ + q``, this tier realizes ``L``,
+    # and for a prescribed inflow ``L = 0``, the SAME object vacuum realizes to. The source travels the boundary-source channel.
+    "prescribed_inflow": WallCondition.uniform(2.5),
+    # …and the sourceless spelling, whose ``q`` is zero: it must realize to the same LINEAR object.
+    "prescribed_no_source": WallCondition.uniform(0.0),
 }
 
 
@@ -223,8 +177,7 @@ class TestBoundaryLeaves:
 
     @pytest.mark.parametrize("law_id", list(_LINEAR_LAWS))
     def test_realized_bc_advertises_boundary_operator(self, law_id: str) -> None:
-        law = _LINEAR_LAWS[law_id]
-        op = SNBoundaryRealizer().realize(law, _boundary_method_space())
+        op = _boundary_under_test(_LINEAR_LAWS[law_id])
         assert op.block_role is BlockRole.BOUNDARY
         assert isinstance(op, BoundaryOperator)
         # Exclusivity (vv L11): a BOUNDARY leaf is neither bulk nor full.
@@ -247,34 +200,32 @@ class TestBoundaryLeaves:
         own zero-ish operator again, the membership rows would still pass and
         this one would not.
         """
-        space = _boundary_method_space()
-        vacuum = SNBoundaryRealizer().realize(VacuumInflow(), space)
-        prescribed = SNBoundaryRealizer().realize(
-            PrescribedInflow(source=ConstantInflowSource(value=2.5)), space,
+        mesh = Mesher(StructuredGeometry.slab((0.0, 2.0), (0,), left=0, right=1)).partition(CellsByCount.uniform_volume(4)).mesh
+        sn = SNProblem(
+            mesh, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials(ng=1),
+            boundary_conditions={0: WallCondition.vacuum(), 1: WallCondition.uniform(2.5)},
         )
+        vacuum, prescribed = sn.bc["xmin"], sn.bc["xmax"]
         assert type(prescribed) is type(vacuum)
-        assert prescribed.domain is vacuum.domain
-        assert prescribed.codomain is vacuum.codomain
-        # …and the source amplitude is invisible here, which is the point: the
-        # LINEAR factor cannot depend on q.
-        sourceless = SNBoundaryRealizer().realize(
-            PrescribedInflow(source=NoSource()), space,
-        )
+        # one trace, so the identity of the bound spaces is available: each operator is bound to its OWN face's half-traces.
+        for face, op in (("xmin", vacuum), ("xmax", prescribed)):
+            assert op.domain is sn.angular_trace.outflow_space(face)
+            assert op.codomain is sn.angular_trace.inflow_space(face)
+        # …and the source amplitude is invisible here, which is the point: the LINEAR factor cannot depend on q.
+        sourceless = _boundary_under_test(WallCondition.uniform(0.0))
         assert type(sourceless) is type(prescribed)
-        assert sourceless.codomain is prescribed.codomain
 
     def test_mesh_bc_forwards_boundary_role(self) -> None:
-        """``problem.bc`` entries (the ``_BoundBoundaryOperator`` shim) forward
-        the realized law's role so the mesh-wired BCs are BOUNDARY ops."""
+        """``problem.bc`` entries carry the BOUNDARY role, so the mesh-wired BCs are BOUNDARY ops."""
         geom = StructuredGeometry(
             coord=CoordSystem.CARTESIAN,
             breakpoints=(0.0, 2.0),
             mat_ids=(0,),
-            boundaries=(BC.vacuum, BC.reflective),
+            face_roles=(0, MirrorDeck()),
         )
         mesh = Mesher(geom).partition(CellsByCount.uniform_volume(4)).mesh
         quad = Quadrature.gauss_legendre(n_ordinates=4)
-        sn = SNProblem(mesh, quad, placeholder_materials(ng=1))
+        sn = SNProblem(mesh, quad, placeholder_materials(ng=1), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         for face in ("xmin", "xmax"):
             bc = sn.bc[face]
             assert bc.block_role is BlockRole.BOUNDARY, face

@@ -25,13 +25,23 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellEdges, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields import AngularSourceSink
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+from orpheus.geometry.deck import MirrorDeck
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+#: The roles this file's tests name by kind: the vacuum tag (declared by ``_CONDITIONS``) and the mirror deck.
+_ROLE = {"vacuum": 0, "reflective": MirrorDeck()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -50,11 +60,11 @@ def _mesh(
     left: str = "vacuum",
 ) -> SNProblem:
     geometry = StructuredGeometry.slab(
-        (edges[0], edges[-1]), (0,), left=BC(left), right=BC("vacuum"),
+        (edges[0], edges[-1]), (0,), left=_ROLE[left], right=0,
     )
     mesh = Mesher(geometry).partition(CellEdges(edges)).mesh
     return SNProblem(
-        mesh, Quadrature.gauss_legendre(n_ord), placeholder_materials(ng=ng)
+        mesh, Quadrature.gauss_legendre(n_ord), placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS)
     )
 
 

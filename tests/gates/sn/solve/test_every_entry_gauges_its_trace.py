@@ -70,7 +70,6 @@ import pytest
 from orpheus.numerics.outcome import Measured
 
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.geometry.faces import face_normal
 from orpheus.numerics.quadrature import Quadrature
@@ -85,8 +84,9 @@ from orpheus.sn.solver import (
     solve_sn_fixed_source,
 )
 from orpheus.mesh import AxisMesh
+from orpheus.geometry.deck import MirrorDeck
 
-_R = BC("reflective")
+_R = MirrorDeck()
 _QUAD = Quadrature.level_symmetric(sn_order=4)
 
 #: ⚠ ODD first axis — see the module docstring. Paired with the uniform
@@ -110,13 +110,13 @@ def _reflective_mesh2d(cells):
         edges_x=np.linspace(0.0, 1.0, cells[0] + 1),
         edges_y=np.linspace(0.0, 2.0, cells[1] + 1),
         mat_map=np.zeros(cells, dtype=int),
-        face_laws={"xmin": _R, "xmax": _R, "ymin": _R, "ymax": _R},
+        face_roles={"xmin": _R, "xmax": _R, "ymin": _R, "ymax": _R},
     )
 
 
 def _reflective_axes(cells):
     return tuple(
-        AxisMesh(edges=np.linspace(0.0, extent, n + 1), bc_low=_R, bc_high=_R)
+        AxisMesh(edges=np.linspace(0.0, extent, n + 1), role_low=_R, role_high=_R)
         for extent, n in zip((1.0, 2.0), cells)
     )
 

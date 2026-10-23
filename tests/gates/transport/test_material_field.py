@@ -31,6 +31,7 @@ import pytest
 from tests.gates.sn._test_helpers import material_xs_from_raw
 from orpheus.transport.kernels import N2N_MULTIPLICITY, TransferKernel
 from orpheus.transport.material_field import MaterialField, TransferMaterialField
+from orpheus.geometry.deck import MirrorDeck
 
 pytestmark = pytest.mark.foundation
 
@@ -558,7 +559,6 @@ class TestFissionIndependentReference:
         from scipy.sparse import csr_matrix
 
         from orpheus.data.macro_xs.mixture import Mixture
-        from orpheus.geometry import BC
         from orpheus.mesh import Mesh2D
         from orpheus.transport.material_field import FissionMaterialField
         from orpheus.transport.mesh.material_mesh import MaterialMesh
@@ -584,7 +584,7 @@ class TestFissionIndependentReference:
             edges_x=np.arange(_NX + 1, dtype=float),
             edges_y=np.arange(2, dtype=float),
             mat_map=mat_map,
-            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
         )
         mat_xs = MaterialXSField.from_mesh(MaterialMesh(mesh, materials))
         ff = FissionMaterialField.from_material_xs(mat_xs)

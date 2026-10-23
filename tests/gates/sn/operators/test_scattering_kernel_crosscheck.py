@@ -62,7 +62,6 @@ from scipy.sparse import csr_matrix
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.mesh import Mesh2D
-from orpheus.geometry import BC
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
@@ -74,6 +73,7 @@ from tests.gates.transport._integral_kernel_helpers import (
     require_scattering_kernel_property,
 )
 from dataclasses import replace
+from orpheus.geometry.deck import MirrorDeck
 
 pytestmark = pytest.mark.foundation
 
@@ -83,7 +83,7 @@ def _uniform_2d(nx, ny, delta, mat_map):
         edges_x=np.linspace(0, nx * delta, nx + 1),
         edges_y=np.linspace(0, ny * delta, ny + 1),
         mat_map=np.asarray(mat_map, dtype=int),
-        face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
+        face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")},
     )
 
 

@@ -35,7 +35,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.manifold import SPHERE
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
@@ -55,6 +55,13 @@ from orpheus.sn.angular.closure import (
     non_carrying_levels,
 )
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -69,12 +76,12 @@ _F_STRUCTURELESS = "level structure"
 
 
 def _cyl_mesh(nx: int = 4) -> Mesh1D:
-    geometry = StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC("reflective"))
+    geometry = StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=0)
     return Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
 
 
 def _build(quad: Quadrature) -> SNProblem:
-    return SNProblem(_cyl_mesh(), quad, placeholder_materials())
+    return SNProblem((_carrier1 := _cyl_mesh()), quad, placeholder_materials(), boundary_conditions=conditions_for(_carrier1, _CONDITIONS))
 
 
 def _full_product(n_mu: int, n_phi: int, shift) -> Quadrature:
@@ -142,9 +149,9 @@ def test_a_hand_built_sigma_y_quotient_constructs_without_the_factory_tag():
 def test_the_spherical_arm_is_untouched():
     """A-P3 — the guard is CYLINDRICAL-scoped: the open-GL sphere (carrying
     by the same predicate) constructs exactly as before the flip."""
-    geometry = StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("reflective"))
+    geometry = StructuredGeometry.sphere((0.0, 1.0), (0,), outer=0)
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
-    sn = SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials())
+    sn = SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     if sn.radial_characteristic_levels != (0,):
         pytest.fail("sphere carrier moved — the admission guard leaked "
                     "outside the CYLINDRICAL arm.")

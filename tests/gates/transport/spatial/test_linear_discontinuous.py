@@ -25,7 +25,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.sn.mesh.reduced_operator import slab_streaming
 from orpheus.numerics.quadrature import Quadrature
@@ -33,12 +33,13 @@ from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
 from orpheus.numerics.moment_layout import AVERAGE_MOMENT
 from orpheus.transport.spatial.scheme import CellResult, DiscretizationSchemeBase, CellVisit
 
+
 cell_average = DiscretizationSchemeBase.cell_average
 source_emission = DiscretizationSchemeBase.source_emission
 
 
 def _slab_mesh(nx: int = 5, length: float = 1.0) -> Mesh1D:
-    return Mesher(StructuredGeometry.from_homogeneous(length, BC("vacuum"))).partition(
+    return Mesher(StructuredGeometry.from_homogeneous(length, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
 

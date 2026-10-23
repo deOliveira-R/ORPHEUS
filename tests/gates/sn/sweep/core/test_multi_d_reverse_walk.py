@@ -84,7 +84,6 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation import (
@@ -114,6 +113,14 @@ from tests.gates.sn.operators.test_g_adjoint_reciprocity import (
     _make_slab,
     _random_composite,
 )
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -132,16 +139,16 @@ def _cart2d_probe_mesh() -> SNProblem:
         edges_x=np.array([0.0, 0.4, 1.1, 2.0]),
         edges_y=np.array([0.0, 0.7, 1.5]),
         mat_map=np.array([[0, 1], [1, 0], [0, 0]]),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
         },
     )
     return SNProblem(
         geom, Quadrature.level_symmetric(2),
-        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(geom, _CONDITIONS),
     )
 
 
@@ -154,15 +161,15 @@ def _cart2d_square_uniform_mesh() -> SNProblem:
         edges_x=np.linspace(0.0, 2.0, 4),
         edges_y=np.linspace(0.0, 2.0, 4),
         mat_map=np.zeros((3, 3), dtype=int),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
         },
     )
     return SNProblem(
-        geom, Quadrature.level_symmetric(2), {0: get_mixture("A", "2g")},
+        geom, Quadrature.level_symmetric(2), {0: get_mixture("A", "2g")}, boundary_conditions=conditions_for(geom, _CONDITIONS),
     )
 
 
@@ -526,19 +533,19 @@ def test_assembled_mt_2d_per_ordinate_block():
     σ is the mesh's own material field — the SAME source the assembly
     reads."""
     sn = SNProblem(
-        Mesh2D(
+        (_carrier1 := Mesh2D(
             edges_x=np.array([0.0, 0.4, 1.1, 2.1, 3.0]),
             edges_y=np.array([0.0, 0.7, 1.5, 2.0]),
             mat_map=np.array([[0, 1, 1], [1, 0, 0], [0, 0, 1], [1, 1, 0]]),
-            face_laws={
-                "xmin": BC("vacuum"),
-                "xmax": BC("vacuum"),
-                "ymin": BC("vacuum"),
-                "ymax": BC("vacuum"),
+            face_roles={
+                "xmin": 0,
+                "xmax": 0,
+                "ymin": 0,
+                "ymax": 0,
             },
-        ),
+        )),
         Quadrature.level_symmetric(sn_order=4),
-        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
     )
     sigma = np.asarray(
         CrossSectionField.total_of(sn.mat_xs).values, float,
@@ -768,19 +775,19 @@ def test_d3_dense_mt_and_pairing_on_the_spine():
 
     rng = np.random.default_rng(20260808)
     sn = SNProblem.from_axes(
-        (
+        (_carrier2 := (
             AxisMesh(  # nx=2
-                edges=np.array([0.0, 0.6, 1.0]), bc_low=BC.reflective, bc_high=BC.reflective,
+                edges=np.array([0.0, 0.6, 1.0]), role_low=MirrorDeck(), role_high=MirrorDeck(),
             ),
             AxisMesh(  # ny=3
-                edges=np.array([0.0, 0.4, 1.1, 2.0]), bc_low=BC.reflective, bc_high=BC.reflective,
+                edges=np.array([0.0, 0.4, 1.1, 2.0]), role_low=MirrorDeck(), role_high=MirrorDeck(),
             ),
             AxisMesh(  # nz=4
-                edges=np.array([0.0, 0.3, 0.7, 1.2, 2.0]), bc_low=BC.reflective, bc_high=BC.reflective,
+                edges=np.array([0.0, 0.3, 0.7, 1.2, 2.0]), role_low=MirrorDeck(), role_high=MirrorDeck(),
             ),
-        ),
+        )),
         Quadrature.level_symmetric(2),
-        {0: get_mixture("A", "2g")},
+        {0: get_mixture("A", "2g")}, boundary_conditions=conditions_for(_carrier2, _CONDITIONS),
     )
     rep = FullFieldWavefront.pose(sn)
     if rep.has_transpose_walk is not True:
@@ -814,17 +821,17 @@ def _ld2d_probe_mesh() -> SNProblem:
         edges_x=np.array([0.0, 0.4, 1.1, 2.0]),
         edges_y=np.array([0.0, 0.7, 1.5]),
         mat_map=np.array([[0, 1], [1, 0], [0, 0]]),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
         },
     )
     return SNProblem(
         geom, Quadrature.level_symmetric(2),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
-        scheme=LinearDiscontinuous(),
+        scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(geom, _CONDITIONS),
     )
 
 
@@ -836,17 +843,17 @@ def _ld2d_reflective_mesh() -> SNProblem:
         edges_x=np.array([0.0, 0.5, 1.3, 2.0]),
         edges_y=np.array([0.0, 0.9, 2.0]),
         mat_map=np.array([[0, 1], [1, 0], [0, 0]]),
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("reflective"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     return SNProblem(
         geom, Quadrature.level_symmetric(2),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
-        scheme=LinearDiscontinuous(),
+        scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(geom, _CONDITIONS),
     )
 
 

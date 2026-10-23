@@ -170,7 +170,7 @@ from typing import TYPE_CHECKING, Any, Iterator
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellEdges, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import loss_representation as _loss_representation
@@ -185,6 +185,14 @@ if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.numerics.coupled_system import CoupledField
     from orpheus.numerics.operator import LinearOperator
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -350,15 +358,15 @@ def _cart2d(nx: int, ny: int, *, ng: int = 2, sn_order: int = 4) -> SNProblem:
         edges_y=_stretched_edges(3.0, ny, ratio=1.03),
         mat_map=mat_map,
         coord=CoordSystem.CARTESIAN,
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("reflective"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": 0,
+            "ymin": MirrorDeck(),
+            "ymax": 0,
         },
     )
     materials = _two_region_materials() if ng == 2 else _ng_generic_materials(ng)
-    return SNProblem(mesh, Quadrature.level_symmetric(sn_order=sn_order), materials)
+    return SNProblem(mesh, Quadrature.level_symmetric(sn_order=sn_order), materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _slab(nx: int, *, n_ord: int = 8) -> SNProblem:
@@ -372,14 +380,14 @@ def _slab(nx: int, *, n_ord: int = 8) -> SNProblem:
     split = nx // 2   # the fuel | moderator interface is the edge between the halves
     geometry = StructuredGeometry.slab(
         (edges[0], edges[split], edges[-1]), (0, 1),
-        left=BC("reflective"), right=BC("vacuum"),
+        left=MirrorDeck(), right=0,
     )
     mesh = Mesher(geometry).partition(
         (CellEdges(edges[: split + 1]), CellEdges(edges[split:])),
     ).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=n_ord),
-        _two_region_materials(),
+        _two_region_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 

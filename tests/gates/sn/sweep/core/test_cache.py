@@ -31,7 +31,7 @@ import numpy as np
 import pytest
 
 from orpheus.sn.operators.streaming import StreamingCollisionOperator
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
@@ -41,6 +41,14 @@ from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.sn.sweep.scan import ordinate_scan
 from orpheus.sn.sweep.cache import CollisionCache, StreamingCoefficientCache
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -68,18 +76,18 @@ def _trivial_materials(ng: int = 1) -> dict:
 
 def _make_slab(nx: int = 10, N: int = 8) -> SNProblem:
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 1.0), (0,), left=0, right=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(N)
-    return SNProblem(mesh, quad, _trivial_materials(ng=1))
+    return SNProblem(mesh, quad, _trivial_materials(ng=1), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _make_sphere(nx: int = 10, N: int = 8) -> SNProblem:
     mesh = Mesher(
-        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum")),
+        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(N)
-    return SNProblem(mesh, quad, _trivial_materials(ng=1))
+    return SNProblem(mesh, quad, _trivial_materials(ng=1), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -259,7 +267,7 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
         coord=CoordSystem.CARTESIAN,
         thicknesses=(0.5, 1.0, 0.5),
         mat_ids=(0, 1, 0),
-        boundaries=(BC("reflective"), BC("reflective")),
+        face_roles=(MirrorDeck(), MirrorDeck()),
     )
     mesh = Mesher(geom).partition(tuple(
         CellsByCount.uniform_volume(n) for n in (2, 4, 2)
@@ -277,7 +285,7 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
         max_inner=50,
         inner_tol=1e-8,
         keff_tol=1e-6,
-        flux_tol=1e-5,
+        flux_tol=1e-5, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     assert len(result.outcome.trajectory) >= 5, (
         "Test fixture is too trivial — converged in fewer than 5 outer "
@@ -329,10 +337,10 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
     )
     materials = {0: mix}
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 1.0), (0,), left=0, right=0,
     )).partition(CellsByCount.uniform_width(5)).mesh
     quad = Quadrature.gauss_legendre(4)
-    problem = SNProblem(mesh, quad, materials)
+    problem = SNProblem(mesh, quad, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     solver = SNSolver(problem=problem)
 
     hub_b = problem.with_cross_sections(problem.mat_xs.total_cross_section * 2.0)
@@ -648,10 +656,10 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
     )
     materials = {0: mix}
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 1.0), (0,), left=BC("reflective"), right=BC("reflective"),
+        (0.0, 1.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )).partition(CellsByCount.uniform_width(10)).mesh
     quad = Quadrature.gauss_legendre(4)
-    problem = SNProblem(mesh, quad, materials)
+    problem = SNProblem(mesh, quad, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     # R-1 Step 4 A1 — ``external_source`` is per-ordinate density
     # (already ``/sum_w``).  Iso scalar magnitude 1 ⇒ per-ord ``1/sum_w``.
     sum_w = float(quad.weights.sum())
@@ -663,7 +671,7 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
         quadrature=quad,
         external_source=Q_external,
         max_inner=500,
-        inner_tol=1e-12,
+        inner_tol=1e-12, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     # In a homogeneous reflective medium, φ = Q/σ_t where Q is the
     # per-cell isotropic source.  external_source carries Q_n=1.0 per
@@ -819,11 +827,11 @@ def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
     from tests.gates.sn._test_helpers import placeholder_materials
 
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 1.0), (0,), left=0, right=0,
     )).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(4)
     materials = placeholder_materials(ng=2)
-    problem = SNProblem(mesh, quad, materials)
+    problem = SNProblem(mesh, quad, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
     counts = {"builds": 0}
     real = StreamingCoefficientCache.from_mesh_and_quad.__func__
@@ -844,7 +852,7 @@ def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
         from orpheus.sn.loss_representation import _GEOM_CACHE_INTERN
 
         _GEOM_CACHE_INTERN.clear()
-        solve_sn_fixed_source(materials, mesh, quad, q_ext)
+        solve_sn_fixed_source(materials, mesh, quad, q_ext, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         assert counts["builds"] == 1, (
             f"Stratum 1 built {counts['builds']}x in one solve — the "
             "interned lazy resolve must build exactly once (F2: a "
@@ -903,13 +911,13 @@ def test_cache_builder_refuses_a_meshless_chain_under_dash_O() -> None:
         edges_x=np.linspace(0.0, 1.0, 4),
         edges_y=np.linspace(0.0, 1.0, 4),
         mat_map=np.zeros((3, 3), dtype=int),
-        face_laws={
-            "xmin": BC.reflective, "xmax": BC.reflective,
-            "ymin": BC.reflective, "ymax": BC.reflective,
+        face_roles={
+            "xmin": MirrorDeck(), "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(), "ymax": MirrorDeck(),
         },
     )
     sn2d = SNProblem(
-        mesh2d, Quadrature.level_symmetric(sn_order=4), placeholder_materials(ng=2),
+        mesh2d, Quadrature.level_symmetric(sn_order=4), placeholder_materials(ng=2), boundary_conditions=conditions_for(mesh2d, _CONDITIONS),
     )
     assert sn2d.reduced is None  # the witness's own premise
     with pytest.raises(TypeError, match="requires a ReducedStreamingOperator"):
@@ -931,10 +939,10 @@ def test_two_sigmas_on_one_strategy_give_two_answers() -> None:
     from tests.gates.sn._test_helpers import placeholder_materials
 
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 1.0), (0,), left=0, right=0,
     )).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(4)
-    hub = SNProblem(mesh, quad, placeholder_materials(ng=2))
+    hub = SNProblem(mesh, quad, placeholder_materials(ng=2), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     rep = default_for(hub, hub.scheme, hub.angular_closure)
     Q = np.ones((quad.n_ordinates, hub.ng, *hub.spatial_shape))
     bf = AngularBoundaryFlux.zeros(hub.angular_trace)

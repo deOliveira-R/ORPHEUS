@@ -30,16 +30,17 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.geometry.deck import MirrorDeck
 
 
 def unit_cell_carrier(materials: Mapping[int, Mixture]) -> MaterialMesh:
     """A genuine unit-width one-cell Cartesian ``Mesh1D`` carrier (reflective
     faces, material id ``0`` in the cell) over ``materials`` — which may
     declare SPECTATOR ids the cell does not reference."""
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("reflective"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, MirrorDeck())).partition(
         CellsByCount.uniform_width(1),
     ).mesh
     return MaterialMesh(mesh, materials)

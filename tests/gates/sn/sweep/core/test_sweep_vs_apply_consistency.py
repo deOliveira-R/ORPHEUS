@@ -27,6 +27,13 @@ import pytest
 from orpheus.sn.sweep.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
 )
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -128,7 +135,7 @@ def test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere():
     test_one_full_restart_cycle_solves_a_diffusive_infinite_medium``.
     """
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+    from orpheus.geometry import CoordSystem, StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.solver import solve_sn
@@ -138,7 +145,7 @@ def test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere():
         coord=CoordSystem.SPHERICAL,
         breakpoints=(0.0, 2.0),
         mat_ids=(0,),
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(20)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
@@ -146,12 +153,12 @@ def test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere():
     res_si = solve_sn(
         materials={0: fuel}, mesh=mesh, quadrature=quad,
         inner_solver="source_iteration",
-        keff_tol=1e-12, flux_tol=1e-10,
+        keff_tol=1e-12, flux_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     res_kr = solve_sn(
         materials={0: fuel}, mesh=mesh, quadrature=quad,
         inner_solver="krylov",
-        keff_tol=1e-12, flux_tol=1e-10,
+        keff_tol=1e-12, flux_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
     # Eigenvalue agreement: homogeneous reflective is the easy case

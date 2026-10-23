@@ -26,7 +26,7 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -37,6 +37,13 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields import AngularSourceSink, AngularBoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 pytestmark = pytest.mark.l1
@@ -59,11 +66,11 @@ def _homogeneous_slab_solver(c: float, *, sigma_t: float = 1.0,
         SigS=[csr_matrix(np.array([[sig_s]]))],  # P0 within-group scatter
         Sig2=[csr_matrix((1, 1))], chi=z.copy(),
     )
-    mesh = Mesher(StructuredGeometry.from_homogeneous(width, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(width, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    problem = SNProblem(mesh, quad, {0: mat}, scattering_order=0)
+    problem = SNProblem(mesh, quad, {0: mat}, scattering_order=0, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     return SNSolver(problem, inner_solver="source_iteration")
 
 

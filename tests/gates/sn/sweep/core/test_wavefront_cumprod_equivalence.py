@@ -73,7 +73,7 @@ import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -81,6 +81,17 @@ from orpheus.sn.solver import solve_sn
 from orpheus.sn.loss_representation import CumprodScan, FullFieldWavefront
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields import AngularSourceSink
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
+#: A face's role by the kind string the builders speak: a vacuum face is the tag 0, a reflective face a mirror deck (Cartesian body).
+_ROLE = {"vacuum": 0, "reflective": MirrorDeck()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -101,10 +112,10 @@ _LENGTH = 6.0            # slab thickness (cm)
 def _slab_sn_mesh(nx: int, *, bc: str, ng_key: str = "2g") -> SNProblem:
     """Heterogeneous-capable slab SNProblem, mixture A, Gauss-Legendre S8."""
     mesh = Mesher(
-        StructuredGeometry.slab((0.0, _LENGTH), (0,), left=BC(bc), right=BC(bc)),
+        StructuredGeometry.slab((0.0, _LENGTH), (0,), left=_ROLE[bc], right=_ROLE[bc]),
     ).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    return SNProblem(mesh, quad, {0: get_mixture("A", ng_key)})
+    return SNProblem(mesh, quad, {0: get_mixture("A", ng_key)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _seeded_inflow(problem: SNProblem, rng: np.random.Generator) -> AngularBoundaryFlux:
@@ -187,11 +198,11 @@ def test_cumprod_path_hits_analytical_kinf():
     # bulk k_inf (BC leakage negligible).
     nx = 12
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 50.0), (0,), left=BC("reflective"), right=BC("reflective"),
+        (0.0, 50.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     sol = solve_sn(
-        {0: mix}, mesh, quad, keff_tol=1e-9, flux_tol=1e-8,
+        {0: mix}, mesh, quad, keff_tol=1e-9, flux_tol=1e-8, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     np.testing.assert_allclose(
         sol.outcome.keff, k_ref, rtol=1e-6, atol=0,

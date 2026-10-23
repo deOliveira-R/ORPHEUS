@@ -58,13 +58,24 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
-from orpheus.geometry import BC, StructuredGeometry
-from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.acceleration.dsa import DSACorrection, DSALowOrderSystem
 from orpheus.sn.solver import Solution, solve_sn_fixed_source
 from orpheus.numerics import frame_faces
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+from tests.gates.sn._test_helpers import realized_slab_faces
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
+#: The role of a face by the kind string the parametrized rows speak (a vacuum face is the tag whose condition is ``_CONDITIONS``).
+_ROLES = {"vacuum": 0, "reflective": MirrorDeck()}
+
 
 #: The A&L (3.65) continuum Fourier bound coefficient: ρ ≤ 0.2247 c.
 RHO_BOUND = 0.2247
@@ -102,7 +113,7 @@ def _uniform_solve_raw(
 ) -> Solution:
     """1G homogeneous slab, K cells of optical thickness ``sth``."""
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, k * sth), (0,), left=BC(bc[0]), right=BC(bc[1]),
+        (0.0, k * sth), (0,), left=_ROLES[bc[0]], right=_ROLES[bc[1]],
     )).partition(CellsByCount.uniform_width(k)).mesh
     return solve_sn_fixed_source(
         materials={0: _mix_1g(c)},
@@ -113,7 +124,7 @@ def _uniform_solve_raw(
         inner_tol=_TOL,
         max_inner=max_inner,
         inner_solver=inner_solver,
-        acceleration=acceleration,
+        acceleration=acceleration, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -572,7 +583,7 @@ class TestS2Exactness:
         """K₂ = 0 is a property of the ANGULAR closure, not of material
         uniformity — the exact landing must survive heterogeneity."""
         mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 10.0, 20.0), (0, 1), left=BC("reflective"), right=BC("vacuum"),
+            (0.0, 10.0, 20.0), (0, 1), left=MirrorDeck(), right=0,
         )).partition(CellsByCount.uniform_width(10)).mesh
         sol = solve_sn_fixed_source(
             materials={0: _mix_1g(0.9), 1: _mix_1g(0.5, sigma_t=2.0)},
@@ -582,7 +593,7 @@ class TestS2Exactness:
             scattering_order=0,
             inner_tol=_TOL,
             max_inner=50,
-            acceleration="dsa",
+            acceleration="dsa", boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         res = _residuals(sol)
         if not (_inners(sol) == 4 and res[-1] < 1e-13):
@@ -627,7 +638,7 @@ def _p1_solve(
     """1G homogeneous ℓ≥1 slab (c₀ = 0.9, σ_t·h = 1), sweep retaining
     ℓ = 1 — the anisotropy-ladder configuration."""
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, float(k)), (0,), left=BC(bc[0]), right=BC(bc[1]),
+        (0.0, float(k)), (0,), left=_ROLES[bc[0]], right=_ROLES[bc[1]],
     )).partition(CellsByCount.uniform_width(k)).mesh
     return solve_sn_fixed_source(
         materials={0: _mix_1g_p1(0.9, eta)},
@@ -637,7 +648,7 @@ def _p1_solve(
         scattering_order=1,
         inner_tol=_TOL,
         max_inner=max_inner,
-        acceleration=acceleration,
+        acceleration=acceleration, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -869,19 +880,16 @@ def _t_dsa(a_edge, g_map, t_si):
     return t_si + c2e @ np.linalg.solve(a_edge, g_map @ d_stack)
 
 
-#: Tag -> law. Campaign phase B2 made ``_build`` take the boundary LAWS rather
-#: than their tag strings (its row selection reads the laws' affine factors),
-#: so the tag vocabulary these rate tests are written in is translated HERE, at
-#: the test's own surface, rather than pushed back into production.
-_LAW_FOR_TAG = {"vacuum": VacuumInflow, "reflective": ReflectiveBoundary}
-
-
 def _consistent_low_order(h, st, ss, mu, w, bc):
     """The PRODUCTION low-order build (1-group arrays), so the control
-    exercises the shipped operator, not a re-transcription."""
+    exercises the shipped operator, not a re-transcription.
+
+    ``bc`` is the pair of tags ``"vacuum"`` / ``"reflective"`` these rate tests are written in; ``_build`` takes the REALIZED faces
+    (wave 2 S2b), which :func:`realized_slab_faces` reads off the real posing path on the quadrature ``(mu, w)`` belongs to."""
+    quad = Quadrature.gauss_legendre(n_ordinates=len(mu))
     system = DSALowOrderSystem._build(
         h, st[None], ss[None], np.zeros_like(ss)[None], mu, w,
-        tuple(_LAW_FOR_TAG[t]() for t in bc),
+        realized_slab_faces(quad, *bc),
     )
     return system.a_low[0], system.g_map[0]
 
@@ -995,7 +1003,7 @@ class TestD9NoMasking:
 
     def _solve_two_zone(self, mats, acceleration=None):
         mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 8.0, 16.0), (0, 1), left=BC("vacuum"), right=BC("vacuum"),
+            (0.0, 8.0, 16.0), (0, 1), left=0, right=0,
         )).partition(CellsByCount.uniform_width(16)).mesh
         return solve_sn_fixed_source(
             materials=mats,
@@ -1005,7 +1013,7 @@ class TestD9NoMasking:
             scattering_order=0,
             inner_tol=_TOL,
             max_inner=3000,
-            acceleration=acceleration,
+            acceleration=acceleration, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
 
     def test_seeded_bug_reproduced_not_laundered(self):
@@ -1084,7 +1092,7 @@ class TestSigmaRFoldCaught:
 
     def _solve(self, mats, acceleration=None):
         mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 10.0, 20.0), (0, 1), left=BC("vacuum"), right=BC("vacuum"),
+            (0.0, 10.0, 20.0), (0, 1), left=0, right=0,
         )).partition(CellsByCount.uniform_width(20)).mesh
         return solve_sn_fixed_source(
             materials=mats,
@@ -1094,7 +1102,7 @@ class TestSigmaRFoldCaught:
             scattering_order=0,
             inner_tol=_TOL,
             max_inner=3000,
-            acceleration=acceleration,
+            acceleration=acceleration, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
 
     def test_fold_moves_the_fixed_point_outside_d3s_band(self):

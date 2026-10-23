@@ -87,7 +87,7 @@ import pytest
 import orpheus.sn.coupled_system as _cs_mod
 import orpheus.sn.solver as _solver_mod
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.quadrature import Quadrature
@@ -104,6 +104,14 @@ from tests.gates.sn.architecture._config import (
     sphere_carrying,
     system_a,
 )
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -141,7 +149,7 @@ def _fissile_slab() -> "tuple[dict[int, Mixture], Mesh1D, Quadrature, int]":
 
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     geometry = StructuredGeometry.slab(
-        (0.0, 1.0, 2.0), (0, 1), left=BC("reflective"), right=BC("vacuum"),
+        (0.0, 1.0, 2.0), (0, 1), left=MirrorDeck(), right=0,
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
     return materials, mesh, Quadrature.gauss_legendre(n_ordinates=8), 0
@@ -167,11 +175,11 @@ def _fissile_cart2d() -> "tuple[dict[int, Mixture], Mesh2D, Quadrature, int]":
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 3.0, ny + 1),
         mat_map=mat_map,
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("reflective"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": 0,
+            "ymin": MirrorDeck(),
+            "ymax": 0,
         },
     )
     return materials, mesh, Quadrature.level_symmetric(4), 1
@@ -280,7 +288,7 @@ class TestRecordTheBuildRoute:
 
         spy.reset()
         adjoint = solve_sn_adjoint(
-            materials, mesh, quadrature, scattering_order=order, max_outer=200,
+            materials, mesh, quadrature, scattering_order=order, max_outer=200, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         n_outer_adj = len(adjoint.outcome.trajectory)
         assert n_outer_adj > 1, (
@@ -293,10 +301,10 @@ class TestRecordTheBuildRoute:
         )
 
         spy.reset()
-        problem = _as_problem(mesh, quadrature, materials, scattering_order=order)
+        problem = _as_problem(mesh, quadrature, materials, scattering_order=order, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         source = np.ones(problem.angular_trial_space.shape)
         solve_sn_fixed_source(
-            materials, mesh, quadrature, source, scattering_order=order,
+            materials, mesh, quadrature, source, scattering_order=order, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         assert spy.calls == 1, (
             f"the fixed-source entry poses ONCE; saw {spy.calls} at "
@@ -445,7 +453,7 @@ class TestLawTheStrategyPredicate:
             solution = solve_sn(
                 materials, mesh, quadrature, scattering_order=order,
                 max_outer=400, inner_schedule=schedule,
-                keff_tol=1e-11, flux_tol=1e-10, inner_tol=1e-12,
+                keff_tol=1e-11, flux_tol=1e-10, inner_tol=1e-12, boundary_conditions=conditions_for(mesh, _CONDITIONS),
             )
             results[schedule] = (
                 solution.outcome.keff, np.asarray(solution.scalar_flux.values).copy(),
@@ -570,7 +578,7 @@ class TestRuledTheBuildIsOncePerProblem:
         spy = _BuildSpy(monkeypatch)
         spy.reset()
         solution = solve_sn(
-            materials, mesh, quadrature, scattering_order=order, max_outer=200,
+            materials, mesh, quadrature, scattering_order=order, max_outer=200, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         n_outer = len(solution.outcome.trajectory)
         if n_outer <= 1:

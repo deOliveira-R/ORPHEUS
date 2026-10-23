@@ -45,7 +45,7 @@ import pytest
 from tests.gates.sn._test_helpers import rc_march
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
@@ -58,6 +58,13 @@ from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.radial_characteristic_field import (
     RadialCharacteristicField,
 )
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
+
 
 pytestmark = pytest.mark.l0
 
@@ -75,9 +82,9 @@ def _mixture(c: float):
 
 
 def _folded_cylinder(c: float = 0.0) -> tuple[SNProblem, Mesh1D]:
-    geom = StructuredGeometry.cylinder((0.0, _RADIUS), (0,), outer=BC("reflective"))
+    geom = StructuredGeometry.cylinder((0.0, _RADIUS), (0,), outer=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(_NX)).mesh
-    sn = SNProblem(mesh, Quadrature.folded_product(4, 8), {0: _mixture(c)})
+    sn = SNProblem(mesh, Quadrature.folded_product(4, 8), {0: _mixture(c)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     return sn, mesh
 
 
@@ -97,7 +104,7 @@ def test_flat_flux_equilibrium_per_ordinate(c: float):
     sn, mesh = _folded_cylinder(c)
     q = np.ones((sn.quad.n_ordinates, 1, _NX))
     res = solve_sn_fixed_source(
-        {0: _mixture(c)}, mesh, sn.quad, q, max_inner=800, inner_tol=1e-13,
+        {0: _mixture(c)}, mesh, sn.quad, q, max_inner=800, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     psi_exact = 1.0 / (_SIG_T * (1.0 - c))
     psi = np.asarray(res.angular_flux.interior.values)     # (N, ng, nx)

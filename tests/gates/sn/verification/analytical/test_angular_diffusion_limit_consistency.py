@@ -43,10 +43,17 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 pytestmark = pytest.mark.l1
 
@@ -128,12 +135,12 @@ def solve_uniform_source_ball(*, sigma_t, radius, nx, quad,
         pac.morel_montry_tau_per_level = producer
     try:
         mesh = Mesher(StructuredGeometry.sphere(
-            (0.0, radius), (0,), outer=BC("vacuum"),
+            (0.0, radius), (0,), outer=0,
         )).partition(CellsByCount.uniform_width(nx)).mesh
         source = np.full((quad.n_ordinates, 1, nx), 1.0 / float(quad.weights.sum()))
         solution = solve_sn_fixed_source(
             {0: _pure_scatterer(sigma_t)}, mesh, quad, source,
-            max_inner=400_000, inner_tol=1e-12,
+            max_inner=400_000, inner_tol=1e-12, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
     finally:
         pac.morel_montry_tau_per_level = shipped

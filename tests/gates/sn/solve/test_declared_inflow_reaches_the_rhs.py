@@ -4,8 +4,8 @@ Phase **P2′** of `.claude/plans/archive/affine_boundary_source_channel.md`. Th
 boundary law is :math:`\gamma_-\psi = L\,\gamma_+\psi + q`, and the composite
 source :math:`q = q_{\rm bulk} \oplus q_\partial` has always been the channel
 :math:`q_\partial` belongs in. What was missing is the step *before* it: a
-:class:`~orpheus.geometry.boundary.PrescribedInflow` **declared as a boundary
-law** never reached that channel. It realized into an affine operator carrying
+:meth:`~orpheus.transport.boundary_conditions.WallCondition.uniform` **declared as a boundary
+condition** never reached that channel. It realized into an affine operator carrying
 no :attr:`BlockRole.BOUNDARY` stamp, which nothing consumed — so the
 declaration was **silently inert**.
 
@@ -23,7 +23,7 @@ verifies the CHANNEL and is silent about every step a user actually takes. These
 gates start from the **declaration** and assert it arrives.
 
 ⚠ **The keystone is** :meth:`TestTheDeclarationIsNotInert.test_a_declared_inflow_changes_the_rhs`.
-Every other row here would pass against a ``from_problem_laws`` that read the laws
+Every other row here would pass against a ``declared_boundary_source`` that read the declaration
 correctly while nothing called it — which was exactly the pre-P2′ state, one
 level down. That row is the one that fails if the wiring is removed.
 """
@@ -33,37 +33,45 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.geometry.boundary import (
-    ConstantInflowSource,
-    NoSource,
-    PrescribedInflow,
-    ReflectiveBoundary,
-    VacuumInflow,
-)
+from orpheus.geometry.deck import MirrorDeck
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import _build_fixed_source_rhs
 from orpheus.transport.fields import AngularBoundarySourceSink
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.transport.boundary_conditions import WallCondition
+
+
 
 pytestmark = pytest.mark.l1
 
 _VALUE = 2.5
 
 
-def _slab(ng: int = 2, n_ord: int = 8, nx: int = 4) -> SNProblem:
-    geom = StructuredGeometry.from_homogeneous(2.0, BC.vacuum)
+def _faces(xmin, xmax) -> tuple[tuple, dict[int, WallCondition]]:
+    """``(roles, conditions)`` of the two faces: each a deck (its own role) or a ``WallCondition`` (its own tag, declared at the
+    solve). ``None`` is the vacuum wall, the default of both faces. One tag per face, so the faces declare independently."""
+    roles: list = []
+    conditions: dict[int, WallCondition] = {}
+    for face in (xmin, xmax):
+        if isinstance(face, MirrorDeck):
+            roles.append(face)
+        else:
+            conditions[len(conditions)] = WallCondition.vacuum() if face is None else face
+            roles.append(len(conditions) - 1)
+    return tuple(roles), conditions
+
+
+def _slab(ng: int = 2, n_ord: int = 8, nx: int = 4, xmin=None, xmax=None) -> SNProblem:
+    """A homogeneous slab whose faces declare ``xmin`` and ``xmax`` (a ``WallCondition`` or a deck; vacuum by default): the
+    declaration rides the posing path, the channel a user travels (until wave 2 the realized law was installed on a built problem)."""
+    (left, right), conditions = _faces(xmin, xmax)
+    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=left, right=right)
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
-
-
-def _declare(sn: SNProblem, face: str, law) -> SNProblem:
-    """Install a law the way the mesh's own resolve body does."""
-    sn.bc[face] = sn.realize_boundary_law(law, face)
-    return sn
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions)
 
 
 def _bulk(sn: SNProblem) -> np.ndarray:
@@ -75,9 +83,8 @@ class TestOnlyPrescribedInflowContributes:
 
     @pytest.mark.parametrize(
         "law",
-        [VacuumInflow(), ReflectiveBoundary(axis="x"),
-         PrescribedInflow(source=NoSource())],
-        ids=["vacuum", "reflective", "prescribed(NoSource)"],
+        [WallCondition.vacuum(), MirrorDeck(), WallCondition.uniform(0.0)],
+        ids=["vacuum", "reflective", "prescribed(zero)"],
     )
     def test_a_sourceless_law_contributes_nothing(self, law) -> None:
         """Vacuum, reflective, and a zero-source prescribed all give q = 0.
@@ -86,16 +93,13 @@ class TestOnlyPrescribedInflowContributes:
         family-only test would wrongly expect a contribution. What decides is
         the source's VALUE.
         """
-        sn = _declare(_slab(), "xmin", law)
-        assert AngularBoundarySourceSink.from_problem_laws(sn).linf == 0.0
+        sn = _slab(xmin=law)
+        assert sn.declared_boundary_source().linf == 0.0
 
     def test_a_declared_inflow_lands_on_that_faces_inflow_rows_only(self) -> None:
         r""":math:`q \in \Gamma_-(f)` for the declaring face, zero elsewhere."""
-        sn = _declare(
-            _slab(), "xmin",
-            PrescribedInflow(source=ConstantInflowSource(value=_VALUE)),
-        )
-        q = AngularBoundarySourceSink.from_problem_laws(sn)
+        sn = _slab(xmin=WallCondition.uniform(_VALUE))
+        q = sn.declared_boundary_source()
         inflow = sn.angular_trace.inflow_indices_for_face("xmin")
         view = np.asarray(q.face_view("xmin"))
 
@@ -107,10 +111,8 @@ class TestOnlyPrescribedInflowContributes:
 
     def test_two_faces_can_declare_independently(self) -> None:
         """Different faces, different sources — neither overwrites the other."""
-        sn = _slab()
-        _declare(sn, "xmin", PrescribedInflow(ConstantInflowSource(value=1.0)))
-        _declare(sn, "xmax", PrescribedInflow(ConstantInflowSource(value=3.0)))
-        q = AngularBoundarySourceSink.from_problem_laws(sn)
+        sn = _slab(xmin=WallCondition.uniform(1.0), xmax=WallCondition.uniform(3.0))
+        q = sn.declared_boundary_source()
         for face, value in (("xmin", 1.0), ("xmax", 3.0)):
             rows = sn.angular_trace.inflow_indices_for_face(face)
             np.testing.assert_array_equal(
@@ -137,10 +139,7 @@ class TestTheDeclarationIsNotInert:
         rhs_vacuum = _build_fixed_source_rhs(_bulk(vacuum), vacuum)
         assert rhs_vacuum.boundary.linf == 0.0
 
-        declared = _declare(
-            _slab(), "xmin",
-            PrescribedInflow(source=ConstantInflowSource(value=_VALUE)),
-        )
+        declared = _slab(xmin=WallCondition.uniform(_VALUE))
         rhs_declared = _build_fixed_source_rhs(_bulk(declared), declared)
         assert rhs_declared.boundary.linf == pytest.approx(_VALUE), (
             "a DECLARED prescribed inflow did not reach the composite RHS — "
@@ -156,10 +155,7 @@ class TestTheDeclarationIsNotInert:
         rng = np.random.default_rng(20260805)
         vacuum = _slab()
         bulk = rng.standard_normal((vacuum.quad.n_ordinates, vacuum.ng, *vacuum.spatial_shape))
-        declared = _declare(
-            _slab(), "xmin",
-            PrescribedInflow(source=ConstantInflowSource(value=_VALUE)),
-        )
+        declared = _slab(xmin=WallCondition.uniform(_VALUE))
         np.testing.assert_array_equal(
             np.asarray(_build_fixed_source_rhs(bulk, vacuum).interior.values),
             np.asarray(_build_fixed_source_rhs(bulk, declared).interior.values),
@@ -176,10 +172,7 @@ class TestTheSourceCannotBeSpecifiedTwice:
         (the pre-P2′ way to get an inflow) against a mesh that now also
         declares one.
         """
-        sn = _declare(
-            _slab(), "xmin",
-            PrescribedInflow(source=ConstantInflowSource(value=_VALUE)),
-        )
+        sn = _slab(xmin=WallCondition.uniform(_VALUE))
         from orpheus.transport.fields import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -237,7 +230,7 @@ class TestTheSourceCannotBeSpecifiedTwice:
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _het_slab(n_ord: int = 8) -> SNProblem:
+def _het_slab(n_ord: int = 8, xmin=None) -> SNProblem:
     r"""Heterogeneous, 2G, asymmetric ``SigS``, scattering-active.
 
     NOT ``placeholder_materials``: ``SigS ≡ 0`` there, so a delivered inflow
@@ -248,16 +241,17 @@ def _het_slab(n_ord: int = 8) -> SNProblem:
     """
     from orpheus.derivations.common.xs_library import get_mixture
 
+    (left, right), conditions = _faces(xmin, None)
     geom = StructuredGeometry.from_thicknesses(
         coord=CoordSystem.CARTESIAN,
         thicknesses=(1.0, 2.0),
         mat_ids=(0, 1),
-        boundaries=(BC.vacuum, BC.vacuum),
+        face_roles=(left, right),
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(6)).mesh
     return SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=n_ord),
-        {0: get_mixture("A", "2g"), 1: get_mixture("D", "2g")},
+        {0: get_mixture("A", "2g"), 1: get_mixture("D", "2g")}, boundary_conditions=conditions,
     )
 
 
@@ -364,13 +358,10 @@ def test_the_declared_boundary_law_holds_on_the_answer(inner: str) -> None:
     tracks is meaningless and ``_check_convergence_claim`` catches the
     divergence (``ConvergenceClaimError``, ``‖Aψ − q‖/‖q‖ = 1.718``).
     Declared prescribed inflow × Krylov was UNUSABLE — before P2′ as well as
-    after it — and only #189 (the law is not a registered ``BC`` kind) kept that
+    after it — and only #189 (the law was not a registered ``BC`` kind) kept that
     out of every production driver.
     """
-    sn = _declare(
-        _het_slab(), "xmin",
-        PrescribedInflow(source=ConstantInflowSource(value=_VALUE)),
-    )
+    sn = _het_slab(xmin=WallCondition.uniform(_VALUE))
     sol = _solve(sn, inner)
 
     got = _gamma_minus(sol, sn, "xmin")
@@ -450,8 +441,8 @@ def test_the_two_user_paths_reach_the_same_fixed_point() -> None:
 
     The two routes a user can take to the same physics:
 
-    * declare ``PrescribedInflow(ConstantInflowSource(2.5))`` on the mesh and
-      let :meth:`from_problem_laws` assemble ``q_∂`` (the law tier);
+    * declare ``WallCondition.uniform(2.5)`` on the face and
+      let :meth:`~orpheus.sn.problem.SNProblem.declared_boundary_source` assemble ``q_∂`` (the declaration tier);
     * install vacuum and hand :meth:`prescribed_inflow` the same values
       directly (the channel tier — what the §4.6 MMS does).
 
@@ -478,10 +469,7 @@ def test_the_two_user_paths_reach_the_same_fixed_point() -> None:
     Three different numbers, three different claims — conflating them is how a
     correct gate gets loosened.
     """
-    declared = _declare(
-        _het_slab(), "xmin",
-        PrescribedInflow(source=ConstantInflowSource(value=_VALUE)),
-    )
+    declared = _het_slab(xmin=WallCondition.uniform(_VALUE))
     supplied = _het_slab()  # vacuum everywhere; q_∂ comes in the composite
 
     phi_declared = np.asarray(

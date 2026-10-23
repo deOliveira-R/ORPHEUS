@@ -32,7 +32,6 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
 
@@ -45,8 +44,16 @@ from orpheus.sn.solver import (
     _unwindowed_cold_start,
 )
 from orpheus.mesh import AxisMesh
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
 
-VACUUM, REFLECTIVE = BC("vacuum"), BC("reflective")
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
+
+VACUUM, REFLECTIVE = 0, MirrorDeck()
 
 #: The default rule for every fixture here. ``level_symmetric`` places its
 #: cosines on shells :math:`|\mu| \ge \mu_1 > 0`, so it has **zero tangential
@@ -72,7 +79,7 @@ EXTENTS = (1.0, 2.0, 3.0)
 def axes(cells, bcs):
     """``AxisMesh`` per axis, on :data:`EXTENTS`, with the given BC pairs."""
     return tuple(
-        AxisMesh(edges=np.linspace(0.0, extent, n + 1), bc_low=low, bc_high=high)
+        AxisMesh(edges=np.linspace(0.0, extent, n + 1), role_low=low, role_high=high)
         for extent, n, (low, high) in zip(EXTENTS, cells, bcs)
     )
 
@@ -108,7 +115,7 @@ def scatterer(ng: int = 2, c: float = 0.5, sig_t=(0.8, 1.6)):
 
 def build(cells, bcs, mixture, quad=LS4, scheme=None):
     """``(problem, within_group_system, cold-start template)``."""
-    problem = _as_problem(axes(cells, bcs), quad, {0: mixture}, scheme=scheme)
+    problem = _as_problem((_carrier1 := axes(cells, bcs)), quad, {0: mixture}, scheme=scheme, boundary_conditions=conditions_for(_carrier1, _CONDITIONS))
     solver = SNSolver(problem, inner_solver="source_iteration")
     system = build_within_group_system(
         problem, solver.problem.mat_xs,

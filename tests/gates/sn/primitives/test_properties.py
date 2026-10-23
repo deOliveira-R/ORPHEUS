@@ -11,16 +11,17 @@ import numpy as np
 import pytest
 
 from orpheus.derivations import get
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
+from orpheus.geometry.deck import MirrorDeck
 
 
 def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) -> Mesh1D:
     """Single-region Cartesian mesh helper."""
     geom = StructuredGeometry.slab(
-        (0.0, total_width), (mat_id,), left=BC.reflective, right=BC.reflective,
+        (0.0, total_width), (mat_id,), left=MirrorDeck(), right=MirrorDeck(),
     )
     return Mesher(geom).partition(CellsByCount.uniform_volume(n_cells)).mesh
 
@@ -33,7 +34,7 @@ def _slab_fuel_moderator_mesh(
         coord=CoordSystem.CARTESIAN,
         thicknesses=(t_fuel, t_mod),
         mat_ids=(2, 0),
-        boundaries=(BC.reflective, BC.reflective),
+        face_roles=(MirrorDeck(), MirrorDeck()),
     )
     return Mesher(geom).partition((
         CellsByCount.uniform_volume(n_fuel),

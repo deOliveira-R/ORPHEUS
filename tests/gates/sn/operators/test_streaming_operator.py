@@ -49,7 +49,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.operator import LinearOperator
 from orpheus.sn.problem import SNProblem
@@ -65,6 +65,14 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from dataclasses import replace
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+from orpheus.geometry.deck import MirrorDeck, FaceRole
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(1.0)}
+
 
 pytestmark = pytest.mark.foundation
 
@@ -82,19 +90,19 @@ def _slab_mesh(nx: int = 4, length: float = 1.0, ng: int = 2) -> SNProblem:
     path-forward matvec (the mesh.ng vs sig_t.ng dimensional sin per
     #205 closes at the test boundary).
     """
-    geom = StructuredGeometry.slab((0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    geom = StructuredGeometry.slab((0.0, length), (0,), left=0, right=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     """Doubled width, same shape — the VOLUMES differ, so the carrier mints
     an UNEQUAL space (the F2 content discriminator)."""
-    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"))
+    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=0, right=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _spherical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNProblem:
@@ -102,10 +110,10 @@ def _spherical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNProblem:
 
     R-1 Step 4 Step G0 — see ``_slab_mesh`` re: ``ng`` default.
     """
-    geom = StructuredGeometry.sphere((0.0, radius), (0,), outer=BC("vacuum"))
+    geom = StructuredGeometry.sphere((0.0, radius), (0,), outer=0)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _cylindrical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNProblem:
@@ -114,11 +122,11 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNProble
     R-1 Step 4 Step G0 — see ``_slab_mesh`` re: ``ng`` default.
     """
     geom = StructuredGeometry.cylinder(
-        (0.01, radius), (0,), inner=BC("reflective"), outer=BC("vacuum"),
+        (0.01, radius), (0,), inner=1, outer=0,
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _sig_t_uniform(problem: SNProblem, ng: int = 2,
@@ -495,10 +503,10 @@ class TestCompositeInvariants:
             edges_x=np.linspace(0.0, 1.0, 4),
             edges_y=np.linspace(0.0, 1.0, 4),
             mat_map=np.zeros((3, 3), dtype=int),
-            face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
+            face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")},
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        problem = SNProblem(mesh, quad, placeholder_materials(ng=2))
+        problem = SNProblem(mesh, quad, placeholder_materials(ng=2), boundary_conditions=conditions_for(mesh, _CONDITIONS))
         sig_t = _sig_t_uniform(problem)
         L = StreamingOperator.pose(problem)
 
@@ -593,7 +601,7 @@ PRE_T4_SNAPSHOTS_PATH = (
 )
 
 
-def _slab_for_snapshot_arm(*, ng: int, left: BC, right: BC) -> SNProblem:
+def _slab_for_snapshot_arm(*, ng: int, left: FaceRole, right: FaceRole) -> SNProblem:
     """Reconstruct the slab fixture used by the T.4a snapshot script.
 
     Mirrors `tests/gates/sn/_fixtures/wave_t_t4/_capture_pre_t4_snapshots.py`'s
@@ -630,7 +638,7 @@ def _slab_for_snapshot_arm(*, ng: int, left: BC, right: BC) -> SNProblem:
     geom = StructuredGeometry.slab((0.0, 4.0), (0,), left=left, right=right)
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(20)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    return SNProblem(mesh, quad, {0: mix})
+    return SNProblem(mesh, quad, {0: mix}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 def _sigma_t_from_mat_map(problem: SNProblem) -> np.ndarray:
@@ -767,7 +775,7 @@ class TestT4bPreT4RegressionSnapshot:
         self._assert_arm(
             snapshots, tag="slab_1g_vacuum",
             problem=_slab_for_snapshot_arm(
-                ng=1, left=BC("vacuum"), right=BC("vacuum"),
+                ng=1, left=0, right=0,
             ),
             seed=20260531 + 1,
         )
@@ -777,7 +785,7 @@ class TestT4bPreT4RegressionSnapshot:
         self._assert_arm(
             snapshots, tag="slab_2g_vacuum",
             problem=_slab_for_snapshot_arm(
-                ng=2, left=BC("vacuum"), right=BC("vacuum"),
+                ng=2, left=0, right=0,
             ),
             seed=20260531 + 2,
         )
@@ -791,7 +799,7 @@ class TestT4bPreT4RegressionSnapshot:
         self._assert_arm(
             snapshots, tag="slab_2g_reflective",
             problem=_slab_for_snapshot_arm(
-                ng=2, left=BC("reflective"), right=BC("vacuum"),
+                ng=2, left=MirrorDeck(), right=0,
             ),
             seed=20260531 + 3,
         )

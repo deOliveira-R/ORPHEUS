@@ -1,7 +1,8 @@
 """Tests for the SN boundary condition infrastructure.
 
-Verifies the BOUNDARY_OPERATOR_REGISTRY pattern: declaration on geometry, resolution at
-SNProblem construction, and correct behavior in sweeps.
+Verifies the declaration-to-realization path: the roles declared on the geometry (a deck, or a tag whose condition is declared at
+the solve), their resolution at SNProblem construction through the sealed realizer table, and correct behavior in sweeps.
+(Wave 2 S2b: the string registry ``BOUNDARY_OPERATOR_REGISTRY`` is retired; its successor is gated in ``test_sn_boundary_realizer.py``.)
 """
 
 from __future__ import annotations
@@ -11,12 +12,20 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
+from orpheus.sn.boundary.realized_operators import RankOneReemission, ScaledOrdinatePermutation, ZeroMap
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.sn._test_helpers import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.white(1.0), 2: WallCondition.specular(1.0)}
+
 
 # SN boundary-condition infrastructure: structural invariants of the
 # SNProblem BC wiring (no theory-page :label:). Foundation, not a physics
@@ -33,31 +42,20 @@ def quad():
 @pytest.fixture
 def slab_mesh():
     return Mesher(StructuredGeometry.slab(
-        (0.0, 5.0), (0,), left=BC.reflective, right=BC.reflective,
+        (0.0, 5.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )).partition(CellsByCount.uniform_width(10)).mesh
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Registry tests
+# Registry tests: RETIRED (wave 2 S2b)
 # ═══════════════════════════════════════════════════════════════════════
-
-class TestSNBCRegistry:
-    """BOUNDARY_OPERATOR_REGISTRY is the single source of truth: resolves, validates, advertises."""
-
-    def test_registry_keys(self):
-        assert "vacuum" in SNProblem.BOUNDARY_OPERATOR_REGISTRY
-        assert "reflective" in SNProblem.BOUNDARY_OPERATOR_REGISTRY
-
-    def test_registry_docstrings(self):
-        """Every factory has a docstring (used as description for UI query)."""
-        for kind, factory in SNProblem.BOUNDARY_OPERATOR_REGISTRY.items():
-            assert factory.__doc__ is not None, f"BC factory '{kind}' has no docstring"
-
-    def test_registry_programmatic_query(self):
-        """Descriptions are queryable via factory docstrings."""
-        descriptions = {k: v.__doc__ for k, v in SNProblem.BOUNDARY_OPERATOR_REGISTRY.items()}
-        assert "vacuum" in descriptions
-        assert "reflective" in descriptions
+#
+# ``TestSNBCRegistry`` (``test_registry_keys``, ``test_registry_docstrings``, ``test_registry_programmatic_query``) asserted that
+# ``SNProblem.BOUNDARY_OPERATOR_REGISTRY`` held "vacuum" and "reflective" and that every factory carried a docstring "used as a
+# description for UI query". The registry was a string-keyed table of factories; it is replaced by the sealed
+# ``RealizerTable`` ``SN_REALIZERS`` keyed by UNIT TYPE, whose membership and door are gated in ``test_sn_boundary_realizer.py``.
+# The UI-description claim has no successor: nothing queried it (0 consumers in the tree at the retirement, ``grep`` of
+# ``BOUNDARY_OPERATOR_REGISTRY`` over ``orpheus/``, ``tests/`` and ``docs/``).
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -68,32 +66,43 @@ class TestSNBCResolution:
     """BC resolution at SNProblem construction time."""
 
     def test_declared_reflective(self, slab_mesh, quad):
-        """The reflective law declared on both faces resolves to ReflectiveBoundary."""
-        sn = SNProblem(slab_mesh, quad, placeholder_materials())
-        assert isinstance(sn.bc["xmin"].law, ReflectiveBoundary)
-        assert isinstance(sn.bc["xmax"].law, ReflectiveBoundary)
+        """The mirror deck declared on both faces resolves to the unit ordinate permutation."""
+        sn = SNProblem(slab_mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(slab_mesh, _CONDITIONS))
+        for face in ("xmin", "xmax"):
+            assert isinstance(sn.bc[face], ScaledOrdinatePermutation) and sn.bc[face].alpha == 1.0
 
     def test_explicit_vacuum(self, slab_mesh, quad):
-        mesh = replace(slab_mesh, face_laws={"xmin": BC.vacuum, "xmax": BC.vacuum})
-        sn = SNProblem(mesh, quad, placeholder_materials())
-        assert isinstance(sn.bc["xmin"].law, VacuumInflow)
-        assert isinstance(sn.bc["xmax"].law, VacuumInflow)
+        mesh = replace(slab_mesh, face_roles={"xmin": 0, "xmax": 0})
+        sn = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+        assert isinstance(sn.bc["xmin"], ZeroMap)
+        assert isinstance(sn.bc["xmax"], ZeroMap)
 
     def test_mixed_bcs(self, slab_mesh, quad):
-        mesh = replace(slab_mesh, face_laws={"xmin": BC.reflective, "xmax": BC.vacuum})
-        sn = SNProblem(mesh, quad, placeholder_materials())
-        assert isinstance(sn.bc["xmin"].law, ReflectiveBoundary)
-        assert isinstance(sn.bc["xmax"].law, VacuumInflow)
+        mesh = replace(slab_mesh, face_roles={"xmin": MirrorDeck(), "xmax": 0})
+        sn = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+        assert isinstance(sn.bc["xmin"], ScaledOrdinatePermutation)
+        assert isinstance(sn.bc["xmax"], ZeroMap)
 
-    def test_unknown_bc_raises(self, slab_mesh, quad):
-        mesh = replace(slab_mesh, face_laws={"xmin": BC("white"), "xmax": BC.reflective})
-        with pytest.raises(ValueError, match="does not support.*'white'"):
-            SNProblem(mesh, quad, placeholder_materials())
+    def test_white_is_realized_now(self, slab_mesh, quad):
+        """Meaning change at wave 2 S2b. ``test_unknown_bc_raises`` pinned the REFUSAL of a white face ("does not support ...
+        'white'"): the string registry listed two kinds. The diffuse chain is registered in the realizer table, so a white wall on a
+        Cartesian face realizes to the rank-one re-emission; what SN still refuses is the diffuse chain on a RADIAL outer surface
+        (issue #653, below)."""
+        mesh = replace(slab_mesh, face_roles={"xmin": 1, "xmax": MirrorDeck()})
+        sn = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+        assert isinstance(sn.bc["xmin"], RankOneReemission)
 
-    def test_error_lists_supported(self, slab_mesh, quad):
-        mesh = replace(slab_mesh, face_laws={"xmin": BC("periodic"), "xmax": BC.reflective})
-        with pytest.raises(ValueError, match="'reflective'.*'vacuum'"):
-            SNProblem(mesh, quad, placeholder_materials())
+    def test_a_diffuse_wall_on_a_radial_outer_surface_is_refused(self, quad):
+        """Re-posed from ``test_error_lists_supported`` (the refusal listed the registry's supported kinds when a periodic tag was
+        met; the half-declared translation pair is now a geometry-level ``DeckError``, gated in ``test_snmesh_realizer_wiring.py``).
+        The refusal SN keeps is the scope boundary of issue #653: a diffuse (white) wall at a radial outer surface."""
+        from orpheus.transport.boundary_conditions import BoundaryRefused
+
+        geom = StructuredGeometry.sphere((0.0, 1.0), (0,), outer=1)
+        mesh = Mesher(geom).partition(CellsByCount.uniform_width(5)).mesh
+        with pytest.raises(BoundaryRefused, match="corner action is ruled only for a permuting return or a zero return") as refused:
+            SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+        assert refused.value.admission.issue == 653
 
     def test_2d_mesh_resolution(self):
         """2-D Cartesian BC resolution. Needs a genuine-2-D quadrature:
@@ -106,28 +115,28 @@ class TestSNBCResolution:
             edges_x=np.linspace(0, 2, 3),
             edges_y=np.linspace(0, 2, 3),
             mat_map=np.zeros((2, 2), dtype=int),
-            face_laws={
-                "xmin": BC.reflective,
-                "xmax": BC.vacuum,
-                "ymin": BC.reflective,
-                "ymax": BC.vacuum,
+            face_roles={
+                "xmin": MirrorDeck(),
+                "xmax": 0,
+                "ymin": MirrorDeck(),
+                "ymax": 0,
             },
         )
-        sn = SNProblem(mesh, quad, placeholder_materials())
-        assert isinstance(sn.bc["xmin"].law, ReflectiveBoundary)
-        assert isinstance(sn.bc["xmax"].law, VacuumInflow)
-        assert isinstance(sn.bc["ymin"].law, ReflectiveBoundary)
-        assert isinstance(sn.bc["ymax"].law, VacuumInflow)
+        sn = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+        assert isinstance(sn.bc["xmin"], ScaledOrdinatePermutation)
+        assert isinstance(sn.bc["xmax"], ZeroMap)
+        assert isinstance(sn.bc["ymin"], ScaledOrdinatePermutation)
+        assert isinstance(sn.bc["ymax"], ZeroMap)
 
     def test_curvilinear_vacuum_resolves(self, quad):
         """Spherical/cylindrical accept vacuum; sweep enforces zero-incoming
         at the outer face. Vacuum support added in commits 655e3e5 / 37c5bbf
         (the curvilinear-only-reflective gate was removed and the inward
         sweep now branches on ``is_vacuum_outer``)."""
-        geom = StructuredGeometry.sphere((0.1, 1.0), (0,), inner=BC.reflective, outer=BC.vacuum)
+        geom = StructuredGeometry.sphere((0.0, 1.0), (0,), outer=0)
         mesh = Mesher(geom).partition(CellsByCount.uniform_width(5)).mesh
-        sn = SNProblem(mesh, quad, placeholder_materials())
-        assert isinstance(sn.bc["xmax"].law, VacuumInflow)
+        sn = SNProblem(mesh, quad, placeholder_materials(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+        assert isinstance(sn.bc["xmax"], ZeroMap)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -150,9 +159,9 @@ def _err052_fixture():
     mix = next(iter(case.materials.values()))
     materials = {0: mix}
     mesh_refl = Mesher(StructuredGeometry.slab(
-        (0.0, 2.0), (0,), left=BC.reflective, right=BC.reflective,
+        (0.0, 2.0), (0,), left=MirrorDeck(), right=MirrorDeck(),
     )).partition(CellsByCount.uniform_volume(20)).mesh
-    mesh_vac = replace(mesh_refl, face_laws={"xmin": BC.vacuum, "xmax": BC.vacuum})
+    mesh_vac = replace(mesh_refl, face_roles={"xmin": 0, "xmax": 0})
     # The fixture mixture is (n,2n)-free, so total production IS fission
     # production — asserted here so the hand formula below stays honest
     # if the reference case ever gains a Σ₂ channel.
@@ -208,8 +217,8 @@ class TestSNBCSweepBehavior:
         from orpheus.sn.solver import solve_sn
 
         materials, mesh_refl, mesh_vac, _, _ = _err052_fixture()
-        result_refl = solve_sn(materials, mesh_refl, quad)
-        result_vac = solve_sn(materials, mesh_vac, quad)
+        result_refl = solve_sn(materials, mesh_refl, quad, boundary_conditions=conditions_for(mesh_refl, _CONDITIONS))
+        result_vac = solve_sn(materials, mesh_vac, quad, boundary_conditions=conditions_for(mesh_vac, _CONDITIONS))
 
         # Reflective has higher keff (no leakage vs leakage)
         assert result_refl.outcome.keff > result_vac.outcome.keff
@@ -280,7 +289,7 @@ class TestSNBCSweepBehavior:
         for label, mesh in (("reflective", mesh_refl), ("vacuum", mesh_vac)):
             result = solve_sn(
                 materials, mesh, quad,
-                keff_tol=tol, flux_tol=tol, max_outer=200,
+                keff_tol=tol, flux_tol=tol, max_outer=200, boundary_conditions=conditions_for(mesh, _CONDITIONS),
             )
             production = _hand_production_rate(result, volumes, sigma_p)
             np.testing.assert_allclose(

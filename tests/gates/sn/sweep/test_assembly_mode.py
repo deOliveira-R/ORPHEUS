@@ -62,7 +62,7 @@ import pytest
 from scipy.linalg import solve_triangular
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesh2D, Mesher
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 from orpheus.numerics.assembled_operator import MissingAssembly
@@ -84,6 +84,13 @@ from orpheus.transport.fields import (
     AngularBoundarySourceSink,
     AngularSourceSink,
 )
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 _RTOL = 1e-11   # L16: sparse-order ≠ apply-order ⇒ never 0-ULP (measured ~6e-16)
 
@@ -94,7 +101,7 @@ _RTOL = 1e-11   # L16: sparse-order ≠ apply-order ⇒ never 0-ULP (measured ~6
 def _heterogeneous_slab_mesh1d():
     """Non-uniform cells on a heterogeneous slab (materials 0 | 1 | 0), vacuum faces."""
     geom = StructuredGeometry.slab(
-        (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=0, right=0,
     )
     return Mesher(geom).partition((
         CellEdges(np.array([0.0, 0.5])),
@@ -107,7 +114,7 @@ def _slab_mesh() -> SNProblem:
     mesh1d = _heterogeneous_slab_mesh1d()
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     return SNProblem(
-        mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(mesh1d, _CONDITIONS),
     )
 
 
@@ -116,16 +123,16 @@ def _cartesian_2d_mesh() -> SNProblem:
         edges_x=np.array([0.0, 0.4, 1.1, 2.1, 3.0]),     # non-uniform
         edges_y=np.array([0.0, 0.7, 1.5, 2.0]),
         mat_map=np.array([[0, 1, 1], [1, 0, 0], [0, 0, 1], [1, 1, 0]]),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     return SNProblem(
-        geom, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        geom, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(geom, _CONDITIONS),
     )
 
 
@@ -388,20 +395,20 @@ def _ld_mesh(geometry: str) -> SNProblem:
     if geometry == "slab":
         mesh1d = _heterogeneous_slab_mesh1d()
         quad = Quadrature.gauss_legendre(n_ordinates=4)
-        return SNProblem(mesh1d, quad, materials, scheme=LinearDiscontinuous())
+        return SNProblem(mesh1d, quad, materials, scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh1d, _CONDITIONS))
     geom = Mesh2D(
         edges_x=np.array([0.0, 0.4, 1.1, 2.1, 3.0]),
         edges_y=np.array([0.0, 0.7, 1.5, 2.0]),
         mat_map=np.array([[0, 1, 1], [1, 0, 0], [0, 0, 1], [1, 1, 0]]),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": 0,
+            "ymax": 0,
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
-    return SNProblem(geom, quad, materials, scheme=LinearDiscontinuous())
+    return SNProblem(geom, quad, materials, scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(geom, _CONDITIONS))
 
 
 def _block_upper_mask(n_cells: int, cm: int, order: np.ndarray) -> np.ndarray:
@@ -527,10 +534,10 @@ def test_curvilinear_refuses_the_cartesian_walk():
     that honesty (the per-ordinate factorization does not exist there;
     see the #282 characterization below for WHY)."""
     mesh1d = Mesher(
-        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC("vacuum")),
+        StructuredGeometry.sphere((0.0, 1.0), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(4)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    problem = SNProblem(mesh1d, quad, {0: get_mixture("A", "2g")})
+    problem = SNProblem(mesh1d, quad, {0: get_mixture("A", "2g")}, boundary_conditions=conditions_for(mesh1d, _CONDITIONS))
     with pytest.raises(AttributeError, match="Cartesian-only"):
         assemble_ordinate_blocks(problem, 0)
 
@@ -701,7 +708,7 @@ def test_282_augmented_walk_order_is_triangular(coord):
     """
     mesh1d = Mesher(StructuredGeometry(
         coord=coord, breakpoints=(0.0, 0.3, 0.8, 1.0), mat_ids=(0, 1, 0),
-        boundaries=(BC("vacuum"),),
+        face_roles=(0,),
     )).partition(CellsByCount.uniform_width(1)).mesh
     quad = (
         Quadrature.gauss_legendre(n_ordinates=4)
@@ -709,7 +716,7 @@ def test_282_augmented_walk_order_is_triangular(coord):
         else Quadrature.folded_product(n_mu=4, n_phi=8)
     )
     problem = SNProblem(
-        mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(mesh1d, _CONDITIONS),
     )
     M = _probe_augmented_matrix_one_group(problem, g=0)
     order = _augmented_sweep_order(problem)
@@ -739,11 +746,11 @@ def test_282_teeth_coupling_direction_swap_reds():
     from orpheus.sn.angular.closure import MorelMontryAngularSweep
 
     mesh1d = Mesher(StructuredGeometry.sphere(
-        (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
+        (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=0,
     )).partition(CellsByCount.uniform_width(1)).mesh
     problem = SNProblem(
         mesh1d, Quadrature.gauss_legendre(n_ordinates=4),
-        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(mesh1d, _CONDITIONS),
     )
     # Mutant: the recurrence seed reads the LAST ordinate's cells (a
     # walk-order back edge) instead of the starting-direction STATE.

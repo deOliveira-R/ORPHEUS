@@ -99,13 +99,21 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from tests.gates.sn._test_helpers import SN_TESTS_ROOT
 from tests.gates.sn.regression._regression_assert import assert_regression
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 pytestmark = pytest.mark.foundation
@@ -241,11 +249,11 @@ def _build_2d():
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=mat,
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("reflective"),
-            "ymax": BC("reflective"),
+        face_roles={
+            "xmin": 0,
+            "xmax": 0,
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
         },
     )
     quad = Quadrature.level_symmetric(sn_order=4)
@@ -260,7 +268,7 @@ def _build_slab():
     mod = get_mixture("B", "2g")
     nx = 16
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 2.0, 4.0), (2, 0), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 2.0, 4.0), (2, 0), left=0, right=0,
     )).partition(CellsByCount.uniform_width(nx // 2)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     sum_w = float(quad.weights.sum())
@@ -273,19 +281,19 @@ def _solve_case(case: str):
         mats, mesh, quad, q = _build_2d()
         return solve_sn_fixed_source(
             mats, mesh, quad, q, scattering_order=1,
-            inner_solver="source_iteration", max_inner=_MAX_INNER, inner_tol=_INNER_TOL,
+            inner_solver="source_iteration", max_inner=_MAX_INNER, inner_tol=_INNER_TOL, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
     if case == "krylov_2d_p1_aniso_het":
         mats, mesh, quad, q = _build_2d()
         return solve_sn_fixed_source(
             mats, mesh, quad, q, scattering_order=1,
-            inner_solver="krylov", max_inner=_MAX_INNER, inner_tol=_INNER_TOL,
+            inner_solver="krylov", max_inner=_MAX_INNER, inner_tol=_INNER_TOL, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
     if case == "si_slab_2g_het":
         mats, mesh, quad, q = _build_slab()
         return solve_sn_fixed_source(
             mats, mesh, quad, q, scattering_order=1,
-            inner_solver="source_iteration", max_inner=_MAX_INNER, inner_tol=_INNER_TOL,
+            inner_solver="source_iteration", max_inner=_MAX_INNER, inner_tol=_INNER_TOL, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
     raise ValueError(f"unknown case {case!r}")
 

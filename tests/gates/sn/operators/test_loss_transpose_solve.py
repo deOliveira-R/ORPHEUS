@@ -38,7 +38,7 @@ import pytest
 from scipy.linalg import solve_triangular
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -56,6 +56,13 @@ from tests.gates.sn.sweep.test_assembly_mode import (
     _augmented_sweep_order,
     _probe_augmented_matrix_one_group,
 )
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 _RTOL = 1e-10
 
@@ -63,7 +70,7 @@ _RTOL = 1e-10
 def _het_slab_mesh() -> Mesh1D:
     """Vacuum slab, materials 0 | 1 | 0, the middle region cut in two cells."""
     geom = StructuredGeometry.slab(
-        (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=0, right=0,
     )
     return Mesher(geom).partition((
         CellEdges(np.array([0.0, 0.5])),
@@ -78,19 +85,19 @@ def _one_cell_per_region(geom: StructuredGeometry) -> Mesh1D:
 
 def _slab() -> SNProblem:
     return SNProblem(
-        _het_slab_mesh(),
+        (_carrier1 := _het_slab_mesh()),
         Quadrature.gauss_legendre(n_ordinates=4),
-        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(_carrier1, _CONDITIONS),
     )
 
 
 def _sphere() -> SNProblem:
     return SNProblem(
-        _one_cell_per_region(StructuredGeometry.sphere(
-            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
-        )),
+        (_carrier2 := _one_cell_per_region(StructuredGeometry.sphere(
+            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=0,
+        ))),
         Quadrature.gauss_legendre(n_ordinates=4),
-        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(_carrier2, _CONDITIONS),
     )
 
 
@@ -103,11 +110,11 @@ def _cyl_degenerate() -> SNProblem:
     # (like every admitted cylinder rule) a LIVE seed-fold — both
     # cylinder-specific transpose terms active.
     return SNProblem(
-        _one_cell_per_region(StructuredGeometry.cylinder(
-            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
-        )),
+        (_carrier3 := _one_cell_per_region(StructuredGeometry.cylinder(
+            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=0,
+        ))),
         Quadrature.folded_product(n_mu=4, n_phi=6),
-        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(_carrier3, _CONDITIONS),
     )
 
 
@@ -120,11 +127,11 @@ def _cyl_regular() -> SNProblem:
     # carrying rule's seed is live, so the Mode-7 discrimination
     # narrows to the degenerate axis (see G5).
     return SNProblem(
-        _one_cell_per_region(StructuredGeometry.cylinder(
-            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=BC("vacuum"),
-        )),
+        (_carrier4 := _one_cell_per_region(StructuredGeometry.cylinder(
+            (0.0, 0.3, 0.8, 1.0), (0, 1, 0), outer=0,
+        ))),
         Quadrature.folded_product(n_mu=8, n_phi=16),
-        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
+        {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, boundary_conditions=conditions_for(_carrier4, _CONDITIONS),
     )
 
 
@@ -136,10 +143,10 @@ def _ld_slab() -> SNProblem:
     )
 
     return SNProblem(
-        _het_slab_mesh(),
+        (_carrier5 := _het_slab_mesh()),
         Quadrature.gauss_legendre(n_ordinates=4),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
-        scheme=LinearDiscontinuous(),
+        scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(_carrier5, _CONDITIONS),
     )
 
 

@@ -106,7 +106,7 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
@@ -120,6 +120,13 @@ from orpheus.transport.fields import (
     AngularSourceSink,
 )
 from orpheus.transport.timed_full_field import TimedFullField
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 
 pytestmark = pytest.mark.foundation
@@ -211,13 +218,13 @@ _RTOL = 1e-12
 
 def _build_solver() -> SNSolver:
     geometry = StructuredGeometry.slab(
-        (0.0, _WIDTH / 2, _WIDTH), (0, 1), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, _WIDTH / 2, _WIDTH), (0, 1), left=0, right=0,
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(_NX // 2)).mesh
     problem = SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=_N_ORD),
         {0: _FUEL, 1: _MODERATOR},
-     scattering_order=0)
+     scattering_order=0, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     return SNSolver(problem, inner_solver="source_iteration")
 
 
