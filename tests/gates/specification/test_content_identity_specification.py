@@ -37,6 +37,7 @@ from orpheus.values.content import FrozenMapping, content_digest
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.question import Eigen, FixedSource, Fundamental, Nearest, Response
 from orpheus.specification import GeometrySpecification, InfiniteMediumSpecification
+from orpheus.specification.exterior import WallAmplitudes
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,
@@ -205,7 +206,25 @@ _GEOMETRY_EXTENT = Entry(
     pairs=(("an int vs a numpy int", lambda: GeometryExtent(1), lambda: GeometryExtent(np.int64(1))),),  # pyright: ignore[reportArgumentType]  # the coercion is the subject
 )
 
-ROSTER: tuple[Entry, ...] = (_SPECIFICATION, _INFINITE_MEDIUM, _CELL_COEFFICIENT, _GEOMETRY_EXTENT)
+_WALL_AMPLITUDES = Entry(
+    cls=WallAmplitudes, base=lambda: WallAmplitudes(0.25, 0.0), parts=("specular", "diffuse"),
+    perturb={
+        "specular": (
+            leg("another amplitude", lambda: WallAmplitudes(0.5, 0.0)),
+            leg("one ULP", lambda: WallAmplitudes(_ulp(0.25), 0.0)),
+        ),
+        "diffuse": (
+            leg("a diffuse wall in the place of the specular one", lambda: WallAmplitudes(0.0, 0.25), "specular"),
+            leg("the diffuse amplitude one ULP above zero, the specular one dropped", lambda: WallAmplitudes(0.0, _ulp(0.0)), "specular"),
+        ),
+    },
+    pairs=(
+        ("an int vs a float", lambda: WallAmplitudes(1, 0), lambda: WallAmplitudes(1.0, 0.0)),
+        ("a negative zero is the zero", lambda: WallAmplitudes(0.0, 0.25), lambda: WallAmplitudes(-0.0, 0.25)),
+    ),
+)
+
+ROSTER: tuple[Entry, ...] = (_SPECIFICATION, _INFINITE_MEDIUM, _CELL_COEFFICIENT, _GEOMETRY_EXTENT, _WALL_AMPLITUDES)
 
 
 # ── S8.2: every part is content; equal content is one value ──────────────────
