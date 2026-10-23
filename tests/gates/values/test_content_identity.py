@@ -65,13 +65,14 @@ from tests.gates.reference.test_readings import ROSTER as READING_ROSTER
 from tests.gates.reference.test_published import ROSTER as PUBLISHED_ROSTER
 from tests.gates.reference.test_reference_certificate import ROSTER as CERTIFICATE_ROSTER
 from tests.gates.specification.test_content_identity_specification import ROSTER as SPECIFICATION_ROSTER
+from tests.gates.transport.test_content_identity_transport import ROSTER as TRANSPORT_ROSTER
 from tests.gates.derivations.test_characteristic_reference import ROSTER as CHARACTERISTIC_ROSTER
 
 pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/values/test_content_identity.py"
 _ROOT = Path(__file__).resolve().parents[3]
-ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER + QUESTION_ROSTER + SPECIFICATION_ROSTER + ENCLOSURE_ROSTER + READING_ROSTER + OBSERVABLE_ROSTER + PUBLISHED_ROSTER + CERTIFICATE_ROSTER + CHARACTERISTIC_ROSTER
+ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER + QUESTION_ROSTER + SPECIFICATION_ROSTER + TRANSPORT_ROSTER + ENCLOSURE_ROSTER + READING_ROSTER + OBSERVABLE_ROSTER + PUBLISHED_ROSTER + CERTIFICATE_ROSTER + CHARACTERISTIC_ROSTER
 
 
 # ═════════════════════════════════════════════════════════════════════════════
