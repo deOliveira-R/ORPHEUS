@@ -112,6 +112,7 @@ from orpheus.numerics.operator import (
 from orpheus.sn.boundary.angular import IsotropicEmissionOperator, PartialCurrentOperator
 from orpheus.transport.boundary_conditions.network import Chain, DiffuseChain, SpecularChain
 from orpheus.transport.boundary_conditions.realization import stamp_boundary_role
+from orpheus.values.scalars import parse_finite_real
 
 if TYPE_CHECKING:
     from orpheus.geometry.transformation import Permutation
@@ -143,14 +144,14 @@ def _attenuated_kernel_operator(kernel: LinearOperator, alpha: float) -> LinearO
 
 
 def _parse_alpha(alpha: object, owner: str) -> float:
-    r"""``alpha`` as a float in ``(0, 1]``: a zero scale is the zero map, above one is super-Markov, and NaN is not a scale."""
-    if isinstance(alpha, bool) or not isinstance(alpha, (int, float, np.integer, np.floating)):
-        raise TypeError(f"{owner}: alpha is a real scale in (0, 1], got {alpha!r}")
-    value = float(alpha)
-    if not math.isfinite(value) or not 0.0 < value <= 1.0:
-        raise ValueError(
-            f"{owner}: alpha must lie in (0, 1] (0 is the ZeroMap, above 1 is super-Markov, NaN and infinity are not scales), got {value!r}"
-        )
+    r"""``alpha`` as a float in ``(0, 1]``: a zero scale is the zero map, above one is super-Markov, and NaN is not a scale.
+
+    The real, finite scalar is the one parser's (:func:`~orpheus.values.scalars.parse_finite_real`: a bool or a non-real is a
+    ``TypeError``, NaN and infinity are keyed ``ValueError`` refusals, owned once); only the interval is this type's.
+    """
+    value = parse_finite_real(alpha, f"{owner}.alpha")
+    if not 0.0 < value <= 1.0:
+        raise ValueError(f"{owner}: alpha must lie in (0, 1] (0 is the ZeroMap, above 1 is super-Markov), got {value!r}")
     return value
 
 
