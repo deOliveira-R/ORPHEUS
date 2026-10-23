@@ -37,9 +37,11 @@ TIERS: tuple[tuple[str, ...], ...] = (
     # primitives, and the orthogonal-polynomial recurrence (upstream of both measures)
     # (``symmetry``, ``roots_of_unity`` and ``manifold``'s geometric half left for
     # geometry at layer DAG WP-B, 2026-10-22; ``index_set`` holds the finite index
-    # sets, members of geometry's ``Manifold`` sum, and imports no numerics module)
+    # sets, members of geometry's ``Manifold`` sum, and imports no numerics module;
+    # ``tangential`` holds the one grazing tolerance both ``spaces`` and ``quadrature``
+    # read, a leaf so that quadrature need not import spaces, layer DAG WF2.2)
     ("face_layout", "gauge", "index_set", "instance_cache", "metric", "moment_layout",
-     "recurrence", "registry", "units", "vector"),
+     "recurrence", "registry", "tangential", "units", "vector"),
     # the coefficient layouts are content values a basis carries (ruling 81)
     ("_traced_memo_boot", "coefficient_layout", "enclosure", "mesh_free_function"),
     ("traced_memo",),

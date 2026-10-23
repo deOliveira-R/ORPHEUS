@@ -116,11 +116,14 @@ def _mirror_axis(motion: "RigidMotion") -> int:
     The comparison is exact: ``RigidMotion.reflection`` documents bit-exact
     signed diagonals for a coordinate normal, so no tolerance is minted here.
 
-    SCOPE-BOUNDARY[guard] -- machinery: an oblique reflection (a normal not
-    along a coordinate axis) is refused because the per-axis
-    ``mean_axis_cosine`` surface the crossing check reads has no oblique
-    analogue yet; a ``RigidMotion`` accessor for the reflection normal would
-    state the plane once for both.
+    An oblique reflection (a normal not along a coordinate axis) is refused:
+    the per-axis ``mean_axis_cosine`` surface the crossing check reads has no
+    oblique analogue yet, and a ``RigidMotion`` accessor for the reflection
+    normal would state the plane once for both.
+
+    SCOPE-BOUNDARY[guard] machinery: the oblique reflection's crossing check.
+    ruling: the orchestrator, layer DAG WF2.2 integration, 2026-10-23 (only the coordinate mirrors are minted decks).
+    revisit: #657, when ``RigidMotion`` reads its own reflection plane.
     """
     m3 = motion if motion.dimension == 3 else motion.embedded_in(3)
     diagonal = np.diag(m3.linear)
