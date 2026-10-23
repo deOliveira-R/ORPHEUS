@@ -146,9 +146,9 @@ def test_the_carry_of_the_solves(body: str, declaration: tuple) -> None:
 def test_the_carry_of_the_slab_inflow() -> None:
     r"""The slab fixed-source solve under a UNIFORM inflow of ``1.0`` on the left face (tag 0 bound to
     ``WallCondition.uniform(1.0)``, the right face a vacuum tag) equals the HEAD flux bit-for-bit: the boundary-source
-    channel end to end (the binding's ``sources``, ``from_binding``, the sweep's inflow seed).
+    channel end to end (the binding's ``sources``, ``from_method``, the sweep's inflow seed).
 
-    Red input: at the base tip the keyword does not exist. Mutation: a ``from_binding`` that drops a face's source.
+    Red input: at the base tip the keyword does not exist. Mutation: a ``from_method`` that drops a face's source.
     """
     from orpheus.sn.solver import solve_sn_fixed_source
 

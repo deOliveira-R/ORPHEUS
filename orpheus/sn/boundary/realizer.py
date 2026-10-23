@@ -72,7 +72,6 @@ from orpheus.sn.boundary.realized_operators import (
     RealizedBoundary,
     ScaledOrdinatePermutation,
     ZeroMap,
-    _crossing,
 )
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.transport.boundary_conditions import (
@@ -285,11 +284,10 @@ class SNDecks(DeckRealizer, _SNSites, table=SN_REALIZERS):
                     return Realized(True)
                 trace = self.trace_of(space, "SNDecks")
                 try:
-                    _crossing(
-                        Permutation.identity(int(space.quadrature.n_ordinates)),
-                        trace.outflow_space(pairing.partner),
-                        trace.inflow_space(pairing.face),
-                        f"periodic pairing {pairing.partner!r} -> {pairing.face!r}",
+                    # The type refuses at construction a pairing that does not cross or that moves measure: admission IS construction.
+                    ScaledOrdinatePermutation(
+                        alpha=1.0, permutation=Permutation.identity(int(space.quadrature.n_ordinates)),
+                        face=pairing.face, partner=pairing.partner, trace=trace,
                     )
                 except ValueError as error:
                     return Refused(RefusalAxis.TOPOLOGY, f"the wrap does not carry Gamma_-({pairing.face}) into Gamma_+({pairing.partner}): {error}")

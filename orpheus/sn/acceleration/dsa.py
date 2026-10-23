@@ -233,7 +233,7 @@ class DSALowOrderSystem:
         unsupported = sorted({
             repr(face) for name, face in problem.bc.items()
             if name in problem.binding.sources
-            or not (face.is_vacuum or (face.permutes_ordinates and face.return_fraction == 1.0))
+            or not (face.is_vacuum or face.closes_axis)
         })
         if unsupported:
             raise NotImplementedError(

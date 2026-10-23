@@ -1,10 +1,10 @@
 r"""SN method-space carrying mesh + quadrature + trace metadata.
 
 The :class:`SNMethodSpace` is the SN-specific argument to
-:meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`. It
-carries everything an SN realizer needs to turn a
-:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` into a 1-arg
-:class:`~orpheus.numerics.operator.LinearOperator`:
+:meth:`~orpheus.sn.boundary.realizer.SN_REALIZERS.realize`. It
+carries everything an SN realizer needs to turn a declared unit (a chain
+of the response network) into a
+:class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`:
 
 * :attr:`mesh` -- the spatial mesh (Mesh1D / Mesh2D). Carries
   face-normal information.
@@ -38,9 +38,8 @@ realization (which requires inflow_indices) will fail loudly on a
 minimal method space -- that's the right error.
 
 The Wave-5 ``SNMethodSpace`` lived at
-:mod:`orpheus.sn.boundary.realizer`; Wave 8 moves it to this
-dedicated module and re-exports the same name from
-:mod:`~orpheus.sn.boundary.realizer` for backward compat.
+:mod:`orpheus.sn.boundary.realizer`; Wave 8 moved it to this
+dedicated module, and the realizer imports it from here.
 
 References
 ----------
@@ -84,8 +83,8 @@ class SNMethodSpace:
     Wave 8 adds ``mesh`` + ``trace`` -- both with ``None`` defaults so
     legacy construction paths are not forced to populate them. The
     canonical construction site is :meth:`for_face` (used by
-    ``SNProblem.realize_boundary_law``, the SN arm of the #290 P7b
-    ``TransportMethod`` hook) which derives ``inflow_indices`` from
+    ``SNProblem.realize_boundary_role``, the SN arm of the
+    ``TransportMethod`` hook of the shared ``realize_boundary``) which derives ``inflow_indices`` from
     ``trace`` and keeps the reference for any future consumer.
     """
 
@@ -94,20 +93,14 @@ class SNMethodSpace:
     inflow_indices: Optional[np.ndarray] = None
     mesh: "Optional[Mesh1D | Mesh2D]" = None
     trace: "Optional[AngularTraceSpace]" = None
-    #: The face's outflow ordinates — a narrowed law's **domain**.
+    #: The face's outflow ordinates, populated with :attr:`inflow_indices` by :meth:`for_face`.
     #:
-    #: Added in campaign phase **B3.2**, when an SN boundary law became typed
-    #: :math:`\Gamma_+ \to \Gamma_-`: realizing one now needs to know which
-    #: ordinates are outflow at this face, exactly as it has always needed
-    #: :attr:`inflow_indices` for the codomain. The two are siblings and are
-    #: populated together by :meth:`for_face`.
-    #:
-    #: It is a FIELD rather than a lookup through :attr:`trace` for the reason
-    #: :attr:`inflow_indices` is: a hand-built method space must be able to
-    #: name its own half-traces without standing up a whole trace space. Note
-    #: the pair does NOT partition the face — tangential ordinates
-    #: (:math:`|\Omega\cdot\hat n| \le \epsilon`) belong to neither, so
-    #: "not inflow" must never be spelled as "outflow".
+    #: DEAD WEIGHT, kept until WF2.4: the typed realized operators read their half-spaces off the trace ladder
+    #: (``trace.outflow_space(face)``), so this field has no production reader, and :attr:`inflow_indices` is read only by the
+    #: ERR-041 cross-check of ``SNZero.realize``, which checks indices the zero map never consumes. Both fields and the guard retire
+    #: together with the ERR-041 catalogue entry and the legacy law tests that still build a method space by hand, which WF2.4 deletes
+    #: (``.claude/plans/wave2_boundary_carve.md`` section 7). Note the pair does NOT partition the face: tangential ordinates
+    #: (:math:`|\Omega\cdot\hat n| \le \epsilon`) belong to neither, so "not inflow" must never be spelled as "outflow".
     outflow_indices: Optional[np.ndarray] = None
 
     @classmethod
@@ -136,9 +129,9 @@ class SNMethodSpace:
 
         If ``trace`` is provided, extract the inflow indices for
         ``face`` and store them. This is the standard construction
-        site inside ``SNProblem.realize_boundary_law`` (per face, driven
+        site inside ``SNProblem.realize_boundary_role`` (per face, driven
         by the shared
-        :func:`~orpheus.transport.method.resolve_boundary_conditions`
+        :func:`~orpheus.transport.method.realize_boundary`
         body) -- the trace space is built once per quadrature+layout
         pair at ``SNProblem`` construction and passed through so per-face
         indices are derived on demand.

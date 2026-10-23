@@ -116,20 +116,31 @@ def test_an_all_vacuum_box_has_none():
 
 
 @pytest.mark.foundation
-def test_a_unit_specular_WALL_is_a_response_and_closes_no_loop():
-    """The predicate reads the DECKS of the binding, not the conditions (wave 2 S2b meaning change).
+def test_a_unit_specular_WALL_closes_its_axis_exactly_as_a_mirror_deck_does():
+    """The predicate reads the REALIZED operator of each face, not the declaration it came from (S2b amend; first red of the review).
 
-    Until wave 2 a face declared with the already-typed unit ``ReflectiveBoundary`` counted as reflective (the predicate read the
-    realized law, not the tag a caller passed). The deck/response split makes the reading sharper: a wall tagged and bound to the unit
-    specular condition returns every particle too, but it is a constitutive response and not a symmetry of the domain, so it makes no
-    axis reflective; the same four faces declared as mirror decks make both.
+    A mirror deck and a wall tagged with the unit specular condition realize the same ``ScaledOrdinatePermutation`` at ``alpha = 1``,
+    hence the same loss operator and the same kernel. ``[M]`` at the reviewed commit (LS4, 3 x 3 box) the deck box returned 2 closed
+    axes and ``dim ker A = 12`` and the wall box returned 0 and no gauge, with ``array_equal(A_deck, A_wall)`` True: the gauge freedom
+    was decided by how the wall was declared, so the trace of a wall box was returned un-gauged with a tangential current of
+    7.4e-2 on ``ymin`` and ``ymax`` where the exact answer is 0. A PARTIAL specular wall returns a fraction and closes nothing; a
+    unit specular wall facing a vacuum face is a mixed axis and is worth zero, as a deck would be.
     """
-    walls = _sn_mesh_2d(
-        {0: WallCondition.specular(1.0)}, xmin=0, xmax=0, ymin=0, ymax=0,
-    )
+    from orpheus.sn.operators.loss_kernel_gauge import gauge_freedom
+
+    walls = _sn_mesh_2d({0: WallCondition.specular(1.0)}, xmin=0, xmax=0, ymin=0, ymax=0)
     decks = _sn_mesh_2d(xmin=_R, xmax=_R, ymin=_R, ymax=_R)
-    assert (walls.reflective_axis_pairs, decks.reflective_axis_pairs) == (0, decks.ndim)
-    assert decks.reflective_axis_pairs == 2
+    assert walls.reflective_axes == decks.reflective_axes == (0, 1)
+    assert gauge_freedom(walls).present and gauge_freedom(decks).present
+    assert walls.loss_kernel_gauge.dimension == decks.loss_kernel_gauge.dimension == 12
+
+    partial = _sn_mesh_2d({0: WallCondition.specular(0.9)}, xmin=0, xmax=0, ymin=0, ymax=0)
+    assert partial.reflective_axis_pairs == 0
+
+    mixed = _sn_mesh_2d(
+        {0: WallCondition.specular(1.0), 1: WallCondition.vacuum()}, xmin=0, xmax=1, ymin=0, ymax=0,
+    )
+    assert mixed.reflective_axes == (1,)
 
 
 @pytest.mark.foundation

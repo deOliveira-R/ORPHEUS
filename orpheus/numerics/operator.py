@@ -190,8 +190,9 @@ class BlockRole(Enum):
     * :attr:`BOUNDARY` — only ``A_ss`` (boundary → boundary). A realized
       boundary law ``B`` (vacuum / reflective / albedo / white / periodic):
       it maps the outflow trace to the inflow trace, with no bulk action.
-      The :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` stamps
-      this role on its realized outputs. ``B`` becomes a first-class
+      The typed realized operators of SN
+      (:class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`) carry
+      this role on their leaves. ``B`` becomes a first-class
       algebra leaf — a sibling of ``L`` in ``(L_full + C − S − F − B)`` —
       when the boundary conditions are extracted from the streaming sweep;
       until that wiring lands ``B`` carries the role but is still consumed
@@ -472,7 +473,7 @@ class BoundaryOperator(metaclass=_BlockRoleMeta):
 
     The realized boundary laws produced by the functional method
     realizers —
-    :meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`
+    :data:`~orpheus.sn.boundary.realizer.SN_REALIZERS`
     (vacuum / reflective / white / albedo / periodic / prescribed inflow)
     and
     :meth:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer.realize`

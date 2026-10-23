@@ -3,17 +3,17 @@ r"""SN-specific angular operator primitives for the boundary realizer.
 Hosts angular primitives that are SN-specific (i.e. depend on the
 :class:`~orpheus.numerics.quadrature.Quadrature` direction-cosine /
 weight arrays) but are independent of any single boundary condition.
-They are consumed by the Wave-5
-:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` to realize
-:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` instances as
-single-arg :class:`~orpheus.numerics.operator.LinearOperator` objects.
+They are consumed by the typed realized operators
+(:class:`~orpheus.sn.boundary.realized_operators.RankOneReemission`) that
+:data:`~orpheus.sn.boundary.realizer.SN_REALIZERS` builds, each a
+single-arg :class:`~orpheus.numerics.operator.LinearOperator`.
 
 Promotion criterion: when a second non-SN consumer arrives, an
 operator here should be promoted to ``orpheus/numerics/`` (per
 Cardinal Rule 2 — no shared abstraction with only one consumer).
 Today: :class:`PartialCurrentOperator` and
 :class:`IsotropicEmissionOperator` — the two links of the factored Lambertian
-(white / diffuse-albedo, via the SN realizer) — are both SN-only.
+(a diffuse chain, via the SN realizer table) — are both SN-only.
 
 ``IncomingSourceOperator`` lived here until **P3** of the affine-boundary-source
 campaign (2026-08-05). It realized prescribed inflow as a rank-0 map whose
@@ -21,7 +21,7 @@ campaign (2026-08-05). It realized prescribed inflow as a rank-0 map whose
 declared as a :class:`~orpheus.numerics.operator.LinearOperator`, measured
 ``A(0) = 2.5`` and ``A(2x) − 2A(x) = 2.5`` at :math:`q = 2.5`. It was retired
 onto the **zero morphism** every other zero-response law already returns
-(:func:`~orpheus.sn.boundary.realizer._narrowed_zero_operator`): the affine law
+(:class:`~orpheus.sn.boundary.realized_operators.ZeroMap`): the affine law
 is :math:`\gamma_-\psi = L\,\gamma_+\psi + q`, this tier realizes :math:`L`, and
 for prescribed inflow :math:`L = 0`. The source travels the boundary-source
 channel instead (:ref:`bc-affine-source-channel`). Retiring it removed a

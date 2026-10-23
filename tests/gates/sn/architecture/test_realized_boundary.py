@@ -42,8 +42,8 @@ the verdict is per arm, and the measured red sets are in ``scratch/wave2_s2b/bat
 * M-outflow-divisor: ``RankOneReemission`` divides by the OUTFLOW mass: reddens only on the asymmetric-trace rows
   (``M_+ != M_-``), the first red of law L-A (iv): on every shipped quadrature ``M_+ == M_-`` bitwise (the census), so
   no symmetric row can see it.
-* M-sum-fsum: ``RealizedSum.return_fraction`` is a left-to-right addition of floats (``reduce(add, ...)``; the built-in
-  ``sum`` is compensated since Python 3.12): reddens the bit-exact row on the weights ``(0.1, 0.2, 0.3)``.
+* M-sum-fsum (RETIRED at the S2b amend): a sum has at most two leaf terms, so ``fsum`` and left-to-right addition agree on
+  every reachable sum and no row can separate them.
 * M-reciprocity: a Lambertian weighted by ``c |mu|`` (``R ~ mu'^2``): reddens the reciprocity gate.
 * M-stored-alpha: ``return_fraction`` becomes a stored field set by hand: reddens ``test_a_fact_cannot_be_set_by_hand``.
 """
@@ -203,12 +203,10 @@ def test_the_typed_operators_answer_from_their_type(quad_name: str, face: str) -
     assert total.permutes_ordinates is False and total.is_vacuum is False and total.domain_face == face
     assert total.return_fraction == math.fsum([0.3, 0.5])
 
-    # the bit-exact row: three weights whose left-to-right float sum is NOT their correctly rounded sum
-    R = H.ro()
-    parts = tuple(R.RankOneReemission(alpha=a, face=face, trace=trace) for a in (0.1, 0.2, 0.3))
-    # (``sum`` of floats is compensated since Python 3.12, so the plain left-to-right addition is spelled by ``reduce``)
-    assert math.fsum([0.1, 0.2, 0.3]) != functools.reduce(operator.add, [0.1, 0.2, 0.3]), "the fixture must separate fsum from left-to-right addition"
-    assert R.RealizedSum(terms=parts).return_fraction == math.fsum([0.1, 0.2, 0.3])
+    # a wall has at most two chains (one specular, one diffuse), so a sum has at most two leaf terms and a two-term float addition is
+    # correctly rounded: ``math.fsum`` and the left-to-right addition agree on every reachable sum (the three-term row that once
+    # separated them is a repeated chain, which the parse refuses: ``test_the_sum_is_parsed_as_the_declared_cone``).
+    assert total.return_fraction == 0.3 + 0.5
 
 
 @pytest.mark.foundation
@@ -233,7 +231,7 @@ def test_alpha_is_a_scale_in_the_half_open_unit_interval_and_the_sum_is_parsed()
     for good in (1.0, 1e-12):
         H.scaled_ordinate_permutation(good, pairing, "xmax", "xmax", trace)
         R.RankOneReemission(alpha=good, face="xmax", trace=trace)
-    a = R.RankOneReemission(alpha=0.2, face="xmax", trace=trace)
+    a = H.scaled_ordinate_permutation(0.2, pairing, "xmax", "xmax", trace)
     b = R.RankOneReemission(alpha=0.3, face="xmax", trace=trace)
     c = R.RankOneReemission(alpha=0.3, face="xmin", trace=trace)
     R.RealizedSum(terms=(a, b))
@@ -272,54 +270,10 @@ def test_a_fact_cannot_be_set_by_hand() -> None:
     np.testing.assert_allclose(H.dense(scaled, n), 0.5 * H.dense(diffuse, n), rtol=4 * np.finfo(float).eps, atol=0.0)
 
 
-@pytest.mark.foundation
-@pytest.mark.rests_on(f"{_THIS}::test_the_typed_operators_answer_from_their_type")
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "rider (b) of section 2.6, UNRATIFIED (NEEDS of the S2b gates): ordinate_pairing returns a bare Permutation, so an "
-        "uncertified quadrature.ordinate_permutation(motion) cannot be told from a certified one. Lands with a frozen "
-        "OrdinatePairing carrier (and a translation arm in ordinate_pairing); the strict xfail then flips and this marker goes."
-    ),
-)
-def test_an_uncertified_permutation_cannot_be_realized() -> None:
-    r"""Pattern 4 on the rider: the permutation a ``ScaledOrdinatePermutation`` realizes must be one ``ordinate_pairing``
-    certified. The raw ``quadrature.ordinate_permutation(motion)`` of the same rule (what the realizer's own builder used
-    to take) is REFUSED at construction (``TypeError`` or ``ValueError``), the certified one is accepted (the positive leg).
-
-    NOT YET LANDED: today both are a bare ``Permutation``, indistinguishable, so the second leg does not raise. The
-    paired RECORD row below is green today and reddens at the carve that lands the carrier.
-    """
-    from orpheus.geometry.deck import mirror_motion
-
-    quad = H.QUADRATURES["gl8"]()
-    trace = H.trace_of(quad)
-    raw = quad.ordinate_permutation(mirror_motion("x", 1))
-    H.scaled_ordinate_permutation(1.0, H.mirror_pairing(quad, "xmax"), "xmax", "xmax", trace)
-    refused = False
-    try:
-        H.scaled_ordinate_permutation(1.0, raw, "xmax", "xmax", trace)
-    except (TypeError, ValueError):
-        refused = True
-    assert refused, "an uncertified permutation was realized"
-
-
-@pytest.mark.foundation
-def test_record_ordinate_pairing_returns_a_bare_permutation() -> None:
-    r"""RECORD (what the code does today, designed to redden at the carve): ``ordinate_pairing`` returns the bare
-    ``Permutation`` of ``Quadrature.ordinate_permutation``, equal to the raw matcher result. The day it returns a carrier
-    (rider (b) ratified) this row reddens and ``test_an_uncertified_permutation_cannot_be_realized`` flips.
-
-    Green today (numerics only); a RECORD row is not coverage of the rider.
-    """
-    from orpheus.geometry.deck import mirror_motion
-    from orpheus.geometry.transformation import Permutation
-
-    quad = H.QUADRATURES["gl8"]()
-    certified = H.mirror_pairing(quad, "xmax")
-    assert type(certified) is Permutation
-    np.testing.assert_array_equal(certified.indices, quad.ordinate_permutation(mirror_motion("x", 1)).indices)
+# Rider (b) of the WF2.2 record (an ``OrdinatePairing`` carrier) is decided NOT adopted (``realized_operators.py`` docstring): the facts
+# a false permutation could corrupt are checked by the constructor itself, which
+# ``test_a_pairing_that_does_not_cross_or_moves_measure_is_refused_at_construction`` witnesses. The strict xfail and the RECORD row
+# that stood for the carrier are retired with the decision.
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -434,26 +388,44 @@ def test_the_algebra_object_delegates(kind: str) -> None:
 
 @pytest.mark.foundation
 @pytest.mark.rests_on(f"{_THIS}::test_the_algebra_object_delegates")
-def test_equality_reads_the_partner_the_alpha_and_the_permutation() -> None:
-    r"""The parameter list of the equality is each of its members: ``partner``, ``alpha``, the permutation's index bytes
-    and the face each separate two values that agree on the others.
+def test_equality_reads_the_partner_the_alpha_the_permutation_and_the_trace() -> None:
+    r"""The parameter list of the equality is each of its members: the face, the alpha, the (partner, permutation) pair and the
+    CONTENT of the two half-trace spaces each separate two values that agree on the others. The first three rows are
+    valid constructions only as pairs (a slab face crosses either by its own mirror, partner = face, or by the identity from the
+    opposite face), so the pair is varied together.
 
-    Red input: the module does not exist at the base tip. Mutation: an equality that drops ``partner``.
+    The trace row is the S2b review's finding (``[M]`` ``ZeroMap`` and ``RankOneReemission`` on gl4 compared and hashed equal to
+    their gl8 twins, while the domains had 2 and 4 ordinates): a trace space compares by ``(name, shape)`` only, so the key reads
+    the half-spaces' ordinate indices and metric bytes.
+
+    Red input: the module does not exist at the base tip; at the first amend tip the trace rows are the red. Mutation: an equality
+    that drops the trace content from ``_key``.
     """
     quad = H.QUADRATURES["gl8"]()
     trace = H.trace_of(quad)
     ident = H.identity_pairing(quad)
     mirror = H.mirror_pairing(quad, "xmin")
-    def make(**kw):
-        values = {"alpha": 1.0, "permutation": ident, "face": "xmin", "partner": "xmax", **kw}
-        return H.scaled_ordinate_permutation(values["alpha"], values["permutation"], values["face"], values["partner"], trace)
+
+    def make(alpha=1.0, permutation=ident, face="xmin", partner="xmax"):
+        return H.scaled_ordinate_permutation(alpha, permutation, face, partner, trace)
 
     base = make()
     assert base == make()
-    assert base != make(partner="xmin")
+    assert base != make(permutation=mirror, partner="xmin")
     assert base != make(alpha=0.5)
-    assert base != make(permutation=mirror)
     assert base != make(face="xmax", partner="xmin")
+
+    R = H.ro()
+    other = H.quadrature_class().gauss_legendre(n_ordinates=4)
+    other_trace = H.trace_of(other)
+    pairs = (
+        (R.ZeroMap(face="xmin", trace=trace), R.ZeroMap(face="xmin", trace=other_trace)),
+        (R.RankOneReemission(alpha=0.5, face="xmin", trace=trace), R.RankOneReemission(alpha=0.5, face="xmin", trace=other_trace)),
+        (make(permutation=mirror, partner="xmin"), H.scaled_ordinate_permutation(1.0, H.mirror_pairing(other, "xmin"), "xmin", "xmin", other_trace)),
+    )
+    for left, right in pairs:
+        assert left != right and hash(left) != hash(right), f"{type(left).__name__} on two discretizations compares equal"
+        assert len({left, right}) == 2
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -557,7 +529,10 @@ def test_the_declared_and_the_realized_composition_meet(face: str) -> None:
     r"""For each chain of the closed sum, ``chain.factors[0].domain`` is the tier of the outflow space the typed image
     derives from ``(face, trace)`` and ``chain.factors[-1].codomain`` the tier of its inflow space; for the diffuse
     chain the factor boundary ``factors[0].codomain`` is the tier of the ladder's ``current`` space. A CHECK of the
-    declared tiers against the spaces, never a dispatch on ``role``.
+    declared tiers against the spaces, never a dispatch on ``role``. It witnesses the ladder's two fixed rungs, which is the whole
+    content of rider (c): the declared composition is checked once, by ``chain_composes`` at import of ``network.py``, and the
+    realization reads the same two rungs (a second check inside the leaf constructors could not fail on any reachable input and was
+    deleted at the S2b amend).
 
     Red input: the module does not exist at the base tip. Mutation: a copy of ``DiffuseChain`` ending on ``"current"``
     (``factors = (CurrentRetraction,)``) reads ``"current" != "inflow"``.
@@ -580,3 +555,86 @@ def test_the_declared_and_the_realized_composition_meet(face: str) -> None:
     diffuse = B.DiffuseChain
     assert diffuse.factors[0].codomain == diffuse.factors[1].domain == "current"
     assert current.name == f"angular_trace[{face}:current]", "the current space is named for its tier"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# The S2b amend: what the review's probes measured (each red at the commit it reviewed)
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_the_typed_operators_answer_from_their_type")
+def test_the_sum_is_parsed_as_the_declared_cone() -> None:
+    r"""``RealizedSum`` admits exactly what the declared wall's cone admits: return fractions summing to at most 1, one chain per
+    type, one trace, and the zero map is the additive identity.
+
+    ``[M]`` at the reviewed commit (GL8): ``specular(1) + RankOneReemission(1)`` built with ``return_fraction`` 2.0 (measured
+    :math:`J^-/J^+` 2.0); ``0.9 P + 0.9 E`` gave 1.8; ``a + a`` gave 1.8 with ``permutes_ordinates`` False (a permutation hidden
+    behind the sum); a gl8 term and an ls6 term constructed and failed only at ``inner``; ``ZeroMap + X`` raised instead of
+    returning ``X``. Controls: ``0.5 P + 0.5 E`` (sum exactly 1) and ``0.3 P + 0.5 E`` construct.
+
+    Red input: the over-unity sum constructs at the reviewed commit. Mutation: drop the ``fsum > 1`` refusal, or the
+    repeated-chain refusal, or the one-trace refusal, or the zero drop of ``__add__``.
+    """
+    R = H.ro()
+    quad = H.QUADRATURES["gl8"]()
+    trace = H.trace_of(quad)
+
+    def perm(alpha, q=quad, tr=trace):
+        return H.scaled_ordinate_permutation(alpha, H.mirror_pairing(q, "xmin"), "xmin", "xmin", tr)
+
+    def diff(alpha, tr=trace):
+        return R.RankOneReemission(alpha=alpha, face="xmin", trace=tr)
+
+    assert (perm(0.5) + diff(0.5)).return_fraction == 1.0
+    assert (perm(0.3) + diff(0.5)).return_fraction == 0.8
+    with pytest.raises(ValueError, match="super-Markov"):
+        _ = perm(1.0) + diff(1.0)
+    with pytest.raises(ValueError, match="super-Markov"):
+        _ = perm(0.9) + diff(0.9)
+    with pytest.raises(ValueError, match="appears twice"):
+        _ = perm(0.4) + perm(0.4)
+    ls6 = H.QUADRATURES["ls6"]()
+    with pytest.raises(ValueError, match="different trace"):
+        _ = perm(0.3) + diff(0.3, H.trace_of(ls6))
+    zero = R.ZeroMap(face="xmin", trace=trace)
+    one = perm(0.7)
+    assert zero + one == one and one + zero == one and zero + zero == zero
+    assert (zero + perm(0.3) + diff(0.5)).return_fraction == 0.8
+    with pytest.raises(ValueError, match="different faces"):
+        _ = R.ZeroMap(face="xmax", trace=trace) + one
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_the_typed_operators_answer_from_their_type")
+def test_a_pairing_that_does_not_cross_or_moves_measure_is_refused_at_construction() -> None:
+    r"""``return_fraction == alpha`` rests on the permutation carrying the outflow measure onto the inflow measure, and the
+    constructor checks it, together with the ERR-045 crossing, rather than at the first use of ``inner``.
+
+    ``[M]`` at the reviewed commit: the identity permutation with ``partner == face`` (it does not cross) constructed, reported
+    ``return_fraction`` 1.0 and raised only on ``.inner``; a mirror composed with a shift on gl8 at ``alpha`` 1 constructed and
+    reported 1.0 where the measured :math:`J^-/J^+` on a non-uniform outflow was 1.198. Controls: the mirror and the identity
+    wrap construct.
+
+    Red input: both uncertified pairings construct at the reviewed commit. Mutation: drop ``self._gather`` from ``__post_init__``,
+    or the measure comparison inside it.
+    """
+    from orpheus.geometry.transformation import Permutation
+
+    quad = H.QUADRATURES["gl8"]()
+    trace = H.trace_of(quad)
+    H.scaled_ordinate_permutation(1.0, H.mirror_pairing(quad, "xmin"), "xmin", "xmin", trace)
+    H.scaled_ordinate_permutation(1.0, H.identity_pairing(quad), "xmin", "xmax", trace)
+    with pytest.raises(ValueError, match="ERR-045"):
+        H.scaled_ordinate_permutation(1.0, H.identity_pairing(quad), "xmin", "xmin", trace)
+    # a mirror followed by a transposition of two OUTFLOW ordinates of different measure: pi o sigma still maps inflow into outflow
+    # (so it crosses) and moves measure, which is exactly the uncertified permutation a mirror-plus-shift would be.
+    outflow = np.asarray(trace.outflow_space("xmin").ordinate_indices)
+    weights = np.asarray(trace.outflow_space("xmin").inner_product_weights)
+    first = 0
+    second = next(j for j in range(1, len(outflow)) if weights[j] != weights[first])
+    sigma = np.arange(quad.n_ordinates)
+    sigma[outflow[first]], sigma[outflow[second]] = outflow[second], outflow[first]
+    moved = Permutation(H.mirror_pairing(quad, "xmin").indices[sigma])
+    with pytest.raises(ValueError, match="measure"):
+        H.scaled_ordinate_permutation(1.0, moved, "xmin", "xmin", trace)

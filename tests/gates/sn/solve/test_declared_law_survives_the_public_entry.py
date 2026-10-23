@@ -77,7 +77,7 @@ class TestTheDeclarationSurvivesTheRebuild:
         r"""`[M]` ``|φ_declared − φ_vacuum|_inf = 1.877290`` on this fixture (HEAD ``5d04c296``).
 
         The row that fails if the declaration is dropped anywhere along
-        entry → ``_as_problem`` → ``bind`` → ``realize_boundary`` → ``from_binding`` → RHS. Before the channel it was dropped
+        entry → ``_as_problem`` → ``bind`` → ``realize_boundary`` → ``from_method`` → RHS. Before the channel it was dropped
         at the first step and would have been dropped again at ``_as_problem``.
 
         Both inner solvers, because they consume the composite RHS through

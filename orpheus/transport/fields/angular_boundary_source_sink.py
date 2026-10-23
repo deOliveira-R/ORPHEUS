@@ -28,7 +28,7 @@ There are TWO distinct objects for the inflow :math:`q`, related as **declaratio
   :class:`~orpheus.transport.boundary_conditions.SourceRealizer`'s ``sample``.
 * :class:`AngularBoundarySourceSink` (THIS class, the L2 transport **field**): the *eager, whole-boundary, mesh-bound,
   role-typed snapshot*, the materialised :math:`q` as a stored :class:`~orpheus.numerics.field.Field` on
-  ``mesh.angular_trace``. The bridge from the first to the second is :meth:`from_binding`: it reads the faces whose bound
+  ``mesh.angular_trace``. The bridge from the first to the second is :meth:`from_method`: it reads the faces whose bound
   condition carries a nonzero source (``binding.sources``), samples each on that face's :math:`\Gamma_-` through the method's
   realizer table, and packs the flat layout through the same inflow-slot rule :meth:`prescribed_inflow` states.
 
@@ -71,11 +71,11 @@ consume (it supersedes the zero-allocate + per-face
 (every face, full slot incl. outflow) remains for non-inflow uses; the
 operator-output zeros allocate on ``mesh.angular_trace`` (CS4b S5).
 
-The **declaration → snapshot bridge** is :meth:`AngularBoundarySourceSink.from_binding`
+The **declaration → snapshot bridge** is :meth:`AngularBoundarySourceSink.from_method`
 — materialise the declared per-face :class:`~orpheus.transport.boundary_conditions.InflowTerms` onto the trace by sampling
 each at its face's :math:`\Gamma_-` (through the method's realizer table) and packing the flat
 layout. It is a DISTINCT route from :meth:`prescribed_inflow`, which serves
-the known-per-face-array case; ``from_binding`` serves the declared-terms case, and
+the known-per-face-array case; ``from_method`` serves the declared-terms case, and
 delegates its packing to the same body so the "inflow slots written,
 everything else zero" rule lives in exactly one place.
 
@@ -130,7 +130,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Protocol
 
 import numpy as np
 
@@ -149,7 +149,21 @@ if TYPE_CHECKING:
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
-__all__ = ["AngularBoundarySourceSink"]
+__all__ = ["AngularBoundarySourceSink", "AngularTraceMethod"]
+
+
+class AngularTraceMethod(Protocol):
+    r"""The four coordinates of one method-mesh that :meth:`AngularBoundarySourceSink.from_method` reads (structural, never imported by a method)."""
+
+    @property
+    def binding(self) -> "Binding": ...
+
+    @property
+    def angular_trace(self) -> "AngularTraceSpace": ...
+
+    boundary_realizers: ClassVar["RealizerTable"]
+
+    def face_site(self, face: str) -> "FaceSite": ...
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
@@ -184,7 +198,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
 
     See the module docstring for the declaration→snapshot relationship to the
     transport-layer :class:`~orpheus.transport.boundary_conditions.InflowTerms` and the
-    :meth:`from_binding` bridge that materialises it.
+    :meth:`from_method` bridge that materialises it.
     """
 
     #: Dimensional identity (View-G, B.4): the boundary is all-flux, so
@@ -231,7 +245,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         this builds the snapshot directly from **known per-face arrays**,
         NOT from a declared
         :class:`~orpheus.transport.boundary_conditions.InflowTerms` —
-        :meth:`from_binding` is the latter path, and it delegates its
+        :meth:`from_method` is the latter path, and it delegates its
         packing to the same body so this stays the single place that knows the
         "inflow slots written, everything else zero" rule.
 
@@ -269,7 +283,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
     def _pack_inflow(cls, trace: "AngularTraceSpace", face_values: "Mapping[str, NDArray]") -> "AngularBoundarySourceSink":
         r"""The ONE packing rule: the inflow ordinate rows of each named face are written, everything else is zero.
 
-        Shared by :meth:`prescribed_inflow` (known per-face arrays) and :meth:`from_binding` (declared terms sampled through the
+        Shared by :meth:`prescribed_inflow` (known per-face arrays) and :meth:`from_method` (declared terms sampled through the
         method's realizer table), so the rule lives in exactly one place.
         """
         bss = cls.zeros(trace)
@@ -310,13 +324,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
     # ── The declaration → snapshot bridge ────────────────────────────
 
     @classmethod
-    def from_binding(
-        cls,
-        binding: "Binding",
-        trace: "AngularTraceSpace",
-        realizers: "RealizerTable",
-        face_site: "Callable[[str], FaceSite]",
-    ) -> "AngularBoundarySourceSink":
+    def from_method(cls, method: "AngularTraceMethod") -> "AngularBoundarySourceSink":
         r"""⭐ The DECLARED boundary conditions' :math:`q` — the user's path.
 
         Reads ``binding.sources`` (the tagged faces whose bound condition has a nonzero source, read through
@@ -332,20 +340,17 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         someone declared. A test or a driver that reaches for :meth:`prescribed_inflow` directly is supplying by hand what the
         declaration should have produced, and is therefore exercising a path no user travels (user ruling, 2026-08-05: *tests
         must route through the machinery that a user would exercise without bypassing code functionality*). The chain is
-        ``from_binding -> sample_inflow -> prescribed_inflow``, so the packing rule is stated exactly once.
+        ``from_method -> sample_inflow -> prescribed_inflow``, so the packing rule is stated exactly once.
 
         Parameters
         ----------
-        binding : Binding
-            The method-mesh's binding of the declared conditions to its faces.
-        trace : AngularTraceSpace
-            The problem's unified boundary trace (canonically ``mesh.angular_trace``).
-        realizers : RealizerTable
-            The METHOD's realizer table (``TransportMethod.boundary_realizers``); transport names no method table, the method
-            passes its own. A table that refuses a source on the face (a radial outer face of SN, #653) raises
-            :class:`~orpheus.transport.boundary_conditions.BoundaryRefused` here as it did at construction.
-        face_site : Callable[[str], FaceSite]
-            The method-mesh's ``face_site`` hook: where a face sits, the table's site key.
+        method : AngularTraceMethod
+            The method-mesh whose declared conditions are read: its ``binding`` (the declared conditions joined to its faces), its
+            ``angular_trace`` (the unified boundary trace, canonically ``mesh.angular_trace``), its ``boundary_realizers`` (the
+            METHOD's realizer table: transport names no method table, the method passes its own; a table that refuses a source on
+            the face, a radial outer face of SN #653, raises :class:`~orpheus.transport.boundary_conditions.BoundaryRefused` here as
+            it did at construction) and its ``face_site`` hook (where a face sits, the table's site key). The four are coordinates
+            of ONE method, so taking the method makes pairing one method's binding with another's table unspellable.
 
         Returns
         -------
@@ -358,13 +363,14 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
             If a sampler returns an array that is not exactly the shape of the face's :math:`\Gamma_-` (the sampler contract's one
             invariant), or a source names a face the layout does not carry.
         """
+        binding, trace, realizers, face_site = method.binding, method.angular_trace, method.boundary_realizers, method.face_site
         face_values: "dict[str, NDArray]" = {}
         known = set(trace.layout.faces.keys())
         template = cls.zeros(trace)
         for face, terms in binding.sources.items():
             if face not in known:
                 raise ValueError(
-                    f"{cls.__name__}.from_binding: the source of {face!r} names no face of the layout; available: {sorted(known)!r}"
+                    f"{cls.__name__}.from_method: the source of {face!r} names no face of the layout; available: {sorted(known)!r}"
                 )
             # ⭐ the sampler is handed Γ₋(f) ITSELF, not a shape tuple: the space is the discretization — its rows ARE the inflow
             # ordinates, its ``directions`` are those rows' Ω (so an angular source is spellable), and its ``shape`` is exactly what

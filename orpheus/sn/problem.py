@@ -24,7 +24,6 @@ import numpy as np
 
 from orpheus.geometry import CoordSystem
 from orpheus.mesh import Mesh1D, Mesh2D
-from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.sn.angular.redistribution import angular_redistribution
 from orpheus.transport.boundary_conditions import BoundaryConditions, bind
@@ -474,13 +473,13 @@ class SNProblem(MaterialMesh):
     def declared_boundary_source(self) -> "AngularBoundarySourceSink":
         r"""The DECLARED boundary conditions' :math:`q` as a field on :attr:`angular_trace`: the user's path to a prescribed inflow.
 
-        :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_binding` over this problem's :attr:`binding`, its
+        :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_method` over this problem: its :attr:`binding`, its
         :attr:`angular_trace`, its own realizer table (:attr:`boundary_realizers`: transport names no method table, the method
         passes its own) and its :meth:`face_site` hook. All-zero when no tagged face's condition carries a source.
         """
         from orpheus.transport.fields import AngularBoundarySourceSink
 
-        return AngularBoundarySourceSink.from_binding(self.binding, self.angular_trace, self.boundary_realizers, self.face_site)
+        return AngularBoundarySourceSink.from_method(self)
 
     # ── Properties ────────────────────────────────────────────────────
     #
@@ -1030,20 +1029,17 @@ class SNProblem(MaterialMesh):
         was **inert** (0 of 25 gates red) because the survivor guarded
         the gate.
 
-        ⚠ Reads the DECKS of the binding, not the conditions: a face is
-        reflective iff its role is a :class:`~orpheus.geometry.deck.MirrorDeck`
-        (a symmetry of the domain, a declaration question answered where the
-        declaration lives). A wall tagged and bound to a unit specular condition
-        returns every particle too, but it is a constitutive response and not a
-        symmetry of the domain, so it does not make its axis reflective (the
-        gauge freedom is the domain's symmetry, the closed loop of the mirror
-        group).
+        ⚠ Reads the REALIZED operator of each face (:attr:`~orpheus.sn.boundary.realized_operators.RealizedBoundary.closes_axis`),
+        not the declaration it came from: a face closes its axis iff its operator is an ordinate permutation onto its own face that
+        returns everything. A mirror deck and a wall tagged with a unit specular condition realize the SAME operator, hence the same
+        kernel of the loss operator, so the gauge freedom is decided by the operator and not by how the wall was declared (until
+        2026-10-23 a unit-specular wall was left ungauged: ``[M]`` a ``(3, 4)`` box returned a tangential current of
+        :math:`7.4\times10^{-2}` on ``ymin`` and ``ymax`` where the exact answer is 0, with no warning). The diffusion-synthetic
+        low-order system asks the same question of the same property.
         """
         by_axis: dict[int, list[bool]] = {}
         for label in self.face_labels:
-            by_axis.setdefault(label.axis_index, []).append(
-                isinstance(self.binding.decks.get(label.face_name), MirrorDeck)
-            )
+            by_axis.setdefault(label.axis_index, []).append(self.bc[label.face_name].closes_axis)
         return tuple(
             axis for axis, faces in sorted(by_axis.items())
             if len(faces) == 2 and all(faces)

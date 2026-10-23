@@ -1,11 +1,11 @@
-r"""The declaration -> snapshot bridge: ``AngularBoundarySourceSink.from_binding`` (file name kept: it was ``from_specs``).
+r"""The declaration -> snapshot bridge: ``AngularBoundarySourceSink.from_method`` (file name kept: it was ``from_specs``).
 
 Phase **P1** of `.claude/plans/archive/affine_boundary_source_channel.md`, re-posed at wave 2 S2b. The affine boundary law is
 :math:`\gamma_-\psi = L\,\gamma_+\psi + q`, and there are two routes to :math:`q`, related as *declaration -> snapshot* rather
 than as duplicates:
 
 * :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow` — the **known-per-face-array** route;
-* :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_binding` — the **declared-condition** route: it reads the
+* :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_method` — the **declared-condition** route: it reads the
   sources of a ``Binding`` (the tagged faces whose bound ``WallCondition`` has a nonzero source), samples each on that face's inflow
   half-trace through the method's realizer table, and packs the result.
 
@@ -137,7 +137,7 @@ class TestTheContractIsEnforced:
 class TestTheTwoRoutesAgreeByConstruction:
     r"""⭐ The keystone: the bridge delivers exactly what the SAMPLER produces.
 
-    ``from_binding`` asks each recipe for ``space.shape`` on the face's inflow half-trace and writes the answer to that face's inflow
+    ``from_method`` asks each recipe for ``space.shape`` on the face's inflow half-trace and writes the answer to that face's inflow
     rows. The oracle asks the same sampler for the same space, derived by hand from the trace. Independence is intact: one side is the
     bridge, the other is the user's own sampler object; neither calls the other.
     """
@@ -186,7 +186,7 @@ class TestTheTwoRoutesAgreeByConstruction:
 
 # ``TestTheTraceDoorsRefuseANonSNCarrier`` (Layer-DAG P3) is RETIRED with its subject (wave 2 S2b): it pinned the typed doors
 # ``from_problem_laws`` / ``prescribed_inflow`` opened on a ``MaterialMesh`` carrier (``TransportMethod.bc`` and
-# ``mesh.angular_trace``), refusing a bare material mesh and a diffusion mesh by name ("owns no angular trace"). ``from_binding``
+# ``mesh.angular_trace``), refusing a bare material mesh and a diffusion mesh by name ("owns no angular trace"). ``from_method``
 # takes its parts explicitly (the binding, the trace, the realizer table, the face-site hook) and no carrier, so the doors have no
 # subject: a caller that has no trace has nothing to pass for ``trace``. The diffusion half of the control (``DiffusionMesh``
 # owns no angular trace) is slice S3's. ``prescribed_inflow`` keeps its own door, gated by its callers.

@@ -20,8 +20,8 @@ of a sum is the sum of the images.
   contracts :math:`\Gamma_+` to the partial current, and :math:`E J = J/M_-` re-emits it uniformly on :math:`\Gamma_-`, with
   :math:`M_- = \sum_{\Omega\cdot n_f<0} w\,|\Omega\cdot n_f|` the INFLOW mass (the divisor rule, below).
 
-**The facts are properties of the type.** The five questions the SN consumers ask of a realized face (does it return
-everything, :attr:`~RealizedBoundary.return_fraction`; does it relabel ordinates, :attr:`~RealizedBoundary.permutes_ordinates`;
+**The facts are properties of the type.** The questions the SN consumers ask of a realized face (does it return
+everything, :attr:`~RealizedBoundary.return_fraction`; does it close its axis into a mirror loop, :attr:`~RealizedBoundary.closes_axis`; does it relabel ordinates, :attr:`~RealizedBoundary.permutes_ordinates`;
 whose outflow does it consume, :attr:`~RealizedBoundary.domain_face`; is it the zero map, :attr:`~RealizedBoundary.is_vacuum`;
 and what operator is it, :attr:`~RealizedBoundary.inner`) used to be answered by asking the LAW the operator came from
 (``law_permutes_ordinates``, ``response_kernel.is_zero``, ``.amplitude``, ``.geometry_map.domain_face``, a ``kind`` string). The
@@ -29,10 +29,12 @@ realizer that builds the operator already knows each fact, so each is DERIVED fr
 them. A type holds ONLY its parameters ``(alpha, ..., face, trace)``; the operator is built from spaces READ OFF the trace
 ladder (``trace.outflow_space(f)``, ``trace.current_space(f)``, ``trace.inflow_space(f)``), so a lying ``alpha`` is unspellable
 and ``dataclasses.replace(op, alpha=...)`` REBUILDS the operator rather than editing a fact. The types are frozen and compare
-and hash by their parameters (the type, the face, the partner, ``alpha`` and the permutation's index bytes), not by a stored
-operator: a ``LinearOperator`` has no content identity, and a trace space compares by ``(name, shape)`` only, so two traces of
-different quadratures with the same total size would otherwise be indistinguishable. The old shim's ``str`` equality arm (the
-retired ``op == "reflective"``, #553) is not carried.
+and hash by their CONTENT: the type, the face, the partner, ``alpha``, the permutation's index bytes AND the content of the two
+half-trace spaces the operator is derived from (their ordinate indices and metric weights), not by a stored operator (a
+``LinearOperator`` has no content identity) and not by the trace spaces' own equality (a trace space compares by ``(name, shape)``
+only, so two traces of different quadratures with the same total size are equal as spaces yet carry different operators). Two
+operators on different discretizations are therefore unequal and hash apart. The old shim's ``str`` equality arm (the retired
+``op == "reflective"``, #553) is not carried.
 
 **One body per builder (decision 45).** This module OWNS the one body of each operator builder. The realizer's four builders
 (``_narrowed_zero_operator``, ``_deck_kernel``, ``_checked_angular_average`` and ``_specular_crossed_diagnosis``) retired in the
@@ -46,26 +48,30 @@ OUTFLOW sum, so a Lambertian on a quadrature with :math:`M_+ \neq M_-` had retur
 :math:`M_+ = M_-` bitwise on 70 of 70 (registry rule, face) pairs (35 rules, 2 faces), so the carry is bit-identical wherever the
 two masses are bit-equal, which is every shipped rule (plan section 8, row R-11).
 
-**Rider (b) of the WF2.2 record, decided (S2b): no ``OrdinatePairing`` carrier.** The plan asked whether
-``ScaledOrdinatePermutation`` should take a frozen ``OrdinatePairing(permutation, motion, axis)`` whose only constructor is
-``ordinate_pairing``, so that an uncertified ``quadrature.ordinate_permutation(motion)`` could not be realized. Decision: not
-adopted in this slice, for three structural reasons. (1) ``ordinate_pairing`` certifies an AXIS REFLECTION and refuses every other
-motion, so the translation wrap's identity permutation (the other consumer of this type) has no constructor under the proposed
-rule, and the carrier would need a second constructor, which is no longer "only". (2) Python cannot make a frozen dataclass's
-constructor private, so "only constructor" would be a convention and not a structure, which is exactly the prose that X3 of the
-instrument doctrine refuses. (3) The production paths that build a mirror image call ``ordinate_pairing`` and nothing else
-(:class:`~orpheus.sn.boundary.realizer.SNDecks`, ``SNSpecularChain``), and the translation wrap is certified at construction by
-the crossing check of :func:`_crossing` (the quotient identification :math:`\Gamma_+(f') \equiv \Gamma_-(f)`, executed rather
-than asserted). The strict ``xfail`` of ``test_an_uncertified_permutation_cannot_be_realized`` stays, with its RECORD row, as the
-measured statement of the gap. Trigger to revisit: a second realizer (CP, MoC or MC mirror) consuming a permutation, or #657.
+**Rider (b) of the WF2.2 record, decided (S2b amend): no ``OrdinatePairing`` carrier, because the type checks the facts itself.**
+The plan asked whether ``ScaledOrdinatePermutation`` should take a frozen ``OrdinatePairing(permutation, motion, axis)`` whose only
+constructor is ``ordinate_pairing``, so that an uncertified ``quadrature.ordinate_permutation(motion)`` could not be realized
+(Pattern 4). The reasons against, in the order they were found. (1) A certified and a raw permutation of the same closed rule are
+the same array, so the carrier would certify a PROVENANCE and not a property; what must hold is a property of the pair
+(permutation, trace). (2) The properties the facts of this type rest on are exactly two, and the constructor now checks both on the
+trace it is given: the pairing crosses (ERR-045, :func:`_crossing`) and it carries the outflow trace measure onto the inflow trace
+measure, which is what makes ``return_fraction == alpha``. ``[M]`` before the amend a mirror composed with a shift constructed,
+reported ``return_fraction`` 1.0 and measured 1.198 on a non-uniform outflow; it is refused at construction now
+(``test_a_pairing_that_does_not_cross_or_moves_measure_is_refused_at_construction``). The third check of ``ordinate_pairing``
+(involution) is irrelevant to the facts: the gather uses the inverse. (3) The translation wrap's identity permutation has no
+constructor under the proposed rule, which would need a second one, and Python cannot make a frozen dataclass's constructor private,
+so "only constructor" would be a convention (X3 of the instrument doctrine). The uncertified permutation that survives the two
+checks is one that is correct on this trace, which is the claim the type makes. Trigger to revisit: a realizer whose pairing is not
+read off a trace ladder (a second consumer in CP, MoC or MC), or #657.
 
-**Rider (c): the realization functor checks the tiers.** Each leaf type names the chain of the closed sum it realizes
-(:attr:`ScaledOrdinatePermutation.chain`, :attr:`RankOneReemission.chain`) and refuses, at construction, a trace whose
-``outflow`` and ``inflow`` half-spaces do not carry the tiers the chain's first and last factors declare
-(``chain.factors[0].domain == outflow.role``, ``chain.factors[-1].codomain == inflow.role``). The check reads
-``AngularFaceTraceSpace.role`` and never dispatches on it. The declared composition of
-:mod:`orpheus.transport.boundary_conditions.network` and the realized composition of this module therefore meet at one check
-instead of being two independent spellings of "the rungs compose".
+**Rider (c): the tiers are checked once, by the declared network.** The WF2.2 record asked that the line "the realization functor
+checks the tiers" land only with the check. The check is :func:`orpheus.transport.boundary_conditions.network.chain_composes`,
+run at import over every member of the closed sum ``Chain`` (``factors[0].domain == "outflow"``, consecutive factors meet,
+``factors[-1].codomain == "inflow"``), and the trace ladder's rungs are constants (``trace.outflow_space(f)`` is always the outflow
+tier, ``trace.inflow_space(f)`` always the inflow tier). A second check inside the leaf constructors could not fail on any
+reachable input (``[M]`` S2b review: turning it into a no-op reddened 0 of 667 tests), so it was deleted rather than kept as a
+second spelling of ``chain_composes``; the attribute :attr:`ScaledOrdinatePermutation.chain` names the chain of the closed sum a
+leaf realizes, and the declared and the realized composition meet because both read the ladder's two fixed rungs.
 
 Gotchas
 =======
@@ -74,13 +80,17 @@ Gotchas
   partner for a translation wrap and the face itself otherwise; ``block_role`` is :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY`.
 * A zero scale is the :class:`ZeroMap`, refused as an ``alpha`` here (``alpha`` lies in ``(0, 1]``); a super-Markov or non-finite
   scale is refused at construction.
-* ``RealizedSum`` is the image of a sum of chains only: it is parsed (at least two terms, none a :class:`ZeroMap`, one face and
-  one domain face for all), and ``a + b`` of two realized faces builds it. ``sum(...)`` is compensated since Python 3.12 and
-  :attr:`~RealizedSum.return_fraction` uses ``math.fsum`` on purpose (correctly rounded, as the declared wall's is).
-* The ``inner`` operator is built on first use and cached; it is not part of the type's identity, and the type compares and hashes
-  without ever building it. A pairing that does not cross (ERR-045) therefore raises at the first use of ``inner``, not at
-  construction; the SN table's ``admit`` runs the same crossing check up front (``ordinate_pairing`` for a mirror, :func:`_crossing`
-  for a translation wrap), so a declaration reaching ``realize`` through a problem has crossed already.
+* ``return_fraction == alpha`` holds only if the permutation preserves the trace measure, so :class:`ScaledOrdinatePermutation`
+  checks, AT CONSTRUCTION, that the pairing crosses (ERR-045) and that the inflow measure equals the gathered outflow measure
+  (relative tolerance ``1e-12``, the certifier's). An uncertified permutation that does cross but does not preserve the measure
+  is refused instead of reporting a false return fraction.
+* ``RealizedSum`` is the image of a sum of chains only: it is parsed (at least two leaf terms, none a :class:`ZeroMap`, one face,
+  one domain face and one trace for all, no chain type twice, ``math.fsum`` of the return fractions at most 1: the same interval
+  as :func:`_parse_alpha`), and ``a + b`` of two realized faces builds it. The zero map is the additive identity: ``ZeroMap + X``
+  is ``X`` and a sum that is left with one term collapses to it. :attr:`~RealizedSum.return_fraction` uses ``math.fsum`` on
+  purpose (correctly rounded, as the declared wall's is).
+* The ``inner`` operator is built on first use and cached; it is not part of the type's identity. The pairing's local gather is
+  computed (and cached) at construction, so a pairing that does not cross never constructs.
 
 References
 ----------
@@ -95,7 +105,7 @@ import operator
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from functools import cached_property, reduce
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional, cast
 
 import numpy as np
 
@@ -155,6 +165,16 @@ def _parse_alpha(alpha: object, owner: str) -> float:
     return value
 
 
+def _space_content(space: "AngularFaceTraceSpace") -> tuple:
+    r"""The content of a half-trace space: its name, shape, ordinate indices and metric weights, as bytes (a space's own ``==`` sees only ``(name, shape)``)."""
+    weights = space.inner_product_weights
+    return (space.name, space.shape, space.ordinate_indices.tobytes(), b"" if weights is None else np.asarray(weights).tobytes())
+
+
+#: The relative tolerance of the measure-preservation check: the certifier's own (``ordinate_pairing._MEASURE_RTOL``).
+_MEASURE_RTOL: float = 1e-12
+
+
 def _crossing(permutation: "Permutation", outflow: "AngularFaceTraceSpace", inflow: "AngularFaceTraceSpace", owner: str) -> np.ndarray:
     r"""The local gather of a pairing :math:`\Gamma_+(f') \to \Gamma_-(f)`: row :math:`j` reads the ordinate :math:`\pi^{-1}(\mathrm{inflow}[j])`.
 
@@ -189,16 +209,6 @@ def _crossing(permutation: "Permutation", outflow: "AngularFaceTraceSpace", infl
         ) from error
 
 
-def _tiers_meet(chain: type, outflow: "AngularFaceTraceSpace", inflow: "AngularFaceTraceSpace", owner: str) -> None:
-    r"""The declared tiers of ``chain`` meet the tiers of the spaces the image derives from (a check, never a dispatch on ``role``)."""
-    first, last = chain.factors[0].domain, chain.factors[-1].codomain  # type: ignore[attr-defined]
-    if first != outflow.role or last != inflow.role:
-        raise ValueError(
-            f"{owner}: the chain {chain.__name__} runs {first!r} to {last!r} but the spaces it is realized on carry the tiers "
-            f"{outflow.role!r} to {inflow.role!r}"
-        )
-
-
 class RealizedBoundary(LinearOperator, ABC):
     r"""A realized face operator :math:`\Gamma_+ \to \Gamma_-`, with the facts its consumers read as properties of its TYPE.
 
@@ -228,6 +238,18 @@ class RealizedBoundary(LinearOperator, ABC):
     @abstractmethod
     def permutes_ordinates(self) -> bool:
         """The operator is a scaled ordinate permutation that is not the identity (a mirror: True; a translation wrap: False)."""
+
+    @property
+    def closes_axis(self) -> bool:
+        r"""The realized map is a mirror loop on its own face: an ordinate permutation (not the identity) that returns everything.
+
+        Derived from the REALIZED operator, never from how the wall was declared: a wall tagged with a unit specular condition and a
+        mirror deck realize the same :class:`ScaledOrdinatePermutation` at ``alpha = 1``, hence the same operator, hence the same
+        kernel of the loss operator. The gauge freedom of the loss operator and the proven mirror row of the diffusion-synthetic
+        low-order system are both questions about this one fact. A face that permutes ordinates onto ANOTHER face's outflow (none is
+        constructed today) or that returns only a fraction does not close its axis.
+        """
+        return self.permutes_ordinates and self.domain_face == self.face and self.return_fraction == 1.0
 
     @property
     def is_vacuum(self) -> bool:
@@ -280,10 +302,20 @@ class RealizedBoundary(LinearOperator, ABC):
         return self.inner.apply_transpose(psi)
 
     def __add__(self, other: object):  # type: ignore[override]
-        r"""The image of a sum of chains: ``a + b`` of two realized faces is a :class:`RealizedSum` (flattened, in order)."""
-        if isinstance(other, RealizedBoundary):
-            return RealizedSum(terms=(*_terms_of(self), *_terms_of(other)))
-        return super().__add__(other)  # type: ignore[misc]
+        r"""The image of a sum of chains: ``a + b`` of two realized faces is a :class:`RealizedSum` (flattened, in order).
+
+        The zero map is the identity: its terms drop out, a sum left with one term IS that term, and a sum of zero maps is the zero map.
+        A zero map on another face than the survivors is the same refusal as a sum across faces.
+        """
+        if not isinstance(other, RealizedBoundary):
+            return super().__add__(other)  # type: ignore[misc]
+        operands = (*_leaves(self), *_leaves(other))
+        survivors = tuple(term for term in operands if not isinstance(term, ZeroMap))
+        if not survivors:
+            return self
+        if any(term.face != survivors[0].face for term in operands):
+            raise ValueError(f"RealizedBoundary.__add__: the terms fill different faces: {[term.face for term in operands]}")
+        return survivors[0] if len(survivors) == 1 else RealizedSum(terms=survivors)
 
     # ── identity: the parameters, never the stored operator ──────────────────────────────────────────
 
@@ -300,8 +332,14 @@ class RealizedBoundary(LinearOperator, ABC):
         return hash((type(self).__name__, self._key()))
 
 
-def _terms_of(op: RealizedBoundary) -> tuple[RealizedBoundary, ...]:
+def _leaves(op: RealizedBoundary) -> tuple[RealizedBoundary, ...]:
+    r"""The leaf images of ``op``: a :class:`RealizedSum`'s terms, or ``op`` itself."""
     return op.terms if isinstance(op, RealizedSum) else (op,)
+
+
+def _spaces_key(op: "ZeroMap | ScaledOrdinatePermutation | RankOneReemission") -> tuple:
+    r"""The content of the two half-trace spaces a leaf operator is derived from (its domain and codomain)."""
+    return (_space_content(op.trace.outflow_space(op.domain_face)), _space_content(op.trace.inflow_space(op.face)))
 
 
 @dataclass(frozen=True, eq=False)
@@ -340,7 +378,7 @@ class ZeroMap(RealizedBoundary):
         return stamp_boundary_role(ZeroMorphism(domain=self.trace.outflow_space(self.face), codomain=self.trace.inflow_space(self.face)))
 
     def _key(self) -> tuple:
-        return (self.face,)
+        return (self.face, _spaces_key(self))
 
 
 @dataclass(frozen=True, eq=False)
@@ -369,8 +407,8 @@ class ScaledOrdinatePermutation(RealizedBoundary):
     Raises
     ------
     ValueError
-        At construction: ``alpha`` outside ``(0, 1]``, or the spaces do not carry the tiers of the specular chain. At first use of
-        :attr:`inner`: the half-traces differ in size or the pairing does not map inflow into outflow (ERR-045).
+        At construction: ``alpha`` outside ``(0, 1]``, the half-traces differ in size, the pairing does not map inflow into outflow
+        (ERR-045), or the pairing does not carry the outflow measure onto the inflow measure.
     """
 
     alpha: float
@@ -379,11 +417,11 @@ class ScaledOrdinatePermutation(RealizedBoundary):
     partner: str
     trace: "AngularTraceSpace" = field(repr=False)
 
-    chain: ClassVar[type] = SpecularChain
+    chain: ClassVar[type[Chain]] = SpecularChain
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "alpha", _parse_alpha(self.alpha, "ScaledOrdinatePermutation"))
-        _tiers_meet(self.chain, self.trace.outflow_space(self.partner), self.trace.inflow_space(self.face), "ScaledOrdinatePermutation")
+        self._gather  # the pairing crosses and preserves the measure, or the type does not exist
 
     @property
     def domain_face(self) -> str:
@@ -397,13 +435,33 @@ class ScaledOrdinatePermutation(RealizedBoundary):
     def permutes_ordinates(self) -> bool:
         return not np.array_equal(self.permutation.indices, np.arange(self.permutation.n))
 
+    @cached_property
+    def _gather(self) -> np.ndarray:
+        r"""The local gather of the pairing, computed once at construction: it crosses (ERR-045) and preserves the trace measure.
+
+        ``return_fraction == alpha`` rests on the second check: the permutation carries the outflow measure onto the inflow measure
+        (row :math:`j` reads an ordinate whose metric equals the inflow's :math:`j`-th), so :math:`J^-(R\phi) = \alpha J^+(\phi)`
+        exactly. An uncertified permutation that crosses but moves measure (a mirror composed with a shift) reports a false return
+        fraction and is refused here.
+        """
+        owner = f"ScaledOrdinatePermutation({self.partner!r} -> {self.face!r})"
+        outflow, inflow = self.trace.outflow_space(self.partner), self.trace.inflow_space(self.face)
+        local = _crossing(self.permutation, outflow, inflow, owner)
+        if outflow.inner_product_weights is not None and inflow.inner_product_weights is not None:
+            carried, wanted = np.asarray(outflow.inner_product_weights)[local], np.asarray(inflow.inner_product_weights)
+            if not np.allclose(carried, wanted, rtol=_MEASURE_RTOL, atol=0.0):
+                raise ValueError(
+                    f"{owner}: the pairing does not carry the outflow trace measure onto the inflow trace measure (worst relative gap "
+                    f"{float(np.max(np.abs(carried - wanted) / np.abs(wanted))):.3e}), so its return fraction is not alpha = {self.alpha}."
+                )
+        return local
+
     def _derive_inner(self) -> LinearOperator:
         outflow, inflow = self.trace.outflow_space(self.partner), self.trace.inflow_space(self.face)
-        local = _crossing(self.permutation, outflow, inflow, f"ScaledOrdinatePermutation({self.partner!r} -> {self.face!r})")
-        return _attenuated_kernel_operator(PermutationOperator(local, axis=_ORDINATE_AXIS, domain=outflow, codomain=inflow), self.alpha)
+        return _attenuated_kernel_operator(PermutationOperator(self._gather, axis=_ORDINATE_AXIS, domain=outflow, codomain=inflow), self.alpha)
 
     def _key(self) -> tuple:
-        return (self.face, self.partner, self.alpha, self.permutation.indices.tobytes())
+        return (self.face, self.partner, self.alpha, self.permutation.indices.tobytes(), _spaces_key(self))
 
 
 @dataclass(frozen=True, eq=False)
@@ -431,11 +489,10 @@ class RankOneReemission(RealizedBoundary):
     face: str
     trace: "AngularTraceSpace" = field(repr=False)
 
-    chain: ClassVar[type] = DiffuseChain
+    chain: ClassVar[type[Chain]] = DiffuseChain
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "alpha", _parse_alpha(self.alpha, "RankOneReemission"))
-        _tiers_meet(self.chain, self.trace.outflow_space(self.face), self.trace.inflow_space(self.face), "RankOneReemission")
         if self.trace.inflow_space(self.face).shape[0] == 0:
             raise ValueError(f"RankOneReemission: face {self.face!r} has no inflow ordinates, so the re-emitted flux has no Gamma_- to land on")
 
@@ -460,16 +517,16 @@ class RankOneReemission(RealizedBoundary):
         return _attenuated_kernel_operator(emission @ contraction, self.alpha)
 
     def _key(self) -> tuple:
-        return (self.face, self.alpha)
+        return (self.face, self.alpha, _spaces_key(self))
 
 
 @dataclass(frozen=True, eq=False)
 class RealizedSum(RealizedBoundary):
     r"""The image of a sum of chains: the sum of the images, :math:`R = \sum_k R_k` (a mixed wall).
 
-    PARSED: at least two terms (one term is the term), no :class:`ZeroMap` among them (a zero term is the empty network's image
-    and is never summed), and one face and one domain face for all (a wall's chains all fill the same inflow from the same
-    outflow). Built by ``a + b`` of realized faces, in the canonical chain order of the declared wall.
+    PARSED: at least two leaf terms (one term is the term, a zero term is the identity and a sum is flattened: ``a + b`` does all
+    three), one face, one domain face and one trace for all (a wall's chains all fill the same inflow from the same outflow on one
+    discretization), each chain type at most once, and the return fractions summing to at most 1 (the declared wall's cone). Built by ``a + b`` of realized faces, in the canonical chain order of the declared wall.
 
     Parameters
     ----------
@@ -483,12 +540,20 @@ class RealizedSum(RealizedBoundary):
         terms = tuple(self.terms)
         if len(terms) < 2:
             raise ValueError(f"RealizedSum: a sum of chains has at least two terms, got {len(terms)}")
-        if not all(isinstance(term, RealizedBoundary) for term in terms):
-            raise TypeError(f"RealizedSum: every term is a RealizedBoundary, got {[type(term).__name__ for term in terms]}")
+        if not all(isinstance(term, RealizedBoundary) and not isinstance(term, RealizedSum) for term in terms):
+            raise TypeError(f"RealizedSum: every term is a leaf image of a chain (a sum is flattened by ``a + b``), got {[type(term).__name__ for term in terms]}")
         if any(isinstance(term, ZeroMap) for term in terms):
-            raise ValueError("RealizedSum: a ZeroMap term is the image of the empty network and is never summed")
-        if len({term.face for term in terms}) != 1 or len({term.domain_face for term in terms}) != 1:
-            raise ValueError(f"RealizedSum: the terms fill different faces or consume different outflows: {[(t.face, t.domain_face) for t in terms]}")
+            raise ValueError("RealizedSum: a ZeroMap term is the image of the empty network, the additive identity, and is never summed (``a + b`` drops it)")
+        leaves = cast("tuple[ScaledOrdinatePermutation | RankOneReemission, ...]", terms)
+        if len({term.face for term in leaves}) != 1 or len({term.domain_face for term in leaves}) != 1:
+            raise ValueError(f"RealizedSum: the terms fill different faces or consume different outflows: {[(t.face, t.domain_face) for t in leaves]}")
+        if len({_spaces_key(term) for term in leaves}) != 1:
+            raise ValueError("RealizedSum: the terms are realized on different trace spaces (different discretizations of the face)")
+        if len({type(term) for term in leaves}) != len(leaves):
+            raise ValueError(f"RealizedSum: a chain appears twice among {[type(term).__name__ for term in leaves]}; a wall has one weight per chain")
+        total = math.fsum(term.return_fraction for term in leaves)
+        if total > 1.0:
+            raise ValueError(f"RealizedSum: the return fractions sum to {total!r} > 1 (super-Markov), outside the same interval as alpha")
         object.__setattr__(self, "terms", terms)
 
     @property
