@@ -75,12 +75,21 @@ def _group(breaks, ids, low: Any = 1, high: Any = 1, coord: CoordSystem = _CART)
     return colouring.colouring_symmetry(coord, (breaks[0], breaks[-1]), tuple(breaks), tuple(ids), low, high)
 
 
-def _is_mirror(group) -> bool:
-    """The group is ``{e, x -> b_0 + b_n - x}``: identity first, one reflection swapping the two end faces."""
+def _mirrors(breaks, ids, low: Any = 1, high: Any = 1) -> bool:
+    """``_group(...)`` is the mirror of ITS OWN partition's ends."""
+    return _is_mirror(_group(breaks, ids, low, high), breaks)
+
+
+def _is_mirror(group, breaks) -> bool:
+    """The group is ``{e, x -> b_0 + b_n - x}``: identity first, one reflection swapping the two end faces, AT ITS
+    POSITION: the motion sends ``b_0`` to ``b_n`` and ``b_n`` to ``b_0`` (``breaks`` are the partition's, ends included)."""
     els = group.elements
     if len(els) != 2 or not els[0].is_identity or els[1].is_identity:
         return False
-    return dict(els[1].faces) == {"xmin": "xmax", "xmax": "xmin"} and bool(np.array_equal(els[1].motion.linear, [[-1.0]]))
+    if dict(els[1].faces) != {"xmin": "xmax", "xmax": "xmin"} or not np.array_equal(els[1].motion.linear, [[-1.0]]):
+        return False
+    ends = np.array([[breaks[0]], [breaks[-1]]])
+    return bool(np.allclose(els[1].motion.on_points(ends), ends[::-1], rtol=0.0, atol=1e-12 * max(abs(breaks[0]), abs(breaks[-1]))))
 
 
 def _is_trivial(group) -> bool:
@@ -115,12 +124,13 @@ _ASYMMETRIC = {
 def test_colouring_symmetry_float_rule_accepts_the_symmetric(name: str) -> None:
     """A symmetric slab is the mirror, however its breakpoints round (13 of 13 in the measurement).
 
-    Reddens on: the exact comparison (every row but ``(0,1,2,3)``, ``unequal widths`` and the negative slab, which
-    happen to round exactly: ``(0,.1,.2,.3)``, ``(0,1/3,2/3,1)`` and the three scalings are the activation), the
-    ``k * eps * (b - a)`` mutant (``offset 1e6``).
+    Reddens on: the exact comparison (every row but ``(0,1,2,3)``, the only row that does not activate the rule:
+    ``(0,.1,.2,.3)``, ``(0,1/3,2/3,1)``, the three scalings, the negative slab and ``unequal widths`` all round
+    inexactly), the ``k * eps * (b - a)`` mutant (``offset 1e6``), and a mirror whose position is not
+    ``b_0 + b_n`` (``offset=0.0`` or ``offset=total``: ``_is_mirror`` reads the motion at the ends).
     """
     b = _SYMMETRIC[name]
-    require(_is_mirror(_group(b, _PALINDROME)), f"{name}: a symmetric slab {b} was not read as the mirror")
+    require(_mirrors(b, _PALINDROME), f"{name}: a symmetric slab {b} was not read as the mirror")
 
 
 @pytest.mark.rests_on(_CHORD_LEVEL_REFUSAL)
@@ -146,7 +156,7 @@ def test_colouring_symmetry_float_rule_constant_is_64_ulp_at_the_end_magnitude(u
     d = ulps * np.spacing(3.0)
     b = (0.0, 1.0, 2.0 + float(d), 3.0)
     require(2.0 + float(d) - 2.0 == d, "the perturbation is exactly representable at 2")
-    require(_is_mirror(_group(b, _PALINDROME)) == accepted, f"d = {ulps} ulp(3): expected accepted = {accepted}")
+    require(_mirrors(b, _PALINDROME) == accepted, f"d = {ulps} ulp(3): expected accepted = {accepted}")
 
 
 # ── gate 8: runs and roles ───────────────────────────────────────────────────
@@ -162,10 +172,10 @@ def test_colouring_symmetry_reads_runs_and_roles() -> None:
     different tags as equal; a copy that lets a deck stand for a tag.
     """
     mirror, translation = deck.MirrorDeck(), deck.TranslationDeck()
-    require(_is_mirror(_group(_B, (0, 1, 0))), "ids (0,1,0) are symmetric")
+    require(_mirrors(_B, (0, 1, 0)), "ids (0,1,0) are symmetric")
     require(_is_trivial(_group(_B, (0, 1, 2))), "ids (0,1,2) are not")
     require(_is_trivial(_group(_B, (100000, 0, 100001))), "ids (100000, 0, 100001): a tolerance on integers reads them equal")
-    require(_is_mirror(_group(_B, (100000, 0, 100000))), "ids (100000, 0, 100000) are symmetric")
+    require(_mirrors(_B, (100000, 0, 100000)), "ids (100000, 0, 100000) are symmetric")
 
     for low, high, symmetric, why in (
         (1, 1, True, "the same tag"),
@@ -178,7 +188,7 @@ def test_colouring_symmetry_reads_runs_and_roles() -> None:
         (mirror, translation, False, "a mirror against a translation"),
     ):
         got = _group(_B, (0, 1, 0), low, high)
-        require(_is_mirror(got) if symmetric else _is_trivial(got), f"{why}: expected symmetric = {symmetric}")
+        require(_is_mirror(got, _B) if symmetric else _is_trivial(got), f"{why}: expected symmetric = {symmetric}")
 
     # radial charts: G_c absorbs the rotation and W is trivial, so the identity only, whatever the breaks
     for coord in (CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL):
@@ -213,7 +223,7 @@ def test_colouring_symmetry_is_independent_of_the_cell_partition() -> None:
     }
     groups = {name: _group(b, ids) for name, (b, ids) in forms.items()}
     for name, g in groups.items():
-        require(_is_mirror(g), f"{name}: a one-material slab is the mirror")
+        require(_is_mirror(g, forms[name][0]), f"{name}: a one-material slab is the mirror")
         require(g == groups["two intervals"], f"{name}: the group depends on the cell partition")
 
     runs = {
@@ -223,7 +233,7 @@ def test_colouring_symmetry_is_independent_of_the_cell_partition() -> None:
         "the middle run split": ((0.0, 1.0, 1.4, 2.0, 3.0), (0, 1, 1, 0)),
     }
     base = _group(*runs["three runs"])
-    require(_is_mirror(base), "the palindromic runs are the mirror")
+    require(_is_mirror(base, runs["three runs"][0]), "the palindromic runs are the mirror")
     for name, (b, ids) in runs.items():
         require(_group(b, ids) == base, f"{name}: the group depends on the cell partition")
     # and a refinement that IS a different colouring is a different group
@@ -303,7 +313,10 @@ def test_one_agreement_convention() -> None:
     require(not _spells_the_convention(colouring_tree), f"colouring.py spells the convention itself: {_spells_the_convention(colouring_tree)}")
 
     require(colouring.coordinates_agree is chart.coordinates_agree, "colouring holds a second coordinates_agree")
-    require(colouring.COORDINATE_AGREEMENT_ULPS is chart.COORDINATE_AGREEMENT_ULPS and chart.COORDINATE_AGREEMENT_ULPS == 64.0, "one constant")
+    require(chart.COORDINATE_AGREEMENT_ULPS == 64.0, "the constant")
+    require(not hasattr(colouring, "COORDINATE_AGREEMENT_ULPS"), "colouring holds a second address of the constant")
+    for name in ("COORDINATE_AGREEMENT_ULPS", "coordinates_agree"):
+        require(name in chart.__all__ and name not in colouring.__all__, f"{name}: one public address, chart's")
 
 
 @pytest.mark.rests_on(_HERE + "::test_one_agreement_convention")
@@ -330,3 +343,59 @@ def test_the_agreement_convention_is_elementwise_and_scale_dependent() -> None:
     scales = np.array([1.0, 1e6, 3.0, 5.0])
     require(np.asarray(agree(a, b, scale=scales)).tolist() == got.tolist(), "an array scale is read elementwise")
     require(np.asarray(agree(a, b, scale=1e6)).tolist() == [True, True, True, True], "a scalar scale broadcasts")
+
+
+# ── the partition is parsed, the value's invariants hold ─────────────────────
+
+
+@pytest.mark.rests_on(_HERE + "::test_colouring_symmetry_reads_runs_and_roles")
+def test_colouring_symmetry_parses_the_partition_before_the_chart() -> None:
+    """The raw partition is refused when it is not a partition, on every chart, before the chart is read.
+
+    One negative leg per rule: the length (one more break than ids), no interval, unsorted breaks, a zero-width
+    interval, ends that disagree with the first and last break; on a Cartesian AND a radial chart (the radial early
+    return used to skip the check).
+
+    Reddens on: a copy without the length check, a copy parsing after the radial return, a copy admitting
+    non-increasing breaks, a copy that trusts ``ends`` over the breaks.
+    """
+    refused = {
+        "too few breaks": ((0.0, 1.0), (0, 1, 0), (0.0, 1.0)),
+        "too many breaks": ((0.0, 1.0, 2.0, 3.0, 4.0), (0, 1, 0), (0.0, 4.0)),
+        "no interval": ((), (), (0.0, 0.0)),
+        "one break, no ids": ((1.0,), (), (1.0, 1.0)),
+        "unsorted": ((0.0, 2.0, 1.0, 3.0), (0, 1, 0), (0.0, 3.0)),
+        "zero-width interval": ((0.0, 1.0, 1.0, 3.0), (0, 1, 0), (0.0, 3.0)),
+        "ends disagree with the breaks": ((0.0, 1.0, 2.0, 3.0), (0, 1, 0), (0.0, 5.0)),
+    }
+    for coord in (_CART, CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL):
+        for name, (breaks, ids, ends) in refused.items():
+            with pytest.raises(ValueError):
+                colouring.colouring_symmetry(coord, ends, breaks, ids, 1, 1)
+                raise AssertionError(f"{coord} / {name}: the partition was accepted")  # noqa: B904 (a red, not a ValueError)
+    require(_mirrors((0.0, 1.0, 2.0, 3.0), (0, 1, 0)), "the positive control: a well-formed partition is read")
+
+
+@pytest.mark.rests_on(_HERE + "::test_colouring_symmetry_reads_runs_and_roles")
+def test_the_colouring_values_state_their_invariants() -> None:
+    """``FaceIsometry`` is a permutation of its own faces and ``is_identity`` reads BOTH fields; a
+    ``ColouringSymmetry`` is non-empty with the identity first.
+
+    Reddens on: a ``FaceIsometry.is_identity`` that reads the motion only (the swapped-faces row), a copy without
+    either ``__post_init__``.
+    """
+    from orpheus.geometry.transformation import RigidMotion
+    from orpheus.values.content import FrozenMapping
+
+    swapped = FrozenMapping({"xmin": "xmax", "xmax": "xmin"})
+    fixed = FrozenMapping({"xmin": "xmin", "xmax": "xmax"})
+    require(not colouring.FaceIsometry(RigidMotion.identity(1), swapped).is_identity, "an identity motion with swapped faces is not the identity")
+    require(colouring.FaceIsometry(RigidMotion.identity(1), fixed).is_identity, "the identity motion with fixed faces is")
+    with pytest.raises(ValueError):
+        colouring.FaceIsometry(RigidMotion.identity(1), FrozenMapping({"xmin": "xmax", "xmax": "xmax"}))
+    with pytest.raises(ValueError):
+        colouring.ColouringSymmetry(())
+    with pytest.raises(ValueError):
+        colouring.ColouringSymmetry((colouring.FaceIsometry(RigidMotion.identity(1), swapped),))
+    require(not bool(chart.coordinates_agree(-1.0, -1.0 - 1e-3, scale=-1.0)), "and still refuses a real difference")
+    require(bool(chart.coordinates_agree(-1.0, -1.0, scale=-1.0)), "a negative scale is its magnitude (np.spacing of a negative is negative)")

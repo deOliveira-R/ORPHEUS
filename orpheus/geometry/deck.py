@@ -37,9 +37,12 @@ axis declaration (the class of defect where a mirror carried an axis different f
 The position of a mirror plane is not stored: a 1-D mirror acts on directions only, because the offset is
 invisible to every discrete quantity.
 
-**Dispatch.** :data:`DeckTransformation` is a closed sum type and every method that reads one does so by an
-exhaustive ``match`` ending in ``case _: assert_never(...)``; there is no registry. The day a third deck is
-minted, every such match fails the type checker until it decides.
+**Dispatch.** :data:`DeckTransformation` is a closed sum type and there is no registry. Two mechanisms read it,
+and they govern different things. BEHAVIOUR (what a deck does: its pairing) is an exhaustive ``match`` ending in
+``case _: assert_never(...)`` (:func:`pairing_of`), so the day a third deck is minted the type checker fails that
+match until it decides. MEMBERSHIP (is this value a deck, which deck types does a chart admit) reads the alias
+itself, by ``isinstance(x, DeckTransformation)`` and ``get_args(DeckTransformation)``, so a minted deck is a member
+the moment the alias names it and no site re-spells the union by hand.
 """
 
 from __future__ import annotations
@@ -47,7 +50,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
-from typing import ClassVar, Mapping, TypeAlias, assert_never
+from typing import ClassVar, Mapping, TypeAlias, assert_never, get_args
 
 import numpy as np
 
@@ -174,7 +177,11 @@ def _axis_index(axis: str, dimension: int, what: str) -> int:
 
 
 def mirror_motion(axis: str, dimension: int) -> RigidMotion:
-    r"""The reflection whose plane is normal to the named ``axis``: the ONE axis-letter to mirror spelling.
+    r"""The reflection whose plane is normal to the named ``axis``: the geometry's axis-letter to mirror spelling.
+
+    A twin body survives in ``orpheus/geometry/boundary/_factors.py`` (``_mirror_motion``) until the boundary
+    package is retired by the wave-2 slice S1, which makes it a delegation to this function (``wave2_boundary_carve.md``
+    section 5.1; collapse trigger: the day either body changes, the other is replaced by a call).
 
     The axis letter is resolved through :data:`~orpheus.geometry.faces.AXIS_INDEX` and refused here, so a
     mis-named axis cannot be constructed and fail later holding a quadrature. The plane passes through the
@@ -215,13 +222,23 @@ def translation_motion(face: str, dimension: int) -> RigidMotion:
 class FacePairing:
     r"""What a realizer reads of a deck: the face, its partner and the rigid motion carrying the partner onto it.
 
-    Derived from a deck and a face by :func:`pairing_of`, never stored on the deck. A face paired with itself
-    (``partner == face``) carries an involution (a mirror).
+    Derived from a deck and a face by :func:`pairing_of`, never stored on the deck. The class states the whole law,
+    so a hand-built value cannot spell a defect :func:`pairing_of` cannot:
+
+    * both faces are canonical face names (:func:`~orpheus.geometry.faces.face_normal`);
+    * a face paired with itself carries EXACTLY the reflection in its own plane,
+      ``mirror_motion(axis of the face, dimension)`` (neither the identity, nor a translation, nor a mirror of
+      another axis);
+    * a pair of distinct faces whose motion is a translation (linear part the identity) is the periodic gluing:
+      the partner is ``face_opposite(face)`` and the translation is non-zero, along the face's axis, with the
+      face's outward sign. A distinct pair whose motion is not a translation (a rotation or a glide, the deferred
+      classes of :data:`DEFERRED_DECKS`) is admitted unchecked until that deck is minted and states its own law
+      here.
 
     Raises
     ------
     DeckError
-        If the face is its own partner and the motion's linear part is not an involution.
+        If a face name is not canonical, or the law above fails.
     """
 
     face: str
@@ -229,10 +246,32 @@ class FacePairing:
     motion: RigidMotion
 
     def __post_init__(self) -> None:
+        try:
+            axis, sign = face_normal(self.face)
+            face_normal(self.partner)
+        except ValueError as error:
+            raise DeckError(f"a pairing names a face that is not canonical: {error}") from None
+        dimension = self.motion.linear.shape[0]
+        if axis >= dimension:
+            raise DeckError(f"face {self.face!r} is on axis {axis}, out of range for a motion of dimension {dimension}")
         if self.is_self_paired:
-            linear = self.motion.linear
-            if not np.array_equal(linear @ linear, np.eye(linear.shape[0])):
-                raise DeckError(f"face {self.face!r} is paired with itself by a motion whose linear part is not an involution")
+            expected = mirror_motion(AXIS_NAMES[axis], dimension)
+            if not (
+                np.array_equal(self.motion.linear, expected.linear)
+                and np.array_equal(self.motion.translation, expected.translation)
+            ):
+                raise DeckError(f"face {self.face!r} is paired with itself by a motion that is not the reflection in its own plane")
+        elif self.motion.is_translation:
+            direction = np.zeros(dimension)
+            direction[axis] = float(sign)
+            along = self.motion.translation
+            if self.partner != face_opposite(self.face) or not (
+                np.any(along != 0.0) and np.array_equal(np.sign(along), direction)
+            ):
+                raise DeckError(
+                    f"face {self.face!r} is glued to {self.partner!r} by a translation {along.tolist()}: a translation pairs a face "
+                    f"with its opposite, along its axis, with its outward sign"
+                )
 
     @property
     def is_self_paired(self) -> bool:
@@ -272,7 +311,7 @@ def admitted_decks(coord: CoordSystem, axis: int) -> frozenset[type[DeckTransfor
     """
     if coord is not CoordSystem.CARTESIAN and axis == 0:
         return frozenset()
-    return frozenset({MirrorDeck, TranslationDeck})
+    return frozenset(get_args(DeckTransformation))
 
 
 def parse_face_role(role: object, where: str) -> FaceRole:
@@ -280,7 +319,7 @@ def parse_face_role(role: object, where: str) -> FaceRole:
 
     A ``bool`` is not a tag (the twin of the material-id rule, ``orpheus/data/materials.py``). No sign restriction.
     """
-    if isinstance(role, MirrorDeck | TranslationDeck):
+    if isinstance(role, DeckTransformation):
         return role
     if isinstance(role, int | np.integer) and not isinstance(role, bool):
         return int(role)
@@ -288,9 +327,14 @@ def parse_face_role(role: object, where: str) -> FaceRole:
 
 
 def check_pairings_close(roles: Mapping[str, FaceRole], where: str) -> None:
-    """A translation on a face requires a translation on the opposite face (an involution); else ``DeckError``."""
+    """A deck gluing a face to a DIFFERENT face requires the same deck type there (an involution); else ``DeckError``.
+
+    The partner is read from :func:`pairing_of`, never re-derived (today only the translation glues two faces; a
+    mirror is self-paired and has nothing to close). ``pairing_of`` is asked in the smallest dimension that holds
+    the face's axis: the partner does not depend on the dimension.
+    """
     for face, role in roles.items():
-        if isinstance(role, TranslationDeck):
-            partner = face_opposite(face)
-            if not isinstance(roles.get(partner), TranslationDeck):
-                raise DeckError(f"{where}: face {face!r} carries a TranslationDeck but its partner {partner!r} carries {roles.get(partner)!r}")
+        if isinstance(role, DeckTransformation):
+            partner = pairing_of(role, face, dimension=face_normal(face)[0] + 1).partner
+            if partner != face and type(roles.get(partner)) is not type(role):
+                raise DeckError(f"{where}: face {face!r} carries a {type(role).__name__} but its partner {partner!r} carries {roles.get(partner)!r}")

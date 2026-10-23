@@ -37,20 +37,19 @@ from typing import TypeAlias
 
 import numpy as np
 
-from orpheus.geometry.chart import COORDINATE_AGREEMENT_ULPS, coordinates_agree
+from orpheus.geometry.chart import coordinates_agree
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry.deck import FaceRole, MirrorDeck, TranslationDeck
+from orpheus.geometry.deck import DeckTransformation, FaceRole
+from orpheus.geometry.faces import face_name
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.values.content import ContentIdentity, FrozenMapping
 
 __all__ = [
-    "COORDINATE_AGREEMENT_ULPS",
     "ColouringSymmetry",
     "FaceIsometry",
     "Symmetries",
     "UncomputedSymmetries",
     "colouring_symmetry",
-    "coordinates_agree",
 ]
 
 
@@ -64,6 +63,10 @@ class FaceIsometry(ContentIdentity):
     motion: RigidMotion
     faces: FrozenMapping[str, str]
 
+    def __post_init__(self) -> None:
+        if set(self.faces.values()) != set(self.faces):
+            raise ValueError(f"FaceIsometry: the face map {dict(self.faces)} is not a permutation of its own faces")
+
     @property
     def is_identity(self) -> bool:
         """The motion is the identity and every face is fixed."""
@@ -76,6 +79,10 @@ class ColouringSymmetry(ContentIdentity):
 
     elements: tuple[FaceIsometry, ...]
 
+    def __post_init__(self) -> None:
+        if not self.elements or not self.elements[0].is_identity:
+            raise ValueError("ColouringSymmetry: the elements are non-empty and the identity comes first")
+
 
 @dataclass(frozen=True, eq=False)
 class UncomputedSymmetries(ContentIdentity):
@@ -86,12 +93,12 @@ class UncomputedSymmetries(ContentIdentity):
 
 Symmetries: TypeAlias = ColouringSymmetry | UncomputedSymmetries
 
-_END_FACES = ("xmin", "xmax")
+_END_FACES = (face_name(0, -1), face_name(0, +1))
 
 
 def _same_role(low: FaceRole, high: FaceRole) -> bool:
     """The same tag, or the same deck type; a deck never stands for a tag (a falsy tag is still a tag)."""
-    if isinstance(low, MirrorDeck | TranslationDeck) or isinstance(high, MirrorDeck | TranslationDeck):
+    if isinstance(low, DeckTransformation) or isinstance(high, DeckTransformation):
         return type(low) is type(high)
     return low == high
 
@@ -112,19 +119,33 @@ def colouring_symmetry(
     coord:
         The coordinate system; only a Cartesian chart can have a mirror in :math:`H`.
     ends:
-        ``(b_0, b_n)``, the interval's end points (the scale and the mirror's offset).
+        ``(b_0, b_n)``, the interval's end points (the scale and the mirror's offset); they must equal the first
+        and last break, and are refused otherwise (one quantity, one spelling: a disagreeing pair would silently
+        change the scale and the mirror's offset).
     breaks, ids:
         The raw partition: a geometry's breakpoints and material ids, a mesh's region edges and ids, a material
         mesh's cell edges and ``mat_map`` values.
     role_low, role_high:
         The roles of the low and the high end face.
+
+    Raises
+    ------
+    ValueError
+        If the partition is not parsed: no interval, ``len(breaks) != len(ids) + 1``, breaks not strictly
+        increasing, or ``ends`` not the first and last break. Checked before the chart is read.
     """
     identity = FaceIsometry(RigidMotion.identity(1), FrozenMapping({_END_FACES[0]: _END_FACES[0], _END_FACES[1]: _END_FACES[1]}))
+    # The raw partition is parsed first, whatever the chart: one more break than intervals, at least one interval,
+    # strictly increasing, and the stated ends are its first and last break (one spelling of b_0 and b_n).
+    if len(ids) < 1 or len(breaks) != len(ids) + 1:
+        raise ValueError(f"colouring_symmetry: {len(breaks)} breaks for {len(ids)} intervals; expected at least one interval and one more break than ids")
+    if not np.all(np.diff(np.asarray(breaks, dtype=float)) > 0.0):
+        raise ValueError(f"colouring_symmetry: the breaks {list(breaks)} are not strictly increasing")
+    low, high = float(ends[0]), float(ends[1])
+    if (low, high) != (float(breaks[0]), float(breaks[-1])):
+        raise ValueError(f"colouring_symmetry: ends {(low, high)} disagree with the first and last break {(float(breaks[0]), float(breaks[-1]))}")
     if coord is not CoordSystem.CARTESIAN:
         return ColouringSymmetry((identity,))
-    low, high = float(ends[0]), float(ends[1])
-    if len(breaks) != len(ids) + 1:
-        raise ValueError(f"colouring_symmetry: {len(breaks)} breaks for {len(ids)} intervals; expected one more break than ids")
 
     run_ids = [ids[0]]
     run_breaks = [float(breaks[0])]

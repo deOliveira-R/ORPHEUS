@@ -386,6 +386,26 @@ def test_pairing_of_and_its_adjoint() -> None:
         deck.FacePairing("xmin", "xmin", turn)
     require(deck.FacePairing("xmin", "xmax", turn).partner == "xmax", "a quarter turn between two DISTINCT faces is a legal pairing")
 
+    # the whole law, not the linear part: each of these constructed before the amendment
+    identity2 = RigidMotion.identity(2)
+    bad = {
+        "self-paired by the identity": ("xmin", "xmin", identity2),
+        "self-paired by a translation": ("xmin", "xmin", deck.translation_motion("xmin", 2)),
+        "a mirror on the wrong axis": ("xmin", "xmin", deck.mirror_motion("y", 2)),
+        "a mirror carrying a position": ("xmin", "xmin", RigidMotion.reflection(normal=np.array([1.0, 0.0]), offset=1.0)),
+        "a name that is no face": ("banana", "kiwi", identity2),
+        "distinct faces glued by the identity": ("xmin", "xmax", identity2),
+        "a translation to a non-opposite face": ("xmin", "ymax", deck.translation_motion("xmin", 2)),
+        "a translation with the wrong sign": ("xmin", "xmax", deck.translation_motion("xmax", 2)),
+        "a translation along the wrong axis": ("xmin", "xmax", deck.translation_motion("ymin", 2)),
+    }
+    for name, args in bad.items():
+        with pytest.raises(deck.DeckError):
+            deck.FacePairing(*args)
+            raise AssertionError(f"{name}: constructed")  # noqa: B904 (a red)
+    require(deck.FacePairing("xmin", "xmax", deck.translation_motion("xmin", 2)).partner == "xmax", "positive control: the signed translation")
+    require(deck.FacePairing("ymax", "ymax", deck.mirror_motion("y", 2)).is_self_paired, "positive control: the mirror of its own axis")
+
 
 # ── gate 10 (the part that needs no roster): a deck is its type ──────────────
 

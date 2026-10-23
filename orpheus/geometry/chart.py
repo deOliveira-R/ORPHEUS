@@ -65,6 +65,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "AxialImage",
+    "COORDINATE_AGREEMENT_ULPS",
     "Chart",
     "DirectionDomain",
     "DirectionShape",
@@ -73,6 +74,7 @@ __all__ = [
     "half_chord",
     "RadialImage",
     "SingularStratum",
+    "coordinates_agree",
 ]
 
 #: Tolerance on a motion's translation when deciding membership in
@@ -618,7 +620,7 @@ def coordinates_agree(a: np.ndarray | float, b: np.ndarray | float, *, scale: np
     ``scale`` is the magnitude of the quantity the two are compared at (an array broadcasts against ``a`` and
     ``b``); the tolerance is :data:`COORDINATE_AGREEMENT_ULPS` times ``np.spacing(scale)``. The edge agrees (``<=``).
     """
-    return np.abs(a - b) <= COORDINATE_AGREEMENT_ULPS * np.spacing(scale)
+    return np.abs(a - b) <= COORDINATE_AGREEMENT_ULPS * np.spacing(np.abs(scale))
 
 
 def half_chord(
