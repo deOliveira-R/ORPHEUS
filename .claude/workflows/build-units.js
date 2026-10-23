@@ -16,7 +16,8 @@ export const meta = {
 //   main: '/abs/path/to/main/tree',         // read-only reference tree (scratch, plans)
 //   plan: '.claude/plans/<plan>.md#<section>',
 //   rules: '<the shared rules block: git, tests, residue spellings, rulings that bind>',
-//   units: [{ key, branch, brief, gates?: '<gate spec, if the test-architect already wrote it>' }],
+//   units: [{ key, branch, brief, gates?: '<gate spec, if the test-architect already wrote it>',
+//             worktree?: '<abs path of an EXISTING worktree to continue in (sequential slices on one branch); no new worktree is made>' }],
 //   skip_gates?: false,                     // true when every unit's brief carries its gates
 // }
 const A = args || {}
@@ -75,16 +76,18 @@ const results = await pipeline(
   // Gates + Build in ONE isolated worktree: the test-architect writes the gates and records their red,
   // then the implementer (a second agent, same worktree by path) turns them green.
   async (u) => {
+    const into = u.worktree ? `Work ONLY in the existing worktree ${u.worktree} (cd there first; print pwd and the branch, which must be ${u.branch}); it continues a branch an earlier unit left, so build on its tip. ` : ''
+    const fresh = u.worktree ? {} : { isolation: 'worktree' }
     const gate = A.skip_gates ? null : await agent(
-      `${head(u, 'Gates')} You are the test-architect. Write the unit's done-when gates as tests (and nothing else of the change), commit them, and record each gate's RED at the base tip (the command and the failing line). Each gate names the input that reddens it (X1); a structural repair gets a mutation you describe for the reviewers. Do not make them green.\n\nThe unit:\n${u.brief}\n${u.gates ? '\nThe gate specification:\n' + u.gates : ''}\n${RULES}\nRename your branch to ${u.branch} (\`git branch -m\`). Return at most 300 words through the schema.`,
-      { label: `gates:${u.key}`, phase: 'Gates', isolation: 'worktree', model: 'sonnet', agentType: 'test-architect', schema: BUILT },
+      `${head(u, 'Gates')} ${into}You are the test-architect. Write the unit's done-when gates as tests (and nothing else of the change), commit them, and record each gate's RED at the base tip (the command and the failing line). Each gate names the input that reddens it (X1); a structural repair gets a mutation you describe for the reviewers. Do not make them green.\n\nThe unit:\n${u.brief}\n${u.gates ? '\nThe gate specification:\n' + u.gates : ''}\n${RULES}\n${u.worktree ? '' : 'Rename your branch to ' + u.branch + ' (\`git branch -m\`). '}Return at most 300 words through the schema.`,
+      { label: `gates:${u.key}`, phase: 'Gates', ...fresh, model: 'sonnet', agentType: 'test-architect', schema: BUILT },
     )
     if (!A.skip_gates && (!gate || !gate.worktree)) return { unit: u.key, gate, built: null }
-    const where = gate ? `Work in the existing worktree ${gate.worktree} (cd there first), on branch ${gate.branch}, where the test-architect committed the gates (${gate.commits.join(', ')}); its report:\n${gate.report}` : `You are in a fresh worktree; rename its branch to ${u.branch}.`
+    const where = gate ? `Work in the existing worktree ${gate.worktree} (cd there first), on branch ${gate.branch}, where the test-architect committed the gates (${gate.commits.join(', ')}); its report:\n${gate.report}` : (u.worktree ? into : `You are in a fresh worktree; rename its branch to ${u.branch}.`)
     const built = await agent(
       `${head(u, 'Build')} You are the implementer. ${where}\n\nTurn the gates green by making the change below, with no shim and no residue; do not weaken a gate (if one is wrong, say so in NEEDS and leave it red).\n\nThe unit:\n${u.brief}\n${RULES}\nReturn at most 500 words through the schema: commits (\`git log --oneline main..HEAD\`), what changed where, each gate red-then-green with its command, the tests run with counts, the residue census (instrument, population, control), what you did not do and why.`,
       gate ? { label: `build:${u.key}`, phase: 'Build', model: 'sonnet', schema: BUILT }
-           : { label: `build:${u.key}`, phase: 'Build', isolation: 'worktree', model: 'sonnet', schema: BUILT },
+           : { label: `build:${u.key}`, phase: 'Build', ...fresh, model: 'sonnet', schema: BUILT },
     )
     return { unit: u.key, gate, built }
   },

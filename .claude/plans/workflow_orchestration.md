@@ -60,7 +60,6 @@ Design: `boundary_law_ontology.md`, the twelfth exchange, with the user's ruling
   - (i) diffusion's vacuum admission: is Marshak `Approximated` or `Realized`? Measure, with the theory page's realizability tiers.
   - (ii) the colouring symmetry's float rule: the slab `(0, .1, .2, .3)` is the control; which comparison makes it symmetric, and which refuses a genuinely asymmetric slab?
   - (iii) the per-method admission column for every shared response and every deck.
-  - (iv) the file overlap of slices S1 to S5 of WF2.3, by package, tests included, with S1 additive. This decides whether S2 to S5 run in parallel after S1 or must be serialized.
 - **Executor:** drafts `.claude/plans/wave2_boundary_carve.md` from design A (types) and design B (consumer census), the rulings, and (i) to (iii). It contains every type, field, invariant, module path and verb signature; the typed realized operators; the realizer-table spelling; the leaf units with their file sets; and the dependency table (`retirement-audit` G.24).
 - **Advisors, in parallel:** an elegance cold read and a structural check.
 - **Orchestrator:** applies the findings. **User checkpoint:** the specification.
@@ -76,33 +75,26 @@ Design: `boundary_law_ontology.md`, the twelfth exchange, with the user's ruling
 - Nothing consumes the leaves, so the suite stays green at every unit.
 - **Orchestrator:** integration and the full bar; then push.
 
-**WF2.3 — the consumers, switched in parallel, the old objects still present** (`build-units`, one unit per package slice; slice sizes from design B's census). Each slice re-spells its consumers onto the leaves while `BC`, the laws and the string tables still exist, so each slice is green on its own. S1 runs FIRST, as its own stage, because the others construct geometries; S2 to S5 follow in parallel, if measure (iv) shows them file-disjoint:
-- **S1:** geometry and mesh (`face_roles`; the 25 hollow inner faces become tags);
-- **S2:** transport and SN;
-- **S3:** diffusion;
-- **S4:** cp, mc and moc (the three `BC_REGISTRY` tables; CP's vacuum admitted as realized, with the #546 strict `xfail`);
-- **S5:** derivations, specification and reference (closed values; the translation reversed).
+**WF2.3 — the carve, sequential on ONE branch** (`build-units` with one unit per workflow, each unit's worktree the same branch's tip; the user, 2026-10-22: "do whatever is required for the boundaries first, so that we don't need to keep old spelling working"; "not everything needs to be parallelized"). There is no dual spelling. The geometry and mesh API changes outright, and the tree is allowed to be red on the branch between slices. It is green again, and merged, only after the last slice (and WF2.4) and the full bar.
+1. **S1: geometry and mesh.** `face_roles` replaces `boundaries`, and `FaceRoles` replaces `FaceLaws`. The 25 hollow inner faces become tags. The slice's own targeted tests (geometry, mesh) are green; every other package is expected red.
+2. **S2:** transport and SN.
+3. **S3:** diffusion.
+4. **S4:** cp, mc and moc (the three `BC_REGISTRY` tables; CP's vacuum admitted as realized, with the #546 strict `xfail`).
+5. **S5:** derivations, specification and reference (closed values; the translation reversed).
 
-Tests move with their package.
+Mechanics: S1 runs `build-units` with no `worktree`, which makes the branch's worktree. Each later slice passes that path as its unit's `worktree`, so the gates and the build continue on the same branch (the template option, added 2026-10-22). Each slice starts from the previous slice's tip and is reviewed (Fable qa and elegance) before the next starts, so a defect is caught in the slice that made it. Tests move with their package. The orchestrator reads each slice's result before launching the next.
+- **User checkpoint, after S5:** the meaning-change sites (109: reflective on a curved face becomes a specular wall; periodic on a curved face becomes unspellable), listed with each one's new spelling.
+- Digests (geometry, mesh, specification) re-key ONCE, at the merge. There is no dual spelling, so they re-key only once.
 
-**The premise the parallelism rests on** (the advisor, 2026-10-22). Each slice is green on its own only if S1 is purely ADDITIVE at the geometry and mesh API throughout WF2.3:
-- `face_roles` is added beside `boundaries`, and `FaceRoles` beside `FaceLaws`;
-- both constructor spellings are accepted, and the old spelling's behaviour is unchanged.
-
-If S1 renames a field, S2 to S5 redden at integration whatever their own tests say, because the tests of sn, cp and the rest construct geometries. So S1's done-when carries the additive constraint, and the slicing is `[R]` until WF2.1 measures the S1-to-S5 file overlap by package, tests included. (The census's item 5 measured WP-B ∩ carve ∩ arm T, a different population.) Consequence: geometry, mesh and specification digests re-key twice, once at S1 (the new field) and once at WF2.4 (the old one deleted).
-- **Orchestrator:** integration and the full bar.
-- **User checkpoint:** the meaning-change sites (109: reflective on a curved face becomes a specular wall; periodic on a curved face becomes unspellable), listed with each one's new spelling.
-
-**WF2.4 — the retirement, one unit** (`build-units`, a single unit, the dependency table's order, leaves first, `retirement-audit` A to G). It deletes `BC`, `BoundaryTraceLaw`, the string tables, `RegistryMixin`'s `key=` on the laws, the kernel tier, `LawSum`/`LawScaled`, `geometry/boundary/`'s response half, and the welded verbs. It updates the error catalogue, `_OPEN_INTRA_PACKAGE_CYCLES` and the layer gate in the same commit. A single unit because a retirement split across commits leaves orphans (G.24).
+**WF2.4 — the retirement, one unit, on the same branch after S5** (`build-units`, a single unit, the dependency table's order, leaves first, `retirement-audit` A to G). It deletes `BC`, `BoundaryTraceLaw`, the string tables, `RegistryMixin`'s `key=` on the laws, the kernel tier, `LawSum`/`LawScaled`, `geometry/boundary/`'s response half, and the welded verbs. It updates the error catalogue, `_OPEN_INTRA_PACKAGE_CYCLES` and the layer gate in the same commit. A single unit because a retirement split across commits leaves orphans (G.24).
 - **Orchestrator:** the full bar; `layer_census.py` (P1's SCC expected gone, `[R]`); push.
 
 **WF2.5 — documentation** (`docs-pass`, one unit per section of `docs/theory/foundations/boundary_conditions.rst`, 8590 lines, and the SN boundary page).
 
-## Open for the user
+## Ruled (the user, 2026-10-22)
 
-1. **The surgical-carve exception.** The `workflows` rule says that for a convention change crossing three or more subsystems the main agent writes the code and `method-implementer` is not dispatched (the user's ruling of 2026-05-20: turn-by-turn correction outweighs parallelism). Wave 2 crosses geometry, mesh, transport, every method, derivations and specification, and this plan has Sonnet executors write it, with the user's checkpoints placed between workflows. Two things carry the correctness instead of turn-by-turn steering:
-   - the gates, written before the build;
-   - the slicing: consumers switch while the old objects exist, so each slice is green alone; the deletion is its own unit.
-
-   Confirming this changes the rule. The change goes through `docs/development/workflows.md` (the rule's source; `.claude/rules/` is generated from it), in the harness page's process.
-2. **The size guideline.** Medium (under 10 agents per workflow) splits WF2.2 and WF2.3 into consecutive workflows. Raising it runs each as one.
+1. **The surgical-carve exception is recalibrated, as a trial during the reorganization.**
+   - The user: "models are getting better ... every once in a while we do need to try new things and recalibrate older rulings. We're doing that during reorganization, because it's less about development and more about putting things in place. It's a good way to test it. Also Sonnet 5.5 is much better than Sonnet 5, so we can consider it for well scoped work."
+   - So wave 2 is executed by Sonnet units, each well scoped, with gates first, Fable reviews, and the user's checkpoints between workflows.
+   - The `workflows` rule's exception (the ruling of 2026-05-20) stays in force outside this trial. After wave 2 the orchestrator reports how the trial went: defects caught by the gates and the reviews, defects that reached integration, and the cost. The rule's source page (`docs/development/workflows.md`, through the harness process) is changed only on that evidence.
+2. **The size guideline stays medium** (under 10 agents per workflow). Wave 2 runs as several smaller workflows, evaluated as they go; "large" may come later if the results hold.
