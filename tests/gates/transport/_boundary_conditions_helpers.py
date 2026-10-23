@@ -4,19 +4,12 @@ Not a test module (no ``test_`` prefix). Spec: ``.claude/plans/wave2_boundary_ca
 
 What this module holds, and why each piece exists:
 
-* :data:`bc`, the package read AT RUN TIME. Nothing here imports the package at collection: at the slice's base tip
-  the package does not exist, and a collection error would hide which gate fails for which reason (the pattern of
-  ``tests/gates/geometry/test_deck.py``). Every row reads ``bc.<name>`` at first use, so each red names its own line.
-* :func:`load`, the isolation shim. ``orpheus/transport/__init__.py`` imports ``fields``, whose
-  ``angular_boundary_source_sink`` imports ``TransportMethod`` from ``method.py``, which imports the retired
-  ``orpheus.geometry.BC`` (slice S1 dropped the export). So, until slice S2b re-spells ``method.py``,
-  ``import orpheus.transport.<anything>`` raises ``ImportError`` however correct the new package is, and the
-  package could not be "green in isolation" (the S2a brief) without a way past that parent. ``load`` imports the
-  package normally and, ONLY when that raises because the PARENT ``orpheus.transport`` cannot import, installs a bare
-  namespace parent (a module with the real directory as its ``__path__``, no ``__init__`` run) and imports the
-  package under it. After S2b the first ``import`` succeeds and the fallback never runs; the shim is then dead code
-  and is deleted with the S2b amendment (``NEEDS`` of the S2a report). The shim is NOT a silent skip: a package that
-  does not exist still raises ``ModuleNotFoundError`` from the second import, which is the base red of every row.
+* :data:`bc`, the package, a plain import (``import orpheus.transport.boundary_conditions as bc``). Until slice S2b the module read
+  the package lazily through a ``sys.modules`` namespace stub (``load`` and a ``_Lazy`` wrapper) because ``orpheus.transport``
+  could not import (``method.py`` imported the retired ``orpheus.geometry.BC``); S2b made ``method.py`` import no ``BC``, the real
+  parent imports, and the stub (the cause of 67 pyright errors in the S2a gate files, a class subclassing ``bc.ResponseRealizer``
+  through an ``Any``-typed ``bc`` cannot take the ``table=`` and ``realizes=`` keywords) is deleted. A plain import is also what
+  lets a type checker see ``bc.ResponseRealizer`` as a class.
 * the builders every gate file shares (the cone grid, the samplers, the test-local conditions, a real slab mesh, the
   scanners of the structure gates with their planted positive controls).
 
@@ -30,7 +23,6 @@ import ast
 import dataclasses
 import functools
 import importlib
-import sys
 import types
 from pathlib import Path
 from typing import Any
@@ -40,6 +32,7 @@ import numpy as np
 from tests.gates._content_identity_helpers import require
 
 import orpheus as _orpheus
+import orpheus.transport.boundary_conditions as bc
 
 #: The tree being tested, read from the imported ``orpheus`` (not from this file's path, which a symlinked or
 #: copied test tree would resolve elsewhere).
@@ -51,32 +44,6 @@ PACKAGE_DIR = Path(_orpheus.__file__).parent / "transport" / "boundary_condition
 MODULES = (
     "__init__", "admission", "binding", "condition", "declared", "displacement", "errors", "inflow", "network", "realization",
 )
-
-
-def load() -> types.ModuleType:
-    """The package, imported; see the module docstring for the one fallback."""
-    try:
-        return importlib.import_module(PACKAGE)
-    except ImportError as first:
-        if PACKAGE in str(first) and isinstance(first, ModuleNotFoundError):
-            raise  # the package itself does not exist: the honest base red
-        parent = "orpheus.transport"
-        if parent in sys.modules and getattr(sys.modules[parent], "__file__", None) is not None:
-            raise  # the real parent imported; the failure is the package's own
-        stub = types.ModuleType(parent)
-        stub.__path__ = [str(PACKAGE_DIR.parent)]  # type: ignore[attr-defined]
-        sys.modules[parent] = stub
-        return importlib.import_module(PACKAGE)
-
-
-class _Lazy:
-    """The production package, read at first attribute access (see the module docstring)."""
-
-    def __getattr__(self, attr: str) -> Any:
-        return getattr(load(), attr)
-
-
-bc: Any = _Lazy()
 
 
 def node(path: str, name: str) -> str:
@@ -363,7 +330,7 @@ def walk_subclasses(root: type) -> list[type]:
 
 __all__ = [
     "Carrier", "MODULES", "OpaqueSampler", "PACKAGE", "PACKAGE_DIR", "ProfileSampler", "ROOT", "bc",
-    "chain_classes_in", "cone_grid", "function_space", "imports_of", "load", "local", "matches_naming", "mesh2d",
+    "chain_classes_in", "cone_grid", "function_space", "imports_of", "local", "matches_naming", "mesh2d",
     "no_orpheus_frame", "node", "orientation_fields", "require", "slab_mesh", "violations_of_imports",
     "walk_subclasses", "wall", "weights",
 ]

@@ -6,146 +6,106 @@ transport method's BEHAVIOR. Two exist:
 :class:`~orpheus.sn.problem.SNProblem` (quadrature + sweep
 machinery + angular trace) and
 :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` (scalar trace
-+ realized boundary laws). :class:`TransportMethod` is the structural
++ realized boundary operators). :class:`TransportMethod` is the structural
 Protocol naming what every method-mesh exposes *as a method*, and
-:func:`resolve_boundary_conditions` is the ONE generic body that turns
-the mesh axes' per-face :class:`~orpheus.geometry.boundary.BC` declarations
-into realized boundary operators through it.
+:func:`realize_boundary` is the ONE generic body that turns the method's
+:class:`~orpheus.transport.boundary_conditions.Binding` (the declared exterior
+conditions joined to the carrier's tagged faces, and its decks) into realized boundary
+operators through the method's :class:`~orpheus.transport.boundary_conditions.RealizerTable`.
 
-Genesis — the two recorded witnesses (#290 P7b)
-===============================================
+The mathematics the body walks
+==============================
 
-The Protocol was deliberately **deferred until a second method-mesh
-existed** (the defer-until-≥2 rule). Its two recorded witnesses:
+A face of the carrier has exactly one role: glued to a partner (a *deck*, a symmetry of the domain) or facing the exterior
+(a *tag*, an integer colour of the true boundary, the twin of a material id). The tag-to-condition map is supplied where the
+method is known: ``bind(carrier, conditions)`` joins the conditions to the carrier's faces once, refusing an unbound tag, an
+unused condition and a condition the carrier's colouring symmetry does not fix
+(:mod:`orpheus.transport.boundary_conditions.binding`). Realization is then a partial map from a declaration on a face to an
+operator on the method's trace space, and its domain is the admission table of the method: the SAME table answers "is this
+declaration admitted on this face" and "realize it", so the query and the realization cannot disagree
+(:mod:`orpheus.transport.boundary_conditions.realization`).
 
-1. the **homogenization method-layer** —
-   :mod:`orpheus.transport.mesh.material_mesh`'s docstring promised
-   "a method-specific mesh IS a MaterialMesh that adds behavior,
-   conforming structurally to a future ``TransportMethod`` Protocol";
-2. the **boundary-realizer seam** — ``SNProblem._resolve_bcs`` and
-   ``DiffusionMesh._resolve_bcs`` were twin loops (shape-identical
-   after #290 P7a moved diffusion's resolution off the solver onto the
-   phase space), each doing the same tag → law → realize walk with only
-   the leaf realization differing.
+:func:`realize_boundary` visits EVERY face of the binding, including a face with no trace slot (the inner face of a hollow
+radial body is a tag, the radial axis has no inner-surface trace). A face with a trace is realized through the method's own
+:meth:`~TransportMethod.realize_boundary_role` hook, which builds the method space of the face and calls the table's
+``realize`` (``admit`` first, the raise of ``BoundaryRefused`` iff refused). A face without a trace has no operator to build
+and meets the table through ``require`` alone, the type- and site-level admission, so a declaration the method cannot honour
+there is refused at construction like any other.
 
-#290 P7a minted ``DiffusionMesh`` (the missing second witness); this
-module is P7b — the mint, plus the twin-loop collapse.
+Genesis (#290 P7b), and what the Protocol deliberately does NOT contain
+======================================================================
 
-What the Protocol deliberately does NOT contain
-===============================================
+The Protocol was deliberately **deferred until a second method-mesh existed** (the defer-until-two rule). Its two recorded
+witnesses were the **homogenization method-layer** of :mod:`orpheus.transport.mesh.material_mesh` and the twin
+``SNProblem._resolve_bcs`` / ``DiffusionMesh._resolve_bcs`` loops, each doing the same tag-to-law-to-realize walk with only the
+leaf realization differing.
 
-* **Promotion classmethods.** ``SNProblem.from_material_mesh(mm,
-  quadrature, scheme=...)`` vs ``DiffusionMesh.from_material_mesh(mm)``
-  — the signatures differ because the methods genuinely need different
-  injections (SN has a quadrature; diffusion reads everything from the
-  carrier). The asymmetry is honest; forcing a common signature would
-  fabricate parameters. The Protocol is **instance surface only**.
-* **Method-space construction.** ``SNMethodSpace.for_face(mesh,
-  quadrature, face, trace)`` vs ``DiffusionMethodSpace.for_face(trace,
-  face)`` — non-unifiable for the same reason. The per-method
-  :meth:`~TransportMethod.realize_boundary_law` hook subsumes it: the
-  method space is an implementation detail *inside* each arm.
-* **The trace spaces.** ``SNProblem.angular_trace`` (an
-  :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`)
-  and ``DiffusionMesh.scalar_trace`` (a
-  :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`)
-  are locus-family SIBLINGS, not one concept — a consumer that needs a
-  trace needs the method's own trace type.
-* **A dispatch name.** There is no ``method_name`` member: the one
-  generic consumer that needs to name the method (the unsupported-tag
-  refusal) uses ``type(method).__name__`` — self-truthing, and never
-  usable for string dispatch (the anti-pattern the #290 P7b registry
-  dissolution removed).
+* **Promotion classmethods.** ``SNProblem.from_material_mesh(mm, quadrature, scheme=...)`` vs
+  ``DiffusionMesh.from_material_mesh(mm)``: the signatures differ because the methods genuinely need different injections.
+  The Protocol is **instance surface only**.
+* **Method-space construction.** ``SNMethodSpace.for_face(mesh, quadrature, face, trace)`` vs
+  ``DiffusionMethodSpace.for_face(trace, face)``: non-unifiable for the same reason. The per-method
+  :meth:`~TransportMethod.realize_boundary_role` hook subsumes it.
+* **The trace spaces.** ``SNProblem.angular_trace`` and ``DiffusionMesh.scalar_trace`` are locus-family SIBLINGS, not one concept.
+* **A dispatch name.** There is no ``method_name`` member and no string registry: a method is its realizer table, held by the
+  method-mesh (``boundary_realizers``). The Wave-5 ``BoundaryRealizerRegistry`` (string-keyed ``method_name`` to realizer) was
+  retired at #290 P7b: you hold the method-mesh, therefore you hold its realizer.
 
-Conformance is structural — nobody imports this to conform
-==========================================================
+What the wave-2 carve changed here
+==================================
 
-``orpheus.sn`` and ``orpheus.diffusion`` import
-:func:`resolve_boundary_conditions` (the shared body), **never the
-Protocol class**. Static conformance is checked exactly where it
-matters: at each mesh's ``resolve_boundary_conditions(self)`` call,
-pyright verifies the mesh structurally satisfies
-``TransportMethod[OpT]`` and infers the method's own realized-operator
-type ``OpT`` (SN: the ``_BoundBoundaryOperator`` kind-tagged shim;
+``BOUNDARY_OPERATOR_REGISTRY`` (a ``dict[str, type[BoundaryTraceLaw]]``, a string table of admitted law kinds) is gone: its
+two jobs are the binding (which tags a carrier has, which condition each carries) and the realizer table (which declarations
+the method admits). ``resolve_boundary_conditions`` and its tag-parse helper ``_law_from_tag`` (which patched an axis and an
+outward sign into a law per face) are gone with the orientation arguments they patched: a shared condition is face-local
+(:class:`~orpheus.transport.boundary_conditions.WallCondition` holds no axis), and the realizer reads the face's normal from
+the face name once. This module imports no ``BC`` and no boundary law type, which is what lets the ``orpheus.transport``
+package import without the retired ``orpheus.geometry.boundary``.
+
+Conformance is structural: nobody imports this to conform. ``orpheus.sn`` and ``orpheus.diffusion`` import
+:func:`realize_boundary` (the shared body), **never the Protocol class**. Static conformance is checked where it matters: at
+each mesh's ``realize_boundary(self)`` call, pyright verifies the mesh structurally satisfies ``TransportMethod[OpT]`` and infers
+the method's own realized-operator type ``OpT`` (SN: :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`;
 diffusion: a bare :class:`~orpheus.numerics.operator.LinearOperator`).
-The first generic consumer,
-:meth:`AngularBoundarySourceSink.from_problem_laws
-<orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink.from_problem_laws>`,
-narrows a ``MaterialMesh`` to a method-mesh with a runtime ``isinstance``
-against this Protocol before reading ``bc`` (layer-DAG P3: an L2 module
-imports no method type, not even under ``TYPE_CHECKING``).
 
-The registry that this mint dissolved
-=====================================
-
-The Wave-5 ``BoundaryRealizerRegistry`` (string-keyed
-``method_name → BoundaryRealizer``, with ``NotImplementedError`` stub
-realizers auto-registered by ``import orpheus.{moc,mc,cp}``) was
-retired at this carve. The registry existed to answer "given a method
-NAME, find its realizer" — but no production consumer ever asked that
-question: **you hold the method-mesh, therefore you hold its realizer**
-(each :meth:`realize_boundary_law` arm calls its own realizer
-directly). The string indirection carried real hazards for zero payoff
-— registration-timing misses invisible to in-suite tests
-(process-global state masked the empty-registry condition) and
-import-side-effect coupling — and dissolving it deletes the hazard
-class rather than gating it. Adding a transport method now means:
-mint the method-mesh (conforms here structurally), its realizer, and
-its ``BOUNDARY_OPERATOR_REGISTRY`` of admitted laws — no central
-registration step.
-
-Layer (``tests/gates/test_layer_imports.py``): L2 ``transport``. Imports
-``geometry`` (the BC tag + the law types) and ``numerics`` (the
-operator base), like its sibling :mod:`~orpheus.mesh.axis`.
-The method packages (L3) import THIS module; never the reverse.
+Layer (``tests/gates/test_layer_imports.py``): L2 ``transport``. Imports ``numerics`` (the operator base), ``mesh`` (the face
+inventory) and its sibling :mod:`orpheus.transport.boundary_conditions`. The method packages (L3) import THIS module; never the
+reverse.
 
 References
 ----------
 
-* ``.claude/plans/archive/diffusion_integration_290.md`` §P7b (the binding
-  carve spec; supersedes the original §P7 and the banked
-  ``realize_recursively_move_spec.md`` registry-routing design).
-* :doc:`/theory/foundations/boundary_conditions` — the three-layer decomposition
-  (trace structure / physical law / method realisation) this module's
-  resolve body walks.
+* ``.claude/plans/archive/diffusion_integration_290.md`` section P7b (the carve that minted the Protocol).
+* ``.claude/plans/wave2_boundary_carve.md`` section 2.10 (the shared body and the method hooks).
+* :doc:`/theory/foundations/boundary_conditions` — the three-layer decomposition (trace structure / physical law / method
+  realisation).
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol, TypeVar, runtime_checkable
+from typing import TYPE_CHECKING, ClassVar, Protocol, TypeVar, runtime_checkable
 
-from orpheus.geometry import BC
-from orpheus.geometry.boundary import (
-    AlbedoBoundary,
-    BoundaryTraceLaw,
-    PeriodicBoundary,
-    ReflectiveBoundary,
-    WhiteBoundary,
-)
-from orpheus.numerics.operator import LinearOperator
-from orpheus.geometry.faces import face_normal
 from orpheus.mesh import face_labels
-from orpheus.geometry.faces import AXIS_NAMES
+from orpheus.numerics.operator import LinearOperator
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from orpheus.mesh import Axis1D, FaceLabel
+    from orpheus.geometry.deck import DeckTransformation
+    from orpheus.mesh import Axis1D
+    from orpheus.transport.boundary_conditions import BoundaryCondition, Binding, FaceSite, RealizerTable
 
 
-__all__ = ["TransportMethod", "resolve_boundary_conditions"]
+__all__ = ["TransportMethod", "realize_boundary"]
 
 
-#: The method's realized-operator type: what its ``realize_boundary_law``
-#: arm returns and its ``bc`` values carry. SN narrows it to the
-#: kind-tagged ``_BoundBoundaryOperator`` shim; diffusion uses the bare
-#: :class:`LinearOperator`. Covariant — a consumer typed against
-#: ``TransportMethod[LinearOperator]`` accepts every method-mesh.
+#: The method's realized-operator type: what its ``realize_boundary_role`` arm returns and its ``bc`` values carry. SN narrows
+#: it to :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`; diffusion uses the bare :class:`LinearOperator`.
+#: Covariant: a consumer typed against ``TransportMethod[LinearOperator]`` accepts every method-mesh.
 OpT_co = TypeVar("OpT_co", bound=LinearOperator, covariant=True)
 
-#: Invariant twin of :data:`OpT_co` for the generic *function* below
-#: (a function signature has no variance; the Protocol keeps the
-#: covariant declaration).
+#: Invariant twin of :data:`OpT_co` for the generic *function* below (a function signature has no variance; the Protocol keeps
+#: the covariant declaration).
 OpT = TypeVar("OpT", bound=LinearOperator)
 
 
@@ -153,256 +113,96 @@ OpT = TypeVar("OpT", bound=LinearOperator)
 class TransportMethod(Protocol[OpT_co]):
     r"""Structural Protocol of the method-mesh layer.
 
-    A method-mesh — a :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`
-    subclass carrying one transport method's behavior — satisfies this
-    Protocol **without importing it** (see the module docstring for the
-    conformance mechanism and the deliberate exclusions).
+    A method-mesh, a :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` subclass carrying one transport method's
+    behavior, satisfies this Protocol **without importing it** (see the module docstring for the conformance mechanism and the
+    deliberate exclusions).
 
     The members are exactly what the two witnesses expose generically:
 
-    * :attr:`axes` + :attr:`BOUNDARY_OPERATOR_REGISTRY` +
-      :meth:`realize_boundary_law` — consumed by the shared
-      :func:`resolve_boundary_conditions` body;
-    * :attr:`bc` — the realized-law table every method-mesh ends up
-      with.
+    * :attr:`axes`, :attr:`binding`, :attr:`boundary_realizers`, :meth:`realize_boundary_role` and :meth:`face_site`, consumed by
+      the shared :func:`realize_boundary` body;
+    * :attr:`bc`, the realized-operator table every method-mesh ends up with.
 
-    One universal member is deliberately NOT declared:
-    ``full_field_space`` (the bulk ⊕ trace composite carrier). Both
-    witnesses implement it as a ``functools.cached_property``, which
-    the current pyright does not accept against a Protocol property
-    member (``cached_property[T]`` is compared as the descriptor, not
-    its instance-access type) — and it has no method-generic consumer
-    yet (the shared resolve body never touches it). The anticipated
-    first consumer ("the DSA driver, #2") did NOT materialize: the R4
-    ruling (2026-07-26) wired consistent DSA through an SN-side
-    edge-centered low-order system consuming ``SNProblem`` directly —
-    no ``DiffusionMesh`` enters the accelerated loop, so no generic
-    ``full_field_space`` read exists. The trigger stands for the NEXT
-    genuinely method-generic consumer; do NOT convert the witnesses'
-    caching to appease the checker today.
+    One universal member is deliberately NOT declared: ``full_field_space`` (the bulk + trace composite carrier). Both witnesses
+    implement it as a ``functools.cached_property``, which the current pyright does not accept against a Protocol property
+    member, and it has no method-generic consumer yet (the shared body never touches it). The trigger stands for the NEXT
+    genuinely method-generic consumer; do NOT convert the witnesses' caching to appease the checker today.
     """
 
-    #: Canonical spatial representation (the :class:`MaterialMesh`
-    #: data block): one :class:`~orpheus.mesh.axis.Axis1D`
-    #: per dimension, each carrying its endpoints' ``BC`` declarations.
+    #: Canonical spatial representation (the :class:`MaterialMesh` data block): one :class:`~orpheus.mesh.axis.Axis1D` per
+    #: dimension, each carrying its endpoints' ROLES (a deck, or an integer tag).
     axes: tuple["Axis1D", ...]
 
-    #: The method's law admission table: ``BC.kind`` tag → the
-    #: :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` subclass it
-    #: declares. A tag absent here is REFUSED at construction with the
-    #: supported list (each method admits exactly the laws its realizer
-    #: can honestly realize — e.g. ``zero_flux`` is diffusion-only,
-    #: and ``white`` is deliberately absent from diffusion where it
-    #: coincides with reflective at P1).
-    BOUNDARY_OPERATOR_REGISTRY: ClassVar[dict[str, type[BoundaryTraceLaw]]]
+    #: The declared exterior conditions joined to this carrier's faces: ``decks`` (faces glued to a partner or a mirror
+    #: plane), ``tags`` (faces facing the exterior), the ``declared`` conditions and the carrier's colouring symmetry.
+    binding: "Binding"
+
+    #: The method's realizer table: the ONE door that answers "is this declaration admitted on this face" and "realize it".
+    #: It is sealed by the method's defining module, so anyone holding the table has executed every registration.
+    boundary_realizers: ClassVar["RealizerTable"]
 
     @property
     def bc(self) -> "Mapping[str, OpT_co]":
-        """Per-face REALIZED boundary laws, keyed by face name.
+        """Per-face REALIZED boundary operators, keyed by face name.
 
-        Built at construction by :func:`resolve_boundary_conditions`
-        over the same ``face_labels`` inventory the method's trace
-        derives from — law coverage ≡ face coverage by construction.
+        Built at construction by :func:`realize_boundary` over the faces of the binding that carry a trace: the
+        method's trace derives from the same ``face_labels`` inventory, so coverage of faces by operators ≡ coverage of faces
+        by trace slots by construction.
         """
         ...
 
-    def realize_boundary_law(
-        self,
-        law: BoundaryTraceLaw,
-        face: str,
-    ) -> OpT_co:
-        """Realize one typed law on one face — the per-method arm.
+    def realize_boundary_role(self, role: "DeckTransformation | BoundaryCondition", face: str) -> OpT_co:
+        """Realize one declaration on one face with a trace: the per-method arm.
 
-        The shared :func:`resolve_boundary_conditions` body owns the
-        face loop and the tag → law parse;
-        this hook owns everything genuinely method-specific: building
-        the method space for ``face`` and dispatching the method's own
-        realizer.
+        The shared :func:`realize_boundary` body owns the face loop and the choice of the declaration (a deck, or the
+        condition the face's tag is bound to); this hook owns everything genuinely method-specific: building the method space for
+        ``face`` and calling the method's own :attr:`boundary_realizers` ``realize``.
+        """
+        ...
+
+    def face_site(self, face: str) -> "FaceSite":
+        """Where ``face`` sits (its name, the carrier's coordinate system and dimension): the admission table's site key.
+
+        Computable from the carrier alone, before any method space exists, so the type- and site-level admission of a face
+        with no trace slot (a hollow body's inner face) needs nothing the method has not built yet.
         """
         ...
 
 
-def resolve_boundary_conditions(
-    method: "TransportMethod[OpT]",
-) -> dict[str, OpT]:
-    r"""Resolve a method-mesh's per-axis BC declarations into realized operators.
+def realize_boundary(method: "TransportMethod[OpT]") -> dict[str, OpT]:
+    r"""Realize a method-mesh's binding into per-face operators: the ONE generic body behind every method-mesh's ``bc`` table.
 
-    The ONE generic body behind every method-mesh's ``bc`` table
-    (#290 P7b — it replaced the twin ``SNProblem._resolve_bcs`` /
-    ``DiffusionMesh._resolve_bcs`` loops; a third spelling on the
-    diffusion solver died at P7a). Per face label of ``method.axes``:
+    Replaces ``resolve_boundary_conditions`` and its tag-to-law parse. For each face of ``method.binding`` (inventory order):
 
-    1. read the axis's declaration for that endpoint,
-       ``axes[label.axis_index].bc[label.endpoint]``. Every axis declares a
-       law on every endpoint (its constructor refuses ``None``), so there is
-       no default to fill: the law is the declared one;
-    2. parse the tag into its typed law via the method's
-       :attr:`~TransportMethod.BOUNDARY_OPERATOR_REGISTRY` (see
-       :func:`_law_from_tag` — unsupported tags and a parameter-less
-       albedo refuse loudly HERE, at phase-space construction);
-    3. hand the law to the method's
-       :meth:`~TransportMethod.realize_boundary_law` arm.
+    1. the declaration is the face's deck if it is glued, else the condition its tag is bound to
+       (``binding.condition_of(face)``);
+    2. a face with a trace slot (a member of ``face_labels(method.axes)``) is realized through the method's
+       :meth:`~TransportMethod.realize_boundary_role`, whose table call admits first and raises
+       :class:`~orpheus.transport.boundary_conditions.BoundaryRefused` iff refused;
+    3. a face with no trace slot (the inner face of a hollow radial body: a tag, with no inner-surface trace) has nothing to
+       build and meets the table through ``require`` at the site level only (``space=None``), which raises the same refusal.
 
-    The face inventory IS the BC inventory by construction: a face
-    that exists gets exactly one entry; a face that doesn't (the
-    curvilinear pole r=0 — a regularity condition, not a BC face) is
-    structurally absent. Both method traces derive from the SAME
-    ``face_labels`` inventory, so law coverage ≡ trace-face coverage
-    with no separate validation to drift.
+    The face inventory of ``bc`` IS the trace inventory by construction: a face that carries a trace gets exactly one entry,
+    and the faces without one (the curvilinear pole is not a face at all; a hollow body's inner face has a tag and no trace)
+    have no entry rather than a placeholder.
 
     Returns
     -------
     dict[str, OpT]
-        Face name → the method's realized operator, in the method's
-        own operator type (``OpT`` infers from the mesh's
-        ``realize_boundary_law`` return — the kind-tagged shim for SN,
-        a bare :class:`LinearOperator` for diffusion).
+        Face name to the method's realized operator, in the method's own operator type.
+
+    Raises
+    ------
+    BoundaryRefused
+        A declaration the method's table does not admit on its face (the refusal carries the admission and the face).
     """
-    resolved: dict[str, OpT] = {}
-    for label in face_labels(method.axes):
-        tag = method.axes[label.axis_index].bc[label.endpoint]
-        law = _law_from_tag(method, tag, label)
-        resolved[label.face_name] = method.realize_boundary_law(
-            law, label.face_name,
-        )
-    return resolved
-
-
-def _law_from_tag(
-    method: "TransportMethod[Any]",
-    tag: "BC | BoundaryTraceLaw",
-    label: "FaceLabel",
-) -> BoundaryTraceLaw:
-    r"""Parse one boundary declaration into the typed law it names.
-
-    A declaration is EITHER a ``BC`` tag (parsed below) or an **already-typed
-    law**, which is returned unchanged. The law arm exists because a tag is
-    ``(kind: str, params: dict[str, float])`` and therefore cannot express a
-    law whose content is a FUNCTION — a
-    :class:`~orpheus.geometry.boundary.PrescribedInflow` carrying a
-    manufactured-solution source has no tag spelling and never will. See
-    :func:`~orpheus.geometry.structured_geometry.parse_boundary_law` for why
-    the declaration has to ride the mesh rather than a constructed method
-    mesh's resolved table.
-
-    ⚠ **The two arms are not equivalent in what they guarantee.** A tag is
-    parsed HERE, so the parse can supply construction context the tag omits —
-    the face's axis, its outward sign, its albedo (see below). A law object
-    arrives fully constructed, so **its orientation is whatever its author
-    set**, and nothing here can correct it. That is the intended division: an
-    object-declared law is asserting "I know my own geometry", and the
-    realizer's own cross-checks (B3.4a's orientation guard, ERR-041's vacuum
-    trace check) are what catch an author who was wrong. Do NOT add
-    orientation-patching to the law arm — it would silently overwrite a
-    deliberate declaration, and the realizer would then certify the patched
-    law rather than the declared one.
-
-    Method-generic given the method's admission table: the tag names
-    the law class; the label supplies the face geometry. Three law
-    families need construction context, resolved here in ONE place:
-
-    * a **reflective** law reflects across the face's own axis —
-      ``AXIS_NAMES[label.axis_index]`` — so the reflection partner is
-      correct at any dimension by construction (a hand-listed
-      face → axis map would silently build the wrong permutation for
-      a z-face);
-    * a **white** law carries an axis AND an outward SIGN, both of which
-      must agree with the installation face (campaign phase **B3.4a**
-      made the disagreement a loud ``BoundaryError`` instead of a silently
-      wrong hemisphere average) — so both are derived from the label here;
-    * an **albedo** law carries its response as the tag parameter
-      ``params["albedo"]``; a parameter-less ``BC("albedo")`` refuses
-      with the face named.
-
-    Every other admitted law is parameter-free (``law_cls()``). A law
-    class whose tag needs new parameters extends this parse — one
-    body, every method.
-
-    .. warning::
-
-       **A law that declares its own orientation MUST be listed here.** The
-       ``law_cls()`` fall-through hands such a law its dataclass DEFAULTS,
-       which are an orientation — and one that is right for exactly one
-       face. White sat in that fall-through until B3.4a, receiving
-       ``axis="x", outward_sign=+1`` on every face; it was latent only
-       because no method's registry admits ``"white"`` yet (#189).
-    """
-    if isinstance(tag, BoundaryTraceLaw):
-        # Already typed — nothing to parse, and nothing to patch (see the
-        # orientation warning above). This arm deliberately does NOT consult
-        # ``BOUNDARY_OPERATOR_REGISTRY``: that table gates which TAGS a method
-        # admits, and a law the caller constructed by hand has already made the
-        # admission decision. What still gates the law is the method's realizer,
-        # which refuses what it cannot realize (SN refuses ``ZeroFluxBoundary``,
-        # diffusion refuses ``PrescribedInflow``) — an honest refusal at
-        # realization rather than a tag-table miss at parse.
-        return tag
-
-    law_cls = method.BOUNDARY_OPERATOR_REGISTRY.get(tag.kind)
-    if law_cls is None:
-        supported = ", ".join(
-            f"'{k}'" for k in sorted(method.BOUNDARY_OPERATOR_REGISTRY)
-        )
-        raise ValueError(
-            f"{type(method).__name__} does not support boundary condition "
-            f"'{tag.kind}' on face '{label.face_name}'. "
-            f"Supported: {supported}."
-        )
-    if law_cls is ReflectiveBoundary:
-        return ReflectiveBoundary(axis=AXIS_NAMES[label.axis_index])
-    if law_cls is WhiteBoundary:
-        # ⚠ White declares BOTH an axis and an outward SIGN, and both must
-        # match the installation face or the realizer's B3.4a orientation
-        # cross-check raises: the Lambertian averages over the hemisphere its
-        # OWN orientation names, so a mismatch silently averages the wrong
-        # ordinates. Before B3.4a nothing checked it, and white fell into the
-        # parameter-free ``law_cls()`` fall-through below — which handed it the
-        # dataclass defaults ``axis="x", outward_sign=+1`` for EVERY face. That
-        # was latent, not live: SN's registry admits only {vacuum, reflective},
-        # so ``BC("white")`` refuses at parse. It would have fired the day #189
-        # admits white, on every face except ``xmax``.
-        #
-        # Both halves are read off ``face_name``, NOT off ``endpoint``: a solid
-        # radial axis's single ``"outer"`` endpoint renders as the ``max``
-        # face (the outer radius IS ``xmax``), so an ``endpoint == "max"``
-        # test would hand a curvilinear outer face the INWARD normal. The
-        # face name is the single-sourced crosswalk every other consumer —
-        # ``FaceLayout``, the trace space, ``build_omega_dot_n`` — keys on, and
-        # ``face_normal`` is its parse. Until **B3.4c** the sign came from a
-        # hand-written ``.endswith("max")`` here while the axis came from
-        # ``label.axis_index`` — two independent reads of one datum, which is
-        # the shape a convention drift needs. One parse now yields both.
-        axis_index, outward_sign = face_normal(label.face_name)
-        return WhiteBoundary(
-            axis=AXIS_NAMES[axis_index], outward_sign=outward_sign,
-        )
-    if law_cls is AlbedoBoundary:
-        try:
-            return AlbedoBoundary(albedo=float(tag.params["albedo"]))
-        except KeyError as exc:
-            raise ValueError(
-                f"BC('albedo') on face '{label.face_name}' requires an "
-                f"'albedo' parameter; got params={tag.params!r}."
-            ) from exc
-    if law_cls is PeriodicBoundary:
-        # ⚠ B3.4c — the same latent orientation bug B3.4a fixed for white, one
-        # law later. ``PeriodicBoundary`` gained ``axis`` at B1 and was never
-        # listed here, so it fell through to the parameter-free ``law_cls()``
-        # below and every face — including a y-face — got the dataclass default
-        # ``axis="x"``. Latent, not live: SN's registry admits only {vacuum,
-        # reflective}, so ``BC("periodic")`` refuses at parse (#189). It would
-        # have fired the day #189 admits periodic, on every non-x face.
-        #
-        # A wrap's axis is not an accessory: it names WHICH pair of faces the
-        # translation identifies, so a wrong one points the law at a partner
-        # across the wrong axis. Since B3.4c that is loud rather than silent
-        # (``PairedDeck.domain_face`` refuses a face off its own axis), but a
-        # producer that emits a wrong law and leans on a downstream guard is
-        # still the consumer-side bridge this codebase fixes at the producer.
-        #
-        # No ``outward_sign``: a wrap identifies BOTH faces of its axis
-        # symmetrically, so unlike white's hemisphere it has no orientation to
-        # get wrong beyond the axis itself.
-        axis_index, _outward_sign = face_normal(label.face_name)
-        return PeriodicBoundary(axis=AXIS_NAMES[axis_index])
-    return law_cls()
+    table, binding = method.boundary_realizers, method.binding
+    traced = {label.face_name for label in face_labels(method.axes)}
+    realized: dict[str, OpT] = {}
+    for face in binding.faces:
+        declared = binding.decks[face] if face in binding.decks else binding.condition_of(face)
+        if face in traced:
+            realized[face] = method.realize_boundary_role(declared, face)
+        else:
+            table.require(declared, method.face_site(face))
+    return realized

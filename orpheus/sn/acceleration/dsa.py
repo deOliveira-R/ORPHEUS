@@ -118,10 +118,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.linalg import lu_factor, lu_solve
 
-from orpheus.geometry.boundary import (
-    PrescribedInflow,
-    law_permutes_ordinates,
-)
 from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.axis_marginal import AxisSectionOperator
 from orpheus.transport.fields.cross_section_field import CrossSectionField
@@ -131,7 +127,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.numerics.space import FunctionSpace
-    from orpheus.geometry.boundary import BoundaryTraceLaw
+    from orpheus.sn.boundary.realized_operators import RealizedBoundary
     from orpheus.sn.problem import SNProblem
     from orpheus.transport.full_field import FullField
 
@@ -139,11 +135,11 @@ __all__ = ["DSALowOrderSystem", "DSACorrection"]
 
 # The arm-1 admission set is no longer a tag frozenset (``_SUPPORTED_BC =
 # {"vacuum", "reflective"}``, retired in campaign phase B2): it is read off
-# the law's affine factors in :meth:`DSALowOrderSystem.from_problem`, which
-# names WHICH property each proven row rests on — a zero response for the
-# Marshak (38) row, an ordinate-permuting geometry for the (39) row. Albedo /
-# white walls still need the Marshak-albedo generalization of (38); that is a
-# documented seam, not a silent approximation.
+# the realized operator's TYPE in :meth:`DSALowOrderSystem.from_problem`, which
+# names WHICH property each proven row rests on — a zero map (``is_vacuum``) for
+# the Marshak (38) row, an ordinate-permuting face of return fraction 1 for the
+# (39) row. Albedo / white walls still need the Marshak-albedo generalization of
+# (38); that is a documented seam, not a silent approximation.
 
 
 @dataclass(frozen=True)
@@ -224,33 +220,24 @@ class DSALowOrderSystem:
                 f"orpheus/derivations/discrete/sn/dsa.py carries the "
                 f"general-α theorems)."
             )
-        # The two laws whose low-order row is PROVEN, asked structurally: a
-        # zero response gives Marshak (38) — zero incoming partial current —
-        # and an ordinate-permuting law that returns everything (amplitude 1)
-        # gives (39) — zero net current at the mirror. A partial specular
-        # reflector permutes ordinates too, but its net current is
-        # (1 - alpha) J+, which (39) does not state: it is refused, not read
-        # as a mirror (until 2026-09-30 it was admitted and given the
-        # mirror's row, ERR-094). Until campaign phase B2 this was a set-difference against
-        # the tag frozenset ``{"vacuum", "reflective"}``; the answers coincide
-        # on every registered law, but the structural form says WHICH property
-        # each proof rests on, which is what the ``_build`` rows below select.
-        # ``PrescribedInflow`` is excluded by FAMILY, not by its current q: its
-        # inflow is a free parameter the low-order edge system has no row for,
-        # so admitting it on a zero default q would build a Marshak row and
-        # silently drop the source the day one is set. (The response-factor
-        # test alone would admit it — measured while writing B2.)
-        laws = (problem.bc["xmin"].law, problem.bc["xmax"].law)
+        # The two faces whose low-order row is PROVEN, asked of the realized operator's TYPE: a zero map gives Marshak (38) — zero
+        # incoming partial current — and an ordinate-permuting face that returns everything (return fraction exactly 1) gives (39) —
+        # zero net current at the mirror. A partial specular reflector permutes ordinates too, but its net current is
+        # (1 - alpha) J+, which (39) does not state: it is refused, not read as a mirror (until 2026-09-30 it was admitted and given
+        # the mirror's row, ERR-094). The vacuum question is the REALIZED map's: ``specular(0)``, ``white(0)`` and ``vacuum()`` are one
+        # declared value and realize one ``ZeroMap``, so they take the Marshak row together. A face whose condition carries a SOURCE is
+        # excluded by FAMILY, not by its current q: its inflow is a free parameter the low-order edge system has no row for, so
+        # admitting it on its zero linear image (a ZeroMap, whose ``is_vacuum`` is True) would build a Marshak row and silently drop
+        # the source (read from the binding: the realized operator is the linear part only).
+        faces = (problem.bc["xmin"], problem.bc["xmax"])
         unsupported = sorted({
-            repr(law) for law in laws
-            if isinstance(law, PrescribedInflow)
-            or not (law.response_kernel.is_zero
-                    or (law_permutes_ordinates(law)
-                        and law.response_kernel.amplitude == 1.0))
+            repr(face) for name, face in problem.bc.items()
+            if name in problem.binding.sources
+            or not (face.is_vacuum or (face.permutes_ordinates and face.return_fraction == 1.0))
         })
         if unsupported:
             raise NotImplementedError(
-                f"DSALowOrderSystem: boundary law(s) {unsupported!r} "
+                f"DSALowOrderSystem: boundary face(s) {unsupported!r} "
                 f"have no proven low-order row (arm 1 realizes vacuum "
                 f"(Marshak) and reflective; albedo walls need the "
                 f"Marshak-albedo generalization of Larsen (38))."
@@ -289,7 +276,7 @@ class DSALowOrderSystem:
 
         mu = np.asarray(problem.quad.mu_x, dtype=float)
         w = np.asarray(problem.quad.weights, dtype=float)
-        return cls._build(h, sigma_t, sigma_s0, sigma_s1, mu, w, laws)
+        return cls._build(h, sigma_t, sigma_s0, sigma_s1, mu, w, faces)
 
     @classmethod
     def _build(
@@ -300,7 +287,7 @@ class DSALowOrderSystem:
         sigma_s1: np.ndarray,
         mu: np.ndarray,
         w: np.ndarray,
-        laws: tuple["BoundaryTraceLaw", "BoundaryTraceLaw"],
+        faces: tuple["RealizedBoundary", "RealizedBoundary"],
     ) -> "DSALowOrderSystem":
         r"""Assemble the proven rows, vectorized over groups.
 
@@ -363,9 +350,9 @@ class DSALowOrderSystem:
 
         # Boundary rows — the verified one-sided f1 forms:
         # f1 = −(D/h)(f0R − f0L) ± ¼σ̂_R h (f0R + f0L) + g1 ∓ ½g0.
-        for row, cell_i, side, law in (
-            (0, 0, "left", laws[0]),
-            (n_cells, n_cells - 1, "right", laws[1]),
+        for row, cell_i, side, face in (
+            (0, 0, "left", faces[0]),
+            (n_cells, n_cells - 1, "right", faces[1]),
         ):
             sgn = +1.0 if side == "left" else -1.0
             f0_cols = {
@@ -376,7 +363,7 @@ class DSALowOrderSystem:
                 n_cells + cell_i: +a_coef[:, cell_i],
                 cell_i: -sgn * half_gs[:, cell_i],
             }
-            if law.response_kernel.is_zero:
+            if face.is_vacuum:
                 # R = 0 ⇒ Marshak (38): γ_N f0 + (W2⁺/W2)·(±f1) = 0,
                 # outward-consistent orientation. (The zero response IS the
                 # zero-incoming-partial-current the Marshak row states.)

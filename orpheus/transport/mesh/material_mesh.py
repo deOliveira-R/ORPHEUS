@@ -19,11 +19,11 @@ The abstraction axis is **data vs behavior**:
   **is a** :class:`MaterialMesh` that adds that behavior:
   ``SNProblem(MaterialMesh)`` (quadrature + sweep machinery + angular
   trace) and ``DiffusionMesh(MaterialMesh)`` (scalar trace + realized
-  boundary laws; #290 P7a), each conforming **structurally** to the
+  realized boundary operators; #290 P7a), each conforming **structurally** to the
   :class:`~orpheus.transport.method.TransportMethod` Protocol (minted
   at #290 P7b over both witnesses; the shared
-  :func:`~orpheus.transport.method.resolve_boundary_conditions` body
-  resolves every method-mesh's BC declarations through it).
+  :func:`~orpheus.transport.method.realize_boundary` body
+  realizes every method-mesh's bound exterior conditions through it).
 
 This is the layer where cross-section **homogenization** lands: a
 fine-mesh :class:`~orpheus.sn.solution.Solution` plus a coarse
@@ -68,39 +68,50 @@ from orpheus.mesh import (
     coord_system as _axis_coord_system,
     spatial_shape as _axis_spatial_shape,
 )
+from orpheus.geometry.colouring import UncomputedSymmetries, colouring_symmetry
+from orpheus.mesh.axis import roles_of_axes
+from orpheus.transport.boundary_conditions.admission import FaceSite
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.geometry import CoordSystem
+    from orpheus.geometry.colouring import Symmetries
+    from orpheus.geometry.deck import FaceRole
+    from orpheus.transport.boundary_conditions.declared import BoundaryConditions
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 
-__all__ = ["MaterialMesh"]
+__all__ = ["MaterialMesh", "conditions_key"]
 
 
-def _law_key(law) -> object:
-    """A boundary law's key: the law itself, whose equality and hash are its
-    content (:class:`~orpheus.values.content.ContentIdentity`, for a
-    :class:`~orpheus.geometry.boundary.BC` tag and every trace law since #405
-    P1 step 5; a tag keyed by ``("BC", kind, sorted params)`` until then,
-    since it could not be hashed). A law with no content identity (a
-    callable-bearing inflow, which is unhashable) keys by type and object —
-    honest: a callable has no content to compare."""
-    try:
-        hash(law)
-    except TypeError:
-        return (type(law).__qualname__, id(law))
-    return law
+def conditions_key(declared: "BoundaryConditions") -> tuple:
+    """The declared exterior conditions' contribution to a method-mesh's phase-space key, in tag order.
+
+    A condition is a :class:`~orpheus.values.content.ContentIdentity` whose equality and hash are its content, so it keys as
+    itself. A condition with no content identity (one holding an open sampler, whose profile is a callable, hence contentless)
+    cannot be hashed (``hash`` raises :class:`~orpheus.values.content.ContentlessError`, a ``TypeError``) and keys by type and
+    object instead: honest, because a callable has no content to compare. Two problems with the same mesh and different
+    conditions are different phase spaces, because the conditions enter the key; the roles (a deck's content or an ``int`` tag)
+    enter through :func:`_axis_key`.
+    """
+    def key(condition) -> object:
+        try:
+            hash(condition)
+        except TypeError:
+            return (type(condition).__qualname__, id(condition))
+        return condition
+
+    return tuple((tag, key(declared[tag])) for tag in sorted(declared))
 
 
 def _axis_key(ax) -> tuple:
-    """One axis's content: its type, edges, boundary-law tags, labels and chart."""
+    """One axis's content: its type, edges, face ROLES (a deck's content or an ``int`` tag), labels and chart."""
     edges = np.ascontiguousarray(ax.edges)
     if isinstance(ax, RadialAxisMesh):
-        return ("RadialAxisMesh", edges.tobytes(), ax.coord, _law_key(ax.bc_outer), ax.label_outer)
+        return ("RadialAxisMesh", edges.tobytes(), ax.coord, ax.role_outer, ax.role_inner, ax.label_outer)
     return (
         type(ax).__qualname__, edges.tobytes(),
-        _law_key(ax.bc_low), _law_key(ax.bc_high), ax.label_low, ax.label_high,
+        ax.role_low, ax.role_high, ax.label_low, ax.label_high,
     )
 
 
@@ -292,7 +303,7 @@ class MaterialMesh:
     # as ``EnergyAxis`` extends ``Axis.content_parts``:
     #
     # * ``_contractibility_key`` — may two solutions' FIELDS be paired? The
-    #   geometry (every axis: edges, boundary-law tags, labels, chart), the
+    #   geometry (every axis: edges, face roles, labels, chart), the
     #   material assignment and the materials' CONTENT. ``SNProblem`` extends it
     #   with the quadrature and the scheme TYPE; ``same_phase_space`` compares
     #   it. This is what ``Solution.compare`` / ``homogenize`` / ``condense``
@@ -692,6 +703,47 @@ class MaterialMesh:
                 "face-area data lives in the underlying Mesh2D directly."
             )
         return self._areas
+
+    @property
+    def face_roles(self) -> "Mapping[str, FaceRole]":
+        r"""The role of every boundary face, keyed by face name, inner face first: a deck or an ``int`` tag.
+
+        The carrier's face inventory for :func:`~orpheus.transport.boundary_conditions.bind`
+        (:class:`~orpheus.transport.boundary_conditions.BoundaryCarrier`). It is ``roles_of_axes(self.axes)``, the ONE reader of the
+        axes' roles (public since slice S1; there is no second reader): :func:`~orpheus.mesh.axis.face_labels` names the faces that
+        carry a trace, and this adds the one role a trace inventory omits, the inner tag of a hollow radial axis (#511).
+        """
+        return roles_of_axes(self.axes)
+
+    @property
+    def symmetry(self) -> "Symmetries":
+        r"""The colouring symmetry of this carrier: the group of the geometry's regions and end roles, read from the cell edges.
+
+        One :class:`~orpheus.mesh.axis.AxisMesh` (Cartesian) passes its cell edges and the ``mat_map`` values, raw, to
+        :func:`~orpheus.geometry.colouring.colouring_symmetry`, which merges adjacent cells of one material itself; that merge is why
+        a mesh and the geometry it refines give one group whatever the cell partition. A :class:`~orpheus.mesh.axis.RadialAxisMesh`
+        passes the same data and gets the radial identity (a curved chart has no mirror in the group). A tuple of two or more axes
+        has no computed group.
+
+        SCOPE-BOUNDARY[guard] machinery: the wallpaper-group search over a cell's isometries (a computed group for a multi-axis carrier).
+        ruling: the specification ``wave2_boundary_carve.md`` section 2.2, approved by the user 2026-10-23 (the answer is typed pessimistic).
+        revisit: #658, the 2-D colouring group.
+        """
+        if len(self.axes) != 1:
+            return UncomputedSymmetries(type(self).__name__)
+        edges = np.asarray(self.axes[0].edges, dtype=float)
+        roles = tuple(self.face_roles.values())
+        return colouring_symmetry(
+            self.coord, (float(edges[0]), float(edges[-1])), edges, [int(i) for i in np.asarray(self.mat_map).ravel()], roles[0], roles[-1],
+        )
+
+    def face_site(self, face: str) -> FaceSite:
+        r"""Where ``face`` sits: its name, this carrier's coordinate system and dimension (the admission tables' site key).
+
+        Computable from the carrier alone, before any method space exists, so the site-level admission of a face with no trace slot
+        (a hollow body's inner face) needs nothing the method has not built yet.
+        """
+        return FaceSite(face, self.coord, self.ndim)
 
     @property
     def ndim(self) -> int:

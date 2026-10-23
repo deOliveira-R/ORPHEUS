@@ -24,9 +24,11 @@ Inner solver dispatch
   ERR-026).  On Cartesian meshes it is bit-identical math to the
   legacy BiCGSTAB FD path.
 
-Boundary laws are declared on the mesh or the axis tuple (a
-:class:`~orpheus.geometry.boundary.BC` tag or a typed law on every face) and
-taken verbatim: no entry point supplies a default law.
+Each face of the mesh or the axis tuple carries a ROLE: a deck (a symmetry of the domain, a mirror plane or a translation wrap)
+or an ``int`` tag of the exterior. The exterior conditions are declared per tag, through the keyword-only
+``boundary_conditions`` of every entry (:class:`~orpheus.transport.boundary_conditions.WallCondition`, bound to the faces by
+:func:`~orpheus.transport.boundary_conditions.bind`) and taken verbatim: no entry point supplies a default condition, and a tagged
+face with no declared condition is refused, naming the tag.
 
 .. seealso:: :ref:`theory-discrete-ordinates` — Key Facts, equations, gotchas.
 """
@@ -34,7 +36,7 @@ taken verbatim: no entry point supplies a default law.
 from __future__ import annotations
 
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from functools import reduce
 from collections.abc import Sequence
@@ -44,8 +46,8 @@ import numpy as np
 from scipy.sparse.linalg import gmres
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC
 from orpheus.mesh import Mesh1D, Mesh2D
+from orpheus.transport.boundary_conditions import BoundaryConditions
 from orpheus.numerics.convergence import (
     IterationRecord,
     StoppingCriterion,
@@ -119,6 +121,7 @@ if TYPE_CHECKING:
     from .operators.sweep_operator import SweepOperator
     from .operators.windowing import WindowedSweep
     from orpheus.numerics.operator import SupportsInverse
+    from orpheus.transport.boundary_conditions import BoundaryCondition
 
 
 def _refuse_a_boundary_source(problem: "SNProblem", entry: str) -> None:
@@ -134,12 +137,7 @@ def _refuse_a_boundary_source(problem: "SNProblem", entry: str) -> None:
     admissibility k-solve reads the homogeneous pencil on purpose and does not
     pass through here.
     """
-    from orpheus.geometry.boundary._source import NoSource
-
-    sourced = sorted(
-        face for face, op in problem.bc.items()
-        if not isinstance(op.law.source, NoSource)
-    )
+    sourced = sorted(problem.binding.sources)
     if sourced:
         raise ValueError(
             f"{entry} poses an eigenvalue question, which has no source term, "
@@ -157,6 +155,7 @@ def _as_problem(
     *,
     scheme: "DiscretizationSchemeBase | None" = None,
     scattering_order: int = 0,
+    boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]" = BoundaryConditions.empty(),
 ) -> "SNProblem":
     r"""Normalize the entry-surface geometry declaration into an SNProblem.
 
@@ -169,7 +168,9 @@ def _as_problem(
     entry-level default to fill a face with. ``mat_map`` is the
     axes-entry material-assignment channel (shape ``spatial_shape``;
     defaults to single-material id 0) — a legacy mesh carries its own
-    and combining the two raises.
+    and combining the two raises. ``boundary_conditions`` is the exterior
+    conditions declared for the tags the faces carry (empty by default; a tagged
+    carrier with no condition is refused, naming each tag).
     """
     if isinstance(geometry, (Mesh1D, Mesh2D)):
         if mat_map is not None:
@@ -180,11 +181,11 @@ def _as_problem(
             )
         return SNProblem(
             geometry, quadrature, materials, scheme=scheme,
-            scattering_order=scattering_order,
+            scattering_order=scattering_order, boundary_conditions=boundary_conditions,
         )
     return SNProblem.from_axes(
         geometry, quadrature, materials, mat_map=mat_map, scheme=scheme,
-        scattering_order=scattering_order,
+        scattering_order=scattering_order, boundary_conditions=boundary_conditions,
     )
 
 
@@ -1749,7 +1750,7 @@ class SNSolver:
         # as if the face were a perfect mirror (ERR-094).
         leaking_faces = [
             name for name, op in self.problem.bc.items()
-            if op.law.response_kernel.amplitude != 1.0
+            if op.return_fraction != 1.0
         ]
         if not leaking_faces:
             return 0.0
@@ -2204,6 +2205,8 @@ def solve_sn(
     inner_tol: float = 1e-8,
     inner_schedule: str = "jacobi",
     mat_map: "np.ndarray | None" = None,
+    *,
+    boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]" = BoundaryConditions.empty(),
 ) -> "Solution[EigenOutcome]":
     """Solve the multi-group SN eigenvalue problem.
 
@@ -2289,7 +2292,7 @@ def solve_sn(
     # the declared one.
     problem = _as_problem(
         mesh, quadrature, materials, mat_map=mat_map,
-        scattering_order=scattering_order,
+        scattering_order=scattering_order, boundary_conditions=boundary_conditions,
     )
     _refuse_a_boundary_source(problem, "solve_sn")
 
@@ -2592,6 +2595,8 @@ def solve_sn_adjoint(
     max_inner: int | None = None,
     inner_tol: float = 1e-8,
     mat_map: "np.ndarray | None" = None,
+    *,
+    boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]" = BoundaryConditions.empty(),
 ) -> AdjointSolution:
     r"""Solve the multi-group ADJOINT SN eigenvalue problem.
 
@@ -2649,7 +2654,7 @@ def solve_sn_adjoint(
     """
     problem = _as_problem(
         mesh, quadrature, materials, mat_map=mat_map,
-        scattering_order=scattering_order,
+        scattering_order=scattering_order, boundary_conditions=boundary_conditions,
     )
     _refuse_a_boundary_source(problem, "solve_sn_adjoint")
     implicit_operator, gain, _production, template, splitting = _adjoint_posing_parts(problem)
@@ -2755,6 +2760,8 @@ def solve_sn_adjoint_fixed_source(
     inner_tol: float = 1e-12,
     mat_map: "np.ndarray | None" = None,
     scheme: "DiscretizationSchemeBase | None" = None,
+    *,
+    boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]" = BoundaryConditions.empty(),
 ) -> AdjointSolution:
     r"""Solve the multi-group ADJOINT SN fixed-source (importance) problem.
 
@@ -2823,7 +2830,7 @@ def solve_sn_adjoint_fixed_source(
     max_inner = resolve_iteration_budget(max_inner, inner_tol)
     problem = _as_problem(
         mesh, quadrature, materials, mat_map=mat_map,
-        scheme=scheme, scattering_order=scattering_order,
+        scheme=scheme, scattering_order=scattering_order, boundary_conditions=boundary_conditions,
     )
     if problem.radial_characteristic_field_space is not None:
         raise NotImplementedError(
@@ -3002,7 +3009,7 @@ def _build_fixed_source_rhs(
         # prescribed inflow, there are two answers to one question — refuse
         # rather than pick, since silently adding double-counts and silently
         # overriding makes the declaration a no-op.
-        declared = AngularBoundarySourceSink.from_problem_laws(problem)
+        declared = problem.declared_boundary_source()
         if declared.linf > 0.0 and boundary.linf > 0.0:
             raise ValueError(
                 "_build_fixed_source_rhs: the boundary source q_∂ is specified "
@@ -3033,7 +3040,7 @@ def _build_fixed_source_rhs(
         # declared inflow was realized into an affine operator that nothing
         # consumed, so the declaration was silently inert. Every other law is
         # q = 0, so this is a zero trace allocation for all of them.
-        boundary = AngularBoundarySourceSink.from_problem_laws(problem)
+        boundary = problem.declared_boundary_source()
 
     # Issue #196 PR-INDEX-5 + #247: the bulk source is a typed union of TWO
     # principled ndarray ranks — flat ``(N, ng, *spatial)`` (the original path)
@@ -3176,6 +3183,8 @@ def solve_sn_fixed_source(
     mat_map: "np.ndarray | None" = None,
     scheme: "DiscretizationSchemeBase | None" = None,
     acceleration: str | None = None,
+    *,
+    boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]" = BoundaryConditions.empty(),
 ) -> Solution:
     r"""Solve the multi-group SN fixed-source transport problem.
 
@@ -3340,7 +3349,7 @@ def solve_sn_fixed_source(
     # law is the declared one.
     problem = _as_problem(
         mesh, quadrature, materials, mat_map=mat_map,
-        scheme=scheme, scattering_order=scattering_order,
+        scheme=scheme, scattering_order=scattering_order, boundary_conditions=boundary_conditions,
     )
 
     # All geometries default to ``"source_iteration"`` — the unified
@@ -3463,6 +3472,8 @@ def solve_sn_multiplying_source(
     mat_map: "np.ndarray | None" = None,
     scheme: "DiscretizationSchemeBase | None" = None,
     keff_tol: float = 1e-7,
+    *,
+    boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]" = BoundaryConditions.empty(),
 ) -> Solution:
     r"""Solve the SUBCRITICAL MULTIPLYING fixed-source problem :math:`(A - F)\,\psi = q`.
 
@@ -3489,7 +3500,7 @@ def solve_sn_multiplying_source(
     max_inner = resolve_iteration_budget(max_inner, inner_tol)
     problem = _as_problem(
         mesh, quadrature, materials, mat_map=mat_map,
-        scheme=scheme, scattering_order=scattering_order,
+        scheme=scheme, scattering_order=scattering_order, boundary_conditions=boundary_conditions,
     )
     # the admissibility k-solve runs on the SAME Problem (hub) the source
     # problem is posed on — the entry's own drive, not a raw-data rebuild

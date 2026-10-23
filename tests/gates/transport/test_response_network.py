@@ -125,8 +125,7 @@ def _exec_network(source: str) -> str:
         """
         import sys, types
         import orpheus
-        from tests.gates.transport._boundary_conditions_helpers import load
-        load()  # the real package, and the parent plumbing the shim owns (planted classes then share this process only)
+        import orpheus.transport.boundary_conditions  # the real package (planted classes then share this process only)
         src = sys.stdin.read()
         name = "orpheus.transport.boundary_conditions._planted_network"
         module = types.ModuleType(name)

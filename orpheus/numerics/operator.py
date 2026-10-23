@@ -493,8 +493,8 @@ class BoundaryOperator(metaclass=_BlockRoleMeta):
 
     ⛔ The exception was also not doing the job it appeared to do. An
     unstamped leaf is NOT excluded from ``B``:
-    :attr:`~orpheus.sn.operators.boundary.SNBoundaryOperator._face_laws`
-    collects every face's law with no ``block_role`` filter, so the
+    :attr:`~orpheus.sn.operators.boundary.SNBoundaryOperator._face_operators`
+    collects every face's operator with no ``block_role`` filter, so the
     pre-P3 AFFINE operator reached the block regardless — measured
     ``|B(0)| = q`` and ``|B(2x) − 2B(x)| = q``, and on the Krylov path a
     raised ``ConvergenceClaimError``, because an affine map breaks

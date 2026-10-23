@@ -84,7 +84,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from orpheus.geometry.boundary import law_permutes_ordinates
 from orpheus.geometry.faces import face_name
 from .sweep_graph import OctantLabel
 
@@ -308,27 +307,27 @@ def _outgoing_faces(label: OctantLabel) -> tuple[str, ...]:
 
 
 def reflective_faces(problem: "SNProblem") -> frozenset[str]:
-    """The mesh's SPECULAR-reflective boundary faces.
+    """The mesh's face operators that RELABEL ordinates (the specular mirror family).
 
-    The question is *does this face's law RELABEL ordinates?* — a specular
+    The question is *does this face's realized operator RELABEL ordinates?* — a specular
     mirror sends outgoing ordinate :math:`n` to exactly one incoming ordinate,
     so the octant order survives and forward substitution is legal. Vacuum (no
     coupling at all) and white (couples ALL ordinates on the face ⟹ the
     octant-order Gauss-Seidel degenerates to Jacobi) are EXCLUDED.
 
-    That is :attr:`BoundaryGeometryMap.permutes_ordinates`, and it is what the
-    law is asked directly. Until campaign phase B2 this read
-    ``problem.bc[face] == "reflective"`` — the same question spelled as a
+    That is :attr:`~orpheus.sn.boundary.realized_operators.RealizedBoundary.permutes_ordinates`,
+    a property of the realized face's TYPE, and it is what the face is asked directly. Until campaign
+    phase B2 this read ``problem.bc[face] == "reflective"`` — the same question spelled as a
     string comparison, which was all the pre-B2.0 shim could answer because it
-    discarded the law at realization. The two agree on every registered law
-    (``tests/gates/geometry/test_boundary_factor_consumers.py`` compares the old
-    tag expression against this one, law by law), so the repoint is
-    behaviour-preserving; what it buys is that a NEW ordinate-
-    permuting law joins this set by construction instead of by remembering to
-    add its tag here.
+    discarded the law at realization; until the wave-2 carve it asked the law
+    (``law_permutes_ordinates``). What the type buys is that a NEW ordinate-
+    permuting realization joins this set by construction instead of by remembering to
+    add its name here: a unit specular wall and a mirror deck realize the same
+    :class:`~orpheus.sn.boundary.realized_operators.ScaledOrdinatePermutation`, so both
+    are in the set.
     """
     return frozenset(
         face
         for face in problem.angular_trace.layout.faces
-        if law_permutes_ordinates(problem.bc[face].law)
+        if problem.bc[face].permutes_ordinates
     )

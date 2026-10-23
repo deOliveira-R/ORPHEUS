@@ -115,7 +115,7 @@ import numpy as np
 # lives IN this module — ``sweep.py`` dissolved; selector and bodies share
 # one home, so the historical load-time import cycle is gone.
 from orpheus.geometry import CoordSystem
-from orpheus.geometry.boundary import SelfPairedDeck
+from orpheus.geometry.deck import mirror_motion
 from orpheus.numerics.moment_layout import (
     AVERAGE_MOMENT,
     cell_moment_count,
@@ -4068,9 +4068,7 @@ class _OneDimScanWalk:
         """
         mirror = getattr(self.problem, "_pole_mirror_cache", None)
         if mirror is None:
-            pi = self.problem.quad.ordinate_permutation(
-                SelfPairedDeck.mirror(axis="x").motion
-            )
+            pi = self.problem.quad.ordinate_permutation(mirror_motion("x", 3))
             if pi is None:
                 raise ValueError(
                     "the coupled-pole continuation ψ(0,+μ) = ψ(0,−μ) "

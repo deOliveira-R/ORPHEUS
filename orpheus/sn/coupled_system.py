@@ -717,7 +717,7 @@ def build_within_group_system(
         coord=problem.coord,
     )
     B_b = RadialCharacteristicBoundaryOperator(
-        member_space, problem.bc["xmax"].law,
+        member_space, problem.bc["xmax"],
     )
     march = RadialCharacteristicOperator(
         member_space,

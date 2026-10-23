@@ -16,36 +16,25 @@ realised as concrete per-face values packed into the unified
 and :class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`
 (residual).
 
-Recipe → snapshot: relationship to :class:`InflowSourceSpec`
-============================================================
+Declaration → snapshot: the inflow terms and this field
+=====================================================
 
-There are TWO distinct objects for the inflow :math:`q`, related as
-**recipe → snapshot** (NOT duplicates):
+There are TWO distinct objects for the inflow :math:`q`, related as **declaration → snapshot** (NOT duplicates):
 
-* :class:`~orpheus.geometry.boundary._source.InflowSourceSpec` (the
-  geometry-layer **generator**, formerly named ``BoundarySource``):
-  a lazy, per-face, ``runtime_checkable`` Protocol — ``evaluate(shape)
-  -> ndarray`` — that produces inflow values on demand from a bare
-  shape, with no trace/mesh handle (deliberately decoupled from the
-  trace; the impls :class:`NoSource` / :class:`ConstantInflowSource`
-  derive their output from construction-time data only). It is the
-  *recipe* a declared affine boundary law carries; the mesh-BC bridge
-  :meth:`from_problem_laws` is what turns it into the snapshot below.
-* :class:`AngularBoundarySourceSink` (THIS class, the L2 transport **field**):
-  the *eager, whole-boundary, mesh-bound, role-typed snapshot* — the
-  materialised :math:`q` as a stored
-  :class:`~orpheus.numerics.field.Field` on ``mesh.angular_trace``.
+* :class:`~orpheus.transport.boundary_conditions.InflowTerms` (the transport-layer **declaration**, the affine part of a
+  condition): :math:`q` as a weighted sum of uniform and sampled profiles, with no trace or mesh handle. The SAMPLING of it onto
+  a half-trace is the method's, through ONE verb, ``RealizerTable.sample_inflow(terms, site, space)``: the table's ``require``
+  (a source the method cannot carry is refused at the door), then the registered
+  :class:`~orpheus.transport.boundary_conditions.SourceRealizer`'s ``sample``.
+* :class:`AngularBoundarySourceSink` (THIS class, the L2 transport **field**): the *eager, whole-boundary, mesh-bound,
+  role-typed snapshot*, the materialised :math:`q` as a stored :class:`~orpheus.numerics.field.Field` on
+  ``mesh.angular_trace``. The bridge from the first to the second is :meth:`from_binding`: it reads the faces whose bound
+  condition carries a nonzero source (``binding.sources``), samples each on that face's :math:`\Gamma_-` through the method's
+  realizer table, and packs the flat layout through the same inflow-slot rule :meth:`prescribed_inflow` states.
 
-Two renames produced the current name. First (B.3) the geometry
-Protocol ``BoundarySource`` was renamed to ``InflowSourceSpec``,
-freeing ``BoundarySource`` for this field leaf and completing the
-``{Angular,Scalar,Boundary}×{Flux,Source,Residual}`` role grid
-(issues #205 / #201). Then (B.5) the whole **source** column was
-renamed ``Source`` → ``SourceSink`` so the name carries the signed
-rate-density semantics — a *source* (production) and a *sink* (an
-operator-loss output such as :math:`L\psi`) are the same quantity with
-opposite sign, and the role-leaf type holds both. Hence
-``AngularBoundarySourceSink``.
+The geometry-layer generator ``InflowSourceSpec.evaluate(shape)`` and its bridge ``from_specs`` are retired: a second sampling verb
+beside ``sample_inflow`` would be two spellings of one quantity, and the old generator was a realization welded onto a
+declaration.
 
 Consumer: every operator's ``.apply`` boundary + the SI/Krylov source (B.5.2)
 =============================================================================
@@ -82,16 +71,16 @@ consume (it supersedes the zero-allocate + per-face
 (every face, full slot incl. outflow) remains for non-inflow uses; the
 operator-output zeros allocate on ``mesh.angular_trace`` (CS4b S5).
 
-The **recipe → snapshot bridge** is :meth:`AngularBoundarySourceSink.from_specs`
-— materialise per-face :class:`InflowSourceSpec` recipes onto the trace by
-evaluating each at its face's :math:`\Gamma_-` shape and packing the flat
+The **declaration → snapshot bridge** is :meth:`AngularBoundarySourceSink.from_binding`
+— materialise the declared per-face :class:`~orpheus.transport.boundary_conditions.InflowTerms` onto the trace by sampling
+each at its face's :math:`\Gamma_-` (through the method's realizer table) and packing the flat
 layout. It is a DISTINCT route from :meth:`prescribed_inflow`, which serves
-the known-per-face-array case; ``from_specs`` serves the lazy-recipe case, and
-delegates its packing to ``prescribed_inflow`` so the "inflow slots written,
+the known-per-face-array case; ``from_binding`` serves the declared-terms case, and
+delegates its packing to the same body so the "inflow slots written,
 everything else zero" rule lives in exactly one place.
 
-It **evaluates each spec at** ``(|Γ₋|,) + trailing``, so the packed result is
-the spec's own output placed on that face's inflow rows and nowhere else — the
+It **samples each term at** ``|Γ₋|`` rows (the space the sampler is handed), so the packed result is
+the sampler's own output placed on that face's inflow rows and nowhere else — the
 two routes to :math:`q` agree by construction rather than by transcription.
 
 (Until **P3** this paragraph justified the shape by pointing at the retired
@@ -106,14 +95,15 @@ rather than a match against something else's. See
 
    This bridge stood DEFERRED under ``feedback_unify_after_two_instances``
    until 2026-08-05, waiting for a consumer that both declared a non-trivial
-   ``InflowSourceSpec`` and drove a sweep consuming a typed boundary-source
+   source and drove a sweep consuming a typed boundary-source
    field. It was built ahead of that trigger by explicit user ruling, to close
    the affine boundary channel (``.claude/plans/archive/affine_boundary_source_channel.md``):
    the design of record already said prescribed inflow's realization IS
    ``q.boundary``, and the missing bridge was the reason SN had the fence
-   (no ``BlockRole.BOUNDARY`` stamp) without the channel. The deferred sketch
-   named it ``from_spec(spec, mesh)``, singular; the realization takes a
-   per-face mapping, because a boundary's faces carry different laws.
+   (no ``BlockRole.BOUNDARY`` stamp) without the channel. It takes a
+   per-face mapping (``binding.sources``), because a boundary's faces carry different
+   conditions. At the wave-2 carve it moved from the geometry-layer ``from_specs`` /
+   ``from_problem_laws`` pair (``InflowSourceSpec.evaluate``) onto the declared terms.
 
 Units (B.4 — declared as the ``UNITS`` class constant)
 ======================================================
@@ -132,8 +122,7 @@ References
 
 * ``.claude/plans/field_role_typing_view_g.md`` — Phase B step B.3.
 * Grand Report v3 §16A.1 (affine boundary form), §5.5 (Field hierarchy).
-* ``coding-elegance`` Pattern 2 (single source of truth — the
-  ``InflowSourceSpec`` rename removes the same-name-two-concepts smell),
+* ``coding-elegance`` Pattern 2 (single source of truth — one sampling verb removes the two-spellings-of-q smell),
   Pattern 4 (illegal states unrepresentable — cross-role boundary
   arithmetic raises by class identity).
 """
@@ -149,14 +138,14 @@ from orpheus.numerics.moment_layout import AVERAGE_MOMENT
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import AngularBoundaryField
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.method import TransportMethod
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
     from numpy.typing import NDArray
 
-    from orpheus.geometry.boundary._source import InflowSourceSpec
+    from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
+    from orpheus.transport.boundary_conditions import Binding, FaceSite, RealizerTable
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
@@ -193,9 +182,9 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
     ``AngularBoundarySourceSink ± AngularBoundaryResidual``. Same-class arithmetic is
     closed.
 
-    See the module docstring for the recipe→snapshot relationship to the
-    geometry-layer :class:`InflowSourceSpec` generator (formerly named
-    ``BoundarySource``) and the :meth:`from_specs` bridge that materialises it.
+    See the module docstring for the declaration→snapshot relationship to the
+    transport-layer :class:`~orpheus.transport.boundary_conditions.InflowTerms` and the
+    :meth:`from_binding` bridge that materialises it.
     """
 
     #: Dimensional identity (View-G, B.4): the boundary is all-flux, so
@@ -238,12 +227,12 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         truth for materialising a prescribed inflow onto the trace
         (Cardinal Rule 2).
 
-        Note the recipe→snapshot distinction (see the module docstring):
+        Note the declaration→snapshot distinction (see the module docstring):
         this builds the snapshot directly from **known per-face arrays**,
-        NOT from a lazy
-        :class:`~orpheus.geometry.boundary._source.InflowSourceSpec`
-        recipe — :meth:`from_specs` is the latter path, and it delegates its
-        packing here so this method stays the single place that knows the
+        NOT from a declared
+        :class:`~orpheus.transport.boundary_conditions.InflowTerms` —
+        :meth:`from_binding` is the latter path, and it delegates its
+        packing to the same body so this stays the single place that knows the
         "inflow slots written, everything else zero" rule.
 
         Parameters
@@ -274,7 +263,15 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
             or if a per-face array shape does not match the ``(N, ng)``
             layout slot.
         """
-        trace = cls._face_space_of(problem)
+        return cls._pack_inflow(cls._face_space_of(problem), face_values)
+
+    @classmethod
+    def _pack_inflow(cls, trace: "AngularTraceSpace", face_values: "Mapping[str, NDArray]") -> "AngularBoundarySourceSink":
+        r"""The ONE packing rule: the inflow ordinate rows of each named face are written, everything else is zero.
+
+        Shared by :meth:`prescribed_inflow` (known per-face arrays) and :meth:`from_binding` (declared terms sampled through the
+        method's realizer table), so the rule lives in exactly one place.
+        """
         bss = cls.zeros(trace)
         known = set(trace.layout.faces.keys())
         for face, values in face_values.items():
@@ -310,181 +307,71 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
                 )
         return bss
 
-    # ── The recipe → snapshot bridge ─────────────────────────────────
+    # ── The declaration → snapshot bridge ────────────────────────────
 
     @classmethod
-    def from_specs(
+    def from_binding(
         cls,
-        problem: "MaterialMesh",
-        face_specs: "Mapping[str, InflowSourceSpec]",
+        binding: "Binding",
+        trace: "AngularTraceSpace",
+        realizers: "RealizerTable",
+        face_site: "Callable[[str], FaceSite]",
     ) -> "AngularBoundarySourceSink":
-        r"""Materialise lazy :class:`InflowSourceSpec` **recipes** onto the trace.
-
-        The recipe→snapshot bridge the module docstring describes: each face's
-        generator is evaluated at that face's :math:`\Gamma_-` shape and the
-        result packed into the flat layout, turning a per-face lazy rule into
-        one eager, mesh-bound, role-typed :math:`q`.
-
-        ⭐ **Evaluated at** ``(|Γ₋|,) + trailing``, which is this channel's own
-        contract. Until **P3** the shape was justified by matching the retired
-        ``IncomingSourceOperator.apply``, and that match is exactly what let the
-        carve retire it: the operator's whole body was
-        ``source.evaluate((n_inflow,) + trailing)``, so nothing was lost by
-        deleting the wrapper. Since P3 this is the ONLY route to :math:`q`
-        (:ref:`bc-affine-source-channel`).
-
-        Packing is delegated to :meth:`prescribed_inflow` rather than repeated
-        here: that method is the single source of truth for "inflow slots
-        written, everything else zero", including the moment-resolved LD case
-        (#251). This method's only job is the recipe evaluation.
-
-        .. note::
-
-           The deferred sketch in the module docstring named this
-           ``from_spec(spec, mesh)`` — ONE spec for the whole boundary. The
-           realization takes a **per-face mapping**, because a mesh's faces
-           carry different laws: a single spec applied boundary-wide would
-           impose an inflow on vacuum and reflective faces too. Argument order
-           follows :meth:`prescribed_inflow` (mesh first, mapping second) so
-           the two read alike.
-
-        Parameters
-        ----------
-        problem : MaterialMesh
-            The material mesh; ``problem.angular_trace`` supplies the
-            trace: its layout and the per-face inflow ordinate index sets.
-        face_specs : Mapping[str, InflowSourceSpec]
-            ``{face_name: spec}``. Faces absent from the mapping are vacuum
-            (all-zero), matching :meth:`prescribed_inflow`.
-
-        Returns
-        -------
-        AngularBoundarySourceSink
-            The materialised :math:`q` — inflow slots of the named faces set
-            from their recipes, everything else zero.
-
-        Raises
-        ------
-        ValueError
-            If the carrier owns no angular trace (not an SN carrier); if a key
-            is not a face of the layout; or if a spec returns an array of the wrong shape (the
-            :class:`InflowSourceSpec` contract's one invariant).
-        """
-        trace = cls._face_space_of(problem)
-        known = set(trace.layout.faces.keys())
-        template = cls.zeros(trace)
-        face_values: "dict[str, NDArray]" = {}
-        for face, spec in face_specs.items():
-            if face not in known:
-                raise ValueError(
-                    f"{cls.__name__}.from_specs: {face!r} is not a face of the "
-                    f"layout; available: {sorted(known)!r}"
-                )
-            slot_shape = template.face_view(face).shape
-            inflow = trace.inflow_indices_for_face(face)
-            # ⭐ P6: hand the spec Γ₋(f) ITSELF, not a shape tuple. The space is
-            # the discretization — its rows ARE ``inflow``, its ``directions``
-            # are those rows' Ω (so an angular source is spellable), and its
-            # ``shape`` is what a hand-rolled
-            # ``(|Γ₋|,) + slot_shape[1:]`` used to recompute here. That
-            # duplicate is gone: one object now answers "which rows", "which
-            # directions" and "what shape", so they cannot disagree.
-            space = trace.inflow_space(face)
-            wanted = tuple(int(s) for s in space.shape)
-            values = np.asarray(spec.evaluate(space), dtype=float)
-            if values.shape != wanted:
-                raise ValueError(
-                    f"{cls.__name__}.from_specs: face {face!r} spec "
-                    f"{spec!r} returned shape {values.shape!r}, expected "
-                    f"{wanted!r} (= the shape of {space.name}). The "
-                    f"InflowSourceSpec contract's ONE invariant is that the "
-                    f"returned array has exactly the space's shape."
-                )
-            # Scatter onto the full slot so `prescribed_inflow` — which reads
-            # `[inflow]` from a full-slot array — stays the only code that
-            # knows the packing. The zeros in the outflow rows are never read.
-            full = np.zeros(slot_shape, dtype=float)
-            full[inflow] = values
-            face_values[face] = full
-        return cls.prescribed_inflow(problem, face_values)
-
-    @classmethod
-    def from_problem_laws(cls, problem: "MaterialMesh") -> "AngularBoundarySourceSink":
         r"""⭐ The DECLARED boundary conditions' :math:`q` — the user's path.
 
-        Reads each face's realized law (``problem.bc[face].law``) and materialises
-        the inflow source of every
-        :class:`~orpheus.geometry.boundary.PrescribedInflow` among them. Faces
-        carrying any other law contribute nothing: vacuum, reflective, white,
-        albedo and periodic are all :math:`q = 0` — their entire content is the
-        linear factor :math:`L`.
+        Reads ``binding.sources`` (the tagged faces whose bound condition has a nonzero source, read through
+        ``BoundaryCondition.source`` of every condition type), samples each face's :class:`~orpheus.transport.boundary_conditions.InflowTerms`
+        on that face's inflow half-trace :math:`\Gamma_-` through the method's own realizer table
+        (``realizers.sample_inflow(terms, site, trace.inflow_space(face))``, the ONE source verb), and packs the result into the
+        flat layout with the same rule :meth:`prescribed_inflow` states: inflow slots written, everything else zero. Faces whose
+        condition carries no source contribute nothing: vacuum, specular, white and every deck are :math:`q = 0`, their entire
+        content is the linear factor :math:`R`.
 
-        **Why this method exists, and why it is the top of the ladder.** The
-        four constructors below it each take the source in a form the *caller*
-        already holds — zeros, full slots, known inflow arrays, lazy recipes.
-        This one takes it from the form the *problem* holds: a boundary
-        condition someone declared. A test or a driver that reaches for
-        :meth:`prescribed_inflow` directly is supplying by hand what the
-        declaration should have produced, and is therefore exercising a path no
-        user travels (user ruling, 2026-08-05:
-
-            *Tests must route through the machinery that a user would exercise
-            without bypassing code functionality. Or else it's not testing the
-            path the users go through.*
-
-        ) — so a manufactured-solution driver with a non-vacuum inflow declares
-        a ``PrescribedInflow`` and comes through here.
-
-        The chain is ``from_problem_laws → from_specs → prescribed_inflow``, each
-        step delegating down, so the packing rule is stated exactly once.
-
-        .. note::
-
-           A non-trivial inflow is reachable ONLY by constructing the law
-           object; ``BC.params`` is ``dict[str, float]``, so a ``BC(...)`` tag
-           can never carry a manufactured solution restricted to a face. That
-           is structural, not a gap — and it is separate from **#189**, which
-           is about registering ``prescribed_inflow`` as a tag *kind* for the
-           constant case.
+        **Why this method exists, and why it is the top of the ladder.** :meth:`prescribed_inflow` takes the source in a form the
+        *caller* already holds (known per-face arrays). This one takes it from the form the *problem* holds: a boundary condition
+        someone declared. A test or a driver that reaches for :meth:`prescribed_inflow` directly is supplying by hand what the
+        declaration should have produced, and is therefore exercising a path no user travels (user ruling, 2026-08-05: *tests
+        must route through the machinery that a user would exercise without bypassing code functionality*). The chain is
+        ``from_binding -> sample_inflow -> prescribed_inflow``, so the packing rule is stated exactly once.
 
         Parameters
         ----------
-        problem : MaterialMesh
-            The SN phase-space carrier: a method-mesh
-            (:class:`~orpheus.transport.method.TransportMethod`, whose
-            ``bc`` holds the realized laws) that owns an angular trace.
+        binding : Binding
+            The method-mesh's binding of the declared conditions to its faces.
+        trace : AngularTraceSpace
+            The problem's unified boundary trace (canonically ``mesh.angular_trace``).
+        realizers : RealizerTable
+            The METHOD's realizer table (``TransportMethod.boundary_realizers``); transport names no method table, the method
+            passes its own. A table that refuses a source on the face (a radial outer face of SN, #653) raises
+            :class:`~orpheus.transport.boundary_conditions.BoundaryRefused` here as it did at construction.
+        face_site : Callable[[str], FaceSite]
+            The method-mesh's ``face_site`` hook: where a face sits, the table's site key.
 
         Returns
         -------
         AngularBoundarySourceSink
-            The declared :math:`q` — all-zero when no face declares a
-            prescribed inflow, which is the overwhelmingly common case
-            (a zero trace field on ``mesh.angular_trace``).
+            The declared :math:`q` on ``trace``: all-zero when no face carries a source, which is the overwhelmingly common case.
 
         Raises
         ------
-        TypeError
-            If the carrier is not a method-mesh (TransportMethod): a bare
-            ``MaterialMesh`` is data and carries no realized laws.
         ValueError
-            If the carrier owns no angular trace (not an SN carrier).
+            If a sampler returns an array that is not exactly the shape of the face's :math:`\Gamma_-` (the sampler contract's one
+            invariant), or a source names a face the layout does not carry.
         """
-        from orpheus.geometry.boundary import PrescribedInflow
-
-        # SCOPE-BOUNDARY[guard] (#643) machinery: a typed method carrier (the
-        # Problem concept, no shared type yet) that transport can name without importing
-        # a method, so this refusal becomes static.
-        # ruling: layer_dag.md ruling 11, 2026-10-22. revisit: that type lands.
-        if not isinstance(problem, TransportMethod):
-            raise TypeError(
-                f"{cls.__name__}.from_problem_laws reads the realized boundary laws "
-                f"(TransportMethod.bc) of a method-mesh; {type(problem).__name__} is not "
-                f"one (a bare MaterialMesh is data — promote it: SNProblem.from_material_mesh)."
-            )
-        trace = cls._face_space_of(problem)
-        specs = {}
-        for face in trace.layout.faces:
-            law = getattr(problem.bc[face], "law", None)
-            if isinstance(law, PrescribedInflow):
-                specs[face] = law.source
-        return cls.from_specs(problem, specs)
+        face_values: "dict[str, NDArray]" = {}
+        known = set(trace.layout.faces.keys())
+        template = cls.zeros(trace)
+        for face, terms in binding.sources.items():
+            if face not in known:
+                raise ValueError(
+                    f"{cls.__name__}.from_binding: the source of {face!r} names no face of the layout; available: {sorted(known)!r}"
+                )
+            # ⭐ the sampler is handed Γ₋(f) ITSELF, not a shape tuple: the space is the discretization — its rows ARE the inflow
+            # ordinates, its ``directions`` are those rows' Ω (so an angular source is spellable), and its ``shape`` is exactly what
+            # the sample must return.
+            values = np.asarray(realizers.sample_inflow(terms, face_site(face), trace.inflow_space(face)), dtype=float)
+            # Scatter onto the full slot so the packing rule stays the only code that knows where inflow rows live.
+            full = np.zeros(template.face_view(face).shape, dtype=float)
+            full[trace.inflow_indices_for_face(face)] = values
+            face_values[face] = full
+        return cls._pack_inflow(trace, face_values)

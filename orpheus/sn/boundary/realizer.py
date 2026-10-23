@@ -1,1140 +1,313 @@
-r"""SN-specific BoundaryRealizer.
+r"""The SN realizer table: ``SN_REALIZERS`` (``realizer.py`` of ``orpheus/sn/boundary``).
 
-Dispatches by ``isinstance(law, ...)`` to the Wave-0 / Wave-1 primitives
-that realise each :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
-concrete as a single-arg :class:`~orpheus.numerics.operator.LinearOperator`
-consumable by the SN sweep + Krylov path.
+**What this module is.** The ONE table through which SN admits and realizes a declared exterior. It replaces
+``SNBoundaryRealizer``, a 400-line ``isinstance`` ladder over the string-tagged boundary laws, with a
+:class:`~orpheus.transport.boundary_conditions.RealizerTable` keyed by UNIT (a chain of the closed sum
+:data:`~orpheus.transport.boundary_conditions.Chain`, the marker ``ZeroNetwork``, the marker ``InflowTerms``) and filled by five
+realizer classes that register by class keyword. The table is sealed on the last line of this module, so anyone holding
+``SN_REALIZERS`` has executed every registration.
 
-The isinstance dispatch keys on the Grand Report v3 canonical
-:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` concretes
-(:class:`VacuumInflow`, :class:`ReflectiveBoundary`,
-:class:`WhiteBoundary`, :class:`AlbedoBoundary`,
-:class:`PeriodicBoundary`, :class:`PrescribedInflow`). The deprecated
-``*BoundaryOperator`` aliases (Wave 5 ship-state) were retired in
-Wave O step O.4a.1.
+**The functor.** Realization is a FUNCTOR on a wall's response network (:mod:`orpheus.sn.boundary.realized_operators`): the empty
+network goes to :class:`~orpheus.sn.boundary.realized_operators.ZeroMap`, ``s * SpecularChain`` to
+:class:`~orpheus.sn.boundary.realized_operators.ScaledOrdinatePermutation` (:math:`s\,P_\pi`), ``d * DiffuseChain`` to
+:class:`~orpheus.sn.boundary.realized_operators.RankOneReemission` (:math:`d\,(E\circ R_t)`), and a sum of chains to the sum of the
+images (:class:`~orpheus.sn.boundary.realized_operators.RealizedSum`, in the canonical chain order). A method never writes a
+branch over the shared family's cone point: ``WallCondition`` itself is not a key of the table. The affine part :math:`q` realizes
+separately, as an array (:class:`SNSource` has no ``realize``).
 
-The realisation map (law concrete → Wave-0 / Wave-1 primitive)
-================================================================
+* ``SNZero`` (key ``ZeroNetwork``): admitted at every site except the hollow inner face (#511); image :class:`~orpheus.sn.boundary.realized_operators.ZeroMap`.
+* ``SNSpecularChain`` (key ``SpecularChain``): ``ordinate_pairing`` certifies the mirror, else ``Refused(ANGULAR_RESOLUTION)``; the hollow inner
+  face only at weight 1.0 (the cavity the closure computes, #511); image :class:`~orpheus.sn.boundary.realized_operators.ScaledOrdinatePermutation`.
+* ``SNDiffuseChain`` (key ``DiffuseChain``): a radial outer face is refused (#653), the hollow inner face too (#511); image
+  :class:`~orpheus.sn.boundary.realized_operators.RankOneReemission`.
+* ``SNSource`` (key ``InflowTerms``, a :class:`~orpheus.transport.boundary_conditions.SourceRealizer`): as the diffuse chain, because the radial corner
+  action is ruled only for a permuting return or a zero return (#653, #511); the image is an array (``sample``), never an operator.
+* ``SNDecks`` (the one :class:`~orpheus.transport.boundary_conditions.DeckRealizer`): a mirror is certified by ``ordinate_pairing``; a translation wrap by
+  the equality of its crossing sets; the image is a ``ScaledOrdinatePermutation`` at weight 1.0.
 
-Since campaign phase **B3.2** a realized SN law is typed
-:math:`\Gamma_+ \to \Gamma_-` — it consumes the **outflow** half-trace and
-produces the **inflow** half-trace, exactly as the affine form
-:math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q` says and as the diffusion arm
-already did. The consumer composes ``ι₋ ∘ law ∘ γ₊``; nothing is computed and
-then discarded. Realizing a law therefore needs the face's
-:attr:`~orpheus.sn.mesh.method_space.SNMethodSpace.outflow_indices` (its
-domain) alongside ``inflow_indices`` (its codomain) — face-orientation data
-that a quadrature alone cannot supply, so ``SNMethodSpace.minimal`` no longer
-suffices for the two laws below.
+A wall of two chains is the meet of the two chain admissions, and a mixed wall at a radial outer site is refused through its
+diffuse chain. A method-only condition of ANOTHER method (diffusion's zero flux) meets the table's unregistered-unit door:
+:meth:`~orpheus.transport.boundary_conditions.RealizerTable.admit` returns ``Refused(STATE_CONE)`` because the table's
+:class:`~orpheus.transport.boundary_conditions.StateCone` is ``NONNEGATIVE_FLUX`` and the unit's return fraction is negative,
+which keeps the refusal's axis without SN importing the diffusion type (SN may not import diffusion: an L3 to L3 edge).
 
-* :class:`~orpheus.geometry.boundary.vacuum.VacuumInflow` → the **zero map**
-  :math:`\Gamma_+ \to \Gamma_-` (a :class:`~orpheus.numerics.operator.ZeroMorphism`
-  bound to both half-traces). Vacuum's whole content is :math:`R = 0`; with
-  the domain narrowed there is nothing else to represent.
+**Site classes.** A :class:`~orpheus.transport.boundary_conditions.FaceSite` reads as one of three geometric classes:
+``CART`` (any Cartesian face), ``RAD_OUTER`` (a solid or hollow radial body's outer face) and ``RAD_INNER`` (a hollow radial
+body's inner face, a tag with NO trace slot, so it never reaches ``realize``: the shared body meets the table through
+``require`` there). The corner action of the radial characteristic is ruled only for a permuting return or a zero return, so the
+diffuse chain and every source are refused at ``RAD_OUTER`` AT ADMIT (#653), where they used to construct and refuse at the first
+sweep (12 of 12, plan section 4.3 delta 4).
 
-  Pre-B3.2 this was an ``IncomingOrdinateMaskTensor`` — a full-face
-  projector onto the OUTFLOW subspace whose preserved rows the consumer then
-  discarded. Two campaign phases documented that survival as having "no
-  consumer today"; the narrowing removes the question rather than answering
-  it, because those rows are no longer in the operator's domain.
-* :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary(axis)` →
-  ``PermutationOperator(local_perm)`` on the REDUCED ordinate axis,
-  where ``local_perm = Γ₊(f).to_local(π⁻¹[inflow])`` (a mirror is
-  self-paired, so the domain face is the installation face; the general
-  ``_deck_kernel`` doc speaks ``Γ₊(f')``) and :math:`\pi` is the
-  ordinate permutation the law's own MIRROR MOTION induces
-  (:func:`_deck_kernel` →
-  :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`,
-  G6.3 step 7 — before which this row keyed the certified axis table by
-  letter while the deck slot's motion went unread) — row :math:`j` of the
-  image reads the mirror of the :math:`j`-th inflow ordinate, at that
-  ordinate's position inside :math:`\Gamma_+`. (The remap is the half-trace
-  SPACE's
-  :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace.to_local`
-  — G6.5: the space owns its row order — and it is mandatory: on a slab the
-  mirror REVERSES order, so a hand-written ``arange`` is wrong there. The
-  deck arm consequently REQUIRES the bound domain space, so its output is
-  always fully bound.) A symmetry has no amplitude, so the arm returns the
-  bare :class:`PermutationOperator` TP; the partial specular wall,
-  ``AlbedoBoundary(alpha, SpecularReturn(axis))``, reaches the same kernel
-  through its response and is scaled by its albedo.
-* :class:`~orpheus.geometry.boundary.white.WhiteBoundary(axis, outward_sign, albedo)` →
-  ``albedo * (IsotropicEmissionOperator(...) @ PartialCurrentOperator(...))``
-  (with the ``albedo=1.0`` fast path), narrowed at **B3.4a** to contract over
-  :math:`\Gamma_+` and re-emit on :math:`\Gamma_-`. Two things dissolved with
-  the codomain: the operator's private ``> 0.0`` outflow test (it now reads the
-  one face-name → signed-projection primitive against ``TANGENTIAL_EPS``, so it
-  can no longer disagree with the trace space), and the full-face broadcast that
-  wrote outflow rows nobody read. The law's declared ``axis``/``outward_sign``
-  is cross-checked against the installation face's :math:`\Gamma_+` — see
-  :func:`_checked_angular_average`.
-* :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(α, closure)` →
-  the SAME body its closure names, at **B3.4b**: a
-  :class:`~orpheus.geometry.boundary.SpecularReturn` routes to
-  :func:`_deck_kernel` (shared with reflective — and, since step 7, with
-  periodic) and an
-  :class:`~orpheus.geometry.boundary.IsotropicReturn` to
-  :func:`_checked_angular_average` (shared with white). So
-  ``AlbedoBoundary(α, SpecularReturn(a))`` realizes to :math:`\alpha` times
-  the mirror ``ReflectiveBoundary(a)`` and
-  ``AlbedoBoundary(α, IsotropicReturn(a, s)) ≡ WhiteBoundary(a, s, α)`` as a
-  matrix, by executing one construction rather than by two transcriptions
-  agreeing. The laws still assert different physics — a wall's constitutive
-  return versus a symmetry of the domain — which is the user's 2026-08-01
-  ruling: the specular pairing belongs to :math:`R`, and
-  ``AlbedoBoundary.geometry_map`` is ``SelfPairedDeck.identity()``
-  unconditionally.
-* :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(α)` with **no**
-  closure → **REFUSED** (:class:`~orpheus.geometry.boundary.BoundaryError`).
-  Its response :math:`R = \alpha\,I` is an endomorphism of :math:`\Gamma_+` and
-  its :math:`G` supplies no crossing, so on an ANGULAR trace nothing says which
-  outgoing direction feeds which incoming one; composing it anyway pairs them
-  by array position. Pre-B3.4b that is exactly what happened — the arm returned
-  ``ZeroOperator`` / ``IdentityOperator`` / ``α·(I & I)``, full-face
-  endomorphisms which the ``ι₋ ∘ law ∘ γ₊`` composite then read positionally.
-  The refusal is of the **incomplete spelling**, not of the law: a SCALAR
-  method needs no closure (:math:`J^- = \alpha J^+` has one degree of freedom),
-  so the diffusion realizer takes the same object unchanged and
-  ``BC("albedo", albedo=…)`` is untouched. This is the method-realizability
-  taxonomy's **angular-resolution** axis biting for the first time.
-* :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundary` →
-  :class:`~orpheus.numerics.operator.IdentityOperator` (the crossing it
-  carries is the PARTNER-face channel, not an action on the trace).
-* :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow(source)` →
-  :class:`~orpheus.numerics.operator.ZeroMorphism` — the same zero morphism
-  vacuum returns, because the law is affine and this tier realizes its LINEAR
-  factor, which is :math:`0`. The source travels the boundary-source channel
-  (:ref:`bc-affine-source-channel`). The rank-0 affine BC (Wave 7 / C7.5);
-  until **P3** it realized to an ``IncomingSourceOperator`` whose apply
-  ignored its input and returned :math:`q`. **B3.4a** retired the inflow MASK
-  (#52 / ERR-047) along with the codomain it corrected: the rows it zeroed are
-  no longer emitted on, so :math:`q \in \Gamma_-` holds by typing rather than by
-  erasure. Its unmasked companion branch retired with it — post-B3.2 a method
-  space without face data cannot supply :math:`\gamma_+` either, so that
-  fallback was already unreachable here.
-* :class:`~orpheus.geometry.boundary.zero_flux.ZeroFluxBoundary` →
-  **REFUSED** (:class:`~orpheus.geometry.boundary.BoundaryError`):
-  the Dirichlet idealization :math:`\phi_\Gamma = 0` is the
-  albedo-family member :math:`\mathcal{A} = -1`, and a negative
-  angular inflow is unrepresentable in a non-negative :math:`\psi`.
-  It realizes only under the diffusion realizer (#290 P3).
+**Two assertions the type system does not replace** (rooted in ``BoundaryError``, :mod:`orpheus.sn.boundary.errors`):
+ERR-041 (the claimed inflow set of a hand-built method space against the orientation the face name implies, in ``SNZero.realize``)
+and ERR-047 (a source is sampled on the inflow half-trace of its face, in ``SNSource.sample``). Neither is an admission: the
+declared orientation they used to catch is unspellable now, and what remains is the realizer's own index sets.
 
-Realization is the certification point (#52): every dispatch first
-fires the law's :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_realizable`
-aggregate (the §16A.12 universal invariants + each law's specific
-checks — reflective's measure/involution/inflow→outflow table trio,
-white/albedo's sub-Markov bound, the universal ERR-047 source-trace
-certification), and the vacuum arm cross-checks the claimed
-``inflow_indices`` against the face-name geometry (ERR-041). The
-error catalog's recurring lesson operationalized: contracts are
-checked where the law meets the trace, not discovered by downstream
-balance defects.
-
-Wave 11 removed the ``MixedBoundaryOperator`` composer from the
-dispatch table. Rank-N compositions are now expressed via Wave-0
-``OperatorSum``-algebra over already-realised leaves; the walker for
-``BoundaryTraceLaw``-rooted expression trees is the method-blind
-:func:`~orpheus.transport.boundary_realization.realize_recursively`
-(moved to ``geometry/boundary/`` at #290 P7b and to ``transport/`` at
-layer-DAG WP-E1 — pass
-``realizer=SNBoundaryRealizer()`` at the leaves).
+**Retired with the isinstance ladder** (one body per builder, decision 45): ``_narrowed_zero_operator``, ``_deck_kernel``,
+``_checked_angular_average`` and ``_specular_crossed_diagnosis`` (their bodies live in
+:mod:`~orpheus.sn.boundary.realized_operators`, which owns them), the Gamma-to-Gamma_+ restrictions ``_outflow_restriction`` and
+``_partner_outflow_restriction`` (dead: the typed operators read the half-spaces off the trace ladder), and the string
+vocabulary their signatures carried (``law_key``, ``crossed_diagnosis``, ``axis: str``, ``outward_sign``).
 
 References
 ----------
-
-* ``.claude/plans/transient-giggling-cake.md`` Wave 5 — C5.3 (functional
-  realizer brief), §16A.5 (vacuum-trace semantic correction), Wave 11
-  (mixed-BC removal + tree-walking realisation).
-* Grand Report v3 §16A.3 lines 2841–2860 (realizer-as-third-layer
-  motivation), §16A.10 lines 3160-3175 (vacuum-trace correct
-  representation).
+* ``.claude/plans/wave2_boundary_carve.md`` section 2.6 (the table and the typed operators), section 4.2 (the SN columns).
+* ``docs/theory/foundations/boundary_conditions.rst`` (``bc-method-realizability``, ``bc-refusal-axes``).
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import assert_never
 
 import numpy as np
 
-from orpheus.geometry.boundary import (
-    AlbedoBoundary,
+from orpheus.geometry.deck import DeckTransformation, FacePairing, MirrorDeck, TranslationDeck, mirror_motion
+from orpheus.geometry.faces import AXIS_NAMES, face_normal
+from orpheus.geometry.transformation import Permutation
+from orpheus.numerics.quadrature.ordinate_pairing import OrdinatePairingError, ordinate_pairing
+from orpheus.numerics.spaces.angular_trace_space import TANGENTIAL_EPS, build_omega_dot_n
+from orpheus.sn.boundary.errors import BoundarySourceNotOnIncomingTraceError, VacuumAppliedToOutgoingTraceError
+from orpheus.sn.boundary.realized_operators import (
+    RankOneReemission,
+    RealizedBoundary,
+    ScaledOrdinatePermutation,
+    ZeroMap,
+    _crossing,
+)
+from orpheus.sn.mesh.method_space import SNMethodSpace
+from orpheus.transport.boundary_conditions import (
+    Admission,
     BoundaryError,
-    BoundaryTraceLaw,
-    LambertianReemission,
-    PeriodicBoundary,
-    PrescribedInflow,
-    ReflectiveBoundary,
-    ScalarResponse,
-    SpecularReemission,
-    VacuumAppliedToOutgoingTraceError,
-    VacuumInflow,
-    WhiteBoundary,
-    ZeroFluxBoundary,
-)
-from orpheus.transport.boundary_realization import stamp_boundary_role
-from orpheus.geometry.faces import AXIS_INDEX, face_name
-from orpheus.numerics.spaces.angular_trace_space import (
-    TANGENTIAL_EPS,
-    AngularFaceTraceSpace,
-    build_omega_dot_n,
-)
-from orpheus.numerics.elementary_operators import PermutationOperator, TraceRestrictionOperator, checked_space_extent
-from orpheus.numerics.operator import ZeroMorphism
-from orpheus.numerics.operator import IdentityOperator, LinearOperator
-from .angular import (
-    IsotropicEmissionOperator,
-    PartialCurrentOperator,
+    DeckRealizer,
+    DiffuseChain,
+    FaceSite,
+    InflowTerms,
+    Realized,
+    RealizerTable,
+    RefusalAxis,
+    Refused,
+    ResponseRealizer,
+    SiteClass,
+    SourceRealizer,
+    SpecularChain,
+    StateCone,
+    ZeroNetwork,
+    sample_terms,
 )
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+__all__ = ["SN_REALIZERS", "SNDecks", "SNDiffuseChain", "SNSource", "SNSpecularChain", "SNZero"]
 
-    from orpheus.geometry.transformation import RigidMotion
-    from orpheus.numerics.quadrature import Quadrature
-    from orpheus.sn.mesh.method_space import SNMethodSpace
-
-
-__all__ = ["SNBoundaryRealizer"]
-
-#: The ordinate axis of every per-face slot and half-trace tier: LEADING.
-#: One spelling of the trace tier's packing contract (G6.5) — the half-trace
-#: spaces state the same fact as "row order is the contract"
-#: (:attr:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace.ordinate_indices`),
-#: and every restriction, permutation and space-extent check this module
-#: constructs gathers along it. Kept a module constant rather than a literal
-#: at each site so the contract has ONE name here; the ``axis`` parameter
-#: itself stays general-purpose numerics API (`[M]` a non-boundary consumer
-#: composes ``PermutationOperator(_P4, axis=1)`` inside a tensor product).
-_ORDINATE_AXIS: int = 0
+#: SN's realizer table. ``unregistered_issue=659``: SN registers every shared unit, so its unregistered-unit door meets only
+#: another method's own condition (issue #659 tracks the SN and diffusion tables' unregistered units).
+SN_REALIZERS: RealizerTable[SNMethodSpace, RealizedBoundary] = RealizerTable("sn", state_cone=StateCone.NONNEGATIVE_FLUX, unregistered_issue=659)
 
 
-def _outflow_restriction(
-    method_space: "SNMethodSpace", law_key: str,
-) -> "TraceRestrictionOperator":
-    r"""The face's :math:`\gamma_+` — a narrowed law's DOMAIN.
+class _SNSites:
+    """What the five realizers share: the readings of a site and of a method space (no module-level helper functions)."""
 
-    Since B3.2 an SN boundary law is typed :math:`\Gamma_+ \to \Gamma_-`, so
-    realizing one requires knowing which ordinates are outflow AT THIS FACE.
-    That is face-orientation data, not quadrature data: a law realized without
-    a face has no :math:`\Gamma_+` to restrict to, and the demand is
-    structural rather than an implementation detail. (Pre-B3.2 the specular
-    branch needed only ``quadrature.reflection_index``, which is why a
-    quadrature-only ``SNMethodSpace.minimal`` sufficed for it.)
+    #: The hollow radial body's inner face: a tag with no trace and so no ``realize`` (``require`` is its only door).
+    _INNER_REFUSAL = "the inner face of a hollow radial body admits only a unit specular return (the cavity its angular closure computes)"
+    #: The radial corner action is ruled only for a permuting return or a zero return.
+    _CORNER_REFUSAL = "the radial characteristic's corner action is ruled only for a permuting return or a zero return"
 
-    Built here rather than fetched from the trace's cache because realization
-    runs **once per face at mesh construction**, not per sweep — the cached
-    accessor exists for the per-sweep consumer. Reading the method space's own
-    field also keeps a hand-built space workable, which is the reason
-    ``inflow_indices`` is a field too.
+    @staticmethod
+    def inner_refusal(reason: str | None = None) -> Refused:
+        r"""The refusal of every declaration the hollow radial inner face cannot honour, citing #511.
 
-    Bound :math:`\Gamma(f) \to \Gamma_+(f)` when the method space carries a
-    trace (G6.3 step 5, #330). Building here rather than fetching the cached
-    :math:`\gamma_+` is a construction-cost decision, not a typing one — so
-    the local build owes the same binding the cached accessor already has, or
-    the realizer would hand its own consumer an untyped domain while typing
-    that consumer's output.
-    """
-    if method_space.outflow_indices is None:
-        raise BoundaryError(
-            f"SNBoundaryRealizer cannot realize {law_key!r} without "
-            f"outflow_indices: since B3.2 a boundary law is typed Γ₊ → Γ₋, "
-            f"and its DOMAIN is the outflow half-trace of a particular face — "
-            f"which a quadrature alone cannot name. Construct via "
-            f"SNMethodSpace.for_face(quadrature=..., face=..., trace=...), "
-            f"which populates both half-traces, or pass outflow_indices "
-            f"explicitly alongside inflow_indices.",
-            law=law_key,
-        )
-    trace, face = method_space.trace, method_space.face
-    gamma, gamma_plus = (
-        (trace.face_space(face), trace.outflow_space(face))
-        if trace is not None and face is not None
-        else (None, None)
-    )
-    return TraceRestrictionOperator(
-        np.sort(np.asarray(method_space.outflow_indices, dtype=np.intp)),
-        n_total=method_space.quadrature.n_ordinates,
-        axis=_ORDINATE_AXIS,
-        domain=gamma,
-        codomain=gamma_plus,
-    )
-
-
-def _partner_outflow_restriction(
-    method_space: "SNMethodSpace", partner: str,
-) -> "TraceRestrictionOperator":
-    r"""The PARTNER face's :math:`\gamma_+` — a paired law's DOMAIN.
-
-    Periodic (and any future paired gluing) is the one law whose domain is a
-    *different* face's outflow, so its restriction cannot be read off the
-    method space's own ``outflow_indices`` the way
-    :func:`_outflow_restriction` does. The index set is derived from the
-    partner face NAME through the one face-name → signed-projection
-    primitive, classified against the same ``TANGENTIAL_EPS`` the trace
-    space uses.
-
-    That derivation is deliberate, not a fallback — it preserves the ERR-041
-    discipline ``_assert_wrap_identification`` carried before it retired
-    onto the deck kernel (G6.3 step 7): the installation face's
-    :math:`\Gamma_-` comes from the method space, the partner's
-    :math:`\Gamma_+` from the face name alone, so the two encodings of the
-    quotient identification stay independently sourced and the kernel's
-    membership + size checks genuinely compare them.
-
-    Bound to the partner's own rungs of the Γ ladder when the method space
-    carries a trace, exactly as :func:`_outflow_restriction` binds the
-    self-paired case — the deck kernel reads its domain space off this
-    operator's codomain.
-    """
-    quadrature = method_space.quadrature
-    omega_dot_n = build_omega_dot_n(quadrature, (partner,))[0]
-    outflow = np.flatnonzero(omega_dot_n > +TANGENTIAL_EPS)
-    trace = method_space.trace
-    gamma, gamma_plus = (
-        (trace.face_space(partner), trace.outflow_space(partner))
-        if trace is not None
-        else (None, None)
-    )
-    return TraceRestrictionOperator(
-        np.sort(outflow),
-        n_total=quadrature.n_ordinates,
-        axis=_ORDINATE_AXIS,
-        domain=gamma,
-        codomain=gamma_plus,
-    )
-
-
-def _narrowed_zero_operator(
-    method_space: "SNMethodSpace",
-    gamma_out: "TraceRestrictionOperator",
-    *,
-    law_key: str,
-) -> "ZeroMorphism":
-    r"""The zero map :math:`\Gamma_+ \to \Gamma_-`, bound to both spaces.
-
-    A zero map between two DIFFERENT spaces must emit the zero of the space it
-    lands in, not an echo of the one it came from — the bound
-    :class:`~orpheus.numerics.operator.ZeroMorphism`, which derives both
-    zeros from its DECLARED pair (the S4-amendment: the pre-amendment
-    per-site ``codomain_zero``/``transpose_zero`` closures duplicated what
-    the bound spaces already knew, and retired with the hooks). Relying on
-    the endomorphic ``0.0 * x`` echo would be
-    wrong in principle and merely lucky in practice: ``|Γ₊| == |Γ₋|`` on every
-    reachable fixture, so the shapes coincide — an accident, not a contract.
-
-    THREE callers, one body: vacuum (whose response IS structurally zero), any
-    re-emission law at :math:`\alpha = 0` (whose response *evaluates* to zero —
-    a perfectly absorbing wall is a vacuum, and says so with the same object),
-    and — since **P3** — prescribed inflow, whose LINEAR factor is zero and
-    whose entire content is the affine :math:`q`
-    (:ref:`bc-affine-source-channel`). That third caller is the one that makes
-    the shared body a statement rather than a coincidence: vacuum and prescribed
-    are the SAME operator, and differ only in a term this tier does not carry.
-
-    Both half-traces are REQUIRED, and the demand is the whole point: a zero map
-    that does not know its codomain degenerates to exactly the endomorphic echo
-    described above.
-
-    Since **G6.3 step 6** the two spaces are NAMED as well as sized, and since
-    the S4-amendment they are the operator's WHOLE identity. :math:`\Gamma_+`
-    is read off ``gamma_out``'s own codomain rather than fetched from the trace a
-    second time — ``_outflow_restriction`` bound it at step 5, and re-deriving it
-    here would be a twin source for one fact. Each space is still checked against
-    the row count the caller carries: the space and the length describe the same
-    fact, and a disagreement is invisible at apply-time because the zero arrays
-    broadcast either way.
-    """
-    if method_space.inflow_indices is None:
-        raise BoundaryError(
-            f"SNBoundaryRealizer cannot build the zero map for {law_key!r} "
-            f"without inflow_indices: the map is Γ₊ → Γ₋ and must emit the "
-            f"zero of Γ₋, which it cannot size. Construct via "
-            f"SNMethodSpace.for_face(quadrature=..., face=..., trace=...).",
-            law=law_key,
-        )
-    n_inflow = int(method_space.inflow_indices.size)
-    trace, face = method_space.trace, method_space.face
-    if trace is None or face is None:
-        raise BoundaryError(
-            f"SNBoundaryRealizer cannot build the zero map for {law_key!r} "
-            f"without the trace ladder: the map is Γ₊ → Γ₋ and a "
-            f"ZeroMorphism demands both spaces (its action cannot reveal "
-            f"them). Construct via SNMethodSpace.for_face(quadrature=..., "
-            f"face=..., trace=...).",
-            law=law_key,
-        )
-    gamma_minus = trace.inflow_space(face)
-    domain = checked_space_extent(
-        gamma_out.codomain, gamma_out.n_restricted, axis=_ORDINATE_AXIS,
-        owner="_narrowed_zero_operator", role="domain",
-    )
-    codomain = checked_space_extent(
-        gamma_minus, n_inflow, axis=_ORDINATE_AXIS,
-        owner="_narrowed_zero_operator", role="codomain",
-    )
-    if domain is None or codomain is None:
-        # checked_space_extent passes None through for a None input;
-        # gamma_minus is non-None above, so only an UNBOUND γ₊ restriction
-        # lands here — refuse with the same demand the morphism states.
-        raise BoundaryError(
-            f"SNBoundaryRealizer cannot build the zero map for {law_key!r}: "
-            f"the outflow restriction carries no codomain space, and a "
-            f"ZeroMorphism demands both spaces.",
-            law=law_key,
-        )
-    return ZeroMorphism(domain=domain, codomain=codomain)
-
-
-def _attenuated_kernel_operator(k_omega: "LinearOperator", alpha: float) -> "LinearOperator":
-    r"""``α · (K_ω ⊗ K_g)``, stamped :attr:`BlockRole.BOUNDARY`.
-
-    The §16A.10 BC decomposition is ``B = G_patch ⊗ K_omega ⊗ K_g``; every
-    narrowed leaf this realizer builds is that shape with the group factor an
-    identity and the amplitude out front.
-
-    One body, because the assembly is genuinely one thing: before **B3.4b**
-    this pattern was written once in the reflective arm and once in the white
-    arm, and B3.4b's two albedo closures would have made four transcriptions of
-    it. All four kernel routes end here instead.
-
-    The three amplitude regimes are the algebra's, not branches
-    -----------------------------------------------------------
-
-    The formal linear combination (package S2, 2026-10-20) makes each end a
-    law of the representation: :math:`1 \cdot X` IS :math:`X` (the one-term
-    collapse), so :math:`\alpha = 1` is the bare tensor product; and
-    :math:`0 \cdot X` IS the zero map on :math:`X`'s spaces (zero absorption),
-    so :math:`\alpha = 0` is the
-    :class:`~orpheus.numerics.operator.ZeroMorphism`
-    :math:`\Gamma_+ \to \Gamma_-` — a surface that returns nothing IS a
-    vacuum, the same object, honestly typed, with a working transpose. Until
-    S2 the realizer branched three ways on :math:`\alpha`, because the retired
-    ``ScaledOperator`` refused a zero scalar as degenerate; that refusal was
-    reachable before B3.4b (``WhiteBoundary(..., 0.0)`` and the then-attenuated
-    mirror died in the numerics layer with a message about operator
-    degeneracy rather than realizing the boundary they describe). `[M]`
-    2026-10-20, a probe wrapping this function over the geometry and S\ :sub:`N`
-    operator gates: in 1619 of 1619 calls (the albedo, periodic, reflective
-    and white routes) ``0 · (K_ω ⊗ I)`` was a ZeroMorphism with exactly the
-    spaces the dedicated vacuum builder :func:`_narrowed_zero_operator` binds.
-
-    The kernel is built at every amplitude, :math:`\alpha = 0` included, and
-    that is the point: what the construction keeps is its **validation**.
-    Building the specular kernel runs the domain space's ``Γ₊.to_local``
-    (G6.5), which refuses a mirror that sends an inflow ordinate outside
-    :math:`\Gamma_+` (ERR-045 at realization). Skipping it at :math:`\alpha =
-    0` would make *realizability itself* depend on the amplitude — a law that
-    refuses at :math:`\alpha = 0.001` and is accepted at :math:`\alpha = 0` —
-    and a declared-but-unrealizable pairing is a nonsense declaration at every
-    amplitude.
-    """
-    # The role lives on the LEAF (the user's ruling, 2026-10-20): the kernel is
-    # stamped, and α · kernel derives BOUNDARY by the join — at α = 0 the zero
-    # map inherits the cancelled kernel's role (linear_combination).
-    return float(alpha) * stamp_boundary_role(k_omega & IdentityOperator())
-
-
-def _deck_kernel(
-    quadrature: "Quadrature",
-    method_space: "SNMethodSpace",
-    gamma_out_domain: "TraceRestrictionOperator",
-    *,
-    motion: "RigidMotion",
-    domain_face: "str | None",
-    law_key: str,
-    crossed_diagnosis: str,
-) -> "PermutationOperator":
-    r"""A deck transformation's arrow :math:`\Gamma_+(f') \to \Gamma_-(f)`,
-    DERIVED from its rigid motion — the ONE body every deck law realizes
-    through (G6.3 step 7).
-
-    The quotient equivariance :math:`\psi(g x, g\Omega) = \psi(x, \Omega)`
-    evaluated on the trace gives the law this kernel realizes:
-
-    .. math::
-
-        \gamma_-\psi|_f(\Omega) \;=\; \gamma_+\psi|_{f'}(h^{-1}\Omega),
-        \qquad h(f') = f,
-
-    where ``motion`` is :math:`h` — the deck element carrying the DOMAIN
-    face onto the INSTALLATION face. With :math:`\pi` the ordinate
-    permutation :math:`h` induces
-    (:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`,
-    convention :math:`h(\Omega_i) = \Omega_{\pi(i)}`), row :math:`j` of the
-    narrowed operator therefore gathers ordinate
-    :math:`\pi^{-1}(\mathrm{inflow}[j])` — at that ordinate's position
-    INSIDE :math:`\Gamma_+(f')`, which is exactly what the half-trace
-    space's ``Γ₊(f').to_local`` computes (G6.5 — the space owns its row
-    order) and what a hand-written ``arange`` would get wrong (on a slab
-    the mirror REVERSES order).
-
-    ⚠ **The inverse is load-bearing only for the latent case, so it is
-    pinned now.** For a mirror :math:`\pi^{-1} = \pi` (involution) and for
-    a wrap :math:`\pi = \mathrm{id}` (a translation moves no direction) —
-    every SHIPPED law is blind to the choice. A sector rotation is not:
-    :math:`\pi \ne \pi^{-1}` there, and reading the image where the
-    derivation demands the preimage would realize the sector glued
-    backwards. The kernel-level C₄ gate pins the convention against the
-    hand-derived preimage map so the future consumer inherits it correct.
-
-    **Three routes reach this body.**
-    :class:`~orpheus.geometry.boundary.ReflectiveBoundary` carries the
-    mirror in :math:`G` (a symmetry of the domain);
-    :class:`~orpheus.geometry.boundary.AlbedoBoundary` with a
-    :class:`~orpheus.geometry.boundary.SpecularReturn` closure carries the
-    same element in :math:`R` (a polished wall);
-    :class:`~orpheus.geometry.boundary.PeriodicBoundary` carries the wrap
-    translation in :math:`G`. They assert different physics and share this
-    construction rather than agreeing by transcription — ``law_key`` and
-    ``crossed_diagnosis`` name the caller and its failure semantics in the
-    errors only. (Until step 7 this body was ``_specular_kernel``: the
-    mirror arms keyed the certified axis table by LETTER while the law's
-    own motion went unread, and periodic realized through a hand-argued
-    unbound identity — two paths for one concept, with the general motion
-    unreachable. ``_assert_wrap_identification`` retired onto this body's
-    guards: the set certification IS ``to_local``'s membership check plus
-    the bijection size check, executed rather than pre-asserted.)
-
-    The ERR-045 invariant (a deck pairing maps inflow to OUTFLOW, never to
-    itself) is enforced by ``to_local``: a gathered ordinate outside
-    :math:`\Gamma_+(f')` raises, and the caller's ``crossed_diagnosis``
-    attributes the failure in the law's own vocabulary.
-
-    The deck transformation as a length-1 chain
-    -------------------------------------------
-
-    Returned **bound** to :math:`\Gamma_+(f') \to \Gamma_-(f)` (G6.3 step
-    5, #330), which makes it the degenerate case of the same structure the
-    diffuse arm builds in :func:`_checked_angular_average`: a boundary law
-    is a chain from outflow to inflow, and a measure-preserving bijection
-    has nothing to factor, so its chain has ONE link. There is no separate
-    "atomic" code path — only a shorter chain. Periodic is the one law
-    whose two ends live on DIFFERENT faces, which is precisely why deriving
-    its link from the motion (rather than hand-arguing an identity) is what
-    lets the composability check police it.
-
-    ⭐ **Binding is also what retired the involution flag.** `[M]` the
-    narrowed local permutation satisfies ``perm[perm] == arange`` on
-    ``gauss_legendre(4/8)``, ``product(4,4)`` and ``level_symmetric(6)``, and
-    NOT on ``lebedev(17)`` — one physical law, an answer tracking the
-    quadrature's local index ordering rather than the mirror. Bound, the
-    question stops being answerable at all: :math:`P \circ P` is not an
-    expression when the ends are different spaces, so
-    :class:`~orpheus.numerics.elementary_operators.PermutationOperator` no longer stores
-    a ``bool`` about it — ``P @ P`` raises, which is the same claim delivered
-    by the algebra. The involution that IS real lives one tier up, on the
-    full-space mirror pairing
-    (:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`'s
-    derived π), where domain and codomain coincide — asserted there by the
-    ERR-044 certification in ``geometry/boundary/_specular.py``.
-    """
-    if method_space.inflow_indices is None:
-        raise BoundaryError(
-            f"SNBoundaryRealizer cannot realize the deck pairing for "
-            f"{law_key!r} without inflow_indices: the arrow lands on "
-            f"Γ₋ of the installation face, which is the half the method "
-            f"space carries. Construct via "
-            f"SNMethodSpace.for_face(quadrature=..., face=..., trace=...).",
-            law=law_key,
-        )
-    inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
-    if inflow.size != gamma_out_domain.n_restricted:
-        raise BoundaryError(
-            f"SNBoundaryRealizer cannot narrow the deck pairing for "
-            f"{law_key!r} at face {method_space.face!r}: |Γ₋| = "
-            f"{inflow.size} but |Γ₊({domain_face})| = "
-            f"{gamma_out_domain.n_restricted}. A deck transformation is a "
-            f"BIJECTION between the two half-traces, so a pair that "
-            f"differs in size has no realization — the quadrature's "
-            f"tangential band has swallowed ordinates asymmetrically.",
-            law=law_key,
-        )
-    # G6.5 — the deck arm REQUIRES the bound half-trace spaces. The local
-    # row order of the pairing is the SPACE's own (`Γ₊.to_local`), and the
-    # returned arrow is always fully bound Γ₊(f') → Γ₋(f); a method space
-    # that names index sets but stands up no spaces cannot pose either
-    # half. Placed AFTER the size check so a lopsided-but-spaceless pair
-    # still gets the sharper BIJECTION diagnosis first.
-    trace, face = method_space.trace, method_space.face
-    gamma_plus = gamma_out_domain.codomain
-    if (
-        not isinstance(gamma_plus, AngularFaceTraceSpace)
-        or trace is None
-        or face is None
-    ):
-        raise BoundaryError(
-            f"SNBoundaryRealizer cannot realize the deck pairing for "
-            f"{law_key!r} without the bound half-trace spaces: since G6.5 "
-            f"the local row order of the pairing is the space's own "
-            f"(Γ₊ answers to_local) and the deck arrow is returned fully "
-            f"bound, so index sets alone cannot pose either half. "
-            f"Construct via SNMethodSpace.for_face(quadrature=..., "
-            f"face=..., trace=...).",
-            law=law_key,
-        )
-    pi = quadrature.ordinate_permutation(motion)
-    if pi is None:
-        raise BoundaryError(
-            f"SNBoundaryRealizer cannot realize {law_key!r}: the deck "
-            f"motion does not permute this quadrature's weighted ordinate "
-            f"set — no bijective, weight-preserving match of the "
-            f"{quadrature.n_ordinates} ordinates onto their images exists within the "
-            f"certification windows (the ERR-073/ERR-074 discipline, live "
-            f"at realization). A deck transformation is a "
-            f"measure-preserving bijection of the trace, so a rule not "
-            f"closed under the motion admits no realization of this law — "
-            f"e.g. an odd-n_phi product rule has no x-mirror closure.",
-            law=law_key,
-        )
-    # The SPACE answers the local-index question (G6.5): ``Γ₊.to_local``
-    # raises if the pairing sent an inflow ordinate anywhere but Γ₊(f') —
-    # the ERR-045 violation, caught here as a crossed-index-set error rather
-    # than as silent wrong physics. The space stays the SINGLE authority on
-    # that index question (no second membership test here to drift from
-    # it); what this body adds is the semantic diagnosis the caller
-    # supplied, so a consumer gets an attributed BoundaryError in the law's
-    # own vocabulary rather than a raw index complaint from a helper it
-    # never called. (For periodic this check plus the size check above
-    # ARE the B3.4c quotient certification Γ₊(f') ≡ Γ₋(f) — executed by the
-    # construction instead of pre-asserted beside it.)
-    try:
-        local_perm = gamma_plus.to_local(pi.inverse().indices[inflow])
-    except ValueError as exc:
-        raise BoundaryError(
-            f"{crossed_diagnosis} Underlying: {exc}",
-            law=law_key,
-        ) from exc
-
-    # Bind the single link to the Γ ladder. The G6.5 guard above makes the
-    # deck arm's output unconditionally FULLY bound — composability check
-    # live, ``.H`` metric-aware — where it used to degrade silently on a
-    # trace-less space. The DOMAIN space is read off ``gamma_out_domain``'s
-    # own codomain (bound by whoever built the restriction — re-deriving it
-    # here would be a twin source for one fact, the
-    # `_narrowed_zero_operator` argument); the CODOMAIN is the installation
-    # face's Γ₋.
-    return PermutationOperator(
-        local_perm,
-        axis=_ORDINATE_AXIS,
-        domain=gamma_plus,
-        codomain=trace.inflow_space(face),
-    )
-
-
-def _specular_crossed_diagnosis(axis: str, face: "str | None") -> str:
-    r"""The mirror arms' semantics for a crossed-index failure in
-    :func:`_deck_kernel` — two laws, one wording, ERR-045 vocabulary kept.
-    """
-    return (
-        f"A specular pairing about axis {axis!r} does not map Γ₋ into Γ₊ "
-        f"at face {face!r}. Two causes: the declared axis disagrees with "
-        f"the face the law is installed on — a mirror about 'y' on an "
-        f"x-face relabels WITHIN each half-trace instead of exchanging "
-        f"them, which is not a boundary law at all — or the quadrature's "
-        f"reflection pairing violates ERR-045 (an inflow ordinate whose "
-        f"partner is not outflow). The law-level certification catches the "
-        f"second at assert_realizable, so at this point the first is the "
-        f"likely one."
-    )
-
-
-def _checked_angular_average(
-    quadrature: "Quadrature",
-    method_space: "SNMethodSpace",
-    gamma_out: "TraceRestrictionOperator",
-    *,
-    axis: str,
-    outward_sign: int,
-    law_key: str,
-) -> "LinearOperator":
-    r"""The Lambertian kernel, with the DECLARED orientation cross-checked
-    against the face it is being installed on (the ERR-041 pattern).
-
-    A diffuse law declares its own ``axis`` / ``outward_sign`` — on the law
-    itself for :class:`~orpheus.geometry.boundary.WhiteBoundary`, on the
-    closure for
-    :class:`~orpheus.geometry.boundary.AlbedoBoundary` +
-    :class:`~orpheus.geometry.boundary.IsotropicReturn` — while the method
-    space independently names the face. Those are two encodings of ONE
-    orientation, and until B3.4a nothing compared them: a white law declared
-    for ``x`` and installed on ``ymin`` averaged over the wrong hemisphere and
-    reported nothing. The check is the same shape as the vacuum arm's
-    (``ERR-041``: swapped inflow/outflow face annotation), against index SETS
-    rather than sizes, because ``|Γ₊| == |Γ₋|`` on every quadrature in the tree
-    makes a size comparison Mode-12 blind.
-
-    On the canonical ``SNProblem.realize_boundary_law`` path both encodings derive
-    from the same face label, so the guard is green by construction; it bites
-    on hand-built method spaces and on a mis-declared law.
-
-    Returns the response as the **two-link chain**
-    :math:`\Gamma_+(f) \xrightarrow{C} S(f) \xrightarrow{B} \Gamma_-(f)`
-    (G6.3 step 3, #330) rather than the welded ``AngularAverageOperator`` it
-    replaced: the intermediate is then the named outgoing partial current
-    :math:`J^+` instead of an anonymous local, and the composite carries a
-    transpose the welded form withheld. `[M]` bit-identical to the predecessor
-    on every shipped quadrature.
-    """
-    declared_face = face_name(AXIS_INDEX[axis], outward_sign)
-    omega_dot_n = build_omega_dot_n(quadrature, (declared_face,))[0]
-    declared_outflow = np.flatnonzero(omega_dot_n > +TANGENTIAL_EPS)
-    if not np.array_equal(declared_outflow, gamma_out.indices):
-        raise BoundaryError(
-            f"A diffuse re-emission law declares axis={axis!r}, "
-            f"outward_sign={outward_sign:+d} — i.e. the face "
-            f"{declared_face!r}, whose Γ₊ is {declared_outflow.tolist()} — "
-            f"but it is being installed where Γ₊ is "
-            f"{np.asarray(gamma_out.indices).tolist()} "
-            f"(face={method_space.face!r}). The Lambertian averages over "
-            f"the hemisphere its OWN orientation names, so a mismatch "
-            f"averages the wrong ordinates silently.",
-            law=law_key,
-        )
-    inflow = np.flatnonzero(omega_dot_n < -TANGENTIAL_EPS)
-    if inflow.size == 0:
-        raise BoundaryError(
-            f"A diffuse re-emission law on face {declared_face!r} has no "
-            f"inflow ordinates — the re-emitted flux has no Γ₋ to land on. "
-            f"The quadrature is degenerate for this face.",
-            law=law_key,
-        )
-    cos_w = np.asarray(quadrature.weights, dtype=float)[declared_outflow] * (
-        omega_dot_n[declared_outflow]
-    )
-
-    # Bind the chain to the Γ ladder when the method space carries a trace —
-    # the canonical `SNMethodSpace.for_face` path always does. A hand-built
-    # space may not, and binding stays OPTIONAL until the tree-wide mandate
-    # (#330): an unbound chain still computes the same numbers, it just
-    # forfeits the composability check and the metric-aware `.H`.
-    trace, face = method_space.trace, method_space.face
-    gamma_plus = current = gamma_minus = None
-    if trace is not None and face is not None:
-        gamma_plus = trace.outflow_space(face)
-        current = trace.current_space(face)
-        gamma_minus = trace.inflow_space(face)
-
-    contraction = PartialCurrentOperator(
-        cos_w, domain=gamma_plus, codomain=current,
-    )
-    emission = IsotropicEmissionOperator(
-        float(cos_w.sum()), int(inflow.size),
-        domain=current, codomain=gamma_minus,
-    )
-    return emission @ contraction
-
-
-class SNBoundaryRealizer:
-    r"""Functional realizer for SN BCs.
-
-    Dispatches by ``isinstance(law, ...)`` to map each
-    :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` concrete
-    onto a Wave-0 / Wave-1 primitive composed with scalar
-    amplitudes (per :ref:`bc-tensor-decomposition` and the
-    realisation map in this module's docstring).
-
-    The realizer instance carries no state; ``method_name`` is the
-    only attribute. The :meth:`realize` method is stateless — it
-    can be called freely from any context.
-    """
-
-    method_name: str = "SN"
-
-    def realize(
-        self,
-        law: "BoundaryTraceLaw",
-        method_space: SNMethodSpace,
-    ) -> LinearOperator:
-        """Realize ``law`` for SN as a 1-arg :class:`LinearOperator`.
-
-        The concrete return is always a :class:`LinearOperator`
-        subclass (a generic numerics primitive —
-        :class:`TensorProductOperator` / :class:`OperatorSum` /
-        :class:`~orpheus.numerics.operator.ZeroOperator` / …); the narrower mixin type
-        (vs the bare :class:`LinearOperator` Protocol) lets the
-        :func:`~orpheus.transport.boundary_realization.stamp_boundary_role`
-        ``block_role`` instance-stamp type-check and keeps the
-        realized-law primitives assignable nominally rather than
-        through the (invariant) Protocol.
+        SCOPE-BOUNDARY[guard] machinery: a radial characteristic that sweeps the inner surface (a trace slot and a corner action on the inner face).
+        ruling: wave2_boundary_carve.md section 4.2 (the SN columns), the specification approved by the user 2026-10-23.
+        revisit: #511, when the radial axis gains an inner-surface trace.
         """
-        if isinstance(law, ZeroFluxBoundary):
-            # ── REFUSAL AXIS: state-cone / sign ──────────────────────────
-            # NOT an angular-resolution refusal and NOT a topological one —
-            # see `bc-method-realizability` in orpheus.geometry.boundary. SN resolves
-            # than diffusion does and couples faces just fine; what it cannot
-            # do is hold this VALUE. The diffusion trace is a signed partial
-            # current, so 𝒜 = −1 lives in its state space; the SN trace is an
-            # angular flux with ψ ≥ 0, and a negative inflow is outside that
-            # cone. The same law is realizable there and unrealizable here for
-            # a reason that has nothing to do with either method's fidelity.
-            #
-            # #290 P3 (user ruling 3): φ_Γ = 0 is a diffusion-level
-            # Dirichlet idealization — albedo 𝒜 = −1 in the
-            # partial-current basis. A transport BC prescribes the
-            # inflow trace from the outflow trace, and a NEGATIVE
-            # angular inflow is unrepresentable in a non-negative ψ,
-            # so SN refuses rather than realizing something else.
+        return Refused(RefusalAxis.PLUMBING, reason or _SNSites._INNER_REFUSAL, 511)
+
+    @staticmethod
+    def corner_refusal() -> Refused:
+        return Refused(RefusalAxis.PLUMBING, _SNSites._CORNER_REFUSAL, 653)
+
+    @staticmethod
+    def trace_of(space: SNMethodSpace, owner: str):
+        """The trace ladder of a method space (the realizers read every half-space off it)."""
+        if space is None or space.trace is None:
             raise BoundaryError(
-                "SNBoundaryRealizer cannot realize ZeroFluxBoundary: "
-                "the zero-flux Dirichlet condition (φ_Γ = 0) is the "
-                "albedo-family member 𝒜 = −1 in the partial-current "
-                "basis, and a negative angular inflow has no transport "
-                "realization (ψ ≥ 0 ⟹ J± ≥ 0). Use VacuumInflow for "
-                "the physical zero-incoming law (J⁻ = 0), or realize "
-                "zero-flux with the diffusion realizer.",
-                law="zero_flux",
+                f"{owner}: realization reads the half-spaces off the trace ladder, and this method space carries none. Construct it via "
+                f"SNMethodSpace.for_face(quadrature=..., face=..., trace=...).",
+                owner,
             )
+        return space.trace
 
-        quad = method_space.quadrature
+    @staticmethod
+    def mirror_pairing(space: SNMethodSpace, face: str, dimension: int) -> Permutation:
+        r"""The certified ordinate permutation of the mirror of ``face``'s own plane (``ordinate_pairing`` of ``mirror_motion``)."""
+        axis, _ = face_normal(face)
+        return ordinate_pairing(space.quadrature, mirror_motion(AXIS_NAMES[axis], dimension))
 
-        # #52 — the §16A.12 invariants fire HERE, at the seam where the
-        # law meets the actual quadrature + trace data (the error
-        # catalog's recurring lesson: check at realization, not only by
-        # downstream balance). One aggregate call; each law extends the
-        # base template with its own invariants (reflective's three
-        # table checks, white/albedo's sub-Markov bound, the universal
-        # ERR-047 source-trace certification). Certification is a LAW
-        # contract: a non-law object (and a LawSum/LawScaled tree,
-        # which composes laws but is not one) falls through to the
-        # loud dispatch-failure raise below instead.
-        if isinstance(law, BoundaryTraceLaw):
-            law.assert_realizable(
-                quad, inflow_indices=method_space.inflow_indices
-            )
 
-        if isinstance(law, VacuumInflow):
-            if method_space.inflow_indices is None:
-                raise BoundaryError(
-                    "SNBoundaryRealizer cannot realize "
-                    "VacuumInflow without inflow_indices in "
-                    "method_space. Wave 8's SNProblem wiring populates "
-                    "this from "
-                    "AngularTraceSpace.inflow_indices_for_face. For "
-                    "now, supply inflow_indices explicitly via "
-                    "SNMethodSpace(quadrature=quad, face=..., "
-                    "inflow_indices=...).",
-                    law="vacuum",
-                )
-            # #52 / ERR-041 — trace-orientation guard. The claimed
-            # inflow_indices and the face NAME are two independent
-            # encodings of the same orientation (the annotation-swap
-            # bug class desynchronizes them: indices built from the
-            # OUTGOING set of this face). Cross-check against the
-            # signed projection the face name alone implies via the
-            # single face→normal primitive. On the canonical
-            # SNProblem.realize_boundary_law path both encodings derive
-            # from the trace space, so the guard is green by
-            # construction; it bites on hand-built method spaces —
-            # exactly where the annotation swap lives. A method space
-            # with no face carries no independent orientation truth,
-            # so the guard cannot fire there (documented escape:
-            # quadrature-only spaces with explicit indices are the
-            # caller's responsibility).
-            if method_space.face is not None:
-                omega_dot_n = build_omega_dot_n(
-                    quad, (method_space.face,)
-                )[0]
-                claimed = np.asarray(
-                    method_space.inflow_indices, dtype=np.intp
-                )
-                outgoing = omega_dot_n[claimed] > +TANGENTIAL_EPS
-                if np.any(outgoing):
-                    offending = claimed[outgoing]
-                    raise VacuumAppliedToOutgoingTraceError(
-                        f"VacuumInflow at face "
-                        f"{method_space.face!r}: inflow_indices "
-                        f"{offending.tolist()} are OUTGOING ordinates "
-                        f"(Ω·n̂ > 0) at this face — the vacuum law "
-                        f"prescribes γ₋ψ = 0 on the INCOMING trace "
-                        f"only; zeroing outflow slots discards the "
-                        f"flux the sweep just computed (ERR-041: "
-                        f"swapped inflow/outflow face annotation).",
-                        law="vacuum",
-                    )
-            # B3.2 — the domain is Γ₊, so vacuum is the honest ZERO MAP.
-            #
-            # Vacuum's whole content is ``R = 0``; its ``G`` is the identity
-            # deck element (it fixes no geometry). With the law typed
-            # ``Γ₊ → Γ₋`` there is nothing left to represent but the zero map
-            # between those two spaces — and the question the old realization
-            # raised, "why does a projector preserve rows nobody reads?",
-            # dissolves rather than needing an answer: those rows are no
-            # longer in the operator's domain at all.
-            #
-            # Pre-B3.2 this returned ``IncomingOrdinateMaskTensor(...) &
-            # IdentityOperator()`` — a full-face projector onto the OUTFLOW
-            # subspace, whose preserved rows ``_reflect_trace`` then discarded.
-            # ``ZeroMorphism`` — the bound zero map — is the designed
-            # mechanism for a genuine map BETWEEN spaces: the forward emits the
-            # zero of Γ₋, the transpose the zero of Γ₊, both derived from the
-            # DECLARED pair (the S4-amendment retired the per-site space
-            # hooks that used to carry these shapes). Relying on the
-            # endomorphic ``0.0 * x`` echo would be wrong in principle and
-            # merely lucky in practice (|Γ₊| = |Γ₋| on every reachable
-            # fixture, so the shapes coincide — an accident, not a contract).
-            gamma_out = _outflow_restriction(method_space, "vacuum")
-            return stamp_boundary_role(
-                _narrowed_zero_operator(
-                    method_space, gamma_out, law_key="vacuum",
-                )
-            )
+class SNZero(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=ZeroNetwork):
+    r"""The image of the empty network: the zero map :math:`\Gamma_+ \to \Gamma_-`.
 
-        if isinstance(law, ReflectiveBoundary):
-            # B3.2 — the specular mirror, narrowed to Γ₊ → Γ₋. The pairing
-            # is built by ``_deck_kernel`` from the law's own MOTION — G5's
-            # deck slot, consumed at last (step 7): the axis-letter table
-            # lookup is retired from this path, and the same three
-            # certifications now run at realization through
-            # ``ordinate_permutation``. The albedo arm below reaches the
-            # same body: the mirror sits in this law's G (a symmetry of the
-            # domain) and in that law's R (a polished wall), so the wall at
-            # albedo α realizes to α times this matrix, because both read the
-            # same motion. A symmetry has no amplitude: its response is the
-            # unit scalar, read here from the factor.
-            gamma_out = _outflow_restriction(method_space, "reflective")
-            return _attenuated_kernel_operator(
-                _deck_kernel(
-                    quad, method_space, gamma_out,
-                    motion=law.geometry_map.motion,
-                    domain_face=method_space.face,
-                    law_key="reflective",
-                    crossed_diagnosis=_specular_crossed_diagnosis(
-                        law.axis, method_space.face
-                    ),
-                ),
-                law.response_kernel.amplitude,
-            )
+    Vacuum's whole content is :math:`R = 0`. The same object is the linear image of a pure inflow (the affine :math:`q` travels the
+    boundary-source channel) and of any wall of zero weight, so the question "is this face a vacuum" is answered by the REALIZED
+    map. Admitted at every site except the hollow radial inner face, where only the unit specular cavity is (#511).
+    """
 
-        if isinstance(law, WhiteBoundary):
-            # B3.4a — the Lambertian kernel, narrowed to Γ₊ → Γ₋.
-            #
-            # the Lambertian arm derives BOTH half-traces from the one
-            # face-name → signed-projection primitive, classified against
-            # ``TANGENTIAL_EPS`` — so its old private ``> 0.0`` outflow test is
-            # gone, and with it the disagreement with the trace space on every
-            # quadrature carrying tangential ordinates.
-            gamma_out = _outflow_restriction(method_space, "white")
-            return _attenuated_kernel_operator(
-                _checked_angular_average(
-                    quad, method_space, gamma_out,
-                    axis=law.axis, outward_sign=law.outward_sign,
-                    law_key="white",
-                ),
-                law.albedo,
-            )
+    status = Realized(True)
 
-        if isinstance(law, AlbedoBoundary):
-            # B3.4b — a SURFACE returning α of the flux, in the angular shape
-            # its closure names. ``G`` is ``SelfPairedDeck.identity()``
-            # unconditionally (a wall is not a quotient of the domain), so
-            # the whole law is in
-            # ``R`` and both arms land in the same two bodies the
-            # geometry-tier laws use.
-            #
-            # Dispatch reads the FACTOR, not ``law.reemission``. The affine
-            # form's tier is the public surface the campaign built; the
-            # closure is the field the law happens to store, and reaching for
-            # it would bypass the abstraction. Reading ``response_kernel``
-            # also single-sources α (``kernel.amplitude``) and is the shape
-            # B4 generalizes: that phase turns this branch's isinstance chain
-            # into the realizer's ONE dispatch, over all laws.
-            gamma_out = _outflow_restriction(method_space, "albedo")
-            kernel = law.response_kernel
-            if isinstance(kernel, SpecularReemission):
-                return _attenuated_kernel_operator(
-                    _deck_kernel(
-                        quad, method_space, gamma_out,
-                        motion=kernel.motion,
-                        domain_face=method_space.face,
-                        law_key="albedo",
-                        crossed_diagnosis=_specular_crossed_diagnosis(
-                            kernel.axis, method_space.face
-                        ),
-                    ),
-                    kernel.amplitude,
-                )
-            if isinstance(kernel, LambertianReemission):
-                return _attenuated_kernel_operator(
-                    _checked_angular_average(
-                        quad, method_space, gamma_out,
-                        axis=kernel.axis, outward_sign=kernel.outward_sign,
-                        law_key="albedo",
-                    ),
-                    kernel.amplitude,
-                )
-            if isinstance(kernel, ScalarResponse) and kernel.is_zero:
-                # α = 0 is NOT under-determined — nothing returns, so no
-                # pairing is needed and every closure would agree. It is
-                # refused for the other reason: it is a VacuumInflow twin, and
-                # admitting it would give one physical law two spellings with
-                # two realization paths. Refusing also keeps SN's albedo
-                # admission a single uniform rule ("state a closure"), rather
-                # than one that turns on an exact float compare — a law that
-                # realizes at α = 0 and refuses at α = 1e-300 is a worse
-                # contract than one that refuses both.
-                raise BoundaryError(
-                    f"SNBoundaryRealizer will not realize AlbedoBoundary"
-                    f"(albedo=0.0) with no re-emission closure: a surface "
-                    f"that returns nothing IS a vacuum, and VacuumInflow() "
-                    f"already spells it — with a narrowed zero map that "
-                    f"carries both space hooks and an honest transpose. Use "
-                    f"VacuumInflow(), or state a closure if you mean a "
-                    f"perfectly absorbing wall that should still certify its "
-                    f"pairing (AlbedoBoundary(0.0, SpecularReturn(axis=...)) "
-                    f"realizes, and to the same zero map).",
-                    law="albedo",
-                )
-            if isinstance(kernel, ScalarResponse):
-                raise BoundaryError(
-                    f"SNBoundaryRealizer cannot realize AlbedoBoundary"
-                    f"(albedo={law.albedo}) with no re-emission closure: on "
-                    f"an ANGULAR trace the law is under-determined. Its "
-                    f"response R = α·I is an endomorphism of Γ₊ and its "
-                    f"geometry G = SelfPairedDeck.identity() supplies no crossing, "
-                    f"so "
-                    f"nothing says which outgoing direction feeds which "
-                    f"incoming one — composing it anyway would pair them by "
-                    f"ARRAY POSITION, an artefact of index order carrying no "
-                    f"geometry. State the shape: "
-                    f"AlbedoBoundary({law.albedo}, SpecularReturn(axis=...)) "
-                    f"for a polished surface, or "
-                    f"AlbedoBoundary({law.albedo}, IsotropicReturn(axis=..., "
-                    f"outward_sign=...)) for a diffuse one. (A SCALAR method "
-                    f"needs no closure — α alone is the complete partial-"
-                    f"current law, which is why the diffusion realizer takes "
-                    f"this same object unchanged.)",
-                    law="albedo",
-                )
-            raise BoundaryError(
-                f"SNBoundaryRealizer cannot realize AlbedoBoundary whose "
-                f"response kernel is {kernel!r}: no realization body for that "
-                f"kernel. Realizable kernels: SpecularReemission, "
-                f"LambertianReemission.",
-                law="albedo",
-            )
+    def admit(self, unit: ZeroNetwork, weight: float, site: FaceSite, space: SNMethodSpace | None = None) -> Admission:
+        return self.inner_refusal() if site.site_class is SiteClass.RAD_INNER else Realized(True)
 
-        if isinstance(law, PeriodicBoundary):
-            # B3.4c — the torus quotient, narrowed to Γ₊(partner) → Γ₋(face).
-            # Step 7 — its link is a typed arrow DERIVED from the MOTION,
-            # through the same body as the mirror's.
-            #
-            # Periodic is the only law whose DOMAIN is not the face it is
-            # installed on: ``γ₋ψ|_f = γ₊ψ|_{f'}``. Which face f' is depends
-            # on where the law sits, so the geometry factor is asked
-            # (``G.domain_face``) rather than the partner being stored — and
-            # that call is also where a wrap declared for the wrong axis is
-            # refused. The composition supplies the partner's half-trace;
-            # ``SNBoundaryOperator._face_domains`` is the consumer.
-            #
-            # The realized permutation is the identity relabelling between
-            # two DISTINCT index sets, and that is EARNED, not assumed: the
-            # wrap's linear part is the identity (a translation moves no
-            # direction), and the kernel's membership + size checks prove
-            # Γ₊(partner) and Γ₋(face) are the same global ordinate set —
-            # the B3.4c quotient certification, executed by the
-            # construction. (It is a geometric theorem — the outward
-            # normals are opposite, so ``n_f = −n_f'`` sends outgoing to
-            # incoming — but a theorem the realization checks rather than
-            # trusts.) Until step 7 this arm returned an UNBOUND
-            # ``IdentityOperator() & IdentityOperator()`` — an endomorphism
-            # standing in for an isomorphism between two different spaces,
-            # the one link of the five that was not a typed arrow, and the
-            # one law step 8's composability check could not police.
-            face = method_space.face
-            if face is None:
-                raise BoundaryError(
-                    "SNBoundaryRealizer cannot realize PeriodicBoundary "
-                    "without a face: this is the one law whose DOMAIN is a "
-                    "DIFFERENT face's Γ₊ (γ₋ψ|_f = γ₊ψ|_f'), so the partner "
-                    "cannot be named without knowing where the law is "
-                    "installed. Construct via "
-                    "SNMethodSpace.for_face(quadrature=..., face=..., "
-                    "trace=...).",
-                    law="periodic",
+    def realize(self, unit: ZeroNetwork, weight: float, site: FaceSite, space: SNMethodSpace) -> ZeroMap:
+        trace = self.trace_of(space, "SNZero")
+        if space.face is not None and space.inflow_indices is not None:
+            # ERR-041: the claimed inflow set and the face NAME are two encodings of one orientation (the annotation-swap bug class
+            # desynchronizes them); cross-check against the signed projection the face name alone implies. A method space with no face
+            # carries no independent orientation truth, so the guard cannot fire there (the caller owns the claim).
+            omega_dot_n = build_omega_dot_n(space.quadrature, (space.face,))[0]
+            claimed = np.asarray(space.inflow_indices, dtype=np.intp)
+            outgoing = omega_dot_n[claimed] > +TANGENTIAL_EPS
+            if np.any(outgoing):
+                raise VacuumAppliedToOutgoingTraceError(
+                    f"ZeroNetwork at face {space.face!r}: inflow_indices {claimed[outgoing].tolist()} are OUTGOING ordinates (Omega.n > 0) at this "
+                    f"face. The zero map fills gamma_-psi on the INCOMING trace only; zeroing outflow slots discards the flux the sweep just "
+                    f"computed (ERR-041: swapped inflow/outflow face annotation).",
+                    unit,
                 )
-            deck = law.geometry_map
-            partner = deck.domain_face(face)  # refuses a mis-declared axis
-            gamma_out_partner = _partner_outflow_restriction(
-                method_space, partner
-            )
-            return _attenuated_kernel_operator(
-                _deck_kernel(
-                    quad, method_space, gamma_out_partner,
-                    motion=deck.motion,
-                    domain_face=partner,
-                    law_key="periodic",
-                    crossed_diagnosis=(
-                        f"A periodic law on face {face!r} identifies it "
-                        f"with partner {partner!r}, but the wrap's ordinate "
-                        f"map does not carry Γ₋({face}) into Γ₊({partner}). "
-                        f"The wrap is sound only when the partner's "
-                        f"outgoing directions ARE this face's incoming ones "
-                        f"— the opposite-normals theorem. A mismatch means "
-                        f"the two faces do not carry opposite normals as "
-                        f"classified on this quadrature, so the pair is not "
-                        f"a translation quotient and needs an explicit "
-                        f"gluing map (issue #178)."
-                    ),
-                ),
-                law.response_kernel.amplitude,
-            )
+        return ZeroMap(face=site.face, trace=trace)
 
-        if isinstance(law, PrescribedInflow):
-            # P3 — realize the LINEAR factor, which is ZERO. The law is
-            # affine, ``γ₋ψ = L γ₊ψ + q``, and this tier realizes ``L``
-            # alone; the source ``q`` travels the boundary-source channel
-            # (:ref:`bc-affine-source-channel`), assembled from the declared
-            # law by ``AngularBoundarySourceSink.from_problem_laws``. So
-            # prescribed inflow returns the SAME expression vacuum does,
-            # which is the honest statement of the algebra: the two laws
-            # differ only in a term that is not an operator.
-            #
-            # ⛔ Until P3 this arm returned an ``IncomingSourceOperator``
-            # whose ``apply`` IGNORED its input and emitted ``q`` — an
-            # AFFINE map in a linear slot. It carried no BOUNDARY stamp, and
-            # the stamp's absence was believed to fence it out of ``B``. It
-            # did not: ``SNBoundaryOperator._face_laws`` collects EVERY
-            # face's law with no role filter, so the source was delivered
-            # through ``B`` as well. MEASURED on a declared inflow at
-            # ``q = 2.5``: ``|B(0)| = 2.5`` and ``|B(2x) − 2B(x)| = 2.5``,
-            # and once P2′ wired the source channel the converged flux
-            # carried the inflow TWICE (ratio 2.000000 against the vacuum
-            # control). Returning the zero morphism is what makes the two
-            # channels one.
-            #
-            # Prescribed inflow ignores its input, but a law that cannot
-            # name its own domain is not realized, it is guessed — so the
-            # Γ₊ restriction is still built, now for its VALUE as well as
-            # its guard: the zero map is bound with it.
-            gamma_out = _outflow_restriction(method_space, "prescribed_inflow")
-            return stamp_boundary_role(
-                _narrowed_zero_operator(
-                    method_space, gamma_out, law_key="prescribed_inflow",
-                )
-            )
 
-        raise BoundaryError(
-            f"SNBoundaryRealizer cannot realize "
-            f"{type(law).__name__} — no isinstance dispatch case. "
-            f"Available cases: VacuumInflow, "
-            f"ReflectiveBoundary, WhiteBoundary, "
-            f"AlbedoBoundary, PeriodicBoundary, "
-            f"PrescribedInflow. For rank-N compositions built via "
-            f"the operator algebra's + and α· over "
-            f"BoundaryTraceLaw leaves, use "
-            f"orpheus.transport.boundary_realization.realize_recursively "
-            f"with realizer=SNBoundaryRealizer().",
-            law=type(law).__name__,
+class SNSpecularChain(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=SpecularChain):
+    r"""The image of ``s * SpecularChain``: :math:`s\,P_\pi`, the scaled ordinate permutation of the face's own mirror plane.
+
+    ``ordinate_pairing`` certifies the pairing (measure-preserving, involutive, inflow to outflow) and RETURNS the permutation the
+    image uses, so there is one computation and not a certification beside a second derivation. A rule that is not closed under the
+    mirror (an odd-``n_phi`` product rule has no x-mirror closure) is refused on the angular-resolution axis. The hollow radial inner
+    face admits the chain only at weight 1.0, the cavity its closure computes (#511).
+    """
+
+    status = Realized(True)
+
+    def admit(self, unit: SpecularChain, weight: float, site: FaceSite, space: SNMethodSpace | None = None) -> Admission:
+        if site.site_class is SiteClass.RAD_INNER:
+            return Realized(True) if weight == 1.0 else self.inner_refusal()
+        if space is None:
+            return Realized(True)
+        try:
+            self.mirror_pairing(space, site.face, site.dimension)
+        except OrdinatePairingError as error:
+            return Refused(RefusalAxis.ANGULAR_RESOLUTION, f"the quadrature does not certify the mirror of {site.face!r}: {error}")
+        return Realized(True)
+
+    def realize(self, unit: SpecularChain, weight: float, site: FaceSite, space: SNMethodSpace) -> ScaledOrdinatePermutation:
+        trace = self.trace_of(space, "SNSpecularChain")
+        return ScaledOrdinatePermutation(
+            alpha=weight, permutation=self.mirror_pairing(space, site.face, site.dimension), face=site.face, partner=site.face, trace=trace
         )
 
 
-# The rank-N composition walker (``realize_recursively``) lived here
-# until #290 P7b. With the second functional realizer shipped
-# (diffusion, #290 P3) the walk's realizer-genericity became real and
-# the walker moved to a method-blind home, ``geometry/boundary/``, and
-# at layer-DAG WP-E1 to
-# :func:`orpheus.transport.boundary_realization.realize_recursively` — the leaf
-# realizer is now a REQUIRED argument (``SNBoundaryRealizer()`` for the
-# SN path). Single BCs never routed through it: ``SNProblem``'s
-# ``realize_boundary_law`` arm (the ``TransportMethod`` hook) calls
-# ``SNBoundaryRealizer().realize`` directly.
+class SNDiffuseChain(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=DiffuseChain):
+    r"""The image of ``d * DiffuseChain``: :math:`d\,(E\circ R_t)`, the factored Lambertian.
+
+    The chain asks no pairing, so every quadrature admits it on a Cartesian face. A radial outer face is refused (#653: the corner
+    action is ruled only for a permuting return or a zero return), and so is the hollow inner face (#511).
+    """
+
+    status = Realized(True)
+
+    def admit(self, unit: DiffuseChain, weight: float, site: FaceSite, space: SNMethodSpace | None = None) -> Admission:
+        match site.site_class:
+            case SiteClass.CART:
+                return Realized(True)
+            case SiteClass.RAD_OUTER:
+                return self.corner_refusal()
+            case SiteClass.RAD_INNER:
+                return self.inner_refusal()
+            case _:
+                assert_never(site.site_class)
+
+    def realize(self, unit: DiffuseChain, weight: float, site: FaceSite, space: SNMethodSpace) -> RankOneReemission:
+        return RankOneReemission(alpha=weight, face=site.face, trace=self.trace_of(space, "SNDiffuseChain"))
+
+
+class SNSource(SourceRealizer, _SNSites, table=SN_REALIZERS):
+    r"""The source channel: :math:`q` as an ARRAY on :math:`\Gamma_-`, never an operator (no ``realize``).
+
+    Admitted on a Cartesian face. A radial outer face is refused (#653: a source is a free parameter the corner block, a linear
+    operator on the ray alone, cannot carry), and so is the hollow inner face (#511). :meth:`sample` runs the ERR-047 placement
+    check: the space it samples on must be the inflow half-trace of the face.
+    """
+
+    status = Realized(True)
+
+    def admit(self, terms: InflowTerms, site: FaceSite, space: SNMethodSpace | None = None) -> Admission:
+        match site.site_class:
+            case SiteClass.CART:
+                return Realized(True)
+            case SiteClass.RAD_OUTER:
+                return self.corner_refusal()
+            case SiteClass.RAD_INNER:
+                return self.inner_refusal()
+            case _:
+                assert_never(site.site_class)
+
+    def sample(self, terms: InflowTerms, site: FaceSite, space) -> np.ndarray:
+        if getattr(space, "role", None) != "inflow":
+            raise BoundarySourceNotOnIncomingTraceError(
+                f"the boundary source of face {site.face!r} was sampled on {getattr(space, 'name', space)!r}, which is not an inflow half-trace: the "
+                f"affine trace map has q on Gamma_- only, and a source written anywhere else is discarded by the sweep (ERR-047).",
+                terms,
+            )
+        return sample_terms(terms, space)
+
+
+class SNDecks(DeckRealizer, _SNSites, table=SN_REALIZERS):
+    r"""The decks: a mirror plane or a translation wrap, realized as the unit scaled permutation :math:`\alpha = 1`.
+
+    * ``MirrorDeck``: the ordinate permutation of the face's own mirror, certified by ``ordinate_pairing`` (the refusal is on the
+      angular-resolution axis). It is the same matrix as a unit specular wall, because a symmetry has no amplitude.
+    * ``TranslationDeck``: the identity relabelling between two DISTINCT index sets, :math:`\Gamma_+(f') \to \Gamma_-(f)` with
+      ``f'`` the opposite face, EARNED by the crossing check (a translation moves no direction; the outward normals are opposite, so
+      :math:`n_f = -n_{f'}` sends outgoing to incoming) rather than assumed. A pair whose crossing sets differ is refused on the
+      topological axis: it is not a translation quotient and needs an explicit gluing map (#178).
+
+    The match is exhaustive over :data:`~orpheus.geometry.deck.DeckTransformation`.
+    """
+
+    def admit(self, deck: DeckTransformation, pairing: FacePairing, site: FaceSite, space: SNMethodSpace | None = None) -> Admission:
+        match deck:
+            case MirrorDeck():
+                if space is None:
+                    return Realized(True)
+                try:
+                    self.mirror_pairing(space, pairing.face, site.dimension)
+                except OrdinatePairingError as error:
+                    return Refused(RefusalAxis.ANGULAR_RESOLUTION, f"the quadrature does not certify the mirror of {pairing.face!r}: {error}")
+                return Realized(True)
+            case TranslationDeck():
+                if space is None:
+                    return Realized(True)
+                trace = self.trace_of(space, "SNDecks")
+                try:
+                    _crossing(
+                        Permutation.identity(int(space.quadrature.n_ordinates)),
+                        trace.outflow_space(pairing.partner),
+                        trace.inflow_space(pairing.face),
+                        f"periodic pairing {pairing.partner!r} -> {pairing.face!r}",
+                    )
+                except ValueError as error:
+                    return Refused(RefusalAxis.TOPOLOGY, f"the wrap does not carry Gamma_-({pairing.face}) into Gamma_+({pairing.partner}): {error}")
+                return Realized(True)
+            case _:
+                assert_never(deck)
+
+    def realize(self, deck: DeckTransformation, pairing: FacePairing, site: FaceSite, space: SNMethodSpace) -> ScaledOrdinatePermutation:
+        trace = self.trace_of(space, "SNDecks")
+        match deck:
+            case MirrorDeck():
+                permutation = self.mirror_pairing(space, pairing.face, site.dimension)
+            case TranslationDeck():
+                permutation = Permutation.identity(int(space.quadrature.n_ordinates))
+            case _:
+                assert_never(deck)
+        return ScaledOrdinatePermutation(alpha=1.0, permutation=permutation, face=pairing.face, partner=pairing.partner, trace=trace)
+
+
+SN_REALIZERS.seal()

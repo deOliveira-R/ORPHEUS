@@ -40,7 +40,7 @@ import numpy as np
 from orpheus.geometry.chart import coordinates_agree
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.deck import DeckTransformation, FaceRole
-from orpheus.geometry.faces import face_name
+from orpheus.geometry.faces import face_inventory, face_name
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.values.content import ContentIdentity, FrozenMapping
 
@@ -134,7 +134,6 @@ def colouring_symmetry(
         If the partition is not parsed: no interval, ``len(breaks) != len(ids) + 1``, breaks not strictly
         increasing, or ``ends`` not the first and last break. Checked before the chart is read.
     """
-    identity = FaceIsometry(RigidMotion.identity(1), FrozenMapping({_END_FACES[0]: _END_FACES[0], _END_FACES[1]: _END_FACES[1]}))
     # The raw partition is parsed first, whatever the chart: one more break than intervals, at least one interval,
     # strictly increasing, and the stated ends are its first and last break (one spelling of b_0 and b_n).
     if len(ids) < 1 or len(breaks) != len(ids) + 1:
@@ -144,6 +143,10 @@ def colouring_symmetry(
     low, high = float(ends[0]), float(ends[1])
     if (low, high) != (float(breaks[0]), float(breaks[-1])):
         raise ValueError(f"colouring_symmetry: ends {(low, high)} disagree with the first and last break {(float(breaks[0]), float(breaks[-1]))}")
+    # The identity fixes the faces the carrier HAS: both ends on a slab and on a hollow radial body, the outer surface alone on a
+    # solid one (its centre is an interior point, not a face), the one inventory rule of ``face_inventory``. A group acting on a
+    # face the carrier does not have would be refused by ``Binding`` as another carrier's group.
+    identity = FaceIsometry(RigidMotion.identity(1), FrozenMapping({face: face for face in face_inventory(coord, (low, high), 1)}))
     if coord is not CoordSystem.CARTESIAN:
         return ColouringSymmetry((identity,))
 

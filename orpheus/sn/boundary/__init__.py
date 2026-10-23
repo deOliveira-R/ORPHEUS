@@ -1,31 +1,43 @@
-r"""SN boundary-condition realization — descriptor → operator.
+r"""SN boundary-condition realization — declaration to operator.
 
-The L3 layer that turns a geometry-declared
-:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` into a concrete SN
-:class:`~orpheus.numerics.operator.LinearOperator`:
+The L3 layer that turns a declared exterior (the conditions of
+:mod:`orpheus.transport.boundary_conditions`, joined to the faces of a problem by a ``Binding``) into the concrete SN face
+operators :math:`\Gamma_+ \to \Gamma_-` consumable by the sweep and the Krylov path:
 
-* :mod:`~orpheus.sn.boundary.realizer` — :class:`SNBoundaryRealizer`
-  (isinstance-dispatch realizing each ``BoundaryTraceLaw`` concrete).
-* :mod:`~orpheus.sn.boundary.angular` — the angular primitives the realizer
-  consumes: :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator` and
-  :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`, the two
-  links of the factored Lambertian (white / diffuse-albedo BC).
-  (``IncomingSourceOperator``, which realized prescribed inflow, lived there
-  until **P3** — 2026-08-05 — and was retired onto the zero morphism.)
-* :mod:`~orpheus.sn.boundary.bound_compat` — ``_BoundBoundaryOperator``,
-  the realized law paired with its descriptor, which
-  ``SNProblem.realize_boundary_law`` stores in ``problem.bc``. Internal:
-  not re-exported here. (It was ``orpheus.geometry.boundary._bound_compat``
-  until layer-DAG unit WP-E1.)
+* :mod:`~orpheus.sn.boundary.realizer` — :data:`SN_REALIZERS`, the sealed
+  :class:`~orpheus.transport.boundary_conditions.RealizerTable` of SN: the ONE door that answers "is this declaration admitted
+  on this face" and "realize it", filled by five realizer classes (``SNZero``, ``SNSpecularChain``, ``SNDiffuseChain``,
+  ``SNSource``, ``SNDecks``).
+* :mod:`~orpheus.sn.boundary.realized_operators` — the typed images the table returns: :class:`ZeroMap`,
+  :class:`ScaledOrdinatePermutation`, :class:`RankOneReemission` and :class:`RealizedSum`, all
+  :class:`RealizedBoundary`. The facts the consumers read (the return fraction, whether the face relabels ordinates, whose
+  outflow it consumes, whether it is the zero map) are properties of the TYPE, derived from its parameters.
+* :mod:`~orpheus.sn.boundary.angular` — the angular primitives the Lambertian image consumes:
+  :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator` and :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`,
+  the two links of the factored Lambertian.
+* :mod:`~orpheus.sn.boundary.errors` — the two certifications of the realizer's own index sets (ERR-041, ERR-047).
+* :mod:`~orpheus.sn.boundary.bound_compat` — ``_BoundBoundaryOperator``, the retired shim that paired a realized operator with
+  the law it came from. No consumer imports it; WF2.4 deletes the file.
 
-This seam was one of the two recorded witnesses of the
-:class:`~orpheus.transport.method.TransportMethod` Protocol (the other:
-the homogenization method-layer in
-:mod:`orpheus.transport.mesh.material_mesh`) — minted at #290 P7b when
-the second method's realizer shipped. The rank-N composition walker
-moved to geometry and, at layer-DAG unit WP-E1, to
-:func:`orpheus.transport.boundary_realization.realize_recursively`
-(method-blind; pass ``realizer=SNBoundaryRealizer()``), and the Wave-5
-realizer registry dissolved (you hold the method-mesh → you have its
-realizer). Mirrors the role-keyed layout of :mod:`orpheus.transport`.
+This seam was one of the two recorded witnesses of the :class:`~orpheus.transport.method.TransportMethod` Protocol (the other: the
+homogenization method-layer in :mod:`orpheus.transport.mesh.material_mesh`). Mirrors the role-keyed layout of
+:mod:`orpheus.transport`.
 """
+
+from .realized_operators import (
+    RankOneReemission,
+    RealizedBoundary,
+    RealizedSum,
+    ScaledOrdinatePermutation,
+    ZeroMap,
+)
+from .realizer import SN_REALIZERS
+
+__all__ = [
+    "RankOneReemission",
+    "RealizedBoundary",
+    "RealizedSum",
+    "SN_REALIZERS",
+    "ScaledOrdinatePermutation",
+    "ZeroMap",
+]

@@ -38,14 +38,14 @@ Construction
 
 The per-face boundary laws already live on the
 :class:`~orpheus.sn.problem.SNProblem` in the face-name-keyed ``bc`` dict
-(each entry a :class:`~orpheus.sn.boundary.bound_compat._BoundBoundaryOperator`
-wrapping a realized law that carries :attr:`BlockRole.BOUNDARY`). The whole-trace
+(each entry a :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`
+that carries :attr:`BlockRole.BOUNDARY`). The whole-trace
 ``B`` is the block composition over the mesh's true boundary faces: for each
-face present in the trace it applies that face's law, reading the half-trace of
-the face that law's GEOMETRY names. That is the installation face for every
-constitutive law — a surface responds to what arrives at its own face — so
-those laws occupy the DIAGONAL blocks. A quotient law is off-diagonal:
-:class:`~orpheus.geometry.boundary.PeriodicBoundary` reads its partner
+face present in the trace it applies that face's operator, reading the half-trace of
+the face its type names (``domain_face``). That is the installation face for every
+constitutive response — a surface responds to what arrives at its own face — so
+those occupy the DIAGONAL blocks. A quotient is off-diagonal:
+a translation wrap (:class:`~orpheus.geometry.deck.TranslationDeck`) reads its partner
 (``γ₋ψ|_f = γ₊ψ|_f'``), which is the whole of what makes it a torus
 identification rather than a wall. See
 :attr:`SNBoundaryOperator._face_domains`, which is that block index and is
@@ -67,10 +67,6 @@ from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 
-from orpheus.geometry.boundary import (
-    PrescribedInflow,
-    law_permutes_ordinates,
-)
 from orpheus.numerics.operator import (
     BlockRole,
     LinearOperator,
@@ -82,8 +78,8 @@ from orpheus.numerics.operator import (
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
-    from orpheus.geometry.boundary import BoundaryTraceLaw
     from orpheus.numerics.space import FunctionSpace
+    from orpheus.sn.boundary.realized_operators import RealizedBoundary
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
     from orpheus.sn.problem import SNProblem
@@ -113,71 +109,45 @@ __all__ = [
 # corner map is Euclidean-adjointable) AND
 # :meth:`RadialCharacteristicBoundaryOperator._reflect_corner` (an unruled law
 # is loud-deferred) — RULING P1's ray carrier.
-def _has_ruled_corner_action(law: "BoundaryTraceLaw") -> bool:
-    r"""Can this law's inflow at the off-quadrature :math:`\mu = \pm 1` ray be
+def _has_ruled_corner_action(face: "RealizedBoundary") -> bool:
+    r"""Can this face's inflow at the off-quadrature :math:`\mu = \pm 1` ray be
     written down?
 
-    The corner block is a **linear** operator acting on the ray alone, so a law
-    qualifies on two counts and is loud-deferred otherwise (2.5d
-    plan-of-record):
-
-    * the law must not be the **prescribed-inflow family** — its inflow is a
-      free parameter :math:`q`, not a function of the outflow ray, so a linear
-      corner block structurally cannot carry it. This is a TYPE test on
-      purpose: the disqualifying property belongs to the family whatever
-      :math:`q` currently holds, and testing the source VALUE instead would
-      quietly admit ``PrescribedInflow()`` at its default zero source;
-    * then either :math:`R = 0` (nothing returns — the corner stays zero) or
-      **the composite is a specular pairing** (a mirror pairs
-      :math:`\mu = +1` with :math:`\mu = -1` exactly, off-quadrature included,
-      which is why the swap is expressible without the quadrature).
+    The corner block is a **linear** operator acting on the ray alone, so a
+    face qualifies when either :math:`R = 0` (nothing returns: the corner stays
+    zero, the realized map is a :class:`~orpheus.sn.boundary.realized_operators.ZeroMap`) or
+    **the composite is a specular pairing** (a mirror pairs :math:`\mu = +1`
+    with :math:`\mu = -1` exactly, off-quadrature included, which is why the swap is
+    expressible without the quadrature: the realized operator permutes ordinates), and is
+    loud-deferred otherwise (2.5d plan-of-record).
 
     Everything else is genuinely unruled: a hemispheric average needs the
     :math:`|\Omega\cdot n|`-weighted outflow average at :math:`\mu = -1`; a
     spatial wrap needs the partner face's ray; an identity map pairs ordinate
-    :math:`n` with itself, which is not a corner action at all.
+    :math:`n` with itself, which is not a corner action at all. A prescribed
+    inflow is a free parameter :math:`q`, not a function of the outflow ray, so a
+    linear corner block structurally cannot carry it: such a declaration is
+    refused AT ADMIT on a radial outer face (#653), so no realized face that
+    reaches this question carries a source (the exclusion the retired law-family
+    type test made is now the table's).
 
-    Why the pairing is asked of BOTH tiers (B3.4b)
-    ----------------------------------------------
+    The two answers are asked of the realized operator's TYPE
+    (:attr:`~orpheus.sn.boundary.realized_operators.RealizedBoundary.permutes_ordinates`,
+    :attr:`~orpheus.sn.boundary.realized_operators.RealizedBoundary.is_vacuum`), not of the law the operator was
+    built from. That is what makes the equivalence of a partial specular wall and the mirror hold at the one consumer
+    that used to read the law's factors rather than the realized operator: both tiers (a wall's constitutive return, a
+    domain's symmetry) realize the same
+    :class:`~orpheus.sn.boundary.realized_operators.ScaledOrdinatePermutation`.
 
-    Until B3.4b this read ``law.geometry_map.permutes_ordinates`` alone, which
-    was complete while the *only* specular pairing lived in :math:`G`. The
-    user's 2026-08-01 ruling put one in :math:`R` too — a polished wall's
-    return is constitutive — so ``AlbedoBoundary(α, SpecularReturn(a))`` has
-    ``G = SelfPairedDeck.identity()`` and would have been loud-deferred at the
-    corner while the mirror ``ReflectiveBoundary(a)``, which it equals as a
-    matrix at :math:`\alpha = 1`, is ruled. That
-    breaks the equivalence B3.4b asserts, in the one consumer that reads the
-    factors rather than the realized operator.
-
-    The pairing is therefore asked of each tier **in that tier's own
-    vocabulary**, not through a shared Protocol member. Adding
-    ``permutes_ordinates`` to :class:`BoundaryResponseKernel` would have been
-    tidier to read and is exactly wrong: :class:`SpecularReemission` already
-    carries ``is_adjointable``, so the extra member would make it satisfy
-    :class:`BoundaryGeometryMap` structurally — collapsing the tier
-    disjointness that ``tests/gates/geometry/test_boundary_factors.py`` asserts
-    precisely to stop a response from posing as a geometry. That test is the
-    guard against the very conflation this campaign corrected, and a
-    convenience member is not worth disarming it.
-
-    Until campaign phase B2 this was ``kind in _RULED_CORNER_KINDS`` against
-    the frozenset ``{"vacuum", "reflective"}`` — the same admission, hard-coded
-    as tags because the pre-B2.0 shim discarded the law.
+    Until campaign phase B2 this was ``kind in _RULED_CORNER_KINDS`` against the frozenset ``{"vacuum", "reflective"}``;
+    until the wave-2 carve it asked the law's two factors.
 
     .. note::
 
-       This is a third realizer arm in disguise — *realize this law at the ray
-       corner* — which is why it reads the same two factors
-       :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` will read at
-       phase B4. It is kept local to SN because the off-quadrature ray is a
-       curvilinear-SN concept, not a geometry-package one.
+       This is a third realizer arm in disguise — *realize this face at the ray corner* — kept local to SN because the
+       off-quadrature ray is a curvilinear-SN concept, not a geometry-package one.
     """
-    if isinstance(law, PrescribedInflow):
-        return False
-    return (
-        law_permutes_ordinates(law) or law.response_kernel.is_zero
-    )
+    return face.permutes_ordinates or face.is_vacuum
 
 
 def _zero_bulk_source(problem: "SNProblem"):
@@ -259,73 +229,36 @@ class SNBoundaryOperator(LinearOperator):
     Capabilities
     ------------
 
-    ``apply`` always. ``apply_transpose`` is advertised iff EVERY per-face law
-    advertises it. The discriminator is the law's FACTORS, not its class.
+    ``apply`` always. ``apply_transpose`` is advertised iff EVERY per-face realized operator
+    advertises it. The discriminator is the operator's own ``is_adjointable``, a structural predicate
+    of the realized type, not a class name.
 
-    ⭐ **Every shipped law now advertises one**, so the intersection is
-    currently vacuous — it was not until **G6.3 step 3** (2026-08-04). The
-    Lambertian was the lone holdout: its Euclidean and ``|Ω·n|·w``-weighted
-    transposes differ, so it withheld the ambiguous one. Factoring its
-    realization into a contraction and a broadcast removed the ambiguity —
-    each link has ONE honest transpose — rather than choosing between the two
-    readings. The intersection rule STAYS: it is the structure that keeps a
-    future non-adjointable law from silently granting the composite a
-    transpose it does not have.
-    The intersection rule keeps ``apply_transpose`` honest: it is reachable
+    ⭐ **Every realized face type advertises one** (the zero map, the scaled ordinate permutation,
+    the factored Lambertian and their sum), so the intersection is currently vacuous. It was not
+    until **G6.3 step 3** (2026-08-04): the Lambertian was the lone holdout, because its Euclidean
+    and ``|Ω·n|·w``-weighted transposes differ, so it withheld the ambiguous one. Factoring its
+    realization into a contraction and a broadcast removed the ambiguity (each link has ONE honest
+    transpose) rather than choosing between the two readings. The intersection rule STAYS: it is
+    the structure that keeps a future non-adjointable face type from silently granting the
+    composite a transpose it does not have, and it keeps ``apply_transpose`` honest: reachable
     only when every block can honour it.
 
-    Since **B3.4c** the factor tier and the realized operator agree on that
-    question, and a registry-wide gate holds them together
-    (``tests/gates/geometry/test_bc_universal_invariants.py``). They had drifted:
-    ``SpatialWrap.is_adjointable`` declared ``False`` while the operator
-    realizing periodic answered ``True``, so a consumer got opposite answers
-    depending on which it asked — the declaration was reporting an unbuilt
-    partner channel (#183) in a slot whose contract is a property of the map.
-    B3.4c built the channel and the declaration became true. **Since P3
-    (2026-08-05) the agreement holds for every shipped law with no
-    exception.** The AFFINE
-    :class:`~orpheus.geometry.boundary.PrescribedInflow` sat outside it until
-    then — both its factors declare adjointable while its realized affine
-    operator declined a transpose — and P3 closed the gap by realizing the
-    law's LINEAR factor, the zero morphism, whose transpose is itself. The
-    affine ``q`` is still not carried by the factor pair
-    (:ref:`bc-affine-source-channel`); the difference is that the tier no
-    longer pretends ``q`` is an operator.
+    The affine source :math:`q` is not carried by this operator at all: a prescribed inflow's
+    linear image is the zero map (whose transpose is itself) and :math:`q` travels the
+    boundary-source channel (:ref:`bc-affine-source-channel`); the tier does not pretend :math:`q`
+    is an operator. Since the wave-2 carve each fact the composite reads (``is_adjointable``, the
+    domain face, the return fraction) is a property of the realized face's TYPE.
 
-    ⚠ **A capability widened here.** :attr:`is_adjointable` below is the
-    per-face conjunction, so ONE non-adjointable law made the whole ``B``
-    block non-adjointable. Pre-P3 a declared prescribed face did exactly
-    that, putting ``B.apply_transpose`` and ``B.H`` out of reach on such a
-    mesh; post-P3 it does not. The configuration is observable only in tests
-    — #189 keeps prescribed inflow out of every production driver — which is
-    why it went unnoticed.
-
-    Since **B3.4b** an albedo face answers by its **re-emission closure**, not
-    by its class: a specular closure realizes to the same scaled permutation
-    reflective does, a diffuse one to the same Lambertian white uses, and the
-    closure-free spelling never reaches here — the realizer refuses it. The
-    predicate below already computed this correctly, since it reads each
-    realized law's own ``is_adjointable``; it is the enumeration in prose that
-    had to stop naming classes.
-
-    ⚠ **Corrected 2026-08-06.** The diffuse arm above carried "(not
-    adjointable)" and the specular arm "(adjointable)". `[M]` on a slab face,
-    **all three are ``True``** — ``WhiteBoundary()``,
-    ``AlbedoBoundary(0.7, IsotropicReturn(...))`` and
-    ``AlbedoBoundary(0.7, SpecularReturn(...))`` — because B3.4b factored the
-    Lambertian so the chain transposes leaf by leaf. Two lessons ride on this
-    one line. (1) The paragraph is *itself* a correction pass — it says so in
-    its own last sentence — and it still left a class-named falsehood in the
-    text it was correcting; "stop naming classes" was applied to the subjects
-    and not to the parenthetical verdicts. (2) The subject ("white") and the
-    negation ("not adjointable") sit on DIFFERENT LINES, so the line-based grep
-    that found and fixed the sibling claim on :774 could not see this one — a
-    concept grep for a negated claim needs a multi-line window.
+    ⚠ **Corrected 2026-08-06, and carried.** `[M]` on a slab face the zero map, the scaled
+    permutation and the factored Lambertian are all adjointable (the Lambertian chain transposes
+    leaf by leaf, B3.4b). A negated claim ("the white wall is not adjointable") whose subject and
+    negation sit on different lines is invisible to a line-based grep: a concept grep for a
+    negated claim needs a multi-line window.
 
     Parameters
     ----------
     problem : SNProblem
-        The SN Problem — carries the per-face boundary laws
+        The SN Problem — carries the per-face realized boundary operators
         (the face-name-keyed ``bc`` dict) and the unified trace space (same instance the
         composite carrier is bound to; the mesh-identity invariant of
         :class:`~orpheus.sn.operators.streaming.StreamingOperator` applies here too).
@@ -337,14 +270,14 @@ class SNBoundaryOperator(LinearOperator):
         self.problem = problem
 
     @property
-    def _face_laws(self) -> dict[str, LinearOperator]:
-        """Map each true boundary face → its per-face realized law.
+    def _face_operators(self) -> dict[str, "RealizedBoundary"]:
+        """Map each true boundary face → its per-face realized operator.
 
         Read from ``problem.bc`` for the faces the trace carries
         (slab ``xmin``/``xmax``; curvilinear ``xmax`` only; 2-D Cartesian
         all four) — the dict and the trace layout share their keys by
         construction (both derived from ``face_labels``, C4 / #220).
-        Single source of truth — the laws are the same objects
+        Single source of truth — the operators are the same objects
         the sweep consumes, so ``B`` cannot drift from the realized BCs.
         """
         return {
@@ -372,12 +305,10 @@ class SNBoundaryOperator(LinearOperator):
         DOES identify the faces) — it is observable only when the two faces
         carry different data, which is the real sweep's situation.
 
-        The answer comes from the law's **geometry factor**, which is B3.0's
-        ruling read one level up: :math:`G` carries the crossing, in ANGLE for a
-        mirror and in SPACE for a wrap. A response kernel is constitutive and
-        structurally cannot reach another face, so it is never asked. Spelled
-        as the factor read rather than hidden behind a law-level helper,
-        because the spelling IS the ruling.
+        The answer is :attr:`~orpheus.sn.boundary.realized_operators.RealizedBoundary.domain_face`
+        of the realized face, a property of its TYPE: a deck carries the crossing, in ANGLE for a mirror
+        and in SPACE for a wrap (the translation wrap's partner), and a constitutive response
+        (a wall) structurally cannot reach another face, so its domain face is its own.
 
         The map is certified a **permutation of the boundary faces**, which is
         the well-posedness statement for the whole block: every face's
@@ -396,10 +327,7 @@ class SNBoundaryOperator(LinearOperator):
           names a partner the trace has no slot for.
         """
         faces = self.problem.angular_trace.layout.faces
-        domains = {
-            face: self.problem.bc[face].law.geometry_map.domain_face(face)
-            for face in faces
-        }
+        domains = {face: self.problem.bc[face].domain_face for face in faces}
         if sorted(domains.values()) != sorted(faces):
             unknown = sorted(set(domains.values()) - set(faces))
             detail = (
@@ -437,8 +365,8 @@ class SNBoundaryOperator(LinearOperator):
         # cannot be inverted. (Pre-B3.2 the same rank deficiency arose from a
         # codomain projection applied to a full-face law; the narrowing moved
         # it from something the consumer imposed to something the types say.)
-        laws = self._face_laws.values()
-        return bool(laws) and all(law.is_adjointable for law in laws)
+        operators = self._face_operators.values()
+        return bool(operators) and all(op.is_adjointable for op in operators)
 
     @property
     def domain(self) -> "FunctionSpace":
@@ -570,7 +498,7 @@ class SNBoundaryOperator(LinearOperator):
         from orpheus.transport.fields import AngularBoundarySourceSink
 
         # Single mesh source (mesh-identity invariant — see class docstring):
-        # the output buffers, the trace selectors, and ``_face_laws`` ALL read
+        # the output buffers, the trace selectors, and ``_face_operators`` ALL read
         # ``self.problem``, so a mismatched input trace cannot desync the
         # projection from the buffer geometry.
         mesh = self.problem
@@ -597,17 +525,17 @@ class SNBoundaryOperator(LinearOperator):
         # Row-granular restriction is exact for the same reason the face
         # restriction is: the projected action writes each target row
         # independently.
-        face_laws = self._face_laws
+        face_operators = self._face_operators
         if faces is not None:
             # A face outside the layout is refused by the PUBLIC verb that
             # takes a face subset (``SNMaskedBoundaryOperator.reflect_rows_
             # inplace``, CS4c step 6 item 6.5); the refusal lived here until
             # the two trace-only verbs that reached it retired.
-            face_laws = {f: face_laws[f] for f in faces}
+            face_operators = {f: face_operators[f] for f in faces}
         if rows is not None:
-            face_laws = {f: law for f, law in face_laws.items() if f in rows}
+            face_operators = {f: op for f, op in face_operators.items() if f in rows}
         face_domains = self._face_domains
-        for face, law in face_laws.items():
+        for face, law in face_operators.items():
             # B3.2 — the law's DOMAIN is Γ₊ and its CODOMAIN is Γ₋, so the
             # face action is the composition ``ι₋ ∘ law ∘ γ₊`` spelled out.
             # Nothing is computed and then thrown away: the outflow rows the
@@ -781,7 +709,7 @@ class SNBoundaryOperator(LinearOperator):
             # the trace layout and ``bc`` share keys by construction). These
             # are the block ROWS; which COLUMN each reads is
             # :attr:`_face_domains`, and the split partitions rows.
-            for face in self._face_laws
+            for face in self._face_operators
         }
         return BoundarySplit(
             lower=SNMaskedBoundaryOperator(self, lower_rows, schedule),
@@ -791,11 +719,11 @@ class SNBoundaryOperator(LinearOperator):
     def apply_transpose(self, psi: "FullField") -> "FullField":
         r"""Euclidean transpose ``Bᵀ·ψ`` — per-face ``apply_transpose``, zero bulk.
 
-        Reachable only when every per-face law is adjointable (see
-        :attr:`is_adjointable`), which since G6.3 step 3 every SHIPPED law is —
-        including white, whose realization was factored so that the Lambertian
+        Reachable only when every per-face operator is adjointable (see
+        :attr:`is_adjointable`), which since G6.3 step 3 every realized face type is —
+        including the diffuse one, whose realization was factored so that the Lambertian
         chain transposes leaf by leaf (B3.4b). `[M]` 2026-08-06: a slab with a
-        ``WhiteBoundary()`` face reports ``is_adjointable = True`` and this
+        diffuse (white) face reports ``is_adjointable = True`` and this
         method returns.
 
         ⚠ **Corrected 2026-08-06.** This docstring read "the white BC has no
@@ -881,7 +809,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
     def __init__(
         self,
         field_space: "FullFieldSpace | None",
-        outer_law: "BoundaryTraceLaw",
+        outer_face: "RealizedBoundary",
     ) -> None:
         if field_space is None:
             raise ValueError(
@@ -895,10 +823,10 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
             )
         #: System B's member composite — endomorphic domain/codomain.
         self._field_space = field_space
-        #: The outer-radius face's realized boundary law (a carrying mesh is
+        #: The outer-radius face's realized boundary operator (a carrying mesh is
         #: 1-D curvilinear: exactly ONE boundary face — ``xmax`` — carries
         #: it). Bound at construction (un-weld arc O-1).
-        self._outer_law = outer_law
+        self._outer_face = outer_face
 
     @property
     def is_adjointable(self) -> bool:
@@ -911,7 +839,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         #
         # ONE source of truth with ``_reflect_corner``'s guard: the transpose
         # exists exactly when the forward corner action does.
-        return _has_ruled_corner_action(self._outer_law)
+        return _has_ruled_corner_action(self._outer_face)
 
     @property
     def domain(self) -> "FunctionSpace":
@@ -938,7 +866,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         specular outer face (a mirror, or a partial specular reflector of
         amplitude α) the reflected partner of the outward ray μ = +1 is
         EXACTLY the inward one μ = −1 (its own mirror — an off-quadrature ray,
-        so the per-face law OPERATOR cannot act on it; the specular fact is
+        so the per-face realized OPERATOR cannot act on it; the specular fact is
         applied directly). Forward:
         ``out.corner(level, −1) = α·ψ½.corner(level, +1)`` per carried level;
         Euclidean transpose: ``out.corner(level, +1) = α·χ̄.corner(level, −1)``
@@ -948,31 +876,31 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         discipline); since the B.2b re-type the input IS the boundary member
         (the cells never enter — structural, not zeroed).
 
-        Law dispatch — on the law's own **affine factors** (:math:`R`,
-        :math:`G`, :math:`q`), NOT on the realized operator's composition tree
-        (which is an (ordinate ⊗ group) operator over the QUADRATURE rows and
+        Dispatch — on the realized face's TYPE (the facts
+        :attr:`~orpheus.sn.boundary.realized_operators.RealizedBoundary.permutes_ordinates`,
+        :attr:`~orpheus.sn.boundary.realized_operators.RealizedBoundary.is_vacuum` and
+        :attr:`~orpheus.sn.boundary.realized_operators.RealizedBoundary.return_fraction`), NOT on the realized operator's
+        composition tree (which is an (ordinate ⊗ group) operator over the QUADRATURE rows and
         structurally cannot act on the off-quadrature μ = ±1 ray):
 
-        * :math:`G` permutes ordinates (a specular mirror) — the corner swap
+        * the face permutes ordinates (a specular mirror) — the corner swap
           above; the mirror of μ = +1 is exactly μ = −1, so the pairing is
           exact off-quadrature.
         * otherwise :math:`R = 0` (vacuum) — no corner emission, the block
           stays all-zero.
-        * anything else (white / albedo / periodic / a prescribed source) —
+        * anything else (a diffuse re-emission, a periodic wrap) —
           **loud-deferred** (:class:`NotImplementedError`) per the 2.5d
-          plan-of-record; see :func:`_has_ruled_corner_action` for which factor
-          disqualifies each. (E.g. white re-emission at the off-quadrature ray
-          needs the ``|Ω·n|``-weighted outflow average for μ = −1, not yet
-          ruled.)
+          plan-of-record; see :func:`_has_ruled_corner_action`. (E.g. white
+          re-emission at the off-quadrature ray needs the ``|Ω·n|``-weighted
+          outflow average for μ = −1, not yet ruled.) A declaration that
+          reaches here through a problem never is such a face: the SN table
+          refuses the diffuse chain and every source on a radial outer face AT
+          ADMIT (#653), so this loud deferral guards only a face built by hand.
 
-        Until campaign phase B2 this dispatched on the ``kind`` STRING the
-        pre-B2.0 shim carried.
-
-        The specular swap is scaled by the response amplitude :math:`\alpha`,
-        so a partially specular wall
-        (``AlbedoBoundary(α, SpecularReturn(axis))``) returns the fraction
-        :math:`\alpha` of its corner outflow, and the mirror
-        (``ReflectiveBoundary(axis)``, amplitude 1) all of it. Until 2026-09-30 the swap was
+        The specular swap is scaled by the face's return fraction
+        :math:`\alpha`, so a partially specular wall (``WallCondition.specular(α)``)
+        returns the fraction :math:`\alpha` of its corner outflow, and the unit
+        mirror (:math:`\alpha = 1`) all of it. Until 2026-09-30 the swap was
         unscaled, exact for :math:`\alpha = 1` and wrong for a typed partial
         reflector, which re-emitted its full outflow at the corner (ERR-094).
         """
@@ -980,23 +908,22 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
             RadialCharacteristicBoundarySourceSink,
         )
 
-        law = self._outer_law
-        if not _has_ruled_corner_action(law):  # single source with is_adjointable
+        face = self._outer_face
+        if not _has_ruled_corner_action(face):  # single source with is_adjointable
             raise NotImplementedError(
-                f"RadialCharacteristicBoundaryOperator: the outer-face law "
-                f"{type(law).__name__} (G={type(law.geometry_map).__name__}, "
-                f"R={law.response_kernel.amplitude}) has no ruled corner action "
-                f"yet (white / albedo / periodic / a prescribed source at the "
-                f"off-quadrature μ = ±1 ray — loud-deferred, 2.5d "
-                f"plan-of-record)."
+                f"RadialCharacteristicBoundaryOperator: the outer face "
+                f"{type(face).__name__} (return fraction {face.return_fraction}) "
+                f"has no ruled corner action yet (a diffuse re-emission or a "
+                f"periodic wrap at the off-quadrature μ = ±1 ray — loud-deferred, "
+                f"2.5d plan-of-record)."
             )
         out = RadialCharacteristicBoundarySourceSink.zeros(seed.space)
         # R = 0 ⇒ zero corner emission (the all-zero ``out`` falls through);
-        # a specular law ⇒ R ∘ G at the corner: the mirror of μ = +1 is exactly
-        # μ = −1, and the response returns the fraction α of it (α = 1 for a
-        # mirror; a scalar, so the transpose carries the same α).
-        if law_permutes_ordinates(law):
-            alpha = law.response_kernel.amplitude
+        # a specular face ⇒ the mirror at the corner: the mirror of μ = +1 is exactly
+        # μ = −1, and the face returns the fraction α of it (α = 1 for a
+        # unit mirror; a scalar, so the transpose carries the same α).
+        if face.permutes_ordinates:
+            alpha = face.return_fraction
             for level in seed.levels:
                 if method == "apply":
                     out.corner(level, -1)[...] = alpha * seed.corner(level, +1)
@@ -1177,12 +1104,12 @@ class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
         (`[M]` bit-identical to the retired assignment on 4/4 geometries).
         """
         faces = tuple(faces)
-        unknown = set(faces) - set(self.inner._face_laws)
+        unknown = set(faces) - set(self.inner._face_operators)
         if unknown:
             raise ValueError(
                 f"SNMaskedBoundaryOperator.reflect_rows_inplace: face(s) "
                 f"{sorted(unknown)} are not boundary faces of this mesh; "
-                f"available faces: {sorted(self.inner._face_laws)}."
+                f"available faces: {sorted(self.inner._face_operators)}."
             )
         selected = {
             face: self.rows[face]

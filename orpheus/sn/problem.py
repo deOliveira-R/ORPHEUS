@@ -24,15 +24,11 @@ import numpy as np
 
 from orpheus.geometry import CoordSystem
 from orpheus.mesh import Mesh1D, Mesh2D
-from orpheus.geometry.boundary import (
-    BoundaryTraceLaw,
-    ReflectiveBoundary,
-    VacuumInflow,
-)
-from orpheus.sn.boundary.bound_compat import _BoundBoundaryOperator
+from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.sn.angular.redistribution import angular_redistribution
-from orpheus.transport.method import resolve_boundary_conditions
+from orpheus.transport.boundary_conditions import BoundaryConditions, bind
+from orpheus.transport.method import realize_boundary
 from orpheus.mesh import (
     Axis1D,
     FaceLabel,
@@ -43,8 +39,9 @@ from orpheus.mesh import (
     legacy_mesh_from_axes,
     n_unknowns_flat as _axis_n_unknowns_flat,
 )
-from orpheus.transport.mesh.material_mesh import MaterialMesh
-from .boundary.realizer import SNBoundaryRealizer
+from orpheus.transport.mesh.material_mesh import MaterialMesh, conditions_key
+from .boundary.realized_operators import RealizedBoundary
+from .boundary.realizer import SN_REALIZERS
 from .mesh.method_space import SNMethodSpace
 from .mesh.reduced_operator import (
     ReducedStreamingOperator,
@@ -80,11 +77,14 @@ if TYPE_CHECKING:
     from orpheus.numerics.face_layout import FaceLayout
     from orpheus.numerics.space import FunctionSpace
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
+    from orpheus.transport.fields import AngularBoundarySourceSink
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.numerics.spaces.radial_characteristic_space import (
         RadialCharacteristicBoundarySpace,
         RadialCharacteristicInteriorSpace,
     )
+    from orpheus.geometry.deck import DeckTransformation
+    from orpheus.transport.boundary_conditions import BoundaryCondition, RealizerTable
     from orpheus.sn.operators.loss_kernel_gauge import LossKernelGauge
     # NOTE (B.5.A): the mesh provides SPACE data only and does NOT import
     # transport-field types — zero-allocation lives on the field types
@@ -157,63 +157,36 @@ class SNProblem(MaterialMesh):
     ng : int
         Number of energy groups, derived from materials and validated
         for consistency.
-    BOUNDARY_OPERATOR_REGISTRY : dict[str, type[BoundaryTraceLaw]]
-        Supported boundary-condition kinds (Wave 8 / C8.3) — the SN
-        law-admission table read by the shared
-        :func:`~orpheus.transport.method.resolve_boundary_conditions`
-        body (#290 P7b). Values are :class:`BoundaryTraceLaw`
-        subclasses (``VacuumInflow``, ``ReflectiveBoundary``) realized
-        per face by :meth:`realize_boundary_law` via
-        :class:`SNBoundaryRealizer` for every supported mesh
-        (1-D Cartesian, 1-D spherical, 1-D cylindrical, 2-D
-        Cartesian) and wrapped in :class:`_BoundBoundaryOperator`
-        for compatibility with the SN-side call surface.
-    bc : dict[str, _BoundBoundaryOperator]
-        Resolved BC operator per boundary face, keyed by the face
-        name — the SAME keys as :attr:`boundary_face_layout` /
-        ``angular_trace.layout.faces``, both derived from :attr:`face_labels`
-        through the single-sourced
-        :attr:`~orpheus.mesh.axis.FaceLabel.face_name` crosswalk (C4,
-        #220). Each value is a :class:`_BoundBoundaryOperator` shim
-        pairing the realized 1-arg :class:`LinearOperator` with the
-        **law** it was realized from — so a consumer can ask what the
-        face's law DOES (``bc[face].law.geometry_map``,
-        ``bc[face].law.response_kernel``) and not only what it was
-        declared as. Its ``kind`` tag reads that law's registry key,
-        keeping ``problem.bc["xmin"] == "vacuum"`` style comparisons
-        working. The face inventory IS the BC
-        inventory: slab ``{"xmin", "xmax"}``; **a solid sphere /
-        cylinder has only ONE entry** (``"xmax"``, the outer radius —
-        the pole r=0 is the angular closure's regularity condition,
-        not a BC face, so it has NO entry rather than a ``None``);
+    boundary_conditions : BoundaryConditions or mapping of int tag to BoundaryCondition
+        Keyword-only, trailing. The exterior conditions declared for the tags the mesh's faces carry (a face's role is a deck, a
+        mirror plane or a translation wrap, or an ``int`` tag of the exterior). Empty by default: the exact cover is the default's
+        witness, so a tagged carrier built with no conditions raises ``UnboundTagError`` naming each tag, and a deck-only carrier
+        (a PWR half cell) needs none.
+    boundary_realizers : RealizerTable
+        The SN realizer table (:data:`~orpheus.sn.boundary.realizer.SN_REALIZERS`): the ONE door that admits and realizes a
+        declaration on a face, read by the shared :func:`~orpheus.transport.method.realize_boundary` body.
+    binding : Binding
+        The declared conditions joined to this problem's faces by :func:`~orpheus.transport.boundary_conditions.bind` (the carrier
+        is this problem: its ``face_roles`` and its colouring ``symmetry``).
+    bc : dict[str, RealizedBoundary]
+        Realized boundary operator per face WITH A TRACE, keyed by the face name, the SAME keys as :attr:`boundary_face_layout` /
+        ``angular_trace.layout.faces``, both derived from :attr:`face_labels` through the single-sourced
+        :attr:`~orpheus.mesh.axis.FaceLabel.face_name` crosswalk (C4, #220). Each value is a typed
+        :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary` whose facts (``return_fraction``, ``permutes_ordinates``,
+        ``domain_face``, ``is_vacuum``) are properties of its TYPE, so a consumer asks the operator what the face DOES and never the
+        law it came from. The face inventory IS the trace inventory: slab ``{"xmin", "xmax"}``; **a solid sphere / cylinder has only
+        ONE entry** (``"xmax"``, the outer radius; the pole r=0 is the angular closure's regularity condition, not a face, so it has
+        NO entry rather than a ``None``); a hollow body's inner face is a TAG with no trace and so no entry either (#511);
         2-D Cartesian all four faces.
     """
 
-    BOUNDARY_OPERATOR_REGISTRY: ClassVar[dict[str, type[BoundaryTraceLaw]]] = {
-        "vacuum": VacuumInflow,
-        "reflective": ReflectiveBoundary,
-    }
-    # Values are the LAW CLASSES themselves (not factory functions), looked up
-    # by the shared TransportMethod resolve body (#290 P7b —
-    # ``resolve_boundary_conditions`` owns the face loop and the tag → law
-    # parse; ``realize_boundary_law`` below dispatches
-    # :class:`SNBoundaryRealizer`), applied uniformly for 1-D Cartesian, 1-D
-    # spherical, 1-D cylindrical, and 2-D Cartesian meshes.
-    #
-    # The 4 other kinds ``SNBoundaryRealizer`` dispatches today (``white``,
-    # ``periodic``, ``albedo``, ``prescribed_inflow``) are NOT registered here
-    # — so they are declarable only by constructing the law directly, never
-    # from a ``BC(...)`` tag; admitting them requires SN-sweep-side wiring
-    # (sweep cycles for periodic, etc.) and is issue #189.  ``zero_flux`` is
-    # the seventh law and is NOT dispatchable at all: the SN realizer REFUSES
-    # it (a negative angular inflow is unrepresentable — use ``vacuum``).
-    # Future expansion is mechanical: add the law class as a value here,
-    # ensure the realizer dispatch handles it, and add an SN-side test that
-    # the sweep behaves correctly.
-    #
-    # There is no ``mixed`` kind: ``MixedBoundaryOperator`` was deleted in
-    # Wave 11 and rank-N boundaries are expressed through the descriptor-tree
-    # algebra (``LawSum`` / ``LawScaled`` + ``realize_recursively``) instead.
+    boundary_realizers: ClassVar["RealizerTable"] = SN_REALIZERS
+    # The SN realizer table, sealed by ``orpheus.sn.boundary.realizer``: the ONE door that answers "is this declaration admitted on
+    # this face" and "realize it". It replaces the string registry ``BOUNDARY_OPERATOR_REGISTRY`` (a ``dict[str, type[BoundaryTraceLaw]]``
+    # of admitted tags that admitted two kinds while the realizer realized six laws) and the 400-line ``isinstance`` ladder behind it:
+    # the query and the realization read one table and cannot disagree. A wall of two chains is the meet of the chain admissions, a
+    # radial outer face refuses the diffuse chain and every source AT ADMIT (#653), and the hollow radial inner face is a tag that
+    # admits only the unit specular cavity (#511).
 
     def __init__(
         self,
@@ -224,6 +197,8 @@ class SNProblem(MaterialMesh):
         angular_closure: "type[AngularClosureBase] | None" = None,
         scattering_order: int = 0,
         sigma_t_cell: np.ndarray | None = None,
+        *,
+        boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]" = BoundaryConditions.empty(),
     ) -> None:
         # The legacy inbound surface: convert the Mesh1D / Mesh2D declaration
         # to the canonical axis tuple ONCE at the boundary, extract the one
@@ -243,6 +218,7 @@ class SNProblem(MaterialMesh):
             angular_closure=angular_closure,
             scattering_order=scattering_order,
             sigma_t_cell=sigma_t_cell,
+            boundary_conditions=boundary_conditions,
         )
 
     def _init_core(
@@ -257,6 +233,7 @@ class SNProblem(MaterialMesh):
         angular_closure: "type[AngularClosureBase] | None",
         scattering_order: int = 0,
         sigma_t_cell: np.ndarray | None = None,
+        boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]",
     ) -> None:
         # The ONE construction body both surfaces funnel into (C5.1).
         #
@@ -412,18 +389,14 @@ class SNProblem(MaterialMesh):
             self.quad, self.boundary_face_layout,
         )
 
-        # Resolve the per-axis BC declarations through the ONE shared
-        # TransportMethod body (#290 P7b): the face loop over
-        # ``face_labels`` and the tag → law parse are method-generic
-        # (every face law is declared; there is no default); :meth:`realize_boundary_law` below is the SN arm.
-        # The face inventory IS the BC inventory by construction (C4,
-        # #220): a face that exists has exactly one entry; the curvilinear
-        # pole has none (Pattern 4 — a pole-BC is unrepresentable).
-        # Consumers key into :attr:`bc` by the same face names the trace
-        # layout carries.
-        self.bc: dict[str, _BoundBoundaryOperator] = (
-            resolve_boundary_conditions(self)
-        )
+        # Bind the declared exterior conditions to THIS carrier's faces (its ``face_roles`` and its colouring ``symmetry``, read
+        # inside ``bind`` once, so a binding checked against another carrier's group is unspellable), then realize the binding
+        # through the ONE shared TransportMethod body (#290 P7b): the face loop over the binding's faces is method-generic, and
+        # :meth:`realize_boundary_role` below is the SN arm. The face inventory with a trace IS the ``bc`` inventory by
+        # construction (C4, #220): a face that carries a trace has exactly one entry; the curvilinear pole has none (Pattern 4 —
+        # a pole-BC is unrepresentable), and a hollow body's inner face is a tag with no trace, met by the table's ``require``.
+        self.binding = bind(self, boundary_conditions)
+        self.bc: dict[str, RealizedBoundary] = realize_boundary(self)
 
         # (Materials-consistency validation — every ``mat_map`` id has a
         # ``materials`` entry, and all materials agree on ``ng`` — plus
@@ -467,52 +440,28 @@ class SNProblem(MaterialMesh):
         # Drop the temporary attribute now that the closure is bound.
         del self._user_supplied_closure
 
-    # ── Boundary condition resolution ─────────────────────────────────
+    # ── Boundary condition realization ───────────────────────────────
     #
-    # The face loop and the tag → law parse
-    # live in the ONE shared TransportMethod body,
-    # :func:`~orpheus.transport.method.resolve_boundary_conditions`
-    # (#290 P7b — it replaced the twin ``SNProblem._resolve_bcs`` /
-    # ``DiffusionMesh._resolve_bcs`` loops). Only the genuinely
-    # SN-specific arm remains here:
+    # The face loop lives in the ONE shared TransportMethod body,
+    # :func:`~orpheus.transport.method.realize_boundary` (#290 P7b — it replaced the twin
+    # ``SNProblem._resolve_bcs`` / ``DiffusionMesh._resolve_bcs`` loops). Only the genuinely SN-specific arm remains here:
 
-    def realize_boundary_law(
-        self,
-        law: BoundaryTraceLaw,
-        face: str,
-    ) -> "_BoundBoundaryOperator":
-        r"""Realize one typed boundary law on ``face`` — the SN arm of the
+    def realize_boundary_role(self, role: "DeckTransformation | BoundaryCondition", face: str) -> RealizedBoundary:
+        r"""Realize one declaration (a deck, or the condition the face's tag is bound to) on ``face`` — the SN arm of the
         :class:`~orpheus.transport.method.TransportMethod` hook.
 
-        Called per face by the shared
-        :func:`~orpheus.transport.method.resolve_boundary_conditions`
-        body. Build an :class:`SNMethodSpace` carrying the precomputed
-        unified :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`,
-        hand the law to :class:`SNBoundaryRealizer.realize`, pair the
-        1-arg result back with ``law`` in :class:`_BoundBoundaryOperator`
-        so the SN-side call surface sees a uniform 1-arg ``apply(psi)``
-        contract that can still be asked what law it realizes.
+        Called per face with a trace by the shared :func:`~orpheus.transport.method.realize_boundary` body. Build an
+        :class:`SNMethodSpace` carrying the precomputed unified
+        :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`, and hand the declaration to
+        :attr:`boundary_realizers` ``.realize``, which admits first (a declaration the SN table does not admit on this face raises
+        :class:`~orpheus.transport.boundary_conditions.BoundaryRefused` at construction, carrying the refusal's axis and issue) and
+        then returns the typed :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`: the SN-side call surface sees a
+        uniform 1-arg ``apply(psi)`` contract, and the operator can be ASKED what it does (its facts are properties of its type).
 
-        **The pairing is the point (campaign phase B2.0).** Until B2.0
-        this line kept only ``kind=law.key`` and dropped the law, so
-        ``problem.bc[face]`` was a realized operator plus a *string* —
-        which is why five production sites answer structural questions
-        (*does my ``G`` permute ordinates? is my ``R`` zero?*) by
-        comparing that string against literals: a string was the only
-        thing that survived realization. Handing the law through makes
-        those questions answerable at the object. The ``kind`` tag lives
-        on as a read-through of the law's registry key until B2.2 retires
-        the string surface.
-
-        Issue #188 / C188.3: every supported mesh (1-D Cartesian,
-        1-D spherical, 1-D cylindrical, 2-D Cartesian) routes
-        through the realizer here. The pre-C188.3 curvilinear
-        bypass — which wrapped the raw 2-arg
-        :class:`BoundaryTraceLaw` with a bound quadrature — is
-        gone, made redundant by the unified trace's curvilinear
-        support. ``face`` must name a face present in the trace;
-        curvilinear's inner pole has no label and is handled by the
-        angular closure, not here.
+        Issue #188 / C188.3: every supported mesh (1-D Cartesian, 1-D spherical, 1-D cylindrical, 2-D Cartesian) routes through the
+        table here. ``face`` must name a face present in the trace; curvilinear's inner pole has no label and is handled by the
+        angular closure, not here, and a hollow body's inner face has a tag but no trace (the shared body meets the table through
+        ``require`` there).
         """
         method_space = SNMethodSpace.for_face(
             mesh=self.mesh,
@@ -520,8 +469,18 @@ class SNProblem(MaterialMesh):
             face=face,
             trace=self._trace,
         )
-        realized = SNBoundaryRealizer().realize(law, method_space)
-        return _BoundBoundaryOperator(realized, law)
+        return self.boundary_realizers.realize(role, self.face_site(face), method_space)
+
+    def declared_boundary_source(self) -> "AngularBoundarySourceSink":
+        r"""The DECLARED boundary conditions' :math:`q` as a field on :attr:`angular_trace`: the user's path to a prescribed inflow.
+
+        :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_binding` over this problem's :attr:`binding`, its
+        :attr:`angular_trace`, its own realizer table (:attr:`boundary_realizers`: transport names no method table, the method
+        passes its own) and its :meth:`face_site` hook. All-zero when no tagged face's condition carries a source.
+        """
+        from orpheus.transport.fields import AngularBoundarySourceSink
+
+        return AngularBoundarySourceSink.from_binding(self.binding, self.angular_trace, self.boundary_realizers, self.face_site)
 
     # ── Properties ────────────────────────────────────────────────────
     #
@@ -593,6 +552,7 @@ class SNProblem(MaterialMesh):
     def _contractibility_key(self) -> tuple:
         return (
             *MaterialMesh._contractibility_key.func(self),
+            conditions_key(self.binding.declared),
             self.quad._identity_key,
             type(self.scheme).__qualname__,
         )
@@ -716,6 +676,7 @@ class SNProblem(MaterialMesh):
         angular_closure: "type[AngularClosureBase] | None" = None,
         scattering_order: int = 0,
         sigma_t_cell: np.ndarray | None = None,
+        boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]" = BoundaryConditions.empty(),
     ) -> "SNProblem":
         r"""Build an :class:`SNProblem` from an axis tuple — the axis-native surface.
 
@@ -759,6 +720,8 @@ class SNProblem(MaterialMesh):
             Cartesian → :class:`IdentityAngularClosure`).  A class, not
             an instance: closures bind to their mesh at construction
             (``cls(problem)``), and the mesh does not exist yet.
+        boundary_conditions : BoundaryConditions or mapping of int tag to BoundaryCondition
+            Keyword-only. The exterior conditions declared for the tags the axes' faces carry (see the class docstring).
         """
         axes = tuple(axes)
         # C5.5 (#225): d≥3 is mesh-adapter-free from birth — every
@@ -781,6 +744,8 @@ class SNProblem(MaterialMesh):
             scheme=scheme,
             angular_closure=angular_closure,
             scattering_order=scattering_order,
+            sigma_t_cell=sigma_t_cell,
+            boundary_conditions=boundary_conditions,
         )
         return obj
 
@@ -793,6 +758,7 @@ class SNProblem(MaterialMesh):
         scheme: DiscretizationSchemeBase | None = None,
         angular_closure: "type[AngularClosureBase] | None" = None,
         scattering_order: int = 0,
+        boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]" = BoundaryConditions.empty(),
     ) -> "SNProblem":
         r"""Promote a :class:`MaterialMesh` to a solvable SN phase space.
 
@@ -824,6 +790,9 @@ class SNProblem(MaterialMesh):
             Cartesian → :class:`IdentityAngularClosure`).  A class, not
             an instance: closures bind to their mesh at construction
             (``cls(problem)``), and the mesh does not exist yet.
+        boundary_conditions : BoundaryConditions or mapping of int tag to BoundaryCondition
+            Keyword-only. The exterior conditions for the tags the material mesh's faces carry: a material mesh is method-agnostic
+            DATA and carries no conditions (a homogenized mesh is promoted with the conditions of the problem it came from).
 
         Every carrier in the hierarchy promotes: ``mesh is None`` has ONE
         meaning (the d≥3 axis-native carrier, which promotes normally —
@@ -845,6 +814,7 @@ class SNProblem(MaterialMesh):
             scheme=scheme,
             angular_closure=angular_closure,
             scattering_order=scattering_order,
+            boundary_conditions=boundary_conditions,
         )
         return obj
 
@@ -873,12 +843,13 @@ class SNProblem(MaterialMesh):
             return type(self)(
                 self.mesh, self.quad, self.materials, scheme=self.scheme,
                 angular_closure=closure_cls, scattering_order=scattering_order,
-                sigma_t_cell=sigma_t_cell,
+                sigma_t_cell=sigma_t_cell, boundary_conditions=self.binding.declared,
             )
         return type(self).from_axes(
             self.axes, self.quad, self.materials, mat_map=self.mat_map,
             scheme=self.scheme, angular_closure=closure_cls,
             scattering_order=scattering_order, sigma_t_cell=sigma_t_cell,
+            boundary_conditions=self.binding.declared,
         )
 
     @property
@@ -1044,7 +1015,7 @@ class SNProblem(MaterialMesh):
         Reports closed PAIRS, not faces, and that distinction is
         load-bearing: a *mixed* axis (one face reflective, one vacuum)
         contributes nothing, because the outbound leg escapes.  Derived
-        from :attr:`bc` through :attr:`FaceLabel.face_name` — the same
+        from :attr:`binding` through :attr:`FaceLabel.face_name` — the same
         single-sourced crosswalk the trace layout and the sweep
         schedule key on — so a face inventory that grows a dimension is
         handled correctly with no edit here.
@@ -1059,21 +1030,19 @@ class SNProblem(MaterialMesh):
         was **inert** (0 of 25 gates red) because the survivor guarded
         the gate.
 
-        ⚠ Reads the *realized law*, not the tag a caller passed: a face
-        declared with the typed
-        :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary`
-        rather than ``BC("reflective")`` is reflective too, and a predicate
-        that read the tag's ``kind`` would miss it (the witness is
-        ``test_a_LAW_declared_box_is_all_reflective_and_the_predicate_sees_it``).
+        ⚠ Reads the DECKS of the binding, not the conditions: a face is
+        reflective iff its role is a :class:`~orpheus.geometry.deck.MirrorDeck`
+        (a symmetry of the domain, a declaration question answered where the
+        declaration lives). A wall tagged and bound to a unit specular condition
+        returns every particle too, but it is a constitutive response and not a
+        symmetry of the domain, so it does not make its axis reflective (the
+        gauge freedom is the domain's symmetry, the closed loop of the mirror
+        group).
         """
-        from orpheus.geometry.boundary.reflective import ReflectiveBoundary
-
         by_axis: dict[int, list[bool]] = {}
         for label in self.face_labels:
-            bound = self.bc.get(label.face_name)
             by_axis.setdefault(label.axis_index, []).append(
-                bound is not None
-                and isinstance(bound.law, ReflectiveBoundary)
+                isinstance(self.binding.decks.get(label.face_name), MirrorDeck)
             )
         return tuple(
             axis for axis, faces in sorted(by_axis.items())
