@@ -69,6 +69,14 @@ metadata-propagation table, the bridge pattern documented here.
 """
 
 from .directional import Quadrature
+from .ordinate_pairing import (
+    OrdinatePairingError,
+    PairingDoesNotCrossError,
+    PairingNotInvolutiveError,
+    PairingNotMeasurePreservingError,
+    QuadratureNotClosedUnderMotionError,
+    ordinate_pairing,
+)
 from .registry import (
     GEOMETRY_ANGULAR_SYMMETRY,
     AngularSymmetry,
@@ -93,7 +101,12 @@ __all__ = [
     "STAGGERED",
     "AngularSymmetry",
     "LevelStructure",
+    "OrdinatePairingError",
+    "PairingDoesNotCrossError",
+    "PairingNotInvolutiveError",
+    "PairingNotMeasurePreservingError",
     "Quadrature",
+    "QuadratureNotClosedUnderMotionError",
     "QuadratureSelectionError",
     "QuadratureSpec",
     "SelectionLog",
@@ -101,6 +114,7 @@ __all__ = [
     "gauss_legendre_on_polar_orbit",
     "lebedev_sphere",
     "level_symmetric_sn",
+    "ordinate_pairing",
     "periodic_trapezoid",
     "product_mu_phi",
     "quadrature_registry",

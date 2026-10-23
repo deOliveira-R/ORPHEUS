@@ -145,6 +145,7 @@ from numpy.typing import NDArray
 from orpheus.geometry.faces import AXIS_NAMES, face_normal
 from orpheus.numerics.face_layout import face_streaming_normal
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.tangential import TANGENTIAL_EPS
 
 if TYPE_CHECKING:
     from orpheus.numerics.face_layout import FaceLayout
@@ -164,23 +165,17 @@ __all__ = [
 #: ``"full"`` is the whole ordinate slot Γ(f); ``"outflow"`` / ``"inflow"``
 #: are the half-traces Γ₊(f) / Γ₋(f). The three do NOT partition: tangential
 #: ordinates (``|Ω·n| <= TANGENTIAL_EPS``) belong to ``"full"`` alone, which
-#: is why ``"not inflow"`` must never be spelled ``"outflow"``.
-TraceRole = Literal["full", "outflow", "inflow"]
+#: is why ``"not inflow"`` must never be spelled ``"outflow"``. ``"current"``
+#: is the fourth tier: not a subset of ordinates but the angle-integrated
+#: per-face trace S(f) (``_current_spaces``); the ONE enumeration of the
+#: ladder's tier names (decision 49).
+TraceRole = Literal["full", "outflow", "current", "inflow"]
 
 
-# Tangential tolerance for the unit-vector projection ``Ω · n``. A
-# safety factor (×4) over the IEEE-754 dot-product round-off bound for a
-# 3-component unit-vector inner product. Empirically bit-identical to
-# the legacy ``1e-15`` (operator) and ``1e-12`` (realizer) tolerances —
-# and since #325's node repoint a provably-inert defensive guard (every
-# shipped rule's tangential cosines are exactly 0.0, so the band
-# ``(0, eps]`` is empty); see the module docstring +
-# :func:`test_eps_sits_in_the_round_off_to_genuine_gap`.
-# Public: the ONE tangential threshold every trace-classification
-# consumer shares (the selectors below; the reflective law's
-# inflow→outflow invariant, ERR-045) — a second locally-minted epsilon
-# would be a twin source of truth for "what counts as grazing".
-TANGENTIAL_EPS: float = 4.0 * np.finfo(np.float64).eps
+# ``TANGENTIAL_EPS`` (the tangential tolerance for ``Ω · n``) is defined in
+# :mod:`orpheus.numerics.tangential` and re-exported here: the quadrature
+# certification needs it, and ``quadrature`` must not import ``spaces`` (the
+# module-cycle gate counts every import kind).
 
 
 # The face → outward-normal parse is
@@ -677,7 +672,7 @@ class AngularTraceSpace(FunctionSpace):
         for face in self.face_names:
             shape = tuple(self.layout.faces[face].shape[1:])
             out[face] = FunctionSpace(
-                name=f"angular_trace[{face}:current]",
+                name=_face_space_name(face, "current"),
                 shape=shape,
                 # ⭐ EXPLICITLY unit, never ``None``. The angular measure
                 # |Ω·n|·w is CONSUMED by the contraction that lands here, so
