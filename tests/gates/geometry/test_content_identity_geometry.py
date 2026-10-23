@@ -40,8 +40,10 @@ from orpheus.geometry.boundary import (
 )
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.chord import ConcentricPartition
+from orpheus.geometry.colouring import ColouringSymmetry, FaceIsometry, UncomputedSymmetries
+from orpheus.geometry.deck import MirrorDeck, TranslationDeck
 from orpheus.geometry.transformation import RigidMotion
-from orpheus.values.content import ContentlessError, content_digest, encode_exact
+from orpheus.values.content import ContentlessError, FrozenMapping, content_digest, encode_exact
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,
@@ -292,12 +294,85 @@ _PARTITION = Entry(
 )
 
 
+# ── Wave 2, unit L1: the decks and the colouring symmetry (``wave2_boundary_carve.md`` §5.0, §5.1 gate 10) ─────────
+# A deck has no field (the face supplies the plane and the partner), so the two decks are parts-free entries like
+# ``VacuumInflow``; they are distinct values by TYPE (``test_deck.py::test_a_deck_is_its_type_and_has_no_field``).
+
+_MIRROR_DECK = Entry(
+    cls=MirrorDeck, base=MirrorDeck, parts=(), perturb={},
+    pairs=(("two builds", MirrorDeck, MirrorDeck),),
+)
+_TRANSLATION_DECK = Entry(
+    cls=TranslationDeck, base=TranslationDeck, parts=(), perturb={},
+    pairs=(("two builds", TranslationDeck, TranslationDeck),),
+)
+
+
+def _swap(left: str = "xmin", right: str = "xmax") -> FrozenMapping:
+    return FrozenMapping({left: right, right: left})
+
+
+def _face_isometry(**over) -> FaceIsometry:
+    """The mirror ``x -> 3 - x`` of a slab ``[0, 3]`` and the permutation it induces on the end faces."""
+    kw = dict(motion=RigidMotion.reflection(normal=np.array([1.0]), offset=1.5), faces=_swap())
+    kw.update(over)
+    return FaceIsometry(**kw)  # type: ignore[arg-type]  # kwargs assembled for the perturbation table
+
+
+_FACE_ISOMETRY = Entry(
+    cls=FaceIsometry, base=_face_isometry, parts=("motion", "faces"),
+    perturb={
+        "motion": (
+            leg("the plane moved one ulp", lambda: _face_isometry(
+                motion=RigidMotion.reflection(normal=np.array([1.0]), offset=float(np.nextafter(1.5, 2.0))))),
+            leg("a translation for the reflection", lambda: _face_isometry(motion=RigidMotion.translation_by(np.array([3.0])))),
+        ),
+        "faces": (
+            leg("the identity permutation", lambda: _face_isometry(faces=FrozenMapping({"xmin": "xmin", "xmax": "xmax"}))),
+            leg("another axis", lambda: _face_isometry(faces=_swap("ymin", "ymax"))),
+        ),
+    },
+    pairs=(
+        ("two builds", _face_isometry, _face_isometry),
+        ("the permutation's insertion order", _face_isometry,
+         lambda: _face_isometry(faces=FrozenMapping({"xmax": "xmin", "xmin": "xmax"}))),
+    ),
+)
+
+
+def _identity_element() -> FaceIsometry:
+    return FaceIsometry(RigidMotion.identity(1), FrozenMapping({"xmin": "xmin", "xmax": "xmax"}))
+
+
+def _colouring(**over) -> ColouringSymmetry:
+    kw = dict(elements=(_identity_element(), _face_isometry()))
+    kw.update(over)
+    return ColouringSymmetry(**kw)  # type: ignore[arg-type]  # kwargs assembled for the perturbation table
+
+
+_COLOURING_SYMMETRY = Entry(
+    cls=ColouringSymmetry, base=_colouring, parts=("elements",),
+    perturb={
+        "elements": (
+            leg("the identity alone", lambda: _colouring(elements=(_identity_element(),))),
+            leg("another mirror", lambda: _colouring(elements=(_identity_element(), _face_isometry(
+                motion=RigidMotion.reflection(normal=np.array([1.0]), offset=2.0))))),
+        ),
+    },
+    pairs=(("two builds", _colouring, _colouring),),
+)
+_UNCOMPUTED_SYMMETRIES = Entry(
+    cls=UncomputedSymmetries, base=lambda: UncomputedSymmetries("Mesh2D"), parts=("carrier",),
+    perturb={"carrier": (leg("another carrier", lambda: UncomputedSymmetries("Mesh3D")),)},
+    pairs=(("two builds", lambda: UncomputedSymmetries("Mesh2D"), lambda: UncomputedSymmetries("Mesh2D")),),
+)
 
 
 ROSTER: tuple[Entry, ...] = (
     _BC, _VACUUM, _REFLECTIVE, _WHITE, _PERIODIC, _ALBEDO, _PRESCRIBED, _ZERO_FLUX,
     _LAW_SUM, _LAW_SCALED, _SPECULAR_RETURN, _ISOTROPIC_RETURN, _NO_SOURCE,
     _CONSTANT_SOURCE, _GEOMETRY, _RIGID_MOTION, _PARTITION,
+    _MIRROR_DECK, _TRANSLATION_DECK, _FACE_ISOMETRY, _COLOURING_SYMMETRY, _UNCOMPUTED_SYMMETRIES,
 )
 
 
