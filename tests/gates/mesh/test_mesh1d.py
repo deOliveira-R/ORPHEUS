@@ -361,7 +361,7 @@ class TestTheRetirements:
         init_fields = [f.name for f in dataclasses.fields(Mesh1D) if f.init]
         # #405 P2 step 7b.2.0: the region labels and the region -> material map replace ``mat_ids``,
         # which is derived (R7b2.0.1 in ``test_mesh1d_regions.py``).
-        assert init_fields == ["coord", "edges", "volumes", "region_ids", "region_materials", "face_laws"]
+        assert init_fields == ["coord", "edges", "volumes", "region_ids", "region_materials", "face_roles"]
 
 
 # ─────────────────────────────────────────────────────────────────────

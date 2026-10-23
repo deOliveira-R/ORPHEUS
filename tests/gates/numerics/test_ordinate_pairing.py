@@ -25,10 +25,11 @@ Ladder (``rests_on`` edges are declared on the tests)::
 
 Gate 1 is NOT the evidence: it is equal to the matcher by shared upstream
 (X4). The evidence is gate 2: three tables, each wrong in exactly ONE
-invariant, each reddening exactly its own error class, taken VERBATIM from
-``tests/gates/geometry/test_bc_universal_invariants.py``.
+invariant, each reddening exactly its own error class, taken from
+``tests/gates/geometry/test_bc_universal_invariants.py`` and MOVED into this file (wave 2, slice S2b, rider (a): the
+geometry gate retires with the laws at WF2.4, and a gate must not import another test module).
 
-The surrogate quadrature ``_TableQuad`` of that module serves the surface
+The surrogate quadrature ``_TableQuad`` of this file serves the surface
 ``n_ordinates``, ``weights``, ``measure``, ``axis_cosines``,
 ``mean_axis_cosine`` and ``ordinate_permutation``; ``ordinate_pairing`` may
 read nothing else from a quadrature (the certification reads
@@ -62,6 +63,8 @@ Red sets are MEASURED (`[M]` battery of the L4 review, 2026-10-23):
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 import pytest
 
@@ -90,16 +93,6 @@ def _errors():
     return importlib.import_module("orpheus.numerics.quadrature.ordinate_pairing")
 
 
-def _poison_module():
-    # Sibling gate file whose poison fixtures gate 2 re-poses VERBATIM
-    # (``_TableQuad`` and the ``_BROKEN`` table rows). Imported as a module (not
-    # by name) so that pytest does not collect its test classes a second time
-    # through this namespace.
-    from tests.gates.geometry import test_bc_universal_invariants as module
-
-    return module
-
-
 def _mirror(axis: str) -> RigidMotion:
     """The reflection whose plane is normal to the named axis (``mirror_motion``
     is unit L1's and is not on this branch)."""
@@ -112,6 +105,125 @@ _QUADRATURES = {
     "product(2,4)": lambda: Quadrature.product(n_mu=2, n_phi=4),
     "ls6": lambda: Quadrature.level_symmetric(sn_order=6),
     "lebedev17": lambda: Quadrature.lebedev(17),
+}
+
+
+# ─────────────────────────────────────────────────────────────────────
+# The poison fixtures (moved here from ``tests/gates/geometry/test_bc_universal_invariants.py``, WF2.2 rider (a))
+# ─────────────────────────────────────────────────────────────────────
+#
+# Gate 2 re-poses the three tables of the geometry gate VERBATIM. Until wave 2's slice S2b they were imported from that
+# file; WF2.4 deletes it with the laws it tests, so the numerics gate must not depend on a file that is going to be
+# retired (a test importing another test module is also a collection hazard). The bodies are the geometry file's, with
+# one change of spelling: the true mirror is this file's ``_mirror(axis)`` (a ``RigidMotion.reflection``) where the
+# original read ``SelfPairedDeck.mirror(...).motion`` (the same motion).
+
+
+class _TableQuad:
+    """Quadrature stand-in: REAL nodes/weights, injectable specular
+    pairing.
+
+    The negative legs below need pairings that are wrong in exactly ONE
+    invariant while every other datum stays production-real — the
+    surgical way to prove the three pairing invariants are
+    independent (the ERR-045 catalog lesson: "checking only one or two
+    leaves a hole"). Served through ``ordinate_permutation`` — the
+    certification's read since G6.3 step 7d — so every mutant must be a
+    genuine bijection (:class:`Permutation` refuses anything else at
+    construction), which the three mutant families all are: each
+    violates its ONE invariant while remaining a permutation.
+    """
+
+    def __init__(self, base: Quadrature, table: np.ndarray) -> None:
+        self.n_ordinates = base.n_ordinates
+        self.weights = base.weights
+        self._base = base
+        self._table = np.asarray(table)
+
+    @property
+    def measure(self):
+        # The surrogate mutates the PERMUTATION only; its nodes are the real
+        # rule's, so the measure passes straight through. Needed because the
+        # reference embeds via ``quad.measure.support.ambient_points(...)`` — a duck-typed
+        # stand-in owes every member of the contract it stands in for, not
+        # only the ones the last reader happened to call (``plan-authoring``
+        # §6b: a surrogate is a call site no symbol grep can return).
+        return self._base.measure
+
+    def axis_cosines(self, axis_index: int) -> np.ndarray:
+        return self._base.axis_cosines(axis_index)
+
+    def mean_axis_cosine(self, axis_index: int) -> np.ndarray:
+        return self._base.mean_axis_cosine(axis_index)
+
+    def ordinate_permutation(self, motion) -> Permutation:  # noqa: ARG002
+        return Permutation(self._table)
+
+
+def _non_involutive_but_otherwise_valid(
+    quadrature: Quadrature, *, axis: str,
+) -> np.ndarray:
+    r"""A table that breaks ONLY the involution (ERR-044).
+
+    Why not the obvious ``np.roll(arange(N), 1)``: an n-cycle rotation breaks
+    all three invariants at once (it pairs unequal weight classes, so ERR-042
+    fires FIRST in the aggregate and the row proves nothing about ERR-044's
+    independence). Worse, **no pure 3-cycle can ever be the ERR-044-only
+    mutant**: a cycle :math:`a \to b \to c \to a` needs
+    :math:`\mathrm{sign}(b) = -\mathrm{sign}(a)`,
+    :math:`\mathrm{sign}(c) = -\mathrm{sign}(b) = \mathrm{sign}(a)` and then
+    :math:`\mathrm{sign}(a) = -\mathrm{sign}(c) = -\mathrm{sign}(a)` — a
+    contradiction, so every odd cycle breaks ERR-045 too.
+
+    The construction that works is :math:`\pi \circ \sigma`, where :math:`\pi`
+    is the TRUE mirror and :math:`\sigma` swaps two ordinates of the SAME sign
+    and the SAME measure :math:`w|\mu_a|`:
+
+    * **measure** — :math:`m[\pi[\sigma[i]]] = m[\sigma[i]] = m[i]`, since
+      :math:`\sigma` stays inside a measure class and :math:`\pi` preserves it;
+    * **sign** — :math:`\mathrm{sign}(\pi[\sigma[i]]) = -\mathrm{sign}(i)`,
+      since :math:`\sigma` preserves sign and :math:`\pi` flips it;
+    * **involution** — BROKEN: for the swapped pair :math:`\{a, b\}`,
+      :math:`T[T[a]] = \pi[\sigma[\pi[b]]] = \pi[\pi[b]] = b \neq a`
+      (:math:`\sigma` does not touch :math:`\pi[b]`, which has the opposite
+      sign).
+    """
+    true_pi = quadrature.ordinate_permutation(_mirror(axis))
+    if true_pi is None:  # pragma: no cover — fixtures are mirror-closed
+        raise AssertionError(f"{quadrature!r} has no {axis}-mirror pairing")
+    perm = true_pi.indices
+    # ``mean_axis_cosine``: the w|mu| cosine measure is a FLUX question, so a
+    # suppressed axis contributes zero rather than having no answer. Mirrors
+    # the production spelling in ``geometry/boundary/_specular.py``.
+    mu = quadrature.mean_axis_cosine(AXIS_NAMES.index(axis))
+    measure = quadrature.weights * np.abs(mu)
+    # Group same-sign ordinates by measure; the first class with ≥2 members
+    # supplies the swap. Rounded because the class is a float coincidence of
+    # a symmetric node set, not an exact-compare question.
+    classes: dict[tuple[int, float], list[int]] = {}
+    for n in range(int(quadrature.n_ordinates)):
+        classes.setdefault(
+            (int(np.sign(mu[n])), round(float(measure[n]), 12)), []
+        ).append(n)
+    for members in classes.values():
+        if len(members) >= 2:
+            a, b = members[0], members[1]
+            sigma = np.arange(int(quadrature.n_ordinates))
+            sigma[a], sigma[b] = b, a
+            return perm[sigma]
+    raise AssertionError(
+        f"{quadrature!r} has no same-sign measure class with two members, so "
+        f"the ERR-044-only mutant is not constructible here — pick a "
+        f"quadrature with a degenerate measure class."
+    )
+
+
+#: ``id -> (id, quadrature_factory, table_factory)``. Each table is production-real except for the ONE property it breaks;
+#: the quadrature is per-row (the ERR-044-only mutant needs a degenerate measure class, and ``gauss_legendre(8)`` has none).
+_BROKEN = {
+    "weight_class_mispairing": ("weight_class_mispairing", lambda: Quadrature.gauss_legendre(n_ordinates=8), lambda q: np.array([1, 0, 3, 2, 5, 4, 7, 6])),
+    "self_map_identity": ("self_map_identity", lambda: Quadrature.gauss_legendre(n_ordinates=8), lambda q: np.arange(q.n_ordinates)),
+    "mirror_after_same_class_swap": ("mirror_after_same_class_swap", lambda: Quadrature.level_symmetric(sn_order=6), lambda q: _non_involutive_but_otherwise_valid(q, axis="x")),
 }
 
 
@@ -242,13 +354,12 @@ def test_the_axis_is_the_one_the_motion_names() -> None:
     the checked axis fails one of the two legs."""
     module = _errors()
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    bc = _poison_module()
-    mutant = bc._TableQuad(quad, np.arange(quad.n_ordinates))
+    mutant = _TableQuad(quad, np.arange(quad.n_ordinates))
     with pytest.raises(module.PairingDoesNotCrossError):
-        _pairing()(mutant, _mirror("x"))
+        _pairing()(cast(Quadrature, mutant), _mirror("x"))
     # Same table, the motion names y: every ordinate is tangential there.
     np.testing.assert_array_equal(
-        _pairing()(mutant, _mirror("y")).indices, np.arange(quad.n_ordinates)
+        _pairing()(cast(Quadrature, mutant), _mirror("y")).indices, np.arange(quad.n_ordinates)
     )
 
 
@@ -266,7 +377,7 @@ _EXPECTED = {
 
 
 def _broken_rows():
-    return {row[0]: row for row in _poison_module().TestSpecularPairingCertifiedOnBothCarriers._BROKEN}
+    return _BROKEN
 
 
 @pytest.mark.l1
@@ -275,7 +386,7 @@ def _broken_rows():
 @pytest.mark.parametrize("table_id", list(_EXPECTED))
 def test_the_three_errors_keep_their_teeth(table_id: str) -> None:
     r"""Each broken table (wrong in exactly ONE invariant: the fixtures of
-    ``test_bc_universal_invariants.py``, taken verbatim) raises EXACTLY its own
+    this file's ``_BROKEN``, taken from ``test_bc_universal_invariants.py``) raises EXACTLY its own
     error class, and none of the other two (``type(error) is expected``).
 
     Red input: the function does not exist at the base tip. After the build,
@@ -286,10 +397,10 @@ def test_the_three_errors_keep_their_teeth(table_id: str) -> None:
     row = _broken_rows()[table_id]
     quad = row[1]()
     table = row[2](quad)
-    mutant = _poison_module()._TableQuad(quad, table)
+    mutant = _TableQuad(quad, table)
     expected = getattr(module, _EXPECTED[table_id][0])
     with pytest.raises(module.OrdinatePairingError) as info:
-        _pairing()(mutant, _mirror("x"))
+        _pairing()(cast(Quadrature, mutant), _mirror("x"))
     assert type(info.value) is expected, (
         f"{table_id}: expected exactly {expected.__name__}, got {type(info.value).__name__}"
     )

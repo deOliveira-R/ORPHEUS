@@ -97,7 +97,33 @@ ROWS: tuple[Row, ...] = tuple(
     for where, expected in zip(SITES, column)
 )
 
-TABLES: dict[str, Callable[[], Any]] = {"mechanism": lambda: make_table().table}
+# ── Slice S2b: the SN rows (section 4.2, the SN columns), typed by hand and pinned against ``SN_REALIZERS`` ──────────────
+
+#: SN, CART / RAD_OUTER / RAD_INNER per value class. Typed here and nowhere else (the mechanism's copy above is the
+#: test-local table's, not SN's): a change to an SN admission edits THIS literal. The hollow inner face admits a
+#: specular chain of weight 1.0 only (the cavity the closure computes, #511); the radial outer face refuses the diffuse
+#: chain and every source (the corner action, #653); the zero network is refused on the inner face (#511).
+_SN_COLUMNS: dict[str, tuple[tuple, tuple, tuple]] = {
+    "vacuum":                        (R(), R(), F("PLUMBING", 511)),
+    "specular 1.0":                  (R(), R(), R()),
+    "specular 0.5":                  (R(), R(), F("PLUMBING", 511)),
+    "white 0.5":                     (R(), F("PLUMBING", 653), F("PLUMBING", 511)),
+    "both 0.3 0.5":                  (R(), F("PLUMBING", 653), F("PLUMBING", 511)),
+    "inflow 1.0":                    (R(), F("PLUMBING", 653), F("PLUMBING", 511)),
+    "specular 0.5 over inflow 1.0":  (R(), F("PLUMBING", 653), F("PLUMBING", 511)),
+}
+
+ROWS += tuple(Row("sn", value, where, expected) for value, column in _SN_COLUMNS.items() for where, expected in zip(SITES, column))
+
+
+def _sn_table() -> Any:
+    """``SN_REALIZERS`` read at call time: at the base tip of slice S2b the module still exports ``SNBoundaryRealizer``."""
+    from tests.gates.sn.architecture._realized_boundary_helpers import sn_table
+
+    return sn_table()
+
+
+TABLES: dict[str, Callable[[], Any]] = {"mechanism": lambda: make_table().table, "sn": _sn_table}
 
 
 def _table(method: str) -> Any:
@@ -247,3 +273,48 @@ def test_the_pin_has_teeth() -> None:
     report = pin_disagreements(drifted, tuple(row for row in ROWS if row.method == "mechanism"))
     cells = sorted(line.split(": ")[0] for line in report)
     require(cells == ["mechanism / both 0.3 0.5 @ RAD_OUTER", "mechanism / white 0.5 @ RAD_OUTER"], f"the drifted table's report is {cells}")
+
+
+# ── Slice S2b: what the SN table adds to the pin ─────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.rests_on(_MECHANISM)
+def test_sn_both_chains_and_a_response_over_a_source_are_the_meet() -> None:
+    """The SN mixed rows are DERIVED from the single-chain and source rows of the same table, at every site: a change
+    to the diffuse row edits the "both" row and the "specular over inflow" row (section 4.2's own rule). The pieces
+    are read from ``SN_REALIZERS``, not from the pin.
+
+    Reddens on: an ``SNDiffuseChain.admit`` that admits a radial outer site while the wall's admission is cached from the
+    specular row; a ``meet`` that returns the greater (the S2a gate of the mechanism shares the operator).
+    """
+    table, W = _table("sn"), bc.WallCondition
+    for kind in SITES:
+        where = site(kind)
+        spec, white = table.admit(W.specular(0.3), where), table.admit(W.white(0.5), where)
+        require(summary(table.admit(W.from_amplitudes(0.3, 0.5), where)) == summary(bc.Admission.meet(spec, white)), f"SN: both chains @ {kind} is not the meet of the two single-chain rows")
+        response, source = table.admit(W.specular(0.5), where), table.admit(bc.InflowTerms(1.0, ()), where)
+        require(summary(table.admit(W.specular(0.5) + W.uniform(1.0), where)) == summary(bc.Admission.meet(response, source)), f"SN: a response over a source @ {kind} is not the meet")
+
+
+@pytest.mark.rests_on(_MECHANISM)
+def test_sn_plumbing_refusals_cite_the_sn_issues_and_the_catalogue_is_an_upper_bound() -> None:
+    """Every plumbing refusal the SN table returns over the whole grid cites #511 or #653 (the unregistered-unit door
+    cites #659 and is read by ``test_the_unregistered_door_names_the_state_cone_...``); and the catalogue is an upper
+    bound: SN's catalogue is ``Realized(True)`` for every unit, so no admitted cell may be anything but a faithful
+    ``Realized``. The population is printed (X2): 7 value classes times 3 sites.
+
+    Reddens on: an SN realizer whose ``admit`` cites an issue outside this list; a ``status`` below what ``admit``
+    returns (the mutation of S2a gate 13 (f), applied to the real table).
+    """
+    table, declared = _table("sn"), values()
+    seen, cited = 0, set()
+    for label, value in declared.items():
+        for kind in SITES:
+            admission = table.admit(value, site(kind))
+            seen += 1
+            if isinstance(admission, bc.Refused) and admission.axis is bc.RefusalAxis.PLUMBING:
+                cited.add(admission.issue)
+            if isinstance(admission, bc.Realized):
+                require(admission.faithful is True, f"{label} @ {kind}: SN realizes every admitted cell faithfully (its catalogue is Realized(True))")
+    require(seen == 21, f"the SN grid is {seen} cells, not 7 x 3")
+    require(cited == {511, 653}, f"the SN plumbing refusals cite {sorted(cited)}, not {{511, 653}}")
