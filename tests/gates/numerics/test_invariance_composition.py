@@ -101,7 +101,7 @@ FRAG_POLAR_SUPPORT = "polar factor must be a rule on"
 FRAG_PUSHFORWARD_DOMAIN = "map's domain must be the measure's support"
 
 _MANIFOLD_ROW = (
-    "tests/gates/numerics/test_manifold.py::"
+    "tests/gates/geometry/test_manifold.py::"
     "TestTheInducedActionIsWellDefinedAndActsAsTheTheoremSays::"
 )
 _MATCHER_ROWS = (
@@ -111,7 +111,7 @@ _MATCHER_ROWS = (
     "test_o6_the_weighted_question_is_permutes_plus_exactly_one_weight_guard",
 )
 _HOMOMORPHISM = _MANIFOLD_ROW + "test_the_induced_action_is_a_GROUP_HOMOMORPHISM_on_the_chart"
-_DOWNWARD = "tests/gates/numerics/test_symmetry.py::test_invariance_is_downward_closed"
+_DOWNWARD = "tests/gates/geometry/test_symmetry.py::test_invariance_is_downward_closed"
 
 
 # ---------------------------------------------------------------------------

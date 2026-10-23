@@ -2390,7 +2390,7 @@ _g22b_INCOMMENSURATE = (1.0, float(np.sqrt(2.0)), float(np.e), 2.5, float(np.sqr
 # =============================================================================
 
 
-# G5 — tests/gates/numerics/test_symmetry.py
+# G5 — tests/gates/geometry/test_symmetry.py
 # =============================================================================
 class TestTheNormaliserCriterionIsEXACTAndAgreesWithBruteConjugation:
     r"""(iii) ``is_normalised_by`` / ``normalises``, positive AND negative
@@ -2525,7 +2525,7 @@ def _every_spellable_group() -> list[SubgroupOfO3]:
 # =============================================================================
 
 
-# G6 — tests/gates/numerics/test_symmetry.py
+# G6 — tests/gates/geometry/test_symmetry.py
 # =============================================================================
 class TestTheTrivialQuotientAnswersExactlyLikeTheBareSphere:
     r"""(v) The bit-identity witness that the orbit-space route CONTAINS the
@@ -2572,7 +2572,7 @@ class TestTheTrivialQuotientAnswersExactlyLikeTheBareSphere:
 # =============================================================================
 
 
-# G7 — tests/gates/numerics/test_symmetry.py
+# G7 — tests/gates/geometry/test_symmetry.py
 # =============================================================================
 class TestTheSlabAndSphereFamiliesAnswerExactlyAsBeforeTheCarve:
     r"""(vi) The PRE-CHANGE baseline, as literals.
@@ -2657,7 +2657,7 @@ class TestTheSlabAndSphereFamiliesAnswerExactlyAsBeforeTheCarve:
 # =============================================================================
 
 
-# G8 — tests/gates/numerics/test_symmetry.py
+# G8 — tests/gates/geometry/test_symmetry.py
 # =============================================================================
 class TestTheFoldIsInvariantUnderExactlyTheGroupsThatDescendAndClose:
     r"""The carve's own consequence — and the DENOMINATOR the design memo did
@@ -2748,7 +2748,7 @@ class TestTheFoldIsInvariantUnderExactlyTheGroupsThatDescendAndClose:
 # =============================================================================
 
 
-# G9 — tests/gates/numerics/test_symmetry.py
+# G9 — tests/gates/geometry/test_symmetry.py
 # =============================================================================
 class TestTheCompatibilityLawHoldsOnTheOrbitSpaceRoute:
     r"""(iv) ``vv-principles`` #15 — ``A ⊆ B ∧ P(B, μ) ⟹ P(A, μ)``, re-run
@@ -2798,7 +2798,7 @@ class TestTheCompatibilityLawHoldsOnTheOrbitSpaceRoute:
 # =============================================================================
 
 
-# G10 — tests/gates/numerics/test_symmetry.py
+# G10 — tests/gates/geometry/test_symmetry.py
 # =============================================================================
 class TestTheWalkOnAFoldReportsTheGroupTheGeometryOwes:
     r"""(x) The Hasse walk on a fold — measured BEFORE, and predicted AFTER
@@ -2857,7 +2857,7 @@ class TestTheWalkOnAFoldReportsTheGroupTheGeometryOwes:
 # =============================================================================
 
 
-# G11 — tests/gates/numerics/test_symmetry.py
+# G11 — tests/gates/geometry/test_symmetry.py
 # =============================================================================
 class TestOrbitCertificateAndInvarianceNowAnswerDifferentQuestions:
     r"""⛔ **A divergence the carve CREATES, and the message that goes

@@ -5920,7 +5920,7 @@ older entries classify against.
    **Which test catches it.** ⛔ This block read *"None today (the defect
    is filed, not yet fixed)"*, which was true when the entry was filed and
    is not true now. `[M]` 2026-09-01, three gates carry
-   ``catches("ERR-072")`` in ``tests/gates/numerics/test_symmetry.py``:
+   ``catches("ERR-072")`` in ``tests/gates/geometry/test_symmetry.py``:
    ``test_no_discrete_cubature_is_so2_invariant`` (every shipped sphere
    rule must answer ``False``, because an off-axis orbit is a circle),
    ``test_so2_verdict_is_not_a_function_of_n_phi_mod_4`` (the signature

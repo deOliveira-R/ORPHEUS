@@ -1063,7 +1063,7 @@ in a weight-preserving way:
    G-invariance of a discrete measure (every g permutes the support points in a
    weight-preserving way). The definition the quadrature-selection containment
    check :eq:`subgroup-of-o3-containment` builds on; its concrete instances are
-   the foundation gates in :file:`tests/gates/numerics/test_symmetry.py`
+   the foundation gates in :file:`tests/gates/geometry/test_symmetry.py`
    (``test_lebedev_is_octahedral_invariant`` positive +
    ``test_lebedev_is_NOT_icosahedral_invariant`` negative, via
    ``DiscreteMeasure.is_invariant_under`` — spelled
@@ -1089,7 +1089,7 @@ The groups themselves carry an order relation — containment in the
 
 .. (vv-status rationale) subgroup-of-o3-containment: Verified
    transitively by the foundation tests in
-   :file:`tests/gates/numerics/test_symmetry.py` — every named relation the
+   :file:`tests/gates/geometry/test_symmetry.py` — every named relation the
    gates assert (``Trivial ⊂ σ_z ⊂ O_h ⊂ O(3)``,
    ``SO(2)_z ⊂ O(2)_z ⊂ D_∞h ⊂ O(3)`` with the two OTHER axes asserted
    NOT inside D_∞h and SO(2)_a inside SO(3) on all three while O(2)_a is

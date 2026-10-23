@@ -2010,7 +2010,7 @@ _g22b_INCOMMENSURATE = (1.0, float(np.sqrt(2.0)), float(np.e), 2.5, float(np.sqr
 # =============================================================================
 
 
-# G1 — tests/gates/numerics/test_manifold.py
+# G1 — tests/gates/geometry/test_manifold.py
 # =============================================================================
 class TestTheLiftIsARightInverseOfTheQuotientMap:
     r"""(ii) ``π ∘ lift = id`` on the chart, for all three entry families.
@@ -2084,7 +2084,7 @@ class TestTheLiftIsARightInverseOfTheQuotientMap:
 # =============================================================================
 
 
-# G2 — tests/gates/numerics/test_manifold.py
+# G2 — tests/gates/geometry/test_manifold.py
 # =============================================================================
 class TestTheInducedActionIsWellDefinedAndActsAsTheTheoremSays:
     r"""(i) ``Quotient.action`` (``induced_action`` until S5) — REFUSE what does not normalise, and
@@ -2189,7 +2189,7 @@ def _closed(group: SubgroupOfO3) -> list[RigidMotion]:
 # =============================================================================
 
 
-# G3 — tests/gates/numerics/test_manifold.py
+# G3 — tests/gates/geometry/test_manifold.py
 # =============================================================================
 # ``TestSectionCoordinatesDispatchOnWidthAndRefuseAnythingElse`` stood here until
 # R4 of #434 (2026-09-03): ``ambient_representatives`` passed ambient-width points
@@ -2202,7 +2202,7 @@ def _closed(group: SubgroupOfO3) -> list[RigidMotion]:
 # =============================================================================
 
 
-# G4 — tests/gates/numerics/test_manifold.py
+# G4 — tests/gates/geometry/test_manifold.py
 # =============================================================================
 class TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice:
     r"""⛔ **The design's R3 says the axial arm of ``_embedded_nodes``
