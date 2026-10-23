@@ -6,6 +6,7 @@ transport, no method package, no derivations), so the derivations build a
 specification and production consumes it.
 """
 
+from orpheus.specification.exterior import WallAmplitudes
 from orpheus.specification.specification import (
     Coordinate,
     GeometrySpecification,
@@ -14,4 +15,4 @@ from orpheus.specification.specification import (
     admit_observable,
 )
 
-__all__ = ["Coordinate", "GeometrySpecification", "InfiniteMediumSpecification", "Specification", "admit_observable"]
+__all__ = ["Coordinate", "GeometrySpecification", "InfiniteMediumSpecification", "Specification", "WallAmplitudes", "admit_observable"]

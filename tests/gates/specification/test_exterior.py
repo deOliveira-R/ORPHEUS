@@ -29,6 +29,8 @@ pytestmark = pytest.mark.foundation
 _ROOT = Path(__file__).resolve().parents[3]
 _EXTERIOR = _ROOT / "orpheus" / "specification" / "exterior.py"
 _FRAGMENT = "a wall is specular or diffuse"
+_BOUNDS = "not a physical wall"
+_FRAGMENTS = (_FRAGMENT, _BOUNDS)
 _FORBIDDEN = ("orpheus.transport", "orpheus.derivations", "orpheus.geometry.boundary")
 
 
@@ -58,7 +60,9 @@ def test_wall_amplitudes_a_value_outside_the_bounds_is_a_parse_refusal(specular,
     Mutation: a copy that drops the sum bound reddens the ``(0.6, 0.6)`` row (it would
     raise ``NotImplementedError``); a copy that drops the lower bound reddens ``-0.1``."""
     cls = _wall_amplitudes()
-    with pytest.raises(ValueError):
+    # NaN is refused upstream by ``parse_real`` (its own message); the bounds rows carry the pinned fragment.
+    match = None if "nan" in (str(specular), str(diffuse)) else _BOUNDS
+    with pytest.raises(ValueError, match=match):
         cls(specular, diffuse)
 
 
@@ -104,10 +108,10 @@ def test_wall_amplitudes_is_a_frozen_content_identity_with_canonical_parts() -> 
         wall.specular = 0.1  # pyright: ignore[reportAttributeAccessIssue]
 
 
-def _defines_fragment(source: str) -> int:
-    """The number of string literals in ``source`` containing ``_FRAGMENT`` (AST, never a line grep)."""
+def _defines_fragment(source: str, fragment: str = _FRAGMENT) -> int:
+    """The number of string literals in ``source`` containing ``fragment`` (AST, never a line grep)."""
     return sum(
-        isinstance(n, ast.Constant) and isinstance(n.value, str) and _FRAGMENT in n.value
+        isinstance(n, ast.Constant) and isinstance(n.value, str) and fragment in n.value
         for n in ast.walk(ast.parse(source))
     )
 
@@ -118,8 +122,9 @@ def test_the_wall_bounds_message_is_owned_once_in_the_new_class() -> None:
     counts two literals as two. Red at base: ``exterior.py`` does not exist."""
     require(_defines_fragment(f"x = '{_FRAGMENT} (planted)'") == 1, "control: one planted literal counts 1")
     require(_defines_fragment(f"x = '{_FRAGMENT}'\ny = '{_FRAGMENT}'") == 2, "control: two literals count 2")
-    n = _defines_fragment(_EXTERIOR.read_text())
-    require(n == 1, f"{_EXTERIOR.name} defines {n} literals containing {_FRAGMENT!r}, not 1")
+    for fragment in _FRAGMENTS:
+        n = _defines_fragment(_EXTERIOR.read_text(), fragment)
+        require(n == 1, f"{_EXTERIOR.name} defines {n} literals containing {fragment!r}, not 1")
 
 
 @pytest.mark.xfail(
@@ -129,10 +134,13 @@ def test_the_wall_bounds_message_is_owned_once_in_the_new_class() -> None:
 def test_the_wall_bounds_message_is_defined_in_one_place_across_orpheus() -> None:
     """Flips at S5: after the re-point exactly one file under ``orpheus/`` (``exterior.py``)
     defines the fragment. Strictness is asserted by introspection below."""
-    owners = sorted(
-        str(p.relative_to(_ROOT)) for p in (_ROOT / "orpheus").rglob("*.py") if _defines_fragment(p.read_text()) > 0
-    )
-    require(owners == ["orpheus/specification/exterior.py"], f"the fragment is defined in {owners}")
+    for fragment in _FRAGMENTS:
+        owners = sorted(
+            str(p.relative_to(_ROOT))
+            for p in (_ROOT / "orpheus").rglob("*.py")
+            if _defines_fragment(p.read_text(), fragment) > 0
+        )
+        require(owners == ["orpheus/specification/exterior.py"], f"{fragment!r} is defined in {owners}")
 
 
 def test_the_one_place_row_is_a_strict_xfail_with_a_reason() -> None:
