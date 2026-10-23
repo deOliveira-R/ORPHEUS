@@ -984,7 +984,7 @@ Columns: A.1 = files whose AST names the symbol as a `Name`/`Attribute` (and, se
 
 | step | symbols retired | successor | where the last live user leaves |
 |---|---|---|---|
-| R1 | `assert_specular_pairing_valid`, `_involutive`, `_measure_preserving`, `_maps_inflow_to_outflow`, `_specular_pairing`, `_axis_cosines` (`geometry/boundary/_specular.py`) | `ordinate_pairing` | S2 (`sn/boundary/realizer.py`); tests of ERR-042/044/045 re-posed at L4 |
+| R1 | `assert_specular_pairing_valid`, `_involutive`, `_measure_preserving`, `_maps_inflow_to_outflow`, `_specular_pairing`, `_axis_cosines` (`geometry/boundary/_specular.py`) | `ordinate_pairing` | S2 (`sn/boundary/realizer.py`); tests of ERR-042/044/045 re-posed at L4; the R2 fold diagnosis (`tests/gates/numerics/test_invariance.py::TestR2Err045NamesTheOrbitSpace`) re-posed at L4 on `ordinate_pairing` (`test_a_folded_rule_is_diagnosed_as_having_spent_the_mirror`), the old gate retires at S2 |
 | R2 | the six certification errors (`IncomingOutgoingTraceClassification...`, `VacuumAppliedToOutgoingTrace`, `BoundaryGeometryMapNotMeasurePreserving`, `ReflectionNotInvolutive`, `ReflectionDidNotMapInflowToOutflow`, `BoundarySourceNotOnIncomingTrace`, all `...Error`) | the numerics errors; `BoundaryRefused` | S2 |
 | R3 | `TAG_REGISTRY`, `_law_of`, `_wall_of`, `_parameters`, `specular_albedo` (law form), `BC.to_alpha` | `Walls.of(geometry, exterior)`, `specular_albedos(geometry, exterior)` | S5 |
 | R4 | `BC_REGISTRY` x3, `bc_kind` x2 | `CP_REALIZERS`, `MOC_REALIZERS`, `MC_REALIZERS` | S4 |

@@ -4,8 +4,9 @@ r"""Equivariance certification of a quadrature under a rigid motion.
 ``(quadrature, motion)`` and nothing else (ruling 7 of ``layer_dag.md``): *is
 the ordinate permutation this motion induces a certified pairing?* It carries
 no law argument and no boundary vocabulary, so it lives in the mathematics
-layer and every consumer that needs a certified mirror pairing (a mirror deck,
-a specular chain) reads this one array.
+layer. It is the single certified source of an axis reflection's ordinate
+pairing; it has no consumer yet (the realizer re-derives the pairing until
+slice S2b hands this array in).
 
 Design
 ======
@@ -33,10 +34,15 @@ catalogue's lesson, ERR-045), which is why none is dropped for another.
 
 The mirror plane is stated ONCE, by the motion: the axis :math:`a` is the one
 whose diagonal entry of ``motion.linear`` is :math:`-1` (all other entries
-:math:`+1`). A motion that is not an axis reflection (rotation, translation,
-identity, oblique reflection, inversion) names no mirror plane and raises the
-base :class:`OrdinatePairingError`. There is no ``axis`` argument, so a
+:math:`+1`). A motion that is not an axis reflection (rotation, rotoreflection,
+translation, identity, oblique reflection, inversion) names no mirror plane and
+raises the base :class:`OrdinatePairingError`. There is no ``axis`` argument, so a
 disagreeing pair (a reflection about x with ``axis="y"``) is unspellable.
+
+Twin until S2: the three checks restate those of
+``orpheus.geometry.boundary._specular`` (``_measure_preserving``,
+``_involutive``, ``_maps_inflow_to_outflow``), which retire at S2 (row R1 of
+the wave-2 plan); ``_MEASURE_RTOL`` is its constant.
 
 The trace measure reads
 :meth:`~orpheus.numerics.quadrature.Quadrature.mean_axis_cosine`, not
@@ -51,6 +57,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.geometry.faces import AXIS_NAMES
+from orpheus.geometry.manifold import Quotient
+from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics.tangential import TANGENTIAL_EPS
 
 if TYPE_CHECKING:
@@ -98,19 +106,26 @@ class PairingDoesNotCrossError(OrdinatePairingError):
 def _mirror_axis(motion: "RigidMotion") -> int:
     r"""The axis index of the mirror plane the motion states, or a refusal.
 
-    The linear part must be :math:`\mathrm{diag}(1,\dots,-1,\dots,1)` with
-    exactly one :math:`-1`.
+    The linear part must have a diagonal of exactly one :math:`-1` and the
+    rest :math:`+1`. One guard suffices: a motion's linear part is orthogonal
+    (``RigidMotion`` refuses any other), and an orthogonal matrix whose
+    diagonal holds only :math:`\pm1` is diagonal, so "diagonal" and "every
+    entry :math:`\pm1`" are the same condition (a rotoreflection such as
+    ``diag(-1,1,1) @ R_x(pi/2)`` has diagonal ``(-1, 0, 0)`` and fails it).
+
+    The comparison is exact: ``RigidMotion.reflection`` documents bit-exact
+    signed diagonals for a coordinate normal, so no tolerance is minted here.
+
+    SCOPE-BOUNDARY[guard] -- machinery: an oblique reflection (a normal not
+    along a coordinate axis) is refused because the per-axis
+    ``mean_axis_cosine`` surface the crossing check reads has no oblique
+    analogue yet; a ``RigidMotion`` accessor for the reflection normal would
+    state the plane once for both.
     """
     m3 = motion if motion.dimension == 3 else motion.embedded_in(3)
     diagonal = np.diag(m3.linear)
-    if not np.allclose(m3.linear, np.diag(diagonal), atol=1e-12, rtol=0.0):
-        raise OrdinatePairingError(
-            "the motion is not an axis reflection: its linear part is not "
-            "diagonal, so it names no mirror plane normal to a coordinate axis"
-        )
-    negative = np.isclose(diagonal, -1.0, atol=1e-12, rtol=0.0)
-    positive = np.isclose(diagonal, 1.0, atol=1e-12, rtol=0.0)
-    if int(negative.sum()) != 1 or not (negative | positive).all():
+    negative = diagonal == -1.0
+    if int(negative.sum()) != 1 or not (negative | (diagonal == 1.0)).all():
         raise OrdinatePairingError(
             f"the motion is not an axis reflection: its linear diagonal "
             f"{diagonal.tolist()} does not hold exactly one -1 and the rest +1"
@@ -125,8 +140,7 @@ def ordinate_pairing(quadrature: "Quadrature", motion: "RigidMotion") -> "Permut
     ----------
     quadrature:
         The rule. Only ``n_ordinates``, ``weights``, ``measure``,
-        ``axis_cosines``, ``mean_axis_cosine`` and ``ordinate_permutation``
-        are read.
+        ``mean_axis_cosine`` and ``ordinate_permutation`` are read.
     motion:
         An axis reflection; the mirror axis is the one it names.
 
@@ -188,10 +202,26 @@ def ordinate_pairing(quadrature: "Quadrature", motion: "RigidMotion") -> "Permut
     bad = active & ~partner_opposite
     if bad.any():
         worst = int(np.flatnonzero(bad)[0])
+        # On a rule whose orbit space SPENT this mirror the pairing is the
+        # identity and the outflow half is not stored: name that, not a wrong
+        # pairing (R2 of #434; `[M]` folded_product(4, 8), axis y). Asked of
+        # the support's type and the group's containment predicate.
+        support = quadrature.measure.support
+        folded = isinstance(support, Quotient) and support.by.contains(
+            SubgroupOfO3.Mirror(axis)
+        )
+        cause = (
+            f"the rule lives on the orbit space {support.name}, which SPENT "
+            f"the mirror about {axis!r}: the reflection acts trivially there "
+            f"and the outflow half is not stored, so this folded rule has no "
+            f"mirror partner on that face"
+            if folded
+            else "ERR-045: wrong pairing"
+        )
         raise PairingDoesNotCrossError(
             f"the pairing about axis {axis!r} maps ordinate {worst} "
             f"(mu_{axis}={mu[worst]:+.6e}) to ordinate {int(pi[worst])} "
             f"(mu_{axis}={partner_mu[worst]:+.6e}), the same sign class "
-            f"instead of the outflow partner (ERR-045)"
+            f"instead of the outflow partner ({cause})"
         )
     return permutation

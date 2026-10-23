@@ -157,6 +157,7 @@ __all__ = [
     "AngularFaceTraceSpace",
     "AngularTraceSpace",
     "TANGENTIAL_EPS",
+    "OrdinateTraceRole",
     "TraceRole",
     "build_omega_dot_n",
 ]
@@ -168,8 +169,12 @@ __all__ = [
 #: is why ``"not inflow"`` must never be spelled ``"outflow"``. ``"current"``
 #: is the fourth tier: not a subset of ordinates but the angle-integrated
 #: per-face trace S(f) (``_current_spaces``); the ONE enumeration of the
-#: ladder's tier names (decision 49).
-TraceRole = Literal["full", "outflow", "current", "inflow"]
+#: ladder's tier names (decision 49). ``OrdinateTraceRole`` is the three
+#: ordinate-subset tiers, the only roles an :class:`AngularFaceTraceSpace`
+#: (a subset of ordinates) can hold; ``TraceRole`` composes it with
+#: ``"current"``, so the four names are still spelled once.
+OrdinateTraceRole = Literal["full", "outflow", "inflow"]
+TraceRole = Literal[OrdinateTraceRole, "current"]
 
 
 # ``TANGENTIAL_EPS`` (the tangential tolerance for ``Ω · n``) is defined in
@@ -586,7 +591,7 @@ class AngularTraceSpace(FunctionSpace):
     # ── The Γ ladder: the per-face tiers, AS SPACES (G6.1) ───────────
 
     @cached_property
-    def _face_spaces(self) -> "dict[tuple[TraceRole, str], AngularFaceTraceSpace]":
+    def _face_spaces(self) -> "dict[tuple[OrdinateTraceRole, str], AngularFaceTraceSpace]":
         r"""``(role, face) -> Γ`` — the whole ladder, built once per space.
 
         Cached for the same reason as :attr:`_face_restrictions`: a
@@ -595,7 +600,7 @@ class AngularTraceSpace(FunctionSpace):
         trace space (which the mesh already caches), never at each
         realization.
         """
-        out: dict[tuple[TraceRole, str], AngularFaceTraceSpace] = {}
+        out: dict[tuple[OrdinateTraceRole, str], AngularFaceTraceSpace] = {}
         metric_flat = np.asarray(self.partial_current_metric)
         for face in self.face_names:
             slot = self.layout.faces[face]
@@ -610,7 +615,7 @@ class AngularTraceSpace(FunctionSpace):
             # source of truth for the weight and matches the base's
             # broadcast convention.
             face_metric = slot.slice_view(metric_flat).reshape(n_ordinates, -1)[:, 0]
-            tiers: tuple[tuple[TraceRole, np.ndarray], ...] = (
+            tiers: tuple[tuple[OrdinateTraceRole, np.ndarray], ...] = (
                 ("full", np.arange(n_ordinates, dtype=np.intp)),
                 ("outflow", self.outflow_indices_for_face(face)),
                 ("inflow", self.inflow_indices_for_face(face)),
@@ -861,7 +866,7 @@ class AngularFaceTraceSpace(FunctionSpace):
     # an array-valued compare field makes the dataclass ``__eq__`` raise on
     # the ambiguous element-wise truth value.
     face: str = field(kw_only=True, compare=False)
-    role: "TraceRole" = field(kw_only=True, compare=False)
+    role: "OrdinateTraceRole" = field(kw_only=True, compare=False)
     ordinate_indices: NDArray = field(kw_only=True, repr=False, compare=False)
     #: The directions :math:`\Omega_n` of THIS tier's ordinates, in the tier's
     #: own row order — the parent's :attr:`AngularTraceSpace.directions`

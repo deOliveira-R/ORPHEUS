@@ -35,21 +35,29 @@ read nothing else from a quadrature (the certification reads
 ``mean_axis_cosine``, the flux-question spelling, for the trace measure).
 
 Mutations for the reviewers (each on a COPY of ``ordinate_pairing.py``, built
-by transforming ``inspect.getsource``, never by hand; the verdict is per arm):
+by transforming ``inspect.getsource``, never by hand; the verdict is per arm).
+Red sets are MEASURED (`[M]` battery of the L4 review, 2026-10-23):
 
-* M-measure: delete the measure comparison. Reddens
-  ``test_the_three_errors_keep_their_teeth[weight_class_mispairing]`` (and its
-  realize-time twin) and nothing else of gate 2.
-* M-involution: delete the ``perm[perm] == arange`` comparison. Reddens
-  ``[mirror_after_same_class_swap]`` only.
-* M-crossing: delete the sign-class comparison. Reddens ``[self_map_identity]``
-  (and its realize-time twin) only.
-* M-axis: derive the crossing axis from a hard-coded ``"x"``. Reddens
-  ``test_the_axis_is_the_one_the_motion_names`` on the y and z rows.
-* M-none: return the permutation without raising on ``None``. Reddens
+* M-measure: delete the measure comparison. 2 reds:
+  ``test_the_three_errors_keep_their_teeth[weight_class_mispairing]`` and its
+  realize-time twin.
+* M-involution: delete the ``perm[perm] == arange`` comparison. 1 red:
+  ``[mirror_after_same_class_swap]`` (the realize-time twin carries the
+  involution row too, since the amendment).
+* M-crossing: delete the sign-class comparison. 3 reds: ``[self_map_identity]``,
+  its realize-time twin and ``test_the_axis_is_the_one_the_motion_names``.
+* M-axis: derive the crossing axis from a hard-coded ``"x"``. 11 reds: the
+  closure test, 8 gate-1 y/z rows, ``test_the_axis_is_the_one_the_motion_names``
+  and the positive control.
+* M-none: return the permutation without raising on ``None``. 1 red:
   ``test_a_quadrature_not_closed_under_the_motion_is_refused``.
 * M-copy (positive control, many reds): return ``np.arange`` as the
-  permutation. Reddens gate 1 on every row and gate 2's positive control.
+  permutation. 10 reds; the gl8 y and z rows stay green (the permutation there
+  is the identity).
+* M-shape-guard: delete the diagonal guard of ``_mirror_axis``. Reddens the
+  ``rotoreflection`` row of
+  ``test_a_motion_that_is_not_an_axis_reflection_is_refused`` (before the
+  amendment no row separated the guard from nothing).
 """
 
 from __future__ import annotations
@@ -60,12 +68,10 @@ import pytest
 from orpheus.geometry.faces import AXIS_NAMES
 from orpheus.geometry.transformation import Permutation, RigidMotion
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.tangential import TANGENTIAL_EPS
 
-#: Sibling gate file whose poison fixtures gate 2 re-poses VERBATIM
-#: (``_TableQuad``, ``_non_involutive_but_otherwise_valid`` and the ``_BROKEN``
-#: table rows). Imported as a module (not by name) so that pytest does not
-#: collect its test classes a second time through this namespace.
-_HERE = "tests/gates/numerics/test_ordinate_pairing.py"
+#: This file's own path: the target of the ``rests_on`` edges below.
+_THIS_FILE = "tests/gates/numerics/test_ordinate_pairing.py"
 
 
 def _pairing():
@@ -85,6 +91,10 @@ def _errors():
 
 
 def _poison_module():
+    # Sibling gate file whose poison fixtures gate 2 re-poses VERBATIM
+    # (``_TableQuad`` and the ``_BROKEN`` table rows). Imported as a module (not
+    # by name) so that pytest does not collect its test classes a second time
+    # through this namespace.
     from tests.gates.geometry import test_bc_universal_invariants as module
 
     return module
@@ -142,7 +152,7 @@ def test_a_quadrature_not_closed_under_the_motion_is_refused() -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.rests_on(f"{_HERE}::test_a_quadrature_not_closed_under_the_motion_is_refused")
+@pytest.mark.rests_on(f"{_THIS_FILE}::test_a_quadrature_not_closed_under_the_motion_is_refused")
 @pytest.mark.parametrize("axis", AXIS_NAMES)
 @pytest.mark.parametrize("name", list(_QUADRATURES))
 def test_ordinate_pairing_returns_the_certified_permutation(name: str, axis: str) -> None:
@@ -165,7 +175,7 @@ def test_ordinate_pairing_returns_the_certified_permutation(name: str, axis: str
     n = int(quad.n_ordinates)
     np.testing.assert_array_equal(got.indices[got.indices], np.arange(n))
     mu = quad.mean_axis_cosine(AXIS_NAMES.index(axis))
-    active = np.abs(mu) > 1e-12
+    active = np.abs(mu) > TANGENTIAL_EPS
     if active.any():
         assert (np.sign(mu[got.indices][active]) == -np.sign(mu[active])).all()
 
@@ -182,7 +192,7 @@ def test_ordinate_pairing_takes_no_axis_argument() -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.rests_on(f"{_HERE}::test_a_quadrature_not_closed_under_the_motion_is_refused")
+@pytest.mark.rests_on(f"{_THIS_FILE}::test_a_quadrature_not_closed_under_the_motion_is_refused")
 def test_a_motion_that_is_not_an_axis_reflection_is_refused() -> None:
     r"""A rotation, a translation, the identity, an oblique reflection and an
     inversion each raise ``OrdinatePairingError`` (NOT one of the three
@@ -201,6 +211,11 @@ def test_a_motion_that_is_not_an_axis_reflection_is_refused() -> None:
         "identity": RigidMotion.identity(3),
         "oblique_reflection": RigidMotion.reflection(normal=np.array([1.0, 1.0, 0.0])),
         "inversion": RigidMotion.inversion(3),
+        # diag(-1, 1, 1) @ R_x(pi/2): linear diagonal (-1, 0, 0). One -1 on the
+        # diagonal, yet no mirror: with the diagonal guard deleted it is read
+        # as an x-mirror and raises a certification subclass (`[M]`).
+        "rotoreflection": RigidMotion.reflection(normal=np.array([1.0, 0.0, 0.0]))
+        @ RigidMotion.rotation_about_axis(axis=np.array([1.0, 0.0, 0.0]), angle=np.pi / 2),
     }
     for label, motion in motions.items():
         with pytest.raises(module.OrdinatePairingError) as info:
@@ -217,7 +232,7 @@ def test_a_motion_that_is_not_an_axis_reflection_is_refused() -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.rests_on(f"{_HERE}::test_ordinate_pairing_returns_the_certified_permutation")
+@pytest.mark.rests_on(f"{_THIS_FILE}::test_ordinate_pairing_returns_the_certified_permutation")
 def test_the_axis_is_the_one_the_motion_names() -> None:
     r"""The crossing is checked on the motion's axis, not on a default. The
     identity table is the ERR-045 poison on the x axis of GL-8 (every
@@ -256,7 +271,7 @@ def _broken_rows():
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-042", "ERR-044", "ERR-045")
-@pytest.mark.rests_on(f"{_HERE}::test_ordinate_pairing_returns_the_certified_permutation")
+@pytest.mark.rests_on(f"{_THIS_FILE}::test_ordinate_pairing_returns_the_certified_permutation")
 @pytest.mark.parametrize("table_id", list(_EXPECTED))
 def test_the_three_errors_keep_their_teeth(table_id: str) -> None:
     r"""Each broken table (wrong in exactly ONE invariant: the fixtures of
@@ -282,8 +297,8 @@ def test_the_three_errors_keep_their_teeth(table_id: str) -> None:
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-042", "ERR-044", "ERR-045")
-@pytest.mark.rests_on(f"{_HERE}::test_ordinate_pairing_returns_the_certified_permutation")
-@pytest.mark.parametrize("table_id", ["weight_class_mispairing", "self_map_identity"])
+@pytest.mark.rests_on(f"{_THIS_FILE}::test_ordinate_pairing_returns_the_certified_permutation")
+@pytest.mark.parametrize("table_id", ["weight_class_mispairing", "self_map_identity", "mirror_after_same_class_swap"])
 def test_a_poisoned_quadrature_pairing_reddens_at_use_time(
     table_id: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -304,7 +319,7 @@ def test_a_poisoned_quadrature_pairing_reddens_at_use_time(
 
 
 @pytest.mark.foundation
-@pytest.mark.rests_on(f"{_HERE}::test_ordinate_pairing_returns_the_certified_permutation")
+@pytest.mark.rests_on(f"{_THIS_FILE}::test_ordinate_pairing_returns_the_certified_permutation")
 def test_the_independence_triad_has_a_positive_control_per_quadrature() -> None:
     r"""Anti-pattern 11: the three negatives above prove the RAISING, so the
     real tables of the same three quadratures certify on all three axes (a
@@ -336,3 +351,22 @@ def test_the_package_exports_the_function_and_its_five_errors() -> None:
         assert name in package.__all__, name
     for name in names[2:]:
         assert issubclass(getattr(package, name), package.OrdinatePairingError)
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS_FILE}::test_the_three_errors_keep_their_teeth")
+def test_a_folded_rule_is_diagnosed_as_having_spent_the_mirror() -> None:
+    r"""On a rule whose orbit space SPENT the mirror the pairing is the identity
+    and the outflow half is not stored: the refusal names the orbit space, not
+    a wrong pairing (R2 of #434, re-posed from ``test_invariance.py``
+    ``TestR2Err045NamesTheOrbitSpace`` ahead of that gate's retirement at S2).
+    Control: the unfolded sibling certifies. Red input: a crossing check that
+    does not read ``quadrature.measure`` (the predecessor-free message says
+    "wrong pairing" and omits "SPENT the mirror")."""
+    module = _errors()
+    with pytest.raises(module.PairingDoesNotCrossError) as info:
+        _pairing()(Quadrature.folded_product(4, 8), _mirror("y"))
+    message = str(info.value)
+    assert "SPENT the mirror" in message, message
+    assert "wrong pairing" not in message, message
+    _pairing()(Quadrature.product(4, 8), _mirror("y"))

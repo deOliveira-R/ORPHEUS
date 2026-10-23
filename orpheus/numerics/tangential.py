@@ -18,10 +18,10 @@ __all__ = ["TANGENTIAL_EPS"]
 # the legacy ``1e-15`` (operator) and ``1e-12`` (realizer) tolerances —
 # and since #325's node repoint a provably-inert defensive guard (every
 # shipped rule's tangential cosines are exactly 0.0, so the band
-# ``(0, eps]`` is empty); see the module docstring +
+# ``(0, eps]`` is empty); see the 'Principled tolerance' section of :mod:`orpheus.numerics.spaces.angular_trace_space` +
 # :func:`test_eps_sits_in_the_round_off_to_genuine_gap`.
 # Public: the ONE tangential threshold every trace-classification
-# consumer shares (the selectors below; the reflective law's
+# consumer shares (the selectors of :mod:`orpheus.numerics.spaces.angular_trace_space`; the reflective law's
 # inflow→outflow invariant, ERR-045) — a second locally-minted epsilon
 # would be a twin source of truth for "what counts as grazing".
 TANGENTIAL_EPS: float = 4.0 * np.finfo(np.float64).eps
