@@ -460,6 +460,8 @@ shape. → pointer: `scratch/numerics_untangling/ontology_e_attack.md` (not dura
 
 ---
 
+**D26 — A declaration algebra's dunders are owed the PHYSICAL family's closure (cone vs module) before they are accepted.** Sub-Markov kernels close under non-negative combinations with Σ ≤ 1, not under `−` or an unbounded scalar: signed combinations are DIRECTIONS (sensitivities), not bindable points. TELL: a design claiming "over-unity is unspellable" while `2.0 * X` returns a bindable composite; a twin kept "for the parameter coordinate" (that is the curve, not the point). First test: `2*Albedo(1,S)` refused AND `Vacuum() == Albedo(0,S)` digest-equal. (2026-10-22 wave-2 boundary carve; one sighting.)
+
 ## Part 3 — Smell-promotion ledger
 
 The skill's Growth Protocol: a Part C smell earns its slot on an INDEPENDENT
