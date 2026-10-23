@@ -156,7 +156,6 @@ class SNZero(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=ZeroNetwor
         return self.inner_refusal() if site.site_class is SiteClass.RAD_INNER else Realized(True)
 
     def realize(self, unit: ZeroNetwork, weight: float, site: FaceSite, space: SNMethodSpace) -> ZeroMap:
-        trace = self.trace_of(space, "SNZero")
         if space.face is not None and space.inflow_indices is not None:
             # ERR-041: the claimed inflow set and the face NAME are two encodings of one orientation (the annotation-swap bug class
             # desynchronizes them); cross-check against the signed projection the face name alone implies. A method space with no face
@@ -171,7 +170,7 @@ class SNZero(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=ZeroNetwor
                     f"computed (ERR-041: swapped inflow/outflow face annotation).",
                     unit,
                 )
-        return ZeroMap(face=site.face, trace=trace)
+        return ZeroMap(face=site.face, trace=self.trace_of(space, "SNZero"))
 
 
 class SNSpecularChain(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=SpecularChain):

@@ -233,10 +233,14 @@ class RealizedBoundary(LinearOperator, ABC):
         """The realized map is the zero map, ``R = 0``: derived from the TYPE (the question is answered by the realized map)."""
         return isinstance(self, ZeroMap)
 
-    @property
-    @abstractmethod
+    @cached_property
     def inner(self) -> LinearOperator:
-        """The operator, DERIVED from the parameters (never a constructor argument)."""
+        """The operator, DERIVED from the parameters (never a constructor argument) and built once, at first use."""
+        return self._derive_inner()
+
+    @abstractmethod
+    def _derive_inner(self) -> LinearOperator:
+        """The one body of the derived operator: each realized type states it, :attr:`inner` caches it."""
 
     # ── the algebra object delegates to the derived operator ─────────────────────────────────────────
 
@@ -331,8 +335,7 @@ class ZeroMap(RealizedBoundary):
     def permutes_ordinates(self) -> bool:
         return False
 
-    @cached_property
-    def inner(self) -> LinearOperator:
+    def _derive_inner(self) -> LinearOperator:
         return stamp_boundary_role(ZeroMorphism(domain=self.trace.outflow_space(self.face), codomain=self.trace.inflow_space(self.face)))
 
     def _key(self) -> tuple:
@@ -393,8 +396,7 @@ class ScaledOrdinatePermutation(RealizedBoundary):
     def permutes_ordinates(self) -> bool:
         return not np.array_equal(self.permutation.indices, np.arange(self.permutation.n))
 
-    @cached_property
-    def inner(self) -> LinearOperator:
+    def _derive_inner(self) -> LinearOperator:
         outflow, inflow = self.trace.outflow_space(self.partner), self.trace.inflow_space(self.face)
         local = _crossing(self.permutation, outflow, inflow, f"ScaledOrdinatePermutation({self.partner!r} -> {self.face!r})")
         return _attenuated_kernel_operator(PermutationOperator(local, axis=_ORDINATE_AXIS, domain=outflow, codomain=inflow), self.alpha)
@@ -448,11 +450,12 @@ class RankOneReemission(RealizedBoundary):
     def permutes_ordinates(self) -> bool:
         return False
 
-    @cached_property
-    def inner(self) -> LinearOperator:
+    def _derive_inner(self) -> LinearOperator:
         outflow, current, inflow = self.trace.outflow_space(self.face), self.trace.current_space(self.face), self.trace.inflow_space(self.face)
-        contraction = PartialCurrentOperator(outflow.inner_product_weights, domain=outflow, codomain=current)
-        emission = IsotropicEmissionOperator(float(np.sum(inflow.inner_product_weights)), int(inflow.shape[0]), domain=current, codomain=inflow)
+        out_weights, in_weights = outflow.inner_product_weights, inflow.inner_product_weights
+        assert out_weights is not None and in_weights is not None  # narrowing only: a half-trace built from a quadrature always carries its metric
+        contraction = PartialCurrentOperator(out_weights, domain=outflow, codomain=current)
+        emission = IsotropicEmissionOperator(float(np.sum(in_weights)), int(inflow.shape[0]), domain=current, codomain=inflow)
         return _attenuated_kernel_operator(emission @ contraction, self.alpha)
 
     def _key(self) -> tuple:
@@ -503,8 +506,7 @@ class RealizedSum(RealizedBoundary):
     def permutes_ordinates(self) -> bool:
         return False
 
-    @cached_property
-    def inner(self) -> LinearOperator:
+    def _derive_inner(self) -> LinearOperator:
         return reduce(operator.add, (term.inner for term in self.terms))
 
     def _key(self) -> tuple:

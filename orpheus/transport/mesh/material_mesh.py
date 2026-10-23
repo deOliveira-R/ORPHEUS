@@ -734,7 +734,7 @@ class MaterialMesh:
         edges = np.asarray(self.axes[0].edges, dtype=float)
         roles = tuple(self.face_roles.values())
         return colouring_symmetry(
-            self.coord, (float(edges[0]), float(edges[-1])), edges, [int(i) for i in np.asarray(self.mat_map).ravel()], roles[0], roles[-1],
+            self.coord, (float(edges[0]), float(edges[-1])), edges.tolist(), [int(i) for i in np.asarray(self.mat_map).ravel()], roles[0], roles[-1],
         )
 
     def face_site(self, face: str) -> FaceSite:
