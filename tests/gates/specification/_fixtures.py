@@ -13,7 +13,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 
 
 def _mixture(*, fission: bool, scattering: bool, n2n: bool, ng: int = 2) -> Mixture:
@@ -64,20 +64,20 @@ def fission_only() -> Mixture:
 
 def slab2(mat_ids: tuple[int, int] = (0, 1)) -> StructuredGeometry:
     """A 2-interval slab, reflective | vacuum."""
-    return StructuredGeometry.slab((0.0, 1.0, 3.0), mat_ids, left=BC.reflective, right=BC.vacuum)
+    return StructuredGeometry.slab((0.0, 1.0, 3.0), mat_ids, left=MirrorDeck(), right=0)
 
 
 def body(coord: CoordSystem, mat_ids: tuple[int, ...] = (0, 1)) -> StructuredGeometry:
     """A 2-interval solid body in ``coord`` (a slab gets reflective | vacuum)."""
     breakpoints = (0.0, 1.0, 3.0)
     if coord is CoordSystem.CARTESIAN:
-        return StructuredGeometry.slab(breakpoints, mat_ids, left=BC.reflective, right=BC.vacuum)
+        return StructuredGeometry.slab(breakpoints, mat_ids, left=MirrorDeck(), right=0)
     if coord is CoordSystem.CYLINDRICAL:
-        return StructuredGeometry.cylinder(breakpoints, mat_ids, outer=BC.vacuum)
-    return StructuredGeometry.sphere(breakpoints, mat_ids, outer=BC.vacuum)
+        return StructuredGeometry.cylinder(breakpoints, mat_ids, outer=0)
+    return StructuredGeometry.sphere(breakpoints, mat_ids, outer=0)
 
 
 def slab3_repeated() -> StructuredGeometry:
     """Three intervals over two distinct materials, ``mat_ids (1, 0, 1)`` (qa F1): a
     row that counts ``len(set(mat_ids))`` instead of the intervals reads 2, not 3."""
-    return StructuredGeometry.slab((0.0, 1.0, 2.5, 3.0), (1, 0, 1), left=BC.vacuum, right=BC.vacuum)
+    return StructuredGeometry.slab((0.0, 1.0, 2.5, 3.0), (1, 0, 1), left=0, right=0)

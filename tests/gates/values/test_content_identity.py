@@ -571,7 +571,7 @@ _PIN_AFTER_5B = "PIN-AFTER-5B"
 # each old pin byte for byte (the tag alone reproduces 11 of the 14; the commit body lists old -> new).
 _PINNED: dict[str, str] = {
     "mixture A 2g": "905ce741c85384eefb289905ea4dbd8591499002889a16b1e481e73992d845e6",
-    "hollow sphere, three intervals": "eea5d62ff8358518121150967a123297983afabf811228b8b4ff0cf8fd9b36c9",
+    "hollow sphere, three intervals": "42c18f89853f810317774beeb060bc4ddc7186bfcaa8c843c062e3a39fcdb2d9",
     "materials of two mixtures": "3ae54bab38bf8af73ec713740aa69963d2b86aa73ae8b489b6e63b0eae6f34e6",
 }
 

@@ -11,15 +11,15 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import MirrorDeck, StructuredGeometry
 from orpheus.geometry.coord import CoordSystem
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.measure import DiscreteMeasure
 
 
 def _uniform_mesh(coord: CoordSystem, extent: float, n: int) -> Mesh1D:
-    """``n`` equal-width cells on ``[0, extent]``, one material, reflective faces."""
-    geometry = StructuredGeometry.uniform_boundary(coord, (0.0, extent), (0,), BC.reflective)
+    """``n`` equal-width cells on ``[0, extent]``, one material, tag 0 on every face (a tag, not a mirror: the helper is coordinate-generic)."""
+    geometry = StructuredGeometry.uniform_boundary(coord, (0.0, extent), (0,), 0)
     return Mesher(geometry).partition(CellsByCount.uniform_width(n)).mesh
 
 
@@ -90,7 +90,7 @@ def test_mesh2d_volume_measure_is_discrete_measure():
         edges_x=edges_x,
         edges_y=edges_y,
         mat_map=mat_map,
-        face_laws={"xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+        face_roles={"xmax": 0, "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
     mu = mesh.volume_measure
     assert isinstance(mu, DiscreteMeasure)
@@ -107,7 +107,7 @@ def test_mesh2d_volume_measure_node_layout_matches_meshgrid():
         edges_x=edges_x,
         edges_y=edges_y,
         mat_map=mat_map,
-        face_laws={"xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+        face_roles={"xmax": 0, "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
     mu = mesh.volume_measure
     cx = mesh.centers_x
@@ -127,7 +127,7 @@ def test_mesh2d_volume_measure_weights_match_flattened_volumes():
         edges_x=edges_x,
         edges_y=edges_y,
         mat_map=mat_map,
-        face_laws={"xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+        face_roles={"xmax": 0, "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
     mu = mesh.volume_measure
     np.testing.assert_array_equal(mu.weights, mesh.volumes.ravel())
@@ -143,7 +143,7 @@ def test_mesh2d_volume_measure_integrates_constant_to_total_volume():
         edges_x=edges_x,
         edges_y=edges_y,
         mat_map=mat_map,
-        face_laws={"xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+        face_roles={"xmax": 0, "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
     mu = mesh.volume_measure
     one = np.ones(mesh.volumes.size)

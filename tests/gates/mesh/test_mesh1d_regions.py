@@ -36,7 +36,7 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import AxisCoord, AxisMesh, CellsByCount, Mesh1D, Mesher, RadialAxisMesh
 from orpheus.values.content import content_digest
 
@@ -51,10 +51,10 @@ _SLAB, _CYLINDER, _SPHERE = CoordSystem.CARTESIAN, CoordSystem.CYLINDRICAL, Coor
 
 def _mesh(region_ids=(0, 1, 2), region_materials=(0, 1, 0), edges=(0.0, 0.5, 1.5, 2.0), coord=_SLAB) -> Mesh1D:
     e = np.asarray(edges, dtype=float)
-    laws = {"xmax": BC.vacuum} if coord is not _SLAB and e[0] == 0.0 else {"xmin": BC.reflective, "xmax": BC.vacuum}
+    roles = {"xmax": 0} if coord is not _SLAB and e[0] == 0.0 else {"xmin": MirrorDeck() if coord is _SLAB else 1, "xmax": 0}
     return Mesh1D(
         coord=coord, edges=e, volumes=coord.measure(e), region_ids=region_ids,
-        region_materials=region_materials, face_laws=laws,
+        region_materials=region_materials, face_roles=roles,
     )
 
 
@@ -62,7 +62,7 @@ def _aba(coord: CoordSystem, cells_per_region: tuple[int, int, int] = (2, 4, 2))
     """The A|B|A body of the SN reference cross-check (the characteristic reference's since step (d)): 0.5, 1.5, 2.0 cm, materials (0, 1, 0)."""
     g = StructuredGeometry.from_thicknesses(
         coord=coord, thicknesses=(0.5, 1.0, 0.5), mat_ids=(0, 1, 0),
-        boundaries=(BC.vacuum,) if coord is not _SLAB else (BC.reflective, BC.vacuum),
+        face_roles=(0,) if coord is not _SLAB else (MirrorDeck(), 0),
     )
     return g, Mesher(g).partition(tuple(CellsByCount.uniform_width(n) for n in cells_per_region)).mesh
 
@@ -77,13 +77,13 @@ def test_r7b2_0_1_the_constructor_takes_the_labels() -> None:
     that is not an init argument and not content (``compare=False``), one definition (the elegance
     review of 7b.2.0, S1: the class's derived quantities are all ``init=False, compare=False``)."""
     init_fields = [f.name for f in dataclasses.fields(Mesh1D) if f.init]
-    assert init_fields == ["coord", "edges", "volumes", "region_ids", "region_materials", "face_laws"]
+    assert init_fields == ["coord", "edges", "volumes", "region_ids", "region_materials", "face_roles"]
     derived = {f.name: f for f in dataclasses.fields(Mesh1D)}["mat_ids"]
     assert not derived.init and not derived.compare, "mat_ids is derived, never given and never content"
     with pytest.raises(TypeError):
         Mesh1D(  # the retired spelling is the subject
             coord=_SLAB, edges=np.array([0.0, 1.0]), volumes=np.array([1.0]),
-            mat_ids=np.array([0]), face_laws={"xmin": BC.vacuum, "xmax": BC.vacuum},  # pyright: ignore[reportCallIssue]
+            mat_ids=np.array([0]), face_roles={"xmin": 0, "xmax": 0},  # pyright: ignore[reportCallIssue]
         )
 
 
@@ -221,7 +221,7 @@ def test_r7b2_0_4_refinement_keeps_the_labels(coord) -> None:
 
 @pytest.mark.rests_on(_ROSTER)
 def test_r7b2_0_5_labels_are_content_with_mat_ids_fixed() -> None:
-    """Two meshes with equal cells, laws and ``mat_ids`` but different labels are two values: a label is
+    """Two meshes with equal cells, roles and ``mat_ids`` but different labels are two values: a label is
     the region's position (the row a per-region table is read at), so relabelling is not a renaming."""
     a = _mesh(region_ids=(0, 1, 2), region_materials=(0, 1, 0))
     b = _mesh(region_ids=(2, 1, 0), region_materials=(0, 1, 0))
@@ -255,14 +255,14 @@ def test_r7b2_0_6_legacy_adapter_labels_material_runs() -> None:
     merges two disjoint pieces (labelling by material id would fuse A|B|A's regions 0 and 2)."""
     from orpheus.mesh.legacy_adapter import legacy_mesh_from_axes
 
-    axis = AxisMesh(edges=np.linspace(0.0, 3.0, 7), bc_low=BC.reflective, bc_high=BC.vacuum)
+    axis = AxisMesh(edges=np.linspace(0.0, 3.0, 7), role_low=MirrorDeck(), role_high=0)
     mesh = legacy_mesh_from_axes((axis,), mat_map=np.array([0, 0, 1, 1, 0, 0]))
     assert isinstance(mesh, Mesh1D), "one axis is a 1-D mesh"
     np.testing.assert_array_equal(mesh.region_ids, [0, 0, 1, 1, 2, 2])
     assert mesh.region_materials == (0, 1, 0)
     np.testing.assert_array_equal(mesh.mat_ids, [0, 0, 1, 1, 0, 0])
 
-    radial = RadialAxisMesh(edges=np.array([0.0, 0.5, 1.5, 2.0]), coord=AxisCoord.RADIAL_SPHERICAL, bc_outer=BC.vacuum)
+    radial = RadialAxisMesh(edges=np.array([0.0, 0.5, 1.5, 2.0]), coord=AxisCoord.RADIAL_SPHERICAL, role_outer=0)
     one = legacy_mesh_from_axes((radial,))  # no map: one material, so one region
     assert isinstance(one, Mesh1D), "one axis is a 1-D mesh"
     np.testing.assert_array_equal(one.region_ids, [0, 0, 0])
@@ -275,19 +275,19 @@ def test_r7b2_0_6_legacy_adapter_labels_material_runs() -> None:
 
 
 def test_r7b2_0_7_with_distinct_cell_ids() -> None:
-    """Each cell its own region and its own material, ``0 .. N-1``; cells and laws carried through."""
+    """Each cell its own region and its own material, ``0 .. N-1``; cells and roles carried through."""
     mesh = _mesh(region_ids=(0, 0, 1), region_materials=(4, 4))
     distinct = mesh.with_distinct_cell_ids()
     np.testing.assert_array_equal(distinct.region_ids, [0, 1, 2])
     assert distinct.region_materials == (0, 1, 2)
     np.testing.assert_array_equal(distinct.mat_ids, [0, 1, 2])
     np.testing.assert_array_equal(distinct.edges, mesh.edges)
-    assert dict(distinct.face_laws) == dict(mesh.face_laws)
+    assert dict(distinct.face_roles) == dict(mesh.face_roles)
 
 
 def test_r7b2_0_7_replace_keeps_the_labels() -> None:
-    """``dataclasses.replace(mesh, face_laws=...)``, the spelling 9 test sites use, keeps labels and map."""
+    """``dataclasses.replace(mesh, face_roles=...)``, the spelling 9 test sites use, keeps labels and map."""
     mesh = _mesh(region_ids=(2, 1, 0), region_materials=(4, 9, 3))
-    other = dataclasses.replace(mesh, face_laws={"xmin": BC.vacuum, "xmax": BC.vacuum})
+    other = dataclasses.replace(mesh, face_roles={"xmin": 0, "xmax": 0})
     np.testing.assert_array_equal(other.region_ids, mesh.region_ids)
     assert other.region_materials == mesh.region_materials

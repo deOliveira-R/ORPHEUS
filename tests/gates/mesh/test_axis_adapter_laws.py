@@ -78,8 +78,8 @@ def test_a_solid_radial_axis_gets_its_outer_law_only():
 
 _EDGES = np.array([0.0, 0.5, 2.0])
 _ONE_PARSER = (
-    "tests/gates/mesh/test_mesh2d_face_laws.py::TestTheOneElementParser::"
-    "test_every_declared_law_passes_the_one_parser"
+    "tests/gates/mesh/test_mesh2d_face_roles.py::TestTheOneElementParser::"
+    "test_every_declared_role_passes_the_one_parser"
 )
 
 

@@ -604,7 +604,7 @@ class FrozenMapping(ContentIdentity, Mapping[_K, _V], Generic[_K, _V]):
     order-free. Equal only to another mapping of its own type with equal
     items, never to a plain ``dict``. The one spelling of a frozen mapping
     the content types hold; a subclass that adds behaviour (a mesh's face
-    laws) keeps the storage.
+    roles) keeps the storage.
     """
 
     __slots__ = ("_items", "_index", "__weakref__")

@@ -1,10 +1,10 @@
-r"""The geometry constructors that name each boundary point's law (P1 step 3a).
+r"""The geometry constructors that name each boundary point's role (P1 step 3a; roles at wave 2, slice S1).
 
 ``StructuredGeometry.slab(breakpoints, mat_ids, *, left, right)``,
 ``.cylinder(..., *, outer, inner=None)`` and ``.sphere(..., *, outer,
-inner=None)`` name the face each law belongs to, where the bare constructor
+inner=None)`` name the face each role belongs to, where the bare constructor
 takes a position-coded tuple; ``.uniform_boundary(coord, breakpoints,
-mat_ids, law)`` puts one law on the whole boundary whatever its point count;
+mat_ids, role)`` puts one role on the whole boundary whatever its point count;
 ``.from_homogeneous(width, boundary)`` is the finite slab a test uses for the
 infinite medium (spec S4.1). Ruling 3 of 2026-09-29
 (``.claude/plans/reference_cache.md``, "P1 step 3 opened").
@@ -28,7 +28,7 @@ from fractions import Fraction
 
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 
 pytestmark = pytest.mark.foundation
 
@@ -42,36 +42,29 @@ _CYLINDER = CoordSystem.CYLINDRICAL
 _SPHERE = CoordSystem.SPHERICAL
 _RADIAL = {"cylinder": _CYLINDER, "sphere": _SPHERE}
 
-#: Two different laws, so a constructor that swaps the faces is seen.
-_LAW_A = BC.vacuum
-_LAW_B = BC.reflective
+#: Two different roles (tags, so the radial bodies take them too), so a constructor that swaps the faces is seen.
+_LAW_A = 0
+_LAW_B = 1
 
 
 def _typed_law():
-    """A typed law (not a tag): a prescribed inflow, carried by identity."""
-    from orpheus.geometry.boundary import ConstantInflowSource, PrescribedInflow
-
-    return PrescribedInflow(source=ConstantInflowSource(value=2.5))
+    """A third role, distinct from both (a tag: a deck is refused on a radial face)."""
+    return 2
 
 
-def _bare(coord, breakpoints, mat_ids, boundaries) -> StructuredGeometry:
+def _bare(coord, breakpoints, mat_ids, face_roles) -> StructuredGeometry:
     return StructuredGeometry(
-        coord=coord, breakpoints=breakpoints, mat_ids=mat_ids, boundaries=boundaries,
+        coord=coord, breakpoints=breakpoints, mat_ids=mat_ids, face_roles=face_roles,
     )
 
 
 def _assert_same_value(named: StructuredGeometry, bare: StructuredGeometry) -> None:
-    """Field by field over the TYPE's fields, laws by identity."""
+    """Field by field over the TYPE's fields."""
     if type(named) is not StructuredGeometry:
         raise AssertionError(f"the named constructor built a {type(named).__name__}")
     for f in dataclasses.fields(StructuredGeometry):
         mine, theirs = getattr(named, f.name), getattr(bare, f.name)
-        if f.name == "boundaries":
-            if len(mine) != len(theirs) or any(
-                m is not t for m, t in zip(mine, theirs, strict=True)
-            ):
-                raise AssertionError(f"boundaries {mine!r} are not {theirs!r} (by identity)")
-        elif mine != theirs:
+        if mine != theirs:
             raise AssertionError(f"field {f.name}: {mine!r} != {theirs!r}")
 
 
@@ -126,7 +119,7 @@ _SLAB_REFUSALS = [
     ("positional-laws", lambda: StructuredGeometry.slab((0.0, 1.0), (0,), _LAW_A, _LAW_A),  # type: ignore[arg-type, call-arg]  # a refusal input
      TypeError, "positional argument"),
     ("none-law", lambda: StructuredGeometry.slab((0.0, 1.0), (0,), left=None, right=_LAW_A),  # type: ignore[arg-type, call-arg]  # a refusal input
-     TypeError, "None is not a boundary law"),
+     TypeError, "a face role is a MirrorDeck, a TranslationDeck or an int tag, got None"),
     ("breakpoints", lambda: StructuredGeometry.slab((0.0, 0.0), (0,), left=_LAW_A, right=_LAW_A),
      ValueError, "strictly increasing"),
 ]
@@ -185,7 +178,7 @@ class TestRadial:
     @pytest.mark.rests_on(_S2_1, _S2_2)
     @pytest.mark.parametrize("name", _RADIAL)
     def test_a_hollow_body_equals_the_bare_constructor(self, name):
-        """The inner law goes first (the bare order), whichever keyword is
+        """The inner role goes first (the bare order), whichever keyword is
         written first."""
         build = getattr(StructuredGeometry, name)
         _assert_same_value(
@@ -200,8 +193,8 @@ class TestRadial:
     @pytest.mark.parametrize("name", _RADIAL)
     def test_an_absent_inner_is_never_a_stored_none(self, name):
         g = getattr(StructuredGeometry, name)((0.0, 2.0), (0,), outer=_LAW_A)
-        assert g.boundaries == (_LAW_A,)
-        assert None not in g.boundaries
+        assert g.face_roles == (_LAW_A,)
+        assert None not in g.face_roles
 
 
 def _radial_refusals(name: str):
@@ -212,8 +205,8 @@ def _radial_refusals(name: str):
         ("inner-on-a-solid-body", lambda: build((0.0, 2.0), (0,), outer=_LAW_A, inner=_LAW_B),
          ValueError, "the centre r = 0"),
         ("hollow-without-inner", lambda: build((0.5, 2.0), (0,), outer=_LAW_A),
-         ValueError, "inner surface, which needs its own law"),
-        ("none-outer", lambda: build((0.0, 2.0), (0,), outer=None), TypeError, "None is not a boundary law"),
+         ValueError, "inner surface, which needs its own role"),
+        ("none-outer", lambda: build((0.0, 2.0), (0,), outer=None), TypeError, "a face role is a MirrorDeck, a TranslationDeck or an int tag, got None"),
         ("negative-radius", lambda: build((-0.5, 2.0), (0,), outer=_LAW_A),
          ValueError, "starts at r_0 >= 0"),
     ]
@@ -243,7 +236,7 @@ class TestRadialRefusals:
         assert _message(lambda: build((0.5, 2.0), (0,), outer=_LAW_A, inner=None), ValueError) == (
             _message(lambda: build((0.5, 2.0), (0,), outer=_LAW_A), ValueError)
         )
-        assert build((0.0, 2.0), (0,), outer=_LAW_A, inner=None).boundaries == (_LAW_A,)
+        assert build((0.0, 2.0), (0,), outer=_LAW_A, inner=None).face_roles == (_LAW_A,)
 
     @pytest.mark.parametrize("name", _RADIAL)
     def test_the_refusals_are_the_bare_constructors(self, name):
@@ -273,7 +266,7 @@ _UNIFORM_TABLE = [
 
 
 class TestUniformBoundary:
-    """``uniform_boundary(coord, breakpoints, mat_ids, law)``: ``law`` at
+    """``uniform_boundary(coord, breakpoints, mat_ids, role)``: ``role`` at
     every boundary point, two on a slab or a hollow body, one on a solid
     cylinder or sphere."""
 
@@ -304,7 +297,7 @@ class TestUniformBoundary:
         ([M] 2026-09-29, before the fix)."""
         g = StructuredGeometry.uniform_boundary(coord, (r_0, 1.0), (0,), _LAW_A)
         assert not g.is_hollow
-        assert g.boundaries == (_LAW_A,)
+        assert g.face_roles == (_LAW_A,)
         assert math.copysign(1.0, g.breakpoints[0]) == 1.0
 
     @pytest.mark.parametrize("breakpoints", [(-1.0, 1.0), (0.0, 1.0)], ids=["negative-origin", "origin"])
@@ -320,7 +313,7 @@ class TestUniformBoundary:
         ) == _message(lambda: _bare("SLB", breakpoints, (0,), (_LAW_A, _LAW_A)), TypeError)
 
     def test_a_none_law_is_refused_by_the_bare_check(self):
-        with pytest.raises(TypeError, match="None is not a boundary law"):
+        with pytest.raises(TypeError, match="a face role is a MirrorDeck, a TranslationDeck or an int tag, got None"):
             StructuredGeometry.uniform_boundary(_SPHERE, (0.0, 1.0), (0,), None)  # type: ignore[arg-type]  # a refusal input
 
 
@@ -334,7 +327,7 @@ class TestFromHomogeneous:
     of material 0 with ``boundary`` on both faces.
 
     Mutation witness: pass ``boundary`` to one face only (the other a fixed
-    law) → the identity leg reds on the second face.
+    role) → the identity leg reds on the second face.
     """
 
     @pytest.mark.rests_on(f"{_HERE}::TestSlab::test_equals_the_bare_constructor")
@@ -346,12 +339,12 @@ class TestFromHomogeneous:
         assert g.breakpoints == (0.0, float(width))
         assert g.mat_ids == (0,)
         assert g.coord is _SLAB
-        assert g.boundaries[0] is law and g.boundaries[1] is law
+        assert g.face_roles[0] == law and g.face_roles[1] == law
 
-    @pytest.mark.parametrize("law", [BC.reflective, BC.vacuum, BC("albedo", {"albedo": 0.3})])
-    def test_both_faces_carry_the_law(self, law):
+    @pytest.mark.parametrize("law", [MirrorDeck(), 0, 7], ids=["mirror", "tag-0", "tag-7"])
+    def test_both_faces_carry_the_role(self, law):
         g = StructuredGeometry.from_homogeneous(1.0, law)
-        assert g.boundaries == (law, law)
+        assert g.face_roles == (law, law)
 
 
 _HOMOGENEOUS_REFUSALS = [
@@ -370,7 +363,7 @@ _HOMOGENEOUS_REFUSALS = [
     ("bool", lambda: StructuredGeometry.from_homogeneous(True, _LAW_B),
      TypeError, "must be a real number"),
     ("none-law", lambda: StructuredGeometry.from_homogeneous(1.0, None),  # type: ignore[arg-type, call-arg]  # a refusal input
-     TypeError, "None is not a boundary law"),
+     TypeError, "a face role is a MirrorDeck, a TranslationDeck or an int tag, got None"),
 ]
 
 

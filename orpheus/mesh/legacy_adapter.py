@@ -1,6 +1,6 @@
 r"""The legacy-mesh adapter: translation between an axis tuple and a structured mesh.
 
-:func:`axes_from_legacy_mesh` reads the per-axis edges and endpoint laws of a
+:func:`axes_from_legacy_mesh` reads the per-axis edges and endpoint roles of a
 :class:`~orpheus.mesh.structured.Mesh1D` or
 :class:`~orpheus.mesh.structured.Mesh2D` into a tuple of
 :class:`~orpheus.mesh.axis.AxisMesh` / :class:`~orpheus.mesh.axis.RadialAxisMesh`;
@@ -13,7 +13,7 @@ structured mesh (:mod:`orpheus.mesh.structured`), so it carries more knowledge
 than either and lives above both: it imports the two, and neither imports it.
 It sat in :mod:`orpheus.mesh.axis` until the layer-DAG campaign (2026-10),
 where its function-local import of the structured mesh closed the cycle
-``axis -> structured -> face_laws -> axis`` (the criterion:
+``axis -> structured -> face_roles -> axis`` (the criterion:
 ``docs/architecture/layering.rst``). Each half retires when its consumers
 read axes (#646): :func:`legacy_mesh_from_axes` when no consumer reads
 ``SNProblem.mesh`` at d <= 2, :func:`axes_from_legacy_mesh` when the
@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry import CoordSystem
 from orpheus.mesh.axis import (
     Axis1D,
     AxisCoord,
@@ -42,37 +42,11 @@ from orpheus.mesh.structured import Mesh1D, Mesh2D
 # Legacy-mesh → axis-tuple adapter
 # ═══════════════════════════════════════════════════════════════════════
 
-def _refuse_an_inner_law_the_radial_axis_drops(mesh) -> None:
-    """Refuse a hollow curvilinear mesh whose inner law is not reflective.
-
-    **SCOPE-BOUNDARY[guard]** — machinery: an inner-surface trace on :class:`RadialAxisMesh` (#511).
-    ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md``.
-    revisit: the curvilinear SN build, deferred by the user, which gives the radial axis its inner slot.
-
-    The radial axis has one law slot, ``bc_outer``, so the declared inner
-    law of a hollow cylinder or sphere is dropped and every method built
-    on the axes (SN, diffusion) computes a reflective cavity instead. The
-    guard lands with the step that makes a hollow geometry declarable.
-    Reflective is admitted because it is what the methods compute.
-    """
-    if "xmin" not in mesh.face_laws:
-        return
-    inner_law = mesh.face_laws["xmin"]
-    if inner_law.kind != "reflective":
-        raise NotImplementedError(
-            f"a hollow {mesh.coord.name.lower()} mesh (r_0 = {float(mesh.edges[0])!r}) "
-            f"declares the inner law {inner_law!r}, which the radial axis "
-            f"cannot carry: it has no inner-surface trace, so the law would "
-            f"be dropped and a reflective cavity computed instead (#511). "
-            f"Only a reflective inner law is admitted."
-        )
-
-
 def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
     r"""Extract the canonical axis tuple from a legacy ``Mesh1D`` /
     ``Mesh2D``.
 
-    Wraps the legacy mesh's per-axis edge arrays + BC declarations in
+    Wraps the legacy mesh's per-axis edge arrays + face roles in
     :class:`AxisMesh` / :class:`RadialAxisMesh` so the
     :class:`~orpheus.sn.problem.SNProblem` constructor can expose
     :attr:`SNProblem.axes` regardless of which constructor surface the
@@ -81,13 +55,14 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
     Mesh1D mapping (per coordinate system):
 
     * ``CARTESIAN`` → ``(AxisMesh(edges=mesh.edges,
-      bc_low=mesh.face_laws["xmin"], bc_high=mesh.face_laws["xmax"]),)``.
+      role_low=mesh.face_roles["xmin"], role_high=mesh.face_roles["xmax"]),)``.
     * ``SPHERICAL`` → ``(RadialAxisMesh(edges=mesh.edges,
-      coord=RADIAL_SPHERICAL, bc_outer=mesh.outer_law),)``. A solid body
-      has one face (the centre is an interior point and carries no law).
-      On a hollow body the inner face is an endpoint the radial axis has
-      no slot for, so only a reflective inner law is admitted, the one
-      the methods compute; any other is refused (#511).
+      coord=RADIAL_SPHERICAL, role_outer=mesh.outer_role,
+      role_inner=...),)``. A solid body has one face (the centre is an
+      interior point and carries no role). On a hollow body the inner face
+      is a tag the axis carries as ``role_inner`` and the trace inventory
+      does not list (no inner-surface trace, #511); the adapter synthesizes
+      no cavity.
     * ``CYLINDRICAL`` → same as SPHERICAL with
       ``RADIAL_CYLINDRICAL``.
 
@@ -95,35 +70,35 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
     not used by any SN sweep today):
 
     * ``CARTESIAN`` → ``(AxisMesh(edges=mesh.edges_x,
-      bc_low=face_laws["xmin"], bc_high=face_laws["xmax"]),
-      AxisMesh(edges=mesh.edges_y, bc_low=face_laws["ymin"],
-      bc_high=face_laws["ymax"]))``.
+      role_low=face_roles["xmin"], role_high=face_roles["xmax"]),
+      AxisMesh(edges=mesh.edges_y, role_low=face_roles["ymin"],
+      role_high=face_roles["ymax"]))``.
     """
     if isinstance(mesh, Mesh1D):
         if mesh.coord == CoordSystem.CARTESIAN:
             return (
                 AxisMesh(
                     edges=mesh.edges,
-                    bc_low=mesh.face_laws["xmin"],
-                    bc_high=mesh.face_laws["xmax"],
+                    role_low=mesh.face_roles["xmin"],
+                    role_high=mesh.face_roles["xmax"],
                 ),
             )
         if mesh.coord == CoordSystem.SPHERICAL:
-            _refuse_an_inner_law_the_radial_axis_drops(mesh)
             return (
                 RadialAxisMesh(
                     edges=mesh.edges,
                     coord=AxisCoord.RADIAL_SPHERICAL,
-                    bc_outer=mesh.outer_law,
+                    role_outer=mesh.outer_role,
+                    role_inner=mesh.face_roles.get("xmin"),
                 ),
             )
         if mesh.coord == CoordSystem.CYLINDRICAL:
-            _refuse_an_inner_law_the_radial_axis_drops(mesh)
             return (
                 RadialAxisMesh(
                     edges=mesh.edges,
                     coord=AxisCoord.RADIAL_CYLINDRICAL,
-                    bc_outer=mesh.outer_law,
+                    role_outer=mesh.outer_role,
+                    role_inner=mesh.face_roles.get("xmin"),
                 ),
             )
         raise ValueError(
@@ -137,10 +112,10 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
                 f"(coord={mesh.coord!r}) has no SN sweep today; "
                 f"axis-tuple extraction is undefined."
             )
-        laws = mesh.face_laws
+        roles = mesh.face_roles
         return (
-            AxisMesh(edges=mesh.edges_x, bc_low=laws["xmin"], bc_high=laws["xmax"]),
-            AxisMesh(edges=mesh.edges_y, bc_low=laws["ymin"], bc_high=laws["ymax"]),
+            AxisMesh(edges=mesh.edges_x, role_low=roles["xmin"], role_high=roles["xmax"]),
+            AxisMesh(edges=mesh.edges_y, role_low=roles["ymin"], role_high=roles["ymax"]),
         )
 
     raise TypeError(
@@ -153,23 +128,20 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
 # Axis-tuple → legacy-mesh ADAPTER builder (for SNProblem.from_axes)
 # ═══════════════════════════════════════════════════════════════════════
 
-def _face_laws_of_axis(ax, coord, edges):
-    """The adapter mesh's face laws: the laws SN resolves on this axis.
+def _face_roles_of_axis(ax, coord, edges):
+    """The adapter mesh's face roles: the roles the axis declares, on every face it has.
 
-    ``SNProblem.from_axes`` resolves its laws from the axes themselves; the
-    adapter mesh only needs a declaration, so it carries the axis's declared
-    laws, and on the inner face of a hollow radial axis, which has no law
-    slot, the reflective cavity SN computes.
-    SCOPE-BOUNDARY[guard] — machinery: an inner-surface trace on :class:`RadialAxisMesh` (#511).
-    ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md``.
-    revisit: the curvilinear SN build, deferred by the user.
+    ``SNProblem.from_axes`` resolves its roles from the axes themselves; the adapter mesh only needs a declaration,
+    so it carries the axis's declared roles. A hollow radial axis holds its inner tag as ``role_inner`` (the radial
+    axis has no inner-surface trace, #511, so the trace inventory does not list it) and the adapter carries it
+    across; it synthesizes no cavity.
     """
     if isinstance(ax, AxisMesh):
-        return {"xmin": ax.bc_low, "xmax": ax.bc_high}
+        return {"xmin": ax.role_low, "xmax": ax.role_high}
     points = coord.boundary_points(float(edges[0]), float(edges[-1]))
     if len(points) == 2:
-        return {"xmin": BC("reflective"), "xmax": ax.bc_outer}
-    return {"xmax": ax.bc_outer}
+        return {"xmin": ax.role_inner, "xmax": ax.role_outer}
+    return {"xmax": ax.role_outer}
 
 
 def legacy_mesh_from_axes(
@@ -227,7 +199,7 @@ def legacy_mesh_from_axes(
             volumes=coord.measure(edges),
             region_ids=np.cumsum(run_starts) - 1,
             region_materials=tuple(materials[run_starts].tolist()),
-            face_laws=_face_laws_of_axis(ax, coord, edges),
+            face_roles=_face_roles_of_axis(ax, coord, edges),
         )
 
     if len(axes) == 2:
@@ -239,8 +211,8 @@ def legacy_mesh_from_axes(
             )
         return Mesh2D(
             ax0.edges, ax1.edges, mat_map,
-            face_laws={
-                label.face_name: axes[label.axis_index].bc[label.endpoint]
+            face_roles={
+                label.face_name: axes[label.axis_index].roles[label.endpoint]
                 for label in face_labels(axes)
             },
             coord=CoordSystem.CARTESIAN,

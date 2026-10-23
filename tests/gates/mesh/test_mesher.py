@@ -4,7 +4,7 @@ r"""The mesher lifts a geometry onto cells (P1 step 3b).
 call site that builds a mesh from a :class:`~orpheus.geometry.StructuredGeometry`
 (the user's ruling of 2026-09-29). It applies an interval rule to every
 interval (or one rule per interval), concatenates the cells, gives each cell
-the material of its interval and each boundary face the geometry's law at
+the material of its interval and each boundary face the geometry's role at
 that point, and builds the bare :class:`~orpheus.mesh.Mesh1D`. ``refine(k)``
 re-partitions by ``k * rule`` for each rule.
 
@@ -23,7 +23,7 @@ import re
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import (
     CellEdges,
     CellsByCount,
@@ -48,19 +48,19 @@ _CYLINDER = CoordSystem.CYLINDRICAL
 _SPHERE = CoordSystem.SPHERICAL
 _COORDS = (_SLAB, _CYLINDER, _SPHERE)
 
-_ALBEDO = BC("albedo", {"albedo": 0.3})
+_TAG = 3  # the outer role: a tag, so that it differs from the inner role and from a deck
 
 
 def _geometry(coord: CoordSystem, breakpoints: tuple[float, ...]) -> StructuredGeometry:
     """Distinct materials (7, 3, 5, ...) so a lift that indexes by position
-    rather than by interval is seen; distinct laws on the two faces."""
+    rather than by interval is seen; distinct roles on the two faces."""
     mat_ids = (7, 3, 5, 1)[: len(breakpoints) - 1]
     if coord is _SLAB:
-        return StructuredGeometry.slab(breakpoints, mat_ids, left=BC.reflective, right=_ALBEDO)
+        return StructuredGeometry.slab(breakpoints, mat_ids, left=MirrorDeck(), right=_TAG)
     build = StructuredGeometry.cylinder if coord is _CYLINDER else StructuredGeometry.sphere
     if breakpoints[0] > 0.0:
-        return build(breakpoints, mat_ids, inner=BC.reflective, outer=_ALBEDO)
-    return build(breakpoints, mat_ids, outer=_ALBEDO)
+        return build(breakpoints, mat_ids, inner=1, outer=_TAG)
+    return build(breakpoints, mat_ids, outer=_TAG)
 
 
 _BODIES = {
@@ -94,13 +94,13 @@ def _rule_for(rule, k: int):
 
 class TestTheLift:
     r"""The mesh is the concatenation of each interval's cells, with the
-    interval's material on its cells and the geometry's laws on the faces.
+    interval's material on its cells and the geometry's roles on the faces.
 
     Claim kind: THEOREM. Every quantity is decided twice: from the mesh, and
     from the interval rules applied to the geometry directly.
     Mutation witnesses: a lift that repeats the materials by POSITION
     (``np.repeat(mat_ids, counts[::-1])``) reds the material leg; one that
-    drops the geometry's laws for a default reds the law leg; one that keeps
+    drops the geometry's roles for a default reds the role leg; one that keeps
     each shared breakpoint twice is refused by the constructor.
     """
 
@@ -119,12 +119,12 @@ class TestTheLift:
         np.testing.assert_array_equal(mesh.volumes, np.concatenate([v for _, v in cells]))
         np.testing.assert_array_equal(mesh.mat_ids, np.repeat(g.mat_ids, counts))
         assert mesh.coord is g.coord
-        # the geometry's laws, one per boundary point inner first, land on the
+        # the geometry's roles, one per boundary point inner first, land on the
         # faces named by the inventory rule: xmin/xmax, or xmax alone on a
         # solid radial body (written here by hand, not read from face_inventory)
         faces = ("xmin", "xmax") if len(g.boundary_points) == 2 else ("xmax",)
-        assert tuple(mesh.face_laws) == faces
-        assert all(mesh.face_laws[f] is law for f, law in zip(faces, g.boundaries, strict=True))
+        assert tuple(mesh.face_roles) == faces
+        assert all(mesh.face_roles[f] == role for f, role in zip(faces, g.face_roles, strict=True))
         assert mesh.boundary_points == g.boundary_points
 
     @pytest.mark.rests_on(f"{_HERE}::TestTheLift::test_the_mesh_is_the_intervals_cells")
@@ -215,7 +215,7 @@ class TestRefine:
 # The session's refusals
 # ─────────────────────────────────────────────────────────────────────
 
-_G = StructuredGeometry.slab((0.0, 1.0, 2.0), (0, 1), left=BC.vacuum, right=BC.vacuum)
+_G = StructuredGeometry.slab((0.0, 1.0, 2.0), (0, 1), left=0, right=0)
 
 _SESSION_REFUSALS = [
     ("not-a-geometry", lambda: Mesher(_G.breakpoints), TypeError,  # type: ignore[arg-type]  # a refusal input

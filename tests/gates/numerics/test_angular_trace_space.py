@@ -18,7 +18,7 @@ import dataclasses
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.coord import CoordSystem
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.face_layout import FaceLayout
@@ -35,7 +35,7 @@ from orpheus.numerics.quadrature import Quadrature
 
 
 def _mesh1d(coord: CoordSystem, n: int = 4) -> Mesh1D:
-    geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), BC.reflective)
+    geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), 0)
     return Mesher(geometry).partition(CellsByCount.uniform_width(n)).mesh
 
 
@@ -45,11 +45,11 @@ def _mesh2d(coord: CoordSystem, nx: int = 3, ny: int = 3) -> Mesh2D:
         edges_y=np.linspace(0.0, 1.0, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         coord=coord,
-        # edges_x starts at 0: on a solid (r, z) mesh the axis r = 0 is interior and carries no law
-        face_laws=dict.fromkeys(
+        # edges_x starts at 0: on a solid (r, z) mesh the axis r = 0 is interior and carries no role
+        face_roles=dict.fromkeys(
             ("xmin", "xmax", "ymin", "ymax") if coord is CoordSystem.CARTESIAN
             else ("xmax", "ymin", "ymax"),
-            BC("reflective"),
+            0,
         ),
     )
 

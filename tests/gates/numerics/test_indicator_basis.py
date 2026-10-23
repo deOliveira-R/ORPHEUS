@@ -28,7 +28,7 @@ import dataclasses
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.axis import Axis
 from orpheus.numerics.basis import Basis, IndicatorBasis
@@ -193,7 +193,7 @@ def test_evaluate_rejects_wrong_dimension():
 def test_mesh_is_not_a_basis_but_yields_one():
     """The mesh YIELDS a basis view; it does NOT inherit Basis (role separation)."""
     geometry = StructuredGeometry.slab(
-        _COARSE_EDGES, (0, 1), left=BC("reflective"), right=BC("reflective"),
+        _COARSE_EDGES, (0, 1), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
     assert not isinstance(mesh, Basis)

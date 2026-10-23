@@ -5,8 +5,9 @@ order"): the mesh is the discretisation overlay on the geometry, so it lives
 in :mod:`orpheus.mesh`, which imports the geometry and is never imported by
 it. A re-export left at an old home would let a consumer keep the old spelling
 and hide the layer from the linter, so each old home is checked empty; the
-boundary tag :class:`~orpheus.geometry.boundary.BC` moved into the geometry's
-boundary package and is ONE definition however it is reached.
+boundary tag :class:`~orpheus.geometry.boundary.BC` lives in the geometry's
+boundary package only (wave 2, slice S1: the geometry facade exports no response
+vocabulary; the package itself is deleted at WF2.4).
 """
 from __future__ import annotations
 
@@ -46,12 +47,12 @@ def test_no_old_package_re_exports_a_mesh_name(package: str, names: tuple[str, .
     assert not leaked, f"{package} still exports {leaked}; import them from orpheus.mesh"
 
 
-def test_the_boundary_tag_is_one_definition_in_the_geometry_boundary_package() -> None:
+def test_the_boundary_tag_is_defined_in_the_geometry_boundary_package_alone() -> None:
     import orpheus.geometry
     import orpheus.geometry.boundary
 
     assert orpheus.geometry.boundary.BC.__module__ == "orpheus.geometry.boundary._tag"
-    assert orpheus.geometry.BC is orpheus.geometry.boundary.BC
+    assert not hasattr(orpheus.geometry, "BC") and "BC" not in orpheus.geometry.__all__
 
 
 def test_the_mesh_package_exports_the_moved_names() -> None:

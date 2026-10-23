@@ -112,6 +112,7 @@ from orpheus.geometry.transformation import (
     close_group as _close_rigid_motions,
 )
 
+from .deck import mirror_motion
 from .faces import AXIS_INDEX, AXIS_NAMES
 from .roots_of_unity import roots_of_unity
 
@@ -1518,7 +1519,7 @@ def _reflections(axis: str) -> list[RigidMotion]:
     unspellable by taking ``normal`` keyword-only; this wrapper exists to
     translate the tag's axis LETTER into that normal.
     """
-    return [RigidMotion.reflection(normal=_axis_vector(axis))]
+    return [mirror_motion(axis, 3)]
 
 
 def _inversion_op() -> RigidMotion:

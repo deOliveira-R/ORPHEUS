@@ -1,14 +1,12 @@
-"""The geometry layer: shapes, coordinate systems and boundary laws, with no discretisation.
+"""The geometry layer: shapes, coordinate systems and face roles, with no discretisation.
 
 * :class:`StructuredGeometry`: the 1-D layered geometry (a coordinate
-  system, breakpoints, one material id per interval and one law per
+  system, breakpoints, one material id per interval and one face role per
   boundary point), a pure shape and boundary description with no cell
-  counts. Reference solvers consume it directly.
+  counts. Reference solvers consume it directly. A role is a deck or an
+  ``int`` tag; the geometry names no response.
 * :class:`CoordSystem` and the volume and area formulas of each coordinate
   system, and the :class:`AngularChart` each declares for a direction.
-* :mod:`~orpheus.geometry.boundary`: the boundary-condition tag
-  :class:`BC` and the typed boundary laws. Boundaries are defined at the
-  geometry.
 * :mod:`~orpheus.geometry.transformation`: rigid motions and permutations.
 * :mod:`~orpheus.geometry.symmetry`: the closed subgroups of :math:`O(3)`,
   realized; :mod:`~orpheus.geometry.roots_of_unity`, the exact realization of
@@ -32,7 +30,6 @@ a :class:`~orpheus.mesh.mesher.Mesher` discretises a
 :class:`StructuredGeometry`.
 """
 
-from .boundary import BC
 from .extent import GeometryExtent
 from .colouring import ColouringSymmetry, FaceIsometry, Symmetries, UncomputedSymmetries, colouring_symmetry
 from .deck import (
@@ -62,7 +59,6 @@ from .transformation import (
 __all__ = [
     "GeometryExtent",
     "AngularChart",
-    "BC",
     "ColouringSymmetry",
     "CoordSystem",
     "DeckError",

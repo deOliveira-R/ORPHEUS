@@ -12,7 +12,7 @@ adaptive refinement on a field and a protocol for external meshers are #539.
 
 The mesher lifts the geometry onto the cells: each cell is labelled with the
 interval it lies in (its region; the geometry's region → material map comes
-with the labels), and each boundary face takes the geometry's law at that
+with the labels), and each boundary face takes the geometry's role at that
 boundary point. Every breakpoint is a cell edge, so every cell lies in exactly
 one interval: the mesh refines the geometry's regions.
 """
@@ -21,7 +21,7 @@ from __future__ import annotations
 import numpy as np
 
 from orpheus.geometry.structured_geometry import StructuredGeometry
-from orpheus.mesh.face_laws import face_inventory
+from orpheus.mesh.face_roles import face_inventory
 from orpheus.mesh.partition import IntervalRule
 from orpheus.mesh.structured import Mesh1D
 
@@ -87,9 +87,9 @@ class Mesher:
             volumes=volumes,
             region_ids=region_ids,
             region_materials=tuple(self._geometry.mat_ids),
-            face_laws=dict(zip(
+            face_roles=dict(zip(
                 face_inventory(self._geometry.coord, edges, 1),
-                self._geometry.boundaries, strict=True,
+                self._geometry.face_roles, strict=True,
             )),
         )
         self._rules = rules

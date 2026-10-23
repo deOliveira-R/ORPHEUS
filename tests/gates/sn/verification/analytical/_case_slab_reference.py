@@ -11,7 +11,7 @@ their fixed-point and rate rows.
 from __future__ import annotations
 
 from orpheus.derivations.reference_values import continuous_get
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 
 
@@ -27,7 +27,7 @@ def case_slab_mesh(n_per: int) -> tuple[Mesh1D, dict, int]:
     H_B = float(geom["refl_height"])
     N_ord = int(geom["n_ordinates"])
     slab = StructuredGeometry.slab(
-        (0.0, H_A, H_A + H_B), (0, 1), left=BC.reflective, right=BC.reflective,
+        (0.0, H_A, H_A + H_B), (0, 1), left=MirrorDeck(), right=MirrorDeck(),
     )
     mesh = Mesher(slab).partition(CellsByCount.uniform_width(n_per)).mesh
     return mesh, materials, N_ord

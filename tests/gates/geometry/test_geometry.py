@@ -3,7 +3,7 @@
 Tests cover:
 - Volume and surface formulas for all coordinate systems (1-D and 2-D)
 - Mesh validation (monotonicity, shape, frozen immutability)
-- :class:`BC` declaration dataclass and mesh integration
+- :class:`BC` declaration dataclass (retires with the boundary package at WF2.4) and the mesh's face roles
 - :func:`pwr_pin_2d` (2-D Cartesian factory — kept as a non-trivial
   helper after Phase F retired the 1-D Zone/factories surface)
 
@@ -21,13 +21,14 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import (
-    BC,
     CoordSystem,
+    MirrorDeck,
     compute_areas_1d,
     compute_volumes_1d,
     compute_volumes_2d,
     StructuredGeometry,
 )
+from orpheus.geometry.boundary import BC  # the tag's own rows (TestBC); the facade no longer exports it
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesh2D, Mesher, pwr_pin_2d
 
 # Every test in this file is a FOUNDATION test — it verifies a
@@ -164,19 +165,19 @@ class TestPWRPin2D:
     """:func:`pwr_pin_2d` 2-D factory invariants."""
 
     def test_pin_2d_shape(self):
-        mesh = pwr_pin_2d(n_cells=10, law=BC.reflective)
+        mesh = pwr_pin_2d(n_cells=10, role=MirrorDeck())
         assert mesh.nx == 10
         assert mesh.ny == 10
         assert mesh.mat_map.shape == (10, 10)
 
     def test_pin_2d_has_all_materials(self):
-        mesh = pwr_pin_2d(n_cells=20, law=BC.reflective)
+        mesh = pwr_pin_2d(n_cells=20, role=MirrorDeck())
         mats = set(mesh.mat_map.ravel())
         assert mats == {0, 1, 2}
 
     def test_pin_2d_mat_ids_flat(self):
         """mat_ids returns flat array for assemble_cell_xs."""
-        mesh = pwr_pin_2d(n_cells=5, law=BC.reflective)
+        mesh = pwr_pin_2d(n_cells=5, role=MirrorDeck())
         assert mesh.mat_ids.shape == (25,)
 
 
@@ -186,7 +187,7 @@ class TestPWRPin2D:
 
 class TestMesh1D:
     """Mesh1D derived properties. The construction refusals (edges, volumes,
-    material ids, face laws) are the keyed table of
+    material ids, face roles) are the keyed table of
     ``tests/gates/mesh/test_mesh1d.py`` (S3.8 and S3.11, re-posed there at P1
     step 3b from the rows that lived here)."""
 
@@ -203,7 +204,7 @@ class TestMesh1D:
         assert mesh.total_width == 6.0
 
     def test_N(self):
-        geometry = StructuredGeometry.from_homogeneous(5.0, BC.reflective)
+        geometry = StructuredGeometry.from_homogeneous(5.0, MirrorDeck())
         mesh = Mesher(geometry).partition(CellEdges(np.arange(6.0))).mesh
         assert mesh.N == 5
 
@@ -217,7 +218,7 @@ class TestMesh1D:
         mesh = Mesh1D(
             coord=CoordSystem.CARTESIAN, edges=[0, 1, 2], volumes=[1, 1],  # type: ignore[arg-type]  # the coercion is the subject
             region_ids=[0, 1], region_materials=(0, 1),  # type: ignore[arg-type]  # the coercion is the subject
-            face_laws={"xmin": BC.reflective, "xmax": BC.reflective},
+            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck()},
         )
         assert mesh.edges.dtype == float
         assert mesh.region_ids.dtype == int
@@ -225,11 +226,11 @@ class TestMesh1D:
 
 
 def _mesh_with_edges(breakpoints: tuple[float, ...]) -> Mesh1D:
-    """One cell per interval, a distinct material in each, reflective faces:
+    """One cell per interval, a distinct material in each, mirror faces:
     the literal edges ARE the geometry's breakpoints."""
     geometry = StructuredGeometry.slab(
         breakpoints, tuple(range(len(breakpoints) - 1)),
-        left=BC.reflective, right=BC.reflective,
+        left=MirrorDeck(), right=MirrorDeck(),
     )
     return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
 
@@ -246,7 +247,7 @@ class TestMesh2D:
             edges_x=np.array([0.0, 1.0, 3.0]),
             edges_y=np.array([0.0, 0.5]),
             mat_map=np.array([[0], [1]]),
-            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
         )
         np.testing.assert_allclose(mesh.dx, [1.0, 2.0])
         np.testing.assert_allclose(mesh.dy, [0.5])
@@ -256,7 +257,7 @@ class TestMesh2D:
             edges_x=np.array([0.0, 2.0]),
             edges_y=np.array([0.0, 3.0]),
             mat_map=np.array([[0]]),
-            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
         )
         np.testing.assert_allclose(mesh.volumes, [[6.0]])
 
@@ -266,7 +267,7 @@ class TestMesh2D:
             edges_y=np.array([0.0, 5.0]),   # axial
             mat_map=np.array([[0]]),
             coord=CoordSystem.CYLINDRICAL,
-            face_laws={"xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+            face_roles={"xmax": 0, "ymin": MirrorDeck(), "ymax": MirrorDeck()},
         )
         np.testing.assert_allclose(mesh.volumes, [[np.pi * 5.0]])
 
@@ -276,7 +277,7 @@ class TestMesh2D:
             edges_x=np.array([0.0, 1.0, 2.0]),
             edges_y=np.array([0.0, 1.0, 2.0]),
             mat_map=mat_map,
-            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
         )
         np.testing.assert_array_equal(mesh.mat_ids, [0, 1, 2, 3])
 
@@ -285,7 +286,7 @@ class TestMesh2D:
             edges_x=np.linspace(0, 1, 4),
             edges_y=np.linspace(0, 1, 6),
             mat_map=np.zeros((3, 5), dtype=int),
-            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
         )
         assert mesh.nx == 3
         assert mesh.ny == 5
@@ -295,7 +296,7 @@ class TestMesh2D:
             edges_x=np.array([0.0, 1.0]),
             edges_y=np.array([0.0, 1.0]),
             mat_map=np.array([[0]]),
-            face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
         )
         with pytest.raises(AttributeError):
             mesh.edges_x = np.array([0.0, 2.0])
@@ -306,7 +307,7 @@ class TestMesh2D:
                 edges_x=np.array([0.0, 1.0, 2.0]),
                 edges_y=np.array([0.0, 1.0]),
                 mat_map=np.array([[0, 1]]),  # should be (2, 1)
-                face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+                face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
             )
 
     def test_spherical_2d_raises(self):
@@ -316,12 +317,12 @@ class TestMesh2D:
                 edges_y=np.array([0.0, 1.0]),
                 mat_map=np.array([[0]]),
                 coord=CoordSystem.SPHERICAL,
-                face_laws={"xmin": BC("reflective"), "xmax": BC("reflective"), "ymin": BC("reflective"), "ymax": BC("reflective")},
+                face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
             )
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# BC dataclass and mesh integration
+# BC dataclass, and the mesh's face roles
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestBC:
@@ -357,53 +358,47 @@ class TestBC:
         assert repr(BC("vacuum")) == "BC('vacuum')"
         assert repr(BC("white", {"albedo": 0.7})) == "BC('white', {'albedo': 0.7})"
 
-    # ── Mesh1D face laws ─────────────────────────────────────────────
+    # ── Mesh1D face roles ────────────────────────────────────────────
     # RE-POSED at P1 step 3b: ``bc_left``/``bc_right`` and the ``None``
-    # default retired; a mesh carries one law per boundary face. The
+    # default retired; a mesh carries one role per boundary face (a deck or a tag, wave 2 S1). The
     # ``None`` default row and the "backward compatible" row are deleted
     # (their subject was the retired default); ``None`` is refused on a face
     # by ``tests/gates/mesh/test_mesh1d.py`` (S3.10).
 
     def test_mesh1d_bc_explicit(self):
         mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 1.0, 2.0), (0, 1), left=BC.reflective, right=BC.vacuum,
+            (0.0, 1.0, 2.0), (0, 1), left=MirrorDeck(), right=0,
         )).partition(CellsByCount.uniform_width(1)).mesh
-        assert dict(mesh.face_laws) == {"xmin": BC("reflective"), "xmax": BC("vacuum")}
-        assert mesh.outer_law == BC("vacuum")
+        assert dict(mesh.face_roles) == {"xmin": MirrorDeck(), "xmax": 0}
+        assert mesh.outer_role == 0
         assert mesh.boundary_points == (0.0, 2.0)
 
     def test_mesh1d_bc_frozen(self):
         mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 1.0, 2.0), (0, 1), left=BC.reflective, right=BC.reflective,
+            (0.0, 1.0, 2.0), (0, 1), left=MirrorDeck(), right=MirrorDeck(),
         )).partition(CellsByCount.uniform_width(1)).mesh
         with pytest.raises(AttributeError):
-            mesh.face_laws = {"xmin": BC.vacuum, "xmax": BC.vacuum}  # type: ignore[misc]  # the frozen field is the subject
+            mesh.face_roles = {"xmin": 0, "xmax": 0}  # type: ignore[misc]  # the frozen field is the subject
 
     def test_mesh1d_bc_invalid_type_raises(self):
-        with pytest.raises(TypeError, match="must be a BC tag or a BoundaryTraceLaw"):
+        with pytest.raises(TypeError, match="a face role is a MirrorDeck, a TranslationDeck or an int tag"):
             Mesh1D(
                 coord=CoordSystem.CARTESIAN, edges=np.array([0.0, 1.0]),
                 volumes=np.array([1.0]), region_ids=np.array([0]), region_materials=(0,),
-                face_laws={"xmin": "vacuum", "xmax": BC.vacuum},  # type: ignore[dict-item]  # a refusal input
+                face_roles={"xmin": "vacuum", "xmax": 0},  # type: ignore[dict-item]  # a refusal input
             )
 
-    def test_mesh1d_bc_accepts_a_typed_law(self):
-        """The declaration channel: a LAW OBJECT is a legal face law.
+    def test_mesh1d_bc_accepts_a_deck_beside_a_tag(self):
+        """The declaration channel: a deck and a tag are both legal face roles.
 
-        The positive leg of the row above (``vv`` anti-pattern #11). A ``BC``
-        tag is ``(kind, dict[str, float])`` and so cannot express a law whose
-        content is a FUNCTION: a ``PrescribedInflow`` carrying a
-        manufactured-solution source has no tag spelling.
+        The positive leg of the row above (``vv`` anti-pattern #11). A prescribed
+        inflow, whose content is a function, has no role spelling: the problem
+        binds it to a tag (a response is not the geometry's).
         """
-        from orpheus.geometry.boundary import (
-            ConstantInflowSource, PrescribedInflow,
-        )
-
-        law = PrescribedInflow(source=ConstantInflowSource(value=2.5))
         mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 1.0), (0,), left=law, right=BC.reflective,
+            (0.0, 1.0), (0,), left=7, right=MirrorDeck(),
         )).partition(CellsByCount.uniform_width(1)).mesh
-        assert mesh.face_laws["xmin"] is law
+        assert mesh.face_roles["xmin"] == 7 and mesh.face_roles["xmax"] == MirrorDeck()
 
     # ── BC.to_alpha — production-tag → continuous-albedo bridge ─────
 
@@ -426,55 +421,48 @@ class TestBC:
         with pytest.raises(NotImplementedError, match="no specular-albedo equivalent"):
             BC.white.to_alpha()
 
-    # ── Mesh2D BC fields ─────────────────────────────────────────────
+    # ── Mesh2D face roles ────────────────────────────────────────────
 
     def test_mesh2d_bc_explicit(self):
         mesh = Mesh2D(
             edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
-            face_laws={
-                "xmin": BC.reflective,
-                "xmax": BC.vacuum,
-                "ymin": BC.reflective,
-                "ymax": BC.vacuum,
+            face_roles={
+                "xmin": MirrorDeck(),
+                "xmax": 0,
+                "ymin": MirrorDeck(),
+                "ymax": 0,
             },
         )
-        assert mesh.face_laws["xmin"] == BC("reflective")
-        assert mesh.face_laws["xmax"] == BC("vacuum")
+        assert mesh.face_roles["xmin"] == MirrorDeck()
+        assert mesh.face_roles["xmax"] == 0
 
     def test_mesh2d_bc_invalid_type_raises(self):
-        with pytest.raises(TypeError, match=r"face_laws\['xmin'\] must be a BC tag"):
+        with pytest.raises(TypeError, match=r"face_roles\['xmin'\]: a face role is a MirrorDeck"):
             Mesh2D(
                 edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
-                face_laws={
+                face_roles={
                     "xmin": "reflective",  # type: ignore[dict-item]  # the refusal input
-                    "xmax": BC.reflective,
-                    "ymin": BC.reflective,
-                    "ymax": BC.reflective,
+                    "xmax": MirrorDeck(),
+                    "ymin": MirrorDeck(),
+                    "ymax": MirrorDeck(),
                 },
             )
 
-    def test_mesh2d_bc_accepts_a_typed_law(self):
+    def test_mesh2d_bc_accepts_a_tag_on_every_face(self):
         """The 2-D arm of the declaration channel — all four faces.
 
-        Parameterised over every face because the four laws were validated
+        Parameterised over every face because the four roles were validated
         by a hand-written loop until the channel landed; a widening that
         reached only ``xmin`` would pass a single-face row.
         """
-        from orpheus.geometry.boundary import (
-            BoundaryTraceLaw, ConstantInflowSource, PrescribedInflow,
-        )
-
-        law = PrescribedInflow(source=ConstantInflowSource(value=1.0))
         for face in ("xmin", "xmax", "ymin", "ymax"):
-            face_laws: dict[str, BC | BoundaryTraceLaw] = dict.fromkeys(
-                ("xmin", "xmax", "ymin", "ymax"), BC.reflective,
-            )
-            face_laws[face] = law
+            face_roles: dict[str, object] = dict.fromkeys(("xmin", "xmax", "ymin", "ymax"), MirrorDeck())
+            face_roles[face] = 5
             mesh = Mesh2D(
                 edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
-                face_laws=face_laws,
+                face_roles=face_roles,
             )
-            assert mesh.face_laws[face] is law, face
+            assert mesh.face_roles[face] == 5, face
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -486,4 +474,4 @@ class TestPWRPin2DEdgeCases:
 
     def test_pin_2d_wrong_mat_ids_length_raises(self):
         with pytest.raises(ValueError, match="len\\(mat_ids\\)"):
-            pwr_pin_2d(radii=[1.0], mat_ids=[0, 1, 2], law=BC.reflective)
+            pwr_pin_2d(radii=[1.0], mat_ids=[0, 1, 2], role=MirrorDeck())

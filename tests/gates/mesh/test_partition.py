@@ -40,7 +40,7 @@ import numpy as np
 import pytest
 
 import orpheus.geometry.coord as coord_module
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry, compute_volumes_1d
+from orpheus.geometry import CoordSystem, StructuredGeometry, compute_volumes_1d
 from orpheus.geometry.coord import MeasureCoordinate
 from orpheus.mesh import (
     CellEdges,
@@ -103,9 +103,9 @@ def _power(spacing: Spacing, coord: CoordSystem) -> int:
 
 
 def _geometry(coord: CoordSystem, breakpoints: tuple[float, ...]) -> StructuredGeometry:
-    """A geometry with one material per interval and vacuum everywhere."""
+    """A geometry with one material per interval and tag 0 on every face (a tag cannot be a deck on a curved face)."""
     return StructuredGeometry.uniform_boundary(
-        coord, breakpoints, tuple(range(len(breakpoints) - 1)), BC.vacuum,
+        coord, breakpoints, tuple(range(len(breakpoints) - 1)), 0,
     )
 
 

@@ -75,6 +75,8 @@ __all__ = [
     "mirror_motion",
     "pairing_of",
     "parse_face_role",
+    "parse_face_role_on",
+    "parse_face_roles",
     "translation_motion",
 ]
 
@@ -179,9 +181,9 @@ def _axis_index(axis: str, dimension: int, what: str) -> int:
 def mirror_motion(axis: str, dimension: int) -> RigidMotion:
     r"""The reflection whose plane is normal to the named ``axis``: the geometry's axis-letter to mirror spelling.
 
-    A twin body survives in ``orpheus/geometry/boundary/_factors.py`` (``_mirror_motion``) until the boundary
-    package is retired by the wave-2 slice S1, which makes it a delegation to this function (``wave2_boundary_carve.md``
-    section 5.1; collapse trigger: the day either body changes, the other is replaced by a call).
+    The one axis-letter to mirror spelling: ``orpheus/geometry/boundary/_factors.py`` (``_mirror_motion``) and
+    ``orpheus/geometry/symmetry.py`` (``_reflections``) delegate here, keeping their messages' fragment "axis must be
+    one of" (``wave2_boundary_carve.md`` section 5.1; wave-2 slice S1).
 
     The axis letter is resolved through :data:`~orpheus.geometry.faces.AXIS_INDEX` and refused here, so a
     mis-named axis cannot be constructed and fail later holding a quadrature. The plane passes through the
@@ -348,3 +350,32 @@ def check_pairings_close(roles: Mapping[str, FaceRole], where: str) -> None:
             partner = pairing_of(role, face, dimension=face_normal(face)[0] + 1).partner
             if partner != face and type(roles.get(partner)) is not type(role):
                 raise DeckError(f"{where}: face {face!r} carries a {type(role).__name__} but its partner {partner!r} carries {roles.get(partner)!r}")
+
+
+def parse_face_role_on(role: object, coord: CoordSystem, axis: int, where: str) -> FaceRole:
+    r"""One face role, parsed and admitted on the ``axis`` of ``coord``: :func:`parse_face_role`, then the chart's deck rule.
+
+    A deck on a face whose axis admits none (:func:`admitted_decks`: the radial first axis of a cylinder or a sphere)
+    is a :class:`DeckError` naming the quotient :math:`W = N(G_c)/G_c`, which is trivial there. The one place the
+    refusal is spelled: the geometry, both meshes and both axis classes read their roles through it.
+    """
+    parsed = parse_face_role(role, where)
+    if isinstance(parsed, DeckTransformation) and type(parsed) not in admitted_decks(coord, axis):
+        raise DeckError(
+            f"{where}: a {type(parsed).__name__} on axis {axis} of a {coord.name.lower()} chart: "
+            f"W = N(G_c)/G_c is trivial on a 1-D radial chart: a reflecting curved wall is a response; "
+            f"tag the face and bind WallCondition.specular(1.0)"
+        )
+    return parsed
+
+
+def parse_face_roles(roles: Mapping[str, object], coord: CoordSystem, where: str) -> dict[str, FaceRole]:
+    """The roles of named faces, each through :func:`parse_face_role_on` at its own axis, then the pairings closed once.
+
+    ``roles`` maps a canonical face name to its declared role; the order of the result is the order given. The count
+    of faces against the chart's inventory is the caller's (the geometry's boundary points, the mesh's
+    ``face_inventory``): this function reads only what each face and its partner carry.
+    """
+    parsed = {face: parse_face_role_on(role, coord, face_normal(face)[0], f"{where}[{face!r}]") for face, role in roles.items()}
+    check_pairings_close(parsed, where)
+    return parsed

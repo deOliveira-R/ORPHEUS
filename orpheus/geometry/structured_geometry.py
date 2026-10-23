@@ -1,8 +1,8 @@
 r"""Structured 1-D geometry — pure geometry layer, no mesh concerns.
 
 A :class:`StructuredGeometry` is an interval of positions in one
-coordinate system, cut into material intervals, with a boundary law at
-every point of its boundary:
+coordinate system, cut into material intervals, with a role at every
+point of its boundary:
 
 * **the coordinate system** (:class:`CoordSystem`: slab, cylinder,
   sphere), which fixes the measure of an interval and the topology of
@@ -11,7 +11,11 @@ every point of its boundary:
   where one material interval ends and the next begins; they are stored
   as given and never re-derived;
 * **one material id per interval** :math:`[r_k, r_{k+1}]`;
-* **one boundary law per boundary point**, in the order (inner, outer).
+* **one face role per boundary point**, in the order (inner, outer): a
+  deck (the domain continues across the face: a mirror, a translation) or
+  an ``int`` tag (the domain ends there; the problem binds the tag to an
+  exterior condition where the method is known). The geometry names no
+  response.
 
 It is "structured" in the memory-layout sense: the intervals are
 traversed in order with no lookup. This is the counterpart to a future
@@ -29,7 +33,7 @@ The boundary is derived, not declared
 -------------------------------------
 
 The boundary of the region :math:`[r_0, r_R]` is its topological
-boundary in its coordinate system, so the number of laws a geometry
+boundary in its coordinate system, so the number of roles a geometry
 takes follows from the coordinate system and :math:`r_0`:
 
 ======================  =====================  =====================
@@ -43,11 +47,13 @@ A slab admits any :math:`r_0` (a position on a line). On a cylinder or
 a sphere :math:`r_0 \ge 0` is a radius, and the centre :math:`r = 0` of
 a solid body is an interior point of the region, not a boundary point:
 the regularity of the solution there is a property of the coordinate
-chart, and no law is declared at it. A hollow body
-(:math:`r_0 > 0`) has an inner surface, which carries a law like any
-other boundary point. :attr:`StructuredGeometry.boundary_points` lists
-the positions, paired one to one with
-:attr:`StructuredGeometry.boundaries`.
+chart, and no role is declared at it. A hollow body
+(:math:`r_0 > 0`) has an inner surface, which carries a role like any
+other boundary point, a tag and never a deck (the quotient
+:math:`W = N(G_c)/G_c` of a 1-D radial chart is trivial, so a reflecting
+curved wall is a response a problem binds to a tag).
+:attr:`StructuredGeometry.boundary_points` lists the positions, paired
+one to one with :attr:`StructuredGeometry.face_roles`.
 
 Architectural role
 ------------------
@@ -63,31 +69,31 @@ Architectural role
 Examples
 --------
 
-A bare-critical sphere, one region, one outer law::
+A bare-critical sphere, one region, one outer tag::
 
     geom = StructuredGeometry(
         coord=CoordSystem.SPHERICAL,
         breakpoints=(0.0, 2.872),
         mat_ids=(0,),
-        boundaries=(BC.vacuum,),
+        face_roles=(0,),
     )
 
-A reflected slab (reflector | core | reflector), two laws::
+A reflected slab (reflector | core | reflector), two tags::
 
     geom = StructuredGeometry.from_thicknesses(
         coord=CoordSystem.CARTESIAN,
         thicknesses=(0.5, 2.0, 0.5),
         mat_ids=(1, 0, 1),
-        boundaries=(BC.vacuum, BC.vacuum),
+        face_roles=(0, 0),
     )
 
-A hollow sphere, an inner and an outer law::
+A hollow sphere, an inner and an outer tag::
 
     geom = StructuredGeometry(
         coord=CoordSystem.SPHERICAL,
         breakpoints=(0.5, 1.0, 2.0),
         mat_ids=(1, 0),
-        boundaries=(BC.reflective, BC.vacuum),
+        face_roles=(1, 0),
     )
 
 A PWR pin cell through the Wigner–Seitz factory::
@@ -101,7 +107,6 @@ from __future__ import annotations
 import itertools
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -109,16 +114,15 @@ from orpheus.values.content import ContentIdentity
 
 from .coord import CoordSystem
 from orpheus.values.scalars import parse_entries, parse_integer, parse_positions, parse_positive_real, parse_real
-from .boundary import BC
-
-if TYPE_CHECKING:
-    from .boundary import BoundaryTraceLaw
+from .colouring import ColouringSymmetry, colouring_symmetry
+from .deck import DeckTransformation, FaceRole, MirrorDeck, parse_face_roles
+from .faces import face_name
 
 
 @dataclass(frozen=True, kw_only=True, eq=False)
 class StructuredGeometry(ContentIdentity):
     r"""A 1-D geometry: a coordinate system, breakpoints, one material id
-    per interval and one boundary law per boundary point.
+    per interval and one face role per boundary point.
 
     Parameters
     ----------
@@ -137,42 +141,40 @@ class StructuredGeometry(ContentIdentity):
         intervals may share a material. The ids key the
         ``materials: dict[int, Mixture]`` that consumers receive beside
         the geometry.
-    boundaries : tuple of BC or BoundaryTraceLaw
-        One law per boundary point, paired one to one with
-        :attr:`boundary_points` (inner first). A declaration is either a
-        :class:`BC` tag or an already-typed ``BoundaryTraceLaw``; the
-        law arm exists because a tag cannot carry a function (a
-        prescribed inflow whose source is a manufactured solution), and
-        declaring such a law on the geometry is what makes it survive
-        the method-mesh rebuild every public solver entry performs.
-        ``None`` is not a law.
+    face_roles : tuple of FaceRole
+        One role per boundary point, paired one to one with
+        :attr:`boundary_points` (inner first). A role is a deck
+        (:class:`~orpheus.geometry.deck.MirrorDeck`,
+        :class:`~orpheus.geometry.deck.TranslationDeck`: the domain
+        continues across the face) or an ``int`` tag (the domain ends there;
+        a ``bool`` is not a tag), the exact twin of a material id. A deck on
+        a face of a 1-D radial chart is a
+        :class:`~orpheus.geometry.deck.DeckError`, and a translation needs a
+        translation on the opposite face. ``None`` is not a role.
 
-    Notes
+        Notes
     -----
     **What is not here.** No cell counts and no discretisation rule (the
     mesh layer's); no critical dimension (a registry's truth record); no
     group count (the materials'); no infinite medium (a problem with no
     geometry, or a finite domain with reflective laws).
 
-    **The geometry never interprets a law.** Each method's mesh resolves
-    what a tag means through its own admission table.
+    **The geometry names no response.** A tag says which faces share an
+    exterior model and never what the model is; a binding, supplied where
+    the method is known, maps the tags to conditions.
 
-    **Identity is content** (:class:`~orpheus.values.content.ContentIdentity`,
-    #405 P1 step 5, 2026-10-02): two geometries with equal coordinate
-    systems, breakpoints, material ids and laws are equal and hash alike in
-    every process, so a reference cache can key on one. Until then a
-    geometry holding a ``BC`` tag could not be hashed. A tag and the law it
-    resolves to are different declarations (``BC.vacuum`` is not
-    ``VacuumInflow()``), so two geometries that mean the same face but
-    spell it differently are unequal: a cache miss, never a wrong hit. A
-    geometry holding a law with no content (a callable-bearing inflow) is
-    equal only to itself and cannot be hashed.
+    **Identity is content** (:class:`~orpheus.values.content.ContentIdentity`):
+    two geometries with equal coordinate systems, breakpoints, material ids
+    and face roles are equal and hash alike in every process, so a reference
+    cache can key on one. A deck and a tag are different declarations
+    (``MirrorDeck()`` is not tag ``1``), and the faces' order is content
+    (inner first).
     """
 
     coord: CoordSystem
     breakpoints: tuple[float, ...]
     mat_ids: tuple[int, ...]
-    boundaries: "tuple[BC | BoundaryTraceLaw, ...]"
+    face_roles: tuple[FaceRole, ...]
 
     def __post_init__(self) -> None:
         _parse_coord(self.coord)
@@ -182,11 +184,7 @@ class StructuredGeometry(ContentIdentity):
         object.__setattr__(
             self, "mat_ids", _parse_mat_ids(self.mat_ids, len(self.breakpoints) - 1),
         )
-        object.__setattr__(
-            self, "boundaries",
-            parse_entries(self.boundaries, "StructuredGeometry.boundaries", "boundary laws"),
-        )
-        _check_boundaries(self)
+        object.__setattr__(self, "face_roles", _parse_face_roles(self))
 
     @property
     def is_hollow(self) -> bool:
@@ -201,13 +199,31 @@ class StructuredGeometry(ContentIdentity):
 
     @property
     def boundary_points(self) -> tuple[float, ...]:
-        r"""The positions of the boundary, inner first; one law each.
+        r"""The positions of the boundary, inner first; one role each.
 
         :math:`(r_0, r_R)` on a slab and on a hollow cylinder or sphere;
         :math:`(r_R,)` on a solid cylinder or sphere, whose centre is an
         interior point.
         """
         return _boundary_points(self.coord, self.breakpoints)
+
+    @property
+    def tags(self) -> frozenset[int]:
+        r"""The tags its faces carry (the decks excluded)."""
+        return frozenset(role for role in self.face_roles if not isinstance(role, DeckTransformation))
+
+    @property
+    def symmetry(self) -> ColouringSymmetry:
+        r"""The colouring symmetry: the part of the mirror group that the material runs and the end roles respect.
+
+        Computed from this geometry's breakpoints, material ids and end roles (never from a mesh's cells), by
+        :func:`~orpheus.geometry.colouring.colouring_symmetry`, so one ``(geometry, binding)`` pair is admitted or
+        refused for every mesh of it. A radial chart answers the identity only.
+        """
+        return colouring_symmetry(
+            self.coord, (self.breakpoints[0], self.breakpoints[-1]), self.breakpoints, self.mat_ids,
+            self.face_roles[0], self.face_roles[-1],
+        )
 
     @property
     def intervals(self) -> tuple[tuple[float, float], ...]:
@@ -234,7 +250,7 @@ class StructuredGeometry(ContentIdentity):
         return self.breakpoints[-1] - self.breakpoints[0]
 
     # ─────────────────────────────────────────────────────────────────
-    # Constructors that name each boundary point's law
+    # Constructors that name each boundary point's role
     # ─────────────────────────────────────────────────────────────────
 
     @classmethod
@@ -243,13 +259,13 @@ class StructuredGeometry(ContentIdentity):
         breakpoints: Iterable[float],
         mat_ids: Iterable[int],
         *,
-        left: "BC | BoundaryTraceLaw",
-        right: "BC | BoundaryTraceLaw",
+        left: FaceRole,
+        right: FaceRole,
     ) -> "StructuredGeometry":
-        r"""A slab, with the law at its left and at its right face."""
+        r"""A slab, with the role at its left and at its right face."""
         return cls(
             coord=CoordSystem.CARTESIAN, breakpoints=tuple(breakpoints),
-            mat_ids=tuple(mat_ids), boundaries=(left, right),
+            mat_ids=tuple(mat_ids), face_roles=(left, right),
         )
 
     @classmethod
@@ -258,13 +274,14 @@ class StructuredGeometry(ContentIdentity):
         breakpoints: Iterable[float],
         mat_ids: Iterable[int],
         *,
-        outer: "BC | BoundaryTraceLaw",
-        inner: "BC | BoundaryTraceLaw | None" = None,
+        outer: FaceRole,
+        inner: FaceRole | None = None,
     ) -> "StructuredGeometry":
-        r"""A cylinder, with the law at its outer surface, and at its inner one when hollow.
+        r"""A cylinder, with the role at its outer surface, and at its inner one when hollow.
 
         ``inner`` is given exactly when the first breakpoint is positive: the
-        centre of a solid cylinder is an interior point and carries no law.
+        centre of a solid cylinder is an interior point and carries no role.
+        A curved face carries a tag, never a deck.
         """
         return cls._radial(CoordSystem.CYLINDRICAL, breakpoints, mat_ids, inner, outer)
 
@@ -274,13 +291,14 @@ class StructuredGeometry(ContentIdentity):
         breakpoints: Iterable[float],
         mat_ids: Iterable[int],
         *,
-        outer: "BC | BoundaryTraceLaw",
-        inner: "BC | BoundaryTraceLaw | None" = None,
+        outer: FaceRole,
+        inner: FaceRole | None = None,
     ) -> "StructuredGeometry":
-        r"""A sphere, with the law at its outer surface, and at its inner one when hollow.
+        r"""A sphere, with the role at its outer surface, and at its inner one when hollow.
 
         ``inner`` is given exactly when the first breakpoint is positive: the
-        centre of a solid sphere is an interior point and carries no law.
+        centre of a solid sphere is an interior point and carries no role.
+        A curved face carries a tag, never a deck.
         """
         return cls._radial(CoordSystem.SPHERICAL, breakpoints, mat_ids, inner, outer)
 
@@ -290,15 +308,15 @@ class StructuredGeometry(ContentIdentity):
         coord: CoordSystem,
         breakpoints: Iterable[float],
         mat_ids: Iterable[int],
-        inner: "BC | BoundaryTraceLaw | None",
-        outer: "BC | BoundaryTraceLaw",
+        inner: FaceRole | None,
+        outer: FaceRole,
     ) -> "StructuredGeometry":
-        # An absent ``inner`` keyword is no law at all, never a stored None;
+        # An absent ``inner`` keyword is no role at all, never a stored None;
         # whether the body needs one is decided by the one boundary check.
-        laws = (outer,) if inner is None else (inner, outer)
+        roles = (outer,) if inner is None else (inner, outer)
         return cls(
             coord=coord, breakpoints=tuple(breakpoints),
-            mat_ids=tuple(mat_ids), boundaries=laws,
+            mat_ids=tuple(mat_ids), face_roles=roles,
         )
 
     @classmethod
@@ -307,28 +325,28 @@ class StructuredGeometry(ContentIdentity):
         coord: CoordSystem,
         breakpoints: Iterable[float],
         mat_ids: Iterable[int],
-        law: "BC | BoundaryTraceLaw",
+        role: FaceRole,
     ) -> "StructuredGeometry":
-        r"""The geometry whose every boundary point carries ``law``.
+        r"""The geometry whose every boundary point carries ``role``.
 
-        Coordinate-generic: two laws on a slab or a hollow body, one on a
+        Coordinate-generic: two roles on a slab or a hollow body, one on a
         solid cylinder or sphere. For a test parametrised over coordinate
-        systems whose body has one law on its whole boundary.
+        systems whose body has one role on its whole boundary.
         """
         parsed = _parse_breakpoints(_parse_coord(coord), breakpoints)
         return cls(
             coord=coord, breakpoints=parsed, mat_ids=tuple(mat_ids),
-            boundaries=(law,) * len(_boundary_points(coord, parsed)),
+            face_roles=(role,) * len(_boundary_points(coord, parsed)),
         )
 
     @classmethod
     def from_homogeneous(
-        cls, width: float, boundary: "BC | BoundaryTraceLaw",
+        cls, width: float, boundary: FaceRole,
     ) -> "StructuredGeometry":
-        r"""A slab ``[0, width]`` of material 0, with ``boundary`` on both faces.
+        r"""A slab ``[0, width]`` of material 0, with the role ``boundary`` on both faces.
 
         The infinite medium as a test realises it: one finite slab whose
-        faces carry one law (reflective, for the infinite medium itself).
+        faces carry one role (a mirror deck, for the infinite medium itself).
         Only a slab: a finite curvilinear body is not an infinite medium in
         continuous transport.
         """
@@ -348,7 +366,7 @@ class StructuredGeometry(ContentIdentity):
         coord: CoordSystem,
         thicknesses: Iterable[float],
         mat_ids: Iterable[int],
-        boundaries: "tuple[BC | BoundaryTraceLaw, ...]",
+        face_roles: tuple[FaceRole, ...],
         r_0: float = 0.0,
     ) -> "StructuredGeometry":
         r"""The geometry whose intervals have the given widths, from ``r_0``.
@@ -371,7 +389,7 @@ class StructuredGeometry(ContentIdentity):
             coord=coord,
             breakpoints=breakpoints,
             mat_ids=tuple(mat_ids),
-            boundaries=boundaries,
+            face_roles=face_roles,
         )
 
     @classmethod
@@ -393,12 +411,15 @@ class StructuredGeometry(ContentIdentity):
 
         cut at the fuel and cladding radii: breakpoints
         :math:`(0, r_{\rm fuel}, r_{\rm clad}, r_{\rm cell})`, material
-        ids fuel ``2``, cladding ``1``, coolant ``0``. The outer law is
-        ``BC("white")``, and it is part of the model, not a default: the
-        Wigner–Seitz cell IS the cylindricalised lattice cell with isotropic
-        re-entry at its outer surface, the assumption that maps a periodic
-        lattice to one cell. The same radii under another law are a
-        different body, built with :meth:`cylinder`.
+        ids fuel ``2``, cladding ``1``, coolant ``0``. The outer face is tag ``0``.
+        The Wigner–Seitz model binds tag ``0`` to ``WallCondition.white()``:
+        the cell IS the cylindricalised lattice cell with isotropic re-entry
+        at its outer surface, the assumption that maps a periodic lattice to
+        one cell. The geometry cannot hold that (it names no response, and
+        there is no problem-level preset type, #529), so the model is stated
+        here and bound where the method is known. The same radii under
+        another condition are the same body with another binding; a
+        different body is built with :meth:`cylinder`.
 
         Parameters
         ----------
@@ -412,7 +433,7 @@ class StructuredGeometry(ContentIdentity):
             coord=CoordSystem.CYLINDRICAL,
             breakpoints=(0.0, float(r_fuel), float(r_clad), r_cell),
             mat_ids=(2, 1, 0),
-            boundaries=(BC("white"),),
+            face_roles=(0,),
         )
 
     @classmethod
@@ -429,10 +450,10 @@ class StructuredGeometry(ContentIdentity):
         the slab starts at the symmetry plane :math:`x = 0` and crosses
         half the fuel, the cladding and the coolant to the unit-cell
         boundary. Material ids fuel ``2``, cladding ``1``, coolant ``0``.
-        Both faces are reflective, and that is part of the model, not a
+        Both faces are mirror decks, and that is part of the model, not a
         default: the fuel centreline and the unit-cell boundary are both
         symmetry planes of the infinite lattice the half cell stands for.
-        The same stack under other laws (an isolated cell, say, white on
+        The same stack under other faces (an isolated cell, say, a tag on
         the coolant face) is a different body, built with :meth:`slab`.
 
         Parameters
@@ -445,7 +466,7 @@ class StructuredGeometry(ContentIdentity):
             coord=CoordSystem.CARTESIAN,
             thicknesses=(fuel_half, clad_thick, cool_thick),
             mat_ids=(2, 1, 0),
-            boundaries=(BC("reflective"), BC("reflective")),
+            face_roles=(MirrorDeck(), MirrorDeck()),
         )
 
 
@@ -509,91 +530,36 @@ def _parse_mat_ids(mat_ids: object, n_intervals: int) -> tuple[int, ...]:
     return entries
 
 
-def _check_boundaries(geometry: StructuredGeometry) -> None:
-    """One law per boundary point, each a ``BC`` tag or a typed law."""
-    parse_boundary_laws(
-        geometry.boundaries, geometry.coord, geometry.breakpoints[0],
-        geometry.breakpoints[-1], "StructuredGeometry.boundaries",
-    )
+def _parse_face_roles(geometry: StructuredGeometry) -> tuple[FaceRole, ...]:
+    """One role per boundary point, or a keyed refusal; a deck only where the chart admits one.
 
-
-def parse_boundary_law(law: object, where: str) -> "BC | BoundaryTraceLaw":
-    """One boundary law: a ``BC`` tag or a typed ``BoundaryTraceLaw``, never ``None``.
-
-    The one check of a single boundary declaration, shared by the geometry,
-    both meshes and both axis classes.
-
-    **Why the law arm exists.** A ``BC`` tag is
-    ``(kind: str, params: dict[str, float])``, structurally unable to carry a
-    law whose content is a FUNCTION: a
-    :class:`~orpheus.geometry.boundary.PrescribedInflow` whose source is a
-    manufactured solution restricted to a face has no tag spelling. Declaring
-    such a law on the mesh is what lets it survive the public solver entries,
-    which rebuild the method mesh from the declaration: the shared
-    :func:`~orpheus.transport.method.resolve_boundary_conditions` reads the
-    declared law, so a law reaches the realizer through the path a tag does.
-    The tag remains the spelling for everything expressible as one: it is
-    serialisable, comparable, and the input-deck surface.
+    The count rule is the boundary points' (a slab two, a hollow body two, a solid body one: the centre of a solid
+    cylinder or sphere is an interior point and carries no role); each role is parsed, a deck on a radial face is a
+    :class:`~orpheus.geometry.deck.DeckError`, and the pairings close, all through
+    :func:`~orpheus.geometry.deck.parse_face_roles`.
     """
-    # Imported lazily: ``orpheus.geometry.boundary`` transitively loads
-    # THIS module, so a top-level import cycles.
-    from orpheus.geometry.boundary import BoundaryTraceLaw
-
-    if law is None:
-        raise TypeError(
-            f"{where} is None, and None is not a boundary law: "
-            f"declare the law the boundary carries."
-        )
-    if not isinstance(law, (BC, BoundaryTraceLaw)):
-        raise TypeError(
-            f"{where} must be a BC tag or a BoundaryTraceLaw "
-            f"instance, got {type(law).__name__}"
-        )
-    return law
-
-
-def parse_boundary_laws(
-    laws: "tuple[object, ...]",
-    coord: CoordSystem,
-    r_0: float,
-    r_R: float,
-    where: str,
-) -> "tuple[BC | BoundaryTraceLaw, ...]":
-    """One law per boundary point of ``[r_0, r_R]`` in ``coord``, or a keyed refusal.
-
-    The check of the geometry's boundary declaration: each law passes
-    :func:`parse_boundary_law`, and there is one per
-    :meth:`CoordSystem.boundary_points`. A mesh's face laws are checked by
-    :meth:`~orpheus.mesh.face_laws.FaceLaws.over` against the same
-    boundary points, named.
-    """
-    parsed = tuple(
-        parse_boundary_law(law, f"{where}[{k}]") for k, law in enumerate(laws)
-    )
-    points = coord.boundary_points(r_0, r_R)
-    if len(parsed) == len(points):
-        return parsed
-    if coord is CoordSystem.CARTESIAN:
-        reason = "a slab has two boundary points (left, right)"
-    elif len(points) == 1:
-        reason = (
-            f"the centre r = 0 of a solid {coord.name.lower()} body is an "
-            f"interior point and carries no law; the only boundary point is "
-            f"the outer surface"
-        )
-    else:
-        reason = (
-            f"a hollow {coord.name.lower()} body (r_0 = {points[0]!r} > 0) "
-            f"has an inner surface, which needs its own law"
-        )
-    raise ValueError(
-        f"{where}: {reason}; expected {len(points)} law(s) at r = {points}, "
-        f"got {len(laws)}."
-    )
+    where = "StructuredGeometry.face_roles"
+    roles = parse_entries(geometry.face_roles, where, "face roles")
+    points = geometry.boundary_points
+    if len(roles) != len(points):
+        if geometry.coord is CoordSystem.CARTESIAN:
+            reason = "a slab has two boundary points (left, right)"
+        elif len(points) == 1:
+            reason = (
+                f"the centre r = 0 of a solid {geometry.coord.name.lower()} body is an "
+                f"interior point and carries no role; the only boundary point is "
+                f"the outer surface"
+            )
+        else:
+            reason = (
+                f"a hollow {geometry.coord.name.lower()} body (r_0 = {points[0]!r} > 0) "
+                f"has an inner surface, which needs its own role"
+            )
+        raise ValueError(f"{where}: {reason}; expected {len(points)} role(s) at r = {points}, got {len(roles)}.")
+    faces = tuple(face_name(0, sign) for sign in (-1, +1))[-len(points):]
+    return tuple(parse_face_roles(dict(zip(faces, roles, strict=True)), geometry.coord, where).values())
 
 
 __all__ = [
     "StructuredGeometry",
-    "parse_boundary_law",
-    "parse_boundary_laws",
 ]

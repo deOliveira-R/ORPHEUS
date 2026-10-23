@@ -18,8 +18,8 @@ A :class:`Mesh1D` is built by a :class:`~orpheus.mesh.mesher.Mesher`: load a
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(8)).mesh
 
 The mesh itself holds no geometry: its coordinate system, cells, the material
-of each cell and the law on each boundary face are all it is. The mesher lifts
-the geometry's regions and boundary laws onto the cells and faces.
+of each cell and the role on each boundary face are all it is. The mesher lifts
+the geometry's regions and face roles onto the cells and faces.
 """
 
 from __future__ import annotations
@@ -30,14 +30,15 @@ from typing import assert_never
 
 import numpy as np
 
-from orpheus.geometry.boundary import BC, BoundaryTraceLaw
+from orpheus.geometry.colouring import ColouringSymmetry, UncomputedSymmetries, colouring_symmetry
+from orpheus.geometry.deck import FaceRole
 from orpheus.geometry.coord import (
     CoordSystem,
     compute_areas_1d,
     compute_volumes_2d,
 )
 from orpheus.values.scalars import parse_entries, parse_index, parse_integer, parse_positions
-from orpheus.mesh.face_laws import FaceLaws, face_inventory
+from orpheus.mesh.face_roles import FaceRoles, face_inventory
 from orpheus.values.content import ContentIdentity
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
 
@@ -69,7 +70,7 @@ def _volume_ulps(coord: CoordSystem) -> int:
 
 @dataclass(frozen=True, eq=False)
 class Mesh1D(ContentIdentity):
-    r"""A 1-D mesh: cells in one coordinate system, a region label on each, a law on each boundary face.
+    r"""A 1-D mesh: cells in one coordinate system, a region label on each, a role on each boundary face.
 
     The general constructor takes exactly what a 1-D discretisation is. A
     mesh is normally built by a :class:`~orpheus.mesh.mesher.Mesher` from a
@@ -103,20 +104,20 @@ class Mesh1D(ContentIdentity):
         (:attr:`mat_ids`, through :meth:`per_cell`), never given beside it. It moves to the system
         with the posing work (#522); the mesh does not hold its geometry,
         because an external mesh has none (the user's ruling of 2026-10-03).
-    face_laws : mapping of face name to BC or BoundaryTraceLaw
-        The law on each boundary face, over exactly the mesh's
-        :func:`~orpheus.mesh.face_laws.face_inventory`: ``xmin`` and ``xmax``
-        on a slab or a hollow body, ``xmax`` alone on a solid cylinder or
-        sphere, whose centre carries no law. Stored as a
-        :class:`~orpheus.mesh.face_laws.FaceLaws`, the value
-        :class:`Mesh2D` stores too.
+    face_roles : mapping of face name to FaceRole
+        The role on each boundary face (a deck or an ``int`` tag), over
+        exactly the mesh's :func:`~orpheus.mesh.face_roles.face_inventory`:
+        ``xmin`` and ``xmax`` on a slab or a hollow body, ``xmax`` alone on a
+        solid cylinder or sphere, whose centre carries no role. No radial face
+        is a deck. Stored as a :class:`~orpheus.mesh.face_roles.FaceRoles`, the
+        value :class:`Mesh2D` stores too.
 
     Notes
     -----
     **Identity is content** (:class:`~orpheus.values.content.ContentIdentity`,
     #405 P1 step 5, 2026-10-02): the coordinate system, edges, volumes,
-    region labels, the region → material map and the face laws (the
-    material ASSIGNMENT, never the materials' data), so two meshes with the same cells, labels, map and laws
+    region labels, the region → material map and the face roles (the
+    material ASSIGNMENT, never the materials' data), so two meshes with the same cells, labels, map and roles
     are equal and hash alike in every process; this is the discretisation
     digest the reference cache keys on, and it never reads the materials.
     Until then the mesh compared bitwise by a hand-written ``__eq__`` and
@@ -128,7 +129,7 @@ class Mesh1D(ContentIdentity):
     volumes: np.ndarray
     region_ids: np.ndarray
     region_materials: tuple[int, ...]
-    face_laws: "Mapping[str, BC | BoundaryTraceLaw]"
+    face_roles: "Mapping[str, FaceRole]"
 
     # Derived from the content, so not content (``compare=False``).
     mat_ids: np.ndarray = field(init=False, repr=False, compare=False)
@@ -199,9 +200,9 @@ class Mesh1D(ContentIdentity):
                 f"Mesh1D.region_materials: the region {int(np.argmin(cells_per_region))} labels no cell; "
                 f"every region is some cells' label"
             )
-        face_laws = FaceLaws.over(
-            face_inventory(self.coord, edges, 1), self.face_laws,
-            "Mesh1D.face_laws", self.coord,
+        face_roles = FaceRoles.over(
+            face_inventory(self.coord, edges, 1), self.face_roles,
+            "Mesh1D.face_roles", coord=self.coord,
         )
         region_ids.flags.writeable = False
         widths = np.diff(edges)
@@ -209,7 +210,7 @@ class Mesh1D(ContentIdentity):
         areas = compute_areas_1d(self.coord, edges)
         for name, value in (
             ("edges", edges), ("volumes", volumes), ("region_ids", region_ids),
-            ("region_materials", region_materials), ("face_laws", face_laws), ("widths", widths), ("centers", centers),
+            ("region_materials", region_materials), ("face_roles", face_roles), ("widths", widths), ("centers", centers),
             ("areas", areas),
         ):
             object.__setattr__(self, name, value)
@@ -305,13 +306,29 @@ class Mesh1D(ContentIdentity):
 
     @property
     def boundary_points(self) -> tuple[float, ...]:
-        """The positions of the boundary faces, inner first, in the order of :attr:`face_laws`."""
+        """The positions of the boundary faces, inner first, in the order of :attr:`face_roles`."""
         return self.coord.boundary_points(float(self.edges[0]), float(self.edges[-1]))
 
     @property
-    def outer_law(self) -> "BC | BoundaryTraceLaw":
-        r"""The law on the outer face, :math:`r = r_R` (a slab's right face)."""
-        return self.face_laws["xmax"]
+    def outer_role(self) -> FaceRole:
+        r"""The role on the outer face, :math:`r = r_R` (a slab's right face)."""
+        return self.face_roles["xmax"]
+
+    @property
+    def symmetry(self) -> ColouringSymmetry:
+        r"""The colouring symmetry of this mesh: the geometry's group, read from the REGIONS and the end roles.
+
+        The raw partition handed to :func:`~orpheus.geometry.colouring.colouring_symmetry` is the mesh's regions
+        (the edges where the region label changes, and the material of each run of cells), never its cell edges, so a
+        mesh and the geometry it refines give one group whatever the cell partition.
+        """
+        starts = np.r_[True, self.region_ids[1:] != self.region_ids[:-1]]
+        breaks = [*self.edges[:-1][starts], self.edges[-1]]
+        ids = [self.region_materials[r] for r in self.region_ids[starts]]
+        roles = tuple(self.face_roles.values())
+        return colouring_symmetry(
+            self.coord, (float(self.edges[0]), float(self.edges[-1])), breaks, ids, roles[0], roles[-1],
+        )
 
     @property
     def volume_measure(self):
@@ -385,7 +402,7 @@ class Mesh1D(ContentIdentity):
         so the cell-indexed homogenised materials key 1:1 into the cells.
         Polymorphic with :meth:`Mesh2D.with_distinct_cell_ids`, so
         ``Solution.homogenize`` stays dimension-agnostic. Edges, volumes and face
-        laws carry through unchanged.
+        roles carry through unchanged.
         """
         return replace(self, region_ids=np.arange(self.N, dtype=int), region_materials=tuple(range(self.N)))
 
@@ -399,13 +416,13 @@ class Mesh2D(ContentIdentity):
     """Two-dimensional mesh: Cartesian (x, y) or cylindrical (r, z).
 
     The boundary faces follow the one topology rule of
-    :func:`~orpheus.mesh.face_laws.face_inventory`, as :class:`Mesh1D`'s do:
+    :func:`~orpheus.mesh.face_roles.face_inventory`, as :class:`Mesh1D`'s do:
     along the first axis the :meth:`CoordSystem.boundary_points` of its edges
     (both ends on (x, y) and on a hollow (r, z); only the outer surface on a
-    solid (r, z), whose axis :math:`r = 0` is interior and carries no law),
+    solid (r, z), whose axis :math:`r = 0` is interior and carries no role),
     and along the second axis (y or z) both ends, named ``xmin``, ``xmax``,
-    ``ymin``, ``ymax``. A law per face, rather than per side, is the seed for
-    a side whose faces carry different laws.
+    ``ymin``, ``ymax``. A role per face, rather than per side, is the seed for
+    a side whose faces carry different roles.
 
     Parameters
     ----------
@@ -415,13 +432,13 @@ class Mesh2D(ContentIdentity):
         Edge positions in the second direction (y or z).
     mat_map : ndarray, shape (Nx, Ny)
         Integer material ID for each cell.
-    face_laws : mapping of face name to BC or BoundaryTraceLaw
-        Keyword-only. One law per boundary face of the mesh's
-        :func:`~orpheus.mesh.face_laws.face_inventory`, exactly: a missing
-        face and an extra face are both refused, and ``None`` is not a law
-        (:func:`~orpheus.geometry.structured_geometry.parse_boundary_law`).
-        Stored as a :class:`~orpheus.mesh.face_laws.FaceLaws`, in inventory
-        order, the value :class:`Mesh1D` stores too.
+    face_roles : mapping of face name to FaceRole
+        Keyword-only. One role (a deck or an ``int`` tag) per boundary face of
+        the mesh's :func:`~orpheus.mesh.face_roles.face_inventory`, exactly: a
+        missing face and an extra face are both refused, and ``None`` is not a
+        role (:func:`~orpheus.geometry.deck.parse_face_role`). Stored as a
+        :class:`~orpheus.mesh.face_roles.FaceRoles`, in inventory order, the
+        value :class:`Mesh1D` stores too.
     coord : CoordSystem
         ``CARTESIAN`` for (x, y) or ``CYLINDRICAL`` for (r, z).
 
@@ -430,7 +447,7 @@ class Mesh2D(ContentIdentity):
     **A value with content identity**, as :class:`Mesh1D`
     (:class:`~orpheus.values.content.ContentIdentity`, #405 P1 step 5,
     2026-10-02): the arrays are stored as read-only copies, ``-0.0``
-    canonicalised, and two meshes with equal edges, material map, laws and
+    canonicalised, and two meshes with equal edges, material map, roles and
     coordinate system are equal and hash alike. Until then the constructor
     aliased the caller's writeable arrays, and ``==`` raised on any pair of
     distinct meshes (the dataclass default compared ndarrays).
@@ -440,7 +457,7 @@ class Mesh2D(ContentIdentity):
     edges_y: np.ndarray
     mat_map: np.ndarray
     _: KW_ONLY
-    face_laws: "Mapping[str, BC | BoundaryTraceLaw]"
+    face_roles: "Mapping[str, FaceRole]"
     coord: CoordSystem = CoordSystem.CARTESIAN
 
     def __post_init__(self) -> None:
@@ -476,13 +493,13 @@ class Mesh2D(ContentIdentity):
                 f"Mesh2D supports CARTESIAN or CYLINDRICAL, got {self.coord}"
             )
 
-        face_laws = FaceLaws.over(
-            face_inventory(self.coord, edges_x, 2), self.face_laws,
-            "Mesh2D.face_laws", self.coord,
+        face_roles = FaceRoles.over(
+            face_inventory(self.coord, edges_x, 2), self.face_roles,
+            "Mesh2D.face_roles", coord=self.coord,
         )
 
         mat_map.flags.writeable = False
-        object.__setattr__(self, "face_laws", face_laws)
+        object.__setattr__(self, "face_roles", face_roles)
         object.__setattr__(self, "edges_x", edges_x)
         object.__setattr__(self, "edges_y", edges_y)
         object.__setattr__(self, "mat_map", mat_map)
@@ -552,6 +569,15 @@ class Mesh2D(ContentIdentity):
         )
 
     @property
+    def symmetry(self) -> UncomputedSymmetries:
+        """The typed pessimistic answer: no group machinery exists for a 2-D carrier yet.
+
+        SCOPE-BOUNDARY[guard] machinery: the wallpaper-group search over a cell's isometries; trigger: the 2-D
+        geometry value (``wave2_boundary_carve.md`` section 2.2).
+        """
+        return UncomputedSymmetries("Mesh2D")
+
+    @property
     def mat_ids(self) -> np.ndarray:
         """Flat material-ID array, shape (Nx*Ny,).
 
@@ -587,7 +613,7 @@ class Mesh2D(ContentIdentity):
         :meth:`indicator_basis` cell ordering — so the cell-indexed homogenised
         materials key 1:1 into the cells. Polymorphic with
         :meth:`Mesh1D.with_distinct_cell_ids`, so ``Solution.homogenize`` stays
-        dimension-agnostic. The geometry (edges, coord, BCs) carries through.
+        dimension-agnostic. The geometry (edges, coord, face roles) carries through.
         """
         mat_map = np.arange(self.nx * self.ny, dtype=int).reshape(self.nx, self.ny)
         return replace(self, mat_map=mat_map)

@@ -31,7 +31,7 @@ import numpy as np
 import pytest
 import sympy
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 
@@ -60,7 +60,7 @@ def _aba(coord: CoordSystem, cells=(2, 4, 2)) -> Mesh1D:
     """A|B|A at 0.5, 1.5, 2.0 cm, materials (0, 1, 0); cells of width 0.25 cm."""
     g = StructuredGeometry.from_thicknesses(
         coord=coord, thicknesses=(0.5, 1.0, 0.5), mat_ids=(0, 1, 0),
-        boundaries=(BC.vacuum,) if coord is not _SLAB else (BC.reflective, BC.vacuum),
+        face_roles=(0,) if coord is not _SLAB else (MirrorDeck(), 0),
     )
     return Mesher(g).partition(tuple(CellsByCount.uniform_width(n) for n in cells)).mesh
 
@@ -230,7 +230,7 @@ def test_r7b2_8_7_an_unintegrable_weight_gets_the_keyed_refusal() -> None:
 def test_r7b2_8_8_a_hollow_body(coord) -> None:
     """A shell starting at r_0 = 0.5: the indicator and the first moment of each cell against the closed forms,
     and the sum against the shell's measure (an antiderivative evaluated from 0 rather than r_0 reddens)."""
-    g = StructuredGeometry(coord=coord, breakpoints=(0.5, 1.0, 2.0), mat_ids=(0, 1), boundaries=(BC.reflective, BC.vacuum))
+    g = StructuredGeometry(coord=coord, breakpoints=(0.5, 1.0, 2.0), mat_ids=(0, 1), face_roles=(1, 0))
     mesh = Mesher(g).partition(CellsByCount.uniform_width(2)).mesh
     ones = mesh.cell_integrals(Symbolic.of(1))[0]
     moments = mesh.cell_integrals(Symbolic.of(Symbolic.r))[0]

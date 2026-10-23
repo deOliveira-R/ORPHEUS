@@ -6,14 +6,16 @@ This module declares the per-axis primitive used to build that product:
 
 * :class:`Axis1D` — the protocol any 1-D mesh axis satisfies.
 * :class:`AxisMesh` — Cartesian axis. Two endpoints (``min`` / ``max``),
-  both BC-bearing.
-* :class:`RadialAxisMesh` — solid radial axis (sphere / cylinder). One
+  both role-bearing.
+* :class:`RadialAxisMesh` — radial axis (sphere / cylinder). One trace
   endpoint (``outer``); the pole at :math:`r=0` is a coordinate
   singularity treated by :class:`MorelMontryAngularSweep` (Hébert
-  §3.9.4 Carlson coupled-pole inward sweep) — NOT a BC trace law.
+  §3.9.4 Carlson coupled-pole inward sweep) — NOT a face role.
   Conflating the pole with a face endpoint would force every
-  consumer to handle a "BC that is not a BC", violating Pattern 4
-  (illegal states unrepresentable).
+  consumer to handle a "role that is not a role", violating Pattern 4
+  (illegal states unrepresentable). A hollow body also carries
+  ``role_inner``, a tag the axis holds and the trace inventory does not
+  list (no inner-surface trace yet, #511).
 
 The dim-agnostic shape primitives are exposed as **pure functions on
 axis tuples** — :func:`spatial_shape`, :func:`face_labels`,
@@ -34,15 +36,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.geometry.structured_geometry import parse_boundary_law
-
-if TYPE_CHECKING:
-    from orpheus.geometry.boundary import BoundaryTraceLaw
+from orpheus.geometry import CoordSystem
+from orpheus.geometry.deck import (
+    FaceRole,
+    check_pairings_close,
+    parse_face_role,
+    parse_face_role_on,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -171,29 +175,28 @@ class Axis1D(Protocol):
       the moment-mass family keys on it instead of re-interpreting a
       whole-mesh chart tag (P4.6).
     * ``n`` — cell count along the axis (= ``len(edges) - 1``).
-    * ``endpoints`` — tuple of endpoint labels that carry BCs. Cartesian
-      axes have two (``"min"``, ``"max"``); solid radial axes have one
+    * ``endpoints`` — tuple of endpoint labels that carry roles. Cartesian
+      axes have two (``"min"``, ``"max"``); radial axes have one
       (``"outer"``); the pole at :math:`r=0` is intentionally NOT an
       endpoint here — it carries an angular-closure regularity
-      condition, not a BC trace law.
-    * ``bc`` — mapping ``endpoint_label → BC | BoundaryTraceLaw``, one
-      declared law per endpoint. A declaration is EITHER a ``BC`` tag or an
-      already-typed law; the law arm carries what a tag structurally cannot
-      (a source that is a FUNCTION). See
-      :func:`~orpheus.geometry.structured_geometry.parse_boundary_law`.
+      condition, not a face role.
+    * ``roles`` — mapping ``endpoint_label → FaceRole``, one declared role
+      per endpoint: a deck (:class:`~orpheus.geometry.deck.MirrorDeck`,
+      :class:`~orpheus.geometry.deck.TranslationDeck`) or an ``int`` tag.
+      A radial endpoint is always a tag.
 
-    Pole rationale (D3 of the ultraplan): a BC trace law is a linear
-    operator ``bc.apply(outflow) → inflow`` that closes the transport
+    Pole rationale (D3 of the ultraplan): a boundary condition is a linear
+    operator ``apply(outflow) → inflow`` that closes the transport
     equation at a Dirichlet / Neumann / reflective boundary. The pole
     at :math:`r=0` has a fundamentally different mathematical structure
     — the angular redistribution coefficient :math:`1-\mu^2` vanishes
     at :math:`\mu=\pm 1`, so the streaming-collision balance decouples
     from the :math:`\alpha`-cascade and reduces to a plain DD inward
-    recurrence in radius (Hébert Eq. 3.434). There is no "BC trace
-    law" to apply; the seed comes from a separate sweep against a
+    recurrence in radius (Hébert Eq. 3.434). There is no condition
+    to apply; the seed comes from a separate sweep against a
     moment-folded source at :math:`\mu=-1`. Conflating the two into a
     single ``face_buffers[label]`` interface would force every
-    consumer to handle a "BC that is not a BC", violating Pattern 4.
+    consumer to handle a "role that is not a role", violating Pattern 4.
     """
 
     # Read-only properties (not mutable attributes): implementers are frozen
@@ -201,7 +204,7 @@ class Axis1D(Protocol):
     # attribute is invariant and rejects a frozen field / read-only property
     # ("edges is not read-only in protocol"; "coord property not assignable");
     # a read-only Protocol member accepts both. Matches ``n``/``endpoints``/
-    # ``bc`` below (already read-only) — this is a pure read contract.
+    # ``roles`` below (already read-only) — this is a pure read contract.
     @property
     def edges(self) -> np.ndarray: ...
 
@@ -218,7 +221,7 @@ class Axis1D(Protocol):
     def endpoints(self) -> tuple[str, ...]: ...
 
     @property
-    def bc(self) -> "dict[str, BC | BoundaryTraceLaw]": ...
+    def roles(self) -> "dict[str, FaceRole]": ...
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -239,18 +242,19 @@ class AxisMesh:
     ----------
     edges : ndarray, shape (n+1,)
         Strictly monotonically increasing cell-face positions.
-    bc_low : BC or BoundaryTraceLaw
-        Boundary law at the low endpoint; required, and ``None`` is not a
-        law (:func:`~orpheus.geometry.structured_geometry.parse_boundary_law`).
-    bc_high : BC or BoundaryTraceLaw
-        Boundary law at the high endpoint.
+    role_low : FaceRole
+        Role at the low endpoint: a deck or an ``int`` tag; required, and
+        ``None`` is not a role (:func:`~orpheus.geometry.deck.parse_face_role`).
+    role_high : FaceRole
+        Role at the high endpoint. A translation needs a translation on the
+        opposite endpoint.
     label_low, label_high : str
         Endpoint labels; default ``"min"`` / ``"max"``.
     """
 
     edges: np.ndarray
-    bc_low: "BC | BoundaryTraceLaw"
-    bc_high: "BC | BoundaryTraceLaw"
+    role_low: FaceRole
+    role_high: FaceRole
     label_low: str = "min"
     label_high: str = "max"
 
@@ -266,10 +270,11 @@ class AxisMesh:
                 "AxisMesh.edges must be strictly monotonically increasing"
             )
         object.__setattr__(self, "edges", edges)
-        for name in ("bc_low", "bc_high"):
+        for name in ("role_low", "role_high"):
             object.__setattr__(
-                self, name, parse_boundary_law(getattr(self, name), f"AxisMesh.{name}"),
+                self, name, parse_face_role(getattr(self, name), f"AxisMesh.{name}"),
             )
+        check_pairings_close({"xmin": self.role_low, "xmax": self.role_high}, "AxisMesh.roles")
 
     @property
     def coord(self) -> AxisCoord:
@@ -290,17 +295,19 @@ class AxisMesh:
         return (self.label_low, self.label_high)
 
     @property
-    def bc(self) -> "dict[str, BC | BoundaryTraceLaw]":
-        return {self.label_low: self.bc_low, self.label_high: self.bc_high}
+    def roles(self) -> "dict[str, FaceRole]":
+        return {self.label_low: self.role_low, self.label_high: self.role_high}
 
 
 @dataclass(frozen=True, slots=True)
 class RadialAxisMesh:
-    r"""Solid radial 1-D axis (sphere or cylinder). One endpoint (``outer``).
+    r"""Radial 1-D axis (sphere or cylinder). One trace endpoint (``outer``).
 
     The pole at :math:`r=0` is **not** an endpoint in this abstraction
     — see the :class:`Axis1D` docstring for the pole-treatment
-    rationale.
+    rationale. A hollow axis (``edges[0] > 0``) has an inner surface, a tag
+    carried as ``role_inner`` and not listed in :attr:`endpoints`: the
+    radial axis has no inner-surface trace yet (#511).
 
     Parameters
     ----------
@@ -308,20 +315,26 @@ class RadialAxisMesh:
         Strictly monotonically increasing radial positions. The first
         entry MAY be 0 (solid-radial mesh that touches the pole); when
         it is, the pole carries an angular-closure regularity
-        condition rather than a BC.
+        condition rather than a face role.
     coord : AxisCoord
         Must be :attr:`AxisCoord.RADIAL_SPHERICAL` or
         :attr:`AxisCoord.RADIAL_CYLINDRICAL`.
-    bc_outer : BC or BoundaryTraceLaw
-        Boundary law at the outer radial surface; required, and ``None`` is
-        not a law.
+    role_outer : int
+        Tag at the outer radial surface; required. No radial face is a deck:
+        the quotient :math:`W = N(G_c)/G_c` of a 1-D radial chart is trivial
+        (:class:`~orpheus.geometry.deck.DeckError`).
+    role_inner : int or None
+        Tag at the inner surface of a hollow axis: required exactly when
+        ``edges[0] > 0``, and ``None`` on a solid axis (the pole is not a
+        face).
     label_outer : str
         Endpoint label; default ``"outer"``.
     """
 
     edges: np.ndarray
     coord: AxisCoord
-    bc_outer: "BC | BoundaryTraceLaw"
+    role_outer: FaceRole
+    role_inner: FaceRole | None = None
     label_outer: str = "outer"
 
     def __post_init__(self) -> None:
@@ -347,9 +360,25 @@ class RadialAxisMesh:
                 f"RADIAL_CYLINDRICAL; got {self.coord!r}"
             )
         object.__setattr__(self, "edges", edges)
+        chart = coord_system((self,))
         object.__setattr__(
-            self, "bc_outer", parse_boundary_law(self.bc_outer, "RadialAxisMesh.bc_outer"),
+            self, "role_outer", parse_face_role_on(self.role_outer, chart, 0, "RadialAxisMesh.role_outer"),
         )
+        hollow = bool(edges[0] > 0.0)
+        if hollow and self.role_inner is None:
+            raise ValueError(
+                f"RadialAxisMesh.role_inner is required on a hollow axis (edges[0] = {edges[0]!r} > 0): "
+                f"the inner surface carries a tag"
+            )
+        if not hollow and self.role_inner is not None:
+            raise ValueError(
+                f"RadialAxisMesh.role_inner must be None on a solid axis (edges[0] = 0): the pole is not a face, "
+                f"got {self.role_inner!r}"
+            )
+        if self.role_inner is not None:
+            object.__setattr__(
+                self, "role_inner", parse_face_role_on(self.role_inner, chart, 0, "RadialAxisMesh.role_inner"),
+            )
 
     @property
     def has_constant_volume_element(self) -> bool:
@@ -366,8 +395,8 @@ class RadialAxisMesh:
         return (self.label_outer,)
 
     @property
-    def bc(self) -> "dict[str, BC | BoundaryTraceLaw]":
-        return {self.label_outer: self.bc_outer}
+    def roles(self) -> "dict[str, FaceRole]":
+        return {self.label_outer: self.role_outer}
 
 
 # ═══════════════════════════════════════════════════════════════════════

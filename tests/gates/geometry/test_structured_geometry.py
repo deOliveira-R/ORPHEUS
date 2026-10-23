@@ -20,8 +20,8 @@ import pytest
 import orpheus.geometry
 import orpheus.geometry.structured_geometry as structured_geometry_module
 from orpheus.geometry import (
-    BC,
     CoordSystem,
+    MirrorDeck,
     StructuredGeometry,
     compute_volumes_1d,
 )
@@ -42,7 +42,7 @@ def _geometry(**overrides: Any) -> StructuredGeometry:
         coord=_SLAB,
         breakpoints=(0.0, 1.0, 2.0),
         mat_ids=(0, 1),
-        boundaries=(BC.vacuum, BC.vacuum),
+        face_roles=(0, 0),
     )
     fields.update(overrides)
     return StructuredGeometry(**fields)
@@ -116,7 +116,7 @@ class TestBreakpointLaws:
             coord=_SPHERE,
             breakpoints=(0.1, 1.0),
             mat_ids=(0,),
-            boundaries=(BC.reflective, BC.vacuum),
+            face_roles=(1, 0),
         )
         assert g.breakpoints[0] == 0.1
 
@@ -140,7 +140,7 @@ class TestBreakpointLaws:
     def test_fields_are_keyword_only(self):
         """Two adjacent tuples of numbers cannot be swapped positionally."""
         with pytest.raises(TypeError):
-            StructuredGeometry(_SLAB, (0.0, 1.0), (0,), (BC.vacuum, BC.vacuum))  # type: ignore[misc]
+            StructuredGeometry(_SLAB, (0.0, 1.0), (0,), (0, 0))  # type: ignore[misc]
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -159,79 +159,71 @@ _BOUNDARY_TABLE = [
 
 
 class TestTheBoundaryIsDerived:
-    """S2.2: one law per point of the region's topological boundary."""
+    """S2.2: one role per point of the region's topological boundary."""
 
     @pytest.mark.parametrize(
         "coord, r_0, points", _BOUNDARY_TABLE,
         ids=[f"{c.name.lower()}-r0={r}" for c, r, _ in _BOUNDARY_TABLE],
     )
     def test_boundary_points(self, coord, r_0, points):
-        laws = tuple(BC.vacuum for _ in points)
+        roles = tuple(0 for _ in points)
         g = StructuredGeometry(
-            coord=coord, breakpoints=(r_0, 2.0), mat_ids=(0,), boundaries=laws,
+            coord=coord, breakpoints=(r_0, 2.0), mat_ids=(0,), face_roles=roles,
         )
         assert g.boundary_points == points
-        assert len(g.boundaries) == len(points)
+        assert len(g.face_roles) == len(points)
 
-    def test_a_law_at_the_centre_is_refused(self):
+    def test_a_role_at_the_centre_is_refused(self):
         """A DISCRIMINATION row: the old table refused this input too, for
         another reason ('requires 1 BC'); the new message names the centre."""
         with pytest.raises(ValueError) as caught:
             StructuredGeometry(
                 coord=_SPHERE, breakpoints=(0.0, 2.0), mat_ids=(0,),
-                boundaries=(BC.vacuum, BC.vacuum),
+                face_roles=(0, 0),
             )
         assert "the centre r = 0" in str(caught.value)
         assert "requires 1 BC" not in str(caught.value)
 
     @pytest.mark.parametrize("coord", _CURVILINEAR, ids=lambda c: c.name.lower())
-    def test_a_hollow_body_without_an_inner_law_is_refused(self, coord):
-        with pytest.raises(ValueError, match="inner surface, which needs its own law"):
+    def test_a_hollow_body_without_an_inner_role_is_refused(self, coord):
+        with pytest.raises(ValueError, match="inner surface, which needs its own role"):
             StructuredGeometry(
                 coord=coord, breakpoints=(0.5, 2.0), mat_ids=(0,),
-                boundaries=(BC.vacuum,),
+                face_roles=(0,),
             )
 
-    def test_a_slab_with_one_law_is_refused(self):
+    def test_a_slab_with_one_role_is_refused(self):
         with pytest.raises(ValueError, match="a slab has two boundary points"):
-            _geometry(boundaries=(BC.vacuum,))
+            _geometry(face_roles=(0,))
 
-    def test_none_is_not_a_boundary_law(self):
-        with pytest.raises(TypeError, match="None is not a boundary law"):
-            _geometry(boundaries=(None, BC.vacuum))
+    def test_none_is_not_a_face_role(self):
+        with pytest.raises(TypeError, match="a face role is a MirrorDeck, a TranslationDeck or an int tag, got None"):
+            _geometry(face_roles=(None, 0))
 
-    def test_boundaries_are_parsed_like_the_other_fields(self):
+    def test_face_roles_are_parsed_like_the_other_fields(self):
         """A list is canonicalised to a tuple; a non-sequence is refused."""
-        assert _geometry(boundaries=[BC.vacuum, BC.reflective]).boundaries == (
-            BC.vacuum, BC.reflective,
-        )
-        with pytest.raises(TypeError, match="boundaries must be a sequence"):
-            _geometry(boundaries=BC.vacuum)
+        assert _geometry(face_roles=[0, 1]).face_roles == (0, 1)
+        with pytest.raises(TypeError, match="face_roles must be a sequence"):
+            _geometry(face_roles=0)
 
-    def test_a_law_is_a_tag_or_a_typed_law(self):
-        """RE-POSED from ``test_bcs_must_be_a_tag_or_a_typed_law``.
+    def test_a_role_is_a_deck_or_a_tag(self):
+        """RE-POSED from ``test_a_law_is_a_tag_or_a_typed_law`` (wave 2, slice S1).
 
-        A declaration is EITHER a ``BC`` tag or an already-typed
-        ``BoundaryTraceLaw``; a bare string is neither. A law carrying a
-        FUNCTION (a prescribed inflow whose source is a manufactured
-        solution) has no tag spelling, and declaring it on the GEOMETRY is
-        what makes it survive the method-mesh rebuild every public solver
-        entry point performs.
+        A declaration is EITHER a deck (the domain continues across the face) or an ``int``
+        tag (the domain ends there, and a problem binds the tag to a condition); a bare string
+        is neither, and a response is not a role: the geometry names no response, and a
+        function-valued inflow has no role spelling (it is bound to a tag where the method is
+        known).
         """
-        with pytest.raises(TypeError, match="must be a BC tag or a"):
-            _geometry(boundaries=("vacuum", BC.vacuum))
+        with pytest.raises(TypeError, match="a face role is a MirrorDeck, a TranslationDeck or an int tag"):
+            _geometry(face_roles=("vacuum", 0))
 
-    def test_a_typed_law_is_accepted(self):
-        """The positive leg; without it the guard could reject every law."""
-        from orpheus.geometry.boundary import (
-            ConstantInflowSource, PrescribedInflow,
-        )
-
-        law = PrescribedInflow(source=ConstantInflowSource(value=2.5))
+    def test_a_deck_is_accepted(self):
+        """The positive leg; without it the guard could reject every role."""
         g = StructuredGeometry(
-            coord=_SPHERE, breakpoints=(0.0, 2.0), mat_ids=(0,), boundaries=(law,),
+            coord=_SLAB, breakpoints=(0.0, 2.0), mat_ids=(0,), face_roles=(MirrorDeck(), 3),
         )
-        assert g.boundaries[0] is law
+        assert g.face_roles[0] == MirrorDeck() and g.face_roles[1] == 3
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -262,7 +254,7 @@ class TestFromThicknesses:
             coord=_SLAB,
             thicknesses=_ASSOCIATION_SENSITIVE,
             mat_ids=range(5),
-            boundaries=(BC.vacuum, BC.vacuum),
+            face_roles=(0, 0),
             r_0=r_0,
         )
         folded = [r_0]
@@ -279,7 +271,7 @@ class TestFromThicknesses:
         with pytest.raises(ValueError, match="strictly increasing"):
             StructuredGeometry.from_thicknesses(
                 coord=_SLAB, thicknesses=(1.0, thickness), mat_ids=(0, 1),
-                boundaries=(BC.vacuum, BC.vacuum),
+                face_roles=(0, 0),
             )
 
 
@@ -296,7 +288,7 @@ class TestFromThicknessesParsesLikeTheConstructor:
         with pytest.raises(TypeError, match="must be a real number"):
             StructuredGeometry.from_thicknesses(
                 coord=_SLAB, thicknesses=thicknesses, mat_ids=(0, 1),
-                boundaries=(BC.vacuum, BC.vacuum), r_0=r_0,
+                face_roles=(0, 0), r_0=r_0,
             )
 
     def test_negative_zero_is_canonicalised(self):
@@ -319,7 +311,7 @@ class TestBreakpointsAreStored:
     def test_breakpoints_round_trip_bitwise(self):
         g = StructuredGeometry(
             coord=_SLAB, breakpoints=self._E, mat_ids=(0, 1, 2, 3),
-            boundaries=(BC.vacuum, BC.vacuum),
+            face_roles=(0, 0),
         )
         assert g.breakpoints == self._E
 
@@ -354,13 +346,13 @@ class TestTheKindTagRetires:
 
 class TestWignerSeitzPinCell:
     def test_default_construction(self):
-        """The outer law is white: part of the Wigner-Seitz model, not a default."""
+        """The outer face is tag 0, which the Wigner-Seitz model binds to a white wall: part of the model, not a default."""
         g = StructuredGeometry.wigner_seitz_pin_cell(
             r_fuel=0.9, r_clad=1.1, pitch=3.6,
         )
         assert g.coord is _CYLINDER
         assert g.boundary_points == (g.breakpoints[-1],)
-        assert g.boundaries == (BC("white"),)
+        assert g.face_roles == (0,)
         assert g.mat_ids == (2, 1, 0)
 
     def test_breakpoints_are_the_radii(self):
@@ -384,7 +376,7 @@ class TestPwrSlabHalfCell:
         )
         assert g == StructuredGeometry.from_thicknesses(
             coord=_SLAB, thicknesses=(0.9, 0.2, 0.7), mat_ids=(2, 1, 0),
-            boundaries=(BC.reflective, BC.reflective),
+            face_roles=(MirrorDeck(), MirrorDeck()),
         )
 
 
@@ -480,9 +472,7 @@ def _three_region_mesh(coord: CoordSystem) -> Mesh1D:
         coord=coord,
         thicknesses=_THREE_REGION_THICKNESS,
         mat_ids=_THREE_REGION_MAT_IDS,
-        boundaries=(
-            (BC.vacuum, BC.vacuum) if coord is _SLAB else (BC.reflective,)
-        ),
+        face_roles=(0, 0) if coord is _SLAB else (0,),
     )
     return Mesher(g).partition(tuple(
         CellsByCount.uniform_volume(n) for n in _THREE_REGION_CELLS
@@ -495,7 +485,7 @@ class TestMeshingAGeometry:
             coord=CoordSystem.SPHERICAL,
             breakpoints=(0.0, 2.0),
             mat_ids=(0,),
-            boundaries=(BC.vacuum,),
+            face_roles=(0,),
         )
         mesh = Mesher(g).partition(CellsByCount.uniform_volume(8)).mesh
         assert mesh.N == 8
@@ -505,29 +495,29 @@ class TestMeshingAGeometry:
         # All cells in an equal-volume interval are bit-identical: the
         # stored volume is the equal share m/n (ERR-020's invariant).
         assert np.all(mesh.volumes == mesh.volumes[0])
-        # One face law, the outer one: the centre carries none.
-        assert dict(mesh.face_laws) == {"xmax": BC.vacuum}
+        # One face role, the outer one: the centre carries none.
+        assert dict(mesh.face_roles) == {"xmax": 0}
 
     def test_single_region_slab_uniform(self):
         g = StructuredGeometry(
             coord=CoordSystem.CARTESIAN,
             breakpoints=(0.0, 4.0),
             mat_ids=(0,),
-            boundaries=(BC.vacuum, BC.reflective),
+            face_roles=(0, MirrorDeck()),
         )
         mesh = Mesher(g).partition(CellsByCount.uniform_width(4)).mesh
         assert mesh.N == 4
         assert mesh.coord == CoordSystem.CARTESIAN
         np.testing.assert_allclose(mesh.edges, [0.0, 1.0, 2.0, 3.0, 4.0])
         # A slab has two faces, left then right.
-        assert dict(mesh.face_laws) == {"xmin": BC.vacuum, "xmax": BC.reflective}
+        assert dict(mesh.face_roles) == {"xmin": 0, "xmax": MirrorDeck()}
 
     def test_multi_region_slab(self):
         g = StructuredGeometry.from_thicknesses(
             coord=CoordSystem.CARTESIAN,
             thicknesses=(0.5, 2.0, 0.5),
             mat_ids=(1, 0, 1),
-            boundaries=(BC.vacuum, BC.vacuum),
+            face_roles=(0, 0),
         )
         mesh = Mesher(g).partition((
             CellsByCount.uniform_width(2),
@@ -568,7 +558,7 @@ class TestMeshingAGeometry:
         assert (mesh.mat_ids == 2).sum() == 10
         assert (mesh.mat_ids == 1).sum() == 3
         assert (mesh.mat_ids == 0).sum() == 7
-        assert dict(mesh.face_laws) == {"xmax": BC("white")}
+        assert dict(mesh.face_roles) == {"xmax": 0}
         _assert_equal_volume_regions(
             mesh,
             mat_ids=(2, 1, 0),
@@ -583,7 +573,7 @@ class TestMeshingAGeometry:
             coord=CoordSystem.CARTESIAN,
             thicknesses=(1.0, 1.0),
             mat_ids=(0, 1),
-            boundaries=(BC.vacuum, BC.vacuum),
+            face_roles=(0, 0),
         )
         with pytest.raises(ValueError, match=r"1 rule\(s\) for 2 interval\(s\)"):
             Mesher(g).partition((CellsByCount.uniform_volume(4),))
@@ -595,25 +585,25 @@ class TestMeshingAGeometry:
             coord=CoordSystem.CARTESIAN,
             breakpoints=(5.0, 7.0),
             mat_ids=(0,),
-            boundaries=(BC.vacuum, BC.vacuum),
+            face_roles=(0, 0),
         )
         mesh = Mesher(g).partition(CellsByCount.uniform_width(2)).mesh
         np.testing.assert_allclose(mesh.edges, [5.0, 6.0, 7.0])
 
     @pytest.mark.parametrize("coord", _CURVILINEAR, ids=lambda c: c.name.lower())
-    def test_a_hollow_body_propagates_its_inner_law(self, coord):
-        """The two laws of a hollow body are its two face laws, inner
-        first, and the mesh starts at the inner radius."""
+    def test_a_hollow_body_propagates_its_inner_role(self, coord):
+        """The two roles of a hollow body are its two face roles, inner
+        first (both tags: no radial face is a deck), and the mesh starts at the inner radius."""
         g = StructuredGeometry(
             coord=coord,
             breakpoints=(0.5, 2.0),
             mat_ids=(0,),
-            boundaries=(BC.reflective, BC.vacuum),
+            face_roles=(1, 0),
         )
         mesh = Mesher(g).partition(CellsByCount.uniform_volume(4)).mesh
         assert mesh.edges[0] == 0.5
         assert mesh.edges[-1] == 2.0
-        assert dict(mesh.face_laws) == {"xmin": BC.reflective, "xmax": BC.vacuum}
+        assert dict(mesh.face_roles) == {"xmin": 1, "xmax": 0}
         assert mesh.boundary_points == (0.5, 2.0)
 
     @pytest.mark.catches("ERR-020")
@@ -623,7 +613,7 @@ class TestMeshingAGeometry:
             coord=CoordSystem.CYLINDRICAL,
             breakpoints=(0.0, 2.0),
             mat_ids=(0,),
-            boundaries=(BC("white"),),
+            face_roles=(0,),
         )
         mesh = Mesher(g).partition(CellsByCount.uniform_volume(10)).mesh
         # All cells exactly equal volume — no ULP drift.
@@ -638,7 +628,7 @@ class TestMeshingAGeometry:
             coord=CoordSystem.SPHERICAL,
             breakpoints=(0.0, 3.0),
             mat_ids=(0,),
-            boundaries=(BC.vacuum,),
+            face_roles=(0,),
         )
         mesh = Mesher(g).partition(CellsByCount.uniform_volume(12)).mesh
         assert np.all(mesh.volumes == mesh.volumes[0])

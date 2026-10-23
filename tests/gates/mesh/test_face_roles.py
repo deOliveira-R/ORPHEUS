@@ -8,7 +8,7 @@ partition. Claims, with layer and kind (``vv-principles``):
 
 * ``TestFaceRolesOver``: THEOREM rows of the parse (the inventory rule, the deck admission per axis and chart, the
   pairing closure, the bool refusal) with the old refusal messages kept; the inventory is written by hand from the
-  topology law, as ``test_mesh2d_face_laws.py`` does;
+  topology law, as ``test_mesh2d_face_roles.py`` does;
 * ``TestMeshesStoreFaceRoles`` (gates 3 and 4, mesh half): content identity of a role, the Mesher's pass-through,
   the factory's single ``role``; REFERENCE (the geometry's own roles and tags are the expected values);
 * ``TestTheSymmetryIsTheGeometrys`` (gate 6, law L-C input): THEOREM (refinement independence: the group is a

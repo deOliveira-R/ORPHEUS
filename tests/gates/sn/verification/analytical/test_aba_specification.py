@@ -7,7 +7,7 @@ fixtures spell the same body in two places (the snapshot generator's
 ``aba_materials`` here) and its materials in two ways (``get_mixture`` with a
 P1 moment dropped at ``scattering_order=0``, and the isotropic rebuilds).
 Nothing asserted that they pose one problem (X4); these rows do: the
-geometry's breakpoints, region materials and outer law, and the isotropic
+geometry's breakpoints, region materials and outer role, and the isotropic
 transport data (σ_t, the P0 transfer matrix, νΣ_f, χ, bit for bit).
 
 First red on ``65b0de93``: the helper ``_aba_reference`` did not exist (this
@@ -21,7 +21,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry import CoordSystem
 from tests.gates.sn.verification.analytical._aba_reference import (
     ABA_MATERIAL_IDS,
     ABA_RADII,
@@ -43,7 +43,7 @@ def test_r7b2_1_the_specification(coord) -> None:
     spec = aba_specification(coord)
     assert spec.geometry.breakpoints == (0.0, *ABA_RADII)
     assert tuple(spec.geometry.mat_ids) == ABA_MATERIAL_IDS
-    assert spec.geometry.boundaries == (BC.reflective,)
+    assert spec.geometry.face_roles == (0,)  # a curved face: a tag, bound to WallCondition.specular(1.0) (the meaning change, Appendix B)
     assert spec.n_groups == 2 and spec.n_regions == 3
     assert all(len(m.SigS) == 1 for m in spec.materials.values()), "the specification's materials are isotropic"
     assert aba_specification(coord) is spec  # one definition, built once
@@ -65,7 +65,7 @@ def test_r7b2_1_the_snapshot_fixtures_mesh_the_specifications_body(coord) -> Non
     assert mesh.coord is coord
     assert set(spec.geometry.breakpoints) <= set(float(e) for e in mesh.edges)
     assert mesh.region_materials == tuple(spec.geometry.mat_ids)
-    assert mesh.outer_law == BC.reflective
+    assert mesh.outer_role == 0
     for mid, mixture in config["materials"].items():
         for a, b in zip(_transport_data(mixture), _transport_data(spec.materials[mid])):
             np.testing.assert_array_equal(a, b)

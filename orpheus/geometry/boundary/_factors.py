@@ -333,6 +333,7 @@ import numpy as np
 
 from orpheus.values.scalars import parse_integer, parse_real
 from orpheus.geometry.transformation import RigidMotion
+from orpheus.geometry.deck import mirror_motion
 from orpheus.geometry.faces import AXIS_INDEX, AXIS_NAMES, face_normal, face_opposite
 
 
@@ -613,23 +614,7 @@ def _mirror_motion(axis: str, dimension: int) -> RigidMotion:
     mis-named axis cannot be constructed and then fail late somewhere
     holding a quadrature.
     """
-    try:
-        index = AXIS_INDEX[axis]
-    except KeyError:
-        raise ValueError(
-            f"axis must be one of {AXIS_NAMES}, got {axis!r}. The mirror "
-            f"names the plane's NORMAL; validating here is what keeps a "
-            f"bad axis from surviving construction and failing later "
-            f"against a quadrature it never should have reached."
-        ) from None
-    if not 0 <= index < dimension:
-        raise ValueError(
-            f"axis {axis!r} is index {index}, out of range for a "
-            f"{dimension}-dimensional deck element"
-        )
-    normal = np.zeros(dimension)
-    normal[index] = 1.0
-    return RigidMotion.reflection(normal=normal)
+    return mirror_motion(axis, dimension)
 
 
 @dataclass(frozen=True, slots=True)

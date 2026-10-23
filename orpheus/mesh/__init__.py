@@ -3,7 +3,7 @@ r"""The mesh: the discretisation overlay on a geometry.
 Posing is a chain of overlays (materials, then geometry, then mesh), and each
 keeps or lowers the symmetry group. The mesh is the overlay that divides a
 geometry's intervals into cells, so this package imports
-:mod:`orpheus.geometry` (shapes, coordinate systems, boundary laws) and
+:mod:`orpheus.geometry` (shapes, coordinate systems, face roles) and
 :mod:`orpheus.numerics`, and neither of those imports it
 (``tests/gates/test_layer_imports.py`` enforces both directions). Binding cross
 sections to the cells is the transport layer's
@@ -58,7 +58,7 @@ from orpheus.mesh.partition import (
     Spacing,
 )
 from orpheus.mesh.mesher import Mesher
-from orpheus.mesh.face_laws import FaceLaws, face_inventory
+from orpheus.mesh.face_roles import FaceRoles, face_inventory
 from orpheus.mesh.structured import Mesh1D, Mesh2D
 
 __all__ = [
@@ -73,7 +73,7 @@ __all__ = [
     "EqualWidth",
     "FaceLabel",
     "IntervalRule",
-    "FaceLaws",
+    "FaceRoles",
     "face_inventory",
     "Mesh1D",
     "Mesh2D",

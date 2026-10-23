@@ -424,7 +424,7 @@ class TestTheDefaultsAreGone:
     resolver-side ``None`` check would be a second guard for a state the
     constructors make unrepresentable (``coding-elegance`` Pattern 4, the
     guard-is-debt rule), and the keyed refusal is gated at construction
-    (``tests/gates/mesh/test_mesh2d_face_laws.py::TestTheOneElementParser``).
+    (``tests/gates/mesh/test_mesh2d_face_roles.py::TestTheOneElementParser``).
     A structural leg reads the resolver's body for any ``BC`` construction, the
     spelling every default so far has taken (``BC("reflective")``).
 
@@ -497,7 +497,7 @@ class TestTheDefaultsAreGone:
 # The route gate that stood here (``TestOneBoundaryLawCheck``: the geometry and
 # the mesh parse through one ``parse_boundary_laws``) was re-posed at step 3c,
 # when the mesh's laws became a ``FaceLaws`` over ``face_inventory``: its
-# successors are ``tests/gates/mesh/test_mesh2d_face_laws.py::TestTheOneElementParser``
+# successors are ``tests/gates/mesh/test_mesh2d_face_roles.py::TestTheOneElementParser``
 # (every declared law of the five owners passes ``parse_boundary_law``) and
 # ``::TestTheOneInventoryRule`` (both meshes derive their faces from
 # ``face_inventory``).
