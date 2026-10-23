@@ -231,9 +231,14 @@ class FacePairing:
       another axis);
     * a pair of distinct faces whose motion is a translation (linear part the identity) is the periodic gluing:
       the partner is ``face_opposite(face)`` and the translation is non-zero, along the face's axis, with the
-      face's outward sign. A distinct pair whose motion is not a translation (a rotation or a glide, the deferred
-      classes of :data:`DEFERRED_DECKS`) is admitted unchecked until that deck is minted and states its own law
-      here.
+      face's outward sign;
+    * a pair of distinct faces whose motion is not a translation (a rotation, a glide, a screw or a
+      rotoreflection) is refused: it belongs to a class of :data:`DEFERRED_DECKS`, and a pairing exists only for
+      a minted deck.
+
+    SCOPE-BOUNDARY[guard] machinery: the deferred decks of :data:`DEFERRED_DECKS`, each stating its own pairing law here.
+    ruling: the orchestrator, wave 2 WF2.2 integration, 2026-10-23 (a pairing exists only for a minted deck; a quarter turn glues adjacent faces, so no law of today's admits it).
+    revisit: when the first deferred deck is minted, its row adds its arm to this law.
 
     Raises
     ------
@@ -272,6 +277,11 @@ class FacePairing:
                     f"face {self.face!r} is glued to {self.partner!r} by a translation {along.tolist()}: a translation pairs a face "
                     f"with its opposite, along its axis, with its outward sign"
                 )
+        else:
+            raise DeckError(
+                f"face {self.face!r} is glued to {self.partner!r} by a motion that is neither its own mirror nor a translation: "
+                f"that is a deferred deck (DEFERRED_DECKS), and a pairing exists only for a minted deck"
+            )
 
     @property
     def is_self_paired(self) -> bool:

@@ -384,7 +384,6 @@ def test_pairing_of_and_its_adjoint() -> None:
     turn = RigidMotion(np.array([[0.0, -1.0], [1.0, 0.0]]))  # a rotation of order 4
     with pytest.raises(ValueError):
         deck.FacePairing("xmin", "xmin", turn)
-    require(deck.FacePairing("xmin", "xmax", turn).partner == "xmax", "a quarter turn between two DISTINCT faces is a legal pairing")
 
     # the whole law, not the linear part: each of these constructed before the amendment
     identity2 = RigidMotion.identity(2)
@@ -398,6 +397,9 @@ def test_pairing_of_and_its_adjoint() -> None:
         "a translation to a non-opposite face": ("xmin", "ymax", deck.translation_motion("xmin", 2)),
         "a translation with the wrong sign": ("xmin", "xmax", deck.translation_motion("xmax", 2)),
         "a translation along the wrong axis": ("xmin", "xmax", deck.translation_motion("ymin", 2)),
+        "a quarter turn between distinct faces (a deferred deck)": ("xmin", "xmax", turn),
+        "a quarter turn between adjacent faces (a deferred deck)": ("xmin", "ymin", turn),
+        "the mirror of the face's own axis between opposite faces": ("xmin", "xmax", deck.mirror_motion("x", 2)),
     }
     for name, args in bad.items():
         with pytest.raises(deck.DeckError):
