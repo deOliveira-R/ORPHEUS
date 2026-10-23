@@ -84,12 +84,14 @@ What this module does not do
 ----------------------------
 
 It poses no MoC problem: the track mesh that :func:`mms_sweep` walks is
-built by the test that pairs the two,
-``tests/gates/moc/test_mms.py``, from the case's declarations
-(``pitch``, ``n_azi``, ``n_polar``, ``ray_spacing``). A closed
-reference imports no production machinery (the reference-insulation
-gate in ``tests/gates/test_layer_imports.py``); the reference supplies
-the declarations as plain data, and the translation into a production
+built by the test that pairs the two, ``tests/gates/moc/test_mms.py``,
+from the case's declarations: the radial FSR partition
+(:meth:`MOCPinCellMMSCase.fsr_edges`), the outer boundary law
+(:attr:`MOCPinCellMMSCase.outer_law`) and the track parameters
+(``n_azi``, ``n_polar``, ``ray_spacing``). A closed reference imports
+no production machinery (the reference-insulation gate in
+``tests/gates/test_layer_imports.py``); the reference supplies the
+declarations as plain data, and the translation into a production
 object lives on the test side (layer DAG P4b, 2026-10-22).
 
 .. seealso::
@@ -160,6 +162,37 @@ class MOCPinCellMMSCase:
         return self.pitch / 2.0
 
     @property
+    def outer_law(self) -> str:
+        """The outer boundary law of the lattice cell: ``"reflective"``.
+
+        The one spelling of the law; the reference's ``ProblemSpec`` and
+        the test that poses the track mesh both read it here.
+        """
+        return "reflective"
+
+    @property
+    def wigner_seitz_radius(self) -> float:
+        r"""Radius of the circle with the square cell's area, :math:`P/\sqrt{\pi}`."""
+        return self.pitch / np.sqrt(np.pi)
+
+    def fsr_edges(self, n_annuli: int) -> np.ndarray:
+        r"""Radial edges of the ``n_annuli + 1`` flat-source regions.
+
+        The inner ``n_annuli`` regions are equal-area annuli inside the
+        inscribed circle (radius :math:`P/2`). The last region is the
+        square border outside that circle; its outer edge is the
+        Wigner-Seitz radius :math:`P/\sqrt{\pi}`, which preserves the
+        cell's area: it is the outer edge of the 1-D radial mesh, from
+        which the MoC track mesh recovers the pitch.
+        """
+        P = self.pitch
+        r_inscribed = P / 2.0
+        area_inscribed = np.pi * r_inscribed ** 2
+        area_per_annulus = area_inscribed / n_annuli
+        radii = [np.sqrt(k * area_per_annulus / np.pi) for k in range(1, n_annuli + 1)]
+        return np.array([0.0] + radii + [self.wigner_seitz_radius])
+
+    @property
     def _cx(self) -> float:
         return self.pitch / 2.0
 
@@ -190,12 +223,12 @@ class MOCPinCellMMSCase:
             * np.sin(np.pi * self._r2(x, y) / R2)
         )
 
-    def phi_ref_fsr_average(self, edges: np.ndarray) -> np.ndarray:
-        r"""Volume-averaged :math:`\langle\phi\rangle_i` per FSR.
+    def phi_ref_fsr_average(self, n_annuli: int) -> np.ndarray:
+        r"""Volume-averaged :math:`\langle\phi\rangle_i` per FSR of
+        :meth:`fsr_edges` ``(n_annuli)``.
 
-        ``edges`` are the radial edges of the FSRs, ``len(edges) - 1``
-        of them: the inner cells are annuli, and the last cell is the
-        square border outside its inner radius.
+        The inner ``n_annuli`` cells are annuli; the last cell is the
+        square border outside the inscribed circle.
 
         For inner annuli the integral is analytical:
 
@@ -207,6 +240,7 @@ class MOCPinCellMMSCase:
 
         The outermost (square-border) FSR uses Cartesian quadrature.
         """
+        edges = self.fsr_edges(n_annuli)
         nr = len(edges) - 1
         R2 = self._R ** 2
         A = self.amplitude
@@ -257,7 +291,7 @@ class MOCPinCellMMSCase:
         return averages
 
 
-def mms_sweep(case: MOCPinCellMMSCase, moc_mesh) -> np.ndarray:
+def mms_sweep(case: MOCPinCellMMSCase, moc_mesh, n_annuli: int) -> np.ndarray:
     r"""Per-characteristic MMS sweep returning scalar flux per FSR.
 
     Single-pass transport sweep with per-segment manufactured sources.
@@ -279,17 +313,29 @@ def mms_sweep(case: MOCPinCellMMSCase, moc_mesh) -> np.ndarray:
     sweep — this is the term that carries the flat-source
     :math:`\mathcal{O}(h^{2})` error.
 
-    ``moc_mesh`` is the traced track mesh the caller posed (the MoC
-    method's ``MOCMesh``; this module names no production type). The
-    sweep reads ``quad`` (``n_azi``, ``phi``, ``omega_azi``,
-    ``n_polar``, ``sin_polar``, ``omega_polar``), ``tracks`` and
-    ``tracks_per_azi`` (each track's ``entry_point``, ``exit_point``
-    and ``segments``, each segment's ``length`` and ``region_id``),
-    ``effective_spacing(a)``, ``n_regions``, ``region_areas`` and the
-    radial ``mesh.edges``.
+    ``moc_mesh`` is the traced track mesh the caller posed over
+    :meth:`MOCPinCellMMSCase.fsr_edges` ``(n_annuli)`` (the MoC method's
+    ``MOCMesh``; this module names no production type). The sweep reads
+    ``quad`` (``n_azi``, ``phi``, ``omega_azi``, ``n_polar``,
+    ``sin_polar``, ``omega_polar``), ``tracks`` and ``tracks_per_azi``
+    (each track's ``entry_point``, ``exit_point`` and ``segments``, each
+    segment's ``length`` and ``region_id``), ``effective_spacing(a)``,
+    ``n_regions`` and ``region_areas``. This read surface is a duck type
+    that no gate sees: a rename in ``MOCMesh`` is caught only by
+    ``tests/gates/moc/test_mms.py`` (the trade is recorded in the layer
+    DAG plan's P4b landing note).
     """
     quad = moc_mesh.quad
     nr = moc_mesh.n_regions
+    # Declared edge of the plain-data track table not yet built (layer DAG
+    # P4b landing note): until the sweep reads its tracks as data posed from
+    # fsr_edges(n_annuli), the region count is the one check that the
+    # caller's mesh carries the case's partition.
+    if nr != n_annuli + 1:
+        raise ValueError(
+            f"the track mesh has {nr} regions; the case's partition with "
+            f"{n_annuli} annuli has {n_annuli + 1}"
+        )
     sig_t = case.sigma_t
     inv_4pi = 1.0 / (4.0 * np.pi)
 
@@ -382,7 +428,7 @@ def mms_sweep(case: MOCPinCellMMSCase, moc_mesh) -> np.ndarray:
                     dpsi = (psi_in - q_seg_val) * one_minus_exp
                     delta_phi[seg.region_id] += weight * dpsi
 
-    phi_ref_avg = case.phi_ref_fsr_average(moc_mesh.mesh.edges)
+    phi_ref_avg = case.phi_ref_fsr_average(n_annuli)
     areas = moc_mesh.region_areas
     phi = phi_ref_avg + delta_phi / (areas * sig_t)
 
@@ -436,7 +482,7 @@ def _build_moc_mms_continuous_reference() -> ContinuousReferenceSolution:
                 "pitch": mms_case.pitch,
                 "mms_case": mms_case,
             },
-            boundary_conditions={"all": "reflective"},
+            boundary_conditions={"all": mms_case.outer_law},
             is_eigenvalue=False,
             n_groups=1,
         ),

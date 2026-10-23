@@ -496,6 +496,18 @@ def test_entry_point_imports_in_a_fresh_interpreter(entry: str) -> None:
     )
 
 
+def _cold_loaded_modules(code: str) -> set[str]:
+    """The ``orpheus`` modules in ``sys.modules`` after ``code`` runs in a fresh interpreter.
+
+    The one cold-interpreter probe the run-time import gates share: the AST rows cannot
+    see an ``importlib`` call or an import a module performs when it runs, and this reads
+    what actually loaded."""
+    probe = code + "\nimport sys; print(*sorted(m for m in sys.modules if m.split('.')[0] == 'orpheus'))\n"
+    result = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, cwd=ORPHEUS_ROOT.parent)
+    assert result.returncode == 0, result.stderr
+    return set(result.stdout.split())
+
+
 @pytest.mark.foundation
 def test_values_loads_nothing_else_of_orpheus_in_a_fresh_interpreter() -> None:
     """Ruling 6 at run time: a cold ``import orpheus.values.content`` loads only ``orpheus`` and
@@ -503,31 +515,18 @@ def test_values_loads_nothing_else_of_orpheus_in_a_fresh_interpreter() -> None:
     code performs when it runs; this one reads ``sys.modules`` after the import, so it can. The
     loaded set must contain the module imported (the instrument's control), and nothing outside
     the package (``[M]`` 2026-10-22: 4 modules; 64 when the encoder lived in numerics)."""
-    probe = "import sys, orpheus.values.content; print(*sorted(m for m in sys.modules if m.split('.')[0] == 'orpheus'))"
-    result = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, cwd=ORPHEUS_ROOT.parent)
-    assert result.returncode == 0, result.stderr
-    loaded = set(result.stdout.split())
+    loaded = _cold_loaded_modules("import orpheus.values.content")
     assert "orpheus.values.content" in loaded, loaded
     outside = sorted(m for m in loaded if m != "orpheus" and m.split(".")[1] != "values")
     assert not outside, f"importing orpheus.values.content loaded modules outside orpheus.values: {outside}"
 
 
-_REGISTRY_MOC_PROBE = (
-    "import sys\n"
-    "from orpheus.derivations import reference_values\n"
-    "reference_values.continuous_all_names()\n"
-    "{control}"
-    "print(*sorted(m for m in sys.modules if m == 'orpheus.moc' or m.startswith('orpheus.moc.')))\n"
-)
-
-
 def _moc_modules_after_loading_the_registry(control: str = "") -> list[str]:
-    result = subprocess.run(
-        [sys.executable, "-c", _REGISTRY_MOC_PROBE.format(control=control)],
-        capture_output=True, text=True, cwd=ORPHEUS_ROOT.parent,
+    loaded = _cold_loaded_modules(
+        "from orpheus.derivations import reference_values\n"
+        "reference_values.continuous_all_names()\n" + control
     )
-    assert result.returncode == 0, result.stderr
-    return result.stdout.split()
+    return sorted(m for m in loaded if m == "orpheus.moc" or m.startswith("orpheus.moc."))
 
 
 @pytest.mark.foundation

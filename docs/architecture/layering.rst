@@ -446,9 +446,13 @@ retired, and a leg in ``_FORBIDDEN_LEGS`` witnesses that a
   module built the production track mesh (``MOCMesh`` over an
   ``MOCQuadrature``) for its one test; that builder, ``build_moc_mesh``,
   moved into the test, ``tests/gates/moc/test_mms.py``, and the reference
-  keeps only the case's declarations in plain data (pitch, quadrature
-  orders, ray spacing), the closed ansatz and the standalone sweep, whose
-  track-mesh argument it reads without naming its type. Since the
+  keeps only the case's declarations in plain data (the FSR partition
+  ``fsr_edges(n_annuli)``, which owns the equal-area annuli and the
+  square-border cell out to the Wigner-Seitz radius; the outer law; the
+  quadrature orders and ray spacing), the closed ansatz and the
+  standalone sweep, whose track-mesh argument it reads without naming
+  its type. That last read is a duck type no gate sees: a rename in
+  ``MOCMesh`` is caught only by the MMS test. Since the
   continuous-reference walk imports every ``orpheus.derivations`` module,
   the import had also loaded ``orpheus.moc`` into every consumer of the
   registry; ``test_loading_the_reference_registry_loads_no_moc_module``

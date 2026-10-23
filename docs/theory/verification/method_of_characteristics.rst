@@ -469,7 +469,8 @@ Implementation
   method
 - ``tests/gates/moc/test_mms.py`` — L1 convergence consumer test; it
   poses the production track mesh (``build_moc_mesh``) from the case's
-  declarations and hands it to the sweep (since 2026-10-22; before, the
+  declarations (the FSR partition ``fsr_edges(n_annuli)``, the outer law,
+  the quadrature orders and ray spacing) and hands it to the sweep (since 2026-10-22; before, the
   reference module built it)
 - The outermost FSR (square-border region) is excluded from the
   convergence measurement because its complex geometry has a fixed
