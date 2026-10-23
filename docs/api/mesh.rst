@@ -15,10 +15,10 @@ The package holds seven modules:
 * :mod:`orpheus.mesh.structured`: the structured meshes
   :class:`~orpheus.mesh.structured.Mesh1D` and
   :class:`~orpheus.mesh.structured.Mesh2D`.
-* :mod:`orpheus.mesh.face_laws`: the face inventory rule
-  :func:`~orpheus.mesh.face_laws.face_inventory` and the value
-  :class:`~orpheus.mesh.face_laws.FaceLaws` both meshes store their
-  boundary laws in.
+* :mod:`orpheus.mesh.face_roles`: the face inventory rule
+  :func:`~orpheus.mesh.face_roles.face_inventory` and the value
+  :class:`~orpheus.mesh.face_roles.FaceRoles` both meshes store their
+  boundary roles in.
 * :mod:`orpheus.mesh.mesher`: the :class:`~orpheus.mesh.mesher.Mesher`,
   the meshing session that builds a ``Mesh1D`` from a geometry and
   interval rules, and the only way one is built.

@@ -570,8 +570,9 @@ class Mesh2D(ContentIdentity):
     def symmetry(self) -> UncomputedSymmetries:
         """The typed pessimistic answer: no group machinery exists for a 2-D carrier yet.
 
-        SCOPE-BOUNDARY[guard] machinery: the wallpaper-group search over a cell's isometries; trigger: the 2-D
-        geometry value (``wave2_boundary_carve.md`` section 2.2).
+        SCOPE-BOUNDARY[guard] machinery: the wallpaper-group search over a cell's isometries.
+        ruling: the specification ``wave2_boundary_carve.md`` section 2.2, approved by the user 2026-10-23.
+        revisit: when a 2-D geometry value exists to carry the group.
         """
         return UncomputedSymmetries("Mesh2D")
 

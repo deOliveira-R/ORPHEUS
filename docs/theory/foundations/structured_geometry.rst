@@ -751,7 +751,7 @@ The face laws: one inventory rule, one value, both meshes
 A mesh's boundary is a finite set of faces, each carrying one law. Both
 meshes, :class:`~orpheus.mesh.structured.Mesh1D` and
 :class:`~orpheus.mesh.structured.Mesh2D`, derive the set by one rule
-and store the laws in one value, both in :mod:`orpheus.mesh.face_laws`.
+and store the laws in one value, both in :mod:`orpheus.mesh.face_roles`.
 
 **The inventory rule.**
 ``face_inventory(coord, first_axis_edges, dimension)`` names the

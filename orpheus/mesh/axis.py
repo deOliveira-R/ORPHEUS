@@ -429,7 +429,7 @@ def roles_of_axes(axes: tuple[Axis1D, ...]) -> "dict[str, FaceRole]":
     :func:`face_labels` names the faces that carry a trace; this adds the one role a trace inventory omits, the
     inner tag of a hollow :class:`RadialAxisMesh` (``role_inner``, #511: the radial axis has no inner-surface
     trace). Hollowness is read from ``role_inner is not None``, which the axis's own constructor ties to
-    ``edges[0] > 0``. The legacy adapter and the material mesh's ``face_roles`` both read their roles here.
+    ``edges[0] > 0``. The legacy adapter reads its roles here, and the material mesh's ``face_roles`` is to (slice S2b).
     """
     roles: dict[str, FaceRole] = {}
     for i, axis in enumerate(axes):
