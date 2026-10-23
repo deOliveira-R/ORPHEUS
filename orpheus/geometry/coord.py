@@ -187,7 +187,7 @@ class CoordSystem(Enum):
 
         Both ends on a slab, and on a hollow cylinder or sphere
         (:math:`r_0 > 0`); only :math:`r_R` on a solid one, whose centre
-        :math:`r = 0` is an interior point of the region and carries no law.
+        :math:`r = 0` is an interior point of the region and carries no role.
         """
         if self is CoordSystem.CARTESIAN or r_0 > 0.0:
             return (r_0, r_R)

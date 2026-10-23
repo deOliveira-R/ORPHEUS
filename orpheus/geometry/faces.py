@@ -22,18 +22,25 @@ groups held a second table (``AXIS_LETTER``, with its inverse ``AXIS_INDEX``),
 equal to this one by transcription; the merge left one table and its derived
 inverse.
 
-This module imports nothing from orpheus.
+This module imports only :mod:`orpheus.geometry.coord` (for the 1-D face inventory,
+:func:`face_inventory`), a sibling that imports nothing from orpheus.
 """
 
 from __future__ import annotations
+
+from collections.abc import Sequence
+
+from orpheus.geometry.coord import CoordSystem
 
 __all__ = [
     "AXIS_INDEX",
     "AXIS_NAMES",
     "FACE_NAMES",
+    "face_inventory",
     "face_name",
     "face_normal",
     "face_opposite",
+    "why_faces_differ",
 ]
 
 
@@ -201,3 +208,44 @@ FACE_NAMES: tuple[str, ...] = tuple(
     for axis in range(len(AXIS_NAMES))
     for sign in (-1, +1)
 )
+
+
+def face_inventory(
+    coord: CoordSystem, first_axis_edges: Sequence[float], dimension: int,
+) -> tuple[str, ...]:
+    """The names of a domain's boundary faces, axis by axis, inner face first.
+
+    Along the first axis the faces are the
+    :meth:`~orpheus.geometry.coord.CoordSystem.boundary_points` of its end
+    points (both ends on a slab and on a hollow cylinder or sphere, only the
+    outer surface on a solid one, whose centre is an interior point); along
+    every further axis both ends. The ONE inventory rule: the geometry's
+    face roles and the mesh's both read it.
+    """
+    along_first = coord.boundary_points(float(first_axis_edges[0]), float(first_axis_edges[-1]))
+    signs = (-1, +1) if len(along_first) == 2 else (+1,)
+    return tuple(
+        face_name(axis, sign)
+        for axis in range(dimension)
+        for sign in (signs if axis == 0 else (-1, +1))
+    )
+
+
+def why_faces_differ(coord: CoordSystem, inventory: tuple[str, ...], given: tuple[str, ...]) -> str:
+    """The reason a declaration's faces differ from the inventory, when there is one (else ``""``).
+
+    The ONE wording of the two curvilinear count mismatches: the geometry and the mesh both read it.
+    """
+    if coord is CoordSystem.CARTESIAN:
+        return ""
+    if "xmin" in given and "xmin" not in inventory:
+        return (
+            f" (the centre r = 0 of a solid {coord.name.lower()} body is an "
+            f"interior point and carries no role)"
+        )
+    if "xmin" in inventory and "xmin" not in given:
+        return (
+            f" (a hollow {coord.name.lower()} body has an inner surface, "
+            f"which needs its own role)"
+        )
+    return ""

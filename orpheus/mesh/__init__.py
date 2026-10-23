@@ -42,6 +42,7 @@ from orpheus.mesh.axis import (
     face_outflow_ordinates,
     face_shape,
     n_unknowns_flat,
+    roles_of_axes,
     spatial_shape,
 )
 from orpheus.mesh.legacy_adapter import axes_from_legacy_mesh, legacy_mesh_from_axes
@@ -88,6 +89,7 @@ __all__ = [
     "face_shape",
     "legacy_mesh_from_axes",
     "n_unknowns_flat",
+    "roles_of_axes",
     "pwr_pin_2d",
     "spatial_shape",
 ]

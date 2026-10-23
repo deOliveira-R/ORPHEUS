@@ -50,6 +50,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
+from collections.abc import Iterable
 from typing import ClassVar, Mapping, TypeAlias, assert_never, get_args
 
 import numpy as np
@@ -352,6 +353,11 @@ def check_pairings_close(roles: Mapping[str, FaceRole], where: str) -> None:
                 raise DeckError(f"{where}: face {face!r} carries a {type(role).__name__} but its partner {partner!r} carries {roles.get(partner)!r}")
 
 
+def tags_of(roles: Iterable[FaceRole]) -> frozenset[int]:
+    """The tags among ``roles``, the decks excluded: the ONE predicate behind every ``tags`` property."""
+    return frozenset(role for role in roles if not isinstance(role, DeckTransformation))
+
+
 def parse_face_role_on(role: object, coord: CoordSystem, axis: int, where: str) -> FaceRole:
     r"""One face role, parsed and admitted on the ``axis`` of ``coord``: :func:`parse_face_role`, then the chart's deck rule.
 
@@ -363,8 +369,8 @@ def parse_face_role_on(role: object, coord: CoordSystem, axis: int, where: str) 
     if isinstance(parsed, DeckTransformation) and type(parsed) not in admitted_decks(coord, axis):
         raise DeckError(
             f"{where}: a {type(parsed).__name__} on axis {axis} of a {coord.name.lower()} chart: "
-            f"W = N(G_c)/G_c is trivial on a 1-D radial chart: a reflecting curved wall is a response; "
-            f"tag the face and bind WallCondition.specular(1.0)"
+            f"W = N(G_c)/G_c is trivial on the radial axis of a curvilinear chart: a reflecting curved wall is a response; "
+            f"bind a specular exterior condition to a tag"
         )
     return parsed
 

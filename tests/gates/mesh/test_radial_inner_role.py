@@ -159,18 +159,28 @@ class TestTheInnerRoleIsRequiredExactlyWhenHollow:
 @pytest.mark.rests_on(_HERE + "::TestTheHollowInnerFaceIsATag::test_the_axis_carries_it_and_the_trace_inventory_does_not")
 class TestTheCartesianAxis:
     def test_it_carries_roles_under_the_new_names(self) -> None:
-        axis = AxisMesh(edges=np.array([0.0, 1.0, 2.0]), role_low=MirrorDeck(), role_high=3)  # type: ignore[call-arg]
+        axis = AxisMesh(edges=np.array([0.0, 1.0, 2.0]), role_low=MirrorDeck(), role_high=3)
         require(axis.role_low == MirrorDeck() and axis.role_high == 3, f"{axis!r}")
         require(axis.roles == {"min": MirrorDeck(), "max": 3}, f"{axis.roles}")
-        renamed = AxisMesh(edges=np.array([0.0, 1.0]), role_low=1, role_high=2, label_low="left", label_high="right")  # type: ignore[call-arg]
+        renamed = AxisMesh(edges=np.array([0.0, 1.0]), role_low=1, role_high=2, label_low="left", label_high="right")
         require(renamed.roles == {"left": 1, "right": 2}, "the labels key the roles")
         with pytest.raises(TypeError, match="role_low"):
-            AxisMesh(edges=np.array([0.0, 1.0]), role_low=True, role_high=2)  # type: ignore[call-arg]
+            AxisMesh(edges=np.array([0.0, 1.0]), role_low=True, role_high=2)
         with pytest.raises(TypeError, match="role_high"):
             AxisMesh(edges=np.array([0.0, 1.0]), role_low=1, role_high=None)  # type: ignore[call-arg]
 
+    def test_the_pairing_closes_on_the_axis(self) -> None:
+        """A translation on one face needs a translation on the other; the control pairs two."""
+        edges = np.array([0.0, 1.0])
+        built = AxisMesh(edges=edges, role_low=TranslationDeck(), role_high=TranslationDeck())
+        require(built.role_low == TranslationDeck(), "control: a translation pair builds")
+        with pytest.raises(DeckError):
+            AxisMesh(edges=edges, role_low=TranslationDeck(), role_high=0)
+        with pytest.raises(DeckError, match="xmin.*TranslationDeck"):
+            AxisMesh(edges=edges, role_low=TranslationDeck(), role_high=0, label_low="left", label_high="right")
+
     def test_the_old_names_are_gone(self) -> None:
-        axis = AxisMesh(edges=np.array([0.0, 1.0]), role_low=1, role_high=2)  # type: ignore[call-arg]
+        axis = AxisMesh(edges=np.array([0.0, 1.0]), role_low=1, role_high=2)
         gone = [n for n in ("bc_low", "bc_high", "bc") if hasattr(axis, n)]
         require(not gone, f"AxisMesh still has {gone}")
         radial = _axis(_SOLID, AxisCoord.RADIAL_CYLINDRICAL, role_outer=0)

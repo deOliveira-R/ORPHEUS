@@ -18,7 +18,7 @@ has a leg that moves only the unit.
 
 The roster also holds :class:`~orpheus.values.content.FrozenMapping`, the
 one frozen mapping value the content types hold (``Materials``, ``BC``
-params, ``FaceLaws``).
+params, ``FaceRoles``).
 
 The S5.2, S5.3 and pickle rows run the shared checkers of
 ``tests/gates/_content_identity_helpers.py`` over this roster; S5.9's

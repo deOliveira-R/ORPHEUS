@@ -596,23 +596,16 @@ class BoundaryResponseKernel(Protocol):
 
 
 def _mirror_motion(axis: str, dimension: int) -> RigidMotion:
-    r"""The reflection whose plane is normal to the named ``axis`` — the ONE
-    axis-letter → mirror spelling.
+    r"""The reflection whose plane is normal to the named ``axis``: a delegation to
+    :func:`orpheus.geometry.deck.mirror_motion`, the ONE axis-letter to mirror spelling.
 
     Two tiers name a mirror by an axis letter and mean the same element:
     :meth:`SelfPairedDeck.mirror` (a symmetry of the domain, in :math:`G`)
     and :attr:`SpecularReemission.motion` (a polished wall's constitutive
     return, in :math:`R`). They assert different physics and MUST carry the
-    same motion — which they do by reading it here rather than by two
-    resolutions agreeing (G6.3 step 7; the same single-sourcing argument
-    that folded their realizations into one kernel at B3.4b).
-
-    The axis letter is resolved through
-    :data:`~orpheus.geometry.faces.AXIS_INDEX`, the inverse derived from
-    :data:`~orpheus.geometry.faces.AXIS_NAMES` — the single home of
-    that convention — and refused HERE rather than at realization, so a
-    mis-named axis cannot be constructed and then fail late somewhere
-    holding a quadrature.
+    same motion, which they do by reading it from ``mirror_motion`` rather
+    than by two resolutions agreeing. The axis letter is resolved and a
+    mis-named axis refused there, at construction.
     """
     return mirror_motion(axis, dimension)
 

@@ -48,8 +48,10 @@ from __future__ import annotations
 
 import ast
 import importlib
+import importlib.util
 import inspect
 import re
+import types
 from pathlib import Path
 from typing import Any
 
@@ -222,9 +224,17 @@ class TestGeometryAndMeshNameNoResponse:
         require(findings == [], "geometry and mesh name no response; imports found:\n  " + "\n  ".join(findings))
 
     def test_the_facade_exports_no_law(self) -> None:
-        exported = set(geometry_package.__all__) | {n for n in vars(geometry_package) if not n.startswith("_")}
-        leaked = sorted((exported & _the_response_vocabulary()) | ({"boundary"} & exported))
+        # Module objects are left out of the vars() leg: Python binds the submodule ``boundary`` on the package whenever
+        # any module imports it (this file does), which says nothing about what the facade exports.
+        bound = {n for n, v in vars(geometry_package).items() if not n.startswith("_") and not isinstance(v, types.ModuleType)}
+        exported = set(geometry_package.__all__) | bound
+        leaked = sorted((exported & _the_response_vocabulary()) | ({"boundary"} & set(geometry_package.__all__)))
         require(not leaked, f"orpheus.geometry exports the response vocabulary: {leaked}")
+
+    @pytest.mark.xfail(strict=True, reason="orpheus/geometry/boundary/ retires at WF2.4; remove this marker there")
+    def test_the_boundary_package_is_gone(self) -> None:
+        """WF2.4 row: the retired package has no module spec. Strict xfail: the row flips red-to-fail at the deletion."""
+        require(importlib.util.find_spec("orpheus.geometry.boundary") is None, "orpheus.geometry.boundary still exists")
 
     @pytest.mark.parametrize(
         "stand_in",
@@ -238,7 +248,7 @@ class TestGeometryAndMeshNameNoResponse:
         keeps an ``isinstance(..., BoundaryTraceLaw)`` arm, which a duck-typed stand-in cannot reach. These two rows
         retire with ``orpheus/geometry/boundary/`` at WF2.4; the stand-in rows stay.
         """
-        built = StructuredGeometry(coord=_CART, breakpoints=(0.0, 1.0), mat_ids=(0,), face_roles=(0, 1))  # type: ignore[call-arg]
+        built = StructuredGeometry(coord=_CART, breakpoints=(0.0, 1.0), mat_ids=(0,), face_roles=(0, 1))
         require(built.face_roles == (0, 1), f"the control builds: {built.face_roles!r}")
         with pytest.raises(TypeError, match=re.escape(repr(stand_in))):
             StructuredGeometry(coord=_CART, breakpoints=(0.0, 1.0), mat_ids=(0,), face_roles=(stand_in, 1))  # type: ignore[call-arg]

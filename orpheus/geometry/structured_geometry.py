@@ -115,8 +115,8 @@ from orpheus.values.content import ContentIdentity
 from .coord import CoordSystem
 from orpheus.values.scalars import parse_entries, parse_integer, parse_positions, parse_positive_real, parse_real
 from .colouring import ColouringSymmetry, colouring_symmetry
-from .deck import DeckTransformation, FaceRole, MirrorDeck, parse_face_roles
-from .faces import face_name
+from .deck import FaceRole, MirrorDeck, parse_face_roles, tags_of
+from .faces import face_inventory, face_name, why_faces_differ
 
 
 @dataclass(frozen=True, kw_only=True, eq=False)
@@ -152,12 +152,12 @@ class StructuredGeometry(ContentIdentity):
         :class:`~orpheus.geometry.deck.DeckError`, and a translation needs a
         translation on the opposite face. ``None`` is not a role.
 
-        Notes
+    Notes
     -----
     **What is not here.** No cell counts and no discretisation rule (the
     mesh layer's); no critical dimension (a registry's truth record); no
     group count (the materials'); no infinite medium (a problem with no
-    geometry, or a finite domain with reflective laws).
+    geometry, or a finite domain with mirror decks).
 
     **The geometry names no response.** A tag says which faces share an
     exterior model and never what the model is; a binding, supplied where
@@ -192,7 +192,7 @@ class StructuredGeometry(ContentIdentity):
 
         The one place the centre's role is decided: on a solid cylinder
         or sphere (:math:`r_0 = 0`) the centre is an interior point of the
-        region and carries no law; a hollow one has an inner surface. A
+        region and carries no role; a hollow one has an inner surface. A
         slab has no centre and is never hollow.
         """
         return _is_hollow(self.coord, self.breakpoints)
@@ -210,7 +210,7 @@ class StructuredGeometry(ContentIdentity):
     @property
     def tags(self) -> frozenset[int]:
         r"""The tags its faces carry (the decks excluded)."""
-        return frozenset(role for role in self.face_roles if not isinstance(role, DeckTransformation))
+        return tags_of(self.face_roles)
 
     @property
     def symmetry(self) -> ColouringSymmetry:
@@ -541,22 +541,15 @@ def _parse_face_roles(geometry: StructuredGeometry) -> tuple[FaceRole, ...]:
     where = "StructuredGeometry.face_roles"
     roles = parse_entries(geometry.face_roles, where, "face roles")
     points = geometry.boundary_points
-    if len(roles) != len(points):
-        if geometry.coord is CoordSystem.CARTESIAN:
-            reason = "a slab has two boundary points (left, right)"
-        elif len(points) == 1:
-            reason = (
-                f"the centre r = 0 of a solid {geometry.coord.name.lower()} body is an "
-                f"interior point and carries no role; the only boundary point is "
-                f"the outer surface"
-            )
-        else:
-            reason = (
-                f"a hollow {geometry.coord.name.lower()} body (r_0 = {points[0]!r} > 0) "
-                f"has an inner surface, which needs its own role"
-            )
-        raise ValueError(f"{where}: {reason}; expected {len(points)} role(s) at r = {points}, got {len(roles)}.")
-    faces = tuple(face_name(0, sign) for sign in (-1, +1))[-len(points):]
+    faces = face_inventory(geometry.coord, geometry.breakpoints, 1)
+    if len(roles) != len(faces):
+        # The names a declaration of this many roles would carry: the last ones of (xmin, xmax), as the mesh reads them.
+        given = (face_name(0, -1), face_name(0, +1))[-len(roles):] if roles else ()
+        reason = why_faces_differ(geometry.coord, faces, given) or (
+            " (a slab has two boundary points (left, right))" if geometry.coord is CoordSystem.CARTESIAN
+            else f" (a {geometry.coord.name.lower()} body has {len(faces)} boundary faces)"
+        )
+        raise ValueError(f"{where}: {reason.strip()}; expected {len(points)} role(s) at r = {points}, got {len(roles)}.")
     return tuple(parse_face_roles(dict(zip(faces, roles, strict=True)), geometry.coord, where).values())
 
 

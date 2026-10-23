@@ -53,7 +53,7 @@ class Entry:
     ``fields_are_parts``: the part names must equal the ``compare=True``
     dataclass fields (S5.3's quantification over ``dataclasses.fields``);
     False for a type whose content is not its field list: a
-    ``content_parts()`` override (``FrozenMapping`` and so ``FaceLaws``) or
+    ``content_parts()`` override (``FrozenMapping`` and so ``FaceRoles``) or
     derived fields declared ``compare=False`` (``Mesh1D``'s ``widths``,
     ``centers``, ``areas``).
     ``content_identity``: the type carries the mixin (it has ``==`` and

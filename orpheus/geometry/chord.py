@@ -111,7 +111,7 @@ class ConcentricPartition(ContentIdentity):
         r"""The partition of a :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`.
 
         Reads its coordinate system and breakpoints only; the materials and
-        the boundary laws are the consumer's.
+        the exterior conditions are the consumer's.
         """
         return cls(Chart(geometry.coord), geometry.breakpoints, pose or RigidMotion.identity(3))
 

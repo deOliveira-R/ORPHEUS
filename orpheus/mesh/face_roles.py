@@ -25,45 +25,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-import numpy as np
 
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry.deck import DeckTransformation, FaceRole, parse_face_roles
-from orpheus.mesh.axis import FaceLabel
+from orpheus.geometry.deck import FaceRole, parse_face_roles, tags_of
+from orpheus.geometry.faces import face_inventory, why_faces_differ
 from orpheus.values.content import FrozenMapping
-
-
-def face_inventory(
-    coord: CoordSystem, first_axis_edges: np.ndarray, dimension: int,
-) -> tuple[str, ...]:
-    """The names of a mesh's boundary faces, axis by axis, inner face first."""
-    along_first = coord.boundary_points(
-        float(first_axis_edges[0]), float(first_axis_edges[-1]),
-    )
-    first = ("min", "max") if len(along_first) == 2 else ("outer",)
-    endpoints = (first,) + (("min", "max"),) * (dimension - 1)
-    return tuple(
-        FaceLabel(axis_index, endpoint).face_name
-        for axis_index, axis_endpoints in enumerate(endpoints)
-        for endpoint in axis_endpoints
-    )
-
-
-def _why(coord: CoordSystem, inventory: tuple[str, ...], given: tuple[str, ...]) -> str:
-    """The reason a declaration's faces differ from the inventory, when there is one."""
-    if coord is CoordSystem.CARTESIAN:
-        return ""
-    if "xmin" in given and "xmin" not in inventory:
-        return (
-            f" (the centre r = 0 of a solid {coord.name.lower()} body is an "
-            f"interior point and carries no role)"
-        )
-    if "xmin" in inventory and "xmin" not in given:
-        return (
-            f" (a hollow {coord.name.lower()} body has an inner surface, "
-            f"which needs its own role)"
-        )
-    return ""
 
 
 class FaceRoles(FrozenMapping[str, FaceRole]):
@@ -105,7 +71,7 @@ class FaceRoles(FrozenMapping[str, FaceRole]):
             raise ValueError(
                 f"{where}: this {coord.name.lower()} mesh has the boundary faces "
                 f"{inventory}, one role each; got the faces {given}"
-                + _why(coord, inventory, given)
+                + why_faces_differ(coord, inventory, given)
             )
         parsed = parse_face_roles({face: roles[face] for face in inventory}, coord, where)
         return cls(tuple(parsed.items()))
@@ -113,7 +79,7 @@ class FaceRoles(FrozenMapping[str, FaceRole]):
     @property
     def tags(self) -> frozenset[int]:
         """The tags its faces carry (the decks excluded)."""
-        return frozenset(role for role in self.values() if not isinstance(role, DeckTransformation))
+        return tags_of(self.values())
 
 
-__all__ = ["FaceRoles", "face_inventory"]
+__all__ = ["FaceRoles", "face_inventory"]  # face_inventory is the geometry's, re-exported

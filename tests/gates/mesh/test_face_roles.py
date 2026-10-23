@@ -50,7 +50,7 @@ import pytest
 import orpheus.mesh as mesh_package
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.geometry.colouring import UncomputedSymmetries, colouring_symmetry
-from orpheus.geometry.deck import DeckError, MirrorDeck, TranslationDeck
+from orpheus.geometry.deck import DeckError, MirrorDeck, TranslationDeck, tags_of
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.values.content import content_digest
 from tests.gates._content_identity_helpers import require
@@ -225,13 +225,13 @@ class TestMeshesStoreFaceRoles:
         geometry = build(breakpoints, (0, 1), **kwargs)
         mesh = Mesher(geometry).partition(CellsByCount.uniform_width(2)).mesh
         require(dict(mesh.face_roles) == expected, f"{dict(mesh.face_roles)} vs {expected}")
-        require(mesh.face_roles.tags == geometry.tags, f"mesh tags {mesh.face_roles.tags} vs geometry tags {geometry.tags}")
+        require(tags_of(mesh.face_roles.values()) == geometry.tags, f"mesh tags {tags_of(mesh.face_roles.values())} vs geometry tags {geometry.tags}")
 
     def test_the_factory_takes_one_role(self) -> None:
         from orpheus.mesh import pwr_pin_2d
 
         for role in (0, MirrorDeck(), TranslationDeck()):
-            mesh = pwr_pin_2d(role=role, n_cells=4)  # type: ignore[call-arg]
+            mesh = pwr_pin_2d(role=role, n_cells=4)
             require(dict(mesh.face_roles) == {face: role for face in ("xmin", "xmax", "ymin", "ymax")}, f"{role!r}: {dict(mesh.face_roles)}")
         with pytest.raises(TypeError, match="law"):
             pwr_pin_2d(law=0, n_cells=4)  # type: ignore[call-arg]

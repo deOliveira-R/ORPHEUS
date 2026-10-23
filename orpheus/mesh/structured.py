@@ -318,16 +318,14 @@ class Mesh1D(ContentIdentity):
     def symmetry(self) -> ColouringSymmetry:
         r"""The colouring symmetry of this mesh: the geometry's group, read from the REGIONS and the end roles.
 
-        The raw partition handed to :func:`~orpheus.geometry.colouring.colouring_symmetry` is the mesh's regions
-        (the edges where the region label changes, and the material of each run of cells), never its cell edges, so a
+        The cell edges and the material of each cell go to :func:`~orpheus.geometry.colouring.colouring_symmetry`,
+        which merges adjacent cells of one material itself; that merge, not any reading of the regions here, is why a
         mesh and the geometry it refines give one group whatever the cell partition.
         """
-        starts = np.r_[True, self.region_ids[1:] != self.region_ids[:-1]]
-        breaks = [*self.edges[:-1][starts], self.edges[-1]]
-        ids = [self.region_materials[r] for r in self.region_ids[starts]]
         roles = tuple(self.face_roles.values())
         return colouring_symmetry(
-            self.coord, (float(self.edges[0]), float(self.edges[-1])), breaks, ids, roles[0], roles[-1],
+            self.coord, (float(self.edges[0]), float(self.edges[-1])), self.edges,
+            [self.region_materials[r] for r in self.region_ids], roles[0], roles[-1],
         )
 
     @property

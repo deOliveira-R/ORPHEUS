@@ -274,7 +274,7 @@ class AxisMesh:
             object.__setattr__(
                 self, name, parse_face_role(getattr(self, name), f"AxisMesh.{name}"),
             )
-        check_pairings_close({"xmin": self.role_low, "xmax": self.role_high}, "AxisMesh.roles")
+        check_pairings_close({"xmin": self.role_low, "xmax": self.role_high}, "AxisMesh.roles (the low face is named xmin and the high face xmax whatever its label)")
 
     @property
     def coord(self) -> AxisCoord:
@@ -421,6 +421,23 @@ def face_labels(axes: tuple[Axis1D, ...]) -> tuple[FaceLabel, ...]:
         for i, axis in enumerate(axes)
         for ep in axis.endpoints
     )
+
+
+def roles_of_axes(axes: tuple[Axis1D, ...]) -> "dict[str, FaceRole]":
+    """The role of every boundary face of an axis tuple, keyed by face name, inner face first.
+
+    :func:`face_labels` names the faces that carry a trace; this adds the one role a trace inventory omits, the
+    inner tag of a hollow :class:`RadialAxisMesh` (``role_inner``, #511: the radial axis has no inner-surface
+    trace). Hollowness is read from ``role_inner is not None``, which the axis's own constructor ties to
+    ``edges[0] > 0``. The legacy adapter and the material mesh's ``face_roles`` both read their roles here.
+    """
+    roles: dict[str, FaceRole] = {}
+    for i, axis in enumerate(axes):
+        if isinstance(axis, RadialAxisMesh) and axis.role_inner is not None:
+            roles[FaceLabel(i, "min").face_name] = axis.role_inner
+        for endpoint, role in axis.roles.items():
+            roles[FaceLabel(i, endpoint).face_name] = role
+    return roles
 
 
 def face_shape(

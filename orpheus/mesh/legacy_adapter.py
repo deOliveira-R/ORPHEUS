@@ -32,7 +32,7 @@ from orpheus.mesh.axis import (
     AxisMesh,
     RadialAxisMesh,
     coord_system,
-    face_labels,
+    roles_of_axes,
     spatial_shape,
 )
 from orpheus.mesh.structured import Mesh1D, Mesh2D
@@ -128,22 +128,6 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
 # Axis-tuple → legacy-mesh ADAPTER builder (for SNProblem.from_axes)
 # ═══════════════════════════════════════════════════════════════════════
 
-def _face_roles_of_axis(ax, coord, edges):
-    """The adapter mesh's face roles: the roles the axis declares, on every face it has.
-
-    ``SNProblem.from_axes`` resolves its roles from the axes themselves; the adapter mesh only needs a declaration,
-    so it carries the axis's declared roles. A hollow radial axis holds its inner tag as ``role_inner`` (the radial
-    axis has no inner-surface trace, #511, so the trace inventory does not list it) and the adapter carries it
-    across; it synthesizes no cavity.
-    """
-    if isinstance(ax, AxisMesh):
-        return {"xmin": ax.role_low, "xmax": ax.role_high}
-    points = coord.boundary_points(float(edges[0]), float(edges[-1]))
-    if len(points) == 2:
-        return {"xmin": ax.role_inner, "xmax": ax.role_outer}
-    return {"xmax": ax.role_outer}
-
-
 def legacy_mesh_from_axes(
     axes: tuple[Axis1D, ...],
     mat_map: np.ndarray | None = None,
@@ -199,7 +183,7 @@ def legacy_mesh_from_axes(
             volumes=coord.measure(edges),
             region_ids=np.cumsum(run_starts) - 1,
             region_materials=tuple(materials[run_starts].tolist()),
-            face_roles=_face_roles_of_axis(ax, coord, edges),
+            face_roles=roles_of_axes(axes),
         )
 
     if len(axes) == 2:
@@ -211,10 +195,7 @@ def legacy_mesh_from_axes(
             )
         return Mesh2D(
             ax0.edges, ax1.edges, mat_map,
-            face_roles={
-                label.face_name: axes[label.axis_index].roles[label.endpoint]
-                for label in face_labels(axes)
-            },
+            face_roles=roles_of_axes(axes),
             coord=CoordSystem.CARTESIAN,
         )
 
