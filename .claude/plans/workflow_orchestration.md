@@ -105,5 +105,14 @@ Mechanics: S1 runs `build-units` with no `worktree`, which makes the branch's wo
 **WF2.2, the three leaves (2026-10-23).** `[M]` run `wf_cfc7e8c5-7cd`: 18 agents (3 units × gates, build, qa, elegance, amend, verify), 0 errors, about 3.1 M sub-agent tokens, 78 min wall clock.
 - Caught by the reviews before integration, each confirmed by a mutation that was green before the amendment and red after: 5 medium-or-high defects in L1 (an unpinned mirror position, a second spelling of the partition's ends, an unparsed partition, a pairing law checked on the linear part only, the union re-spelled at three sites), 3 in L4 (a dropped folded-rule diagnosis, a widened field type, two guards hiding each other), 3 in L5 (a dropped pinned message fragment, an owned-once gate counting one of two fragments, an untagged scope boundary).
 - Left for the orchestrator: 1 residual a verifier flagged (a pairing between distinct faces by a non-translation was still admitted), ruled and fixed at integration (`f6690aeb`); 2 file-set deviations (accepted, `wave2_boundary_carve.md` section 11); 6 riders handed to later slices.
-- Reached integration: none found by the bar so far. Integration needed no conflict resolution (three file-disjoint branches). The full bar on `refactor/wave2-leaves`: Sphinx `-W` clean, pyright 0 errors, `dead_references` 0 of 68 (the graph indexes the new modules); the suite is running.
+- Reached integration: 2 defects, both from L4, both in tree-wide ledgers that no unit's targeted run reached.
+  - `numerics/tangential.py` had no rank in `test_concept_order`.
+  - The `_mirror_axis` SCOPE-BOUNDARY[guard] had no ruling or revisit within the ledger's three-line window.
+
+  The full suite `[M]` (`-m "not slow"`, 72 min) read 4 failed of 19 263, from these two defects. They were fixed in `7c09981a`.
+  - Integration needed no conflict resolution: the three branches touch disjoint files.
+  - The rest of the bar was clean: Sphinx `-W`, pyright with 0 errors, and `dead_references` 0 of 68.
+  - CI was green on `main` `da3c629f`.
+  - The template now puts seven ledgers (about 45 s) into every unit's targeted set.
+  - The trial count: 13 defects caught before `main` (11 by the reviews, 2 at integration). None is known to have reached `main`.
 - Template defects found by running it: the units cannot rename a branch or commit with the hook from a `cd`'d shell (they used `git -C`); the review diff was hard-coded against `main` (now `args.base`).
