@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19737**
+Total tests collected: **19856**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1913, 9.7%
-   L1, 2762, 14.0%
+   L0, 1913, 9.6%
+   L1, 2768, 13.9%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14934, 75.7%
+   foundation, 15047, 75.8%
    unmarked, 43, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19615
+   explicit, 19734
    class-name, 46
    func-name, 0
    case, 33
@@ -318,7 +318,9 @@ Module × level grid
    geometry/test_chord_level, 0, 0, 0, 0, 47, 0
    geometry/test_chord_refinement, 0, 0, 0, 0, 12, 0
    geometry/test_chord_transits, 88, 0, 0, 0, 1, 0
-   geometry/test_content_identity_geometry, 0, 0, 0, 0, 135, 0
+   geometry/test_colouring_symmetry, 0, 0, 0, 0, 22, 0
+   geometry/test_content_identity_geometry, 0, 0, 0, 0, 158, 0
+   geometry/test_deck, 0, 0, 0, 0, 7, 0
    geometry/test_deck_laws_do_not_compose, 0, 0, 0, 0, 217, 0
    geometry/test_geometry, 0, 0, 0, 0, 50, 0
    geometry/test_geometry_extent, 0, 0, 0, 0, 8, 0
@@ -400,7 +402,7 @@ Module × level grid
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_adjointability_is_honest, 0, 0, 0, 0, 66, 0
    numerics/test_advertised_degree_is_measured, 0, 0, 0, 0, 41, 0
-   numerics/test_angular_face_trace_space, 0, 0, 0, 0, 131, 0
+   numerics/test_angular_face_trace_space, 0, 0, 0, 0, 132, 0
    numerics/test_angular_symmetry, 0, 0, 0, 0, 42, 0
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
@@ -466,6 +468,7 @@ Module × level grid
    numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 27, 0
    numerics/test_operator_protocols, 0, 0, 0, 0, 16, 0
+   numerics/test_ordinate_pairing, 0, 6, 0, 0, 19, 0
    numerics/test_outcome, 0, 0, 0, 0, 18, 0
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
    numerics/test_pencil, 0, 0, 0, 0, 26, 0
@@ -651,7 +654,8 @@ Module × level grid
    spatial/test_moment_axis_predicates, 0, 0, 0, 0, 6, 0
    spatial/test_no_angular_closure_twin, 0, 0, 0, 0, 1, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
-   specification/test_content_identity_specification, 0, 0, 0, 0, 47, 0
+   specification/test_content_identity_specification, 0, 0, 0, 0, 55, 0
+   specification/test_exterior, 0, 0, 0, 0, 28, 0
    specification/test_specification, 0, 0, 0, 0, 98, 0
    specification/test_specification_assembly, 0, 3, 0, 0, 0, 0
    specification/test_specification_layer, 0, 0, 0, 0, 2, 0
@@ -666,7 +670,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 525, 0
+   test_layer_imports, 0, 0, 0, 0, 530, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0

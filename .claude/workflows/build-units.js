@@ -19,11 +19,13 @@ export const meta = {
 //   units: [{ key, branch, brief, gates?: '<gate spec, if the test-architect already wrote it>',
 //             worktree?: '<abs path of an EXISTING worktree to continue in (sequential slices on one branch); no new worktree is made>' }],
 //   skip_gates?: false,                     // true when every unit's brief carries its gates
+//   base?: 'main',                          // the ref a unit's diff is read against (a slice built on an unmerged base names it)
 // }
 const A = args || {}
 if (!A.units || !A.units.length) throw new Error('build-units: args.units is empty')
 const MAIN = A.main
 const PY = `${MAIN}/.venv/bin/python`
+const BASE = A.base || 'main'
 
 const RULES = `
 ${A.rules || ''}
@@ -85,7 +87,7 @@ const results = await pipeline(
     if (!A.skip_gates && (!gate || !gate.worktree)) return { unit: u.key, gate, built: null }
     const where = gate ? `Work in the existing worktree ${gate.worktree} (cd there first), on branch ${gate.branch}, where the test-architect committed the gates (${gate.commits.join(', ')}); its report:\n${gate.report}` : (u.worktree ? into : `You are in a fresh worktree; rename its branch to ${u.branch}.`)
     const built = await agent(
-      `${head(u, 'Build')} You are the implementer. ${where}\n\nTurn the gates green by making the change below, with no shim and no residue; do not weaken a gate (if one is wrong, say so in NEEDS and leave it red).\n\nThe unit:\n${u.brief}\n${RULES}\nReturn at most 500 words through the schema: commits (\`git log --oneline main..HEAD\`), what changed where, each gate red-then-green with its command, the tests run with counts, the residue census (instrument, population, control), what you did not do and why.`,
+      `${head(u, 'Build')} You are the implementer. ${where}\n\nTurn the gates green by making the change below, with no shim and no residue; do not weaken a gate (if one is wrong, say so in NEEDS and leave it red).\n\nThe unit:\n${u.brief}\n${RULES}\nReturn at most 500 words through the schema: commits (\`git log --oneline ${BASE}..HEAD\`), what changed where, each gate red-then-green with its command, the tests run with counts, the residue census (instrument, population, control), what you did not do and why.`,
       gate ? { label: `build:${u.key}`, phase: 'Build', model: 'sonnet', schema: BUILT }
            : { label: `build:${u.key}`, phase: 'Build', ...fresh, model: 'sonnet', schema: BUILT },
     )
@@ -94,7 +96,7 @@ const results = await pipeline(
   // Review: two reviewers, independent, read-only on a copy.
   async (r, u) => {
     if (!r.built || !r.built.commits || !r.built.commits.length) return { ...r, reviews: [] }
-    const ctx = `${head(u, 'Review')} The unit was built in worktree ${r.built.worktree}, branch ${r.built.branch}; review \`git -C ${r.built.worktree} diff main...${r.built.branch}\`. The unit:\n${u.brief}\n\nThe gates' report:\n${r.gate ? r.gate.report : '(gates in the brief)'}\n\nThe implementer's report:\n${r.built.report}\n\nREAD-ONLY: mutate only a copy (\`cp -a\` to a temp dir), print orpheus.__file__ before any probe, targeted tests only with PYTHONPATH set to the copy. First pass adversarial: how would I break this; how would I make it 100x better. Return through the schema, at most 500 words; each finding with file:line, evidence ([M] with the command) and a concrete fix; rejected candidates with one-line reasons.`
+    const ctx = `${head(u, 'Review')} The unit was built in worktree ${r.built.worktree}, branch ${r.built.branch}; review \`git -C ${r.built.worktree} diff ${BASE}...${r.built.branch}\`. The unit:\n${u.brief}\n\nThe gates' report:\n${r.gate ? r.gate.report : '(gates in the brief)'}\n\nThe implementer's report:\n${r.built.report}\n\nREAD-ONLY: mutate only a copy (\`cp -a\` to a temp dir), print orpheus.__file__ before any probe, targeted tests only with PYTHONPATH set to the copy. First pass adversarial: how would I break this; how would I make it 100x better. Return through the schema, at most 500 words; each finding with file:line, evidence ([M] with the command) and a concrete fix; rejected candidates with one-line reasons.`
     const reviews = await parallel([
       () => agent(`${ctx}\nYour lens (qa): residue the change missed (every spelling class in the rules), whether each gate truly reddens (mutate in the copy), a surviving gate made vacuous or demoted (retirement-audit D.14-D.16), behaviour preserved (digests, memo, layer census), present-tense prose made false.`, { label: `qa:${u.key}`, phase: 'Review', model: 'opus', agentType: 'qa', schema: FINDINGS }),
       () => agent(`${ctx}\nYour lens (coding-elegance): each object in its right place with its right shape; twin paths; a repeated conditional that is a missing type; stringly-typed dispatch; an illegal state still representable; names; the code read aloud against the mathematics.`, { label: `elegance:${u.key}`, phase: 'Review', model: 'opus', agentType: 'elegance-enforcer', schema: FINDINGS }),
