@@ -22,8 +22,9 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.geometry.boundary import (
+    BC,
     AlbedoBoundary,
     ConstantInflowSource,
     IsotropicReturn,
@@ -72,10 +73,10 @@ def _bc() -> BC:
 
 
 def _geometry(**over) -> StructuredGeometry:
-    """A hollow sphere, two intervals, a typed inner law and a ``BC`` outer law."""
+    """A hollow sphere, two intervals, the tags 1 (inner) and 0 (outer)."""
     kw = dict(
         coord=_SPH, breakpoints=(0.5, 1.0, 2.0), mat_ids=(0, 1),
-        boundaries=(AlbedoBoundary(0.3), BC.vacuum),
+        face_roles=(1, 0),
     )
     kw.update(over)
     return StructuredGeometry(**kw)  # type: ignore[arg-type]  # kwargs assembled for the perturbation table
@@ -208,7 +209,7 @@ _CONSTANT_SOURCE = Entry(
 
 _GEOMETRY = Entry(
     cls=StructuredGeometry, base=_geometry,
-    parts=("coord", "breakpoints", "mat_ids", "boundaries"),
+    parts=("coord", "breakpoints", "mat_ids", "face_roles"),
     perturb={
         "coord": (leg("cylinder", lambda: _geometry(coord=_CYL)),),
         "breakpoints": (
@@ -216,16 +217,16 @@ _GEOMETRY = Entry(
             leg("the outer breakpoint one ulp", lambda: _geometry(breakpoints=(0.5, 1.0, float(np.nextafter(2.0, 3.0))))),
         ),
         "mat_ids": (leg("a material id", lambda: _geometry(mat_ids=(0, 2))),),
-        "boundaries": (
-            leg("the inner law", lambda: _geometry(boundaries=(AlbedoBoundary(0.4), BC.vacuum))),
-            leg("the outer tag vs its typed law", lambda: _geometry(boundaries=(AlbedoBoundary(0.3), VacuumInflow()))),
+        "face_roles": (
+            leg("the inner tag", lambda: _geometry(face_roles=(2, 0))),
+            leg("the outer tag", lambda: _geometry(face_roles=(1, 3))),
+            leg("the tags swapped between the faces", lambda: _geometry(face_roles=(0, 1))),
         ),
     },
     pairs=(
         ("two builds", _geometry, _geometry),
         ("int breakpoints", _geometry, lambda: _geometry(breakpoints=(0.5, 1, 2))),
-        ("a BC built, not the constant", _geometry,
-         lambda: _geometry(boundaries=(AlbedoBoundary(0.3), BC("vacuum")))),
+        ("a numpy-integer tag vs an int tag", _geometry, lambda: _geometry(face_roles=(np.int64(1), np.int64(0)))),
     ),
 )
 
@@ -557,18 +558,6 @@ class TestS55ContentlessLaw:
         require(not (law == other), "two laws over one contentless source are two values")
         require(law != other, "!= agrees")
         require(not (law == PrescribedInflow(NoSource())), "nor equal to a content law")
-
-    def test_it_propagates_to_a_geometry(self, make_source, fragment: str) -> None:
-        """A geometry holding the law inherits the refusal, with the path."""
-        geometry = StructuredGeometry(
-            coord=CoordSystem.CARTESIAN, breakpoints=(0.0, 1.0), mat_ids=(0,),
-            boundaries=(PrescribedInflow(make_source()), BC.vacuum),
-        )
-        with pytest.raises(ContentlessError, match=r"boundaries"):
-            content_digest(geometry)
-        with pytest.raises(TypeError, match="unhashable"):
-            hash(geometry)
-        require(geometry == geometry, "reflexive")
 
 
 @pytest.mark.rests_on(f"{_HERE}::test_s5_3_population")

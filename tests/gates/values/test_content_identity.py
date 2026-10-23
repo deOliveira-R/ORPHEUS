@@ -84,8 +84,8 @@ _SEED_SCRIPT = textwrap.dedent(
     import orpheus
     from orpheus.data.materials import Materials
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-    from orpheus.geometry.boundary import AlbedoBoundary, IsotropicReturn
+    from orpheus.geometry import CoordSystem, StructuredGeometry
+    from orpheus.geometry.boundary import BC
     from orpheus.mesh import Mesh2D
     from orpheus.numerics.axis import EnergyAxis
     from orpheus.values.content import content_digest
@@ -103,10 +103,9 @@ _SEED_SCRIPT = textwrap.dedent(
         "bc albedo": BC("albedo", {"albedo": 0.3}),
         "hollow sphere": StructuredGeometry(
             coord=CoordSystem.SPHERICAL, breakpoints=(0.5, 1.0, 2.0), mat_ids=(0, 1),
-            boundaries=(AlbedoBoundary(0.3, IsotropicReturn("x", -1)), BC.vacuum)),
+            face_roles=(1, 0)),
         "mesh2d": Mesh2D(np.array([0.0, 1.0, 2.0]), np.array([0.0, 1.0]), np.array([[0], [1]]),
-            face_laws={"xmin": BC.reflective, "xmax": BC.vacuum,
-                       "ymin": BC.reflective, "ymax": BC.vacuum}),
+            face_roles={"xmin": 0, "xmax": 1, "ymin": 0, "ymax": 1}),
     }
     for name, value in values.items():
         print("DIGEST", name, content_digest(value).hex())
@@ -580,14 +579,13 @@ _PINNED: dict[str, str] = {
 def _fingerprint_values() -> dict[str, object]:
     from orpheus.data.materials import Materials
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-    from orpheus.geometry.boundary import AlbedoBoundary, SpecularReturn
+    from orpheus.geometry import CoordSystem, StructuredGeometry
 
     return {
         "mixture A 2g": get_mixture("A", "2g"),
         "hollow sphere, three intervals": StructuredGeometry(
             coord=CoordSystem.SPHERICAL, breakpoints=(0.25, 0.5, 1.0, 2.0), mat_ids=(0, 1, 0),
-            boundaries=(AlbedoBoundary(0.5, SpecularReturn("x")), BC.vacuum)),
+            face_roles=(1, 0)),
         "materials of two mixtures": Materials({0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}),
     }
 

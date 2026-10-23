@@ -45,13 +45,21 @@ from typing import Any, get_args
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry import CoordSystem
 from orpheus.geometry.faces import FACE_NAMES, face_normal, face_opposite
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.values.content import content_digest
 from tests.gates._content_identity_helpers import require
 
 pytestmark = pytest.mark.foundation
+
+
+class _LawShaped:
+    """A stand-in for a response declaration (the retired ``BC`` surface): a ``kind`` and ``params``, not a deck."""
+
+    kind = "reflective"
+    params: dict[str, float] = {}
+
 
 _HERE = "tests/gates/geometry/test_deck.py"
 _REFLECTION_IS_AN_INVOLUTION = "tests/gates/geometry/test_transformation.py::test_c1_a_reflection_is_an_involution"
@@ -270,7 +278,7 @@ def test_parse_face_role() -> None:
         ("True", True),
         ("False", False),
         ("np.bool_", np.True_),
-        ("a BC", BC("reflective")),
+        ("a law-shaped value (kind and params, not a deck)", _LawShaped()),
         ("a BC-like object", SimpleNamespace(kind="reflective")),
         ("the string reflective", "reflective"),
         ("None", None),
