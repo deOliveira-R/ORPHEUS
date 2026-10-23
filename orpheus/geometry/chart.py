@@ -595,8 +595,30 @@ def _sine(cosine: np.ndarray) -> np.ndarray:
     return np.sqrt(np.clip((1.0 - cosine) * (1.0 + cosine), 0.0, None))
 
 
-#: How far, in ulp of :math:`r_*^2`, a line's level may sit from its impact parameter (:meth:`RadialImage.at_level`).
-_LEVEL_AGREEMENT = 64.0
+#: The geometry-wide coordinate-agreement convention: two coordinates of one geometry AGREE when they differ by at
+#: most this many ulp at the scale of the quantity they are compared at (:func:`coordinates_agree`). ONE constant
+#: with two readers and two scales, never two tolerances sharing a name:
+#:
+#: * the chord check (:meth:`RadialImage.at_level`), at the scale :math:`\max(r_*^2, r_{\rm c}^2)`; measured
+#:   agreement 8 ulp over about 400 000 lines (2026-10-08), 75 to 100 ulp in a recorded red when held to the wrong
+#:   level (2026-10-13), see that method's docstring;
+#: * the colouring rule (:func:`orpheus.geometry.colouring.colouring_symmetry`), at the scale
+#:   :math:`\max(|b_0|, |b_n|)`; the genuine ceiling of the mirror error of an exactly symmetric slab is 3.0 ulp
+#:   at that scale (200 000 random slabs), the smallest real asymmetry of the battery 4.5e7 ulp above it
+#:   (``measure_float_rule.md``).
+#:
+#: Re-measuring either re-runs both gates. A change that wants another tolerance at one reader changes the
+#: convention or passes another scale; it never forks the constant.
+COORDINATE_AGREEMENT_ULPS = 64.0
+
+
+def coordinates_agree(a: np.ndarray | float, b: np.ndarray | float, *, scale: np.ndarray | float) -> np.ndarray | np.bool_:
+    r""":math:`|a - b| \le 64\,\mathrm{ulp}(\text{scale})`, elementwise: do two coordinates of one geometry agree.
+
+    ``scale`` is the magnitude of the quantity the two are compared at (an array broadcasts against ``a`` and
+    ``b``); the tolerance is :data:`COORDINATE_AGREEMENT_ULPS` times ``np.spacing(scale)``. The edge agrees (``<=``).
+    """
+    return np.abs(a - b) <= COORDINATE_AGREEMENT_ULPS * np.spacing(scale)
 
 
 def half_chord(
@@ -669,7 +691,7 @@ class RadialImage:
 
         The pair and the line's current level describe one line, so they are
         held to agree: :math:`|r_*^2 - y_*^2 - (r_{\rm c}^2 - y_{\rm c}^2)|`
-        at most :data:`_LEVEL_AGREEMENT` ulp of the larger of :math:`r_*^2`
+        at most :data:`COORDINATE_AGREEMENT_ULPS` ulp of the larger of :math:`r_*^2`
         and :math:`r_{\rm c}^2`, with :math:`(r_{\rm c}, y_{\rm c})` the
         current level, the squares compared because recomputing :math:`b`
         from a pair amplifies its rounding by :math:`r_*/b`. The default level
@@ -693,7 +715,7 @@ class RadialImage:
         half_chord = np.broadcast_to(half_chord, self.impact_parameter.shape).copy()
         current = (self.level - self.level_half_chord) * (self.level + self.level_half_chord)          # b^2, as the level holds it
         scale = np.maximum(radius * radius, self.level * self.level)
-        if np.any(np.abs((radius - half_chord) * (radius + half_chord) - current) > _LEVEL_AGREEMENT * np.spacing(scale)):
+        if not np.all(coordinates_agree((radius - half_chord) * (radius + half_chord), current, scale=scale)):
             raise ValueError("a line's level disagrees with its impact parameter: r*^2 - y*^2 is not b^2")
         return replace(self, level=radius, level_half_chord=half_chord)
 

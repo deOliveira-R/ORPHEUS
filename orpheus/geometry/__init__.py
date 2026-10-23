@@ -16,6 +16,9 @@
 * :mod:`~orpheus.geometry.manifold`: the point sets the groups act on (the
   :class:`~orpheus.geometry.manifold.Manifold` closed sum, its G-spaces and
   orbit spaces), which numerics' measures are supported on.
+* :mod:`~orpheus.geometry.deck`: the decks (how a domain continues across a face), a closed sum of
+  :class:`MirrorDeck` and :class:`TranslationDeck`; :mod:`~orpheus.geometry.colouring`: the stabiliser of a
+  layered geometry's fundamental domain.
 * :mod:`~orpheus.geometry.faces`: the axis letters and the boundary-face
   naming bijection.
 
@@ -31,6 +34,22 @@ a :class:`~orpheus.mesh.mesher.Mesher` discretises a
 
 from .boundary import BC
 from .extent import GeometryExtent
+from .colouring import ColouringSymmetry, FaceIsometry, Symmetries, UncomputedSymmetries, colouring_symmetry
+from .deck import (
+    DeckError,
+    DeckTransformation,
+    FacePairing,
+    FaceRole,
+    IsometryClass,
+    MirrorDeck,
+    TranslationDeck,
+    admitted_decks,
+    check_pairings_close,
+    mirror_motion,
+    pairing_of,
+    parse_face_role,
+    translation_motion,
+)
 from .coord import AngularChart, CoordSystem, MeasureCoordinate, compute_areas_1d, compute_volumes_1d, compute_volumes_2d
 from .structured_geometry import StructuredGeometry
 from .transformation import (
@@ -44,14 +63,32 @@ __all__ = [
     "GeometryExtent",
     "AngularChart",
     "BC",
+    "ColouringSymmetry",
     "CoordSystem",
+    "DeckError",
+    "DeckTransformation",
+    "FaceIsometry",
+    "FacePairing",
+    "FaceRole",
+    "IsometryClass",
+    "MirrorDeck",
+    "Symmetries",
+    "TranslationDeck",
+    "UncomputedSymmetries",
     "MeasureCoordinate",
     "NotAFinitePointGroupError",
     "Permutation",
     "RigidMotion",
     "StructuredGeometry",
+    "admitted_decks",
+    "check_pairings_close",
     "close_group",
+    "colouring_symmetry",
     "compute_areas_1d",
     "compute_volumes_1d",
     "compute_volumes_2d",
+    "mirror_motion",
+    "pairing_of",
+    "parse_face_role",
+    "translation_motion",
 ]
