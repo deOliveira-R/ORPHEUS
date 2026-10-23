@@ -752,7 +752,7 @@ _CLOSED_REFERENCE_ROOTS: tuple[str, ...] = ("derivations/continuous/", "derivati
 REFERENCE_FORBIDDEN_PACKAGES: frozenset[str] = MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES
 
 # Exempt by name, with the reason (the user's rulings on the gate's scope,
-# 2026-10-06): the SN MMS harness poses a production method, so its subject is
+# 2026-10-06): the SN MMS harness poses production meshes, so its subject is
 # a production object and it follows production's changes by nature. (The Sood
 # registry's builder module, exempt until layer DAG P4 of 2026-10-22, was
 # deleted with its entry. The MoC MMS module, exempt until layer DAG P4b of
@@ -780,7 +780,7 @@ def _imported_targets(rel_path: pathlib.PurePosixPath, src: str) -> list[str]:
             module = _absolute_module(rel_path, node)
             if not module:
                 continue
-            if module in ("orpheus", "orpheus.numerics"):
+            if module in ("orpheus", "orpheus.numerics", "orpheus.geometry"):
                 targets.extend(f"{module}.{alias.name}" for alias in node.names)
             else:
                 targets.append(module)
@@ -816,6 +816,15 @@ def _dynamic_imports(src: str) -> list[str]:
     return names
 
 
+#: The geometric mathematics that left numerics at layer DAG WP-B (2026-10-22). A move
+#: must not widen what a closed reference may import: under the ruling of 2026-10-06
+#: these were numerics mathematics a reference does not import, so they stay refused
+#: as geometry modules. A reference keeps importing the geometry's input vocabulary.
+REFERENCE_FORBIDDEN_GEOMETRY: frozenset[str] = frozenset(
+    {"orpheus.geometry.symmetry", "orpheus.geometry.manifold", "orpheus.geometry.roots_of_unity"}
+)
+
+
 def _reference_insulation_violations(
     rel: pathlib.PurePosixPath, src: str, exempt: frozenset[str] | None = None,
 ) -> list[str]:
@@ -837,6 +846,12 @@ def _reference_insulation_violations(
             violations.append(
                 f"{rel} imports {module_name} (a closed reference never imports production "
                 f"machinery: {sorted(REFERENCE_FORBIDDEN_PACKAGES)})"
+            )
+            continue
+        if any(module_name == m or module_name.startswith(m + ".") for m in REFERENCE_FORBIDDEN_GEOMETRY):
+            violations.append(
+                f"{rel} imports {module_name} (a closed reference does not import the geometric "
+                f"mathematics that left numerics at layer DAG WP-B: {sorted(REFERENCE_FORBIDDEN_GEOMETRY)})"
             )
             continue
         submodule = _numerics_submodule(module_name)
@@ -912,6 +927,22 @@ def test_reference_insulation_refuses_each_import_shape(rel: str, source: str) -
 def test_reference_insulation_refuses_production_machinery(rel: str, source: str) -> None:
     violations = _reference_insulation_violations(pathlib.PurePosixPath(rel), source)
     assert len(violations) == 1 and "never imports production machinery" in violations[0], violations
+
+
+_INSULATION_REFUSED_GEOMETRY_LEGS = [
+    ("derivations/common/x.py", "from orpheus.geometry.symmetry import SubgroupOfO3\n"),
+    ("derivations/continuous/x/y.py", "from orpheus.geometry.manifold import SPHERE\n"),
+    ("derivations/common/x.py", "def f():\n    from orpheus.geometry.roots_of_unity import roots_of_unity\n"),
+    ("derivations/common/x.py", "from orpheus.geometry import symmetry\n"),
+    ("derivations/common/x.py", "import importlib\nm = importlib.import_module('orpheus.geometry.manifold')\n"),
+]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("rel", "source"), _INSULATION_REFUSED_GEOMETRY_LEGS)
+def test_reference_insulation_refuses_the_geometry_that_left_numerics(rel: str, source: str) -> None:
+    violations = _reference_insulation_violations(pathlib.PurePosixPath(rel), source)
+    assert len(violations) == 1 and "left numerics at layer DAG WP-B" in violations[0], violations
 
 
 @pytest.mark.foundation

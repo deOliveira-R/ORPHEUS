@@ -41,7 +41,7 @@ Why the split: judgement is where a stronger model's independence pays (an adver
 Each template's `args` carry the units or sections, their briefs, the shared rules block, and the output directory. The scripts are reviewed by the orchestrator before their first use, and their `meta.description` states the stages.
 
 **Invocation.** `Workflow({scriptPath: "<abs>/.claude/workflows/<template>.js", args: {...}})`, with `args` as a JSON object, not a string.
-- `[M]` 2026-10-22: by name, `Workflow({name: "design-panel"})` answered "not found. Available: deep-research" in the session that wrote the files. The name registry is probably read at session start; that is unverified, so check it next session.
+- `[M]` 2026-10-22: by name, `Workflow({name: "design-panel"})` first answered "not found. Available: deep-research". About an hour later, in the same session, the four templates appeared in the harness's list of available skills by name. So the registry picks the directory up with a delay; prefer `scriptPath` the first time.
 - `[M]` By `scriptPath`, the template ran, and `design-panel` with `angles: []` raised its own guard with 0 agents spawned.
 - `[M]` The per-agent model overrides work inside a workflow, AND they win over an agent type's own `model:` frontmatter:
   - bare agents returned "Fable 5.1" for `model: 'fable'` and "Sonnet 5.5" for `model: 'sonnet'`;
