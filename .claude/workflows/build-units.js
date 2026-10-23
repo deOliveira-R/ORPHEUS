@@ -1,13 +1,13 @@
 export const meta = {
   name: 'build-units',
-  description: 'Per unit, in its own worktree: Sonnet gates (red) then build, Fable qa + elegance in parallel, Sonnet amend, Fable verify',
+  description: 'Per unit, in its own worktree: Sonnet gates (red) then build, Opus qa + elegance in parallel, Sonnet amend, Opus verify',
   whenToUse: 'Additive or file-disjoint units of a planned change, built in parallel (layer DAG waves; any build-review-amend fan-out). Plan: .claude/plans/workflow_orchestration.md',
   phases: [
     { title: 'Gates', detail: 'executor test-architect writes the done-when gates, red at the base tip', model: 'sonnet' },
     { title: 'Build', detail: 'executor implementer turns the gates green', model: 'sonnet' },
-    { title: 'Review', detail: 'advisor qa and elegance-enforcer in parallel', model: 'fable' },
+    { title: 'Review', detail: 'reviewer qa and elegance-enforcer in parallel', model: 'opus' },
     { title: 'Amend', detail: 'executor applies the inline-fixable findings', model: 'sonnet' },
-    { title: 'Verify', detail: 'advisor checks each finding was answered', model: 'fable' },
+    { title: 'Verify', detail: 'reviewer checks each finding was answered', model: 'opus' },
   ],
 }
 
@@ -34,7 +34,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01BAyyA444HWpLA91BrSQ3LD
 - Tests: \`${PY} -O -m pytest -p no:cacheprovider -q --color=no <paths>\` from your worktree root, TARGETED, serially; prove the import resolves to your tree (\`${PY} -c "import orpheus; print(orpheus.__file__)"\` from the root; else set PYTHONPATH and say so). No full suite, no Sphinx, no pyright claims (vacuous in worktrees, #640): the orchestrator runs them at integration.
 - Never hand-edit generated files (CLAUDE.md, docs/theory/verification/matrix.rst, .claude/rules/*, .claude/skills/*).
-- A question the brief does not settle goes to NEEDS; do the independent work; never message the orchestrator mid-run.
+- A question the brief does not settle, or a judgement beyond your brief: ask the orchestrator (SendMessage to "main") and continue the work that does not depend on the answer, or return with it in NEEDS when nothing is independent of it. The orchestrator answers from its own context, or consults its advisor; its answer reaches you only after the workflow ends (a reply into a running workflow agent spawns a duplicate writer), so never wait for it: do the independent work, and return with NEEDS when blocked.
 - Every claim with its population and instrument; a zero only beside a positive control.`
 
 const BUILT = {
@@ -91,17 +91,17 @@ const results = await pipeline(
     )
     return { unit: u.key, gate, built }
   },
-  // Review: two advisors, independent, read-only on a copy.
+  // Review: two reviewers, independent, read-only on a copy.
   async (r, u) => {
     if (!r.built || !r.built.commits || !r.built.commits.length) return { ...r, reviews: [] }
     const ctx = `${head(u, 'Review')} The unit was built in worktree ${r.built.worktree}, branch ${r.built.branch}; review \`git -C ${r.built.worktree} diff main...${r.built.branch}\`. The unit:\n${u.brief}\n\nThe gates' report:\n${r.gate ? r.gate.report : '(gates in the brief)'}\n\nThe implementer's report:\n${r.built.report}\n\nREAD-ONLY: mutate only a copy (\`cp -a\` to a temp dir), print orpheus.__file__ before any probe, targeted tests only with PYTHONPATH set to the copy. First pass adversarial: how would I break this; how would I make it 100x better. Return through the schema, at most 500 words; each finding with file:line, evidence ([M] with the command) and a concrete fix; rejected candidates with one-line reasons.`
     const reviews = await parallel([
-      () => agent(`${ctx}\nYour lens (qa): residue the change missed (every spelling class in the rules), whether each gate truly reddens (mutate in the copy), a surviving gate made vacuous or demoted (retirement-audit D.14-D.16), behaviour preserved (digests, memo, layer census), present-tense prose made false.`, { label: `qa:${u.key}`, phase: 'Review', model: 'fable', agentType: 'qa', schema: FINDINGS }),
-      () => agent(`${ctx}\nYour lens (coding-elegance): each object in its right place with its right shape; twin paths; a repeated conditional that is a missing type; stringly-typed dispatch; an illegal state still representable; names; the code read aloud against the mathematics.`, { label: `elegance:${u.key}`, phase: 'Review', model: 'fable', agentType: 'elegance-enforcer', schema: FINDINGS }),
+      () => agent(`${ctx}\nYour lens (qa): residue the change missed (every spelling class in the rules), whether each gate truly reddens (mutate in the copy), a surviving gate made vacuous or demoted (retirement-audit D.14-D.16), behaviour preserved (digests, memo, layer census), present-tense prose made false.`, { label: `qa:${u.key}`, phase: 'Review', model: 'opus', agentType: 'qa', schema: FINDINGS }),
+      () => agent(`${ctx}\nYour lens (coding-elegance): each object in its right place with its right shape; twin paths; a repeated conditional that is a missing type; stringly-typed dispatch; an illegal state still representable; names; the code read aloud against the mathematics.`, { label: `elegance:${u.key}`, phase: 'Review', model: 'opus', agentType: 'elegance-enforcer', schema: FINDINGS }),
     ])
     return { ...r, reviews: reviews.filter(Boolean) }
   },
-  // Amend (executor) then Verify (advisor), only when a reviewer found something inline-fixable.
+  // Amend (executor) then Verify (reviewer), only when a reviewer found something inline-fixable.
   async (r, u) => {
     const todo = (r.reviews || []).flatMap((v) => v.findings || []).filter((f) => f.inline_fixable)
     if (!r.built || !todo.length) return { ...r, amended: null, verified: null }
@@ -112,7 +112,7 @@ const results = await pipeline(
     if (!amended) return { ...r, amended: null, verified: null }
     const verified = await agent(
       `${head(u, 'Verify')} READ-ONLY. In worktree ${r.built.worktree} (branch ${r.built.branch}), read the amend commit (the newest) and check, finding by finding, that each was answered: fixed as stated, fixed better, or rejected with a structural reason that holds. Findings:\n${JSON.stringify(todo, null, 1)}\n\nThe amender's report:\n${amended}\n\nReturn through the schema, at most 250 words.`,
-      { label: `verify:${u.key}`, phase: 'Verify', model: 'fable', schema: VERIFIED },
+      { label: `verify:${u.key}`, phase: 'Verify', model: 'opus', schema: VERIFIED },
     )
     return { ...r, amended, verified }
   },

@@ -1,10 +1,10 @@
 export const meta = {
   name: 'design-panel',
-  description: 'Sonnet drafts from distinct angles in parallel, then Fable attackers each read every draft; the orchestrator synthesizes',
+  description: 'Sonnet drafts from distinct angles in parallel, then Opus attackers each read every draft; the orchestrator synthesizes',
   whenToUse: 'An ontology being searched: two or more independent designs, then adversarial attacks, before the user rules. Plan: .claude/plans/workflow_orchestration.md',
   phases: [
     { title: 'Draft', detail: 'executor designers, one per angle', model: 'sonnet' },
-    { title: 'Attack', detail: 'advisor attackers, one per lens, reading every draft', model: 'fable' },
+    { title: 'Attack', detail: 'reviewer attackers, one per lens, reading every draft', model: 'opus' },
   ],
 }
 
@@ -27,7 +27,7 @@ log(`${drafts.filter(Boolean).length} of ${A.angles.length} drafts returned`)
 
 const attacks = await parallel((A.lenses || []).map((l) => () => agent(
   `Workflow: ${A.campaign}, phase Attack (${l.key}). First pass adversarial: how would I break this; how would I make it 100x better. Read every design: ${files}, and the context they cite. ${A.context}\n${READONLY}\n\nYour lens: ${l.lens}\nWhere the designs disagree, say which is right and why. Write ${A.out}/attack_${l.key}.md; return at most 400 words: findings ranked, the winner on each disagreement, the decisions that need the user, an UNEXPLORED block.`,
-  { label: `attack:${l.key}`, phase: 'Attack', model: 'fable', agentType: l.agentType },
+  { label: `attack:${l.key}`, phase: 'Attack', model: 'opus', agentType: l.agentType },
 )))
 
 return { drafts: drafts.filter(Boolean), attacks: attacks.filter(Boolean), files }

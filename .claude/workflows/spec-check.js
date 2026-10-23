@@ -1,11 +1,11 @@
 export const meta = {
   name: 'spec-check',
-  description: 'Sonnet measures the open items in parallel, a Sonnet drafter writes one specification from them, then a Fable elegance cold read and a Fable structural check',
+  description: 'Sonnet measures the open items in parallel, a Sonnet drafter writes one specification from them, then an Opus elegance cold read and an Opus structural check',
   whenToUse: 'Turning ruled design decisions into one executable specification before gates are written. Plan: .claude/plans/workflow_orchestration.md',
   phases: [
     { title: 'Measure', detail: 'executors, one per open item', model: 'sonnet' },
     { title: 'Draft', detail: 'executor writes the specification', model: 'sonnet' },
-    { title: 'Check', detail: 'advisor elegance cold read and advisor structural check', model: 'fable' },
+    { title: 'Check', detail: 'reviewer elegance cold read and reviewer structural check', model: 'opus' },
   ],
 }
 
@@ -27,8 +27,8 @@ const draft = await agent(
 )
 
 const checks = await parallel([
-  () => agent(`Workflow: ${A.campaign}, phase Check (elegance, COLD read: you have not seen the discussion). READ-ONLY. Read ${A.spec} alone first, then its inputs. ${A.inputs}\nCan every step be executed from the text alone? Twin paths, a repeated conditional that is a missing type, an illegal state representable, a name that collides, a verb on the wrong object. Write ${A.out}/check_elegance.md; return at most 400 words, findings ranked with the fix.`, { label: 'check:elegance', phase: 'Check', model: 'fable', agentType: 'elegance-enforcer' }),
-  () => agent(`Workflow: ${A.campaign}, phase Check (structure). READ-ONLY. Read ${A.spec} and its inputs. ${A.inputs}\nDoes each type model the native mathematical structure; is every law stated (adjoint, composition, invariance); does each gate red on a state in the tree; is the migration order leaves first with no orphan? Write ${A.out}/check_structure.md; return at most 400 words, findings ranked, an UNEXPLORED block.`, { label: 'check:structure', phase: 'Check', model: 'fable', agentType: 'cross-domain-attacker' }),
+  () => agent(`Workflow: ${A.campaign}, phase Check (elegance, COLD read: you have not seen the discussion). READ-ONLY. Read ${A.spec} alone first, then its inputs. ${A.inputs}\nCan every step be executed from the text alone? Twin paths, a repeated conditional that is a missing type, an illegal state representable, a name that collides, a verb on the wrong object. Write ${A.out}/check_elegance.md; return at most 400 words, findings ranked with the fix.`, { label: 'check:elegance', phase: 'Check', model: 'opus', agentType: 'elegance-enforcer' }),
+  () => agent(`Workflow: ${A.campaign}, phase Check (structure). READ-ONLY. Read ${A.spec} and its inputs. ${A.inputs}\nDoes each type model the native mathematical structure; is every law stated (adjoint, composition, invariance); does each gate red on a state in the tree; is the migration order leaves first with no orphan? Write ${A.out}/check_structure.md; return at most 400 words, findings ranked, an UNEXPLORED block.`, { label: 'check:structure', phase: 'Check', model: 'opus', agentType: 'cross-domain-attacker' }),
 ])
 
 return { measured: measured.filter(Boolean), draft, checks: checks.filter(Boolean) }

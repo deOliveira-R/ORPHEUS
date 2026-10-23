@@ -2,7 +2,7 @@
 
 ## Goal
 
-Large reorganizations run as dynamic workflows: scripted fan-outs of sub-agents, with a fixed division of labour by model. The user's direction (2026-10-22): "the dynamic workflow is orchestrated by you (Opus), advised by Fable and executed by Sonnet"; "we will probably use it a lot more from now on". This plan fixes the roles, the stage templates (saved, reusable scripts under `.claude/workflows/`), the invariants every script keeps, and wave 2 of the layer DAG campaign expressed as a sequence of those workflows.
+Large reorganizations run as dynamic workflows: scripted fan-outs of sub-agents, with a fixed division of labour by model. The user's direction (2026-10-22): "the dynamic workflow is orchestrated by you (Opus), advised by Fable and executed by Sonnet"; "we will probably use it a lot more from now on". Corrected by the user the same night (2026-10-23): "Opus can do the reviews in a dynamic workflow. I meant Fable to be your (the orchestrator) advisor ... If an agent needs higher advise, it should ask you, and you can choose to answer or consult with Fable. (and Fable's advise should not be taken as final word. They must be gauged through your context, which will be much more complete than the advisor's context ...)". This plan fixes the roles, the stage templates (saved, reusable scripts under `.claude/workflows/`), the invariants every script keeps, and wave 2 of the layer DAG campaign expressed as a sequence of those workflows.
 
 Precedent:
 - `[M]` Layer DAG round 1 (2026-10-21/22, three units) and wave 1 (2026-10-22, WP-B, P4b, P4c) used build, review and amend in isolated worktrees.
@@ -13,10 +13,11 @@ Precedent:
 | role | model | does | never does |
 |---|---|---|---|
 | **Orchestrator** | Opus (the main loop) | writes and launches each workflow; owns the user's rulings, the plans, integration (cherry-pick or rebase onto one branch), the full bar (suite, pyright, Sphinx, `dead_references`, census), commits on `main`, push, CI; synthesizes design panels | delegates a ruling, a merge or a push; answers a running workflow agent by `SendMessage` (it spawns a duplicate writer, memory `reference_sendmessage_resumes_duplicate`) |
-| **Advisor** | Fable | every JUDGEMENT stage inside a workflow: design attacks (cross-domain-attacker, elegance-enforcer), review verdicts (qa, elegance-enforcer), adjudication of findings, the cold read of a specification, the verification that each amendment answered its finding; the orchestrator's `advisor()` at its own decision points | writes production code |
+| **Reviewer** | Opus | every JUDGEMENT stage inside a workflow: design attacks (cross-domain-attacker, elegance-enforcer), review verdicts (qa, elegance-enforcer), the cold read of a specification, the verification that each amendment answered its finding | writes production code |
+| **Advisor** | Fable, the ORCHESTRATOR's advisor only (the `advisor()` call), never a workflow stage | answers the orchestrator at its decision points, and the questions a workflow agent escalates when the orchestrator chooses to consult it | is taken as the final word: its advice is weighed against the orchestrator's context, which is more complete than what the advisor sees (only what the orchestrator's prompt articulates) |
 | **Executor** | Sonnet | every DOING stage: censuses, measurements, design drafts, gate implementation (test-architect), builds, amendments, mechanical rewrites, documentation drafts (archivist) | rules on a design question (it returns the question in `NEEDS`) |
 
-Why the split: judgement is where a stronger model's independence pays (an adversarial first pass that a weaker reviewer would wave through). Execution is long, tool-heavy and checkable, so it is gated by tests and by the advisor's review rather than by the executor's own care. The orchestrator keeps the context that sub-agents lack (the rulings, the history, the user), which is why integration and every ruling stay with it.
+Why the split: an Opus-class reviewer is fully capable of the adversarial first pass inside a workflow; execution is long, tool-heavy and checkable, so it is gated by tests and by the reviewers rather than by the executor's own care. **Escalation:** a workflow agent that needs judgement beyond its brief asks the orchestrator (SendMessage to `main`, or `NEEDS`); the orchestrator answers from its own context or consults Fable, and weighs Fable's answer against that context. A reply cannot enter a RUNNING workflow agent (it spawns a duplicate writer), so the agent does its independent work and returns with `NEEDS` when blocked; the answer goes into the next workflow's brief. The orchestrator keeps the context that sub-agents lack (the rulings, the history, the user), which is why integration and every ruling stay with it.
 
 ## Invariants every workflow script keeps
 
@@ -33,10 +34,10 @@ Why the split: judgement is where a stronger model's independence pays (an adver
 
 | template | stages | when |
 |---|---|---|
-| `design-panel` | N executor drafts from distinct angles (parallel) → M advisor attacks, each reading every draft (parallel) | the ontology is being searched; the orchestrator synthesizes, and the user rules |
-| `spec-check` | one executor drafts a specification from given inputs, with measurement agents in parallel for its open items → an advisor cold read (elegance) and an advisor structural check (cross-domain) in parallel | turning ruled decisions into one executable specification |
-| `build-units` | per unit: executor test-architect writes the gates (red) in a worktree → executor implementer turns them green → advisor qa and advisor elegance in parallel → executor amend → advisor verify of each disposition | additive or file-disjoint units in parallel |
-| `docs-pass` | per page section: executor archivist drafts → advisor qa verifies the claims (each `[M]` re-run) | a theory page after a carve |
+| `design-panel` | N executor drafts from distinct angles (parallel) → M reviewer attacks, each reading every draft (parallel) | the ontology is being searched; the orchestrator synthesizes, and the user rules |
+| `spec-check` | one executor drafts a specification from given inputs, with measurement agents in parallel for its open items → a reviewer cold read (elegance) and a reviewer structural check (cross-domain) in parallel | turning ruled decisions into one executable specification |
+| `build-units` | per unit: executor test-architect writes the gates (red) in a worktree → executor implementer turns them green → reviewer qa and reviewer elegance in parallel → executor amend → reviewer verify of each disposition | additive or file-disjoint units in parallel |
+| `docs-pass` | per page section: executor archivist drafts → reviewer qa verifies the claims (each `[M]` re-run) | a theory page after a carve |
 
 Each template's `args` carry the units or sections, their briefs, the shared rules block, and the output directory. The scripts are reviewed by the orchestrator before their first use, and their `meta.description` states the stages.
 
@@ -61,7 +62,7 @@ Design: `boundary_law_ontology.md`, the twelfth exchange, with the user's ruling
   - (ii) the colouring symmetry's float rule: the slab `(0, .1, .2, .3)` is the control; which comparison makes it symmetric, and which refuses a genuinely asymmetric slab?
   - (iii) the per-method admission column for every shared response and every deck.
 - **Executor:** drafts `.claude/plans/wave2_boundary_carve.md` from design A (types) and design B (consumer census), the rulings, and (i) to (iii). It contains every type, field, invariant, module path and verb signature; the typed realized operators; the realizer-table spelling; the leaf units with their file sets; and the dependency table (`retirement-audit` G.24).
-- **Advisors, in parallel:** an elegance cold read and a structural check.
+- **Reviewers (Opus), in parallel:** an elegance cold read and a structural check.
 - **Orchestrator:** applies the findings. **User checkpoint:** the specification.
 
 **WF2.2 — the leaves** (`build-units`; units in two stages by dependency). Each unit costs up to 6 agents: gates, build, qa, elegance, amend, verify. So two units already make 12, against the medium guideline of under 10 per workflow: either run one workflow per stage, or raise the guideline.
@@ -82,7 +83,7 @@ Design: `boundary_law_ontology.md`, the twelfth exchange, with the user's ruling
 4. **S4:** cp, mc and moc (the three `BC_REGISTRY` tables; CP's vacuum admitted as realized, with the #546 strict `xfail`).
 5. **S5:** derivations, specification and reference (closed values; the translation reversed).
 
-Mechanics: S1 runs `build-units` with no `worktree`, which makes the branch's worktree. Each later slice passes that path as its unit's `worktree`, so the gates and the build continue on the same branch (the template option, added 2026-10-22). Each slice starts from the previous slice's tip and is reviewed (Fable qa and elegance) before the next starts, so a defect is caught in the slice that made it. Tests move with their package. The orchestrator reads each slice's result before launching the next.
+Mechanics: S1 runs `build-units` with no `worktree`, which makes the branch's worktree. Each later slice passes that path as its unit's `worktree`, so the gates and the build continue on the same branch (the template option, added 2026-10-22). Each slice starts from the previous slice's tip and is reviewed (Opus qa and elegance) before the next starts, so a defect is caught in the slice that made it. Tests move with their package. The orchestrator reads each slice's result before launching the next.
 - **User checkpoint, after S5:** the meaning-change sites (109: reflective on a curved face becomes a specular wall; periodic on a curved face becomes unspellable), listed with each one's new spelling.
 - Digests (geometry, mesh, specification) re-key ONCE, at the merge. There is no dual spelling, so they re-key only once.
 
@@ -95,6 +96,8 @@ Mechanics: S1 runs `build-units` with no `worktree`, which makes the branch's wo
 
 1. **The surgical-carve exception is recalibrated, as a trial during the reorganization.**
    - The user: "models are getting better ... every once in a while we do need to try new things and recalibrate older rulings. We're doing that during reorganization, because it's less about development and more about putting things in place. It's a good way to test it. Also Sonnet 5.5 is much better than Sonnet 5, so we can consider it for well scoped work."
-   - So wave 2 is executed by Sonnet units, each well scoped, with gates first, Fable reviews, and the user's checkpoints between workflows.
+   - So wave 2 is executed by Sonnet units, each well scoped, with gates first, Opus reviews, and the user's checkpoints between workflows.
    - The `workflows` rule's exception (the ruling of 2026-05-20) stays in force outside this trial. After wave 2 the orchestrator reports how the trial went: defects caught by the gates and the reviews, defects that reached integration, and the cost. The rule's source page (`docs/development/workflows.md`, through the harness process) is changed only on that evidence.
-2. **The size guideline stays medium** (under 10 agents per workflow). Wave 2 runs as several smaller workflows, evaluated as they go; "large" may come later if the results hold.
+2. **The size guideline was medium** (under 10 agents per workflow) at this ruling; the user raised it to **large** (under 50) on 2026-10-23. Wave 2 runs as several smaller workflows, evaluated as they go; "large" may come later if the results hold.
+
+**Record of the first runs, for the trial's evidence.** WF2.1's reviews (the two checks, the two rechecks and the draft-3 verification) ran on Fable under the first reading of the roles; from 2026-10-23 every review stage runs on Opus. The templates were changed the same night: every `model: 'fable'` became `model: 'opus'` (12 stages in 4 scripts), and `build-units`' rules tell an agent how to escalate.
