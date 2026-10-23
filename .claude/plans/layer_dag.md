@@ -193,3 +193,15 @@ S7 merged @ `e80ec738`. Next: the sub-cone measurement on numerics (`verificatio
      After it, in its own commit, come the 109 sites whose meaning changes and the 25 hollow inner faces as tags.
 4. **Review:** qa and elegance in parallel. Then the archivist on `docs/theory/foundations/boundary_conditions.rst` (8590 lines; its rewrite has been held since the reflective cleanup) and the SN boundary page.
 5. **P1 closes:** `layer_census.py` should then show no {geometry, numerics} SCC (`[R]` until measured).
+
+### Wave 1 integrated (2026-10-22, late evening)
+
+- WP-B, P4b and P4c (workflow `wf_7039ca4f-702`) were cherry-picked onto `integrate/layer-dag-wave1`. Conflicts in `layering.rst` and `test_layer_imports.py` were resolved by hand. The WHITELIST is now EMPTY: both MMS rows retired.
+- Integration fix: a closed reference stays refused `geometry.{symmetry, manifold, roots_of_unity}` (`REFERENCE_FORBIDDEN_GEOMETRY`, with 5 refused legs). The move had widened the 2026-10-06 insulation; qa flagged it, and there are 0 consumers today.
+- WP-B's questions, answered:
+  - the module name `numerics.index_set` stands;
+  - the 56 `("x","y","z")` literals in tests stay independent oracles;
+  - `tests/gates/geometry/test_axis_table.py` joins CI's list;
+  - an unhashable axis argument raising `TypeError` (it was `ValueError`) is accepted, being a type error.
+- Filed: #651 (MoC MMS still walks `MOCMesh` by shape and copies the production sweep kernel; under the MoC-later ruling) and #652 (the `IndexSet`/`EnergyGroups` twin).
+- Owed after the suite: the geometry modules' tests (`test_manifold`, `test_symmetry`, `test_roots_of_unity`, and any other test of a moved module) move from `tests/gates/numerics/` to `tests/gates/geometry/`, since the test tree mirrors the packages. The layering page's layer table is reordered when wave 2 removes the 8 `geometry/boundary` → numerics edges.
