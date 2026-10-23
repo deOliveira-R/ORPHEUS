@@ -67,7 +67,7 @@ from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.deck import MirrorDeck, TranslationDeck, pairing_of
 from tests.gates._content_identity_helpers import require
 from tests.gates.transport._admission_helpers import SITES, SPACE, Img, make_table, site, values
-from tests.gates.transport._boundary_conditions_helpers import bc, function_space, local, node
+from tests.gates.transport._boundary_conditions_helpers import bc, function_space, local, node, weights
 
 pytestmark = pytest.mark.foundation
 
@@ -96,7 +96,8 @@ def _rank(admission) -> int:
 
 def test_plumbing_needs_an_issue() -> None:
     """``Refused(PLUMBING, "r")`` raises; with an issue it constructs; the three other axes construct without one;
-    ``Approximated`` holds frozensets and ``Approximated.of(name, issue)`` is the one-member spelling;
+    ``Approximated`` holds a non-empty frozenset of ``(name, issue)`` pairs and ``Approximated.of(name, issue)`` is the
+    one-member spelling;
     ``Realized(True)`` and ``Realized(False)`` differ; the members are frozen; the axes are exactly the four of the
     section.
 
@@ -109,8 +110,8 @@ def test_plumbing_needs_an_issue() -> None:
     require(bc.Refused(Axis.PLUMBING, "r", 511).issue == 511, "a plumbing refusal keeps its issue")
     for axis in (Axis.ANGULAR_RESOLUTION, Axis.TOPOLOGY, Axis.STATE_CONE):
         require(bc.Refused(axis, "r").issue is None, f"{axis.name} owes no issue")
-    approx = bc.Approximated(frozenset({"a square cell"}), frozenset({547}))
-    require(isinstance(approx.names, frozenset) and isinstance(approx.issues, frozenset), "Approximated holds frozensets")
+    approx = bc.Approximated(frozenset({("a square cell", 547)}))
+    require(isinstance(approx.approximations, frozenset) and approx.names == {"a square cell"} and approx.issues == {547}, "Approximated holds pairs; names and issues project them")
     require(bc.Approximated.of("a square cell", 547) == approx, "Approximated.of is the one-member spelling")
     require(bc.Realized(True) != bc.Realized(False) and bc.Realized(True) == bc.Realized(True), "tier 1 and tier 2 differ")
     for member in (approx, bc.Realized(True), bc.Refused(Axis.TOPOLOGY, "r")):
@@ -120,7 +121,7 @@ def test_plumbing_needs_an_issue() -> None:
 
 def test_the_lattice_of_admissions() -> None:
     """``Realized(True) > Realized(False) > Approximated > Refused``; ``Admission.meet(*members)`` is the lesser; the
-    meet of two ``Approximated`` is ``Approximated(x.names | y.names, x.issues | y.issues)``; the meet of two
+    meet of two ``Approximated`` is the union of their ``(name, issue)`` pairs; the meet of two
     ``Refused`` is the FIRST argument's; the meet of no members is ``Realized(True)``. Over the seven-member grid:
     idempotent, ``Realized(True)`` is the identity, associative on all 343 triples, commutative except between two
     distinct refusals (the documented deterministic tie-break).
@@ -136,7 +137,7 @@ def test_the_lattice_of_admissions() -> None:
     grid = [r1, r0, ax, ay, f1, f2, f3]
 
     require(meet() == r1, "the meet of no members is Realized(True)")
-    union = bc.Approximated(frozenset({"x", "y"}), frozenset({547, 548}))
+    union = bc.Approximated(frozenset({("x", 547), ("y", 548)}))
     cases = [
         ((r1, r0), r0), ((r0, r1), r0), ((r1, ax), ax), ((r0, ax), ax), ((ax, ay), union), ((ay, ax), union),
         ((ax, f1), f1), ((f1, ax), f1), ((r1, f2), f2), ((f1, f2), f1), ((f2, f1), f2), ((f3, f1), f3),
@@ -353,6 +354,34 @@ def test_exact_type_lookup() -> None:
     with pytest.raises(bc.BoundaryRefused):
         table.realize(child(), where, SPACE)
 
+    # The functor's branch is exact-type too: a WallCondition subclass is not the shared wall, is not registrable, and is
+    # admitted as an unregistered unit (it must not be realized as its parent through the MRO).
+    class MyWall(bc.WallCondition):
+        pass
+
+    wall_table = bc.RealizerTable("exact wall", state_cone=bc.StateCone.NONNEGATIVE_FLUX)
+
+    class SpecR(bc.ResponseRealizer, table=wall_table, realizes=bc.SpecularChain):
+        status = bc.Realized(True)
+
+        def realize(self, unit, weight, site_, space):
+            return Img((("spec", weight),))
+
+    with pytest.raises(_REFUSED_REGISTRATION):  # a WallCondition subclass is not a key
+
+        class MyWallR(bc.ResponseRealizer, table=wall_table, realizes=MyWall):
+            status = bc.Realized(True)
+
+            def realize(self, unit, weight, site_, space):
+                return Img((("mine", weight),))
+
+    wall_table.seal()
+    require(wall_table.admit(bc.WallCondition.specular(0.5), where) == bc.Realized(True), "control: the shared wall is admitted by the functor")
+    adm = wall_table.admit(MyWall(weights(specular=0.5)), where)
+    require(isinstance(adm, bc.Refused), f"a WallCondition subclass was admitted through the MRO: {adm!r}")
+    with pytest.raises(bc.BoundaryRefused):
+        wall_table.realize(MyWall(weights(specular=0.5)), where, SPACE)
+
 
 # ── (e) the unregistered door ────────────────────────────────────────────────
 
@@ -406,7 +435,7 @@ def test_the_unregistered_door_names_the_axis() -> None:
 
     spec_only.seal()
     require(spec_only.admit(bc.WallCondition.specular(0.5), where) == bc.Realized(True), "the registered chain is admitted")
-    for label, wall in (("white", bc.WallCondition.white(0.5)), ("vacuum", bc.WallCondition.vacuum()), ("inflow", bc.WallCondition.inflow(1.0))):
+    for label, wall in (("white", bc.WallCondition.white(0.5)), ("vacuum", bc.WallCondition.vacuum()), ("inflow", bc.WallCondition.uniform(1.0))):
         adm = spec_only.admit(wall, where)
         require(isinstance(adm, bc.Refused) and adm.axis is bc.RefusalAxis.PLUMBING, f"{label} on a specular-only table is {adm!r}")
 
@@ -515,8 +544,8 @@ def test_the_functor_law() -> None:
     t, spies = built.table, built.spies
 
     require(t.realize(W.vacuum(), where, SPACE) == Img((("zero", 1.0),)), "the empty network's image is not the zero realizer's")
-    require(t.realize(W.inflow(2.0), where, SPACE) == Img((("zero", 1.0),)), "a pure inflow's linear image is not the zero map")
-    require(t.realize(W.specular(0.5) + W.inflow(2.0), where, SPACE) == Img((("spec", 0.5),)), "the source entered the image")
+    require(t.realize(W.uniform(2.0), where, SPACE) == Img((("zero", 1.0),)), "a pure inflow's linear image is not the zero map")
+    require(t.realize(W.specular(0.5) + W.uniform(2.0), where, SPACE) == Img((("spec", 0.5),)), "the source entered the image")
     require(t.realize(W.specular(0.25), where, SPACE) == Img((("spec", 0.25),)), "one chain's image")
     mixed = W.from_amplitudes(0.25, 0.5)
     both = t.realize(mixed, where, SPACE)
@@ -538,13 +567,13 @@ def test_the_functor_law() -> None:
     require(spies.consulted("zero") == 0 and spies.consulted("source") == 0 and spies.consulted("spec") == 1, f"a specular wall consulted {[e[0] for e in spies.admit]}")
     require(spies.admit[0][2] == 0.5, "the weight did not reach the chain's admit")
     spies.admit.clear()
-    t.admit(W.inflow(1.0), where)
+    t.admit(W.uniform(1.0), where)
     require([e[0] for e in spies.admit] == ["zero", "source"], f"a pure inflow consulted {[e[0] for e in spies.admit]}")
     spies.admit.clear()
     t.admit(W.vacuum(), where)
     require([e[0] for e in spies.admit] == ["zero"], f"vacuum consulted {[e[0] for e in spies.admit]}")
     spies.admit.clear()
-    t.admit(mixed + W.inflow(1.0), where)
+    t.admit(mixed + W.uniform(1.0), where)
     require([e[0] for e in spies.admit] == ["spec", "diff", "source"], f"a mixed wall over a source consulted {[e[0] for e in spies.admit]}")
 
     # the discriminating variants: a refusing zero row and a refusing source row
@@ -552,10 +581,10 @@ def test_the_functor_law() -> None:
     zero_refuses = make_table(zero_admit=refuse).table
     require(zero_refuses.admit(W.specular(0.5), where) == bc.Realized(True), "the zero network was consulted for a wall with a network")
     require(isinstance(zero_refuses.admit(W.vacuum(), where), bc.Refused), "vacuum does not consult the zero network")
-    require(isinstance(zero_refuses.admit(W.specular(0.5) * 0.0 + W.inflow(1.0), where), bc.Refused), "a pure inflow does not consult the zero network")
+    require(isinstance(zero_refuses.admit(W.specular(0.5) * 0.0 + W.uniform(1.0), where), bc.Refused), "a pure inflow does not consult the zero network")
     source_refuses = make_table(source_admit=refuse).table
     require(source_refuses.admit(W.white(0.5), where) == bc.Realized(True), "the source was consulted for a wall with no source")
-    require(isinstance(source_refuses.admit(W.white(0.5) + W.inflow(1.0), where), bc.Refused), "a nonzero source is not consulted")
+    require(isinstance(source_refuses.admit(W.white(0.5) + W.uniform(1.0), where), bc.Refused), "a nonzero source is not consulted")
 
     # the meet over the units: one tier-3 chain among faithful ones
     approx = bc.RealizerTable("approx", state_cone=bc.StateCone.NONNEGATIVE_FLUX)
@@ -645,3 +674,104 @@ def test_the_source_verb() -> None:
     require(caught.value.admission.axis is bc.RefusalAxis.PLUMBING and sampler_calls == [], f"the sampler was read before the refusal: {sampler_calls}")
     require(len(built.spies.sample) == 1, "the realizer's sample was called for a refused source")
     require(np.array_equal(built.table.sample_inflow(sampled, site("CART"), space), np.ones(3)) and len(sampler_calls) == 1, "an admitted sampled source is not sampled once")
+
+    weighted = bc.InflowTerms(1.0, ((0.25, bc.FaceFrameInflow(Counting())),))
+    require(np.array_equal(built.table.sample_inflow(weighted, site("CART"), space), 1.25 * np.ones(3)), "a weighted sampled term is not multiplied by its weight")
+
+
+# ── the S2a review's rows ────────────────────────────────────────────────────
+
+
+def test_the_sum_is_sealed_and_each_member_parses() -> None:
+    """``Admission`` is a closed sum of exactly ``Realized``, ``Approximated`` and ``Refused``, each a DIRECT subclass:
+    a subclass of a member and a fourth direct subclass are ``TypeError``. Each member parses its fields
+    (``Realized(1)``, ``Approximated('abc', {1})``, an empty ``Approximated`` and a ``Refused`` with a string axis are
+    refused). ``Approximated`` keeps which issue tracks which approximation through ``meet`` (a union of PAIRS).
+
+    Reddens on: a seal counting only direct subclasses of ``Admission`` (the subclass of ``Realized`` is accepted);
+    a missing parse (the constructions build); a ``meet`` taking the union of names and of issues separately.
+    """
+    with pytest.raises(TypeError):
+
+        class Deeper(bc.Realized):  # type: ignore[misc]
+            pass
+
+    with pytest.raises(TypeError):
+
+        class Fourth(bc.Admission):
+            pass
+
+    require({"Realized", "Approximated", "Refused"} <= {c.__name__ for c in bc.Admission.__subclasses__()}, "control: the three members are direct subclasses")
+    for build in (lambda: bc.Realized(1), lambda: bc.Approximated("abc", {1}), lambda: bc.Refused("topology", "r"), lambda: bc.Refused(bc.RefusalAxis.TOPOLOGY, 3)):
+        with pytest.raises(TypeError):
+            build()
+    with pytest.raises(ValueError):
+        bc.Approximated(frozenset())
+    merged = bc.Admission.meet(bc.Approximated.of("x", 1), bc.Approximated.of("y", 2))
+    require(merged.approximations == frozenset({("x", 1), ("y", 2)}), f"the meet lost which issue tracks which name: {merged}")
+    require(merged != bc.Approximated(frozenset({("x", 2), ("y", 1)})), "control: swapping the issues must be a different value")
+
+
+def test_a_contradictory_face_site_does_not_exist() -> None:
+    """``hollow_inner`` is true exactly on the inner face of a radial mesh (a curved face with a negative outward
+    sign), so ``FaceSite('xmin', SPHERICAL, 1, False)`` (an inner face not flagged), ``FaceSite('xmax', SPHERICAL, 1,
+    True)`` (an outer face flagged) and ``FaceSite('xmin', CARTESIAN, 1, True)`` are refused; the consistent values
+    build (the controls of ``test_face_site``).
+
+    Reddens on: a ``FaceSite`` that does not compare ``hollow_inner`` with the face (the three rows build).
+    """
+    Cart, Sph = CoordSystem.CARTESIAN, CoordSystem.SPHERICAL
+    for args in (("xmin", Sph, 1, False), ("xmax", Sph, 1, True), ("xmin", Cart, 1, True)):
+        with pytest.raises(ValueError, match="hollow_inner"):
+            bc.FaceSite(*args)
+    for args in (("xmin", Sph, 1, True), ("xmax", Sph, 1, False), ("xmin", Cart, 1, False)):
+        require(isinstance(bc.FaceSite(*args), bc.FaceSite), f"control: {args} must build")
+
+
+def test_the_source_door_is_met_for_every_condition() -> None:
+    """A method-only condition with a nonzero source is admitted through the source door like a shared wall: on a table
+    with a ``SourceRealizer`` that refuses (RAD_OUTER) the sourced probe is refused, and on a table with NO source
+    realizer it is refused on PLUMBING; the same probe without a source is admitted by its own entry (control).
+    ``admit`` takes a declaration: a ``WallDisplacement`` and a ``str`` are ``TypeError``, not a refusal.
+
+    Reddens on: a source admission special-cased to ``WallCondition`` (the sourced probe is then admitted by its entry).
+    """
+    probe_cls = local().Probe
+    sourced = local().SourcedProbe
+
+    def table_with(source: bool):
+        t = bc.RealizerTable("srcdoor", state_cone=bc.StateCone.NONNEGATIVE_FLUX)
+
+        class ProbeR(bc.ResponseRealizer, table=t, realizes=probe_cls):
+            status = bc.Realized(True)
+
+            def realize(self, unit, weight, site_, space):
+                return Img((("probe", weight),))
+
+        class SourcedR(bc.ResponseRealizer, table=t, realizes=sourced):
+            status = bc.Realized(True)
+
+            def realize(self, unit, weight, site_, space):
+                return Img((("sourced", weight),))
+
+        if source:
+
+            class Src(bc.SourceRealizer, table=t):
+                status = bc.Realized(True)
+
+                def admit(self, terms, site_, space=None):
+                    return self.status if site_.site_class is bc.SiteClass.CART else bc.Refused(bc.RefusalAxis.TOPOLOGY, "no source here")
+
+        t.seal()
+        return t
+
+    with_source, without = table_with(True), table_with(False)
+    require(with_source.admit(probe_cls(), site("RAD_OUTER")) == bc.Realized(True), "control: a source-free probe is admitted by its entry")
+    require(with_source.admit(sourced(), site("CART")) == bc.Realized(True), "control: the source door admits at CART")
+    refused = with_source.admit(sourced(), site("RAD_OUTER"))
+    require(isinstance(refused, bc.Refused) and refused.axis is bc.RefusalAxis.TOPOLOGY, f"the source door was skipped for a method-only condition: {refused!r}")
+    plumbing = without.admit(sourced(), site("CART"))
+    require(isinstance(plumbing, bc.Refused) and plumbing.axis is bc.RefusalAxis.PLUMBING, f"a table with no source realizer admitted a sourced condition: {plumbing!r}")
+    for declared in (bc.WallDisplacement.of((1.0, bc.WallCondition.specular(0.5))), "specular"):
+        with pytest.raises(TypeError):
+            with_source.admit(declared, site("CART"))  # type: ignore[arg-type]

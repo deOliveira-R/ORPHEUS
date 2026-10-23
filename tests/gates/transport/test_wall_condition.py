@@ -109,9 +109,9 @@ def test_wall_condition_parse() -> None:
         with pytest.raises(TypeError):
             factory(True)
     with pytest.raises(bc.BoundaryError):
-        bc.WallCondition.inflow(-1.0)
+        bc.WallCondition.uniform(-1.0)
 
-    zero = (bc.WallCondition.specular(0.0), bc.WallCondition.white(0.0), bc.WallCondition.vacuum(), bc.WallCondition.inflow(0.0))
+    zero = (bc.WallCondition.specular(0.0), bc.WallCondition.white(0.0), bc.WallCondition.vacuum(), bc.WallCondition.uniform(0.0))
     require(all(z == zero[0] for z in zero), f"the zero walls differ: {[z == zero[0] for z in zero]}")
     require(len({content_digest(z) for z in zero}) == 1, "the zero walls have more than one digest (the twin is not gone)")
     require(zero[0].cone_point == (0.0, 0.0) and zero[0].source.is_zero, "vacuum is the empty network over no source")
@@ -119,13 +119,13 @@ def test_wall_condition_parse() -> None:
 
     profile = ProfileSampler()
     facades = (
-        bc.WallCondition.vacuum(), bc.WallCondition.specular(0.5), bc.WallCondition.white(0.5), bc.WallCondition.inflow(2.0),
+        bc.WallCondition.vacuum(), bc.WallCondition.specular(0.5), bc.WallCondition.white(0.5), bc.WallCondition.uniform(2.0),
         bc.WallCondition.framed(bc.FaceFrameInflow(profile)), bc.WallCondition.framed(bc.LabFrameInflow(profile), 0.5),
         bc.WallCondition.from_amplitudes(0.25, 0.5),
     )
     for made in facades:
         require(type(made) is bc.WallCondition, f"a facade returned a {type(made).__name__}")
-    inflow = bc.WallCondition.inflow(2.0)
+    inflow = bc.WallCondition.uniform(2.0)
     require(inflow.cone_point == (0.0, 0.0) and inflow.source.uniform == 2.0 and not inflow.source.sampled, "inflow(v): the zero network over uniform v")
     require(inflow.return_fraction == 0.0 and inflow.face_local is True, "a uniform inflow returns nothing and is face-local")
     framed = bc.WallCondition.framed(bc.FaceFrameInflow(profile), 0.5)
@@ -221,7 +221,7 @@ def test_no_welded_surface_survives() -> None:
     population = [bc.BoundaryCondition, bc.WallCondition, bc.WallDisplacement, bc.InflowTerms]
     offenders = {cls.__name__: welds(cls) for cls in population if welds(cls)}
     require(not offenders, f"a weld of the retired base survives: {offenders}")
-    terms = bc.WallCondition.inflow(1.0).source
+    terms = bc.WallCondition.uniform(1.0).source
     require(isinstance(terms, bc.InflowTerms), "the source accessor returns InflowTerms")
     require(not hasattr(terms, "evaluate"), "InflowTerms carries no evaluate(space): sampling is the method's verb")
 

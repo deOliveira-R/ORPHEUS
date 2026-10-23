@@ -155,7 +155,7 @@ def test_both_chains_is_the_meet() -> None:
         require(summary(table.admit(W.from_amplitudes(0.3, 0.5), where)) == summary(bc.Admission.meet(spec, white)), f"both chains @ {kind} is not the meet of the two single-chain rows")
         response = table.admit(W.specular(0.5), where)
         source = table.admit(bc.InflowTerms(1.0, ()), where)
-        require(summary(table.admit(W.specular(0.5) + W.inflow(1.0), where)) == summary(bc.Admission.meet(response, source)), f"a response over a source @ {kind} is not the meet")
+        require(summary(table.admit(W.specular(0.5) + W.uniform(1.0), where)) == summary(bc.Admission.meet(response, source)), f"a response over a source @ {kind} is not the meet")
     require(summary(table.admit(W.from_amplitudes(0.3, 0.5), site("RAD_OUTER"))) == F("PLUMBING", 653), "the radial outer mixed row is the diffuse refusal")
 
 

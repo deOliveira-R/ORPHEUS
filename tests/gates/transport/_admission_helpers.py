@@ -195,6 +195,6 @@ def values() -> dict[str, Any]:
         "specular 0.5": W.specular(0.5),
         "white 0.5": W.white(0.5),
         "both 0.3 0.5": W.from_amplitudes(0.3, 0.5),
-        "inflow 1.0": W.inflow(1.0),
-        "specular 0.5 over inflow 1.0": W.specular(0.5) + W.inflow(1.0),
+        "inflow 1.0": W.uniform(1.0),
+        "specular 0.5 over inflow 1.0": W.specular(0.5) + W.uniform(1.0),
     }

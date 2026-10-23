@@ -194,7 +194,7 @@ def test_bind_invariance() -> None:
 
     sampler = OpaqueSampler()
     controls = {
-        "uniform source, symmetric slab": (_symmetric(), {0: bc.WallCondition.inflow(1.0)}),
+        "uniform source, symmetric slab": (_symmetric(), {0: bc.WallCondition.uniform(1.0)}),
         "face-frame source, symmetric slab": (_symmetric(), {0: bc.WallCondition.framed(bc.FaceFrameInflow(sampler))}),
         "face-local response, symmetric slab": (_symmetric(), {0: bc.WallCondition.white(0.5)}),
         "lab-frame source, asymmetric slab": (slab_mesh({"xmin": 0, "xmax": 0}, materials=(0, 1)), {0: bc.WallCondition.framed(bc.LabFrameInflow(sampler))}),
@@ -241,10 +241,10 @@ def test_binding_invariants() -> None:
     require(binding.faces_of(0) == ("xmax",) and binding.faces_of(9) == (), "faces_of")
     require(len(binding.sources) == 0, "a source-free binding has sources")
 
-    two = bc.bind(slab_mesh({"xmin": 0, "xmax": 0}), {0: bc.WallCondition.inflow(2.0)})
+    two = bc.bind(slab_mesh({"xmin": 0, "xmax": 0}), {0: bc.WallCondition.uniform(2.0)})
     require(set(two.sources) == {"xmin", "xmax"} and all(t.uniform == 2.0 for t in two.sources.values()), "sources lost a face or its weight")
     require(two.faces_of(0) == ("xmin", "xmax"), "faces_of keeps the inventory order")
-    one = bc.bind(slab_mesh({"xmin": 0, "xmax": 1}), {0: vac, 1: bc.WallCondition.inflow(2.0)})
+    one = bc.bind(slab_mesh({"xmin": 0, "xmax": 1}), {0: vac, 1: bc.WallCondition.uniform(2.0)})
     require(set(one.sources) == {"xmax"}, f"sources holds {set(one.sources)}: only the faces whose condition has a nonzero source")
     sourced = local().SourcedProbe()
     through_accessor = bc.bind(slab_mesh({"xmin": 0, "xmax": 1}), {0: vac, 1: sourced})
@@ -267,3 +267,32 @@ def test_binding_invariants() -> None:
         content_digest(opaque)
     plain = bc.bind(_symmetric(), {0: white})
     require(content_digest(plain) == content_digest(bc.bind(_symmetric(), {0: bc.WallCondition.white(0.5)})), "equal bindings have two digests")
+
+
+# ── the type owns the laws the door states (S2a review) ──────────────────────
+
+
+@pytest.mark.rests_on(_COVER)
+def test_a_direct_binding_holds_the_laws_of_the_door() -> None:
+    """``Binding(...)`` built directly refuses what ``bind`` refuses: a condition that is not invariant under the
+    group (``NonInvariantConditionError``), a group acting on other faces than the binding's (``ValueError``: another
+    carrier's group) and a face outside the face inventory (``ValueError``, no silent drop from ``faces`` and no bare
+    ``KeyError`` from ``bind``). Controls: the same faces with a face-local condition build; the same faces with the
+    group of the same faces build.
+
+    Reddens on: the invariance check living only in ``bind`` (the first row builds); the isometry-domain check
+    deleted (the second row builds); the face-name parse deleted (the third row builds and ``bind`` raises ``KeyError``).
+    """
+    sym = _symmetric().symmetry
+    both = FrozenMapping({"xmin": 0, "xmax": 0})
+    nodeck = FrozenMapping({})
+    white = bc.BoundaryConditions({0: bc.WallCondition.white(0.5)})
+    require(isinstance(bc.Binding(nodeck, both, white, sym), bc.Binding), "control: a face-local condition on the group's faces does not build")
+    with pytest.raises(bc.NonInvariantConditionError):
+        bc.Binding(nodeck, both, bc.BoundaryConditions({0: _lab()}), sym)
+    with pytest.raises(ValueError, match="another carrier"):
+        bc.Binding(nodeck, FrozenMapping({"xmax": 0}), white, sym)
+    with pytest.raises(ValueError, match="not faces"):
+        bc.Binding(nodeck, FrozenMapping({"outer": 0}), white, UncomputedSymmetries("Mesh2D"))
+    with pytest.raises(ValueError, match="not faces"):
+        bc.bind(Carrier({"outer": 0}, UncomputedSymmetries("Mesh2D")), {0: bc.WallCondition.white(0.5)})

@@ -21,7 +21,7 @@ r"""The exterior conditions of a face (``condition.py`` of the conditions packag
 
 **The cone is a VALUE predicate (decision 50).** ``_cone_refusal(network, inflow)`` is the ONE definition of "inside
 the cone": every network weight is non-negative (``BoundaryResponseNotPositiveError``), the return fraction
-``math.fsum(w * unit_return)`` is at most one (``SubmarkovViolationError``), and every inflow weight is non-negative
+(``ResponseNetwork.return_fraction``, the correctly rounded ``math.fsum``) is at most one (``SubmarkovViolationError``), and every inflow weight is non-negative
 (``BoundaryResponseNotPositiveError``). ``__post_init__`` raises what it returns, so a ``WallCondition`` outside the cone
 (and a facade outside it: ``specular(1.2)``, ``white(-0.1)``, a direct two-chain ``(0.6, 0.6)``) does not exist. The
 arithmetic (``+``, ``-``, unary ``-``, scalar ``*``, shared with :class:`~.displacement.WallDisplacement` through
@@ -42,13 +42,16 @@ a ``FaceFrameInflow`` reading a tangential coordinate would not be invariant (no
 
 **Gotchas.**
 
-* **The field and the facade share a name.** The dataclass field ``inflow`` (the stored :class:`~.inflow.InflowTerms`,
-  decision 47: a field named ``source`` under the base's abstract ``source`` property could not be instantiated) and
-  the facade ``WallCondition.inflow(value)`` (the zero network over a uniform ``q = value``) are spelled alike by the
-  specification. A class attribute cannot be both, so the facade is installed on the class AFTER the dataclass is
-  built: the class attribute is the classmethod, and an instance reads its own field from its ``__dict__`` (a
-  ``classmethod`` is a non-data descriptor). One of the two names should be renamed; that is a ruling for the
-  orchestrator (reported in NEEDS), not for the package.
+* **The field and the facade have two names.** The dataclass field ``inflow`` is the stored :class:`~.inflow.InflowTerms`
+  (decision 47: a field named ``source`` under the base's abstract ``source`` property could not be instantiated), and
+  the facade of a uniform source is ``WallCondition.uniform(value)``, named after the coordinate
+  ``InflowTerms.uniform``. The specification spelled the facade ``inflow(value)``, a name a class attribute cannot share
+  with the field (it was installed after the dataclass was built, and a type checker saw only the field, so every
+  consumer was red); the rename is the S2a review's finding, reported in NEEDS.
+* ``__radd__`` and ``__rsub__`` are not defined: the left operand of every pairing the arithmetic admits is itself a
+  ``_PairArithmetic`` (a condition or a displacement), whose ``__add__`` / ``__sub__`` answers, so a reflected method
+  is unreachable (measured: 0 calls across the three pairings). ``sum([...])`` from the integer ``0`` is therefore
+  not supported.
 * ``albedo = 0`` is admitted and IS the vacuum (18 test sites construct ``AlbedoBoundary(0, ...)`` and the albedo is a
   parameter coordinate): the empty network is registered as ``ZeroNetwork`` by every method.
 * At the exact boundary of the cone two associations of one sum may differ by a rounding, one a condition and one a
@@ -61,13 +64,12 @@ Layer: ``transport`` (L2). Imports ``numerics`` and ``values`` only; ``FaceIsome
 
 from __future__ import annotations
 
-import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Self, assert_never
 
 from orpheus.transport.boundary_conditions.errors import BoundaryError, BoundaryResponseNotPositiveError, SubmarkovViolationError
-from orpheus.transport.boundary_conditions.inflow import FaceFrameInflow, InflowTerms, LabFrameInflow
+from orpheus.transport.boundary_conditions.inflow import InflowProfile, InflowTerms
 from orpheus.transport.boundary_conditions.network import CHAIN_ORDER, Chain, DiffuseChain, ResponseNetwork, SpecularChain
 from orpheus.values.content import ContentIdentity, FrozenMapping
 from orpheus.values.scalars import parse_finite_real
@@ -110,7 +112,7 @@ def _cone_refusal(network: ResponseNetwork, inflow: InflowTerms) -> BoundaryErro
     for _, weight in network.weights.items():
         if weight < 0.0:
             return BoundaryResponseNotPositiveError(f"a response weight {weight} is negative: not a physical wall", network)
-    if math.fsum(weight * chain.unit_return for chain, weight in network.weights.items()) > 1.0:
+    if network.return_fraction > 1.0:
         return SubmarkovViolationError(f"the return fraction exceeds 1: not a physical wall (cone point {network.cone_point})", network)
     if inflow.uniform < 0.0 or any(weight < 0.0 for weight, _ in inflow.sampled):
         return BoundaryResponseNotPositiveError("an inflow weight is negative: q is in the positive cone", inflow)
@@ -152,19 +154,11 @@ class _PairArithmetic:
             return NotImplemented
         return _combine(self.network + pair[0], self.inflow + pair[1])
 
-    __radd__ = __add__
-
     def __sub__(self, other: object) -> WallCondition | WallDisplacement:
         pair = _pair_of(other)
         if pair is None:
             return NotImplemented
         return _combine(self.network + pair[0] * -1.0, self.inflow + pair[1] * -1.0)
-
-    def __rsub__(self, other: object) -> WallCondition | WallDisplacement:
-        pair = _pair_of(other)
-        if pair is None:
-            return NotImplemented
-        return _combine(pair[0] + self.network * -1.0, pair[1] + self.inflow * -1.0)
 
     def __neg__(self) -> WallCondition | WallDisplacement:
         return _combine(self.network * -1.0, self.inflow * -1.0)
@@ -192,7 +186,7 @@ def _amplitude(chain: Chain, specular: float, diffuse: float) -> float:
 class WallCondition(_PairArithmetic, BoundaryCondition):
     r"""The ONE shared exterior type: the affine pair :math:`(R, q)` of a wall.
 
-    ``network`` is parsed against the cone (every weight non-negative, ``fsum(w * unit_return) <= 1``) and ``inflow``
+    ``network`` is parsed against the cone (every weight non-negative, ``return_fraction <= 1``) and ``inflow``
     against the positive source cone; a pair outside raises the cone's refusal. The facades build the usual walls.
     """
 
@@ -240,7 +234,12 @@ class WallCondition(_PairArithmetic, BoundaryCondition):
         return cls.from_amplitudes(0.0, parse_finite_real(albedo, "albedo"))
 
     @classmethod
-    def framed(cls, profile: FaceFrameInflow | LabFrameInflow, weight: float = 1.0) -> Self:
+    def uniform(cls, value: float) -> Self:
+        """The zero network over a uniform ``q = value`` (the coordinate ``InflowTerms.uniform``)."""
+        return cls(ResponseNetwork(FrozenMapping({})), InflowTerms(parse_finite_real(value, "inflow"), ()))
+
+    @classmethod
+    def framed(cls, profile: InflowProfile, weight: float = 1.0) -> Self:
         """The zero network over the sampled source ``weight * profile``."""
         return cls(ResponseNetwork(FrozenMapping({})), InflowTerms(0.0, ((weight, profile),)))
 
@@ -254,11 +253,3 @@ class WallCondition(_PairArithmetic, BoundaryCondition):
         d = parse_finite_real(diffuse, "diffuse amplitude")
         return cls(ResponseNetwork(FrozenMapping({chain: _amplitude(chain, s, d) for chain in CHAIN_ORDER})))
 
-
-def _inflow_facade(cls: type[WallCondition], value: float) -> WallCondition:
-    """The facade ``WallCondition.inflow(value)``: the zero network over a uniform ``q = value``."""
-    return cls(ResponseNetwork(FrozenMapping({})), InflowTerms(parse_finite_real(value, "inflow"), ()))
-
-
-# Installed after the dataclass is built so the field ``inflow`` and this facade can share a name (see "Gotchas").
-WallCondition.inflow = classmethod(_inflow_facade)  # type: ignore[method-assign, assignment]

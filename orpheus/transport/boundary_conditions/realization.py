@@ -45,6 +45,13 @@ for a shared unit should list it in its own table with its own tracking issue ra
 
 **Gotchas.**
 
+* The sampler contract is exact: ``sample_terms`` raises ``ValueError`` when a sampler returns anything but
+  ``space.shape`` (a wrong-shape array would otherwise be broadcast silently).
+* Lookup is by EXACT type everywhere, the functor's branch included: a ``WallCondition`` subclass is neither the
+  functor's domain nor registrable (``_register_response`` refuses it), so it is admitted as an unregistered unit.
+* The source is met for EVERY condition type with a nonzero source (the base contract), not only the shared wall.
+* ``admit`` takes a declaration (a deck, a ``BoundaryCondition`` or an ``InflowTerms``) and raises ``TypeError`` for
+  anything else, a ``WallDisplacement`` included.
 * The `weight` a realizer receives is the chain's weight in the network; it is ``1.0`` for the ``ZeroNetwork`` key (which
   carries no scalar) and for a method-only condition key.
 * A pure inflow (empty network, nonzero source) consults the ``ZeroNetwork`` realizer: its linear image is the zero map.
@@ -118,12 +125,33 @@ def sample_terms(terms: InflowTerms, space: FunctionSpace) -> np.ndarray:
     r""":math:`q` on ``space``: ``uniform * ones + sum_i w_i sampler_i.sample(space)`` (the default body of the source verb)."""
     q = terms.uniform * np.ones(space.shape)
     for weight, profile in terms.sampled:
-        q = q + weight * np.asarray(profile.sampler.sample(space))
+        sample = np.asarray(profile.sampler.sample(space))
+        if sample.shape != space.shape:
+            raise ValueError(f"{type(profile.sampler).__name__}.sample returned shape {sample.shape}, not exactly space.shape {space.shape}")
+        q = q + weight * sample
     return q
+
+
+def _units(declared: BoundaryCondition) -> tuple[tuple[type, object, float], ...]:
+    """The ``(key, unit, weight)`` triples a condition decomposes into: the ONE decomposition ``admit`` (the meet) and ``realize`` (the sum) share.
+
+    The exact shared type ``WallCondition`` is the functor's domain: one triple per chain in ``CHAIN_ORDER`` with its
+    weight, or the ``ZeroNetwork`` marker (weight one) when the network is empty, whatever the source. Any other
+    condition is one unit under its own exact type (a subclass of ``WallCondition`` is therefore a unit of its own,
+    never the functor's).
+    """
+    if type(declared) is WallCondition:
+        if not declared.network.weights:
+            return ((ZeroNetwork, ZeroNetwork(), 1.0),)
+        return tuple((type(chain), chain, weight) for weight, chain in declared.network.terms)
+    return ((type(declared), declared, 1.0),)
 
 
 def stamp_boundary_role(op: LinearOperator) -> LinearOperator:
     r"""Stamp a realized boundary law with the :attr:`BlockRole.BOUNDARY` role.
+
+    A COPY of ``orpheus.transport.boundary_realization.stamp_boundary_role`` (the old module is left for WF2.4, which
+    deletes it; this copy then stands alone). Edit both or neither until then.
 
     A realized law is a boundary-block leaf (``A_ss`` only) on the
     direct-sum transport state ``V = V_bulk ⊕ V_boundary`` — it maps the
@@ -172,7 +200,7 @@ class RealizerTable(Generic[SpaceT, OpT]):
 
     def _register_response(self, key: type, realizer: ResponseRealizer) -> None:
         self._open()
-        legal = key in get_args(Chain) or key is ZeroNetwork or (issubclass(key, BoundaryCondition) and key is not WallCondition)
+        legal = key in get_args(Chain) or key is ZeroNetwork or (issubclass(key, BoundaryCondition) and not issubclass(key, WallCondition))
         if not legal:
             raise TypeError(f"{self.method}: {key!r} is not a unit a response realizer registers under (a chain, ZeroNetwork or a method-only BoundaryCondition)")
         if key in self._responses:
@@ -217,9 +245,8 @@ class RealizerTable(Generic[SpaceT, OpT]):
         return entries
 
     def _unregistered(self, unit: object) -> Refused:
-        rho = getattr(unit, "return_fraction", None)
-        if rho is not None and rho < 0.0 and self.state_cone is StateCone.NONNEGATIVE_FLUX:
-            return Refused(RefusalAxis.STATE_CONE, f"a return fraction {rho} < 0 is outside the cone psi >= 0 of {self.method}")
+        if isinstance(unit, BoundaryCondition) and unit.return_fraction < 0.0 and self.state_cone is StateCone.NONNEGATIVE_FLUX:
+            return Refused(RefusalAxis.STATE_CONE, f"a return fraction {unit.return_fraction} < 0 is outside the cone psi >= 0 of {self.method}")
         return Refused(
             RefusalAxis.PLUMBING,
             f"{type(unit).__name__} has no entry in the table of {self.method}, which admits {self._admitted_names}",
@@ -243,23 +270,23 @@ class RealizerTable(Generic[SpaceT, OpT]):
     def admit(self, declared: DeckTransformation | BoundaryCondition | InflowTerms, site: FaceSite, space: SpaceT | None = None) -> Admission:
         """ONE door, per face and per value. ``space=None`` is the type- and site-level answer (the front end).
 
-        A ``WallCondition`` is the meet over the admission of each nonzero chain (with its weight), of ``ZeroNetwork``
-        whenever the network is EMPTY (whatever the source), and of the source if it is nonzero. An ``InflowTerms`` is
-        the source channel's own unit (what :meth:`sample_inflow` asks about).
+        Any condition is the meet over the admission of its units (:func:`_units`: each nonzero chain with its weight,
+        ``ZeroNetwork`` whenever a shared wall's network is EMPTY, whatever the source, or the one method-only unit) and
+        of its source if that is nonzero, for EVERY condition type (the source is read through the base contract). An
+        ``InflowTerms`` is the source channel's own unit (what :meth:`sample_inflow` asks about). Anything else is a
+        ``TypeError``: a refusal is a statement about a declaration.
         """
         self._require_sealed()
         if isinstance(declared, DeckTransformation):
             return self._admit_deck(declared, site, space)
         if isinstance(declared, InflowTerms):
             return self._admit_source(declared, site, space)
-        if isinstance(declared, WallCondition):
-            members = [self._admit_unit(type(chain), chain, weight, site, space) for weight, chain in declared.network.terms]
-            if not declared.network.weights:
-                members.append(self._admit_unit(ZeroNetwork, ZeroNetwork(), 1.0, site, space))
-            if not declared.source.is_zero:
-                members.append(self._admit_source(declared.source, site, space))
-            return Admission.meet(*members)
-        return self._admit_unit(type(declared), declared, 1.0, site, space)
+        if not isinstance(declared, BoundaryCondition):
+            raise TypeError(f"{self.method}: admit takes a DeckTransformation, a BoundaryCondition or an InflowTerms, got {declared!r}")
+        members = [self._admit_unit(key, unit, weight, site, space) for key, unit, weight in _units(declared)]
+        if not declared.source.is_zero:
+            members.append(self._admit_source(declared.source, site, space))
+        return Admission.meet(*members)
 
     def _refusal(self, declared: object, site: FaceSite, admission: Refused) -> BoundaryRefused:
         message = f"{self.method} realizes {self._admitted_names}; not {type(declared).__name__} ({admission.axis.name}: {admission.reason})"
@@ -277,11 +304,8 @@ class RealizerTable(Generic[SpaceT, OpT]):
         if isinstance(declared, DeckTransformation):
             assert self._deck is not None  # require() passed: a deck realizer is registered  # noqa: S101
             return self._deck.realize(declared, pairing_of(declared, site.face, dimension=site.dimension), site, space)
-        if isinstance(declared, WallCondition):
-            if not declared.network.weights:
-                return self._responses[ZeroNetwork].realize(ZeroNetwork(), 1.0, site, space)
-            return reduce(operator.add, (self._responses[type(chain)].realize(chain, weight, site, space) for weight, chain in declared.network.terms))
-        return self._responses[type(declared)].realize(declared, 1.0, site, space)
+        assert isinstance(declared, BoundaryCondition)  # require() passed: admit raised TypeError for anything else  # noqa: S101
+        return reduce(operator.add, (self._responses[key].realize(unit, weight, site, space) for key, unit, weight in _units(declared)))
 
     def sample_inflow(self, terms: InflowTerms, site: FaceSite, space: SpaceT) -> np.ndarray:
         """The ONE source verb: ``require`` the source, then the registered :meth:`SourceRealizer.sample`."""

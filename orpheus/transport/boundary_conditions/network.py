@@ -143,8 +143,9 @@ class DiffuseChain:
 #: The chains of the shared family, a CLOSED sum: editing this alias is the only way to add a chain.
 Chain: TypeAlias = SpecularChain | DiffuseChain
 
-#: The canonical order of the chains: the order of :attr:`ResponseNetwork.terms` and of the sum of realized images.
-CHAIN_ORDER: tuple[Chain, ...] = (SpecularChain(), DiffuseChain())
+#: The canonical order of the chains (the order of the alias): the order of :attr:`ResponseNetwork.terms` and of the sum of
+#: realized images. DERIVED from the alias, never a second enumeration of it (a chain added to the alias is ordered with it).
+CHAIN_ORDER: tuple[Chain, ...] = tuple(chain() for chain in get_args(Chain))
 
 
 def chain_composes(factors: tuple[type[Factor], ...]) -> bool:

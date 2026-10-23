@@ -298,3 +298,17 @@ def test_the_response_network_is_a_canonical_form() -> None:
     require(bc.ZeroNetwork() == bc.ZeroNetwork() and hash(bc.ZeroNetwork()) == hash(bc.ZeroNetwork()), "ZeroNetwork is a value by type")
     with pytest.raises(TypeError):
         forward + 1.0  # type: ignore[operator]  # a number is not a network
+
+
+def test_the_canonical_order_is_the_alias() -> None:
+    """``CHAIN_ORDER`` is DERIVED from ``get_args(Chain)``: it holds exactly the chain types of the closed sum, once
+    each, in the alias's order, so a chain added to the alias is ordered (and its weight kept) with no second edit.
+
+    Reddens on: a hand-written ``CHAIN_ORDER`` (the mutation re-spells it; the next chain added to the alias would be
+    dropped by ``ResponseNetwork`` silently).
+    """
+    members = get_args(bc.Chain)
+    require(len(members) >= 2, f"control: the closed sum has {len(members)} members")
+    require(tuple(type(chain) for chain in bc.CHAIN_ORDER) == members, f"CHAIN_ORDER is {[type(c).__name__ for c in bc.CHAIN_ORDER]}, the alias {[m.__name__ for m in members]}")
+    source = (PACKAGE_DIR / "network.py").read_text()
+    require("CHAIN_ORDER: tuple[Chain, ...] = tuple(" in source and "get_args(Chain)" in source.split("CHAIN_ORDER: tuple[Chain, ...] =")[1].splitlines()[0], "CHAIN_ORDER is not read from the alias at its definition")

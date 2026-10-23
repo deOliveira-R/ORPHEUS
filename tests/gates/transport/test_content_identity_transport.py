@@ -89,7 +89,7 @@ _WALL_CONDITION = Entry(
         ("white against its amplitudes (law L-G)", lambda: W.white(0.5), lambda: W.from_amplitudes(0.0, 0.5)),
         ("the albedo twin is gone (law L-B)", lambda: W.specular(0.0), lambda: W.white(0.0)),
         ("a zero albedo is vacuum", lambda: W.white(0.0), lambda: W.vacuum()),
-        ("a zero inflow is vacuum", lambda: W.inflow(0.0), lambda: W.vacuum()),
+        ("a zero inflow is vacuum", lambda: W.uniform(0.0), lambda: W.vacuum()),
         ("the dyadic merge is exact", lambda: W.specular(0.25) + W.specular(0.5), lambda: W.specular(0.75)),
     ),
 )
@@ -126,13 +126,13 @@ _WALL_DISPLACEMENT = Entry(
             leg("the other chain", lambda: _displacement((2.0, W.white(0.6)))),
         ),
         "inflow": (
-            leg("a uniform source", lambda: _displacement((2.0, W.specular(0.6)), (1.0, W.inflow(1.0)))),
+            leg("a uniform source", lambda: _displacement((2.0, W.specular(0.6)), (1.0, W.uniform(1.0)))),
         ),
     },
     pairs=(
         ("two builds", _displacement, _displacement),
-        ("the order of the terms", lambda: _displacement((1.0, W.specular(0.25)), (2.0, W.inflow(0.5))),
-         lambda: _displacement((2.0, W.inflow(0.5)), (1.0, W.specular(0.25)))),
+        ("the order of the terms", lambda: _displacement((1.0, W.specular(0.25)), (2.0, W.uniform(0.5))),
+         lambda: _displacement((2.0, W.uniform(0.5)), (1.0, W.specular(0.25)))),
     ),
 )
 
@@ -171,11 +171,11 @@ _BINDING = Entry(
     cls=bc.Binding, base=_binding, parts=("decks", "tags", "declared", "symmetry"),
     perturb={
         "decks": (
-            leg("no deck", lambda: _binding(decks=FrozenMapping({}))),
-            leg("a second deck", lambda: _binding(decks=FrozenMapping({"xmin": MirrorDeck(), "ymin": MirrorDeck()}))),
+            leg("no deck", lambda: _binding(decks=FrozenMapping({}), tags=FrozenMapping({"xmin": 0, "xmax": 0}), symmetry=slab_mesh({"xmin": 0, "xmax": 0}).symmetry), "tags", "symmetry"),
+            leg("a second deck", lambda: _binding(decks=FrozenMapping({"xmin": MirrorDeck(), "ymin": MirrorDeck()}), symmetry=UncomputedSymmetries("Mesh2D")), "symmetry"),
         ),
         "tags": (
-            leg("a second tagged face", lambda: _binding(tags=FrozenMapping({"xmax": 0, "ymax": 0}))),
+            leg("a second tagged face", lambda: _binding(tags=FrozenMapping({"xmax": 0, "ymax": 0}), symmetry=UncomputedSymmetries("Mesh2D")), "symmetry"),
         ),
         "declared": (
             leg("another condition", lambda: _binding(declared=bc.BoundaryConditions({0: W.white(0.25)}))),
@@ -245,10 +245,13 @@ _PARTS = (
         pairs=(("two builds", lambda: bc.Realized(True), lambda: bc.Realized(True)),), content_identity=False,
     ),
     Entry(
-        cls=bc.Approximated, base=lambda: bc.Approximated.of("a square cell", 547), parts=("names", "issues"),
+        cls=bc.Approximated, base=lambda: bc.Approximated.of("a square cell", 547), parts=("approximations",),
         perturb={
-            "names": (leg("another name", lambda: bc.Approximated(frozenset({"a torus"}), frozenset({547}))),),
-            "issues": (leg("another issue", lambda: bc.Approximated(frozenset({"a square cell"}), frozenset({547, 548}))),),
+            "approximations": (
+                leg("another name", lambda: bc.Approximated.of("a torus", 547)),
+                leg("another issue", lambda: bc.Approximated.of("a square cell", 548)),
+                leg("a second pair", lambda: bc.Approximated(frozenset({("a square cell", 547), ("a torus", 548)}))),
+            ),
         },
         pairs=(("two builds", lambda: bc.Approximated.of("a square cell", 547), lambda: bc.Approximated.of("a square cell", 547)),),
         content_identity=False,
@@ -267,10 +270,10 @@ _PARTS = (
     Entry(
         cls=bc.FaceSite, base=lambda: bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 1, False), parts=("face", "coord", "dimension", "hollow_inner"),
         perturb={
-            "face": (leg("another face", lambda: bc.FaceSite("xmin", CoordSystem.CYLINDRICAL, 1, False)),),
+            "face": (leg("another face", lambda: bc.FaceSite("ymax", CoordSystem.CYLINDRICAL, 1, False)),),
             "coord": (leg("another chart", lambda: bc.FaceSite("xmax", CoordSystem.SPHERICAL, 1, False)),),
             "dimension": (leg("another dimension", lambda: bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 2, False)),),
-            "hollow_inner": (leg("hollow", lambda: bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 1, True)),),
+            "hollow_inner": (leg("hollow", lambda: bc.FaceSite("xmin", CoordSystem.CYLINDRICAL, 1, True), "face"),),
         },
         pairs=(("two builds", lambda: bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 1, False), lambda: bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 1, False)),),
         content_identity=False,

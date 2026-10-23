@@ -45,7 +45,7 @@ Layer: ``transport`` (L2). Imports ``numerics`` (the sampler's space, under ``TY
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Protocol, TypeAlias
+from typing import TYPE_CHECKING, Protocol, TypeAlias, get_args
 
 import numpy as np
 
@@ -98,8 +98,8 @@ class InflowTerms(ContentIdentity):
         object.__setattr__(self, "uniform", parse_finite_real(self.uniform, "InflowTerms.uniform"))
         merged: list[list] = []
         for weight, profile in self.sampled:
-            if not isinstance(profile, FaceFrameInflow | LabFrameInflow):
-                raise TypeError(f"InflowTerms: a sampled term holds a FaceFrameInflow or a LabFrameInflow, got {profile!r}")
+            if not isinstance(profile, get_args(InflowProfile)):
+                raise TypeError(f"InflowTerms: a sampled term holds one of {[p.__name__ for p in get_args(InflowProfile)]}, got {profile!r}")
             weight = parse_finite_real(weight, "InflowTerms sampled weight")
             for entry in merged:
                 if entry[1] == profile:

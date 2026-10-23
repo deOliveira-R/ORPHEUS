@@ -173,7 +173,7 @@ def test_the_algebra_and_the_cone() -> None:
     g7 = (0.6 * _spec(1.0) + 0.6 * _white(1.0)) + step_back
     require(_is_condition(g7) and g7 == _spec(0.6), f"G7: a displacement plus its inverse step is {type(g7).__name__} {g7!r}")
 
-    negated = [x for x in walls if x.cone_point != (0.0, 0.0)] + [bc.WallCondition.inflow(2.0), bc.WallCondition.framed(bc.FaceFrameInflow(ProfileSampler()))]
+    negated = [x for x in walls if x.cone_point != (0.0, 0.0)] + [bc.WallCondition.uniform(2.0), bc.WallCondition.framed(bc.FaceFrameInflow(ProfileSampler()))]
     require(len(negated) == 49, f"the negation population has {len(negated)} members, not 49 (47 nonzero grid points + 2 source-only walls)")
     for x in negated:
         require(_is_displacement(-x), f"-a is a {type(-x).__name__} at {x.cone_point}")
@@ -218,13 +218,13 @@ def test_the_source_is_summed_with_the_response() -> None:
     Reddens on: a ``__add__`` that sums the networks and drops the sources (the first assertion); a scalar ``*``
     that scales the network and not the source; a copy sorting sampled terms by digest (the open-sampler row).
     """
-    mixed = 0.5 * bc.WallCondition.inflow(2.0) + _spec(0.5)
+    mixed = 0.5 * bc.WallCondition.uniform(2.0) + _spec(0.5)
     require(_is_condition(mixed), f"the mixed wall is a {type(mixed).__name__}")
     require(mixed.source.uniform == 1.0 and mixed.cone_point == (0.5, 0.0), f"the mixed wall reads {mixed.cone_point}, {mixed.source}")
-    require(bc.WallCondition.inflow(1.0) + bc.WallCondition.inflow(2.0) == bc.WallCondition.inflow(3.0), "inflow(1) + inflow(2) != inflow(3)")
-    require((_spec(0.5) + bc.WallCondition.inflow(1.0)) == (bc.WallCondition.inflow(1.0) + _spec(0.5)), "a + b != b + a with uniform sources")
+    require(bc.WallCondition.uniform(1.0) + bc.WallCondition.uniform(2.0) == bc.WallCondition.uniform(3.0), "inflow(1) + inflow(2) != inflow(3)")
+    require((_spec(0.5) + bc.WallCondition.uniform(1.0)) == (bc.WallCondition.uniform(1.0) + _spec(0.5)), "a + b != b + a with uniform sources")
     require(2.0 * mixed == bc.WallCondition(weights(specular=1.0), bc.InflowTerms(2.0, ())), "scaling a mixed wall lost its source")
-    difference = _spec(0.5) - bc.WallCondition.inflow(1.0)
+    difference = _spec(0.5) - bc.WallCondition.uniform(1.0)
     require(_is_displacement(difference) and difference.inflow.uniform == -1.0, "a - b does not subtract the sources")
 
     sampler = OpaqueSampler()
@@ -246,6 +246,27 @@ def test_the_source_is_summed_with_the_response() -> None:
 
 
 # ── gate 6: displacements are values, not conditions ─────────────────────────
+
+
+@pytest.mark.rests_on(_ALGEBRA)
+def test_equal_profiles_merge_and_decide_the_type() -> None:
+    """Two sampled terms of EQUAL profile merge their weights, and the merge decides a type: ``framed(f) - framed(f)``
+    is the zero weight, which is dropped, so the result is the vacuum ``WallCondition`` with a zero source and not a
+    ``WallDisplacement`` holding two cancelling terms; ``0.5 * framed(f) + 0.5 * framed(f)`` holds ONE sampled term of
+    weight one; a different profile does not merge (control).
+
+    Reddens on: an ``InflowTerms`` without the equal-profile merge (the first row types a displacement and the second
+    holds two terms).
+    """
+    sampler = ProfileSampler()
+    profile = bc.FaceFrameInflow(sampler)
+    framed = bc.WallCondition.framed(profile)
+    cancelled = framed - framed
+    require(type(cancelled) is bc.WallCondition and cancelled.source.is_zero and cancelled == bc.WallCondition.vacuum(), f"framed(f) - framed(f) is {cancelled!r}")
+    halves = 0.5 * framed + 0.5 * framed
+    require(type(halves) is bc.WallCondition and halves.source.sampled == ((1.0, profile),), f"two halves hold {halves.source.sampled}")
+    other = bc.WallCondition.framed(bc.FaceFrameInflow(ProfileSampler(2.0)))
+    require(len((framed + other).source.sampled) == 2, "control: distinct profiles must not merge")
 
 
 @pytest.mark.rests_on(_ALGEBRA)
@@ -366,7 +387,7 @@ def test_inflow_frames_and_terms() -> None:
     sampler = OpaqueSampler()
     face = bc.WallCondition.framed(bc.FaceFrameInflow(sampler))
     lab = bc.WallCondition.framed(bc.LabFrameInflow(sampler))
-    uniform = bc.WallCondition.inflow(1.0)
+    uniform = bc.WallCondition.uniform(1.0)
     require(face.face_local is True and uniform.face_local is True and bc.WallCondition.vacuum().face_local is True, "a face-frame, uniform or empty source is face-local")
     require(lab.face_local is False, "a lab-frame source is not face-local")
     require((lab + uniform).face_local is False and (face + uniform).face_local is True, "face_local does not follow the terms through +")
@@ -396,3 +417,9 @@ def test_inflow_frames_and_terms() -> None:
     inert = local().Probe()
     with pytest.raises(TypeError):
         inert + inert  # type: ignore[operator]  # a method-only condition defines no operator
+    class WrongShape:
+        def sample(self, space_):
+            return np.ones(2)  # shape (2,) on a space of shape (3,): silently broadcast without the shape contract
+
+    with pytest.raises(ValueError, match="space.shape"):
+        bc.sample_terms(bc.InflowTerms(0.0, ((1.0, bc.FaceFrameInflow(WrongShape())),)), space)  # a sampler owes exactly space.shape

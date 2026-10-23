@@ -13,7 +13,7 @@ whose content is stated in a frame the face does not supply (a prescribed inflow
 
 * :class:`BoundaryCarrier` (a ``Protocol``): the object that owns the faces AND their colouring symmetry (decision 51;
   the carrier ruling of 2026-10-23). ``face_roles`` is a ``Mapping[str, FaceRole]`` (the contract is what ``bind``
-  reads: it iterates face to role; the tags predicate is the free function ``orpheus.geometry.deck.tags_of``) and
+  reads: it iterates face to role; the tags predicate the meshes' ``tags`` properties read is the free function ``orpheus.geometry.deck.tags_of``; ``bind`` partitions the roles once) and
   ``symmetry`` is the colouring group of THE SAME faces. ``Mesh1D`` and ``Mesh2D`` conform with no edit (they store a
   ``FrozenMapping`` of roles), ``MaterialMesh`` conforms through ``roles_of_axes`` (slice S2b). Passing the carrier,
   not its two derived values, makes a binding checked against another carrier's group unspellable (a G-set is the
@@ -23,16 +23,21 @@ whose content is stated in a frame the face does not supply (a prescribed inflow
   so a binding that joins a face to a condition of another tag cannot be built. The parse re-checks the exact cover
   (``set(tags.values()) == declared.tags``): the refusal text of :func:`bind` (face-aware) and the parse of the value
   (structural) are the same fact stated at the door and at the type.
+  The type also owns the INVARIANCE refusal and the face-domain checks (every face is a face name; every isometry of
+  the group acts on exactly the faces of the binding), so a direct ``Binding(...)`` cannot build a non-invariant
+  state or carry another carrier's group any more than ``bind`` can: ``bind`` only partitions the roles, checks the
+  face-aware cover and constructs.
 * :func:`bind`: the ONE shared body every method calls (it replaces ``resolve_boundary_conditions``, ``_law_from_tag``
   and the six string tables). It coerces ``conditions`` once through ``BoundaryConditions.of`` and refuses, in this
   order: a tag a face carries with no condition (:class:`~.errors.UnboundTagError`, naming the face and the tag); a
   condition whose tag no face carries (:class:`~.errors.UnusedConditionError`: the exact cover catches a typo that a
-  reachable-subset rule would hide); a condition that is not invariant (:class:`~.errors.NonInvariantConditionError`).
+  reachable-subset rule would hide); then, in the constructor it calls, a condition that is not invariant
+  (:class:`~.errors.NonInvariantConditionError`).
 
 **Uncomputed groups.** A carrier whose group is :class:`~orpheus.geometry.colouring.UncomputedSymmetries` (a
 ``Mesh2D``) has no group machinery yet: ``bind`` refuses, for any tag with two or more faces, a condition that is not
 face-local, with a message naming the 2-D colouring group as the missing machinery (a declared scope boundary, tagged at
-the guard in :func:`_refuse_non_invariant`). Reducing the group instead of refusing (ruling 2's
+the guard in ``_refuse_non_invariant``, which ``Binding.__post_init__`` calls). Reducing the group instead of refusing (ruling 2's
 alternative) is not built: nothing consumes the problem's group today, so a reduced group has no reader.
 
 **Gotchas.**
@@ -53,7 +58,7 @@ from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 from orpheus.geometry.colouring import Symmetries, UncomputedSymmetries
-from orpheus.geometry.deck import DeckTransformation, FaceRole, tags_of
+from orpheus.geometry.deck import DeckTransformation, FaceRole
 from orpheus.geometry.faces import FACE_NAMES
 from orpheus.transport.boundary_conditions.condition import BoundaryCondition
 from orpheus.transport.boundary_conditions.declared import BoundaryConditions
@@ -91,8 +96,12 @@ class Binding(ContentIdentity):
     def __post_init__(self) -> None:
         if set(self.decks) & set(self.tags):
             raise ValueError(f"Binding: the faces {sorted(set(self.decks) & set(self.tags))} are both a deck and a tag")
+        unknown = sorted(face for face in (*self.decks, *self.tags) if face not in FACE_NAMES)
+        if unknown:
+            raise ValueError(f"Binding: {unknown} are not faces (the face names are {list(FACE_NAMES)})")
         if set(self.tags.values()) != set(self.declared.tags):
             raise ValueError(f"Binding: the tags {sorted(set(self.tags.values()))} the faces carry are not the declared tags {sorted(self.declared.tags)}")
+        _refuse_non_invariant(self.decks, self.tags, self.declared, self.symmetry)
 
     @property
     def faces(self) -> tuple[str, ...]:
@@ -115,24 +124,30 @@ class Binding(ContentIdentity):
 
 
 def bind(carrier: BoundaryCarrier, conditions: BoundaryConditions | Mapping[int, BoundaryCondition]) -> Binding:
-    """Bind ``conditions`` to the faces of ``carrier``: the exact cover, then the invariance (see the module docstring)."""
+    """Bind ``conditions`` to the faces of ``carrier``: the face-aware exact cover here, then the type's own checks (see the module docstring)."""
     declared = BoundaryConditions.of(conditions)
-    roles, symmetry = carrier.face_roles, carrier.symmetry
-    decks = {face: role for face, role in roles.items() if isinstance(role, DeckTransformation)}
-    tags = {face: role for face, role in roles.items() if face not in decks}
+    decks: dict[str, DeckTransformation] = {}
+    tags: dict[str, int] = {}
+    for face, role in carrier.face_roles.items():
+        if isinstance(role, DeckTransformation):
+            decks[face] = role
+        else:
+            tags[face] = role
     for face, tag in tags.items():
         if tag not in declared:
             raise UnboundTagError(f"face {face!r} carries tag {tag} and no condition is declared for it", tag=tag, face=face)
-    carried = tags_of(roles.values())
+    carried = set(tags.values())
     for tag in declared:
         if tag not in carried:
             raise UnusedConditionError(f"a condition is declared for tag {tag} and no face carries it (carried tags: {sorted(carried)})", declared[tag], tag=tag)
-    _refuse_non_invariant(tags, declared, symmetry)
-    return Binding(FrozenMapping(decks), FrozenMapping(tags), declared, symmetry)
+    return Binding(FrozenMapping(decks), FrozenMapping(tags), declared, carrier.symmetry)
 
 
-def _refuse_non_invariant(tags: Mapping[str, int], declared: BoundaryConditions, symmetry: Symmetries) -> None:
-    """Raise :class:`NonInvariantConditionError` for a condition that a non-identity element of the group does not fix."""
+def _refuse_non_invariant(decks: Mapping[str, DeckTransformation], tags: Mapping[str, int], declared: BoundaryConditions, symmetry: Symmetries) -> None:
+    """Raise :class:`NonInvariantConditionError` for a condition that a non-identity element of the group does not fix.
+
+    Also checks that each isometry acts on exactly the faces of the binding (a group of ANOTHER carrier is refused).
+    """
     if isinstance(symmetry, UncomputedSymmetries):
         # SCOPE-BOUNDARY[guard] (#529) machinery: the 2-D colouring group of a Mesh2D (today UncomputedSymmetries), consumed by a
         # quotient or a cache. ruling: wave2_boundary_carve.md section 2.4, the orchestrator, 2026-10-22 (reducing the group instead of
@@ -146,7 +161,10 @@ def _refuse_non_invariant(tags: Mapping[str, int], declared: BoundaryConditions,
                     condition, tag=tag, isometry=None, faces=faces,
                 )
         return
+    held = {*decks, *tags}
     for isometry in symmetry.elements:
+        if set(isometry.faces) != held:
+            raise ValueError(f"Binding: an isometry acts on the faces {sorted(isometry.faces)}, not on the faces {sorted(held)} of this binding (another carrier's group)")
         if isometry.is_identity:
             continue
         for tag, condition in declared.items():

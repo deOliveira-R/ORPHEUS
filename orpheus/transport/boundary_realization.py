@@ -121,6 +121,9 @@ MethodSpaceT = TypeVar("MethodSpaceT")
 def stamp_boundary_role(op: "LinearOperator") -> "LinearOperator":
     r"""Stamp a realized boundary law with the :attr:`BlockRole.BOUNDARY` role.
 
+    A copy of this lives in ``orpheus.transport.boundary_conditions.realization.stamp_boundary_role``; WF2.4 retires
+    this one. Edit both or neither until then.
+
     A realized law is a boundary-block leaf (``A_ss`` only) on the
     direct-sum transport state ``V = V_bulk ⊕ V_boundary`` — it maps the
     outflow trace to the inflow trace with no bulk action (Issue #208 /

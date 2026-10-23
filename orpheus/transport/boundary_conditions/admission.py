@@ -17,9 +17,9 @@ the theory page's (``docs/theory/foundations/boundary_conditions.rst``, ``bc-met
   missing machinery, so :class:`Refused` REFUSES to be built as ``PLUMBING`` without one.
 
 **The lattice, defined once.** ``Realized(True) > Realized(False) > Approximated > Refused``. ``Admission.meet(*members)``
-is the only spelling of the meet: the lesser member; the meet of two :class:`Approximated` is
-``Approximated(x.names | y.names, x.issues | y.issues)`` (a SET of names, because ``meet`` on a total order would drop
-one); the meet of two :class:`Refused` is the first argument's (documented, deterministic); the meet of NO members is
+is the only spelling of the meet: the lesser member; the meet of two :class:`Approximated` is the union of their
+``(name, issue)`` pairs (a SET, because ``meet`` on a total order would drop one, and a pair, because which issue tracks
+which approximation is the information a union of two separate sets would lose); the meet of two :class:`Refused` is the first argument's (documented, deterministic); the meet of NO members is
 ``Realized(True)`` (an empty network and no source need no realizer). A wall's admission is the meet over its nonzero
 chains and its source.
 
@@ -39,7 +39,15 @@ CP's slab-left-face rule is CP's own predicate on ``site.face`` (decision 56).
 * There are two levels: the TYPE level (the front end's drop-down; the upper bound) and the INSTANCE level (per face
   and per value, plus the quadrature's equivariance certified by ``ordinate_pairing``). Both read ONE table per method
   (:mod:`.realization`), so the query and the realization cannot disagree.
-* ``Approximated.of(name, issue)`` is the one-member spelling the tables write.
+* ``Approximated.of(name, issue)`` is the one-member spelling the tables write; ``names`` and ``issues`` are derived
+  projections of the stored pairs, never stored.
+* The sum is sealed at the SUBCLASS level: ``Realized``, ``Approximated`` and ``Refused`` are the only members, each a
+  DIRECT subclass of :class:`Admission` (a subclass of a member is refused), and each parses its fields (a
+  ``Realized`` holds a ``bool``, an ``Approximated`` a non-empty set of ``(str, int)`` pairs, a ``Refused`` an axis, a
+  reason and an optional issue).
+* :class:`FaceSite` refuses a contradictory ``hollow_inner``: the flag is true exactly when the face is the inner
+  face of a radial mesh, which the face name and the coordinate system already say. The field is kept because the
+  specification names it (it is redundant: dropping it is the cleaner alternative, reported in NEEDS).
 
 Layer: ``transport`` (L2). Imports ``geometry`` (``CoordSystem`` and the face vocabulary) only.
 """
@@ -71,8 +79,9 @@ class Admission:
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
-        if len(Admission.__subclasses__()) > 3:  # the sum is closed: Realized, Approximated, Refused
-            raise TypeError(f"{cls.__name__}: Admission is a closed sum of Realized, Approximated and Refused")
+        # The sum is closed: exactly Realized, Approximated, Refused, each a direct subclass (a subclass of a member is refused).
+        if cls.__bases__ != (Admission,) or cls.__name__ not in _MEMBERS:
+            raise TypeError(f"{cls.__name__}: Admission is a closed sum of {', '.join(_MEMBERS)}, each a direct subclass")
 
     @staticmethod
     def meet(*members: Admission) -> Admission:
@@ -82,10 +91,13 @@ class Admission:
             if isinstance(result, Refused):
                 break
             if isinstance(result, Approximated) and isinstance(member, Approximated):
-                result = Approximated(result.names | member.names, result.issues | member.issues)
+                result = Approximated(result.approximations | member.approximations)
             elif _rank(member) < _rank(result):
                 result = member
         return result
+
+
+_MEMBERS = ("Realized", "Approximated", "Refused")
 
 
 @dataclass(frozen=True)
@@ -94,18 +106,40 @@ class Realized(Admission):
 
     faithful: bool
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.faithful, bool):
+            raise TypeError(f"Realized: faithful is a bool, got {self.faithful!r}")
+
 
 @dataclass(frozen=True)
 class Approximated(Admission):
-    """Tier 3, or a named domain approximation: the SET of approximations' ``names`` and tracking ``issues``."""
+    """Tier 3, or a named domain approximation: the non-empty SET of ``(name, issue)`` pairs, each approximation with its tracking issue."""
 
-    names: frozenset[str]
-    issues: frozenset[int]
+    approximations: frozenset[tuple[str, int]]
+
+    def __post_init__(self) -> None:
+        pairs = frozenset(self.approximations)
+        if not pairs:
+            raise ValueError("Approximated: an approximation names at least one (name, issue) pair")
+        for pair in pairs:
+            if not (isinstance(pair, tuple) and len(pair) == 2 and isinstance(pair[0], str) and isinstance(pair[1], int) and not isinstance(pair[1], bool)):
+                raise TypeError(f"Approximated: a member is a (name: str, issue: int) pair, got {pair!r}")
+        object.__setattr__(self, "approximations", pairs)
 
     @classmethod
     def of(cls, name: str, issue: int) -> Approximated:
         """The one-member spelling the tables write."""
-        return cls(frozenset({name}), frozenset({issue}))
+        return cls(frozenset({(name, issue)}))
+
+    @property
+    def names(self) -> frozenset[str]:
+        """The approximations' names (derived)."""
+        return frozenset(name for name, _ in self.approximations)
+
+    @property
+    def issues(self) -> frozenset[int]:
+        """The tracking issues (derived)."""
+        return frozenset(issue for _, issue in self.approximations)
 
 
 @dataclass(frozen=True)
@@ -117,6 +151,12 @@ class Refused(Admission):
     issue: int | None = None
 
     def __post_init__(self) -> None:
+        if not isinstance(self.axis, RefusalAxis):
+            raise TypeError(f"Refused: axis is a RefusalAxis, got {self.axis!r}")
+        if not isinstance(self.reason, str):
+            raise TypeError(f"Refused: reason is a str, got {self.reason!r}")
+        if self.issue is not None and (not isinstance(self.issue, int) or isinstance(self.issue, bool)):
+            raise TypeError(f"Refused: issue is an int or None, got {self.issue!r}")
         if self.axis is RefusalAxis.PLUMBING and self.issue is None:
             raise ValueError(f"Refused(PLUMBING, {self.reason!r}): a refusal with no theory behind it names the issue that tracks the missing machinery")
 
@@ -152,6 +192,13 @@ class FaceSite:
     coord: CoordSystem
     dimension: int
     hollow_inner: bool
+
+    def __post_init__(self) -> None:
+        if self.hollow_inner != (self.is_curved and face_normal(self.face)[1] < 0):
+            raise ValueError(
+                f"FaceSite({self.face!r}, {self.coord.name}, {self.dimension}, hollow_inner={self.hollow_inner}): hollow_inner is true exactly "
+                "on the inner face (a negative outward sign) of a radial mesh"
+            )
 
     @property
     def is_curved(self) -> bool:
