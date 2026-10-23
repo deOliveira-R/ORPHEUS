@@ -167,7 +167,7 @@ S7 merged @ `e80ec738`. Next: the sub-cone measurement on numerics (`verificatio
   6. Commit the agents' memory at close-out: the cross-domain-attacker's `MEMORY.md` and `lessons.md` are modified and uncommitted now.
 - **Wave 2 is designed and ruled.** The design is `boundary_law_ontology.md`'s twelfth exchange: thirteen adopted points plus the user's D1-D5 and the strict-`xfail` ruling for D4. The drafts and attacks, untracked, are in `scratch/layer_dag/wave2_design/`. #650 records the specification's vocabulary limit.
 
-**Next, in order.**
+**Next, in order.** Execution model and the workflow form of steps 1 to 5: `.claude/plans/workflow_orchestration.md`. The orchestrator is Opus, the advisor Fable (judgement stages), the executor Sonnet (doing stages), with templates in `.claude/workflows/` invoked by `scriptPath`. Wave 2 runs as WF2.1 (specification) → WF2.2 (leaves) → WF2.3 (consumers, S1 first) → WF2.4 (retirement) → WF2.5 (docs). Two items are open for the user there: the surgical-carve exception, and the size guideline.
 1. **One consolidated wave-2 specification** (`.claude/plans/wave2_boundary_carve.md`), before any gate is written. The two drafts disagree in detail (names, module layout, verb signatures), and the twelfth exchange states only the decisions. A gate written against two designs pins neither. The specification fixes, against the post-wave-1 tree (WP-B's final names in `geometry/faces.py`):
    - every type with its fields and invariant;
    - every module path and verb signature;
