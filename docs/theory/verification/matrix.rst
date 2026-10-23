@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19713**
+Total tests collected: **19737**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2762, 14.0%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14910, 75.6%
+   foundation, 14934, 75.7%
    unmarked, 43, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19591
+   explicit, 19615
    class-name, 46
    func-name, 0
    case, 33
@@ -303,6 +303,7 @@ Module × level grid
    frames/test_moment_metric_fork_premise, 0, 0, 0, 0, 101, 0
    frames/test_moment_space_is_read_off_the_frame, 0, 0, 0, 0, 36, 0
    geometry/test_angular_chart, 0, 0, 0, 0, 8, 0
+   geometry/test_axis_table, 0, 0, 0, 0, 3, 0
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 50, 0, 0, 5, 0
@@ -326,6 +327,7 @@ Module × level grid
    geometry/test_line, 0, 0, 0, 0, 9, 0
    geometry/test_line_domain, 3, 5, 0, 0, 22, 0
    geometry/test_line_measure, 0, 12, 0, 0, 0, 0
+   geometry/test_manifold, 0, 0, 0, 0, 250, 0
    geometry/test_measure_density, 6, 0, 0, 0, 0, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_named_face_constructors, 0, 0, 0, 0, 62, 0
@@ -333,9 +335,11 @@ Module × level grid
    geometry/test_rays, 16, 0, 0, 0, 7, 0
    geometry/test_reemission_closure, 0, 0, 0, 0, 184, 0
    geometry/test_reflective_is_a_mirror, 0, 0, 0, 0, 36, 0
+   geometry/test_roots_of_unity, 0, 0, 0, 0, 251, 0
    geometry/test_self_paired_deck, 0, 0, 0, 0, 23, 0
    geometry/test_specular_response_pins_to_geometry, 0, 14, 0, 0, 0, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 74, 0
+   geometry/test_symmetry, 0, 0, 0, 0, 215, 2
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
    homogeneous/test_coda_anchors, 0, 0, 0, 0, 28, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
@@ -451,7 +455,6 @@ Module × level grid
    numerics/test_legendre_basis, 0, 0, 0, 0, 34, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
    numerics/test_linear_combination, 46, 0, 0, 0, 0, 0
-   numerics/test_manifold, 0, 0, 0, 0, 245, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 17, 0, 0, 48, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
@@ -477,7 +480,6 @@ Module × level grid
    numerics/test_registry_rule_list, 0, 0, 0, 0, 12, 1
    numerics/test_retraction_adjoint_is_the_pullback, 0, 0, 0, 0, 30, 0
    numerics/test_riesz_legs, 3, 0, 0, 0, 0, 8
-   numerics/test_roots_of_unity, 0, 0, 0, 0, 251, 0
    numerics/test_rules_1d, 0, 10, 0, 0, 21, 0
    numerics/test_rules_circle, 0, 93, 0, 0, 57, 0
    numerics/test_rules_product, 0, 3, 0, 0, 45, 0
@@ -495,7 +497,6 @@ Module × level grid
    numerics/test_strategy_mints_green, 0, 0, 0, 0, 16, 0
    numerics/test_symbolic_steps, 0, 0, 0, 0, 5, 0
    numerics/test_symbolic_without_values, 0, 0, 0, 0, 2, 0
-   numerics/test_symmetry, 0, 0, 0, 0, 215, 2
    numerics/test_symmetry_exactness, 0, 0, 0, 0, 30, 0
    numerics/test_tensor_product_metric_is_factored, 0, 0, 0, 0, 10, 0
    numerics/test_tensor_product_operator, 32, 0, 0, 0, 0, 0
@@ -665,7 +666,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 509, 0
+   test_layer_imports, 0, 0, 0, 0, 525, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -1787,7 +1788,7 @@ taxonomy.
    ``tests/gates/geometry/test_kernel_corroboration.py``, 4
    ``tests/gates/numerics/test_concept_order.py``, 4
    ``tests/gates/numerics/test_iteration_record.py``, 4
-   ``tests/gates/numerics/test_symmetry.py``, 2
+   ``tests/gates/geometry/test_symmetry.py``, 2
    ``tests/gates/sn/sweep/core/test_cache.py``, 2
    ``tests/gates/derivations/test_characteristic_reference.py``, 1
    ``tests/gates/numerics/test_registry_rule_list.py``, 1
