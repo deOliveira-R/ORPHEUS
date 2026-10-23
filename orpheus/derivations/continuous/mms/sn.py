@@ -1606,7 +1606,20 @@ class SN2DCartesianLDStressMMSCase:
 
         Every ordinate is filled (full ``(N, ng, n_t[, n_face_moments])`` per
         face); the producer keeps only the inflow ordinates.
+
+        The width is the caller's to match to the trace it seeds: a width
+        below the trace's own (``1`` on an LD problem) is accepted by the
+        producer and seeds slot 0 only, dropping the slope. The pairing helper
+        reads the width from the problem's own trace layout so that cannot
+        happen there. A width outside ``{1, 2}`` is refused: the projector
+        builds only the ``[bar, slope]`` slots of a 2-D face.
         """
+        if n_face_moments not in (1, 2):
+            raise ValueError(
+                f"{type(self).__name__}.inflow_face_values: n_face_moments={n_face_moments} is "
+                "not a 2-D face closure width; the projector supports 1 (cell average) or "
+                "2 ([bar, slope])."
+            )
         W = float(self.quadrature.weights.sum())
         mu_x = self.quadrature.mu_x
         mu_y = self.quadrature.mu_y
@@ -3367,11 +3380,16 @@ class SNSlabNonVacuumMMSCase:
 
         The signature is the one every non-vacuum case shares (see
         :meth:`SN2DCartesianLDStressMMSCase.inflow_face_values`): a 1-D face
-        is a point, so neither ``mesh`` nor ``n_face_moments`` (always 1 in
-        1-D) changes the sample. The wrap of these values into the solver's
+        is a point, so ``mesh`` does not change the sample and ``n_face_moments``
+        must be 1 (any other width is refused). The wrap of these values into the solver's
         boundary source lives with the test that pairs this case with a solve
         (since 2026-10-22).
         """
+        if n_face_moments != 1:
+            raise ValueError(
+                f"{type(self).__name__}.inflow_face_values: n_face_moments={n_face_moments}; "
+                "a 1-D face is a point, so its closure width is 1."
+            )
         W = float(self.quadrature.weights.sum())
         mu = self.quadrature.mu_x
         ng = self.n_groups
@@ -3639,11 +3657,16 @@ class SNSphericalNonVacuumMMSCase:
 
         The signature is the one every non-vacuum case shares (see
         :meth:`SN2DCartesianLDStressMMSCase.inflow_face_values`): a 1-D face
-        is a point, so neither ``mesh`` nor ``n_face_moments`` (always 1 in
-        1-D) changes the sample. The wrap of these values into the solver's
+        is a point, so ``mesh`` does not change the sample and ``n_face_moments``
+        must be 1 (any other width is refused). The wrap of these values into the solver's
         boundary source lives with the test that pairs this case with a solve
         (since 2026-10-22).
         """
+        if n_face_moments != 1:
+            raise ValueError(
+                f"{type(self).__name__}.inflow_face_values: n_face_moments={n_face_moments}; "
+                "a 1-D face is a point, so its closure width is 1."
+            )
         W = float(self.quadrature.weights.sum())
         mu = self.quadrature.mu_x
         R = self.radius

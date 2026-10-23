@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -1300,7 +1300,20 @@ def mixture_from_transport_data(sigma_t, sigma_s, nu_sigma_f, chi):
                         chi=np.asarray(chi, dtype=float), sig_s=sig_s)
 
 
-def mms_prescribed_inflow(case, problem: "SNProblem"):
+class NonVacuumMMSCase(Protocol):
+    r"""The plain-data surface a non-vacuum SN MMS reference case declares.
+
+    Three cases realise it (the slab, the sphere and the 2-D LD stress box of
+    ``orpheus.derivations.continuous.mms.sn``): the manufactured bulk source on a mesh,
+    and the closed inflow trace ``{face: values}`` on a mesh at a closure width.
+    """
+
+    def external_source(self, mesh: Any) -> np.ndarray: ...
+
+    def inflow_face_values(self, mesh: Any, n_face_moments: int) -> dict[str, np.ndarray]: ...
+
+
+def mms_prescribed_inflow(case: NonVacuumMMSCase, problem: "SNProblem"):
     r"""The prescribed-inflow boundary source :math:`q_\partial` of a non-vacuum MMS ``case`` on ``problem``.
 
     The reference declares its closed inflow trace in plain data
@@ -1308,19 +1321,19 @@ def mms_prescribed_inflow(case, problem: "SNProblem"):
     imports production; the translation into the solver's
     :class:`~orpheus.transport.fields.AngularBoundarySourceSink` lives here, beside the tests that
     pair the case with a solve (the user's ruling of 2026-10-22; layer DAG P4c). The closure width
-    is read from the scheme the problem was posed with, so a DD/Step problem receives the scalar
-    face trace and an LD problem the moment-resolved slot.
+    is :attr:`~orpheus.sn.problem.SNProblem.n_face_moments`, the attribute the trace layout
+    :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` packs its moment tail from, so the
+    case's trace and the producer's slot agree by construction: a DD/Step problem receives the
+    scalar face trace and an LD problem the moment-resolved slot.
     """
-    from orpheus.numerics.moment_layout import face_moment_count
     from orpheus.transport.fields import AngularBoundarySourceSink
 
-    n_face_moments = face_moment_count(problem.scheme.spatial_basis_per_axis, problem.ndim)
     return AngularBoundarySourceSink.prescribed_inflow(
-        problem, case.inflow_face_values(problem.mesh, n_face_moments),
+        problem, case.inflow_face_values(problem.mesh, problem.n_face_moments),
     )
 
 
-def build_nonvacuum_fixed_source(case, problem: "SNProblem") -> "TimedFullField":
+def build_nonvacuum_fixed_source(case: NonVacuumMMSCase, problem: "SNProblem") -> "TimedFullField":
     r"""The composite fixed-source right-hand side :math:`q = q_{\rm bulk} \oplus q_\partial` of a non-vacuum MMS ``case``.
 
     Bundles the manufactured bulk source (``case.external_source(problem.mesh)``) and the

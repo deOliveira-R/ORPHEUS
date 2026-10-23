@@ -1521,6 +1521,20 @@ class SNProblem(MaterialMesh):
         )
 
     @property
+    def n_face_moments(self) -> int:
+        r"""Per-face transverse moment count :math:`(\text{per\_axis})^{d-1}` of this problem's scheme.
+
+        The closure width of every boundary face slot: ``1`` for the cell-average
+        closures (DD/Step, no moment axis) and ``2^{d-1}`` for the bilinear UBLD
+        Linear-Discontinuous closure. :attr:`boundary_face_layout` packs its moment
+        tail from this attribute, so a consumer that sizes a face trace from it
+        agrees with the trace layout by construction (layer DAG P4c).
+        """
+        from orpheus.numerics.moment_layout import face_moment_count
+
+        return face_moment_count(self.scheme.spatial_basis_per_axis, self.ndim)
+
+    @property
     def boundary_face_layout(self) -> "FaceLayout[str]":
         r"""Flat :class:`~orpheus.numerics.face_layout.FaceLayout` of boundary faces.
 
@@ -1587,15 +1601,15 @@ class SNProblem(MaterialMesh):
         conflation D-G was dissolving.
         """
         from orpheus.numerics.face_layout import FaceLayout
-        from orpheus.numerics.moment_layout import face_moment_count, face_moment_tail
+        from orpheus.numerics.moment_layout import face_moment_tail
 
         N = self.quad.n_ordinates
         # Per-face transverse moment count per_axis^{d-1} (#251) — the FACE
         # tail (the CELL tail is per_axis^d).  DD/Step → () → byte-identical.
         # Single-sourced with the cochain's ``_n_face_moments`` via
-        # ``face_moment_count`` so the producer and the consumer cannot drift.
-        n_face_moments = face_moment_count(self.scheme.spatial_basis_per_axis, self.ndim)
-        moment_tail = face_moment_tail(n_face_moments)
+        # ``face_moment_count`` (read through :attr:`n_face_moments`) so the
+        # producer and the consumer cannot drift.
+        moment_tail = face_moment_tail(self.n_face_moments)
         return FaceLayout.from_named_shapes([
             (label.face_name, (N, self.ng, *self.face_shape(label), *moment_tail))
             for label in self.face_labels

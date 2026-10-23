@@ -2285,13 +2285,14 @@ see the honest-scope note below.
    :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` moment-tail
    storage lever, the ``_inflow_to_moments`` rank-discriminated pass-through,
    the four outflow capture-collapse DROP sites, the
-   ``prescribed_inflow`` scalar-or-moment producer, the transverse
+   :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
+   scalar-or-moment producer, the transverse
    face-moment normalization, the SHARPER Mode-10 (no improves-on-flat leg),
    and the reflective-BC sign follow-up (#252) — is the subsection
    :ref:`ld-cartesian-2d-legB`.
 
-   **S9 (#257)** completes the boundary half: the MMS case
-   ``prescribed_inflow`` now itself EMITS the moment-resolved slot (it no longer
+   **S9 (#257)** completes the boundary half: the MMS case's
+   ``inflow_face_values`` now itself EMITS the moment-resolved slot (it no longer
    drops the slope at the producer), and the **coherent promise** — *LD is
    second-order at the boundary with no asterisk* — is LOCKED by a dedicated
    first-cell-row convergence gate.  The promise is delivered by the AVERAGE
@@ -3206,7 +3207,7 @@ path: the trace ``mesh.angular_trace`` carries the transverse moment axis end to
 ``_inflow_to_moments`` threads slot 1, and the sweep outflow stores the
 :math:`2^{d-1}` transverse face-moments instead of collapsing them.  But the
 MMS *producer* — the case's
-:meth:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase.prescribed_inflow`
+:meth:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase.inflow_face_values`
 — still built a SCALAR per-face trace, so it hit the producer's scalar branch
 and the slope it could have carried was zeroed by the case, not by the closure.
 S9 (Issue #257) closes that producer-blindness — the case now EMITS the
@@ -3310,11 +3311,19 @@ Producer honesty: the MMS case emits the moment slot
 
 The S9 production change is a single completion of the existing case (no new
 ansatz, no sibling case).
-:meth:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase.prescribed_inflow`
-now gates on
-:func:`~orpheus.numerics.moment_layout.face_moment_count` — the SAME
-single-source primitive
-:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` keys the slot width on:
+:meth:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase.inflow_face_values`
+builds the scalar or the moment-resolved trace from the closure width
+``n_face_moments`` it is given (the case reads no production problem since
+2026-10-22). The test-side pairing helper ``mms_prescribed_inflow``
+(``tests/gates/sn/_test_helpers.py``) passes
+:attr:`~orpheus.sn.problem.SNProblem.n_face_moments`, the
+:func:`~orpheus.numerics.moment_layout.face_moment_count` of the problem's
+scheme and the SAME attribute
+:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` packs the slot width
+from, so the case's trace and the producer's slot agree by construction. The
+case refuses a width outside ``{1, 2}``; a width of 1 on an LD problem is
+accepted by the producer and seeds slot 0 only, which is why the width is read
+from the problem and never passed by hand:
 
 * When ``face_moment_count == 1`` (DD/Step) it builds the SCALAR per-face trace
   ``(N, ng, n_t)`` by cell-CENTRE evaluation of :math:`(A + \mu_x B + \mu_y
@@ -3362,7 +3371,7 @@ pinned only the consumer).
 .. note:: **The second-order interaction the producer honesty introduces.**
 
    A diagnostic helper whose "average-only" baseline routed through the (now
-   slope-honest) production ``prescribed_inflow`` would SILENTLY inherit the new
+   slope-honest) case trace ``inflow_face_values`` would SILENTLY inherit the new
    slope, collapsing the controlled ``flat``/``mom``/``flip`` toggle and breaking
    the byte-identity no-op control.  The fix is structural: the controlled
    average-only baseline is built TEST-SIDE (the toggle belongs to the test;
@@ -3459,7 +3468,7 @@ Sources and gates
 ^^^^^^^^^^^^^^^^^
 
 The production change is one file:
-:meth:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase.prescribed_inflow`
+:meth:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase.inflow_face_values`
 gated scalar-vs-moment build plus the new case-owned ``leggauss`` projector
 :meth:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase._project_inflow_to_face_moments`
 (the boundary cochain, the trace, the consumer ``_inflow_to_moments``, and

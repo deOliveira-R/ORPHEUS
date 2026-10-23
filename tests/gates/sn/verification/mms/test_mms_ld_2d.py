@@ -57,9 +57,9 @@ from orpheus.sn.loss_representation import (
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
-from tests.gates.sn._test_helpers import build_nonvacuum_fixed_source, mms_prescribed_inflow
-
-from tests.gates.sn._test_helpers import volume_weighted_l2
+from tests.gates.sn._test_helpers import (
+    build_nonvacuum_fixed_source, mms_prescribed_inflow, volume_weighted_l2,
+)
 
 
 def _nonsquare_het_2g_mesh(nx: int = 5, ny: int = 4):
