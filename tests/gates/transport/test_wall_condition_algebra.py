@@ -357,7 +357,7 @@ def test_a_deck_is_not_an_operand() -> None:
     require(0.5 * bc.WallCondition.vacuum() == bc.WallCondition.vacuum(), "control: the operator path itself works")
     cases = {
         "vacuum + 3": lambda: bc.WallCondition.vacuum() + 3,
-        "0.5 * MirrorDeck": lambda: 0.5 * MirrorDeck(),
+        "0.5 * MirrorDeck": lambda: 0.5 * MirrorDeck(),  # type: ignore[operator]  # the refusal under test
         "MirrorDeck + vacuum": lambda: MirrorDeck() + bc.WallCondition.vacuum(),
         "vacuum + TranslationDeck": lambda: bc.WallCondition.vacuum() + TranslationDeck(),
         "vacuum * MirrorDeck": lambda: bc.WallCondition.vacuum() * MirrorDeck(),  # type: ignore[operator]
@@ -418,8 +418,14 @@ def test_inflow_frames_and_terms() -> None:
     with pytest.raises(TypeError):
         inert + inert  # type: ignore[operator]  # a method-only condition defines no operator
     class WrongShape:
-        def sample(self, space_):
-            return np.ones(2)  # shape (2,) on a space of shape (3,): silently broadcast without the shape contract
+        def __init__(self, shape):
+            self.shape = shape
 
-    with pytest.raises(ValueError, match="space.shape"):
-        bc.sample_terms(bc.InflowTerms(0.0, ((1.0, bc.FaceFrameInflow(WrongShape())),)), space)  # a sampler owes exactly space.shape
+        def sample(self, space_):
+            return np.ones(self.shape)
+
+    # (1,) on (3,) is the BROADCASTING case: numpy would silently stretch it, so only the shape contract refuses it;
+    # (2,) on (3,) numpy refuses by itself, so that leg is the message check.
+    for shape in ((1,), (2,)):
+        with pytest.raises(ValueError, match="space.shape"):
+            bc.sample_terms(bc.InflowTerms(0.0, ((1.0, bc.FaceFrameInflow(WrongShape(shape))),)), space)  # a sampler owes exactly space.shape

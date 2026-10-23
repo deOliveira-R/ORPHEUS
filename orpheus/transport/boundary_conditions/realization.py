@@ -35,10 +35,11 @@ QUESTION and not of the declaration.
 
 **The unregistered door.** A unit with no entry is ``Refused(STATE_CONE, ...)`` when its ``return_fraction < 0`` and the
 table's :class:`StateCone` is ``NONNEGATIVE_FLUX`` (so SN refuses diffusion's zero flux on the state-cone axis without
-importing it: SN may not import diffusion, an L3 to L3 edge), and ``Refused(PLUMBING, ..., UNREGISTERED_UNIT_ISSUE)``
-otherwise, naming the table's admitted keys. PLUMBING owes an issue; the specification gives none for this door, and the
-umbrella that the admission tables cite for plumbing refusals is #654 (reported in NEEDS). A method that lacks an entry
-for a shared unit should list it in its own table with its own tracking issue rather than rely on this door.
+importing it: SN may not import diffusion, an L3 to L3 edge), and ``Refused(PLUMBING, ..., table.unregistered_issue)``
+otherwise, naming the table's admitted keys. PLUMBING owes an issue, and which issue tracks a method's missing entries is
+the method's to say: the table is built with a required ``unregistered_issue`` (CP, MoC and MC cite #654, whose tables
+keep the old string registries' coverage; SN and diffusion cite #659, whose tables register every shared unit and meet
+this door only with another method's own condition; the orchestrator's ruling, 2026-10-23).
 
 **Sampling.** The ONE source verb is :meth:`RealizerTable.sample_inflow`: ``require`` the source, then the registered
 :meth:`SourceRealizer.sample`, whose default body is :func:`sample_terms`: ``q = uniform * ones + sum_i w_i sampler_i.sample(space)``.
@@ -89,7 +90,6 @@ OpT = TypeVar("OpT")
 K = TypeVar("K")
 
 __all__ = [
-    "UNREGISTERED_UNIT_ISSUE",
     "DeckRealizer",
     "RealizerTable",
     "ResponseRealizer",
@@ -100,11 +100,6 @@ __all__ = [
     "sample_terms",
     "stamp_boundary_role",
 ]
-
-#: The issue a ``Refused(PLUMBING)`` of the unregistered-unit door names: the umbrella of the plumbing refusals of the
-#: per-method tables.
-UNREGISTERED_UNIT_ISSUE = 654
-
 
 class TableNotSealedError(BoundaryError):
     """A query reached a table whose defining module has not called ``seal()`` (registrations may be missing)."""
@@ -184,9 +179,12 @@ def stamp_boundary_role(op: LinearOperator) -> LinearOperator:
 class RealizerTable(Generic[SpaceT, OpT]):
     """The realizers of ONE method, keyed by unit type; registered by class keyword, then sealed (see the module docstring)."""
 
-    def __init__(self, method: str, *, state_cone: StateCone) -> None:
+    def __init__(self, method: str, *, state_cone: StateCone, unregistered_issue: int) -> None:
+        if not isinstance(unregistered_issue, int) or isinstance(unregistered_issue, bool):
+            raise TypeError(f"{method}: unregistered_issue is the int of the issue tracking the units this table does not register, got {unregistered_issue!r}")
         self.method = method
         self.state_cone = state_cone
+        self.unregistered_issue = unregistered_issue
         self._responses: dict[type, ResponseRealizer] = {}
         self._source: SourceRealizer | None = None
         self._deck: DeckRealizer | None = None
@@ -250,7 +248,7 @@ class RealizerTable(Generic[SpaceT, OpT]):
         return Refused(
             RefusalAxis.PLUMBING,
             f"{type(unit).__name__} has no entry in the table of {self.method}, which admits {self._admitted_names}",
-            UNREGISTERED_UNIT_ISSUE,
+            self.unregistered_issue,
         )
 
     def _admit_unit(self, key: type, unit: object, weight: float, site: FaceSite, space: SpaceT | None) -> Admission:
@@ -259,12 +257,12 @@ class RealizerTable(Generic[SpaceT, OpT]):
 
     def _admit_source(self, terms: InflowTerms, site: FaceSite, space: SpaceT | None) -> Admission:
         if self._source is None:
-            return Refused(RefusalAxis.PLUMBING, f"{self.method} registers no source realizer", UNREGISTERED_UNIT_ISSUE)
+            return Refused(RefusalAxis.PLUMBING, f"{self.method} registers no source realizer", self.unregistered_issue)
         return self._source.admit(terms, site, space)
 
     def _admit_deck(self, deck: DeckTransformation, site: FaceSite, space: SpaceT | None) -> Admission:
         if self._deck is None:
-            return Refused(RefusalAxis.PLUMBING, f"{self.method} registers no deck realizer", UNREGISTERED_UNIT_ISSUE)
+            return Refused(RefusalAxis.PLUMBING, f"{self.method} registers no deck realizer", self.unregistered_issue)
         return self._deck.admit(deck, pairing_of(deck, site.face, dimension=site.dimension), site, space)
 
     def admit(self, declared: DeckTransformation | BoundaryCondition | InflowTerms, site: FaceSite, space: SpaceT | None = None) -> Admission:

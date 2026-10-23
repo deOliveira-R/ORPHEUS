@@ -24,11 +24,12 @@ whose content is stated in a frame the face does not supply (a prescribed inflow
   (``set(tags.values()) == declared.tags``): the refusal text of :func:`bind` (face-aware) and the parse of the value
   (structural) are the same fact stated at the door and at the type.
   The type also owns the INVARIANCE refusal and the face-domain checks (every face is a face name; every isometry of
-  the group acts on exactly the faces of the binding), so a direct ``Binding(...)`` cannot build a non-invariant
-  state or carry another carrier's group any more than ``bind`` can: ``bind`` only partitions the roles, checks the
-  face-aware cover and constructs.
-* :func:`bind`: the ONE shared body every method calls (it replaces ``resolve_boundary_conditions``, ``_law_from_tag``
-  and the six string tables). It coerces ``conditions`` once through ``BoundaryConditions.of`` and refuses, in this
+  the group it holds acts on exactly the faces of the binding), so a direct ``Binding(...)`` cannot build a state that
+  is not invariant under the group it was handed. Whether that group IS the carrier's is :func:`bind`'s guarantee and
+  not the type's: a direct ``Binding`` handed the trivial group of another carrier with the same faces builds (the
+  S2a verify probe, 2026-10-23). The carrier is not held, because the type's readers need only the faces and the group.
+* :func:`bind`: the ONE shared body every method is to call (from slice S2b on, it replaces
+  ``resolve_boundary_conditions``, ``_law_from_tag`` and the six string tables). It coerces ``conditions`` once through ``BoundaryConditions.of`` and refuses, in this
   order: a tag a face carries with no condition (:class:`~.errors.UnboundTagError`, naming the face and the tag); a
   condition whose tag no face carries (:class:`~.errors.UnusedConditionError`: the exact cover catches a typo that a
   reachable-subset rule would hide); then, in the constructor it calls, a condition that is not invariant
@@ -149,7 +150,7 @@ def _refuse_non_invariant(decks: Mapping[str, DeckTransformation], tags: Mapping
     Also checks that each isometry acts on exactly the faces of the binding (a group of ANOTHER carrier is refused).
     """
     if isinstance(symmetry, UncomputedSymmetries):
-        # SCOPE-BOUNDARY[guard] (#529) machinery: the 2-D colouring group of a Mesh2D (today UncomputedSymmetries), consumed by a
+        # SCOPE-BOUNDARY[guard] (#658) machinery: the 2-D colouring group of a Mesh2D (today UncomputedSymmetries), consumed by a
         # quotient or a cache. ruling: wave2_boundary_carve.md section 2.4, the orchestrator, 2026-10-22 (reducing the group instead of
         # refusing has no reader). revisit: the first consumer of the problem's symmetry group.
         for tag, condition in declared.items():
@@ -157,7 +158,7 @@ def _refuse_non_invariant(decks: Mapping[str, DeckTransformation], tags: Mapping
             if len(faces) >= 2 and not condition.face_local:
                 raise NonInvariantConditionError(
                     f"tag {tag} on {faces} holds a condition that is not face-local, and the colouring group of {symmetry.carrier} is not computed "
-                    "(missing machinery: the 2-D colouring group, #529)",
+                    "(missing machinery: the 2-D colouring group, #658)",
                     condition, tag=tag, isometry=None, faces=faces,
                 )
         return

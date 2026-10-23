@@ -213,3 +213,28 @@ def test_stamp_boundary_role_is_copied_in() -> None:
     require(stamped is op, "stamp_boundary_role returns the instance it was given")
     require(op.block_role is BlockRole.BOUNDARY, f"the block role is {op.block_role}")
     require(bc.stamp_boundary_role.__module__ == f"{PACKAGE}.realization", "stamp_boundary_role is defined in realization.py")
+
+
+def test_the_two_stamp_copies_are_one_body() -> None:
+    """Until WF2.4 deletes ``orpheus/transport/boundary_realization.py``, ``stamp_boundary_role`` exists twice; the two
+    bodies are ONE implementation iff their ASTs agree with the docstring removed (X4: the witness of the copy, written
+    with the copy). The old module is read as source, never imported (it imports the retired ``BC``). WF2.4 deletes
+    this row with the old module.
+
+    Reddens on: an edit to either copy's body (e.g. ``BlockRole.SOURCE`` in one of them).
+    """
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[3] / "orpheus" / "transport"
+
+    def body(path: pathlib.Path) -> str:
+        tree = ast.parse(path.read_text())
+        found = [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == "stamp_boundary_role"]
+        require(len(found) == 1, f"{path.name} defines stamp_boundary_role {len(found)} times")
+        fn = found[0]
+        statements = fn.body[1:] if fn.body and isinstance(fn.body[0], ast.Expr) and isinstance(fn.body[0].value, ast.Constant) else fn.body
+        return ast.dump(ast.Module(body=statements, type_ignores=[]))
+
+    new, old = body(root / "boundary_conditions" / "realization.py"), body(root / "boundary_realization.py")
+    require("BOUNDARY" in new, "control: the body names the BOUNDARY role")
+    require(new == old, "the two copies of stamp_boundary_role have diverged; edit both or neither until WF2.4")

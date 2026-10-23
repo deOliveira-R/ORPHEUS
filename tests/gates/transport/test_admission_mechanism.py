@@ -27,8 +27,8 @@ layer per row (``vv-principles``):
 * (h) ``test_the_functor_law`` (law L-L): the image of the empty network is the ``ZeroNetwork`` realizer's, the image
   of one chain is that chain's realizer's with the weight beside it, the image of a sum is the sum of the images
   (in ``CHAIN_ORDER``), the zero network is consulted only for an empty network, the source only for a nonzero one.
-* (i) ``test_face_site``: the three geometric site classes are derived once, from ``(face, coord, dimension,
-  hollow_inner)``.
+* (i) ``test_face_site``: the three geometric site classes are derived once, from ``(face, coord, dimension)``;
+  ``test_hollow_inner_is_derived_never_stored`` pins that the hollow inner face is a derived property, not a field.
 * (j) ``test_the_source_verb``: ``sample_inflow`` is ``require`` plus the registered ``SourceRealizer.sample``,
   whose default is ``sample_terms``.
 
@@ -234,6 +234,10 @@ def test_registration_by_class_keyword() -> None:
 
     with pytest.raises(TypeError):
         bc.RealizerTable("m")  # type: ignore[call-arg]  # the cone is a required keyword
+    with pytest.raises(TypeError):
+        bc.RealizerTable("m", state_cone=bc.StateCone.NONNEGATIVE_FLUX)  # type: ignore[call-arg]  # so is the unregistered issue
+    with pytest.raises(TypeError):
+        bc.RealizerTable("m", state_cone=bc.StateCone.NONNEGATIVE_FLUX, unregistered_issue=True)  # a bool is not an issue number
     other = make_table(method="other")
     require(set(other.table.catalogue()) == {bc.SpecularChain, bc.DiffuseChain, bc.ZeroNetwork, bc.InflowTerms}, "a second table shares the first's registry")
     require(method_only not in other.table.catalogue(), "the first table's late key leaked into the second")
@@ -288,7 +292,7 @@ def test_one_door() -> None:
     require(_door_disagreements(t, grid) == [], f"admit and realize disagree: {_door_disagreements(t, grid)}")
 
     # the planted positive control: a realizer that refuses on its own
-    planted = bc.RealizerTable("planted", state_cone=bc.StateCone.NONNEGATIVE_FLUX)
+    planted = bc.RealizerTable("planted", state_cone=bc.StateCone.NONNEGATIVE_FLUX, unregistered_issue=654)
 
     class OwnRefusal(bc.BoundaryRefused):
         """Built without the base constructor, whose signature the section does not fix."""
@@ -337,7 +341,7 @@ def test_exact_type_lookup() -> None:
     Reddens on: a lookup through the MRO (``isinstance`` scan): the child is then admitted as its parent.
     """
     parent, child = local().Probe, local().ProbeChild
-    table = bc.RealizerTable("exact", state_cone=bc.StateCone.NONNEGATIVE_FLUX)
+    table = bc.RealizerTable("exact", state_cone=bc.StateCone.NONNEGATIVE_FLUX, unregistered_issue=654)
 
     class ProbeR(bc.ResponseRealizer, table=table, realizes=parent):
         status = bc.Realized(True)
@@ -359,7 +363,7 @@ def test_exact_type_lookup() -> None:
     class MyWall(bc.WallCondition):
         pass
 
-    wall_table = bc.RealizerTable("exact wall", state_cone=bc.StateCone.NONNEGATIVE_FLUX)
+    wall_table = bc.RealizerTable("exact wall", state_cone=bc.StateCone.NONNEGATIVE_FLUX, unregistered_issue=654)
 
     class SpecR(bc.ResponseRealizer, table=wall_table, realizes=bc.SpecularChain):
         status = bc.Realized(True)
@@ -395,12 +399,13 @@ def test_the_unregistered_door_names_the_axis() -> None:
     (``white`` on a specular-only table; ``vacuum`` on a table without the zero network) is ``Refused(PLUMBING)``.
 
     Reddens on: swapping the two refusals; reading the cone for a wall; a plumbing refusal without an issue (which
-    raises at construction, so the door itself would raise).
+    raises at construction, so the door itself would raise); a door citing a module constant instead of the table's
+    own ``unregistered_issue`` (the 659 row).
     """
     where = site("CART")
     negative, probe = local().NegativeProbe(), local().Probe()
     nonneg = make_table().table
-    signed = bc.RealizerTable("signed", state_cone=bc.StateCone.SIGNED_CURRENT)
+    signed = bc.RealizerTable("signed", state_cone=bc.StateCone.SIGNED_CURRENT, unregistered_issue=654)
     signed.seal()
 
     adm = nonneg.admit(negative, where)
@@ -410,11 +415,15 @@ def test_the_unregistered_door_names_the_axis() -> None:
     for table in (nonneg, signed):
         adm = table.admit(probe, where)
         require(isinstance(adm, bc.Refused) and adm.axis is bc.RefusalAxis.PLUMBING and adm.issue is not None, f"a non-negative return with no entry is {adm!r}")
+    own = bc.RealizerTable("own issue", state_cone=bc.StateCone.SIGNED_CURRENT, unregistered_issue=659)
+    own.seal()
+    adm = own.admit(probe, where)
+    require(isinstance(adm, bc.Refused) and adm.issue == 659, f"the door cites a fixed issue, not the table's own (659): {adm!r}")
     with pytest.raises(bc.BoundaryRefused) as caught:
         nonneg.realize(probe, where, SPACE)
     require("Probe" in str(caught.value) and "SpecularChain" in str(caught.value), f"the message does not name the type and the admitted keys: {caught.value}")
 
-    registered = bc.RealizerTable("registered", state_cone=bc.StateCone.SIGNED_CURRENT)
+    registered = bc.RealizerTable("registered", state_cone=bc.StateCone.SIGNED_CURRENT, unregistered_issue=654)
 
     class NegativeR(bc.ResponseRealizer, table=registered, realizes=type(negative)):
         status = bc.Realized(True)
@@ -425,7 +434,7 @@ def test_the_unregistered_door_names_the_axis() -> None:
     registered.seal()
     require(registered.admit(negative, where) == bc.Realized(True), "a registered signed condition is admitted on a signed table")
 
-    spec_only = bc.RealizerTable("spec only", state_cone=bc.StateCone.NONNEGATIVE_FLUX)
+    spec_only = bc.RealizerTable("spec only", state_cone=bc.StateCone.NONNEGATIVE_FLUX, unregistered_issue=654)
 
     class OnlySpec(bc.ResponseRealizer, table=spec_only, realizes=bc.SpecularChain):
         status = bc.Realized(True)
@@ -473,7 +482,7 @@ def test_catalogue_is_an_upper_bound() -> None:
     grid = [(label, v, site(kind)) for label, v in values().items() for kind in SITES]
     require(_catalogue_violations(built.table, grid) == [], f"the catalogue is not an upper bound: {_catalogue_violations(built.table, grid)}")
 
-    lying = bc.RealizerTable("lying", state_cone=bc.StateCone.NONNEGATIVE_FLUX)
+    lying = bc.RealizerTable("lying", state_cone=bc.StateCone.NONNEGATIVE_FLUX, unregistered_issue=654)
 
     class Lying(bc.ResponseRealizer, table=lying, realizes=bc.SpecularChain):
         status = bc.Approximated.of("a named approximation", 547)
@@ -587,7 +596,7 @@ def test_the_functor_law() -> None:
     require(isinstance(source_refuses.admit(W.white(0.5) + W.uniform(1.0), where), bc.Refused), "a nonzero source is not consulted")
 
     # the meet over the units: one tier-3 chain among faithful ones
-    approx = bc.RealizerTable("approx", state_cone=bc.StateCone.NONNEGATIVE_FLUX)
+    approx = bc.RealizerTable("approx", state_cone=bc.StateCone.NONNEGATIVE_FLUX, unregistered_issue=654)
 
     class ApproxSpec(bc.ResponseRealizer, table=approx, realizes=bc.SpecularChain):
         status = bc.Approximated.of("a square cell", 547)
@@ -610,7 +619,7 @@ def test_the_functor_law() -> None:
 
 
 def test_face_site() -> None:
-    """``FaceSite`` is constructible from ``(face, coord, dimension, hollow_inner)`` before any method space exists;
+    """``FaceSite`` is constructible from ``(face, coord, dimension)`` before any method space exists;
     ``is_curved`` and ``site_class`` are derived once: a Cartesian face is ``CART`` and not curved; the outer face of a
     cylinder or sphere is ``RAD_OUTER`` and curved; the inner face of a hollow body is ``RAD_INNER`` and curved; a
     Cartesian-axis face (z) of a radial (r, z) mesh is ``CART`` and not curved. The three classes are exactly the
@@ -620,10 +629,10 @@ def test_face_site() -> None:
     """
     Cart, Cyl, Sph = CoordSystem.CARTESIAN, CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL
     rows = [
-        (("xmin", Cart, 1, False), False, "CART"), (("xmax", Cart, 1, False), False, "CART"), (("ymax", Cart, 2, False), False, "CART"),
-        (("xmax", Cyl, 1, False), True, "RAD_OUTER"), (("xmax", Sph, 1, False), True, "RAD_OUTER"),
-        (("xmin", Cyl, 1, True), True, "RAD_INNER"), (("xmin", Sph, 1, True), True, "RAD_INNER"),
-        (("xmax", Cyl, 2, False), True, "RAD_OUTER"), (("ymin", Cyl, 2, False), False, "CART"), (("ymax", Cyl, 2, False), False, "CART"),
+        (("xmin", Cart, 1), False, "CART"), (("xmax", Cart, 1), False, "CART"), (("ymax", Cart, 2), False, "CART"),
+        (("xmax", Cyl, 1), True, "RAD_OUTER"), (("xmax", Sph, 1), True, "RAD_OUTER"),
+        (("xmin", Cyl, 1), True, "RAD_INNER"), (("xmin", Sph, 1), True, "RAD_INNER"),
+        (("xmax", Cyl, 2), True, "RAD_OUTER"), (("ymin", Cyl, 2), False, "CART"), (("ymax", Cyl, 2), False, "CART"),
     ]
     seen = set()
     for args, curved, klass in rows:
@@ -632,9 +641,9 @@ def test_face_site() -> None:
         require(s.site_class is bc.SiteClass[klass], f"{args}: site_class {s.site_class}, expected {klass}")
         seen.add(s.site_class.name)
     require(seen == {m.name for m in bc.SiteClass} == {"CART", "RAD_OUTER", "RAD_INNER"}, f"the classes are {sorted(m.name for m in bc.SiteClass)}, the rows saw {sorted(seen)}")
-    require(bc.FaceSite("xmax", Cart, 1, False) == bc.FaceSite("xmax", Cart, 1, False), "FaceSite is a value")
+    require(bc.FaceSite("xmax", Cart, 1) == bc.FaceSite("xmax", Cart, 1), "FaceSite is a value")
     with pytest.raises(dataclasses.FrozenInstanceError):
-        bc.FaceSite("xmax", Cart, 1, False).face = "xmin"  # type: ignore[misc]
+        bc.FaceSite("xmax", Cart, 1).face = "xmin"  # type: ignore[misc]
 
 
 # ── (j) the source verb ──────────────────────────────────────────────────────
@@ -688,7 +697,8 @@ def test_the_sum_is_sealed_and_each_member_parses() -> None:
     (``Realized(1)``, ``Approximated('abc', {1})``, an empty ``Approximated`` and a ``Refused`` with a string axis are
     refused). ``Approximated`` keeps which issue tracks which approximation through ``meet`` (a union of PAIRS).
 
-    Reddens on: a seal counting only direct subclasses of ``Admission`` (the subclass of ``Realized`` is accepted);
+    Reddens on: a seal counting only direct subclasses of ``Admission`` (the subclass of ``Realized`` is accepted); a
+    seal by NAME (the foreign direct subclass named ``Realized`` is accepted);
     a missing parse (the constructions build); a ``meet`` taking the union of names and of issues separately.
     """
     with pytest.raises(TypeError):
@@ -699,6 +709,11 @@ def test_the_sum_is_sealed_and_each_member_parses() -> None:
     with pytest.raises(TypeError):
 
         class Fourth(bc.Admission):
+            pass
+
+    with pytest.raises(TypeError):
+
+        class Realized(bc.Admission):  # a foreign class reusing a member's name, a direct subclass  # noqa: F811
             pass
 
     require({"Realized", "Approximated", "Refused"} <= {c.__name__ for c in bc.Admission.__subclasses__()}, "control: the three members are direct subclasses")
@@ -712,20 +727,21 @@ def test_the_sum_is_sealed_and_each_member_parses() -> None:
     require(merged != bc.Approximated(frozenset({("x", 2), ("y", 1)})), "control: swapping the issues must be a different value")
 
 
-def test_a_contradictory_face_site_does_not_exist() -> None:
-    """``hollow_inner`` is true exactly on the inner face of a radial mesh (a curved face with a negative outward
-    sign), so ``FaceSite('xmin', SPHERICAL, 1, False)`` (an inner face not flagged), ``FaceSite('xmax', SPHERICAL, 1,
-    True)`` (an outer face flagged) and ``FaceSite('xmin', CARTESIAN, 1, True)`` are refused; the consistent values
-    build (the controls of ``test_face_site``).
+def test_hollow_inner_is_derived_never_stored() -> None:
+    """``FaceSite.hollow_inner`` is a property derived from the face and the coordinate system (true exactly on the
+    inner face of a radial body, which only a hollow body has), not a field: ``FaceSite`` has the three fields
+    ``face``, ``coord`` and ``dimension``, so no contradictory site can be built.
 
-    Reddens on: a ``FaceSite`` that does not compare ``hollow_inner`` with the face (the three rows build).
+    Reddens on: a stored ``hollow_inner`` field (the field set grows, and a four-argument construction builds); a
+    derivation that flags the outer face or a Cartesian face.
     """
-    Cart, Sph = CoordSystem.CARTESIAN, CoordSystem.SPHERICAL
-    for args in (("xmin", Sph, 1, False), ("xmax", Sph, 1, True), ("xmin", Cart, 1, True)):
-        with pytest.raises(ValueError, match="hollow_inner"):
-            bc.FaceSite(*args)
-    for args in (("xmin", Sph, 1, True), ("xmax", Sph, 1, False), ("xmin", Cart, 1, False)):
-        require(isinstance(bc.FaceSite(*args), bc.FaceSite), f"control: {args} must build")
+    Cart, Cyl, Sph = CoordSystem.CARTESIAN, CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL
+    require([f.name for f in dataclasses.fields(bc.FaceSite)] == ["face", "coord", "dimension"], f"FaceSite stores {[f.name for f in dataclasses.fields(bc.FaceSite)]}")
+    with pytest.raises(TypeError):
+        bc.FaceSite("xmin", Sph, 1, True)  # type: ignore[call-arg]
+    rows = [(("xmin", Sph, 1), True), (("xmin", Cyl, 1), True), (("xmin", Cyl, 2), True), (("xmax", Sph, 1), False), (("xmin", Cart, 1), False), (("ymin", Cyl, 2), False)]
+    for args, hollow in rows:
+        require(bc.FaceSite(*args).hollow_inner is hollow, f"{args}: hollow_inner {bc.FaceSite(*args).hollow_inner}, expected {hollow}")
 
 
 def test_the_source_door_is_met_for_every_condition() -> None:
@@ -740,7 +756,7 @@ def test_the_source_door_is_met_for_every_condition() -> None:
     sourced = local().SourcedProbe
 
     def table_with(source: bool):
-        t = bc.RealizerTable("srcdoor", state_cone=bc.StateCone.NONNEGATIVE_FLUX)
+        t = bc.RealizerTable("srcdoor", state_cone=bc.StateCone.NONNEGATIVE_FLUX, unregistered_issue=654)
 
         class ProbeR(bc.ResponseRealizer, table=t, realizes=probe_cls):
             status = bc.Realized(True)

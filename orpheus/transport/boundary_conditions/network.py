@@ -160,10 +160,14 @@ def chain_composes(factors: tuple[type[Factor], ...]) -> bool:
     return all(a.codomain == b.domain for a, b in zip(factors, factors[1:], strict=False))
 
 
-for _chain in get_args(Chain):
-    if not chain_composes(_chain.factors):
-        raise TypeError(f"{_chain.__name__}: its factors {[f.__name__ for f in _chain.factors]} do not compose from outflow to inflow")
-del _chain
+def _refuse_a_chain_that_does_not_compose() -> None:
+    """Run once at import: every member of the closed sum ``Chain`` composes from outflow to inflow."""
+    for chain in get_args(Chain):
+        if not chain_composes(chain.factors):
+            raise TypeError(f"{chain.__name__}: its factors {[f.__name__ for f in chain.factors]} do not compose from outflow to inflow")
+
+
+_refuse_a_chain_that_does_not_compose()
 
 
 @dataclass(frozen=True)

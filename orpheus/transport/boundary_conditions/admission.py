@@ -29,8 +29,8 @@ sum is therefore a sealed base class (:class:`Admission`) with exactly three sub
 and annotations read as for the union, and ``meet`` lives on the type (reported in NEEDS).
 
 **Where a declaration is placed.** :class:`FaceSite` is derived from the carrier, computable before a method space
-exists: the ``face``, the ``coord`` system, the ``dimension`` and whether the face is the hollow inner face of a radial
-mesh. Its :attr:`~FaceSite.site_class` is one of the three GEOMETRIC classes of the admission table
+exists: the ``face``, the ``coord`` system and the ``dimension`` (whether the face is the hollow inner face of a radial
+mesh is derived from the first two). Its :attr:`~FaceSite.site_class` is one of the three GEOMETRIC classes of the admission table
 (:class:`SiteClass`: Cartesian, radial outer, radial inner), derived once; the pin and the realizers read this name.
 CP's slab-left-face rule is CP's own predicate on ``site.face`` (decision 56).
 
@@ -41,13 +41,15 @@ CP's slab-left-face rule is CP's own predicate on ``site.face`` (decision 56).
   (:mod:`.realization`), so the query and the realization cannot disagree.
 * ``Approximated.of(name, issue)`` is the one-member spelling the tables write; ``names`` and ``issues`` are derived
   projections of the stored pairs, never stored.
-* The sum is sealed at the SUBCLASS level: ``Realized``, ``Approximated`` and ``Refused`` are the only members, each a
-  DIRECT subclass of :class:`Admission` (a subclass of a member is refused), and each parses its fields (a
+* The sum is sealed at the SUBCLASS level and by identity: ``Realized``, ``Approximated`` and ``Refused`` are the only
+  members, each a DIRECT subclass of :class:`Admission`; once the module has defined them every further subclass is
+  refused, a subclass of a member and a foreign class reusing a member's name alike. Each member parses its fields (a
   ``Realized`` holds a ``bool``, an ``Approximated`` a non-empty set of ``(str, int)`` pairs, a ``Refused`` an axis, a
   reason and an optional issue).
-* :class:`FaceSite` refuses a contradictory ``hollow_inner``: the flag is true exactly when the face is the inner
-  face of a radial mesh, which the face name and the coordinate system already say. The field is kept because the
-  specification names it (it is redundant: dropping it is the cleaner alternative, reported in NEEDS).
+* :attr:`FaceSite.hollow_inner` is DERIVED, never stored: the face name and the coordinate system already say whether
+  a face is the inner surface of a hollow radial body, because a solid body has no inner face (``face_inventory``
+  omits it). A stored flag would be a second spelling of that fact, constructible in contradiction with it (the
+  orchestrator's ruling, 2026-10-23, after the S2a review).
 
 Layer: ``transport`` (L2). Imports ``geometry`` (``CoordSystem`` and the face vocabulary) only.
 """
@@ -79,9 +81,10 @@ class Admission:
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
-        # The sum is closed: exactly Realized, Approximated, Refused, each a direct subclass (a subclass of a member is refused).
-        if cls.__bases__ != (Admission,) or cls.__name__ not in _MEMBERS:
-            raise TypeError(f"{cls.__name__}: Admission is a closed sum of {', '.join(_MEMBERS)}, each a direct subclass")
+        # The sum is closed: the three members below are its only subclasses, each direct. The seal is by identity, not by
+        # name: once the module has defined the three, ``_SUM_CLOSED`` refuses every further subclass, whatever it is called.
+        if _SUM_CLOSED or cls.__bases__ != (Admission,):
+            raise TypeError(f"{cls.__name__}: Admission is a closed sum of Realized, Approximated and Refused, each a direct subclass")
 
     @staticmethod
     def meet(*members: Admission) -> Admission:
@@ -97,7 +100,7 @@ class Admission:
         return result
 
 
-_MEMBERS = ("Realized", "Approximated", "Refused")
+_SUM_CLOSED = False
 
 
 @dataclass(frozen=True)
@@ -161,6 +164,9 @@ class Refused(Admission):
             raise ValueError(f"Refused(PLUMBING, {self.reason!r}): a refusal with no theory behind it names the issue that tracks the missing machinery")
 
 
+_SUM_CLOSED = True
+
+
 def _rank(member: Admission) -> int:
     """The position in the lattice: three for ``Realized(True)`` down to zero for ``Refused``."""
     match member:
@@ -191,14 +197,6 @@ class FaceSite:
     face: str
     coord: CoordSystem
     dimension: int
-    hollow_inner: bool
-
-    def __post_init__(self) -> None:
-        if self.hollow_inner != (self.is_curved and face_normal(self.face)[1] < 0):
-            raise ValueError(
-                f"FaceSite({self.face!r}, {self.coord.name}, {self.dimension}, hollow_inner={self.hollow_inner}): hollow_inner is true exactly "
-                "on the inner face (a negative outward sign) of a radial mesh"
-            )
 
     @property
     def is_curved(self) -> bool:
@@ -211,3 +209,8 @@ class FaceSite:
         if not self.is_curved:
             return SiteClass.CART
         return SiteClass.RAD_INNER if face_normal(self.face)[1] < 0 else SiteClass.RAD_OUTER
+
+    @property
+    def hollow_inner(self) -> bool:
+        """The face is the inner surface of a hollow radial body (derived: a solid body has no inner face at all)."""
+        return self.site_class is SiteClass.RAD_INNER

@@ -268,14 +268,13 @@ _PARTS = (
         content_identity=False,
     ),
     Entry(
-        cls=bc.FaceSite, base=lambda: bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 1, False), parts=("face", "coord", "dimension", "hollow_inner"),
+        cls=bc.FaceSite, base=lambda: bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 1), parts=("face", "coord", "dimension"),
         perturb={
-            "face": (leg("another face", lambda: bc.FaceSite("ymax", CoordSystem.CYLINDRICAL, 1, False)),),
-            "coord": (leg("another chart", lambda: bc.FaceSite("xmax", CoordSystem.SPHERICAL, 1, False)),),
-            "dimension": (leg("another dimension", lambda: bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 2, False)),),
-            "hollow_inner": (leg("hollow", lambda: bc.FaceSite("xmin", CoordSystem.CYLINDRICAL, 1, True), "face"),),
+            "face": (leg("another face", lambda: bc.FaceSite("ymax", CoordSystem.CYLINDRICAL, 1)),),
+            "coord": (leg("another chart", lambda: bc.FaceSite("xmax", CoordSystem.SPHERICAL, 1)),),
+            "dimension": (leg("another dimension", lambda: bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 2)),),
         },
-        pairs=(("two builds", lambda: bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 1, False), lambda: bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 1, False)),),
+        pairs=(("two builds", lambda: bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 1), lambda: bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 1)),),
         content_identity=False,
     ),
 )

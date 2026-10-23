@@ -41,7 +41,6 @@ from orpheus.transport.boundary_conditions.network import (
     chain_composes,
 )
 from orpheus.transport.boundary_conditions.realization import (
-    UNREGISTERED_UNIT_ISSUE,
     DeckRealizer,
     RealizerTable,
     ResponseRealizer,
@@ -55,7 +54,6 @@ from orpheus.transport.boundary_conditions.realization import (
 
 __all__ = [
     "CHAIN_ORDER",
-    "UNREGISTERED_UNIT_ISSUE",
     "Admission",
     "Approximated",
     "Binding",

@@ -34,11 +34,11 @@ def site(kind: str) -> Any:
     """The three geometric sites of section 4.2 as :class:`FaceSite` values."""
     match kind:
         case "CART":
-            return bc.FaceSite("xmax", CoordSystem.CARTESIAN, 1, False)
+            return bc.FaceSite("xmax", CoordSystem.CARTESIAN, 1)
         case "RAD_OUTER":
-            return bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 1, False)
+            return bc.FaceSite("xmax", CoordSystem.CYLINDRICAL, 1)
         case "RAD_INNER":
-            return bc.FaceSite("xmin", CoordSystem.CYLINDRICAL, 1, True)
+            return bc.FaceSite("xmin", CoordSystem.CYLINDRICAL, 1)
     raise ValueError(kind)
 
 
@@ -89,7 +89,7 @@ def make_table(
     """A table (sealed unless ``seal=False``) holding the SN-like test rows; returns the table, the spies and the
     realizer classes (``Spec``, ``Diff``, ``Zero``, ``Src``, ``DeckR``; ``None`` for one left out)."""
     cone = state_cone if state_cone is not None else bc.StateCone.NONNEGATIVE_FLUX
-    table = bc.RealizerTable(method, state_cone=cone)
+    table = bc.RealizerTable(method, state_cone=cone, unregistered_issue=654)
     spies = Spies()
     R, Refused, Axis = bc.Realized, bc.Refused, bc.RefusalAxis
     inner = lambda issue: Refused(Axis.PLUMBING, "the hollow inner face", issue)  # noqa: E731
@@ -125,10 +125,12 @@ def make_table(
             spies.realize.append(("diff", unit, weight, site_, space))
             return Img((("diff", weight),))
 
-    Zero = Src = DeckR = None
+    Zero: type | None = None  # a realizer class, or None for one left out
+    Src: type | None = None
+    DeckR: type | None = None
 
     if with_zero:
-        class Zero(bc.ResponseRealizer, table=table, realizes=bc.ZeroNetwork):  # type: ignore[no-redef]
+        class _Zero(bc.ResponseRealizer, table=table, realizes=bc.ZeroNetwork):
             status = R(True)
 
             def admit(self, unit, weight, site_, space=None):
@@ -140,9 +142,10 @@ def make_table(
             def realize(self, unit, weight, site_, space):
                 spies.realize.append(("zero", unit, weight, site_, space))
                 return Img((("zero", 1.0),))
+        Zero = _Zero
 
     if with_source:
-        class Src(bc.SourceRealizer, table=table):  # type: ignore[no-redef]
+        class _Src(bc.SourceRealizer, table=table):
             status = R(True)
 
             def admit(self, terms, site_, space=None):
@@ -162,9 +165,10 @@ def make_table(
                 if sample_override is not None:
                     return sample_override(terms, site_, space)
                 return super().sample(terms, site_, space)
+        Src = _Src
 
     if with_deck:
-        class DeckR(bc.DeckRealizer, table=table):  # type: ignore[no-redef]
+        class _DeckR(bc.DeckRealizer, table=table):
             def admit(self, deck, pairing, site_, space=None):
                 spies.deck.append(("admit", deck, pairing, site_, space))
                 match deck:
@@ -180,6 +184,7 @@ def make_table(
             def realize(self, deck, pairing, site_, space):
                 spies.deck.append(("realize", deck, pairing, site_, space))
                 return Img(((f"deck:{type(deck).__name__}", 1.0),))
+        DeckR = _DeckR
 
     if seal:
         table.seal()

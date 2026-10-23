@@ -199,7 +199,7 @@ def test_the_pin_has_teeth() -> None:
     """
     require(pin_disagreements(_table("mechanism"), ROWS) == [], f"the honest table disagrees with its pin: {pin_disagreements(_table('mechanism'), ROWS)}")
 
-    drifted = bc.RealizerTable("drifted", state_cone=bc.StateCone.NONNEGATIVE_FLUX)
+    drifted = bc.RealizerTable("drifted", state_cone=bc.StateCone.NONNEGATIVE_FLUX, unregistered_issue=654)
     R_, Refused = bc.Realized, bc.Refused
 
     class Spec(bc.ResponseRealizer, table=drifted, realizes=bc.SpecularChain):
