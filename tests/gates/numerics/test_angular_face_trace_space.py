@@ -1049,3 +1049,46 @@ def test_a_codomain_declaring_DIFFERENT_rows_is_REFUSED(quad_name):
         honest, n_total=int(trace.omega_dot_n.shape[1]), axis=0,
         codomain=space,
     )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# The tier names of the ladder (decision 49 of the wave-2 plan, unit L4)
+#
+# ``TraceRole`` is the ONE enumeration of the ladder's tiers. It named three of
+# the four (``full``, ``outflow``, ``inflow``); the fourth, the angle-integrated
+# ``current`` tier, lived in a separate dict keyed by face alone, named by an
+# inline f-string. The widening is inert: no space equality moves.
+# ─────────────────────────────────────────────────────────────────────
+
+
+def test_trace_role_names_the_ladder():
+    """``TraceRole`` is exactly the four tiers, and no name string moved.
+
+    Red input at the base tip: ``"current"`` is not in ``get_args(TraceRole)``
+    (the Literal has three members). The name legs are green at the base and
+    guard the edit: dropping ``"current"`` from the Literal reddens the first
+    assertion; naming the current space ``...:cur`` reddens the literal-name
+    leg; renaming a half-space reddens the half-space leg. Population:
+    ``gauss_legendre(8)`` and ``lebedev(17)`` slab traces, both faces.
+    """
+    from typing import get_args
+
+    from orpheus.numerics.spaces import TraceRole
+
+    assert set(get_args(TraceRole)) == {"full", "outflow", "current", "inflow"}
+
+    for factory in (
+        lambda: Quadrature.gauss_legendre(n_ordinates=8),
+        lambda: Quadrature.lebedev(order=17),
+    ):
+        quad = factory()
+        layout = FaceLayout.from_named_shapes(
+            [("xmin", (int(quad.n_ordinates), 2)), ("xmax", (int(quad.n_ordinates), 2))]
+        )
+        trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
+        for face in ("xmin", "xmax"):
+            assert trace.current_space(face).name == f"angular_trace[{face}:current]"
+            assert trace.outflow_space(face).name == f"angular_trace[{face}:outflow]"
+            assert trace.inflow_space(face).name == f"angular_trace[{face}:inflow]"
+            assert trace.outflow_space(face).role == "outflow"
+            assert trace.inflow_space(face).role == "inflow"
