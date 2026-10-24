@@ -3,10 +3,14 @@
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.derivations import get
 from orpheus.moc.solver import solve_moc
+
+#: Every body below carries the tag 0 on its outer face, bound to the specular wall MoC links (rule R2: the old ``BC.reflective`` on a curved face).
+_SPECULAR = {0: WallCondition.specular(1.0)}
 
 pytestmark = pytest.mark.l0  # MOC property invariants (positivity, balance, symmetry)
 
@@ -17,12 +21,13 @@ def _homogeneous_result():
     mix = next(iter(case.materials.values()))
     r_cell = 3.6 / np.sqrt(np.pi)
     mesh = Mesher(StructuredGeometry.cylinder(
-        (0.0, r_cell), (0,), outer=BC.reflective,
+        (0.0, r_cell), (0,), outer=0,
     )).partition(CellsByCount.uniform_width(1)).mesh
     return solve_moc(
         {0: mix}, mesh,
         n_azi=8, n_polar=3, ray_spacing=0.05,
         max_outer=100,
+        boundary_conditions=_SPECULAR,
     ), case
 
 
@@ -72,13 +77,14 @@ def test_heterogeneous_flux_depression():
     pitch = 2.0
     ws_r = pitch / np.sqrt(np.pi)
     mesh = Mesher(StructuredGeometry.cylinder(
-        (0.0, r_fuel, ws_r), (2, 0), outer=BC.reflective,
+        (0.0, r_fuel, ws_r), (2, 0), outer=0,
     )).partition(CellsByCount.uniform_width(1)).mesh
 
     result = solve_moc(
         {2: fuel, 0: cool}, mesh,
         n_azi=16, n_polar=3, ray_spacing=0.03,
         max_outer=200, max_inner_sweeps=15,
+        boundary_conditions=_SPECULAR,
     )
 
     # Thermal group (last) flux should be higher in coolant than fuel

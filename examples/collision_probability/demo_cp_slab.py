@@ -11,9 +11,10 @@ Reference results:
 from pathlib import Path
 
 from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
-from orpheus.geometry import StructuredGeometry
+from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.cp.solver import solve_cp
+from orpheus.transport.boundary_conditions import WallCondition
 
 OUTPUT = Path("results")
 
@@ -31,8 +32,11 @@ def main():
 
     # Match SN geometry: fuel 0.9 cm, clad 0.2 cm, coolant 0.7 cm.
     # Geometry layer: shape + BCs only. Mesh layer: per-region cell counts.
-    geom = StructuredGeometry.pwr_slab_half_cell(
-        fuel_half=0.9, clad_thick=0.2, cool_thick=0.7,
+    # CP's slab kernel images a mirror at the left face (the fuel centreline), and closes the right face
+    # (the cell boundary) with the white wall: the right face is the tag 0, bound to the white wall at the solve.
+    geom = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN, thicknesses=(0.9, 0.2, 0.7), mat_ids=(2, 1, 0),
+        face_roles=(MirrorDeck(), 0),
     )
     mesh = Mesher(geom).partition((
         CellsByCount.uniform_volume(10),  # fuel
@@ -52,7 +56,7 @@ def main():
           f"+ {n_cool} cool = {mesh.N} total")
     print()
 
-    result = solve_cp(materials, mesh)
+    result = solve_cp(materials, mesh, boundary_conditions={0: WallCondition.white()})
 
     print(f"\n  keff = {result.keff:.5f}  (SN slab reference: 1.04188)")
     print(f"  Outer iterations: {len(result.keff_history)}")

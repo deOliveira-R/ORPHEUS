@@ -15,8 +15,9 @@ import pytest
 from orpheus.derivations import get
 from orpheus.mc.solver import MCParams, ConcentricPinCell, SlabPinCell, solve_monte_carlo
 from orpheus.cp.solver import solve_cp, CPParams
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
+from orpheus.transport.boundary_conditions import WallCondition
 
 # L2 cross-code MC ↔ CP consistency.
 pytestmark = [
@@ -54,10 +55,10 @@ def test_mc_vs_cp_cylinder():
         coord=CoordSystem.CYLINDRICAL,
         breakpoints=(0.0, *(float(r) for r in radii)),
         mat_ids=tuple(int(m) for m in mat_ids),
-        boundaries=(BC.white,),  # CP supports vacuum/white only
+        face_roles=(0,),  # the tag 0, bound to the white wall at the CP solve (CP realizes vacuum and white only)
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(5)).mesh
-    cp_result = solve_cp(case.materials, mesh=mesh)
+    cp_result = solve_cp(case.materials, mesh=mesh, boundary_conditions={0: WallCondition.white()})
 
     # ── MC solve ──────────────────────────────────────────────────────
     r_cell = radii[-1]
@@ -106,10 +107,10 @@ def test_mc_vs_cp_slab():
         coord=CoordSystem.CARTESIAN,
         thicknesses=(t_fuel, t_mod),
         mat_ids=(2, 0),
-        boundaries=(BC.reflective, BC.white),
+        face_roles=(MirrorDeck(), 0),
     )
     mesh = Mesher(geom_cp).partition(CellsByCount.uniform_volume(10)).mesh
-    cp_result = solve_cp(materials, mesh=mesh)
+    cp_result = solve_cp(materials, mesh=mesh, boundary_conditions={0: WallCondition.white()})
 
     # ── MC solve (full cell: mod|fuel|mod for periodic BCs) ──────────
     pitch = 2.0 * (t_fuel + t_mod)  # full cell

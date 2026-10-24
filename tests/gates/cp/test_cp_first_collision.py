@@ -43,8 +43,9 @@ from orpheus.cp.solver import CPMesh, CPParams, solve_cp
 from orpheus.data.cell_xs import assemble_cell_xs
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.derivations.continuous.flat_source_cp import geometry as fsg
-from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry import CoordSystem
 from orpheus.mesh import CellsByCount, Mesher
+from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates.cp._cp_geometry import cp_body
 from tests.gates.derivations import _characteristic_mp as closed
 
@@ -69,9 +70,9 @@ def _truth(coord: CoordSystem, tau: float) -> float:
 
 
 def _production_pc(coord: CoordSystem, tau: float) -> float:
-    geom = cp_body(coord, (0.0, 0.5, 1.0), (0, 0), BC.vacuum)
+    geom = cp_body(coord, (0.0, 0.5, 1.0), (0, 0), 0)
     mesh = Mesher(geom).partition((CellsByCount.uniform_volume(3), CellsByCount.uniform_volume(4))).mesh
-    P = CPMesh(mesh).compute_pinf_group(np.full(mesh.N, tau))
+    P = CPMesh(mesh, boundary_conditions={0: WallCondition.vacuum()}).compute_pinf_group(np.full(mesh.N, tau))
     return float(mesh.volumes @ P.sum(axis=1) / mesh.volumes.sum())
 
 
@@ -128,16 +129,17 @@ _MATERIALS = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
 _PARAMS = CPParams(keff_tol=1e-11, flux_tol=1e-11, max_outer=5000)
 
 
-def _vacuum_mesh(coord: CoordSystem, outer=BC.vacuum):
-    geom = cp_body(coord, (0.0, 0.5, 1.0), (2, 0), outer)
+def _vacuum_mesh(coord: CoordSystem):
+    """The 2G A|B body with its outer face the tag 0 (the wall it is bound to is the caller's: ``_WALLS``)."""
+    geom = cp_body(coord, (0.0, 0.5, 1.0), (2, 0), 0)
     return Mesher(geom).partition((CellsByCount.uniform_volume(4), CellsByCount.uniform_volume(4))).mesh
 
 
-def _pencil_k(mesh) -> float:
+def _pencil_k(mesh, wall) -> float:
     """The dominant eigenvalue of ``(I - T S)^{-1} T F`` from CP's own ``P_inf``: ``T`` maps a per-volume source to
     the collision-density flux, ``phi_ig = sum_j P_ji V_j q_jg / (Sigma_t,ig V_i)``; ``S`` is in-cell scattering
     (``SigS[0]`` transposed, to <- from); ``F`` is ``chi nu Sigma_f``."""
-    cpm = CPMesh(mesh)
+    cpm = CPMesh(mesh, boundary_conditions={0: wall})
     xs = assemble_cell_xs(_MATERIALS, mesh.mat_ids)
     n, ng = mesh.N, xs.sig_t.shape[1]
     V = mesh.volumes
@@ -154,7 +156,7 @@ def _pencil_k(mesh) -> float:
     return float(np.max(np.abs(np.linalg.eigvals(np.linalg.solve(np.eye(n * ng) - T @ S, T @ F)))))
 
 
-_VACUUM_PARAMS = [pytest.param(c, id=_CHART[c], marks=pytest.mark.xfail(strict=True, reason=_VACUUM_K_REASON))
+_VACUUM_PARAMS = [pytest.param(c, id=_CHART[c], marks=pytest.mark.xfail(strict=True, raises=AssertionError, reason=_VACUUM_K_REASON))
                   for c in (CoordSystem.CARTESIAN, CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL)]
 
 
@@ -165,12 +167,14 @@ def test_the_vacuum_k_is_the_eigenvalue_of_the_cp_pencil(coord: CoordSystem) -> 
     """2G A|B body (0.5, 1.0), 4 + 4 cells, vacuum outer law: ``solve_cp``'s k equals the dense pencil eigenvalue to
     10 x keff_tol relative. Strict xfail (the reason names the defect). `[M]` memo 2026-10-10: slab 1.230176 against 0.501609;
     cylinder 0.938053 against 0.041542; sphere (density fixed) about 0.59 against 0.0184. When ``compute_keff``
-    carries the leakage the rows XPASS, strictness turns them red, and the marks are deleted.
+    carries the leakage the rows XPASS, strictness turns them red, and the marks are deleted. The marks carry
+    ``raises=AssertionError`` (wave 2, S4): only the comparison failing is the expected failure, never an exception of the
+    build (the sibling file ``test_cp_vacuum_not_above_white.py`` states the same defect as the physics inequality).
     """
     mesh = _vacuum_mesh(coord)
     with contextlib.redirect_stdout(io.StringIO()):
-        k = solve_cp(_MATERIALS, mesh, _PARAMS).keff
-    reference = _pencil_k(mesh)
+        k = solve_cp(_MATERIALS, mesh, _PARAMS, boundary_conditions={0: WallCondition.vacuum()}).keff
+    reference = _pencil_k(mesh, WallCondition.vacuum())
     assert abs(k - reference) <= 10 * _PARAMS.keff_tol * reference, f"solve_cp k {k!r}, pencil eigenvalue {reference!r}"
 
 
@@ -183,10 +187,10 @@ def test_under_white_the_pencil_eigenvalue_is_solve_cps_k(coord: CoordSystem) ->
     relative (``keff_tol = 1e-11``). This is what licenses reading the vacuum rows' disagreement as
     ``compute_keff``'s and not the pencil's.
     """
-    mesh = _vacuum_mesh(coord, BC.white)
+    mesh = _vacuum_mesh(coord)
     with contextlib.redirect_stdout(io.StringIO()):
-        k = solve_cp(_MATERIALS, mesh, _PARAMS).keff
-    reference = _pencil_k(mesh)
+        k = solve_cp(_MATERIALS, mesh, _PARAMS, boundary_conditions={0: WallCondition.white()}).keff
+    reference = _pencil_k(mesh, WallCondition.white())
     assert abs(k - reference) <= 10 * _PARAMS.keff_tol * reference, f"white {_CHART[coord]}: solve_cp k {k!r}, pencil {reference!r}"
 
 
@@ -198,4 +202,6 @@ def test_the_vacuum_k_rows_are_strict_xfails() -> None:
     for param in _VACUUM_PARAMS:
         xfails = [m for m in param.marks if m.name == "xfail"]
         assert len(xfails) == 1 and xfails[0].kwargs.get("strict") is True, param.id
+        assert xfails[0].kwargs.get("raises") is AssertionError, f"{param.id}: without raises=AssertionError an ImportError or a TypeError reads as the expected failure"
+
         assert "compute_keff" in xfails[0].kwargs.get("reason", ""), param.id

@@ -3,9 +3,10 @@
 import pytest
 
 from orpheus.derivations import get
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.cp.solver import solve_cp
+from orpheus.transport.boundary_conditions import WallCondition
 
 pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "collision-rate",
@@ -46,10 +47,10 @@ def test_cylinder_cp_eigenvalue(case_name):
     case = get(case_name)
     gp = case.geom_params
     geometry = StructuredGeometry.cylinder(
-        (0.0, *gp["radii"]), gp["mat_ids"], outer=BC.white,
+        (0.0, *gp["radii"]), gp["mat_ids"], outer=0,
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
-    result = solve_cp(case.materials, mesh)
+    result = solve_cp(case.materials, mesh, boundary_conditions={0: WallCondition.white()})
 
     err = abs(result.keff - case.k_inf)
     assert err < 1e-5, (

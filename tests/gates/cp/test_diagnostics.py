@@ -3,9 +3,13 @@
 import pytest
 
 from orpheus.derivations import get
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.cp.solver import solve_cp, CPParams
+from orpheus.transport.boundary_conditions import WallCondition
+
+#: The outer tag of every body below is bound to the white closure CP realizes (rule R4: the old ``BC.white``).
+_WHITE = {0: WallCondition.white()}
 
 # Diagnostic *term* tests (residuals, inner-iter counts) are L0.
 # NOT file-level — the parametrized eigenvalue tests below inherit L1
@@ -23,15 +27,15 @@ def _make_mesh(case):
     if case.geometry == "slab":
         geometry = StructuredGeometry.from_thicknesses(
             coord=CoordSystem.CARTESIAN, thicknesses=gp["thicknesses"],
-            mat_ids=gp["mat_ids"], boundaries=(BC.reflective, BC.white),
+            mat_ids=gp["mat_ids"], face_roles=(MirrorDeck(), 0),
         )
     elif case.geometry == "cyl1D":
         geometry = StructuredGeometry.cylinder(
-            (0.0, *gp["radii"]), gp["mat_ids"], outer=BC.white,
+            (0.0, *gp["radii"]), gp["mat_ids"], outer=0,
         )
     elif case.geometry == "sph1D":
         geometry = StructuredGeometry.sphere(
-            (0.0, *gp["radii"]), gp["mat_ids"], outer=BC.white,
+            (0.0, *gp["radii"]), gp["mat_ids"], outer=0,
         )
     else:
         raise ValueError(f"Unknown geometry: {case.geometry}")
@@ -56,7 +60,7 @@ class TestJacobiDiagnostics:
         case = get("cp_slab_2eg_2rg")
         mesh = _make_mesh(case)
         params = CPParams(keff_tol=1e-7, flux_tol=1e-6, solver_mode="jacobi")
-        return solve_cp(case.materials, mesh, params), case
+        return solve_cp(case.materials, mesh, params, boundary_conditions=_WHITE), case
 
     def test_residual_history_populated(self, result):
         res, _ = result
@@ -101,7 +105,7 @@ class TestGaussSeidelDiagnostics:
         params = CPParams(
             keff_tol=1e-7, flux_tol=1e-6, solver_mode="gauss_seidel",
         )
-        return solve_cp(case.materials, mesh, params), case
+        return solve_cp(case.materials, mesh, params, boundary_conditions=_WHITE), case
 
     def test_keff_matches_analytical(self, result):
         res, case = result
@@ -159,7 +163,7 @@ def test_gauss_seidel_eigenvalue(case_name):
     params = CPParams(
         keff_tol=1e-7, flux_tol=1e-6, solver_mode="gauss_seidel",
     )
-    result = solve_cp(case.materials, mesh, params)
+    result = solve_cp(case.materials, mesh, params, boundary_conditions=_WHITE)
     err = abs(result.keff - case.k_inf)
     assert err < tol, (
         f"{case_name} GS: solver={result.keff:.10f} "
@@ -184,7 +188,7 @@ def test_thermal_group_needs_more_inner_iterations():
     params = CPParams(
         keff_tol=1e-7, flux_tol=1e-6, solver_mode="gauss_seidel",
     )
-    result = solve_cp(case.materials, mesh, params)
+    result = solve_cp(case.materials, mesh, params, boundary_conditions=_WHITE)
 
     # #340 N4: group by each child's own LABEL — the retired ``n_inner``
     # array needed an agreed axis order; the record carries the group itself.

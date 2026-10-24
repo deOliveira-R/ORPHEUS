@@ -6,16 +6,19 @@ Demonstrates the MCMesh augmented geometry, which wraps a base Mesh1D
 lookup for delta-tracking — the same pattern used by CPMesh and SNProblem.
 
 Two cases:
-  1. Cylindrical pin cell via StructuredGeometry.wigner_seitz_pin_cell
-  2. Cartesian slab via StructuredGeometry.pwr_slab_half_cell
+  1. Cylindrical pin cell via StructuredGeometry.wigner_seitz_pin_cell: MC REFUSES the specular wall declared on a cylinder
+     (``Refused(TOPOLOGY, ..., #547)``): what MC computes there is a periodic equal-area square lattice cell (a torus wrap), which
+     no one-dimensional declaration describes. The case shows the refusal.
+  2. Cartesian slab, a translation deck on each face (the periodic wrap MC computes), built with StructuredGeometry.from_thicknesses.
 """
 
 from pathlib import Path
 
-from orpheus.geometry import StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry, TranslationDeck
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
 from orpheus.mc.solver import MCMesh, MCParams, solve_monte_carlo
+from orpheus.transport.boundary_conditions import BoundaryRefused, WallCondition
 from plotting import plot_mc_keff, plot_mc_spectrum
 
 OUTPUT = Path("results_geometry")
@@ -62,12 +65,16 @@ def main():
         CellsByCount.uniform_volume(3),   # clad
         CellsByCount.uniform_volume(7),   # cool
     )).mesh
-    mc_cyl = MCMesh(mesh_cyl, pitch=pitch)
-    result_cyl = run_case("Cylindrical pin cell (MCMesh)", mc_cyl, materials)
+    try:
+        # the specular wall is the declaration MoC realizes on this cell; MC refuses it (#547)
+        MCMesh(mesh_cyl, pitch=pitch, boundary_conditions={0: WallCondition.specular(1.0)})
+    except BoundaryRefused as refusal:
+        print(f"\n  Cylindrical pin cell (MCMesh): refused, {refusal.admission.reason} (#{refusal.admission.issue})")
 
     # ── Case 2: Cartesian slab ──────────────────────────────────────
-    geom_slab = StructuredGeometry.pwr_slab_half_cell(
-        fuel_half=0.9, clad_thick=0.2, cool_thick=0.7,
+    geom_slab = StructuredGeometry.from_thicknesses(
+        coord=CoordSystem.CARTESIAN, thicknesses=(0.9, 0.2, 0.7), mat_ids=(2, 1, 0),
+        face_roles=(TranslationDeck(), TranslationDeck()),
     )
     mesh_slab = Mesher(geom_slab).partition((
         CellsByCount.uniform_volume(10),  # fuel
@@ -77,10 +84,10 @@ def main():
     mc_slab = MCMesh(mesh_slab, pitch=pitch)
     result_slab = run_case("Cartesian slab (MCMesh)", mc_slab, materials)
 
-    # ── Save plots (last case wins — both ran successfully) ────────
+    # ── Save plots (the slab case: the cylinder case is refused) ───
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    plot_mc_keff(result_cyl, OUTPUT)
-    plot_mc_spectrum(result_cyl, OUTPUT)
+    plot_mc_keff(result_slab, OUTPUT)
+    plot_mc_spectrum(result_slab, OUTPUT)
     print(f"\n  Plots saved to {OUTPUT.resolve()}/")
 
 

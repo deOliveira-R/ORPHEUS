@@ -19,6 +19,7 @@ from orpheus.data.macro_xs.recipes import borated_water, uo2_fuel, zircaloy_clad
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.cp.solver import CPParams, solve_cp
+from orpheus.transport.boundary_conditions import WallCondition
 from plotting import (
     plot_cp_convergence,
     plot_cp_geometry,
@@ -71,7 +72,8 @@ def main():
     print()
 
     # 3. Solve
-    result = solve_cp(materials, mesh, params)
+    # The Wigner-Seitz cell's outer face is the tag 0: CP closes it with the white wall (the infinite lattice).
+    result = solve_cp(materials, mesh, params, boundary_conditions={0: WallCondition.white()})
 
     # 4. Report
     print(f"\n  keff = {result.keff:.5f}  (SN slab reference: 1.04188)")

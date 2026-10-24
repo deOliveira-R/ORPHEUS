@@ -23,6 +23,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations import get
+from orpheus.transport.boundary_conditions import BoundaryRefused, WallCondition
 
 # Mixed L0/L1 file — tests are tagged per-function to avoid conflicts
 # between file-level defaults and function-level overrides. The
@@ -662,6 +663,14 @@ def test_splitting_copy_count():
 # L1-MC-012: MCMesh used in solver gives same keff as ConcentricPinCell
 # =====================================================================
 
+_REASON_547 = (
+    "#547: MC realizes a periodic equal-area square lattice cell (a torus wrap), not the declared cylinder; the specular wall tag "
+    "declared here is the cell MoC realizes, and MC's table refuses it (Refused(TOPOLOGY)) until MC takes the two-dimensional "
+    "geometry value that describes what it computes"
+)
+
+
+@pytest.mark.xfail(strict=True, raises=BoundaryRefused, reason=_REASON_547)
 @pytest.mark.slow
 @pytest.mark.l1
 def test_mcmesh_vs_concentric_keff():
@@ -669,6 +678,14 @@ def test_mcmesh_vs_concentric_keff():
 
     Same physics, same seed, different geometry implementation.
     Any difference reveals a bug in MCMesh.material_id_at.
+
+    Strict ``xfail`` (#547, the user's ruling of the thirteenth exchange, decision 31 of the wave-2 plan): the cylinder's outer face
+    was declared ``periodic`` (the law the MC registry applied to every face); it is now the tag bound to ``WallCondition.specular(1.0)``
+    (the same declaration MoC uses on that cell), which MC refuses because what it computes is a periodic square lattice cell, a torus
+    wrap that no one-dimensional declaration describes. ``raises=BoundaryRefused`` makes any OTHER failure (a different exception, a
+    wrong ``k``) a hard failure. The mesh is built before the first solve so the expected refusal costs nothing. The subject (the
+    ``material_id_at`` lookup against ``ConcentricPinCell``) is also gated by ``test_mcmesh_cylindrical_lookup`` while #547 stands,
+    which carries the same mark: the lookup coverage of a CYLINDER is out until MC takes the geometry value.
     """
     case = get("mc_cyl1D_2eg_2rg")
     gp = case.geom_params
@@ -676,6 +693,14 @@ def test_mcmesh_vs_concentric_keff():
     mat_ids = gp["mat_ids"]
     r_cell = radii[-1]
     pitch = r_cell * np.sqrt(np.pi)
+
+    # MCMesh geometry (same radii), built first: its construction is where #547's refusal is raised
+    from orpheus.geometry import StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
+    mesh = Mesher(StructuredGeometry.cylinder(
+        (0.0, *(float(r) for r in radii)), mat_ids, outer=0,
+    )).partition(CellsByCount.uniform_width(1)).mesh
+    geom_mesh = MCMesh(mesh, pitch=pitch, boundary_conditions={0: WallCondition.specular(1.0)})
 
     # ConcentricPinCell geometry
     geom_concentric = ConcentricPinCell(radii=radii, mat_ids=mat_ids, pitch=pitch)
@@ -685,13 +710,6 @@ def test_mcmesh_vs_concentric_keff():
     )
     result1 = solve_monte_carlo(case.materials, params1)
 
-    # MCMesh geometry (same radii)
-    from orpheus.geometry import BC, StructuredGeometry
-    from orpheus.mesh import CellsByCount, Mesher
-    mesh = Mesher(StructuredGeometry.cylinder(
-        (0.0, *(float(r) for r in radii)), mat_ids, outer=BC("periodic"),
-    )).partition(CellsByCount.uniform_width(1)).mesh
-    geom_mesh = MCMesh(mesh, pitch=pitch)
     params2 = MCParams(
         n_neutrons=200, n_inactive=50, n_active=300,
         seed=42, geometry=geom_mesh,

@@ -20,7 +20,8 @@ from orpheus.cp.solver import CPParams, solve_cp
 from orpheus.derivations import reference_values
 from orpheus.derivations.common.xs_library import LAYOUTS, get_mixture
 from orpheus.derivations.continuous.flat_source_cp.slab import _THICKNESSES
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellsByCount, Mesher
 from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
@@ -62,12 +63,12 @@ class TestPeierlsFluxConvergence:
         n_sub = 16
         geometry = StructuredGeometry.from_thicknesses(
             coord=CoordSystem.CARTESIAN, thicknesses=thicknesses,
-            mat_ids=mat_ids_base, boundaries=(BC.reflective, BC.white),
+            mat_ids=mat_ids_base, face_roles=(MirrorDeck(), 0),
         )
         mesh = Mesher(geometry).partition(CellsByCount.uniform_width(n_sub)).mesh
         edges = mesh.edges
 
-        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-8, flux_tol=1e-7))
+        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-8, flux_tol=1e-7), boundary_conditions={0: WallCondition.white()})
 
         # Compare normalised flux per group against Peierls cell averages
         for g in range(2):

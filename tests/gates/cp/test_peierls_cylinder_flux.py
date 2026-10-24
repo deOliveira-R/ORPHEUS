@@ -31,7 +31,8 @@ from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     build_white_bc_correction,
     composite_gl_r,
 )
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellsByCount, Mesher
 from tests._harness.withdrawals import PEIERLS_NYSTROM_WITHDRAWN
 
@@ -179,9 +180,9 @@ class TestCPvsPeierlsAtThickR:
 
         # Build CP mesh with same material and R
         materials = {2: get_mixture("A", "1g")}
-        geometry = StructuredGeometry.cylinder((0.0, R), (2,), outer=BC.white)
+        geometry = StructuredGeometry.cylinder((0.0, R), (2,), outer=0)
         mesh = Mesher(geometry).partition(CellsByCount.uniform_width(20)).mesh
-        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-8))
+        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-8), boundary_conditions={0: WallCondition.white()})
 
         # Compare eigenvalues (CPResult uses `.keff`, Peierls uses `.k_eff`)
         rel_err = abs(result.keff - ref.k_eff) / ref.k_eff
@@ -200,11 +201,11 @@ class TestCPvsPeierlsAtThickR:
         )
 
         materials = {2: get_mixture("A", "1g")}
-        geometry = StructuredGeometry.cylinder((0.0, R), (2,), outer=BC.white)
+        geometry = StructuredGeometry.cylinder((0.0, R), (2,), outer=0)
         mesh = Mesher(geometry).partition(CellsByCount.uniform_width(20)).mesh
         edges = mesh.edges
         centers = 0.5 * (edges[:-1] + edges[1:])
-        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-8))
+        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-8), boundary_conditions={0: WallCondition.white()})
 
         phi_cp = result.flux[:, 0]
         phi_ref = ref.phi(centers, g=0)

@@ -17,10 +17,12 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry import CoordSystem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
+from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates.sn._test_helpers import (
+    CURVED_REFLECTIVE,
     curvilinear_homogeneous_mesh as _homogeneous_mesh,
     curvilinear_two_region_mesh as _two_region_mesh,
 )
@@ -71,12 +73,12 @@ def test_cross_check_with_cp_1g():
     mesh_sn = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     result_sn = solve_sn({0: mix}, mesh_sn, quad,
-                         max_inner=500, inner_tol=1e-10)
+                         max_inner=500, inner_tol=1e-10, boundary_conditions=CURVED_REFLECTIVE)
 
     mesh_cp = _homogeneous_mesh(
-        1, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL, bc=BC.white,
+        1, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL, role=0,
     )
-    result_cp = solve_cp({0: mix}, mesh_cp)
+    result_cp = solve_cp({0: mix}, mesh_cp, boundary_conditions={0: WallCondition.white()})
 
     np.testing.assert_allclose(
         result_sn.outcome.keff, result_cp.keff, rtol=1e-6,
@@ -101,14 +103,14 @@ def test_heterogeneous_sn_vs_cp_cross_check():
     )
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
     result_sn = solve_sn(materials, mesh_sn, quad,
-                         max_inner=500, inner_tol=1e-10)
+                         max_inner=500, inner_tol=1e-10, boundary_conditions=CURVED_REFLECTIVE)
 
     mesh_cp = _two_region_mesh(
         outers=(0.5, 1.0), mat_ids=(2, 0), n_cells=(10, 10),
         coord=CoordSystem.CYLINDRICAL,
-        bc=BC.white,  # CP supports vacuum/white only
+        role=0,  # the tag 0, bound to the white wall at the CP solve (CP supports vacuum and white only)
     )
-    result_cp = solve_cp(materials, mesh_cp)
+    result_cp = solve_cp(materials, mesh_cp, boundary_conditions={0: WallCondition.white()})
 
     np.testing.assert_allclose(
         result_sn.outcome.keff, result_cp.keff, rtol=0.10,
@@ -136,12 +138,12 @@ def test_cross_check_with_cp_1g_sphere():
     mesh_sn = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
     quad = Quadrature.gauss_legendre(8)
     result_sn = solve_sn({0: mix}, mesh_sn, quad,
-                         max_inner=500, inner_tol=1e-10)
+                         max_inner=500, inner_tol=1e-10, boundary_conditions=CURVED_REFLECTIVE)
 
     mesh_cp = _homogeneous_mesh(
-        1, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL, bc=BC.white,
+        1, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL, role=0,
     )
-    result_cp = solve_cp({0: mix}, mesh_cp)
+    result_cp = solve_cp({0: mix}, mesh_cp, boundary_conditions={0: WallCondition.white()})
 
     np.testing.assert_allclose(
         result_sn.outcome.keff, result_cp.keff, rtol=1e-6,

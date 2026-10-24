@@ -20,12 +20,21 @@ from orpheus.mc.solver import (
     ConcentricPinCell, SlabPinCell, MCMesh, MCGeometry,
     MCParams, solve_monte_carlo,
 )
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry, TranslationDeck
 from orpheus.mesh import CellsByCount, Mesher
+from orpheus.transport.boundary_conditions import BoundaryRefused, WallCondition
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_xs, get_mixture
 
 pytestmark = pytest.mark.l0  # MC algorithmic term checks (L0-MC-NNN in docstrings)
+
+_REASON_547 = (
+    "#547: MC realizes a periodic equal-area square lattice cell (a torus wrap), not the declared curved body; the specular wall tag "
+    "declared here is the cell MoC realizes, and MC's table refuses it (Refused(TOPOLOGY)) until MC takes the two-dimensional "
+    "geometry value that describes what it computes"
+)
+_SPECULAR_TAG = {0: WallCondition.specular(1.0)}
+_WHITE_TAG = {0: WallCondition.white()}
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -131,7 +140,7 @@ def test_mcmesh_cartesian_lookup():
     x=0.25 → cell 0 → mat 2.  x=0.75 → cell 1 → mat 0.
     """
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 0.5, 1.0), (2, 0), left=BC("periodic"), right=BC("periodic"),
+        (0.0, 0.5, 1.0), (2, 0), left=TranslationDeck(), right=TranslationDeck(),
     )).partition(CellsByCount.uniform_width(1)).mesh
     mc = MCMesh(mesh, pitch=2.0)
 
@@ -145,6 +154,7 @@ def test_mcmesh_cartesian_lookup():
     assert mc.material_id_at(0.4999, 0.5) == 2
 
 
+@pytest.mark.xfail(strict=True, raises=BoundaryRefused, reason=_REASON_547)
 def test_mcmesh_cylindrical_lookup():
     """L0-MC-002: MCMesh Cylindrical returns correct material from radial distance.
 
@@ -152,11 +162,16 @@ def test_mcmesh_cylindrical_lookup():
     Mesh edges [0.0, 0.5, 1.0], mat_ids [2, 0].
     (1.5, 1.5) → r=0.0 → cell 0 → mat 2.
     (1.5, 2.2) → r=0.7 → cell 1 → mat 0.
+
+    Strict ``xfail`` (#547, decision 31 of the wave-2 plan, the user's ruling): the cylinder's outer face was ``periodic`` and is now
+    the tag bound to ``WallCondition.specular(1.0)``, which MC refuses (it computes a periodic square lattice cell, a torus wrap, that
+    no one-dimensional declaration describes). The radial ``material_id_at`` lookup of a cylinder is therefore ungated until MC takes
+    the geometry value that describes what it computes; the Cartesian lookup above is unaffected.
     """
     mesh = Mesher(StructuredGeometry.cylinder(
-        (0.0, 0.5, 1.0), (2, 0), outer=BC("periodic"),
+        (0.0, 0.5, 1.0), (2, 0), outer=0,
     )).partition(CellsByCount.uniform_width(1)).mesh
-    mc = MCMesh(mesh, pitch=3.0)
+    mc = MCMesh(mesh, pitch=3.0, boundary_conditions=_SPECULAR_TAG)
     center = 1.5
 
     # At center → r = 0 → cell 0 → mat 2
@@ -185,7 +200,7 @@ def test_mcmesh_cylindrical_matches_concentric():
         CellsByCount.uniform_volume(3),   # clad
         CellsByCount.uniform_volume(7),   # cool
     )).mesh
-    mc = MCMesh(mesh, pitch=3.6)
+    mc = MCMesh(mesh, pitch=3.6, boundary_conditions=_WHITE_TAG)  # the Wigner-Seitz cell's outer tag is its white wall (R4)
     ref = ConcentricPinCell.default_pwr(pitch=3.6)
 
     rng = np.random.default_rng(42)
@@ -199,13 +214,32 @@ def test_mcmesh_cylindrical_matches_concentric():
     assert mismatches == 0, f"MCMesh vs ConcentricPinCell: {mismatches}/10000 mismatches"
 
 
+@pytest.mark.xfail(strict=True, raises=BoundaryRefused, reason=_REASON_547)
 def test_mcmesh_rejects_spherical():
-    """MCMesh must reject spherical coordinate system."""
+    """MCMesh must reject spherical coordinate system.
+
+    Strict ``xfail`` (#547, decision 31 of the wave-2 plan, the user's ruling, Appendix B row ``test_properties.py:204``): the sphere's
+    outer face was ``periodic`` and is now the tag bound to ``WallCondition.specular(1.0)``, which MC's table refuses on the
+    topology axis before the coordinate system is read (``raises=BoundaryRefused`` pins that the refusal is the table's). The
+    coordinate-system rejection of a sphere is gated beside it by ``test_mcmesh_rejects_spherical_whatever_the_wall``, which does not
+    depend on the order of the two refusals.
+    """
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, 1.0), (0,), outer=BC("periodic"),
+        (0.0, 1.0), (0,), outer=0,
     )).partition(CellsByCount.uniform_width(1)).mesh
     with pytest.raises(ValueError, match="SPHERICAL"):
-        MCMesh(mesh, pitch=2.0)
+        MCMesh(mesh, pitch=2.0, boundary_conditions=_SPECULAR_TAG)
+
+
+def test_mcmesh_rejects_spherical_whatever_the_wall():
+    """MCMesh refuses a sphere, by whichever refusal comes first: the coordinate-system ``ValueError`` (``SPHERICAL``) or the
+    table's ``BoundaryRefused`` (a ``ValueError`` too). The row that stays green when #547's refusal and the coordinate check swap
+    order, so the sphere rejection is never ungated (the strict ``xfail`` above pins one order and the user's ruling)."""
+    mesh = Mesher(StructuredGeometry.sphere(
+        (0.0, 1.0), (0,), outer=0,
+    )).partition(CellsByCount.uniform_width(1)).mesh
+    with pytest.raises(ValueError):
+        MCMesh(mesh, pitch=2.0, boundary_conditions=_SPECULAR_TAG)
 
 
 # ═══════════════════════════════════════════════════════════════════════

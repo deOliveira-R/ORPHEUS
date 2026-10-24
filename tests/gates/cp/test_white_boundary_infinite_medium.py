@@ -90,7 +90,8 @@ from orpheus.cp.solver import CPParams, CPResult, solve_cp
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations import get as get_case
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 from tests.gates.cp._cp_geometry import cp_body
 
@@ -143,11 +144,11 @@ class WhiteCell:
         return np.array([0.0, self.radius])
 
     def mesh1d(self) -> Mesh1D:
-        # White on the outer face (the curvilinear cell's only face: its axis
+        # The outer face is the tag 0, bound to the white wall at the solve (the curvilinear cell's only face: its axis
         # or centre is not a boundary); on a slab, a mirror at the left face,
         # which CP's kernel images whatever is declared (#513).
         geometry = cp_body(
-            self.coord, (0.0, self.radius), (_MAT_ID,), BC.white,
+            self.coord, (0.0, self.radius), (_MAT_ID,), 0,
         )
         rule = (CellEdges(self.edges()) if self.mesh == "graded"
                 else CellsByCount.uniform_width(self.n_cells))
@@ -223,7 +224,7 @@ def _infinite_medium(groups: str) -> tuple[float, np.ndarray]:
 def _solve(cell: WhiteCell) -> tuple[CPResult, CPParams]:
     params = _PARAMS
     with contextlib.redirect_stdout(io.StringIO()):
-        result = solve_cp({_MAT_ID: _mixture(cell.groups)}, cell.mesh1d(), params)
+        result = solve_cp({_MAT_ID: _mixture(cell.groups)}, cell.mesh1d(), params, boundary_conditions={0: WallCondition.white()})
     assert result.record.fully_converged, f"{cell.id}: the CP solve did not converge"
     return result, params
 

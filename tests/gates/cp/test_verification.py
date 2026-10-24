@@ -23,8 +23,12 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
+from orpheus.transport.boundary_conditions import WallCondition
+
+#: Every body below carries the tag 0 on its outer face, bound to the white closure CP realizes (rule R4: the old ``BC.white``).
+_WHITE = {0: WallCondition.white()}
 
 def _two_region_mesh(coord, *, outers=(0.5, 1.0), n_cells=(1, 1)):
     """Two-region mesh helper for the L0/L1 properties tests.
@@ -34,7 +38,7 @@ def _two_region_mesh(coord, *, outers=(0.5, 1.0), n_cells=(1, 1)):
     # The body CP computes (``cp_body``): white on the outer face, and on a
     # slab a mirror at the left face, which CP's kernel images whatever is
     # declared (#513).
-    geom = cp_body(coord, (0.0, *outers), (0, 1), BC.white)
+    geom = cp_body(coord, (0.0, *outers), (0, 1), 0)
     return Mesher(geom).partition(
         tuple(CellsByCount.uniform_volume(n) for n in n_cells),
     ).mesh
@@ -170,7 +174,7 @@ def _make_mixture_with_n2n(ng_key: str = "2g") -> Mixture:
 def _slab_mesh_homogeneous(thickness: float, mat_id: int = 0) -> Mesh1D:
     """Single-region, single-cell slab mesh: a mirror on the left (CP's kernel), white on the right."""
     geometry = StructuredGeometry.slab(
-        (0.0, thickness), (mat_id,), left=BC.reflective, right=BC.white,
+        (0.0, thickness), (mat_id,), left=MirrorDeck(), right=0,
     )
     return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
 
@@ -186,7 +190,7 @@ def _slab_geometry(thicknesses, mat_ids) -> StructuredGeometry:
     """The slab stacked from ``thicknesses``: a mirror on the left (CP's kernel), white on the right."""
     return StructuredGeometry.from_thicknesses(
         coord=CoordSystem.CARTESIAN, thicknesses=thicknesses,
-        mat_ids=mat_ids, boundaries=(BC.reflective, BC.white),
+        mat_ids=mat_ids, face_roles=(MirrorDeck(), 0),
     )
 
 
@@ -197,7 +201,7 @@ def _case_mesh(case) -> Mesh1D:
         geometry = _slab_geometry(gp["thicknesses"], gp["mat_ids"])
     else:
         geometry = StructuredGeometry.cylinder(
-            (0.0, *gp["radii"]), gp["mat_ids"], outer=BC.white,
+            (0.0, *gp["radii"]), gp["mat_ids"], outer=0,
         )
     return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
 
@@ -328,7 +332,7 @@ class TestDirectPinfComparison:
         mesh = Mesher(_slab_geometry(t_arr, mat_ids)).partition(
             CellsByCount.uniform_width(1),
         ).mesh
-        cp_mesh = CPMesh(mesh)
+        cp_mesh = CPMesh(mesh, boundary_conditions=_WHITE)
 
         for g in range(ng):
             P_solver = cp_mesh.compute_pinf_group(sig_t_all[:, g])
@@ -353,7 +357,7 @@ class TestDirectPinfComparison:
         xs_b = get_xs("B", "2g")
 
         mesh = _two_region_mesh(coord)
-        cp_mesh = CPMesh(mesh)
+        cp_mesh = CPMesh(mesh, boundary_conditions=_WHITE)
 
         for g in range(2):
             sig_t_g = np.array([xs_a["sig_t"][g], xs_b["sig_t"][g]])
@@ -408,7 +412,7 @@ class TestMultiGroupProperties:
         ng = len(xs_a["sig_t"])
 
         mesh = _two_region_mesh(coord)
-        cp_mesh = CPMesh(mesh)
+        cp_mesh = CPMesh(mesh, boundary_conditions=_WHITE)
 
         for g in range(ng):
             sig_t_g = np.array([xs_a["sig_t"][g], xs_b["sig_t"][g]])
@@ -436,7 +440,7 @@ class TestMultiGroupProperties:
         ng = len(xs_a["sig_t"])
 
         mesh = _two_region_mesh(coord)
-        cp_mesh = CPMesh(mesh)
+        cp_mesh = CPMesh(mesh, boundary_conditions=_WHITE)
         V = mesh.volumes
 
         for g in range(ng):
@@ -481,7 +485,7 @@ class TestUpscatter:
         k_ref = _compute_analytical_kinf_slab(materials, thickness, mat_ids)
 
         mesh = _slab_mesh_homogeneous(0.5, mat_id=0)
-        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-7, flux_tol=1e-6))
+        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-7, flux_tol=1e-6), boundary_conditions=_WHITE)
 
         assert abs(result.keff - k_ref) < 1e-5, (
             f"Upscatter keff: solver={result.keff:.8f} ref={k_ref:.8f}"
@@ -570,7 +574,7 @@ class TestN2N:
         k_ref = _compute_analytical_kinf_slab_with_n2n(materials, thickness, mat_ids)
 
         mesh = _slab_mesh_homogeneous(0.5, mat_id=0)
-        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-7, flux_tol=1e-6))
+        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-7, flux_tol=1e-6), boundary_conditions=_WHITE)
 
         assert abs(result.keff - k_ref) < 1e-5, (
             f"(n,2n) keff: solver={result.keff:.8f} ref={k_ref:.8f}"
@@ -646,11 +650,11 @@ class TestComputeGroupRates:
 
         # Run the standard solve to get converged flux
         result = solve_cp({0: mat}, mesh,
-                          CPParams(keff_tol=1e-7, flux_tol=1e-6))
+                          CPParams(keff_tol=1e-7, flux_tol=1e-6), boundary_conditions=_WHITE)
 
         # Build a parallel CPSolver instance the way solve_cp does, so we
         # can call compute_group_*_rate and compute_keff directly.
-        cp_mesh = CPMesh(mesh, CPParams())
+        cp_mesh = CPMesh(mesh, CPParams(), boundary_conditions=_WHITE)
         ng = mat.ng
         sig_t = np.tile(np.asarray(mat.SigT), (mesh.N, 1))
         sig_p = np.tile(np.asarray(mat.SigP), (mesh.N, 1))
@@ -735,7 +739,7 @@ class TestOpticalLimits:
         """
         sig_t_thick = np.array([100.0, 100.0])
         mesh = _slab_mesh_2region(1.0, 1.0)
-        cp_mesh = CPMesh(mesh)
+        cp_mesh = CPMesh(mesh, boundary_conditions=_WHITE)
         P = cp_mesh.compute_pinf_group(sig_t_thick)
 
         for i in range(2):
@@ -758,7 +762,7 @@ class TestOpticalLimits:
         """
         sig_t_thin = np.array([0.01, 0.01])
         mesh = _slab_mesh_2region(0.1, 0.1)
-        cp_mesh = CPMesh(mesh)
+        cp_mesh = CPMesh(mesh, boundary_conditions=_WHITE)
         P = cp_mesh.compute_pinf_group(sig_t_thin)
 
         # With white BC, P_inf row sums = 1 even for optically thin cells
@@ -793,7 +797,7 @@ class TestOpticalLimits:
             mesh = _two_region_mesh(coord, outers=(2.0, 2.1))
 
         # Should converge without numerical issues
-        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-6, flux_tol=1e-5))
+        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-6, flux_tol=1e-5), boundary_conditions=_WHITE)
         assert result.keff > 0, f"keff must be positive, got {result.keff}"
         assert np.isfinite(result.keff), f"keff not finite: {result.keff}"
         assert len(result.keff_history) < 500, "Failed to converge in 500 iterations"
@@ -826,6 +830,7 @@ class TestConvergenceRate:
         result = solve_cp(
             case.materials, mesh,
             CPParams(keff_tol=1e-8, flux_tol=1e-7),
+            boundary_conditions=_WHITE,
         )
 
         k_hist = np.array(result.keff_history)
@@ -861,6 +866,7 @@ class TestConvergenceRate:
         result = solve_cp(
             case.materials, mesh,
             CPParams(keff_tol=1e-8, flux_tol=1e-7),
+            boundary_conditions=_WHITE,
         )
 
         k_hist = np.array(result.keff_history)
@@ -909,7 +915,7 @@ class TestManyRegions:
         ).mesh
 
         # Verify CP matrix properties
-        cp_mesh = CPMesh(mesh)
+        cp_mesh = CPMesh(mesh, boundary_conditions=_WHITE)
         for g in range(2):
             sig_t_g = np.array([
                 materials[mid].SigT[g] for mid in mat_ids
@@ -922,7 +928,7 @@ class TestManyRegions:
             assert np.all(P >= -1e-15), f"8-region group {g}: negative P entry"
 
         # Eigenvalue should converge
-        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-6, flux_tol=1e-5))
+        result = solve_cp(materials, mesh, CPParams(keff_tol=1e-6, flux_tol=1e-5), boundary_conditions=_WHITE)
         assert np.isfinite(result.keff)
         assert result.keff > 0
 
@@ -945,7 +951,7 @@ class TestManyRegions:
             mesh = Mesher(_slab_geometry((0.5, 0.5), (0, 1))).partition(
                 CellsByCount.uniform_width(n_sub),
             ).mesh
-            result = solve_cp(materials, mesh, CPParams(keff_tol=1e-7, flux_tol=1e-6))
+            result = solve_cp(materials, mesh, CPParams(keff_tol=1e-7, flux_tol=1e-6), boundary_conditions=_WHITE)
             keffs.append(result.keff)
 
         # Differences between successive refinements should decrease
@@ -995,7 +1001,7 @@ class TestGSInnerIterations:
             inner_tol=1e-10,
             max_inner=200,
         )
-        result = solve_cp(case.materials, mesh, params)
+        result = solve_cp(case.materials, mesh, params, boundary_conditions=_WHITE)
 
         # #340 N4: read the iteration tree, not the retired ``n_inner``
         # projection.  Each inner child NAMES its group, so grouping needs no
@@ -1045,8 +1051,8 @@ class TestGSInnerIterations:
         params_j = CPParams(keff_tol=1e-7, flux_tol=1e-6, solver_mode="jacobi")
         params_gs = CPParams(keff_tol=1e-7, flux_tol=1e-6, solver_mode="gauss_seidel")
 
-        res_j = solve_cp(case.materials, mesh, params_j)
-        res_gs = solve_cp(case.materials, mesh, params_gs)
+        res_j = solve_cp(case.materials, mesh, params_j, boundary_conditions=_WHITE)
+        res_gs = solve_cp(case.materials, mesh, params_gs, boundary_conditions=_WHITE)
 
         assert abs(res_j.keff - res_gs.keff) < 1e-6, (
             f"Jacobi keff={res_j.keff:.8f} vs GS keff={res_gs.keff:.8f}"
@@ -1082,7 +1088,7 @@ class TestGSInnerIterations:
             inner_tol=1e-12,
             max_inner=50,
         )
-        result = solve_cp({0: mat}, mesh, params)
+        result = solve_cp({0: mat}, mesh, params, boundary_conditions=_WHITE)
 
         # #340 N4: the iteration tree replaces the retired ``n_inner``.
         inners = list(result.record.children)
@@ -1151,7 +1157,7 @@ class TestKi4Resolution:
                 keff_tol=1e-7, flux_tol=1e-6,
                 n_ki_table=n_ki,
             )
-            result = solve_cp(case.materials, mesh, params)
+            result = solve_cp(case.materials, mesh, params, boundary_conditions=_WHITE)
             keffs[n_ki] = result.keff
 
         # All three runs must give bit-identical keff — n_ki_table is

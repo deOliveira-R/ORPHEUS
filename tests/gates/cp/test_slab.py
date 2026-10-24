@@ -3,9 +3,10 @@
 import pytest
 
 from orpheus.derivations import get
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.cp.solver import CPParams, solve_cp
+from orpheus.transport.boundary_conditions import WallCondition
 
 # Every test in this file exercises the slab CP pipeline end-to-end
 # against an analytical CPmatrix eigenvalue (see PR-2 derivations).
@@ -44,12 +45,13 @@ def test_slab_cp_eigenvalue(case_name):
     gp = case.geom_params
     geometry = StructuredGeometry.from_thicknesses(
         coord=CoordSystem.CARTESIAN, thicknesses=gp["thicknesses"],
-        mat_ids=gp["mat_ids"], boundaries=(BC.reflective, BC.white),
+        mat_ids=gp["mat_ids"], face_roles=(MirrorDeck(), 0),
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
     result = solve_cp(case.materials, mesh,
                       params=CPParams(
-                          keff_tol=1e-7, flux_tol=1e-6))
+                          keff_tol=1e-7, flux_tol=1e-6),
+                      boundary_conditions={0: WallCondition.white()})
 
     err = abs(result.keff - case.k_inf)
     assert err < 1e-6, (

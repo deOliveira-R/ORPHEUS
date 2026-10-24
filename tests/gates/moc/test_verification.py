@@ -24,14 +24,14 @@ Failure modes targeted:
 from __future__ import annotations
 
 import sys
-from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.derivations.common.xs_library import make_mixture, get_mixture, get_xs
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
@@ -39,6 +39,9 @@ from orpheus.moc.geometry import MOCMesh
 from orpheus.moc.quadrature import MOCQuadrature
 from orpheus.moc.core import MOCSolver
 from orpheus.moc.solver import solve_moc
+
+#: Every body below carries the tag 0 on its outer face, bound to the specular wall MoC links (rule R2: the old ``BC.reflective`` on a curved face).
+_SPECULAR = {0: WallCondition.specular(1.0)}
 
 
 # B.3 additions (issue #87): labels directly exercised by the L0
@@ -61,7 +64,7 @@ pytestmark = pytest.mark.verifies(
 def _ws_mesh(breakpoints, mat_ids):
     """A solid Wigner-Seitz cylinder, one cell per region, reflective at its outer surface."""
     return Mesher(StructuredGeometry.cylinder(
-        tuple(float(r) for r in breakpoints), mat_ids, outer=BC.reflective,
+        tuple(float(r) for r in breakpoints), mat_ids, outer=0,
     )).partition(CellsByCount.uniform_width(1)).mesh
 
 
@@ -163,6 +166,7 @@ def _quick_solve(materials, mesh, n_azi=8, n_polar=3, ray_spacing=0.05,
         n_azi=n_azi, n_polar=n_polar, ray_spacing=ray_spacing,
         max_outer=max_outer, max_inner_sweeps=n_inner,
         keff_tol=keff_tol, flux_tol=flux_tol,
+        boundary_conditions=_SPECULAR,
     )
 
 
@@ -270,7 +274,7 @@ class TestL0EquilibriumFlux:
         mat = _make_pure_scatterer_1g(sig_t=sig_t_val)
         mesh = _homogeneous_ws_mesh(pitch=2.0, mat_id=0)
         quad = MOCQuadrature.create(n_azi=8, n_polar=3)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.05)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.05, boundary_conditions=_SPECULAR)
 
         solver = MOCSolver(moc_mesh, {0: mat}, max_inner_sweeps=1)
 
@@ -446,7 +450,7 @@ class TestL0SourceTermIsolation:
         mat = _make_pure_scatterer_1g(sig_t=1.0)
         mesh = _homogeneous_ws_mesh(pitch=2.0)
         quad = MOCQuadrature.create(n_azi=8, n_polar=3)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.05)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.05, boundary_conditions=_SPECULAR)
         solver = MOCSolver(moc_mesh, {0: mat}, max_inner_sweeps=5)
 
         phi = solver.initial_flux_distribution()
@@ -492,7 +496,7 @@ class TestL0GeometricInvariants:
         r_fuel = 0.5
         mesh = _two_region_ws_mesh(r_fuel=r_fuel, pitch=2.0)
         quad = MOCQuadrature.create(n_azi=16, n_polar=1)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.03)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.03, boundary_conditions=_SPECULAR)
 
         for track in moc_mesh.tracks:
             seg_total = sum(s.length for s in track.segments)
@@ -511,7 +515,7 @@ class TestL0GeometricInvariants:
         """
         mesh = _two_region_ws_mesh(r_fuel=0.5, pitch=2.0)
         quad = MOCQuadrature.create(n_azi=8, n_polar=1)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.05)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.05, boundary_conditions=_SPECULAR)
 
         for track in moc_mesh.tracks:
             fwd_total = sum(s.length for s in track.segments)
@@ -524,7 +528,7 @@ class TestL0GeometricInvariants:
         """[L0] Sum of all region areas = pitch^2 (exact, no ray tracing)."""
         mesh = _two_region_ws_mesh(r_fuel=0.5, pitch=2.5)
         quad = MOCQuadrature.create(n_azi=4, n_polar=1)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.1)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.1, boundary_conditions=_SPECULAR)
 
         assert moc_mesh.region_areas.sum() == pytest.approx(
             moc_mesh.pitch**2, rel=1e-12
@@ -534,7 +538,7 @@ class TestL0GeometricInvariants:
         """[L0] Every segment midpoint lies inside [0, pitch]^2."""
         mesh = _two_region_ws_mesh(r_fuel=0.5, pitch=2.0)
         quad = MOCQuadrature.create(n_azi=16, n_polar=1)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.03)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.03, boundary_conditions=_SPECULAR)
 
         pitch = moc_mesh.pitch
         phi = moc_mesh.quad.phi
@@ -561,7 +565,7 @@ class TestL0GeometricInvariants:
         """
         mesh = _two_region_ws_mesh(r_fuel=0.5, pitch=2.0)
         quad = MOCQuadrature.create(n_azi=8, n_polar=1)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.05)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.05, boundary_conditions=_SPECULAR)
 
         n_tracks = len(moc_mesh.tracks)
         visited_any = set()
@@ -1059,8 +1063,8 @@ class TestXVCrossVerification:
         # CP solve
         try:
             from orpheus.cp.solver import solve_cp
-            # CP reads the outer law as white; MoC reads it as reflective.
-            result_cp = solve_cp(materials, replace(mesh, face_laws={"xmax": BC.white}))
+            # The outer face is the tag 0: bound to the white wall for CP (its closure), to the specular wall for MoC (its track linking).
+            result_cp = solve_cp(materials, mesh, boundary_conditions={0: WallCondition.white()})
             k_cp = result_cp.keff
         except ImportError:
             pytest.skip("CP solver not available")
@@ -1095,8 +1099,8 @@ class TestXVCrossVerification:
 
         try:
             from orpheus.cp.solver import solve_cp
-            # CP reads the outer law as white; MoC reads it as reflective.
-            result_cp = solve_cp(materials, replace(mesh, face_laws={"xmax": BC.white}))
+            # The outer face is the tag 0: bound to the white wall for CP (its closure), to the specular wall for MoC (its track linking).
+            result_cp = solve_cp(materials, mesh, boundary_conditions={0: WallCondition.white()})
             k_cp = result_cp.keff
         except ImportError:
             pytest.skip("CP solver not available")
@@ -1120,7 +1124,7 @@ class TestL0ProtocolCompliance:
         mat = get_mixture("A", "2g")
         mesh = _homogeneous_ws_mesh(pitch=2.0)
         quad = MOCQuadrature.create(n_azi=4, n_polar=1)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.1)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.1, boundary_conditions=_SPECULAR)
         solver = MOCSolver(moc_mesh, {0: mat})
 
         phi = solver.initial_flux_distribution()
@@ -1132,7 +1136,7 @@ class TestL0ProtocolCompliance:
         mat = get_mixture("A", "2g")
         mesh = _homogeneous_ws_mesh(pitch=2.0)
         quad = MOCQuadrature.create(n_azi=4, n_polar=1)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.1)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.1, boundary_conditions=_SPECULAR)
         solver = MOCSolver(moc_mesh, {0: mat})
 
         phi = solver.initial_flux_distribution()
@@ -1145,7 +1149,7 @@ class TestL0ProtocolCompliance:
         mat = get_mixture("A", "2g")
         mesh = _homogeneous_ws_mesh(pitch=2.0)
         quad = MOCQuadrature.create(n_azi=4, n_polar=1)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.1)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.1, boundary_conditions=_SPECULAR)
         solver = MOCSolver(moc_mesh, {0: mat})
 
         phi = solver.initial_flux_distribution()
@@ -1173,7 +1177,7 @@ class TestL0ProtocolCompliance:
         mat = get_mixture("A", "2g")
         mesh = _homogeneous_ws_mesh(pitch=2.0)
         quad = MOCQuadrature.create(n_azi=4, n_polar=1)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.1)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.1, boundary_conditions=_SPECULAR)
         solver = MOCSolver(moc_mesh, {0: mat})
 
         phi = solver.initial_flux_distribution()
@@ -1258,7 +1262,7 @@ class TestL0VolumeTracking:
         """[L0] Track-estimated areas within 3% of geometric for 2 regions."""
         mesh = _two_region_ws_mesh(r_fuel=0.5, pitch=2.0)
         quad = MOCQuadrature.create(n_azi=16, n_polar=1)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.02)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.02, boundary_conditions=_SPECULAR)
 
         est_areas = np.zeros(moc_mesh.n_regions)
         for a_idx in range(quad.n_azi):
@@ -1282,7 +1286,7 @@ class TestL0VolumeTracking:
         errors = []
         for spacing in [0.1, 0.05, 0.02]:
             quad = MOCQuadrature.create(n_azi=16, n_polar=1)
-            moc_mesh = MOCMesh(mesh, quad, ray_spacing=spacing)
+            moc_mesh = MOCMesh(mesh, quad, ray_spacing=spacing, boundary_conditions=_SPECULAR)
 
             est_areas = np.zeros(moc_mesh.n_regions)
             for a_idx in range(quad.n_azi):
@@ -1319,7 +1323,7 @@ class TestL0BoundaryConditions:
         """[L0] Every track must have valid forward and backward links."""
         mesh = _two_region_ws_mesh(r_fuel=0.5, pitch=2.0)
         quad = MOCQuadrature.create(n_azi=16, n_polar=3)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.03)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.03, boundary_conditions=_SPECULAR)
 
         n_tracks = len(moc_mesh.tracks)
         for i, track in enumerate(moc_mesh.tracks):
@@ -1338,7 +1342,7 @@ class TestL0BoundaryConditions:
         """
         mesh = _two_region_ws_mesh(r_fuel=0.5, pitch=2.0)
         quad = MOCQuadrature.create(n_azi=8, n_polar=1)
-        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.05)
+        moc_mesh = MOCMesh(mesh, quad, ray_spacing=0.05, boundary_conditions=_SPECULAR)
 
         phi = quad.phi
         for track in moc_mesh.tracks:

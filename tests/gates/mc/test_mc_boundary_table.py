@@ -166,8 +166,8 @@ def test_the_three_mc_cylinder_sites_are_strict_xfails_naming_547() -> None:
     beginning ``#547:``, read through the imported modules (the marks as pytest sees them). Population: exactly 3 functions, each found by
     name, each building an ``MCMesh`` (read by AST: a renamed function or a site that lost its ``MCMesh`` fails the population leg).
 
-    Red input at the base tip: the two test modules cannot be imported (their bodies import the retired ``BC``, a module-level import in
-    ``test_properties.py``), and once they can, the functions are unmarked. Mutation: a mark without ``raises``; without ``strict``; a
+    Red input: at the base tip ``d4da4328`` the two test modules cannot be imported (they import the retired ``BC``) and the functions
+    carry no mark (the gates commit precedes the re-spelling commit, which adds the marks and turns this row green). Mutation: a mark without ``raises``; without ``strict``; a
     reason without ``#547:``.
     """
     B = H.bc()

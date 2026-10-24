@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.moc.geometry import (
     MOCMesh,
@@ -14,6 +15,9 @@ from orpheus.moc.geometry import (
     _trace_single_ray,
 )
 from orpheus.moc.quadrature import MOCQuadrature
+
+#: Every body below carries the tag 0 on its outer face, bound to the specular wall MoC links (rule R2: the old ``BC.reflective`` on a curved face).
+_SPECULAR = {0: WallCondition.specular(1.0)}
 
 # MOC ray-tracing geometry primitives (MOCMesh, Track, ...).
 # Labels added in Phase B.3 (issue #87):
@@ -40,7 +44,7 @@ pytestmark = [pytest.mark.l0, pytest.mark.verifies(
 def _ws_mesh(breakpoints, mat_ids) -> Mesh1D:
     """A solid cylinder, one cell per region, reflective at its outer surface."""
     return Mesher(StructuredGeometry.cylinder(
-        breakpoints, mat_ids, outer=BC.reflective,
+        breakpoints, mat_ids, outer=0,
     )).partition(CellsByCount.uniform_width(1)).mesh
 
 
@@ -242,7 +246,7 @@ def test_moc_mesh_pitch_recovery():
     r_cell = 3.6 / np.sqrt(np.pi)
     mesh = _homogeneous_mesh(r_outer=r_cell)
     quad = MOCQuadrature.create(n_azi=4, n_polar=1)
-    moc = MOCMesh(mesh, quad, ray_spacing=0.1)
+    moc = MOCMesh(mesh, quad, ray_spacing=0.1, boundary_conditions=_SPECULAR)
     assert moc.pitch == pytest.approx(3.6, rel=1e-10)
 
 
@@ -251,7 +255,7 @@ def test_moc_mesh_region_areas_homogeneous():
     r_cell = 2.0 / np.sqrt(np.pi)
     mesh = _homogeneous_mesh(r_outer=r_cell)
     quad = MOCQuadrature.create(n_azi=4, n_polar=1)
-    moc = MOCMesh(mesh, quad, ray_spacing=0.1)
+    moc = MOCMesh(mesh, quad, ray_spacing=0.1, boundary_conditions=_SPECULAR)
     assert moc.region_areas[0] == pytest.approx(2.0**2, rel=1e-10)
 
 
@@ -261,7 +265,7 @@ def test_moc_mesh_region_areas_two_region():
     r_cell = 2.0 / np.sqrt(np.pi)
     mesh = _two_region_mesh(r_fuel=r_fuel, r_cell=r_cell)
     quad = MOCQuadrature.create(n_azi=4, n_polar=1)
-    moc = MOCMesh(mesh, quad, ray_spacing=0.1)
+    moc = MOCMesh(mesh, quad, ray_spacing=0.1, boundary_conditions=_SPECULAR)
 
     assert moc.region_areas[0] == pytest.approx(np.pi * 0.5**2, rel=1e-10)
     assert moc.region_areas[1] == pytest.approx(2.0**2 - np.pi * 0.5**2, rel=1e-10)
@@ -273,7 +277,7 @@ def test_moc_mesh_total_area():
     r_cell = 3.6 / np.sqrt(np.pi)
     mesh = _three_region_mesh(r_fuel=0.4, r_clad=0.5, r_cell=r_cell)
     quad = MOCQuadrature.create(n_azi=8, n_polar=1)
-    moc = MOCMesh(mesh, quad, ray_spacing=0.05)
+    moc = MOCMesh(mesh, quad, ray_spacing=0.05, boundary_conditions=_SPECULAR)
     assert moc.region_areas.sum() == pytest.approx(3.6**2, rel=1e-10)
 
 
@@ -282,7 +286,7 @@ def test_moc_mesh_has_tracks():
     r_cell = 2.0 / np.sqrt(np.pi)
     mesh = _two_region_mesh(r_fuel=0.5, r_cell=r_cell)
     quad = MOCQuadrature.create(n_azi=8, n_polar=2)
-    moc = MOCMesh(mesh, quad, ray_spacing=0.1)
+    moc = MOCMesh(mesh, quad, ray_spacing=0.1, boundary_conditions=_SPECULAR)
 
     assert len(moc.tracks) > 0
     assert len(moc.tracks_per_azi) == 8
@@ -294,7 +298,7 @@ def test_moc_mesh_mat_ids():
     """Material IDs come from the Mesh1D."""
     mesh = _three_region_mesh()
     quad = MOCQuadrature.create(n_azi=4, n_polar=1)
-    moc = MOCMesh(mesh, quad, ray_spacing=0.1)
+    moc = MOCMesh(mesh, quad, ray_spacing=0.1, boundary_conditions=_SPECULAR)
     np.testing.assert_array_equal(moc.region_mat_ids, [2, 1, 0])
 
 
@@ -303,7 +307,7 @@ def test_moc_mesh_track_links_valid():
     r_cell = 2.0 / np.sqrt(np.pi)
     mesh = _two_region_mesh(r_fuel=0.5, r_cell=r_cell)
     quad = MOCQuadrature.create(n_azi=8, n_polar=1)
-    moc = MOCMesh(mesh, quad, ray_spacing=0.1)
+    moc = MOCMesh(mesh, quad, ray_spacing=0.1, boundary_conditions=_SPECULAR)
 
     n_tracks = len(moc.tracks)
     for t in moc.tracks:
@@ -324,7 +328,7 @@ def test_volume_conservation():
     r_cell = 2.0 / np.sqrt(np.pi)
     mesh = _two_region_mesh(r_fuel=r_fuel, r_cell=r_cell)
     quad = MOCQuadrature.create(n_azi=16, n_polar=1)
-    moc = MOCMesh(mesh, quad, ray_spacing=0.02)
+    moc = MOCMesh(mesh, quad, ray_spacing=0.02, boundary_conditions=_SPECULAR)
 
     # Estimate area per region from tracks
     estimated_areas = np.zeros(moc.n_regions)
@@ -353,7 +357,7 @@ def test_track_total_length_equals_cell_diagonal_or_less():
     r_cell = 2.0 / np.sqrt(np.pi)
     mesh = _homogeneous_mesh(r_outer=r_cell)
     quad = MOCQuadrature.create(n_azi=8, n_polar=1)
-    moc = MOCMesh(mesh, quad, ray_spacing=0.1)
+    moc = MOCMesh(mesh, quad, ray_spacing=0.1, boundary_conditions=_SPECULAR)
 
     max_len = moc.pitch * np.sqrt(2) + 1e-10
     for track in moc.tracks:
