@@ -6157,7 +6157,7 @@ trust ``git`` over this table for merge status.
        cross-method adapter for Sood's problem 4 went through it
        instead of calling the solver. The boundary laws joined what a
        generator serves: one reader,
-       :func:`~orpheus.derivations.common.reference_body.specular_albedo`,
+       ``specular_albedo`` (retired at the wave-2 carve, slice S5),
        turns a law into a specular albedo; ``Billiard``'s ``alpha``
        parameter and ``with_alpha`` retired, and ``Spectrum``'s
        ``_extract_R_refl`` with them. The multi-region sphere's
