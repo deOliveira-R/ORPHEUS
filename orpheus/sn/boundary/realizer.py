@@ -91,6 +91,7 @@ from orpheus.transport.boundary_conditions import (
     SpecularChain,
     StateCone,
     ZeroNetwork,
+    hollow_inner_refusal,
     sample_terms,
 )
 
@@ -111,13 +112,8 @@ class _SNSites:
 
     @staticmethod
     def inner_refusal(reason: str | None = None) -> Refused:
-        r"""The refusal of every declaration the hollow radial inner face cannot honour, citing #511.
-
-        SCOPE-BOUNDARY[guard] machinery: a radial characteristic that sweeps the inner surface (a trace slot and a corner action on the inner face).
-        ruling: wave2_boundary_carve.md section 4.2 (the SN columns), the specification approved by the user 2026-10-23.
-        revisit: #511, when the radial axis gains an inner-surface trace.
-        """
-        return Refused(RefusalAxis.PLUMBING, reason or _SNSites._INNER_REFUSAL, 511)
+        r"""The refusal of every declaration the hollow radial inner face cannot honour: the shared :func:`~orpheus.transport.boundary_conditions.hollow_inner_refusal` (#511), with SN's reason."""
+        return hollow_inner_refusal(reason or _SNSites._INNER_REFUSAL)
 
     @staticmethod
     def corner_refusal() -> Refused:

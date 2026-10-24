@@ -121,21 +121,24 @@ ROWS += tuple(Row("sn", value, where, expected) for value, column in _SN_COLUMNS
 
 # ── Slice S3: the diffusion rows (section 4.2, the diffusion column), typed by hand and pinned against ``DIFFUSION_REALIZERS`` ──
 
-#: Diffusion, CART / RAD_OUTER / RAD_INNER per value class: the SAME cell at every site (one-dimensional, a per-face scalar that
-#: reads nothing of the face). The empty network is tier 1 (the deciding line of the measurement is ``return response.amplitude``;
+#: Diffusion, CART / RAD_OUTER / RAD_INNER per value class: the SAME cell at the Cartesian and the radial outer site (a per-face
+#: scalar that reads nothing of the face). The hollow inner face has no trace slot, so the stencil computes zero net current there
+#: whatever is declared: only ``specular 1.0`` is admitted at RAD_INNER and every other class is ``Refused(PLUMBING, #511)``, as in
+#: SN's column (``[REVISED 2026-10-23]`` at the S3 integration: the section 4.2 draft admitted diffusion at every site, which dropped
+#: the inner condition silently, ``[M]`` bit-identical k for 3 of 3 inner conditions). The empty network is tier 1 (the deciding line of the measurement is ``return response.amplitude``;
 #: Marshak is the method's closure, not the vacuum law's admission); a chain is tier 2 (``Realized(False)``: diffusion annihilates
 #: the shape) and so is a mixed wall (the meet of two tier-2 units, ``A = s + d``); a nonzero source, alone or over a network, is the
 #: plumbing refusal of #656 (the affine channel). Typed here and nowhere else: a change to a diffusion admission edits THIS literal.
 #: The method-only units (``ZeroFluxCondition``, the decks) are not value classes of the shared family; their rows are
 #: ``tests/gates/diffusion/test_diffusion_realizer_table.py``'s.
 _DIFFUSION_COLUMNS: dict[str, tuple[tuple, tuple, tuple]] = {
-    "vacuum":                        (R(), R(), R()),
+    "vacuum":                        (R(), R(), F("PLUMBING", 511)),
     "specular 1.0":                  (R(False), R(False), R(False)),
-    "specular 0.5":                  (R(False), R(False), R(False)),
-    "white 0.5":                     (R(False), R(False), R(False)),
-    "both 0.3 0.5":                  (R(False), R(False), R(False)),
-    "inflow 1.0":                    (F("PLUMBING", 656), F("PLUMBING", 656), F("PLUMBING", 656)),
-    "specular 0.5 over inflow 1.0":  (F("PLUMBING", 656), F("PLUMBING", 656), F("PLUMBING", 656)),
+    "specular 0.5":                  (R(False), R(False), F("PLUMBING", 511)),
+    "white 0.5":                     (R(False), R(False), F("PLUMBING", 511)),
+    "both 0.3 0.5":                  (R(False), R(False), F("PLUMBING", 511)),
+    "inflow 1.0":                    (F("PLUMBING", 656), F("PLUMBING", 656), F("PLUMBING", 511)),
+    "specular 0.5 over inflow 1.0":  (F("PLUMBING", 656), F("PLUMBING", 656), F("PLUMBING", 511)),
 }
 
 ROWS += tuple(Row("diffusion", value, where, expected) for value, column in _DIFFUSION_COLUMNS.items() for where, expected in zip(SITES, column))

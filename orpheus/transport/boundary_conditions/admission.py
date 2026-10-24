@@ -62,7 +62,7 @@ from enum import Enum
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.faces import face_normal
 
-__all__ = ["Admission", "Approximated", "FaceSite", "Realized", "RefusalAxis", "Refused", "SiteClass"]
+__all__ = ["Admission", "Approximated", "FaceSite", "Realized", "RefusalAxis", "Refused", "SiteClass", "hollow_inner_refusal"]
 
 
 class RefusalAxis(Enum):
@@ -214,3 +214,19 @@ class FaceSite:
     def hollow_inner(self) -> bool:
         """The face is the inner surface of a hollow radial body (derived: a solid body has no inner face at all)."""
         return self.site_class is SiteClass.RAD_INNER
+
+
+def hollow_inner_refusal(reason: str) -> Refused:
+    r"""The refusal of a declaration the inner face of a hollow radial body cannot honour, citing #511 (ONE definition).
+
+    The radial axis (:class:`~orpheus.mesh.axis.RadialAxisMesh`) carries one trace slot, the outer surface, so a method assembled
+    on the axes' trace inventory has nowhere to put an inner condition: it computes the reflective cavity (a unit specular return)
+    whatever is declared. A table whose method reads that inventory (SN, diffusion) refuses every other inner declaration through
+    this constructor, ``reason`` naming what the method computes there. It is a per-TABLE admission and not a site rule of the
+    shared dispatch: a method with its own inner-surface geometry (the collision-probability hollow cylinder) can honour the face.
+
+    SCOPE-BOUNDARY[guard] machinery: an inner-surface trace on the radial axis (a trace slot, and for SN a corner action, on the inner face).
+    ruling: wave2_boundary_carve.md section 4.2 (the SN and diffusion columns), revised at the S3 integration 2026-10-23.
+    revisit: #511, when the radial axis gains an inner-surface trace.
+    """
+    return Refused(RefusalAxis.PLUMBING, reason, 511)

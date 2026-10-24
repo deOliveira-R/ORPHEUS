@@ -43,7 +43,7 @@ The table (unit, admission, image)
 =========================  =====================  ===========================  ========================================
 Realizer                   Key (unit)             Admission                    Image
 =========================  =====================  ===========================  ========================================
-``DiffusionZero``          ``ZeroNetwork``        ``Realized(True)``, tier 1   ``ZeroOperator`` (:math:`\mathcal{A}=0`)
+``DiffusionZero``          ``ZeroNetwork``        ``Realized(True)``, tier 1*  ``ZeroOperator`` (:math:`\mathcal{A}=0`)
 ``DiffusionSpecularChain`` ``SpecularChain``      ``Realized(False)``, tier 2  :math:`w\cdot I` (the chain's weight)
 ``DiffusionDiffuseChain``  ``DiffuseChain``       ``Realized(False)``, tier 2  :math:`w\cdot I` (the chain's weight)
 ``DiffusionZeroFlux``      ``ZeroFluxCondition``  ``Realized(True)``, tier 1   :math:`-I` (:math:`\mathcal{A}=-1`)
@@ -51,6 +51,8 @@ Realizer                   Key (unit)             Admission                    I
 ``DiffusionDecks``         the decks              mirror ``Realized(False)``,  mirror: :math:`I`; translation: refused
                                                   translation ``Refused(TOPOLOGY)``
 =========================  =====================  ===========================  ========================================
+
+\* At the inner face of a hollow radial body every response realizer refuses on #511 except a specular chain of weight 1.0 (below).
 
 * **Vacuum is tier 1, not an approximation (measured).** The empty network (vacuum, ``specular(0)``, ``white(0)``) has
   :math:`\mathcal{A} = 0` exactly, and a scalar commutes with every linear projection, so the projection loses nothing: the
@@ -71,6 +73,12 @@ Realizer                   Key (unit)             Admission                    I
 Refusals
 ========
 
+* **The inner face of a hollow radial body admits only** ``specular(1.0)`` (``Refused(PLUMBING, #511)`` otherwise, through the
+  shared :func:`~orpheus.transport.boundary_conditions.hollow_inner_refusal`, as SN's table). The radial axis has one trace slot,
+  the outer surface, and the stencil assembles its boundary closures from that inventory, so the inner face's flow slot stays zero:
+  diffusion computes zero net current there whatever is declared. ``[M]`` 2026-10-23: before this admission an inner ``vacuum()``,
+  ``specular(1.0)`` and ``white(0.5)`` gave a bit-identical eigenvalue on a hollow sphere and cylinder (3 of 3 on 2 of 2), the
+  silent drop #511 names. The specification's section 4.2 draft admitted diffusion at every site; that cell is revised.
 * **A source is plumbing** (``Refused(PLUMBING, #656)``). :math:`J^- = q` is the AFFINE part of the trace map: it is a vector of
   the inflow half-trace, which here is one number per face, and the trace carries it perfectly well. Nothing about the :math:`P_1`
   projection makes it unrepresentable, so the refusal disappears the day the fixed-source arm is wired, with no theory changing
@@ -109,7 +117,7 @@ leaves) and its siblings.
 
 from __future__ import annotations
 
-from typing import assert_never
+from typing import Any, assert_never
 
 from orpheus.diffusion.method_space import DiffusionMethodSpace
 from orpheus.diffusion.zero_flux import ZeroFluxCondition
@@ -119,6 +127,7 @@ from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.boundary_conditions import (
     DeckRealizer,
     DiffuseChain,
+    Admission,
     FaceSite,
     InflowTerms,
     Realized,
@@ -126,10 +135,12 @@ from orpheus.transport.boundary_conditions import (
     RefusalAxis,
     Refused,
     ResponseRealizer,
+    SiteClass,
     SourceRealizer,
     SpecularChain,
     StateCone,
     ZeroNetwork,
+    hollow_inner_refusal,
     stamp_boundary_role,
 )
 
@@ -167,7 +178,28 @@ DIFFUSION_REALIZERS: RealizerTable[DiffusionMethodSpace, LinearOperator, Functio
 )
 
 
-class DiffusionZero(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=ZeroNetwork):
+class _DiffusionSites(ResponseRealizer[Any, DiffusionMethodSpace, LinearOperator]):
+    r"""What the four response realizers share (an abstract base: it names no table, so it registers nothing): the hollow radial body's inner face, where only the unit specular return is admitted.
+
+    The diffusion stencil assembles its boundary closures from the trace inventory (``face_labels``), which omits the inner face
+    of a hollow :class:`~orpheus.mesh.axis.RadialAxisMesh`; that face's flow slot stays zero, so diffusion computes zero net current
+    there, :math:`J^- = J^+`, whatever the tag is bound to. ``[M]`` 2026-10-23 (the S3 build's probe): before this admission,
+    ``solve_diffusion_1d`` on a hollow sphere and cylinder gave a bit-identical eigenvalue for an inner ``vacuum()``,
+    ``specular(1.0)`` and ``white(0.5)``. The one condition that IS what the stencil computes is ``specular(1.0)``
+    (:class:`DiffusionSpecularChain` admits it); everything else is refused through the shared
+    :func:`~orpheus.transport.boundary_conditions.hollow_inner_refusal` (#511), as SN's table does.
+    """
+
+    _INNER_REFUSAL = (
+        "the inner face of a hollow radial body has no trace slot, so diffusion computes zero net current there (a unit specular return) "
+        "whatever is declared"
+    )
+
+    def admit(self, unit: Any, weight: float, site: FaceSite, space: DiffusionMethodSpace | None = None) -> Admission:
+        return hollow_inner_refusal(self._INNER_REFUSAL) if site.site_class is SiteClass.RAD_INNER else self.status
+
+
+class DiffusionZero(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=ZeroNetwork):
     r"""The empty network: :math:`\mathcal{A} = 0` exactly, ``ZeroOperator``. Tier 1: a scalar commutes with every projection."""
 
     status = Realized(True)
@@ -176,16 +208,24 @@ class DiffusionZero(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=ZeroNe
         return _albedo_operator(0.0)
 
 
-class DiffusionSpecularChain(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=SpecularChain):
-    r"""A specular chain of weight :math:`w`: :math:`\mathcal{A} = w`. Tier 2: the shape (a permutation) is annihilated by :math:`\Pi_{P_1}`."""
+class DiffusionSpecularChain(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=SpecularChain):
+    r"""A specular chain of weight :math:`w`: :math:`\mathcal{A} = w`. Tier 2: the shape (a permutation) is annihilated by :math:`\Pi_{P_1}`.
+
+    The hollow inner face admits it only at :math:`w = 1`, the zero-current cavity the stencil computes there (#511).
+    """
 
     status = Realized(False)
+
+    def admit(self, unit: SpecularChain, weight: float, site: FaceSite, space: DiffusionMethodSpace | None = None) -> Admission:
+        if site.site_class is SiteClass.RAD_INNER and weight == 1.0:
+            return self.status
+        return super().admit(unit, weight, site, space)
 
     def realize(self, unit: SpecularChain, weight: float, site: FaceSite, space: DiffusionMethodSpace) -> LinearOperator:
         return _albedo_operator(weight)
 
 
-class DiffusionDiffuseChain(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=DiffuseChain):
+class DiffusionDiffuseChain(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=DiffuseChain):
     r"""A diffuse chain of weight :math:`w`: :math:`\mathcal{A} = w`. Tier 2: the shape (a rank-one re-emission) is annihilated by :math:`\Pi_{P_1}`."""
 
     status = Realized(False)
@@ -194,7 +234,7 @@ class DiffusionDiffuseChain(ResponseRealizer, table=DIFFUSION_REALIZERS, realize
         return _albedo_operator(weight)
 
 
-class DiffusionZeroFlux(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=ZeroFluxCondition):
+class DiffusionZeroFlux(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=ZeroFluxCondition):
     r"""Zero flux, :math:`\phi_\Gamma = 0`: :math:`\mathcal{A} = -1`, the operator :math:`-I`. Tier 1."""
 
     status = Realized(True)

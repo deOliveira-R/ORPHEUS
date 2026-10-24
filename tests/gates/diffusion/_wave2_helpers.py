@@ -83,6 +83,9 @@ def site(kind: str, face: str = "xmax") -> Any:
 
 
 SITES = ("CART", "RAD_OUTER", "RAD_INNER")
+#: The sites with a trace slot, where a condition is REALIZED: the hollow inner face has none (#511), so the table admits only
+#: ``specular(1.0)`` there and refuses the rest (the admission matrix's diffusion column pins that site, cell by cell).
+TRACE_SITES = ("CART", "RAD_OUTER")
 
 
 def chart_mesh(chart: str, *, left: Any = None, right: Any = None, outer: Any = None,

@@ -12,7 +12,7 @@ and "realize it". Each module's docstring holds its mathematics and its gotchas;
 * :mod:`.admission`, :mod:`.realization`: the admission lattice and the realizer tables.
 """
 
-from orpheus.transport.boundary_conditions.admission import Admission, Approximated, FaceSite, Realized, RefusalAxis, Refused, SiteClass
+from orpheus.transport.boundary_conditions.admission import Admission, Approximated, FaceSite, Realized, RefusalAxis, Refused, SiteClass, hollow_inner_refusal
 from orpheus.transport.boundary_conditions.binding import Binding, BoundaryCarrier, bind
 from orpheus.transport.boundary_conditions.condition import BoundaryCondition, WallCondition
 from orpheus.transport.boundary_conditions.declared import BoundaryConditions
@@ -97,6 +97,7 @@ __all__ = [
     "ZeroNetwork",
     "bind",
     "chain_composes",
+    "hollow_inner_refusal",
     "sample_terms",
     "stamp_boundary_role",
 ]

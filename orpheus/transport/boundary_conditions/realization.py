@@ -297,6 +297,10 @@ class RealizerTable(Generic[SpaceT, OpT, SourceSpaceT]):
         which therefore receives ``space=None`` for an embedded source and the inflow space for a bare one (pinned by
         ``test_realizer_table_source_space.py``).
         """
+        return self._admit(declared, site, space)
+
+    def _admit(self, declared: DeckTransformation | BoundaryCondition | InflowTerms, site: FaceSite, space: SpaceT | SourceSpaceT | None) -> Admission:
+        """The body of :meth:`admit` behind its overloads, shared with :meth:`require` (whose overloads are the same pair)."""
         self._require_sealed()
         if isinstance(declared, DeckTransformation):
             return self._admit_deck(declared, site, cast("SpaceT | None", space))
@@ -319,7 +323,7 @@ class RealizerTable(Generic[SpaceT, OpT, SourceSpaceT]):
     def require(self, declared: InflowTerms, site: FaceSite, space: SourceSpaceT | None = None) -> None: ...
     def require(self, declared: DeckTransformation | BoundaryCondition | InflowTerms, site: FaceSite, space: SpaceT | SourceSpaceT | None = None) -> None:
         """:meth:`admit`, then the raise of :class:`BoundaryRefused` iff refused: the ONE definition of the refusal."""
-        admission = self.admit(declared, site, space)
+        admission = self._admit(declared, site, space)
         if isinstance(admission, Refused):
             raise self._refusal(declared, site, admission)
 

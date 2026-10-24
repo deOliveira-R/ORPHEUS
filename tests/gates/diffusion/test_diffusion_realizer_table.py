@@ -155,7 +155,8 @@ def test_the_unregistered_door_cites_the_tables_issue_on_the_signed_cone() -> No
 @pytest.mark.rests_on(_TABLE)
 def test_diffusion_vacuum_is_tier_1() -> None:
     r"""Gate 2 of 6.3. ``WallCondition.vacuum()`` (and the two other spellings of the empty network, ``specular(0)`` and
-    ``white(0)``) realizes ``ZeroOperator`` with admission ``Realized(True)`` at every site; ``specular(0.4)`` and ``white(0.4)``
+    ``white(0)``) realizes ``ZeroOperator`` with admission ``Realized(True)`` at every site with a trace (``H.TRACE_SITES``; the
+    hollow inner site's refusals are the admission matrix's diffusion column); ``specular(0.4)`` and ``white(0.4)``
     realize the same ``0.4 * IdentityOperator()`` (the same action on the probe, bit for bit, equal to ``0.4 * v``) with admission
     ``Realized(False)``; ``ZeroFluxCondition()`` realizes ``-IdentityOperator()`` (the action ``-v``) with ``Realized(True)``.
     Every realized operator carries ``BlockRole.BOUNDARY``. The pairs ``(admit, realize)`` are read from the same call, so a
@@ -169,7 +170,7 @@ def test_diffusion_vacuum_is_tier_1() -> None:
     B = H.bc()
     W = B.WallCondition
     zero_flux = H.zero_flux_condition()()
-    for kind in H.SITES:
+    for kind in H.TRACE_SITES:
         where = H.site(kind)
         for label, declared in (("vacuum", W.vacuum()), ("specular(0)", W.specular(0.0)), ("white(0)", W.white(0.0))):
             assert H.summary(H.table().admit(declared, where)) == ("R", True), f"{label} @ {kind}"
@@ -235,7 +236,8 @@ def test_a_mixed_wall_realizes_as_the_sum_of_scalars() -> None:
 @pytest.mark.l1
 @pytest.mark.rests_on(_TABLE)
 def test_diffusion_source_is_plumbing(monkeypatch: pytest.MonkeyPatch) -> None:
-    r"""Gate 7 of 6.3. A nonzero source is ``Refused(PLUMBING, 656)`` at every site, alone (``WallCondition.uniform(1)``, the bare
+    r"""Gate 7 of 6.3. A nonzero source is ``Refused(PLUMBING, 656)`` at every site with a trace (the hollow inner site
+    refuses it on #511 first, the admission matrix's row), alone (``WallCondition.uniform(1)``, the bare
     ``InflowTerms``), over a response (``specular(0.5) + uniform(1)``) and through ``realize``; ``sample_inflow`` raises
     ``BoundaryRefused`` BEFORE any sampling (``sample_terms`` is called 0 times; a positive control calls the default
     ``SourceRealizer.sample`` of the registered realizer directly and counts 1, so the spy is live), and a ``DiffusionMesh`` over a
@@ -248,7 +250,7 @@ def test_diffusion_source_is_plumbing(monkeypatch: pytest.MonkeyPatch) -> None:
     B = H.bc()
     W = B.WallCondition
     plumbing = ("F", "PLUMBING", 656)
-    for kind in H.SITES:
+    for kind in H.TRACE_SITES:
         where = H.site(kind)
         for label, declared in (("uniform", W.uniform(1.0)), ("terms", B.InflowTerms(1.0, ())), ("response over source", W.specular(0.5) + W.uniform(1.0))):
             assert H.summary(H.table().admit(declared, where)) == plumbing, f"{label} @ {kind}"

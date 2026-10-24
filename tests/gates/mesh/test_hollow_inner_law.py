@@ -17,12 +17,13 @@ machinery that would remove it is an inner-surface trace on the radial axis.
 The perfect mirror, ``WallCondition.specular(1.0)`` (rule R2: a curved face has no mirror deck), is admitted because it is what the
 methods compute, and that is the void-cavity answer (the last gate). ``None`` is no role: a mesh refuses it on every face.
 
-**Diffusion's leg is a strict ``xfail``, a finding of slice S3.** The plan's admission table (section 4.2) admits diffusion at every
-site, so the diffusion table does not refuse an inner condition, and diffusion computes the same reflective cavity whatever the tag
-holds (``[M]`` 2026-10-23, ``solve_diffusion_1d`` on a hollow body, material A 2G, 8 cells on [0.5, 2.0], outer tag vacuum: the
-eigenvalue is bit-identical for an inner ``vacuum()``, ``specular(1.0)`` and ``white(0.5)``, 3 of 3 conditions on each of 2 of 2
-coordinate systems). The leg pins the refusal the SN column has (``BoundaryRefused`` with ``#511``) as an expected failure, so it
-turns red the day diffusion's inner site is refused (``strict``) and the restored guard is then ONE edit of the pin."""
+**Diffusion's leg was a strict ``xfail`` in the S3 build, and is a refusal since the S3 integration.** The section 4.2 draft
+admitted diffusion at every site, so diffusion computed the same reflective cavity whatever the tag held (``[M]`` 2026-10-23,
+``solve_diffusion_1d`` on a hollow body, material A 2G, 8 cells on [0.5, 2.0], outer tag vacuum: the eigenvalue was bit-identical for
+an inner ``vacuum()``, ``specular(1.0)`` and ``white(0.5)``, 3 of 3 conditions on each of 2 of 2 coordinate systems). The stencil
+assembles its boundary closures from the trace inventory, which omits the inner face, so that face's flow slot stays zero (zero net
+current, :math:`J^- = J^+`): diffusion's table now admits only ``specular(1.0)`` there and refuses the rest through the shared
+``hollow_inner_refusal`` (#511), the refusal SN's table states."""
 from __future__ import annotations
 
 import numpy as np
@@ -103,14 +104,9 @@ def test_a_direct_mesh_is_refused_too(coord):
     assert info.value.admission.issue == 511
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="slice S3 finding: the plan's diffusion column admits every site, so a hollow body's inner condition is dropped "
-    "silently (bit-identical k for vacuum, specular(1.0) and white(0.5)); the refusal SN's table states (#511) is not diffusion's",
-)
 @pytest.mark.parametrize("law", _REFUSED_INNER_LAWS, ids=str)
 def test_diffusion_refuses_it_too(law):
-    """Diffusion reads the same axes, so it drops the same condition: the expected refusal, as the SN table states it."""
+    """Diffusion reads the same axes, so it would drop the same condition: its table refuses it, citing #511 as SN's does."""
     mesh = _hollow_mesh(CoordSystem.SPHERICAL)
     with pytest.raises(BoundaryRefused) as info:
         DiffusionMesh(mesh, _materials(), boundary_conditions=_conditions(_REFUSED_INNER_LAWS[law]))
@@ -118,8 +114,8 @@ def test_diffusion_refuses_it_too(law):
 
 
 def test_diffusion_admits_the_unit_specular_cavity_at_the_inner_site():
-    """The positive control of the leg above: the one condition both tables admit at the inner site constructs (so the xfail is a
-    refusal that is absent and not a construction that is broken)."""
+    """The positive control of the leg above: the one condition both tables admit at the inner site constructs (so the refusal is
+    the inner site's and not a construction that is broken)."""
     mesh = _hollow_mesh(CoordSystem.SPHERICAL)
     assert DiffusionMesh(mesh, _materials(), boundary_conditions=_conditions(WallCondition.specular(1.0))).bc.keys() == {"xmax"}
 

@@ -98,7 +98,7 @@ from orpheus.diffusion.method_space import DiffusionMethodSpace
 from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.transport.boundary_conditions import BoundaryConditions, bind
-from orpheus.transport.method import realize_boundary
+from orpheus.transport.method import TransportMethod, realize_boundary
 from orpheus.mesh import (
     axes_from_legacy_mesh,
     face_labels as _face_labels,
@@ -290,8 +290,8 @@ class DiffusionMesh(MaterialMesh):
         ``BoundaryRefused`` at promotion.
         """
         if boundary_conditions is None:
-            binding = getattr(material_mesh, "binding", None)
-            boundary_conditions = BoundaryConditions.empty() if binding is None else binding.declared
+            # A method-mesh (the TransportMethod Protocol, structural) carries a binding; a bare carrier carries tags only.
+            boundary_conditions = material_mesh.binding.declared if isinstance(material_mesh, TransportMethod) else BoundaryConditions.empty()
         obj = cls.__new__(cls)
         obj._init_core(
             axes=material_mesh.axes,
