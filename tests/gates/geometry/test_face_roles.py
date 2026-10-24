@@ -61,6 +61,7 @@ import pytest
 import orpheus.geometry as geometry_package
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.geometry.deck import DeckError, MirrorDeck, TranslationDeck
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.values.content import content_digest
 from tests.gates._content_identity_helpers import require
 
@@ -234,15 +235,16 @@ class TestGeometryAndMeshNameNoResponse:
 
     @pytest.mark.parametrize(
         "stand_in",
-        [_LawShaped(), _LawShaped, "vacuum", None, 1.0],
-        ids=["law-shaped", "law-class", "string", "none", "float"],
+        [_LawShaped(), _LawShaped, "vacuum", None, 1.0, WallCondition.vacuum(), WallCondition.specular(1.0)],
+        ids=["law-shaped", "law-class", "string", "none", "float", "wall-vacuum", "wall-specular"],
     )
     def test_a_response_is_not_a_role(self, stand_in: object) -> None:
         """L-F. The control sits first: the same call with a tag builds. Red at base: the keyword does not exist.
 
         The rows are duck-typed stand-ins of the retired law surface (a ``kind`` and ``params``): the threat is a role parse
         that falls back to any object with a ``kind``. (The two rows that built the real ``VacuumInflow`` and
-        ``ReflectiveBoundary`` retired with their classes in WF2.4.)
+        ``ReflectiveBoundary`` retired with their classes in WF2.4; their successors are the two ``WallCondition`` rows, the response
+        type that replaced the law family: a response is not a role.)
         """
         built = StructuredGeometry(coord=_CART, breakpoints=(0.0, 1.0), mat_ids=(0,), face_roles=(0, 1))
         require(built.face_roles == (0, 1), f"the control builds: {built.face_roles!r}")

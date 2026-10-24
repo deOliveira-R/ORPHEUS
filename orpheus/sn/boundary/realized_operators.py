@@ -362,6 +362,12 @@ class ZeroMap(RealizedBoundary):
     face: str
     trace: "AngularTraceSpace" = field(repr=False)
 
+    def __post_init__(self) -> None:
+        # Both half-traces are read at construction, so a face the trace does not hold is refused here (ValueError "Unknown face"),
+        # as the sibling ScaledOrdinatePermutation refuses through its gather, and not at the first ``.domain`` read.
+        self.trace.outflow_space(self.face)
+        self.trace.inflow_space(self.face)
+
     @property
     def domain_face(self) -> str:
         return self.face

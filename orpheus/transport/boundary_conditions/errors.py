@@ -1,7 +1,7 @@
 r"""The refusals of the conditions package (``errors.py`` of the conditions package).
 
 **The root.** :class:`BoundaryError` is a ``ValueError`` carrying ``.declaration``: the object, or its type, that was
-refused. It replaces the string ``.law`` of the retiring ``orpheus.geometry.boundary`` errors, so a test (and a caller)
+refused. It replaces the string ``.law`` of the retired ``orpheus.geometry.boundary`` errors, so a test (and a caller)
 compares the object (``err.declaration == MirrorDeck()``) and not a spelling. ``BoundaryError`` is transport's: geometry
 has ``DeckError`` and numerics has ``OrdinatePairingError``, because geometry holds no module named for boundary
 conditions (the eleventh exchange of the boundary-law ontology).

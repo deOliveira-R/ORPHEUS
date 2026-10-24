@@ -79,11 +79,11 @@ def trace_of(quadrature: Any, faces: tuple[str, ...] = ("xmin", "xmax")) -> Any:
     return AngularTraceSpace.from_quadrature_and_layout(quadrature, layout)
 
 
-def method_space(quadrature: Any, face: str, trace: Any) -> Any:
-    """The SN method space of ``face`` over ``trace`` (what ``realize`` receives as ``space``)."""
+def method_space(quadrature: Any, trace: Any) -> Any:
+    """The SN method space over ``trace`` (what ``realize`` receives as ``space``; the face travels in the site)."""
     from orpheus.sn.mesh.method_space import SNMethodSpace
 
-    return SNMethodSpace.for_face(quadrature=quadrature, face=face, trace=trace)
+    return SNMethodSpace(quadrature=quadrature, trace=trace)
 
 
 def site(face: str, *, curved: bool = False, dimension: int = 1) -> Any:

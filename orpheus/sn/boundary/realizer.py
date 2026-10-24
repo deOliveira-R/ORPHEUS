@@ -77,7 +77,6 @@ from orpheus.sn.boundary.realized_operators import (
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.transport.boundary_conditions import (
     Admission,
-    BoundaryError,
     DeckRealizer,
     DiffuseChain,
     FaceSite,
@@ -121,17 +120,6 @@ class _SNSites:
         return Refused(RefusalAxis.PLUMBING, _SNSites._CORNER_REFUSAL, 653)
 
     @staticmethod
-    def trace_of(space: SNMethodSpace, owner: str):
-        """The trace ladder of a method space (the realizers read every half-space off it)."""
-        if space is None or space.trace is None:
-            raise BoundaryError(
-                f"{owner}: realization reads the half-spaces off the trace ladder, and this method space carries none. Construct it via "
-                f"SNMethodSpace.for_face(quadrature=..., face=..., trace=...).",
-                owner,
-            )
-        return space.trace
-
-    @staticmethod
     def mirror_pairing(space: SNMethodSpace, face: str, dimension: int) -> Permutation:
         r"""The certified ordinate permutation of the mirror of ``face``'s own plane (``ordinate_pairing`` of ``mirror_motion``)."""
         axis, _ = face_normal(face)
@@ -152,7 +140,7 @@ class SNZero(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=ZeroNetwor
         return self.inner_refusal() if site.site_class is SiteClass.RAD_INNER else Realized(True)
 
     def realize(self, unit: ZeroNetwork, weight: float, site: FaceSite, space: SNMethodSpace) -> ZeroMap:
-        return ZeroMap(face=site.face, trace=self.trace_of(space, "SNZero"))
+        return ZeroMap(face=site.face, trace=space.trace)
 
 
 class SNSpecularChain(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=SpecularChain):
@@ -178,7 +166,7 @@ class SNSpecularChain(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=S
         return Realized(True)
 
     def realize(self, unit: SpecularChain, weight: float, site: FaceSite, space: SNMethodSpace) -> ScaledOrdinatePermutation:
-        trace = self.trace_of(space, "SNSpecularChain")
+        trace = space.trace
         return ScaledOrdinatePermutation(
             alpha=weight, permutation=self.mirror_pairing(space, site.face, site.dimension), face=site.face, partner=site.face, trace=trace
         )
@@ -205,7 +193,7 @@ class SNDiffuseChain(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=Di
                 assert_never(site.site_class)
 
     def realize(self, unit: DiffuseChain, weight: float, site: FaceSite, space: SNMethodSpace) -> RankOneReemission:
-        return RankOneReemission(alpha=weight, face=site.face, trace=self.trace_of(space, "SNDiffuseChain"))
+        return RankOneReemission(alpha=weight, face=site.face, trace=space.trace)
 
 
 class SNSource(SourceRealizer[AngularFaceTraceSpace], _SNSites, table=SN_REALIZERS):
@@ -265,7 +253,7 @@ class SNDecks(DeckRealizer, _SNSites, table=SN_REALIZERS):
             case TranslationDeck():
                 if space is None:
                     return Realized(True)
-                trace = self.trace_of(space, "SNDecks")
+                trace = space.trace
                 try:
                     # The type refuses at construction a pairing that does not cross or that moves measure: admission IS construction.
                     ScaledOrdinatePermutation(
@@ -279,7 +267,7 @@ class SNDecks(DeckRealizer, _SNSites, table=SN_REALIZERS):
                 assert_never(deck)
 
     def realize(self, deck: DeckTransformation, pairing: FacePairing, site: FaceSite, space: SNMethodSpace) -> ScaledOrdinatePermutation:
-        trace = self.trace_of(space, "SNDecks")
+        trace = space.trace
         match deck:
             case MirrorDeck():
                 permutation = self.mirror_pairing(space, pairing.face, site.dimension)

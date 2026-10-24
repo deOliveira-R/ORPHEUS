@@ -242,11 +242,15 @@ def build_omega_dot_n(
     conversion at construction refuses it), and the isinstance check
     carried no data.
 
-    Public (#52, ERR-041): this is the SINGLE face-name → signed-
-    projection primitive. The SN realizer's vacuum-orientation guard
-    cross-checks hand-supplied ``inflow_indices`` against the row this
-    function derives from the face name alone — a second, independently
-    sourced encoding of the same orientation.
+    This is the SINGLE face-name → signed-projection primitive (#52,
+    ERR-041), and its one consumer is the ladder constructor
+    (:meth:`AngularTraceSpace.from_quadrature_and_layout`), from which
+    every half-space of every face is read. It was once also read by an
+    SN realizer guard that cross-checked a hand-supplied inflow index
+    set against it; that guard retired with the index sets (WF2.4), and
+    the orientation is now witnessed on the ladder and on the realized
+    zero map (``tests/gates/numerics/test_angular_trace_space.py::TestTheInflowHalfSpaceIsTheIncomingOrdinates``,
+    ``tests/gates/sn/operators/test_sn_boundary_realizer.py::TestVacuumRealizesOnTheTrace``).
     """
     n_ord = int(quadrature.n_ordinates)
     omega_dot_n = np.zeros((len(faces), n_ord), dtype=float)

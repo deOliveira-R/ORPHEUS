@@ -1,143 +1,56 @@
-r"""Tests for SNMethodSpace (Wave 8 / C8.1).
+r"""Tests for :class:`~orpheus.sn.mesh.method_space.SNMethodSpace`.
 
-The :class:`SNMethodSpace` dataclass carries the bundle of mesh +
-quadrature + trace metadata that an SN realizer needs to turn a
-declared unit into a realized boundary operator.
-
-Wave 5 introduced a minimal placeholder (quadrature only) embedded
-in :mod:`orpheus.sn.boundary.realizer`. Wave 8 moves it to its own
-dedicated module :mod:`orpheus.sn.mesh.method_space` and extends it with
-``mesh`` + ``trace`` fields plus a :meth:`for_face` factory that
-consumes the unified :class:`AngularTraceSpace` to derive per-face inflow
-indices.
+The method space is the pair (quadrature, trace ladder) an SN realizer reads. It names no face and holds no mesh: the face a
+realization acts on is the ``FaceSite`` the realizer receives beside the space, so one realization carries one face value (two
+independently supplied encodings of one orientation are ERR-041's own defect class). WF2.4 retired the ``face`` and ``mesh`` fields,
+the ``minimal`` and ``for_face`` factories, the optional trace and ``inflow_indices_for_face``.
 
 These tests pin:
 
-* Wave 5 backward compat (``.minimal(quad)`` still works).
-* The Wave 5 re-export from ``orpheus.sn.boundary.realizer`` resolves
-  to the same class object.
-* :meth:`for_face` holds the provided ``trace``, from which the per-face
-  inflow indices are read correctly.
-* :meth:`inflow_indices_for_face` delegates to the held trace space
-  or raises with a useful message when no trace was attached.
+* the field set is exactly ``(quadrature, trace)``, so a face or a mesh cannot ride on the space (D.14: the old rows asserted the
+  retired fields' values; the successor asserts their absence, which a re-added field reddens);
+* the trace is required (a trace-less space is unspellable, which replaces the old "refused loudly at realize" rows);
+* the space holds the trace it was given, from which a face's half-spaces are read.
 """
 from __future__ import annotations
+
+import dataclasses
 
 import numpy as np
 import pytest
 
-from orpheus.geometry import StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.sn.mesh.method_space import SNMethodSpace
-from orpheus.numerics.quadrature import Quadrature
-from orpheus.geometry.deck import MirrorDeck
 
 
 pytestmark = pytest.mark.l0
 
 
-def _slab_trace(mesh: Mesh1D, quad) -> AngularTraceSpace:
-    layout = FaceLayout.from_named_shapes(
-        [("xmin", (quad.n_ordinates, 1)), ("xmax", (quad.n_ordinates, 1))]
-    )
+def _trace(quad, faces=("xmin", "xmax")) -> AngularTraceSpace:
+    layout = FaceLayout.from_named_shapes([(f, (quad.n_ordinates, 1)) for f in faces])
     return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
 
-def _cartesian2d_trace(mesh: Mesh2D, quad, nx: int, ny: int) -> AngularTraceSpace:
-    layout = FaceLayout.from_named_shapes([
-        ("xmin", (quad.n_ordinates, 1, ny)), ("xmax", (quad.n_ordinates, 1, ny)),
-        ("ymin", (quad.n_ordinates, 1, nx)), ("ymax", (quad.n_ordinates, 1, nx)),
-    ])
-    return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
+def test_the_field_set_is_quadrature_and_trace():
+    """The space names no face and holds no mesh, no index set and no factory for either."""
+    assert [f.name for f in dataclasses.fields(SNMethodSpace)] == ["quadrature", "trace"]
+    for retired in ("minimal", "for_face", "inflow_indices_for_face", "face", "mesh"):
+        assert not hasattr(SNMethodSpace, retired), retired
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Wave 5 backward compatibility
-# ─────────────────────────────────────────────────────────────────────
+def test_the_trace_is_required():
+    """A quadrature-only space is unspellable: the realizers read every half-space off the ladder."""
+    with pytest.raises(TypeError):
+        SNMethodSpace(quadrature=Quadrature.gauss_legendre(4))  # type: ignore[call-arg]
 
 
-def test_minimal_factory_carries_only_quadrature():
-    """``.minimal(quad)`` returns a method space with only quadrature populated."""
-    quad = Quadrature.gauss_legendre(4)
-    space = SNMethodSpace.minimal(quad)
-    assert space.quadrature is quad
-    assert space.face is None
-    assert space.mesh is None
-    assert space.trace is None
-
-
-def test_the_quadrature_and_face_construction_path_keeps_working():
-    """The original Wave-5 construction path ``SNMethodSpace(quadrature=q, face='xmin')`` keeps working: the other fields default to ``None``
-    and the space holds no index set (ERR-041's index sets retired in WF2.4; the half-spaces are read off the trace ladder)."""
+def test_the_space_holds_the_trace_its_half_spaces_are_read_from():
+    """Positive control: the held trace is the one given, and a face's inflow is the written-out incoming half-space."""
     quad = Quadrature.lebedev(17)
-    space = SNMethodSpace(quadrature=quad, face="xmin")
-    assert space.face == "xmin"
-    assert space.mesh is None
-    assert space.trace is None
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Wave 8 — for_face factory + trace delegation
-# ─────────────────────────────────────────────────────────────────────
-
-
-def test_for_face_reads_inflow_indices_off_the_trace():
-    """``for_face`` holds the trace space, and the per-face inflow indices are read off it — load-bearing for the ``SNProblem.realize_boundary_law``
-    Cartesian path (#290 P7b; formerly ``_resolve_one``).
-    """
-    mesh = Mesh2D(
-        edges_x=np.linspace(0.0, 2.0, 5), edges_y=np.linspace(0.0, 1.5, 4),
-        mat_map=np.zeros((4, 3), dtype=np.int64),
-        face_roles={
-            "xmin": MirrorDeck(),
-            "xmax": MirrorDeck(),
-            "ymin": MirrorDeck(),
-            "ymax": MirrorDeck(),
-        },
-    )
-    quad = Quadrature.lebedev(17)
-    trace = _cartesian2d_trace(mesh, quad, nx=4, ny=3)
-
-    space = SNMethodSpace.for_face(
-        mesh=mesh, quadrature=quad, face="xmin", trace=trace,
-    )
-    expected_inflow = np.flatnonzero(quad.mu_x > 1e-12)
-    np.testing.assert_array_equal(space.inflow_indices_for_face("xmin"), expected_inflow)
-    assert space.face == "xmin"
-    assert space.mesh is mesh
-    assert space.trace is trace
-
-
-def test_inflow_indices_for_face_delegates_to_trace():
-    """:meth:`SNMethodSpace.inflow_indices_for_face` routes through the
-    held trace space, so realizers can request indices by face name
-    without knowing about the trace-space type.
-    """
-    mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 3.0), (0,), left=0, right=0,
-    )).partition(CellsByCount.uniform_width(6)).mesh
-    quad = Quadrature.gauss_legendre(8)
-    trace = _slab_trace(mesh, quad)
-
-    # Build a method space attached to 'xmin' — but we should still be
-    # able to query 'xmax' via the delegated method.
-    space = SNMethodSpace.for_face(
-        mesh=mesh, quadrature=quad, face="xmin", trace=trace,
-    )
-    right_indices = space.inflow_indices_for_face("xmax")
-    # xmax face: outward normal +x; inflow is mu_x < 0.
-    np.testing.assert_array_equal(
-        right_indices, np.flatnonzero(quad.mu_x < -1e-12),
-    )
-
-
-def test_inflow_indices_for_face_raises_without_trace():
-    """Without an attached trace space, :meth:`inflow_indices_for_face`
-    raises with a useful message — the right error.
-    """
-    quad = Quadrature.gauss_legendre(4)
-    space = SNMethodSpace.minimal(quad)
-    with pytest.raises(RuntimeError, match="no AngularTraceSpace attached"):
-        space.inflow_indices_for_face("xmin")
+    trace = _trace(quad, ("xmin", "xmax", "ymin", "ymax"))
+    space = SNMethodSpace(quadrature=quad, trace=trace)
+    assert space.quadrature is quad and space.trace is trace
+    np.testing.assert_array_equal(space.trace.inflow_indices_for_face("xmin"), np.flatnonzero(quad.mu_x > 1e-12))
+    np.testing.assert_array_equal(space.trace.inflow_indices_for_face("ymax"), np.flatnonzero(quad.mu_y < -1e-12))

@@ -320,40 +320,26 @@ def test_the_points_and_the_group_action_are_geometry() -> None:
     assert (ORPHEUS_ROOT / "geometry" / "roots_of_unity.py").is_file()
 
 
-_INDEX_SET = "orpheus.numerics.index_set"
-
-
-def _geometry_imports_of_the_index_sets(rel: pathlib.PurePosixPath, src: str) -> list[str]:
-    """The targets of ``src`` naming the finite index sets' module, every import kind."""
-    targets = _imported_targets(rel, src) + _dynamic_imports(src)
-    return [t for t in targets if t == _INDEX_SET or t.startswith(_INDEX_SET + ".")]
+def _geometry_dynamic_numerics_imports(src: str) -> list[str]:
+    """The ``orpheus.numerics`` modules ``src`` names as a string literal handed to ``importlib.import_module`` or ``__import__``."""
+    return [t for t in _dynamic_imports(src) if t == "orpheus.numerics" or t.startswith("orpheus.numerics.")]
 
 
 @pytest.mark.foundation
-def test_geometry_never_imports_the_finite_index_sets() -> None:
-    """Ruling 8: the ``Manifold`` closed sum's geometric members name no numerics member.
-
-    ``IndexSet`` and ``EnergyGroups`` subclass geometry's ``Manifold`` from
-    :mod:`orpheus.numerics.index_set`, the allowed direction; each member answers
-    ``ambient_dim`` itself, so no geometry module needs the index sets at any import
-    kind, a string literal handed to ``importlib.import_module`` included. The predicate
-    is checked first on the five shapes it must refuse (X1)."""
-    probe = pathlib.PurePosixPath("geometry/probe.py")
-    for src in (
-        "from orpheus.numerics.index_set import IndexSet\n",
-        "def f():\n    from orpheus.numerics.index_set import ENERGY\n",
-        "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    import orpheus.numerics.index_set\n",
-        "from orpheus.numerics import index_set\n",
-        "import importlib\ndef f():\n    return importlib.import_module('orpheus.numerics.index_set')\n",
-    ):
-        assert _geometry_imports_of_the_index_sets(probe, src), src
+def test_geometry_never_imports_numerics_through_an_importlib_string() -> None:
+    """The one shape the import linter cannot see: ``FORBIDDEN_EDGES["geometry"]`` refuses every static numerics import at every
+    kind, and a string literal handed to ``importlib.import_module`` is not an import statement. (This gate was the finite
+    index sets' alone, ruling 8; the static shapes it also refused are the linter's now, so the gate keeps the dynamic one.)
+    The predicate is checked first on the shape it must refuse and on one it must admit (X1)."""
+    assert _geometry_dynamic_numerics_imports("import importlib\ndef f():\n    return importlib.import_module('orpheus.numerics.index_set')\n")
+    assert _geometry_dynamic_numerics_imports("def f():\n    return __import__('orpheus.numerics')\n")
+    assert not _geometry_dynamic_numerics_imports("import importlib\ndef f():\n    return importlib.import_module('orpheus.geometry.deck')\n")
+    modules = list(_iter_python_modules(ORPHEUS_ROOT / "geometry"))
+    assert len(modules) > 0
     offenders = [
         f"{path.relative_to(ORPHEUS_ROOT)}: {target}"
-        for path in _iter_python_modules(ORPHEUS_ROOT / "geometry")
-        for target in _geometry_imports_of_the_index_sets(
-            pathlib.PurePosixPath(path.relative_to(ORPHEUS_ROOT).as_posix()),
-            path.read_text(encoding="utf-8"),
-        )
+        for path in modules
+        for target in _geometry_dynamic_numerics_imports(path.read_text(encoding="utf-8"))
     ]
     assert not offenders, offenders
 
@@ -377,7 +363,8 @@ def test_geometry_never_imports_the_finite_index_sets() -> None:
 # the second form is a hard ImportError at interpreter start-up, not a subtle wrong answer.
 # One gate states it structurally, the cold-import list end to end.
 
-_INPUT_PACKAGE_ROOTS = sorted(INPUT_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES)
+# `geometry` is not a root here: it imports nothing from numerics at all (`FORBIDDEN_EDGES["geometry"]`), so its case would be vacuous.
+_INPUT_PACKAGE_ROOTS = sorted((INPUT_PACKAGES - {"geometry"}) | MESH_PACKAGES | SPECIFICATION_PACKAGES)
 
 
 @pytest.mark.foundation
@@ -621,6 +608,11 @@ _FORBIDDEN_LEGS = [
         "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.numerics.measure import DiscreteMeasure\n",
         "geometry → numerics",
     ),
+    # The operator-algebra shapes of the retired "geometry declares, never builds an operator" gate (its successor, D.14: the
+    # general rule refuses what that gate refused, at every import kind).
+    ("geometry/deck.py", "from orpheus.numerics.operator import BlockRole\n", "geometry → numerics"),
+    ("geometry/deck.py", "def f():\n    from orpheus.numerics.operator import LinearOperator\n", "geometry → numerics"),
+    ("geometry/deck.py", "from orpheus.numerics import operator\n", "geometry → numerics"),
 ]
 
 _ADMITTED_LEGS = [
@@ -657,90 +649,6 @@ def test_the_linter_refuses_each_forbidden_edge(rel: str, source: str, edge: str
 @pytest.mark.parametrize(("rel", "source"), _ADMITTED_LEGS)
 def test_the_linter_admits_each_allowed_edge(rel: str, source: str) -> None:
     assert _check_source(pathlib.PurePosixPath(rel), source) == []
-
-
-# ---------------------------------------------------------------------------
-# Geometry declares; it never builds an operator
-# ---------------------------------------------------------------------------
-#
-# Layer DAG ruling 1 (the user, 2026-10-22): geometry is declarative. A
-# geometry module that imports the operator algebra is a module that BUILDS
-# or names operators, which is realization, and realization is transport's
-# (ruling 7). The package-level gate cannot see this: geometry -> numerics is
-# an admitted edge, and `numerics.operator` is one numerics submodule among
-# many. Until WP-E1 two geometry modules did it, `boundary/_realizer.py` (the
-# realization seam) and `boundary/_bound_compat.py` (the SN shim, a
-# `LinearOperator` subclass); both moved out (the package itself retired in WF2.4),
-# and this gate is their retirement's witness. A TYPE_CHECKING import is refused too: the last one,
-# `BoundaryTraceLaw.realize -> LinearOperator`, was a hook with 0 overrides
-# and 0 callers that only raised, and it retired with WP-E1's review (a
-# declaration does not know what it is realized to; the realizer does).
-
-_OPERATOR_ALGEBRA = "orpheus.numerics.operator"
-
-
-def _operator_algebra_imports(
-    rel: pathlib.PurePosixPath, src: str,
-) -> list[str]:
-    """The imports of the operator algebra in one module's source, at every
-    import kind (top level, function body, ``TYPE_CHECKING``)."""
-    return [
-        module_name
-        for module_name, _is_tc in _imports_of_source(rel, src)
-        if module_name == _OPERATOR_ALGEBRA or module_name.startswith(_OPERATOR_ALGEBRA + ".")
-    ]
-
-
-@pytest.mark.foundation
-def test_no_geometry_module_imports_the_operator_algebra() -> None:
-    geometry_root = ORPHEUS_ROOT / "geometry"
-    modules = sorted(_iter_python_modules(geometry_root))
-    # The denominator is stated, so an empty walk cannot read as a clean tree.
-    assert len(modules) > 0, f"no modules under {geometry_root}"
-    offenders = [
-        f"{module_path.relative_to(ORPHEUS_ROOT)} imports {target}"
-        for module_path in modules
-        for target in _operator_algebra_imports(
-            pathlib.PurePosixPath(module_path.relative_to(ORPHEUS_ROOT).as_posix()),
-            module_path.read_text(encoding="utf-8"),
-        )
-    ]
-    assert not offenders, (
-        "geometry is declarative (layer DAG rulings 1 and 7): no geometry "
-        "module imports orpheus.numerics.operator, at any import kind; a realization "
-        "belongs in orpheus.transport.boundary_conditions or a method "
-        "package:\n" + "\n".join(offenders)
-    )
-
-
-_OPERATOR_ALGEBRA_REFUSED_LEGS = [
-    ("geometry/deck.py", "from orpheus.numerics.operator import BlockRole\n"),
-    ("geometry/deck.py", "def f():\n    from orpheus.numerics.operator import LinearOperator\n"),
-    ("geometry/deck.py", "import orpheus.numerics.operator\n"),
-    # The module named as an imported name, not as the `from` path.
-    ("geometry/deck.py", "from orpheus.numerics import operator\n"),
-    (
-        "geometry/deck.py",
-        "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.numerics.operator import LinearOperator\n",
-    ),
-]
-
-_OPERATOR_ALGEBRA_ADMITTED_LEGS = [
-    ("geometry/deck.py", "from orpheus.numerics.operator_names import X\n"),
-    ("geometry/deck.py", "from orpheus.numerics.measure import DiscreteMeasure\n"),
-]
-
-
-@pytest.mark.foundation
-@pytest.mark.parametrize(("rel", "source"), _OPERATOR_ALGEBRA_REFUSED_LEGS)
-def test_the_operator_algebra_predicate_refuses_each_runtime_shape(rel: str, source: str) -> None:
-    assert _operator_algebra_imports(pathlib.PurePosixPath(rel), source) == [_OPERATOR_ALGEBRA]
-
-
-@pytest.mark.foundation
-@pytest.mark.parametrize(("rel", "source"), _OPERATOR_ALGEBRA_ADMITTED_LEGS)
-def test_the_operator_algebra_predicate_admits_each_other_shape(rel: str, source: str) -> None:
-    assert _operator_algebra_imports(pathlib.PurePosixPath(rel), source) == []
 
 
 # ---------------------------------------------------------------------------

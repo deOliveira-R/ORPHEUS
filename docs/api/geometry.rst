@@ -7,13 +7,13 @@ no discretisation. It holds four things:
 
 * :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`: the
   1-D layered geometry (a coordinate system, breakpoints, one material id
-  per interval and one boundary law per boundary point), a pure shape and
+  per interval and one boundary role per boundary point), a pure shape and
   boundary description that carries no cell counts. Reference solvers
   consume it directly.
 * :class:`~orpheus.geometry.coord.CoordSystem` and the volume and area
   formulas of each coordinate system (:mod:`orpheus.geometry.coord`).
-* ``orpheus.geometry.boundary``: the boundary-condition tag
-  ``BC`` and the typed boundary laws.
+* :mod:`orpheus.geometry.deck`: the face roles, a deck or an integer
+  boundary tag.
 * :mod:`orpheus.geometry.transformation`: rigid motions of
   :math:`\mathbb{R}^d` and permutations.
 
@@ -42,86 +42,38 @@ physics solvers coordinate-agnostic — the same
 :func:`~orpheus.sn.solver.solve_sn` entry point handles slab,
 cylinder, and sphere without branching on geometry.
 
-**Boundary condition declaration and deferred resolution.**
-Boundary conditions follow a two-phase pattern: *declare* on the
-geometry, *resolve* at solver construction. The geometry layer
-provides ``BC``, a frozen dataclass
-carrying a ``kind`` string (e.g. ``"vacuum"``, ``"reflective"``,
-``"white"``) and an optional ``params`` dict for numeric parameters
-(e.g. ``{"albedo": 0.7}``). The meshes of :doc:`/api/mesh` store a
-``BC`` tag or an already-typed boundary law on each boundary face:
-:class:`~orpheus.mesh.structured.Mesh1D` has ``face_laws``, one per
-boundary face, keyed by face name (``xmin`` and ``xmax``, or ``xmax``
-alone on a solid cylinder or sphere);
-:class:`~orpheus.mesh.structured.Mesh2D` has ``face_laws`` over its
+**Boundary role declaration and deferred binding.**
+A boundary is declared in two phases: the geometry *declares* a role per
+face, and a problem *binds* each tag to a condition at construction. The
+geometry layer provides the roles (:ref:`geometry-face-roles` below): a deck
+(:class:`~orpheus.geometry.deck.MirrorDeck`,
+:class:`~orpheus.geometry.deck.TranslationDeck`), which says the domain
+continues across the face, or an integer tag, which says the domain ends
+there. A geometry names no response: it holds no albedo, no kind string and
+no law. The meshes of :doc:`/api/mesh` store one role per boundary face:
+:class:`~orpheus.mesh.structured.Mesh1D` has ``face_roles``, keyed by face
+name (``xmin`` and ``xmax``, or ``xmax`` alone on a solid cylinder or
+sphere); :class:`~orpheus.mesh.structured.Mesh2D` has ``face_roles`` over its
 faces ``xmin``, ``xmax``, ``ymin``, ``ymax`` (no ``xmin`` on a solid
 :math:`(r, z)` mesh). Both are one value,
-``FaceLaws``. A
+:class:`~orpheus.mesh.face_roles.FaceRoles`. A
 :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`, both
 meshes and the S\ :sub:`N` axis primitives refuse ``None``, through one
-element parser,
-``parse_boundary_law``,
-because a declaration states the problem and a default is a method's.
-No method fills an unstated face: the shared resolution of
-S\ :sub:`N` and diffusion reads the declared law and nothing else
-(:ref:`structured-geometry-no-default-law`).
+parser, :func:`~orpheus.geometry.deck.parse_face_roles`, because a
+declaration states the problem and a default is a method's. No method fills
+an unstated face (:ref:`structured-geometry-no-default-law`).
 
-The geometry module makes **no assumptions** about what a given
-``kind`` means physically. Semantics are resolved by each method's own
-hub (``SNProblem`` — the SN **Problem**, ``SNMesh`` until #412,
-2026-09-18 — ``DiffusionMesh``, and the future
-``CPMesh`` / ``MOCMesh`` / ``MCMesh``) at construction time via a
-class-level ``BOUNDARY_OPERATOR_REGISTRY: dict[str,
-type[BoundaryTraceLaw]]`` mapping kind strings to typed boundary
-LAWS, whose realized per-face operators land in the face-name-keyed
-``bc`` dict each hub carries (``SNProblem.bc`` /
-``DiffusionMesh.bc`` — #290 P7a moved the diffusion resolution off
-the solver onto the phase space, the SN pattern). The realization
-translates the abstract declaration into method-specific operator
-state (e.g. zeroing the incoming angular flux for SN vacuum, or the
-scalar albedo row :math:`J^- = \mathcal{A} J^+` for diffusion). If a
-mesh carries a ``kind`` that the method does not support,
-construction raises ``ValueError`` listing the supported kinds.
+The condition of an integer tag is a
+:class:`~orpheus.transport.boundary_conditions.WallCondition` (a wall's cone
+coordinates, the response network of the transport layer) bound by the
+problem. Each method owns a realizer table (``SN_REALIZERS``,
+``DIFFUSION_REALIZERS``) that admits a declaration, realizing it as the
+method's operator, or refuses it with the axis and the issue that tracks the
+refusal. The admission matrix and the realization are on
+:doc:`/theory/foundations/boundary_conditions`.
 
-This pattern has three advantages:
 
-1. **Solver-agnostic problem setup.** The same ``Mesh1D`` with a
-   vacuum outer law can be passed to SN, CP, or diffusion
-   solvers without modification — each method-mesh resolves the tag
-   through its own registry.
-2. **Extensibility.** Adding a new BC type (e.g. albedo, periodic)
-   requires only a boundary-law class and a one-line addition to the
-   method-mesh's ``BOUNDARY_OPERATOR_REGISTRY``. No geometry code
-   changes.
-3. **Discoverability.** Each boundary-law class carries a docstring
-   that serves as a human-readable description, queryable at
-   runtime via ``{k: v.__doc__ for k, v in
-   SNProblem.BOUNDARY_OPERATOR_REGISTRY.items()}``.
-
-The current registry contents per method are:
-
-.. list-table:: Supported boundary conditions by solver
-   :header-rows: 1
-   :widths: 20 40 40
-
-   * - Solver
-     - Supported kinds
-     - Default (when ``None``)
-   * - SN
-     - ``vacuum``, ``reflective``
-     - ``reflective``
-   * - CP
-     - ``white``, ``vacuum``
-     - ``white``
-   * - MOC
-     - ``reflective``
-     - ``reflective``
-   * - MC
-     - ``periodic``
-     - ``periodic``
-   * - Diffusion (``DiffusionMesh``)
-     - ``vacuum``, ``reflective``, ``albedo``, ``zero_flux``
-     - ``reflective``
+.. _geometry-face-roles:
 
 Face Roles
 ----------
@@ -201,9 +153,8 @@ A :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
 is the pure shape of a 1-D problem: its coordinate system ``coord``
 (a :class:`~orpheus.geometry.coord.CoordSystem` member), its
 ``breakpoints`` :math:`r_0 < \dots < r_R` (stored bit for bit as given),
-one material id per interval in ``mat_ids``, and one law per boundary
-point in ``boundaries`` (a ``BC`` tag or
-a typed law; ``None`` is refused). The boundary points are derived, not
+one material id per interval in ``mat_ids``, and one role per boundary
+point in ``face_roles`` (a deck or an integer tag; ``None`` is refused). The boundary points are derived, not
 declared: two on a slab, the outer surface alone on a solid cylinder or
 sphere (whose centre is an interior point and carries no law), inner
 and outer on a hollow one. It carries **no** cell counts. The reasons
@@ -216,8 +167,8 @@ mesh; the discrete production solvers consume the
 path is on :doc:`/api/mesh`). The named-face constructors
 ``StructuredGeometry.slab(breakpoints, mat_ids, left=, right=)``,
 ``cylinder`` and ``sphere`` (``outer=``, and ``inner=`` exactly when the
-body is hollow), ``uniform_boundary(coord, breakpoints, mat_ids, law)``
-and ``from_homogeneous(width, boundary)`` name each boundary point's law
+body is hollow), ``uniform_boundary(coord, breakpoints, mat_ids, role)``
+and ``from_homogeneous(width, boundary)`` name each boundary point's role
 at the call site.
 
 A configuration published as thicknesses is built with

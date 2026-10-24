@@ -243,7 +243,7 @@ def test_the_equivalence_snapshots_carry(case_id: str) -> None:
     quad = build_quad()
     snapshot = np.load(SNAPSHOT_DIR / f"bc_equivalence_{case_id}.npz")
     trace = H.trace_of(quad, faces)
-    space = H.method_space(quad, face, trace)
+    space = H.method_space(quad, trace)
     where = H.site(face, dimension=len(faces) // 2)
     declared = build_declared()
     op = H.sn_table().realize(declared, where, space)

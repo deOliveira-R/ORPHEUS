@@ -383,9 +383,8 @@ class TestS58Schema:
 # S5.9 — conformance: the mixin's dunders, and the population
 # ═════════════════════════════════════════════════════════════════════════════
 
-#: The classes the plan rules may override ``__eq__`` (the string arm, kept by
-#: the user's ruling); they still take ``__hash__`` from the mixin.
-_DECLARED_EQ_OVERRIDES = frozenset({"VacuumInflow", "ReflectiveBoundary"})
+# No class overrides ``__eq__``: the two that did (the string arm of the retired ``VacuumInflow`` and ``ReflectiveBoundary``) retired in WF2.4,
+# so the walk below admits the mixin's ``__eq__`` alone.
 
 #: The packages whose classes S5.9 walks. Of ``orpheus.derivations``, the package whose derivation is a reference
 #: solution (its receiver is a traced-memo key); the rest of ``orpheus.derivations`` is NOT walked. The
@@ -433,9 +432,7 @@ def test_s5_9_every_content_class_takes_the_mixins_dunders() -> None:
         if cls.__hash__ is not ContentIdentity.__hash__:
             problems.append(f"{cls.__qualname__}.__hash__ comes from {_owner(cls, '__hash__').__qualname__}")
         eq_owner = _owner(cls, "__eq__")
-        if eq_owner is not ContentIdentity and not (
-            cls.__qualname__ in _DECLARED_EQ_OVERRIDES and eq_owner is cls
-        ):
+        if eq_owner is not ContentIdentity:
             problems.append(f"{cls.__qualname__}.__eq__ comes from {eq_owner.__qualname__}")
         params = getattr(cls, "__dataclass_params__", None)
         if params is not None and (params.eq or not params.frozen):

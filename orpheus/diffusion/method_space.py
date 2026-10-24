@@ -2,10 +2,13 @@ r"""Diffusion method-space carrying scalar-trace metadata.
 
 The :class:`DiffusionMethodSpace` is the diffusion-specific argument to
 :data:`~orpheus.diffusion.boundary_realizer.DIFFUSION_REALIZERS`
-— the mirror of :class:`~orpheus.sn.mesh.method_space.SNMethodSpace`
-(same construction surface: :meth:`minimal` / :meth:`for_face`; same
-``trace`` field name — the per-method protocol surface kept at #290
-P2.5). What it carries differs because the method does:
+— the sibling of :class:`~orpheus.sn.mesh.method_space.SNMethodSpace`
+(same ``trace`` field name — the per-method protocol surface kept at
+#290 P2.5). SN's space is ``(quadrature, trace)`` with no face (the
+face travels in the ``FaceSite`` beside it, WF2.4); this one still
+carries a face label that no realizer reads (the same two-encodings
+exposure; #661 holds the collapse trigger). What it
+carries differs because the method does:
 
 * :attr:`face` -- the face label (``"xmin"`` / ``"xmax"`` / …).
   Identifies WHICH face the realized BC operates on.
@@ -19,12 +22,11 @@ P2.5). What it carries differs because the method does:
   assembles against.
 
 There is deliberately NO quadrature and NO ``inflow_indices`` field:
-the SN trace needs a per-face ordinate *selector* because inflow/outflow
-is a quadrature-dependent sign partition, while the scalar trace's
+the SN trace's inflow/outflow split is a quadrature-dependent sign
+partition (read off its ladder), while the scalar trace's
 inflow/outflow split is STRUCTURAL — the fixed ``(J⁺, J⁻)`` component
 rows owned by :class:`ScalarTraceSpace`. The diffusion realizer's
-albedo-family scalars read nothing from the method space at all
-(mirroring SN's albedo branch); the fields exist for the P4
+albedo-family scalars read nothing from the method space at all; the fields exist for the P4
 ``DiffusionBoundaryOperator`` assembly and the uniform cross-method
 construction surface (the ``TransportMethod`` Protocol, #290 P7).
 
@@ -67,8 +69,7 @@ class DiffusionMethodSpace:
 
     All fields default to ``None`` so the realizer's rank-1
     albedo-family dispatch — which reads nothing from the method
-    space — works on a :meth:`minimal` instance, exactly like SN's
-    albedo branch on ``SNMethodSpace.minimal(quad)``. The canonical
+    space — works on a :meth:`minimal` instance. The canonical
     construction site is :meth:`for_face` (the
     ``DiffusionMesh.realize_boundary_role`` wiring — the diffusion arm
     of the #290 P7b ``TransportMethod`` hook), which validates the face
@@ -80,7 +81,7 @@ class DiffusionMethodSpace:
 
     @classmethod
     def minimal(cls) -> "DiffusionMethodSpace":
-        """Metadata-free method space (mirror of ``SNMethodSpace.minimal``).
+        """Metadata-free method space.
 
         Sufficient for realizing any single albedo-family law — the
         realized operator is a face-slot-shape-agnostic scalar multiple
@@ -98,15 +99,13 @@ class DiffusionMethodSpace:
         r"""Build the method space for one boundary face of ``trace``.
 
         The standard construction site — one method space per boundary
-        face, mirroring ``SNMethodSpace.for_face`` (each method-mesh's
+        face (each method-mesh's
         ``realize_boundary_role`` arm builds its method space here,
         driven by the shared
         :func:`~orpheus.transport.method.realize_boundary`
         body, #290 P7b). The mesh passes its own ``scalar_trace``, the
-        single source. Where SN's
-        ``for_face`` *derives* the per-face inflow indices from its
-        trace, the scalar trace has nothing to derive (the ``(J⁺,
-        J⁻)`` rows are fixed); instead the face is VALIDATED against
+        single source. The scalar trace has nothing to derive per face
+        (the ``(J⁺, J⁻)`` rows are fixed); the face is VALIDATED against
         the trace's face inventory so a method space for a nonexistent
         face is unrepresentable.
 

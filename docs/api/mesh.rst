@@ -133,7 +133,7 @@ Both :class:`~orpheus.mesh.structured.Mesh1D` and
 :class:`~orpheus.mesh.structured.Mesh2D` store their laws as one value,
 ``face_laws``, a ``FaceLaws``: a frozen,
 ordered, picklable mapping from face name to law over exactly the faces
-that :func:`~orpheus.mesh.face_laws.face_inventory` derives. A
+that :func:`~orpheus.mesh.face_roles.face_inventory` derives. A
 ``Mesh1D`` has ``xmin`` and ``xmax`` on a slab or a hollow body and
 ``xmax`` alone on a solid cylinder or sphere, whose centre is an
 interior point; ``boundary_points`` gives the faces' positions and
@@ -322,7 +322,7 @@ the caller's behalf.
 Face laws
 ---------
 
-.. automodule:: orpheus.mesh.face_laws
+.. automodule:: orpheus.mesh.face_roles
    :members:
    :undoc-members:
    :show-inheritance:

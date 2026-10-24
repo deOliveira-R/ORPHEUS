@@ -33,6 +33,7 @@ or a gate of the new tree owns it):
 from __future__ import annotations
 
 from fractions import Fraction
+from typing import NamedTuple
 
 import numpy as np
 import pytest
@@ -47,27 +48,38 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary.realized_operators import RankOneReemission, ScaledOrdinatePermutation, ZeroMap, _crossing
 from orpheus.sn.boundary.realizer import SN_REALIZERS
 from orpheus.sn.mesh.method_space import SNMethodSpace
-from orpheus.transport.boundary_conditions import BoundaryError, BoundaryRefused, FaceSite, RefusalAxis, WallCondition
+from orpheus.transport.boundary_conditions import BoundaryRefused, FaceSite, RefusalAxis, WallCondition
 from tests._harness.float_bounds import gamma
 from tests._harness.references import mirror_partner_indices
 from tests.gates.sn._test_helpers import face_method_space, face_trace
 
 
-def _realize(declared, space, face: str | None = None):
-    """The face operator of ``declared`` on ``face`` (default: the method space's own), through the door a problem uses."""
-    face = face if face is not None else space.face
+class _On(NamedTuple):
+    """A method space and the face a realization acts on (the face is the ``FaceSite`` beside the space, never a field of it)."""
+
+    space: SNMethodSpace
+    face: str
+
+
+def _on(quadrature, face: str, faces=("xmin", "xmax")) -> _On:
+    return _On(face_method_space(quadrature, faces=faces), face)
+
+
+def _realize(declared, on: _On, face: str | None = None):
+    """The face operator of ``declared`` on ``face`` (default: ``on.face``), through the door a problem uses."""
+    face = face if face is not None else on.face
     site = FaceSite(face, CoordSystem.CARTESIAN, 1 + face_normal(face)[0])
-    return SN_REALIZERS.realize(declared, site, space)
+    return SN_REALIZERS.realize(declared, site, on.space)
 
 
-def _inflow(space):
+def _inflow(on: _On):
     """The face's :math:`\\Gamma_-` ordinate indices, read off the trace ladder."""
-    return space.inflow_indices_for_face(space.face)
+    return on.space.trace.inflow_indices_for_face(on.face)
 
 
-def _outflow(space):
+def _outflow(on: _On):
     """The face's :math:`\\Gamma_+` ordinate indices, read off the trace ladder."""
-    return space.trace.outflow_indices_for_face(space.face)
+    return on.space.trace.outflow_indices_for_face(on.face)
 
 
 def _scaled_parts(op):
@@ -129,7 +141,7 @@ class TestRealizeVacuum:
 
     def test_lebedev17_xmin_is_the_zero_map_onto_gamma_minus(self):
         quad = Quadrature.lebedev(17)
-        space = face_method_space(quad, face="xmin")  # xmin: outward normal -x, inflow is mu_x > 0
+        space = _on(quad, "xmin")  # xmin: outward normal -x, inflow is mu_x > 0
         rng = np.random.default_rng(42)
         psi = rng.uniform(0.5, 2.0, size=(quad.n_ordinates, 4, 2))
         op = _realize(WallCondition.vacuum(), space)
@@ -143,7 +155,7 @@ class TestRealizeVacuum:
 
     def test_lebedev17_ymax_is_the_zero_map_onto_gamma_minus(self):
         quad = Quadrature.lebedev(17)
-        space = face_method_space(quad, face="ymax", faces=("xmin", "xmax", "ymin", "ymax"))
+        space = _on(quad, "ymax", faces=("xmin", "xmax", "ymin", "ymax"))
         # An independent spelling of the face's orientation: Omega.n_ymax = +mu_y, so inflow <=> mu_y < 0.
         np.testing.assert_array_equal(_inflow(space), np.flatnonzero(quad.mu_y < -1e-12))
         psi = np.arange(quad.n_ordinates * 3, dtype=float).reshape(quad.n_ordinates, 3)
@@ -151,18 +163,12 @@ class TestRealizeVacuum:
         assert out.shape == (_inflow(space).size, 3)
         np.testing.assert_array_equal(out, 0.0)
 
-    def test_vacuum_without_the_trace_ladder_is_refused(self):
-        """A quadrature-only method space carries no trace ladder, so the zero map cannot be bound to its two spaces."""
-        quad = Quadrature.lebedev(17)
-        with pytest.raises(BoundaryError, match="trace ladder"):
-            _realize(WallCondition.vacuum(), SNMethodSpace.minimal(quad), face="xmin")
-
     def test_the_zero_map_is_a_bound_zero_morphism_with_both_space_hooks(self):
         r"""The derived operator is a bound :class:`ZeroMorphism`: forward emits the zero of :math:`\Gamma_-`, transpose the zero of
         :math:`\Gamma_+`, both derived from the DECLARED pair. Relying on the endomorphic ``0.0 * x`` echo would be wrong in
         principle and merely lucky in practice (the shapes coincide on every reachable fixture)."""
         quad = Quadrature.gauss_legendre(8)
-        space = face_method_space(quad, face="xmin")
+        space = _on(quad, "xmin")
         op = _realize(WallCondition.vacuum(), space)
         assert isinstance(op.inner, ZeroMorphism)
         np.testing.assert_array_equal(op.apply(np.ones((_outflow(space).size, 3))), np.zeros((_inflow(space).size, 3)))
@@ -171,7 +177,7 @@ class TestRealizeVacuum:
     @pytest.mark.parametrize("spelling", [WallCondition.specular(0.0), WallCondition.white(0.0)], ids=["specular(0)", "white(0)"])
     def test_a_wall_of_zero_weight_is_the_same_zero_map(self, spelling):
         """``specular(0.0)`` and ``white(0.0)`` ARE ``vacuum()`` (one value), so they realize the ``ZeroMap``, not a zero-scaled kernel."""
-        space = face_method_space(Quadrature.gauss_legendre(8), face="xmax")
+        space = _on(Quadrature.gauss_legendre(8), "xmax")
         assert _realize(spelling, space) == _realize(WallCondition.vacuum(), space)
 
 
@@ -192,7 +198,7 @@ class TestRealizeSpecular:
         against the reference (``algebra-of-record`` structural independence).
         """
         quad = Quadrature.lebedev(17)
-        space = face_method_space(quad, face="xmin")
+        space = _on(quad, "xmin")
         rng = np.random.default_rng(7)
         psi = rng.uniform(-1.0, 1.0, size=(quad.n_ordinates, 5, 3))
         expected = psi[mirror_partner_indices(quad, "x")][_inflow(space)]
@@ -207,7 +213,7 @@ class TestRealizeSpecular:
         TYPE-VISIBLE on this object, since a revert to the full-``N`` permutation would keep every structural claim green.
         """
         quad = Quadrature.level_symmetric(4)
-        space = face_method_space(quad, face="xmin")
+        space = _on(quad, "xmin")
         op = _realize(WallCondition.specular(1.0), space)
         assert isinstance(op, ScaledOrdinatePermutation) and op.permutes_ordinates and op.return_fraction == 1.0
         assert isinstance(op.inner, TensorProductOperator) and len(op.inner.ops) == 2
@@ -217,7 +223,7 @@ class TestRealizeSpecular:
     def test_specular_partial_weight_matches_hand_computed(self):
         """At weight 0.7 the realized op output equals ``0.7 * psi[mirror_partner][inflow]`` bit-exactly."""
         quad = Quadrature.lebedev(17)
-        space = face_method_space(quad, face="xmin")
+        space = _on(quad, "xmin")
         rng = np.random.default_rng(9)
         psi = rng.uniform(-1.0, 1.0, size=(quad.n_ordinates, 5))
         expected = 0.7 * psi[mirror_partner_indices(quad, "x")][_inflow(space)]
@@ -226,7 +232,7 @@ class TestRealizeSpecular:
     def test_specular_partial_weight_returns_scaled_tensor_product(self):
         """At weight != 1 the specular wall's operator is ``alpha * TP`` (the one-term combination), TP the 2-factor product."""
         quad = Quadrature.level_symmetric(4)
-        space = face_method_space(quad, face="xmin")
+        space = _on(quad, "xmin")
         alpha, tp = _scaled_parts(_realize(WallCondition.specular(0.5), space).inner)
         assert alpha == 0.5
         assert isinstance(tp, TensorProductOperator) and len(tp.ops) == 2
@@ -241,7 +247,7 @@ class TestRealizeSpecular:
         with itself; the old spelling ``B(B(x))`` worked only while the law was a square endomorphism of the whole face.)
         """
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        space = face_method_space(quad, face="xmax")
+        space = _on(quad, "xmax")
         x = np.random.default_rng(7).standard_normal((int(_outflow(space).size), 2))
         op = _realize(WallCondition.specular(0.7), space)
         np.testing.assert_allclose(op.apply_transpose(op.apply(x)), 0.7 ** 2 * x, rtol=1e-13, atol=1e-14)
@@ -258,7 +264,7 @@ class TestRealizeSpecular:
         quad = Quadrature.product(n_mu=4, n_phi=5)
         for declared in (WallCondition.specular(1.0), MirrorDeck()):
             with pytest.raises(BoundaryRefused, match="no ordinate pairing about axis") as info:
-                _realize(declared, face_method_space(quad, face="xmin"))
+                _realize(declared, _on(quad, "xmin"))
             assert info.value.admission.axis is RefusalAxis.ANGULAR_RESOLUTION
 
     def test_a_pairing_needs_a_bijection_between_the_half_traces(self):
@@ -273,14 +279,6 @@ class TestRealizeSpecular:
         with pytest.raises(ValueError, match=r"BIJECTION"):
             _crossing(Permutation.identity(8), outflow, inflow, "probe")
 
-    def test_a_spaceless_method_space_cannot_pose_the_pairing(self):
-        r"""The pairing is returned fully bound :math:`\Gamma_+(f') \to \Gamma_-(f)`: a method space that stands up no half-trace
-        spaces is refused (before the wave-2 carve this path realized a silently UNBOUND permutation whose ``.H`` was the bare
-        Euclidean transpose, the ERR-076 shape)."""
-        quad = Quadrature.gauss_legendre(8)
-        spaceless = SNMethodSpace(quadrature=quad, face="xmax")
-        with pytest.raises(BoundaryError, match="trace ladder"):
-            _realize(WallCondition.specular(1.0), spaceless)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -300,7 +298,7 @@ class TestRealizeWhite:
         r"""At weight 1 the realized op bit-matches :func:`lambertian_reference` (the closed form, divisor the inflow mass: bit-equal
         to the outflow sum on every registry rule, the census of ``test_realized_boundary.py``)."""
         quad = Quadrature.lebedev(17)
-        space = face_method_space(quad, face="xmax")
+        space = _on(quad, "xmax")
         rng = np.random.default_rng(123)
         psi_out = rng.uniform(0.0, 2.0, size=(quad.n_ordinates, 5, 3))[_outflow(space)]
         got = _realize(WallCondition.white(1.0), space).apply(psi_out)
@@ -310,7 +308,7 @@ class TestRealizeWhite:
     def test_white_unit_weight_returns_tensor_product(self):
         """At weight 1 the derived operator is a 2-factor product ``(the Lambertian chain, IdentityOperator)``."""
         quad = Quadrature.lebedev(17)
-        space = face_method_space(quad, face="xmax")
+        space = _on(quad, "xmax")
         op = _realize(WallCondition.white(1.0), space)
         assert isinstance(op, RankOneReemission) and not op.permutes_ordinates and op.return_fraction == 1.0
         assert isinstance(op.inner, TensorProductOperator) and len(op.inner.ops) == 2
@@ -319,7 +317,7 @@ class TestRealizeWhite:
 
     def test_white_partial_weight_returns_scaled_tensor_product(self):
         quad = Quadrature.lebedev(17)
-        space = face_method_space(quad, face="xmax")
+        space = _on(quad, "xmax")
         alpha, tp = _scaled_parts(_realize(WallCondition.white(0.3), space).inner)
         assert alpha == 0.3
         assert isinstance(tp, TensorProductOperator) and len(tp.ops) == 2 and isinstance(tp.ops[1], IdentityOperator)
@@ -329,7 +327,7 @@ class TestRealizeWhite:
         r"""At weight 0.3 the output equals ``0.3 * lambertian_reference`` within ``nulp = 4``: ``(0.3 * TP).apply`` scales the
         inner output from the outside, the hand-computed product may differ by one ULP under IEEE-754 non-associativity."""
         quad = Quadrature.lebedev(17)
-        space = face_method_space(quad, face="xmax")
+        space = _on(quad, "xmax")
         psi_out = np.random.default_rng(11).uniform(0.0, 2.0, size=(quad.n_ordinates, 4))[_outflow(space)]
         np.testing.assert_array_almost_equal_nulp(
             _realize(WallCondition.white(0.3), space).apply(psi_out), 0.3 * lambertian_reference(quad, "x", +1, psi_out, space), nulp=4,
@@ -339,13 +337,7 @@ class TestRealizeWhite:
         r"""A ``z`` face on a 1-D Gauss-Legendre rule is a RANK MISMATCH between the face and the cubature, and says so where the
         trace is built (the single face-name to signed-projection primitive, ``build_omega_dot_n``), before any realizer runs."""
         with pytest.raises(ValueError, match="requires genuine mu_z"):
-            face_method_space(Quadrature.gauss_legendre(8), face="zmax", faces=("zmin", "zmax"))
-
-    def test_white_without_the_trace_ladder_is_refused(self):
-        r"""White's DOMAIN is :math:`\Gamma_+`, so a quadrature-only method space cannot realize it (every leg migrated off
-        ``SNMethodSpace.minimal``)."""
-        with pytest.raises(BoundaryError, match="trace ladder"):
-            _realize(WallCondition.white(1.0), SNMethodSpace.minimal(Quadrature.lebedev(17)), face="xmax")
+            face_method_space(Quadrature.gauss_legendre(8), faces=("zmin", "zmax"))
 
     def test_every_face_of_a_box_realizes_over_its_own_outflow(self):
         r"""Positive control for the retired orientation guard: each of the four 2-D faces realizes the Lambertian, and the kernel's
@@ -353,10 +345,10 @@ class TestRealizeWhite:
         quad = Quadrature.level_symmetric(4)
         faces = ("xmin", "xmax", "ymin", "ymax")
         for face in faces:
-            space = face_method_space(quad, face=face, faces=faces)
+            space = _on(quad, face, faces=faces)
             op = _realize(WallCondition.white(1.0), space)
             assert isinstance(op, RankOneReemission), face
-            assert op.domain == space.trace.outflow_space(face) and op.codomain == space.trace.inflow_space(face), face
+            assert op.domain == space.space.trace.outflow_space(face) and op.codomain == space.space.trace.inflow_space(face), face
             assert_lambertian_kernel(op.inner.ops[0], space, quad)
 
 
@@ -375,7 +367,7 @@ class TestRealizeTheWeightedWalls:
 
     @staticmethod
     def _space(n_ord: int = 8):
-        return face_method_space(Quadrature.gauss_legendre(n_ord), face="xmax")
+        return _on(Quadrature.gauss_legendre(n_ord), "xmax")
 
     def test_weight_one_is_the_bare_kernel_product_and_a_partial_weight_the_scaled_one(self):
         space = self._space()
@@ -416,12 +408,12 @@ class TestRealizeTranslation:
         identity.
         """
         quad = Quadrature.lebedev(17)
-        space = face_method_space(quad, face="xmin")
+        space = _on(quad, "xmin")
         op = _realize(TranslationDeck(), space)
         assert isinstance(op, ScaledOrdinatePermutation) and not op.permutes_ordinates and op.domain_face == "xmax"
         angular, group = op.inner.ops
         assert isinstance(op.inner, TensorProductOperator) and isinstance(angular, PermutationOperator) and isinstance(group, IdentityOperator)
-        trace = space.trace
+        trace = space.space.trace
         assert op.domain == trace.outflow_space("xmax") and op.codomain == trace.inflow_space("xmin")
         n_domain = np.asarray(trace.outflow_indices_for_face("xmax")).size
         assert n_domain != quad.n_ordinates
@@ -429,11 +421,6 @@ class TestRealizeTranslation:
         np.testing.assert_array_equal(op.apply(psi), psi)
         np.testing.assert_array_equal(op.apply_transpose(psi), psi)
 
-    def test_a_translation_without_the_trace_ladder_is_refused(self):
-        r"""A quadrature-only space cannot name the partner's half-trace, so it is refused: periodic is the ONLY realization whose
-        domain is a different face's :math:`\Gamma_+`, which makes the trace ladder strictly more load-bearing here."""
-        with pytest.raises(BoundaryError, match="trace ladder"):
-            _realize(TranslationDeck(), SNMethodSpace.minimal(Quadrature.lebedev(17)), face="xmin")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -465,7 +452,7 @@ class TestTheRealizedFaceIsMETRICCorrect:
     @staticmethod
     def _realized(key, n_ordinates=8):
         quad = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
-        space = face_method_space(quad, face="xmax")
+        space = _on(quad, "xmax")
         return _realize(TestTheRealizedFaceIsMETRICCorrect._DECLARED[key](), space), quad
 
     @pytest.mark.parametrize("key", sorted(_DECLARED))
@@ -544,38 +531,41 @@ class TestTheRealizedFaceIsMETRICCorrect:
 
 @pytest.mark.l1
 class TestVacuumRealizesOnTheTrace:
-    r"""The zero map of a vacuum face is built from the trace ladder alone.
+    r"""The zero map of a vacuum face is built from the trace ladder alone, and it runs :math:`\Gamma_+(f) \to \Gamma_-(f)`.
 
     ERR-041 (the zero map fills only the incoming trace) used to be a realizer guard that cross-checked a hand-supplied inflow index
-    set against the face name. The method space holds no index set any more, so the guard and its tests retired (WF2.4); the invariant
-    itself, that ``trace.inflow_space(face)`` holds exactly the ordinates with :math:`\Omega\cdot n_f < 0`, is witnessed on the ladder in
-    ``tests/gates/numerics/test_angular_trace_space.py::TestTheInflowHalfSpaceIsTheIncomingOrdinates`` (the ``catches`` marker lives
-    there). What stays here is what the realizer still owes: a face-ful method space realizes, a faceless or unknown-face one refuses.
+    set against the face name; the method space holds no index set any more, so the guard retired (WF2.4). The invariant has two
+    witnesses: on the LADDER (``tests/gates/numerics/test_angular_trace_space.py::TestTheInflowHalfSpaceIsTheIncomingOrdinates``,
+    which reddens when ``inflow_space`` returns the wrong tier) and here on the REALIZER (which reddens when the realizer's zero map
+    swaps its domain and codomain, a defect the ladder witness cannot see because the ladder is still right).
     """
 
-    def test_correct_orientation_realizes(self):
-        """Positive control: each face realizes through the realizer, and the half-space it reads is the written-out per-face predicate."""
+    @pytest.mark.catches("ERR-041")
+    @pytest.mark.parametrize("face", ["xmin", "xmax"])
+    def test_the_zero_map_runs_outflow_to_inflow_of_its_own_face(self, face):
+        """Positive control and the ERR-041 realizer-side catcher: the realized vacuum's domain is the face's outflow space and its
+        codomain the face's inflow space, and the codomain holds exactly the written-out incoming ordinates (``mu_x > 0`` through
+        ``xmin``, ``mu_x < 0`` through ``xmax``). Mutation (`[M]` 2026-10-24, in-process): swapping the domain and codomain of
+        ``ZeroMap._derive_inner`` reddens this row."""
         quad = Quadrature.gauss_legendre(8)
-        for face, inflow in (("xmax", np.flatnonzero(quad.mu_x < -1e-12)), ("xmin", np.flatnonzero(quad.mu_x > +1e-12))):
-            space = face_method_space(quad, face=face)
-            np.testing.assert_array_equal(_inflow(space), inflow)
-            assert isinstance(_realize(WallCondition.vacuum(), space), ZeroMap)
+        on = _on(quad, face)
+        op = _realize(WallCondition.vacuum(), on)
+        assert isinstance(op, ZeroMap)
+        trace = on.space.trace
+        assert op.domain == trace.outflow_space(face)
+        assert op.codomain == trace.inflow_space(face)
+        incoming = np.flatnonzero(quad.mu_x > 1e-12) if face == "xmin" else np.flatnonzero(quad.mu_x < -1e-12)
+        np.testing.assert_array_equal(op.codomain.ordinate_indices, incoming)
+        np.testing.assert_array_equal(_inflow(on), incoming)
 
-    def test_a_faceless_space_carries_no_trace(self):
-        r"""A method space with no trace ladder has no :math:`\Gamma_-` to bind, so the realize REFUSES loudly instead of building an
-        unbindable zero map."""
-        faceless = SNMethodSpace(quadrature=Quadrature.gauss_legendre(8))
-        with pytest.raises(BoundaryError, match="trace ladder"):
-            _realize(WallCondition.vacuum(), faceless, face="xmax")
-
-    def test_unknown_face_name_fails_loud_on_the_ladder(self):
-        """A face name outside the layout is refused loudly, by the trace ladder every half-space is read from (a ``ValueError`` naming the
-        available faces). The realizer itself no longer validates the name: the guard that did (it read the signed projection through
-        ``build_omega_dot_n``) retired with the index sets, and the name now reaches the ladder at the first read."""
-        space = face_method_space(Quadrature.gauss_legendre(8), face="xmax")
-        assert _inflow(space).size > 0  # positive control: a known face reads
+    @pytest.mark.parametrize("declared", [WallCondition.vacuum(), WallCondition.white(0.5), WallCondition.specular(1.0)])
+    def test_unknown_face_name_is_refused_at_realize(self, declared):
+        """A face the trace does not hold is refused by the realizer itself, at ``realize``, whatever the declaration (the vacuum arm
+        used to build a zero map and refuse only at its first ``.domain`` read). Positive control: a known face realizes."""
+        on = _on(Quadrature.gauss_legendre(8), "xmax")
+        assert _realize(declared, on) is not None
         with pytest.raises(ValueError, match="Unknown face"):
-            space.inflow_indices_for_face("right")
+            _realize(declared, on, face="right")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -634,7 +624,7 @@ class TestFacePackingOrderIsBookkeeping:
         arithmetic changed, so any drift at all is a packing dependence leaking into the math."""
         factory, forward, reversed_ = self._QUADS[quad_name]
         quad = factory()
-        op_a, op_b = (_realize(self._DECLARED[key](), face_method_space(quad, face="xmax", faces=faces)) for faces in (forward, reversed_))
+        op_a, op_b = (_realize(self._DECLARED[key](), _on(quad, "xmax", faces=faces)) for faces in (forward, reversed_))
         rng = np.random.default_rng(20260807)
         x = rng.standard_normal(op_a.domain.shape)
         y = rng.standard_normal(op_a.codomain.shape)

@@ -233,8 +233,8 @@ class TestFaceNameBijection:
         perfect involution, so ``face_opposite = lambda f: f`` satisfies it and
         would silently make every periodic law read its own face. The
         no-fixed-point clause is what distinguishes them, and it is the exact
-        property :meth:`~orpheus.geometry.boundary.PairedDeck.domain_face`
-        needs.
+        property the paired deck's partner face (``FacePairing.partner`` of a
+        translation wrap, :func:`~orpheus.geometry.faces.face_opposite`) needs.
         """
         for face in FACE_NAMES:
             assert face_opposite(face_opposite(face)) == face, face

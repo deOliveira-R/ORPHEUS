@@ -463,12 +463,7 @@ class SNProblem(MethodMesh):
         angular closure, not here, and a hollow body's inner face has a tag but no trace (the shared body meets the table through
         ``require`` there).
         """
-        method_space = SNMethodSpace.for_face(
-            mesh=self.mesh,
-            quadrature=self.quad,
-            face=face,
-            trace=self._trace,
-        )
+        method_space = SNMethodSpace(quadrature=self.quad, trace=self._trace)
         return self.boundary_realizers.realize(role, self.face_site(face), method_space)
 
     def declared_boundary_source(self) -> "AngularBoundarySourceSink":

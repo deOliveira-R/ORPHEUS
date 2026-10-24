@@ -52,8 +52,8 @@ a ``FaceFrameInflow`` reading a tangential coordinate would not be invariant (no
   ``_PairArithmetic`` (a condition or a displacement), whose ``__add__`` / ``__sub__`` answers, so a reflected method
   is unreachable (measured: 0 calls across the three pairings). ``sum([...])`` from the integer ``0`` is therefore
   not supported.
-* ``albedo = 0`` is admitted and IS the vacuum (18 test sites construct ``AlbedoBoundary(0, ...)`` and the albedo is a
-  parameter coordinate): the empty network is registered as ``ZeroNetwork`` by every method.
+* ``albedo = 0`` is admitted and IS the vacuum (the albedo is a parameter coordinate, and the retired
+  ``AlbedoBoundary(0, ...)`` spelling was the same vacuum): the empty network is registered as ``ZeroNetwork`` by every method.
 * At the exact boundary of the cone two associations of one sum may differ by a rounding, one a condition and one a
   displacement (the binding door then refuses the latter); nothing in the tree builds a wall at :math:`\rho` within a
   few ulp of one other than by this arithmetic.

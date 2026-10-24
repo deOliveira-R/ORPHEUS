@@ -53,7 +53,7 @@ leaf realization differing.
 * **Promotion classmethods.** ``SNProblem.from_material_mesh(mm, quadrature, scheme=...)`` vs
   ``DiffusionMesh.from_material_mesh(mm)``: the signatures differ because the methods genuinely need different injections.
   The Protocol is **instance surface only**.
-* **Method-space construction.** ``SNMethodSpace.for_face(mesh, quadrature, face, trace)`` vs
+* **Method-space construction.** ``SNMethodSpace(quadrature, trace)`` vs
   ``DiffusionMethodSpace.for_face(trace, face)``: non-unifiable for the same reason. The per-method
   :meth:`~TransportMethod.realize_boundary_role` hook subsumes it.
 * **The trace spaces.** ``SNProblem.angular_trace`` and ``DiffusionMesh.scalar_trace`` are locus-family SIBLINGS, not one concept.

@@ -313,40 +313,15 @@ def local_positions(global_rows, index_set) -> np.ndarray:
     return np.array([lookup[int(k)] for k in np.asarray(global_rows)], dtype=int)
 
 
-def face_method_space(quadrature, face="xmax", faces=("xmin", "xmax")):
-    r"""A face-ful :class:`SNMethodSpace` carrying BOTH half-traces.
+def face_method_space(quadrature, faces=("xmin", "xmax")):
+    r"""The :class:`SNMethodSpace` of ``quadrature`` over the trace ladder of ``faces`` (both half-traces of every face).
 
-    The B3.2 successor of ``SNMethodSpace.minimal(quadrature)`` for tests that
-    realize a narrowed law: ``minimal`` is faceless, so it can name neither
-    :math:`\Gamma_+` nor :math:`\Gamma_-` and the realizer refuses it (loudly,
-    by design).
-
-    Which laws need a face, as of **B3.4a**:
-
-    * **vacuum**, **reflective** (narrowed at B3.2), **white** and
-      **prescribed_inflow** (narrowed at B3.4a) all require it. White
-      additionally requires the face to MATCH the law's declared
-      ``axis``/``outward_sign`` — ``"xmax"`` ⇔ ``axis="x", outward_sign=+1``,
-      ``"ymin"`` ⇔ ``axis="y", outward_sign=-1``, and so on — or the
-      realizer's orientation cross-check refuses it (the ERR-041 pattern; a
-      mismatched white law averages the wrong hemisphere).
-    * **albedo** (with a closure, B3.4b) and **periodic** (B3.4c) require it
-      too — periodic doubly so, since its domain is a *different* face's
-      :math:`\Gamma_+` and a faceless space cannot even name the partner.
-      ``minimal`` remains correct only for dispatch-failure tests and for
-      probing the refusals themselves.
-
-    (Before B3.4a this docstring listed white among the full-face laws; until
-    G6.3 step 7 it listed albedo and periodic. Both claims were true when
-    written and became false with the narrowings — the second was caught
-    late, in step 7's audit, after B3.4c had already made it false.)
+    The space names no face: the face a realization acts on is the ``FaceSite`` handed to ``realize`` beside it, so a test that needs
+    a face names it at the realize call.
     """
     from orpheus.sn.mesh.method_space import SNMethodSpace
 
-    return SNMethodSpace.for_face(
-        quadrature=quadrature, face=face,
-        trace=face_trace(quadrature, faces),
-    )
+    return SNMethodSpace(quadrature=quadrature, trace=face_trace(quadrature, faces))
 
 
 # ── Shared curvilinear / slab mesh builders ──────────────────────────

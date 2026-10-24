@@ -69,7 +69,7 @@ def _realize(declared, quad_name: str, face: str, trace=None):
     """``SN_REALIZERS.realize`` of ``declared`` on the Cartesian ``face`` of the slab trace of ``quad_name``."""
     quad = H.QUADRATURES[quad_name]()
     trace = trace if trace is not None else H.trace_of(quad)
-    return H.sn_table().realize(declared, H.site(face), H.method_space(quad, face, trace)), quad, trace
+    return H.sn_table().realize(declared, H.site(face), H.method_space(quad, trace)), quad, trace
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -151,7 +151,7 @@ def test_a_certification_failure_names_its_axis_at_the_table() -> None:
     even = H.quadrature_class().product(n_mu=2, n_phi=4)
     where = H.site("xmin", dimension=2)
     for quad, certifies in ((odd, False), (even, True)):
-        space = H.method_space(quad, "xmin", H.trace_of(quad, ("xmin", "xmax", "ymin", "ymax")))
+        space = H.method_space(quad, H.trace_of(quad, ("xmin", "xmax", "ymin", "ymax")))
         for declared in (MirrorDeck(), B.WallCondition.specular(0.5)):
             admission = table.admit(declared, where, space)
             if certifies:
@@ -162,7 +162,7 @@ def test_a_certification_failure_names_its_axis_at_the_table() -> None:
                     table.realize(declared, where, space)
                 assert info.value.admission.axis is B.RefusalAxis.ANGULAR_RESOLUTION
             assert table.admit(declared, where) == B.Realized(True), "the front end (no space) is site-level"
-    odd_space = H.method_space(odd, "xmin", H.trace_of(odd, ("xmin", "xmax", "ymin", "ymax")))
+    odd_space = H.method_space(odd, H.trace_of(odd, ("xmin", "xmax", "ymin", "ymax")))
     assert table.admit(B.WallCondition.white(0.5), where, odd_space) == B.Realized(True)
 
 

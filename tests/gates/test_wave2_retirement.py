@@ -335,11 +335,14 @@ def test_the_sn_method_space_carries_no_index_sets() -> None:
     outside the zero map's own cross-check, and the invariant that guard checked is carried by the ladder's own witness
     (``tests/gates/numerics/test_angular_trace_space.py::TestTheInflowHalfSpaceIsTheIncomingOrdinates``).
 
+    The method space also names no ``face`` and holds no ``mesh``: the face is the ``FaceSite`` beside the space, so a realization
+    has one face value (the space's own, once cross-checked against the site's, was two encodings of one orientation).
+
     Read from the dataclass fields (a name grep would read a homonym local). Positive control: the same class still carries
-    ``quadrature``, ``face`` and ``trace``. Red input at the base tip: both fields exist.
+    ``quadrature`` and ``trace``. Red input at the base tip: the index fields, ``face`` and ``mesh`` exist.
     """
     from orpheus.sn.mesh.method_space import SNMethodSpace
 
     names = {f.name for f in dataclasses.fields(SNMethodSpace)}
-    assert {"quadrature", "face", "trace"} <= names, sorted(names)
-    assert not {"inflow_indices", "outflow_indices"} & names, sorted(names)
+    assert {"quadrature", "trace"} <= names, sorted(names)
+    assert not {"inflow_indices", "outflow_indices", "face", "mesh"} & names, sorted(names)

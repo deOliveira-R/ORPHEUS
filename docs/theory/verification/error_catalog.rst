@@ -3876,11 +3876,24 @@ older entries classify against.
    space no longer holds an index set, the guard checked an array the zero map never consumed, and the guard, its error class
    and the two index fields (``SNMethodSpace.inflow_indices``, ``outflow_indices``) retired together. What the guard protected
    is now a claim about the object the operators read: ``trace.inflow_space(face)`` holds exactly the ordinates with
-   :math:`\Omega\cdot n_f < 0` on that face, and the outflow space exactly those with :math:`> 0`. The marker
-   ``@pytest.mark.catches("ERR-041")`` is on
-   ``tests/gates/numerics/test_angular_trace_space.py::TestTheInflowHalfSpaceIsTheIncomingOrdinates`` (the per-face predicate is
-   written out from the quadrature's own direction cosines, a route that shares no code with ``face_normal``; mutate the sign in
-   ``face_normal`` or return the opposite tier from ``inflow_space`` and every row of the faces it moves reddens).
+   :math:`\Omega\cdot n_f < 0` on that face, and the outflow space exactly those with :math:`> 0`, and the realized zero map runs
+   from the outflow space to the inflow space of its own face. The marker ``@pytest.mark.catches("ERR-041")`` is on TWO witnesses,
+   one per side of the defect:
+
+   * the LADDER side, ``tests/gates/numerics/test_angular_trace_space.py::TestTheInflowHalfSpaceIsTheIncomingOrdinates`` (the
+     per-face predicate is written out from the quadrature's own direction cosines, a route that shares no code with
+     ``face_normal``; mutate the sign in ``face_normal`` or return the opposite tier from ``inflow_space`` and every row of the
+     faces it moves reddens);
+   * the REALIZER side,
+     ``tests/gates/sn/operators/test_sn_boundary_realizer.py::TestVacuumRealizesOnTheTrace::test_the_zero_map_runs_outflow_to_inflow_of_its_own_face``
+     (realizes vacuum through ``SN_REALIZERS`` on ``xmin`` and ``xmax`` and asserts the operator's domain and codomain against the
+     ladder's outflow and inflow spaces and the codomain's ordinates against the written-out incoming set). The ladder witness
+     cannot see the catalogued mechanism, a realizer that swaps the face's ``(inflow, outflow)`` annotation, because the ladder is
+     still right when the zero map's own spaces are swapped; `[M]` 2026-10-24, swapping the domain and codomain of
+     ``ZeroMap._derive_inner`` left the ladder witness green and reddened the realizer-side row.
+
+   The unknown-face refusal of the zero map is the sibling guarantee (``ZeroMap`` reads both half-traces at construction, so a face
+   the trace does not hold is refused at ``realize``, as every other arm refuses it).
 
    **Lesson:** Trace orientation is part of the BC's type signature.
    When the realiser layer (Wave 5) wires a BC to a trace, it MUST

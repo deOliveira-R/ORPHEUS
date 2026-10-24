@@ -137,13 +137,13 @@ _CASES: dict[str, tuple] = {
 }
 
 
-def _mirror_kernel(quad, method_space, *, axis: str, domain_face: str) -> PermutationOperator:
+def _mirror_kernel(quad, method_space, *, axis: str, face: str, domain_face: str) -> PermutationOperator:
     """The permutation the mirror of ``axis`` induces on the ordinates, as the realized operator gathers it: the ``PermutationOperator``
     inside ``ScaledOrdinatePermutation(1, pi, face, partner)`` (wave 2 S2b: the typed operator owns the body that ``_deck_kernel`` did)."""
     motion = mirror_motion(axis, 3)
     op = ScaledOrdinatePermutation(
         alpha=1.0, permutation=quad.ordinate_permutation(RigidMotion(motion.linear)),
-        face=method_space.face, partner=domain_face, trace=method_space.trace,
+        face=face, partner=domain_face, trace=method_space.trace,
     )
     return op.inner.ops[0]
 
@@ -156,11 +156,9 @@ def _fixture(case: str):
         [("xmin", (int(quad.n_ordinates), _NG)), ("xmax", (int(quad.n_ordinates), _NG))]
     )
     trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
-    method_space = SNMethodSpace.for_face(
-        quadrature=quad, face=face, trace=trace
-    )
+    method_space = SNMethodSpace(quadrature=quad, trace=trace)
     gamma_out = trace.outflow_restriction(face)
-    kernel = _mirror_kernel(quad, method_space, axis=axis, domain_face=face)
+    kernel = _mirror_kernel(quad, method_space, axis=axis, face=face, domain_face=face)
     return quad, trace, method_space, gamma_out, kernel, axis, face
 
 
@@ -580,10 +578,8 @@ def test_the_unbound_twin_is_the_control_of_every_refusal() -> None:
         [("xmin", (int(quad.n_ordinates), _NG)), ("xmax", (int(quad.n_ordinates), _NG))]
     )
     bound_trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
-    with_trace = SNMethodSpace.for_face(
-        quadrature=quad, face="xmin", trace=bound_trace
-    )
-    bound = _mirror_kernel(quad, with_trace, axis="x", domain_face="xmin")
+    with_trace = SNMethodSpace(quadrature=quad, trace=bound_trace)
+    bound = _mirror_kernel(quad, with_trace, axis="x", face="xmin", domain_face="xmin")
     unbound_twin = PermutationOperator(np.asarray(bound.perm).copy(), axis=0)
     assert unbound_twin.domain is None
     assert (unbound_twin @ unbound_twin).domain is None
@@ -613,9 +609,7 @@ def test_the_realized_operator_carries_the_binding() -> None:
         [("xmin", (int(quad.n_ordinates), _NG)), ("xmax", (int(quad.n_ordinates), _NG))]
     )
     trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
-    method_space = SNMethodSpace.for_face(
-        quadrature=quad, face="xmin", trace=trace
-    )
-    realized = _mirror_kernel(quad, method_space, axis="x", domain_face="xmin")
+    method_space = SNMethodSpace(quadrature=quad, trace=trace)
+    realized = _mirror_kernel(quad, method_space, axis="x", face="xmin", domain_face="xmin")
     assert realized.domain is trace.outflow_space("xmin")
     assert realized.codomain is trace.inflow_space("xmin")
