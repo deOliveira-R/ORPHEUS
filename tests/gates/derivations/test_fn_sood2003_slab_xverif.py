@@ -44,7 +44,7 @@ from orpheus.derivations.continuous.sood_registry import UA_1_0_SL_STUB
 from orpheus.derivations.continuous.fn_method.slab import (
     solve_fn_slab_bare_critical,
 )
-from orpheus.geometry import BC, StructuredGeometry
+from tests.gates.derivations import _posed_walls as walls_of
 from tests.gates.derivations.test_characteristic_system import _mixture
 
 
@@ -63,14 +63,12 @@ def _characteristic_k(geometry, mixture, degree: int) -> float:
     """The characteristic reference's k for one mixture on ``geometry``, at rung ``degree`` of the joint ladder,
     through the traced memo (served from the store, or generated in its own process)."""
     from orpheus.data.cells import CellCoefficient, Channel
-    from orpheus.data.materials import Materials
     from orpheus.derivations.continuous.characteristic import CharacteristicDerivation
     from orpheus.numerics.observable import Eigenvalue
     from orpheus.numerics.question import Eigen
-    from orpheus.specification.specification import GeometrySpecification
     from tests.gates.derivations._characteristic_ladders import rung
 
-    spec = GeometrySpecification(Materials({0: mixture}), geometry, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
+    spec = walls_of.spec(geometry, {0: mixture}, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
     return float(CharacteristicDerivation(spec, rung(degree)).evaluate(Eigenvalue()).value)
 
 
@@ -105,7 +103,7 @@ def test_fn_slab_vs_the_characteristic_slab_at_sood_ua_1_0_sl():
     )
 
     # The characteristic reference at the F_N-truth thickness should give k_eff = 1.
-    geometry = StructuredGeometry.slab((0.0, L_full_cm), (0,), left=BC.vacuum, right=BC.vacuum)
+    geometry = walls_of.slab((0.0, L_full_cm), (0,), left=walls_of.VACUUM, right=walls_of.VACUUM)
     k_eff_at_truth = _characteristic_k(geometry, case.materials[0], 4)
     err_va = abs(k_eff_at_truth - 1.0)
     assert err_va < 5e-5, (
@@ -132,7 +130,7 @@ def test_fn_slab_vs_the_characteristic_slab_at_grandjean_siewert_c150():
     a_fn = res_fn.a_critical_mfp  # in mfp = cm at sigma_t=1.
 
     # The characteristic reference at L = 2*a_fn using unit XS (sigma_s = 0, nu sigma_f = c).
-    geometry = StructuredGeometry.slab((0.0, 2.0 * a_fn), (0,), left=BC.vacuum, right=BC.vacuum)
+    geometry = walls_of.slab((0.0, 2.0 * a_fn), (0,), left=walls_of.VACUUM, right=walls_of.VACUUM)
     k_eff = _characteristic_k(geometry, _mixture([1.0], [[0.0]], None, [c], [1.0]), 4)
     err = abs(k_eff - 1.0)
     assert err < 1e-4, (

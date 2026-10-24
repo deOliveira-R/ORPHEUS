@@ -39,13 +39,12 @@ import numpy as np
 import pytest
 
 from orpheus.data.cells import CellCoefficient, Channel
-from orpheus.data.materials import Materials
 from orpheus.derivations.continuous.characteristic import CharacteristicDerivation, Resolution
 from orpheus.derivations.continuous.sood_registry import sood2003 as sood
-from orpheus.geometry import BC, StructuredGeometry
 from orpheus.numerics.observable import Eigenvalue, PointValue
 from orpheus.numerics.question import Eigen
 from orpheus.specification.specification import GeometrySpecification
+from tests.gates.derivations import _posed_walls as walls_of
 from tests.gates.derivations._characteristic_ladders import rung
 from tests.gates.derivations._ladder_rules import geometric_error
 from tests.gates.derivations.test_characteristic_system import _mixture
@@ -76,8 +75,7 @@ def _one_group(sigma_t: float, sigma_s: float, nu_sigma_f: float):
 
 
 def _vacuum_sphere(radius: float, mixture) -> GeometrySpecification:
-    return GeometrySpecification(Materials({0: mixture}), StructuredGeometry.sphere((0.0, radius), (0,), outer=BC.vacuum),
-                                 Eigen(_K))
+    return walls_of.spec(walls_of.sphere((0.0, radius), (0,), outer=walls_of.VACUUM), {0: mixture}, Eigen(_K))
 
 
 # ── PS-1982, the vacuum sphere ───────────────────────────────────────────
@@ -203,8 +201,8 @@ def test_k_is_one_at_the_one_group_cylinders_published_critical_radius_in_the_fa
     mixture = case.materials[0]
     printed = case.truth.critical_dimension_mfp
     assert printed is not None
-    geometry = StructuredGeometry.cylinder((0.0, printed / float(mixture.SigT[0])), (0,), outer=BC.vacuum)
-    k = _read(GeometrySpecification(Materials({0: mixture}), geometry, Eigen(_K)), Eigenvalue(), rung(2))
+    geometry = walls_of.cylinder((0.0, printed / float(mixture.SigT[0])), (0,), outer=walls_of.VACUUM)
+    k = _read(walls_of.spec(geometry, {0: mixture}, Eigen(_K)), Eigenvalue(), rung(2))
     assert abs(k - 1.0) < _UA_CY_FAST_BAND, k - 1.0
 
 
@@ -242,8 +240,8 @@ def test_k_is_one_at_the_one_group_cylinders_published_critical_radius() -> None
     assert abs(wm.r_c_cm * sigma_t / printed - 1.0) < 2e-6, (wm.r_c_cm * sigma_t, printed)
 
     def k_at(radius_mfp: float, p: int) -> float:
-        geometry = StructuredGeometry.cylinder((0.0, radius_mfp / sigma_t), (0,), outer=BC.vacuum)
-        return _read(GeometrySpecification(Materials({0: mixture}), geometry, Eigen(_K)), Eigenvalue(), rung(p))
+        geometry = walls_of.cylinder((0.0, radius_mfp / sigma_t), (0,), outer=walls_of.VACUUM)
+        return _read(walls_of.spec(geometry, {0: mixture}, Eigen(_K)), Eigenvalue(), rung(p))
 
     k2, k3, k4 = (k_at(printed, p) for p in (2, 3, 4))
     slope = (k_at(printed * (1.0 + 1e-4), 2) - k2) / (printed * 1e-4)

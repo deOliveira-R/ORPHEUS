@@ -33,7 +33,8 @@ from orpheus.derivations.continuous.singular_eigenfunction.slab.one_group import
 from orpheus.derivations.continuous.singular_eigenfunction.sphere.one_group import (
     solve_case_method_sphere_critical,
 )
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem
+from tests.gates.derivations import _posed_walls as walls_of
 
 
 # ----------------------------------------------------------------------
@@ -70,43 +71,28 @@ def _make_1g_anisotropic_mixture(
     )
 
 
-def _slab_geometry(R_albedo: float = 0.0) -> StructuredGeometry:
+def _slab_geometry(R_albedo: float = 0.0) -> walls_of.Posed:
     r"""Slab geometry with reflection coefficient R on BOTH faces: Atalay's
     slab solver puts one R on both, so the geometry declares it on both."""
     if R_albedo == 0.0:
-        face: BC = BC.vacuum
+        face = walls_of.VACUUM
     else:
-        face = BC("partial", {"albedo": R_albedo})
-    return StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, 2.0 * 0.93772556),
-        mat_ids=(0,),
-        boundaries=(face, face),
-    )
+        face = walls_of.partial(R_albedo)
+    return walls_of.posed(CoordSystem.CARTESIAN, (0.0, 2.0 * 0.93772556), (0,), (face, face))
 
 
-def _sphere_geometry(R_albedo: float = 0.0) -> StructuredGeometry:
+def _sphere_geometry(R_albedo: float = 0.0) -> walls_of.Posed:
     r"""Sphere geometry with reflection coefficient on the outer BC."""
     if R_albedo == 0.0:
-        outer_bc: BC = BC.vacuum
+        outer_bc = walls_of.VACUUM
     else:
-        outer_bc = BC("partial", {"albedo": R_albedo})
-    return StructuredGeometry(
-        coord=CoordSystem.SPHERICAL,
-        breakpoints=(0.0, 2.4248249802),
-        mat_ids=(0,),
-        boundaries=(outer_bc,),
-    )
+        outer_bc = walls_of.partial(R_albedo)
+    return walls_of.posed(CoordSystem.SPHERICAL, (0.0, 2.4248249802), (0,), (outer_bc,))
 
 
-def _cylinder_geometry() -> StructuredGeometry:
+def _cylinder_geometry() -> walls_of.Posed:
     r"""Bare cylinder geometry (Sood ``Ua-1-0-CY``)."""
-    return StructuredGeometry(
-        coord=CoordSystem.CYLINDRICAL,
-        breakpoints=(0.0, 1.72500292),
-        mat_ids=(0,),
-        boundaries=(BC.vacuum,),
-    )
+    return walls_of.posed(CoordSystem.CYLINDRICAL, (0.0, 1.72500292), (0,), (walls_of.VACUUM,))
 
 
 # ----------------------------------------------------------------------
@@ -119,7 +105,7 @@ def test_spectrum_constructs_with_structured_geometry() -> None:
     r"""``Spectrum`` accepts ``StructuredGeometry`` + ``dict[int, Mixture]``."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     geom = _slab_geometry()
-    spec = Spectrum(geometry=geom, materials={0: mix})
+    spec = Spectrum(**geom._asdict(), materials={0: mix})
     assert isinstance(spec, Spectrum)
     assert spec.geometry is geom
     assert spec.materials[0] is mix
@@ -133,14 +119,14 @@ def test_spectrum_rejects_anisotropic_cylinder() -> None:
     mix = _make_1g_anisotropic_mixture(1.0, 0.7, 0.6, f1=0.20)
     geom = _cylinder_geometry()
     with pytest.raises(NotImplementedError, match="cylinder \\+ linear"):
-        Spectrum(geometry=geom, materials={0: mix})
+        Spectrum(**geom._asdict(), materials={0: mix})
 
 
 @pytest.mark.foundation
 def test_spectrum_c_property_isotropic_matches_textbook() -> None:
     r"""``Spectrum.c`` returns :math:`(\Sigma_s + \nu\Sigma_f)/\Sigma_t`."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
-    spec = Spectrum(geometry=_slab_geometry(), materials={0: mix})
+    spec = Spectrum(**_slab_geometry()._asdict(), materials={0: mix})
     expected = (0.7 + 0.6) / 1.0
     assert spec.c == expected
     assert spec.n_groups == 1
@@ -151,7 +137,7 @@ def test_spectrum_c_property_isotropic_matches_textbook() -> None:
 def test_spectrum_f1_property_extracts_from_sigs1() -> None:
     r"""``Spectrum.f1`` returns :math:`\Sigma_{s,1}/\Sigma_{s,0}`."""
     mix = _make_1g_anisotropic_mixture(1.0, 0.7, 0.6, f1=0.25)
-    spec = Spectrum(geometry=_slab_geometry(), materials={0: mix})
+    spec = Spectrum(**_slab_geometry()._asdict(), materials={0: mix})
     assert abs(spec.f1 - 0.25) < 1e-15
 
 
@@ -168,7 +154,7 @@ def test_cylinder_bit_equality_with_function_api() -> None:
     n_grid=spec.n_modes)``."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     spec = Spectrum(
-        geometry=_cylinder_geometry(), materials={0: mix}, n_modes=24
+        **_cylinder_geometry()._asdict(), materials={0: mix}, n_modes=24
     )
     c_extracted = spec.c
 
@@ -197,7 +183,7 @@ def test_slab_bit_equality_with_function_api() -> None:
     ``solve_case_method_slab_critical``."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     spec = Spectrum(
-        geometry=_slab_geometry(), materials={0: mix}, n_modes=8
+        **_slab_geometry()._asdict(), materials={0: mix}, n_modes=8
     )
     c_extracted = spec.c
 
@@ -217,7 +203,7 @@ def test_sphere_bit_equality_with_function_api() -> None:
     ``solve_case_method_sphere_critical``."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     spec = Spectrum(
-        geometry=_sphere_geometry(), materials={0: mix}, n_modes=8
+        **_sphere_geometry()._asdict(), materials={0: mix}, n_modes=8
     )
     c_extracted = spec.c
 
@@ -236,7 +222,7 @@ def test_slab_anisotropic_bit_equality_with_function_api() -> None:
     from the Mixture and forwards it to the underlying solver."""
     mix = _make_1g_anisotropic_mixture(1.0, 0.7, 0.6, f1=0.20)
     spec = Spectrum(
-        geometry=_slab_geometry(), materials={0: mix}, n_modes=8
+        **_slab_geometry()._asdict(), materials={0: mix}, n_modes=8
     )
 
     f1_extracted = spec.f1
@@ -250,12 +236,12 @@ def test_slab_anisotropic_bit_equality_with_function_api() -> None:
 
 @pytest.mark.foundation
 def test_slab_partial_reflection_bc_routing() -> None:
-    r"""``BC("partial", {"albedo": R})`` flows through to the underlying
+    r"""``walls_of.partial(R)`` flows through to the underlying
     solver's ``R`` parameter, returning the reflected-slab critical
     half-thickness."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     geom = _slab_geometry(R_albedo=0.50)
-    spec = Spectrum(geometry=geom, materials={0: mix}, n_modes=8)
+    spec = Spectrum(**geom._asdict(), materials={0: mix}, n_modes=8)
 
     sol = spec.solve_critical()
     res = solve_case_method_slab_critical(
@@ -276,7 +262,7 @@ def test_critical_solution_is_correct_type() -> None:
     :class:`CriticalSolution` type."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     spec = Spectrum(
-        geometry=_cylinder_geometry(), materials={0: mix}, n_modes=24
+        **_cylinder_geometry()._asdict(), materials={0: mix}, n_modes=24
     )
     sol = spec.solve_critical()
     assert isinstance(sol, CriticalSolution)
@@ -299,7 +285,7 @@ def test_solve_fixed_source_returns_flux_solution_for_cylinder() -> None:
     :class:`FluxSolution`."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     spec = Spectrum(
-        geometry=_cylinder_geometry(), materials={0: mix}, n_modes=24
+        **_cylinder_geometry()._asdict(), materials={0: mix}, n_modes=24
     )
     flux = spec.solve_fixed_source(n_eval=32)
     assert isinstance(flux, FluxSolution)
@@ -316,7 +302,7 @@ def test_solve_fixed_source_rejects_slab() -> None:
     r"""Slab flux reconstruction is owned by the F_N pillar."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     spec = Spectrum(
-        geometry=_slab_geometry(), materials={0: mix}, n_modes=8
+        **_slab_geometry()._asdict(), materials={0: mix}, n_modes=8
     )
     with pytest.raises(NotImplementedError, match="F_N pillar"):
         spec.solve_fixed_source()
@@ -327,7 +313,7 @@ def test_solve_fixed_source_rejects_sphere() -> None:
     r"""Sphere flux reconstruction is owned by the F_N pillar (KLL)."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     spec = Spectrum(
-        geometry=_sphere_geometry(), materials={0: mix}, n_modes=8
+        **_sphere_geometry()._asdict(), materials={0: mix}, n_modes=8
     )
     with pytest.raises(NotImplementedError, match="F_N pillar"):
         spec.solve_fixed_source()
@@ -343,7 +329,7 @@ def test_spectrum_rejects_n_modes_too_small() -> None:
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     with pytest.raises(ValueError, match="n_modes"):
         Spectrum(
-            geometry=_slab_geometry(), materials={0: mix}, n_modes=1
+            **_slab_geometry()._asdict(), materials={0: mix}, n_modes=1
         )
 
 
@@ -351,14 +337,9 @@ def test_spectrum_rejects_n_modes_too_small() -> None:
 def test_spectrum_rejects_missing_mat_id() -> None:
     """Region's mat_id must be present in the materials dict."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
-    geom = StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, 1.88),
-        mat_ids=(42,),
-        boundaries=(BC.vacuum, BC.vacuum),
-    )
+    geom = walls_of.posed(CoordSystem.CARTESIAN, (0.0, 1.88), (42,), (walls_of.VACUUM, walls_of.VACUUM))
     with pytest.raises(ValueError, match="mat_id=42"):
-        Spectrum(geometry=geom, materials={0: mix})
+        Spectrum(**geom._asdict(), materials={0: mix})
 
 
 @pytest.mark.foundation
@@ -367,7 +348,7 @@ def test_spectrum_rejects_subcritical_medium() -> None:
     configuration — Spectrum rejects it explicitly."""
     mix = _make_1g_mixture(1.0, 0.7, 0.2)  # c = 0.9 < 1
     spec = Spectrum(
-        geometry=_cylinder_geometry(), materials={0: mix}, n_modes=24
+        **_cylinder_geometry()._asdict(), materials={0: mix}, n_modes=24
     )
     with pytest.raises(ValueError, match="c > 1"):
         spec.solve_critical()

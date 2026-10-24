@@ -58,6 +58,9 @@ from typing import Any, Callable, Literal
 
 import numpy as np
 
+from orpheus.specification.exterior import WallAmplitudes
+from orpheus.values.content import FrozenMapping
+
 
 OperatorForm = Literal[
     "homogeneous",           # infinite medium; k from matrix eigenvalue
@@ -69,13 +72,30 @@ OperatorForm = Literal[
 ]
 
 
-BoundaryCondition = Literal[
+ReferenceBoundaryKind = Literal[
     "vacuum",
     "reflective",
-    "white",       # isotropic return — CP convention
-    "marshak",     # diffusion mixed BC
+    "white",        # isotropic return — CP convention
+    "white_rank2",  # the rank-2 (two-term) approximation of the isotropic return (Peierls-Nystrom cylinder and sphere)
+    "marshak",      # diffusion mixed BC
+    "zero_flux",    # diffusion: the flux vanishes at the face (cases/diffusion.py)
     "periodic",
 ]
+"""The boundary kinds a reference states for itself, by name: plain data of the reference, never a production type.
+
+The name ``BoundaryCondition`` is the production abstract base of
+``orpheus.transport.boundary_conditions``, and two things under one name is what the wave-2
+carve retired; this alias is the reference's own string vocabulary (``ProblemSpec.boundary_kinds``).
+"""
+
+
+VACUUM_TAG = 0
+"""The one tag a bare reference body carries on every boundary face (equal declarations share a tag)."""
+
+VACUUM_EXTERIOR: FrozenMapping[int, WallAmplitudes] = FrozenMapping({VACUUM_TAG: WallAmplitudes(0.0, 0.0)})
+"""The ``exterior`` that binds :data:`VACUUM_TAG` to the vacuum wall (nothing returned): the reference's own plain
+data, which a specification takes beside the geometry and a production solve of the same body receives through the
+test-side loop ``tests/gates/_reference_pairing.py``."""
 
 
 GeometryType = Literal[
@@ -149,8 +169,8 @@ class ProblemSpec:
         For ``"sphere-1d"`` / ``"cylinder-1d"``:
         ``{"radius": float, "radii": list, "mat_ids": list}``.
         For ``"cartesian-2d"``: ``{"lx": float, "ly": float, ...}``.
-    boundary_conditions : dict[str, BoundaryCondition]
-        Face-labelled BCs. For 1D slab, keys are ``"left"``, ``"right"``.
+    boundary_kinds : dict[str, ReferenceBoundaryKind]
+        Face-labelled boundary kinds (the keyword is not ``boundary_conditions``, the name of the production keyword it is not). For 1D slab, keys are ``"left"``, ``"right"``.
         For 1D radial, key is ``"outer"`` (inner is always ``r=0`` symmetry).
     is_eigenvalue : bool
         True if the problem is k-eigenvalue, False for fixed-source.
@@ -161,7 +181,7 @@ class ProblemSpec:
     materials: dict[int, Any]
     geometry_type: GeometryType
     geometry_params: dict[str, Any]
-    boundary_conditions: dict[str, BoundaryCondition]
+    boundary_kinds: dict[str, ReferenceBoundaryKind]
     is_eigenvalue: bool = True
     n_groups: int = 1
 

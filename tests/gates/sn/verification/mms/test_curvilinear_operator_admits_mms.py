@@ -60,6 +60,14 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn._test_helpers import radial_characteristic_edge_seed
+from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
+from tests.gates._exterior import conditions_for
+from tests.gates._reference_pairing import conditions_of
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``). The manufactured cases' meshes carry the one tag
+#: ``VACUUM_TAG``, which the reference states as the vacuum wall (``VACUUM_EXTERIOR``): the test-side loop binds it for production.
+_CONDITIONS = conditions_of(VACUUM_EXTERIOR)
 
 
 def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
@@ -68,7 +76,7 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     Q = case.external_source(mesh)
     problem = _as_problem(
         mesh, case.quadrature, case.materials, mat_map=None,
-     scattering_order=0)
+     scattering_order=0, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     solver = SNSolver(
         problem, inner_solver="source_iteration", max_inner=10, inner_tol=1e-13,
     )

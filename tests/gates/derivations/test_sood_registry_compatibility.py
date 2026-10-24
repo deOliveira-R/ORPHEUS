@@ -219,14 +219,17 @@ def test_solve_cp_accepts_registry_sphere_case() -> None:
     import math
 
     from orpheus.cp.solver import CPParams, solve_cp
+    from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
     from orpheus.mesh import CellsByCount, Mesher
+    from tests.gates._reference_pairing import conditions_of
 
     case = UA_1_0_SP_STUB
     materials = case.materials
     mesh = Mesher(case.to_geometry()).partition(CellsByCount.uniform_volume(32)).mesh
     params = CPParams(max_outer=50, keff_tol=1e-4, flux_tol=1e-3)
 
-    result = solve_cp(materials, mesh, params)
+    # the registry's one tag is the vacuum wall (``VACUUM_EXTERIOR``); the test-side loop binds it for production
+    result = solve_cp(materials, mesh, params, boundary_conditions=conditions_of(VACUUM_EXTERIOR))
     assert math.isfinite(result.keff), (
         f"solve_cp(Ua-1-0-SP) returned non-finite keff: {result.keff}"
     )
@@ -241,15 +244,17 @@ def test_solve_sn_accepts_registry_slab_case() -> None:
     r"""Bridge smoke: ``solve_sn`` accepts the registry's ``Ua-1-0-SL``
     materials + mesh + a Gauss-Legendre quadrature without raising.
 
-    Same structural-bridge gate as above. The mesh BCs are vacuum at
-    both ends; SN consumes them via :class:`SNProblem` boundary
-    handling.
+    Same structural-bridge gate as above. The mesh's faces carry the
+    registry's one vacuum tag at both ends; the solve binds it to the vacuum
+    condition (``boundary_conditions``), which :class:`SNProblem` realizes.
     """
     import math
 
+    from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.sn.solver import solve_sn
+    from tests.gates._reference_pairing import conditions_of
 
     case = UA_1_0_SL_STUB
     materials = case.materials
@@ -258,7 +263,7 @@ def test_solve_sn_accepts_registry_slab_case() -> None:
 
     result = solve_sn(
         materials, mesh, quadrature,
-        max_outer=50, keff_tol=1e-4, flux_tol=1e-3,
+        max_outer=50, keff_tol=1e-4, flux_tol=1e-3, boundary_conditions=conditions_of(VACUUM_EXTERIOR),
     )
     assert math.isfinite(result.outcome.keff), (
         f"solve_sn(Ua-1-0-SL) returned non-finite keff: {result.outcome.keff}"

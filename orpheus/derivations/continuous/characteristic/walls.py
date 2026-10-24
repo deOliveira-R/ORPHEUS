@@ -1,8 +1,8 @@
-r"""The walls of a concentric body: each boundary point with what its law returns.
+r"""The walls of a concentric body: each boundary point with what its face role returns.
 
 A wall is a boundary point of the domain :math:`[r_0, r_n]`, named by its
 breakpoint index (:math:`0` or :math:`n`, never by its position in a tuple),
-with the three numbers the characteristic closure needs from its law:
+with the three numbers the characteristic closure needs from its face:
 
 * the **specular** amplitude, returned along the reflected line (or, across a
   wrap, along the translated line);
@@ -11,50 +11,50 @@ with the three numbers the characteristic closure needs from its law:
   wall itself for a mirror and for diffuse re-emission, the opposite wall for
   a periodic wrap.
 
-**One reader.** Every wall is read from its law's two factors, the deck
-(``geometry_map``) and the response (``response_kernel``), by one table
-(``_wall_of``). A ``BC`` tag is first parsed into the typed law it names
-by the reference's own registry (:data:`TAG_REGISTRY`), so a tag and its law
-cannot be read differently.
+The first two are one value, :class:`~orpheus.specification.exterior.WallAmplitudes`
+(the cone coordinates :math:`(s, d)` of the wall's linear part), which :class:`Wall`
+COMPOSES, so the wall's bounds have one owner and this module states no wall invariant of its own.
 
-**Why the registry is the reference's own.** A tag is a name each method
-resolves through its own registry. Production's parse
-(``orpheus.transport.method._law_from_tag``) is versatile and changes with
-production, and a closed reference must not move when production does (the
-user's ruling of 2026-10-06, P1 step (b)). The two parses are a declared
-duplicate across the branch line, recorded in the conceptual view.
+**One reader, two plain inputs.** A boundary face of the geometry carries a
+role, and :meth:`Walls.of` reads it by one exhaustive ``match``:
+
+* a :class:`~orpheus.geometry.deck.MirrorDeck` is a mirror returning
+  everything along the reflected line, :math:`(1, 0)`, to the wall itself;
+* a :class:`~orpheus.geometry.deck.TranslationDeck` is a wrap returning
+  everything along the translated line, :math:`(1, 0)`, to the opposite wall;
+* an integer tag is a wall the specification's ``exterior`` states: the
+  ``WallAmplitudes`` of that tag, returned to the wall itself.
+
+A deck states its own response (a symmetry of the domain needs no entry), and
+a tag's response is the reference's own closed value; this reference imports
+no production response and no typed boundary law (the user's ruling of
+2026-10-06, P1 step (b), kept by the wave-2 carve: references closed,
+production versatile). The old string-tag registry, which parsed a tag into
+a typed law of the retired law family, is gone with the family: the
+interface between a reference and production is plain data, crossed by the
+one test-side loop ``tests/gates/_reference_pairing.py``.
+
+What the vocabulary cannot state (a prescribed inflow, a combined
+specular-and-diffuse wall, a zero flux) has no spelling in
+``WallAmplitudes``, and the specification refuses it where it is built; a
+curved face's wrap is a geometry refusal
+(:class:`~orpheus.geometry.deck.DeckError`) before any wall is read.
 """
 
 from __future__ import annotations
 
 import operator
-from collections.abc import Callable
-from typing import NoReturn
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from typing import NoReturn
 
 import numpy as np
 
-from orpheus.geometry.boundary import (
-    BC,
-    AlbedoBoundary,
-    BoundaryTraceLaw,
-    LambertianReemission,
-    NoSource,
-    PairedDeck,
-    PeriodicBoundary,
-    ReflectiveBoundary,
-    ScalarResponse,
-    SelfPairedDeck,
-    SpecularReemission,
-    SpecularReturn,
-    VacuumInflow,
-    WhiteBoundary,
-)
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.chord import ConcentricPartition
+from orpheus.geometry.deck import FaceRole, MirrorDeck, TranslationDeck
 from orpheus.geometry.structured_geometry import StructuredGeometry
-from orpheus.values.scalars import parse_real
-
+from orpheus.specification.exterior import WallAmplitudes
 
 
 def end_on(breakpoint: np.ndarray | int, partition: ConcentricPartition) -> np.ndarray:
@@ -75,46 +75,46 @@ def _refuse(what: str, missing: str) -> NoReturn:
 
 @dataclass(frozen=True)
 class Wall:
-    r"""One boundary point and what its law returns: specular or diffuse, never both, never more than it receives.
+    r"""One boundary point and what it returns: its amplitudes, and where the returned path re-enters.
 
-    SCOPE-BOUNDARY[guard] machinery: a wall returning both a specular and a diffuse part (a law sum's reader arm and its gates).
-    ruling: the user, 2026-10-06, P1 step (b) third rung (`.claude/plans/characteristic_reference_architecture.md`); the SN realizer refuses a LawSum too.
-    revisit: when production poses a specular-plus-diffuse wall, the reader reads it and this refusal goes; the white walls' balance (`LineRule.transport`) then counts a diffuse wall's specular return, which it now assumes is zero.
+    The amplitudes are one :class:`~orpheus.specification.exterior.WallAmplitudes`, which owns the wall's
+    invariant (each amplitude in :math:`[0, 1]`, never more returned than received, specular or diffuse and
+    never both), so a wall that violates it cannot be built and this class states none of it. ``specular``
+    and ``diffuse`` are read-only views of it.
 
     Attributes
     ----------
     breakpoint:
         The breakpoint index of the boundary point, :math:`0` or :math:`n`.
-    specular:
-        The amplitude returned along the reflected (or translated) line, in :math:`[0, 1]`.
-    diffuse:
-        The amplitude returned isotropically, in :math:`[0, 1]`.
+    amplitudes:
+        The cone coordinates :math:`(s, d)` of the wall: the amplitude returned along the reflected (or translated)
+        line and the amplitude returned isotropically.
     partner:
         The breakpoint at which the returned path re-enters.
     """
 
     breakpoint: int
-    specular: float
-    diffuse: float
+    amplitudes: WallAmplitudes
     partner: int
 
     def __post_init__(self) -> None:
-        # one value, one memo key: the indices as ``int``, the amplitudes as canonical ``float`` (``-0.0`` folded)
+        # one value, one memo key: the indices as ``int``; the amplitudes arrive parsed (a ``WallAmplitudes`` is canonical)
         object.__setattr__(self, "breakpoint", operator.index(self.breakpoint))
         object.__setattr__(self, "partner", operator.index(self.partner))
-        object.__setattr__(self, "specular", parse_real(self.specular, f"the specular amplitude at breakpoint {self.breakpoint}"))
-        object.__setattr__(self, "diffuse", parse_real(self.diffuse, f"the diffuse amplitude at breakpoint {self.breakpoint}"))
-        if not (0.0 <= self.specular <= 1.0 and 0.0 <= self.diffuse <= 1.0 and self.specular + self.diffuse <= 1.0):
-            _refuse(
-                f"wall at breakpoint {self.breakpoint} returning (specular {self.specular}, "
-                f"diffuse {self.diffuse})",
-                "a returned amplitude outside [0, 1], or returning more than it receives, is not a physical wall",
+        if not isinstance(self.amplitudes, WallAmplitudes):
+            raise TypeError(
+                f"Wall: the amplitudes at breakpoint {self.breakpoint} are a WallAmplitudes, got a {type(self.amplitudes).__name__}"
             )
-        if self.specular > 0.0 and self.diffuse > 0.0:
-            _refuse(
-                f"wall at breakpoint {self.breakpoint} returning both specular {self.specular} and diffuse {self.diffuse}",
-                "a wall is specular or diffuse, as production poses it",
-            )
+
+    @property
+    def specular(self) -> float:
+        """The amplitude returned along the reflected (or translated) line."""
+        return self.amplitudes.specular
+
+    @property
+    def diffuse(self) -> float:
+        """The amplitude returned isotropically."""
+        return self.amplitudes.diffuse
 
 
 @dataclass(frozen=True)
@@ -162,13 +162,13 @@ class Walls:
                 )
 
     @classmethod
-    def of(cls, geometry: StructuredGeometry) -> "Walls":
-        r"""The walls of ``geometry``: each boundary law read through its factors."""
+    def of(cls, geometry: StructuredGeometry, exterior: Mapping[int, WallAmplitudes]) -> "Walls":
+        r"""The walls of ``geometry``: each boundary face's role read, a deck as itself and a tag through ``exterior``."""
         n = len(geometry.breakpoints) - 1
         indices = (n,) if len(geometry.boundary_points) == 1 else (0, n)
         walls = tuple(
-            _wall_of(_law_of(declared, outward_sign=-1 if k == 0 else +1), k, opposite=n - k)
-            for declared, k in zip(geometry.boundaries, indices, strict=True)
+            _wall_at_face(role, k, opposite=n - k, exterior=exterior)
+            for role, k in zip(geometry.face_roles, indices, strict=True)
         )
         return cls(walls, n, Chart(geometry.coord))
 
@@ -213,79 +213,20 @@ class Walls:
         """The breakpoint at which the path returned at each breakpoint re-enters; 0 where ``where`` is False."""
         return self._at([w.partner for w in self.walls], breakpoint, where)
 
-# ── the reference's tag registry ─────────────────────────────────────────
+# ── the one reader: a face role to a wall ────────────────────────────────
 
 
-def _parameters(tag: BC, *names: str) -> tuple[float, ...]:
-    r"""The tag's parameters ``names``, exactly: a missing or an undeclared one is refused, never dropped."""
-    if set(tag.params) != set(names):
-        _refuse(
-            f"boundary tag {tag!r}",
-            f"the tag kind {tag.kind!r} takes exactly the parameters {list(names)}",
-        )
-    return tuple(float(tag.params[name]) for name in names)
+def _wall_at_face(role: FaceRole, breakpoint: int, *, opposite: int, exterior: Mapping[int, WallAmplitudes]) -> Wall:
+    r"""The wall at ``breakpoint`` that a face role states: a deck states its own, a tag is looked up in ``exterior``."""
+    match role:
+        case MirrorDeck():
+            return Wall(breakpoint, WallAmplitudes(1.0, 0.0), breakpoint)
+        case TranslationDeck():
+            return Wall(breakpoint, WallAmplitudes(1.0, 0.0), opposite)
+        case int():
+            if role not in exterior:
+                raise ValueError(f"the face at breakpoint {breakpoint} carries tag {role}, which the exterior {sorted(exterior)} does not state")
+            return Wall(breakpoint, exterior[role], breakpoint)
 
 
-#: Each tag kind the reference admits, with the wall's outward sign, to the law it names.
-#: Partial white has no tag here: it is spelled as the typed ``WhiteBoundary(albedo=...)``.
-TAG_REGISTRY: dict[str, Callable[[BC, int], BoundaryTraceLaw]] = {
-    "vacuum": lambda tag, sign: (_parameters(tag), VacuumInflow())[1],
-    "reflective": lambda tag, sign: (_parameters(tag), ReflectiveBoundary(axis="x"))[1],
-    "partial": lambda tag, sign: AlbedoBoundary(*_parameters(tag, "albedo"), SpecularReturn(axis="x")),
-    "white": lambda tag, sign: (_parameters(tag), WhiteBoundary(axis="x", outward_sign=sign))[1],
-    "periodic": lambda tag, sign: (_parameters(tag), PeriodicBoundary(axis="x"))[1],
-}
-
-
-def _law_of(declared: BC | BoundaryTraceLaw, *, outward_sign: int) -> BoundaryTraceLaw:
-    r"""The typed law a boundary declaration names: a law as it is, a tag through the registry."""
-    if isinstance(declared, BoundaryTraceLaw):
-        return declared
-    parse = TAG_REGISTRY.get(declared.kind)
-    if parse is None:
-        _refuse(
-            f"boundary tag {declared!r}",
-            f"the reference admits the tag kinds {sorted(TAG_REGISTRY)}",
-        )
-    return parse(declared, outward_sign)
-
-
-# ── the one reader: a law's two factors to a wall ────────────────────────
-
-
-def _wall_of(law: BoundaryTraceLaw, breakpoint: int, *, opposite: int) -> Wall:
-    r"""The wall at ``breakpoint`` that ``law`` declares, read from its deck and its response.
-
-    **SCOPE-BOUNDARY[guard]** machinery: a boundary-source question (an inflow the closure adds), and an unstated re-emission shape.
-    ruling: the user, 2026-10-06, P1 step (b) first rung (`.claude/plans/characteristic_reference_architecture.md`).
-    revisit: when the reference vocabulary gains a boundary-source question, the source arm is served.
-    """
-    if not isinstance(law.source, NoSource):
-        _refuse(
-            f"boundary law {law!r} with an inflow source",
-            "the reference's questions carry no boundary source",
-        )
-    deck, response = law.geometry_map, law.response_kernel
-    match deck, response:
-        case PairedDeck(), ScalarResponse() if response.amplitude == 1.0:
-            wall = Wall(breakpoint, 1.0, 0.0, opposite)
-        case SelfPairedDeck(), ScalarResponse() if not deck.is_identity and response.amplitude == 1.0:
-            wall = Wall(breakpoint, 1.0, 0.0, breakpoint)
-        case SelfPairedDeck(), ScalarResponse() if deck.is_identity and response.is_zero:
-            wall = Wall(breakpoint, 0.0, 0.0, breakpoint)
-        case SelfPairedDeck(), SpecularReemission() if deck.is_identity:
-            wall = Wall(breakpoint, response.amplitude, 0.0, breakpoint)
-        case SelfPairedDeck(), LambertianReemission() if deck.is_identity:
-            wall = Wall(breakpoint, 0.0, response.amplitude, breakpoint)
-        case _:
-            _refuse(
-                f"boundary law {law!r}",
-                f"no wall reads from the deck {type(deck).__name__} with the response "
-                f"{response!r}: a wall is vacuum (the identity deck, nothing returned), a mirror "
-                "or a wrap returning everything, or a specular or Lambertian re-emission on the "
-                "identity deck; anything else is an unstated re-emission shape or no transport wall",
-            )
-    return wall
-
-
-__all__ = ["TAG_REGISTRY", "Wall", "Walls", "end_on"]
+__all__ = ["Wall", "Walls", "end_on"]

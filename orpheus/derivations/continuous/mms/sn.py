@@ -65,10 +65,11 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.numerics.quadrature import Quadrature
 
 from ...common.continuous_reference import (
+    VACUUM_TAG,
     ContinuousReferenceSolution,
     ProblemSpec,
     Provenance,
@@ -82,10 +83,11 @@ if TYPE_CHECKING:
     import sympy as sp
 
 
-_VACUUM_FACES_2D = {face: BC("vacuum") for face in ("xmin", "xmax", "ymin", "ymax")}
-"""The laws of the 2-D manufactured boxes here: each manufactured solution is a
+_VACUUM_FACES_2D = {face: VACUUM_TAG for face in ("xmin", "xmax", "ymin", "ymax")}
+"""The face roles of the 2-D manufactured boxes here: each manufactured solution is a
 product of ``sin(pi x / L_x)`` and ``sin(pi y / L_y)`` factors, which vanishes on
-all four faces, so the inflow the solution prescribes is vacuum."""
+all four faces, so the inflow the solution prescribes is vacuum, and the four faces carry the one
+vacuum tag (:data:`~orpheus.derivations.common.continuous_reference.VACUUM_EXTERIOR` binds it)."""
 
 @dataclass(frozen=True)
 class SNSlabMMSCase:
@@ -146,7 +148,7 @@ class SNSlabMMSCase:
         """Uniform Cartesian slab mesh with ``n_cells`` equal cells."""
         return Mesher(StructuredGeometry.slab(
             (0.0, self.slab_length), (self.mat_id,),
-            left=BC("vacuum"), right=BC("vacuum"),
+            left=VACUUM_TAG, right=VACUUM_TAG,
         )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
@@ -416,7 +418,7 @@ class SNSlab2GHeterogeneousMMSCase:
         # each cell samples them at its centre as its own material.
         return Mesher(StructuredGeometry.slab(
             np.linspace(0.0, self.slab_length, n_cells + 1), range(n_cells),
-            left=BC("vacuum"), right=BC("vacuum"),
+            left=VACUUM_TAG, right=VACUUM_TAG,
         )).partition(CellsByCount.uniform_width(1)).mesh
 
     def build_materials(self, mesh: Mesh1D) -> dict[int, Mixture]:
@@ -722,7 +724,7 @@ class SN2DCartesianMMSCase:
         edges_x = np.linspace(0.0, self.length_x, nx + 1)
         edges_y = np.linspace(0.0, self.length_y, ny + 1)
         mat_map = np.full((nx, ny), self.mat_id, dtype=int)
-        return Mesh2D(edges_x, edges_y, mat_map, face_laws=_VACUUM_FACES_2D)
+        return Mesh2D(edges_x, edges_y, mat_map, face_roles=_VACUUM_FACES_2D)
 
     def external_source(self, mesh: Mesh2D) -> np.ndarray:
         r"""Per-ordinate external source on a 2D mesh.
@@ -874,7 +876,7 @@ class SN2DCartesian2GHeterogeneousMMSCase:
         edges_x = np.linspace(0.0, self.length_x, nx + 1)
         edges_y = np.linspace(0.0, self.length_y, ny + 1)
         mat_map = np.arange(nx * ny, dtype=int).reshape(nx, ny)
-        return Mesh2D(edges_x, edges_y, mat_map, face_laws=_VACUUM_FACES_2D)
+        return Mesh2D(edges_x, edges_y, mat_map, face_roles=_VACUUM_FACES_2D)
 
     def build_materials(self, mesh: Mesh2D) -> dict[int, Mixture]:
         """Build per-cell materials by sampling Σ(x,y) at cell centres."""
@@ -1484,7 +1486,7 @@ class SN2DCartesianLDStressMMSCase:
         mat_map = np.arange(nx * ny, dtype=int).reshape(nx, ny)
         return Mesh2D(
             edges_x, edges_y, mat_map,
-            face_laws=_VACUUM_FACES_2D, coord=CoordSystem.CARTESIAN,
+            face_roles=_VACUUM_FACES_2D, coord=CoordSystem.CARTESIAN,
         )
 
     def build_materials(self, mesh: Mesh2D) -> dict[int, Mixture]:
@@ -1863,7 +1865,7 @@ class SNP1AnisoMMSCase:
     def build_mesh(self, n_cells: int) -> Mesh1D:
         return Mesher(StructuredGeometry.slab(
             (0.0, self.slab_length), (self.mat_id,),
-            left=BC("vacuum"), right=BC("vacuum"),
+            left=VACUUM_TAG, right=VACUUM_TAG,
         )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
@@ -1992,7 +1994,7 @@ class SNSphericalMMSCase:
 
     def build_mesh(self, n_cells: int) -> Mesh1D:
         return Mesher(StructuredGeometry.sphere(
-            (0.0, self.radius), (self.mat_id,), outer=BC("vacuum"),
+            (0.0, self.radius), (self.mat_id,), outer=VACUUM_TAG,
         )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
@@ -2074,7 +2076,7 @@ class SNCylindricalMMSCase:
 
     def build_mesh(self, n_cells: int) -> Mesh1D:
         return Mesher(StructuredGeometry.cylinder(
-            (0.0, self.radius), (self.mat_id,), outer=BC("vacuum"),
+            (0.0, self.radius), (self.mat_id,), outer=VACUUM_TAG,
         )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
@@ -2159,7 +2161,7 @@ def _build_heterogeneous_continuous_reference() -> ContinuousReferenceSolution:
                 "length": mms_case.slab_length,
                 "mms_case": mms_case,  # concrete handle for test consumers
             },
-            boundary_conditions={"left": "vacuum", "right": "vacuum"},
+            boundary_kinds={"left": "vacuum", "right": "vacuum"},
 # constructed per-mesh by mms_case.external_source(mesh)
             is_eigenvalue=False,
             n_groups=mms_case.n_groups,
@@ -2233,7 +2235,7 @@ def _build_2d_cartesian_continuous_reference() -> ContinuousReferenceSolution:
                 "length_y": mms_case.length_y,
                 "mms_case": mms_case,
             },
-            boundary_conditions={
+            boundary_kinds={
                 "left": "vacuum", "right": "vacuum",
                 "bottom": "vacuum", "top": "vacuum",
             },
@@ -2297,7 +2299,7 @@ def _build_2d_cartesian_2g_continuous_reference() -> ContinuousReferenceSolution
                 "length_y": mms_case.length_y,
                 "mms_case": mms_case,
             },
-            boundary_conditions={
+            boundary_kinds={
                 "left": "vacuum", "right": "vacuum",
                 "bottom": "vacuum", "top": "vacuum",
             },
@@ -2350,7 +2352,7 @@ def _build_spherical_continuous_reference() -> ContinuousReferenceSolution:
             materials=mms.materials,
             geometry_type="sphere",
             geometry_params={"radius": mms.radius, "mms_case": mms},
-            boundary_conditions={"inner": "reflective", "outer": "vacuum"},
+            boundary_kinds={"inner": "reflective", "outer": "vacuum"},
 is_eigenvalue=False, n_groups=1,
         ),
         operator_form="differential-sn",
@@ -2383,7 +2385,7 @@ def _build_cylindrical_continuous_reference() -> ContinuousReferenceSolution:
             materials=mms.materials,
             geometry_type="cylinder",
             geometry_params={"radius": mms.radius, "mms_case": mms},
-            boundary_conditions={"inner": "reflective", "outer": "vacuum"},
+            boundary_kinds={"inner": "reflective", "outer": "vacuum"},
 is_eigenvalue=False, n_groups=1,
         ),
         operator_form="differential-sn",
@@ -2416,7 +2418,7 @@ def _build_p1_aniso_continuous_reference() -> ContinuousReferenceSolution:
             materials=mms.materials,
             geometry_type="slab",
             geometry_params={"length": mms.slab_length, "mms_case": mms},
-            boundary_conditions={"left": "vacuum", "right": "vacuum"},
+            boundary_kinds={"left": "vacuum", "right": "vacuum"},
 is_eigenvalue=False, n_groups=1,
         ),
         operator_form="differential-sn",
@@ -3124,7 +3126,7 @@ class SNSphericalAnisotropicMMSCase:
 
     def build_mesh(self, n_cells: int) -> Mesh1D:
         return Mesher(StructuredGeometry.sphere(
-            (0.0, self.radius), (self.mat_id,), outer=BC("vacuum"),
+            (0.0, self.radius), (self.mat_id,), outer=VACUUM_TAG,
         )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
@@ -3313,7 +3315,7 @@ class SNSlabNonVacuumMMSCase:
         """VACUUM-BC slab mesh; prescribed inflow is the ``q.boundary`` slot."""
         return Mesher(StructuredGeometry.slab(
             (0.0, self.slab_length), (self.mat_id,),
-            left=BC("vacuum"), right=BC("vacuum"),
+            left=VACUUM_TAG, right=VACUUM_TAG,
         )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
@@ -3609,7 +3611,7 @@ class SNSphericalNonVacuumMMSCase:
         prescribed inflow at r=R is the ``q.boundary`` slot (NOT a mesh
         BC)."""
         return Mesher(StructuredGeometry.sphere(
-            (0.0, self.radius), (self.mat_id,), outer=BC("vacuum"),
+            (0.0, self.radius), (self.mat_id,), outer=VACUUM_TAG,
         )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
@@ -3800,7 +3802,7 @@ class SNCylindricalAnisotropicMMSCase:
 
     def build_mesh(self, n_cells: int) -> Mesh1D:
         return Mesher(StructuredGeometry.cylinder(
-            (0.0, self.radius), (self.mat_id,), outer=BC("vacuum"),
+            (0.0, self.radius), (self.mat_id,), outer=VACUUM_TAG,
         )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
@@ -3877,7 +3879,7 @@ def _build_spherical_anisotropic_continuous_reference() -> ContinuousReferenceSo
             materials=mms.materials,
             geometry_type="sphere",
             geometry_params={"radius": mms.radius, "mms_case": mms},
-            boundary_conditions={"inner": "reflective", "outer": "vacuum"},
+            boundary_kinds={"inner": "reflective", "outer": "vacuum"},
 is_eigenvalue=False, n_groups=1,
         ),
         operator_form="differential-sn",
@@ -3931,7 +3933,7 @@ def _build_cylindrical_anisotropic_continuous_reference() -> ContinuousReference
             materials=mms.materials,
             geometry_type="cylinder",
             geometry_params={"radius": mms.radius, "mms_case": mms},
-            boundary_conditions={"inner": "reflective", "outer": "vacuum"},
+            boundary_kinds={"inner": "reflective", "outer": "vacuum"},
 is_eigenvalue=False, n_groups=1,
         ),
         operator_form="differential-sn",

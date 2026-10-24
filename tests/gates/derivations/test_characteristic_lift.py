@@ -73,9 +73,10 @@ class _Family:
 
     def __init__(self, body: str, b: float, sines, sigma_t, *, resolution=T._RES) -> None:
         self.body = body
-        self.geometry = T._geometry(body)
+        posed = T._geometry(body)
+        self.geometry = posed.geometry
         self.basis = PanelBasis.of(ConcentricPartition.of(self.geometry), *resolution)
-        self.walls = Walls.of(self.geometry)
+        self.walls = Walls.of(*posed)
         self.sigma_t = np.asarray(sigma_t, dtype=float)
         self.b = b
         self.sines = tuple(float(s) for s in sines)
@@ -340,15 +341,14 @@ _FOLD_SIGMA, _FOLD_R, _FOLD_B, _FOLD_A = 1.3, 1.0, 0.4, 0.6
 
 def _fold_errors(points: int) -> tuple[float, float, float]:
     """The three polar folds of one in-plane line on the polar rule at ``points``, relative to their closed forms."""
-    from orpheus.geometry.boundary import AlbedoBoundary, SpecularReturn
-    from orpheus.geometry.structured_geometry import StructuredGeometry
+    from tests.gates.derivations import _posed_walls as walls_of
 
-    geometry = StructuredGeometry.cylinder((0.0, _FOLD_R), (0,), outer=AlbedoBoundary(_FOLD_A, SpecularReturn(axis="x")))
-    basis = PanelBasis.of(ConcentricPartition.of(geometry), *T._RES)
+    body = walls_of.cylinder((0.0, _FOLD_R), (0,), outer=walls_of.partial(_FOLD_A))
+    basis = PanelBasis.of(ConcentricPartition.of(body.geometry), *T._RES)
     polar = polar_rule(OpticalScale.of(np.array([0.0, _FOLD_R]), np.array([_FOLD_SIGMA])), points)
     sine = np.sin(polar.pts)
     line = Line.through(np.array([_FOLD_B, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]))
-    rule = TraversalRule.of(line, basis, Walls.of(geometry), np.array([_FOLD_SIGMA]), speed=1.0 / sine)
+    rule = TraversalRule.of(line, basis, Walls.of(*body), np.array([_FOLD_SIGMA]), speed=1.0 / sine)
     one = np.ones(basis.size)                                           # q = 1: the panels reproduce a constant
     B = rule.outflow()[:, 0] @ one                                      # (V,)
     reading = float(np.sum(polar.wts * sine * B))

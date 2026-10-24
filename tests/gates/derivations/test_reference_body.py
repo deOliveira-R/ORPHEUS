@@ -31,20 +31,26 @@ from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.derivations.continuous.fn_method.moment_space import MomentSpace
 from orpheus.derivations.continuous.galerkin_spectral.basis_space import BasisSpace
 from orpheus.derivations.continuous.singular_eigenfunction.spectrum import Spectrum
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
+from tests.gates.derivations import _posed_walls as walls
+from tests.gates.derivations._posed_walls import MIRROR, VACUUM, WHITE, partial
 
 pytestmark = pytest.mark.foundation
 
 _SLAB, _CYL, _SPH = CoordSystem.CARTESIAN, CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL
 
 
-def _geometry(coord, breakpoints, mat_ids, boundaries=None) -> StructuredGeometry:
-    if boundaries is None:
-        solid = coord is _SLAB or breakpoints[0] == 0.0
-        boundaries = (BC.vacuum,) if (coord is not _SLAB and solid) else (BC.vacuum, BC.vacuum)
-    return StructuredGeometry(
-        coord=coord, breakpoints=breakpoints, mat_ids=mat_ids, boundaries=boundaries,
-    )
+def _body(coord, breakpoints, mat_ids, declared=None) -> walls.Posed:
+    """The geometry and its exterior; ``None`` states vacuum on every boundary face."""
+    return walls.posed(coord, breakpoints, mat_ids, declared)
+
+
+def _geometry(coord, breakpoints, mat_ids, declared=None) -> StructuredGeometry:
+    return _body(coord, breakpoints, mat_ids, declared).geometry
+
+
+def _thick(thicknesses, mat_ids, declared=None) -> walls.Posed:
+    return walls.from_thicknesses(_SLAB, thicknesses, mat_ids, declared)
 
 
 def _unit_sigma_t_mixture(c: float, sigma_t: float = 1.0):
@@ -85,7 +91,7 @@ class TestTheClassification:
 
     @pytest.mark.parametrize("coord", [_CYL, _SPH], ids=lambda c: c.name.lower())
     def test_one_material_hollow_is_hollow(self, coord):
-        g = _geometry(coord, (0.5, 2.0), (1,), boundaries=(BC.reflective, BC.vacuum))
+        g = _geometry(coord, (0.5, 2.0), (1,), declared=(MIRROR, VACUUM))
         assert reference_body(g) == HollowBody(
             coord=coord, inner_radius_cm=0.5, outer_radius_cm=2.0, mat_id=1,
         )
@@ -94,10 +100,7 @@ class TestTheClassification:
         """Built from thicknesses, as a registry states Sood's slabs: the
         right reflector's width carries the breakpoints' rounding, and the
         classification still reads it as symmetric."""
-        g = StructuredGeometry.from_thicknesses(
-            coord=_SLAB, thicknesses=(0.5, 0.8603, 0.5), mat_ids=(1, 0, 1),
-            boundaries=(BC.vacuum, BC.vacuum),
-        )
+        g = _thick((0.5, 0.8603, 0.5), (1, 0, 1)).geometry
         body = reference_body(g)
         assert isinstance(body, ReflectedSlab)
         assert (body.core_mat_id, body.reflector_mat_id) == (0, 1)
@@ -117,10 +120,7 @@ class TestTheClassification:
     def test_any_other_layered_slab_is_layered(self, thicknesses, mat_ids):
         """The discriminating rows: Sood's problem 3 (one-sided) and 30 (the
         Fe/U/Fe/Na slab) are layered slabs, not reflected slabs."""
-        g = StructuredGeometry.from_thicknesses(
-            coord=_SLAB, thicknesses=thicknesses, mat_ids=mat_ids,
-            boundaries=(BC.vacuum, BC.vacuum),
-        )
+        g = _thick(thicknesses, mat_ids).geometry
         assert isinstance(reference_body(g), LayeredBody)
 
     def test_a_layered_solid_sphere(self):
@@ -132,7 +132,7 @@ class TestTheClassification:
         assert not body.is_hollow
 
     def test_a_layered_hollow_cylinder(self):
-        g = _geometry(_CYL, (0.5, 1.0, 3.0), (0, 1), boundaries=(BC.reflective, BC.vacuum))
+        g = _geometry(_CYL, (0.5, 1.0, 3.0), (0, 1), declared=(MIRROR, VACUUM))
         body = reference_body(g)
         assert isinstance(body, LayeredBody) and body.is_hollow
 
@@ -145,26 +145,20 @@ _ONE_GROUP = {0: get_mixture("A", "1g"), 1: get_mixture("B", "1g")}
 
 
 _SHAPES = {
-    "hollow-sphere": lambda: _geometry(_SPH, (0.5, 2.0), (0,), (BC.reflective, BC.vacuum)),
-    "layered-sphere": lambda: _geometry(_SPH, (0.0, 1.0, 2.0), (0, 1)),
-    "layered-slab": lambda: StructuredGeometry.from_thicknesses(
-        coord=_SLAB, thicknesses=(1.0, 0.5), mat_ids=(0, 1), boundaries=(BC.vacuum, BC.vacuum),
-    ),
-    "reflected-slab": lambda: StructuredGeometry.from_thicknesses(
-        coord=_SLAB, thicknesses=(0.5, 1.0, 0.5), mat_ids=(1, 0, 1), boundaries=(BC.vacuum, BC.vacuum),
-    ),
-    "hollow-layered-sphere": lambda: _geometry(
-        _SPH, (0.5, 1.0, 2.0), (0, 1), (BC.reflective, BC.vacuum),
-    ),
+    "hollow-sphere": lambda: _body(_SPH, (0.5, 2.0), (0,), (MIRROR, VACUUM)),
+    "layered-sphere": lambda: _body(_SPH, (0.0, 1.0, 2.0), (0, 1)),
+    "layered-slab": lambda: _thick((1.0, 0.5), (0, 1)),
+    "reflected-slab": lambda: _thick((0.5, 1.0, 0.5), (1, 0, 1)),
+    "hollow-layered-sphere": lambda: _body(_SPH, (0.5, 1.0, 2.0), (0, 1), (MIRROR, VACUUM)),
 }
 
 #: (owner, the shapes it refuses): the shapes it serves are tested by route below.
 _REFUSALS = [
-    ("Spectrum", lambda g: Spectrum(geometry=g, materials=_ONE_GROUP),
+    ("Spectrum", lambda g: Spectrum(**g._asdict(), materials=_ONE_GROUP),
      ["hollow-sphere", "layered-sphere", "layered-slab", "reflected-slab", "hollow-layered-sphere"]),
-    ("BasisSpace", lambda g: BasisSpace(geometry=g, materials=_ONE_GROUP),
+    ("BasisSpace", lambda g: BasisSpace(**g._asdict(), materials=_ONE_GROUP),
      ["hollow-sphere", "layered-sphere", "layered-slab", "reflected-slab", "hollow-layered-sphere"]),
-    ("MomentSpace", lambda g: MomentSpace(geometry=g, materials=_ONE_GROUP),
+    ("MomentSpace", lambda g: MomentSpace(**g._asdict(), materials=_ONE_GROUP),
      ["hollow-sphere", "layered-sphere", "layered-slab", "hollow-layered-sphere"]),
 ]
 
@@ -184,19 +178,19 @@ class TestMomentSpaceReflectedSlabPreconditions:
         g = _SHAPES["reflected-slab"]()
         materials = {0: _unit_sigma_t_mixture(1.5), 1: get_mixture("B", "1g")}
         with pytest.raises(NotImplementedError, match="share one total cross section"):
-            MomentSpace(geometry=g, materials=materials)
+            MomentSpace(**g._asdict(), materials=materials)
 
     def test_several_groups_are_refused(self):
         g = _SHAPES["reflected-slab"]()
         materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
         with pytest.raises(NotImplementedError, match="one-group reflected slab"):
-            MomentSpace(geometry=g, materials=materials)
+            MomentSpace(**g._asdict(), materials=materials)
 
     def test_its_flux_reconstruction_is_refused(self):
         g = _SHAPES["reflected-slab"]()
         materials = {0: _unit_sigma_t_mixture(1.5), 1: _unit_sigma_t_mixture(0.9)}
         with pytest.raises(NotImplementedError, match="flux reconstruction"):
-            MomentSpace(geometry=g, materials=materials).reconstruct_flux()
+            MomentSpace(**g._asdict(), materials=materials).reconstruct_flux()
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -214,12 +208,9 @@ def test_moment_space_routes_a_reflected_slab():
         solve_fn_slab_reflected_critical,
     )
 
-    g = StructuredGeometry.from_thicknesses(
-        coord=_SLAB, thicknesses=(0.5, 0.8603, 0.5), mat_ids=(1, 0, 1),
-        boundaries=(BC.vacuum, BC.vacuum),
-    )
+    g = _thick((0.5, 0.8603, 0.5), (1, 0, 1))
     materials = {0: _unit_sigma_t_mixture(1.5), 1: _unit_sigma_t_mixture(0.9)}
-    solution = MomentSpace(geometry=g, materials=materials, fn_order=7).solve_critical()
+    solution = MomentSpace(**g._asdict(), materials=materials, fn_order=7).solve_critical()
     bare = solve_fn_slab_reflected_critical(
         c_core=float(materials[0].scattering_ratio[0]),
         c_reflector=float(materials[1].scattering_ratio[0]),
@@ -234,43 +225,36 @@ def test_moment_space_routes_a_reflected_slab():
 # The laws are part of what an owner serves (the user's ruling, 2026-09-29)
 # ─────────────────────────────────────────────────────────────────────
 
-from orpheus.derivations.common.reference_body import specular_albedo  # noqa: E402
-from orpheus.geometry.boundary import (  # noqa: E402
-    AlbedoBoundary,
-    ReflectiveBoundary,
-    SpecularReturn,
-    VacuumInflow,
-)
+from orpheus.derivations.common.reference_body import specular_albedos  # noqa: E402
 
 
 class TestSpecularAlbedo:
     @pytest.mark.parametrize(
-        "law, albedo",
+        "wall, albedo",
         [
-            (BC.vacuum, 0.0),
-            (VacuumInflow(), 0.0),
-            (BC.reflective, 1.0),
-            (ReflectiveBoundary(axis="x"), 1.0),
-            (BC("partial", {"albedo": 0.3}), 0.3),
-            (AlbedoBoundary(0.7, SpecularReturn(axis="x")), 0.7),
+            (VACUUM, 0.0),
+            (MIRROR, 1.0),
+            (partial(0.3), 0.3),
+            (partial(0.7), 0.7),
         ],
-        ids=["vacuum-tag", "vacuum-law", "mirror-tag", "mirror-law", "partial-tag", "specular-albedo-law"],
+        ids=["vacuum", "mirror", "partial-0.3", "partial-0.7"],
     )
-    def test_a_specular_law_reads_as_its_albedo(self, law, albedo):
-        assert specular_albedo(law, owner="test") == albedo
+    @pytest.mark.parametrize("coord", [_SLAB, _SPH], ids=lambda c: c.name.lower())
+    def test_a_specular_wall_reads_as_its_albedo(self, coord, wall, albedo):
+        """A mirror is a deck on a slab and the tag bound to ``(1, 0)`` on a sphere; both read 1."""
+        body = _body(coord, (0.0, 2.0), (0,), (wall,) if coord is _SPH else (wall, wall))
+        got = specular_albedos(body.geometry, body.exterior, owner="test")
+        assert got == (albedo,) * len(body.geometry.face_roles)
 
-    @pytest.mark.parametrize(
-        "law", [BC("white"), AlbedoBoundary(0.7)], ids=["white", "unstated-reemission"],
-    )
-    def test_any_other_law_is_refused(self, law):
-        with pytest.raises(NotImplementedError, match="another angular shape"):
-            specular_albedo(law, owner="test")
+    @pytest.mark.parametrize("wall", [WHITE, walls.white(0.7), walls.WRAP], ids=["white", "partial-white", "wrap"])
+    def test_any_other_wall_is_refused(self, wall):
+        body = _body(_SLAB, (0.0, 2.0), (0,), (wall, wall))
+        with pytest.raises(NotImplementedError, match="#536"):
+            specular_albedos(body.geometry, body.exterior, owner="test")
 
 
-def _reflected_slab(faces=(BC.vacuum, BC.vacuum), thicknesses=(0.5, 1.0, 0.5)):
-    return StructuredGeometry.from_thicknesses(
-        coord=_SLAB, thicknesses=thicknesses, mat_ids=(1, 0, 1), boundaries=faces,
-    )
+def _reflected_slab(faces=(VACUUM, VACUUM), thicknesses=(0.5, 1.0, 0.5)) -> walls.Posed:
+    return _thick(thicknesses, (1, 0, 1), faces)
 
 
 class TestTheLawsAreServed:
@@ -280,38 +264,38 @@ class TestTheLawsAreServed:
         for bit (the elegance review, 2026-09-29)."""
         materials = {0: _unit_sigma_t_mixture(1.5), 1: _unit_sigma_t_mixture(0.9)}
         with pytest.raises(NotImplementedError, match="reflecting boundaries"):
-            MomentSpace(geometry=_reflected_slab((BC.reflective, BC.reflective)), materials=materials)
+            MomentSpace(**_reflected_slab((MIRROR, MIRROR))._asdict(), materials=materials)
 
     @pytest.mark.parametrize(
         "owner, build",
-        [("MomentSpace", lambda g: MomentSpace(geometry=g, materials=_ONE_GROUP)),
-         ("BasisSpace", lambda g: BasisSpace(geometry=g, materials=_ONE_GROUP))],
+        [("MomentSpace", lambda g: MomentSpace(**g._asdict(), materials=_ONE_GROUP)),
+         ("BasisSpace", lambda g: BasisSpace(**g._asdict(), materials=_ONE_GROUP))],
     )
     def test_the_bare_solvers_refuse_a_reflecting_boundary(self, owner, build):
-        g = _geometry(_SPH, (0.0, 2.0), (0,), (BC("partial", {"albedo": 0.5}),))
+        g = _body(_SPH, (0.0, 2.0), (0,), (partial(0.5),))
         with pytest.raises(NotImplementedError, match="reflecting boundaries") as caught:
             build(g)
         assert str(caught.value).startswith(owner)
 
     def test_spectrum_refuses_a_slab_whose_faces_differ(self):
         """Atalay's slab puts one R on both faces."""
-        g = _geometry(_SLAB, (0.0, 2.0), (0,), (BC.vacuum, BC("partial", {"albedo": 0.5})))
+        g = _body(_SLAB, (0.0, 2.0), (0,), (VACUUM, partial(0.5)))
         with pytest.raises(NotImplementedError, match="unequal face albedos"):
-            Spectrum(geometry=g, materials=_ONE_GROUP)
+            Spectrum(**g._asdict(), materials=_ONE_GROUP)
 
     def test_spectrum_refuses_a_reflected_cylinder(self):
-        g = _geometry(_CYL, (0.0, 2.0), (0,), (BC("partial", {"albedo": 0.5}),))
+        g = _body(_CYL, (0.0, 2.0), (0,), (partial(0.5),))
         with pytest.raises(NotImplementedError, match="reflected cylinder"):
-            Spectrum(geometry=g, materials=_ONE_GROUP)
+            Spectrum(**g._asdict(), materials=_ONE_GROUP)
 
     @pytest.mark.parametrize(
         "build",
-        [lambda g: Spectrum(geometry=g, materials=_ONE_GROUP)],
+        [lambda g: Spectrum(**g._asdict(), materials=_ONE_GROUP)],
         ids=["Spectrum"],
     )
-    def test_a_white_law_is_refused(self, build):
+    def test_a_white_wall_is_refused(self, build):
         with pytest.raises(NotImplementedError, match="another angular shape"):
-            build(_geometry(_SPH, (0.0, 2.0), (0,), (BC("white"),)))
+            build(_body(_SPH, (0.0, 2.0), (0,), (WHITE,)))
 
 
 class TestReflectedSlabRoute:
@@ -322,7 +306,7 @@ class TestReflectedSlabRoute:
         is a layered slab (the tolerance is 4 ulp)."""
         import math
 
-        g = _reflected_slab(thicknesses=(0.3, 1.1, 0.3))
+        g = _reflected_slab(thicknesses=(0.3, 1.1, 0.3)).geometry
         bp = g.breakpoints
         assert (bp[1] - bp[0]) != (bp[3] - bp[2])
         assert isinstance(reference_body(g), ReflectedSlab)
@@ -336,11 +320,11 @@ class TestReflectedSlabRoute:
         0.25 cm reflector the body is the Sigma_t = 1, 0.5 cm body in mean
         free paths: the same tau, bit for bit."""
         unit = MomentSpace(
-            geometry=_reflected_slab(thicknesses=(0.5, 1.0, 0.5)),
+            **_reflected_slab(thicknesses=(0.5, 1.0, 0.5))._asdict(),
             materials={0: _unit_sigma_t_mixture(1.5), 1: _unit_sigma_t_mixture(0.9)},
         ).solve_critical()
         doubled = MomentSpace(
-            geometry=_reflected_slab(thicknesses=(0.25, 0.5, 0.25)),
+            **_reflected_slab(thicknesses=(0.25, 0.5, 0.25))._asdict(),
             materials={0: _unit_sigma_t_mixture(1.5, 2.0), 1: _unit_sigma_t_mixture(0.9, 2.0)},
         ).solve_critical()
         assert doubled.metadata["reflector_half_thickness_mfp"] == 0.5

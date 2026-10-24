@@ -35,7 +35,8 @@ from orpheus.derivations.continuous.fn_method.slab import (
 from orpheus.derivations.continuous.fn_method.sphere import (
     solve_fn_sphere_bare_critical,
 )
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem
+from tests.gates.derivations import _posed_walls as walls_of
 
 
 # ----------------------------------------------------------------------
@@ -55,34 +56,19 @@ def _make_1g_mixture(sigma_t: float, sigma_s: float, nu_sigma_f: float):
     )
 
 
-def _ua10sl_geometry() -> StructuredGeometry:
+def _ua10sl_geometry() -> walls_of.Posed:
     """Sood Ua-1-0-SL slab geometry (full slab width = 2 × half-thickness)."""
-    return StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, 2.0 * 0.93772556),
-        mat_ids=(0,),
-        boundaries=(BC.vacuum, BC.vacuum),
-    )
+    return walls_of.posed(CoordSystem.CARTESIAN, (0.0, 2.0 * 0.93772556), (0,), (walls_of.VACUUM, walls_of.VACUUM))
 
 
-def _ua10sp_geometry() -> StructuredGeometry:
+def _ua10sp_geometry() -> walls_of.Posed:
     """Sood Ua-1-0-SP sphere geometry."""
-    return StructuredGeometry(
-        coord=CoordSystem.SPHERICAL,
-        breakpoints=(0.0, 2.4248249802),
-        mat_ids=(0,),
-        boundaries=(BC.vacuum,),
-    )
+    return walls_of.posed(CoordSystem.SPHERICAL, (0.0, 2.4248249802), (0,), (walls_of.VACUUM,))
 
 
-def _cylinder_geometry() -> StructuredGeometry:
+def _cylinder_geometry() -> walls_of.Posed:
     """Sood-style cylinder geometry (out-of-pillar for F_N)."""
-    return StructuredGeometry(
-        coord=CoordSystem.CYLINDRICAL,
-        breakpoints=(0.0, 1.72500292),
-        mat_ids=(0,),
-        boundaries=(BC.vacuum,),
-    )
+    return walls_of.posed(CoordSystem.CYLINDRICAL, (0.0, 1.72500292), (0,), (walls_of.VACUUM,))
 
 
 # ----------------------------------------------------------------------
@@ -95,7 +81,7 @@ def test_moment_space_constructs_with_structured_geometry() -> None:
     r"""``MomentSpace`` accepts ``StructuredGeometry`` + ``dict[int, Mixture]``."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     geom = _ua10sl_geometry()
-    ms = MomentSpace(geometry=geom, materials={0: mix})
+    ms = MomentSpace(**geom._asdict(), materials={0: mix})
     assert isinstance(ms, MomentSpace)
     assert ms.geometry is geom
     assert ms.materials[0] is mix
@@ -111,7 +97,7 @@ def test_moment_space_rejects_cylinder_geometry() -> None:
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     cyl = _cylinder_geometry()
     with pytest.raises(NotImplementedError, match="out of pillar"):
-        MomentSpace(geometry=cyl, materials={0: mix})
+        MomentSpace(**cyl._asdict(), materials={0: mix})
 
 
 @pytest.mark.foundation
@@ -120,7 +106,7 @@ def test_moment_space_rejects_unknown_flux_strategy() -> None:
     geom = _ua10sl_geometry()
     with pytest.raises(ValueError, match="flux_reconstruction"):
         MomentSpace(
-            geometry=geom,
+            **geom._asdict(),
             materials={0: mix},
             flux_reconstruction="bogus",  # type: ignore[arg-type]
         )
@@ -131,7 +117,7 @@ def test_moment_space_c_property_matches_textbook_formula() -> None:
     r"""``MomentSpace.c`` returns
     :math:`(\Sigma_s + \nu\Sigma_f)/\Sigma_t` for 1G mixtures."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
-    ms = MomentSpace(geometry=_ua10sl_geometry(), materials={0: mix})
+    ms = MomentSpace(**_ua10sl_geometry()._asdict(), materials={0: mix})
     expected = (0.7 + 0.6) / 1.0
     assert ms.c == expected
     assert ms.n_groups == 1
@@ -149,7 +135,7 @@ def test_slab_bit_equality_with_function_api() -> None:
     """
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     ms = MomentSpace(
-        geometry=_ua10sl_geometry(), materials={0: mix}, fn_order=10
+        **_ua10sl_geometry()._asdict(), materials={0: mix}, fn_order=10
     )
     c_val = ms.c
 
@@ -177,7 +163,7 @@ def test_sphere_bit_equality_with_function_api() -> None:
     ``R_critical_mfp`` as direct ``solve_fn_sphere_bare_critical(c=ms.c)``."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     ms = MomentSpace(
-        geometry=_ua10sp_geometry(), materials={0: mix}, fn_order=10
+        **_ua10sp_geometry()._asdict(), materials={0: mix}, fn_order=10
     )
     c_val = ms.c
 
@@ -247,7 +233,7 @@ def test_critical_solution_carries_correct_metadata_for_slab() -> None:
     metadata fields that cross-method adapters consume."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     ms = MomentSpace(
-        geometry=_ua10sl_geometry(), materials={0: mix}, fn_order=8
+        **_ua10sl_geometry()._asdict(), materials={0: mix}, fn_order=8
     )
     sol = ms.solve_critical()
     assert isinstance(sol, CriticalSolution)
@@ -262,7 +248,7 @@ def test_critical_solution_carries_correct_metadata_for_slab() -> None:
 def test_critical_solution_carries_correct_metadata_for_sphere() -> None:
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     ms = MomentSpace(
-        geometry=_ua10sp_geometry(), materials={0: mix}, fn_order=8
+        **_ua10sp_geometry()._asdict(), materials={0: mix}, fn_order=8
     )
     sol = ms.solve_critical()
     assert isinstance(sol, CriticalSolution)
@@ -283,7 +269,7 @@ def test_reconstruct_flux_none_strategy_raises() -> None:
     only callable in that mode."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     ms = MomentSpace(
-        geometry=_ua10sl_geometry(), materials={0: mix},
+        **_ua10sl_geometry()._asdict(), materials={0: mix},
         flux_reconstruction="none",
     )
     ms.solve_critical()
@@ -297,7 +283,7 @@ def test_reconstruct_flux_slab_returns_flux_solution() -> None:
     :class:`FluxSolution` with the right shape and tags."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     ms = MomentSpace(
-        geometry=_ua10sl_geometry(), materials={0: mix}, fn_order=8,
+        **_ua10sl_geometry()._asdict(), materials={0: mix}, fn_order=8,
     )
     flux = ms.reconstruct_flux(n_panels=64)
     assert isinstance(flux, FluxSolution)
@@ -317,7 +303,7 @@ def test_reconstruct_flux_sphere_returns_flux_solution() -> None:
     """End-to-end smoke: sphere KLL reconstruction returns a FluxSolution."""
     mix = _make_1g_mixture(1.0, 0.7, 0.6)
     ms = MomentSpace(
-        geometry=_ua10sp_geometry(), materials={0: mix}, fn_order=8,
+        **_ua10sp_geometry()._asdict(), materials={0: mix}, fn_order=8,
     )
     flux = ms.reconstruct_flux(n_panels=32)
     assert isinstance(flux, FluxSolution)
@@ -343,7 +329,7 @@ def test_subcritical_slab_raises() -> None:
     # c = (sigma_s + nu_sigma_f)/sigma_t = (0.5+0.4)/1.0 = 0.9 < 1
     mix = _make_1g_mixture(1.0, 0.5, 0.4)
     ms = MomentSpace(
-        geometry=_ua10sl_geometry(), materials={0: mix}
+        **_ua10sl_geometry()._asdict(), materials={0: mix}
     )
     with pytest.raises(ValueError, match="multiplying medium"):
         ms.solve_critical()

@@ -28,7 +28,8 @@ from orpheus.derivations.continuous.galerkin_spectral.slab import (
 from orpheus.derivations.continuous.galerkin_spectral.sphere import (
     solve_galerkin_spectral_sphere,
 )
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem
+from tests.gates.derivations import _posed_walls as walls_of
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -65,7 +66,7 @@ def _make_1g_p1_mixture(
     )
 
 
-def _slab_geometry(d_mfp: float = 2.0) -> StructuredGeometry:
+def _slab_geometry(d_mfp: float = 2.0) -> walls_of.Posed:
     """Bare-critical slab geometry. The full slab width = d_mfp (in mfp).
 
     The geometry's role for BasisSpace is structural (tag + materials
@@ -74,23 +75,13 @@ def _slab_geometry(d_mfp: float = 2.0) -> StructuredGeometry:
     StructuredGeometry's full extent so the geometry is dimensionally
     coherent, but BasisSpace does not consult it.
     """
-    return StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, float(d_mfp)),
-        mat_ids=(0,),
-        boundaries=(BC.vacuum, BC.vacuum),
-    )
+    return walls_of.posed(CoordSystem.CARTESIAN, (0.0, float(d_mfp)), (0,), (walls_of.VACUUM, walls_of.VACUUM))
 
 
-def _sphere_geometry(d_mfp: float = 2.0) -> StructuredGeometry:
+def _sphere_geometry(d_mfp: float = 2.0) -> walls_of.Posed:
     """Bare-critical sphere geometry."""
     R = d_mfp / 2.0
-    return StructuredGeometry(
-        coord=CoordSystem.SPHERICAL,
-        breakpoints=(0.0, float(R)),
-        mat_ids=(0,),
-        boundaries=(BC.vacuum,),
-    )
+    return walls_of.posed(CoordSystem.SPHERICAL, (0.0, float(R)), (0,), (walls_of.VACUUM,))
 
 
 def _hex(x: float) -> str:
@@ -108,7 +99,7 @@ def test_basis_space_constructs_with_structured_geometry() -> None:
     r"""``BasisSpace`` accepts ``StructuredGeometry`` + ``dict[int, Mixture]``."""
     mix = _make_1g_isotropic_mixture(1.0, 0.7, 0.6)
     geom = _slab_geometry()
-    bs = BasisSpace(geometry=geom, materials={0: mix})
+    bs = BasisSpace(**geom._asdict(), materials={0: mix})
     assert isinstance(bs, BasisSpace)
     assert bs.geometry is geom
     assert bs.materials[0] is mix
@@ -120,14 +111,9 @@ def test_basis_space_constructs_with_structured_geometry() -> None:
 def test_basis_space_rejects_cylinder_geometry() -> None:
     r"""Cylinder is out of pillar (Westfall-Metcalf 1972)."""
     mix = _make_1g_isotropic_mixture(1.0, 0.7, 0.6)
-    cyl = StructuredGeometry(
-        coord=CoordSystem.CYLINDRICAL,
-        breakpoints=(0.0, 1.72500292),
-        mat_ids=(0,),
-        boundaries=(BC.vacuum,),
-    )
+    cyl = walls_of.posed(CoordSystem.CYLINDRICAL, (0.0, 1.72500292), (0,), (walls_of.VACUUM,))
     with pytest.raises(NotImplementedError, match="singular_eigenfunction"):
-        BasisSpace(geometry=cyl, materials={0: mix})
+        BasisSpace(**cyl._asdict(), materials={0: mix})
 
 
 @pytest.mark.foundation
@@ -135,7 +121,7 @@ def test_basis_space_rejects_invalid_basis_order() -> None:
     mix = _make_1g_isotropic_mixture(1.0, 0.7, 0.6)
     geom = _slab_geometry()
     with pytest.raises(ValueError, match="basis_order"):
-        BasisSpace(geometry=geom, materials={0: mix}, basis_order=0)
+        BasisSpace(**geom._asdict(), materials={0: mix}, basis_order=0)
 
 
 @pytest.mark.foundation
@@ -143,20 +129,15 @@ def test_basis_space_rejects_invalid_n_quad() -> None:
     mix = _make_1g_isotropic_mixture(1.0, 0.7, 0.6)
     geom = _slab_geometry()
     with pytest.raises(ValueError, match="n_quad"):
-        BasisSpace(geometry=geom, materials={0: mix}, n_quad=0)
+        BasisSpace(**geom._asdict(), materials={0: mix}, n_quad=0)
 
 
 @pytest.mark.foundation
 def test_basis_space_rejects_missing_mat_id() -> None:
     mix = _make_1g_isotropic_mixture(1.0, 0.7, 0.6)
-    geom = StructuredGeometry(
-        coord=CoordSystem.CARTESIAN,
-        breakpoints=(0.0, 1.0),
-        mat_ids=(99,),
-        boundaries=(BC.vacuum, BC.vacuum),
-    )
+    geom = walls_of.posed(CoordSystem.CARTESIAN, (0.0, 1.0), (99,), (walls_of.VACUUM, walls_of.VACUUM))
     with pytest.raises(ValueError, match="mat_id=99"):
-        BasisSpace(geometry=geom, materials={0: mix})
+        BasisSpace(**geom._asdict(), materials={0: mix})
 
 
 @pytest.mark.foundation
@@ -172,14 +153,14 @@ def test_basis_space_rejects_multi_group_mixture() -> None:
     )
     geom = _slab_geometry()
     with pytest.raises(ValueError, match="1G"):
-        BasisSpace(geometry=geom, materials={0: mix_2g})
+        BasisSpace(**geom._asdict(), materials={0: mix_2g})
 
 
 @pytest.mark.foundation
 def test_basis_space_is_frozen() -> None:
     r"""The dataclass is frozen — instances are immutable."""
     mix = _make_1g_isotropic_mixture(1.0, 0.7, 0.6)
-    bs = BasisSpace(geometry=_slab_geometry(), materials={0: mix})
+    bs = BasisSpace(**_slab_geometry()._asdict(), materials={0: mix})
     with pytest.raises((AttributeError, Exception)):
         bs.basis_order = 5  # type: ignore[misc]
 
@@ -194,7 +175,7 @@ def test_basis_space_c_property_isotropic() -> None:
     r"""``BasisSpace.c`` returns
     :math:`(\Sigma_s + \nu\Sigma_f) / \Sigma_t` for 1G mixtures."""
     mix = _make_1g_isotropic_mixture(1.0, 0.7, 0.6)
-    bs = BasisSpace(geometry=_slab_geometry(), materials={0: mix})
+    bs = BasisSpace(**_slab_geometry()._asdict(), materials={0: mix})
     expected = (0.7 + 0.6) / 1.0
     assert bs.c == pytest.approx(expected, rel=1e-15)
 
@@ -203,7 +184,7 @@ def test_basis_space_c_property_isotropic() -> None:
 def test_basis_space_mu_bar_property_isotropic_returns_zero() -> None:
     r"""For mixtures without a P_1 moment, ``mu_bar`` returns 0."""
     mix = _make_1g_isotropic_mixture(1.0, 0.7, 0.6)
-    bs = BasisSpace(geometry=_slab_geometry(), materials={0: mix})
+    bs = BasisSpace(**_slab_geometry()._asdict(), materials={0: mix})
     assert bs.mu_bar == 0.0
 
 
@@ -211,7 +192,7 @@ def test_basis_space_mu_bar_property_isotropic_returns_zero() -> None:
 def test_basis_space_mu_bar_property_p1_anisotropic() -> None:
     r"""For mixtures with P_1, ``mu_bar = SigS_p1 / SigS_p0``."""
     mix = _make_1g_p1_mixture(1.0, 0.7, 0.6, mu_bar=0.30)
-    bs = BasisSpace(geometry=_slab_geometry(), materials={0: mix})
+    bs = BasisSpace(**_slab_geometry()._asdict(), materials={0: mix})
     assert bs.mu_bar == pytest.approx(0.30, rel=1e-15)
 
 
@@ -228,7 +209,7 @@ def test_basis_space_solve_critical_slab_isotropic_bit_equal() -> None:
     d = 2.0
     mix = _make_1g_isotropic_mixture(sigma_t, sigma_s, nu_sigma_f)
     bs = BasisSpace(
-        geometry=_slab_geometry(d_mfp=d),
+        **_slab_geometry(d_mfp=d)._asdict(),
         materials={0: mix},
         basis_order=6,
         n_quad=64,
@@ -256,7 +237,7 @@ def test_basis_space_solve_critical_slab_anisotropic_bit_equal() -> None:
     d = 2.0
     mix = _make_1g_p1_mixture(sigma_t, sigma_s, nu_sigma_f, mu_bar=mu_bar)
     bs = BasisSpace(
-        geometry=_slab_geometry(d_mfp=d),
+        **_slab_geometry(d_mfp=d)._asdict(),
         materials={0: mix},
         basis_order=6,
         n_quad=64,
@@ -277,7 +258,7 @@ def test_basis_space_solve_critical_sphere_isotropic_bit_equal() -> None:
     d = 4.0
     mix = _make_1g_isotropic_mixture(sigma_t, sigma_s, nu_sigma_f)
     bs = BasisSpace(
-        geometry=_sphere_geometry(d_mfp=d),
+        **_sphere_geometry(d_mfp=d)._asdict(),
         materials={0: mix},
         basis_order=6,
         n_quad=64,
@@ -299,7 +280,7 @@ def test_basis_space_solve_critical_sphere_anisotropic_bit_equal() -> None:
     d = 4.0
     mix = _make_1g_p1_mixture(sigma_t, sigma_s, nu_sigma_f, mu_bar=mu_bar)
     bs = BasisSpace(
-        geometry=_sphere_geometry(d_mfp=d),
+        **_sphere_geometry(d_mfp=d)._asdict(),
         materials={0: mix},
         basis_order=6,
         n_quad=64,
@@ -319,7 +300,7 @@ def test_basis_space_solve_critical_requires_explicit_d() -> None:
     sigma_t, sigma_s, nu_sigma_f = 1.0, 0.7, 0.6
     mix = _make_1g_isotropic_mixture(sigma_t, sigma_s, nu_sigma_f)
     bs = BasisSpace(
-        geometry=_slab_geometry(d_mfp=1.0),
+        **_slab_geometry(d_mfp=1.0)._asdict(),
         materials={0: mix},
         basis_order=6,
         n_quad=64,
@@ -339,7 +320,7 @@ def test_basis_space_solve_critical_returns_critical_solution_with_correct_tags(
     :class:`CriticalSolution` contract."""
     mix = _make_1g_isotropic_mixture(1.0, 0.7, 0.6)
     bs = BasisSpace(
-        geometry=_slab_geometry(d_mfp=2.0),
+        **_slab_geometry(d_mfp=2.0)._asdict(),
         materials={0: mix},
         basis_order=6,
         n_quad=64,
@@ -363,7 +344,7 @@ def test_basis_space_solve_critical_metadata_carries_diagnostics() -> None:
     r"""Method-specific diagnostics are reachable via ``metadata``."""
     mix = _make_1g_p1_mixture(1.0, 0.7, 0.6, mu_bar=0.20)
     bs = BasisSpace(
-        geometry=_slab_geometry(d_mfp=2.0),
+        **_slab_geometry(d_mfp=2.0)._asdict(),
         materials={0: mix},
         basis_order=6,
         n_quad=64,
@@ -390,7 +371,7 @@ def test_basis_space_solve_full_spectrum_returns_2N_eigenvalues() -> None:
     r"""The full-spectrum entry returns 2N eigenvalues."""
     mix = _make_1g_isotropic_mixture(1.0, 0.7, 0.6)
     bs = BasisSpace(
-        geometry=_slab_geometry(d_mfp=2.0),
+        **_slab_geometry(d_mfp=2.0)._asdict(),
         materials={0: mix},
         basis_order=5,
         n_quad=64,

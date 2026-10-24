@@ -160,6 +160,7 @@ References
 from __future__ import annotations
 
 import functools
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -175,6 +176,7 @@ from orpheus.derivations.common.reference_body import (
     require_vacuum,
 )
 from orpheus.geometry import CoordSystem, StructuredGeometry
+from orpheus.specification.exterior import WallAmplitudes
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -489,15 +491,17 @@ class BasisSpace:
     Direct construction with a :class:`StructuredGeometry` and a
     ``materials: dict[int, Mixture]`` payload::
 
-        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+        from orpheus.geometry import CoordSystem, StructuredGeometry
+        from orpheus.specification.exterior import WallAmplitudes
 
         geom = StructuredGeometry(
             coord=CoordSystem.CARTESIAN,
             breakpoints=(0.0, L_full),
             mat_ids=(0,),
-            boundaries=(BC.vacuum, BC.vacuum),
+            face_roles=(0, 0),            # one tag on both faces
         )
-        bs = BasisSpace(geometry=geom, materials={0: mix})
+        vacuum = {0: WallAmplitudes(0.0, 0.0)}   # the wall behind tag 0: nothing returned
+        bs = BasisSpace(geometry=geom, exterior=vacuum, materials={0: mix})
         sol = bs.solve_critical(d=2.0)
 
     The ``d`` parameter (Galerkin spectral spatial dimension in mfp)
@@ -514,6 +518,10 @@ class BasisSpace:
         :func:`~orpheus.derivations.common.reference_body.reference_body` (a homogeneous body only).
         A cylinder is out of pillar (Westfall–Metcalf 1972 — see
         :mod:`...singular_eigenfunction.cylinder`).
+    exterior : Mapping[int, WallAmplitudes]
+        The wall behind each tag the geometry's faces carry (an exact cover of its tags; the empty mapping for a
+        geometry whose faces are all decks): plain data of the reference, read by
+        :func:`~orpheus.derivations.common.reference_body.specular_albedos`.
     materials : dict[int, Mixture]
         Production-protocol materials, keyed by material ID. The
         Galerkin spectral method as shipped is 1G only.
@@ -524,6 +532,7 @@ class BasisSpace:
     """
 
     geometry: StructuredGeometry
+    exterior: Mapping[int, WallAmplitudes]
     materials: dict[int, Mixture]
     basis_order: int = 9
     n_quad: int = 128
@@ -550,7 +559,7 @@ class BasisSpace:
                 ".cylinder for the cylinder benchmark",
             )
         require_vacuum(
-            self.geometry, owner="BasisSpace",
+            self.geometry, self.exterior, owner="BasisSpace",
             missing="the Galerkin-spectral method as shipped is bare-critical "
             "(vacuum-bounded); reflected variants are deferred",
         )

@@ -38,7 +38,8 @@ from orpheus.derivations.continuous.sood_registry import (
     UA_1_0_SL_STUB,
     UA_1_0_SP_STUB,
 )
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR, VACUUM_TAG
+from orpheus.geometry import CoordSystem, StructuredGeometry
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -75,9 +76,11 @@ def test_slab_to_geometry_full_width_with_vacuum_bcs() -> None:
         geom.domain_extent_cm, expected_full_width_cm, rel_tol=1e-12,
     )
 
-    # A slab has two boundary points (left, right); both vacuum.
+    # A slab has two boundary points (left, right); both carry the one vacuum tag, which the
+    # exterior binds to the vacuum wall (nothing returned).
     assert geom.boundary_points == (0.0, geom.breakpoints[-1])
-    assert geom.boundaries == (BC.vacuum, BC.vacuum)
+    assert geom.face_roles == (VACUUM_TAG, VACUUM_TAG)
+    assert geom.tags == frozenset(VACUUM_EXTERIOR)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -110,9 +113,10 @@ def test_sphere_to_geometry_radius_with_vacuum_outer_bc() -> None:
     assert math.isclose(geom.domain_extent_cm, expected_R_cm, rel_tol=1e-12)
 
     # A solid body has one boundary point, the outer surface; the centre
-    # is an interior point and carries no law.
+    # is an interior point and carries no role.
     assert geom.boundary_points == (geom.breakpoints[-1],)
-    assert geom.boundaries == (BC.vacuum,)
+    assert geom.face_roles == (VACUUM_TAG,)
+    assert geom.tags == frozenset(VACUUM_EXTERIOR)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -144,9 +148,10 @@ def test_cylinder_to_geometry_radius_with_vacuum_outer_bc() -> None:
     assert math.isclose(geom.domain_extent_cm, expected_R_cm, rel_tol=1e-12)
 
     # A solid body has one boundary point, the outer surface; the centre
-    # is an interior point and carries no law.
+    # is an interior point and carries no role.
     assert geom.boundary_points == (geom.breakpoints[-1],)
-    assert geom.boundaries == (BC.vacuum,)
+    assert geom.face_roles == (VACUUM_TAG,)
+    assert geom.tags == frozenset(VACUUM_EXTERIOR)
 
 
 # ═══════════════════════════════════════════════════════════════════

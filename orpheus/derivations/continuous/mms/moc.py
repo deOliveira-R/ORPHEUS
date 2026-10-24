@@ -482,7 +482,7 @@ def _build_moc_mms_continuous_reference() -> ContinuousReferenceSolution:
                 "pitch": mms_case.pitch,
                 "mms_case": mms_case,
             },
-            boundary_conditions={"all": mms_case.outer_law},
+            boundary_kinds={"all": mms_case.outer_law},
             is_eigenvalue=False,
             n_groups=1,
         ),

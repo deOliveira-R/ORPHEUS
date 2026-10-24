@@ -239,7 +239,7 @@ class CharacteristicDerivation(ContentIdentity):
     :class:`~orpheus.numerics.question.Eigen` along any parameter but the
     fission emission; a source or a detector that depends on the direction;
     and, through the objects it builds, a mixture with anisotropic emission
-    (:meth:`~.cross_sections.RegionCrossSections.of`), a wall law the
+    (:meth:`~.cross_sections.RegionCrossSections.of`), a face role the
     reference does not read (:meth:`~.walls.Walls.of`) and a grading
     :meth:`~.basis.PanelBasis.of` refuses. What only the solve decides is
     refused at the first evaluation: a body supercritical for its fixed
@@ -275,7 +275,7 @@ class CharacteristicDerivation(ContentIdentity):
         geometry, question = specification.geometry, specification.question
         if question.point:
             raise ValueError(f"characteristic_reference answers at the physical point, got the point {dict(question.point)!r}")
-        walls = Walls.of(geometry)
+        walls = Walls.of(geometry, specification.exterior)
         basis = PanelBasis.of(ConcentricPartition.of(geometry), resolution.degree, resolution.layers, resolution.ratio)
         object.__setattr__(self, "basis", basis)
         cross_sections = RegionCrossSections.of([specification.materials[m] for m in geometry.mat_ids])

@@ -34,7 +34,7 @@ from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.materials import Materials
 from orpheus.derivations.common.xs_library import get_xs, make_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Ratio
@@ -42,6 +42,7 @@ from orpheus.numerics.outcome import NotYet
 from orpheus.numerics.question import Eigen
 from orpheus.reference.solution import ReferenceSolution
 from orpheus.reference.verification import ReferenceNotValid, verify_agreement
+from orpheus.specification.exterior import WallAmplitudes
 from orpheus.specification.specification import GeometrySpecification
 
 if TYPE_CHECKING:
@@ -65,18 +66,25 @@ def aba_materials() -> Materials:
     return Materials({0: isotropic_mixture("A"), 1: isotropic_mixture("B")})
 
 
+#: The exterior of the A|B|A body's one tag: the outer wall returns everything along the reflected line, the specular wall
+#: ``(1, 0)`` (a reflecting curved wall is a response bound to a tag, never a deck). A production solve of the same body binds
+#: tag 0 to ``WallCondition.specular(1.0)`` at the solve (``tests/gates/_exterior.py``), the loop
+#: ``tests/gates/_reference_pairing.py`` being the one translation of a reference exterior.
+ABA_EXTERIOR = {0: WallAmplitudes(1.0, 0.0)}
+
+
 def aba_geometry(coord: CoordSystem) -> StructuredGeometry:
-    """The A|B|A body on ``coord`` (spherical or cylindrical), reflective at r = R."""
+    """The A|B|A body on ``coord`` (spherical or cylindrical); its outer face carries tag 0, which ``ABA_EXTERIOR`` makes reflective."""
     return StructuredGeometry.from_thicknesses(
         coord=coord, thicknesses=tuple(np.diff((0.0, *ABA_RADII))), mat_ids=ABA_MATERIAL_IDS,
-        boundaries=(BC.reflective,),
+        face_roles=(0,),
     )
 
 
 @functools.cache
 def aba_specification(coord: CoordSystem) -> GeometrySpecification:
     """The k question on the A|B|A body: the specification the characteristic reference answers (P1 step (d))."""
-    return GeometrySpecification(aba_materials(), aba_geometry(coord), Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
+    return GeometrySpecification(aba_materials(), aba_geometry(coord), Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)), exterior=ABA_EXTERIOR)
 
 
 def aba_uniform_width_mesh(coord: CoordSystem, n_cells: int) -> Mesh1D:

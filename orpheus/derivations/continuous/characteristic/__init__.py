@@ -6,7 +6,8 @@ geometric kernel (:mod:`orpheus.geometry.chord`) and the reference
 numerics kernel (:mod:`orpheus.derivations.common.dense_pencil`):
 
 - :mod:`~orpheus.derivations.continuous.characteristic.walls` — each
-  boundary point with what its law returns, read from the law's factors;
+  boundary point with what its face role returns (a deck's own response, or the
+  specification's amplitudes for a tag);
 - :mod:`~orpheus.derivations.continuous.characteristic.closure` — the
   period of each line's unfolded path and the least solution of its cycle,
   the line part of the boundary resolvent, and the white walls' coupling,

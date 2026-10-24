@@ -15,9 +15,8 @@ import numpy as np
 import pytest
 
 from orpheus.data.cells import CellCoefficient, Channel
-from orpheus.data.materials import Materials
 from orpheus.derivations.continuous.characteristic import CharacteristicDerivation, Resolution
-from orpheus.geometry import BC, StructuredGeometry
+from tests.gates.derivations import _posed_walls as walls_of
 from orpheus.numerics.observable import Eigenvalue
 from orpheus.numerics.question import Eigen
 from orpheus.specification.specification import GeometrySpecification
@@ -57,8 +56,7 @@ def test_the_vacuum_slabs_k_is_the_nystrom_slabs() -> None:
     from orpheus.derivations.continuous.peierls_nystrom.slab import solve_peierls_eigenvalue
 
     sigma_t, sigma_s, nu_sigma_f, width = 0.5, 0.38, 0.025, 10.0
-    spec = GeometrySpecification(Materials({0: _one_group(sigma_t, sigma_s, nu_sigma_f)}),
-                                 StructuredGeometry.slab((0.0, width), (0,), left=BC.vacuum, right=BC.vacuum), Eigen(_K))
+    spec = walls_of.spec(walls_of.slab((0.0, width), (0,), left=walls_of.VACUUM, right=walls_of.VACUUM), {0: _one_group(sigma_t, sigma_s, nu_sigma_f)}, Eigen(_K))
     k = _read(spec, Eigenvalue(), rung(3))
     nystrom = solve_peierls_eigenvalue(
         [np.array([sigma_t])], [np.array([[sigma_s]])], [np.array([nu_sigma_f])], [np.array([1.0])], [width],
@@ -101,9 +99,7 @@ def test_the_nystrom_specular_closure_converges_in_its_rank_toward_the_character
     from orpheus.derivations.continuous.peierls_nystrom.geometry import SPHERE_1D, solve_peierls_1g
 
     fix = _thin_sphere()
-    spec = GeometrySpecification(
-        Materials({0: _one_group(0.5, 0.38, 0.025)}),
-        StructuredGeometry.sphere((0.0, 5.0), (0,), outer=BC.reflective), Eigen(_K))
+    spec = walls_of.spec(walls_of.sphere((0.0, 5.0), (0,), outer=walls_of.MIRROR), {0: _one_group(0.5, 0.38, 0.025)}, Eigen(_K))
     k_closed = _read(spec, Eigenvalue(), rung(3))
     errors = {}
     for rank in (1, 3):

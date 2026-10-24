@@ -55,7 +55,9 @@ from orpheus.derivations.continuous.sood_registry import (
     UD2O_1_0_SL,
     UD2O_1_0_SP,
 )
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR, VACUUM_TAG
+from orpheus.geometry import CoordSystem, StructuredGeometry
+from orpheus.specification.exterior import WallAmplitudes
 
 from .protocol import CrossMethodCase
 
@@ -397,7 +399,7 @@ def _build_reflected_slab_case(
         coord=CoordSystem.CARTESIAN,
         thicknesses=(refl_thickness_cm, core_thickness_cm, refl_thickness_cm),
         mat_ids=(1, 0, 1),
-        boundaries=(BC.vacuum, BC.vacuum),
+        face_roles=(VACUUM_TAG, VACUUM_TAG),
     )
     return CrossMethodCase(
         case_id=case_id,
@@ -405,6 +407,7 @@ def _build_reflected_slab_case(
         registry_case=None,
         materials={0: core_mix, 1: refl_mix},
         structured_geometry=geom,
+        exterior=VACUUM_EXTERIOR,
         geometry="reflected-slab",
         truth_tag="tau_critical_mfp",
         truth_value=truth_value,
@@ -535,15 +538,17 @@ CLOSED_SPHERE_KINF_CASES: list[CrossMethodCase] = [
         ),
         registry_case=None,
         materials={0: _FUEL_A_LIKE_MIX},
-        # Closed sphere: BC.reflective on the OUTER surface
+        # Closed sphere: the OUTER surface carries tag 0, bound to the specular wall (1, 0) (a reflecting curved wall is a
+        # response, never a deck)
         # (centreline reflective is implicit for SPH geometry).
         # R_cm = 5.0 (τ_R = σ_t · R_cm = 0.5 · 5.0 = 2.5).
         structured_geometry=StructuredGeometry(
             coord=CoordSystem.SPHERICAL,
             breakpoints=(0.0, 5.0),
             mat_ids=(0,),
-            boundaries=(BC.reflective,),
+            face_roles=(0,),
         ),
+        exterior={0: WallAmplitudes(1.0, 0.0)},
         geometry="closed-sphere-1d",
         truth_tag="k_inf",
         truth_value=0.025 / 0.12,  # 0.20833...

@@ -27,7 +27,7 @@ from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.materials import InconsistentMaterialsError, Materials
 from orpheus.values.content import ContentIdentity
 from tests.gates._content_identity_helpers import require
-from tests.gates.specification._fixtures import fission_only, fuel, moderator, n2n_only, slab2
+from tests.gates.specification._fixtures import fission_only, fuel, moderator, n2n_only, slab2, vacuum_exterior
 
 pytestmark = pytest.mark.foundation
 
@@ -265,7 +265,7 @@ def test_s8_9_material_mesh_and_the_specification_call_the_one_rule(monkeypatch:
     with pytest.raises(Sentinel):
         MaterialMesh(mesh, {0: fuel()}).ng
     with pytest.raises(Sentinel):
-        GeometrySpecification(Materials({0: fuel()}), slab2((0, 0)), Eigen(CellCoefficient.every(F)))
+        GeometrySpecification(Materials({0: fuel()}), slab2((0, 0)), Eigen(CellCoefficient.every(F)), exterior=vacuum_exterior(slab2((0, 0))))
     require(len(calls) >= 2, f"activation: the decoy ran {len(calls)} times")
     before = len(calls)
     InfiniteMediumSpecification(0, fuel(), Eigen(CellCoefficient.every(F)))

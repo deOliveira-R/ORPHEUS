@@ -54,6 +54,7 @@ from orpheus.derivations.continuous.sood_registry import sood2003 as sood
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.coord import CoordSystem
+from orpheus.specification.exterior import WallAmplitudes
 
 pytestmark = pytest.mark.filterwarnings("error::RuntimeWarning")
 
@@ -144,7 +145,7 @@ def _walls(chart: str, breakpoints, laws) -> Walls:
     """One (specular, diffuse) per boundary point, inner first, or ``"P"`` for a periodic face."""
     n = len(breakpoints) - 1
     ends = (n,) if chart != "slab" and breakpoints[0] == 0.0 else (0, n)
-    walls = tuple(Wall(k, 1.0, 0.0, n - k) if law == "P" else Wall(k, law[0], law[1], k)
+    walls = tuple(Wall(k, WallAmplitudes(1.0, 0.0), n - k) if law == "P" else Wall(k, WallAmplitudes(*law), k)
                   for k, law in zip(ends, laws, strict=True))
     return Walls(walls, n, Chart(_COORD[chart]))
 

@@ -459,8 +459,10 @@ Two amplitude fields are kept, rather than one amplitude and a tag naming
 its kind, because a wall that returns part of its outflow specularly and
 part diffusely is physically legitimate: the line part would read
 ``specular`` and the diffuse part ``diffuse``. The reference refuses it
-all the same. ``Wall`` refuses a wall with both a specular and a diffuse
-amplitude (``NotImplementedError``, *a wall is specular or diffuse*),
+all the same. The wall's amplitudes are one
+:class:`~orpheus.specification.exterior.WallAmplitudes`, which ``Wall`` composes, and it
+refuses a wall with both a specular and a diffuse amplitude
+(``NotImplementedError``, *a wall is specular or diffuse*, naming #650),
 under a ``SCOPE-BOUNDARY[guard]`` tag, by the user's ruling of 2026-10-06
 on the third rung's sketch: the S\ :sub:`N` realizer refuses a
 ``LawSum`` of two laws too, so production cannot pose such a wall and the
@@ -741,20 +743,21 @@ built, not a defect.
    * - a tag with a missing or an undeclared parameter
      - *takes exactly the parameters*
      - :ref:`characteristic-walls-registry`, strict parameters
-   * - an amplitude outside :math:`[0, 1]`
-       (``AlbedoBoundary(1.5, SpecularReturn)``, a white wall of albedo
-       :math:`-0.2`), or a ``Wall`` built directly with a specular and a
-       diffuse amplitude summing above 1
+   * - an amplitude outside :math:`[0, 1]` (a specular amplitude 1.5, a diffuse
+       amplitude :math:`-0.2`), or a wall built with a specular and a
+       diffuse amplitude summing above 1: a ``ValueError`` of
+       ``WallAmplitudes`` (R-8b: it was a ``NotImplementedError`` while ``Wall`` held
+       its own bounds)
      - *not a physical wall*
      - a wall returns a fraction of what reaches it
-   * - a ``Wall`` built directly with both a specular and a diffuse
-       amplitude
+   * - a wall built with both a specular and a diffuse
+       amplitude: a ``NotImplementedError`` of ``WallAmplitudes``
      - *a wall is specular or diffuse*
-     - a ``SCOPE-BOUNDARY``: production poses no such wall
+     - a ``SCOPE-BOUNDARY``: production poses no such wall, and #650 lifts it
        (:ref:`characteristic-walls`)
 
-The two refusals a ``Wall`` makes of its own amplitudes (the sum above 1
-and the mixed wall) are gated beside the coupling that reads them,
+The two refusals a wall makes of its amplitudes (the sum above 1
+and the mixed wall) are ``WallAmplitudes``'s, owned once and read by ``Wall``; they are gated beside the coupling that reads them,
 ``tests/gates/derivations/test_characteristic_assembly.py::test_a_wall_returning_both_ways_or_more_than_it_receives_is_refused``,
 each by its own fragment.
 
@@ -9971,8 +9974,9 @@ Gotchas
   injection :math:`1/D`, not to the current the rule actually injects; do
   not renormalise it by the injected tally, which cancels the wall's area
   out of the block.
-- **A wall is specular or diffuse.** ``Wall`` refuses both at once, and
-  one returning more than it receives.
+- **A wall is specular or diffuse.** ``WallAmplitudes`` refuses both at once
+  (a ``NotImplementedError`` naming #650), and one returning more than it receives
+  (a ``ValueError``); ``Wall`` composes it and states neither.
 - **Subtract in mpmath.** A near-void reference such as
   :math:`1 - P_{\rm esc}` evaluated in mpmath and subtracted in double
   precision reports a defect the code does not have.

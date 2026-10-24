@@ -694,7 +694,7 @@ def _build_peierls_slab_case(
                 "thicknesses": thicknesses,
                 "mat_ids": mat_ids,
             },
-            boundary_conditions={"left": "white", "right": "white"},
+            boundary_kinds={"left": "white", "right": "white"},
             is_eigenvalue=True,
             n_groups=ng,
         ),

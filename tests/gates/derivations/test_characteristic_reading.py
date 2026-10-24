@@ -36,7 +36,6 @@ import numpy as np
 import pytest
 
 from orpheus.data.cells import CellCoefficient, Channel
-from orpheus.data.materials import Materials
 from orpheus.derivations.continuous.characteristic import (
     CharacteristicDerivation, GalerkinSystem, GroupTransport, LineRule, PanelBasis, RegionCrossSections, Resolution, TransportResolution,
     characteristic_reference,
@@ -44,8 +43,6 @@ from orpheus.derivations.continuous.characteristic import (
 from orpheus.derivations.continuous.characteristic import reference as reference_module
 from orpheus.derivations.continuous.characteristic.lines import Lines, OpticalScale, polar_rule
 from orpheus.derivations.continuous.characteristic.reading import PointRule
-from orpheus.geometry import BC, StructuredGeometry
-from orpheus.geometry.boundary import AlbedoBoundary, SpecularReturn
 from orpheus.geometry.chart import RadialImage
 from orpheus.numerics.mesh_free_function import RegionwiseConstant
 from orpheus.numerics.observable import FluxIntegral, PointValue, Ratio
@@ -54,6 +51,7 @@ from orpheus.reference.reading import Uncertified
 from orpheus.specification.specification import GeometrySpecification
 from tests.gates._corroboration import references_in
 from tests.gates.derivations import _characteristic_point_mp as mpref
+from tests.gates.derivations import _posed_walls as walls_of
 from tests.gates.derivations._characteristic_mp import specular_sphere_total
 from tests.gates.derivations.test_characteristic_assembly import (
     assert_the_impact_rule_is_graded_at_the_slowest_speed, grading_distances, impact_rule,
@@ -99,8 +97,9 @@ def _on_emitting(rule: LineRule) -> GroupTransport:
     return rule.transport(rule.lines.sigma_t > 0.0)
 
 
-def _partial(albedo: float) -> AlbedoBoundary:
-    return AlbedoBoundary(albedo, SpecularReturn(axis="x"))
+def _partial(albedo: float):
+    """The wall returning the fraction ``albedo`` specularly."""
+    return walls_of.partial(albedo)
 
 
 # ── a given emission: pure absorbers with a source posed in every region ──
@@ -143,10 +142,9 @@ def _given_by_the_door(chart: str, breakpoints, laws, x: float, resolution=_WORK
         raise ValueError(f"_given_by_the_door poses only a solid body behind one (specular, 0) law, got {breakpoints}, {laws}")
     n, groups = len(breakpoints) - 1, len(sigma)
     absorbers = {j: _mixture([s[j] for s in sigma], np.zeros((groups, groups))) for j in range(n)}
-    # BC.vacuum, not _partial(0.0): the two read the same wall, but they are different content, so E4's stored
-    # readings keep their key only under the deck's own spelling of vacuum.
-    outer = BC.vacuum if laws[0][0] == 0.0 else _partial(laws[0][0])
-    geometry = getattr(StructuredGeometry, chart)(tuple(breakpoints), tuple(range(n)), outer=outer)
+    # a vacuum wall is one value, ``WallAmplitudes(0, 0)``: ``_partial(0.0)`` is it, so one spelling serves both
+    outer = _partial(laws[0][0])
+    geometry = getattr(walls_of, chart)(tuple(breakpoints), tuple(range(n)), outer=outer)
     specification = _spec(geometry, absorbers, FixedSource(RegionwiseConstant(np.array(q, dtype=float).T)))
     return np.array([_point(specification, x, g, _door_resolution(resolution)) for g in range(groups)])
 
@@ -1082,8 +1080,8 @@ _DOOR_RES = _door_resolution(_WORK)
 _COARSE = _door_resolution((1, 0, 6))
 
 
-def _spec(geometry: StructuredGeometry, mixtures: dict[int, Any], question: Any) -> GeometrySpecification:
-    return GeometrySpecification(Materials(mixtures), geometry, question)
+def _spec(body: walls_of.Posed, mixtures: dict[int, Any], question: Any) -> GeometrySpecification:
+    return walls_of.spec(body, mixtures, question)
 
 
 @lru_cache(maxsize=None)
@@ -1131,7 +1129,7 @@ def test_a_pure_absorbers_point_values_are_the_mpmath_route(albedo: float) -> No
             assert abs(got[g] / expected - 1.0) < _GIVEN_BAND, (x, g)
 
 
-_GARCIA = _spec(StructuredGeometry.sphere((0.0, 3.0, 5.0, 7.0), (0, 1, 2), outer=BC.vacuum),
+_GARCIA = _spec(walls_of.sphere((0.0, 3.0, 5.0, 7.0), (0, 1, 2), outer=walls_of.VACUUM),
                 {0: _mixture([1.0], [[0.99]]), 1: _mixture([0.5], [[0.3]]), 2: _mixture([2.0], [[1.9]])},
                 FixedSource(RegionwiseConstant(np.array([[0.5], [1.0], [1.5]]))))
 _GARCIA_RES = _door_resolution((4, 3, 12))
@@ -1166,7 +1164,7 @@ def test_garcias_case_1_per_point(r: float, phi: float, rounding: float) -> None
 
 
 def _closed_mirror(mixture, question) -> GeometrySpecification:
-    return _spec(StructuredGeometry.sphere((0.0, 1.0), (0,), outer=BC.reflective), {0: mixture}, question)
+    return _spec(walls_of.sphere((0.0, 1.0), (0,), outer=walls_of.MIRROR), {0: mixture}, question)
 
 
 @pytest.mark.l1
@@ -1199,7 +1197,7 @@ def test_the_fundamentals_readings_carry_the_declared_production() -> None:
     against the production nu Sigma_f + 2 Sigma_2 per region by the volume rule written here, give 1: the declared
     gauge reaches the reading through the emission's scale. To 1e-9: `[M]` 2026-10-08 (``ta/measure_door.log``) the
     volume rule at 4 layers and 8 points leaves 1.9e-11 (3 layers, 6 points: 1.4e-9). First red: the emission left at the pencil's normalisation."""
-    spec = _spec(StructuredGeometry.sphere(_MR3, (0, 1, 0), outer=BC.vacuum), {0: _PU2, 1: _UP2N}, Eigen(_K))
+    spec = _spec(walls_of.sphere(_MR3, (0, 1, 0), outer=walls_of.VACUUM), {0: _PU2, 1: _UP2N}, Eigen(_K))
     production = np.array([np.asarray(_PU2.SigP), np.asarray(_UP2N.SigP), np.asarray(_PU2.SigP)])
     assert not any(m.Sig2[0].toarray().any() for m in (_PU2,)), "the gauge counts (n,2n): PU2 has none"
     n2n = 2.0 * _UP2N.Sig2[0].toarray().sum(axis=1)
@@ -1231,7 +1229,7 @@ def test_a_detectors_importance_read_at_points_is_reciprocal_to_the_forward_flux
     forward ``FluxIntegral`` of the detector on the ``FixedSource`` answer, to 1e-9 (`[M]` the volume rule at 4
     layers and 8 points leaves 1.2e-10, ``ta/measure_door.log``). First reds: the adjoint posed with untransposed cross sections; the detector's
     lift without its 4 pi."""
-    geometry = StructuredGeometry.sphere(_MR3, (0, 1, 0), outer=BC.vacuum)
+    geometry = walls_of.sphere(_MR3, (0, 1, 0), outer=walls_of.VACUUM)
     materials = {0: _ABS, 1: _UP2N}
     source = np.array([[1.0, 0.4], [0.0, 0.0], [0.5, 0.2]])
     detector = np.array([[0.3, 1.1], [2.0, 0.4], [0.7, 0.9]])
@@ -1249,7 +1247,7 @@ def test_in_one_group_the_importance_is_four_pi_times_the_forward_flux(x: float)
     ``Response`` answer's point value with detector f is 4 pi times the ``FixedSource`` answer's with source f
     (the pullback's 4 pi), to 1e-13. An edge equal to a foundation. First red: the detector lifted by the section."""
     mixtures = {j: _mixture([_SIGMA[0][j]], [[0.4 * _SIGMA[0][j]]]) for j in range(3)}
-    geometry = StructuredGeometry.sphere(_MR3, (0, 1, 2), outer=_partial(0.6))
+    geometry = walls_of.sphere(_MR3, (0, 1, 2), outer=_partial(0.6))
     f = RegionwiseConstant(np.array([[1.0], [0.25], [3.0]]))
     forward = _point(_spec(geometry, mixtures, FixedSource(f)), x, 0)
     importance = _point(_spec(geometry, mixtures, Response(f)), x, 0)
@@ -1261,7 +1259,7 @@ def test_a_point_value_of_a_mode_nearest_tau_is_refused_after_the_solve() -> Non
     """[D6; foundation] A ``PointValue`` of a ``Nearest`` answer raises NotImplementedError naming the missing flux
     scale, as its ``FluxIntegral`` does (rung 5a's N4); a ``PointValue`` of the fundamental is answered. First red:
     the mode's eigenvector read at the point on the pencil's normalisation."""
-    spec = _spec(StructuredGeometry.sphere(_MR3, (0, 1, 0), outer=BC.vacuum), {0: _PU2, 1: _UP2N}, Eigen(_K, mode=Nearest(0.5)))
+    spec = _spec(walls_of.sphere(_MR3, (0, 1, 0), outer=walls_of.VACUUM), {0: _PU2, 1: _UP2N}, Eigen(_K, mode=Nearest(0.5)))
     with pytest.raises(NotImplementedError, match="has no flux scale"):
         _door(spec, _COARSE).evaluate(PointValue(1.0, 0))
 

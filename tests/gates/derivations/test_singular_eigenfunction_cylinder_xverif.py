@@ -64,7 +64,7 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from tests.gates.derivations import _posed_walls as walls_of
 from orpheus.derivations.continuous.singular_eigenfunction import (
     solve_singular_eigenfunction_cylinder_bare_critical,
 )
@@ -83,14 +83,12 @@ def _characteristic_k(geometry, mixture, degree: int) -> float:
     """The characteristic reference's k for one mixture on ``geometry``, at rung ``degree`` of the joint ladder,
     through the traced memo (served from the store, or generated in its own process)."""
     from orpheus.data.cells import CellCoefficient, Channel
-    from orpheus.data.materials import Materials
     from orpheus.derivations.continuous.characteristic import CharacteristicDerivation
     from orpheus.numerics.observable import Eigenvalue
     from orpheus.numerics.question import Eigen
-    from orpheus.specification.specification import GeometrySpecification
     from tests.gates.derivations._characteristic_ladders import rung
 
-    spec = GeometrySpecification(Materials({0: mixture}), geometry, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
+    spec = walls_of.spec(geometry, {0: mixture}, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
     return float(CharacteristicDerivation(spec, rung(degree)).evaluate(Eigenvalue()).value)
 
 
@@ -132,7 +130,7 @@ def test_wm72_vs_the_characteristic_cylinder_at_sood_ua_1_0_cy():
 
     # The characteristic reference at WM-72's R (in cm), rung 3 (about 30 s).
     assert res_wm.r_c_cm is not None
-    k_eff = _characteristic_k(StructuredGeometry.cylinder((0.0, res_wm.r_c_cm), (0,), outer=BC.vacuum), case.materials[0], 3)
+    k_eff = _characteristic_k(walls_of.cylinder((0.0, res_wm.r_c_cm), (0,), outer=walls_of.VACUUM), case.materials[0], 3)
     err_va = abs(k_eff - 1.0)
     assert err_va < 1.0e-5, (
         f"characteristic k_eff = {k_eff:.8f} at WM-72's R = {res_wm.r_c_cm:.6f} cm; "

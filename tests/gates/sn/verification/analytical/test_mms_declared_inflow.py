@@ -9,8 +9,9 @@ which stays — the two together are the two-route claim:
   (the test-side wrap of the case's plain-data inflow trace). That is the
   **channel tier**, and it deliberately bypasses the law tier
   (``docs/theory/verification/sn.rst`` says so).
-* **this module** declares ``PrescribedInflow(source=<manufactured spec>)`` on
-  the GEOMETRY and passes a **bulk-only** source. ``from_problem_laws`` assembles
+* **this module** declares ``WallCondition.framed(LabFrameInflow(<manufactured spec>))`` on
+  the two faces (each its OWN tag: a prescribed inflow never shares a tag, so a symmetry the old declaration did not
+  make is never manufactured) and passes a **bulk-only** source. ``declared_boundary_source`` assembles
   ``q_∂`` from the declaration. That is the **law tier** — every step a user
   actually takes.
 
@@ -35,9 +36,9 @@ is about.
 
 ⚠ **The user path stops one step short of ideal, and this module says so rather
 than implying otherwise.** The declaration itself is fully public since the
-declaration channel landed (`985497b5`): a law object is a legal entry of the
-geometry's ``boundaries``,
-and ``solve_sn_fixed_source`` resolves it. What is still a stopgap is
+declaration channel landed (`985497b5`) and, at the wave-2 carve, a condition bound to a
+tag (``boundary_conditions={tag: condition}``): ``solve_sn_fixed_source`` resolves it.
+What is still a stopgap is
 :class:`_ManufacturedFaceInflow` — every constructor argument it takes is
 information the shipped ``InflowSourceSpec`` Protocol cannot supply. That is
 **P6's specification**, enumerated in `scratch/p4_mms_design.md` §10.
@@ -53,10 +54,11 @@ import pytest
 from orpheus.derivations.continuous.mms.sn import (
     build_slab_2g_nonvacuum_mms_case,
 )
-from orpheus.geometry.boundary import PrescribedInflow
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
+from orpheus.transport.boundary_conditions import LabFrameInflow, WallCondition
 from orpheus.transport.fields import AngularBoundarySourceSink
+from tests.gates._exterior import conditions_for
 from tests.gates.sn._test_helpers import mms_prescribed_inflow, volume_weighted_l2
 
 pytestmark = pytest.mark.l1
@@ -122,7 +124,7 @@ class _ManufacturedFaceInflow:
                       for g in range(ng)])
         return A, B
 
-    def evaluate(self, space) -> np.ndarray:
+    def sample(self, space) -> np.ndarray:
         self.spaces_seen.append(space.name)
         # γ₋ψ is the angular FLUX on the trace, so it carries the ansatz's own
         # 1/W — a DIFFERENT reason from the bulk source's /W (design §1.3/§1.4).
@@ -146,6 +148,17 @@ def _face_spec(case, face: str, x_face: float) -> _ManufacturedFaceInflow:
     return _ManufacturedFaceInflow(case=case, x_face=x_face)
 
 
+def _declare(mesh0, specs):
+    """The mesh with two tags (``xmin`` 0, ``xmax`` 1: one per prescribed face) and the table binding each to its spec."""
+    mesh = replace(mesh0, face_roles={"xmin": 0, "xmax": 1})
+    return mesh, {tag: WallCondition.framed(LabFrameInflow(specs[face])) for tag, face in enumerate(("xmin", "xmax"))}
+
+
+def _vacuum_conditions(mesh) -> dict:
+    """The vacuum wall behind the one tag a case's own mesh carries (the supplied channel's mesh)."""
+    return conditions_for(mesh, {0: WallCondition.vacuum()})
+
+
 def _declared_solve(case, n_cells: int, inner: str = "source_iteration"):
     r"""Build → declare → solve, entirely through public surfaces.
 
@@ -163,24 +176,17 @@ def _declared_solve(case, n_cells: int, inner: str = "source_iteration"):
         for face, x_face in (("xmin", 0.0), ("xmax", case.slab_length))
     }
 
-    # ⭐ THE DECLARATION. A law object is a legal geometry-level declaration
-    # since `985497b5`; `solve_sn_fixed_source` rebuilds the SNProblem from this
-    # mesh and `resolve_boundary_conditions` reads the law straight off it.
-    mesh = replace(
-        mesh0,
-        face_laws={
-            "xmin": PrescribedInflow(source=specs["xmin"]),
-            "xmax": PrescribedInflow(source=specs["xmax"]),
-        },
-    )
+    # ⭐ THE DECLARATION. Each prescribed face carries its OWN tag (rule R1), bound to a condition holding the
+    # manufactured spec as a laboratory-frame source; `solve_sn_fixed_source` receives the table at the solve.
+    mesh, conditions = _declare(mesh0, specs)
 
-    # A BULK-ONLY source: `_build_fixed_source_rhs`'s array arm calls
-    # `from_problem_laws`, so q_∂ comes from the DECLARATION, not from the caller.
+    # A BULK-ONLY source: the fixed-source right-hand side reads ``declared_boundary_source``, so q_∂ comes from the
+    # DECLARATION, not from the caller.
     solution = solve_sn_fixed_source(
         case.materials, mesh, case.quadrature, case.external_source(mesh),
-        inner_solver=inner, max_inner=1000, inner_tol=1e-13,
+        inner_solver=inner, max_inner=1000, inner_tol=1e-13, boundary_conditions=conditions,
     )
-    return SNProblem(mesh, case.quadrature, case.materials), solution, specs
+    return SNProblem(mesh, case.quadrature, case.materials, boundary_conditions=conditions), solution, specs
 
 
 def _gamma_minus(solution, sn, face: str) -> np.ndarray:
@@ -266,7 +272,8 @@ def test_the_declared_trace_actually_varies_in_both_axes() -> None:
     coincided, the group axis would be equally undiscriminating.
     """
     case = build_slab_2g_nonvacuum_mms_case()
-    sn = SNProblem(case.build_mesh(20), case.quadrature, case.materials)
+    mesh = case.build_mesh(20)
+    sn = SNProblem(mesh, case.quadrature, case.materials, boundary_conditions=_vacuum_conditions(mesh))
     for face, x_face in _faces(case):
         want = _expected_trace(case, sn, face, x_face)
         spread = float(np.max(want[:, 0]) - np.min(want[:, 0]))
@@ -364,7 +371,7 @@ def test_it_converges_to_the_manufactured_value_not_merely_at_a_rate() -> None:
 
 
 def test_the_declared_and_supplied_channels_are_one_float_program() -> None:
-    r"""⭐ ``from_problem_laws(declared)`` is BIT-identical to ``mms_prescribed_inflow(case, sn)``.
+    r"""⭐ ``from_method(declared)`` is BIT-identical to ``mms_prescribed_inflow(case, sn)``.
 
     The law tier and the channel tier must not merely agree — they must be the
     same computation, since the declaration's only job is to reach the same
@@ -377,17 +384,13 @@ def test_the_declared_and_supplied_channels_are_one_float_program() -> None:
     case = build_slab_2g_nonvacuum_mms_case()
     mesh0 = case.build_mesh(40)
     specs = {face: _face_spec(case, face, x) for face, x in _faces(case)}
-    mesh = replace(
-        mesh0,
-        face_laws={
-            "xmin": PrescribedInflow(source=specs["xmin"]),
-            "xmax": PrescribedInflow(source=specs["xmax"]),
-        },
-    )
-    sn = SNProblem(mesh, case.quadrature, case.materials)
+    mesh, conditions = _declare(mesh0, specs)
+    sn = SNProblem(mesh, case.quadrature, case.materials, boundary_conditions=conditions)
 
-    declared = AngularBoundarySourceSink.from_problem_laws(sn)
-    supplied = mms_prescribed_inflow(case, SNProblem(mesh0, case.quadrature, case.materials))
+    declared = AngularBoundarySourceSink.from_method(sn)
+    supplied = mms_prescribed_inflow(
+        case, SNProblem(mesh0, case.quadrature, case.materials, boundary_conditions=_vacuum_conditions(mesh0)),
+    )
 
     for face, _ in _faces(case):
         rows = np.asarray(sn.angular_trace.inflow_indices_for_face(face))
@@ -435,9 +438,10 @@ def test_the_spec_is_asked_exactly_ONCE_and_for_gamma_minus_ITSELF() -> None:
     mesh0 = case.build_mesh(20)
     spec = _face_spec(case, "xmin", 0.0)
 
-    mesh = replace(mesh0, face_laws={"xmin": PrescribedInflow(source=spec), "xmax": mesh0.outer_law})
-    sn = SNProblem(mesh, case.quadrature, case.materials)
-    q = AngularBoundarySourceSink.from_problem_laws(sn)
+    mesh = replace(mesh0, face_roles={"xmin": 0, "xmax": 1})
+    conditions = {0: WallCondition.framed(LabFrameInflow(spec)), 1: WallCondition.vacuum()}
+    sn = SNProblem(mesh, case.quadrature, case.materials, boundary_conditions=conditions)
+    q = AngularBoundarySourceSink.from_method(sn)
 
     gamma_minus = sn.angular_trace.inflow_space("xmin")
     _require(
@@ -452,7 +456,7 @@ def test_the_spec_is_asked_exactly_ONCE_and_for_gamma_minus_ITSELF() -> None:
     rows = np.asarray(sn.angular_trace.inflow_indices_for_face("xmin"))
     np.testing.assert_array_equal(
         np.asarray(q.face_view("xmin"))[rows],
-        spec.evaluate(gamma_minus),
+        spec.sample(gamma_minus),
         err_msg="the delivered q_∂ is not what the spec returned for Γ₋(xmin)",
     )
 
@@ -493,7 +497,7 @@ def test_the_krylov_path_reproduces_the_manufactured_solution() -> None:
 def test_B_is_the_zero_morphism_when_every_face_is_prescribed() -> None:
     r"""The MMS fixture's own structural precondition — and a returning-affine tripwire.
 
-    Both slab faces declare :class:`PrescribedInflow`, so since P3 both realize
+    Both slab faces carry a condition holding a prescribed inflow (a laboratory-frame source over the zero network), so since P3 both realize
     to the zero morphism and the assembled ``B`` is identically zero: `[M]`
     ``|B(x)|_inf = 0.0`` for a random ``x``. Every ordinate of the answer's
     inflow trace therefore comes from ``q_∂`` and from nowhere else, which is

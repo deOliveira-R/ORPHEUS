@@ -133,8 +133,9 @@ from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.materials import Materials
 from orpheus.derivations.common.xs_library import get_xs, make_mixture
 from orpheus.derivations.continuous.characteristic import CharacteristicDerivation, Resolution, TransportResolution
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.numerics.question import Eigen
+from orpheus.specification.exterior import WallAmplitudes
 from orpheus.specification.specification import GeometrySpecification
 
 
@@ -143,9 +144,9 @@ def tiny_sphere(radius=1.0):
     xs = get_xs("A", "2g")
     mixture = make_mixture(sig_t=xs["sig_t"], sig_c=xs["sig_c"], sig_f=xs["sig_f"], nu=xs["nu"], chi=xs["chi"],
                            sig_s=xs["sig_s"])
-    geometry = StructuredGeometry.sphere((0.0, radius), (0,), outer=BC.vacuum)
+    geometry = StructuredGeometry.sphere((0.0, radius), (0,), outer=0)
     question = Eigen(CellCoefficient.every(Channel.FISSION_EMISSION))
-    specification = GeometrySpecification(Materials({0: mixture}), geometry, question)
+    specification = GeometrySpecification(Materials({0: mixture}), geometry, question, exterior={0: WallAmplitudes(0.0, 0.0)})
     return CharacteristicDerivation(specification, Resolution(1, 0, 0.4, TransportResolution(4), 4))
 '''
 
@@ -333,7 +334,7 @@ _CHARACTERISTIC_DRIVER = textwrap.dedent('''
 
 #: (row, file under orpheus/, the def or statement to find, the edit, the reading's verdict after it)
 CHARACTERISTIC_TREE_WITNESSES = [
-    ("construction-helper", "derivations/continuous/characteristic/walls.py", "def _wall_of(", None, "Stale"),
+    ("construction-helper", "derivations/continuous/characteristic/walls.py", "def _wall_at_face(", None, "Stale"),
     ("rule-of-another-chart", "derivations/continuous/characteristic/lines.py", "def polar_rule(", None, "Hit"),
     ("reading-module-constant", "derivations/continuous/characteristic/reference.py",
      'Lift = Callable[["sympy.Expr"], "sympy.Expr"]', "constant-before", "Stale"),
@@ -358,7 +359,7 @@ def _drive_characteristic(copy: Path, cache: Path, action: str) -> str:
 def test_m4_4c_an_edit_to_the_copied_tree_misses_exactly_where_the_characteristic_reading_ran(tmp_path, row, file, anchor,
                                                                                             method, reading):
     """M4.4, re-posed on the characteristic reading, on a copy of ``orpheus/``: a neutral edit to a construction
-    helper the reading ran (``_wall_of``) makes the reading stale; an edit to the cylinder's polar rule, which a
+    helper the reading ran (``_wall_at_face``) makes the reading stale; an edit to the cylinder's polar rule, which a
     sphere reading never runs, leaves it a hit; a new constant in the reading module's skeleton makes it stale.
     The copy's own driver reports ``Hit`` before the edit (the activation leg)."""
     copy = _copy_tree(tmp_path)

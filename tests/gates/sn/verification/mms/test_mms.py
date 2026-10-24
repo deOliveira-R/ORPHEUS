@@ -20,6 +20,14 @@ from orpheus.derivations.continuous.mms.sn import build_1d_slab_mms_case
 from orpheus.sn import solve_sn_fixed_source
 
 from tests.gates.sn._test_helpers import volume_weighted_l2
+from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
+from tests.gates._exterior import conditions_for
+from tests.gates._reference_pairing import conditions_of
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``). The manufactured cases' meshes carry the one tag
+#: ``VACUUM_TAG``, which the reference states as the vacuum wall (``VACUUM_EXTERIOR``): the test-side loop binds it for production.
+_CONDITIONS = conditions_of(VACUUM_EXTERIOR)
 
 
 @pytest.mark.l1
@@ -46,7 +54,7 @@ def test_sn_1d_slab_mms_converges_second_order():
         result = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, Q,
             max_inner=500,
-            inner_tol=1e-13,
+            inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         phi_num = result.scalar_flux.values[0, :]  # PR-INDEX-5: g=0 radial slice
         phi_ref = case.phi_exact(mesh.centers)

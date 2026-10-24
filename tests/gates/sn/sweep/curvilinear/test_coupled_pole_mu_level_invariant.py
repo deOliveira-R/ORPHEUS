@@ -75,11 +75,16 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry, mirror_motion
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.geometry.boundary import SelfPairedDeck
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
 
 
 def _seed_mirror(quad: Quadrature) -> np.ndarray:
@@ -91,7 +96,7 @@ def _seed_mirror(quad: Quadrature) -> np.ndarray:
     reference lookalike (a lookalike could hold the invariant while the
     production derivation drifts).
     """
-    pi = quad.ordinate_permutation(SelfPairedDeck.mirror(axis="x").motion)
+    pi = quad.ordinate_permutation(mirror_motion("x", 3))
     if pi is None:
         raise AssertionError(
             "no x-mirror ordinate pairing on this rule — every _CUBATURES "
@@ -240,12 +245,12 @@ def test_a_sigma_x_unclosed_rule_refuses_through_the_public_funnel():
     nx = 4
     # Vacuum outer surface: no mirror demand from the boundary tier.
     mesh = Mesher(
-        StructuredGeometry.cylinder((0.0, 2.0), (0,), outer=BC("vacuum")),
+        StructuredGeometry.cylinder((0.0, 2.0), (0,), outer=0),
     ).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.product(n_mu=4, n_phi=5)
     Q = np.full((quad.n_ordinates, 1, nx), 1.0)
     with pytest.raises(ValueError, match="non-carrying"):
         solve_sn_fixed_source(
             {0: _make_1g_mixture(1.0, 0.5)}, mesh, quad, Q,
-            max_inner=2, inner_tol=1e-13,
+            max_inner=2, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )

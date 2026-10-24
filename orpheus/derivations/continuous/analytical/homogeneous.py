@@ -120,7 +120,7 @@ def _build_continuous_homogeneous(
             materials=materials,
             geometry_type="homogeneous",
             geometry_params={},
-            boundary_conditions={},  # infinite medium — no boundary
+            boundary_kinds={},  # infinite medium — no boundary
             is_eigenvalue=True,
             n_groups=ng,
         ),

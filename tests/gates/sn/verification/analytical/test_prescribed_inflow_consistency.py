@@ -51,12 +51,19 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.geometry.coord import CoordSystem
 from orpheus.numerics.iteration import SourceIteration
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``). Tag 0 is the vacuum wall; the 2-D box's reflective
+#: y faces are a Cartesian mirror, a deck that needs no condition.
+_CONDITIONS = {0: WallCondition.vacuum()}
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.numerics.green_operator import GreenOperator
@@ -163,31 +170,31 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     if config == "slab_1d":
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 2.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+            (0.0, 2.0), (0,), left=0, right=0,
         )).partition(CellsByCount.uniform_width(20)).mesh
         run_gs = False
     elif config == "cart2d_reflective_y":
         quad = Quadrature.level_symmetric(4)
         n = 8
-        # Reflective-y declared on the Mesh2D faces: the mesh is the only
-        # place a boundary law is declared.
+        # Reflective-y declared on the Mesh2D faces (a Cartesian mirror deck): the mesh is the only
+        # place a face's role is declared.
         mesh = Mesh2D(
             edges_x=np.linspace(0.0, 2.0, n + 1),
             edges_y=np.linspace(0.0, 2.0, n + 1),
             mat_map=np.zeros((n, n), dtype=int),
             coord=CoordSystem.CARTESIAN,
-            face_laws={
-                "xmin": BC("vacuum"),
-                "xmax": BC("vacuum"),
-                "ymin": BC("reflective"),
-                "ymax": BC("reflective"),
+            face_roles={
+                "xmin": 0,
+                "xmax": 0,
+                "ymin": MirrorDeck(),
+                "ymax": MirrorDeck(),
             },
         )
         run_gs = True
     else:  # pragma: no cover - guarded by parametrize
         raise AssertionError(config)
 
-    sn = SNProblem(mesh, quad, {0: _make_1g_mixture(sigma_t, sigma_s)})
+    sn = SNProblem(mesh, quad, {0: _make_1g_mixture(sigma_t, sigma_s)}, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     solver = SNSolver(sn, max_inner=500, inner_tol=1e-13)
     system = build_within_group_system(
         sn, solver.problem.mat_xs,

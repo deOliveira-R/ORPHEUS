@@ -33,7 +33,7 @@ import pytest
 from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.derivations.common.exact_homogeneous import exact_infinite_medium_reference
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, PointValue, Ratio
@@ -43,6 +43,15 @@ from orpheus.numerics.question import Eigen
 from orpheus.sn import solve_sn, solve_sn_fixed_source
 from orpheus.sn.solution import AdjointSolution, Solution
 from orpheus.specification.specification import InfiniteMediumSpecification
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``). A Cartesian mirror is a deck and needs none; the A|B|A
+#: sphere's outer wall is tag 0 bound to the specular wall of albedo 1 (a reflecting curved wall is a response, never a deck);
+#: the slab and box vacuum faces are tag 0 bound to vacuum.
+_SPHERE_MIRROR = {0: WallCondition.specular(1.0)}
+_VACUUM = {0: WallCondition.vacuum()}
 
 _HERE = "tests/gates/sn/test_solution_read.py"
 _CELLS = "tests/gates/mesh/test_mesh1d_cell_integrals.py"
@@ -54,14 +63,14 @@ _REGIONS = (0.5, 1.5, 2.0)
 def _aba():
     """The A|B|A sphere eigen solve and its mesh."""
     g = StructuredGeometry.from_thicknesses(
-        coord=CoordSystem.SPHERICAL, thicknesses=(0.5, 1.0, 0.5), mat_ids=(0, 1, 0), boundaries=(BC.reflective,),
+        coord=CoordSystem.SPHERICAL, thicknesses=(0.5, 1.0, 0.5), mat_ids=(0, 1, 0), face_roles=(0,),
     )
     mesh = Mesher(g).partition(tuple(CellsByCount.uniform_width(n) for n in (2, 4, 2))).mesh
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         sol = solve_sn({0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}, mesh,
                        Quadrature.gauss_legendre(n_ordinates=4), keff_tol=1e-10, flux_tol=1e-9,
-                       max_inner=200, inner_tol=1e-11)
+                       max_inner=200, inner_tol=1e-11, boundary_conditions=conditions_for(mesh, _SPHERE_MIRROR))
     return sol, mesh
 
 
@@ -99,11 +108,11 @@ def test_r7b2_9_1_k_is_the_outcome_k_bit_for_bit() -> None:
 
 @pytest.mark.foundation
 def test_r7b2_9_1_a_source_answer_refuses_the_eigenvalue() -> None:
-    slab = Mesher(StructuredGeometry.slab((0.0, 1.0), (0,), left=BC.reflective, right=BC.vacuum)).partition(
+    slab = Mesher(StructuredGeometry.slab((0.0, 1.0), (0,), left=MirrorDeck(), right=0)).partition(
         CellsByCount.uniform_width(4)).mesh
     quadrature = Quadrature.gauss_legendre(n_ordinates=4)
     fs = solve_sn_fixed_source({0: get_mixture("B", "2g")}, slab, quadrature, np.ones((4, 2, 4)),
-                               max_inner=400, inner_tol=1e-12)
+                               max_inner=400, inner_tol=1e-12, boundary_conditions=conditions_for(slab, _VACUUM))
     with pytest.raises(ValueError, match="eigen"):
         fs.read(Eigenvalue())
     assert fs.read(_group_total(0)).value > 0.0  # the source answer still reads a flux integral
@@ -241,14 +250,15 @@ def test_r7b2_9_4_a_2d_problem_refuses_a_flux_integral() -> None:
     mesh = Mesh2D(
         edges_x=np.array([0.0, 0.5, 1.0]), edges_y=np.array([0.0, 0.5, 1.0]), mat_map=np.zeros((2, 2), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        face_laws={"xmin": BC("reflective"), "xmax": BC("vacuum"), "ymin": BC("reflective"), "ymax": BC("vacuum")},
+        face_roles={"xmin": MirrorDeck(), "xmax": 0, "ymin": MirrorDeck(), "ymax": 0},
     )
     quadrature = Quadrature.level_symmetric(sn_order=4)
     n = len(np.asarray(quadrature.weights))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         fs = solve_sn_fixed_source({0: get_mixture("B", "2g")}, mesh, quadrature, np.ones((n, 2, 2, 2)),
-                                   max_inner=200, inner_tol=1e-10, inner_schedule="jacobi")
+                                   max_inner=200, inner_tol=1e-10, inner_schedule="jacobi",
+                                   boundary_conditions=conditions_for(mesh, _VACUUM))
     with pytest.raises((ValueError, NotImplementedError), match="#569"):
         fs.read(_group_total(0))
 
@@ -276,7 +286,7 @@ def test_r7b2_9_5_a_reflective_homogeneous_slab_reads_k_infinity() -> None:
     at keff_tol 1e-12. Blind to every spatial and angular operator (flat flux): it pins the eigenvalue reading's
     chart and threading, not transport."""
     keff_tol = 1e-12
-    mesh = Mesher(StructuredGeometry.slab((0.0, 3.0), (0,), left=BC.reflective, right=BC.reflective)).partition(
+    mesh = Mesher(StructuredGeometry.slab((0.0, 3.0), (0,), left=MirrorDeck(), right=MirrorDeck())).partition(
         CellsByCount.uniform_width(6)).mesh
     mixture = get_mixture("A", "2g")
     with warnings.catch_warnings():
@@ -301,14 +311,15 @@ def _two_d_source_answer():
     mesh = Mesh2D(
         edges_x=np.array([0.0, 0.5, 1.0]), edges_y=np.array([0.0, 0.5, 1.0]), mat_map=np.zeros((2, 2), dtype=int),
         coord=CoordSystem.CARTESIAN,
-        face_laws={"xmin": BC("reflective"), "xmax": BC("vacuum"), "ymin": BC("reflective"), "ymax": BC("vacuum")},
+        face_roles={"xmin": MirrorDeck(), "xmax": 0, "ymin": MirrorDeck(), "ymax": 0},
     )
     quadrature = Quadrature.level_symmetric(sn_order=4)
     n = len(np.asarray(quadrature.weights))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         return solve_sn_fixed_source({0: get_mixture("B", "2g")}, mesh, quadrature, np.ones((n, 2, 2, 2)),
-                                     max_inner=200, inner_tol=1e-10, inner_schedule="jacobi")
+                                     max_inner=200, inner_tol=1e-10, inner_schedule="jacobi",
+                                     boundary_conditions=conditions_for(mesh, _VACUUM))
 
 
 @pytest.mark.foundation
@@ -328,7 +339,7 @@ def test_r7b2_9_6_a_problem_with_no_mesh_refuses_a_flux_integral() -> None:
     integral is refused."""
     from orpheus.mesh import AxisMesh
 
-    axes = tuple(AxisMesh(edges=np.linspace(0.0, ext, n + 1), bc_low=BC.reflective, bc_high=BC.reflective)
+    axes = tuple(AxisMesh(edges=np.linspace(0.0, ext, n + 1), role_low=MirrorDeck(), role_high=MirrorDeck())
                  for ext, n in ((0.5, 2), (0.75, 3), (0.5, 2)))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

@@ -49,18 +49,11 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.characteristic import LinePeriod, TrappedSource, Walls
-from orpheus.geometry.boundary import (
-    BC,
-    AlbedoBoundary,
-    PeriodicBoundary,
-    ReflectiveBoundary,
-    SpecularReturn,
-    VacuumInflow,
-)
 from orpheus.geometry.chart import RadialImage
 from orpheus.geometry.chord import ConcentricPartition
+from orpheus.geometry.deck import TranslationDeck
 from orpheus.geometry.line import Line
-from orpheus.geometry.structured_geometry import StructuredGeometry
+from tests.gates.derivations import _posed_walls as walls_of
 
 _HERE = "tests/gates/derivations/test_characteristic_closure.py::"
 _WALLS = "tests/gates/derivations/test_characteristic_walls.py::"
@@ -71,7 +64,8 @@ _EPS = float(np.finfo(float).eps)
 
 
 def _spec(a: float):
-    return AlbedoBoundary(a, SpecularReturn(axis="x"))
+    """The wall returning the fraction ``a`` specularly."""
+    return walls_of.partial(a)
 
 
 _SOLID_BP = (0.0, 0.3, 1.1, 2.0)
@@ -82,24 +76,24 @@ _BELOW_R0 = float(np.nextafter(0.4, 0.0))
 _BELOW_R = float(np.nextafter(2.0, 0.0))
 
 
-def _body(coord: str, *, inner: Any = None, outer: Any = None, left: Any = None, right: Any = None) -> StructuredGeometry:
+def _body(coord: str, *, inner: Any = None, outer: Any = None, left: Any = None, right: Any = None) -> walls_of.Posed:
     match coord:
         case "sphere_solid":
-            return StructuredGeometry.sphere(_SOLID_BP, (0, 1, 2), outer=outer)
+            return walls_of.sphere(_SOLID_BP, (0, 1, 2), outer=outer)
         case "cylinder_solid":
-            return StructuredGeometry.cylinder(_SOLID_BP, (0, 1, 2), outer=outer)
+            return walls_of.cylinder(_SOLID_BP, (0, 1, 2), outer=outer)
         case "sphere_hollow":
-            return StructuredGeometry.sphere(_HOLLOW_BP, (0, 1), inner=inner, outer=outer)
+            return walls_of.sphere(_HOLLOW_BP, (0, 1), inner=inner, outer=outer)
         case "cylinder_hollow":
-            return StructuredGeometry.cylinder(_HOLLOW_BP, (0, 1), inner=inner, outer=outer)
+            return walls_of.cylinder(_HOLLOW_BP, (0, 1), inner=inner, outer=outer)
         case "slab":
-            return StructuredGeometry.slab(_SLAB_BP, (0, 1, 2), left=left, right=right)
+            return walls_of.slab(_SLAB_BP, (0, 1, 2), left=left, right=right)
     raise AssertionError(coord)
 
 
-def _period(geometry: StructuredGeometry, points, directions) -> LinePeriod:
+def _period(body: walls_of.Posed, points, directions) -> LinePeriod:
     line = Line.through(np.asarray(points, dtype=float), np.asarray(directions, dtype=float))
-    return LinePeriod.of(ConcentricPartition.of(geometry).chord(line), Walls.of(geometry))
+    return LinePeriod.of(ConcentricPartition.of(body.geometry).chord(line), Walls.of(*body))
 
 
 def _in_plane(b: float, wz: float):
@@ -138,11 +132,11 @@ def _table():
                  [(0, False, 3, _A_OUT), (0, True, 0, _A_IN)]))
     rows.append(("slab_mirrors_falling", mirrors, (0.5, 0.0, 0.0), (-0.3, 0.0, float(np.sqrt(0.91))),
                  [(0, False, 0, _A_IN), (0, True, 3, _A_OUT)]))
-    periodic = _body("slab", left=PeriodicBoundary(axis="x"), right=BC("periodic"))
+    periodic = _body("slab", left=walls_of.WRAP, right=walls_of.WRAP)
     rows.append(("slab_periodic_rising", periodic, (0.5, 0.0, 0.0), (0.6, 0.8, 0.0), [(0, False, 3, 1.0)]))
     rows.append(("slab_periodic_falling", periodic, (0.5, 0.0, 0.0), (-0.3, 0.0, float(np.sqrt(0.91))),
                  [(0, False, 0, 1.0)]))
-    rows.append(("slab_vacuum_left_mirror_right", _body("slab", left=VacuumInflow(), right=BC.reflective),
+    rows.append(("slab_vacuum_left_mirror_right", _body("slab", left=walls_of.VACUUM, right=walls_of.MIRROR),
                  (0.5, 0.0, 0.0), (0.6, 0.8, 0.0), [(0, False, 3, 1.0), (0, True, 0, 0.0)]))
     # Parallel lines: no transit, rank 0, amplitude 0.
     rows.append(("cylinder_axial", _body("cylinder_solid", outer=_spec(_A_OUT)), (0.7, 0.0, 0.0), (0.0, 0.0, 1.0), []))
@@ -181,12 +175,12 @@ def test_the_period_matches_the_hand_counted_table(geometry, point, direction, e
            for k in range(m)]
     assert got == expected, f"{got} != {expected}"
     np.testing.assert_array_equal(period.amplitude[m:], 0.0)
-    n_plus_1 = len(geometry.breakpoints)
+    n_plus_1 = len(geometry.geometry.breakpoints)
     np.testing.assert_array_equal(period.exit_wall[m:], n_plus_1)
     np.testing.assert_array_equal(period.entry_wall[m:], n_plus_1)
     if m:
         # The cycle closes: each traversal enters at the partner of the wall the previous one exits.
-        walls = Walls.of(geometry)
+        walls = Walls.of(*geometry)
         exits = period.exit_wall[:m]
         np.testing.assert_array_equal(period.entry_wall[:m], walls.partner_at(np.roll(exits, 1)))
 
@@ -225,15 +219,16 @@ def _traversed(chord, transit: int):
     return chord.slot_region[first:stop][keep], length[keep]
 
 
-def _march(coord: str, geometry: StructuredGeometry, point, direction, steps: int):
+def _march(coord: str, body: walls_of.Posed, point, direction, steps: int):
     """The physically unfolded path: at each exit, reflect the 3-D line by Householder (or translate it across a wrap).
 
     Returns, per step, the (regions, lengths, exit wall, line) of the transit
     the path runs along. No ``LinePeriod`` and no wall table on this side:
     the partner of a wrap is the opposite face, written here.
     """
+    geometry = body.geometry
     partition = ConcentricPartition.of(geometry)
-    periodic = isinstance(geometry.boundaries[0], PeriodicBoundary)
+    periodic = isinstance(geometry.face_roles[0], TranslationDeck)
     width = geometry.breakpoints[-1] - geometry.breakpoints[0]
     line = Line.through(np.asarray(point, dtype=float), np.asarray(direction, dtype=float))
     start = None                                   # the parameter where the current transit begins
@@ -278,9 +273,9 @@ _MARCH = [  # (id, chart, geometry, point, direction)
      (0.5, 0.0, 0.0), (0.6, 0.8, 0.0)),
     ("slab_mirrors_falling", "slab", _body("slab", left=_spec(_A_IN), right=_spec(_A_OUT)),
      (0.5, 0.0, 0.0), (-0.3, 0.0, float(np.sqrt(0.91)))),
-    ("slab_periodic_rising", "slab", _body("slab", left=PeriodicBoundary(axis="x"), right=PeriodicBoundary(axis="x")),
+    ("slab_periodic_rising", "slab", _body("slab", left=walls_of.WRAP, right=walls_of.WRAP),
      (0.5, 0.0, 0.0), (0.6, 0.8, 0.0)),
-    ("slab_periodic_falling", "slab", _body("slab", left=PeriodicBoundary(axis="x"), right=PeriodicBoundary(axis="x")),
+    ("slab_periodic_falling", "slab", _body("slab", left=walls_of.WRAP, right=walls_of.WRAP),
      (0.5, 0.0, 0.0), (-0.3, 0.0, float(np.sqrt(0.91)))),
 ]
 
@@ -321,7 +316,7 @@ def test_the_period_is_the_physically_unfolded_path(chart, geometry, point, dire
     period = _period(geometry, point, direction)
     m = int(period.rank)
     assert m >= 1
-    original = ConcentricPartition.of(geometry).chord(
+    original = ConcentricPartition.of(geometry.geometry).chord(
         Line.through(np.asarray(point, dtype=float), np.asarray(direction, dtype=float)))
     steps = _march(chart, geometry, point, _unit(direction), m + 1)
     image0 = original.image
@@ -334,16 +329,16 @@ def test_the_period_is_the_physically_unfolded_path(chart, geometry, point, dire
         np.testing.assert_allclose(lengths, want_lengths, rtol=64 * _EPS, atol=0.0, err_msg=f"step {k}: lengths")
         assert exit_wall == int(period.exit_wall[slot]), (k, exit_wall, period.exit_wall)
         # A3: the invariants the reflection keeps.
-        chord = ConcentricPartition.of(geometry).chord(line)
+        chord = ConcentricPartition.of(geometry.geometry).chord(line)
         np.testing.assert_allclose(chord.projected_speed, original.projected_speed, rtol=8 * _EPS)
         omega, omega0 = np.asarray(line.direction), _unit(direction)
         if chart == "slab":
-            sign = 1.0 if isinstance(geometry.boundaries[0], PeriodicBoundary) or k % 2 == 0 else -1.0
+            sign = 1.0 if isinstance(geometry.geometry.face_roles[0], TranslationDeck) or k % 2 == 0 else -1.0
             np.testing.assert_allclose(omega[0], sign * omega0[0], rtol=4 * _EPS)
         else:
             assert isinstance(chord.image, RadialImage) and isinstance(image0, RadialImage)
             np.testing.assert_allclose(chord.image.impact_parameter, image0.impact_parameter,
-                                       rtol=64 * _EPS, atol=64 * _EPS * geometry.breakpoints[-1])
+                                       rtol=64 * _EPS, atol=64 * _EPS * geometry.geometry.breakpoints[-1])
             if chart.startswith("cylinder"):
                 np.testing.assert_allclose(omega[2], omega0[2], rtol=4 * _EPS, atol=4 * _EPS)
 
@@ -553,15 +548,15 @@ def test_an_absorbing_wall_zeroes_exactly_the_inflow_it_feeds(case: str) -> None
     """
     match case:
         case "slab_left_absorbing":
-            period = _period(_body("slab", left=VacuumInflow(), right=ReflectiveBoundary(axis="x")),
+            period = _period(_body("slab", left=walls_of.VACUUM, right=walls_of.MIRROR),
                              (0.5, 0.0, 0.0), (0.6, 0.8, 0.0))
             absorbing = 0
         case "slab_right_absorbing":
-            period = _period(_body("slab", left=ReflectiveBoundary(axis="x"), right=BC.vacuum),
+            period = _period(_body("slab", left=walls_of.MIRROR, right=walls_of.VACUUM),
                              (0.5, 0.0, 0.0), (0.6, 0.8, 0.0))
             absorbing = 3
         case "hollow_inner_absorbing":
-            period = _period(_body("sphere_hollow", inner=BC.vacuum, outer=BC.reflective),
+            period = _period(_body("sphere_hollow", inner=walls_of.VACUUM, outer=walls_of.MIRROR),
                              (0.2, 0.0, 0.0), (0.0, 1.0, 0.0))
             absorbing = 0
         case _:
@@ -579,9 +574,9 @@ def test_an_absorbing_wall_zeroes_exactly_the_inflow_it_feeds(case: str) -> None
 @pytest.mark.l0
 @pytest.mark.verifies("characteristic-closure")
 @pytest.mark.parametrize("geometry", [
-    _body("slab", left=VacuumInflow(), right=AlbedoBoundary(0.0)),
-    _body("sphere_hollow", inner=BC.vacuum, outer=BC.vacuum),
-    _body("sphere_solid", outer=VacuumInflow()),
+    _body("slab", left=walls_of.VACUUM, right=walls_of.VACUUM),
+    _body("sphere_hollow", inner=walls_of.VACUUM, outer=walls_of.VACUUM),
+    _body("sphere_solid", outer=walls_of.VACUUM),
 ], ids=["slab", "sphere_hollow", "sphere_solid"])
 @pytest.mark.rests_on(_HERE + "test_the_inflow_is_the_unfolded_wall_by_wall_sum",
                       _WALLS + "test_every_law_reads_as_the_wall_its_physics_names")
@@ -593,7 +588,7 @@ def test_every_amplitude_zero_adds_nothing(geometry) -> None:
     amplitude 1; the amplitude left out of the returned outflow.
     """
     bs = [0.0, 0.2, 0.7, 1.5, 2.5]
-    direction = (0.6, 0.8, 0.0) if geometry.coord.name == "CARTESIAN" else (0.0, 1.0, 0.0)
+    direction = (0.6, 0.8, 0.0) if geometry.geometry.coord.name == "CARTESIAN" else (0.0, 1.0, 0.0)
     period = _period(geometry, [(b, 0.0, 0.0) for b in bs], [direction] * len(bs))
     np.testing.assert_array_equal(period.amplitude, 0.0)
     rng = np.random.default_rng(4)
@@ -618,7 +613,7 @@ def test_the_least_solution_on_a_lossless_trapped_line() -> None:
     on the trapped line read as 0); (c) the refusal widened to any lossless
     traversal (the mixed m = 2 line refused).
     """
-    geometry = StructuredGeometry.sphere((0.0, 1.0, 2.0), (0, 1), outer=BC.reflective)
+    geometry = walls_of.sphere((0.0, 1.0, 2.0), (0, 1), outer=walls_of.MIRROR)
     period = _period(geometry, [(0.5, 0.0, 0.0), (1.5, 0.0, 0.0)], [(0.0, 1.0, 0.0)] * 2)
     tau = period.optical_depth(np.array([1.0, 0.0]))
     assert tau[1, 0] == 0.0 and tau[0, 0] > 0.0
@@ -629,7 +624,7 @@ def test_the_least_solution_on_a_lossless_trapped_line() -> None:
     with pytest.raises(TrappedSource, match="lossless trapped line"):
         period.inflow(tau, np.array([[[0.7], [0.0]], [[1e-3], [0.0]]]))
     # A two-traversal cycle lossless on one side only is not trapped: finite and positive.
-    mirrors = _period(_body("slab", left=BC.reflective, right=BC.reflective), (0.5, 0.0, 0.0), (0.6, 0.8, 0.0))
+    mirrors = _period(_body("slab", left=walls_of.MIRROR, right=walls_of.MIRROR), (0.5, 0.0, 0.0), (0.6, 0.8, 0.0))
     mixed = mirrors.inflow(np.array([0.0, 0.5]), np.array([1.0, 1.0]))
     assert np.all(np.isfinite(mixed)) and np.all(mixed > 0.0)
     # Both sides lossless: trapped again, 0 without a source, refused with one.
@@ -678,7 +673,7 @@ def test_a_sigma_t_of_the_wrong_length_is_refused(length: int) -> None:
     traversals' ``optical_depth`` (``retirement-audit`` E.21: the raise's owner moved one frame out, so the row asserts
     both frames: the kernel raised, and it was the closure's call that reached it).
     """
-    period = _period(_body("slab", left=BC.reflective, right=BC.reflective), (0.5, 0.0, 0.0), (0.6, 0.8, 0.0))
+    period = _period(_body("slab", left=walls_of.MIRROR, right=walls_of.MIRROR), (0.5, 0.0, 0.0), (0.6, 0.8, 0.0))
     with pytest.raises(ValueError, match="one value per region") as refusal:
         period.optical_depth(np.linspace(0.3, 1.2, length))
     frames = [(str(entry.path), entry.name) for entry in refusal.traceback]
@@ -701,7 +696,7 @@ def test_a_subnormal_cosine_through_a_void_reads_infinite_depth_and_finite_inflo
     """
     import warnings
 
-    geometry = _body("slab", left=BC.reflective, right=BC.reflective)
+    geometry = _body("slab", left=walls_of.MIRROR, right=walls_of.MIRROR)
     period = _period(geometry, (0.5, 0.0, 0.0), (5e-324, 1.0, 0.0))
     with warnings.catch_warnings():
         warnings.filterwarnings("error", category=RuntimeWarning, module=r".*characteristic\.closure")
@@ -727,13 +722,13 @@ def test_a_chord_whose_walls_disagree_with_its_transits_is_refused(monkeypatch: 
     breakpoint 3: the period runs 0 forward, 0 reversed, 0 reversed, and never
     returns to its first traversal.
     """
-    periodic = Walls.of(_body("slab", left=BC("periodic"), right=BC("periodic")))
-    radial = ConcentricPartition.of(_body("sphere_solid", outer=BC.reflective)).chord(
+    periodic = Walls.of(*_body("slab", left=walls_of.WRAP, right=walls_of.WRAP))
+    radial = ConcentricPartition.of(_body("sphere_solid", outer=walls_of.MIRROR).geometry).chord(
         Line.through(np.array([0.7, 0.0, 0.0]), np.array([0.0, 1.0, 0.0])))
     with pytest.raises(RuntimeError, match="enters at the partner"):
         LinePeriod.of(radial, periodic)
-    mirrors = Walls.of(_body("slab", left=BC.reflective, right=BC.reflective))
-    chord = ConcentricPartition.of(_body("slab", left=BC.reflective, right=BC.reflective)).chord(
+    mirrors = Walls.of(*_body("slab", left=walls_of.MIRROR, right=walls_of.MIRROR))
+    chord = ConcentricPartition.of(_body("slab", left=walls_of.MIRROR, right=walls_of.MIRROR).geometry).chord(
         Line.through(np.array([0.5, 0.0, 0.0]), np.array([0.6, 0.8, 0.0])))
     assert int(LinePeriod.of(chord, mirrors).rank) == 2                 # the honest walls close
     monkeypatch.setattr(Walls, "partner_at", lambda self, bp, where=None: np.full(np.shape(bp), 3))
@@ -764,7 +759,7 @@ def _arriving_closed_form(amplitude, tau, outflow, arriving, m: int):
 
 
 def _arriving_periods():
-    periodic = _body("slab", left=PeriodicBoundary(axis="x"), right=BC("periodic"))
+    periodic = _body("slab", left=walls_of.WRAP, right=walls_of.WRAP)
     partial = _body("slab", left=_spec(0.3), right=_spec(0.8))
     return {
         "sphere_solid_a0.6": (_period_with((0.6,), 1, 20), 1),
@@ -835,7 +830,7 @@ def test_an_arriving_flux_on_a_lossless_trapped_line_is_refused() -> None:
     finite. First red: the trapped test reading the outflow only (the arriving
     flux added after the test): the first leg returns inf or a silent 0.
     """
-    geometry = StructuredGeometry.sphere((0.0, 1.0, 2.0), (0, 1), outer=BC.reflective)
+    geometry = walls_of.sphere((0.0, 1.0, 2.0), (0, 1), outer=walls_of.MIRROR)
     period = _period(geometry, [(0.5, 0.0, 0.0), (1.5, 0.0, 0.0)], [(0.0, 1.0, 0.0)] * 2)
     tau = period.optical_depth(np.array([1.0, 0.0]))
     no_source = np.zeros((2, 2, 1))

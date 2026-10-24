@@ -32,6 +32,7 @@ from orpheus.derivations.continuous.characteristic.assembly import group_transpo
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.coord import CoordSystem
+from orpheus.specification.exterior import WallAmplitudes
 from tests.gates.numerics import _traced_memo_api as api
 
 pytestmark = pytest.mark.foundation
@@ -63,7 +64,7 @@ def _basis(chart: str, breakpoints, degree: int = 3, layers: int = 2) -> PanelBa
 def _walls(chart: str, breakpoints, laws) -> Walls:
     n = len(breakpoints) - 1
     ends = (n,) if chart != "slab" and breakpoints[0] == 0.0 else (0, n)
-    return Walls(tuple(Wall(k, law[0], law[1], k) for k, law in zip(ends, laws, strict=True)), n, Chart(_COORD[chart]))
+    return Walls(tuple(Wall(k, WallAmplitudes(*law), k) for k, law in zip(ends, laws, strict=True)), n, Chart(_COORD[chart]))
 
 
 def _emitting(sigma_t) -> np.ndarray:
@@ -153,7 +154,7 @@ _SPELLINGS = {
     "walls-built-again": lambda b, w: (b, _walls("sphere", _MR3, (_WHITE,)), _SIG, _R4, _EMIT),
     # a wall's amplitudes as integers (``Wall`` parses them as reals) and its indices as numpy integers
     "walls-of-integer-amplitudes": lambda b, w: (
-        b, Walls((Wall(np.int64(3), 0, 1, np.int64(3)),), 3, Chart(_COORD["sphere"])),  # pyright: ignore[reportArgumentType]
+        b, Walls((Wall(np.int64(3), WallAmplitudes(0, 1), np.int64(3)),), 3, Chart(_COORD["sphere"])),  # pyright: ignore[reportArgumentType]
         _SIG, _R4, _EMIT),
 }
 #: One leg per PARAMETER of ``group_transport``: each moves that argument alone, and the key must move.

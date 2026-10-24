@@ -41,11 +41,12 @@ solution:
   package supports it) the linear-anisotropy moment :math:`f_1`.
 
 * **Boundary condition** — the reflection coefficient :math:`R`,
-  read by ``Spectrum._reflection_coefficient`` from the geometry's laws
-  through :func:`~orpheus.derivations.common.reference_body.specular_albedo`:
-  ``BC.vacuum`` for :math:`R = 0`, and a specular partial reflection
-  (``BC("partial", params={"albedo": R})``) for any other :math:`R`. A
-  slab declares the same law on both faces (the Atalay slab has one
+  read by ``Spectrum._reflection_coefficient`` from the geometry's face roles
+  and the ``exterior`` that states each tag, through
+  :func:`~orpheus.derivations.common.reference_body.specular_albedos`:
+  ``WallAmplitudes(0, 0)`` for :math:`R = 0`, and a specular partial reflection
+  (``WallAmplitudes(R, 0)``) for any other :math:`R`. A
+  slab states the same wall on both faces (the Atalay slab has one
   :math:`R` on both).
   Vacuum (:math:`R = 0`) for bare-critical configurations;
   partial reflection :math:`R \in (0, 1)` for the Atalay
@@ -148,6 +149,7 @@ References
 from __future__ import annotations
 
 import functools
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -166,6 +168,7 @@ from orpheus.derivations.common.reference_body import (
     specular_albedos,
 )
 from orpheus.geometry import CoordSystem, StructuredGeometry
+from orpheus.specification.exterior import WallAmplitudes
 
 
 __all__ = ["Spectrum"]
@@ -509,15 +512,17 @@ class Spectrum:
     Direct construction with a :class:`StructuredGeometry` and
     a ``materials: dict[int, Mixture]`` payload::
 
-        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+        from orpheus.geometry import CoordSystem, StructuredGeometry
+        from orpheus.specification.exterior import WallAmplitudes
 
         geom = StructuredGeometry(
             coord=CoordSystem.CARTESIAN,
             breakpoints=(0.0, L_full),
             mat_ids=(0,),
-            boundaries=(BC.vacuum, BC.vacuum),
+            face_roles=(0, 0),            # one tag on both faces
         )
-        spec = Spectrum(geometry=geom, materials={0: mix})
+        vacuum = {0: WallAmplitudes(0.0, 0.0)}   # the wall behind tag 0: nothing returned
+        spec = Spectrum(geometry=geom, exterior=vacuum, materials={0: mix})
         sol = spec.solve_critical()
 
     Parameters
@@ -528,6 +533,10 @@ class Spectrum:
         :func:`~orpheus.derivations.common.reference_body.reference_body` (a homogeneous body only).
         Singular-eigenfunction criticality requires a finite spatial
         domain (no infinite medium).
+    exterior : Mapping[int, WallAmplitudes]
+        The wall behind each tag the geometry's faces carry (an exact cover of its tags; the empty mapping for a
+        geometry whose faces are all decks): plain data of the reference, read by
+        :func:`~orpheus.derivations.common.reference_body.specular_albedos`.
     materials : dict[int, Mixture]
         Production-protocol materials, keyed by material ID. The
         single-region geometry's mat_id selects the active mixture.
@@ -538,6 +547,7 @@ class Spectrum:
     """
 
     geometry: StructuredGeometry
+    exterior: Mapping[int, WallAmplitudes]
     materials: dict[int, Mixture]
     n_modes: int = 8
 
@@ -557,7 +567,7 @@ class Spectrum:
           bare-critical only).
         """
         body = self._body
-        self._reflection_coefficient  # the laws are read (and refused) at construction
+        self._reflection_coefficient  # the face roles are read (and refused) at construction
         if self.n_modes < 2:
             raise ValueError(f"n_modes must be ≥ 2, got {self.n_modes}")
         if self._mat_id not in self.materials:
@@ -608,16 +618,16 @@ class Spectrum:
     @functools.cached_property
     def _reflection_coefficient(self) -> float:
         r"""The reflection coefficient :math:`R` the solvers take, read from
-        the geometry's laws (:func:`~orpheus.derivations.common.reference_body.specular_albedo`).
+        the geometry's face roles and its exterior (:func:`~orpheus.derivations.common.reference_body.specular_albedos`).
 
         The slab solver (Atalay 1997) puts one :math:`R` on both faces, so a
-        slab's two laws must declare one albedo; the sphere solver takes
+        slab's two faces must state one albedo; the sphere solver takes
         :math:`R` on the outer surface; the cylinder solver is bare
         (:math:`R = 0`) only. :math:`R = 1` is admitted here and refused by
         the solvers (the size drops out of the criticality condition under
         perfect reflection; Atalay omits it from Tables 2-5).
         """
-        albedos = specular_albedos(self.geometry, owner="Spectrum")
+        albedos = specular_albedos(self.geometry, self.exterior, owner="Spectrum")
         if len(set(albedos)) != 1:
             refuse_unserved(
                 f"slab with unequal face albedos {albedos}", owner="Spectrum",
@@ -708,7 +718,7 @@ class Spectrum:
         ``parameter_kind == "radius_mfp"``.
 
         For a **bare cylinder** (``geometry == "cylinder"``,
-        ``BC.vacuum`` outer) this returns the critical radius
+        the vacuum wall on the outer face) this returns the critical radius
         :math:`R_c` via Westfall-Metcalf 1973 Eq 32 — the full
         Mitsis-WM Fredholm iteration with Mitsis-Zweifel singular
         subtraction. Cylinder ships isotropic-only and bare-only.

@@ -108,9 +108,8 @@ from orpheus.derivations.continuous.mms.sn import (
     build_cylindrical_mms_case,
     build_cylindrical_anisotropic_mms_case,
 )
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry, mirror_motion
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
-from orpheus.geometry.boundary import SelfPairedDeck
 from orpheus.numerics.quadrature import (
     STAGGERED,
     Quadrature,
@@ -119,11 +118,17 @@ from orpheus.numerics.quadrature import (
     spherical_product,
 )
 from orpheus.sn import solve_sn_fixed_source
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``). Tag 0 is the vacuum wall.
+_CONDITIONS = {0: WallCondition.vacuum()}
 
 
 def _xi_mirror_pairing(quad: Quadrature) -> np.ndarray:
     """The σ_y (ξ-mirror) ordinate pairing, from production's own source."""
-    pi = quad.ordinate_permutation(SelfPairedDeck.mirror(axis="y").motion)
+    pi = quad.ordinate_permutation(mirror_motion("y", 3))
     assert pi is not None, "every fixture here is σ_y-closed (k = 0 plane)"
     return pi.indices
 
@@ -443,7 +448,7 @@ def _ladder(case, n_cells):
         mesh = case.build_mesh(nc)
         result = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature,
-            case.external_source(mesh), max_inner=800, inner_tol=1e-13,
+            case.external_source(mesh), max_inner=800, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         errors.append(volume_weighted_l2(
             np.asarray(result.scalar_flux.values)[0, :],
@@ -525,7 +530,7 @@ class _CylXiOddMMSCase:
 
     def build_mesh(self, n_cells: int) -> Mesh1D:
         return Mesher(StructuredGeometry.cylinder(
-            (0.0, self.radius), (self.mat_id,), outer=BC("vacuum"),
+            (0.0, self.radius), (self.mat_id,), outer=0,
         )).partition(CellsByCount.uniform_width(n_cells)).mesh
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:

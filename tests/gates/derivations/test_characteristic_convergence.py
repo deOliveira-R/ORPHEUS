@@ -47,13 +47,10 @@ import numpy as np
 import pytest
 
 from orpheus.data.cells import CellCoefficient, Channel
-from orpheus.data.materials import Materials
 from orpheus.derivations.continuous.characteristic import CharacteristicDerivation, Resolution, TransportResolution
-from orpheus.geometry import StructuredGeometry
-from orpheus.geometry.boundary import AlbedoBoundary, SpecularReturn, VacuumInflow
 from orpheus.numerics.observable import Eigenvalue
 from orpheus.numerics.question import Eigen
-from orpheus.specification.specification import GeometrySpecification
+from tests.gates.derivations import _posed_walls as walls_of
 from tests.gates.derivations._ladder_rules import geometric_error
 from tests.gates.derivations.test_characteristic_system import _ABS, _PU2
 
@@ -69,17 +66,18 @@ _MR3, _MR3H, _SLB3 = (0.0, 0.5, 1.5, 2.0), (0.4, 0.5, 1.5, 2.0), (0.0, 0.4, 1.5,
 
 
 def _law(albedo: float):
-    return VacuumInflow() if albedo == 0.0 else AlbedoBoundary(albedo, SpecularReturn(axis="x"))
+    """The wall of a specular albedo: vacuum at 0, else the specular return of the fraction."""
+    return walls_of.VACUUM if albedo == 0.0 else walls_of.partial(albedo)
 
 
 _BODIES = {
-    "sphere": lambda: StructuredGeometry.sphere(_MR3, (0, 1, 0), outer=_law(0.6)),
-    "hollow": lambda: StructuredGeometry.sphere(_MR3H, (0, 1, 0), inner=_law(0.4), outer=_law(0.7)),
-    "slab": lambda: StructuredGeometry.slab(_SLB3, (0, 1, 0), left=_law(0.4), right=_law(0.7)),
+    "sphere": lambda: walls_of.sphere(_MR3, (0, 1, 0), outer=_law(0.6)),
+    "hollow": lambda: walls_of.sphere(_MR3H, (0, 1, 0), inner=_law(0.4), outer=_law(0.7)),
+    "slab": lambda: walls_of.slab(_SLB3, (0, 1, 0), left=_law(0.4), right=_law(0.7)),
     # the cylinder and the annulus are one region (PU2): ``[M]`` 2026-10-10, a single three-region two-group annulus
     # solve at degree 2 ran past 10 min, a one-region one 10 s (``probes/probe_d8b.log``)
-    "cylinder": lambda: StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=_law(0.6)),
-    "annulus": lambda: StructuredGeometry.cylinder((0.4, 1.4), (0,), inner=_law(0.4), outer=_law(0.7)),
+    "cylinder": lambda: walls_of.cylinder((0.0, 1.0), (0,), outer=_law(0.6)),
+    "annulus": lambda: walls_of.cylinder((0.4, 1.4), (0,), inner=_law(0.4), outer=_law(0.7)),
 }
 
 
@@ -122,7 +120,7 @@ _ANGULAR_RATE = 1e-2
 
 @lru_cache(maxsize=None)
 def _k(body: str, resolution: Resolution) -> float:
-    spec = GeometrySpecification(Materials({0: _PU2, 1: _ABS}), _BODIES[body](), Eigen(_K))
+    spec = walls_of.spec(_BODIES[body](), {0: _PU2, 1: _ABS}, Eigen(_K))
     return float(CharacteristicDerivation(spec, resolution).evaluate(Eigenvalue()).value)
 
 
@@ -200,8 +198,8 @@ def _two_region_cylinder_k(degree: int) -> float:
     """k of the vacuum cylinder of fuel A | moderator B at one group, (0, 0.6, 1.0) cm, at panel degree ``degree``."""
     from tests.gates.sn.verification.analytical._aba_reference import isotropic_mixture
 
-    spec = GeometrySpecification(Materials({0: isotropic_mixture("A", "1g"), 1: isotropic_mixture("B", "1g")}),
-                                 StructuredGeometry.cylinder((0.0, 0.6, 1.0), (0, 1), outer=_law(0.0)), Eigen(_K))
+    spec = walls_of.spec(walls_of.cylinder((0.0, 0.6, 1.0), (0, 1), outer=_law(0.0)),
+                         {0: isotropic_mixture("A", "1g"), 1: isotropic_mixture("B", "1g")}, Eigen(_K))
     resolution = Resolution(degree, 1, 0.4, TransportResolution(8), 2 * (degree + 1))
     return float(CharacteristicDerivation(spec, resolution).evaluate(Eigenvalue()).value)
 

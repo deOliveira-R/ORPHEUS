@@ -82,10 +82,12 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.observable import Eigenvalue
 from orpheus.reference.verification import compare_uncertified, verify_agreement
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
 from tests.gates.sn._test_helpers import mixture_from_transport_data
 from tests.gates.derivations._characteristic_ladders import (
     CYLINDER_3REG_SN_STEPS,
@@ -149,7 +151,7 @@ def test_sn_spherical_homogeneous_kinf_recovery_2g():
 
     nx = 20
     mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, 2.0), (0,), outer=BC("reflective"),
+        (0.0, 2.0), (0,), outer=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     result = solve_sn(
@@ -157,7 +159,7 @@ def test_sn_spherical_homogeneous_kinf_recovery_2g():
         mesh=mesh,
         quadrature=quad,
         max_outer=200, keff_tol=1e-9, flux_tol=1e-8,
-        max_inner=200, inner_tol=1e-10,
+        max_inner=200, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     keff_sn = result.outcome.keff
     rel = abs(keff_sn - k_analytical) / k_analytical
@@ -175,6 +177,10 @@ def test_sn_spherical_homogeneous_kinf_recovery_2g():
 # Gate 4.2 — the reference cross-check (the characteristic reference since P1 step (d))
 # ═══════════════════════════════════════════════════════════════════════
 
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``). Tag 0 is the closed sphere's outer wall: the specular
+#: wall of albedo 1 (a reflecting curved wall is a response, never a deck).
+_CONDITIONS = {0: WallCondition.specular(1.0)}
 _THIS = "tests/gates/sn/verification/analytical/test_phase_c_crosscheck.py"
 #: The reference's line integral of a per-region source that jumps at both interfaces, against mpmath (until step
 #: (d) the retired resolvent's ``test_trajectory_resolvent_regionwise_source.py::

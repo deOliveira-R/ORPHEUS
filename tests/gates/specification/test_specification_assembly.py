@@ -15,12 +15,12 @@ import pytest
 
 from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.materials import Materials
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.question import Eigen
 from orpheus.specification import GeometrySpecification, InfiniteMediumSpecification
 from tests.gates._content_identity_helpers import require
-from tests.gates.specification._fixtures import fuel, moderator, slab2
+from tests.gates.specification._fixtures import fuel, moderator, slab2, vacuum_exterior
 
 pytestmark = pytest.mark.l1
 
@@ -51,7 +51,7 @@ def _dense_k_inf(mixture) -> float:
 def test_s8_4_a_two_interval_specification_assembles_a_material_mesh() -> None:
     from orpheus.transport.mesh import MaterialMesh
 
-    spec = GeometrySpecification(Materials({**_two_materials(), 9: moderator()}), slab2(), Eigen(_k()))
+    spec = GeometrySpecification(Materials({**_two_materials(), 9: moderator()}), slab2(), Eigen(_k()), exterior=vacuum_exterior(slab2()))
     require(sorted(spec.materials.ids) == [0, 1], f"the spectator 9 was kept: {sorted(spec.materials.ids)}")
     mesh = Mesher(spec.geometry).partition(CellsByCount.uniform_width(3)).mesh
     mm = MaterialMesh(mesh, spec.materials)
@@ -91,7 +91,7 @@ def test_s8_4_the_infinite_medium_k_is_the_dense_pencil_k(lift: str) -> None:
         tol = 50 * np.spacing(k_ref)
     else:
         keff_tol = 1e-10
-        mesh = Mesher(StructuredGeometry.from_homogeneous(0.5, BC.reflective)).partition(CellsByCount.uniform_width(2)).mesh
+        mesh = Mesher(StructuredGeometry.from_homogeneous(0.5, MirrorDeck())).partition(CellsByCount.uniform_width(2)).mesh
         k = solve_sn(dict(spec.materials.items()), mesh, Quadrature.gauss_legendre(n_ordinates=8), keff_tol=keff_tol, inner_tol=1e-11).outcome.keff
         tol = 10 * keff_tol
     require(abs(k - k_ref) <= tol, f"{lift}: k {k!r} vs the dense pencil {k_ref!r} (|diff| {abs(k - k_ref):.3e} > {tol:.1e})")

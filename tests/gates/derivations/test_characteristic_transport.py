@@ -55,10 +55,10 @@ import pytest
 from orpheus.derivations.continuous.characteristic import LinePeriod, Walls
 from orpheus.derivations.continuous.characteristic.basis import PanelBasis
 from orpheus.derivations.continuous.characteristic.transport import TraversalRule
-from orpheus.geometry.boundary import AlbedoBoundary, PeriodicBoundary, SpecularReturn, VacuumInflow
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.line import Line
-from orpheus.geometry.structured_geometry import StructuredGeometry
+
+from tests.gates.derivations import _posed_walls as walls_of
 
 from . import _characteristic_mp as R
 
@@ -94,26 +94,27 @@ _RES = (3, 2, 0.5)                 # (degree, layers, ratio): the rung's working
 
 
 def _spec(a: float):
-    return AlbedoBoundary(a, SpecularReturn(axis="x"))
+    """The wall returning the fraction ``a`` specularly."""
+    return walls_of.partial(a)
 
 
-def _geometry(body: str, *, a_in: float = _A_IN, a_out: float = _A_OUT, breakpoints=None) -> StructuredGeometry:
+def _geometry(body: str, *, a_in: float = _A_IN, a_out: float = _A_OUT, breakpoints=None) -> walls_of.Posed:
     match body:
         case "sphere_solid":
-            return StructuredGeometry.sphere(breakpoints or _MR3, (0, 1, 2), outer=_spec(a_out))
+            return walls_of.sphere(breakpoints or _MR3, (0, 1, 2), outer=_spec(a_out))
         case "cylinder_solid":
-            return StructuredGeometry.cylinder(breakpoints or _MR3, (0, 1, 2), outer=_spec(a_out))
+            return walls_of.cylinder(breakpoints or _MR3, (0, 1, 2), outer=_spec(a_out))
         case "sphere_hollow":
-            return StructuredGeometry.sphere(breakpoints or _MR3H, (0, 1, 2), inner=_spec(a_in), outer=_spec(a_out))
+            return walls_of.sphere(breakpoints or _MR3H, (0, 1, 2), inner=_spec(a_in), outer=_spec(a_out))
         case "cylinder_hollow":
-            return StructuredGeometry.cylinder(breakpoints or _MR3H, (0, 1, 2), inner=_spec(a_in), outer=_spec(a_out))
+            return walls_of.cylinder(breakpoints or _MR3H, (0, 1, 2), inner=_spec(a_in), outer=_spec(a_out))
         case "slab":
-            return StructuredGeometry.slab(breakpoints or _SLB3, (0, 1, 2), left=_spec(a_in), right=_spec(a_out))
+            return walls_of.slab(breakpoints or _SLB3, (0, 1, 2), left=_spec(a_in), right=_spec(a_out))
         case "slab_half":                  # B6 (ERR-035): equal intermediate albedos, the symmetric partial slab
-            return StructuredGeometry.slab(breakpoints or _SLB3, (0, 1, 2), left=_spec(0.5), right=_spec(0.5))
+            return walls_of.slab(breakpoints or _SLB3, (0, 1, 2), left=_spec(0.5), right=_spec(0.5))
         case "slab_periodic":
-            return StructuredGeometry.slab(breakpoints or _SLB3, (0, 1, 2), left=PeriodicBoundary(axis="x"),
-                                           right=PeriodicBoundary(axis="x"))
+            return walls_of.slab(breakpoints or _SLB3, (0, 1, 2), left=walls_of.WRAP,
+                                           right=walls_of.WRAP)
     raise AssertionError(body)
 
 
@@ -136,10 +137,11 @@ class _Case:
     def __init__(self, body: str, point, direction, *, sigma_t, resolution=_RES, geometry=None,
                  ) -> None:
         self.body = body
-        self.geometry = geometry or _geometry(body)
+        posed = geometry or _geometry(body)
+        self.geometry, self.exterior = posed
         self.basis = PanelBasis.of(ConcentricPartition.of(self.geometry), *resolution)
         self.line = Line.through(np.asarray(point, dtype=float), np.asarray(direction, dtype=float))
-        self.walls = Walls.of(self.geometry)
+        self.walls = Walls.of(self.geometry, self.exterior)
         self.sigma_t = np.asarray(sigma_t, dtype=float)
         self.rule = TraversalRule.of(self.line, self.basis, self.walls, self.sigma_t)
         self.period = self.rule.period
@@ -212,7 +214,7 @@ def test_the_panel_chord_unfolds_into_the_hand_counted_period(body, point, direc
     want = [(t, r, 0 if end == "first" else P) for t, r, end in expected]
     assert got == want
     coarse = LinePeriod.of(ConcentricPartition.of(case.geometry).chord(
-        Line.through(np.asarray(point, dtype=float), np.asarray(direction, dtype=float))), Walls.of(case.geometry))
+        Line.through(np.asarray(point, dtype=float), np.asarray(direction, dtype=float))), Walls.of(case.geometry, case.exterior))
     np.testing.assert_allclose(case.rule.optical_depth, coarse.optical_depth(case.sigma_t), rtol=16 * _EPS, atol=0.0)
 
 
@@ -375,7 +377,7 @@ def test_a_thousand_mean_free_path_slot_integrates_to_the_closed_form(mu: float,
     exponential grading (the whole exit layer, one mean free path, falls
     between two nodes of a panel 1/8 of the slot wide).
     """
-    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=VacuumInflow(), right=VacuumInflow())
+    geometry = walls_of.slab((0.0, 1.0), (0,), left=walls_of.VACUUM, right=walls_of.VACUUM)
     point, direction = (0.5, 0.0, 0.0), (mu, float(np.sqrt((1.0 - mu) * (1.0 + mu))), 0.0)
     case = _Case("slab", point, direction, sigma_t=(sigma,), geometry=geometry)
     ones = np.ones(case.basis.size)
@@ -405,7 +407,7 @@ def test_a_void_region_integrates_its_source_unattenuated() -> None:
     written q (1 - e^{-Sigma l}) / Sigma (NaN at Sigma = 0); the exponential
     grading's 1/Sigma formed on a void slot.
     """
-    geometry = StructuredGeometry.slab((0.0, 1.3), (0,), left=VacuumInflow(), right=VacuumInflow())
+    geometry = walls_of.slab((0.0, 1.3), (0,), left=walls_of.VACUUM, right=walls_of.VACUUM)
     case = _Case("slab", *_slab_dir(0.6), sigma_t=(0.0,), geometry=geometry)
     B, A = case.rule.outflow(), case.rule.entry_response()
     length = float(mp.mpf(1.3) / mp.mpf(0.6))
@@ -494,8 +496,8 @@ _ERR099_CONTROLS = [pytest.param(_LAYERS2, *r[1:], id=f"{r[0]}-layers2") for r i
 
 def _small_radius_outflow(chart, breakpoints, hollow, b, wz, resolution) -> None:
     n = len(breakpoints) - 1
-    laws = {"outer": VacuumInflow(), **({"inner": VacuumInflow()} if hollow else {})}
-    geometry = getattr(StructuredGeometry, chart)(breakpoints, tuple(range(n)), **laws)
+    laws = {"outer": walls_of.VACUUM, **({"inner": walls_of.VACUUM} if hollow else {})}
+    geometry = getattr(walls_of, chart)(breakpoints, tuple(range(n)), **laws)
     sigma = _SIGMA[0][:n]
     case = _Case(f"{chart}_x", *_in_plane(b, wz), sigma_t=sigma, geometry=geometry, resolution=resolution)
     # rung 3 (RB6): a solid body's region 0 is the even panel at the centre, so its source is even (c^2); the
@@ -671,12 +673,12 @@ def test_the_triangle_of_a_batch_is_the_weighted_sum_of_its_lines() -> None:
     First reds: the weights applied by position after the parallel line is
     dropped (a shift); the weight broadcast over the traversal axis.
     """
-    geometry = _geometry("cylinder_solid")
+    posed = _geometry("cylinder_solid")
     points = np.array([(0.7, 0.0, 0.0), (0.7, 0.0, 0.0), (0.0, 0.0, 0.0), (1.2, 0.0, 0.0)])
     directions = np.array([(0.0, 0.0, 1.0), (0.0, 0.6, 0.8), (0.0, 1.0, 0.0), (0.0, 0.8, -0.6)])
     weights = np.array([2.5, 0.3, 1.7, 0.0])
-    basis = PanelBasis.of(ConcentricPartition.of(geometry), *_RES)
-    walls = Walls.of(geometry)
+    basis = PanelBasis.of(ConcentricPartition.of(posed.geometry), *_RES)
+    walls = Walls.of(*posed)
 
     def rule(p, d):
         return TraversalRule.of(Line.through(p, d), basis, walls, np.asarray(_SIGMA[0]))
@@ -753,7 +755,7 @@ def test_a_thick_slot_is_read_by_the_triangle_and_by_psi_in_closed_form(sigma: f
     Gauss nodes, ungraded (battery arm T14; qa measured 5e-6 at 200 mfp and
     0.54 at 1000 mfp in the code before round 3).
     """
-    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=VacuumInflow(), right=VacuumInflow())
+    geometry = walls_of.slab((0.0, 1.0), (0,), left=walls_of.VACUUM, right=walls_of.VACUUM)
     case = _Case("slab", (0.5, 0.0, 0.0), (1.0, 0.0, 0.0), sigma_t=(sigma,), geometry=geometry, resolution=(2, 0, 0.5))
     assert case.basis.n_panels == 1
     f, g = [0.3, 1.0, -0.7], [1.1, -0.4, 0.9]
@@ -991,7 +993,7 @@ def test_a_symmetric_slabs_surface_inflow_is_the_one_transit_closed_form(albedo:
     production ERR-035 arm (``err035``) reds it too.
     """
     mu = 0.6
-    geometry = StructuredGeometry.slab((0.0, _SLAB_T_L), (0,), left=_spec(albedo), right=_spec(albedo))
+    geometry = walls_of.slab((0.0, _SLAB_T_L), (0,), left=_spec(albedo), right=_spec(albedo))
     case = _Case("slab", *_slab_dir(mu), sigma_t=[_SLAB_T_SIGMA], geometry=geometry)
     rule = case.rule
     inflow = case.period.inflow(rule.optical_depth, rule.outflow()) @ case.coefficients(_SLAB_T_Q)
@@ -1036,9 +1038,9 @@ def test_a_speed_is_a_scalar_or_one_family_shared_by_every_line() -> None:
     refused by its fragment, as are a non-positive and a non-finite speed. First reds: the ``ndim > 1`` refusal
     removed (a ``(F, 1)`` speed read as per-line, told apart by shape alone); F speeds on F lines read per line (the
     family leg)."""
-    geometry = _geometry("cylinder_solid")
-    basis = PanelBasis.of(ConcentricPartition.of(geometry), *_RES)
-    walls = Walls.of(geometry)
+    posed = _geometry("cylinder_solid")
+    basis = PanelBasis.of(ConcentricPartition.of(posed.geometry), *_RES)
+    walls = Walls.of(*posed)
     domain = basis.regions.chart.line_domain()
     lines = domain.lines(np.array([[0.3, np.pi / 2], [0.7, np.pi / 2], [1.6, np.pi / 2]]))
     speeds = np.array([1.0, 1.25, 10.0])
@@ -1096,11 +1098,11 @@ _PP_LINES = [
 
 
 def _pp_rule(chart, breakpoints, point, direction, speed, sigma=_PP_SIGMA, degree: int = 3):
-    laws = {"outer": VacuumInflow()} | ({"inner": VacuumInflow()} if breakpoints[0] > 0 else {})
-    geometry = getattr(StructuredGeometry, chart)(breakpoints, (0, 1, 2), **laws)
-    basis = PanelBasis.of(ConcentricPartition.of(geometry), degree, 2, 0.5)
+    laws = {"outer": walls_of.VACUUM} | ({"inner": walls_of.VACUUM} if breakpoints[0] > 0 else {})
+    geometry = getattr(walls_of, chart)(breakpoints, (0, 1, 2), **laws)
+    basis = PanelBasis.of(ConcentricPartition.of(geometry.geometry), degree, 2, 0.5)
     line = Line.through(np.array([point], dtype=float), np.array([direction], dtype=float))
-    return TraversalRule.of(line, basis, Walls.of(geometry), np.asarray(sigma, dtype=float),
+    return TraversalRule.of(line, basis, Walls.of(*geometry), np.asarray(sigma, dtype=float),
                             speed=np.asarray(speed, dtype=float) if np.ndim(speed) else float(speed))
 
 
@@ -1241,13 +1243,13 @@ def test_an_unbatched_line_is_the_same_line_in_a_batch_of_one(which: str) -> Non
     ndarray fields, and an unbatched line failed in ``rays_at``. First red: ``Chord.take`` gathering ndarray fields
     only (``kg_arms.py``, ``take_arrays_only``)."""
     _, chart, breakpoints, point, direction, speed = next(r for r in _PP_LINES if r[0] == which)
-    laws = {"outer": VacuumInflow()} | ({"inner": VacuumInflow()} if breakpoints[0] > 0 else {})
-    geometry = getattr(StructuredGeometry, chart)(breakpoints, (0, 1, 2), **laws)
-    basis = PanelBasis.of(ConcentricPartition.of(geometry), 3, 2, 0.5)
+    laws = {"outer": walls_of.VACUUM} | ({"inner": walls_of.VACUUM} if breakpoints[0] > 0 else {})
+    geometry = getattr(walls_of, chart)(breakpoints, (0, 1, 2), **laws)
+    basis = PanelBasis.of(ConcentricPartition.of(geometry.geometry), 3, 2, 0.5)
     sp = np.asarray(speed, dtype=float) if np.ndim(speed) else float(speed)
 
     def rule(line):
-        return TraversalRule.of(line, basis, Walls.of(geometry), np.asarray(_PP_SIGMA), speed=sp)
+        return TraversalRule.of(line, basis, Walls.of(*geometry), np.asarray(_PP_SIGMA), speed=sp)
 
     single = rule(Line.through(np.array(point, dtype=float), np.array(direction, dtype=float)))
     batch = rule(Line.through(np.array([point], dtype=float), np.array([direction], dtype=float)))

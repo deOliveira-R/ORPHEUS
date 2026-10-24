@@ -36,12 +36,12 @@ from __future__ import annotations
 import itertools
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, NoReturn
+from collections.abc import Mapping
+from typing import NoReturn
 
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-
-if TYPE_CHECKING:
-    from orpheus.geometry.boundary import BoundaryTraceLaw
+from orpheus.geometry import CoordSystem, StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck, TranslationDeck
+from orpheus.specification.exterior import WallAmplitudes
 
 
 @dataclass(frozen=True)
@@ -198,7 +198,7 @@ def refuse_unserved(what: str, *, owner: str, missing: str) -> NoReturn:
 
     The one door every generator refuses through, so the refusals share
     one spelling and one ledger entry. ``what`` describes the refused
-    configuration (a body shape, :func:`describe`, or a boundary law);
+    configuration (a body shape, :func:`describe`, or a boundary face);
     ``missing`` names the solver the owner would need for it.
     """
     raise NotImplementedError(f"{owner} does not solve a {what}: {missing} (#536).")
@@ -219,57 +219,54 @@ def describe(body: ReferenceBody) -> str:
             return f"{hollow}layered {kind} body of {len(body.mat_ids)} material runs {body.mat_ids}"
 
 
-def specular_albedo(law: BC | BoundaryTraceLaw, *, owner: str) -> float:
-    r"""The specular albedo :math:`\alpha \in [0, 1]` a boundary law declares.
+def specular_albedos(
+    geometry: StructuredGeometry, exterior: Mapping[int, WallAmplitudes], *, owner: str
+) -> tuple[float, ...]:
+    r"""The specular albedo :math:`\alpha \in [0, 1]` at each boundary point of ``geometry``, inner first.
 
     The continuous references parametrise a boundary by one specular albedo:
     :math:`\alpha = 0` is vacuum, :math:`\alpha = 1` perfect mirror
-    reflection, and a value between is partial specular reflection. The laws
-    that say this are:
+    reflection, and a value between is partial specular reflection. Each
+    boundary face's role says which:
 
-    * vacuum (``BC.vacuum``, :class:`~orpheus.geometry.boundary.VacuumInflow`): 0;
-    * mirror reflection (``BC.reflective`` and
-      :class:`~orpheus.geometry.boundary.ReflectiveBoundary`, a symmetry with
-      no amplitude): 1;
-    * partial specular reflection (``BC("partial", {"albedo": a})``: ``a``;
-      :class:`~orpheus.geometry.boundary.AlbedoBoundary` whose re-emission is
-      :class:`~orpheus.geometry.boundary.SpecularReturn`: its albedo).
+    * a :class:`~orpheus.geometry.deck.MirrorDeck` (a symmetry of the domain, a mirror
+      with no amplitude): 1;
+    * an integer tag whose ``exterior`` entry returns nothing diffusely: that
+      entry's ``specular`` amplitude (0 is vacuum, 1 the mirror on a curved face,
+      a value between partial specular reflection).
 
-    Any other law returns neutrons in another angular shape (white,
-    isotropic, an unstated re-emission, a prescribed inflow, periodic), which
-    a specular albedo cannot express, and is refused through the door.
+    Any other face returns neutrons in another angular shape (a wall that
+    re-emits isotropically, a wrap to the opposite face), which a specular
+    albedo cannot express, and is refused through the door.
     """
-    from orpheus.geometry.boundary import (
-        AlbedoBoundary,
-        ReflectiveBoundary,
-        SpecularReturn,
-        VacuumInflow,
-    )
-
-    match law:
-        case BC(kind="vacuum") | VacuumInflow():
-            return 0.0
-        case BC(kind="reflective") | ReflectiveBoundary():
-            return 1.0
-        case BC(kind="partial"):
-            return law.to_alpha()
-        case AlbedoBoundary(reemission=SpecularReturn()):
-            return float(law.albedo)
-    refuse_unserved(
-        f"boundary law {law!r}", owner=owner,
-        missing="the continuous references parametrise a boundary by a specular "
-        "albedo, and this law returns neutrons in another angular shape",
-    )
-
-
-def specular_albedos(geometry: StructuredGeometry, *, owner: str) -> tuple[float, ...]:
-    """The specular albedo at each boundary point of ``geometry``, inner first."""
-    return tuple(specular_albedo(law, owner=owner) for law in geometry.boundaries)
+    albedos: list[float] = []
+    for role in geometry.face_roles:
+        match role:
+            case MirrorDeck():
+                albedos.append(1.0)
+            case TranslationDeck():
+                refuse_unserved(
+                    f"face role {role!r}", owner=owner,
+                    missing="the continuous references parametrise a boundary by a specular "
+                    "albedo, and a wrap returns neutrons through the opposite face",
+                )
+            case int():
+                wall = exterior[role]
+                if wall.diffuse != 0.0:
+                    refuse_unserved(
+                        f"wall {wall!r} on tag {role}", owner=owner,
+                        missing="the continuous references parametrise a boundary by a specular "
+                        "albedo, and this wall returns neutrons in another angular shape",
+                    )
+                albedos.append(wall.specular)
+    return tuple(albedos)
 
 
-def require_vacuum(geometry: StructuredGeometry, *, owner: str, missing: str) -> None:
+def require_vacuum(
+    geometry: StructuredGeometry, exterior: Mapping[int, WallAmplitudes], *, owner: str, missing: str
+) -> None:
     """Refuse a geometry any of whose boundary points is not vacuum."""
-    albedos = specular_albedos(geometry, owner=owner)
+    albedos = specular_albedos(geometry, exterior, owner=owner)
     if any(albedo != 0.0 for albedo in albedos):
         refuse_unserved(
             f"body with reflecting boundaries (specular albedos {albedos})",
@@ -287,6 +284,5 @@ __all__ = [
     "reference_body",
     "refuse_unserved",
     "require_vacuum",
-    "specular_albedo",
     "specular_albedos",
 ]

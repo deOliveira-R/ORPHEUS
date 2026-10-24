@@ -98,7 +98,7 @@ from orpheus.derivations.continuous.mms.sn import (
 from orpheus.geometry import CoordSystem
 from orpheus.sn.solver import SNSolver, _as_problem
 from orpheus.transport.fields.angular_flux import AngularFlux
-from tests.gates.sn._test_helpers import curvilinear_homogeneous_mesh
+from tests.gates.sn._test_helpers import CURVED_REFLECTIVE, curvilinear_homogeneous_mesh
 # The ONE spelling of the zero-trace composite operand (CS4c step 5). It lives
 # under ``tests/gates/sn/operators/`` because that is where the ~40 step-5 re-key
 # sites are; ``tests/gates/sn/_test_helpers.py`` is its natural long-term home.
@@ -123,7 +123,8 @@ def _scattering_op(coord: CoordSystem, quad, scattering_order: int):
     """
     mat = get_mixture("A", "1g")
     mesh = curvilinear_homogeneous_mesh(8, 2.0, mat_id=0, coord=coord)
-    problem = _as_problem(mesh, quad, {0: mat}, mat_map=None, scattering_order=scattering_order)
+    problem = _as_problem(mesh, quad, {0: mat}, mat_map=None, scattering_order=scattering_order,
+                          boundary_conditions=CURVED_REFLECTIVE)
     solver = SNSolver(
         problem,
         inner_solver="source_iteration",

@@ -14,7 +14,9 @@ posing filtration it is posed at is its TYPE:
   derives why this is exact for every question it admits);
 * :class:`GeometrySpecification` is posed on a finite geometry: the materials,
   a :class:`~orpheus.geometry.structured_geometry.StructuredGeometry` with its
-  boundary laws, and a question.
+  face roles, a question, and the ``exterior``: for each integer tag the
+  geometry's faces carry, the :class:`~orpheus.specification.exterior.WallAmplitudes`
+  of the wall behind it, as plain data (below).
 
 :data:`Specification` is the closed set of the two. Each type answers for
 itself what the shared admission asks (the problem's materials, the regions
@@ -45,8 +47,22 @@ Both are admitted in a CANONICAL form at construction:
   problem has (none on the infinite medium; not the azimuth on a sphere,
   which has no azimuth reference).
 
-A value the encoder cannot key (a boundary law holding a function, the MMS
-inflow) is refused at construction: a specification exists to be keyed.
+**The exterior is plain data and complete.** A face role is a deck (a symmetry
+of the domain: it states its own response and needs no entry) or an integer
+tag (the domain ends there, and the tag names an exterior model). The
+specification binds each tag to a ``WallAmplitudes(specular, diffuse)``, the
+cone coordinates of the wall's linear part, and the binding is an exact cover:
+``exterior.keys() == geometry.tags``, so a tag without amplitudes and an entry
+without a tag are each refused by number, here, at construction (the late
+refusals of the reference readers moved to this door). The value is closed: a
+prescribed inflow, a combined specular-and-diffuse wall and a zero flux have no
+spelling, because the field holds ``WallAmplitudes`` and nothing else (the
+widening is #650). The specification imports nothing from the transport layer;
+the translation of an exterior to production conditions is one test-side loop
+(``tests/gates/_reference_pairing.py``) over a primitives-taking class method.
+
+A value the encoder cannot key is refused at construction: a specification
+exists to be keyed.
 
 What is not here: the coordinates' charts (zero, physical value, admissible
 range) and the mode law that finds a pole, #529; the nuclide-density
@@ -58,8 +74,9 @@ retraction of a geometry problem's solution along space, not a specification.
 from __future__ import annotations
 
 import dataclasses
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, assert_never, get_args
 
 from orpheus.data.cells import CellCoefficient, Channel
@@ -71,6 +88,7 @@ from orpheus.values.content import ContentIdentity, FrozenMapping, content_diges
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Observable, PointValue, Ratio
 from orpheus.numerics.question import Eigen, FixedSource, Question, Response
+from orpheus.specification.exterior import WallAmplitudes
 from orpheus.values.scalars import parse_integer
 
 if TYPE_CHECKING:
@@ -122,13 +140,44 @@ class InfiniteMediumSpecification(ContentIdentity):
         raise ValueError(f"{type(self).__name__}: {extent!r} names an extent, and the infinite medium has no geometry")
 
 
+def _admit_exterior(exterior: Any, geometry: StructuredGeometry) -> FrozenMapping[int, WallAmplitudes]:
+    """The exterior as a frozen copy, an exact cover of the geometry's tags by ``WallAmplitudes``."""
+    where = "GeometrySpecification: the exterior"
+    if not isinstance(exterior, Mapping):
+        raise TypeError(f"{where} is a mapping from tag to WallAmplitudes, got a {type(exterior).__name__}")
+    held: dict[int, WallAmplitudes] = {}
+    for tag, wall in exterior.items():
+        tag = parse_integer(tag, "GeometrySpecification", "an exterior tag")
+        if not isinstance(wall, WallAmplitudes):
+            raise TypeError(f"{where} states tag {tag} as a {type(wall).__name__}; a wall is a WallAmplitudes (specular, diffuse)")
+        held[tag] = wall
+    tags = geometry.tags
+    unstated = sorted(tags - held.keys())
+    unused = sorted(held.keys() - tags)
+    if unstated:
+        raise ValueError(f"{where} states no amplitudes for the tag(s) {unstated} that the geometry's faces carry (tags {sorted(tags)})")
+    if unused:
+        raise ValueError(f"{where} states the tag(s) {unused} that no face of the geometry carries (tags {sorted(tags)})")
+    return FrozenMapping(held)
+
+
 @dataclass(frozen=True, eq=False)
 class GeometrySpecification(ContentIdentity):
-    """The materials, a finite geometry and a question; the materials kept are those the geometry assigns."""
+    """The materials, a finite geometry, a question and the exterior; the materials kept are those the geometry assigns.
+
+    Attributes
+    ----------
+    exterior:
+        The wall behind each tag the geometry's faces carry, as a
+        :class:`~orpheus.specification.exterior.WallAmplitudes` per integer tag: an exact cover of
+        ``geometry.tags`` (a deck-only geometry takes the empty mapping, the default). Held as a frozen
+        copy, so a caller's later mutation of the mapping it passed changes nothing.
+    """
 
     materials: Materials
     geometry: StructuredGeometry
     question: Question
+    exterior: Mapping[int, WallAmplitudes] = field(default_factory=FrozenMapping)
 
     def __post_init__(self) -> None:
         if not isinstance(self.materials, Materials):
@@ -137,6 +186,7 @@ class GeometrySpecification(ContentIdentity):
             raise TypeError(f"GeometrySpecification: the geometry is a StructuredGeometry, got a {type(self.geometry).__name__}")
         object.__setattr__(self, "materials", self.materials.restrict(set(self.geometry.mat_ids)))
         self.n_groups  # the group-count rule, read once over the materials kept, before the keys resolve
+        object.__setattr__(self, "exterior", _admit_exterior(self.exterior, self.geometry))
         _admit(self)
 
     @cached_property

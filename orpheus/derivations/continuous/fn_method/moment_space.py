@@ -65,6 +65,7 @@ from __future__ import annotations
 
 import functools
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal, Optional
 
@@ -84,6 +85,7 @@ from orpheus.derivations.common.reference_body import (
     require_vacuum,
 )
 from orpheus.geometry import CoordSystem, StructuredGeometry
+from orpheus.specification.exterior import WallAmplitudes
 
 
 FluxReconstructionStrategy = Literal["none", "atkinson_nystrom", "legacy_gl"]
@@ -135,15 +137,17 @@ class MomentSpace:
     Direct construction with a :class:`StructuredGeometry` (slab or
     sphere) and a ``materials: dict[int, Mixture]`` payload::
 
-        from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+        from orpheus.geometry import CoordSystem, StructuredGeometry
+        from orpheus.specification.exterior import WallAmplitudes
 
         geom = StructuredGeometry(
             coord=CoordSystem.CARTESIAN,
             breakpoints=(0.0, L_full),
             mat_ids=(0,),
-            boundaries=(BC.vacuum, BC.vacuum),
+            face_roles=(0, 0),            # one tag on both faces
         )
-        ms = MomentSpace(geometry=geom, materials={0: mix})
+        vacuum = {0: WallAmplitudes(0.0, 0.0)}   # the wall behind tag 0: nothing returned
+        ms = MomentSpace(geometry=geom, exterior=vacuum, materials={0: mix})
         sol = ms.solve_critical()
 
     For infinite-medium :math:`k_\infty`, use
@@ -162,6 +166,10 @@ class MomentSpace:
         the total cross section (Neshat and Maiorino 1980).
         A cylinder is out of pillar (Westfall–Metcalf 1972 — see
         :mod:`...singular_eigenfunction.cylinder`).
+    exterior : Mapping[int, WallAmplitudes]
+        The wall behind each tag the geometry's faces carry (an exact cover of its tags; the empty mapping for a
+        geometry whose faces are all decks): plain data of the reference, read by
+        :func:`~orpheus.derivations.common.reference_body.specular_albedos`.
     materials : dict[int, Mixture]
         Production-protocol materials, keyed by material ID.
     fn_order : int
@@ -172,6 +180,7 @@ class MomentSpace:
     """
 
     geometry: StructuredGeometry
+    exterior: Mapping[int, WallAmplitudes]
     materials: dict[int, Mixture]
     fn_order: int = 9
     flux_reconstruction: FluxReconstructionStrategy = "atkinson_nystrom"
@@ -200,7 +209,7 @@ class MomentSpace:
                 "MomentSpace.solve_kinf(mixture), with no geometry",
             )
         require_vacuum(
-            self.geometry, owner="MomentSpace",
+            self.geometry, self.exterior, owner="MomentSpace",
             missing="the F_N solvers here are bare or core-reflected slabs and "
             "spheres with vacuum outer faces",
         )

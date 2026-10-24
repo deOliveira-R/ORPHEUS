@@ -78,6 +78,7 @@ from orpheus.derivations.continuous.characteristic.grading import graded_ends
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.coord import CoordSystem, MeasureCoordinate
+from orpheus.specification.exterior import WallAmplitudes
 
 from . import _characteristic_mp as R
 
@@ -113,7 +114,7 @@ def _walls(chart: str, breakpoints, laws) -> Walls:
     boundary point, inner first, or ``"P"`` for a periodic face."""
     n = len(breakpoints) - 1
     ends = (n,) if chart != "slab" and breakpoints[0] == 0.0 else (0, n)
-    walls = tuple(Wall(k, 1.0, 0.0, n - k) if law == "P" else Wall(k, law[0], law[1], k) for k, law in zip(ends, laws, strict=True))
+    walls = tuple(Wall(k, WallAmplitudes(1.0, 0.0), n - k) if law == "P" else Wall(k, WallAmplitudes(*law), k) for k, law in zip(ends, laws, strict=True))
     return Walls(walls, n, Chart(_COORD[chart]))
 
 
@@ -851,23 +852,26 @@ def test_a_nearly_void_closed_body_conserves_its_emission(chart, breakpoints, la
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize(("specular", "diffuse", "fragment"), [
-    (0.4, 0.6, "a wall is specular or diffuse"),
-    (1.0, 1.0, "not a physical wall"),
-    (0.0, 1.0 + 1e-12, "not a physical wall"),
+@pytest.mark.parametrize(("specular", "diffuse", "refusal", "fragment"), [
+    (0.4, 0.6, NotImplementedError, "a wall is specular or diffuse"),
+    (1.0, 1.0, ValueError, "not a physical wall"),
+    (0.0, 1.0 + 1e-12, ValueError, "not a physical wall"),
 ], ids=["mixed", "returns_twice", "diffuse_above_one"])
-def test_a_wall_returning_both_ways_or_more_than_it_receives_is_refused(specular, diffuse, fragment) -> None:
+def test_a_wall_returning_both_ways_or_more_than_it_receives_is_refused(specular, diffuse, refusal, fragment) -> None:
     """[WC6, re-posed by the elegance review: a refusal row] A wall with both a specular and a diffuse part is a
-    SCOPE-BOUNDARY (the user's ``LawSum`` ruling, as the SN realizer refuses it); one returning more than it receives
-    is not physical. Each refused by its own fragment.
+    SCOPE-BOUNDARY (the user's ``LawSum`` ruling, as the SN realizer refuses it, #650), a ``NotImplementedError``; one
+    returning more than it receives is not physical, a ``ValueError`` (R-8b: ``Wall`` composes ``WallAmplitudes``, whose
+    parse refuses it; the type was ``NotImplementedError`` while ``Wall`` held its own bounds). Each refused by its own
+    fragment.
 
     `[M]` the spec's prototype: the coupling served a 0.4 + 0.6 wall (conservation
     1.2e-12), so the boundary is the reader's choice, not the formula's limit;
     `[M]` the orchestrator: ``Wall(1, 1.0, 1.0, 1)`` assembled a block with a
     minimum of -0.0118 before the guard. First red: either guard deleted.
     """
-    with pytest.raises(NotImplementedError, match=fragment):
-        Wall(3, specular, diffuse, 3)
+    with pytest.raises(refusal, match=fragment) as caught:
+        Wall(3, WallAmplitudes(specular, diffuse), 3)
+    assert type(caught.value) is refusal
 
 
 # ── OP1-OP4: operator theorems on the material blocks ────────────────────

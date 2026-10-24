@@ -149,6 +149,7 @@ class FNReflectedSlabAdapter:
             )
         solution = MomentSpace(
             geometry=_structured_geometry_for(case),
+            exterior=case.exterior_for(),
             materials=dict(case.materials),
             fn_order=self.n_modes,
         ).solve_critical()
@@ -213,6 +214,7 @@ class CharacteristicAdapter:
             raise ValueError(f"CrossMethodCase {case.case_id!r} carries neither inline materials nor a registry case")
         specification = GeometrySpecification(
             Materials(dict(materials)), _structured_geometry_for(case), Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)),
+            exterior=case.exterior_for(),
         )
         k = characteristic_reference(specification, rung(self.degree)).read(Eigenvalue()).value
         return ScalarResult(tag=self.tag, value=float(k), solver_name=self.name, metadata={"degree": self.degree})

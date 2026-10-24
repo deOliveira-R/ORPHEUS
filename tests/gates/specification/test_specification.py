@@ -38,10 +38,8 @@ import sympy as sp
 
 from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.materials import InconsistentMaterialsError, Materials
-from orpheus.geometry import BC, CoordSystem, GeometryExtent, StructuredGeometry
-from orpheus.geometry.boundary import PrescribedInflow
+from orpheus.geometry import CoordSystem, GeometryExtent, MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.values.content import ContentlessError
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.question import Eigen, FixedSource, Nearest, Response
 from orpheus.specification import (
@@ -59,6 +57,7 @@ from tests.gates.specification._fixtures import (
     n2n_only,
     slab2,
     slab3_repeated,
+    vacuum_exterior,
 )
 
 pytestmark = pytest.mark.foundation
@@ -92,8 +91,9 @@ def _im(question: Any, mixture: Any = None, material_id: Any = 0) -> InfiniteMed
 
 def _gs(question: Any, materials: Any = None, geometry: Any = None) -> GeometrySpecification:
     """A geometry problem (the two-material slab unless given)."""
-    return GeometrySpecification(_two_materials() if materials is None else materials,
-                                 slab2() if geometry is None else geometry, question)
+    placed = slab2() if geometry is None else geometry
+    return GeometrySpecification(_two_materials() if materials is None else materials, placed, question,
+                                 exterior=vacuum_exterior(placed))
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -189,12 +189,6 @@ _REFUSALS: list[tuple[str, Callable[[], Any], type[BaseException], str]] = [
     ("h5_one_coordinate_twice",
      lambda: _im(FixedSource(_table(1), {_k(): 0.1, CellCoefficient({(0, F)}): 0.2})),
      ValueError, r"name the same coordinate"),
-    # a specification exists to be keyed: a geometry with no content is refused eagerly
-    ("contentless_geometry",
-     lambda: _gs(Eigen(_k()), materials=Materials({0: fuel()}),
-                 geometry=StructuredGeometry.slab((0.0, 1.0), (0,), left=PrescribedInflow(lambda space: np.zeros(space.shape)),  # pyright: ignore[reportArgumentType]  # a contentless source is the subject
-                                                  right=BC.vacuum)),
-     ContentlessError, r"GeometrySpecification\.geometry"),
     # the fields are typed
     ("question_not_a_question",
      lambda: _im(_table(1)),
@@ -288,7 +282,7 @@ def test_s8_1_the_layer_is_the_type() -> None:
     infinite = tuple(f.name for f in dataclasses.fields(InfiniteMediumSpecification))
     geometric = tuple(f.name for f in dataclasses.fields(GeometrySpecification))
     require(infinite == ("material_id", "mixture", "question"), f"InfiniteMediumSpecification fields {infinite}")
-    require(geometric == ("materials", "geometry", "question"), f"GeometrySpecification fields {geometric}")
+    require(geometric == ("materials", "geometry", "question", "exterior"), f"GeometrySpecification fields {geometric}")
     require(set(typing.get_args(Specification)) == {InfiniteMediumSpecification, GeometrySpecification},
             f"Specification is {typing.get_args(Specification)}")
     require(set(typing.get_args(Coordinate)) == {CellCoefficient, GeometryExtent}, f"Coordinate is {typing.get_args(Coordinate)}")
@@ -521,7 +515,7 @@ def test_s8_10_the_two_layers_are_two_keys() -> None:
     and are two specifications (two types, two digests): the layer is content."""
     medium = _im(Eigen(_k()))
     slab = _gs(Eigen(_k()), materials=Materials({0: fuel()}),
-               geometry=StructuredGeometry.from_homogeneous(1.0, BC.reflective))
+               geometry=StructuredGeometry.from_homogeneous(1.0, MirrorDeck()))
     require(medium != slab and medium.content_digest != slab.content_digest and len({medium, slab}) == 2, "one key")
     require(medium.question == slab.question, "activation: the two do not ask one question")
 

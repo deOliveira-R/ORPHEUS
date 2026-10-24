@@ -814,7 +814,7 @@ def derive_sn_heterogeneous_continuous(
                 "length": H_A + H_B,
                 "n_ordinates": N,
             },
-            boundary_conditions={"left": "reflective", "right": "reflective"},
+            boundary_kinds={"left": "reflective", "right": "reflective"},
             is_eigenvalue=True,
             n_groups=1,
         ),

@@ -27,10 +27,15 @@ from orpheus.derivations.continuous.mms.moc import (
     build_moc_mms_case,
     mms_sweep,
 )
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellEdges, Mesher
 from orpheus.moc.geometry import MOCMesh
 from orpheus.moc.quadrature import MOCQuadrature
+from orpheus.transport.boundary_conditions import WallCondition
+
+#: The pin cell's outer face is tag 0; the reference states its outer law as the kind ``"reflective"`` (a reflecting curved wall is a
+#: response, never a deck: the specular wall of albedo 1), which MoC links.
+_OUTER = {"reflective": {0: WallCondition.specular(1.0)}}
 
 
 pytestmark = [pytest.mark.l1, pytest.mark.verifies(
@@ -51,11 +56,11 @@ def build_moc_mesh(case: MOCPinCellMMSCase, n_annuli: int) -> MOCMesh:
     them into the production objects.
     """
     edges = case.fsr_edges(n_annuli)
-    # One material; MoC reads the outer law only.
-    geometry = StructuredGeometry.cylinder((0.0, edges[-1]), (0,), outer=BC(case.outer_law))
+    # One material; MoC reads the outer wall only: tag 0, bound to the condition the reference's outer law names.
+    geometry = StructuredGeometry.cylinder((0.0, edges[-1]), (0,), outer=0)
     mesh = Mesher(geometry).partition(CellEdges(edges)).mesh
     quad = MOCQuadrature.create(n_azi=case.n_azi, n_polar=case.n_polar)
-    moc_mesh = MOCMesh(mesh, quad, ray_spacing=case.ray_spacing)
+    moc_mesh = MOCMesh(mesh, quad, ray_spacing=case.ray_spacing, boundary_conditions=_OUTER[case.outer_law])
     assert np.isclose(moc_mesh.pitch, case.pitch), (moc_mesh.pitch, case.pitch)
     return moc_mesh
 

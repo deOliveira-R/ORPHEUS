@@ -32,7 +32,7 @@ import sympy as sp
 
 from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.materials import Materials
-from orpheus.geometry import BC, GeometryExtent, StructuredGeometry
+from orpheus.geometry import GeometryExtent, MirrorDeck, StructuredGeometry
 from orpheus.values.content import FrozenMapping, content_digest
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.question import Eigen, FixedSource, Fundamental, Nearest, Response
@@ -50,7 +50,7 @@ from tests.gates._content_identity_helpers import (
     perturbation_ids,
     require,
 )
-from tests.gates.specification._fixtures import fuel, moderator, slab2
+from tests.gates.specification._fixtures import fuel, moderator, slab2, vacuum_exterior
 
 pytestmark = pytest.mark.foundation
 
@@ -100,11 +100,13 @@ def _point(offset: float = 0.25, key=None):
     return {key if key is not None else CellCoefficient.every(S): offset}
 
 
-def _spec(materials=None, geometry=None, question=None) -> GeometrySpecification:
+def _spec(materials=None, geometry=None, question=None, exterior=None) -> GeometrySpecification:
+    body = slab2() if geometry is None else geometry
     return GeometrySpecification(
         materials=_materials() if materials is None else materials,
-        geometry=slab2() if geometry is None else geometry,
+        geometry=body,
         question=FixedSource(_table(), _point()) if question is None else question,
+        exterior=vacuum_exterior(body) if exterior is None else exterior,
     )
 
 
@@ -137,16 +139,21 @@ _INFINITE_MEDIUM = Entry(
 )
 
 _SPECIFICATION = Entry(
-    cls=GeometrySpecification, base=_spec, parts=("materials", "geometry", "question"),
+    cls=GeometrySpecification, base=_spec, parts=("materials", "geometry", "question", "exterior"),
     perturb={
         "materials": (
             leg("one coefficient by one ULP", lambda: _spec(materials=Materials({0: _fuel_ulp(), 1: moderator()}))),
         ),
         "geometry": (
             leg("a breakpoint by one ULP", lambda: _spec(
-                geometry=StructuredGeometry.slab((0.0, _ulp(1.0), 3.0), (0, 1), left=BC.reflective, right=BC.vacuum))),
-            leg("a boundary law", lambda: _spec(
-                geometry=StructuredGeometry.slab((0.0, 1.0, 3.0), (0, 1), left=BC.vacuum, right=BC.vacuum))),
+                geometry=StructuredGeometry.slab((0.0, _ulp(1.0), 3.0), (0, 1), left=MirrorDeck(), right=0))),
+            leg("a face role", lambda: _spec(
+                geometry=StructuredGeometry.slab((0.0, 1.0, 3.0), (0, 1), left=0, right=0))),
+        ),
+        "exterior": (
+            leg("a wall's specular amplitude", lambda: _spec(exterior={0: WallAmplitudes(0.25, 0.0)})),
+            leg("a wall's specular amplitude by one ULP", lambda: _spec(exterior={0: WallAmplitudes(_ulp(0.0), 0.0)})),
+            leg("a diffuse wall in the place of the specular one", lambda: _spec(exterior={0: WallAmplitudes(0.0, 0.25)})),
         ),
         "question": (
             leg("one source coefficient by one ULP", lambda: _spec(question=FixedSource(_table_ulp(), _point()))),
@@ -295,7 +302,7 @@ _SEED_SCRIPT = textwrap.dedent(
     from orpheus.numerics.mesh_free_function import RegionwiseConstant
     from orpheus.numerics.question import Eigen, FixedSource
     from orpheus.specification import GeometrySpecification, InfiniteMediumSpecification
-    from tests.gates.specification._fixtures import fuel, moderator, slab2
+    from tests.gates.specification._fixtures import fuel, moderator, slab2, vacuum_exterior
 
     print("FILE", orpheus.__file__)
     t = RegionwiseConstant(np.array([[1.5, 0.25], [0.0, 3.0]]))
@@ -303,9 +310,10 @@ _SEED_SCRIPT = textwrap.dedent(
     values = {
         "k infinite medium": InfiniteMediumSpecification(0, fuel(), Eigen(CellCoefficient.every(F))),
         "fixed source slab": GeometrySpecification(materials=Materials({0: fuel(), 1: moderator()}), geometry=slab2(),
-                                           question=FixedSource(t, {CellCoefficient.every(S): 0.25})),
+                                           question=FixedSource(t, {CellCoefficient.every(S): 0.25}),
+                                           exterior=vacuum_exterior(slab2())),
         "critical extent": GeometrySpecification(materials=Materials({0: fuel(), 1: moderator()}), geometry=slab2(),
-                                         question=Eigen(GeometryExtent(1))),
+                                         question=Eigen(GeometryExtent(1)), exterior=vacuum_exterior(slab2())),
         "a cell coefficient": CellCoefficient.every(F, S),
     }
     for name, value in values.items():
@@ -353,8 +361,12 @@ _PIN_AFTER_LANDING = "pin after landing"
 _PINNED: dict[str, str] = {
     # Re-pinned 2026-10-08: Eigen gained its declared gauge (the user's ruling), which the specification's
     # canonical question writes in (the default production, resolved); the fixed-source pin did not move.
+    # Re-pinned 2026-10-24 (layer DAG wave 2, slice S5, R-2): the geometry inside the specification moved at S1 (the face
+    # roles replace the boundary laws: ``face_roles`` for ``boundaries``, a deck or a tag for a typed law) and the
+    # specification gained its trailing field ``exterior`` (the wall behind each tag, a ``WallAmplitudes``), so the
+    # fixture's bytes moved once more at the final schema; the infinite medium holds no geometry and did not move.
     "k infinite medium": "53a6189aec3ad48cccbf4bac8d5bd7d992ae8d62b49742d06a775dc212367322",
-    "fixed source slab": "329513d24177065062c92e9ace6deffb305d7dbb9c47a5a0e6e84eee0da46df0",
+    "fixed source slab": "3fe84f2c1ae43b7445eef499664d55284897c111d569129e2dff541322d8f858",
 }
 
 

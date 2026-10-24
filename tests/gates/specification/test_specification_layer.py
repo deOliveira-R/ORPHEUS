@@ -41,10 +41,10 @@ _SCRIPT = textwrap.dedent(
     from orpheus.numerics.mesh_free_function import Symbolic
     from orpheus.numerics.question import Eigen, FixedSource
     from orpheus.specification import GeometrySpecification, InfiniteMediumSpecification
-    from tests.gates.specification._fixtures import fuel, moderator, slab2
+    from tests.gates.specification._fixtures import fuel, moderator, slab2, vacuum_exterior
 
     print("FILE", orpheus.__file__)
-    GeometrySpecification(materials=Materials({0: fuel(), 1: moderator()}), geometry=slab2(),
+    GeometrySpecification(materials=Materials({0: fuel(), 1: moderator()}), geometry=slab2(), exterior=vacuum_exterior(slab2()),
                   question=FixedSource(Symbolic.of(1 + Symbolic.mu, Symbolic.r), {CellCoefficient.every(Channel.SCATTERING_EMISSION): 0.1}))
     InfiniteMediumSpecification(0, fuel(), Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
     for name in sorted(sys.modules):

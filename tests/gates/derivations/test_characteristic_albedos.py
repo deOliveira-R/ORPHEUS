@@ -37,14 +37,12 @@ import numpy as np
 import pytest
 
 from orpheus.data.cells import CellCoefficient, Channel
-from orpheus.data.materials import Materials
 from orpheus.derivations.continuous.characteristic import CharacteristicDerivation, Resolution
-from orpheus.geometry import BC, StructuredGeometry
-from orpheus.geometry.boundary import ReflectiveBoundary
 from orpheus.numerics.observable import Eigenvalue, PointValue
 from orpheus.numerics.question import Eigen
 from orpheus.reference.reading import Uncertified
 from orpheus.specification.specification import GeometrySpecification
+from tests.gates.derivations import _posed_walls as walls_of
 from tests.gates.derivations._characteristic_ladders import rung
 from tests.gates.derivations.test_characteristic_system import _PU2, _mixture
 
@@ -70,8 +68,8 @@ def _read(specification: GeometrySpecification, observable: Any, resolution: Res
     return float(reading.value)
 
 
-def _eigen(geometry: StructuredGeometry, mixture) -> GeometrySpecification:
-    return GeometrySpecification(Materials({m: mixture for m in set(geometry.mat_ids)}), geometry, Eigen(_K))
+def _eigen(body: walls_of.Posed, mixture) -> GeometrySpecification:
+    return walls_of.spec(body, {m: mixture for m in set(body.geometry.mat_ids)}, Eigen(_K))
 
 
 # ── B4c, the method of images ────────────────────────────────────────────
@@ -93,8 +91,8 @@ _IMAGE_RATIO_BAND = 1e-4
 def _images(name: str) -> tuple[GeometrySpecification, GeometrySpecification]:
     """The slab [0, L] mirror | vacuum, and the doubled slab [0, 2L] vacuum | vacuum, of one mixture."""
     mixture = _IMAGE_MIXTURES[name]
-    half = StructuredGeometry.slab((0.0, _HALF), (0,), left=ReflectiveBoundary(axis="x"), right=BC.vacuum)
-    doubled = StructuredGeometry.slab((0.0, 2.0 * _HALF), (0,), left=BC.vacuum, right=BC.vacuum)
+    half = walls_of.slab((0.0, _HALF), (0,), walls_of.MIRROR, walls_of.VACUUM)
+    doubled = walls_of.slab((0.0, 2.0 * _HALF), (0,), walls_of.VACUUM, walls_of.VACUUM)
     return _eigen(half, mixture), _eigen(doubled, mixture)
 
 
@@ -188,25 +186,24 @@ _ORDER_MARGIN = 10.0
 
 
 def _law(albedo: float):
-    from orpheus.geometry.boundary import AlbedoBoundary, SpecularReturn, VacuumInflow
+    """The wall of a specular albedo: vacuum at 0, else the specular return of the fraction."""
+    return walls_of.VACUUM if albedo == 0.0 else walls_of.partial(albedo)
 
-    return VacuumInflow() if albedo == 0.0 else AlbedoBoundary(albedo, SpecularReturn(axis="x"))
 
-
-def _body(kind: str, inner: float, outer: float) -> StructuredGeometry:
+def _body(kind: str, inner: float, outer: float) -> walls_of.Posed:
     """The homogeneous bodies of D8: solid sphere and cylinder of radius 1; slab [0, 1]; hollow sphere and annulus
     (0.4, 1.4). ``inner`` is the slab's left wall; it is not read on a solid body."""
     match kind:
         case "sphere":
-            return StructuredGeometry.sphere((0.0, 1.0), (0,), outer=_law(outer))
+            return walls_of.sphere((0.0, 1.0), (0,), _law(outer))
         case "cylinder":
-            return StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=_law(outer))
+            return walls_of.cylinder((0.0, 1.0), (0,), _law(outer))
         case "slab":
-            return StructuredGeometry.slab((0.0, 1.0), (0,), left=_law(inner), right=_law(outer))
+            return walls_of.slab((0.0, 1.0), (0,), _law(inner), _law(outer))
         case "hollow":
-            return StructuredGeometry.sphere((0.4, 1.4), (0,), inner=_law(inner), outer=_law(outer))
+            return walls_of.sphere((0.4, 1.4), (0,), _law(outer), _law(inner))
         case "annulus":
-            return StructuredGeometry.cylinder((0.4, 1.4), (0,), inner=_law(inner), outer=_law(outer))
+            return walls_of.cylinder((0.4, 1.4), (0,), _law(outer), _law(inner))
     raise AssertionError(kind)
 
 
@@ -354,8 +351,8 @@ def test_a_vacuum_bodys_k_rises_toward_k_inf_as_it_thickens(kind: str) -> None:
     k_inf = _k_inf(_ORDER_MIXTURE)
     values, steps = [], []
     for size in _THICKENING:
-        geometry = (StructuredGeometry.sphere((0.0, size), (0,), outer=_law(0.0)) if kind == "sphere"
-                    else StructuredGeometry.slab((0.0, size), (0,), left=_law(0.0), right=_law(0.0)))
+        geometry = (walls_of.sphere((0.0, size), (0,), _law(0.0)) if kind == "sphere"
+                    else walls_of.slab((0.0, size), (0,), _law(0.0), _law(0.0)))
         spec = _eigen(geometry, _ORDER_MIXTURE)
         value = _read(spec, Eigenvalue(), _ORDER_VALUE)
         values.append(value)
@@ -371,9 +368,9 @@ def test_a_vacuum_bodys_k_rises_toward_k_inf_as_it_thickens(kind: str) -> None:
 
 #: The vacuum bodies whose mode D10 reads: a sphere of radius 2 and a slab [0, 2] of PU2, two groups.
 _MODE_BODIES = {
-    "sphere": StructuredGeometry.sphere((0.0, 2.0), (0,), outer=BC.vacuum),
-    "slab": StructuredGeometry.slab((0.0, 2.0), (0,), left=BC.vacuum, right=BC.vacuum),
-    "cylinder": StructuredGeometry.cylinder((0.0, 2.0), (0,), outer=BC.vacuum),
+    "sphere": walls_of.sphere((0.0, 2.0), (0,), walls_of.VACUUM),
+    "slab": walls_of.slab((0.0, 2.0), (0,), walls_of.VACUUM, walls_of.VACUUM),
+    "cylinder": walls_of.cylinder((0.0, 2.0), (0,), walls_of.VACUUM),
 }
 _MODE_POINTS = (0.0, 0.25, 0.5, 0.75, 1.0)   # fractions of the half-width, centre first
 
@@ -398,7 +395,7 @@ def test_a_vacuum_bodys_mode_is_positive_and_falls_from_its_centre_to_its_wall(k
     """
     geometry = _MODE_BODIES[kind]
     spec = _eigen(geometry, _ORDER_MIXTURE)
-    lo, hi = geometry.breakpoints[0], geometry.breakpoints[-1]
+    lo, hi = geometry.geometry.breakpoints[0], geometry.geometry.breakpoints[-1]
     centre, half = (0.0, hi) if kind != "slab" else (0.5 * (lo + hi), 0.5 * (hi - lo))
     for g in range(_ORDER_MIXTURE.SigT.size):
         profile = [_read(spec, PointValue(centre + f * half, g), _ORDER_VALUE) for f in _MODE_POINTS]
@@ -448,12 +445,12 @@ def test_a_vacuum_shells_k_tends_to_the_solid_bodys_as_its_cavity_closes(kind: s
     exceeds the solid one's by 4.2e-7 relative (the material removed absorbed
     more than it produced), and the k(hollow) < k(solid) leg reds.
     """
-    make = StructuredGeometry.sphere if kind == "sphere" else StructuredGeometry.cylinder
+    make = walls_of.sphere if kind == "sphere" else walls_of.cylinder
     resolution = _CAVITY_RUNG[kind]
-    solid = _read(_eigen(make((0.0, 5.0), (0,), outer=BC.vacuum), _CAVITY_MIXTURE), Eigenvalue(), resolution)
+    solid = _read(_eigen(make((0.0, 5.0), (0,), walls_of.VACUUM), _CAVITY_MIXTURE), Eigenvalue(), resolution)
     distances = []
     for fraction in _CAVITY_FRACTIONS:
-        hollow = make((5.0 * fraction, 5.0), (0,), inner=BC.vacuum, outer=BC.vacuum)
+        hollow = make((5.0 * fraction, 5.0), (0,), walls_of.VACUUM, walls_of.VACUUM)
         k = _read(_eigen(hollow, _CAVITY_MIXTURE), Eigenvalue(), resolution)
         assert k < solid, (fraction, k, solid)
         distances.append((solid - k) / solid)
@@ -492,9 +489,8 @@ def test_the_modes_scalar_flux_is_continuous_across_a_material_interface(kind: s
     wrong closure) keeps the transported reading continuous; the value rows
     carry those.
     """
-    make = StructuredGeometry.sphere if kind == "sphere" else StructuredGeometry.cylinder
-    spec = GeometrySpecification(Materials(_CONTRAST_MATERIALS), make(_CONTRAST_BREAKPOINTS, (0, 1, 2), outer=BC.reflective),
-                                 Eigen(_K))
+    make = walls_of.sphere if kind == "sphere" else walls_of.cylinder
+    spec = walls_of.spec(make(_CONTRAST_BREAKPOINTS, (0, 1, 2), walls_of.MIRROR), _CONTRAST_MATERIALS, Eigen(_K))
     resolution = rung(3) if kind == "sphere" else rung(2)
     for r_k in _CONTRAST_BREAKPOINTS[1:-1]:
         jumps = []
@@ -537,16 +533,15 @@ def test_a_closed_one_group_heterogeneous_sphere_balances_and_stays_below_the_fu
     fuel, moderator = isotropic_mixture("A", "1g"), isotropic_mixture("B", "1g")
     absorption = [float(m.SigT[0] - m.SigS[0].toarray().sum()) for m in (fuel, moderator)]
 
-    def body(outer: BC) -> GeometrySpecification:
-        return GeometrySpecification(Materials({0: fuel, 1: moderator}),
-                                     StructuredGeometry.sphere((0.0, 0.5, 1.0), (0, 1), outer=outer), Eigen(_K))
+    def body(outer) -> GeometrySpecification:
+        return walls_of.spec(walls_of.sphere((0.0, 0.5, 1.0), (0, 1), outer), {0: fuel, 1: moderator}, Eigen(_K))
 
-    closed = body(BC.reflective)
+    closed = body(walls_of.MIRROR)
     k = _read(closed, Eigenvalue(), rung(3))
     production = _read(closed, FluxIntegral(RegionwiseConstant(np.array([[fuel.SigP[0]], [moderator.SigP[0]]]))), rung(3))
     absorbed = _read(closed, FluxIntegral(RegionwiseConstant(np.array([[absorption[0]], [absorption[1]]]))), rung(3))
     assert abs(production / absorbed / k - 1.0) < 1e-12, (k, production / absorbed)
-    k_vacuum = _read(body(BC.vacuum), Eigenvalue(), rung(3))
+    k_vacuum = _read(body(walls_of.VACUUM), Eigenvalue(), rung(3))
     assert 0.0 < k_vacuum < k < fuel.SigP[0] / absorption[0], (k_vacuum, k)
 
 

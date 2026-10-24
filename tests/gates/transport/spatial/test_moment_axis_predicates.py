@@ -35,13 +35,19 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.transport.fields.angular_flux import AngularFlux
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
 
 pytestmark = pytest.mark.foundation
 
@@ -112,7 +118,7 @@ def _solve_1g_slab(scheme):
 
     nx = 8
     materials = {0: _make_1g_mixture(1.0, 0.5)}
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(8)
@@ -120,7 +126,7 @@ def _solve_1g_slab(scheme):
     return solve_sn_fixed_source(
         materials, mesh, quad, Q, scheme=scheme,
         inner_solver="krylov",
-        max_inner=500, inner_tol=1e-10,
+        max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
 
 
@@ -166,12 +172,13 @@ def test_spatial_moment_axis_absent_on_hand_built_ld_field() -> None:
     from tests.gates.sn._test_helpers import placeholder_materials
 
     nx = 5
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(4)
     ld_sn_mesh = SNProblem(
         mesh, quad, placeholder_materials(ng=2), scheme=LinearDiscontinuous(),
+        boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     # Premise: the mesh's scheme IS multi-moment — the field's False is NOT a
     # trivial DD-mesh result; it documents the provenance discipline.

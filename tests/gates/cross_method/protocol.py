@@ -45,7 +45,9 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, Mapping, Protocol, runtime_checkable
 
 from orpheus.data.macro_xs.mixture import Mixture
+from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
 from orpheus.geometry.structured_geometry import StructuredGeometry
+from orpheus.specification.exterior import WallAmplitudes
 
 ClaimLayer = Literal["eigenvalue", "flux-shape", "convergence-order"]
 """The claim layer per :doc:`/skills/vv-principles` §"Hierarchical
@@ -204,8 +206,15 @@ class CrossMethodCase:
         entry. MUST be paired with non-None :attr:`materials`.
         Defaults to ``None`` for registry-backed cases. The
         :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
-        carries ``(geometry, regions, bcs)`` — enough for adapters to
+        carries ``(geometry, regions, face roles)`` — enough for adapters to
         dispatch all three families uniformly.
+    exterior : Mapping[int, WallAmplitudes] | None
+        The wall behind each integer tag the inline geometry's faces carry (plain data of
+        the reference: ``WallAmplitudes(specular, diffuse)``). MUST accompany an inline
+        :attr:`structured_geometry`; ``None`` for registry-backed cases, whose
+        ``to_geometry()`` carries the one vacuum tag
+        (:data:`~orpheus.derivations.common.continuous_reference.VACUUM_EXTERIOR`).
+        :meth:`exterior_for` resolves it.
     geometry : str
         Geometry tag matching the adapter's geometry field
         (``"slab"``, ``"sphere-1d"``, ``"reflected-slab"``, ...).
@@ -255,6 +264,7 @@ class CrossMethodCase:
     notes: str = ""
     materials: dict[int, Mixture] | None = None
     structured_geometry: StructuredGeometry | None = None
+    exterior: Mapping[int, WallAmplitudes] | None = None
 
     def __post_init__(self) -> None:
         """Validate the provisioning paths for materials + geometry.
@@ -304,6 +314,25 @@ class CrossMethodCase:
                 f"registry_case and inline materials — XS comes from "
                 f"one source per case."
             )
+        if has_inline_geom and not has_registry and self.exterior is None:
+            raise ValueError(
+                f"CrossMethodCase {self.case_id!r}: an inline structured_geometry "
+                f"needs its exterior (the wall behind each tag its faces carry)."
+            )
+
+    def exterior_for(self) -> Mapping[int, WallAmplitudes]:
+        """The walls behind the tags of this case's geometry: the inline ``exterior``, else the registry's vacuum wall.
+
+        A registry case's ``to_geometry()`` carries the one tag
+        :data:`~orpheus.derivations.common.continuous_reference.VACUUM_TAG` on every face, and
+        every case of the registry is bare, so a case that states no exterior of its own (a
+        registry case, or its shadow with another critical dimension) takes the registry's.
+        """
+        if self.exterior is not None:
+            return self.exterior
+        if self.registry_case is not None:
+            return VACUUM_EXTERIOR
+        raise ValueError(f"CrossMethodCase {self.case_id!r} has neither an exterior nor a registry case")
 
     def tolerance_for(self, adapter: SolverAdapter | str) -> float:
         """Return the absolute tolerance for ``adapter`` against

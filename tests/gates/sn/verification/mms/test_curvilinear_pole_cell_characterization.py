@@ -118,6 +118,14 @@ from orpheus.derivations.continuous.mms.sn import (
 from orpheus.sn import solve_sn_fixed_source
 
 from tests.gates.sn._test_helpers import volume_weighted_l2
+from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
+from tests.gates._exterior import conditions_for
+from tests.gates._reference_pairing import conditions_of
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``). The manufactured cases' meshes carry the one tag
+#: ``VACUUM_TAG``, which the reference states as the vacuum wall (``VACUUM_EXTERIOR``): the test-side loop binds it for production.
+_CONDITIONS = conditions_of(VACUUM_EXTERIOR)
 
 # ── ladders / quadrature ────────────────────────────────────────────────
 # [40, 80, 160, 320] is decisive for the rates (the production gate's
@@ -161,7 +169,7 @@ def _solve_sphere(nx: int) -> np.ndarray:
     sol = solve_sn_fixed_source(
         case.materials, mesh, case.quadrature, src,
         scattering_order=0,
-        max_inner=8000, inner_tol=1e-13,
+        max_inner=8000, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     return np.asarray(sol.scalar_flux.values)[0]
 
@@ -173,7 +181,7 @@ def _solve_cylinder(nx: int) -> np.ndarray:
     sol = solve_sn_fixed_source(
         case.materials, mesh, case.quadrature, src,
         scattering_order=0,
-        max_inner=8000, inner_tol=1e-13,
+        max_inner=8000, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     return np.asarray(sol.scalar_flux.values)[0]
 
@@ -219,7 +227,7 @@ def test_sphere_global_L2_second_order_dual_reference():
         sol = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, src,
             scattering_order=0,
-            max_inner=8000, inner_tol=1e-13,
+            max_inner=8000, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         phi = np.asarray(sol.scalar_flux.values)[0]
         ref_mid = case.phi_exact(mesh.centers)
@@ -268,7 +276,7 @@ def test_cylinder_global_L2_second_order():
         sol = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, src,
             scattering_order=0,
-            max_inner=8000, inner_tol=1e-13,
+            max_inner=8000, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         phi = np.asarray(sol.scalar_flux.values)[0]
         ref_mid = case.phi_exact(mesh.centers)
@@ -329,7 +337,7 @@ def test_sphere_pole_cell_first_order_and_Linf_dominant():
         sol = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, src,
             scattering_order=0,
-            max_inner=8000, inner_tol=1e-13,
+            max_inner=8000, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         phi = np.asarray(sol.scalar_flux.values)[0]
         abs_err = np.abs(phi - case.phi_exact(mesh.centers))
@@ -395,7 +403,7 @@ def test_cylinder_pole_first_order_vs_volume_average_masked_by_midpoint():
         sol = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, src,
             scattering_order=0,
-            max_inner=8000, inner_tol=1e-13,
+            max_inner=8000, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         phi = np.asarray(sol.scalar_flux.values)[0]
         ref_mid = case.phi_exact(mesh.centers)

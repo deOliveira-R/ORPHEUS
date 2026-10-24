@@ -143,15 +143,15 @@ Submodules
        reflector_mat_id)`` or
        :class:`~orpheus.derivations.common.reference_body.LayeredBody`
        ``(coord, breakpoints, mat_ids)``; ``ReferenceBody`` is their
-       union. The boundary laws are read by
-       :func:`~orpheus.derivations.common.reference_body.specular_albedo`
-       ``(law, owner=)``, the one reader of a law as a specular albedo
-       (vacuum 0, a mirror 1, a partial specular law its albedo; any
-       other law refused),
+       union. The boundary faces are read by
        :func:`~orpheus.derivations.common.reference_body.specular_albedos`
-       (every boundary point of a geometry, inner first) and
+       ``(geometry, exterior, owner=)``, the one reader of the face roles
+       and the specification's ``exterior`` as specular albedos (every
+       boundary point of a geometry, inner first: a mirror deck 1, a tag
+       bound to ``WallAmplitudes(s, 0)`` its ``s``; a wrap or a wall
+       returning diffusely refused) and
        :func:`~orpheus.derivations.common.reference_body.require_vacuum`.
-       Each generator refuses a shape or a law it does not serve
+       Each generator refuses a shape or a wall it does not serve
        through
        :func:`~orpheus.derivations.common.reference_body.refuse_unserved`
        ``(what, owner=, missing=)``, which raises

@@ -358,39 +358,32 @@ def _aba_cylinder(degrees: tuple[int, ...]) -> None:
 def partial_reflector_specification(body: str) -> GeometrySpecification:
     """ERR-094's bodies posed for the reference: mixture A at P0 (``isotropic_mixture``), two groups."""
     from orpheus.data.cells import CellCoefficient, Channel
-    from orpheus.data.materials import Materials
-    from orpheus.geometry import StructuredGeometry
-    from orpheus.geometry.boundary import AlbedoBoundary, SpecularReturn
     from orpheus.numerics.question import Eigen
-    from orpheus.specification.specification import GeometrySpecification
+    from tests.gates.derivations import _posed_walls as walls_of
     from tests.gates.sn.verification.analytical._aba_reference import isotropic_mixture
 
     match body:
         case "slab":
-            geometry = StructuredGeometry.slab((0.0, 4.0), (0,), left=AlbedoBoundary(0.3, SpecularReturn("x")),
-                                               right=AlbedoBoundary(0.7, SpecularReturn("x")))
+            posed = walls_of.slab((0.0, 4.0), (0,), left=walls_of.partial(0.3), right=walls_of.partial(0.7))
         case "sphere":
-            geometry = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=AlbedoBoundary(0.7, SpecularReturn("x")))
+            posed = walls_of.sphere((0.0, 4.0), (0,), outer=walls_of.partial(0.7))
         case _:
             raise KeyError(body)
-    return GeometrySpecification(Materials({0: isotropic_mixture("A")}), geometry,
-                                 Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
+    return walls_of.spec(posed, {0: isotropic_mixture("A")}, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
 
 
 def edge_specification(body: str) -> GeometrySpecification:
     """The homogeneous edge bodies (the ``*_homogeneous_*_dd_n20`` snapshots' problems): mixture A at P0, R = 2 cm,
     reflective; the sphere at two groups, the cylinder at one."""
     from orpheus.data.cells import CellCoefficient, Channel
-    from orpheus.data.materials import Materials
-    from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+    from orpheus.geometry import CoordSystem
     from orpheus.numerics.question import Eigen
-    from orpheus.specification.specification import GeometrySpecification
+    from tests.gates.derivations import _posed_walls as walls_of
     from tests.gates.sn.verification.analytical._aba_reference import isotropic_mixture
 
     coord, groups = {"sphere_2g": (CoordSystem.SPHERICAL, "2g"), "cylinder_1g": (CoordSystem.CYLINDRICAL, "1g")}[body]
-    geometry = StructuredGeometry(coord=coord, breakpoints=(0.0, 2.0), mat_ids=(0,), boundaries=(BC.reflective,))
-    return GeometrySpecification(Materials({0: isotropic_mixture("A", groups)}), geometry,
-                                 Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
+    posed = walls_of.posed(coord, (0.0, 2.0), (0,), (walls_of.MIRROR,))
+    return walls_of.spec(posed, {0: isotropic_mixture("A", groups)}, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
 
 
 def edge_kinf(body: str) -> float:

@@ -47,6 +47,12 @@ from orpheus.sn.loss_representation import (
     default_for,
 )
 from orpheus.transport.spatial import LinearDiscontinuous
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``). Tag 0 is the vacuum wall.
+_CONDITIONS = {0: WallCondition.vacuum()}
 
 from tests.gates.sn._test_helpers import volume_weighted_l2
 
@@ -58,8 +64,8 @@ def test_ld_slab_mesh_routes_to_cumprod_scan() -> None:
     case = build_1d_slab_mms_case()
     mesh = case.build_mesh(16)
     ld_mesh = SNProblem(mesh, case.quadrature, case.materials,
-                     scheme=LinearDiscontinuous())
-    dd_mesh = SNProblem(mesh, case.quadrature, case.materials)
+                     scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    dd_mesh = SNProblem(mesh, case.quadrature, case.materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     if not isinstance(default_for(ld_mesh, ld_mesh.scheme, ld_mesh.angular_closure), CumprodScan):
         pytest.fail(
             "LD slab mesh routed to "
@@ -96,7 +102,7 @@ def test_sn_1d_slab_ld_mms_converges_second_order() -> None:
         result = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, Q,
             max_inner=500, inner_tol=1e-13,
-            scheme=LinearDiscontinuous(),
+            scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         phi_num = result.scalar_flux.values[0, :]
         phi_ref = case.phi_exact(mesh.centers)
@@ -130,12 +136,12 @@ def test_sn_1d_slab_ld_mms_krylov_matches_si() -> None:
     Q = case.external_source(mesh)
     si = solve_sn_fixed_source(
         case.materials, mesh, case.quadrature, Q,
-        max_inner=500, inner_tol=1e-13, scheme=LinearDiscontinuous(),
+        max_inner=500, inner_tol=1e-13, scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     kry = solve_sn_fixed_source(
         case.materials, mesh, case.quadrature, Q,
         max_inner=500, inner_tol=1e-13, inner_solver="krylov",
-        scheme=LinearDiscontinuous(),
+        scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     np.testing.assert_allclose(
         kry.scalar_flux.values[0], si.scalar_flux.values[0],
@@ -163,7 +169,7 @@ def test_ld_two_paths_scan_equals_dag_oracle() -> None:
     a non-flat random per-ordinate source.  One sweep each, on a fresh boundary
     (the sweep mutates it in place).
     """
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -174,10 +180,10 @@ def test_ld_two_paths_scan_equals_dag_oracle() -> None:
         np.array([1.0, 1.5]), np.array([[0.3, 0.2], [0.0, 0.6]]),
     )}
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, 5.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, 5.0), (0,), left=0, right=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
-    ld_mesh = SNProblem(mesh, quad, materials, scheme=LinearDiscontinuous())
+    ld_mesh = SNProblem(mesh, quad, materials, scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     N, ng = quad.n_ordinates, ld_mesh.ng
 
     rng = np.random.default_rng(20260614)
@@ -221,7 +227,7 @@ def test_ld_curvilinear_solve_fails_fast() -> None:
     predicate (a *value* signal — P4.9a: the assembled ``angular_denom_term``
     non-neutral) instead of a path that merely happened to reach it.
     """
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
@@ -229,7 +235,7 @@ def test_ld_curvilinear_solve_fails_fast() -> None:
     nx = 8
     materials = {0: _make_1g_mixture(1.0, 0.5)}
     sphere = Mesher(StructuredGeometry.sphere(
-        (0.0, 1.0), (0,), outer=BC("vacuum"),
+        (0.0, 1.0), (0,), outer=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
     Q = np.ones((quad.n_ordinates, 1, nx)) / quad.weights.sum()
@@ -238,7 +244,7 @@ def test_ld_curvilinear_solve_fails_fast() -> None:
     ):
         solve_sn_fixed_source(
             materials, sphere, quad, Q,
-            scheme=LinearDiscontinuous(),
+            scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(sphere, _CONDITIONS),
         )
 
 
@@ -320,25 +326,25 @@ def test_ld_thick_diffusive_limit() -> None:
     Σ_s^T·φ̂ couples groups; a 1G-only gate is a degeneracy guard failure).
     """
     from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
 
     nx, length, sigma_t, c = 4, 1.0, 40.0, 0.99   # σ_t·h = 10/cell (thick), c→1
     materials = {0: _make_1g_mixture(sigma_t, c * sigma_t)}
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, length), (0,), left=0, right=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
     Q = np.ones((quad.n_ordinates, 1, nx)) / quad.weights.sum()   # uniform iso source
     dd = solve_sn_fixed_source(
         materials, mesh, quad, Q,
-        inner_solver="krylov", max_inner=2000, inner_tol=1e-10,
+        inner_solver="krylov", max_inner=2000, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     ld = solve_sn_fixed_source(
         materials, mesh, quad, Q,
         inner_solver="krylov", max_inner=2000, inner_tol=1e-10,
-        scheme=LinearDiscontinuous(),
+        scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     mid = nx // 2
     dd_mid = float(dd.scalar_flux.values[0, mid])
@@ -371,7 +377,7 @@ def test_ld_thick_diffusive_limit_2g() -> None:
     the 1G gate (the `vv-principles` 1-group-degeneracy rule / H1; #240 D5b-S3 GATE 5).
     """
     from orpheus.derivations.continuous.mms.sn import _make_2g_asymmetric_mixture
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
 
@@ -381,15 +387,15 @@ def test_ld_thick_diffusive_limit_2g() -> None:
     sig_s = np.array([[30.0, 9.6], [0.0, 39.6]])   # c≈0.99 each group, asym
     materials = {0: _make_2g_asymmetric_mixture(sig_t, sig_s)}
     mesh = Mesher(StructuredGeometry.slab(
-        (0.0, length), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, length), (0,), left=0, right=0,
     )).partition(CellsByCount.uniform_width(nx)).mesh
     quad = Quadrature.gauss_legendre(8)
     Q = np.ones((quad.n_ordinates, 2, nx)) / quad.weights.sum()
     common = dict(inner_solver="krylov",
                   max_inner=4000, inner_tol=1e-10)
-    dd = solve_sn_fixed_source(materials, mesh, quad, Q, **common)
+    dd = solve_sn_fixed_source(materials, mesh, quad, Q, **common, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     ld = solve_sn_fixed_source(materials, mesh, quad, Q,
-                               scheme=LinearDiscontinuous(), **common)
+                               scheme=LinearDiscontinuous(), **common, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     mid = nx // 2
     for g in range(2):
         dd_mid = float(dd.scalar_flux.values[g, mid])

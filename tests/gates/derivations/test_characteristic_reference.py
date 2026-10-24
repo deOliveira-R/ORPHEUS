@@ -58,7 +58,7 @@ from orpheus.derivations.continuous.characteristic import (
 from orpheus.derivations.continuous.characteristic import reference as reference_module
 from orpheus.derivations.continuous.characteristic.assembly import LineRule
 from orpheus.derivations.continuous.sood_registry import sood2003 as sood
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
@@ -76,6 +76,8 @@ from tests.gates.derivations.test_characteristic_system import (
     _ABS, _ADJ_ABSORBER, _ADJ_FUEL, _ADJ_REFLECTOR, _MIRROR, _N2N, _PU2, _SELF_ONLY, _UP2N, _URRB, _VACUUM,
     _fission_by_hand, _scattering_by_hand, _walls, _zero_d,
 )
+from tests.gates.derivations import _posed_walls as walls_of
+from tests.gates.derivations._posed_walls import MIRROR as WALL_MIRROR, VACUUM as WALL_VACUUM, WHITE as WALL_WHITE
 from tests.gates.numerics import _traced_memo_api as memo_api
 
 pytestmark = pytest.mark.filterwarnings("error::RuntimeWarning")
@@ -110,21 +112,21 @@ _ADJ_BREAKPOINTS = (0.0, 0.7, 1.1, 1.8)
 # ── the bodies, as specifications ────────────────────────────────────────
 
 
-def _sphere(breakpoints, mat_ids, outer: BC, inner: BC | None = None) -> StructuredGeometry:
-    return StructuredGeometry.sphere(breakpoints, mat_ids, outer=outer, inner=inner)
+def _sphere(breakpoints, mat_ids, outer, inner=None) -> walls_of.Posed:
+    return walls_of.sphere(breakpoints, mat_ids, outer, inner)
 
 
-def _slab(breakpoints, mat_ids, left: BC, right: BC) -> StructuredGeometry:
-    return StructuredGeometry.slab(breakpoints, mat_ids, left=left, right=right)
+def _slab(breakpoints, mat_ids, left, right) -> walls_of.Posed:
+    return walls_of.slab(breakpoints, mat_ids, left, right)
 
 
-def _spec(geometry: StructuredGeometry, mixtures: dict[int, Any], question: Any) -> GeometrySpecification:
-    return GeometrySpecification(Materials(mixtures), geometry, question)
+def _spec(body: walls_of.Posed, mixtures: dict[int, Any], question: Any) -> GeometrySpecification:
+    return walls_of.spec(body, mixtures, question)
 
 
-def _layered(geometry_of: Callable[..., StructuredGeometry], breakpoints, *laws: BC) -> StructuredGeometry:
+def _layered(body_of: Callable[..., walls_of.Posed], breakpoints, *walls) -> walls_of.Posed:
     """One mixture under one material id per interval (a layered body, the multi-region route)."""
-    return geometry_of(breakpoints, tuple(range(len(breakpoints) - 1)), *laws)
+    return body_of(breakpoints, tuple(range(len(breakpoints) - 1)), *walls)
 
 
 def _same(mixture, n: int) -> dict[int, Any]:
@@ -350,11 +352,11 @@ def test_the_cross_sections_carry_chi_and_production_and_transpose_by_swapping_t
 
 def _hetero_sphere(question: Any) -> GeometrySpecification:
     """A three-region vacuum sphere, material ids out of interval order, both materials fissile."""
-    return _spec(_sphere(_MR3, (1, 0, 1), BC.vacuum), {0: _ABS, 1: _UP2N}, question)
+    return _spec(_sphere(_MR3, (1, 0, 1), WALL_VACUUM), {0: _ABS, 1: _UP2N}, question)
 
 
 def _two_fissile(question: Any) -> GeometrySpecification:
-    return _spec(_sphere(_MR3, (1, 0, 1), BC.vacuum), {0: _PU2, 1: _UP2N}, question)
+    return _spec(_sphere(_MR3, (1, 0, 1), WALL_VACUUM), {0: _PU2, 1: _UP2N}, question)
 
 
 def _count_line_rules(monkeypatch: pytest.MonkeyPatch) -> list[int]:
@@ -391,17 +393,15 @@ _REFUSALS: list[tuple[str, Callable[[], Any], type, str]] = [
     ("response-off-the-physical-point", lambda: _hetero_sphere(Response(_rwc(np.ones((3, 2))), point=_POINT)),
      ValueError, "answers at the physical point"),
     ("anisotropic-scattering-at-interval-2", lambda: _spec(
-        _sphere(_MR3, (1, 1, 0), BC.vacuum), {0: get_mixture("B", "2g"), 1: _PU2}, Eigen(_K)),
+        _sphere(_MR3, (1, 1, 0), WALL_VACUUM), {0: get_mixture("B", "2g"), 1: _PU2}, Eigen(_K)),
      NotImplementedError, "region 2's SigS has a non-zero Legendre order 1"),
     ("source-depending-on-mu-sphere", lambda: _hetero_sphere(FixedSource(_MU_SOURCE)), NotImplementedError,
      "serves an isotropic source only"),
     ("source-depending-on-phi-slab", lambda: _spec(
-        _slab(_SLB3, (1, 0, 1), BC.reflective, BC.vacuum), {0: _ABS, 1: _UP2N},
+        _slab(_SLB3, (1, 0, 1), WALL_MIRROR, WALL_VACUUM), {0: _ABS, 1: _UP2N},
         FixedSource(Symbolic.of(1 + Symbolic.phi**2, 0))), NotImplementedError, "serves an isotropic source only"),
     ("detector-depending-on-mu", lambda: _hetero_sphere(Response(_MU_SOURCE)), NotImplementedError,
      "serves an isotropic detector only"),
-    ("unknown-wall-tag", lambda: _spec(_sphere(_MR3, (1, 0, 1), BC("marshak")), {0: _ABS, 1: _UP2N}, Eigen(_K)),
-     NotImplementedError, "the reference admits the tag kinds"),
 ]
 
 
@@ -561,7 +561,7 @@ def _weights() -> list[tuple[str, MeshFreeFunction, Callable[[np.ndarray], np.nd
     ]
 
 
-_SUBCRITICAL_SPHERE = _spec(_sphere(_MR3, (1, 0, 1), BC.vacuum), {0: _ABS, 1: _UP2N}, FixedSource(_rwc([[1.0, 0.4], [0.0, 0.0], [1.0, 0.4]])))
+_SUBCRITICAL_SPHERE = _spec(_sphere(_MR3, (1, 0, 1), WALL_VACUUM), {0: _ABS, 1: _UP2N}, FixedSource(_rwc([[1.0, 0.4], [0.0, 0.0], [1.0, 0.4]])))
 
 
 @pytest.mark.l1
@@ -598,8 +598,8 @@ def test_a_flux_integral_is_the_volume_integral_of_the_galerkin_flux(case: int) 
 
 
 _WIRING = [
-    ("slab-mirror-vacuum", "slab", _SLB3, (_MIRROR, _VACUUM), lambda: _slab(_SLB3, (1, 0, 2), BC.reflective, BC.vacuum)),
-    ("sphere-vacuum", "sphere", _MR3, (_VACUUM,), lambda: _sphere(_MR3, (1, 0, 2), BC.vacuum)),
+    ("slab-mirror-vacuum", "slab", _SLB3, (_MIRROR, _VACUUM), lambda: _slab(_SLB3, (1, 0, 2), WALL_MIRROR, WALL_VACUUM)),
+    ("sphere-vacuum", "sphere", _MR3, (_VACUUM,), lambda: _sphere(_MR3, (1, 0, 2), WALL_VACUUM)),
 ]
 _WIRING_MATERIALS = {0: _PU2, 1: _UP2N, 2: _ABS}
 
@@ -633,10 +633,10 @@ def test_the_doors_k_is_the_fundamental_of_the_system_written_by_hand(chart, bre
 
 
 _CLOSED_BODIES = [
-    ("sphere1-mirror", lambda: _layered(_sphere, (0.0, 1.0), BC.reflective)),
-    ("sphere3-mirror", lambda: _layered(_sphere, _MR3, BC.reflective)),
-    ("sphere1-white", lambda: _layered(_sphere, (0.0, 1.0), BC.white)),
-    ("slab3-mirrors", lambda: _layered(_slab, _SLB3, BC.reflective, BC.reflective)),
+    ("sphere1-mirror", lambda: _layered(_sphere, (0.0, 1.0), WALL_MIRROR)),
+    ("sphere3-mirror", lambda: _layered(_sphere, _MR3, WALL_MIRROR)),
+    ("sphere1-white", lambda: _layered(_sphere, (0.0, 1.0), WALL_WHITE)),
+    ("slab3-mirrors", lambda: _layered(_slab, _SLB3, WALL_MIRROR, WALL_MIRROR)),
 ]
 _CLOSED_MIXTURES = {"PU2": _PU2, "URRb": _URRB, "UP2N": _UP2N}
 #: The exact infinite medium's gauge, written here: a fission production density of 100 n/cm^3/s
@@ -667,7 +667,7 @@ def test_a_closed_homogeneous_body_reads_the_exact_infinite_mediums_k_and_flux(b
     """
     mixture = _CLOSED_MIXTURES[name]
     geometry = body()
-    spec = _spec(geometry, _same(mixture, len(geometry.mat_ids)), Eigen(_K))
+    spec = _spec(geometry, _same(mixture, len(geometry.geometry.mat_ids)), Eigen(_K))
     exact = exact_infinite_medium_reference(InfiniteMediumSpecification(0, mixture, Eigen(_K)))
     k = _read(spec, Eigenvalue())
     assert abs(k / exact.read(Eigenvalue()).value - 1.0) < 1e-12
@@ -702,7 +702,7 @@ def test_a_heterogeneous_eigen_flux_produces_one_neutron() -> None:
     whatever the question declares; the density gauge 100; the regions'
     production read in id order.
     """
-    spec = _spec(_sphere(_MR3, (1, 0, 2), BC.vacuum), _WIRING_MATERIALS, Eigen(_K))
+    spec = _spec(_sphere(_MR3, (1, 0, 2), WALL_VACUUM), _WIRING_MATERIALS, Eigen(_K))
     fission, production = _productions((1, 0, 2), _WIRING_MATERIALS)
     assert abs(_read(spec, FluxIntegral(_rwc(production))) - 1.0) < 1e-13
     assert _read(spec, FluxIntegral(_rwc(fission))) < 1.0 - 1e-4
@@ -723,7 +723,7 @@ def test_a_declared_fission_gauge_rescales_the_flux_by_the_ratio_of_the_producti
     ignored (the door reads the default production whatever the question
     says, so the fission leg reads above 1); the gauge applied to k.
     """
-    geometry = _sphere(_MR3, (1, 0, 2), BC.vacuum)
+    geometry = _sphere(_MR3, (1, 0, 2), WALL_VACUUM)
     default = _spec(geometry, _WIRING_MATERIALS, Eigen(_K))
     declared = _spec(geometry, _WIRING_MATERIALS, Eigen(_K, gauge=_FISSION_GAUGE))
     fission, _ = _productions((1, 0, 2), _WIRING_MATERIALS)
@@ -739,7 +739,7 @@ def test_a_declared_fission_gauge_rescales_the_flux_by_the_ratio_of_the_producti
 @pytest.mark.rests_on(_D2, _HERE + "test_the_doors_k_is_the_fundamental_of_the_system_written_by_hand")
 def test_the_door_reads_k_one_at_soods_critical_sphere() -> None:
     """[K4; l1, ``characteristic-pencil``] Sood 2003 PU-2-0-SP (Siewert-Thomas 2G F_N): the vacuum sphere at its
-    published critical radius, posed through a ``BC.vacuum`` tag, reads k = 1 within D2's band at the working
+    published critical radius, posed through a ``WALL_VACUUM`` tag, reads k = 1 within D2's band at the working
     point, 3.6e-6 (|dk/dmfp| x half a unit of the printed radius's last digit, measured in D2).
 
     `[M]` 2026-10-07: |k - 1| = 7.0e-7, D2's reading. First red: the vacuum tag
@@ -750,7 +750,7 @@ def test_the_door_reads_k_one_at_soods_critical_sphere() -> None:
     published = case.truth.critical_dimension_mfp
     assert published is not None
     radius = published / float(mixture.SigT[0])
-    spec = _spec(_sphere((0.0, radius), (0,), BC.vacuum), {0: mixture}, Eigen(_K))
+    spec = _spec(_sphere((0.0, radius), (0,), WALL_VACUUM), {0: mixture}, Eigen(_K))
     assert abs(_read(spec, Eigenvalue()) - 1.0) < 3.6e-6
 
 
@@ -771,7 +771,7 @@ _WIDTH = 2.0
 
 
 def _mirror_slab(mixture, mode: Any) -> GeometrySpecification:
-    return _spec(_slab((0.0, _WIDTH), (0,), BC.reflective, BC.reflective), {0: mixture}, Eigen(_K, mode=mode))
+    return _spec(_slab((0.0, _WIDTH), (0,), WALL_MIRROR, WALL_MIRROR), {0: mixture}, Eigen(_K, mode=mode))
 
 
 @pytest.mark.l1
@@ -821,9 +821,9 @@ def test_tau_near_the_fundamental_reads_the_fundamentals_k() -> None:
     sphere. The two eigenvalues come from two eigensolver calls (``fundamental`` and ``spectrum``).
     `[M]` 2026-10-07: 0. First red: the Nearest search over the spectrum's absolute values in the 1/k chart
     reaching another mode (none here: blind, declared; N2 carries the chart)."""
-    fundamental = _spec(_sphere(_MR3, (1, 0, 2), BC.vacuum), _WIRING_MATERIALS, Eigen(_K))
+    fundamental = _spec(_sphere(_MR3, (1, 0, 2), WALL_VACUUM), _WIRING_MATERIALS, Eigen(_K))
     k = _read(fundamental, Eigenvalue())
-    nearest = _spec(_sphere(_MR3, (1, 0, 2), BC.vacuum), _WIRING_MATERIALS, Eigen(_K, mode=Nearest(0.99 * k)))
+    nearest = _spec(_sphere(_MR3, (1, 0, 2), WALL_VACUUM), _WIRING_MATERIALS, Eigen(_K, mode=Nearest(0.99 * k)))
     assert abs(_read(nearest, Eigenvalue()) / k - 1.0) < 1e-13
 
 
@@ -881,10 +881,10 @@ def test_a_nearest_answer_reads_its_eigenvalue_and_refuses_a_flux_integral(at: s
 
 
 _E2_BODIES = [
-    pytest.param("sphere", _MR3, lambda: _layered(_sphere, _MR3, BC.reflective), id="sphere3-mirror"),
-    pytest.param("slab", _SLB3, lambda: _layered(_slab, _SLB3, BC.reflective, BC.reflective), id="slab3-mirrors"),
-    pytest.param("sphere", (0.4, 2.0), lambda: _sphere((0.4, 2.0), (0,), BC.reflective, BC.white), id="hollow-white-mirror"),
-    pytest.param("cylinder", (0.0, 1.0), lambda: StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC.reflective),
+    pytest.param("sphere", _MR3, lambda: _layered(_sphere, _MR3, WALL_MIRROR), id="sphere3-mirror"),
+    pytest.param("slab", _SLB3, lambda: _layered(_slab, _SLB3, WALL_MIRROR, WALL_MIRROR), id="slab3-mirrors"),
+    pytest.param("sphere", (0.4, 2.0), lambda: _sphere((0.4, 2.0), (0,), WALL_MIRROR, WALL_WHITE), id="hollow-white-mirror"),
+    pytest.param("cylinder", (0.0, 1.0), lambda: walls_of.posed(CoordSystem.CYLINDRICAL, (0.0, 1.0), (0,), (WALL_MIRROR,)),
                  marks=pytest.mark.slow, id="cylinder1-mirror"),
 ]
 
@@ -905,7 +905,7 @@ def test_a_closed_body_with_a_uniform_source_reads_the_infinite_medium_flux_thro
     mixture is one).
     """
     geometry = body()
-    n = len(geometry.mat_ids)
+    n = len(geometry.geometry.mat_ids)
     q = np.array([1.0, 0.4])
     spec = _spec(geometry, _same(_UP2N, n), FixedSource(_rwc(np.tile(q, (n, 1)))))
     loss, production = _zero_d(_UP2N)
@@ -920,7 +920,7 @@ def test_a_closed_body_with_a_uniform_source_reads_the_infinite_medium_flux_thro
 #: E7's body (the old ``test_billiard_sphere_mr_fixed_source_reports_every_group``'s): a two-region vacuum sphere of
 #: radii (1, 2), downscatter only in both regions (``_ABS`` | ``_ADJ_REFLECTOR``), so a source in group 1 alone
 #: leaves group 0 empty.
-_E7_SPHERE = _sphere((0.0, 1.0, 2.0), (0, 1), BC.vacuum)
+_E7_SPHERE = _sphere((0.0, 1.0, 2.0), (0, 1), WALL_VACUUM)
 _E7_MATERIALS = {0: _ABS, 1: _ADJ_REFLECTOR}
 
 
@@ -977,7 +977,7 @@ def test_a_source_where_its_group_emits_nothing_widens_the_support_and_balances(
     """
     mixtures = {0: _ABS, 1: _SELF_ONLY}
     source = np.array([[0.0, 0.0], [0.0, 1.5], [0.0, 0.0]])
-    spec = _spec(_sphere(_MR3, (0, 1, 0), BC.reflective), mixtures, FixedSource(_rwc(source)))
+    spec = _spec(_sphere(_MR3, (0, 1, 0), WALL_MIRROR), mixtures, FixedSource(_rwc(source)))
     absorption = np.array([np.asarray(mixtures[m].SigT) - mixtures[m].SigS[0].toarray().sum(axis=1) for m in (0, 1, 0)])
     rate = 1.5 * _volumes("sphere", _MR3)[1]
     assert abs(_read(spec, FluxIntegral(_rwc(absorption))) / rate - 1.0) < 1e-12
@@ -992,12 +992,12 @@ def test_a_source_question_on_a_body_supercritical_by_n2n_is_refused_through_the
     source and a detector with ``NoLeastSolution`` ("spectral radius of the gain") at the first reading.
     The transposed problem has the same gain spectrum, so the response is refused too. First red: the source
     question answered on the k pencil (whose gain is the fission alone, none here)."""
-    spec = _spec(_layered(_sphere, _MR3, BC.reflective), _same(_N2N, 3), question)
+    spec = _spec(_layered(_sphere, _MR3, WALL_MIRROR), _same(_N2N, 3), question)
     with pytest.raises(NoLeastSolution, match="spectral radius of the gain"):
         _read(spec, _indicator(3, 0, 0))
 
 
-_OPEN_HETERO = _sphere(_ADJ_BREAKPOINTS, (0, 1, 2), BC.vacuum)
+_OPEN_HETERO = _sphere(_ADJ_BREAKPOINTS, (0, 1, 2), WALL_VACUUM)
 _ADJ_MATERIALS = {0: _ADJ_FUEL, 1: _ADJ_ABSORBER, 2: _ADJ_REFLECTOR}
 
 
@@ -1058,9 +1058,9 @@ def test_a_regionwise_source_is_read_onto_the_nodes_whatever_the_projection_poin
 
 
 _RECIPROCITY_BODIES = [
-    ("sphere-vacuum", lambda: _sphere(_ADJ_BREAKPOINTS, (0, 1, 2), BC.vacuum)),
-    ("slab-mirror-vacuum", lambda: _slab(_ADJ_BREAKPOINTS, (0, 1, 2), BC.reflective, BC.vacuum)),
-    ("sphere-white", lambda: _sphere(_ADJ_BREAKPOINTS, (0, 1, 2), BC.white)),
+    ("sphere-vacuum", lambda: _sphere(_ADJ_BREAKPOINTS, (0, 1, 2), WALL_VACUUM)),
+    ("slab-mirror-vacuum", lambda: _slab(_ADJ_BREAKPOINTS, (0, 1, 2), WALL_MIRROR, WALL_VACUUM)),
+    ("sphere-white", lambda: _sphere(_ADJ_BREAKPOINTS, (0, 1, 2), WALL_WHITE)),
 ]
 
 
@@ -1112,7 +1112,7 @@ def test_a_closed_bodys_importance_is_the_infinite_mediums_adjoint_solve(chart, 
     fission left untransposed.
     """
     geometry = body()
-    n = len(geometry.mat_ids)
+    n = len(geometry.geometry.mat_ids)
     r = np.array([0.3, 1.0])
     spec = _spec(geometry, _same(_UP2N, n), Response(_rwc(np.tile(r, (n, 1)))))
     loss, production = _zero_d(_UP2N)
@@ -1145,7 +1145,7 @@ def test_the_doors_response_is_the_forward_systems_adjoint_on_the_same_posing() 
     returning the tables untransposed; the detector not retracted (off by 4 pi).
     """
     q_table, r_table = np.array([[1.0, 0.2], [0.0, 0.5], [0.3, 0.0]]), np.array([[0.2, 1.0], [0.6, 0.0], [0.0, 0.9]])
-    geometry = _sphere(_ADJ_BREAKPOINTS, (0, 1, 2), BC.vacuum)
+    geometry = _sphere(_ADJ_BREAKPOINTS, (0, 1, 2), WALL_VACUUM)
     door = _read(_spec(geometry, _ADJ_MATERIALS, Response(_rwc(r_table))), FluxIntegral(_rwc(q_table)))
     basis = _basis("sphere", _ADJ_BREAKPOINTS)
     system = GalerkinSystem(basis, _walls("sphere", _ADJ_BREAKPOINTS, (_VACUUM,)),
@@ -1166,7 +1166,7 @@ def test_the_factory_returns_an_uncertified_reference_that_reads_a_ratio_as_a_qu
     ``CharacteristicDerivation`` of the same specification and resolution; ``read(Ratio(a, b))`` is the
     quotient of the two readings, bit for bit; an eigen ratio is independent of the gauge (read against
     the unscaled Galerkin flux here, 1e-13). First red: the eigen flux gauged per observable."""
-    spec = _spec(_sphere(_MR3, (1, 0, 2), BC.vacuum), _WIRING_MATERIALS, Eigen(_K))
+    spec = _spec(_sphere(_MR3, (1, 0, 2), WALL_VACUUM), _WIRING_MATERIALS, Eigen(_K))
     solution = characteristic_reference(spec, _RES)
     assert type(solution) is ReferenceSolution and solution.certificate is None
     assert isinstance(solution.derivation, CharacteristicDerivation)
@@ -1182,7 +1182,7 @@ def test_the_factory_returns_an_uncertified_reference_that_reads_a_ratio_as_a_qu
 
 
 def _derivation_with(**changes: Any) -> CharacteristicDerivation:
-    fields = {"specification": _spec(_sphere(_MR3, (1, 0, 2), BC.vacuum), _WIRING_MATERIALS, Eigen(_K)),
+    fields = {"specification": _spec(_sphere(_MR3, (1, 0, 2), WALL_VACUUM), _WIRING_MATERIALS, Eigen(_K)),
               "resolution": _RES} | changes
     return CharacteristicDerivation(**fields)
 
@@ -1254,11 +1254,11 @@ ROSTER: tuple[Entry, ...] = (
         parts=("specification", "resolution"),
         perturb={
             "specification": (leg("another body", lambda: _derivation_with(
-                specification=_spec(_sphere((0.0, 0.5, 1.5, 2.1), (1, 0, 2), BC.vacuum), _WIRING_MATERIALS, Eigen(_K)))),),
+                specification=_spec(_sphere((0.0, 0.5, 1.5, 2.1), (1, 0, 2), WALL_VACUUM), _WIRING_MATERIALS, Eigen(_K)))),),
             "resolution": (leg("another resolution", lambda: _derivation_with(resolution=_resolution_with(degree=4))),),
         },
         pairs=(("a-fresh-specification-and-resolution", _derivation_with,
-                lambda: _derivation_with(specification=_spec(_sphere(_MR3, (1, 0, 2), BC.vacuum), dict(_WIRING_MATERIALS),
+                lambda: _derivation_with(specification=_spec(_sphere(_MR3, (1, 0, 2), WALL_VACUUM), dict(_WIRING_MATERIALS),
                                                              Eigen(_K)), resolution=Resolution(3, 2, 0.4, TransportResolution(8), 8))),),
     ),
 )
@@ -1293,7 +1293,7 @@ def test_c2_evaluate_is_a_traced_memo() -> None:
 
 
 def _tiny_spec(question: Any = None) -> GeometrySpecification:
-    return _spec(_sphere((0.0, 1.0), (0,), BC.vacuum), {0: _UP2N}, Eigen(_K) if question is None else question)
+    return _spec(_sphere((0.0, 1.0), (0,), WALL_VACUUM), {0: _UP2N}, Eigen(_K) if question is None else question)
 
 
 @pytest.mark.foundation
@@ -1323,7 +1323,7 @@ def test_c3_an_equal_derivation_reads_from_the_memo_and_a_new_resolution_does_no
 def test_c4_a_refusal_crosses_the_memo_with_its_type(tmp_path) -> None:
     """[C4] A source on a body supercritical by (n,2n), read through the memo (a generating interpreter),
     raises ``NoLeastSolution`` here with its message. First red: the child's failure re-raised as another type."""
-    spec = _spec(_sphere((0.0, 1.0), (0,), BC.reflective), {0: _N2N}, FixedSource(_rwc(np.ones((1, 2)))))
+    spec = _spec(_sphere((0.0, 1.0), (0,), WALL_MIRROR), {0: _N2N}, FixedSource(_rwc(np.ones((1, 2)))))
     with memo_api.cache_root(tmp_path), pytest.raises(NoLeastSolution, match="spectral radius of the gain"):
         CharacteristicDerivation(spec, _TINY).evaluate(_indicator(1, 0, 0))
 
@@ -1337,9 +1337,7 @@ def test_c4_a_refusal_crosses_the_memo_with_its_type(tmp_path) -> None:
 
 def _layered_on(coord: CoordSystem, question: Any) -> GeometrySpecification:
     """The three-region heterogeneous body of ``_hetero_sphere`` on any chart (vacuum walls)."""
-    geometry = StructuredGeometry(coord=coord, breakpoints=_MR3, mat_ids=(1, 0, 1),
-                                  boundaries=(BC.vacuum,) if coord is not CoordSystem.CARTESIAN else (BC.vacuum, BC.vacuum))
-    return _spec(geometry, {0: _ABS, 1: _UP2N}, question)
+    return _spec(walls_of.posed(coord, _MR3, (1, 0, 1)), {0: _ABS, 1: _UP2N}, question)
 
 
 _CHARTS = [pytest.param(CoordSystem.SPHERICAL, id="sphere"), pytest.param(CoordSystem.CYLINDRICAL, id="cylinder"),
@@ -1456,25 +1454,10 @@ def test_a_material_the_body_does_not_hold_is_never_read() -> None:
     material it is handed (arm ``every-material-read``), since it is handed none but the body's."""
     anisotropic = get_mixture("B", "2g")
     assert len(anisotropic.SigS) == 2 and anisotropic.SigS[1].count_nonzero() > 0     # the activation
-    spec = _spec(_sphere(_MR3, (1, 0, 1), BC.vacuum), {0: _ABS, 1: _UP2N, 7: anisotropic}, Eigen(_K))
+    spec = _spec(_sphere(_MR3, (1, 0, 1), WALL_VACUUM), {0: _ABS, 1: _UP2N, 7: anisotropic}, Eigen(_K))
     assert set(spec.materials.keys()) == {0, 1}
     k = CharacteristicDerivation(spec, _TINY).evaluate(Eigenvalue()).value
     assert np.isfinite(k) and k > 0.0
-
-
-@pytest.mark.foundation
-@pytest.mark.rests_on(_HERE + "test_the_door_refuses_at_construction_naming_what_it_refused")
-def test_the_law_door_keeps_its_message_on_an_anisotropic_body() -> None:
-    """[F1, R7b2.3.3] An unadmitted wall tag on a body whose materials are anisotropic is refused with the WALL's
-    message, not the anisotropy's: the walls are read before the cross sections, so a door's message does not
-    depend on which other defect the input has. Succeeds ``test_r7b2_3_3_the_law_door_keeps_its_message``.
-    First red (``[M]`` 2026-10-10): the cross sections read before the walls (arm ``doors-reordered``)."""
-    anisotropic = get_mixture("A", "2g")                      # fissile, with a P1 moment
-    assert anisotropic.SigS[1].count_nonzero() > 0            # the activation: the anisotropy door would refuse it
-    spec = _spec(_sphere(_MR3, (1, 0, 1), BC("marshak")), {0: anisotropic, 1: anisotropic}, Eigen(_K))
-    with pytest.raises(NotImplementedError, match="the reference admits the tag kinds") as caught:
-        CharacteristicDerivation(spec, _RES)
-    assert "Legendre order" not in str(caught.value)
 
 
 def _box(a: float, b: float, group: int) -> FluxIntegral:
@@ -1500,7 +1483,7 @@ def test_an_indicator_on_a_flat_body_reads_its_measure_fraction() -> None:
     from tests.gates.sn.verification.analytical._aba_reference import isotropic_mixture
 
     fuel = isotropic_mixture("A")
-    spec = _spec(_sphere((0.0, 1.0, 2.0), (0, 1), BC.reflective), {0: fuel, 1: fuel}, Eigen(_K))
+    spec = _spec(_sphere((0.0, 1.0, 2.0), (0, 1), WALL_MIRROR), {0: fuel, 1: fuel}, Eigen(_K))
     total = FluxIntegral(Symbolic.of(1, 0))
     fraction = _read(spec, _box(0.6, 0.7, 0)) / _read(spec, total)
     assert abs(fraction / ((0.7**3 - 0.6**3) / 2.0**3) - 1.0) < 1e-12, fraction

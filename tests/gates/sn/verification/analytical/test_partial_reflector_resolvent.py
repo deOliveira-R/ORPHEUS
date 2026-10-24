@@ -105,6 +105,7 @@ from tests.gates.derivations._characteristic_ladders import (
     reference_error,
     rung,
 )
+from tests.gates._reference_pairing import conditions_of
 from tests.gates.derivations._ladder_rules import summed_tolerance
 from tests.gates.sn.verification.analytical._aba_reference import isotropic_mixture
 
@@ -160,10 +161,14 @@ def _reference_k(body: str) -> float:
     return float(characteristic_reference(partial_reflector_specification(body), resolution).read(Eigenvalue()).value)
 
 
-def _sn_k(mesh, n_ordinates: int) -> float:
+def _sn_k(mesh, n_ordinates: int, exterior) -> float:
+    """SN's k on ``mesh`` with the walls ``exterior`` states, bound for production by the test-side pairing loop
+    (``tests/gates/_reference_pairing.py``: the reference reads each wall's ``WallAmplitudes`` into a ``Wall``, production reads
+    the same pair into a ``WallCondition``, and the two SOLUTIONS are what this row compares)."""
     solution = solve_sn(
         {0: _FUEL}, mesh, Quadrature.gauss_legendre(n_ordinates),
         keff_tol=1e-10, flux_tol=1e-9, inner_tol=1e-12, max_inner=4000,
+        boundary_conditions=conditions_of(exterior),
     )
     return float(solution.outcome.keff)
 
@@ -189,7 +194,7 @@ def test_slab_with_two_partial_reflectors():
     _assert_one_problem()
     specification = partial_reflector_specification("slab")
     mesh = Mesher(specification.geometry).partition(CellsByCount.uniform_width(80)).mesh
-    k = _sn_k(mesh, 32)
+    k = _sn_k(mesh, 32, specification.exterior)
     np.testing.assert_allclose(
         k, _reference_k("slab"), rtol=_band("slab"),
         err_msg="SN's k of a slab with partially reflecting faces is not the "
@@ -219,7 +224,7 @@ def test_sphere_with_a_partial_reflector():
     _assert_one_problem()
     specification = partial_reflector_specification("sphere")
     mesh = Mesher(specification.geometry).partition(CellsByCount.uniform_width(40)).mesh
-    k = _sn_k(mesh, 16)
+    k = _sn_k(mesh, 16, specification.exterior)
     np.testing.assert_allclose(
         k, _reference_k("sphere"), rtol=_band("sphere"),
         err_msg="SN's k of a sphere with a partially reflecting surface is not "

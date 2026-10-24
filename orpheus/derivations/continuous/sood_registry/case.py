@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Mapping
 
 from orpheus.data.citation import Citation
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC
+from orpheus.derivations.common.continuous_reference import VACUUM_TAG
 
 if TYPE_CHECKING:
     from orpheus.geometry.structured_geometry import StructuredGeometry
@@ -181,14 +181,17 @@ class La13511Case:
         primary material's :math:`\Sigma_t` (group 0) from
         ``self.materials[0].SigT[0]``. Computes the cm extent via
         :math:`\text{cm} = \text{mfp} / \Sigma_t`. Builds the coordinate
-        system, the breakpoints of the one interval, and the boundary
-        laws.
+        system, the breakpoints of the one interval, and the face roles:
+        every boundary face carries the one tag :data:`VACUUM_TAG` (equal
+        declarations share a tag), which
+        :data:`~orpheus.derivations.common.continuous_reference.VACUUM_EXTERIOR` binds to the vacuum wall (every case of this
+        registry is bare).
 
         Slab convention
         ---------------
         Returns the FULL slab width
         (:math:`2 \cdot \text{critical\_dimension\_mfp} / \Sigma_t`)
-        with vacuum-vacuum BCs. This is the production-natural
+        with the vacuum tag on both faces. This is the production-natural
         convention — F_N's natural half-thickness is recovered inside
         :class:`MomentSpace` from
         :attr:`StructuredGeometry.domain_extent_cm` ``/ 2``.
@@ -202,9 +205,9 @@ class La13511Case:
         ----------------------------
         Single region of radius
         :math:`R = \text{critical\_dimension\_mfp} / \Sigma_t`,
-        outer law vacuum; the centre of a solid cylinder or sphere is an
-        interior point and carries no law, so the geometry takes the one
-        outer law.
+        outer face the vacuum tag; the centre of a solid cylinder or sphere is an
+        interior point and carries no role, so the geometry takes the one
+        outer role.
 
         Multi-region cases
         ------------------
@@ -280,20 +283,20 @@ class La13511Case:
         mat_id = 0
 
         if coord is CoordSystem.CARTESIAN:
-            # Full slab width (2 × half-thickness), vacuum-vacuum laws.
+            # Full slab width (2 × half-thickness), the vacuum tag on both faces.
             return StructuredGeometry(
                 coord=coord,
                 breakpoints=(0.0, 2.0 * cm),
                 mat_ids=(mat_id,),
-                boundaries=(BC.vacuum, BC.vacuum),
+                face_roles=(VACUUM_TAG, VACUUM_TAG),
             )
 
-        # A solid cylinder or sphere of radius cm; the outer law vacuum.
+        # A solid cylinder or sphere of radius cm; the outer face the vacuum tag.
         return StructuredGeometry(
             coord=coord,
             breakpoints=(0.0, cm),
             mat_ids=(mat_id,),
-            boundaries=(BC.vacuum,),
+            face_roles=(VACUUM_TAG,),
         )
 
 

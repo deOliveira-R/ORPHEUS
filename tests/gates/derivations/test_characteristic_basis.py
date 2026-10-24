@@ -43,7 +43,7 @@ import pytest
 
 from orpheus.derivations.continuous.characteristic import Walls
 from orpheus.derivations.continuous.characteristic.basis import PanelBasis
-from orpheus.geometry.boundary import AlbedoBoundary, PeriodicBoundary, SpecularReturn, VacuumInflow
+from tests.gates.derivations import _posed_walls as walls_of
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.coord import CoordSystem
@@ -68,19 +68,20 @@ _ONE = (0.0, 1.3)
 
 
 def _spec(a: float):
-    return AlbedoBoundary(a, SpecularReturn(axis="x"))
+    """The wall returning the fraction ``a`` specularly."""
+    return walls_of.partial(a)
 
 
 def _bodies() -> dict[str, StructuredGeometry]:
     return {
-        "sphere_solid": StructuredGeometry.sphere(_MR3, (0, 1, 2), outer=_spec(0.6)),
-        "cylinder_solid": StructuredGeometry.cylinder(_MR3, (0, 1, 2), outer=_spec(0.6)),
-        "sphere_hollow": StructuredGeometry.sphere(_MR3H, (0, 1, 2), inner=_spec(0.3), outer=_spec(0.8)),
-        "cylinder_hollow": StructuredGeometry.cylinder(_MR3H, (0, 1, 2), inner=_spec(0.3), outer=_spec(0.8)),
-        "slab": StructuredGeometry.slab(_SLB3, (0, 1, 2), left=_spec(0.3), right=_spec(0.8)),
-        "slab_thin_thick": StructuredGeometry.slab(_THIN_THICK, (0, 1, 2), left=VacuumInflow(), right=VacuumInflow()),
-        "sphere_one_region": StructuredGeometry.sphere(_ONE, (0,), outer=VacuumInflow()),
-        "cylinder_thin_thick": StructuredGeometry.cylinder(_THIN_THICK, (0, 1, 2), outer=VacuumInflow()),
+        "sphere_solid": walls_of.sphere(_MR3, (0, 1, 2), outer=_spec(0.6)).geometry,
+        "cylinder_solid": walls_of.cylinder(_MR3, (0, 1, 2), outer=_spec(0.6)).geometry,
+        "sphere_hollow": walls_of.sphere(_MR3H, (0, 1, 2), inner=_spec(0.3), outer=_spec(0.8)).geometry,
+        "cylinder_hollow": walls_of.cylinder(_MR3H, (0, 1, 2), inner=_spec(0.3), outer=_spec(0.8)).geometry,
+        "slab": walls_of.slab(_SLB3, (0, 1, 2), left=_spec(0.3), right=_spec(0.8)).geometry,
+        "slab_thin_thick": walls_of.slab(_THIN_THICK, (0, 1, 2), left=walls_of.VACUUM, right=walls_of.VACUUM).geometry,
+        "sphere_one_region": walls_of.sphere(_ONE, (0,), outer=walls_of.VACUUM).geometry,
+        "cylinder_thin_thick": walls_of.cylinder(_THIN_THICK, (0, 1, 2), outer=walls_of.VACUUM).geometry,
     }
 
 
@@ -552,9 +553,9 @@ def test_the_basis_reads_only_the_bodys_partition_and_the_resolution() -> None:
     a body with one breakpoint moved gives different panel ends.
     """
     assert list(inspect.signature(PanelBasis.of).parameters) == ["regions", "degree", "layers", "ratio"]
-    a = StructuredGeometry.sphere(_MR3, (0, 1, 2), outer=_spec(0.6))
-    b = StructuredGeometry.sphere(_MR3, (2, 0, 7), outer=VacuumInflow())
-    moved = StructuredGeometry.sphere((0.0, 0.5, 1.4, 2.0), (0, 1, 2), outer=_spec(0.6))
+    a = walls_of.sphere(_MR3, (0, 1, 2), outer=_spec(0.6)).geometry
+    b = walls_of.sphere(_MR3, (2, 0, 7), outer=walls_of.VACUUM).geometry
+    moved = walls_of.sphere((0.0, 0.5, 1.4, 2.0), (0, 1, 2), outer=_spec(0.6)).geometry
     ba, bb, bm = (_basis(g, 3, 2, 0.5) for g in (a, b, moved))
     assert ba.partition.breakpoints == bb.partition.breakpoints
     np.testing.assert_array_equal(ba.nodes, bb.nodes)
@@ -572,7 +573,7 @@ def test_a_basis_refuses_a_partition_that_does_not_refine_the_body_with_its_ends
     Each refusal keyed to its own fragment. First reds: the refinement check
     deleted (a panel straddling an interface is then constructible).
     """
-    regions = ConcentricPartition.of(StructuredGeometry.sphere(_MR3, (0, 1, 2), outer=_spec(0.6)))
+    regions = ConcentricPartition.of(walls_of.sphere(_MR3, (0, 1, 2), outer=_spec(0.6)).geometry)
     good = PanelBasis.of(regions, 2, 1, 0.5)
     sphere = regions.chart
 
@@ -592,10 +593,10 @@ def test_a_basis_refuses_a_partition_that_does_not_refine_the_body_with_its_ends
 
 
 def _walls_cases():
-    sph = StructuredGeometry.sphere(_MR3, (0, 1, 2), outer=_spec(0.6))
-    hol = StructuredGeometry.sphere(_MR3H, (0, 1, 2), inner=_spec(0.3), outer=_spec(0.8))
-    slab = StructuredGeometry.slab(_SLB3, (0, 1, 2), left=_spec(0.3), right=_spec(0.8))
-    per = StructuredGeometry.slab(_SLB3, (0, 1, 2), left=PeriodicBoundary(axis="x"), right=PeriodicBoundary(axis="x"))
+    sph = walls_of.sphere(_MR3, (0, 1, 2), outer=_spec(0.6))
+    hol = walls_of.sphere(_MR3H, (0, 1, 2), inner=_spec(0.3), outer=_spec(0.8))
+    slab = walls_of.slab(_SLB3, (0, 1, 2), left=_spec(0.3), right=_spec(0.8))
+    per = walls_of.slab(_SLB3, (0, 1, 2), left=walls_of.WRAP, right=walls_of.WRAP)
     # (id, geometry, [(breakpoint on the panels' index: "first" / "last", specular, partner: "self" / "other")])
     return [
         ("sphere_solid", sph, [("last", 0.6, "self")]),
@@ -609,10 +610,10 @@ _WALLS_CASES = _walls_cases()
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize(("geometry", "expected"), [c[1:] for c in _WALLS_CASES], ids=[c[0] for c in _WALLS_CASES])
+@pytest.mark.parametrize(("body", "expected"), [c[1:] for c in _WALLS_CASES], ids=[c[0] for c in _WALLS_CASES])
 @pytest.mark.rests_on(_HERE + "test_every_breakpoint_is_a_panel_end_and_each_panel_lies_in_one_region",
                       _WALLS + "test_every_law_reads_as_the_wall_its_physics_names")
-def test_the_walls_rekey_onto_the_panel_partition(geometry, expected) -> None:
+def test_the_walls_rekey_onto_the_panel_partition(body, expected) -> None:
     """[W1] Walls.on(panels): breakpoint 0 stays 0, n becomes the panel count P, partners follow, amplitudes kept.
 
     The expected walls are written from the body (which end, which amplitude,
@@ -623,9 +624,9 @@ def test_the_walls_rekey_onto_the_panel_partition(geometry, expected) -> None:
     at n (the periodic slab's cycle broken); the amplitudes of the two walls
     swapped.
     """
-    basis = _basis(geometry, 3, 2, 0.5)
+    basis = _basis(body.geometry, 3, 2, 0.5)
     P = len(basis.partition.breakpoints) - 1
-    walls = Walls.of(geometry).on(basis.partition)
+    walls = Walls.of(*body).on(basis.partition)
     assert walls.n_regions == P
     index = {"first": 0, "last": P}
     got = sorted((w.breakpoint, w.specular, w.diffuse, w.partner) for w in walls.walls)
@@ -647,7 +648,7 @@ def test_walls_refuse_a_partition_on_another_chart() -> None:
     cannot refuse a partition with other ends or missing a breakpoint; that
     refusal is the panel basis's (``test_a_basis_refuses_a_partition_that_does_not_refine_the_body_with_its_ends``).
     """
-    geometry = StructuredGeometry.sphere(_MR3, (0, 1, 2), outer=_spec(0.6))
+    geometry = walls_of.sphere(_MR3, (0, 1, 2), outer=_spec(0.6))
     cylinder = ConcentricPartition(Chart(CoordSystem.CYLINDRICAL), _MR3)
     with pytest.raises(ValueError, match="are not re-keyed onto a"):
-        Walls.of(geometry).on(cylinder)
+        Walls.of(*geometry).on(cylinder)

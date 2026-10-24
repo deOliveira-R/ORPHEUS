@@ -84,7 +84,8 @@ def source_slab() -> Any:
     from orpheus.specification import GeometrySpecification
 
     q = RegionwiseConstant(np.array([[1.0, 0.0], [0.0, 0.0]]))
-    return GeometrySpecification(Materials({0: sf.fuel(), 1: sf.moderator()}), sf.slab2(), FixedSource(q))
+    return GeometrySpecification(Materials({0: sf.fuel(), 1: sf.moderator()}), sf.slab2(), FixedSource(q),
+                                 exterior=sf.vacuum_exterior(sf.slab2()))
 
 
 def eigen_slab(region1: Any = None) -> Any:
@@ -92,7 +93,7 @@ def eigen_slab(region1: Any = None) -> Any:
     from orpheus.specification import GeometrySpecification
 
     return GeometrySpecification(Materials({0: sf.fuel(), 1: sf.moderator() if region1 is None else region1}), sf.slab2(),
-                                 Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
+                                 Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)), exterior=sf.vacuum_exterior(sf.slab2()))
 
 
 # ── the step-5 values ───────────────────────────────────────────────────────

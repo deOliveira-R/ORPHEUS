@@ -57,6 +57,14 @@ from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem
 
 from tests.gates.sn._test_helpers import build_nonvacuum_fixed_source, volume_weighted_l2
+from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
+from tests.gates._exterior import conditions_for
+from tests.gates._reference_pairing import conditions_of
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``). The manufactured cases' meshes carry the one tag
+#: ``VACUUM_TAG``, which the reference states as the vacuum wall (``VACUUM_EXTERIOR``): the test-side loop binds it for production.
+_CONDITIONS = conditions_of(VACUUM_EXTERIOR)
 
 
 # ── shared solve helper (the PUBLIC composite-source API) ────────────
@@ -81,10 +89,10 @@ def _solve(case, n_cells: int, *, g: int = 0):
         if hasattr(case, "build_materials")
         else case.materials
     )
-    sn = SNProblem(mesh, case.quadrature, materials)
+    sn = SNProblem(mesh, case.quadrature, materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     result = solve_sn_fixed_source(
         materials, mesh, case.quadrature, build_nonvacuum_fixed_source(case, sn),
-        max_inner=1000, inner_tol=1e-13,
+        max_inner=1000, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     psi = result.angular_flux
     phi = result.scalar_flux.values[g, :]   # (ng, nx) → (nx,)

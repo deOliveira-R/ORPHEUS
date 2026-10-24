@@ -79,6 +79,7 @@ def test_dispatch_fn_slab_matches_adapter():
     geom = _structured_geom_for(case)
     moment = MomentSpace(
         geometry=geom,
+        exterior=case.exterior_for(),
         materials=case.registry_case.materials,
         fn_order=adapter.n_modes,
     )
@@ -111,6 +112,7 @@ def test_dispatch_fn_sphere_matches_adapter():
     geom = _structured_geom_for(case)
     moment = MomentSpace(
         geometry=geom,
+        exterior=case.exterior_for(),
         materials=case.registry_case.materials,
         fn_order=adapter.n_modes,
     )

@@ -65,21 +65,19 @@ from orpheus.derivations.continuous.sood_registry import UA_1_0_SP_STUB
 from orpheus.derivations.continuous.fn_method.sphere import (
     solve_fn_sphere_bare_critical,
 )
-from orpheus.geometry import BC, StructuredGeometry
+from tests.gates.derivations import _posed_walls as walls_of
 
 
 def _characteristic_k(geometry, mixture, degree: int) -> float:
     """The characteristic reference's k for one mixture on ``geometry``, at rung ``degree`` of the joint ladder,
     through the traced memo (served from the store, or generated in its own process)."""
     from orpheus.data.cells import CellCoefficient, Channel
-    from orpheus.data.materials import Materials
     from orpheus.derivations.continuous.characteristic import CharacteristicDerivation
     from orpheus.numerics.observable import Eigenvalue
     from orpheus.numerics.question import Eigen
-    from orpheus.specification.specification import GeometrySpecification
     from tests.gates.derivations._characteristic_ladders import rung
 
-    spec = GeometrySpecification(Materials({0: mixture}), geometry, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
+    spec = walls_of.spec(geometry, {0: mixture}, Eigen(CellCoefficient.every(Channel.FISSION_EMISSION)))
     return float(CharacteristicDerivation(spec, rung(degree)).evaluate(Eigenvalue()).value)
 
 
@@ -112,7 +110,7 @@ def test_fn_sphere_vs_the_characteristic_sphere_at_sood_ua_1_0_sp():
     # Convert F_N R_c (mfp) to cm using the case's σ_t.
     R_c_cm = R_c_fn / sigma_t
 
-    k_eff = _characteristic_k(StructuredGeometry.sphere((0.0, R_c_cm), (0,), outer=BC.vacuum), case.materials[0], 4)
+    k_eff = _characteristic_k(walls_of.sphere((0.0, R_c_cm), (0,), outer=walls_of.VACUUM), case.materials[0], 4)
     err = abs(k_eff - 1.0)
     assert err < 1e-5, (
         f"F_N sphere R_c = {R_c_fn:.10f} mfp = {R_c_cm:.6f} cm; "
@@ -157,7 +155,7 @@ def test_the_characteristic_sphere_at_sood_truth_radius():
     # For Ua-1-0-SP: 2.4248249802 / 0.32640 ≈ 7.428998.
     R_truth_cm = float(case.truth.critical_dimension_mfp) / sigma_t
 
-    k_eff = _characteristic_k(StructuredGeometry.sphere((0.0, R_truth_cm), (0,), outer=BC.vacuum), case.materials[0], 4)
+    k_eff = _characteristic_k(walls_of.sphere((0.0, R_truth_cm), (0,), outer=walls_of.VACUUM), case.materials[0], 4)
     err = abs(k_eff - 1.0)
     assert err < 5e-5, (
         f"the characteristic sphere at Sood truth R={R_truth_cm} cm: "

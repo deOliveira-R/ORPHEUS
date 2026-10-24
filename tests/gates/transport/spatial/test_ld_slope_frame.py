@@ -37,11 +37,17 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.transport.spatial import LinearDiscontinuous
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
 
 THETA = 1.0 / 3.0
 
@@ -60,7 +66,7 @@ def test_ld_slope_moment_global_frame_consistency() -> None:
     sigma_t, c, length = 40.0, 0.99, 1.0
     nx = 16
     materials = {0: _make_1g_mixture(sigma_t, c * sigma_t)}
-    mesh = Mesher(StructuredGeometry.from_homogeneous(length, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(length, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(8)
@@ -68,7 +74,7 @@ def test_ld_slope_moment_global_frame_consistency() -> None:
     ld = solve_sn_fixed_source(
         materials, mesh, quad, Q, scheme=LinearDiscontinuous(),
         inner_solver="krylov",
-        max_inner=2000, inner_tol=1e-10,
+        max_inner=2000, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )
     ang = ld.angular_flux.interior.values   # (N, ng, nx, 2)
     mu = quad.mu_x

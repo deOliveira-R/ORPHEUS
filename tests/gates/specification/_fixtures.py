@@ -14,6 +14,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
+from orpheus.specification.exterior import WallAmplitudes
 
 
 def _mixture(*, fission: bool, scattering: bool, n2n: bool, ng: int = 2) -> Mixture:
@@ -75,6 +76,14 @@ def body(coord: CoordSystem, mat_ids: tuple[int, ...] = (0, 1)) -> StructuredGeo
     if coord is CoordSystem.CYLINDRICAL:
         return StructuredGeometry.cylinder(breakpoints, mat_ids, outer=0)
     return StructuredGeometry.sphere(breakpoints, mat_ids, outer=0)
+
+
+def vacuum_exterior(geometry: StructuredGeometry) -> dict[int, WallAmplitudes]:
+    """The exterior that puts vacuum behind every tag the geometry's faces carry (the exact cover; ``{}`` for a deck-only one).
+
+    Every fixture of these gates is bare unless a row states another wall: the geometry says which faces share a tag
+    and never what the wall is, so a row that does not care binds the tags to nothing returned."""
+    return {tag: WallAmplitudes(0.0, 0.0) for tag in sorted(geometry.tags)}
 
 
 def slab3_repeated() -> StructuredGeometry:
