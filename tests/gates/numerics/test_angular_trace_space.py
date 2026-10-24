@@ -550,3 +550,87 @@ def test_z_face_on_two_cosine_quadrature_fails_loud():
     layout = FaceLayout.from_named_shapes([("zmin", (quad.n_ordinates, 1))])
     with pytest.raises(ValueError, match="rank-mismatch"):
         AngularTraceSpace.from_quadrature_and_layout(quad, layout)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# The trace ladder's half-spaces hold exactly the incoming and the outgoing ordinates (ERR-041)
+# ─────────────────────────────────────────────────────────────────────
+
+#: What a particle entering the domain through each face does, written out per face and not as a signed formula (a convention
+#: compressed into one expression is the thing this class exists to catch): through ``xmin`` it moves in +x, through ``xmax`` in -x,
+#: and so on. Independent of ``face_normal``, ``build_omega_dot_n`` and ``TANGENTIAL_EPS``: the reference reads only the quadrature's
+#: own direction cosines and a strict sign, valid because the population control below measures that no cosine lies in (0, 1e-9].
+_ENTERS_THROUGH = {
+    "xmin": lambda q: q.mu_x > 0.0, "xmax": lambda q: q.mu_x < 0.0,
+    "ymin": lambda q: q.mu_y > 0.0, "ymax": lambda q: q.mu_y < 0.0,
+    "zmin": lambda q: q.mu_z > 0.0, "zmax": lambda q: q.mu_z < 0.0,
+}
+_LEAVES_THROUGH = {
+    "xmin": lambda q: q.mu_x < 0.0, "xmax": lambda q: q.mu_x > 0.0,
+    "ymin": lambda q: q.mu_y < 0.0, "ymax": lambda q: q.mu_y > 0.0,
+    "zmin": lambda q: q.mu_z < 0.0, "zmax": lambda q: q.mu_z > 0.0,
+}
+_SIX = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
+#: ``(quadrature, faces)``: the 1-D rule on its two faces, a product rule with tangential ordinates on every axis and the 3-D Lebedev
+#: rule on all six (the y and z faces are load-bearing: a same-axis fixture cannot see a face-to-axis slip).
+_LADDER_CASES = {
+    "gauss_legendre(8), x faces": (lambda: Quadrature.gauss_legendre(8), ("xmin", "xmax")),
+    "product(4,4), six faces": (lambda: Quadrature.product(n_mu=4, n_phi=4), _SIX),
+    "lebedev(17), six faces": (lambda: Quadrature.lebedev(17), _SIX),
+}
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-041")
+@pytest.mark.rests_on("tests/gates/numerics/test_angular_trace_space.py::test_2d_cartesian_lebedev_inflow_selectors_per_face")
+@pytest.mark.parametrize("case", sorted(_LADDER_CASES))
+class TestTheInflowHalfSpaceIsTheIncomingOrdinates:
+    r"""ERR-041, carried by the ladder: ``trace.inflow_space(face)`` holds exactly the ordinates with :math:`\Omega\cdot n_f < 0` on
+    that face, and ``outflow_space(face)`` exactly those with :math:`> 0`.
+
+    The zero map of a vacuum face fills :math:`\Gamma_-` and reads that space off the trace ladder; a swapped inflow/outflow
+    annotation, or a face mapped to the wrong axis or sign, would zero the flux the sweep just computed while every shape-level test
+    stays green (``apply`` returns a same-shaped array whatever the orientation). The retired guard checked a hand-supplied index
+    set against the face NAME; the typed operators read the half-space itself, so the claim is made here, on the object they read.
+
+    Kind: REFERENCE (the incoming set is read from the quadrature's own direction cosines by a per-face written-out predicate, a
+    route that shares no code with ``face_normal`` or the signed-projection table). Layer: model. Activation: every face of the
+    layout, the tangential ordinates of each axis (excluded from both halves), and on the 3-D rules all three axes with both signs.
+    Mutation (described for the reviewers): flip the sign in ``face_normal``, or return the opposite face's (or the outflow) tier
+    from ``inflow_space``; each reddens every row of the faces it moves.
+    """
+
+    def test_the_cosines_leave_no_ordinate_between_tangential_and_genuine(self, case):
+        """Population control: the strict-sign reference equals the eps rule because no cosine lies in ``(0, 1e-9]``."""
+        make, faces = _LADDER_CASES[case]
+        quad = make()
+        for face in faces:
+            enters = _ENTERS_THROUGH[face](quad)
+            leaves = _LEAVES_THROUGH[face](quad)
+            assert not np.any(enters & leaves)
+            axis_cosine = {"x": quad.mu_x, "y": quad.mu_y, "z": quad.mu_z}[face[0]]
+            tiny = (np.abs(axis_cosine) > 0.0) & (np.abs(axis_cosine) < 1e-9)
+            assert not tiny.any(), (case, face)
+            assert enters.any() and leaves.any(), (case, face)
+
+    def test_the_inflow_tier_is_the_ordinates_that_enter(self, case):
+        make, faces = _LADDER_CASES[case]
+        quad = make()
+        layout = FaceLayout.from_named_shapes([(f, (quad.n_ordinates, 1, 1)) for f in faces])
+        trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
+        for face in faces:
+            np.testing.assert_array_equal(
+                trace.inflow_space(face).ordinate_indices, np.flatnonzero(_ENTERS_THROUGH[face](quad)),
+                err_msg=f"{case}: Gamma_-({face}) is not the ordinates that enter through it",
+            )
+
+    def test_the_outflow_tier_is_the_ordinates_that_leave(self, case):
+        make, faces = _LADDER_CASES[case]
+        quad = make()
+        layout = FaceLayout.from_named_shapes([(f, (quad.n_ordinates, 1, 1)) for f in faces])
+        trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
+        for face in faces:
+            np.testing.assert_array_equal(
+                trace.outflow_space(face).ordinate_indices, np.flatnonzero(_LEAVES_THROUGH[face](quad)),
+                err_msg=f"{case}: Gamma_+({face}) is not the ordinates that leave through it",
+            )

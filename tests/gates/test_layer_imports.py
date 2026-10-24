@@ -49,6 +49,9 @@ ORPHEUS_ROOT = pathlib.Path(__file__).resolve().parents[2] / "orpheus"
 VALUES_PACKAGES: frozenset[str] = frozenset({"values"})
 L0_PACKAGES: frozenset[str] = frozenset({"derivations"})
 INPUT_PACKAGES: frozenset[str] = frozenset({"geometry", "data"})
+# Wave 2 WF2.4 (the retirement of orpheus/geometry/boundary/): geometry is the declarative layer below numerics and
+# imports nothing from it; the last eight edges were the boundary package's, the 16 modules retired here.
+NUMERICS_PACKAGES: frozenset[str] = frozenset({"numerics"})
 MESH_PACKAGES: frozenset[str] = frozenset({"mesh"})
 # #405 P1 step 8: the specification composes materials, geometry and a question;
 # above data, geometry and numerics; a sibling of mesh (neither imports the other); below transport, L3 and derivations.
@@ -85,7 +88,7 @@ ORPHEUS_TOP_LEVEL: frozenset[str] = frozenset(
 FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
     "values": ORPHEUS_TOP_LEVEL - VALUES_PACKAGES,
     "numerics": DATA_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-    "geometry": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+    "geometry": NUMERICS_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
     "data": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
     "mesh": SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
     "specification": MESH_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES,
@@ -243,6 +246,30 @@ def test_values_imports_nothing_from_orpheus(target: str) -> None:
     assert {"numerics", "geometry", "plotting", "values"} <= ORPHEUS_TOP_LEVEL, sorted(ORPHEUS_TOP_LEVEL)
     violations = _check_source(pathlib.PurePosixPath("values/probe.py"), f"import {target}\n")
     assert violations and "forbidden: values" in violations[0], violations
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from orpheus.numerics.measure import DiscreteMeasure\n",
+        "import orpheus.numerics.operator\n",
+        "from orpheus.numerics import space\n",
+        "def f():\n    from orpheus.numerics.quadrature import Quadrature\n",
+        "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.numerics.space import FunctionSpace\n",
+        "from ..numerics.measure import DiscreteMeasure\n",
+    ],
+)
+def test_geometry_imports_nothing_from_numerics(source: str) -> None:
+    """Wave 2 WF2.4: geometry sits below numerics and imports nothing from it, at any import kind. The row reads a synthetic
+    ``geometry/`` source, so the gate's red exists in the tree after the retirement (X1); the tree-wide row
+    ``test_no_forbidden_imports`` is red at the base tip on the six ``geometry/boundary`` modules that held the last edges
+    (``_base``, ``_source``, ``_specular``, ``albedo``, ``reflective``, ``white``)."""
+    assert "numerics" in FORBIDDEN_EDGES["geometry"], sorted(FORBIDDEN_EDGES["geometry"])
+    violations = _check_source(pathlib.PurePosixPath("geometry/probe.py"), source)
+    assert violations and "forbidden: geometry \u2192 numerics" in violations[0], violations
+    # the negative leg: the same source in a package that MAY import numerics reads clean
+    assert _check_source(pathlib.PurePosixPath("transport/probe.py"), source.replace("..numerics", "orpheus.numerics")) == []
 
 
 # ---------------------------------------------------------------------------
