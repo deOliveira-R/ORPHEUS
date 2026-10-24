@@ -1540,3 +1540,5 @@ Both are fixed in the integration commit.
 - Pyright (the workaround config with the cp, mc, moc and derivations ignores removed; planted control read 1), over the 102 Python files S5 touched: 388 errors at `de354496` (88 files existed), 177 at the tip, no file rose.
 - Not run: the slow tier, Sphinx `-W`, `dead_references` (WF2.4 and WF2.5, before the merge).
 - Owed to WF2.5 (the reviews' census): `BC.*` examples in `docs/api`, `docs/theory/methods` and the rest of `structured_geometry.rst`.
+
+**The user's checkpoint after S5 (2026-10-24).** The user accepted the meaning-change sites of Appendix B (108 sites in 56 files, with the three deviations ruled at integration: the references' `WallAmplitudes(1, 0)`, the MC sphere site as a coordinate refusal, diffusion's and CP's refused hollow inner face), so WF2.4 starts. F7 is ruled: diffusion's table stays OPERATOR-valued (2.7 stands; revisit when a reflective or gauge predicate reads an operator's structure).
