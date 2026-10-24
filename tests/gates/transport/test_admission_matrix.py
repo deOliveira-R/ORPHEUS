@@ -26,7 +26,10 @@ The claims (``vv-principles``), all REFERENCE rows (the expected values are the 
 * ``test_the_pin_has_teeth``: the checker applied to a copy of the table with one admission drifted (the diffuse
   chain admitted on a radial outer face) reports exactly that cell (X1: a pin that cannot fail pins nothing).
 
-First reds, at the base tip ``4ec95bc6``: ``ModuleNotFoundError`` (the first read of the package). Mutations: the
+First reds, at the base tip ``4ec95bc6``: ``ModuleNotFoundError`` (the first read of the package). Slice S3 appends the diffusion rows
+(``_DIFFUSION_COLUMNS``, 21 rows, plus the two derived-row checks); at its base tip ``0757a8d9`` each reads ``DIFFUSION_REALIZERS``,
+whose module cannot be imported (``ImportError`` from the removed ``resolve_boundary_conditions``), so the 21 pin rows, the meet
+row and the cited-issues row (which ranges over every registered method) are red until the diffusion table lands. Mutations: the
 drifted table of ``test_the_pin_has_teeth``; a ``meet`` that returns the greater; a table whose zero row is consulted
 for every wall (the vacuum and inflow rows are read by the functor row of the mechanism file).
 """
@@ -116,6 +119,36 @@ _SN_COLUMNS: dict[str, tuple[tuple, tuple, tuple]] = {
 ROWS += tuple(Row("sn", value, where, expected) for value, column in _SN_COLUMNS.items() for where, expected in zip(SITES, column))
 
 
+# ── Slice S3: the diffusion rows (section 4.2, the diffusion column), typed by hand and pinned against ``DIFFUSION_REALIZERS`` ──
+
+#: Diffusion, CART / RAD_OUTER / RAD_INNER per value class: the SAME cell at every site (one-dimensional, a per-face scalar that
+#: reads nothing of the face). The empty network is tier 1 (the deciding line of the measurement is ``return response.amplitude``;
+#: Marshak is the method's closure, not the vacuum law's admission); a chain is tier 2 (``Realized(False)``: diffusion annihilates
+#: the shape) and so is a mixed wall (the meet of two tier-2 units, ``A = s + d``); a nonzero source, alone or over a network, is the
+#: plumbing refusal of #656 (the affine channel). Typed here and nowhere else: a change to a diffusion admission edits THIS literal.
+#: The method-only units (``ZeroFluxCondition``, the decks) are not value classes of the shared family; their rows are
+#: ``tests/gates/diffusion/test_diffusion_realizer_table.py``'s.
+_DIFFUSION_COLUMNS: dict[str, tuple[tuple, tuple, tuple]] = {
+    "vacuum":                        (R(), R(), R()),
+    "specular 1.0":                  (R(False), R(False), R(False)),
+    "specular 0.5":                  (R(False), R(False), R(False)),
+    "white 0.5":                     (R(False), R(False), R(False)),
+    "both 0.3 0.5":                  (R(False), R(False), R(False)),
+    "inflow 1.0":                    (F("PLUMBING", 656), F("PLUMBING", 656), F("PLUMBING", 656)),
+    "specular 0.5 over inflow 1.0":  (F("PLUMBING", 656), F("PLUMBING", 656), F("PLUMBING", 656)),
+}
+
+ROWS += tuple(Row("diffusion", value, where, expected) for value, column in _DIFFUSION_COLUMNS.items() for where, expected in zip(SITES, column))
+
+
+def _diffusion_table() -> Any:
+    """``DIFFUSION_REALIZERS`` read at call time: at the base tip of slice S3 ``import orpheus.diffusion`` raises (its mesh module imports
+    the resolver S2b removed) and the realizer module exports ``DiffusionBoundaryRealizer``."""
+    from tests.gates.diffusion._wave2_helpers import table
+
+    return table()
+
+
 def _sn_table() -> Any:
     """``SN_REALIZERS`` read at call time: at the base tip of slice S2b the module still exports ``SNBoundaryRealizer``."""
     from tests.gates.sn.architecture._realized_boundary_helpers import sn_table
@@ -123,7 +156,7 @@ def _sn_table() -> Any:
     return sn_table()
 
 
-TABLES: dict[str, Callable[[], Any]] = {"mechanism": lambda: make_table().table, "sn": _sn_table}
+TABLES: dict[str, Callable[[], Any]] = {"mechanism": lambda: make_table().table, "sn": _sn_table, "diffusion": _diffusion_table}
 
 
 def _table(method: str) -> Any:
@@ -223,7 +256,8 @@ def test_the_pin_has_teeth() -> None:
 
     Reddens on: a checker that compares nothing (an empty report on a drifted table).
     """
-    require(pin_disagreements(_table("mechanism"), ROWS) == [], f"the honest table disagrees with its pin: {pin_disagreements(_table('mechanism'), ROWS)}")
+    mechanism_rows = tuple(row for row in ROWS if row.method == "mechanism")  # S3: the SN columns equalled the mechanism's, the diffusion column does not
+    require(pin_disagreements(_table("mechanism"), mechanism_rows) == [], f"the honest table disagrees with its pin: {pin_disagreements(_table('mechanism'), mechanism_rows)}")
 
     drifted = bc.RealizerTable("drifted", state_cone=bc.StateCone.NONNEGATIVE_FLUX, unregistered_issue=654)
     R_, Refused = bc.Realized, bc.Refused
@@ -318,3 +352,25 @@ def test_sn_plumbing_refusals_cite_the_sn_issues_and_the_catalogue_is_an_upper_b
                 require(admission.faithful is True, f"{label} @ {kind}: SN realizes every admitted cell faithfully (its catalogue is Realized(True))")
     require(seen == 21, f"the SN grid is {seen} cells, not 7 x 3")
     require(cited == {511, 653}, f"the SN plumbing refusals cite {sorted(cited)}, not {{511, 653}}")
+
+
+# ── Slice S3: what the diffusion table adds to the pin ─────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.rests_on(_MECHANISM)
+def test_diffusion_both_chains_and_a_response_over_a_source_are_the_meet() -> None:
+    """The diffusion mixed rows are DERIVED from the single-chain and source rows of the same table, at every site: a change to
+    either chain's row edits the "both" row (``Realized(False)``: the meet of two tier-2 units) and the "specular over inflow" row
+    (the meet with the plumbing refusal of #656). The pieces are read from ``DIFFUSION_REALIZERS``, not from the pin.
+
+    Reddens on: a ``DiffusionSpecularChain.admit`` that returns tier 1 while the wall's admission is cached from the diffuse row; a
+    ``meet`` that returns the greater (the S2a gate of the mechanism shares the operator). Red at the base tip: ``import
+    orpheus.diffusion`` raises.
+    """
+    table, W = _table("diffusion"), bc.WallCondition
+    for kind in SITES:
+        where = site(kind)
+        spec, white = table.admit(W.specular(0.3), where), table.admit(W.white(0.5), where)
+        require(summary(table.admit(W.from_amplitudes(0.3, 0.5), where)) == summary(bc.Admission.meet(spec, white)), f"diffusion: both chains @ {kind} is not the meet of the two single-chain rows")
+        response, source = table.admit(W.specular(0.5), where), table.admit(bc.InflowTerms(1.0, ()), where)
+        require(summary(table.admit(W.specular(0.5) + W.uniform(1.0), where)) == summary(bc.Admission.meet(response, source)), f"diffusion: a response over a source @ {kind} is not the meet")
