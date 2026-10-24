@@ -220,15 +220,18 @@ def test_mcmesh_rejects_spherical():
 
     Strict ``xfail`` (#547, decision 31 of the wave-2 plan, the user's ruling, Appendix B row ``test_properties.py:204``): the sphere's
     outer face was ``periodic`` and is now the tag bound to ``WallCondition.specular(1.0)``, which MC's table refuses on the
-    topology axis before the coordinate system is read (``raises=BoundaryRefused`` pins that the refusal is the table's). The
+    topology axis (``raises=BoundaryRefused`` pins that the refusal is the table's). The body is the bare construction, with no
+    ``pytest.raises`` around it: this row XFAILs only if the table's refusal precedes the coordinate-system check. With the coordinate check first the
+    construction raises a plain ``ValueError`` (``SPHERICAL``), which is not ``BoundaryRefused``, so the row FAILS hard; and a
+    ``pytest.raises(ValueError, match="SPHERICAL")`` wrapper would not help either way (it would PASS under that order, so the strict
+    xfail would XPASS, and under the table-first order the torus message fails its ``match`` before ``BoundaryRefused`` can reach the mark). The
     coordinate-system rejection of a sphere is gated beside it by ``test_mcmesh_rejects_spherical_whatever_the_wall``, which does not
     depend on the order of the two refusals.
     """
     mesh = Mesher(StructuredGeometry.sphere(
         (0.0, 1.0), (0,), outer=0,
     )).partition(CellsByCount.uniform_width(1)).mesh
-    with pytest.raises(ValueError, match="SPHERICAL"):
-        MCMesh(mesh, pitch=2.0, boundary_conditions=_SPECULAR_TAG)
+    MCMesh(mesh, pitch=2.0, boundary_conditions=_SPECULAR_TAG)
 
 
 def test_mcmesh_rejects_spherical_whatever_the_wall():
