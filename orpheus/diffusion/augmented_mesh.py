@@ -11,14 +11,14 @@ method's BEHAVIOR —
 * the **composite carrier** :attr:`full_field_space`
   :math:`V_{\rm bulk} \oplus V_{\rm trace}` that the operator family
   :math:`A = L + C - S - B` acts on (#290 P4);
-* the per-face boundary laws **realized at construction** —
+* the per-face boundary conditions **realized at construction** —
   :attr:`bc` maps each boundary face to the realized albedo operator
-  :math:`J^- = \mathcal{A}\,J^+` produced by the
-  :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
-  from the mesh axes' own :class:`~orpheus.geometry.boundary.BC`
-  declarations (#290 P3 semantics; ruling 3: ``"vacuum"`` MEANS Marshak
-  :math:`J^- = 0`, the zero-flux Dirichlet idealization is its own
-  honestly-named ``"zero_flux"`` law).
+  :math:`J^- = \mathcal{A}\,J^+` that :data:`~orpheus.diffusion.boundary_realizer.DIFFUSION_REALIZERS`
+  produces from the :attr:`binding` (the declared ``boundary_conditions``
+  joined to the carrier's tagged faces, and its decks). Vacuum is the empty
+  network, :math:`\mathcal{A} = 0` (tier 1; the Marshak closure is the method's);
+  the zero-flux Dirichlet idealization is its own method-only condition,
+  :class:`~orpheus.diffusion.zero_flux.ZeroFluxCondition`, :math:`\mathcal{A} = -1`.
 
 It is the structural sibling of
 :class:`~orpheus.sn.problem.SNProblem` (mesh + materials +
@@ -26,7 +26,7 @@ quadrature + sweep machinery): ONE method-agnostic data carrier, one
 method layer per transport method. The two method-meshes are the
 witnesses of the :class:`~orpheus.transport.method.TransportMethod`
 Protocol (minted #290 P7b) — conformance is structural, checked where
-the shared :func:`~orpheus.transport.method.resolve_boundary_conditions`
+the shared :func:`~orpheus.transport.method.realize_boundary`
 body is applied below; the Protocol class is never imported here.
 
 The data/behavior axis (the P7a restoration)
@@ -46,7 +46,7 @@ data carrier (quadrature machinery vs trace + realized BCs), real
 morphisms applied to each (promotion, BC realization, operator/field
 consumption), and the illegal state "a diffusion phase space with
 unresolved or unrealizable boundary conditions" is unrepresentable —
-every constructible :class:`DiffusionMesh` carries realized laws for
+every constructible :class:`DiffusionMesh` carries realized operators for
 exactly its boundary faces.
 
 Construction semantics
@@ -56,16 +56,19 @@ Construction mirrors ``SNProblem._init_core`` order: the method-agnostic
 data block first (:meth:`MaterialMesh._init_data` — bit-identical), then
 the method layer's admission gates (1-D only today — slab / cylinder /
 sphere through the mesh's own areas + volumes), then
-the trace, then the realized ``bc`` dict. Every gate fires AT
-CONSTRUCTION, not lazily inside a solver step — operators built on a
-bad phase space are action-at-a-distance otherwise.
+the trace, then the binding (:func:`~orpheus.transport.boundary_conditions.bind`
+of the declared conditions to this carrier's faces) and the realized ``bc`` dict.
+Every gate fires AT CONSTRUCTION, not lazily inside a solver step — operators
+built on a bad phase space are action-at-a-distance otherwise: an unbound tag, an
+unused condition, a condition outside the sub-Markov cone and a declaration the
+diffusion table does not admit (a source, a translation deck) each raise here.
 
-The promotion classmethod :meth:`from_material_mesh` takes **no extra
-parameters**: the boundary conditions come from the axes' own ``BC``
-tags, already part of the data carrier. Contrast
-``SNProblem.from_material_mesh(mm, quadrature, scheme=...)`` — an honest
-asymmetry (diffusion has no quadrature to inject); the promotion
-signatures do not unify and should not.
+The promotion classmethod :meth:`from_material_mesh` takes the
+``boundary_conditions`` keyword only (the tags are part of the data carrier, in
+the axes' roles; the CONDITIONS they name are the method's input, as in
+``SNProblem.from_material_mesh(mm, quadrature, scheme=..., boundary_conditions=...)``).
+It has no quadrature to inject, so the promotion signatures still do not unify
+and should not.
 
 Because :class:`SNProblem` *is a* :class:`MaterialMesh`, an SN phase space
 promotes directly — ``DiffusionMesh.from_material_mesh(problem)``
@@ -76,10 +79,10 @@ assembles on the promoted mesh, sharing the geometry with the SN sweep
 it accelerates.
 
 Layer (``tests/gates/test_layer_imports.py``): L3 ``diffusion``. Imports
-``geometry`` (laws), ``numerics`` (spaces), ``transport`` (the
-MaterialMesh base + axis helpers + the shared
-:func:`~orpheus.transport.method.resolve_boundary_conditions` body),
-and its ``diffusion`` siblings (realizer + method space).
+``numerics`` (spaces), ``transport`` (the MaterialMesh base + axis helpers,
+the conditions package and the shared
+:func:`~orpheus.transport.method.realize_boundary` body),
+and its ``diffusion`` siblings (realizer table + method space).
 """
 
 from __future__ import annotations
@@ -89,33 +92,29 @@ from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 
-from orpheus.diffusion.boundary_realizer import DiffusionBoundaryRealizer
+from orpheus.diffusion.boundary_realizer import DIFFUSION_REALIZERS
 from orpheus.diffusion.method_space import DiffusionMethodSpace
-from orpheus.geometry.boundary import (
-    AlbedoBoundary,
-    ReflectiveBoundary,
-    VacuumInflow,
-    ZeroFluxBoundary,
-)
 from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
-from orpheus.transport.method import resolve_boundary_conditions
+from orpheus.transport.boundary_conditions import BoundaryConditions, bind, stamp_boundary_role
+from orpheus.transport.method import realize_boundary
 from orpheus.mesh import (
     axes_from_legacy_mesh,
     face_labels as _face_labels,
     face_shape as _face_shape,
 )
-from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.mesh.material_mesh import MaterialMesh, conditions_key
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from orpheus.data.materials import Materials
     from orpheus.data.macro_xs.mixture import Mixture
-    from orpheus.geometry.boundary import BoundaryTraceLaw
+    from orpheus.geometry.deck import DeckTransformation
     from orpheus.numerics.operator import LinearOperator
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.mesh import Axis1D
+    from orpheus.transport.boundary_conditions import Binding, BoundaryCondition, RealizerTable
 
 
 __all__ = ["DiffusionMesh"]
@@ -130,45 +129,50 @@ class DiffusionMesh(MaterialMesh):
     Parameters
     ----------
     mesh : Mesh1D
-        Base geometry + zoning + per-face ``BC`` declarations (1-D;
-        slab / cylinder / sphere through its own areas + volumes — a
-        multi-D mesh is refused at construction). The same inbound
+        Base geometry + zoning + per-face roles (a deck or an integer
+        tag; 1-D; slab / cylinder / sphere through its own areas +
+        volumes — a multi-D mesh is refused at construction). The same inbound
         surface as :class:`MaterialMesh`; a ``Mesh2D`` is accepted by
         the signature for a uniform refusal message, never admitted.
     materials : dict mapping material id to Mixture
         Macroscopic cross sections keyed by the mesh's ``mat_ids``
         values; the diffusion coefficient reads through the #290 P1
         seam (``Mixture.diffusion_coefficient``).
+    boundary_conditions : BoundaryConditions or mapping of int tag to BoundaryCondition
+        Keyword-only, default empty. The condition each tag of the mesh's
+        faces stands for (the twin of ``materials``); an unbound tag, an
+        unused condition and a condition the carrier's colouring symmetry
+        does not fix are refused by :func:`~orpheus.transport.boundary_conditions.bind`.
 
     Attributes
     ----------
     scalar_trace : ScalarTraceSpace
         The per-face ``(J⁺, J⁻)`` boundary-trace space (face-AREA
         metric; a curvilinear pole is not a face and never appears).
+    binding : Binding
+        The declared conditions joined to this mesh's faces
+        (``SNProblem.binding`` parity).
+    boundary_realizers : RealizerTable
+        Class attribute: :data:`~orpheus.diffusion.boundary_realizer.DIFFUSION_REALIZERS`,
+        the one door that admits and realizes a declaration on a face.
     bc : dict[str, LinearOperator]
-        Per-face REALIZED boundary laws (``SNProblem.bc`` parity), keyed
+        Per-face REALIZED boundary operators (``SNProblem.bc`` parity), keyed
         by face name — the albedo operators :math:`J^- = \mathcal{A}
         J^+`. Built from the SAME ``face_labels`` inventory as the
-        trace, so law coverage ≡ face coverage by construction.
+        trace, so operator coverage ≡ face coverage by construction.
     """
 
-    #: BC-tag → boundary-law class — the diffusion method's registry
-    #: (the ``SNProblem.BOUNDARY_OPERATOR_REGISTRY`` precedent). ``"white"``
-    #: is deliberately absent: at the P1 level white coincides with
-    #: reflective (the P3 realizer's coincidence note) — declare
-    #: ``reflective`` or ``albedo``.
-    BOUNDARY_OPERATOR_REGISTRY: "ClassVar[dict[str, type[BoundaryTraceLaw]]]" = {
-        "vacuum": VacuumInflow,
-        "reflective": ReflectiveBoundary,
-        "albedo": AlbedoBoundary,
-        "zero_flux": ZeroFluxBoundary,
-    }
+    #: The method's realizer table (the ``SNProblem.boundary_realizers`` precedent): the one door that answers "is this declaration
+    #: admitted on this face" and "realize it". It replaces the string-tag registry ``BOUNDARY_OPERATOR_REGISTRY``.
+    boundary_realizers: ClassVar["RealizerTable"] = DIFFUSION_REALIZERS
 
     def __init__(
         self,
         mesh: Mesh1D | Mesh2D,
         materials: "Materials | Mapping[int, Mixture]",
         sigma_t_cell: np.ndarray | None = None,
+        *,
+        boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]" = BoundaryConditions.empty(),
     ) -> None:
         # The legacy inbound surface (MaterialMesh parity): convert the
         # mesh declaration to the canonical axis tuple ONCE, extract the
@@ -180,6 +184,7 @@ class DiffusionMesh(MaterialMesh):
             mat_map=mesh.mat_ids if isinstance(mesh, Mesh1D) else mesh.mat_map,
             materials=materials,
             sigma_t_cell=sigma_t_cell,
+            boundary_conditions=boundary_conditions,
         )
 
     def _init_core(
@@ -190,12 +195,13 @@ class DiffusionMesh(MaterialMesh):
         mat_map: np.ndarray | None,
         materials: "Materials | Mapping[int, Mixture]",
         sigma_t_cell: np.ndarray | None = None,
+        boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]",
     ) -> None:
         r"""The ONE construction body both surfaces funnel into
         (``SNProblem._init_core`` parity).
 
         Data block first, then the diffusion method layer: admission
-        gates → trace → realized boundary laws.
+        gates → trace → binding → realized boundary operators.
         """
         # ── Method-agnostic DATA block → MaterialMesh base ──
         MaterialMesh._init_data(
@@ -240,22 +246,23 @@ class DiffusionMesh(MaterialMesh):
             faces, self.ng, face_areas,
         )
 
-        # Resolve the per-axis BC declarations through the ONE shared
-        # TransportMethod body (#290 P7b): the face loop over the SAME
-        # ``face_labels`` inventory the trace was built from and the
-        # tag → law parse are method-generic (every face law is
-        # declared; there is no default);
-        # :meth:`realize_boundary_law` below is the diffusion arm. Law
-        # coverage ≡ trace-face coverage by construction, with no
+        # Bind the declared exterior conditions to THIS carrier's faces (its ``face_roles`` and its colouring ``symmetry``, read
+        # inside ``bind`` once), then realize the binding through the ONE shared TransportMethod body (#290 P7b): the face loop
+        # over the binding's faces is method-generic, and :meth:`realize_boundary_role` below is the diffusion arm. The face
+        # inventory with a trace IS the ``bc`` inventory by construction: operator coverage ≡ trace-face coverage, with no
         # separate validation to drift.
-        self.bc: "dict[str, LinearOperator]" = (
-            resolve_boundary_conditions(self)
-        )
+        self.binding: "Binding" = bind(self, boundary_conditions)
+        self.bc: "dict[str, LinearOperator]" = realize_boundary(self)
 
     # ── Promotion (the data/behavior join) ────────────────────────────
 
     @classmethod
-    def from_material_mesh(cls, material_mesh: MaterialMesh) -> "DiffusionMesh":
+    def from_material_mesh(
+        cls,
+        material_mesh: MaterialMesh,
+        *,
+        boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]" = BoundaryConditions.empty(),
+    ) -> "DiffusionMesh":
         r"""Promote a :class:`MaterialMesh` to a solvable diffusion phase space.
 
         The diffusion arm of the data/behavior join
@@ -281,43 +288,42 @@ class DiffusionMesh(MaterialMesh):
             mat_map=material_mesh.mat_map,
             materials=material_mesh.materials,
             sigma_t_cell=material_mesh.sigma_t_cell,
+            boundary_conditions=boundary_conditions,
         )
         return obj
 
-    # ── Boundary condition resolution ──────────────────────────────────
+    # ── Boundary condition realization ─────────────────────────────────
     #
-    # The face loop and the tag → law parse
-    # (ruling-3 semantics: ``"vacuum"`` → :class:`VacuumInflow`, the
-    # Marshak :math:`J^- = 0`; ``"zero_flux"`` → the honestly-named
-    # Dirichlet idealization :math:`\mathcal{A} = -1`) live in the ONE
-    # shared TransportMethod body,
-    # :func:`~orpheus.transport.method.resolve_boundary_conditions`
-    # (#290 P7b — it replaced the twin ``SNProblem._resolve_bcs`` /
-    # ``DiffusionMesh._resolve_bcs`` loops). Only the genuinely
-    # diffusion-specific arm remains here:
+    # The face loop (the binding's faces, in inventory order, a deck or the
+    # condition a tag is bound to) lives in the ONE shared TransportMethod
+    # body, :func:`~orpheus.transport.method.realize_boundary` (#290 P7b — it
+    # replaced the twin ``SNProblem._resolve_bcs`` / ``DiffusionMesh._resolve_bcs``
+    # loops). Only the genuinely diffusion-specific arm remains here:
 
-    def realize_boundary_law(
-        self,
-        law: "BoundaryTraceLaw",
-        face: str,
-    ) -> "LinearOperator":
-        r"""Realize one typed boundary law on ``face`` — the diffusion arm
+    def realize_boundary_role(self, role: "DeckTransformation | BoundaryCondition", face: str) -> "LinearOperator":
+        r"""Realize one declaration (a deck, or the condition the face's tag is bound to) on ``face`` — the diffusion arm
         of the :class:`~orpheus.transport.method.TransportMethod` hook.
 
-        Called per face by the shared
-        :func:`~orpheus.transport.method.resolve_boundary_conditions`
-        body. Builds the
-        :class:`~orpheus.diffusion.method_space.DiffusionMethodSpace`
-        for the face (validated against the trace's inventory) and
-        hands the typed law to
-        :meth:`DiffusionBoundaryRealizer.realize
-        <orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer.realize>`.
-        The realized operator applies :math:`\mathcal{A}` to the
-        outflow partial current (1-arg ``apply`` — consumed by
-        :class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`).
+        Called per face with a trace by the shared :func:`~orpheus.transport.method.realize_boundary` body. Builds the
+        :class:`~orpheus.diffusion.method_space.DiffusionMethodSpace` for the face (validated against the trace's inventory)
+        and hands the declaration to :attr:`boundary_realizers` ``.realize``, which admits first (a declaration the diffusion
+        table does not admit on this face, a source or a translation deck, raises
+        :class:`~orpheus.transport.boundary_conditions.BoundaryRefused` at construction) and returns the operator
+        :math:`\mathcal{A}` on the outflow partial current (1-arg ``apply``, consumed by
+        :class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`). A mixed wall realizes as the functor's SUM of its
+        chains' scalars, which is not itself stamped by the table, so the stamp is applied here to every realized operator
+        (it is idempotent).
         """
         method_space = DiffusionMethodSpace.for_face(trace=self.scalar_trace, face=face)
-        return DiffusionBoundaryRealizer().realize(law, method_space)
+        return stamp_boundary_role(self.boundary_realizers.realize(role, self.face_site(face), method_space))
+
+    # ── identity: the diffusion extension of MaterialMesh's ONE definition ─
+    # Contractibility adds the declared CONDITIONS in tag order (the face-to-condition join is derived, so the key reads the
+    # one declared map): two problems over the same mesh with different conditions are different phase spaces, as the laws
+    # in the axes' key were before the carve (``SNProblem._contractibility_key`` parity).
+    @cached_property
+    def _contractibility_key(self) -> tuple:
+        return (*MaterialMesh._contractibility_key.func(self), conditions_key(self.binding.declared))
 
     # ── The method layer's spaces ──────────────────────────────────────
 

@@ -65,7 +65,7 @@ from orpheus.geometry.deck import DeckTransformation, FacePairing, MirrorDeck, T
 from orpheus.geometry.faces import AXIS_NAMES, face_normal
 from orpheus.geometry.transformation import Permutation
 from orpheus.numerics.quadrature.ordinate_pairing import OrdinatePairingError, ordinate_pairing
-from orpheus.numerics.spaces.angular_trace_space import TANGENTIAL_EPS, build_omega_dot_n
+from orpheus.numerics.spaces.angular_trace_space import TANGENTIAL_EPS, AngularFaceTraceSpace, build_omega_dot_n
 from orpheus.sn.boundary.errors import BoundarySourceNotOnIncomingTraceError, VacuumAppliedToOutgoingTraceError
 from orpheus.sn.boundary.realized_operators import (
     RankOneReemission,
@@ -98,7 +98,7 @@ __all__ = ["SN_REALIZERS", "SNDecks", "SNDiffuseChain", "SNSource", "SNSpecularC
 
 #: SN's realizer table. ``unregistered_issue=659``: SN registers every shared unit, so its unregistered-unit door meets only
 #: another method's own condition (issue #659 tracks the SN and diffusion tables' unregistered units).
-SN_REALIZERS: RealizerTable[SNMethodSpace, RealizedBoundary] = RealizerTable("sn", state_cone=StateCone.NONNEGATIVE_FLUX, unregistered_issue=659)
+SN_REALIZERS: RealizerTable[SNMethodSpace, RealizedBoundary, AngularFaceTraceSpace] = RealizerTable("sn", state_cone=StateCone.NONNEGATIVE_FLUX, unregistered_issue=659)
 
 
 class _SNSites:
@@ -225,7 +225,7 @@ class SNDiffuseChain(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=Di
         return RankOneReemission(alpha=weight, face=site.face, trace=self.trace_of(space, "SNDiffuseChain"))
 
 
-class SNSource(SourceRealizer, _SNSites, table=SN_REALIZERS):
+class SNSource(SourceRealizer[AngularFaceTraceSpace], _SNSites, table=SN_REALIZERS):
     r"""The source channel: :math:`q` as an ARRAY on :math:`\Gamma_-`, never an operator (no ``realize``).
 
     Admitted on a Cartesian face. A radial outer face is refused (#653: a source is a free parameter the corner block, a linear
@@ -246,7 +246,7 @@ class SNSource(SourceRealizer, _SNSites, table=SN_REALIZERS):
             case _:
                 assert_never(site.site_class)
 
-    def sample(self, terms: InflowTerms, site: FaceSite, space) -> np.ndarray:
+    def sample(self, terms: InflowTerms, site: FaceSite, space: AngularFaceTraceSpace) -> np.ndarray:
         if getattr(space, "role", None) != "inflow":
             raise BoundarySourceNotOnIncomingTraceError(
                 f"the boundary source of face {site.face!r} was sampled on {getattr(space, 'name', space)!r}, which is not an inflow half-trace: the "

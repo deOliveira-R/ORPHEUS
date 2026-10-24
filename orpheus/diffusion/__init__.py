@@ -12,12 +12,17 @@ shared engines (P5):
 * ``LeakageOperator`` (``L``, FULL) / ``DiffusionBoundaryOperator``
   (``B``, BOUNDARY) — the two diffusion-owned operator leaves
   (``C``/``S``/``F`` are the shared transport operators);
-* ``DiffusionBoundaryRealizer`` / ``DiffusionMethodSpace`` — the
-  albedo-family law realization ``J⁻ = 𝒜·J⁺`` (closes #182).
+* ``DIFFUSION_REALIZERS`` / ``DiffusionMethodSpace`` — the realizer
+  table of the albedo family ``J⁻ = 𝒜·J⁺`` (closes #182) and its method
+  space;
+* ``ZeroFluxCondition`` — the Dirichlet idealization ``𝒜 = -1``, the one
+  condition only diffusion admits.
 
-``DiffusionMesh`` realizes its boundary laws at construction through the
-shared :func:`orpheus.transport.method.resolve_boundary_conditions` body
-(the string-keyed realizer registry was dissolved at #290 P7b).
+``DiffusionMesh`` binds its ``boundary_conditions`` to the carrier's faces and
+realizes them at construction through the shared
+:func:`orpheus.transport.method.realize_boundary` body (the string-keyed
+realizer registry was dissolved at #290 P7b; the string-tag registry of
+admitted laws retired with the wave-2 carve).
 
 The legacy MATLAB-port island (``CoreGeometry`` / ``TwoGroupXS`` / the
 BiCGSTAB solver) was retired at #290 P6; ``orpheus.diffusion.solver``
@@ -32,12 +37,13 @@ from .augmented_mesh import DiffusionMesh
 # (renamed k_eigenvalue.py → solver.py at P6 when the island retired).
 from .solver import DiffusionResult, DiffusionSolver, solve_diffusion_1d
 
-# #290 P3 (closes #182) -- the FUNCTIONAL DiffusionBoundaryRealizer
-# (albedo family J⁻ = 𝒜·J⁺ on the scalar partial-current trace) +
-# its method space. Owned directly by DiffusionMesh (P7b dissolved the
-# realizer registry — no import-side-effect registration remains).
-from .boundary_realizer import DiffusionBoundaryRealizer
+# #290 P3 (closes #182) -- the realizer table (albedo family
+# J⁻ = 𝒜·J⁺ on the scalar partial-current trace) + its method space.
+# Held by DiffusionMesh as ``boundary_realizers``; the module seals the
+# table on its last line, so importing it executes every registration.
+from .boundary_realizer import DIFFUSION_REALIZERS
 from .method_space import DiffusionMethodSpace
+from .zero_flux import ZeroFluxCondition
 
 # #290 P4 -- the diffusion operator family's two new leaves on the
 # scalar composite: the elliptic leakage L (FULL) and the realized
@@ -47,12 +53,13 @@ from .method_space import DiffusionMethodSpace
 from .operators import DiffusionBoundaryOperator, LeakageOperator
 
 __all__ = [
+    "DIFFUSION_REALIZERS",
     "DiffusionBoundaryOperator",
-    "DiffusionBoundaryRealizer",
     "DiffusionMesh",
     "DiffusionMethodSpace",
     "DiffusionResult",
     "DiffusionSolver",
     "LeakageOperator",
+    "ZeroFluxCondition",
     "solve_diffusion_1d",
 ]

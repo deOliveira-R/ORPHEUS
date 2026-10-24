@@ -103,9 +103,9 @@ class TestTheRecipeLandsOnTheInflowSlotsOnly:
         site = FaceSite("xmin", sn.mesh.coord, 1)
         terms = WallCondition.uniform(1.0).source
         inflow, outflow = sn.angular_trace.inflow_space("xmin"), sn.angular_trace.outflow_space("xmin")
-        np.testing.assert_array_equal(SN_REALIZERS.sample_inflow(terms, site, inflow), 1.0)  # type: ignore[arg-type]  # the trace half-space, not the method space
+        np.testing.assert_array_equal(SN_REALIZERS.sample_inflow(terms, site, inflow), 1.0)
         with pytest.raises(BoundarySourceNotOnIncomingTraceError):
-            SN_REALIZERS.sample_inflow(terms, site, outflow)  # type: ignore[arg-type]  # the refusal input: a trace half-space
+            SN_REALIZERS.sample_inflow(terms, site, outflow)  # the refusal input: a trace half-space
 
 
 class TestTheContractIsEnforced:

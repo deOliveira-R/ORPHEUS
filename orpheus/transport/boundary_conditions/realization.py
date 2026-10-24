@@ -41,6 +41,11 @@ the method's to say: the table is built with a required ``unregistered_issue`` (
 keep the old string registries' coverage; SN and diffusion cite #659, whose tables register every shared unit and meet
 this door only with another method's own condition; the orchestrator's ruling, 2026-10-23).
 
+**Two spaces, two type parameters.** ``RealizerTable[SpaceT, OpT, SourceSpaceT]``: ``realize`` takes the METHOD space of the face
+(``SpaceT``; ``SNMethodSpace`` for SN) and returns the method's operator type ``OpT``, while ``sample_inflow`` takes the trace's
+inflow half-space (``SourceSpaceT``; SN passes ``trace.inflow_space(face)``), the space on which a source :math:`q` lives. They are
+different spaces, so one parameter could not type both and a typed call of the source verb needed a ``type: ignore``.
+
 **Sampling.** The ONE source verb is :meth:`RealizerTable.sample_inflow`: ``require`` the source, then the registered
 :meth:`SourceRealizer.sample`, whose default body is :func:`sample_terms`: ``q = uniform * ones + sum_i w_i sampler_i.sample(space)``.
 
@@ -69,7 +74,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from enum import Enum
 from functools import reduce
-from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar, get_args
+from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar, cast, get_args
 
 import numpy as np
 
@@ -87,6 +92,10 @@ if TYPE_CHECKING:
 
 SpaceT = TypeVar("SpaceT")
 OpT = TypeVar("OpT")
+#: The space the source verb samples on: the INFLOW half-space :math:`\Gamma_-` of a face (SN passes ``trace.inflow_space(face)``),
+#: a different space from the method space ``SpaceT`` the response verb realizes on, so it is a type parameter of its own
+#: (hand-over (a) of slice S2b, closed in slice S3).
+SourceSpaceT = TypeVar("SourceSpaceT", bound="FunctionSpace")
 K = TypeVar("K")
 
 __all__ = [
@@ -176,7 +185,7 @@ def stamp_boundary_role(op: LinearOperator) -> LinearOperator:
     return op
 
 
-class RealizerTable(Generic[SpaceT, OpT]):
+class RealizerTable(Generic[SpaceT, OpT, SourceSpaceT]):
     """The realizers of ONE method, keyed by unit type; registered by class keyword, then sealed (see the module docstring)."""
 
     def __init__(self, method: str, *, state_cone: StateCone, unregistered_issue: int) -> None:
@@ -186,7 +195,7 @@ class RealizerTable(Generic[SpaceT, OpT]):
         self.state_cone = state_cone
         self.unregistered_issue = unregistered_issue
         self._responses: dict[type, ResponseRealizer] = {}
-        self._source: SourceRealizer | None = None
+        self._source: SourceRealizer[SourceSpaceT] | None = None
         self._deck: DeckRealizer | None = None
         self._sealed = False
 
@@ -205,7 +214,7 @@ class RealizerTable(Generic[SpaceT, OpT]):
             raise ValueError(f"{self.method}: {key.__name__} is registered twice")
         self._responses[key] = realizer
 
-    def _register_source(self, realizer: SourceRealizer) -> None:
+    def _register_source(self, realizer: SourceRealizer[SourceSpaceT]) -> None:
         self._open()
         if self._source is not None:
             raise ValueError(f"{self.method}: a source realizer is registered twice")
@@ -255,7 +264,7 @@ class RealizerTable(Generic[SpaceT, OpT]):
         realizer = self._responses.get(key)
         return self._unregistered(unit) if realizer is None else realizer.admit(unit, weight, site, space)
 
-    def _admit_source(self, terms: InflowTerms, site: FaceSite, space: SpaceT | None) -> Admission:
+    def _admit_source(self, terms: InflowTerms, site: FaceSite, space: SourceSpaceT | None) -> Admission:
         if self._source is None:
             return Refused(RefusalAxis.PLUMBING, f"{self.method} registers no source realizer", self.unregistered_issue)
         return self._source.admit(terms, site, space)
@@ -265,7 +274,7 @@ class RealizerTable(Generic[SpaceT, OpT]):
             return Refused(RefusalAxis.PLUMBING, f"{self.method} registers no deck realizer", self.unregistered_issue)
         return self._deck.admit(deck, pairing_of(deck, site.face, dimension=site.dimension), site, space)
 
-    def admit(self, declared: DeckTransformation | BoundaryCondition | InflowTerms, site: FaceSite, space: SpaceT | None = None) -> Admission:
+    def admit(self, declared: DeckTransformation | BoundaryCondition | InflowTerms, site: FaceSite, space: SpaceT | SourceSpaceT | None = None) -> Admission:
         """ONE door, per face and per value. ``space=None`` is the type- and site-level answer (the front end).
 
         Any condition is the meet over the admission of its units (:func:`_units`: each nonzero chain with its weight,
@@ -273,24 +282,28 @@ class RealizerTable(Generic[SpaceT, OpT]):
         of its source if that is nonzero, for EVERY condition type (the source is read through the base contract). An
         ``InflowTerms`` is the source channel's own unit (what :meth:`sample_inflow` asks about). Anything else is a
         ``TypeError``: a refusal is a statement about a declaration.
+
+        ``space`` is the space of the declaration's own verb: the method space for a deck or a condition, the source (inflow
+        half-)space for a bare ``InflowTerms``. The source of a condition is admitted at the site level (``space=None``): which
+        site accepts a source is a fact of the site, and the method space is not the space the source is sampled on.
         """
         self._require_sealed()
         if isinstance(declared, DeckTransformation):
-            return self._admit_deck(declared, site, space)
+            return self._admit_deck(declared, site, cast("SpaceT | None", space))
         if isinstance(declared, InflowTerms):
-            return self._admit_source(declared, site, space)
+            return self._admit_source(declared, site, cast("SourceSpaceT | None", space))
         if not isinstance(declared, BoundaryCondition):
             raise TypeError(f"{self.method}: admit takes a DeckTransformation, a BoundaryCondition or an InflowTerms, got {declared!r}")
-        members = [self._admit_unit(key, unit, weight, site, space) for key, unit, weight in _units(declared)]
+        members = [self._admit_unit(key, unit, weight, site, cast("SpaceT | None", space)) for key, unit, weight in _units(declared)]
         if not declared.source.is_zero:
-            members.append(self._admit_source(declared.source, site, space))
+            members.append(self._admit_source(declared.source, site, None))
         return Admission.meet(*members)
 
     def _refusal(self, declared: object, site: FaceSite, admission: Refused) -> BoundaryRefused:
         message = f"{self.method} realizes {self._admitted_names}; not {type(declared).__name__} ({admission.axis.name}: {admission.reason})"
         return BoundaryRefused(message, declared, method=self.method, face=site.face, admission=admission)
 
-    def require(self, declared: DeckTransformation | BoundaryCondition | InflowTerms, site: FaceSite, space: SpaceT | None = None) -> None:
+    def require(self, declared: DeckTransformation | BoundaryCondition | InflowTerms, site: FaceSite, space: SpaceT | SourceSpaceT | None = None) -> None:
         """:meth:`admit`, then the raise of :class:`BoundaryRefused` iff refused: the ONE definition of the refusal."""
         admission = self.admit(declared, site, space)
         if isinstance(admission, Refused):
@@ -305,7 +318,7 @@ class RealizerTable(Generic[SpaceT, OpT]):
         assert isinstance(declared, BoundaryCondition)  # require() passed: admit raised TypeError for anything else  # noqa: S101
         return reduce(operator.add, (self._responses[key].realize(unit, weight, site, space) for key, unit, weight in _units(declared)))
 
-    def sample_inflow(self, terms: InflowTerms, site: FaceSite, space: SpaceT) -> np.ndarray:
+    def sample_inflow(self, terms: InflowTerms, site: FaceSite, space: SourceSpaceT) -> np.ndarray:
         """The ONE source verb: ``require`` the source, then the registered :meth:`SourceRealizer.sample`."""
         self.require(terms, site, space)
         assert self._source is not None  # require() passed: a source realizer is registered  # noqa: S101
@@ -334,7 +347,7 @@ class ResponseRealizer(ABC, Generic[K, SpaceT, OpT]):
         """The operator of ``weight * unit`` on ``site``."""
 
 
-class SourceRealizer(ABC, Generic[SpaceT]):
+class SourceRealizer(ABC, Generic[SourceSpaceT]):
     """Exactly one per table that admits a source: the realizer of the key ``InflowTerms``. A source is an array, never an operator."""
 
     status: ClassVar[Admission]
@@ -344,13 +357,13 @@ class SourceRealizer(ABC, Generic[SpaceT]):
         if table is not None:
             table._register_source(cls())
 
-    def admit(self, terms: InflowTerms, site: FaceSite, space: SpaceT | None = None) -> Admission:
+    def admit(self, terms: InflowTerms, site: FaceSite, space: SourceSpaceT | None = None) -> Admission:
         """Default: :attr:`status`."""
         return self.status
 
-    def sample(self, terms: InflowTerms, site: FaceSite, space: SpaceT) -> np.ndarray:
+    def sample(self, terms: InflowTerms, site: FaceSite, space: SourceSpaceT) -> np.ndarray:
         """Default: :func:`sample_terms`; SN overrides to run the source-placement check on the sampled ``q``."""
-        return sample_terms(terms, space)  # type: ignore[arg-type]
+        return sample_terms(terms, space)
 
 
 class DeckRealizer(ABC, Generic[SpaceT, OpT]):

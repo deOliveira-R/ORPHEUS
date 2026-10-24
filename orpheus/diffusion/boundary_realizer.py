@@ -1,182 +1,152 @@
-r"""Diffusion BoundaryRealizer — the albedo-family realization.
+r"""The diffusion realizer table: ``DIFFUSION_REALIZERS`` (``boundary_realizer.py`` of ``orpheus/diffusion``).
 
-Functional realizer for diffusion (#290 P3; closes issue #182 — the
-Wave-5 stub this file carried until 2026-07-03). Owned by its
-method-mesh:
-:meth:`DiffusionMesh.realize_boundary_law
-<orpheus.diffusion.augmented_mesh.DiffusionMesh.realize_boundary_law>`
-— the diffusion arm of the
-:class:`~orpheus.transport.method.TransportMethod` hook — instantiates
-it directly (#290 P7b dissolved the Wave-5 realizer registry).
+**What this module is.** The ONE table through which diffusion admits and realizes a declared exterior. It replaces
+``DiffusionBoundaryRealizer`` (a ``response_kernel.amplitude`` read behind two ``isinstance`` refusals, written for the
+string-tagged boundary laws) with a :class:`~orpheus.transport.boundary_conditions.RealizerTable` keyed by UNIT and filled by six
+realizer classes that register by class keyword; the table is sealed on the last line of this module, so anyone holding
+``DIFFUSION_REALIZERS`` has executed every registration. It is owned by its method-mesh: :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`
+holds it as ``boundary_realizers`` and the shared :func:`~orpheus.transport.method.realize_boundary` reads it.
 
 Every diffusion boundary condition is an albedo
-================================================
+===============================================
 
-Diffusion's boundary state is the scalar partial-current pair
-``(J⁺, J⁻)`` on the
-:class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`
-— ONE outflow DOF and ONE inflow DOF per face per group (#290 ruling
-2). A linear homogeneous boundary law therefore collapses to a single
-scalar response per face per group:
+Diffusion's boundary state is the scalar partial-current pair :math:`(J^+, J^-)` on the
+:class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`: ONE outflow degree of freedom and ONE inflow degree of
+freedom per face per group. A linear homogeneous boundary law therefore collapses to a single scalar response per face per group,
 
 .. math::
 
     J^- \;=\; \mathcal{A}\, J^+ ,
 
-and :meth:`DiffusionBoundaryRealizer.realize` is the composition of
-two named maps: *law → albedo scalar* 𝒜 (the physics table below),
-then *albedo scalar → operator* (the structure-keyed collapse
-mirroring the SN realizer's ``AlbedoBoundary`` branch). The realized
-operator maps the outflow half of a face slot to the inflow half; it
-is stamped :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` via
-:func:`~orpheus.transport.boundary_realization.stamp_boundary_role` (the ``A_ss``
-leaf of the composite state, consumed by the P4
-``DiffusionBoundaryOperator`` assembly).
+and the realization of a unit is the composition of two maps: the unit to its scalar :math:`\mathcal{A}`, then the scalar to the
+operator (:func:`_albedo_operator`, the structure-keyed collapse: ``ZeroOperator`` at :math:`\mathcal{A}=0`, ``IdentityOperator``
+at :math:`\mathcal{A}=1`, :math:`\mathcal{A}\cdot I` otherwise; the operator is face-slot-shape-agnostic, a scalar multiple of the
+identity on the ``(ng, *face_spatial)`` outflow data). The operator maps the outflow half of a face slot to the inflow half and is stamped
+:attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` (the ``A_ss`` leaf of the composite state, consumed by
+:class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`).
 
-The realization table (law → 𝒜 → operator)
-===========================================
+**Diffusion annihilates the shape.** It sees :math:`\Pi_{P_1}\colon (s, d) \mapsto s + d` on the response network of a wall: the
+angular redistribution that tells a specular return from a Lambertian one (a permutation against a cosine-weighted average in SN)
+is integrated out of the half-range :math:`\ell=0` moments. Both chains therefore realize as the scalar WEIGHT times the identity,
+and a sum of chains is the scalar sum, which is law L-L (realization is a functor on the response network) read on this table:
+the image of a mixed wall is :math:`\mathcal{A} = s + d`. The realization of one chain is EXACT and not faithful: this is the
+tier-2 case of :ref:`bc-method-realizability` (the projection cannot tell the laws apart, which is a different statement from
+approximating any of them), and it is stated as ``Realized(faithful=False)``.
 
-.. note::
+The table (unit, admission, image)
+==================================
 
-   **The table is derived, not transcribed** (campaign phase B2.2).
-   The first map is one line — ``𝒜 = law.response_kernel.amplitude`` —
-   not the five-arm ``isinstance`` ladder it used to be. Every row
-   below then falls out of the response factor each law already
-   declares, and the reason the four value rows looked alike is now
-   stated rather than coincidental: **at P1 the angular geometry map
-   is integrated out of the half-range moments**, so a specular
-   mirror, a Lambertian re-emission and an identity deck element all
-   leave the same scalar on the partial-current trace. (This is the
-   tier-2 case of :ref:`bc-method-realizability`: the realization is
-   EXACT, and the projection is simply not FAITHFUL — P1 cannot tell
-   those laws apart, which is a different statement from approximating
-   any of them. A "null map" is not in the list because B3.0 retired
-   it: the zero map is not a bijection and so was never a geometry.) The two refusals are
-   exactly the laws whose remaining factor is *not* a per-face scalar
-   — a spatial relabeling and an affine source. Read the table as the
-   physics; read ``response_kernel`` as the single source it is
-   computed from.
+=========================  =====================  ===========================  ========================================
+Realizer                   Key (unit)             Admission                    Image
+=========================  =====================  ===========================  ========================================
+``DiffusionZero``          ``ZeroNetwork``        ``Realized(True)``, tier 1   ``ZeroOperator`` (:math:`\mathcal{A}=0`)
+``DiffusionSpecularChain`` ``SpecularChain``      ``Realized(False)``, tier 2  :math:`w\cdot I` (the chain's weight)
+``DiffusionDiffuseChain``  ``DiffuseChain``       ``Realized(False)``, tier 2  :math:`w\cdot I` (the chain's weight)
+``DiffusionZeroFlux``      ``ZeroFluxCondition``  ``Realized(True)``, tier 1   :math:`-I` (:math:`\mathcal{A}=-1`)
+``DiffusionSource``        ``InflowTerms``        ``Refused(PLUMBING, #656)``  none (a source is an array, no operator)
+``DiffusionDecks``         the decks              mirror ``Realized(False)``,  mirror: :math:`I`; translation: refused
+                                                  translation ``Refused(TOPOLOGY)``
+=========================  =====================  ===========================  ========================================
 
-===============================  =======  =========================================
-Law                              𝒜        Realized operator
-===============================  =======  =========================================
-``VacuumInflow``                 ``0``    :class:`~orpheus.numerics.operator.ZeroOperator`
-``ReflectiveBoundary``           ``1``    ``IdentityOperator`` (a symmetry)
-``WhiteBoundary(α)``             ``α``    ``IdentityOperator`` (α=1) / ``α·I``
-``AlbedoBoundary(α)``            ``α``    ``Zero`` (α=0) / ``I`` (α=1) / ``α·I``
-``ZeroFluxBoundary``             ``−1``   ``−I`` (the one-term ``(−1)·I``)
-``PeriodicBoundary``             —        REFUSED (needs the opposite-face wrap)
-``PrescribedInflow``             —        REFUSED (affine source, not an operator)
-===============================  =======  =========================================
-
-* **Vacuum is Marshak** (#290 ruling 3): :math:`\mathcal{A} = 0` IS
-  the Marshak zero-incoming-current condition :math:`J^- = 0`, which
-  in :math:`(\phi, J)` variables reads
-  :math:`\phi_\Gamma/4 - J/2 = 0`, i.e. the classic Robin form
-  :math:`\phi + 2D\,\nabla\phi\cdot\hat n = 0` under Fick's law
-  (Marshak 1947; Bell & Glasstone 1970 §3.4). The zero-flux Dirichlet
-  condition the legacy island mis-registered as ``"vacuum"`` is a
-  DIFFERENT law — :class:`~orpheus.geometry.boundary.ZeroFluxBoundary`,
-  :math:`\mathcal{A} = -1`.
-* **White coincides with reflective at P1** (documented per the plan):
-  specular and Lambertian return differ only in the ANGULAR
-  redistribution of the returned particles, which the half-range
-  ℓ=0 moments integrate out — both preserve the returned current,
-  :math:`J^- = \alpha J^+`. The distinction is real in transport
-  (SN realizes them as a permutation vs a cosine-weighted average)
-  and vanishes in any P1-closed method by construction.
-* **Zero-flux is deliberately outside the sub-Markov range**
-  :math:`[0, 1]`: partial-current positivity :math:`J^\pm \ge 0` is
-  a property of the PHYSICAL laws, not a type invariant — see
-  :class:`~orpheus.geometry.boundary.ZeroFluxBoundary`.
+* **Vacuum is tier 1, not an approximation (measured).** The empty network (vacuum, ``specular(0)``, ``white(0)``) has
+  :math:`\mathcal{A} = 0` exactly, and a scalar commutes with every linear projection, so the projection loses nothing: the
+  admission is ``Realized(True)``. ``[M]`` ``measure_diffusion_vacuum.md``: of nine law spellings the retired realizer was called
+  on, seven realized, and the deciding line was ``return response.amplitude``. The Marshak closure (:math:`J^\pm = \phi/4 \pm J/2`
+  with Fick's law, the classic Robin form :math:`\phi + 2D\,\nabla\phi\cdot\hat n = 0`; Marshak 1947, Bell & Glasstone 1970 section 3.4)
+  is the METHOD's :math:`P_1` closure, applied identically to every albedo, so it belongs to the method and not to the admission of the
+  vacuum wall. DRAFT 1 of the specification listed ``Approximated("Marshak")`` here; that was refuted by this measurement.
+* **The two chains are tier 2.** ``specular(0.4)`` and ``white(0.4)`` realize the same operator :math:`0.4\,I`; the
+  pair is the witness that diffusion cannot tell them apart (the specification's tier rule would call ``specular(0.4)`` tier 1, since
+  the angular map is recovered, and the table states the lower tier because diffusion cannot see the shape).
+* **Zero flux is tier 1 and diffusion-only** (:class:`~orpheus.diffusion.zero_flux.ZeroFluxCondition`, :math:`\mathcal{A} = -1`,
+  the Dirichlet idealization :math:`\phi_\Gamma = 0` under the :math:`P_1` dictionary :math:`\phi_\Gamma = 2(J^+ + J^-)`). It is outside the
+  sub-Markov range, which is why the table's :class:`~orpheus.transport.boundary_conditions.StateCone` is ``SIGNED_CURRENT``.
+* **A mirror deck is tier 2 with** :math:`\mathcal{A} = 1`: a mirror plane is a symmetry, whose image on a per-face scalar is the
+  identity, the same operator as ``white(1.0)`` and ``specular(1.0)``.
 
 Refusals
 ========
 
-* :class:`~orpheus.geometry.boundary.PeriodicBoundary` couples the
-  face to its OPPOSITE face (``J⁻(xmin) = J⁺(xmax)`` and vice versa)
-  — not a per-face rank-1 albedo but a trace-block permutation. No
-  diffusion consumer exists today; the realizer refuses loudly rather
-  than realizing the wrong (identity-like) thing. The wrap lands with
-  a consumer, on the P4 boundary-operator assembly where the whole
-  trace block is in scope.
-* :class:`~orpheus.geometry.boundary.PrescribedInflow` is the rank-0
-  AFFINE law :math:`J^- = L J^+ + q` with :math:`L = 0`: its
-  :math:`q` is the boundary *source* ``q.boundary`` and is not
-  realizable as an operator here, so this realizer refuses the law.
-  The diffusion source arm lands with the P5 fixed-source wiring;
-  until then the refusal keeps the operator/source split honest.
+* **A source is plumbing** (``Refused(PLUMBING, #656)``). :math:`J^- = q` is the AFFINE part of the trace map: it is a vector of
+  the inflow half-trace, which here is one number per face, and the trace carries it perfectly well. Nothing about the :math:`P_1`
+  projection makes it unrepresentable, so the refusal disappears the day the fixed-source arm is wired, with no theory changing
+  (#656 tracks diffusion's affine channel; the closed #290 is not the issue). ``DiffusionSource`` has no ``realize`` and no
+  ``sample``: the door of :meth:`~orpheus.transport.boundary_conditions.RealizerTable.sample_inflow` raises before any body would run.
 
-  ⚠ **Do not rebuild the SN design this used to cite.** Until **P3**
-  (2026-08-05) this bullet read *"exactly the SN split — SN realizes
-  it as an ``IncomingSourceOperator`` and does NOT stamp it
-  BOUNDARY"*. Both halves are now wrong: that class is retired, and SN
-  realizes the law's LINEAR factor — the zero morphism, stamped
-  ``BlockRole.BOUNDARY`` like every other law — while :math:`q`
-  travels the boundary-source channel
-  (:ref:`bc-affine-source-channel`). The affine SPLIT is what SN
-  shares with diffusion; the affine OPERATOR was a defect, and it
-  delivered :math:`q` into the linear ``B`` block where nothing
-  intended it to. If a diffusion source arm is built here, build it as
-  a source on the trace block, never as an operator that ignores its
-  input.
+  Do not rebuild the SN design this used to cite: SN realizes the LINEAR factor of an inflow wall (the zero map) while :math:`q`
+  travels the boundary-source channel (:ref:`bc-affine-source-channel`). If a diffusion source arm is built here, build it as a
+  source on the trace block, never as an operator that ignores its input.
+* **A translation deck is topological** (``Refused(TOPOLOGY)``): periodic's deck transformation is a translation, which acts on
+  the spatial coordinate and leaves angle untouched, so P1 loses nothing angularly. What blocks it is that a PAIRED deck couples a
+  face to a DIFFERENT face (the opposite one, for the wrap), and this table's codomain is a per-face scalar, a block-diagonal
+  object with no slot for cross-face coupling. A method could resolve angle perfectly and still refuse this.
+* **Any other condition** (another method's own condition) meets the table's unregistered-unit door,
+  ``Refused(PLUMBING, #659)``: a signed-current table never refuses on the state cone (a negative return fraction is inside its cone).
 
-Rank-N composition (Marshak mixes, partial reflection) goes through
-the descriptor-tree walker with this realizer at the leaves::
+**An albedo above one is unspellable.** The retired string registry realized ``albedo = 5.0`` (``k = 2.972`` on the two-region two-group
+slab at ``5d04c296``). The shared wall's cone parse (``WallCondition`` refuses a return fraction above one at construction) removes that
+spelling before it reaches this table: the albedo item of #265 (the other items of that issue are untouched, and it stays open).
 
-    from orpheus.transport.boundary_realization import realize_recursively
-    op = realize_recursively(
-        0.3 * AlbedoBoundary(1.0, SpecularReturn("x"))
-        + 0.7 * AlbedoBoundary(albedo=0.5),
-        DiffusionMethodSpace.minimal(),
-        realizer=DiffusionBoundaryRealizer(),
-    )
-
-(The walker generalized over leaf realizers at #290 P3 and moved to
-a method-blind home in ``geometry/boundary/`` at the #290 P7b
-``TransportMethod`` mint, and to
-:mod:`orpheus.transport.boundary_realization` at layer-DAG WP-E1.)
+**The retired door.** ``DiffusionBoundaryRealizer`` and ``_partial_current_albedo`` are gone (the amplitude read and the two
+``isinstance`` refusals are the table's admissions now), together with ``DiffusionMesh.BOUNDARY_OPERATOR_REGISTRY`` (a string table
+of admitted law kinds), in the same commit that mints this table.
 
 References
 ----------
 
-* Marshak, R. E. (1947). "Note on the spherical harmonic method as
-  applied to the Milne problem for a sphere". *Phys. Rev.* 71, 443.
-* Bell, G. I. & Glasstone, S. (1970). *Nuclear Reactor Theory*.
-  Van Nostrand Reinhold. §3.4 (diffusion-theory boundary conditions).
-* ``.claude/plans/diffusion_crosswalk.md`` — the ``(J⁺, J⁻)``
-  convention contract (rows, signs, the BC-family table this module
-  implements).
+* Marshak, R. E. (1947). "Note on the spherical harmonic method as applied to the Milne problem for a sphere". *Phys. Rev.* 71, 443.
+* Bell, G. I. & Glasstone, S. (1970). *Nuclear Reactor Theory*. Van Nostrand Reinhold. Section 3.4 (diffusion-theory boundary conditions).
+* ``.claude/plans/diffusion_crosswalk.md``: the :math:`(J^+, J^-)` convention contract.
+* ``.claude/plans/wave2_boundary_carve.md`` sections 2.7 and 4.2: the table and its pin.
+
+Layer: ``diffusion`` (L3). Imports ``transport`` (the table machinery), ``geometry`` (the deck vocabulary), ``numerics`` (the operator
+leaves) and its siblings.
 """
 
 from __future__ import annotations
 
-from orpheus.geometry.boundary import (
-    BoundaryError,
-    BoundaryTraceLaw,
-    PairedDeck,
-    PrescribedInflow,
+from typing import assert_never
+
+from orpheus.diffusion.method_space import DiffusionMethodSpace
+from orpheus.diffusion.zero_flux import ZeroFluxCondition
+from orpheus.geometry.deck import DeckTransformation, FacePairing, MirrorDeck, TranslationDeck
+from orpheus.numerics.operator import IdentityOperator, LinearOperator, ZeroOperator
+from orpheus.numerics.space import FunctionSpace
+from orpheus.transport.boundary_conditions import (
+    DeckRealizer,
+    DiffuseChain,
+    FaceSite,
+    InflowTerms,
+    Realized,
+    RealizerTable,
+    RefusalAxis,
+    Refused,
+    ResponseRealizer,
+    SourceRealizer,
+    SpecularChain,
+    StateCone,
+    ZeroNetwork,
+    stamp_boundary_role,
 )
-from orpheus.transport.boundary_realization import stamp_boundary_role
-from orpheus.numerics.operator import ZeroOperator
-from orpheus.numerics.operator import IdentityOperator, LinearOperator
 
-from .method_space import DiffusionMethodSpace
-
-
-__all__ = ["DiffusionBoundaryRealizer"]
+__all__ = [
+    "DIFFUSION_REALIZERS",
+    "DiffusionDecks",
+    "DiffusionDiffuseChain",
+    "DiffusionSource",
+    "DiffusionSpecularChain",
+    "DiffusionZero",
+    "DiffusionZeroFlux",
+]
 
 
 def _albedo_operator(albedo: float) -> LinearOperator:
     r"""The structure-keyed collapse of :math:`J^- = \mathcal{A} J^+`.
 
-    Mirrors the SN realizer's ``AlbedoBoundary`` branch exactly:
-    :math:`\mathcal{A} = 0` collapses to the structural
-    :class:`ZeroOperator`, :math:`\mathcal{A} = 1` to the structural
-    :class:`IdentityOperator`, anything else to
-    ``𝒜 · IdentityOperator()`` (the one-term combination). The operator is
-    face-slot-shape-agnostic — a scalar multiple of the identity on
-    the ``(ng, *face_spatial)`` outflow data, whatever the face.
+    Mirrors the SN realizer's scalar branch exactly: :math:`\mathcal{A} = 0` collapses to the structural :class:`ZeroOperator`,
+    :math:`\mathcal{A} = 1` to the structural :class:`IdentityOperator`, anything else to ``𝒜 · IdentityOperator()`` (the one-term
+    combination). The operator is face-slot-shape-agnostic: a scalar multiple of the identity on the ``(ng, *face_spatial)``
+    outflow data, whatever the face.
     """
     if albedo == 0.0:
         return ZeroOperator()
@@ -185,148 +155,87 @@ def _albedo_operator(albedo: float) -> LinearOperator:
     return float(albedo) * IdentityOperator()
 
 
-class DiffusionBoundaryRealizer:
-    r"""Functional realizer for diffusion BCs (#290 P3, closes #182).
+#: Diffusion's realizer table. ``SIGNED_CURRENT``: the trace state is a partial current, so a negative return fraction (zero flux) is
+#: inside the cone. ``unregistered_issue=659``: the table registers every shared unit and meets its unregistered-unit door only with
+#: another method's own condition (#659 tracks the SN and diffusion tables' unregistered units). The source space is the trace's
+#: inflow half-space, a plain ``FunctionSpace`` here (the source verb is refused before any sampling).
+DIFFUSION_REALIZERS: RealizerTable[DiffusionMethodSpace, LinearOperator, FunctionSpace] = RealizerTable(
+    "diffusion", state_cone=StateCone.SIGNED_CURRENT, unregistered_issue=659,
+)
 
-    Realizes every :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
-    as the albedo-family operator :math:`J^- = \mathcal{A} J^+` on the
-    scalar partial-current trace — see the module docstring for the
-    law → 𝒜 table, the Marshak-vacuum and white≡reflective physics
-    notes, and the two refusals.
 
-    The realizer instance carries no state; ``method_name`` is the
-    only attribute. :meth:`realize` is stateless — it can be called
-    freely from any context.
+class DiffusionZero(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=ZeroNetwork):
+    r"""The empty network: :math:`\mathcal{A} = 0` exactly, ``ZeroOperator``. Tier 1: a scalar commutes with every projection."""
+
+    status = Realized(True)
+
+    def realize(self, unit: ZeroNetwork, weight: float, site: FaceSite, space: DiffusionMethodSpace) -> LinearOperator:
+        return stamp_boundary_role(_albedo_operator(0.0))
+
+
+class DiffusionSpecularChain(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=SpecularChain):
+    r"""A specular chain of weight :math:`w`: :math:`\mathcal{A} = w`. Tier 2: the shape (a permutation) is annihilated by :math:`\Pi_{P_1}`."""
+
+    status = Realized(False)
+
+    def realize(self, unit: SpecularChain, weight: float, site: FaceSite, space: DiffusionMethodSpace) -> LinearOperator:
+        return stamp_boundary_role(_albedo_operator(weight))
+
+
+class DiffusionDiffuseChain(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=DiffuseChain):
+    r"""A diffuse chain of weight :math:`w`: :math:`\mathcal{A} = w`. Tier 2: the shape (a rank-one re-emission) is annihilated by :math:`\Pi_{P_1}`."""
+
+    status = Realized(False)
+
+    def realize(self, unit: DiffuseChain, weight: float, site: FaceSite, space: DiffusionMethodSpace) -> LinearOperator:
+        return stamp_boundary_role(_albedo_operator(weight))
+
+
+class DiffusionZeroFlux(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=ZeroFluxCondition):
+    r"""Zero flux, :math:`\phi_\Gamma = 0`: :math:`\mathcal{A} = -1`, the operator :math:`-I`. Tier 1."""
+
+    status = Realized(True)
+
+    def realize(self, unit: ZeroFluxCondition, weight: float, site: FaceSite, space: DiffusionMethodSpace) -> LinearOperator:
+        return stamp_boundary_role(_albedo_operator(unit.return_fraction))
+
+
+class DiffusionSource(SourceRealizer[FunctionSpace], table=DIFFUSION_REALIZERS):
+    r"""The source channel: refused. The affine part :math:`q` of the trace map has no channel in diffusion yet (#656, plumbing).
+
+    No ``realize`` (a source is an array, never an operator) and no ``sample`` override (the table's door raises before the
+    default body, which is inherited, would run). Lifts with no theory change: see the module docstring.
     """
 
-    method_name: str = "diffusion"
+    status = Refused(RefusalAxis.PLUMBING, "diffusion's affine boundary source has no channel: J^- = q is a vector of the inflow half-trace the scalar trace carries, and the fixed-source arm is not wired", 656)
 
-    def realize(
-        self,
-        law: "BoundaryTraceLaw",
-        method_space: DiffusionMethodSpace,
-    ) -> LinearOperator:
-        r"""Realize ``law`` for diffusion as a 1-arg :class:`LinearOperator`.
 
-        The returned operator maps the outflow half of a face slot
-        (``J⁺``, shape ``(ng, *face_spatial)``) to the inflow half
-        (``J⁻``), stamped
-        :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY`. The
-        rank-1 albedo family reads nothing from ``method_space``
-        (mirroring SN's albedo branch — a
-        :meth:`DiffusionMethodSpace.minimal` suffices); the parameter
-        is the uniform :class:`~orpheus.transport.boundary_realization.BoundaryRealizer`
-        Protocol surface the P4/P5 wiring threads per-face spaces
-        through.
-        """
-        albedo = self._partial_current_albedo(law)
-        return stamp_boundary_role(_albedo_operator(albedo))
+class DiffusionDecks(DeckRealizer, table=DIFFUSION_REALIZERS):
+    r"""The decks: a mirror plane is :math:`\mathcal{A} = 1` (tier 2); a translation wrap is refused on the topological axis.
 
-    @staticmethod
-    def _partial_current_albedo(law: "BoundaryTraceLaw") -> float:
-        r"""The law's albedo-family response 𝒜 in :math:`J^- = \mathcal{A} J^+`.
+    The match is exhaustive over :data:`~orpheus.geometry.deck.DeckTransformation`.
+    """
 
-        The physics table (module docstring) as code. Note the two
-        DISTINCT albedos in play for a wall (specular or white): the law's
-        own ``albedo`` field α is the return AMPLITUDE (specular resp.
-        diffuse), and at P1 the partial-current response equals it,
-        :math:`\mathcal{A} = \alpha` — because the angular structure
-        distinguishing the two return patterns is integrated out of
-        the half-range moments.
+    def admit(self, deck: DeckTransformation, pairing: FacePairing, site: FaceSite, space: DiffusionMethodSpace | None = None) -> Realized | Refused:
+        match deck:
+            case MirrorDeck():
+                return Realized(False)
+            case TranslationDeck():
+                return Refused(
+                    RefusalAxis.TOPOLOGY,
+                    f"the wrap couples {pairing.face!r} to its opposite face {pairing.partner!r}: a per-face scalar has no slot for cross-face coupling",
+                )
+            case _:
+                assert_never(deck)
 
-        **𝒜 IS the law's response factor** — one read, not a table.
-        Until campaign phase B2 this method was a five-arm
-        ``isinstance`` ladder returning ``0.0`` / ``-1.0`` /
-        ``float(law.albedo)``; every arm returned exactly
-        ``law.response_kernel.amplitude``, which is why the B1 gate could
-        pin the two bit-identical law by law
-        (``tests/gates/geometry/test_boundary_factors.py``). Collapsing it
-        states the reason the arms looked alike: **at P1 the angular
-        geometry map is integrated out of the half-range moments**, so
-        a specular mirror, a Lambertian average, an identity and a null
-        map all leave the same scalar on the partial-current trace, and
-        only the response survives.
+    def realize(self, deck: DeckTransformation, pairing: FacePairing, site: FaceSite, space: DiffusionMethodSpace) -> LinearOperator:
+        match deck:
+            case MirrorDeck():
+                return stamp_boundary_role(_albedo_operator(1.0))
+            case TranslationDeck():
+                raise AssertionError("a translation deck is refused at admission, so it is never realized")  # noqa: S101
+            case _:
+                assert_never(deck)
 
-        Which is also exactly why the two refusals below are the
-        refusals: they are the laws whose remaining factor is NOT a
-        per-face scalar — a *spatial* relabeling (which couples two
-        faces and so cannot be integrated away) and an affine source
-        (which is not a linear response at all).
-        """
-        # The fallthrough the ``isinstance`` ladder used to provide as its
-        # last arm, kept as the mirror of the SN realizer's: an object that is
-        # not a law is refused by name rather than dying on a bare
-        # ``AttributeError`` in the factor read below. Until 2026-10-01 it
-        # also caught a ``BoundaryTraceLaw`` subclass that never populated its
-        # factors (the ABC defaulted them to ``None``); the factors are
-        # abstract now, so that law cannot be constructed.
-        if not isinstance(law, BoundaryTraceLaw):
-            raise BoundaryError(
-                f"DiffusionBoundaryRealizer cannot realize "
-                f"{type(law).__name__}: it is not a boundary law. Diffusion "
-                f"realizes a law THROUGH its response factor: VacuumInflow "
-                f"(𝒜=0, Marshak), ReflectiveBoundary (𝒜=1), WhiteBoundary "
-                f"(𝒜=α, P1-coincident with a specular wall), AlbedoBoundary "
-                f"(𝒜=α), ZeroFluxBoundary (𝒜=−1). For rank-N compositions use "
-                f"orpheus.transport.boundary_realization.realize_recursively "
-                f"with realizer=DiffusionBoundaryRealizer().",
-                law=type(law).__name__,
-            )
-        response = law.response_kernel
 
-        # The one surviving TYPE test, and it is essential rather than a tag
-        # smell: what disqualifies the prescribed family is that its inflow is
-        # a free parameter q, NOT a function of the outflow — which is true of
-        # the FAMILY whatever q currently holds. Testing the source VALUE
-        # instead (``isinstance(law.source, NoSource)``) would silently realize
-        # ``PrescribedInflow()`` at its default zero source as 𝒜 = 0, i.e.
-        # turn a refusal into a value on a path (#290 P5) that does not exist
-        # yet. Measured while writing B2 — it is the trap in this collapse.
-        if isinstance(law, PrescribedInflow):
-            # ── REFUSAL AXIS: none — this one is PLUMBING ────────────────
-            # Unlike the two structural refusals (SN's zero-flux, on the
-            # state-cone axis; the spatial wrap below, on the topological
-            # one), nothing about P1 makes a prescribed inflow
-            # unrepresentable: q is a VECTOR in Γ₋, and Γ₋ here is one
-            # number per face, which the trace carries perfectly well. This
-            # refusal disappears the day #290 P5 wires the fixed-source arm,
-            # with no theory changing. Stated so a future reader does not
-            # mistake it for a statement about diffusion's fidelity.
-            raise BoundaryError(
-                f"DiffusionBoundaryRealizer cannot realize "
-                f"{type(law).__name__}: J⁻ = q is the rank-0 AFFINE law — "
-                f"its realization is the boundary source q.boundary, "
-                f"not a linear boundary operator B (the same "
-                f"operator/source split SN keeps). The diffusion "
-                f"fixed-source arm lands with the solver wiring "
-                f"(#290 P5).",
-                law=type(law).key or type(law).__name__,
-            )
-        if isinstance(law.geometry_map, PairedDeck):
-            # ── REFUSAL AXIS: spatial / topological ──────────────────────
-            # NOT an angular-resolution refusal, which is the one a reader
-            # expects from a diffusion realizer. Periodic's deck
-            # transformation is a TRANSLATION: it acts on the spatial
-            # coordinate and leaves angle untouched, so every angular
-            # discretization is trivially equivariant under it and P1 loses
-            # nothing angularly. What blocks it is that a PAIRED deck
-            # element couples a face to a DIFFERENT face (the opposite one,
-            # for the wrap), and this realizer's codomain is a per-face
-            # scalar 𝒜 — a block-diagonal object with no slot for
-            # cross-face coupling. A method could resolve angle perfectly
-            # and still refuse this. Dispatching on the TYPE (the
-            # genuine-pair deck element, G6.3 step 7) rather than a law
-            # name is what makes the refusal reach every paired gluing —
-            # a future sector rotation is refused by the same line.
-            raise BoundaryError(
-                f"DiffusionBoundaryRealizer cannot realize "
-                f"{type(law).__name__}: its geometry map pairs this face "
-                f"with a DISTINCT face — the wrap couples a face to its "
-                f"OPPOSITE face (a trace-block permutation) — the one "
-                f"geometry P1 cannot integrate away into a per-face albedo "
-                f"J⁻ = 𝒜·J⁺. The cross-face coupling lands with the "
-                f"boundary-operator assembly when a diffusion consumer "
-                f"exists (#290 P4 seam).",
-                law=type(law).key or type(law).__name__,
-            )
-        return response.amplitude
+DIFFUSION_REALIZERS.seal()

@@ -555,7 +555,7 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
     :attr:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace.INFLOW_ROW`,
     the face's realized law applied to the outflow partial current —
     :math:`\mathcal{A}\,J^+` for the albedo family the
-    :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
+    :data:`~orpheus.diffusion.boundary_realizer.DIFFUSION_REALIZERS`
     produces (#290 P3). It composes as ``−B`` in ``(L + C − S − B)``;
     the loss's inflow rows then read :math:`J^- - \mathcal{A} J^+`
     (``L`` supplies the identity — the block-matrix table in

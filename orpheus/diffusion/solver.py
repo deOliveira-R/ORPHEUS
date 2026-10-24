@@ -84,19 +84,18 @@ documents the family.)
 **Boundary conditions are the PHASE SPACE's contract, not the
 solver's** (#290 P7a): the solver consumes a
 :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`, which
-resolved and REALIZED its per-face laws at construction — each face's
-:class:`~orpheus.geometry.boundary.BC` tag became a typed
-:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` and then the
-albedo operator :math:`J^- = \mathcal{A} J^+` in ``mesh.bc``
-(``SNProblem.bc`` parity; supported tags, ruling-3 semantics, and the
-deliberate ``"white"`` absence are documented on
-:class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`). ``B`` reads
+bound and REALIZED its per-face conditions at construction — each face's
+declaration (a deck, or the :class:`~orpheus.transport.boundary_conditions.BoundaryCondition`
+its tag is bound to) became the albedo operator :math:`J^- = \mathcal{A} J^+`
+in ``mesh.bc`` (``SNProblem.bc`` parity; the admitted declarations and their
+tiers are the table :data:`~orpheus.diffusion.boundary_realizer.DIFFUSION_REALIZERS`,
+documented there and on :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`). ``B`` reads
 ``mesh.bc``; a solver on a phase space with unresolved BCs is
-unrepresentable. The resolution itself is the ONE shared
-:func:`~orpheus.transport.method.resolve_boundary_conditions` body
+unrepresentable. The realization itself is the ONE shared
+:func:`~orpheus.transport.method.realize_boundary` body
 under the :class:`~orpheus.transport.method.TransportMethod` Protocol
 (#290 P7b — it replaced the twin per-method ``_resolve_bcs`` loops;
-each mesh keeps only its ``realize_boundary_law`` arm).
+each mesh keeps only its ``realize_boundary_role`` arm).
 
 **Normalization**: :func:`power_iteration` renormalizes each iterate to
 unit production rate (:meth:`compute_production_rate` — the
@@ -122,7 +121,7 @@ Verification (the P5 gates, ``tests/gates/diffusion/test_solver.py``)
 * the legacy bridge: modern k ≡ island k on the CORE1D PWR problem
   under the ruling-4 bit-identical encoding (both discretizations are
   the same math in exact arithmetic);
-* solution trace semantics per law (vacuum :math:`J^- = 0`, albedo
+* solution trace semantics per condition (vacuum :math:`J^- = 0`, albedo
   :math:`J^- = \alpha J^+`, reflective :math:`J_{\rm net} = 0`,
   zero-flux :math:`\phi_\Gamma = 0`), the integrated balance identity,
   and k-monotonicity in the albedo.
@@ -139,7 +138,7 @@ Verification (the P5 gates, ``tests/gates/diffusion/test_solver.py``)
 from __future__ import annotations
 
 from dataclasses import dataclass
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
@@ -155,6 +154,7 @@ from orpheus.numerics.convergence import (
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+from orpheus.transport.boundary_conditions import BoundaryConditions
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
@@ -174,6 +174,7 @@ from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.mesh import Mesh1D
+    from orpheus.transport.boundary_conditions import BoundaryCondition
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 
@@ -194,7 +195,7 @@ class DiffusionSolver:
     ----------
     mesh : DiffusionMesh
         The diffusion phase space (#290 P7a) — 1-D, bounded, with its
-        per-face boundary laws already realized at construction
+        per-face boundary operators already realized at construction
         (``mesh.bc``). Promote a plain
         :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`
         via :meth:`DiffusionMesh.from_material_mesh
@@ -426,6 +427,7 @@ def solve_diffusion_1d(
     keff_tol: float = 1e-10,
     flux_tol: float = 1e-9,
     max_outer: int = 1000,
+    boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]" = BoundaryConditions.empty(),
 ) -> DiffusionResult:
     r"""Solve the 1-D multigroup diffusion k-eigenvalue problem.
 
@@ -434,16 +436,17 @@ def solve_diffusion_1d(
     :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` (the
     data carrier) ``→`` :meth:`DiffusionMesh.from_material_mesh
     <orpheus.diffusion.augmented_mesh.DiffusionMesh.from_material_mesh>`
-    (the promotion — trace built, boundary laws realized) ``→`` the
+    (the promotion — trace built, boundary conditions bound and realized) ``→`` the
     operator family :math:`A = L + C - S - B`, :math:`F` ``→`` the
     shared :func:`~orpheus.numerics.eigenvalue.power_iteration` with
     the exact resolvent inner solve. Zoned cores are expressed by the
     mesh's own ``mat_ids`` (a 3-zone reflector–fuel–reflector slab is a
     ``Mesh1D`` with 3-valued ``mat_ids`` — the island's retired
     ``CoreGeometry`` container had no independent content); boundary
-    conditions by the mesh's ``BC`` declarations (supported tags and
-    ruling-3 semantics on
-    :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`).
+    conditions by the ``boundary_conditions`` keyword, the condition each
+    integer tag of the mesh's face roles stands for (the admitted
+    conditions and their tiers on
+    :data:`~orpheus.diffusion.boundary_realizer.DIFFUSION_REALIZERS`).
 
     Parameters
     ----------
@@ -454,19 +457,23 @@ def solve_diffusion_1d(
         (``Mixture.diffusion_coefficient`` — transport-corrected when a
         P1 moment is present, :math:`1/(3\Sigma_t)` exactly otherwise).
     mesh : Mesh1D
-        Geometry + zoning + BC declarations (1-D; slab / cylinder /
-        sphere through its own areas + volumes).
+        Geometry + zoning + per-face roles (a deck or an integer tag;
+        1-D; slab / cylinder / sphere through its own areas + volumes).
     keff_tol, flux_tol : float
         Outer convergence tolerances (``|Δk|``, relative flux change).
     max_outer : int
         Outer power-iteration cap.
+    boundary_conditions : BoundaryConditions or mapping of int tag to BoundaryCondition
+        Keyword-only, default empty: the condition each tag of ``mesh``'s
+        face roles stands for. An unbound tag raises
+        :class:`~orpheus.transport.boundary_conditions.UnboundTagError`.
 
     Returns
     -------
     DiffusionResult
     """
     diffusion_mesh = DiffusionMesh.from_material_mesh(
-        MaterialMesh(mesh, materials)
+        MaterialMesh(mesh, materials), boundary_conditions=boundary_conditions,
     )
     solver = DiffusionSolver(
         diffusion_mesh, keff_tol=keff_tol, flux_tol=flux_tol,

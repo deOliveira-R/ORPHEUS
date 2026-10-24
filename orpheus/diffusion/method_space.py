@@ -1,7 +1,7 @@
 r"""Diffusion method-space carrying scalar-trace metadata.
 
 The :class:`DiffusionMethodSpace` is the diffusion-specific argument to
-:meth:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer.realize`
+:data:`~orpheus.diffusion.boundary_realizer.DIFFUSION_REALIZERS`
 — the mirror of :class:`~orpheus.sn.mesh.method_space.SNMethodSpace`
 (same construction surface: :meth:`minimal` / :meth:`for_face`; same
 ``trace`` field name — the per-method protocol surface kept at #290
@@ -70,7 +70,7 @@ class DiffusionMethodSpace:
     space — works on a :meth:`minimal` instance, exactly like SN's
     albedo branch on ``SNMethodSpace.minimal(quad)``. The canonical
     construction site is :meth:`for_face` (the
-    ``DiffusionMesh.realize_boundary_law`` wiring — the diffusion arm
+    ``DiffusionMesh.realize_boundary_role`` wiring — the diffusion arm
     of the #290 P7b ``TransportMethod`` hook), which validates the face
     against the trace's inventory.
     """
@@ -99,9 +99,9 @@ class DiffusionMethodSpace:
 
         The standard construction site — one method space per boundary
         face, mirroring ``SNMethodSpace.for_face`` (each method-mesh's
-        ``realize_boundary_law`` arm builds its method space here,
+        ``realize_boundary_role`` arm builds its method space here,
         driven by the shared
-        :func:`~orpheus.transport.method.resolve_boundary_conditions`
+        :func:`~orpheus.transport.method.realize_boundary`
         body, #290 P7b). The mesh passes its own ``scalar_trace``, the
         single source. Where SN's
         ``for_face`` *derives* the per-face inflow indices from its
