@@ -1542,3 +1542,80 @@ Both are fixed in the integration commit.
 - Owed to WF2.5 (the reviews' census): `BC.*` examples in `docs/api`, `docs/theory/methods` and the rest of `structured_geometry.rst`.
 
 **The user's checkpoint after S5 (2026-10-24).** The user accepted the meaning-change sites of Appendix B (108 sites in 56 files, with the three deviations ruled at integration: the references' `WallAmplitudes(1, 0)`, the MC sphere site as a coordinate refusal, diffusion's and CP's refused hollow inner face), so WF2.4 starts. F7 is ruled: diffusion's table stays OPERATOR-valued (2.7 stands; revisit when a reflective or gauge predicate reads an operator's structure).
+
+### 11.7 The WF2.4 record (2026-10-24) [LANDED on `refactor/wave2-boundary-carve`; the integration commit follows `8f2cefa4`]
+
+**The run.** Workflow `build-units`, base `debc617e`, in the carve worktree.
+
+The commits:
+- `197549f6`: the gates. The capture-script exemption of S5's ruling 3 is removed, and the row `test_the_capture_scripts_are_deleted_and_their_fixtures_stay` is added.
+- `ece6a281`: the retirement. It deletes `orpheus/geometry/boundary/` (15 modules), `orpheus/transport/boundary_realization.py` and `orpheus/sn/boundary/bound_compat.py`, and carries `Closes #551` and `Closes #189`.
+  - 102 files changed, +496/−12958.
+  - The ERR-041 index sets and their cross-check are retired, and ERR-040 to ERR-047 are rewritten.
+  - The seven `bc_equivalence` snapshots move to `tests/gates/sn/operators/snapshots/`.
+  - About 41 dead roles become literals.
+- `c2a14005`: the review amend.
+- `0707a332`: the orchestrator's fix to one refusal row (below).
+- `8f2cefa4`: Sphinx `-W` and the dead references in code (below).
+
+The run took 6 agents, about 1.51 M tokens, 417 tool uses and about 160 min.
+
+The two Opus reviews raised 12 findings. The amend answered 11, and the verifier found one answer hollow, which the orchestrator fixed. The main repairs:
+- **ERR-041 had no catcher on the realizer side.** The marked test read only the trace's inflow/outflow split, so swapping `ZeroMap._derive_inner`'s domain and codomain left it green. `TestVacuumRealizesOnTheTrace.test_the_zero_map_runs_outflow_to_inflow_of_its_own_face` (`@catches("ERR-041")`) reddens under that swap `[M]`.
+- **`SNMethodSpace` carried a face that no production code read.** That face is ERR-041's mismatch, spelled as a field. The space is now `(quadrature, trace)`, and `minimal`, `for_face`, `inflow_indices_for_face` and `SNSites.trace_of` are retired. The diffusion sibling, `DiffusionMethodSpace.face`, is filed as #661.
+- **An unknown face was refused late.** The vacuum case refused it only at first use. `ZeroMap.__post_init__` now reads both half-traces, so the face is refused at `realize`.
+- **The refusal row was hollow** (the verifier's finding). It raised inside the helper's `face_normal("right")` before the realizer ran, so it was green with the fix removed. `0707a332` builds the `FaceSite` by hand. `[M]` 5 of 5 rows pass on the pristine tree; under `ZeroMap.__post_init__` made a no-op, 1 fails and 4 pass, with the plugin's printed `__file__` confirming that the worktree's `orpheus` was loaded.
+- The layer gate retires its operator-algebra gate: the refused shapes move into `_FORBIDDEN_LEGS`, and geometry leaves `_INPUT_PACKAGE_ROOTS`. `_DECLARED_EQ_OVERRIDES` is deleted, and `mesh.rst` automodules `orpheus.mesh.face_roles`.
+
+**Rulings at integration (the orchestrator).**
+1. **Sphinx `-W` was red at the tip, and three of its warnings predate WF2.4.**
+   - The realizer table in `diffusion/boundary_realizer.py` (from S3, `9c0e8fde`).
+   - The short underline in `transport/method.py` (from S2b, `a90d10c2`).
+   - The other four came from WF2.4's literalizing and deletions: the grid border of `boundary_conditions.rst` and three `.. implements:: bc-single-delivery` targets.
+
+   §11.6's "not run: Sphinx `-W`" is where the first three escaped: no integration ran it between S2b and WF2.4. `8f2cefa4` fixes all six. The `implements` block now declares 8 sites, because `PrescribedInflow` was replaced by both `sample_terms` and `SNSource.sample`.
+2. **`dead_references` (graph rebuilt in the worktree; the instrument read positive on the known-retired `BC`, `PrescribedInflow` and `BoundaryTraceLaw`).**
+   - At the WF2.4 tip: 68 targets in 112 sites. 106 sites are on 16 docs pages, which WF2.5 owns: 53 on `foundations/boundary_conditions`, 24 on `methods/sn/boundary_conditions`, the rest at 1 to 4 per page.
+   - Of the 6 sites in code, 3 were real and are re-pointed in `8f2cefa4`.
+   - The other 3 are false positives. They are `bc.*` annotations reached through a module alias that a second module re-imports by name, filed as sphinxcontrib-nexus#97.
+   - After the commit: 65 targets in 109 sites.
+3. **The docstring cross-reference gate's blind spot.** It reports a dead absolute target only under `:mod:`, so the "26 dead references" in `ece6a281`'s body counts only `:mod:` roles. The defect was already filed twice: #645 carries the measurement and the fix, and #497 is closed into it by comment. The WF2.4 instance is commented on #645.
+4. **WF2.5's hand-off.** The reviewers' census of the sites still literalized or dead under `docs/` is `scratch/wave2_r/wf25_literalized_sites.txt` (untracked, 438 lines). It counts 184 lines in `foundations/boundary_conditions.rst`, 112 in `structured_geometry.rst`, and the rest across 18 files. `dead_references`' 106 page sites are the subset that is still a role.
+
+**State at the integration commit** (serial, `python -O -m pytest -m "not slow"`, every directory of `tests/gates` plus its root files, run at `0707a332`; `8f2cefa4` changes only docstrings and two tables, and its touched files were re-run: 509 passed).
+- 0 failed and 0 collection errors in 18 of 18 directories with tests.
+
+  | | passed |
+  |---|---|
+  | cp | 311 |
+  | cross_method | 86 |
+  | data | 436 |
+  | derivations | 3171 |
+  | diffusion | 144 |
+  | geometry | 1573 |
+  | homogeneous | 125 |
+  | mc | 48 |
+  | mesh | 652 |
+  | moc | 128 |
+  | numerics | 5497 |
+  | reference | 386 |
+  | sn | 4078 |
+  | specification | 210 |
+  | tools | 103 |
+  | transport | 1438 |
+  | values | 82 |
+  | the root files | 684 |
+
+  Against §11.6, geometry is 633 lower: the deleted `tests/gates/geometry/boundary/` gates are migrated or deleted as the retirement commit's body records. The xfails are the declared strict rows.
+- Pyright: the workaround config, run on detached worktrees at `debc617e` and at the tip, so the planted control never enters the tree under test. The control read 1 on each side. Over the 92 Python paths the diff touched, errors went from 100 to 81 (93 files analysed at the base, 60 at the tip), and no file rose.
+- Sphinx `-W`: exit 0 at `8f2cefa4`.
+- The layer census at the tip. The package SCCs are empty over the top-level, top+lazy and top+lazy+typing edge sets, so the {geometry, numerics} SCC is gone. The module SCCs are empty in geometry, mesh, data and transport. The one "UP" edge is numerics → geometry, from the census's stale layer table, which WF2.5 corrects together with `CLAUDE.md`'s layer order.
+- Not run: the slow tier.
+
+**The trial's tally for WF2.4** (the surgical-carve recalibration, for the close-out report).
+- Caught by the reviews: 12 findings. The weightiest are the ERR-041 catcher, the method-space face and the late refusal.
+- Caught by the orchestrator's verification:
+  - the hollow refusal row (the verifier's lead, confirmed by mutation);
+  - the 6 Sphinx warnings, 3 of which escaped S2b and S3;
+  - the 3 code-side dead references.
+- Escaped to WF2.5 by design: the docs census above.
