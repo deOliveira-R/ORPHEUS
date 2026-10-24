@@ -5,24 +5,51 @@
 segments, reflective boundary links) for a pin-cell with concentric
 annuli inside a square lattice cell.
 
-**Inverse Wigner-Seitz**: the ``Mesh1D`` is a solid cylinder with a
-reflective outer law (the one law the ray tracer links), meshed by a
+**Inverse Wigner-Seitz**: the ``Mesh1D`` is a solid cylinder whose outer face is a tag bound to the unit specular wall
+(``WallCondition.specular(1.0)``, the one wall the ray tracer links), meshed by a
 :class:`~orpheus.mesh.mesher.Mesher`, whose outer edge is the Wigner-Seitz
 radius ``r_cell = pitch / sqrt(pi)``. The radii are those of
 :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`,
-whose own white law MoC refuses.
+whose own white wall MoC refuses.
 ``MOCMesh`` recovers the pitch and reinterprets the outermost annular
 region as the square border bounded by the cell walls.
+
+**The boundary table.** :data:`MOC_REALIZERS` is the one door that admits and realizes the declared outer wall. A specular wall
+of weight 1 is realized on a DIFFERENT SHAPE from the declared cylinder, an equal-area square cell whose flat faces reflect the tracks:
+``Approximated`` under a named domain approximation (#547). Every other wall is ``Refused(PLUMBING, #654)``: the retired string
+registry held the one kind ``reflective`` and nothing else. The realized value is the track-linking rule the mesh applies.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from typing import ClassVar
 
 import numpy as np
 
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.geometry.deck import DeckTransformation
+from orpheus.mesh import Mesh1D, axes_from_legacy_mesh
+from orpheus.numerics.space import FunctionSpace
+from orpheus.transport.boundary_conditions import (
+    Admission,
+    Approximated,
+    Binding,
+    BoundaryCondition,
+    BoundaryConditions,
+    DiffuseChain,
+    FaceSite,
+    RealizerTable,
+    RefusalAxis,
+    Refused,
+    ResponseRealizer,
+    SpecularChain,
+    StateCone,
+    ZeroNetwork,
+    bind,
+)
+from orpheus.transport.method import realize_boundary
 
 from .quadrature import MOCQuadrature
 
@@ -259,8 +286,8 @@ def _refuse_a_mesh_moc_misreads(mesh: Mesh1D) -> None:
     cylinder's edges gave exactly the cylinder's k, 0.7197934814031874),
     and a hollow one is realised inconsistently (the region areas read
     ``edges[0]`` while the tracks treat region 0 as a disk: k = 0.71516 at
-    ``r_0 = 0.1``). Only its outer law is read, and a solid cylinder has no
-    other.
+    ``r_0 = 0.1``). Only its outer wall is read, and a solid cylinder has no
+    other face. The guard is read before the declaration (a slab is not a cylinder whatever its faces carry).
     """
     if mesh.coord is not CoordSystem.CYLINDRICAL or mesh.edges[0] != 0.0:
         raise NotImplementedError(
@@ -268,6 +295,22 @@ def _refuse_a_mesh_moc_misreads(mesh: Mesh1D) -> None:
             f"pin cell; got a {mesh.coord.name.lower()} mesh starting at "
             f"r_0 = {float(mesh.edges[0])!r} (#514)."
         )
+
+
+#: What a MoC boundary realizer returns: the rule that links each track's outgoing flux to the track it feeds, applied to the mesh
+#: once its tracks are generated (the retired registry's factories returned the word ``reflective``, which nothing read).
+TrackLinking = Callable[["MOCMesh"], None]
+
+#: The name of MoC's one named approximation, the DOMAIN it computes on (#547): pinned character for character by the admission pin.
+SQUARE_CELL = "an equal-area square cell with reflecting flat faces, not the declared cylinder"
+
+#: MoC's realizer table. ``NONNEGATIVE_FLUX``: angular flux is non-negative on the trace, so a negative return fraction (zero flux) meets
+#: the unregistered-unit door as a state-cone refusal. ``unregistered_issue=654``: the table holds only what the retired string registry
+#: held (``reflective``), and #654 tracks the rest. The realizers register below the mesh class (the linking rule is its method) and the
+#: table is sealed on the last line of that block.
+MOC_REALIZERS: RealizerTable["MOCMesh", TrackLinking, FunctionSpace] = RealizerTable(
+    "moc", state_cone=StateCone.NONNEGATIVE_FLUX, unregistered_issue=654,
+)
 
 
 class MOCMesh:
@@ -280,21 +323,42 @@ class MOCMesh:
     The outermost ``Mesh1D`` region is reinterpreted as the square border
     via the inverse Wigner-Seitz transformation: ``pitch = edges[-1] * sqrt(pi)``.
 
+    Parameters
+    ----------
+    boundary_conditions : BoundaryConditions or mapping of int to BoundaryCondition, optional
+        The exterior condition of the outer face's tag (keyword-only, default none: an unbound tag is refused, naming it). MoC
+        realizes ``WallCondition.specular(1.0)`` only (:data:`MOC_REALIZERS`).
+
     Attributes
     ----------
-    BC_REGISTRY : dict[str, Callable]
-        Supported boundary condition kinds.  Docstrings on the
-        factories serve as descriptions for programmatic query.
+    binding : Binding
+        The declared conditions joined to the mesh's faces (:func:`~orpheus.transport.boundary_conditions.bind`).
+    boundary_realizers : RealizerTable
+        :data:`MOC_REALIZERS`, the one door that admits and realizes a declaration on a face.
+    bc : dict[str, TrackLinking]
+        Per-face realized track-linking rules, keyed by face name; the outer face's links the tracks.
+    axes : tuple of Axis1D
+        The mesh's axis tuple, the face inventory the shared :func:`~orpheus.transport.method.realize_boundary` body walks.
     """
+
+    #: The method's realizer table (the ``SNProblem.boundary_realizers`` precedent).
+    boundary_realizers: ClassVar[RealizerTable] = MOC_REALIZERS
 
     def __init__(
         self,
         mesh: Mesh1D,
         quadrature: MOCQuadrature,
         ray_spacing: float = 0.05,
+        *,
+        boundary_conditions: BoundaryConditions | Mapping[int, BoundaryCondition] = BoundaryConditions.empty(),
     ) -> None:
         _refuse_a_mesh_moc_misreads(mesh)
         self.mesh = mesh
+        # Join the declared conditions to the mesh's faces, then realize the binding through the ONE shared body: a refusal raises
+        # ``BoundaryRefused`` here, before a single ray is traced.
+        self.axes = axes_from_legacy_mesh(mesh)
+        self.binding: Binding = bind(mesh, boundary_conditions)
+        self.bc: dict[str, TrackLinking] = realize_boundary(self)
         self.quad = quadrature
         self.ray_spacing = ray_spacing
 
@@ -323,26 +387,22 @@ class MOCMesh:
         self._effective_spacing: list[float] = []
         self._generate_tracks()
 
-        # Resolve boundary condition from mesh
-        self._resolve_bc(mesh)
+        # The outer face's realized rule links the tracks.
+        self.bc["xmax"](self)
 
-        self._link_tracks()
+    # ── Boundary condition realization ────────────────────────────────
 
-    # ── Boundary condition resolution ─────────────────────────────────
+    def face_site(self, face: str) -> FaceSite:
+        """Where ``face`` sits: its name, the mesh's coordinate system and dimension 1 (the table's site key)."""
+        return FaceSite(face, self.mesh.coord, 1)
 
-    BC_REGISTRY: dict = {}
+    def realize_boundary_role(self, role: DeckTransformation | BoundaryCondition, face: str) -> TrackLinking:
+        """Realize one declaration on ``face``: the MoC arm of the shared :func:`~orpheus.transport.method.realize_boundary` body.
 
-    def _resolve_bc(self, mesh: Mesh1D) -> None:
-        """Resolve the outer-surface BC into a track-linking strategy."""
-        bc = mesh.outer_law
-        factory = self.BC_REGISTRY.get(bc.kind)
-        if factory is None:
-            supported = ", ".join(f"'{k}'" for k in sorted(self.BC_REGISTRY))
-            raise ValueError(
-                f"MOC solver does not support boundary condition '{bc.kind}'. "
-                f"Supported: {supported}."
-            )
-        self.bc_kind: str = factory(self, bc)
+        MoC has no trace space; its realizer reads nothing of the mesh but its identity, so the mesh itself is the method space
+        handed to the table.
+        """
+        return self.boundary_realizers.realize(role, self.face_site(face), self)
 
     def _generate_tracks(self) -> None:
         """Generate tracks for all azimuthal angles."""
@@ -475,17 +535,47 @@ class MOCMesh:
         return self._effective_spacing[azi_index]
 
 
-# ── MOC boundary condition factories ─────────────────────────────────
+# ── MoC's realizers: the table of the wall MoC links ─────────────────
 
-def _moc_bc_reflective(moc_mesh: MOCMesh, bc: BC) -> str:
-    """Specular reflection via track linking.
+# MoC registers no deck realizer (a deck is not spellable on a radial face, and the guard refuses every mesh that is not a solid cylinder),
+# so a deck meets the table's unregistered door, #654; the table holds the three response units only.
 
-    Outgoing flux from one track feeds the reflected track's entry.
-    Default for MOC eigenvalue problems (infinite lattice).
+class MoCZero(ResponseRealizer, table=MOC_REALIZERS, realizes=ZeroNetwork):
+    """The empty network: not built (the retired registry held ``reflective`` only; #654)."""
+
+    status = Refused(RefusalAxis.PLUMBING, "MoC links specular tracks only; a vacuum wall is not built", 654)
+
+    def realize(self, unit: ZeroNetwork, weight: float, site: FaceSite, space: MOCMesh) -> TrackLinking:
+        raise AssertionError("the empty network is refused at admission, so it is never realized")
+
+
+class MoCSpecularChain(ResponseRealizer, table=MOC_REALIZERS, realizes=SpecularChain):
+    r"""A specular chain of weight 1: the track linking MoC applies at the square cell's flat faces. ``Approximated``, #547.
+
+    MoC reads the solid cylinder as the Wigner-Seitz cylinder of a square pin cell (``pitch = r_cell \sqrt{\pi}``) and links its tracks by
+    specular reflection at the square's walls, so a specular wall of weight 1 is realized on a different SHAPE from the declared cylinder:
+    a named DOMAIN approximation (:data:`SQUARE_CELL`), not an exact realization. A weight below one is refused (#654): the track links
+    carry no attenuation.
     """
-    return "reflective"
+
+    status = Approximated.of(SQUARE_CELL, 547)
+
+    def admit(self, unit: SpecularChain, weight: float, site: FaceSite, space: MOCMesh | None = None) -> Admission:
+        if weight == 1.0:
+            return self.status
+        return Refused(RefusalAxis.PLUMBING, f"MoC's track links carry no attenuation; a specular return of weight {weight} is not built", 654)
+
+    def realize(self, unit: SpecularChain, weight: float, site: FaceSite, space: MOCMesh) -> TrackLinking:
+        return MOCMesh._link_tracks
 
 
-MOCMesh.BC_REGISTRY = {
-    "reflective": _moc_bc_reflective,
-}
+class MoCDiffuseChain(ResponseRealizer, table=MOC_REALIZERS, realizes=DiffuseChain):
+    """A diffuse chain: not built, at any weight (the retired registry held ``reflective`` only; #654)."""
+
+    status = Refused(RefusalAxis.PLUMBING, "MoC links specular tracks only; a white wall is not built", 654)
+
+    def realize(self, unit: DiffuseChain, weight: float, site: FaceSite, space: MOCMesh) -> TrackLinking:
+        raise AssertionError("a diffuse chain is refused at admission, so it is never realized")
+
+
+MOC_REALIZERS.seal()

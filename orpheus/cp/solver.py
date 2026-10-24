@@ -1,9 +1,12 @@
 """Collision probability (CP) method for neutron transport.
 
 Solves the multi-group neutron transport equation using the collision
-probability method.  Boundary conditions default to white (isotropic
-re-entry, infinite lattice) but are configurable via
-:class:`~orpheus.geometry.boundary.BC` on the mesh.
+probability method.  The mesh's boundary faces carry roles (a deck, or an
+integer tag), and the tags are bound to exterior conditions by the
+``boundary_conditions`` keyword of :class:`CPMesh` and :func:`solve_cp`; CP's
+table, :data:`CP_REALIZERS`, admits the white wall at unit weight (isotropic
+re-entry, the infinite lattice) and the empty network (vacuum), and the mirror
+the slab kernel images at its left face.
 
 The geometry-specific kernel is encapsulated in :class:`CPMesh`, an
 augmented geometry that wraps a :class:`~geometry.mesh.Mesh1D` and
@@ -33,8 +36,8 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from collections.abc import Sequence
-from typing import Callable
+from collections.abc import Mapping, Sequence
+from typing import Callable, ClassVar, assert_never
 
 import numpy as np
 
@@ -46,10 +49,32 @@ from orpheus.data.cell_xs import CellXS, assemble_cell_xs
 from orpheus.derivations.common.kernels import chord_half_lengths
 from orpheus.derivations.common.quadrature import composite_gauss_legendre
 from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel
-from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry import CoordSystem
 from orpheus.geometry.chart import Chart
-from orpheus.geometry.boundary import ReflectiveBoundary
-from orpheus.mesh import Mesh1D
+from orpheus.geometry.deck import DeckTransformation, FacePairing, MirrorDeck, TranslationDeck
+from orpheus.mesh import Mesh1D, axes_from_legacy_mesh
+from orpheus.numerics.space import FunctionSpace
+from orpheus.transport.boundary_conditions import (
+    Admission,
+    Binding,
+    BoundaryCondition,
+    BoundaryConditions,
+    DeckRealizer,
+    DiffuseChain,
+    FaceSite,
+    Realized,
+    RealizerTable,
+    RefusalAxis,
+    Refused,
+    ResponseRealizer,
+    SiteClass,
+    SpecularChain,
+    StateCone,
+    WallCondition,
+    ZeroNetwork,
+    bind,
+)
+from orpheus.transport.method import realize_boundary
 from orpheus.numerics.outcome import NotYet
 from orpheus.numerics.convergence import (
     IterationBudget,
@@ -136,45 +161,21 @@ def _e3(x):
 # CPMesh — augmented geometry for the collision probability method
 # ═══════════════════════════════════════════════════════════════════════
 
-def _refuse_a_law_cp_drops(mesh: Mesh1D) -> None:
-    """Refuse a declared law the CP transform never reads.
+#: What a CP boundary realizer returns: the transform :math:`P_{\rm cell} \mapsto P_\infty` of one face's closure, given the cell collision
+#: probability matrix and the group's total cross section (the shape the retired string registry's factories returned).
+CPClosure = Callable[[np.ndarray, np.ndarray], np.ndarray]
 
-    **SCOPE-BOUNDARY[guard]** — machinery: a CP transform that reads the inner / left face law (#513).
-    ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md`` (spec S3.12).
-    revisit: CP's campaign (the direction of development takes CP after SN, diffusion and the baseline).
-
-    CP resolves only the outer law. On a slab, the kernel's image term puts
-    a mirror at the left face whatever is declared there (``[M]`` 2026-09-25:
-    a white, vacuum or undeclared left law gave k = 1.8749980808246423 to all
-    16 digits), so the slab CP computes is the half of a symmetric slab, and
-    only a reflective left law, the mirror it computes, is admitted. Until
-    2026-09-30 this guard admitted a left law EQUAL to the right one, on the
-    claim that it was what CP computes; it is not (``[M]`` 2026-09-30: CP
-    declared white|white 1.212883, SN reflective|white 1.212884, SN
-    white|white 1.212537). On a hollow cylinder or sphere, what CP realises
-    at the inner surface is not established, so no inner law is admitted.
-    """
-    if "xmin" not in mesh.face_laws:  # a solid cylinder or sphere: the outer face only
-        return
-    inner_law = mesh.face_laws["xmin"]
-    if mesh.coord is CoordSystem.CARTESIAN:
-        if inner_law not in (BC("reflective"), ReflectiveBoundary(axis="x")):
-            raise NotImplementedError(
-                f"CP's slab kernel puts a mirror at the left face whatever is "
-                f"declared there: the declared left law {inner_law!r} would be "
-                f"replaced by a reflective one (#513). Declare the left face "
-                f"reflective: the slab CP computes is half of a symmetric slab."
-            )
-    else:
-        raise NotImplementedError(
-            f"CP reads only the outer law of a hollow "
-            f"{mesh.coord.name.lower()} mesh (r_0 = {float(mesh.edges[0])!r}); "
-            f"the declared inner law {inner_law!r} would be dropped (#513)."
-        )
+#: CP's realizer table. ``NONNEGATIVE_FLUX``: CP's trace is a flux, so a negative return fraction (zero flux) meets the table's unregistered-unit
+#: door as a state-cone refusal. ``unregistered_issue=654``: the table holds only what the retired string registry held (``white`` and
+#: ``vacuum``), and #654 tracks the rest. The realizers register below the mesh class (the white closure is a method of the mesh) and the
+#: table is sealed on the last line of that block.
+CP_REALIZERS: RealizerTable["CPMesh", CPClosure, FunctionSpace] = RealizerTable(
+    "cp", state_cone=StateCone.NONNEGATIVE_FLUX, unregistered_issue=654,
+)
 
 
 class CPMesh:
-    """Augmented geometry for the collision probability method.
+    r"""Augmented geometry for the collision probability method.
 
     Wraps a :class:`~geometry.mesh.Mesh1D` and adds the CP-specific
     kernel, quadrature, and :meth:`compute_pinf_group` method.  The
@@ -187,20 +188,36 @@ class CPMesh:
     Parameters
     ----------
     mesh : Mesh1D
-        Base geometry.
+        Base geometry; its boundary faces carry a role each (a deck, or an integer tag).
     params : CPParams, optional
         Solver parameters (Ki table size, quadrature order, etc.).
+    boundary_conditions : BoundaryConditions or mapping of int to BoundaryCondition, optional
+        The exterior condition of each tag the mesh's faces carry (keyword-only, default none: a mesh with an unbound tag is
+        refused, naming the tag).
 
     Attributes
     ----------
-    BC_REGISTRY : dict[str, Callable]
-        Supported boundary condition kinds.  Docstrings on the
-        factories serve as descriptions for programmatic query.
+    binding : Binding
+        The declared conditions joined to the mesh's faces (:func:`~orpheus.transport.boundary_conditions.bind`).
+    boundary_realizers : RealizerTable
+        :data:`CP_REALIZERS`, the one door that admits and realizes a declaration on a face.
+    bc : dict[str, CPClosure]
+        Per-face realized closures, keyed by face name; the outer face's is the :math:`P_{\rm cell} \to P_\infty` transform
+        :meth:`compute_pinf_group` applies.
+    axes : tuple of Axis1D
+        The mesh's axis tuple, the face inventory the shared :func:`~orpheus.transport.method.realize_boundary` body walks.
     """
 
-    BC_REGISTRY: dict[str, Callable] = {}
+    #: The method's realizer table (the ``SNProblem.boundary_realizers`` precedent).
+    boundary_realizers: ClassVar[RealizerTable] = CP_REALIZERS
 
-    def __init__(self, mesh: Mesh1D, params: CPParams | None = None) -> None:
+    def __init__(
+        self,
+        mesh: Mesh1D,
+        params: CPParams | None = None,
+        *,
+        boundary_conditions: BoundaryConditions | Mapping[int, BoundaryCondition] = BoundaryConditions.empty(),
+    ) -> None:
         self.mesh = mesh
         self.params = params or CPParams()
 
@@ -214,8 +231,11 @@ class CPMesh:
             case _:
                 raise ValueError(f"CP not implemented for {mesh.coord}")
 
-        # Resolve boundary condition from mesh (outer surface)
-        self._resolve_bc(mesh)
+        # Join the declared conditions to the mesh's faces (its roles and colouring symmetry, read inside ``bind``), then realize the
+        # binding through the ONE shared body: it admits every face (a refusal raises ``BoundaryRefused`` here, at construction).
+        self.axes = axes_from_legacy_mesh(mesh)
+        self.binding: Binding = bind(mesh, boundary_conditions)
+        self.bc: dict[str, CPClosure] = realize_boundary(self)
 
     # ── Setup methods ─────────────────────────────────────────────────
 
@@ -264,21 +284,19 @@ class CPMesh:
         self._kernel = lambda tau: np.exp(-tau)
         self._kernel_zero = np.ones(len(self._y_pts))
 
-    # ── Boundary condition resolution ────────────────────────────────
+    # ── Boundary condition realization ───────────────────────────────
 
-    def _resolve_bc(self, mesh: Mesh1D) -> None:
-        """Resolve the outer-surface BC into a P_cell → P_inf transform."""
-        bc = mesh.outer_law
-        factory = self.BC_REGISTRY.get(bc.kind)
-        if factory is None:
-            supported = ", ".join(f"'{k}'" for k in sorted(self.BC_REGISTRY))
-            raise ValueError(
-                f"CP method does not support boundary condition '{bc.kind}'. "
-                f"Supported: {supported}."
-            )
-        # The law CP reads is admitted first; then the one it would drop.
-        _refuse_a_law_cp_drops(mesh)
-        self._bc_transform: Callable = factory(self, bc)
+    def face_site(self, face: str) -> FaceSite:
+        """Where ``face`` sits: its name, the mesh's coordinate system and dimension 1 (the table's site key)."""
+        return FaceSite(face, self.mesh.coord, 1)
+
+    def realize_boundary_role(self, role: DeckTransformation | BoundaryCondition, face: str) -> CPClosure:
+        """Realize one declaration on ``face``: the CP arm of the shared :func:`~orpheus.transport.method.realize_boundary` body.
+
+        CP has no trace space; its realizers read the mesh (the white closure is built from the cell volumes and the outer
+        area), so the mesh itself is the method space handed to the table.
+        """
+        return self.boundary_realizers.realize(role, self.face_site(face), self)
 
     # ── P_inf computation ─────────────────────────────────────────────
 
@@ -302,7 +320,7 @@ class CPMesh:
                 rcp = self._compute_radial_rcp(sig_t_g)
 
         P_cell = self._normalize_rcp(rcp, sig_t_g)
-        return self._bc_transform(P_cell, sig_t_g)
+        return self.bc["xmax"](P_cell, sig_t_g)
 
     def _compute_slab_rcp(self, sig_t_g: np.ndarray) -> np.ndarray:
         """Reduced collision probabilities for slab geometry (E₃ kernel).
@@ -470,30 +488,132 @@ class CPMesh:
         return P_inf
 
 
-# ── CP boundary condition factories ──────────────────────────────────
+# ── CP's realizers: the table of the closures CP computes ────────────
 
-def _cp_bc_white(cp_mesh: CPMesh, bc: BC) -> Callable:
-    """Isotropic (white) re-entry — infinite lattice approximation.
+def _vacuum_closure(P_cell: np.ndarray, sig_t_g: np.ndarray) -> np.ndarray:
+    """Vacuum: escaped neutrons are lost (no re-entry); :math:`P_\\infty = P_{\\rm cell}` (rows sum to less than 1 for optically thin cells)."""
+    return P_cell.copy()
 
-    Escaped neutrons re-enter with an isotropic angular distribution.
-    P_inf = P_cell + P_out ⊗ P_in / (1 − P_inout).
-    Default for CP eigenvalue problems.
+
+def _kernel_mirror(P_cell: np.ndarray, sig_t_g: np.ndarray) -> np.ndarray:
+    """The mirror at a slab's left face: the E₃ kernel's image term already puts it in :math:`P_{\\rm cell}`, so the closure is the identity."""
+    return P_cell
+
+
+def _dropped_face(site: FaceSite) -> Refused | None:
+    r"""The refusal of the faces CP's closure never reads, or ``None`` at a face it does (#513, the migrated guard ``_refuse_a_law_cp_drops``).
+
+    **SCOPE-BOUNDARY[guard]** — machinery: a CP transform that reads the inner / left face law (#513).
+    ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md`` (spec S3.12); dissolved into admission by
+    ``.claude/plans/wave2_boundary_carve.md`` section 4.2, the face-keyed CP column.
+    revisit: CP's campaign (the direction of development takes CP after SN, diffusion and the baseline).
+
+    CP resolves only the outer face. On a slab the kernel's image term puts a mirror at the left face whatever is declared there
+    (``[M]`` 2026-09-25: a white, vacuum or undeclared left law gave ``k = 1.8749980808246423`` to all 16 digits; ``[M]`` 2026-09-30:
+    CP declared white|white 1.212883, SN reflective|white 1.212884, SN white|white 1.212537), so the slab CP computes is the half of
+    a symmetric slab and only the mirror it computes is admitted there. On a hollow cylinder or sphere what CP realizes at the inner
+    surface is not established, so no inner declaration is admitted. CP does NOT call
+    :func:`~orpheus.transport.boundary_conditions.hollow_inner_refusal`: that is the #511 refusal of the methods whose trace omits the
+    inner face, and CP has its own inner-surface geometry.
     """
-    return cp_mesh._apply_white_bc
+    if site.site_class is SiteClass.RAD_INNER:
+        return Refused(
+            RefusalAxis.PLUMBING,
+            "CP reads only the outer face of a hollow body: the declared inner condition would be dropped",
+            513,
+        )
+    if site.site_class is SiteClass.CART and site.face == "xmin":
+        return Refused(
+            RefusalAxis.PLUMBING,
+            "CP's slab kernel puts a mirror at the left face whatever is declared there: the declared left condition would be "
+            "replaced by a mirror (declare the left face a MirrorDeck: the slab CP computes is half of a symmetric slab)",
+            513,
+        )
+    return None
 
 
-def _cp_bc_vacuum(cp_mesh: CPMesh, bc: BC) -> Callable:
-    """Vacuum — escaped neutrons are lost (no re-entry).
+class _CPFaces(ResponseRealizer):
+    """What the three CP response realizers share (an abstract base: it names no table, so it registers nothing): the faces CP drops are refused first."""
 
-    P_inf = P_cell (rows sum to < 1 for optically thin cells).
+    def admit(self, unit: object, weight: float, site: FaceSite, space: CPMesh | None = None) -> Admission:
+        return _dropped_face(site) or self._admit_at_outer(unit, weight)
+
+    def _admit_at_outer(self, unit: object, weight: float) -> Admission:
+        return self.status
+
+
+class CPZero(_CPFaces, table=CP_REALIZERS, realizes=ZeroNetwork):
+    r"""The empty network (vacuum, ``specular(0)``, ``white(0)``): escaped neutrons are lost, :math:`P_\infty = P_{\rm cell}`.
+
+    ``Realized(True)``. The eigenvalue CP computes with it omits the leakage term of the balance (#546, the defect the strict xfails of
+    ``tests/gates/cp/test_cp_vacuum_not_above_white.py`` keep visible), which is the method's, not the admission's: no masking.
     """
-    return lambda P_cell, sig_t_g: P_cell.copy()
+
+    status = Realized(True)
+
+    def realize(self, unit: ZeroNetwork, weight: float, site: FaceSite, space: CPMesh) -> CPClosure:
+        return _vacuum_closure
 
 
-CPMesh.BC_REGISTRY = {
-    "white": _cp_bc_white,
-    "vacuum": _cp_bc_vacuum,
-}
+class CPSpecularChain(_CPFaces, table=CP_REALIZERS, realizes=SpecularChain):
+    """A specular chain: not built (the retired registry held no reflective closure at the outer face; #654)."""
+
+    status = Refused(RefusalAxis.PLUMBING, "CP's table holds the white wall and the vacuum only; a specular return is not built", 654)
+
+    def realize(self, unit: SpecularChain, weight: float, site: FaceSite, space: CPMesh) -> CPClosure:
+        raise AssertionError("a specular chain is refused at admission, so it is never realized")
+
+
+class CPDiffuseChain(_CPFaces, table=CP_REALIZERS, realizes=DiffuseChain):
+    r"""A diffuse chain at unit weight: isotropic (white) re-entry, :math:`P_\infty = P_{\rm cell} + P_{\rm out}\otimes P_{\rm in} / (1 - P_{\rm inout})`.
+
+    The closure is the infinite-lattice approximation, the default of CP eigenvalue problems. ``Realized(True)`` at weight 1.0 only: the
+    retired registry keyed its closure by the word ``white`` whatever the albedo, so ``WhiteBoundary(albedo=0.5)`` was realized with the
+    albedo dropped (``[M]`` ``_probe_admission_num.out``: ``k = 0.6 = k_inf`` on 3 of 3 geometries, against SN's 0.536). Below one it is
+    ``Refused(PLUMBING, #654)``, a silent drop turned into a refusal (plan 4.3, delta 3).
+    """
+
+    status = Realized(True)
+
+    def _admit_at_outer(self, unit: object, weight: float) -> Admission:
+        if weight == 1.0:
+            return self.status
+        return Refused(RefusalAxis.PLUMBING, f"CP closes a wall with isotropic re-entry at unit weight only; the albedo {weight} would be dropped", 654)
+
+    def realize(self, unit: DiffuseChain, weight: float, site: FaceSite, space: CPMesh) -> CPClosure:
+        return space._apply_white_bc
+
+
+class CPDecks(DeckRealizer, table=CP_REALIZERS):
+    """The decks: the mirror at the slab's left face is what the kernel computes there; every other deck is refused (#513 at the left face, #654 elsewhere).
+
+    The match is exhaustive over :data:`~orpheus.geometry.deck.DeckTransformation`.
+    """
+
+    def admit(self, deck: DeckTransformation, pairing: FacePairing, site: FaceSite, space: CPMesh | None = None) -> Admission:
+        at_left = site.site_class is SiteClass.CART and site.face == "xmin"
+        match deck:
+            case MirrorDeck():
+                if at_left:
+                    return Realized(True)
+                return Refused(RefusalAxis.PLUMBING, "CP realizes a mirror only at a slab's left face, where its kernel images one", 654)
+            case TranslationDeck():
+                refusal = _dropped_face(site)
+                return refusal or Refused(RefusalAxis.PLUMBING, "CP realizes no periodic wrap", 654)
+            case _:
+                assert_never(deck)
+
+    def realize(self, deck: DeckTransformation, pairing: FacePairing, site: FaceSite, space: CPMesh) -> CPClosure:
+        match deck:
+            case MirrorDeck():
+                return _kernel_mirror
+            case TranslationDeck():
+                raise AssertionError("a translation deck is refused at admission, so it is never realized")
+            case _:
+                assert_never(deck)
+
+
+CP_REALIZERS.seal()
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -934,6 +1054,8 @@ def solve_cp(
     materials: dict[int, Mixture],
     mesh: Mesh1D | None = None,
     params: CPParams | None = None,
+    *,
+    boundary_conditions: BoundaryConditions | Mapping[int, BoundaryCondition] | None = None,
 ) -> CPResult:
     """Solve the CP eigenvalue problem for any supported geometry.
 
@@ -956,15 +1078,18 @@ def solve_cp(
         1-D mesh.  Defaults to a cylindrical PWR pin cell,
         :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
         meshed by a :class:`~orpheus.mesh.mesher.Mesher`.
-        CP reads the mesh's OUTER law (``outer_law``; the kernel registry
-        handles ``white`` / ``vacuum``) and nothing else, so a declared
-        law it would drop is refused: a slab's left law must be
-        ``reflective``, the mirror the slab kernel computes there
-        whatever is declared, and a hollow cylinder or sphere takes no
-        inner law (#513).
+        CP closes the mesh's outer face only (:data:`CP_REALIZERS`: the white
+        wall at unit weight and the empty network), so a face it would drop
+        is refused: a slab's left face must be a ``MirrorDeck``, the mirror
+        the slab kernel computes there whatever is declared, and a hollow
+        cylinder or sphere takes no inner condition (#513).
     params : CPParams, optional
         Solver parameters (tolerances, Ki table size, chord-quadrature
         order via ``n_quad_y``, solver mode, inner-iteration limits).
+    boundary_conditions : BoundaryConditions or mapping of int to BoundaryCondition, optional
+        The exterior condition of each tag the mesh's faces carry (keyword-only). With no ``mesh`` and no conditions the default
+        pin cell's outer face (the tag 0) is bound to ``WallCondition.white()``, the Wigner-Seitz model's infinite-lattice closure;
+        with a ``mesh`` and no conditions an unbound tag is refused, naming it.
 
     Returns
     -------
@@ -981,6 +1106,8 @@ def solve_cp(
             _N.uniform_volume(3),   # clad
             _N.uniform_volume(7),   # cool
         )).mesh
+        if boundary_conditions is None:
+            boundary_conditions = {0: WallCondition.white()}  # the Wigner-Seitz model's closure, bound where the method is known
     if params is None:
         params = CPParams()
 
@@ -990,7 +1117,10 @@ def solve_cp(
     N = mesh.N
 
     # Build augmented geometry (sets up kernel + quadrature)
-    cp_mesh = CPMesh(mesh, params)
+    cp_mesh = CPMesh(
+        mesh, params,
+        boundary_conditions=BoundaryConditions.empty() if boundary_conditions is None else boundary_conditions,
+    )
 
     xs = assemble_cell_xs(materials, mesh.mat_ids)
 

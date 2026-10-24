@@ -16,14 +16,21 @@ Architecture (MT-20260406-008):
 
 Port of MATLAB ``monteCarloPWR.m``.
 
+**The boundary table.** :data:`MC_REALIZERS` is the one door that admits and realizes the declared faces. MC wraps a particle's
+position by modulo arithmetic at every face of its square unit cell, so the one declaration it realizes is the TRANSLATION of a slab's
+two faces (a ``TranslationDeck`` on each, ``Realized``). A specular wall declared on a cylinder is ``Refused(TOPOLOGY, ..., #547)`` at
+every weight: what MC computes there is a periodic equal-area square lattice cell (a torus wrap) that no one-dimensional declaration
+describes. Every other declaration is ``Refused(PLUMBING, #654)``: the retired string registry held the one kind ``periodic``.
+
 .. seealso:: :ref:`theory-monte-carlo` — Key Facts, equations, gotchas.
 """
 
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
+from typing import ClassVar, Protocol, assert_never, runtime_checkable
 
 import numpy as np
 
@@ -36,8 +43,30 @@ from orpheus.transport.kernels import N2N_MULTIPLICITY
 _N2N_MULTIPLICITY = float(N2N_MULTIPLICITY)
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.geometry import BC, CoordSystem
-from orpheus.mesh import Mesh1D
+from orpheus.geometry import CoordSystem
+from orpheus.geometry.deck import DeckTransformation, FacePairing, MirrorDeck, TranslationDeck
+from orpheus.mesh import Mesh1D, axes_from_legacy_mesh
+from orpheus.numerics.space import FunctionSpace
+from orpheus.transport.boundary_conditions import (
+    Admission,
+    Binding,
+    BoundaryCondition,
+    BoundaryConditions,
+    DeckRealizer,
+    DiffuseChain,
+    FaceSite,
+    Realized,
+    RealizerTable,
+    RefusalAxis,
+    Refused,
+    ResponseRealizer,
+    SiteClass,
+    SpecularChain,
+    StateCone,
+    ZeroNetwork,
+    bind,
+)
+from orpheus.transport.method import realize_boundary
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -142,32 +171,43 @@ class SlabPinCell:
 
 
 def _refuse_a_mesh_mc_misreads(mesh: Mesh1D) -> None:
-    """Refuse a hollow cylinder, and a declared left or inner law that is not periodic.
+    """Refuse a hollow cylinder.
 
-    **SCOPE-BOUNDARY[guard]** — machinery: per-face law resolution and a cavity region in the MC flight loop (#513).
+    **SCOPE-BOUNDARY[guard]** — machinery: a cavity region in the MC flight loop (#513).
     ruling: the user, 2026-09-29, P1 step 2 of ``.claude/plans/reference_cache.md`` (spec S3.14).
     revisit: MC's campaign, which recycles the shared machinery (the direction of development).
 
-    ``MCMesh`` resolves only the outer law, and its registry's only kind is
-    ``periodic``, which it applies to every face of the unit cell. A
-    declared left law of another kind is dropped (``[M]`` 2026-09-25: a slab
-    with a vacuum left law and a periodic right law constructed and ran as
-    periodic). Its material lookup clamps a radius below the first edge to
-    region 0, so a hollow cylinder's cavity is filled with the innermost
-    material (``[M]`` 2026-09-29, qa: breakpoints (0.5, 1.0, 2.0) returned
-    material 7 at r = 0).
+    The material lookup clamps a radius below the first edge to region 0, so a hollow cylinder's cavity is filled with the innermost
+    material (``[M]`` 2026-09-29, qa: breakpoints (0.5, 1.0, 2.0) returned material 7 at r = 0). The other half of the guard this
+    function was, a declared left or inner law that is not periodic (``[M]`` 2026-09-25: a slab with a vacuum left law and a periodic
+    right law constructed and ran as periodic), dissolved into :data:`MC_REALIZERS`: each face meets the table.
     """
     if mesh.coord is CoordSystem.CYLINDRICAL and mesh.edges[0] != 0.0:
         raise NotImplementedError(
             f"MC fills a hollow cylinder's cavity (r_0 = {float(mesh.edges[0])!r}) "
             f"with its innermost material; only a solid cylinder is read (#513)."
         )
-    if "xmin" in mesh.face_laws and mesh.face_laws["xmin"].kind != "periodic":
-        left_law = mesh.face_laws["xmin"]
-        raise NotImplementedError(
-            f"MC applies the periodic law to every face; the declared left / "
-            f"inner law {left_law!r} would be dropped (#513)."
-        )
+
+
+@dataclass(frozen=True)
+class PeriodicWrap:
+    r"""What MC's translation deck realizes: the periodic wrap of a position by the unit cell's ``pitch``, :math:`x' = x \bmod p`.
+
+    A marker with the one number that defines it. The flight loop (``_random_walk``) applies the modulo inline and does not read this
+    value: the realized table is consulted at construction, where its refusals fire (the retired registry's factory returned the word
+    ``periodic``, which nothing read either).
+    """
+
+    pitch: float
+
+
+#: MC's realizer table. ``NONNEGATIVE_FLUX``: a particle's weight is non-negative, so a negative return fraction (zero flux) meets the
+#: unregistered-unit door as a state-cone refusal. ``unregistered_issue=654``: the table holds only what the retired string registry
+#: held (``periodic``), and #654 tracks the rest. The realizers register below the mesh class and the table is sealed on the last line
+#: of that block.
+MC_REALIZERS: RealizerTable["MCMesh", PeriodicWrap, FunctionSpace] = RealizerTable(
+    "mc", state_cone=StateCone.NONNEGATIVE_FLUX, unregistered_issue=654,
+)
 
 
 class MCMesh:
@@ -186,42 +226,64 @@ class MCMesh:
     Parameters
     ----------
     mesh : Mesh1D
-        Base geometry (from :mod:`geometry.factories`).
+        Base geometry (from :mod:`geometry.factories`); its boundary faces carry a role each (a deck, or an integer tag).
     pitch : float
         Unit cell side length (cm) for periodic boundary conditions.
+    boundary_conditions : BoundaryConditions or mapping of int to BoundaryCondition, optional
+        The exterior condition of each tag the mesh's faces carry (keyword-only, default none: a mesh with an unbound tag is
+        refused, naming the tag). MC realizes no tagged wall (:data:`MC_REALIZERS`); a slab of translation decks needs none.
 
     Attributes
     ----------
-    BC_REGISTRY : dict[str, Callable]
-        Supported boundary condition kinds.  Docstrings on the
-        factories serve as descriptions for programmatic query.
+    binding : Binding
+        The declared conditions joined to the mesh's faces (:func:`~orpheus.transport.boundary_conditions.bind`).
+    boundary_realizers : RealizerTable
+        :data:`MC_REALIZERS`, the one door that admits and realizes a declaration on a face.
+    bc : dict[str, PeriodicWrap]
+        Per-face realized wraps, keyed by face name.
+    axes : tuple of Axis1D
+        The mesh's axis tuple, the face inventory the shared :func:`~orpheus.transport.method.realize_boundary` body walks.
     """
 
-    BC_REGISTRY: dict = {}
+    #: The method's realizer table (the ``SNProblem.boundary_realizers`` precedent).
+    boundary_realizers: ClassVar[RealizerTable] = MC_REALIZERS
 
-    def __init__(self, mesh: Mesh1D, pitch: float) -> None:
-        if mesh.coord not in (CoordSystem.CARTESIAN, CoordSystem.CYLINDRICAL):
-            raise ValueError(
-                f"MCMesh supports CARTESIAN or CYLINDRICAL, got {mesh.coord}"
-            )
+    def __init__(
+        self,
+        mesh: Mesh1D,
+        pitch: float,
+        *,
+        boundary_conditions: BoundaryConditions | Mapping[int, BoundaryCondition] = BoundaryConditions.empty(),
+    ) -> None:
         self.mesh = mesh
         self.pitch = pitch
         self._edges = mesh.edges
         self._mat_ids = mesh.mat_ids
         self._center = pitch / 2.0
 
-        # Resolve boundary condition from mesh
-        bc = mesh.outer_law
-        factory = self.BC_REGISTRY.get(bc.kind)
-        if factory is None:
-            supported = ", ".join(f"'{k}'" for k in sorted(self.BC_REGISTRY))
-            raise ValueError(
-                f"MC solver does not support boundary condition '{bc.kind}'. "
-                f"Supported: {supported}."
-            )
-        # The law MC reads is admitted first; then the one it would drop.
+        # The scope guard first (a hollow cylinder is not read whatever its faces carry), then the declaration: join the conditions to
+        # the mesh's faces and realize the binding through the ONE shared body, which admits every face. The table speaks before the
+        # coordinate system is checked, so a sphere's specular wall is refused for what it declares (#547) and a sphere with any other
+        # wall for the wall (#654); a sphere that passes the table is refused for its coordinate system just below.
         _refuse_a_mesh_mc_misreads(mesh)
-        self.bc_kind: str = factory(self, bc)
+        self.axes = axes_from_legacy_mesh(mesh)
+        self.binding: Binding = bind(mesh, boundary_conditions)
+        self.bc: dict[str, PeriodicWrap] = realize_boundary(self)
+        if mesh.coord not in (CoordSystem.CARTESIAN, CoordSystem.CYLINDRICAL):
+            raise ValueError(
+                f"MCMesh supports CARTESIAN or CYLINDRICAL, got {mesh.coord}"
+            )
+
+    def face_site(self, face: str) -> FaceSite:
+        """Where ``face`` sits: its name, the mesh's coordinate system and dimension 1 (the table's site key)."""
+        return FaceSite(face, self.mesh.coord, 1)
+
+    def realize_boundary_role(self, role: DeckTransformation | BoundaryCondition, face: str) -> PeriodicWrap:
+        """Realize one declaration on ``face``: the MC arm of the shared :func:`~orpheus.transport.method.realize_boundary` body.
+
+        MC has no trace space; the realizer reads the cell's pitch, so the mesh itself is the method space handed to the table.
+        """
+        return self.boundary_realizers.realize(role, self.face_site(face), self)
 
     def material_id_at(self, x: float, y: float) -> int:
         """Return the material ID at position (x, y)."""
@@ -235,20 +297,80 @@ class MCMesh:
         return int(self._mat_ids[idx])
 
 
-# ── MC boundary condition factories ──────────────────────────────────
+# ── MC's realizers: the table of the faces MC wraps ──────────────────
 
-def _mc_bc_periodic(mc_mesh: MCMesh, bc: BC) -> str:
-    """Periodic wrapping — translational symmetry.
+_TORUS = (
+    "MC realizes a periodic equal-area square lattice cell (a torus wrap), not the declared cylinder; "
+    "no 1-D declaration describes it"
+)
 
-    Particle position is wrapped via modulo arithmetic:
-    x' = x mod pitch.  Default for infinite-lattice calculations.
+
+class MCZero(ResponseRealizer, table=MC_REALIZERS, realizes=ZeroNetwork):
+    """The empty network: not built (the retired registry held ``periodic`` only; #654)."""
+
+    status = Refused(RefusalAxis.PLUMBING, "MC wraps its faces periodically; a vacuum wall is not built", 654)
+
+    def realize(self, unit: ZeroNetwork, weight: float, site: FaceSite, space: MCMesh) -> PeriodicWrap:
+        raise AssertionError("the empty network is refused at admission, so it is never realized")
+
+
+class MCSpecularChain(ResponseRealizer, table=MC_REALIZERS, realizes=SpecularChain):
+    r"""A specular chain: refused at every weight.
+
+    On a solid cylinder it is ``Refused(TOPOLOGY, ..., #547)`` (the user's ruling): MC samples a periodic equal-area SQUARE lattice cell,
+    a TRANSLATION whose opposite faces are coupled by an image lattice, and the declared cylinder has no such coupling, so the carrier MC
+    answers with and the declared body differ in exactly the question the topological axis asks. The same declaration is a named
+    approximation under MoC (a specular return on the square cell). At a Cartesian site the wall is plumbing (#654): the torus is a
+    cylinder's problem, and the registry held nothing but ``periodic``.
     """
-    return "periodic"
+
+    status = Refused(RefusalAxis.TOPOLOGY, _TORUS, 547)
+
+    def admit(self, unit: SpecularChain, weight: float, site: FaceSite, space: MCMesh | None = None) -> Admission:
+        if site.site_class is SiteClass.RAD_OUTER:
+            return self.status
+        return Refused(RefusalAxis.PLUMBING, "MC wraps its faces periodically; a specular wall is not built", 654)
+
+    def realize(self, unit: SpecularChain, weight: float, site: FaceSite, space: MCMesh) -> PeriodicWrap:
+        raise AssertionError("a specular chain is refused at admission, so it is never realized")
 
 
-MCMesh.BC_REGISTRY = {
-    "periodic": _mc_bc_periodic,
-}
+class MCDiffuseChain(ResponseRealizer, table=MC_REALIZERS, realizes=DiffuseChain):
+    """A diffuse chain: not built, at any weight (the retired registry held ``periodic`` only; #654)."""
+
+    status = Refused(RefusalAxis.PLUMBING, "MC wraps its faces periodically; a white wall is not built", 654)
+
+    def realize(self, unit: DiffuseChain, weight: float, site: FaceSite, space: MCMesh) -> PeriodicWrap:
+        raise AssertionError("a diffuse chain is refused at admission, so it is never realized")
+
+
+class MCDecks(DeckRealizer, table=MC_REALIZERS):
+    """The decks: the translation wrap is what MC computes, ``Realized(True)``; a mirror is refused (#654).
+
+    The translation's pitch is NOT compared with the declared extent (#655, a defect filed and not fixed here). The match is exhaustive
+    over :data:`~orpheus.geometry.deck.DeckTransformation`.
+    """
+
+    def admit(self, deck: DeckTransformation, pairing: FacePairing, site: FaceSite, space: MCMesh | None = None) -> Admission:
+        match deck:
+            case TranslationDeck():
+                return Realized(True)
+            case MirrorDeck():
+                return Refused(RefusalAxis.PLUMBING, "MC wraps its faces periodically; a mirror plane is not built", 654)
+            case _:
+                assert_never(deck)
+
+    def realize(self, deck: DeckTransformation, pairing: FacePairing, site: FaceSite, space: MCMesh) -> PeriodicWrap:
+        match deck:
+            case TranslationDeck():
+                return PeriodicWrap(space.pitch)
+            case MirrorDeck():
+                raise AssertionError("a mirror deck is refused at admission, so it is never realized")
+            case _:
+                assert_never(deck)
+
+
+MC_REALIZERS.seal()
 
 
 # ═══════════════════════════════════════════════════════════════════════

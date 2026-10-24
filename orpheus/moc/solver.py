@@ -1,8 +1,8 @@
 """2D Method of Characteristics (MoC) neutron transport solver for a pin cell.
 
 Solves the multi-group transport equation on a 2-D pin-cell geometry
-(concentric annuli inside a square lattice cell) with reflective boundary
-conditions.  Uses the flat-source MOC with a product angular quadrature
+(concentric annuli inside a square lattice cell) with a specular outer
+wall.  Uses the flat-source MOC with a product angular quadrature
 (azimuthal x Tabuchi-Yamamoto polar) and exact ray tracing through
 circular boundaries.
 
@@ -15,6 +15,7 @@ Ann. Nucl. Energy 68, 43-52.
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 import numpy as np
@@ -25,6 +26,7 @@ from orpheus.mesh import Mesh1D
 from orpheus.numerics.convergence import IterationRecord, warn_if_unconverged
 from orpheus.numerics.outcome import NotYet
 from orpheus.numerics.eigenvalue import power_iteration
+from orpheus.transport.boundary_conditions import BoundaryCondition, BoundaryConditions, WallCondition
 
 from .geometry import MOCMesh
 from .quadrature import MOCQuadrature
@@ -82,19 +84,20 @@ class MoCResult:
 # ---------------------------------------------------------------------------
 
 def default_pin_cell_mesh() -> Mesh1D:
-    """``solve_moc``'s default mesh: the standard PWR pin cell's radii under a reflective law.
+    """``solve_moc``'s default mesh: the standard PWR pin cell's radii, its outer face the tag 0.
 
     The radii are those of
-    :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`;
-    the law is reflective, the one law the ray tracer links, because the
-    Wigner-Seitz model's own white law is refused by :class:`MOCMesh`.
+    :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`.
+    The mesh carries the tag and no condition (a tagged mesh must say what its tags mean): :func:`solve_moc` with no mesh binds the tag
+    to ``WallCondition.specular(1.0)``, the one wall the ray tracer links, because the Wigner-Seitz model's own white wall is refused
+    by :class:`MOCMesh`.
     Fuel, cladding and coolant are meshed into 10, 3 and 7 equal-volume cells.
     """
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
 
     cell = StructuredGeometry.wigner_seitz_pin_cell()
-    body = StructuredGeometry.cylinder(cell.breakpoints, cell.mat_ids, outer=BC("reflective"))
+    body = StructuredGeometry.cylinder(cell.breakpoints, cell.mat_ids, outer=0)
     return Mesher(body).partition((
         CellsByCount.uniform_volume(10),  # fuel
         CellsByCount.uniform_volume(3),   # clad
@@ -113,6 +116,8 @@ def solve_moc(
     flux_tol: float = 1e-5,
     inner_tol: float = 1e-8,
     max_inner_sweeps: int = 200,
+    *,
+    boundary_conditions: BoundaryConditions | Mapping[int, BoundaryCondition] | None = None,
 ) -> MoCResult:
     """Run the 2D Method of Characteristics transport calculation.
 
@@ -124,8 +129,7 @@ def solve_moc(
         Cylindrical 1-D Wigner-Seitz mesh. Defaults to the standard PWR
         pin cell's radii (those of
         :meth:`StructuredGeometry.wigner_seitz_pin_cell <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`)
-        under a reflective outer law, the one MoC realises, meshed by a
-        :class:`~orpheus.mesh.mesher.Mesher`.
+        meshed by a :class:`~orpheus.mesh.mesher.Mesher`, its outer face the tag 0.
     n_azi : int
         Number of azimuthal angles in [0, pi).
     n_polar : int
@@ -157,11 +161,17 @@ def solve_moc(
         stopping test until 2026-08-11).  `[M]` a converged outer needs 1
         sweep; a cold boundary flux needs 80–110, so the default carries
         ~2x headroom and costs nothing once the loop can stop early.
+    boundary_conditions : BoundaryConditions or mapping of int to BoundaryCondition, optional
+        The exterior condition of each tag the mesh's faces carry (keyword-only). With no ``mesh`` and no conditions the default
+        pin cell's outer face (the tag 0) is bound to ``WallCondition.specular(1.0)``, the one wall MoC links; with a ``mesh`` and
+        no conditions an unbound tag is refused, naming it.
     """
     t_start = time.perf_counter()
 
     if mesh is None:
         mesh = default_pin_cell_mesh()
+        if boundary_conditions is None:
+            boundary_conditions = {0: WallCondition.specular(1.0)}  # the preset's tag is the wall MoC links
 
     _any_mat = next(iter(materials.values()))
     eg = _any_mat.eg
@@ -169,7 +179,10 @@ def solve_moc(
 
     # Build augmented geometry
     quad = MOCQuadrature.create(n_azi=n_azi, n_polar=n_polar)
-    moc_mesh = MOCMesh(mesh, quad, ray_spacing=ray_spacing)
+    moc_mesh = MOCMesh(
+        mesh, quad, ray_spacing=ray_spacing,
+        boundary_conditions=BoundaryConditions.empty() if boundary_conditions is None else boundary_conditions,
+    )
 
     print(f"  MOC: {moc_mesh.n_regions} regions, {len(moc_mesh.tracks)} tracks, "
           f"{n_azi} azi x {n_polar} polar, spacing={ray_spacing}")
