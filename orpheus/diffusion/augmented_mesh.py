@@ -98,13 +98,13 @@ from orpheus.diffusion.method_space import DiffusionMethodSpace
 from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.transport.boundary_conditions import BoundaryConditions, bind
-from orpheus.transport.method import TransportMethod, realize_boundary
+from orpheus.transport.method import MethodMesh, TransportMethod, realize_boundary
 from orpheus.mesh import (
     axes_from_legacy_mesh,
     face_labels as _face_labels,
     face_shape as _face_shape,
 )
-from orpheus.transport.mesh.material_mesh import MaterialMesh, conditions_key
+from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -121,7 +121,7 @@ if TYPE_CHECKING:
 __all__ = ["DiffusionMesh"]
 
 
-class DiffusionMesh(MaterialMesh):
+class DiffusionMesh(MethodMesh):
     r"""Diffusion method-mesh: MaterialMesh + scalar trace + realized BCs.
 
     See the module docstring for the data/behavior axis, the
@@ -337,15 +337,12 @@ class DiffusionMesh(MaterialMesh):
         spelling re-runs the constructor without them, and a carrier whose tags are unbound is refused.
         """
         assert self.mesh is not None  # the 1-D gate of ``_init_core`` refused every carrier without a mesh (type narrowing, not a guard)  # noqa: S101
-        return type(self)(self.mesh, self.materials, sigma_t_cell=sigma_t_cell, boundary_conditions=self.binding.declared)
+        return type(self)(self.mesh, self.materials, sigma_t_cell=sigma_t_cell, **self._respelling_keywords())
 
-    # ── identity: the diffusion extension of MaterialMesh's ONE definition ─
-    # Contractibility adds the declared CONDITIONS in tag order (the face-to-condition join is derived, so the key reads the
-    # one declared map): two problems over the same mesh with different conditions are different phase spaces, as the laws
-    # in the axes' key were before the carve (``SNProblem._contractibility_key`` parity).
-    @cached_property
-    def _contractibility_key(self) -> tuple:
-        return (*MaterialMesh._contractibility_key.func(self), conditions_key(self.binding.declared))
+    # ── identity: the declared conditions are part of the phase space ──
+    # The key is :class:`~orpheus.transport.method.MethodMesh`'s (the material mesh's key plus the declared CONDITIONS in tag
+    # order), the ONE spelling that SNProblem shares: two problems over the same mesh with different conditions are different
+    # phase spaces, as the laws in the axes' key were before the carve.
 
     # ── The method layer's spaces ──────────────────────────────────────
 

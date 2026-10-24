@@ -38,7 +38,8 @@ from orpheus.mesh import (
     legacy_mesh_from_axes,
     n_unknowns_flat as _axis_n_unknowns_flat,
 )
-from orpheus.transport.mesh.material_mesh import MaterialMesh, conditions_key
+from orpheus.transport.method import MethodMesh
+from orpheus.transport.mesh.material_mesh import MaterialMesh
 from .boundary.realized_operators import RealizedBoundary
 from .boundary.realizer import SN_REALIZERS
 from .mesh.method_space import SNMethodSpace
@@ -97,7 +98,7 @@ if TYPE_CHECKING:
 # SNProblem
 # ═══════════════════════════════════════════════════════════════════════
 
-class SNProblem(MaterialMesh):
+class SNProblem(MethodMesh):
     """The SN Problem — the data hub every discrete-ordinates consumer reads.
 
     A :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` augmented with
@@ -550,8 +551,7 @@ class SNProblem(MaterialMesh):
     @cached_property
     def _contractibility_key(self) -> tuple:
         return (
-            *MaterialMesh._contractibility_key.func(self),
-            conditions_key(self.binding.declared),
+            *MethodMesh._contractibility_key.func(self),
             self.quad._identity_key,
             type(self.scheme).__qualname__,
         )
@@ -842,13 +842,13 @@ class SNProblem(MaterialMesh):
             return type(self)(
                 self.mesh, self.quad, self.materials, scheme=self.scheme,
                 angular_closure=closure_cls, scattering_order=scattering_order,
-                sigma_t_cell=sigma_t_cell, boundary_conditions=self.binding.declared,
+                sigma_t_cell=sigma_t_cell, **self._respelling_keywords(),
             )
         return type(self).from_axes(
             self.axes, self.quad, self.materials, mat_map=self.mat_map,
             scheme=self.scheme, angular_closure=closure_cls,
             scattering_order=scattering_order, sigma_t_cell=sigma_t_cell,
-            boundary_conditions=self.binding.declared,
+            **self._respelling_keywords(),
         )
 
     @property

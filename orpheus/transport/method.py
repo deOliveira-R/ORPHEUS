@@ -32,6 +32,13 @@ radial body is a tag, the radial axis has no inner-surface trace). A face with a
 and meets the table through ``require`` alone, the type- and site-level admission, so a declaration the method cannot honour
 there is refused at construction like any other.
 
+The base of the method-meshes
+=============================
+
+:class:`MethodMesh` is the one place the two binding duties of a method-mesh live (the key extended by the declared conditions, and
+the keywords a re-spelling passes so the rebuilt problem keeps them); ``SNProblem`` and ``DiffusionMesh`` derive from it, and
+every later method-mesh does too, so no method spells either duty itself.
+
 Genesis (#290 P7b), and what the Protocol deliberately does NOT contain
 ======================================================================
 
@@ -83,20 +90,22 @@ References
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar, Protocol, TypeVar, runtime_checkable
 
 from orpheus.mesh import face_labels
 from orpheus.numerics.operator import LinearOperator
+from orpheus.transport.mesh.material_mesh import MaterialMesh, conditions_key
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from orpheus.geometry.deck import DeckTransformation
     from orpheus.mesh import Axis1D
-    from orpheus.transport.boundary_conditions import BoundaryCondition, Binding, FaceSite, RealizerTable
+    from orpheus.transport.boundary_conditions import BoundaryCondition, BoundaryConditions, Binding, FaceSite, RealizerTable
 
 
-__all__ = ["TransportMethod", "realize_boundary"]
+__all__ = ["MethodMesh", "TransportMethod", "realize_boundary"]
 
 
 #: The method's realized-operator type: what its ``realize_boundary_role`` arm returns and its ``bc`` values carry. SN narrows
@@ -167,6 +176,36 @@ class TransportMethod(Protocol[OpT_co]):
         with no trace slot (a hollow body's inner face) needs nothing the method has not built yet.
         """
         ...
+
+
+class MethodMesh(MaterialMesh):
+    r"""The base of the method-meshes: a :class:`MaterialMesh` that owns a ``binding``, and the two duties that follow from owning one.
+
+    A method-mesh joins the declared exterior conditions to its faces (:attr:`binding`, set by the subclass's constructor through
+    :func:`~orpheus.transport.boundary_conditions.bind`), and owes the identity and the re-spelling machinery of the
+    :class:`MaterialMesh` two things that were spelled twice, identically, in ``SNProblem`` and ``DiffusionMesh`` until the S4
+    carve (the third copy would have been CP's, the fourth and fifth MoC's and MC's):
+
+    * **the key.** :attr:`_contractibility_key` extends the material mesh's by the declared conditions in tag order
+      (:func:`~orpheus.transport.mesh.material_mesh.conditions_key`), so two problems with the same mesh and different
+      conditions are different phase spaces, as the laws in the axes' key were before the carve;
+    * **the re-spelling.** A method that rebuilds the problem over the same phase space (``with_cross_sections``, the scattering
+      order) re-passes :meth:`_respelling_keywords`, because a rebuilt carrier whose tags are unbound is refused.
+
+    The subclass's own key adds its data after this one (``SNProblem``: the quadrature's content and the scheme type), so the
+    order of the key's members is the subclass chain's order.
+    """
+
+    #: The declared conditions joined to this carrier's faces; set by the subclass's constructor.
+    binding: "Binding"
+
+    @cached_property
+    def _contractibility_key(self) -> tuple:
+        return (*MaterialMesh._contractibility_key.func(self), conditions_key(self.binding.declared))
+
+    def _respelling_keywords(self) -> "dict[str, BoundaryConditions]":
+        """The keywords a re-spelling constructor call carries so the rebuilt problem keeps this one's conditions."""
+        return {"boundary_conditions": self.binding.declared}
 
 
 def realize_boundary(method: "TransportMethod[OpT]") -> dict[str, OpT]:
