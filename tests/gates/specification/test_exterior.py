@@ -10,8 +10,12 @@ wall is a scope boundary that issue #650 lifts (``NotImplementedError``
 naming #650). The bounds have ONE owner: the message fragment
 ``_FRAGMENT`` is defined once (law L-G); until slice S5 re-points
 ``derivations/continuous/characteristic/walls.py::Wall`` onto this class, the
-old definition there is the population S5 retires (the strict ``xfail`` row
-flips at S5).
+old definition there was the population S5 retires. S5 re-pointed it: the strict ``xfail`` row that
+waited for it is now a plain row (the mark is deleted, together with the row that asserted its strictness), and its scope is
+the REFERENCE side, ``orpheus/specification`` and ``orpheus/derivations``: production's own cone parse
+(``orpheus/transport/boundary_conditions/condition.py`` and ``errors.py``) states its own message ("the return fraction exceeds
+1: not a physical wall"), an independent derivation by the insulation ruling, so it is excluded from the claim and named in the
+failure message (``instrument-doctrine`` X2: an exclusion stated, never silent).
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ from pathlib import Path
 import pytest
 
 from tests.gates._content_identity_helpers import require
+from tests.gates._import_scan import forbidden_imports
 
 pytestmark = pytest.mark.foundation
 
@@ -127,42 +132,40 @@ def test_the_wall_bounds_message_is_owned_once_in_the_new_class() -> None:
         require(n == 1, f"{_EXTERIOR.name} defines {n} literals containing {fragment!r}, not 1")
 
 
-@pytest.mark.xfail(
-    strict=True, raises=AssertionError,
-    reason="slice S5 re-points Wall onto WallAmplitudes; until then walls.py:111-125 still defines the fragment (law L-G)",
-)
-def test_the_wall_bounds_message_is_defined_in_one_place_across_orpheus() -> None:
-    """Flips at S5: after the re-point exactly one file under ``orpheus/`` (``exterior.py``)
-    defines the fragment. Strictness is asserted by introspection below."""
-    for fragment in _FRAGMENTS:
-        owners = sorted(
-            str(p.relative_to(_ROOT))
-            for p in (_ROOT / "orpheus").rglob("*.py")
-            if _defines_fragment(p.read_text(), fragment) > 0
-        )
-        require(owners == ["orpheus/specification/exterior.py"], f"{fragment!r} is defined in {owners}")
+_REFERENCE_SIDE = ("orpheus/specification/", "orpheus/derivations/")
 
 
-def test_the_one_place_row_is_a_strict_xfail_with_a_reason() -> None:
-    """A marker moved into ``pytest.param(marks=...)`` loses strictness: assert it on the row itself."""
-    marks = [m for m in test_the_wall_bounds_message_is_defined_in_one_place_across_orpheus.pytestmark if m.name == "xfail"]
-    require(len(marks) == 1 and marks[0].kwargs.get("strict") is True and bool(marks[0].kwargs.get("reason")), "strict xfail with reason")
+def _owners(fragment: str) -> list[str]:
+    """Every file under ``orpheus/`` holding at least one string literal (docstrings included) with ``fragment``."""
+    return sorted(
+        str(p.relative_to(_ROOT))
+        for p in (_ROOT / "orpheus").rglob("*.py")
+        if _defines_fragment(p.read_text(), fragment) > 0
+    )
+
+
+@pytest.mark.parametrize("fragment", _FRAGMENTS)
+def test_the_wall_bounds_message_is_defined_in_one_place_on_the_reference_side(fragment: str) -> None:
+    """After S5 exactly one file of the reference side (``exterior.py``) defines each fragment: ``Wall`` composes ``WallAmplitudes``.
+
+    Law L-G, flipped at S5 (the strict ``xfail`` of L5 is deleted). Controls, run first: the unscoped owner list contains
+    ``exterior.py`` (the scan reads a known owner) and, for the bounds fragment, a PRODUCTION owner outside the scope
+    (``transport/boundary_conditions``), which is why the scope is the reference side and not the tree: production's cone
+    parse is a second, independent statement of its own message. Red at base: ``derivations/continuous/characteristic/walls.py``
+    defines both fragments beside ``exterior.py`` (its ``Wall.__post_init__``, ``walls.py:111-125``). Named mutation: restore
+    either refusal in ``Wall.__post_init__`` (the pre-S5 body), or copy the message into any ``derivations`` module."""
+    everywhere = _owners(fragment)
+    require("orpheus/specification/exterior.py" in everywhere, f"control: exterior.py is not an owner of {fragment!r}: {everywhere}")
+    reference = [f for f in everywhere if f.startswith(_REFERENCE_SIDE)]
+    excluded = [f for f in everywhere if f not in reference]
+    require(reference == ["orpheus/specification/exterior.py"], f"{fragment!r} is defined on the reference side in {reference} (production owners excluded from the claim: {excluded})")
+    if fragment == _BOUNDS:
+        require(any("transport/boundary_conditions" in f for f in excluded), f"control: no production owner of {fragment!r} outside the scope: {excluded}")
 
 
 def _forbidden_imports(source: str) -> list[str]:
-    found: list[str] = []
-    for node in ast.walk(ast.parse(source)):
-        names: list[str] = []
-        if isinstance(node, ast.Import):
-            names = [a.name for a in node.names]
-        elif isinstance(node, ast.ImportFrom):
-            if node.level:
-                names = ["<relative>"]
-            else:
-                base = node.module or ""
-                names = [base] + [f"{base}.{a.name}" for a in node.names]
-        found += [n for n in names if n == "<relative>" or any(n == f or n.startswith(f + ".") for f in _FORBIDDEN)]
-    return found
+    """The forbidden imports of ``source`` (the shared AST scan, :mod:`tests.gates._import_scan`; a relative import is reported)."""
+    return forbidden_imports(source, _FORBIDDEN)
 
 
 def test_the_value_imports_nothing_across() -> None:
