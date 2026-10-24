@@ -40,17 +40,17 @@ approximating any of them), and it is stated as ``Realized(faithful=False)``.
 The table (unit, admission, image)
 ==================================
 
-=========================  =====================  ===========================  ========================================
-Realizer                   Key (unit)             Admission                    Image
-=========================  =====================  ===========================  ========================================
-``DiffusionZero``          ``ZeroNetwork``        ``Realized(True)``, tier 1*  ``ZeroOperator`` (:math:`\mathcal{A}=0`)
-``DiffusionSpecularChain`` ``SpecularChain``      ``Realized(False)``, tier 2  :math:`w\cdot I` (the chain's weight)
-``DiffusionDiffuseChain``  ``DiffuseChain``       ``Realized(False)``, tier 2  :math:`w\cdot I` (the chain's weight)
-``DiffusionZeroFlux``      ``ZeroFluxCondition``  ``Realized(True)``, tier 1   :math:`-I` (:math:`\mathcal{A}=-1`)
-``DiffusionSource``        ``InflowTerms``        ``Refused(PLUMBING, #656)``  none (a source is an array, no operator)
-``DiffusionDecks``         the decks              mirror ``Realized(False)``,  mirror: :math:`I`; translation: refused
-                                                  translation ``Refused(TOPOLOGY)``
-=========================  =====================  ===========================  ========================================
+==========================  =====================  ==================================  ========================================
+Realizer                    Key (unit)             Admission                           Image
+==========================  =====================  ==================================  ========================================
+``DiffusionZero``           ``ZeroNetwork``        ``Realized(True)``, tier 1*         ``ZeroOperator`` (:math:`\mathcal{A}=0`)
+``DiffusionSpecularChain``  ``SpecularChain``      ``Realized(False)``, tier 2         :math:`w\cdot I` (the chain's weight)
+``DiffusionDiffuseChain``   ``DiffuseChain``       ``Realized(False)``, tier 2         :math:`w\cdot I` (the chain's weight)
+``DiffusionZeroFlux``       ``ZeroFluxCondition``  ``Realized(True)``, tier 1          :math:`-I` (:math:`\mathcal{A}=-1`)
+``DiffusionSource``         ``InflowTerms``        ``Refused(PLUMBING, #656)``         none (a source is an array, no operator)
+``DiffusionDecks``          the decks              mirror ``Realized(False)``,         mirror: :math:`I`; translation: refused
+                                                   translation ``Refused(TOPOLOGY)``
+==========================  =====================  ==================================  ========================================
 
 \* At the inner face of a hollow radial body every response realizer refuses on #511 except a specular chain of weight 1.0 (below).
 

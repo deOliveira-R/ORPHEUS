@@ -43,7 +43,7 @@ Carlo) have no key and no re-spelling, hence no such duty; what the three share 
 of the shared body, and :class:`Mesh1DMethodMesh` is the one place those live.
 
 Genesis (#290 P7b), and what the Protocol deliberately does NOT contain
-======================================================================
+=======================================================================
 
 The Protocol was deliberately **deferred until a second method-mesh existed** (the defer-until-two rule). Its two recorded
 witnesses were the **homogenization method-layer** of :mod:`orpheus.transport.mesh.material_mesh` and the twin

@@ -1,7 +1,8 @@
 r"""SN method space: the quadrature and the trace ladder a realizer reads.
 
 The :class:`SNMethodSpace` is the SN-specific argument to
-:meth:`~orpheus.sn.boundary.realizer.SN_REALIZERS.realize`. It carries the two things an SN realizer needs to turn a declared
+the SN table's door, :meth:`RealizerTable.realize <orpheus.transport.boundary_conditions.realization.RealizerTable.realize>` on
+:data:`~orpheus.sn.boundary.realizer.SN_REALIZERS`. It carries the two things an SN realizer needs to turn a declared
 unit (a chain of the response network) into a
 :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`:
 

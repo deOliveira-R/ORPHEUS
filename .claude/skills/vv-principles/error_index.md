@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**119 entries · 391 catching tests · 2 uncaught · 5 dormant.**
+**119 entries · 347 catching tests · 2 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -89,13 +89,13 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-038 | 2 |  | Atalay 1997 Tables 2-5 first-order Fredholm precision floor at small slab thicknesses |
 | ERR-039 | 12 |  | HarmonicMomentProjection.apply_transpose claimed Π* = R but used the addition-theorem reconstru… |
 | ERR-040 | 1 |  | Tangential ordinate silently classified as inflow OR outflow at a face requiring strict partiti… |
-| ERR-041 | 5 |  | Vacuum BC constructed against an outgoing trace (Γ_+ instead of Γ_-) |
-| ERR-042 | 10 |  | Reflection-index table inconsistent with quadrature weights (measure-non-preserving G) |
-| ERR-043 | 8 |  | Boundary response kernel produces negative output (e.g. negative albedo via sign-flipped constr… |
-| ERR-044 | 11 |  | Reflection permutation is not an involution (perm ∘ perm ≠ id) |
-| ERR-045 | 11 |  | Reflection maps an inflow ordinate to itself rather than to its outflow partner |
-| ERR-046 | 8 |  | Albedo / white kernel with α > 1 (sub-Markov violation) |
-| ERR-047 | 9 |  | Boundary source q has nonzero entries on the outflow trace (q ∉ Γ_-) |
+| ERR-041 | 4 |  | Vacuum BC constructed against an outgoing trace (Γ_+ instead of Γ_-) |
+| ERR-042 | 2 |  | Reflection-index table inconsistent with quadrature weights (measure-non-preserving G) |
+| ERR-043 | 1 |  | Boundary response kernel produces negative output (e.g. negative albedo via sign-flipped constr… |
+| ERR-044 | 2 |  | Reflection permutation is not an involution (perm ∘ perm ≠ id) |
+| ERR-045 | 2 |  | Reflection maps an inflow ordinate to itself rather than to its outflow partner |
+| ERR-046 | 1 |  | Albedo / white kernel with α > 1 (sub-Markov violation) |
+| ERR-047 | 5 |  | Boundary source q has nonzero entries on the outflow trace (q ∉ Γ_-) |
 | ERR-048 | 6 |  | Curvilinear SI sweep: pole-face WDD IC + Carlson seed source convention drift between SI and ap… |
 | ERR-049 | 6 |  | Convention drift between operator-algebra and transport_sweep — per-ordinate vs iso magnitude o… |
 | ERR-050 | 3 |  | Silent preconditioner fallback breaks stateful-inverse contract — KrylovAcceleration(preconditi… |
@@ -121,7 +121,7 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-070 | 4 |  | the σ_r-fold: realizing the within-group scattering gain as a diagonal σ_r-sweep (A_wg.solve wi… |
 | ERR-071 | 4 |  | the composite sweep inverse dropped the rhs's OUTFLOW-trace rows: (L+C)⁻¹ seeded its boundary b… |
 | ERR-072 | 7 |  | SubgroupOfO3.SO2.is_invariant certifies a NON-SO(2)-invariant rule: the "representative orbit"… |
-| ERR-073 | 3 |  | _orbit_closure documents "find a permutation π such that M(nodes)_i = nodes_{π(i)}" but only ev… |
+| ERR-073 | 2 |  | _orbit_closure documents "find a permutation π such that M(nodes)_i = nodes_{π(i)}" but only ev… |
 | ERR-074 | 1 |  | _find_reflections computed a reflection partner map by bare argmin and never checked that the r… |
 | ERR-075 | 6 |  | the SN realizer returned an AFFINE operator for prescribed inflow and withheld the BlockRole.BO… |
 | ERR-076 | 12 |  | TensorProductOperator derived NO spaces from its factors, so (K_ω ⊗ I).H silently degraded from… |
@@ -142,7 +142,7 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-091 | 1 |  | Billiard's multi-region-sphere fixed-source arm reported one group and returned group 0 as the… |
 | ERR-092 | 1 |  | V_fn2.1 certified a typo in Sood's Eq 28 (2003 Eq (A.11)) by comparing the derivation with a mi… |
 | ERR-093 | 1 |  | solve_moc's default mesh was the Wigner–Seitz pin cell, whose outer law is white, and MoC links… |
-| ERR-094 | 9 |  | A partially reflecting boundary law reached SN as a typed law and was read as a perfect mirror… |
+| ERR-094 | 11 |  | A partially reflecting boundary law reached SN as a typed law and was read as a perfect mirror… |
 | ERR-095 | 1 |  | The S\ :sub:`N` eigenvalue entries answered the source-free problem when a face declared a pres… |
 | ERR-096 | 1 |  | Symbolic.without simplified each expression before substituting, and SymPy's simplify rewrote a… |
 | ERR-097 | 4 |  | The inner GMRES IterationRecord judged scipy's pr_norm callback, the preconditioned residual ov… |

@@ -24,9 +24,10 @@ These rows are the home of a claim that used to live on the retired
 
 That hazard did NOT retire with the closures — it is now what
 :class:`ZeroMorphism`'s bound-shape derivation exists to prevent, and
-:func:`~orpheus.sn.boundary.realizer._narrowed_zero_operator`'s own docstring
-still says relying on the endomorphic echo would be "wrong in principle and
-merely lucky in practice". So the discrimination is made where unequal ends
+:class:`~orpheus.sn.boundary.realized_operators.ZeroMap`, the image of the
+empty network, states the same requirement: a zero map between two different
+spaces must emit the zero of the space it lands in, not an echo of the one it
+came from. So the discrimination is made where unequal ends
 are CONSTRUCTIBLE, which is here: the pair below is deliberately ``3 ≠ 7``.
 
 V&V tags

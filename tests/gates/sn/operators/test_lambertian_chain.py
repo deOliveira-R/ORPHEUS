@@ -159,10 +159,11 @@ def _cosine_weights(quad: Quadrature, rows: np.ndarray, face: str) -> np.ndarray
 class _Lambertian:
     r"""The bound chain :math:`R = B \circ C` on ONE face, plus its pieces.
 
-    ⚠ The construction mirrors
-    :func:`~orpheus.sn.boundary.realizer._checked_angular_average` (minus its
-    ERR-041 orientation cross-check, which is the realizer's own claim and is
-    gated in ``test_sn_boundary_realizer.py``). Calling the realizer here
+    ⚠ The construction mirrors the body of
+    :class:`~orpheus.sn.boundary.realized_operators.RankOneReemission`, which
+    reads the hemisphere off the trace ladder, so the orientation cross-check
+    of the builder it replaced has nothing left to compare (the ERR-041 catcher
+    is in ``test_sn_boundary_realizer.py``). Calling the realizer here
     instead would make a unit module depend on the dispatch layer above it. If
     this file is folded into ``test_lambertian_factored.py``, this class and
     that module's ``_Lambertian`` collapse into one — see

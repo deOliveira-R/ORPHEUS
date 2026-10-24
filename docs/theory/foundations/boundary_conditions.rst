@@ -67,7 +67,7 @@ Key Facts
   |       | (Γ\_-, Γ\_+ + mask)   | (all Mesh1D coord systems + 2-D Cartesian;          |
   |       |                       | 2-D cylindrical Mesh2D deferred)                    |
   +-------+-----------------------+-----------------------------------------------------+
-  | 2     | Boundary law          | ``orpheus.geometry.boundary`` (ABC +             |
+  | 2     | Boundary law          | ``orpheus.geometry.boundary`` (ABC +                |
   |       | (method-agnostic)     | 7 concrete laws, kind-keyed law registry)           |
   +-------+-----------------------+-----------------------------------------------------+
   | 3     | Method realizer       | per-method packages (SN + diffusion,                |
@@ -2218,9 +2218,9 @@ convergence
 
 
 .. implements:: bc-single-delivery
-   :by: orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow
+   :by: orpheus.transport.boundary_conditions.realization.sample_terms
 
-   **Implemented by** 7 sites. Every symbol that executes this
+   **Implemented by** 8 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
@@ -2233,13 +2233,16 @@ convergence
    :by: orpheus.sn.solver._build_fixed_source_rhs
 
 .. implements:: bc-single-delivery
+   :by: orpheus.sn.boundary.realizer.SNSource.sample
+
+.. implements:: bc-single-delivery
    :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink
 
 .. implements:: bc-single-delivery
-   :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink.from_problem_laws
+   :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink.from_method
 
 .. implements:: bc-single-delivery
-   :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink.from_specs
+   :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink._pack_inflow
 
 .. implements:: bc-single-delivery
    :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink.prescribed_inflow
