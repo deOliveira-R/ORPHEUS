@@ -72,7 +72,16 @@ pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/values/test_content_identity.py"
 _ROOT = Path(__file__).resolve().parents[3]
-ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER + QUESTION_ROSTER + SPECIFICATION_ROSTER + TRANSPORT_ROSTER + ENCLOSURE_ROSTER + READING_ROSTER + OBSERVABLE_ROSTER + PUBLISHED_ROSTER + CERTIFICATE_ROSTER + CHARACTERISTIC_ROSTER
+from orpheus.diffusion import ZeroFluxCondition  # noqa: E402  (the one content type of orpheus.diffusion; it has no fields)
+
+DIFFUSION_ROSTER: tuple[Entry, ...] = (
+    Entry(
+        cls=ZeroFluxCondition, base=ZeroFluxCondition, parts=(), perturb={},
+        pairs=(("two builds", ZeroFluxCondition, ZeroFluxCondition),),
+    ),
+)
+
+ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER + QUESTION_ROSTER + SPECIFICATION_ROSTER + TRANSPORT_ROSTER + ENCLOSURE_ROSTER + READING_ROSTER + OBSERVABLE_ROSTER + PUBLISHED_ROSTER + CERTIFICATE_ROSTER + CHARACTERISTIC_ROSTER + DIFFUSION_ROSTER
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -383,8 +392,8 @@ _DECLARED_EQ_OVERRIDES = frozenset({"VacuumInflow", "ReflectiveBoundary"})
 #: The packages whose classes S5.9 walks. Of ``orpheus.derivations``, the package whose derivation is a reference
 #: solution (its receiver is a traced-memo key); the rest of ``orpheus.derivations`` is NOT walked. The
 #: trajectory-resolvent package was the second until step (e2) of the characteristic-reference campaign deleted it.
-_PACKAGES = ("orpheus.data", "orpheus.geometry", "orpheus.mesh", "orpheus.numerics", "orpheus.specification", "orpheus.reference", "orpheus.transport",
-             "orpheus.derivations.continuous.characteristic")
+_PACKAGES = ("orpheus.values", "orpheus.data", "orpheus.geometry", "orpheus.mesh", "orpheus.numerics", "orpheus.specification", "orpheus.reference", "orpheus.transport",
+             "orpheus.derivations.continuous.characteristic", "orpheus.diffusion")
 
 
 def _content_classes() -> list[type]:
@@ -402,7 +411,8 @@ def _content_classes() -> list[type]:
         if cls not in found:
             found.append(cls)
             stack.extend(cls.__subclasses__())
-    return [c for c in found if c.__module__.startswith("orpheus.")]
+    # the population is STATED: the classes defined under the walked packages, never whatever else the run has imported
+    return [c for c in found if c.__module__.startswith(tuple(f"{name}." for name in _PACKAGES))]
 
 
 def _owner(cls: type, name: str) -> type:

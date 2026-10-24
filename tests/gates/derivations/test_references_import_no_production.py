@@ -19,8 +19,9 @@ production numerics), and the interface between references and production is pla
   runs FIRST, and whose population (files scanned, imported names read) the failure message states
   (``instrument-doctrine`` X1, X2).
 * **The retired readers** (``test_the_retired_law_readers_are_gone``). ``TAG_REGISTRY``, ``_law_of``, ``_wall_of``, ``_parameters``
-  (``walls.py``), ``specular_albedo`` (``reference_body.py``) and the ``BC.to_alpha`` method have no remaining definition and no
-  remaining reference under ``orpheus/derivations`` (identifier census over ``ast.Name``, ``ast.Attribute``, import aliases
+  (``walls.py``), ``specular_albedo`` (``reference_body.py``) and the ``BC.to_alpha`` method have no definition and no
+  reference under ``orpheus/derivations`` (the census tree; ``to_alpha`` itself is still defined in ``orpheus/geometry/boundary/_tag.py``
+  until WF2.4 deletes that package, so the claim is about the reference tree only) (identifier census over ``ast.Name``, ``ast.Attribute``, import aliases
   and function/class definitions, so a docstring mention is not a use). The census's control is a known live name of each file
   (``Walls``; ``specular_albedos``). A retirement that left a reader behind would keep the law family importable from a reference.
 * **The carve is what moves it** (``test_the_reference_walls_module_names_no_production_type``): the ``walls.py`` module reads
@@ -161,7 +162,7 @@ _LAW_FAMILY = (
 
 @pytest.mark.rests_on(_HERE + "test_the_retired_law_readers_are_gone")
 def test_the_reference_walls_module_names_no_production_type() -> None:
-    """``walls.py`` reads ``WallAmplitudes`` and the decks, and names none of the retiring law family's nine names.
+    """``walls.py`` reads ``WallAmplitudes``, ``TranslationDeck`` (the partner) and the one role reader ``amplitudes_at`` (which names both decks, in ``reference_body.py``), and names none of the retiring law family's nine names.
 
     Control: the same census over a planted source with ``BC`` finds it. Red at base: seven of the nine are named (``BoundaryTraceLaw``,
     ``AlbedoBoundary``, ``ReflectiveBoundary``, ``WhiteBoundary``, ``PeriodicBoundary``, ``VacuumInflow``, ``BC``). ``WallAmplitudes`` is named after the carve (``Wall`` composes it), so its presence is part of
@@ -172,4 +173,8 @@ def test_the_reference_walls_module_names_no_production_type() -> None:
     named = [n for n in _LAW_FAMILY if n in names]
     require(not named, f"walls.py still names the retiring law family: {named}")
     require("WallAmplitudes" in names, "walls.py does not name WallAmplitudes: Wall must compose it (decision 54)")
-    require({"MirrorDeck", "TranslationDeck"} <= names, "walls.py reads no geometry deck (MirrorDeck, TranslationDeck)")
+    require({"TranslationDeck", "amplitudes_at"} <= names, "walls.py reads no deck of its own (TranslationDeck, for the partner) or no role reader (amplitudes_at)")
+    # the role's amplitudes are read in ONE place (the amend of review finding 7): both decks are named there, and no law-family name
+    shared = _defined_and_used(_REFERENCE_BODY.read_text())
+    require({"MirrorDeck", "TranslationDeck"} <= shared, "reference_body.py reads no geometry deck (MirrorDeck, TranslationDeck)")
+    require(not [n for n in _LAW_FAMILY if n in shared], f"reference_body.py names the retiring law family: {[n for n in _LAW_FAMILY if n in shared]}")

@@ -52,9 +52,10 @@ import numpy as np
 
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.chord import ConcentricPartition
-from orpheus.geometry.deck import FaceRole, MirrorDeck, TranslationDeck
+from orpheus.geometry.deck import FaceRole, TranslationDeck
 from orpheus.geometry.structured_geometry import StructuredGeometry
-from orpheus.specification.exterior import WallAmplitudes
+from orpheus.derivations.common.reference_body import amplitudes_at
+from orpheus.specification.exterior import WallAmplitudes, admit_exterior
 
 
 def end_on(breakpoint: np.ndarray | int, partition: ConcentricPartition) -> np.ndarray:
@@ -164,7 +165,12 @@ class Walls:
 
     @classmethod
     def of(cls, geometry: StructuredGeometry, exterior: Mapping[int, WallAmplitudes]) -> "Walls":
-        r"""The walls of ``geometry``: each boundary face's role read, a deck as itself and a tag through ``exterior``."""
+        r"""The walls of ``geometry``: each boundary face's role read, a deck as itself and a tag through ``exterior``.
+
+        ``exterior`` is admitted as an exact cover of ``geometry.tags`` first
+        (:func:`~orpheus.specification.exterior.admit_exterior`), so a missing or an unused tag is refused by number.
+        """
+        exterior = admit_exterior(exterior, geometry, owner="Walls.of")
         n = len(geometry.breakpoints) - 1
         indices = (n,) if len(geometry.boundary_points) == 1 else (0, n)
         walls = tuple(
@@ -218,16 +224,13 @@ class Walls:
 
 
 def _wall_at_face(role: FaceRole, breakpoint: int, *, opposite: int, exterior: Mapping[int, WallAmplitudes]) -> Wall:
-    r"""The wall at ``breakpoint`` that a face role states: a deck states its own, a tag is looked up in ``exterior``."""
-    match role:
-        case MirrorDeck():
-            return Wall(breakpoint, WallAmplitudes(1.0, 0.0), breakpoint)
-        case TranslationDeck():
-            return Wall(breakpoint, WallAmplitudes(1.0, 0.0), opposite)
-        case int():
-            if role not in exterior:
-                raise ValueError(f"the face at breakpoint {breakpoint} carries tag {role}, which the exterior {sorted(exterior)} does not state")
-            return Wall(breakpoint, exterior[role], breakpoint)
+    r"""The wall at ``breakpoint`` that a face role states: its amplitudes, and where the returned path re-enters.
+
+    The amplitudes are :func:`~orpheus.derivations.common.reference_body.amplitudes_at`'s; the partner is this reader's
+    own concern: a translation re-enters at the ``opposite`` breakpoint, every other role at its own.
+    """
+    partner = opposite if isinstance(role, TranslationDeck) else breakpoint
+    return Wall(breakpoint, amplitudes_at(role, exterior), partner)
 
 
 __all__ = ["Wall", "Walls", "end_on"]

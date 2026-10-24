@@ -70,7 +70,7 @@ def aba_materials() -> Materials:
 #: ``(1, 0)`` (a reflecting curved wall is a response bound to a tag, never a deck). A production solve of the same body binds
 #: tag 0 to ``WallCondition.specular(1.0)`` at the solve (``tests/gates/_exterior.py``), the loop
 #: ``tests/gates/_reference_pairing.py`` being the one translation of a reference exterior.
-ABA_EXTERIOR = {0: WallAmplitudes(1.0, 0.0)}
+ABA_EXTERIOR = {0: WallAmplitudes.MIRROR}
 
 
 def aba_geometry(coord: CoordSystem) -> StructuredGeometry:

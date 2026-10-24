@@ -63,7 +63,7 @@ pytestmark = pytest.mark.foundation
 _HERE = "tests/gates/specification/test_exterior_on_the_specification.py::"
 _EXTERIOR = "tests/gates/specification/test_exterior.py::"
 _LEAF = _EXTERIOR + "test_wall_amplitudes_a_stated_wall_constructs"
-_VACUUM = WallAmplitudes(0.0, 0.0)
+_VACUUM = WallAmplitudes.VACUUM
 
 
 def _question() -> Eigen:
@@ -111,7 +111,7 @@ def test_the_exterior_is_the_trailing_field_and_defaults_to_the_empty_mapping() 
     [
         (slab2, {0: _VACUUM}),
         (slab2, {0: WallAmplitudes(0.37, 0.0)}),
-        (_two_tag_hollow_sphere, {1: WallAmplitudes(0.0, 0.6), 2: WallAmplitudes(1.0, 0.0)}),
+        (_two_tag_hollow_sphere, {1: WallAmplitudes(0.0, 0.6), 2: WallAmplitudes.MIRROR}),
         (_deck_only, {}),
     ],
     ids=["slab-vacuum", "slab-partial", "hollow-sphere-two-tags", "deck-only"],
@@ -260,8 +260,8 @@ def test_two_specifications_differing_only_in_the_exterior_have_different_digest
     require(content_digest(specular) != content_digest(diffuse), "a 0.3 specular wall and a 0.3 diffuse wall share a digest")
     again = _spec(slab2(), exterior={0: WallAmplitudes(0.3, 0.0)})
     require(content_digest(specular) == content_digest(again) and specular == again, "one stated exterior built twice is two keys")
-    forward = _spec(_two_tag_hollow_sphere(), exterior={1: _VACUUM, 2: WallAmplitudes(1.0, 0.0)})
-    backward = _spec(_two_tag_hollow_sphere(), exterior={2: WallAmplitudes(1.0, 0.0), 1: _VACUUM})
+    forward = _spec(_two_tag_hollow_sphere(), exterior={1: _VACUUM, 2: WallAmplitudes.MIRROR})
+    backward = _spec(_two_tag_hollow_sphere(), exterior={2: WallAmplitudes.MIRROR, 1: _VACUUM})
     require(content_digest(forward) == content_digest(backward) and forward == backward, "the insertion order of the exterior is content")
 
 

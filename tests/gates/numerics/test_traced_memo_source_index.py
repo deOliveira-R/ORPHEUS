@@ -364,7 +364,7 @@ def test_b5_a_real_manifest_is_the_same_from_a_cold_and_a_warm_index(tmp_path, m
     from orpheus.specification.exterior import WallAmplitudes
 
     sphere = CoordSystem.SPHERICAL
-    walls = lambda n: Walls((Wall(n, WallAmplitudes(0.0, 1.0), n),), n, Chart(sphere))  # noqa: E731
+    walls = lambda n: Walls((Wall(n, WallAmplitudes.WHITE, n),), n, Chart(sphere))  # noqa: E731
     cases = [(PanelBasis.of(ConcentricPartition(Chart(sphere), (0.0, 1.0)), 3, 2, 0.4), walls(1), (0.7 + 0.01 * k,), TransportResolution(4)) for k in range(3)]
     cases += [(PanelBasis.of(ConcentricPartition(Chart(sphere), (0.0, 0.5, 1.5, 2.0)), 3, 2, 0.4), walls(3), (0.6 + 0.01 * k, 1.3, 0.45), TransportResolution(4)) for k in range(2)]
     recording = boot.Recording().start()

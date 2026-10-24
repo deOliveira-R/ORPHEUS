@@ -68,11 +68,11 @@ def _slab(left, right) -> StructuredGeometry:
 # wall 0 and at the right wall 3). Written from the physics of each wall.
 _MIRROR, _WRAP = MirrorDeck(), TranslationDeck()
 _ROLE_ROWS = [
-    ("vacuum", 0, 0, {0: WallAmplitudes(0.0, 0.0)}, (0.0, 0.0, 0), (0.0, 0.0, 3)),
+    ("vacuum", 0, 0, {0: WallAmplitudes.VACUUM}, (0.0, 0.0, 0), (0.0, 0.0, 3)),
     ("mirror_deck", _MIRROR, _MIRROR, {}, (1.0, 0.0, 0), (1.0, 0.0, 3)),
     ("specular_tags", 0, 1, {0: WallAmplitudes(0.37, 0.0), 1: WallAmplitudes(0.81, 0.0)}, (0.37, 0.0, 0), (0.81, 0.0, 3)),
     ("diffuse_tags", 0, 1, {0: WallAmplitudes(0.0, 0.37), 1: WallAmplitudes(0.0, 0.81)}, (0.0, 0.37, 0), (0.0, 0.81, 3)),
-    ("white_full_return", 0, 1, {0: WallAmplitudes(0.0, 0.6), 1: WallAmplitudes(0.0, 1.0)}, (0.0, 0.6, 0), (0.0, 1.0, 3)),
+    ("white_full_return", 0, 1, {0: WallAmplitudes(0.0, 0.6), 1: WallAmplitudes.WHITE}, (0.0, 0.6, 0), (0.0, 1.0, 3)),
     ("wrap_deck", _WRAP, _WRAP, {}, (1.0, 0.0, 3), (1.0, 0.0, 0)),
     ("mixed_mirror_and_matte", _MIRROR, 0, {0: WallAmplitudes(0.0, 0.25)}, (1.0, 0.0, 0), (0.0, 0.25, 3)),
     ("shared_tag", 0, 0, {0: WallAmplitudes(0.0, 0.5)}, (0.0, 0.5, 0), (0.0, 0.5, 3)),
@@ -118,8 +118,8 @@ def test_a_body_has_a_wall_at_each_boundary_point_and_none_elsewhere() -> None:
     )
     assert [w.breakpoint for w in hollow.walls] == [0, 2]
     np.testing.assert_array_equal(hollow.specular_at(np.array([[2, 0], [0, 2]])), [[0.6, 0.3], [0.3, 0.6]])
-    solid = Walls.of(StructuredGeometry.sphere(_SOLID_BP, (0, 1, 2), outer=0), {0: WallAmplitudes(1.0, 0.0)})
-    assert solid.walls == (Wall(3, WallAmplitudes(1.0, 0.0), 3),)
+    solid = Walls.of(StructuredGeometry.sphere(_SOLID_BP, (0, 1, 2), outer=0), {0: WallAmplitudes.MIRROR})
+    assert solid.walls == (Wall(3, WallAmplitudes.MIRROR, 3),)
     for walls, non_walls in ((hollow, (1, 3)), (solid, (0, 1, 2, 4))):
         for k in non_walls:
             for lookup in (walls.specular_at, walls.diffuse_at, walls.partner_at):
@@ -133,16 +133,16 @@ def test_a_body_has_a_wall_at_each_boundary_point_and_none_elsewhere() -> None:
 @pytest.mark.foundation
 @pytest.mark.parametrize(("make", "exterior", "unstated"), [
     (lambda: _slab(0, 0), {}, 0),
-    (lambda: _slab(0, 1), {0: WallAmplitudes(0.0, 0.0)}, 1),
-    (lambda: StructuredGeometry.sphere(_HOLLOW_BP, (0, 1), inner=2, outer=0), {0: WallAmplitudes(0.0, 0.0)}, 2),
+    (lambda: _slab(0, 1), {0: WallAmplitudes.VACUUM}, 1),
+    (lambda: StructuredGeometry.sphere(_HOLLOW_BP, (0, 1), inner=2, outer=0), {0: WallAmplitudes.VACUUM}, 2),
 ], ids=["slab_no_entry", "slab_second_tag_missing", "hollow_inner_tag_missing"])
 def test_a_tag_the_exterior_does_not_state_is_refused_by_number(make, exterior, unstated: int) -> None:
     """``Walls.of`` on a tag with no amplitudes is a ``ValueError`` naming the tag.
 
-    The specification's exact cover makes this unreachable through a specification; the reader still takes a bare
-    mapping, so it answers the one question the cover would have (a tag missing would otherwise be a ``KeyError``
-    naming nothing). First red: the lookup unguarded (``KeyError``)."""
-    with pytest.raises(ValueError, match=rf"tag {unstated}\b"):
+    The reader takes a bare mapping and admits it as the exact cover through the specification's own door
+    (:func:`~orpheus.specification.exterior.admit_exterior`), so a missing tag is refused by number here as it is at
+    construction of a specification (it would otherwise be a ``KeyError`` naming nothing). First red: the admission removed."""
+    with pytest.raises(ValueError, match=rf"tag\(s\) \[{unstated}\]"):
         Walls.of(make(), exterior)
 
 
@@ -167,7 +167,7 @@ def test_a_directly_built_walls_refuses_what_walls_of_refuses() -> None:
     from orpheus.geometry.coord import CoordSystem
 
     slab, sphere = Chart(CoordSystem.CARTESIAN), Chart(CoordSystem.SPHERICAL)
-    vacuum, mirror = WallAmplitudes(0.0, 0.0), WallAmplitudes(1.0, 0.0)
+    vacuum, mirror = WallAmplitudes.VACUUM, WallAmplitudes.MIRROR
     with pytest.raises(ValueError, match="walls sit at distinct breakpoints"):
         Walls((Wall(1, vacuum, 1),), 3, slab)
     with pytest.raises(ValueError, match="walls sit at distinct breakpoints"):

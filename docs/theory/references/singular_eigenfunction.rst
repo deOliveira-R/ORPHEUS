@@ -520,11 +520,12 @@ d)\,H(\mu)\,d\mu` are half-range integrals against the Atalay
 
 **How** :class:`Spectrum` **reads** :math:`R`. The reflection
 coefficient is not a constructor argument; it is the geometry's
-boundary laws, each read as a specular albedo by
-:func:`~orpheus.derivations.common.reference_body.specular_albedo`
-(``BC.vacuum`` 0, ``BC.reflective`` 1, ``BC("partial", {"albedo": R})``
-:math:`R`; a white, periodic or isotropically returning law is
-refused). The slab solver above puts one :math:`R` on both faces, so a
+face roles, each read as a specular albedo by
+:func:`~orpheus.derivations.common.reference_body.specular_albedos`
+over the geometry and the ``exterior`` that binds its tags (a tag bound to
+``WallAmplitudes.VACUUM`` 0, a ``MirrorDeck`` 1, a tag bound to
+:math:`(R, 0)` :math:`R`; a white, a wrapping or an isotropically
+returning wall is refused). The slab solver above puts one :math:`R` on both faces, so a
 slab whose two faces declare different albedos is refused; the sphere
 takes :math:`R` from its outer surface; the cylinder solver below is
 bare, so a cylinder with a nonzero albedo is refused (the reflected
@@ -722,7 +723,8 @@ isotropic):
    from orpheus.derivations.continuous.singular_eigenfunction import (
        Spectrum,
    )
-   from orpheus.geometry import BC
+   from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
+   from orpheus.specification.exterior import WallAmplitudes
 
    mix = make_mixture(
        sig_t=np.array([1.0]),
@@ -737,9 +739,9 @@ isotropic):
        coord=CoordSystem.CYLINDRICAL,
        breakpoints=(0.0, 1.72500292),
        mat_ids=(0,),
-       boundaries=(BC.vacuum,),
+       face_roles=(0,),                 # one tag on the outer face
    )
-   spec = Spectrum(geometry=geom, materials={0: mix}, n_modes=24)
+   spec = Spectrum(geometry=geom, exterior=VACUUM_EXTERIOR, materials={0: mix}, n_modes=24)
    sol = spec.solve_critical()
    # sol.parameter_value ≈ 1.7250035 mfp
    # sol.eigenvalue == 1.0 (k_eff at criticality)
@@ -764,9 +766,10 @@ different albedos is refused:
        coord=CoordSystem.CARTESIAN,
        breakpoints=(0.0, 2.0),  # placeholder full width
        mat_ids=(0,),
-       boundaries=(BC("partial", {"albedo": 0.50}),) * 2,  # R = 0.50 on both faces
+       face_roles=(0, 0),               # one tag on both faces
    )
-   spec = Spectrum(geometry=geom, materials={0: mix}, n_modes=8)
+   # R = 0.50 on both faces: the wall behind tag 0 returns half specularly
+   spec = Spectrum(geometry=geom, exterior={0: WallAmplitudes(0.50, 0.0)}, materials={0: mix}, n_modes=8)
    sol = spec.solve_critical()
    # sol.parameter_value: critical half-thickness in mfp
 

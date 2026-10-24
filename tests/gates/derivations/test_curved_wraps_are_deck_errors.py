@@ -141,7 +141,7 @@ def test_walls_of_never_meets_a_curved_wrap() -> None:
     from orpheus.specification.exterior import WallAmplitudes
 
     legal = _radial("sphere", _HOLLOW, (0, 1), inner=0, outer=0)
-    walls = Walls.of(legal, {0: WallAmplitudes(0.0, 0.0)})
+    walls = Walls.of(legal, {0: WallAmplitudes.VACUUM})
     require(len(walls.walls) == 2, f"the legal hollow body reads {len(walls.walls)} walls")
     with pytest.raises(_deck_error()):
         Walls.of(_radial("sphere", _HOLLOW, (0, 1), inner=TranslationDeck(), outer=TranslationDeck()), {})
@@ -161,8 +161,8 @@ def test_a_directly_built_walls_keeps_its_structural_guards_on_the_new_wall() ->
     from orpheus.geometry.coord import CoordSystem
     from orpheus.specification.exterior import WallAmplitudes
 
-    mirror = WallAmplitudes(1.0, 0.0)
-    vacuum = WallAmplitudes(0.0, 0.0)
+    mirror = WallAmplitudes.MIRROR
+    vacuum = WallAmplitudes.VACUUM
     slab, sphere = Chart(CoordSystem.CARTESIAN), Chart(CoordSystem.SPHERICAL)
     with pytest.raises(ValueError, match="walls sit at distinct breakpoints"):
         Walls((Wall(1, vacuum, 1),), 3, slab)

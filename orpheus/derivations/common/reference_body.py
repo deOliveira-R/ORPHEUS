@@ -37,11 +37,11 @@ import itertools
 import math
 from dataclasses import dataclass
 from collections.abc import Mapping
-from typing import NoReturn
+from typing import NoReturn, assert_never
 
 from orpheus.geometry import CoordSystem, StructuredGeometry
-from orpheus.geometry.deck import MirrorDeck, TranslationDeck
-from orpheus.specification.exterior import WallAmplitudes
+from orpheus.geometry.deck import FaceRole, MirrorDeck, TranslationDeck
+from orpheus.specification.exterior import WallAmplitudes, admit_exterior
 
 
 @dataclass(frozen=True)
@@ -219,6 +219,24 @@ def describe(body: ReferenceBody) -> str:
             return f"{hollow}layered {kind} body of {len(body.mat_ids)} material runs {body.mat_ids}"
 
 
+def amplitudes_at(role: FaceRole, exterior: Mapping[int, WallAmplitudes]) -> WallAmplitudes:
+    r"""The amplitudes :math:`(s, d)` a face role states: the one reader both reference readers consume.
+
+    A deck states its own wall, with no entry in ``exterior``: a mirror returns everything specularly,
+    :math:`(1, 0)`, and a translation (a wrap) returns it specularly through the opposite face, also
+    :math:`(1, 0)` (where it re-enters is the reader's own concern). An integer tag is looked up in
+    ``exterior``, which the caller has admitted as an exact cover
+    (:func:`~orpheus.specification.exterior.admit_exterior`), so the lookup cannot miss.
+    """
+    match role:
+        case MirrorDeck() | TranslationDeck():
+            return WallAmplitudes.MIRROR
+        case int():
+            return exterior[role]
+        case _:
+            assert_never(role)
+
+
 def specular_albedos(
     geometry: StructuredGeometry, exterior: Mapping[int, WallAmplitudes], *, owner: str
 ) -> tuple[float, ...]:
@@ -239,26 +257,23 @@ def specular_albedos(
     re-emits isotropically, a wrap to the opposite face), which a specular
     albedo cannot express, and is refused through the door.
     """
+    exterior = admit_exterior(exterior, geometry, owner=owner)
     albedos: list[float] = []
     for role in geometry.face_roles:
-        match role:
-            case MirrorDeck():
-                albedos.append(1.0)
-            case TranslationDeck():
-                refuse_unserved(
-                    f"face role {role!r}", owner=owner,
-                    missing="the continuous references parametrise a boundary by a specular "
-                    "albedo, and a wrap returns neutrons through the opposite face",
-                )
-            case int():
-                wall = exterior[role]
-                if wall.diffuse != 0.0:
-                    refuse_unserved(
-                        f"wall {wall!r} on tag {role}", owner=owner,
-                        missing="the continuous references parametrise a boundary by a specular "
-                        "albedo, and this wall returns neutrons in another angular shape",
-                    )
-                albedos.append(wall.specular)
+        if isinstance(role, TranslationDeck):
+            refuse_unserved(
+                f"face role {role!r}", owner=owner,
+                missing="the continuous references parametrise a boundary by a specular "
+                "albedo, and a wrap returns neutrons through the opposite face",
+            )
+        wall = amplitudes_at(role, exterior)
+        if wall.diffuse != 0.0:
+            refuse_unserved(
+                f"wall {wall!r} on tag {role}", owner=owner,
+                missing="the continuous references parametrise a boundary by a specular "
+                "albedo, and this wall returns neutrons in another angular shape",
+            )
+        albedos.append(wall.specular)
     return tuple(albedos)
 
 

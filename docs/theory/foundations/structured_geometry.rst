@@ -113,9 +113,9 @@ Key facts
   :func:`~orpheus.derivations.common.reference_body.reference_body`,
   which classifies every geometry as exactly one of four shapes (a
   homogeneous body, a hollow body of one material, a symmetric
-  reflected slab, a layered body) and knows no solver; the boundary
-  laws are read by one function too,
-  :func:`~orpheus.derivations.common.reference_body.specular_albedo`,
+  reflected slab, a layered body) and knows no solver; the face roles
+  are read by one function too,
+  :func:`~orpheus.derivations.common.reference_body.specular_albedos`,
   as one specular albedo per boundary point. Each generator serves the
   shapes and the laws its solvers solve and refuses the rest through
   one door,
@@ -1625,43 +1625,40 @@ of the time would
 re-derive those three predicates from breakpoints and material ids,
 which is the twin the shared reading exists to prevent.
 
-The boundary laws: one specular albedo per boundary point
----------------------------------------------------------
+The face roles: one specular albedo per boundary point
+------------------------------------------------------
 
 The body shape is half of what a generator is handed; the other half is
-the law at each boundary point of the geometry. Every solver under these
-three generators parametrises a boundary the same way, by one **specular
+the role of each boundary face of the geometry, with the ``exterior``
+that binds the integer tags among them to plain
+:class:`~orpheus.specification.exterior.WallAmplitudes`. Every solver
+under these three generators parametrises a boundary the same way, by one **specular
 albedo** :math:`\alpha \in [0, 1]`: the fraction of the arriving
 angular flux returned into the mirror direction, :math:`\alpha = 0` for
 vacuum and :math:`\alpha = 1` for a perfect mirror. The singular
 eigenfunction solvers call it :math:`R` (Atalay 1997); the retired
-trajectory resolvent called it :math:`\alpha`. A law is read as that albedo in one place,
-:func:`~orpheus.derivations.common.reference_body.specular_albedo`
-(and :func:`~orpheus.derivations.common.reference_body.specular_albedos`
-for every boundary point of a geometry, inner first):
+trajectory resolvent called it :math:`\alpha`. A role is read as that albedo in one place,
+:func:`~orpheus.derivations.common.reference_body.specular_albedos`
+(every boundary point of a geometry, inner first, the ``exterior``
+admitted first as an exact cover of the geometry's tags):
 
 .. list-table::
    :header-rows: 1
    :widths: 55 45
 
-   * - The declared law
+   * - The face role
      - Its specular albedo
-   * - ``BC.vacuum``, :class:`~orpheus.geometry.boundary.VacuumInflow`
+   * - a tag bound to ``WallAmplitudes.VACUUM`` :math:`(0, 0)`
      - 0
-   * - ``BC.reflective``, :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
-     - 1 (a mirror is a symmetry and has no amplitude)
-   * - ``BC("partial", {"albedo": a})``
+   * - a :class:`~orpheus.geometry.deck.MirrorDeck` (a mirror is a symmetry and has no amplitude)
+     - 1
+   * - a tag bound to a specular wall :math:`(a, 0)`
      - ``a``
-   * - :class:`~orpheus.geometry.boundary.AlbedoBoundary` whose
-       re-emission is
-       :class:`~orpheus.geometry.boundary.SpecularReturn`
-     - its ``albedo``
-   * - any other law: white, an ``AlbedoBoundary`` returning
-       isotropically or with no stated re-emission, periodic, a
-       prescribed inflow
+   * - any other role: a tag bound to a wall with a diffuse part (white,
+       a Lambertian return), a ``TranslationDeck`` (a wrap)
      - refused through the door
 
-A refused law returns neutrons in an angular shape a specular albedo
+A refused role returns neutrons in an angular shape a specular albedo
 cannot express, so no value of :math:`\alpha` would be an honest
 reading of it. `[M]`, by calling the reader on each law:
 ``ReflectiveBoundary`` reads 1 on each of the axes ``x``, ``y`` and ``z``

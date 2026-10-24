@@ -85,7 +85,7 @@ from orpheus.derivations.common.reference_body import (
     require_vacuum,
 )
 from orpheus.geometry import CoordSystem, StructuredGeometry
-from orpheus.specification.exterior import WallAmplitudes
+from orpheus.specification.exterior import WallAmplitudes, admit_exterior
 
 
 FluxReconstructionStrategy = Literal["none", "atkinson_nystrom", "legacy_gl"]
@@ -138,7 +138,7 @@ class MomentSpace:
     sphere) and a ``materials: dict[int, Mixture]`` payload::
 
         from orpheus.geometry import CoordSystem, StructuredGeometry
-        from orpheus.specification.exterior import WallAmplitudes
+        from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
 
         geom = StructuredGeometry(
             coord=CoordSystem.CARTESIAN,
@@ -146,8 +146,7 @@ class MomentSpace:
             mat_ids=(0,),
             face_roles=(0, 0),            # one tag on both faces
         )
-        vacuum = {0: WallAmplitudes(0.0, 0.0)}   # the wall behind tag 0: nothing returned
-        ms = MomentSpace(geometry=geom, exterior=vacuum, materials={0: mix})
+        ms = MomentSpace(geometry=geom, exterior=VACUUM_EXTERIOR, materials={0: mix})
         sol = ms.solve_critical()
 
     For infinite-medium :math:`k_\infty`, use
@@ -199,6 +198,7 @@ class MomentSpace:
         non-convergent for the bare cylinder. Cylinder critical
         dimensions ship via :mod:`...singular_eigenfunction.cylinder`.
         """
+        object.__setattr__(self, "exterior", admit_exterior(self.exterior, self.geometry, owner="MomentSpace"))
         body = self._body
         if body.coord is CoordSystem.CYLINDRICAL:
             refuse_unserved(

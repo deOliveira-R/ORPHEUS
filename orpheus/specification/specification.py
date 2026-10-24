@@ -88,7 +88,7 @@ from orpheus.values.content import ContentIdentity, FrozenMapping, content_diges
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Observable, PointValue, Ratio
 from orpheus.numerics.question import Eigen, FixedSource, Question, Response
-from orpheus.specification.exterior import WallAmplitudes
+from orpheus.specification.exterior import WallAmplitudes, admit_exterior
 from orpheus.values.scalars import parse_integer
 
 if TYPE_CHECKING:
@@ -140,27 +140,6 @@ class InfiniteMediumSpecification(ContentIdentity):
         raise ValueError(f"{type(self).__name__}: {extent!r} names an extent, and the infinite medium has no geometry")
 
 
-def _admit_exterior(exterior: Any, geometry: StructuredGeometry) -> FrozenMapping[int, WallAmplitudes]:
-    """The exterior as a frozen copy, an exact cover of the geometry's tags by ``WallAmplitudes``."""
-    where = "GeometrySpecification: the exterior"
-    if not isinstance(exterior, Mapping):
-        raise TypeError(f"{where} is a mapping from tag to WallAmplitudes, got a {type(exterior).__name__}")
-    held: dict[int, WallAmplitudes] = {}
-    for tag, wall in exterior.items():
-        tag = parse_integer(tag, "GeometrySpecification", "an exterior tag")
-        if not isinstance(wall, WallAmplitudes):
-            raise TypeError(f"{where} states tag {tag} as a {type(wall).__name__}; a wall is a WallAmplitudes (specular, diffuse)")
-        held[tag] = wall
-    tags = geometry.tags
-    unstated = sorted(tags - held.keys())
-    unused = sorted(held.keys() - tags)
-    if unstated:
-        raise ValueError(f"{where} states no amplitudes for the tag(s) {unstated} that the geometry's faces carry (tags {sorted(tags)})")
-    if unused:
-        raise ValueError(f"{where} states the tag(s) {unused} that no face of the geometry carries (tags {sorted(tags)})")
-    return FrozenMapping(held)
-
-
 @dataclass(frozen=True, eq=False)
 class GeometrySpecification(ContentIdentity):
     """The materials, a finite geometry, a question and the exterior; the materials kept are those the geometry assigns.
@@ -186,7 +165,7 @@ class GeometrySpecification(ContentIdentity):
             raise TypeError(f"GeometrySpecification: the geometry is a StructuredGeometry, got a {type(self.geometry).__name__}")
         object.__setattr__(self, "materials", self.materials.restrict(set(self.geometry.mat_ids)))
         self.n_groups  # the group-count rule, read once over the materials kept, before the keys resolve
-        object.__setattr__(self, "exterior", _admit_exterior(self.exterior, self.geometry))
+        object.__setattr__(self, "exterior", admit_exterior(self.exterior, self.geometry, owner="GeometrySpecification"))
         _admit(self)
 
     @cached_property

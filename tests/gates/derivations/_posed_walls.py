@@ -34,9 +34,9 @@ __all__ = [
 
 Declared = MirrorDeck | TranslationDeck | WallAmplitudes
 
-VACUUM = WallAmplitudes(0.0, 0.0)
+VACUUM = WallAmplitudes.VACUUM
 """Nothing returned."""
-WHITE = WallAmplitudes(0.0, 1.0)
+WHITE = WallAmplitudes.WHITE
 """Everything returned isotropically."""
 MIRROR = MirrorDeck()
 """Everything returned along the reflected line: a deck on a slab, the specular wall ``(1, 0)`` on a curved face."""
@@ -67,26 +67,27 @@ def _curved(coord: CoordSystem) -> bool:
 
 def _normalised(coord: CoordSystem, declared: Sequence[Declared]) -> tuple[Declared, ...]:
     """R2: a mirror on a curved face is the specular wall ``(1, 0)``; every other declaration is itself."""
-    mirror_wall = WallAmplitudes(1.0, 0.0)
-    return tuple(mirror_wall if isinstance(wall, MirrorDeck) and _curved(coord) else wall for wall in declared)
+    return tuple(WallAmplitudes.MIRROR if isinstance(wall, MirrorDeck) and _curved(coord) else wall for wall in declared)
+
+
+def _numbered(coord: CoordSystem, declared: Sequence[Declared]) -> tuple[tuple[Any, ...], dict[int, WallAmplitudes]]:
+    """R1, once: the face roles (decks as decks, amplitudes as tags numbered by first appearance) and the ``exterior`` that binds the tags."""
+    tags: dict[WallAmplitudes, int] = {}
+    roles = tuple(
+        tags.setdefault(wall, len(tags)) if isinstance(wall, WallAmplitudes) else wall
+        for wall in _normalised(coord, declared)
+    )
+    return roles, {tag: wall for wall, tag in tags.items()}
 
 
 def roles_of(coord: CoordSystem, declared: Sequence[Declared]) -> tuple[Any, ...]:
     """The face roles of ``declared`` (inner first): decks as decks (R2, R3), amplitudes as tags numbered by first appearance (R1)."""
-    tags: dict[WallAmplitudes, int] = {}
-    return tuple(
-        tags.setdefault(wall, len(tags)) if isinstance(wall, WallAmplitudes) else wall
-        for wall in _normalised(coord, declared)
-    )
+    return _numbered(coord, declared)[0]
 
 
 def exterior_of(coord: CoordSystem, declared: Sequence[Declared]) -> dict[int, WallAmplitudes]:
     """The ``exterior`` that binds the tags :func:`roles_of` numbers: each tag to the amplitudes declared at its first face."""
-    amplitudes = [wall for wall in _normalised(coord, declared) if isinstance(wall, WallAmplitudes)]
-    tags: dict[WallAmplitudes, int] = {}
-    for wall in amplitudes:
-        tags.setdefault(wall, len(tags))
-    return {tag: wall for wall, tag in tags.items()}
+    return _numbered(coord, declared)[1]
 
 
 def _faces(coord: CoordSystem, breakpoints: Sequence[float]) -> int:
@@ -96,13 +97,14 @@ def _faces(coord: CoordSystem, breakpoints: Sequence[float]) -> int:
 def geometry(coord: CoordSystem, breakpoints: Sequence[float], mat_ids: Sequence[int], declared: Sequence[Declared] | None = None) -> StructuredGeometry:
     """The geometry with ``declared`` walls as face roles; ``None`` is vacuum on every boundary face."""
     walls = (VACUUM,) * _faces(coord, breakpoints) if declared is None else declared
-    return StructuredGeometry(coord=coord, breakpoints=tuple(breakpoints), mat_ids=tuple(mat_ids), face_roles=roles_of(coord, walls))
+    return posed(coord, breakpoints, mat_ids, walls).geometry
 
 
 def posed(coord: CoordSystem, breakpoints: Sequence[float], mat_ids: Sequence[int], declared: Sequence[Declared] | None = None) -> Posed:
     """The geometry and its ``exterior``, from one list of declared walls."""
     walls = (VACUUM,) * _faces(coord, breakpoints) if declared is None else tuple(declared)
-    return Posed(geometry(coord, breakpoints, mat_ids, walls), exterior_of(coord, walls))
+    roles, exterior = _numbered(coord, walls)
+    return Posed(StructuredGeometry(coord=coord, breakpoints=tuple(breakpoints), mat_ids=tuple(mat_ids), face_roles=roles), exterior)
 
 
 def from_thicknesses(coord: CoordSystem, thicknesses: Sequence[float], mat_ids: Sequence[int], declared: Sequence[Declared] | None = None, *, r_0: float = 0.0) -> Posed:
@@ -111,10 +113,9 @@ def from_thicknesses(coord: CoordSystem, thicknesses: Sequence[float], mat_ids: 
     for t in thicknesses:
         breakpoints.append(breakpoints[-1] + t)
     walls = (VACUUM,) * _faces(coord, breakpoints) if declared is None else tuple(declared)
-    built = StructuredGeometry.from_thicknesses(
-        coord=coord, thicknesses=thicknesses, mat_ids=mat_ids, face_roles=roles_of(coord, walls), r_0=r_0,
-    )
-    return Posed(built, exterior_of(coord, walls))
+    roles, exterior = _numbered(coord, walls)
+    built = StructuredGeometry.from_thicknesses(coord=coord, thicknesses=thicknesses, mat_ids=mat_ids, face_roles=roles, r_0=r_0)
+    return Posed(built, exterior)
 
 
 def slab(breakpoints: Sequence[float], mat_ids: Sequence[int], left: Declared, right: Declared) -> Posed:

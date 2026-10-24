@@ -114,7 +114,7 @@ def _walls(chart: str, breakpoints, laws) -> Walls:
     boundary point, inner first, or ``"P"`` for a periodic face."""
     n = len(breakpoints) - 1
     ends = (n,) if chart != "slab" and breakpoints[0] == 0.0 else (0, n)
-    walls = tuple(Wall(k, WallAmplitudes(1.0, 0.0), n - k) if law == "P" else Wall(k, WallAmplitudes(*law), k) for k, law in zip(ends, laws, strict=True))
+    walls = tuple(Wall(k, WallAmplitudes.MIRROR, n - k) if law == "P" else Wall(k, WallAmplitudes(*law), k) for k, law in zip(ends, laws, strict=True))
     return Walls(walls, n, Chart(_COORD[chart]))
 
 

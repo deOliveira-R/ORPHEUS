@@ -108,7 +108,7 @@ def test_spectrum_constructs_with_structured_geometry() -> None:
     spec = Spectrum(**geom._asdict(), materials={0: mix})
     assert isinstance(spec, Spectrum)
     assert spec.geometry is geom.geometry
-    assert spec.exterior == geom.exterior
+    assert dict(spec.exterior) == geom.exterior   # held as a frozen copy: equal content, not the caller\'s dict
     assert spec.materials[0] is mix
     assert spec.n_modes == 8  # default
 

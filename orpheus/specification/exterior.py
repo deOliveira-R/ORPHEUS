@@ -15,14 +15,30 @@ positive) is a scope boundary that issue #650 lifts by widening the
 vocabulary, so it raises :class:`NotImplementedError`, not :class:`ValueError`:
 no better input lifts it. The bounds are checked first, so an unphysical
 combined pair such as :math:`(0.6, 0.6)` is a :class:`ValueError`.
+
+The vertices of K are named once, here: ``WallAmplitudes.VACUUM`` :math:`(0, 0)`,
+``WallAmplitudes.MIRROR`` :math:`(1, 0)` and ``WallAmplitudes.WHITE`` :math:`(0, 1)`.
+
+**The exterior is an exact cover, admitted at one door.** A reference states the
+walls behind a geometry's integer tags as a mapping ``exterior`` from tag to
+:class:`WallAmplitudes`, and that mapping must cover ``geometry.tags`` exactly: a tag
+without amplitudes and an entry without a tag are each refused, by tag number.
+:func:`admit_exterior` is that predicate, written once; the specification and every
+reference consumer of the pair (the walls reader, the spectrum, the moment space, the
+basis space, the albedo reader) call it, so a state the specification refuses cannot
+be built by a reference, and the frozen copy it returns cannot be changed by the
+caller's later mutation of the mapping it passed.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any, ClassVar
 
-from orpheus.values.content import ContentIdentity
-from orpheus.values.scalars import parse_real
+from orpheus.geometry.structured_geometry import StructuredGeometry
+from orpheus.values.content import ContentIdentity, FrozenMapping
+from orpheus.values.scalars import parse_integer, parse_real
 
 
 @dataclass(frozen=True, eq=False)
@@ -31,6 +47,13 @@ class WallAmplitudes(ContentIdentity):
 
     specular: float
     diffuse: float
+
+    VACUUM: ClassVar["WallAmplitudes"]
+    """The vertex :math:`(0, 0)`: nothing returned."""
+    MIRROR: ClassVar["WallAmplitudes"]
+    """The vertex :math:`(1, 0)`: everything returned specularly."""
+    WHITE: ClassVar["WallAmplitudes"]
+    """The vertex :math:`(0, 1)`: everything returned diffusely."""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "specular", parse_real(self.specular, "WallAmplitudes: the specular amplitude"))
@@ -49,3 +72,34 @@ class WallAmplitudes(ContentIdentity):
                 f"WallAmplitudes(specular={self.specular}, diffuse={self.diffuse}): a wall is specular or diffuse "
                 "in the closed vocabulary; the combined wall waits on #650"
             )
+
+
+WallAmplitudes.VACUUM = WallAmplitudes(0.0, 0.0)
+WallAmplitudes.MIRROR = WallAmplitudes(1.0, 0.0)
+WallAmplitudes.WHITE = WallAmplitudes(0.0, 1.0)
+
+
+def admit_exterior(exterior: Any, geometry: StructuredGeometry, *, owner: str) -> FrozenMapping[int, WallAmplitudes]:
+    """The exterior as a frozen copy: an exact cover of ``geometry.tags`` by :class:`WallAmplitudes`, each refusal naming its tag.
+
+    Raises :class:`TypeError` for a non-mapping or a value that is not a ``WallAmplitudes``, and
+    :class:`ValueError` for a geometry tag the mapping does not state and for an entry no face carries.
+    ``owner`` names the class or function that asked, as the prefix of every refusal.
+    """
+    where = f"{owner}: the exterior"
+    if not isinstance(exterior, Mapping):
+        raise TypeError(f"{where} is a mapping from tag to WallAmplitudes, got a {type(exterior).__name__}")
+    held: dict[int, WallAmplitudes] = {}
+    for tag, wall in exterior.items():
+        tag = parse_integer(tag, owner, "an exterior tag")
+        if not isinstance(wall, WallAmplitudes):
+            raise TypeError(f"{where} states tag {tag} as a {type(wall).__name__}; a wall is a WallAmplitudes (specular, diffuse)")
+        held[tag] = wall
+    tags = geometry.tags
+    unstated = sorted(tags - held.keys())
+    unused = sorted(held.keys() - tags)
+    if unstated:
+        raise ValueError(f"{where} states no amplitudes for the tag(s) {unstated} that the geometry's faces carry (tags {sorted(tags)})")
+    if unused:
+        raise ValueError(f"{where} states the tag(s) {unused} that no face of the geometry carries (tags {sorted(tags)})")
+    return FrozenMapping(held)

@@ -18,7 +18,7 @@ The characteristic reference — transport along the lines of a concentric body
 
       module: derivations
       concept: characteristic reference, boundary resolvent, walls, line period, line closure, panel basis, even basis at a singular stratum, traversal integrals, Volterra block, hp grading, Galerkin assembly over lines, line rule, white-wall coupling, region cross sections, emission support, multigroup Galerkin system, emission space, k pencil, source pencil, adjoint flux, one-group Rayleigh-Ritz bound, the door, resolution, projection onto the panel basis, role arrows, response as the transposed problem, eigen gauge, flux integral by pairing, grading law at every impact-panel top, weighted line set, reading at a point, point measure, iterated Galerkin, diffuse walls' currents, angular flux at a point, axial lift, speed along a line, family of speeds, product integration along a line, Gauss rule of the attenuation weight, hp walk, node count from the Bernstein ellipse, nodes anchored at a crossing or the closest approach, target-graded reading, refinement at a level
-      role: "the closed reference that integrates transport along the lines of a 1-D concentric body (slab, cylinder, sphere, solid or hollow); this page holds its walls (each boundary point with what its law returns, read from the law's factors), the line part of its boundary resolvent (the period of each line's unfolded path and the least solution of its cycle, with an arriving flux), its panel basis (even at a singular stratum) and the transport along one line on that basis (the traversal integrals, the vacuum Volterra block and the angular flux), and one group's transport block: the Galerkin assembly over the lines of the chart's line domain, the white walls' coupling, and the line rule graded from the group's optical scale; and the multigroup Galerkin system on the emission density (the cross sections per region, each group's exact emission support, the k pencil and the source pencil, the adjoint flux by transposition, the one-group Rayleigh-Ritz bound); and the door, the reference posed from a specification and a resolution (the projection of a mesh-free function onto the panel basis, the role arrows a source and a detector enter by, the response as the forward problem on the transposed cross sections, the eigen gauge, the flux integral as a pairing); and the reading at a point, the transported emission integrated over the line domain's lines through the point under the point's measure, with the diffuse walls folded in through their currents, and the angular flux at a point"
+      role: "the closed reference that integrates transport along the lines of a 1-D concentric body (slab, cylinder, sphere, solid or hollow); this page holds its walls (each boundary point with what its law returns, read from its face role), the line part of its boundary resolvent (the period of each line's unfolded path and the least solution of its cycle, with an arriving flux), its panel basis (even at a singular stratum) and the transport along one line on that basis (the traversal integrals, the vacuum Volterra block and the angular flux), and one group's transport block: the Galerkin assembly over the lines of the chart's line domain, the white walls' coupling, and the line rule graded from the group's optical scale; and the multigroup Galerkin system on the emission density (the cross sections per region, each group's exact emission support, the k pencil and the source pencil, the adjoint flux by transposition, the one-group Rayleigh-Ritz bound); and the door, the reference posed from a specification and a resolution (the projection of a mesh-free function onto the panel basis, the role arrows a source and a detector enter by, the response as the forward problem on the transposed cross sections, the eigen gauge, the flux integral as a pairing); and the reading at a point, the transported emission integrated over the line domain's lines through the point under the point's measure, with the diffuse walls folded in through their currents, and the angular flux at a point"
       code: [orpheus.derivations.continuous.characteristic.walls, orpheus.derivations.continuous.characteristic.closure, orpheus.derivations.continuous.characteristic.basis, orpheus.derivations.continuous.characteristic.transport, orpheus.derivations.continuous.characteristic.assembly, orpheus.derivations.continuous.characteristic.lines, orpheus.derivations.continuous.characteristic.reading, orpheus.derivations.continuous.characteristic.grading, orpheus.derivations.continuous.characteristic.attenuation_rule, orpheus.derivations.continuous.characteristic.cross_sections, orpheus.derivations.continuous.characteristic.system, orpheus.derivations.continuous.characteristic.reference, orpheus.derivations.common.eigenvalue, orpheus.derivations.common.angular_measure]
       depends_on: [chart_and_chord, boundary_conditions, reference_solutions]
       related: [characteristic_origins, layering]
@@ -72,21 +72,29 @@ Key facts
   finite-rank update over the diffuse walls,
   :class:`~orpheus.derivations.continuous.characteristic.closure.WallCoupling`
   (:ref:`characteristic-resolvent`).
-- **A wall is read from its law's two factors**, the deck
-  (``geometry_map``) and the response (``response_kernel``), by one table
-  (:ref:`characteristic-walls-factors`). It is keyed by its breakpoint
+- **A wall is read from its face role.** A boundary face of the
+  geometry carries a role: a deck (a symmetry of the domain, which states
+  its own response and needs no entry) or an integer tag (the domain ends
+  there). A tag is bound by the specification's ``exterior`` to one
+  :class:`~orpheus.specification.exterior.WallAmplitudes`, and
+  :meth:`Walls.of <orpheus.derivations.continuous.characteristic.walls.Walls.of>`
+  reads every role through one function
+  (:ref:`characteristic-walls-roles`). A wall is keyed by its breakpoint
   index (:math:`0` or :math:`n`), never by a position, and carries a
   specular amplitude, a diffuse amplitude and a partner (the breakpoint
   at which the returned path re-enters). A wall is specular or diffuse,
   never both, and never returns more than it receives
   (:ref:`characteristic-walls`).
-- **The reference parses tags with its own registry**,
-  :data:`~orpheus.derivations.continuous.characteristic.walls.TAG_REGISTRY`,
-  never with production's parse (the user's ruling of 2026-10-06, the
-  insulation principle of :ref:`architecture-reference-insulation`). Each
-  tag kind takes exactly its declared parameters: a missing or an
-  undeclared one is refused, never dropped
-  (:ref:`characteristic-walls-registry`).
+- **The reference states its boundary in its own closed values.** It
+  imports no production response and no typed boundary law (the user's
+  ruling of 2026-10-06, the insulation principle of
+  :ref:`architecture-reference-insulation`, kept by the wave-2 carve): the
+  interface to production is plain data, crossed by the one test-side loop
+  ``tests/gates/_reference_pairing.py``. The string-tag registry that once
+  parsed a tag into a typed law is retired with the law family, and the
+  exterior is admitted as an exact cover of the geometry's tags
+  (:func:`~orpheus.specification.exterior.admit_exterior`), so a missing or
+  an unused tag is refused by number.
 - **The period of a line is derived, never tagged.** A traversal is a
   transit (:ref:`chart-and-chord-transits`) read forward or reversed; the
   next traversal is the one entering at the partner of the wall the last
@@ -353,9 +361,10 @@ the geometric kernel (:ref:`theory-chart-and-chord`: charts, lines,
 chords and transits) and the linear algebra through the reference
 kernel (:ref:`verification-reference-kernel`). It is a closed reference
 in the sense of :ref:`architecture-reference-insulation`: it imports
-numpy, scipy, the geometric kernel, the boundary-law declarations of
-``orpheus.geometry.boundary`` and the reference kernel, and no
-production machinery.
+numpy, scipy, the geometric kernel (with its decks, ``MirrorDeck`` and
+``TranslationDeck``), the specification's plain ``WallAmplitudes`` and the
+reference kernel, and no production machinery (no boundary condition and no
+typed law of ``orpheus.transport``).
 
 The name says what the method integrates along, the characteristic
 lines. During the migration the two packages coexisted under different
@@ -428,19 +437,21 @@ The walls
 
 A **wall** is a boundary point of the domain :math:`[r_0, r_n]` of a body
 with :math:`n` regions, together with the three numbers the closure
-needs from its boundary law. It is the frozen value
+needs from its face role. It is the frozen value
 :class:`~orpheus.derivations.continuous.characteristic.walls.Wall` with
-four fields:
+three fields, and two read-only views of one of them:
 
 - ``breakpoint``: the breakpoint index of the boundary point, :math:`0`
   (the inner wall: a shell's cavity surface, or the slab's left face) or
   :math:`n` (the outer wall). A solid sphere or cylinder has one wall,
   at :math:`n`; its centre is a stratum of the chart, not a surface
   (:ref:`chart-and-chord-strata`);
-- ``specular``: the amplitude, in :math:`[0, 1]`, returned along the
-  reflected line (or, across a wrap, along the translated line);
-- ``diffuse``: the amplitude, in :math:`[0, 1]`, returned isotropically
-  (Lambertian);
+- ``amplitudes``: one :class:`~orpheus.specification.exterior.WallAmplitudes`,
+  the coordinates :math:`(s, d)` of the wall's linear part, each in
+  :math:`[0, 1]` with :math:`s + d \le 1`. Its views are ``specular``,
+  :math:`s`, the amplitude returned along the reflected line (or, across a
+  wrap, along the translated line), and ``diffuse``, :math:`d`, the
+  amplitude returned isotropically (Lambertian);
 - ``partner``: the breakpoint at which the returned path re-enters, the
   wall itself for a mirror and for any re-emission, the opposite wall
   for a wrap.
@@ -501,195 +512,81 @@ refuses walls that are not at distinct breakpoints among
 whose partner does not wrap back (the refusals below).
 
 
-.. _characteristic-walls-factors:
+.. _characteristic-walls-roles:
 
-A wall is read from its law's two factors
------------------------------------------
+A wall is read from its face role
+---------------------------------
 
-Every boundary law states two factors
-(:ref:`bc-factor-roles`, :ref:`bc-factor-quotients`): the **deck**
-:math:`G`, the measure-preserving map of the boundary phase space that
-says where returned intensity re-enters (``geometry_map``), and the
-**response** :math:`R`, what the surface does to the intensity that
-reaches it (``response_kernel``). A symmetry statement (a mirror, a
-wrap) puts its content in the deck and returns everything,
-:math:`R = I`; a surface (vacuum, a polished wall, a white wall) has the
-identity deck and puts its content in the response.
+A boundary face of the geometry carries a role
+(:class:`~orpheus.geometry.deck.FaceRole`), and a role is one of three
+things. A **mirror deck** and a **translation deck** are symmetry
+statements of the domain: they put their content in the deck (where the
+returned intensity re-enters) and return everything, so they state their
+own amplitudes and need no entry in the ``exterior``. An **integer tag**
+says only that the domain ends there; the specification binds it to the
+wall's amplitudes, and the binding is an exact cover of the geometry's
+tags (``admit_exterior``).
 
 :func:`Walls.of <orpheus.derivations.continuous.characteristic.walls.Walls.of>`
-zips the geometry's boundary declarations with the breakpoint indices of
-its boundary points (inner first: :math:`(0, n)` on a hollow body or a
-slab, :math:`(n,)` on a solid one), parses a tag into its typed law
-(:ref:`characteristic-walls-registry`), and reads every law through one
-table on its factors, the private function ``_wall_of``:
+zips the geometry's face roles with the breakpoint indices of its
+boundary points (inner first: :math:`(0, n)` on a hollow body or a slab,
+:math:`(n,)` on a solid one), admits the ``exterior``, and reads each
+role through
+:func:`~orpheus.derivations.common.reference_body.amplitudes_at`, the one
+reader of a role's amplitudes that the specular-albedo reader shares:
 
-.. list-table:: The factor table (``_wall_of``); :math:`b` is the wall's breakpoint, :math:`b'` the opposite one
+.. list-table:: The role table; :math:`b` is the wall's breakpoint, :math:`b'` the opposite one
    :header-rows: 1
-   :widths: 24 24 20 32
+   :widths: 30 30 40
 
-   * - Deck (``geometry_map``)
-     - Response (``response_kernel``)
+   * - Face role
      - Wall (specular, diffuse, partner)
-     - Shipped laws that state it
-   * - ``PairedDeck`` (a wrap)
-     - ``ScalarResponse(1)``
+     - Note
+   * - ``TranslationDeck`` (a wrap)
      - :math:`(1, 0, b')`
-     - ``PeriodicBoundary``, tag ``periodic``
-   * - ``SelfPairedDeck``, not the identity (a mirror)
-     - ``ScalarResponse(1)``
+     - Cartesian only; a curved face's wrap is a ``DeckError`` of the
+       geometry, before any wall is read
+   * - ``MirrorDeck``
      - :math:`(1, 0, b)`
-     - ``ReflectiveBoundary``, tag ``reflective``
-   * - ``SelfPairedDeck``, the identity
-     - ``ScalarResponse(0)``
+     - a symmetry of the domain; on a curved face a reflecting wall is a
+       tag bound to :math:`(1, 0)` instead
+   * - an integer tag bound to :math:`(0, 0)`
      - :math:`(0, 0, b)`
-     - ``VacuumInflow``,
-       ``AlbedoBoundary(0)``, ``PrescribedInflow()`` with no source, tag
-       ``vacuum``
-   * - ``SelfPairedDeck``, the identity
-     - ``SpecularReemission(a)``
+     - vacuum
+   * - an integer tag bound to :math:`(a, 0)`
      - :math:`(a, 0, b)`
-     - ``AlbedoBoundary(a, SpecularReturn)``, tag ``partial``
-   * - ``SelfPairedDeck``, the identity
-     - ``LambertianReemission(a)``
+     - a polished wall returning the fraction :math:`a` specularly
+   * - an integer tag bound to :math:`(0, a)`
      - :math:`(0, a, b)`
-     - ``AlbedoBoundary(a, IsotropicReturn)``,
-       ``WhiteBoundary``, tag ``white``
-   * - anything else
-     - anything else
-     - refused
-     - ``AlbedoBoundary(a)`` with no re-emission shape and
-       :math:`a > 0`; ``ZeroFluxBoundary``
-       (diffusion's law, response :math:`-1`); a mirror or a wrap with a
-       response other than ``ScalarResponse(1)``
+     - a Lambertian return of the fraction :math:`a` (white at :math:`a = 1`)
 
-`[M]` 2026-10-06, each shipped law constructed and passed to ``_wall_of``
-at breakpoint 3 of a three-region body: the rows above are what it
-returns, and ``AlbedoBoundary(0.37)`` and ``ZeroFluxBoundary()`` raise
-``NotImplementedError``.
-
-**Why the walls are read from the factors.** Three reasons, each a
-property the class-name alternative lacks.
-
-1. *One reader.* A tag, a law built by hand and a law a future campaign
-   adds are read by what they state, not by what their class is called.
-   A tag first becomes its typed law and then meets the same table, so a
-   tag and the law it names cannot read differently; the gate
-   ``test_a_tag_reads_the_same_walls_as_the_law_it_names`` asserts
-   ``Walls.of`` of a tagged slab equal to ``Walls.of`` of the slab with
-   the typed twin, per admitted kind.
-2. *The table is the physics.* A row is a sentence about the boundary: a
-   wrap returns everything at the opposite wall, a mirror everything at
-   itself, a surface its response at itself. A cell no row covers is a
-   law whose return this reference cannot state as a line return and a
-   diffuse return, and it is refused by name rather than approximated.
-3. *The quotient decks return everything.* A mirror or a wrap is a
-   symmetry statement, and a symmetry adds no physics (:math:`R = I`,
-   :ref:`bc-factor-quotients`). A partial return is a surface's, spelled
-   ``AlbedoBoundary(a, SpecularReturn)`` on the identity deck. So the
-   table admits ``ScalarResponse(1)`` only under a quotient deck and a
-   re-emission shape only on the identity deck; a mirror carrying
-   ``SpecularReemission`` would reflect twice, and a mirror carrying
-   ``ScalarResponse(0.5)`` would state a partial wall in the slot that
-   says the body is symmetric. The gate
-   ``test_a_quotient_deck_returns_everything_and_a_shape_sits_on_the_identity``
-   refuses the six cells no shipped law reaches.
-
-A ``PrescribedInflow`` is read through its factors like every law (the
-user's ruling "By its factors", 2026-10-06): with
-``NoSource`` its factors are vacuum's,
-and it is a vacuum wall. Every law reports a ``source``, ``NoSource`` by
-default; ``_wall_of`` refuses any other, before the table
+A partner is the reader's own concern: the amplitudes of a role are
+``amplitudes_at``'s, and only a wrap re-enters at the opposite breakpoint.
+What the vocabulary cannot state (a prescribed inflow, a combined
+specular-and-diffuse wall, a zero flux) has no spelling in
+``WallAmplitudes``, and the specification refuses it where it is built
 (:ref:`characteristic-walls-refusals`).
 
+**Why the walls are read from the role.** Three reasons, each a property
+the class-name alternative lacked.
 
-.. _characteristic-walls-registry:
+1. *One reader.* A role is read by what it states, so the reference's two
+   consumers of a face (the walls here and the specular albedo of the
+   spectral references) cannot disagree on what a mirror returns.
+2. *The table is the physics.* A row is a sentence about the boundary: a
+   wrap returns everything at the opposite wall, a mirror everything at
+   itself, a surface its response at itself.
+3. *The decks return everything.* A mirror or a wrap is a symmetry
+   statement, and a symmetry adds no physics; a partial return is a
+   surface's, so it is a tag bound to amplitudes, never a deck with a
+   fraction.
 
-The reference's own tag registry
---------------------------------
-
-A ``BC`` tag is a kind and a mapping of parameters, ``BC(kind, params)``.
-Its meaning is resolved by whoever reads it. The reference resolves it
-with
-:data:`~orpheus.derivations.continuous.characteristic.walls.TAG_REGISTRY`,
-a mapping from each admitted kind, with the wall's context, to the typed
-law the kind names. The context is the axis ``"x"`` (the radial or the
-slab coordinate) and the wall's outward sign, :math:`-1` at breakpoint
-:math:`0` and :math:`+1` at breakpoint :math:`n`:
-
-.. list-table:: The admitted tag kinds
-   :header-rows: 1
-   :widths: 16 22 62
-
-   * - Kind
-     - Parameters (exactly)
-     - Typed law
-   * - ``vacuum``
-     - none
-     - ``VacuumInflow()``
-   * - ``reflective``
-     - none
-     - ``ReflectiveBoundary(axis="x")``
-   * - ``partial``
-     - ``albedo``
-     - ``AlbedoBoundary(albedo, SpecularReturn(axis="x"))``, a polished
-       wall returning the fraction ``albedo`` specularly
-   * - ``white``
-     - none
-     - ``WhiteBoundary(axis="x", outward_sign=±1)``, a full Lambertian
-       return; a partial white wall is spelled as the typed law
-       ``WhiteBoundary(albedo=a)``
-   * - ``periodic``
-     - none
-     - ``PeriodicBoundary(axis="x")``
-
-**Strict parameters.** Each kind takes exactly the parameters its row
-names: ``BC("partial")`` with no albedo, ``BC("vacuum", {"albedo":
-0.5})``, ``BC("white", {"albedo": 0.6})``, ``BC("periodic", {"shift":
-0.0})`` and a ``partial`` tag with an extra parameter are each refused
-with the fragment *takes exactly the parameters*. A parameter the reader
-does not use is a parameter whose author meant something by it; dropping
-it silently would answer a different problem from the one declared.
-Production's parse drops the white tag's albedo (``BC("white",
-{"albedo": a})`` parses as albedo 1), filed as `#583
-<https://github.com/deOliveira-R/ORPHEUS/issues/583>`_; the reference
-refuses the same declaration. A kind outside the five
-(``albedo``, ``marshak``, …) is refused naming the admitted kinds, read
-from the registry.
-
-**The context is carried and not read.** No reading of a wall observes
-the axis or the outward sign: a wall is amplitudes and a partner. The
-registry still hands the white law its wall's outward sign, so the law
-it builds is the law a reader declaring that wall would write; the gate
-``test_the_registry_hands_the_white_law_the_walls_outward_sign`` pins it
-by content equality, the only instrument that can see it (`[M]` battery
-arm W13, the sign negated: 2 of 175 rows red, both that gate's).
-
-**Why the registry is the reference's own.** The step's design
-(the plan, "P1 step (b), first rung: API sketch", Q1) recommended moving
-the body of production's tag parse,
-``orpheus.transport.method._law_from_tag``, down to
-``orpheus.geometry.boundary`` as one function shared by the
-reference and the transport layer, so that a tag's meaning would be
-spelled once instead of three times. The user refused it, on
-2026-10-06:
-
-   "mixing tags from reference with production would cause reference
-   churn during production development. but we do need a coherent way to
-   parse tags for reference"
-
-and ruled the reference's own registry. The argument is the insulation
-principle (:ref:`architecture-reference-insulation`): a closed reference
-is valuable because it stays put, and production's parse is versatile by
-design. It consults each method's admission table, it reads the face's
-axis and sign from the face label of a multi-dimensional mesh, and it
-admits the ``albedo`` kind as an albedo with no re-emission shape. A
-change there for production's sake would change what a reference tag
-means. The two parses are therefore a **declared duplicate across the
-branch line**, recorded in the conceptual view
-(:doc:`/architecture/conceptual_view`, the row "Boundary tag to typed
-law"), twins that are never merged. They are not two spellings of one
-contract: they differ on purpose, the reference refusing what production
-admits or drops.
+`[R]` the pre-carve reading, which parsed a tag into a typed law and read
+the law through a factor table (``TAG_REGISTRY``, ``_wall_of``), is
+retired: the typed law family is gone, and with it the registry that the
+user ruled the reference's own on 2026-10-06 (a shared parse would make
+every production change to a tag's meaning a change to the reference). The
+ruling stands in its new form: the reference's own closed values.
 
 
 .. _characteristic-walls-refusals:
@@ -703,10 +600,11 @@ reference does not serve a* and carrying one fragment that names why.
 The fragments are disjoint over the refused inputs, so one refusal
 cannot pass for another; the gate
 ``test_an_unserved_wall_is_refused_by_its_own_fragment`` asserts each
-input's fragment and the absence of every other (18 inputs). The
-source and shape arm of ``_wall_of`` carries the tag
-``SCOPE-BOUNDARY[guard]``: it is the declared edge of machinery not
-built, not a defect.
+input's fragment and the absence of every other. The refusals that
+remain are the declared edge of machinery not built, not defects: a
+prescribed inflow, a combined wall and a zero flux are not refused here
+at all, because the specification's ``exterior`` has no spelling for
+them (#650 widens it).
 
 .. list-table::
    :header-rows: 1
@@ -715,34 +613,18 @@ built, not a defect.
    * - Declaration
      - Fragment
      - Why it is outside the reference
-   * - a law with a boundary source
-       (``PrescribedInflow(ConstantInflowSource(1.0))``)
-     - *with an inflow source*
-     - the reference's questions carry no boundary source; the arm is
-       served when the reference vocabulary gains a boundary-source
-       question (the tag's revisit clause)
-   * - a law whose factors no row reads: an albedo with no re-emission
-       shape, ``ZeroFluxBoundary``, a quotient deck with a partial or a
-       shaped response
-     - *unstated re-emission shape*
-     - the law says how much returns but not along which lines, or is no
-       transport wall
-   * - a wrap whose partner does not wrap back (a periodic face opposite
-       a vacuum or a mirror)
+   * - a wrap whose partner does not wrap back (a ``Walls`` built by hand
+       with a wrap opposite a vacuum or a mirror)
      - *whose partner does not wrap back*
      - a wrap identifies two walls, so both carry it: the deck is an
        involution
-   * - a wrap on a cylinder or a sphere, solid or hollow
+   * - a wrap on a cylinder or a sphere, solid or hollow: a ``DeckError`` of
+       the geometry when posed through it, and the same fragment from a
+       ``Walls`` built by hand
      - *periodic wrap on a cylinder or sphere*
      - a translation maps a radial chart's level sets onto none of them;
        ``Walls`` asks the chart
        (:attr:`Chart.acts_on_kept_space <orpheus.geometry.chart.Chart.acts_on_kept_space>`)
-   * - a tag kind outside the registry
-     - *the reference admits the tag kinds*
-     - the message lists the admitted kinds, read from the registry
-   * - a tag with a missing or an undeclared parameter
-     - *takes exactly the parameters*
-     - :ref:`characteristic-walls-registry`, strict parameters
    * - an amplitude outside :math:`[0, 1]` (a specular amplitude 1.5, a diffuse
        amplitude :math:`-0.2`), or a wall built with a specular and a
        diffuse amplitude summing above 1: a ``ValueError`` of
@@ -8118,11 +8000,11 @@ above the trusted-library line: transport along lines, Galerkin over
 them and a dense pencil against discrete ordinates, a spatial scheme and
 a sweep. What both sides read from one object is the posed problem: the
 cross sections, the geometry and the boundary law. For the partial
-reflectors that includes the law's response factor, ``SpecularReturn.kernel``,
-which S\ :sub:`N` reads through its leakage predicate and its
-curvilinear corner, and this reference through ``law.response_kernel``
-in its walls (:ref:`characteristic-walls-factors`). A defect there moves
-both sides together (X4: one input, so their agreement cannot see it).
+reflectors that includes the wall's amplitude: S\ :sub:`N` reads it from
+the condition the test-side loop builds from it
+(``tests/gates/_reference_pairing.py``), and this reference reads it in
+its walls (:ref:`characteristic-walls-roles`). A defect in the amplitude
+moves both sides together (X4: one input, so their agreement cannot see it).
 `[M]` 2026-10-10 (qa, ``p1_step_d/qa_d/half_alpha_plugin.py``):
 :math:`\alpha \to \alpha/2` in that factor left the partial-reflector slab
 row green. Its pin is external to the comparison,
@@ -8455,18 +8337,18 @@ structural reason it fails, so that no later design re-derives it.
        (``orpheus.transport.method._law_from_tag``) into
        ``orpheus.geometry.boundary``, shared by the reference and
        production (recommended in the step's design, Q1)
-     - Refused by the user (:ref:`characteristic-walls-registry`): a
-       shared parse makes every production change to a tag's meaning a
-       change to the reference. The reference keeps its own registry and
-       the duplicate is declared.
+     - Refused by the user (`[R]` retired with the registry in the wave-2
+       carve): a shared parse makes every production change to a tag's
+       meaning a change to the reference. The reference states its walls
+       in its own closed values (:ref:`characteristic-walls-roles`).
    * - A mirror deck with a partial ``ScalarResponse(a)`` read as a
        specular amplitude :math:`a` (the step's design table)
      - A mirror is a symmetry statement and returns everything; a
        partial specular wall is a surface, the identity deck with
        ``SpecularReemission(a)``. Reading the partial scalar under a
        mirror would make "a symmetric body" and "a polished wall" one
-       declaration with two meanings. The built table refuses the cell
-       (:ref:`characteristic-walls-factors`).
+       declaration with two meanings. The role table has no cell for it
+       (:ref:`characteristic-walls-roles`).
    * - Deciding at build whether a wall summing a specular and a diffuse
        law (``LawSum``) is served
      - Dissolved on the first rung: a geometry admits a ``BC`` tag or a
@@ -9607,7 +9489,7 @@ reads below 1 by more than :math:`10^{-4}` (0.991), as
        :math:`10^{-12}`, :math:`10^{-13}`
    * - ``test_the_door_reads_k_one_at_soods_critical_sphere``
      - Sood's PU-2-0-SP at its printed critical radius
-       :cite:`SoodForsterParsons2003`, posed through a ``BC.vacuum`` tag
+       :cite:`SoodForsterParsons2003`, posed through a vacuum tag (``VACUUM_EXTERIOR``)
      - :math:`|k - 1| = 7.0 \times 10^{-7}`; band
        :math:`3.6 \times 10^{-6}`
    * - ``test_the_mode_nearest_tau_is_the_mirror_slabs_first_spatial_mode``,

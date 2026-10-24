@@ -2575,7 +2575,7 @@ are unchanged.
 ``tests/gates/derivations/test_characteristic_reading.py``, takes
 ``_given``'s arguments and returns its type. It poses a
 ``GeometrySpecification``: a solid ``StructuredGeometry`` behind one outer
-law (``BC.vacuum`` at albedo 0, a partial specular mirror otherwise), pure
+tag (bound in the ``exterior`` to the vacuum wall at albedo 0, a partial specular wall otherwise), pure
 absorbers of the row's total cross sections, and the question
 ``FixedSource(RegionwiseConstant(q))``. It reads that specification at the
 ``Resolution`` that ``_door_resolution`` maps the row's (degree, layers,
@@ -3722,7 +3722,7 @@ never ran, left both valid; a constant in the reading module's skeleton
 made the reading stale. Since P1 step (e2) the witnesses are re-posed on
 the characteristic reading (``test_m4_4c_…`` in
 ``tests/gates/numerics/test_traced_memo_clients.py``): an edit to the
-wall reader ``_wall_of`` makes the reading stale, an edit to the polar
+wall reader ``_wall_at_face`` makes the reading stale, an edit to the polar
 rule of another chart leaves it valid, and a constant in the reading
 module makes it stale.
 

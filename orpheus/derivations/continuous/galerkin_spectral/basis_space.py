@@ -176,7 +176,7 @@ from orpheus.derivations.common.reference_body import (
     require_vacuum,
 )
 from orpheus.geometry import CoordSystem, StructuredGeometry
-from orpheus.specification.exterior import WallAmplitudes
+from orpheus.specification.exterior import WallAmplitudes, admit_exterior
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -492,7 +492,7 @@ class BasisSpace:
     ``materials: dict[int, Mixture]`` payload::
 
         from orpheus.geometry import CoordSystem, StructuredGeometry
-        from orpheus.specification.exterior import WallAmplitudes
+        from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
 
         geom = StructuredGeometry(
             coord=CoordSystem.CARTESIAN,
@@ -500,8 +500,7 @@ class BasisSpace:
             mat_ids=(0,),
             face_roles=(0, 0),            # one tag on both faces
         )
-        vacuum = {0: WallAmplitudes(0.0, 0.0)}   # the wall behind tag 0: nothing returned
-        bs = BasisSpace(geometry=geom, exterior=vacuum, materials={0: mix})
+        bs = BasisSpace(geometry=geom, exterior=VACUUM_EXTERIOR, materials={0: mix})
         sol = bs.solve_critical(d=2.0)
 
     The ``d`` parameter (Galerkin spectral spatial dimension in mfp)
@@ -548,6 +547,7 @@ class BasisSpace:
         **1G linearly anisotropic scattering**. Cylinder is out of
         pillar (Westfall–Metcalf 1972).
         """
+        object.__setattr__(self, "exterior", admit_exterior(self.exterior, self.geometry, owner="BasisSpace"))
         body = self._body
         if body.coord is CoordSystem.CYLINDRICAL:
             refuse_unserved(

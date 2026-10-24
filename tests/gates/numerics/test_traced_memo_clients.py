@@ -146,7 +146,7 @@ def tiny_sphere(radius=1.0):
                            sig_s=xs["sig_s"])
     geometry = StructuredGeometry.sphere((0.0, radius), (0,), outer=0)
     question = Eigen(CellCoefficient.every(Channel.FISSION_EMISSION))
-    specification = GeometrySpecification(Materials({0: mixture}), geometry, question, exterior={0: WallAmplitudes(0.0, 0.0)})
+    specification = GeometrySpecification(Materials({0: mixture}), geometry, question, exterior={0: WallAmplitudes.VACUUM})
     return CharacteristicDerivation(specification, Resolution(1, 0, 0.4, TransportResolution(4), 4))
 '''
 

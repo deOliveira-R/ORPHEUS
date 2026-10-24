@@ -92,7 +92,7 @@ carve retired; this alias is the reference's own string vocabulary (``ProblemSpe
 VACUUM_TAG = 0
 """The one tag a bare reference body carries on every boundary face (equal declarations share a tag)."""
 
-VACUUM_EXTERIOR: FrozenMapping[int, WallAmplitudes] = FrozenMapping({VACUUM_TAG: WallAmplitudes(0.0, 0.0)})
+VACUUM_EXTERIOR: FrozenMapping[int, WallAmplitudes] = FrozenMapping({VACUUM_TAG: WallAmplitudes.VACUUM})
 """The ``exterior`` that binds :data:`VACUUM_TAG` to the vacuum wall (nothing returned): the reference's own plain
 data, which a specification takes beside the geometry and a production solve of the same body receives through the
 test-side loop ``tests/gates/_reference_pairing.py``."""

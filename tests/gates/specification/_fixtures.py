@@ -83,7 +83,7 @@ def vacuum_exterior(geometry: StructuredGeometry) -> dict[int, WallAmplitudes]:
 
     Every fixture of these gates is bare unless a row states another wall: the geometry says which faces share a tag
     and never what the wall is, so a row that does not care binds the tags to nothing returned."""
-    return {tag: WallAmplitudes(0.0, 0.0) for tag in sorted(geometry.tags)}
+    return {tag: WallAmplitudes.VACUUM for tag in sorted(geometry.tags)}
 
 
 def slab3_repeated() -> StructuredGeometry:

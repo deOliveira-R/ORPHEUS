@@ -429,11 +429,13 @@ demand via :meth:`La13511Case.to_geometry`:
 
    geom = case.to_geometry()
    # Returns StructuredGeometry with cm = mfp / Σ_t, the coordinate
-   # system CARTESIAN / SPHERICAL / CYLINDRICAL, and the laws:
-   #   slab    → breakpoints (0, 2a), laws (BC.vacuum, BC.vacuum)
-   #   sphere  → breakpoints (0, R), law (BC.vacuum,) at the outer
-   #             surface; the centre is an interior point, no law
-   #   cylinder→ breakpoints (0, R), law (BC.vacuum,), likewise
+   # system CARTESIAN / SPHERICAL / CYLINDRICAL, and the face roles:
+   #   slab    → breakpoints (0, 2a), roles (0, 0): the one tag 0 on both faces
+   #   sphere  → breakpoints (0, R), role (0,) at the outer
+   #             surface; the centre is an interior point, no role
+   #   cylinder→ breakpoints (0, R), role (0,), likewise
+   # and tag 0 is the vacuum wall: VACUUM_EXTERIOR, the plain data a
+   # specification takes beside the geometry
 
 Slab convention: returns the FULL slab width (``2 *
 critical_dimension_mfp / Σ_t``) with vacuum-vacuum BCs — the

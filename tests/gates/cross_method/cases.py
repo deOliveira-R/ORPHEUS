@@ -548,7 +548,7 @@ CLOSED_SPHERE_KINF_CASES: list[CrossMethodCase] = [
             mat_ids=(0,),
             face_roles=(0,),
         ),
-        exterior={0: WallAmplitudes(1.0, 0.0)},
+        exterior={0: WallAmplitudes.MIRROR},
         geometry="closed-sphere-1d",
         truth_tag="k_inf",
         truth_value=0.025 / 0.12,  # 0.20833...
