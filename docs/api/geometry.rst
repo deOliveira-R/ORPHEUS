@@ -12,8 +12,8 @@ no discretisation. It holds four things:
   consume it directly.
 * :class:`~orpheus.geometry.coord.CoordSystem` and the volume and area
   formulas of each coordinate system (:mod:`orpheus.geometry.coord`).
-* :mod:`orpheus.geometry.boundary`: the boundary-condition tag
-  :class:`~orpheus.geometry.boundary.BC` and the typed boundary laws.
+* ``orpheus.geometry.boundary``: the boundary-condition tag
+  ``BC`` and the typed boundary laws.
 * :mod:`orpheus.geometry.transformation`: rigid motions of
   :math:`\mathbb{R}^d` and permutations.
 
@@ -45,7 +45,7 @@ cylinder, and sphere without branching on geometry.
 **Boundary condition declaration and deferred resolution.**
 Boundary conditions follow a two-phase pattern: *declare* on the
 geometry, *resolve* at solver construction. The geometry layer
-provides :class:`~orpheus.geometry.boundary.BC`, a frozen dataclass
+provides ``BC``, a frozen dataclass
 carrying a ``kind`` string (e.g. ``"vacuum"``, ``"reflective"``,
 ``"white"``) and an optional ``params`` dict for numeric parameters
 (e.g. ``{"albedo": 0.7}``). The meshes of :doc:`/api/mesh` store a
@@ -56,11 +56,11 @@ alone on a solid cylinder or sphere);
 :class:`~orpheus.mesh.structured.Mesh2D` has ``face_laws`` over its
 faces ``xmin``, ``xmax``, ``ymin``, ``ymax`` (no ``xmin`` on a solid
 :math:`(r, z)` mesh). Both are one value,
-:class:`~orpheus.mesh.face_laws.FaceLaws`. A
+``FaceLaws``. A
 :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`, both
 meshes and the S\ :sub:`N` axis primitives refuse ``None``, through one
 element parser,
-:func:`~orpheus.geometry.structured_geometry.parse_boundary_law`,
+``parse_boundary_law``,
 because a declaration states the problem and a default is a method's.
 No method fills an unstated face: the shared resolution of
 S\ :sub:`N` and diffusion reads the declared law and nothing else
@@ -123,55 +123,30 @@ The current registry contents per method are:
      - ``vacuum``, ``reflective``, ``albedo``, ``zero_flux``
      - ``reflective``
 
-Boundary Conditions
--------------------
+Face Roles
+----------
 
-The :class:`~orpheus.geometry.boundary.BC` dataclass is the single type
-used to declare boundary conditions on geometry surfaces. It is
-defined in :mod:`orpheus.geometry.boundary` and exported from
-:mod:`orpheus.geometry` for convenience:
+A geometry names no boundary response. Each face of a
+:class:`~orpheus.geometry.structured_geometry.StructuredGeometry` carries a
+*role*, a deck or an integer tag (``face_roles``). A deck
+(:class:`~orpheus.geometry.deck.MirrorDeck`,
+:class:`~orpheus.geometry.deck.TranslationDeck`) says the domain continues
+across the face; an integer is a boundary tag whose condition a problem binds
+later, in :mod:`orpheus.transport.boundary_conditions`. The boundary-condition
+tag ``BC`` and the typed law package ``orpheus.geometry.boundary`` retired in
+the wave-2 carve (WF2.4).
 
 .. code-block:: python
 
-   from orpheus.geometry import BC, StructuredGeometry
+   from orpheus.geometry import StructuredGeometry
+   from orpheus.geometry.deck import MirrorDeck
    from orpheus.mesh import CellsByCount, Mesher
 
-   # Pre-built convenience instances (tab-completable)
-   bc_v = BC.vacuum       # BC("vacuum")
-   bc_r = BC.reflective   # BC("reflective")
-   bc_w = BC.white        # BC("white")
-
-   # Custom BC with parameters
-   bc_a = BC("albedo", params={"albedo": 0.7})
-
-   # Declare each boundary point's law on the geometry; the mesher
-   # carries the laws onto the mesh's named faces.
-   geom = StructuredGeometry.slab((0.0, 10.0), (0,), left=BC.reflective, right=BC.vacuum)
+   # A mirror on the left face, boundary tag 0 on the right face.
+   geom = StructuredGeometry.slab((0.0, 10.0), (0,), left=MirrorDeck(), right=0)
    mesh = Mesher(geom).partition(CellsByCount.uniform_width(20)).mesh
-   assert dict(mesh.face_laws) == {"xmin": BC.reflective, "xmax": BC.vacuum}
-   assert mesh.outer_law == BC.vacuum
-
-Three convenience class-level instances are pre-defined:
-:obj:`BC.vacuum <orpheus.geometry.boundary.BC.vacuum>`,
-:obj:`BC.reflective <orpheus.geometry.boundary.BC.reflective>`, and
-:obj:`BC.white <orpheus.geometry.boundary.BC.white>`.
-These are ordinary ``BC`` instances, not subclasses — they exist
-solely to avoid spelling out ``BC("vacuum")`` at every call site.
-
-.. Deliberately INDEXED (no ``:noindex:``, unlike its neighbours): this is
-   the one directive that registers ``BC`` and its three tag constants in
-   the Python domain, so ``:obj:`BC.vacuum <orpheus.geometry.boundary.BC.vacuum>```
-   above — and every other qualified reference to them — resolves to a link
-   instead of rendering as plain text.  The ``automodule`` below keeps its
-   ``:noindex:``, so it re-renders ``BC`` without claiming the entry, and
-   there is no duplicate-object warning.  (#302's general case is unfixed:
-   `[M]` 2026-08-10 the whole built inventory is 1014 entries because nearly
-   every api page is ``:noindex:``.)
-
-.. autoclass:: orpheus.geometry.boundary.BC
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   assert dict(mesh.face_roles) == {"xmin": MirrorDeck(), "xmax": 0}
+   assert mesh.outer_role == 0
 
 
 Coordinate Systems
@@ -227,7 +202,7 @@ is the pure shape of a 1-D problem: its coordinate system ``coord``
 (a :class:`~orpheus.geometry.coord.CoordSystem` member), its
 ``breakpoints`` :math:`r_0 < \dots < r_R` (stored bit for bit as given),
 one material id per interval in ``mat_ids``, and one law per boundary
-point in ``boundaries`` (a :class:`~orpheus.geometry.boundary.BC` tag or
+point in ``boundaries`` (a ``BC`` tag or
 a typed law; ``None`` is refused). The boundary points are derived, not
 declared: two on a slab, the outer surface alone on a solid cylinder or
 sphere (whose centre is an interior point and carries no law), inner

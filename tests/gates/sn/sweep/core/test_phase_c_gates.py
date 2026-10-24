@@ -50,7 +50,7 @@ from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.geometry.boundary import SelfPairedDeck
+from orpheus.geometry.deck import mirror_motion
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import (
     StreamingOperator,
@@ -710,7 +710,7 @@ def _outflow_at_boundary_for_sphere_from_bulk(
         psi_face_in_inward = 2.0 * psi_cell - psi_face_in_inward
     pole_outflow = np.zeros((ng, quad.n_ordinates))
     pole_outflow[:, incoming_mask] = psi_face_in_inward
-    pole_pi = quad.ordinate_permutation(SelfPairedDeck.mirror(axis="x").motion)
+    pole_pi = quad.ordinate_permutation(mirror_motion("x", 3))
     assert pole_pi is not None  # mimics production's _ensure_pole_mirror source
     psi_face_in = pole_outflow[:, pole_pi.indices][:, outgoing_mask]
     for i in range(nx):

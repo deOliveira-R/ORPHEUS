@@ -52,8 +52,7 @@ import numpy as np
 import pytest
 from scipy.optimize import linear_sum_assignment
 
-from orpheus.geometry.boundary import PairedDeck, SelfPairedDeck
-from orpheus.geometry.boundary._factors import _mirror_motion
+from orpheus.geometry.deck import mirror_motion, translation_motion
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.geometry.manifold import (
     CIRCLE,
@@ -192,8 +191,8 @@ def _groups() -> _GroupsByName:
 
 
 def _motions() -> dict[str, RigidMotion]:
-    out = {f"mirror_{a}": _mirror_motion(a, 3) for a in "xyz"}
-    out["pole_deck_x"] = SelfPairedDeck.mirror(axis="x").motion
+    out = {f"mirror_{a}": mirror_motion(a, 3) for a in "xyz"}
+    out["pole_deck_x"] = mirror_motion("x", 3)
     out["quarter_turn_z"] = RigidMotion.rotation(
         plane=(np.array([1.0, 0, 0]), np.array([0, 1.0, 0])), angle=np.pi / 2,
     )
@@ -249,7 +248,7 @@ def _verbs():
     return {
         "is_invariant_under": lambda m: m.is_invariant_under(SubgroupOfO3.SO2("x")),
         "certificate_under": lambda m: m.certificate_under(SubgroupOfO3.Mirror("x")),
-        "permutation_under": lambda m: m.permutation_under(_mirror_motion("x", 3)),
+        "permutation_under": lambda m: m.permutation_under(mirror_motion("x", 3)),
         "singular_set_under": lambda m: m.singular_set_under(SubgroupOfO3.Mirror("x")),
         "symmetry_groups": lambda m: m.symmetry_groups(),
     }
@@ -398,7 +397,7 @@ class TestTheGSpaceFamily:
     def test_the_sphere_refuses_a_translation(self):
         """A wrap is an isometry of R^3 that does not map S^2 onto itself. Not in the
         design's table (it names only the dimension): spec §4, boundary B-T."""
-        wrap = PairedDeck.wrap(axis="x").motion
+        wrap = translation_motion("xmax", 3)
         assert np.any(wrap.translation != 0)
         with pytest.raises(ValueError, match=FRAG_DOES_NOT_MAP):
             _method(SPHERE, "action")(wrap)
@@ -458,7 +457,7 @@ class TestTheGSpaceFamily:
 
     def test_an_interval_refuses_a_3D_motion(self):
         with pytest.raises(ValueError, match=FRAG_WRONG_DIMENSION):
-            _method(COSINE_INTERVAL, "action")(_mirror_motion("x", 3))
+            _method(COSINE_INTERVAL, "action")(mirror_motion("x", 3))
 
     @pytest.mark.rests_on(_MANIFOLD_ROW + "test_sigma_x_on_the_sigma_y_fold_is_the_disks_x_flip")
     def test_the_quotient_action_is_the_renamed_induced_action(self):
@@ -467,7 +466,7 @@ class TestTheGSpaceFamily:
         rng = np.random.default_rng(11)
         rho, phi = np.sqrt(rng.uniform(0, 1, 32)), rng.uniform(0, 2 * np.pi, 32)
         chart = np.column_stack([rho * np.cos(phi), rho * np.sin(phi)])
-        got = np.asarray(_method(fold, "action")(_mirror_motion("x", 3))(chart))
+        got = np.asarray(_method(fold, "action")(mirror_motion("x", 3))(chart))
         np.testing.assert_array_equal(got, chart * np.array([-1.0, 1.0]))
 
     def test_the_quotient_refuses_a_translation(self):
@@ -476,7 +475,7 @@ class TestTheGSpaceFamily:
         off the ball. The action must refuse it, as the sphere's does."""
         entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
         with pytest.raises(ValueError, match=FRAG_DOES_NOT_MAP):
-            _method(entry, "action")(PairedDeck.wrap(axis="x").motion)
+            _method(entry, "action")(translation_motion("xmax", 3))
 
     def test_the_quotient_refuses_a_non_normaliser_with_the_pinned_fragment(self):
         fold = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
@@ -532,7 +531,7 @@ def test_the_polar_mirror_spelled_twice_agrees():
     entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
     mu = gauss_legendre_on_polar_orbit(8, "x").nodes
     on_interval = np.asarray(_method(COSINE_INTERVAL, "action")(_x_mirror(1))(mu)).reshape(-1)
-    on_quotient = np.asarray(_method(entry, "action")(_mirror_motion("x", 3))(mu)).reshape(-1)
+    on_quotient = np.asarray(_method(entry, "action")(mirror_motion("x", 3))(mu)).reshape(-1)
     assert np.any(on_interval != mu)          # the map moves the points: not vacuous
     np.testing.assert_array_equal(on_interval, on_quotient)
 
@@ -837,7 +836,7 @@ def relabelling_spy(monkeypatch):
 
 def test_ordinate_permutation_enters_relabelling(relabelling_spy):
     q = Quadrature.level_symmetric(4)
-    assert q.ordinate_permutation(_mirror_motion("x", 3)) is not None
+    assert q.ordinate_permutation(mirror_motion("x", 3)) is not None
     assert len(relabelling_spy) == 1
 
 
@@ -910,7 +909,7 @@ def test_an_affine_motion_is_None_not_a_raise(rule):
     and ``permutation_under`` must turn that refusal into None."""
     m = {"gauss_legendre_8": lambda: Quadrature.gauss_legendre(8),
          "lebedev_7": lambda: Quadrature.lebedev(7)}[rule]().measure
-    wrap = PairedDeck.wrap(axis="x").motion
+    wrap = translation_motion("xmax", 3)
     assert m.permutation_under(wrap) is None
 
 

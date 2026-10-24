@@ -244,8 +244,9 @@ def test_colouring_symmetry_is_independent_of_the_cell_partition() -> None:
 
 
 def _geometry_sources() -> dict[Path, str]:
+    # 14 files at WF2.4 (the 15 modules of the retired boundary package are gone; was 29 before): the floor is the measured population
     paths = sorted((_ROOT / "orpheus" / "geometry").rglob("*.py"))
-    require(len(paths) > 20 and (_ROOT / "orpheus/geometry/chart.py") in paths, f"the scan read {len(paths)} files")
+    require(len(paths) >= 14 and (_ROOT / "orpheus/geometry/chart.py") in paths, f"the scan read {len(paths)} files")
     return {p: p.read_text(encoding="utf-8") for p in paths}
 
 

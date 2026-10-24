@@ -95,7 +95,6 @@ _SEED_SCRIPT = textwrap.dedent(
     from orpheus.data.materials import Materials
     from orpheus.derivations.common.xs_library import get_mixture
     from orpheus.geometry import CoordSystem, StructuredGeometry
-    from orpheus.geometry.boundary import BC
     from orpheus.mesh import Mesh2D
     from orpheus.numerics.axis import EnergyAxis
     from orpheus.values.content import content_digest
@@ -110,7 +109,6 @@ _SEED_SCRIPT = textwrap.dedent(
         "panel basis": PanelBasis.of(ConcentricPartition(Chart(CoordSystem.SPHERICAL), (0.0, 0.5, 2.0)), 3, 2, 0.4),
         "mixture A 4g": get_mixture("A", "4g"),
         "materials": Materials({0: get_mixture("A", "2g"), 3: get_mixture("B", "2g")}),
-        "bc albedo": BC("albedo", {"albedo": 0.3}),
         "hollow sphere": StructuredGeometry(
             coord=CoordSystem.SPHERICAL, breakpoints=(0.5, 1.0, 2.0), mat_ids=(0, 1),
             face_roles=(1, 0)),
@@ -149,7 +147,7 @@ def test_s5_1_digests_and_hashes_are_seed_stable() -> None:
     files = [line.split(" ", 1)[1] for line in one if line.startswith("FILE ")]
     require(files and files[0].startswith(str(_ROOT)), f"the subprocess imported {files} (L22)")
     pick = lambda lines, kind: [l for l in lines if l.startswith(kind + " ")]  # noqa: E731
-    for kind, n in (("DIGEST", 6), ("HASH", 6), ("NAME", 1)):
+    for kind, n in (("DIGEST", 5), ("HASH", 5), ("NAME", 1)):
         require(len(pick(one, kind)) == n, f"{kind}: {len(pick(one, kind))} lines, expected {n}")
         require(pick(one, kind) == pick(two, kind), f"{kind} lines differ across seeds")
     unhashable = [l for l in pick(one, "HASH") if " UNHASHABLE " in l]

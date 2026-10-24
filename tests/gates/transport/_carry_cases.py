@@ -2,7 +2,7 @@ r"""The carried problems of wave 2, as DATA (slice S2b, gate 3; plan section 6.0
 
 Not a test module (no ``test_`` prefix). Two readers share this file and nothing else:
 
-* ``_capture_carry_head.py`` builds each problem in the SPELLING OF ``main`` ``5d04c296`` (the typed laws of
+* ``_capture_carry_head.py`` (deleted in WF2.4; recover it with ``git show 197549f6:tests/gates/transport/_capture_carry_head.py``) builds each problem in the SPELLING OF ``main`` ``5d04c296`` (the typed laws of
   ``orpheus.geometry.boundary``) inside a detached worktree of that commit and freezes the answers into
   ``carry_head.npz``;
 * ``tests/gates/sn/operators/test_wave2_carry.py`` builds the SAME problems in the new spelling (a tag bound to a
@@ -34,9 +34,9 @@ HEAD_COMMIT = "5d04c296"
 #: The frozen HEAD answers (``_capture_carry_head.py`` writes it).
 CARRY_FIXTURE = Path(__file__).with_name("carry_head.npz")
 
-#: The seven independent ``bc_equivalence`` references (R-10: NOT re-baselined; the directory moves with its test to
-#: ``tests/gates/sn/operators/snapshots/`` when the old test is re-posed, and this constant moves with it).
-SNAPSHOT_DIR = Path(__file__).resolve().parent.parent / "geometry" / "snapshots"
+#: The seven independent ``bc_equivalence`` references (R-10: NOT re-baselined; the directory moved from
+#: ``tests/gates/geometry/snapshots/`` to here in WF2.4, with the retirement of the law tests that read it).
+SNAPSHOT_DIR = Path(__file__).resolve().parent.parent / "sn" / "operators" / "snapshots"
 
 #: ``(kind, value)`` neutral declarations. ``mirror`` is the perfect mirror (HEAD ``BC.reflective``).
 Declaration = tuple

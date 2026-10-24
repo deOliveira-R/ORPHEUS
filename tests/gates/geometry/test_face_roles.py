@@ -60,7 +60,6 @@ import pytest
 
 import orpheus.geometry as geometry_package
 from orpheus.geometry import CoordSystem, StructuredGeometry
-from orpheus.geometry.boundary import ReflectiveBoundary, VacuumInflow
 from orpheus.geometry.deck import DeckError, MirrorDeck, TranslationDeck
 from orpheus.values.content import content_digest
 from tests.gates._content_identity_helpers import require
@@ -170,10 +169,8 @@ def _boundary_imports(root: Path, packages: tuple[str, ...], law_names: frozense
 
 
 def _the_response_vocabulary() -> frozenset[str]:
-    try:
-        return frozenset(importlib.import_module("orpheus.geometry.boundary").__all__) | {"BC"}
-    except ModuleNotFoundError:  # after the retirement (WF2.4) the module path is the whole rule
-        return frozenset({"BC"})
+    """The names the facade must not export: the package is gone (WF2.4), so the module path is the whole rule and ``BC`` the one name."""
+    return frozenset({"BC"})
 
 
 _PLANTED = {
@@ -231,22 +228,21 @@ class TestGeometryAndMeshNameNoResponse:
         leaked = sorted((exported & _the_response_vocabulary()) | ({"boundary"} & set(geometry_package.__all__)))
         require(not leaked, f"orpheus.geometry exports the response vocabulary: {leaked}")
 
-    @pytest.mark.xfail(strict=True, reason="orpheus/geometry/boundary/ retires at WF2.4; remove this marker there")
     def test_the_boundary_package_is_gone(self) -> None:
-        """WF2.4 row: the retired package has no module spec. Strict xfail: the row flips red-to-fail at the deletion."""
+        """WF2.4 row: the retired package has no module spec (it was a strict xfail until the deletion)."""
         require(importlib.util.find_spec("orpheus.geometry.boundary") is None, "orpheus.geometry.boundary still exists")
 
     @pytest.mark.parametrize(
         "stand_in",
-        [VacuumInflow(), ReflectiveBoundary("x"), _LawShaped(), _LawShaped, "vacuum", None, 1.0],
-        ids=["vacuum-inflow", "reflective-boundary", "law-shaped", "law-class", "string", "none", "float"],
+        [_LawShaped(), _LawShaped, "vacuum", None, 1.0],
+        ids=["law-shaped", "law-class", "string", "none", "float"],
     )
     def test_a_response_is_not_a_role(self, stand_in: object) -> None:
         """L-F. The control sits first: the same call with a tag builds. Red at base: the keyword does not exist.
 
-        The first two rows are the real laws (``VacuumInflow``, ``ReflectiveBoundary``): the threat is a role parse that
-        keeps an ``isinstance(..., BoundaryTraceLaw)`` arm, which a duck-typed stand-in cannot reach. These two rows
-        retire with ``orpheus/geometry/boundary/`` at WF2.4; the stand-in rows stay.
+        The rows are duck-typed stand-ins of the retired law surface (a ``kind`` and ``params``): the threat is a role parse
+        that falls back to any object with a ``kind``. (The two rows that built the real ``VacuumInflow`` and
+        ``ReflectiveBoundary`` retired with their classes in WF2.4.)
         """
         built = StructuredGeometry(coord=_CART, breakpoints=(0.0, 1.0), mat_ids=(0,), face_roles=(0, 1))
         require(built.face_roles == (0, 1), f"the control builds: {built.face_roles!r}")
@@ -366,10 +362,9 @@ def _delegation_body(path: str, name: str) -> list[ast.stmt]:
 @pytest.mark.parametrize(
     ("path", "name"),
     [
-        ("orpheus/geometry/boundary/_factors.py", "_mirror_motion"),
         ("orpheus/geometry/symmetry.py", "_reflections"),
     ],
-    ids=["factors", "symmetry"],
+    ids=["symmetry"],
 )
 def test_the_mirror_twins_delegate(path: str, name: str) -> None:
     """X4: one axis-letter to mirror spelling. Layer: architecture; kind STRUCTURE plus a message fragment.

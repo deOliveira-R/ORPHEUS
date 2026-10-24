@@ -5,8 +5,9 @@ Designed BEFORE the implementation (test-architect, 2026-09-03; the plan is
 class lives here: the import graph (A), ONE closure (B), the deleted step 2
 (C), the position and azimuth windows (D, E), candidates from the barycentres
 (F), strict maximality (G), the retired names and the measure verbs (H), the
-frozen ordinate-permutation and selection tables (H4), and ERR-045's fold
-diagnosis (I).  The four entry points the old import cycle killed are a
+frozen ordinate-permutation and selection tables (H4). (Group I, ERR-045's fold
+diagnosis, retired in WF2.4 with the law-side certification it exercised; it is carried by
+``tests/gates/numerics/test_ordinate_pairing.py::test_a_folded_rule_is_diagnosed_as_having_spent_the_mirror``.)  The four entry points the old import cycle killed are a
 RE-KEY of ``tests/gates/test_layer_imports.py``'s fresh-interpreter list, not rows
 here.  The mutation battery that proves these rows bite is
 ``scratch/_r2_mut.py`` (23 arms; its arm table lives there, once).
@@ -32,13 +33,7 @@ import sys
 import numpy as np
 import pytest
 
-from orpheus.geometry.boundary import SelfPairedDeck
-from orpheus.geometry.boundary._errors import (
-    ReflectionDidNotMapInflowToOutflowError,
-)
-from orpheus.geometry.boundary._specular import (
-    assert_specular_pairing_maps_inflow_to_outflow,
-)
+from orpheus.geometry.deck import mirror_motion
 from orpheus.geometry import manifold as man
 from orpheus.numerics import measure as mea
 from orpheus.geometry import symmetry as sym
@@ -905,7 +900,7 @@ class TestR2OrdinatePermutationIsUnchanged:
         baseline = np.load(NUMERICS_DATA / "r2_perm_baseline.npz")
         quad = _r2_rule(rule_label)
         for axis in ("x", "y", "z"):
-            motion = SelfPairedDeck.mirror(axis=axis, dimension=3).motion
+            motion = mirror_motion(axis, 3)
             pi = quad.ordinate_permutation(motion)
             want = baseline[f"{rule_label}|{axis}"]
             if want.size == 1 and want[0] == -1:
@@ -969,55 +964,3 @@ class TestR2SelectionIsUnchanged:
                 "rejected": sorted(stage_of(f"{n}::{r}") for n, r in log.rejected),
             }
             assert got == want, f"{key}: selection moved\n  want {want}\n  got  {got}"
-
-
-# ===========================================================================
-# Group I — C6: the ERR-045 message on a fold
-# ===========================================================================
-
-
-class TestR2Err045NamesTheOrbitSpace:
-    r"""On a :math:`\sigma_y`-folded rule the specular guard must name the ORBIT SPACE.
-
-    ⛔ **Not tagged ``catches("ERR-045")``.**  The guard fires today too — `[M]` on
-    ``folded_product(4, 8)``, axis ``'y'``, the permutation IS the identity
-    (``array_equal(perm, arange(16))``) because :math:`\sigma_y` acts trivially on
-    :math:`S^2/\sigma_y`, and the raise reads *"same sign class instead of the outflow
-    partner (ERR-045: wrong pairing, or a non-axis-aligned reflection that needs a
-    different BC type)"*.  Neither diagnosis is the truth: the fold SPENT
-    :math:`\sigma_y`, so the outflow half is not stored at all.  R2 changes the
-    DIAGNOSIS, not the refusal, so a ``catches`` marker here would be a false coverage
-    claim and a bare ``pytest.raises`` would be teeth-less — **only the two message legs
-    attribute the change**.
-    """
-
-    @pytest.mark.foundation
-    def test_i1_the_fold_refusal_names_the_spent_symmetry(self) -> None:
-        quad = Quadrature.folded_product(4, 8)
-        with pytest.raises(ReflectionDidNotMapInflowToOutflowError) as excinfo:
-            assert_specular_pairing_maps_inflow_to_outflow(
-                quad, "y", law_key="r2-probe"
-            )
-        message = str(excinfo.value)
-        assert "SPENT the mirror" in message, (
-            f"the refusal must name the fold that consumed the mirror; got: {message}"
-        )
-        assert "non-axis-aligned" not in message, (
-            "the old misdiagnosis survives: the pairing is not wrong and the "
-            "reflection is axis-aligned — the rule simply no longer stores the "
-            "outflow half"
-        )
-
-    @pytest.mark.foundation
-    def test_i2_control_the_unfolded_sibling_does_not_raise(self) -> None:
-        """`[M]` no raise at HEAD — the guard is correct on an unfolded rule."""
-        assert_specular_pairing_maps_inflow_to_outflow(
-            Quadrature.product(4, 8), "y", law_key="r2-probe"
-        )
-
-    @pytest.mark.foundation
-    def test_i3_control_the_folded_rules_other_axis_does_not_raise(self) -> None:
-        """`[M]` no raise at HEAD — the ``x`` partner survives the ``y`` fold."""
-        assert_specular_pairing_maps_inflow_to_outflow(
-            Quadrature.folded_product(4, 8), "x", law_key="r2-probe"
-        )

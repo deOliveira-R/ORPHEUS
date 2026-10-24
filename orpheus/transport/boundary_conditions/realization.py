@@ -155,8 +155,7 @@ def _units(declared: BoundaryCondition) -> tuple[tuple[type, object, float], ...
 def stamp_boundary_role(op: LinearOperator) -> LinearOperator:
     r"""Stamp a realized boundary law with the :attr:`BlockRole.BOUNDARY` role.
 
-    A COPY of ``orpheus.transport.boundary_realization.stamp_boundary_role`` (the old module is left for WF2.4, which
-    deletes it; this copy then stands alone). Edit both or neither until then.
+    This is the one definition (the copy in the retired ``orpheus.transport.boundary_realization`` was deleted in WF2.4).
 
     A realized law is a boundary-block leaf (``A_ss`` only) on the
     direct-sum transport state ``V = V_bulk ⊕ V_boundary`` — it maps the

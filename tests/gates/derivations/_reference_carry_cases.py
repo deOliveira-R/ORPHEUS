@@ -1,7 +1,7 @@
 r"""The population of the reference carry: bodies and the walls they state, as DATA (wave 2, S5; plan 6.5 gates 2 and 3).
 
 Not a test module, and importing nothing from ``orpheus``: the SAME table is read by the HEAD capture script
-(``_capture_reference_carry_head.py``, which spells each wall as the retired string tag ``BC(...)`` and is run once, from a
+(``_capture_reference_carry_head.py`` (deleted in WF2.4; recover it with ``git show 197549f6:tests/gates/derivations/_capture_reference_carry_head.py``), which spells each wall as the retired string tag ``BC(...)`` and is run once, from a
 detached tree of ``main`` ``5d04c296``) and by the post-carve tests (``test_reference_carry.py`` and
 ``test_walls_of_reads_decks_and_amplitudes.py``, which spell the same wall as a face role plus an ``exterior`` of
 ``WallAmplitudes``). One table, two spellings, one fixture between them: that is the whole instrument. The fixture they compare

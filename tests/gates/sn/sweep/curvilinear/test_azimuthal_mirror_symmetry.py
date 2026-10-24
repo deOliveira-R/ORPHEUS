@@ -64,7 +64,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry.boundary import SelfPairedDeck
+from orpheus.geometry.deck import mirror_motion
 from orpheus.numerics.quadrature import Quadrature
 
 
@@ -75,7 +75,7 @@ def _mirror_pairing(quad: Quadrature, axis: str) -> np.ndarray:
     below verify its ξ-mirror facts INDEPENDENTLY (η/μ_z held, ξ negated,
     weights equal)."""
     pi = quad.ordinate_permutation(
-        SelfPairedDeck.mirror(axis=axis, dimension=3).motion
+        mirror_motion(axis, 3)
     )
     if pi is None:
         raise AssertionError(f"no {axis}-mirror ordinate pairing on this rule")

@@ -40,7 +40,7 @@ Two clauses, both load-bearing:
    :class:`AngularFlux` is defined using "ordinate" and "moment" — concepts
    from transport theory but not specific to any discretization; its home
    is therefore :mod:`orpheus.transport`, not :mod:`orpheus.sn`. The
-   SN boundary realizer :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
+   SN boundary realizer ``SNBoundaryRealizer``
    is defined using SN-specific face-coordinate decoding (the flat
    ``from_flat_with_traces`` codec that once illustrated this point has
    since moved up to the transport-layer :class:`~orpheus.transport.timed_full_field.TimedFullField`);

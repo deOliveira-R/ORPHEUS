@@ -86,7 +86,7 @@ scheme, the angular closure, the scattering order and the boundary laws;
 :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` adds the scalar
 trace and the realised albedo laws. The two are the witnesses of the
 :class:`~orpheus.transport.method.TransportMethod` Protocol, whose one
-body :func:`~orpheus.transport.method.resolve_boundary_conditions` walks
+body ``resolve_boundary_conditions`` walks
 the faces to a typed law and the method's realizer
 (:ref:`bc-realizer-layer`). The third hub,
 :class:`~orpheus.homogeneous.solver.HomogeneousProblem`, is posed from
@@ -283,10 +283,10 @@ extension by zero on the trace (:ref:`cs4c-ends-select-the-body`;
 
 A **boundary law** is a descriptor, not an operator: it carries the typed
 factors :math:`G` and :math:`R` of the affine form
-(:class:`~orpheus.geometry.boundary.BoundaryTraceLaw`) and becomes an
+(``BoundaryTraceLaw``) and becomes an
 operator only through the method's realizer
 (:ref:`bc-method-realizability`;
-:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`), which is why
+``SNBoundaryRealizer``), which is why
 the sweep reads the inflow as a given and never re-applies the law.
 
 
@@ -488,7 +488,7 @@ The concept table
      - :class:`~orpheus.transport.operators.lift.BulkLift`, :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
      - :ref:`cs4c-ends-select-the-body`
    * - Boundary law; realizer
-     - :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`, :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
+     - ``BoundaryTraceLaw``, ``SNBoundaryRealizer``
      - :eq:`affine-bc-form`, :ref:`bc-realizer-layer`, :ref:`bc-method-realizability`
    * - Metric
      - :class:`~orpheus.numerics.metric.HilbertMetric`

@@ -12,7 +12,7 @@ the mirror, a closed form for the Lambertian, the weighted-adjoint law of ERR-07
 * the factored Lambertian (closed-form reference);
 * the translation wrap (an identity relabelling between two distinct faces);
 * the metric correctness of every realized face (ERR-076, the weighted Hilbert adjoint);
-* the trace-orientation guard of the zero map (ERR-041);
+* the zero map realizing on the trace ladder (ERR-041's invariant is witnessed on the ladder);
 * the face PACKING ORDER is book-keeping (G6.5).
 
 **Retired with the ladder, each by its structural reason** (the demotion check of ``retirement-audit``: the claim is unspellable now,
@@ -44,7 +44,6 @@ from orpheus.geometry.transformation import Permutation
 from orpheus.numerics.elementary_operators import PermutationOperator
 from orpheus.numerics.operator import IdentityOperator, OperatorSum, TensorProductOperator, ZeroMorphism
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.boundary.errors import VacuumAppliedToOutgoingTraceError
 from orpheus.sn.boundary.realized_operators import RankOneReemission, ScaledOrdinatePermutation, ZeroMap, _crossing
 from orpheus.sn.boundary.realizer import SN_REALIZERS
 from orpheus.sn.mesh.method_space import SNMethodSpace
@@ -61,6 +60,16 @@ def _realize(declared, space, face: str | None = None):
     return SN_REALIZERS.realize(declared, site, space)
 
 
+def _inflow(space):
+    """The face's :math:`\\Gamma_-` ordinate indices, read off the trace ladder."""
+    return space.inflow_indices_for_face(space.face)
+
+
+def _outflow(space):
+    """The face's :math:`\\Gamma_+` ordinate indices, read off the trace ladder."""
+    return space.trace.outflow_indices_for_face(space.face)
+
+
 def _scaled_parts(op):
     """The ``(alpha, word)`` of a scaled operator: the one-term ``OperatorSum``."""
     assert isinstance(op, OperatorSum), f"expected alpha * word, got {type(op).__name__}"
@@ -75,8 +84,8 @@ def assert_lambertian_kernel(kernel, space, quad) -> None:
     strictly stronger than reading an attribute, because it holds for any future spelling and cannot be satisfied by an operator
     that merely reports the right number; without it a revert to the full-face kernel would keep every structural claim green.
     """
-    n_out = int(space.outflow_indices.size)
-    n_in = int(space.inflow_indices.size)
+    n_out = int(_outflow(space).size)
+    n_in = int(_inflow(space).size)
     assert n_out < quad.n_ordinates, "fixture no longer exercises the narrowing: Gamma_+ is the whole face"
     out = np.asarray(kernel.apply(np.ones((n_out,))))
     assert out.shape == (n_in,), f"the realized Lambertian emits {out.shape} on Gamma_- of size {n_in}"
@@ -96,11 +105,11 @@ def lambertian_reference(quad, axis, sign, psi_out, space):
     realizer cannot compare its output with itself through a wrapper.
     """
     mu_n = np.asarray(getattr(quad, f"mu_{axis}"), dtype=float) * sign
-    out_i = np.asarray(space.outflow_indices)
+    out_i = np.asarray(_outflow(space))
     cos_w = np.asarray(quad.weights, dtype=float)[out_i] * mu_n[out_i]
     psi_out = np.asarray(psi_out)
     contracted = (cos_w.reshape((-1,) + (1,) * (psi_out.ndim - 1)) * psi_out).sum(axis=0)
-    n_in = int(np.asarray(space.inflow_indices).size)
+    n_in = int(np.asarray(_inflow(space)).size)
     return np.broadcast_to((contracted / cos_w.sum())[None, ...], (n_in,) + contracted.shape).copy()
 
 
@@ -125,8 +134,8 @@ class TestRealizeVacuum:
         psi = rng.uniform(0.5, 2.0, size=(quad.n_ordinates, 4, 2))
         op = _realize(WallCondition.vacuum(), space)
         assert isinstance(op, ZeroMap) and op.is_vacuum
-        out = op.apply(psi[space.outflow_indices])
-        assert out.shape == (space.inflow_indices.size, 4, 2)
+        out = op.apply(psi[_outflow(space)])
+        assert out.shape == (_inflow(space).size, 4, 2)
         np.testing.assert_array_equal(out, 0.0)
         # |Gamma_+| == |Gamma_-| on every quadrature in the tree, so the shape check above cannot tell Gamma_+ -> Gamma_- from
         # Gamma_+ -> Gamma_+ (vv Mode 12): a full-face input must not produce a full-face image.
@@ -136,10 +145,10 @@ class TestRealizeVacuum:
         quad = Quadrature.lebedev(17)
         space = face_method_space(quad, face="ymax", faces=("xmin", "xmax", "ymin", "ymax"))
         # An independent spelling of the face's orientation: Omega.n_ymax = +mu_y, so inflow <=> mu_y < 0.
-        np.testing.assert_array_equal(space.inflow_indices, np.flatnonzero(quad.mu_y < -1e-12))
+        np.testing.assert_array_equal(_inflow(space), np.flatnonzero(quad.mu_y < -1e-12))
         psi = np.arange(quad.n_ordinates * 3, dtype=float).reshape(quad.n_ordinates, 3)
-        out = _realize(WallCondition.vacuum(), space).apply(psi[space.outflow_indices])
-        assert out.shape == (space.inflow_indices.size, 3)
+        out = _realize(WallCondition.vacuum(), space).apply(psi[_outflow(space)])
+        assert out.shape == (_inflow(space).size, 3)
         np.testing.assert_array_equal(out, 0.0)
 
     def test_vacuum_without_the_trace_ladder_is_refused(self):
@@ -156,8 +165,8 @@ class TestRealizeVacuum:
         space = face_method_space(quad, face="xmin")
         op = _realize(WallCondition.vacuum(), space)
         assert isinstance(op.inner, ZeroMorphism)
-        np.testing.assert_array_equal(op.apply(np.ones((space.outflow_indices.size, 3))), np.zeros((space.inflow_indices.size, 3)))
-        np.testing.assert_array_equal(op.apply_transpose(np.ones((space.inflow_indices.size, 3))), np.zeros((space.outflow_indices.size, 3)))
+        np.testing.assert_array_equal(op.apply(np.ones((_outflow(space).size, 3))), np.zeros((_inflow(space).size, 3)))
+        np.testing.assert_array_equal(op.apply_transpose(np.ones((_inflow(space).size, 3))), np.zeros((_outflow(space).size, 3)))
 
     @pytest.mark.parametrize("spelling", [WallCondition.specular(0.0), WallCondition.white(0.0)], ids=["specular(0)", "white(0)"])
     def test_a_wall_of_zero_weight_is_the_same_zero_map(self, spelling):
@@ -186,9 +195,9 @@ class TestRealizeSpecular:
         space = face_method_space(quad, face="xmin")
         rng = np.random.default_rng(7)
         psi = rng.uniform(-1.0, 1.0, size=(quad.n_ordinates, 5, 3))
-        expected = psi[mirror_partner_indices(quad, "x")][space.inflow_indices]
+        expected = psi[mirror_partner_indices(quad, "x")][_inflow(space)]
         for declared in (WallCondition.specular(1.0), MirrorDeck()):
-            np.testing.assert_array_equal(_realize(declared, space).apply(psi[space.outflow_indices]), expected)
+            np.testing.assert_array_equal(_realize(declared, space).apply(psi[_outflow(space)]), expected)
 
     def test_specular_unit_weight_returns_tensor_product(self):
         r"""At weight 1 the derived operator is a :class:`TensorProductOperator` whose factors are ``(PermutationOperator,
@@ -203,7 +212,7 @@ class TestRealizeSpecular:
         assert isinstance(op, ScaledOrdinatePermutation) and op.permutes_ordinates and op.return_fraction == 1.0
         assert isinstance(op.inner, TensorProductOperator) and len(op.inner.ops) == 2
         assert isinstance(op.inner.ops[0], PermutationOperator) and isinstance(op.inner.ops[1], IdentityOperator)
-        assert op.inner.ops[0].perm.size == space.outflow_indices.size < quad.n_ordinates
+        assert op.inner.ops[0].perm.size == _outflow(space).size < quad.n_ordinates
 
     def test_specular_partial_weight_matches_hand_computed(self):
         """At weight 0.7 the realized op output equals ``0.7 * psi[mirror_partner][inflow]`` bit-exactly."""
@@ -211,8 +220,8 @@ class TestRealizeSpecular:
         space = face_method_space(quad, face="xmin")
         rng = np.random.default_rng(9)
         psi = rng.uniform(-1.0, 1.0, size=(quad.n_ordinates, 5))
-        expected = 0.7 * psi[mirror_partner_indices(quad, "x")][space.inflow_indices]
-        np.testing.assert_array_equal(_realize(WallCondition.specular(0.7), space).apply(psi[space.outflow_indices]), expected)
+        expected = 0.7 * psi[mirror_partner_indices(quad, "x")][_inflow(space)]
+        np.testing.assert_array_equal(_realize(WallCondition.specular(0.7), space).apply(psi[_outflow(space)]), expected)
 
     def test_specular_partial_weight_returns_scaled_tensor_product(self):
         """At weight != 1 the specular wall's operator is ``alpha * TP`` (the one-term combination), TP the 2-factor product."""
@@ -222,7 +231,7 @@ class TestRealizeSpecular:
         assert alpha == 0.5
         assert isinstance(tp, TensorProductOperator) and len(tp.ops) == 2
         assert isinstance(tp.ops[0], PermutationOperator) and isinstance(tp.ops[1], IdentityOperator)
-        assert tp.ops[0].perm.size == space.outflow_indices.size < quad.n_ordinates
+        assert tp.ops[0].perm.size == _outflow(space).size < quad.n_ordinates
 
     def test_the_scaled_mirror_composed_with_its_transpose_is_alpha_squared(self):
         r"""``Bᵀ(B(x)) == alpha² x`` on :math:`\Gamma_+` (migrated from ``tests/gates/geometry/test_boundary.py``, wave 2 S2b D.14).
@@ -233,7 +242,7 @@ class TestRealizeSpecular:
         """
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         space = face_method_space(quad, face="xmax")
-        x = np.random.default_rng(7).standard_normal((int(space.outflow_indices.size), 2))
+        x = np.random.default_rng(7).standard_normal((int(_outflow(space).size), 2))
         op = _realize(WallCondition.specular(0.7), space)
         np.testing.assert_allclose(op.apply_transpose(op.apply(x)), 0.7 ** 2 * x, rtol=1e-13, atol=1e-14)
 
@@ -265,15 +274,11 @@ class TestRealizeSpecular:
             _crossing(Permutation.identity(8), outflow, inflow, "probe")
 
     def test_a_spaceless_method_space_cannot_pose_the_pairing(self):
-        r"""The pairing is returned fully bound :math:`\Gamma_+(f') \to \Gamma_-(f)`: a method space that names index SETS but
-        stands up no half-trace spaces is refused (before the wave-2 carve this path realized a silently UNBOUND permutation whose
-        ``.H`` was the bare Euclidean transpose, the ERR-076 shape)."""
+        r"""The pairing is returned fully bound :math:`\Gamma_+(f') \to \Gamma_-(f)`: a method space that stands up no half-trace
+        spaces is refused (before the wave-2 carve this path realized a silently UNBOUND permutation whose ``.H`` was the bare
+        Euclidean transpose, the ERR-076 shape)."""
         quad = Quadrature.gauss_legendre(8)
-        trace = face_trace(quad)
-        spaceless = SNMethodSpace(
-            quadrature=quad, face="xmax",
-            inflow_indices=trace.inflow_indices_for_face("xmax"), outflow_indices=trace.outflow_indices_for_face("xmax"),
-        )
+        spaceless = SNMethodSpace(quadrature=quad, face="xmax")
         with pytest.raises(BoundaryError, match="trace ladder"):
             _realize(WallCondition.specular(1.0), spaceless)
 
@@ -297,9 +302,9 @@ class TestRealizeWhite:
         quad = Quadrature.lebedev(17)
         space = face_method_space(quad, face="xmax")
         rng = np.random.default_rng(123)
-        psi_out = rng.uniform(0.0, 2.0, size=(quad.n_ordinates, 5, 3))[space.outflow_indices]
+        psi_out = rng.uniform(0.0, 2.0, size=(quad.n_ordinates, 5, 3))[_outflow(space)]
         got = _realize(WallCondition.white(1.0), space).apply(psi_out)
-        assert got.shape == (space.inflow_indices.size, 5, 3)
+        assert got.shape == (_inflow(space).size, 5, 3)
         np.testing.assert_array_equal(got, lambertian_reference(quad, "x", +1, psi_out, space))
 
     def test_white_unit_weight_returns_tensor_product(self):
@@ -325,7 +330,7 @@ class TestRealizeWhite:
         inner output from the outside, the hand-computed product may differ by one ULP under IEEE-754 non-associativity."""
         quad = Quadrature.lebedev(17)
         space = face_method_space(quad, face="xmax")
-        psi_out = np.random.default_rng(11).uniform(0.0, 2.0, size=(quad.n_ordinates, 4))[space.outflow_indices]
+        psi_out = np.random.default_rng(11).uniform(0.0, 2.0, size=(quad.n_ordinates, 4))[_outflow(space)]
         np.testing.assert_array_almost_equal_nulp(
             _realize(WallCondition.white(0.3), space).apply(psi_out), 0.3 * lambertian_reference(quad, "x", +1, psi_out, space), nulp=4,
         )
@@ -533,66 +538,44 @@ class TestTheRealizedFaceIsMETRICCorrect:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# 7. The zero map's trace-orientation guard (#52, ERR-041)
+# 7. The zero map reads its half-space off the trace ladder (ERR-041's invariant is witnessed there)
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.l1
-@pytest.mark.catches("ERR-041")
-class TestVacuumTraceOrientationGuard:
-    r"""The realizer-seam ERR-041 guard: claimed ``inflow_indices`` cross-checked against the orientation the FACE NAME alone implies.
+class TestVacuumRealizesOnTheTrace:
+    r"""The zero map of a vacuum face is built from the trace ladder alone.
 
-    The catalog's threat model verbatim: "a realiser swapped the face's (inflow, outflow) annotation by mistake", the resulting zero
-    map zeroes the OUTGOING flux the sweep just computed while every shape-level test stays green (``apply`` returns a same-shaped
-    array regardless of orientation). The face name and the index array are two independently supplied encodings of one orientation;
-    the guard reads the face's signed projection :math:`\Omega\cdot\hat n` through the single
-    :func:`~orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n` primitive and refuses any claimed inflow index that is
-    outgoing. It is an SN-side assertion on the realizer's OWN index sets (:class:`VacuumAppliedToOutgoingTraceError`, rooted in
-    ``BoundaryError``), not an admission: the declared orientation it used to catch is unspellable now.
+    ERR-041 (the zero map fills only the incoming trace) used to be a realizer guard that cross-checked a hand-supplied inflow index
+    set against the face name. The method space holds no index set any more, so the guard and its tests retired (WF2.4); the invariant
+    itself, that ``trace.inflow_space(face)`` holds exactly the ordinates with :math:`\Omega\cdot n_f < 0`, is witnessed on the ladder in
+    ``tests/gates/numerics/test_angular_trace_space.py::TestTheInflowHalfSpaceIsTheIncomingOrdinates`` (the ``catches`` marker lives
+    there). What stays here is what the realizer still owes: a face-ful method space realizes, a faceless or unknown-face one refuses.
     """
 
-    def test_swapped_annotation_raises(self):
-        """The full annotation swap: the OUTGOING set of xmax (mu_x > 0) claimed as its inflow set."""
-        quad = Quadrature.gauss_legendre(8)
-        swapped = SNMethodSpace(quadrature=quad, face="xmax", inflow_indices=np.flatnonzero(quad.mu_x > 0))
-        with pytest.raises(VacuumAppliedToOutgoingTraceError):
-            _realize(WallCondition.vacuum(), swapped)
-
-    def test_single_contaminated_index_raises(self):
-        """The sharper form: ONE outgoing ordinate hidden inside an otherwise-correct inflow set (a per-ordinate indexing slip)."""
-        quad = Quadrature.gauss_legendre(8)
-        contaminated = np.concatenate([np.flatnonzero(quad.mu_x < 0), np.flatnonzero(quad.mu_x > 0)[:1]])
-        with pytest.raises(VacuumAppliedToOutgoingTraceError):
-            _realize(WallCondition.vacuum(), SNMethodSpace(quadrature=quad, face="xmax", inflow_indices=contaminated))
-
     def test_correct_orientation_realizes(self):
-        """Positive control: the true inflow set of each face realizes clean through the SAME guarded path, both face sides.
-
-        The face-side pin is written out per face rather than as a signed formula: a sign convention compressed into an expression
-        is exactly the kind of thing this test exists to catch.
-        """
+        """Positive control: each face realizes through the realizer, and the half-space it reads is the written-out per-face predicate."""
         quad = Quadrature.gauss_legendre(8)
         for face, inflow in (("xmax", np.flatnonzero(quad.mu_x < -1e-12)), ("xmin", np.flatnonzero(quad.mu_x > +1e-12))):
             space = face_method_space(quad, face=face)
-            np.testing.assert_array_equal(space.inflow_indices, inflow)
+            np.testing.assert_array_equal(_inflow(space), inflow)
             assert isinstance(_realize(WallCondition.vacuum(), space), ZeroMap)
 
-    def test_a_faceless_space_carries_no_orientation_truth_and_no_trace(self):
-        r"""A method space with hand-supplied half-traces and NO face name has no independent orientation encoding, so the guard cannot
-        fire; and it carries no trace ladder to bind :math:`\Gamma_-` from, so the realize REFUSES loudly instead of building an
-        unbindable zero map. The demand that made the guard unable to fire here also makes the object itself unmintable."""
-        quad = Quadrature.gauss_legendre(8)
-        faceless = SNMethodSpace(quadrature=quad, inflow_indices=np.flatnonzero(quad.mu_x > 0), outflow_indices=np.flatnonzero(quad.mu_x < 0))
+    def test_a_faceless_space_carries_no_trace(self):
+        r"""A method space with no trace ladder has no :math:`\Gamma_-` to bind, so the realize REFUSES loudly instead of building an
+        unbindable zero map."""
+        faceless = SNMethodSpace(quadrature=Quadrature.gauss_legendre(8))
         with pytest.raises(BoundaryError, match="trace ladder"):
             _realize(WallCondition.vacuum(), faceless, face="xmax")
 
-    def test_unknown_face_name_fails_loud(self):
-        """A face name outside the ``{axis}{min|max}`` convention is uncertifiable orientation data: the guard's primitive raises a loud
-        ``ValueError`` naming the valid faces rather than silently skipping the check."""
-        quad = Quadrature.gauss_legendre(8)
-        legacy = SNMethodSpace(quadrature=quad, face="right", inflow_indices=np.flatnonzero(quad.mu_x < 0))
-        with pytest.raises(ValueError, match="Unknown face name"):
-            SN_REALIZERS.realize(WallCondition.vacuum(), FaceSite("right", CoordSystem.CARTESIAN, 1), legacy)
+    def test_unknown_face_name_fails_loud_on_the_ladder(self):
+        """A face name outside the layout is refused loudly, by the trace ladder every half-space is read from (a ``ValueError`` naming the
+        available faces). The realizer itself no longer validates the name: the guard that did (it read the signed projection through
+        ``build_omega_dot_n``) retired with the index sets, and the name now reaches the ladder at the first read."""
+        space = face_method_space(Quadrature.gauss_legendre(8), face="xmax")
+        assert _inflow(space).size > 0  # positive control: a known face reads
+        with pytest.raises(ValueError, match="Unknown face"):
+            space.inflow_indices_for_face("right")
 
 
 # ─────────────────────────────────────────────────────────────────────

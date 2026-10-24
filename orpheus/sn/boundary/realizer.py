@@ -38,10 +38,11 @@ body's inner face, a tag with NO trace slot, so it never reaches ``realize``: th
 diffuse chain and every source are refused at ``RAD_OUTER`` AT ADMIT (#653), where they used to construct and refuse at the first
 sweep (12 of 12, plan section 4.3 delta 4).
 
-**Two assertions the type system does not replace** (rooted in ``BoundaryError``, :mod:`orpheus.sn.boundary.errors`):
-ERR-041 (the claimed inflow set of a hand-built method space against the orientation the face name implies, in ``SNZero.realize``)
-and ERR-047 (a source is sampled on the inflow half-trace of its face, in ``SNSource.sample``). Neither is an admission: the
-declared orientation they used to catch is unspellable now, and what remains is the realizer's own index sets.
+**One assertion the type system does not replace** (rooted in ``BoundaryError``, :mod:`orpheus.sn.boundary.errors`): ERR-047 (a
+source is sampled on the inflow half-trace of its face, in ``SNSource.sample``). It is not an admission. ERR-041 (the zero map fills
+only the incoming trace) is no longer a realizer guard: the method space holds no index set to cross-check, the zero map reads its
+half-space off the trace ladder, and the invariant is witnessed on the ladder itself
+(``tests/gates/numerics/test_angular_trace_space.py::TestTheInflowHalfSpaceIsTheIncomingOrdinates``).
 
 **Retired with the isinstance ladder** (one body per builder, decision 45): ``_narrowed_zero_operator``, ``_deck_kernel``,
 ``_checked_angular_average`` and ``_specular_crossed_diagnosis`` (their bodies live in
@@ -65,8 +66,8 @@ from orpheus.geometry.deck import DeckTransformation, FacePairing, MirrorDeck, T
 from orpheus.geometry.faces import AXIS_NAMES, face_normal
 from orpheus.geometry.transformation import Permutation
 from orpheus.numerics.quadrature.ordinate_pairing import OrdinatePairingError, ordinate_pairing
-from orpheus.numerics.spaces.angular_trace_space import TANGENTIAL_EPS, AngularFaceTraceSpace, build_omega_dot_n
-from orpheus.sn.boundary.errors import BoundarySourceNotOnIncomingTraceError, VacuumAppliedToOutgoingTraceError
+from orpheus.numerics.spaces.angular_trace_space import AngularFaceTraceSpace
+from orpheus.sn.boundary.errors import BoundarySourceNotOnIncomingTraceError
 from orpheus.sn.boundary.realized_operators import (
     RankOneReemission,
     RealizedBoundary,
@@ -151,20 +152,6 @@ class SNZero(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=ZeroNetwor
         return self.inner_refusal() if site.site_class is SiteClass.RAD_INNER else Realized(True)
 
     def realize(self, unit: ZeroNetwork, weight: float, site: FaceSite, space: SNMethodSpace) -> ZeroMap:
-        if space.face is not None and space.inflow_indices is not None:
-            # ERR-041: the claimed inflow set and the face NAME are two encodings of one orientation (the annotation-swap bug class
-            # desynchronizes them); cross-check against the signed projection the face name alone implies. A method space with no face
-            # carries no independent orientation truth, so the guard cannot fire there (the caller owns the claim).
-            omega_dot_n = build_omega_dot_n(space.quadrature, (space.face,))[0]
-            claimed = np.asarray(space.inflow_indices, dtype=np.intp)
-            outgoing = omega_dot_n[claimed] > +TANGENTIAL_EPS
-            if np.any(outgoing):
-                raise VacuumAppliedToOutgoingTraceError(
-                    f"ZeroNetwork at face {space.face!r}: inflow_indices {claimed[outgoing].tolist()} are OUTGOING ordinates (Omega.n > 0) at this "
-                    f"face. The zero map fills gamma_-psi on the INCOMING trace only; zeroing outflow slots discards the flux the sweep just "
-                    f"computed (ERR-041: swapped inflow/outflow face annotation).",
-                    unit,
-                )
         return ZeroMap(face=site.face, trace=self.trace_of(space, "SNZero"))
 
 

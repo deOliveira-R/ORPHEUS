@@ -3,7 +3,7 @@
 Tests cover:
 - Volume and surface formulas for all coordinate systems (1-D and 2-D)
 - Mesh validation (monotonicity, shape, frozen immutability)
-- :class:`BC` declaration dataclass (retires with the boundary package at WF2.4) and the mesh's face roles
+- the mesh's face roles (the ``BC`` declaration dataclass retired with the boundary package, WF2.4)
 - :func:`pwr_pin_2d` (2-D Cartesian factory — kept as a non-trivial
   helper after Phase F retired the 1-D Zone/factories surface)
 
@@ -28,7 +28,6 @@ from orpheus.geometry import (
     compute_volumes_2d,
     StructuredGeometry,
 )
-from orpheus.geometry.boundary import BC  # the tag's own rows (TestBC); the facade no longer exports it
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesh2D, Mesher, pwr_pin_2d
 
 # Every test in this file is a FOUNDATION test — it verifies a
@@ -322,41 +321,11 @@ class TestMesh2D:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# BC dataclass, and the mesh's face roles
+# The mesh's face roles
 # ═══════════════════════════════════════════════════════════════════════
 
-class TestBC:
-    """BC declaration dataclass and integration with mesh fields."""
-
-    def test_bc_creation_kind_only(self):
-        bc = BC("vacuum")
-        assert bc.kind == "vacuum"
-        assert dict(bc.params) == {}  # a FrozenMapping since #405 P1 step 5
-
-    def test_bc_creation_with_params(self):
-        bc = BC("white", {"albedo": 0.7})
-        assert bc.kind == "white"
-        assert dict(bc.params) == {"albedo": 0.7}
-
-    def test_bc_frozen(self):
-        bc = BC("vacuum")
-        with pytest.raises(AttributeError):
-            bc.kind = "reflective"
-
-    def test_bc_equality(self):
-        assert BC("vacuum") == BC("vacuum")
-        assert BC("vacuum") != BC("reflective")
-        assert BC("white", {"albedo": 0.7}) == BC("white", {"albedo": 0.7})
-        assert BC("white", {"albedo": 0.7}) != BC("white", {"albedo": 0.5})
-
-    def test_bc_convenience_instances(self):
-        assert BC.vacuum == BC("vacuum")
-        assert BC.reflective == BC("reflective")
-        assert BC.white == BC("white")
-
-    def test_bc_repr(self):
-        assert repr(BC("vacuum")) == "BC('vacuum')"
-        assert repr(BC("white", {"albedo": 0.7})) == "BC('white', {'albedo': 0.7})"
+class TestFaceRoles:
+    """The mesh's face roles (the ``BC`` declaration dataclass and its ``to_alpha`` bridge retired in WF2.4)."""
 
     # ── Mesh1D face roles ────────────────────────────────────────────
     # RE-POSED at P1 step 3b: ``bc_left``/``bc_right`` and the ``None``
@@ -399,27 +368,6 @@ class TestBC:
             (0.0, 1.0), (0,), left=7, right=MirrorDeck(),
         )).partition(CellsByCount.uniform_width(1)).mesh
         assert mesh.face_roles["xmin"] == 7 and mesh.face_roles["xmax"] == MirrorDeck()
-
-    # ── BC.to_alpha — production-tag → continuous-albedo bridge ─────
-
-    def test_bc_to_alpha_vacuum(self):
-        assert BC.vacuum.to_alpha() == 0.0
-
-    def test_bc_to_alpha_reflective(self):
-        assert BC.reflective.to_alpha() == 1.0
-
-    def test_bc_to_alpha_partial_albedo(self):
-        assert BC("partial", {"albedo": 0.7}).to_alpha() == 0.7
-        assert BC("partial", {"albedo": 0.0}).to_alpha() == 0.0
-        assert BC("partial", {"albedo": 1.0}).to_alpha() == 1.0
-
-    def test_bc_to_alpha_partial_missing_albedo_raises(self):
-        with pytest.raises(ValueError, match="missing the 'albedo' parameter"):
-            BC("partial").to_alpha()
-
-    def test_bc_to_alpha_unsupported_kind_raises(self):
-        with pytest.raises(NotImplementedError, match="no specular-albedo equivalent"):
-            BC.white.to_alpha()
 
     # ── Mesh2D face roles ────────────────────────────────────────────
 

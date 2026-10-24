@@ -3805,7 +3805,10 @@ older entries classify against.
    that assumes the inflow + outflow partition is a strict cover of the
    ordinate set will silently miscount the tangential ordinate.
 
-   **Module:** ``orpheus.geometry.boundary._errors.IncomingOutgoingTraceClassificationError``.
+   **Module:** ``IncomingOutgoingTraceClassificationError`` of the retired ``orpheus.geometry.boundary._errors`` (the law
+   package retired in WF2.4 with the carve of wave 2; the classification is carried by the trace ladder,
+   :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`, whose half-spaces exclude the tangential ordinates
+   from both halves).
 
    **Mechanism:** Reflective BCs require a clean inflow→outflow
    involution: every inflow ordinate at the face must have an outflow
@@ -3850,7 +3853,9 @@ older entries classify against.
    resulting operator zeroes the outgoing flux — geometrically
    meaningless and provably wrong.
 
-   **Module:** ``orpheus.geometry.boundary._errors.VacuumAppliedToOutgoingTraceError``.
+   **Module:** ``VacuumAppliedToOutgoingTraceError`` of the retired ``orpheus.geometry.boundary._errors``, which the realizer
+   guard raised; both retired in WF2.4 (see "Catching test" below). The invariant is now carried by the trace ladder,
+   :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`.
 
    **Mechanism:** Vacuum is the rank-0 case of the affine form
    ``γ_- ψ = R G γ_+ ψ + q`` with ``R = 0``, ``G = 0``, ``q = 0``. The
@@ -3864,19 +3869,18 @@ older entries classify against.
    the bug only surfaces when the trace metadata is consumed by
    Wave 5+ realiser logic that asserts ``domain == outflow_trace``.
 
-   **Catching test — SHIPPED (coupled-block campaign task #52,
-   ``51c22396``, 2026-07-12):** the invariant went PRODUCTION-live as the
-   realizer-seam guard in ``SNBoundaryRealizer.realize``'s vacuum arm —
-   claimed ``inflow_indices`` cross-checked against the orientation the
-   FACE NAME alone implies via ``build_omega_dot_n`` (the canonical
-   ``SNMesh.realize_boundary_law`` path derives both from the trace ⟹
-   green by construction; the hand-built / annotation-swap path is
-   exactly where the two encodings are independently supplied).
-   Catchers tagged ``@pytest.mark.catches("ERR-041")`` in
-   ``tests/gates/sn/operators/test_sn_boundary_realizer.py`` (swap /
-   single-index contamination / positive both faces / the documented
-   faceless escape / unknown-face loud), mutation-verified in-process
-   (no-op the guard ⟹ the raise disappears; revert ⟹ red).
+   **Catching test — carried by the ladder (WF2.4 of the wave-2 carve, 2026-10-24):** the invariant went production-live at the
+   coupled-block campaign task #52 (``51c22396``, 2026-07-12) as a realizer-seam guard in the vacuum arm of the SN realizer: a
+   hand-supplied ``inflow_indices`` array was cross-checked against the orientation the FACE NAME alone implies. The typed
+   realized operators of the carve read their half-spaces off the trace ladder (``trace.inflow_space(face)``), so the method
+   space no longer holds an index set, the guard checked an array the zero map never consumed, and the guard, its error class
+   and the two index fields (``SNMethodSpace.inflow_indices``, ``outflow_indices``) retired together. What the guard protected
+   is now a claim about the object the operators read: ``trace.inflow_space(face)`` holds exactly the ordinates with
+   :math:`\Omega\cdot n_f < 0` on that face, and the outflow space exactly those with :math:`> 0`. The marker
+   ``@pytest.mark.catches("ERR-041")`` is on
+   ``tests/gates/numerics/test_angular_trace_space.py::TestTheInflowHalfSpaceIsTheIncomingOrdinates`` (the per-face predicate is
+   written out from the quadrature's own direction cosines, a route that shares no code with ``face_normal``; mutate the sign in
+   ``face_normal`` or return the opposite tier from ``inflow_space`` and every row of the faces it moves reddens).
 
    **Lesson:** Trace orientation is part of the BC's type signature.
    When the realiser layer (Wave 5) wires a BC to a trace, it MUST
@@ -3897,7 +3901,8 @@ older entries classify against.
    permutation drift) fails to preserve the direction-cosine measure
    ``w(Ω) · |Ω · n|``.
 
-   **Module:** ``orpheus.geometry.boundary._errors.BoundaryGeometryMapNotMeasurePreservingError``.
+   **Module:** ``orpheus.numerics.quadrature.ordinate_pairing.PairingNotMeasurePreservingError`` (the successor of
+   ``BoundaryGeometryMapNotMeasurePreservingError`` of the retired ``orpheus.geometry.boundary._errors``).
 
    **Mechanism:** A reflection that does not preserve the measure
    means the reflected current at the face differs from the incident
@@ -3911,19 +3916,17 @@ older entries classify against.
    ordinate times the weight). Heterogeneous problems amplify the
    imbalance by the contrast in Σ_t.
 
-   **Catching test (Wave 7):** the ReflectiveBoundary's
-   ``assert_geometry_map_measure_preserving`` got its REAL body at the
-   coupled-block campaign task #52 (``51c22396``, 2026-07-12): the trace
-   measure ``m = w·|μ_axis|`` must satisfy ``m[π] ≈ m`` (rtol 1e-12),
-   INDEPENDENT of involution — the pre-#52 delegation ("weight
-   equality implied by construction") left the
-   involutive-unequal-weight-pairing hole open, and the GL-8
-   neighbor-pair mutant passes involution while redding measure
-   (independence measured, both directions). Fired at realization by
-   ``BoundaryTraceLaw.assert_realizable`` (every ``SNMesh`` construction
-   certifies). Catchers tagged ``@pytest.mark.catches("ERR-042")`` in
-   ``tests/gates/geometry/test_bc_universal_invariants.py``
-   (positive+negative-paired, mutation-verified in-process).
+   **Catching test (WF2.4 of the wave-2 carve):** the check lived as ``assert_geometry_map_measure_preserving`` of the law
+   family until the coupled-block campaign task #52 (``51c22396``, 2026-07-12) gave it its REAL body: the trace measure
+   ``m = w·|μ_axis|`` must satisfy ``m[π] ≈ m`` (rtol 1e-12), INDEPENDENT of involution (the pre-#52 delegation, "weight
+   equality implied by construction", left the involutive-unequal-weight-pairing hole open, and the GL-8 neighbor-pair mutant
+   passes involution while redding measure: independence measured, both directions). The law family retired in WF2.4 and the
+   check lives once, in :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing`, which every SN realization
+   of a mirror certifies through. Catchers tagged ``@pytest.mark.catches("ERR-042", "ERR-044", "ERR-045")`` in
+   ``tests/gates/numerics/test_ordinate_pairing.py::test_the_three_errors_keep_their_teeth`` (each broken table is wrong in
+   exactly ONE invariant and must raise exactly its own class) and
+   ``tests/gates/numerics/test_ordinate_pairing.py::test_a_poisoned_quadrature_pairing_reddens_at_use_time`` (the same tables
+   poisoned into the quadrature's own permutation).
 
    **Lesson:** Geometric maps ``G`` carry a measure-preservation
    contract. The contract must be CHECKED at construction, not only
@@ -3942,7 +3945,8 @@ older entries classify against.
    wrong unit-conversion factor), producing negative reflected current
    from positive incident current.
 
-   **Module:** ``orpheus.geometry.boundary._errors.BoundaryResponseNotPositiveError``.
+   **Module:** ``orpheus.transport.boundary_conditions.errors.BoundaryResponseNotPositiveError`` (the successor of the class
+   of the retired ``orpheus.geometry.boundary._errors``).
 
    **Mechanism:** Physically meaningful BCs (white, albedo) have
    non-negative response kernels — the reflected flux is a fraction
@@ -3956,11 +3960,11 @@ older entries classify against.
    sweep's local negative-flux artifact looks like a "discretisation
    artifact" and is silently fixed.
 
-   **Catching test (Wave 7):** White / Albedo BC tests that probe
-   the response on a known positive incident flux and assert the
-   output is element-wise non-negative; the ``assert_response_positive_if_declared``
-   invariant fires the error. To be tagged
-   ``@pytest.mark.catches("ERR-043")`` at Wave 7 ship.
+   **Catching test (WF2.4 of the wave-2 carve):** the sign is a parse of the wall's cone, not an assertion on an
+   operator: ``WallCondition.white(-0.1)`` and ``WallCondition.specular(-0.1)`` raise ``BoundaryResponseNotPositiveError`` at
+   construction, a negative inflow weight is refused the same way, and a ``WallCondition`` outside the cone is unconstructible.
+   Tagged ``@pytest.mark.catches("ERR-043", "ERR-046")`` on
+   ``tests/gates/transport/test_wall_condition.py::test_wall_condition_parse``.
 
    **Lesson:** Sign invariants on response kernels MUST be asserted at
    construction. Downstream consumers (sweeps, Krylov) cannot
@@ -3979,7 +3983,8 @@ older entries classify against.
    column-order bug or a partial table (some ordinates missing from
    the reflection map).
 
-   **Module:** ``orpheus.geometry.boundary._errors.ReflectionNotInvolutiveError``.
+   **Module:** ``orpheus.numerics.quadrature.ordinate_pairing.PairingNotInvolutiveError`` (the successor of
+   ``ReflectionNotInvolutiveError`` of the retired ``orpheus.geometry.boundary._errors``).
 
    **Mechanism:** An axis reflection is its own inverse by
    definition (apply twice → identity). The
@@ -3995,13 +4000,11 @@ older entries classify against.
    (generalised perturbation theory, sensitivity coefficients) is
    introduced.
 
-   **Catching test (Wave 7):** ReflectiveBoundary test that
-   constructs a deliberately-broken reflection table (drop a row,
-   swap two indices), passes it to the BC, and asserts
-   ``ReflectionNotInvolutiveError`` fires from
-   ``assert_geometry_map_measure_preserving`` or a dedicated involution
-   assertion. To be tagged ``@pytest.mark.catches("ERR-044")`` at
-   Wave 7 ship.
+   **Catching test (WF2.4 of the wave-2 carve):** a deliberately broken reflection table (drop a row, swap two indices) is
+   passed through :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing` and must raise exactly
+   ``PairingNotInvolutiveError``, and neither of the other two classes. Tagged
+   ``@pytest.mark.catches("ERR-042", "ERR-044", "ERR-045")`` on
+   ``tests/gates/numerics/test_ordinate_pairing.py::test_the_three_errors_keep_their_teeth``.
 
    **Lesson:** Involution is a constructional invariant on the
    reflection table. The Wave 0 ``PermutationOperator.is_involution``
@@ -4021,7 +4024,8 @@ older entries classify against.
    near the axis), an inflow ordinate at the face is mapped back to
    itself, not to its outflow partner.
 
-   **Module:** ``orpheus.geometry.boundary._errors.ReflectionDidNotMapInflowToOutflowError``.
+   **Module:** ``orpheus.numerics.quadrature.ordinate_pairing.PairingDoesNotCrossError`` (the successor of
+   ``ReflectionDidNotMapInflowToOutflowError`` of the retired ``orpheus.geometry.boundary._errors``).
 
    **Mechanism:** Specular reflection's geometric contract is
    "every inflow Ω_n at the face has a partner Ω_n' with
@@ -4035,21 +4039,16 @@ older entries classify against.
    don't surface until per-ordinate flat-flux residual tests stress
    the redistribution path (cf. ERR-006 / Signature 1).
 
-   **Catching test — SHIPPED (coupled-block campaign task #52,
-   ``51c22396``, 2026-07-12):** the new
-   ``assert_reflection_maps_inflow_to_outflow`` invariant — every
-   non-tangential ordinate's partner must be non-tangential with
-   OPPOSITE sign on the law's axis (tangential exemption rides the one
-   shared ``TANGENTIAL_EPS``, promoted public); raises
-   ``ReflectionDidNotMapInflowToOutflowError``. The identity-table
-   mutant passes involution AND measure and reds ONLY here — the
-   three-independent-invariants lesson realized as three MEASURED
-   independent checks, fired at realization via
-   ``BoundaryTraceLaw.assert_realizable``. Catchers tagged
-   ``@pytest.mark.catches("ERR-045")`` in
-   ``tests/gates/geometry/test_bc_universal_invariants.py``
-   (positive+negative-paired incl. realize-time legs poisoning
-   ``quad.reflection_partners``, mutation-verified in-process).
+   **Catching test (WF2.4 of the wave-2 carve):** the invariant is the third check of
+   :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing`: every non-tangential ordinate's partner must be
+   non-tangential with OPPOSITE sign on the mirror's axis (the tangential exemption rides the one shared
+   ``TANGENTIAL_EPS``), and a violation raises ``PairingDoesNotCrossError``. It was born as the law-side
+   ``assert_reflection_maps_inflow_to_outflow`` at the coupled-block campaign task #52 (``51c22396``, 2026-07-12). The
+   identity-table mutant passes involution AND measure and reds ONLY here: the three-independent-invariants lesson, realized
+   as three MEASURED independent checks. Catchers tagged ``@pytest.mark.catches("ERR-042", "ERR-044", "ERR-045")`` on
+   ``tests/gates/numerics/test_ordinate_pairing.py::test_the_three_errors_keep_their_teeth`` and
+   ``tests/gates/numerics/test_ordinate_pairing.py::test_a_poisoned_quadrature_pairing_reddens_at_use_time`` (the identity
+   table poisoned into ``quad.ordinate_permutation``).
 
    ⭐ **The refusal learned to name a FOLD, 2026-09-03 (#434 R2).** The
    guard's message used to end *"(ERR-045: wrong pairing, or a
@@ -4096,7 +4095,8 @@ older entries classify against.
    response kernel ``R`` strictly exceeds 1, violating the sub-Markov
    property that physically describes a non-amplifying boundary.
 
-   **Module:** ``orpheus.geometry.boundary._errors.SubmarkovViolationError``.
+   **Module:** ``orpheus.transport.boundary_conditions.errors.SubmarkovViolationError`` (the successor of the class of the
+   retired ``orpheus.geometry.boundary._errors``).
 
    **Mechanism:** ``∫ R dy ≤ 1`` is the canonical sub-Markov condition
    on a stochastic kernel (cf. Bell & Glasstone 1970 §1.5). An
@@ -4112,11 +4112,10 @@ older entries classify against.
    near the boundary — both look physically plausible to anyone not
    checking the input data.
 
-   **Catching test (Wave 7):** Albedo constructor test that passes
-   ``α=1.2`` and asserts ``SubmarkovViolationError`` fires. White
-   constructor test that uses a kernel construction known to row-sum
-   to 1.5 and asserts the same error. To be tagged
-   ``@pytest.mark.catches("ERR-046")`` at Wave 7 ship.
+   **Catching test (WF2.4 of the wave-2 carve):** ``WallCondition.specular(1.2)`` and ``WallCondition.white(1.2)`` (and
+   the one-ulp case ``1 + 2**-52``) raise ``SubmarkovViolationError`` at construction: the return fraction of the network,
+   the correctly rounded ``math.fsum`` of its weights, is at most one. Tagged ``@pytest.mark.catches("ERR-043", "ERR-046")``
+   on ``tests/gates/transport/test_wall_condition.py::test_wall_condition_parse``.
 
    **Lesson:** Range constraints on physical parameters MUST be
    enforced at construction. "α is a float" is not a contract; "α ∈
@@ -4136,7 +4135,8 @@ older entries classify against.
    realiser then writes a positive flux into outflow slots that the
    sweep will OVERWRITE — silently dropping the source contribution.
 
-   **Module:** ``orpheus.geometry.boundary._errors.BoundarySourceNotOnIncomingTraceError``.
+   **Module:** ``orpheus.sn.boundary.errors.BoundarySourceNotOnIncomingTraceError`` (the successor of the class of the
+   retired ``orpheus.geometry.boundary._errors``).
 
    **Mechanism:** The affine form's ``q`` lives on ``Γ_-`` by definition.
    If the user passes an array shaped like the full ordinate set but
@@ -4152,23 +4152,13 @@ older entries classify against.
    sums per-ordinate inflow against the expected ``q(Ω)`` profile
    catches it.
 
-   **Catching test (Wave 7):** prescribed-inflow BC test that
-   constructs ``ConstantInflowSource(2.0)`` on a quadrature with
-   mixed inflow / outflow ordinates: SHIPPED at the coupled-block
-   campaign task #52 (``51c22396``, 2026-07-12) — the ABC no-op default
-   became the REAL universal body (probe ``self.source`` on ``(N,)``;
-   q ≡ 0 certifies trivially; nonzero q WITHOUT an inflow set raises
-   — "the realiser asked to apply the source without an outflow
-   mask", this entry's catcher spec verbatim), and the realizer's
-   ``PrescribedInflow`` arm now delivers q MASKED to Γ₋
-   (``IncomingSourceOperator`` gained the inflow-indices plumbing;
-   delivered q = the source value on inflow slots, exactly 0 on
-   outflow AND tangential slots, pinned end-to-end — the three
-   pre-#52 tests blessing the unmasked full-array delivery, the
-   ERR-047 hazard itself, rewired to the masked contract). Catchers
-   tagged ``@pytest.mark.catches("ERR-047")`` in
-   ``tests/gates/geometry/test_bc_universal_invariants.py``
-   (positive+negative-paired, mutation-verified in-process).
+   **Catching test (WF2.4 of the wave-2 carve):** the hazard was first caught at the coupled-block campaign task #52
+   (``51c22396``, 2026-07-12), where the law-side probe and the realizer's masked delivery of ``q`` to :math:`\Gamma_-`
+   were pinned end to end (delivered q = the source value on inflow slots, exactly 0 on outflow AND tangential slots). The
+   law family retired in WF2.4; what the SN side keeps is the realizer's own refusal: ``SNSource.sample`` raises
+   ``BoundarySourceNotOnIncomingTraceError`` for a space that is not the inflow half-trace of its face, and the recipe of a
+   declared inflow lands on the inflow slots only. Catchers tagged ``@pytest.mark.catches("ERR-047")`` on
+   ``tests/gates/transport/test_boundary_source_from_specs.py::TestTheRecipeLandsOnTheInflowSlotsOnly``.
 
    **Lesson:** The affine form's three terms (``G``, ``R``, ``q``) each
    live on a SPECIFIC trace space. The trace-space type tag (Wave 2)
@@ -9407,7 +9397,7 @@ older entries classify against.
    **Failure mode:** **#6 (convention drift)**: an eigenvalue question is
    the homogeneous pencil :math:`A\psi = \mu F\psi`, and the boundary
    source :math:`q` of a
-   :class:`~orpheus.geometry.boundary.PrescribedInflow` travels in the
+   :class:`~orpheus.transport.boundary_conditions.WallCondition` inflow (formerly ``PrescribedInflow``) travels in the
    source channel, never in the realized operator (vacuum and prescribed
    inflow realize to the same operator,
    :ref:`bc-affine-source-channel`). So an eigenvalue entry handed a

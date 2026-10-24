@@ -738,7 +738,7 @@ class AngularTraceSpace(FunctionSpace):
         realized response crosses (a constitutive surface is not a quotient, so
         no isometry provides the crossing and the physics does it). Nothing here
         is self-adjoint. See
-        :class:`~orpheus.geometry.boundary._factors.BoundaryResponseKernel`.
+        :class:`~orpheus.transport.boundary_conditions.network.ResponseNetwork`.
         """
         return self._face_spaces[("inflow", self._checked_face(face))]
 

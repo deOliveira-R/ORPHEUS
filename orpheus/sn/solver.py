@@ -1746,7 +1746,7 @@ class SNSolver:
         # Until 2026-09-30 the predicate was ``response_kernel.is_zero``,
         # which dropped the partial reflector's leakage: a typed
         # ``ReflectiveBoundary(axis, alpha)`` or ``AlbedoBoundary(alpha, ...)``
-        # has reached SN since ``985497b5`` (2026-08-05), and its k came out
+        # (both retired in WF2.4) had reached SN since ``985497b5`` (2026-08-05), and its k came out
         # as if the face were a perfect mirror (ERR-094).
         leaking_faces = [
             name for name, op in self.problem.bc.items()
@@ -3013,7 +3013,7 @@ def _build_fixed_source_rhs(
         if declared.linf > 0.0 and boundary.linf > 0.0:
             raise ValueError(
                 "_build_fixed_source_rhs: the boundary source q_∂ is specified "
-                "TWICE — the mesh declares a PrescribedInflow law AND the "
+                "TWICE — the problem declares an inflow condition AND the "
                 "composite external_source carries a non-zero boundary leaf. "
                 "These are two answers to one question. Supply the inflow "
                 "either as the declared boundary condition (preferred — it is "
@@ -3035,7 +3035,7 @@ def _build_fixed_source_rhs(
                 f"{type(external_source).__name__}"
             )
         # ⭐ The bulk-array form is "bulk only", NOT "boundary vacuum": a face
-        # that DECLARES a PrescribedInflow contributes its q here (P2′ of
+        # that DECLARES an inflow contributes its q here (P2′ of
         # `.claude/plans/archive/affine_boundary_source_channel.md`). Before this, a
         # declared inflow was realized into an affine operator that nothing
         # consumed, so the declaration was silently inert. Every other law is

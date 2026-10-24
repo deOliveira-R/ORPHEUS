@@ -359,27 +359,23 @@ def test_geometry_never_imports_the_finite_index_sets() -> None:
 
 
 # ---------------------------------------------------------------------------
-# The numerics -> geometry back-edge, and the discipline that makes it safe
+# The numerics -> geometry edge, and the discipline that keeps it a DAG edge
 # ---------------------------------------------------------------------------
 #
 # `numerics/__init__.py` imports `measure`, whose supports are geometry's
-# (`geometry.manifold`, with the point groups of `geometry.symmetry`; until
-# layer DAG WP-B of 2026-10-22 `numerics/__init__` imported `symmetry` itself,
-# a numerics module importing `geometry.transformation`). That is a genuine
-# package CYCLE: importing `orpheus.numerics` runs `orpheus.geometry.__init__`, which
-# imports `orpheus.geometry.boundary`, which imports back into
-# `orpheus.numerics` — while `orpheus.numerics.__init__` is still
-# mid-execution.
+# (`geometry.manifold`, with the point groups of `geometry.symmetry`). Until WF2.4 of the wave-2
+# carve (2026-10-24) that edge closed a genuine package CYCLE: `orpheus.geometry.__init__`
+# imported `orpheus.geometry.boundary`, which imported back into `orpheus.numerics` while
+# `orpheus.numerics.__init__` was still mid-execution. The boundary package retired, geometry
+# imports nothing from numerics (`FORBIDDEN_EDGES["geometry"]` names it), and the cycle is gone
+# (`scratch/layer_dag/layer_census.py` reads no {geometry, numerics} SCC).
 #
-# It resolves, and the reason is precise: a partially-initialised package can
-# serve `from orpheus.numerics.measure import X` (a SUBMODULE import, resolved
-# through the module system) but NOT `from orpheus.numerics import X` (an
-# ATTRIBUTE lookup on a package whose body has not reached that line yet).
-# Every one of geometry's numerics imports happens to be the first form.
-#
-# "Happens to be" is not a guarantee, and the failure is a hard ImportError at
-# interpreter start-up, not a subtle wrong answer. These two gates make the
-# discipline explicit: one structural, one end-to-end.
+# The discipline that made the cycle survivable stays as the rule for the layers that import
+# numerics: a partially-initialised package can serve `from orpheus.numerics.measure import X`
+# (a SUBMODULE import, resolved through the module system) but NOT `from orpheus.numerics import X`
+# (an ATTRIBUTE lookup on a package whose body has not reached that line yet), and the failure of
+# the second form is a hard ImportError at interpreter start-up, not a subtle wrong answer.
+# One gate states it structurally, the cold-import list end to end.
 
 _INPUT_PACKAGE_ROOTS = sorted(INPUT_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES)
 
@@ -450,13 +446,8 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         "orpheus.geometry",
         "orpheus.geometry.transformation",
         # P1 step 1 of #405 (2026-09-25): the mesh became its own package,
-        # importing geometry (whose boundary package now holds `BC`) and
-        # numerics; each moved module, and the boundary package, cold.
-        "orpheus.geometry.boundary",
-        # Layer DAG WP-E1 (ruling 7): the realization seam left geometry for
-        # transport, and the SN shim for sn; each new home, cold.
-        "orpheus.transport.boundary_realization",
-        "orpheus.sn.boundary.bound_compat",
+        # importing geometry and numerics; each moved module cold. (The boundary
+        # package, the realization seam and the SN shim retired in WF2.4.)
         "orpheus.mesh",
         "orpheus.mesh.structured",
         "orpheus.mesh.factories",
@@ -621,12 +612,19 @@ _FORBIDDEN_LEGS = [
     # Layer DAG WP-E1 (ruling 7): the realization seam is transport's, and a
     # geometry module that reached for it again would re-weld the declaration
     # to its realization.
-    ("geometry/boundary/x.py", "from orpheus.transport.boundary_realization import BoundaryRealizer\n", "geometry → transport"),
-    ("geometry/boundary/x.py", "from orpheus.sn.boundary.bound_compat import _BoundBoundaryOperator\n", "geometry → sn"),
+    ("geometry/deck.py", "from orpheus.transport.boundary_conditions import WallCondition\n", "geometry → transport"),
+    ("geometry/deck.py", "from orpheus.sn.boundary.realized_operators import ZeroMap\n", "geometry → sn"),
+    # WF2.4: geometry imports nothing from numerics (the boundary package held the last eight edges).
+    ("geometry/deck.py", "from orpheus.numerics.quadrature.ordinate_pairing import ordinate_pairing\n", "geometry → numerics"),
+    (
+        "geometry/deck.py",
+        "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.numerics.measure import DiscreteMeasure\n",
+        "geometry → numerics",
+    ),
 ]
 
 _ADMITTED_LEGS = [
-    ("mesh/x.py", "from orpheus.geometry.boundary import BC\n"),
+    ("mesh/x.py", "from orpheus.geometry.deck import MirrorDeck\n"),
     ("mesh/x.py", "from orpheus.numerics.measure import DiscreteMeasure\n"),
     ("mesh/x.py", "from .structured import Mesh1D\n"),
     ("transport/x.py", "from orpheus.mesh import Mesh1D\n"),
@@ -642,9 +640,9 @@ _ADMITTED_LEGS = [
     ("sn/x.py", "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.transport.mesh.material_mesh import MaterialMesh\n"),
     # Layer DAG WP-E1: the realization reads the declarations, and both
     # method realizers read the realization.
-    ("transport/x.py", "from orpheus.geometry.boundary import BoundaryTraceLaw, LawScaled, LawSum\n"),
-    ("sn/x.py", "from orpheus.transport.boundary_realization import stamp_boundary_role\n"),
-    ("diffusion/x.py", "from orpheus.transport.boundary_realization import stamp_boundary_role\n"),
+    ("transport/x.py", "from orpheus.geometry.deck import MirrorDeck, TranslationDeck\n"),
+    ("sn/x.py", "from orpheus.transport.boundary_conditions.realization import stamp_boundary_role\n"),
+    ("diffusion/x.py", "from orpheus.transport.boundary_conditions.realization import stamp_boundary_role\n"),
 ]
 
 
@@ -672,8 +670,8 @@ def test_the_linter_admits_each_allowed_edge(rel: str, source: str) -> None:
 # an admitted edge, and `numerics.operator` is one numerics submodule among
 # many. Until WP-E1 two geometry modules did it, `boundary/_realizer.py` (the
 # realization seam) and `boundary/_bound_compat.py` (the SN shim, a
-# `LinearOperator` subclass); both moved out, and this gate is their
-# retirement's witness. A TYPE_CHECKING import is refused too: the last one,
+# `LinearOperator` subclass); both moved out (the package itself retired in WF2.4),
+# and this gate is their retirement's witness. A TYPE_CHECKING import is refused too: the last one,
 # `BoundaryTraceLaw.realize -> LinearOperator`, was a hook with 0 overrides
 # and 0 callers that only raised, and it retired with WP-E1's review (a
 # declaration does not know what it is realized to; the realizer does).
@@ -710,26 +708,26 @@ def test_no_geometry_module_imports_the_operator_algebra() -> None:
     assert not offenders, (
         "geometry is declarative (layer DAG rulings 1 and 7): no geometry "
         "module imports orpheus.numerics.operator, at any import kind; a realization "
-        "belongs in orpheus.transport.boundary_realization or a method "
+        "belongs in orpheus.transport.boundary_conditions or a method "
         "package:\n" + "\n".join(offenders)
     )
 
 
 _OPERATOR_ALGEBRA_REFUSED_LEGS = [
-    ("geometry/boundary/x.py", "from orpheus.numerics.operator import BlockRole\n"),
-    ("geometry/boundary/x.py", "def f():\n    from orpheus.numerics.operator import LinearOperator\n"),
-    ("geometry/boundary/x.py", "import orpheus.numerics.operator\n"),
+    ("geometry/deck.py", "from orpheus.numerics.operator import BlockRole\n"),
+    ("geometry/deck.py", "def f():\n    from orpheus.numerics.operator import LinearOperator\n"),
+    ("geometry/deck.py", "import orpheus.numerics.operator\n"),
     # The module named as an imported name, not as the `from` path.
-    ("geometry/boundary/x.py", "from orpheus.numerics import operator\n"),
+    ("geometry/deck.py", "from orpheus.numerics import operator\n"),
     (
-        "geometry/boundary/x.py",
+        "geometry/deck.py",
         "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.numerics.operator import LinearOperator\n",
     ),
 ]
 
 _OPERATOR_ALGEBRA_ADMITTED_LEGS = [
-    ("geometry/boundary/x.py", "from orpheus.numerics.operator_names import X\n"),
-    ("geometry/boundary/x.py", "from orpheus.numerics.measure import DiscreteMeasure\n"),
+    ("geometry/deck.py", "from orpheus.numerics.operator_names import X\n"),
+    ("geometry/deck.py", "from orpheus.numerics.measure import DiscreteMeasure\n"),
 ]
 
 

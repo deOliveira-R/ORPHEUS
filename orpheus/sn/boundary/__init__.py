@@ -15,9 +15,8 @@ operators :math:`\Gamma_+ \to \Gamma_-` consumable by the sweep and the Krylov p
 * :mod:`~orpheus.sn.boundary.angular` — the angular primitives the Lambertian image consumes:
   :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator` and :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`,
   the two links of the factored Lambertian.
-* :mod:`~orpheus.sn.boundary.errors` — the two certifications of the realizer's own index sets (ERR-041, ERR-047).
-* :mod:`~orpheus.sn.boundary.bound_compat` — ``_BoundBoundaryOperator``, the retired shim that paired a realized operator with
-  the law it came from. No consumer imports it; WF2.4 deletes the file.
+* :mod:`~orpheus.sn.boundary.errors` — the one certification of the realizer's own support that the type system does not replace
+  (ERR-047: a source is sampled on the inflow half-trace of its face).
 
 This seam was one of the two recorded witnesses of the :class:`~orpheus.transport.method.TransportMethod` Protocol (the other: the
 homogenization method-layer in :mod:`orpheus.transport.mesh.material_mesh`). Mirrors the role-keyed layout of

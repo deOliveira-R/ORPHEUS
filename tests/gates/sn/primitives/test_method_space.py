@@ -2,7 +2,7 @@ r"""Tests for SNMethodSpace (Wave 8 / C8.1).
 
 The :class:`SNMethodSpace` dataclass carries the bundle of mesh +
 quadrature + trace metadata that an SN realizer needs to turn a
-:class:`BoundaryTraceLaw` into a 1-arg :class:`LinearOperator`.
+declared unit into a realized boundary operator.
 
 Wave 5 introduced a minimal placeholder (quadrature only) embedded
 in :mod:`orpheus.sn.boundary.realizer`. Wave 8 moves it to its own
@@ -16,8 +16,8 @@ These tests pin:
 * Wave 5 backward compat (``.minimal(quad)`` still works).
 * The Wave 5 re-export from ``orpheus.sn.boundary.realizer`` resolves
   to the same class object.
-* :meth:`for_face` derives ``inflow_indices`` from the provided
-  ``trace`` correctly.
+* :meth:`for_face` holds the provided ``trace``, from which the per-face
+  inflow indices are read correctly.
 * :meth:`inflow_indices_for_face` delegates to the held trace space
   or raises with a useful message when no trace was attached.
 """
@@ -64,23 +64,16 @@ def test_minimal_factory_carries_only_quadrature():
     space = SNMethodSpace.minimal(quad)
     assert space.quadrature is quad
     assert space.face is None
-    assert space.inflow_indices is None
     assert space.mesh is None
     assert space.trace is None
 
 
-def test_legacy_constructor_with_explicit_inflow_indices():
-    """The original Wave-5 construction path
-    ``SNMethodSpace(quadrature=q, face='xmin', inflow_indices=idx)``
-    keeps working — the new fields default to ``None``.
-    """
+def test_the_quadrature_and_face_construction_path_keeps_working():
+    """The original Wave-5 construction path ``SNMethodSpace(quadrature=q, face='xmin')`` keeps working: the other fields default to ``None``
+    and the space holds no index set (ERR-041's index sets retired in WF2.4; the half-spaces are read off the trace ladder)."""
     quad = Quadrature.lebedev(17)
-    inflow = np.flatnonzero(quad.mu_x > 0)
-    space = SNMethodSpace(
-        quadrature=quad, face="xmin", inflow_indices=inflow,
-    )
+    space = SNMethodSpace(quadrature=quad, face="xmin")
     assert space.face == "xmin"
-    np.testing.assert_array_equal(space.inflow_indices, inflow)
     assert space.mesh is None
     assert space.trace is None
 
@@ -90,9 +83,8 @@ def test_legacy_constructor_with_explicit_inflow_indices():
 # ─────────────────────────────────────────────────────────────────────
 
 
-def test_for_face_derives_inflow_indices_from_trace():
-    """``for_face`` extracts the per-face inflow indices from the trace
-    space — load-bearing for the ``SNProblem.realize_boundary_law``
+def test_for_face_reads_inflow_indices_off_the_trace():
+    """``for_face`` holds the trace space, and the per-face inflow indices are read off it — load-bearing for the ``SNProblem.realize_boundary_law``
     Cartesian path (#290 P7b; formerly ``_resolve_one``).
     """
     mesh = Mesh2D(
@@ -112,7 +104,7 @@ def test_for_face_derives_inflow_indices_from_trace():
         mesh=mesh, quadrature=quad, face="xmin", trace=trace,
     )
     expected_inflow = np.flatnonzero(quad.mu_x > 1e-12)
-    np.testing.assert_array_equal(space.inflow_indices, expected_inflow)
+    np.testing.assert_array_equal(space.inflow_indices_for_face("xmin"), expected_inflow)
     assert space.face == "xmin"
     assert space.mesh is mesh
     assert space.trace is trace

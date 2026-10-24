@@ -26,7 +26,7 @@ import pytest
 
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.transport.boundary_realization import stamp_boundary_role
+from orpheus.transport.boundary_conditions.realization import stamp_boundary_role
 from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.operator import NotInvertible, ZeroOperator
 from orpheus.geometry.deck import MirrorDeck
@@ -126,7 +126,7 @@ class TestTheBlockRoleIsAnInstanceStampNotAClassFact:
     What survives the retirement, and is what this module actually needs, is the
     orthogonal claim: :attr:`block_role` is an **instance stamp**, so the same
     class reads ``None`` bare and ``BOUNDARY`` once
-    :func:`~orpheus.transport.boundary_realization.stamp_boundary_role` has been applied.
+    :func:`~orpheus.transport.boundary_conditions.realization.stamp_boundary_role` has been applied.
     Post-P3 that is no longer hypothetical — :class:`ZeroOperator` genuinely
     appears both ways in production: unstamped as the within-group zero fission
     slot, and stamped as the realization of vacuum / prescribed inflow / a

@@ -29,7 +29,7 @@ What it builds
   (:func:`site`: ``CART_XMIN``, ``CART_XMAX``, ``RAD_OUTER``, ``RAD_INNER``), because CP's table is keyed on ``(site_class, face)``;
 * the carried problems of ``tests/gates/transport/_carry_cases.py`` in the NEW spelling for CP (:func:`cp_mesh`, :func:`cp_solve`),
   MoC (:func:`moc_mesh`, :func:`moc_solve`) and MC (:func:`mc_mesh`, :func:`mc_solve`): the SAME charts, breakpoints, materials, cell
-  counts, solver settings and seed the HEAD capture script used (``_capture_carry_head._capture_other_methods``), because a bit-equal
+  counts, solver settings and seed the HEAD capture script used (``_capture_carry_head._capture_other_methods`` (deleted in WF2.4; recover it with ``git show 197549f6:tests/gates/transport/_capture_carry_head.py``)), because a bit-equal
   ``k`` is meaningful only for the same problem. The charts are the shared ones of ``tests.gates.diffusion._wave2_helpers.chart_mesh``
   (one builder, Pattern 2; that module imports no diffusion module at the top);
 * the CP problem of the #546 files (:func:`cp_546_mesh`): the 2G ``A|B`` body ``cp_body(coord, (0.0, 0.5, 1.0), (2, 0), tag 0)`` meshed

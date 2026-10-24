@@ -459,11 +459,11 @@ class RigidMotion(ContentIdentity):
         r"""``True`` iff the element is the unit of :math:`E(d)`, :math:`(I, 0)`.
 
         The conjunction of :attr:`is_linear` and :attr:`is_translation`, the
-        two kernels' intersection; exact for the same reason they are. The
-        boundary tier asks it of a law's geometry factor: a law whose deck
-        element is not the identity states a symmetry of the domain, and a
-        symmetry cannot be scaled or mixed
-        (:mod:`~orpheus.geometry.boundary._composition`).
+        two kernels' intersection; exact for the same reason they are. A deck
+        whose element is not the identity states a symmetry of the domain, and
+        a symmetry cannot be scaled or mixed with a response (the wall
+        condition of :mod:`orpheus.transport.boundary_conditions` has no
+        spelling for it).
         """
         return self.is_linear and self.is_translation
 

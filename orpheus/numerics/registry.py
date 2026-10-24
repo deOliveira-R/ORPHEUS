@@ -26,31 +26,27 @@ Usage
 
 A registry root inherits :class:`RegistryMixin` and overrides
 :meth:`_registry_base` to return itself; concrete subclasses pass
-``key=...`` in their class statement. This is the tree's largest live
-root, quoted rather than invented
-(:class:`~orpheus.geometry.boundary._base.BoundaryTraceLaw`)::
+``key=...`` in their class statement. A live root, quoted rather than invented
+(:class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase`)::
 
-    class BoundaryTraceLaw(RegistryMixin, ABC):
-        registry: ClassVar[dict[str, type["BoundaryTraceLaw"]]] = {}
+    class DiscretizationSchemeBase(RegistryMixin, ABC):
+        registry: ClassVar[dict[str, type["DiscretizationSchemeBase"]]] = {}
 
         @classmethod
         def _registry_base(cls) -> type:
-            return BoundaryTraceLaw
+            return DiscretizationSchemeBase
 
         # ... rest of the abstract base ...
 
-    class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
-        ...
     @dataclass(frozen=True)
-    class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
+    class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         ...
 
-After import, ``BoundaryTraceLaw.registry`` contains
-``{"vacuum": VacuumInflow, "albedo": AlbedoBoundary, ...}`` (7 laws
-today) and ``BoundaryTraceLaw.create("vacuum")`` returns a fresh
-``VacuumInflow``. Note ``AlbedoBoundary`` is a **frozen dataclass with
-constructor parameters** — a registered member is not required to be
-parameter-free.
+After import, ``DiscretizationSchemeBase.registry`` maps each key to its class and
+``DiscretizationSchemeBase.create("diamond_difference")`` returns a fresh ``DiamondDifference``. Note a registered member
+may be a **frozen dataclass with constructor parameters** — it is not required to be parameter-free. The tree's other live
+roots are :class:`~orpheus.sn.angular.closure.AngularClosureBase`; the third, ``BoundaryTraceLaw`` (a root with seven laws),
+retired in WF2.4 of the wave-2 carve.
 
 ⛔ This example was written against a hypothetical
 ``BoundaryOperator(LinearOperator, RegistryMixin, ABC)`` root with

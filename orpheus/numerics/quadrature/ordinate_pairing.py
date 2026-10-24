@@ -39,10 +39,11 @@ translation, identity, oblique reflection, inversion) names no mirror plane and
 raises the base :class:`OrdinatePairingError`. There is no ``axis`` argument, so a
 disagreeing pair (a reflection about x with ``axis="y"``) is unspellable.
 
-Twin until S2: the three checks restate those of
-``orpheus.geometry.boundary._specular`` (``_measure_preserving``,
-``_involutive``, ``_maps_inflow_to_outflow``), which retire at S2 (row R1 of
-the wave-2 plan); ``MEASURE_RTOL`` is its constant.
+The three checks are the only copy: the law-side restatements
+(``assert_specular_pairing_measure_preserving``, ``_involutive`` and
+``_maps_inflow_to_outflow`` of the retired ``orpheus.geometry.boundary``)
+retired in WF2.4 (row R1 of the wave-2 plan), and ``MEASURE_RTOL`` is the one
+constant.
 
 The trace measure reads
 :meth:`~orpheus.numerics.quadrature.Quadrature.mean_axis_cosine`, not

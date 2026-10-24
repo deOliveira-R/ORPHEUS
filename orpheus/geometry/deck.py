@@ -182,9 +182,9 @@ def _axis_index(axis: str, dimension: int, what: str) -> int:
 def mirror_motion(axis: str, dimension: int) -> RigidMotion:
     r"""The reflection whose plane is normal to the named ``axis``: the geometry's axis-letter to mirror spelling.
 
-    The one axis-letter to mirror spelling: ``orpheus/geometry/boundary/_factors.py`` (``_mirror_motion``) and
-    ``orpheus/geometry/symmetry.py`` (``_reflections``) delegate here, keeping their messages' fragment "axis must be
-    one of" (``wave2_boundary_carve.md`` section 5.1; wave-2 slice S1).
+    The one axis-letter to mirror spelling: ``orpheus/geometry/symmetry.py`` (``_reflections``) delegates here, keeping its
+    message's fragment "axis must be one of" (``wave2_boundary_carve.md`` section 5.1; wave-2 slice S1; the second
+    delegate, ``_mirror_motion`` of the retired ``orpheus/geometry/boundary/_factors.py``, retired in WF2.4).
 
     The axis letter is resolved through :data:`~orpheus.geometry.faces.AXIS_INDEX` and refused here, so a
     mis-named axis cannot be constructed and fail later holding a quadrature. The plane passes through the

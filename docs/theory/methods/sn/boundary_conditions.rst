@@ -214,7 +214,7 @@ Boundary conditions as tensor decompositions
 
 The boundary conditions used by :class:`SNProblem` are concrete instances
 of a more general tensor-decomposed framing, defined in
-:mod:`orpheus.geometry.boundary`. A boundary condition is a linear
+``orpheus.geometry.boundary``. A boundary condition is a linear
 operator :math:`B` mapping the outgoing angular flux at a face to the
 incoming angular flux:
 
@@ -450,7 +450,7 @@ The pre-Wave-7 names ``VacuumBoundaryOperator`` /
 :class:`~orpheus.geometry.boundary.WhiteBoundary` /
 :class:`~orpheus.geometry.boundary.PeriodicBoundary` /
 :class:`~orpheus.geometry.boundary.AlbedoBoundary`) are the sole
-live names in :mod:`orpheus.geometry.boundary`.
+live names in ``orpheus.geometry.boundary``.
 ``MixedBoundaryOperator`` was **retired in Wave 11**; rank-N
 (Marshak, partial-current) boundaries are now expressed via the
 **descriptor-tree algebra**

@@ -1,7 +1,7 @@
 r"""The carry of wave 2 for diffusion: the twelve eigenvalues the carve must not move (law L-K; plan sections 6.0, 6.3 gate 5, 8).
 
 ``tests/gates/transport/carry_head.npz`` was captured FROM THE HEAD TREE (``main`` ``5d04c296``, a detached worktree, before any
-edit) by ``tests/gates/transport/_capture_carry_head.py``: ``solve_diffusion_1d`` (default tolerances) on the three one-dimensional
+edit) by ``tests/gates/transport/_capture_carry_head.py`` (deleted in WF2.4; recover it with ``git show 197549f6:tests/gates/transport/_capture_carry_head.py``): ``solve_diffusion_1d`` (default tolerances) on the three one-dimensional
 charts, a slab ``(0, 1.5, 3)`` and a cylinder and a sphere ``(0, 1, 2)``, each of two regions (materials ``1`` then ``0``) with six
 cells apiece and the two-group library, under four declarations of the outer wall: vacuum, the perfect mirror, the bare albedo
 ``0.5`` and zero flux (12 rows, key ``keff_diffusion/<chart>/<declaration>``). The same problems, spelled in the NEW vocabulary

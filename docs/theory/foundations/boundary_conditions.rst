@@ -12,7 +12,7 @@ Boundary Conditions — Trace-Law Architecture
 Key Facts
 =========
 
-**Read this before touching anything in** :mod:`orpheus.geometry.boundary`
+**Read this before touching anything in** ``orpheus.geometry.boundary``
 **or any** ``BoundaryRealizer``.
 
 - A boundary condition is a **method-agnostic affine map** on the
@@ -67,7 +67,7 @@ Key Facts
   |       | (Γ\_-, Γ\_+ + mask)   | (all Mesh1D coord systems + 2-D Cartesian;          |
   |       |                       | 2-D cylindrical Mesh2D deferred)                    |
   +-------+-----------------------+-----------------------------------------------------+
-  | 2     | Boundary law          | :mod:`orpheus.geometry.boundary` (ABC +             |
+  | 2     | Boundary law          | ``orpheus.geometry.boundary`` (ABC +             |
   |       | (method-agnostic)     | 7 concrete laws, kind-keyed law registry)           |
   +-------+-----------------------+-----------------------------------------------------+
   | 3     | Method realizer       | per-method packages (SN + diffusion,                |
@@ -84,7 +84,7 @@ Key Facts
   algebra over ``BoundaryTraceLaw | LawSum | LawScaled``. The tree is
   a **pure descriptor** with no ``apply`` method; the
   :func:`~orpheus.transport.boundary_realization.realize_recursively` type
-  transformer (method-blind; in :mod:`orpheus.transport.boundary_realization`
+  transformer (method-blind; in ``orpheus.transport.boundary_realization``
   since layer-DAG WP-E1, in ``geometry/boundary/`` from #290 P7b until
   then; the leaf realizer is a required argument) walks it once per
   face and emits the formal linear combination
@@ -221,8 +221,8 @@ Key Facts
 
    - L0 foundation tests on individual primitives
      (:mod:`tests.gates.numerics`,
-     :mod:`tests.gates.geometry.test_boundary_trace_law`,
-     :mod:`tests.gates.geometry.test_bc_errors`).
+     ``tests.gates.geometry.test_boundary_trace_law``,
+     ``tests.gates.geometry.test_bc_errors``).
    - Foundation reference-image tests
      (:mod:`tests.gates.sn.architecture.test_wave2_carry`, which took the seven frozen
      images over from the retired ``test_bc_equivalence_snapshot`` at wave 2 slice S2b), which
@@ -234,11 +234,11 @@ Key Facts
      they now carry an image computed from the law's own equation, so
      the gate states correctness rather than stability.
    - L1 descriptor-tree algebra tests
-     (:mod:`tests.gates.geometry.test_law_composition`) pinning the
+     (``tests.gates.geometry.test_law_composition``) pinning the
      :class:`LawSum` / :class:`LawScaled` closed-algebra contract
      (foundation + L1 coverage).
    - L1 universal-invariant tests
-     (:mod:`tests.gates.geometry.test_bc_universal_invariants`) that fire
+     (``tests.gates.geometry.test_bc_universal_invariants``) that fire
      ERR-043 / ERR-044 / ERR-046 under fault-injection.
 
    No equation on this page makes a claim that requires a closed-form
@@ -878,7 +878,7 @@ the anonymous local ``psi_avg`` inside the welded
    :ref:`see the theorem <bc-factor-roles>`) and what made "the crossing
    is geometric" look general (it is proven for the mirror only). Both
    claims shipped — on this page and in the
-   :mod:`orpheus.geometry.boundary` Protocols — and both were corrected
+   ``orpheus.geometry.boundary`` Protocols — and both were corrected
    on 2026-08-04.
    The transferable lesson is the campaign's own: **a declaration tier's
    typing is a declaration, not a measurement — check it against the
@@ -4532,7 +4532,7 @@ The ABC ships:
    :ref:`bc-trace-law-descriptor-model` for the design rationale
    and the predecessor approaches that were tried and rejected.
 
-Seven concrete laws ship under :mod:`orpheus.geometry.boundary`,
+Seven concrete laws ship under ``orpheus.geometry.boundary``,
 one per submodule. The Grand Report v3 vocabulary is used verbatim
 for the class names; the pre-refactor names were deprecated aliases
 only until Wave O step O.4a.1 retired them, and none is importable
@@ -4682,7 +4682,7 @@ Naming audit: pre-refactor vs Grand Report v3 vocabulary
 Wave 7 of the refactor renamed every concrete BC to match the
 Grand Report v3 vocabulary verbatim. During the deprecation window
 the pre-refactor names were re-exported as deprecated aliases from
-:mod:`orpheus.geometry.boundary.__init__` so existing import sites
+``orpheus.geometry.boundary.__init__`` so existing import sites
 kept working unchanged. Those aliases were **retired in Wave O step
 O.4a.1** once every code and test consumer had migrated; the
 canonical names in the middle column are now the sole importable
@@ -4895,7 +4895,7 @@ Realizer (``BoundaryRealizer`` Protocol + ``SNBoundaryRealizer``)
 
 The :class:`~orpheus.transport.boundary_realization.BoundaryRealizer` Protocol is
 ``@runtime_checkable`` and lives at
-:mod:`orpheus.transport.boundary_realization` (until layer-DAG unit
+``orpheus.transport.boundary_realization`` (until layer-DAG unit
 WP-E1 it was ``orpheus.geometry.boundary._realizer``; realization
 builds operators on a method space, which is transport vocabulary, and
 geometry only declares). Its contract is one
@@ -5671,7 +5671,7 @@ The :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` ABC declares
 **five universal** assertion methods plus **three specific**
 assertions on the BCs that need them. Together they form the
 structural verification surface that the
-:mod:`tests.gates.geometry.test_bc_universal_invariants` suite exercises.
+``tests.gates.geometry.test_bc_universal_invariants`` suite exercises.
 
 .. warning::
 
@@ -5793,7 +5793,7 @@ Per Grand Report v3 §26A.4 and the `vv-principles` skill's
 "Log every caught bug" directive, every typed error has a matching
 ``@pytest.mark.catches("ERR-NNN")`` decorator on the test that
 proves it fires under the right fault-injection. The eight errors
-shipped under :mod:`orpheus.geometry.boundary._errors` are:
+shipped under ``orpheus.geometry.boundary._errors`` are:
 
 .. list-table::
    :header-rows: 1
@@ -6190,7 +6190,7 @@ algebras, nothing more.
 Placement — the deferral that fired at the second method
 --------------------------------------------------------
 
-The walker lives in :mod:`orpheus.transport.boundary_realization`
+The walker lives in ``orpheus.transport.boundary_realization``
 (the realization seam, next to the
 :class:`~orpheus.transport.boundary_realization.BoundaryRealizer` Protocol it
 dispatches through), and it is **method-blind**: the leaf realizer
@@ -6250,9 +6250,9 @@ imports the operator algebra at runtime is one of the edges of the
 rigid motions and groups). Layer-DAG unit WP-E1
 (``.claude/plans/layer_dag.md`` ruling 7) therefore moved the seam
 (the Protocol, the role stamp and the walker) to
-:mod:`orpheus.transport.boundary_realization`, the lowest layer whose
+``orpheus.transport.boundary_realization``, the lowest layer whose
 vocabulary defines it, and the SN shim ``_BoundBoundaryOperator`` to
-:mod:`orpheus.sn.boundary.bound_compat`, beside its one production
+``orpheus.sn.boundary.bound_compat``, beside its one production
 consumer ``SNProblem``. No shim or re-export was left in geometry, and
 ``tests/gates/test_layer_imports.py`` refuses a runtime import of
 :mod:`orpheus.numerics.operator` by any geometry module.
@@ -6665,7 +6665,7 @@ because that path no longer exists in the code.
 Empirical justification
 -----------------------
 
-The 18-test :mod:`tests.gates.geometry.test_law_composition` suite pins
+The 18-test ``tests.gates.geometry.test_law_composition`` suite pins
 the descriptor-tree contract (foundation + L1 tests):
 
 * Algebra closure on every dunder for every node-type pairing
@@ -8429,7 +8429,7 @@ re-attempt them:
    path that the refactor was retiring anyway. The transitional
    legacy-vacuum body is the right cost.
 5. **Auto-importing every cross-method realizer at
-   :mod:`orpheus.geometry.boundary` import time.** Considered in
+   ``orpheus.geometry.boundary`` import time.** Considered in
    the registry era to make ``BoundaryRealizerRegistry.get("MoC")``
    work without the caller having to ``import orpheus.moc`` first.
    Rejected because :mod:`orpheus.sn` is a heavy module that every

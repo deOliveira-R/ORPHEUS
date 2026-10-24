@@ -1289,7 +1289,7 @@ Boundary-trace vocabulary
 -------------------------
 
 Boundary handling has its own type vocabulary
-(:mod:`orpheus.geometry.boundary`).  These types are
+(``orpheus.geometry.boundary``).  These types are
 **orthogonal** to the index convention — they live on
 :math:`\Gamma_\pm` faces, not in the volume:
 
@@ -1301,7 +1301,7 @@ Boundary handling has its own type vocabulary
      - Code counterpart
      - Role
    * - ``BoundaryTraceLaw``
-     - :mod:`orpheus.geometry.boundary` per-BC modules
+     - ``orpheus.geometry.boundary`` per-BC modules
      - The discrete BC's algebraic action — the affine map
        :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`, i.e.
        **outflow trace in, inflow trace out**
@@ -1319,8 +1319,8 @@ Boundary handling has its own type vocabulary
        partition — inflow ⊔ outflow ⊔ tangential
    * - ``VacuumInflow`` /
        ``ReflectiveBoundary``
-     - :mod:`orpheus.geometry.boundary.vacuum` /
-       :mod:`orpheus.geometry.boundary.reflective`
+     - ``orpheus.geometry.boundary.vacuum`` /
+       ``orpheus.geometry.boundary.reflective``
      - Physical BC kinds
    * - ``PermutationOperator`` /
        ``TraceRestrictionOperator``

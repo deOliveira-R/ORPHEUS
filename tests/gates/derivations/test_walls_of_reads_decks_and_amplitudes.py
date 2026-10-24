@@ -17,7 +17,7 @@ The gate is an equivalence between two spellings of one population, grounded twi
   written from that rule by :func:`_expected` (the rule, not a table of the answers), never through ``Walls``.
 * **The HEAD reading** (``test_walls_of_reads_what_head_read``): the walls ``Walls.of(geometry)`` returned at ``main`` ``5d04c296``
   for the same 19 bodies spelled as the retired string tags, captured once into ``reference_carry_head.json``
-  (:mod:`tests.gates.derivations._capture_reference_carry_head`). The population (19 bodies: a 3-region slab under 8 wall pairs, a
+  (``tests/gates/derivations/_capture_reference_carry_head.py`` (deleted in WF2.4; recover it with ``git show 197549f6:tests/gates/derivations/_capture_reference_carry_head.py``)). The population (19 bodies: a 3-region slab under 8 wall pairs, a
   3-region sphere under 4, a 2-region cylinder under 3, a hollow sphere under 3, a hollow cylinder under 1) is
   :mod:`tests.gates.derivations._reference_carry_cases`; it spans every wall kind in every chart a reference serves, the
   mirror on a curved face (a tag bound to ``(1, 0)``: the carve's meaning change) and both orderings of a diffuse and a specular

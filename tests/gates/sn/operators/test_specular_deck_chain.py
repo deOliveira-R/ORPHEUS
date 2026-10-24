@@ -109,7 +109,7 @@ from orpheus.numerics.elementary_operators import PermutationOperator
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
-from orpheus.geometry.boundary import SelfPairedDeck
+from orpheus.geometry.deck import mirror_motion
 from orpheus.sn.boundary.realized_operators import ScaledOrdinatePermutation
 from orpheus.sn.mesh.method_space import SNMethodSpace
 
@@ -140,7 +140,7 @@ _CASES: dict[str, tuple] = {
 def _mirror_kernel(quad, method_space, *, axis: str, domain_face: str) -> PermutationOperator:
     """The permutation the mirror of ``axis`` induces on the ordinates, as the realized operator gathers it: the ``PermutationOperator``
     inside ``ScaledOrdinatePermutation(1, pi, face, partner)`` (wave 2 S2b: the typed operator owns the body that ``_deck_kernel`` did)."""
-    motion = SelfPairedDeck.mirror(axis=axis).motion
+    motion = mirror_motion(axis, 3)
     op = ScaledOrdinatePermutation(
         alpha=1.0, permutation=quad.ordinate_permutation(RigidMotion(motion.linear)),
         face=method_space.face, partner=domain_face, trace=method_space.trace,

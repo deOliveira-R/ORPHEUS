@@ -2972,7 +2972,7 @@ them.  Trust ``git``, not this column.
        only its ``realize_boundary_law`` arm, and ``SNMesh`` builds its
        unified trace in the construction body (the trace-inside-BC-
        resolution wart retired). ``realize_recursively`` moved to its
-       method-blind home :mod:`orpheus.geometry.boundary` (leaf realizer
+       method-blind home ``orpheus.geometry.boundary`` (leaf realizer
        REQUIRED); the ``_BoundBoundaryOperator`` kind tag now reads the
        law's own registry key. ``BoundaryRealizerRegistry`` + the
        MoC/MC/CP ``NotImplementedError`` stub realizers deleted — no

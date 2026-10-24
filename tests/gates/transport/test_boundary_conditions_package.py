@@ -19,8 +19,8 @@ The claims (``vv-principles``), all STRUCTURE (an AST pass over the package), ea
 * ``test_the_facade_exports_what_the_tables_name``: every name of the tables is exported by the package, defined in
   one of its modules (not in ``__init__``), and ``__all__`` lists them.
 * ``test_stamp_boundary_role_is_copied_in``: ``stamp_boundary_role`` lives here (the old one in
-  ``boundary_realization.py`` is left for WF2.4) and behaves as the old one: it stamps the ``BOUNDARY`` block role on
-  the instance and returns it.
+  ``boundary_realization.py`` was deleted in WF2.4, with the row that held the two bodies equal) and stamps the
+  ``BOUNDARY`` block role on the instance and returns it.
 
 First red, at the base tip ``4ec95bc6``: the package directory does not exist, so the file set, the scan and the
 facade read ``FileNotFoundError`` / ``ModuleNotFoundError`` at their first line; each scan's CONTROLS run first and
@@ -201,8 +201,7 @@ def test_the_facade_exports_what_the_tables_name() -> None:
 
 def test_stamp_boundary_role_is_copied_in() -> None:
     """``stamp_boundary_role(op)`` stamps the ``BOUNDARY`` block role on the INSTANCE and returns it, unchanged
-    behaviour of the old helper (``orpheus/transport/boundary_realization.py``, which WF2.4 deletes: the new package
-    must not import it, the scan above).
+    behaviour of the old helper (``orpheus/transport/boundary_realization.py``, deleted in WF2.4).
 
     Reddens on: a copy that returns a stamped clone; one that stamps ``SOURCE``; one that does not return.
     """
@@ -213,28 +212,3 @@ def test_stamp_boundary_role_is_copied_in() -> None:
     require(stamped is op, "stamp_boundary_role returns the instance it was given")
     require(op.block_role is BlockRole.BOUNDARY, f"the block role is {op.block_role}")
     require(bc.stamp_boundary_role.__module__ == f"{PACKAGE}.realization", "stamp_boundary_role is defined in realization.py")
-
-
-def test_the_two_stamp_copies_are_one_body() -> None:
-    """Until WF2.4 deletes ``orpheus/transport/boundary_realization.py``, ``stamp_boundary_role`` exists twice; the two
-    bodies are ONE implementation iff their ASTs agree with the docstring removed (X4: the witness of the copy, written
-    with the copy). The old module is read as source, never imported (it imports the retired ``BC``). WF2.4 deletes
-    this row with the old module.
-
-    Reddens on: an edit to either copy's body (e.g. ``BlockRole.SOURCE`` in one of them).
-    """
-    import pathlib
-
-    root = pathlib.Path(__file__).resolve().parents[3] / "orpheus" / "transport"
-
-    def body(path: pathlib.Path) -> str:
-        tree = ast.parse(path.read_text())
-        found = [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == "stamp_boundary_role"]
-        require(len(found) == 1, f"{path.name} defines stamp_boundary_role {len(found)} times")
-        fn = found[0]
-        statements = fn.body[1:] if fn.body and isinstance(fn.body[0], ast.Expr) and isinstance(fn.body[0].value, ast.Constant) else fn.body
-        return ast.dump(ast.Module(body=statements, type_ignores=[]))
-
-    new, old = body(root / "boundary_conditions" / "realization.py"), body(root / "boundary_realization.py")
-    require("BOUNDARY" in new, "control: the body names the BOUNDARY role")
-    require(new == old, "the two copies of stamp_boundary_role have diverged; edit both or neither until WF2.4")

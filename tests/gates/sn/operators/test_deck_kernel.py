@@ -140,6 +140,12 @@ def _deck_fixture(case: str, *, face: str, domain_face: str):
     return quad, trace, method_space, gamma_out, quad.measure.support.ambient_points(quad.measure.nodes)
 
 
+def _inflow(method_space: SNMethodSpace) -> np.ndarray:
+    """The face's :math:`\\Gamma_-` ordinate indices, read off the trace ladder the method space holds."""
+    assert method_space.face is not None
+    return np.asarray(method_space.inflow_indices_for_face(method_space.face), dtype=np.intp)
+
+
 def _kernel(quadrature, method_space, gamma_out, *, motion, domain_face, law_key):
     """The PermutationOperator of the deck arrow ``Gamma_+(domain_face) -> Gamma_-(method_space.face)`` of ``motion``.
 
@@ -220,7 +226,7 @@ class TestTheGatherIsThePreimage:
         motion = _mirror("x")
         kernel = _kernel(quad, method_space, gamma_out, motion=motion,
                          domain_face="xmin", law_key="reflective")
-        inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
+        inflow = _inflow(method_space)
         gather = _global_gather(kernel, gamma_out)
         np.testing.assert_array_equal(
             nodes[gather],
@@ -248,7 +254,7 @@ class TestTheGatherIsThePreimage:
             motion=RigidMotion.translation_by([1.0, 0.0, 0.0]),
             domain_face="xmax", law_key="periodic",
         )
-        inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
+        inflow = _inflow(method_space)
         gather = _global_gather(kernel, gamma_out)
         np.testing.assert_array_equal(nodes[gather], nodes[inflow])
 
@@ -274,7 +280,7 @@ class TestTheGatherIsThePreimage:
         motion = _rotation_90()
         kernel = _kernel(quad, method_space, gamma_out, motion=motion,
                          domain_face="ymin", law_key="sector")
-        inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
+        inflow = _inflow(method_space)
         gather = _global_gather(kernel, gamma_out)
         np.testing.assert_allclose(
             nodes[gather],
@@ -336,7 +342,7 @@ class TestTheGatherIsThePreimage:
         )
         kernel = _kernel(quad, method_space, gamma_out, motion=_rotation_90(),
                          domain_face="ymin", law_key="sector")
-        inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
+        inflow = _inflow(method_space)
         level, p = np.divmod(inflow, n_phi)
         expected_global = level * n_phi + (p - n_phi // 4) % n_phi
         np.testing.assert_array_equal(
@@ -425,7 +431,7 @@ class TestTheGatherIsThePreimage:
         )
         pi = _linear_part(_rotation_90()).permutes(nodes, atol=1e-13)
         assert pi is not None
-        inflow = np.asarray(method_space.inflow_indices, dtype=np.intp)
+        inflow = _inflow(method_space)
         forward = pi.indices[inflow]
         backward = pi.inverse().indices[inflow]
         assert not np.array_equal(forward, backward), (

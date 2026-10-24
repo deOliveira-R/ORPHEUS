@@ -18,12 +18,12 @@ of the response network) into a
   regularity condition, not a BC face.)
 * :attr:`trace` -- the unified
   :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` precomputed
-  for the mesh+quad pair. The realizer's vacuum branch extracts
-  per-face inflow indices from it (and any future law needing outflow
-  indices reads the same signed-:math:`\Omega\cdot\hat n` data).
+  for the mesh+quad pair. The typed realized operators read every
+  half-space of a face off it (``trace.inflow_space(face)``,
+  ``trace.outflow_space(face)``); the space carries no index set of its own.
 
 The class also exposes :meth:`inflow_indices_for_face` (delegating to
-the held :attr:`trace`) so the realizer can request indices without
+the held :attr:`trace`) so a consumer can request indices without
 knowing about the trace-space type.
 
 Backward-compatible construction
@@ -31,11 +31,10 @@ Backward-compatible construction
 
 Wave 5 introduced a minimal :meth:`SNMethodSpace.minimal` factory
 that returns a method space carrying only the quadrature (with
-``face=None``, ``inflow_indices=None``, ``mesh=None``,
-``trace=None``). Wave 8 keeps that factory functional: realizers /
-tests that don't need mesh+face metadata can still call it. Vacuum
-realization (which requires inflow_indices) will fail loudly on a
-minimal method space -- that's the right error.
+``face=None``, ``mesh=None``, ``trace=None``). Wave 8 keeps that
+factory functional: realizers / tests that don't need mesh+face
+metadata can still call it. A realization that reads the trace ladder
+fails loudly on a minimal method space -- that's the right error.
 
 The Wave-5 ``SNMethodSpace`` lived at
 :mod:`orpheus.sn.boundary.realizer`; Wave 8 moved it to this
@@ -73,45 +72,26 @@ class SNMethodSpace:
 
     See module docstring for the per-field semantics.
 
-    Wave 5 (the minimal placeholder this supersedes) only required
-    ``quadrature`` plus optional ``face`` / ``inflow_indices``. Those
-    three fields stay first in the field ordering and keep their
-    defaults so existing callers
-    ``SNMethodSpace(quadrature=q, face=..., inflow_indices=...)``
-    keep working unchanged.
-
-    Wave 8 adds ``mesh`` + ``trace`` -- both with ``None`` defaults so
-    legacy construction paths are not forced to populate them. The
-    canonical construction site is :meth:`for_face` (used by
-    ``SNProblem.realize_boundary_role``, the SN arm of the
-    ``TransportMethod`` hook of the shared ``realize_boundary``) which derives ``inflow_indices`` from
-    ``trace`` and keeps the reference for any future consumer.
+    ``quadrature`` is the only required field; ``face``, ``mesh`` and ``trace`` default to ``None`` so a quadrature-only method
+    space (:meth:`minimal`) stays constructible. The canonical construction site is :meth:`for_face` (used by
+    ``SNProblem.realize_boundary_role``, the SN arm of the ``TransportMethod`` hook of the shared ``realize_boundary``). The
+    typed realized operators read their half-spaces off ``trace``, so the space holds no index set (ERR-041's index sets and the
+    cross-check that read them retired in WF2.4; the invariant is witnessed on the ladder itself,
+    ``tests/gates/numerics/test_angular_trace_space.py::TestTheInflowHalfSpaceIsTheIncomingOrdinates``).
     """
 
     quadrature: "Quadrature"
     face: Optional[str] = None
-    inflow_indices: Optional[np.ndarray] = None
     mesh: "Optional[Mesh1D | Mesh2D]" = None
     trace: "Optional[AngularTraceSpace]" = None
-    #: The face's outflow ordinates, populated with :attr:`inflow_indices` by :meth:`for_face`.
-    #:
-    #: DEAD WEIGHT, kept until WF2.4: the typed realized operators read their half-spaces off the trace ladder
-    #: (``trace.outflow_space(face)``), so this field has no production reader, and :attr:`inflow_indices` is read only by the
-    #: ERR-041 cross-check of ``SNZero.realize``, which checks indices the zero map never consumes. Both fields and the guard retire
-    #: in WF2.4 with the legacy law tests that still build a method space by hand, and ERR-041's catcher moves onto the trace
-    #: ladder's inflow half-space (``.claude/plans/wave2_boundary_carve.md`` section 7.3, the ERR-041 row). Note the pair does NOT partition the face: tangential ordinates
-    #: (:math:`|\Omega\cdot\hat n| \le \epsilon`) belong to neither, so "not inflow" must never be spelled as "outflow".
-    outflow_indices: Optional[np.ndarray] = None
 
     @classmethod
     def minimal(cls, quadrature: "Quadrature") -> "SNMethodSpace":
         """Quadrature-only method space (Wave 5 backward-compat).
 
         Used by realizers / tests that don't need mesh+face
-        metadata -- typically the Wave 5 unit tests and the Wave 6
-        snapshot harness's realized-1-arg path. Vacuum realization
-        on such a space raises :class:`BoundaryError` (since the
-        per-face inflow indices are required) -- that's the
+        metadata. A realization that reads the trace ladder on such
+        a space raises :class:`BoundaryError` -- that's the
         intended behaviour.
         """
         return cls(quadrature=quadrature)
@@ -127,48 +107,24 @@ class SNMethodSpace:
     ) -> "SNMethodSpace":
         r"""Build a method space for a specific face.
 
-        If ``trace`` is provided, extract the inflow indices for
-        ``face`` and store them. This is the standard construction
-        site inside ``SNProblem.realize_boundary_role`` (per face, driven
-        by the shared
-        :func:`~orpheus.transport.method.realize_boundary`
-        body) -- the trace space is built once per quadrature+layout
-        pair at ``SNProblem`` construction and passed through so per-face
-        indices are derived on demand.
+        This is the standard construction site inside ``SNProblem.realize_boundary_role`` (per face, driven by the shared
+        :func:`~orpheus.transport.method.realize_boundary` body): the trace space is built once per quadrature+layout pair at
+        ``SNProblem`` construction and passed through, and every half-space is read off it on demand.
 
         Parameters
         ----------
         mesh
-            Spatial mesh — OPTIONAL metadata (C5.3, #225): nothing in
-            the realizer chain reads it (inflow indices come from the
-            trace); an axis-native ``SNProblem`` with no legacy mesh
-            adapter passes ``None``.
+            Spatial mesh, OPTIONAL metadata (C5.3, #225): nothing in the realizer chain reads it; an axis-native ``SNProblem``
+            with no legacy mesh adapter passes ``None``.
         quadrature
             Angular quadrature.
         face
-            Face name (``"{axis}{min|max}"`` — e.g. ``"xmin"`` …
-            ``"zmax"``).
+            Face name (``"{axis}{min|max}"``, e.g. ``"xmin"`` to ``"zmax"``).
         trace
             Optional precomputed unified
             :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`.
-            If non-``None`` the ``inflow_indices`` field is populated
-            for this face.
         """
-        inflow_indices: Optional[np.ndarray] = None
-        outflow_indices: Optional[np.ndarray] = None
-        if trace is not None:
-            # Both half-traces, together: since B3.2 a law's DOMAIN is Γ₊ and
-            # its CODOMAIN is Γ₋, so a face-specific method space owes both.
-            inflow_indices = trace.inflow_indices_for_face(face)
-            outflow_indices = trace.outflow_indices_for_face(face)
-        return cls(
-            quadrature=quadrature,
-            face=face,
-            inflow_indices=inflow_indices,
-            mesh=mesh,
-            trace=trace,
-            outflow_indices=outflow_indices,
-        )
+        return cls(quadrature=quadrature, face=face, mesh=mesh, trace=trace)
 
     def inflow_indices_for_face(self, face: str) -> np.ndarray:
         """Delegate to the held :class:`AngularTraceSpace`.
@@ -181,8 +137,6 @@ class SNMethodSpace:
             raise RuntimeError(
                 f"SNMethodSpace.inflow_indices_for_face({face!r}): no "
                 f"AngularTraceSpace attached to this method space. "
-                f"Construct via .for_face(...) with trace= populated, "
-                f"or use the realizer's vacuum dispatch branch which "
-                f"reads .inflow_indices directly."
+                f"Construct via .for_face(...) with trace= populated."
             )
         return self.trace.inflow_indices_for_face(face)

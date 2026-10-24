@@ -128,10 +128,10 @@ on :ref:`structured-geometry-mesh`.
 
 **Boundary laws on the faces.**
 Each boundary face of a structured mesh carries a boundary law: a
-:class:`~orpheus.geometry.boundary.BC` tag or an already-typed law.
+``BC`` tag or an already-typed law.
 Both :class:`~orpheus.mesh.structured.Mesh1D` and
 :class:`~orpheus.mesh.structured.Mesh2D` store their laws as one value,
-``face_laws``, a :class:`~orpheus.mesh.face_laws.FaceLaws`: a frozen,
+``face_laws``, a ``FaceLaws``: a frozen,
 ordered, picklable mapping from face name to law over exactly the faces
 that :func:`~orpheus.mesh.face_laws.face_inventory` derives. A
 ``Mesh1D`` has ``xmin`` and ``xmax`` on a slab or a hollow body and
@@ -154,7 +154,7 @@ Construction — the geometry to mesh path
 The 1-D construction path is **two-layered**: declare a
 :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
 (pure shape: a coordinate system, breakpoints, one material id per
-interval and one :class:`~orpheus.geometry.boundary.BC` per boundary
+interval and one ``BC`` per boundary
 point), then mesh it with a :class:`~orpheus.mesh.mesher.Mesher`:
 ``partition`` takes one interval rule for every interval, or a tuple of
 one rule per interval, builds the mesh and returns the mesher;

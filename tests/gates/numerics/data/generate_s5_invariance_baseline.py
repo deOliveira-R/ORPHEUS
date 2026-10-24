@@ -35,8 +35,8 @@ moved verdict), ``is_invariant_under`` for every candidate (finite and continuou
 certificate's permutations (``indices`` of each element, in the realization's element
 order) or ``None`` for every FINITE candidate, ``singular_set_under`` where a
 certificate exists, ``symmetry_groups`` under both methods, ``ordinate_permutation``
-for the 3-D x/y/z mirrors (``geometry.boundary._factors._mirror_motion``, the motion
-every specular face uses) plus the pole deck ``SelfPairedDeck.mirror("x").motion`` and
+for the 3-D x/y/z mirrors (``geometry.deck.mirror_motion``, the motion
+every specular face uses) plus the pole deck, which is the x mirror again (``MirrorDeck`` carries no motion of its own), and
 one NON-normalising motion (a quarter turn about z), and on every product rule the
 three ``_derived_product_group`` factor verdicts with their permutations.
 
@@ -54,8 +54,7 @@ import sys
 import numpy as np
 
 import orpheus
-from orpheus.geometry.boundary import SelfPairedDeck
-from orpheus.geometry.boundary._factors import _mirror_motion
+from orpheus.geometry.deck import mirror_motion
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics import invariance as inv
 from orpheus.numerics.quadrature import Quadrature, quadrature_registry
@@ -165,8 +164,8 @@ def record_measure(measure) -> dict:
 
 
 def motions() -> dict[str, RigidMotion]:
-    out = {f"mirror_{a}": _mirror_motion(a, 3) for a in "xyz"}
-    out["pole_deck_x"] = SelfPairedDeck.mirror(axis="x").motion
+    out = {f"mirror_{a}": mirror_motion(a, 3) for a in "xyz"}
+    out["pole_deck_x"] = mirror_motion("x", 3)
     out["quarter_turn_z"] = quarter_turn_z()
     return out
 

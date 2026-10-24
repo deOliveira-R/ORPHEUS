@@ -18,7 +18,7 @@ orderings of a diffuse and a specular wall on one body. That is 19 specification
 (``Spectrum``, ``MomentSpace``, ``BasisSpace``).
 
 **The fixture** ``reference_carry_head.json`` was captured ONCE at ``main`` ``5d04c296`` by
-:mod:`tests.gates.derivations._capture_reference_carry_head`, from a ``git archive`` extraction outside the repository, the
+``tests/gates/derivations/_capture_reference_carry_head.py`` (deleted in WF2.4; recover it with ``git show 197549f6:tests/gates/derivations/_capture_reference_carry_head.py``), from a ``git archive`` extraction outside the repository, the
 script printing the extraction's ``orpheus.__file__``; the eigenvalue is held as ``float.hex`` (bit-exact), read in process
 (``traced_memo.bypass()``) so no cache entry stands in for a solve (a memo is keyed by content digest, and every digest changes with
 this carve, ``R-6``: reading through the memo would MISS and solve anyway, but only a bypass makes the claim independent of

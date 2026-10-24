@@ -1,7 +1,7 @@
 r"""The carry of wave 2 for CP: the six eigenvalues the carve must not move (law L-K; plan sections 6.0, 6.4 gate 2, 8).
 
 ``tests/gates/transport/carry_head.npz`` was captured FROM THE HEAD TREE (``main`` ``5d04c296``, a detached worktree, before any edit) by
-``tests/gates/transport/_capture_carry_head.py``: ``solve_cp`` at ``CPParams()`` on the three one-dimensional charts, a slab ``(0, 1.5, 3)``
+``tests/gates/transport/_capture_carry_head.py`` (deleted in WF2.4; recover it with ``git show 197549f6:tests/gates/transport/_capture_carry_head.py``): ``solve_cp`` at ``CPParams()`` on the three one-dimensional charts, a slab ``(0, 1.5, 3)``
 and a cylinder and a sphere ``(0, 1, 2)``, each of two regions (materials ``1`` then ``0``) with six cells apiece and the two-group library,
 under two declarations of the outer wall: vacuum and white (6 rows, key ``keff_cp/<chart>/<declaration>``). The slab's left face is the
 mirror CP's kernel images (section 4.2): the HEAD capture declared ``BC.reflective`` there. The same problems, spelled in the NEW

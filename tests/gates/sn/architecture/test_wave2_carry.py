@@ -1,7 +1,7 @@
 r"""The carry of wave 2 for SN: every number the carve must not move (law L-K; plan sections 6.0 and 8; S2b gate 3).
 
 ``tests/gates/transport/carry_head.npz`` was captured FROM THE HEAD TREE (``main`` ``5d04c296``, a detached worktree,
-before any edit) by ``tests/gates/transport/_capture_carry_head.py``: for the SN bodies (a slab, a cylinder, a sphere and a
+before any edit) by ``tests/gates/transport/_capture_carry_head.py`` (deleted in WF2.4; recover it with ``git show 197549f6:tests/gates/transport/_capture_carry_head.py``): for the SN bodies (a slab, a cylinder, a sphere and a
 hollow cylinder, two regions, two groups) the eigenvalue ``k`` and the scalar flux of ``solve_sn``, the scalar flux of
 ``solve_sn_fixed_source`` under a bulk source, the slab's fixed-source flux under a uniform inflow, the dense matrix of
 the realized operator of both faces of an S16 slab; and, for each of the seven ``bc_equivalence`` snapshots, the image the
@@ -25,7 +25,7 @@ What each row can and cannot see
   fuel and a moderator).
 * The face matrices see the realized operator alone (no sweep): they are the finest witness of the typed operators and
   localise a red to the realizer.
-* The snapshots are independent derivations from the law's equation (``_generate_bc_equivalence_snapshots.py``); the
+* The snapshots are independent derivations from the law's equation (``_generate_bc_equivalence_snapshots.py`` (deleted in WF2.4; recover it with ``git show 197549f6:tests/gates/geometry/_generate_bc_equivalence_snapshots.py``)); the
   fixture's recorded sha256 proves they were NOT re-captured by this carve (R-10).
 
 First red at the base tip: ``ImportError`` from ``import orpheus.sn`` for every row that executes SN; the two

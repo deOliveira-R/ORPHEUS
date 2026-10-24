@@ -74,6 +74,7 @@ _PARSE = node(_HERE, "test_wall_condition_parse")
 # ── gate 1: the parse (law L-B) ──────────────────────────────────────────────
 
 
+@pytest.mark.catches("ERR-043", "ERR-046")
 @pytest.mark.rests_on(node(_NETWORK, "test_chains_compose_and_the_family_is_closed"))
 def test_wall_condition_parse() -> None:
     """The cone is a parse: ``specular(0.0|0.5|1.0)`` construct; ``specular(1.2)`` raises

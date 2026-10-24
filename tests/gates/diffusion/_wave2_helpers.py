@@ -21,7 +21,7 @@ What it builds
   keys ``tests/gates/transport/_admission_helpers.site`` builds;
 * the carried diffusion problems of ``tests/gates/transport/_carry_cases.py`` in the NEW spelling (:func:`chart_mesh`,
   :func:`build`, :func:`solve`): the SAME charts, breakpoints, materials ``(1, 0)``, cell counts and solver settings the HEAD
-  capture script used (``_capture_carry_head._chart_mesh``), because a bit-equal ``k`` is meaningful only for the same problem;
+  capture script used (``_capture_carry_head._chart_mesh`` (deleted in WF2.4; recover it with ``git show 197549f6:tests/gates/transport/_capture_carry_head.py``)), because a bit-equal ``k`` is meaningful only for the same problem;
 * :func:`realized_action`, the action of a realized operator on a fixed vector: the realized operators are ``OperatorSum`` values
   with no ``__eq__``, so a gate reads them BY ACTION on a fixed, non-symmetric vector, and by type only where the type is
   the claim.

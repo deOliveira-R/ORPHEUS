@@ -36,8 +36,8 @@ kernel, zero flux) is another :class:`~.condition.BoundaryCondition` type and ne
 ``"outflow"`` to ``"inflow"``". It is applied to every member of the closed sum when this module is imported, so a
 chain such as ``(IsotropicSection, CurrentRetraction)`` or one that ends on ``"current"`` is unspellable in the shipped
 module; the check raises ``TypeError`` explicitly (not ``assert``: the suite runs under ``python -O``). The admission
-test for a NEW chain is the two-test criterion of ``orpheus/geometry/boundary/_factors.py`` (multiplicativity, then
-"is it a quotient?"): a mirror-like chain is constitutive (it belongs to :math:`R`), an averaging chain is a kernel,
+test for a NEW chain is the two-test criterion of the retired ``orpheus/geometry/boundary/_factors.py`` (multiplicativity, then
+"is it a quotient?"; ``git show 197549f6:orpheus/geometry/boundary/_factors.py``): a mirror-like chain is constitutive (it belongs to :math:`R`), an averaging chain is a kernel,
 neither is a deck.
 
 **The network.** :class:`ResponseNetwork` is :math:`R = \sum_c w_c\,c` as a canonical weight map. The canonical form
