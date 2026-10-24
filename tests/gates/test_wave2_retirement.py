@@ -15,8 +15,8 @@ The claims, each with its kind (``vv-principles``) and the input that reddens it
   17 files under them.
 * nothing under ``orpheus/`` imports a retired module or defines, reads or imports a retiring name (population: every ``.py``
   file under ``orpheus/``, AST; the count is printed). Red input: the retiring files themselves and ``orpheus/sn/boundary/``.
-* nothing under ``tests/``, ``examples/``, ``tools/`` and ``student_resources/`` does either, except the two frozen capture
-  scripts (``_EXEMPT``, the one exemption, whose reason is below and whose liveness is asserted so a stale excuse reddens).
+* nothing under ``tests/``, ``examples/``, ``tools/`` and ``student_resources/`` does either; there is no exemption (ruling of
+  2026-10-24: the two frozen capture scripts are deleted, so they count as live users until then).
   The first red of this row IS the precondition list of WF2.4: the test files that still import the retired API and are not
   the 7.3 list (they are re-spelled or deleted in the deletion commit, each with its ``retirement-audit`` D.14 demotion check).
 * the layer gate's cold-import list names no retired module (a retired module imported in a fresh interpreter is an
@@ -37,12 +37,11 @@ retiring ``face_laws`` was the geometry property). Their OLD homes are inside th
 module-import row cover. The exclusion is asserted live (:data:`_HOMONYMS`): a name listed there that no longer occurs in its
 survivor is a stale excuse and reddens.
 
-**The one exemption, and why.** ``tests/gates/transport/_capture_carry_head.py`` and
-``tests/gates/derivations/_capture_reference_carry_head.py`` spell the retired API BY DESIGN: they are frozen provenance records
-of how ``carry_head.npz`` and ``reference_carry_head.json`` were captured from ``5d04c296`` in a detached worktree, they say in
-their own docstrings that they are not importable on the carve branch, and they are not collected. The fixtures stay and the
-carry gates that read them must stay green. The scripts are kept as records (deleting them would leave a binary fixture with no
-reproducible origin, ``retirement-audit`` E.22b); the row asserts they are the only files the census exempts.
+**No exemption, and the two capture scripts.** ``tests/gates/transport/_capture_carry_head.py`` and
+``tests/gates/derivations/_capture_reference_carry_head.py`` spelled the retired API by design (frozen records of how
+``carry_head.npz`` and ``reference_carry_head.json`` were captured from ``5d04c296``). The ruling of 2026-10-24 deletes them: the
+fixtures stay, each reading gate's docstring names the capture commit and the script's git path (recoverable with ``git show``),
+and until the deletion the scripts are live users the census reads like any other file.
 """
 
 from __future__ import annotations
@@ -118,12 +117,9 @@ _HOMONYMS: dict[str, str] = {
     "face_laws": "orpheus/diffusion/operators.py",
 }
 
-#: The frozen capture scripts: the census's one exemption (the docstring says why).
-_EXEMPT: frozenset[str] = frozenset(
-    {
-        "tests/gates/transport/_capture_carry_head.py",
-        "tests/gates/derivations/_capture_reference_carry_head.py",
-    }
+_CAPTURE_SCRIPTS: tuple[str, ...] = (
+    "tests/gates/transport/_capture_carry_head.py",
+    "tests/gates/derivations/_capture_reference_carry_head.py",
 )
 _CARRY_FIXTURES: tuple[str, ...] = ("tests/gates/transport/carry_head.npz", "tests/gates/derivations/reference_carry_head.json")
 
@@ -158,11 +154,11 @@ def _python_files(*roots: Path) -> list[Path]:
     return sorted(p for root in roots for p in root.rglob("*.py") if "__pycache__" not in p.parts and "_build" not in p.parts)
 
 
-def _findings(files: list[Path], names: frozenset[str], skip: frozenset[str] = frozenset()) -> dict[str, list[str]]:
+def _findings(files: list[Path], names: frozenset[str]) -> dict[str, list[str]]:
     out: dict[str, list[str]] = {}
     for path in files:
         rel = path.relative_to(_REPO).as_posix()
-        if rel in skip or rel == _THIS:
+        if rel == _THIS:
             continue
         hits = retired_uses(path.read_text(encoding="utf-8"), names, _package_of(path))
         if hits:
@@ -272,18 +268,18 @@ def test_nothing_under_orpheus_names_the_retired_vocabulary() -> None:
 @pytest.mark.rests_on(f"{_THIS}::test_the_census_reads_nothing_in_a_clean_source")
 def test_no_test_example_or_tool_names_the_retired_vocabulary() -> None:
     r"""No file under ``tests/``, ``examples/``, ``tools/`` or ``student_resources/`` imports a retired module or names a retiring
-    name, except the two frozen capture scripts of :data:`_EXEMPT`.
+    name; no file is exempt (the two frozen capture scripts are deleted by ruling, so they are live users until then).
 
     This is the precondition of WF2.4 as a gate: a retired test is deleted and a test of a surviving subject is re-spelled onto
-    the successor, so the only way this row is green is that every retiring-symbol user outside the exemption is gone. The red
+    the successor, so the only way this row is green is that every retiring-symbol user is gone, the two capture scripts included. The red
     message lists them, and a file the plan's 7.3 list does not name is a slice defect, not a deletion.
 
-    Population: every ``.py`` file under the four trees, minus this file and the exemption; the count is printed. Positive control:
+    Population: every ``.py`` file under the four trees, minus this file; the count is printed. Positive control:
     the planted sources. ``geometry_map`` and ``response_kernel`` are not read in tests (a generic local), see :data:`_TEST_HOMONYMS`.
     """
     files = _python_files(*(_REPO / tree for tree in _OUTSIDE_TREES if (_REPO / tree).exists()))
     assert len(files) >= 500, f"the census read only {len(files)} files"
-    findings = _findings(files, RETIRING_NAMES - _TEST_HOMONYMS, skip=_EXEMPT)
+    findings = _findings(files, RETIRING_NAMES - _TEST_HOMONYMS)
     assert not findings, (
         f"{len(findings)} of {len(files)} files outside orpheus/ still name the retired vocabulary: "
         + "; ".join(f"{k} ({len(v)}: {v[0]})" for k, v in sorted(findings.items()))
@@ -292,14 +288,12 @@ def test_no_test_example_or_tool_names_the_retired_vocabulary() -> None:
 
 @pytest.mark.foundation
 @pytest.mark.rests_on(f"{_THIS}::test_the_census_reads_nothing_in_a_clean_source")
-def test_the_one_exemption_is_live_and_its_fixtures_stay() -> None:
-    r"""The exemption of the census is the two frozen capture scripts, and nothing else: each still spells the retired API (else
-    the excuse is stale and the script is deleted or re-spelled), and the fixtures they were run to produce exist (the carry gates
-    read them). Green today; reddens when a script stops naming the retired API or a fixture is removed."""
-    for rel in sorted(_EXEMPT):
-        path = _REPO / rel
-        assert path.is_file(), rel
-        assert retired_uses(path.read_text(encoding="utf-8"), RETIRING_NAMES, _package_of(path)), f"{rel} names no retired symbol: a stale exemption"
+def test_the_capture_scripts_are_deleted_and_their_fixtures_stay() -> None:
+    r"""The two frozen capture scripts no longer exist (ruling of 2026-10-24: no exemption remains), and the fixtures they were run
+    to produce stay (the carry gates read them). Red input at the base tip: both scripts are present. Green when both are deleted
+    and both fixtures are files."""
+    present = [rel for rel in _CAPTURE_SCRIPTS if (_REPO / rel).exists()]
+    assert not present, f"the frozen capture scripts still exist: {present}"
     for rel in _CARRY_FIXTURES:
         assert (_REPO / rel).is_file(), rel
 
