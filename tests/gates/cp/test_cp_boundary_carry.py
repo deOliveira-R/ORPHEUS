@@ -92,3 +92,34 @@ def test_the_carry_of_the_cp_solves(chart: str, declaration: tuple) -> None:
     k = H.cp_solve(H.cp_mesh(chart), {0: _condition(declaration)}).keff
     expected = H.fixture_k("cp", chart, declaration)
     assert k == expected, f"{chart} / {carry.tag(declaration)}: k = {k!r}, the HEAD k = {expected!r}"
+
+
+@pytest.mark.l1
+def test_the_default_pin_cell_outer_face_is_bound_to_white() -> None:
+    r"""``solve_cp(materials)`` with no mesh solves the default Wigner-Seitz pin cell (10 + 3 + 7 equal-volume cells) whose outer tag
+    ``solve_cp`` binds to ``WallCondition.white()`` itself (at the base tip the white law sat on the geometry). The row pins that
+    binding: the default solve equals, bit for bit, the solve on the same mesh with ``{0: WallCondition.white()}`` declared by the
+    caller, on a 2-group library of three mixtures, one per material id of the cell.
+
+    Red input: none today (the carry rows above run on bodies the caller builds, and nothing else calls ``solve_cp`` without a mesh).
+    Mutation: ``cp-preset-vacuum`` (the preset ``white()`` replaced by ``vacuum()``): the vacuum k is above the white k (#546), so
+    the equality fails by the full gap of the inverted order, not by rounding.
+    """
+    from orpheus.cp.solver import CPParams, solve_cp
+    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.geometry import StructuredGeometry
+    from orpheus.mesh import CellsByCount, Mesher
+    from orpheus.transport.boundary_conditions import WallCondition
+
+    mesh = Mesher(StructuredGeometry.wigner_seitz_pin_cell()).partition(
+        (CellsByCount.uniform_volume(10), CellsByCount.uniform_volume(3), CellsByCount.uniform_volume(7))
+    ).mesh
+    ids = sorted({int(i) for i in mesh.mat_ids})
+    assert len(ids) == 3, ids
+    materials = {i: get_mixture(name, "2g") for i, name in zip(ids, "ABC")}
+    with H.quiet():
+        preset = solve_cp(materials).keff
+        declared = solve_cp(materials, mesh, CPParams(), boundary_conditions={0: WallCondition.white()}).keff
+        vacuum = solve_cp(materials, mesh, CPParams(), boundary_conditions={0: WallCondition.vacuum()}).keff
+    assert preset == declared, f"default solve k = {preset!r}, the white declaration's k = {declared!r}"
+    assert vacuum != declared, "the control is blind: vacuum and white gave one k"

@@ -1289,7 +1289,8 @@ mesh itself and comes before any law is read.
        kernel's image term), which a reflective left law declares
      - a slab whose left law is not ``reflective``; any inner law on a
        hollow cylinder or sphere
-     - ``_refuse_a_law_cp_drops`` (``orpheus/cp/solver.py``), #513
+     - ``_dropped_face`` (``orpheus/cp/solver.py``, the migrated guard
+       ``_refuse_a_law_cp_drops``), #513
    * - MoC
      - the outer law of a solid cylinder, read as the Wigner–Seitz
        cylinder of a square pin cell
@@ -1298,8 +1299,8 @@ mesh itself and comes before any law is read.
      - ``_refuse_a_mesh_moc_misreads`` (``orpheus/moc/geometry.py``),
        #514
    * - MC
-     - the outer law only; ``periodic``, its registry's one kind,
-       applied to every face of the unit cell
+     - the outer law only; the periodic wrap (``MC_REALIZERS``), applied
+       to every face of the unit cell
      - a hollow cylinder; a declared left or inner law that is not
        ``periodic``
      - ``_refuse_a_mesh_mc_misreads`` (``orpheus/mc/solver.py``), #513

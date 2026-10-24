@@ -35,9 +35,12 @@ there is refused at construction like any other.
 The base of the method-meshes
 =============================
 
-:class:`MethodMesh` is the one place the two binding duties of a method-mesh live (the key extended by the declared conditions, and
-the keywords a re-spelling passes so the rebuilt problem keeps them); ``SNProblem`` and ``DiffusionMesh`` derive from it, and
-every later method-mesh does too, so no method spells either duty itself.
+:class:`MethodMesh` is the one place the two binding duties of the method-meshes that ARE a
+:class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` live (the key extended by the declared conditions, and the keywords a
+re-spelling passes so the rebuilt problem keeps them); ``SNProblem`` and ``DiffusionMesh`` derive from it, so neither spells either
+duty itself. The methods whose mesh wraps a ``Mesh1D`` and is not a ``MaterialMesh`` (collision probability, characteristics, Monte
+Carlo) have no key and no re-spelling, hence no such duty; what the three share instead is the bind-and-realize step and the two hooks
+of the shared body, and :class:`Mesh1DMethodMesh` is the one place those live.
 
 Genesis (#290 P7b), and what the Protocol deliberately does NOT contain
 ======================================================================
@@ -72,8 +75,12 @@ package import without the retired ``orpheus.geometry.boundary``.
 Conformance is structural: nobody imports this to conform. ``orpheus.sn`` and ``orpheus.diffusion`` import
 :func:`realize_boundary` (the shared body), **never the Protocol class**. Static conformance is checked where it matters: at
 each mesh's ``realize_boundary(self)`` call, pyright verifies the mesh structurally satisfies ``TransportMethod[OpT]`` and infers
-the method's own realized-operator type ``OpT`` (SN: :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`;
-diffusion: a bare :class:`~orpheus.numerics.operator.LinearOperator`).
+the method's own realized-value type ``OpT``. The realized value is whatever the method's face needs, and it is not always an
+operator: SN realizes a :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`, diffusion a bare
+:class:`~orpheus.numerics.operator.LinearOperator`, collision probability a closure over its cell volumes, characteristics a
+track-linking rule, Monte Carlo a periodic-wrap marker. ``OpT`` is therefore unbounded. The ratchet covers the ``realize_boundary``
+call of SN and diffusion; ``pyproject``'s ignore list holds ``orpheus/cp``, ``orpheus/moc`` and ``orpheus/mc``, so the conformance of
+those three heads is not checked by CI.
 
 Layer (``tests/gates/test_layer_imports.py``): L2 ``transport``. Imports ``numerics`` (the operator base), ``mesh`` (the face
 inventory) and its sibling :mod:`orpheus.transport.boundary_conditions`. The method packages (L3) import THIS module; never the
@@ -91,10 +98,10 @@ References
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, ClassVar, Protocol, TypeVar, runtime_checkable
+from typing import TYPE_CHECKING, ClassVar, Generic, Protocol, TypeVar, runtime_checkable
 
-from orpheus.mesh import face_labels
-from orpheus.numerics.operator import LinearOperator
+from orpheus.mesh import Mesh1D, axes_from_legacy_mesh, face_labels
+from orpheus.transport.boundary_conditions import FaceSite, bind
 from orpheus.transport.mesh.material_mesh import MaterialMesh, conditions_key
 
 if TYPE_CHECKING:
@@ -102,20 +109,21 @@ if TYPE_CHECKING:
 
     from orpheus.geometry.deck import DeckTransformation
     from orpheus.mesh import Axis1D
-    from orpheus.transport.boundary_conditions import BoundaryCondition, BoundaryConditions, Binding, FaceSite, RealizerTable
+    from orpheus.transport.boundary_conditions import BoundaryCondition, BoundaryConditions, Binding, RealizerTable
 
 
-__all__ = ["MethodMesh", "TransportMethod", "realize_boundary"]
+__all__ = ["Mesh1DMethodMesh", "MethodMesh", "TransportMethod", "realize_boundary"]
 
 
-#: The method's realized-operator type: what its ``realize_boundary_role`` arm returns and its ``bc`` values carry. SN narrows
-#: it to :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`; diffusion uses the bare :class:`LinearOperator`.
-#: Covariant: a consumer typed against ``TransportMethod[LinearOperator]`` accepts every method-mesh.
-OpT_co = TypeVar("OpT_co", bound=LinearOperator, covariant=True)
+#: The method's realized-value type: what its ``realize_boundary_role`` arm returns and its ``bc`` values carry. Unbounded: SN's is a
+#: :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`, diffusion's a bare ``LinearOperator``, CP's a closure, MoC's a
+#: track-linking rule and MC's a wrap marker (the shared body only stores the values). Covariant, so a consumer typed against
+#: ``TransportMethod[object]`` accepts every method-mesh.
+OpT_co = TypeVar("OpT_co", covariant=True)
 
 #: Invariant twin of :data:`OpT_co` for the generic *function* below (a function signature has no variance; the Protocol keeps
 #: the covariant declaration).
-OpT = TypeVar("OpT", bound=LinearOperator)
+OpT = TypeVar("OpT")
 
 
 @runtime_checkable
@@ -184,7 +192,7 @@ class MethodMesh(MaterialMesh):
     A method-mesh joins the declared exterior conditions to its faces (:attr:`binding`, set by the subclass's constructor through
     :func:`~orpheus.transport.boundary_conditions.bind`), and owes the identity and the re-spelling machinery of the
     :class:`MaterialMesh` two things that were spelled twice, identically, in ``SNProblem`` and ``DiffusionMesh`` until the S4
-    carve (the third copy would have been CP's, the fourth and fifth MoC's and MC's):
+    carve (CP's, MoC's and MC's meshes wrap a ``Mesh1D``, are not material meshes, and owe neither duty):
 
     * **the key.** :attr:`_contractibility_key` extends the material mesh's by the declared conditions in tag order
       (:func:`~orpheus.transport.mesh.material_mesh.conditions_key`), so two problems with the same mesh and different
@@ -206,6 +214,46 @@ class MethodMesh(MaterialMesh):
     def _respelling_keywords(self) -> "dict[str, BoundaryConditions]":
         """The keywords a re-spelling constructor call carries so the rebuilt problem keeps this one's conditions."""
         return {"boundary_conditions": self.binding.declared}
+
+
+class Mesh1DMethodMesh(Generic[OpT]):
+    r"""The base of the method-meshes that wrap a :class:`~orpheus.mesh.Mesh1D`: the mesh as the method's space, and the bind-and-realize step.
+
+    Collision probability, characteristics and Monte Carlo each hold a ``Mesh1D`` (``self.mesh``) and no trace space: the face they
+    realize is a closure over the cell volumes (CP), a track-linking rule (MoC) or a wrap marker (MC), built from the mesh itself, so
+    the mesh is the *method space* the realizer table receives. Until this base existed the three heads spelled, identically, the
+    same three things: the step ``axes_from_legacy_mesh``, then :func:`~orpheus.transport.boundary_conditions.bind`, then
+    :func:`realize_boundary`; the site of a face (:class:`~orpheus.transport.boundary_conditions.FaceSite`, whose dimension is the
+    length of the axis tuple, 1 here); and the per-face hook that hands ``self`` to the table. A change to any of the three (a field
+    on ``FaceSite``, a second carrier) edited three copies; it edits this class.
+
+    A subclass declares its realizer table as the class variable ``boundary_realizers`` and calls :meth:`_bind_and_realize` once its
+    own scope guards have passed (a guard that refuses a mesh the method misreads runs BEFORE the binding, so the refusal names the
+    mesh and not a wall). The base derives from nothing: these meshes are not :class:`MaterialMesh` subclasses, so they owe neither
+    the key nor the re-spelling of :class:`MethodMesh`.
+
+    Parameters of the type: ``OpT``, the method's realized value (an arm of its realizer table), as for :func:`realize_boundary`.
+    """
+
+    mesh: Mesh1D
+    axes: tuple["Axis1D", ...]
+    binding: "Binding"
+    bc: dict[str, OpT]
+    boundary_realizers: ClassVar["RealizerTable"]
+
+    def _bind_and_realize(self, mesh: Mesh1D, conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]") -> None:
+        """Join the declared conditions to the mesh's faces and realize the binding through the shared body (a refusal raises here)."""
+        self.axes = axes_from_legacy_mesh(mesh)
+        self.binding = bind(mesh, conditions)
+        self.bc = realize_boundary(self)
+
+    def face_site(self, face: str) -> FaceSite:
+        """Where ``face`` sits: its name, the mesh's coordinate system and the axis count (the table's site key)."""
+        return FaceSite(face, self.mesh.coord, len(self.axes))
+
+    def realize_boundary_role(self, role: "DeckTransformation | BoundaryCondition", face: str) -> OpT:
+        """Realize one declaration on ``face``: the arm of the shared :func:`realize_boundary` body, the mesh being the method space."""
+        return self.boundary_realizers.realize(role, self.face_site(face), self)
 
 
 def realize_boundary(method: "TransportMethod[OpT]") -> dict[str, OpT]:

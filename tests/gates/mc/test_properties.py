@@ -214,35 +214,21 @@ def test_mcmesh_cylindrical_matches_concentric():
     assert mismatches == 0, f"MCMesh vs ConcentricPinCell: {mismatches}/10000 mismatches"
 
 
-@pytest.mark.xfail(strict=True, raises=BoundaryRefused, reason=_REASON_547)
-def test_mcmesh_rejects_spherical():
-    """MCMesh must reject spherical coordinate system.
+@pytest.mark.parametrize("wall", [_SPECULAR_TAG, _WHITE_TAG], ids=["specular", "white"])
+def test_mcmesh_rejects_spherical(wall):
+    """MCMesh must reject spherical coordinate system, whatever wall the sphere's outer tag is bound to.
 
-    Strict ``xfail`` (#547, decision 31 of the wave-2 plan, the user's ruling, Appendix B row ``test_properties.py:204``): the sphere's
-    outer face was ``periodic`` and is now the tag bound to ``WallCondition.specular(1.0)``, which MC's table refuses on the
-    topology axis (``raises=BoundaryRefused`` pins that the refusal is the table's). The body is the bare construction, with no
-    ``pytest.raises`` around it: this row XFAILs only if the table's refusal precedes the coordinate-system check. With the coordinate check first the
-    construction raises a plain ``ValueError`` (``SPHERICAL``), which is not ``BoundaryRefused``, so the row FAILS hard; and a
-    ``pytest.raises(ValueError, match="SPHERICAL")`` wrapper would not help either way (it would PASS under that order, so the strict
-    xfail would XPASS, and under the table-first order the torus message fails its ``match`` before ``BoundaryRefused`` can reach the mark). The
-    coordinate-system rejection of a sphere is gated beside it by ``test_mcmesh_rejects_spherical_whatever_the_wall``, which does not
-    depend on the order of the two refusals.
+    The refusal is the coordinate system's (``SPHERICAL``), and it precedes the binding: a sphere is not refused for a wall it declares
+    (the table's #547 torus message would be false for a sphere, and its #654 refusal of a white wall would name the wrong reason). This
+    is the one order of the three heads (CP's and MoC's scope guards also run before ``bind``). Appendix B row
+    ``test_properties.py:204`` is a SPHERE site, not one of the cylinder sites of decision 31 (the plan's "three MC cylinder sites"
+    miscounted it), so it carries no #547 mark.
     """
     mesh = Mesher(StructuredGeometry.sphere(
         (0.0, 1.0), (0,), outer=0,
     )).partition(CellsByCount.uniform_width(1)).mesh
-    MCMesh(mesh, pitch=2.0, boundary_conditions=_SPECULAR_TAG)
-
-
-def test_mcmesh_rejects_spherical_whatever_the_wall():
-    """MCMesh refuses a sphere, by whichever refusal comes first: the coordinate-system ``ValueError`` (``SPHERICAL``) or the
-    table's ``BoundaryRefused`` (a ``ValueError`` too). The row that stays green when #547's refusal and the coordinate check swap
-    order, so the sphere rejection is never ungated (the strict ``xfail`` above pins one order and the user's ruling)."""
-    mesh = Mesher(StructuredGeometry.sphere(
-        (0.0, 1.0), (0,), outer=0,
-    )).partition(CellsByCount.uniform_width(1)).mesh
-    with pytest.raises(ValueError):
-        MCMesh(mesh, pitch=2.0, boundary_conditions=_SPECULAR_TAG)
+    with pytest.raises(ValueError, match="SPHERICAL"):
+        MCMesh(mesh, pitch=2.0, boundary_conditions=wall)
 
 
 # ═══════════════════════════════════════════════════════════════════════

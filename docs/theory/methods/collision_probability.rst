@@ -460,83 +460,88 @@ possibly escape again (geometric series):
    :by: orpheus.cp.solver.CPMesh.compute_pinf_group
 
 .. implements:: p-inf
-   :by: orpheus.cp.solver._cp_bc_vacuum
+   :by: orpheus.cp.solver._vacuum_closure
 
 .. implements:: p-inf
-   :by: orpheus.cp.solver._cp_bc_white
+   :by: orpheus.cp.solver.CPDiffuseChain.realize
 
 .. implements:: p-inf
    :by: orpheus.derivations.continuous.flat_source_cp.geometry.build_cp_matrix
 
 This formula is **identical for all three geometries** when expressed
 in terms of :math:`V_i` and :math:`S`.  It is implemented in the
-white-BC transform selected from :attr:`CPMesh.BC_REGISTRY` and
+white-wall closure :meth:`CPMesh._apply_white_bc`, which :data:`~orpheus.cp.solver.CP_REALIZERS` hands to the outer face, and
 independently in all three derivation scripts (e.g., ``orpheus/derivations/continuous/flat_source_cp/slab.py``:
 ``P_inf_g[:,:,g] = P_cell + np.outer(P_out, P_in) / (1.0 - P_inout)``).
 
 .. _cp-bc-registry:
 
-Boundary Condition Infrastructure
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Boundary Condition Realization
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The CP solver uses the project-wide ``BC_REGISTRY`` pattern for boundary
-condition resolution.  The boundary condition is **declared** on the base
-geometry via :class:`~orpheus.geometry.boundary.BC`, carried by the
-mesher onto the mesh's outer face law, :attr:`Mesh1D.outer_law
-<orpheus.mesh.structured.Mesh1D.outer_law>` (the outer cell surface), and
-**resolved** at :class:`CPMesh` construction time against the registry:
+The CP solver realizes its outer face through the realizer table
+:data:`~orpheus.cp.solver.CP_REALIZERS`, the single door that both answers
+"is this declaration admitted on this face" and builds the closure.
+The geometry only carries a *tag* on each exterior face (an integer
+colour, the twin of a material id); the condition bound to the tag is
+declared where the method is known, as the keyword ``boundary_conditions``
+of :class:`CPMesh` and :func:`solve_cp` (a mapping from tag to
+:class:`~orpheus.transport.boundary_conditions.WallCondition`).  At
+construction :func:`~orpheus.transport.boundary_conditions.bind` joins the
+conditions to the faces of the mesh (refusing an unbound tag), and the
+shared body :func:`~orpheus.transport.method.realize_boundary` visits every
+face and calls the table:
 
 .. code-block:: python
 
-   # Declaration (on the geometry; the mesher carries it to the outer face)
-   geometry = StructuredGeometry.cylinder(..., outer=BC("vacuum"))
-   mesh = Mesher(geometry).partition(...).mesh
+   # Declaration (where the method is known)
+   mesh = Mesher(StructuredGeometry.cylinder(..., outer=0)).partition(...).mesh
+   cp = CPMesh(mesh, boundary_conditions={0: WallCondition.white()})
 
-   # Resolution (in CPMesh.__init__)
-   bc = mesh.outer_law
-   factory = CPMesh.BC_REGISTRY[bc.kind]
-   self._bc_transform = factory(self, bc)
+   # Realization (in CPMesh.__init__, through Mesh1DMethodMesh)
+   cp.bc["xmax"]          # the closure: CPMesh._apply_white_bc
 
-:attr:`CPMesh.BC_REGISTRY` currently supports two boundary conditions:
+:meth:`CPMesh.compute_pinf_group` applies ``self.bc["xmax"]`` to
+:math:`P^{\text{cell}}`.  The table holds, for the outer face:
 
 .. list-table:: CP Boundary Conditions
    :header-rows: 1
-   :widths: 15 30 40
+   :widths: 25 30 40
 
-   * - Kind
+   * - Declaration
      - Physics
      - Effect on :math:`P^{\infty}`
-   * - ``"white"`` (default)
+   * - ``WallCondition.white()`` (weight 1)
      - Isotropic re-entry (infinite lattice)
      - Geometric series :eq:`p-inf` applied to :math:`P^{\text{cell}}`
-   * - ``"vacuum"``
+   * - ``WallCondition.vacuum()``
      - No re-entry (isolated cell)
      - :math:`P^{\infty} = P^{\text{cell}}` (rows sum to < 1)
+   * - ``white(a)``, :math:`a < 1`; any specular wall
+     - not built
+     - ``Refused(PLUMBING, #654)``: the retired registry keyed its
+       closure by the word ``white`` and dropped the albedo; the same
+       declaration is now refused rather than silently misread
 
-The pin-cell factory
-:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
-declares ``BC("white")``, and the law is part of that model: it is the
-infinite-lattice assumption used throughout the CP derivation above.
-A pin with another outer law is a different body, built with
-:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.cylinder`. CP
-itself has no default: since P1 step 3b of #405 every face of a mesh
-carries a declared law (until then an undeclared outer law was read as
-white).  The vacuum BC is useful for
-studying isolated fuel pins where neutrons escaping the cell are lost.
+:func:`solve_cp` with no mesh solves the default pin cell and binds its
+outer tag to ``WallCondition.white()`` itself: the infinite-lattice
+assumption is part of the Wigner-Seitz model of the CP derivation above,
+and it is bound where the method is known, not carried by the geometry.
+With a mesh and no conditions an unbound tag is refused, naming it.  The
+vacuum wall is useful for studying isolated fuel pins where neutrons
+escaping the cell are lost; its eigenvalue omits the leakage term of the
+balance (#546, kept visible as strict ``xfail`` rows).
 
-A law CP does not read is refused rather than dropped: a slab whose
-left law is not ``reflective`` (the slab kernel puts a mirror at the
-left face whatever is declared there, through its reflected path
-:eq:`dc-slab`), or any inner law on a hollow cylinder or sphere, raises
-``NotImplementedError`` naming #513. The table of what each method reads,
-and the measurement that the slab's left face is a mirror, are
+A face CP does not read is refused rather than dropped (``_dropped_face``,
+the migrated #513 guard): a slab whose left face carries anything but the
+mirror the kernel computes there (declare the left face a ``MirrorDeck``;
+the kernel puts a mirror at the left face whatever else is declared,
+through its reflected path :eq:`dc-slab`), or any inner condition on a
+hollow cylinder or sphere, raises
+:class:`~orpheus.transport.boundary_conditions.BoundaryRefused` naming
+#513.  The table of what each method reads, and the measurement that the
+slab's left face is a mirror, are
 :ref:`structured-geometry-hollow-inner-law`.
-
-:meth:`CPMesh.compute_pinf_group` calls ``self._bc_transform(P_cell,
-sig_t_g)`` to apply whichever BC was resolved at construction time.
-Factory docstrings serve as descriptions for programmatic query::
-
-    >>> {k: v.__doc__ for k, v in CPMesh.BC_REGISTRY.items()}
 
 .. plot::
    :caption: White-BC geometric series: a neutron born in region :math:`i` either collides within the cell (:math:`P_{ij}^{\text{cell}}`) or escapes, re-enters isotropically, and the chain repeats.  The infinite sum converges to :math:`P_{ij}^{\infty}`.

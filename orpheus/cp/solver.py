@@ -52,11 +52,10 @@ from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _k
 from orpheus.geometry import CoordSystem
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.deck import DeckTransformation, FacePairing, MirrorDeck, TranslationDeck
-from orpheus.mesh import Mesh1D, axes_from_legacy_mesh
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.boundary_conditions import (
     Admission,
-    Binding,
     BoundaryCondition,
     BoundaryConditions,
     DeckRealizer,
@@ -72,9 +71,8 @@ from orpheus.transport.boundary_conditions import (
     StateCone,
     WallCondition,
     ZeroNetwork,
-    bind,
 )
-from orpheus.transport.method import realize_boundary
+from orpheus.transport.method import Mesh1DMethodMesh
 from orpheus.numerics.outcome import NotYet
 from orpheus.numerics.convergence import (
     IterationBudget,
@@ -174,7 +172,7 @@ CP_REALIZERS: RealizerTable["CPMesh", CPClosure, FunctionSpace] = RealizerTable(
 )
 
 
-class CPMesh:
+class CPMesh(Mesh1DMethodMesh[CPClosure]):
     r"""Augmented geometry for the collision probability method.
 
     Wraps a :class:`~geometry.mesh.Mesh1D` and adds the CP-specific
@@ -233,9 +231,7 @@ class CPMesh:
 
         # Join the declared conditions to the mesh's faces (its roles and colouring symmetry, read inside ``bind``), then realize the
         # binding through the ONE shared body: it admits every face (a refusal raises ``BoundaryRefused`` here, at construction).
-        self.axes = axes_from_legacy_mesh(mesh)
-        self.binding: Binding = bind(mesh, boundary_conditions)
-        self.bc: dict[str, CPClosure] = realize_boundary(self)
+        self._bind_and_realize(mesh, boundary_conditions)
 
     # ── Setup methods ─────────────────────────────────────────────────
 
@@ -283,20 +279,6 @@ class CPMesh:
         # Kernel F(τ) = exp(-τ)
         self._kernel = lambda tau: np.exp(-tau)
         self._kernel_zero = np.ones(len(self._y_pts))
-
-    # ── Boundary condition realization ───────────────────────────────
-
-    def face_site(self, face: str) -> FaceSite:
-        """Where ``face`` sits: its name, the mesh's coordinate system and dimension 1 (the table's site key)."""
-        return FaceSite(face, self.mesh.coord, 1)
-
-    def realize_boundary_role(self, role: DeckTransformation | BoundaryCondition, face: str) -> CPClosure:
-        """Realize one declaration on ``face``: the CP arm of the shared :func:`~orpheus.transport.method.realize_boundary` body.
-
-        CP has no trace space; its realizers read the mesh (the white closure is built from the cell volumes and the outer
-        area), so the mesh itself is the method space handed to the table.
-        """
-        return self.boundary_realizers.realize(role, self.face_site(face), self)
 
     # ── P_inf computation ─────────────────────────────────────────────
 
@@ -500,6 +482,11 @@ def _kernel_mirror(P_cell: np.ndarray, sig_t_g: np.ndarray) -> np.ndarray:
     return P_cell
 
 
+def _is_slab_left(site: FaceSite) -> bool:
+    """Whether ``site`` is a slab's left face, where CP's kernel images a mirror whatever is declared."""
+    return site.site_class is SiteClass.CART and site.face == "xmin"
+
+
 def _dropped_face(site: FaceSite) -> Refused | None:
     r"""The refusal of the faces CP's closure never reads, or ``None`` at a face it does (#513, the migrated guard ``_refuse_a_law_cp_drops``).
 
@@ -522,7 +509,7 @@ def _dropped_face(site: FaceSite) -> Refused | None:
             "CP reads only the outer face of a hollow body: the declared inner condition would be dropped",
             513,
         )
-    if site.site_class is SiteClass.CART and site.face == "xmin":
+    if _is_slab_left(site):
         return Refused(
             RefusalAxis.PLUMBING,
             "CP's slab kernel puts a mirror at the left face whatever is declared there: the declared left condition would be "
@@ -591,7 +578,7 @@ class CPDecks(DeckRealizer, table=CP_REALIZERS):
     """
 
     def admit(self, deck: DeckTransformation, pairing: FacePairing, site: FaceSite, space: CPMesh | None = None) -> Admission:
-        at_left = site.site_class is SiteClass.CART and site.face == "xmin"
+        at_left = _is_slab_left(site)
         match deck:
             case MirrorDeck():
                 if at_left:

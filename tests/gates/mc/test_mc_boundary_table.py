@@ -28,22 +28,22 @@ The ladder
     test_mc_realizes_the_translation_deck_on_a_slab                  the control of the refusal: the same builder admits what MC computes
     test_mc_does_not_compare_the_pitch_with_the_extent              RECORD (#655): green today, reddens the day the defect is fixed
         ^
-    test_the_three_mc_cylinder_sites_are_strict_xfails_naming_547    foundation: the companion of the three xfail marks (#547)
+    test_the_mc_cylinder_sites_are_strict_xfails_naming_547          foundation: the companion of the two xfail marks (#547)
     test_the_carry_of_the_mc_solve                                   bit-equal to the HEAD capture (slab, periodic, fixed seed)
 
 The #547 strict xfails
 ======================
 
-The 3 MC cylinder sites (``tests/gates/mc/test_gaps.py:692``, ``tests/gates/mc/test_properties.py:157`` and ``:205``; Appendix B rows
-``:691``, ``:156``, ``:204``) declare the cylinder's outer face as a tag bound to ``WallCondition.specular(1.0)``. They are marked
+The 2 MC cylinder sites (``tests/gates/mc/test_gaps.py:692`` and ``tests/gates/mc/test_properties.py:157``; Appendix B rows
+``:691`` and ``:156``; the plan's third row, ``:204``, is a SPHERE site and gates the coordinate-system refusal instead) declare the cylinder's outer face as a tag bound to ``WallCondition.specular(1.0)``. They are marked
 ``@pytest.mark.xfail(strict=True, raises=BoundaryRefused, reason="#547: ...")``: ``raises=BoundaryRefused`` makes any OTHER failure (a
 different exception, a wrong number) a hard failure and not an expected one, and strictness turns them red (XPASS) the day MC takes the
-two-dimensional geometry value that describes what it computes. The companion row below asserts the marks, by introspection of the three
+two-dimensional geometry value that describes what it computes. The companion row below asserts the marks, by introspection of the two
 test functions (a mark that lost ``strict`` or ``raises`` is a silent pass).
 
 First reds at the base tip ``d4da4328``: ``ImportError`` from ``orpheus.mc.solver`` (the retired ``BC``) for every row but the fixture
-row; the companion row fails on the three sites (their marks do not exist before the re-spelling lands). Mutations for the reviewers:
-M-mc-cylinder-approximated (the specular cell on a cylinder admitted as ``Approximated``: the refusal rows redden and the three xfail
+row; the companion row fails on the two sites (their marks do not exist before the re-spelling lands). Mutations for the reviewers:
+M-mc-cylinder-approximated (the specular cell on a cylinder admitted as ``Approximated``: the refusal rows redden and the two xfail
 sites XPASS, strictly red), M-mc-weight-gate (the refusal only at weight 1.0: the 0.3 leg reddens), M-bc-kind-restored.
 """
 
@@ -149,21 +149,20 @@ def test_mc_does_not_compare_the_pitch_with_the_extent() -> None:
     H.mc_head(H.mc_slab_mesh1d(left=TranslationDeck(), right=TranslationDeck()), 7.0)
 
 
-#: The three test functions of decision 31, by name (Appendix B rows ``test_gaps.py:691``, ``test_properties.py:156`` and ``:204``; the
-#: lines of ``5d04c296`` plus one are 692, 157 and 205). NB: the third declares a SPHERE (``StructuredGeometry.sphere``), whose subject is
-#: ``MCMesh``'s coordinate-system rejection; the ruling's "cylinder sites" lists it with the other two (see the report's NEEDS).
+#: The two cylinder test functions of decision 31, by name (Appendix B rows ``test_gaps.py:691`` and ``test_properties.py:156``; the lines of
+#: ``5d04c296`` plus one are 692 and 157). The plan's third row, ``test_properties.py:204``, declares a SPHERE: its subject is the
+#: coordinate-system rejection, which precedes the binding, so it is an ordinary ``pytest.raises`` row and not an xfail.
 _XFAIL_SITES = (
     ("test_gaps", "test_mcmesh_vs_concentric_keff"),
     ("test_properties", "test_mcmesh_cylindrical_lookup"),
-    ("test_properties", "test_mcmesh_rejects_spherical"),
 )
 
 
 @pytest.mark.foundation
-def test_the_three_mc_cylinder_sites_are_strict_xfails_naming_547() -> None:
-    r"""The companion of decision 31. The three test functions of :data:`_XFAIL_SITES` (the MC sites that declare a curved face's outer
+def test_the_mc_cylinder_sites_are_strict_xfails_naming_547() -> None:
+    r"""The companion of decision 31. The two test functions of :data:`_XFAIL_SITES` (the MC cylinder sites that declare a curved face's outer
     wall as the specular tag the cell of MoC uses) carry ONE ``xfail`` each with ``strict=True``, ``raises=BoundaryRefused`` and a reason
-    beginning ``#547:``, read through the imported modules (the marks as pytest sees them). Population: exactly 3 functions, each found by
+    beginning ``#547:``, read through the imported modules (the marks as pytest sees them). Population: exactly 2 functions, each found by
     name, each building an ``MCMesh`` (read by AST: a renamed function or a site that lost its ``MCMesh`` fails the population leg).
 
     Red input: at the base tip ``d4da4328`` the two test modules cannot be imported (they import the retired ``BC``) and the functions
@@ -171,7 +170,7 @@ def test_the_three_mc_cylinder_sites_are_strict_xfails_naming_547() -> None:
     reason without ``#547:``.
     """
     B = H.bc()
-    assert len(_XFAIL_SITES) == 3 and len(set(_XFAIL_SITES)) == 3
+    assert len(_XFAIL_SITES) == 2 and len(set(_XFAIL_SITES)) == 2
     for module_name, func in _XFAIL_SITES:
         path = _HERE / f"{module_name}.py"
         defs = {n.name: ast.unparse(n) for n in ast.walk(ast.parse(path.read_text())) if isinstance(n, ast.FunctionDef)}

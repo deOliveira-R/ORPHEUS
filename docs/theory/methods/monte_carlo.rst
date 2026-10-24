@@ -650,20 +650,24 @@ Verified by ``test_mc_properties.py::test_direction_sampling``:
 Periodic Boundary Conditions
 -----------------------------
 
-The MC solver uses the project-wide ``BC_REGISTRY`` pattern for boundary
-condition resolution.  The BC is declared on the base geometry via
-:class:`~orpheus.geometry.boundary.BC`, read from the mesh's outer face
-law (:attr:`Mesh1D.outer_law <orpheus.mesh.structured.Mesh1D.outer_law>`),
-and resolved at :class:`MCMesh` construction time.
-:attr:`MCMesh.BC_REGISTRY` currently supports only ``"periodic"``, which
-the mesh must declare (a mesh face always carries a declared law, so
-there is no default); additional BC types can be registered in the
-future.  The periodic law is applied to every face of the unit
-cell, so a declared left or inner law other than ``periodic`` is
-refused at :class:`MCMesh` construction with ``NotImplementedError``
-naming #513, and so is a hollow cylinder, whose cavity MC's material
-lookup would fill with the innermost material. The table of what each
-method reads is :ref:`structured-geometry-hollow-inner-law`.
+The MC solver realizes its faces through the realizer table
+:data:`~orpheus.mc.solver.MC_REALIZERS`.  The geometry carries a role on
+each face (a deck, or an integer tag); the conditions bound to tags are
+declared as the keyword ``boundary_conditions`` of :class:`MCMesh`, joined
+to the faces by :func:`~orpheus.transport.boundary_conditions.bind` and
+realized by the shared body
+:func:`~orpheus.transport.method.realize_boundary`.  The one thing the
+table realizes is the periodic wrap, a ``TranslationDeck()`` on each face
+of a slab (``Realized``, the pitch is not compared with the extent,
+#655).  On a solid cylinder MC samples a periodic equal-area square
+lattice cell (a torus wrap) that no one-dimensional declaration describes,
+so a specular wall declared there is ``Refused(TOPOLOGY, #547)`` at every
+weight; every other wall and a mirror deck are ``Refused(PLUMBING,
+#654)``.  A hollow cylinder is refused at :class:`MCMesh` construction,
+whose cavity MC's material lookup would fill with the innermost material,
+and so is a mesh that is neither Cartesian nor cylindrical, before any
+condition is read.  The table of what each method reads is
+:ref:`structured-geometry-hollow-inner-law`.
 
 The unit cell is a square of side length :math:`p` (``pitch``).  When a
 neutron exits the cell, its position wraps via the modulo operation:
@@ -675,7 +679,7 @@ neutron exits the cell, its position wraps via the modulo operation:
 
 
 .. implements:: periodic-bc
-   :by: orpheus.mc.solver._mc_bc_periodic
+   :by: orpheus.mc.solver.MCDecks.realize
 
    **Implemented by** 2 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a

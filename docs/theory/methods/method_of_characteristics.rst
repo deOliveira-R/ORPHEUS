@@ -109,11 +109,11 @@ deterministic solvers:
 2. **Augmented geometry** --- :class:`MOCMesh` wraps the ``Mesh1D`` and
    an :class:`MOCQuadrature`, precomputing all ray-tracing data:
    tracks, segments through flat-source regions, effective ray spacings,
-   and :term:`reflective boundary condition` links.  The BC is declared on
-   the base geometry via :class:`~orpheus.geometry.boundary.BC`, read
-   from the mesh's outer face law
-   (:attr:`Mesh1D.outer_law <orpheus.mesh.structured.Mesh1D.outer_law>`), and
-   resolved at construction time against :attr:`MOCMesh.BC_REGISTRY`.
+   and :term:`reflective boundary condition` links.  The mesh carries a tag
+   on its outer face; the condition bound to the tag is declared as the
+   keyword ``boundary_conditions`` of :class:`MOCMesh`, joined to the face
+   by :func:`~orpheus.transport.boundary_conditions.bind`, and realized at
+   construction through the table :data:`~orpheus.moc.geometry.MOC_REALIZERS`.
 
 3. **Solver** --- :class:`MOCSolver` satisfies the
    :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` protocol.
@@ -125,7 +125,7 @@ deterministic solvers:
    Mesh1D (cylindrical, Wigner-Seitz)
        |
        v
-   MOCMesh (tracks + segments + BC via BC_REGISTRY)
+   MOCMesh (tracks + segments + BC via MOC_REALIZERS)
        |
        v
    MOCSolver (EigenvalueSolver protocol)
@@ -627,19 +627,26 @@ centre belongs to region :math:`k` where
 Reflective Boundary Conditions
 ==============================
 
-The MOC solver uses the project-wide ``BC_REGISTRY`` pattern for
-boundary condition resolution.  The BC is declared on the base geometry
-via :class:`~orpheus.geometry.boundary.BC`, read from the mesh's outer
-face law (:attr:`Mesh1D.outer_law
-<orpheus.mesh.structured.Mesh1D.outer_law>`), and resolved at
-:class:`MOCMesh` construction time.  :attr:`MOCMesh.BC_REGISTRY`
-currently supports only ``"reflective"``, so a pin cell meshed for MoC
-is built with ``StructuredGeometry.cylinder(..., outer=BC.reflective)``:
-``wigner_seitz_pin_cell`` carries a white outer law as part of its
-model and takes no other, and MoC refuses it. There is no default at
-the mesh, because a mesh face always carries a declared law.
-Additional BC types (e.g., vacuum for isolated-pin transport) can be
-registered in the future.
+The MOC solver realizes its outer face through the realizer table
+:data:`~orpheus.moc.geometry.MOC_REALIZERS`.  The geometry carries a tag
+on the outer face; the condition bound to it is declared as the keyword
+``boundary_conditions`` of :class:`MOCMesh`, joined to the face by
+:func:`~orpheus.transport.boundary_conditions.bind` and realized by the
+shared body :func:`~orpheus.transport.method.realize_boundary`.  The table
+admits one declaration, ``WallCondition.specular(1.0)``, realized as the
+track linking of the square cell (:meth:`MOCMesh._link_tracks`); it is
+``Approximated`` with the domain approximation of the square cell,
+because MoC links its tracks by specular reflection at the walls of the
+square of area equal to the cylinder's (#547), a different shape from the
+declared cylinder.  A pin cell meshed for MoC is therefore built with
+``StructuredGeometry.cylinder(..., outer=0)`` and constructed with
+``boundary_conditions={0: WallCondition.specular(1.0)}``;
+:func:`solve_moc` with no mesh binds that declaration to the default pin
+cell itself.  A specular wall of weight below one, a white wall, a vacuum
+wall and a deck are refused (``Refused(PLUMBING, #654)``): the track links
+carry no attenuation and no other closure is built.  There is no default
+at the mesh, because a face always carries a tag and an unbound tag is
+refused.
 
 ``MOCMesh`` reads its mesh as the solid Wigner--Seitz cylinder of a
 square pin cell, so any other mesh (a slab, a sphere, a hollow

@@ -45,11 +45,10 @@ _N2N_MULTIPLICITY = float(N2N_MULTIPLICITY)
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import CoordSystem
 from orpheus.geometry.deck import DeckTransformation, FacePairing, MirrorDeck, TranslationDeck
-from orpheus.mesh import Mesh1D, axes_from_legacy_mesh
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.boundary_conditions import (
     Admission,
-    Binding,
     BoundaryCondition,
     BoundaryConditions,
     DeckRealizer,
@@ -64,9 +63,8 @@ from orpheus.transport.boundary_conditions import (
     SpecularChain,
     StateCone,
     ZeroNetwork,
-    bind,
 )
-from orpheus.transport.method import realize_boundary
+from orpheus.transport.method import Mesh1DMethodMesh
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -210,7 +208,7 @@ MC_REALIZERS: RealizerTable["MCMesh", PeriodicWrap, FunctionSpace] = RealizerTab
 )
 
 
-class MCMesh:
+class MCMesh(Mesh1DMethodMesh[PeriodicWrap]):
     """Augmented geometry for Monte Carlo delta-tracking.
 
     Wraps a :class:`~geometry.mesh.Mesh1D` and provides point-wise material
@@ -261,29 +259,15 @@ class MCMesh:
         self._mat_ids = mesh.mat_ids
         self._center = pitch / 2.0
 
-        # The scope guard first (a hollow cylinder is not read whatever its faces carry), then the declaration: join the conditions to
-        # the mesh's faces and realize the binding through the ONE shared body, which admits every face. The table speaks before the
-        # coordinate system is checked, so a sphere's specular wall is refused for what it declares (#547) and a sphere with any other
-        # wall for the wall (#654); a sphere that passes the table is refused for its coordinate system just below.
+        # The scope guards first (a hollow cylinder is not read whatever its faces carry, and a sphere is refused for its coordinate
+        # system, which is what it is, not for a wall), then the declaration: join the conditions to the mesh's faces and realize the
+        # binding through the ONE shared body, which admits every face. The order is the one CP's and MoC's heads keep.
         _refuse_a_mesh_mc_misreads(mesh)
-        self.axes = axes_from_legacy_mesh(mesh)
-        self.binding: Binding = bind(mesh, boundary_conditions)
-        self.bc: dict[str, PeriodicWrap] = realize_boundary(self)
         if mesh.coord not in (CoordSystem.CARTESIAN, CoordSystem.CYLINDRICAL):
             raise ValueError(
                 f"MCMesh supports CARTESIAN or CYLINDRICAL, got {mesh.coord}"
             )
-
-    def face_site(self, face: str) -> FaceSite:
-        """Where ``face`` sits: its name, the mesh's coordinate system and dimension 1 (the table's site key)."""
-        return FaceSite(face, self.mesh.coord, 1)
-
-    def realize_boundary_role(self, role: DeckTransformation | BoundaryCondition, face: str) -> PeriodicWrap:
-        """Realize one declaration on ``face``: the MC arm of the shared :func:`~orpheus.transport.method.realize_boundary` body.
-
-        MC has no trace space; the realizer reads the cell's pitch, so the mesh itself is the method space handed to the table.
-        """
-        return self.boundary_realizers.realize(role, self.face_site(face), self)
+        self._bind_and_realize(mesh, boundary_conditions)
 
     def material_id_at(self, x: float, y: float) -> int:
         """Return the material ID at position (x, y)."""

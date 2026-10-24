@@ -29,13 +29,11 @@ from typing import ClassVar
 import numpy as np
 
 from orpheus.geometry import CoordSystem
-from orpheus.geometry.deck import DeckTransformation
-from orpheus.mesh import Mesh1D, axes_from_legacy_mesh
+from orpheus.mesh import Mesh1D
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.boundary_conditions import (
     Admission,
     Approximated,
-    Binding,
     BoundaryCondition,
     BoundaryConditions,
     DiffuseChain,
@@ -47,9 +45,8 @@ from orpheus.transport.boundary_conditions import (
     SpecularChain,
     StateCone,
     ZeroNetwork,
-    bind,
 )
-from orpheus.transport.method import realize_boundary
+from orpheus.transport.method import Mesh1DMethodMesh
 
 from .quadrature import MOCQuadrature
 
@@ -313,7 +310,7 @@ MOC_REALIZERS: RealizerTable["MOCMesh", TrackLinking, FunctionSpace] = RealizerT
 )
 
 
-class MOCMesh:
+class MOCMesh(Mesh1DMethodMesh[TrackLinking]):
     """Augmented geometry for the Method of Characteristics.
 
     Wraps a cylindrical :class:`~geometry.mesh.Mesh1D` (Wigner-Seitz pin
@@ -356,9 +353,7 @@ class MOCMesh:
         self.mesh = mesh
         # Join the declared conditions to the mesh's faces, then realize the binding through the ONE shared body: a refusal raises
         # ``BoundaryRefused`` here, before a single ray is traced.
-        self.axes = axes_from_legacy_mesh(mesh)
-        self.binding: Binding = bind(mesh, boundary_conditions)
-        self.bc: dict[str, TrackLinking] = realize_boundary(self)
+        self._bind_and_realize(mesh, boundary_conditions)
         self.quad = quadrature
         self.ray_spacing = ray_spacing
 
@@ -389,20 +384,6 @@ class MOCMesh:
 
         # The outer face's realized rule links the tracks.
         self.bc["xmax"](self)
-
-    # ── Boundary condition realization ────────────────────────────────
-
-    def face_site(self, face: str) -> FaceSite:
-        """Where ``face`` sits: its name, the mesh's coordinate system and dimension 1 (the table's site key)."""
-        return FaceSite(face, self.mesh.coord, 1)
-
-    def realize_boundary_role(self, role: DeckTransformation | BoundaryCondition, face: str) -> TrackLinking:
-        """Realize one declaration on ``face``: the MoC arm of the shared :func:`~orpheus.transport.method.realize_boundary` body.
-
-        MoC has no trace space; its realizer reads nothing of the mesh but its identity, so the mesh itself is the method space
-        handed to the table.
-        """
-        return self.boundary_realizers.realize(role, self.face_site(face), self)
 
     def _generate_tracks(self) -> None:
         """Generate tracks for all azimuthal angles."""
