@@ -324,7 +324,8 @@ class DiffusionMesh(MaterialMesh):
         :meth:`SNProblem.with_cross_sections <orpheus.sn.problem.SNProblem.with_cross_sections>` does: the base
         spelling re-runs the constructor without them, and a carrier whose tags are unbound is refused.
         """
-        return type(self)(self.mesh, self.materials, sigma_t_cell=sigma_t_cell, boundary_conditions=self.binding.declared)  # type: ignore[arg-type]
+        assert self.mesh is not None  # the 1-D gate of ``_init_core`` refused every carrier without a mesh (type narrowing, not a guard)  # noqa: S101
+        return type(self)(self.mesh, self.materials, sigma_t_cell=sigma_t_cell, boundary_conditions=self.binding.declared)
 
     # ── identity: the diffusion extension of MaterialMesh's ONE definition ─
     # Contractibility adds the declared CONDITIONS in tag order (the face-to-condition join is derived, so the key reads the
