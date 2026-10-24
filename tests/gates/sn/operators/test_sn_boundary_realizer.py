@@ -561,11 +561,13 @@ class TestVacuumRealizesOnTheTrace:
     @pytest.mark.parametrize("declared", [WallCondition.vacuum(), WallCondition.white(0.5), WallCondition.specular(1.0)])
     def test_unknown_face_name_is_refused_at_realize(self, declared):
         """A face the trace does not hold is refused by the realizer itself, at ``realize``, whatever the declaration (the vacuum arm
-        used to build a zero map and refuse only at its first ``.domain`` read). Positive control: a known face realizes."""
+        used to build a zero map and refuse only at its first ``.domain`` read). The site is built by hand, not through
+        ``face_normal``, which would refuse ``"right"`` itself before the realizer runs. Positive control: a known face realizes.
+        Mutation (`[M]` 2026-10-24, in-process): ``ZeroMap.__post_init__`` made a no-op reddens the vacuum case."""
         on = _on(Quadrature.gauss_legendre(8), "xmax")
         assert _realize(declared, on) is not None
         with pytest.raises(ValueError, match="Unknown face"):
-            _realize(declared, on, face="right")
+            SN_REALIZERS.realize(declared, FaceSite("right", CoordSystem.CARTESIAN, 1), on.space)
 
 
 # ─────────────────────────────────────────────────────────────────────

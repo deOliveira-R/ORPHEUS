@@ -15,7 +15,7 @@ realized operators carry, read through the door a problem uses:
 * the ``BlockRole.BOUNDARY`` stamp on every realized operator,
 * the refusals (a translation deck: trace-block wrap, not a per-face albedo; a boundary source: affine, not an operator),
 * the sum of a mixed wall (the functor), and
-* the :class:`DiffusionMethodSpace` construction surface (mirror of ``SNMethodSpace.minimal`` / ``for_face``).
+* the :class:`DiffusionMethodSpace` construction surface (the SN mirror, ``SNMethodSpace.minimal`` / ``for_face``, retired in WF2.4: the SN method space is ``(quadrature, trace)``; #661 tracks the diffusion collapse).
 
 Retired with the walker (the descriptor-tree ``realize_recursively``) and the law ladder: the composition-tree tests (the sum of
 the chains' scalars is the functor, gated in ``test_diffusion_realizer_table.py``), the "unknown law type" fallthrough (a
