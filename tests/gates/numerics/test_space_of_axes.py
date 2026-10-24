@@ -441,7 +441,8 @@ def test_quotient_point_and_a_genuine_one_cell_mesh_are_DIFFERENT_spaces() -> No
     # with it.
     """
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
+    from orpheus.geometry.deck import MirrorDeck
     from orpheus.homogeneous.solver import _pose_space
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.transport.mesh.material_mesh import MaterialMesh
@@ -449,7 +450,7 @@ def test_quotient_point_and_a_genuine_one_cell_mesh_are_DIFFERENT_spaces() -> No
     mix = get_mixture("A", "2g")
     quotient = _pose_space(mix)
     one_cell_mesh = MaterialMesh(
-        Mesher(StructuredGeometry.from_homogeneous(2.0, BC.reflective)).partition(
+        Mesher(StructuredGeometry.from_homogeneous(2.0, MirrorDeck())).partition(
             CellsByCount.uniform_width(1),
         ).mesh,
         {0: mix},
@@ -482,7 +483,8 @@ def test_bulk_space_on_a_MESHED_carrier_is_the_honest_scalar_bulk() -> None:
     """
     from orpheus.derivations.common.xs_library import get_mixture
     from orpheus.diffusion import DiffusionMesh
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
+    from orpheus.geometry.deck import MirrorDeck
     from orpheus.mesh import CellEdges, Mesher
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
@@ -490,7 +492,7 @@ def test_bulk_space_on_a_MESHED_carrier_is_the_honest_scalar_bulk() -> None:
     # Non-uniform edges, so the volumes are NOT all-ones and the weights
     # survive canonicalization (a uniform unit mesh would collapse to the
     # counting spelling and this gate would assert nothing).
-    mesh1d = Mesher(StructuredGeometry.from_homogeneous(6.0, BC.reflective)).partition(
+    mesh1d = Mesher(StructuredGeometry.from_homogeneous(6.0, MirrorDeck())).partition(
         CellEdges(np.array([0.0, 1.0, 3.0, 6.0])),
     ).mesh
     carrier = MaterialMesh(mesh1d, {0: mix})
@@ -527,7 +529,8 @@ def test_the_spatial_axis_is_minted_through_the_carriers_own_measure() -> None:
     is structurally independent of every array it threads.
     """
     from orpheus.derivations.common.xs_library import get_mixture
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
+    from orpheus.geometry.deck import MirrorDeck
     from orpheus.mesh import CellEdges, Mesher
     from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.transport.mesh.material_mesh import MaterialMesh
@@ -536,7 +539,7 @@ def test_the_spatial_axis_is_minted_through_the_carriers_own_measure() -> None:
     # Cartesian slab, edges 0|1|3|6 ⟹ BY HAND: widths (=volumes) 1,2,3;
     # centres 0.5, 2.0, 4.5. Non-uniform, so canonicalization keeps them.
     carrier = MaterialMesh(
-        Mesher(StructuredGeometry.from_homogeneous(6.0, BC.reflective)).partition(
+        Mesher(StructuredGeometry.from_homogeneous(6.0, MirrorDeck())).partition(
             CellEdges(np.array([0.0, 1.0, 3.0, 6.0])),
         ).mesh,
         {0: mix},
@@ -577,12 +580,12 @@ def test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT() -> None:
     """
     from orpheus.numerics.quadrature.directional import Quadrature
     from orpheus.sn.problem import SNProblem
-    from orpheus.geometry import BC
+    from orpheus.geometry.deck import MirrorDeck
     from orpheus.mesh import AxisMesh
     from tests.gates.sn._test_helpers import placeholder_materials
 
     axes = tuple(
-        AxisMesh(edges=np.linspace(0.0, ext, n + 1), bc_low=BC("reflective"), bc_high=BC("reflective"))
+        AxisMesh(edges=np.linspace(0.0, ext, n + 1), role_low=MirrorDeck(), role_high=MirrorDeck())
         for ext, n in zip((1.0, 2.0, 3.0), (2, 3, 2))
     )
     sn = SNProblem.from_axes(

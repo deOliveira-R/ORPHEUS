@@ -41,7 +41,9 @@ import numpy as np
 import pytest
 
 from orpheus.diffusion import DiffusionMesh
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -58,7 +60,7 @@ def _require(condition: bool, message: str) -> None:
 
 
 def _legacy_1d() -> MaterialMesh:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(5),
     ).mesh
     return MaterialMesh(mesh, placeholder_materials(ng=2))
@@ -69,19 +71,14 @@ def _legacy_2d() -> MaterialMesh:
         edges_x=np.linspace(0.0, 1.0, 3),
         edges_y=np.linspace(0.0, 2.0, 4),
         mat_map=np.zeros((2, 3), dtype=int),
-        face_laws={
-            "xmin": BC("vacuum"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("vacuum"),
-            "ymax": BC("vacuum"),
-        },
+        face_roles={"xmin": 0, "xmax": 0, "ymin": 0, "ymax": 0},
     )
     return MaterialMesh(mesh2d, placeholder_materials(ng=2))
 
 
 def _axes(*extents_and_cells: tuple[float, int]) -> tuple[AxisMesh, ...]:
     return tuple(
-        AxisMesh(edges=np.linspace(0.0, ext, n + 1), bc_low=BC("reflective"), bc_high=BC("reflective"))
+        AxisMesh(edges=np.linspace(0.0, ext, n + 1), role_low=MirrorDeck(), role_high=MirrorDeck())
         for ext, n in extents_and_cells
     )
 
@@ -105,7 +102,7 @@ class TestG71PromotionRefusal:
         carrier refused with a typed ``ValueError`` — retired with the
         carrier at the CS4c coda: nothing can be built for it to refuse.)"""
         sn = SNProblem.from_material_mesh(
-            _legacy_1d(), Quadrature.gauss_legendre(4),
+            _legacy_1d(), Quadrature.gauss_legendre(4), boundary_conditions={0: WallCondition.vacuum()},
         )
         if sn.ng != 2 or sn.spatial_shape != (5,):
             pytest.fail("promotion must preserve the carrier's data block")
@@ -171,7 +168,7 @@ class TestG73MeshNoneHasOneMeaning:
         """The retired 'no faces at all' arm's complement: every 1-D carrier
         answers ``areas`` (a Mesh1D concept), including a one-cell one."""
         one_cell = MaterialMesh(
-            Mesher(StructuredGeometry.from_homogeneous(1.0, BC("reflective"))).partition(
+            Mesher(StructuredGeometry.from_homogeneous(1.0, MirrorDeck())).partition(
                 CellsByCount.uniform_width(1),
             ).mesh,
             placeholder_materials(ng=2),

@@ -66,7 +66,9 @@ import numpy as np
 import pytest
 from scipy import sparse
 
-from orpheus.geometry import BC, CoordSystem
+from orpheus.geometry import CoordSystem
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.numerics import frame_faces
 from orpheus.numerics.assembled_operator import (
     MissingAssembly,
@@ -340,7 +342,7 @@ def _frame_face(rule: Callable[[], Quadrature], L: int, face: str) -> Callable[[
 def _diffusion():
     from tests.gates.diffusion import test_operators as D
 
-    mesh = D._diffusion_mesh(BC("reflective"), BC("vacuum"))
+    mesh = D._diffusion_mesh(MirrorDeck(), WallCondition.vacuum())
     return D, mesh
 
 

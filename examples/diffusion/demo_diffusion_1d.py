@@ -27,8 +27,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from orpheus.derivations.common.xs_library import mixture_from_diffusion_tables
-from orpheus.diffusion import solve_diffusion_1d
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.diffusion import ZeroFluxCondition, solve_diffusion_1d
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 
 OUTPUT = Path("results")
@@ -68,7 +68,7 @@ def main():
         coord=CoordSystem.CARTESIAN,
         thicknesses=(n_refl * dz, n_fuel * dz, n_refl * dz),
         mat_ids=(0, 1, 0),
-        boundaries=(BC("zero_flux"), BC("zero_flux")),
+        face_roles=(0, 0),
     )
     mesh = Mesher(geometry).partition((
         CellsByCount.uniform_width(n_refl),
@@ -76,7 +76,7 @@ def main():
         CellsByCount.uniform_width(n_refl),
     )).mesh
 
-    result = solve_diffusion_1d(_core1d_materials(), mesh)
+    result = solve_diffusion_1d(_core1d_materials(), mesh, boundary_conditions={0: ZeroFluxCondition()})
 
     print(f"\n  keff = {result.keff:.6f}  (MATLAB reference: 1.022173)")
     match = "YES" if abs(result.keff - 1.022173) < 1e-4 else "NO"
@@ -86,7 +86,7 @@ def main():
     # to an absolute flux at a target power is one multiplication.
     z_cells = mesh.centers
     z_faces = mesh.edges
-    flux = result.flux.bulk.values          # (2, n_cells)
+    flux = result.flux.interior.values         # (2, n_cells)
     current = result.current                # (2, n_faces), axis-signed
 
     OUTPUT.mkdir(parents=True, exist_ok=True)

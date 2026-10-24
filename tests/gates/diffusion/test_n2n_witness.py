@@ -48,7 +48,8 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.diffusion import solve_diffusion_1d
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck
 from orpheus.mesh import CellsByCount, Mesher
 
 pytestmark = pytest.mark.l1
@@ -66,7 +67,7 @@ def reflective_mesh():
     """Zero-leakage 1-D slab: the discrete eigenvalue IS ``k_inf`` (no
     buckling, no discretisation error to account for).  4 cells is enough —
     the answer is spatially flat; more cells only cost time."""
-    geometry = StructuredGeometry.from_homogeneous(10.0, BC("reflective"))
+    geometry = StructuredGeometry.from_homogeneous(10.0, MirrorDeck())
     return Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
 
 

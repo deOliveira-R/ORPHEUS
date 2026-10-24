@@ -34,7 +34,11 @@ import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.diffusion import DiffusionMesh, DiffusionSolver, solve_diffusion_1d
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.diffusion import ZeroFluxCondition
+from orpheus.geometry import StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import declare_sides
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 from orpheus.homogeneous import solve_homogeneous_infinite
 from orpheus.numerics.eigenvalue import ProductionRateSolver, direct_eigenvalue
@@ -92,27 +96,31 @@ def _fuel_3g():
     )
 
 
-def _het_mesh(left: BC, right: BC) -> Mesh1D:
+def _het_mesh(left, right) -> tuple[Mesh1D, dict]:
     """Fuel [0, 0.5] | reflector [0.5, 3] (two cells, at 1.5) | fuel [3, 5]:
-    non-uniform cells, one ``CellEdges`` per material region."""
+    non-uniform cells, one ``CellEdges`` per material region. Each side is a deck or a condition;
+    returns the mesh and the ``{tag: condition}`` its tags stand for (rule R1)."""
+    (role_left, role_right), conditions = declare_sides(left, right)
     geometry = StructuredGeometry.slab(
-        (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=left, right=right,
+        (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=role_left, right=role_right,
     )
-    return Mesher(geometry).partition((
+    mesh = Mesher(geometry).partition((
         CellEdges(np.array([0.0, 0.5])),
         CellEdges(np.array([0.5, 1.5, 3.0])),
         CellEdges(np.array([3.0, 5.0])),
     )).mesh
+    return mesh, conditions
 
 
 def _het_materials():
     return {0: _fuel_2g(), 1: _reflector_2g()}
 
 
-def _solve_tight(materials, mesh, **kwargs):
+def _solve_tight(materials, mesh, conditions=None, **kwargs):
     return solve_diffusion_1d(
         materials, mesh,
-        keff_tol=1e-13, flux_tol=1e-11, max_outer=5000, **kwargs,
+        keff_tol=1e-13, flux_tol=1e-11, max_outer=5000,
+        boundary_conditions=conditions if conditions is not None else {}, **kwargs,
     )
 
 
@@ -129,20 +137,20 @@ class TestEngineCrossGate:
     @pytest.mark.parametrize(
         "left, right",
         [
-            (BC("zero_flux"), BC("zero_flux")),
-            (BC("reflective"), BC("zero_flux")),
-            (BC("reflective"), BC("albedo", {"albedo": 0.3})),
-            (BC("vacuum"), BC("vacuum")),
+            (ZeroFluxCondition(), ZeroFluxCondition()),
+            (MirrorDeck(), ZeroFluxCondition()),
+            (MirrorDeck(), WallCondition.white(0.3)),
+            (WallCondition.vacuum(), WallCondition.vacuum()),
         ],
         ids=["zeroflux", "refl-zeroflux", "refl-albedo", "marshak-vacuum"],
     )
     def test_power_matches_direct(self, left, right):
         materials = _het_materials()
-        mesh = _het_mesh(left, right)
+        mesh, conditions = _het_mesh(left, right)
 
-        result = _solve_tight(materials, mesh)
+        result = _solve_tight(materials, mesh, conditions)
 
-        solver = DiffusionSolver(DiffusionMesh(mesh, materials))
+        solver = DiffusionSolver(DiffusionMesh(mesh, materials, boundary_conditions=conditions))
         A_mat = FlattenedOperator(solver.loss, solver.template).as_matrix()
         F_mat = FlattenedOperator(solver.fission, solver.template).as_matrix()
         k_direct, phi_direct = direct_eigenvalue(A_mat, F_mat)
@@ -180,7 +188,7 @@ class TestInfiniteMedium:
         # Non-uniform mesh — the constant mode is annihilated by L on ANY
         # spacing (the P4 gate), so k∞ must be reproduced exactly.
         mesh = Mesher(
-            StructuredGeometry.from_homogeneous(2.2, BC("reflective")),
+            StructuredGeometry.from_homogeneous(2.2, MirrorDeck()),
         ).partition(CellEdges(np.array([0.0, 0.7, 1.5, 2.2]))).mesh
         result = _solve_tight({0: mix}, mesh)
         reference = solve_homogeneous_infinite(mix)
@@ -202,9 +210,9 @@ class TestInfiniteMedium:
         flip trick — no 2G rearrangement reproduces it."""
         mix = _fuel_3g()
         mesh = Mesher(
-            StructuredGeometry.from_homogeneous(40.0, BC("zero_flux")),
+            StructuredGeometry.from_homogeneous(40.0, 0),
         ).partition(CellsByCount.uniform_width(8)).mesh
-        result = _solve_tight({0: mix}, mesh)
+        result = _solve_tight({0: mix}, mesh, {0: ZeroFluxCondition()})
         # Leaky ⟹ strictly below k∞; positive fundamental mode.
         assert 0.0 < result.keff < solve_homogeneous_infinite(mix).k_inf
         assert np.all(result.flux.interior.values > 0.0)
@@ -226,7 +234,7 @@ class TestSolutionTraceSemantics:
 
     def test_vacuum_means_zero_incoming(self):
         result = _solve_tight(
-            _het_materials(), _het_mesh(BC("vacuum"), BC("vacuum")),
+            _het_materials(), *_het_mesh(WallCondition.vacuum(), WallCondition.vacuum()),
         )
         trace = result.flux.boundary
         atol = 1e-12 * self._trace_scale(trace)
@@ -239,7 +247,7 @@ class TestSolutionTraceSemantics:
         alpha = 0.3
         result = _solve_tight(
             _het_materials(),
-            _het_mesh(BC("reflective"), BC("albedo", {"albedo": alpha})),
+            *_het_mesh(MirrorDeck(), WallCondition.white(alpha)),
         )
         trace = result.flux.boundary
         np.testing.assert_allclose(
@@ -250,7 +258,7 @@ class TestSolutionTraceSemantics:
 
     def test_reflective_has_zero_net_current(self):
         result = _solve_tight(
-            _het_materials(), _het_mesh(BC("reflective"), BC("reflective")),
+            _het_materials(), *_het_mesh(MirrorDeck(), MirrorDeck()),
         )
         trace = result.flux.boundary
         atol = 1e-12 * self._trace_scale(trace)
@@ -261,7 +269,7 @@ class TestSolutionTraceSemantics:
 
     def test_zero_flux_law_zeroes_the_boundary_scalar_flux(self):
         result = _solve_tight(
-            _het_materials(), _het_mesh(BC("zero_flux"), BC("zero_flux")),
+            _het_materials(), *_het_mesh(ZeroFluxCondition(), ZeroFluxCondition()),
         )
         trace = result.flux.boundary
         atol = 1e-12 * self._trace_scale(trace)
@@ -274,7 +282,7 @@ class TestSolutionTraceSemantics:
         """Reflective LEFT + zero-flux RIGHT: both laws must land on
         their own faces (a face-mapping swap satisfies neither)."""
         result = _solve_tight(
-            _het_materials(), _het_mesh(BC("reflective"), BC("zero_flux")),
+            _het_materials(), *_het_mesh(MirrorDeck(), ZeroFluxCondition()),
         )
         trace = result.flux.boundary
         atol = 1e-12 * self._trace_scale(trace)
@@ -289,7 +297,7 @@ class TestSolutionTraceSemantics:
 
     def test_current_profile_is_reconstructed_at_every_face(self):
         result = _solve_tight(
-            _het_materials(), _het_mesh(BC("reflective"), BC("zero_flux")),
+            _het_materials(), *_het_mesh(MirrorDeck(), ZeroFluxCondition()),
         )
         ng, nx = result.flux.interior.values.shape
         assert result.current.shape == (ng, nx + 1)
@@ -314,8 +322,8 @@ class TestBalanceAndOrdering:
         """P/k = absorption + leakage at the converged mode (the
         column-sum theorem + divergence telescoping, end-to-end)."""
         materials = _het_materials()
-        mesh = _het_mesh(BC("vacuum"), BC("albedo", {"albedo": 0.5}))
-        result = _solve_tight(materials, mesh)
+        mesh, conditions = _het_mesh(WallCondition.vacuum(), WallCondition.white(0.5))
+        result = _solve_tight(materials, mesh, conditions)
 
         material_mesh = result.mesh
         mat_xs = material_mesh.mat_xs
@@ -344,12 +352,12 @@ class TestBalanceAndOrdering:
         materials = _het_materials()
 
         def k(bc):
-            return _solve_tight(materials, _het_mesh(bc, bc)).keff
+            return _solve_tight(materials, *_het_mesh(bc, bc)).keff
 
-        k_zero_flux = k(BC("zero_flux"))
-        k_vacuum = k(BC("vacuum"))
-        k_albedo = k(BC("albedo", {"albedo": 0.6}))
-        k_reflective = k(BC("reflective"))
+        k_zero_flux = k(ZeroFluxCondition())
+        k_vacuum = k(WallCondition.vacuum())
+        k_albedo = k(WallCondition.white(0.6))
+        k_reflective = k(MirrorDeck())
         assert k_zero_flux < k_vacuum < k_albedo < k_reflective
 
     def test_returned_mode_is_production_normalized(self):
@@ -357,7 +365,7 @@ class TestBalanceAndOrdering:
         compute_production_rate, so the returned mode carries
         ∫νΣf·φ dV = 1 (the island's ``fi /= max`` hack is retired)."""
         result = _solve_tight(
-            _het_materials(), _het_mesh(BC("zero_flux"), BC("zero_flux")),
+            _het_materials(), *_het_mesh(ZeroFluxCondition(), ZeroFluxCondition()),
         )
         solver = DiffusionSolver(result.mesh)
         production = solver.compute_production_rate(
@@ -369,10 +377,9 @@ class TestBalanceAndOrdering:
 @pytest.mark.foundation
 class TestProtocolAndDefaults:
     def test_solver_satisfies_the_production_rate_contract(self):
+        mesh, conditions = _het_mesh(MirrorDeck(), WallCondition.vacuum())
         solver = DiffusionSolver(
-            DiffusionMesh(
-                _het_mesh(BC("reflective"), BC("vacuum")), _het_materials(),
-            )
+            DiffusionMesh(mesh, _het_materials(), boundary_conditions=conditions)
         )
         assert isinstance(solver, ProductionRateSolver)
 

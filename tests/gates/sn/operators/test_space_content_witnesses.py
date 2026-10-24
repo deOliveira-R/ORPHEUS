@@ -23,7 +23,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellEdges, CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
@@ -53,14 +55,17 @@ from tests.gates.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.foundation
 
+#: Every SN mesh of this file carries tag 0 on its exterior faces, and the tag stands for the vacuum wall (rule R1).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
 
 def _slab(*, width: float = 1.0, nx: int = 4, ng: int = 2) -> SNProblem:
     geom = StructuredGeometry.slab(
-        (0.0, width), (0,), left=BC("vacuum"), right=BC("vacuum"),
+        (0.0, width), (0,), left=0, right=0,
     )
     mesh = Mesher(geom).partition(CellsByCount.uniform_width(nx)).mesh
     return SNProblem(
-        mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng)
+        mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng), boundary_conditions=_CONDITIONS,
     )
 
 
@@ -68,10 +73,10 @@ def _sphere(*, power: float = 1.0, nx: int = 5, ng: int = 2) -> SNProblem:
     """Seed-carrying sphere; ``power != 1`` grades the radii (the ray-content
     discriminator — same shape, different Δr, different ray metric)."""
     radii = 4.0 * (np.arange(nx + 1) / nx) ** power
-    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=BC("vacuum"))
+    geom = StructuredGeometry.sphere((0.0, 4.0), (0,), outer=0)
     mesh = Mesher(geom).partition(CellEdges(radii)).mesh
     return SNProblem(
-        mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng)
+        mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng), boundary_conditions=_CONDITIONS,
     )
 
 
@@ -92,7 +97,7 @@ class TestO4DiffusionBoundaryOperator:
 
         def _dmesh(width: float) -> DiffusionMesh:
             geom = StructuredGeometry.slab(
-                (0.0, width), (0,), left=BC.reflective, right=BC.reflective,
+                (0.0, width), (0,), left=MirrorDeck(), right=MirrorDeck(),
             )
             m = Mesher(geom).partition(CellsByCount.uniform_width(4)).mesh
             return DiffusionMesh(m, {0: get_mixture("A", "2g")})
@@ -119,10 +124,11 @@ class TestO5AdjointEntryDetector:
             solve_sn_adjoint_fixed_source(
                 base.materials,
                 Mesher(StructuredGeometry.slab(
-                    (0.0, 1.0), (0,), left=BC("vacuum"), right=BC("vacuum"),
+                    (0.0, 1.0), (0,), left=0, right=0,
                 )).partition(CellsByCount.uniform_width(4)).mesh,
                 Quadrature.gauss_legendre(4),
                 q_star,
+                boundary_conditions=_CONDITIONS,
             )
 
 

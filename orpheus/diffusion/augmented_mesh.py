@@ -317,6 +317,15 @@ class DiffusionMesh(MaterialMesh):
         method_space = DiffusionMethodSpace.for_face(trace=self.scalar_trace, face=face)
         return stamp_boundary_role(self.boundary_realizers.realize(role, self.face_site(face), method_space))
 
+    def with_cross_sections(self, sigma_t_cell: np.ndarray) -> "DiffusionMesh":
+        r"""A NEW diffusion phase space over the same mesh with the per-cell :math:`\sigma_t` datum replaced.
+
+        The re-spelling carries the DECLARED conditions (``boundary_conditions=self.binding.declared``), as
+        :meth:`SNProblem.with_cross_sections <orpheus.sn.problem.SNProblem.with_cross_sections>` does: the base
+        spelling re-runs the constructor without them, and a carrier whose tags are unbound is refused.
+        """
+        return type(self)(self.mesh, self.materials, sigma_t_cell=sigma_t_cell, boundary_conditions=self.binding.declared)  # type: ignore[arg-type]
+
     # ── identity: the diffusion extension of MaterialMesh's ONE definition ─
     # Contractibility adds the declared CONDITIONS in tag order (the face-to-condition join is derived, so the key reads the
     # one declared map): two problems over the same mesh with different conditions are different phase spaces, as the laws

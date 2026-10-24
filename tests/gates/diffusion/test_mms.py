@@ -46,8 +46,8 @@ import pytest
 import sympy as sp
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.diffusion import DiffusionMesh, DiffusionSolver
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.diffusion import DiffusionMesh, DiffusionSolver, ZeroFluxCondition
+from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.transport.full_field import FullField
 
@@ -136,10 +136,10 @@ def _solve_mms(
         d1, d2 = np.asarray(_D1(z), float), np.asarray(_D2(z), float)
 
     geometry = StructuredGeometry.slab(
-        edges, range(n_cells), left=BC("zero_flux"), right=BC("zero_flux"),
+        edges, range(n_cells), left=0, right=0,
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
-    solver = DiffusionSolver(DiffusionMesh(mesh, _materials_from_d(d1, d2)))
+    solver = DiffusionSolver(DiffusionMesh(mesh, _materials_from_d(d1, d2), boundary_conditions={0: ZeroFluxCondition()}))
 
     sign = +1.0 if flip_inscatter_forcing else -1.0
     q_bulk = np.vstack([

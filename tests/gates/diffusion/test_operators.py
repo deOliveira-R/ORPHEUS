@@ -27,10 +27,9 @@ spectrally invisible — so the committed catcher is the matrix itself):
   the C/S/F scalar arms — each pinned against its own bare-kernel arm,
   the single-source cross-arm discipline).
 
-Boundary laws enter through the MESH (#290 P7a): every config's laws
-are declared as ``BC`` tags on the ``Mesh1D`` and realized at
-``DiffusionMesh`` construction (``mesh.bc``); the boundary operator
-``B`` reads them off the mesh. Mesh-construction laws themselves are
+Boundary conditions enter through the MESH (#290 P7a): every config's faces carry a deck or a tag, the conditions the tags stand for
+are declared at ``DiffusionMesh`` construction (``boundary_conditions``) and realized there (``mesh.bc``); the boundary operator
+``B`` reads them off the mesh. Mesh-construction conditions themselves are
 gated in ``test_augmented_mesh.py``.
 
 Conventions: ``.claude/plans/diffusion_crosswalk.md``. Fixture flat
@@ -42,6 +41,8 @@ from __future__ import annotations
 
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -51,7 +52,11 @@ from orpheus.diffusion import (
     DiffusionMesh,
     LeakageOperator,
 )
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.diffusion import ZeroFluxCondition
+from orpheus.geometry import StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import declare_sides
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.assembled_operator import assemble, dense
 from orpheus.numerics.flat_operator import FlattenedOperator
@@ -127,9 +132,9 @@ def _fixture_materials() -> dict[int, object]:
     return {0: mix_a, 1: mix_b}
 
 
-def _fixture_mesh1d(left: BC, right: BC, scale: float = 1.0) -> Mesh1D:
+def _fixture_mesh1d(left: Any, right: Any, scale: float = 1.0) -> Mesh1D:
     """The fixture's non-uniform cells (``scale * _EDGES``), one
-    ``CellEdges`` per material region, with ``left``/``right`` laws."""
+    ``CellEdges`` per material region, with the ``left``/``right`` roles."""
     edges = scale * _EDGES
     geometry = StructuredGeometry.slab(
         tuple(scale * b for b in _BREAKPOINTS), _REGION_MATS, left=left, right=right,
@@ -140,11 +145,12 @@ def _fixture_mesh1d(left: BC, right: BC, scale: float = 1.0) -> Mesh1D:
 
 
 def _diffusion_mesh(
-    left: BC = BC("reflective"), right: BC = BC("vacuum"),
+    left: Any = MirrorDeck(), right: Any = WallCondition.vacuum(), scale: float = 1.0,
 ) -> DiffusionMesh:
-    """The fixture phase space; boundary laws declared as mesh BC tags
-    and realized at construction (#290 P7a)."""
-    return DiffusionMesh(_fixture_mesh1d(left, right), _fixture_materials())
+    """The fixture phase space. A side is a deck or a condition (``declare_sides`` mints the tags, rule R1); the conditions are
+    declared at construction and realized there (#290 P7a)."""
+    (role_left, role_right), conditions = declare_sides(left, right)
+    return DiffusionMesh(_fixture_mesh1d(role_left, role_right, scale), _fixture_materials(), boundary_conditions=conditions)
 
 
 @pytest.fixture
@@ -262,20 +268,20 @@ def _hand_posed_loss(albedo_by_face: dict[str, float]) -> np.ndarray:
     return A
 
 
-# Config → (BC tags declared on the mesh, expected 𝒜 per face in the
-# hand-posed matrix). The laws travel through DiffusionMesh
+# Config → (the two sides declared on the mesh, expected 𝒜 per face in the
+# hand-posed matrix). The conditions travel through DiffusionMesh
 # construction — the production path, not a parallel realization.
 _CONFIGS = {
     "zero_flux/zero_flux": (
-        (BC("zero_flux"), BC("zero_flux")),
+        (ZeroFluxCondition(), ZeroFluxCondition()),
         {"xmin": -1.0, "xmax": -1.0},
     ),
     "reflective/marshak_vacuum": (
-        (BC("reflective"), BC("vacuum")),
+        (MirrorDeck(), WallCondition.vacuum()),
         {"xmin": 1.0, "xmax": 0.0},
     ),
     "albedo(0.3)/reflective": (
-        (BC("albedo", {"albedo": 0.3}), BC("reflective")),
+        (WallCondition.white(0.3), MirrorDeck()),
         {"xmin": 0.3, "xmax": 1.0},
     ),
 }
@@ -461,7 +467,7 @@ class TestFamilyLaws:
         interior currents vanish, the net trace current vanishes, the
         outflow defect closes (c_φ = (1 − c_J)/4 algebraically), and
         the inflow row reads J⁻ − J⁺ = 0."""
-        mesh = _diffusion_mesh(BC("reflective"), BC("reflective"))
+        mesh = _diffusion_mesh(MirrorDeck(), MirrorDeck())
         L = LeakageOperator(mesh)
         B = DiffusionBoundaryOperator(mesh)
         const = FullField(
@@ -537,10 +543,7 @@ class TestLeakageOperator:
             boundary=ScalarBoundaryFlux.zeros(twin.scalar_trace),
         ))
         # A carrier whose volumes differ refuses (space-content invariant).
-        other = DiffusionMesh(
-            _fixture_mesh1d(BC("reflective"), BC("reflective"), scale=2.0),
-            _fixture_materials(),
-        )
+        other = _diffusion_mesh(MirrorDeck(), MirrorDeck(), scale=2.0)
         foreign = FullField(
             interior=ScalarFlux(values=np.ones((_NG, _NX)), space=other.bulk_space),
             boundary=ScalarBoundaryFlux.zeros(other.scalar_trace),
@@ -553,7 +556,7 @@ class TestLeakageOperator:
         + φ_{i−1})/h² in the interior — the classic 3-point stencil."""
         mats = _fixture_materials()
         mesh1d = Mesher(
-            StructuredGeometry.from_homogeneous(4.0, BC("reflective")),
+            StructuredGeometry.from_homogeneous(4.0, MirrorDeck()),
         ).partition(CellsByCount.uniform_width(4)).mesh
         mm = DiffusionMesh(mesh1d, {0: mats[0]})
         L = LeakageOperator(mm)
@@ -598,9 +601,7 @@ class TestLeakageOperator:
 @pytest.mark.foundation
 class TestDiffusionBoundaryOperator:
     def test_inflow_row_carries_albedo_action_zero_elsewhere(self):
-        mesh = _diffusion_mesh(
-            BC("albedo", {"albedo": 0.3}), BC("zero_flux"),
-        )
+        mesh = _diffusion_mesh(WallCondition.white(0.3), ZeroFluxCondition())
         flux = _random_flux(mesh)
         B = DiffusionBoundaryOperator(mesh)
         out = B.apply(flux)

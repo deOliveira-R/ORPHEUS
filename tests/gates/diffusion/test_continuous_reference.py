@@ -25,7 +25,7 @@ Two problem families:
 **zero-flux Dirichlet** law :math:`\phi_\Gamma = 0` — the honest name
 for what the retired MATLAB island called "vacuum" (in ORPHEUS,
 *vacuum* means zero incoming partial current — Marshak,
-:math:`\mathcal A = 0`). The solver poses it as ``BC("zero_flux")``
+:math:`\mathcal A = 0`). The solver poses it as ``ZeroFluxCondition()`` on a tag
 (albedo :math:`\mathcal A = -1` on the :math:`(J^+, J^-)` trace).
 The mathematics of every reference is unchanged — re-attributed,
 never re-derived.
@@ -50,7 +50,8 @@ import pytest
 from orpheus.derivations import continuous_get
 from orpheus.derivations.common.xs_library import mixture_from_diffusion_tables
 from orpheus.diffusion import solve_diffusion_1d
-from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+from orpheus.diffusion import ZeroFluxCondition
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 
 
@@ -79,6 +80,10 @@ pytestmark = [pytest.mark.l1, pytest.mark.verifies(
 )]
 
 
+#: The tag the reference meshes carry on both faces stands for the Dirichlet idealization (rule R1).
+_CONDITIONS = {0: ZeroFluxCondition()}
+
+
 def _zero_flux_problem(
     region_heights: list[float], dz: float,
 ) -> tuple[Mesh1D, np.ndarray]:
@@ -94,7 +99,7 @@ def _zero_flux_problem(
         coord=CoordSystem.CARTESIAN,
         thicknesses=region_heights,
         mat_ids=range(len(region_heights)),
-        boundaries=(BC("zero_flux"), BC("zero_flux")),
+        face_roles=(0, 0),
     )
     mesh = Mesher(geometry).partition(
         tuple(CellsByCount.uniform_width(round(h / dz)) for h in region_heights),
@@ -141,7 +146,7 @@ def test_bare_slab_eigenvalue_matches_continuous_reference():
     H = ref.problem.geometry_params["fuel_height"]
 
     mesh, _ = _zero_flux_problem([H], dz=0.3125)
-    result = solve_diffusion_1d({0: fuel}, mesh)
+    result = solve_diffusion_1d({0: fuel}, mesh, boundary_conditions=_CONDITIONS)
 
     # At dz=0.3125 on L=50, O(h²) ~ 4e-5; the observed error on this
     # configuration is ~5e-6 empirically. Assert 1e-4 to leave headroom.
@@ -175,7 +180,7 @@ def test_bare_slab_flux_shape_converges_second_order():
         mesh, z = _zero_flux_problem([H], dz)
         result = solve_diffusion_1d(
             {0: fuel}, mesh,
-            keff_tol=1e-13, flux_tol=1e-11, max_outer=5000,
+            keff_tol=1e-13, flux_tol=1e-11, max_outer=5000, boundary_conditions=_CONDITIONS,
         )
 
         ref_g0 = np.asarray(ref.phi(z, 0), dtype=float)
@@ -246,7 +251,7 @@ def test_2region_eigenvalue_matches_continuous_reference():
     H_r = ref.problem.geometry_params["refl_height"]
 
     mesh, _ = _zero_flux_problem([H_f, H_r], dz=0.3125)
-    result = solve_diffusion_1d(materials, mesh)
+    result = solve_diffusion_1d(materials, mesh, boundary_conditions=_CONDITIONS)
 
     # At dz=0.3125 on L=80 cm with fuel/reflector interface, O(h²)
     # discretisation error is ~1e-5. Reference is accurate to ~1e-7.
@@ -286,7 +291,7 @@ def test_2region_flux_shape_converges_second_order():
         mesh, z = _zero_flux_problem([H_f, H_r], dz)
         result = solve_diffusion_1d(
             materials, mesh,
-            keff_tol=1e-13, flux_tol=1e-11, max_outer=5000,
+            keff_tol=1e-13, flux_tol=1e-11, max_outer=5000, boundary_conditions=_CONDITIONS,
         )
 
         ref_g0 = np.asarray(ref.phi(z, 0), dtype=float)

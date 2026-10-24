@@ -31,7 +31,9 @@ import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.diffusion import DiffusionMesh
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellEdges, Mesher
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
@@ -48,7 +50,7 @@ _SIG_S_B = np.array([[0.1000, 0.0020], [0.0, 0.0500]])
 _SIG_F_A = np.array([0.0024, 0.0489])
 # Material A on [0, 0.5] and [3, 5], material B on [0.5, 3] (two cells).
 _GEOMETRY = StructuredGeometry.slab(
-    (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=BC("reflective"), right=BC("vacuum"),
+    (0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=MirrorDeck(), right=0,
 )
 _CELLS = (
     CellEdges(np.array([0.0, 0.5])),
@@ -74,7 +76,7 @@ def _materials() -> dict[int, object]:
 @pytest.fixture
 def mesh() -> DiffusionMesh:
     mesh1d = Mesher(_GEOMETRY).partition(_CELLS).mesh
-    return DiffusionMesh(mesh1d, _materials())
+    return DiffusionMesh(mesh1d, _materials(), boundary_conditions={0: WallCondition.vacuum()})
 
 
 def _scalar_composite(mesh: DiffusionMesh, seed: int) -> "Composite":

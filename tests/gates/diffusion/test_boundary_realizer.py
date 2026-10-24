@@ -1,31 +1,29 @@
-r"""DiffusionBoundaryRealizer — the albedo-family realization (#290 P3).
+r"""The diffusion realizer table — the albedo-family realization (#290 P3; the table of wave 2).
 
-This file FLIPPED from the Wave-5 stub-invariant tests (the realizer
-raised ``NotImplementedError`` by design) to positive realization
-tests when the functional body shipped (#290 P3, closes #182). The
-identity pins (``method_name``; :class:`BoundaryRealizer` Protocol
-conformance — the successor of the registry-lookup pin after the
-#290 P7b registry dissolution) open the file; everything else pins
-the now-real physics:
+This file FLIPPED from the Wave-5 stub-invariant tests to positive realization tests when the functional body shipped (#290 P3,
+closes #182), and was re-posed on the typed vocabulary by the wave-2 carve (slice S3): the realizer is the table
+:data:`~orpheus.diffusion.boundary_realizer.DIFFUSION_REALIZERS` (the class ``DiffusionBoundaryRealizer`` and its
+``_partial_current_albedo`` are retired), and a declaration is a ``WallCondition`` (or the method-only ``ZeroFluxCondition``, or a
+deck). The structural facts of the table (the six registered classes, the tiers, the pin rows, the functor's sum) are the gates of
+``test_diffusion_realizer_table.py`` and ``tests/gates/transport/test_admission_matrix.py``; this file keeps the PHYSICS the
+realized operators carry, read through the door a problem uses:
 
-* the law → 𝒜 table of :math:`J^- = \mathcal{A}\,J^+` (#290 ruling 2),
-* the ruling-3 semantics — vacuum IS Marshak zero-incoming
-  (:math:`J^- = 0`), zero-flux IS the Dirichlet idealization
+* the condition → 𝒜 table of :math:`J^- = \mathcal{A}\,J^+` (#290 ruling 2),
+* the ruling-3 semantics — vacuum IS Marshak zero-incoming (:math:`J^- = 0`), zero-flux IS the Dirichlet idealization
   (:math:`\phi_\Gamma = 2(J^+ + J^-) = 0` under P1, 𝒜 = −1),
-* the structure-keyed collapses (Zero / Identity / 𝒜·Identity)
-  mirroring the SN realizer's albedo branch,
+* the structure-keyed collapses (Zero / Identity / 𝒜·Identity) mirroring the SN realizer's scalar branch,
 * the ``BlockRole.BOUNDARY`` stamp on every realized operator,
-* the two refusals (periodic: trace-block wrap, not a per-face
-  albedo; prescribed inflow: affine source, not an operator),
-* rank-N composition through the descriptor-tree walker with the
-  diffusion realizer at the leaves (the #290 P3 walker
-  generalization), and
-* the :class:`DiffusionMethodSpace` construction surface (mirror of
-  ``SNMethodSpace.minimal`` / ``for_face``).
+* the refusals (a translation deck: trace-block wrap, not a per-face albedo; a boundary source: affine, not an operator),
+* the sum of a mixed wall (the functor), and
+* the :class:`DiffusionMethodSpace` construction surface (mirror of ``SNMethodSpace.minimal`` / ``for_face``).
 
-Convention contract: ``.claude/plans/diffusion_crosswalk.md`` (the
-BC-family table these tests transcribe — vv L11: production derives
-the map through ``_partial_current_albedo``, the tests hand-list it).
+Retired with the walker (the descriptor-tree ``realize_recursively``) and the law ladder: the composition-tree tests (the sum of
+the chains' scalars is the functor, gated in ``test_diffusion_realizer_table.py``), the "unknown law type" fallthrough (a
+declaration that is not a deck, a condition or an inflow is a ``TypeError`` at the table's door, pinned below) and the
+"unpopulated factors" law (a ``BoundaryCondition`` subclass that omits an accessor cannot be constructed, pinned below).
+
+Convention contract: ``.claude/plans/diffusion_crosswalk.md`` (the BC-family table these tests transcribe — vv L11: production
+derives the map through the realizer classes, the tests hand-list it).
 """
 
 from __future__ import annotations
@@ -35,46 +33,23 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.diffusion.augmented_mesh import DiffusionMesh
-from orpheus.diffusion.boundary_realizer import DiffusionBoundaryRealizer
+from orpheus.diffusion.boundary_realizer import DIFFUSION_REALIZERS
 from orpheus.diffusion.method_space import DiffusionMethodSpace
-from orpheus.geometry import BC, StructuredGeometry
-from orpheus.geometry.boundary import (
-    AlbedoBoundary,
-    BoundaryError,
-    PeriodicBoundary,
-    PrescribedInflow,
-    ReflectiveBoundary,
-    SpecularReturn,
-    VacuumInflow,
-    WhiteBoundary,
-    ZeroFluxBoundary,
-)
-from orpheus.transport.boundary_realization import BoundaryRealizer, realize_recursively
-from orpheus.numerics.operator import ZeroOperator
-from orpheus.numerics.operator import BlockRole, BoundaryOperator, IdentityOperator
+from orpheus.diffusion.zero_flux import ZeroFluxCondition
+from orpheus.geometry import CoordSystem, StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck, TranslationDeck
 from orpheus.mesh import CellsByCount, Mesher
+from orpheus.numerics.operator import BlockRole, BoundaryOperator, IdentityOperator, ZeroOperator
+from orpheus.transport.boundary_conditions import BoundaryCondition, BoundaryRefused, FaceSite, RefusalAxis, WallCondition
 
-# V&V LEVELS — B0.3 REPAIR (2026-07-30). This file used to carry a
-# module-level ``pytestmark = [pytest.mark.foundation]`` blanket while
-# ``TestRulingThreeSemantics`` also carried ``@pytest.mark.l0``. The
-# two stack, so all FOUR tests in that class resolved with conflicting
-# level markers ``['foundation', 'l0']`` and tripped
-# ``PytestUnknownMarkWarning`` out of ``tests/conftest.py:120``
-# ("using 'l0'" — the physics ladder dominates by design).
-#
-# The blanket is therefore gone and each class states its own level:
-# ``foundation`` for the structural / registration / dispatch pins (no
-# theory-page ``:label:``), ``l0`` for the ruling-3 semantics class,
-# whose four tests ARE term-level physics claims against the P1
-# partial-current dictionary (J⁻ = 0 for vacuum, φ_Γ = 2(J⁺+J⁻) = 0
-# for zero-flux, J⁺ − J⁻ = 0 for reflective, J⁻ ≥ 0 for the physical
-# sub-family). Resolution is unchanged for every test — only the
-# conflict is gone.
+# V&V LEVELS — B0.3 REPAIR (2026-07-30). This file used to carry a module-level ``pytestmark = [pytest.mark.foundation]`` blanket
+# while ``TestRulingThreeSemantics`` also carried ``@pytest.mark.l0``. The two stack, so all FOUR tests in that class resolved with
+# conflicting level markers ``['foundation', 'l0']`` and tripped ``PytestUnknownMarkWarning``. The blanket is therefore gone and each
+# class states its own level: ``foundation`` for the structural pins, ``l0`` for the ruling-3 semantics class, whose tests ARE
+# term-level physics claims against the P1 partial-current dictionary (J⁻ = 0 for vacuum, φ_Γ = 2(J⁺+J⁻) = 0 for zero-flux,
+# J⁺ − J⁻ = 0 for a mirror, J⁻ ≥ 0 for the physical sub-family).
 
-
-@pytest.fixture
-def realizer() -> DiffusionBoundaryRealizer:
-    return DiffusionBoundaryRealizer()
+_SITE = FaceSite("xmax", CoordSystem.CARTESIAN, 1)
 
 
 @pytest.fixture
@@ -84,9 +59,14 @@ def minimal_ms() -> DiffusionMethodSpace:
 
 @pytest.fixture
 def outflow_probe() -> np.ndarray:
-    """A J⁺ face-slot half: shape ``(ng, *face_spatial)`` = (2, 3),
-    strictly positive (a physical outflow partial current)."""
+    """A J⁺ face-slot half: shape ``(ng, *face_spatial)`` = (2, 3), strictly positive (a physical outflow partial current)."""
     return np.array([[1.7, 0.3, 2.1], [0.2, 0.9, 0.4]])
+
+
+@pytest.fixture
+def realize(minimal_ms):
+    """``realize(declared)``: the table's operator for a declaration on a Cartesian face (the door a problem uses)."""
+    return lambda declared: DIFFUSION_REALIZERS.realize(declared, _SITE, minimal_ms)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -97,314 +77,167 @@ def outflow_probe() -> np.ndarray:
 @pytest.mark.foundation
 class TestRegistration:
     def test_method_name_attribute(self):
-        assert DiffusionBoundaryRealizer.method_name == "diffusion"
+        assert DIFFUSION_REALIZERS.method == "diffusion"
 
-    def test_conforms_to_the_boundary_realizer_protocol(self):
-        """The structural pin that replaced the registry-lookup pin
-        when #290 P7b dissolved ``BoundaryRealizerRegistry``: the
-        realizer satisfies the :class:`BoundaryRealizer` Protocol the
-        walker and the method-mesh hook dispatch through."""
-        assert isinstance(DiffusionBoundaryRealizer(), BoundaryRealizer)
+    def test_the_mesh_holds_the_table_it_realizes_through(self):
+        """The structural successor of the registry-lookup pin (#290 P7b dissolved ``BoundaryRealizerRegistry``): you hold the
+        method-mesh, therefore you hold its table."""
+        assert DiffusionMesh.boundary_realizers is DIFFUSION_REALIZERS
 
-    def test_realize_is_functional(self, realizer, minimal_ms):
-        """The stub-era ``NotImplementedError`` contract is GONE —
-        realizing a law returns a working 1-arg operator (#182)."""
-        op = realizer.realize(VacuumInflow(), minimal_ms)
+    def test_realize_is_functional(self, realize):
+        """The stub-era ``NotImplementedError`` contract is GONE — realizing a condition returns a working 1-arg operator (#182)."""
+        op = realize(WallCondition.vacuum())
         assert op.apply(np.ones((2,))) is not None
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# The albedo table — law → 𝒜 in J⁻ = 𝒜·J⁺ (the crosswalk BC-family
-# table hand-transcribed; production derives it via
-# ``_partial_current_albedo`` — vv L11 structural independence)
+# The albedo table — condition → 𝒜 in J⁻ = 𝒜·J⁺ (the crosswalk BC-family
+# table hand-transcribed; production derives it through the realizers —
+# vv L11 structural independence)
 # ═══════════════════════════════════════════════════════════════════════
 
 
 @pytest.mark.foundation
 class TestAlbedoTable:
     @pytest.mark.parametrize(
-        ("law", "expected_albedo"),
+        ("declared", "expected_albedo"),
         [
-            pytest.param(VacuumInflow(), 0.0, id="vacuum->0"),
-            pytest.param(
-                ReflectiveBoundary(axis="x"), 1.0, id="reflective->1",
-            ),
-            pytest.param(
-                WhiteBoundary(axis="x", outward_sign=+1), 1.0,
-                id="white->1",
-            ),
-            pytest.param(
-                AlbedoBoundary(albedo=0.37), 0.37, id="albedo(0.37)",
-            ),
-            pytest.param(ZeroFluxBoundary(), -1.0, id="zero_flux->-1"),
-            pytest.param(
-                AlbedoBoundary(0.7, SpecularReturn(axis="x")), 0.7,
-                id="albedo-specular(0.7)",
-            ),
-            pytest.param(
-                WhiteBoundary(axis="x", outward_sign=+1, albedo=0.8),
-                0.8, id="white(0.8)",
-            ),
+            pytest.param(WallCondition.vacuum(), 0.0, id="vacuum->0"),
+            pytest.param(MirrorDeck(), 1.0, id="mirror->1"),
+            pytest.param(WallCondition.white(1.0), 1.0, id="white->1"),
+            pytest.param(WallCondition.white(0.37), 0.37, id="albedo(0.37)"),
+            pytest.param(ZeroFluxCondition(), -1.0, id="zero_flux->-1"),
+            pytest.param(WallCondition.specular(0.7), 0.7, id="specular(0.7)"),
+            pytest.param(WallCondition.white(0.8), 0.8, id="white(0.8)"),
         ],
     )
-    def test_realized_action_is_albedo_multiple(
-        self, realizer, minimal_ms, outflow_probe, law, expected_albedo,
-    ):
-        """``op.apply(J⁺) == 𝒜·J⁺`` exactly (a single scalar multiply
-        — bit-identical to the hand-computed product)."""
-        op = realizer.realize(law, minimal_ms)
-        np.testing.assert_array_equal(
-            op.apply(outflow_probe), expected_albedo * outflow_probe,
-        )
+    def test_realized_action_is_albedo_multiple(self, realize, outflow_probe, declared, expected_albedo):
+        """``op.apply(J⁺) == 𝒜·J⁺`` exactly (a single scalar multiply — bit-identical to the hand-computed product)."""
+        np.testing.assert_array_equal(realize(declared).apply(outflow_probe), expected_albedo * outflow_probe)
 
-    def test_white_coincides_with_reflective_at_p1(
-        self, realizer, minimal_ms, outflow_probe,
-    ):
-        """The documented P1 coincidence: specular vs Lambertian
-        return differ only in angular redistribution, which the
-        half-range ℓ=0 moments integrate out — identical realized
-        action for equal return amplitude α. The specular side is the wall
-        ``AlbedoBoundary(α, SpecularReturn)`` (the attenuated mirror
-        ``ReflectiveBoundary(axis, α)`` until the reflective cleanup)."""
-        specular = realizer.realize(
-            AlbedoBoundary(0.6, SpecularReturn(axis="x")), minimal_ms,
-        )
-        lambertian = realizer.realize(
-            WhiteBoundary(axis="x", outward_sign=+1, albedo=0.6),
-            minimal_ms,
-        )
+    def test_white_coincides_with_specular_at_p1(self, realize, outflow_probe):
+        """The documented P1 coincidence (the tier-2 witness): specular vs Lambertian return differ only in angular redistribution,
+        which the half-range ℓ=0 moments integrate out — identical realized action for equal return amplitude α."""
         np.testing.assert_array_equal(
-            specular.apply(outflow_probe), lambertian.apply(outflow_probe),
+            realize(WallCondition.specular(0.6)).apply(outflow_probe), realize(WallCondition.white(0.6)).apply(outflow_probe),
         )
 
     @pytest.mark.parametrize(
-        ("law", "expected_type"),
+        ("declared", "expected_type"),
         [
-            pytest.param(VacuumInflow(), ZeroOperator, id="vacuum->Zero"),
-            pytest.param(
-                AlbedoBoundary(albedo=0.0), ZeroOperator, id="albedo(0)->Zero",
-            ),
-            pytest.param(
-                ReflectiveBoundary(axis="x"), IdentityOperator,
-                id="reflective->Identity",
-            ),
-            pytest.param(
-                WhiteBoundary(axis="x", outward_sign=+1), IdentityOperator,
-                id="white->Identity",
-            ),
-            pytest.param(
-                AlbedoBoundary(albedo=1.0), IdentityOperator,
-                id="albedo(1)->Identity",
-            ),
+            pytest.param(WallCondition.vacuum(), ZeroOperator, id="vacuum->Zero"),
+            pytest.param(WallCondition.white(0.0), ZeroOperator, id="albedo(0)->Zero"),
+            pytest.param(MirrorDeck(), IdentityOperator, id="mirror->Identity"),
+            pytest.param(WallCondition.white(1.0), IdentityOperator, id="white->Identity"),
+            pytest.param(WallCondition.specular(1.0), IdentityOperator, id="specular(1)->Identity"),
         ],
     )
-    def test_structure_keyed_collapse(
-        self, realizer, minimal_ms, law, expected_type,
-    ):
-        """𝒜 ∈ {0, 1} collapses to the structural primitive (mirror of
-        the SN realizer's AlbedoBoundary branch)."""
-        assert isinstance(realizer.realize(law, minimal_ms), expected_type)
+    def test_structure_keyed_collapse(self, realize, declared, expected_type):
+        """𝒜 ∈ {0, 1} collapses to the structural primitive (mirror of the SN realizer's scalar branch)."""
+        assert isinstance(realize(declared), expected_type)
 
-    def test_every_realized_operator_is_boundary_block(
-        self, realizer, minimal_ms,
-    ):
-        """The A_ss stamp (#208 / Wave O): every realized law carries
-        ``BlockRole.BOUNDARY`` and satisfies the isinstance marker."""
-        laws = [
-            VacuumInflow(),
-            ReflectiveBoundary(axis="x"),
-            WhiteBoundary(axis="x", outward_sign=+1),
-            AlbedoBoundary(albedo=0.37),
-            ZeroFluxBoundary(),
-        ]
-        for law in laws:
-            op = realizer.realize(law, minimal_ms)
-            assert op.block_role is BlockRole.BOUNDARY, type(law).__name__
-            assert isinstance(op, BoundaryOperator), type(law).__name__
+    def test_every_realized_operator_is_boundary_block(self, realize):
+        """The A_ss stamp (#208 / Wave O): every realized condition carries ``BlockRole.BOUNDARY`` and satisfies the isinstance marker."""
+        for declared in (WallCondition.vacuum(), MirrorDeck(), WallCondition.white(1.0), WallCondition.white(0.37), ZeroFluxCondition()):
+            op = realize(declared)
+            assert op.block_role is BlockRole.BOUNDARY, type(declared).__name__
+            assert isinstance(op, BoundaryOperator), type(declared).__name__
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Ruling-3 semantics — the honest-naming laws mean what they say
+# Ruling-3 semantics — the honest-naming conditions mean what they say
 # ═══════════════════════════════════════════════════════════════════════
 
 
 @pytest.mark.l0
 class TestRulingThreeSemantics:
-    def test_vacuum_means_zero_incoming_current(
-        self, realizer, minimal_ms, outflow_probe,
-    ):
-        """Vacuum IS the Marshak condition: J⁻ = 0 exactly, whatever
-        leaks out (#290 ruling 3 — NOT the zero-flux Dirichlet the
+    def test_vacuum_means_zero_incoming_current(self, realize, outflow_probe):
+        """Vacuum IS the Marshak condition: J⁻ = 0 exactly, whatever leaks out (#290 ruling 3 — NOT the zero-flux Dirichlet the
         legacy island mis-registered under this name)."""
-        inflow = realizer.realize(VacuumInflow(), minimal_ms).apply(
-            outflow_probe,
-        )
+        inflow = realize(WallCondition.vacuum()).apply(outflow_probe)
         np.testing.assert_array_equal(inflow, np.zeros_like(outflow_probe))
 
-    def test_zero_flux_means_zero_boundary_scalar_flux(
-        self, realizer, minimal_ms, outflow_probe,
-    ):
-        """Zero-flux delivers its defining property under the P1
-        dictionary: φ_Γ = 2(J⁺ + J⁻) = 0 EXACTLY (𝒜 = −1 ⟹
-        J⁻ = −J⁺ ⟹ the pair sums to zero bit-exactly)."""
-        inflow = realizer.realize(ZeroFluxBoundary(), minimal_ms).apply(
-            outflow_probe,
-        )
+    def test_zero_flux_means_zero_boundary_scalar_flux(self, realize, outflow_probe):
+        """Zero-flux delivers its defining property under the P1 dictionary: φ_Γ = 2(J⁺ + J⁻) = 0 EXACTLY (𝒜 = −1 ⟹ J⁻ = −J⁺ ⟹ the
+        pair sums to zero bit-exactly)."""
+        inflow = realize(ZeroFluxCondition()).apply(outflow_probe)
         boundary_scalar_flux = 2.0 * (outflow_probe + inflow)
-        np.testing.assert_array_equal(
-            boundary_scalar_flux, np.zeros_like(outflow_probe),
-        )
+        np.testing.assert_array_equal(boundary_scalar_flux, np.zeros_like(outflow_probe))
 
-    def test_reflective_means_zero_net_current(
-        self, realizer, minimal_ms, outflow_probe,
-    ):
-        """Reflective: J = J⁺ − J⁻ = 0 exactly (perfect return)."""
-        inflow = realizer.realize(
-            ReflectiveBoundary(axis="x"), minimal_ms,
-        ).apply(outflow_probe)
-        net_current = outflow_probe - inflow
-        np.testing.assert_array_equal(
-            net_current, np.zeros_like(outflow_probe),
-        )
+    def test_a_mirror_means_zero_net_current(self, realize, outflow_probe):
+        """A mirror: J = J⁺ − J⁻ = 0 exactly (perfect return)."""
+        inflow = realize(MirrorDeck()).apply(outflow_probe)
+        np.testing.assert_array_equal(outflow_probe - inflow, np.zeros_like(outflow_probe))
 
-    def test_positivity_is_a_physical_law_property(
-        self, realizer, minimal_ms, outflow_probe,
-    ):
-        """J⁻ ≥ 0 for every PHYSICAL law (𝒜 ∈ [0, 1]) given J⁺ ≥ 0;
-        zero-flux (𝒜 = −1) deliberately violates it — positivity is a
-        property of the physical sub-family, not a type invariant
-        (crosswalk BC-family table)."""
-        physical = [
-            VacuumInflow(),
-            ReflectiveBoundary(axis="x"),
-            WhiteBoundary(axis="x", outward_sign=+1),
-            AlbedoBoundary(albedo=0.37),
-        ]
-        for law in physical:
-            inflow = realizer.realize(law, minimal_ms).apply(outflow_probe)
-            assert np.all(inflow >= 0.0), type(law).__name__
-        dirichlet_inflow = realizer.realize(
-            ZeroFluxBoundary(), minimal_ms,
-        ).apply(outflow_probe)
-        assert np.all(dirichlet_inflow < 0.0)
+    def test_positivity_is_a_physical_property(self, realize, outflow_probe):
+        """J⁻ ≥ 0 for every PHYSICAL condition (𝒜 ∈ [0, 1]) given J⁺ ≥ 0; zero-flux (𝒜 = −1) deliberately violates it — positivity is
+        a property of the physical sub-family, not a type invariant (crosswalk BC-family table)."""
+        for declared in (WallCondition.vacuum(), MirrorDeck(), WallCondition.white(1.0), WallCondition.white(0.37)):
+            assert np.all(realize(declared).apply(outflow_probe) >= 0.0), type(declared).__name__
+        assert np.all(realize(ZeroFluxCondition()).apply(outflow_probe) < 0.0)
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Refusals — the laws that are NOT a per-face rank-1 albedo
+# Refusals — the declarations that are NOT a per-face rank-1 albedo
 # ═══════════════════════════════════════════════════════════════════════
 
 
 @pytest.mark.foundation
 class TestRefusals:
-    def test_periodic_refused(self, realizer, minimal_ms):
-        """Periodic couples a face to its OPPOSITE face — a
-        trace-block permutation, not a per-face albedo. Refused
-        loudly rather than realized as the wrong (identity) thing."""
-        with pytest.raises(BoundaryError, match="OPPOSITE face"):
-            realizer.realize(PeriodicBoundary(), minimal_ms)
+    def test_a_translation_deck_is_refused(self, realize):
+        """A translation deck couples a face to its OPPOSITE face — a trace-block permutation, not a per-face albedo. Refused
+        loudly (``TOPOLOGY``) rather than realized as the wrong (identity) thing."""
+        with pytest.raises(BoundaryRefused, match="opposite face") as info:
+            realize(TranslationDeck())
+        assert info.value.admission.axis is RefusalAxis.TOPOLOGY
 
-    def test_prescribed_inflow_refused(self, realizer, minimal_ms):
-        """Prescribed inflow is the rank-0 AFFINE law — a boundary
-        SOURCE, not a linear boundary operator B (the same
-        operator/source split SN keeps un-stamped)."""
-        with pytest.raises(BoundaryError, match="AFFINE"):
-            realizer.realize(PrescribedInflow(), minimal_ms)
+    def test_a_source_is_refused(self, realize):
+        """A boundary source is the AFFINE part of the trace map — a boundary SOURCE, not a linear boundary operator B (the same
+        operator/source split SN keeps). Refused as plumbing, #656."""
+        with pytest.raises(BoundaryRefused) as info:
+            realize(WallCondition.uniform(1.0))
+        assert info.value.admission.axis is RefusalAxis.PLUMBING and info.value.admission.issue == 656
 
-    def test_unknown_law_type_refused_with_case_list(
-        self, realizer, minimal_ms,
-    ):
-        """A law outside the dispatch table names itself and the
-        realizable cases (mirror of the SN fallthrough contract).
+    def test_a_non_declaration_is_refused_at_the_door(self, minimal_ms):
+        """What the "unknown law type" leg of the law ladder pinned (mirror of the SN fallthrough contract): an object that is not a
+        deck, a condition or an inflow is a ``TypeError`` at the table's door, naming what it takes, before any realizer runs."""
 
-        This leg is what caught the B2.2 regression: collapsing the
-        ``isinstance`` ladder onto ``law.response_kernel.amplitude``
-        deleted the ladder's final fallthrough ``raise``, so this
-        object stopped getting a named :class:`BoundaryError` and
-        started dying on a bare ``AttributeError`` deep in a factor
-        read. **A collapsed dispatch ladder loses its last arm
-        silently** — the guard is restored as a ``not isinstance(law,
-        BoundaryTraceLaw)`` check (a ``response_kernel is None`` check until
-        2026-10-01), placed first because everything after it dereferences
-        a factor.
-        """
-
-        class _NotALaw:
+        class _NotACondition:
             pass
 
-        with pytest.raises(BoundaryError, match="_NotALaw"):
-            realizer.realize(_NotALaw(), minimal_ms)  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match="DeckTransformation, a BoundaryCondition or an InflowTerms"):
+            DIFFUSION_REALIZERS.realize(_NotACondition(), _SITE, minimal_ms)  # type: ignore[arg-type]
 
-    def test_law_with_unpopulated_factors_refused(self, realizer, minimal_ms):
-        """The shape the restored guard covered until 2026-10-01, and the
-        likelier one: a :class:`BoundaryTraceLaw` subclass shipping without
-        its factors. The ABC then defaulted both to ``None``, and diffusion
-        refused such a law by name before dereferencing ``None.amplitude``.
+    def test_a_condition_without_its_accessors_cannot_be_constructed(self):
+        """The successor of the "unpopulated factors" leg: a :class:`BoundaryCondition` subclass shipping without its three
+        accessors (``return_fraction``, ``source``, ``face_local``) is abstract, so it is refused at construction by name and no
+        table is ever reached."""
 
-        Both factors are abstract now, so the law is refused one step
-        earlier, at construction, by name; the realizer is never reached.
-        The construction witness for each factor is
-        ``tests/gates/geometry/test_boundary_trace_law.py::test_a_law_that_omits_a_factor_cannot_be_constructed``.
-        """
-        from orpheus.geometry.boundary import BoundaryTraceLaw
-
-        class _LawWithoutFactors(BoundaryTraceLaw):
+        class _ConditionWithoutAccessors(BoundaryCondition):
             pass
 
-        with pytest.raises(TypeError, match="_LawWithoutFactors"):
-            realizer.realize(_LawWithoutFactors(), minimal_ms)
+        with pytest.raises(TypeError, match="_ConditionWithoutAccessors"):
+            _ConditionWithoutAccessors()  # type: ignore[abstract]
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Rank-N composition — the walker generalized over leaf realizers
+# The sum of a mixed wall — the functor on the response network
 # ═══════════════════════════════════════════════════════════════════════
 
 
 @pytest.mark.foundation
 class TestComposition:
-    def test_law_sum_realizes_to_operator_sum_action(
-        self, realizer, minimal_ms, outflow_probe,
-    ):
-        """A Marshak-style mix realizes leaf-by-leaf through the
-        diffusion realizer: (0.3·perfect specular wall + 0.7·albedo(0.5))
-        acts as the same weighted sum of realized leaf actions. The
-        specular leaf is the wall ``AlbedoBoundary(1, SpecularReturn)``: the
-        mirror ``ReflectiveBoundary`` is a symmetry and cannot be scaled or
-        mixed (refused at construction since the reflective cleanup,
-        ``tests/gates/geometry/test_deck_laws_do_not_compose.py``)."""
-        tree = (
-            0.3 * AlbedoBoundary(1.0, SpecularReturn(axis="x"))
-            + 0.7 * AlbedoBoundary(albedo=0.5)
-        )
-        composed = realize_recursively(tree, minimal_ms, realizer=realizer)
-        expected = 0.3 * outflow_probe + 0.7 * (0.5 * outflow_probe)
-        np.testing.assert_array_equal(composed.apply(outflow_probe), expected)
+    def test_a_mixed_wall_realizes_to_the_sum_of_the_scalars_action(self, realize, outflow_probe):
+        """A Marshak-style mix realizes chain by chain: 0.3·specular + 0.5·white acts as the sum of the two realized chain actions,
+        𝒜 = 0.3 + 0.5 (the functor, plan law L-L; its own gate pins the order and the single-chain images bit for bit)."""
+        mixed = realize(WallCondition.from_amplitudes(0.3, 0.5)).apply(outflow_probe)
+        np.testing.assert_array_almost_equal_nulp(mixed, 0.3 * outflow_probe + 0.5 * outflow_probe, nulp=2)
 
-    def test_scaled_zero_flux_leaf(
-        self, realizer, minimal_ms, outflow_probe,
-    ):
-        """A LawScaled root over the new law: 0.5·zero_flux acts as
-        0.5·(−J⁺)."""
-        composed = realize_recursively(
-            0.5 * ZeroFluxBoundary(), minimal_ms, realizer=realizer,
-        )
-        np.testing.assert_array_equal(
-            composed.apply(outflow_probe),
-            0.5 * (-1.0 * outflow_probe),
-        )
-
-    def test_composition_refusal_propagates(self, realizer, minimal_ms):
-        """A refused leaf inside a composition tree refuses the whole
-        realization — no silent partial tree.
-
-        The refused leaf is prescribed inflow (the rank-0 AFFINE law). It
-        was the periodic deck until the reflective cleanup, after which a
-        deck law cannot enter a composition at all (refused at
-        construction, ``tests/gates/geometry/test_deck_laws_do_not_compose.py``);
-        periodic's realizer refusal keeps its direct witness,
-        :meth:`TestRefusals.test_periodic_refused`."""
-        tree = 0.5 * PrescribedInflow() + 0.5 * VacuumInflow()
-        with pytest.raises(BoundaryError, match="rank-0 AFFINE"):
-            realize_recursively(tree, minimal_ms, realizer=realizer)
+    def test_a_scaled_zero_flux_does_not_exist(self):
+        """The ``0.5 * ZeroFluxBoundary()`` leaf of the old walker is unspellable: a method-only condition defines no arithmetic
+        (law L-F), so the scaled Dirichlet condition is Python's own ``TypeError``."""
+        with pytest.raises(TypeError):
+            0.5 * ZeroFluxCondition()  # type: ignore[operator]
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -416,7 +249,7 @@ class TestComposition:
 class TestDiffusionMethodSpace:
     @staticmethod
     def _mesh() -> DiffusionMesh:
-        geometry = StructuredGeometry.from_homogeneous(10.0, BC.reflective)
+        geometry = StructuredGeometry.from_homogeneous(10.0, MirrorDeck())
         mesh1d = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
         return DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")})
 

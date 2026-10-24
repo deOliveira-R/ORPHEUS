@@ -579,14 +579,16 @@ def test_module_imports_nothing_from_scattering_or_frames():
 def _diffusion_binding():
     """The 2g / 6-cell diffusion binding the arm matrix is measured on."""
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
+    from orpheus.geometry.deck import MirrorDeck
     from orpheus.mesh import CellsByCount, Mesher
+    from orpheus.transport.boundary_conditions import WallCondition
 
     geometry = StructuredGeometry.slab(
-        (0.0, 2.0), (0,), left=BC("reflective"), right=BC("vacuum"),
+        (0.0, 2.0), (0,), left=MirrorDeck(), right=0,
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(6)).mesh
-    dm = DiffusionMesh(mesh, {0: get_mixture("A", "2g")})
+    dm = DiffusionMesh(mesh, {0: get_mixture("A", "2g")}, boundary_conditions={0: WallCondition.vacuum()})
     return dm, dm.mat_xs, dm.full_field_space
 
 
@@ -813,16 +815,18 @@ def test_isotropic_energy_inherits_the_parent_binding_space():
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.problem import SNProblem
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
+    from orpheus.transport.boundary_conditions import WallCondition
     from orpheus.transport.operators.scattering import ScatteringOperator
 
     carrier = unit_cell_carrier({0: get_mixture("A", "2g")})
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, BC("vacuum"))).partition(
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(4),
     ).mesh
     problem = SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4), carrier.materials,
+        boundary_conditions={0: WallCondition.vacuum()},
     )
     space = problem.full_field_space
     scattering = ScatteringOperator.from_solver_data(
@@ -871,10 +875,12 @@ def test_energy_conformity_guard_three_rows():
        ships certified by a fixture family that reddens on demand while
        the axes-less real bindings never touch it.
     """
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
+    from orpheus.geometry.deck import MirrorDeck
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.problem import SNProblem
+    from orpheus.transport.boundary_conditions import WallCondition
 
     carrier_2g = unit_cell_carrier({0: get_mixture("A", "2g")})
     carrier_4g = unit_cell_carrier({0: get_mixture("A", "4g")})
@@ -930,12 +936,13 @@ def test_energy_conformity_guard_three_rows():
     # composite alone could never let it see. The inertness this row
     # used to record is CLOSED, not merely relocated.
     geometry = StructuredGeometry.slab(
-        (0.0, 2.0), (0,), left=BC("reflective"), right=BC("vacuum"),
+        (0.0, 2.0), (0,), left=MirrorDeck(), right=0,
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
     sn_2g = SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4),
         {0: get_mixture("A", "2g")},
+        boundary_conditions={0: WallCondition.vacuum()},
     )
     composite = sn_2g.full_field_space
     assert composite.axes is None  # still true — the reach is the interior's

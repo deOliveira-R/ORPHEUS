@@ -24,7 +24,28 @@ from typing import Any
 from orpheus.geometry.deck import DeckTransformation
 from orpheus.mesh.axis import roles_of_axes
 
-__all__ = ["conditions_for", "tags_of_carrier"]
+__all__ = ["conditions_for", "declare_sides", "tags_of_carrier"]
+
+
+def declare_sides(*sides: Any) -> tuple[tuple[Any, ...], dict[int, Any]]:
+    """The roles and the ``{tag: condition}`` of faces declared by VALUE, in face order (rule R1, a slab's ``left, right``).
+
+    A side is a deck (``MirrorDeck()``, ``TranslationDeck()``: it is its own role and needs no condition) or a condition (a tag is
+    minted for it). Sides holding EQUAL conditions share one tag, numbered ``0, 1, ...`` in face order, exactly as the codemod
+    numbers them. Returns ``(roles, conditions)``; a deck-only declaration has ``conditions == {}``.
+    """
+    roles: list[Any] = []
+    conditions: dict[int, Any] = {}
+    for side in sides:
+        if isinstance(side, DeckTransformation):
+            roles.append(side)
+            continue
+        tag = next((t for t, held in conditions.items() if held == side), None)
+        if tag is None:
+            tag = len(conditions)
+            conditions[tag] = side
+        roles.append(tag)
+    return tuple(roles), conditions
 
 
 def tags_of_carrier(carrier: Any) -> tuple[int, ...]:

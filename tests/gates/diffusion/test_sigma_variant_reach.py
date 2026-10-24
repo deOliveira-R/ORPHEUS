@@ -20,10 +20,15 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.diffusion import DiffusionMesh, solve_diffusion_1d
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellsByCount, Mesher
 
 pytestmark = pytest.mark.foundation
+
+#: Tag 0 is the vacuum wall (rule R1); the other face is a mirror deck.
+_CONDITIONS = {0: WallCondition.vacuum()}
 
 
 def _require(cond: object, msg: str) -> None:
@@ -42,9 +47,9 @@ def _keff(hub: DiffusionMesh) -> float:
 
 def test_a_sigma_variant_hub_reaches_the_diffusion_removal_term() -> None:
     mats = {0: get_mixture("A", "2g")}
-    geometry = StructuredGeometry.slab((0.0, 4.0), (0,), left=BC("reflective"), right=BC("vacuum"))
+    geometry = StructuredGeometry.slab((0.0, 4.0), (0,), left=MirrorDeck(), right=0)
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(8)).mesh
-    hub = DiffusionMesh(mesh, mats)
+    hub = DiffusionMesh(mesh, mats, boundary_conditions=_CONDITIONS)
     hub_b = hub.with_cross_sections(3.0 * hub.sigma_t_cell)
     _require(hub_b != hub and hub_b.same_phase_space(hub), "a σ-variant: another Problem, the same phase space")
     _require(np.array_equal(hub_b.mat_xs.total_cross_section, 3.0 * hub.mat_xs.total_cross_section),
@@ -58,6 +63,6 @@ def test_a_sigma_variant_hub_reaches_the_diffusion_removal_term() -> None:
     _require(np.array_equal(D, np.asarray(mats[0].diffusion_coefficient, dtype=float).reshape(-1, 1) * np.ones_like(D)),
              "bit-identical to the material's own D on a non-overridden hub")
     k, k_b = _keff(hub), _keff(hub_b)
-    _require(abs(k - float(solve_diffusion_1d(mats, mesh).keff)) < 1e-9,
+    _require(abs(k - float(solve_diffusion_1d(mats, mesh, boundary_conditions=_CONDITIONS).keff)) < 1e-9,
              "the hub-driven solve reproduces the raw-data entry (the fixture is honest)")
     _require(abs(k_b - k) / abs(k) > 1e-2, f"the σ-variant must move the diffusion keff (k={k:.6f}, k_b={k_b:.6f})")

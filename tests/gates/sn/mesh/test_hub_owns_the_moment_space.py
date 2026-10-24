@@ -113,7 +113,8 @@ def test_g2_4c_a_carrier_that_owns_no_angular_bulk_space_is_refused_by_name():
     """
     from orpheus.derivations.common.xs_library import get_mixture
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
+    from orpheus.geometry.deck import MirrorDeck
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.problem import SNProblem
@@ -122,7 +123,7 @@ def test_g2_4c_a_carrier_that_owns_no_angular_bulk_space_is_refused_by_name():
     from orpheus.transport.fields import AngularSourceSink
 
     mm = MaterialMesh(
-        Mesher(StructuredGeometry.from_homogeneous(10.0, BC("reflective")))
+        Mesher(StructuredGeometry.from_homogeneous(10.0, MirrorDeck()))
         .partition(CellsByCount.uniform_width(4)).mesh,
         {0: get_mixture("A", "2g")},
     )
@@ -145,7 +146,9 @@ def _windowed_driver(max_inner: int):
     """ONE 2-D Cartesian windowed SI solve (the probe fixture the pre-carve
     counts were measured on): level_symmetric(4), 4×3 cells, ng=2, L=1,
     Jacobi schedule. Returns the Solution."""
-    from orpheus.geometry import BC, CoordSystem
+    from orpheus.geometry import CoordSystem
+    from orpheus.geometry.deck import MirrorDeck
+    from orpheus.transport.boundary_conditions import WallCondition
     from orpheus.mesh import Mesh2D
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.solver import solve_sn_fixed_source
@@ -157,11 +160,11 @@ def _windowed_driver(max_inner: int):
         edges_y=np.array([0.0, 0.2, 0.5, 1.4]),
         mat_map=mat_map,
         coord=CoordSystem.CARTESIAN,
-        face_laws={
-            "xmin": BC("reflective"),
-            "xmax": BC("vacuum"),
-            "ymin": BC("reflective"),
-            "ymax": BC("vacuum"),
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": 0,
+            "ymin": MirrorDeck(),
+            "ymax": 0,
         },
     )
     with warnings.catch_warnings():
@@ -169,7 +172,7 @@ def _windowed_driver(max_inner: int):
         return solve_sn_fixed_source(
             _two_region_fissile(), mesh, Quadrature.level_symmetric(sn_order=4),
             np.ones((24, 2, 4, 3)), scattering_order=1, inner_tol=1e-14,
-            max_inner=max_inner, inner_schedule="jacobi",
+            max_inner=max_inner, inner_schedule="jacobi", boundary_conditions={0: WallCondition.vacuum()},
         )
 
 

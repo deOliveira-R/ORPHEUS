@@ -74,6 +74,22 @@ V&V tags
 operator construction and factor typing, with no theory-page ``:label:`` to
 point at. No ``verifies(...)`` — stacking it on a foundation test is silent level
 conflation.
+
+RETIRED LEGS (wave 2, slice S3; the demotion check of each). The consumers these legs drove, ``SNBoundaryRealizer`` (S2b) and
+``DiffusionBoundaryRealizer`` (S3), are retired, and so is the closure argument (the wall is ``WallCondition.specular(a)`` or
+``.white(a)``, one type, no ``ReemissionClosure``). What each of the 16 legs claimed lives here now:
+
+* the ≡ theorems (``TestEquivalenceTheorems``, 3 legs): the two spellings are ONE value (``specular(0)``, ``white(0)`` and
+  ``vacuum()`` are equal, one digest: ``tests/gates/transport/test_wall_condition.py``), so the theorem is an identity of the type;
+* the independent expressions (``TestSpecularAgainstAnIndependentExpression``, ``TestDiffuseAgainstAnIndependentExpression``, 3 legs):
+  the hand-computed mirror gather, unit and partial, bit-exact, is ``tests/gates/sn/operators/test_sn_boundary_realizer.py``; the
+  cosine-weighted average and the isotropy of the image are ``tests/gates/sn/operators/test_lambertian_chain.py``;
+* the bare-albedo refusals and the misdeclared axis (``TestBareAlbedoIsRefusedBySN``, ``TestBothClosuresRefuseAMisdeclaredAxis...``,
+  6 legs): unspellable, the wall has neither a bare albedo nor an axis;
+* diffusion unmoved and closure-blind (``TestDiffusionIsUnmovedAndClosureBlind``, 2 legs): ``test_diffusion_vacuum_is_tier_1``
+  and the albedo table of ``tests/gates/diffusion/test_boundary_realizer.py`` (a closure is not an argument of the wall);
+* the zero amplitude (``TestZeroAmplitudeRealizesTheNarrowedZeroMap``, 2 legs): ``ZeroMap`` of
+  ``tests/gates/sn/architecture/test_realized_boundary.py``.
 """
 from __future__ import annotations
 
@@ -82,11 +98,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from orpheus.diffusion.boundary_realizer import DiffusionBoundaryRealizer
-from orpheus.diffusion.method_space import DiffusionMethodSpace
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
-    BoundaryError,
     BoundaryTraceLaw,
     ConstantInflowSource,
     SelfPairedDeck,
@@ -103,11 +116,8 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
     ZeroFluxBoundary,
 )
-from orpheus.numerics.operator import ZeroMorphism, ZeroOperator
-from orpheus.numerics.operator import IdentityOperator, OperatorSum, adjointable
+from orpheus.numerics.operator import IdentityOperator, ZeroOperator
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.spaces.angular_trace_space import build_omega_dot_n
-from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from tests._harness.references import mirror_partner_indices
 from tests.gates.sn._test_helpers import face_method_space
 
@@ -189,161 +199,6 @@ def _sorted_half_traces(space) -> tuple[np.ndarray, np.ndarray]:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.parametrize("fixture", _FIXTURES, ids=[f[0] for f in _FIXTURES])
-@pytest.mark.parametrize("alpha", _ALPHAS)
-class TestEquivalenceTheorems:
-    r"""``albedo(α, closure) ≡`` its geometry-tier sibling, as realized operators.
-
-    The specular sibling is the mirror scaled by α (the mirror is a symmetry
-    and has no amplitude); the isotropic sibling is ``WhiteBoundary`` at α.
-
-    **Tolerance: ``np.array_equal``, and the choice is structural.** Both routes
-    reach ONE construction body with identical arguments, so the two operators
-    hold the same permutation / kernel data and their ``apply`` executes the
-    identical reduction tree. The predicted FP drift is EXACTLY zero
-    (``vv-principles`` §bit-identity criterion 3: the bound is
-    ``reduction_depth × ULP`` and the reduction-depth *difference* is 0). A
-    non-zero drift means the routes did NOT execute the same body — precisely the
-    bug this gate exists to catch — so ``assert_allclose`` at any rtol would
-    admit the failure mode it is supposed to detect.
-
-    **What this class canNOT catch.** A bug inside the shared body moves both
-    sides identically. MEASURED: writing the ``to_local`` remap as a bare
-    ``arange`` leaves every row here GREEN while the operator is wrong on three
-    of five quadratures. The catchers are
-    :class:`TestSpecularAgainstAnIndependentExpression` and
-    :class:`TestDiffuseAgainstAnIndependentExpression`.
-    """
-
-    def test_specular_closure_equals_reflective(self, fixture, alpha) -> None:
-        """T1 — forward action, bit-identical: the specular wall at albedo α
-        is α times the mirror.
-
-        The mirror :class:`ReflectiveBoundary` is a symmetry and has no
-        amplitude, so the wall's sibling is the mirror scaled by α, applied
-        here to the mirror's OUTPUT (one multiplication per element, the
-        same one the wall's one-term ``α·(K_ω ⊗ I)`` combination performs, hence
-        ``array_equal``). At α = 1 the row compares the perfect wall with the
-        mirror (equal matrices, different laws); at α = 0 the wall is the
-        narrowed zero map; at 0.3 it is the attenuated kernel. Until the
-        reflective cleanup the right side was the attenuated mirror
-        ``ReflectiveBoundary(axis, α)``, which no longer exists; the node id
-        is kept because the deck-law gates rest on it.
-        """
-        _id, _q, _face, axis, _sign, _faces = fixture
-        quad, space = _space(fixture)
-        x = _probe(space)
-        realizer = SNBoundaryRealizer()
-        got = realizer.realize(
-            AlbedoBoundary(alpha, SpecularReturn(axis=axis)), space,
-        ).apply(x)
-        mirror = realizer.realize(ReflectiveBoundary(axis=axis), space).apply(x)
-        want = alpha * mirror
-        np.testing.assert_array_equal(
-            got, want,
-            err_msg=(
-                f"{_id} α={alpha}: albedo(α, SpecularReturn) must realize to "
-                f"α times the mirror reflective(axis) — they reach one deck "
-                f"kernel, so any difference is an ARGUMENT drift (wrong axis "
-                f"/ dropped or doubled α / wrong law_key)."
-            ),
-        )
-        if not np.count_nonzero(mirror):
-            pytest.fail(f"{_id}: the mirror's action is zero; the row is vacuous.")
-        if alpha == 0.0:
-            # α=0 is the zero map BY DESIGN; the non-vacuity leg below would
-            # be false for the right reason, so assert the design instead.
-            assert not np.any(want), "α=0 must be the zero map"
-        else:
-            assert np.count_nonzero(want), (
-                f"{_id} α={alpha}: the comparison is 0 == 0 and proves nothing."
-            )
-
-    def test_isotropic_closure_equals_white(self, fixture, alpha) -> None:
-        """T2 — forward action, bit-identical."""
-        _id, _q, _face, axis, sign, _faces = fixture
-        quad, space = _space(fixture)
-        x = _probe(space)
-        realizer = SNBoundaryRealizer()
-        got = realizer.realize(
-            AlbedoBoundary(alpha, IsotropicReturn(axis=axis, outward_sign=sign)),
-            space,
-        ).apply(x)
-        want = realizer.realize(
-            WhiteBoundary(axis=axis, outward_sign=sign, albedo=alpha), space,
-        ).apply(x)
-        np.testing.assert_array_equal(got, want, err_msg=f"{_id} α={alpha}")
-        if alpha == 0.0:
-            assert not np.any(want), "α=0 must be the zero map"
-        else:
-            assert np.count_nonzero(want), f"{_id} α={alpha}: vacuous"
-
-    @pytest.mark.parametrize("closure_kind", ["specular", "isotropic"])
-    def test_the_two_routes_agree_on_adjointability_and_on_the_transpose(
-        self, fixture, alpha, closure_kind,
-    ) -> None:
-        r"""The capability set and the transpose action agree, both routes.
-
-        The capability leg is separate from the value leg on purpose: a dropped
-        ``CAP_APPLY_TRANSPOSE`` is SILENT at the value level (nothing raises
-        until a consumer asks), and it gates the whole composite through
-        :attr:`SNBoundaryOperator.is_adjointable`. So the claim is
-        ``adjointable(a) == adjointable(b)`` — an EQUALITY, not ``is True``.
-
-        ⚠ **Corrected 2026-08-06 — the equality is right, its old reason was
-        not.** This docstring justified the equality with "MEASURED, the diffuse
-        route is honestly NOT adjointable at α ∉ {0}
-        (``LambertianReemission.is_adjointable`` is ``False`` until B5 types it
-        as the rank-one it is)". `[M]` today
-        ``LambertianReemission(α).is_adjointable`` is ``True`` at
-        α ∈ {0, 0.3, 0.7, 1.0} — B3.4b typed it. Two things follow, and the
-        second is why a stale rationale is worse than a stale sentence:
-
-        * the EQUALITY stays, on its own merits. This row's subject is that the
-          two ROUTES agree, not that either is adjointable; pinning ``is True``
-          would convert it into a claim about the law family and would red for
-          the right reason on a future law that legitimately has no transpose.
-        * the early return below (``if not adjointable(a_op): return``) **no
-          longer fires for any parametrised case**, so the value leg went live
-          across the whole grid the day B3.4b landed — silently, with nobody
-          re-measuring what it now compares. It is kept as a guard for that
-          future law, not because anything shipped reaches it.
-        """
-        _id, _q, _face, axis, sign, _faces = fixture
-        quad, space = _space(fixture)
-        realizer = SNBoundaryRealizer()
-        # The specular sibling is the mirror, which has no amplitude: its
-        # transpose is scaled by α below (the wall is α times the mirror).
-        if closure_kind == "specular":
-            a_law = AlbedoBoundary(alpha, SpecularReturn(axis=axis))
-            b_law = ReflectiveBoundary(axis=axis)
-            b_scale = alpha
-        else:
-            a_law = AlbedoBoundary(
-                alpha, IsotropicReturn(axis=axis, outward_sign=sign),
-            )
-            b_law = WhiteBoundary(axis=axis, outward_sign=sign, albedo=alpha)
-            b_scale = 1.0
-        a_op = realizer.realize(a_law, space)
-        b_op = realizer.realize(b_law, space)
-        assert adjointable(a_op) == adjointable(b_op), (
-            f"{_id} α={alpha} {closure_kind}: the two routes disagree on "
-            f"adjointability ({adjointable(a_op)} vs {adjointable(b_op)}) — a "
-            f"capability drop is silent at the value level and gates the whole "
-            f"SNBoundaryOperator composite."
-        )
-        if not adjointable(a_op):
-            return
-        rng = np.random.default_rng(7)
-        y = rng.normal(size=(int(space.inflow_indices.size), 4, 2))
-        got, want = a_op.apply_transpose(y), b_scale * b_op.apply_transpose(y)
-        assert got.shape == (int(space.outflow_indices.size), 4, 2), (
-            f"{_id}: the transpose lands on Γ₊, so it must emit "
-            f"{space.outflow_indices.size} rows; got {got.shape[0]}."
-        )
-        np.testing.assert_array_equal(got, want, err_msg=f"{_id} α={alpha}ᵀ")
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # 2. The independent-expression anchors — the actual catchers
 # ═══════════════════════════════════════════════════════════════════════
@@ -374,32 +229,6 @@ class TestSpecularAgainstAnIndependentExpression:
     predicted drift is 0 ULP.
     """
 
-    def test_matches_the_hand_written_mirror_gather(self, fixture, alpha) -> None:
-        _id, _q, _face, axis, _sign, _faces = fixture
-        quad, space = _space(fixture)
-        inflow, outflow = _sorted_half_traces(space)
-        x = _probe(space)
-
-        perm = mirror_partner_indices(quad, axis)
-        full = np.zeros((int(quad.n_ordinates),) + x.shape[1:], dtype=x.dtype)
-        full[outflow] = x
-        expected = alpha * full[perm[inflow]]
-
-        got = SNBoundaryRealizer().realize(
-            AlbedoBoundary(alpha, SpecularReturn(axis=axis)), space,
-        ).apply(x)
-        np.testing.assert_array_equal(
-            got, expected,
-            err_msg=(
-                f"{_id} α={alpha}: the realized specular closure disagrees "
-                f"with the hand-written mirror gather. This reference imports "
-                f"nothing from the realizer, so a mismatch is a real defect in "
-                f"the shared _deck_kernel body (which the ≡ theorem cannot "
-                f"see)."
-            ),
-        )
-        if alpha != 0.0:
-            assert np.count_nonzero(expected), f"{_id}: vacuous comparison"
 
     def test_the_local_remap_is_not_the_identity_where_it_matters(
         self, fixture, alpha,
@@ -431,87 +260,6 @@ class TestSpecularAgainstAnIndependentExpression:
                 f"{_id} was a documented BLIND control and now discriminates — "
                 f"harmless, but the header table is stale."
             )
-
-
-@pytest.mark.parametrize("fixture", _FIXTURES, ids=[f[0] for f in _FIXTURES])
-@pytest.mark.parametrize("alpha", _ALPHAS)
-class TestDiffuseAgainstAnIndependentExpression:
-    r"""``albedo(α, IsotropicReturn(a, s))`` vs a hand-written Lambertian average.
-
-    Reference: contract the :math:`\Gamma_+` rows against
-    :math:`w\,|\Omega\cdot\hat n|`, divide by that weight's own sum over
-    :math:`\Gamma_+`, broadcast over :math:`\Gamma_-`, scale by α. That
-    normalisation — total returned current = α × incident current, NOT the
-    textbook :math:`1/\pi` — is the convention
-    ``AngularAverageOperator`` implements and
-    :class:`~orpheus.geometry.boundary.WhiteBoundary` documents.
-
-    **Tolerance ``rtol=1e-14``, and it is the BOUND rather than a rounded-up
-    measurement.** Production computes ``(cos_w[:,None,…] * psi).sum(axis=0)``;
-    the reference computes ``np.tensordot(cos_w, psi, axes=(0,0))``. Same value,
-    different reduction ORDER, so the bound is ``|Γ₊| × ULP`` — on
-    ``lebedev(17)`` that is ``49 × 2.2e-16 ≈ 1.1e-14``. MEASURED max relative
-    error: 5.1e-16 (gl4), 7.1e-16 (product24), 2.4e-16 (ls6), 3.2e-15
-    (lebedev17) — inside the bound, largest on the deepest reduction, which is
-    the predicted shape.
-
-    **Fixture discipline (MEASURED).** ``product(2,4)`` is the ONLY fixture that
-    discriminates the B3.4a classification twin (``> 0.0`` instead of
-    ``> TANGENTIAL_EPS`` — it mis-admits ordinates 1 and 5 there and nothing
-    anywhere else). It is the exact complement of the specular route's
-    discriminating set, so neither list may be pruned in favour of the other.
-    """
-
-    def test_matches_the_hand_written_cosine_weighted_average(
-        self, fixture, alpha,
-    ) -> None:
-        _id, _q, face, axis, sign, _faces = fixture
-        quad, space = _space(fixture)
-        inflow, outflow = _sorted_half_traces(space)
-        x = _probe(space)
-
-        omega_dot_n = build_omega_dot_n(quad, (face,))[0]
-        out_w = (np.asarray(quad.weights, dtype=float) * np.abs(omega_dot_n))[
-            outflow
-        ]
-        current = np.tensordot(out_w, x, axes=(0, 0))
-        expected = np.broadcast_to(
-            alpha * current / out_w.sum(), (inflow.size,) + current.shape,
-        )
-
-        got = SNBoundaryRealizer().realize(
-            AlbedoBoundary(alpha, IsotropicReturn(axis=axis, outward_sign=sign)),
-            space,
-        ).apply(x)
-        np.testing.assert_allclose(
-            got, expected, rtol=1e-14, atol=0.0,
-            err_msg=(
-                f"{_id} α={alpha}: the realized Lambertian disagrees with the "
-                f"hand-written cosine-weighted average beyond the "
-                f"|Γ₊|×ULP reduction-order bound."
-            ),
-        )
-        if alpha != 0.0:
-            assert np.count_nonzero(expected), f"{_id}: vacuous comparison"
-
-    def test_the_image_is_isotropic_over_gamma_minus(self, fixture, alpha) -> None:
-        """Every Γ₋ row carries the SAME value — the defining Lambertian law.
-
-        An intrinsic-property leg (this project's standing rule that a
-        math-bearing type ships a test of its defining law): a re-emission that
-        is not constant over the incoming hemisphere is not Lambertian, however
-        well it matches an average.
-        """
-        _id, _q, _face, axis, sign, _faces = fixture
-        quad, space = _space(fixture)
-        got = SNBoundaryRealizer().realize(
-            AlbedoBoundary(alpha, IsotropicReturn(axis=axis, outward_sign=sign)),
-            space,
-        ).apply(_probe(space))
-        np.testing.assert_array_equal(
-            got, np.broadcast_to(got[0][None, ...], got.shape),
-            err_msg=f"{_id} α={alpha}: the re-emitted flux is not isotropic",
-        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -714,211 +462,6 @@ class TestTheClosureTierIsAmplitudeFree:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestBareAlbedoIsRefusedBySN:
-    r"""SN refuses ``AlbedoBoundary(α, reemission=None)``, naming both completions.
-
-    The message assertions are LOAD-BEARING, not decoration. A bare
-    ``pytest.raises(BoundaryError)`` is satisfied by ``_outflow_restriction``'s
-    missing-face guard, by ``assert_realizable``, or by any other refusal on the
-    path — a false green of exactly the shape ``vv-principles`` Mode-8 warns
-    about. The three substring legs pin THIS raise.
-
-    Equally load-bearing: the raising call is the PRODUCTION entry point
-    ``SNBoundaryRealizer().realize``, never a locally-built exception (Mode-8
-    class 5), and the positive control below proves an arm that refused
-    EVERYTHING would not pass.
-    """
-
-    @pytest.mark.parametrize("alpha", [0.0, 0.5, 1.0])
-    def test_refused_at_every_amplitude(self, alpha) -> None:
-        r"""α coverage is mandatory: the three amplitudes were three DIFFERENT
-        pre-B3.4b branches (``ZeroOperator`` / ``IdentityOperator`` /
-        ``ScaledOperator``), so a refusal added only to the general branch would
-        leave the two fast paths realizing full-face endomorphisms — which is
-        precisely how albedo stayed un-narrowed at α ∈ {0, 1} through B3.2.
-        """
-        quad = Quadrature.gauss_legendre(8)
-        space = face_method_space(quad, face="xmax")
-        with pytest.raises(BoundaryError) as exc:
-            SNBoundaryRealizer().realize(AlbedoBoundary(alpha), space)
-        assert exc.value.law == "albedo", (
-            f"the refusal must be attributed to the albedo law; got "
-            f"{exc.value.law!r} — a different guard fired and this leg would "
-            f"otherwise credit it as the angular-resolution refusal."
-        )
-        message = str(exc.value)
-        if alpha == 0.0:
-            # α = 0 is refused on a DIFFERENT argument, so it makes a
-            # different promise — see the dedicated test below.
-            return
-        for token in ("SpecularReturn", "IsotropicReturn"):
-            assert token in message, (
-                f"the refusal must NAME both completions so the caller can act "
-                f"on it; {token!r} missing from: {message}"
-            )
-        if alpha != 0.0:
-            # KEYED TO α deliberately. At α ≠ 0 the defect really is a pairing
-            # by array position — nothing says which outgoing direction feeds
-            # which incoming one. At α = 0 that reasoning does NOT apply:
-            # nothing returns, so no pairing is needed and the law is complete
-            # on an angular trace. The refusal at α=0 stands on a DIFFERENT
-            # argument (it is a ``VacuumInflow`` twin, and realizability must
-            # not be discontinuous at one exact float), which is why the
-            # message assertion is scoped rather than blanket — asserting the
-            # under-determination wording at α=0 would pin a false reason.
-            assert "ARRAY POSITION" in message.upper(), (
-                f"the refusal must name the DEFECT (a pairing by array "
-                f"position, carrying no geometry), not merely decline. "
-                f"Got: {message}"
-            )
-
-    def test_the_alpha_zero_refusal_names_the_vacuum_twin_not_underdetermination(
-        self,
-    ) -> None:
-        r"""``AlbedoBoundary(0.0)`` is refused for a DIFFERENT reason.
-
-        At α = 0 nothing returns, so no pairing is needed and
-        ``R = 0`` IS complete on an angular trace — the under-determination
-        argument does not reach this row. The refusal is still right, on two
-        other grounds: realizability must not be discontinuous at one exact
-        float (``ScalarResponse.is_zero`` is documented as an EXACT compare
-        precisely because "a near-zero albedo is a weak reflector, not a
-        vacuum"), and letting it realize keeps a second spelling of
-        :class:`VacuumInflow` alive on the SN arm.
-
-        So the message must NAME the twin rather than recite the α ≠ 0
-        reason, and — the discriminating half — it must NOT claim
-        under-determination, which would send a reader looking for a missing
-        pairing that is not missing.
-        """
-        quad = Quadrature.gauss_legendre(8)
-        space = face_method_space(quad, face="xmax")
-        with pytest.raises(BoundaryError) as exc:
-            SNBoundaryRealizer().realize(AlbedoBoundary(0.0), space)
-        assert exc.value.law == "albedo"
-        message = str(exc.value)
-        assert "VacuumInflow" in message, (
-            f"the α=0 refusal must name the twin it defers to; got: {message}"
-        )
-        assert "under-determined" not in message.lower(), (
-            f"α=0 is NOT under-determined — nothing returns, so no pairing is "
-            f"needed. Reciting the α≠0 reason here sends the reader after a "
-            f"missing pairing that is not missing. Got: {message}"
-        )
-        # CONTROL: α ≠ 0 DOES cite under-determination, so the negative leg
-        # above is discriminating rather than vacuously true of every message.
-        with pytest.raises(BoundaryError) as nonzero:
-            SNBoundaryRealizer().realize(AlbedoBoundary(0.5), space)
-        assert "under-determined" in str(nonzero.value).lower()
-
-    @pytest.mark.parametrize("alpha", [0.0, 0.5, 1.0])
-    @pytest.mark.parametrize("closure_kind", ["specular", "isotropic"])
-    def test_positive_control_a_completed_law_realizes(
-        self, alpha, closure_kind,
-    ) -> None:
-        """The CONTROL. Without it, an albedo arm that raised for EVERY input
-        would pass the refusal legs above."""
-        quad = Quadrature.gauss_legendre(8)
-        space = face_method_space(quad, face="xmax")
-        closure = (
-            SpecularReturn(axis="x") if closure_kind == "specular"
-            else IsotropicReturn(axis="x", outward_sign=+1)
-        )
-        op = SNBoundaryRealizer().realize(AlbedoBoundary(alpha, closure), space)
-        image = op.apply(np.ones((int(space.outflow_indices.size), 3)))
-        assert image.shape == (int(space.inflow_indices.size), 3)
-
-    def test_an_unknown_closure_names_the_available_ones(self) -> None:
-        r"""``ReemissionClosure`` is a ``runtime_checkable`` Protocol, so a
-        third-party shape satisfies it structurally and reaches the realizer.
-        The realizer must then refuse with a DISTINCT message naming what it
-        does support — not fall through to the "no isinstance dispatch case"
-        raise, which would blame the LAW rather than the closure.
-        """
-        class _UnknownReturn:
-            def kernel(self, alpha):        # noqa: D102 - a structural stand-in
-                return ScalarResponse(alpha)
-
-        quad = Quadrature.gauss_legendre(8)
-        space = face_method_space(quad, face="xmax")
-        with pytest.raises(BoundaryError) as exc:
-            SNBoundaryRealizer().realize(
-                AlbedoBoundary(0.5, _UnknownReturn()), space,   # type: ignore[arg-type]
-            )
-        assert exc.value.law == "albedo"
-        message = str(exc.value)
-        assert "SpecularReturn" in message and "IsotropicReturn" in message
-
-
-class TestBothClosuresRefuseAMisdeclaredAxisTheSameWay:
-    r"""A closure declares its own ``axis``; the method space independently
-    names the face. When they disagree, BOTH arms must refuse in the same
-    vocabulary — an attributed
-    :class:`~orpheus.geometry.boundary.BoundaryError` carrying ``law="albedo"``.
-
-    This is a **symmetry** claim about the two arms, not two independent
-    refusal claims, and it is the reason it needs its own class. Until this
-    carve the diffuse arm cross-checked the declared orientation against the
-    installation face and raised an attributed error, while the specular arm
-    fell through to ``TraceRestrictionOperator.to_local`` and surfaced a raw
-    ``ValueError`` about out-of-range rows — an implementation detail of a
-    helper the caller never invoked, with no ``law`` attribution and no
-    statement of what was actually wrong.
-
-    The asymmetry pre-dates the closure for
-    ``ReflectiveBoundary(axis="y")`` installed on an x-face, but nothing could
-    *declare* an axis capable of disagreeing with its installation face until
-    the closure introduced one, so it had no reachable consumer.
-
-    A caller cannot route on an exception type it cannot predict, so "both
-    arms refuse" is worth less than "both arms refuse the same way".
-    """
-
-    @pytest.mark.parametrize(
-        "closure_kind", ["specular", "isotropic"],
-    )
-    def test_a_y_axis_closure_on_an_x_face_raises_an_attributed_error(
-        self, closure_kind: str,
-    ) -> None:
-        quad = Quadrature.level_symmetric(6)
-        space = face_method_space(
-            quad, face="xmax", faces=("xmin", "xmax", "ymin", "ymax"),
-        )
-        closure = (
-            SpecularReturn(axis="y") if closure_kind == "specular"
-            else IsotropicReturn(axis="y", outward_sign=+1)
-        )
-        # ``BoundaryError`` NARROWLY: a bare ``Exception`` here would score the
-        # raw ValueError this test exists to forbid as a pass (vv Mode 8,
-        # class 6).
-        with pytest.raises(BoundaryError) as exc:
-            SNBoundaryRealizer().realize(AlbedoBoundary(0.7, closure), space)
-        assert exc.value.law == "albedo", (
-            f"{closure_kind}: refused, but unattributed — a consumer routing "
-            f"on law= cannot see this one."
-        )
-        # The message must name the mismatch, not an index range: a reader
-        # given only row numbers cannot tell a misdeclared axis from a broken
-        # quadrature table.
-        assert "'y'" in str(exc.value)
-
-    def test_positive_control_the_matching_axis_realizes(self) -> None:
-        """Without this, an arm that refused every closure would pass above."""
-        quad = Quadrature.level_symmetric(6)
-        space = face_method_space(
-            quad, face="xmax", faces=("xmin", "xmax", "ymin", "ymax"),
-        )
-        for closure in (
-            SpecularReturn(axis="x"),
-            IsotropicReturn(axis="x", outward_sign=+1),
-        ):
-            op = SNBoundaryRealizer().realize(
-                AlbedoBoundary(0.7, closure), space,
-            )
-            image = op.apply(np.ones((int(space.outflow_indices.size), 2)))
-            assert image.shape == (int(space.inflow_indices.size), 2)
-
-
 class TestDiffusionIsUnmovedAndClosureBlind:
     r"""The diffusion arm realizes ``AlbedoBoundary`` exactly as before.
 
@@ -935,54 +478,6 @@ class TestDiffusionIsUnmovedAndClosureBlind:
     """
 
     _PROBE = np.array([1.0, 2.0])
-
-    @pytest.mark.parametrize(
-        "alpha,expected_type,expected",
-        [
-            (0.0, ZeroOperator, [0.0, 0.0]),
-            (0.5, OperatorSum, [0.5, 1.0]),  # α·I, the one-term combination (S2)
-            (1.0, IdentityOperator, [1.0, 2.0]),
-        ],
-    )
-    def test_the_bare_law_realizes_exactly_as_before(
-        self, alpha, expected_type, expected,
-    ) -> None:
-        op = DiffusionBoundaryRealizer().realize(
-            AlbedoBoundary(albedo=alpha), DiffusionMethodSpace(),
-        )
-        assert isinstance(op, expected_type)
-        np.testing.assert_array_equal(op.apply(self._PROBE), expected)
-
-    @pytest.mark.parametrize("alpha", [0.0, 0.5, 1.0])
-    @pytest.mark.parametrize(
-        "closure",
-        [
-            None,
-            SpecularReturn(axis="x"),
-            IsotropicReturn(axis="x", outward_sign=+1),
-            IsotropicReturn(axis="y", outward_sign=-1),
-        ],
-        ids=["bare", "specular_x", "isotropic_x", "isotropic_y_min"],
-    )
-    def test_the_closure_is_inert_on_a_scalar_trace(self, alpha, closure) -> None:
-        realizer, space = DiffusionBoundaryRealizer(), DiffusionMethodSpace()
-        got = realizer.realize(
-            AlbedoBoundary(alpha, closure), space,
-        ).apply(self._PROBE)
-        want = realizer.realize(
-            AlbedoBoundary(albedo=alpha), space,
-        ).apply(self._PROBE)
-        np.testing.assert_array_equal(
-            got, want,
-            err_msg=(
-                f"α={alpha} closure={closure!r}: the diffusion arm must be "
-                f"BLIND to the re-emission closure — a scalar trace has one "
-                f"degree of freedom and no angular distribution to fix. A "
-                f"difference here means the arm started dispatching on the "
-                f"response kernel's TYPE, which silently changes every "
-                f"BC('albedo', …) answer."
-            ),
-        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1019,42 +514,6 @@ class TestZeroAmplitudeRealizesTheNarrowedZeroMap:
     reached.
     """
 
-    def test_realizes_to_the_zero_map_with_both_spaces_named(
-        self, law_id, build_law,
-    ) -> None:
-        quad = Quadrature.gauss_legendre(4)
-        space = face_method_space(quad, face="xmax")
-        n_in = int(space.inflow_indices.size)
-        n_out = int(space.outflow_indices.size)
-        op = SNBoundaryRealizer().realize(build_law(), space)
-        assert isinstance(op, ZeroMorphism), (
-            f"{law_id} at α=0 must be the bound ZeroMorphism, not a scaled "
-            f"kernel"
-        )
-        image = op.apply(np.full((n_out, 4, 2), 3.0))
-        assert image.shape == (n_in, 4, 2)
-        np.testing.assert_array_equal(image, 0.0)
-
-    def test_the_transpose_lands_on_gamma_plus_and_annihilates(
-        self, law_id, build_law,
-    ) -> None:
-        r"""The zero map's DEFINING law, on a NON-ZERO probe.
-
-        ``|Γ₊| == |Γ₋|`` on every quadrature in the tree, so a shape assertion
-        alone cannot tell the two-space zero map from an endomorphic ``0.0 * x``
-        echo (``vv-principles`` Mode 12). Feeding a non-zero Γ₋ probe and
-        requiring a zero Γ₊ image is the value leg that leaves that functional.
-        """
-        quad = Quadrature.gauss_legendre(4)
-        space = face_method_space(quad, face="xmax")
-        op = SNBoundaryRealizer().realize(build_law(), space)
-        assert adjointable(op), f"{law_id} at α=0 must expose a transpose"
-        probe = np.arange(
-            int(space.inflow_indices.size) * 4 * 2, dtype=float,
-        ).reshape(int(space.inflow_indices.size), 4, 2) + 1.0
-        image = op.apply_transpose(probe)
-        assert image.shape == (int(space.outflow_indices.size), 4, 2)
-        np.testing.assert_array_equal(image, 0.0)
 
     def test_the_numerics_layer_owns_the_zero_of_a_scaled_operator(
         self, law_id, build_law,

@@ -35,7 +35,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.mesh import Mesh2D
-from orpheus.geometry import BC
+from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.operators.isotropic_transfer import IsotropicFission
@@ -75,7 +75,7 @@ def _mat_xs():
         edges_x=np.arange(_NX + 1, dtype=float),
         edges_y=np.arange(2, dtype=float),
         mat_map=mat_map,
-        face_laws={face: BC("reflective") for face in ("xmin", "xmax", "ymin", "ymax")},
+        face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")},
     )
     return MaterialXSField.from_mesh(MaterialMesh(mesh, materials))
 
@@ -102,7 +102,8 @@ def _scalar_composite_cotangent():
     """
     from orpheus.derivations.common.xs_library import make_mixture
     from orpheus.diffusion import DiffusionMesh
-    from orpheus.geometry import BC, StructuredGeometry
+    from orpheus.geometry import StructuredGeometry
+    from orpheus.transport.boundary_conditions import WallCondition
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
@@ -118,9 +119,10 @@ def _scalar_composite_cotangent():
     )
     mesh = DiffusionMesh(
         Mesher(StructuredGeometry.slab(
-            (0.0, 2.0), (0,), left=BC("reflective"), right=BC("vacuum"),
+            (0.0, 2.0), (0,), left=MirrorDeck(), right=0,
         )).partition(CellsByCount.uniform_width(4)).mesh,
         {0: mix},
+        boundary_conditions={0: WallCondition.vacuum()},
     )
     rng = np.random.default_rng(19)
     chi = FullField(

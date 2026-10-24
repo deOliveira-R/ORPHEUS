@@ -45,11 +45,8 @@ import re
 from dataclasses import dataclass
 from typing import Callable
 
-import numpy as np
 import pytest
 
-from orpheus.diffusion.boundary_realizer import DiffusionBoundaryRealizer
-from orpheus.diffusion.method_space import DiffusionMethodSpace
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
     BoundaryTraceLaw,
@@ -65,17 +62,6 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
     ZeroFluxBoundary,
 )
-from orpheus.transport.boundary_realization import realize_recursively
-from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-from tests.gates.sn._test_helpers import face_method_space
-
-
-def _n_outflow(ms) -> int:
-    """``|Γ₊|`` of a face-ful method space (``None`` only on a faceless one)."""
-    if ms.outflow_indices is None:
-        pytest.fail("the fixture's method space carries no face")
-    return int(ms.outflow_indices.size)
 
 pytestmark = pytest.mark.foundation
 
@@ -160,14 +146,6 @@ _WRAP_FACTOR = (
     "tests/gates/geometry/test_paired_deck.py::TestTheGuardsPartitionE3::"
     "test_exactly_one_type_admits_each_motion"
 )
-_POINTWISE_SUM = (
-    "tests/gates/geometry/test_law_composition.py::"
-    "test_realize_recursively_apply_matches_pointwise_weighted_sum"
-)
-_WALL_IS_THE_MIRROR_AT_ONE = (
-    "tests/gates/geometry/test_reemission_closure.py::TestEquivalenceTheorems::"
-    "test_specular_closure_equals_reflective"
-)
 
 _REFUSAL = re.compile(r"symmetry.*cannot be scaled or mixed|cannot be scaled or mixed.*symmetry", re.S)
 
@@ -251,47 +229,14 @@ def test_a_response_composes_on_every_route(response, route):
     assert isinstance(tree, (LawSum, LawScaled))
 
 
-@pytest.mark.rests_on(_WALL_IS_THE_MIRROR_AT_ONE)
-def test_a_deck_leaf_alone_is_still_a_law():
-    """The refusal is of composition, never of the law: a bare deck leaf
-    realizes, and it is the matrix the perfect specular wall realizes."""
-    ms = face_method_space(Quadrature.gauss_legendre(8), face="xmax")
-    probe = np.random.default_rng(7).standard_normal((_n_outflow(ms), 3))
-    mirror = realize_recursively(ReflectiveBoundary("x"), ms, SNBoundaryRealizer())
-    wall = realize_recursively(
-        AlbedoBoundary(1.0, SpecularReturn("x")), ms, SNBoundaryRealizer(),
-    )
-    np.testing.assert_array_equal(mirror.apply(probe), wall.apply(probe))
-
-
-@pytest.mark.rests_on(_POINTWISE_SUM, _WALL_IS_THE_MIRROR_AT_ONE)
-def test_a_response_mix_realizes_through_sn_as_before():
-    """``0.3 * wall + 0.7 * white`` with the wall the perfect specular
-    response: the walker's action equals the pointwise weighted sum of the
-    leaves (numpy ``+`` and ``*`` only), ``nulp = 4`` for the two reduction
-    orders, the bound ``test_law_composition.py`` uses for the same claim."""
-    ms = face_method_space(Quadrature.lebedev(17), face="xmax")
-    wall = AlbedoBoundary(1.0, SpecularReturn("x"))
-    white = WhiteBoundary("x", +1, 1.0)
-    realizer = SNBoundaryRealizer()
-    probe = np.random.default_rng(3).uniform(0.0, 2.0, (_n_outflow(ms), 5))
-    composed = realize_recursively(0.3 * wall + 0.7 * white, ms, realizer)
-    expected = (
-        0.3 * realizer.realize(wall, ms).apply(probe)
-        + 0.7 * realizer.realize(white, ms).apply(probe)
-    )
-    np.testing.assert_array_almost_equal_nulp(composed.apply(probe), expected, nulp=4)
-
-
-def test_a_response_mix_realizes_through_diffusion_as_before():
-    """The diffusion realizer maps each response to its amplitude times the
-    identity on the partial-current trace, so the mix is exact:
-    ``0.3 * 1 * J + 0.7 * 0.5 * J`` bitwise."""
-    probe = np.array([[1.7, 0.3, 2.1], [0.2, 0.9, 0.4]])
-    tree = 0.3 * AlbedoBoundary(1.0, SpecularReturn("x")) + 0.7 * AlbedoBoundary(0.5)
-    composed = realize_recursively(
-        tree, DiffusionMethodSpace.minimal(), realizer=DiffusionBoundaryRealizer(),
-    )
-    np.testing.assert_array_equal(
-        composed.apply(probe), 0.3 * probe + 0.7 * (0.5 * probe),
-    )
+# RETIRED LEGS (wave 2, slice S3; the demotion check of each). The last three tests realized a tree through the descriptor-tree
+# walker and the two method realizers, all three retired with the string-tagged laws:
+#
+# * ``test_a_deck_leaf_alone_is_still_a_law`` (a bare deck leaf realizes, the matrix of the perfect specular wall): the deck is
+#   realized through the table's ONE ``DeckRealizer``: in SN "the mirror deck realizes the unit specular image on each face" is the
+#   deck row of ``tests/gates/sn/architecture/test_sn_realizer_table.py`` (the test whose docstring opens "The same law for the
+#   deck") and, in diffusion, ``test_diffusion_translation_is_topological`` (the mirror deck realizes the identity, ``A = 1``).
+# * ``test_a_response_mix_realizes_through_sn_as_before`` (a response mix is the pointwise weighted sum of its leaves): the
+#   functor on the response network, gated per method (SN: the ``RealizedSum`` witness of ``tests/gates/sn/architecture/test_wave2_carry.py``; diffusion: law L-L).
+# * ``test_a_response_mix_realizes_through_diffusion_as_before`` (``0.3 * 1 + 0.7 * 0.5``): ``test_a_mixed_wall_realizes_as_the_sum_of_scalars``
+#   of ``tests/gates/diffusion/test_diffusion_realizer_table.py``, on the rows ``(0.3, 0.5)``, ``(0.7, 0.1)`` and ``(0.3, 0.7)``.

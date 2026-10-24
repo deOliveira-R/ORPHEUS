@@ -12,8 +12,10 @@ This file pins BOTH halves of each typed error's contract:
 
 **(2) The PRODUCTION contract** — the guard that actually raises it:
 
-each test drives a **production entry point** (a law invariant, or
-``SNBoundaryRealizer.realize`` / ``DiffusionBoundaryRealizer.realize``)
+each test drives a **production entry point** (a law invariant;
+until slice S3 of the wave-2 carve also ``SNBoundaryRealizer.realize`` /
+``DiffusionBoundaryRealizer.realize``, both retired: the legs through
+them are gone and each docstring says where its claim lives now)
 into the violation and asserts the escaping exception is of the right
 type AND carries the right ``law=`` tag.
 
@@ -68,26 +70,15 @@ from orpheus.geometry.boundary import (
     BoundaryGeometryMapNotMeasurePreservingError,
     BoundaryResponseNotPositiveError,
     BoundarySourceNotOnIncomingTraceError,
-    ConstantInflowSource,
     IncomingOutgoingTraceClassificationError,
-    PeriodicBoundary,
-    PrescribedInflow,
     ReflectionDidNotMapInflowToOutflowError,
     ReflectionNotInvolutiveError,
     ReflectiveBoundary,
     SubmarkovViolationError,
     VacuumAppliedToOutgoingTraceError,
-    VacuumInflow,
     WhiteBoundary,
-    ZeroFluxBoundary,
 )
-from orpheus.diffusion.boundary_realizer import DiffusionBoundaryRealizer
-from orpheus.diffusion.method_space import DiffusionMethodSpace
 from orpheus.geometry.transformation import Permutation
-from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.boundary.realizer import SNBoundaryRealizer
-from orpheus.sn.mesh.method_space import SNMethodSpace
-from tests.gates.sn._test_helpers import face_method_space
 
 
 class _TableQuad:
@@ -122,63 +113,25 @@ class _TableQuad:
 
 @pytest.mark.foundation
 def test_boundary_error_base_class_contract() -> None:
-    """:class:`BoundaryError` is a :class:`ValueError` subclass, and
-    both realizers raise it bare on an un-dispatchable law.
+    """:class:`BoundaryError` is a :class:`ValueError` subclass.
 
     Existing ``except ValueError`` consumers in the boundary layer
     must continue to catch :class:`BoundaryError` and every typed
     subclass -- this is the backward-compatibility hook.
 
-    PRODUCTION GUARDS: ``sn/boundary/realizer.py:171`` (SN refuses
-    ``ZeroFluxBoundary`` -- a negative angular inflow has no transport
-    realization), ``diffusion/boundary_realizer.py:219`` (diffusion
-    refuses ``PeriodicBoundary`` -- a trace-block wrap is not a
-    per-face albedo) and ``diffusion/boundary_realizer.py:229``
-    (diffusion refuses ``PrescribedInflow`` -- the rank-0 AFFINE law
-    realizes as a source, not a linear operator).
+    RETIRED LEGS (wave 2, slice S3; the demotion check of each): the production legs drove the two realizers into
+    their bare refusals, and both realizers are gone. SN's refusal of the zero-flux law is the table's door
+    (``Refused(STATE_CONE)``, ``tests/gates/sn/architecture/test_sn_realizer_table.py``); diffusion's refusal of the periodic law
+    is ``test_diffusion_translation_is_topological`` (``Refused(TOPOLOGY)``) and of the prescribed inflow
+    ``test_diffusion_source_is_plumbing`` (``Refused(PLUMBING, #656)``), both in
+    ``tests/gates/diffusion/test_diffusion_realizer_table.py``, whose positive controls (a wall both tables accept realizes) are
+    ``test_diffusion_vacuum_is_tier_1`` and the SN table's own. What stays here is the type contract of the retiring base class.
     """
     err = BoundaryError("msg", law="my_law")
     assert isinstance(err, ValueError)
     assert isinstance(err, BoundaryError)
     assert err.law == "my_law"
     assert str(err) == "msg"
-
-    quad = Quadrature.lebedev(17)
-    with pytest.raises(BoundaryError) as sn_exc:
-        SNBoundaryRealizer().realize(
-            ZeroFluxBoundary(), SNMethodSpace.minimal(quad),
-        )
-    assert sn_exc.value.law == "zero_flux"
-    assert isinstance(sn_exc.value, ValueError)
-
-    with pytest.raises(BoundaryError) as periodic_exc:
-        DiffusionBoundaryRealizer().realize(
-            PeriodicBoundary(), DiffusionMethodSpace.minimal(),
-        )
-    assert periodic_exc.value.law == "periodic"
-
-    with pytest.raises(BoundaryError) as prescribed_exc:
-        DiffusionBoundaryRealizer().realize(
-            PrescribedInflow(source=ConstantInflowSource(value=1.0)),
-            DiffusionMethodSpace.minimal(),
-        )
-    assert prescribed_exc.value.law == "prescribed_inflow"
-
-    # Positive control: a law BOTH realizers accept must NOT raise, so
-    # the three reds above come from the refusal branches and not from
-    # an always-raising realizer.
-    #
-    # B3.2 migration: the SN control needs a FACE-ful method space. A boundary
-    # law is now typed Γ₊ → Γ₋, so realizing reflective requires the face's
-    # outflow ordinates (its domain) — data ``SNMethodSpace.minimal`` cannot
-    # carry. The control's JOB is unchanged (prove the realizer is not
-    # always-raising); only its fixture moved.
-    SNBoundaryRealizer().realize(
-        ReflectiveBoundary(axis="x"), face_method_space(quad, face="xmax"),
-    )
-    DiffusionBoundaryRealizer().realize(
-        ReflectiveBoundary(axis="x"), DiffusionMethodSpace.minimal(),
-    )
 
 
 @pytest.mark.foundation
@@ -209,13 +162,12 @@ def test_incoming_outgoing_trace_classification_error() -> None:
 
 @pytest.mark.foundation
 def test_vacuum_applied_to_outgoing_trace_error() -> None:
-    """ERR-041: vacuum realized against an OUTGOING trace annotation.
+    """ERR-041: vacuum realized against an OUTGOING trace annotation. TYPE CONTRACT ONLY here since slice S3.
 
-    PRODUCTION GUARD: ``sn/boundary/realizer.py:237`` -- the realizer
-    cross-checks the claimed ``inflow_indices`` against the signed
-    projection the FACE NAME implies, and refuses any claimed inflow
-    ordinate that is outgoing. Here ``xmax``'s outgoing set
-    (:math:`\\mu_x > 0`) is handed in as its inflow set.
+    RETIRED LEG (the demotion check): the production leg drove ``SNBoundaryRealizer.realize`` with a hand-built method space
+    whose claimed inflow set is the outgoing one. That realizer is retired; the same assertion (the claimed inflow set against the
+    orientation the face name implies) is ``SNZero.realize``'s, and it keeps its tooth in
+    ``tests/gates/sn/operators/test_sn_boundary_realizer.py``.
     """
     err = VacuumAppliedToOutgoingTraceError(
         "vacuum BC on Gamma_+", law="vacuum",
@@ -225,27 +177,15 @@ def test_vacuum_applied_to_outgoing_trace_error() -> None:
     assert err.law == "vacuum"
     assert str(err) == "vacuum BC on Gamma_+"
 
-    quad = Quadrature.gauss_legendre(n_ordinates=8)
-    swapped = SNMethodSpace(
-        quadrature=quad, face="xmax",
-        inflow_indices=np.flatnonzero(quad.mu_x > 0),
-    )
-    with pytest.raises(VacuumAppliedToOutgoingTraceError) as exc:
-        SNBoundaryRealizer().realize(VacuumInflow(), swapped)
-    assert exc.value.law == "vacuum"
-
 
 @pytest.mark.foundation
-def test_boundary_geometry_map_not_measure_preserving_error(monkeypatch) -> None:
-    """ERR-042: a reflection table that does not preserve
-    :math:`w\\cdot|\\mu|`.
+def test_boundary_geometry_map_not_measure_preserving_error() -> None:
+    """ERR-042: a reflection table that does not preserve :math:`w\\cdot|\\mu|`. TYPE CONTRACT ONLY here since slice S3.
 
-    PRODUCTION GUARD:
-    ``ReflectiveBoundary.assert_geometry_map_measure_preserving``
-    (``geometry/boundary/reflective.py:212``), fired through
-    ``SNBoundaryRealizer.realize`` -> ``assert_realizable``. The
-    neighbour-pair table on GL-8 is a perfect involution that pairs
-    ordinates of UNEQUAL ``w·|mu|`` -- only the measure check sees it.
+    RETIRED LEG (the demotion check): the production leg fired ``ReflectiveBoundary.assert_geometry_map_measure_preserving``
+    through ``SNBoundaryRealizer.realize``. The certification is the numerics type ``ordinate_pairing`` now (a pairing that does not
+    preserve the trace measure is refused with ``PairingNotMeasurePreservingError``), and its teeth are
+    ``test_the_three_errors_keep_their_teeth`` of ``tests/gates/numerics/test_ordinate_pairing.py`` (``catches`` ERR-042).
     """
     err = BoundaryGeometryMapNotMeasurePreservingError(
         "reflection table inconsistent with quadrature weights",
@@ -257,19 +197,6 @@ def test_boundary_geometry_map_not_measure_preserving_error(monkeypatch) -> None
     assert str(err) == (
         "reflection table inconsistent with quadrature weights"
     )
-
-    quad = Quadrature.gauss_legendre(n_ordinates=8)
-    monkeypatch.setattr(
-        quad, "ordinate_permutation",
-        lambda motion: Permutation(np.array([1, 0, 3, 2, 5, 4, 7, 6])),
-    )
-    with pytest.raises(
-        BoundaryGeometryMapNotMeasurePreservingError,
-    ) as exc:
-        SNBoundaryRealizer().realize(
-            ReflectiveBoundary(axis="x"), SNMethodSpace.minimal(quad),
-        )
-    assert exc.value.law == "reflective"
 
 
 @pytest.mark.foundation
@@ -341,16 +268,13 @@ def test_reflection_not_involutive_error() -> None:
 
 
 @pytest.mark.foundation
-def test_reflection_did_not_map_inflow_to_outflow_error(monkeypatch) -> None:
-    """ERR-045: a reflection that maps an inflow ordinate to itself.
+def test_reflection_did_not_map_inflow_to_outflow_error() -> None:
+    """ERR-045: a reflection that maps an inflow ordinate to itself. TYPE CONTRACT ONLY here since slice S3.
 
-    PRODUCTION GUARD:
-    ``ReflectiveBoundary.assert_reflection_maps_inflow_to_outflow``
-    (``geometry/boundary/reflective.py:264``), fired through
-    ``SNBoundaryRealizer.realize`` -> ``assert_realizable``. The
-    identity table is the canonical mutant: trivially involutive AND
-    trivially measure-preserving, so it sails past the two sibling
-    invariants and only this one sees it.
+    RETIRED LEG (the demotion check): the production leg fired ``ReflectiveBoundary.assert_reflection_maps_inflow_to_outflow``
+    through ``SNBoundaryRealizer.realize`` with the identity table. The identity pairing is refused by the numerics certification
+    (``PairingDoesNotCrossError``), whose teeth are ``test_the_three_errors_keep_their_teeth`` of
+    ``tests/gates/numerics/test_ordinate_pairing.py`` (``catches`` ERR-045, the ``self_map_identity`` row).
     """
     err = ReflectionDidNotMapInflowToOutflowError(
         "inflow ordinate maps to inflow under reflection",
@@ -362,17 +286,6 @@ def test_reflection_did_not_map_inflow_to_outflow_error(monkeypatch) -> None:
     assert str(err) == (
         "inflow ordinate maps to inflow under reflection"
     )
-
-    quad = Quadrature.gauss_legendre(n_ordinates=8)
-    monkeypatch.setattr(
-        quad, "ordinate_permutation",
-        lambda motion: Permutation(np.arange(quad.n_ordinates)),
-    )
-    with pytest.raises(ReflectionDidNotMapInflowToOutflowError) as exc:
-        SNBoundaryRealizer().realize(
-            ReflectiveBoundary(axis="x"), SNMethodSpace.minimal(quad),
-        )
-    assert exc.value.law == "reflective"
 
 
 @pytest.mark.foundation
@@ -411,14 +324,12 @@ def test_submarkov_violation_error() -> None:
 
 @pytest.mark.foundation
 def test_boundary_source_not_on_incoming_trace_error() -> None:
-    """ERR-047: an affine source with support off :math:`\\Gamma_-`.
+    """ERR-047: an affine source with support off :math:`\\Gamma_-`. TYPE CONTRACT ONLY here since slice S3.
 
-    PRODUCTION GUARD:
-    ``BoundaryTraceLaw.assert_source_is_placeable``
-    (``geometry/boundary/_base.py:333``), fired both directly and
-    through ``SNBoundaryRealizer.realize``: a nonzero
-    ``ConstantInflowSource`` on a method space with NO inflow indices
-    has no mask to confine it to the incoming trace.
+    RETIRED LEG (the demotion check): the production legs fired ``BoundaryTraceLaw.assert_source_is_placeable`` directly and through
+    ``SNBoundaryRealizer.realize``. The placement check is ``SNSource.sample``'s now, and its teeth are
+    ``test_a_source_sampled_off_the_inflow_tier_is_refused`` of ``tests/gates/transport/test_boundary_source_from_specs.py`` (the
+    sampler handed the OUTFLOW half-trace, with the inflow half-trace as the positive control).
     """
     err = BoundarySourceNotOnIncomingTraceError(
         "q has nonzero entries on outflow ordinates",
@@ -428,26 +339,6 @@ def test_boundary_source_not_on_incoming_trace_error() -> None:
     assert isinstance(err, ValueError)
     assert err.law == "prescribed_inflow"
     assert str(err) == "q has nonzero entries on outflow ordinates"
-
-    quad = Quadrature.lebedev(17)
-    law = PrescribedInflow(source=ConstantInflowSource(value=2.0))
-    with pytest.raises(BoundarySourceNotOnIncomingTraceError) as exc:
-        SNBoundaryRealizer().realize(law, SNMethodSpace.minimal(quad))
-    # B0.3 FINDING (measured): every other guard tags ``law=`` with the
-    # lowercase REGISTRY KEY -- "vacuum", "reflective", "white",
-    # "albedo", "zero_flux", "periodic" (all asserted verbatim above).
-    # This one alone tags ``law=type(self).__name__``
-    # (``geometry/boundary/_base.py:342``), so the escaping tag reads
-    # "PrescribedInflow", not "prescribed_inflow". Asserted
-    # case/underscore-insensitively so the leg pins that the tag
-    # IDENTIFIES the law -- dropping the ``law=`` kwarg still reds it --
-    # WITHOUT calcifying the drift the B0.3 report asks to fix at the
-    # production site.
-    assert exc.value.law.lower().replace("_", "") == "prescribedinflow"
-
-    # Positive control: with the face's inflow indices supplied the
-    # same guard certifies silently.
-    law.assert_source_is_placeable(np.flatnonzero(quad.mu_x < 0))
 
 
 # ─────────────────────────────────────────────────────────────────────

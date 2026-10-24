@@ -29,7 +29,9 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.diffusion import DiffusionMesh
-from orpheus.geometry import BC, StructuredGeometry
+from orpheus.geometry import StructuredGeometry
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import FullFieldSpace, ScalarTraceSpace
@@ -41,7 +43,7 @@ pytestmark = [pytest.mark.foundation]
 
 
 def _slab_mesh(nx: int = 4, width: float = 10.0) -> DiffusionMesh:
-    mesh1d = Mesher(StructuredGeometry.from_homogeneous(width, BC("reflective"))).partition(
+    mesh1d = Mesher(StructuredGeometry.from_homogeneous(width, MirrorDeck())).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     return DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")})
@@ -50,7 +52,7 @@ def _slab_mesh(nx: int = 4, width: float = 10.0) -> DiffusionMesh:
 def _one_group_mesh(nx: int = 4, width: float = 10.0) -> DiffusionMesh:
     """1-group sibling — the scalar-trace CONTENT (and shape) differs, so
     the carrier mints an UNEQUAL trace space (F2)."""
-    mesh1d = Mesher(StructuredGeometry.from_homogeneous(width, BC("reflective"))).partition(
+    mesh1d = Mesher(StructuredGeometry.from_homogeneous(width, MirrorDeck())).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     return DiffusionMesh(mesh1d, {0: get_mixture("A", "1g")})
@@ -78,9 +80,10 @@ class TestScalarTraceSpace:
     def test_sphere_has_single_outer_face_with_surface_area(self):
         """The pole is NOT a face; the metric is the outer surface 4πR²."""
         r_outer = 5.0
-        geometry = StructuredGeometry.sphere((0.0, r_outer), (0,), outer=BC("reflective"))
+        geometry = StructuredGeometry.sphere((0.0, r_outer), (0,), outer=0)
         mesh1d = Mesher(geometry).partition(CellsByCount.uniform_width(3)).mesh
-        mm = DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")})
+        # A curved face has no mirror deck: the perfect mirror is the specular wall tag (rule R2).
+        mm = DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")}, boundary_conditions={0: WallCondition.specular(1.0)})
         ts = mm.scalar_trace
         if ts.face_names != ("xmax",):
             pytest.fail(f"sphere trace must have only xmax; got {ts.face_names}")
@@ -200,7 +203,7 @@ class TestPartialCurrentGuards:
         MaterialMesh data carrier owns no scalar trace, so a trace
         field cannot be built on one — the family diagnosis points at
         the promotion."""
-        mesh1d = Mesher(StructuredGeometry.from_homogeneous(10.0, BC("reflective"))).partition(
+        mesh1d = Mesher(StructuredGeometry.from_homogeneous(10.0, MirrorDeck())).partition(
             CellsByCount.uniform_width(4),
         ).mesh
         mm = MaterialMesh(mesh1d, {0: get_mixture("A", "2g")})

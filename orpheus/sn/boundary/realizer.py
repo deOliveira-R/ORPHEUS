@@ -235,7 +235,7 @@ class SNSource(SourceRealizer[AngularFaceTraceSpace], _SNSites, table=SN_REALIZE
 
     status = Realized(True)
 
-    def admit(self, terms: InflowTerms, site: FaceSite, space: SNMethodSpace | None = None) -> Admission:
+    def admit(self, terms: InflowTerms, site: FaceSite, space: AngularFaceTraceSpace | None = None) -> Admission:
         match site.site_class:
             case SiteClass.CART:
                 return Realized(True)
