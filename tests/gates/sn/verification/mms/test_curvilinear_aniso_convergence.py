@@ -60,6 +60,14 @@ from orpheus.derivations.continuous.mms.sn import (
 from orpheus.sn import solve_sn_fixed_source
 
 from tests.gates.sn._test_helpers import scalar_flux_l2_ladder, volume_weighted_l2
+from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
+from tests.gates._exterior import conditions_for
+from tests.gates._reference_pairing import conditions_of
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``). The manufactured cases' meshes carry the one tag
+#: ``VACUUM_TAG``, which the reference states as the vacuum wall (``VACUUM_EXTERIOR``): the test-side loop binds it for production.
+_CONDITIONS = dict(conditions_of(VACUUM_EXTERIOR).conditions)
 
 pytestmark = pytest.mark.l1
 
@@ -132,7 +140,7 @@ def test_cyl_aniso_floor_scales_with_quadrature():
         Q = case.external_source(mesh)
         result = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, Q,
-            max_inner=500, inner_tol=1e-13,
+            max_inner=500, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         phi_num = result.scalar_flux.values[0, :]  # (ng=1, nx)
         phi_ref = case.phi_exact(mesh.centers)
@@ -165,7 +173,7 @@ def test_sn_spherical_angular_convergence_at_fixed_mesh():
         Q = case.external_source(mesh)
         result = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, Q,
-            max_inner=500, inner_tol=1e-13,
+            max_inner=500, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         phi_num = result.scalar_flux.values[0, :]  # (ng=1, nx, ny=1)
         phi_ref = case.phi_exact(mesh.centers)
@@ -222,7 +230,7 @@ def test_sn_spherical_aniso_mms_converges_second_order():
         Q = case.external_source(mesh)
         result = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, Q,
-            max_inner=500, inner_tol=1e-13,
+            max_inner=500, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         phi_num = result.scalar_flux.values[0, :]  # (ng=1, nx)
         phi_ref = case.phi_exact(mesh.centers)
@@ -283,7 +291,7 @@ def test_sn_cylindrical_aniso_mms_converges_second_order():
         Q = case.external_source(mesh)
         result = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, Q,
-            max_inner=500, inner_tol=1e-13,
+            max_inner=500, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         phi_num = result.scalar_flux.values[0, :]  # (ng=1, nx)
         phi_ref = case.phi_exact(mesh.centers)

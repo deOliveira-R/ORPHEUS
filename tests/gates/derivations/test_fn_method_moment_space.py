@@ -83,7 +83,8 @@ def test_moment_space_constructs_with_structured_geometry() -> None:
     geom = _ua10sl_geometry()
     ms = MomentSpace(**geom._asdict(), materials={0: mix})
     assert isinstance(ms, MomentSpace)
-    assert ms.geometry is geom
+    assert ms.geometry is geom.geometry
+    assert ms.exterior == geom.exterior
     assert ms.materials[0] is mix
     assert ms.fn_order == 9  # default
     assert ms.flux_reconstruction == "atkinson_nystrom"  # default

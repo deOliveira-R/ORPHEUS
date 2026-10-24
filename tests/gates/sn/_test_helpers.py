@@ -27,11 +27,14 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
 from scipy.sparse import csr_matrix
+from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.sn import solve_sn_fixed_source
+from tests.gates._exterior import conditions_for
+from tests.gates._reference_pairing import conditions_of
 
 if TYPE_CHECKING:
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -74,6 +77,9 @@ def volume_weighted_l2(
 # MMS convergence-ladder solver knobs — the fixed-source inner-iteration budget
 # the mms/ gates share, tight enough that the discretisation error (not the
 # iteration residual) sets the measured L2.
+#: The manufactured cases' meshes carry the one tag ``VACUUM_TAG`` (a bare reference body); the reference states it as the vacuum
+#: wall (``VACUUM_EXTERIOR``) and the test-side loop binds it for production, once, for every ladder that reads these cases.
+MMS_CASE_CONDITIONS = dict(conditions_of(VACUUM_EXTERIOR).conditions)
 MMS_MAX_INNER = 500
 MMS_INNER_TOL = 1e-13
 
@@ -96,6 +102,7 @@ def scalar_flux_l2_ladder(case, n_cells) -> np.ndarray:
         result = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, Q,
             max_inner=MMS_MAX_INNER, inner_tol=MMS_INNER_TOL,
+            boundary_conditions=conditions_for(mesh, MMS_CASE_CONDITIONS),
         )
         phi_num = result.scalar_flux.values[0, :]
         phi_ref = case.phi_exact(mesh.centers)

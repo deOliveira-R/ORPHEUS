@@ -122,6 +122,14 @@ from orpheus.derivations.continuous.mms.sn import (
 from orpheus.sn import solve_sn_fixed_source
 
 from tests.gates.sn._test_helpers import scalar_flux_l2_ladder, volume_weighted_l2
+from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
+from tests.gates._exterior import conditions_for
+from tests.gates._reference_pairing import conditions_of
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``). The manufactured cases' meshes carry the one tag
+#: ``VACUUM_TAG``, which the reference states as the vacuum wall (``VACUUM_EXTERIOR``): the test-side loop binds it for production.
+_CONDITIONS = dict(conditions_of(VACUUM_EXTERIOR).conditions)
 
 # Every leg verifies the space⊗angle decomposition law (eq. sn-space-angle-
 # separability) from a different angle; the cross-term legs ALSO verify the
@@ -159,7 +167,7 @@ def _sphere_per_ordinate_max_l2_ladder(case, n_cells) -> np.ndarray:
         Q = case.external_source(mesh)
         result = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, Q,
-            max_inner=500, inner_tol=1e-13,
+            max_inner=500, inner_tol=1e-13, boundary_conditions=conditions_for(mesh, _CONDITIONS),
         )
         psi = result.angular_flux.interior.values  # (N, ng, nx)
         centers = mesh.centers

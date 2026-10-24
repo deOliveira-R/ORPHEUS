@@ -60,6 +60,14 @@ from orpheus.derivations.continuous.mms.sn import (
     build_2d_cartesian_ld_stress_mms_case,
     derive_2d_cartesian_ld_stress_mms,
 )
+from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
+from tests.gates._exterior import conditions_for
+from tests.gates._reference_pairing import conditions_of
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``). The manufactured cases' meshes carry the one tag
+#: ``VACUUM_TAG``, which the reference states as the vacuum wall (``VACUUM_EXTERIOR``): the test-side loop binds it for production.
+_CONDITIONS = dict(conditions_of(VACUUM_EXTERIOR).conditions)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -287,7 +295,7 @@ def test_ld2d_stress_prescribed_inflow_is_nonvanishing():
     case = build_2d_cartesian_ld_stress_mms_case()
     mesh = case.build_mesh(8)
     mats = case.build_materials(mesh)
-    sn = SNProblem(mesh, case.quadrature, mats, scheme=LinearDiscontinuous())
+    sn = SNProblem(mesh, case.quadrature, mats, scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
     bss = mms_prescribed_inflow(case, sn)
     max_abs = float(np.max(np.abs(bss.values)))
     if max_abs < 1e-3:

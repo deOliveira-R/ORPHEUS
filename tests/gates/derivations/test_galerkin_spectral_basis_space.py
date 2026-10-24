@@ -101,7 +101,8 @@ def test_basis_space_constructs_with_structured_geometry() -> None:
     geom = _slab_geometry()
     bs = BasisSpace(**geom._asdict(), materials={0: mix})
     assert isinstance(bs, BasisSpace)
-    assert bs.geometry is geom
+    assert bs.geometry is geom.geometry
+    assert bs.exterior == geom.exterior
     assert bs.materials[0] is mix
     assert bs.basis_order == 9  # default
     assert bs.n_quad == 128  # default

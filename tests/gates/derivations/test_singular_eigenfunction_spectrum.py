@@ -107,7 +107,8 @@ def test_spectrum_constructs_with_structured_geometry() -> None:
     geom = _slab_geometry()
     spec = Spectrum(**geom._asdict(), materials={0: mix})
     assert isinstance(spec, Spectrum)
-    assert spec.geometry is geom
+    assert spec.geometry is geom.geometry
+    assert spec.exterior == geom.exterior
     assert spec.materials[0] is mix
     assert spec.n_modes == 8  # default
 

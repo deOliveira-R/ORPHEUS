@@ -101,6 +101,7 @@ class Wall:
         # one value, one memo key: the indices as ``int``; the amplitudes arrive parsed (a ``WallAmplitudes`` is canonical)
         object.__setattr__(self, "breakpoint", operator.index(self.breakpoint))
         object.__setattr__(self, "partner", operator.index(self.partner))
+        # an input parse, not a second statement of the bounds: a bare pair is not the value that owns them
         if not isinstance(self.amplitudes, WallAmplitudes):
             raise TypeError(
                 f"Wall: the amplitudes at breakpoint {self.breakpoint} are a WallAmplitudes, got a {type(self.amplitudes).__name__}"

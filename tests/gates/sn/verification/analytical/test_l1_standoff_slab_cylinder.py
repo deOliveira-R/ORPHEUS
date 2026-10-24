@@ -56,6 +56,8 @@ from tests.gates.derivations._characteristic_ladders import CYLINDER_3REG_SN_4X8
 from tests.gates.derivations._ladder_rules import tolerance_for
 from orpheus.geometry import CoordSystem
 from orpheus.numerics.observable import Eigenvalue
+from tests.gates._exterior import conditions_for
+from tests.gates.sn._test_helpers import CURVED_REFLECTIVE
 from tests.gates.sn.verification.analytical._case_slab_reference import case_slab_k_ref, case_slab_mesh
 from tests.gates.sn.verification.analytical._aba_reference import (
     aba_materials,
@@ -100,7 +102,7 @@ def _solve_cyl_via_krylov_unified(nx: int):
             materials=materials, mesh=mesh, quadrature=quad,
             inner_solver="krylov",
             max_outer=200, keff_tol=1e-7, flux_tol=1e-7,
-            max_inner=200, inner_tol=1e-9,
+            max_inner=200, inner_tol=1e-9, boundary_conditions=conditions_for(mesh, CURVED_REFLECTIVE),
         )
     return sol
 
@@ -113,7 +115,7 @@ def _solve_cyl_via_sweep(nx: int):
         materials=materials, mesh=mesh, quadrature=quad,
         inner_solver="source_iteration",
         max_outer=500, keff_tol=1e-7, flux_tol=1e-7,
-        max_inner=500, inner_tol=1e-9,
+        max_inner=500, inner_tol=1e-9, boundary_conditions=conditions_for(mesh, CURVED_REFLECTIVE),
     )
     return sol
 

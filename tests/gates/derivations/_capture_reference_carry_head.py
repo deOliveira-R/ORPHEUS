@@ -15,6 +15,9 @@ specular-only bodies, ``specular_albedos(geometry)``. A solve that the HEAD refe
 ``{"refused": "<exception type>: <first line>"}``, so a refusal that moves is also a finding.
 """
 
+# pyright: reportAttributeAccessIssue=false, reportArgumentType=false, reportCallIssue=false
+# (the module's subject is the retired API of ``main`` ``5d04c296``: against the carved tree every import below is unresolved by design)
+
 from __future__ import annotations
 
 import importlib.util
