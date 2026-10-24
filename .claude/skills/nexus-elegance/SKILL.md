@@ -72,10 +72,11 @@ Each row: the axis from the Elegance Enforcer methodology, the tool, the
   each other → two implementations of one computation. The fingerprint catches
   the array math (`@`, einsum, slicing) the call graph cannot see. (anti-pattern
   1, the load-bearing failure mode — Phase F ERR-026.)
-- **Usage example:** `nexus twin-paths` flags
-  `CPMesh._resolve_bc ≈ MOCMesh._resolve_bc` (0.90, cross-module) → confirm by
-  reading: same registry-lookup + error string, only the default differs →
-  VIOLATION, extract a shared `resolve_bc_factory`. Contrast
+- **Usage example:** `nexus twin-paths` flagged
+  `CPMesh._resolve_bc ≈ MOCMesh._resolve_bc` (0.90, cross-module) → confirmed by
+  reading: same registry-lookup + error string, only the default differed →
+  VIOLATION (both retired in the layer DAG wave 2, slice S4, into one shared
+  base, `Mesh1DMethodMesh`, and the shared `realize_boundary`). Contrast
   `StreamingOperator.apply / apply_transpose` (0.92): symmetric-by-design, NOT
   a twin (see false-positive table).
 - **Serves:** Pattern 2 (composition over duplication).

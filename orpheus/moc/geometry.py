@@ -41,6 +41,7 @@ from orpheus.transport.boundary_conditions import (
     RealizerTable,
     RefusalAxis,
     Refused,
+    RefusingRealizer,
     ResponseRealizer,
     SpecularChain,
     StateCone,
@@ -521,13 +522,11 @@ class MOCMesh(Mesh1DMethodMesh[TrackLinking]):
 # MoC registers no deck realizer (a deck is not spellable on a radial face, and the guard refuses every mesh that is not a solid cylinder),
 # so a deck meets the table's unregistered door, #654; the table holds the three response units only.
 
-class MoCZero(ResponseRealizer, table=MOC_REALIZERS, realizes=ZeroNetwork):
+class MoCZero(RefusingRealizer, table=MOC_REALIZERS, realizes=ZeroNetwork):
     """The empty network: not built (the retired registry held ``reflective`` only; #654)."""
 
     status = Refused(RefusalAxis.PLUMBING, "MoC links specular tracks only; a vacuum wall is not built", 654)
 
-    def realize(self, unit: ZeroNetwork, weight: float, site: FaceSite, space: MOCMesh) -> TrackLinking:
-        raise AssertionError("the empty network is refused at admission, so it is never realized")
 
 
 class MoCSpecularChain(ResponseRealizer, table=MOC_REALIZERS, realizes=SpecularChain):
@@ -550,13 +549,11 @@ class MoCSpecularChain(ResponseRealizer, table=MOC_REALIZERS, realizes=SpecularC
         return MOCMesh._link_tracks
 
 
-class MoCDiffuseChain(ResponseRealizer, table=MOC_REALIZERS, realizes=DiffuseChain):
+class MoCDiffuseChain(RefusingRealizer, table=MOC_REALIZERS, realizes=DiffuseChain):
     """A diffuse chain: not built, at any weight (the retired registry held ``reflective`` only; #654)."""
 
     status = Refused(RefusalAxis.PLUMBING, "MoC links specular tracks only; a white wall is not built", 654)
 
-    def realize(self, unit: DiffuseChain, weight: float, site: FaceSite, space: MOCMesh) -> TrackLinking:
-        raise AssertionError("a diffuse chain is refused at admission, so it is never realized")
 
 
 MOC_REALIZERS.seal()

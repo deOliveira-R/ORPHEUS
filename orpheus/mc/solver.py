@@ -58,6 +58,7 @@ from orpheus.transport.boundary_conditions import (
     RealizerTable,
     RefusalAxis,
     Refused,
+    RefusingRealizer,
     ResponseRealizer,
     SiteClass,
     SpecularChain,
@@ -289,16 +290,14 @@ _TORUS = (
 )
 
 
-class MCZero(ResponseRealizer, table=MC_REALIZERS, realizes=ZeroNetwork):
+class MCZero(RefusingRealizer, table=MC_REALIZERS, realizes=ZeroNetwork):
     """The empty network: not built (the retired registry held ``periodic`` only; #654)."""
 
     status = Refused(RefusalAxis.PLUMBING, "MC wraps its faces periodically; a vacuum wall is not built", 654)
 
-    def realize(self, unit: ZeroNetwork, weight: float, site: FaceSite, space: MCMesh) -> PeriodicWrap:
-        raise AssertionError("the empty network is refused at admission, so it is never realized")
 
 
-class MCSpecularChain(ResponseRealizer, table=MC_REALIZERS, realizes=SpecularChain):
+class MCSpecularChain(RefusingRealizer, table=MC_REALIZERS, realizes=SpecularChain):
     r"""A specular chain: refused at every weight.
 
     On a solid cylinder it is ``Refused(TOPOLOGY, ..., #547)`` (the user's ruling): MC samples a periodic equal-area SQUARE lattice cell,
@@ -315,17 +314,13 @@ class MCSpecularChain(ResponseRealizer, table=MC_REALIZERS, realizes=SpecularCha
             return self.status
         return Refused(RefusalAxis.PLUMBING, "MC wraps its faces periodically; a specular wall is not built", 654)
 
-    def realize(self, unit: SpecularChain, weight: float, site: FaceSite, space: MCMesh) -> PeriodicWrap:
-        raise AssertionError("a specular chain is refused at admission, so it is never realized")
 
 
-class MCDiffuseChain(ResponseRealizer, table=MC_REALIZERS, realizes=DiffuseChain):
+class MCDiffuseChain(RefusingRealizer, table=MC_REALIZERS, realizes=DiffuseChain):
     """A diffuse chain: not built, at any weight (the retired registry held ``periodic`` only; #654)."""
 
     status = Refused(RefusalAxis.PLUMBING, "MC wraps its faces periodically; a white wall is not built", 654)
 
-    def realize(self, unit: DiffuseChain, weight: float, site: FaceSite, space: MCMesh) -> PeriodicWrap:
-        raise AssertionError("a diffuse chain is refused at admission, so it is never realized")
 
 
 class MCDecks(DeckRealizer, table=MC_REALIZERS):

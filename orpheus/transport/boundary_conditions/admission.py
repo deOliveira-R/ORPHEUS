@@ -223,7 +223,8 @@ def hollow_inner_refusal(reason: str) -> Refused:
     on the axes' trace inventory has nowhere to put an inner condition: it computes the reflective cavity (a unit specular return)
     whatever is declared. A table whose method reads that inventory (SN, diffusion) refuses every other inner declaration through
     this constructor, ``reason`` naming what the method computes there. It is a per-TABLE admission and not a site rule of the
-    shared dispatch: a method with its own inner-surface geometry (the collision-probability hollow cylinder) can honour the face.
+    shared dispatch: the reason for refusing an inner face is the method's (CP refuses a hollow body's inner face on its own guard,
+    #513, and MoC and MC refuse a hollow body outright, #514 and #513), so a method that gains an inner-surface trace lifts it alone.
 
     SCOPE-BOUNDARY[guard] machinery: an inner-surface trace on the radial axis (a trace slot, and for SN a corner action, on the inner face).
     ruling: wave2_boundary_carve.md section 4.2 (the SN and diffusion columns), revised at the S3 integration 2026-10-23.

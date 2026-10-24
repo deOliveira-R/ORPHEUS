@@ -101,6 +101,7 @@ K = TypeVar("K")
 __all__ = [
     "DeckRealizer",
     "RealizerTable",
+    "RefusingRealizer",
     "ResponseRealizer",
     "SealedTableError",
     "SourceRealizer",
@@ -363,6 +364,23 @@ class ResponseRealizer(ABC, Generic[K, SpaceT, OpT]):
     @abstractmethod
     def realize(self, unit: K, weight: float, site: FaceSite, space: SpaceT) -> OpT:
         """The operator of ``weight * unit`` on ``site``."""
+
+
+class RefusingRealizer(ResponseRealizer[K, SpaceT, OpT]):
+    """A unit a table registers only to REFUSE, with a reason sharper than the unregistered door's (a named axis, a site-dependent cell).
+
+    Its admission is a ``Refused`` at every value and site, so the table's ``realize`` (which runs ``require`` first) never reaches the
+    body: the one unreachable body is here, instead of one per method. A registered subclass must state a refused :attr:`status`
+    (checked at class creation); an ``admit`` override that returned an admission would reach :meth:`realize` and raise.
+    """
+
+    def __init_subclass__(cls, *, table: RealizerTable | None = None, realizes: type | None = None, **kwargs: object) -> None:
+        if table is not None and not isinstance(getattr(cls, "status", None), Refused):
+            raise TypeError(f"{cls.__name__}: a RefusingRealizer states a Refused status, got {getattr(cls, 'status', None)!r}")
+        super().__init_subclass__(table=table, realizes=realizes, **kwargs)
+
+    def realize(self, unit: K, weight: float, site: FaceSite, space: SpaceT) -> OpT:
+        raise AssertionError(f"{type(self).__name__}: the unit is refused at admission, so it is never realized")
 
 
 class SourceRealizer(ABC, Generic[SourceSpaceT]):

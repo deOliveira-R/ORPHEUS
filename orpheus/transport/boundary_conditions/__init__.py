@@ -43,6 +43,7 @@ from orpheus.transport.boundary_conditions.network import (
 from orpheus.transport.boundary_conditions.realization import (
     DeckRealizer,
     RealizerTable,
+    RefusingRealizer,
     ResponseRealizer,
     SealedTableError,
     SourceRealizer,
@@ -82,6 +83,7 @@ __all__ = [
     "RefusalAxis",
     "Refused",
     "ResponseNetwork",
+    "RefusingRealizer",
     "ResponseRealizer",
     "SealedTableError",
     "SiteClass",

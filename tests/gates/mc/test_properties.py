@@ -112,15 +112,18 @@ def test_1g_homogeneous_deterministic():
     )
 
 
+#: Strict ``xfail`` reasons for the two lookups whose carrier MC's table refuses (the wave-2 S4 integration replaced a non-strict
+#: ``xfail(raises=ValueError)`` citing #180, whose reason had decayed: the failure is now the table's refusal, not a missing realizer).
+#: MC's table holds only what its string registry held, a translation wrap (#654); #180 tracks MC's reflective and white walls.
+_REASON_654_MIRROR = "#654: MC's table admits only a translation wrap on a slab (what its registry held), so the half-cell's mirror plane is refused; #180 tracks the capability"
+_REASON_654_WHITE = "#654: MC's table admits no white wall (its registry held only the periodic wrap), so the Wigner-Seitz cell's white outer face is refused; #180 tracks the capability"
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # L0-MC-001/002: MCMesh geometry lookup
 # ═══════════════════════════════════════════════════════════════════════
 
-@pytest.mark.xfail(
-    reason="MC reflective/white BC unimplemented — issue #180",
-    raises=ValueError,
-    strict=False,
-)
+@pytest.mark.xfail(strict=True, raises=BoundaryRefused, reason=_REASON_654_MIRROR)
 def test_mcmesh_satisfies_protocol():
     """MCMesh must satisfy the MCGeometry runtime protocol."""
     geom = StructuredGeometry.pwr_slab_half_cell()
@@ -182,11 +185,7 @@ def test_mcmesh_cylindrical_lookup():
     assert mc.material_id_at(center, center + 0.7) == 0
 
 
-@pytest.mark.xfail(
-    reason="MC reflective/white BC unimplemented — issue #180",
-    raises=ValueError,
-    strict=False,
-)
+@pytest.mark.xfail(strict=True, raises=BoundaryRefused, reason=_REASON_654_WHITE)
 def test_mcmesh_cylindrical_matches_concentric():
     """MCMesh from pwr_pin_equivalent must agree with ConcentricPinCell.
 

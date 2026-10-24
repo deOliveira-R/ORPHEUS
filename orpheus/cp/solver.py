@@ -65,6 +65,7 @@ from orpheus.transport.boundary_conditions import (
     RealizerTable,
     RefusalAxis,
     Refused,
+    RefusingRealizer,
     ResponseRealizer,
     SiteClass,
     SpecularChain,
@@ -542,13 +543,11 @@ class CPZero(_CPFaces, table=CP_REALIZERS, realizes=ZeroNetwork):
         return _vacuum_closure
 
 
-class CPSpecularChain(_CPFaces, table=CP_REALIZERS, realizes=SpecularChain):
+class CPSpecularChain(RefusingRealizer, _CPFaces, table=CP_REALIZERS, realizes=SpecularChain):
     """A specular chain: not built (the retired registry held no reflective closure at the outer face; #654)."""
 
     status = Refused(RefusalAxis.PLUMBING, "CP's table holds the white wall and the vacuum only; a specular return is not built", 654)
 
-    def realize(self, unit: SpecularChain, weight: float, site: FaceSite, space: CPMesh) -> CPClosure:
-        raise AssertionError("a specular chain is refused at admission, so it is never realized")
 
 
 class CPDiffuseChain(_CPFaces, table=CP_REALIZERS, realizes=DiffuseChain):
