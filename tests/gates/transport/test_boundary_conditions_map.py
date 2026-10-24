@@ -59,7 +59,7 @@ def test_conditions_map() -> None:
     require(bc.BoundaryConditions({1: vac}) != declared and bc.BoundaryConditions({1: white, 3: white}) != declared, "a different map is a different value")
 
     for key in (np.int64(3), np.int32(3)):
-        parsed = bc.BoundaryConditions({key: white})
+        parsed = bc.BoundaryConditions({key: white})  # type: ignore[dict-item]  # numpy-int keys: the coercion row
         require(list(parsed) == [3] and type(next(iter(parsed))) is int, f"{key!r} is not coerced to the int tag")
         require(parsed == bc.BoundaryConditions({3: white}), "an np.integer tag is the same tag")
     for key in (True, False):

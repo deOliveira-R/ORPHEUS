@@ -595,14 +595,22 @@ def test_the_sum_is_parsed_as_the_declared_cone() -> None:
     with pytest.raises(ValueError, match="appears twice"):
         _ = perm(0.4) + perm(0.4)
     ls6 = H.QUADRATURES["ls6"]()
-    with pytest.raises(ValueError, match="different trace"):
+    with pytest.raises(ValueError, match="different inflow spaces"):
         _ = perm(0.3) + diff(0.3, H.trace_of(ls6))
+    with pytest.raises(ValueError, match="different trace"):  # the parse of a sum built directly, not through ``a + b``
+        R.RealizedSum(terms=(perm(0.3), diff(0.3, H.trace_of(ls6))))
     zero = R.ZeroMap(face="xmin", trace=trace)
     one = perm(0.7)
     assert zero + one == one and one + zero == one and zero + zero == zero
     assert (zero + perm(0.3) + diff(0.5)).return_fraction == 0.8
     with pytest.raises(ValueError, match="different faces"):
         _ = R.ZeroMap(face="xmax", trace=trace) + one
+    # The zero map is the identity only on its own face and discretization (the S2b integration, 2026-10-23: two zero maps on
+    # different faces summed to the first, and a zero map on ls6 vanished from a gl8 sum, both unrefused).
+    with pytest.raises(ValueError, match="different faces"):
+        _ = R.ZeroMap(face="xmin", trace=trace) + R.ZeroMap(face="xmax", trace=trace)
+    with pytest.raises(ValueError, match="different inflow spaces"):
+        _ = R.ZeroMap(face="xmin", trace=H.trace_of(ls6)) + one
 
 
 @pytest.mark.foundation

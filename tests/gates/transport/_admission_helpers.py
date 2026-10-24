@@ -98,22 +98,22 @@ def make_table(
     class Spec(bc.ResponseRealizer, table=table, realizes=bc.SpecularChain):
         status = R(True)
 
-        def admit(self, unit, weight, site_, space=None):
-            spies.admit.append(("spec", unit, weight, site_, space))
-            if site_.site_class is bc.SiteClass.RAD_INNER:
+        def admit(self, unit, weight, site, space=None):
+            spies.admit.append(("spec", unit, weight, site, space))
+            if site.site_class is bc.SiteClass.RAD_INNER:
                 return R(True) if weight == 1.0 else inner(511)
             return self.status
 
-        def realize(self, unit, weight, site_, space):
-            spies.realize.append(("spec", unit, weight, site_, space))
+        def realize(self, unit, weight, site, space):
+            spies.realize.append(("spec", unit, weight, site, space))
             return Img((("spec", weight),))
 
     class Diff(bc.ResponseRealizer, table=table, realizes=bc.DiffuseChain):
         status = R(True)
 
-        def admit(self, unit, weight, site_, space=None):
-            spies.admit.append(("diff", unit, weight, site_, space))
-            match site_.site_class:
+        def admit(self, unit, weight, site, space=None):
+            spies.admit.append(("diff", unit, weight, site, space))
+            match site.site_class:
                 case bc.SiteClass.CART:
                     return self.status
                 case bc.SiteClass.RAD_OUTER:
@@ -121,8 +121,8 @@ def make_table(
                 case bc.SiteClass.RAD_INNER:
                     return inner(511)
 
-        def realize(self, unit, weight, site_, space):
-            spies.realize.append(("diff", unit, weight, site_, space))
+        def realize(self, unit, weight, site, space):
+            spies.realize.append(("diff", unit, weight, site, space))
             return Img((("diff", weight),))
 
     Zero: type | None = None  # a realizer class, or None for one left out
@@ -133,14 +133,14 @@ def make_table(
         class _Zero(bc.ResponseRealizer, table=table, realizes=bc.ZeroNetwork):
             status = R(True)
 
-            def admit(self, unit, weight, site_, space=None):
-                spies.admit.append(("zero", unit, weight, site_, space))
+            def admit(self, unit, weight, site, space=None):
+                spies.admit.append(("zero", unit, weight, site, space))
                 if zero_admit is not None:
-                    return zero_admit(site_)
-                return inner(511) if site_.site_class is bc.SiteClass.RAD_INNER else self.status
+                    return zero_admit(site)
+                return inner(511) if site.site_class is bc.SiteClass.RAD_INNER else self.status
 
-            def realize(self, unit, weight, site_, space):
-                spies.realize.append(("zero", unit, weight, site_, space))
+            def realize(self, unit, weight, site, space):
+                spies.realize.append(("zero", unit, weight, site, space))
                 return Img((("zero", 1.0),))
         Zero = _Zero
 
@@ -148,11 +148,11 @@ def make_table(
         class _Src(bc.SourceRealizer, table=table):
             status = R(True)
 
-            def admit(self, terms, site_, space=None):
-                spies.admit.append(("source", terms, 1.0, site_, space))
+            def admit(self, terms, site, space=None):
+                spies.admit.append(("source", terms, 1.0, site, space))
                 if source_admit is not None:
-                    return source_admit(site_)
-                match site_.site_class:
+                    return source_admit(site)
+                match site.site_class:
                     case bc.SiteClass.CART:
                         return self.status
                     case bc.SiteClass.RAD_OUTER:
@@ -160,17 +160,17 @@ def make_table(
                     case bc.SiteClass.RAD_INNER:
                         return inner(511)
 
-            def sample(self, terms, site_, space):
-                spies.sample.append((terms, site_, space))
+            def sample(self, terms, site, space):
+                spies.sample.append((terms, site, space))
                 if sample_override is not None:
-                    return sample_override(terms, site_, space)
-                return super().sample(terms, site_, space)
+                    return sample_override(terms, site, space)
+                return super().sample(terms, site, space)
         Src = _Src
 
     if with_deck:
         class _DeckR(bc.DeckRealizer, table=table):
-            def admit(self, deck, pairing, site_, space=None):
-                spies.deck.append(("admit", deck, pairing, site_, space))
+            def admit(self, deck, pairing, site, space=None):
+                spies.deck.append(("admit", deck, pairing, site, space))
                 match deck:
                     case MirrorDeck():
                         return R(True)
@@ -181,8 +181,8 @@ def make_table(
 
                         assert_never(deck)
 
-            def realize(self, deck, pairing, site_, space):
-                spies.deck.append(("realize", deck, pairing, site_, space))
+            def realize(self, deck, pairing, site, space):
+                spies.deck.append(("realize", deck, pairing, site, space))
                 return Img(((f"deck:{type(deck).__name__}", 1.0),))
         DeckR = _DeckR
 

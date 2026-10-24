@@ -114,7 +114,7 @@ def test_bind_takes_the_carrier() -> None:
     require(binding.faces == ("xmin", "xmax") and set(binding.tags) == {"xmin", "xmax"}, f"the binding's faces are {binding.faces}")
 
     trivial = bc.bind(Carrier({"xmin": 0, "xmax": 0}, slab_mesh({"xmin": 0, "xmax": 0}, materials=(0, 1)).symmetry), {0: _lab()})
-    require(isinstance(trivial, bc.Binding) and len(trivial.symmetry.elements) == 1, "the asymmetric group does not bind the lab-frame source silently")
+    require(isinstance(trivial, bc.Binding) and isinstance(trivial.symmetry, ColouringSymmetry) and len(trivial.symmetry.elements) == 1, "the asymmetric group does not bind the lab-frame source silently")
     with pytest.raises(bc.NonInvariantConditionError):
         bc.bind(own, {0: _lab()})  # the SAME roles, the symmetric carrier's group: refused
 

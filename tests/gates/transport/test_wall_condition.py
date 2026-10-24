@@ -190,7 +190,7 @@ def test_orientation_is_unspellable() -> None:
     with pytest.raises(TypeError):
         bc.MirrorPermutation(axis="y")  # type: ignore[call-arg]  # the refusal input
     with pytest.raises(AttributeError):
-        bc.WallCondition.white(0.5).axis  # noqa: B018  # the refusal input
+        bc.WallCondition.white(0.5).axis  # type: ignore[attr-defined]  # noqa: B018  # the refusal input
 
 
 @pytest.mark.rests_on(_PARSE)

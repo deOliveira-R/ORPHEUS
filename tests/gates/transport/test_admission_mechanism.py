@@ -187,7 +187,7 @@ def test_registration_by_class_keyword() -> None:
         class DuplicateSpec(bc.ResponseRealizer, table=t, realizes=bc.SpecularChain):
             status = R(True)
 
-            def realize(self, unit, weight, site_, space):
+            def realize(self, unit, weight, site, space):
                 return Img(())
 
     for bad_key in (int, bc.MirrorPermutation, bc.InflowTerms, bc.IsotropicSection):
@@ -195,7 +195,7 @@ def test_registration_by_class_keyword() -> None:
             class BadKey(bc.ResponseRealizer, table=t, realizes=bad_key):  # type: ignore[arg-type, misc]
                 status = R(True)
 
-                def realize(self, unit, weight, site_, space):
+                def realize(self, unit, weight, site, space):
                     return Img(())
 
     with pytest.raises(_REFUSED_REGISTRATION):
@@ -204,17 +204,17 @@ def test_registration_by_class_keyword() -> None:
 
     with pytest.raises(_REFUSED_REGISTRATION):
         class SecondDeck(bc.DeckRealizer, table=t):
-            def admit(self, deck, pairing, site_, space=None):
+            def admit(self, deck, pairing, site, space=None):
                 return R(True)
 
-            def realize(self, deck, pairing, site_, space):
+            def realize(self, deck, pairing, site, space):
                 return Img(())
 
     method_only = local().Probe
     class ProbeRealizer(bc.ResponseRealizer, table=t, realizes=method_only):  # a method-only condition type is a key
         status = R(True)
 
-        def realize(self, unit, weight, site_, space):
+        def realize(self, unit, weight, site, space):
             return Img((("probe", weight),))
 
     t.seal()
@@ -225,7 +225,7 @@ def test_registration_by_class_keyword() -> None:
         class Late(bc.ResponseRealizer, table=t, realizes=local().NegativeProbe):
             status = R(True)
 
-            def realize(self, unit, weight, site_, space):
+            def realize(self, unit, weight, site, space):
                 return Img(())
     with pytest.raises(bc.SealedTableError):
         class LateSource(bc.SourceRealizer, table=t):
@@ -304,7 +304,7 @@ def test_one_door() -> None:
     class SelfRefusing(bc.ResponseRealizer, table=planted, realizes=bc.SpecularChain):
         status = bc.Realized(True)
 
-        def realize(self, unit, weight, site_, space):
+        def realize(self, unit, weight, site, space):
             raise OwnRefusal(bc.Refused(bc.RefusalAxis.TOPOLOGY, "r"))
 
     planted.seal()
@@ -346,7 +346,7 @@ def test_exact_type_lookup() -> None:
     class ProbeR(bc.ResponseRealizer, table=table, realizes=parent):
         status = bc.Realized(True)
 
-        def realize(self, unit, weight, site_, space):
+        def realize(self, unit, weight, site, space):
             return Img((("probe", weight),))
 
     table.seal()
@@ -368,7 +368,7 @@ def test_exact_type_lookup() -> None:
     class SpecR(bc.ResponseRealizer, table=wall_table, realizes=bc.SpecularChain):
         status = bc.Realized(True)
 
-        def realize(self, unit, weight, site_, space):
+        def realize(self, unit, weight, site, space):
             return Img((("spec", weight),))
 
     with pytest.raises(_REFUSED_REGISTRATION):  # a WallCondition subclass is not a key
@@ -376,7 +376,7 @@ def test_exact_type_lookup() -> None:
         class MyWallR(bc.ResponseRealizer, table=wall_table, realizes=MyWall):
             status = bc.Realized(True)
 
-            def realize(self, unit, weight, site_, space):
+            def realize(self, unit, weight, site, space):
                 return Img((("mine", weight),))
 
     wall_table.seal()
@@ -428,7 +428,7 @@ def test_the_unregistered_door_names_the_axis() -> None:
     class NegativeR(bc.ResponseRealizer, table=registered, realizes=type(negative)):
         status = bc.Realized(True)
 
-        def realize(self, unit, weight, site_, space):
+        def realize(self, unit, weight, site, space):
             return Img((("negative", weight),))
 
     registered.seal()
@@ -439,7 +439,7 @@ def test_the_unregistered_door_names_the_axis() -> None:
     class OnlySpec(bc.ResponseRealizer, table=spec_only, realizes=bc.SpecularChain):
         status = bc.Realized(True)
 
-        def realize(self, unit, weight, site_, space):
+        def realize(self, unit, weight, site, space):
             return Img((("spec", weight),))
 
     spec_only.seal()
@@ -487,10 +487,10 @@ def test_catalogue_is_an_upper_bound() -> None:
     class Lying(bc.ResponseRealizer, table=lying, realizes=bc.SpecularChain):
         status = bc.Approximated.of("a named approximation", 547)
 
-        def admit(self, unit, weight, site_, space=None):
+        def admit(self, unit, weight, site, space=None):
             return bc.Realized(True)
 
-        def realize(self, unit, weight, site_, space):
+        def realize(self, unit, weight, site, space):
             return Img(())
 
     lying.seal()
@@ -586,7 +586,7 @@ def test_the_functor_law() -> None:
     require([e[0] for e in spies.admit] == ["spec", "diff", "source"], f"a mixed wall over a source consulted {[e[0] for e in spies.admit]}")
 
     # the discriminating variants: a refusing zero row and a refusing source row
-    refuse = lambda site_: bc.Refused(bc.RefusalAxis.PLUMBING, "x", 900)  # noqa: E731
+    refuse = lambda site: bc.Refused(bc.RefusalAxis.PLUMBING, "x", 900)  # noqa: E731
     zero_refuses = make_table(zero_admit=refuse).table
     require(zero_refuses.admit(W.specular(0.5), where) == bc.Realized(True), "the zero network was consulted for a wall with a network")
     require(isinstance(zero_refuses.admit(W.vacuum(), where), bc.Refused), "vacuum does not consult the zero network")
@@ -601,13 +601,13 @@ def test_the_functor_law() -> None:
     class ApproxSpec(bc.ResponseRealizer, table=approx, realizes=bc.SpecularChain):
         status = bc.Approximated.of("a square cell", 547)
 
-        def realize(self, unit, weight, site_, space):
+        def realize(self, unit, weight, site, space):
             return Img((("spec", weight),))
 
     class FaithfulDiff(bc.ResponseRealizer, table=approx, realizes=bc.DiffuseChain):
         status = bc.Realized(True)
 
-        def realize(self, unit, weight, site_, space):
+        def realize(self, unit, weight, site, space):
             return Img((("diff", weight),))
 
     approx.seal()
@@ -666,16 +666,16 @@ def test_the_source_verb() -> None:
     require(len(built.spies.sample) == 1 and built.spies.sample[0][2] is space, "the registered realizer's sample was not the one called")
 
     marker = np.array([7.0, 8.0, 9.0])
-    override = make_table(sample_override=lambda terms_, site_, space_: marker)
+    override = make_table(sample_override=lambda terms_, site, space_: marker)
     out = override.table.sample_inflow(terms, site("CART"), space)
     require(np.array_equal(out, marker) and override.spies.sample[0][0] is terms and override.spies.sample[0][1] == site("CART"), "the override was not called with (terms, site, space)")
 
     sampler_calls: list[object] = []
 
     class Counting:
-        def sample(self, space_):
-            sampler_calls.append(space_)
-            return np.ones(space_.shape)
+        def sample(self, space):
+            sampler_calls.append(space)
+            return np.ones(space.shape)
 
     sampled = bc.InflowTerms(0.0, ((1.0, bc.FaceFrameInflow(Counting())),))
     with pytest.raises(bc.BoundaryRefused) as caught:
@@ -717,12 +717,19 @@ def test_the_sum_is_sealed_and_each_member_parses() -> None:
             pass
 
     require({"Realized", "Approximated", "Refused"} <= {c.__name__ for c in bc.Admission.__subclasses__()}, "control: the three members are direct subclasses")
-    for build in (lambda: bc.Realized(1), lambda: bc.Approximated("abc", {1}), lambda: bc.Refused("topology", "r"), lambda: bc.Refused(bc.RefusalAxis.TOPOLOGY, 3)):
+    refused_builds = (
+        lambda: bc.Realized(1),  # type: ignore[arg-type]
+        lambda: bc.Approximated("abc", {1}),  # type: ignore[call-arg]
+        lambda: bc.Refused("topology", "r"),  # type: ignore[arg-type]
+        lambda: bc.Refused(bc.RefusalAxis.TOPOLOGY, 3),  # type: ignore[arg-type]
+    )
+    for build in refused_builds:
         with pytest.raises(TypeError):
             build()
     with pytest.raises(ValueError):
         bc.Approximated(frozenset())
     merged = bc.Admission.meet(bc.Approximated.of("x", 1), bc.Approximated.of("y", 2))
+    assert isinstance(merged, bc.Approximated)
     require(merged.approximations == frozenset({("x", 1), ("y", 2)}), f"the meet lost which issue tracks which name: {merged}")
     require(merged != bc.Approximated(frozenset({("x", 2), ("y", 1)})), "control: swapping the issues must be a different value")
 
@@ -761,13 +768,13 @@ def test_the_source_door_is_met_for_every_condition() -> None:
         class ProbeR(bc.ResponseRealizer, table=t, realizes=probe_cls):
             status = bc.Realized(True)
 
-            def realize(self, unit, weight, site_, space):
+            def realize(self, unit, weight, site, space):
                 return Img((("probe", weight),))
 
         class SourcedR(bc.ResponseRealizer, table=t, realizes=sourced):
             status = bc.Realized(True)
 
-            def realize(self, unit, weight, site_, space):
+            def realize(self, unit, weight, site, space):
                 return Img((("sourced", weight),))
 
         if source:
@@ -775,8 +782,8 @@ def test_the_source_door_is_met_for_every_condition() -> None:
             class Src(bc.SourceRealizer, table=t):
                 status = bc.Realized(True)
 
-                def admit(self, terms, site_, space=None):
-                    return self.status if site_.site_class is bc.SiteClass.CART else bc.Refused(bc.RefusalAxis.TOPOLOGY, "no source here")
+                def admit(self, terms, site, space=None):
+                    return self.status if site.site_class is bc.SiteClass.CART else bc.Refused(bc.RefusalAxis.TOPOLOGY, "no source here")
 
         t.seal()
         return t

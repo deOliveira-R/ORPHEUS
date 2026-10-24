@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import dataclasses
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 #: The commit the fixture is captured at (section 6.0).
 HEAD_COMMIT = "5d04c296"
@@ -89,8 +89,21 @@ INFLOW_VALUE = 1.0
 S16_ORDINATES = 16
 
 #: Solver settings, spelled out (nothing left to a default).
-EIGEN = dict(max_outer=500, keff_tol=1e-10, flux_tol=1e-9, max_inner=4000, inner_tol=1e-11)
-FIXED = dict(max_inner=4000, inner_tol=1e-12)
+class _EigenSettings(TypedDict):
+    max_outer: int
+    keff_tol: float
+    flux_tol: float
+    max_inner: int
+    inner_tol: float
+
+
+class _FixedSettings(TypedDict):
+    max_inner: int
+    inner_tol: float
+
+
+EIGEN = _EigenSettings(max_outer=500, keff_tol=1e-10, flux_tol=1e-9, max_inner=4000, inner_tol=1e-11)
+FIXED = _FixedSettings(max_inner=4000, inner_tol=1e-12)
 
 
 def tag(declaration: Declaration) -> str:

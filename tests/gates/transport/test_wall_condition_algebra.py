@@ -93,6 +93,14 @@ def _is_condition(x) -> bool:
     return type(x) is bc.WallCondition
 
 
+def _cond(x: object) -> bc.WallCondition:
+    """``x`` as a ``WallCondition``: the arithmetic returns the union of the wall and its displacement, and a gate that reads a
+    wall's fields owes the narrowing (a ``raise``, kept under ``python -O``)."""
+    if type(x) is not bc.WallCondition:
+        raise AssertionError(f"expected a WallCondition, got {type(x).__name__}")
+    return x
+
+
 def _is_displacement(x) -> bool:
     return type(x) is bc.WallDisplacement
 
@@ -143,16 +151,16 @@ def test_the_algebra_and_the_cone() -> None:
     require(_spec(0.25) + _spec(0.5) == _spec(0.75), "the dyadic merge is not exact")
     a, b, c = _spec(0.25), _white(0.5), _spec(0.125)
     require((a + b) + c == a + (b + c), "the dyadic association is not exact")
-    require(((a + b) + c).cone_point == (0.375, 0.5), f"the dyadic sum reads {((a + b) + c).cone_point}")
+    require(_cond((a + b) + c).cone_point == (0.375, 0.5), f"the dyadic sum reads {_cond((a + b) + c).cone_point}")
     require(math.fsum([0.25, 0.5, 0.125]) == 0.875, "control: the dyadic triple sums exactly")
-    require((a + b).return_fraction == a.return_fraction + b.return_fraction, "return_fraction is not additive on dyadic coordinates")
+    require(_cond(a + b).return_fraction == a.return_fraction + b.return_fraction, "return_fraction is not additive on dyadic coordinates")
 
     # the one-ulp leg: the associativity of general doubles is NOT exact, and the limit is stated
     x1, x2, x3 = _spec(0.1), _spec(0.2), _spec(0.3)
     left, right = (x1 + x2) + x3, x1 + (x2 + x3)
     require(_is_condition(left) and _is_condition(right), "the 0.1, 0.2, 0.3 sums lie in K")
     require(0.1 + 0.2 + 0.3 != 0.1 + (0.2 + 0.3), "control: the two associations of the triple differ in the double")
-    for lc, rc in zip(left.cone_point, right.cone_point):
+    for lc, rc in zip(_cond(left).cone_point, _cond(right).cone_point):
         require(_one_ulp(lc, rc), f"the associations differ by more than one ulp: {lc!r} vs {rc!r}")
     require(left != right and content_digest(left) != content_digest(right),
             "the two spellings of one physical wall coincide in digest: associativity became exact (rational coordinates?)")
@@ -194,7 +202,7 @@ def test_the_algebra_and_the_cone() -> None:
 
     # the zero-weight drop reaches the sampled terms
     framed = bc.WallCondition.framed(bc.FaceFrameInflow(OpaqueSampler()))
-    dropped = 0.0 * framed
+    dropped = _cond(0.0 * framed)
     require(dropped == vac and dropped.source.sampled == () and _is_condition(dropped), "G5: 0.0 * framed(f) keeps a zero-weight term")
 
     # a method-only condition defines no operator
@@ -218,7 +226,7 @@ def test_the_source_is_summed_with_the_response() -> None:
     Reddens on: a ``__add__`` that sums the networks and drops the sources (the first assertion); a scalar ``*``
     that scales the network and not the source; a copy sorting sampled terms by digest (the open-sampler row).
     """
-    mixed = 0.5 * bc.WallCondition.uniform(2.0) + _spec(0.5)
+    mixed = _cond(0.5 * bc.WallCondition.uniform(2.0) + _spec(0.5))
     require(_is_condition(mixed), f"the mixed wall is a {type(mixed).__name__}")
     require(mixed.source.uniform == 1.0 and mixed.cone_point == (0.5, 0.0), f"the mixed wall reads {mixed.cone_point}, {mixed.source}")
     require(bc.WallCondition.uniform(1.0) + bc.WallCondition.uniform(2.0) == bc.WallCondition.uniform(3.0), "inflow(1) + inflow(2) != inflow(3)")
@@ -229,7 +237,7 @@ def test_the_source_is_summed_with_the_response() -> None:
 
     sampler = OpaqueSampler()
     profile = bc.FaceFrameInflow(sampler)
-    half = 0.5 * bc.WallCondition.framed(profile)
+    half = _cond(0.5 * bc.WallCondition.framed(profile))
     require(_is_condition(half), f"0.5 * framed(f) is a {type(half).__name__}")
     require(len(half.source.sampled) == 1, f"the sampled terms are {half.source.sampled}")
     weight, held = half.source.sampled[0]
@@ -241,7 +249,7 @@ def test_the_source_is_summed_with_the_response() -> None:
     require(not (half == other), "two walls holding two opaque samplers compare equal: identity equality was lost")
     with pytest.raises(ContentlessError):
         content_digest(half)
-    summed = half + _spec(0.25)
+    summed = _cond(half + _spec(0.25))
     require(_is_condition(summed) and summed.source.sampled[0][0] == 0.5 and summed.cone_point == (0.25, 0.0), "adding a response to a framed wall lost a part")
 
 
@@ -263,10 +271,10 @@ def test_equal_profiles_merge_and_decide_the_type() -> None:
     framed = bc.WallCondition.framed(profile)
     cancelled = framed - framed
     require(type(cancelled) is bc.WallCondition and cancelled.source.is_zero and cancelled == bc.WallCondition.vacuum(), f"framed(f) - framed(f) is {cancelled!r}")
-    halves = 0.5 * framed + 0.5 * framed
+    halves = _cond(0.5 * framed + 0.5 * framed)
     require(type(halves) is bc.WallCondition and halves.source.sampled == ((1.0, profile),), f"two halves hold {halves.source.sampled}")
     other = bc.WallCondition.framed(bc.FaceFrameInflow(ProfileSampler(2.0)))
-    require(len((framed + other).source.sampled) == 2, "control: distinct profiles must not merge")
+    require(len(_cond(framed + other).source.sampled) == 2, "control: distinct profiles must not merge")
 
 
 @pytest.mark.rests_on(_ALGEBRA)
@@ -283,7 +291,7 @@ def test_displacements_are_values_not_conditions() -> None:
     """
     over = 2.0 * _spec(0.6)
     with pytest.raises(TypeError, match="WallDisplacement"):
-        bc.BoundaryConditions({1: over})
+        bc.BoundaryConditions({1: over})  # type: ignore[dict-item]  # the refusal input: a displacement
     spec1, white1 = _spec(1.0), _white(1.0)
     pinned = bc.WallDisplacement.of((1.0, spec1), (-1.0, white1))
     require(_is_displacement(pinned), "of((1, spec), (-1, white)) is not a displacement")
@@ -301,7 +309,7 @@ def test_displacements_are_values_not_conditions() -> None:
     require(hash(inside) != hash(twin), "a displacement and its condition share a hash")
     require(not isinstance(inside, bc.BoundaryCondition), "a displacement is a BoundaryCondition")
     with pytest.raises(TypeError, match="WallDisplacement"):
-        bc.BoundaryConditions({1: inside})
+        bc.BoundaryConditions({1: inside})  # type: ignore[dict-item]  # the refusal input: a displacement
 
     closed = [pinned + pinned, pinned - pinned, 2.0 * pinned, -pinned, pinned + inside, pinned * 0.5]
     # `pinned - pinned` has all-zero coordinates: still a displacement? it lies in K, so by the value predicate it is a vacuum condition
@@ -358,7 +366,7 @@ def test_a_deck_is_not_an_operand() -> None:
     cases = {
         "vacuum + 3": lambda: bc.WallCondition.vacuum() + 3,
         "0.5 * MirrorDeck": lambda: 0.5 * MirrorDeck(),  # type: ignore[operator]  # the refusal under test
-        "MirrorDeck + vacuum": lambda: MirrorDeck() + bc.WallCondition.vacuum(),
+        "MirrorDeck + vacuum": lambda: MirrorDeck() + bc.WallCondition.vacuum(),  # type: ignore[operator]
         "vacuum + TranslationDeck": lambda: bc.WallCondition.vacuum() + TranslationDeck(),
         "vacuum * MirrorDeck": lambda: bc.WallCondition.vacuum() * MirrorDeck(),  # type: ignore[operator]
         "vacuum - str": lambda: bc.WallCondition.vacuum() - "x",  # type: ignore[operator]
@@ -390,7 +398,7 @@ def test_inflow_frames_and_terms() -> None:
     uniform = bc.WallCondition.uniform(1.0)
     require(face.face_local is True and uniform.face_local is True and bc.WallCondition.vacuum().face_local is True, "a face-frame, uniform or empty source is face-local")
     require(lab.face_local is False, "a lab-frame source is not face-local")
-    require((lab + uniform).face_local is False and (face + uniform).face_local is True, "face_local does not follow the terms through +")
+    require(_cond(lab + uniform).face_local is False and _cond(face + uniform).face_local is True, "face_local does not follow the terms through +")
     require(bc.InflowTerms.empty().is_zero and bc.InflowTerms.empty().face_local, "the empty inflow is zero and face-local")
     require(not uniform.source.is_zero and not face.source.is_zero, "a nonzero source reads as zero")
 
@@ -421,7 +429,7 @@ def test_inflow_frames_and_terms() -> None:
         def __init__(self, shape):
             self.shape = shape
 
-        def sample(self, space_):
+        def sample(self, space):
             return np.ones(self.shape)
 
     # (1,) on (3,) is the BROADCASTING case: numpy would silently stretch it, so only the shape contract refuses it;

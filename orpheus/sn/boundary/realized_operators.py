@@ -110,6 +110,7 @@ from typing import TYPE_CHECKING, ClassVar, Optional, cast
 import numpy as np
 
 from orpheus.numerics.elementary_operators import PermutationOperator
+from orpheus.numerics.quadrature.ordinate_pairing import MEASURE_RTOL
 from orpheus.numerics.operator import (
     IdentityOperator,
     LinearOperator,
@@ -169,10 +170,6 @@ def _space_content(space: "AngularFaceTraceSpace") -> tuple:
     r"""The content of a half-trace space: its name, shape, ordinate indices and metric weights, as bytes (a space's own ``==`` sees only ``(name, shape)``)."""
     weights = space.inner_product_weights
     return (space.name, space.shape, space.ordinate_indices.tobytes(), b"" if weights is None else np.asarray(weights).tobytes())
-
-
-#: The relative tolerance of the measure-preservation check: the certifier's own (``ordinate_pairing._MEASURE_RTOL``).
-_MEASURE_RTOL: float = 1e-12
 
 
 def _crossing(permutation: "Permutation", outflow: "AngularFaceTraceSpace", inflow: "AngularFaceTraceSpace", owner: str) -> np.ndarray:
@@ -305,16 +302,19 @@ class RealizedBoundary(LinearOperator, ABC):
         r"""The image of a sum of chains: ``a + b`` of two realized faces is a :class:`RealizedSum` (flattened, in order).
 
         The zero map is the identity: its terms drop out, a sum left with one term IS that term, and a sum of zero maps is the zero map.
-        A zero map on another face than the survivors is the same refusal as a sum across faces.
+        Every operand, a zero map included, fills the same face on the same inflow space: a zero map on another face or another
+        discretization is the same refusal as a sum across faces.
         """
         if not isinstance(other, RealizedBoundary):
             return super().__add__(other)  # type: ignore[misc]
         operands = (*_leaves(self), *_leaves(other))
+        if len({term.face for term in operands}) != 1:
+            raise ValueError(f"RealizedBoundary.__add__: the terms fill different faces: {[term.face for term in operands]}")
+        if len({_space_content(term.trace.inflow_space(term.face)) for term in operands}) != 1:
+            raise ValueError("RealizedBoundary.__add__: the terms land on different inflow spaces (different discretizations of the face)")
         survivors = tuple(term for term in operands if not isinstance(term, ZeroMap))
         if not survivors:
             return self
-        if any(term.face != survivors[0].face for term in operands):
-            raise ValueError(f"RealizedBoundary.__add__: the terms fill different faces: {[term.face for term in operands]}")
         return survivors[0] if len(survivors) == 1 else RealizedSum(terms=survivors)
 
     # ── identity: the parameters, never the stored operator ──────────────────────────────────────────
@@ -332,9 +332,9 @@ class RealizedBoundary(LinearOperator, ABC):
         return hash((type(self).__name__, self._key()))
 
 
-def _leaves(op: RealizedBoundary) -> tuple[RealizedBoundary, ...]:
-    r"""The leaf images of ``op``: a :class:`RealizedSum`'s terms, or ``op`` itself."""
-    return op.terms if isinstance(op, RealizedSum) else (op,)
+def _leaves(op: RealizedBoundary) -> "tuple[ZeroMap | ScaledOrdinatePermutation | RankOneReemission, ...]":
+    r"""The leaf images of ``op``: a :class:`RealizedSum`'s terms, or ``op`` itself (the four images are the closed family)."""
+    return cast("tuple[ZeroMap | ScaledOrdinatePermutation | RankOneReemission, ...]", op.terms if isinstance(op, RealizedSum) else (op,))
 
 
 def _spaces_key(op: "ZeroMap | ScaledOrdinatePermutation | RankOneReemission") -> tuple:
@@ -449,7 +449,7 @@ class ScaledOrdinatePermutation(RealizedBoundary):
         local = _crossing(self.permutation, outflow, inflow, owner)
         if outflow.inner_product_weights is not None and inflow.inner_product_weights is not None:
             carried, wanted = np.asarray(outflow.inner_product_weights)[local], np.asarray(inflow.inner_product_weights)
-            if not np.allclose(carried, wanted, rtol=_MEASURE_RTOL, atol=0.0):
+            if not np.allclose(carried, wanted, rtol=MEASURE_RTOL, atol=0.0):
                 raise ValueError(
                     f"{owner}: the pairing does not carry the outflow trace measure onto the inflow trace measure (worst relative gap "
                     f"{float(np.max(np.abs(carried - wanted) / np.abs(wanted))):.3e}), so its return fraction is not alpha = {self.alpha}."

@@ -120,7 +120,7 @@ def test_the_symmetry_is_the_colouring_symmetry() -> None:
     asym, asym_mesh = _material_mesh("slab", (0.0, 1.0, 2.0), (0, 1), left=0, right=0)
     decks, decks_mesh = _material_mesh("slab", (0.0, 1.0, 2.0), (0, 0), left=MirrorDeck(), right=MirrorDeck())
     for carrier, mesh, elements in ((sym, sym_mesh, 2), (asym, asym_mesh, 1), (decks, decks_mesh, 2)):
-        assert isinstance(carrier.symmetry, ColouringSymmetry) and len(carrier.symmetry.elements) == elements, (len(carrier.symmetry.elements), elements)
+        assert isinstance(carrier.symmetry, ColouringSymmetry) and len(carrier.symmetry.elements) == elements, (carrier.symmetry, elements)
         assert carrier.symmetry == mesh.symmetry, "the material mesh and the mesh disagree on the colouring symmetry of one slab"
     radial, _ = _material_mesh("cylinder", (0.0, 1.0, 2.0), (0, 1), outer=0)
     assert isinstance(radial.symmetry, ColouringSymmetry) and len(radial.symmetry.elements) == 1

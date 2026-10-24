@@ -231,37 +231,37 @@ def test_the_pin_has_teeth() -> None:
     class Spec(bc.ResponseRealizer, table=drifted, realizes=bc.SpecularChain):
         status = R_(True)
 
-        def admit(self, unit, weight, site_, space=None):
-            if site_.site_class is bc.SiteClass.RAD_INNER:
+        def admit(self, unit, weight, site, space=None):
+            if site.site_class is bc.SiteClass.RAD_INNER:
                 return R_(True) if weight == 1.0 else Refused(bc.RefusalAxis.PLUMBING, "inner", 511)
             return self.status
 
-        def realize(self, unit, weight, site_, space):
+        def realize(self, unit, weight, site, space):
             raise NotImplementedError
 
     class Diff(bc.ResponseRealizer, table=drifted, realizes=bc.DiffuseChain):
         status = R_(True)
 
-        def admit(self, unit, weight, site_, space=None):
-            return Refused(bc.RefusalAxis.PLUMBING, "inner", 511) if site_.site_class is bc.SiteClass.RAD_INNER else self.status  # RAD_OUTER DRIFTED to admitted
+        def admit(self, unit, weight, site, space=None):
+            return Refused(bc.RefusalAxis.PLUMBING, "inner", 511) if site.site_class is bc.SiteClass.RAD_INNER else self.status  # RAD_OUTER DRIFTED to admitted
 
-        def realize(self, unit, weight, site_, space):
+        def realize(self, unit, weight, site, space):
             raise NotImplementedError
 
     class Zero(bc.ResponseRealizer, table=drifted, realizes=bc.ZeroNetwork):
         status = R_(True)
 
-        def admit(self, unit, weight, site_, space=None):
-            return Refused(bc.RefusalAxis.PLUMBING, "inner", 511) if site_.site_class is bc.SiteClass.RAD_INNER else self.status
+        def admit(self, unit, weight, site, space=None):
+            return Refused(bc.RefusalAxis.PLUMBING, "inner", 511) if site.site_class is bc.SiteClass.RAD_INNER else self.status
 
-        def realize(self, unit, weight, site_, space):
+        def realize(self, unit, weight, site, space):
             raise NotImplementedError
 
     class Src(bc.SourceRealizer, table=drifted):
         status = R_(True)
 
-        def admit(self, terms, site_, space=None):
-            match site_.site_class:
+        def admit(self, terms, site, space=None):
+            match site.site_class:
                 case bc.SiteClass.CART:
                     return self.status
                 case bc.SiteClass.RAD_OUTER:

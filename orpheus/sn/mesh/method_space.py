@@ -98,8 +98,8 @@ class SNMethodSpace:
     #: DEAD WEIGHT, kept until WF2.4: the typed realized operators read their half-spaces off the trace ladder
     #: (``trace.outflow_space(face)``), so this field has no production reader, and :attr:`inflow_indices` is read only by the
     #: ERR-041 cross-check of ``SNZero.realize``, which checks indices the zero map never consumes. Both fields and the guard retire
-    #: together with the ERR-041 catalogue entry and the legacy law tests that still build a method space by hand, which WF2.4 deletes
-    #: (``.claude/plans/wave2_boundary_carve.md`` section 7). Note the pair does NOT partition the face: tangential ordinates
+    #: in WF2.4 with the legacy law tests that still build a method space by hand, and ERR-041's catcher moves onto the trace
+    #: ladder's inflow half-space (``.claude/plans/wave2_boundary_carve.md`` section 7.3, the ERR-041 row). Note the pair does NOT partition the face: tangential ordinates
     #: (:math:`|\Omega\cdot\hat n| \le \epsilon`) belong to neither, so "not inflow" must never be spelled as "outflow".
     outflow_indices: Optional[np.ndarray] = None
 

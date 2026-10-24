@@ -282,10 +282,10 @@ def test_the_response_network_is_a_canonical_form() -> None:
 
     for bad in (FrozenMapping({bc.MirrorPermutation(): 1.0}), FrozenMapping({"specular": 1.0}), FrozenMapping({bc.SpecularChain: 1.0})):
         with pytest.raises(TypeError):
-            bc.ResponseNetwork(bad)
+            bc.ResponseNetwork(bad)  # type: ignore[arg-type]  # the refusal input: a key that is not a chain
     for bad_weight in (float("nan"), float("inf"), True, "0.5"):
         with pytest.raises((TypeError, ValueError)):
-            bc.ResponseNetwork(FrozenMapping({bc.SpecularChain(): bad_weight}))
+            bc.ResponseNetwork(FrozenMapping({bc.SpecularChain(): bad_weight}))  # type: ignore[arg-type]  # the refusal input: a weight that is not a real
     signed = weights(specular=-0.5, diffuse=2.0)
     require(signed.cone_point == (-0.5, 2.0), "a signed network is admitted")
 

@@ -99,12 +99,13 @@ class TestTheRecipeLandsOnTheInflowSlotsOnly:
         refuses it, naming the tier. Run on the face's OUTFLOW half-trace (a real space of the same size, so no shape check
         could tell) with the inflow half-trace as the positive control."""
         sn = _slab()
+        assert sn.mesh is not None
         site = FaceSite("xmin", sn.mesh.coord, 1)
         terms = WallCondition.uniform(1.0).source
         inflow, outflow = sn.angular_trace.inflow_space("xmin"), sn.angular_trace.outflow_space("xmin")
-        np.testing.assert_array_equal(SN_REALIZERS.sample_inflow(terms, site, inflow), 1.0)
+        np.testing.assert_array_equal(SN_REALIZERS.sample_inflow(terms, site, inflow), 1.0)  # type: ignore[arg-type]  # the trace half-space, not the method space
         with pytest.raises(BoundarySourceNotOnIncomingTraceError):
-            SN_REALIZERS.sample_inflow(terms, site, outflow)
+            SN_REALIZERS.sample_inflow(terms, site, outflow)  # type: ignore[arg-type]  # the refusal input: a trace half-space
 
 
 class TestTheContractIsEnforced:
@@ -187,6 +188,7 @@ class TestTheTwoRoutesAgreeByConstruction:
 # ``TestTheTraceDoorsRefuseANonSNCarrier`` (Layer-DAG P3) is RETIRED with its subject (wave 2 S2b): it pinned the typed doors
 # ``from_problem_laws`` / ``prescribed_inflow`` opened on a ``MaterialMesh`` carrier (``TransportMethod.bc`` and
 # ``mesh.angular_trace``), refusing a bare material mesh and a diffusion mesh by name ("owns no angular trace"). ``from_method``
-# takes its parts explicitly (the binding, the trace, the realizer table, the face-site hook) and no carrier, so the doors have no
-# subject: a caller that has no trace has nothing to pass for ``trace``. The diffusion half of the control (``DiffusionMesh``
+# takes the method itself, typed by the structural ``AngularTraceMethod`` protocol (its binding, angular trace, realizer table and
+# face-site hook), so a carrier with no angular trace does not satisfy the parameter's type: the refusal is static, and the doors
+# have no runtime subject. The diffusion half of the control (``DiffusionMesh``
 # owns no angular trace) is slice S3's. ``prescribed_inflow`` keeps its own door, gated by its callers.

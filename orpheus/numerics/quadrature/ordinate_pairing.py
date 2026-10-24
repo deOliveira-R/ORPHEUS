@@ -22,7 +22,7 @@ the single source of "which permutation does a motion induce":
 
   - **measure** (ERR-042): the trace measure :math:`m_n = w_n\,|\mu_{a,n}|`
     satisfies :math:`m_{\pi(n)} = m_n` to relative tolerance
-    :data:`_MEASURE_RTOL`. The matcher compares the bare :math:`w`, not the
+    :data:`MEASURE_RTOL`. The matcher compares the bare :math:`w`, not the
     cosine-weighted one;
   - **involution** (ERR-044): :math:`\pi\circ\pi = \mathrm{id}`. A bijection
     need not be its own inverse;
@@ -42,7 +42,7 @@ disagreeing pair (a reflection about x with ``axis="y"``) is unspellable.
 Twin until S2: the three checks restate those of
 ``orpheus.geometry.boundary._specular`` (``_measure_preserving``,
 ``_involutive``, ``_maps_inflow_to_outflow``), which retire at S2 (row R1 of
-the wave-2 plan); ``_MEASURE_RTOL`` is its constant.
+the wave-2 plan); ``MEASURE_RTOL`` is its constant.
 
 The trace measure reads
 :meth:`~orpheus.numerics.quadrature.Quadrature.mean_axis_cosine`, not
@@ -72,13 +72,14 @@ __all__ = [
     "PairingNotInvolutiveError",
     "PairingNotMeasurePreservingError",
     "QuadratureNotClosedUnderMotionError",
+    "MEASURE_RTOL",
     "ordinate_pairing",
 ]
 
 #: Relative tolerance of the ERR-042 measure check. Partners come from the
 #: same symmetric node/weight sets, so a correct table agrees to a few ULP and
 #: a mispaired weight class violates at O(1).
-_MEASURE_RTOL: float = 1e-12
+MEASURE_RTOL: float = 1e-12
 
 
 class OrdinatePairingError(ValueError):
@@ -183,7 +184,7 @@ def ordinate_pairing(quadrature: "Quadrature", motion: "RigidMotion") -> "Permut
 
     trace_measure = quadrature.weights * np.abs(mu)
     partner_measure = trace_measure[pi]
-    if not np.allclose(partner_measure, trace_measure, rtol=_MEASURE_RTOL, atol=0.0):
+    if not np.allclose(partner_measure, trace_measure, rtol=MEASURE_RTOL, atol=0.0):
         worst = int(np.argmax(np.abs(partner_measure - trace_measure)))
         raise PairingNotMeasurePreservingError(
             f"the pairing about axis {axis!r} does not preserve the "

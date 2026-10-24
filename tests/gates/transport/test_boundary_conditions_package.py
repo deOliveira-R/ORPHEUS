@@ -209,7 +209,7 @@ def test_stamp_boundary_role_is_copied_in() -> None:
     from orpheus.numerics.operator import BlockRole
 
     op = types.SimpleNamespace(block_role=None)
-    stamped = bc.stamp_boundary_role(op)
+    stamped = bc.stamp_boundary_role(op)  # type: ignore[arg-type]  # a duck-typed stand-in operator
     require(stamped is op, "stamp_boundary_role returns the instance it was given")
     require(op.block_role is BlockRole.BOUNDARY, f"the block role is {op.block_role}")
     require(bc.stamp_boundary_role.__module__ == f"{PACKAGE}.realization", "stamp_boundary_role is defined in realization.py")

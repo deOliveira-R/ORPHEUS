@@ -36,9 +36,9 @@ from typing import get_args
 import numpy as np
 import pytest
 
-from orpheus.geometry.colouring import UncomputedSymmetries
+from orpheus.geometry.colouring import Symmetries, UncomputedSymmetries
 from orpheus.geometry.coord import CoordSystem
-from orpheus.geometry.deck import MirrorDeck
+from orpheus.geometry.deck import DeckTransformation, MirrorDeck
 from orpheus.values.content import ContentIdentity, FrozenMapping
 from tests.gates._content_identity_helpers import (
     Entry,
@@ -153,18 +153,24 @@ _BOUNDARY_CONDITIONS = Entry(
     pairs=(
         ("two builds", _declared, _declared),
         ("the order of declaration", _declared, lambda: bc.BoundaryConditions({1: W.white(0.5), 0: W.vacuum()})),
-        ("an np.integer tag", _declared, lambda: bc.BoundaryConditions({np.int64(0): W.vacuum(), 1: W.white(0.5)})),
+        ("an np.integer tag", _declared, lambda: bc.BoundaryConditions({np.int64(0): W.vacuum(), 1: W.white(0.5)})),  # type: ignore[dict-item]
     ),
 )
 
 
-def _binding(**over):
-    parts = dict(
-        decks=FrozenMapping({"xmin": MirrorDeck()}), tags=FrozenMapping({"xmax": 0}), declared=bc.BoundaryConditions({0: W.white(0.5)}),
-        symmetry=slab_mesh({"xmin": MirrorDeck(), "xmax": 0}).symmetry,
+def _binding(
+    *,
+    decks: FrozenMapping[str, DeckTransformation] | None = None,
+    tags: FrozenMapping[str, int] | None = None,
+    declared: bc.BoundaryConditions | None = None,
+    symmetry: Symmetries | None = None,
+):
+    return bc.Binding(
+        decks=decks if decks is not None else FrozenMapping({"xmin": MirrorDeck()}),
+        tags=tags if tags is not None else FrozenMapping({"xmax": 0}),
+        declared=declared if declared is not None else bc.BoundaryConditions({0: W.white(0.5)}),
+        symmetry=symmetry if symmetry is not None else slab_mesh({"xmin": MirrorDeck(), "xmax": 0}).symmetry,
     )
-    parts.update(over)
-    return bc.Binding(**parts)
 
 
 _BINDING = Entry(
@@ -192,10 +198,8 @@ _BINDING = Entry(
 )
 
 
-def _terms(**over):
-    parts = dict(uniform=1.0, sampled=((0.5, bc.FaceFrameInflow(ProfileSampler(2.0))),))
-    parts.update(over)
-    return bc.InflowTerms(**parts)
+def _terms(*, uniform: float = 1.0, sampled: tuple[tuple[float, bc.InflowProfile], ...] | None = None):
+    return bc.InflowTerms(uniform=uniform, sampled=sampled if sampled is not None else ((0.5, bc.FaceFrameInflow(ProfileSampler(2.0))),))
 
 
 _INFLOW_TERMS = Entry(
